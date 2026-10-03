@@ -82,3 +82,57 @@ for (const kind of BUILDS) {
     assert.match(output, /MET012/);
   });
 }
+
+const TYPES_TARBALL = path.join(OUT, 'tarballs/acme-api-types-0.0.0.tgz');
+
+test('@acme/api-types: types only, the marker, the manifest and the pure fns, and no server-only code', () => {
+  const entries = execFileSync('tar', ['-tzf', TYPES_TARBALL], {encoding: 'utf8'}).split('\n').filter(Boolean);
+  for (const shipped of ['package/package.json', 'package/index.d.ts', 'package/mion-api.json', 'package/.mion/api/manifest.json', 'package/mion-pure-fns/index.json']) {
+    assert.ok(entries.includes(shipped), `${shipped} ships`);
+  }
+  const javascript = entries.filter((entry) => entry.endsWith('.js') && !entry.startsWith('package/mion-pure-fns/'));
+  assert.deepEqual(javascript, [], 'no server JavaScript');
+  assert.ok(!entries.includes('package/audit.d.ts') && !entries.includes('package/internal.d.ts'), 'files only server-only code uses stay out');
+  const dts = execFileSync('tar', ['-xzOf', TYPES_TARBALL, 'package/index.d.ts'], {encoding: 'utf8'});
+  for (const serverOnly of ['serverRaw', 'serverAudit', 'AuditLog', 'RawSecret', 'startServer']) {
+    assert.ok(!dts.includes(serverOnly), `${serverOnly} is not published`);
+  }
+  assert.ok(dts.includes('class Product'), 'a type the API reaches stays');
+  const pkg = JSON.parse(execFileSync('tar', ['-xzOf', TYPES_TARBALL, 'package/package.json'], {encoding: 'utf8'}));
+  assert.equal(pkg.main, undefined);
+  assert.deepEqual(pkg.mion, {apiTypes: './mion-api.json'});
+  for (const peer of ['@mionjs/core', '@mionjs/router', '@mionjs/run-types']) assert.ok(pkg.peerDependencies[peer], `${peer} is a peer`);
+  const marker = JSON.parse(execFileSync('tar', ['-xzOf', TYPES_TARBALL, 'package/mion-api.json'], {encoding: 'utf8'}));
+  assert.equal(marker.package, '@acme/api');
+  assert.equal(marker.buildVersion, serverVersion());
+});
+
+for (const name of ['client-types', 'client-types-fetch']) {
+  for (const kind of BUILDS) {
+    test(`${name} (${kind}): builds clean from the types-only package and calls the server`, () => {
+      const {status, output} = build(`${name}-${kind}`);
+      assert.equal(status, 0, output);
+      assert.doesNotMatch(output, /MET01[0-35-6]/);
+      const report = readJson(path.join(OUT, 'types-reports.json'))[name][kind];
+      assert.deepEqual(report.product, {sku: 'ABC-1234', label: null});
+      assert.equal(report.error, null);
+      assert.ok(report.invalid, 'a sku that breaks the published pattern is refused');
+    });
+  }
+}
+
+test('client-types: api-check passes against the manifest the types-only package ships', () => {
+  const {status, output} = build('api-check-types');
+  assert.equal(status, 0, output);
+});
+
+for (const kind of BUILDS) {
+  test(`client-types-nomarker (${kind}): a types-only package without its marker fails with one MET015`, () => {
+    const {status, output} = build(`client-types-nomarker-${kind}`);
+    assert.notEqual(status, 0, output);
+    // the Vite error repeats its first finding, so count distinct messages
+    const met015 = new Set(output.split('\n').filter((line) => line.includes('MET015')).map((line) => line.slice(line.indexOf('MET015'))));
+    assert.equal(met015.size, 1, output);
+    assert.doesNotMatch(output, /MET01[23]/);
+  });
+}

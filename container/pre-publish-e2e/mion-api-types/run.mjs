@@ -1,5 +1,6 @@
-// Proves a client built from its server's published .d.ts checks the server build version. Runs from the mion
-// consumer root (/e2e-mion in the container), which holds the published @mionjs/* plus vite and typescript.
+// Proves a client built from its server's published .d.ts checks the server build version, from the whole server
+// package and from the types-only one `mion api-types` writes. Runs from the mion consumer root (/e2e-mion in the
+// container), which holds the published @mionjs/* plus vite and typescript.
 import {execFileSync, spawn, spawnSync} from 'node:child_process';
 import {cpSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
@@ -42,9 +43,9 @@ function npmInstall(cwd, specs) {
   run('npm', ['install', ...specs, '--no-save', '--registry', REGISTRY, '--no-audit', '--no-fund', '--legacy-peer-deps'], cwd);
 }
 
-function tarballOf(version) {
-  const file = readdirSync(TARBALLS).find((entry) => entry === `acme-api-${version}.tgz`);
-  if (!file) throw new Error(`mion-api-types: no @acme/api@${version} tarball under ${TARBALLS}`);
+function tarballOf(version, name = 'api') {
+  const file = readdirSync(TARBALLS).find((entry) => entry === `acme-${name}-${version}.tgz`);
+  if (!file) throw new Error(`mion-api-types: no @acme/${name}@${version} tarball under ${TARBALLS}`);
   return path.join(TARBALLS, file);
 }
 
@@ -71,12 +72,31 @@ function buildApi() {
   run('npm', ['pack', '--pack-destination', TARBALLS], plain);
 }
 
+function buildApiTypes() {
+  log('@acme/api-types: `mion api-types`, the types-only package a client installs instead of the server');
+  const types = path.join(OUT, 'api-types');
+  run(MION, ['api-types', '--cwd', API, '--tsconfig', 'tsconfig.json', '--out', types], API);
+  run('npm', ['pack', '--pack-destination', TARBALLS], types);
+
+  log('@acme/api-types@0.0.1-nomarker: the same package without its marker, as another tool would publish it');
+  const noMarker = path.join(OUT, 'api-types-nomarker');
+  cpSync(types, noMarker, {recursive: true});
+  rmSync(path.join(noMarker, 'mion-api.json'));
+  const manifestFile = path.join(noMarker, 'package.json');
+  writeFileSync(manifestFile, JSON.stringify({...JSON.parse(readFileSync(manifestFile, 'utf8')), version: '0.0.1-nomarker'}, null, 2));
+  run('npm', ['pack', '--pack-destination', TARBALLS], noMarker);
+}
+
 // A copy of the client source, so each variant installs its own tarball and keeps its own outputs.
-// overlay's files replace the client's own (the fetching main.ts).
-function clientCopy(name, tsconfigEdit, overlay) {
+// overlay's files replace the client's own (the fetching main.ts); typesOnly points the import at @acme/api-types.
+function clientCopy(name, tsconfigEdit, overlay, typesOnly = false) {
   const dir = path.join(OUT, name);
   cpSync(CLIENT, dir, {recursive: true, filter: (from) => !/[/\\](dist-vite|dist-cli|node_modules|\.mion|\.mion-cli)$/.test(from)});
   if (overlay) cpSync(overlay, dir, {recursive: true});
+  if (typesOnly) {
+    const main = path.join(dir, 'src/main.ts');
+    writeFileSync(main, readFileSync(main, 'utf8').replace("from '@acme/api'", "from '@acme/api-types'"));
+  }
   if (tsconfigEdit) {
     const file = path.join(dir, 'tsconfig.json');
     const tsconfig = JSON.parse(readFileSync(file, 'utf8'));
@@ -131,6 +151,7 @@ async function withServer(cwd, body) {
 async function main() {
   clean();
   buildApi();
+  buildApiTypes();
 
   log('client: built from the @acme/api tarball with the Vite preset and with `mion compile`, then run against it');
   const matching = buildClient('client', CLIENT, tarballOf('0.0.0'));
@@ -154,6 +175,28 @@ async function main() {
     cli: runClient(path.join(fetchDir, 'dist-cli/main.js'), fetchDir),
   }));
   writeFileSync(path.join(OUT, 'fetch-reports.json'), JSON.stringify(fetchReports, null, 2));
+
+  log('client-types: the bundling and the fetching client built from @acme/api-types, run against the server');
+  // The server keeps running from CLIENT's @acme/api: a types client never installs it, so its build cannot reach it.
+  const typesBuilds = {};
+  const typesReports = {};
+  for (const [name, routes, overlay] of [['client-types', 'bundle'], ['client-types-fetch', 'fetch', CLIENT_FETCH]]) {
+    const dir = clientCopy(name, undefined, overlay, true);
+    const built = buildClient(name, dir, tarballOf('0.0.0', 'api-types'), routes);
+    if (built.vite.status !== 0) throw new Error(`mion-api-types: ${name}'s Vite build failed:\n${built.vite.output}`);
+    if (built.cli.status !== 0) throw new Error(`mion-api-types: ${name}'s mion compile failed:\n${built.cli.output}`);
+    typesBuilds[name] = dir;
+    typesReports[name] = await withServer(CLIENT, async () => ({
+      vite: runClient(path.join(dir, 'dist-vite/main.js'), dir),
+      cli: runClient(path.join(dir, 'dist-cli/main.js'), dir),
+    }));
+  }
+  writeFileSync(path.join(OUT, 'types-reports.json'), JSON.stringify(typesReports, null, 2));
+  const typesCheck = capture(MION, ['api-check', '--server-gen-dir', 'node_modules/@acme/api-types/.mion', '--client-gen-dir', '.mion-cli'], typesBuilds['client-types']);
+  writeFileSync(path.join(OUT, 'api-check-types.json'), JSON.stringify(typesCheck, null, 2));
+
+  log('client-types-nomarker: the types-only package without its marker; both builds must fail with one MET015');
+  buildClient('client-types-nomarker', clientCopy('client-types-nomarker', undefined, undefined, true), tarballOf('0.0.1-nomarker', 'api-types'));
 
   log('client-plain: the same client against the plain tsc tarball; both builds pass with a warning');
   buildClient('client-plain', clientCopy('client-plain'), tarballOf('0.0.1-plain'));
