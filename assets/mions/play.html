@@ -121,13 +121,23 @@ async function actor(src, unit, maxScale = 1, spotsEvery = 0) {
 }
 
 // ---- the sky -------------------------------------------------------------------------------------
-for (const src of ['sky/stars.svg', 'sky/pebbles.svg']) { const a = await actor(src, 1); a.root.position.set(500, 1000); sky.addChild(a.root); }
-const twinkles = [];
-for (let i = 0; i < 70; i++) {
-  const g = new PIXI.Graphics().star(0, 0, 4, rand(2, 4.5), 0.8).fill({ color: pick([0xffffff, 0xcfe3ff, 0xffe6c4]) });
-  g.position.set(rand(W0, W0 + VIEW_W), rand(H0, H0 + VIEW_H)); g.phase = rand(0, 6.28); g.speed = rand(0.6, 1.6);
-  sky.addChild(g); twinkles.push(g);
+// the star and pebble layers tile well past the window on every side, every other tile mirrored so the repeat is hard to spot
+for (const src of ['sky/stars.svg', 'sky/pebbles.svg']) for (let ty = -2; ty <= 2; ty++) for (let tx = -2; tx <= 3; tx++) {
+  const a = await actor(src, 1);
+  a.root.position.set(500 + tx * 1000, 1000 + ty * 1000);
+  if ((tx + ty) % 2) a.root.scale.x = -1;
+  sky.addChild(a.root);
 }
+// twinkles sit in screen space, spread over the whole window whatever its shape
+const twinkleLayer = new PIXI.Container(), twinkles = [];
+app.stage.addChildAt(twinkleLayer, 1);
+for (let i = 0; i < 140; i++) {
+  const g = new PIXI.Graphics().star(0, 0, 4, rand(1.5, 3.5), 0.6).fill({ color: pick([0xffffff, 0xcfe3ff, 0xffe6c4]) });
+  Object.assign(g, { fx: Math.random(), fy: Math.random(), phase: rand(0, 6.28), speed: rand(0.6, 1.6) });
+  twinkleLayer.addChild(g); twinkles.push(g);
+}
+const spread = () => { for (const g of twinkles) g.position.set(g.fx * innerWidth, g.fy * innerHeight); };
+spread(); addEventListener('resize', spread);
 
 // ---- island and the terrain carousel -------------------------------------------------------
 const place = (a, left, top, width) => a.root.position.set(left + (a.L.anchor.x - a.L.full.x) * width / a.L.full.w, top + (a.L.anchor.y - a.L.full.y) * width / a.L.full.w);
@@ -265,20 +275,20 @@ app.ticker.add(t => {
 
 // ---- sound: all made with Web Audio, so there are no audio files -----------------------------------
 const sound = { ctx: null, on: false };
-const PENTA = [0, 2, 4, 7, 9];   // major pentatonic steps: any two notes sound fine together
+const PENTA = [0, 3, 5, 7, 10];   // D minor pentatonic, so every boing fits the music
 const hz = semis => 146.83 * 2 ** (semis / 12);   // semitones above D3
 const hash = text => [...text].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
 function startSound() {
   const ctx = sound.ctx = new AudioContext();
   sound.master = ctx.createGain(); sound.master.gain.value = 0.7; sound.master.connect(ctx.destination);
-  // a soft hall from a decaying noise burst, shared by the pad, the chimes and every landing
+  // a soft hall from a decaying noise burst, shared by the music and every sound
   const len = ctx.sampleRate * 2.6, impulse = ctx.createBuffer(2, len, ctx.sampleRate);
   for (let c = 0; c < 2; c++) { const d = impulse.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len) ** 3; }
   sound.hall = ctx.createConvolver(); sound.hall.buffer = impulse;
   const wet = ctx.createGain(); wet.gain.value = 0.32; sound.hall.connect(wet).connect(sound.master);
   sound.noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
   const n = sound.noise.getChannelData(0); for (let i = 0; i < n.length; i++) n[i] = Math.random() * 2 - 1;
-  pad(); chimes();
+  music();
 }
 const out = (pan = 0, dry = 1, wet = 0.5) => {   // a gain that goes to the speakers and, a little, to the hall
   const { ctx } = sound, g = ctx.createGain(), p = ctx.createStereoPanner();
@@ -300,34 +310,54 @@ const hiss = (dest, type, freq, q, t, len, peak) => {
   g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
   s.connect(f).connect(g).connect(dest); s.start(t, Math.random() * 0.5); s.stop(t + len + 0.05);
 };
-// the background: three soft voices that glide to a new chord every few seconds through a slowly breathing filter
-function pad() {
-  const { ctx } = sound, filter = ctx.createBiquadFilter(), level = ctx.createGain();
-  filter.type = 'lowpass'; filter.frequency.value = 700; filter.Q.value = 0.7;
-  level.gain.value = 0; level.gain.linearRampToValueAtTime(0.11, ctx.currentTime + 4);
-  const dest = out(0, 0.8, 0.9); filter.connect(level).connect(dest);
-  const lfo = ctx.createOscillator(), depth = ctx.createGain();
-  lfo.frequency.value = 0.07; depth.gain.value = 380; lfo.connect(depth).connect(filter.frequency); lfo.start();
-  const chords = [[-12, -5, 4], [-15, -8, 2], [-19, -12, -1], [-10, -3, 7]];
-  const voices = chords[0].map(st => [-6, 6].map(cents => {
-    const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = hz(st); o.detune.value = cents;
-    o.connect(filter); o.start(); return o;
-  }));
-  let k = 0;
-  setInterval(() => {
-    k = (k + 1) % chords.length;
-    chords[k].forEach((st, i) => voices[i].forEach(o => o.frequency.setTargetAtTime(hz(st), ctx.currentTime, 1.4)));
-  }, 7000);
-}
-function chimes() {   // now and then a glassy note high up, far away in the hall
-  const { ctx } = sound;
-  const ring = () => {
-    const t = ctx.currentTime, f = hz(24 + PENTA[Math.floor(Math.random() * 5)] + 12 * Math.floor(Math.random() * 2));
-    const dest = out(rand(-0.7, 0.7), 0.25, 1.2);
-    tone(dest, 'sine', f, f, t, 2.4, 0.05, 0.02); tone(dest, 'sine', f * 2.01, f * 2.01, t, 1.2, 0.015, 0.02);
-    setTimeout(ring, rand(2500, 7000));
+// the background: an original space-arcade loop in D minor at 112 beats a minute, scheduled a little ahead of the clock
+// bars run Dm, Bb, F, C; bass, a 16th-note arpeggio with echo, string swells and light drums, and every other pass a brass melody
+function music() {
+  const { ctx } = sound, BEAT = 60 / 112, STEP = BEAT / 4;
+  const bus = out(0, 1, 0.35); bus.gain.setValueAtTime(0, ctx.currentTime); bus.gain.linearRampToValueAtTime(0.55, ctx.currentTime + 3);
+  const echo = ctx.createDelay(1), feedback = ctx.createGain(), echoLevel = ctx.createGain();
+  echo.delayTime.value = BEAT * 0.75; feedback.gain.value = 0.35; echoLevel.gain.value = 0.4;
+  echo.connect(feedback).connect(echo); echo.connect(echoLevel).connect(bus);
+  const CHORDS = [[0, 3, 7], [-4, 0, 3], [3, 7, 10], [-2, 2, 5]];   // semitones above D3
+  const LEAD = [   // [step in bar, semitones, length in steps]
+    [[0, 12, 6], [6, 19, 2], [8, 19, 4], [12, 17, 2], [14, 15, 2]],
+    [[0, 17, 4], [4, 15, 2], [6, 14, 2], [8, 12, 8]],
+    [[0, 15, 4], [4, 19, 4], [8, 24, 6], [14, 22, 2]],
+    [[0, 22, 4], [4, 19, 4], [8, 17, 4], [12, 14, 4]],
+  ];
+  const voice = (dest, type, semis, t, len, peak, attack, cutoff, detunes = [0]) => {
+    const f = ctx.createBiquadFilter(), g = ctx.createGain();
+    f.type = 'lowpass'; f.frequency.value = cutoff; f.Q.value = 1;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak, t + attack);
+    g.gain.setValueAtTime(peak, t + Math.max(attack, len * 0.7)); g.gain.linearRampToValueAtTime(0, t + len);
+    f.connect(g).connect(dest);
+    for (const cents of detunes) { const o = ctx.createOscillator(); o.type = type; o.frequency.value = hz(semis); o.detune.value = cents; o.connect(f); o.start(t); o.stop(t + len + 0.05); }
   };
-  setTimeout(ring, 2000);
+  const drum = (kind, t) => {
+    if (kind === 'kick') tone(bus, 'sine', 150, 42, t, 0.22, 0.5, 0.004);
+    if (kind === 'snare') { hiss(bus, 'bandpass', 1900, 0.7, t, 0.16, 0.16); tone(bus, 'triangle', 200, 140, t, 0.08, 0.08); }
+    if (kind === 'hat') hiss(bus, 'highpass', 7500, 0.7, t, 0.035, 0.035);
+  };
+  const play = (n, t) => {
+    const bar = Math.floor(n / 16) % 4, at = n % 16, loop = Math.floor(n / 64), chord = CHORDS[bar];
+    if (at === 0) {
+      voice(bus, 'sawtooth', chord[0], t, BEAT * 4, 0.035, BEAT * 1.2, 1600, [-9, 9]);   // strings swell on every bar
+      voice(bus, 'sawtooth', chord[1], t, BEAT * 4, 0.03, BEAT * 1.2, 1600, [-7, 7]);
+      voice(bus, 'sawtooth', chord[2] + 12, t, BEAT * 4, 0.025, BEAT * 1.2, 1600, [-5, 5]);
+    }
+    if (at % 2 === 0) voice(bus, 'square', chord[0] - 12 + (at % 8 === 6 ? 12 : 0), t, STEP * 1.8, 0.09, 0.005, 420);   // driving bass
+    const k = at % 6, arp = chord[k % 3] + 12 * (1 + Math.floor(k / 3));
+    voice(echo, 'square', arp, t, STEP * 0.9, 0.035, 0.003, 2600); voice(bus, 'square', arp, t, STEP * 0.9, 0.03, 0.003, 2600);
+    if (loop > 0 && loop % 2 === 1) for (const [step, semis, len] of LEAD[bar]) if (step === at) {
+      voice(bus, 'sawtooth', semis, t, STEP * len, 0.06, 0.03, 2200, [-6, 6]);   // brass-like lead
+      voice(echo, 'sawtooth', semis, t, STEP * len, 0.025, 0.03, 2200);
+    }
+    if (at === 0 || at === 8 || (at === 10 && bar === 3)) drum('kick', t);
+    if (at === 4 || at === 12) drum('snare', t);
+    if (at % 2 === 0) drum('hat', t);
+  };
+  let n = 0, next = ctx.currentTime + 0.2;
+  setInterval(() => { while (next < ctx.currentTime + 0.15) { play(n++, next); next += STEP; } }, 25);
 }
 // each mion's own boing: smaller mions sing higher, and the name picks the tone colour and how far the pitch springs
 const voiceOf = m => m.voice ??= (() => {
