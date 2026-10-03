@@ -1,8 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 157 116" width="157" height="116">
-  <defs><clipPath id="mound-sand-cream-top-clip"><path d="M73 37Q80 34 87 37L128 57Q134 60 128 63L83 82Q76 85 70 82L29 62Q22 59 29 56Z"/></clipPath></defs>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 157 124" width="157" height="124">
+  <defs>
+    <path id="mound-sand-cream-outline" d="M73 37Q80 34 87 37L128 57Q134 60 134 61L134 67Q134 68 128 71L83 90Q76 93 70 90L29 70Q22 67 22 66L22 60Q22 59 29 56Z"/>
+    <clipPath id="mound-sand-cream-top-clip"><path d="M73 37Q80 34 87 37L128 57Q134 60 128 63L83 82Q76 85 70 82L29 62Q22 59 29 56Z"/></clipPath>
+    <filter id="mound-sand-cream-shadow-blur" x="-20%" y="-40%" width="140%" height="180%"><feGaussianBlur stdDeviation="5"/></filter>
+  </defs>
   <g id="mound-sand-cream">
+  <use id="mound-sand-cream-shadow" href="#mound-sand-cream-outline" fill="#000" opacity="0.75" transform="translate(0 16)" filter="url(#mound-sand-cream-shadow-blur)"/>
   <g id="mound-sand-cream-tile">
-    <path fill="#ada897" d="M73 37Q80 34 87 37L128 57Q134 60 134 61L134 67Q134 68 128 71L83 90Q76 93 70 90L29 70Q22 67 22 66L22 60Q22 59 29 56Z"/>
+    <use href="#mound-sand-cream-outline" fill="#ada897"/>
     <path fill="#bcb5a3" d="M76 86Q76 85 83 82L128 63Q134 60 134 61L134 67Q134 68 128 71L83 90Q76 93 76 92Z"/>
     <path fill="#edd6ac" d="M73 37Q80 34 87 37L128 57Q134 60 128 63L83 82Q76 85 70 82L29 62Q22 59 29 56Z"/>
     <path fill="#efdab5" d="M70 39Q78 36 85 39L117 54Q125 58 117 61L83 76Q75 79 67 76L35 61Q28 57 36 54Z" clip-path="url(#mound-sand-cream-top-clip)"/>

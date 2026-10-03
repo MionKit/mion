@@ -1,8 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 320" width="400" height="320">
-  <defs><clipPath id="mountain-orange-top-clip"><path d="M184 95Q208 82 231 95L374 180Q396 193 372 206L218 288Q194 301 171 288L28 203Q6 190 30 177Z"/></clipPath></defs>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <path id="mountain-orange-outline" d="M184 95Q208 82 231 95L374 180Q396 193 396 194L396 202Q396 203 372 216L218 298Q194 311 171 298L28 213Q6 200 6 199L6 191Q6 190 30 177Z"/>
+    <clipPath id="mountain-orange-top-clip"><path d="M184 95Q208 82 231 95L374 180Q396 193 372 206L218 288Q194 301 171 288L28 203Q6 190 30 177Z"/></clipPath>
+    <filter id="mountain-orange-shadow-blur" x="-20%" y="-40%" width="140%" height="180%"><feGaussianBlur stdDeviation="14"/></filter>
+  </defs>
   <g id="mountain-orange">
+  <use id="mountain-orange-shadow" href="#mountain-orange-outline" fill="#000" opacity="0.75" transform="translate(0 47)" filter="url(#mountain-orange-shadow-blur)"/>
   <g id="mountain-orange-tile">
-    <path fill="#a95030" d="M184 95Q208 82 231 95L374 180Q396 193 396 194L396 202Q396 203 372 216L218 298Q194 311 171 298L28 213Q6 200 6 199L6 191Q6 190 30 177Z"/>
+    <use href="#mountain-orange-outline" fill="#a95030"/>
     <path fill="#9b5a3d" d="M194 302Q194 301 218 288L372 206Q396 193 396 194L396 202Q396 203 372 216L218 298Q194 311 194 310Z"/>
     <path fill="#924341" d="M184 95Q208 82 231 95L374 180Q396 193 372 206L218 288Q194 301 171 288L28 203Q6 190 30 177Z"/>
     <path fill="#9f5957" d="M177 110Q205 95 231 111L341 176Q367 191 339 206L221 269Q193 284 167 268L57 203Q31 188 59 173Z" clip-path="url(#mountain-orange-top-clip)"/>

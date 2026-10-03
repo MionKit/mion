@@ -1,8 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 170 131" width="170" height="131">
-  <defs><clipPath id="block-blue-top-clip"><path d="M82 31Q90 26 97 30L141 55Q148 58 140 63L87 93Q79 98 72 94L28 69Q20 65 29 60Z"/></clipPath></defs>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 170 140" width="170" height="140">
+  <defs>
+    <path id="block-blue-outline" d="M82 31Q90 26 97 30L141 55Q148 58 148 60L148 69Q148 70 140 75L87 105Q79 110 72 106L28 81Q20 77 20 75L20 66Q20 65 29 60Z"/>
+    <clipPath id="block-blue-top-clip"><path d="M82 31Q90 26 97 30L141 55Q148 58 140 63L87 93Q79 98 72 94L28 69Q20 65 29 60Z"/></clipPath>
+    <filter id="block-blue-shadow-blur" x="-20%" y="-40%" width="140%" height="180%"><feGaussianBlur stdDeviation="5"/></filter>
+  </defs>
   <g id="block-blue">
+  <use id="block-blue-shadow" href="#block-blue-outline" fill="#000" opacity="0.75" transform="translate(0 16)" filter="url(#block-blue-shadow-blur)"/>
   <g id="block-blue-tile">
-    <path fill="#4e6f91" d="M82 31Q90 26 97 30L141 55Q148 58 148 60L148 69Q148 70 140 75L87 105Q79 110 72 106L28 81Q20 77 20 75L20 66Q20 65 29 60Z"/>
+    <use href="#block-blue-outline" fill="#4e6f91"/>
     <path fill="#557698" d="M79 99Q79 98 87 93L140 63Q148 58 148 60L148 69Q148 70 140 75L87 105Q79 110 79 108Z"/>
     <path fill="#334c6c" d="M82 31Q90 26 97 30L141 55Q148 58 140 63L87 93Q79 98 72 94L28 69Q20 65 29 60Z"/>
     <path fill="#4b617d" d="M78 34Q87 29 95 33L129 52Q138 57 128 62L87 85Q78 91 70 86L36 67Q27 63 37 57Z" clip-path="url(#block-blue-top-clip)"/>

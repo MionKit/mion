@@ -1,8 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 141 114" width="141" height="114">
-  <defs><clipPath id="mound-sand-small-top-clip"><path d="M67 43Q74 40 79 43L113 59Q118 62 112 64L72 81Q66 84 61 81L26 65Q21 62 27 60Z"/></clipPath></defs>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 141 123" width="141" height="123">
+  <defs>
+    <path id="mound-sand-small-outline" d="M67 43Q74 40 79 43L113 59Q118 62 118 62L118 69Q118 70 112 72L72 89Q66 92 61 89L26 73Q21 70 21 70L21 63Q21 62 27 60Z"/>
+    <clipPath id="mound-sand-small-top-clip"><path d="M67 43Q74 40 79 43L113 59Q118 62 112 64L72 81Q66 84 61 81L26 65Q21 62 27 60Z"/></clipPath>
+    <filter id="mound-sand-small-shadow-blur" x="-20%" y="-40%" width="140%" height="180%"><feGaussianBlur stdDeviation="5"/></filter>
+  </defs>
   <g id="mound-sand-small">
+  <use id="mound-sand-small-shadow" href="#mound-sand-small-outline" fill="#000" opacity="0.75" transform="translate(0 16)" filter="url(#mound-sand-small-shadow-blur)"/>
   <g id="mound-sand-small-tile">
-    <path fill="#b1b0a0" d="M67 43Q74 40 79 43L113 59Q118 62 118 62L118 69Q118 70 112 72L72 89Q66 92 61 89L26 73Q21 70 21 70L21 63Q21 62 27 60Z"/>
+    <use href="#mound-sand-small-outline" fill="#b1b0a0"/>
     <path fill="#938986" d="M66 85Q66 84 72 81L112 64Q118 62 118 62L118 69Q118 70 112 72L72 89Q66 92 66 91Z"/>
     <path fill="#f8d192" d="M67 43Q74 40 79 43L113 59Q118 62 112 64L72 81Q66 84 61 81L26 65Q21 62 27 60Z"/>
     <path fill="#f8d69f" d="M64 44Q71 41 77 44L103 57Q110 60 102 63L72 76Q65 79 58 76L32 63Q26 60 33 57Z" clip-path="url(#mound-sand-small-top-clip)"/>

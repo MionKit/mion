@@ -180,12 +180,19 @@ def slab_part():  # a smaller tile stacked on the first, raised so its back corn
   </g>'''
 
 h, w = fg.shape
-h = max(h, int(B[1]) + 6 * UP)   # a tall block can reach past the crop
+SHADOW_DROP = round(max(16, (R[0] - L[0]) / UP * 0.12))   # bigger pieces float higher above their shadow, in px
+SHADOW_BLUR = round(SHADOW_DROP * 0.3)
+h = max(h, int(B[1]) + (SHADOW_DROP + 3 * SHADOW_BLUR) * UP)   # room for a tall block and the shadow under it
 svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w // UP} {h // UP}" width="{w // UP}" height="{h // UP}">
-  <defs><clipPath id="{name}-top-clip"><path d="{top_face}"/></clipPath></defs>
+  <defs>
+    <path id="{name}-outline" d="{tile_shape}"/>
+    <clipPath id="{name}-top-clip"><path d="{top_face}"/></clipPath>
+    <filter id="{name}-shadow-blur" x="-20%" y="-40%" width="140%" height="180%"><feGaussianBlur stdDeviation="{SHADOW_BLUR}"/></filter>
+  </defs>
   <g id="{name}">
+  <use id="{name}-shadow" href="#{name}-outline" fill="#000" opacity="0.75" transform="translate(0 {SHADOW_DROP})" filter="url(#{name}-shadow-blur)"/>
   <g id="{name}-tile">
-    <path fill="{hexc(left_col)}" d="{tile_shape}"/>
+    <use href="#{name}-outline" fill="{hexc(left_col)}"/>
     <path fill="{hexc(right_col)}" d="{right_face}"/>
     <path fill="{hexc(top_col)}" d="{top_face}"/>
     <path fill="{hexc(lighter(top_col, 0.12))}" d="{top_inset}" clip-path="url(#{name}-top-clip)"/>
@@ -194,4 +201,4 @@ svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w // UP} {h // U
 </svg>
 '''
 open(out, 'w').write(svg)
-print(name, f'depth ratio {(Bf[1] - (L[1] + R[1]) / 2) / ((R[0] - L[0]) / 2):.2f}', f't{t / UP:.1f}', f'{len(svg) / 1024:.1f} KB')
+print(name, f'shadow {SHADOW_DROP}', f'depth ratio {(Bf[1] - (L[1] + R[1]) / 2) / ((R[0] - L[0]) / 2):.2f}', f't{t / UP:.1f}', f'{len(svg) / 1024:.1f} KB')
