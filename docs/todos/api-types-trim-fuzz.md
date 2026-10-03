@@ -1,13 +1,11 @@
 ---
 type: chore
 spec: guidelines
-status: blocked
+status: ready
 created: 2026-10-03
 ---
 
 # Fuzz the api-types trimmer: ship everything the API reaches, nothing else
-
-Blocked until MionKit/mion#448 (the `mion api-types` command) is on main.
 
 ## Intent
 
