@@ -141,7 +141,13 @@
    1477,
    798
   ],
-  "tones": 7
+  "parts": "horn_blob",
+  "trace": false,
+  "shadow": [
+   82,
+   180,
+   56
+  ]
  },
  "grub": {
   "crop": [
