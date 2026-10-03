@@ -22,7 +22,7 @@
 // The mions hop between floating terrain pieces that circle the island, drawn on the graphics chip with PixiJS and moved with GSAP.
 // The svg files are only read: each one is cut into layers here (shadow, body, eye whites, pupils), so the assets stay as they are.
 
-const W0 = -150, H0 = 110, VIEW_W = 1360, VIEW_H = 900;   // the part of the scene (half-size reference pixels) that fits the window
+const W0 = -230, H0 = 80, VIEW_W = 1520, VIEW_H = 960;   // the part of the scene (half-size reference pixels) that fits the window
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = list => list[Math.floor(Math.random() * list.length)];
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -152,7 +152,7 @@ const KINDS = ['mountain-orange', 'mountain-orange-low', 'cone-yellow-teal', 'co
   'tile-teal-light', 'mound-sand-small', 'cone-cream', 'tile-teal', 'mound-orange'];
 // mountains stay near their own size, small tiles grow enough to hold a mion
 const sizeFor = kind => kind.startsWith('mountain') ? rand(0.75, 1.15) : /tile|block/.test(kind) ? rand(1.3, 2.3) : rand(1.1, 1.9);
-const rings = [{ count: 12, rx: 610, ry: 330, speed: 0.035 }, { count: 9, rx: 790, ry: 440, speed: 0.022 }];
+const rings = [{ count: 12, rx: 700, ry: 385, speed: 0.035 }, { count: 9, rx: 880, ry: 490, speed: 0.022 }];
 const pieces = [];
 for (const [r, ring] of rings.entries()) for (let i = 0; i < ring.count; i++) {
   const kind = KINDS[(i * 5 + r * 7) % KINDS.length];
