@@ -195,7 +195,9 @@ func addDataEntry(graph entrymodules.Graph, module, export string, rows []string
 	for i, imported := range imports {
 		deps[i] = imported + moduleKeySeparator + dataEntryName
 	}
-	tupleKey := "rts_" + hashid.QuickHash(strings.Join(keyParts, ","), bundleKeyLength)
+	// The imports join the key: the runtime skips a key it has seen, so two files owning no rows of their own
+	// must still differ by the shared modules they load.
+	tupleKey := "rts_" + hashid.QuickHash(strings.Join(keyParts, ",")+">"+strings.Join(imports, ","), bundleKeyLength)
 	graph.Add(&entrymodules.Entry{
 		Key:      module + moduleKeySeparator + dataEntryName,
 		Kind:     entrymodules.KindRunTypeBundle,
