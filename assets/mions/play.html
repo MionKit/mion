@@ -126,24 +126,20 @@ for (let i = 0; i < 70; i++) {
   sky.addChild(g); twinkles.push(g);
 }
 
-// ---- island, tree and the terrain carousel -------------------------------------------------------
+// ---- island and the terrain carousel -------------------------------------------------------
 const place = (a, left, top, width) => a.root.position.set(left + (a.L.anchor.x - a.L.full.x) * width / a.L.full.w, top + (a.L.anchor.y - a.L.full.y) * width / a.L.full.w);
 const island = await actor('terrain/grass-island.svg', 946 / 600, 1, 34);
 place(island, 57, 307, 946); world.addChild(island.root);
 const toWorld = (a, p) => ({ x: a.root.x + (p.x - a.L.anchor.x) * a.root.scale.x, y: a.root.y + (p.y - a.L.anchor.y + a.body.y) * a.root.scale.y });
 island.root.zIndex = toWorld(island, island.L.top).y + 20;
-const tree = await actor('terrain/tree-mushroom.svg', 0.5);
-place(tree, 390, 220, 310); world.addChild(tree.root);
-tree.root.zIndex = tree.root.y - 20;
-const trunk = { x: tree.root.x - 10, y: tree.root.y - 25 };
-const islandSpots = island.L.spots.map(p => toWorld(island, p)).filter(p => ((p.x - trunk.x) / 120) ** 2 + ((p.y - trunk.y) / 70) ** 2 > 1);
+const islandSpots = island.L.spots.map(p => toWorld(island, p));
 const centre = toWorld(island, { x: island.L.top.x + island.L.top.w / 2, y: island.L.top.y + island.L.top.h / 2 });
 
 const KINDS = ['mountain-orange', 'mountain-orange-low', 'cone-yellow-teal', 'cone-small-teal', 'mound-sand-cream', 'block-blue', 'block-slate',
   'tile-teal-light', 'mound-sand-small', 'cone-cream', 'tile-teal', 'mound-orange'];
 // mountains stay near their own size, small tiles grow enough to hold a mion
 const sizeFor = kind => kind.startsWith('mountain') ? rand(0.75, 1.15) : /tile|block/.test(kind) ? rand(1.3, 2.3) : rand(1.1, 1.9);
-const rings = [{ count: 12, rx: 610, ry: 330, speed: 0.035 }, { count: 9, rx: 790, ry: 440, speed: 0.022 }];
+const rings = [{ count: 11, rx: 610, ry: 330, speed: 0.035 }, { count: 9, rx: 790, ry: 440, speed: 0.022 }];
 const pieces = [];
 for (const [r, ring] of rings.entries()) for (let i = 0; i < ring.count; i++) {
   const kind = KINDS[(i * 5 + r * 7) % KINDS.length];
@@ -153,15 +149,23 @@ for (const [r, ring] of rings.entries()) for (let i = 0; i < ring.count; i++) {
   // tiles take a mion in the middle of their top, cones and mounds on the strip in front of the peak
   const t = a.L.top, flat = /tile|block/.test(kind);
   const spot = { x: t.x + t.w / 2, y: t.y + t.h * (flat ? 0.5 : 0.8) };
-  Object.assign(a, { kind, ring, angle: (i / ring.count) * Math.PI * 2 + r * 0.3 + rand(-0.12, 0.12), wobble: rand(0.92, 1.08), phase: rand(0, 6.28), spot, holder: null });
+  Object.assign(a, { kind, ring, angle: (i / (ring.count + 1 - r)) * Math.PI * 2 + r * 0.3 + rand(-0.12, 0.12), wobble: rand(0.92, 1.08), phase: rand(0, 6.28), slots: [{ ...spot, holder: null }] });
   world.addChild(a.root); pieces.push(a);
 }
-const roomy = p => p.L.top.w * p.root.scale.x > 34;
+// the mushroom tree floats with the rest in the gap left in the inner ring; its cap holds two mions
+const tree = await actor('terrain/tree-mushroom.svg', 0.5 * 0.8);
+const treeShadow = new PIXI.Graphics().ellipse(0, 0, 150, 34).fill({ color: 0x000000, alpha: 0.55 });
+treeShadow.filters = [new PIXI.BlurFilter({ strength: 8 })]; treeShadow.y = 4;
+tree.root.addChildAt(treeShadow, 0);
+Object.assign(tree, { kind: 'tree', ring: rings[0], angle: (11 / 12) * Math.PI * 2, wobble: 1, phase: rand(0, 6.28), slots: [{ x: 292, y: 112, holder: null }, { x: 352, y: 104, holder: null }] });
+world.addChild(tree.root); pieces.push(tree);
+const roomy = p => p.kind === 'tree' || p.L.top.w * p.root.scale.x > 34;
+const empty = p => p.slots.every(slot => !slot.holder);
 
 // every few seconds an empty piece pops to a new size
 (async () => { for (;;) {
   await wait(rand(1.5, 3.5));
-  const p = pick(pieces.filter(p => !p.holder && !p.popping));
+  const p = pick(pieces.filter(p => p.kind !== 'tree' && empty(p) && !p.popping));
   if (!p) continue;
   p.popping = true;
   const size = sizeFor(p.kind);
@@ -177,13 +181,11 @@ const MIONS = [
   ['plant-mion', 0, 400, 110], ['worm', 355, 455, 87.5], ['seal', 670, 445, 100], ['pig', 225, 495, 110], ['red-ball', 800, 515, 95],
   ['horned-ghost-v2', 350, 530, 137], ['grub', 757, 572.5, 58], ['crawler', 615, 585, 135], ['teal-hood', 485, 650, 80], ['beanie', 429, 675.5, 58],
 ];
-const cap = { x: 571, y: 264, holder: null };     // the top of the tree's cap: room for one
 const mions = [];
 const onIsland = [];
 const where = m => {   // a mion's ground spot right now, and its drawing depth
   const at = m.at;
-  if (at.piece) { const p = toWorld(at.piece, at.piece.spot); return { ...p, z: at.piece.root.zIndex + 0.5 }; }
-  if (at.cap) return { x: cap.x, y: cap.y, z: tree.root.zIndex + 1 };
+  if (at.piece) { const p = toWorld(at.piece, at.slot); return { ...p, z: at.piece.root.zIndex + 0.5 }; }
   return { x: at.x, y: at.y, z: Math.max(at.y, island.root.zIndex + 1) };
 };
 const free = (x, y, self) => !onIsland.some(m => m !== self && Math.hypot(m.at.x - x, (m.at.y - y) * 1.8) < 70);
@@ -195,7 +197,7 @@ for (const [name, left, top, width] of MIONS) {
   place(m, left, top, width);
   m.name = name; m.phase = rand(0, 6.28); m.period = rand(2.2, 3.4);
   const foot = { x: m.root.x, y: m.root.y };
-  if (name === 'hat-juggler') { m.at = { cap: true }; cap.holder = m; }
+  if (name === 'hat-juggler') { m.at = { piece: tree, slot: tree.slots[1] }; tree.slots[1].holder = m; }
   else if (islandSpots.some(s => Math.hypot(s.x - foot.x, s.y - foot.y) < 40)) { m.at = foot; onIsland.push(m); }
   else m.at = { pending: foot };
   m.root.eventMode = 'static'; m.root.cursor = 'pointer';
@@ -218,8 +220,8 @@ const lay = () => {
 };
 lay();
 for (const m of mions.filter(m => m.at.pending)) {   // floaters start on the nearest empty piece
-  const near = pieces.filter(p => !p.holder && roomy(p)).sort((a, b) => Math.hypot(a.root.x - m.at.pending.x, a.root.y - m.at.pending.y) - Math.hypot(b.root.x - m.at.pending.x, b.root.y - m.at.pending.y))[0];
-  m.at = { piece: near }; near.holder = m;
+  const near = pieces.filter(p => p.kind !== 'tree' && empty(p) && roomy(p)).sort((a, b) => Math.hypot(a.root.x - m.at.pending.x, a.root.y - m.at.pending.y) - Math.hypot(b.root.x - m.at.pending.x, b.root.y - m.at.pending.y))[0];
+  m.at = { piece: near, slot: near.slots[0] }; near.slots[0].holder = m;
 }
 
 app.ticker.add(t => {
@@ -252,39 +254,40 @@ const inView = p => p.x > W0 + 60 && p.x < W0 + VIEW_W - 60 && p.y > H0 + 60 && 
 function target(m) {
   const here = where(m), options = [];
   for (const p of pieces) {
-    if (p.holder || !roomy(p) || p.popping) continue;
-    const s = toWorld(p, p.spot), d = Math.hypot(s.x - here.x, s.y - here.y);
-    if (d > 70 && d < 420 && inView(s)) options.push({ piece: p, d });
+    if (!roomy(p) || p.popping) continue;
+    for (const slot of p.slots.filter(slot => !slot.holder)) {
+      const s = toWorld(p, slot), d = Math.hypot(s.x - here.x, s.y - here.y);
+      if (d > 70 && d < 420 && inView(s)) options.push({ piece: p, slot, d });
+    }
   }
   for (let i = 0; i < 6; i++) {
     const s = pick(islandSpots), d = Math.hypot(s.x - here.x, s.y - here.y);
     if (d > 60 && d < 380 && free(s.x, s.y, m)) options.push({ x: s.x, y: s.y, d });
   }
-  if (!cap.holder && Math.hypot(cap.x - here.x, cap.y - here.y) < 380) options.push({ cap: true, d: 200 });
   return options.length ? pick(options) : null;
 }
 
 async function jump(m, to) {
   const from = m.at;
-  if (to.piece) to.piece.holder = m; else if (to.cap) cap.holder = m; else onIsland.push(m);
+  if (to.piece) to.slot.holder = m; else onIsland.push(m);
   const a0 = where(m), b0 = where({ at: to });
   const dist = Math.hypot(b0.x - a0.x, b0.y - a0.y), time = 0.55 + dist / 900, height = 45 + dist * 0.3;
   const body = m.body.scale;
   await gsap.to(body, { x: 1.14, y: 0.84, duration: 0.16, ease: 'power2.out' });
   m.flying = true;
-  if (from.piece) from.piece.holder = null; else if (from.cap) cap.holder = null; else onIsland.splice(onIsland.indexOf(m), 1);
+  if (from.piece) from.slot.holder = null; else onIsland.splice(onIsland.indexOf(m), 1);
   const s = { t: 0 };
   gsap.to(body, { x: 0.88, y: 1.14, duration: time * 0.35, ease: 'power2.out' });
   gsap.to(body, { x: 1, y: 1, duration: time * 0.4, delay: time * 0.5 });
   await gsap.to(s, { t: 1, duration: time, ease: 'none', onUpdate: () => {
     // both ends keep moving with their pieces, so the hop aims at where the target is now
-    const a = where({ at: from.piece || from.cap ? from : { x: a0.x, y: a0.y } }), b = where({ at: to }), t = s.t;
+    const a = where({ at: from.piece ? from : { x: a0.x, y: a0.y } }), b = where({ at: to }), t = s.t;
     m.root.position.set(lerp(a.x, b.x, t), lerp(a.y, b.y, t));
     m.root.zIndex = lerp(a.z, b.z, t) + 0.3;
     m.body.y = -height * 4 * t * (1 - t) / m.unit;
     if (m.root.shadow) { m.root.shadow.alpha = 1 - 0.6 * Math.sin(Math.PI * t); }
   } });
-  m.at = to.piece ? { piece: to.piece } : to.cap ? { cap: true } : { x: to.x, y: to.y };
+  m.at = to.piece ? { piece: to.piece, slot: to.slot } : { x: to.x, y: to.y };
   m.flying = false;
   if (m.root.shadow) m.root.shadow.alpha = 1;
   await gsap.timeline().to(body, { x: 1.22, y: 0.8, duration: 0.08, ease: 'power2.out' }).to(body, { x: 1, y: 1, duration: 0.6, ease: 'elastic.out(1, 0.4)' });
