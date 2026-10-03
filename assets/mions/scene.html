@@ -1,0 +1,113 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Mions Scene</title>
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { background: radial-gradient(ellipse at 50% 45%, #22304a 0%, #161f33 55%, #0e1424 100%); overflow: hidden; }
+  /* one unit is one pixel of the half-size reference image, so pieces go back where they were cut from */
+  .scene { position: absolute; left: 50%; top: 50%; width: 1000px; height: 1000px; transform: translate(-50%, -50%) scale(var(--s, 1)); }
+  .scene > * { position: absolute; }
+  /* sky layers: sparkles twinkle, the pebble layer drifts a little */
+  .sparkle { transform-box: fill-box; transform-origin: center; animation: twinkle 4s ease-in-out infinite var(--d); }
+  #sky-pebbles { animation: drift 14s ease-in-out infinite; }
+  @keyframes twinkle { 50% { transform: scale(0.55); opacity: 0.35; } }
+  @keyframes drift { 50% { transform: translate(6px, -4px); } }
+  .scene svg { display: block; width: 100%; height: auto; overflow: visible; }
+  /* the piece moves, its shadow stays on the ground and shrinks a little while the piece is up */
+  .mover { animation: rise var(--t) ease-in-out infinite var(--d); }
+  .ground { transform-box: fill-box; transform-origin: center; animation: ground var(--t) ease-in-out infinite var(--d); }
+  @keyframes rise { 50% { transform: translateY(calc(-1px * var(--h))); } }
+  @keyframes ground { 50% { transform: scale(var(--k)); opacity: 0.7; } }
+  /* pupils circle clockwise against the bob: up while the mion is low, down at the top, so the eyes seem to lag behind */
+  .look { animation: look var(--t) linear infinite var(--d); }
+  @keyframes look { 0.0% { transform: translate(calc(0.000px * var(--e)), calc(-1.000px * var(--e))); } 12.5% { transform: translate(calc(0.707px * var(--e)), calc(-0.707px * var(--e))); } 25.0% { transform: translate(calc(1.000px * var(--e)), calc(-0.000px * var(--e))); } 37.5% { transform: translate(calc(0.707px * var(--e)), calc(0.707px * var(--e))); } 50.0% { transform: translate(calc(0.000px * var(--e)), calc(1.000px * var(--e))); } 62.5% { transform: translate(calc(-0.707px * var(--e)), calc(0.707px * var(--e))); } 75.0% { transform: translate(calc(-1.000px * var(--e)), calc(0.000px * var(--e))); } 87.5% { transform: translate(calc(-0.707px * var(--e)), calc(-0.707px * var(--e))); } 100.0% { transform: translate(calc(-0.000px * var(--e)), calc(-1.000px * var(--e))); } }
+</style>
+</head>
+<body>
+<div class="scene" id="scene"></div>
+<script>
+  // [file, left, top, width] in half-size reference pixels: the crop boxes the pieces were traced from, halved, the ones under the island's front nudged down out of its shadow
+  const pieces = [
+    ['terrain/mountain-orange.svg', 235, 100, 200],
+    ['terrain/mountain-orange-low.svg', 34.5, 270.5, 182.5],
+    ['terrain/cone-yellow-teal.svg', 735, 270, 110],
+    ['terrain/cone-small-teal.svg', 140, 395, 85],
+    ['terrain/mound-sand-cream.svg', 740.5, 373, 78.5],
+    ['terrain/block-blue.svg', 9.5, 603.5, 85],
+    ['terrain/tile-teal-light.svg', 132, 734.5, 68],
+    ['terrain/mound-sand-small.svg', 233, 790.5, 70.5],
+    ['terrain/cone-cream.svg', 390, 870, 110],
+    ['terrain/block-slate.svg', 596, 886, 72.5],
+    ['terrain/tile-teal.svg', 672.5, 867, 65],
+    ['terrain/mound-orange.svg', 815.5, 792, 87.5],
+    // stand-ins where the reference has pieces cut by the frame or creatures we have not made yet
+    ['terrain/mountain-orange-low.svg', -70, 30, 170],
+    ['terrain/mountain-orange.svg', 900, 270, 170],
+    ['terrain/mountain-orange.svg', 790, 880, 170],
+    ['terrain/block-slate.svg', 100, 175, 75],
+    ['terrain/mound-orange.svg', 395, 25, 60],
+    ['terrain/tile-teal.svg', 550, 20, 60],
+    ['terrain/block-blue.svg', 470, 70, 80],
+    ['terrain/cone-small-teal.svg', 900, 690, 70],
+    ['terrain/tile-teal-light.svg', 905, 455, 70],
+    ['terrain/mound-sand-small.svg', 20, 735, 55],
+    ['terrain/cone-cream.svg', 960, 930, 90],
+    ['terrain/mound-orange.svg', 225, 905, 60],
+  ];
+  // the stream that spreads animation start times, so pieces never bob in step
+  let seed = 3;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const scene = document.getElementById('scene');
+  const files = {};
+  const load = src => files[src] ??= fetch(src + '?v=' + Date.now()).then(r => r.text());
+  // svgs go in inline so the page can move a piece's parts: everything but its shadow rises and falls
+  const add = async (slot, src, left, top, width, motion) => {
+    slot.innerHTML = await load(src);
+    Object.assign(slot.style, { left: left + 'px', top: top + 'px', width: width + 'px' });
+    const svg = slot.querySelector('svg');
+    svg.removeAttribute('width'); svg.removeAttribute('height');
+    if (!motion) return;
+    const shadow = svg.querySelector('[id$="shadow"]');
+    const parent = shadow ? shadow.parentNode : svg;
+    const mover = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    mover.setAttribute('class', 'mover');
+    for (const el of [...parent.children]) if (el !== shadow && el.tagName !== 'defs') mover.appendChild(el);
+    parent.appendChild(mover);
+    if (shadow) {
+      const ground = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      ground.setAttribute('class', 'ground');
+      parent.insertBefore(ground, mover); ground.appendChild(shadow);
+    }
+    slot.style.setProperty('--t', motion.time + 's');
+    slot.style.setProperty('--h', motion.height * svg.viewBox.baseVal.width / width);   // scene px, whatever the svg's own scale
+    slot.style.setProperty('--k', motion.shrink);
+    if (motion.eyes) {
+      slot.style.setProperty('--e', motion.eyes);
+      for (const eye of svg.querySelectorAll('#eye-small, #eye-big')) {
+        // the pupil is either clipped inside the eye white or the eye's last shape
+        const inner = eye.querySelector('g[clip-path]');
+        const parts = inner ? [...inner.children] : [eye.lastElementChild];
+        const look = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        look.setAttribute('class', 'look');
+        (inner || eye).appendChild(look);
+        for (const part of parts) look.appendChild(part);
+      }
+    }
+    slot.style.setProperty('--d', (-rnd() * motion.time).toFixed(2) + 's');
+  };
+  // slots are made up front so the drawing order stays the list order, whatever loads first
+  const place = (...args) => { const slot = document.createElement('div'); scene.appendChild(slot); add(slot, ...args); };
+  place('sky/stars.svg', 0, 0, 1000);
+  place('sky/pebbles.svg', 0, 0, 1000);
+  for (const [src, l, t, w] of pieces) place(src, l, t, w, { time: 6, height: 6, shrink: 0.97 });
+  // the grass island laid over the reference island: its left corner at (120, 575), its diamond 820 wide
+  place('terrain/grass-island.svg', 57, 307, 946);
+  place('creatures/horned-ghost-v2.svg', 350, 530, 137, { time: 2.4, height: 4, shrink: 0.9, eyes: 1.6 });
+  place('creatures/horned-ghost.svg', 645, 430, 110, { time: 2.4, height: 4, shrink: 0.9, eyes: 1.4 });
+  const fit = () => scene.style.setProperty('--s', Math.min(innerWidth, innerHeight) / 1000);
+  fit(); addEventListener('resize', fit);
+</script>
+</body>
+</html>
