@@ -2,7 +2,7 @@
 import json, re, math, sys
 eyes = json.load(open('eyes.json'))
 SILHOUETTE = json.load(open('body-outline.json'))['silhouette']
-traced = open('ghost-smooth.svg').read()
+traced = open('ghost-neck.svg').read()
 body_paths = '\n    '.join(re.findall(r'<path [^>]+/>', traced))
 
 HEAD = dict(cx=97.7, cy=166.2, rx=64, ry=67.2, rot=154)
@@ -50,7 +50,6 @@ def blob_d(shape, cx, cy, rx, ry, n=28):
         c2 = (p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6)
         d += f'C{c1[0]:.1f} {c1[1]:.1f} {c2[0]:.1f} {c2[1]:.1f} {p2[0]:.1f} {p2[1]:.1f}'
     return d + 'Z'
-ring = lambda i, cx, cy, rx, ry: f'<path d="{ring_d(i, cx, cy, rx, ry)}"/>'
 horn_clips = ''
 horn = ''
 def shine(s, cx, cy, rx, ry):
@@ -59,13 +58,13 @@ def shine(s, cx, cy, rx, ry):
     return f'<ellipse fill="#93d6de" cx="{x:.1f}" cy="{y:.1f}" rx="{rx * s["shine_size"]:.1f}" ry="{ry * s["shine_size"] * 1.2:.1f}" transform="rotate({s["tilt"] + 25:.0f} {x:.1f} {y:.1f})"/>'
 for i, (cx, cy, rx, ry) in enumerate(RINGS):
     s = SHAPES[i]
-    horn_clips += f'<clipPath id="hg2-ring-{i}">{ring(i, cx, cy, rx, ry)}</clipPath>'
+    horn_clips += f'<path id="hg2-ring-shape-{i}" d="{ring_d(i, cx, cy, rx, ry)}"/><clipPath id="hg2-ring-{i}"><use href="#hg2-ring-shape-{i}"/></clipPath>'
     horn += f'''
     <g class="ring" id="ring-{i}">
-      <g fill="{s['shadow_fill']}" transform="translate({s['shadow'][0]:.1f} {s['shadow'][1]:.1f})">{ring(i, cx, cy, rx, ry)}</g>
-      <g fill="#579cae">{ring(i, cx, cy, rx, ry)}</g>
+      <g fill="{s['shadow_fill']}" transform="translate({s['shadow'][0]:.1f} {s['shadow'][1]:.1f})"><use href="#hg2-ring-shape-{i}"/></g>
+      <g fill="#579cae"><use href="#hg2-ring-shape-{i}"/></g>
       <g clip-path="url(#hg2-ring-{i})">
-        <g fill="{s['light_fill']}" transform="translate({cx + s['light'][0]:.1f} {cy + s['light'][1]:.1f}) scale({s['light'][2]:.2f}) translate({-cx} {-cy})">{ring(i, cx, cy, rx, ry)}</g>
+        <g fill="{s['light_fill']}" transform="translate({cx + s['light'][0]:.1f} {cy + s['light'][1]:.1f}) scale({s['light'][2]:.2f}) translate({-cx} {-cy})"><use href="#hg2-ring-shape-{i}"/></g>
         {shine(s, cx, cy, rx, ry)}
       </g>
     </g>'''
@@ -106,11 +105,10 @@ def leg_d(length, a, b, shape=None, n=10):
     return d + 'Z'
 def leg(i, x, y, length, a, b, lean, back):
     base, light = ('#8a7f80', '#a19696') if back else ('#9d9190', '#bcb1ad')
-    d = leg_d(length, a, b, LEG_SHAPES[i])
     return f'''
     <g class="leg" id="leg-{i}" transform="translate({x} {y}) rotate({lean})">{'' if back else f'<g mask="url(#hg2-leg-fade-{i})">'}
-      <path d="{d}" fill="{base}"/>
-      <g clip-path="url(#hg2-leg-{i})"><path d="{d}" fill="{light}" transform="translate(-2.5 -1.5) scale(0.82 1)"/></g>
+      <use href="#hg2-leg-shape-{i}" fill="{base}"/>
+      <g clip-path="url(#hg2-leg-{i})"><use href="#hg2-leg-shape-{i}" fill="{light}" transform="translate(-2.5 -1.5) scale(0.82 1)"/></g>
       <path d="M{-b * 0.5:.1f} {length - b * 0.6:.1f} Q{-b * 0.75:.1f} {length + b * 0.1:.1f} {-b * 0.2:.1f} {length + b * 0.55:.1f}" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="{0.3 if back else 0.55}"/>{'' if back else '</g>'}
     </g>'''
 # tail: three rounded, uneven trapezoids stacked from the base up: center, bottom width, top width, height
@@ -143,16 +141,16 @@ def trap_d(shape, cx, cy, wb, wt, h):
 def tail():
     out = ''
     for j, (cx, cy, wb, wt, h) in enumerate(TAIL):
-        s = TAIL_SHAPES[j]; d = trap_d(s, cx, cy, wb, wt, h)
+        s = TAIL_SHAPES[j]
         rx, ry = (wb + wt) / 4, h / 2
         x, y = cx + rx * s['shine_at'][0], cy + ry * s['shine_at'][1]
         shine_el = f'<ellipse fill="#f1e9f3" cx="{x:.1f}" cy="{y:.1f}" rx="{rx * s["shine_size"]:.1f}" ry="{ry * s["shine_size"] * 1.2:.1f}" transform="rotate({s["tilt"] - 70:.0f} {x:.1f} {y:.1f})"/>' if s['shine'] else ''
         out += f'''
     <g class="tail-segment" id="tail-{j}">
-      <path d="{d}" fill="{s['shadow_fill']}" transform="translate({s['shadow'][0]:.1f} {s['shadow'][1]:.1f})"/>
-      <path d="{d}" fill="#b6a2c3"/>
+      <use href="#hg2-tail-shape-{j}" fill="{s['shadow_fill']}" transform="translate({s['shadow'][0]:.1f} {s['shadow'][1]:.1f})"/>
+      <use href="#hg2-tail-shape-{j}" fill="#b6a2c3"/>
       <g clip-path="url(#hg2-tail-{j})">
-        <path d="{d}" fill="{s['light_fill']}" transform="translate({cx + s['light'][0]:.1f} {cy + s['light'][1]:.1f}) scale({s['light'][2]:.2f}) translate({-cx} {-cy})"/>
+        <use href="#hg2-tail-shape-{j}" fill="{s['light_fill']}" transform="translate({cx + s['light'][0]:.1f} {cy + s['light'][1]:.1f}) scale({s['light'][2]:.2f}) translate({-cx} {-cy})"/>
         {shine_el}
       </g>
     </g>'''
@@ -167,13 +165,13 @@ svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 274 334" width="2
   <defs>
     <clipPath id="hg2-head-clip">{head_el()}</clipPath>
     {horn_clips}
-    <clipPath id="hg2-silhouette-clip"><path d="{SILHOUETTE}"/></clipPath>
+    <path id="hg2-silhouette" d="{SILHOUETTE}"/><clipPath id="hg2-silhouette-clip"><use href="#hg2-silhouette"/></clipPath>
     <linearGradient id="hg2-neck-fade" gradientUnits="userSpaceOnUse" x1="0" y1="192" x2="0" y2="222"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient>
     <mask id="hg2-neck-tail-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="274" height="334">
       <path d="M108 90 H206 V226 H108 Z" fill="url(#hg2-neck-fade)"/>
     </mask>
-    {''.join(f'<clipPath id="hg2-leg-{i}"><path d="{leg_d(*l[2:5], LEG_SHAPES[i])}"/></clipPath>' for i, l in enumerate(LEGS))}
-    {''.join(f'<clipPath id="hg2-tail-{j}"><path d="{trap_d(TAIL_SHAPES[j], *t)}"/></clipPath>' for j, t in enumerate(TAIL))}
+    {''.join(f'<path id="hg2-leg-shape-{i}" d="{leg_d(*l[2:5], LEG_SHAPES[i])}"/><clipPath id="hg2-leg-{i}"><use href="#hg2-leg-shape-{i}"/></clipPath>' for i, l in enumerate(LEGS))}
+    {''.join(f'<path id="hg2-tail-shape-{j}" d="{trap_d(TAIL_SHAPES[j], *t)}"/><clipPath id="hg2-tail-{j}"><use href="#hg2-tail-shape-{j}"/></clipPath>' for j, t in enumerate(TAIL))}
 {LEG_FADES}
     <clipPath id="hg2-tongue-clip"><path d="{TONGUE}"/></clipPath>
     <mask id="hg2-body-mask"><rect width="274" height="334" fill="#fff"/><path d="M90 18 H178 V108 H90 Z M36 82 H74 V124 H36 Z M26 190 L72 212 L72 266 L24 266 Z" fill="#000"/></mask>
@@ -185,8 +183,8 @@ svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 274 334" width="2
   <g id="body-traced" clip-path="url(#hg2-silhouette-clip)">
     <g mask="url(#hg2-body-mask)">
       <g id="body-tones">
-        <path d="{SILHOUETTE}" fill="#8f91a4"/>
-        <path d="{SILHOUETTE}" fill="#a4a6b5" transform="translate(-2 -7)"/>
+        <use href="#hg2-silhouette" fill="#8f91a4"/>
+        <use href="#hg2-silhouette" fill="#a4a6b5" transform="translate(-2 -7)"/>
         <path id="body-light" d="M74 262 C70 248 82 238 96 233 C120 222 150 202 172 191 C184 185 192 197 190 211 C186 238 178 250 160 256 C130 266 96 272 80 268 C76 267 75 265 74 262 Z" fill="#c5c6d0"/>
       </g>
       <g id="neck-tail" mask="url(#hg2-neck-tail-mask)">
