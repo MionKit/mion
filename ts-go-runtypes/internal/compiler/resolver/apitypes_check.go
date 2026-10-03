@@ -13,7 +13,7 @@ type apiTypesCheck struct {
 	diags []diagnostics.Diagnostic
 	// refusedSites are the `initClient` sites whose package MET015 refused, refusedRoots those packages' roots.
 	refusedSites map[diagnostics.Site]bool
-	refusedRoots []string
+	refusedRoots map[string]bool
 }
 
 // apiTypesPackages checks each client's API package: a types-only one must carry the marker `mion api-types`
@@ -23,14 +23,13 @@ func (sess *Session) apiTypesPackages() *apiTypesCheck {
 	if memo.apiTypes != nil {
 		return memo.apiTypes
 	}
-	check := &apiTypesCheck{refusedSites: map[diagnostics.Site]bool{}}
+	check := &apiTypesCheck{refusedSites: map[diagnostics.Site]bool{}, refusedRoots: map[string]bool{}}
 	memo.apiTypes = check
 	if sess.Program == nil || sess.checker == nil {
 		return check
 	}
 	clients, _ := sess.clientFacts()
 	seen := map[string]bool{}
-	refused := map[string]bool{}
 	for _, client := range clients {
 		file := apimeta.ApiDeclarationFile(sess.checker, client.ApiType)
 		if file == "" {
@@ -40,7 +39,7 @@ func (sess *Session) apiTypesPackages() *apiTypesCheck {
 		if root == "" {
 			continue
 		}
-		if refused[root] {
+		if check.refusedRoots[root] {
 			check.refusedSites[client.DiagSite] = true
 		}
 		if seen[root] {
@@ -51,9 +50,8 @@ func (sess *Session) apiTypesPackages() *apiTypesCheck {
 		switch {
 		case !info.TypesOnly:
 		case info.Marker == nil:
-			refused[root] = true
+			check.refusedRoots[root] = true
 			check.refusedSites[client.DiagSite] = true
-			check.refusedRoots = append(check.refusedRoots, root)
 			check.diags = append(check.diags, diagnostics.New(diagnostics.CodeApiMetaTypesNotBuiltByMion, client.DiagSite, name, info.Problem))
 		case info.Marker.Compiler != constants.Version:
 			check.diags = append(check.diags, diagnostics.New(diagnostics.CodeApiMetaTypesOtherCompiler, client.DiagSite, name, info.Marker.Compiler, constants.Version))
@@ -77,7 +75,7 @@ func (sess *Session) dropRefusedApiTypeDiags(list []diagnostics.Diagnostic) []di
 				continue
 			}
 		case diagnostics.CodeMarkerTypelessPrivateMember:
-			if sess.declaredInRefusedPackage(diagnostic, check.refusedRoots) {
+			if sess.declaredInRefusedPackage(diagnostic, check) {
 				continue
 			}
 		}
@@ -86,13 +84,10 @@ func (sess *Session) dropRefusedApiTypeDiags(list []diagnostics.Diagnostic) []di
 	return kept
 }
 
-func (sess *Session) declaredInRefusedPackage(diagnostic diagnostics.Diagnostic, roots []string) bool {
+func (sess *Session) declaredInRefusedPackage(diagnostic diagnostics.Diagnostic, check *apiTypesCheck) bool {
 	for _, related := range diagnostic.Related {
-		_, root := marker.PackageOfFile(sess.absPath(related.FilePath), sess.Program.FS)
-		for _, refusedRoot := range roots {
-			if root == refusedRoot {
-				return true
-			}
+		if _, root := marker.PackageOfFile(sess.absPath(related.FilePath), sess.Program.FS); check.refusedRoots[root] {
+			return true
 		}
 	}
 	return false
