@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: done
 created: 2026-10-03
 ---
 
@@ -74,3 +74,25 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 - **apiids lane** also runs the real `mion api-types` and builds a client against the trimmed package.
 - **Registration**: FUZZ table, help text, env note, `fuzz-soak.yml` options, lane contract test, fuzz README.
 - Out of this PR: putting outside types the API reaches inside the package; filed as its own todo.
+
+## What shipped
+
+- **Fuzz lane `apitypes`** in `ts-go-runtypes/internal/compiler/apitypes/fuzz_trim_test.go`: random labelled graphs
+  over every listed position except `implements` on a generic or merged interface (a class implements only an
+  interface it can restate). Oracle 2 compares each API member's structural type id (`typeid.Compute`) between the
+  full and the trimmed program instead of printed text: mion ids sort object members, so key order is not a loss.
+  A coverage test fails when the generator stops writing a position; each oracle has a negative control.
+- **Findings, each fixed with a regression test** (`server_only_test.go`):
+  - `import * as M` kept every export of its file; now `M.X` provides only `X` (a bare `M` still keeps all).
+  - A kept file's `declare global` and `declare module 'x'` blocks shipped whole; now a global block keeps only the
+    members kept code reads, and a module augmentation ships only when kept code imports that module (or keeps the
+    relative file it augments).
+- **Fixed "must not ship" tests**: private and raw middlewares, non-API exports, a barrel beside tables, unread
+  augmentations, all with a heavy package that must never ship or become a peer.
+- **Drizzle example app** (`drizzle_app_test.go`): its slim routes ship no `drizzle-orm` at all, and the whole app
+  type-checks with the server manifest's build version. Its plain drizzle routes return types of real drizzle tables,
+  so `drizzle-orm` is genuinely reached there; shipping those without the peer is the self-contained package todo.
+- **apiids lane** also runs `mion api-types` and builds a client from the package alone (A4), with its own negative
+  control. Its router stub became an installed package carrying the build version, and its generated types are
+  exported so the declaration build can name them.
+- Registered at the quick tier (ci.yml's Go suite step, `MION_FUZZ_ITER: '30'`) and the soak tier (1000 iterations).
