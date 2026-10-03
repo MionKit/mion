@@ -620,7 +620,7 @@ func (computer *Computer) memberID(symbol *ast.Symbol, asClass bool) string {
 	// serialize.go's appendProperty. The separate `#ne` bit keeps a guarded-optional member distinct from a
 	// plain declared-optional one (enumerability check vs `!== undefined`).
 	guarded := IsNonEnumerable(symbol)
-	optional := symbol.Flags&ast.SymbolFlagsOptional != 0 || guarded
+	optional := symbol.Flags&ast.SymbolFlagsOptional != 0 || guarded || IsTypelessPrivateSymbol(symbol)
 	// Readonly must be part of the structural id — `{a: string}` and `{readonly a: string}` are different
 	// shapes and must not share a cache slot. Mirrors the resolution rule in
 	// internal/cachegen/runtype/modifiers.go:applyMemberModifiers — trust CheckFlagsReadonly for
@@ -923,6 +923,39 @@ func IsNonEnumerable(symbol *ast.Symbol) bool {
 		return false
 	}
 	return isDefaultLibGlobalMember(symbol) || hasNonEnumerableTag(symbol)
+}
+
+// IsTypelessPrivateSymbol reports a member whose every declaration is a typeless TS `private` in ambient code, the
+// shape plain tsc's .d.ts gives a private field, method or accessor. A field cannot be told from a method there, so
+// the projection (serialize.go) and memberID both read it as optional; the resolver reports it as MKR016.
+func IsTypelessPrivateSymbol(symbol *ast.Symbol) bool {
+	if symbol == nil || len(symbol.Declarations) == 0 {
+		return false
+	}
+	for _, declaration := range symbol.Declarations {
+		if !IsTypelessPrivateMember(declaration) {
+			return false
+		}
+	}
+	return true
+}
+
+// IsTypelessPrivateMember is IsTypelessPrivateSymbol for one declaration.
+func IsTypelessPrivateMember(declaration *ast.Node) bool {
+	if declaration == nil || declaration.Flags&ast.NodeFlagsAmbient == 0 || ast.GetCombinedModifierFlags(declaration)&ast.ModifierFlagsPrivate == 0 {
+		return false
+	}
+	switch declaration.Kind {
+	case ast.KindPropertyDeclaration:
+		property := declaration.AsPropertyDeclaration()
+		return property.Type == nil && property.Initializer == nil
+	case ast.KindGetAccessor:
+		return declaration.Type() == nil
+	case ast.KindSetAccessor:
+		parameters := declaration.Parameters()
+		return len(parameters) == 0 || parameters[0].Type() == nil
+	}
+	return false
 }
 
 // isOptionalSymbol reports whether a property symbol is optional (`?`) in its declared type — the same flag

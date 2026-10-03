@@ -1159,7 +1159,7 @@ func (cache *Cache) appendProperty(parent *reflection.RunType, symbol *ast.Symbo
 	// absence. Mirrors typeid.memberID through the shared typeid.IsNonEnumerable, so id and projection can't
 	// drift; NonEnumerable additionally tells the emitters to gate the write on enumerability.
 	guarded := typeid.IsNonEnumerable(symbol)
-	if symbol.Flags&ast.SymbolFlagsOptional != 0 || guarded {
+	if symbol.Flags&ast.SymbolFlagsOptional != 0 || guarded || typeid.IsTypelessPrivateSymbol(symbol) {
 		member.Optional = true
 	}
 	member.NonEnumerable = guarded
