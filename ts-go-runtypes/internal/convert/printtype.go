@@ -79,6 +79,18 @@ func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic
 	if refText, refDiag, isRef := ctx.declRef(node, TargetType); isRef {
 		return refText, refDiag
 	}
+	if ctx.outside != nil {
+		if aliasText, aliasDiag, isAlias := ctx.outside.aliasRef(ctx, node); isAlias {
+			return aliasText, aliasDiag
+		}
+		// A class or enum closes its own cycles by name.
+		if isUserClass(node) {
+			return ctx.outside.classRef(node)
+		}
+		if node.Kind == reflection.KindEnum && len(node.TypeMeta) == 0 {
+			return ctx.outside.enumRef(node)
+		}
+	}
 	leave, entered := ctx.enter(node)
 	if !entered {
 		return "", ctx.anonymousCycleDiag()
@@ -275,10 +287,19 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 		if isRegExpNode(node) {
 			return "RegExp", nil
 		}
+		if ctx.outside != nil && isUserClass(node) {
+			return ctx.outside.classRef(node)
+		}
+		if ctx.outside != nil && node.ClassRef != nil && node.SubKind == reflection.SubKindNonSerializable {
+			return ctx.typeArgumentsText(ctx.outside.builtinRef(node), node)
+		}
 		return ctx.classSpelling(node)
 	case reflection.KindRegexp:
 		return "RegExp", nil
 	case reflection.KindEnum:
+		if ctx.outside != nil {
+			return ctx.outside.enumRef(node)
+		}
 		return ctx.enumSpelling(node)
 	case reflection.KindUnion:
 		var parts []string
@@ -569,15 +590,16 @@ func (ctx *printContext) objectLiteralText(members []*objectMember, indexes []in
 			if member.optional {
 				optionalMark = "?"
 			}
+			tag := nonEnumerableTag(member)
 			switch {
 			case member.callSignature:
 				parts = append(parts, fmt.Sprintf("(%s): %s", paramsText, returnText))
 			case member.readonly:
 				// Method syntax cannot spell `readonly`, and the property-arrow form reflects back
 				// identically.
-				parts = append(parts, fmt.Sprintf("readonly %s%s: (%s) => %s", member.key, optionalMark, paramsText, returnText))
+				parts = append(parts, fmt.Sprintf("%sreadonly %s%s: (%s) => %s", tag, member.key, optionalMark, paramsText, returnText))
 			default:
-				parts = append(parts, fmt.Sprintf("%s%s(%s): %s", member.key, optionalMark, paramsText, returnText))
+				parts = append(parts, fmt.Sprintf("%s%s%s(%s): %s", tag, member.key, optionalMark, paramsText, returnText))
 			}
 			continue
 		}
@@ -593,7 +615,7 @@ func (ctx *printContext) objectLiteralText(members []*objectMember, indexes []in
 		if member.optional {
 			suffix = "?"
 		}
-		parts = append(parts, fmt.Sprintf("%s%s%s: %s", prefix, member.key, suffix, innerText))
+		parts = append(parts, fmt.Sprintf("%s%s%s%s: %s", nonEnumerableTag(member), prefix, member.key, suffix, innerText))
 	}
 	for _, index := range indexes {
 		keyText, keyDiag := ctx.typeExpr(index.key)
@@ -608,6 +630,15 @@ func (ctx *printContext) objectLiteralText(members []*objectMember, indexes []in
 		parts = append(parts, fmt.Sprintf("%s[key: %s]: %s", readonlyPrefix(index.readonly), keyText, valueText))
 	}
 	return "{" + strings.Join(parts, "; ") + "}", nil
+}
+
+// nonEnumerableTag is the JSDoc marker a guarded member needs to keep its id, on its own line or the parser drops it;
+// only outside printing reaches it.
+func nonEnumerableTag(member *objectMember) string {
+	if member.nonEnumerable {
+		return "\n/** @nonEnumerable */\n"
+	}
+	return ""
 }
 
 // plainStringIndex reports the shape value-first `record(...)` says directly; `Record<>` cannot say `readonly`.
