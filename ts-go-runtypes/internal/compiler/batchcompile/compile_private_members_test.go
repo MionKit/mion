@@ -260,43 +260,26 @@ const pinoTypes = `export interface Logger { info(message: string): void }
 export declare function pino(): Logger;
 `
 
-func compileWithPino(t *testing.T, packageJSON string) string {
-	t.Helper()
+// No guard: the type is kept even when it comes from a devDependency, and the import ships with it.
+func TestCompile_PrivateMemberTypedFromADevDependencyKeepsItsType(t *testing.T) {
 	dir := writeProject(t, map[string]string{"index.ts": `import type {Logger} from 'pino';
 export class Service {
   private logger?: Logger;
-  private retries: number = 3;
 }
 `})
 	writeFile(t, filepath.Join(dir, "node_modules", "pino", "package.json"), `{"name": "pino", "types": "./index.d.ts"}`)
 	writeFile(t, filepath.Join(dir, "node_modules", "pino", "index.d.ts"), pinoTypes)
-	writeFile(t, filepath.Join(dir, "package.json"), packageJSON)
+	writeFile(t, filepath.Join(dir, "package.json"), `{"name": "@acme/service", "devDependencies": {"pino": "1.0.0"}}`)
 	writeFile(t, filepath.Join(dir, "tsconfig.json"), declarationTsconfig(""))
 	compileProject(t, dir, nil)
-	return readEmitted(t, dir, "index.d.ts")
+	assertContains(t, readEmitted(t, dir, "index.d.ts"), "protected logger?: Logger;", "from 'pino'")
 }
 
-// A type from a devDependency would reach consumers that do not have it: that member stays `private`, the rest do not.
-func TestCompile_PrivateMemberTypedFromADevDependencyStaysPrivate(t *testing.T) {
-	dts := compileWithPino(t, `{"name": "@acme/service", "devDependencies": {"pino": "1.0.0"}}`)
-	assertContains(t, dts, "private logger?;", "protected retries: number;")
-	if strings.Contains(dts, "pino") {
-		t.Errorf("the declaration must not import a devDependency:\n%s", dts)
-	}
-}
-
-// A runtime dependency reaches every consumer, so its type is kept.
-func TestCompile_PrivateMemberTypedFromADependencyKeepsItsType(t *testing.T) {
-	assertContains(t, compileWithPino(t, `{"name": "@acme/service", "dependencies": {"pino": "1.0.0"}}`), "protected logger?: Logger;", "from 'pino'")
-}
-
-// tsc never names a private member's type, so a type only reachable through another package's own node_modules is
-// fine there; written as `protected` it cannot be named (TS2742). That member stays `private`, and the build passes.
-func TestCompile_PrivateMemberWithAnUnnameableTypeStaysPrivate(t *testing.T) {
+// No guard: a type tsc never had to name, written as `protected`, fails the build with TypeScript's own error.
+func TestCompile_PrivateMemberWithAnUnnameableTypeFailsTheBuild(t *testing.T) {
 	dir := writeProject(t, map[string]string{"index.ts": `import {makeClient} from 'sdk';
 export class Service {
   private client = makeClient();
-  private retries: number = 3;
 }
 `})
 	sdk := filepath.Join(dir, "node_modules", "sdk")
@@ -304,8 +287,10 @@ export class Service {
 	writeFile(t, filepath.Join(sdk, "index.d.ts"), "import type {Client} from 'transport';\nexport declare function makeClient(): Client;\n")
 	writeFile(t, filepath.Join(sdk, "node_modules", "transport", "package.json"), `{"name": "transport", "types": "./index.d.ts"}`)
 	writeFile(t, filepath.Join(sdk, "node_modules", "transport", "index.d.ts"), "export interface Client { send(): void }\n")
-	writeFile(t, filepath.Join(dir, "package.json"), `{"name": "@acme/service", "dependencies": {"sdk": "1.0.0"}}`)
 	writeFile(t, filepath.Join(dir, "tsconfig.json"), declarationTsconfig(""))
-	compileProject(t, dir, nil)
-	assertContains(t, readEmitted(t, dir, "index.d.ts"), "private client;", "protected retries: number;")
+	_, err := Run(Options{Cwd: dir, TsconfigPath: "tsconfig.json", GenDir: filepath.Join(dir, ".mion")})
+	// Column 11 is `client` as written; the spliced text puts it at 13.
+	if err == nil || !strings.Contains(err.Error(), "src/index.ts(3,11)") || !strings.Contains(err.Error(), "cannot be named") {
+		t.Fatalf("the unnameable type must fail the build at the member as written, got %v", err)
+	}
 }

@@ -50,18 +50,14 @@ erases is the problem, solved at both ends.
 
 Producer side, `mion compile` (`batchcompile/declarations.go`):
 
-- It first writes each `.d.ts` exactly as tsc would (plus the build-version and pure-fn-id splices). The user's
-  own declaration errors, `isolatedDeclarations` included, come from this pass with true positions.
-- It then writes it again with each class member's `private` turned `protected` (fields, methods, accessors and
-  constructor parameter properties; a `private constructor` and `#name` fields are untouched; the JS emit is
-  untouched), so the `.d.ts` keeps the type and the imports it uses. This pass runs with `isolatedDeclarations`
-  off, since that option exempts a private member from a written type but not a protected one.
-- A member stays `private` when its `protected` form makes the emit fail (a type tsc never had to name, such as
-  one only reachable through another package's own `node_modules`, TS2742) or makes the `.d.ts` reference a
-  package the plain one did not and the package does not list in `dependencies`, `peerDependencies` or
-  `optionalDependencies` (a devDependency). An error no rewritten member explains keeps the plain `.d.ts`.
-- The declaration map is mapped back to the original source columns for every overlay splice, which also fixes
-  the drift the build-version splices caused.
+- Before the declaration emit, every class member's `private` is turned `protected` in the overlay (fields,
+  methods, accessors and constructor parameter properties; a `private constructor` and `#name` fields are
+  untouched; the JS emit is untouched), so the `.d.ts` keeps the type and the imports it uses. There is no guard:
+  whatever TypeScript then says about the `protected` member is the package author's to fix.
+- `isolatedDeclarations` exempts a private member from a written type but not a protected one, so when it is on
+  the source as written is checked for it (the user's own errors still fail), and the spliced emit runs with it off.
+- The declaration map, and the position of any declaration error, are mapped back to the source as written for
+  every overlay splice, which also fixes the drift the build-version splices caused.
 
 Consumer side, the resolver:
 
@@ -86,15 +82,19 @@ Accepted costs of the `protected` rewrite:
 
 - A consumer's subclass can read, call and redeclare a former private member (TS2341 / TS2415 against the plain
   `.d.ts`). Those members become part of the package's subclass surface.
-- Each declaration build with a `private` member runs one more declaration emit, plus one per round in which a
-  member is put back to `private`.
+- A type a private member uses now ships in the `.d.ts` with its import, a devDependency's included, so the
+  package's users need it installed.
+- A type tsc never had to name (one only reachable through another package's own `node_modules`) now fails
+  `mion compile` with TypeScript's own error at the member (TS2883), until the author writes the type.
+- Each declaration build with a `private` member builds one more program to emit from.
 
 Tests: visibility parity (public / private / protected, source and `.d.ts`) for both `getRunTypeId` shapes;
 MKR016 fires (fields, methods, getters, setters, optional, one object deeper, after a written `any`) and stays
 quiet (typed, protected, `#name`, a `private constructor`, a source class), plus the catalog examples at root and
 one level deep, all paired; turned off it reads as an optional `any` (Go and JS); `mion compile` declaration
-output, both declaration-map cases, both splice sources in one file, the devDependency, dependency and
-unnameable-type cases, `isolatedDeclarations` both ways, and a compile-then-consume round trip. MKR016 has no row
+output, both declaration-map cases, both splice sources in one file, a devDependency type kept with its import,
+an unnameable type failing at its source column, `isolatedDeclarations` both ways, and a compile-then-consume
+round trip. MKR016 has no row
 in the nested-diagnostic corpus grid: that grid covers non-data shapes and their throws and drops, and no
 silent-any code has a row there.
 Docs: the Classes section of the JSON round-trip page and the published API types section of the CLI page.
