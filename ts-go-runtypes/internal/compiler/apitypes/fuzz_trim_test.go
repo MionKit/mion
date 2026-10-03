@@ -2,10 +2,12 @@ package apitypes
 
 import (
 	"fmt"
+	"maps"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -29,8 +31,8 @@ func TestFuzz_ApiTypesTrim(t *testing.T) {
 	t.Log(origin)
 	iterations := 8
 	if raw := os.Getenv("MION_FUZZ_ITER"); raw != "" {
-		if iterations, err = strconv.Atoi(raw); err != nil {
-			t.Fatalf("MION_FUZZ_ITER: %v", err)
+		if iterations, err = strconv.Atoi(raw); err != nil || iterations < 1 {
+			t.Fatalf("MION_FUZZ_ITER must be a positive count, got %q", raw)
 		}
 	}
 	rng := rand.New(rand.NewSource(seed))
@@ -78,7 +80,7 @@ func runApiTypesCase(t *testing.T, graph *apiGraph, caseSeed int64) []string {
 // oracleNoLeak: no poison name, no heavy-pkg, and no peer but the router.
 func oracleNoLeak(output *Output) []string {
 	var failures []string
-	for _, rel := range sortedKeys(output.Files) {
+	for _, rel := range slices.Sorted(maps.Keys(output.Files)) {
 		for _, leak := range []string{"POISON_", "heavy-pkg", "node:http"} {
 			if strings.Contains(output.Files[rel], leak) {
 				failures = append(failures, fmt.Sprintf("no leak: %s ships %q", rel, leak))
@@ -107,60 +109,31 @@ func oracleNoLoss(t *testing.T, graph *apiGraph, input Input, output *Output) []
 		failures = append(failures, fmt.Sprintf("no loss: build version %q, want %q", version, output.BuildVersion))
 	}
 	published := strings.Join(mapValues(output.Files), "\n")
-	for _, kept := range graph.keptNames() {
+	for _, kept := range graph.names(true) {
 		if !strings.Contains(published, kept) {
 			failures = append(failures, "no loss: reached type "+kept+" was dropped")
 		}
 	}
 	if len(problems) == 0 {
-		full := apiMemberIDs(t, input, input.Declarations, input.Entry)
-		if trimmed := apiMemberIDs(t, input, absoluteFiles(input, output.Files), input.Entry); full != trimmed {
+		full := apiTypeTextBy(t, input, input.Declarations, input.Entry, typeIDs)
+		if trimmed := apiTypeTextBy(t, input, absoluteFiles(input, output.Files), input.Entry, typeIDs); full != trimmed {
 			failures = append(failures, fmt.Sprintf("no loss: the API's type ids changed\nfull:    %s\ntrimmed: %s", full, trimmed))
 		}
 	}
 	return failures
 }
 
-// apiMemberIDs lists the structural type id of every API member, nested groups included: what a client compares.
-func apiMemberIDs(t *testing.T, input Input, files map[string]string, entry string) string {
-	t.Helper()
-	trimmer, release, err := newTrimmer(input, files)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer release()
-	computer := typeid.New(trimmer.checker)
-	var lines []string
-	var walk func(prefix string, apiType *checker.Type)
-	walk = func(prefix string, apiType *checker.Type) {
-		for _, property := range trimmer.checker.GetPropertiesOfType(apiType) {
-			if strings.Contains(property.Name, "apiBuildVersion") {
-				continue
-			}
-			propertyType := trimmer.checker.GetTypeOfSymbol(property)
-			if strings.HasPrefix(trimmer.checker.TypeToString(propertyType), "PublicApi<") {
-				walk(prefix+property.Name+".", propertyType)
-				continue
-			}
-			lines = append(lines, prefix+property.Name+"="+computer.Compute(propertyType))
-		}
-	}
-	moduleSymbol := trimmer.checker.GetSymbolAtLocation(trimmer.files[entry].source.AsNode())
-	for _, exported := range trimmer.checker.GetExportsOfModule(moduleSymbol) {
-		if exported.Name == "api" {
-			walk("", trimmer.exportType(exported))
-		}
-	}
-	sort.Strings(lines)
-	return strings.Join(lines, " ")
-}
+// typeIDs prints each API member as its structural type id: what a client compares with the server.
+func typeIDs(trimmer *trimmer) func(*checker.Type) string { return typeid.New(trimmer.checker).Compute }
 
 func oracleSameFiles(label string, want, got map[string]string) []string {
 	if reflect.DeepEqual(want, got) {
 		return nil
 	}
 	var failures []string
-	for _, rel := range sortedKeys(mergeKeys(want, got)) {
+	union := maps.Clone(want)
+	maps.Copy(union, got)
+	for _, rel := range slices.Sorted(maps.Keys(union)) {
 		if want[rel] != got[rel] {
 			failures = append(failures, fmt.Sprintf("%s changed %s:\n--- first ---\n%s\n--- second ---\n%s", label, rel, want[rel], got[rel]))
 		}
@@ -182,48 +155,20 @@ func fullProgramProblems(input Input, entry string) []string {
 	return problems
 }
 
-func absoluteFiles(input Input, files map[string]string) map[string]string {
-	out := make(map[string]string, len(files))
-	for rel, text := range files {
-		out[filepath.Join(input.DeclarationDir, filepath.FromSlash(rel))] = text
-	}
-	return out
-}
-
-func sortedKeys(files map[string]string) []string {
-	keys := make([]string, 0, len(files))
-	for key := range files {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
-}
-
-func mergeKeys(first, second map[string]string) map[string]string {
-	out := map[string]string{}
-	for key := range first {
-		out[key] = ""
-	}
-	for key := range second {
-		out[key] = ""
-	}
-	return out
-}
-
 // TestFuzz_ApiTypesGeneratorCoversEveryPosition: across a few hundred graphs the generator writes every place a
 // type can be named, so a generator change cannot silently narrow the lane.
 func TestFuzz_ApiTypesGeneratorCoversEveryPosition(t *testing.T) {
 	positions := map[string]string{
-		"property": "p", "index signature": "[key: string]: ", "array": "[];", "generic argument": "Array<",
+		"property": "_0: ", "index signature": "[key: string]: ", "array": "[];", "generic argument": "Array<",
 		"generic default": "<T0 = ", "extends": " extends KEEP_", "implements": " implements ", "union": " | null",
 		"function param and return": "(input: ", "conditional": " extends object ? ", "mapped": "[K in keyof ",
-		"keyof": ": keyof ", "typeof": "typeof ", "import type": `import("./`, "namespace": "declare namespace ",
-		"overload": "flag: boolean): string;", "merge": "merged", "declare module": "declare module 'heavy-pkg'",
+		"keyof": ": keyof ", "typeof": ": typeof ", "import type": `import("./`, "namespace": "declare namespace ",
+		"overload": "flag: boolean): string;", "merge": "merged", "package augmentation": "declare module 'heavy-pkg'", "relative augmentation": "declare module './f",
 		"declare global": "declare global {", "export *": "export * from", "named re-export": "export { ",
 		"aliased import": "_as_", "namespace import": "import type * as ", "barrel import": "from './index.ts'",
-		"public middleware": "MiddlewareDef<(ctx: unknown", "private middleware": "MiddlewareDef<(ctx?: ",
+		"public middleware": ": MiddlewareDef<(ctx: unknown", "private middleware": "MiddlewareDef<(ctx?: ",
 		"raw middleware": "RawMiddlewareDef<(", "expanded api": `import("@mionjs/router").PublicRoute<`,
-		"route group": "{ m", "heavy import": "import type { HeavyDb } from 'heavy-pkg'", "heavy import type": `import("heavy-pkg")`,
+		"route group": ": { m", "other export": "POISON_serverOnly", "heavy import": "import type { HeavyDb } from 'heavy-pkg'", "heavy import type": `import("heavy-pkg")`,
 	}
 	seen := map[string]bool{}
 	for seed := int64(0); seed < 300; seed++ {
@@ -251,12 +196,12 @@ func TestFuzz_ApiTypesOraclesFire(t *testing.T) {
 	if failures := append(oracleNoLeak(output), oracleNoLoss(t, graph, input, output)...); len(failures) > 0 {
 		t.Fatalf("the control case must pass first:\n%s", strings.Join(failures, "\n"))
 	}
-	if len(graph.keptNames()) == 0 || len(graph.poisonNames()) == 0 {
+	if len(graph.names(true)) == 0 || len(graph.names(false)) == 0 {
 		t.Fatalf("the control case needs both reached and unreached types:\n%s", graph.dump())
 	}
 
 	leaked := copyOutput(output)
-	leaked.Files[output.Entry] += "export type " + graph.poisonNames()[0] + " = string;\n"
+	leaked.Files[output.Entry] += "export type " + graph.names(false)[0] + " = string;\n"
 	if len(oracleNoLeak(leaked)) == 0 {
 		t.Error("no leak must fire on a shipped poison type")
 	}
@@ -267,12 +212,19 @@ func TestFuzz_ApiTypesOraclesFire(t *testing.T) {
 	}
 
 	lost := copyOutput(output)
-	dropped := graph.keptNames()[0]
+	dropped := graph.names(true)[0]
 	for rel, text := range lost.Files {
 		lost.Files[rel] = strings.ReplaceAll(text, dropped, "Gone")
 	}
 	if len(oracleNoLoss(t, graph, input, lost)) == 0 {
 		t.Errorf("no loss must fire when %s is dropped", dropped)
+	}
+
+	// A kept type still names a declaration the trim dropped: only the stand-alone check sees it.
+	broken := copyOutput(output)
+	broken.Files[output.Entry] += "export type Dangling = DroppedDeclaration;\n"
+	if failures := oracleNoLoss(t, graph, input, broken); !slices.ContainsFunc(failures, func(failure string) bool { return strings.Contains(failure, "error TS") }) {
+		t.Errorf("no loss must fire on a type error in the output, got %v", failures)
 	}
 
 	// Still type-checks on its own, yet every string member is now a number: only the id comparison sees it.
@@ -297,11 +249,8 @@ func TestFuzz_ApiTypesOraclesFire(t *testing.T) {
 
 func copyOutput(output *Output) *Output {
 	out := *output
-	out.Files = map[string]string{}
-	for rel, text := range output.Files {
-		out.Files[rel] = text
-	}
-	out.Externals = append([]string(nil), output.Externals...)
+	out.Files = maps.Clone(output.Files)
+	out.Externals = slices.Clone(output.Externals)
 	return &out
 }
 
@@ -432,20 +381,11 @@ func generateApiGraph(rng *rand.Rand) *apiGraph {
 	return graph
 }
 
-func (graph *apiGraph) keptNames() []string {
+// names lists the reached types, or the unreached ones.
+func (graph *apiGraph) names(reached bool) []string {
 	var out []string
 	for _, unit := range graph.units {
-		if unit.reached {
-			out = append(out, unit.name)
-		}
-	}
-	return out
-}
-
-func (graph *apiGraph) poisonNames() []string {
-	var out []string
-	for _, unit := range graph.units {
-		if !unit.reached {
+		if unit.reached == reached {
 			out = append(out, unit.name)
 		}
 	}
@@ -454,7 +394,7 @@ func (graph *apiGraph) poisonNames() []string {
 
 func (graph *apiGraph) dump() string {
 	var builder strings.Builder
-	for _, rel := range sortedKeys(graph.files) {
+	for _, rel := range slices.Sorted(maps.Keys(graph.files)) {
 		fmt.Fprintf(&builder, "// ---- %s ----\n%s\n", rel, graph.files[rel])
 	}
 	return builder.String()
@@ -477,13 +417,10 @@ type fileImports struct {
 	heavy      bool
 }
 
-func (imports *fileImports) add(list *[]string, binding string) {
-	for _, existing := range *list {
-		if existing == binding {
-			return
-		}
+func addBinding(list *[]string, binding string) {
+	if !slices.Contains(*list, binding) {
+		*list = append(*list, binding)
 	}
-	*list = append(*list, binding)
 }
 
 // typeRef renders how a declaration in file names unit; inExtends rules out `import()` types, which a heritage
@@ -508,19 +445,19 @@ func (graph *apiGraph) typeRef(rng *rand.Rand, file int, unit *apiUnit, imports 
 		switch form {
 		case "named":
 			list := imports.named[unit.file]
-			imports.add(&list, unit.name)
+			addBinding(&list, unit.name)
 			imports.named[unit.file] = list
 		case "aliased":
 			entity = fmt.Sprintf("%s_as_%d", unit.name, file)
 			list := imports.named[unit.file]
-			imports.add(&list, unit.name+" as "+entity)
+			addBinding(&list, unit.name+" as "+entity)
 			imports.named[unit.file] = list
 		case "namespace":
 			namespace := fmt.Sprintf("F%dNS", unit.file)
 			imports.namespaces[unit.file] = namespace
 			entity = namespace + "." + unit.name
 		case "barrel":
-			imports.add(&imports.barrel, unit.name)
+			addBinding(&imports.barrel, unit.name)
 		}
 	}
 	switch unit.kind {
@@ -591,6 +528,12 @@ func (graph *apiGraph) render(rng *rand.Rand) {
 		if file > 0 && rng.Intn(3) == 0 {
 			builder.WriteString("declare module 'heavy-pkg' {\n    interface HeavyClient { POISON_aug_" + strconv.Itoa(file) + ": string }\n}\n")
 		}
+		// A relative augmentation of another file's interface ships exactly when that interface does.
+		for _, unit := range graph.units {
+			if file > 0 && unit.file > 0 && unit.file != file && plainInterface(unit) && !unit.generic && rng.Intn(4) == 0 {
+				fmt.Fprintf(&builder, "declare module '%s' {\n    interface %s { aug%d_%d: string }\n}\n", specifierOf(unit.file), unit.name, unit.index, file)
+			}
+		}
 		builder.WriteString("export {};\n")
 		graph.files[fileName(file)] = builder.String()
 	}
@@ -638,13 +581,18 @@ func (imports *fileImports) render() string {
 	return builder.String()
 }
 
-// members renders a unit's refs as properties, plus a heavy-pkg member on a heavy poison unit.
-func (graph *apiGraph) members(rng *rand.Rand, unit *apiUnit, refs []*apiUnit, imports *fileImports, separator string) string {
+// members renders a unit's refs as properties, plus a heavy-pkg member on a heavy poison unit; a merge's second
+// statement (merged) carries its own refs only.
+func (graph *apiGraph) members(rng *rand.Rand, unit *apiUnit, refs []*apiUnit, imports *fileImports, merged bool) string {
+	prefix, fallback := "p", fmt.Sprintf("id%d: string", unit.index)
+	if merged {
+		prefix, fallback = "q", fmt.Sprintf("merged%d: number", unit.index)
+	}
 	var parts []string
 	for slot, ref := range refs {
-		parts = append(parts, fmt.Sprintf("p%d_%d: %s", unit.index, slot, position(rng, graph.typeRef(rng, unit.file, ref, imports, false))))
+		parts = append(parts, fmt.Sprintf("%s%d_%d: %s", prefix, unit.index, slot, position(rng, graph.typeRef(rng, unit.file, ref, imports, false))))
 	}
-	if unit.heavy {
+	if unit.heavy && !merged {
 		if rng.Intn(2) == 0 {
 			imports.heavy = true
 			parts = append(parts, "db: HeavyDb")
@@ -652,13 +600,13 @@ func (graph *apiGraph) members(rng *rand.Rand, unit *apiUnit, refs []*apiUnit, i
 			parts = append(parts, `client: import("heavy-pkg").HeavyClient`)
 		}
 	}
-	if unit.generic {
+	if unit.generic && !merged {
 		parts = append(parts, fmt.Sprintf("gen%d: T0", unit.index))
 	}
 	if len(parts) == 0 {
-		parts = append(parts, fmt.Sprintf("id%d: string", unit.index))
+		parts = append(parts, fallback)
 	}
-	return "{ " + strings.Join(parts, separator) + separator + "}"
+	return "{ " + strings.Join(parts, "; ") + "; }"
 }
 
 func (graph *apiGraph) renderUnit(rng *rand.Rand, unit *apiUnit, imports *fileImports) string {
@@ -688,38 +636,26 @@ func (graph *apiGraph) renderUnit(rng *rand.Rand, unit *apiUnit, imports *fileIm
 	}
 	switch unit.kind {
 	case kindInterface:
-		return fmt.Sprintf("%s%sinterface %s%s%s %s\n", indent, export, unit.name, params, heritage, graph.members(rng, unit, refs, imports, "; "))
+		return fmt.Sprintf("%s%sinterface %s%s%s %s\n", indent, export, unit.name, params, heritage, graph.members(rng, unit, refs, imports, false))
 	case kindMergedInterface:
 		half := len(refs) / 2
-		first := graph.members(rng, unit, refs[:half], imports, "; ")
-		second := graph.mergedMembers(rng, unit, refs[half:], imports)
+		first := graph.members(rng, unit, refs[:half], imports, false)
+		second := graph.members(rng, unit, refs[half:], imports, true)
 		return fmt.Sprintf("%sinterface %s%s%s %s\n%sinterface %s%s %s\n", export, unit.name, params, heritage, first, export, unit.name, params, second)
 	case kindAlias:
-		return fmt.Sprintf("%stype %s%s = %s;\n", export, unit.name, params, graph.members(rng, unit, refs, imports, "; "))
+		return fmt.Sprintf("%stype %s%s = %s;\n", export, unit.name, params, graph.members(rng, unit, refs, imports, false))
 	case kindClass:
-		body := "{ " + implemented + strings.TrimPrefix(graph.members(rng, unit, refs, imports, "; "), "{ ")
+		body := "{ " + implemented + strings.TrimPrefix(graph.members(rng, unit, refs, imports, false), "{ ")
 		return fmt.Sprintf("%sdeclare class %s%s%s %s\n", export, unit.name, params, heritage, body)
 	case kindConst:
-		return fmt.Sprintf("%sdeclare const %s: %s;\n", export, unit.name, graph.members(rng, unit, refs, imports, "; "))
+		return fmt.Sprintf("%sdeclare const %s: %s;\n", export, unit.name, graph.members(rng, unit, refs, imports, false))
 	case kindFunction:
-		first := graph.members(rng, unit, refs, imports, "; ")
+		first := graph.members(rng, unit, refs, imports, false)
 		return fmt.Sprintf("%sdeclare function %s(input: %s): void;\n%sdeclare function %s(input: %s, flag: boolean): string;\n", export, unit.name, first, export, unit.name, first)
 	case kindNamespace:
-		return fmt.Sprintf("%sdeclare namespace %s {\n    interface Inner %s\n}\n", export, unit.name, graph.members(rng, unit, refs, imports, "; "))
+		return fmt.Sprintf("%sdeclare namespace %s {\n    interface Inner %s\n}\n", export, unit.name, graph.members(rng, unit, refs, imports, false))
 	}
 	panic("unknown unit kind")
-}
-
-// mergedMembers renders a merge's second statement: its own refs, no heavy or generic member again.
-func (graph *apiGraph) mergedMembers(rng *rand.Rand, unit *apiUnit, refs []*apiUnit, imports *fileImports) string {
-	var parts []string
-	for slot, ref := range refs {
-		parts = append(parts, fmt.Sprintf("q%d_%d: %s", unit.index, slot, position(rng, graph.typeRef(rng, unit.file, ref, imports, false))))
-	}
-	if len(parts) == 0 {
-		parts = append(parts, fmt.Sprintf("merged%d: number", unit.index))
-	}
-	return "{ " + strings.Join(parts, "; ") + "; }"
 }
 
 // bareInterface: an interface rendered as `{ id<n>: string; }` alone, so a class can implement it by restating that.
