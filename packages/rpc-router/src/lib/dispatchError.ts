@@ -73,7 +73,7 @@ export function recordUndeclaredError(context: CallContext, key: string, err: an
 
 /** Unlike recordUndeclaredError, does not end the request. */
 export function addThrownError(context: CallContext, key: string, rpcError: RpcError<string>) {
-  // Cast the whole union: tsgo types `readonly || mutable` as readonly, so a cast on the fallback alone does not allow the write.
+  // tsgo types `readonly || mutable` as readonly, so casting only the `{}` fallback still forbids the write.
   const thrownErrors = (context.request.thrownErrors || {}) as Record<string, RpcError<string>>;
   thrownErrors[key] = rpcError;
   (context.request as Mutable<MionRequest>).thrownErrors = thrownErrors;

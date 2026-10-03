@@ -1,5 +1,4 @@
-// tsgo-check.mjs — runs `mion compile --no-emit` over every project the typecheck:test scripts name, so an
-// error only the bundled tsgo reports fails CI instead of a consumer's `mion compile` build.
+// Fails CI on an error only the bundled tsgo reports, before a consumer's `mion compile` build hits it.
 import {mkdtempSync, readFileSync, rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
@@ -9,7 +8,6 @@ import {EXEMPT, projectsOf, readPackages} from './typecheck-coverage.mjs';
 
 const MION = join(REPO_ROOT, 'mion-bin', 'mion');
 
-// Projects only tsc ever reads, each with the reason.
 export const TSC_ONLY = {
   'run-types/tsconfig.cjs.json': 'the CommonJS emit needs node10 resolution, which tsgo removed (TS5108)',
 };
@@ -37,7 +35,7 @@ export function main() {
       if (result.error) die(`tsgo-check: cannot run ${MION} (${result.error.message}); build it with \`pnpm run check:builds\``);
       const output = `${result.stdout}\n${result.stderr}`;
       const errors = tsErrors(output);
-      // The examples raise RunType diagnostics on purpose, so only a non-zero exit with no diagnostic at all is a crash.
+      // Examples raise RunType diagnostics on purpose, so a non-zero exit is a crash only when none is printed.
       const crashed = result.status !== 0 && !/: error [A-Z]+\d+:/.test(output);
       if (errors.length > 0 || crashed) failed.push({dir, config, lines: errors.length > 0 ? errors : [output]});
     }
