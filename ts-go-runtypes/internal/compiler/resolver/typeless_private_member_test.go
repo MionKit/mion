@@ -9,9 +9,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
-// MKR016: plain tsc writes every TS `private` field, method and accessor of a class without its type in a .d.ts, so
-// a class read from a published package checks those members as `any`. Paired static / value tests per the marker
-// coverage rule.
+// MKR016: plain tsc's .d.ts drops every `private` member's type, so a published class checks them as `any`.
+// Static / value pairs per the marker coverage rule.
 
 // tscLedgerDts is what plain tsc emits for a class with a private field, method and getter.
 const tscLedgerDts = `export declare class Account {
@@ -184,8 +183,7 @@ func TestTypelessPrivateMember_QuietForSourceClass_Value(t *testing.T) {
 	assertQuietForSourceClass(t, "import {getRunTypeId} from '@mionjs/run-types';\nimport {Account} from './account.ts';\ndeclare const account: Account;\nexport const id = getRunTypeId(account);\n")
 }
 
-// Turned off, the error changes nothing but the halt: each member reads as an optional `any`, since a private
-// method in a .d.ts looks just like a field and a plain JSON object never carries it.
+// Downgraded, only the halt goes: a .d.ts private method looks like a field and JSON never carries it, so it is optional.
 func assertDowngradedReadsAsOptionalAny(t *testing.T, site string) {
 	t.Helper()
 	resolver := setupInline(t, ledgerFiles(tscLedgerDts, site))

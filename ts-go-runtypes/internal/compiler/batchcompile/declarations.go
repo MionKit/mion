@@ -14,13 +14,11 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// The .d.ts lane. tsc writes a `private` member as `private name;` with its type erased, which a consumer could only
-// read as `any` (MKR016), so each member is written as `protected` instead: that keeps the type and the imports it
-// uses, keeps the class nominal, and stays unreadable from outside.
+// tsc erases a `private` member's type, so a consumer reads it as `any` (MKR016). Writing it `protected` keeps the type
+// and its imports, keeps the class nominal, and stays unreadable from outside.
 
-// emitDeclarationFiles emits the .d.ts from source plus the declaration-only splices: the quoted values (valueSplices)
-// and every `private` turned `protected`. It returns each spliced file's map back to the original, keyed by absolute
-// path, so a .d.ts.map still points at the source as written.
+// emitDeclarationFiles emits the .d.ts with the value splices and every `private` turned `protected`.
+// It returns each spliced file's map by absolute path, so a .d.ts.map points at the source as written.
 func emitDeclarationFiles(cwd, tsconfigPath string, original *program.Program, valueSplices []protocol.Replacement, writeFile compiler.WriteFile) (map[string]*protocol.SourceMap, error) {
 	splices := append(append([]protocol.Replacement(nil), valueSplices...), privateToProtectedSplices(original)...)
 	// Keyed by absolute path: the splice sources may spell one file differently, and each overlay entry replaces the file.
@@ -45,8 +43,7 @@ func emitDeclarationFiles(cwd, tsconfigPath string, original *program.Program, v
 	// Nothing to splice: the first program is the source as written, and it is already checked.
 	declarations := original
 	if len(overlay) > 0 {
-		// isolatedDeclarations exempts a private member from a written type but not a protected one, so the source as
-		// written answers it and the spliced emit infers.
+		// isolatedDeclarations demands a written type on protected, not private: check the source, then emit without it.
 		var overrides *core.CompilerOptions
 		if original.TS.Options().IsolatedDeclarations.IsTrue() {
 			if found := original.TS.GetDeclarationDiagnostics(context.Background(), nil); len(found) > 0 {
@@ -88,8 +85,7 @@ func spliceLocator(cwd string, original *program.Program, byFile map[string][]pr
 	}
 }
 
-// privateToProtectedSplices returns one splice per `private` keyword of a field, method, accessor or constructor
-// parameter property in the program's own files. A `private constructor` stays: it erases nothing.
+// privateToProtectedSplices writes `protected` over each member's `private`; a `private constructor` stays, it erases nothing.
 func privateToProtectedSplices(original *program.Program) []protocol.Replacement {
 	var out []protocol.Replacement
 	for _, sourceFile := range original.TS.SourceFiles() {
@@ -106,8 +102,7 @@ func privateToProtectedSplices(original *program.Program) []protocol.Replacement
 	return out
 }
 
-// eachClassMember visits every field, method and accessor of every class in a file, and each constructor parameter
-// property, which a .d.ts writes as a field.
+// eachClassMember also visits constructor parameters, since a .d.ts writes a parameter property as a field.
 func eachClassMember(sourceFile *ast.SourceFile, visit func(member *ast.Node)) {
 	var walk func(node *ast.Node) bool
 	walk = func(node *ast.Node) bool {

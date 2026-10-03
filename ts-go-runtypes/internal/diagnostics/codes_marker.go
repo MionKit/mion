@@ -53,10 +53,8 @@ const (
 	// call degrades to its no-plugin fallback: LevelError, no code was produced for what the marker
 	// asked for. Args: [0] the unknown token, [1] the closest real token ("" when nothing is close).
 	CodeMarkerUnresolvedFnName = "MKR015"
-	// CodeMarkerTypelessPrivateMember: a class read from a declaration file has a TS `private` member with no
-	// type, which is what plain tsc writes for every private field and method, so it checks as `any`.
-	// LevelRuntimeError like the rest of the silent-any family; `mion compile` keeps the type. Args: [0] the
-	// member name, [1] the class name.
+	// CodeMarkerTypelessPrivateMember: a .d.ts class has an untyped `private` member, as plain tsc writes it, so it is `any`.
+	// LevelRuntimeError like the rest of the silent-any family. Args: [0] the member name, [1] the class name.
 	CodeMarkerTypelessPrivateMember = "MKR016"
 	// CodeTypeIdCollision: two DIFFERENT types produced the same short type id at the configured
 	// `hashLength`. Every generated name, cache key and disk path is that id, so nothing downstream

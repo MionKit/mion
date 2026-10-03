@@ -270,8 +270,7 @@ export const id = getRunTypeId<Payload>();
 	})
 }
 
-// Every unresolved member gets its own MKR013, even when both name the same type: they share one `any`, which once
-// hid every member after the first.
+// Each unresolved member gets its own MKR013: members naming one type share one `any`, which once hid all but the first.
 func assertEachMissingMemberFires(t *testing.T, source string) {
 	t.Helper()
 	fired := mkr013Diags(scanConsumer(t, source))

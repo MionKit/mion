@@ -925,9 +925,8 @@ func IsNonEnumerable(symbol *ast.Symbol) bool {
 	return isDefaultLibGlobalMember(symbol) || hasNonEnumerableTag(symbol)
 }
 
-// IsTypelessPrivateSymbol reports a member whose every declaration is a typeless TS `private` in ambient code, the
-// shape plain tsc's .d.ts gives a private field, method or accessor. A field cannot be told from a method there, so
-// the projection (serialize.go) and memberID both read it as optional; the resolver reports it as MKR016.
+// IsTypelessPrivateSymbol reports a member whose every declaration is an ambient typeless `private`, as plain tsc emits.
+// Field and method look alike there, so serialize.go and memberID read it as optional; the resolver reports MKR016.
 func IsTypelessPrivateSymbol(symbol *ast.Symbol) bool {
 	if symbol == nil || len(symbol.Declarations) == 0 {
 		return false
