@@ -50,7 +50,15 @@ func (state scanState) walkTypeMembers(tsType *checker.Type, visited map[*checke
 	}
 	typeChecker := state.scanChecker
 	descend := func(memberType *checker.Type, memberSymbol *ast.Symbol) {
-		if memberType == nil || visited[memberType] {
+		if memberType == nil {
+			return
+		}
+		// Every `any` is one shared type with nothing under it, so marking it visited would hide each later `any` member.
+		if checker.Type_flags(memberType)&checker.TypeFlagsAny != 0 {
+			visit(memberType, memberSymbol)
+			return
+		}
+		if visited[memberType] {
 			return
 		}
 		visited[memberType] = true
@@ -117,6 +125,10 @@ func (state scanState) silentAnyMemberDiag(memberType *checker.Type, memberSymbo
 			return diagnostics.NewWithRelated(diagnostics.CodeTemporalNotLoaded, site, []string{temporalName}, related...), true
 		}
 	}
+	// MKR016: a plain intrinsic `any`, so it must be caught before the error-like check below lets it through.
+	if className, ok := typelessPrivateMember(declaration); ok {
+		return diagnostics.NewWithRelated(diagnostics.CodeMarkerTypelessPrivateMember, site, []string{memberName, className}, related...), true
+	}
 	if !marker.IsErrorLikeAny(memberType) {
 		return diagnostics.Diagnostic{}, false
 	}
@@ -134,6 +146,25 @@ func (state scanState) silentAnyMemberDiag(memberType *checker.Type, memberSymbo
 		}
 	}
 	return diagnostics.NewWithRelated(diagnostics.CodeMarkerUnresolvedTypeName, site, []string{written}, related...), true
+}
+
+// typelessPrivateMember reports a TS `private` class field with neither a type nor an initializer in ambient code
+// (a `.d.ts` or `declare class`), the shape tsc's declaration emit gives every private field and method.
+func typelessPrivateMember(declaration *ast.Node) (string, bool) {
+	if declaration == nil || declaration.Kind != ast.KindPropertyDeclaration || declaration.Flags&ast.NodeFlagsAmbient == 0 {
+		return "", false
+	}
+	property := declaration.AsPropertyDeclaration()
+	if property.Type != nil || property.Initializer != nil || ast.GetCombinedModifierFlags(declaration)&ast.ModifierFlagsPrivate == 0 {
+		return "", false
+	}
+	className := "class"
+	if classNode := declaration.Parent; classNode != nil {
+		if name := classNode.Name(); name != nil && name.Kind == ast.KindIdentifier {
+			className = name.Text()
+		}
+	}
+	return className, true
 }
 
 func firstDeclaration(symbol *ast.Symbol) *ast.Node {
