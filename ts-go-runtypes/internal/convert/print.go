@@ -57,6 +57,8 @@ type printContext struct {
 	// walking guards the recursive printers: a node already on the path is a back-edge, closing as a
 	// self-reference at the root's id and reporting CNV001 anywhere else.
 	walking map[string]bool
+	// outside prints for a published types package: classes, enums and symbol keys become declarations of their own.
+	outside *OutsidePrinter
 }
 
 // enter marks a node as on-path and returns the unmark func; the second result is false when the
@@ -753,6 +755,11 @@ func (ctx *printContext) classSpelling(node *reflection.RunType) (string, *Diagn
 		}
 		name = liveName
 	}
+	return ctx.typeArgumentsText(name, node)
+}
+
+// typeArgumentsText appends a class node's type arguments to its name.
+func (ctx *printContext) typeArgumentsText(name string, node *reflection.RunType) (string, *Diagnostic) {
 	if len(node.Arguments) == 0 {
 		return name, nil
 	}
@@ -792,6 +799,7 @@ type objectMember struct {
 	key           string
 	optional      bool
 	readonly      bool
+	nonEnumerable bool
 	child         *reflection.RunType
 	signatureNode *reflection.RunType
 	callSignature bool
@@ -828,19 +836,19 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 			indexes = append(indexes, indexSignature{key: indexKey, value: indexValue, readonly: member.Readonly})
 			continue
 		}
-		if reflection.IsSymbolKeyedName(member.Name) {
+		if reflection.IsSymbolKeyedName(member.Name) && ctx.outside == nil {
 			return nil, nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
 				Message: fmt.Sprintf("symbol-keyed member %q is not convertible yet", member.Name)}
 		}
-		if member.NonEnumerable {
+		if member.NonEnumerable && ctx.outside == nil {
 			// The @nonEnumerable JSDoc marker folds into the id but has no printed spelling, and
 			// dropping it would move the id, so the declaration refuses.
 			return nil, nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
 				Message: fmt.Sprintf("member %q is marked @nonEnumerable, which has no conversion spelling yet", member.Name)}
 		}
-		key := member.Name
-		if !member.IsSafeName {
-			key = quoteSingle(member.Name)
+		key, keyDiag := ctx.memberKey(member)
+		if keyDiag != nil && member.Kind != reflection.KindCallSignature {
+			return nil, nil, keyDiag
 		}
 		switch member.Kind {
 		case reflection.KindCallSignature:
@@ -852,6 +860,7 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 				key:           key,
 				optional:      member.Optional,
 				readonly:      member.Readonly,
+				nonEnumerable: member.NonEnumerable,
 				signatureNode: member,
 			})
 			continue
@@ -865,11 +874,12 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 			return nil, nil, unsupportedDiag(node, ctx.decl)
 		}
 		members = append(members, &objectMember{
-			name:     member.Name,
-			key:      key,
-			optional: member.Optional,
-			readonly: member.Readonly,
-			child:    child,
+			name:          member.Name,
+			key:           key,
+			optional:      member.Optional,
+			readonly:      member.Readonly,
+			nonEnumerable: member.NonEnumerable,
+			child:         child,
 		})
 	}
 	return members, indexes, nil
