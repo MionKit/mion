@@ -245,6 +245,37 @@ func TestCollectEntries_SharedRootKeepsSizeLimit(t *testing.T) {
 	}
 }
 
+// TestCollectEntries_KeyCoversImports — two files owning no rows of their own still get distinct tuple keys when
+// they load different shared modules, since the runtime skips a key it has already seen.
+func TestCollectEntries_KeyCoversImports(t *testing.T) {
+	// c and d reflect the same roots as a and b, so a and b own no rows and import one shared module each.
+	modules := emitFileModulesSites(t, []protocol.Site{{ID: "x1", File: "a"}, {ID: "x1", File: "c"}, {ID: "y1", File: "b"}, {ID: "y1", File: "d"}}, []*reflection.RunType{
+		{ID: "x1", Kind: reflection.KindString},
+		{ID: "y1", Kind: reflection.KindNumber},
+	})
+	keyOf := func(module string) string {
+		start := strings.Index(modules[module], "'rts_")
+		if start < 0 {
+			t.Fatalf("%s has no data tuple:\n%s", module, modules[module])
+		}
+		return modules[module][start : start+16]
+	}
+	if keyOf("rt/a") == keyOf("rt/b") {
+		t.Errorf("files loading different shared modules must not share a tuple key, both %s:\n%s\n%s", keyOf("rt/a"), modules["rt/a"], modules["rt/b"])
+	}
+}
+
+// emitFileModulesSites renders a dump from explicit sites, for a root several files reflect.
+func emitFileModulesSites(t *testing.T, sites []protocol.Site, runTypes []*reflection.RunType) map[string]string {
+	t.Helper()
+	graph := CollectEntries(protocol.Dump{RunTypes: runTypes, Sites: sites}, false, func(site protocol.Site) string { return "rt/" + site.File }, nil)
+	modules, err := entrymodules.RenderGrouped(graph, nil)
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	return modules
+}
+
 // TestCollectEntries_Deterministic — the same dump renders the same modules, shared names included.
 func TestCollectEntries_Deterministic(t *testing.T) {
 	render := func() map[string]string {
