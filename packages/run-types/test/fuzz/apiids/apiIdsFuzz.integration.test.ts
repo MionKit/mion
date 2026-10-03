@@ -65,12 +65,13 @@ describe('bundled API ids fuzz (CLI end to end)', () => {
         writeTypes(project, 'export type Root = {id: number; note: string | undefined};\n');
         const published = apiTypes(project);
         expect(published.status, published.stderr).toBe(0);
-        const stale = compile(project, 'types-client');
-        expect(stale.status, stale.stderr).toBe(0);
 
+        // The client builds after the edit, so only the stale package it reads can make it fail.
         writeTypes(project, 'export type Root = {id: number; note: string | undefined; tags: string[]};\n');
         const rebuilt = compile(project, 'server');
         expect(rebuilt.status, rebuilt.stderr).toBe(0);
+        const stale = compile(project, 'types-client');
+        expect(stale.status, stale.stderr).toBe(0);
         const failing = apiCheck(project, project.serverGen, project.typesClientGen);
         expect(failing.status).toBe(1);
         expect(failing.stderr).toContain('r0: paramsId differs');

@@ -43,7 +43,7 @@ const ROUTE_HANDLERS = {
 
 /** Installed as a package, so the published types package resolves it like a client does. The build version rides
  *  the API type the way the real router carries it. **/
-const ROUTER_DTS = `import type {InjectBuildVersion} from '@mionjs/run-types';
+export const ROUTER_DTS = `import type {InjectBuildVersion} from '@mionjs/run-types';
 type Handler = (...args: any[]) => any;
 type Opts = {alwaysRun: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
 declare const apiBuildVersion: unique symbol;
@@ -83,7 +83,7 @@ declare const r0ParamsValue: Parameters<H0>;
 export const r0ParamsByValue = getRunTypeId(r0ParamsValue);
 `;
 
-const CLIENT_DTS = `declare module '@mionjs/client' {
+export const CLIENT_DTS = `declare module '@mionjs/client' {
   import type {InjectApiMetadata, InjectBuildVersion} from '@mionjs/run-types';
   export interface RouteSubRequest<PH, Id extends string = string, RA = any> {
     id: Id;
@@ -95,22 +95,13 @@ const CLIENT_DTS = `declare module '@mionjs/client' {
       ? (...params: Parameters<H>) => RouteSubRequest<H, \`\${Prefix}\${K & string}\`, Root>
       : ClientRoutes<RA[K], \`\${Prefix}\${K & string}/\`, Root>;
   };
-  export function initClient<RA>(o?: unknown, buildVersion?: InjectBuildVersion<RA>): {routes: ClientRoutes<RA>};
+  export function initClient<RM>(o?: unknown, buildVersion?: InjectBuildVersion<RM>): {routes: ClientRoutes<RM>};
 }
 `;
 
-const CLIENT_TS = `import {initClient} from '@mionjs/client';
-import type {api} from './server.ts';
-import type {Root} from './types.ts';
-declare const rootValue: Root;
-export const {routes} = initClient<typeof api>({baseURL: 'http://x'});
-export const a = routes.r0(rootValue).call();
-export const b = routes.users.r1(rootValue).call();
-`;
-
-/** The same client, reading the API from the published types package instead of the server sources. **/
-const TYPES_CLIENT_TS = `import {initClient} from '@mionjs/client';
-import type {api} from '@acme/api-types';
+/** The client calling both routes, with the API read from the server sources or from the published types package. **/
+const clientSource = (apiModule: string): string => `import {initClient} from '@mionjs/client';
+import type {api} from '${apiModule}';
 declare const rootValue: Parameters<typeof api.r0.handler>[0];
 export const {routes} = initClient<typeof api>({baseURL: 'http://x'});
 export const a = routes.r0(rootValue).call();
@@ -173,9 +164,9 @@ export function createApiProject(): ApiProject {
     'src/server.ts': SERVER_TS,
     'src/probes.ts': PROBES_TS,
     'src/client.d.ts': CLIENT_DTS,
-    'src/app.ts': CLIENT_TS,
+    'src/app.ts': clientSource('./server.ts'),
     'client/client.d.ts': CLIENT_DTS,
-    'client/app.ts': TYPES_CLIENT_TS,
+    'client/app.ts': clientSource(TYPES_PACKAGE),
   };
   for (const [rel, content] of Object.entries(files)) {
     fs.mkdirSync(path.dirname(path.join(dir, rel)), {recursive: true});
