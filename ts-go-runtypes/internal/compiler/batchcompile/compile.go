@@ -59,7 +59,7 @@ type Options struct {
 	// DeclarationsOnly emits only the .d.ts, into Result.Declarations under DeclarationDir, and writes no output file.
 	// The gen dir still gets what generate writes, so a caller wanting no trace passes a temp GenDir.
 	DeclarationsOnly bool
-	// DeclarationDir is where DeclarationsOnly lays the .d.ts out (absolute, never written); `<cwd>/.mion-dts` when empty.
+	// DeclarationDir is where DeclarationsOnly lays the .d.ts out: absolute, required, never written.
 	DeclarationDir string
 }
 
@@ -73,8 +73,7 @@ type Result struct {
 	TypeErrorCount  int
 	CheckedFiles    int // non-declaration source files the scan read
 	// Declarations (DeclarationsOnly) holds each emitted .d.ts by absolute path under DeclarationDir.
-	Declarations   map[string]string
-	DeclarationDir string
+	Declarations map[string]string
 	// PureFnArtifact is the package's `mion-pure-fns/` content, path inside the directory to text.
 	PureFnArtifact map[string]string
 	GenDir         string
@@ -102,15 +101,13 @@ func Run(opts Options) (*Result, error) {
 	resolverOpts.GenDir = genDir
 
 	var overrides *core.CompilerOptions
-	declarationDir := ""
 	if opts.DeclarationsOnly {
-		declarationDir = opts.DeclarationDir
-		if declarationDir == "" {
-			declarationDir = filepath.Join(cwd, ".mion-dts")
+		if opts.DeclarationDir == "" {
+			return nil, fmt.Errorf("compile: DeclarationsOnly needs a DeclarationDir")
 		}
 		overrides = &core.CompilerOptions{
 			Declaration: core.TSTrue, EmitDeclarationOnly: core.TSTrue, DeclarationMap: core.TSFalse,
-			NoEmit: core.TSFalse, DeclarationDir: declarationDir,
+			NoEmit: core.TSFalse, DeclarationDir: opts.DeclarationDir,
 		}
 	}
 	p1, err := program.New(program.Options{Cwd: cwd, TsconfigPath: opts.TsconfigPath, Overrides: overrides})
@@ -161,8 +158,20 @@ func Run(opts Options) (*Result, error) {
 		genDir = gen.OutDir
 	}
 	result.GenDir, result.PureFnArtifact = genDir, gen.PureFnArtifact
+	// The value splices and the private-to-protected pass apply as in a full emit.
 	if opts.DeclarationsOnly {
-		return declarationsOnly(result, cwd, opts.TsconfigPath, p1, overrides, r1.DeclarationReplacements(), declarationDir)
+		capture := newEmitCapture()
+		writeDeclaration := func(fileName, text string, _ *compiler.WriteFileData) error {
+			if strings.HasSuffix(fileName, ".d.ts") {
+				capture.add(filepath.Clean(fileName), text)
+			}
+			return nil
+		}
+		if _, err := emitDeclarationFiles(cwd, opts.TsconfigPath, p1, overrides, r1.DeclarationReplacements(), writeDeclaration); err != nil {
+			return nil, err
+		}
+		result.Declarations = capture.files
+		return result, nil
 	}
 
 	markerFiles := uniqueFiles(dump.Sites, dump.Replacements)
@@ -270,22 +279,6 @@ func Run(opts Options) (*Result, error) {
 			return nil, fmt.Errorf("compile: %w", err)
 		}
 	}
-	return result, nil
-}
-
-// declarationsOnly emits the .d.ts in memory, keeping the value splices and the private-to-protected pass.
-func declarationsOnly(result *Result, cwd, tsconfigPath string, original *program.Program, overrides *core.CompilerOptions, valueSplices []protocol.Replacement, declarationDir string) (*Result, error) {
-	capture := newEmitCapture()
-	writeFile := func(fileName, text string, _ *compiler.WriteFileData) error {
-		if strings.HasSuffix(fileName, ".d.ts") {
-			capture.add(filepath.Clean(fileName), text)
-		}
-		return nil
-	}
-	if _, err := emitDeclarationFiles(cwd, tsconfigPath, original, overrides, valueSplices, writeFile); err != nil {
-		return nil, err
-	}
-	result.Declarations, result.DeclarationDir = capture.files, declarationDir
 	return result, nil
 }
 
