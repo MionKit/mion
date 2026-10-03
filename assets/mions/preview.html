@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Mions Preview</title>
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { background: radial-gradient(ellipse at 50% 45%, #22304a 0%, #161f33 55%, #0e1424 100%); overflow: hidden; }
+  #sky { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .scene { position: absolute; left: 50%; top: 50%; width: 600px; height: 380px; transform: translate(-50%, -50%) scale(var(--s, 1)); }
+  .scene img { position: absolute; }
+  .bob { animation: bob 2.4s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translateY(-6px); } }
+</style>
+</head>
+<body>
+<svg id="sky"></svg>
+<div class="scene">
+  <img src="terrain/grass-island.svg" style="left:0;top:0;width:600px">
+  <img class="bob" src="creatures/horned-ghost.svg" style="left:205px;top:0px;width:180px">
+</div>
+<script>
+  // stars and floating pebbles, seeded so the layout is stable
+  let seed = 3;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const sky = document.getElementById('sky');
+  const w = innerWidth, h = innerHeight;
+  let out = '';
+  for (let i = 0; i < 260; i++) out += `<circle cx="${rnd() * w}" cy="${rnd() * h}" r="${0.5 + rnd() * 1.3}" fill="#fff" opacity="${0.3 + rnd() * 0.6}"/>`;
+  const pebble = ['#8fb8d8', '#e3a18a', '#c9a7d9', '#9fd0c8', '#f0c47a'];
+  for (let i = 0; i < 60; i++) {
+    const rx = 3 + rnd() * 6;
+    out += `<ellipse cx="${rnd() * w}" cy="${rnd() * h}" rx="${rx}" ry="${rx * 0.6}" fill="${pebble[Math.floor(rnd() * pebble.length)]}" opacity="0.8"/>`;
+  }
+  sky.innerHTML = out;
+  for (const img of document.images) img.src = img.getAttribute("src") + "?v=" + Date.now();
+  document.querySelector(".scene").style.setProperty("--s", Math.min(w * 0.92 / 600, h * 0.8 / 380));
+</script>
+</body>
+</html>

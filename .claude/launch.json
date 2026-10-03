@@ -6,6 +6,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["miondevx", "website", "dev"],
       "port": 3000
+    },
+    {
+      "name": "mions",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "4170", "--directory", "assets/mions"],
+      "port": 4170
     }
   ]
 }
