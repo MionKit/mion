@@ -2,6 +2,7 @@ package runtype
 
 import (
 	"maps"
+	"path"
 	"slices"
 	"sort"
 	"strconv"
@@ -19,13 +20,86 @@ import (
 // and it changes whenever the row set does, so 10 dictionary chars is plenty.
 const bundleKeyLength = 10
 
-// CollectEntries emits per module (nil moduleOf means one) a data entry of its roots' closure and a facade per root.
-// A row two files reach ships in both modules, and the runtime registers it once.
+// RowHomes is where each runtype row is written: the one module reaching it, or the shared module of every row
+// reached by the same set of modules, so a row ships once and a module imports only rows it reaches itself.
+type RowHomes struct {
+	home  map[string]string
+	roots map[string]bool
+}
+
+// PlanRowHomes plans the homes over a whole program; a planner fed one file would keep every row in that file.
+// A row's owner set always contains its parent's, so shared modules import only larger sets and never cycle.
+func PlanRowHomes(dump protocol.Dump, moduleOf func(protocol.Site) string) *RowHomes {
+	nodes := indexNodes(dump.RunTypes)
+	sitesByModule := groupReflectionSites(dump, moduleOf)
+	homes := &RowHomes{home: map[string]string{}, roots: map[string]bool{}}
+	owners := map[string][]string{}
+	for _, module := range slices.Sorted(maps.Keys(sitesByModule)) {
+		roots := reflectionRoots(sitesByModule[module])
+		for _, root := range roots {
+			homes.roots[root] = true
+		}
+		for _, id := range closureRows(roots, nodes) {
+			owners[id] = append(owners[id], module)
+		}
+	}
+	rowsBySet := map[string][]string{}
+	for id, modules := range owners {
+		if len(modules) == 1 {
+			homes.home[id] = modules[0]
+			continue
+		}
+		set := strings.Join(modules, "\x00")
+		rowsBySet[set] = append(rowsBySet[set], id)
+	}
+	for _, rows := range rowsBySet {
+		sort.Strings(rows)
+		shared := constants.RunTypesFileModuleDir + "/" + constants.RunTypesSharedModuleDir + "/" +
+			hashid.QuickHash(strings.Join(rows, ","), sharedModuleHashLength)
+		for _, id := range rows {
+			homes.home[id] = shared
+		}
+	}
+	return homes
+}
+
+// sharedModuleHashLength sizes a shared module's name, a hash of its row ids.
+const sharedModuleHashLength = 10
+
+// foreignHomes is the sorted set of modules other than self that hold rows of closure.
+func (homes *RowHomes) foreignHomes(self string, closure []string) []string {
+	seen := map[string]bool{}
+	for _, id := range closure {
+		if home := homes.home[id]; home != "" && home != self {
+			seen[home] = true
+		}
+	}
+	return slices.Sorted(maps.Keys(seen))
+}
+
+// CollectEntries emits per module (nil moduleOf means one) a data entry of the rows it owns, importing the shared
+// modules holding the rest of its closure, and a facade per root. Nil homes plans them from dump itself.
 // The tuple key hashes the row ids and root size limits, so an evolved module re-registers after an HMR reload.
 // jsonMaxBytes false leaves slot 21 off every root row, so a consumer not deriving request limits pays nothing.
-func CollectEntries(dump protocol.Dump, jsonMaxBytes bool, moduleOf func(protocol.Site) string) entrymodules.Graph {
+func CollectEntries(dump protocol.Dump, jsonMaxBytes bool, moduleOf func(protocol.Site) string, homes *RowHomes) entrymodules.Graph {
+	if homes == nil {
+		homes = PlanRowHomes(dump, moduleOf)
+	}
 	graph := entrymodules.Graph{}
 	nodes := indexNodes(dump.RunTypes)
+	// A row is written once, so it carries its size limit when it is a root anywhere in the program.
+	rootJSONMax := rootJSONMaxBytes(slices.Sorted(maps.Keys(homes.roots)), nodes, jsonMaxBytes)
+	sitesByModule := groupReflectionSites(dump, moduleOf)
+	emittedShared := map[string]bool{}
+	// Sorted, so the graph is deterministic.
+	for _, module := range slices.Sorted(maps.Keys(sitesByModule)) {
+		collectModule(graph, module, sitesByModule[module], nodes, rootJSONMax, homes, emittedShared)
+	}
+	return graph
+}
+
+// groupReflectionSites buckets the reflection-only sites by the module their file maps to.
+func groupReflectionSites(dump protocol.Dump, moduleOf func(protocol.Site) string) map[string][]protocol.Site {
 	sitesByModule := map[string][]protocol.Site{}
 	for _, site := range dump.Sites {
 		// Circular createX types add no rows: their guard is a path skeleton baked into the armed factory.
@@ -38,61 +112,32 @@ func CollectEntries(dump protocol.Dump, jsonMaxBytes bool, moduleOf func(protoco
 		}
 		sitesByModule[module] = append(sitesByModule[module], site)
 	}
-	// Sorted, so the graph is deterministic.
-	for _, module := range slices.Sorted(maps.Keys(sitesByModule)) {
-		collectModule(graph, module, sitesByModule[module], nodes, jsonMaxBytes)
-	}
-	return graph
+	return sitesByModule
 }
 
-// collectModule adds one module's data entry and facades to graph.
-func collectModule(graph entrymodules.Graph, module string, sites []protocol.Site, nodes map[string]*reflection.RunType, jsonMaxBytes bool) {
+// collectModule adds one module's data entry and facades to graph, plus every shared module its closure reaches.
+func collectModule(graph entrymodules.Graph, module string, sites []protocol.Site, nodes map[string]*reflection.RunType,
+	rootJSONMax map[string]int, homes *RowHomes, emittedShared map[string]bool) {
 	roots := reflectionRoots(sites)
-	rows := closureRows(roots, nodes)
-	indexOf := make(map[string]int, len(rows))
-	for i, id := range rows {
-		indexOf[id] = i
+	closure := closureRows(roots, nodes)
+	rowsByHome := map[string][]string{}
+	for _, id := range closure {
+		rowsByHome[homes.home[id]] = append(rowsByHome[homes.home[id]], id)
 	}
-	rootJSONMax := rootJSONMaxBytes(roots, nodes, jsonMaxBytes)
+	// Every row of a shared module is in the closure of each module reaching it, so the slice is the whole module.
+	for _, shared := range homes.foreignHomes(module, closure) {
+		if emittedShared[shared] {
+			continue
+		}
+		emittedShared[shared] = true
+		rows := rowsByHome[shared]
+		addDataEntry(graph, shared, "rts_"+path.Base(shared), rows, nodes, rootJSONMax, homes.foreignHomes(shared, closureRows(rows, nodes)))
+	}
 	dataKey := module + moduleKeySeparator + dataEntryName
 	// A root missing from the dump still gets a facade so the injected import resolves; the runtime sees a registry miss.
 	var facadeDeps []string
-	if len(rows) > 0 {
-		var rowsText strings.Builder
-		var footer strings.Builder
-		relRows := make([]string, len(rows))
-		keyParts := make([]string, len(rows))
-		for i, id := range rows {
-			if i > 0 {
-				// One row per line: newlines in an array literal are inert, and the tuple key hashes the ids, not this text.
-				rowsText.WriteString(",\n")
-			}
-			rowsText.WriteByte('[')
-			rowsText.WriteString(strings.Join(renderFactoryArgs(nodes[id], rootJSONMax[id]), ","))
-			rowsText.WriteByte(']')
-			// Refs ride the parallel `rels` array as row indices; only expression-specials need the footer, so ini is mostly a hole.
-			relRows[i] = renderRelations(nodes[id], indexOf)
-			if hasBundleSpecials(nodes[id]) {
-				writeBundleSpecials(&footer, nodes[id])
-			}
-			keyParts[i] = id
-			if max, bounded := rootJSONMax[id]; bounded {
-				keyParts[i] += ":" + strconv.Itoa(max)
-			}
-		}
-		// Trailing leaf rows carry no relations: trimmed, the runtime's `rels[i]` read returns undefined for them.
-		relEnd := len(relRows)
-		for relEnd > 0 && relRows[relEnd-1] == "" {
-			relEnd--
-		}
-		tupleKey := "rts_" + hashid.QuickHash(strings.Join(keyParts, ","), bundleKeyLength)
-		graph.Add(&entrymodules.Entry{
-			Key:      dataKey,
-			Kind:     entrymodules.KindRunTypeBundle,
-			Module:   module,
-			ArgsText: quoteJS(tupleKey) + ",[" + rowsText.String() + "],[" + strings.Join(relRows[:relEnd], ",") + "]",
-			InitBody: footer.String(),
-		})
+	if len(closure) > 0 {
+		addDataEntry(graph, module, "", rowsByHome[module], nodes, rootJSONMax, homes.foreignHomes(module, closure))
 		facadeDeps = []string{dataKey}
 	}
 	extraDeps := reflectionSiteDemandKeys(sites)
@@ -107,6 +152,59 @@ func collectModule(graph entrymodules.Graph, module string, sites []protocol.Sit
 			SoftDeps: extraDeps[root],
 		})
 	}
+}
+
+// addDataEntry adds module's data entry holding rows, importing the data entries of the modules in imports.
+// A file whose rows are all shared still gets one, with no rows, so each facade keeps a single data dep.
+func addDataEntry(graph entrymodules.Graph, module, export string, rows []string, nodes map[string]*reflection.RunType,
+	rootJSONMax map[string]int, imports []string) {
+	sort.Strings(rows)
+	indexOf := make(map[string]int, len(rows))
+	for i, id := range rows {
+		indexOf[id] = i
+	}
+	var rowsText strings.Builder
+	var footer strings.Builder
+	relRows := make([]string, len(rows))
+	keyParts := make([]string, len(rows))
+	for i, id := range rows {
+		if i > 0 {
+			// One row per line: newlines in an array literal are inert, and the tuple key hashes the ids, not this text.
+			rowsText.WriteString(",\n")
+		}
+		rowsText.WriteByte('[')
+		rowsText.WriteString(strings.Join(renderFactoryArgs(nodes[id], rootJSONMax[id]), ","))
+		rowsText.WriteByte(']')
+		// Refs ride the parallel `rels` array as row indices, or as ids for a row another module holds; only
+		// expression-specials need the footer, so ini is mostly a hole.
+		relRows[i] = renderRelations(nodes[id], indexOf)
+		if hasBundleSpecials(nodes[id]) {
+			writeBundleSpecials(&footer, nodes[id])
+		}
+		keyParts[i] = id
+		if max, bounded := rootJSONMax[id]; bounded {
+			keyParts[i] += ":" + strconv.Itoa(max)
+		}
+	}
+	// Trailing leaf rows carry no relations: trimmed, the runtime's `rels[i]` read returns undefined for them.
+	relEnd := len(relRows)
+	for relEnd > 0 && relRows[relEnd-1] == "" {
+		relEnd--
+	}
+	deps := make([]string, len(imports))
+	for i, imported := range imports {
+		deps[i] = imported + moduleKeySeparator + dataEntryName
+	}
+	tupleKey := "rts_" + hashid.QuickHash(strings.Join(keyParts, ","), bundleKeyLength)
+	graph.Add(&entrymodules.Entry{
+		Key:      module + moduleKeySeparator + dataEntryName,
+		Kind:     entrymodules.KindRunTypeBundle,
+		Module:   module,
+		Export:   export,
+		ArgsText: quoteJS(tupleKey) + ",[" + rowsText.String() + "],[" + strings.Join(relRows[:relEnd], ",") + "]",
+		InitBody: footer.String(),
+		Deps:     deps,
+	})
 }
 
 // moduleKeySeparator joins a module to an entry name in a graph key; no module path or type id contains it.

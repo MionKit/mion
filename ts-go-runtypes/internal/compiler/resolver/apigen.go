@@ -429,7 +429,7 @@ func (sess *Session) renderApiBundle(bundle *apiBundle, files map[string]string)
 	pureFnEntries, _, _ := sess.extractProgramPureFns(nil)
 	pureFnGraph := purefunctions.CollectEntries(sess.userPureFnEntries(pureFnEntries), constants.EmitFunctions)
 	apiDump := protocol.Dump{RunTypes: sess.cache.Dump(), Sites: stamped}
-	typeModules, _, err := sess.collectEntryModules(apiDump, renderOpts, pureFnGraph, nil)
+	typeModules, _, err := sess.collectEntryModules(apiDump, nil, renderOpts, pureFnGraph, nil)
 	if err != nil {
 		return renderDiags, fmt.Errorf("bundled routes: %w", err)
 	}
