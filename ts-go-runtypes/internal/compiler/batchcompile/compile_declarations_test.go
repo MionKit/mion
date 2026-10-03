@@ -86,7 +86,7 @@ export const shout = registerPureFn(function (text: string): string {
 // TestCompile_DeclarationsOnlyWritesNoOutput: the .d.ts come back in memory even with `declaration` off, and no output file lands.
 func TestCompile_DeclarationsOnlyWritesNoOutput(t *testing.T) {
 	dir := writeProject(t, map[string]string{"router.d.ts": versionedRouterDTS, "server.ts": versionedServerTS})
-	result, err := Run(Options{Cwd: dir, TsconfigPath: "tsconfig.json", GenDir: filepath.Join(t.TempDir(), "gen"), DeclarationsOnly: true})
+	result, err := Run(Options{Cwd: dir, TsconfigPath: "tsconfig.json", GenDir: filepath.Join(t.TempDir(), "gen"), DeclarationsOnly: true, DeclarationDir: filepath.Join(dir, ".mion-dts")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +103,7 @@ func TestCompile_DeclarationsOnlyWritesNoOutput(t *testing.T) {
 func TestCompile_DeclarationsOnlyKeepsPrivateTypes(t *testing.T) {
 	dir := writeProject(t, map[string]string{"a.ts": "export class Secret {\n  private code: number = 1;\n}\n"})
 	writeFile(t, filepath.Join(dir, "tsconfig.json"), strings.Replace(projectTsconfigJSON, `"strict": true,`, `"strict": true, "isolatedDeclarations": true, "declaration": false,`, 1))
-	result, err := Run(Options{Cwd: dir, TsconfigPath: "tsconfig.json", GenDir: filepath.Join(t.TempDir(), "gen"), DeclarationsOnly: true})
+	result, err := Run(Options{Cwd: dir, TsconfigPath: "tsconfig.json", GenDir: filepath.Join(t.TempDir(), "gen"), DeclarationsOnly: true, DeclarationDir: filepath.Join(dir, ".mion-dts")})
 	if err != nil {
 		t.Fatal(err)
 	}
