@@ -13,7 +13,7 @@ import (
 
 func environmentProject(t *testing.T, types string, files map[string]string) map[string]bool {
 	t.Helper()
-	// The project sits behind a symlinked dir on every OS (macOS's own temp dir is one), and tsgo reports resolved paths.
+	// Symlinked on every OS, as macOS's temp dir is; tsgo reports resolved paths.
 	tempDir, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
