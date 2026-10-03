@@ -87,3 +87,28 @@ describe('class with TS private and protected fields', () => {
     expect((createJsonDecoderFn(wallet)(json) as Wallet).deposit(1)).toBe(11);
   });
 });
+
+// What plain tsc writes in a .d.ts: private members lose their type, and a method looks just like a field.
+declare class TscLedger {
+  id: string;
+  private balance;
+  private audit;
+}
+
+describe('class from a plain tsc .d.ts, with MKR016 turned off', () => {
+  test('a typeless private member is an optional any, type form', () => {
+    // @mion-downgrade-error MKR016
+    const isLedger = createValidateFn<TscLedger>();
+    expect(isLedger({id: 'a'})).toBe(true);
+    expect(isLedger({id: 'a', balance: 'anything'})).toBe(true);
+    expect(isLedger({id: 1})).toBe(false);
+  });
+
+  test('a typeless private member is an optional any, value form', () => {
+    const ledger = {id: 'a'} as unknown as TscLedger;
+    // @mion-downgrade-error MKR016
+    const isLedger = createValidateFn(ledger);
+    expect(isLedger({id: 'a'})).toBe(true);
+    expect(isLedger({id: 1})).toBe(false);
+  });
+});

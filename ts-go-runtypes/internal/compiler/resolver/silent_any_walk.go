@@ -3,6 +3,7 @@ package resolver
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype/typeid"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
@@ -148,14 +149,9 @@ func (state scanState) silentAnyMemberDiag(memberType *checker.Type, memberSymbo
 	return diagnostics.NewWithRelated(diagnostics.CodeMarkerUnresolvedTypeName, site, []string{written}, related...), true
 }
 
-// typelessPrivateMember reports a TS `private` class field with neither a type nor an initializer in ambient code
-// (a `.d.ts` or `declare class`), the shape tsc's declaration emit gives every private field and method.
+// typelessPrivateMember names the class of a member typeid.IsTypelessPrivateMember matches.
 func typelessPrivateMember(declaration *ast.Node) (string, bool) {
-	if declaration == nil || declaration.Kind != ast.KindPropertyDeclaration || declaration.Flags&ast.NodeFlagsAmbient == 0 {
-		return "", false
-	}
-	property := declaration.AsPropertyDeclaration()
-	if property.Type != nil || property.Initializer != nil || ast.GetCombinedModifierFlags(declaration)&ast.ModifierFlagsPrivate == 0 {
+	if !typeid.IsTypelessPrivateMember(declaration) {
 		return "", false
 	}
 	className := "class"
