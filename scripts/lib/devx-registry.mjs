@@ -127,6 +127,10 @@ export const AREAS = {
         ...noBuild,
       },
       {
+        name: 'tsgo-check',
+        summary: 'gate: mion compile --no-emit (tsgo) reports no TypeScript error in any typecheck:test project',
+      },
+      {
         name: 'fuzz',
         args: '<suite…>',
         summary: 'run fuzz lanes: unit|value|types|nondata|roundtrip|jsonsize|cloning|elision|enrich|i18n|typemod|race|sidecar|patterngen|convert|convertcli|apiids|drizzletypes|all',
