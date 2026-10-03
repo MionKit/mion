@@ -9,6 +9,7 @@ apps/
 test/
 host-smoke/
 mion-consumer/
+mion-api-types/
 mion-bun/
 pure-fns/
 build-all.mjs
