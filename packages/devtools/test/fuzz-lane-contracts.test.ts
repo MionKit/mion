@@ -34,7 +34,13 @@ const ci = read('.github/workflows/ci.yml');
 
 // One registry entry per line (the registry comment pins that layout for this
 // parser's sake): name, then the tier blocks parsed out of the body.
-type Lane = {patterns: string[]; quick: Record<string, string>; soak: Record<string, string>; soakWorkflow?: string};
+type Lane = {
+  patterns: string[];
+  goTest: boolean;
+  quick: Record<string, string>;
+  soak: Record<string, string>;
+  soakWorkflow?: string;
+};
 const registry = ((): Record<string, Lane> => {
   const start = miondevx.indexOf('const FUZZ = {');
   const block = miondevx.slice(start, miondevx.indexOf('\n};', start));
@@ -46,7 +52,7 @@ const registry = ((): Record<string, Lane> => {
     };
     const patterns = [...(/\bpatterns: \[([^\]]*)\]/.exec(body)?.[1] ?? '').matchAll(/'([^']*)'/g)].map(([, p]) => p);
     const soakWorkflow = /\bsoakWorkflow: '([^']*)'/.exec(body)?.[1];
-    lanes[lane] = {patterns, quick: tier('quick'), soak: tier('soak'), soakWorkflow};
+    lanes[lane] = {patterns, goTest: /\bgoTest: \[/.test(body), quick: tier('quick'), soak: tier('soak'), soakWorkflow};
   }
   return lanes;
 })();
@@ -205,14 +211,17 @@ describe('ci.yml runs every lane at its quick budget on every PR', () => {
   it("the sweep pins the count-based JS lanes' quick env values to the registry", () => {
     const sweep = ciStep('JS fuzz sweep (count-based lanes at quick budgets)');
     for (const lane of countBasedLanes) {
-      if (lane === 'race' || lane === 'convert') continue; // own steps, pinned below
+      if (lane === 'race' || registry[lane].goTest) continue; // own steps, pinned below
       for (const [k, v] of Object.entries(registry[lane].quick)) expect(sweep).toContain(`${k}: '${v}'`);
     }
   });
 
-  it("the Go suite step pins the convert lane's quick budget", () => {
+  it("the Go suite step pins the Go lanes' quick budgets", () => {
     const goStep = ciStep('Go test suite (fuzz sweeps at quick budgets)');
-    for (const [k, v] of Object.entries(registry.convert.quick)) expect(goStep).toContain(`${k}: '${v}'`);
+    const goLanes = Object.keys(registry).filter((lane) => registry[lane].goTest && Object.keys(registry[lane].quick).length > 0);
+    expect(goLanes.sort()).toEqual(['apitypes', 'convert']);
+    for (const lane of goLanes)
+      for (const [k, v] of Object.entries(registry[lane].quick)) expect(goStep).toContain(`${k}: '${v}'`);
   });
 
   it('the race lane runs through miondevx at its quick budget', () => {

@@ -57,6 +57,7 @@ on:
           - convert
           - convertcli
           - apiids
+          - apitypes
           - drizzletypes
       seed:
         description: 'MION_FUZZ_SEED — blank derives one from the run id (fresh ground)'
