@@ -16,5 +16,4 @@ declare const account: Account;
 export const id = getRunTypeId(account);
 `
 
-// LedgerPackageJSON points the package's types at dist/index.d.ts.
 const LedgerPackageJSON = `{"name": "@acme/ledger", "version": "1.0.0", "types": "./dist/index.d.ts"}`

@@ -12,10 +12,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
-// A plain tsc .d.ts erases every private member's type, which a consumer could only read as `any` (MKR016). These
-// tests pin that `mion compile` writes those members as `protected` with their type, that a consumer of the emitted
-// .d.ts gets the same type id as from the source, and that a member whose `protected` form would break the emit or
-// need a new package stays `private`.
+// Plain tsc erases private member types (MKR016); `mion compile` must write them `protected`, typed, with the source's id.
 
 const ledgerMoneyTS = "export type Money = {amount: number; currency: string};\n"
 

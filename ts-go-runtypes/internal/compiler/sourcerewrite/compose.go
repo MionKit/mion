@@ -12,8 +12,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// OriginalPositions returns the original [line, column] of every source-bearing segment in a v3 `mappings` string, in
-// encounter order. Introspection only: tests assert with it that a composed map points at the source as written.
+// OriginalPositions lists the original [line, column] of each source-bearing segment; tests use it to check a composed map.
 func OriginalPositions(mappings string) [][2]int {
 	var positions [][2]int
 	for _, row := range decodeMappings(mappings) {
