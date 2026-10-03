@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-10-03
 ---
 
@@ -48,3 +48,20 @@ None, because this is a source fix with no user-visible behaviour change.
 - `mion compile --no-emit` on `packages/private-test-server` reports no TypeScript error.
 - Any other tsgo-only errors found are fixed in the same PR, each covered by the comparison above.
 - The simplify-comments pass ran on every touched source file, committed on its own.
+
+## Plan, automatic run (approved 2026-10-03)
+
+Delegated session with no one to answer, so the plan ran in automatic mode.
+
+- Fix: `addThrownError` casts the whole `||` union to `Record<string, RpcError<string>>`, so the write type-checks under tsgo and tsc.
+- Sweep: ran `mion compile --no-emit` and `tsc -p … --noEmit` over every package `tsconfig*.json`. The only tsgo-only
+  error a consumer can hit was this TS2542, in every project that pulls router sources. The other differences:
+  - `run-types/tsconfig.cjs.json` raises TS5108 (`moduleResolution: node10` removed in tsgo). It is read by tsc only
+    (the CommonJS emit), so the new check skips it with that reason.
+  - `private-test-server/tsconfig.build.json` and the examples' `tsconfig.runtypes.json` fail under both checkers
+    without built dists, so they are not tsgo-only.
+- CI: `scripts/core/tsgo-check.mjs` (`pnpm run check:tsgo`, `pnpm miondevx core tsgo-check`) runs `mion compile --no-emit`
+  over every project the typecheck scripts name and fails on any `error TS` line. The root `typecheck` runs it last,
+  so CI's lint job runs it. About 20 s for 26 projects.
+- Tests: `repo-contracts.test.ts` pins the root wiring, the tsc-only list and the error-line parser. The check itself
+  fails on the old `dispatchError.ts`.
