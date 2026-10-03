@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-10-03
 ---
 
@@ -30,3 +30,10 @@ Likely cause: `environmentProject` in `ts-go-runtypes/internal/compiler/program/
 ## Done when
 
 - `go -C ts-go-runtypes test ./internal/compiler/program/` passes on macOS and Linux.
+
+## Plan, test-helper fix (approved 2026-10-03)
+
+- Cause confirmed: with `TMPDIR` set to the resolved path, every test passed unchanged.
+- `environmentProject` now writes the project into `<tmp>/real`, links `<tmp>/link` to it, passes the link as `Cwd`, and trims file names against the resolved real dir. Every OS (Linux CI too) now runs these tests under a symlinked project dir.
+- `program.EnvironmentFile` needed no change: it keys on `sourceFile.Path()` values that all come from the same program, and the three `TestEnvironment_*` tests passing through the link prove it.
+- No docs: nothing user-visible changed.
