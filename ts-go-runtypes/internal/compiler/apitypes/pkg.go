@@ -1,7 +1,6 @@
 package apitypes
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -10,13 +9,14 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/microsoft/typescript-go/shim/vfs/osvfs"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnindex"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/apitypes/apitypesmeta"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 )
 
-// MionPeers are the packages every client of a mion API builds against.
-var MionPeers = []string{"@mionjs/core", "@mionjs/router", "@mionjs/run-types"}
+// mionPeers are the packages every client of a mion API builds against.
+var mionPeers = []string{"@mionjs/core", "@mionjs/router", "@mionjs/run-types"}
 
 // PackageInput is everything a types-only package is made of.
 type PackageInput struct {
@@ -43,6 +43,22 @@ type serverPackage struct {
 	OptionalDependencies map[string]string `json:"optionalDependencies"`
 }
 
+// typesPackage is the package.json written, fields in the order a reader expects them.
+type typesPackage struct {
+	Name             string            `json:"name"`
+	Version          string            `json:"version"`
+	Description      string            `json:"description"`
+	License          string            `json:"license,omitempty"`
+	Author           json.RawMessage   `json:"author,omitempty"`
+	Repository       json.RawMessage   `json:"repository,omitempty"`
+	Homepage         string            `json:"homepage,omitempty"`
+	Types            string            `json:"types"`
+	Exports          map[string]any    `json:"exports"`
+	Files            []string          `json:"files"`
+	Mion             map[string]string `json:"mion"`
+	PeerDependencies map[string]string `json:"peerDependencies"`
+}
+
 // BuildPackage returns the package's files by slash path relative to its root.
 func BuildPackage(input PackageInput) (map[string]string, error) {
 	content, err := os.ReadFile(filepath.Join(input.ServerRoot, "package.json"))
@@ -60,7 +76,11 @@ func BuildPackage(input PackageInput) (map[string]string, error) {
 	for rel, text := range input.Trimmed.Files {
 		files[rel] = text
 	}
-	for rel, text := range input.PureFnArtifact {
+	artifact, artifactPeers, err := reachedArtifact(input.PureFnArtifact, input.Trimmed.Files)
+	if err != nil {
+		return nil, err
+	}
+	for rel, text := range artifact {
 		files[path.Join(constants.PureFnArtifactDir, filepath.ToSlash(rel))] = text
 	}
 	files[path.Join(constants.ApiTypesManifestDir, constants.ApiModuleDir, constants.ApiManifestFile)] = input.Manifest
@@ -68,20 +88,11 @@ func BuildPackage(input PackageInput) (map[string]string, error) {
 		Format: apitypesmeta.MarkerFormat, Package: server.Name, Compiler: input.Compiler, BuildVersion: input.Trimmed.BuildVersion,
 	}.Render()
 
-	peers, err := peerDependencies(input, server)
-	if err != nil {
-		return nil, err
-	}
-	name := input.Name
-	if name == "" {
-		name = server.Name + "-types"
-	}
-	version := input.Version
-	if version == "" {
-		version = server.Version
-	}
-	if version == "" {
-		version = "0.0.0"
+	peers := map[string]string{}
+	for _, name := range append(append(append([]string(nil), mionPeers...), input.Trimmed.Externals...), artifactPeers...) {
+		if name != server.Name {
+			peers[name] = rangeOf(input.ServerRoot, name, server)
+		}
 	}
 	topLevel := map[string]bool{}
 	for rel := range files {
@@ -93,77 +104,113 @@ func BuildPackage(input PackageInput) (map[string]string, error) {
 	}
 	sort.Strings(published)
 	entry := "./" + input.Trimmed.Entry
-	manifest := orderedJSON{
-		{"name", name},
-		{"version", version},
-		{"description", "Types-only client package for " + server.Name + ", built by `mion api-types`."},
-		{"license", server.License},
-		{"author", server.Author},
-		{"repository", server.Repository},
-		{"homepage", server.Homepage},
-		{"types", entry},
+	pkg := typesPackage{
+		Name: input.Name, Version: input.Version,
+		Description: "Types-only client package for " + server.Name + ", built by `mion api-types`.",
+		License:     server.License, Author: server.Author, Repository: server.Repository, Homepage: server.Homepage,
+		Types: entry,
 		// "./*" lets a client that writes its own .d.ts name a type from any kept file (TS2883 otherwise).
-		{"exports", map[string]any{".": map[string]string{"types": entry}, "./*": map[string]string{"types": "./*.d.ts"}}},
-		{"files", published},
-		{"mion", map[string]string{"apiTypes": "./" + constants.ApiTypesMarkerFile}},
-		{"peerDependencies", peers},
+		Exports:          map[string]any{".": map[string]string{"types": entry}, "./*": map[string]string{"types": "./*.d.ts"}},
+		Files:            published,
+		Mion:             map[string]string{"apiTypes": "./" + constants.ApiTypesMarkerFile},
+		PeerDependencies: peers,
 	}
-	files["package.json"] = manifest.render()
+	if pkg.Name == "" {
+		pkg.Name = server.Name + "-types"
+	}
+	if pkg.Version == "" {
+		pkg.Version = server.Version
+	}
+	if pkg.Version == "" {
+		pkg.Version = "0.0.0"
+	}
+	encoded, _ := json.MarshalIndent(pkg, "", "  ")
+	files["package.json"] = string(encoded) + "\n"
 	return files, nil
 }
 
-// peerDependencies lists the mion packages, every package the kept declarations import and every package a shipped
-// pure fn depends on, each with the server's own range.
-func peerDependencies(input PackageInput, server serverPackage) (map[string]string, error) {
-	names := map[string]bool{}
-	for _, peer := range MionPeers {
-		names[peer] = true
+// reachedArtifact keeps the pure fns a client of the trimmed API can demand: every override (an override changes
+// the id of its type wherever the client meets it) and every id the kept declarations name, with the dependency
+// closure of both. It also returns the other packages those rows depend on, which become peers.
+func reachedArtifact(artifact, declarations map[string]string) (map[string]string, []string, error) {
+	indexText, ok := artifact[constants.PureFnArtifactIndexFile]
+	if !ok {
+		return nil, nil, nil
 	}
-	for _, external := range input.Trimmed.Externals {
-		names[external] = true
+	index, err := purefnindex.ParseArtifactIndex([]byte(indexText))
+	if err != nil {
+		return nil, nil, fmt.Errorf("api types: the server's %s/%s: %w", constants.PureFnArtifactDir, constants.PureFnArtifactIndexFile, err)
 	}
-	if indexText, ok := input.PureFnArtifact[constants.PureFnArtifactIndexFile]; ok {
-		index, err := purefnindex.ParseArtifactIndex([]byte(indexText))
+	listed := map[string]bool{}
+	var pending []string
+	for _, row := range index.PureFns {
+		listed[row.ID] = true
+		for _, text := range declarations {
+			if strings.Contains(text, row.ID) {
+				pending = append(pending, row.ID)
+				break
+			}
+		}
+	}
+	for _, override := range index.Overrides {
+		pending = append(pending, override.ID)
+	}
+	reached := map[string]bool{}
+	owners := map[string]bool{}
+	for len(pending) > 0 {
+		id := pending[0]
+		pending = pending[1:]
+		if reached[id] || !listed[id] {
+			continue
+		}
+		reached[id] = true
+		entry, err := purefnindex.ReadModule(id, artifact[purefnindex.ModulePath(id)])
 		if err != nil {
-			return nil, fmt.Errorf("api types: the server's %s/%s: %w", constants.PureFnArtifactDir, constants.PureFnArtifactIndexFile, err)
+			return nil, nil, fmt.Errorf("api types: the server's pure fn %s: %w", id, err)
 		}
-		for _, row := range index.PureFns {
-			entry, err := purefnindex.ReadModule(row.ID, input.PureFnArtifact[purefnindex.ModulePath(row.ID)])
-			if err != nil {
-				return nil, fmt.Errorf("api types: the server's pure fn %s: %w", row.ID, err)
-			}
-			for _, dependency := range entry.PureFnDependencies {
-				if owner := purefnindex.PackageOfID(dependency); owner != "" {
-					names[owner] = true
-				}
+		for _, dependency := range entry.PureFnDependencies {
+			pending = append(pending, dependency)
+			if owner := purefnindex.PackageOfID(dependency); owner != "" && owner != index.Package {
+				owners[owner] = true
 			}
 		}
 	}
-	delete(names, server.Name)
-	peers := map[string]string{}
-	for name := range names {
-		peers[name] = rangeOf(input.ServerRoot, name, server)
+	if len(reached) == 0 {
+		return nil, nil, nil
 	}
-	return peers, nil
+	kept := map[string]string{}
+	rows := index.PureFns[:0:0]
+	for _, row := range index.PureFns {
+		if reached[row.ID] {
+			rows = append(rows, row)
+			kept[purefnindex.ModulePath(row.ID)] = artifact[purefnindex.ModulePath(row.ID)]
+		}
+	}
+	index.PureFns = rows
+	kept[constants.PureFnArtifactIndexFile] = string(index.Render())
+	peers := make([]string, 0, len(owners))
+	for owner := range owners {
+		peers = append(peers, owner)
+	}
+	sort.Strings(peers)
+	return kept, peers, nil
 }
 
-// rangeOf is the server's range for name; a workspace range becomes a caret on the installed version, none is "*".
+// rangeOf is the server's range for name. A range only the workspace understands (`workspace:`, `catalog:`,
+// `link:`, `file:`) becomes a caret on the installed version; none at all is "*".
 func rangeOf(serverRoot, name string, server serverPackage) string {
 	for _, table := range []map[string]string{server.Dependencies, server.PeerDependencies, server.OptionalDependencies, server.DevDependencies} {
 		declared, ok := table[name]
 		if !ok {
 			continue
 		}
-		if !strings.HasPrefix(declared, "workspace:") {
+		if !strings.Contains(declared, ":") {
 			return declared
 		}
 		if installed := installedVersion(serverRoot, name); installed != "" {
 			return "^" + installed
 		}
 		return "*"
-	}
-	if installed := installedVersion(serverRoot, name); installed != "" {
-		return "^" + installed
 	}
 	return "*"
 }
@@ -189,13 +236,7 @@ func installedVersion(dir, name string) string {
 // --out never wipes a project.
 func WritePackage(outDir string, files map[string]string) error {
 	if entries, err := os.ReadDir(outDir); err == nil && len(entries) > 0 {
-		previous, readErr := os.ReadFile(filepath.Join(outDir, "package.json"))
-		var pkg struct {
-			Mion struct {
-				ApiTypes string `json:"apiTypes"`
-			} `json:"mion"`
-		}
-		if readErr != nil || json.Unmarshal(previous, &pkg) != nil || pkg.Mion.ApiTypes == "" {
+		if apitypesmeta.ReadPackage(outDir, osvfs.FS()).MarkerPath == "" {
 			return fmt.Errorf("api types: %s is not empty and was not written by `mion api-types`; pick another --out or empty it", outDir)
 		}
 		if err := os.RemoveAll(outDir); err != nil {
@@ -212,42 +253,4 @@ func WritePackage(outDir string, files map[string]string) error {
 		}
 	}
 	return nil
-}
-
-// orderedJSON renders an object in the given key order, skipping empty values, so package.json reads naturally.
-type orderedJSON []struct {
-	key   string
-	value any
-}
-
-func (object orderedJSON) render() string {
-	var buffer bytes.Buffer
-	buffer.WriteString("{\n")
-	first := true
-	for _, field := range object {
-		if isEmpty(field.value) {
-			continue
-		}
-		encoded, _ := json.MarshalIndent(field.value, "  ", "  ")
-		if !first {
-			buffer.WriteString(",\n")
-		}
-		first = false
-		key, _ := json.Marshal(field.key)
-		buffer.WriteString("  " + string(key) + ": " + string(encoded))
-	}
-	buffer.WriteString("\n}\n")
-	return buffer.String()
-}
-
-func isEmpty(value any) bool {
-	switch typed := value.(type) {
-	case nil:
-		return true
-	case string:
-		return typed == ""
-	case json.RawMessage:
-		return len(typed) == 0
-	}
-	return false
 }
