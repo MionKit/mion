@@ -160,9 +160,9 @@ const tb = island.L.top, nw = toWorld(island, tb), se = toWorld(island, { x: tb.
 const corner = { left: { x: nw.x, y: (nw.y + se.y) / 2 }, back: { x: (nw.x + se.x) / 2, y: nw.y }, right: { x: se.x, y: (nw.y + se.y) / 2 }, front: { x: (nw.x + se.x) / 2, y: se.y } };
 const along = (a, b, t, dx, dy) => ({ x: lerp(a.x, b.x, t) + dx, y: lerp(a.y, b.y, t) + dy });
 const TREES = [
-  { at: along(corner.left, corner.back, 0.4, -95, -95), size: 0.45, far: true },
-  { at: along(corner.back, corner.right, 0.6, 95, -100), size: 0.56, far: true },
-  { at: along(corner.left, corner.front, 0.35, -150, 195), size: 0.9, far: false },
+  { at: along(corner.left, corner.back, 0.42, -30, -40), size: 0.5, far: true },
+  { at: along(corner.back, corner.right, 0.62, 30, -45), size: 0.62, far: true },
+  { at: along(corner.left, corner.front, 0.45, -120, 340), size: 0.9, far: false },
 ];
 let tree;
 for (const t of TREES) {
