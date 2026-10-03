@@ -80,42 +80,46 @@ What the numbers say:
 Keep one gen dir and the fine-grained files. `allSingle` stays refused by the presets, with the same reason
 (measured: 20 server-only fields and +60% gzip in the heavy client).
 
-Change one thing: a reflected named type's rows (the type plus its unnamed children) move to ONE shared module,
-`rt/<typeId>.js`, content-addressed like the fn modules. A file's `rt/<path hash>.js` keeps its facades and the
-unnamed rows only it needs, and imports the named-type modules it reaches. This is the same rule `inlineMode:
-'default'` already uses for fn entries (named types stay shared).
+Change one thing: a type row is written once. Its home is decided by the exact set of files whose reflection
+closure reaches it. A row one file reaches stays in that file's `rt/<path hash>.js`. Rows the same 2+ files reach
+share one module, `rt/shared/<hash of their ids>.js`, which those files import. Type ids do not change.
 
-- No leak: a file still imports only the types it reaches.
-- No copies: each named type is written once.
-- Expected: server bundle and resolver time close to `allSingle` on the row part. The module count grows by the
-  reflected named types (about 130 on the sample app), so bundle time stays near today's. One module per
-  compiled function stays: grouping those safely needs the same side rule rejected above.
-- Dev: editing a type now changes only that type's module and its importers, instead of every file module whose
-  closure reached it.
+- No leak: every row of a shared module is in the closure of every file that imports it.
+- No copies: each row is written once.
+- No import cycles: a row's file set contains its parent's, so a shared module imports only larger sets.
+- One module per compiled function stays: grouping those safely needs the side rule rejected above.
 
-## Plan
+This replaced a first idea, one module per named type. Simulated on the real generated output, it still copied
+the small rows many named types share (a `string`, a `tags: string[]` property):
 
-1. `internal/cachegen/runtype/entries.go`: group closure rows by their nearest named type; emit one data entry
-   per named type (module `rt/<typeId>`), and per file only its facades plus its unnamed rows. Rows refer to rows
-   in another module by id, as `allModules` already does across its per-node modules; the data entry declares
-   the named-type entries it needs as deps so the import order loads them first.
-2. Runtime (`packages/run-types`): resolve a cross-module relation by id from the registry when it is not an
-   index into the module's own rows.
-3. Keep the names apart: path hashes are 10 characters and type ids 7, so `rt/` holds both without collisions.
-4. `test-skip`: a file's key covers its own `rt/` module AND the named-type modules it imports.
-5. Next broker stamp: still hashes every module under `types/rt/`, so the new modules are covered; add a test.
-6. Tests: a Go test that each named type's rows are written once across file modules; the existing
-   `viteEnvironments.spec.ts` bundle-split tests keep passing; a vitest run of the sample shape asserting the
-   server bundle holds each row once.
-7. Measure again with the sample app and private-test-server and record the numbers here.
+| Rows written / modules | today | named-type modules | file sets (shipped) |
+| --- | --- | --- | --- |
+| Sample app | 8,780 / 36 | 2,764 / 144 | 1,428 / 85 |
+| private-test-server | 1,632 / 7 | 1,643 / 103 | 1,336 / 16 |
+| Pre-publish consumer | 620 / 4 | 552 / 43 | 425 / 9 |
 
-`api-check`, the pure-fn artifact (`mion-pure-fns/`) and `mion compile` need no change: they never read `rt/`
-by layout, and `mion compile` writes plain modules that import each other the same way.
+## What Shipped
+
+- `ts-go-runtypes/internal/cachegen/runtype/entries.go`: `PlanRowHomes` plans each row's home over the whole
+  program; `CollectEntries` writes each file's own rows, plus one data entry per shared module it reaches, whose
+  binding is `rts_<hash>` so it never collides with `__rt_runtypes` or a facade. A row in another module rides
+  the `rels` array as its id, which the runtime already resolved after registering the whole closure. A row
+  carries its root size limit when it is a root anywhere in the program, since it is written once.
+- `ts-go-runtypes/internal/compiler/resolver/dispatch.go`: a one-file scan that returns modules plans the homes
+  over the whole program first, so its modules match the whole-program ones byte for byte. A diagnostics-only
+  scan (lint) plans locally and never pays the whole-program scan.
+- `allSingle` and file-less sites have one owner, so their output is unchanged.
+- Runtime, Next broker stamp (it hashes everything under `types/rt/`), the elision oracle (`rt/` prefix),
+  `test-skip`, `api-check`, `mion-pure-fns/` and `mion compile`: no change needed.
+- Tests: Go (`module_test.go`: written once, no leak through imports, nested shared sets, size limit,
+  deterministic; `perfile_modules_test.go`: a type client and server share, both `getRunTypeId` shapes, scan
+  equals dump), runtime (`entryTupleModules.test.ts`: a relation to an imported module's row by id), Vite
+  (`viteEnvironments.spec.ts`: a type two server files reach is written once in the server bundle).
 
 ## Docs
 
 The `moduleMode` row on `container/website/content/02.runtypes/01.introduction/04.configuration.md` says
-`default` gives each source file its own module: add that a type two files share is written once. The "One
+`default` gives each source file its own module: add that a type several files use is written once and shared. The "One
 Config, Two Bundles" section on `container/website/content/01.rpc/07.devtools/02.vite.md` stays true as written.
 
 Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagent) over every page and example this change touched, review its report against the code, and commit it as its own commit.
@@ -123,7 +127,7 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 ## Done when
 
 - The write-up of the options with measured numbers is in this spec (done above).
-- Named-type rows are written once: the Plan is built, the bundle-split tests still pass, `allSingle` is still
-  refused with the reason restated, and the re-measured numbers are recorded here.
+- Rows are written once: built, the bundle-split tests still pass, `allSingle` is still refused with the reason
+  restated, and the re-measured numbers are recorded below.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file,
   each committed on its own.
