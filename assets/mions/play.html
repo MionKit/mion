@@ -142,7 +142,7 @@ const KINDS = ['mountain-orange', 'mountain-orange-low', 'cone-yellow-teal', 'co
   'tile-teal-light', 'mound-sand-small', 'cone-cream', 'tile-teal', 'mound-orange'];
 // mountains stay near their own size, small tiles grow enough to hold a mion
 const sizeFor = kind => kind.startsWith('mountain') ? rand(0.75, 1.15) : /tile|block/.test(kind) ? rand(1.3, 2.3) : rand(1.1, 1.9);
-const rings = [{ count: 11, rx: 610, ry: 330, speed: 0.035 }, { count: 9, rx: 790, ry: 440, speed: 0.022 }];
+const rings = [{ count: 12, rx: 610, ry: 330, speed: 0.035 }, { count: 9, rx: 790, ry: 440, speed: 0.022 }];
 const pieces = [];
 for (const [r, ring] of rings.entries()) for (let i = 0; i < ring.count; i++) {
   const kind = KINDS[(i * 5 + r * 7) % KINDS.length];
@@ -152,16 +152,32 @@ for (const [r, ring] of rings.entries()) for (let i = 0; i < ring.count; i++) {
   // tiles take a mion in the middle of their top, cones and mounds on the strip in front of the peak
   const t = a.L.top, flat = /tile|block/.test(kind);
   const spot = { x: t.x + t.w / 2, y: t.y + t.h * (flat ? 0.5 : 0.8) };
-  Object.assign(a, { kind, ring, angle: (i / (ring.count + 1 - r)) * Math.PI * 2 + r * 0.3 + rand(-0.12, 0.12), wobble: rand(0.92, 1.08), phase: rand(0, 6.28), slots: [{ ...spot, holder: null }] });
+  Object.assign(a, { kind, ring, angle: (i / ring.count) * Math.PI * 2 + r * 0.3 + rand(-0.12, 0.12), wobble: rand(0.92, 1.08), phase: rand(0, 6.28), slots: [{ ...spot, holder: null }] });
   world.addChild(a.root); pieces.push(a);
 }
-// the mushroom tree floats with the rest in the gap left in the inner ring; its cap holds two mions
-const tree = await actor('terrain/tree-mushroom.svg', 0.5 * 0.8);
-const treeShadow = new PIXI.Graphics().ellipse(0, 0, 150, 34).fill({ color: 0x000000, alpha: 0.55 });
-treeShadow.filters = [new PIXI.BlurFilter({ strength: 8 })]; treeShadow.y = 4;
-tree.root.addChildAt(treeShadow, 0);
-Object.assign(tree, { kind: 'tree', ring: rings[0], angle: (11 / 12) * Math.PI * 2, wobble: 1, phase: rand(0, 6.28), slots: [{ x: 292, y: 112, holder: null }, { x: 352, y: 104, holder: null }] });
-world.addChild(tree.root); pieces.push(tree);
+// mushroom trees stand still just off the island: two small ones behind it read as far away, a full-size one in front holds two mions on its cap
+const tb = island.L.top, nw = toWorld(island, tb), se = toWorld(island, { x: tb.x + tb.w, y: tb.y + tb.h });
+const corner = { left: { x: nw.x, y: (nw.y + se.y) / 2 }, back: { x: (nw.x + se.x) / 2, y: nw.y }, right: { x: se.x, y: (nw.y + se.y) / 2 }, front: { x: (nw.x + se.x) / 2, y: se.y } };
+const along = (a, b, t, dx, dy) => ({ x: lerp(a.x, b.x, t) + dx, y: lerp(a.y, b.y, t) + dy });
+const TREES = [
+  { at: along(corner.left, corner.back, 0.4, -95, -95), size: 0.45, far: true },
+  { at: along(corner.back, corner.right, 0.6, 95, -100), size: 0.56, far: true },
+  { at: along(corner.left, corner.front, 0.35, -150, 195), size: 0.9, far: false },
+];
+let tree;
+for (const t of TREES) {
+  const a = await actor('terrain/tree-mushroom.svg', 0.5 * t.size);
+  a.root.position.set(t.at.x, t.at.y);
+  if (!t.far) {
+    const shade = new PIXI.Graphics().ellipse(0, 0, 150, 34).fill({ color: 0x000000, alpha: 0.55 });
+    shade.filters = [new PIXI.BlurFilter({ strength: 8 })]; shade.y = 4;
+    a.root.addChildAt(shade, 0);
+  }
+  Object.assign(a, { kind: 'tree', fixed: true, slots: t.far ? [] : [{ x: 292, y: 112, holder: null }, { x: 352, y: 104, holder: null }] });
+  a.root.zIndex = t.far ? island.root.zIndex - 1 : a.root.y;
+  world.addChild(a.root); pieces.push(a);
+  if (!t.far) tree = a;
+}
 const roomy = p => p.kind === 'tree' || p.L.top.w * p.root.scale.x > 34;
 const empty = p => p.slots.every(slot => !slot.holder);
 
@@ -215,6 +231,7 @@ addEventListener('pointermove', e => Object.assign(pointer, { x: e.clientX, y: e
 document.addEventListener('pointerleave', () => { pointer.on = false; });
 const lay = () => {
   for (const p of pieces) {
+    if (p.fixed) continue;
     const a = p.angle + clock * p.ring.speed;
     p.root.position.set(centre.x + Math.cos(a) * p.ring.rx * p.wobble, centre.y + Math.sin(a) * p.ring.ry * p.wobble);
     p.root.zIndex = p.root.y;
