@@ -20,7 +20,7 @@ const (
 	itemReExport    // one specifier of `export {a as b} from './x'`
 	itemExportStar  // `export * from './x'`
 	itemExportEmpty // `export {}`: keeps a file a module
-	itemGlobal      // one statement of a `declare global` block, kept only when kept code reads a name it declares
+	itemMember      // one statement of a `declare global` or a relative `declare module` block, kept on its own
 )
 
 // item is the unit kept or dropped.
@@ -37,7 +37,7 @@ type item struct {
 	importedName string
 	localName    string // the local an `export {a as b}` points at
 	kept         bool
-	block        *item // the `declare global` block a global member belongs to
+	block        *item // the block an itemMember belongs to
 	// users are the kept items that use this one.
 	users []*item
 }
@@ -104,8 +104,8 @@ func (file *fileInfo) addStatement(statement *ast.Node) {
 		}
 		file.add(&item{kind: itemDeclaration, statement: statement, exportedName: exported})
 	case ast.KindModuleDeclaration:
-		if ast.IsGlobalScopeAugmentation(statement) {
-			file.addGlobal(statement)
+		if isMemberBlock(statement) {
+			file.addMemberBlock(statement)
 			return
 		}
 		if statement.Name().Kind == ast.KindStringLiteral {
@@ -118,8 +118,21 @@ func (file *fileInfo) addStatement(statement *ast.Node) {
 	}
 }
 
-// addGlobal adds a `declare global` block and one item per statement in it; global names stay out of file.locals.
-func (file *fileInfo) addGlobal(statement *ast.Node) {
+// isMemberBlock: a `declare global` or a `declare module './x'` block, whose statements are kept one by one.
+func isMemberBlock(statement *ast.Node) bool {
+	return ast.IsGlobalScopeAugmentation(statement) || strings.HasPrefix(relativeAugmentation(statement), ".")
+}
+
+// relativeAugmentation is the specifier a `declare module 'x'` block augments, "" for any other statement.
+func relativeAugmentation(statement *ast.Node) string {
+	if statement.Kind != ast.KindModuleDeclaration || statement.Name().Kind != ast.KindStringLiteral {
+		return ""
+	}
+	return statement.Name().Text()
+}
+
+// addMemberBlock adds a member block and one item per statement in it; their names stay out of file.locals.
+func (file *fileInfo) addMemberBlock(statement *ast.Node) {
 	block := &item{kind: itemAlways, statement: statement}
 	file.add(block)
 	body := statement.AsModuleDeclaration().Body
@@ -127,7 +140,7 @@ func (file *fileInfo) addGlobal(statement *ast.Node) {
 		return
 	}
 	for _, inner := range body.AsModuleBlock().Statements.Nodes {
-		file.items = append(file.items, &item{kind: itemGlobal, statement: inner, block: block, file: file, names: statementNames(inner)})
+		file.items = append(file.items, &item{kind: itemMember, statement: inner, block: block, file: file, names: statementNames(inner)})
 	}
 }
 
@@ -262,7 +275,7 @@ func (file *fileInfo) anyKept() bool {
 // keptAny: some item of the file other than an augmentation, a global or `export {}` is kept.
 func (file *fileInfo) keptAny() bool {
 	for _, current := range file.items {
-		if current.kept && current.kind != itemAlways && current.kind != itemGlobal && current.kind != itemExportEmpty {
+		if current.kept && current.kind != itemAlways && current.kind != itemMember && current.kind != itemExportEmpty {
 			return true
 		}
 	}

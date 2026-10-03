@@ -136,18 +136,19 @@ declare module 'heavy-pkg' {
 	assertChecks(t, input, output)
 }
 
-// TestTrim_RelativeAugmentationShipsWithItsTarget: `declare module './model.ts'` ships when model.d.ts ships, and
-// goes with it otherwise.
+// TestTrim_RelativeAugmentationShipsWithItsTarget: a `declare module './model.ts'` member ships with the declaration
+// it augments, and goes with it otherwise.
 func TestTrim_RelativeAugmentationShipsWithItsTarget(t *testing.T) {
 	files := func(api string) map[string]string {
 		return map[string]string{
 			"index.d.ts":   "import type { Model } from './model.ts';\nexport declare const other: Model;\n" + apiOf(api),
-			"model.d.ts":   "export interface Model { id: string }\n",
-			"augment.d.ts": "declare module './model.ts' {\n    interface Model { extra: string }\n}\nexport {};\n",
+			"model.d.ts":   "export interface Model { id: string }\nexport interface Unread { id: string }\n",
+			"augment.d.ts": "import type { HeavyDb } from 'heavy-pkg';\ndeclare module './model.ts' {\n    interface Model { extra: string }\n    interface Unread { db: HeavyDb }\n}\nexport {};\n",
 		}
 	}
 	output, input := trimProject(t, files(`get: import("@mionjs/router").PublicRoute<(m: Model) => Promise<void>>;`), "")
 	assertContains(t, output.Files["augment.d.ts"], "interface Model { extra: string }")
+	assertNothingHeavy(t, output, "Unread")
 	assertChecks(t, input, output)
 
 	unread, _ := trimProject(t, files(`get: import("@mionjs/router").PublicRoute<() => Promise<void>>;`), "")
@@ -190,10 +191,10 @@ export type Branded = { [Symbol.brand]: string; count: typeof globalThis.counter
 // ext-dep changes a type the API reaches, though no kept code imports ext-dep.
 func TestTrim_KeepsAnAugmentationOfAPackageReachedThroughAnother(t *testing.T) {
 	project := map[string]string{
-		"node_modules/ext-dep/package.json": `{"name": "ext-dep", "types": "index.d.ts"}`,
-		"node_modules/ext-dep/index.d.ts":   "export interface Inner { id: string }\n",
+		"node_modules/ext-dep/package.json":  `{"name": "ext-dep", "types": "index.d.ts"}`,
+		"node_modules/ext-dep/index.d.ts":    "export interface Inner { id: string }\n",
 		"node_modules/ext-wrap/package.json": `{"name": "ext-wrap", "types": "index.d.ts"}`,
-		"node_modules/ext-wrap/index.d.ts":  "import type { Inner } from 'ext-dep';\nexport interface Wrapped { inner: Inner }\n",
+		"node_modules/ext-wrap/index.d.ts":   "import type { Inner } from 'ext-dep';\nexport interface Wrapped { inner: Inner }\n",
 	}
 	output, input, err := tryTrimIn(t, map[string]string{
 		"index.d.ts": "import type { Wrapped } from 'ext-wrap';\ndeclare module 'ext-dep' {\n    interface Inner { extra: string }\n}\n" +
