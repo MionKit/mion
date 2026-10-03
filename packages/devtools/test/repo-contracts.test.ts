@@ -26,6 +26,8 @@ import {testsPerFile, swallowedFiles} from '../../../scripts/core/test-bun.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
 import * as coverage from '../../../scripts/core/typecheck-coverage.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
+import * as tsgoCheck from '../../../scripts/core/tsgo-check.mjs';
+// @ts-expect-error — a plain .mjs repo script, no types.
 import {unusedExamples, UNUSED_EXCEPTIONS} from '../../../scripts/check-code-imports.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
 import {directiveFiles, failingDiagnostics} from '../../../scripts/core/lint-directives.mjs';
@@ -2021,5 +2023,33 @@ describe('every package under packages/ runs a type check over everything it shi
     for (const config of ['packages/bin-compiler/tsconfig.json', 'packages/bin-uws/tsconfig.json']) {
       expect(readFileSync(join(REPO_ROOT, config), 'utf8'), config).toMatch(/"checkJs":\s*true/);
     }
+  });
+});
+
+describe('mion compile (tsgo) checks the same projects tsc does', () => {
+  // tsgo can reject code tsc accepts (a write through `readonly || mutable`), and a consumer's `mion compile` hits it first.
+  it('the root typecheck runs the tsgo gate', () => {
+    const scripts = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')).scripts;
+    expect(scripts.typecheck).toContain('pnpm run check:tsgo');
+    expect(scripts['check:tsgo']).toBe('node scripts/miondevx.mjs core tsgo-check');
+  });
+
+  it('every tsc-only project still exists and is still skipped', () => {
+    const listed = tsgoCheck.projects(REPO_ROOT).map(({dir, config}: {dir: string; config: string}) => `${dir}/${config}`);
+    expect(listed).toContain('rpc-router/tsconfig.json');
+    for (const project of Object.keys(tsgoCheck.TSC_ONLY)) {
+      expect(existsSync(join(REPO_ROOT, 'packages', project)), project).toBe(true);
+      expect(listed).not.toContain(project);
+    }
+  });
+
+  it('counts TypeScript errors only, not RunType diagnostics or warnings', () => {
+    const output = [
+      'a.ts(77,3): error TS2542: Index signature only permits reading.',
+      'b.ts(10,23): error CTA003: literal contains a forbidden construct.',
+      'c.ts(5,56): warning VL002: Type `Symbol` can never be validated.',
+      'mion: checked 2 file(s), wrote nothing (--no-emit)',
+    ].join('\n');
+    expect(tsgoCheck.tsErrors(output)).toEqual(['a.ts(77,3): error TS2542: Index signature only permits reading.']);
   });
 });
