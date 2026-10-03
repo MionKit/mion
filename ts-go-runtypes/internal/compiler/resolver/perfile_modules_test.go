@@ -8,9 +8,16 @@ import (
 )
 
 // splitSources is one program holding a server file and a client file, each reflecting a type of its own that
-// nests a type both use.
+// nests a type both use, big enough for a shared module of its own.
 var splitSources = map[string]string{
-	"shared.ts": `export type SharedAddress = {sharedStreet: string; sharedZip: number};
+	"shared.ts": `export type SharedAddress = {
+  sharedStreet: string;
+  sharedZip: number;
+  sharedCity: string;
+  sharedRegion: string;
+  sharedCountry: 'es' | 'fr' | 'de';
+  sharedVerified: boolean;
+};
 `,
 	"server.ts": `import {getRunTypeId} from '@mionjs/run-types';
 import type {SharedAddress} from './shared.ts';
@@ -21,7 +28,10 @@ export const serverId = getRunTypeId<ServerOnly>();
 import type {SharedAddress} from './shared.ts';
 export type ClientForm = {clientName: string; address: SharedAddress};
 export const formId = getRunTypeId<ClientForm>();
-const draft: ClientForm = {clientName: '', address: {sharedStreet: '', sharedZip: 0}};
+const draft: ClientForm = {
+  clientName: '',
+  address: {sharedStreet: '', sharedZip: 0, sharedCity: '', sharedRegion: '', sharedCountry: 'es', sharedVerified: false},
+};
 export const formIdByValue = getRunTypeId(draft);
 `,
 }
