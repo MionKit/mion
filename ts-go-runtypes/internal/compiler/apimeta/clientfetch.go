@@ -6,6 +6,7 @@ import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype/typeid"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
@@ -115,16 +116,14 @@ func ClientApis(typeChecker *checker.Checker, markerOpts marker.Options, lookup 
 	return out
 }
 
-// apiBuildVersionKey is the router's unique-symbol key, `ApiBuildVersion`'s one member, as the checker names it.
-const apiBuildVersionKey = symbolKeyPrefix + "apiBuildVersion@"
-
 // ServerBuildVersion reads an API type's `ApiBuildVersion` literal; "" for none or plain `string` (no version filled).
 func ServerBuildVersion(typeChecker *checker.Checker, apiType *checker.Type) string {
 	if apiType == nil {
 		return ""
 	}
 	for _, property := range typeChecker.GetPropertiesOfType(apiType) {
-		if !strings.HasPrefix(property.Name, apiBuildVersionKey) || len(property.Declarations) == 0 {
+		// `ApiBuildVersion`'s one member is keyed by the router's `apiBuildVersion` unique symbol.
+		if !typeid.IsUniqueSymbolKey(property.Name, "apiBuildVersion") || len(property.Declarations) == 0 {
 			continue
 		}
 		if marker.DeclaringModuleOfNode(property.Declarations[0], nil) != RouterModule {

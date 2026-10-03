@@ -72,9 +72,11 @@ func LateBoundNamePrefixForTest() string { return lateBoundNamePrefix }
 // symbol. Both spellings fold to the same id: the property name never reaches the hash (memberIDs skips
 // it, the annotation supplies the id).
 func isSentinelProp(name, base string) bool {
-	if name == base {
-		return true
-	}
+	return name == base || IsUniqueSymbolKey(name, base)
+}
+
+// IsUniqueSymbolKey reports whether a property name is a `unique symbol` key whose declaration is named base.
+func IsUniqueSymbolKey(name, base string) bool {
 	if !strings.HasPrefix(name, lateBoundNamePrefix) {
 		return false
 	}
