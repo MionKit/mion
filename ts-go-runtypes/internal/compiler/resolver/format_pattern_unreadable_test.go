@@ -55,3 +55,71 @@ func TestFormatPattern_DeclaredLiteralPatternIsRead(t *testing.T) {
 		t.Fatalf("a literal source is readable, got %+v", found)
 	}
 }
+
+// scanFormatPattern scans call over formatDecl, a type built from the formats package with a widened `typeof p` pattern.
+func scanFormatPattern(t *testing.T, formatDecl, call string) protocol.Response {
+	t.Helper()
+	code := `import {createValidateFn, createGetValidationErrorsFn} from '@mionjs/run-types';
+import * as TF from '@mionjs/run-types/formats';
+` + widenedPatternDecl + `
+` + formatDecl + `
+` + call + `
+`
+	resp := setupInline(t, map[string]string{"a.ts": code}).Dispatch(protocol.Request{
+		Op:                  protocol.OpScanFiles,
+		Files:               []string{"a.ts"},
+		IncludeEntryModules: true,
+	})
+	if resp.Error != "" {
+		t.Fatalf("scanFiles: %s", resp.Error)
+	}
+	return resp
+}
+
+const widenedStringFormat = `type Sku = TF.String<{pattern: typeof p}>;`
+
+// TestFormatPattern_ErrorsOnlyEmitsFMT009Static: a validation-errors function would skip the pattern as silently.
+func TestFormatPattern_ErrorsOnlyEmitsFMT009Static(t *testing.T) {
+	resp := scanFormatPattern(t, widenedStringFormat, `export const skuErrors = createGetValidationErrorsFn<Sku>();`)
+	if findDiag(resp, diagnostics.CodeFMTPatternUnreadable) == nil {
+		t.Fatalf("expected FMT009, got %+v", resp.Diagnostics)
+	}
+}
+
+// TestFormatPattern_ErrorsOnlyEmitsFMT009Value is the value call shape of the same case.
+func TestFormatPattern_ErrorsOnlyEmitsFMT009Value(t *testing.T) {
+	resp := scanFormatPattern(t, widenedStringFormat, `declare const sku: Sku;
+export const skuErrors = createGetValidationErrorsFn(sku);`)
+	if findDiag(resp, diagnostics.CodeFMTPatternUnreadable) == nil {
+		t.Fatalf("expected FMT009, got %+v", resp.Diagnostics)
+	}
+}
+
+// TestFormatPattern_NestedMemberEmitsFMT009: the pattern one object deeper is read by the same walk.
+func TestFormatPattern_NestedMemberEmitsFMT009(t *testing.T) {
+	resp := scanFormatPattern(t, widenedStringFormat+`
+type Order = {item: {sku: Sku}};`, `export const isOrder = createValidateFn<Order>();`)
+	if findDiag(resp, diagnostics.CodeFMTPatternUnreadable) == nil {
+		t.Fatalf("expected FMT009, got %+v", resp.Diagnostics)
+	}
+}
+
+// TestFormatPattern_NamedAndPartFormatsEmitFMT009: a named format's own pattern and a part's pattern, in both families.
+func TestFormatPattern_NamedAndPartFormatsEmitFMT009(t *testing.T) {
+	cases := map[string]string{
+		"email pattern":     `type Value = TF.Email<{pattern: typeof p}>;`,
+		"email local part":  `type Value = TF.EmailParts<{localPart: {pattern: typeof p}}>;`,
+		"domain label name": `type Value = TF.DomainParts<{names: {pattern: typeof p}}>;`,
+	}
+	for name, formatDecl := range cases {
+		for _, call := range []string{
+			`export const isValue = createValidateFn<Value>();`,
+			`export const valueErrors = createGetValidationErrorsFn<Value>();`,
+		} {
+			resp := scanFormatPattern(t, formatDecl, call)
+			if findDiag(resp, diagnostics.CodeFMTPatternUnreadable) == nil {
+				t.Errorf("%s, %s: expected FMT009, got %+v", name, call, resp.Diagnostics)
+			}
+		}
+	}
+}

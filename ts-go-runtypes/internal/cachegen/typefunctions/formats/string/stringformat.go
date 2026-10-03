@@ -260,6 +260,8 @@ func stringErrorStatements(ctx formats.EmitContext, params map[string]any, vλl,
 		test := emitPatternTest(ctx, source, flags, vλl)
 		statements = append(statements,
 			"if (!("+test+")) "+formatErrWithType(pathExpr, errorsArr, fmtName, "pattern", messageLiteral(params, "pattern"), errorTypeExpr))
+	} else {
+		reportUnrecoveredPattern(ctx, params)
 	}
 	if val, flags, ok := readCharParam(params, "allowedChars"); ok {
 		test := emitPatternTest(ctx, allowedCharsSource(val), flags, vλl)
