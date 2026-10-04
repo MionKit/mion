@@ -35,10 +35,11 @@ None, contributor bench setup.
 - Pin `typescript` to `6.0.3` in `container/benchmarks/_deps/competitors/mion/package.json`, the same pin as `container/mion-bench/_deps/mion` and `_deps/typecost`.
 - Leave zod / typebox / ajv on 5.x: they never load the plugin, and `compiletime.mjs` resolves TypeScript from the running lane first, then mion, so the mion lane now reads 6.0.3.
 - Rebuild, verify and push `tsrt-website`, then run `pnpm miondevx bench compiletime` and check the warning is gone.
-- No code test (a container manifest pin), no docs, no fuzzing.
+- No docs, no fuzzing.
 
 ## What shipped
 
 - The mion lane pins `typescript` to `6.0.3`. The other lanes keep 5.x: none loads the plugin, and `compiletime.mjs` reads TypeScript from the running lane first, so the mion lane now gets 6.0.3.
+- `bench-lane-contracts.test.ts` checks that both bench lanes that load the devtools plugin pin an exact TypeScript at or above the devtools floor, so a lane cannot drift back.
 - `tsrt-website` rebuilt from this tree and pushed for amd64 and arm64.
 - Checked in the rebuilt image: `bench compiletime` (with the separate parse fix for that script laid over the tree) shows no floor warning and writes both results; `bench --one mion --quick` and `bench typecheck` pass.
