@@ -6,6 +6,7 @@ import path from 'node:path';
 import type {UnpluginContext, UnpluginMessage} from 'unplugin';
 import {renderHeadline} from './diagnosticCatalog.ts';
 import {DOWNGRADED_NOTE, isDowngraded, NONE, type DowngradeSet} from './downgradeErrors.ts';
+import {severityLabel} from './groupedLog.ts';
 import {isShown} from './levels.ts';
 import {Severity, type Diagnostic} from './protocol.ts';
 
@@ -90,15 +91,4 @@ export function formatTscDiagnostic(diagnostic: Diagnostic, downgraded = false):
     line += `\n  Related: ${related.filePath}(${related.startLine},${related.startCol}): ${related.message}`;
   }
   return line;
-}
-
-function severityLabel(severity: Severity): string {
-  switch (severity) {
-    case Severity.Error:
-      return 'error';
-    case Severity.Warning:
-      return 'warning';
-    default:
-      return 'info';
-  }
 }

@@ -447,7 +447,7 @@ export interface EnrichFile {
 // Diagnostic mirrors the Go-side diag.Diagnostic; `code` is the stable identifier (validate-symbol-root, …).
 // The user-facing message is NOT carried on the wire: per-code templates live in the generated
 // `./go-generated/diagnosticCatalog.generated.ts` (from internal/diagnostics/messages.go via
-// `pnpm miondevx core codegen diag`) and resolve at format time against `args`, 0-2 positional values.
+// `pnpm miondevx core codegen diag`) and fill their `{slot}` names from `args`, in slot order.
 export interface Diagnostic {
   code: string;
   family: Family;
@@ -459,6 +459,19 @@ export interface Diagnostic {
   // Set when a source-level `@mion-downgrade-error` comment claimed this finding; level and severity stay
   // whatever the catalog says, so whoever decides to halt reads this alongside its own `downgradeErrors`.
   // Twin of the Go-side Diagnostic.Downgraded.
+  downgraded?: boolean;
+}
+
+// One finding as the grouped log sees it; twin of Go diagnostics.GroupedEntry. Template carries `{slot}` names
+// when slots is set, else it is the finished text.
+export interface GroupedEntry {
+  severity: Severity;
+  name: string;
+  template: string;
+  slots?: readonly string[];
+  args?: readonly string[];
+  site: DiagnosticSite;
+  related?: DiagnosticRelated[];
   downgraded?: boolean;
 }
 
