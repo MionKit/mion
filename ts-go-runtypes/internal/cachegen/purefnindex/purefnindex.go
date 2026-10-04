@@ -754,6 +754,18 @@ func (store *Store) Closure(demands []Demand) Result {
 		visited[idx.Root] = idx
 		row, found := idx.Row(demand.ID)
 		if !found {
+			// A types package's vendored copy holds the body it was built against when the installed copy lacks it.
+			for _, vendored := range store.servedBy[packageName] {
+				if vendoredIdx := store.Package(vendored); vendored != root {
+					if row, found = vendoredIdx.Row(demand.ID); found {
+						idx, root = vendoredIdx, vendored
+						visited[idx.Root] = idx
+						break
+					}
+				}
+			}
+		}
+		if !found {
 			result.Missing = append(result.Missing, Miss{ID: demand.ID, Package: packageName, Root: root, Built: idx.Built(), Err: idx.Err})
 			continue
 		}
