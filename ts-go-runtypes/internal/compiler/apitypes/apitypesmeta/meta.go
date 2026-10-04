@@ -11,8 +11,8 @@ import (
 	vfspkg "github.com/microsoft/typescript-go/shim/vfs"
 )
 
-// MarkerFormat is the newest marker `format` this compiler reads; a higher one is a newer compiler's and is refused,
-// never misread. A marker is written at MarkerFormatVendored only when it lists vendored packages.
+// MarkerFormat is the newest marker `format` this compiler reads; a higher one is refused, never misread.
+// A marker is written at MarkerFormatVendored only when it lists vendored packages.
 const MarkerFormat = MarkerFormatVendored
 
 const (

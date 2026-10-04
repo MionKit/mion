@@ -50,7 +50,7 @@ type Cache struct {
 
 	// Type table keyed by wire id. nodes[id] is the canonical entry.
 	nodes map[string]*reflection.RunType
-	// The checker type each wire id was first projected from, kept only after KeepTypes (api-types printing).
+	// Filled only after KeepTypes (api-types printing).
 	typeByID  map[string]*checker.Type
 	keepTypes bool
 
@@ -386,8 +386,7 @@ func (cache *Cache) SerializeTopLevel(tsType *checker.Type) *reflection.RunType 
 // KeepTypes makes the cache remember the checker type behind each id, for TypeByID.
 func (cache *Cache) KeepTypes() { cache.keepTypes = true }
 
-// TypeByID returns the checker type the id was first projected from, nil without KeepTypes; it belongs to the checker
-// that projected it.
+// TypeByID is the checker type the id was first projected from, nil without KeepTypes; valid only with that checker.
 func (cache *Cache) TypeByID(id string) *checker.Type {
 	return cache.typeByID[id]
 }

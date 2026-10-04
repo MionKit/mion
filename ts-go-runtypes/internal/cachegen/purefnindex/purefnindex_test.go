@@ -915,10 +915,10 @@ func TestTypesOnly_ResolvedThroughTheProgramBeforeAnyTouch(t *testing.T) {
 	}
 }
 
-// vendoredTypesPackage is a types package whose title also needs @acme/dates's isoDay, shipped under .mion/vendor/.
 // isoDayEntry is @acme/dates's pure fn a types package vendors.
 var isoDayEntry = purefunctions.Entry{ID: isoDayID, BindingName: "isoDay", ParamNames: []string{"utl"}, Code: "return (d) => d.slice(0, 10);"}
 
+// vendoredTypesPackage is a types package whose title also needs @acme/dates's isoDay, shipped under .mion/vendor/.
 func vendoredTypesPackage() map[string]string {
 	title := titleEntry
 	title.PureFnDependencies = []string{slugifyID, isoDayID}
@@ -929,8 +929,7 @@ func vendoredTypesPackage() map[string]string {
 		artifactDir(vendor+"/"+constants.PureFnArtifactDir, "@acme/dates", constants.EmitCode, isoDayEntry))
 }
 
-// TestTypesOnly_ServesAnotherPackagesVendoredPureFns: a client that does not install @acme/dates gets its pure fn
-// from the copy the types package ships.
+// TestTypesOnly_ServesAnotherPackagesVendoredPureFns: a client without @acme/dates gets its pure fn from the types package.
 func TestTypesOnly_ServesAnotherPackagesVendoredPureFns(t *testing.T) {
 	store := storeOver(vendoredTypesPackage())
 	store.Package(typesPkg)
@@ -955,8 +954,7 @@ func TestTypesOnly_AnInstalledPackageWinsOverItsVendoredCopy(t *testing.T) {
 	}
 }
 
-// TestTypesOnly_AnInstalledCopyWithoutTheIdFallsBackToTheVendoredOne: another version of the package is installed, and
-// the vendored copy still serves the body the types package was built against.
+// TestTypesOnly_AnInstalledCopyWithoutTheIdFallsBackToTheVendoredOne: the vendored copy serves the body built against.
 func TestTypesOnly_AnInstalledCopyWithoutTheIdFallsBackToTheVendoredOne(t *testing.T) {
 	installed := "/virtual/app/node_modules/@acme/dates"
 	other := purefunctions.Entry{ID: "@acme/dates#pf_other0000000000", BindingName: "other", ParamNames: []string{"utl"}, Code: "return 1;"}

@@ -9,8 +9,7 @@ import (
 	"testing"
 )
 
-// TestFuzz_OutsidePrint: random classes, enums, symbol brands, recursive interfaces and generic instantiations print
-// through the outside printer to declarations with the original ids, and print the same text twice.
+// TestFuzz_OutsidePrint: random outside-printed declarations keep the original ids and print the same text twice.
 func TestFuzz_OutsidePrint(t *testing.T) {
 	if testing.Short() {
 		t.Skip("randomized sweep skipped under -short")
@@ -38,8 +37,7 @@ func TestFuzz_OutsidePrint(t *testing.T) {
 	}
 }
 
-// randomOutsideFile declares a few classes, enums, a symbol brand, a recursive interface and a generic interface, and
-// a Root alias reaching each from random positions.
+// randomOutsideFile declares classes, enums, a symbol brand, a recursive and a generic interface, and a Root reaching each.
 func randomOutsideFile(rng *rand.Rand) string {
 	atoms := []string{"string", "number", "boolean", "bigint", "null", "undefined", "unknown", "Date", "RegExp"}
 	stringPool := []string{"ana", "with 'quote'", "ünïcode"}

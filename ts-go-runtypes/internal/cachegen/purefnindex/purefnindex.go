@@ -139,7 +139,7 @@ type PackageIndex struct {
 	// failed, so a second demand neither re-reads nor re-reports it.
 	rows       map[string]purefunctions.Entry
 	unreadable map[string]bool
-	// modules is the module text each row read from an artifact came from.
+	// modules holds the artifact module text each row was read from.
 	modules map[string]string
 	// byName maps a binding name to the ids under it anywhere in the package; two answer only through the file tiebreak.
 	byName map[string][]string
@@ -231,7 +231,7 @@ func (store *Store) ownerOf(root string) packageOwner {
 	if info.Marker != nil {
 		row.owner = info.Marker.Package
 		store.servedBy[row.owner] = append(store.servedBy[row.owner], root)
-		// The other packages' pure fns it ships, for a client that does not install them, only from its own vendor dir.
+		// Serves other packages' vendored pure fns, but only from inside its own vendor dir.
 		vendorRoot := tspath.CombinePaths(root, VendorDir) + "/"
 		for owner, dir := range info.Marker.Vendored {
 			if vendored := tspath.ResolvePath(root, dir); strings.HasPrefix(vendored+"/", vendorRoot) && vendored+"/" != vendorRoot {

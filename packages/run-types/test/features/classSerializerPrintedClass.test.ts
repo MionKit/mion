@@ -5,10 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// A types-only package prints another package's class as a `declare class` with the same name and members, so a
-// client that registers the real class gets real instances back from a type that names the printed one.
-//
-// Marker rule (CLAUDE.md): every case exercises BOTH createXxx<T>() (static) and createXxx(value) (reflect).
+// A types-only package prints another package's class as a same-named `declare class`; a client registering the
+// real class must still get real instances. Marker rule: every case runs createXxx<T>() and createXxx(value).
 
 import {afterEach, describe, expect, it} from 'vitest';
 import {createJsonDecoderFn, createJsonEncoderFn, getRunTypeId} from '@mionjs/run-types';

@@ -21,9 +21,8 @@ type vendored struct {
 	warnings []string
 }
 
-// vendorPureFns copies the pure fns other packages own, with their dependencies, out of each package's installed
-// artifact, so a client need not install those packages. A mion package stays a peer, and so does one whose
-// artifact cannot serve an id.
+// vendorPureFns copies other packages' pure fns from their installed artifacts, so a client need not install them.
+// A mion package stays a peer, and so does one whose artifact cannot serve an id.
 func vendorPureFns(serverRoot string, ids []string) vendored {
 	out := vendored{files: map[string]string{}, dirs: map[string]string{}}
 	store := purefnindex.NewStore(osvfs.FS())

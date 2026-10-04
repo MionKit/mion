@@ -164,8 +164,7 @@ func rightmost(name *ast.Node) *ast.Node {
 	return name
 }
 
-// outsideUse reports the package a type use reaches when it must be printed; a `typeof` of a project value counts
-// when that value's own type reaches another package, so the value never ships.
+// outsideUse reports the package a use must print from; `typeof` a project value typed outside counts, so it never ships.
 func (trimmer *trimmer) outsideUse(file *fileInfo, node *ast.Node) (origin, bool) {
 	switch node.Kind {
 	case ast.KindTypeReference, ast.KindExpressionWithTypeArguments:
@@ -211,8 +210,8 @@ func (trimmer *trimmer) importTypeOrigin(file *fileInfo, node *ast.Node) origin 
 	return trimmer.originOf(symbol)
 }
 
-// reachesOutside reports the package a project value or alias is typed by, when its declared type is itself an
-// outside type (`declare const users: PgTable<…>`), following project aliases; a type built around one does not count.
+// reachesOutside reports the outside package a project value or alias is declared as (`declare const users: PgTable<…>`).
+// A type built around an outside type does not count.
 func (trimmer *trimmer) reachesOutside(declaration *ast.Node) *origin {
 	if found, done := trimmer.outside.reaches[declaration]; done {
 		return found
@@ -428,7 +427,7 @@ func identifierHint(text string) string {
 	return out.String()
 }
 
-// outsideDecl returns the declaration a key names, a use alias or one the printer collected.
+// decl returns the declaration a key names, a use alias or one the printer collected.
 func (state *outsideState) decl(key string) *convert.OutsideDecl {
 	if decl, ok := state.uses[key]; ok {
 		return decl
@@ -735,9 +734,8 @@ func (trimmer *trimmer) builtinSpelling(decl *convert.OutsideDecl) string {
 	return decl.Name
 }
 
-// referenceLines are the `/// <reference>` lines the entry needs, so a client loads the same platform types: the
-// tsconfig `types` entry that loaded each reached package, as written, and each reached non-ES lib (`dom`); the ES
-// libs follow the client's own target.
+// referenceLines make a client load the same platform types: each reached package's tsconfig `types` entry as written,
+// and each reached non-ES lib (`dom`); ES libs follow the client's own target.
 func (state *outsideState) referenceLines(typesEntries []string) []string {
 	var lines []string
 	for _, pkg := range slices.Sorted(maps.Keys(state.environment)) {
