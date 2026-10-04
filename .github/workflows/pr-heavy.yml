@@ -95,7 +95,8 @@ jobs:
           password: ${{ secrets.GHCR_PAT }}
       # The container-only prod build, NOT the full pipeline. This is the part a
       # PR can actually prove: the site compiles, every content page and every
-      # <code-import> resolves against the current packages.
+      # <code-import> resolves against the current packages. A commit that only
+      # changes content/ or CSS skips it; the release gate still builds those.
       #
       # The full `website build` is deliberately not used: it regenerates every
       # benchmark dataset, which is a long container run this lane has no reason to
