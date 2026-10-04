@@ -441,6 +441,12 @@ export interface Order {id: number; ship: Address; total: Money; by: Role}
 export const mion = createMionRouter();
 export const api = mion.initRoutes({orders: {get: {type: 1 as const, handler: (id: number): Order => ({id}) as unknown as Order}}});
 `;
+const OUTSIDE_GENERIC_SERVER_TS = `import {createMionRouter} from '@mionjs/router';
+import type {Page} from 'geo-lib';
+export interface Listing<T> {page: Page<T>}
+export const mion = createMionRouter();
+export const api = mion.initRoutes({list: {type: 1 as const, handler: (): Listing<number> => ({}) as Listing<number>}});
+`;
 const OUTSIDE_CLIENT_TS = `import {initClient} from '@mionjs/client';
 import {getRunTypeId} from '@mionjs/run-types';
 import type {api, Order} from '@acme/server-app-types';
@@ -591,6 +597,31 @@ describe('mion api-types — a types-only package for an API client', () => {
         label: 'api-types-outside-check',
       });
       expect(check.status, check.report).toBe(0);
+    } finally {
+      fs.rmSync(base, {recursive: true, force: true});
+    }
+  });
+
+  register('warns and keeps the outside package a peer when one of your type parameters reaches its type', () => {
+    const base = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-api-types-outside-warn-'));
+    try {
+      const server = writeProject(base, 'server', {'server.ts': OUTSIDE_GENERIC_SERVER_TS});
+      installRouter(server);
+      const geo = path.join(server, 'node_modules', 'geo-lib');
+      fs.mkdirSync(geo, {recursive: true});
+      fs.writeFileSync(path.join(geo, 'package.json'), JSON.stringify({name: 'geo-lib', version: '2.0.0', types: 'index.d.ts'}));
+      fs.writeFileSync(path.join(geo, 'index.d.ts'), 'export interface Page<T> { items: T[]; total: number }\n');
+      const serverPkg = JSON.parse(fs.readFileSync(path.join(server, 'package.json'), 'utf8'));
+      serverPkg.dependencies = {'@mionjs/router': '^0.0.1', 'geo-lib': '^2.0.0'};
+      fs.writeFileSync(path.join(server, 'package.json'), JSON.stringify(serverPkg));
+      const out = path.join(base, 'api-types');
+      const built = runCli(['api-types', '--cwd', server, '--tsconfig', 'tsconfig.json', '--out', out], {
+        label: 'api-types-outside-warn',
+      });
+      expect(built.status, built.report).toBe(0);
+      expect(built.stderr).toMatch(/mion: warning: .*`Page<T>` from geo-lib stays an import/);
+      const pkg = JSON.parse(fs.readFileSync(path.join(out, 'package.json'), 'utf8'));
+      expect(Object.keys(pkg.peerDependencies)).toContain('geo-lib');
     } finally {
       fs.rmSync(base, {recursive: true, force: true});
     }
