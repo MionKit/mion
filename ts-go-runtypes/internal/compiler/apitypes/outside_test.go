@@ -136,7 +136,7 @@ export interface Office extends Address { floor: number }
 export declare class Wallet extends Money { owner: string }
 `+apiOf(`get: import("@mionjs/router").PublicRoute<(o: Office) => Promise<Wallet>>;`), nil)
 	assertSelfContained(t, output, input)
-	assertContains(t, output.Files["index.d.ts"], `from "./_outside/geo.js";`, "extends Address", "extends Money")
+	assertContains(t, output.Files["index.d.ts"], "from './_outside/geo.js';", "extends Address", "extends Money")
 }
 
 func TestOutside_AnOutsideTypeOverAProjectTypeKeepsTheProjectOne(t *testing.T) {
@@ -227,12 +227,12 @@ func TestOutside_AGlobalMemberOnlyAPrintedTypeReachesShips(t *testing.T) {
 func TestOutside_MoreDeclarationShapes(t *testing.T) {
 	extra := map[string]string{
 		"node_modules/@types/node/index.d.ts": nodeTypesDTS + "declare module 'node:http' { export interface RequestOptions { host?: string } }\n",
-		"node_modules/legacy/package.json":     `{"name": "legacy", "types": "index.d.ts"}`,
-		"node_modules/legacy/index.d.ts":       "declare namespace Legacy { interface Config { port: number } }\ndeclare const Legacy: { version: string };\nexport = Legacy;\n",
-		"node_modules/sub/package.json":        `{"name": "sub", "exports": {"./models": {"types": "./models.d.ts"}}}`,
-		"node_modules/sub/models.d.ts":         "export interface Model { id: string }\n",
-		"node_modules/merged/package.json":     `{"name": "merged", "types": "index.d.ts"}`,
-		"node_modules/merged/index.d.ts":       "export interface Both { a: string }\nexport declare namespace Both { const tag: string }\nexport interface Global2 { g: Glob }\ndeclare global { interface Glob { deep: number } }\n",
+		"node_modules/legacy/package.json":    `{"name": "legacy", "types": "index.d.ts"}`,
+		"node_modules/legacy/index.d.ts":      "declare namespace Legacy { interface Config { port: number } }\ndeclare const Legacy: { version: string };\nexport = Legacy;\n",
+		"node_modules/sub/package.json":       `{"name": "sub", "exports": {"./models": {"types": "./models.d.ts"}}}`,
+		"node_modules/sub/models.d.ts":        "export interface Model { id: string }\n",
+		"node_modules/merged/package.json":    `{"name": "merged", "types": "index.d.ts"}`,
+		"node_modules/merged/index.d.ts":      "export interface Both { a: string }\nexport declare namespace Both { const tag: string }\nexport interface Global2 { g: Glob }\ndeclare global { interface Glob { deep: number } }\n",
 	}
 	output, input := trimWithGeo(t, `import type Legacy = require('legacy');
 import type { Model } from 'sub/models';

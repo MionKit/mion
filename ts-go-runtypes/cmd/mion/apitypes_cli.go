@@ -104,14 +104,11 @@ func buildApiTypes(cwd, tsconfigPath, declarationDir string, compileResult *batc
 	if err != nil {
 		return err
 	}
-	problems, trimmedVersion, err := apitypes.Check(input, trimmed.Files, trimmed.Entry)
+	problems, trimmedVersion, err := apitypes.Check(input, trimmed)
 	if err != nil {
 		return err
 	} else if len(problems) > 0 {
 		return fmt.Errorf("the trimmed declarations do not type-check on their own:\n%s", strings.Join(problems, "\n"))
-	}
-	if err := apitypes.VerifyIDs(input, trimmed); err != nil {
-		return err
 	}
 	for _, warning := range trimmed.Warnings {
 		fmt.Fprintf(os.Stderr, "mion: warning: %s\n", warning)

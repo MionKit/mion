@@ -3,7 +3,9 @@ package apitypes
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"path"
+	"slices"
 	"sort"
 	"strings"
 
@@ -98,7 +100,7 @@ func vendorPureFns(serverRoot string, ids []string) vendored {
 		out.files[path.Join(dir, "package.json")] = string(packageJSON) + "\n"
 		out.dirs[owner] = "./" + dir
 	}
-	out.peers = sortedKeys(peers)
+	out.peers = slices.Sorted(maps.Keys(peers))
 	sort.Strings(out.warnings)
 	return out
 }

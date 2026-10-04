@@ -88,7 +88,7 @@ func tryTrimIn(t *testing.T, files map[string]string, entry string, project map[
 
 func assertChecks(t *testing.T, input Input, output *Output) {
 	t.Helper()
-	problems, version, err := Check(input, output.Files, output.Entry)
+	problems, version, err := Check(input, output)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,9 +97,6 @@ func assertChecks(t *testing.T, input Input, output *Output) {
 	}
 	if version != output.BuildVersion {
 		t.Fatalf("the trimmed entry must carry the build version %q, got %q", output.BuildVersion, version)
-	}
-	if err := VerifyIDs(input, output); err != nil {
-		t.Fatal(err)
 	}
 }
 
