@@ -8,6 +8,7 @@ import {renderHeadline} from './diagnosticCatalog.ts';
 import {DOWNGRADED_NOTE, isDowngraded, NONE, type DowngradeSet} from './downgradeErrors.ts';
 import {entryOf, formatGrouped, severityLabel} from './groupedLog.ts';
 import {isShown} from './levels.ts';
+import type {Finding} from './types.ts';
 import {Severity, type Diagnostic} from './protocol.ts';
 
 export type HostContext = Partial<UnpluginContext>;
@@ -58,11 +59,6 @@ interface SurfaceOptions {
   cwd?: string;
   // The `logStyle` setting: one grouped block per call, or one warning per finding.
   grouped: boolean;
-}
-
-export interface Finding {
-  diagnostic: Diagnostic;
-  downgraded: boolean;
 }
 
 // One warning per finding, or one grouped block for all of them.

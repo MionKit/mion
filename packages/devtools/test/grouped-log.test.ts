@@ -4,7 +4,8 @@ import {readFileSync} from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
 import {entryOf, formatGrouped} from '../src/core/groupedLog.ts';
-import {Family, Level, Severity, type GroupedEntry} from '../src/core/protocol.ts';
+import {Family, Level, Severity} from '../src/core/protocol.ts';
+import type {GroupedEntry} from '../src/core/types.ts';
 
 const CORPUS = path.resolve(import.meta.dirname, '../../../ts-go-runtypes/internal/diagnostics/testdata/grouped/cases.json');
 const cases = JSON.parse(readFileSync(CORPUS, 'utf8')) as {

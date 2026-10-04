@@ -48,6 +48,18 @@ type groupedBlock struct {
 	entries  []GroupedEntry
 }
 
+type groupKey struct {
+	severity   Severity
+	name       string
+	downgraded bool
+}
+
+type blockKey struct {
+	group    groupKey
+	template string
+	slots    string
+}
+
 type groupedGroup struct {
 	severity   Severity
 	name       string
@@ -65,24 +77,26 @@ func FormatGrouped(entries []GroupedEntry, cwd string) string {
 	}
 	entries = relativeEntries(entries, cwd)
 	var groups []*groupedGroup
+	groupByKey := map[groupKey]*groupedGroup{}
+	blockByKey := map[blockKey]*groupedBlock{}
 	for _, entry := range entries {
-		index := slices.IndexFunc(groups, func(group *groupedGroup) bool {
-			return group.severity == entry.Severity && group.name == entry.Name && group.downgraded == entry.Downgraded
-		})
-		if index < 0 {
-			groups = append(groups, &groupedGroup{severity: entry.Severity, name: entry.Name, downgraded: entry.Downgraded})
-			index = len(groups) - 1
+		groupLookup := groupKey{entry.Severity, entry.Name, entry.Downgraded}
+		group, ok := groupByKey[groupLookup]
+		if !ok {
+			group = &groupedGroup{severity: entry.Severity, name: entry.Name, downgraded: entry.Downgraded}
+			groupByKey[groupLookup] = group
+			groups = append(groups, group)
 		}
-		group := groups[index]
 		group.size++
-		blockIndex := slices.IndexFunc(group.blocks, func(block *groupedBlock) bool {
-			return block.template == entry.Template && slices.Equal(block.slots, entry.Slots)
-		})
-		if blockIndex < 0 {
-			group.blocks = append(group.blocks, &groupedBlock{template: entry.Template, slots: entry.Slots})
-			blockIndex = len(group.blocks) - 1
+		// The NUL joins slot names that can never hold one, so two different lists never share a key.
+		blockLookup := blockKey{groupLookup, entry.Template, strings.Join(entry.Slots, "\x00")}
+		block, ok := blockByKey[blockLookup]
+		if !ok {
+			block = &groupedBlock{template: entry.Template, slots: entry.Slots}
+			blockByKey[blockLookup] = block
+			group.blocks = append(group.blocks, block)
 		}
-		group.blocks[blockIndex].entries = append(group.blocks[blockIndex].entries, entry)
+		block.entries = append(block.entries, entry)
 	}
 	for _, group := range groups {
 		for _, block := range group.blocks {
@@ -122,26 +136,21 @@ func FormatGrouped(entries []GroupedEntry, cwd string) string {
 // writeGroupedBlock fills every slot that has one value at every site into the message and lists the rest per site.
 func writeGroupedBlock(builder *strings.Builder, block *groupedBlock) {
 	var varying []int
-	values := make([]string, len(block.slots))
-	for slotIndex := range block.slots {
-		first := argAt(block.entries[0].Args, slotIndex)
-		values[slotIndex] = first
+	// A varying slot fills with its own placeholder, so the message keeps `{name}` there.
+	fill := make([]string, len(block.slots))
+	for slotIndex, slot := range block.slots {
+		fill[slotIndex] = argAt(block.entries[0].Args, slotIndex)
 		for _, entry := range block.entries[1:] {
-			if argAt(entry.Args, slotIndex) != first {
+			if argAt(entry.Args, slotIndex) != fill[slotIndex] {
 				varying = append(varying, slotIndex)
+				fill[slotIndex] = "{" + slot + "}"
 				break
 			}
 		}
 	}
-	message := headlineSlotRE.ReplaceAllStringFunc(block.template, func(placeholder string) string {
-		slotIndex := slices.Index(block.slots, placeholder[1:len(placeholder)-1])
-		if slotIndex < 0 || slices.Contains(varying, slotIndex) {
-			return placeholder
-		}
-		return values[slotIndex]
-	})
-	if len(block.slots) == 0 {
-		message = block.template
+	message := block.template
+	if len(block.slots) > 0 {
+		message = fillSlots(block.template, block.slots, fill)
 	}
 	// Detail lines (a TypeScript message chain) sit deeper than the sites, so they never read as one.
 	for index, line := range strings.Split(message, "\n") {
@@ -184,7 +193,8 @@ func relativePath(path, cwd string) string {
 	if !filepath.IsAbs(path) {
 		return path
 	}
-	if rel, err := filepath.Rel(cwd, path); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+	// The project folder itself stays as given: "." would read as no place at all.
+	if rel, err := filepath.Rel(cwd, path); err == nil && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return filepath.ToSlash(rel)
 	}
 	return path
@@ -208,9 +218,9 @@ func groupedLocation(site Site) string {
 	return fmt.Sprintf("%s:%d:%d", site.FilePath, site.StartLine, site.StartCol)
 }
 
-// groupedValue quotes a value that is empty or holds whitespace, so where one value ends stays visible.
+// groupedValue quotes a value that is empty or holds whitespace or a quote, so where one value ends stays visible.
 func groupedValue(value string) string {
-	if value != "" && !strings.ContainsAny(value, " \t\n\r") {
+	if value != "" && !strings.ContainsAny(value, " \t\n\r\"") {
 		return value
 	}
 	escaped := strings.NewReplacer(`\`, `\\`, `"`, `\"`, "\n", `\n`, "\r", `\r`, "\t", `\t`).Replace(value)
@@ -219,11 +229,11 @@ func groupedValue(value string) string {
 
 func groupedCountLine(entries []GroupedEntry) string {
 	counts := map[Severity]int{}
-	var files []string
+	files := map[string]bool{}
 	for _, entry := range entries {
 		counts[entry.Severity]++
-		if entry.Site.FilePath != "" && !slices.Contains(files, entry.Site.FilePath) {
-			files = append(files, entry.Site.FilePath)
+		if entry.Site.FilePath != "" {
+			files[entry.Site.FilePath] = true
 		}
 	}
 	var parts []string

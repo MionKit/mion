@@ -2,11 +2,12 @@
 // internal/diagnostics/grouped.go; testdata/grouped/cases.json there pins both to the same bytes.
 
 import path from 'node:path';
-import {DIAGNOSTIC_CATALOG, renderHeadline} from './diagnosticCatalog.ts';
+import {DIAGNOSTIC_CATALOG, fillSlots, renderHeadline} from './diagnosticCatalog.ts';
 import {DOWNGRADED_NOTE} from './downgradeErrors.ts';
-import {Severity, type Diagnostic, type DiagnosticSite, type GroupedEntry} from './protocol.ts';
+import {Severity, type Diagnostic, type DiagnosticSite} from './protocol.ts';
+import type {GroupedEntry} from './types.ts';
 
-const SLOT = /\{([A-Za-z]\w*)\}/g;
+const ESCAPES: Record<string, string> = {'\\': '\\\\', '"': '\\"', '\n': '\\n', '\r': '\\r', '\t': '\\t'};
 
 interface Block {
   template: string;
@@ -42,18 +43,24 @@ export function formatGrouped(allEntries: readonly GroupedEntry[], cwd = ''): st
   if (allEntries.length === 0) return '';
   const entries = cwd === '' ? allEntries : allEntries.map((entry) => relativeEntry(entry, cwd));
   const groups: Group[] = [];
+  const groupByKey = new Map<string, Group>();
+  const blockByKey = new Map<string, Block>();
   for (const entry of entries) {
     const downgraded = entry.downgraded ?? false;
-    let group = groups.find((g) => g.severity === entry.severity && g.name === entry.name && g.downgraded === downgraded);
+    const groupLookup = JSON.stringify([entry.severity, entry.name, downgraded]);
+    let group = groupByKey.get(groupLookup);
     if (!group) {
       group = {severity: entry.severity, name: entry.name, downgraded, blocks: [], size: 0};
+      groupByKey.set(groupLookup, group);
       groups.push(group);
     }
     group.size += 1;
     const slots = entry.slots ?? [];
-    let block = group.blocks.find((b) => b.template === entry.template && sameList(b.slots, slots));
+    const blockLookup = JSON.stringify([groupLookup, entry.template, slots]);
+    let block = blockByKey.get(blockLookup);
     if (!block) {
       block = {template: entry.template, slots, entries: []};
+      blockByKey.set(blockLookup, block);
       group.blocks.push(block);
     }
     block.entries.push(entry);
@@ -81,18 +88,14 @@ export function formatGrouped(allEntries: readonly GroupedEntry[], cwd = ''): st
 // A slot with one value at every site goes into the message; the rest print per site.
 function blockText(block: Block): string {
   const varying: number[] = [];
-  const values = block.slots.map((_slot, index) => {
+  // A varying slot fills with its own placeholder, so the message keeps `{name}` there.
+  const fill = block.slots.map((slot, index) => {
     const first = argAt(block.entries[0].args, index);
-    if (block.entries.some((entry) => argAt(entry.args, index) !== first)) varying.push(index);
-    return first;
+    if (!block.entries.some((entry) => argAt(entry.args, index) !== first)) return first;
+    varying.push(index);
+    return `{${slot}}`;
   });
-  const message =
-    block.slots.length === 0
-      ? block.template
-      : block.template.replace(SLOT, (placeholder, name: string) => {
-          const index = block.slots.indexOf(name);
-          return index < 0 || varying.includes(index) ? placeholder : values[index];
-        });
+  const message = block.slots.length === 0 ? block.template : fillSlots(block.template, block.slots, fill);
   let text = '';
   // Detail lines (a TypeScript message chain) sit deeper than the sites, so they never read as one.
   message.split('\n').forEach((line, index) => (text += `\n  ${index > 0 ? '    ' : ''}${line}`));
@@ -113,7 +116,8 @@ function relativeEntry(entry: GroupedEntry, cwd: string): GroupedEntry {
 function relativePath(filePath: string, cwd: string): string {
   if (!path.isAbsolute(filePath)) return filePath;
   const rel = path.relative(cwd, filePath);
-  if (rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) return filePath;
+  // The project folder itself stays as given: an empty path would read as no place at all.
+  if (rel === '' || rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) return filePath;
   return rel.split(path.sep).join('/');
 }
 
@@ -128,14 +132,10 @@ function location(site: DiagnosticSite): string {
   return `${site.filePath}:${site.startLine}:${site.startCol}`;
 }
 
-// An empty value or one holding whitespace is quoted, so where it ends stays visible.
+// An empty value or one holding whitespace or a quote is quoted, so where it ends stays visible.
 function quoted(value: string): string {
-  if (value !== '' && !/[ \t\n\r]/.test(value)) return value;
-  const escaped = value.replace(
-    /[\\"\n\r\t]/g,
-    (char) => ({'\\': '\\\\', '"': '\\"', '\n': '\\n', '\r': '\\r', '\t': '\\t'})[char]!
-  );
-  return `"${escaped}"`;
+  if (value !== '' && !/[ \t\n\r"]/.test(value)) return value;
+  return `"${value.replace(/[\\"\n\r\t]/g, (char) => ESCAPES[char])}"`;
 }
 
 function countLine(entries: readonly GroupedEntry[]): string {
@@ -163,10 +163,6 @@ export function severityLabel(severity: Severity): string {
   if (severity === Severity.Error) return 'error';
   if (severity === Severity.Warning) return 'warning';
   return 'info';
-}
-
-function sameList(left: readonly string[], right: readonly string[]): boolean {
-  return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 // Go compares strings by bytes; Buffer.compare matches it where `<` on UTF-16 would not.

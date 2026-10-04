@@ -11,8 +11,9 @@ import {PURE_FN_ARTIFACT_DIR, type ClientRoutes, type ModuleMode} from './go-gen
 import {assertValidClientRoutes, assertValidModuleMode} from './option-guards.ts';
 import {mayHoldMarkerCalls} from './markerImports.ts';
 import {isDowngraded, resolveDowngradeErrors, DOWNGRADE_ALL, type DowngradeSet} from './downgradeErrors.ts';
-import {LEVELS_ALL, resolveGrouped, resolveShowInfo, type LogStyle} from './levels.ts';
-import {haltError, hostHalt, hostWarn, printFindings, surfaceDiagnostics, type Finding, type HostContext} from './surface.ts';
+import {LEVELS_ALL, resolveGrouped, resolveShowInfo} from './levels.ts';
+import {haltError, hostHalt, hostWarn, printFindings, surfaceDiagnostics, type HostContext} from './surface.ts';
+import type {Finding, LogStyle} from './types.ts';
 import {DevReporter} from './devReporter.ts';
 import {createTypeDepsIndex, depKey} from './type-deps.ts';
 import {warnBelowTypeScriptFloor} from './typescript-floor.ts';
