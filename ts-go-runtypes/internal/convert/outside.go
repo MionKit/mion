@@ -6,6 +6,7 @@ package convert
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -42,6 +43,8 @@ type OutsidePrinter struct {
 	decls    map[string]*OutsideDecl
 	order    []string
 	aliasIDs map[string]bool
+	// failed holds the refusal of a declaration whose body could not print, returned to every later use of it.
+	failed map[string]*Diagnostic
 	scanned  map[string]bool
 	usedName map[string]int
 	needs    importNeeds
@@ -54,6 +57,7 @@ func NewOutsidePrinter(resolve func(id string) *reflection.RunType) *OutsidePrin
 		names:    &nameTable{RT: "RT", TF: "TF", TFT: "TFT", InferType: "InferType", GetRunType: "getRunType", TypeFormat: "TypeFormat", taken: map[string]bool{}},
 		decls:    map[string]*OutsideDecl{},
 		aliasIDs: map[string]bool{},
+		failed:   map[string]*Diagnostic{},
 		scanned:  map[string]bool{},
 		usedName: map[string]int{},
 	}
@@ -208,12 +212,23 @@ func (printer *OutsidePrinter) add(decl *OutsideDecl) {
 	printer.order = append(printer.order, decl.Key)
 }
 
+// fail drops a declaration whose body was refused, so no later use spells an empty one.
+func (printer *OutsidePrinter) fail(key string, diag *Diagnostic) *Diagnostic {
+	delete(printer.decls, key)
+	printer.order = slices.DeleteFunc(printer.order, func(ordered string) bool { return ordered == key })
+	printer.failed[key] = diag
+	return diag
+}
+
 // aliasRef spells a reference to a recursive shape, declaring its alias on first use.
 func (printer *OutsidePrinter) aliasRef(ctx *printContext, node *reflection.RunType) (string, *Diagnostic, bool) {
 	if !printer.aliasIDs[node.ID] || (node.ID == ctx.rootID && len(ctx.walking) == 0) {
 		return "", nil, false
 	}
 	key := "a:" + node.ID
+	if diag := printer.failed[key]; diag != nil {
+		return "", diag, true
+	}
 	if _, done := printer.decls[key]; !done {
 		name := node.TypeName
 		if name == "" {
@@ -225,7 +240,7 @@ func (printer *OutsidePrinter) aliasRef(ctx *printContext, node *reflection.RunT
 		text, diag := body.typeExpr(node)
 		printer.needs.merge(body.needs)
 		if diag != nil {
-			return "", diag, true
+			return "", printer.fail(key, diag), true
 		}
 		decl.Body = text
 	}
@@ -235,6 +250,9 @@ func (printer *OutsidePrinter) aliasRef(ctx *printContext, node *reflection.RunT
 // classRef spells a user class, declaring it with its members on first use: its name and members make its id.
 func (printer *OutsidePrinter) classRef(node *reflection.RunType) (string, *Diagnostic) {
 	key := "c:" + node.ID
+	if diag := printer.failed[key]; diag != nil {
+		return "", diag
+	}
 	if _, done := printer.decls[key]; !done {
 		decl := &OutsideDecl{Key: key, Kind: OutsideClass, Name: node.TypeName, NodeID: node.ID, Abstract: node.IsAbstract}
 		if decl.Name == "" {
@@ -245,7 +263,7 @@ func (printer *OutsidePrinter) classRef(node *reflection.RunType) (string, *Diag
 		text, diag := body.classBody(node)
 		printer.needs.merge(body.needs)
 		if diag != nil {
-			return "", diag
+			return "", printer.fail(key, diag)
 		}
 		decl.Body = text
 	}
