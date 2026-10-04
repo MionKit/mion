@@ -47,9 +47,8 @@ export const FEEDS_NOTHING = ['docs/', 'tools/', 'assets/', '.claude/', '.vscode
 // A lane that only RUNS the Go binaries skips what never compiles into them, and the cmd/gen-* codegen tools.
 const GO_BUILD = {prefix: 'ts-go-runtypes/', keep: (path) => isGoInput(path) && !path.startsWith('ts-go-runtypes/cmd/gen-')};
 
-// Page text and styling never break the site code, so they skip the website lanes; the release gate and the prod deploy still build them.
-const isWebsiteContent = (path) => path.startsWith('container/website/content/') || path.endsWith('.css');
-const WEBSITE_CODE = {prefix: 'container/website/', keep: (path) => !isWebsiteContent(path)};
+// Page text and CSS skip the website lanes (the js lane still checks their links and imports); the release gate and the prod deploy still build them.
+const WEBSITE_CODE = {prefix: 'container/website/', keep: (path) => !path.startsWith('container/website/content/') && !path.endsWith('.css')};
 
 // Every lane hashes these: the Go binaries are the engine every lane runs (a submodule bump moves every hash).
 // Repo-wide config changes rarely enough that the over-run costs nothing.
