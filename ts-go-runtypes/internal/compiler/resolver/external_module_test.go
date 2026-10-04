@@ -84,7 +84,7 @@ export const inlineJson = createJsonEncoderFn<{name: string; age: number}>();
 `
 	resp := scanExternal(t, map[string]string{"types.ts": types, "call.ts": code})
 	if codes := gateCodes(resp); len(codes) != 0 {
-		t.Fatalf("expected no CTA/PFN gate diagnostics, got %v", codes)
+		t.Fatalf("expected no marker-comptime-arg-*/purefn-* gate diagnostics, got %v", codes)
 	}
 	if len(resp.Sites) != 4 {
 		t.Fatalf("expected 4 createX sites, got %d", len(resp.Sites))
@@ -111,7 +111,7 @@ export const none = createValidateFn<number>();
 `
 	resp := scanExternal(t, map[string]string{"opts.ts": opts, "call.ts": code})
 	if codes := gateCodes(resp); len(codes) != 0 {
-		t.Fatalf("expected no CTA/PFN gate diagnostics for an `as const` whole-const preset, got %v", codes)
+		t.Fatalf("expected no marker-comptime-arg-*/purefn-* gate diagnostics for an `as const` whole-const preset, got %v", codes)
 	}
 	if len(resp.Sites) != 4 {
 		t.Fatalf("expected 4 sites, got %d", len(resp.Sites))
@@ -196,7 +196,7 @@ withValidator<string>(isString);
 }
 
 // TestExternalModule_PureFnInlineAccepted is the negative control: an inline
-// pure-fn literal still passes (no PFN gate).
+// pure-fn literal still passes (no purefn-* gate).
 func TestExternalModule_PureFnInlineAccepted(t *testing.T) {
 	cases := map[string]string{
 		"inline-arrow":    `withValidator<string>((v) => typeof v === 'string');`,
@@ -207,7 +207,7 @@ func TestExternalModule_PureFnInlineAccepted(t *testing.T) {
 			code := "import {withValidator} from '@mionjs/run-types';\n" + body + "\n"
 			resp := scanExternal(t, map[string]string{"runtypes.d.ts": pureFunctionDts, "call.ts": code})
 			if codes := gateCodes(resp); len(codes) != 0 {
-				t.Fatalf("expected no PFN/CTA gate for an inline pure-fn, got %v", codes)
+				t.Fatalf("expected no purefn-*/marker-comptime-arg-* gate for an inline pure-fn, got %v", codes)
 			}
 		})
 	}

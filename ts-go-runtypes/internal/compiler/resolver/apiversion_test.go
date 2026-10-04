@@ -144,7 +144,7 @@ func serverVersion(t *testing.T) string {
 	return version
 }
 
-// packageClient builds a client from a package .d.ts carrying version and returns its MET diagnostics.
+// packageClient builds a client from a package .d.ts carrying version and returns its rpc-client-* diagnostics.
 func packageClient(t *testing.T, version string, routesMode constants.ClientRoutesMode) (*resolver.Session, []diagnostics.Diagnostic) {
 	t.Helper()
 	sources := map[string]string{
@@ -218,7 +218,7 @@ func TestApiVersion_SourceTypedClientComparesNothing(t *testing.T) {
 		t.Fatalf("generate: %s", generated.Error)
 	}
 	if diags := metDiags(generated.Diagnostics); len(diags) != 0 {
-		t.Fatalf("expected no MET diagnostics, got %+v", diags)
+		t.Fatalf("expected no rpc-client-* diagnostics, got %+v", diags)
 	}
 	if version := transformedVersion(t, client, "client.ts"); version != serverVersion(t) {
 		t.Fatalf("the client's own hash must equal the server's for the same routes, got %q", version)
@@ -409,6 +409,6 @@ func TestApiVersion_WrappedSourceTypesCompareNothing(t *testing.T) {
 		t.Fatalf("generate: %s", generated.Error)
 	}
 	if diags := metDiags(generated.Diagnostics); len(diags) != 0 {
-		t.Fatalf("expected no MET diagnostics, got %+v", diags)
+		t.Fatalf("expected no rpc-client-* diagnostics, got %+v", diags)
 	}
 }

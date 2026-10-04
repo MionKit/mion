@@ -155,7 +155,7 @@ function lineOf(source: string, needle: string): number {
 // name the same file in tsc's `<path>(<line>,<col>)` format.
 const fileTail = (file: string): string => `${path.basename(FIXTURE_DIR)}/${file}`;
 
-// expectClean asserts a build that read every batch: no error, no BAT
+// expectClean asserts a build that read every batch: no error, no rpc-batch-*
 // diagnostic, and returns the sites reported for `file` in source order.
 function expectClean(run: BuildRun, file: string, count = 1): BatchSite[] {
   expect(run.error, `build must not halt:\n${run.warns.join('\n')}`).toBeNull();

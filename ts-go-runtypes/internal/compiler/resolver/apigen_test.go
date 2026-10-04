@@ -136,7 +136,7 @@ func TestApiGen_GenerateWritesUsedRoutesWithTheirChains(t *testing.T) {
 		t.Fatalf("generate: %s", gen.Error)
 	}
 	if diags := metDiags(gen.Diagnostics); len(diags) != 0 {
-		t.Fatalf("unexpected MET diagnostics: %+v", diags)
+		t.Fatalf("unexpected rpc-client-* diagnostics: %+v", diags)
 	}
 	apiDir := filepath.Join(genDir, constants.ApiModuleDir)
 	files := listGenerated(t, apiDir)
@@ -245,7 +245,7 @@ func TestApiGen_TransformInjectsLaneImportAndSiteBindings(t *testing.T) {
 		t.Fatalf("transform: %s", tr.Error)
 	}
 	if diags := metDiags(tr.Diagnostics); len(diags) != 0 {
-		t.Fatalf("unexpected MET diagnostics: %+v", diags)
+		t.Fatalf("unexpected rpc-client-* diagnostics: %+v", diags)
 	}
 	code := tr.Transformed["client.ts"].Code
 	if !strings.Contains(code, "import '../001/api/lane.js';") {
@@ -642,7 +642,7 @@ func TestApiGen_MarkerFormsAgreeWithTheBundledParamsId(t *testing.T) {
 		t.Fatalf("transform: %s", tr.Error)
 	}
 	if diags := metDiags(tr.Diagnostics); len(diags) != 0 {
-		t.Fatalf("unexpected MET diagnostics: %+v", diags)
+		t.Fatalf("unexpected rpc-client-* diagnostics: %+v", diags)
 	}
 	code := tr.Transformed["client.ts"].Code
 	staticForm := injectedId(t, code, "staticId")
@@ -1186,7 +1186,7 @@ func TestApiGen_MetadataMiddlewareFromPublishedTypes(t *testing.T) {
 	})
 	t.Run("fetching, set up: the API places the middleware", func(t *testing.T) {
 		if diags := publishedMetadataDiags(t, constants.ClientRoutesFetch, true); len(diags) != 0 {
-			t.Fatalf("expected no MET diagnostics, got %+v", diags)
+			t.Fatalf("expected no rpc-client-* diagnostics, got %+v", diags)
 		}
 	})
 }

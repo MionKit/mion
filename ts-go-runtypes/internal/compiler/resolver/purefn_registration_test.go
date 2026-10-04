@@ -73,7 +73,7 @@ func idInsertionReplacement(reps []protocol.Replacement) (protocol.Replacement, 
 
 // TestPureFn_DirectCall_ZeroDiagnostics — a direct registerPureFn(inlineFn)
 // call extracts cleanly: the fn arg is rewritten to its pf binding and the empty
-// trailing slot is spliced with the id, with NO CTA/PFN/PFE diagnostics.
+// trailing slot is spliced with the id, with NO marker-comptime-arg-*, purefn-* diagnostics.
 func TestPureFn_DirectCall_ZeroDiagnostics(t *testing.T) {
 	r := setupInline(t, map[string]string{
 		"runtypes.d.ts": pureFnDTS,

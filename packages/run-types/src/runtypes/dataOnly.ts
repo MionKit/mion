@@ -13,7 +13,7 @@ import type {__rtFormatName, __rtContains, __rtPatternProps, __rtPropNames} from
  *  already OPTIONAL in `T` — a global's member is guarded only when it is `?` (`Error['stack']`), and the
  *  `@nonEnumerable` tag takes effect only on an optional member — so a guarded property is always one the type
  *  permits to be absent and `DataOnly<T>` never over-promises it; a `@nonEnumerable` tag on a REQUIRED property
- *  is a no-op the `NE` lint rule flags. And the `#region dataonly-extract` block below is sliced VERBATIM into
+ *  is a no-op the `data-non-enumerable-required` lint rule flags. And the `#region dataonly-extract` block below is sliced VERBATIM into
  *  `test/types/dataonly.compile.test.ts` and compiled by the real TypeScript compiler, so the region must stay
  *  self-contained: `lib` types plus its own declarations only. **/
 

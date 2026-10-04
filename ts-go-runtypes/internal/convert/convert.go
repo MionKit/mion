@@ -3,7 +3,7 @@
 // reflection RunType graph. Both input forms already normalize to that graph through the checker;
 // this package adds the output half (one printer per target form), declaration recognition and the
 // source edits, so conversion can never change a type's structural id, pinned by the id oracle in
-// the convert fuzz lane. A declaration with no exact spelling reports a CNV diagnostic and stays
+// the convert fuzz lane. A declaration with no exact spelling reports a convert-* diagnostic and stays
 // untouched.
 package convert
 
@@ -45,7 +45,7 @@ const (
 	SeverityWarning Severity = 2
 )
 
-// Diagnostic codes (CNV family), CLI-local: they are not registered in the catalog or on the wire.
+// Diagnostic codes (convert-* family), CLI-local: they are not registered in the catalog or on the wire.
 const (
 	CodeUnsupportedKind    = "convert-unsupported-kind"
 	CodeGenericDecl        = "convert-generic-declaration"

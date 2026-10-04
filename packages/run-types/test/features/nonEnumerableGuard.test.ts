@@ -1,6 +1,6 @@
 // Families that write output by name (prepareForJsonSafe / compactForJson) gate a guarded prop
 // (global-inherited or `@nonEnumerable`) on `propertyIsEnumerable`. Guarded implies optional, so DataOnly<T> stays
-// sound: `@nonEnumerable` on a required prop is a no-op the NE lint rule flags. Both getRunTypeId call shapes are
+// sound: `@nonEnumerable` on a required prop is a no-op the data-non-enumerable-required lint rule flags. Both getRunTypeId call shapes are
 // covered, per the marker coverage rule.
 
 import {describe, expect, it} from 'vitest';

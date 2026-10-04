@@ -2,7 +2,7 @@
 // original name keeps the real drizzle table (`const users = toDrizzle(users$table)`), so queries need no edits; only
 // references inside a recorder call flip to the `$<kind>` binding. It rewrites, never re-prints: only each column
 // chain's glue changes (fold.go), so an unknown construct passes through, the opposite trade from internal/convert.
-// A DRZ refusal leaves the file valid drizzle, so the suite runs.
+// A drizzle-migrate-* refusal leaves the file valid drizzle, so the suite runs.
 package drizzlemigrate
 
 import (
@@ -25,7 +25,7 @@ const (
 	SeverityWarning Severity = 2
 )
 
-// Diagnostic codes (DRZ family), alongside internal/convert's CNV ones.
+// Diagnostic codes (drizzle-migrate-* family), alongside internal/convert's convert-* ones.
 const (
 	// A view built from a query builder: its columns come from drizzle's select typing, the exact generic
 	// chain the slim design removes, so it stays drizzle (packages/drizzle-orm/CLAUDE.md records it).

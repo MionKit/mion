@@ -183,12 +183,12 @@ func TestDowngradeError_AlreadyWarningDoesNothing(t *testing.T) {
 	}
 }
 
-// A DWN code is the check that keeps these comments honest, so no directive may
+// A comment-downgrade-error-* code is the check that keeps these comments honest, so no directive may
 // stand one down.
 func TestDowngradeError_DwnCodeCannotBeStoodDown(t *testing.T) {
 	codes := codesIn(generateDiags(t, withDowngrade("// @mion-downgrade-error comment-downgrade-error-unused")))
 	if !contains(codes, diagnostics.CodeDowngradeErrorAlreadyWarning) {
-		t.Fatalf("a DWN code is a warning, so naming it reports comment-downgrade-error-already-warning; got %v", codes)
+		t.Fatalf("a comment-downgrade-error-* code is a warning, so naming it reports comment-downgrade-error-already-warning; got %v", codes)
 	}
 	codes = codesIn(generateDiags(t, withDowngrade("// @mion-expect-error comment-downgrade-error-unused")))
 	if !contains(codes, diagnostics.CodeExpectErrorNotSuppressible) {

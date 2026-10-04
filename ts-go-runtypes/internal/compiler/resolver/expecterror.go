@@ -20,7 +20,7 @@ import (
 // settleDiagnostics is the last thing every op's diagnostics pass through: repeats collapse, then the
 // directive comments take effect, both here rather than in a handler because the lanes assemble their
 // diagnostics on different branches of dispatch. APPLYING a directive runs on every op, a directive
-// being a fact about the source whichever question was asked; REPORTING a wrong one (the EXP / DWN
+// being a fact about the source whichever question was asked; REPORTING a wrong one (the comment-*
 // codes) runs only where the answer is real, which is what directiveScope works out. Cost when no
 // directive exists is one substring scan per source file.
 func (sess *Session) settleDiagnostics(list []diagnostics.Diagnostic, request protocol.Request) []diagnostics.Diagnostic {

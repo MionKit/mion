@@ -1179,9 +1179,9 @@ createValidateFn<string>(undefined, {});
 	}
 	markerDiags := filterDiagsByFamily(resp.Diagnostics, diagnostics.FamilyMarker)
 	for _, d := range markerDiags {
-		// CTA gate only — MKR is a different subject (anti-patterns).
+		// marker-comptime-arg-* gate only — marker-* is a different subject (anti-patterns).
 		if strings.HasPrefix(d.Code, "marker-comptime-arg-") {
-			t.Fatalf("expected no CTA diagnostics for literal options, got %+v", d)
+			t.Fatalf("expected no marker-comptime-arg-* diagnostics for literal options, got %+v", d)
 		}
 	}
 }
@@ -1296,7 +1296,7 @@ withValidator<string>(isString);
 // purity walker fires when the inline function body
 // breaks a rule — here, `await` inside the arrow triggers purefn-uses-await.
 // The PureFunction marker reuses the purefns.CheckPurity engine
-// unchanged, so any PFE the extractor emits should reach the resolver.
+// unchanged, so any purefn-* the extractor emits should reach the resolver.
 func TestResolver_PureFunction_PurityViolationsPropagate(t *testing.T) {
 	const code = `import {withValidator} from '@mionjs/run-types';
 withValidator<string>(async (v) => { await Promise.resolve(); return typeof v === 'string'; });
@@ -1306,10 +1306,10 @@ withValidator<string>(async (v) => { await Promise.resolve(); return typeof v ==
 	if resp.Error != "" {
 		t.Fatalf("scanFiles: %s", resp.Error)
 	}
-	// All PFE diagnostics live under FamilyPureFn — not FamilyMarker.
+	// All purefn-* diagnostics live under FamilyPureFn — not FamilyMarker.
 	pfeDiags := filterDiagsByFamily(resp.Diagnostics, diagnostics.FamilyPureFn)
 	if len(pfeDiags) == 0 {
-		t.Fatalf("expected at least one PFE diagnostic for `await`, got 0 (all: %+v)", resp.Diagnostics)
+		t.Fatalf("expected at least one purefn-* diagnostic for `await`, got 0 (all: %+v)", resp.Diagnostics)
 	}
 	awaitSeen := false
 	for _, d := range pfeDiags {
@@ -1378,7 +1378,7 @@ noInjectWrapper(getLabel(), 1);
 	}
 	markerDiags := filterDiagsByFamily(resp.Diagnostics, diagnostics.FamilyMarker)
 	if len(markerDiags) != 1 {
-		t.Fatalf("expected 1 CTA diagnostic for non-literal arg without injection slot, got %d (%+v)", len(markerDiags), markerDiags)
+		t.Fatalf("expected 1 marker-comptime-arg-* diagnostic for non-literal arg without injection slot, got %d (%+v)", len(markerDiags), markerDiags)
 	}
 	if markerDiags[0].Code != diagnostics.CodeCompTimeArgsForbiddenConstruct {
 		t.Fatalf("expected %s, got %q", diagnostics.CodeCompTimeArgsForbiddenConstruct, markerDiags[0].Code)
@@ -1406,7 +1406,7 @@ pureOnlyWrapper(isString);
 
 // Phase 4 regression: when a function carries BOTH an InjectRunTypeId
 // trailing slot AND a CompTimeArgs on an earlier slot, scanCall must
-// emit both a Site (for injection) AND a CTA diagnostic (for the
+// emit both a Site (for injection) AND a marker-comptime-arg-* diagnostic (for the
 // invalid non-literal arg). The two passes were previously coupled —
 // marker-in-generic-function / argsCount early-returns dropped accumulated diagnostics.
 func TestResolver_TrailingInjectionStillEmitsSite(t *testing.T) {
@@ -1431,7 +1431,7 @@ createValidateFn<string>(undefined, getOptions());
 	}
 	markerDiags := filterDiagsByFamily(resp.Diagnostics, diagnostics.FamilyMarker)
 	if len(markerDiags) != 1 {
-		t.Fatalf("expected 1 CTA diagnostic alongside the Site, got %d (%+v)", len(markerDiags), markerDiags)
+		t.Fatalf("expected 1 marker-comptime-arg-* diagnostic alongside the Site, got %d (%+v)", len(markerDiags), markerDiags)
 	}
 	if markerDiags[0].Code != diagnostics.CodeCompTimeArgsForbiddenConstruct {
 		t.Fatalf("expected %s, got %q", diagnostics.CodeCompTimeArgsForbiddenConstruct, markerDiags[0].Code)

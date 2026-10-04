@@ -15,7 +15,7 @@ type prose struct {
 }
 
 var proseByCode = map[string]prose{
-	// ─────────────────── expect-error directives (EXP) ───────────────────
+	// ─────────────────── expect-error directives (comment-expect-error-*) ───────────────────
 
 	// No Examples: the harness scans a single FILE, but "did this comment silence anything" is only
 	// answerable against a whole program, so these are raised on the whole-program pass and covered
@@ -35,9 +35,9 @@ var proseByCode = map[string]prose{
 		Fix:     "// @mion-expect-error validate-symbol-root",
 	},
 
-	// ────────────────── downgrade-error directives (DWN) ──────────────────
+	// ────────────────── downgrade-error directives (comment-downgrade-error-*) ──────────────────
 
-	// No Examples, same reason as the EXP family: only a whole program answers "did this comment do
+	// No Examples, same reason as the comment-expect-error-* family: only a whole program answers "did this comment do
 	// anything", so these are raised on that pass and covered by downgradeerror_test.go.
 
 	CodeDowngradeErrorUnused: {
@@ -59,7 +59,7 @@ var proseByCode = map[string]prose{
 		Fix:     "// @mion-expect-error validate-non-data-property-dropped",
 	},
 
-	// ──────────────────────── project config (CFG) ────────────────────────
+	// ──────────────────────── project config (config-*) ────────────────────────
 
 	CodeTsconfigLoadFailed: {
 		// No Example: the harness scans source through a healthy config, and this is raised by a
@@ -77,7 +77,7 @@ var proseByCode = map[string]prose{
 		Summary: "Like `tsc`, `mion compile` writes each file under `outDir`, in the same folders it has under `rootDir`. A file imported from outside `rootDir` (a `paths` entry into a sibling package, or a relative import above the source folder) has no place there, so it is not written and the compile fails. Set `rootDir` to a folder that holds every file of the program, or import that module by its package name. `tsc` reports it as TS6059.",
 	},
 
-	// ───────────────────────── validate (VL) ─────────────────────────
+	// ───────────────────────── validate (validate-*) ─────────────────────────
 
 	CodeVLNonSerializableRoot: {
 		Summary: "Your type is a built-in class with no JSON form, such as `URLSearchParams`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, `Buffer` or a typed array like `Uint8Array`. Only `Date`, `Map`, `Set`, `URL` and the Temporal types are supported. Validate plain data instead, or convert the value first (`params.toString()`, `Array.from(bytes)`).",
@@ -166,7 +166,7 @@ export const isShelf = createValidateFn<Shelf>();`,
 export const isAnything = createValidateFn<unknown>();`,
 	},
 
-	// ──────────────────── validationErrors (VE) ────────────────────
+	// ──────────────────── validationErrors (validation-errors-*) ────────────────────
 
 	CodeVENonSerializableRoot: {
 		Summary: "Same as `validate-non-data-root`, for `createGetValidationErrorsFn`. Your type is a built-in class with no JSON form, such as `URLSearchParams`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, `Buffer` or a typed array like `Uint8Array`. Only `Date`, `Map`, `Set`, `URL` and the Temporal types are supported. Check plain data instead, or convert the value first (`params.toString()`, `Array.from(bytes)`).",
@@ -239,7 +239,7 @@ export const errorsOf = createGetValidationErrorsFn<Shelf>();`,
 export const errorsOf = createGetValidationErrorsFn<unknown>();`,
 	},
 
-	// ─────────────────────── pure functions (PFE) ───────────────────────
+	// ─────────────────────── pure functions (purefn-*) ───────────────────────
 
 	// No Example: purefn-not-registered needs a pure fn whose registration is absent from the program, and the
 	// built-ins register through the `mion` package itself, which the harness always has present.
@@ -449,7 +449,7 @@ export const outer: Outer = {inner: {ok: 1, __proto__: 'x'}};`,
 		Fix:     `import type {MyApi} from '../server/api';`,
 	},
 
-	// ───────────────────────── batch routes (BAT) ─────────────────────────
+	// ───────────────────────── batch routes (rpc-batch-*) ─────────────────────────
 
 	CodeBatchElementNotReadable: {
 		Summary: "Each item in `batch([...])` must be a call on the client routes, like `routes.users.getById(1)`, written inline or saved in a `const` or `let` in the same file. The build reads them to know which routes run, in what order. A spread, a function parameter, a call on anything other than the routes, or a variable not set to a route call cannot be read.",
@@ -488,7 +488,7 @@ routes.orders.getById(inputFrom(user, 'toUserId'));`,
 		Fix:     "import './<genDir>/rpc/batches.generated.js';",
 	},
 
-	// ───────────────────── build-time arguments (CTA) ─────────────────────
+	// ───────────────────── build-time arguments (marker-comptime-arg-*) ─────────────────────
 
 	CodeCompTimeArgsNonLiteral: {
 		Summary: "The build reads a `CompTimeArgs<T>` argument from your source, so it must be a literal or a `const` whose value is all literals, declared in the same file or imported. Function calls, property access, ternaries and `let` or `var` variables cannot be read, and an object `const` needs `as const` (marker-comptime-arg-widened-const). If the value is only known at runtime, use the untracked version of the function: `getPureFnByKey`, `hasPureFnByKey` and `getCompiledPureFnByKey` instead of `getPureFn`, `hasPureFn` and `getCompiledPureFn`.",
@@ -512,7 +512,7 @@ const options = {...base, mode: 'unsafe'} as const;`,
 createJsonEncoderFn(undefined, preset);`,
 	},
 
-	// ───────────────────────── type formats (FMT) ─────────────────────────
+	// ───────────────────────── type formats (format-*) ─────────────────────────
 
 	CodeFMTSampleMismatch: {
 		Summary: "A `mockSample` does not match its `pattern` (checked with the same regex your validator uses), so mock data built from it would fail validation. Change the sample or the pattern so they agree.",
@@ -563,7 +563,7 @@ declare const sku: {readonly source: string};
 export const isOrder = createValidateFn<{item: {sku: TF.String<{pattern: typeof sku}>}}>();`,
 	},
 
-	// ────────────────────── FriendlyText files (FT) ───────────────────────
+	// ────────────────────── FriendlyText files (enrich-text-*) ───────────────────────
 
 	CodeFriendlyUnknownField: {
 		Summary: "This FriendlyText entry names a field your type does not have: it was removed, renamed or misspelled. Its labels and messages are never used. Remove the entry, or run `mion enrich <source.ts> <Type> --update` so the file follows the type (a renamed field keeps its values).",
@@ -652,7 +652,7 @@ mion enrich <source.ts> <Type> --update`,
 };`,
 	},
 
-	// ───────────────────── enrichment file links (GE) ─────────────────────
+	// ───────────────────── enrichment file links (enrich-mirror-*) ─────────────────────
 
 	CodeGenMirrorUnreadable: {
 		Summary: "mion could not read this FriendlyText or MockData file, for example because of file permissions, a broken symlink, or another program writing to it at the same moment. Make the file readable, then run `mion enrich --no-emit` again.",
@@ -671,7 +671,7 @@ mion enrich <source.ts> <Type> --update`,
 mion enrich --prune`,
 	},
 
-	// ─────────────────── JSON composite functions (JCP) ───────────────────
+	// ─────────────────── JSON composite functions (internal-*) ───────────────────
 
 	CodeCompositeMissingPrimitive: {
 		Summary: "The JSON code mion generated for your type points to a piece that was never built, so it would crash when called and a production build stops. This is a bug in mion, not in your code: report it with the type and the call site named in the error.",
@@ -681,7 +681,7 @@ mion enrich --prune`,
 		Summary: "The code mion generated for your type meets a kind of value it cannot handle and has no message for, so the function always throws. This is a bug in mion, not in your code: report it with the type and the call site named in the error.",
 	},
 
-	// ──────────────────────── MockData files (MD) ─────────────────────────
+	// ──────────────────────── MockData files (enrich-mock-*) ─────────────────────────
 
 	CodeMockUnknownField: {
 		Summary: "This MockData entry names a field your type does not have: it was removed, renamed or misspelled. Its pool or range never feeds a mock. Remove the entry, or run `mion enrich <source.ts> <Type> --update` so the file follows the type.",
@@ -721,7 +721,7 @@ mion enrich <source.ts> <Type> --update`,
 };`,
 	},
 
-	// ───────────────────────── bundled API (MET) ──────────────────────────
+	// ───────────────────────── bundled API (rpc-client-*) ──────────────────────────
 
 	CodeApiMetaUnreadable: {
 		Summary: "When routes are bundled (`client.routes: 'bundle'`, the default), the build reads each called route's handler types, options and middlewares from the client's API type. Only `PublicApi<typeof routes>`, the type the router exports, has them; a loose `RemoteApi`, an `any`, or a member without its compiled types does not. Type the client with `PublicApi<typeof routes>`.",
@@ -789,7 +789,7 @@ useFetchMetadata(middlewares.mionFetchMetadata);`,
 		Fix:     "useFetchMetadata(middlewares.mionFetchMetadata);",
 	},
 
-	// ──────────────────── non-enumerable members (NE) ─────────────────────
+	// ──────────────────── non-enumerable members (data-*) ─────────────────────
 
 	CodeNonEnumerableRequiresOptional: {
 		Summary: "The `@nonEnumerable` tag skips a property that is not an enumerable own property of the value, but only when the property is optional. On a required property the tag is ignored and the property is always sent. Add `?` to the property, or remove the tag.",
@@ -798,7 +798,7 @@ useFetchMetadata(middlewares.mionFetchMetadata);`,
 }`,
 	},
 
-	// ────────────────────────── overrides (OVR) ───────────────────────────
+	// ────────────────────────── overrides (override-*) ───────────────────────────
 
 	CodeDuplicateOverride: {
 		Summary: "Two `overrideX<T>()` calls target the same type and the same function, for example two `overrideValidate<User>()`. Which one wins would depend on the order your code is read, so the second one is rejected whatever its body. The Related line points at the first one. Keep one override and merge the logic into it.",
@@ -812,7 +812,7 @@ useFetchMetadata(middlewares.mionFetchMetadata);`,
 		Fix:     "type Event = {kind: 'click'; x: number} | {kind: 'key'; code: string};",
 	},
 
-	// ─────────────────── pure function arguments (PFN) ────────────────────
+	// ─────────────────── pure function arguments (purefn-*) ────────────────────
 
 	CodePureFunctionNotLiteral: {
 		Summary: "Write the `PureFunction<F>` function inline at the call, as an arrow or function expression. A named function, even a private `const f = ...` or `function f() {}`, is rejected: the build compiles the body ahead of time, and the compiled copy must be the only one that can run. An imported or exported function is reported as purefn-imported-or-exported.",
@@ -823,7 +823,7 @@ useFetchMetadata(middlewares.mionFetchMetadata);`,
 		Fix:     "registerValidator((v: unknown) => typeof v === 'string');",
 	},
 
-	// ──────────────────────── prepareForJson (PJ) ─────────────────────────
+	// ──────────────────────── prepareForJson (json-prepare-*) ─────────────────────────
 
 	CodePJNeverRoot: {
 		Summary: "Your type resolves to `never`, so no value can ever match it and there is nothing to encode. Use a concrete type that matches your data, or `unknown` if you accept any value and check it before use. A `never` property inside an object is dropped instead (json-prepare-non-data-property-dropped).",
@@ -868,7 +868,7 @@ const bytes: number[] = Array.from(yourBuffer); // not a typed array`,
 		Summary: "A property holding a symbol, `never`, a `Promise`, a `RegExp` or a standard library class such as a typed array, `ArrayBuffer`, `URLSearchParams` or `Intl.DateTimeFormat` has no JSON form, so the encoder drops it and leaves the rest of the object alone: `{a: symbol}` encodes as `{}`. A property holding such a value inside an array or a Map, like `symbol[]` or `Map<string, symbol>`, cannot be dropped: you get an error instead (such as json-prepare-symbol-root), and the encoder always fails.",
 	},
 
-	// ───────────────────── prepareForJson clone (PJS) ─────────────────────
+	// ───────────────────── prepareForJson clone (json-prepare-clone-*) ─────────────────────
 
 	CodePJSNeverRoot: {
 		Summary: "Your type resolves to `never`, so no value can ever match it and there is nothing to encode. Use a concrete type that matches your data, or `unknown` if you accept any value and check it before use. A `never` property inside an object is dropped instead (json-prepare-clone-non-data-property-dropped).",
@@ -913,7 +913,7 @@ const bytes: number[] = Array.from(yourBuffer); // not a typed array`,
 		Summary: "A property holding a symbol, `never`, a `Promise`, a `RegExp` or a standard library class such as a typed array, `ArrayBuffer`, `URLSearchParams` or `Intl.DateTimeFormat` has no JSON form, so the encoder drops it and leaves the rest of the object alone: `{a: symbol}` encodes as `{}`. A property holding such a value inside an array or a Map, like `symbol[]` or `Map<string, symbol>`, cannot be dropped: you get an error instead (such as json-prepare-clone-symbol-root), and the encoder always fails.",
 	},
 
-	// ──────────────────────── restoreFromJson (RJ) ────────────────────────
+	// ──────────────────────── restoreFromJson (json-restore-*) ────────────────────────
 
 	CodeRJNeverRoot: {
 		Summary: "Your type resolves to `never`, so no value can ever match it and there is nothing to decode. Use a concrete type that matches your data, or `unknown` if you accept any value and check it before use. A `never` property inside an object is dropped instead (json-restore-non-data-property-dropped).",
@@ -958,7 +958,7 @@ const bytes: number[] = Array.from(yourBuffer); // not a typed array`,
 		Summary: "A property holding a symbol, `never`, a `Promise`, a `RegExp` or a standard library class such as a typed array, `ArrayBuffer`, `URLSearchParams` or `Intl.DateTimeFormat` has no JSON form, so the decoder drops it and leaves the rest of the object alone: `{a: symbol}` decodes as `{}`. A property holding such a value inside an array or a Map, like `symbol[]` or `Map<string, symbol>`, cannot be dropped: you get an error instead (such as json-restore-symbol-root), and the decoder always fails.",
 	},
 
-	// ────────────────────── removeUnknownKeys (RUK) ───────────────────────
+	// ────────────────────── removeUnknownKeys (unknown-keys-*) ───────────────────────
 
 	CodeRUKUnionRoot: {
 		Summary: "`removeUnknownKeys` rebuilds a value from its declared shape, and for a union of objects it cannot tell which member the value matches, so the function throws rather than keep unknown keys. Narrow the value first and use one `createRemoveUnknownKeysFn<Member>()` per member, or turn the union into one object with optional properties.",
@@ -1045,7 +1045,7 @@ interface Toolbar { button: { label: string; onClick: () => void } }
 export const removeToolbarKeys = createRemoveUnknownKeysFn<Toolbar>(undefined, {sharedValues: 'share'});`,
 	},
 
-	// ──────────────────────── Temporal types (TMP) ────────────────────────
+	// ──────────────────────── Temporal types (marker-temporal-*) ────────────────────────
 
 	CodeTemporalNotLoaded: {
 		Summary: "`Temporal.*` types only work when the Temporal lib is loaded. Without it the type becomes `any` and the validator accepts everything. Add `\"ESNext.Temporal\"` to `lib` in your tsconfig.",

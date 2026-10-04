@@ -15,7 +15,7 @@ import (
 // (CompTimeArgs<RunType<T>>). The point of these tests is to prove tsgo DETECTS
 // the CompTimeArgs marker on each of those param shapes and runs the literal
 // validation (a builder call / array-of-builders / const-ref passes; a dynamic
-// or spread child raises a CTA diagnostic). CompTimeArgs is the zero-cost
+// or spread child raises a marker-comptime-arg-* diagnostic). CompTimeArgs is the zero-cost
 // identity `T` (matching markers.ts — the old `T & brand` intersection cost ~700
 // instantiations on the tuple shapes), so detection is SYNTACTIC: the scanner
 // reads the `CompTimeArgs<…>` annotation node (detectCompTimeArgsByNode), not a
@@ -40,7 +40,7 @@ const composerCTADTS = `declare module '@mionjs/run-types' {
 `
 
 // scanComposerCTA scans a single test.ts against composerCTADTS and returns the
-// CTA-family diagnostics (CompTimeArgs gate only — MKR/other codes filtered out).
+// marker-comptime-arg-* diagnostics (CompTimeArgs gate only — marker-* codes filtered out).
 func scanComposerCTA(t *testing.T, code string) []diagnostics.Diagnostic {
 	t.Helper()
 	r := setupInline(t, map[string]string{"runtypes.d.ts": composerCTADTS, "test.ts": code})
@@ -59,7 +59,7 @@ func scanComposerCTA(t *testing.T, code string) []diagnostics.Diagnostic {
 
 // TestComposerCTA_BuilderChildrenAccepted is the positive proof across every
 // param shape: a composer fed builder-call children (directly, as an
-// array-of-builders, or via a module-scope const bound to one) raises NO CTA
+// array-of-builders, or via a module-scope const bound to one) raises NO marker-comptime-arg-*
 // diagnostic. Covers array (simple generic), tuple (const T), union (spread
 // brand), and func (const P) in one pass.
 func TestComposerCTA_BuilderChildrenAccepted(t *testing.T) {
@@ -74,12 +74,12 @@ const _fn0 = func();
 void _arr; void _arrConst; void _tup; void _uni; void _fn; void _fn0;
 `
 	if cta := scanComposerCTA(t, code); len(cta) != 0 {
-		t.Fatalf("expected no CTA diagnostics for builder-call children, got %d: %+v", len(cta), cta)
+		t.Fatalf("expected no marker-comptime-arg-* diagnostics for builder-call children, got %d: %+v", len(cta), cta)
 	}
 }
 
 // TestComposerCTA_DynamicArrayChildRejected proves a dynamic (ternary) schema
-// passed to a simple-generic composer (array) raises a CTA forbidden-construct
+// passed to a simple-generic composer (array) raises a marker-comptime-arg-* forbidden-construct
 // diagnostic — i.e. tsgo detects CompTimeArgs on `CompTimeArgs<RunType<T>>`.
 func TestComposerCTA_DynamicArrayChildRejected(t *testing.T) {
 	const code = `import {array, string} from '@mionjs/run-types';
@@ -89,7 +89,7 @@ void _bad;
 `
 	cta := scanComposerCTA(t, code)
 	if len(cta) != 1 {
-		t.Fatalf("expected 1 CTA diagnostic for dynamic array child, got %d: %+v", len(cta), cta)
+		t.Fatalf("expected 1 marker-comptime-arg-* diagnostic for dynamic array child, got %d: %+v", len(cta), cta)
 	}
 	if cta[0].Code != diagnostics.CodeCompTimeArgsForbiddenConstruct {
 		t.Fatalf("expected %s, got %q", diagnostics.CodeCompTimeArgsForbiddenConstruct, cta[0].Code)
@@ -99,7 +99,7 @@ void _bad;
 // TestComposerCTA_TupleSpreadAccepted proves the spread relaxation for the
 // const-tuple brand (`CompTimeArgs<T>`): a spread of a module-scope `const`
 // bound to an ARRAY literal of builder calls merges cleanly — the items array
-// is statically resolvable, so no CTA diagnostic fires. (The pre-relaxation
+// is statically resolvable, so no marker-comptime-arg-* diagnostic fires. (The pre-relaxation
 // behavior rejected every spread; now a `const`-fragment spread is the
 // supported split-and-merge pattern.)
 func TestComposerCTA_TupleSpreadAccepted(t *testing.T) {
@@ -109,7 +109,7 @@ const _ok = tuple({required: [...base, boolean()]});
 void _ok;
 `
 	if cta := scanComposerCTA(t, code); len(cta) != 0 {
-		t.Fatalf("expected no CTA diagnostics for tuple spread of a const array fragment, got %d: %+v", len(cta), cta)
+		t.Fatalf("expected no marker-comptime-arg-* diagnostics for tuple spread of a const array fragment, got %d: %+v", len(cta), cta)
 	}
 }
 
@@ -124,7 +124,7 @@ const _ok = union([...base, number()]);
 void _ok;
 `
 	if cta := scanComposerCTA(t, code); len(cta) != 0 {
-		t.Fatalf("expected no CTA diagnostics for union spread of a const array fragment, got %d: %+v", len(cta), cta)
+		t.Fatalf("expected no marker-comptime-arg-* diagnostics for union spread of a const array fragment, got %d: %+v", len(cta), cta)
 	}
 }
 
@@ -139,7 +139,7 @@ const _ok = object({...base, extra: string()});
 void _ok;
 `
 	if cta := scanComposerCTA(t, code); len(cta) != 0 {
-		t.Fatalf("expected no CTA diagnostics for object spread of a const fragment, got %d: %+v", len(cta), cta)
+		t.Fatalf("expected no marker-comptime-arg-* diagnostics for object spread of a const fragment, got %d: %+v", len(cta), cta)
 	}
 }
 
@@ -163,14 +163,14 @@ void _ok;
 	}
 	for _, d := range filterDiagsByFamily(resp.Diagnostics, diagnostics.FamilyMarker) {
 		if strings.HasPrefix(d.Code, "marker-comptime-arg-") {
-			t.Fatalf("expected no CTA diagnostics for cross-module spread, got %s: %+v", d.Code, d)
+			t.Fatalf("expected no marker-comptime-arg-* diagnostics for cross-module spread, got %s: %+v", d.Code, d)
 		}
 	}
 }
 
 // TestComposerCTA_SpreadDynamicRejected keeps the reject path: a spread whose
 // operand can't be statically resolved to a container literal — here a
-// `declare const` carrying only a TYPE (no initializer) — still raises a CTA
+// `declare const` carrying only a TYPE (no initializer) — still raises a marker-comptime-arg-*
 // forbidden-construct. The relaxation is for resolvable `const` fragments only.
 func TestComposerCTA_SpreadDynamicRejected(t *testing.T) {
 	const code = `import {tuple, string} from '@mionjs/run-types';
@@ -180,7 +180,7 @@ void _bad;
 `
 	cta := scanComposerCTA(t, code)
 	if len(cta) != 1 {
-		t.Fatalf("expected 1 CTA diagnostic for spread of an unresolvable operand, got %d: %+v", len(cta), cta)
+		t.Fatalf("expected 1 marker-comptime-arg-* diagnostic for spread of an unresolvable operand, got %d: %+v", len(cta), cta)
 	}
 	if cta[0].Code != diagnostics.CodeCompTimeArgsForbiddenConstruct {
 		t.Fatalf("expected %s, got %q", diagnostics.CodeCompTimeArgsForbiddenConstruct, cta[0].Code)
@@ -205,7 +205,7 @@ void _bad;
 `
 	cta := scanComposerCTA(t, code)
 	if len(cta) != 1 {
-		t.Fatalf("expected 1 CTA diagnostic for dynamic func params, got %d: %+v", len(cta), cta)
+		t.Fatalf("expected 1 marker-comptime-arg-* diagnostic for dynamic func params, got %d: %+v", len(cta), cta)
 	}
 	if cta[0].Code != diagnostics.CodeCompTimeArgsForbiddenConstruct {
 		t.Fatalf("expected %s, got %q", diagnostics.CodeCompTimeArgsForbiddenConstruct, cta[0].Code)

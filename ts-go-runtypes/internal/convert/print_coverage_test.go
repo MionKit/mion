@@ -22,8 +22,8 @@ import (
 // declare how the three printers treat it, `<channel>: <how>`:
 //
 //   - `printed:`     the printers spell it (or refuse its unprintable
-//     configurations with a CNV diagnostic — e.g. stacked checks);
-//   - `refused:`     no printed spelling exists; every printer reports a CNV
+//     configurations with a convert-* diagnostic — e.g. stacked checks);
+//   - `refused:`     no printed spelling exists; every printer reports a convert-*
 //     diagnostic when the slot carries anything;
 //   - `byReference:` the slot only occurs on types printed as a LIVE NAME
 //     (classes, enums), so the referenced declaration carries it verbatim;
@@ -265,7 +265,7 @@ func kindArmTuple() *reflection.RunType {
 		Children: []*reflection.RunType{{ID: "slot", Kind: reflection.KindTupleMember, Child: kindArmString()}}}
 }
 
-// TestPrinters_EveryKindHasAnArm: every kind prints through a named arm, or is refused with a CNV diagnostic.
+// TestPrinters_EveryKindHasAnArm: every kind prints through a named arm, or is refused with a convert-* diagnostic.
 func TestPrinters_EveryKindHasAnArm(t *testing.T) {
 	for kind := reflection.KindNever; kind < 256; kind++ {
 		if reflection.FamilyOf(kind) == reflection.FamilyUnknown {

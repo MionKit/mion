@@ -145,7 +145,7 @@ export const id = getRunTypeId<{a: string}>();
 // TestPrune_AlwaysThrowPrimitiveSurvives — an unsupported root (symbol) makes
 // rj an alwaysThrow entry, which is live, not noop: the composite keeps its
 // binding and the module must stay emitted so createJsonDecoderFn<symbol>()
-// throws with the RJ code at factory-creation time instead of silently
+// throws with the json-restore-* code at factory-creation time instead of silently
 // decoding garbage.
 func TestPrune_AlwaysThrowPrimitiveSurvives(t *testing.T) {
 	resp := scopeScan(t, `import {createJsonDecoderFn} from '@mionjs/run-types';

@@ -16,13 +16,13 @@ import (
 // export condition + a consumer's customConditions:["source"]), the whole-program
 // scan walks the library's own internal generic definitions. A non-literal
 // CompTimeArgs argument inside the DEPENDENCY's source is not a consumer call site,
-// so its CTA diagnostic must be dropped — while the SAME mistake in FIRST-PARTY
+// so its marker-comptime-arg-* diagnostic must be dropped — while the SAME mistake in FIRST-PARTY
 // code still fires. Provenance-based (IsSourceFileFromExternalLibrary), so it is
 // general to every dependency, not just the marker package.
 func TestScan_ExternalLibrarySourceDiagnosticsAreScopedOut(t *testing.T) {
 	// A minimal marker package: declares CompTimeArgs (zero-cost identity) and a
 	// branded factory, PLUS an INTERNAL non-literal call (like registerPureFnFactory
-	// in @mionjs/run-types's own src) that would trip CTA on a raw scan.
+	// in @mionjs/run-types's own src) that would trip marker-comptime-arg-* on a raw scan.
 	const coreSrc = `export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
 export declare function registerThing(name: CompTimeArgs<string>): void;
 const internalName: string = ('lib' + String(1)) as string;
@@ -102,11 +102,11 @@ registerThing(appName);
 	}
 	// The dependency's own non-literal call must NOT be reported.
 	if coreCTA != 0 {
-		t.Errorf("dependency-source CTA diagnostics leaked: %d (want 0)", coreCTA)
+		t.Errorf("dependency-source marker-comptime-arg-* diagnostics leaked: %d (want 0)", coreCTA)
 	}
 	// The first-party call with the SAME mistake still fires — no over-suppression.
 	if appCTA == 0 {
-		t.Errorf("first-party CTA diagnostic was suppressed — over-scoped (want >= 1)")
+		t.Errorf("first-party marker-comptime-arg-* diagnostic was suppressed — over-scoped (want >= 1)")
 	}
 }
 
