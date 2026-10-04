@@ -223,7 +223,7 @@ export interface ScanFilesOptions {
   checkEnrich?: boolean;
   // The mion route rules over the request's files, as Family.MionRoute diagnostics. Lint-plugin use.
   checkRouterRules?: boolean;
-  // The RunType-family render diagnostics (validate-function-property-dropped, json-prepare-never-root, …) without the entry-module payload. Lint-plugin use.
+  // The RunType-family render diagnostics without the entry-module payload. Lint-plugin use.
   includeRtDiagnostics?: boolean;
 }
 

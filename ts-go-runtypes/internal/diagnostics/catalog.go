@@ -179,7 +179,7 @@ type Definition struct {
 	// literal. It is the label form the tsc-shaped line needs.
 	Severity Severity
 	// Completeness marks INCOMPLETE (not-yet-authored) enrichment rather than WRONG content
-	// (enrich-text-todo-left/enrich-text-blank-value, enrich-mock-todo-left/enrich-mock-blank-value). A gating bit ORTHOGONAL to Level: those codes are LevelWarning, so
+	// (the *-todo-left and *-blank-value codes). A gating bit ORTHOGONAL to Level: those codes are LevelWarning, so
 	// the default health check exits 0, and `enrich --require-complete` plus the bundler's production
 	// gate PROMOTE this bit to a failure. Both must key on the bit, never on the level.
 	Completeness bool

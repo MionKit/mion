@@ -184,7 +184,7 @@ export type CompTimeHints<T> = T;
  * (compile a regex once) or `utl` composition.
  *
  * Strictly stronger than `CompTimeArgs<F>` when F is a function. Inline-shape violations → `purefn-not-inline`;
- * purity violations → `purefn-uses-this`–`purefn-reads-outer-variable`.
+ * purity violations → their own `purefn-*` codes.
  */
 export type PureFunction<F> = F & {readonly __rtPureFunctionBrand?: never};
 

@@ -58,8 +58,8 @@ var allSerdeFamilies = []string{
 	"restoreFromJsonMutate", "restoreFromJsonClone",
 }
 
-// nonSerPropDropCodes maps each family to its `-non-data-property-dropped` directly-stripped-property
-// drop Warning (function-valued props use `-function-property-dropped` instead — see the function test).
+// nonSerPropDropCodes maps each family to its `-non-data-property-dropped`
+// Warning (function-valued props use `-function-property-dropped`, see the function test).
 var nonSerPropDropCodes = map[string]string{
 	"validate":              diagnostics.CodeVLNonSerializablePropDrop,
 	"validationErrors":      diagnostics.CodeVENonSerializablePropDrop,
@@ -81,8 +81,8 @@ var symbolRootCodes = map[string]string{
 	"restoreFromJsonClone":  diagnostics.CodeRJSymbolRoot,
 }
 
-// functionPropDropCodes maps each family to its `-function-property-dropped` function-valued-property
-// drop Warning — the code a function-valued property keeps (NOT `-non-data-property-dropped`).
+// functionPropDropCodes maps each family to its `-function-property-dropped` Warning,
+// never `-non-data-property-dropped`.
 var functionPropDropCodes = map[string]string{
 	"validate":              diagnostics.CodeVLFunctionPropDropped,
 	"validationErrors":      diagnostics.CodeVEFunctionPropDropped,
@@ -181,7 +181,7 @@ func TestF3_StructurallyUnserializablePropertyFails(t *testing.T) {
 
 // A function-VALUED property keeps the existing `-function-property-dropped` code,
 // NOT `-non-data-property-dropped` — the fix must not reclassify function-typed properties (the
-// validate-function-property-dropped/json-prepare-function-property-dropped/… contract pinned by diagnostics_test.go + runtype-diagnostics).
+// contract pinned by diagnostics_test.go + runtype-diagnostics).
 func TestF3_FunctionValuedPropertyUsesFunctionCode(t *testing.T) {
 	for _, fam := range allSerdeFamilies {
 		dump := objWithProp(mkFn(), false)

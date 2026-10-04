@@ -10,7 +10,7 @@ import {haltError, type HaltError} from '../src/core/surface.ts';
 import {Family, Level, Severity, type Diagnostic} from '../src/core/protocol.ts';
 import {BIN, callHook, createMarkerProject, hasBinary} from './helpers/inline.ts';
 
-// marker-in-generic-function (marker in a generic function) is a fatal Error, validate-symbol-root (root `symbol`) a RuntimeError.
+// marker-in-generic-function is a fatal Error, validate-symbol-root a RuntimeError.
 // Both getRunTypeId shapes must resolve.
 const MIXED_SRC = `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 export function makeValidator<T>() {

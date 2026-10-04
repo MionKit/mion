@@ -143,7 +143,7 @@ const sample = {name: 'Ada'};
 export const goodReflected = getRunTypeId(sample);
 `;
 
-// A function at a PROPERTY position drops with an Info (validate-method-dropped), so the strict default must NOT halt on it.
+// A function at a PROPERTY position drops with an Info, so the strict default must NOT halt on it.
 const WARNING_ENTRY_SRC = `import {createValidateFn} from '@mionjs/run-types';
 interface WithHandler {
   name: string;

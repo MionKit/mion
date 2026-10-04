@@ -360,7 +360,7 @@ func (sess *Session) pureFnReportForEntries(entries []purefunctions.Entry) []pro
 }
 
 // collectProgramBatches returns the whole-program batch site set with every batch diagnostic: the
-// per-site rpc-batch-element-unreadable / rpc-batch-source-not-before / rpc-batch-mapper-unreadable / rpc-batch-duplicate-route / rpc-batch-argument-out-of-range plus the cross-file rpc-batch-id-collision collisions, which only
+// per-site codes plus the cross-file rpc-batch-id-collision, which only
 // a whole-program fold can see.
 func (sess *Session) collectProgramBatches() ([]requestbatch.Site, []diagnostics.Diagnostic) {
 	if sess.Program == nil {

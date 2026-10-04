@@ -135,7 +135,7 @@ const rtUtils = {
   },
   // Runtime-key lookup — the UNTRACKED companion to usePureFn/getPureFn/hasPureFn. The plain `string` param (NOT
   // `CompTimeArgs<string>`) keeps the scanner from demand-checking it, which is the door for a framework
-  // dispatching on a pure-fn id received over the WIRE. It drives no purefn-not-registered "referenced but never registered"
+  // dispatching on a pure-fn id received over the WIRE. It drives no purefn-not-registered check
   // and no pure-fn dependency edges; use the CompTimeArgs forms when you want that tracking.
   getPureFnByKey(key: string): PureFunction | undefined {
     const compiled = pureFnsCache[key];

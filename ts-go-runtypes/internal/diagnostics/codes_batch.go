@@ -3,11 +3,9 @@ package diagnostics
 // Request-batch codes (rpc-batch-*), raised when a `batch([...])` call (recognised by the InjectBatchId
 // brand on its resolved signature) cannot be read statically, or when two batches collide.
 //
-// The levels split on whether the id is spliced. rpc-batch-element-unreadable / rpc-batch-source-not-before / rpc-batch-mapper-unreadable / rpc-batch-duplicate-route / rpc-batch-argument-out-of-range drop the
-// whole site, so no id is injected and `batch()` throws `batch-missing-id` before any network work:
-// LevelError. rpc-batch-id-collision / rpc-batch-mapper-missing / rpc-batch-router-init-hidden DO inject an id and the batch then fails against the
-// server (rpc-batch-router-init-hidden ships a call whose every request comes back a 404 `batch-unknown-id`):
-// LevelRuntimeError.
+// The levels split on whether the id is spliced. A code that drops the site injects no id, and `batch()`
+// throws `batch-missing-id` before any network work: LevelError. A code that injects an id fails against
+// the server (rpc-batch-router-init-hidden: every request is a 404 `batch-unknown-id`): LevelRuntimeError.
 const (
 	// CodeBatchElementNotReadable: an element of the routes argument is not a route call the build
 	// can trace to the client routes proxy. Args: [0] the reason.

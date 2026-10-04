@@ -1,7 +1,7 @@
 // End-to-end acceptance test for marker-scanner diagnostics. Drives the
 // Go binary over inline sources, verifying:
 //
-//   1. response.diagnostics surfaces an marker-calls-function-for-type warning when a marker
+//   1. response.diagnostics surfaces a marker-calls-function-for-type warning when a marker
 //      call's reflect-form value argument is a function-call expression
 //      (`createValidateFn(getX())`).
 //   2. The diagnostic message names the called function and recommends

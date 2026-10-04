@@ -15,7 +15,7 @@ const TSCONFIG = JSON.stringify({
   include: ['src'],
 });
 
-// marker-calls-function-for-type (a function called only to read its return type) is a Warning; both getRunTypeId shapes resolve.
+// marker-calls-function-for-type is a Warning; both getRunTypeId shapes resolve.
 const A_TS = `import {getRunTypeId} from '@mionjs/run-types';
 function load(): {name: string} {
   return {name: 'x'};
@@ -25,13 +25,13 @@ export const idStatic = getRunTypeId<{name: string}>();
 const sample = {name: 'Ada'};
 export const idReflected = getRunTypeId(sample);
 `;
-// validate-symbol-root (a root `symbol`) is a RuntimeError: the dev server reports it and keeps running.
+// validate-symbol-root is a RuntimeError: the dev server reports it and keeps running.
 const B_TS = `import {createValidateFn} from '@mionjs/run-types';
 export const isSymbol = createValidateFn<symbol>();
 `;
-// validate-function-root (a root function type), added while the dev server runs.
+// validate-function-root, added while the dev server runs.
 const FUNCTION_ROOT_LINE = 'export const isFn = createValidateFn<(a: number) => void>();\n';
-// marker-in-generic-function (a marker in a generic function) is a fatal Error: no code is produced for it.
+// marker-in-generic-function is a fatal Error: no code is produced for it.
 const FATAL_TS = `import {createValidateFn} from '@mionjs/run-types';
 export function makeValidator<T>() {
   return createValidateFn<T>();
@@ -152,7 +152,7 @@ export type Api = {
   };
 };
 `;
-// rpc-client-route-not-declared (a dispatch site names a route the API does not declare) is an Error only the whole-program pass finds.
+// rpc-client-route-not-declared is an Error only the whole-program pass finds.
 const GHOST_CLIENT_TS = `import {initClient} from '@mionjs/client';
 import type {Api} from './api.ts';
 import type {InjectApiMetadata} from '@mionjs/run-types';

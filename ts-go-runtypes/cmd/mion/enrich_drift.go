@@ -27,8 +27,8 @@ type driftFinding struct {
 	Col      int                 `json:"col,omitempty"`
 }
 
-// runMirrorDriftCheck is `enrich [<dir>] --no-emit [--json]`: breadcrumb drift, enrich-mirror-moved to enrich-mirror-type-missing (codes_mirror.go).
-// enrich-mirror-source-missing/enrich-mirror-type-missing come from mirror.CheckBreadcrumbDrift; enrich-mirror-moved lives here, as only the CLI knows the genDir config.
+// runMirrorDriftCheck is `enrich [<dir>] --no-emit [--json]`: the enrich-mirror-* drift checks (codes_mirror.go).
+// enrich-mirror-moved lives here, as only the CLI knows the genDir config; the rest come from mirror.CheckBreadcrumbDrift.
 // With no argument it walks the enrich dir from cwd's tsconfig; mirrorDriftExitCode picks the exit code.
 func runMirrorDriftCheck(positional []string, genDirFlag string, asJSON, requireComplete bool, tsconfigFlag string) {
 	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
@@ -99,7 +99,7 @@ func runMirrorDriftCheck(positional []string, genDirFlag string, asJSON, require
 // mirrorDriftExitCode is the tree walk's exit-code policy, the twin of the
 // single-file lane's enrichFindingFails: a finding carrying the Completeness bit
 // fails only under --require-complete, and any Error-severity finding (a stale
-// carcass via hygieneSeverity, enrich-mirror-unreadable/enrich-mirror-source-missing/enrich-mirror-type-missing drift) fails both lanes. The
+// carcass via hygieneSeverity, enrich-mirror-* drift) fails both lanes. The
 // cosmetic enrich-mirror-moved location drift is a Warning and never fails.
 func mirrorDriftExitCode(findings []driftFinding, requireComplete bool) int {
 	for _, finding := range findings {
@@ -199,7 +199,7 @@ func checkMirrorFile(mirrorFile, genDirFlag, tsconfigPath string, parsed *progra
 		})
 	}
 
-	// enrich-mirror-source-missing / enrich-mirror-type-missing — the shared source-existence + type-declaration checks.
+	// enrich-mirror-source-missing / enrich-mirror-type-missing, the shared checks.
 	for _, drift := range mirror.CheckBreadcrumbDrift(mirrorFile, text, nil) {
 		line, col := lineIndex.At(drift.Start)
 		findings = append(findings, driftFinding{
@@ -217,7 +217,7 @@ func checkMirrorFile(mirrorFile, genDirFlag, tsconfigPath string, parsed *progra
 		}
 	}
 
-	// enrich-mirror-moved — cosmetic location drift: the mirror file is not where the source's
+	// enrich-mirror-moved: the mirror file is not where the source's
 	// computed mirror path would put it. CLI-only (needs the enrich config).
 	// The config anchors at the MIRROR file — the project that owns the mirror
 	// tree — exactly like the enrich write lane, so the two can never disagree. (An

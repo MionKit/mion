@@ -11,8 +11,8 @@ import (
 // External-module marker matrix. Each row defines a type / schema / preset /
 // pure-fn in one module and uses the marker
 // in another, asserting the cross-module result converges with the inline twin —
-// and that the new hardening diagnostics (marker-comptime-arg-widened-const widened const, purefn-imported-or-exported external
-// pure-fn handle) fire where intended.
+// and that the new hardening diagnostics (marker-comptime-arg-widened-const, purefn-imported-or-exported)
+// fire where intended.
 
 // scanExternal scans `call.ts` (the consumer) against the real marker package
 // (injected by setupInline), following its imports into the other source
@@ -31,7 +31,7 @@ func scanExternal(t *testing.T, files map[string]string) protocol.Response {
 	return resp
 }
 
-// gateCodes returns the hard marker GATES (marker-comptime-arg-* / purefn-*) raised, ignoring advisory MKR warnings.
+// gateCodes returns the hard marker GATES raised, not the advisory warnings.
 func gateCodes(resp protocol.Response) []string {
 	var codes []string
 	for _, d := range resp.Diagnostics {

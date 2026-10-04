@@ -5,7 +5,7 @@ package diagnostics
 // list, but it LOWERS the finding to a warning instead of removing it: the right tool when the
 // finding is TRUE and worth seeing and only the halt is unwanted.
 //
-// All four are LevelWarning, as in the EXP family: what the build emitted is CORRECT, only a comment
+// All four are LevelWarning, as with comment-expect-error-*: what the build emitted is CORRECT, only a comment
 // is wrong, and a stale comment is not a reason to stop shipping.
 const (
 	// CodeDowngradeErrorUnused fires when no diagnostic the directive names was raised on the line

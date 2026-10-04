@@ -243,9 +243,8 @@ type translationFinding struct {
 var todoBlankPattern = regexp.MustCompile(`:\s*''`)
 
 // runI18nCheck implements `enrich --i18n <locale|all> --no-emit`: the
-// non-writing completeness gate. Findings: enrich-i18n-missing-translation missing translation file,
-// enrich-i18n-todo-left unfilled @todo blanks, enrich-i18n-out-of-date out of date vs the src type (a src-derived
-// reconcile would change it), enrich-i18n-orphans orphan carcasses awaiting --prune.
+// non-writing completeness gate. Findings: enrich-i18n-missing-translation, enrich-i18n-todo-left (unfilled
+// @todo blanks), enrich-i18n-out-of-date (a src-derived reconcile would change it), enrich-i18n-orphans (awaiting --prune).
 // Severity is Warning unless the project sets tsconfig i18n.strict OR the caller
 // passes --require-complete (then everything is an Error and the exit code drives
 // CI). Rendering at runtime stays lenient either way.
@@ -272,7 +271,7 @@ func runI18nCheck(translateValue string, genDirFlag, tsconfigFlag string, requir
 		// One Program + closure per friendly mirror, specs per locale. A mirror
 		// that can't be processed (unreadable / markerless / unresolvable) was
 		// already noted on stderr; its targets still count as checked and get the
-		// file-local findings (enrich-i18n-missing-translation/enrich-i18n-todo-left/enrich-i18n-orphans) — just no enrich-i18n-out-of-date.
+		// file-local findings, just no enrich-i18n-out-of-date.
 		specsByLocale, _ := buildTranslationSpecs(config, sourceMirror, locales)
 		for _, locale := range locales {
 			translationPath := config.TranslationPathFor(locale, sourceMirror)
@@ -305,7 +304,7 @@ func runI18nCheck(translateValue string, genDirFlag, tsconfigFlag string, requir
 // checkTranslationFile produces the completeness findings for one translation
 // target. spec is the already-built src-derived desired side for THIS file —
 // nil when the friendly mirror couldn't be processed, which skips enrich-i18n-out-of-date while
-// the file-local findings (enrich-i18n-missing-translation/enrich-i18n-todo-left/enrich-i18n-orphans) still run. severity is the shared
+// the file-local findings still run. severity is the shared
 // finding severity for this run (Warning, or Error under i18n.strict /
 // --require-complete).
 func checkTranslationFile(locale, translationPath string, spec *mirror.Spec, severity enrichment.Severity) []translationFinding {

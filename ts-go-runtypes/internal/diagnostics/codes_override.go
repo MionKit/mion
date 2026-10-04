@@ -4,7 +4,7 @@ package diagnostics
 // the purity codes), so the only override-specific build error is a DUPLICATE: exactly one override per
 // (type, function), because which of two wins would be order-dependent.
 //
-// override-duplicate and override-function-not-built are LevelRuntimeError, each shipping real output that is wrong: override-duplicate keeps the
+// Both override errors are LevelRuntimeError, each shipping real output that is wrong: override-duplicate keeps the
 // FIRST override and nulls both call sites, so one override silently does not apply, and override-function-not-built's
 // redirect body loads a module that is not in the graph and throws on the first call.
 const (

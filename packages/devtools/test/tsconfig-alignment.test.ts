@@ -4,7 +4,7 @@
 //   - daemon/HMR surface (direct server-mode ResolverClient, the
 //     transform-modes pattern): a setSources edit introducing an
 //     option-sensitive type (Temporal, lib-gated) resolves exactly as a build
-//     would — lib present → real type, no marker-temporal-lib-missing; lib absent → marker-temporal-lib-missing — and a
+//     would — lib present → real type; lib absent → marker-temporal-lib-missing — and a
 //     broken/missing NAMED tsconfig fails the op loudly (config-tsconfig-not-loaded) instead of
 //     silently degrading, healing on the next setSources once fixed.
 //   - eslint surface (makeFixtureProject/runRule): the same lib sensitivity

@@ -379,8 +379,7 @@ export interface Response {
   levels?: string;
   // One TransformResult per file for the `transform` op, keyed by file path.
   transformed?: Record<string, TransformResult>;
-  // Every non-fatal diagnostic the Go binary emits: pure-fn extractor (purefn-*), marker scanner (marker-*),
-  // RT compiler (IT/TE/PJ/…/FB); the Family discriminator says which subsystem produced it.
+  // Every non-fatal diagnostic the Go binary emits; the Family discriminator says which subsystem produced it.
   // The build plugin prints and halts on them in surface.ts.
   diagnostics?: Diagnostic[];
   // tsCompile only: wall-time (ms) of the embedded tsgo's bind + typecheck + emit pass on the current source
@@ -445,7 +444,7 @@ export interface EnrichFile {
   kind?: string;
 }
 
-// Diagnostic mirrors the Go-side diag.Diagnostic; `code` is the stable identifier (marker-comptime-arg-not-literal, validate-function-property-dropped, …).
+// Diagnostic mirrors the Go-side diag.Diagnostic; `code` is the stable identifier (validate-symbol-root, …).
 // The user-facing message is NOT carried on the wire: per-code templates live in the generated
 // `./go-generated/diagnosticCatalog.generated.ts` (from internal/diagnostics/messages.go via
 // `pnpm miondevx core codegen diag`) and resolve at format time against `args`, 0-2 positional values.

@@ -40,7 +40,7 @@ declare const secret: Secret;
 export const valueId = getRunTypeId(secret);
 `
 
-// typesOnlyClient builds a client from @acme/api-types and returns the MET and marker-untyped-private-member findings of a dump plus a generate.
+// typesOnlyClient builds a client from @acme/api-types and returns the rpc-client-* and marker-untyped-private-member findings of a dump plus a generate.
 func typesOnlyClient(t *testing.T, packageJSON, marker, version string, mode constants.ClientRoutesMode) []diagnostics.Diagnostic {
 	t.Helper()
 	extra := map[string]string{}

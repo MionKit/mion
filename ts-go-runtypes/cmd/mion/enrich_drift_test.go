@@ -263,7 +263,7 @@ func TestCheckMirrorFile_NoFamilySegmentDrifts(t *testing.T) {
 	}
 }
 
-// TestCheckMirrorFile_EnrichMirrorSourceMissing: a deleted source produces a enrich-mirror-source-missing error.
+// TestCheckMirrorFile_EnrichMirrorSourceMissing: a deleted source produces an error.
 func TestCheckMirrorFile_EnrichMirrorSourceMissing(t *testing.T) {
 	dir := canonicalTempDir(t)
 	t.Chdir(dir)
@@ -276,8 +276,7 @@ func TestCheckMirrorFile_EnrichMirrorSourceMissing(t *testing.T) {
 	}
 }
 
-// TestCheckMirrorFile_EnrichMirrorTypeMissing: a source that no longer declares the type produces
-// a enrich-mirror-type-missing error.
+// TestCheckMirrorFile_EnrichMirrorTypeMissing: a source that no longer declares the type errors.
 func TestCheckMirrorFile_EnrichMirrorTypeMissing(t *testing.T) {
 	dir := canonicalTempDir(t)
 	t.Chdir(dir)

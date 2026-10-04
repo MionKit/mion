@@ -265,7 +265,7 @@ export const b = batch([user, routes.orders.getById(inputFrom(user, (o: {id: num
 	}
 }
 
-// TestBatch_ElementDiagnosticsFlowOnScan: a rpc-batch-element-unreadable reaches the scan response
+// TestBatch_ElementDiagnosticsFlowOnScan: an rpc-batch-element-unreadable reaches the scan response
 // and suppresses the injection for that call.
 func TestBatch_ElementDiagnosticsFlowOnScan(t *testing.T) {
 	r := setupInline(t, map[string]string{
@@ -341,8 +341,8 @@ export const b = batch([routes.users.getById(1)]);
 }
 
 // TestBatch_PlanDiagnosticsFlowOnScan: the two plan-level codes the server
-// would otherwise refuse at request time (rpc-batch-duplicate-route duplicate route, rpc-batch-argument-out-of-range
-// mapping position) reach the scan response and suppress the injection.
+// would otherwise refuse at request time (rpc-batch-duplicate-route, rpc-batch-argument-out-of-range)
+// reach the scan response and suppress the injection.
 func TestBatch_PlanDiagnosticsFlowOnScan(t *testing.T) {
 	cases := map[string]struct{ source, code, args string }{
 		"duplicate route": {`import {batch} from '@mionjs/client';

@@ -736,7 +736,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		// consumes this response.
 		response.Diagnostics = append(response.Diagnostics, sess.programWideDiagnostics()...)
 		response.Diagnostics = append(response.Diagnostics, pureFnsDiagnostics...)
-		// rpc-client-types-not-built-by-mion rides the dump too: `--no-emit` stops here, and settling drops what rpc-client-types-not-built-by-mion explains.
+		// rpc-client-types-not-built-by-mion rides the dump too: `--no-emit` stops here, and settling drops what it explains.
 		response.Diagnostics = append(response.Diagnostics, sess.apiTypesPackages().diags...)
 		dumpBatchSites, dumpBatchDiagnostics := sess.collectProgramBatches()
 		response.Diagnostics = append(response.Diagnostics, dumpBatchDiagnostics...)
@@ -789,7 +789,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 			return protocol.Response{Error: "generate: " + apiErr.Error()}
 		}
 		// Whole-program batch sites: their files join SiteFiles (a file whose only marker use is `batch([...])`
-		// still needs the transform), and a cross-file rpc-batch-id-collision collision is visible only from here.
+		// still needs the transform), and a cross-file rpc-batch-id-collision is visible only from here.
 		genBatchSites, genBatchDiagnostics := sess.collectProgramBatches()
 		// The batch transport: a server program (it creates the router, or at least names `@mionjs/router`)
 		// reads its own batches and writes <outDir>/rpc/.

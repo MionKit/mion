@@ -14,7 +14,7 @@
 //   defaults — a defaulted generic used bare resolves clean (checker applies
 //            defaults at use sites); both marker call shapes converge on one id.
 //
-// (Marker coverage rule: marker-self-instantiating-generic/marker-unresolved-type-parameter are each pinned in BOTH call shapes, and
+// (Marker coverage rule: the first two are each pinned in BOTH call shapes, and
 // the defaults fixture pins static + value-first converging on one entry.)
 import {describe, expect, it} from 'vitest';
 import {Family, Severity, type Diagnostic} from '../src/core/protocol.ts';
@@ -30,7 +30,7 @@ function ofCode(response: {diagnostics?: Diagnostic[]}, code: string): Diagnosti
 describe('@mionjs/devtools / unresolved-generics diagnostics', () => {
   const register = hasBinary() ? it : it.skip;
 
-  // --- marker-self-instantiating-generic: self-instantiating generic (depth backstop, classified) ----
+  // --- marker-self-instantiating-generic (depth backstop, classified) ---
 
   register('errors with marker-self-instantiating-generic for a self-instantiating generic (static form)', async () => {
     const sources = {
@@ -67,7 +67,7 @@ export const id = getRunTypeId(it);
     });
   });
 
-  // --- marker-unresolved-type-parameter: contained free type parameter ------------------------------
+  // --- marker-unresolved-type-parameter: contained free type parameter ---
 
   register('errors with marker-unresolved-type-parameter for a free type parameter contained in the type argument', async () => {
     const sources = {
@@ -108,7 +108,7 @@ export function wrap<T>(value: A<T>) {
     });
   });
 
-  // --- marker-generic-missing-type-argument: missing required type arguments ----------------------------
+  // --- marker-generic-missing-type-argument ---
 
   register('errors with marker-generic-missing-type-argument for a generic used without its required type argument', async () => {
     const sources = {

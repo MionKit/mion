@@ -1,5 +1,5 @@
 // format-sample-generation-failed — a pattern with no declared mockSamples gets them generated, but the generator cannot
-// handle lookarounds (the case format-sample-generation-failed names outright). With nothing declared to fall back on the
+// handle lookarounds (the case the message names). With nothing declared to fall back on the
 // build halts and asks for explicit mockSamples.
 import {createValidateFn} from '@mionjs/run-types';
 import {String} from '@mionjs/run-types/formats';

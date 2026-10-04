@@ -114,7 +114,7 @@ describe('validate a whole multipleOf', () => {
 });
 
 describe('invalid multipleOf params', () => {
-  // Each call is an format-invalid-params build error, downgraded; an unused downgrade prints comment-downgrade-error-unused.
+  // Each call is a format-invalid-params error, downgraded; an unused downgrade prints comment-downgrade-error-unused.
   it('an integer format with a fractional step, and a misplaced multipleOfTolerance', () => {
     // @mion-downgrade-error format-invalid-params
     const halfSteps = createValidateFn<TF.Number<{integer: true; multipleOf: 0.5}>>();

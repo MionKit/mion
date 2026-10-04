@@ -1,7 +1,7 @@
 // Reference interpreter for `createRemoveUnknownKeysFn<T>()`, the oracle the clone fuzz compares against (O15).
 // A naive walk mirroring the Go emitter's arms one-for-one, short enough to eyeball:
 // ts-go-runtypes/internal/cachegen/typefunctions/remove_unknown_keys.go. Object-bearing unions throw here (the
-// factory is a unknown-keys-object-union alwaysThrow). It only sees values that passed `validate<T>`, so a crash is a signal.
+// factory is an unknown-keys-object-union alwaysThrow). It only sees values that passed `validate<T>`, so a crash is a signal.
 
 import type {RunType} from '../../../src/runtypes/types.ts';
 import {RunTypeKind, RunTypeSubKind} from '../../../src/go-generated/runTypeKind.generated.ts';

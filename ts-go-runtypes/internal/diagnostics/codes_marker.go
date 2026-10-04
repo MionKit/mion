@@ -4,10 +4,9 @@ package diagnostics
 // anti-pattern.
 //
 // The levels split on whether the scan still emits a SITE for the call. No site means no cache entry
-// and no injected id, so the call ships un-rewritten and throws `no id injected`: LevelError
-// (marker-in-generic-function, marker-type-too-deep, marker-self-instantiating-generic, marker-unresolved-type-parameter, marker-generic-missing-type-argument, marker-type-id-collision, marker-unknown-function-family). A site built from a type that was read wrongly
-// ships a validator that accepts everything: LevelRuntimeError (marker-any-from-unresolved-import, marker-untrusted-package, marker-any-from-unresolved-name, and
-// marker-temporal-lib-missing / config-lib-missing-base elsewhere).
+// and no injected id, so the call ships un-rewritten and throws `no id injected`: LevelError.
+// A site built from a type read wrongly ships a validator that accepts everything: LevelRuntimeError
+// (also marker-temporal-lib-missing and config-lib-missing-base, defined elsewhere).
 const (
 	CodeMarkerFunctionCallArg   = "marker-calls-function-for-type"
 	CodeMarkerFreeTypeParameter = "marker-in-generic-function"
@@ -16,7 +15,7 @@ const (
 	CodeMarkerAnyFromUnresolvedImport = "marker-any-from-unresolved-import"
 	// CodeStructuralIdDepthExceeded fires when the structural-id walk hits its depth cap with no
 	// classifiable cause, a deterministic failure in place of a fatal Go stack overflow. Anchors at
-	// the reflection call site, like the other MKR codes.
+	// the reflection call site, like the other marker codes.
 	CodeStructuralIdDepthExceeded = "marker-type-too-deep"
 	// CodeMarkerSelfInstantiatingGeneric is the cause-classified depth cap: instantiations of ONE
 	// named type dominate the overflowing walk (lib.esnext's IteratorObject shape). Its per-level
@@ -80,7 +79,7 @@ const (
 
 // PureFunction-marker codes (purefn-*), raised when a PureFunction<F>-branded parameter receives
 // anything but an inline arrow / function expression; purity violations themselves report as
-// the purity codes (purefn-uses-this to purefn-reads-outer-variable).
+// the purity codes in codes_purefn.go.
 //
 // LevelRuntimeError: the typeId entry ships, but the pure-fn walker bails, so the generated
 // `utl.getPureFn(key)` names a module that was never written and throws when called.

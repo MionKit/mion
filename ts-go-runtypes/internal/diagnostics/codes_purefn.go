@@ -3,7 +3,7 @@ package diagnostics
 // Pure-function extractor codes (purefn-*).
 //
 // The family is NOT fatal as a block: the levels below are what the emitter actually does. A purity
-// violation compiles the offending body and ships it (walker.go emits the purity codes, purefn-uses-this to purefn-reads-outer-variable, without
+// violation compiles the offending body and ships it (walker.go emits the purity codes without
 // withholding the entry), and a missing dep ships a file that throws on the call. Broken OUTPUT
 // rather than absent output is LevelRuntimeError: it still fails a build by default, but a consumer
 // may stand it down, because the body was going to ship either way.

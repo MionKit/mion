@@ -12,7 +12,7 @@ const (
 	// it. Args: [0] the codes named, or "any" for the bare form. Anchors at the comment.
 	CodeExpectErrorUnused = "comment-expect-error-unused"
 	// CodeExpectErrorNotSuppressible fires on a never-suppressible code: a pure-fn code (files mode
-	// has no fallback for a failed generation, so proceeding ships missing output) or an EXP code
+	// has no fallback for a failed generation, so proceeding ships missing output) or a comment-expect-error-* code
 	// itself (a directive cannot silence the check on directives). Args: [0] the offending code.
 	CodeExpectErrorNotSuppressible = "comment-expect-error-not-allowed"
 	// CodeExpectErrorUnknownCode fires on a code the catalog does not define, almost always a typo

@@ -1293,7 +1293,7 @@ withValidator<string>(isString);
 }
 
 // TestResolver_PureFunction_PurityViolationsPropagate pins that the
-// purity walker (purefn-uses-this to purefn-reads-outer-variable) fires when the inline function body
+// purity walker fires when the inline function body
 // breaks a rule — here, `await` inside the arrow triggers purefn-uses-await.
 // The PureFunction marker reuses the purefns.CheckPurity engine
 // unchanged, so any PFE the extractor emits should reach the resolver.

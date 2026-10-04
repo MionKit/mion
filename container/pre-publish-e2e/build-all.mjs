@@ -79,7 +79,7 @@ const APP_LIST = [
   {name: 'smoke-webpack', adapter: 'webpack'},
   {name: 'smoke-rspack', adapter: 'rspack'},
   // Source-first: @acme/src-types resolves to its TypeScript, so the plugin scans a
-  // dependency's own internals. Guards the first-party diagnostic scoping (else marker-comptime-arg-not-literal/marker-comptime-arg-forbidden-construct).
+  // dependency's own internals. Guards the first-party diagnostic scoping (else marker-comptime-arg-*).
   {name: 'smoke-source', adapter: 'esbuild'},
   // The same fixture with NO custom conditions, found through plain `types`. Together the two
   // prove the resolver follows a dependency's manifest, which is what lets @mionjs/* ship no src.

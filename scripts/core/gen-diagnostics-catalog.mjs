@@ -13,10 +13,8 @@ const goRoot = resolve(repoRoot, 'ts-go-runtypes');
 const generatedTsPath = resolve(repoRoot, 'packages/devtools/src/core/go-generated/diagnosticCatalog.generated.ts');
 const websiteJsonPath = resolve(repoRoot, 'container/website/app/components/content/go-generated/diagnostics-catalog.json');
 
-// Subsystems group the name prefixes into the sections the page renders, in
-// reading order. Every area prefix in internal/diagnostics's slugRE must sit in one.
-// Descriptions are short, plain-language, and dash-free so they satisfy the
-// website voice rules when the component renders them.
+// Sections group the area prefixes, in page order; every prefix in internal/diagnostics's slugRE must sit in one.
+// Descriptions stay plain and dash-free: the website voice rules apply when the component renders them.
 const SUBSYSTEMS = [
   {
     key: 'project-config',

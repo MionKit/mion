@@ -1428,9 +1428,9 @@ func extractValidateOptions(typeChecker *checker.Checker, call *ast.Node, lastIn
 }
 
 // checkPureFunction validates that argumentNode is an inline arrow / function expression with no external handle,
-// then runs the purity rules against the resolved function node. A shape failure is purefn-not-inline (not a literal) or
-// purefn-imported-or-exported (imported / exported, so the literal is reachable as a value) and short-circuits, there being nothing to
-// walk for purity; a purity violation is the purity codes (purefn-uses-this to purefn-reads-outer-variable).
+// then runs the purity rules against the resolved function node. A shape failure is purefn-not-inline or
+// purefn-imported-or-exported (the literal is reachable as a value) and short-circuits, there being nothing to
+// walk for purity; a purity violation gets its purity code.
 func (state scanState) checkPureFunction(file string, argumentNode *ast.Node) []diagnostics.Diagnostic {
 	fnNode, shapeResult := comptimeargs.CheckLiteralFunction(state.scanChecker, argumentNode)
 	if !shapeResult.Ok {

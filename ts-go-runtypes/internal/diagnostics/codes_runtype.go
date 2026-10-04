@@ -1,8 +1,7 @@
 package diagnostics
 
-// RunType compiler codes, one prefix per family so a build log names the family (json-prepare-method-dropped: prepareForJson
-// dropped a member). A `-root` code is a root error, the factory throws on call; the `-dropped` codes are child-position
-// drops.
+// RunType compiler codes, one prefix per family so a build log names the family. A `-root` code is a root
+// error, the factory throws on call; a `-dropped` code is a child-position drop.
 
 // validate family.
 const (
@@ -214,7 +213,7 @@ func init() {
 	register(Definition{Code: CodeUnsafePropertyName, Family: FamilyRunType, Level: LevelWarning, Scope: ScopeGraph, Title: "RunType member named `__proto__` dropped"})
 
 	// Root any/unknown noop validators are LevelInfo: the author wrote `any`, so accepting everything was asked for.
-	// A type that BECAME any through a failed name, import or lib is the RuntimeError (marker-any-from-unresolved-import / marker-any-from-unresolved-name / marker-temporal-lib-missing / config-lib-missing-base).
+	// A type that BECAME any through a failed name, import or lib is the RuntimeError (marker-any-from-unresolved-*, marker-temporal-lib-missing, config-lib-missing-base).
 	// The user is told because no schema is enforced, not because it is wrong.
 	register(Definition{Code: CodeVERootAnyUnknown, Family: FamilyRunType, Level: LevelInfo, Scope: ScopeRoot, Title: "validationErrors root any/unknown: identity fallback"})
 	register(Definition{Code: CodeVLRootAnyUnknown, Family: FamilyRunType, Level: LevelInfo, Scope: ScopeRoot, Title: "validate root any/unknown: identity fallback"})

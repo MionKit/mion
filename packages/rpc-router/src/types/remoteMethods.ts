@@ -36,7 +36,7 @@ export interface RawMethod<H extends RawMiddlewareHandler = any> extends RemoteM
   type: typeof HandlerType.rawMiddleware;
 }
 
-// `parser` is a BUILD-TIME literal, inline or an `as const` preset, or the build reports marker-comptime-arg-not-literal / marker-comptime-arg-widened-const.
+// `parser` is a BUILD-TIME literal, inline or an `as const` preset, or the build reports a marker-comptime-arg-* error.
 // An unset direction falls back to the router-wide value, then to the built-in default.
 // Flat interfaces on purpose: a mapped or intersected shape costs measurably more in the
 // type-instantiation budget, paid on every route declaration.

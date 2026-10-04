@@ -44,7 +44,7 @@ func pureFnDepDiags(diags []diagnostics.Diagnostic) []diagnostics.Diagnostic {
 	return filterDiagsByFamily(diags, diagnostics.FamilyPureFn)
 }
 
-// assertNoPurefnNotRegistered fails if any purefn-not-registered (missing pure-fn dep) diagnostic appears.
+// assertNoPurefnNotRegistered fails if any purefn-not-registered diagnostic appears.
 func assertNoPurefnNotRegistered(t *testing.T, diags []diagnostics.Diagnostic) {
 	t.Helper()
 	for _, diag := range pureFnDepDiags(diags) {

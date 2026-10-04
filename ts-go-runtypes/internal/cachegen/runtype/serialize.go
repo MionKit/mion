@@ -81,7 +81,7 @@ type Cache struct {
 	circularIDs map[string]bool
 
 	// Latches when the id computer hit typeid.maxWalkDepth; assignID then returns a placeholder
-	// instead of a truncated node, and the resolver's per-site commit resets it and raises marker-self-instantiating-generic/marker-type-too-deep.
+	// instead of a truncated node, and the resolver's per-site commit resets it and raises the depth diagnostic.
 	depthExceeded bool
 	// The self-instantiating generic's name (→ marker-self-instantiating-generic), or "" (→ marker-type-too-deep).
 	depthCulprit string
@@ -509,7 +509,7 @@ func (cache *Cache) assignID(tsType *checker.Type) string {
 	cache.idComputer.ResetDepthExceeded()
 	structural := cache.idComputer.Compute(tsType)
 	if cache.idComputer.DepthExceeded() {
-		// Latch the cap and its cause for the resolver (→ marker-self-instantiating-generic/marker-type-too-deep) and DON'T project a truncated node.
+		// Latch the cap and its cause for the resolver and DON'T project a truncated node.
 		// Over-deep types all collapse onto the shared benign placeholder; the build fails on the diagnostic anyway.
 		cache.depthExceeded = true
 		cache.depthCulprit = cache.idComputer.DepthCulprit()

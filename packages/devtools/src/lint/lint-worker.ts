@@ -93,7 +93,7 @@ async function lintOne(request: LintWorkerRequest): Promise<LintWorkerResponse> 
       const rel = path.relative(process.cwd(), request.file) || request.file;
       await resolver.setSources({[rel]: request.text});
       const result = await resolver.scanFiles([rel], {checkEnrich: true, checkRouterRules: true, includeRtDiagnostics: true});
-      // Pattern verdicts (format-sample-mismatch/format-invalid-params/format-no-js-runtime) arrive as ordinary diagnostics: the resolver runs the JS
+      // Pattern verdicts (format-*) arrive as ordinary diagnostics: the resolver runs the JS
       // engine itself, so this worker re-checks nothing.
       const diagnostics = (result.diagnostics ?? []) as Diagnostic[];
       return {seq: request.seq, diagnostics, downgradeErrors: result.downgradeErrors};
