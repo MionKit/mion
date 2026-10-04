@@ -44,12 +44,15 @@ describe('the skip-defaults label', () => {
 
   it('is a guard on the existing content gate, not a replacement for it', () => {
     // `(a || b) && !label`: the parentheses keep the label from binding to `b` alone.
+    const verdict = (job: string) => `fromJSON\\(needs\\.${job}-wait\\.outputs\\.lanes \\|\\| needs\\.lanes\\.outputs\\.lanes\\)`;
+    const guarded = (job: string, condition: string) =>
+      new RegExp(`^\\$\\{\\{ !cancelled\\(\\) && needs\\.lanes\\.result == 'success' && ${condition} && !contains`);
     expect(jobCondition('go-fuzz')).toMatch(
-      /^\(fromJSON\(needs\.lanes\.outputs\.lanes\)[.[].+ \|\| fromJSON\(needs\.lanes\.outputs\.lanes\)[.[].+\) && !contains/
+      guarded('go-fuzz', `\\(${verdict('go-fuzz')}[.[].+ \\|\\| ${verdict('go-fuzz')}[.[].+\\)`)
     );
     expect(jobCondition('js-lint')).toMatch(
-      /^\(fromJSON\(needs\.lanes\.outputs\.lanes\)\.js\.run \|\| fromJSON\(needs\.lanes\.outputs\.lanes\)\['js-static'\]\.run\) && !contains/
+      guarded('js-lint', `\\(${verdict('js-lint')}\\.js\\.run \\|\\| ${verdict('js-lint')}\\['js-static'\\]\\.run\\)`)
     );
-    expect(jobCondition('smoke')).toMatch(/^fromJSON\(needs\.lanes\.outputs\.lanes\)\.smoke\.run && !contains/);
+    expect(jobCondition('smoke')).toMatch(guarded('smoke', `${verdict('smoke')}\\.smoke\\.run`));
   });
 });

@@ -47,7 +47,9 @@ describe('drizzle-e2e lane wiring', () => {
     expect(fromFrontDoor.sort()).toEqual([...lanes].sort());
 
     // CI runs the unproven items of the drizzle lane, so the items ARE the CI list.
-    expect(workflow).toContain('dialect: ${{ fromJSON(needs.lanes.outputs.lanes).drizzle.runItems }}');
+    expect(workflow).toContain(
+      'dialect: ${{ fromJSON(needs.drizzle-wait.outputs.lanes || needs.lanes.outputs.lanes).drizzle.runItems }}'
+    );
     expect(Object.keys(LANES.drizzle.items).sort()).toEqual([...lanes].sort());
   });
 

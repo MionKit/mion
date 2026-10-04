@@ -19,6 +19,9 @@ name: drizzle · translated suites against real databases
 # already passed. Before that, a label meant five database lanes on every commit
 # for the life of the pull request, docs commits included.
 #
+# A new commit cancels only what it changed: an older run whose dialects all
+# hash the same is kept, and `drizzle-wait` waits for its markers (scripts/ci/supersede.mjs).
+#
 # It cannot live inside release-gate.yml: that gate is also called by the publish
 # path, and a job there cannot be depended on from here.
 on:
@@ -33,8 +36,10 @@ on:
 permissions:
   contents: read
 
+# Per run: the gate cancels the stale older runs itself (scripts/ci/supersede.mjs).
+# A fork's read-only token cannot cancel, so forks keep GitHub's per-ref cancel.
 concurrency:
-  group: drizzle-e2e-${{ github.ref }}
+  group: drizzle-e2e-${{ github.ref }}-${{ github.event.pull_request.head.repo.fork && 'fork' || github.run_id }}
   cancel-in-progress: true
 
 jobs:
@@ -46,7 +51,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      actions: read
+      # the markers, the older runs' decisions, and cancelling the stale ones
+      actions: write
       # reading the live labels
       pull-requests: read
     outputs:
@@ -87,6 +93,22 @@ jobs:
         # run locally: `node scripts/release/drizzle-e2e.mjs --should-run`.
         run: node scripts/release/drizzle-e2e.mjs --should-run >> "$GITHUB_OUTPUT"
 
+  # Lets the build and dialects wait for an older run's markers instead of redoing them (scripts/ci/supersede.mjs).
+  drizzle-wait:
+    name: drizzle · wait for an older run
+    needs: lanes
+    if: fromJSON(needs.lanes.outputs.lanes).drizzle.deferredTo
+    permissions:
+      contents: read
+      # reading the markers and the older run's jobs
+      actions: read
+    uses: ./.github/workflows/lane-wait.yml
+    with:
+      lanes: drizzle
+      jobs: build + pack|pg|mysql|sqlite|d1|durable
+      decision: ${{ needs.lanes.outputs.lanes }}
+      minutes: 130
+
   # ── build: once, not once per dialect ───────────────────────────────────────
   # The five lanes install the SAME tarballs, so the build runs once and the lanes
   # download it. Same shape as release-gate.yml's build job, with ONE difference:
@@ -98,8 +120,8 @@ jobs:
   # a host-only set, so this shortcut can never reach npm.
   build:
     name: build + pack
-    needs: [lanes, decide]
-    if: needs.decide.outputs.run == 'true' && fromJSON(needs.lanes.outputs.lanes).drizzle.run
+    needs: [lanes, drizzle-wait, decide]
+    if: ${{ !cancelled() && needs.lanes.result == 'success' && needs.decide.outputs.run == 'true' && fromJSON(needs.drizzle-wait.outputs.lanes || needs.lanes.outputs.lanes).drizzle.run }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -141,12 +163,13 @@ jobs:
 
   drizzle-e2e:
     name: ${{ matrix.dialect }}
-    needs: [lanes, build]
+    needs: [lanes, drizzle-wait, build]
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
     strategy:
       fail-fast: false
       matrix:
         # The unproven lanes.mjs items. No `include:`: an entry matching no listed dialect is ADDED as a new job.
-        dialect: ${{ fromJSON(needs.lanes.outputs.lanes).drizzle.runItems }}
+        dialect: ${{ fromJSON(needs.drizzle-wait.outputs.lanes || needs.lanes.outputs.lanes).drizzle.runItems }}
     # d1 and durable are Cloudflare storage DRIVERS, not dialects, so they share one image.
     env:
       MION_DRIZZLE_IMAGE: ${{ (matrix.dialect == 'd1' || matrix.dialect == 'durable') && 'cloudflare' || matrix.dialect }}
@@ -203,7 +226,7 @@ jobs:
   record-green:
     name: record drizzle as green
     needs: [lanes, drizzle-e2e]
-    if: success()
+    if: ${{ !cancelled() && needs.drizzle-e2e.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read

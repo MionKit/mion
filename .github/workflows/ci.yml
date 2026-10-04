@@ -21,6 +21,10 @@ name: ci
 # files compiled into the binaries feed EVERY lane, the engine they all run on; Go
 # tests, testdata/ and the cmd/gen-* tools feed only go and go-tools.
 #
+# A NEW COMMIT CANCELS ONLY WHAT IT CHANGED. The gate keeps an older run of the PR
+# whose live lanes all still hash the same, and each `*-wait` job waits for its
+# markers; any other older run is cancelled (scripts/ci/supersede.mjs).
+#
 # FUZZ BUDGETS: every lane runs on every PR at its QUICK tier — roughly 2x the
 # near-decorative defaults; see the FUZZ registry in scripts/miondevx.mjs — so
 # soak-grade findings surface while the causing change is still in review
@@ -63,8 +67,8 @@ name: ci
 #
 # THE `skip-defaults` LABEL: a PR carrying it skips the three heavy jobs (go-fuzz,
 # js-lint, smoke). Adding it to a PR mid-run cancels the running jobs too (the
-# concurrency group below cancels in-progress runs when the label event starts a
-# new one). GitHub counts a skipped check as green, so a labelled PR is mergeable
+# label event's gate cancels every older run of the PR, scripts/ci/supersede.mjs).
+# GitHub counts a skipped check as green, so a labelled PR is mergeable
 # untested: it is a trust knob for the maintainer, never a default. The push to
 # main after the merge runs everything, since the label only exists on the PR.
 # `labeled` / `unlabeled` are in the trigger types so the label takes effect
@@ -80,8 +84,10 @@ on:
 permissions:
   contents: read
 
+# Per run: the gate cancels the stale older runs itself (scripts/ci/supersede.mjs).
+# A fork's read-only token cannot cancel, so forks keep GitHub's per-ref cancel.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}-${{ github.event.pull_request.head.repo.fork && 'fork' || github.run_id }}
   cancel-in-progress: true
 
 jobs:
@@ -95,8 +101,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # listing the green markers is an Actions cache read
-      actions: read
+      # the markers, the older runs' decisions, and cancelling the stale ones
+      actions: write
       # reading the live labels
       pull-requests: read
     outputs:
@@ -119,13 +125,31 @@ jobs:
       - name: Whole-tree sweeps (see SWEEPS in scripts/ci/check-tree.mjs)
         run: node scripts/ci/check-tree.mjs
 
+  # Lets go-fuzz wait for an older run's markers instead of repeating its work (scripts/ci/supersede.mjs).
+  go-fuzz-wait:
+    name: go tests + fuzz · wait for an older run
+    needs: lanes
+    if: fromJSON(needs.lanes.outputs.lanes).go.deferredTo || fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].deferredTo || fromJSON(needs.lanes.outputs.lanes)['go-tools'].deferredTo || fromJSON(needs.lanes.outputs.lanes)['go-static'].deferredTo
+    permissions:
+      contents: read
+      # reading the markers and the older run's jobs
+      actions: read
+    uses: ./.github/workflows/lane-wait.yml
+    with:
+      lanes: go js-fuzz go-tools go-static
+      jobs: go tests + fuzz
+      decision: ${{ needs.lanes.outputs.lanes }}
+      minutes: 70
+
   # ── go-fuzz: Go suite + every JS fuzz lane ────────────────────────────────
   # The JS fuzz lanes ride this Go-bound runner to balance it against js-lint; the Go suite is the wall floor.
   go-fuzz:
     name: go tests + fuzz
-    needs: lanes
-    if: (fromJSON(needs.lanes.outputs.lanes).go.run || fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].run || fromJSON(needs.lanes.outputs.lanes)['go-tools'].run || fromJSON(needs.lanes.outputs.lanes)['go-static'].run) && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults')
+    needs: [lanes, go-fuzz-wait]
+    if: ${{ !cancelled() && needs.lanes.result == 'success' && (fromJSON(needs.go-fuzz-wait.outputs.lanes || needs.lanes.outputs.lanes).go.run || fromJSON(needs.go-fuzz-wait.outputs.lanes || needs.lanes.outputs.lanes)['js-fuzz'].run || fromJSON(needs.go-fuzz-wait.outputs.lanes || needs.lanes.outputs.lanes)['go-tools'].run || fromJSON(needs.go-fuzz-wait.outputs.lanes || needs.lanes.outputs.lanes)['go-static'].run) && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults') }}
     runs-on: ubuntu-latest
+    env:
+      MION_LANES: ${{ needs.go-fuzz-wait.outputs.lanes || needs.lanes.outputs.lanes }}
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/bootstrap
@@ -136,7 +160,7 @@ jobs:
       # and warms the compile cache the go-test + resolver-build steps reuse.
       # go-static hashes raw, so a comment-only Go edit still gets gofmt and vet.
       - name: Go formatting (our code only; never third_party)
-        if: fromJSON(needs.lanes.outputs.lanes)['go-static'].run
+        if: fromJSON(env.MION_LANES)['go-static'].run
         working-directory: ts-go-runtypes
         run: |
           unformatted="$(gofmt -l cmd internal)"
@@ -146,7 +170,7 @@ jobs:
             exit 1
           fi
       - name: Go vet (our code only; never third_party)
-        if: fromJSON(needs.lanes.outputs.lanes)['go-static'].run
+        if: fromJSON(env.MION_LANES)['go-static'].run
         working-directory: ts-go-runtypes
         run: go vet ./cmd/... ./internal/...
       # Build BEFORE the Go suite: since the real-package migration the Go
@@ -156,19 +180,31 @@ jobs:
       # is cache-warm from vet.
       - name: Build the resolver + dists (marker dist read by the Go suite; binary spawned by fuzz)
         run: pnpm run check:builds
+      - name: Record gofmt and vet as green
+        if: success() && fromJSON(env.MION_LANES)['go-static'].run
+        uses: ./.github/actions/save-lane-green
+        with:
+          lane: go-static
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes)['go-static'].hash }}
       # MION_FUZZ_ITER is the convert and apitypes lanes' quick budget, pinned by fuzz-lane-contracts.test.ts.
       # Replay: `pnpm miondevx core fuzz <convert|apitypes> --quick`.
       # ./cmd/... rides along: the `mion` CLI's own gates (the enrich check exit
       # codes among them) live there and once rotted unnoticed when only
       # ./internal/... ran.
       - name: Go test suite (fuzz sweeps at quick budgets)
-        if: fromJSON(needs.lanes.outputs.lanes).go.run
+        if: fromJSON(env.MION_LANES).go.run
         working-directory: ts-go-runtypes
         env:
           MION_FUZZ_ITER: '30'
           # The diagnostics grid's value call shapes: a push to main runs them, a PR keeps the static half for speed.
           MION_DIAG_GRID_FULL: ${{ github.event_name == 'push' && '1' || '' }}
         run: go test ./internal/... ./cmd/...
+      - name: Record the Go suite as green
+        if: success() && fromJSON(env.MION_LANES).go.run
+        uses: ./.github/actions/save-lane-green
+        with:
+          lane: go
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes).go.hash }}
       # The count-based JS fuzz lanes at their QUICK budgets (fixed coverage, so
       # vitest's file parallelism only costs wall clock), plus the fuzz-adjacent
       # regression/smoke/unit tests in the same tree. Time-boxed lanes are excluded; a later step soaks them.
@@ -177,7 +213,7 @@ jobs:
       # fuzz-lane-contracts test out of this slice) are pinned by that same test.
       # Local replay: `pnpm miondevx core fuzz <enrich|i18n|typemod|convertcli|apiids> --quick`.
       - name: JS fuzz sweep (count-based lanes at quick budgets)
-        if: fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].run
+        if: fromJSON(env.MION_LANES)['js-fuzz'].run
         env:
           MION_FUZZ_ENRICH_SEQUENCES: '12'
           MION_FUZZ_I18N_SEQUENCES: '12'
@@ -190,67 +226,71 @@ jobs:
       # sweep above never sets it, so the concurrency coverage rides here at the
       # race lane's quick budget (miondevx sets MION_FUZZ_RACE=1 itself).
       - name: Concurrent CLI race fuzz (MION_FUZZ_RACE gate)
-        if: fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].run
+        if: fromJSON(env.MION_LANES)['js-fuzz'].run
         run: pnpm miondevx core fuzz race --quick
       # 10s of fuzzing each (60s at release). One call pays vitest's startup once; miondevx runs the files in sequence.
       # Contention would silently cut their coverage (FUZZ registry note in scripts/miondevx.mjs), hence their own step.
       # The sweep excludes these files (pinned by fuzz-lane-contracts.test.ts); a red lane replays with this command.
       - name: Time-boxed fuzz lanes at quick budgets
-        if: fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].run
+        if: fromJSON(env.MION_LANES)['js-fuzz'].run
         run: pnpm miondevx core fuzz cloning elision jsonsize nondata roundtrip secformat secgen sechttp secjson types value --quick
-
-      # go-tools: JS checks that need Go, kept here so js-lint never sets Go up.
-      # The Go→TS mirrors have no other CI drift gate; miondevx owns the generator list, so a new one is covered.
-      - name: Codegen drift (Go→TS mirrors must be in sync)
-        if: fromJSON(needs.lanes.outputs.lanes)['go-tools'].run
-        run: pnpm miondevx core codegen all --check
-      # The other committed extraction: fails on d.ts drift, pending entries, and migrated column fns the proxies miss.
-      - name: Drizzle manifest drift (proxy coverage + no pending)
-        if: fromJSON(needs.lanes.outputs.lanes)['go-tools'].run
-        run: pnpm miondevx core drizzle-manifest --check
-      # Excluded from js-lint's suite: it runs real `go build`s.
-      - name: Build-gate tests (need Go)
-        if: fromJSON(needs.lanes.outputs.lanes)['go-tools'].run
-        run: pnpm test packages/devtools/test/build-gate.test.ts
-      # The full run is in release-gate.yml; the refusal count takes seconds, so a PR that moves it fails here.
-      - name: Converted-suites refusal count
-        if: fromJSON(needs.lanes.outputs.lanes)['go-tools'].run
-        run: pnpm miondevx core converted-suites --refusals-only
-
-      # One marker per HALF, each written only when that half actually ran and
-      # passed. A half that was skipped proved nothing, so it must not claim a
-      # marker that would skip it again next time.
-      - name: Record the Go suite as green
-        if: success() && fromJSON(needs.lanes.outputs.lanes).go.run
-        uses: ./.github/actions/save-lane-green
-        with:
-          lane: go
-          hash: ${{ fromJSON(needs.lanes.outputs.lanes).go.hash }}
       - name: Record the JS fuzz sweep as green
-        if: success() && fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].run
+        if: success() && fromJSON(env.MION_LANES)['js-fuzz'].run
         uses: ./.github/actions/save-lane-green
         with:
           lane: js-fuzz
           hash: ${{ fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].hash }}
+
+      # go-tools: JS checks that need Go, kept here so js-lint never sets Go up.
+      # The Go→TS mirrors have no other CI drift gate; miondevx owns the generator list, so a new one is covered.
+      - name: Codegen drift (Go→TS mirrors must be in sync)
+        if: fromJSON(env.MION_LANES)['go-tools'].run
+        run: pnpm miondevx core codegen all --check
+      # The other committed extraction: fails on d.ts drift, pending entries, and migrated column fns the proxies miss.
+      - name: Drizzle manifest drift (proxy coverage + no pending)
+        if: fromJSON(env.MION_LANES)['go-tools'].run
+        run: pnpm miondevx core drizzle-manifest --check
+      # Excluded from js-lint's suite: it runs real `go build`s.
+      - name: Build-gate tests (need Go)
+        if: fromJSON(env.MION_LANES)['go-tools'].run
+        run: pnpm test packages/devtools/test/build-gate.test.ts
+      # The full run is in release-gate.yml; the refusal count takes seconds, so a PR that moves it fails here.
+      - name: Converted-suites refusal count
+        if: fromJSON(env.MION_LANES)['go-tools'].run
+        run: pnpm miondevx core converted-suites --refusals-only
+
+      # Saved right after each lane's own steps, so a later cancel keeps it; a skipped lane proved nothing and saves none.
       - name: Record the go-tools checks as green
-        if: success() && fromJSON(needs.lanes.outputs.lanes)['go-tools'].run
+        if: success() && fromJSON(env.MION_LANES)['go-tools'].run
         uses: ./.github/actions/save-lane-green
         with:
           lane: go-tools
           hash: ${{ fromJSON(needs.lanes.outputs.lanes)['go-tools'].hash }}
-      - name: Record gofmt and vet as green
-        if: success() && fromJSON(needs.lanes.outputs.lanes)['go-static'].run
-        uses: ./.github/actions/save-lane-green
-        with:
-          lane: go-static
-          hash: ${{ fromJSON(needs.lanes.outputs.lanes)['go-static'].hash }}
+
+  # Lets js-lint wait for an older run's markers instead of repeating its work (scripts/ci/supersede.mjs).
+  js-lint-wait:
+    name: js tests + lint · wait for an older run
+    needs: lanes
+    if: fromJSON(needs.lanes.outputs.lanes).js.deferredTo || fromJSON(needs.lanes.outputs.lanes)['js-static'].deferredTo
+    permissions:
+      contents: read
+      # reading the markers and the older run's jobs
+      actions: read
+    uses: ./.github/workflows/lane-wait.yml
+    with:
+      lanes: js js-static
+      jobs: js tests + lint
+      decision: ${{ needs.lanes.outputs.lanes }}
+      minutes: 70
 
   # ── js-lint: the rest of the JS suite + lint/typecheck/format ─────────────
   # Everything but the fuzz tree, plus the static checks; with go-fuzz, a complete disjoint partition of the JS suite.
   js-lint:
     name: js tests + lint
-    needs: lanes
-    if: (fromJSON(needs.lanes.outputs.lanes).js.run || fromJSON(needs.lanes.outputs.lanes)['js-static'].run) && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults')
+    needs: [lanes, js-lint-wait]
+    if: ${{ !cancelled() && needs.lanes.result == 'success' && (fromJSON(needs.js-lint-wait.outputs.lanes || needs.lanes.outputs.lanes).js.run || fromJSON(needs.js-lint-wait.outputs.lanes || needs.lanes.outputs.lanes)['js-static'].run) && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults') }}
+    env:
+      MION_LANES: ${{ needs.js-lint-wait.outputs.lanes || needs.lanes.outputs.lanes }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -269,7 +309,7 @@ jobs:
       # Fail-fast ordering — cheap checks before the suite.
       # The gofmt half runs in go-fuzz, the job that has Go.
       - name: Check formatting (no build needed — runs first)
-        if: fromJSON(needs.lanes.outputs.lanes)['js-static'].run
+        if: fromJSON(env.MION_LANES)['js-static'].run
         run: pnpm run check-format:js
       # `pnpm run lint` runs typecheck, which reads the built dists; the JS suite
       # also spawns the binary — one build feeds both.
@@ -278,50 +318,56 @@ jobs:
       # The drizzle-orm version line: package versions, peer ranges and
       # manifest drizzleOrm fields must all match the installed drizzle-orm.
       - name: Drizzle version-line guard
-        if: fromJSON(needs.lanes.outputs.lanes)['js-static'].run
+        if: fromJSON(env.MION_LANES)['js-static'].run
         run: pnpm miondevx release check-drizzle-versions
       # Same shape as the codegen drift gate, for the other hand-maintained
       # mirror: every secret/dev row in the env REGISTRY must appear in
       # .env.sample (and no internal var may). Cheap and dependency-free.
       - name: Env registry drift (.env.sample must mirror REGISTRY)
-        if: fromJSON(needs.lanes.outputs.lanes)['js-static'].run
+        if: fromJSON(env.MION_LANES)['js-static'].run
         run: pnpm run check:env
       # Same shape again, for the vitest project list: every project in
       # vitest.config.ts must sit in exactly one `test:ci` batch. Without this the
       # batch list drifts silently and `test:ci` returns green having skipped
       # whole projects (it once skipped all 5 runtypes ones, 309 test files).
       - name: Test-batch drift (test:ci must cover every vitest project)
-        if: fromJSON(needs.lanes.outputs.lanes)['js-static'].run
+        if: fromJSON(env.MION_LANES)['js-static'].run
         run: pnpm run check:test-batches
       # And again for the type-check coverage: `pnpm -r run typecheck:test` skips a
       # package with no such script and says nothing. Twelve packages had none, which
       # is how a call with no import shipped in platform-uws. The root typecheck runs
       # this too; a named step makes the failure read as the gap it is.
       - name: Typecheck coverage (every package must run typecheck:test)
-        if: fromJSON(needs.lanes.outputs.lanes)['js-static'].run
+        if: fromJSON(env.MION_LANES)['js-static'].run
         run: pnpm run check:typecheck-coverage
       - name: Lint + typecheck
-        if: fromJSON(needs.lanes.outputs.lanes)['js-static'].run
+        if: fromJSON(env.MION_LANES)['js-static'].run
         run: pnpm run lint
       # A dangling <code-import> path or comment marker does not fail the website
       # build — it renders an error placeholder in place of the example. This makes
       # it loud, and fails on an example no page imports.
       - name: Code-import check
-        if: fromJSON(needs.lanes.outputs.lanes)['js-static'].run
+        if: fromJSON(env.MION_LANES)['js-static'].run
         run: pnpm run check-code-imports
       # Source-resolution typecheck of the mion half of packages/private-examples. The
       # runtypes half is compiled by `pnpm run lint`'s typecheck; the two halves
       # need different module resolution, so they are separate programs.
       - name: Typecheck the mion examples
-        if: fromJSON(needs.lanes.outputs.lanes)['js-static'].run
+        if: fromJSON(env.MION_LANES)['js-static'].run
         run: pnpm run check-types-examples
       # The contract tests read source and workflow text, comments included, so they also run on a comment-only edit.
       - name: Contract tests
-        if: fromJSON(needs.lanes.outputs.lanes)['js-static'].run
+        if: fromJSON(env.MION_LANES)['js-static'].run
         run: pnpm test contracts
+      - name: Record format, lint and contracts as green
+        if: success() && fromJSON(env.MION_LANES)['js-static'].run
+        uses: ./.github/actions/save-lane-green
+        with:
+          lane: js-static
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes)['js-static'].hash }}
       # The list of test files already passed at their exact inputs; a pull request restores its own newest, else main's.
       - name: Restore the passed test list
-        if: fromJSON(needs.lanes.outputs.lanes).js.run
+        if: fromJSON(env.MION_LANES).js.run
         uses: actions/cache/restore@v4
         with:
           path: node_modules/.cache/mion/vitest-passed.json
@@ -334,7 +380,7 @@ jobs:
       # An --exclude glob matches paths relative to each project's root, so it must not name the package dir.
       - name: JS suite (everything except test/fuzz)
         id: suite
-        if: fromJSON(needs.lanes.outputs.lanes).js.run
+        if: fromJSON(env.MION_LANES).js.run
         run: |
           if [ "${{ github.event_name }}" = pull_request ] && git rev-parse -q --verify HEAD^2 >/dev/null; then
             echo "scope=partial" >> "$GITHUB_OUTPUT"
@@ -354,7 +400,7 @@ jobs:
       # projects above and need their own step. Without this the whole bun
       # injection lane is unverified.
       - name: platform-bun suite (bun:test)
-        if: fromJSON(needs.lanes.outputs.lanes).js.run
+        if: fromJSON(env.MION_LANES).js.run
         run: pnpm run test:bun
       # A spawned resolver that PANICS writes its full stdout+stderr here (the
       # assertion message only carries the crash header, so a log pipeline
@@ -380,12 +426,6 @@ jobs:
         with:
           lane: js-pr
           hash: ${{ fromJSON(needs.lanes.outputs.lanes).js.hash }}
-      - name: Record format, lint and contracts as green
-        if: success() && fromJSON(needs.lanes.outputs.lanes)['js-static'].run
-        uses: ./.github/actions/save-lane-green
-        with:
-          lane: js-static
-          hash: ${{ fromJSON(needs.lanes.outputs.lanes)['js-static'].hash }}
 
   # ── commitlint: Conventional Commits gate on the PR's commits ──────────────
   # Validates every commit in the PR range against commitlint.config.js. PR-only
@@ -419,14 +459,32 @@ jobs:
             git log -1 --format=%B "$sha" | pnpm exec commitlint --verbose
           done
 
+  # Lets smoke wait for an older run's markers instead of repeating its work (scripts/ci/supersede.mjs).
+  smoke-wait:
+    name: container smoke · wait for an older run
+    needs: lanes
+    if: fromJSON(needs.lanes.outputs.lanes).smoke.deferredTo
+    permissions:
+      contents: read
+      # reading the markers and the older run's jobs
+      actions: read
+    uses: ./.github/workflows/lane-wait.yml
+    with:
+      lanes: smoke
+      jobs: container smoke
+      decision: ${{ needs.lanes.outputs.lanes }}
+      minutes: 70
+
   # Content-gated container smoke, parallel with the verify jobs. Self-contained: it
   # builds its own resolver + linux binaries for the container mounts, then pulls
   # the prebuilt shared image (CI never builds it).
   smoke:
     name: container smoke
-    needs: lanes
-    if: fromJSON(needs.lanes.outputs.lanes).smoke.run && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults')
+    needs: [lanes, smoke-wait]
+    if: ${{ !cancelled() && needs.lanes.result == 'success' && fromJSON(needs.smoke-wait.outputs.lanes || needs.lanes.outputs.lanes).smoke.run && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults') }}
     runs-on: ubuntu-latest
+    env:
+      MION_LANES: ${{ needs.smoke-wait.outputs.lanes || needs.lanes.outputs.lanes }}
     permissions:
       contents: read
       packages: read
@@ -439,18 +497,24 @@ jobs:
       # Before the resolver: a wasm cache hit means no Go. Only the website item reads the wasm.
       - name: Cache the playground wasm
         id: wasm
-        if: contains(fromJSON(needs.lanes.outputs.lanes).smoke.runItems, 'website')
+        if: contains(fromJSON(env.MION_LANES).smoke.runItems, 'website')
         uses: ./.github/actions/cache-playground-wasm
       - uses: ./.github/actions/resolver
         with:
-          toolchain: ${{ contains(fromJSON(needs.lanes.outputs.lanes).smoke.runItems, 'website') && steps.wasm.outputs.hit != 'true' }}
+          toolchain: ${{ contains(fromJSON(env.MION_LANES).smoke.runItems, 'website') && steps.wasm.outputs.hit != 'true' }}
       - name: Build the resolver + linux binaries for the container mounts
         run: pnpm miondevx core build all linux-go linux-extract --trust-stamp
       - name: Pull the prebuilt shared image (CI never builds it)
         uses: ./.github/actions/pull-shared-image
       - name: Website serves-a-page smoke
-        if: contains(fromJSON(needs.lanes.outputs.lanes).smoke.runItems, 'website')
+        if: contains(fromJSON(env.MION_LANES).smoke.runItems, 'website')
         run: pnpm miondevx website check
+      - name: Record the website smoke as green
+        if: success() && contains(fromJSON(env.MION_LANES).smoke.runItems, 'website')
+        uses: ./.github/actions/save-lane-green
+        with:
+          lane: smoke.website
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes).smoke.items.website.hash }}
       # The competitor maps declare themselves TOTAL over the shared case keys, and
       # nothing used to compile them (vite/esbuild strip types without checking), so a
       # dropped key read as an absent column instead of a build failure. This is the
@@ -458,22 +522,16 @@ jobs:
       # the same drift, and it includes typia — no .ttsc plugin is needed to
       # type-check, only to build, so MION_VALIDATION_BENCH_NO_TYPIA is deliberately NOT set here.
       - name: Benchmark competitor-map typecheck
-        if: contains(fromJSON(needs.lanes.outputs.lanes).smoke.runItems, 'bench')
+        if: contains(fromJSON(env.MION_LANES).smoke.runItems, 'bench')
         run: pnpm miondevx bench typecheck
       # typia included: the prebuilt image bakes its compiled ttsc plugin, so its
       # build is an esbuild pass like the others.
       - name: Benchmark competitor-build smoke
-        if: contains(fromJSON(needs.lanes.outputs.lanes).smoke.runItems, 'bench')
+        if: contains(fromJSON(env.MION_LANES).smoke.runItems, 'bench')
         run: pnpm miondevx bench smoke
       # One marker per item that ran, then the lane marker, which claims both.
-      - name: Record the website smoke as green
-        if: success() && contains(fromJSON(needs.lanes.outputs.lanes).smoke.runItems, 'website')
-        uses: ./.github/actions/save-lane-green
-        with:
-          lane: smoke.website
-          hash: ${{ fromJSON(needs.lanes.outputs.lanes).smoke.items.website.hash }}
       - name: Record the benchmark smoke as green
-        if: success() && contains(fromJSON(needs.lanes.outputs.lanes).smoke.runItems, 'bench')
+        if: success() && contains(fromJSON(env.MION_LANES).smoke.runItems, 'bench')
         uses: ./.github/actions/save-lane-green
         with:
           lane: smoke.bench
