@@ -15,7 +15,7 @@
 //     or removed leaves the reader where they stood, with no error anywhere.
 
 import {describe, it, expect} from 'vitest';
-import {existsSync, readdirSync, readFileSync, statSync} from 'node:fs';
+import {existsSync, globSync, readdirSync, readFileSync, statSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {dirname, join, posix, resolve} from 'node:path';
 
@@ -300,5 +300,23 @@ describe('website-redirects', () => {
     }
     expect(legacy[legacy.length - 1]!.from, 'the catch-all comes last').toBe('/*');
     expect(existsSync(join(WEBSITE, 'legacy-runtypes/index.html'))).toBe(true);
+  });
+});
+
+// A CSS-only commit skips the website build on a pull request, so a broken relative @import must fail here.
+describe('website-css-imports', () => {
+  it('resolves every relative @import in the site CSS to a file', () => {
+    const cssFiles = globSync(['app/**/*.css', 'sites/**/*.css'], {cwd: WEBSITE}).map((rel) => join(WEBSITE, rel));
+    const broken: string[] = [];
+    let relativeImports = 0;
+    for (const file of cssFiles) {
+      for (const [, target] of readFileSync(file, 'utf8').matchAll(/@import\s+['"](\.{1,2}\/[^'"]+)['"]/g)) {
+        relativeImports++;
+        if (!existsSync(resolve(dirname(file), target!))) broken.push(`${file.slice(WEBSITE.length + 1)} -> ${target}`);
+      }
+    }
+    expect(cssFiles.length).toBeGreaterThan(1);
+    expect(relativeImports).toBeGreaterThan(0);
+    expect(broken).toEqual([]);
   });
 });
