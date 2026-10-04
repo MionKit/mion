@@ -227,7 +227,11 @@ Built as planned, with these differences:
   inside the shared switch arms, a class body goes through the object member printer plus class modifiers (as
   `typeElementsToClassElements` / `addClassModifiers`), and a recursive shape is one the serializer flagged
   `IsCircular`. `TestPrintersCoverRunType` gives every `RunType` field a declaration-printing decision too, and
-  `TestPrinters_EveryKindHasAnArm` makes every kind name the arm that prints it or be refused.
+  `TestPrinters_EveryKindHasAnArm` makes every kind name the arm that prints it or be refused. On the trimmer side,
+  one switch, `visitTypeUse`, reads every syntax node that names a type, with one `transformX` arm per kind as
+  TypeScript's `visitDeclarationSubtree` does; `TestOutside_EveryTypeNodeKindHasARow` gives every type syntax kind a
+  row. A declaration's kind is asked through `DeclKind.KeepsItsName` / `HasHome`, each one switch that a test runs for
+  every kind.
 - **A class or enum from a mion package** inside a printed type stays a `import("@mionjs/…")` reference, and that
   package becomes a peer like any other mion package.
 - **Pure functions** of other packages are vendored through the pure fn store's closure into
