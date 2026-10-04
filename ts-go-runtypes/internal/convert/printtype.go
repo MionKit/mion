@@ -287,9 +287,6 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 		if isRegExpNode(node) {
 			return "RegExp", nil
 		}
-		if ctx.outside != nil && isUserClass(node) {
-			return ctx.outside.classRef(node)
-		}
 		if ctx.outside != nil && node.ClassRef != nil && node.SubKind == reflection.SubKindNonSerializable {
 			return ctx.typeArgumentsText(ctx.outside.builtinRef(node), node)
 		}
@@ -434,13 +431,9 @@ func (ctx *printContext) functionTypeText(node *reflection.RunType) (string, *Di
 	if paramsDiag != nil {
 		return "", paramsDiag
 	}
-	returnText := "void"
-	if node.Return != nil {
-		text, returnDiag := ctx.typeExpr(node.Return)
-		if returnDiag != nil {
-			return "", returnDiag
-		}
-		returnText = text
+	returnText, returnDiag := ctx.returnText(node)
+	if returnDiag != nil {
+		return "", returnDiag
 	}
 	return fmt.Sprintf("(%s) => %s", paramsText, returnText), nil
 }
@@ -578,19 +571,15 @@ func (ctx *printContext) objectLiteralText(members []*objectMember, indexes []in
 			if paramsDiag != nil {
 				return "", paramsDiag
 			}
-			returnText := "void"
-			if member.signatureNode.Return != nil {
-				text, returnDiag := ctx.typeExpr(member.signatureNode.Return)
-				if returnDiag != nil {
-					return "", returnDiag
-				}
-				returnText = text
+			returnText, returnDiag := ctx.returnText(member.signatureNode)
+			if returnDiag != nil {
+				return "", returnDiag
 			}
 			optionalMark := ""
 			if member.optional {
 				optionalMark = "?"
 			}
-			tag := nonEnumerableTag(member)
+			tag := nonEnumerableTag(member.nonEnumerable)
 			switch {
 			case member.callSignature:
 				parts = append(parts, fmt.Sprintf("(%s): %s", paramsText, returnText))
@@ -615,30 +604,38 @@ func (ctx *printContext) objectLiteralText(members []*objectMember, indexes []in
 		if member.optional {
 			suffix = "?"
 		}
-		parts = append(parts, fmt.Sprintf("%s%s%s%s: %s", nonEnumerableTag(member), prefix, member.key, suffix, innerText))
+		parts = append(parts, fmt.Sprintf("%s%s%s%s: %s", nonEnumerableTag(member.nonEnumerable), prefix, member.key, suffix, innerText))
 	}
 	for _, index := range indexes {
-		keyText, keyDiag := ctx.typeExpr(index.key)
-		if keyDiag != nil {
-			return "", keyDiag
+		indexText, indexDiag := ctx.indexSignatureText(index)
+		if indexDiag != nil {
+			return "", indexDiag
 		}
-		valueText, valueDiag := ctx.typeExpr(index.value)
-		if valueDiag != nil {
-			return "", valueDiag
-		}
-		// The parameter NAME is not part of the type's identity, so `key` keeps the output stable.
-		parts = append(parts, fmt.Sprintf("%s[key: %s]: %s", readonlyPrefix(index.readonly), keyText, valueText))
+		parts = append(parts, indexText)
 	}
 	return "{" + strings.Join(parts, "; ") + "}", nil
 }
 
 // nonEnumerableTag is the JSDoc marker a guarded member needs to keep its id, on its own line or the parser drops it;
 // only outside printing reaches it.
-func nonEnumerableTag(member *objectMember) string {
-	if member.nonEnumerable {
+func nonEnumerableTag(nonEnumerable bool) string {
+	if nonEnumerable {
 		return "\n/** @nonEnumerable */\n"
 	}
 	return ""
+}
+
+// indexSignatureText renders one `[key: K]: V` member; the key's NAME is not in the id, so `key` keeps it stable.
+func (ctx *printContext) indexSignatureText(index indexSignature) (string, *Diagnostic) {
+	keyText, keyDiag := ctx.typeExpr(index.key)
+	if keyDiag != nil {
+		return "", keyDiag
+	}
+	valueText, valueDiag := ctx.typeExpr(index.value)
+	if valueDiag != nil {
+		return "", valueDiag
+	}
+	return fmt.Sprintf("%s[key: %s]: %s", readonlyPrefix(index.readonly), keyText, valueText), nil
 }
 
 // plainStringIndex reports the shape value-first `record(...)` says directly; `Record<>` cannot say `readonly`.

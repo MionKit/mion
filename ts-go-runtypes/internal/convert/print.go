@@ -836,10 +836,6 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 			indexes = append(indexes, indexSignature{key: indexKey, value: indexValue, readonly: member.Readonly})
 			continue
 		}
-		if reflection.IsSymbolKeyedName(member.Name) && ctx.outside == nil {
-			return nil, nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
-				Message: fmt.Sprintf("symbol-keyed member %q is not convertible yet", member.Name)}
-		}
 		if member.NonEnumerable && ctx.outside == nil {
 			// The @nonEnumerable JSDoc marker folds into the id but has no printed spelling, and
 			// dropping it would move the id, so the declaration refuses.

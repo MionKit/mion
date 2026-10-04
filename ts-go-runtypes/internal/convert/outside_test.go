@@ -2,6 +2,7 @@ package convert_test
 
 import (
 	"maps"
+	"slices"
 	"strings"
 	"testing"
 
@@ -32,7 +33,7 @@ func printOutsideIn(t *testing.T, sources map[string]string, names ...string) st
 			continue
 		}
 		name := statement.Name().Text()
-		if !contains(names, name) {
+		if !slices.Contains(names, name) {
 			continue
 		}
 		symbol := typeChecker.GetSymbolAtLocation(statement.Name())
@@ -66,15 +67,6 @@ func printOutsideIn(t *testing.T, sources map[string]string, names ...string) st
 		lines = append(lines, "export type "+name+" = "+convert.ReplaceOutsideRefs(exprs[name], spell)+";")
 	}
 	return strings.Join(lines, "\n") + "\n"
-}
-
-func contains(list []string, wanted string) bool {
-	for _, item := range list {
-		if item == wanted {
-			return true
-		}
-	}
-	return false
 }
 
 // assertOutsideIDs: every printed declaration resolves to the id of the original it was printed from.

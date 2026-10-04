@@ -28,3 +28,10 @@ const (
 	// FlagPrivateFields marks a class with `#name` fields, which only its constructor can create.
 	FlagPrivateFields = "privateFields"
 )
+
+// Visibility values mirror deepkit's ReflectionVisibility enum, so the wire shape matches what consumers understand.
+const (
+	VisibilityPublic    = 0
+	VisibilityProtected = 1
+	VisibilityPrivate   = 2
+)

@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/microsoft/typescript-go/shim/scanner"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
@@ -33,7 +34,7 @@ type OutsideDecl struct {
 	Name     string
 	NodeID   string
 	Body     string
-	Abstract bool
+	abstract bool
 }
 
 // OutsidePrinter prints reflected nodes, collecting the declarations their text refers to.
@@ -44,7 +45,7 @@ type OutsidePrinter struct {
 	order    []string
 	aliasIDs map[string]bool
 	// failed holds the refusal of a declaration whose body could not print, returned to every later use of it.
-	failed map[string]*Diagnostic
+	failed   map[string]*Diagnostic
 	scanned  map[string]bool
 	usedName map[string]int
 	needs    importNeeds
@@ -196,7 +197,7 @@ func isUserClass(node *reflection.RunType) bool {
 
 // claim returns base, or base suffixed, so two declarations of one kind never share a key name.
 func (printer *OutsidePrinter) claim(base string) string {
-	if !isIdentifierText(base) || strings.Contains(base, ".") {
+	if !scanner.IsValidIdentifier(base) {
 		base = "Type"
 	}
 	count := printer.usedName[base]
@@ -254,7 +255,7 @@ func (printer *OutsidePrinter) classRef(node *reflection.RunType) (string, *Diag
 		return "", diag
 	}
 	if _, done := printer.decls[key]; !done {
-		decl := &OutsideDecl{Key: key, Kind: OutsideClass, Name: node.TypeName, NodeID: node.ID, Abstract: node.IsAbstract}
+		decl := &OutsideDecl{Key: key, Kind: OutsideClass, Name: node.TypeName, NodeID: node.ID, abstract: node.IsAbstract}
 		if decl.Name == "" {
 			decl.Name = node.ClassRef.Name
 		}
@@ -298,7 +299,7 @@ func (printer *OutsidePrinter) enumRef(node *reflection.RunType) (string, *Diagn
 				return "", unsupportedDiag(node, outsideDecl)
 			}
 			memberName := name
-			if !isIdentifierText(name) || strings.Contains(name, ".") {
+			if !scanner.IsValidIdentifier(name) {
 				memberName = quoteSingle(name)
 			}
 			parts = append(parts, memberName+" = "+valueText)
@@ -335,7 +336,7 @@ func (printer *OutsidePrinter) symbolKey(memberName string) (string, bool) {
 	if len(memberName) >= 2 && memberName[0] == 0xFE && memberName[1] == '@' {
 		name = memberName[2:]
 	}
-	if !isIdentifierText(name) || strings.Contains(name, ".") {
+	if !scanner.IsValidIdentifier(name) {
 		return "", false
 	}
 	if wellKnownSymbols[name] {
@@ -381,29 +382,19 @@ func (ctx *printContext) classBody(node *reflection.RunType) (string, *Diagnosti
 
 func (ctx *printContext) classMemberText(member *reflection.RunType) (string, *Diagnostic) {
 	if member.Kind == reflection.KindIndexSignature {
-		keyText, keyDiag := ctx.typeExpr(member.Index)
-		if keyDiag != nil {
-			return "", keyDiag
-		}
-		valueText, valueDiag := ctx.typeExpr(member.Child)
-		if valueDiag != nil {
-			return "", valueDiag
-		}
-		return fmt.Sprintf("%s[key: %s]: %s;", readonlyPrefix(member.Readonly), keyText, valueText), nil
+		text, diag := ctx.indexSignatureText(indexSignature{key: member.Index, value: member.Child, readonly: member.Readonly})
+		return text + ";", diag
 	}
 	key, keyDiag := ctx.memberKey(member)
 	if keyDiag != nil {
 		return "", keyDiag
 	}
-	prefix := ""
-	if member.NonEnumerable {
-		prefix = "/** @nonEnumerable */\n  "
-	}
+	prefix := nonEnumerableTag(member.NonEnumerable)
 	if member.Visibility != nil {
 		switch *member.Visibility {
-		case 1:
+		case reflection.VisibilityProtected:
 			prefix += "protected "
-		case 2:
+		case reflection.VisibilityPrivate:
 			// A typeless `private x;` is how a `.d.ts` hides a private member's type; the id reads it as optional `any`.
 			if child := ctx.deref(member.Child); child != nil && child.Kind == reflection.KindAny && member.Kind == reflection.KindProperty {
 				return prefix + "private " + readonlyPrefix(member.Readonly) + key + ";", nil
@@ -473,12 +464,12 @@ func (ctx *printContext) memberKey(member *reflection.RunType) (string, *Diagnos
 	return quoteSingle(member.Name), nil
 }
 
-// Statement renders the declaration as an exported top-level statement under name, its placeholders unspelled.
-func (decl *OutsideDecl) Statement(name string) string {
+// statement renders the declaration as an exported top-level statement under name, its placeholders unspelled.
+func (decl *OutsideDecl) statement(name string) string {
 	switch decl.Kind {
 	case OutsideClass:
 		abstract := ""
-		if decl.Abstract {
+		if decl.abstract {
 			abstract = "abstract "
 		}
 		return fmt.Sprintf("export declare %sclass %s %s", abstract, name, decl.Body)
@@ -490,12 +481,6 @@ func (decl *OutsideDecl) Statement(name string) string {
 		return fmt.Sprintf("declare const %s: unique symbol;", name)
 	}
 	return ""
-}
-
-// NamespacedStatement wraps a class or enum in a namespace, so a second declaration may keep the name its id needs.
-func (decl *OutsideDecl) NamespacedStatement(namespace string) string {
-	inner := strings.TrimPrefix(decl.Statement(decl.Name), "export declare ")
-	return fmt.Sprintf("export declare namespace %s {\n  %s\n}", namespace, strings.ReplaceAll(inner, "\n", "\n  "))
 }
 
 // OutsidePlaced is a declaration laid out in one file: Spelling is how that file names it.
@@ -515,10 +500,7 @@ func LayoutOutsideFile(decls []*OutsideDecl, taken map[string]bool) []OutsidePla
 	symbols := map[string]bool{}
 	out := make([]OutsidePlaced, 0, len(decls))
 	free := func(base string) string {
-		name := base
-		for index := 2; used[name]; index++ {
-			name = base + "$" + strconv.Itoa(index)
-		}
+		name := FreeName(base, func(candidate string) bool { return used[candidate] })
 		used[name] = true
 		return name
 	}
@@ -528,25 +510,37 @@ func LayoutOutsideFile(decls []*OutsideDecl, taken map[string]bool) []OutsidePla
 		}
 		if !used[decl.Name] {
 			used[decl.Name] = true
-			out = append(out, OutsidePlaced{Decl: decl, Spelling: decl.Name, Statement: decl.Statement(decl.Name)})
+			out = append(out, OutsidePlaced{Decl: decl, Spelling: decl.Name, Statement: decl.statement(decl.Name)})
 			continue
 		}
+		// A namespace keeps the name the id needs for a second declaration under it.
 		namespace := free(decl.Name)
-		out = append(out, OutsidePlaced{Decl: decl, Spelling: namespace + "." + decl.Name, Statement: decl.NamespacedStatement(namespace)})
+		inner := strings.TrimPrefix(decl.statement(decl.Name), "export declare ")
+		statement := fmt.Sprintf("export declare namespace %s {\n  %s\n}", namespace, strings.ReplaceAll(inner, "\n", "\n  "))
+		out = append(out, OutsidePlaced{Decl: decl, Spelling: namespace + "." + decl.Name, Statement: statement})
 	}
 	for _, decl := range decls {
 		switch decl.Kind {
 		case OutsideAlias:
 			name := free(decl.Name)
-			out = append(out, OutsidePlaced{Decl: decl, Spelling: name, Statement: decl.Statement(name)})
+			out = append(out, OutsidePlaced{Decl: decl, Spelling: name, Statement: decl.statement(name)})
 		case OutsideSymbol:
 			if symbols[decl.Name] {
 				continue
 			}
 			symbols[decl.Name] = true
 			used[decl.Name] = true
-			out = append(out, OutsidePlaced{Decl: decl, Spelling: decl.Name, Statement: decl.Statement(decl.Name)})
+			out = append(out, OutsidePlaced{Decl: decl, Spelling: decl.Name, Statement: decl.statement(decl.Name)})
 		}
 	}
 	return out
+}
+
+// FreeName is base, or base suffixed `$2`, `$3`…, the first that taken does not hold.
+func FreeName(base string, taken func(name string) bool) string {
+	name := base
+	for index := 2; taken(name); index++ {
+		name = base + "$" + strconv.Itoa(index)
+	}
+	return name
 }

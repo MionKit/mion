@@ -5,13 +5,6 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// Visibility values mirror deepkit's ReflectionVisibility enum, so the wire shape matches what consumers understand.
-const (
-	visibilityPublic    = 0
-	visibilityProtected = 1
-	visibilityPrivate   = 2
-)
-
 // applyMemberModifiers populates Readonly / Visibility / Abstract / Static from the declaration's modifier
 // flags. `asClass` gates the class-only ones: an interface signature can be readonly but never static,
 // abstract or visibility-marked.
@@ -55,13 +48,13 @@ func applyMemberModifiers(member *reflection.RunType, symbol *ast.Symbol, asClas
 	}
 	switch {
 	case flags&ast.ModifierFlagsPrivate != 0:
-		v := visibilityPrivate
+		v := reflection.VisibilityPrivate
 		member.Visibility = &v
 	case flags&ast.ModifierFlagsProtected != 0:
-		v := visibilityProtected
+		v := reflection.VisibilityProtected
 		member.Visibility = &v
 	case flags&ast.ModifierFlagsPublic != 0:
-		v := visibilityPublic
+		v := reflection.VisibilityPublic
 		member.Visibility = &v
 	}
 }
