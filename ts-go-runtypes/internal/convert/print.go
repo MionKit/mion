@@ -819,6 +819,11 @@ type objectMember struct {
 	child         *reflection.RunType
 	signatureNode *reflection.RunType
 	callSignature bool
+	// modifiers, accessor, field and typeless are class members' own (TypeScript's addClassModifiers).
+	modifiers string
+	accessor  bool
+	field     bool
+	typeless  bool
 }
 
 // indexSignature is one `[key: K]: V` member.
@@ -839,6 +844,10 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 		member := ctx.deref(memberRef)
 		if member == nil {
 			return nil, nil, unsupportedDiag(node, ctx.decl)
+		}
+		if member.IsStatic {
+			// Only a declared class has statics, and the id leaves them out.
+			continue
 		}
 		if member.Kind == reflection.KindIndexSignature {
 			indexKey := ctx.deref(member.Index)
@@ -874,6 +883,8 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 				readonly:      member.Readonly,
 				nonEnumerable: member.NonEnumerable,
 				signatureNode: member,
+				modifiers:     classModifiers(member),
+				field:         hasFlag(member, reflection.FlagField),
 			})
 			continue
 		case reflection.KindPropertySignature, reflection.KindProperty:
@@ -892,6 +903,10 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 			readonly:      member.Readonly,
 			nonEnumerable: member.NonEnumerable,
 			child:         child,
+			modifiers:     classModifiers(member),
+			accessor:      hasFlag(member, reflection.FlagAccessor),
+			// A typeless `private x;` is how a `.d.ts` hides a private member's type; the id reads it as optional `any`.
+			typeless: member.Visibility != nil && *member.Visibility == reflection.VisibilityPrivate && child.Kind == reflection.KindAny,
 		})
 	}
 	if ctx.flags&flagsSortMembers != 0 {
@@ -899,6 +914,47 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 		sort.SliceStable(members, func(i, j int) bool { return members[i].name < members[j].name })
 	}
 	return members, indexes, nil
+}
+
+// classModifiers spells a class member's visibility and abstract modifiers; other members have neither.
+func classModifiers(member *reflection.RunType) string {
+	modifiers := ""
+	if member.Visibility != nil {
+		switch *member.Visibility {
+		case reflection.VisibilityProtected:
+			modifiers = "protected "
+		case reflection.VisibilityPrivate:
+			modifiers = "private "
+		}
+	}
+	if member.IsAbstract {
+		modifiers += "abstract "
+	}
+	return modifiers
+}
+
+func (ctx *printContext) returnText(signature *reflection.RunType) (string, *Diagnostic) {
+	if signature.Return == nil {
+		return "void", nil
+	}
+	return ctx.typeExpr(signature.Return)
+}
+
+// memberKey spells a member's key: an identifier, a quoted string or, when declaring unique symbols, a symbol.
+func (ctx *printContext) memberKey(member *reflection.RunType) (string, *Diagnostic) {
+	if reflection.IsSymbolKeyedName(member.Name) {
+		if ctx.flags&flagsDeclareUniqueSymbols != 0 {
+			if spelled, ok := ctx.declarations.uniqueSymbolKey(member.Name); ok {
+				return "[" + spelled + "]", nil
+			}
+		}
+		return "", &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+			Message: fmt.Sprintf("symbol-keyed member %q is not convertible yet", member.Name)}
+	}
+	if member.IsSafeName {
+		return member.Name, nil
+	}
+	return quoteSingle(member.Name), nil
 }
 
 // hasSignatureMembers reports whether any member is a method/call signature.
