@@ -207,26 +207,46 @@ each committed on their own, `git mv` the spec into `docs/done/` reconciled with
 Built as planned, with these differences:
 
 - **Platform types** stay imports, and the entry gets `/// <reference types>` / `/// <reference lib>` lines only for
-  the tsconfig libraries kept code actually reaches (`lib` lines for non-`es*` libs only, such as `dom`). A
-  `declare global` block of another package needs no copy: printing resolves its types structurally.
+  the tsconfig libraries kept code actually reaches. A `types` line names the tsconfig entry as written (a subpath
+  included). `lib` lines skip the `es*` and `decorators*` libs, which every client target already loads, so only
+  libs such as `dom` get one. A `declare global` block of another package needs no copy: printing resolves its types
+  structurally.
 - **A use the printer cannot keep** (one naming a type parameter, a heritage clause in a script file, a printer
-  refusal) stays an import with a warning and keeps its package a peer, instead of failing the build.
-  `apitypes.VerifyIDs` (run by `mion api-types` after `Check`) fails the build if printing ever moves an id.
+  refusal) stays an import with a warning and keeps its package a peer, instead of failing the build. The tests and
+  the fuzz lane count any warning as a failure, so a refusal cannot slip in unseen.
+- **The id check lives in `Check`**: it type-checks the package, reads its build version and compares every API
+  member's id with the server's (`Output.apiIDs`); a moved id fails the build as an internal error.
 - **Printer details:** method type parameters print as `unknown` (the id reads them that way); statics are left out
   (not in the id); members print sorted by name, because merged declarations list them in the order the compiler
-  bound the files, which varies; a recursive shape prints once as a named alias shared by every use.
-- **Pure functions** are copied from each other package's installed `mion-pure-fns/` into `.mion/vendor/<owner>/`,
-  which the marker (format 2, only when something is vendored) lists and the client's pure fn index serves when
-  that package is not installed. A mion package, or one that ships no artifact, stays a peer with a warning. No
-  duplicate warning was added: a pure fn id is the hash of its shipped body, so two copies under one id are the
+  bound the files, which varies; a recursive shape prints once as a named alias shared by every use; a class with an
+  abstract member prints `abstract`; a refused class or alias refuses every later use. The checker types printing
+  reads are kept only for api-types (`KeepTypes`) and dropped on a program swap.
+- **A class or enum from a mion package** inside a printed type stays a `import("@mionjs/…")` reference, and that
+  package becomes a peer like any other mion package.
+- **Pure functions** of other packages are vendored through the pure fn store's closure into
+  `.mion/vendor/<owner>/mion-pure-fns/`, which the marker (format 2, only when something is vendored) lists. The
+  client's pure fn index serves a vendored copy only from the types package's own `.mion/vendor/`, and falls back to
+  it when the installed copy of that package lacks the id; a real install that has the id wins. A mion package stays
+  a peer without a warning; a package that is not installed or ships no artifact stays a peer with a warning. No
+  duplicate-body warning was added: a pure fn id is the hash of its shipped body, so two copies under one id are the
   same code.
 - **Found and fixed on the way:** a shipped file holding only an augmentation or globals was never loaded by a
   client (it loads what the entry reaches), so its members went missing; the entry now references each such file.
   The fuzz lane's new client-parity oracle found it, along with two printing gaps it also fixed (a mapped `X[K]`, a
-  conditional's true branch).
+  conditional's true branch). A global declared in a project script file (no import or export) was dropped even
+  when the API read it; it now ships, referenced from the entry the same way. A package file named `lib.*.d.ts` is
+  no longer taken for the bundled lib, and a printed declaration never takes a name a format import uses.
+- **Review items left as they are:** splitting an earlier fuzz commit and rewording old commit bodies (a history
+  rewrite for no behaviour change, the regression tests landed on their own); a heritage prefix carried outside the
+  placeholder text (the flag has to travel with the text the trimmer reads back); dropping the parity test's own
+  server id computation (it checks the `apiIDs` plumbing independently); unexporting the printer's `Decls` (the
+  external test package needs it); `lib` lines for `es*` feature libs (noise, a client already targets at least
+  the server's ES edition).
 - **Docs:** a new page, `container/website/content/01.rpc/07.devtools/05.api-types.md`, holds the types-only
   package sections moved off the CLI page plus the new ones.
 - **Tests:** `apitypes/outside_test.go` (one fixture per shape, each checked on a bare client by `assertIDParity`),
   `apitypes/parity_test.go`, the fuzz lane's `lib-pkg` positions and client-parity oracle, `convert/outside_test.go`,
-  the flipped drizzle test, `pkg_test.go` + `purefnindex_test.go` for vendoring, the devtools CLI test, a run-types
-  class-registry test, and the pre-publish e2e lane's `@acme/geo` fixture.
+  the flipped drizzle test, `pkg_test.go` + `purefnindex_test.go` for vendoring, `convert/outside_fuzz_test.go`
+  (the `convert-outside` seed lane), two devtools CLI tests (a printed package, and the type-parameter warning), a
+  run-types class-registry test over both call shapes, and the pre-publish e2e lane's `@acme/geo` fixture (an
+  interface, an enum and a `#private` class).
