@@ -41,13 +41,7 @@ import {REPO_ROOT} from '../lib/env.mjs';
 import {isGoInput} from '../lib/go-inputs.mjs';
 import {capture, die, note, noteErr, reportCliError} from '../lib/proc.mjs';
 
-// Paths that feed NO lane: read by people and agents, never by a build, a test or
-// a container. Adding a path here is the ONE way to buy a lane skip, so it has to
-// stay provable, and it only became provable for these once the three whole-tree
-// hygiene sweeps moved to scripts/ci/check-tree.mjs. Those sweeps DO read every
-// tracked file, so while they lived in the js-lint suite, ignoring .claude/ or a
-// root doc here would have let an offending edit through unchecked. They now run
-// in the always-on gate job instead, ungated by anything.
+// Ignored paths are safe only while whole-tree sweeps stay in the always-on scripts/ci/check-tree.mjs gate.
 export const FEEDS_NOTHING = ['docs/', 'tools/', 'assets/', '.agents/', '.claude/', '.codex/', '.vscode/', '.husky/', '.git-blame-ignore-revs', 'CHANGELOG.md', 'AGENTS.md', 'README.md', 'SETUP.md', 'LICENSE'];
 
 // A lane that only RUNS the Go binaries skips what never compiles into them, and the cmd/gen-* codegen tools.

@@ -337,14 +337,8 @@ describe('js-lint — the passed test list', () => {
   });
 });
 
-// The ignore list is only safe because nothing gated reads those paths. The three
-// whole-tree sweeps DO read every tracked file, so if one ever moves back into the
-// vitest suite, a .claude/ or AGENTS.md edit would skip the very check meant to
-// catch it. Pin them to the one job no lane can skip.
-// A gate job that FAILS takes every lane down with it, and GitHub reports a job
-// skipped for a failed dependency as neutral, so the pull request can look settled
-// while nothing ran. The job therefore installs nothing and must ask for nothing
-// that needs an install.
+// Whole-tree sweeps must remain in the always-on gate or ignored paths bypass their checks.
+// Failed dependencies appear neutral on GitHub; the gate must require no installs (AGENTS.md).
 describe('the gate job stands on its own', () => {
   const action = read('.github/actions/ci-lanes/action.yml');
 

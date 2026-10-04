@@ -1,15 +1,4 @@
-// End-to-end class / interface `extends` round-trip tests. Mirrors the
-// Go-side suite in internal/compiler/resolver/extends_test.go and exercises the
-// full pipeline: rewrite → resolver → runTypeCacheSource → eval module →
-// assert on the materialised RunType.
-//
-// Wire fields covered:
-//   - extendsArguments (classes) — direct parent class refs
-//   - extends (interfaces) — direct parent interface refs
-//   - children — flattened inherited + own members
-//
-// Paired *_static and *_reflect tests per the marker test coverage
-// rule (AGENTS.md).
+// Mirrors internal/compiler/resolver/extends_test.go; AGENTS.md requires paired marker forms.
 
 import {describe, expect} from 'vitest';
 import {ReflectionKind, type RunType} from '../src/core/protocol.ts';

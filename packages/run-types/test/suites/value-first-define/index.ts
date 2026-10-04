@@ -1,26 +1,6 @@
-// Value-first `defineObject` validation suite — single source of truth for the
-// behavioral assertions of the value-first authoring surface
-// (`@mionjs/run-types/builders`). Sibling of validation-suite.ts /
-// format-validation-suite.ts.
-//
-// Each model is authored with `RT.object({...})`. Every builder returns the
-// generic `RunType<…>` node, so `typeof Model` is that node and
-// `InferType<typeof Model>` recovers the model type — which is fed to
-// `createValidateFn` / `createGetValidationErrorsFn`, the SAME path as the type-first
-// surface, proving the value-first front-end lowers to the identical RunType
-// graph (same-hash convergence is asserted across all suites in
-// test/suites/id-integrity/).
-//
-// Per the AGENTS.md marker-coverage rule every case carries BOTH forms:
-//   - static  `createValidateFn<InferType<typeof Model>>()`
-//   - reflect `createValidateFn(value)` where `value` is a runtime object whose
-//     declared type is `InferType<typeof Model>` (the format brand can't be
-//     constructed from a plain literal, so the value is cast — discarded at
-//     runtime, only its static type drives `T` inference).
-//
-// The bare `import '@mionjs/run-types/builders'` is type-only here; the
-// `import '@mionjs/run-types/formats'` side-effect import is load-bearing
-// (registers the format mock fns + pure-fns the emitted validators reach).
+// Shares validation-suite.ts/format-validation-suite.ts assertions; id-integrity checks convergence with type-first graphs.
+// Cast values carry unconstructible format brands for inference only; runtime discards them (AGENTS.md marker coverage).
+// The formats value import registers mocks and pure functions required by emitted validators.
 
 import * as TF from '@mionjs/run-types/formats';
 import * as TFT from '@mionjs/run-types/formats/temporal';

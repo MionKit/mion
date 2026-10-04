@@ -7,16 +7,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// Function-family tests. The serializer already produces KindFunction /
-// KindMethod / KindMethodSignature / KindCallSignature with Parameters
-// and Return populated; F28 in collection_test.go covers parameter
-// defaults + position. The cases here close the gaps the survey turned
-// up: rest parameters (the one substantive serializer fix in this PR),
-// return-type walking, and method / methodSignature / callSignature
-// full-shape assertions.
-//
-// Each scenario has paired *_Static / *_Reflect tests per the marker
-// test coverage rule (AGENTS.md) and shares an assertion helper.
+// F28 in collection_test.go covers parameter defaults and position; paired forms follow AGENTS.md marker coverage.
 
 // ---- F35 — rest-only function ----------------------------------------------
 //

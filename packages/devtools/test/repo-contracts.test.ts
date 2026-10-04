@@ -215,11 +215,7 @@ describe('published packages ship a README', () => {
       expect(relative).toEqual([]);
     });
 
-    // A published README is a shop window, not a manual: what the package is, how
-    // it relates to its siblings, and where the real docs live. Anything that
-    // restates the docs site (option tables, usage walkthroughs) drifts out of
-    // sync, and anything internal (env vars, dev-only knobs) does not belong on a
-    // public npm page at all. See the README rule in AGENTS.md.
+    // Duplicated docs drift; published READMEs must exclude internal options (AGENTS.md README rule).
     it(`${manifest.name} README stays a description plus links`, () => {
       const readme = readFileSync(join(packageDir, 'README.md'), 'utf8');
       const lines = readme.split('\n');

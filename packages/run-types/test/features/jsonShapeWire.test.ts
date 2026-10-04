@@ -1,14 +1,5 @@
-// Runtime half of the JSONShape<T> agreement (the type half lives in
-// test/types/jsonShape.test.ts): encode REAL values through the full
-// vite-plugin pipeline, JSON.parse the wire, and compare against expected
-// literals TYPED as JSONShape<T>. The typed literal is the meeting point — the
-// assignment compiles only if the literal matches the declared wire type, and
-// the runtime assertion passes only if the encoder actually produced it, so a
-// drift on either side (the Go serializer or the mapped type) reds this file.
-//
-// Per the AGENTS.md marker-coverage rule the encoder is exercised through BOTH
-// call shapes — static `createJsonEncoderFn<T>()` and value-first
-// `createJsonEncoderFn(value)` — with an equivalence assertion.
+// JSONShape-typed expectations detect drift between declared wire types and encoders; see test/types/jsonShape.test.ts.
+// AGENTS.md requires both encoder forms with equal results.
 
 import {describe, test, expect} from 'vitest';
 import {createJsonEncoderFn} from '@mionjs/run-types';

@@ -629,11 +629,7 @@ func TestApiGen_LaneRidesAModuleNotTheInitClientCall(t *testing.T) {
 	}
 }
 
-// TestApiGen_MarkerFormsAgreeWithTheBundledParamsId: the marker coverage rule of
-// ts-go-runtypes/AGENTS.md, in the suite where it is observable. The STATIC form
-// `getRunTypeId<T>()` and the REFLECTION form `getRunTypeId(value)` over the same
-// params tuple inject the same id, and that id is the `paramsId` the bundled
-// route's manifest row carries: a client bundles the very type the ids name.
+// TestApiGen_MarkerFormsAgreeWithTheBundledParamsId follows ts-go-runtypes/AGENTS.md marker coverage.
 func TestApiGen_MarkerFormsAgreeWithTheBundledParamsId(t *testing.T) {
 	genDir := t.TempDir()
 	r := setupApi(t, apiSources(apiMarkerClientTS), genDir, constants.ClientRoutesBundle)

@@ -153,8 +153,7 @@ export const _ = createValidateFn<` + tc.spelled + `>();
 	}
 }
 
-// The rule holds for the WHOLE type, not just its root (the walk rule in
-// ts-go-runtypes/AGENTS.md): the same bag one object deeper must report too.
+// Nested contradictions must report too (ts-go-runtypes/AGENTS.md walk rule).
 func TestStructuralParams_ContradictionReportsAtDepth(t *testing.T) {
 	code := `import {createValidateFn} from '@mionjs/run-types';
 import * as TF from '@mionjs/run-types/formats';

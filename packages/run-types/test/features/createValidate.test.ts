@@ -1,24 +1,4 @@
-// End-to-end acceptance test for createValidateFn<T>. Drives the FULL
-// vite-plugin pipeline via vitest's vite integration: the plugin
-// transforms this file at load time (injecting the runtype hash at
-// the createValidateFn call site), serves the `virtual:runtypes-validate`
-// module body from the Go-side typefns renderer, and `createValidateFn`
-// at runtime dispatches into the precompiled factory.
-//
-// Migrated from packages/devtools/test/rt-validate.test.ts,
-// which used a `new Function` eval shortcut to bypass the bundler.
-// The pipeline now works end-to-end via the real plugin so the
-// shortcut is redundant.
-//
-// `mion` resolves to the package's own
-// `src/index.ts` via the `"source"` exports condition
-// (vite: resolve.conditions; tsgo: customConditions) — see
-// AGENTS.md → Marker package self-import resolution.
-//
-// Success bar:
-//   validate('abc')      === true
-//   validate(42)         === false
-//   validate(undefined)  === false
+// Self-imports require the source condition in both Vite and tsgo; see AGENTS.md marker self-import resolution.
 
 import {describe, test, expect, it} from 'vitest';
 import {createGetValidationErrorsFn, createValidateFn} from '@mionjs/run-types';

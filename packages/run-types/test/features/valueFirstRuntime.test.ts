@@ -1,18 +1,5 @@
-// Tier-2 — value-first builders as injectable markers. Asserts that a builder
-// CALL returns, AT RUNTIME, the LIVE RunType node the type compiler produces for
-// the equivalent written type: the exact same cached node
-// `getRunType(getRunTypeId<…>())` / `getRunType(getRunTypeId(v))` resolves
-// (reference identity — runTypesCache is a singleton per structural id). This is
-// the "builders return a RunType struct, the same one the type compiler returns"
-// guarantee, and the doc's probe #5 (the builder's injected id equals the
-// canonical marker id for its return type).
-//
-// Per the AGENTS.md marker-coverage rule every scenario carries BOTH forms — the
-// static `getRunTypeId<T>()` and the reflection `getRunTypeId(value)` — and
-// both must resolve to the same node the builder returns.
-//
-// `import '@mionjs/run-types/formats'` is the load-bearing side-effect
-// import (registers the format pure-fns the cache module reaches).
+// Builders and equivalent markers must return the same cached node (AGENTS.md marker coverage).
+// The formats value import registers pure functions used by cache modules.
 
 import * as TF from '@mionjs/run-types/formats';
 import {describe, expect, it} from 'vitest';

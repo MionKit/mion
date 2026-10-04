@@ -1,17 +1,4 @@
-// End-to-end coverage for the lint plugin honoring the project tsconfig's
-// resolution options. Before the fix the ESLint inline-server spawn passed no
-// --tsconfig, so a cross-package type behind a `source` export condition (the
-// source-resolved monorepo dev setup, dist unbuilt) collapsed to `any` at lint
-// time — 59 false marker-any-from-unresolved-import in mion, while the build resolved it fine.
-//
-// Two layers: a pure unit check that buildResolverArgs now forwards --tsconfig
-// in server mode (the exact guard that caused the bug), and an integration run
-// of the real rules through mion-bin/mion over an on-disk monorepo whose only
-// resolvable cross-package entry is behind `source`.
-//
-// Marker coverage rule (AGENTS.md): the consumer fixture uses BOTH getRunTypeId
-// shapes — static `getRunTypeId<T>()` and value-first `getRunTypeId(value)` —
-// plus a createValidateFn<CrossPkgType>() site (the mion repro shape).
+// Lint must use the build tsconfig to resolve source-only workspace exports; see AGENTS.md marker coverage.
 
 import {afterAll, beforeAll, beforeEach, describe, expect, it} from 'vitest';
 import {rules} from '../../src/lint/index.ts';

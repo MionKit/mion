@@ -1,13 +1,5 @@
-// Generic classes in the class-serializer registry. Generics are ERASED at
-// runtime — every instantiation of `WireError<…>` is the SAME class object —
-// so ONE `registerClassSerializer(WireError, …)` must reconstruct EVERY
-// instantiation the program uses. Each instantiation hashes to a different
-// structural type id; what they share is the class name, which the emitter
-// bakes into the lookup (`utl.getClassSerializer('<id>', '<className>')`) and
-// the registry indexes as its fallback lane.
-//
-// Pairing rule (AGENTS.md): getRunTypeId is exercised in BOTH call shapes and
-// asserted to converge for equivalent T.
+// Generic instantiations share one runtime constructor but different ids; the class-name fallback must serve them all.
+// AGENTS.md requires both marker forms with equal ids.
 
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {createJsonEncoderFn, createJsonDecoderFn, getRunTypeId} from '@mionjs/run-types';

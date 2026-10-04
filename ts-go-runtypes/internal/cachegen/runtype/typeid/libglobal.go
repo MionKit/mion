@@ -1,9 +1,7 @@
-// A platform class is not data, decided by where it is declared, never by its name. The platform is the bundled lib
-// plus what the tsconfig `types` list or any `/// <reference types>` loads (program.EnvironmentFile); importing a
-// library never makes it platform. Limits: an ambient `declare module` class in a loaded package counts
-// (`EventEmitter`), `types: ["*"]` loads every `@types` package, and with no `types` list only the lib and what a
-// reference loads count. Pinned by platform_declared_test.go and program/environment_test.go; keep
-// ts-go-runtypes/AGENTS.md and the runtypes validation page in step.
+// Platform classes are non-data by declaration origin, never name; ordinary imports do not make a class platform.
+// program.EnvironmentFile covers bundled libs, configured types and type references, including ambient module classes.
+// types: ["*"] loads all @types; absent types loads only libs and references.
+// Keep ts-go-runtypes/AGENTS.md and validation docs aligned; see platform_declared_test.go and program/environment_test.go.
 package typeid
 
 import (

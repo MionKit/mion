@@ -90,13 +90,8 @@ const APP_LIST = [
   // under bun, which build-all.mjs cannot call in-process — see buildBun.
   {name: 'smoke-bun', adapter: 'bun'},
   {name: 'smoke-bun-preload', adapter: 'bunPreload'},
-  // Next.js is the odd one out: Turbopack has no plugin API, so this app is
-  // driven by `withRunTypes` in next.config (one broker) plus a loader in
-  // turbopack.rules, not by a bundler plugin. It also cannot be built in-process
-  // — `next build` is a CLI — so it runs out-of-process like the bun apps.
-  // It is also the repo's ONLY `next build` coverage (next is ~202MB and not a
-  // workspace dep, so a vitest equivalent would never run) — see
-  // packages/devtools/src/runtypes/next/AGENTS.md.
+  // Turbopack has no plugin API; next build requires a separate CLI process.
+  // Next is not a workspace dependency; this supplies build coverage (packages/devtools/src/runtypes/next/AGENTS.md).
   {name: 'smoke-next', adapter: 'next'},
   // The mion half of the Next story: the app HOSTS the API through an App Router catch-all
   // handler, so one build produces the front end and the API from one program. smoke-next

@@ -66,10 +66,8 @@ type DataOnlyStripped =
  *  finite instantiation instead of tripping the TS2589 depth cap. **/
 type _DataOnlyDepth = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8];
 
-/** The exact shape `createValidateFn<T>()` validates (AGENTS.md "validate contract").
- *  An unlisted class keeps its data shape, right for an authored class, so this module names no `lib.dom` type.
- *  NO `infer` on the hot path: bare `extends` and homomorphic maps keep tuples, `readonly` and `?` for free.
- *  A non-data root is `never` here but an always-throw factory in the emitter, on purpose. **/
+/** Unlisted classes keep their data shape; no lib.dom dependency (AGENTS.md validate contract). **/
+// Homomorphic maps preserve tuple modifiers without infer; non-data roots are never here but throw in the emitter.
 export type DataOnly<T, Depth extends number = 8> = Depth extends 0
   ? T // budget exhausted — keep the remaining sub-tree as-is (best effort)
   : unknown extends T

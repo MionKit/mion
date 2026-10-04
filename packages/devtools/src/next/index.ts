@@ -5,16 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// mion on Next.js, COMPOSED from the pieces ../runtypes/next exports individually rather than nesting one
-// wrapper in another: Turbopack has no plugin API and runs no webpack PLUGINS, so that lane is a broker started
-// from `next.config` plus a `turbopack.rules` loader that asks it to rewrite each file, while `next --webpack`
-// falls back to the ordinary unplugin webpack plugin. ⚠️ Read ../runtypes/next/AGENTS.md before changing
-// anything here or there: it records invariants that look like cleanups and are not. mion adds only the shared
-// option mapping (./options.ts), so a knob added for vite reaches Next in the same commit, `client` pointer
-// included. Nothing of the batch transport is ported: the SERVER build generates the table and mapper modules,
-// so a Next app that is the client does nothing. No Vue SFC pass, no `server` block (Next runs its own dev
-// server and builds the API route itself) and no module-graph invalidation, the broker declaring typeDeps plus
-// a stamp to Turbopack instead, which covers ambient types that have no import edge to follow.
+// Turbopack has no plugin API; compose the broker and loader from ../runtypes/next rather than nesting wrappers.
+// Next owns the dev server and API build; the server generates tables and mappers, so a client app generates none.
+// Shared ./options.ts mapping keeps Vite and Next options aligned, including client pointers.
+// Type dependencies plus a stamp cover ambient types with no import edge; read ../runtypes/next/AGENTS.md before editing.
 import {withRunTypes, type NextOptions} from '../runtypes/next/index.ts';
 import {toRunTypesOptions, type MionPresetOptions} from '../options.ts';
 

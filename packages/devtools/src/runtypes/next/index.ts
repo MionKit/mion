@@ -1,9 +1,5 @@
-// Turbopack has no plugin API and does not run webpack PLUGINS, so no unplugin entry reaches it; it does run
-// webpack-style LOADERS, so `next.config` (plain Node, evaluated before any bundler worker exists) starts the
-// broker and a loader registered through `turbopack.rules` asks that broker to rewrite each file. The pieces
-// are exported individually because downstream tools (mion's devtools) compose them rather than nest wrappers.
-// ⚠️ READ ./AGENTS.md BEFORE CHANGING ANYTHING HERE: it records the invariants that look like cleanups and are
-// not, and why the real `next build` coverage lives in the e2e container rather than in the vitest suite.
+// Turbopack runs loaders, not plugins; one config-process broker serves the loader workers.
+// Export the pieces for downstream composition; read ./AGENTS.md for invariants and container-only build coverage.
 import path from 'node:path';
 import {unplugin} from '../../core/unplugin.ts';
 import {startBroker, socketPathFor, ownsBroker, isNextDev, type BrokerHandle, type NextOptions} from './broker.ts';

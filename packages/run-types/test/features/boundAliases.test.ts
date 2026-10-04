@@ -1,10 +1,4 @@
-// Bound-keyword aliases: a numeric / bigint / date format may spell its bounds
-// with the JSON Schema keywords (minimum / maximum / exclusiveMinimum /
-// exclusiveMaximum) OR the engine's short keys (min / max / gt / lt), and both
-// fold to ONE structural id — the Go scanner canonicalises the alias spelling
-// when it reads `__rtFormatParams`. Convergence is pinned across both
-// authoring modes (type-first alias, value-first builder), and — per the
-// AGENTS.md marker-coverage rule — across both getRunTypeId call shapes.
+// JSON Schema and short bound keys must converge across authoring modes and marker forms (AGENTS.md).
 
 import {describe, expect, it} from 'vitest';
 import {getRunTypeId} from '@mionjs/run-types';

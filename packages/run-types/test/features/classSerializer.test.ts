@@ -1,22 +1,5 @@
-// Custom class serializer/deserializer registry adapter.
-//
-// Verifies the redesigned `registerClassSerializer(cls, handler?)` surface: the
-// client hands over the CLASS (no name string, no namespace), `serialize` is
-// optional (default: structural, same as any interface), and `deserialize` is
-// optional for a zero-arg class (default: `Object.assign(new cls(), data)`).
-// A registered class rebuilds a REAL instance (`instanceof`, methods live) through the default JSON codec;
-// an UNREGISTERED class round-trips structurally to a plain object (no throw).
-//
-// The registry is keyed by the class's TYPE ID (the plugin fills the trailing
-// InjectTypeFnArgs<T, 'classSerializerReg'> slot with the name-card entry tuple, whose key
-// carries the id resolved from the `new () => T` constructor param), so it
-// matches the emitted `utl.getClassSerializer(<rt.ID>)` lookup and is
-// minification-safe.
-//
-// Pairing rule (AGENTS.md): static form `createXxx<Foo>()` and reflect form
-// `createXxx(value)` are exercised as distinct cases; both resolve to the same
-// cache entry for equivalent T, so a serializer registered once for the class
-// serves both.
+// Registry keys use injected type ids, making lookups minification-safe.
+// One class registration must serve both marker forms (AGENTS.md).
 
 import {afterEach, describe, expect, it} from 'vitest';
 import {createJsonEncoderFn, createJsonDecoderFn, getRunTypeId} from '@mionjs/run-types';

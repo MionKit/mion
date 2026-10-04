@@ -1,11 +1,4 @@
-// Integration suite for the lint plugin: real fixture projects on disk, the
-// real mion-bin/mion behind the session bridge, and the rules driven the
-// way a lint host drives them (create → Program visitor → reports).
-//
-// Marker coverage rule (AGENTS.md): the Family A fixtures cover BOTH
-// getRunTypeId call shapes — static `getRunTypeId<T>()` and reflection
-// `getRunTypeId(value)` — including the hash-equivalence assertion via the
-// sibling ResolverClient.
+// Published lint integration must follow AGENTS.md marker coverage, including equal ids via ResolverClient.
 
 import fs from 'node:fs';
 import {afterAll, beforeAll, describe, expect, it, vi} from 'vitest';

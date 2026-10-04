@@ -1,21 +1,7 @@
-// The model + the event/oracle command set for the enrichment-sync fuzzer.
-//
-// SUT: the `mion enrich` scaffold / --update / --prune / --no-emit pipeline over a (source type T,
-// generated mirror E) pair. We model just enough of (T, E) to state the oracles,
-// then drive RANDOM sequences of edit events and assert, after each, a rule that
-// the example suite (test/suites/enrich/enrichReconcile.test.ts) already PROVES
-// on hand-written cases — so every assertion here is sound (a failure is a real
-// regression). Rule ids match
-// .agents/skills/fuzzy-testing/framework-fuzzy-testing.md §6.4:
-//
-//   R1  idempotence      a second `--update` is byte-identical
-//   R2  metamorphic      a type edit makes a bounded, predictable change to E
-//   R3  preservation     `--update` never disturbs an unrelated authored value
-//   R5  negative-space   a malformed mirror edit is reported, never silently kept
-//   R6  convergence      after `--update` the file is a fixed point
-//   R7a orphan carcass   a removed field's value is kept as an @rtOrphanChild
-//   R8  @todo / prune     prune strips carcasses, never touches @todo
-//   R10 totality         every CLI run is controlled — never a panic/hang
+// Oracles match test/suites/enrich/enrichReconcile.test.ts and .agents/skills/fuzzy-testing/framework-fuzzy-testing.md, 6.4.
+// R1/R6 require fixed points; R2 bounds type-edit changes; R3 preserves unrelated authored values.
+// R5 reports malformed mirrors; R7a preserves removed values as @rtOrphanChild; R8 prunes orphans but preserves @todo.
+// R10 forbids panics and hangs.
 
 import {
   setSource,

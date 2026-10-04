@@ -1,20 +1,5 @@
 #!/usr/bin/env node
-// Fast end-to-end smoke for the Go binary + @mionjs/devtools wiring.
-//
-// What it exercises (~1s when everything is healthy):
-//   - mion-bin/mion spawns and accepts an --inline-server session
-//     (no tsconfig handshake; mirrors the test helper).
-//   - The plugin's transform() recognises the marker import and produces a
-//     Site for both reflection forms AND a createX call.
-//   - scanFiles({includeEntryModules: true}) returns the cache modules the
-//     resolver would serve to Vite at rtmod:/<…>.js.
-//
-// Fixture coverage follows the marker test coverage rule (AGENTS.md):
-//   - getRunTypeId<T>()        — static
-//   - getRunTypeId(value)      — reflect (T inferred from value)
-//   - createValidateFn<T>()      — exercises the InjectTypeFnArgs path
-//
-// Exit codes: 0 PASS, 1 FAIL.
+// No tsconfig handshake: mirrors the inline test helper; covers both marker forms per AGENTS.md.
 
 import fs from 'node:fs';
 import path from 'node:path';

@@ -1,13 +1,6 @@
-// Composer builders — each takes child `RunType` schemas and returns the `RunType<…>` of the
-// COMPOSED type: the Go scanner reflects the whole composed type off the trailing
-// `InjectRunTypeId` brand, so the children ride the carrier only and are DISCARDED at runtime.
-// They are branded `CompTimeArgs<…>`, so the scanner requires each child be a static builder call
-// (or a `const` bound to one) and a dynamic schema (`cond ? a : b`, a `.map(...)`, a spread)
-// raises a `marker-comptime-arg-*` diagnostic instead of silently freezing whatever type it resolved to. The
-// grouped `tuple` / `func` capture each group with `const T`, never a `readonly [...T]` spread:
-// intersecting a spread target with the `CompTimeArgs` brand collapses the tuple to an array, so
-// `const` + `MapTuple`'s `-readonly` is what keeps per-slot inference. Minimal `infer` per
-// AGENTS.md; the type-level helpers all live in static.ts, so this file is runtime-only.
+// Children carry compile-time types and are discarded at runtime; dynamic schemas must raise marker-comptime-arg-* errors.
+// CompTimeArgs on a tuple spread collapses it to an array; const T plus MapTuple removes readonly without losing slots.
+// Type helpers live in static.ts; minimize infer per AGENTS.md.
 
 import {builderResult} from '../runtypes/builderCore.ts';
 import type {RunType} from '../runtypes/types.ts';

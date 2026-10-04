@@ -1,12 +1,7 @@
-// Per-STEP instantiation budgets for the model pipeline over the slim packages (see
-// .agents/skills/drizzle-slim-schemas/ARCHITECTURE.md), per dialect: 1 slim table, 2 refineTableType, 3 the flat models,
-// 4 a mion route api, 5 initClient's mapping, 6 the db query through toDrizzle (the ONE step paying drizzle's generics).
-// Nothing else catches a checker-cost regression, ours or a drizzle upgrade's. Snippets compile CUMULATIVELY; each
-// step's DELTA is budgeted, plus the chain TOTAL, since deltas cannot see work moving between layers. Budgets are set
-// BY HAND and ONE-WAY DOWNWARD: a delta that went down becomes the budget, one that went up is a regression to fix,
-// never a budget to raise; an unavoidable raise is a REVIEWED EXCEPTION commented at the budget and called out in the
-// PR. Counts are deterministic because typescript and drizzle-orm are exact-pinned; bumping either re-baselines every
-// step. When a budget trips, `tsc --generateTrace` plus `@typescript/analyze-trace` name the types that cost.
+// Cumulative snippets need delta and total budgets to detect cost shifting between layers.
+// Budgets only decrease; reviewed increases need a budget comment and PR explanation. Exact-pinned upgrades rebaseline them.
+// Only toDrizzle queries pay drizzle generics; see .agents/skills/drizzle-slim-schemas/ARCHITECTURE.md.
+// Diagnose failures with tsc --generateTrace and @typescript/analyze-trace.
 
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import * as ts from 'typescript';

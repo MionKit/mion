@@ -89,15 +89,8 @@ func assertHashID(t *testing.T, id string) {
 	}
 }
 
-// =========================================================================
-// Primitive kinds — id is just the kind number, no payload.
-//
-// Per the marker test coverage rule (AGENTS.md), every scenario gets two
-// paired tests: a *_Static using `getRunTypeId<T>()` and a *_Reflect using
-// `getRunTypeId(v)`. Both must resolve to the same atomic Kind; the
-// hash equivalence between the two forms is asserted by TestAtomic_String
-// (file-based) and TestAtomic_FormEquivalence below.
-// =========================================================================
+// Atomic ids have no payload; paired forms follow AGENTS.md marker coverage.
+// TestAtomic_String and TestAtomic_FormEquivalence assert equal ids.
 
 // TestAtomic_String_* are kept file-based as the regression tests that
 // exercise the on-disk tsconfig + osvfs path. Both forms share a Kind and

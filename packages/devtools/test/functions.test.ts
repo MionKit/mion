@@ -1,12 +1,5 @@
-// Function-family round-trip tests. Mirrors the Go function_test.go cases
-// (F35–F40). Each scenario has paired static (getRunTypeId<T>()) and
-// reflect (getRunTypeId(v)) tests per the marker test coverage rule
-// (AGENTS.md). The shared assertion helpers walk parameters and return
-// after the virtual cache evaluates.
-//
-// F40 (callSignature in mixed object) ships static-only — constructing a
-// callable-with-properties value at the source level is awkward; the Go
-// side covers the marker.Detect parity.
+// Mirrors Go function_test.go F35-F40; AGENTS.md requires paired marker forms.
+// F40 stays static-only because callable objects are awkward to construct; Go covers marker.Detect parity.
 
 import {describe, expect} from 'vitest';
 import {ReflectionKind, type RunType} from '../src/core/protocol.ts';

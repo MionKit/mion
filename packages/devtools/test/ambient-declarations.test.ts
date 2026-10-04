@@ -1,17 +1,5 @@
-// Program roots vs ambient declarations — the JS-side pin, on the daemon surface, of
-// the fix that unions the tsconfig's file list into the inferred program's roots.
-//
-// Production's per-edit shape (handleHotUpdate, the lint worker) pushes ONE
-// file into setSources; anything tsc would include WITHOUT an import — an
-// ambient `.d.ts` in the tsconfig include set — used to vanish from the
-// rebuilt program, silently degrading the type to `any` and changing the
-// site's id. The daemon now unions the config's declaration files into every
-// setSources-built program's roots, and when a written name still cannot
-// resolve, marker-any-from-unresolved-name fires instead of silence.
-//
-// Marker coverage rule (AGENTS.md): the fixture uses BOTH getRunTypeId call
-// shapes — static getRunTypeId<T>() and value-first getRunTypeId(value) —
-// with id equality asserted between them.
+// Ambient declarations without import edges must survive setSources edits; unresolved names must report diagnostics.
+// AGENTS.md requires both marker forms and equal ids.
 
 import fs from 'node:fs';
 import os from 'node:os';

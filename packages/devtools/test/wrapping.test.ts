@@ -1,17 +1,4 @@
-// Wrapping tests — every scenario lives in its own runTest with a
-// self-contained inline source. Each direct-marker scenario has paired
-// _static (getRunTypeId<T>()) and _reflect (getRunTypeId(v)) tests per
-// the marker test coverage rule (AGENTS.md). User-defined wrappers and
-// passthrough scenarios are also covered for both wrapper-arity shapes.
-//
-// Coverage matrix:
-//   17a–17d  direct calls + user-defined wrappers (positive — site emitted)
-//   17g      marker wrapped in a user alias (injects T, not unknown)
-//   17e–17f  free-T body / wrong-module collision (negative — skipped)
-//   passthrough  wrappers that forward `id` to inner calls — outer site
-//                only; inner free-T calls stay untouched
-//   explicit-id  caller already filled the trailing slot — scanner must
-//                NOT emit a site (no override of caller-supplied ids)
+// AGENTS.md requires paired marker forms; wrappers must leave free-T inner calls and explicit caller ids untouched.
 
 import {describe, expect} from 'vitest';
 import {rewrite, runTest, withInlineSources} from './helpers/inline.ts';

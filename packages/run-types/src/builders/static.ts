@@ -1,7 +1,5 @@
-// The value-first surface's COMPOSER type channel — the type-level helpers compose.ts and
-// utility.ts carry. The format-builder helpers live in runtypes/builderTypes.ts so the `formats/`
-// builders and the composers here can share them, and are re-exported below so existing
-// `./static.ts` importers keep resolving. No `infer` except where unavoidable (per AGENTS.md).
+// Shared format helpers live in runtypes/builderTypes.ts to avoid coupling authoring surfaces.
+// Keep inference minimal (AGENTS.md).
 
 import type {
   __rtFormatName,

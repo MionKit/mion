@@ -1,8 +1,5 @@
-// The format-builder TYPE channel, shared by the value-first builders under `formats/` and the
-// composers under `schema/`. It lives in the neutral `runtypes/` layer so neither authoring surface
-// depends on the other. No `infer` anywhere (per AGENTS.md): every helper is an `extends`-guard plus
-// an indexed-access read. `TypeFormat` is imported as a VALUE, not `import type`, because that keeps
-// the brand alias's reflection metadata reachable for tsgo.
+// Neutral helpers avoid coupling format builders and composers; indexed access avoids infer (AGENTS.md).
+// TypeFormat needs a value import so tsgo can reach its reflection metadata.
 
 import {TypeFormat} from './typeFormat.ts';
 import type {RunType} from './types.ts';

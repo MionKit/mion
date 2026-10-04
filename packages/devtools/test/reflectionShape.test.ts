@@ -1,10 +1,5 @@
-// Reflection-AST shape suite (audit follow-up T8). Asserts the *shape* of the
-// emitted `virtual:runtypes-cache` entries for representative kinds — coverage
-// that was previously only incidental to the validate / serialization round-trips.
-// Each structural scenario is paired (static getRunTypeId<T>() + reflect
-// getRunTypeId(v)) per the marker coverage rule (AGENTS.md); the literal-
-// rehydration cases use the single form that actually captures the literal
-// (generic inference widens literals in the other form — see atomic-types.md).
+// Generic inference widens literals; literal rehydration uses the form preserving them (atomic-types.md).
+// Structural cases follow AGENTS.md marker coverage.
 import {describe, expect} from 'vitest';
 import {ReflectionKind} from '../src/core/protocol.ts';
 import {evalCacheFor, getTypeFor, runTest} from './helpers/inline.ts';

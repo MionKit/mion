@@ -6,7 +6,7 @@ import type {SrcTypedUser} from '@acme/src-types';
 
 export const isSrcTypedUser = createValidateFn<SrcTypedUser>();
 
-// Both marker call shapes (AGENTS.md marker rule).
+// AGENTS.md requires both marker forms.
 export const srcUserIdStatic = getRunTypeId<SrcTypedUser>();
 const sample: SrcTypedUser = {id: 1, label: 'u', since: new Date('2026-01-01T00:00:00Z')};
 export const srcUserIdFromValue = getRunTypeId(sample);

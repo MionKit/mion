@@ -7,10 +7,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// Each scenario below has paired *_Static / *_Reflect tests per the
-// marker test coverage rule (AGENTS.md). The shared assertion helpers
-// receive the resolved root + dump and exercise the same expectations
-// regardless of which marker form drove the resolution.
+// Paired forms follow AGENTS.md marker coverage.
 
 // ---- F19 — array of object literal -------------------------------------------
 

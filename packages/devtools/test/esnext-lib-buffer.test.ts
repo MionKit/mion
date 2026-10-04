@@ -1,18 +1,5 @@
-// Reflecting a Buffer field on the ESNext lib — the JS-side pin of the marker-self-instantiating-generic fix.
-//
-// A project compiled against lib.esnext could not reflect any type whose data
-// reached Node's Buffer: the walk descended into the Uint8Array members Buffer
-// inherits, ESNext's iterator methods return IteratorObject, and that
-// re-instantiates itself at every level, so the site was refused with marker-self-instantiating-generic
-// and the build halted. ES2023 was fine only because its iterator methods
-// return the non-self-instantiating IterableIterator, which is why the bug hid
-// behind whatever lib the consumer happened to compile against.
-//
-// The lib is written into a real tsconfig here rather than inherited, so the
-// lib version is part of the test instead of an accident of the repo config.
-//
-// Marker coverage rule (AGENTS.md): both getRunTypeId call shapes, with id
-// equality asserted between them.
+// ESNext Buffer iterators reinstantiate IteratorObject recursively; ES2023 IterableIterator hid this failure.
+// An explicit tsconfig lib keeps coverage independent of repo defaults; see AGENTS.md marker coverage.
 
 import fs from 'node:fs';
 import os from 'node:os';

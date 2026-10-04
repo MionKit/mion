@@ -1,17 +1,5 @@
-// Acceptance test for `getFnHash` — derives the version-independent fnHash for a
-// function family (+ its compile-time options) WITHOUT the plugin-injected
-// function tuple. This is the surface a framework (mion) uses to rebuild the
-// `<fnHash>_<typeId>` runtime cache key from a type's injected typeId alone,
-// instead of hand-pinning a `family → prefix` map that used to churn every
-// release.
-//
-// Two layers:
-//  1. unit — every axis (validate options, JSON strategy, option-less) + errors.
-//  2. cross-check — getFnHash(fnKey) MUST equal the fnHash the plugin actually
-//     injects at a real InjectTypeFnArgs<T, Fn> call site. This is what proves
-//     the Go-generated table agrees with the live binary. Per the AGENTS.md
-//     marker-coverage rule both call shapes are exercised (static grab<T>() and
-//     reflection grab(value)), with one paired assertion that they agree.
+// Frameworks rebuild fnHash_typeId keys without injected tuples; generated hashes must agree with the live compiler.
+// AGENTS.md requires both marker forms.
 
 import {describe, test, expect} from 'vitest';
 import {FN_HASHES} from '../../src/go-generated/fnHashes.generated.ts';

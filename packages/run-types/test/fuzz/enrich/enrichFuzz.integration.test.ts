@@ -1,15 +1,6 @@
-// Event-driven fuzz of the FriendlyText/MockData sync pipeline — the first real
-// application of the fuzzy-testing framework
-// (.agents/skills/fuzzy-testing/framework-fuzzy-testing.md §6).
-//
-// It generalises the hand-written enrichReconcile.test.ts cases to RANDOM edit
-// sequences: every oracle (R1/R2/R3/R5/R6/R7a/R8/R10) asserts a behaviour that
-// suite already proves, so a failure here is a real regression. Spawns the Go
-// binary like the other enrich e2e tests, so `mion-bin/mion` must be built
-// (the root `pretest` does this); the test self-skips if the binary is absent.
-//
-// Knobs:  MION_FUZZ_SEED, MION_FUZZ_ENRICH_SEQUENCES, MION_FUZZ_ENRICH_MAXCMDS,
-//         MION_FUZZ_ENRICH_REPLAY=<seed>  (re-run one failing sequence verbatim).
+// Oracles mirror enrichReconcile.test.ts; rule definitions: .agents/skills/fuzzy-testing/framework-fuzzy-testing.md, 6.
+// Requires mion-bin/mion, built by pretest; skips without it.
+// MION_FUZZ_ENRICH_REPLAY=<seed> repeats failures; knobs: MION_FUZZ_SEED, MION_FUZZ_ENRICH_SEQUENCES, MION_FUZZ_ENRICH_MAXCMDS.
 
 import {existsSync} from 'node:fs';
 import {describe, it, expect, afterAll} from 'vitest';

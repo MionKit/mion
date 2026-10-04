@@ -22,11 +22,7 @@ import {
   type TypeFormat,
 } from '@mionjs/run-types';
 import {createMockDataFn} from '@mionjs/run-types/mocking';
-// Side-effect import FIRST: the formats module registers the per-kind mock
-// fns at load (mockStringFormat). The named import below is erased by the
-// transpiler when its bindings are only used as TYPES — without this value
-// import the registry stays empty and every format mocks as a plain random
-// string (the exact trap mion's AGENTS.md warns about).
+// Type-only bindings erase the named import; a value import must register format mocks first (AGENTS.md).
 import '@mionjs/run-types/formats';
 import {Lowercase, String as StringFormat} from '@mionjs/run-types/formats';
 
