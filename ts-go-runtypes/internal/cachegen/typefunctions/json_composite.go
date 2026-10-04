@@ -361,7 +361,7 @@ func AssertCompositeSoftDeps(graph entrymodules.Graph, provenance map[string][]d
 		}
 		for _, dep := range entry.SoftDeps {
 			// A built-in pure-fn edge binds via `utl.getPureFn`, and serveBuiltinPureFns delivers it AFTER this assertion
-			// runs, with its own PFE9012 tripwire for a missing body.
+			// runs, with its own purefn-not-registered tripwire for a missing body.
 			if purefnids.Has(dep) {
 				continue
 			}

@@ -10,7 +10,7 @@ import (
 // test is "did the Program load a base edition", never a list of blessed lib selections: such a list
 // would have to grow with every TypeScript release and catches nothing our own lib matrix does not.
 
-// libSelectionDiagnostic returns the CFG002 finding for a Program whose standard library cannot
+// libSelectionDiagnostic returns the config-lib-missing-base finding for a Program whose standard library cannot
 // support reflection. The cause is the tsconfig, but a diagnostic needs a location a host can render.
 func (sess *Session) libSelectionDiagnostic(anchorFile string) *diagnostics.Diagnostic {
 	if sess.Program == nil {
@@ -28,7 +28,7 @@ func (sess *Session) libSelectionDiagnostic(anchorFile string) *diagnostics.Diag
 	return &diagnostic
 }
 
-// appendLibSelectionDiagnostic adds the CFG002 finding to a response; both per-file lanes (the linter's
+// appendLibSelectionDiagnostic adds the config-lib-missing-base finding to a response; both per-file lanes (the linter's
 // scan and the bundler's transform) call it, so the build stops wherever the consumer meets it first.
 func (sess *Session) appendLibSelectionDiagnostic(into []diagnostics.Diagnostic, files []string) []diagnostics.Diagnostic {
 	if len(files) == 0 {

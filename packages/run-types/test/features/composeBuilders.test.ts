@@ -156,10 +156,10 @@ describe('leaf builders — literal / regexp', () => {
 
   it('regexp() converges with RegExp, and validate refuses it at the root', () => {
     expect(getRunTypeId(regexp())).toBe(getRunTypeId<RegExp>());
-    // @mion-downgrade-error VL001
-    expect(() => createValidateFn(regexp())).toThrow(/VL001/);
-    // @mion-downgrade-error VL001
-    expect(() => createValidateFn<RegExp>()).toThrow(/VL001/);
+    // @mion-downgrade-error validate-non-data-root
+    expect(() => createValidateFn(regexp())).toThrow(/validate-non-data-root/);
+    // @mion-downgrade-error validate-non-data-root
+    expect(() => createValidateFn<RegExp>()).toThrow(/validate-non-data-root/);
   });
 });
 

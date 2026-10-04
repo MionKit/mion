@@ -44,7 +44,7 @@ func TestCallableInterface_FunctionLikeAtRoot(t *testing.T) {
 	}
 }
 
-// At a PROPERTY position the callable interface drops like a function-valued property, with the family's …010 note.
+// At a PROPERTY position the callable interface drops like a function-valued property, with the family's `-function-property-dropped` note.
 func TestCallableInterface_PropertyDoesNotFailObject(t *testing.T) {
 	parts := callableInterface("cal", true)
 	propX := &reflection.RunType{ID: "px", Kind: reflection.KindPropertySignature, Name: "x", Child: makeRef("cal")}
@@ -53,11 +53,11 @@ func TestCallableInterface_PropertyDoesNotFailObject(t *testing.T) {
 	dump := protocol.Dump{RunTypes: append(append([]*reflection.RunType{mkStr()}, parts...), propX, propY, outer)}
 
 	functionDropCodes := map[string]string{
-		"validate":              "VL010",
-		"prepareForJsonMutate":  "PJ010",
-		"prepareForJsonClone":   "PJS010",
-		"restoreFromJsonMutate": "RJ010",
-		"restoreFromJsonClone":  "RJ010",
+		"validate":              "validate-function-property-dropped",
+		"prepareForJsonMutate":  "json-prepare-function-property-dropped",
+		"prepareForJsonClone":   "json-prepare-clone-function-property-dropped",
+		"restoreFromJsonMutate": "json-restore-function-property-dropped",
+		"restoreFromJsonClone":  "json-restore-function-property-dropped",
 	}
 	for fam, code := range functionDropCodes {
 		out, sink := renderWithDiag(t, dump, fam, "obj")
@@ -75,9 +75,9 @@ func TestCallableInterface_PropertyDoesNotFailObject(t *testing.T) {
 // A skipped entry left a dangling dep the JSON composite bound with an unguarded `getRT(key).fn` (`reading 'fn'`).
 func TestF2b_CallableInArrayElementAlwaysThrows(t *testing.T) {
 	functionRootCodes := map[string]string{
-		"prepareForJsonMutate":  "PJ003",
-		"prepareForJsonClone":   "PJS003",
-		"restoreFromJsonMutate": "RJ003",
+		"prepareForJsonMutate":  "json-prepare-function-root",
+		"prepareForJsonClone":   "json-prepare-clone-function-root",
+		"restoreFromJsonMutate": "json-restore-function-root",
 	}
 	parts := callableInterface("cal", true)
 	arr := &reflection.RunType{ID: "arr", Kind: reflection.KindArray, Child: makeRef("cal")}

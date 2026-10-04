@@ -16,7 +16,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
 )
 
-// driftFinding mirrors enrichment.Finding but is file-anchored; Line/Col are 1-based, zero for file-level GE000.
+// driftFinding mirrors enrichment.Finding but is file-anchored; Line/Col are 1-based, zero for file-level enrich-mirror-unreadable.
 type driftFinding struct {
 	File     string              `json:"file"`
 	Severity enrichment.Severity `json:"severity"`
@@ -27,8 +27,8 @@ type driftFinding struct {
 	Col      int                 `json:"col,omitempty"`
 }
 
-// runMirrorDriftCheck is `enrich [<dir>] --no-emit [--json]`: breadcrumb drift, GE001 to GE003 (codes_mirror.go).
-// GE002/GE003 come from mirror.CheckBreadcrumbDrift; GE001 lives here, as only the CLI knows the genDir config.
+// runMirrorDriftCheck is `enrich [<dir>] --no-emit [--json]`: breadcrumb drift, enrich-mirror-moved to enrich-mirror-type-missing (codes_mirror.go).
+// enrich-mirror-source-missing/enrich-mirror-type-missing come from mirror.CheckBreadcrumbDrift; enrich-mirror-moved lives here, as only the CLI knows the genDir config.
 // With no argument it walks the enrich dir from cwd's tsconfig; mirrorDriftExitCode picks the exit code.
 func runMirrorDriftCheck(positional []string, genDirFlag string, asJSON, requireComplete bool, tsconfigFlag string) {
 	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
@@ -99,8 +99,8 @@ func runMirrorDriftCheck(positional []string, genDirFlag string, asJSON, require
 // mirrorDriftExitCode is the tree walk's exit-code policy, the twin of the
 // single-file lane's enrichFindingFails: a finding carrying the Completeness bit
 // fails only under --require-complete, and any Error-severity finding (a stale
-// carcass via hygieneSeverity, GE000/GE002/GE003 drift) fails both lanes. The
-// cosmetic GE001 location drift is a Warning and never fails.
+// carcass via hygieneSeverity, enrich-mirror-unreadable/enrich-mirror-source-missing/enrich-mirror-type-missing drift) fails both lanes. The
+// cosmetic enrich-mirror-moved location drift is a Warning and never fails.
 func mirrorDriftExitCode(findings []driftFinding, requireComplete bool) int {
 	for _, finding := range findings {
 		if diagnostics.IsCompleteness(finding.Code) {
@@ -199,7 +199,7 @@ func checkMirrorFile(mirrorFile, genDirFlag, tsconfigPath string, parsed *progra
 		})
 	}
 
-	// GE002 / GE003 — the shared source-existence + type-declaration checks.
+	// enrich-mirror-source-missing / enrich-mirror-type-missing — the shared source-existence + type-declaration checks.
 	for _, drift := range mirror.CheckBreadcrumbDrift(mirrorFile, text, nil) {
 		line, col := lineIndex.At(drift.Start)
 		findings = append(findings, driftFinding{
@@ -217,7 +217,7 @@ func checkMirrorFile(mirrorFile, genDirFlag, tsconfigPath string, parsed *progra
 		}
 	}
 
-	// GE001 — cosmetic location drift: the mirror file is not where the source's
+	// enrich-mirror-moved — cosmetic location drift: the mirror file is not where the source's
 	// computed mirror path would put it. CLI-only (needs the enrich config).
 	// The config anchors at the MIRROR file — the project that owns the mirror
 	// tree — exactly like the enrich write lane, so the two can never disagree. (An
@@ -316,7 +316,7 @@ func mirrorFamilyOf(enrichDir, mirrorFile string) (string, bool) {
 
 // isMockMirrorPath reports whether a committed mirror file lives under the mock
 // family dir (`…/enriched/mock/…`) — the cheap family signal the tree-walk
-// hygiene scan uses to pick the FT02x vs MD02x codes. A friendly or i18n mirror
+// hygiene scan uses to pick the enrich-text-* vs enrich-mock-* codes. A friendly or i18n mirror
 // (neither carries the mock segment) reports false → the FriendlyText codes.
 func isMockMirrorPath(mirrorFile string) bool {
 	return strings.Contains(filepath.ToSlash(mirrorFile), "/"+familyMock+"/")

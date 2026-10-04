@@ -81,7 +81,7 @@ skipUnlessBinary('disk RT cache (end-to-end)', () => {
     expect(rtFiles.length).toBeGreaterThan(0);
     const parsed = JSON.parse(fs.readFileSync(rtFiles[0], 'utf8'));
     // Mirrors disk.FormatVersion (internal/cachegen/diskcache/format.go), whose history lists every bump.
-    expect(parsed.version).toBe(20);
+    expect(parsed.version).toBe(21);
     expect(typeof parsed.structuralID).toBe('string');
     expect(parsed.structuralID.length).toBeGreaterThan(0);
     expect(typeof parsed.argsText).toBe('string');
@@ -162,7 +162,7 @@ skipUnlessBinary('disk RT cache (end-to-end)', () => {
   // them against the CURRENT build's call sites.
   it("re-emits an entry's diagnostics on a warm cache hit", async () => {
     const cacheDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-cache-diag-'));
-    // `speak` is a method, so the pj encoder drops it and reports PJ011.
+    // `speak` is a method, so the pj encoder drops it and reports json-prepare-method-dropped.
     const sources = {
       'warm.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
 export class Pet { name: string = 'x'; speak(): string { return this.name; } }
@@ -174,7 +174,7 @@ export const enc = createJsonEncoderFn<Pet>(undefined, {strategy: 'mutate'});
       try {
         await client.setSources({...MARKER_PACKAGE_OVERLAY, ...sources});
         const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
-        return (response.diagnostics ?? []).filter((d) => d.code === 'PJ011').map((d) => d.args?.[0] ?? '');
+        return (response.diagnostics ?? []).filter((d) => d.code === 'json-prepare-method-dropped').map((d) => d.args?.[0] ?? '');
       } finally {
         client.close();
       }

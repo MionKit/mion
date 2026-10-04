@@ -148,13 +148,13 @@ export const je = createJsonEncoderFn<Node>(undefined, {rejectCircularRefs: true
 	}
 }
 
-// TestInlineGuard_ArmedCompositeNeverTripsJCP001 — regression: the armed JSON
+// TestInlineGuard_ArmedCompositeNeverTripsInternalJsonPrimitiveMissing — regression: the armed JSON
 // composite carries the built-in findCycle id in its SoftDeps (that IS the
 // built-in's demand signal), but AssertCompositeSoftDeps must not read that
 // pure-fn edge as a composite-bound primitive: the assertion runs BEFORE
 // servePackagePureFns delivers the body, so treating it as a primitive fired a spurious
-// Error-severity JCP001 that failed batch builds.
-func TestInlineGuard_ArmedCompositeNeverTripsJCP001(t *testing.T) {
+// Error-severity internal-json-primitive-missing that failed batch builds.
+func TestInlineGuard_ArmedCompositeNeverTripsInternalJsonPrimitiveMissing(t *testing.T) {
 	r := setupInline(t, map[string]string{"a.ts": `import {createJsonEncoderFn} from '@mionjs/run-types';
 interface Node {name: string; next?: Node}
 export const je = createJsonEncoderFn<Node>(undefined, {rejectCircularRefs: true});
@@ -165,7 +165,7 @@ export const je = createJsonEncoderFn<Node>(undefined, {rejectCircularRefs: true
 	}
 	for _, d := range resp.Diagnostics {
 		if d.Code == diagnostics.CodeCompositeMissingPrimitive {
-			t.Fatalf("armed jsonEncoder tripped JCP001 on its pure-fn soft dep: args=%v", d.Args)
+			t.Fatalf("armed jsonEncoder tripped internal-json-primitive-missing on its pure-fn soft dep: args=%v", d.Args)
 		}
 	}
 	if _, ok := resp.EntryModules[entrymodules.ModuleName(purefnids.FindCycle, entrymodules.KindPureFn)]; !ok {

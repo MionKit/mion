@@ -26,7 +26,7 @@ func scanFormatPatternCTA(t *testing.T, code string) []diagnostics.Diagnostic {
 	}
 	var cta []diagnostics.Diagnostic
 	for _, diagnostic := range filterDiagsByFamily(response.Diagnostics, diagnostics.FamilyMarker) {
-		if strings.HasPrefix(diagnostic.Code, "CTA") {
+		if strings.HasPrefix(diagnostic.Code, "marker-comptime-arg-") {
 			cta = append(cta, diagnostic)
 		}
 	}
@@ -34,7 +34,7 @@ func scanFormatPatternCTA(t *testing.T, code string) []diagnostics.Diagnostic {
 }
 
 // TestFormatPatternCTA_BothSpellingsAccepted is the finding's regression test:
-// the registerFormatPattern value raised CTA003 ("function call") because the
+// the registerFormatPattern value raised marker-comptime-arg-forbidden-construct ("function call") because the
 // const-trace reached the call, while the inline literal beside it passed.
 func TestFormatPatternCTA_BothSpellingsAccepted(t *testing.T) {
 	const code = `import {registerFormatPattern} from '@mionjs/run-types';
@@ -56,7 +56,7 @@ void Model;
 // TestFormatPatternCTA_WidenedPatternRejected pins the limit of the acceptance:
 // the call is a leaf only because its RETURN TYPE carries every field as a
 // literal. A `FormatPattern` widened to `source: string` carries nothing the
-// scanner can read, so it stays a CTA003 rather than silently losing the pattern.
+// scanner can read, so it stays a marker-comptime-arg-forbidden-construct rather than silently losing the pattern.
 func TestFormatPatternCTA_WidenedPatternRejected(t *testing.T) {
 	const helpers = `import type {FormatPattern} from '@mionjs/run-types';
 export declare function widePattern(): FormatPattern;
@@ -70,7 +70,7 @@ void Model;
 `
 	cta := scanFormatPatternCTA2(t, map[string]string{"helpers.ts": helpers, "test.ts": code})
 	if len(cta) != 1 || cta[0].Code != diagnostics.CodeCompTimeArgsForbiddenConstruct {
-		t.Fatalf("expected 1 CTA003 for a widened FormatPattern, got %d: %+v", len(cta), cta)
+		t.Fatalf("expected 1 marker-comptime-arg-forbidden-construct for a widened FormatPattern, got %d: %+v", len(cta), cta)
 	}
 }
 
@@ -92,7 +92,7 @@ void Model;
 `
 	cta := scanFormatPatternCTA2(t, map[string]string{"helpers.ts": helpers, "test.ts": code})
 	if len(cta) != 1 || cta[0].Code != diagnostics.CodeCompTimeArgsForbiddenConstruct {
-		t.Fatalf("expected 1 CTA003 for a user-module bundle call, got %d: %+v", len(cta), cta)
+		t.Fatalf("expected 1 marker-comptime-arg-forbidden-construct for a user-module bundle call, got %d: %+v", len(cta), cta)
 	}
 }
 
@@ -107,7 +107,7 @@ func scanFormatPatternCTA2(t *testing.T, sources map[string]string) []diagnostic
 	}
 	var cta []diagnostics.Diagnostic
 	for _, diagnostic := range filterDiagsByFamily(response.Diagnostics, diagnostics.FamilyMarker) {
-		if strings.HasPrefix(diagnostic.Code, "CTA") {
+		if strings.HasPrefix(diagnostic.Code, "marker-comptime-arg-") {
 			cta = append(cta, diagnostic)
 		}
 	}

@@ -138,7 +138,7 @@ const routes = {
   }),
   boom: mion.route((ctx): void => {
     // Throwing IS what this fixture pins.
-    // @mion-expect-error MRT003
+    // @mion-expect-error rpc-handler-throws
     throw new Error('handler exploded with a secret /home/user/app.ts:12');
   }),
   compact: compactTestRoutes,

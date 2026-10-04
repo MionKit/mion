@@ -4,5 +4,5 @@
 // this dist and run selfCheck().
 export {selfCheck} from '../../shared/src/index';
 // Re-exported so the caveat's createValidateFn marker survives tree-shaking (the
-// lint transport test asserts its VL0xx diagnostic fires).
+// lint transport test asserts its validate-* diagnostic fires).
 export {isWithHandler} from './caveat';

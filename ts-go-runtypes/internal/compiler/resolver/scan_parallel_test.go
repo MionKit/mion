@@ -32,7 +32,7 @@ func parallelFixtureLarge() string {
 }
 
 // parallelFixtureSources spreads across the 4-checker pool: objects, unions, a large object, cross-file dedup, diagnostics
-// (MKR001/MKR003/CTA), an option variant, enums/templates/tuples, reflect-form annotations, classes/builtins.
+// (marker-calls-function-for-type/marker-in-generic-function/CTA), an option variant, enums/templates/tuples, reflect-form annotations, classes/builtins.
 func parallelFixtureSources() map[string]string {
 	return map[string]string{
 		"a_objects.ts": `import {createValidateFn, createGetValidationErrorsFn, getRunTypeId} from '@mionjs/run-types';
@@ -113,7 +113,7 @@ const acc = new Account();
 export const idReflect = getRunTypeId(acc);
 `,
 		// Non-serialisable members silently drop with per-family Warning
-		// diagnostics (VL010 / VE010 / json-family codes) — multiple
+		// diagnostics (validate-function-property-dropped / validation-errors-function-property-dropped / json-family codes) — multiple
 		// families emit RT-render diagnostics for the same type, which
 		// pins the cross-family diagnostic merge order in parallel mode.
 		"i_dropped.ts": `import {createValidateFn, createGetValidationErrorsFn, createJsonEncoderFn, getRunTypeId} from '@mionjs/run-types';

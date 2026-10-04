@@ -683,7 +683,7 @@ func TestAnonymousCycle_Refused(t *testing.T) {
 		}
 	}
 	if !foundCycleDiag {
-		t.Fatalf("expected a CNV001 unnamed-cycle diagnostic, got %+v", diags)
+		t.Fatalf("expected a convert-unsupported-kind unnamed-cycle diagnostic, got %+v", diags)
 	}
 	if !strings.Contains(output, "const plainRT = TF.string();") {
 		t.Errorf("the rest of the file still converts:\n%s", output)
@@ -705,7 +705,7 @@ func TestGenericDecl_Refused(t *testing.T) {
 	source := "type Box<T> = T;\ntype Plain = string;\n"
 	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
 	if len(diags) != 1 || diags[0].Code != convert.CodeGenericDecl {
-		t.Fatalf("expected one CNV002, got %+v", diags)
+		t.Fatalf("expected one convert-generic-declaration, got %+v", diags)
 	}
 	if !strings.Contains(output, "type Box<T> = T;") || !strings.Contains(output, "const plainRT = TF.string();") {
 		t.Errorf("generic declarations stay untouched while the rest converts:\n%s", output)

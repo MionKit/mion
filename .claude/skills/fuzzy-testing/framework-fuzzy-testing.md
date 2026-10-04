@@ -267,7 +267,7 @@ So before you trust a new rule, break the output on purpose and watch the rule c
 it. We did exactly this: we told a test to expect the wrong answer, watched it fail
 and point at the precise spot, then put it back. That proved the check actually
 works. (The real story is the negative control in "A real one" below — we asserted a
-bogus code, **MD999**, and confirmed the probe truly ran.)
+bogus code, **enrich-mock-bogus**, and confirmed the probe truly ran.)
 
 This repo encodes the soundness rule literally: corruption only happens at a
 position that can be _proven_ invalid in isolation, and the metamorphic comparison
@@ -738,7 +738,7 @@ The checklist sweep yields a concrete rule set:
 | **R2**  | ⑥ metamorphic        | **A single edit to T ⇒ a bounded, predictable change to E.** _add_ field → one new `@todo` scaffold node in both `friendly*` and `mock*`; _remove_ field → that node becomes an `@rtOrphanChild` carcass (authored value kept, **not** deleted); _rename_ → value carried under the new key via `@rtIds`; _retype_ → property-merged + MockData re-checked. _Local edit → local effect._                                                                                                                                                                                |
 | **R3**  | ⑦ preservation       | `enrich --update` **never modifies an authored leaf value**. An _unrelated_ change to T leaves every other authored label/pool byte-identical.                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | **R4**  | ⑤ differential       | `enrich --no-emit` and `enrich --update` agree on structure: if `enrich --no-emit` is clean (no `FT*/MD*/GE*` error) then `--update` makes **no structural change**; a missing/extra field is seen by both.                                                                                                                                                                                                                                                                                                                                                                                      |
-| **R5**  | ⑧ negative space     | Every malformed edit yields a **specific code** — never a crash, never silent accept: unrelated field → **FT002 / MD001**; bad `$errors` constraint key → **FT003**; bad `$[placeholder]` → **FT005**; bad mock pool value → **MD003**; a forbidden construct in a comptime-args `$errors` function (a call / ternary / spread / computed key / template `${}`) → **CTA003** (non-literal → CTA001, too deep → CTA002); deleted source type → **GE002**; renamed type → **GE003**. _(The precise answer to "unrelated node in comptime args → then what": **CTA003**.)_ |
+| **R5**  | ⑧ negative space     | Every malformed edit yields a **specific code** — never a crash, never silent accept: unrelated field → **enrich-text-unknown-field / enrich-mock-unknown-field**; bad `$errors` constraint key → **enrich-text-unknown-error-key**; bad `$[placeholder]` → **enrich-text-unknown-placeholder**; bad mock pool value → **enrich-mock-invalid-pool**; a forbidden construct in a comptime-args `$errors` function (a call / ternary / spread / computed key / template `${}`) → **marker-comptime-arg-forbidden-construct** (non-literal → marker-comptime-arg-not-literal, too deep → marker-comptime-arg-too-deep); deleted source type → **enrich-mirror-source-missing**; renamed type → **enrich-mirror-type-missing**. _(The precise answer to "unrelated node in comptime args → then what": **marker-comptime-arg-forbidden-construct**.)_ |
 | **R6**  | ③ convergence        | After `enrich --update` (then `--prune`), the file is a **fixed point**: `enrich --no-emit` passes and a second `--update` is a no-op.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | **R7**  | ②⑦ orphan round-trip | _remove_ X → `--update` keeps an `@rtOrphanChild` carcass; _re-add_ X → `--update` **restores the authored value** from it. But `--prune` in between deletes the carcass, so _remove → prune → re-add_ yields a fresh empty `@todo` (value gone). Both directions must hold exactly.                                                                                                                                                                                                                                                                                    |
 | **R8**  | invariant            | **`@todo` lifecycle:** emitted once on a new const; after the user deletes it, `--update` never re-adds it to an existing const, and `--prune` never removes it.                                                                                                                                                                                                                                                                                                                                                                                                        |
@@ -805,7 +805,7 @@ class InjectForbiddenComptimeArg implements fc.Command<Model, Real> {
     r.workspace.editEnrichment(injectForbiddenConstructIntoErrorsFn());
     const diags = r.workspace.run('check').diagnostics;
     // R5: a SPECIFIC code fires — never a crash, never silent.
-    expect(diags.some((d) => d.code === 'CTA003' || d.code === 'CTA001')).toBe(true);
+    expect(diags.some((d) => d.code === 'marker-comptime-arg-forbidden-construct' || d.code === 'marker-comptime-arg-not-literal')).toBe(true);
   }
 }
 
@@ -814,7 +814,7 @@ class InjectUnrelatedField implements fc.Command<Model, Real> {
   run(_m: Model, r: Real) {
     r.workspace.editEnrichment(addKey('totallyUnrelated', {pool: []}));
     const diags = r.workspace.run('check').diagnostics;
-    expect(diags.some((d) => d.code === 'FT002' || d.code === 'MD001')).toBe(true); // R5
+    expect(diags.some((d) => d.code === 'enrich-text-unknown-field' || d.code === 'enrich-mock-unknown-field')).toBe(true); // R5
   }
 }
 
@@ -872,7 +872,7 @@ control** (assert a bogus code) confirmed the negative-space probes truly execut
 the harness reports + shrinks:
 
 ```
-[R5] unknownMockField (step 0): expected MD999; check returned [MD001]
+[R5] unknownMockField (step 0): expected enrich-mock-bogus; check returned [enrich-mock-unknown-field]
 Minimal reproducer — seed 0xe6650f23, 1 event
 ```
 
@@ -882,12 +882,12 @@ express_):
 
 1. **`enrich --no-emit` is the wrong instrument for the comptime-args case.** The precise answer
    to _"a non-literal node inside a comptime-args `$errors` function → then what?"_:
-   it is policed at **build/transform time** as **CTA001/002/003**, NOT by `enrich --no-emit` —
+   it is policed at **build/transform time** as **marker-comptime-arg-not-literal / -too-deep / -forbidden-construct**, NOT by `enrich --no-emit` —
    `enrich --no-emit` deliberately treats a function-form `$errors` as opaque and walks past it
-   ([`ts-go-runtypes/internal/enrichment/validate.go`](../../../ts-go-runtypes/internal/enrichment/validate.go)). **MD003**
+   ([`ts-go-runtypes/internal/enrichment/validate.go`](../../../ts-go-runtypes/internal/enrichment/validate.go)). **enrich-mock-invalid-pool**
    (pool value vs field type) is build-time too. So a _check-driven_ fuzzer expresses
-   R5 for **FT002 / FT005 / MD001** (unknown field, bad placeholder, unknown mock
-   field) but **cannot** see CTA/MD003 — those need a second, build-driven harness.
+   R5 for **enrich-text-unknown-field / enrich-text-unknown-placeholder / enrich-mock-unknown-field** (unknown field, bad placeholder, unknown mock
+   field) but **cannot** see CTA/enrich-mock-invalid-pool — those need a second, build-driven harness.
    _The channel you observe through bounds your rule set._
 2. **`enrich --no-emit` silently returns zero findings when the type can't resolve.** A mirror
    whose `mion` import doesn't resolve (e.g. a fixture placed _outside_ the

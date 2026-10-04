@@ -137,14 +137,14 @@ describe.skipIf(!hasBinary)('CLI surface — parameter-effect matrix', () => {
     }
   });
 
-  it('scaffold emits the freshly-scaffolded @todo worklist (FT020/MD020) in one pass', () => {
+  it('scaffold emits the freshly-scaffolded @todo worklist (enrich-text-todo-left/enrich-mock-todo-left) in one pass', () => {
     const dir = makeFixture();
     try {
       const {stderr, status} = run(['enrich', 'models.ts', 'User', '--gen-dir', 'gen'], dir);
       // A successful scaffold exits 0 (the @todo placeholders are the expected state).
       expect(status).toBe(0);
-      expect(stderr).toContain('FT020');
-      expect(stderr).toContain('MD020');
+      expect(stderr).toContain('enrich-text-todo-left');
+      expect(stderr).toContain('enrich-mock-todo-left');
     } finally {
       rmSync(dir, {recursive: true, force: true});
     }
@@ -166,7 +166,7 @@ describe.skipIf(!hasBinary)('CLI surface — parameter-effect matrix', () => {
       const requireComplete = run(['enrich', 'models.ts', 'User', '--require-complete', '--gen-dir', 'gen'], dir);
       expect(snapshot(join(dir, 'gen'))).toEqual(before);
       expect(requireComplete.status).toBe(1);
-      expect(requireComplete.stdout + requireComplete.stderr).toMatch(/FT020|MD020/);
+      expect(requireComplete.stdout + requireComplete.stderr).toMatch(/enrich-text-todo-left|enrich-mock-todo-left/);
     } finally {
       rmSync(dir, {recursive: true, force: true});
     }

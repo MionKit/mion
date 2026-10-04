@@ -597,7 +597,7 @@ describe('sqlite columns: one column shape is one runtype entry', () => {
 });
 
 describe('sqlite columns: builder tables reflect on their own', () => {
-  // A column type carries no methods: the runtype id walks method return types (MKR009), alias args included.
+  // A column type carries no methods: the runtype id walks method return types (marker-self-instantiating-generic), alias args included.
   // Each probe is reflected first, with no hand-written twin before it.
   const solo = sqliteTable('solo', {
     id: integer('id', {primaryKey: [{autoIncrement: true}]}),

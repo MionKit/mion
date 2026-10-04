@@ -288,7 +288,7 @@ func TestRpc_RouterInitDetectionShapes(t *testing.T) {
 	sources["local.ts"] = "function createMionRouter() { return 1; }\nexport const m = createMionRouter();\n"
 	// a barrel that RENAMES the factory: the consumer file neither spells the factory's name
 	// nor names the router package, so the text pre-filter skips it by design (the walk runs on
-	// every program rebuild); BAT009 covers a program left without a router-init module
+	// every program rebuild); rpc-batch-router-init-hidden covers a program left without a router-init module
 	sources["renamingBarrel.ts"] = "export {createMionRouter as create} from '@mionjs/router';\n"
 	sources["viaRenamingBarrel.ts"] = "import {create} from './renamingBarrel.ts';\nexport const m = create();\n"
 	// a local wrapper: its OWN module calls the factory, so it is the router-init module and
@@ -466,7 +466,7 @@ func containsString(values []string, want string) bool {
 
 // TestRpc_NoRouterInitButRouterImported: a server whose router is created
 // behind a declaration-file wrapper (the one shape the detector cannot see)
-// still gets rpc/ written, plus a BAT009 RuntimeError (the table is written and
+// still gets rpc/ written, plus a rpc-batch-router-init-hidden RuntimeError (the table is written and
 // nothing imports it, so every batch request 404s); nothing is appended.
 func TestRpc_NoRouterInitButRouterImported(t *testing.T) {
 	sources := rpcSources()
@@ -485,12 +485,12 @@ func TestRpc_NoRouterInitButRouterImported(t *testing.T) {
 	}
 	warned := false
 	for _, diag := range gen.Diagnostics {
-		if diag.Code == "BAT009" && diag.Level == diagnostics.LevelRuntimeError && len(diag.Args) > 0 && strings.Contains(diag.Args[0], "batches.generated.js") {
+		if diag.Code == "rpc-batch-router-init-hidden" && diag.Level == diagnostics.LevelRuntimeError && len(diag.Args) > 0 && strings.Contains(diag.Args[0], "batches.generated.js") {
 			warned = true
 		}
 	}
 	if !warned {
-		t.Errorf("expected a BAT009 RuntimeError naming the table, got %+v", gen.Diagnostics)
+		t.Errorf("expected a rpc-batch-router-init-hidden RuntimeError naming the table, got %+v", gen.Diagnostics)
 	}
 	if code := transform(t, r, "server.ts"); strings.Contains(code, "batches.generated") {
 		t.Errorf("nothing must be appended without a router-init module:\n%s", code)
@@ -513,7 +513,7 @@ func TestRpc_ClientOnlyProgramNoWarning(t *testing.T) {
 		t.Errorf("a client-only program must write no rpc/, got %q", gen.BatchesModule)
 	}
 	for _, diag := range gen.Diagnostics {
-		if diag.Code == "BAT009" {
+		if diag.Code == "rpc-batch-router-init-hidden" {
 			t.Errorf("unexpected %s on a client-only program: %v", diag.Code, diag.Args)
 		}
 	}

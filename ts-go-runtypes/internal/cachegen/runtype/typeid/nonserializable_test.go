@@ -179,7 +179,7 @@ export const id = getRunTypeId<LibSpiral<string>>();
 	if len(response.Sites) != 1 {
 		t.Fatalf("a lib type is taken whole, so the spiral never happens: got %d sites, %v", len(response.Sites), codes)
 	}
-	if slices.Contains(codes, "MKR008") || slices.Contains(codes, "MKR009") {
+	if slices.Contains(codes, "marker-type-too-deep") || slices.Contains(codes, "marker-self-instantiating-generic") {
 		t.Errorf("the walk must never have descended into the lib type, got %v", codes)
 	}
 	// Taken whole, not merely surviving: no children, and tagged as non-data.
@@ -204,7 +204,7 @@ export const id = getRunTypeId<LibSpiral<string>>();
 // inversion. "Not data" now keys on a declaration living inside the BUNDLED
 // standard library, so a basename test alone (`lib.` + `.d.ts`) would swallow a
 // consumer's own `src/lib.d.ts` and silently stop reflecting types they wrote.
-// The author's own type stays data, and a spiral in it still gets MKR009's
+// The author's own type stays data, and a spiral in it still gets marker-self-instantiating-generic's
 // actionable advice.
 func TestNonSerializable_UserLibDtsIsNotOurGap(t *testing.T) {
 	_, response := scanUnderLibWith(t, "esnext", `import {getRunTypeId} from '@mionjs/run-types';
@@ -216,8 +216,8 @@ export const id = getRunTypeId<{feed: MySpiral<string>}>();
 	for _, diagnostic := range response.Diagnostics {
 		codes = append(codes, diagnostic.Code)
 	}
-	if !slices.Contains(codes, "MKR009") {
-		t.Fatalf("expected MKR009's actionable advice for the author's own type, got %v", codes)
+	if !slices.Contains(codes, "marker-self-instantiating-generic") {
+		t.Fatalf("expected marker-self-instantiating-generic's actionable advice for the author's own type, got %v", codes)
 	}
 }
 
@@ -240,10 +240,10 @@ export const id = getRunTypeId<PagedCursor<string>>();
 	}
 }
 
-// TestNonSerializable_OwnTypeKeepsMKR009 — the other side of the split: a
-// self-instantiating generic the author actually wrote still gets MKR009, whose
+// TestNonSerializable_OwnTypeKeepsMarkerSelfInstantiatingGeneric — the other side of the split: a
+// self-instantiating generic the author actually wrote still gets marker-self-instantiating-generic, whose
 // advice they can act on.
-func TestNonSerializable_OwnTypeKeepsMKR009(t *testing.T) {
+func TestNonSerializable_OwnTypeKeepsMarkerSelfInstantiatingGeneric(t *testing.T) {
 	_, response := scanUnderLib(t, "esnext", `import {getRunTypeId} from '@mionjs/run-types';
 interface Iter<T> {map<U>(fn: (x: T) => U): Iter<U>}
 export const id = getRunTypeId<Iter<string>>();
@@ -252,7 +252,7 @@ export const id = getRunTypeId<Iter<string>>();
 	for _, diagnostic := range response.Diagnostics {
 		codes = append(codes, diagnostic.Code)
 	}
-	if !slices.Contains(codes, "MKR009") {
-		t.Fatalf("a type the author wrote must keep MKR009, got %v", codes)
+	if !slices.Contains(codes, "marker-self-instantiating-generic") {
+		t.Fatalf("a type the author wrote must keep marker-self-instantiating-generic, got %v", codes)
 	}
 }

@@ -699,7 +699,7 @@ func TestMarker_ServedFromItsArtifact(t *testing.T) {
 	}
 }
 
-// With neither artifact nor sources it serves nothing, through the PFE9016 lane any unbuilt dependency uses.
+// With neither artifact nor sources it serves nothing, through the purefn-package-not-built lane any unbuilt dependency uses.
 func TestMarker_WithoutArtifactOrSourcesServesNothing(t *testing.T) {
 	store, cwd := sourceTree(t, nil)
 	root, _ := store.ResolvePackage(MarkerPackageName, cwd)
@@ -800,7 +800,7 @@ func TestStore_OverridesOfAnotherCompilerAreSkipped(t *testing.T) {
 	}
 }
 
-// TestStore_OverridesReportAnUnreadableIndex: a broken index is PFE9017, never silently no overrides.
+// TestStore_OverridesReportAnUnreadableIndex: a broken index is purefn-artifact-unreadable, never silently no overrides.
 func TestStore_OverridesReportAnUnreadableIndex(t *testing.T) {
 	store := storeOver(map[string]string{
 		"/money/package.json":                  `{"name": "@acme/money"}`,
@@ -825,7 +825,7 @@ func TestStore_OverridesSkipAnotherPackagesIndex(t *testing.T) {
 	}
 }
 
-// TestStore_OverridesConflictAcrossIndexes: an ESM and a CJS index giving one type different ids is PFE9018.
+// TestStore_OverridesConflictAcrossIndexes: an ESM and a CJS index giving one type different ids is purefn-artifact-conflict.
 func TestStore_OverridesConflictAcrossIndexes(t *testing.T) {
 	render := func(id string) string {
 		rows := []ArtifactOverrideRow{{BaseKey: "{amount:number}", Family: "validate", ID: id}}

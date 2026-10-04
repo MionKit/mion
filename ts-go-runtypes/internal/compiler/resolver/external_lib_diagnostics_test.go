@@ -89,7 +89,7 @@ registerThing(appName);
 
 	var appCTA, coreCTA int
 	for _, d := range resp.Diagnostics {
-		if !strings.HasPrefix(d.Code, "CTA") {
+		if !strings.HasPrefix(d.Code, "marker-comptime-arg-") {
 			continue
 		}
 		switch {

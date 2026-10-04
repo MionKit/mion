@@ -1,7 +1,7 @@
 // End-to-end acceptance test for marker-scanner diagnostics. Drives the
 // Go binary over inline sources, verifying:
 //
-//   1. response.diagnostics surfaces an MKR001 warning when a marker
+//   1. response.diagnostics surfaces an marker-calls-function-for-type warning when a marker
 //      call's reflect-form value argument is a function-call expression
 //      (`createValidateFn(getX())`).
 //   2. The diagnostic message names the called function and recommends
@@ -39,7 +39,7 @@ export const _ = createValidateFn(makeUser());
       const response = await client.scanFiles(Object.keys(sources));
       const diagnostics = markerDiagsOf(response);
       expect(diagnostics).toHaveLength(1);
-      expect(diagnostics[0].code).toBe('MKR001');
+      expect(diagnostics[0].code).toBe('marker-calls-function-for-type');
       expect(diagnostics[0].severity).toBe(Severity.Warning);
       // Args carry the dynamic identifier (function name); the catalog
       // template substitutes it into the headline and detail.
@@ -121,7 +121,7 @@ export const _ = createValidateFn<ReturnType<typeof makeUser>>();
     });
   });
 
-  register('errors with MKR003 when marker call is inside a generic wrapper', async () => {
+  register('errors with marker-in-generic-function when marker call is inside a generic wrapper', async () => {
     const sources = {
       'free-tparam.ts': `import {getRunTypeId} from '@mionjs/run-types';
 export function makeId<T>() {
@@ -133,28 +133,28 @@ export function makeId<T>() {
       const response = await client.scanFiles(Object.keys(sources));
       const diagnostics = markerDiagsOf(response);
       expect(diagnostics).toHaveLength(1);
-      expect(diagnostics[0].code).toBe('MKR003');
+      expect(diagnostics[0].code).toBe('marker-in-generic-function');
       // Error severity (not Warning): if the generic wrapper is ever
       // called, getRunTypeId() throws at runtime ("no id injected"). The
       // build halts so the user fixes the structural issue before
       // shipping the wrapper.
       expect(diagnostics[0].severity).toBe(Severity.Error);
-      // MKR003 currently has no dynamic args — the catalog headline
+      // marker-in-generic-function currently has no dynamic args — the catalog headline
       // names the issue ("generic function ... unresolved") generically.
       expect(diagnostics[0].args).toBeUndefined();
       // No site emitted — the marker can't be injected without a resolved T.
-      // The user gets the build-time MKR003 + the runtime "no id injected"
+      // The user gets the build-time marker-in-generic-function + the runtime "no id injected"
       // throw when the wrapper is actually called.
       expect(response.sites.length).toBe(0);
     });
   });
 
-  register('does NOT emit MKR003 when a wrapper forwards its handle (pass-through)', async () => {
+  register('does NOT emit marker-in-generic-function when a wrapper forwards its handle (pass-through)', async () => {
     // Regression: the documented wrapper pattern resolves its injected handle by
     // FORWARDING it to a public resolver as the trailing arg. That inner call has
     // its id slot filled, so it is a pass-through — the build must leave it
     // untouched and must NOT flag the wrapper's free T as an unresolved injection
-    // (MKR003). Only the OUTER concrete-T call is an injection site.
+    // (marker-in-generic-function). Only the OUTER concrete-T call is an injection site.
     const sources = {
       'forward.ts': `import {getRunTypeId, type InjectRunTypeId} from '@mionjs/run-types';
 export function describeType<T>(id?: InjectRunTypeId<T>): InjectRunTypeId<T> {
@@ -165,8 +165,8 @@ export const d = describeType<{a: number}>();
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources));
-      const mkr003 = markerDiagsOf(response).filter((d) => d.code === 'MKR003');
-      expect(mkr003).toEqual([]);
+      const markerInGenericFunction = markerDiagsOf(response).filter((d) => d.code === 'marker-in-generic-function');
+      expect(markerInGenericFunction).toEqual([]);
       // Only the outer describeType<{a: number}>() call is an injection site.
       expect(response.sites.length).toBe(1);
     });
@@ -188,41 +188,44 @@ export const r = route((ctx: unknown, name: string) => name.length);
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources));
       // No duplicate-family error; the four-family marker is a valid site.
-      expect(markerDiagsOf(response).filter((d) => d.code === 'MKR006')).toEqual([]);
+      expect(markerDiagsOf(response).filter((d) => d.code === 'marker-duplicate-function-family')).toEqual([]);
       expect(response.sites.length).toBe(1);
       // One injected handle per named family — four, in declaration order.
       expect(response.sites[0].fnIds?.length).toBe(4);
     });
   });
 
-  register('errors with MKR015 when an InjectTypeFnArgs marker names a family that does not exist', async () => {
-    // A marker names each function by its readable name. The short tags that
-    // markers used to take name the entries the build EMITS, so one of those
-    // resolves to nothing: no compiled entry, and a wrapper left holding an
-    // empty slot that only fails once it runs. The build says so instead, and
-    // names the family the author meant.
-    const sources = {
-      'stale-fn.ts': `import type {InjectTypeFnArgs} from '@mionjs/run-types';
+  register(
+    'errors with marker-unknown-function-family when an InjectTypeFnArgs marker names a family that does not exist',
+    async () => {
+      // A marker names each function by its readable name. The short tags that
+      // markers used to take name the entries the build EMITS, so one of those
+      // resolves to nothing: no compiled entry, and a wrapper left holding an
+      // empty slot that only fails once it runs. The build says so instead, and
+      // names the family the author meant.
+      const sources = {
+        'stale-fn.ts': `import type {InjectTypeFnArgs} from '@mionjs/run-types';
 type Handler = (ctx: unknown, ...rest: any[]) => unknown;
 function route<H extends Handler>(handler: H, fns?: InjectTypeFnArgs<Parameters<H>, 'verr'>) {
   return {handler, fns};
 }
 export const r = route((ctx: unknown, name: string) => name.length);
 `,
-    };
-    await withInlineSources(sources, async ({client}) => {
-      const response = await client.scanFiles(Object.keys(sources));
-      const diagnostics = markerDiagsOf(response).filter((d) => d.code === 'MKR015');
-      expect(diagnostics).toHaveLength(1);
-      // LevelError: nothing was compiled for the slot the marker asked for.
-      expect(diagnostics[0].level).toBe(Level.Error);
-      // The unknown token, then the did-you-mean naming the family it emits for.
-      expect(diagnostics[0].args?.[0]).toBe('verr');
-      expect(diagnostics[0].args?.[1]).toContain('validationErrors');
-    });
-  });
+      };
+      await withInlineSources(sources, async ({client}) => {
+        const response = await client.scanFiles(Object.keys(sources));
+        const diagnostics = markerDiagsOf(response).filter((d) => d.code === 'marker-unknown-function-family');
+        expect(diagnostics).toHaveLength(1);
+        // LevelError: nothing was compiled for the slot the marker asked for.
+        expect(diagnostics[0].level).toBe(Level.Error);
+        // The unknown token, then the did-you-mean naming the family it emits for.
+        expect(diagnostics[0].args?.[0]).toBe('verr');
+        expect(diagnostics[0].args?.[1]).toContain('validationErrors');
+      });
+    }
+  );
 
-  register('reports MKR015 from a multi-slot signature too, and in both call shapes', async () => {
+  register('reports marker-unknown-function-family from a multi-slot signature too, and in both call shapes', async () => {
     // The unknown-family check lives in the shared fn resolution, but the two
     // analyze paths reach it separately: a single trailing marker and a
     // multi-slot signature that fills several marker parameters at once. Pin
@@ -243,7 +246,7 @@ export const r = route((ctx: unknown, name: string) => name.length);
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources));
-      const diagnostics = markerDiagsOf(response).filter((d) => d.code === 'MKR015');
+      const diagnostics = markerDiagsOf(response).filter((d) => d.code === 'marker-unknown-function-family');
       // Only the stale slot reports; the two readable ones beside it are fine.
       expect(diagnostics).toHaveLength(1);
       expect(diagnostics[0].args?.[0]).toBe('pjs');
@@ -265,7 +268,7 @@ export const fromValue = createThing(value);
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources));
-      const diagnostics = markerDiagsOf(response).filter((d) => d.code === 'MKR015');
+      const diagnostics = markerDiagsOf(response).filter((d) => d.code === 'marker-unknown-function-family');
       // One per call site, and both name the same family.
       expect(diagnostics).toHaveLength(2);
       for (const diagnostic of diagnostics) {
@@ -292,12 +295,12 @@ export const r = route((ctx: unknown, name: string) => name.length);
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources));
-      expect(markerDiagsOf(response).filter((d) => d.code === 'MKR015')).toEqual([]);
+      expect(markerDiagsOf(response).filter((d) => d.code === 'marker-unknown-function-family')).toEqual([]);
       expect(response.sites[0].fnIds?.length).toBe(7);
     });
   });
 
-  register('warns with MKR006 when an InjectTypeFnArgs marker repeats a family', async () => {
+  register('warns with marker-duplicate-function-family when an InjectTypeFnArgs marker repeats a family', async () => {
     const sources = {
       'dup-fn.ts': `import type {InjectTypeFnArgs} from '@mionjs/run-types';
 type Handler = (ctx: unknown, ...rest: any[]) => unknown;
@@ -309,7 +312,7 @@ export const r = route((ctx: unknown, name: string) => name.length);
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources));
-      const diagnostics = markerDiagsOf(response).filter((d) => d.code === 'MKR006');
+      const diagnostics = markerDiagsOf(response).filter((d) => d.code === 'marker-duplicate-function-family');
       expect(diagnostics).toHaveLength(1);
       // LevelWarning: the scan DEDUPES the repeated key and emits the site
       // normally, so what ships is correct and only the source is untidy. It
@@ -337,7 +340,7 @@ export const _ = createValidateFn(makeUser());
       const diagnostic = markerDiagsOf(response)[0];
       expect(diagnostic).toBeDefined();
       const line = formatTscDiagnostic(diagnostic);
-      expect(line).toMatch(/^[^(]+\(\d+,\d+\):\s+warning\s+MKR001:\s+.+$/);
+      expect(line).toMatch(/^[^(]+\(\d+,\d+\):\s+warning\s+marker-calls-function-for-type:\s+.+$/);
     });
   });
 });

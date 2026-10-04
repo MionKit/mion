@@ -39,7 +39,7 @@ func ReadNumberParam(params map[string]any, key string) (float64, bool) {
 
 // PatternSampleLengthHints projects a format's length bounds onto the pattern sample generator's hints (0 = unbounded).
 // Lengths count UTF-16 code units on both sides.
-// The ONE hints derivation: the resolver's enrichment pass and the pattern emitter's FMT005 replay both feed
+// The ONE hints derivation: the resolver's enrichment pass and the pattern emitter's format-sample-generation-failed replay both feed
 // Engine.GeneratePattern, whose memo keys must match exactly.
 func PatternSampleLengthHints(params map[string]any) (int, int) {
 	if length, ok := ReadNumberParam(params, "length"); ok && length > 0 {

@@ -100,7 +100,7 @@ export const slugify = registerPureFnFactory(function () { return function () { 
 	}
 }
 
-func TestValidatePureFnDependencies_MissingID_PFE9012(t *testing.T) {
+func TestValidatePureFnDependencies_MissingID_PurefnNotRegistered(t *testing.T) {
 	idx := NewIndex(nil)
 	diags := ValidatePureFnDependencies([]protocol.PureFnDep{{ID: "@acme/app/src/a#pf_doesNotExist"}}, idx)
 	if len(diags) != 1 {
@@ -114,7 +114,7 @@ func TestValidatePureFnDependencies_MissingID_PFE9012(t *testing.T) {
 	}
 }
 
-// TestValidatePureFnDependencies_PackageOwnedExempt pins the PFE9012
+// TestValidatePureFnDependencies_PackageOwnedExempt pins the purefn-not-registered
 // false-positive fix: a reference to a @mionjs/run-types-owned pure fn must
 // NEVER fire here — even against an EMPTY index, which is exactly the published
 // consumer's shape (run-types resolved to its .d.ts, so no registration source
@@ -148,12 +148,12 @@ func TestValidatePureFnDependencies_DedupesRepeatedMisses(t *testing.T) {
 
 // An id an installed package owns is validated by the serve step against that
 // package's compiled files, so the sink-based check must not call it missing;
-// an id the predicate does not claim stays a PFE9012.
+// an id the predicate does not claim stays a purefn-not-registered.
 func TestValidatePureFnDependencies_LibraryDepExempt(t *testing.T) {
 	idx := NewIndex(nil)
 	idx.LibraryDep = func(id string) bool { return id == "@acme/text/src/slug#pf_slugify" }
 	diags := ValidatePureFnDependencies([]protocol.PureFnDep{{ID: "@acme/text/src/slug#pf_slugify"}, {ID: "@acme/app/src/a#pf_gone"}}, idx)
 	if len(diags) != 1 || diags[0].Args[0] != "@acme/app/src/a#pf_gone" {
-		t.Fatalf("expected one PFE9012 for the program's own miss, got %+v", diags)
+		t.Fatalf("expected one purefn-not-registered for the program's own miss, got %+v", diags)
 	}
 }

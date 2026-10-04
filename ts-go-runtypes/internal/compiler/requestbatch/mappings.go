@@ -17,7 +17,7 @@ const asArgMethod = "asArg"
 // mapperSourceParamIndex is the slot every mapper factory reads its source route from.
 const mapperSourceParamIndex = 0
 
-// Mapper rejection reasons, surfaced as BAT004's `{0}` argument.
+// Mapper rejection reasons, surfaced as rpc-batch-mapper-unreadable's `{0}` argument.
 const (
 	reasonMapperAfterSpread = "mapping follows a spread argument, so its parameter position cannot be read"
 	reasonMapperReassigned  = "mapping binding is reassigned after its initializer"
@@ -65,7 +65,7 @@ func (scope *fileScope) resolveMappings(routeIds []string, routeCalls []*ast.Nod
 
 // resolveMapperRef finds the branded mapper-factory call behind a route argument, through `.asArg()`,
 // bindings and wrappers. ok is false for a plain value the server never maps; a non-empty reason marks a
-// reference that IS a mapping but cannot be read, the BAT004 argument.
+// reference that IS a mapping but cannot be read, the rpc-batch-mapper-unreadable argument.
 func (scope *fileScope) resolveMapperRef(node *ast.Node, depth int) (mapperCall *ast.Node, ok bool, reason string) {
 	if depth > comptimeargs.DepthCap {
 		return nil, false, ""
@@ -151,8 +151,8 @@ func (scope *fileScope) isMapperFactoryCall(call *ast.Node) bool {
 }
 
 // readMapping reads one branded mapper-factory call into a Mapping for the route at targetIndex. The source
-// must sit before the target (BAT002) and the argument position must be one the target route declares
-// (BAT006); both report at `written`, the argument in the batched call, since that is where the fix goes.
+// must sit before the target (rpc-batch-source-not-before) and the argument position must be one the target route declares
+// (rpc-batch-argument-out-of-range); both report at `written`, the argument in the batched call, since that is where the fix goes.
 func (scope *fileScope) readMapping(mapperCall, written *ast.Node, routeIds []string, targetCall *ast.Node, targetIndex, paramIndex int) (Mapping, []diagnostics.Diagnostic) {
 	callExpr := mapperCall.AsCallExpression()
 	var args []*ast.Node

@@ -193,7 +193,7 @@ export const double = registerPureFn((n: number): number => n * 2%s);`
 	}
 }
 
-func TestExtractRegistration_ExplicitIDMismatch_PFE9014(t *testing.T) {
+func TestExtractRegistration_ExplicitIDMismatch_PurefnIdMismatch(t *testing.T) {
 	// A hand-pasted or stale id would register the body under one id while every
 	// reference to it uses the other, so it yields no entry at all.
 	entries, diags := extractFromOverlay(t, map[string]string{
@@ -205,7 +205,7 @@ export const double = registerPureFn((n: number): number => n * 2, '@acme/app/a#
 		t.Fatalf("a mismatched id must yield no entry, got %+v", entries)
 	}
 	if len(diags) != 1 || diags[0].Code != CodePureFnIdMismatch {
-		t.Fatalf("expected one PFE9014, got %+v", diags)
+		t.Fatalf("expected one purefn-id-mismatch, got %+v", diags)
 	}
 	if len(diags[0].Args) != 2 || diags[0].Args[0] != "@acme/app/a#pf_somethingElse" || !strings.HasPrefix(diags[0].Args[1], idPrefix) {
 		t.Errorf("expected (written, computed) args, got %v", diags[0].Args)
@@ -352,7 +352,7 @@ export const double = registerPureFn((n: number): number => n * 2);`,
 
 func TestExtractRegistration_ForwardedArgNotExtracted(t *testing.T) {
 	// A call whose arg is a forwarded identifier (not an inline function) — the
-	// wrapper body's own registerPureFn(fn, id) — extracts nothing: PFN001 is the
+	// wrapper body's own registerPureFn(fn, id) — extracts nothing: purefn-not-inline is the
 	// resolver's job, so this pass bails quietly and the rewrite stays idempotent.
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `

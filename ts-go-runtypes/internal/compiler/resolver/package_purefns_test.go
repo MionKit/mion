@@ -137,7 +137,7 @@ export const title = registerPureFn(t2, '` + libTitleID + `');
 `
 	resp := scanLibConsumer(t, files)
 	if codes := codesOf(resp); len(codes) != 1 || codes[0] != diagnostics.CodePureFnDepUnbuilt {
-		t.Fatalf("expected one PFE9016, got %+v", resp.Diagnostics)
+		t.Fatalf("expected one purefn-package-not-built, got %+v", resp.Diagnostics)
 	}
 	if _, served := resp.EntryModules[libSlugMod]; served {
 		t.Error("a body read out of the bundle was served")
@@ -177,19 +177,19 @@ export const title = registerPureFnFactory(function (utl) {
 	}
 }
 
-// TestPackagePureFns_UnbuiltPackageErrors: no artifact and no src is the error PFE9016, once, and the dep stubs out.
+// TestPackagePureFns_UnbuiltPackageErrors: no artifact and no src is the error purefn-package-not-built, once, and the dep stubs out.
 func TestPackagePureFns_UnbuiltPackageErrors(t *testing.T) {
 	resp := scanLibConsumer(t, map[string]string{
 		"node_modules/@acme/text/package.json":    libPackage,
 		"node_modules/@acme/text/dist/index.d.ts": libDts,
 		"node_modules/@acme/text/dist/index.js":   "export const title = registerPureFn(null, '" + libTitleID + "');\n",
 	})
-	// tsc's emit carries no literal and the package has nothing to resolve the name through: PFE9016 alone.
+	// tsc's emit carries no literal and the package has nothing to resolve the name through: purefn-package-not-built alone.
 	if codes := codesOf(resp); len(codes) != 1 || codes[0] != diagnostics.CodePureFnDepUnbuilt {
-		t.Fatalf("expected one PFE9016, got %+v", resp.Diagnostics)
+		t.Fatalf("expected one purefn-package-not-built, got %+v", resp.Diagnostics)
 	}
 	if args := resp.Diagnostics[0].Args; len(args) != 2 || args[0] != "title" || args[1] != "@acme/text" {
-		t.Errorf("PFE9016 must name the binding and the package, got %v", args)
+		t.Errorf("purefn-package-not-built must name the binding and the package, got %v", args)
 	}
 	typed := map[string]string{
 		"node_modules/@acme/text/package.json":    libPackage,
@@ -198,10 +198,10 @@ func TestPackagePureFns_UnbuiltPackageErrors(t *testing.T) {
 	}
 	resp = scanLibConsumer(t, typed)
 	if codes := codesOf(resp); len(codes) != 1 || codes[0] != diagnostics.CodePureFnDepUnbuilt {
-		t.Fatalf("expected one PFE9016, got %+v", resp.Diagnostics)
+		t.Fatalf("expected one purefn-package-not-built, got %+v", resp.Diagnostics)
 	}
 	if args := resp.Diagnostics[0].Args; len(args) != 2 || args[0] != libTitleID || args[1] != "@acme/text" {
-		t.Errorf("PFE9016 must name the id and the package, got %v", args)
+		t.Errorf("purefn-package-not-built must name the id and the package, got %v", args)
 	}
 	if resp.Diagnostics[0].Severity != diagnostics.SeverityError {
 		t.Errorf("an unbuilt package is an error, got %d", resp.Diagnostics[0].Severity)
@@ -213,13 +213,13 @@ func TestPackagePureFns_UnbuiltPackageErrors(t *testing.T) {
 	}
 }
 
-// TestPackagePureFns_BuiltPackageLacksId: an artifact without the demanded row is a real miss, PFE9012, as for a built-in.
+// TestPackagePureFns_BuiltPackageLacksId: an artifact without the demanded row is a real miss, purefn-not-registered, as for a built-in.
 func TestPackagePureFns_BuiltPackageLacksId(t *testing.T) {
 	files := builtTextLib(libArtifact(libArtifactDir, constants.EmitCode, libSlugEntry))
 	files["node_modules/@acme/text/dist/index.d.ts"] = "export declare const title: '" + libTitleID + "';\n"
 	resp := scanLibConsumer(t, files)
 	if codes := codesOf(resp); len(codes) != 1 || codes[0] != diagnostics.CodeMissingPureFnDep {
-		t.Fatalf("expected one PFE9012, got %+v", resp.Diagnostics)
+		t.Fatalf("expected one purefn-not-registered, got %+v", resp.Diagnostics)
 	}
 }
 
@@ -235,12 +235,12 @@ func TestPackagePureFns_ArtifactConflictIsAnError(t *testing.T) {
 	}
 	resp := scanLibConsumer(t, files)
 	if codes := codesOf(resp); len(codes) != 1 || codes[0] != diagnostics.CodePureFnArtifactConflict {
-		t.Fatalf("expected one PFE9018, got %+v", resp.Diagnostics)
+		t.Fatalf("expected one purefn-artifact-conflict, got %+v", resp.Diagnostics)
 	}
 	args := resp.Diagnostics[0].Args
 	module := purefnindex.ModulePath(libTitleID)
 	if len(args) != 3 || args[0] != libTitleID || !strings.HasSuffix(args[1], libArtifactDir+"/"+module) || !strings.HasSuffix(args[2], cjsDir+"/"+module) {
-		t.Errorf("PFE9018 must name the id and both modules, got %v", args)
+		t.Errorf("purefn-artifact-conflict must name the id and both modules, got %v", args)
 	}
 	if resp.Diagnostics[0].Severity != diagnostics.SeverityError {
 		t.Errorf("a conflict is an error, got %d", resp.Diagnostics[0].Severity)
@@ -250,8 +250,8 @@ func TestPackagePureFns_ArtifactConflictIsAnError(t *testing.T) {
 	}
 }
 
-// TestPackagePureFns_NewerArtifactWarns: a newer index is skipped with PFE9017 naming the file and the reason,
-// and the package then reads as unbuilt (PFE9016), never as a silently served guess.
+// TestPackagePureFns_NewerArtifactWarns: a newer index is skipped with purefn-artifact-unreadable naming the file and the reason,
+// and the package then reads as unbuilt (purefn-package-not-built), never as a silently served guess.
 func TestPackagePureFns_NewerArtifactWarns(t *testing.T) {
 	files := builtTextLib(libArtifact(libArtifactDir, constants.EmitCode, libSlugEntry, libTitleEntry))
 	files[libIndexPath] = strings.Replace(files[libIndexPath], `"format": 1`, `"format": 7`, 1)
@@ -259,11 +259,11 @@ func TestPackagePureFns_NewerArtifactWarns(t *testing.T) {
 	resp := scanLibConsumer(t, files)
 	codes := codesOf(resp)
 	if len(codes) != 2 || codes[0] != diagnostics.CodePureFnArtifactUnreadable || codes[1] != diagnostics.CodePureFnDepUnbuilt {
-		t.Fatalf("expected PFE9017 then PFE9016, got %+v", resp.Diagnostics)
+		t.Fatalf("expected purefn-artifact-unreadable then purefn-package-not-built, got %+v", resp.Diagnostics)
 	}
 	args := resp.Diagnostics[0].Args
 	if len(args) != 2 || !strings.HasSuffix(args[0], libIndexPath) || !strings.Contains(args[1], "newer artifact format 7") {
-		t.Errorf("PFE9017 must name the file and the reason, got %v", args)
+		t.Errorf("purefn-artifact-unreadable must name the file and the reason, got %v", args)
 	}
 }
 

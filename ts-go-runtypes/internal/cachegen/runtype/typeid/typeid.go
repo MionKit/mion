@@ -56,8 +56,8 @@ type Computer struct {
 	// reads this flag to raise a diagnostic. Reset per top-level walk via ResetDepthExceeded.
 	depthExceeded bool
 	// depthCulprit is the cause classified when depthExceeded latches: the name of the type whose
-	// instantiations dominate the overflowing path (a SELF-INSTANTIATING GENERIC, surfaced as MKR009), or ""
-	// when no single named type dominates (plain too-deep nesting — MKR008).
+	// instantiations dominate the overflowing path (a SELF-INSTANTIATING GENERIC, surfaced as marker-self-instantiating-generic), or ""
+	// when no single named type dominates (plain too-deep nesting — marker-type-too-deep).
 	depthCulprit string
 	// walkOps counts Compute's real expansions since the last ResetDepthExceeded. The depth cap alone cannot
 	// bound a graph that mints a fresh *checker.Type per member query at SHALLOW depth (tsgo's error-recovered
@@ -130,7 +130,7 @@ func (computer *Computer) Compute(tsType *checker.Type) string {
 	if tsType == nil {
 		return strconv.Itoa(int(reflection.KindNever))
 	}
-	// A latched walk is already doomed (its ids are discarded and the site diagnosed as MKR008/MKR009), so
+	// A latched walk is already doomed (its ids are discarded and the site diagnosed as marker-type-too-deep/marker-self-instantiating-generic), so
 	// composing more text is waste, and on a fresh-type-minting graph EXPONENTIAL waste: unwind immediately.
 	if computer.depthExceeded {
 		return depthSentinel
@@ -197,7 +197,7 @@ func (computer *Computer) Compute(tsType *checker.Type) string {
 // text, and the latch clears per top-level walk — so without this gate a later, non-latching walk could
 // cache-hit that ancestor and commit a `$depth`-poisoned string as a real id, with no diagnostic. Skipping
 // the write is a safe overapproximation: frames popped BEFORE the latch cannot hold the sentinel and only
-// lose a cache entry, and a walk that latches is discarded and diagnosed anyway (MKR008 / MKR009).
+// lose a cache entry, and a walk that latches is discarded and diagnosed anyway (marker-type-too-deep / marker-self-instantiating-generic).
 func (computer *Computer) commitCache(tsType *checker.Type, id string) string {
 	if !computer.depthExceeded {
 		computer.cache[tsType] = id
@@ -894,7 +894,7 @@ func AllReadonlyCollections(typeChecker *checker.Checker, members []*checker.Typ
 
 // NonEnumerableTagName is the JSDoc tag (`@nonEnumerable`) a user writes to mark a property whose runtime
 // own-descriptor is non-enumerable — the type-aware bridge for a descriptor TS can't express (it models
-// only readonly / `?`). Exported so the resolver's syntactic NE001 lint walk matches the exact tag this
+// only readonly / `?`). Exported so the resolver's syntactic data-non-enumerable-required lint walk matches the exact tag this
 // predicate reads.
 const NonEnumerableTagName = "nonEnumerable"
 
@@ -908,7 +908,7 @@ const NonEnumerableTagName = "nonEnumerable"
 //     error class that means server stack traces leak by default. A subclass that REDECLARES it as its own
 //     data prop (a declaration OUTSIDE a lib file) owns it and is not guarded.
 //  2. it is tagged `@nonEnumerable` in JSDoc. A required tagged member is NOT guarded (the tag is ignored)
-//     and the `NE001` lint rule tells the user to make it optional.
+//     and the `data-non-enumerable-required` lint rule tells the user to make it optional.
 //
 // The shared OPTIONAL requirement gives the invariant GUARDED ⇒ OPTIONAL-in-type, which makes `DataOnly<T>`
 // sound by construction: a REQUIRED global-inherited member (Error's `name` / `message`) is always
@@ -926,7 +926,7 @@ func IsNonEnumerable(symbol *ast.Symbol) bool {
 }
 
 // IsTypelessPrivateSymbol reports a member whose every declaration is an ambient typeless `private`, as plain tsc emits.
-// Field and method look alike there, so serialize.go and memberID read it as optional; the resolver reports MKR016.
+// Field and method look alike there, so serialize.go and memberID read it as optional; the resolver reports marker-untyped-private-member.
 func IsTypelessPrivateSymbol(symbol *ast.Symbol) bool {
 	if symbol == nil || len(symbol.Declarations) == 0 {
 		return false

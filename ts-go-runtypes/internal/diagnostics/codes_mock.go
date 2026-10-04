@@ -1,18 +1,18 @@
 package diagnostics
 
-// MockData mirror-file codes (MDxxx), the MockData twin of codes_friendly.go. Content validity
-// comes from internal/enrichment/validate.go, the MD02x hygiene codes from the dirty-tag scan;
+// MockData mirror-file codes (enrich-mock-*), the MockData twin of codes_friendly.go. Content validity
+// comes from internal/enrichment/validate.go, the enrich-mock-* hygiene codes from the dirty-tag scan;
 // opt-in surfaces only (Request.CheckEnrich, `mion enrich --no-emit`).
 //
 // An unreadable pool is skipped for the generator's kind default, so nothing breaks (LevelWarning).
-// MD011 is LevelError for the same reason as FT011: the plan fails and no mirror is written.
+// enrich-mock-reserved-prefix is LevelError for the same reason as enrich-text-reserved-prefix: the plan fails and no mirror is written.
 const (
-	CodeMockUnknownField = "MD001"
-	CodeMockReservedProp = "MD011"
-	CodeMockTodo         = "MD020"
-	CodeMockOrphanConst  = "MD021"
-	CodeMockOrphanField  = "MD022"
-	CodeMockBlankValue   = "MD023"
+	CodeMockUnknownField = "enrich-mock-unknown-field"
+	CodeMockReservedProp = "enrich-mock-reserved-prefix"
+	CodeMockTodo         = "enrich-mock-todo-left"
+	CodeMockOrphanConst  = "enrich-mock-orphan-type"
+	CodeMockOrphanField  = "enrich-mock-orphan-field"
+	CodeMockBlankValue   = "enrich-mock-blank-value"
 )
 
 func init() {

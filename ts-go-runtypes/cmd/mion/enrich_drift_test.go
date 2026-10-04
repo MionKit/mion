@@ -228,7 +228,7 @@ func TestCheckMirrorFile_I18nLocaleMirrorClean(t *testing.T) {
 }
 
 // TestCheckMirrorFile_I18nRelocatedDrifts: a locale mirror moved off its
-// canonical home still drifts (one GE001) — the i18n arm detects real drift, it
+// canonical home still drifts (one enrich-mirror-moved) — the i18n arm detects real drift, it
 // doesn't blanket-pass the subtree.
 func TestCheckMirrorFile_I18nRelocatedDrifts(t *testing.T) {
 	dir := canonicalTempDir(t)
@@ -241,13 +241,13 @@ func TestCheckMirrorFile_I18nRelocatedDrifts(t *testing.T) {
 		"import type { Translation } from '@mionjs/run-types';\n\nexport const es_friendlyUser = {};\n")
 
 	findings := checkMirrorFileTest(mirror)
-	if len(findings) != 1 || findings[0].Code != "GE001" {
-		t.Fatalf("relocated locale mirror should yield exactly one GE001; got %+v", findings)
+	if len(findings) != 1 || findings[0].Code != "enrich-mirror-moved" {
+		t.Fatalf("relocated locale mirror should yield exactly one enrich-mirror-moved; got %+v", findings)
 	}
 }
 
 // TestCheckMirrorFile_NoFamilySegmentDrifts: a mirror moved out of its family
-// dir (no family segment in its path) is flagged GE001.
+// dir (no family segment in its path) is flagged enrich-mirror-moved.
 func TestCheckMirrorFile_NoFamilySegmentDrifts(t *testing.T) {
 	dir := canonicalTempDir(t)
 	t.Chdir(dir)
@@ -258,27 +258,27 @@ func TestCheckMirrorFile_NoFamilySegmentDrifts(t *testing.T) {
 		"import type { FriendlyText, MockData } from '@mionjs/run-types';\n\nexport const friendlyUser = {};\n")
 
 	findings := checkMirrorFileTest(mirror)
-	if len(findings) != 1 || findings[0].Code != "GE001" {
-		t.Fatalf("a mirror with no family segment should yield exactly one GE001; got %+v", findings)
+	if len(findings) != 1 || findings[0].Code != "enrich-mirror-moved" {
+		t.Fatalf("a mirror with no family segment should yield exactly one enrich-mirror-moved; got %+v", findings)
 	}
 }
 
-// TestCheckMirrorFile_GE002: a deleted source produces a GE002 error.
-func TestCheckMirrorFile_GE002(t *testing.T) {
+// TestCheckMirrorFile_EnrichMirrorSourceMissing: a deleted source produces a enrich-mirror-source-missing error.
+func TestCheckMirrorFile_EnrichMirrorSourceMissing(t *testing.T) {
 	dir := canonicalTempDir(t)
 	t.Chdir(dir)
 	mirror := filepath.Join(dir, "src", ".mion", "enriched", "models", "user.ts")
 	writeTestFile(t, mirror, "import type { User } from '../../../models/user';\n")
 
 	findings := checkMirrorFileTest(mirror)
-	if len(findings) != 1 || findings[0].Code != "GE002" {
-		t.Fatalf("want one GE002 finding; got %+v", findings)
+	if len(findings) != 1 || findings[0].Code != "enrich-mirror-source-missing" {
+		t.Fatalf("want one enrich-mirror-source-missing finding; got %+v", findings)
 	}
 }
 
-// TestCheckMirrorFile_GE003: a source that no longer declares the type produces
-// a GE003 error.
-func TestCheckMirrorFile_GE003(t *testing.T) {
+// TestCheckMirrorFile_EnrichMirrorTypeMissing: a source that no longer declares the type produces
+// a enrich-mirror-type-missing error.
+func TestCheckMirrorFile_EnrichMirrorTypeMissing(t *testing.T) {
 	dir := canonicalTempDir(t)
 	t.Chdir(dir)
 	writeTestFile(t, filepath.Join(dir, "tsconfig.json"), `{ "compilerOptions": { "rootDir": "src" } }`)
@@ -291,8 +291,8 @@ func TestCheckMirrorFile_GE003(t *testing.T) {
 	for _, finding := range findings {
 		codes[finding.Code] = true
 	}
-	if !codes["GE003"] {
-		t.Errorf("want a GE003 finding; got %+v", findings)
+	if !codes["enrich-mirror-type-missing"] {
+		t.Errorf("want a enrich-mirror-type-missing finding; got %+v", findings)
 	}
 }
 

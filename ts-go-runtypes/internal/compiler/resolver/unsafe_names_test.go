@@ -8,7 +8,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// A type that declares a property named `__proto__` reports UPN001 at the
+// A type that declares a property named `__proto__` reports data-proto-property-dropped at the
 // marker site, in every family that renders it, and the member is dropped: that
 // key is never data, so no value of the type could carry it. A Warning, not an
 // Error: the rest of the type still serializes and validates.
@@ -31,22 +31,22 @@ export const decode = createJsonDecoderFn<Settings>();
 		}
 		hits++
 		if diagnostic.Severity != diagnostics.SeverityWarning {
-			t.Errorf("UPN001 severity = %v, want Warning", diagnostic.Severity)
+			t.Errorf("data-proto-property-dropped severity = %v, want Warning", diagnostic.Severity)
 		}
 		if len(diagnostic.Args) != 1 || diagnostic.Args[0] != "__proto__" {
-			t.Errorf("UPN001 args = %v, want the property name", diagnostic.Args)
+			t.Errorf("data-proto-property-dropped args = %v, want the property name", diagnostic.Args)
 		}
 		if diagnostic.Site.StartLine < 3 {
-			t.Errorf("UPN001 must point at a marker call site, got line %d", diagnostic.Site.StartLine)
+			t.Errorf("data-proto-property-dropped must point at a marker call site, got line %d", diagnostic.Site.StartLine)
 		}
 	}
 	if hits < 3 {
-		t.Errorf("expected UPN001 at each of the three marker sites, got %d", hits)
+		t.Errorf("expected data-proto-property-dropped at each of the three marker sites, got %d", hits)
 	}
 }
 
 // `prototype` and `constructor` are ordinary property names, so a type
-// declaring either compiles with no UPN001 at all. `({}).prototype` is
+// declaring either compiles with no data-proto-property-dropped at all. `({}).prototype` is
 // undefined, both land as plain own keys, and a declared `constructor` is
 // handled by the own-enumerability presence test the emitters already apply to
 // an inherited member.
@@ -65,14 +65,14 @@ export const decode = createJsonDecoderFn<Settings>();
 		}
 		for _, diagnostic := range runtypeDiagsOf(response.Diagnostics) {
 			if diagnostic.Code == diagnostics.CodeUnsafePropertyName {
-				t.Errorf("[%s] UPN001 raised for an ordinary property name: %+v", name, diagnostic)
+				t.Errorf("[%s] data-proto-property-dropped raised for an ordinary property name: %+v", name, diagnostic)
 			}
 		}
 	}
 }
 
 // A `__proto__` member nested inside another object reports the same way: the
-// nested object literal is its own entry, so UPN001 reaches the marker site
+// nested object literal is its own entry, so data-proto-property-dropped reaches the marker site
 // that compiles the outer type.
 func TestDiag_NestedUnsafePropertyNameDropsTheMember(t *testing.T) {
 	const code = `import {createValidateFn} from '@mionjs/run-types';
@@ -91,7 +91,7 @@ export const isOuter = createValidateFn<Outer>();
 		}
 	}
 	if hits == 0 {
-		t.Errorf("expected UPN001 for the nested `__proto__` member, got none; diags=%+v", response.Diagnostics)
+		t.Errorf("expected data-proto-property-dropped for the nested `__proto__` member, got none; diags=%+v", response.Diagnostics)
 	}
 }
 
@@ -121,7 +121,7 @@ export const decodeError = createJsonDecoderFn<HttpError>();
 	}
 	for _, diagnostic := range runtypeDiagsOf(response.Diagnostics) {
 		if diagnostic.Code == diagnostics.CodeUnsafePropertyName {
-			t.Errorf("UPN001 raised for a type that declares no `__proto__` member: %+v", diagnostic)
+			t.Errorf("data-proto-property-dropped raised for a type that declares no `__proto__` member: %+v", diagnostic)
 		}
 	}
 	for _, runType := range dump(resolverSession) {
@@ -154,6 +154,6 @@ export const decodeOuter = createJsonDecoderFn<Outer>();
 		}
 	}
 	if hits == 0 {
-		t.Errorf("expected UPN001 for the `__proto__` member inside the Map value, got none; diags=%+v", response.Diagnostics)
+		t.Errorf("expected data-proto-property-dropped for the `__proto__` member inside the Map value, got none; diags=%+v", response.Diagnostics)
 	}
 }

@@ -21,16 +21,16 @@ export interface SidecarJob {
 
 export interface SidecarResult {
   id: number;
-  // The pattern failed `new RegExp`, a regex syntax error in the user's type (Go surfaces FMT002).
+  // The pattern failed `new RegExp`, a regex syntax error in the user's type (Go surfaces format-invalid-params).
   compileError?: string;
   // Out of match budget on the quiet retry too: catastrophic backtracking, or a saturated host.
-  // Its own channel, never `compileError`: Go surfaces the TRANSIENT FMT007 and never caches it.
+  // Its own channel, never `compileError`: Go surfaces the TRANSIENT format-pattern-timeout and never caches it.
   timedOut?: string;
-  // validate: samples that do NOT match the compiled pattern (Go surfaces FMT001).
+  // validate: samples that do NOT match the compiled pattern (Go surfaces format-sample-mismatch).
   offenders?: string[];
   // generate: deterministic values, deduped; may be fewer than requested for finite languages.
   values?: string[];
-  // generate: pattern compiles but randexp threw, or no draw survived the self-check (Go: FMT005).
+  // generate: pattern compiles but randexp threw, or no draw survived the self-check (Go: format-sample-generation-failed).
   generateError?: string;
   // Protocol-level failure (unknown op); Go treats it as an engine error.
   error?: string;

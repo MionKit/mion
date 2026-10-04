@@ -441,7 +441,7 @@ export function checkUnknownKeysPlanted(
 
 /** O24: the unknown-key report's paths and the keys `removeUnknownKeys` drops must match; each has its own emitter.
  *  Keys holding `undefined` are skipped: an explicit optional `undefined` may come back absent from a clone.
- *  The strip covers conforming values only; object unions have no strip (RUK001), so O25 covers them. **/
+ *  The strip covers conforming values only; object unions have no strip (unknown-keys-object-union), so O25 covers them. **/
 export function checkUnknownKeysStripAgree(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
   const {errorsStrict, clone} = target;
   if (!errorsStrict || !clone) return null;

@@ -14,10 +14,10 @@ import (
 // servePackagePureFns delivers the pure-fn bodies the surviving graph demands from INSTALLED packages
 // (purefnindex), emitted into this render's own modules in its emit mode and layout, deps pulled along across
 // packages. Runs after Cascade (demand reflects only entries that ship) and before AddMissingStubs (a served
-// body never degrades to a stub). An id whose package is not installed belongs to the program (PFE9012 from
-// validateProgramPureFnDeps); a located package shipping rows but not this id is PFE9012, site-less; nothing
-// to serve at all, a missing marker package included, is PFE9016 once per id, so a silent stub never hides the
-// edge; an artifact this compiler cannot read is PFE9017, two artifacts disagreeing on a body PFE9018.
+// body never degrades to a stub). An id whose package is not installed belongs to the program (purefn-not-registered from
+// validateProgramPureFnDeps); a located package shipping rows but not this id is purefn-not-registered, site-less; nothing
+// to serve at all, a missing marker package included, is purefn-package-not-built once per id, so a silent stub never hides the
+// edge; an artifact this compiler cannot read is purefn-artifact-unreadable, two artifacts disagreeing on a body purefn-artifact-conflict.
 // emitMode is the RENDER's mode, not the session's: the bundled-API mirror renders in `functions` whatever the
 // program's mode, and a code string there would be rebuilt with `new Function` at first validation, exactly
 // where a bundled client is not allowed to.

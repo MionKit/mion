@@ -1124,7 +1124,7 @@ createJsonEncoderFn<string>(undefined, {strategy: 'compact'});
 	}
 }
 
-// TestResolver_CompTimeArgs_NonLiteralDiagnostic: CTA001 covers any branded param, not just options-named ones.
+// TestResolver_CompTimeArgs_NonLiteralDiagnostic: marker-comptime-arg-not-literal covers any branded param, not just options-named ones.
 func TestResolver_CompTimeArgs_NonLiteralDiagnostic(t *testing.T) {
 	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
@@ -1148,9 +1148,9 @@ createValidateFn<string>(undefined, getOptions());
 	}
 	d := markerDiags[0]
 	// A bare function call inside a CompTimeArgs slot is a forbidden
-	// construct (CTA003) — the validator sees `getOptions()` as a call
+	// construct (marker-comptime-arg-forbidden-construct) — the validator sees `getOptions()` as a call
 	// expression at the top level and rejects it, not as a "non-literal
-	// identifier-chain leaf" (CTA001).
+	// identifier-chain leaf" (marker-comptime-arg-not-literal).
 	if d.Code != diagnostics.CodeCompTimeArgsForbiddenConstruct {
 		t.Fatalf("expected code %s, got %q", diagnostics.CodeCompTimeArgsForbiddenConstruct, d.Code)
 	}
@@ -1159,7 +1159,7 @@ createValidateFn<string>(undefined, getOptions());
 	}
 }
 
-// TestResolver_CompTimeArgs_LiteralAccepted pins that a direct object literal passes the CompTimeArgs gate (no CTA0xx).
+// TestResolver_CompTimeArgs_LiteralAccepted pins that a direct object literal passes the CompTimeArgs gate (no marker-comptime-arg-*).
 func TestResolver_CompTimeArgs_LiteralAccepted(t *testing.T) {
 	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
@@ -1180,7 +1180,7 @@ createValidateFn<string>(undefined, {});
 	markerDiags := filterDiagsByFamily(resp.Diagnostics, diagnostics.FamilyMarker)
 	for _, d := range markerDiags {
 		// CTA gate only — MKR is a different subject (anti-patterns).
-		if strings.HasPrefix(d.Code, "CTA") {
+		if strings.HasPrefix(d.Code, "marker-comptime-arg-") {
 			t.Fatalf("expected no CTA diagnostics for literal options, got %+v", d)
 		}
 	}
@@ -1210,7 +1210,7 @@ createJsonEncoderFn<string>(undefined, getOptions());
 	}
 	markerDiags := filterDiagsByFamily(resp.Diagnostics, diagnostics.FamilyMarker)
 	if len(markerDiags) != 1 {
-		t.Fatalf("expected 1 marker diagnostic (CTA003 for function call inside CompTimeArgs), got %d (%+v)", len(markerDiags), markerDiags)
+		t.Fatalf("expected 1 marker diagnostic (marker-comptime-arg-forbidden-construct for function call inside CompTimeArgs), got %d (%+v)", len(markerDiags), markerDiags)
 	}
 	if markerDiags[0].Code != diagnostics.CodeCompTimeArgsForbiddenConstruct {
 		t.Fatalf("expected code %s, got %q", diagnostics.CodeCompTimeArgsForbiddenConstruct, markerDiags[0].Code)
@@ -1270,10 +1270,10 @@ withValidator<string>((v) => typeof v === 'string');
 	}
 }
 
-// TestResolver_PureFunction_NonLiteralEmitsPFN001 pins PFN001 for an
+// TestResolver_PureFunction_NonLiteralEmitsPurefnNotInline pins purefn-not-inline for an
 // imported identifier — not a literal function definition, can't be
 // inlined by the AOT compiler.
-func TestResolver_PureFunction_NonLiteralEmitsPFN001(t *testing.T) {
+func TestResolver_PureFunction_NonLiteralEmitsPurefnNotInline(t *testing.T) {
 	const code = `import {withValidator} from '@mionjs/run-types';
 declare const isString: (v: unknown) => boolean;
 withValidator<string>(isString);
@@ -1285,7 +1285,7 @@ withValidator<string>(isString);
 	}
 	markerDiags := filterDiagsByFamily(resp.Diagnostics, diagnostics.FamilyMarker)
 	if len(markerDiags) != 1 {
-		t.Fatalf("expected 1 marker diagnostic (PFN001), got %d (%+v)", len(markerDiags), markerDiags)
+		t.Fatalf("expected 1 marker diagnostic (purefn-not-inline), got %d (%+v)", len(markerDiags), markerDiags)
 	}
 	if markerDiags[0].Code != diagnostics.CodePureFunctionNotLiteral {
 		t.Fatalf("expected code %s, got %q", diagnostics.CodePureFunctionNotLiteral, markerDiags[0].Code)
@@ -1293,8 +1293,8 @@ withValidator<string>(isString);
 }
 
 // TestResolver_PureFunction_PurityViolationsPropagate pins that the
-// purity walker (PFE9006–PFE9011) fires when the inline function body
-// breaks a rule — here, `await` inside the arrow triggers PFE9007.
+// purity walker (purefn-uses-this to purefn-reads-outer-variable) fires when the inline function body
+// breaks a rule — here, `await` inside the arrow triggers purefn-uses-await.
 // The PureFunction marker reuses the purefns.CheckPurity engine
 // unchanged, so any PFE the extractor emits should reach the resolver.
 func TestResolver_PureFunction_PurityViolationsPropagate(t *testing.T) {
@@ -1313,16 +1313,16 @@ withValidator<string>(async (v) => { await Promise.resolve(); return typeof v ==
 	}
 	awaitSeen := false
 	for _, d := range pfeDiags {
-		if d.Code == "PFE9007" {
+		if d.Code == "purefn-uses-await" {
 			awaitSeen = true
 		}
 	}
 	if !awaitSeen {
-		t.Fatalf("expected PFE9007 (`await` violation), got %+v", pfeDiags)
+		t.Fatalf("expected purefn-uses-await (`await` violation), got %+v", pfeDiags)
 	}
 }
 
-// TestResolver_PureFunction_ClosureViolation pins PFE9011 — the
+// TestResolver_PureFunction_ClosureViolation pins purefn-reads-outer-variable — the
 // inline arrow captures `outer` from the surrounding module scope.
 // The purity walker treats this as closing over an outer binding,
 // which prevents AOT inlining.
@@ -1339,12 +1339,12 @@ withValidator<number>((v) => v === outer);
 	pfeDiags := filterDiagsByFamily(resp.Diagnostics, diagnostics.FamilyPureFn)
 	closureSeen := false
 	for _, d := range pfeDiags {
-		if d.Code == "PFE9011" {
+		if d.Code == "purefn-reads-outer-variable" {
 			closureSeen = true
 		}
 	}
 	if !closureSeen {
-		t.Fatalf("expected PFE9011 (closure over outer binding) for `outer`, got %+v (all diags: %+v)", pfeDiags, resp.Diagnostics)
+		t.Fatalf("expected purefn-reads-outer-variable (closure over outer binding) for `outer`, got %+v (all diags: %+v)", pfeDiags, resp.Diagnostics)
 	}
 }
 
@@ -1397,7 +1397,7 @@ pureOnlyWrapper(isString);
 	}
 	markerDiags := filterDiagsByFamily(resp.Diagnostics, diagnostics.FamilyMarker)
 	if len(markerDiags) != 1 {
-		t.Fatalf("expected 1 PFN001 diagnostic for non-literal fn without injection slot, got %d (%+v)", len(markerDiags), markerDiags)
+		t.Fatalf("expected 1 purefn-not-inline diagnostic for non-literal fn without injection slot, got %d (%+v)", len(markerDiags), markerDiags)
 	}
 	if markerDiags[0].Code != diagnostics.CodePureFunctionNotLiteral {
 		t.Fatalf("expected %s, got %q", diagnostics.CodePureFunctionNotLiteral, markerDiags[0].Code)
@@ -1408,7 +1408,7 @@ pureOnlyWrapper(isString);
 // trailing slot AND a CompTimeArgs on an earlier slot, scanCall must
 // emit both a Site (for injection) AND a CTA diagnostic (for the
 // invalid non-literal arg). The two passes were previously coupled —
-// MKR003 / argsCount early-returns dropped accumulated diagnostics.
+// marker-in-generic-function / argsCount early-returns dropped accumulated diagnostics.
 func TestResolver_TrailingInjectionStillEmitsSite(t *testing.T) {
 	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};

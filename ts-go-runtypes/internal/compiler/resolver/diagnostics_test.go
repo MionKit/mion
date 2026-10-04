@@ -17,7 +17,7 @@ func runtypeDiagsOf(diags []diagnostics.Diagnostic) []diagnostics.Diagnostic {
 }
 
 // TestDiag_RunTypeRootThrow_NeverAtRoot_PrepareForJson pins the end-to-end runtype diagnostic flow: a never root
-// reaches the prepareForJson unsupported-leaf site and records PJ001 against the marker call site.
+// reaches the prepareForJson unsupported-leaf site and records json-prepare-never-root against the marker call site.
 // Dedup is one-per-call-site, not one-per-type-id.
 func TestDiag_RunTypeRootThrow_NeverAtRoot_PrepareForJson(t *testing.T) {
 	// pj is demand-driven now, so seed it via createJsonEncoderFn(mutate) → [pj].
@@ -89,7 +89,7 @@ export const _ = createJsonEncoderFn<() => void>(undefined, {strategy: 'mutate'}
 	}
 }
 
-// TestDiag_PerFamilyPrefix_NeverAtRoot_DistinctCodes: the same throw gets a distinct code per family (PJS001, RJ001),
+// TestDiag_PerFamilyPrefix_NeverAtRoot_DistinctCodes: the same throw gets a distinct code per family (json-prepare-clone-never-root, json-restore-never-root),
 // so a build log names the family without parsing messages.
 func TestDiag_PerFamilyPrefix_NeverAtRoot_DistinctCodes(t *testing.T) {
 	// Demand-driven families: mutate seeds pj, clone seeds pjs, the mutate decoder seeds rj.
@@ -143,7 +143,7 @@ export const _ = createJsonEncoderFn<User>(undefined, {strategy: 'mutate'});
 	// JSON-compatible, so the pj entry collapses to the noop short-form,
 	// the jeMU composite elides its binding, and the emission prune drops
 	// the orphan module entirely — absence of every pj module (and of any
-	// 'PJ001' alwaysThrow arg in the payload) IS the absorption evidence.
+	// 'json-prepare-never-root' alwaysThrow arg in the payload) IS the absorption evidence.
 	// An unabsorbed never would instead surface as an emitted alwaysThrow
 	// entry referenced by the composite.
 	var rootSiteID string
@@ -168,11 +168,11 @@ export const _ = createJsonEncoderFn<User>(undefined, {strategy: 'mutate'});
 	if !strings.Contains(userModule, "'User',,true]") {
 		t.Errorf("jeMU composite for the absorbed User must collapse to the noop short form, got: %s", userModule)
 	}
-	if all := allEntrySources(resp); strings.Contains(all, "'PJ001'") {
-		t.Errorf("no emitted module may carry the PJ001 alwaysThrow arg — property absorbs the never child. Got:\n%s", all)
+	if all := allEntrySources(resp); strings.Contains(all, "'json-prepare-never-root'") {
+		t.Errorf("no emitted module may carry the json-prepare-never-root alwaysThrow arg — property absorbs the never child. Got:\n%s", all)
 	}
-	// A PJ015 child-position WARNING should fire for the dropped never property
-	// — NOT the PJ001 root error. `never` is directly DataOnly-stripped, so the
+	// A json-prepare-non-data-property-dropped child-position WARNING should fire for the dropped never property
+	// — NOT the json-prepare-never-root root error. `never` is directly DataOnly-stripped, so the
 	// property is dropped (the object still serializes); an Error would wrongly
 	// claim the factory throws at runtime when it serializes fine (F3).
 	runtype := runtypeDiagsOf(resp.Diagnostics)
@@ -184,18 +184,18 @@ export const _ = createJsonEncoderFn<User>(undefined, {strategy: 'mutate'});
 		}
 	}
 	if drop == nil {
-		t.Fatalf("expected PJ015 drop warning for the dropped never property, got %+v", runtype)
+		t.Fatalf("expected json-prepare-non-data-property-dropped drop warning for the dropped never property, got %+v", runtype)
 	}
 	if drop.Severity != diagnostics.SeverityInfo {
-		t.Errorf("PJ015 severity = %v, want Info (a dropped property serializes fine)", drop.Severity)
+		t.Errorf("json-prepare-non-data-property-dropped severity = %v, want Info (a dropped property serializes fine)", drop.Severity)
 	}
 	if len(drop.Args) != 1 || drop.Args[0] != "bad" {
 		t.Errorf("expected args=[\"bad\"] (the dropped property name), got %v", drop.Args)
 	}
-	// The PJ001 root error must NOT fire — the property is dropped, not failed.
+	// The json-prepare-never-root root error must NOT fire — the property is dropped, not failed.
 	for i := range runtype {
 		if runtype[i].Code == diagnostics.CodePJNeverRoot {
-			t.Errorf("PJ001 (root never error) must not fire for a dropped never property, got %+v", runtype[i])
+			t.Errorf("json-prepare-never-root (root never error) must not fire for a dropped never property, got %+v", runtype[i])
 		}
 	}
 }
@@ -252,7 +252,7 @@ export const _ = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
 		t.Fatalf("scanFiles: %s", resp.Error)
 	}
 	src := familyEntrySources(resp, "prepareForJsonMutate")
-	// never under prepareForJson → PJ001; leaf kind label "Never".
+	// never under prepareForJson → json-prepare-never-root; leaf kind label "Never".
 	wantMessage := "[" + diagnostics.CodePJNeverRoot + "] Type `Never` can never be encoded to JSON — the generated function will always fail."
 	if !strings.Contains(src, wantMessage) {
 		t.Errorf("expected rendered alwaysThrow message %q embedded in init(), got:\n%s", wantMessage, src)
@@ -266,7 +266,7 @@ export const _ = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
 // visibility: when an interface has a function-typed member, the RT
 // silently drops it from the validator/serializer. The new diagnostic
 // surfaces that drop at build time so the user knows e.g. `onClick`
-// is not validated. The exact code (VL010 vs VL011) depends on whether
+// is not validated. The exact code (validate-function-property-dropped vs validate-method-dropped) depends on whether
 // TypeScript parses the member as a method or a property — both flow
 // through the same family prefix (IT) so consumers can grep by prefix.
 func TestDiag_SilentSkip_FunctionMember_Validate(t *testing.T) {
@@ -295,7 +295,7 @@ export const _ = createValidateFn<User>();
 		}
 	}
 	if found == nil {
-		t.Fatalf("expected VL010 or VL011 diagnostic, got %+v", resp.Diagnostics)
+		t.Fatalf("expected validate-function-property-dropped or validate-method-dropped diagnostic, got %+v", resp.Diagnostics)
 	}
 	if found.Severity != diagnostics.SeverityInfo {
 		t.Errorf("severity: got %d want %d", found.Severity, diagnostics.SeverityInfo)
@@ -311,7 +311,7 @@ export const _ = createValidateFn<User>();
 // shared by them all.
 func TestDiag_RunTypeFansOutAcrossCallSites(t *testing.T) {
 	// pj is demand-driven; three createJsonEncoderFn(mutate) sites share one `never`
-	// id, so the single rendered pj entry fans the PJ001 diag out to all three.
+	// id, so the single rendered pj entry fans the json-prepare-never-root diag out to all three.
 	const code = `import {createJsonEncoderFn} from '@mionjs/run-types';
 export const a = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
 export const b = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});

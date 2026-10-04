@@ -92,7 +92,7 @@ func TestCompile_PackageOverrideReachesItsConsumer(t *testing.T) {
 	installOverrideLibrary(t, consumer, dist)
 	result := compileProject(t, consumer, nil)
 	for _, diag := range result.Diagnostics {
-		if strings.HasPrefix(diag.Code, "OVR") || strings.HasPrefix(diag.Code, "PFE") {
+		if strings.HasPrefix(diag.Code, "override-") || strings.HasPrefix(diag.Code, "purefn-") {
 			t.Errorf("unexpected %s: %v", diag.Code, diag.Args)
 		}
 	}
@@ -141,7 +141,7 @@ func TestCompile_PackageWithoutOverrideArtifactKeepsPlainIDs(t *testing.T) {
 	}
 }
 
-// TestCompile_ConsumerOverrideOfAPackagesTypeIsADuplicate: the package's override won first, so a second one is OVR001.
+// TestCompile_ConsumerOverrideOfAPackagesTypeIsADuplicate: the package's override won first, so a second one is override-duplicate.
 func TestCompile_ConsumerOverrideOfAPackagesTypeIsADuplicate(t *testing.T) {
 	dist, _ := buildOverrideLibrary(t)
 	consumer := writeProject(t, map[string]string{"main.ts": overrideConsumerTS + `import {overrideValidate} from '@mionjs/run-types';
@@ -150,11 +150,11 @@ overrideValidate<Cents>((value) => value !== null);
 	installOverrideLibrary(t, consumer, dist)
 	result := compileProject(t, consumer, nil)
 	for _, diag := range result.Diagnostics {
-		if diag.Code == "OVR001" {
+		if diag.Code == "override-duplicate" {
 			return
 		}
 	}
-	t.Fatalf("expected OVR001 for overriding a type the package already overrides, got %v", result.Diagnostics)
+	t.Fatalf("expected override-duplicate for overriding a type the package already overrides, got %v", result.Diagnostics)
 }
 
 // generatedFiles reads every generated module under dir.
@@ -195,9 +195,9 @@ export const moneyId = getRunTypeId<Money>();
 	}
 	result := compileProject(t, consumer, nil)
 	for _, diag := range result.Diagnostics {
-		if diag.Code == "OVR001" {
+		if diag.Code == "override-duplicate" {
 			return
 		}
 	}
-	t.Fatalf("expected OVR001 for two packages overriding one type, got %v", result.Diagnostics)
+	t.Fatalf("expected override-duplicate for two packages overriding one type, got %v", result.Diagnostics)
 }

@@ -1,5 +1,5 @@
 // cloning / UtilityTypes: utility types reach the emitter as their resolved shapes; an Exclude/Extract that
-// resolves to an object-bearing union throws at creation (RUK001).
+// resolves to an object-bearing union throws at creation (unknown-keys-object-union).
 
 import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';
@@ -23,7 +23,7 @@ export const UTILITY_TYPES = {
   exclude_objects: {
     title: 'Exclude objects',
     description:
-      '`Exclude<Shape, Circle>` resolves to the object-bearing union `Square | Triangle`, which the clone factory rejects at creation (RUK001) — no runtime arm discrimination.',
+      '`Exclude<Shape, Circle>` resolves to the object-bearing union `Square | Triangle`, which the clone factory rejects at creation (unknown-keys-object-union) — no runtime arm discrimination.',
     cloneNotes:
       'Narrow to one arm before cloning (one factory per arm), or restructure into a single object with optional props — the same workaround as any object-bearing union.',
     clone: () => {
@@ -31,7 +31,7 @@ export const UTILITY_TYPES = {
       type Square = {kind: 'square'; x: number};
       type Triangle = {kind: 'triangle'; x: number; y: number};
       type Shape = Circle | Square | Triangle;
-      // @mion-downgrade-error RUK001
+      // @mion-downgrade-error unknown-keys-object-union
       return createRemoveUnknownKeysFn<Exclude<Shape, Circle>>();
     },
     getTestData: () => ({values: []}),
@@ -57,12 +57,12 @@ export const UTILITY_TYPES = {
   extract_objects: {
     title: 'Extract objects',
     description:
-      '`Extract<Shape, ToExtract>` resolves to the object-bearing union `Square | Triangle`, which the clone factory rejects at creation (RUK001) — no runtime arm discrimination.',
+      '`Extract<Shape, ToExtract>` resolves to the object-bearing union `Square | Triangle`, which the clone factory rejects at creation (unknown-keys-object-union) — no runtime arm discrimination.',
     cloneNotes: 'Narrow to one arm before cloning (one factory per arm) — the same workaround as any object-bearing union.',
     clone: () => {
       type Shape = {kind: 'circle'; radius: number} | {kind: 'square'; x: number} | {kind: 'triangle'; x: number; y: number};
       type ToExtract = {kind: 'square'; x: number} | {kind: 'triangle'; x: number; y: number};
-      // @mion-downgrade-error RUK001
+      // @mion-downgrade-error unknown-keys-object-union
       return createRemoveUnknownKeysFn<Extract<Shape, ToExtract>>();
     },
     getTestData: () => ({values: []}),

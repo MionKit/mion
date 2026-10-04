@@ -1,6 +1,6 @@
 // Package purefunctions extracts `registerPureFnFactory(...)` call sites into the pure-fn
 // cache: it walks marker-branded calls, strips TS types from the factory body, enforces the
-// purity rules (PFE9006–9011), records cross-fn deps, and renders the per-entry module rows.
+// purity rules (purefn-uses-this to purefn-reads-outer-variable), records cross-fn deps, and renders the per-entry module rows.
 package purefunctions
 
 import (
@@ -10,7 +10,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
-// CheckPurity returns the PFE9006–PFE9011 diagnostics for an inline function-literal node.
+// CheckPurity returns the purity diagnostics (purefn-uses-this to purefn-reads-outer-variable) for an inline function-literal node.
 // Public wrapper around checkPurity for the resolver's PureFunction<F> marker path; the
 // extractor calls checkPurity directly.
 //
@@ -19,7 +19,7 @@ import (
 // diagnostics are dropped here: the extractor's pass over the same body reports them.
 //
 // fnNode must be a KindArrowFunction or KindFunctionExpression; run
-// comptimeargs.CheckLiteralFunction (PFN001) first, this walker does not check the outer kind.
+// comptimeargs.CheckLiteralFunction (purefn-not-inline) first, this walker does not check the outer kind.
 func CheckPurity(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile, fnNode *ast.Node) []diagnostics.Diagnostic {
 	_, _, exempt, _ := newResolveCtx(typeChecker, markerOpts).extractDeps(sourceFile, fnNode, utlParamName(fnNode))
 	return checkPurity(sourceFile, fnNode, exempt)

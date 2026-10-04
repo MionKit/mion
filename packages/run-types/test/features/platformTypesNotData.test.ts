@@ -68,10 +68,10 @@ describe('platform types are not data', () => {
   });
 
   it('the root is refused like a lib class', () => {
-    // @mion-downgrade-error VL001
-    expect(() => createValidateFn<Headers>()).toThrow(/VL001/);
-    // @mion-downgrade-error VL001
-    expect(() => createValidateFn<EventEmitter>()).toThrow(/VL001/);
+    // @mion-downgrade-error validate-non-data-root
+    expect(() => createValidateFn<Headers>()).toThrow(/validate-non-data-root/);
+    // @mion-downgrade-error validate-non-data-root
+    expect(() => createValidateFn<EventEmitter>()).toThrow(/validate-non-data-root/);
   });
 
   it('URL is data, from the global and from node:url alike', () => {

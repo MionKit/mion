@@ -135,10 +135,10 @@ type Walker struct {
 	RTDependencies     []string
 	PureFnDependencies []protocol.PureFnDep
 	// JSEngine mirrors RenderOpts.JSEngine, exposed to the format emitters through
-	// EmitContext.JSEngine. Nil fails pattern checks closed with FMT004.
+	// EmitContext.JSEngine. Nil fails pattern checks closed with format-no-js-runtime.
 	JSEngine jsengine.Engine
 	// PatternSampleCount / PatternGenFailures mirror the RenderOpts fields of the
-	// same names; the pattern emitter's FMT005 lane reads them at emit time.
+	// same names; the pattern emitter's format-sample-generation-failed lane reads them at emit time.
 	PatternSampleCount int
 	PatternGenFailures map[string]formats.PatternGenFailure
 	// CrossFamilyDeps records the cross-family RT lookups this function reaches via
@@ -386,7 +386,7 @@ func (w *Walker) accessPath() []string {
 //
 // Recording is O(1) with no source-file walk; the deps ride the wire for the module emitter. At render time
 // the resolver cross-checks each against the program-wide registration set, so a dep that never registered
-// is PFE9012 at build time instead of a `utl.getPureFn` throw at runtime.
+// is purefn-not-registered at build time instead of a `utl.getPureFn` throw at runtime.
 func (w *Walker) AddPureFnDependency(id string) {
 	for _, dep := range w.PureFnDependencies {
 		if dep.ID == id {

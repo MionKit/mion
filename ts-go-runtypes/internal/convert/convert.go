@@ -47,17 +47,17 @@ const (
 
 // Diagnostic codes (CNV family), CLI-local: they are not registered in the catalog or on the wire.
 const (
-	CodeUnsupportedKind    = "CNV001"
-	CodeGenericDecl        = "CNV002"
-	CodeConstStillUsed     = "CNV003"
-	CodeOutsideSet         = "CNV004"
-	CodeNameCollision      = "CNV005"
-	CodeTemporalNotLoaded  = "CNV007"
-	CodeUnresolvedTypeName = "CNV008"
+	CodeUnsupportedKind    = "convert-unsupported-kind"
+	CodeGenericDecl        = "convert-generic-declaration"
+	CodeConstStillUsed     = "convert-const-still-used"
+	CodeOutsideSet         = "convert-outside-set"
+	CodeNameCollision      = "convert-name-collision"
+	CodeTemporalNotLoaded  = "convert-temporal-lib-missing"
+	CodeUnresolvedTypeName = "convert-unresolved-type-name"
 	// CodeDrizzleUnsupported: a drizzle table construct with no type spelling, listed in drizzle.go.
-	CodeDrizzleUnsupported = "CNV009"
+	CodeDrizzleUnsupported = "convert-drizzle-unsupported"
 	// CodeUnresolvedImport: a runtypes or drizzle package import that resolves nowhere, see unresolvedimports.go.
-	CodeUnresolvedImport = "CNV010"
+	CodeUnresolvedImport = "convert-unresolved-import"
 )
 
 // Diagnostic is one per-declaration conversion finding.
@@ -138,7 +138,7 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 				Message: fmt.Sprintf("generic declaration %q is left as written (an unbound type parameter has no runtime shape); its instantiations still convert", decl.Name)})
 			continue
 		}
-		// Refuse rather than cement an unwritten `any` / `RT.any()`: a Temporal-lib hit gets its own message, else CNV008.
+		// Refuse rather than cement an unwritten `any` / `RT.any()`: a Temporal-lib hit gets its own message, else convert-unresolved-type-name.
 		temporalDiags, unresolvedDiags := writtenTypeRefDiags(typeChecker, decl, absPath)
 		if len(temporalDiags) > 0 {
 			result.Diags = append(result.Diags, temporalDiags...)
@@ -164,7 +164,7 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 		}
 		planned = append(planned, plannedDecl{decl: decl, printed: printed})
 	}
-	// Planned before the const-away fixpoint: `fn(namedRT)` -> `fn<Named>()` drops a const use, so it converts, not CNV005.
+	// Planned before the const-away fixpoint: `fn(namedRT)` -> `fn<Named>()` drops a const use, so it converts, not convert-name-collision.
 	var plannedCalls []*callSite
 	var callTexts []*printedDecl
 	for _, site := range recognizeCallSites(sourceFile, typeChecker, cache, markerOpts, set, opts.Target) {

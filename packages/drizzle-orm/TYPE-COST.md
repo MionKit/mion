@@ -505,7 +505,7 @@ derived once per column. That is why the single-call columns carry no name.
 
 - **A column type cannot carry chain methods.** The runtype id walks method return types
   (`typeid.go` `signatureID`), and a chain returning a column with new props per call never
-  repeats a type: MKR009 at the 512-level depth cap. The chained system escaped only
+  repeats a type: marker-self-instantiating-generic at the 512-level depth cap. The chained system escaped only
   because hand-written columns had no methods and builder tables were never reflected. Hence the
   builder / column split, exactly drizzle's own `ColumnBuilder` / `Column`.
 - **No alias may carry the builder record as a type argument.** The resolver serializes an

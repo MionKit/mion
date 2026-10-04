@@ -45,7 +45,7 @@ All under [`packages/run-types/test/fuzz/`](../packages/run-types/test/fuzz/):
 | `cloning/extrasValue.ts` | The extras mutator — injects undeclared `__fz_extra_<n>` keys at provably-sound plain-object positions (validate stays true, a correct clone must strip them). Same one-directional soundness contract as `invalidValue.ts`. |
 | `cloning/cloneOracle.ts` | The cloning oracle layer: `CloneFuzzTarget` + the O15–O17 checks, a local Temporal-aware `deepEqual`, and the shared-mutable-reference walker. |
 | `cloning/cloneFuzzRunner.ts` | The cloning driver: `runCloneFuzz` / `runCloneFuzzForDuration` — valid / extras / junk streams per seed. |
-| `cloning/cloneFuzz.integration.test.ts` | The cloning end-to-end sweep over REAL compiled `createRemoveUnknownKeysFn` factories, plus the RUK001 throw-corpus and the cyclic-value pin. |
+| `cloning/cloneFuzz.integration.test.ts` | The cloning end-to-end sweep over REAL compiled `createRemoveUnknownKeysFn` factories, plus the unknown-keys-object-union throw-corpus and the cyclic-value pin. |
 | `enrich/enrichModel.ts`, `i18nModel.ts`, `typeModFuzzRunner.ts` | The model-based enrichment lanes: random command sequences against the real CLI, checked by the `R*` / `T*` / `NL RC CB P` rule sets. |
 | `**/*.unit.test.ts` | Offline unit tests (no Go binary) over hand-built `RunType` graphs + the generator / value / budget layers. |
 
@@ -147,7 +147,7 @@ internals, or index-signature objects). O17 then checks the clone comes out
 `hasUnknownKeys`-clean.
 
 Two contract edges ride along as pinned tests rather than fuzz streams:
-object-bearing unions are a **throw-corpus** (the factory must be a RUK001
+object-bearing unions are a **throw-corpus** (the factory must be a unknown-keys-object-union
 alwaysThrow — there is no sound way to pick which declared shape to rebuild),
 and a cyclic VALUE is pinned to its accepted failure mode (RangeError stack
 overflow — values are trees by contract; there is deliberately no cycle

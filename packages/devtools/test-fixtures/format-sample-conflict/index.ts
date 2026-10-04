@@ -1,4 +1,4 @@
-// FMT006 — mockSamples are excluded from the structural id (they describe how to GENERATE a value,
+// format-sample-conflict — mockSamples are excluded from the structural id (they describe how to GENERATE a value,
 // not what the format validates), so these two intern as ONE cache entry. One entry carries one
 // pool, so differing declarations make the surviving pool depend on scan order. The build stops
 // rather than pick silently.

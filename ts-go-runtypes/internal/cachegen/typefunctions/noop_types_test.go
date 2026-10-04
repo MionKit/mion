@@ -512,7 +512,7 @@ func TestNoopType_RemoveUnknownKeys(t *testing.T) {
 		"objFn":     false, // declared shape {} — clone is a fresh {}
 		"recA":      false, // index-signature object — fresh copy walk
 		"uDat":      false, // string | Date — Date member needs a dispatch arm
-		"uObj":      false, // object-bearing union — RUK001 alwaysThrow, never identity
+		"uObj":      false, // object-bearing union — unknown-keys-object-union alwaysThrow, never identity
 		"ncls":      false, // class instances rebuild (prototype-preserving)
 		"tupObj":    false,
 	}

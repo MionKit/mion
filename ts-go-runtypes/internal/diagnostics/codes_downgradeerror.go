@@ -1,6 +1,6 @@
 package diagnostics
 
-// `@mion-downgrade-error` directive codes (DWNxxx), raised when the downgrade comment is itself
+// `@mion-downgrade-error` directive codes (comment-downgrade-error-*), raised when the downgrade comment is itself
 // wrong. The directive is the sibling of `@mion-expect-error`, same placement and optional code
 // list, but it LOWERS the finding to a warning instead of removing it: the right tool when the
 // finding is TRUE and worth seeing and only the halt is unwanted.
@@ -10,17 +10,17 @@ package diagnostics
 const (
 	// CodeDowngradeErrorUnused fires when no diagnostic the directive names was raised on the line
 	// below it. Args: [0] the codes named, or "any" for the bare form. Anchors at the comment.
-	CodeDowngradeErrorUnused = "DWN001"
+	CodeDowngradeErrorUnused = "comment-downgrade-error-unused"
 	// CodeDowngradeErrorNotDowngradeable fires on a LevelError code: the build produced no code for
 	// the thing, so carrying on would ship missing output rather than risky output. Args: [0] the
 	// offending code.
-	CodeDowngradeErrorNotDowngradeable = "DWN002"
+	CodeDowngradeErrorNotDowngradeable = "comment-downgrade-error-not-allowed"
 	// CodeDowngradeErrorUnknownCode fires on a code the catalog does not define, almost always a
 	// typo that would otherwise read as a working downgrade. Args: [0] the unknown code.
-	CodeDowngradeErrorUnknownCode = "DWN003"
+	CodeDowngradeErrorUnknownCode = "comment-downgrade-error-unknown-name"
 	// CodeDowngradeErrorAlreadyWarning: a comment expects a halt from a warning or info, which never halts. Args: [0] the code.
 	// `downgradeErrors` accepts one silently: a level may soften between releases and must not break a build.
-	CodeDowngradeErrorAlreadyWarning = "DWN004"
+	CodeDowngradeErrorAlreadyWarning = "comment-downgrade-error-already-warning"
 )
 
 func init() {

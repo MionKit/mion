@@ -91,7 +91,7 @@ function headersMiddlewareWithJSDoc(
 // ========================================
 
 // ========================================
-// MRT001 / MRT002: typed handlers
+// rpc-handler-missing-return-type / rpc-handler-missing-param-type: typed handlers
 // ========================================
 
 // start:typed-handlers-invalid-inline
@@ -161,7 +161,7 @@ function invalidHeadersMiddlewareJSDoc(ctx: CallContext, {headers}): void {
 // end:typed-handlers-invalid-jsdoc
 
 // ========================================
-// MRT003: return errors instead of throwing
+// rpc-handler-throws: return errors instead of throwing
 // ========================================
 
 // start:return-errors-valid
@@ -216,7 +216,7 @@ mion.route((ctx, id: string): string => {
 // end:return-errors-invalid
 
 // ========================================
-// MRT004: returned error types
+// rpc-handler-returns-non-rpc-error: returned error types
 // ========================================
 
 // start:error-types-valid

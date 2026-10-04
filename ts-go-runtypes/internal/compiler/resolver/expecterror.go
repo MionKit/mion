@@ -78,7 +78,7 @@ func (sess *Session) directiveScope(request protocol.Request) diagnostics.PassSc
 }
 
 // programDirectives collects every directive in the program's non-declaration source, files with NO
-// diagnostics included: an unused directive is exactly the case EXP001 exists to report, and that file
+// diagnostics included: an unused directive is exactly the case comment-expect-error-unused exists to report, and that file
 // has nothing else to report.
 func (sess *Session) programDirectives() []diagnostics.Directive {
 	if sess.Program == nil || sess.Program.TS == nil {

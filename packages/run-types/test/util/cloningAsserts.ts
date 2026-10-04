@@ -1,5 +1,5 @@
 // `assertCloneCase` derives every check from the case data: value equality, input untouched, no shared mutable
-// reference, root prototype kept. `passThrough` asserts `clone(x) === x` instead, `factoryThrows` the RUK001 throw.
+// reference, root prototype kept. `passThrough` asserts `clone(x) === x` instead, `factoryThrows` the unknown-keys-object-union throw.
 
 import {expect} from 'vitest';
 import type {CloningCase} from '../suites/cloning/types.ts';
@@ -67,7 +67,7 @@ export function assertNoSharedMutableRefs(input: unknown, out: unknown): void {
 /** The universal per-case assertion — see the module doc for the checklist. **/
 export function assertCloneCase(c: CloningCase): void {
   if (c.factoryThrows) {
-    expect(() => c.clone()).toThrow(/RUK001/);
+    expect(() => c.clone()).toThrow(/unknown-keys-object-union/);
     return;
   }
   const clone = c.clone();

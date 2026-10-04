@@ -6,9 +6,11 @@ import {snapshot} from '../value/fuzzOracle.ts';
 import type {WiredFns} from './typeFuzzHarness.ts';
 
 /** The codes an alwaysThrow entry carries (internal/diagnostics/codes_runtype.go). **/
-const ALWAYS_THROW_CODE = /^(?:(?:VL|VE|PJ|PJS|RJ)00\d|RUK00[1456]|TFN001)$/;
+const ALWAYS_THROW_CODE =
+  /^(?:(?:validate|validation-errors|json-prepare|json-prepare-clone|json-restore)-[a-z-]+-root|unknown-keys-(?:object-union|symbol-key|private-fields|shared-value-refused)|internal-kind-not-compilable)$/;
 /** The notes a family leaves when it drops a member DataOnly strips. **/
-const DROP_NOTE_CODE = /^(?:(?:VL|VE|PJ|PJS|RJ|RUK)01\d|UPN001)$/;
+const DROP_NOTE_CODE =
+  /^(?:(?:validate|validation-errors|json-prepare|json-prepare-clone|json-restore)-[a-z-]+-dropped|unknown-keys-(?:function-shared|method-not-copied|static-dropped|non-data-shared|value-shared)|data-proto-property-dropped)$/;
 
 export function isDropNote(code: string): boolean {
   return DROP_NOTE_CODE.test(code);
@@ -29,7 +31,7 @@ export type DiagContext = Pick<Violation, 'target' | 'seed'> & {source: string};
 
 /** The `[CODE]` a controlled alwaysThrow message opens with. **/
 export function controlledCode(message: string): string | undefined {
-  return /^\[([A-Z][A-Z0-9]*)\]/.exec(message)?.[1];
+  return /^\[([a-z][a-z0-9]*(?:-[a-z0-9]+)+)\]/.exec(message)?.[1];
 }
 
 export function classifyThrow(err: unknown): ThrowOutcome {

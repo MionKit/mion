@@ -138,7 +138,7 @@ func TestByFnKey(t *testing.T) {
 			t.Errorf("ByFnKey(%q).Name = %q, want %q", fnKey, op.Name, wantName)
 		}
 	}
-	// Retired family tags must stay unreachable as FnKeys, so a stale `'verr'` is a build error (MKR014), not silence.
+	// Retired family tags must stay unreachable as FnKeys, so a stale `'verr'` is a build error (marker-type-id-collision), not silence.
 	for _, retired := range []string{"val", "verr", "pj", "pjs", "rjs", "huk"} {
 		if _, ok := ByFnKey(retired); ok {
 			t.Errorf("retired family tag %q must not resolve as an FnKey", retired)
@@ -197,7 +197,7 @@ func TestPlainHashMatchesDefaultVariant(t *testing.T) {
 	}
 }
 
-// TestSuggestFnKey pins MKR015's did-you-mean: a RETIRED family tag must suggest its own family, not the closest name.
+// TestSuggestFnKey pins marker-unknown-function-family's did-you-mean: a RETIRED family tag must suggest its own family, not the closest name.
 func TestSuggestFnKey(t *testing.T) {
 	retired := map[string]string{
 		"val":  "validate",

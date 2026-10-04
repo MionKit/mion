@@ -87,24 +87,24 @@ export const TUPLES = {
     title: 'tuple non-serializable slot',
     description:
       'Function-typed tuple slots are unsupported at every serialization family because tuple positions are structural, so rather than silently dropping to lossy null/undefined output the factory is rendered as alwaysThrow.',
-    // @mion-downgrade-error PJ003
+    // @mion-downgrade-error json-prepare-function-root
     mutateEncoder: () => createJsonEncoderFn<[number, () => any]>(undefined, {strategy: 'mutate'}),
-    // @mion-downgrade-error PJS003
+    // @mion-downgrade-error json-prepare-clone-function-root
     cloneEncoder: () => createJsonEncoderFn<[number, () => any]>(undefined, {strategy: 'clone'}),
-    // @mion-downgrade-error PJS003
+    // @mion-downgrade-error json-prepare-clone-function-root
     compactEncoder: () => createJsonEncoderFn<[number, () => any]>(undefined, {strategy: 'compact'}),
-    // @mion-downgrade-error RJ003
+    // @mion-downgrade-error json-restore-function-root
     cloneDecoder: () => createJsonDecoderFn<[number, () => any]>(),
-    // @mion-downgrade-error RJ003
+    // @mion-downgrade-error json-restore-function-root
     mutateDecoder: () => createJsonDecoderFn<[number, () => any]>(undefined, {strategy: 'mutate'}),
-    // @mion-downgrade-error RJ003
+    // @mion-downgrade-error json-restore-function-root
     compactDecoder: () => createJsonDecoderFn<[number, () => any]>(undefined, {strategy: 'compact'}),
     // Expressible value-first (mirrors validation TUPLE.tuple_with_non_serializable),
     // but a function-typed tuple slot resolves the same alwaysThrow factory — each
     // thunk throws like the type-first form (factoryThrows below); adapter asserts it.
-    // @mion-downgrade-error PJS003
+    // @mion-downgrade-error json-prepare-clone-function-root
     schemaEncoder: () => createJsonEncoderFn(RT.tuple({required: [TF.number(), RT.func({ret: RT.any()})]})),
-    // @mion-downgrade-error RJ003
+    // @mion-downgrade-error json-restore-function-root
     schemaDecoder: () => createJsonDecoderFn(RT.tuple({required: [TF.number(), RT.func({ret: RT.any()})]})),
     factoryThrows: true,
     getTestData: () => ({values: []}),

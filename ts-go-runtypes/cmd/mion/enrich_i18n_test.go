@@ -172,25 +172,25 @@ func stubTranslationSpec(source, translationPath, friendlyBody string) mirror.Sp
 	}
 }
 
-// TestCheckTranslationFile_Findings covers the file-local findings: TR001
-// missing file, TR002 blanks, TR004 carcasses — all spec-free (a nil spec
-// skips only TR003), plus the strict severity flip.
+// TestCheckTranslationFile_Findings covers the file-local findings: enrich-i18n-missing-translation
+// missing file, enrich-i18n-todo-left blanks, enrich-i18n-orphans carcasses — all spec-free (a nil spec
+// skips only enrich-i18n-out-of-date), plus the strict severity flip.
 func TestCheckTranslationFile_Findings(t *testing.T) {
 	dir := canonicalTempDir(t)
 	t.Chdir(dir)
 	translationPath := filepath.Join(dir, "models.ts")
 
-	// Missing file → TR001 (warning when not strict; Error under i18n.strict).
+	// Missing file → enrich-i18n-missing-translation (warning when not strict; Error under i18n.strict).
 	findings := checkTranslationFile("pl", translationPath, nil, enrichment.Warning)
-	if len(findings) != 1 || findings[0].Code != "TR001" || findings[0].Severity != enrichment.Warning {
-		t.Fatalf("want one TR001 warning; got %+v", findings)
+	if len(findings) != 1 || findings[0].Code != "enrich-i18n-missing-translation" || findings[0].Severity != enrichment.Warning {
+		t.Fatalf("want one enrich-i18n-missing-translation warning; got %+v", findings)
 	}
 	strict := checkTranslationFile("pl", translationPath, nil, enrichment.Error)
 	if len(strict) != 1 || strict[0].Severity != enrichment.Error {
 		t.Fatalf("strict severity must flip to Error; got %+v", strict)
 	}
 
-	// Blanks + a carcass in an existing file → TR002 + TR004, and no TR003
+	// Blanks + a carcass in an existing file → enrich-i18n-todo-left + enrich-i18n-orphans, and no enrich-i18n-out-of-date
 	// without a spec.
 	writeTestFile(t, translationPath,
 		"export const pl_friendlyUser = {\n"+
@@ -202,18 +202,18 @@ func TestCheckTranslationFile_Findings(t *testing.T) {
 	for _, finding := range findings {
 		codes[finding.Code]++
 	}
-	if codes["TR002"] != 1 {
-		t.Errorf("want TR002 for @todo blanks; got %+v", findings)
+	if codes["enrich-i18n-todo-left"] != 1 {
+		t.Errorf("want enrich-i18n-todo-left for @todo blanks; got %+v", findings)
 	}
-	if codes["TR004"] != 1 {
-		t.Errorf("want TR004 for the carcass; got %+v", findings)
+	if codes["enrich-i18n-orphans"] != 1 {
+		t.Errorf("want enrich-i18n-orphans for the carcass; got %+v", findings)
 	}
-	if codes["TR001"] != 0 || codes["TR003"] != 0 {
-		t.Errorf("no TR001 (file exists) and no TR003 (nil spec); got %+v", findings)
+	if codes["enrich-i18n-missing-translation"] != 0 || codes["enrich-i18n-out-of-date"] != 0 {
+		t.Errorf("no enrich-i18n-missing-translation (file exists) and no enrich-i18n-out-of-date (nil spec); got %+v", findings)
 	}
 }
 
-// TestCheckTranslationFile_OutOfDate: TR003 = a dry-run src-derived reconcile
+// TestCheckTranslationFile_OutOfDate: enrich-i18n-out-of-date = a dry-run src-derived reconcile
 // would change the file — driven by an already-built spec (the stub stands in
 // for the Program-built desired side), flipping on after the desired side
 // grows and off again after an update.
@@ -233,24 +233,24 @@ func TestCheckTranslationFile_OutOfDate(t *testing.T) {
 		t.Errorf("translation consts annotate FriendlyText (Translation is retired):\n%s", scaffolded)
 	}
 
-	// In sync: no TR003.
+	// In sync: no enrich-i18n-out-of-date.
 	for _, finding := range checkTranslationFile("pl", translationPath, &baseSpec, enrichment.Warning) {
-		if finding.Code == "TR003" {
+		if finding.Code == "enrich-i18n-out-of-date" {
 			t.Fatalf("fresh scaffold must not be out of date: %+v", finding)
 		}
 	}
 
-	// The src type gains a field → the desired side grows → TR003 until updated.
+	// The src type gains a field → the desired side grows → enrich-i18n-out-of-date until updated.
 	grownSpec := stubTranslationSpec(source, translationPath, "{rt$label: '', name: {rt$label: ''}, email: {rt$label: ''}}")
 	grownSpec.Consts[0].ChildIDs["email"] = "e1"
 	sawOutOfDate := false
 	for _, finding := range checkTranslationFile("pl", translationPath, &grownSpec, enrichment.Warning) {
-		if finding.Code == "TR003" {
+		if finding.Code == "enrich-i18n-out-of-date" {
 			sawOutOfDate = true
 		}
 	}
 	if !sawOutOfDate {
-		t.Fatalf("want TR003 after the desired side grew")
+		t.Fatalf("want enrich-i18n-out-of-date after the desired side grew")
 	}
 
 	// Update, then clean again.
@@ -262,7 +262,7 @@ func TestCheckTranslationFile_OutOfDate(t *testing.T) {
 		t.Errorf("added field not scaffolded:\n%s", updated)
 	}
 	for _, finding := range checkTranslationFile("pl", translationPath, &grownSpec, enrichment.Warning) {
-		if finding.Code == "TR003" {
+		if finding.Code == "enrich-i18n-out-of-date" {
 			t.Errorf("updated translation must be in sync; got %+v", finding)
 		}
 	}

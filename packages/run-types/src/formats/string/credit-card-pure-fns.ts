@@ -131,7 +131,7 @@ export const isCreditCard = registerPureFnFactory(function (utl: RTUtils) {
 // share one copy: a mock that drifted from the validator would silently generate cards its own format
 // rejects. It has to be a pure fn rather than a plain module export, since factory bodies are inlined
 // WITHOUT their lexical environment and a factory referencing an imported const fails the build
-// (PFE9011); `utl.getPureFn` is the one way out, and the mock looks it up through `getRTUtils()`.
+// (purefn-reads-outer-variable); `utl.getPureFn` is the one way out, and the mock looks it up through `getRTUtils()`.
 // The top level is frozen because two callers share the object.
 export const cardNetworkRules = registerPureFnFactory(function () {
   const RULES: CardNetworkRules = {

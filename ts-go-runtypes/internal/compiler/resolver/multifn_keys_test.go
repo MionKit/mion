@@ -18,7 +18,7 @@ const multiFnDTS = `declare module '@mionjs/run-types' {
   export function createFour<T>(val?: T, id?: InjectTypeFnArgs<T, 'validationErrors', 'formatTransform', 'removeUnknownKeys', 'jsonSchema'>): unknown;
   // mion's interim route() shape: validator + JSON decoder + JSON encoder.
   export function createMion<T>(val?: T, id?: InjectTypeFnArgs<T, 'validationErrors', 'jsonDecoder', 'jsonEncoder'>): unknown;
-  // A repeated family — must be rejected with MKR006 and deduped. The duplicate
+  // A repeated family — must be rejected with marker-duplicate-function-family and deduped. The duplicate
   // 'verr' is deliberately NOT the first key, so the reported family pins the
   // FIRST-REPEATED-KEY rule (a naive "report the first key" impl would say 'fmt').
   export function createDup<T>(val?: T, id?: InjectTypeFnArgs<T, 'formatTransform', 'validationErrors', 'removeUnknownKeys', 'validationErrors'>): unknown;
@@ -166,7 +166,7 @@ createMion<{name: string}>();
 
 // TestResolver_MultiFn_DuplicateKey pins the duplicate-family rule: a marker
 // that names the same family twice (InjectTypeFnArgs<T, 'validationErrors', 'formatTransform', 'validationErrors'>)
-// emits MKR006 (Error) naming the repeated key, and the injected fnIds are
+// emits marker-duplicate-function-family (Error) naming the repeated key, and the injected fnIds are
 // DEDUPED so the emitted output carries each family once.
 func TestResolver_MultiFn_DuplicateKey(t *testing.T) {
 	const code = `import {createDup} from '@mionjs/run-types';
@@ -185,16 +185,16 @@ createDup<string>();
 		}
 	}
 	if dupDiag == nil {
-		t.Fatalf("expected an MKR006 duplicate-fn-key diagnostic, got %+v", resp.Diagnostics)
+		t.Fatalf("expected an marker-duplicate-function-family duplicate-fn-key diagnostic, got %+v", resp.Diagnostics)
 	}
 	// Info because the scan dedupes the key: what ships is correct, only the source is untidy.
 	if dupDiag.Level != diagnostics.LevelInfo {
-		t.Errorf("MKR006 level = %v, want LevelInfo", dupDiag.Level)
+		t.Errorf("marker-duplicate-function-family level = %v, want LevelInfo", dupDiag.Level)
 	}
 	// The reported family is the FIRST REPEATED key ('validationErrors'), NOT the
 	// first key of the list ('formatTransform') — pins first-repeated-key reporting.
 	if len(dupDiag.Args) != 1 || dupDiag.Args[0] != "validationErrors" {
-		t.Errorf("MKR006 args = %v, want [validationErrors] (the first repeated family, not the first key)", dupDiag.Args)
+		t.Errorf("marker-duplicate-function-family args = %v, want [validationErrors] (the first repeated family, not the first key)", dupDiag.Args)
 	}
 
 	// Injection proceeds with the duplicate removed, first-occurrence order kept.

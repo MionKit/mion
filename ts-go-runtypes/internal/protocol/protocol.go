@@ -82,7 +82,7 @@ type Request struct {
 	// CheckRouterRules adds the mion route rules over Files as FamilyMionRoute entries. Only the lint plugin sets it:
 	// most are RuntimeErrors that would stop a build.
 	CheckRouterRules bool `json:"checkRouterRules,omitempty"`
-	// IncludeRtDiagnostics renders the demanded entries for their RunType-family diagnostics (VL010, PJ001, …)
+	// IncludeRtDiagnostics renders the demanded entries for their RunType-family diagnostics (validate-function-property-dropped, json-prepare-never-root, …)
 	// but drops the module payload, so one lint scan returns the full picture a build would report.
 	// Implied by IncludeEntryModules.
 	IncludeRtDiagnostics bool `json:"includeRtDiagnostics,omitempty"`

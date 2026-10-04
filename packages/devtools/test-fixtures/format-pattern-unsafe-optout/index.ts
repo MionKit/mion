@@ -1,4 +1,4 @@
-// The FMT008 escape hatch: the same runaway pattern as the fmt008 fixture, with
+// The format-pattern-unsafe escape hatch: the same runaway pattern as the format-pattern-unsafe fixture, with
 // `unsafePattern: true` on it. Expected: the build completes.
 import {createValidateFn} from '@mionjs/run-types';
 import {String} from '@mionjs/run-types/formats';

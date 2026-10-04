@@ -10,7 +10,7 @@ import {haltError, type HaltError} from '../src/core/surface.ts';
 import {Family, Level, Severity, type Diagnostic} from '../src/core/protocol.ts';
 import {BIN, callHook, createMarkerProject, hasBinary} from './helpers/inline.ts';
 
-// MKR003 (marker in a generic function) is a fatal Error, VL002 (root `symbol`) a RuntimeError.
+// marker-in-generic-function (marker in a generic function) is a fatal Error, validate-symbol-root (root `symbol`) a RuntimeError.
 // Both getRunTypeId shapes must resolve.
 const MIXED_SRC = `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 export function makeValidator<T>() {
@@ -60,9 +60,9 @@ describe('a build prints every finding, then stops once with the real error', ()
       };
       try {
         await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/build stopped on 2 mion errors/);
-        expect(warnings.join('\n')).toContain('error MKR003');
-        expect(warnings.join('\n')).toContain('error VL002');
-        expect(halt!.message).toMatch(/First: .*entry\.ts\(\d+,\d+\): error (MKR003|VL002): /);
+        expect(warnings.join('\n')).toContain('error marker-in-generic-function');
+        expect(warnings.join('\n')).toContain('error validate-symbol-root');
+        expect(halt!.message).toMatch(/First: .*entry\.ts\(\d+,\d+\): error (marker-in-generic-function|validate-symbol-root): /);
         expect(halt!.id).toBe(path.join(dir, 'entry.ts'));
         expect(halt!.loc).toMatchObject({file: path.join(dir, 'entry.ts'), line: expect.any(Number), column: expect.any(Number)});
       } finally {
@@ -80,8 +80,8 @@ describe('a build prints every finding, then stops once with the real error', ()
       try {
         await expect(callHook(plugin.buildStart, {}) as Promise<void>).rejects.toThrow(/build stopped on 2 mion errors/);
         const printed = warn.mock.calls.map((call) => String(call[0])).join('\n');
-        expect(printed).toContain('error MKR003');
-        expect(printed).toContain('error VL002');
+        expect(printed).toContain('error marker-in-generic-function');
+        expect(printed).toContain('error validate-symbol-root');
       } finally {
         warn.mockRestore();
         await callHook(plugin.buildEnd, {});
@@ -113,8 +113,8 @@ describe('esbuild stops on a finding only buildStart sees', () => {
             external: ['@mionjs/run-types'],
             plugins: [runtypesEsbuild({binary: BIN, cwd: dir, tsconfig: 'tsconfig.json', genDir: path.join(dir, '.mion')})],
           })
-        ).rejects.toThrow(/build stopped on 1 mion error\. First: .*unimported\.ts.*VL002/);
-        expect(warn.mock.calls.map((call) => String(call[0])).join('\n')).toContain('error VL002');
+        ).rejects.toThrow(/build stopped on 1 mion error\. First: .*unimported\.ts.*validate-symbol-root/);
+        expect(warn.mock.calls.map((call) => String(call[0])).join('\n')).toContain('error validate-symbol-root');
       } finally {
         warn.mockRestore();
         fs.rmSync(dir, {recursive: true, force: true});
@@ -140,12 +140,12 @@ describe('the edits-mode re-sync', () => {
           throw error;
         },
       };
-      // As if an upstream plugin added it: MKR003 exists only in the code handed over.
+      // As if an upstream plugin added it: marker-in-generic-function exists only in the code handed over.
       const drifted = CLEAN_ENTRY_SRC + 'export function makeId<T>() {\n  return getRunTypeId<T>();\n}\n';
       try {
         await callHook(plugin.buildStart, ctx);
         await expect(callHook(plugin.transform, ctx, drifted, entry) as Promise<unknown>).rejects.toThrow(
-          /build stopped on 1 mion error\. First: .*error MKR003: /
+          /build stopped on 1 mion error\. First: .*error marker-in-generic-function: /
         );
       } finally {
         await callHook(plugin.buildEnd, ctx);
@@ -158,7 +158,7 @@ describe('the edits-mode re-sync', () => {
 
 describe('haltError', () => {
   const inB: Diagnostic = {
-    code: 'VL002',
+    code: 'validate-symbol-root',
     family: Family.RunType,
     level: Level.RuntimeError,
     severity: Severity.Error,

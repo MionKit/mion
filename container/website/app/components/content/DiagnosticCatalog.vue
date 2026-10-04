@@ -89,10 +89,10 @@ const levelOptions: Level[] = ['error', 'runtimeError', 'warning', 'info'];
         v-model="query"
         type="search"
         class="diag-search__input"
-        placeholder="Search any text, e.g. VL010, symbol or bigint"
+        placeholder="Search any text, e.g. validate-symbol-root, symbol or bigint"
         aria-label="Search diagnostics"
       />
-      <span class="diag-search__count">{{ shownCount }} of {{ codes.length }} codes</span>
+      <span class="diag-search__count">{{ shownCount }} of {{ codes.length }} diagnostics</span>
     </div>
 
     <div class="diag-filters">
@@ -142,7 +142,7 @@ const levelOptions: Level[] = ['error', 'runtimeError', 'warning', 'info'];
     </section>
 
     <p v-if="sections.length === 0" class="diag-empty">
-      No codes match.
+      No diagnostics match.
       <button v-if="filtered" type="button" class="diag-empty__clear" @click="clearFilters">Clear the search and filters</button>
     </p>
   </div>

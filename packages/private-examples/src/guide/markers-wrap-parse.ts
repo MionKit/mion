@@ -1,6 +1,6 @@
 import {createValidateFn, type ValidateFn} from '@mionjs/run-types';
 
-// take the validator as an argument: createValidateFn<T>() in this generic body is MKR003
+// take the validator as an argument: createValidateFn<T>() in this generic body is marker-in-generic-function
 function parseChecked<T>(raw: string, isValid: ValidateFn<T>): T {
   const data: unknown = JSON.parse(raw);
   if (!isValid(data))

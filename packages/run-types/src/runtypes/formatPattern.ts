@@ -1,7 +1,7 @@
 // FormatPattern is a pre-validated regex bundle written as TYPE-LEVEL string literals: the Go scanner reads it off the
 // `pattern` property's resolved type, `typeof /x/` is plain `RegExp` and a `.d.ts` erases initializers, hence the `const A`
 // generic over the WHOLE args object. Without mockSamples the build generates patternSampleCount from the regex, fresh
-// per build unless a literal createMockDataFn seed pins them; a regex it cannot handle fails with FMT005. Declared win.
+// per build unless a literal createMockDataFn seed pins them; a regex it cannot handle fails with format-sample-generation-failed. Declared win.
 
 import type {CompTimeArgs} from '../markers.ts';
 
@@ -13,7 +13,7 @@ export interface StringPatternArgs {
   flags?: string;
   mockSamples?: readonly string[];
   message?: string;
-  // Opts out of the build-time backtracking check (FMT008), which rejects a pattern a crafted input can make take exponential time.
+  // Opts out of the build-time backtracking check (format-pattern-unsafe), which rejects a pattern a crafted input can make take exponential time.
   // For the rare pattern the check reads wrongly: the emitted validator still runs the regex, so turning it off is a promise the pattern is safe.
   unsafePattern?: boolean;
   // Blocks a RegExp VALUE, which has source + flags and would otherwise fit structurally.

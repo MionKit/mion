@@ -14,32 +14,57 @@ const ctx = {target: 'T', seed: 1, source: 'type T = …'};
 
 describe('diagOracle', () => {
   it('D1 fires on a throw its call site never reported', () => {
-    expect(checkThrowReported({key: 'validate', codesAtSite: new Set(), thrownCode: 'VL002'}, ctx)?.oracle).toBe('D1');
-    expect(checkThrowReported({key: 'validate', codesAtSite: new Set(['VL002']), thrownCode: 'VL002'}, ctx)).toBeNull();
+    expect(checkThrowReported({key: 'validate', codesAtSite: new Set(), thrownCode: 'validate-symbol-root'}, ctx)?.oracle).toBe(
+      'D1'
+    );
+    expect(
+      checkThrowReported(
+        {key: 'validate', codesAtSite: new Set(['validate-symbol-root']), thrownCode: 'validate-symbol-root'},
+        ctx
+      )
+    ).toBeNull();
     expect(checkThrowReported({key: 'validate', codesAtSite: new Set()}, ctx)).toBeNull();
   });
 
   it('D1 fires on an error with no code, which no diagnostic can name', () => {
     const crash = classifyThrow(new TypeError('x is not a function'));
     expect(crash).toEqual({uncontrolledError: 'x is not a function'});
-    expect(checkThrowReported({key: 'mutateDecode', codesAtSite: new Set(['RJ010']), ...crash}, ctx)?.oracle).toBe('D1');
-    expect(classifyThrow(new Error('[RJ002] never decoded'))).toEqual({thrownCode: 'RJ002'});
+    expect(
+      checkThrowReported({key: 'mutateDecode', codesAtSite: new Set(['json-restore-function-property-dropped']), ...crash}, ctx)
+        ?.oracle
+    ).toBe('D1');
+    expect(classifyThrow(new Error('[json-restore-non-data-root] never decoded'))).toEqual({
+      thrownCode: 'json-restore-non-data-root',
+    });
   });
 
   it('D2 fires on a reported always-throw code the function never threw', () => {
-    expect(checkReportedThrows({key: 'jsonEncode', codesAtSite: new Set(['PJS003'])}, ctx)?.oracle).toBe('D2');
-    expect(checkReportedThrows({key: 'jsonEncode', codesAtSite: new Set(['PJS003']), thrownCode: 'PJS003'}, ctx)).toBeNull();
-    expect(checkReportedThrows({key: 'jsonEncode', codesAtSite: new Set(['PJS010'])}, ctx)).toBeNull();
+    expect(
+      checkReportedThrows({key: 'jsonEncode', codesAtSite: new Set(['json-prepare-clone-function-root'])}, ctx)?.oracle
+    ).toBe('D2');
+    expect(
+      checkReportedThrows(
+        {
+          key: 'jsonEncode',
+          codesAtSite: new Set(['json-prepare-clone-function-root']),
+          thrownCode: 'json-prepare-clone-function-root',
+        },
+        ctx
+      )
+    ).toBeNull();
+    expect(
+      checkReportedThrows({key: 'jsonEncode', codesAtSite: new Set(['json-prepare-clone-function-property-dropped'])}, ctx)
+    ).toBeNull();
   });
 
   it('D3 fires on a dropped member with no drop note', () => {
     expect(checkDropNoted('jsonEncode', ['$.f'], new Set(), ctx)?.oracle).toBe('D3');
-    expect(checkDropNoted('jsonEncode', ['$.f'], new Set(['PJS010']), ctx)).toBeNull();
+    expect(checkDropNoted('jsonEncode', ['$.f'], new Set(['json-prepare-clone-function-property-dropped']), ctx)).toBeNull();
     expect(checkDropNoted('jsonEncode', [], new Set(), ctx)).toBeNull();
   });
 
   it('reads the code a controlled throw opens with', () => {
-    expect(controlledCode('[VL002] Type `symbol` can never be validated')).toBe('VL002');
+    expect(controlledCode('[validate-symbol-root] Type `symbol` can never be validated')).toBe('validate-symbol-root');
     expect(controlledCode('TypeError: x is not a function')).toBeUndefined();
   });
 

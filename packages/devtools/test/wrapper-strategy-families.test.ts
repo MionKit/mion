@@ -160,24 +160,27 @@ export const r = mion.route(${HANDLER}, compactPreset);
     expect(familiesOf(ret)).toEqual(['validate', 'validationErrors', 'compactForJson', 'compactFromJson']);
   });
 
-  register('a widened preset is CTA004; inference falls back to the defaults and the runtime fails closed', async () => {
-    const response = await scan({
-      'widened.ts': `import {createRouter} from './factory';
+  register(
+    'a widened preset is marker-comptime-arg-widened-const; inference falls back to the defaults and the runtime fails closed',
+    async () => {
+      const response = await scan({
+        'widened.ts': `import {createRouter} from './factory';
 import {widenedPreset} from './preset';
 const mion = createRouter();
 export const r = mion.route(${HANDLER}, widenedPreset);
 `,
-    });
-    expect(markerDiagsOf(response).map((d) => d.code)).toContain('CTA004');
-    // `{parser: string}` is also a type error at the call, so RO falls back to the constraint and
-    // DirectionStrategy filters that widened union out: the defaults get compiled. The runtime value
-    // still says 'compact', so the router refuses the route at init (pinned in @mionjs/router).
-    const {params, ret} = routeSites(response.sites, 'widened.ts');
-    expect(familiesOf(params)).toEqual(['validate', 'validationErrors', 'prepareForJsonMutate', 'restoreFromJsonMutate']);
-    expect(familiesOf(ret)).toEqual(['validate', 'validationErrors', 'prepareForJsonMutate', 'restoreFromJsonClone']);
-  });
+      });
+      expect(markerDiagsOf(response).map((d) => d.code)).toContain('marker-comptime-arg-widened-const');
+      // `{parser: string}` is also a type error at the call, so RO falls back to the constraint and
+      // DirectionStrategy filters that widened union out: the defaults get compiled. The runtime value
+      // still says 'compact', so the router refuses the route at init (pinned in @mionjs/router).
+      const {params, ret} = routeSites(response.sites, 'widened.ts');
+      expect(familiesOf(params)).toEqual(['validate', 'validationErrors', 'prepareForJsonMutate', 'restoreFromJsonMutate']);
+      expect(familiesOf(ret)).toEqual(['validate', 'validationErrors', 'prepareForJsonMutate', 'restoreFromJsonClone']);
+    }
+  );
 
-  register('a call expression as the options is CTA001 (non-literal)', async () => {
+  register('a call expression as the options is marker-comptime-arg-not-literal (non-literal)', async () => {
     const response = await scan({
       'call.ts': `import {createRouter} from './factory';
 import type {RouteOptionsWithEncoder} from './factory';
@@ -187,7 +190,9 @@ export const r = mion.route(${HANDLER}, getOpts());
 `,
     });
     const codes = markerDiagsOf(response).map((d) => d.code);
-    expect(codes.some((code) => code === 'CTA001' || code === 'CTA003')).toBe(true);
+    expect(
+      codes.some((code) => code === 'marker-comptime-arg-not-literal' || code === 'marker-comptime-arg-forbidden-construct')
+    ).toBe(true);
   });
 
   // Marker test coverage rule: the static and value-first getRunTypeId shapes resolve the SAME id

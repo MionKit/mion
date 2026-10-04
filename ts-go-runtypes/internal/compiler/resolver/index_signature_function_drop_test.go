@@ -7,7 +7,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
-// A function-valued index signature drops like a function-valued property: with the family's …010 note, never silently.
+// A function-valued index signature drops like a function-valued property: with the family's `-function-property-dropped` note, never silently.
 
 const indexSignatureFunctionImports = `import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 `

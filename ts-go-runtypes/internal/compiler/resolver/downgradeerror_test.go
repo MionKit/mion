@@ -22,10 +22,10 @@ import (
 )
 
 // withDowngrade inserts a comment line directly above the createValidateFn call
-// in vl002Source (a root-position `symbol`, VL002), the position the directive
+// in validateSymbolRootSource (a root-position `symbol`, validate-symbol-root), the position the directive
 // contract defines.
 func withDowngrade(comment string) string {
-	return strings.Replace(vl002Source,
+	return strings.Replace(validateSymbolRootSource,
 		"export const bad = createValidateFn<symbol>();",
 		comment+"\nexport const bad = createValidateFn<symbol>();", 1)
 }
@@ -42,8 +42,8 @@ func generateDiags(t *testing.T, source string) []diagnostics.Diagnostic {
 	return response.Diagnostics
 }
 
-// findDowngradable returns the VL002 finding, and whether it was reported.
-func findVL002(list []diagnostics.Diagnostic) (diagnostics.Diagnostic, bool) {
+// findDowngradable returns the validate-symbol-root finding, and whether it was reported.
+func findValidateSymbolRoot(list []diagnostics.Diagnostic) (diagnostics.Diagnostic, bool) {
 	for _, diagnostic := range list {
 		if diagnostic.Code == diagnostics.CodeVLSymbolRoot {
 			return diagnostic, true
@@ -61,13 +61,13 @@ func codesIn(list []diagnostics.Diagnostic) []string {
 }
 
 func TestDowngradeError_KeepsTheFindingAndMarksIt(t *testing.T) {
-	list := generateDiags(t, withDowngrade("// @mion-downgrade-error VL002"))
-	found, ok := findVL002(list)
+	list := generateDiags(t, withDowngrade("// @mion-downgrade-error validate-symbol-root"))
+	found, ok := findValidateSymbolRoot(list)
 	if !ok {
 		t.Fatalf("a downgrade keeps the finding, it never removes it; got %v", codesIn(list))
 	}
 	if !found.Downgraded {
-		t.Errorf("VL002 must be marked downgraded so the consumers that halt can stand it down; got %+v", found)
+		t.Errorf("validate-symbol-root must be marked downgraded so the consumers that halt can stand it down; got %+v", found)
 	}
 	// The level stays what the catalog says: it is the label form, and what acts
 	// on a finding is the consumer.
@@ -75,13 +75,13 @@ func TestDowngradeError_KeepsTheFindingAndMarksIt(t *testing.T) {
 		t.Errorf("level must stay LevelRuntimeError, got %v", found.Level)
 	}
 	if contains(codesIn(list), diagnostics.CodeDowngradeErrorUnused) {
-		t.Errorf("the directive lowered VL002, so it is used; got %v", codesIn(list))
+		t.Errorf("the directive lowered validate-symbol-root, so it is used; got %v", codesIn(list))
 	}
 }
 
 func TestDowngradeError_BareFormCoversAnyRuntimeError(t *testing.T) {
 	list := generateDiags(t, withDowngrade("// @mion-downgrade-error"))
-	found, ok := findVL002(list)
+	found, ok := findValidateSymbolRoot(list)
 	if !ok || !found.Downgraded {
 		t.Fatalf("the bare form covers any downgradeable code; got %v", codesIn(list))
 	}
@@ -89,14 +89,14 @@ func TestDowngradeError_BareFormCoversAnyRuntimeError(t *testing.T) {
 
 func TestDowngradeError_SeveralCodesOnOneComment(t *testing.T) {
 	for _, comment := range []string{
-		"// @mion-downgrade-error VL002 PJ001",
-		"// @mion-downgrade-error VL002, PJ001",
+		"// @mion-downgrade-error validate-symbol-root json-prepare-never-root",
+		"// @mion-downgrade-error validate-symbol-root, json-prepare-never-root",
 	} {
 		t.Run(comment, func(t *testing.T) {
 			list := generateDiags(t, withDowngrade(comment))
-			found, ok := findVL002(list)
+			found, ok := findValidateSymbolRoot(list)
 			if !ok || !found.Downgraded {
-				t.Fatalf("VL002 must be lowered whichever separator is used; got %v", codesIn(list))
+				t.Fatalf("validate-symbol-root must be lowered whichever separator is used; got %v", codesIn(list))
 			}
 		})
 	}
@@ -105,27 +105,27 @@ func TestDowngradeError_SeveralCodesOnOneComment(t *testing.T) {
 // Only the comment directly above the finding counts, so a blank line between
 // them leaves the finding halting and reports the comment.
 func TestDowngradeError_OnlyTheLineDirectlyAboveCounts(t *testing.T) {
-	list := generateDiags(t, withDowngrade("// @mion-downgrade-error VL002\n"))
-	found, ok := findVL002(list)
+	list := generateDiags(t, withDowngrade("// @mion-downgrade-error validate-symbol-root\n"))
+	found, ok := findValidateSymbolRoot(list)
 	if !ok {
-		t.Fatalf("expected VL002 to survive; got %v", codesIn(list))
+		t.Fatalf("expected validate-symbol-root to survive; got %v", codesIn(list))
 	}
 	if found.Downgraded {
 		t.Errorf("a comment two lines up claims nothing; got %+v", found)
 	}
 	if !contains(codesIn(list), diagnostics.CodeDowngradeErrorUnused) {
-		t.Errorf("expected DWN001 for the comment that claimed nothing; got %v", codesIn(list))
+		t.Errorf("expected comment-downgrade-error-unused for the comment that claimed nothing; got %v", codesIn(list))
 	}
 }
 
 // A trailing comment after code is deliberately not a directive: it would be
 // ambiguous whether it covers its own line or the next one.
 func TestDowngradeError_TrailingCommentIsNotADirective(t *testing.T) {
-	source := strings.Replace(vl002Source,
+	source := strings.Replace(validateSymbolRootSource,
 		"export const bad = createValidateFn<symbol>();",
-		"export const bad = createValidateFn<symbol>(); // @mion-downgrade-error VL002", 1)
+		"export const bad = createValidateFn<symbol>(); // @mion-downgrade-error validate-symbol-root", 1)
 	list := generateDiags(t, source)
-	found, ok := findVL002(list)
+	found, ok := findValidateSymbolRoot(list)
 	if !ok || found.Downgraded {
 		t.Fatalf("a trailing comment is not a directive; got %v", codesIn(list))
 	}
@@ -134,65 +134,65 @@ func TestDowngradeError_TrailingCommentIsNotADirective(t *testing.T) {
 	}
 }
 
-// DWN001: the comment sits over a healthy call, so it lowered nothing.
+// comment-downgrade-error-unused: the comment sits over a healthy call, so it lowered nothing.
 func TestDowngradeError_UnusedOnAHealthyLine(t *testing.T) {
-	source := strings.Replace(vl002Source,
+	source := strings.Replace(validateSymbolRootSource,
 		"export const idStatic = getRunTypeId<{name: string}>();",
-		"// @mion-downgrade-error VL002\nexport const idStatic = getRunTypeId<{name: string}>();", 1)
+		"// @mion-downgrade-error validate-symbol-root\nexport const idStatic = getRunTypeId<{name: string}>();", 1)
 	codes := codesIn(generateDiags(t, source))
 	if !contains(codes, diagnostics.CodeDowngradeErrorUnused) {
-		t.Fatalf("expected DWN001 on a healthy line; got %v", codes)
+		t.Fatalf("expected comment-downgrade-error-unused on a healthy line; got %v", codes)
 	}
 }
 
-// DWN002: a LevelError code halts regardless, so the directive must refuse it
-// rather than appear to work. MKR014 is one.
+// comment-downgrade-error-not-allowed: a LevelError code halts regardless, so the directive must refuse it
+// rather than appear to work. marker-type-id-collision is one.
 func TestDowngradeError_FatalCodeCannotBeLowered(t *testing.T) {
-	codes := codesIn(generateDiags(t, withDowngrade("// @mion-downgrade-error MKR014")))
+	codes := codesIn(generateDiags(t, withDowngrade("// @mion-downgrade-error marker-type-id-collision")))
 	if !contains(codes, diagnostics.CodeDowngradeErrorNotDowngradeable) {
-		t.Fatalf("expected DWN002 for a LevelError code; got %v", codes)
+		t.Fatalf("expected comment-downgrade-error-not-allowed for a LevelError code; got %v", codes)
 	}
 	// One problem to fix, not two.
 	if contains(codes, diagnostics.CodeDowngradeErrorUnused) {
-		t.Errorf("a malformed directive reports DWN002 only, never also DWN001; got %v", codes)
+		t.Errorf("a malformed directive reports comment-downgrade-error-not-allowed only, never also comment-downgrade-error-unused; got %v", codes)
 	}
 }
 
-// DWN003: a code the catalog does not define can never match, so the comment
+// comment-downgrade-error-unknown-name: a code the catalog does not define can never match, so the comment
 // would lower nothing while looking like it works.
 func TestDowngradeError_UnknownCodeIsATypo(t *testing.T) {
 	list := generateDiags(t, withDowngrade("// @mion-downgrade-error VL2"))
 	codes := codesIn(list)
 	if !contains(codes, diagnostics.CodeDowngradeErrorUnknownCode) {
-		t.Fatalf("expected DWN003 for a mistyped code; got %v", codes)
+		t.Fatalf("expected comment-downgrade-error-unknown-name for a mistyped code; got %v", codes)
 	}
-	if found, ok := findVL002(list); !ok || found.Downgraded {
+	if found, ok := findValidateSymbolRoot(list); !ok || found.Downgraded {
 		t.Errorf("the real finding must survive untouched; got %v", codes)
 	}
 }
 
-// DWN004: lowering an info (VL015) does nothing; `downgradeErrors` accepts that silently, a comment should not.
-// The DWN001 case below covers a warning.
+// comment-downgrade-error-already-warning: lowering an info (validate-non-data-property-dropped) does nothing; `downgradeErrors` accepts that silently, a comment should not.
+// The comment-downgrade-error-unused case below covers a warning.
 func TestDowngradeError_AlreadyWarningDoesNothing(t *testing.T) {
-	codes := codesIn(generateDiags(t, withDowngrade("// @mion-downgrade-error VL015")))
+	codes := codesIn(generateDiags(t, withDowngrade("// @mion-downgrade-error validate-non-data-property-dropped")))
 	if !contains(codes, diagnostics.CodeDowngradeErrorAlreadyWarning) {
-		t.Fatalf("expected DWN004 for a code that is already info; got %v", codes)
+		t.Fatalf("expected comment-downgrade-error-already-warning for a code that is already info; got %v", codes)
 	}
 	if contains(codes, diagnostics.CodeDowngradeErrorUnused) {
-		t.Errorf("a malformed directive reports DWN004 only, never also DWN001; got %v", codes)
+		t.Errorf("a malformed directive reports comment-downgrade-error-already-warning only, never also comment-downgrade-error-unused; got %v", codes)
 	}
 }
 
 // A DWN code is the check that keeps these comments honest, so no directive may
 // stand one down.
 func TestDowngradeError_DwnCodeCannotBeStoodDown(t *testing.T) {
-	codes := codesIn(generateDiags(t, withDowngrade("// @mion-downgrade-error DWN001")))
+	codes := codesIn(generateDiags(t, withDowngrade("// @mion-downgrade-error comment-downgrade-error-unused")))
 	if !contains(codes, diagnostics.CodeDowngradeErrorAlreadyWarning) {
-		t.Fatalf("a DWN code is a warning, so naming it reports DWN004; got %v", codes)
+		t.Fatalf("a DWN code is a warning, so naming it reports comment-downgrade-error-already-warning; got %v", codes)
 	}
-	codes = codesIn(generateDiags(t, withDowngrade("// @mion-expect-error DWN001")))
+	codes = codesIn(generateDiags(t, withDowngrade("// @mion-expect-error comment-downgrade-error-unused")))
 	if !contains(codes, diagnostics.CodeExpectErrorNotSuppressible) {
-		t.Fatalf("expected EXP002: a directive cannot silence the checks that keep directives honest; got %v", codes)
+		t.Fatalf("expected comment-expect-error-not-allowed: a directive cannot silence the checks that keep directives honest; got %v", codes)
 	}
 }
 
@@ -202,9 +202,9 @@ func TestDowngradeError_DwnCodeCannotBeStoodDown(t *testing.T) {
 // `getRunTypeId(value)`).
 func TestDowngradeError_CoexistsWithExpectError(t *testing.T) {
 	source := `import {createValidateFn, createJsonEncoderFn, getRunTypeId} from '@mionjs/run-types';
-// @mion-downgrade-error VL002
+// @mion-downgrade-error validate-symbol-root
 export const kept = createValidateFn<symbol>();
-// @mion-expect-error PJS005
+// @mion-expect-error json-prepare-clone-symbol-root
 export const removed = createJsonEncoderFn<symbol>();
 export const idStatic = getRunTypeId<{name: string}>();
 const sample = {name: 'Ada'};
@@ -212,7 +212,7 @@ export const idReflected = getRunTypeId(sample);
 `
 	list := generateDiags(t, source)
 	codes := codesIn(list)
-	found, ok := findVL002(list)
+	found, ok := findValidateSymbolRoot(list)
 	if !ok || !found.Downgraded {
 		t.Errorf("the downgraded finding must still be reported and marked; got %v", codes)
 	}
@@ -228,7 +228,7 @@ export const idReflected = getRunTypeId(sample);
 
 // TestScanFiles_EchoesTheTsconfigDowngradeErrors: the linter has no generate call to read it from.
 func TestScanFiles_EchoesTheTsconfigDowngradeErrors(t *testing.T) {
-	session := setupInlineWith(t, map[string]string{"entry.ts": vl002Source}, func(programOpts *program.Options, resolverOpts *resolver.Options) {
+	session := setupInlineWith(t, map[string]string{"entry.ts": validateSymbolRootSource}, func(programOpts *program.Options, resolverOpts *resolver.Options) {
 		programOpts.SingleThreaded = true
 		resolverOpts.SingleThreaded = true
 		resolverOpts.TsconfigDowngradeErrors = []string{diagnostics.CodeVLSymbolRoot}

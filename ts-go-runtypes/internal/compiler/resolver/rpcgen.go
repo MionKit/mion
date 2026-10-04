@@ -35,7 +35,7 @@ type rpcCollection struct {
 	// entries are the inline mappers the batches reference plus the pure fns
 	// those mappers call, sorted by key.
 	entries []purefunctions.Entry
-	// mapperDiags are the BAT007 misses: a mapping naming a mapper the program does not define.
+	// mapperDiags are the rpc-batch-mapper-missing misses: a mapping naming a mapper the program does not define.
 	mapperDiags []diagnostics.Diagnostic
 }
 
@@ -102,7 +102,7 @@ func referencedMapperKeys(sites []requestbatch.Site) []string {
 	return keys
 }
 
-// missingMapperDiag reports BAT007 at the first batch call naming key.
+// missingMapperDiag reports rpc-batch-mapper-missing at the first batch call naming key.
 func (sess *Session) missingMapperDiag(sites []requestbatch.Site, key string) diagnostics.Diagnostic {
 	for _, site := range sites {
 		for _, mapping := range site.Mappings {
@@ -191,7 +191,7 @@ func renderBatchesModule(sites []requestbatch.Site, entries []purefunctions.Entr
 	var mapperKeys []string
 	for _, key := range referencedMapperKeys(sites) {
 		if !defined[key] {
-			continue // BAT007 already reported; the server has nothing to register
+			continue // rpc-batch-mapper-missing already reported; the server has nothing to register
 		}
 		mapperKeys = append(mapperKeys, key)
 		basename := entrymodules.ModuleName(key, entrymodules.KindPureFn)
@@ -204,7 +204,7 @@ func renderBatchesModule(sites []requestbatch.Site, entries []purefunctions.Entr
 	table := make(map[string]batchTableEntry, len(sites))
 	for _, site := range sites {
 		if _, seen := table[site.BatchId]; seen {
-			continue // the same batch at a second call site (BAT003 flags a differing one)
+			continue // the same batch at a second call site (rpc-batch-id-collision flags a differing one)
 		}
 		entry := batchTableEntry{Routes: append([]string(nil), site.RouteIds...)}
 		for _, mapping := range site.Mappings {

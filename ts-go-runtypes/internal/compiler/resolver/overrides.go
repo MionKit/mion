@@ -68,7 +68,7 @@ func (sess *Session) ensureOverrides() {
 	state := sess.scanStateFor(sess.checker)
 
 	// Phase 1: cfn extraction is independent of the override map, so it runs here, not per fixpoint
-	// iteration. File + source order keeps OVR001's "first wins" stable and the entry list reproducible.
+	// iteration. File + source order keeps override-duplicate's "first wins" stable and the entry list reproducible.
 	var raws []rawOverride
 	var entries []purefunctions.Entry
 	seen := map[string]struct{}{}
@@ -164,7 +164,7 @@ func (sess *Session) packageOverrideSeed() (map[string]map[string]string, []diag
 			}
 			key := row.BaseKey + "|" + row.Family
 			if winner, taken := seed[row.BaseKey][row.Family]; taken {
-				// Two packages overriding one type and family: OVR001, as in source.
+				// Two packages overriding one type and family: override-duplicate, as in source.
 				if winner != row.ID {
 					diags = append(diags, diagnostics.NewWithRelated(
 						diagnostics.CodeDuplicateOverride, diagnostics.Site{FilePath: manifest}, []string{row.Family},
@@ -264,8 +264,8 @@ func overrideMapsEqual(a, b map[string]map[string]string) bool {
 	return true
 }
 
-// overrideDiagnostics derives OVR001 / OVR010 from the raws and their final base keys. OVR001 is STRICT:
-// any second override of the same (type, family) is an error whatever its body. OVR010 warns once per
+// overrideDiagnostics derives override-duplicate / override-validate-affects-json from the raws and their final base keys. override-duplicate is STRICT:
+// any second override of the same (type, family) is an error whatever its body. override-validate-affects-json warns once per
 // distinct validate override, for its cross-family reach.
 func overrideDiagnostics(raws []rawOverride, baseKeys []string, seed map[string]map[string]string) []diagnostics.Diagnostic {
 	var diags []diagnostics.Diagnostic

@@ -310,7 +310,7 @@ function renderErrors(state: RenderState, errs: RTValidationError[]): FriendlyMe
 
     // rt$default mode → ONE message for the whole field. The node that supplies this group's text is
     // found with the FIRST error (root/translation first, else source, resolveTemplate's precedence)
-    // and rendered once with that error's bound. FT009 makes rt$default mutually exclusive with
+    // and rendered once with that error's bound. enrich-text-default-and-messages makes rt$default mutually exclusive with
     // per-constraint keys, so otherwise every failed constraint would render identical text.
     const first = group.errors[0];
     const firstVal = primitiveVal(first.format?.val);

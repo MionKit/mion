@@ -88,7 +88,7 @@ func Downgradeable(code string) bool {
 // Suppressible reports whether a directive may silence code. A LevelError never is: continuing would
 // ship missing output rather than merely risky output, the same rule the bundler plugin halts on. A
 // LevelRuntimeError is, since output exists and the author may have written the bad type on purpose.
-// An unrecognised code is not either, but the caller reports that as EXP003 rather than EXP002.
+// An unrecognised code is not either, but the caller reports that as comment-expect-error-unknown-name rather than comment-expect-error-not-allowed.
 func Suppressible(code string) bool {
 	definition, registered := Definitions[code]
 	if !registered {
@@ -218,7 +218,7 @@ func (directive Directive) unusedCode() string {
 
 // PassScope says what a pass could report, so a directive is judged only where the answer is real: never in a
 // file the pass did not read, a family it did not ask for (the build skips enrichment and mion-route, which the
-// lint pass needs), or a code it cannot raise (Lacks). EXP002 / EXP003 need only Files; EXP001 needs them all.
+// lint pass needs), or a code it cannot raise (Lacks). comment-expect-error-not-allowed / comment-expect-error-unknown-name need only Files; comment-expect-error-unused needs them all.
 type PassScope struct {
 	// Reports turns the EXP codes on. A pass that is only rewriting source
 	// leaves it false and silences without judging.

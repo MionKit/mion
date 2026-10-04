@@ -99,7 +99,7 @@ describe('FriendlyText<T> — per-branch correctness (total contract)', () => {
         } },
         age: { rt$label: 'Age', rt$errors: {type: 'must be a number'} },
       };
-      // a missing key is the compiler's warning (FT012), not a type error
+      // a missing key is the compiler's warning (enrich-text-missing-message), not a type error
       const _missingKey: FriendlyText<User> = { rt$label: '', rt$errors: {type: ''},
         name: { rt$label: '', rt$errors: { type: '', minLength: '' } },
         age: { rt$label: '', rt$errors: {type: ''} } };

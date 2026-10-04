@@ -80,7 +80,7 @@ func TestJsonComposite_DirectFnBind_CompactDecoder(t *testing.T) {
 
 // AssertCompositeSoftDeps — the build-time belt for the demand invariant:
 // a composite whose primitive never rendered surfaces as an Error diag
-// (JCP001) instead of a runtime `undefined.fn` TypeError.
+// (internal-json-primitive-missing) instead of a runtime `undefined.fn` TypeError.
 func TestAssertCompositeSoftDeps_MissingPrimitiveFails(t *testing.T) {
 	rjKey := operations.PlainHash("restoreFromJsonMutate") + "_obj1"
 	graph := entrymodules.Graph{}

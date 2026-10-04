@@ -2,7 +2,6 @@ package diagnostics
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 	"testing"
 )
@@ -89,7 +88,7 @@ func TestNew_PanicsOnUnknownCode(t *testing.T) {
 			t.Fatal("expected panic on unknown code")
 		}
 	}()
-	New("ZZZZ999", Site{})
+	New("internal-test-unregistered", Site{})
 }
 
 func TestDiagnostic_MarshalJSON_NumericSeverityAndFamily(t *testing.T) {
@@ -132,7 +131,7 @@ func TestDiagnostic_MarshalJSON_OmitsEmptyArgs(t *testing.T) {
 func TestFormatDebug_RendersCodeAndArgs(t *testing.T) {
 	d := New(CodeMarkerFunctionCallArg, Site{FilePath: "/a/b.ts", StartLine: 5, StartCol: 7}, "makeUser")
 	line := FormatDebug(d)
-	if !strings.Contains(line, "/a/b.ts(5,7): warning MKR001(makeUser)") {
+	if !strings.Contains(line, "/a/b.ts(5,7): warning marker-calls-function-for-type(makeUser)") {
 		t.Errorf("unexpected debug line: %q", line)
 	}
 }
@@ -172,7 +171,7 @@ func TestIsCompleteness(t *testing.T) {
 			t.Errorf("%s is wrong/stale, not completeness, it must fail every check lane", code)
 		}
 	}
-	if IsCompleteness("ZZZZ999") {
+	if IsCompleteness("internal-test-unregistered") {
 		t.Error("an unregistered code is not a completeness code")
 	}
 }
@@ -192,7 +191,7 @@ func TestIsTransient(t *testing.T) {
 			t.Errorf("%s is a property of the type, it must stay cacheable", code)
 		}
 	}
-	if IsTransient("ZZZZ999") {
+	if IsTransient("internal-test-unregistered") {
 		t.Error("an unregistered code is not transient")
 	}
 }
@@ -240,7 +239,7 @@ func TestRegister_PanicsWithoutScope(t *testing.T) {
 			t.Fatal("expected panic on a Definition with no Scope")
 		}
 	}()
-	register(Definition{Code: "ZZZ001", Family: FamilyRunType, Severity: SeverityError, Title: "no scope"})
+	register(Definition{Code: "internal-test-no-scope", Family: FamilyRunType, Severity: SeverityError, Title: "no scope"})
 }
 
 // TestEveryCodeDeclaresALevel is the catalog-wide invariant: register panics
@@ -269,7 +268,7 @@ func TestEveryCodeDeclaresALevel(t *testing.T) {
 			t.Errorf("%s: LevelOf disagrees with the definition", code)
 		}
 	}
-	if LevelOf("ZZZZ999") != LevelError {
+	if LevelOf("internal-test-unregistered") != LevelError {
 		t.Error("an unregistered code must read as fatal: nothing may downgrade or silence what the catalog cannot vouch for")
 	}
 }
@@ -282,7 +281,7 @@ func TestRegisterRejectsWrittenSeverity(t *testing.T) {
 			t.Fatal("register must refuse a hand-written Severity")
 		}
 	}()
-	register(Definition{Code: "ZZZ001", Family: FamilyMarker, Level: LevelWarning, Severity: SeverityError, Scope: ScopeNotSource})
+	register(Definition{Code: "internal-test-written-severity", Family: FamilyMarker, Level: LevelWarning, Severity: SeverityError, Scope: ScopeNotSource})
 }
 
 // TestRegisterRequiresLevel is the Scope rule's twin.
@@ -292,7 +291,7 @@ func TestRegisterRequiresLevel(t *testing.T) {
 			t.Fatal("register must refuse a code with no Level")
 		}
 	}()
-	register(Definition{Code: "ZZZ002", Family: FamilyMarker, Scope: ScopeNotSource})
+	register(Definition{Code: "internal-test-no-level", Family: FamilyMarker, Scope: ScopeNotSource})
 }
 
 // TestLevelsThatMoved pins the codes the level splits moved, with the reason for each, so no edit quietly re-lumps them.
@@ -342,11 +341,11 @@ func TestLevelsThatMoved(t *testing.T) {
 			t.Errorf("%s: level %d, want %d", code, got, want)
 		}
 	}
-	// Every member and union drop of the data families (…010 to …015) is Info; VE has no 014.
-	for _, prefix := range []string{"VL", "VE", "PJ", "PJS", "RJ"} {
-		for number := 10; number <= 15; number++ {
-			code := fmt.Sprintf("%s%03d", prefix, number)
-			if code == "VE014" {
+	// Every member and union drop of the data families (the `-dropped` codes) is Info; validation-errors has no union-member drop.
+	for _, prefix := range []string{"validate-", "validation-errors-", "json-prepare-", "json-prepare-clone-", "json-restore-"} {
+		for _, suffix := range []string{"function-property-dropped", "method-dropped", "static-dropped", "symbol-key-dropped", "union-member-dropped", "non-data-property-dropped"} {
+			code := prefix + suffix
+			if code == "validation-errors-union-member-dropped" {
 				continue
 			}
 			if got := Definitions[code].Level; got != LevelInfo {
@@ -371,14 +370,28 @@ func TestLevelLabel(t *testing.T) {
 
 func TestFormat_PrintsTheHeadline(t *testing.T) {
 	diagnostic := New(CodeVLSymbolRoot, Site{FilePath: "src/a.ts", StartLine: 3, StartCol: 7}, "Symbol")
-	want := "src/a.ts(3,7): error VL002: " + renderHeadline(CodeVLSymbolRoot, []string{"Symbol"})
+	want := "src/a.ts(3,7): error validate-symbol-root: " + renderHeadline(CodeVLSymbolRoot, []string{"Symbol"})
 	if got := Format(diagnostic, false); got != want {
 		t.Fatalf("Format = %q, want %q", got, want)
 	}
-	if got := Format(diagnostic, true); got != "src/a.ts(3,7): warning VL002: "+renderHeadline(CodeVLSymbolRoot, []string{"Symbol"})+" "+DowngradedNote {
+	if got := Format(diagnostic, true); got != "src/a.ts(3,7): warning validate-symbol-root: "+renderHeadline(CodeVLSymbolRoot, []string{"Symbol"})+" "+DowngradedNote {
 		t.Fatalf("downgraded Format = %q", got)
 	}
 	if headline := renderHeadline(CodeVLSymbolRoot, []string{"Symbol"}); strings.Contains(headline, "{0}") || !strings.Contains(headline, "Symbol") {
 		t.Fatalf("renderHeadline must fill {0}, got %q", headline)
+	}
+}
+
+func TestRegister_PanicsOnABadName(t *testing.T) {
+	for _, code := range []string{"", "Validate-symbol-root", "validate_symbol_root", "validate-", "validate", "nosuchprefix-name"} {
+		t.Run(code, func(t *testing.T) {
+			defer func() {
+				recovered := recover()
+				if message, _ := recovered.(string); !strings.Contains(message, "is not a kebab-case name with an area prefix") {
+					t.Errorf("register(%q) panic = %v, want the bad-name panic", code, recovered)
+				}
+			}()
+			register(Definition{Code: code, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource})
+		})
 	}
 }

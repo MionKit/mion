@@ -146,7 +146,7 @@ func (sess *Session) dispatchScanFiles(files []string) ([]protocol.Site, []diagn
 	if err != nil {
 		return nil, nil, err
 	}
-	// NE001 (`@nonEnumerable` on a required property) runs once per file here, so it covers the serial and the
+	// data-non-enumerable-required (`@nonEnumerable` on a required property) runs once per file here, so it covers the serial and the
 	// parallel scan path alike and never re-fires per call site. Purely syntactic, no checker needed.
 	diags = append(diags, sess.nonEnumerableRequiredDiagnostics(files)...)
 	// FIRST-PARTY DIAGNOSTIC SCOPING. A scan diagnostic is consumer feedback, "you wrote this call wrong", so it
@@ -194,7 +194,7 @@ func (sess *Session) dropExternalLibraryDiagnostics(diags []diagnostics.Diagnost
 	return filtered
 }
 
-// nonEnumerableRequiredDiagnostics runs the NE001 syntactic walk over each requested file; an unresolvable file is
+// nonEnumerableRequiredDiagnostics runs the data-non-enumerable-required syntactic walk over each requested file; an unresolvable file is
 // skipped, the scan above having already surfaced any hard error.
 func (sess *Session) nonEnumerableRequiredDiagnostics(files []string) []diagnostics.Diagnostic {
 	var out []diagnostics.Diagnostic
@@ -295,7 +295,7 @@ func (state scanState) detectMarker(paramType *checker.Type) (marker.Kind, *chec
 	return kind, typeArg, matched
 }
 
-// nearMissDiagnostic builds MKR012 for a parameter typed like a marker but declared by a package the project does
+// nearMissDiagnostic builds marker-untrusted-package for a parameter typed like a marker but declared by a package the project does
 // not trust. The using file's package is passed so a project's OWN same-named brand, the case the gate exists to
 // keep inert, never reports.
 func (state scanState) nearMissDiagnostic(file string, call *ast.Node, paramType *checker.Type) (diagnostics.Diagnostic, bool) {
@@ -324,7 +324,7 @@ type pendingCall struct {
 	file string
 	pos  int
 	// site is the pre-built call-span diagnostics.Site, used only to anchor the diagnostics commitPending's
-	// projection raises (the MKR008 depth cap and its siblings).
+	// projection raises (the marker-type-too-deep depth cap and its siblings).
 	site       diagnostics.Site
 	paramIndex int
 	argsCount  int
@@ -357,11 +357,11 @@ func (sess *Session) commitPending(pending pendingCall) (protocol.Site, []diagno
 	if sess.cache.DepthExceeded() {
 		// An unresolvable type, like a bare free param, but one only the deep walk can classify, so it lands
 		// here rather than at analyzeCall. A dominant named type on the overflowing stack means a
-		// SELF-INSTANTIATING GENERIC (MKR009, naming it), otherwise plain too-deep nesting (MKR008).
+		// SELF-INSTANTIATING GENERIC (marker-self-instantiating-generic, naming it), otherwise plain too-deep nesting (marker-type-too-deep).
 		// Emitting NO site keeps every unresolvable-type case consistent: no placeholder id ever ships
-		// (parity with MKR003/MKR010/MKR011). A lib-declared type needs no code of its own, since
+		// (parity with marker-in-generic-function/marker-unresolved-type-parameter/marker-generic-missing-type-argument). A lib-declared type needs no code of its own, since
 		// typeid.NotDataBuiltinOf takes it whole and it cannot spiral; whatever reaches here is the
-		// consumer's own code, which is what MKR009's "reflect a monomorphic shape" advice assumes.
+		// consumer's own code, which is what marker-self-instantiating-generic's "reflect a monomorphic shape" advice assumes.
 		var diag diagnostics.Diagnostic
 		if culprit := sess.cache.DepthCulprit(); culprit != "" {
 			diag = diagnostics.New(diagnostics.CodeMarkerSelfInstantiatingGeneric, pending.site, culprit)
@@ -425,7 +425,7 @@ func (sess *Session) commitPending(pending pendingCall) (protocol.Site, []diagno
 }
 
 // rememberIDOrigin records the FIRST site to resolve an id, so a later site that disagrees can name it. Only the
-// first wins: for FMT006 that is the site whose declared pool the shared entry kept, for MKR014 the one that took
+// first wins: for format-sample-conflict that is the site whose declared pool the shared entry kept, for marker-type-id-collision the one that took
 // the short id.
 func (sess *Session) rememberIDOrigin(id string, pending pendingCall) {
 	if sess.idOrigins == nil {
@@ -510,7 +510,7 @@ func (state scanState) analyzeCall(file string, call *ast.Node) ([]pendingCall, 
 	// other non-injection branded function must be checked too.
 	var diags []diagnostics.Diagnostic
 	var markers []injectMarker
-	// analyzeCall stays diagnosis-complete: a CTA0xx / PFN0xx that lands in a dependency's own source is
+	// analyzeCall stays diagnosis-complete: a marker-comptime-arg-* / purefn-* that lands in a dependency's own source is
 	// filtered downstream by dispatchScanFiles (dropExternalLibraryDiagnostics), one chokepoint on the whole list.
 	for paramIndex := 0; paramIndex <= lastIndex; paramIndex++ {
 		paramSymbol := parameters[paramIndex]
@@ -548,7 +548,7 @@ func (state scanState) analyzeCall(file string, call *ast.Node) ([]pendingCall, 
 			}
 			markers = append(markers, injectMarker{paramIndex: paramIndex, kind: kind, typeArg: typeArg, fnKeys: fnKeys})
 		case marker.KindCompTimeArgs, marker.KindCompTimeFnArgs:
-			// Both validate the argument is fully literal (CTA0xx). CompTimeFnArgs additionally marks the
+			// Both validate the argument is fully literal (marker-comptime-arg-*). CompTimeFnArgs additionally marks the
 			// fn-selecting slot, whose value the scanner reads positionally.
 			compTimeSlots[paramIndex] = true
 			if paramIndex >= argsCount {
@@ -562,7 +562,7 @@ func (state scanState) analyzeCall(file string, call *ast.Node) ([]pendingCall, 
 				diags = append(diags, diagnostic)
 			}
 		case marker.KindPureFunction, marker.KindPureFunctionFactory:
-			// Both pure-fn form markers enforce the same inline + purity rules (PFN001 / PFE9006-9011):
+			// Both pure-fn form markers enforce the same inline + purity rules (purefn-not-inline / the purity codes):
 			// the direct/factory distinction is a build-time wrap concern, not a validation one.
 			if paramIndex >= argsCount {
 				continue
@@ -587,8 +587,8 @@ func (state scanState) analyzeCall(file string, call *ast.Node) ([]pendingCall, 
 	// EXPLICIT PASS-THROUGH: a marker parameter the caller already filled is a forwarded handle or explicit id,
 	// not an injection request, as when a wrapper forwards its own injected handle inward
 	// (`getRunType<T>(undefined, id)`). argsCount is contiguous, so the injecting slots are exactly the trailing
-	// block paramIndex >= argsCount. This filter MUST precede the free-type-parameter (MKR003) check in the
-	// per-slot paths: inside a generic wrapper body `T` IS the wrapper's free type parameter, so MKR003 would
+	// block paramIndex >= argsCount. This filter MUST precede the free-type-parameter (marker-in-generic-function) check in the
+	// per-slot paths: inside a generic wrapper body `T` IS the wrapper's free type parameter, so marker-in-generic-function would
 	// halt the build on the documented wrapper pattern, where the forwarded handle is a legitimate value.
 	var injecting []injectMarker
 	for _, m := range markers {
@@ -667,16 +667,16 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, par
 	injectionTypeArgument := slot.typeArg
 	injectionFnKeys := slot.fnKeys
 	// One walk over the call's written type-argument syntax classifies every type reference into the silent-any
-	// guard that owns it: a `Temporal.<Name>` degraded to `any` is TMP001 (the lib is not loaded, so the emitted
-	// validator would accept anything), any other name that resolved to the checker's ERROR type is MKR013.
+	// guard that owns it: a `Temporal.<Name>` degraded to `any` is marker-temporal-lib-missing (the lib is not loaded, so the emitted
+	// validator would accept anything), any other name that resolved to the checker's ERROR type is marker-any-from-unresolved-name.
 	temporalDiags, nameDiags := detectWrittenTypeRefGuards(state.scanChecker, file, call)
 	diags = append(diags, temporalDiags...)
 	// Sibling guard: T resolved to `any` because an import in this file failed to resolve in the scan program
-	// (MKR007). The injection still proceeds with noop tuples, so the diagnostic is what fails a strict build.
+	// (marker-any-from-unresolved-import). The injection still proceeds with noop tuples, so the diagnostic is what fails a strict build.
 	importDiags := state.detectAnyFromUnresolvedImport(file, call, injectionTypeArgument)
 	diags = append(diags, importDiags...)
-	// MKR013 is suppressed when MKR007 fired, the import message naming the actionable cause; TMP001 always
-	// surfaces. The slot probe covers the reflect form and yields to a walk hit AND to TMP001, the same
+	// marker-any-from-unresolved-name is suppressed when marker-any-from-unresolved-import fired, the import message naming the actionable cause; marker-temporal-lib-missing always
+	// surfaces. The slot probe covers the reflect form and yields to a walk hit AND to marker-temporal-lib-missing, the same
 	// degraded slot with a lib-specific fix message.
 	if len(importDiags) == 0 {
 		if len(nameDiags) == 0 && len(temporalDiags) == 0 {
@@ -692,7 +692,7 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, par
 		// A call inside a generic wrapper body with the id slot EMPTY: `T` is the wrapper's own free type
 		// parameter, so there is no concrete id until the wrapper is instantiated. A wrapper that forwards
 		// its handle returned above, so this is the genuinely unsupported case, `createValidateFn<T>()` in a
-		// generic body. MKR003 gives the user a build-time breadcrumb instead of a runtime "no id injected".
+		// generic body. marker-in-generic-function gives the user a build-time breadcrumb instead of a runtime "no id injected".
 		if sourceFile == nil {
 			return pendingCall{}, diags, false
 		}
@@ -702,9 +702,9 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, par
 		))
 		return pendingCall{}, diags, false
 	}
-	// CONTAINED free type parameter (`A<T>`, `T[]`, `{a: T}` in a generic body): the bare-T MKR003 unsoundness
+	// CONTAINED free type parameter (`A<T>`, `T[]`, `{a: T}` in a generic body): the bare-T marker-in-generic-function unsoundness
 	// one level down, where the free param collapses silently to `unknown` and every instantiation context
-	// shares one aliased id. Rejected as MKR010 with no site, naming the parameter, Related pointing at its
+	// shares one aliased id. Rejected as marker-unresolved-type-parameter with no site, naming the parameter, Related pointing at its
 	// declaration and the generics chain the walk descended through.
 	if finding, found := marker.FindFreeTypeParameter(state.scanChecker, typeArgument); found {
 		if sourceFile == nil {
@@ -785,7 +785,7 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, par
 	// injectionFnKeys empty and so yields neither.
 	// DUPLICATE-FAMILY GUARD: a marker names each family at most once, so a repeat
 	// (InjectTypeFnArgs<T, 'verr', 'jsonDecoder', 'verr'>) is almost always a copy-paste slip and would inject a
-	// second identical entry tuple nothing reads. Rejected as MKR006, and deduped before computing fnIds so the
+	// second identical entry tuple nothing reads. Rejected as marker-duplicate-function-family, and deduped before computing fnIds so the
 	// output stays sane even if a host surfaces the diagnostic as non-fatal.
 	if deduped, firstDup, hadDup := dedupeFnKeys(injectionFnKeys); hadDup {
 		if sourceFile := ast.GetSourceFileOfNode(call); sourceFile != nil {
@@ -834,23 +834,23 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, par
 
 // analyzeMultiSlotInjection is the multi-slot injection path: a call whose signature carries SEVERAL
 // injection-marker parameters (mion's per-side `route(handler, opts?, paramsFns?, responseFns?)`), or a single
-// non-trailing one. Each injecting slot resolves independently, with its own type argument, fn keys and MKR003
+// non-trailing one. Each injecting slot resolves independently, with its own type argument, fn keys and marker-in-generic-function
 // check, and emits its own pendingCall at the call's closing paren; the transform then groups all slots of one
 // call, same Pos, into a single positional insertion, filling non-marker optional gaps with `undefined`.
 // Fn ids read only strategy and flag options from the argument before each marker; numberMode stays at its default.
 func (state scanState) analyzeMultiSlotInjection(file string, call *ast.Node, injecting []injectMarker, compTimeSlots []bool, argsCount int, trailingComma bool) ([]pendingCall, []diagnostics.Diagnostic) {
 	var diags []diagnostics.Diagnostic
 	sourceFile := ast.GetSourceFileOfNode(call)
-	// One per-call walk classifies every written type reference into the guard that owns it (TMP001 / MKR013),
-	// as on the trailing path. The per-slot reflect probe below yields to both families' hits; MKR013 also
-	// yields to a slot's MKR007 after the loop, the import naming the cause, while TMP001 always surfaces.
+	// One per-call walk classifies every written type reference into the guard that owns it (marker-temporal-lib-missing / marker-any-from-unresolved-name),
+	// as on the trailing path. The per-slot reflect probe below yields to both families' hits; marker-any-from-unresolved-name also
+	// yields to a slot's marker-any-from-unresolved-import after the loop, the import naming the cause, while marker-temporal-lib-missing always surfaces.
 	temporalDiags, nameRefDiags := detectWrittenTypeRefGuards(state.scanChecker, file, call)
 	diags = append(diags, temporalDiags...)
 	importFired := false
 	pos, noArgList := injectionPos(call)
 	var pendings []pendingCall
 	for _, m := range injecting {
-		// Silent-any guard per slot (MKR007): a wrapper slot whose T checked as `any` because this file has
+		// Silent-any guard per slot (marker-any-from-unresolved-import): a wrapper slot whose T checked as `any` because this file has
 		// an unresolved import.
 		importDiags := state.detectAnyFromUnresolvedImport(file, call, m.typeArg)
 		diags = append(diags, importDiags...)
@@ -871,7 +871,7 @@ func (state scanState) analyzeMultiSlotInjection(file string, call *ast.Node, in
 			}
 			continue
 		}
-		// Contained free type parameter, the MKR010 sibling of the bare check above. No syntactic
+		// Contained free type parameter, the marker-unresolved-type-parameter sibling of the bare check above. No syntactic
 		// missing-args check here: a multi-slot wrapper call infers its type arguments from values, so
 		// there are no written type-argument nodes to walk.
 		if finding, found := marker.FindFreeTypeParameter(state.scanChecker, m.typeArg); found {
@@ -934,7 +934,7 @@ func (state scanState) analyzeMultiSlotInjection(file string, call *ast.Node, in
 }
 
 // dedupeFnKeys removes repeated fn keys from a multi-function marker, keeping first-occurrence order, and reports
-// the first key that appeared twice. A repeat is rejected with MKR006, and the deduped list keeps injection sane
+// the first key that appeared twice. A repeat is rejected with marker-duplicate-function-family, and the deduped list keeps injection sane
 // if a host surfaces that diagnostic as non-fatal; the already-unique case returns the input unchanged.
 func dedupeFnKeys(keys []string) (deduped []string, firstDup string, hadDup bool) {
 	if len(keys) < 2 {
@@ -969,7 +969,7 @@ func mockFormatTransformDemand() []protocol.SiteDemand {
 	}}
 }
 
-// unresolvedFnNameDiagnostic (MKR015) makes a misspelled family a build failure, not a silently missing function.
+// unresolvedFnNameDiagnostic (marker-unknown-function-family) makes a misspelled family a build failure, not a silently missing function.
 func unresolvedFnNameDiagnostic(file string, call *ast.Node, fnKey string) diagnostics.Diagnostic {
 	suggestion := ""
 	if closest := operations.SuggestFnKey(fnKey); closest != "" {
@@ -1428,9 +1428,9 @@ func extractValidateOptions(typeChecker *checker.Checker, call *ast.Node, lastIn
 }
 
 // checkPureFunction validates that argumentNode is an inline arrow / function expression with no external handle,
-// then runs the purity rules against the resolved function node. A shape failure is PFN001 (not a literal) or
-// PFN002 (imported / exported, so the literal is reachable as a value) and short-circuits, there being nothing to
-// walk for purity; a purity violation is PFE9006-PFE9011.
+// then runs the purity rules against the resolved function node. A shape failure is purefn-not-inline (not a literal) or
+// purefn-imported-or-exported (imported / exported, so the literal is reachable as a value) and short-circuits, there being nothing to
+// walk for purity; a purity violation is the purity codes (purefn-uses-this to purefn-reads-outer-variable).
 func (state scanState) checkPureFunction(file string, argumentNode *ast.Node) []diagnostics.Diagnostic {
 	fnNode, shapeResult := comptimeargs.CheckLiteralFunction(state.scanChecker, argumentNode)
 	if !shapeResult.Ok {
@@ -1458,7 +1458,7 @@ func (state scanState) checkPureFunction(file string, argumentNode *ast.Node) []
 	return purefunctions.CheckPurity(state.scanChecker, state.sess.marker, sourceFile, fnNode)
 }
 
-// checkCompTimeArgs returns the CTA0xx diagnostic for an argument node that breaks the CompTimeArgs literal-only
+// checkCompTimeArgs returns the marker-comptime-arg-* diagnostic for an argument node that breaks the CompTimeArgs literal-only
 // rules, and (_, false) when validation succeeded.
 func (state scanState) checkCompTimeArgs(file string, argumentNode *ast.Node) (diagnostics.Diagnostic, bool) {
 	result := comptimeargs.CheckLiteral(state.scanChecker, argumentNode, 0, state.comptimeArgsPolicy())
@@ -1467,7 +1467,7 @@ func (state scanState) checkCompTimeArgs(file string, argumentNode *ast.Node) (d
 	}
 	// A pure fn's id is a branded value, not a literal the walk can read: it comes from a registrar call, or
 	// from a `.d.ts` carrying only its type. The brand promises the build can resolve it, and the pure-fn lane
-	// is what resolves it, reporting PFE9013 when it cannot, so the literal rule has nothing to add.
+	// is what resolves it, reporting purefn-dependency-not-id when it cannot, so the literal rule has nothing to add.
 	if state.isPureFnID(argumentNode) {
 		return diagnostics.Diagnostic{}, false
 	}
@@ -1531,7 +1531,7 @@ func (state scanState) comptimeArgsPolicy() comptimeargs.Policy {
 	}
 }
 
-// markerDiagFunctionCallArg builds the MKR001 diagnostic for a reflect-form marker call that received a
+// markerDiagFunctionCallArg builds the marker-calls-function-for-type diagnostic for a reflect-form marker call that received a
 // function-call argument (`createValidateFn(getX())`), which is invoked at runtime purely so TypeScript can infer
 // T from its return type. Returns (_, false) when the call's source file cannot be located, which should not happen.
 func (sess *Session) markerDiagFunctionCallArg(file string, callArg *ast.Node) (diagnostics.Diagnostic, bool) {

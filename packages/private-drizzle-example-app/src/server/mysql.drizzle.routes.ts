@@ -1,4 +1,4 @@
-/* @mion-expect-error MRT001 */
+/* @mion-expect-error rpc-handler-missing-return-type */
 // The return types are left to drizzle on purpose.
 import {avg, count, eq, gte, sql} from 'drizzle-orm';
 import {mion} from './mion.ts';

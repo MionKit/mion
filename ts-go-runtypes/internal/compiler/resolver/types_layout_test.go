@@ -64,8 +64,8 @@ func TestTypeDefinitionLayouts_ResolveFromThePackageManifest(t *testing.T) {
 		t.Run(layout.name, func(t *testing.T) {
 			resp := scanOverDependencyLayout(t, layout.packageJSON, layout.declAt)
 
-			if got := mkr007Count(resp); got != 0 {
-				t.Fatalf("the dependency's definitions did not resolve — %d MKR007 diagnostic(s): %+v", got, resp.Diagnostics)
+			if got := markerAnyFromUnresolvedImportCount(resp); got != 0 {
+				t.Fatalf("the dependency's definitions did not resolve — %d marker-any-from-unresolved-import diagnostic(s): %+v", got, resp.Diagnostics)
 			}
 			if len(resp.Sites) != 3 {
 				t.Fatalf("want 3 marker sites (2 getRunTypeId shapes + createValidateFn), got %d: %+v", len(resp.Sites), resp.Sites)

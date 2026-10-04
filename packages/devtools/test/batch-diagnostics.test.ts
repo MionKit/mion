@@ -2,7 +2,7 @@
 // of `batch([...])` the build can read (the report carries the ordered route
 // ids, the `inputFrom()` mappings and the injected `b_` id, and the transform
 // splices that id into the call) and every shape it cannot (the build halts
-// with a BAT00x diagnostic that names the file and the line of the offending
+// with a rpc-batch-* diagnostic that names the file and the line of the offending
 // element, and the report carries no site for that batch).
 //
 // Like batch-report.test.ts this drives the SHARED unplugin factory through
@@ -160,7 +160,7 @@ const fileTail = (file: string): string => `${path.basename(FIXTURE_DIR)}/${file
 function expectClean(run: BuildRun, file: string, count = 1): BatchSite[] {
   expect(run.error, `build must not halt:\n${run.warns.join('\n')}`).toBeNull();
   expect(
-    run.warns.filter((w) => /\bBAT\d{3}\b/.test(w)),
+    run.warns.filter((w) => /\brpc-batch-[a-z0-9-]+/.test(w)),
     'no BAT diagnostic expected'
   ).toEqual([]);
   expect(run.phases).toEqual(['build']);
@@ -410,7 +410,7 @@ describe('request-batch diagnostics and readable shapes', () => {
       });
     });
 
-    register('the same batch in two files: one id, one report entry per file, no BAT003', async () => {
+    register('the same batch in two files: one id, one report entry per file, no rpc-batch-id-collision', async () => {
       const body = `export const b = batch([routes.users.getById(1), routes.orders.list(1)]);\n`;
       await withBuild({'one.ts': IMPORTS + body, 'two.ts': IMPORTS + body}, {}, async (run) => {
         const [one] = expectClean(run, 'one.ts');
@@ -424,7 +424,7 @@ describe('request-batch diagnostics and readable shapes', () => {
       });
     });
 
-    register('the same batch with an inline mapper in two files is one batch, no BAT003', async () => {
+    register('the same batch with an inline mapper in two files is one batch, no rpc-batch-id-collision', async () => {
       // A mapper written in two files is two pure functions, one per file, so the
       // the mapper is ONE pure fn however many files write it, so both batches
       // name the same mapper and land on the same batch id. That is not a
@@ -462,7 +462,7 @@ describe('request-batch diagnostics and readable shapes', () => {
     });
   });
 
-  describe('BAT001: element not readable', () => {
+  describe('rpc-batch-element-unreadable: element not readable', () => {
     // Every entry: the case body, the substring that starts the offending
     // element (its line is asserted), and the reason the headline must render.
     const rejected: Record<string, {body: string; needle: string; reason?: string | RegExp}> = {
@@ -541,7 +541,7 @@ describe('request-batch diagnostics and readable shapes', () => {
       register(name, async () => {
         const source = IMPORTS + body;
         await withBuild({'case.ts': source}, {}, async (run) => {
-          expectHalted(run, 'BAT001', 'case.ts', source, needle, reason);
+          expectHalted(run, 'rpc-batch-element-unreadable', 'case.ts', source, needle, reason);
         });
       });
     }
@@ -549,18 +549,25 @@ describe('request-batch diagnostics and readable shapes', () => {
     register('optional chaining on the routes proxy', async () => {
       const source = IMPORTS + `export const b = batch([routes.users?.getById(1), routes.orders.list(1)]);\n`;
       await withBuild({'case.ts': source}, {}, async (run) => {
-        expectHalted(run, 'BAT001', 'case.ts', source, 'routes.users?.getById(1)', /optional chaining|not a route call/);
+        expectHalted(
+          run,
+          'rpc-batch-element-unreadable',
+          'case.ts',
+          source,
+          'routes.users?.getById(1)',
+          /optional chaining|not a route call/
+        );
       });
     });
 
-    register('one BAT001 per unreadable element, all reported before the halt', async () => {
+    register('one rpc-batch-element-unreadable per unreadable element, all reported before the halt', async () => {
       const source =
         IMPORTS +
         `const prepared = [routes.users.getById(1)];\ndeclare const flag: boolean;\nexport const b = batch([...prepared, flag ? routes.users.getById(1) : routes.users.getById(2), routes.orders.list(1)]);\n`;
       await withBuild({'case.ts': source}, {}, async (run) => {
         expect(run.error).not.toBeNull();
         expect(run.error!.message).toMatch(/build stopped on 2 mion errors/);
-        const hits = run.warns.filter((w) => w.includes('error BAT001:'));
+        const hits = run.warns.filter((w) => w.includes('error rpc-batch-element-unreadable:'));
         expect(hits.length).toBe(2);
         expect(hits[0]).toContain('spread element');
         expect(hits[1]).toContain('not a route call');
@@ -575,7 +582,7 @@ describe('request-batch diagnostics and readable shapes', () => {
         `const prepared = [routes.users.getById(1)];\nexport const b = batch([\n  routes.orders.list(1),\n  ...prepared,\n]);\n`;
       await withBuild({'case.ts': source}, {}, async (run) => {
         expect(run.error).not.toBeNull();
-        const hit = run.warns.find((w) => w.includes('error BAT001:'))!;
+        const hit = run.warns.find((w) => w.includes('error rpc-batch-element-unreadable:'))!;
         expect(hit).toBeDefined();
         const spreadLine = lineOf(source, '...prepared');
         expect(hit).toContain(`${fileTail('case.ts')}(${spreadLine},`);
@@ -583,7 +590,7 @@ describe('request-batch diagnostics and readable shapes', () => {
     });
   });
 
-  describe('BAT002: mapping source not in the batch or after its target', () => {
+  describe('rpc-batch-source-not-before: mapping source not in the batch or after its target', () => {
     const PRELUDE = IMPORTS + `const user = routes.users.getById(1);\n`;
 
     register('source route is not an element of the batch', async () => {
@@ -591,7 +598,13 @@ describe('request-batch diagnostics and readable shapes', () => {
         PRELUDE +
         `export const b = batch([routes.orders.getById(2), routes.orders.list(inputFrom(user, (u: {id: number}) => u.id))]);\n`;
       await withBuild({'case.ts': source}, {}, async (run) => {
-        const hit = expectHalted(run, 'BAT002', 'case.ts', source, 'inputFrom(user, (u: {id: number}) => u.id)');
+        const hit = expectHalted(
+          run,
+          'rpc-batch-source-not-before',
+          'case.ts',
+          source,
+          'inputFrom(user, (u: {id: number}) => u.id)'
+        );
         expect(hit).toContain('`users/getById`');
         expect(hit).toContain('`orders/list`');
       });
@@ -601,7 +614,13 @@ describe('request-batch diagnostics and readable shapes', () => {
       const source =
         PRELUDE + `export const b = batch([routes.orders.list(inputFrom(user, (u: {id: number}) => u.id)), user]);\n`;
       await withBuild({'case.ts': source}, {}, async (run) => {
-        const hit = expectHalted(run, 'BAT002', 'case.ts', source, 'inputFrom(user, (u: {id: number}) => u.id)');
+        const hit = expectHalted(
+          run,
+          'rpc-batch-source-not-before',
+          'case.ts',
+          source,
+          'inputFrom(user, (u: {id: number}) => u.id)'
+        );
         expect(hit).toContain('`users/getById`');
         expect(hit).toContain('`orders/list`');
       });
@@ -612,12 +631,12 @@ describe('request-batch diagnostics and readable shapes', () => {
         PRELUDE +
         `export const b = batch([user, routes.orders.list(inputFrom(routes.orders.list(1), (o: string[]) => o.length))]);\n`;
       await withBuild({'case.ts': source}, {}, async (run) => {
-        expectHalted(run, 'BAT002', 'case.ts', source, 'inputFrom(routes.orders.list(1)');
+        expectHalted(run, 'rpc-batch-source-not-before', 'case.ts', source, 'inputFrom(routes.orders.list(1)');
       });
     });
   });
 
-  describe('BAT004: mapper not readable', () => {
+  describe('rpc-batch-mapper-unreadable: mapper not readable', () => {
     const PRELUDE = IMPORTS + `const user = routes.users.getById(1);\n`;
 
     register('mapper passed as an identifier', async () => {
@@ -625,7 +644,7 @@ describe('request-batch diagnostics and readable shapes', () => {
         PRELUDE +
         `const pickId = (u: {id: number}) => u.id;\nexport const b = batch([user, routes.orders.list(inputFrom(user, pickId))]);\n`;
       await withBuild({'case.ts': source}, {}, async (run) => {
-        expectHalted(run, 'BAT004', 'case.ts', source, 'pickId))');
+        expectHalted(run, 'rpc-batch-mapper-unreadable', 'case.ts', source, 'pickId))');
       });
     });
 
@@ -633,7 +652,7 @@ describe('request-batch diagnostics and readable shapes', () => {
       const source =
         PRELUDE + `export function load(name: string) { return batch([user, routes.orders.list(inputFrom(user, name))]); }\n`;
       await withBuild({'case.ts': source}, {}, async (run) => {
-        expectHalted(run, 'BAT004', 'case.ts', source, 'name))]');
+        expectHalted(run, 'rpc-batch-mapper-unreadable', 'case.ts', source, 'name))]');
       });
     });
 
@@ -642,7 +661,7 @@ describe('request-batch diagnostics and readable shapes', () => {
         PRELUDE +
         'const suffix = "UserId";\nexport const b = batch([user, routes.orders.list(inputFrom(user, `to${suffix}`))]);\n';
       await withBuild({'case.ts': source}, {}, async (run) => {
-        expectHalted(run, 'BAT004', 'case.ts', source, '`to${suffix}`');
+        expectHalted(run, 'rpc-batch-mapper-unreadable', 'case.ts', source, '`to${suffix}`');
       });
     });
 
@@ -651,33 +670,33 @@ describe('request-batch diagnostics and readable shapes', () => {
         IMPORTS +
         `export function load(u: RouteSubRequest<any>) { return batch([routes.users.getById(1), routes.orders.list(inputFrom(u, (v: {id: number}) => v.id))]); }\n`;
       await withBuild({'case.ts': source}, {}, async (run) => {
-        const hit = expectHalted(run, 'BAT004', 'case.ts', source, 'u, (v: {id: number}) => v.id');
+        const hit = expectHalted(run, 'rpc-batch-mapper-unreadable', 'case.ts', source, 'u, (v: {id: number}) => v.id');
         expect(hit).toContain('source is not a route call');
       });
     });
   });
 
-  describe('BAT005 duplicate route / BAT006 mapping index', () => {
-    register('BAT005: the same route twice in one batch', async () => {
+  describe('rpc-batch-duplicate-route duplicate route / rpc-batch-argument-out-of-range mapping index', () => {
+    register('rpc-batch-duplicate-route: the same route twice in one batch', async () => {
       const source = IMPORTS + `export const b = batch([routes.users.getById(1), routes.users.getById(2)]);\n`;
       await withBuild({'case.ts': source}, {}, async (run) => {
-        expectHalted(run, 'BAT005', 'case.ts', source, 'routes.users.getById(2)');
+        expectHalted(run, 'rpc-batch-duplicate-route', 'case.ts', source, 'routes.users.getById(2)');
       });
     });
 
-    register('BAT006: a mapping at a parameter index the route does not declare', async () => {
+    register('rpc-batch-argument-out-of-range: a mapping at a parameter index the route does not declare', async () => {
       const source =
         IMPORTS +
         `const user = routes.users.getById(1);\nexport const b = batch([user, routes.users.list(inputFrom(user, (u: {id: number}) => u.id))]);\n`;
       await withBuild({'case.ts': source}, {}, async (run) => {
-        expectHalted(run, 'BAT006', 'case.ts', source, 'inputFrom(user, (u: {id: number}) => u.id)');
+        expectHalted(run, 'rpc-batch-argument-out-of-range', 'case.ts', source, 'inputFrom(user, (u: {id: number}) => u.id)');
       });
     });
   });
 
-  describe('downgradeErrors: [BAT001]', () => {
-    // BAT001 is a fatal Error and cannot be stood down, and this test used to be
-    // the proof of why: it asserted that a downgraded BAT001 ships the batch
+  describe('downgradeErrors: [rpc-batch-element-unreadable]', () => {
+    // rpc-batch-element-unreadable is a fatal Error and cannot be stood down, and this test used to be
+    // the proof of why: it asserted that a downgraded rpc-batch-element-unreadable ships the batch
     // WITHOUT its id. That bundle is not a working bundle — `batch()` throws
     // `batch-missing-id` synchronously at call time, before any network work —
     // so not halting buys nothing. The config is refused at the host boundary
@@ -689,18 +708,18 @@ describe('request-batch diagnostics and readable shapes', () => {
           cwd: FIXTURE_DIR,
           tsconfig: 'tsconfig.json',
           genDir: path.join(FIXTURE_DIR, '.mion'),
-          downgradeErrors: ['BAT001'],
+          downgradeErrors: ['rpc-batch-element-unreadable'],
         })
-      ).toThrow(/cannot downgrade BAT001/);
+      ).toThrow(/cannot downgrade rpc-batch-element-unreadable/);
     });
 
-    register('BAT003 IS downgradeable: both ids are injected, they just collide', async () => {
+    register('rpc-batch-id-collision IS downgradeable: both ids are injected, they just collide', async () => {
       // The contrast that makes the level real. A colliding id is real output
       // that resolves to the wrong plan, so a project may choose to ship it.
       const source =
         IMPORTS + `export const a = batch([routes.users.getById(1)]);\nexport const b = batch([routes.users.getById(1)]);\n`;
-      await withBuild({'case.ts': source}, {downgradeErrors: ['BAT003']}, async (run) => {
-        expect(run.error, 'a downgraded BAT003 must not halt the build').toBeNull();
+      await withBuild({'case.ts': source}, {downgradeErrors: ['rpc-batch-id-collision']}, async (run) => {
+        expect(run.error, 'a downgraded rpc-batch-id-collision must not halt the build').toBeNull();
       });
     });
   });
@@ -759,7 +778,7 @@ describe('request-batch diagnostics and readable shapes', () => {
         fs.writeFileSync(abs, after);
         await run.hotUpdate!([{file: abs, content: after}]);
         expect(run.error).toBeNull();
-        const hits = run.warns.filter((w) => w.includes('error BAT001:'));
+        const hits = run.warns.filter((w) => w.includes('error rpc-batch-element-unreadable:'));
         expect(hits.length).toBe(1);
         expect(hits[0]).toContain(`${fileTail('case.ts')}(${lineOf(after, '...prepared')},`);
       });

@@ -601,9 +601,9 @@ func TestShapes_Silent(t *testing.T) {
 	}
 }
 
-// Shape 9: BAT001, every element the build cannot read, with the reason and
+// Shape 9: rpc-batch-element-unreadable, every element the build cannot read, with the reason and
 // the element it points at.
-func TestShapes_Rejections_BAT001(t *testing.T) {
+func TestShapes_Rejections_RpcBatchElementUnreadable(t *testing.T) {
 	cases := map[string]struct{ body, at, reason string }{
 		"spread":                       {routesBound + "const prepared = [routes.users.getById(1)];\nexport const b = batch([...prepared, routes.orders.list(1)]);", "...prepared", reasonSpread},
 		"routes argument identifier":   {routesBound + "const list = [routes.users.getById(1)];\nexport const b = batch(list);", "batch(list", "routes argument is not an inline array literal"},
@@ -638,8 +638,8 @@ func TestShapes_Rejections_BAT001(t *testing.T) {
 	}
 }
 
-// Shape 10: BAT002, the source must be an earlier element of the same batch.
-func TestMappings_SourceOrder_BAT002(t *testing.T) {
+// Shape 10: rpc-batch-source-not-before, the source must be an earlier element of the same batch.
+func TestMappings_SourceOrder_RpcBatchSourceNotBefore(t *testing.T) {
 	cases := map[string]struct{ body, at, args string }{
 		"source outside the batch": {routesBound + "const user = routes.users.getById(1);\nexport const b = batch([routes.orders.list(1), routes.orders.getById(inputFrom(user, (u: {id: number}) => u.id))]);", "inputFrom(user, (u: {id: number}) => u.id)", "users/getById|orders/getById"},
 		"source after the target":  {routesBound + "const user = routes.users.getById(1);\nexport const b = batch([routes.orders.getById(inputFrom(user, (u: {id: number}) => u.id)), user]);", "inputFrom(user, (u: {id: number}) => u.id)", "users/getById|orders/getById"},
@@ -653,8 +653,8 @@ func TestMappings_SourceOrder_BAT002(t *testing.T) {
 	}
 }
 
-// Shape 11: BAT004, every mapper the build cannot read.
-func TestMappings_MapperNotReadable_BAT004(t *testing.T) {
+// Shape 11: rpc-batch-mapper-unreadable, every mapper the build cannot read.
+func TestMappings_MapperNotReadable_RpcBatchMapperUnreadable(t *testing.T) {
 	const user = routesBound + "const user = routes.users.getById(1);\n"
 	cases := map[string]struct{ body, at, reason string }{
 		"mapper identifier":       {user + "const pickId = (u: {id: number}) => u.id;\nexport const b = batch([user, routes.orders.getById(inputFrom(user, pickId))]);", "pickId)", "mapper is not an inline arrow or function expression"},
@@ -674,8 +674,8 @@ func TestMappings_MapperNotReadable_BAT004(t *testing.T) {
 	}
 }
 
-// Shape 12: BAT005, one route listed twice; reported at the second element.
-func TestShapes_DuplicateRoute_BAT005(t *testing.T) {
+// Shape 12: rpc-batch-duplicate-route, one route listed twice; reported at the second element.
+func TestShapes_DuplicateRoute_RpcBatchDuplicateRoute(t *testing.T) {
 	cases := map[string]struct{ body, at string }{
 		"inline twice":         {routesBound + "export const b = batch([routes.users.getById(1), routes.users.getById(2)]);", "getById(2)"},
 		"same binding twice":   {routesBound + "const user = routes.users.getById(1);\nexport const b = batch([user, user]);", "[user, user"},
@@ -697,13 +697,13 @@ func TestShapes_DuplicateRoute_BAT005(t *testing.T) {
 	// Three copies: one diagnostic per duplicate element, no site.
 	sites, diags := extractFromOverlay(t, map[string]string{"a.ts": fixture(routesBound + "export const b = batch([routes.users.getById(1), routes.users.getById(2), routes.users.getById(3)]);")})
 	if len(sites) != 0 || len(diags) != 2 || diags[0].Code != diagnostics.CodeBatchDuplicateRoute || diags[1].Code != diagnostics.CodeBatchDuplicateRoute {
-		t.Errorf("three copies must yield two BAT005 and no site, got sites=%+v diags=%s", sites, diagnosticsDebug(diags))
+		t.Errorf("three copies must yield two rpc-batch-duplicate-route and no site, got sites=%+v diags=%s", sites, diagnosticsDebug(diags))
 	}
 }
 
-// Shape 12: BAT006, a mapping at an argument position the route does not
+// Shape 12: rpc-batch-argument-out-of-range, a mapping at an argument position the route does not
 // declare; the count is the handler's own parameter list.
-func TestMappings_ParamOutOfRange_BAT006(t *testing.T) {
+func TestMappings_ParamOutOfRange_RpcBatchArgumentOutOfRange(t *testing.T) {
 	const user = routesBound + "const user = routes.users.getById(1);\n"
 	cases := map[string]struct{ body, at, args string }{
 		"one past a single param":  {user + "export const b = batch([user, routes.orders.getById(1, inputFrom(user, (u: {id: number}) => u.id))]);", "inputFrom(user, (u: {id: number}) => u.id)", "1|1|orders/getById"},
@@ -722,7 +722,7 @@ func TestMappings_ParamOutOfRange_BAT006(t *testing.T) {
 	// Two mappings on one call, one in range and one out: only the second reports.
 	diag := singleDiag(t, user+"export const b = batch([user, routes.orders.getById(inputFrom(user, (u: {id: number}) => u.id), inputFrom(user, (u: {id: number}) => u.id + 6))]);", diagnostics.CodeBatchMappingParamOutOfRange)
 	if got := strings.Join(diag.Args, "|"); got != "1|1|orders/getById" {
-		t.Errorf("BAT006 args = %q", got)
+		t.Errorf("rpc-batch-argument-out-of-range args = %q", got)
 	}
 }
 
@@ -741,7 +741,7 @@ func TestCheckConflicts(t *testing.T) {
 	}); len(extra) != 0 {
 		t.Errorf("same routes with different mappings are two batches, not a conflict: %s", diagnosticsDebug(extra))
 	}
-	// A hash collision (synthetic: two definitions forced under one id) is BAT003, pointing at the first site.
+	// A hash collision (synthetic: two definitions forced under one id) is rpc-batch-id-collision, pointing at the first site.
 	collided := BatchId(same, nil)
 	diags := CheckConflicts([]Site{
 		{FilePath: "/b.ts", Start: 10, BatchId: collided, RouteIds: same, Mappings: []Mapping{mappingB}},
@@ -749,11 +749,11 @@ func TestCheckConflicts(t *testing.T) {
 		{FilePath: "/a.ts", Start: 50, BatchId: collided, RouteIds: []string{"orders/list"}},
 	})
 	if len(diags) != 2 {
-		t.Fatalf("expected two BAT003, got: %s", diagnosticsDebug(diags))
+		t.Fatalf("expected two rpc-batch-id-collision, got: %s", diagnosticsDebug(diags))
 	}
 	for _, diag := range diags {
 		if diag.Code != diagnostics.CodeBatchIdCollision || diag.Args[0] != collided || len(diag.Related) != 1 || diag.Related[0].FilePath != "/a.ts" {
-			t.Errorf("BAT003 = %+v", diag)
+			t.Errorf("rpc-batch-id-collision = %+v", diag)
 		}
 	}
 	// Same routes, same mappings in a different order: one batch, no conflict.

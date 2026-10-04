@@ -153,7 +153,7 @@ describe('every unknown-key family agrees', () => {
       fns: () => ({
         errorsStrict: createGetValidationErrorsFn<TwoObjects>(undefined, {checkUnknowns: true}),
         validateStrict: createValidateFn<TwoObjects>(undefined, {checkUnknowns: true}),
-        // @mion-downgrade-error RUK001
+        // @mion-downgrade-error unknown-keys-object-union
         makeRemoveUnknownKeys: () => createRemoveUnknownKeysFn<TwoObjects>(),
         cloneJsonDecoder: createJsonDecoderFn<TwoObjects>(undefined, {strategy: 'clone'}),
         cloneEncoder: createJsonEncoderFn<TwoObjects>(undefined, {strategy: 'clone'}),
@@ -170,7 +170,9 @@ describe('every unknown-key family agrees', () => {
       expect(fns.errorsStrict(parse()), 'validation errors {checkUnknowns: true}').toEqual(expectedErrors);
       expect(fns.validateStrict(parse()), 'validate {checkUnknowns: true}').toBe(false);
       if (row.cloneRefuses) {
-        expect(fns.makeRemoveUnknownKeys, 'removeUnknownKeys refuses an object-bearing union').toThrow(/RUK001/);
+        expect(fns.makeRemoveUnknownKeys, 'removeUnknownKeys refuses an object-bearing union').toThrow(
+          /unknown-keys-object-union/
+        );
       } else {
         expect(fns.makeRemoveUnknownKeys()(parse() as never), 'removeUnknownKeys').toStrictEqual(row.clean);
       }
@@ -211,9 +213,9 @@ describe('every unknown-key family agrees', () => {
     expect(createValidateFn<CountsOrInner>(undefined, {checkUnknowns: true})(parse()), 'validate {checkUnknowns: true}').toBe(
       false
     );
-    // @mion-downgrade-error RUK001
+    // @mion-downgrade-error unknown-keys-object-union
     expect(() => createRemoveUnknownKeysFn<CountsOrInner>(), 'removeUnknownKeys refuses an object-bearing union').toThrow(
-      /RUK001/
+      /unknown-keys-object-union/
     );
     const cloneEncoded = createJsonEncoderFn<CountsOrInner>(undefined, {strategy: 'clone'})(parse()) as string;
     expect(JSON.parse(cloneEncoded), "encoder {strategy: 'clone'}").toStrictEqual(all);

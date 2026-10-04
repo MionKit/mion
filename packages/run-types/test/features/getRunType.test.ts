@@ -117,7 +117,7 @@ describe('getRunType — reflected RunType node accessor', () => {
 // `id?: InjectRunTypeId<T>`; the build injects an opaque handle at each concrete
 // call site; the body resolves it by FORWARDING it to a public resolver as the
 // trailing argument (`getRunType<T>(undefined, id)`). The forwarded call is a
-// pass-through the build leaves untouched (no MKR003), and it resolves to the
+// pass-through the build leaves untouched (no marker-in-generic-function), and it resolves to the
 // exact same registered node/id as direct reflection. The raw handle is NOT a
 // string, so the old `getRTUtils().getRunType(id)` path missed — that is why
 // forwarding is required.

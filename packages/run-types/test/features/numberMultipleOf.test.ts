@@ -114,13 +114,13 @@ describe('validate a whole multipleOf', () => {
 });
 
 describe('invalid multipleOf params', () => {
-  // Each call is an FMT002 build error, downgraded; an unused downgrade prints DWN001.
+  // Each call is an format-invalid-params build error, downgraded; an unused downgrade prints comment-downgrade-error-unused.
   it('an integer format with a fractional step, and a misplaced multipleOfTolerance', () => {
-    // @mion-downgrade-error FMT002
+    // @mion-downgrade-error format-invalid-params
     const halfSteps = createValidateFn<TF.Number<{integer: true; multipleOf: 0.5}>>();
-    // @mion-downgrade-error FMT002
+    // @mion-downgrade-error format-invalid-params
     const wholeStepTolerance = createValidateFn<TF.Number<{multipleOf: 5; multipleOfTolerance: 1e-9}>>();
-    // @mion-downgrade-error FMT002
+    // @mion-downgrade-error format-invalid-params
     const toleranceTooBig = createValidateFn<TF.Number<{multipleOf: 0.01; multipleOfTolerance: 1}>>();
     for (const validate of [halfSteps, wholeStepTolerance, toleranceTooBig]) expect(validate).toBeTypeOf('function');
   });

@@ -8,14 +8,14 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
-// The SYNTACTIC half of the unresolved-generics model (MKR011). A generic written WITHOUT its required
+// The SYNTACTIC half of the unresolved-generics model (marker-generic-missing-type-argument). A generic written WITHOUT its required
 // type arguments is a tsc error (TS2314), but the vite dev lane doesn't typecheck and the checker hands
 // the scan the error type, plain `any`, indistinguishable from a legal `getRunTypeId<any>()`. So this
 // walk inspects the WRITTEN type-argument nodes instead, descending through nested arguments and through
 // the bodies of the declarations it names (the "generics chain"), each declaration once per symbol so a
 // recursive type terminates. A parameter WITH a default never trips it: the checker applies defaults at
 // use sites, so a bare `interface A<S extends string = string>` arrives fully resolved. References to
-// type PARAMETERS are skipped here (MKR003/MKR010 own those), as are signature interiors, mirroring
+// type PARAMETERS are skipped here (marker-in-generic-function/marker-unresolved-type-parameter own those), as are signature interiors, mirroring
 // marker.FindFreeTypeParameter's exemption.
 
 // missingTypeArgsFinding is one written generic reference lacking required arguments; its Related
@@ -174,7 +174,7 @@ func (walker *missingArgsWalker) walkNamed(typeName *ast.Node, typeArguments *as
 	declaration := typeDeclarationOf(symbol)
 	if declaration == nil {
 		// A type parameter, enum or namespace is not a generic declaration this check owns (type
-		// parameters belong to MKR003/MKR010).
+		// parameters belong to marker-in-generic-function/marker-unresolved-type-parameter).
 		return missingTypeArgsFinding{}, false
 	}
 

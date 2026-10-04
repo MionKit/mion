@@ -18,7 +18,7 @@ import (
 // @mionjs/devtools plugin surfaces). It runs under the `enrich <file>
 // --no-emit` grammar: tag hygiene (unfilled @todo scaffolds, stale @rtOrphan
 // carcasses), FriendlyText / MockData content validity, and breadcrumb drift
-// (GE002/GE003, gated on the generated-mirror marker). A DIRECTORY / no target
+// (enrich-mirror-source-missing/enrich-mirror-type-missing, gated on the generated-mirror marker). A DIRECTORY / no target
 // runs the mirror-tree drift walk (runMirrorDriftCheck); `--i18n` runs the i18n
 // completeness gate (runI18nCheck) — both routed from runEnrich.
 
@@ -140,7 +140,7 @@ func isDirArg(path string) bool {
 // enrichgen.HygieneDiagnostics — the family of each mirror is known from its spec,
 // so no second Program is built (and no dependency on resolving the mirror's
 // imports). A combined --out spec (both families in one file) reports under the
-// friendly codes; the exact FT02x/MD02x code is cosmetic for the worklist.
+// friendly codes; the exact enrich-text-* / enrich-mock-* code is cosmetic for the worklist.
 func scaffoldWorklist(specs []mirror.Spec) []diagnostics.Diagnostic {
 	var out []diagnostics.Diagnostic
 	for _, spec := range specs {

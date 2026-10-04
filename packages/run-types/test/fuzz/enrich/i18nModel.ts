@@ -452,7 +452,7 @@ export const I18N_COMMANDS: I18nCommand[] = [
     },
   },
   {
-    // The completeness gate: controlled, and TR002 fires iff blanks exist.
+    // The completeness gate: controlled, and enrich-i18n-todo-left fires iff blanks exist.
     name: 'checkT',
     canApply: () => true,
     apply(model, ctx) {
@@ -460,9 +460,9 @@ export const I18N_COMMANDS: I18nCommand[] = [
       const result = runTranslateCli(ctx.fixture, ['enrich', '--i18n', LOCALE, '--no-emit']);
       if (!controlledOr(result, 'checkT', ctx, out)) return out;
       const hasBlanks = /: ''/.test(readTranslation(ctx.fixture));
-      const reported = result.stdout.includes('TR002');
+      const reported = result.stdout.includes('enrich-i18n-todo-left');
       if (hasBlanks !== reported) {
-        out.push(violation('T10', 'checkT', ctx, `TR002 mismatch: blanks=${hasBlanks} reported=${reported}`));
+        out.push(violation('T10', 'checkT', ctx, `enrich-i18n-todo-left mismatch: blanks=${hasBlanks} reported=${reported}`));
       }
       return out;
     },

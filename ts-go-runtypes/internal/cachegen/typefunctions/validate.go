@@ -239,7 +239,7 @@ func emitContainsCount(ctx *EmitContext, rt *reflection.RunType, containsCheck *
 		childRT.Code + ") " + nVar + "++;}return " + boundsOver(nVar) + ";})())"
 }
 
-// containsContradictions reports the `contains` param combinations that are PROVABLY EMPTY, under the same FMT002 code the
+// containsContradictions reports the `contains` param combinations that are PROVABLY EMPTY, under the same format-invalid-params code the
 // scalar families use for `gt >= lt`. Deliberately only provable emptiness, never suspicion: `minContains: 0` is legal 2020-12,
 // and a child the entry type happens to reject is a satisfiability question this layer cannot answer.
 func containsContradictions(rt *reflection.RunType) []string {

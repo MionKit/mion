@@ -15,22 +15,22 @@ interface HasSymLiteral {
 
 describe('symbol literal at a root', () => {
   test('every JSON strategy refuses it', () => {
-    // @mion-downgrade-error PJS005
+    // @mion-downgrade-error json-prepare-clone-symbol-root
     expect(() => createJsonEncoderFn<SymLiteral>()).toThrow();
-    // @mion-downgrade-error PJ005
+    // @mion-downgrade-error json-prepare-symbol-root
     expect(() => createJsonEncoderFn<SymLiteral>(undefined, {strategy: 'mutate'})).toThrow();
-    // @mion-downgrade-error RJ005
+    // @mion-downgrade-error json-restore-symbol-root
     expect(() => createJsonDecoderFn<SymLiteral>()).toThrow();
   });
 
   test('an array of one has no encodable element', () => {
-    // @mion-downgrade-error PJS005
+    // @mion-downgrade-error json-prepare-clone-symbol-root
     expect(() => createJsonEncoderFn<SymLiteral[]>()).toThrow();
   });
 
   test('the validator refuses it like a bare symbol', () => {
-    // @mion-downgrade-error VL002
-    expect(() => createValidateFn<SymLiteral>()).toThrow(/VL002/);
+    // @mion-downgrade-error validate-symbol-root
+    expect(() => createValidateFn<SymLiteral>()).toThrow(/validate-symbol-root/);
   });
 });
 

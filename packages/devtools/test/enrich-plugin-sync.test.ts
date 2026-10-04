@@ -414,7 +414,7 @@ describeIfBinary('@mionjs/devtools / plugin-driven enrichment sync', () => {
     try {
       await driveBuild(downgraded, project, 'build', on); // must NOT throw
       const all = on.warnings.join('\n');
-      expect(all, 'the finding is still reported').toMatch(/warning (FT|MD)0\d\d/);
+      expect(all, 'the finding is still reported').toMatch(/warning enrich-(?:text|mock)-[a-z0-9-]+/);
       expect(all, 'and marked so it does not read as an ordinary warning').toContain('(downgraded)');
     } finally {
       await teardown(downgraded);

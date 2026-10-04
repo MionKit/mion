@@ -7,7 +7,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/convert"
 )
 
-// CNV010: an unresolved runtypes or drizzle import must fail the run, not read as a clean, empty conversion.
+// convert-unresolved-import: an unresolved runtypes or drizzle import must fail the run, not read as a clean, empty conversion.
 
 func TestUnresolvedImport_ErrorPerPackage(t *testing.T) {
 	source := "import * as RT from '@mionjs/run-types/missing';\n" +
@@ -24,10 +24,10 @@ func TestUnresolvedImport_ErrorPerPackage(t *testing.T) {
 				continue
 			}
 			if diagnostic.Severity != convert.SeverityError {
-				t.Errorf("--to %s: CNV010 must be an error", target)
+				t.Errorf("--to %s: convert-unresolved-import must be an error", target)
 			}
 			if !strings.Contains(diagnostic.Message, diagnostic.Decl) {
-				t.Errorf("--to %s: CNV010 must name the package; got %q", target, diagnostic.Message)
+				t.Errorf("--to %s: convert-unresolved-import must name the package; got %q", target, diagnostic.Message)
 			}
 			reported = append(reported, diagnostic.Decl)
 		}
@@ -47,7 +47,7 @@ func TestUnresolvedImport_SilentWhenImportsResolve(t *testing.T) {
 	_, diags := convertOne(t, source, convert.Options{Target: convert.TargetType})
 	for _, diagnostic := range diags {
 		if diagnostic.Code == convert.CodeUnresolvedImport {
-			t.Errorf("resolved imports must not report CNV010: %s", diagnostic.Message)
+			t.Errorf("resolved imports must not report convert-unresolved-import: %s", diagnostic.Message)
 		}
 	}
 }

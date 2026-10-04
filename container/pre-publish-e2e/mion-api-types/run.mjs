@@ -205,7 +205,7 @@ async function main() {
   const typesCheck = capture(MION, ['api-check', '--server-gen-dir', 'node_modules/@acme/api-types/.mion', '--client-gen-dir', '.mion-cli'], typesBuilds['client-types']);
   writeFileSync(path.join(OUT, 'api-check-types.json'), JSON.stringify(typesCheck, null, 2));
 
-  log('client-types-nomarker: the types-only package without its marker; both builds must fail with one MET015');
+  log('client-types-nomarker: the types-only package without its marker; both builds must fail with one rpc-client-types-not-built-by-mion');
   buildClient('client-types-nomarker', clientCopy('client-types-nomarker', undefined, undefined, true), tarballOf('0.0.1-nomarker', 'api-types'));
 
   log('client-plain: the same client against the plain tsc tarball; both builds pass with a warning');

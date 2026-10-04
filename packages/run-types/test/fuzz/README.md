@@ -206,7 +206,7 @@ carries `unknownKeys.{flagged, carveOut, wire}` counters and the test asserts
 each is non-zero, so a green run cannot be green because nothing was planted.
 
 Two documented gaps the oracles work around rather than fail on: a union with
-object members has no `removeUnknownKeys` at all (**RUK001** — the emitter cannot
+object members has no `removeUnknownKeys` at all (**unknown-keys-object-union** — the emitter cannot
 know which arm to rebuild), so O24 skips those targets, O18 only checks that the
 strict validator never accepts what `validate` rejects, and O25 covers the decoder
 side of a union instead; and O25 plants blindly on the wire, so it is skipped

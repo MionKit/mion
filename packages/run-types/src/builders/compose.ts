@@ -3,7 +3,7 @@
 // `InjectRunTypeId` brand, so the children ride the carrier only and are DISCARDED at runtime.
 // They are branded `CompTimeArgs<…>`, so the scanner requires each child be a static builder call
 // (or a `const` bound to one) and a dynamic schema (`cond ? a : b`, a `.map(...)`, a spread)
-// raises a `CTA0xx` diagnostic instead of silently freezing whatever type it resolved to. The
+// raises a `marker-comptime-arg-*` diagnostic instead of silently freezing whatever type it resolved to. The
 // grouped `tuple` / `func` capture each group with `const T`, never a `readonly [...T]` spread:
 // intersecting a spread target with the `CompTimeArgs` brand collapses the tuple to an array, so
 // `const` + `MapTuple`'s `-readonly` is what keeps per-slot inference. Minimal `infer` per
@@ -316,7 +316,7 @@ export function circular<Body>(
   return builderResult(id, {type: 'circular', child: body});
 }
 
-/** A promise is not data: validate refuses it at the root (VL001) and drops it at a property. **/
+/** A promise is not data: validate refuses it at the root (validate-non-data-root) and drops it at a property. **/
 export function promise<V>(valueSchema: CompTimeArgs<RunType<V>>, id?: InjectRunTypeId<Promise<V>>): RunType<Promise<V>> {
   return builderResult(id, {type: 'promise', child: valueSchema});
 }
@@ -355,7 +355,7 @@ export function func(
 }
 
 /** InferType is `Fn & Props`: TS can't write a call signature plus mapped props in one object literal.
- *  The scanner projects it as one, like the type-first callable interface; validate refuses it at the root (VL003). **/
+ *  The scanner projects it as one, like the type-first callable interface; validate refuses it at the root (validate-function-root). **/
 export function callable<Fn, Props>(
   fn: CompTimeArgs<RunType<Fn>>,
   iface: CompTimeArgs<RunType<Props>>,

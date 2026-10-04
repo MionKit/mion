@@ -366,7 +366,7 @@ describe('mion compile + api-check — a client built from the published API typ
       });
       const apiPackage = path.join(client, 'node_modules', '@acme', 'api');
       fs.mkdirSync(apiPackage, {recursive: true});
-      // a `main` makes it the full server package: a types-only one must come from `mion api-types` (MET015)
+      // a `main` makes it the full server package: a types-only one must come from `mion api-types` (rpc-client-types-not-built-by-mion)
       fs.writeFileSync(
         path.join(apiPackage, 'package.json'),
         JSON.stringify({name: '@acme/api', types: 'index.d.ts', main: 'index.js'})
@@ -379,7 +379,7 @@ describe('mion compile + api-check — a client built from the published API typ
       publish(publishedDts);
       const matching = compileClient();
       expect(matching.status, matching.report).toBe(0);
-      expect(matching.stdout + matching.stderr).not.toMatch(/MET01[23]/);
+      expect(matching.stdout + matching.stderr).not.toMatch(/rpc-client-(?:server-version-mismatch|no-server-version)/);
       expect(injectedVersion(path.join(client, 'dist', 'a.js'))).toBe(serverVersion);
       const check = runCli(['api-check', '--server-gen-dir', serverGen, '--client-gen-dir', clientGen], {
         label: 'apitypes-check',
@@ -390,13 +390,13 @@ describe('mion compile + api-check — a client built from the published API typ
       publish(publishedDts.replace(`ApiBuildVersion<"${serverVersion}">`, 'ApiBuildVersion<string>'));
       const unversioned = compileClient();
       expect(unversioned.status, unversioned.report).toBe(0);
-      expect(unversioned.stdout + unversioned.stderr).toContain('MET013');
+      expect(unversioned.stdout + unversioned.stderr).toContain('rpc-client-no-server-version');
 
       // a route type that changed after the server build: the client's ids no longer hash to the server's version
       publish(publishedDts.replace('verbose: boolean', 'verbose: string'));
       const drifted = compileClient();
       expect(drifted.status).not.toBe(0);
-      expect(drifted.stdout + drifted.stderr).toContain('MET012');
+      expect(drifted.stdout + drifted.stderr).toContain('rpc-client-server-version-mismatch');
     } finally {
       fs.rmSync(base, {recursive: true, force: true});
     }
@@ -520,7 +520,9 @@ describe('mion api-types — a types-only package for an API client', () => {
 
       const matching = compileClient();
       expect(matching.status, matching.report).toBe(0);
-      expect(matching.stdout + matching.stderr).not.toMatch(/MET01[2356]/);
+      expect(matching.stdout + matching.stderr).not.toMatch(
+        /rpc-client-(?:server-version-mismatch|no-server-version|types-not-built-by-mion|types-other-mion-version)/
+      );
       const clientJs = fs.readFileSync(path.join(client, 'dist', 'a.js'), 'utf8');
       expect(injectedVersion(path.join(client, 'dist', 'a.js'))).toBe(serverVersion);
       // both getRunTypeId shapes name the package's type and agree on its id
@@ -537,9 +539,9 @@ describe('mion api-types — a types-only package for an API client', () => {
       const refused = compileClient();
       expect(refused.status).not.toBe(0);
       const output = refused.stdout + refused.stderr;
-      expect(output.match(/MET015/g)).toHaveLength(1);
+      expect(output.match(/rpc-client-types-not-built-by-mion/g)).toHaveLength(1);
       expect(output).toContain('@acme/server-app-types');
-      expect(output).not.toMatch(/MET01[23]/);
+      expect(output).not.toMatch(/rpc-client-(?:server-version-mismatch|no-server-version)/);
     } finally {
       fs.rmSync(base, {recursive: true, force: true});
     }

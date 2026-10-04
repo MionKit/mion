@@ -37,11 +37,11 @@ func (idx *Index) Get(id string) (Entry, bool) {
 // ValidatePureFnDependencies cross-checks every dep recorded by RT walkers against idx.
 //
 // The package's own pure fns are skipped: they are validated against the installed package at
-// SERVE time instead (servePackagePureFns raises PFE9012 for one the package lacks). That check is
+// SERVE time instead (servePackagePureFns raises purefn-not-registered for one the package lacks). That check is
 // graph-based, so it also covers warm disk-cache hits this sink-based pass never sees, and it is
 // the only one that works for a consumer whose program sees run-types as a .d.ts.
 //
-// Returns one PFE9012 per unique missing id: the RT compiler may register the same dep from
+// Returns one purefn-not-registered per unique missing id: the RT compiler may register the same dep from
 // several emitters, and one complaint should not print N times.
 func ValidatePureFnDependencies(deps []protocol.PureFnDep, idx *Index) []diagnostics.Diagnostic {
 	if idx == nil {

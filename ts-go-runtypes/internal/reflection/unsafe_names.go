@@ -9,7 +9,7 @@ package reflection
 // Refused in both positions, differently. As a WIRE KEY admitted by an index signature, every decoder and
 // validate refuse it and every encoder or clone that rebuilds from keys leaves it out. As a DECLARED member it
 // is dropped like any member that cannot cross the wire; TypeScript accepts the declaration, so the type
-// promises a value the runtime never carries, which is what the UPN001 Warning is for.
+// promises a value the runtime never carries, which is what the data-proto-property-dropped Warning is for.
 var UnsafePropertyNames = []string{"__proto__"}
 
 // IsUnsafePropertyName reports whether name is one of UnsafePropertyNames.

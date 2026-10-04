@@ -165,7 +165,7 @@ func TestPatternTimeout_NeverReplayedFromDiskCache(t *testing.T) {
 			}
 			if !lane.replayed {
 				for _, diagnostic := range quiet.Diagnostics {
-					if strings.HasPrefix(diagnostic.Code, "FMT") {
+					if strings.HasPrefix(diagnostic.Code, "format-") {
 						t.Errorf("quiet session must build clean, got %s %+v", diagnostic.Code, diagnostic.Args)
 					}
 				}
@@ -186,7 +186,7 @@ func TestPatternTimeout_NotMemoizedWithinSession(t *testing.T) {
 			resolverOpts.JSEngine = engine
 		})
 	if found := findDiag(scanBuild(t, session), diagnostics.CodeFMTPatternTimeout); found == nil {
-		t.Fatal("loaded scan: expected FMT007")
+		t.Fatal("loaded scan: expected format-pattern-timeout")
 	}
 	engine.loaded = false
 	if found := findDiag(scanBuild(t, session), diagnostics.CodeFMTPatternTimeout); found != nil {

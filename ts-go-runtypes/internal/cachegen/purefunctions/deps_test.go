@@ -217,7 +217,7 @@ export const dedup = registerPureFnFactory(function (utl) {
 	}
 }
 
-func TestDeps_UnreadableArg_PFE9013(t *testing.T) {
+func TestDeps_UnreadableArg_PurefnDependencyNotId(t *testing.T) {
 	_, diags := depsOf(t, "bad", `
 import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 declare const buildKey: (n: number) => string;
@@ -236,11 +236,11 @@ export const bad = registerPureFnFactory(function (utl) {
 		}
 	}
 	if !found {
-		t.Fatalf("expected PFE9013 for an id the build cannot read, got %+v", diags)
+		t.Fatalf("expected purefn-dependency-not-id for an id the build cannot read, got %+v", diags)
 	}
 }
 
-func TestDeps_ImportedNonRegistration_PFE9013(t *testing.T) {
+func TestDeps_ImportedNonRegistration_PurefnDependencyNotId(t *testing.T) {
 	// An imported binding that is not a registration is not an id: accepting it
 	// would invent a dependency on a pure fn nothing registers.
 	_, diags := depsOf(t, "bad", `
@@ -258,7 +258,7 @@ export const bad = registerPureFnFactory(function (utl) {
 		}
 	}
 	if !found {
-		t.Fatalf("expected PFE9013 for a binding that is not a pure fn, got %+v", diags)
+		t.Fatalf("expected purefn-dependency-not-id for a binding that is not a pure fn, got %+v", diags)
 	}
 }
 
@@ -288,14 +288,14 @@ export const noParam = registerPureFnFactory(function () {
 	})
 	for _, d := range diags {
 		if d.Code == CodePurityDepNotLiteral {
-			t.Fatalf("PFE9013 fired with no first param: %+v", d)
+			t.Fatalf("purefn-dependency-not-id fired with no first param: %+v", d)
 		}
 	}
 }
 
 // TestDeps_CycleAcrossFilesIsReported — two pure functions that reach each
 // other have no id: each one's id is the hash of a body that would have to
-// carry the other's id. Before PFE9015 nothing rejected it, and it was not
+// carry the other's id. Before purefn-dependency-cycle nothing rejected it, and it was not
 // merely unbuildable: materialising either one at runtime called straight back
 // into the other and recursed until the stack went. A build error instead.
 //
@@ -423,7 +423,7 @@ export const titleOf = registerPureFnFactory(function (utl) {
 	})
 	for _, diag := range diags {
 		if diag.Code == CodePurityDepNotLiteral {
-			t.Fatalf("unexpected PFE9013: %+v", diag)
+			t.Fatalf("unexpected purefn-dependency-not-id: %+v", diag)
 		}
 	}
 	consumer := entryNamed(t, entries, "titleOf")
@@ -442,17 +442,17 @@ export const titleOf = registerPureFnFactory(function (utl) {
 		found = found || diag.Code == CodePurityDepNotLiteral
 	}
 	if !found {
-		t.Error("an untyped .d.ts binding with no package index must still be a PFE9013")
+		t.Error("an untyped .d.ts binding with no package index must still be a purefn-dependency-not-id")
 	}
 
-	// An unbuilt package: PFE9016 alone, no unreadable-dep or captured-binding error on top.
+	// An unbuilt package: purefn-package-not-built alone, no unreadable-dep or captured-binding error on top.
 	_, diags = extractFromOverlayWith(t, files, func(opts *marker.Options) {
 		opts.PureFnBindings = unbuiltPackages{"index.d.ts": "@acme/text"}
 	})
 	if len(diags) != 1 || diags[0].Code != CodePureFnDepUnbuilt {
-		t.Fatalf("expected exactly one PFE9016, got %+v", diags)
+		t.Fatalf("expected exactly one purefn-package-not-built, got %+v", diags)
 	}
 	if args := diags[0].Args; len(args) != 2 || args[0] != "slugify" || args[1] != "@acme/text" {
-		t.Errorf("PFE9016 must name the binding and the package, got %v", args)
+		t.Errorf("purefn-package-not-built must name the binding and the package, got %v", args)
 	}
 }

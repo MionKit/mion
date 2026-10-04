@@ -135,7 +135,7 @@ const rtUtils = {
   },
   // Runtime-key lookup — the UNTRACKED companion to usePureFn/getPureFn/hasPureFn. The plain `string` param (NOT
   // `CompTimeArgs<string>`) keeps the scanner from demand-checking it, which is the door for a framework
-  // dispatching on a pure-fn id received over the WIRE. It drives no PFE9012 "referenced but never registered"
+  // dispatching on a pure-fn id received over the WIRE. It drives no purefn-not-registered "referenced but never registered"
   // and no pure-fn dependency edges; use the CompTimeArgs forms when you want that tracking.
   getPureFnByKey(key: string): PureFunction | undefined {
     const compiled = pureFnsCache[key];
@@ -208,7 +208,7 @@ const rtUtils = {
     return classSerializerEpochImpl();
   },
   // Reconstruct a live instance from decoded data: prefers the registered `deserialize`, else auto-instantiates
-  // a zero-arg class and sets its declared properties (surfacing CLS002 when the bare `new cls()` throws).
+  // a zero-arg class and sets its declared properties (surfacing data-class-constructor-failed when the bare `new cls()` throws).
   deserializeClass<T>(entry: ClassSerializerEntry<T>, data: DataOnly<T>, keys: readonly string[]): T {
     return deserializeClassImpl(entry, data, keys);
   },

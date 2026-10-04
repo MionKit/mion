@@ -4,7 +4,7 @@
   // @acme/src-types resolve to its `src/index.ts`, so the RT plugin's whole-program scan walks
   // the LIBRARY's own source, including a non-literal CompTimeArgs call. Those are not consumer
   // call sites — the resolver's first-party diagnostic scoping must drop them, else the build
-  // halts on CTA001/CTA003. The @mionjs/* packages ship no sources, so the fixture is what
+  // halts on marker-comptime-arg-not-literal/marker-comptime-arg-forbidden-construct. The @mionjs/* packages ship no sources, so the fixture is what
   // supplies this shape now.
   "compilerOptions": {
     "customConditions": ["source"]

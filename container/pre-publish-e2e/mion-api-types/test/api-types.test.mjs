@@ -6,6 +6,8 @@ import {existsSync, readFileSync} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
+const VERSION_DRIFT = /rpc-client-(?:server-version-mismatch|no-server-version)/;
+
 const HERE = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(HERE, 'out');
 const CLIENT = path.join(HERE, 'client');
@@ -31,7 +33,7 @@ for (const kind of BUILDS) {
   test(`client (${kind}): builds clean from the published types and injects the server's version`, () => {
     const {status, output} = build(`client-${kind}`);
     assert.equal(status, 0, output);
-    assert.doesNotMatch(output, /MET01[23]/);
+    assert.doesNotMatch(output, VERSION_DRIFT);
     const emitted = readFileSync(path.join(CLIENT, kind === 'vite' ? 'dist-vite/main.js' : 'dist-cli/main.js'), 'utf8');
     assert.ok(emitted.includes(`'${serverVersion()}'`) || emitted.includes(`"${serverVersion()}"`), 'the client carries the version');
   });
@@ -48,7 +50,7 @@ for (const kind of BUILDS) {
   test(`client-fetch (${kind}): built apart from its API, fetches its routes and calls the installed server`, () => {
     const {status, output} = build(`client-fetch-${kind}`);
     assert.equal(status, 0, output);
-    assert.doesNotMatch(output, /MET01[0-3]/);
+    assert.doesNotMatch(output, /rpc-client-(?:no-metadata-route|fetch-not-set-up|server-version-mismatch|no-server-version)/);
     const report = readJson(path.join(OUT, 'fetch-reports.json'))[kind];
     assert.deepEqual(report.product, {sku: 'ABC-1234', label: null});
     assert.equal(report.error, null);
@@ -70,16 +72,16 @@ test('client: bundles only the route it calls', () => {
 });
 
 for (const kind of BUILDS) {
-  test(`client-plain (${kind}): types written by plain tsc build with the MET013 warning`, () => {
+  test(`client-plain (${kind}): types written by plain tsc build with the rpc-client-no-server-version warning`, () => {
     const {status, output} = build(`client-plain-${kind}`);
     assert.equal(status, 0, output);
-    assert.match(output, /MET013/);
+    assert.match(output, /rpc-client-no-server-version/);
   });
 
-  test(`client-drift (${kind}): ids computed under another tsconfig fail the build with MET012`, () => {
+  test(`client-drift (${kind}): ids computed under another tsconfig fail the build with rpc-client-server-version-mismatch`, () => {
     const {status, output} = build(`client-drift-${kind}`);
     assert.notEqual(status, 0, output);
-    assert.match(output, /MET012/);
+    assert.match(output, /rpc-client-server-version-mismatch/);
   });
 }
 
@@ -124,7 +126,7 @@ for (const name of ['client-types', 'client-types-fetch']) {
     test(`${name} (${kind}): builds clean from the types-only package and calls the server`, () => {
       const {status, output} = build(`${name}-${kind}`);
       assert.equal(status, 0, output);
-      assert.doesNotMatch(output, /MET01[0-35-6]/);
+      assert.doesNotMatch(output, /rpc-client-(?:no-metadata-route|fetch-not-set-up|server-version-mismatch|no-server-version|types-not-built-by-mion|types-other-mion-version)/);
       const report = readJson(path.join(OUT, 'types-reports.json'))[name][kind];
       assert.deepEqual(report.product, {sku: 'ABC-1234', label: null});
       assert.equal(report.error, null);
@@ -140,12 +142,12 @@ test('client-types: api-check passes against the manifest the types-only package
 });
 
 for (const kind of BUILDS) {
-  test(`client-types-nomarker (${kind}): a types-only package without its marker fails with one MET015`, () => {
+  test(`client-types-nomarker (${kind}): a types-only package without its marker fails with one rpc-client-types-not-built-by-mion`, () => {
     const {status, output} = build(`client-types-nomarker-${kind}`);
     assert.notEqual(status, 0, output);
     // the Vite error repeats its first finding, so count distinct messages
-    const met015 = new Set(output.split('\n').filter((line) => line.includes('MET015')).map((line) => line.slice(line.indexOf('MET015'))));
-    assert.equal(met015.size, 1, output);
-    assert.doesNotMatch(output, /MET01[23]/);
+    const rpcClientTypesNotBuiltByMion = new Set(output.split('\n').filter((line) => line.includes('rpc-client-types-not-built-by-mion')).map((line) => line.slice(line.indexOf('rpc-client-types-not-built-by-mion'))));
+    assert.equal(rpcClientTypesNotBuiltByMion.size, 1, output);
+    assert.doesNotMatch(output, VERSION_DRIFT);
   });
 }

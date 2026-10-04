@@ -59,6 +59,6 @@ export type MockNode<T, Depth extends number = 8> = Depth extends 0
                         : {pool: T[]};
 
 /** The mock-data map for `T`: every pool / range value is checked against the field's type and format
- *  at scan time (the MD003 rule). */
+ *  at scan time (the enrich-mock-invalid-pool rule). */
 export type MockData<T> = MockNode<T>;
 // #endregion mockdata-extract

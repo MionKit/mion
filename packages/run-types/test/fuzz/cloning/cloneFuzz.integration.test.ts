@@ -1,7 +1,7 @@
 // Clone fuzz over REAL compiled `createRemoveUnknownKeysFn<T>()` fns (O15-O17). Each factory is called as
 // `createX<T>()` on a concrete type, never a generic `T` through a helper, which would inject `unknown`.
 // Atomic unions keep at most one member per structural family so the reference dispatch is unambiguous; object
-// unions only assert the RUK001 throw; cyclic VALUES are outside the clone contract (the RangeError test).
+// unions only assert the unknown-keys-object-union throw; cyclic VALUES are outside the clone contract (the RangeError test).
 // Template-literal-keyed index signatures are excluded: the reference interpreter does not model them yet.
 
 import {describe, it, expect} from 'vitest';
@@ -491,16 +491,16 @@ function strictWithout(key: string, strict: (value: unknown) => boolean): (value
   });
 }
 
-// Object-bearing unions: the factory is a RUK001 alwaysThrow, so that throw is the only oracle.
+// Object-bearing unions: the factory is a unknown-keys-object-union alwaysThrow, so that throw is the only oracle.
 const throwTargets: Array<{title: string; createClone: () => unknown}> = [
   {
     title: 'DisjointObjectUnion',
-    // @mion-downgrade-error RUK001
+    // @mion-downgrade-error unknown-keys-object-union
     createClone: () => createRemoveUnknownKeysFn<{a: string} | {b: number}>(),
   },
   {
     title: 'DiscriminatedUnion',
-    // @mion-downgrade-error RUK001
+    // @mion-downgrade-error unknown-keys-object-union
     createClone: () => createRemoveUnknownKeysFn<{kind: 'a'; va: string} | {kind: 'b'; vb: number}>(),
   },
 ];
@@ -522,9 +522,9 @@ describe('fuzz / cloning — oracle sweep over compiled createRemoveUnknownKeysF
     expect(report.runs).toBe(targets.length * 100);
   });
 
-  it('object-bearing unions stay RUK001 alwaysThrow factories', () => {
+  it('object-bearing unions stay unknown-keys-object-union alwaysThrow factories', () => {
     for (const target of throwTargets) {
-      expect(target.createClone, target.title).toThrow(/RUK001/);
+      expect(target.createClone, target.title).toThrow(/unknown-keys-object-union/);
     }
   });
 

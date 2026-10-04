@@ -191,7 +191,7 @@ export const FUNCTIONS = {
     description:
       'Parameters of a call-signature interface resolve to the fixed-length tuple [number, boolean], which clones as a fresh array of by-value scalars.',
     cloneNotes:
-      'Parameters<> slices the callable interface into plain data; the callable interface ITSELF (an object type with a call signature) is function-like, so the copy shares it (RUK010).',
+      'Parameters<> slices the callable interface into plain data; the callable interface ITSELF (an object type with a call signature) is function-like, so the copy shares it (unknown-keys-function-shared).',
     clone: () => createRemoveUnknownKeysFn<Parameters<{(a: number, b: boolean): string}>>(),
     getTestData: () => ({values: [[3, true]]}),
   },

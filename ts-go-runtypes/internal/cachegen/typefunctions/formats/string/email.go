@@ -22,7 +22,7 @@ func (emailEmitter) Name() string                    { return "email" }
 func (emailEmitter) Kind() reflection.ReflectionKind { return reflection.KindString }
 
 // Both lanes test decomposition before emailRfc, like domain.go: user-written keys beat a preset default.
-// ValidateParams rejects the pair, but FMT002 is a RuntimeError and the code still ships, so both lanes must agree.
+// ValidateParams rejects the pair, but format-invalid-params is a RuntimeError and the code still ships, so both lanes must agree.
 func (emailEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
 	if annotation != nil && emailHasParts(annotation.Params) {
 		return emailValidateExprFor(ctx, annotation.Params, vλl)

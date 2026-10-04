@@ -30,7 +30,7 @@ export interface CloningCase {
    *  assertion flips from "shares nothing mutable" to `clone(x) === x`. **/
   passThrough?: boolean;
 
-  /** The factory is an alwaysThrow (object-bearing unions, RUK001); tests assert the throw when calling the thunk. **/
+  /** The factory is an alwaysThrow (object-bearing unions, unknown-keys-object-union); tests assert the throw when calling the thunk. **/
   factoryThrows?: boolean;
 
   /** Optional extra assertions for behavior the generic checks can't express

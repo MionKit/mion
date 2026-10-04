@@ -8,17 +8,17 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
-// MKR013, the WRITTEN-name cause in the silent-`any` family (a typo, a missing dependency's types, an
-// ambient declaration the program cannot see); TMP001 covers the Temporal-lib flavor and MKR007 the
+// marker-any-from-unresolved-name, the WRITTEN-name cause in the silent-`any` family (a typo, a missing dependency's types, an
+// ambient declaration the program cannot see); marker-temporal-lib-missing covers the Temporal-lib flavor and marker-any-from-unresolved-import the
 // unresolved-import one. Detection rides marker.IsErrorLikeAny: the checker keeps a DISTINCT error type
 // for failed resolutions, so a deliberately written `any` and a resolved `type Loose = any` are legal by
-// construction and need no keyword escape. Callers suppress MKR013 once MKR007 fired for the call (its
-// message names the actionable import) and the slot probe once the walk named a reference; TMP001 always
+// construction and need no keyword escape. Callers suppress marker-any-from-unresolved-name once marker-any-from-unresolved-import fired for the call (its
+// message names the actionable import) and the slot probe once the walk named a reference; marker-temporal-lib-missing always
 // surfaces, its cause being independent of imports. Both probes see the ROOT type and the syntax written
 // AT the call only; a member that degraded one object deeper is found by the whole-graph walk in
 // silent_any_walk.go.
 
-// detectWrittenTypeRefGuards returns TMP001 and MKR013 separately, so callers keep their per-family suppression rules.
+// detectWrittenTypeRefGuards returns marker-temporal-lib-missing and marker-any-from-unresolved-name separately, so callers keep their per-family suppression rules.
 func detectWrittenTypeRefGuards(scanChecker *checker.Checker, file string, call *ast.Node) (temporalDiags, nameDiags []diagnostics.Diagnostic) {
 	for _, typeArgNode := range call.TypeArguments() {
 		walkWrittenTypeRefs(scanChecker, file, typeArgNode, &temporalDiags, &nameDiags)
@@ -26,7 +26,7 @@ func detectWrittenTypeRefGuards(scanChecker *checker.Checker, file string, call 
 	return temporalDiags, nameDiags
 }
 
-// walkWrittenTypeRefs recurses a type-node subtree, classifying every TypeReference into TMP001 or MKR013.
+// walkWrittenTypeRefs recurses a type-node subtree, classifying every TypeReference into marker-temporal-lib-missing or marker-any-from-unresolved-name.
 func walkWrittenTypeRefs(scanChecker *checker.Checker, file string, node *ast.Node, temporalOut, nameOut *[]diagnostics.Diagnostic) {
 	if node == nil {
 		return

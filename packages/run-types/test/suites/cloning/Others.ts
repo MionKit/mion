@@ -50,7 +50,7 @@ export const OTHERS = {
     description:
       'A declared `Int8Array`-typed member is KEPT on the clone, shared by reference — opaque handles cannot be rebuilt, and declared members are never dropped.',
     cloneNotes:
-      'The build emits a RUK015 advisory naming the shared member; writes through the shared handle are visible on both sides (overrideRemoveUnknownKeys is the escape hatch).',
+      'The build emits a unknown-keys-non-data-shared advisory naming the shared member; writes through the shared handle are visible on both sides (overrideRemoveUnknownKeys is the escape hatch).',
     clone: () => createRemoveUnknownKeysFn<{a: Int8Array}>(),
     getTestData: () => ({values: [{a: typedA}]}),
   },

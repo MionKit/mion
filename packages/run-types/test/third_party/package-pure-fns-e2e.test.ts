@@ -3,7 +3,7 @@
 // @acme/text is built for real and its bundle then hollowed, so the artifact is the only place its bodies
 // exist (the ARTIFACT lane); @acme/dates is a plain tsc-style emit plus src/, with its own nested @acme/text
 // (the SRC lane, a cross-package dep resolved from its own root); @acme/legacy registers a live function at
-// load with no artifact and no src, so a consumer reaching it fails to build (PFE9016). Two consumers share one
+// load with no artifact and no src, so a consumer reaching it fails to build (purefn-package-not-built). Two consumers share one
 // node_modules tree, app-vite through the Rollup adapter and app-compile through `mion compile`, and both
 // print JSON from a fresh Node process, so what is asserted is what a user's program sees at runtime;
 // app-legacy runs both lanes over a consumer of @acme/legacy and must halt.
@@ -351,7 +351,7 @@ describe('pure fns served across packages: dist lane, src lane, and the unbuilt 
         // best-effort teardown
       }
     }
-    expect(warnings.filter((line) => /PFE901[236]/.test(line))).toEqual([]);
+    expect(warnings.filter((line) => /purefn-(?:not-registered|dependency-not-id|package-not-built)/.test(line))).toEqual([]);
 
     // Both library bodies were emitted into the consumer's OWN modules, one per
     // id under the owning package's dir: isoDay, and the slugify it reaches (never
@@ -375,7 +375,7 @@ describe('pure fns served across packages: dist lane, src lane, and the unbuilt 
       label: 'package-purefns-compile',
     });
     expect(run.status, run.report).toBe(0);
-    expect(run.stderr).not.toContain('PFE9016');
+    expect(run.stderr).not.toContain('purefn-package-not-built');
 
     const pf = path.join(app, '.mion', 'types', 'pf');
     expect(fs.readdirSync(path.join(pf, '@acme', 'dates'))).toHaveLength(1);
@@ -420,9 +420,9 @@ describe('pure fns served across packages: dist lane, src lane, and the unbuilt 
       }
     }
     expect(halted, warnings.join('\n')).toContain('build stopped on 1 mion error');
-    const unbuilt = warnings.filter((line) => line.includes('PFE9016'));
+    const unbuilt = warnings.filter((line) => line.includes('purefn-package-not-built'));
     expect(unbuilt, warnings.join('\n')).toHaveLength(1);
-    expect(unbuilt[0]).toContain('error PFE9016');
+    expect(unbuilt[0]).toContain('error purefn-package-not-built');
     expect(unbuilt[0]).toContain(PAD_ID);
     expect(unbuilt[0]).toContain('@acme/legacy');
   });
@@ -433,7 +433,7 @@ describe('pure fns served across packages: dist lane, src lane, and the unbuilt 
       label: 'package-purefns-legacy-compile',
     });
     expect(run.status, run.report).not.toBe(0);
-    const unbuilt = run.stderr.split('\n').filter((line) => line.includes('PFE9016'));
+    const unbuilt = run.stderr.split('\n').filter((line) => line.includes('purefn-package-not-built'));
     expect(unbuilt, run.stderr).toHaveLength(1);
     expect(unbuilt[0]).toContain(PAD_ID);
     expect(unbuilt[0]).toContain('@acme/legacy');

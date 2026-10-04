@@ -62,10 +62,10 @@ describe('labeled slot builders', () => {
     const schema = RT.func({params: [RT.slot('event', TF.string()), RT.slot('retries', TF.number())], ret: RT.boolean()});
     expect(getRunTypeId(schema)).toBe(getRunTypeId<(event: string, retries: number) => boolean>());
     // A function is not data, so validate refuses both forms at the root.
-    // @mion-downgrade-error VL003
-    expect(() => createValidateFn(schema)).toThrow(/VL003/);
-    // @mion-downgrade-error VL003
-    expect(() => createValidateFn<(event: string, retries: number) => boolean>()).toThrow(/VL003/);
+    // @mion-downgrade-error validate-function-root
+    expect(() => createValidateFn(schema)).toThrow(/validate-function-root/);
+    // @mion-downgrade-error validate-function-root
+    expect(() => createValidateFn<(event: string, retries: number) => boolean>()).toThrow(/validate-function-root/);
   });
 
   it('carries labels through the params-tuple form of func', () => {

@@ -132,7 +132,7 @@ function buildConsumer() {
   writeFileSync(path.join(OUT, 'report-cli.json'), JSON.stringify(runNode(path.join(CONSUMER, 'dist-cli/main.js'), CONSUMER), null, 2));
 }
 
-// The test reads the saved output for PFE9016.
+// The test reads the saved output for purefn-package-not-built.
 function buildPlainConsumer() {
   log('@acme/consumer-plain: installs the @acme/plain tarball; both builds must fail');
   npmInstall(CONSUMER_PLAIN, [tarballOf('plain'), `@mionjs/run-types@${VERSION}`]);

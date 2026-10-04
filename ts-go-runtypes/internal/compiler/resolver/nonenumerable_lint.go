@@ -10,7 +10,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
-// detectNonEnumerableRequired emits NE001 for a `@nonEnumerable` property that is NOT optional: the
+// detectNonEnumerableRequired emits data-non-enumerable-required for a `@nonEnumerable` property that is NOT optional: the
 // guard the tag requests applies only to optional properties (the invariant GUARDED ⇒ OPTIONAL-in-type
 // keeps `DataOnly<T>` accurate), so a required tagged property is a silent no-op until `?` is added.
 // The check is purely syntactic, so it needs no type checker, and the text pre-filter skips the AST

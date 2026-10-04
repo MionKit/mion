@@ -41,8 +41,8 @@ describe('symbol-keyed member drop', () => {
   });
 
   test('removeUnknownKeys refuses: its copy is typed Tagged, so it cannot drop the symbol key', () => {
-    // @mion-downgrade-error RUK004
-    expect(() => createRemoveUnknownKeysFn<Tagged>()).toThrow(/RUK004/);
+    // @mion-downgrade-error unknown-keys-symbol-key
+    expect(() => createRemoveUnknownKeysFn<Tagged>()).toThrow(/unknown-keys-symbol-key/);
   });
 
   test('strict validation ignores the symbol key, it never counts as a declared key', () => {

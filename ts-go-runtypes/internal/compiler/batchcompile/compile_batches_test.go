@@ -212,10 +212,10 @@ func TestCompile_NeverWritesOutsideOutDir(t *testing.T) {
 		}
 	}
 	if len(outside) != 2 || outside[0].Severity != diagnostics.SeverityError {
-		t.Fatalf("expected two CFG003 errors, got %+v", outside)
+		t.Fatalf("expected two config-output-outside-out-dir errors, got %+v", outside)
 	}
 	if !strings.HasSuffix(outside[0].Site.FilePath, "util.js") || !strings.HasSuffix(outside[1].Site.FilePath, "util.js.map") {
-		t.Errorf("CFG003 sites = %q / %q, want util.js and util.js.map", outside[0].Site.FilePath, outside[1].Site.FilePath)
+		t.Errorf("config-output-outside-out-dir sites = %q / %q, want util.js and util.js.map", outside[0].Site.FilePath, outside[1].Site.FilePath)
 	}
 	for _, emitted := range result.EmittedFiles {
 		if !strings.HasPrefix(emitted, filepath.Join(app, "dist")) {

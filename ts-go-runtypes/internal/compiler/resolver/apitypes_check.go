@@ -11,13 +11,13 @@ import (
 // apiTypesCheck is the verdict on the packages this program's clients read their API from.
 type apiTypesCheck struct {
 	diags []diagnostics.Diagnostic
-	// refusedSites are the `initClient` sites whose package MET015 refused, refusedRoots those packages' roots.
+	// refusedSites are the `initClient` sites whose package rpc-client-types-not-built-by-mion refused, refusedRoots those packages' roots.
 	refusedSites map[diagnostics.Site]bool
 	refusedRoots map[string]bool
 }
 
 // apiTypesPackages checks each client's API package: a types-only one must carry the marker `mion api-types`
-// writes (MET015), from this compiler version (MET016). One finding per package, at its first client.
+// writes (rpc-client-types-not-built-by-mion), from this compiler version (rpc-client-types-other-mion-version). One finding per package, at its first client.
 func (sess *Session) apiTypesPackages() *apiTypesCheck {
 	memo := sess.fetchMemo()
 	if memo.apiTypes != nil {
@@ -60,8 +60,8 @@ func (sess *Session) apiTypesPackages() *apiTypesCheck {
 	return check
 }
 
-// dropRefusedApiTypeDiags removes what MET015 already explains: the version codes at a refused client, and a
-// typeless private member declared in a refused package. Whole-program ops only, the ones that report MET015.
+// dropRefusedApiTypeDiags removes what rpc-client-types-not-built-by-mion already explains: the version codes at a refused client, and a
+// typeless private member declared in a refused package. Whole-program ops only, the ones that report rpc-client-types-not-built-by-mion.
 func (sess *Session) dropRefusedApiTypeDiags(list []diagnostics.Diagnostic) []diagnostics.Diagnostic {
 	check := sess.apiTypesPackages()
 	if len(check.refusedRoots) == 0 {

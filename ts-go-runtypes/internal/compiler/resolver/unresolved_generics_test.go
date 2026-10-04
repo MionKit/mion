@@ -10,9 +10,9 @@ import (
 
 // unresolved_generics_test.go pins the unresolved-generics rejection model
 // (the typeid-walk depth-backstop addendum): a marker call must
-// reflect a FULLY RESOLVED type. Bare free params are MKR003 (existing);
-// free params CONTAINED in data positions are MKR010; a written generic
-// reference MISSING required (default-less) type arguments is MKR011; and
+// reflect a FULLY RESOLVED type. Bare free params are marker-in-generic-function (existing);
+// free params CONTAINED in data positions are marker-unresolved-type-parameter; a written generic
+// reference MISSING required (default-less) type arguments is marker-generic-missing-type-argument; and
 // type-parameter DEFAULTS resolve at use sites (checker-applied), so
 // defaulted generics used bare work and must keep working.
 
@@ -41,12 +41,12 @@ func requireRelatedContaining(t *testing.T, diag *diagnostics.Diagnostic, want s
 	t.Fatalf("expected a Related entry containing %q, got %+v", want, diag.Related)
 }
 
-// --- MKR010: contained free type parameters -------------------------------
+// --- marker-unresolved-type-parameter: contained free type parameters -------------------------------
 
 // TestScan_ContainedFreeParam_Static — `A<T>` in a generic body: the free `T`
-// is NESTED in the type argument (the bare-T MKR003 gate doesn't see it), and
+// is NESTED in the type argument (the bare-T marker-in-generic-function gate doesn't see it), and
 // before this model it silently collapsed to `unknown`, aliasing every
-// instantiation context onto one id. Now: MKR010 naming `T`, Related pointing
+// instantiation context onto one id. Now: marker-unresolved-type-parameter naming `T`, Related pointing
 // at `T`'s declaration, and NO injection site.
 func TestScan_ContainedFreeParam_Static(t *testing.T) {
 	r := setupInline(t, map[string]string{
@@ -63,13 +63,13 @@ export function wrap<T>() {
 	}
 	diag := firstOf(resp.Diagnostics, diagnostics.CodeMarkerUnresolvedTypeParameter)
 	if diag == nil {
-		t.Fatalf("expected MKR010 for A<T> in a generic body, got %+v", resp.Diagnostics)
+		t.Fatalf("expected marker-unresolved-type-parameter for A<T> in a generic body, got %+v", resp.Diagnostics)
 	}
 	if diag.Severity != diagnostics.SeverityError {
-		t.Fatalf("MKR010 must be Error severity, got %d", diag.Severity)
+		t.Fatalf("marker-unresolved-type-parameter must be Error severity, got %d", diag.Severity)
 	}
 	if len(diag.Args) < 1 || diag.Args[0] != "T" {
-		t.Fatalf("MKR010 must name the free parameter T, got %v", diag.Args)
+		t.Fatalf("marker-unresolved-type-parameter must name the free parameter T, got %v", diag.Args)
 	}
 	requireRelatedContaining(t, diag, "type parameter `T` is declared here")
 	if len(resp.Sites) != 0 {
@@ -94,10 +94,10 @@ export function wrap<T>(value: A<T>) {
 	}
 	diag := firstOf(resp.Diagnostics, diagnostics.CodeMarkerUnresolvedTypeParameter)
 	if diag == nil {
-		t.Fatalf("expected MKR010 for the value-first form, got %+v", resp.Diagnostics)
+		t.Fatalf("expected marker-unresolved-type-parameter for the value-first form, got %+v", resp.Diagnostics)
 	}
 	if len(diag.Args) < 1 || diag.Args[0] != "T" {
-		t.Fatalf("MKR010 must name the free parameter T, got %v", diag.Args)
+		t.Fatalf("marker-unresolved-type-parameter must name the free parameter T, got %v", diag.Args)
 	}
 	if len(resp.Sites) != 0 {
 		t.Fatalf("no site must be emitted, got %d", len(resp.Sites))
@@ -105,7 +105,7 @@ export function wrap<T>(value: A<T>) {
 }
 
 // TestScan_ContainedFreeParam_ArrayAndInline covers the other data positions:
-// `T[]` and an inline `{a: T}` — both nested free params, both MKR010.
+// `T[]` and an inline `{a: T}` — both nested free params, both marker-unresolved-type-parameter.
 func TestScan_ContainedFreeParam_ArrayAndInline(t *testing.T) {
 	r := setupInline(t, map[string]string{
 		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
@@ -122,7 +122,7 @@ export function wrapInline<T>() {
 		t.Fatalf("scan: %s", resp.Error)
 	}
 	if got := countCode(resp.Diagnostics, diagnostics.CodeMarkerUnresolvedTypeParameter); got != 2 {
-		t.Fatalf("expected MKR010 for both T[] and {a: T}, got %d: %+v", got, resp.Diagnostics)
+		t.Fatalf("expected marker-unresolved-type-parameter for both T[] and {a: T}, got %d: %+v", got, resp.Diagnostics)
 	}
 	if len(resp.Sites) != 0 {
 		t.Fatalf("no sites must be emitted, got %d", len(resp.Sites))
@@ -149,7 +149,7 @@ export function wrap<T>() {
 	}
 	diag := firstOf(resp.Diagnostics, diagnostics.CodeMarkerUnresolvedTypeParameter)
 	if diag == nil {
-		t.Fatalf("expected MKR010, got %+v", resp.Diagnostics)
+		t.Fatalf("expected marker-unresolved-type-parameter, got %+v", resp.Diagnostics)
 	}
 	if len(diag.Args) < 1 || diag.Args[0] != "T" {
 		t.Fatalf("must name the ROOT free parameter T, got %v", diag.Args)
@@ -160,7 +160,7 @@ export function wrap<T>() {
 
 // TestScan_BodyDefaultDoesNotResolve — a parameter DEFAULT applies where a
 // CALLER omits the argument, never inside the generic's own body: `A<T>` under
-// `function f<T = string>` is still unresolved and still MKR010.
+// `function f<T = string>` is still unresolved and still marker-unresolved-type-parameter.
 func TestScan_BodyDefaultDoesNotResolve(t *testing.T) {
 	r := setupInline(t, map[string]string{
 		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
@@ -175,7 +175,7 @@ export function wrap<T = string>() {
 		t.Fatalf("scan: %s", resp.Error)
 	}
 	if got := countCode(resp.Diagnostics, diagnostics.CodeMarkerUnresolvedTypeParameter); got != 1 {
-		t.Fatalf("a default on the BODY's type param must not resolve it — expected MKR010, got %+v", resp.Diagnostics)
+		t.Fatalf("a default on the BODY's type param must not resolve it — expected marker-unresolved-type-parameter, got %+v", resp.Diagnostics)
 	}
 }
 
@@ -197,7 +197,7 @@ export const b = getRunTypeId(repo);
 		t.Fatalf("scan: %s", resp.Error)
 	}
 	if got := countCode(resp.Diagnostics, diagnostics.CodeMarkerUnresolvedTypeParameter); got != 0 {
-		t.Fatalf("generic METHOD params are exempt — got %d MKR010: %+v", got, resp.Diagnostics)
+		t.Fatalf("generic METHOD params are exempt — got %d marker-unresolved-type-parameter: %+v", got, resp.Diagnostics)
 	}
 	if len(resp.Sites) != 2 || resp.Sites[0].ID == "" || resp.Sites[0].ID != resp.Sites[1].ID {
 		t.Fatalf("Repo must resolve to one real id from both shapes, got %+v", resp.Sites)
@@ -256,7 +256,7 @@ export const c = getRunTypeId<C>();
 
 // TestScan_PartialDefaults_Resolve — trailing defaulted params may be omitted:
 // `P<string>` over `interface P<S, T = number>` resolves (equal to the fully
-// explicit form), while omitting the REQUIRED `S` is MKR011 (next section).
+// explicit form), while omitting the REQUIRED `S` is marker-generic-missing-type-argument (next section).
 func TestScan_PartialDefaults_Resolve(t *testing.T) {
 	r := setupInline(t, map[string]string{
 		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
@@ -277,12 +277,12 @@ export const full = getRunTypeId<P<string, number>>();
 	}
 }
 
-// --- MKR011: written generic missing required type arguments --------------
+// --- marker-generic-missing-type-argument: written generic missing required type arguments --------------
 
 // TestScan_MissingTypeArgs_Bare — bare `A2` over `interface A2<S>` (no
 // default) is TS2314 territory, but the dev lane doesn't typecheck and the
 // checker yields plain `any` (pinned empirically — the semantic walks can't
-// see it). The syntactic guard reports MKR011 naming type + parameter, with
+// see it). The syntactic guard reports marker-generic-missing-type-argument naming type + parameter, with
 // Related at the default-less parameter's declaration; no site.
 func TestScan_MissingTypeArgs_Bare(t *testing.T) {
 	r := setupInline(t, map[string]string{
@@ -297,13 +297,13 @@ export const w = getRunTypeId<A2>();
 	}
 	diag := firstOf(resp.Diagnostics, diagnostics.CodeMarkerUnresolvedGenericType)
 	if diag == nil {
-		t.Fatalf("expected MKR011 for bare un-defaulted generic, got %+v", resp.Diagnostics)
+		t.Fatalf("expected marker-generic-missing-type-argument for bare un-defaulted generic, got %+v", resp.Diagnostics)
 	}
 	if diag.Severity != diagnostics.SeverityError {
-		t.Fatalf("MKR011 must be Error severity, got %d", diag.Severity)
+		t.Fatalf("marker-generic-missing-type-argument must be Error severity, got %d", diag.Severity)
 	}
 	if len(diag.Args) < 2 || diag.Args[0] != "A2" || diag.Args[1] != "S" {
-		t.Fatalf("MKR011 args must be [type, param] = [A2, S], got %v", diag.Args)
+		t.Fatalf("marker-generic-missing-type-argument args must be [type, param] = [A2, S], got %v", diag.Args)
 	}
 	requireRelatedContaining(t, diag, "type parameter `S` is declared here without a default")
 	if len(resp.Sites) != 0 {
@@ -313,7 +313,7 @@ export const w = getRunTypeId<A2>();
 
 // TestScan_MissingTypeArgs_ConstrainedNoDefault is the user's exact chain
 // example: `interface B<X extends A<'hello'>>` — a CONSTRAINT does not permit
-// omission (only a default does). Bare `B` is MKR011 pointing at `X`;
+// omission (only a default does). Bare `B` is marker-generic-missing-type-argument pointing at `X`;
 // explicitly instantiated `B<A<'hello'>>` resolves clean.
 func TestScan_MissingTypeArgs_ConstrainedNoDefault(t *testing.T) {
 	r := setupInline(t, map[string]string{
@@ -330,10 +330,10 @@ export const good = getRunTypeId<B<A<'hello'>>>();
 	}
 	diag := firstOf(resp.Diagnostics, diagnostics.CodeMarkerUnresolvedGenericType)
 	if diag == nil {
-		t.Fatalf("expected MKR011 for bare B (constraint != default), got %+v", resp.Diagnostics)
+		t.Fatalf("expected marker-generic-missing-type-argument for bare B (constraint != default), got %+v", resp.Diagnostics)
 	}
 	if len(diag.Args) < 2 || diag.Args[0] != "B" || diag.Args[1] != "X" {
-		t.Fatalf("MKR011 args must be [B, X], got %v", diag.Args)
+		t.Fatalf("marker-generic-missing-type-argument args must be [B, X], got %v", diag.Args)
 	}
 	requireRelatedContaining(t, diag, "type parameter `X` is declared here without a default")
 	// The explicit instantiation must still produce its site.
@@ -359,7 +359,7 @@ export const w = getRunTypeId<Box<A2>>();
 	}
 	diag := firstOf(resp.Diagnostics, diagnostics.CodeMarkerUnresolvedGenericType)
 	if diag == nil {
-		t.Fatalf("expected MKR011 for nested bare A2, got %+v", resp.Diagnostics)
+		t.Fatalf("expected marker-generic-missing-type-argument for nested bare A2, got %+v", resp.Diagnostics)
 	}
 	if len(diag.Args) < 2 || diag.Args[0] != "A2" {
 		t.Fatalf("must name the nested offender A2, got %v", diag.Args)
@@ -383,7 +383,7 @@ export const w = getRunTypeId<X>();
 	}
 	diag := firstOf(resp.Diagnostics, diagnostics.CodeMarkerUnresolvedGenericType)
 	if diag == nil {
-		t.Fatalf("expected MKR011 through the alias chain, got %+v", resp.Diagnostics)
+		t.Fatalf("expected marker-generic-missing-type-argument through the alias chain, got %+v", resp.Diagnostics)
 	}
 	if len(diag.Args) < 2 || diag.Args[0] != "A2" || diag.Args[1] != "S" {
 		t.Fatalf("must name the CHAIN-END offender [A2, S], got %v", diag.Args)
@@ -410,7 +410,7 @@ export const w = getRunTypeId(value);
 		t.Fatalf("scan: %s", resp.Error)
 	}
 	if got := countCode(resp.Diagnostics, diagnostics.CodeMarkerUnresolvedGenericType); got != 0 {
-		t.Fatalf("value-first missing-args is a documented residual (TS errors at the declaration); got %d MKR011", got)
+		t.Fatalf("value-first missing-args is a documented residual (TS errors at the declaration); got %d marker-generic-missing-type-argument", got)
 	}
 	if len(resp.Sites) != 1 {
 		t.Fatalf("expected the residual silent site, got %d", len(resp.Sites))
@@ -422,7 +422,7 @@ export const w = getRunTypeId(value);
 // reference sits in a member, an extends clause, a class field, or one of
 // the written-syntax kinds the walk used to fall through (optional and rest
 // tuple elements, a mapped type, a conditional type, an indexed access). Each
-// case must reach the same MKR011 naming the chain-end offender [Box, S].
+// case must reach the same marker-generic-missing-type-argument naming the chain-end offender [Box, S].
 func TestScan_MissingTypeArgs_OneDeclarationDeeper(t *testing.T) {
 	const box = "interface Box<S> { v: S }\n"
 	cases := map[string]string{
@@ -447,7 +447,7 @@ func TestScan_MissingTypeArgs_OneDeclarationDeeper(t *testing.T) {
 			}
 			diag := firstOf(resp.Diagnostics, diagnostics.CodeMarkerUnresolvedGenericType)
 			if diag == nil {
-				t.Fatalf("expected MKR011 for the bare Box one declaration deeper, got %+v", resp.Diagnostics)
+				t.Fatalf("expected marker-generic-missing-type-argument for the bare Box one declaration deeper, got %+v", resp.Diagnostics)
 			}
 			if len(diag.Args) < 2 || diag.Args[0] != "Box" || diag.Args[1] != "S" {
 				t.Fatalf("must name the chain-end offender [Box, S], got %v", diag.Args)
@@ -466,7 +466,7 @@ export const w = getRunTypeId<Node>();
 			t.Fatalf("scan: %s", resp.Error)
 		}
 		if diag := firstOf(resp.Diagnostics, diagnostics.CodeMarkerUnresolvedGenericType); diag != nil {
-			t.Fatalf("a satisfied generic inside a recursive type must not fire MKR011: %+v", diag)
+			t.Fatalf("a satisfied generic inside a recursive type must not fire marker-generic-missing-type-argument: %+v", diag)
 		}
 	})
 }

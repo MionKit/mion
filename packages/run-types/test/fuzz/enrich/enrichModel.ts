@@ -413,8 +413,8 @@ const pruneProbe: Command = {
   },
 };
 
-// R5: break ONE family's mirror, expect the SPECIFIC code (MD001 / FT002 / FT005), then revert to a valid state.
-// `--no-emit` skips function-form `rt$errors` and MD003: those and CTA00x are build-time, out of this harness.
+// R5: break ONE family's mirror, expect the SPECIFIC code (enrich-mock-unknown-field / enrich-text-unknown-field / enrich-text-unknown-placeholder), then revert to a valid state.
+// `--no-emit` skips function-form `rt$errors` and enrich-mock-invalid-pool: those and marker-comptime-arg-* are build-time, out of this harness.
 function negativeProbe(
   name: string,
   family: MirrorFamily,
@@ -451,21 +451,26 @@ function negativeProbe(
   };
 }
 
-const unknownMockField = negativeProbe('unknownMockField', 'mock', 'MD001', 'fzUnrelated', (text) =>
+const unknownMockField = negativeProbe('unknownMockField', 'mock', 'enrich-mock-unknown-field', 'fzUnrelated', (text) =>
   text.replace(
     `export const mock${TYPE_NAME}: MockData<${TYPE_NAME}> = {`,
     `export const mock${TYPE_NAME}: MockData<${TYPE_NAME}> = {\n  fzUnrelated: {pool: []},`
   )
 );
 
-const unknownFriendlyField = negativeProbe('unknownFriendlyField', 'friendly', 'FT002', 'fzUnrelated', (text) =>
-  text.replace(
-    `export const friendly${TYPE_NAME}: FriendlyText<${TYPE_NAME}> = {`,
-    `export const friendly${TYPE_NAME}: FriendlyText<${TYPE_NAME}> = {\n  fzUnrelated: {rt$label: ''},`
-  )
+const unknownFriendlyField = negativeProbe(
+  'unknownFriendlyField',
+  'friendly',
+  'enrich-text-unknown-field',
+  'fzUnrelated',
+  (text) =>
+    text.replace(
+      `export const friendly${TYPE_NAME}: FriendlyText<${TYPE_NAME}> = {`,
+      `export const friendly${TYPE_NAME}: FriendlyText<${TYPE_NAME}> = {\n  fzUnrelated: {rt$label: ''},`
+    )
 );
 
-const badPlaceholder = negativeProbe('badPlaceholder', 'friendly', 'FT005', '$[badname]', (text) =>
+const badPlaceholder = negativeProbe('badPlaceholder', 'friendly', 'enrich-text-unknown-placeholder', '$[badname]', (text) =>
   text.replace("rt$errors: {type: ''}", "rt$errors: {type: 'x $[badname]'}")
 );
 

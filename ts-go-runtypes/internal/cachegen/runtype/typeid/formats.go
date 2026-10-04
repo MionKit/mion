@@ -471,7 +471,7 @@ func formatTypeValueOptions(typeChecker *checker.Checker) comptimeargs.TypeValue
 			if pattern, ok := formatPatternFromSymbol(typeChecker, symbol); ok {
 				return pattern, true
 			}
-			// Neither road read it: marked so the emitter reports FMT009 instead of a validator that skips the check.
+			// Neither road read it: marked so the emitter reports format-pattern-unreadable instead of a validator that skips the check.
 			if symbol.Name == "pattern" && patternType != nil && patternType.Flags()&checker.TypeFlagsObject != 0 {
 				return map[string]any{"unrecovered": typeChecker.TypeToString(patternType)}, true
 			}
@@ -738,7 +738,7 @@ func FormatAnnotationStructuralKey(annotation *reflection.FormatAnnotation) stri
 // formats identical but for their sample pools describe the SAME validator and MUST dedup onto one cache
 // entry. `message` stays folded in because it changes the emitted validator's error `val`, and a pattern's
 // `source`/`flags` stay because they ARE the check. Two sites that dedup onto one entry but declare
-// DIFFERENT sample pools are a build ERROR (diagnostics.CodeFMTSampleConflict, FMT006), never a guess
+// DIFFERENT sample pools are a build ERROR (diagnostics.CodeFMTSampleConflict, format-sample-conflict), never a guess
 // hidden in the id.
 const mockSamplesKey = "mockSamples"
 

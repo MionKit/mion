@@ -6,7 +6,7 @@
  * ######## */
 
 // One props object per builder, typed exactly as the hand-written alias. No chained modifiers: the runtype id walks
-// method return types (MKR009), and each builder's props bag rejects a modifier its kind lacks.
+// method return types (marker-self-instantiating-generic), and each builder's props bag rejects a modifier its kind lacks.
 
 import type {
   Date as RTDate,

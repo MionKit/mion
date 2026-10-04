@@ -21,8 +21,8 @@ import (
 // re-ask nothing. This is the ONE deliberate exception to Cache.NodesView's read-only contract, safe
 // because the mutation is post-intern: the structural id was hashed at intern time, so typeIDs never
 // depend on any of this. A failure leaves the samples absent and is RECORDED in sess.patternGenFailures,
-// which the emit-time validateSamples lane reads to surface FMT005 at the demanding call sites; an
-// engine-level error is left for the emitter's own TestPattern call to surface as FMT004.
+// which the emit-time validateSamples lane reads to surface format-sample-generation-failed at the demanding call sites; an
+// engine-level error is left for the emitter's own TestPattern call to surface as format-no-js-runtime.
 func (sess *Session) enrichPatternSamples() {
 	if sess == nil || sess.cache == nil {
 		return
@@ -149,11 +149,11 @@ func (sess *Session) enrichOneParams(engine jsengine.Engine, params map[string]a
 	failureKey := source + "\x00" + flags
 	result, err := engine.GeneratePattern(request)
 	if err != nil {
-		// An engine-level failure is left to the emitter's own TestPattern call, which raises FMT004.
+		// An engine-level failure is left to the emitter's own TestPattern call, which raises format-no-js-runtime.
 		return
 	}
-	// A timed-out self-check is recorded as such: the emitter raises the transient FMT007 (never cached)
-	// for it instead of a permanent FMT005.
+	// A timed-out self-check is recorded as such: the emitter raises the transient format-pattern-timeout (never cached)
+	// for it instead of a permanent format-sample-generation-failed.
 	if result.TimedOut != "" {
 		sess.patternGenFailures[failureKey] = formats.PatternGenFailure{Reason: result.TimedOut, TimedOut: true}
 		return
@@ -163,7 +163,7 @@ func (sess *Session) enrichOneParams(engine jsengine.Engine, params map[string]a
 		return
 	}
 	if result.CompileError != "" || len(result.Values) == 0 {
-		// CompileError is FMT002's lane (the emitter re-compiles); an empty clean result is a defensive
+		// CompileError is format-invalid-params's lane (the emitter re-compiles); an empty clean result is a defensive
 		// impossibility, so record nothing.
 		return
 	}

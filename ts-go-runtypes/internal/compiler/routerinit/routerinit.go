@@ -89,7 +89,7 @@ func callsFactory(typeChecker *checker.Checker, markerOpts marker.Options, sourc
 	}
 	// Text pre-filter: this runs on every Program rebuild, and resolving a symbol per call across the whole
 	// program is the cost. The file it skips can only reach the factory through a barrel that RENAMES it,
-	// deliberately not detected; BAT009 covers a program left without a router-init module.
+	// deliberately not detected; rpc-batch-router-init-hidden covers a program left without a router-init module.
 	if text := sourceFile.Text(); !strings.Contains(text, FactoryName) && !strings.Contains(text, RouterModule) {
 		return false
 	}

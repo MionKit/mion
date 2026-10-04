@@ -15,7 +15,7 @@ import (
 // relative bounds (per-type component restriction) and emits compare() checks.
 
 // scanTemporalFormat builds getRunTypeId<TypeFormat<Temporal.<typ>, fmt, P>>()
-// and returns the validate source + FMT002 diagnostics.
+// and returns the validate source + format-invalid-params diagnostics.
 func scanTemporalFormat(t *testing.T, typ, formatName, params string) (string, []diagnostics.Diagnostic) {
 	t.Helper()
 	code := `import {createValidateFn} from '@mionjs/run-types';

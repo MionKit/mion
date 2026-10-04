@@ -366,7 +366,7 @@ func TestChain_InlinedPartnerSelfCycleConvertsLazyPair(t *testing.T) {
 	// name reference would make the const's type self-referential). When that
 	// partner ALSO cycles to itself, the inlined copy meets its own back-edge
 	// with no root to close on: `RT.self()` binds the root only, so the walk
-	// used to refuse with CNV001 "cycle through an unnamed type" although
+	// used to refuse with convert-unsupported-kind "cycle through an unnamed type" although
 	// every type on the cycle is named (found by the convertcli fuzz lane,
 	// seed 3521536746). The declaration now prints the LAZY PAIR instead, and
 	// the chain oracle proves every leg keeps the declaration's id.
@@ -529,7 +529,7 @@ func TestOutsideSet_Errors(t *testing.T) {
 		t.Fatalf("ConvertFile: %v", convertErr)
 	}
 	if len(result.Diags) != 1 || result.Diags[0].Code != convert.CodeOutsideSet {
-		t.Fatalf("expected one CNV004, got %+v", result.Diags)
+		t.Fatalf("expected one convert-outside-set, got %+v", result.Diags)
 	}
 	if result.Changed {
 		t.Errorf("declaration with an outside-set reference must stay untouched")

@@ -3,7 +3,7 @@ package regexsafety
 import "strings"
 
 // parse.go turns a JS regex SOURCE into the small tree the safety walk needs. It is not a validator: whether a pattern is legal JS
-// is the real engine's verdict (FMT002 owns it), so anything this parser cannot make sense of ends the parse and the check stops.
+// is the real engine's verdict (format-invalid-params owns it), so anything this parser cannot make sense of ends the parse and the check stops.
 
 // node is one element of the parsed pattern; each carries the rune offsets it was parsed from, so a finding can quote it back.
 type node interface {

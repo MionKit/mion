@@ -26,11 +26,11 @@ const typeFormatBrandDecl = `type TypeFormat<Base, Name extends string, Params> 
 };
 `
 
-// TestFormatSamples_MismatchEmitsFMT001 — a mockSample that doesn't
-// match the format's own pattern must surface as an FMT001 error at
+// TestFormatSamples_MismatchEmitsFormatSampleMismatch — a mockSample that doesn't
+// match the format's own pattern must surface as an format-sample-mismatch error at
 // build time (the sample would otherwise feed createMockDataFn an
 // invalid value).
-func TestFormatSamples_MismatchEmitsFMT001(t *testing.T) {
+func TestFormatSamples_MismatchEmitsFormatSampleMismatch(t *testing.T) {
 	code := `import {createValidateFn} from '@mionjs/run-types';
 ` + typeFormatBrandDecl + `
 export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
@@ -67,7 +67,7 @@ export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
 }
 
 // TestFormatSamples_AllValidNoDiagnostic — when every sample matches
-// the pattern, no FMT001 fires.
+// the pattern, no format-sample-mismatch fires.
 func TestFormatSamples_AllValidNoDiagnostic(t *testing.T) {
 	code := `import {createValidateFn} from '@mionjs/run-types';
 ` + typeFormatBrandDecl + `
@@ -87,7 +87,7 @@ export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
 	}
 	for i := range resp.Diagnostics {
 		if resp.Diagnostics[i].Code == diagnostics.CodeFMTSampleMismatch {
-			t.Fatalf("expected no FMT001 for all-valid samples, got %+v", resp.Diagnostics[i])
+			t.Fatalf("expected no format-sample-mismatch for all-valid samples, got %+v", resp.Diagnostics[i])
 		}
 	}
 }
@@ -116,11 +116,11 @@ func scanBuild(t testing.TB, session *resolver.Session) protocol.Response {
 	return resp
 }
 
-// TestFormatSamples_BoundsEmitFMT003 — a mockSample that satisfies the
-// pattern but violates a sibling length bound surfaces FMT003, naming
+// TestFormatSamples_BoundsEmitFormatSampleOutOfBounds — a mockSample that satisfies the
+// pattern but violates a sibling length bound surfaces format-sample-out-of-bounds, naming
 // every offending sample in the one message (the diagnostic pipeline
 // dedups per code per walk).
-func TestFormatSamples_BoundsEmitFMT003(t *testing.T) {
+func TestFormatSamples_BoundsEmitFormatSampleOutOfBounds(t *testing.T) {
 	code := `import {createValidateFn} from '@mionjs/run-types';
 ` + typeFormatBrandDecl + `
 export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
@@ -145,12 +145,12 @@ export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
 	}
 }
 
-// TestFormatSamples_PartialLengthSurvivorNoFMT003 — a length bound is a
+// TestFormatSamples_PartialLengthSurvivorNoFormatSampleOutOfBounds — a length bound is a
 // FILTER at mock time (filterSamplesByLength), so a sample list where SOME
-// survive is valid: the mock draws from the survivors. FMT003 must NOT fire
+// survive is valid: the mock draws from the survivors. format-sample-out-of-bounds must NOT fire
 // here (only the all-violate case throws). Guards the false positive found on
 // the `Alpha<{maxLength:3}>` / `['aa','aaaaaa']` fixtures.
-func TestFormatSamples_PartialLengthSurvivorNoFMT003(t *testing.T) {
+func TestFormatSamples_PartialLengthSurvivorNoFormatSampleOutOfBounds(t *testing.T) {
 	code := `import {createValidateFn} from '@mionjs/run-types';
 ` + typeFormatBrandDecl + `
 export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
@@ -160,7 +160,7 @@ export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
 `
 	resp := scanBuild(t, setupInline(t, map[string]string{"a.ts": code}))
 	if found := findDiag(resp, diagnostics.CodeFMTSampleBounds); found != nil {
-		t.Fatalf("expected no FMT003 when a length-compatible sample survives, got %+v", found)
+		t.Fatalf("expected no format-sample-out-of-bounds when a length-compatible sample survives, got %+v", found)
 	}
 }
 
@@ -213,7 +213,7 @@ export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
 // TestFormatSamples_LookbehindValidates — the headline of the JS-engine
 // move: a pattern using JS-only regex syntax is REALLY validated now. A
 // matching sample passes with no FMT diagnostic at all (previously the
-// build failed closed with FMT004); a mismatching one is a plain FMT001.
+// build failed closed with format-no-js-runtime); a mismatching one is a plain format-sample-mismatch.
 func TestFormatSamples_LookbehindValidates(t *testing.T) {
 	good := scanBuild(t, setupInline(t, map[string]string{"a.ts": lookbehindSource("ab")}))
 	for _, code := range []string{diagnostics.CodeFMTSampleMismatch, diagnostics.CodeFMTInvalidParams, diagnostics.CodeFMTMissingJsRuntime} {
@@ -231,11 +231,11 @@ func TestFormatSamples_LookbehindValidates(t *testing.T) {
 	}
 }
 
-// TestFormatSamples_InvalidSyntaxFMT002 — a pattern that does not compile
-// under the real JS engine (a regex typo) fails the build with FMT002:
+// TestFormatSamples_InvalidSyntaxFormatInvalidParams — a pattern that does not compile
+// under the real JS engine (a regex typo) fails the build with format-invalid-params:
 // the emitted validator's `new RegExp` would throw at factory load.
 // Previously this sailed through as "unchecked" and crashed at runtime.
-func TestFormatSamples_InvalidSyntaxFMT002(t *testing.T) {
+func TestFormatSamples_InvalidSyntaxFormatInvalidParams(t *testing.T) {
 	code := `import {createValidateFn} from '@mionjs/run-types';
 ` + typeFormatBrandDecl + `
 export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
@@ -252,11 +252,11 @@ export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
 	}
 }
 
-// TestFormatSamples_NoRuntimeFMT004 — when the engine cannot run and the
+// TestFormatSamples_NoRuntimeFormatNoJsRuntime — when the engine cannot run and the
 // project HAS patterns, every pattern-bearing site fails closed with the
-// missing-runtime FMT004 (never a silent skip; the allowUncheckedPatterns
+// missing-runtime format-no-js-runtime (never a silent skip; the allowUncheckedPatterns
 // escape hatch is gone with the RE2 oracle).
-func TestFormatSamples_NoRuntimeFMT004(t *testing.T) {
+func TestFormatSamples_NoRuntimeFormatNoJsRuntime(t *testing.T) {
 	session := setupInlineWith(t, map[string]string{"a.ts": lookbehindSource("ab")},
 		func(programOpts *program.Options, resolverOpts *resolver.Options) {
 			programOpts.SingleThreaded = true
@@ -275,7 +275,7 @@ func TestFormatSamples_NoRuntimeFMT004(t *testing.T) {
 		t.Errorf("expected the pattern source in args, got %+v", found.Args)
 	}
 	if found := findDiag(resp, diagnostics.CodeFMTSampleMismatch); found != nil {
-		t.Fatalf("no engine ran, so no sample verdict is possible — got FMT001 %+v", found)
+		t.Fatalf("no engine ran, so no sample verdict is possible — got format-sample-mismatch %+v", found)
 	}
 }
 
@@ -475,10 +475,10 @@ export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
 	}
 }
 
-// TestFormatSamples_GenerationDisabledFMT005 — patternSampleCount 0
+// TestFormatSamples_GenerationDisabledFormatSampleGenerationFailed — patternSampleCount 0
 // disables generation, so a sample-less pattern is a build error telling
 // the user to declare samples (never a silent mock-time throw).
-func TestFormatSamples_GenerationDisabledFMT005(t *testing.T) {
+func TestFormatSamples_GenerationDisabledFormatSampleGenerationFailed(t *testing.T) {
 	resp := generationScan(t, setupInlineWith(t, map[string]string{"a.ts": samplelessPatternSource}, withSampleKnobs(0, 10)))
 	found := findDiag(resp, diagnostics.CodeFMTSampleGenFailed)
 	if found == nil {
@@ -492,11 +492,11 @@ func TestFormatSamples_GenerationDisabledFMT005(t *testing.T) {
 	}
 }
 
-// TestFormatSamples_UngeneratableFMT005 — a pattern the generator cannot
+// TestFormatSamples_UngeneratableFormatSampleGenerationFailed — a pattern the generator cannot
 // handle (lookbehind compiles under new RegExp but makes randexp throw)
-// fails with FMT005 carrying the reason, anchored like every format
+// fails with format-sample-generation-failed carrying the reason, anchored like every format
 // diagnostic. Declaring mockSamples is the documented fix.
-func TestFormatSamples_UngeneratableFMT005(t *testing.T) {
+func TestFormatSamples_UngeneratableFormatSampleGenerationFailed(t *testing.T) {
 	code := `import {createValidateFn} from '@mionjs/run-types';
 ` + typeFormatBrandDecl + `
 export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
@@ -513,7 +513,7 @@ export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
 	}
 	// The pattern itself is valid JS regex — the compile lanes stay quiet.
 	if found := findDiag(resp, diagnostics.CodeFMTInvalidParams); found != nil {
-		t.Errorf("lookbehind compiles under new RegExp; unexpected FMT002 %+v", found)
+		t.Errorf("lookbehind compiles under new RegExp; unexpected format-invalid-params %+v", found)
 	}
 }
 
@@ -549,11 +549,11 @@ export const _ = createValidateFn<Code>();
 	}
 }
 
-// TestFormatSamples_LintLaneGetsFMT001 — the lint lane
+// TestFormatSamples_LintLaneGetsFormatSampleMismatch — the lint lane
 // (IncludeRtDiagnostics) receives pattern verdicts as ORDINARY
 // diagnostics now; the dedicated uncheckedPatterns wire channel and the
 // lint worker's own RegExp re-check are gone.
-func TestFormatSamples_LintLaneGetsFMT001(t *testing.T) {
+func TestFormatSamples_LintLaneGetsFormatSampleMismatch(t *testing.T) {
 	session := setupInline(t, map[string]string{"a.ts": lookbehindSource("zz")})
 	resp := session.Dispatch(protocol.Request{
 		Op:                   protocol.OpScanFiles,
@@ -565,7 +565,7 @@ func TestFormatSamples_LintLaneGetsFMT001(t *testing.T) {
 	}
 	found := findDiag(resp, diagnostics.CodeFMTSampleMismatch)
 	if found == nil {
-		t.Fatalf("expected FMT001 on the lint lane as a normal diagnostic, got %+v", resp.Diagnostics)
+		t.Fatalf("expected format-sample-mismatch on the lint lane as a normal diagnostic, got %+v", resp.Diagnostics)
 	}
 	if found.Site.FilePath == "" || found.Site.StartLine == 0 {
 		t.Errorf("expected a definition site on the diagnostic, got %+v", found.Site)

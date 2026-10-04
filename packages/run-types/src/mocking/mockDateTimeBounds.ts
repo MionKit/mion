@@ -8,7 +8,7 @@
 //   - dateTime / native Date → UTC epoch ms ('epoch')
 // Mocking is the inverse: resolve [minKey, maxKey] on that scale, pick a random key in range, then FORMAT it back
 // into the layout. Formatting truncates to the layout's grid, and because the bounds are themselves valid,
-// grid-aligned literals (the Go validator rejects anything else with FMT002), that truncation is monotonic with a
+// grid-aligned literals (the Go validator rejects anything else with format-invalid-params), that truncation is monotonic with a
 // fixed point at each bound, so the re-parsed key stays within [minKey, maxKey].
 // This module MUST therefore mirror the validator's scale math exactly: keep it in sync with literals.go /
 // dateTime-pure-fns.ts.

@@ -522,7 +522,7 @@ describe('the mionFetchMetadata middleware answers on the json framing every cha
   afterEach(() => resetRouter());
 
   // The middleware pins the built-in default on its own wires, so its encoder never follows the route's.
-  // Each route spells its serializer INLINE: a variable holding a build-time literal is a build error (CTA001).
+  // Each route spells its serializer INLINE: a variable holding a build-time literal is a build error (marker-comptime-arg-not-literal).
   const expectMetadataInBody = async (routes: Routes) => {
     mion.initRoutes({mionFetchMetadata, ...routes});
     const request: RawRequest = {

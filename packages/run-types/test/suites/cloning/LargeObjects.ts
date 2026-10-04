@@ -1,5 +1,5 @@
 // cloning / LargeObjects: values identical to the serialization suite, doubling as perf smoke tests.
-// The union roots are object-bearing, so their factories throw at creation (RUK001).
+// The union roots are object-bearing, so their factories throw at creation (unknown-keys-object-union).
 
 import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';
@@ -200,8 +200,8 @@ export const LARGE_OBJECTS = {
   object_union_5: {
     title: 'Object Union',
     description:
-      'Five-member discriminated union of large event shapes — object-bearing unions are unsupported for cloning, so the factory throws RUK001 at creation.',
-    // @mion-downgrade-error RUK001
+      'Five-member discriminated union of large event shapes — object-bearing unions are unsupported for cloning, so the factory throws unknown-keys-object-union at creation.',
+    // @mion-downgrade-error unknown-keys-object-union
     clone: () => createRemoveUnknownKeysFn<LargeObjectUnion>(),
     getTestData: () => ({
       values: [
@@ -257,8 +257,8 @@ export const LARGE_OBJECTS = {
   mixed_union_atomic_and_large_objects: {
     title: 'Mixed Union',
     description:
-      'A string | number | ProductEvent | UserEvent union mixes atomic members with two large object arms — still object-bearing, so the factory throws RUK001 at creation.',
-    // @mion-downgrade-error RUK001
+      'A string | number | ProductEvent | UserEvent union mixes atomic members with two large object arms — still object-bearing, so the factory throws unknown-keys-object-union at creation.',
+    // @mion-downgrade-error unknown-keys-object-union
     clone: () => createRemoveUnknownKeysFn<MixedLargeUnion>(),
     getTestData: () => ({
       values: [
@@ -304,7 +304,7 @@ export const LARGE_OBJECTS = {
   large_class_union: {
     title: 'Large Class Union',
     description:
-      'Three-member union of large class instances — classes are object members too, so the clone factory throws RUK001 at creation.',
+      'Three-member union of large class instances — classes are object members too, so the clone factory throws unknown-keys-object-union at creation.',
     clone: () => createRemoveUnknownKeysFn<LargeClassUnion>(),
     getTestData: () => {
       const a = new LargeClassA();

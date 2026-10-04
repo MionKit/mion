@@ -93,26 +93,26 @@ async function lintOne(request: LintWorkerRequest): Promise<LintWorkerResponse> 
       const rel = path.relative(process.cwd(), request.file) || request.file;
       await resolver.setSources({[rel]: request.text});
       const result = await resolver.scanFiles([rel], {checkEnrich: true, checkRouterRules: true, includeRtDiagnostics: true});
-      // Pattern verdicts (FMT001/FMT002/FMT004) arrive as ordinary diagnostics: the resolver runs the JS
+      // Pattern verdicts (format-sample-mismatch/format-invalid-params/format-no-js-runtime) arrive as ordinary diagnostics: the resolver runs the JS
       // engine itself, so this worker re-checks nothing.
       const diagnostics = (result.diagnostics ?? []) as Diagnostic[];
       return {seq: request.seq, diagnostics, downgradeErrors: result.downgradeErrors};
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      // CFG001 is the daemon refusing to load the project tsconfig: deterministic, so retrying is pointless, and
+      // config-tsconfig-not-loaded is the daemon refusing to load the project tsconfig: deterministic, so retrying is pointless, and
       // the config problem is the actionable error, so it reports at the file top instead of "engine
       // unavailable". The connection stays up; the daemon re-parses on the next setSources, so a fix heals the
       // next lint.
-      if (message.includes('CFG001')) {
+      if (message.includes('config-tsconfig-not-loaded')) {
         return {
           seq: request.seq,
           diagnostics: [
             {
-              code: 'CFG001',
+              code: 'config-tsconfig-not-loaded',
               family: Family.Marker,
               severity: Severity.Error,
               level: Level.Error,
-              args: [message.replace(/^.*CFG001\s*/, '')],
+              args: [message.replace(/^.*config-tsconfig-not-loaded\s*/, '')],
               site: {filePath: request.file, startLine: 1, startCol: 1},
             },
           ],

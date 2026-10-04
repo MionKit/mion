@@ -90,11 +90,11 @@ type Options struct {
 	// behave as default.
 	ModuleMode string
 	// JSEngine runs the format-pattern checks (the sidecar under node/bun, the host itself under WASM) and is the
-	// validation authority for pattern mockSamples; nil or failing fails closed with FMT004.
+	// validation authority for pattern mockSamples; nil or failing fails closed with format-no-js-runtime.
 	// Not a disk-fingerprint input: it changes which diagnostics surface, never the emitted artifacts.
 	JSEngine jsengine.Engine
 	// PatternSampleCount / PatternSampleRetries drive mockSample generation for patterns that declare none: count
-	// samples per pattern, retried up to retries times each (0 count disables generation, such patterns then fail FMT005).
+	// samples per pattern, retried up to retries times each (0 count disables generation, such patterns then fail format-sample-generation-failed).
 	// Post-intern, so typeIDs never depend on them; the emitted annotation does, so BOTH are disk-fingerprint inputs.
 	PatternSampleCount   int
 	PatternSampleRetries int
@@ -144,7 +144,7 @@ type Session struct {
 	marker       marker.Options
 	opts         Options
 	// inferredConfig is the project tsconfig parsed ONCE per session; nil with the done flag set means none was named.
-	// A FAILED parse leaves the done flag unset: the op errors (strict like tsc, CFG001) and the next setSources
+	// A FAILED parse leaves the done flag unset: the op errors (strict like tsc, config-tsconfig-not-loaded) and the next setSources
 	// re-parses, so a fixed config heals without a respawn. Session-lifetime, not reset on a Program swap.
 	inferredConfig     *program.InferredConfig
 	inferredConfigDone bool
@@ -177,9 +177,9 @@ type Session struct {
 	apiFileCache *apimeta.FileCache
 	// apiInitFileCache memoises which files call `initClient`, the modules the lane import is appended to.
 	apiInitFileCache *apimeta.InitFileCache
-	// apiMiddlewareReadsCache memoises which client middlewares each file reads, for MET008 / MET009.
+	// apiMiddlewareReadsCache memoises which client middlewares each file reads, for rpc-client-middleware-not-set-up / rpc-client-optional-middleware-not-set-up.
 	apiMiddlewareReadsCache *apimeta.MiddlewareReadsCache
-	// apiFetch memoises the program-wide facts the metadata-fetching checks read (MET003 / MET004 / MET010 / MET011).
+	// apiFetch memoises the program-wide facts the metadata-fetching checks read (rpc-client-route-id-widened / rpc-client-route-id-widened-fetched / rpc-client-no-metadata-route / rpc-client-fetch-not-set-up).
 	apiFetch *apiFetchMemo
 	// hasBatchesMemo is the transform's switch for appending the batch import; reset with the Program.
 	// importsRouterMemo caches whether any own source file names `@mionjs/router` (see rpcgen.go); reset with the Program.
@@ -198,10 +198,10 @@ type Session struct {
 
 	// idOrigins maps a cache id to the FIRST call site that resolved it (the site whose declared mockSamples pool the
 	// shared entry kept, and the site that took the short id), read when a later site disagrees to name both ends of
-	// the conflict in FMT006 and MKR014.
+	// the conflict in format-sample-conflict and marker-type-id-collision.
 	idOrigins map[string]diagnostics.Site
 	// patternGenFailures records, per (pattern source \x00 flags), why the enrichment pass could not generate a pool;
-	// read at emit time by the pattern emitter's FMT005 lane, which has the demanding call sites for anchoring.
+	// read at emit time by the pattern emitter's format-sample-generation-failed lane, which has the demanding call sites for anchoring.
 	patternGenFailures map[string]formats.PatternGenFailure
 	// overridesBuilt guards the one-time whole-program `overrideX<T>(pureFn)` pass (ensureOverrides), which must run
 	// before any AssignID so every id folds the override suffix; reset on SetProgram / Reset.
@@ -211,14 +211,14 @@ type Session struct {
 	overrideEntries []purefunctions.Entry
 	// overrideMap is structural key → family → override fn id, installed packages' rows included; it feeds the artifact.
 	overrideMap map[string]map[string]string
-	// overrideDiagnostics holds the override pass's OVR0xx diagnostics (OVR001 duplicate-override, OVR010 validate
+	// overrideDiagnostics holds the override pass's override-* diagnostics (override-duplicate duplicate-override, override-validate-affects-json validate
 	// cross-family), surfaced on every scan response for the current Program.
 	overrideDiagnostics []diagnostics.Diagnostic
 	// overrideArgSpansByFile records the byte spans of each override call's inline pure-fn argument, which the
 	// transform rewrites to `null` because the body lives only in the cfn module; emitted as per-file Replacements.
 	overrideArgSpansByFile map[string][]overrideArgSpan
 	// unresolvedSpecifiersByFile memoizes, per source file, the module specifiers whose import bindings fail alias
-	// resolution. Computed LAZILY, only when a marker site's type argument resolved to `any` (MKR007).
+	// resolution. Computed LAZILY, only when a marker site's type argument resolved to `any` (marker-any-from-unresolved-import).
 	// Mutex-guarded: the parallel scan path can hit it from several checker groups. Dies with the Program.
 	unresolvedSpecifiersByFile map[string][]string
 	unresolvedSpecifiersMutex  sync.Mutex

@@ -130,8 +130,8 @@ export type GetValidationErrorsFn<Format extends TypeFormatError = TypeFormatErr
 /** Deep copy of the declared shape; a value it cannot rebuild (function, Promise, RegExp) follows `sharedValues`.
  *  `overrideRemoveUnknownKeys<T>()` is the escape hatch for custom copying. **/
 export type RemoveUnknownKeysFn<T = unknown> = (value: T) => T;
-/** For a value the copy cannot rebuild: absent shares and warns (RUK010 / RUK015), `'share'` shares quietly (RUK016).
- *  `'refuse'` makes the function always throw (RUK006). Compile-time: each value is its own family. **/
+/** For a value the copy cannot rebuild: absent shares and warns (unknown-keys-function-shared / unknown-keys-non-data-shared), `'share'` shares quietly (unknown-keys-value-shared).
+ *  `'refuse'` makes the function always throw (unknown-keys-shared-value-refused). Compile-time: each value is its own family. **/
 export interface RemoveUnknownKeysOptions {
   sharedValues?: 'share' | 'refuse';
 }

@@ -278,7 +278,7 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 		}
 		if info, ok := reflection.TemporalInfoBySubKind(node.SubKind); ok {
 			// The registry's Builtin is the qualified global spelling, in scope whenever the lib is
-			// loaded, which the CNV007 guard already established.
+			// loaded, which the convert-temporal-lib-missing guard already established.
 			return info.Builtin, nil
 		}
 		if isRegExpNode(node) {

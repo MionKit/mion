@@ -57,7 +57,7 @@ func (PrepareForJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Co
 		return RTCode{Code: "", Type: CodeS}
 
 	case reflection.KindNever:
-		// Unsupported leaf — the walker latches, the renderer emits alwaysThrow keyed by PJ001.
+		// Unsupported leaf — the walker latches, the renderer emits alwaysThrow keyed by json-prepare-never-root.
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindBigInt:

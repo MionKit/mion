@@ -47,10 +47,10 @@ func TestWalkBudget_OpsCapRefusesTheSite(t *testing.T) {
 	if len(capped.Sites) != 0 {
 		t.Fatalf("with the ops budget at 3 the walk must latch and emit no site, got %d", len(capped.Sites))
 	}
-	// MKR008 (too-deep nesting) is the classification for a latch with no
-	// dominant named type on the stack; MKR009 names one when there is.
+	// marker-type-too-deep (too-deep nesting) is the classification for a latch with no
+	// dominant named type on the stack; marker-self-instantiating-generic names one when there is.
 	codes := diagnosticCodes(capped)
-	if !slices.Contains(codes, "MKR008") && !slices.Contains(codes, "MKR009") {
+	if !slices.Contains(codes, "marker-type-too-deep") && !slices.Contains(codes, "marker-self-instantiating-generic") {
 		t.Fatalf("a latched walk must be diagnosed, got %v", codes)
 	}
 }

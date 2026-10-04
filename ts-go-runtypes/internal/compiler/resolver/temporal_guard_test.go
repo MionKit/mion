@@ -8,7 +8,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// temporalNotLoadedDiags scans `code` and returns the TMP001 diagnostics.
+// temporalNotLoadedDiags scans `code` and returns the marker-temporal-lib-missing diagnostics.
 // When suppressAmbient is true, an EMPTY temporal.d.ts is overlaid so the
 // `Temporal` namespace is NOT declared — simulating a consumer whose tsconfig
 // lib doesn't load Temporal (the type resolves to `any`).
@@ -38,7 +38,7 @@ export const _ = getRunTypeId<Temporal.PlainDate>();
 `
 	diags := temporalNotLoadedDiags(t, code, true)
 	if len(diags) != 1 {
-		t.Fatalf("expected 1 TMP001 when Temporal lib missing, got %d", len(diags))
+		t.Fatalf("expected 1 marker-temporal-lib-missing when Temporal lib missing, got %d", len(diags))
 	}
 	if diags[0].Severity != diagnostics.SeverityError {
 		t.Errorf("expected Error severity, got %d", diags[0].Severity)
@@ -54,7 +54,7 @@ export const _ = getRunTypeId<Temporal.PlainDate>();
 `
 	// Ambient present (default) → Temporal.PlainDate is a real type → no diag.
 	if diags := temporalNotLoadedDiags(t, code, false); len(diags) != 0 {
-		t.Fatalf("expected NO TMP001 when Temporal lib loaded, got %+v", diags)
+		t.Fatalf("expected NO marker-temporal-lib-missing when Temporal lib loaded, got %+v", diags)
 	}
 }
 
@@ -64,14 +64,14 @@ export const _ = getRunTypeId<{createdAt: Temporal.Instant; name: string}>();
 `
 	diags := temporalNotLoadedDiags(t, code, true)
 	if len(diags) != 1 {
-		t.Fatalf("expected 1 TMP001 for nested Temporal.Instant, got %d", len(diags))
+		t.Fatalf("expected 1 marker-temporal-lib-missing for nested Temporal.Instant, got %d", len(diags))
 	}
 	if diags[0].Args[0] != "Temporal.Instant" {
 		t.Errorf("expected Temporal.Instant, got %+v", diags[0].Args)
 	}
 }
 
-// The predicate split from the MKR013 sibling, pinned. A consumer-side stub
+// The predicate split from the marker-any-from-unresolved-name sibling, pinned. A consumer-side stub
 // (`declare namespace Temporal { type PlainDate = any }`) resolves to the TRUE
 // `any` intrinsic — not the checker's error type — so the generic guard treats
 // it as deliberate `any` and stays silent, while the Temporal guard still
@@ -80,16 +80,16 @@ export const _ = getRunTypeId<{createdAt: Temporal.Instant; name: string}>();
 // passes as deliberate `any` — the guards only see call-site syntax.
 func TestTemporalGuard_AnyStub(t *testing.T) {
 	stub := "declare namespace Temporal { type PlainDate = any }\n"
-	countCodes := func(resp protocol.Response) (tmp001, mkr013 int) {
+	countCodes := func(resp protocol.Response) (markerTemporalLibMissing, markerAnyFromUnresolvedName int) {
 		for _, d := range resp.Diagnostics {
 			switch d.Code {
 			case diagnostics.CodeTemporalNotLoaded:
-				tmp001++
+				markerTemporalLibMissing++
 			case diagnostics.CodeMarkerUnresolvedTypeName:
-				mkr013++
+				markerAnyFromUnresolvedName++
 			}
 		}
-		return tmp001, mkr013
+		return markerTemporalLibMissing, markerAnyFromUnresolvedName
 	}
 	t.Run("static getRunTypeId<T>() refuses the stubbed reference", func(t *testing.T) {
 		r := setupInline(t, map[string]string{
@@ -102,12 +102,12 @@ export const _ = getRunTypeId<Temporal.PlainDate>();
 		if resp.Error != "" {
 			t.Fatalf("scan: %s", resp.Error)
 		}
-		tmp001, mkr013 := countCodes(resp)
-		if tmp001 != 1 {
-			t.Fatalf("stubbed Temporal.PlainDate must fire TMP001, got %d", tmp001)
+		markerTemporalLibMissing, markerAnyFromUnresolvedName := countCodes(resp)
+		if markerTemporalLibMissing != 1 {
+			t.Fatalf("stubbed Temporal.PlainDate must fire marker-temporal-lib-missing, got %d", markerTemporalLibMissing)
 		}
-		if mkr013 != 0 {
-			t.Errorf("the generic guard must not double-report the stub (true `any` intrinsic), got %d MKR013", mkr013)
+		if markerAnyFromUnresolvedName != 0 {
+			t.Errorf("the generic guard must not double-report the stub (true `any` intrinsic), got %d marker-any-from-unresolved-name", markerAnyFromUnresolvedName)
 		}
 	})
 	t.Run("value-first getRunTypeId(value) passes the stub as deliberate any", func(t *testing.T) {
@@ -122,9 +122,9 @@ export const _ = getRunTypeId(when);
 		if resp.Error != "" {
 			t.Fatalf("scan: %s", resp.Error)
 		}
-		tmp001, mkr013 := countCodes(resp)
-		if tmp001 != 0 || mkr013 != 0 {
-			t.Fatalf("value-first over a stubbed (true-any) Temporal must stay silent, got TMP001=%d MKR013=%d", tmp001, mkr013)
+		markerTemporalLibMissing, markerAnyFromUnresolvedName := countCodes(resp)
+		if markerTemporalLibMissing != 0 || markerAnyFromUnresolvedName != 0 {
+			t.Fatalf("value-first over a stubbed (true-any) Temporal must stay silent, got marker-temporal-lib-missing=%d marker-any-from-unresolved-name=%d", markerTemporalLibMissing, markerAnyFromUnresolvedName)
 		}
 	})
 }
@@ -158,7 +158,7 @@ export const _ = getRunTypeId(profile);
 	} {
 		diags := temporalNotLoadedDiags(t, code, true)
 		if len(diags) != 1 {
-			t.Fatalf("[%s] expected 1 TMP001 for the nested Temporal.PlainDate member, got %d: %+v", label, len(diags), diags)
+			t.Fatalf("[%s] expected 1 marker-temporal-lib-missing for the nested Temporal.PlainDate member, got %d: %+v", label, len(diags), diags)
 		}
 		if diags[0].Args[0] != "Temporal.PlainDate" {
 			t.Errorf("[%s] expected Temporal.PlainDate, got %+v", label, diags[0].Args)

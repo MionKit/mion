@@ -52,7 +52,7 @@ func setupUnderDomLibWithTypes(t *testing.T, sources map[string]string, types []
 // no such predicate in TypeScript), so for a lib class like `URLSearchParams` the two sides
 // disagree: Go strips it, `DataOnly<T>` keeps its data shape. The build says so
 // out loud instead. A property whose value has no data form raises the
-// per-family …015 drop (Info) naming the property, and the rest of the object
+// per-family `-non-data-property-dropped` drop (Info) naming the property, and the rest of the object
 // still validates and still serialises.
 //
 // Info, not Error, is the contract: an Error means the generated function
@@ -285,7 +285,7 @@ func noNotDataDiagnostics(t *testing.T, label string, byFile map[string][]diagno
 	t.Helper()
 	for file, found := range byFile {
 		for _, diagnostic := range found {
-			if strings.Contains(diagnostic.Code, "015") || strings.HasSuffix(diagnostic.Code, "001") || strings.HasSuffix(diagnostic.Code, "002") {
+			if strings.HasSuffix(diagnostic.Code, "-non-data-property-dropped") || strings.HasSuffix(diagnostic.Code, "-root") {
 				t.Errorf("%s %s: URL is data, got %s %v", label, file, diagnostic.Code, diagnostic.Args)
 			}
 		}
@@ -328,7 +328,7 @@ func TestDiag_PlatformClass_UserDeclaredStayData(t *testing.T) {
 		}
 		for file, found := range platformScan(t, runtimeTypes, nil, cases) {
 			for _, diagnostic := range found {
-				if strings.Contains(diagnostic.Code, "015") || strings.HasSuffix(diagnostic.Code, "001") || strings.HasSuffix(diagnostic.Code, "002") {
+				if strings.HasSuffix(diagnostic.Code, "-non-data-property-dropped") || strings.HasSuffix(diagnostic.Code, "-root") {
 					t.Errorf("%s (value shape %v): a type the user or an ordinary library declared is data, got %s %v", file, valueShape, diagnostic.Code, diagnostic.Args)
 				}
 			}
@@ -342,7 +342,7 @@ func TestDiag_PlatformClass_NotInTypesStaysData(t *testing.T) {
 	for _, valueShape := range []bool{false, true} {
 		for file, found := range platformScan(t, []string{}, nil, platformCases([]string{"NodeJS.Timeout", "EventEmitter"}, valueShape)) {
 			for _, diagnostic := range found {
-				if strings.Contains(diagnostic.Code, "015") || strings.HasSuffix(diagnostic.Code, "001") || strings.HasSuffix(diagnostic.Code, "002") {
+				if strings.HasSuffix(diagnostic.Code, "-non-data-property-dropped") || strings.HasSuffix(diagnostic.Code, "-root") {
 					t.Errorf("%s: a package outside the tsconfig `types` is no platform, got %s %v", file, diagnostic.Code, diagnostic.Args)
 				}
 			}

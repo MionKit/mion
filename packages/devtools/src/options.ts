@@ -45,9 +45,9 @@ export interface MionRunTypesOptions {
   levels?: TsRuntypesPluginOptions['levels'];
   /** How many mockSamples to generate for a TypeFormat pattern that declares none. Declared mockSamples always
    *  win over generation, and a pattern the generator cannot handle (usually lookarounds) fails the build with
-   *  FMT005, asking for explicit mockSamples. */
+   *  format-sample-generation-failed, asking for explicit mockSamples. */
   patternSampleCount?: TsRuntypesPluginOptions['patternSampleCount'];
-  /** How many times to retry sample generation before failing with FMT005; the total budget is
+  /** How many times to retry sample generation before failing with format-sample-generation-failed; the total budget is
    *  `patternSampleCount * patternSampleRetries`. Raise it for constrained patterns whose draws often miss. */
   patternSampleRetries?: TsRuntypesPluginOptions['patternSampleRetries'];
   /** Derive every route's request size limit from its types (default true): the compiler emits the largest
@@ -56,7 +56,7 @@ export interface MionRunTypesOptions {
    *  `jsonMaxBytes` option (also settable in tsconfig). */
   derivedPayloadLimits?: boolean;
   /** JS runtime for the pattern-checking sidecar; node and bun are found on PATH, so set this (or
-   *  `MION_JS_RUNTIME`) only for another runtime. With no runtime the build fails closed with FMT004. */
+   *  `MION_JS_RUNTIME`) only for another runtime. With no runtime the build fails closed with format-no-js-runtime. */
   jsRuntime?: TsRuntypesPluginOptions['jsRuntime'];
   /** Transform typed mion code inside Vue SFC `<script>` blocks (default true), the script being registered
    *  under a virtual path next to the .vue file and injected before @vitejs/plugin-vue compiles it (see

@@ -6,7 +6,7 @@ import "testing"
 // one set of rules and reported errors under the other, breaking the validate /
 // getValidationErrors agreement (fuzz oracle O4); `EmailAddress<{localPart: {maxLength: 8}}>`
 // reached it from the public surface. ValidateParams rejects the pair now, and both lanes pick the
-// decomposition anyway because FMT002 is only a RuntimeError and the code still ships.
+// decomposition anyway because format-invalid-params is only a RuntimeError and the code still ships.
 
 func rfcWithPartsParams() map[string]any {
 	return map[string]any{

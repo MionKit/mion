@@ -30,7 +30,7 @@ few, get reactions, refine, then come back for the rest.
 | ⑤   | compare to a trusted source | does it match a second, trusted way to get the answer?           | vs `JSON.parse`, vs the previous implementation       |
 | ⑥   | predicted change            | does a known input change cause the output change you predicted? | add a field ⇒ exactly that node appears               |
 | ⑦   | leave the rest alone        | does an unrelated change leave everything else untouched?        | an authored value survives an unrelated edit          |
-| ⑧   | reject bad input            | is a _bad_ input always reported, never quietly accepted?        | unknown field ⇒ a specific diagnostic (MD001/FT002)   |
+| ⑧   | reject bad input            | is a _bad_ input always reported, never quietly accepted?        | unknown field ⇒ a specific diagnostic (enrich-mock-unknown-field/enrich-text-unknown-field)   |
 
 After a pass, ask the user: "anything I'm missing that should always hold here?" Stop
 when the shapes that fit are covered.
@@ -48,7 +48,7 @@ when the shapes that fit are covered.
   nothing is wrong) destroys trust in the whole suite.
 - Then prove each rule you'll fail the build on: break the expected output on purpose and
   watch the rule go red, with the right signal. A rule you've never watched fail isn't
-  trustworthy yet. (Enrich fuzzer: we asserted a bogus code `MD999`, watched it fail and
+  trustworthy yet. (Enrich fuzzer: we asserted a bogus code `enrich-mock-bogus`, watched it fail and
   shrink to one event, proof the check was live rather than passing for the wrong
   reason.)
 

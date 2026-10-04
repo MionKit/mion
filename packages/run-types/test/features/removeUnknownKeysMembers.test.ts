@@ -169,39 +169,39 @@ describe('removeUnknownKeys on class instances', () => {
 
   test('a class with #private fields is refused, root and nested, both call shapes', () => {
     const counter = new Counter();
-    // @mion-downgrade-error RUK005
-    expect(() => createRemoveUnknownKeysFn<Counter>()).toThrow(/RUK005/);
-    // @mion-downgrade-error RUK005
-    expect(() => createRemoveUnknownKeysFn(counter)).toThrow(/RUK005/);
-    // @mion-downgrade-error RUK005
-    expect(() => createRemoveUnknownKeysFn<{counter: Counter}>()).toThrow(/RUK005/);
+    // @mion-downgrade-error unknown-keys-private-fields
+    expect(() => createRemoveUnknownKeysFn<Counter>()).toThrow(/unknown-keys-private-fields/);
+    // @mion-downgrade-error unknown-keys-private-fields
+    expect(() => createRemoveUnknownKeysFn(counter)).toThrow(/unknown-keys-private-fields/);
+    // @mion-downgrade-error unknown-keys-private-fields
+    expect(() => createRemoveUnknownKeysFn<{counter: Counter}>()).toThrow(/unknown-keys-private-fields/);
     const holder = {counter};
-    // @mion-downgrade-error RUK005
-    expect(() => createRemoveUnknownKeysFn(holder)).toThrow(/RUK005/);
+    // @mion-downgrade-error unknown-keys-private-fields
+    expect(() => createRemoveUnknownKeysFn(holder)).toThrow(/unknown-keys-private-fields/);
   });
 });
 
 describe('removeUnknownKeys on symbol keys', () => {
   test('a declared symbol-keyed property is refused, root and nested, both call shapes', () => {
     const value: Tagged = {id: 'a', [tag]: 'x'};
-    // @mion-downgrade-error RUK004
-    expect(() => createRemoveUnknownKeysFn<Tagged>()).toThrow(/RUK004/);
-    // @mion-downgrade-error RUK004
-    expect(() => createRemoveUnknownKeysFn(value)).toThrow(/RUK004/);
-    // @mion-downgrade-error RUK004
-    expect(() => createRemoveUnknownKeysFn<{inner: {id: string; [tag]: string}}>()).toThrow(/RUK004/);
+    // @mion-downgrade-error unknown-keys-symbol-key
+    expect(() => createRemoveUnknownKeysFn<Tagged>()).toThrow(/unknown-keys-symbol-key/);
+    // @mion-downgrade-error unknown-keys-symbol-key
+    expect(() => createRemoveUnknownKeysFn(value)).toThrow(/unknown-keys-symbol-key/);
+    // @mion-downgrade-error unknown-keys-symbol-key
+    expect(() => createRemoveUnknownKeysFn<{inner: {id: string; [tag]: string}}>()).toThrow(/unknown-keys-symbol-key/);
     const holder = {inner: value};
-    // @mion-downgrade-error RUK004
-    expect(() => createRemoveUnknownKeysFn(holder)).toThrow(/RUK004/);
+    // @mion-downgrade-error unknown-keys-symbol-key
+    expect(() => createRemoveUnknownKeysFn(holder)).toThrow(/unknown-keys-symbol-key/);
   });
 
   test('an optional symbol-keyed property is refused too', () => {
     type Maybe = {id: string; [tag]?: string};
     const value: Maybe = {id: 'a'};
-    // @mion-downgrade-error RUK004
-    expect(() => createRemoveUnknownKeysFn<Maybe>()).toThrow(/RUK004/);
-    // @mion-downgrade-error RUK004
-    expect(() => createRemoveUnknownKeysFn(value)).toThrow(/RUK004/);
+    // @mion-downgrade-error unknown-keys-symbol-key
+    expect(() => createRemoveUnknownKeysFn<Maybe>()).toThrow(/unknown-keys-symbol-key/);
+    // @mion-downgrade-error unknown-keys-symbol-key
+    expect(() => createRemoveUnknownKeysFn(value)).toThrow(/unknown-keys-symbol-key/);
   });
 
   test('a symbol index signature copies every own symbol key', () => {
@@ -231,12 +231,12 @@ describe('removeUnknownKeys on symbol keys', () => {
     type Bag = {[key: symbol]: {n: number}; [tag]: {n: number; m: string}};
     const wide = {n: 1, m: 'kept?'};
     const input: Bag = {[tag]: wide};
-    // @mion-downgrade-error RUK004
-    expect(() => createRemoveUnknownKeysFn<Bag>()).toThrow(/RUK004/);
-    // @mion-downgrade-error RUK004
-    expect(() => createRemoveUnknownKeysFn(input)).toThrow(/RUK004/);
-    // @mion-downgrade-error RUK004
-    expect(() => createRemoveUnknownKeysFn<{bag: Bag}>()).toThrow(/RUK004/);
+    // @mion-downgrade-error unknown-keys-symbol-key
+    expect(() => createRemoveUnknownKeysFn<Bag>()).toThrow(/unknown-keys-symbol-key/);
+    // @mion-downgrade-error unknown-keys-symbol-key
+    expect(() => createRemoveUnknownKeysFn(input)).toThrow(/unknown-keys-symbol-key/);
+    // @mion-downgrade-error unknown-keys-symbol-key
+    expect(() => createRemoveUnknownKeysFn<{bag: Bag}>()).toThrow(/unknown-keys-symbol-key/);
   });
 });
 
@@ -266,10 +266,12 @@ describe('removeUnknownKeys on values it can only share', () => {
     const callable = Object.assign((a: number): string => String(a), {tag: 't'}) as Callable;
     expect(createRemoveUnknownKeysFn<Callable>()(callable)).toBe(callable);
     expect(createRemoveUnknownKeysFn(callable)(callable)).toBe(callable);
-    // @mion-downgrade-error RUK006
-    expect(() => createRemoveUnknownKeysFn<Callable>(undefined, {sharedValues: 'refuse'})).toThrow(/RUK006/);
-    // @mion-downgrade-error RUK006
-    expect(() => createRemoveUnknownKeysFn(callable, {sharedValues: 'refuse'})).toThrow(/RUK006/);
+    // @mion-downgrade-error unknown-keys-shared-value-refused
+    expect(() => createRemoveUnknownKeysFn<Callable>(undefined, {sharedValues: 'refuse'})).toThrow(
+      /unknown-keys-shared-value-refused/
+    );
+    // @mion-downgrade-error unknown-keys-shared-value-refused
+    expect(() => createRemoveUnknownKeysFn(callable, {sharedValues: 'refuse'})).toThrow(/unknown-keys-shared-value-refused/);
   });
 
   test('elements of arrays, tuples, Maps, Sets and unions are shared, with share and by default', () => {
@@ -288,20 +290,28 @@ describe('removeUnknownKeys on values it can only share', () => {
   });
 
   test('elements of arrays, tuples, Maps, Sets and unions are refused under refuse', () => {
-    // @mion-downgrade-error RUK006
-    expect(() => createRemoveUnknownKeysFn<Map<string, () => string>>(undefined, {sharedValues: 'refuse'})).toThrow(/RUK006/);
-    // @mion-downgrade-error RUK006
-    expect(() => createRemoveUnknownKeysFn<Set<RegExp>>(undefined, {sharedValues: 'refuse'})).toThrow(/RUK006/);
-    // @mion-downgrade-error RUK006
-    expect(() => createRemoveUnknownKeysFn<[() => string]>(undefined, {sharedValues: 'refuse'})).toThrow(/RUK006/);
-    // @mion-downgrade-error RUK006
-    expect(() => createRemoveUnknownKeysFn<string | (() => string)>(undefined, {sharedValues: 'refuse'})).toThrow(/RUK006/);
+    // @mion-downgrade-error unknown-keys-shared-value-refused
+    expect(() => createRemoveUnknownKeysFn<Map<string, () => string>>(undefined, {sharedValues: 'refuse'})).toThrow(
+      /unknown-keys-shared-value-refused/
+    );
+    // @mion-downgrade-error unknown-keys-shared-value-refused
+    expect(() => createRemoveUnknownKeysFn<Set<RegExp>>(undefined, {sharedValues: 'refuse'})).toThrow(
+      /unknown-keys-shared-value-refused/
+    );
+    // @mion-downgrade-error unknown-keys-shared-value-refused
+    expect(() => createRemoveUnknownKeysFn<[() => string]>(undefined, {sharedValues: 'refuse'})).toThrow(
+      /unknown-keys-shared-value-refused/
+    );
+    // @mion-downgrade-error unknown-keys-shared-value-refused
+    expect(() => createRemoveUnknownKeysFn<string | (() => string)>(undefined, {sharedValues: 'refuse'})).toThrow(
+      /unknown-keys-shared-value-refused/
+    );
     const set = new Set([/a/]);
-    // @mion-downgrade-error RUK006
-    expect(() => createRemoveUnknownKeysFn(set, {sharedValues: 'refuse'})).toThrow(/RUK006/);
-    // @mion-downgrade-error RUK006
+    // @mion-downgrade-error unknown-keys-shared-value-refused
+    expect(() => createRemoveUnknownKeysFn(set, {sharedValues: 'refuse'})).toThrow(/unknown-keys-shared-value-refused/);
+    // @mion-downgrade-error unknown-keys-shared-value-refused
     expect(() => createRemoveUnknownKeysFn<{pick: string | (() => string)}>(undefined, {sharedValues: 'refuse'})).toThrow(
-      /RUK006/
+      /unknown-keys-shared-value-refused/
     );
   });
 
@@ -314,10 +324,10 @@ describe('removeUnknownKeys on values it can only share', () => {
 
   test('sharedValues from a spread or const preset works like a literal', () => {
     const refusePreset = {sharedValues: 'refuse'} as const;
-    // @mion-downgrade-error RUK006
-    expect(() => createRemoveUnknownKeysFn<Button>(undefined, {...refusePreset})).toThrow(/RUK006/);
-    // @mion-downgrade-error RUK006
-    expect(() => createRemoveUnknownKeysFn<Button>(undefined, refusePreset)).toThrow(/RUK006/);
+    // @mion-downgrade-error unknown-keys-shared-value-refused
+    expect(() => createRemoveUnknownKeysFn<Button>(undefined, {...refusePreset})).toThrow(/unknown-keys-shared-value-refused/);
+    // @mion-downgrade-error unknown-keys-shared-value-refused
+    expect(() => createRemoveUnknownKeysFn<Button>(undefined, refusePreset)).toThrow(/unknown-keys-shared-value-refused/);
   });
 
   test("sharedValues: 'share' copies the same way", () => {
@@ -330,25 +340,33 @@ describe('removeUnknownKeys on values it can only share', () => {
   });
 
   test("sharedValues: 'refuse' makes the factory throw, root and nested, both call shapes", () => {
-    // @mion-downgrade-error RUK006
-    expect(() => createRemoveUnknownKeysFn<Button>(undefined, {sharedValues: 'refuse'})).toThrow(/RUK006/);
-    // @mion-downgrade-error RUK006
-    expect(() => createRemoveUnknownKeysFn(button, {sharedValues: 'refuse'})).toThrow(/RUK006/);
-    // @mion-downgrade-error RUK006
-    expect(() => createRemoveUnknownKeysFn<{button: Button}>(undefined, {sharedValues: 'refuse'})).toThrow(/RUK006/);
-    // @mion-downgrade-error RUK006
-    expect(() => createRemoveUnknownKeysFn<Array<() => string>>(undefined, {sharedValues: 'refuse'})).toThrow(/RUK006/);
-    // @mion-downgrade-error RUK006
-    expect(() => createRemoveUnknownKeysFn<{when: Promise<number>}>(undefined, {sharedValues: 'refuse'})).toThrow(/RUK006/);
+    // @mion-downgrade-error unknown-keys-shared-value-refused
+    expect(() => createRemoveUnknownKeysFn<Button>(undefined, {sharedValues: 'refuse'})).toThrow(
+      /unknown-keys-shared-value-refused/
+    );
+    // @mion-downgrade-error unknown-keys-shared-value-refused
+    expect(() => createRemoveUnknownKeysFn(button, {sharedValues: 'refuse'})).toThrow(/unknown-keys-shared-value-refused/);
+    // @mion-downgrade-error unknown-keys-shared-value-refused
+    expect(() => createRemoveUnknownKeysFn<{button: Button}>(undefined, {sharedValues: 'refuse'})).toThrow(
+      /unknown-keys-shared-value-refused/
+    );
+    // @mion-downgrade-error unknown-keys-shared-value-refused
+    expect(() => createRemoveUnknownKeysFn<Array<() => string>>(undefined, {sharedValues: 'refuse'})).toThrow(
+      /unknown-keys-shared-value-refused/
+    );
+    // @mion-downgrade-error unknown-keys-shared-value-refused
+    expect(() => createRemoveUnknownKeysFn<{when: Promise<number>}>(undefined, {sharedValues: 'refuse'})).toThrow(
+      /unknown-keys-shared-value-refused/
+    );
     const holder = {button};
-    // @mion-downgrade-error RUK006
-    expect(() => createRemoveUnknownKeysFn(holder, {sharedValues: 'refuse'})).toThrow(/RUK006/);
+    // @mion-downgrade-error unknown-keys-shared-value-refused
+    expect(() => createRemoveUnknownKeysFn(holder, {sharedValues: 'refuse'})).toThrow(/unknown-keys-shared-value-refused/);
     const list = [onClick];
-    // @mion-downgrade-error RUK006
-    expect(() => createRemoveUnknownKeysFn(list, {sharedValues: 'refuse'})).toThrow(/RUK006/);
+    // @mion-downgrade-error unknown-keys-shared-value-refused
+    expect(() => createRemoveUnknownKeysFn(list, {sharedValues: 'refuse'})).toThrow(/unknown-keys-shared-value-refused/);
     const waiting = {when: Promise.resolve(1)};
-    // @mion-downgrade-error RUK006
-    expect(() => createRemoveUnknownKeysFn(waiting, {sharedValues: 'refuse'})).toThrow(/RUK006/);
+    // @mion-downgrade-error unknown-keys-shared-value-refused
+    expect(() => createRemoveUnknownKeysFn(waiting, {sharedValues: 'refuse'})).toThrow(/unknown-keys-shared-value-refused/);
   });
 
   test("sharedValues: 'refuse' still copies plain data", () => {

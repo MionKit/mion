@@ -191,12 +191,12 @@ describe('classSerializer / zero-arg class, nothing but the class', () => {
 });
 
 // ############################################################################
-// Non-empty constructor without deserialize -> CLS002 at decode.
+// Non-empty constructor without deserialize -> data-class-constructor-failed at decode.
 // ############################################################################
 
 // A class TS sees as zero-arg (so the auto-instantiate overload accepts it),
 // but whose constructor cannot run without real arguments. The auto
-// `new cls()` throws, which `deserializeClass` surfaces as CLS002.
+// `new cls()` throws, which `deserializeClass` surfaces as data-class-constructor-failed.
 class Needy {
   value: number;
   constructor() {
@@ -205,8 +205,8 @@ class Needy {
   }
 }
 
-describe('classSerializer / auto-instantiate failure surfaces CLS002', () => {
-  it('static (JSON) — decode throws a CLS002 message naming the class + fix', () => {
+describe('classSerializer / auto-instantiate failure surfaces data-class-constructor-failed', () => {
+  it('static (JSON) — decode throws a data-class-constructor-failed message naming the class + fix', () => {
     registerClassSerializer(Needy);
     const encode = createJsonEncoderFn<Needy>();
     const decode = createJsonDecoderFn<Needy>();
@@ -215,16 +215,16 @@ describe('classSerializer / auto-instantiate failure surfaces CLS002', () => {
     const json = encode({value: 5} as unknown as Needy) as string;
     expect(JSON.parse(json)).toEqual({value: 5});
 
-    expect(() => decode(json)).toThrow(/CLS002/);
+    expect(() => decode(json)).toThrow(/data-class-constructor-failed/);
     expect(() => decode(json)).toThrow(/Needy/);
     expect(() => decode(json)).toThrow(/deserialize/);
   });
 
-  it('reflect (JSON) — decode throws CLS002', () => {
+  it('reflect (JSON) — decode throws data-class-constructor-failed', () => {
     registerClassSerializer(Needy);
     const sample = {value: 0} as unknown as Needy;
     const json = createJsonEncoderFn(sample)({value: 9} as unknown as Needy) as string;
-    expect(() => createJsonDecoderFn(sample)(json)).toThrow(/CLS002/);
+    expect(() => createJsonDecoderFn(sample)(json)).toThrow(/data-class-constructor-failed/);
   });
 });
 

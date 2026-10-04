@@ -71,7 +71,7 @@ func batchIdReplacement(reps []protocol.Replacement) (protocol.Replacement, bool
 func batchDiags(diags []diagnostics.Diagnostic) []diagnostics.Diagnostic {
 	var out []diagnostics.Diagnostic
 	for _, diag := range diags {
-		if strings.HasPrefix(diag.Code, "BAT") {
+		if strings.HasPrefix(diag.Code, "rpc-batch-") {
 			out = append(out, diag)
 		}
 	}
@@ -227,7 +227,7 @@ func TestBatch_GenerateWholeProgram(t *testing.T) {
 // TestBatch_SameRoutesDifferentMappings_TwoBatches: two files batching the
 // same routes with different mappings are two batches with two ids, on the
 // single-file scan and on the whole-program generate alike; only a real hash
-// collision (BAT003) is a conflict.
+// collision (rpc-batch-id-collision) is a conflict.
 func TestBatch_SameRoutesDifferentMappings_TwoBatches(t *testing.T) {
 	sources := map[string]string{
 		"client.d.ts": batchClientDTS,
@@ -265,7 +265,7 @@ export const b = batch([user, routes.orders.getById(inputFrom(user, (o: {id: num
 	}
 }
 
-// TestBatch_ElementDiagnosticsFlowOnScan: a BAT001 reaches the scan response
+// TestBatch_ElementDiagnosticsFlowOnScan: a rpc-batch-element-unreadable reaches the scan response
 // and suppresses the injection for that call.
 func TestBatch_ElementDiagnosticsFlowOnScan(t *testing.T) {
 	r := setupInline(t, map[string]string{
@@ -283,10 +283,10 @@ export const b = batch([...prepared]);
 	}
 	diags := batchDiags(scan.Diagnostics)
 	if len(diags) != 1 || diags[0].Code != diagnostics.CodeBatchElementNotReadable || diags[0].Args[0] != "spread element" {
-		t.Fatalf("expected one BAT001 (spread element), got %+v", diags)
+		t.Fatalf("expected one rpc-batch-element-unreadable (spread element), got %+v", diags)
 	}
 	if diags[0].Severity != diagnostics.SeverityError || diags[0].Family != diagnostics.FamilyMarker {
-		t.Errorf("BAT001 must be a marker-family error: %+v", diags[0])
+		t.Errorf("rpc-batch-element-unreadable must be a marker-family error: %+v", diags[0])
 	}
 	if _, ok := batchIdReplacement(scan.Replacements); ok {
 		t.Errorf("a rejected batch must not be injected: %+v", scan.Replacements)
@@ -341,7 +341,7 @@ export const b = batch([routes.users.getById(1)]);
 }
 
 // TestBatch_PlanDiagnosticsFlowOnScan: the two plan-level codes the server
-// would otherwise refuse at request time (BAT005 duplicate route, BAT006
+// would otherwise refuse at request time (rpc-batch-duplicate-route duplicate route, rpc-batch-argument-out-of-range
 // mapping position) reach the scan response and suppress the injection.
 func TestBatch_PlanDiagnosticsFlowOnScan(t *testing.T) {
 	cases := map[string]struct{ source, code, args string }{

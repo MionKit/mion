@@ -14,7 +14,7 @@ import (
 // finding. Marker coverage rule: every fixture carries both getRunTypeId call shapes, and
 // TestFileDirective_FormEquivalence asserts the pair resolves to one entry.
 
-// twoFindingsSource raises VL002 at two sites and PJS005 at a third; the healthy marker calls pin the rewrites.
+// twoFindingsSource raises validate-symbol-root at two sites and json-prepare-clone-symbol-root at a third; the healthy marker calls pin the rewrites.
 const twoFindingsSource = `import {createValidateFn, createJsonEncoderFn, getRunTypeId} from '@mionjs/run-types';
 export const firstBad = createValidateFn<symbol>();
 export const secondBad = createValidateFn<symbol>();
@@ -29,8 +29,8 @@ func atTop(comment string) string {
 	return comment + "\n" + twoFindingsSource
 }
 
-// vl002Count counts surviving VL002 findings and how many are downgraded.
-func vl002Count(list []diagnostics.Diagnostic) (found int, downgraded int) {
+// validateSymbolRootCount counts surviving validate-symbol-root findings and how many are downgraded.
+func validateSymbolRootCount(list []diagnostics.Diagnostic) (found int, downgraded int) {
 	for _, diagnostic := range list {
 		if diagnostic.Code != diagnostics.CodeVLSymbolRoot {
 			continue
@@ -56,19 +56,19 @@ func TestFileDirective_BareBlockCommentStandsDownTheWholeFile(t *testing.T) {
 }
 
 func TestFileDirective_NamedCodeStandsDownOnlyWhatItNames(t *testing.T) {
-	list := generateDiags(t, atTop("/* @mion-expect-error VL002 */"))
+	list := generateDiags(t, atTop("/* @mion-expect-error validate-symbol-root */"))
 	codes := codesIn(list)
-	if found, _ := vl002Count(list); found != 0 {
-		t.Fatalf("both VL002 sites are named, so neither survives; got %d in %v", found, codes)
+	if found, _ := validateSymbolRootCount(list); found != 0 {
+		t.Fatalf("both validate-symbol-root sites are named, so neither survives; got %d in %v", found, codes)
 	}
 	if !contains(codes, diagnostics.CodePJSSymbolRoot) {
-		t.Fatalf("PJS005 is not named, so it must still fire; got %v", codes)
+		t.Fatalf("json-prepare-clone-symbol-root is not named, so it must still fire; got %v", codes)
 	}
 }
 
 func TestFileDirective_DowngradeMarksEverySite(t *testing.T) {
-	list := generateDiags(t, atTop("/* @mion-downgrade-error VL002 */"))
-	found, downgraded := vl002Count(list)
+	list := generateDiags(t, atTop("/* @mion-downgrade-error validate-symbol-root */"))
+	found, downgraded := validateSymbolRootCount(list)
 	if found != 2 || downgraded != 2 {
 		t.Fatalf("a file downgrade keeps both findings and marks both; got %d found, %d marked in %v", found, downgraded, codesIn(list))
 	}
@@ -94,7 +94,7 @@ func TestFileDirective_ASecondFileStillReportsNormally(t *testing.T) {
 	}
 	codes := codesOf(response)
 	if !contains(codes, diagnostics.CodeVLSymbolRoot) {
-		t.Fatalf("loud.ts carries no directive, so its VL002 must report; got %v", codes)
+		t.Fatalf("loud.ts carries no directive, so its validate-symbol-root must report; got %v", codes)
 	}
 	for _, diagnostic := range response.Diagnostics {
 		if strings.Contains(diagnostic.Site.FilePath, "quiet.ts") {
@@ -105,33 +105,33 @@ func TestFileDirective_ASecondFileStillReportsNormally(t *testing.T) {
 
 // LevelError is never silenceable at any scope: no code was emitted, so silencing only buys a call that throws.
 func TestFileDirective_FatalCodeIsRefusedAtFileScope(t *testing.T) {
-	codes := generateDiagnostics(t, atTop("/* @mion-expect-error MKR014 */"))
+	codes := generateDiagnostics(t, atTop("/* @mion-expect-error marker-type-id-collision */"))
 	if !contains(codes, diagnostics.CodeExpectErrorNotSuppressible) {
-		t.Fatalf("MKR014 emits no site, so a file directive naming it earns EXP002; got %v", codes)
+		t.Fatalf("marker-type-id-collision emits no site, so a file directive naming it earns comment-expect-error-not-allowed; got %v", codes)
 	}
-	codes = codesIn(generateDiags(t, atTop("/* @mion-downgrade-error MKR014 */")))
+	codes = codesIn(generateDiags(t, atTop("/* @mion-downgrade-error marker-type-id-collision */")))
 	if !contains(codes, diagnostics.CodeDowngradeErrorNotDowngradeable) {
-		t.Fatalf("MKR014 can never be lowered either, so DWN002; got %v", codes)
+		t.Fatalf("marker-type-id-collision can never be lowered either, so comment-downgrade-error-not-allowed; got %v", codes)
 	}
 }
 
 func TestFileDirective_BlockCommentBelowTheTopIsStillALineDirective(t *testing.T) {
 	list := generateDiags(t, strings.Replace(twoFindingsSource,
 		"export const secondBad = createValidateFn<symbol>();",
-		"/* @mion-expect-error VL002 */\nexport const secondBad = createValidateFn<symbol>();", 1))
-	if found, _ := vl002Count(list); found != 1 {
-		t.Fatalf("it covers the line under it, so one of the two VL002 sites survives; got %d in %v", found, codesIn(list))
+		"/* @mion-expect-error validate-symbol-root */\nexport const secondBad = createValidateFn<symbol>();", 1))
+	if found, _ := validateSymbolRootCount(list); found != 1 {
+		t.Fatalf("it covers the line under it, so one of the two validate-symbol-root sites survives; got %d in %v", found, codesIn(list))
 	}
 }
 
 func TestFileDirective_LineCommentAtTheTopIsStillALineDirective(t *testing.T) {
-	list := generateDiags(t, atTop("// @mion-expect-error VL002"))
+	list := generateDiags(t, atTop("// @mion-expect-error validate-symbol-root"))
 	codes := codesIn(list)
-	if found, _ := vl002Count(list); found != 2 {
-		t.Fatalf("a line comment covers one line, so both VL002 sites survive; got %d in %v", found, codes)
+	if found, _ := validateSymbolRootCount(list); found != 2 {
+		t.Fatalf("a line comment covers one line, so both validate-symbol-root sites survive; got %d in %v", found, codes)
 	}
 	if !contains(codes, diagnostics.CodeExpectErrorUnused) {
-		t.Fatalf("it covered the import line, which raised nothing, so EXP001; got %v", codes)
+		t.Fatalf("it covered the import line, which raised nothing, so comment-expect-error-unused; got %v", codes)
 	}
 }
 
@@ -142,11 +142,11 @@ export const idStatic = getRunTypeId<{name: string}>();
 const sample = {name: 'Ada'};
 export const idReflected = getRunTypeId(sample);
 `
-	codes := generateDiagnostics(t, "/* @mion-expect-error VL002 */\n"+healthy)
+	codes := generateDiagnostics(t, "/* @mion-expect-error validate-symbol-root */\n"+healthy)
 	if !contains(codes, diagnostics.CodeExpectErrorUnused) {
-		t.Fatalf("nothing in the file raised VL002, so the comment is stale; got %v", codes)
+		t.Fatalf("nothing in the file raised validate-symbol-root, so the comment is stale; got %v", codes)
 	}
-	codes = codesIn(generateDiags(t, "/* @mion-downgrade-error VL002 */\n"+healthy))
+	codes = codesIn(generateDiags(t, "/* @mion-downgrade-error validate-symbol-root */\n"+healthy))
 	if !contains(codes, diagnostics.CodeDowngradeErrorUnused) {
 		t.Fatalf("the downgrade twin reports the same way; got %v", codes)
 	}
@@ -154,34 +154,34 @@ export const idReflected = getRunTypeId(sample);
 
 // The file form exists for a file that repeats one comment, so it must not report those comments as redundant.
 func TestFileDirective_CoveredLineDirectivesAreNotJudged(t *testing.T) {
-	source := atTop("/* @mion-expect-error VL002 */")
+	source := atTop("/* @mion-expect-error validate-symbol-root */")
 	source = strings.Replace(source,
 		"export const secondBad = createValidateFn<symbol>();",
-		"// @mion-expect-error VL002\nexport const secondBad = createValidateFn<symbol>();", 1)
+		"// @mion-expect-error validate-symbol-root\nexport const secondBad = createValidateFn<symbol>();", 1)
 	codes := generateDiagnostics(t, source)
 	if contains(codes, diagnostics.CodeExpectErrorUnused) {
-		t.Fatalf("the file directive already covers VL002, so the line comment under it is not reported; got %v", codes)
+		t.Fatalf("the file directive already covers validate-symbol-root, so the line comment under it is not reported; got %v", codes)
 	}
 }
 
 // A file expect leaves nothing for a line downgrade to act on, so it is not reported either.
 func TestFileDirective_FileExpectCoversALineDowngrade(t *testing.T) {
-	source := atTop("/* @mion-expect-error VL002 */")
+	source := atTop("/* @mion-expect-error validate-symbol-root */")
 	source = strings.Replace(source,
 		"export const secondBad = createValidateFn<symbol>();",
-		"// @mion-downgrade-error VL002\nexport const secondBad = createValidateFn<symbol>();", 1)
+		"// @mion-downgrade-error validate-symbol-root\nexport const secondBad = createValidateFn<symbol>();", 1)
 	codes := generateDiagnostics(t, source)
 	if contains(codes, diagnostics.CodeDowngradeErrorUnused) {
-		t.Fatalf("the file expect removed VL002, so the line comment under it is not reported; got %v", codes)
+		t.Fatalf("the file expect removed validate-symbol-root, so the line comment under it is not reported; got %v", codes)
 	}
 }
 
 // A file downgrade only keeps the finding, so a line expect below it still removes one and is judged on its own.
 func TestFileDirective_FileDowngradeDoesNotCoverAStaleLineExpect(t *testing.T) {
-	source := atTop("/* @mion-downgrade-error VL002 */")
+	source := atTop("/* @mion-downgrade-error validate-symbol-root */")
 	source = strings.Replace(source,
 		"export const idStatic = getRunTypeId<{name: string}>();",
-		"// @mion-expect-error VL002\nexport const idStatic = getRunTypeId<{name: string}>();", 1)
+		"// @mion-expect-error validate-symbol-root\nexport const idStatic = getRunTypeId<{name: string}>();", 1)
 	codes := generateDiagnostics(t, source)
 	if !contains(codes, diagnostics.CodeExpectErrorUnused) {
 		t.Fatalf("a line expect can still remove a downgraded finding, so a stale one is reported; got %v", codes)
@@ -189,24 +189,24 @@ func TestFileDirective_FileDowngradeDoesNotCoverAStaleLineExpect(t *testing.T) {
 }
 
 func TestFileDirective_UncoveredLineDirectivesAreStillJudged(t *testing.T) {
-	source := atTop("/* @mion-expect-error VL002 */")
+	source := atTop("/* @mion-expect-error validate-symbol-root */")
 	source = strings.Replace(source,
 		"export const idStatic = getRunTypeId<{name: string}>();",
-		"// @mion-expect-error PJS005\nexport const idStatic = getRunTypeId<{name: string}>();", 1)
+		"// @mion-expect-error json-prepare-clone-symbol-root\nexport const idStatic = getRunTypeId<{name: string}>();", 1)
 	codes := generateDiagnostics(t, source)
 	if !contains(codes, diagnostics.CodeExpectErrorUnused) {
-		t.Fatalf("PJS005 is not covered by the file directive and was raised nowhere on that line, so EXP001; got %v", codes)
+		t.Fatalf("json-prepare-clone-symbol-root is not covered by the file directive and was raised nowhere on that line, so comment-expect-error-unused; got %v", codes)
 	}
 }
 
 // A finding cannot be both gone and printed.
 func TestFileDirective_ExpectBeatsDowngrade(t *testing.T) {
-	source := atTop("/* @mion-downgrade-error VL002 */")
+	source := atTop("/* @mion-downgrade-error validate-symbol-root */")
 	source = strings.Replace(source,
 		"export const firstBad = createValidateFn<symbol>();",
-		"// @mion-expect-error VL002\nexport const firstBad = createValidateFn<symbol>();", 1)
+		"// @mion-expect-error validate-symbol-root\nexport const firstBad = createValidateFn<symbol>();", 1)
 	list := generateDiags(t, source)
-	found, downgraded := vl002Count(list)
+	found, downgraded := validateSymbolRootCount(list)
 	if found != 1 || downgraded != 1 {
 		t.Fatalf("the expected site is removed and the other stays marked; got %d found, %d marked in %v", found, downgraded, codesIn(list))
 	}
@@ -217,12 +217,12 @@ func TestFileDirective_ExpectBeatsDowngrade(t *testing.T) {
 
 // TestFileDirective_FormEquivalence: both getRunTypeId shapes share one entry while a file directive is in force.
 func TestFileDirective_FormEquivalence(t *testing.T) {
-	const staticForm = `/* @mion-expect-error VL002 */
+	const staticForm = `/* @mion-expect-error validate-symbol-root */
 import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 export const bad = createValidateFn<symbol>();
 getRunTypeId<string>();
 `
-	const reflectForm = `/* @mion-expect-error VL002 */
+	const reflectForm = `/* @mion-expect-error validate-symbol-root */
 import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 export const bad = createValidateFn<symbol>();
 const v: string = 'hello';

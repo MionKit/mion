@@ -14,7 +14,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// tsc erases a `private` member's type, so a consumer reads it as `any` (MKR016). Writing it `protected` keeps the type
+// tsc erases a `private` member's type, so a consumer reads it as `any` (marker-untyped-private-member). Writing it `protected` keeps the type
 // and its imports, keeps the class nominal, and stays unreadable from outside.
 
 // emitDeclarationFiles emits the .d.ts with the value splices and every `private` turned `protected`.

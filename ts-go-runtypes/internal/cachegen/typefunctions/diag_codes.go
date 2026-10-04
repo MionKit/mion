@@ -99,7 +99,7 @@ func (RestoreFromJsonEmitter) DiagCodeForLeaf(leaf *reflection.RunType, resolve 
 // diagnostic codes the same way: cj → pjs, cjr → rj. Without these the compact emitters implement neither
 // provider, and an unserializable leaf at a PROPAGATING position (tuple slot, array element, record value,
 // callable object) would SILENTLY SKIP the primitive entry instead of rendering an alwaysThrow, leaving the
-// compact composite binding a never-rendered primitive (JCP001). The wording carries over unchanged, the
+// compact composite binding a never-rendered primitive (internal-json-primitive-missing). The wording carries over unchanged, the
 // reason being wire-shape independent: "Type `Function` can never be encoded to JSON" holds for compact too.
 func (CompactForJsonEmitter) DiagCodeFor(slot DiagSlot) string {
 	return prepareForJsonCloneCodes[slot]
@@ -183,7 +183,7 @@ var removeUnknownKeysCodes = map[DiagSlot]string{
 	SlotUnsafeNamePropDropped:      diagnostics.CodeUnsafePropertyName,
 }
 
-// DiagCodeFor: under `sharedValues: 'share'` both sharing slots become the quiet RUK016, since the caller asked for it.
+// DiagCodeFor: under `sharedValues: 'share'` both sharing slots become the quiet unknown-keys-value-shared, since the caller asked for it.
 func (emitter RemoveUnknownKeysEmitter) DiagCodeFor(slot DiagSlot) string {
 	if emitter.shared == sharedValuesShare && (slot == SlotFunctionPropDropped || slot == SlotNonSerializablePropDropped) {
 		return diagnostics.CodeRUKSharedAsAsked

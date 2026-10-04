@@ -38,7 +38,7 @@ export function resolveDowngradeErrors(value: string[] | typeof DOWNGRADE_ALL | 
     const entry = DIAGNOSTIC_CATALOG[code];
     if (!entry) {
       throw new Error(
-        `[@mionjs/devtools] downgradeErrors names unknown diagnostic code ${JSON.stringify(code)} — copy it from the message you are silencing (the uppercase id, e.g. VL002)`
+        `[@mionjs/devtools] downgradeErrors names unknown diagnostic ${JSON.stringify(code)} — copy its name from the message you are silencing (e.g. validate-symbol-root)`
       );
     }
     if (entry.level === 'error') {

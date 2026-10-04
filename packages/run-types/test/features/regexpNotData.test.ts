@@ -1,6 +1,6 @@
 // A RegExp is not data: a pattern is code the receiver would run. Every codec drops a `RegExp` property like a
 // function (same build Warning), `DataOnly` strips it, a mock skips it unless `nonDataTypes` is on, the clone shares
-// it, and every family refuses it at the root (validate: VL001). Only a build-time `pattern` format reaches a validator.
+// it, and every family refuses it at the root (validate: validate-non-data-root). Only a build-time `pattern` format reaches a validator.
 
 import {describe, expect, expectTypeOf, it} from 'vitest';
 import {
@@ -25,8 +25,8 @@ describe('RegExp is not data', () => {
   });
 
   it('validate refuses a RegExp at the root', () => {
-    // @mion-downgrade-error VL001
-    expect(() => createValidateFn<RegExp>()).toThrow(/VL001/);
+    // @mion-downgrade-error validate-non-data-root
+    expect(() => createValidateFn<RegExp>()).toThrow(/validate-non-data-root/);
   });
 
   it('validate ignores a RegExp property like a function-valued one', () => {

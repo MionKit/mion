@@ -233,11 +233,11 @@ register('bundled API through a real vite build', () => {
     expect(Array.isArray(auth.rtFns.headersFns)).toBe(true);
   });
 
-  it('fails the build when a called route runs a middleware the client never sets up (MET008)', async () => {
+  it('fails the build when a called route runs a middleware the client never sets up (rpc-client-middleware-not-set-up)', async () => {
     writeFileSync(path.join(root, 'src', 'a.ts'), CLIENT.replace(/^middlewares\.auth.*$/m, ''));
     const warnings: string[] = [];
     await expect(buildClient('bundle', warnings)).rejects.toThrow(/build stopped/);
-    expect(warnings.join('\n')).toMatch(/MET008.*`auth`/);
+    expect(warnings.join('\n')).toMatch(/rpc-client-middleware-not-set-up.*`auth`/);
   });
 
   it('bundles with no option: bundled is the default', async () => {
@@ -248,16 +248,16 @@ register('bundled API through a real vite build', () => {
     expect(globals.__bundles?.['users/getById']).toBeDefined();
   });
 
-  it('stops a fetching build whose API serves no metadata to fetch (MET010)', async () => {
+  it('stops a fetching build whose API serves no metadata to fetch (rpc-client-no-metadata-route)', async () => {
     const warnings: string[] = [];
     await expect(buildClient('fetch', warnings)).rejects.toThrow(/build stopped/);
-    expect(warnings.join('\n')).toMatch(/MET010/);
+    expect(warnings.join('\n')).toMatch(/rpc-client-no-metadata-route/);
   });
 
   it('writes nothing and injects nothing when routes are fetched', async () => {
     writeFileSync(
       path.join(root, 'src', 'a.ts'),
-      CLIENT.replace('export const {routes', '// @mion-expect-error MET010\nexport const {routes')
+      CLIENT.replace('export const {routes', '// @mion-expect-error rpc-client-no-metadata-route\nexport const {routes')
     );
     const code = await buildClient('fetch');
     expect(existsSync(path.join(root, '.mion', 'api'))).toBe(false);

@@ -112,7 +112,7 @@ func renderWithDiag(t *testing.T, dump protocol.Dump, familyKey, rootID string) 
 
 // dropWarnFamilies maps each family that walks union members itself to its
 // DataOnly union-member-drop code. validationErrors is absent: its union arm
-// delegates to validate, so the user sees VL014 from the validate render.
+// delegates to validate, so the user sees validate-union-member-dropped from the validate render.
 var dropWarnFamilies = map[string]string{
 	"validate":              diagnostics.CodeVLUnionMemberDropped,
 	"prepareForJsonMutate":  diagnostics.CodePJUnionMemberDropped,
@@ -131,7 +131,7 @@ func findCode(sink []diagnostics.Diagnostic, code string) (diagnostics.Diagnosti
 
 // A genuine drop (Date | symbol — one member survives) raises a per-family
 // build-time Warning naming the dropped member, mirroring the property-drop
-// warnings (VL010 etc.).
+// warnings (validate-function-property-dropped etc.).
 func TestDataOnlyUnion_DropEmitsInfo(t *testing.T) {
 	dump := unionDump(mkDate(), mkSym())
 	for fam, wantCode := range dropWarnFamilies {
@@ -196,7 +196,7 @@ func TestDataOnlyUnion_NestedInArray(t *testing.T) {
 }
 
 // K2: `Date | {b: symbol}` drops the prop instead of alwaysThrowing, at the root and one object deeper.
-// Only the value kind's drop code is reported (…010 function, …015 other).
+// Only the value kind's drop code is reported (`-function-property-dropped` function, `-non-data-property-dropped` other).
 // removeUnknownKeys refuses the union itself but still reports the drop.
 func TestDataOnlyUnion_ObjectMemberStrippedProp(t *testing.T) {
 	type familyCodes struct{ want, notWant string }

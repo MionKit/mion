@@ -646,42 +646,42 @@ export const TUPLE = {
     title: 'Function slot',
     description: 'A function slot makes the whole tuple non-data, so the factory throws on first call.',
     validateNotes: [
-      '`DataOnly<[number, () => any]>` is `never`: a non-data tuple slot refuses the whole tuple (VL003 / VE003), like an array item.',
+      '`DataOnly<[number, () => any]>` is `never`: a non-data tuple slot refuses the whole tuple (validate-function-root / validation-errors-function-root), like an array item.',
     ],
-    // @mion-downgrade-error VL003
+    // @mion-downgrade-error validate-function-root
     validate: () => createValidateFn<[number, () => any]>(),
-    // @mion-downgrade-error VE003 VL003
+    // @mion-downgrade-error validation-errors-function-root validate-function-root
     standardSchema: () => createStandardSchema<[number, () => any]>(),
     validateDataOnly: () => createValidateFn<DataOnly<[number, () => any]>>(),
-    // @mion-downgrade-error VL003
+    // @mion-downgrade-error validate-function-root
     validateSchema: () => createValidateFn(RT.tuple({required: [TF.number(), RT.func({ret: RT.any()})]})),
-    // @mion-downgrade-error VL003
+    // @mion-downgrade-error validate-function-root
     deserializeValidate: () => deserializeValidate<[number, () => any]>(),
     validateReflect: () => {
       const v: [number, () => any] = [3, () => null];
-      // @mion-downgrade-error VL003
+      // @mion-downgrade-error validate-function-root
       return createValidateFn(v);
     },
     deserializeValidateReflect: () => {
       const v: [number, () => any] = [3, () => null];
-      // @mion-downgrade-error VL003
+      // @mion-downgrade-error validate-function-root
       return deserializeValidate(v);
     },
-    // @mion-downgrade-error VE003
+    // @mion-downgrade-error validation-errors-function-root
     getValidationErrors: () => createGetValidationErrorsFn<[number, () => any]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<[number, () => any]>>(),
-    // @mion-downgrade-error VE003
+    // @mion-downgrade-error validation-errors-function-root
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.tuple({required: [TF.number(), RT.func({ret: RT.any()})]})),
-    // @mion-downgrade-error VE003
+    // @mion-downgrade-error validation-errors-function-root
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<[number, () => any]>(),
     getValidationErrorsReflect: () => {
       const v: [number, () => any] = [3, () => null];
-      // @mion-downgrade-error VE003
+      // @mion-downgrade-error validation-errors-function-root
       return createGetValidationErrorsFn(v);
     },
     deserializeGetValidationErrorsReflect: () => {
       const v: [number, () => any] = [3, () => null];
-      // @mion-downgrade-error VE003
+      // @mion-downgrade-error validation-errors-function-root
       return deserializeGetValidationErrors(v);
     },
     mockType: () => createMockDataFn<[number, () => any]>(),

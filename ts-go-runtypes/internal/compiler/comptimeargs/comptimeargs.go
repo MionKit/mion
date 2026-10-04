@@ -3,7 +3,7 @@
 // the value walk) that ends in one, with `as T` / parens / `satisfies` unwrapped. Anything the build
 // cannot evaluate — a call, a ternary, property access, a template substitution, a computed key, a
 // `let` / `var` binding, a spread whose operand is dynamic or the wrong container kind — is rejected
-// with a CTA003 carrying the construct name in arg[0].
+// with a marker-comptime-arg-forbidden-construct carrying the construct name in arg[0].
 package comptimeargs
 
 import (
@@ -22,22 +22,22 @@ const (
 	// FailNone means validation succeeded.
 	FailNone FailKind = iota
 	// FailNonLiteral means the leaf isn't a literal and the const-trace
-	// couldn't follow it to one (CTA001).
+	// couldn't follow it to one (marker-comptime-arg-not-literal).
 	FailNonLiteral
-	// FailDepthExceeded means the literal-walk hit DepthCap (CTA002).
+	// FailDepthExceeded means the literal-walk hit DepthCap (marker-comptime-arg-too-deep).
 	FailDepthExceeded
 	// FailForbiddenConstruct means a recognised non-literal construct
-	// appeared inside the literal (CTA003). Reason carries the construct
+	// appeared inside the literal (marker-comptime-arg-forbidden-construct). Reason carries the construct
 	// name.
 	FailForbiddenConstruct
 	// FailWidenedConst means a comptime arg traced to a `const` whose TYPE carries a widened value
 	// (`{strategy: 'mutate'}` widened to `{strategy: string}` for want of an `as const`). The AST
 	// initializer is literal, but the widened type lets TypeScript's overload selection disagree with
-	// the value the scanner reads, so it is rejected (CTA004). Reason carries the member name.
+	// the value the scanner reads, so it is rejected (marker-comptime-arg-widened-const). Reason carries the member name.
 	FailWidenedConst
 	// FailExternalHandle means a PureFunction<F> literal is reachable as a
 	// value from outside the AOT-compiled copy — it is imported or exported
-	// (PFN002). Reason carries "imported" / "exported".
+	// (purefn-imported-or-exported). Reason carries "imported" / "exported".
 	FailExternalHandle
 )
 
@@ -104,8 +104,8 @@ func CheckLiteral(typeChecker *checker.Checker, node *ast.Node, depth int, polic
 // INLINE arrow / function expression is accepted. Even a module-private `const f = …` is rejected,
 // so the literal has no handle anything else can reach — the build AOT-compiles the body and the
 // compiled copy must be the only one that can run. The returned node goes to purefns.CheckPurity.
-// An imported / exported reference fails as FailExternalHandle (PFN002), any other named reference
-// or non-function node as FailNonLiteral (PFN001), so each gets its own fix message.
+// An imported / exported reference fails as FailExternalHandle (purefn-imported-or-exported), any other named reference
+// or non-function node as FailNonLiteral (purefn-not-inline), so each gets its own fix message.
 func CheckLiteralFunction(typeChecker *checker.Checker, node *ast.Node) (*ast.Node, Result) {
 	unwrapped := UnwrapWrappers(node)
 	if unwrapped == nil {
@@ -115,7 +115,7 @@ func CheckLiteralFunction(typeChecker *checker.Checker, node *ast.Node) (*ast.No
 	case ast.KindArrowFunction, ast.KindFunctionExpression:
 		return unwrapped, Result{Ok: true}
 	case ast.KindIdentifier:
-		// Distinguish the external-handle case (PFN002) from a plain local binding (PFN001) so the
+		// Distinguish the external-handle case (purefn-imported-or-exported) from a plain local binding (purefn-not-inline) so the
 		// diagnostic points at the right fix; neither is accepted.
 		symbol := typeChecker.GetSymbolAtLocation(unwrapped)
 		if symbol != nil && symbol.Flags&ast.SymbolFlagsAlias != 0 {
@@ -588,7 +588,7 @@ func ConstTypeAnnotation(typeChecker *checker.Checker, identifier *ast.Node) (*a
 	return typeNode, typeNode != nil
 }
 
-// forbiddenConstructName returns the CTA003 label for an AST kind. Keep the names short and
+// forbiddenConstructName returns the marker-comptime-arg-forbidden-construct label for an AST kind. Keep the names short and
 // user-recognisable: they appear in error messages.
 func forbiddenConstructName(kind ast.Kind) string {
 	switch kind {

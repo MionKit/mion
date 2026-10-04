@@ -62,7 +62,7 @@ Two constraints from reflection shaped this, and no measurement shows them:
 
 - **A column type carries no methods.** The runtype id walks method return types;
   a chain returning a column with new props per call never repeats a type and hits
-  the 512-level cap (MKR009). Hence no chained modifiers.
+  the 512-level cap (marker-self-instantiating-generic). Hence no chained modifiers.
 - **No alias may carry the builder record as a type argument.** The resolver
   serializes an aliased type's arguments, so `pgTable` and `pgView` spell their
   column and names maps inline.

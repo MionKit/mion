@@ -13,94 +13,102 @@ const goRoot = resolve(repoRoot, 'ts-go-runtypes');
 const generatedTsPath = resolve(repoRoot, 'packages/devtools/src/core/go-generated/diagnosticCatalog.generated.ts');
 const websiteJsonPath = resolve(repoRoot, 'container/website/app/components/content/go-generated/diagnostics-catalog.json');
 
-// Subsystems group the code prefixes into the sections the page renders, in
-// reading order. Descriptions are short, plain-language, and dash-free so they
-// satisfy the website voice rules when the component renders them.
+// Subsystems group the name prefixes into the sections the page renders, in
+// reading order. Every area prefix in internal/diagnostics's slugRE must sit in one.
+// Descriptions are short, plain-language, and dash-free so they satisfy the
+// website voice rules when the component renders them.
 const SUBSYSTEMS = [
   {
     key: 'project-config',
     label: 'Project configuration',
     description: 'Raised when the project tsconfig the tooling was pointed at cannot be loaded.',
-    prefixes: ['CFG'],
+    prefixes: ['config-'],
   },
   {
     key: 'markers',
     label: 'Markers and call sites',
     description: 'Raised at a marker call, before the build can turn your type into a function.',
-    prefixes: ['MKR', 'CTA', 'PFN', 'TMP', 'BAT', 'EXP', 'DWN'],
+    prefixes: ['marker-'],
+  },
+  {
+    key: 'comments',
+    label: 'Comments',
+    description: 'Raised when a @mion-expect-error or @mion-downgrade-error comment is itself wrong.',
+    prefixes: ['comment-'],
   },
   {
     key: 'validation',
     label: 'Validation',
     description: 'From createValidateFn and createGetValidationErrorsFn.',
-    prefixes: ['VL', 'VE'],
+    prefixes: ['validate-', 'validation-errors-'],
   },
   {
     key: 'serialization',
     label: 'Serialization',
-    description: 'From the JSON families, plus how classes are handled.',
-    prefixes: ['PJ', 'PJS', 'RJ', 'CLS', 'JCP', 'TFN', 'NE', 'UPN'],
+    description: 'From the JSON families, plus members that can never be data.',
+    prefixes: ['json-prepare-', 'json-restore-', 'data-'],
   },
   {
     key: 'unknown-keys',
     label: 'Unknown keys',
     description: 'From removeUnknownKeys.',
-    prefixes: ['RUK'],
+    prefixes: ['unknown-keys-'],
   },
   {
     key: 'formats',
     label: 'Type formats',
     description: 'From the pattern and sample checks on a TypeFormat.',
-    prefixes: ['FMT'],
+    prefixes: ['format-'],
   },
   {
     key: 'pure-functions',
     label: 'Pure functions',
-    description: 'From the purity rules for registerPureFnFactory.',
-    prefixes: ['PFE'],
+    description: 'From PureFunction arguments and the purity rules for registerPureFnFactory.',
+    prefixes: ['purefn-'],
   },
   {
     key: 'overrides',
     label: 'Overrides',
     description: 'From custom per-type function overrides.',
-    prefixes: ['OVR'],
+    prefixes: ['override-'],
   },
   {
     key: 'mion-routes',
     label: 'mion routes',
     description: 'From the rules over mion route, middleware and headersMiddleware handlers, reported as you write them.',
-    prefixes: ['MRT'],
+    prefixes: ['rpc-handler-'],
   },
   {
-    key: 'bundled-api',
-    label: 'Bundled API',
-    description: 'From a client build that ships the routes it calls, rather than asking the server for them.',
-    prefixes: ['MET'],
+    key: 'batches',
+    label: 'Batches',
+    description: 'From a batch() call the build cannot read, or two batches that collide.',
+    prefixes: ['rpc-batch-'],
   },
   {
-    key: 'client-imports',
-    label: 'Client imports',
-    description: 'From a client file that imports the API type it passes to initClient as a value.',
-    prefixes: ['SRV'],
+    key: 'clients',
+    label: 'Clients',
+    description: 'From a client build that ships the routes it calls, or that imports the API type as a value.',
+    prefixes: ['rpc-client-'],
   },
   {
     key: 'enrichment',
     label: 'Enrichment files',
     description: 'From mion enrich --no-emit and the lint rules over generated FriendlyText and MockData files.',
-    prefixes: ['FT', 'MD', 'GE'],
+    prefixes: ['enrich-text-', 'enrich-mock-', 'enrich-mirror-'],
+  },
+  {
+    key: 'internal',
+    label: 'Internal errors',
+    description: 'A bug in the build itself. Please file an issue.',
+    prefixes: ['internal-'],
   },
 ];
 
-/** Map a code prefix (its leading letters) to a subsystem key. */
-const prefixToSubsystem = new Map();
-for (const subsystem of SUBSYSTEMS) {
-  for (const prefix of subsystem.prefixes) prefixToSubsystem.set(prefix, subsystem.key);
-}
+const prefixToSubsystem = SUBSYSTEMS.flatMap((subsystem) => subsystem.prefixes.map((prefix) => [prefix, subsystem.key]));
 
-/** Leading uppercase letters of a code, e.g. `PJS001` -> `PJS`, `PFE9008` -> `PFE`. */
-function codePrefix(code) {
-  const match = code.match(/^[A-Z]+/);
-  return match ? match[0] : code;
+/** The section a name belongs to, from its area prefix, e.g. `validate-symbol-root` -> `validation`. */
+function subsystemOf(code) {
+  return prefixToSubsystem.find(([prefix]) => code.startsWith(prefix))?.[1];
 }
 
 const goDump = execFileSync('go', ['run', './cmd/gen-diag-catalog'], {
@@ -141,7 +149,7 @@ function tsString(value) {
 const entries = goRecords
   .map((record) => {
     const lines = [
-      `  ${record.code}: {`,
+      `  ${JSON.stringify(record.code)}: {`,
       `    headline: ${tsString(record.headline)},`,
       `    level: ${tsString(record.level)},`,
       `    family: ${tsString(record.family)},`,
@@ -187,9 +195,8 @@ execFileSync('pnpm', ['exec', 'prettier', '--write', generatedTsPath], {cwd: rep
 // ── Artifact 2: the website diagnostics-page JSON ───────────────────────────
 
 const codes = goRecords.map((record) => {
-  // Fatal, not a warning: the page renders one section per declared subsystem, so an unmapped
-  // prefix would ship a code that is in the data and on no page.
-  const subsystem = prefixToSubsystem.get(codePrefix(record.code));
+  // Fatal, not a warning: an unmapped prefix would ship a code that is in the data and on no page.
+  const subsystem = subsystemOf(record.code);
   if (!subsystem) {
     throw new Error(
       `gen-diag-catalog: no subsystem for ${record.code}; add its prefix to SUBSYSTEMS in ${'scripts/core/gen-diagnostics-catalog.mjs'}`

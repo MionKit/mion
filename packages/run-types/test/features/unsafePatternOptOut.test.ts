@@ -1,4 +1,4 @@
-// The FMT008 escape hatch, end to end under the real pipeline.
+// The format-pattern-unsafe escape hatch, end to end under the real pipeline.
 //
 // The build rejects a `pattern` that a crafted input can make backtrack
 // exponentially: the emitted validator runs that regex on every value it
@@ -10,7 +10,7 @@
 // pattern, on BOTH roads a pattern reaches the build by — the inline
 // `{source, ...}` literal read from the type, and a registerFormatPattern
 // const read from the call site. This file only compiles at all because
-// the flag is honoured; without it the build halts on FMT008.
+// the flag is honoured; without it the build halts on format-pattern-unsafe.
 
 import type * as TF from '@mionjs/run-types/formats';
 import {describe, expect, it} from 'vitest';
@@ -82,7 +82,7 @@ describe('unsafePattern opts a pattern out of the backtracking check', () => {
   it('opting out is part of the type: the flag changes the cache entry', () => {
     // The flag is a real format param, not a comment, so a checked and an
     // opted-out pattern do not silently share one entry, which would make
-    // the verdict depend on scan order (the FMT006 trap).
+    // the verdict depend on scan order (the format-sample-conflict trap).
     expect(getRunTypeId<Slug>()).not.toBe(getRunTypeId<SlugOptedOut>());
   });
 });

@@ -6,7 +6,7 @@
  * ######## */
 
 // One props object per builder, typed exactly as the hand-written alias. No chained modifiers: the runtype id walks
-// method return types (MKR009), and the props bag rejects a modifier sqlite lacks.
+// method return types (marker-self-instantiating-generic), and the props bag rejects a modifier sqlite lacks.
 
 import type {Float, Integer as IntegerFormat, String as Str} from '@mionjs/run-types/formats';
 import {RtValueRecorder, rtValueKey, recordColumn, recordNsColumn} from '@mionjs/drizzle-orm';

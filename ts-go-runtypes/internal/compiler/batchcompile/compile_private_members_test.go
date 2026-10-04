@@ -12,7 +12,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
-// Plain tsc erases private member types (MKR016); `mion compile` must write them `protected`, typed, with the source's id.
+// Plain tsc erases private member types (marker-untyped-private-member); `mion compile` must write them `protected`, typed, with the source's id.
 
 const ledgerMoneyTS = "export type Money = {amount: number; currency: string};\n"
 

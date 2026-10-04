@@ -47,8 +47,8 @@ YES  Two comments turn an error off.
 NO   `@mion-downgrade-error` keeps it printing as a warning and stops it failing the build, which is what you want when the finding is right and still worth reading.
 YES  `@mion-downgrade-error` shows it as a warning, so the build does not fail.
 
-NO   A comment that stood nothing down is reported as a warning (EXP001 or DWN001), so it cannot outlive the problem it was added for.
-YES  A comment that turns nothing off is reported (EXP001 or DWN001).
+NO   A comment that stood nothing down is reported as a warning (comment-expect-error-unused or comment-downgrade-error-unused), so it cannot outlive the problem it was added for.
+YES  A comment that turns nothing off is reported (comment-expect-error-unused or comment-downgrade-error-unused).
 
 NO   Name the codes when you can. A comment with no codes also hides findings you have never met, including a real one added later. Save it for a file that is deliberate from top to bottom.
 YES  Always name the code. A comment with no code also hides errors you have not seen yet.
@@ -93,36 +93,36 @@ What the NO side keeps doing:
 NO: a comment block at the top, saying what the paragraph above the example already says, and comments that explain the API instead of the line.
 
 ```ts
-/* @mion-downgrade-error VL002 */
+/* @mion-downgrade-error validate-symbol-root */
 // The block comment above sits before any code, so it covers this whole file:
-// every VL002 below prints as a warning instead of stopping the build. Written
+// every validate-symbol-root below prints as a warning instead of stopping the build. Written
 // with no code after the word, `/* @mion-downgrade-error */`, it covers every
 // finding in the file.
 
 import {createValidateFn} from '@mionjs/run-types';
 
-// A `symbol` holds nothing a validator can check, so each of these raises VL002.
+// A `symbol` holds nothing a validator can check, so each of these raises validate-symbol-root.
 export const validateSymbol = createValidateFn<symbol>();
 export const validateAnotherSymbol = createValidateFn<symbol>();
 
 // A line comment covers only the line under it. `@mion-expect-error` removes the
 // finding instead of lowering it, so nothing is printed for this one.
-// @mion-expect-error VL002
+// @mion-expect-error validate-symbol-root
 export const validateSymbolQuietly = createValidateFn<symbol>();
 ```
 
 YES: one-liners on the lines that matter, saying why that line is there, nothing the paragraph or the table says.
 
 ```ts
-/* @mion-downgrade-error VL002 */
+/* @mion-downgrade-error validate-symbol-root */
 import {createValidateFn} from '@mionjs/run-types';
 
-// both raise VL002; the file comment above makes them warnings
+// both raise validate-symbol-root; the file comment above makes them warnings
 export const validateSymbol = createValidateFn<symbol>();
 export const validateAnotherSymbol = createValidateFn<symbol>();
 
 // the line comment hides this one completely
-// @mion-expect-error VL002
+// @mion-expect-error validate-symbol-root
 export const validateSymbolQuietly = createValidateFn<symbol>();
 ```
 
@@ -131,12 +131,12 @@ export const validateSymbolQuietly = createValidateFn<symbol>();
 NO: the paragraph says what the example's comment says.
 
 ```md
-A line comment covers the line under it. A block comment before any code covers the whole file. Both raise VL002 because a symbol has no value to check.
+A line comment covers the line under it. A block comment before any code covers the whole file. Both raise validate-symbol-root because a symbol has no value to check.
 
 <code-import path="packages/private-examples/src/guide/disabling-errors.ts" lang="ts" />
 ```
 
-with the example carrying `// A symbol holds no value to check, so both of these raise VL002.`
+with the example carrying `// A symbol holds no value to check, so both of these raise validate-symbol-root.`
 
 YES: the fact lives once, where the reader meets it first.
 

@@ -9,8 +9,8 @@ import (
 
 // RemoveUnknownKeysEmitter rebuilds the declared shape, never `{...v}`, so `clone(x) !== x` at every object. The
 // result is typed `T`: each declared member is copied, shared per `sharedValues`, or the factory always throws. A
-// class copy keeps the prototype but never runs the constructor, so `#private` fields refuse (RUK005). A symbol-keyed
-// property refuses (RUK004): the code cannot name the symbol, and copying every own symbol would keep undeclared
+// class copy keeps the prototype but never runs the constructor, so `#private` fields refuse (unknown-keys-private-fields). A symbol-keyed
+// property refuses (unknown-keys-symbol-key): the code cannot name the symbol, and copying every own symbol would keep undeclared
 // ones; a `[k: symbol]: V` signature declares them all. `overrideRemoveUnknownKeys<T>()` is the escape hatch.
 // No key-count gate: on V8, `Object.keys(x).length === N` costs more than the rebuild (1.6x slower).
 type RemoveUnknownKeysEmitter struct {
@@ -21,9 +21,9 @@ type RemoveUnknownKeysEmitter struct {
 type sharedValuesMode int
 
 const (
-	sharedValuesWarn   sharedValuesMode = iota // option absent: shared, RUK010 / RUK015 Warning
-	sharedValuesShare                          // 'share': shared, RUK016 Info
-	sharedValuesRefuse                         // 'refuse': the factory always throws, RUK006
+	sharedValuesWarn   sharedValuesMode = iota // option absent: shared, unknown-keys-function-shared / unknown-keys-non-data-shared Warning
+	sharedValuesShare                          // 'share': shared, unknown-keys-value-shared Info
+	sharedValuesRefuse                         // 'refuse': the factory always throws, unknown-keys-shared-value-refused
 )
 
 func (RemoveUnknownKeysEmitter) Args() []ArgSpec {
@@ -136,7 +136,7 @@ func sharedValueSlot(rt *reflection.RunType, ctx *EmitContext) (DiagSlot, bool) 
 	return "", false
 }
 
-// shareOrRefuse returns false to refuse, with leaf latched so DiagCodeForLeaf names RUK006 and where.
+// shareOrRefuse returns false to refuse, with leaf latched so DiagCodeForLeaf names unknown-keys-shared-value-refused and where.
 func (emitter RemoveUnknownKeysEmitter) shareOrRefuse(slot DiagSlot, where string, leaf *reflection.RunType, ctx *EmitContext) bool {
 	if emitter.shared == sharedValuesRefuse {
 		refuseWith(leaf, ctx)
@@ -444,7 +444,7 @@ func (emitter RemoveUnknownKeysEmitter) emitTuple(rt *reflection.RunType, ctx *E
 	return RTCode{Code: literal, Type: CodeE}
 }
 
-// emitUnion refuses object members (RUK001): with no arm discrimination it could keep unknown keys.
+// emitUnion refuses object members (unknown-keys-object-union): with no arm discrimination it could keep unknown keys.
 func (emitter RemoveUnknownKeysEmitter) emitUnion(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	// The flat layout drops members DataOnly strips (functions, Promises), so share or refuse those here first.
 	for _, member := range rt.Children {

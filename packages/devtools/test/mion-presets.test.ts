@@ -34,7 +34,9 @@ describe('toRunTypesOptions — the mapping both presets share', () => {
     // absent option.
     expect(toRunTypesOptions({}).downgradeErrors).toBeUndefined();
     expect(toRunTypesOptions({runTypes: {downgradeErrors: '*'}}).downgradeErrors).toBe('*');
-    expect(toRunTypesOptions({runTypes: {downgradeErrors: ['VL002']}}).downgradeErrors).toEqual(['VL002']);
+    expect(toRunTypesOptions({runTypes: {downgradeErrors: ['validate-symbol-root']}}).downgradeErrors).toEqual([
+      'validate-symbol-root',
+    ]);
   });
 
   it('passes levels through, undefined when unset so a tsconfig-only value still reaches the host', () => {

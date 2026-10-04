@@ -21,7 +21,7 @@ func bigIntRawString(params map[string]any, key string) (string, bool) {
 	}
 	switch typed := formats.ParamVal(raw).(type) {
 	case string:
-		// The digits are emitted unquoted as a bigint literal, so anything but `-?[0-9]+` is refused (FMT002).
+		// The digits are emitted unquoted as a bigint literal, so anything but `-?[0-9]+` is refused (format-invalid-params).
 		digits := strings.TrimSuffix(typed, "n")
 		if !isDecimalInteger(digits) {
 			return "", false
@@ -72,7 +72,7 @@ func isDecimalInteger(text string) bool {
 	return true
 }
 
-// malformedBigIntParams lists the present bigint params whose value is not a decimal integer, for FMT002.
+// malformedBigIntParams lists the present bigint params whose value is not a decimal integer, for format-invalid-params.
 func malformedBigIntParams(params map[string]any) []string {
 	var bad []string
 	for _, key := range []string{"max", "min", "lt", "gt", "multipleOf"} {

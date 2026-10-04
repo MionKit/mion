@@ -214,7 +214,7 @@ export function isClassSerializerRegistered(cls: AnyClass): boolean {
  *  `utl.deserializeClass(cs, data, keys)` where `keys` is the class's declared property names. Prefers the
  *  registered `deserialize`; otherwise auto-instantiates a zero-arg class and sets those declared properties.
  *  The rebuild is driven by the type, never by the keys on the wire, so an undeclared key (an own `__proto__`
- *  included) never touches the instance. Surfaces CLS002 when the bare `new cls()` throws. */
+ *  included) never touches the instance. Surfaces data-class-constructor-failed when the bare `new cls()` throws. */
 export function deserializeClass<T>(entry: ClassSerializerEntry<T>, data: DataOnly<T>, keys: readonly string[]): T {
   if (entry.deserialize) return entry.deserialize(data);
   let instance: object;
@@ -224,7 +224,7 @@ export function deserializeClass<T>(entry: ClassSerializerEntry<T>, data: DataOn
     const original = err instanceof Error ? err.message : String(err);
     const name = entry.cls.name || '<anonymous>';
     throw new Error(
-      `[CLS002] Cannot reconstruct class "${name}": the automatic \`new ${name}()\` failed, ` +
+      `[data-class-constructor-failed] Cannot reconstruct class "${name}": the automatic \`new ${name}()\` failed, ` +
         `so its constructor needs arguments. Register a \`deserialize\` handler: ` +
         `registerClassSerializer(${name}, {deserialize: (data) => new ${name}(/* … */)}). ` +
         `Original error: ${original}`

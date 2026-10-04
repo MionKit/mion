@@ -5,7 +5,7 @@ package convert
 // structural id to its reference spelling. Printers use it to keep authored references as references
 // instead of inlining, and to close cycles, a back-edge to the declaration being printed becoming
 // `RT.self()` or the type's own name. A reference to a convertible declaration OUTSIDE the set is
-// the error CNV004: conversion never silently inlines what another file still spells by name.
+// the error convert-outside-set: conversion never silently inlines what another file still spells by name.
 
 import (
 	"fmt"
@@ -512,7 +512,7 @@ func outsideSetDiags(prog *program.Program, typeChecker *checker.Checker, marker
 //     Syntax-based because with the lib missing the resolved type IS plain `any`, so the written
 //     name is the only evidence of intent (resolver/temporal_guard.go says why this predicate is
 //     stricter than its sibling's).
-//   - Unresolved name (CNV008): any other reference that resolved to the checker's ERROR type, the
+//   - Unresolved name (convert-unresolved-type-name): any other reference that resolved to the checker's ERROR type, the
 //     `any` the author never wrote. A written `any` and a resolved `type Loose = any` are the true
 //     `any` intrinsic, which marker.IsErrorLikeAny rejects by construction.
 //
@@ -542,7 +542,7 @@ func writtenTypeRefDiags(typeChecker *checker.Checker, decl *declaration, curren
 	return temporalDiags, unresolvedDiags
 }
 
-// writtenRefName renders a TypeReference's written entity name for the CNV008 message.
+// writtenRefName renders a TypeReference's written entity name for the convert-unresolved-type-name message.
 func writtenRefName(typeRefNode *ast.Node) (string, bool) {
 	typeRef := typeRefNode.AsTypeReferenceNode()
 	if typeRef == nil || typeRef.TypeName == nil {

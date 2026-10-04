@@ -1,7 +1,7 @@
 package resolver
 
 // Internal guards of the batch transport renderer: the table never imports a
-// mapper the batch source produced no module for (BAT007 names it instead),
+// mapper the batch source produced no module for (rpc-batch-mapper-missing names it instead),
 // and the rendered module is deterministic regardless of site order.
 
 import (
@@ -46,7 +46,7 @@ func TestRenderBatchesModule_SkipsMissingMapperAndSortsIds(t *testing.T) {
 	if strings.Contains(module, "./pf/@acme/app/src/mappers/missing") || strings.Contains(module, "registerInputMapperTuple('@acme/app/src/mappers#pf_missing'") {
 		t.Errorf("module must not import a mapper the batch source produced no module for:\n%s", module)
 	}
-	// the table still names it (the BAT007 diagnostic is what fails the build)
+	// the table still names it (the rpc-batch-mapper-missing diagnostic is what fails the build)
 	if !strings.Contains(module, `"mapperKey":"@acme/app/src/mappers#pf_missing"`) {
 		t.Errorf("table dropped the missing mapper's mapping:\n%s", module)
 	}

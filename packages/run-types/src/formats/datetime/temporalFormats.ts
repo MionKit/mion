@@ -5,7 +5,7 @@
 // here would make `Temporal.*` resolve to `any` DURING THE SCAN, collapse the `& {brand}` intersection
 // and silently drop the bounds. Temporal must instead be globally available to the scanned program
 // (the consumer's own tsconfig `lib`, or test/support/temporal-ambient.d.ts); when it is not, the
-// scanner raises TMP001 rather than emit a no-op validator. The brand intersection is written INLINE
+// scanner raises marker-temporal-lib-missing rather than emit a no-op validator. The brand intersection is written INLINE
 // rather than through `TypeFormat` because naming `Temporal.*` in the root `runtypes/typeFormat.ts`
 // would force the Temporal lib on every marker consumer, and the scanner detects a format brand
 // structurally anyway. Each bound is an absolute Temporal string literal in the type's own ISO form OR

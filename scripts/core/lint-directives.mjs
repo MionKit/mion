@@ -16,8 +16,8 @@ export function directiveFiles(repoRoot = REPO_ROOT) {
   return listed.stdout.split('\0').filter(Boolean);
 }
 
-// Only directive codes (EXP / DWN) and an engine failure (`[mion] ...`) fail; other findings are the tests' fixtures.
-const FAILING = /^\[(?:(?:EXP|DWN)\d+\]|mion\])/;
+// Only the directive codes (comment-*) and an engine failure (`[mion] ...`) fail; other findings are the tests' fixtures.
+const FAILING = /^\[(?:comment-[a-z-]+\]|mion\])/;
 
 export function failingDiagnostics(stdout) {
   return JSON.parse(stdout).diagnostics.filter((diagnostic) => FAILING.test(diagnostic.message));

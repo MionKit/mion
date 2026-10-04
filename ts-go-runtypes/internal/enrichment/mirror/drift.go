@@ -14,8 +14,8 @@ import (
 )
 
 // drift.go is the shared core of the breadcrumb-drift checks, both the CLI check lane and the resolver's checkEnrich pass:
-// does the mirror's source breadcrumb still resolve (GE002), and does that source still declare every imported type (GE003)?
-// GE001, mirror LOCATION drift, needs the project's genDir config and so stays with the CLI in cmd/mion.
+// does the mirror's source breadcrumb still resolve (enrich-mirror-source-missing), and does that source still declare every imported type (enrich-mirror-type-missing)?
+// enrich-mirror-moved, mirror LOCATION drift, needs the project's genDir config and so stays with the CLI in cmd/mion.
 
 // breadcrumbPattern matches a mirror's source breadcrumb, group 1 the type names and group 2 the module specifier.
 // It is deliberately line-oriented and tolerant; only the first such line is read, the DSL and value imports are ignored.
@@ -74,7 +74,7 @@ func SplitImportNames(clause string) []string {
 	return names
 }
 
-// CheckBreadcrumbDrift returns the GE002 (source deleted) and GE003 (type no longer declared) findings for one mirror.
+// CheckBreadcrumbDrift returns the enrich-mirror-source-missing (source deleted) and enrich-mirror-type-missing (type no longer declared) findings for one mirror.
 // Sources are looked up through fs, the resolver's overlay FS so an unsaved source resolves; a nil fs means real disk.
 func CheckBreadcrumbDrift(mirrorFile, contents string, fs vfspkg.FS) []DriftFinding {
 	breadcrumb, ok := ParseBreadcrumb(contents)
@@ -83,7 +83,7 @@ func CheckBreadcrumbDrift(mirrorFile, contents string, fs vfspkg.FS) []DriftFind
 	}
 	resolvedSource := resolveBreadcrumbFS(fs, mirrorFile, breadcrumb.Spec)
 
-	// GE002: the source no longer exists, leaving an orphaned mirror.
+	// enrich-mirror-source-missing: the source no longer exists, leaving an orphaned mirror.
 	if !fsFileExists(fs, resolvedSource) {
 		return []DriftFinding{{
 			Code:    diagnostics.CodeGenSourceMissing,
@@ -94,7 +94,7 @@ func CheckBreadcrumbDrift(mirrorFile, contents string, fs vfspkg.FS) []DriftFind
 		}}
 	}
 
-	// GE003: the source exists but no longer declares an imported type.
+	// enrich-mirror-type-missing: the source exists but no longer declares an imported type.
 	var findings []DriftFinding
 	sourceText, readOK := fsReadFile(fs, resolvedSource)
 	if !readOK {
@@ -137,7 +137,7 @@ func fsReadFile(fs vfspkg.FS, path string) (string, bool) {
 }
 
 // resolveBreadcrumbFS is ResolveBreadcrumb with the existence probes routed through fs, preferring .ts then .d.ts.
-// With neither present it returns the .ts candidate, so GE002 reports a concrete path.
+// With neither present it returns the .ts candidate, so enrich-mirror-source-missing reports a concrete path.
 func resolveBreadcrumbFS(fs vfspkg.FS, mirrorFile, spec string) string {
 	if fs == nil {
 		return ResolveBreadcrumb(mirrorFile, spec)

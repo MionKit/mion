@@ -74,7 +74,7 @@ const MION_CONSUMER_PACKAGES = [
 // (never a pinned dependency), and the lane installs with --legacy-peer-deps,
 // which skips peer auto-install. Without it the dialect d.ts cannot resolve its
 // `@mionjs/drizzle-orm` imports, the marker types collapse to `any`, and the
-// consumer build halts on MKR007 — which is exactly what a real consumer would
+// consumer build halts on marker-any-from-unresolved-import — which is exactly what a real consumer would
 // hit if the peer were missing, so the lane names it the way a project does.
 const DRIZZLE_CONSUMER_PACKAGES = [
   '@mionjs/drizzle-orm',

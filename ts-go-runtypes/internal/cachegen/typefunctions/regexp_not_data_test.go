@@ -10,7 +10,7 @@ import (
 )
 
 // A RegExp is not data: a pattern is code the receiver would run. Every family, validate included, treats it like a
-// function: dropped at a property with the …015 Info, an alwaysThrow factory at a root.
+// function: dropped at a property with the `-non-data-property-dropped` Info, an alwaysThrow factory at a root.
 
 func mkRegexp() *reflection.RunType {
 	return &reflection.RunType{ID: "re", Kind: reflection.KindRegexp}
@@ -67,7 +67,7 @@ func TestRegexp_RootFailsEverySerializationFamily(t *testing.T) {
 }
 
 // `Date | RegExp` serializes as `Date`: the RegExp member is dropped from the
-// union with the …014 Warning, like `Date | symbol`.
+// union with the `-union-member-dropped` Warning, like `Date | symbol`.
 func TestRegexp_UnionMemberDrops(t *testing.T) {
 	date := &reflection.RunType{ID: "dat", Kind: reflection.KindClass, SubKind: reflection.SubKindDate}
 	union := &reflection.RunType{ID: "uni", Kind: reflection.KindUnion, Children: []*reflection.RunType{makeRef("dat"), makeRef("re")}}

@@ -15,7 +15,7 @@ import (
 
 // libArrayJSON renders one lib name as the tsconfig `lib` array. The EMPTY name
 // means `lib: []` — a selection that loads no standard library at all, which is
-// its own case (CFG002) and cannot be spelled as a name.
+// its own case (config-lib-missing-base) and cannot be spelled as a name.
 func libArrayJSON(lib string) string {
 	if lib == "" {
 		return "[]"
@@ -154,7 +154,7 @@ const nodeBufferDTS = `interface Buffer extends Uint8Array<ArrayBuffer> {
 `
 
 // TestESNextLib_BufferFieldReflects — a field typed `Buffer` used to halt the
-// build on lib.esnext with MKR009 naming `IteratorObject`: `Buffer` is not a
+// build on lib.esnext with marker-self-instantiating-generic naming `IteratorObject`: `Buffer` is not a
 // lib global, so the walk descended into the `Uint8Array` members it inherits,
 // and on ESNext those return `IteratorObject`, a self-instantiating generic
 // whose structural id never resolves. ES2023 was fine only because its
@@ -213,7 +213,7 @@ export const id = getRunTypeId<Buffer>();
 
 // TestESNextLib_IteratorObjectsResolve — Buffer is one door into the ESNext
 // iterator helpers; these are the others. A subclass of a typed array and an
-// explicit iterator field both used to fail with MKR009 on lib.esnext.
+// explicit iterator field both used to fail with marker-self-instantiating-generic on lib.esnext.
 //
 // They resolve now with no name anywhere: `ArrayIterator`, `MapIterator` and
 // `IteratorObject` are declared in the standard library, so the projection

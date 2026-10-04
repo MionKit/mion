@@ -7,7 +7,7 @@
 // The custom pure fn is exercised HERE against the PUBLISHED package. A
 // consumer's own registerPureFnFactory alongside any built-in-referencing
 // feature (this shared app uses createGetValidationErrorsFn, unknown-key errors,
-// formats, …) used to trip a false-positive PFE9012 wall: the consumer's
+// formats, …) used to trip a false-positive purefn-not-registered wall: the consumer's
 // registration defeated the resolver's whole-program "any registration present?"
 // guard, and every package-owned built-in was then flagged missing, halting the
 // build. Fixed by checking a built-in against the generated id table instead.
@@ -28,7 +28,7 @@ overrideValidate<Widget>(function isEvenWidget(value: unknown): value is Widget 
 export const isWidget = createValidateFn<Widget>();
 
 // A consumer-registered custom pure function — self-contained, no outer
-// captures. Its mere presence is what defeated the old PFE9012 guard.
+// captures. Its mere presence is what defeated the old purefn-not-registered guard.
 export const slugify = registerPureFnFactory(function () {
   const NON_WORD = /[^a-z0-9]+/g;
   return function _slugify(input: string): string {
@@ -45,7 +45,7 @@ export function checkOverrides(): CheckResult[] {
     ok('overrides: overrideValidate rejects a value the custom rule excludes', !isWidget({id: 3})),
     ok('overrides: overrideValidate still rejects the wrong shape', !isWidget({id: 'x'})),
     // The consumer's registerPureFnFactory coexists with built-in-referencing
-    // features (no false-positive PFE9012 halt) AND resolves + runs at runtime.
+    // features (no false-positive purefn-not-registered halt) AND resolves + runs at runtime.
     eq('overrides: custom registerPureFnFactory resolves and runs', runSlugify('Hello, World!'), 'hello-world'),
   ];
 }

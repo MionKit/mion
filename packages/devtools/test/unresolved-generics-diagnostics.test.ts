@@ -2,19 +2,19 @@
 // the Go binary over inline sources and verifies the marker scanner's four
 // behaviors (the typeid-walk depth-backstop addendum):
 //
-//   MKR009 — a self-instantiating generic (Iter<T>.map(): Iter<U>) hits the
+//   marker-self-instantiating-generic — a self-instantiating generic (Iter<T>.map(): Iter<U>) hits the
 //            structural-id depth backstop and is named, deterministically (no
 //            crash), instead of overflowing the stack.
-//   MKR010 — a free type parameter CONTAINED in a data position (A<T>, T[],
+//   marker-unresolved-type-parameter — a free type parameter CONTAINED in a data position (A<T>, T[],
 //            {a: T} in a generic body) is rejected with Related pointing at the
 //            parameter's declaration.
-//   MKR011 — a generic written WITHOUT its required (default-less) type
+//   marker-generic-missing-type-argument — a generic written WITHOUT its required (default-less) type
 //            arguments (getRunTypeId<A2>()) is rejected, with Related at the
 //            default-less parameter.
 //   defaults — a defaulted generic used bare resolves clean (checker applies
 //            defaults at use sites); both marker call shapes converge on one id.
 //
-// (Marker coverage rule: MKR009/MKR010 are each pinned in BOTH call shapes, and
+// (Marker coverage rule: marker-self-instantiating-generic/marker-unresolved-type-parameter are each pinned in BOTH call shapes, and
 // the defaults fixture pins static + value-first converging on one entry.)
 import {describe, expect, it} from 'vitest';
 import {Family, Severity, type Diagnostic} from '../src/core/protocol.ts';
@@ -30,9 +30,9 @@ function ofCode(response: {diagnostics?: Diagnostic[]}, code: string): Diagnosti
 describe('@mionjs/devtools / unresolved-generics diagnostics', () => {
   const register = hasBinary() ? it : it.skip;
 
-  // --- MKR009: self-instantiating generic (depth backstop, classified) ----
+  // --- marker-self-instantiating-generic: self-instantiating generic (depth backstop, classified) ----
 
-  register('errors with MKR009 for a self-instantiating generic (static form)', async () => {
+  register('errors with marker-self-instantiating-generic for a self-instantiating generic (static form)', async () => {
     const sources = {
       'spiral.ts': `import {getRunTypeId} from '@mionjs/run-types';
 interface Iter<T> { map<U>(fn: (x: T) => U): Iter<U>; }
@@ -41,7 +41,7 @@ export const id = getRunTypeId<Iter<string>>();
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources));
-      const diagnostics = ofCode(response, 'MKR009');
+      const diagnostics = ofCode(response, 'marker-self-instantiating-generic');
       expect(diagnostics).toHaveLength(1);
       expect(diagnostics[0].severity).toBe(Severity.Error);
       // Args name the self-instantiating type so the message can point at it.
@@ -51,7 +51,7 @@ export const id = getRunTypeId<Iter<string>>();
     });
   });
 
-  register('errors with MKR009 for a self-instantiating generic (value-first form)', async () => {
+  register('errors with marker-self-instantiating-generic for a self-instantiating generic (value-first form)', async () => {
     const sources = {
       'spiral-value.ts': `import {getRunTypeId} from '@mionjs/run-types';
 interface Iter<T> { map<U>(fn: (x: T) => U): Iter<U>; }
@@ -61,15 +61,15 @@ export const id = getRunTypeId(it);
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources));
-      const diagnostics = ofCode(response, 'MKR009');
+      const diagnostics = ofCode(response, 'marker-self-instantiating-generic');
       expect(diagnostics).toHaveLength(1);
       expect(diagnostics[0].args).toEqual(['Iter']);
     });
   });
 
-  // --- MKR010: contained free type parameter ------------------------------
+  // --- marker-unresolved-type-parameter: contained free type parameter ------------------------------
 
-  register('errors with MKR010 for a free type parameter contained in the type argument', async () => {
+  register('errors with marker-unresolved-type-parameter for a free type parameter contained in the type argument', async () => {
     const sources = {
       'contained.ts': `import {getRunTypeId} from '@mionjs/run-types';
 interface A<PropA> { a: PropA }
@@ -80,7 +80,7 @@ export function wrap<T>() {
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources));
-      const diagnostics = ofCode(response, 'MKR010');
+      const diagnostics = ofCode(response, 'marker-unresolved-type-parameter');
       expect(diagnostics).toHaveLength(1);
       expect(diagnostics[0].severity).toBe(Severity.Error);
       expect(diagnostics[0].args).toEqual(['T']);
@@ -91,7 +91,7 @@ export function wrap<T>() {
     });
   });
 
-  register('errors with MKR010 for the value-first contained form', async () => {
+  register('errors with marker-unresolved-type-parameter for the value-first contained form', async () => {
     const sources = {
       'contained-value.ts': `import {getRunTypeId} from '@mionjs/run-types';
 interface A<PropA> { a: PropA }
@@ -102,15 +102,15 @@ export function wrap<T>(value: A<T>) {
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources));
-      const diagnostics = ofCode(response, 'MKR010');
+      const diagnostics = ofCode(response, 'marker-unresolved-type-parameter');
       expect(diagnostics).toHaveLength(1);
       expect(diagnostics[0].args).toEqual(['T']);
     });
   });
 
-  // --- MKR011: missing required type arguments ----------------------------
+  // --- marker-generic-missing-type-argument: missing required type arguments ----------------------------
 
-  register('errors with MKR011 for a generic used without its required type argument', async () => {
+  register('errors with marker-generic-missing-type-argument for a generic used without its required type argument', async () => {
     const sources = {
       'missing.ts': `import {getRunTypeId} from '@mionjs/run-types';
 interface A2<S> { a: S }
@@ -119,7 +119,7 @@ export const w = getRunTypeId<A2>();
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources));
-      const diagnostics = ofCode(response, 'MKR011');
+      const diagnostics = ofCode(response, 'marker-generic-missing-type-argument');
       expect(diagnostics).toHaveLength(1);
       expect(diagnostics[0].severity).toBe(Severity.Error);
       // Args: [type, default-less parameter].
@@ -129,24 +129,27 @@ export const w = getRunTypeId<A2>();
     });
   });
 
-  register('errors with MKR011 for a constrained-but-default-less parameter (constraint != default)', async () => {
-    const sources = {
-      'constrained.ts': `import {getRunTypeId} from '@mionjs/run-types';
+  register(
+    'errors with marker-generic-missing-type-argument for a constrained-but-default-less parameter (constraint != default)',
+    async () => {
+      const sources = {
+        'constrained.ts': `import {getRunTypeId} from '@mionjs/run-types';
 interface A<S extends string = string> { a: S }
 interface B<X extends A<'hello'>> { b: X }
 export const bad = getRunTypeId<B>();
 export const good = getRunTypeId<B<A<'hello'>>>();
 `,
-    };
-    await withInlineSources(sources, async ({client}) => {
-      const response = await client.scanFiles(Object.keys(sources));
-      const diagnostics = ofCode(response, 'MKR011');
-      expect(diagnostics).toHaveLength(1);
-      expect(diagnostics[0].args).toEqual(['B', 'X']);
-      // The explicitly-instantiated sibling still resolves to a site.
-      expect(response.sites.length).toBe(1);
-    });
-  });
+      };
+      await withInlineSources(sources, async ({client}) => {
+        const response = await client.scanFiles(Object.keys(sources));
+        const diagnostics = ofCode(response, 'marker-generic-missing-type-argument');
+        expect(diagnostics).toHaveLength(1);
+        expect(diagnostics[0].args).toEqual(['B', 'X']);
+        // The explicitly-instantiated sibling still resolves to a site.
+        expect(response.sites.length).toBe(1);
+      });
+    }
+  );
 
   // --- Defaults resolve at use sites (must scan clean) --------------------
 

@@ -79,7 +79,7 @@ var printerDispositionByField = map[string]string{
 	// Format machinery.
 	"FormatAnnotation": "printed: leafFormat → TF brands / TypeFormat / TFT / rtFormat + rtFormatParams wire",
 
-	// Refusals — no printed spelling exists, so carrying nodes report CNV001.
+	// Refusals — no printed spelling exists, so carrying nodes report convert-unsupported-kind.
 	"NonEnumerable": "refused: objectMembers — @nonEnumerable has no conversion spelling yet",
 	"DefaultVal":    "refused: parameterListText — a parameter default has no conversion spelling yet (escapes re-enter it and refuse too)",
 

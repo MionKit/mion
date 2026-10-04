@@ -49,7 +49,7 @@ const (
 	KindPureFunctionFactory
 	// KindCompTimeHints marks a parameter the build READS best-effort but never validates — the
 	// lenient sibling of KindCompTimeArgs. A dynamic argument stays legal and is simply invisible:
-	// no CTA0xx enforcement, no fn-variant selection, nothing folds into any id. Identity alias like
+	// no marker-comptime-arg-* enforcement, no fn-variant selection, nothing folds into any id. Identity alias like
 	// CompTimeArgs, so detection is syntactic. Current reader: createMockDataFn's options bag.
 	KindCompTimeHints
 	// KindInjectBatchId (InjectBatchId<Routes>) rides the callee signature like KindInjectPureFnId;
@@ -193,7 +193,7 @@ type Options struct {
 // package's compiled files implements it.
 type PureFnBindingResolver interface {
 	BindingID(dtsPath, name string) (id string, ok bool)
-	// UnbuiltPackage names the `.d.ts`'s package when it ships no compiled pure fns and no sources: PFE9016, not an unreadable dep.
+	// UnbuiltPackage names the `.d.ts`'s package when it ships no compiled pure fns and no sources: purefn-package-not-built, not an unreadable dep.
 	UnbuiltPackage(dtsPath string) (name string, unbuilt bool)
 }
 
@@ -565,7 +565,7 @@ func IsErrorLikeAny(tsType *checker.Type) bool {
 
 // freeParamScanDepth bounds FindFreeTypeParameter's walk. The bound, not the visited set, is what
 // terminates on a self-instantiating generic, whose fresh per-level types never repeat — those are
-// reported separately by the structural-id depth backstop (MKR009).
+// reported separately by the structural-id depth backstop (marker-self-instantiating-generic).
 const freeParamScanDepth = 64
 
 // freeParamMaxHops caps the named-type breadcrumbs carried on the diagnostic so
@@ -582,7 +582,7 @@ type FreeTypeParamFinding struct {
 
 // FindFreeTypeParameter walks the DATA-reachable positions of tsType and reports the first
 // still-unresolved type parameter (`A<T>`, `T[]`, `{a: T}` inside a generic body). Such a type must
-// be rejected at the marker call (MKR010): the free parameter takes a different type at every call
+// be rejected at the marker call (marker-unresolved-type-parameter): the free parameter takes a different type at every call
 // site of the surrounding generic, so a single build-time id would alias them all.
 //
 // NOTE the checker applies type-parameter DEFAULTS at use sites before we see the type, so a bare

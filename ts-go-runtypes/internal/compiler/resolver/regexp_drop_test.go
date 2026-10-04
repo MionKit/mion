@@ -8,7 +8,7 @@ import (
 )
 
 // A RegExp value is not data. A RegExp-valued property is dropped with the
-// per-family …015 Warning (the object still validates and serialises), and no
+// per-family `-non-data-property-dropped` Warning (the object still validates and serialises), and no
 // root Error fires: the same contract a `URL` property has.
 func TestDiag_RegExpPropertyDropsLikeAFunction(t *testing.T) {
 	const code = `import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
@@ -67,7 +67,7 @@ export const encode = createJsonEncoderFn<RegExp>(undefined, {strategy: 'mutate'
 		if diagnostic.Code == diagnostics.CodePJNonSerializableRoot {
 			sawRoot = true
 			if len(diagnostic.Args) == 0 || diagnostic.Args[0] != "RegExp" {
-				t.Errorf("PJ002 must name RegExp, got %v", diagnostic.Args)
+				t.Errorf("json-prepare-non-data-root must name RegExp, got %v", diagnostic.Args)
 			}
 		}
 		if diagnostic.Code == diagnostics.CodeVLNonSerializableRoot {
@@ -75,10 +75,10 @@ export const encode = createJsonEncoderFn<RegExp>(undefined, {strategy: 'mutate'
 		}
 	}
 	if !sawRoot {
-		t.Errorf("expected PJ002 for a root RegExp encoder")
+		t.Errorf("expected json-prepare-non-data-root for a root RegExp encoder")
 	}
 	if !sawValidateRoot {
-		t.Errorf("expected VL001 for a root RegExp validator")
+		t.Errorf("expected validate-non-data-root for a root RegExp validator")
 	}
 }
 

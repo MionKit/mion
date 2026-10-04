@@ -101,18 +101,18 @@ const ROOT_ALIAS = /(?:^|\n)(?:export )?type FzRoot = [A-Za-z_$][\w$]*<typeof ([
 
 /** Derive both builder spellings from a type-form fixture via the real
  *  converter. Returns null — the caller re-rolls, counting it — when the
- *  converter refuses the shape (a designed CNVxxx diagnostic: the coarse
+ *  converter refuses the shape (a designed convert-* diagnostic: the coarse
  *  isConvertibleGen pre-filter cannot model every print-path refusal, and
  *  pinning the refusal surface is the CONVERT lane's job, not this one's) or
  *  when the converted output has no parseable root alias (e.g. the root
  *  printed as a pure reference of a declaration). A non-refusal converter
- *  failure (a crash, no CNV diagnostic) still throws — that is a finding. **/
+ *  failure (a crash, no convert-* diagnostic) still throws — that is a finding. **/
 export function deriveBuilderSpellings(project: ConvertProject, typeSource: string): BuilderSpellings | null {
   let staticSource: string;
   try {
     staticSource = convertLeg(project, typeSource, 'builders');
   } catch (err) {
-    if (err instanceof Error && /\bCNV\d{3}\b/.test(err.message)) return null;
+    if (err instanceof Error && /\bconvert-[a-z0-9]+(?:-[a-z0-9]+)* (?:error|warning)\b/.test(err.message)) return null;
     throw err;
   }
   const aliasMatch = ROOT_ALIAS.exec(staticSource);

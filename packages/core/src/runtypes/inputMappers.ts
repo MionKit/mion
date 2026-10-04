@@ -29,14 +29,14 @@ import {getOrCreateGlobal} from '../utils.ts';
 /** Ids a batch table may reference as input mappers. See "the security boundary" above. */
 const allowedMapperKeys = getOrCreateGlobal('mion.runTypes.allowedMapperKeys', () => new Set<string>());
 
-// `registerPureFn` is a BUILD-TIME marker: a tuple passed from source is rejected with PFN001 (the argument
+// `registerPureFn` is a BUILD-TIME marker: a tuple passed from source is rejected with purefn-not-inline (the argument
 // must be an INLINE arrow or function expression). mion's lane has neither half a marker call needs, its key
 // is a content hash from a build manifest and its body a tuple imported from the client's generated tree.
 // The alias below is the untracked door: the scanner matches the callee at the call site, so a local const
 // takes this one call out of its view while keeping upstream's runtime behaviour (tuple -> initFromTuple,
 // plus the tuple's whole dep closure). Kept here once instead of spread across generated files.
 // There is no supported alternative: initFromTuple is not exported and @mionjs/run-types publishes no deep
-// paths for it. If upstream's scanner ever resolves through local aliases, this line fails PFN001; swapping
+// paths for it. If upstream's scanner ever resolves through local aliases, this line fails purefn-not-inline; swapping
 // it for `getRTUtils().addPureFn` over a record projected off the tuple works, and costs only the dep-closure
 // walk (every generated pure-fn tuple in this repo has an empty deps slot today).
 const registerPureFnUntracked = registerPureFn as unknown as (tuple: unknown, id: string) => unknown;

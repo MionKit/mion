@@ -7,8 +7,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// countMKR003 tallies the free-type-parameter marker diagnostics in a response.
-func countMKR003(diags []diagnostics.Diagnostic) int {
+// countMarkerInGenericFunction tallies the free-type-parameter marker diagnostics in a response.
+func countMarkerInGenericFunction(diags []diagnostics.Diagnostic) int {
 	n := 0
 	for _, diag := range diags {
 		if diag.Code == diagnostics.CodeMarkerFreeTypeParameter {
@@ -18,15 +18,15 @@ func countMKR003(diags []diagnostics.Diagnostic) int {
 	return n
 }
 
-// TestScan_WrapperForwardsHandle_NoMKR003 pins the fix for the documented
+// TestScan_WrapperForwardsHandle_NoMarkerInGenericFunction pins the fix for the documented
 // wrapper pattern: a helper `describe<T>(id?: InjectRunTypeId<T>)` resolves its
 // injected handle
 // by FORWARDING it to a public resolver as the explicit trailing arg
 // (`getRunTypeId<T>(undefined, id)`). The forward call has its id slot filled,
-// so it is a pass-through: no injection AND no MKR003 — even though `T` is the
+// so it is a pass-through: no injection AND no marker-in-generic-function — even though `T` is the
 // wrapper's free type parameter. Only the outer `describe<{…}>()` call, whose
 // slot is empty, gets an injection site.
-func TestScan_WrapperForwardsHandle_NoMKR003(t *testing.T) {
+func TestScan_WrapperForwardsHandle_NoMarkerInGenericFunction(t *testing.T) {
 	r := setupInline(t, map[string]string{
 		"a.ts": `import {getRunTypeId, type InjectRunTypeId} from '@mionjs/run-types';
 function describe<T>(id?: InjectRunTypeId<T>): string {
@@ -39,8 +39,8 @@ export const d = describe<{a: number}>();
 	if resp.Error != "" {
 		t.Fatalf("scan: %s", resp.Error)
 	}
-	if got := countMKR003(resp.Diagnostics); got != 0 {
-		t.Fatalf("forwarding a handle must NOT emit MKR003, got %d", got)
+	if got := countMarkerInGenericFunction(resp.Diagnostics); got != 0 {
+		t.Fatalf("forwarding a handle must NOT emit marker-in-generic-function, got %d", got)
 	}
 	// Exactly one injection site: the outer describe<{a:number}>() call.
 	if len(resp.Sites) != 1 {
@@ -71,8 +71,8 @@ export const idLocal = useLocal();
 	if resp.Error != "" {
 		t.Fatalf("scan: %s", resp.Error)
 	}
-	if got := countMKR003(resp.Diagnostics); got != 0 {
-		t.Fatalf("a non-generic function-body const must NOT emit MKR003, got %d", got)
+	if got := countMarkerInGenericFunction(resp.Diagnostics); got != 0 {
+		t.Fatalf("a non-generic function-body const must NOT emit marker-in-generic-function, got %d", got)
 	}
 	if len(resp.Sites) != 2 {
 		t.Fatalf("expected 2 injection sites (module-level + function-body-local), got %d: %+v", len(resp.Sites), resp.Sites)
@@ -117,8 +117,8 @@ export const x = wrap(getRunTypeId(v)).toBe(getRunTypeId(v));`,
 			if resp.Error != "" {
 				t.Fatalf("scan: %s", resp.Error)
 			}
-			if got := countMKR003(resp.Diagnostics); got != 0 {
-				t.Fatalf("a marker passed to a generic passer-through must NOT emit MKR003, got %d", got)
+			if got := countMarkerInGenericFunction(resp.Diagnostics); got != 0 {
+				t.Fatalf("a marker passed to a generic passer-through must NOT emit marker-in-generic-function, got %d", got)
 			}
 			// Both marker calls (the wrap arg AND the toBe arg) must inject. The
 			// bug dropped one or both because .toBe looked like an enclosing marker.
@@ -148,12 +148,12 @@ export const schema = RT.object({a: TF.string()});`,
 	}
 }
 
-// TestScan_MarkerInGenericBody_EmitsMKR003 pins that a marker call with an EMPTY
+// TestScan_MarkerInGenericBody_EmitsMarkerInGenericFunction pins that a marker call with an EMPTY
 // trailing slot inside a generic body (the genuinely-unsupported case — `T`
-// unresolved, no handle to forward) still emits the MKR003 build-time error for
+// unresolved, no handle to forward) still emits the marker-in-generic-function build-time error for
 // BOTH the reflection marker (getRunTypeId) and a createX fn-args marker
 // (createValidateFn). This is the "never a silent runtime throw" guarantee.
-func TestScan_MarkerInGenericBody_EmitsMKR003(t *testing.T) {
+func TestScan_MarkerInGenericBody_EmitsMarkerInGenericFunction(t *testing.T) {
 	cases := map[string]string{
 		"getRunTypeId": `import {getRunTypeId} from '@mionjs/run-types';
 function wrap<T>() { return getRunTypeId<T>(); }
@@ -169,8 +169,8 @@ export const x = wrap<{a: number}>();`,
 			if resp.Error != "" {
 				t.Fatalf("scan: %s", resp.Error)
 			}
-			if got := countMKR003(resp.Diagnostics); got != 1 {
-				t.Fatalf("expected exactly 1 MKR003 for the free-T marker call, got %d (%+v)", got, resp.Diagnostics)
+			if got := countMarkerInGenericFunction(resp.Diagnostics); got != 1 {
+				t.Fatalf("expected exactly 1 marker-in-generic-function for the free-T marker call, got %d (%+v)", got, resp.Diagnostics)
 			}
 			// The inner marker call emits no site (nothing to inject for free T);
 			// the outer wrap<{a}>() has no marker param, so zero sites overall.
@@ -180,7 +180,7 @@ export const x = wrap<{a: number}>();`,
 			// Severity must be Error so the plugin halts the production build.
 			for _, d := range resp.Diagnostics {
 				if d.Code == diagnostics.CodeMarkerFreeTypeParameter && d.Severity != diagnostics.SeverityError {
-					t.Fatalf("MKR003 must be Error severity, got %d", d.Severity)
+					t.Fatalf("marker-in-generic-function must be Error severity, got %d", d.Severity)
 				}
 			}
 		})

@@ -16,7 +16,7 @@ import (
 //     structurally, identical to an unregistered one, so decode can recurse that same wire shape.
 //   - Decode always rebuilds through `utl.deserializeClass(cs_<id>, data, k_<id>)`, which prefers
 //     `entry.deserialize` and otherwise instantiates a zero-arg class and sets the DECLARED properties
-//     (`k_<id>`, the hoisted name list the unknown-keys families share), surfacing CLS002 when `new cls()`
+//     (`k_<id>`, the hoisted name list the unknown-keys families share), surfacing data-class-constructor-failed when `new cls()`
 //     throws. Driven by the type, never by the wire keys, so an undeclared key (own `__proto__` included)
 //     never lands on the instance.
 //   - Without a custom `serialize`, decode runs the structural decode first (to recurse nested props) and
