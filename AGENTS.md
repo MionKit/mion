@@ -228,7 +228,7 @@ Before opening a PR, confirm the change is **PR ready** — never open one other
 - **ONE exception — the `prod` release line.** `release/vX.Y.Z` → `prod` lands with **"Create a merge commit"**, never rebase, never squash ([publish.yml](.github/workflows/publish.yml)'s `merge-shape` job enforces it).
   The release branch is frozen from `main` and `prod` is never merged back. **Never author a commit on the release branch** — fix on `main`, re-cut forward ([pre-publish.yml](.github/workflows/pre-publish.yml)'s `main-ancestor` job enforces it).
   Whole flow: the [release-to-prod skill](.agents/skills/release-to-prod/).
-- **Always rebase when pulling changes from main.** For every Mion task branch, fetch `origin/main` and rebase the current branch onto it. Never use a merge-based `git pull` or merge main into the branch. `main` may be force-updated / history-rewritten:
+- **Integrate upstream by rebasing, never merging.** `main` may be force-updated / history-rewritten:
   ```
   git fetch origin main
   git rebase origin/main            # resolve conflicts per replayed commit
