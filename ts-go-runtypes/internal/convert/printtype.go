@@ -83,13 +83,6 @@ func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic
 		if aliasText, aliasDiag, isAlias := ctx.declarations.aliasRef(ctx, node); isAlias {
 			return aliasText, aliasDiag
 		}
-		// A class or enum closes its own cycles by name.
-		if isUserClass(node) {
-			return ctx.declarations.classRef(node)
-		}
-		if node.Kind == reflection.KindEnum && len(node.TypeMeta) == 0 {
-			return ctx.declarations.enumRef(node)
-		}
 	}
 	leave, entered := ctx.enter(node)
 	if !entered {
@@ -249,6 +242,10 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 		}
 		return fmt.Sprintf("Promise<%s>", childText), nil
 	case reflection.KindClass:
+		if ctx.flags&flagsDeclareNamedTypes != 0 && isUserClass(node) {
+			// Its body prints in its own context, so a class closes its own cycles by name.
+			return ctx.declarations.classRef(node)
+		}
 		switch node.SubKind {
 		case reflection.SubKindDate:
 			return "Date", nil
