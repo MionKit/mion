@@ -34,16 +34,32 @@ Yours: every comment the branch added or changed, and every comment inside a fun
 
 Never touch:
 
-- Directive comments: `//go:build`, `//go:generate`, `// @ts-`, `// @mion-`, `// eslint-`, `// oxlint-`, `// biome-`, `// ^?`, `// ^|`, `// @annotate`, `// start-` / `// end-` markers, `GC-GUARD`, and any other comment a tool reads.
+- Semantic comments and directives listed below, plus `// biome-`, `// ^?`, `// ^|`, `// @annotate`, `// start-` / `// end-` markers, `GC-GUARD`, and any other comment a tool reads.
 - License headers.
 - Generated files (`*.generated.*`, `go-generated/`), `third_party/`, `_deps/`, `testdata/`, `node_modules/`.
 - `packages/private-examples/`: those comments are documentation and belong to the simplify-docs pass.
 - Anything that is not a comment. Code, strings, test names and JSON tags stay byte for byte.
 
+## Semantic comments are protected
+
+These comments control builds, diagnostics, generated output or tests. Keep the entire comment byte for byte, including its tag, arguments, diagnostic names and surrounding text. Never delete, shorten, reflow, split, combine or move it, or change its comment delimiters. Preserve its attachment to the same code: line directives must still target the same next statement, and declaration tags must stay on the same declaration. These rules override the one-line and word-count rules.
+
+Repo tags to preserve:
+
+- Mion diagnostics: `@mion-expect-error` and `@mion-downgrade-error`, including code lists, wildcards and file-versus-line scope.
+- Router declarations: `@mion:route`, `@mion:middleware` and `@mion:headersMiddleware`.
+- Resolver metadata: `@nonEnumerable`.
+- Enrichment metadata: `@rtType`, `@rtIds`, `@rtOrphan`, `@rtOrphanChild`, `@todo` and other compiler-owned `@rt` tags.
+
+Also preserve TypeScript `@ts-*` directives; JSDoc tags and blocks consumed by typechecking, especially in JS/MJS/CJS; `@vite-ignore`; `@vitest-environment` and its options; webpack magic comments; `__PURE__`; `__NO_SIDE_EFFECTS__`; coverage, formatter and lint directives (`istanbul`, `c8 ignore`, `v8 ignore`, `prettier-ignore`, `oxfmt-ignore`, `eslint-*`, `oxlint-*`); triple-slash references; source-map directives; and shebangs. In Go, preserve `//go:*`, `// +build`, `//line`, `//export`, `//nolint`, cgo preambles and example-test `Output:` / `Unordered output:` comments.
+
+A package name such as `@mionjs/devtools` in ordinary prose is not a semantic tag. Its prose can be simplified when no tool reads that comment. If a comment mixes prose with a semantic tag, keep the whole comment unchanged. For an unfamiliar marker, inspect `ts-go-runtypes/cmd/code-digest/digest.go` and its reader; if unsure, keep it and report why.
+
 ## Per comment
 
 In this order, for each comment you own:
 
+0. **Check for semantic tags or another tool reader.** Protected comments go straight to Kept; do not apply the shortening steps to them.
 1. **Read the code it sits on** until you can say, in one sentence, what the code does without the comment.
 2. **Find the fact the code cannot say.** Cross out every clause the code already shows. What is left is the comment. If nothing is left, delete it.
 3. **Write it as one line**, plain words, the fact first, under about 120 characters. A Go doc comment on an exported name still starts with the name.
@@ -60,6 +76,8 @@ git diff -U0 | grep '^[-+]' | grep -v '^[-+][-+]' | grep -v '^[-+]\s*\(//\|/\*\|
 ```
 
 The last line is the guard: a pass that changed anything but comment lines and blank lines has changed code, and fails.
+
+The guard does not detect semantic-comment changes. After formatting, compare every protected comment against the merge-base: its bytes, delimiters, scope and target code must be unchanged. Revert any formatter edit that violates this before reporting success.
 
 For the report's word counts: `git show <merge-base>:<file> | grep -c ''` is not it; count the words on comment lines only, before and after (`grep -E '^\s*(//|/\*|\*)' <file> | wc -w`, and the same over `git show <merge-base>:<file>`). After must be lower than before in every file.
 
