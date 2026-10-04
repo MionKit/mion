@@ -44,7 +44,11 @@ describe('the skip-defaults label', () => {
 
   it('is a guard on the existing content gate, not a replacement for it', () => {
     // `(a || b) && !label`: the parentheses keep the label from binding to `b` alone.
-    const verdict = (job: string) => `fromJSON\\(needs\\.${job}-wait\\.outputs\\.lanes \\|\\| needs\\.lanes\\.outputs\\.lanes\\)`;
+    // go-fuzz and js-lint wait in a step, so they start from the gate alone.
+    const verdict = (job: string) =>
+      job === 'smoke'
+        ? `fromJSON\\(needs\\.${job}-wait\\.outputs\\.lanes \\|\\| needs\\.lanes\\.outputs\\.lanes\\)`
+        : 'fromJSON\\(needs\\.lanes\\.outputs\\.lanes\\)';
     const guarded = (job: string, condition: string) =>
       new RegExp(`^\\$\\{\\{ !cancelled\\(\\) && needs\\.lanes\\.result == 'success' && ${condition} && !contains`);
     expect(jobCondition('go-fuzz')).toMatch(

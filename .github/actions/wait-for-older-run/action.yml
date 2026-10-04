@@ -1,0 +1,41 @@
+name: Wait for an older run's lanes
+description: >
+  Waits inside the heavy job, after its cheap comment-reading checks, for the older run the gate
+  deferred some lanes to (scripts/ci/supersede.mjs), then re-decides those lanes from the markers
+  and exports the new verdict as MION_LANES for the steps below. The caller sets
+  `continue-on-error: true`, so a failed wait leaves the gate's verdict and the lanes run.
+  The job needs `actions: read` and a checkout with fetch-depth 2.
+
+inputs:
+  lanes:
+    description: The lanes the heavy job runs, space separated
+    required: true
+  jobs:
+    description: The heavy job's name prefixes as GitHub shows them, `|` separated, whose failure in the older run ends the wait
+    required: true
+  minutes:
+    description: How long the wait may last, ten of them are kept back for the re-decide
+    default: '70'
+
+runs:
+  using: composite
+  steps:
+    - name: Wait for the older run
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        printf '%s' "$MION_LANES" > "$RUNNER_TEMP/lane-decision.json"
+        node scripts/ci/supersede.mjs --wait --decision "$RUNNER_TEMP/lane-decision.json" --lanes ${{ inputs.lanes }} \
+          --jobs '${{ inputs.jobs }}' --timeout $(( ${{ inputs.minutes }} - 10 )) ${{ github.event_name == 'pull_request' && '--pr' || '' }}
+    - id: decide
+      uses: ./.github/actions/ci-lanes
+      with:
+        lanes: ${{ inputs.lanes }}
+        supersede: 'false'
+    - name: Use the re-decided verdict below
+      if: steps.decide.outputs.lanes != ''
+      shell: bash
+      env:
+        MION_REDECIDED: ${{ steps.decide.outputs.lanes }}
+      run: printf 'MION_LANES=%s\n' "$MION_REDECIDED" >> "$GITHUB_ENV"
