@@ -276,6 +276,16 @@ func (file *fileInfo) anyKept() bool {
 	return false
 }
 
+// keptAugmentation: the file ships a `declare global` or `declare module` block, which no import names.
+func (file *fileInfo) keptAugmentation() bool {
+	for _, current := range file.items {
+		if current.kept && (current.kind == itemMember || (current.kind == itemAlways && current.statement.Kind == ast.KindModuleDeclaration)) {
+			return true
+		}
+	}
+	return false
+}
+
 // keptAny: some item of the file other than an augmentation, a global or `export {}` is kept.
 func (file *fileInfo) keptAny() bool {
 	for _, current := range file.items {

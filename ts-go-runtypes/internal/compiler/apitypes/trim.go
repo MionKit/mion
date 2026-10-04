@@ -110,8 +110,21 @@ func Trim(input Input) (*Output, error) {
 	if err := trimmer.renderOutside(output.Files); err != nil {
 		return nil, err
 	}
-	if lines := trimmer.outside.referenceLines(); len(lines) > 0 {
-		output.Files[output.Entry] = strings.Join(lines, "\n") + "\n" + output.Files[output.Entry]
+	lines := trimmer.outside.referenceLines()
+	// A kept augmentation or global only applies once its file loads, and a client loads what the entry reaches.
+	for _, file := range trimmer.sortedFiles() {
+		if file != entry && output.Files[trimmer.relative(file.path)] != "" && file.keptAugmentation() {
+			lines = append(lines, fmt.Sprintf("/// <reference path=%q />", relativePath(output.Entry, trimmer.relative(file.path))))
+		}
+	}
+	var missing []string
+	for _, line := range lines {
+		if !strings.Contains(output.Files[output.Entry], line) && !slices.Contains(missing, line) {
+			missing = append(missing, line)
+		}
+	}
+	if len(missing) > 0 {
+		output.Files[output.Entry] = strings.Join(missing, "\n") + "\n" + output.Files[output.Entry]
 	}
 	for pkg := range trimmer.outside.environment {
 		trimmer.externals[pkg] = true

@@ -546,6 +546,19 @@ func moduleSpecifier(from, to string) string {
 	return rel
 }
 
+// relativePath is the `/// <reference path>` from one slash path to another file.
+func relativePath(from, to string) string {
+	rel, err := filepath.Rel(filepath.Dir(filepath.FromSlash(from)), filepath.FromSlash(to))
+	if err != nil {
+		return to
+	}
+	rel = filepath.ToSlash(rel)
+	if !strings.HasPrefix(rel, ".") {
+		rel = "./" + rel
+	}
+	return rel
+}
+
 // renderOutside writes the printed declaration files and spells every reference, the project files' included.
 func (trimmer *trimmer) renderOutside(files map[string]string) error {
 	state := trimmer.outside
