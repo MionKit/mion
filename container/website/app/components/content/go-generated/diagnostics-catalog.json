@@ -77,7 +77,7 @@
       "code": "config-lib-missing-base",
       "subsystem": "project-config",
       "level": "runtimeError",
-      "headline": "The project `lib` declares no base ECMAScript library (loaded: {0}), so core globals like `Array` are missing and reflected types cannot be trusted.",
+      "headline": "The project `lib` declares no base ECMAScript library (loaded: {libs}), so core globals like `Array` are missing and reflected types cannot be trusted.",
       "summary": "Your tsconfig `lib` names no base ECMAScript edition, so `Array`, `Object`, `String` and the other core globals are never declared. Then `number[]` becomes an empty object and its validator would accept any value, so mion stops. Name a base edition in `lib` (`[\"ES2022\"]`, or `[\"ES2022\", \"DOM\"]` for browser code), or remove `lib` and let `target` pick it. A feature entry such as `\"esnext.disposable\"` cannot replace a base edition.",
       "fix": "{\"compilerOptions\": {\"lib\": [\"ES2022\"]}}",
       "example": null
@@ -86,7 +86,7 @@
       "code": "config-output-outside-out-dir",
       "subsystem": "project-config",
       "level": "error",
-      "headline": "`mion compile` refused to write {0}: it lands outside outDir ({1}) because its source sits outside rootDir; move rootDir up so every file of the program is under it, or reach that module through its package name.",
+      "headline": "`mion compile` refused to write {file}: it lands outside outDir ({outDir}) because its source sits outside rootDir; move rootDir up so every file of the program is under it, or reach that module through its package name.",
       "summary": "Like `tsc`, `mion compile` writes each file under `outDir`, in the same folders it has under `rootDir`. A file imported from outside `rootDir` (a `paths` entry into a sibling package, or a relative import above the source folder) has no place there, so it is not written and the compile fails. Set `rootDir` to a folder that holds every file of the program, or import that module by its package name. `tsc` reports it as TS6059.",
       "fix": null,
       "example": null
@@ -95,7 +95,7 @@
       "code": "config-tsconfig-not-loaded",
       "subsystem": "project-config",
       "level": "error",
-      "headline": "Project tsconfig failed to load ({0}): the build, the linter, and the CLI all read this config, so nothing can run until it loads.",
+      "headline": "Project tsconfig failed to load ({reason}): the build, the linter, and the CLI all read this config, so nothing can run until it loads.",
       "summary": "Your tsconfig (the one you named, or the one found next to your project) is missing or cannot be parsed. mion reads your types through it, so it stops rather than guess with defaults. Fix the tsconfig (the message names the first problem), or point to the right file with the `tsconfig` setting of the build plugin or linter, or the `--tsconfig` flag.",
       "fix": null,
       "example": null
@@ -104,7 +104,7 @@
       "code": "marker-any-from-unresolved-import",
       "subsystem": "markers",
       "level": "runtimeError",
-      "headline": "Marker type resolved to `any` because this file has an unresolved import (`{0}`): the generated functions would silently accept anything.",
+      "headline": "Marker type resolved to `any` because this file has an unresolved import (`{import}`): the generated functions would silently accept anything.",
       "summary": "An import in this file did not resolve, so its type became `any` at this marker. A validator over `any` accepts everything, a mock returns `undefined`, and encoders pass values through unchanged. Usual causes: an import without a file extension under `moduleResolution: NodeNext`, a missing dependency, or a `paths` alias missing from the tsconfig mion reads. Fix the import, or give mion the same tsconfig as your bundler. For a real `any`, use an alias like `type Loose = any` declared in a file whose imports all resolve.",
       "fix": "import {User} from './user.runtype.ts';",
       "example": null
@@ -113,7 +113,7 @@
       "code": "marker-any-from-unresolved-name",
       "subsystem": "markers",
       "level": "runtimeError",
-      "headline": "Marker type resolved to `any` that was never written: `{0}` failed to resolve (or its declaration references a name that does not), so the generated functions would silently accept anything.",
+      "headline": "Marker type resolved to `any` that was never written: `{name}` failed to resolve (or its declaration references a name that does not), so the generated functions would silently accept anything.",
       "summary": "A type name at this marker did not resolve, so TypeScript read it as `any` and the generated functions would accept every value. A real `any`, written as `any` or through an alias like `type Loose = any`, is always allowed. Usual causes: a typo, a dependency whose types are not installed, or a `.d.ts` file the tsconfig `include` or `files` does not cover. After adding a `.d.ts`, restart the dev server or your editor's linter.",
       "fix": "// src/ambient.d.ts, matched by the tsconfig include set\ndeclare interface Ambient { a: string; b: number }",
       "example": "import {getRunTypeId} from '@mionjs/run-types';\nexport const id = getRunTypeId<{value: Missing}>();"
@@ -122,7 +122,7 @@
       "code": "marker-calls-function-for-type",
       "subsystem": "markers",
       "level": "warning",
-      "headline": "`{0}()` is being called at runtime just so the marker can read its return type: side effects, throws, or async work run for nothing.",
+      "headline": "`{function}()` is being called at runtime just so the marker can read its return type: side effects, throws, or async work run for nothing.",
       "summary": "A marker given a function call, like `createValidateFn(getUser())` or `getRunTypeId(getUser())`, runs that call at runtime only to read its type. Use the type form with `ReturnType`, or pass a value you already have.",
       "fix": "const isUser = createValidateFn<ReturnType<typeof getUser>>();\n\n// or pass an existing value of that type\nconst userTypeId = getRunTypeId(existingUser);",
       "example": null
@@ -131,7 +131,7 @@
       "code": "marker-comptime-arg-forbidden-construct",
       "subsystem": "markers",
       "level": "runtimeError",
-      "headline": "`CompTimeArgs<T>` literal contains a forbidden construct ({0}). Only literals and nested literals are allowed.",
+      "headline": "`CompTimeArgs<T>` literal contains a forbidden construct ({construct}). Only literals and nested literals are allowed.",
       "summary": "Every part of a `CompTimeArgs<T>` literal must be a string, number, bigint, boolean, `null`, `undefined`, regex, arrow function, object or array literal, or a `const` that points to one. Computed property names, function calls, ternaries and template strings with `${}` are rejected. A spread works only on a `const` (or imported) object literal inside an object, or an array literal inside an array. If the value is only known at runtime, use the untracked version of the function: `getPureFnByKey`, `hasPureFnByKey` and `getCompiledPureFnByKey` instead of `getPureFn`, `hasPureFn` and `getCompiledPureFn`.",
       "fix": "const base = {strict: true} as const;\nconst options = {...base, mode: 'unsafe'} as const;",
       "example": null
@@ -158,7 +158,7 @@
       "code": "marker-comptime-arg-widened-const",
       "subsystem": "markers",
       "level": "runtimeError",
-      "headline": "`CompTimeArgs<T>` value comes from a `const` with a widened (non-literal) member ({0}); declare the const `as const`.",
+      "headline": "`CompTimeArgs<T>` value comes from a `const` with a widened (non-literal) member ({member}); declare the const `as const`.",
       "summary": "A `const` passed as a `CompTimeArgs` or `CompTimeFnArgs` argument (a whole options object, or a builder child) must keep literal types. Without `as const`, `{strategy: 'mutate'}` widens to `{strategy: string}`, and TypeScript can pick one function variant while the build injects another. Add `as const` to the declaration.",
       "fix": "const preset = {strategy: 'mutate'} as const;\ncreateJsonEncoderFn(undefined, preset);",
       "example": null
@@ -167,7 +167,7 @@
       "code": "marker-duplicate-function-family",
       "subsystem": "markers",
       "level": "info",
-      "headline": "`InjectTypeFnArgs` names the function family `{0}` more than once; remove the duplicate key.",
+      "headline": "`InjectTypeFnArgs` names the function family `{family}` more than once; remove the duplicate key.",
       "summary": "An `InjectTypeFnArgs` marker lists each function family once. A repeat adds nothing and is usually a copy and paste slip. The build ignores it, so remove it from the list.",
       "fix": "function route<H extends Handler>(\n  handler: H,\n  fns?: InjectTypeFnArgs<Parameters<H>, 'validationErrors', 'jsonDecoder', 'jsonEncoder'>,\n) {\n  return {handler, fns};\n}",
       "example": "import type {InjectTypeFnArgs} from '@mionjs/run-types';\ntype Handler = (ctx: unknown, ...rest: any[]) => unknown;\nfunction route<H extends Handler>(handler: H, fns?: InjectTypeFnArgs<Parameters<H>, 'validationErrors', 'jsonDecoder', 'validationErrors'>) {\n  return {handler, fns};\n}\nexport const lenRoute = route((ctx: unknown, name: string) => name.length);"
@@ -176,7 +176,7 @@
       "code": "marker-generic-missing-type-argument",
       "subsystem": "markers",
       "level": "error",
-      "headline": "Generic type `{0}` is used without its required type argument(s): parameter `{1}` has no default, so the type cannot resolve to an id. See Related for where `{1}` is declared.",
+      "headline": "Generic type `{type}` is used without its required type argument(s): parameter `{typeParam}` has no default, so the type cannot resolve to an id. See Related for where `{typeParam}` is declared.",
       "summary": "TypeScript rejects this too (TS2314), but dev server builds skip the type check, and the type would become `any` with a validator that accepts everything. Pass the missing type argument, or give the parameter a default, used wherever the type is written without arguments.",
       "fix": "const isA = createValidateFn<A<string>>();\n\n// or give the parameter a default\ninterface A<S extends string = string> { a: S }",
       "example": null
@@ -194,7 +194,7 @@
       "code": "marker-self-instantiating-generic",
       "subsystem": "markers",
       "level": "error",
-      "headline": "Type `{0}` re-instantiates itself with fresh type arguments at every level (a self-instantiating generic), so its structural id never resolves. Reflect a monomorphic shape instead.",
+      "headline": "Type `{type}` re-instantiates itself with fresh type arguments at every level (a self-instantiating generic), so its structural id never resolves. Reflect a monomorphic shape instead.",
       "summary": "A generic method that returns its own type with new type arguments, like `map<U>(fn: (x: T) => U): Iter<U>`, makes the type grow forever, and renaming the arguments does not help. Write a fully resolved recursive type instead, or reflect only the data, since validators skip methods. Normal generics like `Map<string, User>`, and generic methods that do not return their own type, work fine.",
       "fix": "interface NumberIter { map(fn: (x: string) => number): NumberIter }",
       "example": null
@@ -203,7 +203,7 @@
       "code": "marker-temporal-lib-missing",
       "subsystem": "markers",
       "level": "runtimeError",
-      "headline": "Temporal type `{0}` resolved to `any`: the Temporal lib isn't in your tsconfig `lib`, so the generated validator would accept any value.",
+      "headline": "Temporal type `{type}` resolved to `any`: the Temporal lib isn't in your tsconfig `lib`, so the generated validator would accept any value.",
       "summary": "`Temporal.*` types only work when the Temporal lib is loaded. Without it the type becomes `any` and the validator accepts everything. Add `\"ESNext.Temporal\"` to `lib` in your tsconfig.",
       "fix": "{\"compilerOptions\": {\"lib\": [\"ES2023\", \"ESNext.Temporal\"]}}",
       "example": null
@@ -212,7 +212,7 @@
       "code": "marker-type-id-collision",
       "subsystem": "markers",
       "level": "error",
-      "headline": "Two different types get the same id `{0}`: `{1}` from {4}, and `{2}` here. Raise the `hashLength` option to {3} so every type keeps its own id.",
+      "headline": "Two different types get the same id `{id}`: `{firstType}` from {firstSite}, and `{secondType}` here. Raise the `hashLength` option to {hashLength} so every type keeps its own id.",
       "summary": "Two types got the same short id, so the build cannot tell them apart and stops. Raise `hashLength` (the exact id length) by one in your tsconfig plugin entry or on the build plugin; each extra character gives 62 times more ids. The error names both types, the length to use, and the call that took the id first.",
       "fix": "{\"compilerOptions\": {\"plugins\": [{\"name\": \"mion\", \"hashLength\": 8}]}}",
       "example": null
@@ -230,7 +230,7 @@
       "code": "marker-unknown-function-family",
       "subsystem": "markers",
       "level": "error",
-      "headline": "`InjectTypeFnArgs` names `{0}`, which is not a function family{1}",
+      "headline": "`InjectTypeFnArgs` names `{family}`, which is not a function family{hint}",
       "summary": "Each name in an `InjectTypeFnArgs` marker must be a function family, like `validationErrors`. An unknown name compiles nothing, so at runtime the call falls back to its no-plugin behaviour. The old short tags (`val`, `verr`, `pjs`) are not accepted; use the full name. The message suggests the closest name when there is one.",
       "fix": "function route<H extends Handler>(\n  handler: H,\n  fns?: InjectTypeFnArgs<Parameters<H>, 'validationErrors'>,\n) {\n  return {handler, fns};\n}",
       "example": "import type {InjectTypeFnArgs} from '@mionjs/run-types';\ntype Handler = (ctx: unknown, ...rest: any[]) => unknown;\nfunction route<H extends Handler>(handler: H, fns?: InjectTypeFnArgs<Parameters<H>, 'verr'>) {\n  return {handler, fns};\n}\nexport const lenRoute = route((ctx: unknown, name: string) => name.length);"
@@ -239,7 +239,7 @@
       "code": "marker-unresolved-type-parameter",
       "subsystem": "markers",
       "level": "error",
-      "headline": "Type argument contains the unresolved type parameter `{0}`: a generic must be fully resolved at the marker call, so no id can be computed. See Related for where `{0}` is declared.",
+      "headline": "Type argument contains the unresolved type parameter `{typeParam}`: a generic must be fully resolved at the marker call, so no id can be computed. See Related for where `{typeParam}` is declared.",
       "summary": "A type parameter of the surrounding generic changes with each call, so no single id fits, and a default on the parameter does not help inside the generic's body. Resolve the generic first, like `type BoxString = Box<string>`, or let the caller pass the id in (see marker-in-generic-function). Generic methods on a concrete type, like `find<T>(query: string): T[]`, are fine.",
       "fix": "interface Box<T> { value: T }\ntype BoxString = Box<string>;\nconst isBoxString = createValidateFn<BoxString>();",
       "example": null
@@ -248,7 +248,7 @@
       "code": "marker-untrusted-package",
       "subsystem": "markers",
       "level": "runtimeError",
-      "headline": "`{0}` here was declared by `{1}`, which this project does not trust as a marker package, so the type argument was dropped and this call reflects `unknown`.",
+      "headline": "`{name}` here was declared by `{package}`, which this project does not trust as a marker package, so the type argument was dropped and this call reflects `unknown`.",
       "summary": "A marker type counts only when a trusted package declares it, so a same-named type of your own is ignored. This one comes from an untrusted package, so the call builds for `unknown` and its validator accepts everything. Add the package to `markers.packages` in your tsconfig plugin entry, `markers` on the build plugin, or `--marker-packages` on the command line (`@mionjs/run-types` stays trusted). A package that re-exports the markers from `@mionjs/run-types` needs no setting, so check whether it meant to.",
       "fix": "{\"compilerOptions\": {\"plugins\": [{\"name\": \"mion\", \"markers\": {\"packages\": [\"@my-org/runtypes-markers\"]}}]}}",
       "example": null
@@ -257,7 +257,7 @@
       "code": "marker-untyped-private-member",
       "subsystem": "markers",
       "level": "runtimeError",
-      "headline": "Private member `{0}` of class `{1}` has no type in its declaration file, so the generated functions would accept any value for it. Build the class's package with `mion compile`, which keeps private member types, or read it from its TypeScript sources.",
+      "headline": "Private member `{member}` of class `{class}` has no type in its declaration file, so the generated functions would accept any value for it. Build the class's package with `mion compile`, which keeps private member types, or read it from its TypeScript sources.",
       "summary": "A class read from a `.d.ts` file has a `private` member with no type. Plain `tsc` writes every private field and method this way, so RunTypes cannot check it and the build fails. Build the package with `mion compile`, which keeps the type by writing the member as `protected` (outside code still cannot read it), or point its `types` at its TypeScript sources.",
       "fix": "// package.json of the class's package\n{\"scripts\": {\"build\": \"mion compile --tsconfig tsconfig.build.json\"}}",
       "example": "import {getRunTypeId} from '@mionjs/run-types';\ndeclare class Account { id: string; private balance; }\nexport const id = getRunTypeId<Account>();"
@@ -266,7 +266,7 @@
       "code": "comment-downgrade-error-already-warning",
       "subsystem": "comments",
       "level": "info",
-      "headline": "`@mion-downgrade-error {0}` does nothing: that code is already a warning or info, so it was never halting your build.",
+      "headline": "`@mion-downgrade-error {name}` does nothing: that code is already a warning or info, so it was never halting your build.",
       "summary": "A `@mion-downgrade-error` comment named a warning or info code, which never stops the build. Delete it, or use `@mion-expect-error` to hide the code completely.",
       "fix": "// @mion-expect-error validate-non-data-property-dropped",
       "example": null
@@ -275,7 +275,7 @@
       "code": "comment-downgrade-error-not-allowed",
       "subsystem": "comments",
       "level": "warning",
-      "headline": "`@mion-downgrade-error {0}` cannot lower that code: the build produces no code for it, so carrying on would ship missing output.",
+      "headline": "`@mion-downgrade-error {name}` cannot lower that code: the build produces no code for it, so carrying on would ship missing output.",
       "summary": "A `@mion-downgrade-error` comment named an Error code, which always stops the build. The build produced no code for that call, so going on would ship a call that throws. Only a RuntimeError can be downgraded, by comment or by the `downgradeErrors` setting. Fix the reported call instead.",
       "fix": null,
       "example": null
@@ -284,7 +284,7 @@
       "code": "comment-downgrade-error-unknown-name",
       "subsystem": "comments",
       "level": "warning",
-      "headline": "`@mion-downgrade-error {0}` names a diagnostic that does not exist; check the spelling against the name in the message you are lowering.",
+      "headline": "`@mion-downgrade-error {name}` names a diagnostic that does not exist; check the spelling against the name in the message you are lowering.",
       "summary": "A `@mion-downgrade-error` comment names a code mion does not have, usually a typo, so it lowers nothing. Copy the code from the message you are lowering, for example `validate-symbol-root` in `error validate-symbol-root: Type ... can never be validated`.",
       "fix": "// @mion-downgrade-error validate-symbol-root",
       "example": null
@@ -293,7 +293,7 @@
       "code": "comment-downgrade-error-unused",
       "subsystem": "comments",
       "level": "warning",
-      "headline": "Unused `@mion-downgrade-error {0}`: nothing was reported on the line below it, so the comment is stale and can be deleted.",
+      "headline": "Unused `@mion-downgrade-error {name}`: nothing was reported on the line below it, so the comment is stale and can be deleted.",
       "summary": "A `@mion-downgrade-error` comment lowered nothing: the code it names was not reported on the line below. Like `@mion-expect-error`, a comment left behind after a fix is reported. Delete the comment, or correct the code it names.",
       "fix": "// @mion-downgrade-error validate-symbol-root\nexport const report = createValidateFn<symbol>();",
       "example": null
@@ -302,7 +302,7 @@
       "code": "comment-expect-error-not-allowed",
       "subsystem": "comments",
       "level": "warning",
-      "headline": "`@mion-expect-error {0}` cannot silence that code: it is reported even when everything else is silenced.",
+      "headline": "`@mion-expect-error {name}` cannot silence that code: it is reported even when everything else is silenced.",
       "summary": "A `@mion-expect-error` comment named a code that is always reported. An Error code means the build produced no code for that call, so hiding it would ship missing output. The `comment-*` names check these comments, so they cannot be hidden either. Fix the reported call instead.",
       "fix": null,
       "example": null
@@ -311,7 +311,7 @@
       "code": "comment-expect-error-unknown-name",
       "subsystem": "comments",
       "level": "warning",
-      "headline": "`@mion-expect-error {0}` names a diagnostic that does not exist; check the spelling against the name in the message you are silencing.",
+      "headline": "`@mion-expect-error {name}` names a diagnostic that does not exist; check the spelling against the name in the message you are silencing.",
       "summary": "A `@mion-expect-error` comment names a code mion does not have, usually a typo, so it hides nothing. Copy the code from the message you are hiding, for example `validate-symbol-root` in `error validate-symbol-root: Type ... can never be validated`.",
       "fix": "// @mion-expect-error validate-symbol-root",
       "example": null
@@ -320,7 +320,7 @@
       "code": "comment-expect-error-unused",
       "subsystem": "comments",
       "level": "warning",
-      "headline": "Unused `@mion-expect-error {0}`: nothing was reported on the line below it, so the comment is stale and can be deleted.",
+      "headline": "Unused `@mion-expect-error {name}`: nothing was reported on the line below it, so the comment is stale and can be deleted.",
       "summary": "A `@mion-expect-error` comment hid nothing: the code it names was not reported on the line below. Like `@ts-expect-error`, a comment left behind after a fix is reported. Delete the comment, or correct the code it names.",
       "fix": "// @mion-expect-error validate-symbol-root\nexport const report = createValidateFn<symbol>();",
       "example": null
@@ -338,7 +338,7 @@
       "code": "validate-function-property-dropped",
       "subsystem": "validation",
       "level": "info",
-      "headline": "Property `{0}` is a function: `validate` does not handle function values, so this property is silently not validated.",
+      "headline": "Property `{property}` is a function: `validate` does not handle function values, so this property is silently not validated.",
       "summary": "A function holds no data, so validation skips the property and still checks the others. You see this for an optional function property or one in a union member. A required one reports `validate-method-dropped`. Remove the property, or replace it with the data it would produce.",
       "fix": null,
       "example": "import {createValidateFn} from '@mionjs/run-types';\ninterface Button { label: string; onClick?: () => void }\nexport const isButton = createValidateFn<Button>();"
@@ -347,7 +347,7 @@
       "code": "validate-function-root",
       "subsystem": "validation",
       "level": "runtimeError",
-      "headline": "Type `{0}` can never be validated: the generated function will always fail.",
+      "headline": "Type `{type}` can never be validated: the generated function will always fail.",
       "summary": "Your type is a function, a method, or an interface with a call signature. A function is code, not data. Validate what it takes or returns instead.",
       "fix": "const isArgs = createValidateFn<Parameters<typeof handler>>();\nconst isResult = createValidateFn<Awaited<ReturnType<typeof handler>>>();",
       "example": "import {createValidateFn} from '@mionjs/run-types';\nexport const isData = createValidateFn<() => void>();"
@@ -356,7 +356,7 @@
       "code": "validate-method-dropped",
       "subsystem": "validation",
       "level": "info",
-      "headline": "Method `{0}` is silently not validated by `validate`: methods aren't data.",
+      "headline": "Method `{method}` is silently not validated by `validate`: methods aren't data.",
       "summary": "A method like `greet(): string`, or a function property like `onClick: () => void`, is not data. Validation skips it and still checks the rest of the type. To check its result, store that result in a data property.",
       "fix": null,
       "example": "import {createValidateFn} from '@mionjs/run-types';\ninterface User { name: string; greet(): string; }\nexport const isUser = createValidateFn<User>();"
@@ -365,7 +365,7 @@
       "code": "validate-non-data-property-dropped",
       "subsystem": "validation",
       "level": "info",
-      "headline": "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `validate` drops it, so this property is silently not validated.",
+      "headline": "Property `{property}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `validate` drops it, so this property is silently not validated.",
       "summary": "A property holding a symbol, a `Promise` or a built-in class with no data form (a typed array, `ArrayBuffer`, `URLSearchParams` and similar) is skipped, so `{ id: symbol }` validates as `{}`. The other properties are still checked. A value that holds one inside, like `symbol[]` or `Map<string, symbol>`, cannot be dropped, so the whole type fails with the matching error, such as `validate-symbol-root`.",
       "fix": null,
       "example": "import {createValidateFn} from '@mionjs/run-types';\ninterface Box { id: symbol; name: string; }\nexport const isBox = createValidateFn<Box>();"
@@ -374,7 +374,7 @@
       "code": "validate-non-data-root",
       "subsystem": "validation",
       "level": "runtimeError",
-      "headline": "Type `{0}` can never be validated: the generated function will always fail.",
+      "headline": "Type `{type}` can never be validated: the generated function will always fail.",
       "summary": "Your type is a built-in class with no JSON form, such as `URLSearchParams`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, `Buffer` or a typed array like `Uint8Array`. Only `Date`, `Map`, `Set`, `URL` and the Temporal types are supported. Validate plain data instead, or convert the value first (`params.toString()`, `Array.from(bytes)`).",
       "fix": "const bytes = Array.from(myUint8Array);\nconst isData = createValidateFn<number[]>();",
       "example": "import {createValidateFn} from '@mionjs/run-types';\nexport const isData = createValidateFn<Uint8Array>();"
@@ -383,7 +383,7 @@
       "code": "validate-static-dropped",
       "subsystem": "validation",
       "level": "info",
-      "headline": "Static member `{0}` is silently not validated by `validate`: statics aren't part of instance data.",
+      "headline": "Static member `{member}` is silently not validated by `validate`: statics aren't part of instance data.",
       "summary": "Static members belong to the class, not its instances, and validation checks instance data only. The rest of the class is still checked.",
       "fix": null,
       "example": "import {createValidateFn} from '@mionjs/run-types';\nclass Config { static version = 1; name = ''; }\nexport const isConfig = createValidateFn<Config>();"
@@ -392,7 +392,7 @@
       "code": "validate-symbol-key-dropped",
       "subsystem": "validation",
       "level": "info",
-      "headline": "Symbol-keyed property `{0}` is silently not validated by `validate`: symbol keys aren't JSON-representable.",
+      "headline": "Symbol-keyed property `{property}` is silently not validated by `validate`: symbol keys aren't JSON-representable.",
       "summary": "JSON has string keys only, so validation skips a symbol-keyed property. Use a string key if the property holds real data.",
       "fix": "interface Item {\n  id: string; // instead of [Symbol.for('id')]: string\n}",
       "example": "import {createValidateFn} from '@mionjs/run-types';\nconst tag = Symbol('tag');\ninterface Item { id: string; [tag]: string }\nexport const isItem = createValidateFn<Item>();"
@@ -401,7 +401,7 @@
       "code": "validate-symbol-root",
       "subsystem": "validation",
       "level": "runtimeError",
-      "headline": "Type `{0}` can never be validated: the generated function will always fail.",
+      "headline": "Type `{type}` can never be validated: the generated function will always fail.",
       "summary": "Your type is a `symbol`, or one named symbol such as `typeof mySymbol`. A symbol's identity is lost when it crosses a network, a worker or a process. Use a string union instead.",
       "fix": "type Status = 'pending' | 'active' | 'done';",
       "example": "import {createValidateFn} from '@mionjs/run-types';\nexport const isData = createValidateFn<symbol>();"
@@ -410,7 +410,7 @@
       "code": "validate-union-member-dropped",
       "subsystem": "validation",
       "level": "info",
-      "headline": "Union member(s) of type `{0}` can't be represented as data: `validate` drops them, so the union is validated as its remaining members.",
+      "headline": "Union member(s) of type `{type}` can't be represented as data: `validate` drops them, so the union is validated as its remaining members.",
       "summary": "Validation drops union members with no data form (a symbol, a function, a `Promise`, or a built-in class that is not data), so `Date | symbol` validates as `Date`. If no member has a data form, the whole type fails with `validate-non-data-root`, `validate-symbol-root` or `validate-function-root`.",
       "fix": null,
       "example": "import {createValidateFn} from '@mionjs/run-types';\nexport const isData = createValidateFn<Date | symbol>();"
@@ -428,7 +428,7 @@
       "code": "validation-errors-function-property-dropped",
       "subsystem": "validation",
       "level": "info",
-      "headline": "Property `{0}` is a function: `validationErrors` does not handle function values, so this property is silently not checked.",
+      "headline": "Property `{property}` is a function: `validationErrors` does not handle function values, so this property is silently not checked.",
       "summary": "Same as `validate-function-property-dropped`, for `createGetValidationErrorsFn`. A function holds no data, so the property is left out of the error report and the others are still checked. You see this for an optional function property or one in a union member. A required one reports `validation-errors-method-dropped`. Remove the property, or replace it with the data it would produce.",
       "fix": null,
       "example": "import {createGetValidationErrorsFn} from '@mionjs/run-types';\ninterface Button { label: string; onClick?: () => void }\nexport const getButtonErrors = createGetValidationErrorsFn<Button>();"
@@ -437,7 +437,7 @@
       "code": "validation-errors-function-root",
       "subsystem": "validation",
       "level": "runtimeError",
-      "headline": "Type `{0}` can never be validated: the generated function will always fail.",
+      "headline": "Type `{type}` can never be validated: the generated function will always fail.",
       "summary": "Same as `validate-function-root`, for `createGetValidationErrorsFn`. Your type is a function, a method, or an interface with a call signature, which is code, not data. Check what it takes or returns instead.",
       "fix": "const argsErrors = createGetValidationErrorsFn<Parameters<typeof handler>>();\nconst resultErrors = createGetValidationErrorsFn<Awaited<ReturnType<typeof handler>>>();",
       "example": "import {createGetValidationErrorsFn} from '@mionjs/run-types';\nexport const errorsOf = createGetValidationErrorsFn<() => void>();"
@@ -446,7 +446,7 @@
       "code": "validation-errors-method-dropped",
       "subsystem": "validation",
       "level": "info",
-      "headline": "Method `{0}` is silently not checked by `validationErrors`: methods aren't data.",
+      "headline": "Method `{method}` is silently not checked by `validationErrors`: methods aren't data.",
       "summary": "Same as `validate-method-dropped`, for `createGetValidationErrorsFn`. A method like `greet(): string`, or a function property like `onClick: () => void`, is not data, so it is left out of the error report. To check its result, store that result in a data property.",
       "fix": null,
       "example": "import {createGetValidationErrorsFn} from '@mionjs/run-types';\ninterface User { name: string; greet(): string; }\nexport const errorsOf = createGetValidationErrorsFn<User>();"
@@ -455,7 +455,7 @@
       "code": "validation-errors-non-data-property-dropped",
       "subsystem": "validation",
       "level": "info",
-      "headline": "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `validationErrors` drops it, so this property is silently not checked.",
+      "headline": "Property `{property}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `validationErrors` drops it, so this property is silently not checked.",
       "summary": "Same as `validate-non-data-property-dropped`, for `createGetValidationErrorsFn`. A property holding a symbol, a `Promise` or a built-in class with no data form (a typed array, `ArrayBuffer`, `URLSearchParams` and similar) is left out of the error report, and the other properties are still checked. A value that holds one inside, like `symbol[]` or `Map<string, symbol>`, cannot be dropped, so the whole type fails with the matching error, such as `validation-errors-symbol-root`.",
       "fix": null,
       "example": "import {createGetValidationErrorsFn} from '@mionjs/run-types';\ninterface Box { id: symbol; name: string; }\nexport const errorsOf = createGetValidationErrorsFn<Box>();"
@@ -464,7 +464,7 @@
       "code": "validation-errors-non-data-root",
       "subsystem": "validation",
       "level": "runtimeError",
-      "headline": "Type `{0}` can never be validated: the generated function will always fail.",
+      "headline": "Type `{type}` can never be validated: the generated function will always fail.",
       "summary": "Same as `validate-non-data-root`, for `createGetValidationErrorsFn`. Your type is a built-in class with no JSON form, such as `URLSearchParams`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, `Buffer` or a typed array like `Uint8Array`. Only `Date`, `Map`, `Set`, `URL` and the Temporal types are supported. Check plain data instead, or convert the value first (`params.toString()`, `Array.from(bytes)`).",
       "fix": "const bytes = Array.from(myUint8Array);\nconst errorsOf = createGetValidationErrorsFn<number[]>();",
       "example": "import {createGetValidationErrorsFn} from '@mionjs/run-types';\nexport const errorsOf = createGetValidationErrorsFn<Uint8Array>();"
@@ -473,7 +473,7 @@
       "code": "validation-errors-static-dropped",
       "subsystem": "validation",
       "level": "info",
-      "headline": "Static member `{0}` is silently not checked by `validationErrors`: statics aren't part of instance data.",
+      "headline": "Static member `{member}` is silently not checked by `validationErrors`: statics aren't part of instance data.",
       "summary": "Same as `validate-static-dropped`, for `createGetValidationErrorsFn`. Static members belong to the class, not its instances, so they are left out of the error report.",
       "fix": null,
       "example": "import {createGetValidationErrorsFn} from '@mionjs/run-types';\nclass Config { static version = 1; name = ''; }\nexport const errorsOf = createGetValidationErrorsFn<Config>();"
@@ -482,7 +482,7 @@
       "code": "validation-errors-symbol-key-dropped",
       "subsystem": "validation",
       "level": "info",
-      "headline": "Symbol-keyed property `{0}` is silently not checked by `validationErrors`: symbol keys aren't JSON-representable.",
+      "headline": "Symbol-keyed property `{property}` is silently not checked by `validationErrors`: symbol keys aren't JSON-representable.",
       "summary": "Same as `validate-symbol-key-dropped`, for `createGetValidationErrorsFn`. JSON has string keys only, so a symbol-keyed property is left out of the error report. Use a string key if the property holds real data.",
       "fix": "interface Item {\n  id: string; // instead of [Symbol.for('id')]: string\n}",
       "example": null
@@ -491,7 +491,7 @@
       "code": "validation-errors-symbol-root",
       "subsystem": "validation",
       "level": "runtimeError",
-      "headline": "Type `{0}` can never be validated: the generated function will always fail.",
+      "headline": "Type `{type}` can never be validated: the generated function will always fail.",
       "summary": "Same as `validate-symbol-root`, for `createGetValidationErrorsFn`. Your type is a `symbol`, or one named symbol such as `typeof mySymbol`, and each symbol's identity is lost when it crosses a network, a worker or a process. Use a string union instead.",
       "fix": "type Status = 'pending' | 'active' | 'done';",
       "example": "import {createGetValidationErrorsFn} from '@mionjs/run-types';\nexport const errorsOf = createGetValidationErrorsFn<symbol>();"
@@ -500,7 +500,7 @@
       "code": "data-non-enumerable-required",
       "subsystem": "serialization",
       "level": "warning",
-      "headline": "Property `{0}` is tagged @nonEnumerable but is required: the guard only applies to optional properties, so the tag has no effect. Make it optional (`{0}?`) or remove the tag.",
+      "headline": "Property `{property}` is tagged @nonEnumerable but is required: the guard only applies to optional properties, so the tag has no effect. Make it optional (`{property}?`) or remove the tag.",
       "summary": "The `@nonEnumerable` tag skips a property that is not an enumerable own property of the value, but only when the property is optional. On a required property the tag is ignored and the property is always sent. Add `?` to the property, or remove the tag.",
       "fix": "interface Session {\n  /** @nonEnumerable */ token?: string;\n}",
       "example": null
@@ -509,7 +509,7 @@
       "code": "data-proto-property-dropped",
       "subsystem": "serialization",
       "level": "warning",
-      "headline": "Property `{0}` can never be data and is dropped: the rest of the type still works.",
+      "headline": "Property `{property}` can never be data and is dropped: the rest of the type still works.",
       "summary": "A property named `__proto__` is left out of every generated function, anywhere in the type (nested objects, array items and Map values too). Setting that key changes the object's prototype instead of storing a value, so it never exists at runtime even though TypeScript accepts it. `prototype` and `constructor` are normal names and are kept. Rename the property to keep the data.",
       "fix": "interface Settings { ok: number; parent: string }",
       "example": "import {createValidateFn} from '@mionjs/run-types';\ninterface Settings { ok: number; __proto__: string }\nexport const isSettings = createValidateFn<Settings>();"
@@ -518,7 +518,7 @@
       "code": "json-prepare-clone-function-property-dropped",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Property `{0}` is a function: the JSON encoder does not handle function values, so this property is silently not encoded.",
+      "headline": "Property `{property}` is a function: the JSON encoder does not handle function values, so this property is silently not encoded.",
       "summary": "A function has no JSON form, so the encoder leaves this property out and encodes the rest as usual. This is expected: only data is encoded.",
       "fix": null,
       "example": null
@@ -527,7 +527,7 @@
       "code": "json-prepare-clone-function-root",
       "subsystem": "serialization",
       "level": "runtimeError",
-      "headline": "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
+      "headline": "Type `{type}` can never be encoded to JSON: the generated function will always fail.",
       "summary": "A function has no JSON form, so there is nothing to encode. Use the data the function returns. A method or function property inside an object is dropped instead (json-prepare-clone-method-dropped, or json-prepare-clone-function-property-dropped when optional or in a union member).",
       "fix": "interface User {\n  name: string; // not getName: () => string\n}",
       "example": null
@@ -536,7 +536,7 @@
       "code": "json-prepare-clone-method-dropped",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Method `{0}` is silently not encoded: methods aren't data.",
+      "headline": "Method `{method}` is silently not encoded: methods aren't data.",
       "summary": "Methods are not data, so the encoder leaves them out and still encodes the rest of the type. To encode a method's result, store it in a data property.",
       "fix": null,
       "example": null
@@ -545,7 +545,7 @@
       "code": "json-prepare-clone-never-root",
       "subsystem": "serialization",
       "level": "runtimeError",
-      "headline": "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
+      "headline": "Type `{type}` can never be encoded to JSON: the generated function will always fail.",
       "summary": "Your type resolves to `never`, so no value can ever match it and there is nothing to encode. Use a concrete type that matches your data, or `unknown` if you accept any value and check it before use. A `never` property inside an object is dropped instead (json-prepare-clone-non-data-property-dropped).",
       "fix": "type Tag = 'pending' | 'active' | 'done';\n// or, to accept any value:\ntype AnyTag = unknown; // check it before use",
       "example": null
@@ -554,7 +554,7 @@
       "code": "json-prepare-clone-non-data-property-dropped",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): the JSON encoder drops it, so this property is silently not encoded.",
+      "headline": "Property `{property}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): the JSON encoder drops it, so this property is silently not encoded.",
       "summary": "A property holding a symbol, `never`, a `Promise`, a `RegExp` or a standard library class such as a typed array, `ArrayBuffer`, `URLSearchParams` or `Intl.DateTimeFormat` has no JSON form, so the encoder drops it and leaves the rest of the object alone: `{a: symbol}` encodes as `{}`. A property holding such a value inside an array or a Map, like `symbol[]` or `Map<string, symbol>`, cannot be dropped: you get an error instead (such as json-prepare-clone-symbol-root), and the encoder always fails.",
       "fix": null,
       "example": null
@@ -563,7 +563,7 @@
       "code": "json-prepare-clone-non-data-root",
       "subsystem": "serialization",
       "level": "runtimeError",
-      "headline": "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
+      "headline": "Type `{type}` can never be encoded to JSON: the generated function will always fail.",
       "summary": "Standard library classes have no JSON form, except `Date`, `Map`, `Set`, `URL` and the Temporal types. When your type is `URLSearchParams`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, a typed array or `Buffer` (or an array of them), there is nothing to encode. Convert the value to plain data, like a string for a `URLSearchParams` or a number array for a typed array. Inside an object, such a property is dropped instead (json-prepare-clone-non-data-property-dropped).",
       "fix": "const query: string = yourParams.toString(); // not a URLSearchParams\nconst bytes: number[] = Array.from(yourBuffer); // not a typed array",
       "example": null
@@ -572,7 +572,7 @@
       "code": "json-prepare-clone-static-dropped",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Static member `{0}` is silently not encoded: statics aren't part of instance data.",
+      "headline": "Static member `{member}` is silently not encoded: statics aren't part of instance data.",
       "summary": "Static members belong to the class, not its instances, so the encoder leaves them out.",
       "fix": null,
       "example": null
@@ -581,7 +581,7 @@
       "code": "json-prepare-clone-symbol-key-dropped",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Symbol-keyed property `{0}` is silently not encoded: symbol keys aren't JSON-representable.",
+      "headline": "Symbol-keyed property `{property}` is silently not encoded: symbol keys aren't JSON-representable.",
       "summary": "JSON only has string keys, so the encoder leaves out properties keyed by a symbol. Use a string key if you need the value encoded.",
       "fix": "interface Item {\n  id: string; // not [Symbol.for('id')]: string\n}",
       "example": null
@@ -590,7 +590,7 @@
       "code": "json-prepare-clone-symbol-root",
       "subsystem": "serialization",
       "level": "runtimeError",
-      "headline": "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
+      "headline": "Type `{type}` can never be encoded to JSON: the generated function will always fail.",
       "summary": "A `symbol`'s identity is lost in JSON, so it cannot be encoded. Use a string instead, often a union of string literals. A symbol property inside an object is dropped instead (json-prepare-clone-non-data-property-dropped).",
       "fix": "type Status = 'pending' | 'active' | 'done'; // not symbol",
       "example": null
@@ -599,7 +599,7 @@
       "code": "json-prepare-clone-union-member-dropped",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Union member(s) of type `{0}` can't be represented as data: the JSON encoder drops them, so the union is encoded as its remaining members.",
+      "headline": "Union member(s) of type `{type}` can't be represented as data: the JSON encoder drops them, so the union is encoded as its remaining members.",
       "summary": "Symbols, functions, `never`, `Promise`, `RegExp` and standard library classes such as `URLSearchParams` or typed arrays have no JSON form, so the encoder drops them from the union: `Date | symbol` encodes as `Date`. If every member is dropped, you get the error for the whole type instead (such as json-prepare-clone-symbol-root), and the encoder always fails.",
       "fix": null,
       "example": null
@@ -608,7 +608,7 @@
       "code": "json-prepare-function-property-dropped",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Property `{0}` is a function: the JSON encoder does not handle function values, so this property is silently not encoded.",
+      "headline": "Property `{property}` is a function: the JSON encoder does not handle function values, so this property is silently not encoded.",
       "summary": "A function has no JSON form, so the encoder leaves this property out and encodes the rest as usual. This is expected: only data is encoded.",
       "fix": null,
       "example": null
@@ -617,7 +617,7 @@
       "code": "json-prepare-function-root",
       "subsystem": "serialization",
       "level": "runtimeError",
-      "headline": "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
+      "headline": "Type `{type}` can never be encoded to JSON: the generated function will always fail.",
       "summary": "A function has no JSON form, so there is nothing to encode. Use the data the function returns. A method or function property inside an object is dropped instead (json-prepare-method-dropped, or json-prepare-function-property-dropped when optional or in a union member).",
       "fix": "interface User {\n  name: string; // not getName: () => string\n}",
       "example": null
@@ -626,7 +626,7 @@
       "code": "json-prepare-method-dropped",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Method `{0}` is silently not encoded: methods aren't data.",
+      "headline": "Method `{method}` is silently not encoded: methods aren't data.",
       "summary": "Methods are not data, so the encoder leaves them out and still encodes the rest of the type. To encode a method's result, store it in a data property.",
       "fix": null,
       "example": null
@@ -635,7 +635,7 @@
       "code": "json-prepare-never-root",
       "subsystem": "serialization",
       "level": "runtimeError",
-      "headline": "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
+      "headline": "Type `{type}` can never be encoded to JSON: the generated function will always fail.",
       "summary": "Your type resolves to `never`, so no value can ever match it and there is nothing to encode. Use a concrete type that matches your data, or `unknown` if you accept any value and check it before use. A `never` property inside an object is dropped instead (json-prepare-non-data-property-dropped).",
       "fix": "type Tag = 'pending' | 'active' | 'done';\n// or, to accept any value:\ntype AnyTag = unknown; // check it before use",
       "example": null
@@ -644,7 +644,7 @@
       "code": "json-prepare-non-data-property-dropped",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): the JSON encoder drops it, so this property is silently not encoded.",
+      "headline": "Property `{property}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): the JSON encoder drops it, so this property is silently not encoded.",
       "summary": "A property holding a symbol, `never`, a `Promise`, a `RegExp` or a standard library class such as a typed array, `ArrayBuffer`, `URLSearchParams` or `Intl.DateTimeFormat` has no JSON form, so the encoder drops it and leaves the rest of the object alone: `{a: symbol}` encodes as `{}`. A property holding such a value inside an array or a Map, like `symbol[]` or `Map<string, symbol>`, cannot be dropped: you get an error instead (such as json-prepare-symbol-root), and the encoder always fails.",
       "fix": null,
       "example": null
@@ -653,7 +653,7 @@
       "code": "json-prepare-non-data-root",
       "subsystem": "serialization",
       "level": "runtimeError",
-      "headline": "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
+      "headline": "Type `{type}` can never be encoded to JSON: the generated function will always fail.",
       "summary": "Standard library classes have no JSON form, except `Date`, `Map`, `Set`, `URL` and the Temporal types. When your type is `URLSearchParams`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, a typed array or `Buffer` (or an array of them), there is nothing to encode. Convert the value to plain data, like a string for a `URLSearchParams` or a number array for a typed array. Inside an object, such a property is dropped instead (json-prepare-non-data-property-dropped).",
       "fix": "const query: string = yourParams.toString(); // not a URLSearchParams\nconst bytes: number[] = Array.from(yourBuffer); // not a typed array",
       "example": null
@@ -662,7 +662,7 @@
       "code": "json-prepare-static-dropped",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Static member `{0}` is silently not encoded: statics aren't part of instance data.",
+      "headline": "Static member `{member}` is silently not encoded: statics aren't part of instance data.",
       "summary": "Static members belong to the class, not its instances, so the encoder leaves them out.",
       "fix": null,
       "example": null
@@ -671,7 +671,7 @@
       "code": "json-prepare-symbol-key-dropped",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Symbol-keyed property `{0}` is silently not encoded: symbol keys aren't JSON-representable.",
+      "headline": "Symbol-keyed property `{property}` is silently not encoded: symbol keys aren't JSON-representable.",
       "summary": "JSON only has string keys, so the encoder leaves out properties keyed by a symbol. Use a string key if you need the value encoded.",
       "fix": "interface Item {\n  id: string; // not [Symbol.for('id')]: string\n}",
       "example": null
@@ -680,7 +680,7 @@
       "code": "json-prepare-symbol-root",
       "subsystem": "serialization",
       "level": "runtimeError",
-      "headline": "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
+      "headline": "Type `{type}` can never be encoded to JSON: the generated function will always fail.",
       "summary": "A `symbol`'s identity is lost in JSON, so it cannot be encoded. Use a string instead, often a union of string literals. A symbol property inside an object is dropped instead (json-prepare-non-data-property-dropped).",
       "fix": "type Status = 'pending' | 'active' | 'done'; // not symbol",
       "example": null
@@ -689,7 +689,7 @@
       "code": "json-prepare-union-member-dropped",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Union member(s) of type `{0}` can't be represented as data: the JSON encoder drops them, so the union is encoded as its remaining members.",
+      "headline": "Union member(s) of type `{type}` can't be represented as data: the JSON encoder drops them, so the union is encoded as its remaining members.",
       "summary": "Symbols, functions, `never`, `Promise`, `RegExp` and standard library classes such as `URLSearchParams` or typed arrays have no JSON form, so the encoder drops them from the union: `Date | symbol` encodes as `Date`. If every member is dropped, you get the error for the whole type instead (such as json-prepare-symbol-root), and the encoder always fails.",
       "fix": null,
       "example": null
@@ -698,7 +698,7 @@
       "code": "json-restore-function-property-dropped",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Property `{0}` is a function: the JSON decoder does not handle function values, so this property is silently not decoded.",
+      "headline": "Property `{property}` is a function: the JSON decoder does not handle function values, so this property is silently not decoded.",
       "summary": "A function has no JSON form, so the decoder leaves this property out and decodes the rest as usual. This is expected: only data is decoded.",
       "fix": null,
       "example": null
@@ -707,7 +707,7 @@
       "code": "json-restore-function-root",
       "subsystem": "serialization",
       "level": "runtimeError",
-      "headline": "Type `{0}` can never be decoded from JSON: the generated function will always fail.",
+      "headline": "Type `{type}` can never be decoded from JSON: the generated function will always fail.",
       "summary": "A function has no JSON form, so there is nothing to decode. Use the data the function returns. A method or function property inside an object is dropped instead (json-restore-method-dropped, or json-restore-function-property-dropped when optional or in a union member).",
       "fix": "interface User {\n  name: string; // not getName: () => string\n}",
       "example": null
@@ -716,7 +716,7 @@
       "code": "json-restore-method-dropped",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Method `{0}` is silently not decoded: methods aren't data.",
+      "headline": "Method `{method}` is silently not decoded: methods aren't data.",
       "summary": "Methods are not data, so the decoder leaves them out and still decodes the rest of the type. To decode a method's result, store it in a data property.",
       "fix": null,
       "example": null
@@ -725,7 +725,7 @@
       "code": "json-restore-never-root",
       "subsystem": "serialization",
       "level": "runtimeError",
-      "headline": "Type `{0}` can never be decoded from JSON: the generated function will always fail.",
+      "headline": "Type `{type}` can never be decoded from JSON: the generated function will always fail.",
       "summary": "Your type resolves to `never`, so no value can ever match it and there is nothing to decode. Use a concrete type that matches your data, or `unknown` if you accept any value and check it before use. A `never` property inside an object is dropped instead (json-restore-non-data-property-dropped).",
       "fix": "type Tag = 'pending' | 'active' | 'done';\n// or, to accept any value:\ntype AnyTag = unknown; // check it before use",
       "example": null
@@ -734,7 +734,7 @@
       "code": "json-restore-non-data-property-dropped",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): the JSON decoder drops it, so this property is silently not decoded.",
+      "headline": "Property `{property}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): the JSON decoder drops it, so this property is silently not decoded.",
       "summary": "A property holding a symbol, `never`, a `Promise`, a `RegExp` or a standard library class such as a typed array, `ArrayBuffer`, `URLSearchParams` or `Intl.DateTimeFormat` has no JSON form, so the decoder drops it and leaves the rest of the object alone: `{a: symbol}` decodes as `{}`. A property holding such a value inside an array or a Map, like `symbol[]` or `Map<string, symbol>`, cannot be dropped: you get an error instead (such as json-restore-symbol-root), and the decoder always fails.",
       "fix": null,
       "example": null
@@ -743,7 +743,7 @@
       "code": "json-restore-non-data-root",
       "subsystem": "serialization",
       "level": "runtimeError",
-      "headline": "Type `{0}` can never be decoded from JSON: the generated function will always fail.",
+      "headline": "Type `{type}` can never be decoded from JSON: the generated function will always fail.",
       "summary": "Standard library classes have no JSON form, except `Date`, `Map`, `Set`, `URL` and the Temporal types. When your type is `URLSearchParams`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, `RegExp`, a typed array or `Buffer` (or an array of them), there is nothing to decode. Convert the value to plain data, like a string for a `URLSearchParams` or a number array for a typed array. Inside an object, such a property is dropped instead (json-restore-non-data-property-dropped).",
       "fix": "const query: string = yourParams.toString(); // not a URLSearchParams\nconst bytes: number[] = Array.from(yourBuffer); // not a typed array",
       "example": null
@@ -752,7 +752,7 @@
       "code": "json-restore-static-dropped",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Static member `{0}` is silently not decoded: statics aren't part of instance data.",
+      "headline": "Static member `{member}` is silently not decoded: statics aren't part of instance data.",
       "summary": "Static members belong to the class, not its instances, so the decoder leaves them out.",
       "fix": null,
       "example": null
@@ -761,7 +761,7 @@
       "code": "json-restore-symbol-key-dropped",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Symbol-keyed property `{0}` is silently not decoded: symbol keys aren't JSON-representable.",
+      "headline": "Symbol-keyed property `{property}` is silently not decoded: symbol keys aren't JSON-representable.",
       "summary": "JSON only has string keys, so the decoder leaves out properties keyed by a symbol. Use a string key if you need the value decoded.",
       "fix": "interface Item {\n  id: string; // not [Symbol.for('id')]: string\n}",
       "example": null
@@ -770,7 +770,7 @@
       "code": "json-restore-symbol-root",
       "subsystem": "serialization",
       "level": "runtimeError",
-      "headline": "Type `{0}` can never be decoded from JSON: the generated function will always fail.",
+      "headline": "Type `{type}` can never be decoded from JSON: the generated function will always fail.",
       "summary": "A `symbol`'s identity is lost in JSON, so it cannot be decoded. Use a string instead, often a union of string literals. A symbol property inside an object is dropped instead (json-restore-non-data-property-dropped).",
       "fix": "type Status = 'pending' | 'active' | 'done'; // not symbol",
       "example": null
@@ -779,7 +779,7 @@
       "code": "json-restore-union-member-dropped",
       "subsystem": "serialization",
       "level": "info",
-      "headline": "Union member(s) of type `{0}` can't be represented as data: the JSON decoder drops them, so the union is decoded as its remaining members.",
+      "headline": "Union member(s) of type `{type}` can't be represented as data: the JSON decoder drops them, so the union is decoded as its remaining members.",
       "summary": "Symbols, functions, `never`, `Promise`, `RegExp` and standard library classes such as `URLSearchParams` or typed arrays have no JSON form, so the decoder drops them from the union: `Date | symbol` decodes as `Date`. If every member is dropped, you get the error for the whole type instead (such as json-restore-symbol-root), and the decoder always fails.",
       "fix": null,
       "example": null
@@ -788,7 +788,7 @@
       "code": "unknown-keys-function-shared",
       "subsystem": "unknown-keys",
       "level": "warning",
-      "headline": "The function in {0} cannot be copied: the copy shares it with the input.",
+      "headline": "The function in {target} cannot be copied: the copy shares it with the input.",
       "summary": "`removeUnknownKeys` never removes a declared key. A function cannot be copied, so the copy points to the same function as the input. Class methods stay on the prototype instead (unknown-keys-method-not-copied). A function type itself is shared the same way. Pass `sharedValues: 'share'` to say this is fine, or `'refuse'` to make it an error.",
       "fix": null,
       "example": "import {createRemoveUnknownKeysFn} from '@mionjs/run-types';\ninterface Button { label: string; onClick: () => void }\nexport const removeButtonKeys = createRemoveUnknownKeysFn<Button>();"
@@ -797,7 +797,7 @@
       "code": "unknown-keys-method-not-copied",
       "subsystem": "unknown-keys",
       "level": "info",
-      "headline": "Method or accessor `{0}` is not copied: the copy keeps the input's prototype, so it still works.",
+      "headline": "Method or accessor `{member}` is not copied: the copy keeps the input's prototype, so it still works.",
       "summary": "A class copy keeps the input's prototype, so methods and get / set accessors still work without being copied. A function stored in a field (`onChange = () => ...`) is its own value and is shared instead (unknown-keys-function-shared). The constructor does not run on the copy.",
       "fix": null,
       "example": "import {createRemoveUnknownKeysFn} from '@mionjs/run-types';\nexport class User { name = ''; greet(): string { return this.name; } }\nexport const removeUserKeys = createRemoveUnknownKeysFn<User>();"
@@ -806,7 +806,7 @@
       "code": "unknown-keys-non-data-shared",
       "subsystem": "unknown-keys",
       "level": "warning",
-      "headline": "The value in {0} cannot be copied (a Promise, a RegExp or a built-in that is not data): the copy shares it with the input.",
+      "headline": "The value in {target} cannot be copied (a Promise, a RegExp or a built-in that is not data): the copy shares it with the input.",
       "summary": "`removeUnknownKeys` never removes a declared property. A value it cannot copy, like a `Promise`, a `RegExp` or a built-in like `URLSearchParams`, is shared with the input, so a change through it shows on both. Pass `sharedValues: 'share'` to say this is fine, `'refuse'` to make it an error, or register `overrideRemoveUnknownKeys<T>()` to copy it yourself.",
       "fix": null,
       "example": "import {createRemoveUnknownKeysFn} from '@mionjs/run-types';\ninterface Link { title: string; pattern: RegExp }\nexport const removeLinkKeys = createRemoveUnknownKeysFn<Link>();"
@@ -824,7 +824,7 @@
       "code": "unknown-keys-private-fields",
       "subsystem": "unknown-keys",
       "level": "runtimeError",
-      "headline": "The {0} has `#private` fields, which only its constructor can create: a copy would break its methods, so the function always throws.",
+      "headline": "The {target} has `#private` fields, which only its constructor can create: a copy would break its methods, so the function always throws.",
       "summary": "A class copy keeps the input's prototype but never runs the constructor, and only the constructor can create `#private` fields. A method reading one would throw on the copy, so the function always throws instead. Use TypeScript `private` instead of `#`, or register `overrideRemoveUnknownKeys<T>()` to build the copy yourself.",
       "fix": "class Counter { private count = 0; }",
       "example": "import {createRemoveUnknownKeysFn} from '@mionjs/run-types';\nexport class Counter { #count = 0; label = ''; }\nexport const removeCounterKeys = createRemoveUnknownKeysFn<Counter>();"
@@ -833,7 +833,7 @@
       "code": "unknown-keys-shared-value-refused",
       "subsystem": "unknown-keys",
       "level": "runtimeError",
-      "headline": "The value in {0} can only be shared with the input and `sharedValues: 'refuse'` is set, so the function always throws.",
+      "headline": "The value in {target} can only be shared with the input and `sharedValues: 'refuse'` is set, so the function always throws.",
       "summary": "With `sharedValues: 'refuse'`, a value the copy cannot rebuild (a function, a `Promise`, a `RegExp` or a built-in like `URLSearchParams`) makes the function always throw instead of sharing it with the input. Remove the option to share it with a warning, or change the type.",
       "fix": null,
       "example": "import {createRemoveUnknownKeysFn} from '@mionjs/run-types';\ninterface Button { label: string; onClick: () => void }\nexport const removeButtonKeys = createRemoveUnknownKeysFn<Button>(undefined, {sharedValues: 'refuse'});"
@@ -842,7 +842,7 @@
       "code": "unknown-keys-static-dropped",
       "subsystem": "unknown-keys",
       "level": "info",
-      "headline": "Static member `{0}` is not part of instance data: `removeUnknownKeys` skips it.",
+      "headline": "Static member `{member}` is not part of instance data: `removeUnknownKeys` skips it.",
       "summary": "Static members belong to the class, not its instances, so the copy leaves them out.",
       "fix": null,
       "example": "import {createRemoveUnknownKeysFn} from '@mionjs/run-types';\nexport class Config { static version = 1; name = ''; }\nexport const removeConfigKeys = createRemoveUnknownKeysFn<Config>();"
@@ -851,7 +851,7 @@
       "code": "unknown-keys-symbol-key",
       "subsystem": "unknown-keys",
       "level": "runtimeError",
-      "headline": "Symbol-keyed {0} cannot be copied: the generated code cannot name your symbol, so the function always throws.",
+      "headline": "Symbol-keyed {target} cannot be copied: the generated code cannot name your symbol, so the function always throws.",
       "summary": "The copy is typed as your type, so it must have the symbol-keyed property too. The generated code cannot name a symbol from your code, and copying every symbol on the input would keep undeclared ones, so the function always throws. Use a string key, or a `[key: symbol]: V` index signature, whose keys are all copied. Symbol-keyed class methods are fine: they stay on the prototype.",
       "fix": "interface Item { id: string; tag: string }",
       "example": "import {createRemoveUnknownKeysFn} from '@mionjs/run-types';\nconst tag = Symbol('tag');\ninterface Item { id: string; [tag]: string }\nexport const removeItemKeys = createRemoveUnknownKeysFn<Item>();"
@@ -860,7 +860,7 @@
       "code": "unknown-keys-value-shared",
       "subsystem": "unknown-keys",
       "level": "info",
-      "headline": "The value in {0} is shared with the input, as `sharedValues: 'share'` asks.",
+      "headline": "The value in {target} is shared with the input, as `sharedValues: 'share'` asks.",
       "summary": "You passed `sharedValues: 'share'`, so a function or a value the copy cannot rebuild is shared with the input, as asked. This note is hidden unless you show all levels.",
       "fix": null,
       "example": "import {createRemoveUnknownKeysFn} from '@mionjs/run-types';\ninterface Button { label: string; onClick: () => void }\nexport const removeButtonKeys = createRemoveUnknownKeysFn<Button>(undefined, {sharedValues: 'share'});"
@@ -869,7 +869,7 @@
       "code": "format-invalid-params",
       "subsystem": "formats",
       "level": "runtimeError",
-      "headline": "Invalid type-format params: {0}",
+      "headline": "Invalid type-format params: {reason}",
       "summary": "A format's settings break one of its rules, so its validator would be wrong or would throw. The message names the rule, for example `length` used with `minLength` or `maxLength`, `maxLength` below `minLength`, more than 100 `allowedValues`, or a `pattern` that is not a valid JavaScript regex. A string format takes only one of `pattern`, `allowedChars`, `disallowedChars`, `allowedValues` or `disallowedValues`, and `disallowedChars` or `disallowedValues` need `mockSamples`. Change the settings the message names.",
       "fix": null,
       "example": null
@@ -878,7 +878,7 @@
       "code": "format-no-js-runtime",
       "subsystem": "formats",
       "level": "runtimeError",
-      "headline": "TypeFormat pattern /{0}/ cannot be checked: {1}; pattern validation requires a JavaScript runtime; install one or pass --js-runtime.",
+      "headline": "TypeFormat pattern /{pattern}/ cannot be checked: {reason}; pattern validation requires a JavaScript runtime; install one or pass --js-runtime.",
       "summary": "mion checks each `pattern` on a real JavaScript engine (that it compiles and that its `mockSamples` match), and no JavaScript runtime could be started. Install node or bun (both found on your PATH), or point `--js-runtime` or `MION_JS_RUNTIME` at another runtime such as deno. Projects with no patterns never need this.",
       "fix": null,
       "example": null
@@ -887,7 +887,7 @@
       "code": "format-pattern-timeout",
       "subsystem": "formats",
       "level": "runtimeError",
-      "headline": "TypeFormat pattern /{0}/ could not be evaluated in time: {1}; the build was not able to tell whether the pattern is safe.",
+      "headline": "TypeFormat pattern /{pattern}/ could not be evaluated in time: {reason}; the build was not able to tell whether the pattern is safe.",
       "summary": "Each `mockSample` runs through your pattern with a time limit, and this one ran out of time even on a longer retry. Either the pattern backtracks without end (nested repeats such as `(a+)+` on a long input are the usual cause), or the machine was too busy. The next build checks again, so a one-off slowdown clears by itself. If it keeps failing on an idle machine, rewrite the pattern without nested repeats, or shorten the sample it times out on.",
       "fix": null,
       "example": null
@@ -896,7 +896,7 @@
       "code": "format-pattern-unreadable",
       "subsystem": "formats",
       "level": "runtimeError",
-      "headline": "TypeFormat pattern `{0}` is a value the build cannot read, so the validator would not check it.",
+      "headline": "TypeFormat pattern `{pattern}` is a value the build cannot read, so the validator would not check it.",
       "summary": "The build reads a `pattern` from its type. A RegExp value, or a const typed as plain `FormatPattern`, keeps no source in its type, and a `.d.ts` keeps only the type. The validator would then not check the pattern at all. Use a `registerFormatPattern` const without a type annotation, or write the source as a literal.",
       "fix": "const sku = registerFormatPattern({source: '^[A-Z]{3}-[0-9]{4}$'});\ntype Sku = String<{pattern: typeof sku}>;\n// or\ntype Sku = String<{pattern: {source: '^[A-Z]{3}-[0-9]{4}$'}}>;",
       "example": "import {createValidateFn} from '@mionjs/run-types';\nimport * as TF from '@mionjs/run-types/formats';\ndeclare const sku: {readonly source: string};\nexport const isSku = createValidateFn<TF.String<{pattern: typeof sku}>>();"
@@ -905,7 +905,7 @@
       "code": "format-pattern-unsafe",
       "subsystem": "formats",
       "level": "runtimeError",
-      "headline": "TypeFormat pattern /{0}/ can be made to backtrack exponentially: {1} (`{2}`); a crafted input would hang the validator.",
+      "headline": "TypeFormat pattern /{pattern}/ can be made to backtrack exponentially: {reason} (`{input}`); a crafted input would hang the validator.",
       "summary": "The `pattern` can match the same text in more than one way, and JavaScript tries every way before it gives up, so a few dozen almost-matching characters can hang your validator. Make each repeat match one way only, usually by giving the repeated part a boundary the rest cannot match. If the pattern is safe and the check is wrong, add `unsafePattern: true` to the pattern.",
       "fix": "type Words = String<{pattern: {source: '^\\\\w+(?:\\\\s\\\\w+)*$'}}>;\n// only if the check is wrong:\ntype Safe = String<{pattern: {source: '...'; unsafePattern: true}}>;",
       "example": null
@@ -914,7 +914,7 @@
       "code": "format-sample-conflict",
       "subsystem": "formats",
       "level": "runtimeError",
-      "headline": "Two sites share one cache entry for format `{0}` but declare different mockSamples: `{1}` here vs `{2}` at {3}. Make the pools identical, or declare one and leave the other out.",
+      "headline": "Two sites share one cache entry for format `{format}` but declare different mockSamples: `{samples}` here vs `{otherSamples}` at {otherSite}. Make the pools identical, or declare one and leave the other out.",
       "summary": "Two formats that differ only in their `mockSamples` share one validator entry, which keeps only one sample list. Which list wins would depend on the order your code is read, so the build stops. Use the same `mockSamples` in both, or declare them in one and leave them out of the other. If the two types really differ, give them a different pattern, bound or brand.",
       "fix": "type A = String<{maxLength: 5; mockSamples: ['aaa']}>;\ntype B = String<{maxLength: 5; mockSamples: ['aaa']}>; // same samples\n// or leave them out: type B = String<{maxLength: 5}>;",
       "example": null
@@ -923,7 +923,7 @@
       "code": "format-sample-generation-failed",
       "subsystem": "formats",
       "level": "runtimeError",
-      "headline": "Cannot auto-generate mockSamples for pattern /{0}/: {1}; declare mockSamples explicitly.",
+      "headline": "Cannot auto-generate mockSamples for pattern /{pattern}/: {reason}; declare mockSamples explicitly.",
       "summary": "A `pattern` with no `mockSamples` gets samples generated at build time, and none came out. Either generation is off (`patternSampleCount` is 0), the pattern uses something the generator cannot handle (usually a lookaround), or all `patternSampleCount` times `patternSampleRetries` tries failed the pattern or its length limits. Declare `mockSamples` yourself (they are still checked against the pattern), or set `patternSampleCount` above 0 and raise `patternSampleRetries` for a heavily constrained pattern.",
       "fix": "type Y = String<{pattern: {source: '(?<=x)y'; mockSamples: ['xy']}}>;",
       "example": null
@@ -932,7 +932,7 @@
       "code": "format-sample-mismatch",
       "subsystem": "formats",
       "level": "runtimeError",
-      "headline": "TypeFormat mockSample \"{0}\" does not match its pattern /{1}/; fix the sample or the pattern.",
+      "headline": "TypeFormat mockSample \"{sample}\" does not match its pattern /{pattern}/; fix the sample or the pattern.",
       "summary": "A `mockSample` does not match its `pattern` (checked with the same regex your validator uses), so mock data built from it would fail validation. Change the sample or the pattern so they agree.",
       "fix": "type Slug = String<{pattern: {source: '^[a-z]+$'; mockSamples: ['abc', 'xyz']}}>;",
       "example": null
@@ -941,7 +941,7 @@
       "code": "format-sample-out-of-bounds",
       "subsystem": "formats",
       "level": "runtimeError",
-      "headline": "TypeFormat mockSample violates a sibling constraint: {0}",
+      "headline": "TypeFormat mockSample violates a sibling constraint: {reason}",
       "summary": "A `mockSample` breaks another setting of the same format: `length`, `minLength`, `maxLength`, `allowedChars`, `disallowedChars` or `disallowedValues`. Mock data would then be invalid, or `createMockDataFn` would drop every sample and throw. Lengths count UTF-16 code units, the same as the validator's `.length` check. Change the sample or relax the setting.",
       "fix": "type B = String<{minLength: 1; pattern: {source: '^b+$'; mockSamples: ['b', 'bb']}}>;",
       "example": null
@@ -950,7 +950,7 @@
       "code": "purefn-artifact-conflict",
       "subsystem": "pure-functions",
       "level": "error",
-      "headline": "Pure fn `{0}` differs between `{1}` and `{2}`.",
+      "headline": "Pure fn `{fn}` differs between `{first}` and `{second}`.",
       "summary": "Two `mion-pure-fns/` directories of the same installed package give this id a different body or name, so one is stale or comes from another build. One id must mean one body under one name, so the build stops rather than pick one. Rebuild the package so every output directory has the same `mion-pure-fns/`, or delete the stale copy.",
       "fix": null,
       "example": null
@@ -959,7 +959,7 @@
       "code": "purefn-artifact-unreadable",
       "subsystem": "pure-functions",
       "level": "warning",
-      "headline": "`{0}` could not be read as part of a pure-fn artifact: {1}.",
+      "headline": "`{file}` could not be read as part of a pure-fn artifact: {reason}.",
       "summary": "A mion build writes a package's compiled pure functions to `mion-pure-fns/` next to its output: an `index.json` plus one module per function. This file was skipped: the index is not an index or has a format this compiler does not know, or a module it lists is missing or holds nothing for its id. The package may then seem to ship no pure functions, or miss one. Update mion to the version that wrote the directory, or rebuild the package with your version.",
       "fix": null,
       "example": null
@@ -968,7 +968,7 @@
       "code": "purefn-dependency-cycle",
       "subsystem": "pure-functions",
       "level": "error",
-      "headline": "Pure functions circular dependency: `{0}` (`{1}`) reaches back into `{2}`.",
+      "headline": "Pure functions circular dependency: `{fn}` (`{id}`) reaches back into `{target}`.",
       "summary": "A pure function's id depends on the ids of the pure functions it calls, so two that call each other can never get an id, and at runtime they would call each other forever. Break the cycle: copy the shared part into both, or move it into a third pure function that calls neither.",
       "fix": null,
       "example": null
@@ -977,7 +977,7 @@
       "code": "purefn-dependency-not-id",
       "subsystem": "pure-functions",
       "level": "runtimeError",
-      "headline": "`{0}.{1}` dependency argument must be a pure-fn id.",
+      "headline": "`{namespace}.{fn}` dependency argument must be a pure-fn id.",
       "summary": "`utl.usePureFn` and `utl.getPureFn` need a fixed id, so the build can check that the pure function is registered and write the id into the output. Pass the value a registration returned, imported from a file in this build, or a string literal.",
       "fix": "import {slugify} from './slug';\nconst myFn = registerPureFnFactory((utl) => (input) => utl.usePureFn(slugify)(input));",
       "example": null
@@ -986,7 +986,7 @@
       "code": "purefn-destructured-param",
       "subsystem": "pure-functions",
       "level": "error",
-      "headline": "Pure-fn factory `{0}` uses destructured parameters; only simple identifier params are supported.",
+      "headline": "Pure-fn factory `{factory}` uses destructured parameters; only simple identifier params are supported.",
       "summary": "A destructured parameter like `({a, b})` or `([x, y])` has no single name the build can refer to. Take one plain parameter and destructure it inside the body.",
       "fix": "const myFn = registerPureFnFactory((utl) => (params) => {\n  const {a, b} = params;\n  return ...;\n});",
       "example": null
@@ -995,7 +995,7 @@
       "code": "purefn-forbidden-construct",
       "subsystem": "pure-functions",
       "level": "runtimeError",
-      "headline": "`{0}` is not allowed inside a pure-fn factory body.",
+      "headline": "`{construct}` is not allowed inside a pure-fn factory body.",
       "summary": "Globals such as `eval`, `Function`, `fetch`, `XMLHttpRequest`, `require`, `process`, `globalThis`, `window` and `document` are blocked in a pure function. They run arbitrary code or depend on an environment the build cannot reproduce. Remove the reference, or pass the value you need in as a parameter.",
       "fix": null,
       "example": null
@@ -1004,7 +1004,7 @@
       "code": "purefn-id-mismatch",
       "subsystem": "pure-functions",
       "level": "error",
-      "headline": "Explicit pure-fn id `{0}` does not match this registration's computed id `{1}`.",
+      "headline": "Explicit pure-fn id `{id}` does not match this registration's computed id `{computedId}`.",
       "summary": "The build adds a pure function's id itself, so your source normally passes none. Editing the body changes the id (renaming or moving the function does not), so a hand-written or outdated id registers the body under one id while every reference uses another. Delete the id argument and let the build add it, or regenerate the file the id is imported from.",
       "fix": null,
       "example": null
@@ -1031,7 +1031,7 @@
       "code": "purefn-not-registered",
       "subsystem": "pure-functions",
       "level": "runtimeError",
-      "headline": "Pure fn `{0}` is referenced by a RT function but was never registered.",
+      "headline": "Pure fn `{fn}` is referenced by a RT function but was never registered.",
       "summary": "A generated validator or encoder calls a pure function through `utl.usePureFn`, but no file in the build registers that id, so the code would fail when it runs. Either the file that registers it is outside the build, or its body changed after the id was copied by hand (the id is the package plus a hash of the body). Import the id from the file that registers it with `registerPureFnFactory`, and make sure that file is part of the build.",
       "fix": "import {registerPureFnFactory} from '@mionjs/run-types/runtime';\nexport const newRunTypeErr = registerPureFnFactory((utl) => (message) => new Error(message));",
       "example": null
@@ -1040,7 +1040,7 @@
       "code": "purefn-package-not-built",
       "subsystem": "pure-functions",
       "level": "error",
-      "headline": "Pure fn `{0}` comes from `{1}`, which ships no compiled pure functions.",
+      "headline": "Pure fn `{fn}` comes from `{package}`, which ships no compiled pure functions.",
       "summary": "A pure function imported from another package is built from that package's compiled pure functions (the `mion-pure-fns/` directory its mion build writes next to its output) or from its TypeScript sources. This package ships neither. Build it with mion (a bundler plugin or `mion compile`) and publish its output directory, or publish its sources.",
       "fix": null,
       "example": null
@@ -1049,7 +1049,7 @@
       "code": "purefn-reads-outer-variable",
       "subsystem": "pure-functions",
       "level": "runtimeError",
-      "headline": "`{0}` is captured from outer scope inside a pure-fn factory; pure functions can't reach outside their own body.",
+      "headline": "`{name}` is captured from outer scope inside a pure-fn factory; pure functions can't reach outside their own body.",
       "summary": "The build copies a factory's body without the scope around it, so a variable from outside becomes `undefined` at runtime. Pass it in as a parameter, write its value inside the body if it is a constant, or call another pure function through `utl.getPureFn` and its id.",
       "fix": "import {slugify} from './slug';\n// pass the value in\nconst withRate = registerPureFnFactory((utl) => (rate, value) => value * rate);\n// or reach another pure function by its id\nconst toSlug = registerPureFnFactory((utl) => (value) => utl.getPureFn(slugify)(value));",
       "example": null
@@ -1094,7 +1094,7 @@
       "code": "override-duplicate",
       "subsystem": "overrides",
       "level": "runtimeError",
-      "headline": "Duplicate override for `{0}`: there can be exactly one override per (type, function).",
+      "headline": "Duplicate override for `{key}`: there can be exactly one override per (type, function).",
       "summary": "Two `overrideX<T>()` calls target the same type and the same function, for example two `overrideValidate<User>()`. Which one wins would depend on the order your code is read, so the second one is rejected whatever its body. The Related line points at the first one. Keep one override and merge the logic into it.",
       "fix": "overrideValidate<User>((utl) => (value) => checkA(value) && checkB(value));",
       "example": null
@@ -1103,7 +1103,7 @@
       "code": "override-function-not-built",
       "subsystem": "overrides",
       "level": "runtimeError",
-      "headline": "Override entry `{0}` references compiled function `{1}` which did not render: this would throw at runtime, so the build stops.",
+      "headline": "Override entry `{entry}` references compiled function `{function}` which did not render: this would throw at runtime, so the build stops.",
       "summary": "An override points at a generated function that was never written, so calling the override would throw at runtime. This is a mion bug. Delete the cache (`node_modules/.cache/mion`) or restart the dev server. If it keeps failing, open an issue with the type and the override that trigger it.",
       "fix": null,
       "example": null
@@ -1121,7 +1121,7 @@
       "code": "rpc-handler-missing-param-type",
       "subsystem": "mion-routes",
       "level": "runtimeError",
-      "headline": "mion `{1}` handler parameter `{0}` has no type annotation; every parameter after the call context travels on the wire and must declare its type.",
+      "headline": "mion `{handler}` handler parameter `{param}` has no type annotation; every parameter after the call context travels on the wire and must declare its type.",
       "summary": "Every handler parameter after the call context is part of the route's public input, so mion builds a validator and a decoder from its declared type. The call context (the first parameter, the first two for `headersMiddleware`) never goes over the network. Add a type to the parameter.",
       "fix": "mion.route((ctx, name: string): string => `hello ${name}`);",
       "example": null
@@ -1130,7 +1130,7 @@
       "code": "rpc-handler-missing-return-type",
       "subsystem": "mion-routes",
       "level": "runtimeError",
-      "headline": "mion `{0}` handler has no return type annotation; write the type the handler answers with.",
+      "headline": "mion `{handler}` handler has no return type annotation; write the type the handler answers with.",
       "summary": "mion builds the route's validation and serialization from the handler's declared types, and the client types its call from the same declaration. An inferred return type gives the build nothing to work from. Write the return type on the handler.",
       "fix": "mion.route((ctx, name: string): string => `hello ${name}`);",
       "example": null
@@ -1139,7 +1139,7 @@
       "code": "rpc-handler-non-data-property",
       "subsystem": "mion-routes",
       "level": "warning",
-      "headline": "Property `{0}` can never be data and is dropped from every compiled function; rename it.",
+      "headline": "Property `{property}` can never be data and is dropped from every compiled function; rename it.",
       "summary": "Writing `__proto__` on a plain object changes its prototype instead of adding a key, so the value never round trips, even though TypeScript accepts the type. It is reported on the declaration in any interface, type literal or class, even before a route uses it. Rename the property to keep the data (`prototype` and `constructor` are fine).",
       "fix": "interface Settings { ok: number; parent: string }",
       "example": "export interface Settings { ok: number; __proto__: string }\nexport const settings: Settings = {ok: 1, __proto__: 'x'};"
@@ -1148,7 +1148,7 @@
       "code": "rpc-handler-returns-non-rpc-error",
       "subsystem": "mion-routes",
       "level": "runtimeError",
-      "headline": "mion `{1}` handler declares it can answer with `{0}`, which is not an `RpcError`; only an `RpcError` (or a subclass such as `FatalError`) carries the mion brand.",
+      "headline": "mion `{handler}` handler declares it can answer with `{errorType}`, which is not an `RpcError`; only an `RpcError` (or a subclass such as `FatalError`) carries the mion brand.",
       "summary": "A returned `RpcError` (or any subclass) goes to its own typed slot, and the client gets it typed. A plain `Error`, a class extending it, or a bare `TypedError` fails the request and goes to the undeclared `@thrownErrors` slot, so your declared return type is no longer true. Answer with an `RpcError` or a `FatalError`.",
       "fix": "mion.route((ctx, id: string): Pet | RpcError<'pet-not-found'> =>\n  new RpcError({statusCode: 404, name: 'pet-not-found', publicMessage: 'no pet'}));",
       "example": null
@@ -1157,7 +1157,7 @@
       "code": "rpc-handler-throws",
       "subsystem": "mion-routes",
       "level": "runtimeError",
-      "headline": "mion `{0}` handlers must return errors, not throw them; return an `RpcError` to let the chain continue, or a `FatalError` to stop the request.",
+      "headline": "mion `{handler}` handlers must return errors, not throw them; return an `RpcError` to let the chain continue, or a `FatalError` to stop the request.",
       "summary": "A returned error stays in the handler's signature, so the client gets it typed at the call site. A thrown one goes to the undeclared `@thrownErrors` slot, and the client sees only its public message. A `throw` caught by `try` and `catch` in the same handler is not reported. If a throw is on purpose, add `// @mion-expect-error rpc-handler-throws` above it and say why.",
       "fix": "return new RpcError({statusCode: 404, name: 'not-found', publicMessage: 'no pet'});",
       "example": null
@@ -1166,7 +1166,7 @@
       "code": "rpc-batch-argument-out-of-range",
       "subsystem": "batches",
       "level": "error",
-      "headline": "`inputFrom()` sits at argument index {0} of route `{2}`, which declares only {1} parameter(s); move the mapping to an argument the route declares.",
+      "headline": "`inputFrom()` sits at argument index {index} of route `{route}`, which declares only {count} parameter(s); move the mapping to an argument the route declares.",
       "summary": "The server passes a mapped input at the argument position where you wrote `inputFrom()`, so that position (counted from zero) must be one of the route handler's parameters. Otherwise the server would reject the request at runtime.",
       "fix": "// getById(id) takes 1 argument\nroutes.orders.getById(inputFrom(user, 'toUserId'));",
       "example": null
@@ -1175,7 +1175,7 @@
       "code": "rpc-batch-duplicate-route",
       "subsystem": "batches",
       "level": "error",
-      "headline": "Route `{0}` is listed twice in this `batch()`; a batch runs each route once, so drop the duplicate or move it into a second batch.",
+      "headline": "Route `{route}` is listed twice in this `batch()`; a batch runs each route once, so drop the duplicate or move it into a second batch.",
       "summary": "One batch cannot call the same route twice. Results come back by route, so the second call would replace the first. Keep one call per route, or split the calls into two batches.",
       "fix": "batch([routes.users.getById(1)]);\nbatch([routes.users.getById(2)]);",
       "example": null
@@ -1184,7 +1184,7 @@
       "code": "rpc-batch-element-unreadable",
       "subsystem": "batches",
       "level": "error",
-      "headline": "`batch()` element is not a route call the build can read ({0}); write `routes.a.b(...)` inline or bind it to a `const`/`let` in this file.",
+      "headline": "`batch()` element is not a route call the build can read ({reason}); write `routes.a.b(...)` inline or bind it to a `const`/`let` in this file.",
       "summary": "Each item in `batch([...])` must be a call on the client routes, like `routes.users.getById(1)`, written inline or saved in a `const` or `let` in the same file. The build reads them to know which routes run, in what order. A spread, a function parameter, a call on anything other than the routes, or a variable not set to a route call cannot be read.",
       "fix": "const user = routes.users.getById(id);\nbatch([user, routes.orders.list()]);",
       "example": null
@@ -1193,7 +1193,7 @@
       "code": "rpc-batch-id-collision",
       "subsystem": "batches",
       "level": "runtimeError",
-      "headline": "Batch id `{0}` is shared by two different batches; reorder the routes of one of them so the ids no longer collide.",
+      "headline": "Batch id `{id}` is shared by two different batches; reorder the routes of one of them so the ids no longer collide.",
       "summary": "Two different batches got the same id, so the server cannot tell them apart. The id is built from the route order and the input mappings, and this almost never happens. Change the route order of one batch, or split it into two batches.",
       "fix": null,
       "example": null
@@ -1202,7 +1202,7 @@
       "code": "rpc-batch-mapper-missing",
       "subsystem": "batches",
       "level": "runtimeError",
-      "headline": "Batch mapper `{0}` has no generated pure function in this program; the server build cannot register it.",
+      "headline": "Batch mapper `{mapper}` has no generated pure function in this program; the server build cannot register it.",
       "summary": "Each inline `inputFrom(source, (value) => ...)` mapper becomes a pure function the server build copies next to the batch table. This one produced nothing, so the server would answer the batch with a missing mapper error. Fix the pure function errors (`purefn-*`) at its `inputFrom()` call, or use the name of a mapper registered on the server.",
       "fix": "inputFrom(user, 'toOrgId')",
       "example": null
@@ -1211,7 +1211,7 @@
       "code": "rpc-batch-mapper-unreadable",
       "subsystem": "batches",
       "level": "error",
-      "headline": "`inputFrom()` mapper is not readable at build time ({0}); pass an inline arrow function or a string literal mapper name.",
+      "headline": "`inputFrom()` mapper is not readable at build time ({reason}); pass an inline arrow function or a string literal mapper name.",
       "summary": "The mapper you pass to `inputFrom()` must be an inline function, or a string with the name of a mapper registered on the server. A function reference, a computed string or a value from a parameter cannot be read at build time.",
       "fix": "inputFrom(user, (u) => u.id);\n// or the name of a mapper registered on the server\ninputFrom(user, 'toUserId');",
       "example": null
@@ -1220,7 +1220,7 @@
       "code": "rpc-batch-router-init-hidden",
       "subsystem": "batches",
       "level": "runtimeError",
-      "headline": "The batch table {0} was written, but no module of this program calls `createMionRouter` directly, so nothing imports it; import it by hand in the module that creates the router.",
+      "headline": "The batch table {file} was written, but no module of this program calls `createMionRouter` directly, so nothing imports it; import it by hand in the module that creates the router.",
       "summary": "The build adds the batch table import to every module that calls `createMionRouter` from `@mionjs/router`, following aliases, namespace imports and local re-export files. It found none, for example because a wrapper from another package creates the router, so the server never loads the table. Import the table yourself in the module that creates the router (path relative to that module), or call `createMionRouter` from a source file of this project.",
       "fix": "import './<genDir>/rpc/batches.generated.js';",
       "example": null
@@ -1229,7 +1229,7 @@
       "code": "rpc-batch-source-not-before",
       "subsystem": "batches",
       "level": "error",
-      "headline": "`inputFrom()` reads route `{0}` for route `{1}`, but the source is not in this batch or runs after the target; sources must be listed before the routes they feed.",
+      "headline": "`inputFrom()` reads route `{source}` for route `{target}`, but the source is not in this batch or runs after the target; sources must be listed before the routes they feed.",
       "summary": "Routes in a batch run in the order you list them, and `inputFrom()` can only read a route that already ran. Put the source route in the same `batch([...])` call, before the route it feeds.",
       "fix": "batch([user, routes.orders.list(inputFrom(user, 'toUserId'))]);",
       "example": null
@@ -1238,7 +1238,7 @@
       "code": "rpc-client-api-unreadable",
       "subsystem": "clients",
       "level": "error",
-      "headline": "The API type at this dispatch site cannot be read as a mion PublicApi ({0}); bundling needs `PublicApi<typeof routes>`.",
+      "headline": "The API type at this dispatch site cannot be read as a mion PublicApi ({reason}); bundling needs `PublicApi<typeof routes>`.",
       "summary": "When routes are bundled (`client.routes: 'bundle'`, the default), the build reads each called route's handler types, options and middlewares from the client's API type. Only `PublicApi<typeof routes>`, the type the router exports, has them; a loose `RemoteApi`, an `any`, or a member without its compiled types does not. Type the client with `PublicApi<typeof routes>`.",
       "fix": "initClient<PublicApi<typeof routes>>({baseURL});",
       "example": null
@@ -1256,7 +1256,7 @@
       "code": "rpc-client-imports-server-value",
       "subsystem": "clients",
       "level": "runtimeError",
-      "headline": "`{0}` is passed to `initClient` but imported as a value from \"{1}\", which can put that server module in the client bundle; use `import type`.",
+      "headline": "`{name}` is passed to `initClient` but imported as a value from \"{module}\", which can put that server module in the client bundle; use `import type`.",
       "summary": "The API type you pass to `initClient` comes from your server code. Imported without `type`, your bundler can ship that server module, the mion router and everything they import to the browser. It is an error even when your build would drop the import, because a client never imports server code. `import type` is always removed at build time.",
       "fix": "import type {MyApi} from '../server/api';",
       "example": null
@@ -1265,7 +1265,7 @@
       "code": "rpc-client-middleware-not-set-up",
       "subsystem": "clients",
       "level": "runtimeError",
-      "headline": "The route `{1}` runs the middleware `{0}`, which needs params, but this client never sets it up; every call to the route fails its validation.",
+      "headline": "The route `{route}` runs the middleware `{middleware}`, which needs params, but this client never sets it up; every call to the route fails its validation.",
       "summary": "A middleware gets its params on the client from its `onRequest` hook. The build found no use of this middleware in the client program, neither a hook nor an installer, so every call sends nothing and the middleware rejects it. Set it up once next to `initClient` with `middlewares.<name>.onRequest(...)`, or pass it to the installer it ships with.",
       "fix": "middlewares.trace.onRequest((trace) => trace({headers: {'X-Trace-Id': crypto.randomUUID()}}));",
       "example": null
@@ -1292,7 +1292,7 @@
       "code": "rpc-client-option-widened",
       "subsystem": "clients",
       "level": "warning",
-      "headline": "Option `{0}` of `{1}` is not a literal on the API type, so the bundled metadata leaves it unset.",
+      "headline": "Option `{option}` of `{route}` is not a literal on the API type, so the bundled metadata leaves it unset.",
       "summary": "The bundled metadata copies each route's options from the API type, which holds only literal values. A value computed at runtime, like a variable or a call, is left unset on the client, while the server may set it. Write the option as a literal on the route or the router.",
       "fix": "mion.route(handler, {sanitizeParams: true})",
       "example": null
@@ -1301,7 +1301,7 @@
       "code": "rpc-client-optional-middleware-not-set-up",
       "subsystem": "clients",
       "level": "runtimeError",
-      "headline": "The route `{1}` runs the middleware `{0}`, but this client never sets it up, so the middleware never gets its params.",
+      "headline": "The route `{route}` runs the middleware `{middleware}`, but this client never sets it up, so the middleware never gets its params.",
       "summary": "All of this middleware's params are optional, so calls still go out, but the middleware never gets anything from this client. The build found no use of it in the client program, neither an `onRequest` hook nor an installer. Set it up with `middlewares.<name>.onRequest(...)` or its installer. A middleware with no params at all needs no setup. If sending nothing is on purpose, add `// @mion-expect-error rpc-client-optional-middleware-not-set-up` above the call.",
       "fix": "middlewares.trace.onRequest((trace) => trace({headers: {'X-Trace-Id': crypto.randomUUID()}}));",
       "example": null
@@ -1328,7 +1328,7 @@
       "code": "rpc-client-route-not-declared",
       "subsystem": "clients",
       "level": "error",
-      "headline": "This call names the route `{0}`, which the API type does not declare; nothing is bundled for it.",
+      "headline": "This call names the route `{route}`, which the API type does not declare; nothing is bundled for it.",
       "summary": "The API type has no route with this id, usually because of a route id written by hand or a stale declaration file. Fix the route id, or rebuild the API's declarations.",
       "fix": null,
       "example": null
@@ -1337,7 +1337,7 @@
       "code": "rpc-client-server-version-mismatch",
       "subsystem": "clients",
       "level": "runtimeError",
-      "headline": "This client hashes its API ids to the build version {0}, but the API types it reads come from a server build with {1}: every call reports a version mismatch.",
+      "headline": "This client hashes its API ids to the build version {clientVersion}, but the API types it reads come from a server build with {serverVersion}: every call reports a version mismatch.",
       "summary": "A server built with `mion compile` writes its build version into the API type of its `.d.ts`. This client computed different ids from those types, usually because its tsconfig or a library version differs from the server's, so the server would answer every call with a version mismatch. Build the client with the server's tsconfig and library versions, or use `client: {routes: 'fetch'}` to read the routes from the server at runtime.",
       "fix": "mionVitePlugin({client: {routes: 'fetch'}})",
       "example": null
@@ -1355,7 +1355,7 @@
       "code": "rpc-client-types-not-built-by-mion",
       "subsystem": "clients",
       "level": "runtimeError",
-      "headline": "The API package {0} ships types only, but {1}: a client can only trust types-only packages that `mion api-types` built.",
+      "headline": "The API package {package} ships types only, but {reason}: a client can only trust types-only packages that `mion api-types` built.",
       "summary": "A package with types and no JavaScript entry is read as a types-only API package. `mion api-types` writes one with a `mion.apiTypes` field in its package.json and the `mion-api.json` marker it names. This package lacks them, so its `.d.ts` may come from another tool, and the client cannot trust its ids, its private fields or its pure functions. Rebuild the package with `mion api-types` and publish its output folder.",
       "fix": "mion api-types --tsconfig tsconfig.json --out api-types",
       "example": null
@@ -1364,7 +1364,7 @@
       "code": "rpc-client-types-other-mion-version",
       "subsystem": "clients",
       "level": "warning",
-      "headline": "The API package {0} was built by mion {1}, this build runs {2}: the ids of both sides may differ.",
+      "headline": "The API package {package} was built by mion {builtWith}, this build runs {running}: the ids of both sides may differ.",
       "summary": "Type ids include the mion version that computed them, so a client and a server built by different versions get different ids, and the server answers every call with a version mismatch. Build the client with the mion version the types package names, or rebuild the package with yours.",
       "fix": "npm install -D @mionjs/bin-compiler@<the version in mion-api.json>",
       "example": null
@@ -1373,7 +1373,7 @@
       "code": "rpc-client-version-mismatch",
       "subsystem": "clients",
       "level": "runtimeError",
-      "headline": "This client injects the build version {0} but the API in the same program injects {1}; the client reports a version mismatch against its own server.",
+      "headline": "This client injects the build version {clientVersion} but the API in the same program injects {apiVersion}; the client reports a version mismatch against its own server.",
       "summary": "`initClient` and `initRoutes` each get a build version from the routes they are typed with. In one program they must match, so a difference means the client was typed with another API than the one the router registered. Type the client with `PublicApi<typeof routes>` from that router.",
       "fix": "initClient<PublicApi<typeof routes>>({baseURL});",
       "example": null
@@ -1382,7 +1382,7 @@
       "code": "enrich-mirror-moved",
       "subsystem": "enrichment",
       "level": "warning",
-      "headline": "Mirror location drift: the source maps to `{0}` but this file lives at `{1}`; re-run `mion enrich` to relocate.",
+      "headline": "Mirror location drift: the source maps to `{expected}` but this file lives at `{actual}`; re-run `mion enrich` to relocate.",
       "summary": "Each source file has one expected path per file kind under the enrich folder (`friendly/`, `mock/`, and one per translation locale). This file sits somewhere else, usually because you moved the source or changed `genDir`. Run `mion enrich <source.ts> <Type> --update` to write the files at the right paths.",
       "fix": "mion enrich <source.ts> <Type> --update",
       "example": null
@@ -1391,7 +1391,7 @@
       "code": "enrich-mirror-source-missing",
       "subsystem": "enrichment",
       "level": "runtimeError",
-      "headline": "Breadcrumb source `{0}` no longer exists ({1}): the mirror is orphaned; delete it or re-run `mion enrich`.",
+      "headline": "Breadcrumb source `{source}` no longer exists ({reason}): the mirror is orphaned; delete it or re-run `mion enrich`.",
       "summary": "The `import type` line at the top of this file points to a source file that no longer exists, so its consts describe types that are gone. If you deleted the source, delete this file, its FriendlyText or MockData sibling, and any translation files. If you moved the source, run `mion enrich` on it at the new location, then delete the old files.",
       "fix": null,
       "example": null
@@ -1400,7 +1400,7 @@
       "code": "enrich-mirror-type-missing",
       "subsystem": "enrichment",
       "level": "runtimeError",
-      "headline": "Source {0} no longer declares type `{1}`; re-run `mion enrich`.",
+      "headline": "Source {source} no longer declares type `{type}`; re-run `mion enrich`.",
       "summary": "This file imports a type your source file no longer declares (renamed or removed). Run `mion enrich <source.ts> <Type> --update`: it comments out the old consts as `@rtOrphan`, so your values stay. Then run `mion enrich --prune` to remove the ones that should not come back.",
       "fix": "mion enrich <source.ts> <Type> --update\nmion enrich --prune",
       "example": null
@@ -1409,7 +1409,7 @@
       "code": "enrich-mirror-unreadable",
       "subsystem": "enrichment",
       "level": "error",
-      "headline": "Cannot read enrichment mirror file: {0}",
+      "headline": "Cannot read enrichment mirror file: {reason}",
       "summary": "mion could not read this FriendlyText or MockData file, for example because of file permissions, a broken symlink, or another program writing to it at the same moment. Make the file readable, then run `mion enrich --no-emit` again.",
       "fix": "mion enrich --no-emit",
       "example": null
@@ -1445,7 +1445,7 @@
       "code": "enrich-mock-reserved-prefix",
       "subsystem": "enrichment",
       "level": "error",
-      "headline": "Property `{0}` collides with the reserved `rt$` enrichment prefix: the type cannot be enriched.",
+      "headline": "Property `{property}` collides with the reserved `rt$` enrichment prefix: the type cannot be enriched.",
       "summary": "Keys starting with `rt$` (`rt$items`, `rt$length`, `rt$optional`, and so on) are reserved for enrichment settings, so `mion enrich` refuses a type with such a property and writes no MockData file. Rename the property; a plain `$` prefix is fine.",
       "fix": "interface Config {\n  $size: number;\n}",
       "example": null
@@ -1463,7 +1463,7 @@
       "code": "enrich-mock-unknown-field",
       "subsystem": "enrichment",
       "level": "warning",
-      "headline": "Unknown field `{0}`: the type does not declare it, so this MockData entry is dead.",
+      "headline": "Unknown field `{field}`: the type does not declare it, so this MockData entry is dead.",
       "summary": "This MockData entry names a field your type does not have: it was removed, renamed or misspelled. Its pool or range never feeds a mock. Remove the entry, or run `mion enrich <source.ts> <Type> --update` so the file follows the type.",
       "fix": "mion enrich <source.ts> <Type> --update",
       "example": null
@@ -1490,7 +1490,7 @@
       "code": "enrich-text-missing-message",
       "subsystem": "enrichment",
       "level": "warning",
-      "headline": "Error key `{0}` has no message: this failure shows a generic one.",
+      "headline": "Error key `{key}` has no message: this failure shows a generic one.",
       "summary": "Each failure a field can produce needs its own `rt$errors` key, unless the record uses `rt$default`. A missing key shows a generic message for that failure. Add the key, or run `mion enrich <source.ts> <Type> --update` to add it as a blank to fill in.",
       "fix": "mion enrich <source.ts> <Type> --update",
       "example": null
@@ -1526,7 +1526,7 @@
       "code": "enrich-text-plural-without-count",
       "subsystem": "enrichment",
       "level": "info",
-      "headline": "Constraint `{0}` carries no count: a plural template here has dead arms; use a plain string.",
+      "headline": "Constraint `{constraint}` carries no count: a plural template here has dead arms; use a plain string.",
       "summary": "Only constraints with a count (`minLength`, `maxLength`, `min`, `max`, and so on) can pick a plural arm. On any other constraint, such as `pattern`, only the `other` arm is ever shown. Replace the plural object with a plain string.",
       "fix": "rt$errors: {\n  pattern: 'Only letters and numbers are allowed',\n}",
       "example": null
@@ -1535,7 +1535,7 @@
       "code": "enrich-text-reserved-prefix",
       "subsystem": "enrichment",
       "level": "error",
-      "headline": "Property `{0}` collides with the reserved `rt$` enrichment prefix: the type cannot be enriched.",
+      "headline": "Property `{property}` collides with the reserved `rt$` enrichment prefix: the type cannot be enriched.",
       "summary": "Keys starting with `rt$` (`rt$label`, `rt$errors`, `rt$items`, and so on) are reserved for enrichment settings, so `mion enrich` refuses a type with such a property and writes no FriendlyText file. Rename the property; a plain `$` prefix is fine.",
       "fix": "interface Config {\n  $mode: string;\n}",
       "example": null
@@ -1553,7 +1553,7 @@
       "code": "enrich-text-unknown-error-key",
       "subsystem": "enrichment",
       "level": "warning",
-      "headline": "Error key `{0}` is not a declared constraint of this field: the message can never fire.",
+      "headline": "Error key `{key}` is not a declared constraint of this field: the message can never fire.",
       "summary": "An `rt$errors` key must name a failure the field can produce: `type`, `rt$default`, or one of the field's format constraints (`minLength`, `pattern`, `min`, and so on). Any other key is never used. Remove the key, or add the matching constraint to the field's type format.",
       "fix": "interface User { name: string & FormatString<{minLength: 2}> }\nexport const friendlyUser: FriendlyText<User> = {\n  name: {\n    rt$errors: {\n      minLength: 'Name needs at least 2 characters',\n    },\n  },\n};",
       "example": null
@@ -1562,7 +1562,7 @@
       "code": "enrich-text-unknown-field",
       "subsystem": "enrichment",
       "level": "warning",
-      "headline": "Unknown field `{0}`: the type does not declare it, so this FriendlyText entry is dead.",
+      "headline": "Unknown field `{field}`: the type does not declare it, so this FriendlyText entry is dead.",
       "summary": "This FriendlyText entry names a field your type does not have: it was removed, renamed or misspelled. Its labels and messages are never used. Remove the entry, or run `mion enrich <source.ts> <Type> --update` so the file follows the type (a renamed field keeps its values).",
       "fix": "mion enrich <source.ts> <Type> --update",
       "example": null
@@ -1571,7 +1571,7 @@
       "code": "enrich-text-unknown-placeholder",
       "subsystem": "enrichment",
       "level": "warning",
-      "headline": "Unknown placeholder `$[{0}]`: expected one of `$[label]`, `$[val]`, `$[path]`, `$[index]`.",
+      "headline": "Unknown placeholder `$[{placeholder}]`: expected one of `$[label]`, `$[val]`, `$[path]`, `$[index]`.",
       "summary": "Error messages fill in only the four placeholders listed above; any other `$[name]` shows as plain text. A format suffix such as `$[val:currency]` is not supported either, since plain `$[val]` already formats by the field's type. Use a supported placeholder, or drop the `$[...]` wrapper.",
       "fix": "rt$errors: {minLength: '$[label] is too short'}",
       "example": null
@@ -1580,7 +1580,7 @@
       "code": "enrich-text-unknown-plural-arm",
       "subsystem": "enrichment",
       "level": "warning",
-      "headline": "Unknown plural arm `{0}`: CLDR categories are `zero`, `one`, `two`, `few`, `many`, `other`.",
+      "headline": "Unknown plural arm `{arm}`: CLDR categories are `zero`, `one`, `two`, `few`, `many`, `other`.",
       "summary": "Plural arm names must be CLDR plural categories. Any other name is never picked, in any language. Rename the arm to one of the six categories, or remove it.",
       "fix": "rt$errors: {\n  minLength: {\n    one: 'Needs one more character',\n    other: 'Needs $[val] more characters',\n  },\n}",
       "example": null
@@ -1590,7 +1590,7 @@
       "subsystem": "internal",
       "level": "runtimeError",
       "internal": true,
-      "headline": "Internal error: JSON composite `{0}` references primitive entry `{1}` (type `{2}`) which was never rendered; please file an issue.",
+      "headline": "Internal error: JSON composite `{composite}` references primitive entry `{primitive}` (type `{type}`) which was never rendered; please file an issue.",
       "summary": "The JSON code mion generated for your type points to a piece that was never built, so it would crash when called and a production build stops. This is a bug in mion, not in your code: report it with the type and the call site named in the error.",
       "fix": null,
       "example": null
@@ -1600,7 +1600,7 @@
       "subsystem": "internal",
       "level": "runtimeError",
       "internal": true,
-      "headline": "Internal error: type `{0}` cannot be compiled here and has no diagnostic, so the function always throws; please file an issue.",
+      "headline": "Internal error: type `{type}` cannot be compiled here and has no diagnostic, so the function always throws; please file an issue.",
       "summary": "The code mion generated for your type meets a kind of value it cannot handle and has no message for, so the function always throws. This is a bug in mion, not in your code: report it with the type and the call site named in the error.",
       "fix": null,
       "example": null

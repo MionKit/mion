@@ -38,7 +38,7 @@ func (scope *fileScope) checkAnnotations(discovered handler) []diagnostics.Diagn
 		if ast.GetTypeAnnotationNode(paramNode) != nil {
 			continue
 		}
-		found = append(found, scope.diag(diagnostics.CodeRouteMissingParamType, discovered.at(paramNode), parameterName(paramNode), discovered.label))
+		found = append(found, scope.diag(diagnostics.CodeRouteMissingParamType, discovered.at(paramNode), discovered.label, parameterName(paramNode)))
 	}
 	return found
 }
@@ -131,7 +131,7 @@ func (scope *fileScope) checkReturnedErrorType(discovered handler) []diagnostics
 			continue
 		}
 		reported[symbol.Name] = true
-		found = append(found, scope.diag(diagnostics.CodeRouteReturnedErrorType, discovered.at(fnLike.Type), symbol.Name, discovered.label))
+		found = append(found, scope.diag(diagnostics.CodeRouteReturnedErrorType, discovered.at(fnLike.Type), discovered.label, symbol.Name))
 	}
 	return found
 }

@@ -80,9 +80,9 @@ func assertCollisionReported(t *testing.T, response protocol.Response) {
 		t.Fatalf("%s must be an error, got severity %v", found.Code, found.Severity)
 	}
 	if len(found.Args) != 5 {
-		t.Fatalf("expected [id, first shape, second shape, next length, origin], got %q", found.Args)
+		t.Fatalf("expected [id, first shape, origin, second shape, next length], got %q", found.Args)
 	}
-	sharedID, firstShape, secondShape, nextLength, origin := found.Args[0], found.Args[1], found.Args[2], found.Args[3], found.Args[4]
+	sharedID, firstShape, origin, secondShape, nextLength := found.Args[0], found.Args[1], found.Args[2], found.Args[3], found.Args[4]
 	if sharedID == "" {
 		t.Fatal("the diagnostic must name the id the two types share")
 	}

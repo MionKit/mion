@@ -2,6 +2,8 @@ package diagnostics
 
 import (
 	"encoding/json"
+	"regexp"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -33,6 +35,37 @@ func TestEveryCodeHasHeadline(t *testing.T) {
 	for code, def := range Definitions {
 		if def.Headline == "" {
 			t.Errorf("code %q: no Headline, add it to headlineByCode in messages.go", code)
+		}
+	}
+}
+
+// TestHeadlineSlotsAreNamed: grouped output prints a headline once with its slot names, so a numbered
+// `{0}` would reach the reader; Slots must list every name once, in first-appearance order.
+func TestHeadlineSlotsAreNamed(t *testing.T) {
+	numbered := regexp.MustCompile(`\{\d+\}`)
+	for code, def := range Definitions {
+		if numbered.MatchString(def.Headline) {
+			t.Errorf("code %q: Headline has a numbered slot, name it: %q", code, def.Headline)
+		}
+		if got := headlineSlots(def.Headline); !slices.Equal(got, def.Slots) {
+			t.Errorf("code %q: Slots = %q, want %q", code, def.Slots, got)
+		}
+	}
+}
+
+func TestFillSlots(t *testing.T) {
+	cases := []struct {
+		headline, want string
+		args           []string
+	}{
+		{"Make `{property}` optional (`{property}?`)", "Make `id` optional (`id?`)", []string{"id"}},
+		{"`{route}` at {index}", "`users/get` at 2", []string{"users/get", "2"}},
+		{"`{route}` at {index}", "`users/get` at ", []string{"users/get"}},
+		{"no slots", "no slots", []string{"ignored"}},
+	}
+	for _, testCase := range cases {
+		if got := fillSlots(testCase.headline, headlineSlots(testCase.headline), testCase.args); got != testCase.want {
+			t.Errorf("fillSlots(%q) = %q, want %q", testCase.headline, got, testCase.want)
 		}
 	}
 }
@@ -377,8 +410,8 @@ func TestFormat_PrintsTheHeadline(t *testing.T) {
 	if got := Format(diagnostic, true); got != "src/a.ts(3,7): warning validate-symbol-root: "+renderHeadline(CodeVLSymbolRoot, []string{"Symbol"})+" "+DowngradedNote {
 		t.Fatalf("downgraded Format = %q", got)
 	}
-	if headline := renderHeadline(CodeVLSymbolRoot, []string{"Symbol"}); strings.Contains(headline, "{0}") || !strings.Contains(headline, "Symbol") {
-		t.Fatalf("renderHeadline must fill {0}, got %q", headline)
+	if headline := renderHeadline(CodeVLSymbolRoot, []string{"Symbol"}); strings.Contains(headline, "{type}") || !strings.Contains(headline, "Symbol") {
+		t.Fatalf("renderHeadline must fill {type}, got %q", headline)
 	}
 }
 

@@ -152,6 +152,7 @@ const entries = goRecords
       `    level: ${tsString(record.level)},`,
       `    family: ${tsString(record.family)},`,
     ];
+    if (record.slots?.length) lines.push(`    slots: [${record.slots.map(tsString).join(', ')}],`);
     if (record.completeness) lines.push(`    completeness: true,`);
     lines.push('  },');
     return lines.join('\n');
@@ -163,12 +164,14 @@ const generatedTs = `// GENERATED FILE. DO NOT EDIT. Run \`pnpm miondevx core co
 // The message dictionary for every diagnostic code the Go binary can emit,
 // exported from the authoritative catalog in internal/diagnostics (wording lives in
 // internal/diagnostics/messages.go). The wire carries only code + args; the render
-// helpers in ./diagnosticCatalog.ts substitute \`{0}\`, \`{1}\`, … placeholders
-// against the args array to produce the final text.
+// helpers in ./diagnosticCatalog.ts fill each \`{name}\` slot with the arg at its
+// index in \`slots\`.
 
 export interface DiagnosticEntry {
   /** Single-line headline. Mandatory. */
   readonly headline: string;
+  /** The headline's \`{name}\` slots in first-appearance order, the order of the wire args. */
+  readonly slots?: readonly string[];
   /** The code's level: did the build produce the code for
    *  this thing (\`error\`: no), and is what it produced broken when called
    *  (\`runtimeError\`: yes). Read by the config validators, which refuse to

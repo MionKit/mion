@@ -286,7 +286,7 @@ func (sess *Session) unsetMiddlewareDiags(order []string, uses map[string]middle
 		if use.method.NeedsParams {
 			code = diagnostics.CodeApiMetaMiddlewareNotSetUp
 		}
-		diags = append(diags, diagnostics.New(code, use.site.DiagSite(), id, use.routeId))
+		diags = append(diags, diagnostics.New(code, use.site.DiagSite(), use.routeId, id))
 	}
 	return diags
 }
