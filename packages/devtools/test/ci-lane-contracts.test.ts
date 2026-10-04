@@ -46,7 +46,7 @@ describe('the lane table', () => {
   });
 
   it('leaves the docs and agent trees feeding nothing, which is the whole point', () => {
-    for (const dir of ['docs/', '.claude/', 'CLAUDE.md']) expect(FEEDS_NOTHING).toContain(dir);
+    for (const dir of ['docs/', '.agents/', '.claude/', '.codex/', 'AGENTS.md']) expect(FEEDS_NOTHING).toContain(dir);
     for (const lane of Object.values(LANES) as {paths: string[]}[]) {
       for (const ignored of FEEDS_NOTHING) expect(lane.paths, `${ignored} must feed no lane`).not.toContain(ignored);
     }
@@ -253,7 +253,11 @@ describe('the lane table', () => {
       git('add', '.');
       git('commit', '-qm', 'base');
       writeFileSync(path.join(repo, 'docs/notes/a.md'), 'b');
-      writeFileSync(path.join(repo, 'CLAUDE.md'), 'b');
+      writeFileSync(path.join(repo, 'AGENTS.md'), 'b');
+      for (const file of ['.agents/skills/example/SKILL.md', '.claude/settings.json', '.codex/config.toml']) {
+        mkdirSync(path.dirname(path.join(repo, file)), {recursive: true});
+        writeFileSync(path.join(repo, file), 'agent configuration');
+      }
       git('add', '.');
       git('commit', '-qm', 'docs');
       writeFileSync(path.join(repo, 'packages/x/a.ts'), 'b');
@@ -335,7 +339,7 @@ describe('js-lint — the passed test list', () => {
 
 // The ignore list is only safe because nothing gated reads those paths. The three
 // whole-tree sweeps DO read every tracked file, so if one ever moves back into the
-// vitest suite, a .claude/ or CLAUDE.md edit would skip the very check meant to
+// vitest suite, a .claude/ or AGENTS.md edit would skip the very check meant to
 // catch it. Pin them to the one job no lane can skip.
 // A gate job that FAILS takes every lane down with it, and GitHub reports a job
 // skipped for a failed dependency as neutral, so the pull request can look settled

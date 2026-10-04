@@ -90,7 +90,7 @@ describe('UpdateModel — any subset of the insert payload', () => {
   });
 });
 
-// CLAUDE.md marker-coverage rule: both getRunTypeId call shapes over a derived model.
+// AGENTS.md marker-coverage rule: both getRunTypeId call shapes over a derived model.
 describe('marker coverage + shared compiled functions', () => {
   it('static and reflection getRunTypeId shapes resolve the same id', () => {
     const staticId = getRunTypeId<NewUser>();

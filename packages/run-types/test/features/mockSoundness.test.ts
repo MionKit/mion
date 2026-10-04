@@ -26,7 +26,7 @@ import {createMockDataFn} from '@mionjs/run-types/mocking';
 // fns at load (mockStringFormat). The named import below is erased by the
 // transpiler when its bindings are only used as TYPES — without this value
 // import the registry stays empty and every format mocks as a plain random
-// string (the exact trap mion's CLAUDE.md warns about).
+// string (the exact trap mion's AGENTS.md warns about).
 import '@mionjs/run-types/formats';
 import {Lowercase, String as StringFormat} from '@mionjs/run-types/formats';
 

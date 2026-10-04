@@ -2,7 +2,7 @@
 // emitted `virtual:runtypes-cache` entries for representative kinds — coverage
 // that was previously only incidental to the validate / serialization round-trips.
 // Each structural scenario is paired (static getRunTypeId<T>() + reflect
-// getRunTypeId(v)) per the marker coverage rule (CLAUDE.md); the literal-
+// getRunTypeId(v)) per the marker coverage rule (AGENTS.md); the literal-
 // rehydration cases use the single form that actually captures the literal
 // (generic inference widens literals in the other form — see atomic-types.md).
 import {describe, expect} from 'vitest';

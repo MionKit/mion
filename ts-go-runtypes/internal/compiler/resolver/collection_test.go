@@ -8,7 +8,7 @@ import (
 )
 
 // Collection-shape tests. Each scenario has paired *_Static / *_Reflect
-// tests per the marker test coverage rule (CLAUDE.md) and shares an
+// tests per the marker test coverage rule (AGENTS.md) and shares an
 // assertion helper. Exercises the modifier-and-default fields populated
 // by serialize.go's appendProperty / projectSignatureInto / projectTuple
 // — readonly, visibility, abstract, static, isSafeName, position,

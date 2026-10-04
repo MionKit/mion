@@ -549,7 +549,7 @@ LLM-backed generation.
   *same* validation the always-on scan runs during a real Vite build; the CLI just runs
   it standalone.
 - **Public surface stays in the npm package** via a thin `mion` bin that
-  shells to the Go binary — per CLAUDE.md ("the JS packages are the only public
+  shells to the Go binary — per AGENTS.md ("the JS packages are the only public
   surface") — but the *logic* (the emitter, the walk, file I/O) is Go.
 
 (Earlier draft split file-writing onto the JS side; superseded — the emitter is a
@@ -1072,5 +1072,5 @@ overall architecture) and documented here:
 - **`MockData` pool floor** (enrich-mock-small-pool) — warn-only, threshold configurable, off by
   default.
 
-See [CLAUDE.md](../CLAUDE.md) → "validate contract" for the serializable-data semantics
+See [AGENTS.md](../AGENTS.md) → "validate contract" for the serializable-data semantics
 that bound what the friendly-error layer can describe.

@@ -249,7 +249,7 @@ describe('the published exports map', () => {
   });
 
   it('gives the Turbopack loader a `default` condition, not `import`', () => {
-    // See ../src/runtypes/next/CLAUDE.md invariant 5. This one broke a real build.
+    // See ../src/runtypes/next/AGENTS.md invariant 5. This one broke a real build.
     const loader = manifest.exports['./runtypes/next/loader'];
     expect(loader.default).toBeDefined();
     expect(loader.import).toBeUndefined();

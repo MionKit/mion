@@ -2,7 +2,7 @@
 // suite in internal/compiler/resolver/intersection_collapse_test.go but exercises
 // the full pipeline: rewrite → resolver → runTypeCacheSource → eval module →
 // assert on the materialised RunType. Every scenario has paired *_static
-// and *_reflect tests per the marker test coverage rule (CLAUDE.md).
+// and *_reflect tests per the marker test coverage rule (AGENTS.md).
 //
 // The collapse algorithm itself is documented in
 // internal/serialize/intersection_collapse.go.

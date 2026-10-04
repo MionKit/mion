@@ -153,7 +153,7 @@ export const id = getRunTypeId<Customer>();
 	assertDep(t, deps, "inner.ts")
 }
 
-// TestTypeDeps_FormEquivalence is the marker test coverage rule (CLAUDE.md):
+// TestTypeDeps_FormEquivalence is the marker test coverage rule (AGENTS.md):
 // both call shapes of getRunTypeId, in their natural spelling, must resolve to
 // the same cache entry — and therefore report the same type dependencies.
 // Static form: the caller supplies T. Reflection form: T is inferred from a

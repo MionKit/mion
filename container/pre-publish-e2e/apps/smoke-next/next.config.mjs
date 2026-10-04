@@ -13,7 +13,7 @@
 // workspace dependency, so an equivalent vitest test would be permanently skipped. The
 // unit-testable half of the adapter lives in
 // packages/devtools/test/next-broker.test.ts; the rules are in
-// packages/devtools/src/runtypes/next/CLAUDE.md.
+// packages/devtools/src/runtypes/next/AGENTS.md.
 import path from 'node:path';
 import {withRunTypes} from '@mionjs/devtools/runtypes/next';
 

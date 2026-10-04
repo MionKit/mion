@@ -66,7 +66,7 @@ export interface ValidationCase {
    *  form. Calls `createValidateFn(value)` with a runtime value annotated
    *  to type T; the type checker infers T from the annotation, the
    *  value itself is discarded at runtime. Paired with `validate` per
-   *  the CLAUDE.md "Marker test coverage rule" to verify both call
+   *  the AGENTS.md "Marker test coverage rule" to verify both call
    *  shapes produce the same validator end-to-end. **/
   validateReflect: ValidateThunk;
   /** Plugin-rewritten thunk returning the validator rebuilt from the

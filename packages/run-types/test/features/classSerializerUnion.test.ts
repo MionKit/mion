@@ -12,7 +12,7 @@
 //     the plain object stays plain,
 //   - unregistered members fall back to plain objects (no throw).
 //
-// Marker rule (CLAUDE.md): every case exercises BOTH createXxx<T>() (static)
+// Marker rule (AGENTS.md): every case exercises BOTH createXxx<T>() (static)
 // and createXxx(value) (reflect).
 
 import {afterEach, describe, expect, it} from 'vitest';

@@ -8,7 +8,7 @@ import (
 )
 
 // Each scenario below has paired *_Static / *_Reflect tests per the
-// marker test coverage rule (CLAUDE.md). The shared assertion helpers
+// marker test coverage rule (AGENTS.md). The shared assertion helpers
 // receive the resolved root + dump and exercise the same expectations
 // regardless of which marker form drove the resolution.
 

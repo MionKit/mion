@@ -1,7 +1,7 @@
 // Family 3 — Reflection / typeIds. Mirrors guide/markers-reflection.ts +
 // runtype-fields.ts + runtype-walk.ts. Covers BOTH marker call shapes
 // (static getRunTypeId<T>() and value-first getRunTypeId(value)) with a
-// convergence assertion — the CLAUDE.md marker rule.
+// convergence assertion — the AGENTS.md marker rule.
 import {getRunTypeId, RunTypeKind, type RunType} from '@mionjs/run-types';
 import {getRunType} from '@mionjs/run-types';
 import {type CheckResult, eq, ok} from './check';

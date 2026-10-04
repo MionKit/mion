@@ -3,7 +3,7 @@ package resolver_test
 // Pins WHICH call sites a runtype finding reports at. DEPTH: a ScopeRoot code reports only where the type is a
 // marker's root, though provenance is inherited down the graph. FAMILY: a finding reports only on its own family's
 // entry (unknown-keys-object-union on removeUnknownKeys, json-prepare-never-root on the JSON encoder). The "one level deeper" / "one family over" twins
-// are the detectors CLAUDE.md asks for: same trigger, moved off the position the code is about.
+// are the detectors AGENTS.md asks for: same trigger, moved off the position the code is about.
 
 import (
 	"strings"

@@ -13,7 +13,7 @@
 // `mion` resolves to the package's own
 // `src/index.ts` via the `"source"` exports condition
 // (vite: resolve.conditions; tsgo: customConditions) — see
-// CLAUDE.md → Marker package self-import resolution.
+// AGENTS.md → Marker package self-import resolution.
 //
 // Success bar:
 //   validate('abc')      === true

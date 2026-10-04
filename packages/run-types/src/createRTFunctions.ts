@@ -61,7 +61,7 @@ export interface ValidateOptions {
 
 /** Validator returned by `createValidateFn<T>()`. The guard narrows to `DataOnly<T>`, the
  *  serialisable projection of `T` the validator actually enforces (functions / methods / symbols are
- *  silently dropped from the validated shape; see CLAUDE.md "validate contract"). `T` defaults to
+ *  silently dropped from the validated shape; see AGENTS.md "validate contract"). `T` defaults to
  *  `unknown` so the bare `ValidateFn` alias stays a plain `(value) => boolean`-shaped guard for the
  *  cache typedefs that carry no source type. **/
 export type ValidateFn<T = unknown> = (value: unknown) => value is DataOnly<T>;

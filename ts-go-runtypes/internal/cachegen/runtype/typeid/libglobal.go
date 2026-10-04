@@ -3,7 +3,7 @@
 // library never makes it platform. Limits: an ambient `declare module` class in a loaded package counts
 // (`EventEmitter`), `types: ["*"]` loads every `@types` package, and with no `types` list only the lib and what a
 // reference loads count. Pinned by platform_declared_test.go and program/environment_test.go; keep
-// ts-go-runtypes/CLAUDE.md and the runtypes validation page in step.
+// ts-go-runtypes/AGENTS.md and the runtypes validation page in step.
 package typeid
 
 import (

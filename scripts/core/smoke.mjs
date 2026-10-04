@@ -9,7 +9,7 @@
 //   - scanFiles({includeEntryModules: true}) returns the cache modules the
 //     resolver would serve to Vite at rtmod:/<…>.js.
 //
-// Fixture coverage follows the marker test coverage rule (CLAUDE.md):
+// Fixture coverage follows the marker test coverage rule (AGENTS.md):
 //   - getRunTypeId<T>()        — static
 //   - getRunTypeId(value)      — reflect (T inferred from value)
 //   - createValidateFn<T>()      — exercises the InjectTypeFnArgs path

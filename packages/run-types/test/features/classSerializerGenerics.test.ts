@@ -6,7 +6,7 @@
 // bakes into the lookup (`utl.getClassSerializer('<id>', '<className>')`) and
 // the registry indexes as its fallback lane.
 //
-// Pairing rule (CLAUDE.md): getRunTypeId is exercised in BOTH call shapes and
+// Pairing rule (AGENTS.md): getRunTypeId is exercised in BOTH call shapes and
 // asserted to converge for equivalent T.
 
 import {afterEach, describe, expect, it, vi} from 'vitest';

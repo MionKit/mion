@@ -354,7 +354,7 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
         ...(warnings.length ? {warnings} : {}),
         ...(deps.length ? {typeDeps: [...new Set(deps)].sort()} : {}),
         // ALWAYS sent: it is the fallback for an empty typeDeps, which means "unknown", not "no dependencies",
-        // and dropping it there turns a coarse invalidation into a silently stale rewrite (./CLAUDE.md, 7).
+        // and dropping it there turns a coarse invalidation into a silently stale rewrite (./AGENTS.md, 7).
         stamp: stampPath,
       };
     } catch (error) {

@@ -1,6 +1,6 @@
 // ESLint v9 flat config wiring the mion lint transport from the PUBLISHED package.
 //
-// This is the one thing a workspace test cannot cover: CLAUDE.md records that
+// This is the one thing a workspace test cannot cover: AGENTS.md records that
 // @mionjs/devtools is consumed COMPILED — the `./eslint` entry is loaded through
 // node, which never sees the `source` export condition, so what runs is the
 // package's `dist/` output. Here that output arrives inside a tarball verdaccio

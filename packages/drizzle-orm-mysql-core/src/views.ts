@@ -6,7 +6,7 @@
  * ######## */
 
 // MANUAL-COLUMN views only. `mysqlView(name)` with no columns (the query-builder form) is NOT supported: its columns
-// come from drizzle's select typing (packages/drizzle-orm/CLAUDE.md).
+// come from drizzle's select typing (packages/drizzle-orm/AGENTS.md).
 
 import type {
   DrizzleContext,

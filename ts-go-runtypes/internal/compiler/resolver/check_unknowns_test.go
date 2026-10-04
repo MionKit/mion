@@ -170,7 +170,7 @@ export const isUser = createValidateFn<User>(undefined, {checkUnknowns: true, nu
 	}
 }
 
-// Marker test coverage rule (ts-go-runtypes/CLAUDE.md): both getRunTypeId call
+// Marker test coverage rule (ts-go-runtypes/AGENTS.md): both getRunTypeId call
 // shapes, written as paired tests using the natural shape for each intent.
 
 func TestCheckUnknowns_MarkerStaticForm(t *testing.T) {

@@ -1494,7 +1494,7 @@ export const OBJECTS = {
   // serializer registry). Kept in the OBJECTS group (a class is object-like) so
   // they flow through every existing serialization consumer. Each thunk defines
   // the class + its registerClassSerializer INLINE (self-contained, per the
-  // suite CLAUDE.md); value-first schema is 'not-supported' (a class is not an
+  // suite AGENTS.md); value-first schema is 'not-supported' (a class is not an
   // `RT.*` model), so id-integrity skips them.
   registered_root_class: {
     title: 'Registered root class (Date + bigint + array)',

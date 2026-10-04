@@ -9,7 +9,7 @@
 //   - children — flattened inherited + own members
 //
 // Paired *_static and *_reflect tests per the marker test coverage
-// rule (CLAUDE.md).
+// rule (AGENTS.md).
 
 import {describe, expect} from 'vitest';
 import {ReflectionKind, type RunType} from '../src/core/protocol.ts';

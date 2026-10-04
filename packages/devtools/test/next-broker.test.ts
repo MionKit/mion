@@ -16,7 +16,7 @@
 // is covered in the e2e container, where Next is installed:
 // container/pre-publish-e2e/apps/smoke-next (+ its entry in build-all.mjs and its
 // assertions in test/build-outputs.test.mjs). A change to the adapter needs BOTH.
-// See src/runtypes/next/CLAUDE.md.
+// See src/runtypes/next/AGENTS.md.
 import {describe, expect, it, vi} from 'vitest';
 import fs from 'node:fs';
 import net from 'node:net';
@@ -164,7 +164,7 @@ export const slugify = registerPureFn((s: string): string => s.toLowerCase());
         expect(reply.typeDeps?.map((file: string) => path.basename(file))).toContain('entry.ts');
         // Both still ride: an EMPTY typeDeps means "unknown", not "no
         // dependencies", and the stamp is what keeps that case correct rather
-        // than silently stale (src/runtypes/next/CLAUDE.md invariant 7).
+        // than silently stale (src/runtypes/next/AGENTS.md invariant 7).
         expect(reply.stamp).toBeTruthy();
       } finally {
         await first.close();

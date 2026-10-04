@@ -1,10 +1,61 @@
 # Setup
 
-Single setup document for RunTypes. Architecture + workflow rules live in [CLAUDE.md](CLAUDE.md).
+Single setup document for RunTypes. Architecture + workflow rules live in [AGENTS.md](AGENTS.md).
 
-> **Automated path:** the `mion-setup` skill ([.claude/skills/ts-runtypes-setup/](.claude/skills/ts-runtypes-setup/)) drives this whole document end-to-end — host deps, submodule bootstrap + patches, `pnpm install`, Go + plugin builds, podman engine, and smoke verification. Run `bash .claude/skills/ts-runtypes-setup/setup.sh` and the rest of this doc is reference material.
+> **Automated path:** the `mion-setup` skill ([.agents/skills/ts-runtypes-setup/](.agents/skills/ts-runtypes-setup/)) drives this whole document end-to-end — host deps, submodule bootstrap + patches, `pnpm install`, Go + plugin builds, podman engine, and smoke verification. Run `bash .agents/skills/ts-runtypes-setup/setup.sh` and the rest of this doc is reference material.
 
 The repository contains a **Go binary** at [ts-go-runtypes/cmd/mion/](ts-go-runtypes/cmd/mion/) and a **pnpm workspace** of JS packages under [packages/](packages/). Two **podman-containerized** apps ship alongside: the docs website ([container/website/](container/website/)), one Nuxt install that builds ONE static site, mion.pages.dev, with three subsites (/rpc, /runtypes, /benchmarks), and the validation benchmarks ([container/benchmarks/](container/benchmarks/)).
+
+---
+
+## Claude Code and Codex
+
+Repository rules live in root and nested `AGENTS.md` files. Skills live in
+`.agents/skills/`; Claude reads the same directories through `.claude/skills`.
+Clone with symlink support and run either assistant inside the checkout.
+
+| Assistant | Supported version | Configuration |
+| --- | --- | --- |
+| Claude Code | >= 2.1.281 (native `AGENTS.md` across supported providers) | `.claude/settings.json`, `.claude/agents/`, `.claude/hooks/` |
+| Codex | >= 0.159.0-alpha.3 with custom agents and lifecycle hooks | `.codex/config.toml`, `.codex/agents/`, `.codex/hooks/` |
+
+Claude 2.1.281 includes `AGENTS.md` support on Bedrock, Vertex AI, Foundry,
+gateways, and sessions with telemetry disabled; see
+[the Claude changelog](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md). Keep project instructions set to `AGENTS.md`
+in Claude's `/config`. Do not add a competing instruction file.
+
+Codex loads project configuration only for trusted checkouts. Trust this checkout
+through Codex's normal project trust prompt; do not disable the sandbox or copy
+Claude permissions. Restart existing sessions after changing skills or agents.
+Codex separately asks you to trust the project startup hook before running it.
+The project instruction budget is 128 KiB so the root and nested rules fit.
+The three independent roles are `pr-reviewer`, `docs-simplifier`, and
+`comments-simplifier`; each assistant has its own definitions. The shared
+[tool mapping](.agents/skills/TOOLS.md) explains questions, approvals, fresh
+contexts, and user-visible background sessions across supported hosts.
+
+Codex's startup hook is informational and read only. It checks host tools,
+submodules, and built artifacts, including when starting inside a package. It
+never installs, builds, or runs the test suite. Claude's separate startup hook
+continues to run only in Claude Code on the web.
+
+For Codex cloud, configure the environment setup to run
+`bash .agents/skills/ts-runtypes-setup/setup.sh` from the checkout root, with the
+network policy and credentials described by the environment. Do not use Claude's
+web-specific setup entry point for Codex. For local setup, use the same shared
+setup skill or the manual instructions below. Keep credentials and per-user
+settings outside committed project configuration.
+
+To check discovery, start a fresh session at the root and in `packages/devtools/`.
+Confirm the governing `AGENTS.md` files, all 14 project skills, and the three
+independent roles. Codex hosts without custom role selection can use the
+fresh-context fallback in the tool mapping; that fallback does not enforce a
+role-specific sandbox. Hosts without independent agents cannot complete the
+required review and simplification workflows.
+
+In Codex chat, type `$review-pr` or ask "Use the review-pr skill to review this
+branch." In Claude Code, use `/review-pr`. Replace `review-pr` with any skill's
+frontmatter name; the setup skill is named `mion-setup`.
 
 ---
 
@@ -452,7 +503,7 @@ Why the `--branch=prod` pin matters: Pages decides production-vs-preview from th
 
 CI runs Node 26; staged publishing needs npm **≥ 11.15.0**. The `publish-npm` job runs `npm install -g npm@latest` to guarantee it.
 
-**Cutting a release (after the bootstrap).** The whole flow is driven end-to-end by the **[release-to-prod skill](.claude/skills/release-to-prod/)** — an agent opens the PRs, watches CI, and fixes failures forward; a maintainer reviews and clicks the merges. The shape:
+**Cutting a release (after the bootstrap).** The whole flow is driven end-to-end by the **[release-to-prod skill](.agents/skills/release-to-prod/)** — an agent opens the PRs, watches CI, and fixes failures forward; a maintainer reviews and clicks the merges. The shape:
 
 1. **Bump PR into `main`.** On a branch: `pnpm miondevx release bump <patch|minor|major|X.Y.Z>` ([`bump-version.mjs`](scripts/release/bump-version.mjs) writes `version.json` + every `package.json` and commits `chore(release): v<version>`; delete the local tag it creates — CI tags the `prod` commit itself). Curate `CHANGELOG.md` into the same commit. Lands on `main` via the normal rebase-merge.
 2. **Cut `release/vX.Y.Z` from the bumped `main`, then open the release PR from it into `prod`:** `git fetch origin main && git branch release/vX.Y.Z origin/main && git push -u origin release/vX.Y.Z`, then `gh pr create --base prod --head release/vX.Y.Z --title "release: vX.Y.Z"`. The branch is a frozen prefix of `main` (a snapshot, not a live view), so the release scope is fixed at the cut point. [`pre-publish.yml`](.github/workflows/pre-publish.yml) runs the full gate, a `version-fresh` check (red if `version.json` is already live on npm), and `main-ancestor` (red unless the head is an ancestor of `origin/main`). To pull in a fix, land it on `main` first, then re-cut the branch forward: `git branch -f release/vX.Y.Z origin/main && git push --force-with-lease origin release/vX.Y.Z`. Never author a commit on the release branch, and never cherry-pick onto it.
@@ -478,7 +529,7 @@ It packs the tarballs (if `tarballs/` is missing), then runs two axes:
 - **Pure functions shipped in npm tarballs, in the same container.** `container/pre-publish-e2e/pure-fns/` builds two small libraries with the published packages (one through the Vite adapter, one through `mion compile`), packs them with `npm pack`, installs the tarballs into a consumer and builds it both ways, asserting each build serves the libraries' pure functions from their `dist/mion-pure-fns/`; a third library built with plain `tsc` must fail the consumer's build with `purefn-package-not-built`.
 - **Per-OS binary smoke, host-native.** A lean vitest fixture (`host-smoke/`) installs the published packages from the port-published `:4873` and runs on **this** OS/arch, so the plugin resolves + spawns the real host-platform binary via `@mionjs/bin-compiler`'s optional-dependency model (the one thing no container can substitute).
 
-**Supply-chain point (why the container):** verdaccio and its whole dependency tree run **inside** the rootless container (read-only tarballs mount + a loopback port, nothing else) — **never** installed into your host's node/npm environment. On a dev machine the flow is **container-or-error**: if podman is down it fails with a pointer to the [mion-setup skill](.claude/skills/ts-runtypes-setup/) and never falls back to a host verdaccio. The `host-npx` fallback (on-runner `npx verdaccio`) exists **only** for CI's macOS/Windows runners (which can't run a Linux container) and is guarded by `CI` — it refuses to run locally.
+**Supply-chain point (why the container):** verdaccio and its whole dependency tree run **inside** the rootless container (read-only tarballs mount + a loopback port, nothing else) — **never** installed into your host's node/npm environment. On a dev machine the flow is **container-or-error**: if podman is down it fails with a pointer to the [mion-setup skill](.agents/skills/ts-runtypes-setup/) and never falls back to a host verdaccio. The `host-npx` fallback (on-runner `npx verdaccio`) exists **only** for CI's macOS/Windows runners (which can't run a Linux container) and is guarded by `CI` — it refuses to run locally.
 
 **The receipt — "e2e passed" is a checkable precondition, not a convention.** A PASS writes `tarballs/.e2e-receipt.json`: the version, which backend and halves ran, and a **sha256 per tarball**. [`publish-tarballs.mjs`](scripts/release/publish-tarballs.mjs) (`pnpm miondevx release tarballs`, the CI stage-publish) then REFUSES to publish unless a receipt covers exactly those bytes at this version, so repacking after the gate, or publishing an older `tarballs/`, fails loudly instead of shipping unverified bytes. In CI the receipt rides from the gate's e2e job to the publish job as its own artifact (the tarballs themselves are one artifact packed once, so the bytes are identical end to end). Escape hatch for the first-publish bootstrap and emergencies: `--no-receipt`, or `MION_ALLOW_UNVERIFIED_PUBLISH=1`, which prints a conspicuous warning. Two paths are deliberately NOT gated: `--registry <verdaccio>` (that publish IS part of running the e2e, so requiring its own receipt would be circular) and `miondevx release manual-publish` (the bootstrap rebuilds tarballs by default, invalidating any receipt by construction — it prints whether one is valid and lets you decide).
 

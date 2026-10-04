@@ -6,7 +6,7 @@
  * ######## */
 
 // MANUAL-COLUMN views only. `pgView(name)` with no columns (the query-builder form) is NOT supported: its columns come
-// from drizzle's select typing, so it returns a marker type that errors on `.as(...)` (packages/drizzle-orm/CLAUDE.md).
+// from drizzle's select typing, so it returns a marker type that errors on `.as(...)` (packages/drizzle-orm/AGENTS.md).
 
 import type {
   DrizzleContext,

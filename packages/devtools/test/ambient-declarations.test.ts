@@ -9,7 +9,7 @@
 // setSources-built program's roots, and when a written name still cannot
 // resolve, marker-any-from-unresolved-name fires instead of silence.
 //
-// Marker coverage rule (CLAUDE.md): the fixture uses BOTH getRunTypeId call
+// Marker coverage rule (AGENTS.md): the fixture uses BOTH getRunTypeId call
 // shapes — static getRunTypeId<T>() and value-first getRunTypeId(value) —
 // with id equality asserted between them.
 

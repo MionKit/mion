@@ -266,7 +266,7 @@ export const SWEEPS = [
   {name: 'no tracked file outside docs/ names the old repository', run: oldRepoReferences, fix: 'point it at MionKit/mion'},
   {name: 'no tracked source carries a literal NUL byte', run: nulBytes, fix: 'strip the NUL; git treats the file as binary and a rebase cannot merge it'},
   {name: 'no tracked file is a compiled executable', run: compiledExecutables, fix: 'git rm it and ignore the build output; a binary is rebuilt from source, never committed'},
-  {name: 'no workspace package dependency cycle', run: workspaceDependencyCycles, fix: 'pnpm guesses the build and test order around a cycle; test the package on the other end with its built files read by path instead (see packages/devtools/CLAUDE.md)'},
+  {name: 'no workspace package dependency cycle', run: workspaceDependencyCycles, fix: 'pnpm guesses the build and test order around a cycle; test the package on the other end with its built files read by path instead (see packages/devtools/AGENTS.md)'},
   {name: 'no tsconfig project reference cycle', run: tsconfigReferenceCycles, fix: 'tsc --build refuses the WHOLE graph with TS6202, so nothing builds; move the code needing the back-reference into the package it points at'},
   {name: 'every tracked JavaScript file parses', run: unparsedScripts, fix: 'run `node --check <file>` to see the syntax error'},
   {name: 'no miniflare worker depends on the directory it was started from', run: miniflareCwdWorkers, fix: "pass modulesRoot beside scriptPath; without it miniflare names the module relative to process.cwd() and workerd refuses a `..` name"},

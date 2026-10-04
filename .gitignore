@@ -201,3 +201,10 @@ packages/*/.uws-cache/
 
 # playwright-cli session artifacts (snapshots, traces, screenshots)
 .playwright-cli/
+
+# Codex per-user state (project config, agents, and hooks remain tracked).
+.codex/config.local.toml
+.codex/auth.json
+.codex/sessions/
+.codex/log/
+.codex/worktrees/

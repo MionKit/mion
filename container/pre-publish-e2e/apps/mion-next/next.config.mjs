@@ -7,7 +7,7 @@
 //
 // Container-only, like smoke-next: `next` is ~202MB and not a workspace dependency, so a
 // vitest equivalent would be permanently skipped. See
-// packages/devtools/src/runtypes/next/CLAUDE.md.
+// packages/devtools/src/runtypes/next/AGENTS.md.
 import path from 'node:path';
 import {withMion} from '@mionjs/devtools/next';
 

@@ -9,7 +9,7 @@
 // of the real rules through mion-bin/mion over an on-disk monorepo whose only
 // resolvable cross-package entry is behind `source`.
 //
-// Marker coverage rule (CLAUDE.md): the consumer fixture uses BOTH getRunTypeId
+// Marker coverage rule (AGENTS.md): the consumer fixture uses BOTH getRunTypeId
 // shapes — static `getRunTypeId<T>()` and value-first `getRunTypeId(value)` —
 // plus a createValidateFn<CrossPkgType>() site (the mion repro shape).
 

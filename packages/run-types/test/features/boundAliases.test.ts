@@ -4,7 +4,7 @@
 // fold to ONE structural id — the Go scanner canonicalises the alias spelling
 // when it reads `__rtFormatParams`. Convergence is pinned across both
 // authoring modes (type-first alias, value-first builder), and — per the
-// CLAUDE.md marker-coverage rule — across both getRunTypeId call shapes.
+// AGENTS.md marker-coverage rule — across both getRunTypeId call shapes.
 
 import {describe, expect, it} from 'vitest';
 import {getRunTypeId} from '@mionjs/run-types';

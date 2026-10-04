@@ -14,7 +14,7 @@ import (
 // /root/.claude/plans/intersection-zesty-spindle.md §E.1 and the collapse
 // table in §Reference algorithms. Each test asserts a single rule.
 // Paired *_Static / *_Reflect tests follow the marker coverage rule
-// (CLAUDE.md): static form via getRunTypeId<T>() vs reflection via
+// (AGENTS.md): static form via getRunTypeId<T>() vs reflection via
 // getRunTypeId(v).
 // =========================================================================
 

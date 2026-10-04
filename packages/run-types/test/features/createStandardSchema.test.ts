@@ -4,7 +4,7 @@
 // trailing InjectTypeFnArgs<T,'validate','validationErrors'> slot; at runtime the factory
 // resolves both compiled fns and builds the two-tier `validate`.
 //
-// Per the CLAUDE.md marker-coverage rule both call shapes are exercised — the
+// Per the AGENTS.md marker-coverage rule both call shapes are exercised — the
 // static `createStandardSchema<T>()` form and the value-first
 // `createStandardSchema(rt)` form — with a hash-equivalence assertion that the
 // two forms resolve to behaviourally identical validators.
@@ -60,7 +60,7 @@ describe('createStandardSchema<T> — Standard Schema v1 surface', () => {
     if (!result.issues) expect(result.value).toBe(input);
   });
 
-  // CLAUDE.md marker-coverage: hash-equivalence between the two call shapes.
+  // AGENTS.md marker-coverage: hash-equivalence between the two call shapes.
   // The factory returns a fresh adapter object each call (so `.toBe` does not
   // apply), so assert BEHAVIOURAL convergence — both forms accept/reject the
   // same samples identically, proving they resolved the same compiled fns.

@@ -31,7 +31,7 @@ Each area is a subdirectory under `scripts/` plus a dispatch case in [miondevx.m
 | `release`   | [release/](release/)       | npm publish pipeline (preflight → publish → website → CI deploy)         |
 | `container` | [container/](container/)   | Podman image lifecycle (tsrt-website + tsrt-e2e): build / push / pull    |
 | `env`       | [env/](env/)               | `.env` registry check + one-shot secret pushers                          |
-| `card`      | [tools/code-card/](../tools/code-card/) | Shareable code images: card files rendered to PNG, plus a preview server (see the [code-card skill](../.claude/skills/code-card/SKILL.md)) |
+| `card`      | [tools/code-card/](../tools/code-card/) | Shareable code images: card files rendered to PNG, plus a preview server (see the [code-card skill](../.agents/skills/code-card/SKILL.md)) |
 | `lib`       | [lib/](lib/)               | Shared helpers: the command registry, env loading, spawn wrappers, CliError, the Go input digest, podman helpers… |
 
 Top-level aliases (no area prefix): `verify`, `fmt`, `clean` — see `pnpm miondevx` for details.
@@ -66,7 +66,7 @@ On a warm tree the gate is cheap: [core/build.mjs](core/build.mjs) stamps `mion-
 
 `.env` is dev-only, git-ignored, loaded ONCE by [lib/env.mjs](lib/env.mjs)'s `loadEnv()`. Skipped when `CI` is set. `process.loadEnvFile` does NOT override an already-set var, so real inline env or CI env always wins.
 
-The **env-var registry** in [lib/env.mjs](lib/env.mjs) (`REGISTRY`) is the single source of truth for every env var the project consumes. `pnpm run check:env` prints it. Any new env var a script / container / CI step / test reads MUST be added there — the registry is the contract (see the root [CLAUDE.md](../CLAUDE.md) → *Environment variables*).
+The **env-var registry** in [lib/env.mjs](lib/env.mjs) (`REGISTRY`) is the single source of truth for every env var the project consumes. `pnpm run check:env` prints it. Any new env var a script / container / CI step / test reads MUST be added there — the registry is the contract (see the root [AGENTS.md](../AGENTS.md) → *Environment variables*).
 
 ## Conventions
 
@@ -85,6 +85,6 @@ The **env-var registry** in [lib/env.mjs](lib/env.mjs) (`REGISTRY`) is the singl
 
 ## Related
 
-- Root [CLAUDE.md](../CLAUDE.md) → *Development workflow* section describes the miondevx CLI from a maintainer's perspective.
+- Root [AGENTS.md](../AGENTS.md) → *Development workflow* section describes the miondevx CLI from a maintainer's perspective.
 - [SETUP.md](../SETUP.md) has the full host bootstrap + build / test / publish reference.
-- The [mion-setup skill](../.claude/skills/ts-runtypes-setup/) drives the end-to-end host bootstrap automatically.
+- The [mion-setup skill](../.agents/skills/ts-runtypes-setup/) drives the end-to-end host bootstrap automatically.

@@ -1,7 +1,7 @@
 // Function-family round-trip tests. Mirrors the Go function_test.go cases
 // (F35–F40). Each scenario has paired static (getRunTypeId<T>()) and
 // reflect (getRunTypeId(v)) tests per the marker test coverage rule
-// (CLAUDE.md). The shared assertion helpers walk parameters and return
+// (AGENTS.md). The shared assertion helpers walk parameters and return
 // after the virtual cache evaluates.
 //
 // F40 (callSignature in mixed object) ships static-only — constructing a

@@ -24,7 +24,7 @@ export interface Widget {
 
 export const isWidget = createValidateFn<Widget>();
 
-// Both marker call shapes (CLAUDE.md marker rule).
+// Both marker call shapes (AGENTS.md marker rule).
 export const widgetIdStatic = getRunTypeId<Widget>();
 const sample: Widget = {id: 1, name: 'w', when: new Date('2026-01-01T00:00:00Z')};
 export const widgetIdFromValue = getRunTypeId(sample);

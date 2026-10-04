@@ -2,7 +2,7 @@
 // real mion-bin/mion behind the session bridge, and the rules driven the
 // way a lint host drives them (create → Program visitor → reports).
 //
-// Marker coverage rule (CLAUDE.md): the Family A fixtures cover BOTH
+// Marker coverage rule (AGENTS.md): the Family A fixtures cover BOTH
 // getRunTypeId call shapes — static `getRunTypeId<T>()` and reflection
 // `getRunTypeId(value)` — including the hash-equivalence assertion via the
 // sibling ResolverClient.

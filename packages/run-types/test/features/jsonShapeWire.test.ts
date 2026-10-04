@@ -6,7 +6,7 @@
 // the runtime assertion passes only if the encoder actually produced it, so a
 // drift on either side (the Go serializer or the mapped type) reds this file.
 //
-// Per the CLAUDE.md marker-coverage rule the encoder is exercised through BOTH
+// Per the AGENTS.md marker-coverage rule the encoder is exercised through BOTH
 // call shapes — static `createJsonEncoderFn<T>()` and value-first
 // `createJsonEncoderFn(value)` — with an equivalence assertion.
 

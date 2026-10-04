@@ -2,7 +2,7 @@
 // webpack-style LOADERS, so `next.config` (plain Node, evaluated before any bundler worker exists) starts the
 // broker and a loader registered through `turbopack.rules` asks that broker to rewrite each file. The pieces
 // are exported individually because downstream tools (mion's devtools) compose them rather than nest wrappers.
-// ⚠️ READ ./CLAUDE.md BEFORE CHANGING ANYTHING HERE: it records the invariants that look like cleanups and are
+// ⚠️ READ ./AGENTS.md BEFORE CHANGING ANYTHING HERE: it records the invariants that look like cleanups and are
 // not, and why the real `next build` coverage lives in the e2e container rather than in the vitest suite.
 import path from 'node:path';
 import {unplugin} from '../../core/unplugin.ts';

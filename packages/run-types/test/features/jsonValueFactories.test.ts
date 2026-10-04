@@ -1,5 +1,5 @@
 // The value-level JSON factories must return the SAME compiled fn a marker reaches by fnKey, or they drift unnoticed.
-// Both call shapes are exercised, per the CLAUDE.md marker-coverage rule.
+// Both call shapes are exercised, per the AGENTS.md marker-coverage rule.
 
 import {describe, test, expect} from 'vitest';
 import {createPrepareForJsonFn, createRestoreFromJsonFn, type InjectTypeFnArgs} from '@mionjs/run-types';

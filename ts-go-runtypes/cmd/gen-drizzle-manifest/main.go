@@ -9,7 +9,7 @@
 // hardcoded here.
 //
 // The generator decides WHAT needs migrating; the drizzle-slim-schemas
-// skill (.claude/skills/drizzle-slim-schemas/) decides HOW each column maps
+// skill (.agents/skills/drizzle-slim-schemas/) decides HOW each column maps
 // to a runtype format. Humans hand-edit ONLY `status` and `reason` on column
 // and function entries; every other field is regenerated from drizzle-orm's
 // d.ts through the embedded tsgo checker (internal/compiler/program).
