@@ -33,18 +33,16 @@ full site every time, so a broken page still cannot ship.
 
 All in `scripts/ci/lanes.mjs`; the workflows already read the lane verdicts and need no logic change.
 
-1. Next to `GO_BUILD` (`scripts/ci/lanes.mjs:46`), add a filtered entry in the same
-   `{prefix, keep}` shape `entryMatches` already supports (`lanes.mjs:121`):
+1. Next to `GO_BUILD`, add a filtered entry in the same `{prefix, keep}` shape `entryMatches`
+   already supports, with the check inline:
    ```js
-   // Page text and styling never break the site build, so they skip the website lanes (prod deploy and the release gate still build).
-   const isWebsiteContent = (path) => path.startsWith('container/website/content/') || path.endsWith('.css');
-   const WEBSITE_CODE = {prefix: 'container/website/', keep: (path) => !isWebsiteContent(path)};
+   const WEBSITE_CODE = {prefix: 'container/website/', keep: (path) => !path.startsWith('container/website/content/') && !path.endsWith('.css')};
    ```
    Today's CSS files: `app/assets/css/mion.css`, `sites/{rpc,runtypes,benchmarks}/theme.css`.
 2. Swap the bare `'container/website/'` for `WEBSITE_CODE` in the three places that list it:
-   - `smoke.paths` (`lanes.mjs:89`), so the lane-wide smoke marker ignores content too.
-   - `smoke.items.website.paths` (`lanes.mjs:91`).
-   - `website.paths` (`lanes.mjs:96`, the pr-heavy lane).
+   - `smoke.paths`, so the lane-wide smoke marker ignores content too.
+   - `smoke.items.website.paths`.
+   - `website.paths` (the pr-heavy lane).
    Both the lane and its item must change: `itemFeeds` first checks `lane.paths`, and the
    lane hash alone can prove every item.
 3. Leave the `JS` list alone. `container/` stays in it, so content and CSS remain classified
@@ -53,15 +51,15 @@ All in `scripts/ci/lanes.mjs`; the workflows already read the lane verdicts and 
 4. Update the prose that describes the lanes:
    - The `website` label line under **PR readiness** in root `CLAUDE.md`: say a commit that
      only changes `content/` or CSS skips the site build even with the label.
-   - The header comments of `.github/workflows/pr-heavy.yml` and the `smoke` job comment in
-     `.github/workflows/ci.yml` if they say every website change re-runs the build.
+   - The header and `container-build` step comments of `.github/workflows/pr-heavy.yml`, and
+     the `smoke` job comment in `.github/workflows/ci.yml`.
    - The lane description comment above `smoke` / `website` in `lanes.mjs`.
 
 ## Tests
 
 `packages/devtools/test/ci-lane-contracts.test.ts`:
 
-- Change the existing item assertion (`ci-lane-contracts.test.ts:139`):
+- Change the existing item assertion in `feeds each item its own paths…`:
   `feeds('smoke', 'container/website/content/index.md')` now returns `[]`.
 - Add, in the lane table block, a test that for both `smoke` (lane and `website` item) and
   `website`:
@@ -70,14 +68,20 @@ All in `scripts/ci/lanes.mjs`; the workflows already read the lane verdicts and 
   - `container/website/app/components/content/ServerBenchBars.vue`, `app/plugins/…`,
     `nuxt.config.ts`, `content.config.ts`, `_deps/package.json`, `Containerfile`,
     `public/_redirects` feed the lane.
-- Extend the temp-repo hash test (`'hashes a docs-only change identically to its base…'`,
-  around `ci-lane-contracts.test.ts:214`) or add a sibling: a commit touching only a content
-  page and a `.css` file keeps the `website`, `smoke` and `smoke.website` hashes equal to the
-  base, while a `.vue` edit changes them. `decide(... baseHashes)` then reports `run: false`.
+- No separate temp-repo hash test: `laneHashes` picks a lane's files only through `matches` /
+  `itemFeeds`, which the path test pins, and the existing docs-only hash test pins the hashing.
+
+`packages/devtools/test/website-links.test.ts` (added after review): a CSS-only commit no longer
+builds the site on a PR, so `website-css-imports` checks that every relative `@import` in
+`app/**/*.css` and `sites/**/*.css` points at a file that exists. Page text keeps its existing
+link and anchor checks there, plus `check-code-imports`. What no PR check catches any more:
+frontmatter that breaks the `content.config.ts` schema, an unknown MDC component, or a broken
+non-import CSS rule. Those first fail at the release gate.
+
 - The existing "classifies every tracked path" and "feeds the docs content into the js lane"
   tests must still pass unchanged (they prove step 3).
 
-Run: `pnpm exec vitest run ci-lane-contracts`, then `pnpm miondevx core lanes` on a scratch
+Run: `pnpm exec vitest run ci-lane-contracts website-links`, then `pnpm miondevx core lanes` on a scratch
 commit that edits one content page to see `website` and `smoke.website` hashes unchanged.
 
 ## Docs
@@ -97,6 +101,6 @@ root `CLAUDE.md` (step 4).
 - A PR touching only `container/website/content/**` and/or `container/website/**/*.css` shows
   `smoke.website` and `website` as skip in the "CI lanes" summary, label or not.
 - A PR touching any other `container/website/` file runs them as before.
-- `ci-lane-contracts.test.ts` covers both directions and passes; `pnpm run lint` is clean.
+- `ci-lane-contracts.test.ts` covers both directions, `website-links.test.ts` covers CSS imports, both pass; `pnpm run lint` is clean.
 - The simplify-comments pass ran on every touched source file, committed on its own (no
   website page is touched, so no simplify-docs pass).
