@@ -46,6 +46,8 @@ type Output struct {
 	Externals []string
 	// Warnings name each outside type that stayed an import, and why.
 	Warnings []string
+	// apiIDs are the API members' type ids on the server, which VerifyIDs holds the package to.
+	apiIDs string
 	// uses counts each kept declaration's kept users (`file#name`); removed and cutMembers name what went. Tests read them.
 	uses       map[string]int
 	removed    []string
@@ -84,7 +86,7 @@ func Trim(input Input) (*Output, error) {
 		return nil, err
 	}
 
-	output := &Output{Files: map[string]string{}, ApiExports: apiExports, BuildVersion: version, uses: map[string]int{}}
+	output := &Output{Files: map[string]string{}, ApiExports: apiExports, BuildVersion: version, uses: map[string]int{}, apiIDs: trimmer.apiMemberIDs(entry, apiExports)}
 	output.Entry = trimmer.relative(entry.path)
 	for _, file := range trimmer.sortedFiles() {
 		if text, kept := file.render(); kept {

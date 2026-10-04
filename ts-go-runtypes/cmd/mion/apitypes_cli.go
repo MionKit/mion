@@ -110,6 +110,12 @@ func buildApiTypes(cwd, tsconfigPath, declarationDir string, compileResult *batc
 	} else if len(problems) > 0 {
 		return fmt.Errorf("the trimmed declarations do not type-check on their own:\n%s", strings.Join(problems, "\n"))
 	}
+	if err := apitypes.VerifyIDs(input, trimmed); err != nil {
+		return err
+	}
+	for _, warning := range trimmed.Warnings {
+		fmt.Fprintf(os.Stderr, "mion: warning: %s\n", warning)
+	}
 	serverManifest, err := apimeta.ReadManifest(filepath.Join(compileResult.GenDir, constants.ApiModuleDir, constants.ApiManifestFile))
 	if err == nil && serverManifest.Kind != apimeta.ManifestKindServer {
 		err = fmt.Errorf("it is a %s manifest", serverManifest.Kind)
