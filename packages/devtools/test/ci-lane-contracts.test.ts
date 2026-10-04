@@ -136,9 +136,36 @@ describe('the lane table', () => {
     expect(feeds('e2e', 'container/pre-publish-e2e/host-smoke/src/main.ts')).toEqual(['host-smoke']);
     expect(feeds('e2e', 'packages/core/src/errors.ts')).toEqual(['matrix', 'mion', 'host-smoke']);
     expect(feeds('smoke', 'container/benchmarks/competitors/ajv/cases.ts')).toEqual(['bench']);
-    expect(feeds('smoke', 'container/website/content/index.md')).toEqual(['website']);
+    expect(feeds('smoke', 'container/website/app/components/content/ServerBenchBars.vue')).toEqual(['website']);
+    expect(feeds('smoke', 'container/website/content/index.md')).toEqual([]);
     // `bench smoke` builds the mion competitor with our packages, so a package edit re-runs it too.
     expect(feeds('smoke', 'packages/core/src/errors.ts')).toEqual(['website', 'bench']);
+  });
+
+  it('keeps page text and CSS out of the website lanes, and every other website file in', () => {
+    const content = [
+      'container/website/content/01.rpc/01.intro.md',
+      'container/website/content/01.rpc/_dir.yml',
+      'container/website/app/assets/css/mion.css',
+      'container/website/sites/rpc/theme.css',
+    ];
+    const code = [
+      'container/website/app/components/content/ServerBenchBars.vue',
+      'container/website/app/plugins/theme.ts',
+      'container/website/nuxt.config.ts',
+      'container/website/content.config.ts',
+      'container/website/_deps/package.json',
+      'container/website/Containerfile',
+      'container/website/public/_redirects',
+    ];
+    const readers = (path: string): string[] => [
+      ...['smoke', 'website'].filter((lane) => matches(path, LANES[lane].paths)),
+      ...(itemFeeds(LANES.smoke, 'website', path) ? ['smoke.website'] : []),
+    ];
+    for (const path of content) expect(readers(path), path).toEqual([]);
+    for (const path of code) expect(readers(path), path).toEqual(['smoke', 'website', 'smoke.website']);
+    // Still read by the js lane, so the code-import check keeps covering the pages.
+    for (const path of content) expect(matches(path, LANES.js.paths), path).toBe(true);
   });
 
   it('runs only the unproven items, and skips them all on the lane marker', () => {
@@ -235,6 +262,45 @@ describe('the lane table', () => {
       const changed = laneHashes('HEAD', {cwd: repo}).hashes;
       expect(changed.js).not.toBe(base.js);
       expect(changed.go).toBe(base.go);
+    } finally {
+      rmSync(repo, {recursive: true, force: true});
+    }
+  });
+
+  it('hashes a content-only or CSS-only website change like its base for the website lanes', () => {
+    const repo = mkdtempSync(path.join(os.tmpdir(), 'lanes-website-'));
+    const git = (...args: string[]) =>
+      spawnSync('git', ['-c', 'user.email=a@b.c', '-c', 'user.name=t', ...args], {cwd: repo, encoding: 'utf8'});
+    const write = (rel: string, text: string) => {
+      mkdirSync(path.join(repo, path.dirname(rel)), {recursive: true});
+      writeFileSync(path.join(repo, rel), text);
+    };
+    const websiteHashes = (ref: string): Record<string, string> => {
+      const {hashes} = laneHashes(ref, {cwd: repo});
+      return {website: hashes.website, smoke: hashes.smoke, 'smoke.website': hashes['smoke.website']};
+    };
+    try {
+      git('init', '-q');
+      write('container/website/content/index.md', 'a');
+      write('container/website/sites/rpc/theme.css', 'a');
+      write('container/website/app/components/Box.vue', 'a');
+      git('add', '.');
+      git('commit', '-qm', 'base');
+      write('container/website/content/index.md', 'b');
+      write('container/website/sites/rpc/theme.css', 'b');
+      git('add', '.');
+      git('commit', '-qm', 'content');
+      write('container/website/app/components/Box.vue', 'b');
+      git('add', '.');
+      git('commit', '-qm', 'code');
+      const base = websiteHashes('HEAD~2');
+      expect(websiteHashes('HEAD~1')).toEqual(base);
+      const changed = websiteHashes('HEAD');
+      for (const lane of Object.keys(base)) expect(changed[lane], lane).not.toBe(base[lane]);
+      const baseHashes = laneHashes('HEAD~2', {cwd: repo}).hashes;
+      const verdict = decide(['website', 'smoke'], {hashes: laneHashes('HEAD~1', {cwd: repo}).hashes, baseHashes, pr: true});
+      expect(verdict.website.run).toBe(false);
+      expect(verdict.smoke.run).toBe(false);
     } finally {
       rmSync(repo, {recursive: true, force: true});
     }
