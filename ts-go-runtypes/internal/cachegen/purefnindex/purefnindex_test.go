@@ -916,15 +916,17 @@ func TestTypesOnly_ResolvedThroughTheProgramBeforeAnyTouch(t *testing.T) {
 }
 
 // vendoredTypesPackage is a types package whose title also needs @acme/dates's isoDay, shipped under .mion/vendor/.
+// isoDayEntry is @acme/dates's pure fn a types package vendors.
+var isoDayEntry = purefunctions.Entry{ID: isoDayID, BindingName: "isoDay", ParamNames: []string{"utl"}, Code: "return (d) => d.slice(0, 10);"}
+
 func vendoredTypesPackage() map[string]string {
-	isoDay := purefunctions.Entry{ID: isoDayID, BindingName: "isoDay", ParamNames: []string{"utl"}, Code: "return (d) => d.slice(0, 10);"}
 	title := titleEntry
 	title.PureFnDependencies = []string{slugifyID, isoDayID}
 	vendor := typesPkg + "/.mion/vendor/@acme/dates"
 	return merge(typesPackage(`{"format":2,"package":"@acme/text","compiler":"dev","buildVersion":"v1","vendored":{"@acme/dates":"./.mion/vendor/@acme/dates"}}`),
 		artifactDir(typesPkg+"/"+constants.PureFnArtifactDir, "@acme/text", constants.EmitCode, slugifyEntry, title),
 		map[string]string{vendor + "/package.json": `{"name":"@acme/dates"}`},
-		artifactDir(vendor+"/"+constants.PureFnArtifactDir, "@acme/dates", constants.EmitCode, isoDay))
+		artifactDir(vendor+"/"+constants.PureFnArtifactDir, "@acme/dates", constants.EmitCode, isoDayEntry))
 }
 
 // TestTypesOnly_ServesAnotherPackagesVendoredPureFns: a client that does not install @acme/dates gets its pure fn
@@ -944,10 +946,9 @@ func TestTypesOnly_ServesAnotherPackagesVendoredPureFns(t *testing.T) {
 // TestTypesOnly_AnInstalledPackageWinsOverItsVendoredCopy: same id, same body, served from the real install.
 func TestTypesOnly_AnInstalledPackageWinsOverItsVendoredCopy(t *testing.T) {
 	installed := "/virtual/app/node_modules/@acme/dates"
-	isoDay := purefunctions.Entry{ID: isoDayID, BindingName: "isoDay", ParamNames: []string{"utl"}, Code: "return (d) => d.slice(0, 10);"}
 	store := storeOver(merge(vendoredTypesPackage(),
 		map[string]string{installed + "/package.json": `{"name":"@acme/dates"}`},
-		artifactDir(installed+"/dist/"+constants.PureFnArtifactDir, "@acme/dates", constants.EmitCode, isoDay)))
+		artifactDir(installed+"/dist/"+constants.PureFnArtifactDir, "@acme/dates", constants.EmitCode, isoDayEntry)))
 	store.Package(typesPkg)
 	if root, ok := store.ResolvePackage("@acme/dates", typesPkg); !ok || root != installed {
 		t.Fatalf("ResolvePackage = %q, %v; want the installed copy", root, ok)

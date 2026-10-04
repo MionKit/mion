@@ -11,12 +11,8 @@ import (
 
 	"github.com/microsoft/typescript-go/shim/vfs/osvfs"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnindex"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 )
-
-// vendorDir holds the other packages' pure fns a types package ships, hidden so its own artifact walk skips them.
-const vendorDir = constants.ApiTypesManifestDir + "/vendor"
 
 type vendored struct {
 	files    map[string]string
@@ -31,64 +27,52 @@ type vendored struct {
 func vendorPureFns(serverRoot string, ids []string) vendored {
 	out := vendored{files: map[string]string{}, dirs: map[string]string{}}
 	store := purefnindex.NewStore(osvfs.FS())
+	demands := make([]purefnindex.Demand, 0, len(ids))
+	for _, id := range ids {
+		demands = append(demands, purefnindex.Demand{ID: id, FromDir: serverRoot})
+	}
+	closure := store.Closure(demands)
+	peers := map[string]bool{}
+	keepPeer := func(id, reason string) {
+		owner := purefnindex.PackageOfID(id)
+		peers[owner] = true
+		// A mion package is a peer by design, never a fallback worth a warning.
+		if reason != "" && !strings.HasPrefix(owner, "@mionjs/") {
+			out.warnings = append(out.warnings, fmt.Sprintf("the pure fn %s stays in %s, a peer dependency: %s", id, owner, reason))
+		}
+	}
+	for _, id := range closure.Unresolved {
+		keepPeer(id, "it is not installed beside the server")
+	}
+	for _, miss := range closure.Missing {
+		keepPeer(miss.ID, "it ships no mion-pure-fns/ artifact with that function (build it with mion)")
+	}
 	rows := map[string][]purefnindex.ArtifactIndexRow{}
 	modules := map[string]map[string]string{}
-	peers := map[string]bool{}
-	type demand struct{ id, fromDir string }
-	queue := make([]demand, 0, len(ids))
-	for _, id := range ids {
-		queue = append(queue, demand{id: id, fromDir: serverRoot})
-	}
-	seen := map[string]bool{}
-	for len(queue) > 0 {
-		next := queue[0]
-		queue = queue[1:]
-		owner := purefnindex.PackageOfID(next.id)
-		if seen[next.id] || owner == "" {
-			continue
-		}
-		seen[next.id] = true
+	for _, entry := range closure.Entries {
+		id := entry.Key()
+		owner := purefnindex.PackageOfID(id)
 		if strings.HasPrefix(owner, "@mionjs/") {
-			peers[owner] = true
+			keepPeer(id, "")
 			continue
 		}
-		reason := ""
-		root, found := store.ResolvePackage(owner, next.fromDir)
-		var idx *purefnindex.PackageIndex
-		if found {
-			idx = store.Package(root)
-		}
-		row, hasRow := purefnRow(idx, next.id)
-		text, hasText := "", false
-		if hasRow {
-			text, hasText = idx.ModuleText(next.id)
-		}
-		switch {
-		case !found:
-			reason = "it is not installed beside the server"
-		case !hasRow || !hasText:
-			reason = "it ships no mion-pure-fns/ artifact with that function (build it with mion)"
-		}
-		if reason != "" {
-			peers[owner] = true
-			out.warnings = append(out.warnings, fmt.Sprintf("the pure fn %s stays in %s, a peer dependency: %s", next.id, owner, reason))
+		text, ok := store.Package(closure.Roots[id]).ModuleText(id)
+		if !ok {
+			keepPeer(id, "it ships no mion-pure-fns/ artifact with that function (build it with mion)")
 			continue
 		}
-		rows[owner] = append(rows[owner], purefnindex.ArtifactIndexRow{ID: next.id, BindingName: row.BindingName})
+		rows[owner] = append(rows[owner], purefnindex.ArtifactIndexRow{ID: id, BindingName: entry.BindingName})
 		if modules[owner] == nil {
 			modules[owner] = map[string]string{}
 		}
-		modules[owner][purefnindex.ModulePath(next.id)] = text
-		for _, dependency := range row.PureFnDependencies {
-			queue = append(queue, demand{id: dependency, fromDir: root})
-		}
+		modules[owner][purefnindex.ModulePath(id)] = text
 	}
 	for owner, ownerRows := range rows {
 		if peers[owner] {
 			// One function it could not copy keeps the whole package a peer, which then serves the rest too.
 			continue
 		}
-		dir := vendorDir + "/" + owner
+		dir := purefnindex.VendorDir + "/" + owner
 		sort.Slice(ownerRows, func(i, j int) bool { return ownerRows[i].ID < ownerRows[j].ID })
 		index := purefnindex.ArtifactIndex{Format: purefnindex.ArtifactFormat, Package: owner, PureFns: ownerRows}
 		artifactDir := path.Join(dir, constants.PureFnArtifactDir)
@@ -103,11 +87,4 @@ func vendorPureFns(serverRoot string, ids []string) vendored {
 	out.peers = slices.Sorted(maps.Keys(peers))
 	sort.Strings(out.warnings)
 	return out
-}
-
-func purefnRow(idx *purefnindex.PackageIndex, id string) (purefunctions.Entry, bool) {
-	if idx == nil {
-		return purefunctions.Entry{}, false
-	}
-	return idx.Row(id)
 }

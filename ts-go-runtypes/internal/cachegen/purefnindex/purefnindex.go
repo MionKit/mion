@@ -139,6 +139,8 @@ type PackageIndex struct {
 	// failed, so a second demand neither re-reads nor re-reports it.
 	rows       map[string]purefunctions.Entry
 	unreadable map[string]bool
+	// modules is the module text each row read from an artifact came from.
+	modules map[string]string
 	// byName maps a binding name to the ids under it anywhere in the package; two answer only through the file tiebreak.
 	byName map[string][]string
 	// rowFile is each row's source file relative to Root, when known.
@@ -173,7 +175,7 @@ func (store *Store) Package(root string) *PackageIndex {
 	if idx, ok := store.packages[root]; ok {
 		return idx
 	}
-	idx := &PackageIndex{Root: root, listed: map[string][]string{}, indexOf: map[string]string{}, rows: map[string]purefunctions.Entry{}, unreadable: map[string]bool{}, byName: map[string][]string{}, rowFile: map[string]string{}, store: store}
+	idx := &PackageIndex{Root: root, listed: map[string][]string{}, indexOf: map[string]string{}, rows: map[string]purefunctions.Entry{}, unreadable: map[string]bool{}, modules: map[string]string{}, byName: map[string][]string{}, rowFile: map[string]string{}, store: store}
 	// Registered before the read, so a package whose sources import its own binding finds the index under construction.
 	store.packages[root] = idx
 	if store.fs == nil {
@@ -313,14 +315,13 @@ func (idx *PackageIndex) nameOf(id string) string {
 	return ""
 }
 
-// ModuleText returns the module an artifact serves the id from, as it ships.
+// ModuleText returns the module text Row served the id from, as it ships.
 func (idx *PackageIndex) ModuleText(id string) (string, bool) {
-	for _, dir := range idx.listed[id] {
-		if content, ok := idx.store.fs.ReadFile(tspath.CombinePaths(dir, ModulePath(id))); ok {
-			return content, true
-		}
+	if _, found := idx.Row(id); !found {
+		return "", false
 	}
-	return "", false
+	text, ok := idx.modules[id]
+	return text, ok
 }
 
 // Row returns the served row, reading the id's module on first demand from every directory listing it; the
@@ -334,7 +335,7 @@ func (idx *PackageIndex) Row(id string) (purefunctions.Entry, bool) {
 		return purefunctions.Entry{}, false
 	}
 	var kept purefunctions.Entry
-	keptFile := ""
+	keptFile, keptText := "", ""
 	for _, dir := range dirs {
 		file := tspath.CombinePaths(dir, ModulePath(id))
 		content, ok := idx.store.fs.ReadFile(file)
@@ -349,7 +350,7 @@ func (idx *PackageIndex) Row(id string) (purefunctions.Entry, bool) {
 		}
 		entry.BindingName = idx.nameOf(id)
 		if keptFile == "" {
-			kept, keptFile = entry, file
+			kept, keptFile, keptText = entry, file, content
 			continue
 		}
 		if !reflect.DeepEqual(kept, entry) {
@@ -361,6 +362,7 @@ func (idx *PackageIndex) Row(id string) (purefunctions.Entry, bool) {
 		return purefunctions.Entry{}, false
 	}
 	idx.rows[id] = kept
+	idx.modules[id] = keptText
 	return kept, true
 }
 
@@ -618,6 +620,9 @@ func nearestRoot(roots []string, fromDir string) string {
 	return best
 }
 
+// VendorDir is where a types package ships other packages' pure fns, hidden so its own artifact walk skips them.
+const VendorDir = constants.ApiTypesManifestDir + "/vendor"
+
 // PackageOfID is the owner half of an id (`@acme/text#pf_9Zt1…` → `@acme/text`); empty when not an id or nameless.
 func PackageOfID(id string) string {
 	packageName, _, ok := purefunctions.SplitID(id)
@@ -709,7 +714,9 @@ type Miss struct {
 // Result is what Closure found: Entries sorted by id with every transitive dep, and Unresolved left to the
 // program's own registrations and its PFE9012 check.
 type Result struct {
-	Entries    []purefunctions.Entry
+	Entries []purefunctions.Entry
+	// Roots is the package root each entry was served from, by id.
+	Roots      map[string]string
 	Missing    []Miss
 	Unresolved []string
 	Problems   []ArtifactProblem
@@ -720,7 +727,7 @@ type Result struct {
 // row names it; a dep on the row's own package stays at that root, so a nested copy never resolves to a hoisted
 // sibling. Problems and conflicts are collected after the walk, since reading a module can add them.
 func (store *Store) Closure(demands []Demand) Result {
-	var result Result
+	result := Result{Roots: map[string]string{}}
 	seen := map[string]bool{}
 	visited := map[string]*PackageIndex{}
 	queue := append([]Demand(nil), demands...)
@@ -748,6 +755,7 @@ func (store *Store) Closure(demands []Demand) Result {
 			continue
 		}
 		result.Entries = append(result.Entries, row)
+		result.Roots[demand.ID] = root
 		for _, dep := range row.PureFnDependencies {
 			next := Demand{ID: dep, FromDir: root}
 			if idx.Owner != "" && PackageOfID(dep) == idx.Owner {
