@@ -56,8 +56,8 @@ type Computer struct {
 	// reads this flag to raise a diagnostic. Reset per top-level walk via ResetDepthExceeded.
 	depthExceeded bool
 	// depthCulprit is the cause classified when depthExceeded latches: the name of the type whose
-	// instantiations dominate the overflowing path (a SELF-INSTANTIATING GENERIC, surfaced as marker-self-instantiating-generic), or ""
-	// when no single named type dominates (plain too-deep nesting — marker-type-too-deep).
+	// instantiations dominate the overflowing path (a SELF-INSTANTIATING GENERIC), or ""
+	// when no single named type dominates (marker-type-too-deep).
 	depthCulprit string
 	// walkOps counts Compute's real expansions since the last ResetDepthExceeded. The depth cap alone cannot
 	// bound a graph that mints a fresh *checker.Type per member query at SHALLOW depth (tsgo's error-recovered
@@ -130,7 +130,7 @@ func (computer *Computer) Compute(tsType *checker.Type) string {
 	if tsType == nil {
 		return strconv.Itoa(int(reflection.KindNever))
 	}
-	// A latched walk is already doomed (its ids are discarded and the site diagnosed as marker-type-too-deep/marker-self-instantiating-generic), so
+	// A latched walk is already doomed (its ids are discarded and the site diagnosed), so
 	// composing more text is waste, and on a fresh-type-minting graph EXPONENTIAL waste: unwind immediately.
 	if computer.depthExceeded {
 		return depthSentinel
@@ -197,7 +197,7 @@ func (computer *Computer) Compute(tsType *checker.Type) string {
 // text, and the latch clears per top-level walk — so without this gate a later, non-latching walk could
 // cache-hit that ancestor and commit a `$depth`-poisoned string as a real id, with no diagnostic. Skipping
 // the write is a safe overapproximation: frames popped BEFORE the latch cannot hold the sentinel and only
-// lose a cache entry, and a walk that latches is discarded and diagnosed anyway (marker-type-too-deep / marker-self-instantiating-generic).
+// lose a cache entry, and a walk that latches is discarded and diagnosed anyway (the depth diagnostics).
 func (computer *Computer) commitCache(tsType *checker.Type, id string) string {
 	if !computer.depthExceeded {
 		computer.cache[tsType] = id

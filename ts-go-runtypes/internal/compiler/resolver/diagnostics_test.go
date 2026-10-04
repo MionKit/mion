@@ -172,7 +172,7 @@ export const _ = createJsonEncoderFn<User>(undefined, {strategy: 'mutate'});
 		t.Errorf("no emitted module may carry the json-prepare-never-root alwaysThrow arg — property absorbs the never child. Got:\n%s", all)
 	}
 	// A json-prepare-non-data-property-dropped child-position WARNING should fire for the dropped never property
-	// — NOT the json-prepare-never-root root error. `never` is directly DataOnly-stripped, so the
+	// — NOT json-prepare-never-root. `never` is directly DataOnly-stripped, so the
 	// property is dropped (the object still serializes); an Error would wrongly
 	// claim the factory throws at runtime when it serializes fine (F3).
 	runtype := runtypeDiagsOf(resp.Diagnostics)
@@ -192,7 +192,7 @@ export const _ = createJsonEncoderFn<User>(undefined, {strategy: 'mutate'});
 	if len(drop.Args) != 1 || drop.Args[0] != "bad" {
 		t.Errorf("expected args=[\"bad\"] (the dropped property name), got %v", drop.Args)
 	}
-	// The json-prepare-never-root root error must NOT fire — the property is dropped, not failed.
+	// json-prepare-never-root must NOT fire — the property is dropped, not failed.
 	for i := range runtype {
 		if runtype[i].Code == diagnostics.CodePJNeverRoot {
 			t.Errorf("json-prepare-never-root (root never error) must not fire for a dropped never property, got %+v", runtype[i])

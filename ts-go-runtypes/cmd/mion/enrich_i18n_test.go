@@ -172,9 +172,8 @@ func stubTranslationSpec(source, translationPath, friendlyBody string) mirror.Sp
 	}
 }
 
-// TestCheckTranslationFile_Findings covers the file-local findings: enrich-i18n-missing-translation
-// missing file, enrich-i18n-todo-left blanks, enrich-i18n-orphans carcasses — all spec-free (a nil spec
-// skips only enrich-i18n-out-of-date), plus the strict severity flip.
+// TestCheckTranslationFile_Findings covers the file-local findings, all spec-free (a nil spec skips only
+// enrich-i18n-out-of-date), plus the strict severity flip.
 func TestCheckTranslationFile_Findings(t *testing.T) {
 	dir := canonicalTempDir(t)
 	t.Chdir(dir)

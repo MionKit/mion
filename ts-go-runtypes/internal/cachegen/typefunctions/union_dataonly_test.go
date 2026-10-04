@@ -196,7 +196,7 @@ func TestDataOnlyUnion_NestedInArray(t *testing.T) {
 }
 
 // K2: `Date | {b: symbol}` drops the prop instead of alwaysThrowing, at the root and one object deeper.
-// Only the value kind's drop code is reported (`-function-property-dropped` function, `-non-data-property-dropped` other).
+// Only the value kind's drop code is reported (`-function-property-dropped` or `-non-data-property-dropped`).
 // removeUnknownKeys refuses the union itself but still reports the drop.
 func TestDataOnlyUnion_ObjectMemberStrippedProp(t *testing.T) {
 	type familyCodes struct{ want, notWant string }

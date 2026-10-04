@@ -491,7 +491,7 @@ function strictWithout(key: string, strict: (value: unknown) => boolean): (value
   });
 }
 
-// Object-bearing unions: the factory is a unknown-keys-object-union alwaysThrow, so that throw is the only oracle.
+// Object-bearing unions: the factory is an unknown-keys-object-union alwaysThrow, so that throw is the only oracle.
 const throwTargets: Array<{title: string; createClone: () => unknown}> = [
   {
     title: 'DisjointObjectUnion',

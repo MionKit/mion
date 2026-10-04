@@ -1,6 +1,6 @@
 // Package purefunctions extracts `registerPureFnFactory(...)` call sites into the pure-fn
 // cache: it walks marker-branded calls, strips TS types from the factory body, enforces the
-// purity rules (purefn-uses-this to purefn-reads-outer-variable), records cross-fn deps, and renders the per-entry module rows.
+// purity rules, records cross-fn deps, and renders the per-entry module rows.
 package purefunctions
 
 import (
@@ -10,7 +10,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
-// CheckPurity returns the purity diagnostics (purefn-uses-this to purefn-reads-outer-variable) for an inline function-literal node.
+// CheckPurity returns the purity diagnostics for an inline function-literal node.
 // Public wrapper around checkPurity for the resolver's PureFunction<F> marker path; the
 // extractor calls checkPurity directly.
 //

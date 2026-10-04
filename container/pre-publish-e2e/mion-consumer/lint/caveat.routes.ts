@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Deliberately WRONG routes, one per rpc-handler-missing-return-type to rpc-handler-returns-non-rpc-error. The file must resolve: the plugin runs the published resolver
+// Deliberately WRONG routes, one per rpc-handler-* error. The file must resolve: the plugin runs the published resolver
 // over the project tsconfig (which includes lint/), so a silent pass means it registered nothing or never reached it.
 import {createMionRouter} from '@mionjs/router';
 

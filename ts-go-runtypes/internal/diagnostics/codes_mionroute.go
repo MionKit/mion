@@ -2,7 +2,7 @@ package diagnostics
 
 // mion route codes (rpc-handler-*) over route, query, mutation, middleware and headersMiddleware handlers, resolved by the checker.
 // Emitted only when a caller opts in (Request.CheckRouterRules), so a build never fails on one: off in eslint must mean off.
-// rpc-handler-missing-return-type to rpc-handler-returns-non-rpc-error are LevelRuntimeError despite being lint-only: the build emits, but mion compiles the DECLARED types,
+// The rpc-handler-* errors are LevelRuntimeError despite being lint-only: the build emits, but mion compiles the DECLARED types,
 // so the route is broken at runtime. rpc-handler-non-data-property is a warning: a dropped member still leaves a working type.
 const (
 	// CodeRouteMissingReturnType: a handler with no written return type. The build compiles the

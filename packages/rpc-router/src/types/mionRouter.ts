@@ -40,7 +40,7 @@ import type {ApiBuildVersion, PublicApi} from './publicMethods.ts';
 // returns: TypeScript has no partial type application, so a plain exported function cannot capture it.
 //
 // ⚠️ The trailing marker parameters are written in MarkerSlots / HeaderMarkerSlots (parser.ts).
-// `opts` is CompTimeArgs so the build rejects a non-literal (marker-comptime-arg-not-literal / marker-comptime-arg-widened-const), and it must stay
+// `opts` is CompTimeArgs so the build rejects a non-literal (marker-comptime-arg-*), and it must stay
 // immediately before the first marker slot: the resolver reads the options argument at (first marker index - 1).
 
 /** The options accepted by `createMionRouter`: every router option is optional. */

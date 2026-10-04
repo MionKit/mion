@@ -466,7 +466,7 @@ func containsString(values []string, want string) bool {
 
 // TestRpc_NoRouterInitButRouterImported: a server whose router is created
 // behind a declaration-file wrapper (the one shape the detector cannot see)
-// still gets rpc/ written, plus a rpc-batch-router-init-hidden RuntimeError (the table is written and
+// still gets rpc/ written, plus an rpc-batch-router-init-hidden RuntimeError (the table is written and
 // nothing imports it, so every batch request 404s); nothing is appended.
 func TestRpc_NoRouterInitButRouterImported(t *testing.T) {
 	sources := rpcSources()

@@ -8,7 +8,7 @@ import (
 )
 
 // internal-json-primitive-missing: `compact` over a function / symbol leaf at a propagating position (tuple slot, array element, record value,
-// callable object) must render an alwaysThrow with its sibling's code (cj as clone → PJS*, cjr as mutate → RJ*),
+// callable object) must render an alwaysThrow with its sibling's code (cj as clone, cjr as mutate),
 // never an empty entry the composite still binds.
 
 // internalJsonPrimitiveMissingCompactCase pairs a type shape with the root code its
@@ -106,8 +106,7 @@ func TestInternalJsonPrimitiveMissing_CompactPropertyDropStillWarns(t *testing.T
 	if len(cloneEnc) == 0 {
 		t.Fatalf("clone encoder should warn on a dropped function property, got none")
 	}
-	// Same dropped-property warning code as clone (json-prepare-clone-method-dropped = method/function
-	// value dropped); before the fix compact emitted nothing here.
+	// Same dropped-property warning code as clone (json-prepare-clone-method-dropped); compact once emitted nothing here.
 	if !containsCode(cloneEnc, diagnostics.CodePJSMethodDropped) {
 		t.Fatalf("expected clone to warn %s, got %v", diagnostics.CodePJSMethodDropped, cloneEnc)
 	}

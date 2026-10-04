@@ -2,7 +2,7 @@
 // of `batch([...])` the build can read (the report carries the ordered route
 // ids, the `inputFrom()` mappings and the injected `b_` id, and the transform
 // splices that id into the call) and every shape it cannot (the build halts
-// with a rpc-batch-* diagnostic that names the file and the line of the offending
+// with an rpc-batch-* diagnostic that names the file and the line of the offending
 // element, and the report carries no site for that batch).
 //
 // Like batch-report.test.ts this drives the SHARED unplugin factory through
@@ -695,12 +695,8 @@ describe('request-batch diagnostics and readable shapes', () => {
   });
 
   describe('downgradeErrors: [rpc-batch-element-unreadable]', () => {
-    // rpc-batch-element-unreadable is a fatal Error and cannot be stood down, and this test used to be
-    // the proof of why: it asserted that a downgraded rpc-batch-element-unreadable ships the batch
-    // WITHOUT its id. That bundle is not a working bundle — `batch()` throws
-    // `batch-missing-id` synchronously at call time, before any network work —
-    // so not halting buys nothing. The config is refused at the host boundary
-    // instead, where the user can still read what to do about it.
+    // A downgrade would ship the batch without its id, and `batch()` then throws `batch-missing-id` at call
+    // time, so the config is refused at the host boundary, where the user can read what to do.
     it('is refused: the batch ships with no id, so not halting buys nothing', () => {
       expect(() =>
         runtypesRollup({

@@ -11,8 +11,7 @@ import type {EnrichCase} from './cases/types.ts';
 
 afterAll(() => cleanupTempDir('no-emit'));
 
-// Completeness codes — an unfilled @todo (enrich-text-todo-left/enrich-mock-todo-left) or a blank scaffold value
-// (enrich-text-blank-value/enrich-mock-blank-value). This suite's spans use blank placeholders, so these are expected;
+// Completeness codes: this suite's spans use blank placeholders, so these are expected;
 // they are gated by `--require-complete`, orthogonal to the content checks here.
 const COMPLETENESS_CODES = new Set([
   'enrich-text-todo-left',

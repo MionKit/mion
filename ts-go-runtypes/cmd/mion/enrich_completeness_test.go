@@ -21,8 +21,7 @@ func mkEnrichDiag(code string) diagnostics.Diagnostic {
 // is expected to carry blanks — but the completeness gate (`--require-complete`,
 // requireComplete=true) fails on it. Wrong/stale content fails BOTH lanes.
 func TestReportEnrichDiagnostics_CompletenessGate(t *testing.T) {
-	// Completeness codes — an unfilled @todo (enrich-text-todo-left/enrich-mock-todo-left) or a blank value
-	// (enrich-text-blank-value/enrich-mock-blank-value): reported by the default check but failing only --require-complete.
+	// Completeness codes (*-todo-left, *-blank-value): reported by the default check but failing only --require-complete.
 	for _, code := range []string{
 		diagnostics.CodeFriendlyTodo, diagnostics.CodeMockTodo,
 		diagnostics.CodeFriendlyBlankValue, diagnostics.CodeMockBlankValue,
@@ -65,7 +64,7 @@ func TestReportEnrichDiagnostics_CompletenessGate(t *testing.T) {
 	}
 }
 
-// An Info finding (enrich-text-plural-without-count, a plural arm that can never fire) is advice: it fails neither lane.
+// An Info finding (enrich-text-plural-without-count) is advice: it fails neither lane.
 func TestReportEnrichDiagnostics_InfoNeverFails(t *testing.T) {
 	info := []diagnostics.Diagnostic{mkEnrichDiag(diagnostics.CodeFriendlyPluralNoCount)}
 	if info[0].Level != diagnostics.LevelInfo {

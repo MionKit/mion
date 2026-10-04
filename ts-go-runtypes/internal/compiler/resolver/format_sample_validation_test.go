@@ -27,7 +27,7 @@ const typeFormatBrandDecl = `type TypeFormat<Base, Name extends string, Params> 
 `
 
 // TestFormatSamples_MismatchEmitsFormatSampleMismatch — a mockSample that doesn't
-// match the format's own pattern must surface as an format-sample-mismatch error at
+// match the format's own pattern must surface as a format-sample-mismatch error at
 // build time (the sample would otherwise feed createMockDataFn an
 // invalid value).
 func TestFormatSamples_MismatchEmitsFormatSampleMismatch(t *testing.T) {

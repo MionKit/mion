@@ -738,7 +738,7 @@ func FormatAnnotationStructuralKey(annotation *reflection.FormatAnnotation) stri
 // formats identical but for their sample pools describe the SAME validator and MUST dedup onto one cache
 // entry. `message` stays folded in because it changes the emitted validator's error `val`, and a pattern's
 // `source`/`flags` stay because they ARE the check. Two sites that dedup onto one entry but declare
-// DIFFERENT sample pools are a build ERROR (diagnostics.CodeFMTSampleConflict, format-sample-conflict), never a guess
+// DIFFERENT sample pools are a build ERROR (diagnostics.CodeFMTSampleConflict), never a guess
 // hidden in the id.
 const mockSamplesKey = "mockSamples"
 

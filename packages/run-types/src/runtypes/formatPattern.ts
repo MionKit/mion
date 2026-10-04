@@ -13,7 +13,7 @@ export interface StringPatternArgs {
   flags?: string;
   mockSamples?: readonly string[];
   message?: string;
-  // Opts out of the build-time backtracking check (format-pattern-unsafe), which rejects a pattern a crafted input can make take exponential time.
+  // Opts out of format-pattern-unsafe, the build-time check for a pattern a crafted input can make take exponential time.
   // For the rare pattern the check reads wrongly: the emitted validator still runs the regex, so turning it off is a promise the pattern is safe.
   unsafePattern?: boolean;
   // Blocks a RegExp VALUE, which has source + flags and would otherwise fit structurally.

@@ -241,7 +241,7 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
       )
     ).toBe(true);
     expect(stdout).not.toContain('resolver failed');
-    // The Info-level validate-method-dropped method drop is hidden by default.
+    // The Info-level method drop is hidden by default.
     expect(diagnostics.some((diagnostic) => diagnostic.message.includes('[validate-method-dropped]'))).toBe(false);
     // A `@mion-downgrade-error` line reports as a WARNING under mion/warning, like the build prints it.
     expect(diagnostics.filter((diagnostic) => diagnostic.filename === 'lowered.ts')).toEqual([

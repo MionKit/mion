@@ -1,4 +1,4 @@
-// Runtype diagnostics end to end: root throws get per-family codes (json-prepare-never-root, json-prepare-clone-never-root) so a build log greps by family,
+// Runtype diagnostics end to end: root throws get per-family codes so a build log greps by family,
 // and dedup is one per call site, not per type id.
 
 import {describe, expect, it} from 'vitest';
@@ -100,7 +100,7 @@ export const _ = createValidateFn<User>();
   register('emits union-member-drop info (validate-union-member-dropped) for Date | symbol under validate', async () => {
     // `Date | symbol` projects to `Date` (DataOnly drops the symbol arm). The
     // drop is silent at runtime, so the build surfaces a validate-union-member-dropped Info naming
-    // the dropped member — mirroring the function-prop drop (validate-function-property-dropped) above.
+    // the dropped member — mirroring the function-prop drop above.
     const sources = {
       'union-drop.ts': `import {createValidateFn} from '@mionjs/run-types';
 export const _ = createValidateFn<Date | symbol>();
@@ -192,7 +192,7 @@ export const _ = getRunTypeId<any>();
       });
       const diags = runtypeDiagsOf(response);
       const warning = diags.find((d) => d.code === 'validation-errors-any-accepts-all');
-      // validation-errors-any-accepts-all is Info: the author wrote any/unknown, so an accept-everything validator is what was asked for.
+      // Info: the author wrote any/unknown, so an accept-everything validator is what was asked for.
       if (warning) {
         expect(warning.severity).toBe(Severity.Info);
       }
@@ -268,8 +268,8 @@ export const _ = createJsonEncoderFn<[number, symbol]>(undefined, {strategy: 'mu
     });
   });
 
-  // internal-json-primitive-missing regression: compact (cj / cjr) once skipped its primitive on an unserialisable leaf, surfacing internal-json-primitive-missing.
-  // cj now delegates to prepareForJsonSafe (PJS*) and cjr to restoreFromJsonMutate (RJ*), so it throws their codes.
+  // Regression: compact (cj / cjr) once skipped its primitive on an unserialisable leaf, surfacing internal-json-primitive-missing.
+  // cj now delegates to prepareForJsonSafe and cjr to restoreFromJsonMutate, so it throws their codes.
   register(
     'compact strategy alwaysThrows (json-prepare-clone-function-root / json-restore-function-root) with NO internal-json-primitive-missing for a function tuple slot',
     async () => {
@@ -401,7 +401,7 @@ export const _e = createJsonEncoderFn<S>(undefined, {strategy: 'mutate'});
   // in Session.Dispatch) is keyed on the FULL identity, so it collapses repeats
   // and never siblings. And provenance is keyed per rendered ENTRY, so a
   // family's finding reaches only the sites that demanded that family: `Pet` is
-  // shared, but json-prepare-method-dropped is about the encoder and json-restore-method-dropped about the decoder, so each
+  // shared, but the json-prepare code is about the encoder and the json-restore one about the decoder, so each
   // lands on its own call and neither is told about the other's dropped member.
   register('reports each diagnostic once per code and site, never twice', async () => {
     const sources = {

@@ -265,7 +265,7 @@ func TestTsconfigParity_BuildLaneEqualsDaemonLane(t *testing.T) {
 }
 
 // TestSetSources_TsconfigErrors pins the daemon error semantics: a NAMED config
-// that is broken or missing fails the op loudly (config-tsconfig-not-loaded-tagged), nothing named
+// that is broken or missing fails the op loudly (tagged config-tsconfig-not-loaded), nothing named
 // falls back, and a fixed config heals on the next setSources without a
 // respawn (the parse error is never cached).
 func TestSetSources_TsconfigErrors(t *testing.T) {

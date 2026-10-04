@@ -18,7 +18,7 @@ import (
 // @mionjs/devtools plugin surfaces). It runs under the `enrich <file>
 // --no-emit` grammar: tag hygiene (unfilled @todo scaffolds, stale @rtOrphan
 // carcasses), FriendlyText / MockData content validity, and breadcrumb drift
-// (enrich-mirror-source-missing/enrich-mirror-type-missing, gated on the generated-mirror marker). A DIRECTORY / no target
+// (gated on the generated-mirror marker). A DIRECTORY / no target
 // runs the mirror-tree drift walk (runMirrorDriftCheck); `--i18n` runs the i18n
 // completeness gate (runI18nCheck) — both routed from runEnrich.
 

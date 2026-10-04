@@ -17,7 +17,7 @@ func codesUnderLib(t *testing.T, lib string, code string) []string {
 }
 
 // arraySugarSource is the shape config-lib-missing-base exists for. `Array<number>` would raise
-// marker-any-from-unresolved-name (a written NAME that failed to resolve), but `number[]` writes no name,
+// marker-any-from-unresolved-name, but `number[]` writes no name,
 // so the silent-`any` guard family never looks at it.
 const arraySugarSource = `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<{grid: number[][]; names: readonly string[]}>();

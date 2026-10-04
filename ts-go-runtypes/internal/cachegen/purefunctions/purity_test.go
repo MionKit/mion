@@ -19,7 +19,7 @@ export const fn = registerPureFnFactory(function () {
 	return diags
 }
 
-// purityCodes returns the codes of every purity diagnostic (purefn-uses-this to purefn-reads-outer-variable) in
+// purityCodes returns the codes of every purity diagnostic in
 // diags. Order is preserved (sorted alphabetically by site upstream, so
 // the slice is deterministic across runs).
 func purityCodes(diags []Diagnostic) []string {
@@ -153,8 +153,8 @@ func TestPurity_BinaryEncodingGlobals_Allowed(t *testing.T) {
 	// User-requested delta: binary + text-encoding constructors are in
 	// allowedGlobals so hashing / binary-codec / encoding algorithms can be
 	// ported inline into a factory body. References EVERY newly-added global,
-	// so dropping any key from the map re-introduces a purefn-reads-outer-variable closure (or
-	// purefn-forbidden-construct forbidden) violation right here.
+	// so dropping any key from the map re-introduces a purefn-reads-outer-variable (or
+	// purefn-forbidden-construct) violation right here.
 	diags := withFactoryBody(t, `
   return function inner(input: string) {
     const bytes = new TextEncoder().encode(input);
@@ -186,7 +186,7 @@ func TestPurity_BunEngineProbe_Allowed(t *testing.T) {
 	// picks a for-in counter on V8 and an Object.keys counter on JavaScriptCore.
 	// The probe MUST be `typeof Bun !== 'undefined'`: `process`, `globalThis` and
 	// `global` are all in forbiddenIdentifiers, so no other engine test is legal.
-	// Dropping "Bun" from allowedGlobals re-introduces a purefn-reads-outer-variable closure violation
+	// Dropping "Bun" from allowedGlobals re-introduces a purefn-reads-outer-variable violation
 	// right here.
 	diags := withFactoryBody(t, `
   if (typeof Bun !== 'undefined') {
@@ -222,7 +222,7 @@ func TestPurity_Crypto_Allowed(t *testing.T) {
 	// (randomUUID / getRandomValues) are non-deterministic — exactly like
 	// Math.random / Date.now, which are also allowed and which mock-generator
 	// pure-fns want. Non-determinism is NOT the forbidden line, so no closure
-	// (purefn-reads-outer-variable) or forbidden (purefn-forbidden-construct) diagnostic.
+	// (purefn-reads-outer-variable) or purefn-forbidden-construct diagnostic.
 	diags := withFactoryBody(t, `
   return function inner() {
     const id = crypto.randomUUID();

@@ -22,7 +22,7 @@ import (
 )
 
 // withDowngrade inserts a comment line directly above the createValidateFn call
-// in validateSymbolRootSource (a root-position `symbol`, validate-symbol-root), the position the directive
+// in validateSymbolRootSource (a root-position `symbol`), the position the directive
 // contract defines.
 func withDowngrade(comment string) string {
 	return strings.Replace(validateSymbolRootSource,

@@ -43,7 +43,7 @@ func TestNamedFormats_TransformIsOptIn(t *testing.T) {
 }
 
 // TestNamedFormats_ValidateTransformBlock — every string-family ValidateParams
-// runs the shared shape check, so a typo inside `transform` is an format-invalid-params for
+// runs the shared shape check, so a typo inside `transform` is a format-invalid-params for
 // each of them, not just for String.
 func TestNamedFormats_ValidateTransformBlock(t *testing.T) {
 	validators := map[string]formats.ParamValidator{

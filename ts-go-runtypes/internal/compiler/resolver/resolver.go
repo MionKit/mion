@@ -179,7 +179,7 @@ type Session struct {
 	apiInitFileCache *apimeta.InitFileCache
 	// apiMiddlewareReadsCache memoises which client middlewares each file reads, for rpc-client-middleware-not-set-up / rpc-client-optional-middleware-not-set-up.
 	apiMiddlewareReadsCache *apimeta.MiddlewareReadsCache
-	// apiFetch memoises the program-wide facts the metadata-fetching checks read (rpc-client-route-id-widened / rpc-client-route-id-widened-fetched / rpc-client-no-metadata-route / rpc-client-fetch-not-set-up).
+	// apiFetch memoises the program-wide facts the metadata-fetching checks read (rpc-client-route-id-widened*, rpc-client-no-metadata-route, rpc-client-fetch-not-set-up).
 	apiFetch *apiFetchMemo
 	// hasBatchesMemo is the transform's switch for appending the batch import; reset with the Program.
 	// importsRouterMemo caches whether any own source file names `@mionjs/router` (see rpcgen.go); reset with the Program.
@@ -211,8 +211,8 @@ type Session struct {
 	overrideEntries []purefunctions.Entry
 	// overrideMap is structural key → family → override fn id, installed packages' rows included; it feeds the artifact.
 	overrideMap map[string]map[string]string
-	// overrideDiagnostics holds the override pass's override-* diagnostics (override-duplicate duplicate-override, override-validate-affects-json validate
-	// cross-family), surfaced on every scan response for the current Program.
+	// overrideDiagnostics holds the override pass's override-* diagnostics,
+	// surfaced on every scan response for the current Program.
 	overrideDiagnostics []diagnostics.Diagnostic
 	// overrideArgSpansByFile records the byte spans of each override call's inline pure-fn argument, which the
 	// transform rewrites to `null` because the body lives only in the cfn module; emitted as per-file Replacements.

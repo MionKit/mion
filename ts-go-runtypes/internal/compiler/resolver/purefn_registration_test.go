@@ -43,8 +43,8 @@ declare module '@mionjs/run-types/runtime' {
 `
 
 // markerAndPureFnDiags narrows a response's diagnostics to the two families a
-// pure-fn / marker scanner surfaces at a call site — FamilyMarker (marker-comptime-arg-* /
-// purefn-*) and FamilyPureFn (purefn-*) — so the "zero scanner diagnostics"
+// pure-fn / marker scanner surfaces at a call site (FamilyMarker and FamilyPureFn)
+// so the "zero scanner diagnostics"
 // acceptance assertions ignore unrelated families.
 func markerAndPureFnDiags(diags []diagnostics.Diagnostic) []diagnostics.Diagnostic {
 	var out []diagnostics.Diagnostic

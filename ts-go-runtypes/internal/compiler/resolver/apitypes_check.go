@@ -61,7 +61,7 @@ func (sess *Session) apiTypesPackages() *apiTypesCheck {
 }
 
 // dropRefusedApiTypeDiags removes what rpc-client-types-not-built-by-mion already explains: the version codes at a refused client, and a
-// typeless private member declared in a refused package. Whole-program ops only, the ones that report rpc-client-types-not-built-by-mion.
+// typeless private member declared in a refused package. Whole-program ops only, the ones that report it.
 func (sess *Session) dropRefusedApiTypeDiags(list []diagnostics.Diagnostic) []diagnostics.Diagnostic {
 	check := sess.apiTypesPackages()
 	if len(check.refusedRoots) == 0 {

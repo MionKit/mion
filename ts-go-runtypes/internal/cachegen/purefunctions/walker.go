@@ -120,7 +120,7 @@ func (cache *FileCache) put(filePath string, entries []Entry, diagnostics []diag
 // the correctness contract, the name is a fast-path filter only.
 //
 // Marker-shape diagnostics (non-literal id / factory) are emitted by `resolver.scanCall` via
-// marker-comptime-arg-not-literal / purefn-not-inline, NOT here; this pass emits only purefn-destructured-param (destructured factory param),
+// marker-comptime-arg-not-literal / purefn-not-inline, NOT here; this pass emits only purefn-destructured-param,
 // the purity codes and purefn-dependency-not-id (deps).
 //
 // Entries come out sorted by Key and diagnostics by Site, both deterministic for stable fixtures.
@@ -478,7 +478,7 @@ func (ctx *resolveCtx) buildPureFnEntry(sourceFile *ast.SourceFile, call *ast.No
 	// function, dependencies included.
 	id := IDFor(ctx.markerOpts, sourceFile.FileName(), CodeHash(code))
 
-	// Purity emits the purity codes (purefn-uses-this to purefn-reads-outer-variable) without withholding output: the entry still emits when
+	// Purity emits its codes without withholding output: the entry still emits when
 	// violations exist, the same posture as purefn-destructured-param. It runs on the pure fn itself for BOTH
 	// forms, a captured variable being unsafe either way. The lowered dep arguments are exempt,
 	// being literals by the time the body ships.
