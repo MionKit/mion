@@ -50,7 +50,7 @@ map involved.
 
 One recursive node, uniform at every depth. `rt$`-prefixed keys are **meta**; every
 other key is a **child field** (the `rt$` prefix is RESERVED — a source-type property
-named `rt$…` is refused by `enrich` and flagged FT011; a plain `$foo` property is just a
+named `rt$…` is refused by `enrich` and flagged enrich-text-reserved-prefix; a plain `$foo` property is just a
 field). Leaf nodes simply have no children — there is no `fields:` wrapper.
 
 - `rt$label: string` — the field's human name; always a plain string. REQUIRED.
@@ -89,7 +89,7 @@ the template by the error's `(format.name, formatPath-tail)` discriminator:
 format NAME and allows the keys in the generated `FormatErrorKeys` table
 (`src/go-generated/formatErrorKeys.generated.ts`, built from each format's validation-errors
 code). Every key is optional in the type; an unknown key is an excess-property TYPE error,
-`enrich --no-emit` reports a missing key (FT012) or one this field can never fail on (FT003),
+`enrich --no-emit` reports a missing key (enrich-text-missing-message) or one this field can never fail on (enrich-text-unknown-error-key),
 and `enrich --update` adds missing keys as blanks. Params that never fail (`float`,
 `isCurrency`, `mockSamples`, `separators`, the transformers) never become keys, and the JSON
 Schema bounds (`minimum`, `exclusiveMinimum`, ...) use `min` / `max` / `gt` / `lt`. A bare
@@ -97,7 +97,7 @@ Schema bounds (`minimum`, `exclusiveMinimum`, ...) use `min` / `max` / `gt` / `l
 
 **`rt$default` — the exclusive catch-all mode.** `rt$errors: {rt$default: '…'}` yields
 ONE message for the whole field, whatever failed. It never mixes with per-constraint keys
-(TS union + FT009 Error). Each node picks its own mode; `enrich` always scaffolds NEW
+(TS union + enrich-text-default-and-messages Error). Each node picks its own mode; `enrich` always scaffolds NEW
 nodes per-constraint (switch a node to `rt$default` by hand), and once a node
 exists its authored mode is followed by every sync.
 
@@ -117,7 +117,7 @@ Templates are plain strings with `$[…]` tokens the renderer substitutes:
 | `$[index]`      | array element index, for `rt$items` failures                                                                                                                                                                    |
 | _(type-driven)_ | `$[val]` renders by the bound's TYPE on the i18n path: an `isCurrency`-marked bound (`TF.Currency`) via the renderer's `currency` option, date-family bounds via `Intl.DateTimeFormat` — no per-template syntax |
 
-Unknown `$[…]` tokens are left verbatim and `enrich --no-emit` flags them via FT005; a literal
+Unknown `$[…]` tokens are left verbatim and `enrich --no-emit` flags them via enrich-text-unknown-placeholder; a literal
 colon in prose (`ratio 3:1`) is never touched. `$[value]` (the actual
 received value) is out of scope for v1 — `RunTypeError` carries no value.
 
@@ -163,7 +163,7 @@ and never a function (the v1 inline-arrow escape hatch was REMOVED: opaque to
 translation, reconcile and the checker; only data survives):
 
 - **Per-constraint** — `{type: '…', minLength: '…', …}`. Yields **one message per
-  failed constraint**; every key compiler-validated (placeholders too, FT005).
+  failed constraint**; every key compiler-validated (placeholders too, enrich-text-unknown-placeholder).
 - **`rt$default`** — `{rt$default: '…'}`. Yields ONE message for the whole field, whatever
   failed (a multi-constraint failure still renders a single message). Plain data, so it
   translates and reconciles like any other leaf.
@@ -204,34 +204,34 @@ export const friendlyUser: FriendlyText<User> = {
 The `import type` line is best-effort — if a consumed type isn't exported, the file
 fails to compile and you fix the export.
 
-## Build-time validation — the FT0xx checks
+## Build-time validation — the enrich-text-\* checks
 
 The `enrich --no-emit` mode cross-references the authored literal against the live `RunType` and
 reports:
 
-| Code  | Level   | Meaning                                                                                                                                     |
-| ----- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| FT001 | Warning | a field of `T` has no label (renders the raw name)                                                                                          |
-| FT002 | Warning | key is not a field of `T` — stale (field renamed/removed), so nothing ever reads it                                                         |
-| FT003 | Warning | `rt$errors` key is not an error this field can produce (TS catches keys the FORMAT never produces as an excess-property error)              |
-| FT004 | Warning | structural mismatch (object node where `T` is scalar, or vice-versa)                                                                        |
-| FT005 | Warning | unknown `$[…]` placeholder for this constraint/context — checked per plural arm                                                             |
-| FT006 | Warning | a plural object is missing the mandatory `other` arm                                                                                        |
-| FT007 | Warning | a plural-object arm key is not a CLDR category                                                                                              |
-| FT008 | Warning | a plural object on a non-count-bearing constraint (dead arms)                                                                               |
-| FT009 | Warning | `rt$default` beside any other `rt$errors` key — the modes are mutually exclusive, and the catch-all silently wins                           |
-| FT010 | Warning | `T`'s structural id changed since authored — review for drift                                                                               |
-| FT011 | Error   | a property of `T` is named `rt$…` — the reserved meta prefix (`enrich` refuses the type up front and writes no mirror; rename the property) |
-| FT012 | Warning | a failure this field can produce has no `rt$errors` key (and no `rt$default`), so it shows a generic message                                |
+| Code                             | Level   | Meaning                                                                                                                                     |
+| -------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| enrich-text-missing-label        | Warning | a field of `T` has no label (renders the raw name)                                                                                          |
+| enrich-text-unknown-field        | Warning | key is not a field of `T` — stale (field renamed/removed), so nothing ever reads it                                                         |
+| enrich-text-unknown-error-key    | Warning | `rt$errors` key is not an error this field can produce (TS catches keys the FORMAT never produces as an excess-property error)              |
+| enrich-text-shape-mismatch       | Warning | structural mismatch (object node where `T` is scalar, or vice-versa)                                                                        |
+| enrich-text-unknown-placeholder  | Warning | unknown `$[…]` placeholder for this constraint/context — checked per plural arm                                                             |
+| enrich-text-plural-missing-other | Warning | a plural object is missing the mandatory `other` arm                                                                                        |
+| enrich-text-unknown-plural-arm   | Warning | a plural-object arm key is not a CLDR category                                                                                              |
+| enrich-text-plural-without-count | Warning | a plural object on a non-count-bearing constraint (dead arms)                                                                               |
+| enrich-text-default-and-messages | Warning | `rt$default` beside any other `rt$errors` key — the modes are mutually exclusive, and the catch-all silently wins                           |
+| enrich-text-type-drift           | Warning | `T`'s structural id changed since authored — review for drift                                                                               |
+| enrich-text-reserved-prefix      | Error   | a property of `T` is named `rt$…` — the reserved meta prefix (`enrich` refuses the type up front and writes no mirror; rename the property) |
+| enrich-text-missing-message      | Warning | a failure this field can produce has no `rt$errors` key (and no `rt$default`), so it shows a generic message                                |
 
 Almost every content check is a **Warning**: the message still renders, it just falls
 back to something less specific (the generic "value is invalid", the `other` plural arm,
 the raw field name). Degraded text is enrichment that did not apply, not a broken
-function. **FT011 is the one Error**, because the enrich plan fails and no mirror file is
-written at all. The unfilled-scaffold codes (FT020 / FT023) are Warnings too, and what
+function. **enrich-text-reserved-prefix is the one Error**, because the enrich plan fails and no mirror file is
+written at all. The unfilled-scaffold codes (enrich-text-todo-left / enrich-text-blank-value) are Warnings too, and what
 makes them fail `enrich --require-complete` is their completeness flag, not their level.
 
-These catch drift: rename a field and `FT002` flags the now-stale entry.
+These catch drift: rename a field and `enrich-text-unknown-field` flags the now-stale entry.
 
 ## Rendering at runtime — `createFriendlyText<T>(map)`
 
@@ -279,7 +279,7 @@ falls back to the source at render time.
 - Scaffold with `mion enrich --i18n <locale|all>`; reconcile with `--update`
   (src-driven, value-preserving, descends `rt$errors`); strip orphan carcasses with
   `--prune`; gate completeness in CI with `enrich --i18n <locale|all> --no-emit` (findings
-  TR001–TR004; TR003 = a src-driven reconcile would change the file). CLI + tsconfig
+  enrich-i18n-\*; enrich-i18n-out-of-date = a src-driven reconcile would change the file). CLI + tsconfig
   `i18n` reference: the `rt-enrich-types` skill.
 - The scaffold is the type's tree with every string leaf and plural arm as an `@todo`
   blank (`''`) — it NEVER copies source text as if translated (the type has no
@@ -436,15 +436,15 @@ const messages = friendly.errors(getUserErrors({name: 'A', age: 200, profile: {e
   (`<genDir>/enriched/friendly/<rel>.ts`), not the consumer's file.
 - Type it `FriendlyText<T>` so structure is checked against `T`. The map is TOTAL:
   every field present, `rt$label` + `rt$errors` on every node. Blank `''` = no custom
-  text (FT001 Info nudges unlabeled fields); never delete a key — it re-scaffolds.
+  text (enrich-text-missing-label Info nudges unlabeled fields); never delete a key — it re-scaffolds.
 - The `rt$errors` key set is exactly the field's **declared failable format params**
   plus `type` — the mapped type requires each and rejects any other. A bare `string`
   takes `type` only.
 - Want one sentence per field? Use `rt$errors: {rt$default: '…'}` — exclusive, never mixed
-  with per-constraint keys (FT009). Scaffolds are always per-constraint; switch a
+  with per-constraint keys (enrich-text-default-and-messages). Scaffolds are always per-constraint; switch a
   node by hand.
 - On count-bearing constraints, fill the scaffolded plural arms in place — never
-  restructure the object; keep `other` (FT006), prune unused arms; remember the count is
+  restructure the object; keep `other` (enrich-text-plural-missing-other), prune unused arms; remember the count is
   the violated bound, not the received value's length.
 - In a locale file, translate only blank leaves, never copy the source text, and prune
   the arms your language doesn't use — they stay pruned.

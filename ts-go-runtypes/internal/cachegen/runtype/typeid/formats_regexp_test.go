@@ -65,7 +65,7 @@ func TestFormatPattern_SamePatternSameID(t *testing.T) {
 	}
 }
 
-// Boundary: `declare const p: FormatPattern`, the .d.ts shape of an annotated const, has no initializer to trace (FMT009).
+// Boundary: `declare const p: FormatPattern`, the .d.ts shape of an annotated const, has no initializer to trace (format-pattern-unreadable).
 func TestFormatPattern_DeclareConstMarkedUnrecovered(t *testing.T) {
 	_, pattern := scanFormatPattern(t, `declare const p: FormatPattern;`)
 	if _, ok := pattern["source"]; ok {

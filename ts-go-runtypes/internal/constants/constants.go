@@ -373,7 +373,7 @@ const (
 	// holding both writes both, so `mion api-check` can compare a client build against any server build.
 	ApiClientManifestFile = "client-manifest.json"
 	// ApiTypesMarkerFile is the marker `mion api-types` writes at a types-only package's root; the package.json
-	// `mion.apiTypes` field names it, and a client refuses a types-only package without both (MET015).
+	// `mion.apiTypes` field names it, and a client refuses a types-only package without both (rpc-client-types-not-built-by-mion).
 	ApiTypesMarkerFile = "mion-api.json"
 	// ApiTypesManifestDir is the gen dir copy inside a types-only package, so `mion api-check` reads its manifest.
 	ApiTypesManifestDir = ".mion"

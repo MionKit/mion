@@ -8,13 +8,13 @@ import (
 )
 
 // runtypesDTSWithPureFn is the ambient `mion` module used by the
-// PFE9012 tests. It carries just enough surface to (a) demand a verr entry —
+// purefn-not-registered tests. It carries just enough surface to (a) demand a verr entry —
 // whose live body reaches `utl.getPureFn('@mionjs/run-types/src/runtypes/pure-fns-utils#pf_newRunTypeErr')` — and (b) let a
 // companion .ts file register a pure fn so the extractor recognizes it. Like a
 // published-package consumer, it resolves `@mionjs/run-types` to a declaration:
 // the runtime's own `rt::`/`rtFormats::` registrations live in the package's
 // `.js` (side-effect-imported at runtime), never in this .d.ts. Those built-in
-// namespaces are therefore exempt from PFE9012 (see
+// namespaces are therefore exempt from purefn-not-registered (see
 // purefunctions.IsBuiltinPureFnNamespace) — validating them would false-positive
 // on every consumer. Only user-owned namespaces are cross-checked.
 const runtypesDTSWithPureFn = `declare module '@mionjs/run-types' {
@@ -44,8 +44,8 @@ func pureFnDepDiags(diags []diagnostics.Diagnostic) []diagnostics.Diagnostic {
 	return filterDiagsByFamily(diags, diagnostics.FamilyPureFn)
 }
 
-// assertNoPFE9012 fails if any PFE9012 (missing pure-fn dep) diagnostic appears.
-func assertNoPFE9012(t *testing.T, diags []diagnostics.Diagnostic) {
+// assertNoPurefnNotRegistered fails if any purefn-not-registered (missing pure-fn dep) diagnostic appears.
+func assertNoPurefnNotRegistered(t *testing.T, diags []diagnostics.Diagnostic) {
 	t.Helper()
 	for _, diag := range pureFnDepDiags(diags) {
 		if diag.Code == diagnostics.CodeMissingPureFnDep {
@@ -55,14 +55,14 @@ func assertNoPFE9012(t *testing.T, diags []diagnostics.Diagnostic) {
 }
 
 // TestPureFnDepValidation_ConsumerOwnPureFnNoFalsePositive is the regression
-// test for the PFE9012 false positive: a published-package consumer resolves
+// test for the purefn-not-registered false positive: a published-package consumer resolves
 // `@mionjs/run-types` to its .d.ts (so the runtime's `rt::` registration source
 // is NOT in the program), uses a feature whose emitted body reaches a built-in
 // (createGetValidationErrorsFn -> `@mionjs/run-types/src/runtypes/pure-fns-utils#pf_newRunTypeErr`), AND registers its OWN pure
 // fn. The consumer's registration used to make the program's registration count
 // non-zero, defeating the "any registration present?" guard and turning every
-// built-in reference into a PFE9012 wall that halted the build. Built-in
-// namespaces are now exempt, so no PFE9012 must appear on any path.
+// built-in reference into a purefn-not-registered wall that halted the build. Built-in
+// namespaces are now exempt, so no purefn-not-registered must appear on any path.
 func TestPureFnDepValidation_ConsumerOwnPureFnNoFalsePositive(t *testing.T) {
 	sources := map[string]string{
 		"runtypes.d.ts": runtypesDTSWithPureFn,
@@ -86,7 +86,7 @@ export const _reg = registerPureFnFactory('myapp::slugify', function () { return
 		if resp.Error != "" {
 			t.Fatalf("scanFiles: %s", resp.Error)
 		}
-		assertNoPFE9012(t, resp.Diagnostics)
+		assertNoPurefnNotRegistered(t, resp.Diagnostics)
 	})
 
 	// IncludeRtDiagnostics (the lint flag) is the linter-plugin path — the wall
@@ -101,7 +101,7 @@ export const _reg = registerPureFnFactory('myapp::slugify', function () { return
 		if resp.Error != "" {
 			t.Fatalf("scanFiles: %s", resp.Error)
 		}
-		assertNoPFE9012(t, resp.Diagnostics)
+		assertNoPurefnNotRegistered(t, resp.Diagnostics)
 	})
 
 	t.Run("dump", func(t *testing.T) {
@@ -110,13 +110,13 @@ export const _reg = registerPureFnFactory('myapp::slugify', function () { return
 		if resp.Error != "" {
 			t.Fatalf("dump: %s", resp.Error)
 		}
-		assertNoPFE9012(t, resp.Diagnostics)
+		assertNoPurefnNotRegistered(t, resp.Diagnostics)
 	})
 }
 
 // TestPureFnDepValidation_RegistrationPresent_NoDiagnostic — the built-in the
 // verr body reaches (@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr) is also hand-registered here in a file
-// OUTSIDE the scanned set. No PFE9012 must appear: the reference is a built-in
+// OUTSIDE the scanned set. No purefn-not-registered must appear: the reference is a built-in
 // (exempt) AND the whole-program index finds the registration — either alone
 // suffices. Pins that a present registration in a non-scanned file is honoured
 // (a per-file scan set would false-positive).
@@ -141,7 +141,7 @@ export const _reg = registerPureFnFactory('@mionjs/run-types/src/runtypes/pure-f
 		if resp.Error != "" {
 			t.Fatalf("scanFiles: %s", resp.Error)
 		}
-		assertNoPFE9012(t, resp.Diagnostics)
+		assertNoPurefnNotRegistered(t, resp.Diagnostics)
 	})
 
 	t.Run("dump", func(t *testing.T) {
@@ -150,14 +150,14 @@ export const _reg = registerPureFnFactory('@mionjs/run-types/src/runtypes/pure-f
 		if resp.Error != "" {
 			t.Fatalf("dump: %s", resp.Error)
 		}
-		assertNoPFE9012(t, resp.Diagnostics)
+		assertNoPurefnNotRegistered(t, resp.Diagnostics)
 	})
 }
 
 // TestPureFnDepValidation_StubProgramNoDiagnostic — a program with ZERO
 // registerPureFnFactory calls (the default ambient stub the test harnesses use).
 // The verr body still reaches a built-in (@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr), but built-in
-// namespaces are exempt, so no PFE9012 fires. This is the common consumer shape
+// namespaces are exempt, so no purefn-not-registered fires. This is the common consumer shape
 // (nothing user-registered) and must stay clean.
 func TestPureFnDepValidation_StubProgramNoDiagnostic(t *testing.T) {
 	r := setupInline(t, map[string]string{
@@ -173,5 +173,5 @@ export const errorsOf = createGetValidationErrorsFn<{a: string; b: number}>();
 	if resp.Error != "" {
 		t.Fatalf("scanFiles: %s", resp.Error)
 	}
-	assertNoPFE9012(t, resp.Diagnostics)
+	assertNoPurefnNotRegistered(t, resp.Diagnostics)
 }

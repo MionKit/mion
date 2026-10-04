@@ -1,6 +1,6 @@
 package diagnostics
 
-// Non-enumerable-guard code (NExxx), from a syntactic scan of property declarations, no type
+// Non-enumerable-guard code (data-*), from a syntactic scan of property declarations, no type
 // resolution needed.
 const (
 	// CodeNonEnumerableRequiresOptional: a property tagged `@nonEnumerable` in JSDoc is REQUIRED.
@@ -8,7 +8,7 @@ const (
 	// `DataOnly<T>` accurate), so the tag is a no-op there and the property still serializes.
 	// LevelWarning, not an error: the emitted function is correct, only the annotation is
 	// ineffective. Args: [propertyName].
-	CodeNonEnumerableRequiresOptional = "NE001"
+	CodeNonEnumerableRequiresOptional = "data-non-enumerable-required"
 )
 
 func init() {

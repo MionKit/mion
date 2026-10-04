@@ -45,7 +45,7 @@ export type InjectRunTypeId<T> = string & {
  *
  * DUPLICATE families are a build error: the second entry would inject a redundant identical tuple,
  * so the Go scanner rejects `InjectTypeFnArgs<T, 'validationErrors', 'validationErrors'>` with
- * `MKR006` (Error) at the call site. Use each family at most once per marker.
+ * `marker-duplicate-function-family` (Error) at the call site. Use each family at most once per marker.
  *
  * MULTIPLE MARKER PARAMETERS (multi-slot) — a signature may declare SEVERAL injection-marker
  * parameters, each injecting at its own index, so a framework wrapper can carry one marker per side
@@ -135,7 +135,7 @@ export function getRunTypeId<T>(_valueOrSchema?: T | RunType<T>, id?: InjectRunT
  * `[...members, x]`, imported fragments included), so shared config / schema can be split into a
  * `const` and merged at the call site. No calls, no property access, no template substitution, no
  * ternary; a dynamic spread operand or a shape mismatch (an object spread of an array, …) is
- * rejected. Violations produce `CTA0xx` diagnostics.
+ * rejected. Violations produce `marker-comptime-arg-*` diagnostics.
  *
  * It is the IDENTITY `T`, with NO phantom brand property: intersecting one onto a TUPLE parameter
  * (the old `T & {__rtCompTimeArgsBrand?: never}` used by `tuple`/`union`/`func`) cost ~700 TS
@@ -146,7 +146,7 @@ export type CompTimeArgs<T> = T;
 
 /**
  * Compile-time fn-args marker. Like `CompTimeArgs<T>` it enforces a *fully literal* argument
- * (`CTA0xx`), but it ALSO marks this as the parameter whose literal value selects the `createX`
+ * (`marker-comptime-arg-*`), but it ALSO marks this as the parameter whose literal value selects the `createX`
  * function variant — the `ValidateOptions` bag for `createValidateFn` /
  * `createGetValidationErrorsFn`, the strategy for `createJsonEncoderFn` / `createJsonDecoderFn`. The
  * scanner reads it to compute the injected fn hash (see `InjectTypeFnArgs`). A `{...preset, …}`
@@ -160,7 +160,7 @@ export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
  * options carry build-readable knobs. The build READS the parameter best-effort but never validates
  * it: statically readable values inside an object literal (or a `const` preset / spread chain the
  * scanner can resolve) are honored at build time, anything dynamic stays legal and is invisible to
- * the build. No `CTA0xx` enforcement, no fn-variant selection, nothing folds into any cache id.
+ * the build. No `marker-comptime-arg-*` enforcement, no fn-variant selection, nothing folds into any cache id.
  *
  * Current reader: `createMockDataFn`'s options — a literal `mock.seed` makes the generated pattern
  * mockSample pools reproducible across builds (the same seed also drives the runtime pick, since
@@ -183,8 +183,8 @@ export type CompTimeHints<T> = T;
  * Use `PureFunctionFactory<F>` instead when the argument is a FACTORY needing one-time setup
  * (compile a regex once) or `utl` composition.
  *
- * Strictly stronger than `CompTimeArgs<F>` when F is a function. Inline-shape violations → `PFN001`;
- * purity violations → `PFE9006`–`PFE9011`.
+ * Strictly stronger than `CompTimeArgs<F>` when F is a function. Inline-shape violations → `purefn-not-inline`;
+ * purity violations → `purefn-uses-this`–`purefn-reads-outer-variable`.
  */
 export type PureFunction<F> = F & {readonly __rtPureFunctionBrand?: never};
 

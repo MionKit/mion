@@ -148,11 +148,11 @@ export const enc = createJsonEncoderFn<{id: number}>();
 	}
 }
 
-// TestOverride_DuplicateConflictEmitsOVR001 — there can be only one override per
+// TestOverride_DuplicateConflictEmitsOverrideDuplicate — there can be only one override per
 // (type, function): a second one is a hard error, REGARDLESS of body (different
 // OR identical). A single override does not trip it.
-func TestOverride_DuplicateConflictEmitsOVR001(t *testing.T) {
-	hasOVR001 := func(src string) bool {
+func TestOverride_DuplicateConflictEmitsOverrideDuplicate(t *testing.T) {
+	hasOverrideDuplicate := func(src string) bool {
 		r := setupInline(t, map[string]string{"runtypes.d.ts": overrideDTS, "call.ts": src})
 		resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"call.ts"}})
 		if resp.Error != "" {
@@ -167,24 +167,24 @@ func TestOverride_DuplicateConflictEmitsOVR001(t *testing.T) {
 	}
 
 	// Different bodies → error.
-	if !hasOVR001(`import {overrideValidate} from '@mionjs/run-types';
+	if !hasOverrideDuplicate(`import {overrideValidate} from '@mionjs/run-types';
 overrideValidate<string>((v) => typeof v === 'string');
 overrideValidate<string>((v) => v !== null);
 `) {
-		t.Fatalf("expected OVR001 for two different-body overrides")
+		t.Fatalf("expected override-duplicate for two different-body overrides")
 	}
 	// Identical bodies → STILL an error (strict: one override per type+function).
-	if !hasOVR001(`import {overrideValidate} from '@mionjs/run-types';
+	if !hasOverrideDuplicate(`import {overrideValidate} from '@mionjs/run-types';
 overrideValidate<string>((v) => typeof v === 'string');
 overrideValidate<string>((v) => typeof v === 'string');
 `) {
-		t.Fatalf("expected OVR001 for two same-body overrides (strict one-per-type rule)")
+		t.Fatalf("expected override-duplicate for two same-body overrides (strict one-per-type rule)")
 	}
 	// A single override → no error.
-	if hasOVR001(`import {overrideValidate} from '@mionjs/run-types';
+	if hasOverrideDuplicate(`import {overrideValidate} from '@mionjs/run-types';
 overrideValidate<string>((v) => typeof v === 'string');
 `) {
-		t.Fatalf("a single override must not emit OVR001")
+		t.Fatalf("a single override must not emit override-duplicate")
 	}
 }
 
@@ -249,15 +249,15 @@ overrideValidate<string>(null);
 	resp2 := r2.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"call.ts"}})
 	for _, d := range resp2.Diagnostics {
 		if d.Code == diagnostics.CodeOverrideValidateCrossFamily {
-			t.Fatalf("a null override arg must register no override (got OVR010)")
+			t.Fatalf("a null override arg must register no override (got override-validate-affects-json)")
 		}
 	}
 }
 
-// TestOverride_ValidateEmitsOVR010 — overriding validate warns about its
+// TestOverride_ValidateEmitsOverrideValidateAffectsJson — overriding validate warns about its
 // cross-family reach (decoders); overriding a non-shared family does not, and
-// the happy path never trips the OVR002 missing-cfn assert.
-func TestOverride_ValidateEmitsOVR010(t *testing.T) {
+// the happy path never trips the override-function-not-built missing-cfn assert.
+func TestOverride_ValidateEmitsOverrideValidateAffectsJson(t *testing.T) {
 	codes := func(files map[string]string) map[string]int {
 		r := setupInline(t, files)
 		resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"call.ts"}, IncludeEntryModules: true})
@@ -279,10 +279,10 @@ export const isString = createValidateFn<string>();
 `,
 	})
 	if valCodes[diagnostics.CodeOverrideValidateCrossFamily] == 0 {
-		t.Fatalf("expected OVR010 for a validate override, got %+v", valCodes)
+		t.Fatalf("expected override-validate-affects-json for a validate override, got %+v", valCodes)
 	}
 	if valCodes[diagnostics.CodeOverrideMissingCfn] != 0 {
-		t.Fatalf("happy path tripped OVR002: %+v", valCodes)
+		t.Fatalf("happy path tripped override-function-not-built: %+v", valCodes)
 	}
 
 	jsonCodes := codes(map[string]string{
@@ -293,10 +293,10 @@ export const enc = createJsonEncoderFn<{id: number}>();
 `,
 	})
 	if jsonCodes[diagnostics.CodeOverrideValidateCrossFamily] != 0 {
-		t.Fatalf("OVR010 should fire only for validate overrides, got %+v", jsonCodes)
+		t.Fatalf("override-validate-affects-json should fire only for validate overrides, got %+v", jsonCodes)
 	}
 	if jsonCodes[diagnostics.CodeOverrideMissingCfn] != 0 {
-		t.Fatalf("json happy path tripped OVR002: %+v", jsonCodes)
+		t.Fatalf("json happy path tripped override-function-not-built: %+v", jsonCodes)
 	}
 }
 
@@ -347,7 +347,7 @@ export const isNode = createValidateFn<Node>();
 
 // TestOverride_RecursiveTypeItselfOverride — overriding the recursive type itself
 // makes its whole entry a cfn redirect; BaseStructuralKey must resolve through the
-// cycle without looping and fold a deterministic id, with no spurious OVR002.
+// cycle without looping and fold a deterministic id, with no spurious override-function-not-built.
 func TestOverride_RecursiveTypeItselfOverride(t *testing.T) {
 	files := map[string]string{
 		"runtypes.d.ts": overrideDTS,
@@ -368,7 +368,7 @@ export const isNode = createValidateFn<Node>();
 	}
 	for _, d := range resp.Diagnostics {
 		if d.Code == diagnostics.CodeOverrideMissingCfn {
-			t.Fatalf("recursive override tripped OVR002 (missing cfn): %+v", resp.Diagnostics)
+			t.Fatalf("recursive override tripped override-function-not-built (missing cfn): %+v", resp.Diagnostics)
 		}
 	}
 }

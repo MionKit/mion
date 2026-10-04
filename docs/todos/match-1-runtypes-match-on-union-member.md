@@ -92,7 +92,7 @@ The implementer plans the details. Pointers verified at the time of writing:
   closed, a `when<T>` whose `T` is only structurally inside `U` and not an exact member, and
   the two branch-collision diagnostics below. A lint rule for what neither can see: a chain
   built and left dangling. The compiler-routed lint diagnostics already exist for batches
-  (`BAT001`-style codes), follow that road.
+  (`rpc-batch-element-unreadable`-style codes), follow that road.
 - Two diagnostics for branches that collide, each with its own code and message, since the
   fix differs:
   - SAME TYPE: two branches carry the same typeId (`when<User>` twice, or

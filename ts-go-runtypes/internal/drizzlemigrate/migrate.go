@@ -29,13 +29,13 @@ const (
 const (
 	// A view built from a query builder: its columns come from drizzle's select typing, the exact generic
 	// chain the slim design removes, so it stays drizzle (packages/drizzle-orm/CLAUDE.md records it).
-	CodeQueryBuilderView = "DRZ001"
+	CodeQueryBuilderView = "drizzle-migrate-query-builder-view"
 	// A declaration whose head is ours but whose shape has no clean split.
-	CodeUnsupportedHead = "DRZ002"
+	CodeUnsupportedHead = "drizzle-migrate-unsupported-head"
 	// No free name for a binding the rewrite has to add.
-	CodeNameCollision = "DRZ003"
+	CodeNameCollision = "drizzle-migrate-name-collision"
 	// A column chain with no single-call spelling (an unknown or repeated modifier, a reference to an unmigrated table).
-	CodeUnfoldableColumn = "DRZ004"
+	CodeUnfoldableColumn = "drizzle-migrate-unfoldable-column"
 )
 
 // Diagnostic is one per-declaration finding.

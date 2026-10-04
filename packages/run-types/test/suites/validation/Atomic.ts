@@ -549,16 +549,16 @@ export const ATOMIC = {
     title: 'Symbol literal',
     description: 'A symbol literal (`typeof sym`) is still a symbol, which is not data, so the factory throws on first call.',
     validateNotes: [
-      'DataOnly strips every symbol, a named one included. The Go pipeline renders an alwaysThrow factory (VL002 / VE002), like the bare `symbol` case.',
+      'DataOnly strips every symbol, a named one included. The Go pipeline renders an alwaysThrow factory (validate-symbol-root / validation-errors-symbol-root), like the bare `symbol` case.',
     ],
     validate: () => {
       const sym = Symbol('hello');
-      // @mion-downgrade-error VL002
+      // @mion-downgrade-error validate-symbol-root
       return createValidateFn<typeof sym>();
     },
     standardSchema: () => {
       const sym = Symbol('hello');
-      // @mion-downgrade-error VE002 VL002
+      // @mion-downgrade-error validation-errors-symbol-root validate-symbol-root
       return createStandardSchema<typeof sym>();
     },
     validateDataOnly: () => {
@@ -570,24 +570,24 @@ export const ATOMIC = {
     validateSchema: 'not-supported',
     deserializeValidate: () => {
       const sym = Symbol('hello');
-      // @mion-downgrade-error VL002
+      // @mion-downgrade-error validate-symbol-root
       return deserializeValidate<typeof sym>();
     },
     validateReflect: () => {
       const sym = Symbol('hello');
       const v: typeof sym = sym;
-      // @mion-downgrade-error VL002
+      // @mion-downgrade-error validate-symbol-root
       return createValidateFn(v);
     },
     deserializeValidateReflect: () => {
       const sym = Symbol('hello');
       const v: typeof sym = sym;
-      // @mion-downgrade-error VL002
+      // @mion-downgrade-error validate-symbol-root
       return deserializeValidate(v);
     },
     getValidationErrors: () => {
       const sym = Symbol('hello');
-      // @mion-downgrade-error VE002
+      // @mion-downgrade-error validation-errors-symbol-root
       return createGetValidationErrorsFn<typeof sym>();
     },
     getValidationErrorsDataOnly: () => {
@@ -597,19 +597,19 @@ export const ATOMIC = {
     getValidationErrorsSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       const sym = Symbol('hello');
-      // @mion-downgrade-error VE002
+      // @mion-downgrade-error validation-errors-symbol-root
       return deserializeGetValidationErrors<typeof sym>();
     },
     getValidationErrorsReflect: () => {
       const sym = Symbol('hello');
       const v: typeof sym = sym;
-      // @mion-downgrade-error VE002
+      // @mion-downgrade-error validation-errors-symbol-root
       return createGetValidationErrorsFn(v);
     },
     deserializeGetValidationErrorsReflect: () => {
       const sym = Symbol('hello');
       const v: typeof sym = sym;
-      // @mion-downgrade-error VE002
+      // @mion-downgrade-error validation-errors-symbol-root
       return deserializeGetValidationErrors(v);
     },
     mockType: () => {
@@ -846,34 +846,34 @@ export const ATOMIC = {
     title: 'RegExp',
     description: 'A `RegExp` is not data, so the factory throws on first call.',
     validateNotes: [
-      'DataOnly strips RegExp: a pattern is code, not data. The Go pipeline renders an alwaysThrow factory (VL001 / VE001). The only regex a validator runs is a `pattern` format.',
+      'DataOnly strips RegExp: a pattern is code, not data. The Go pipeline renders an alwaysThrow factory (validate-non-data-root / validation-errors-non-data-root). The only regex a validator runs is a `pattern` format.',
       'The getValidationErrors and mockType REFLECT forms stay opted out: a reflect value `const v: RegExp = /abc/` narrows to the literal-regex type `/abc/`.',
     ],
-    // @mion-downgrade-error VL001
+    // @mion-downgrade-error validate-non-data-root
     validate: () => createValidateFn<RegExp>(),
-    // @mion-downgrade-error VE001 VL001
+    // @mion-downgrade-error validation-errors-non-data-root validate-non-data-root
     standardSchema: () => createStandardSchema<RegExp>(),
     validateDataOnly: () => createValidateFn<DataOnly<RegExp>>(),
-    // @mion-downgrade-error VL001
+    // @mion-downgrade-error validate-non-data-root
     validateSchema: () => createValidateFn(RT.regexp()),
-    // @mion-downgrade-error VL001
+    // @mion-downgrade-error validate-non-data-root
     deserializeValidate: () => deserializeValidate<RegExp>(),
     validateReflect: () => {
       const v: RegExp = /abc/;
-      // @mion-downgrade-error VL001
+      // @mion-downgrade-error validate-non-data-root
       return createValidateFn(v);
     },
     deserializeValidateReflect: () => {
       const v: RegExp = /abc/;
-      // @mion-downgrade-error VL001
+      // @mion-downgrade-error validate-non-data-root
       return deserializeValidate(v);
     },
-    // @mion-downgrade-error VE001
+    // @mion-downgrade-error validation-errors-non-data-root
     getValidationErrors: () => createGetValidationErrorsFn<RegExp>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<RegExp>>(),
-    // @mion-downgrade-error VE001
+    // @mion-downgrade-error validation-errors-non-data-root
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.regexp()),
-    // @mion-downgrade-error VE001
+    // @mion-downgrade-error validation-errors-non-data-root
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<RegExp>(),
     // Reflect forms for the kindname-reporting paths are deliberately opted out
     // (see validateNotes): `const v: RegExp = /abc/` narrows to the literal-regex
@@ -938,44 +938,44 @@ export const ATOMIC = {
     title: 'Symbol',
     description: 'The bare `symbol` primitive is unsupported at root, so the factory throws on first call.',
     validateNotes: [
-      'Symbol at root is unsupported — identity does not survive across realms or round-trips, so a `typeof === "symbol"` check would give false confidence. The Go pipeline renders the factory as alwaysThrow (codes VL002 / VE002 / IS002), and the very first `createXxx<symbol>()` call throws.',
+      'Symbol at root is unsupported — identity does not survive across realms or round-trips, so a `typeof === "symbol"` check would give false confidence. The Go pipeline renders the factory as alwaysThrow (codes validate-symbol-root / validation-errors-symbol-root), and the very first `createXxx<symbol>()` call throws.',
     ],
-    // @mion-downgrade-error VL002
+    // @mion-downgrade-error validate-symbol-root
     validate: () => createValidateFn<symbol>(),
-    // @mion-downgrade-error VE002 VL002
+    // @mion-downgrade-error validation-errors-symbol-root validate-symbol-root
     standardSchema: () => createStandardSchema<symbol>(),
     validateDataOnly: () => createValidateFn<DataOnly<symbol>>(),
     // Bare symbol is unsupported at root — the value-first `RT.symbol()` resolves
     // the same alwaysThrow factory, so this thunk throws like the type-first form.
-    // @mion-downgrade-error VL002
+    // @mion-downgrade-error validate-symbol-root
     validateSchema: () => createValidateFn(RT.symbol()),
-    // @mion-downgrade-error VL002
+    // @mion-downgrade-error validate-symbol-root
     deserializeValidate: () => deserializeValidate<symbol>(),
     validateReflect: () => {
       const v: symbol = Symbol();
-      // @mion-downgrade-error VL002
+      // @mion-downgrade-error validate-symbol-root
       return createValidateFn(v);
     },
     deserializeValidateReflect: () => {
       const v: symbol = Symbol();
-      // @mion-downgrade-error VL002
+      // @mion-downgrade-error validate-symbol-root
       return deserializeValidate(v);
     },
-    // @mion-downgrade-error VE002
+    // @mion-downgrade-error validation-errors-symbol-root
     getValidationErrors: () => createGetValidationErrorsFn<symbol>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<symbol>>(),
-    // @mion-downgrade-error VE002
+    // @mion-downgrade-error validation-errors-symbol-root
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.symbol()),
-    // @mion-downgrade-error VE002
+    // @mion-downgrade-error validation-errors-symbol-root
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<symbol>(),
     getValidationErrorsReflect: () => {
       const v: symbol = Symbol();
-      // @mion-downgrade-error VE002
+      // @mion-downgrade-error validation-errors-symbol-root
       return createGetValidationErrorsFn(v);
     },
     deserializeGetValidationErrorsReflect: () => {
       const v: symbol = Symbol();
-      // @mion-downgrade-error VE002
+      // @mion-downgrade-error validation-errors-symbol-root
       return deserializeGetValidationErrors(v);
     },
     mockType: () => createMockDataFn<symbol>(),

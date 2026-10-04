@@ -280,41 +280,43 @@ export const ARRAY = {
   regexp_array: {
     title: 'RegExp array',
     description: 'A `RegExp` element is not data, so the array factory throws on first call, like `symbol[]`.',
-    validateNotes: ['`DataOnly<RegExp[]>` is `never[]`: the element refusal reaches the root (VL001 / VE001).'],
-    // @mion-downgrade-error VL001
+    validateNotes: [
+      '`DataOnly<RegExp[]>` is `never[]`: the element refusal reaches the root (validate-non-data-root / validation-errors-non-data-root).',
+    ],
+    // @mion-downgrade-error validate-non-data-root
     validate: () => createValidateFn<RegExp[]>(),
-    // @mion-downgrade-error VE001 VL001
+    // @mion-downgrade-error validation-errors-non-data-root validate-non-data-root
     standardSchema: () => createStandardSchema<RegExp[]>(),
     validateDataOnly: () => createValidateFn<DataOnly<RegExp[]>>(),
-    // @mion-downgrade-error VL001
+    // @mion-downgrade-error validate-non-data-root
     validateSchema: () => createValidateFn(RT.array(RT.regexp())),
-    // @mion-downgrade-error VL001
+    // @mion-downgrade-error validate-non-data-root
     deserializeValidate: () => deserializeValidate<RegExp[]>(),
     validateReflect: () => {
       const v: RegExp[] = [];
-      // @mion-downgrade-error VL001
+      // @mion-downgrade-error validate-non-data-root
       return createValidateFn(v);
     },
     deserializeValidateReflect: () => {
       const v: RegExp[] = [];
-      // @mion-downgrade-error VL001
+      // @mion-downgrade-error validate-non-data-root
       return deserializeValidate(v);
     },
-    // @mion-downgrade-error VE001
+    // @mion-downgrade-error validation-errors-non-data-root
     getValidationErrors: () => createGetValidationErrorsFn<RegExp[]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<RegExp[]>>(),
-    // @mion-downgrade-error VE001
+    // @mion-downgrade-error validation-errors-non-data-root
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(RT.regexp())),
-    // @mion-downgrade-error VE001
+    // @mion-downgrade-error validation-errors-non-data-root
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<RegExp[]>(),
     getValidationErrorsReflect: () => {
       const v: RegExp[] = [];
-      // @mion-downgrade-error VE001
+      // @mion-downgrade-error validation-errors-non-data-root
       return createGetValidationErrorsFn(v);
     },
     deserializeGetValidationErrorsReflect: () => {
       const v: RegExp[] = [];
-      // @mion-downgrade-error VE001
+      // @mion-downgrade-error validation-errors-non-data-root
       return deserializeGetValidationErrors(v);
     },
     mockType: () => createMockDataFn<RegExp[]>(),
@@ -985,42 +987,42 @@ export const ARRAY = {
     validateNotes: [
       'Arrays whose element type is non-serializable (`symbol[]`, `(() => any)[]`, …) cannot be validated: the factory is rendered as alwaysThrow and the first createXxx<symbol[]>() call throws. Use a different shape to carry symbol-like data.',
     ],
-    // @mion-downgrade-error VL002
+    // @mion-downgrade-error validate-symbol-root
     validate: () => createValidateFn<symbol[]>(),
-    // @mion-downgrade-error VE002 VL002
+    // @mion-downgrade-error validation-errors-symbol-root validate-symbol-root
     standardSchema: () => createStandardSchema<symbol[]>(),
     validateDataOnly: () => createValidateFn<DataOnly<symbol[]>>(),
     // Non-serializable array element (symbol) propagates to the root → alwaysThrow.
     // `RT.array(RT.symbol())` resolves the same factory, so the schema thunk throws.
-    // @mion-downgrade-error VL002
+    // @mion-downgrade-error validate-symbol-root
     validateSchema: () => createValidateFn(RT.array(RT.symbol())),
-    // @mion-downgrade-error VL002
+    // @mion-downgrade-error validate-symbol-root
     deserializeValidate: () => deserializeValidate<symbol[]>(),
     validateReflect: () => {
       const v: symbol[] = [];
-      // @mion-downgrade-error VL002
+      // @mion-downgrade-error validate-symbol-root
       return createValidateFn(v);
     },
     deserializeValidateReflect: () => {
       const v: symbol[] = [];
-      // @mion-downgrade-error VL002
+      // @mion-downgrade-error validate-symbol-root
       return deserializeValidate(v);
     },
-    // @mion-downgrade-error VE002
+    // @mion-downgrade-error validation-errors-symbol-root
     getValidationErrors: () => createGetValidationErrorsFn<symbol[]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<symbol[]>>(),
-    // @mion-downgrade-error VE002
+    // @mion-downgrade-error validation-errors-symbol-root
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(RT.symbol())),
-    // @mion-downgrade-error VE002
+    // @mion-downgrade-error validation-errors-symbol-root
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<symbol[]>(),
     getValidationErrorsReflect: () => {
       const v: symbol[] = [];
-      // @mion-downgrade-error VE002
+      // @mion-downgrade-error validation-errors-symbol-root
       return createGetValidationErrorsFn(v);
     },
     deserializeGetValidationErrorsReflect: () => {
       const v: symbol[] = [];
-      // @mion-downgrade-error VE002
+      // @mion-downgrade-error validation-errors-symbol-root
       return deserializeGetValidationErrors(v);
     },
     mockType: () => createMockDataFn<symbol[]>(),

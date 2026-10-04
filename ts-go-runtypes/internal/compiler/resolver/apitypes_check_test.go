@@ -14,7 +14,7 @@ import (
 
 const typesPkgDir = "node_modules/@acme/api-types"
 
-// typesOnlyApiDTS is the API as a published package file; Secret's typeless private member is MKR016 bait.
+// typesOnlyApiDTS is the API as a published package file; Secret's typeless private member is marker-untyped-private-member bait.
 func typesOnlyApiDTS(version string) string {
 	return `import type {ApiBuildVersion, PublicApi} from '@mionjs/router';
 export declare class Secret {
@@ -30,7 +30,7 @@ export declare const api: PublicApi<Routes> & ApiBuildVersion<` + version + `>;
 `
 }
 
-// The client names Secret through both getRunTypeId shapes, the sites MKR016 reports at.
+// The client names Secret through both getRunTypeId shapes, the sites marker-untyped-private-member reports at.
 const typesOnlyClientTS = `import {initClient} from '@mionjs/client';
 import {getRunTypeId} from '@mionjs/run-types';
 import type {api, Secret} from '@acme/api-types';
@@ -40,7 +40,7 @@ declare const secret: Secret;
 export const valueId = getRunTypeId(secret);
 `
 
-// typesOnlyClient builds a client from @acme/api-types and returns the MET and MKR016 findings of a dump plus a generate.
+// typesOnlyClient builds a client from @acme/api-types and returns the MET and marker-untyped-private-member findings of a dump plus a generate.
 func typesOnlyClient(t *testing.T, packageJSON, marker, version string, mode constants.ClientRoutesMode) []diagnostics.Diagnostic {
 	t.Helper()
 	extra := map[string]string{}
@@ -81,8 +81,8 @@ func typesOnlyClientWith(t *testing.T, packageJSON, version string, mode constan
 			t.Fatalf("%s: %s", op, response.Error)
 		}
 		for _, diag := range response.Diagnostics {
-			// MET010 says the stub API serves no metadata to a fetching client: true, and not this check's business.
-			if (strings.HasPrefix(diag.Code, "MET") && diag.Code != diagnostics.CodeApiMetaNoMetadataToFetch) || diag.Code == diagnostics.CodeMarkerTypelessPrivateMember {
+			// rpc-client-no-metadata-route says the stub API serves no metadata to a fetching client: true, and not this check's business.
+			if (strings.HasPrefix(diag.Code, "rpc-client-") && diag.Code != diagnostics.CodeApiMetaNoMetadataToFetch) || diag.Code == diagnostics.CodeMarkerTypelessPrivateMember {
 				found = append(found, diag)
 			}
 		}
@@ -109,10 +109,10 @@ func TestApiTypes_MissingMarkerIsOneError(t *testing.T) {
 	for _, mode := range []constants.ClientRoutesMode{constants.ClientRoutesBundle, constants.ClientRoutesFetch} {
 		diags := typesOnlyClient(t, typesOnlyPackageJSON, "", "'notTheServer'", mode)
 		if apiTypesCodes(diags) != diagnostics.CodeApiMetaTypesNotBuiltByMion {
-			t.Fatalf("%s: want one MET015, got %+v", mode, diags)
+			t.Fatalf("%s: want one rpc-client-types-not-built-by-mion, got %+v", mode, diags)
 		}
 		if diags[0].Args[0] != "@acme/api-types" || !strings.Contains(diags[0].Args[1], "mion-api.json") || !strings.HasSuffix(diags[0].Site.FilePath, "client.ts") {
-			t.Errorf("%s: MET015 must name the package and the missing marker at initClient, got %+v", mode, diags[0])
+			t.Errorf("%s: rpc-client-types-not-built-by-mion must name the package and the missing marker at initClient, got %+v", mode, diags[0])
 		}
 	}
 }
@@ -121,7 +121,7 @@ func TestApiTypes_MissingMarkerIsOneError(t *testing.T) {
 func TestApiTypes_MissingFieldIsOneError(t *testing.T) {
 	diags := typesOnlyClient(t, `{"name": "@acme/api-types", "types": "./index.d.ts"}`, "", "string", constants.ClientRoutesBundle)
 	if apiTypesCodes(diags) != diagnostics.CodeApiMetaTypesNotBuiltByMion || !strings.Contains(diags[0].Args[1], "mion.apiTypes") {
-		t.Fatalf("want one MET015 naming the field, got %+v", diags)
+		t.Fatalf("want one rpc-client-types-not-built-by-mion naming the field, got %+v", diags)
 	}
 }
 
@@ -130,7 +130,7 @@ func TestApiTypes_PackageWithJavaScriptIsNotJudged(t *testing.T) {
 	diags := typesOnlyClient(t, `{"name": "@acme/api", "types": "./index.d.ts", "main": "./index.js"}`, "", "'notTheServer'", constants.ClientRoutesBundle)
 	codes := apiTypesCodes(diags)
 	if strings.Contains(codes, diagnostics.CodeApiMetaTypesNotBuiltByMion) || !strings.Contains(codes, diagnostics.CodeApiMetaServerVersionMismatch) || !strings.Contains(codes, diagnostics.CodeMarkerTypelessPrivateMember) {
-		t.Fatalf("want MET012 and MKR016, no MET015, got %+v", diags)
+		t.Fatalf("want rpc-client-server-version-mismatch and marker-untyped-private-member, no rpc-client-types-not-built-by-mion, got %+v", diags)
 	}
 }
 
@@ -139,7 +139,7 @@ func TestApiTypes_OtherCompilerWarns(t *testing.T) {
 	diags := typesOnlyClient(t, typesOnlyPackageJSON, markerJSON("0.0.0-other"), "'notTheServer'", constants.ClientRoutesBundle)
 	codes := apiTypesCodes(diags)
 	if !strings.Contains(codes, diagnostics.CodeApiMetaTypesOtherCompiler) || !strings.Contains(codes, diagnostics.CodeApiMetaServerVersionMismatch) || strings.Contains(codes, diagnostics.CodeApiMetaTypesNotBuiltByMion) {
-		t.Fatalf("want MET016 beside MET012, got %+v", diags)
+		t.Fatalf("want rpc-client-types-other-mion-version beside rpc-client-server-version-mismatch, got %+v", diags)
 	}
 }
 
@@ -153,11 +153,11 @@ func TestApiTypes_ValidMarkerReportsNothingOfItsOwn(t *testing.T) {
 	}
 }
 
-// TestApiTypes_DumpAloneReportsTheError: `mion compile --no-emit` stops after the dump, so MET015 must come with it.
+// TestApiTypes_DumpAloneReportsTheError: `mion compile --no-emit` stops after the dump, so rpc-client-types-not-built-by-mion must come with it.
 func TestApiTypes_DumpAloneReportsTheError(t *testing.T) {
 	diags := typesOnlyClientWith(t, typesOnlyPackageJSON, "'notTheServer'", constants.ClientRoutesBundle, nil, nil, []string{protocol.OpDump})
 	if apiTypesCodes(diags) != diagnostics.CodeApiMetaTypesNotBuiltByMion {
-		t.Fatalf("a dump alone must report MET015 and drop the MKR016 it explains, got %+v", diags)
+		t.Fatalf("a dump alone must report rpc-client-types-not-built-by-mion and drop the marker-untyped-private-member it explains, got %+v", diags)
 	}
 }
 
@@ -178,18 +178,18 @@ func TestApiTypes_OnlyTheRefusedPackageIsSilenced(t *testing.T) {
 		"ledger.ts":                              "import {getRunTypeId} from '@mionjs/run-types';\nimport type {Account} from '@acme/ledger';\nexport const accountId = getRunTypeId<Account>();\ndeclare const account: Account;\nexport const accountValueId = getRunTypeId(account);\n",
 	}
 	diags := typesOnlyClientWith(t, typesOnlyPackageJSON, "'notTheServer'", constants.ClientRoutesBundle, nil, other, []string{protocol.OpDump, protocol.OpGenerate})
-	var met015, ledger, refused int
+	var rpcClientTypesNotBuiltByMion, ledger, refused int
 	for _, diag := range diags {
 		switch {
 		case diag.Code == diagnostics.CodeApiMetaTypesNotBuiltByMion:
-			met015++
+			rpcClientTypesNotBuiltByMion++
 		case diag.Code == diagnostics.CodeMarkerTypelessPrivateMember && strings.Contains(strings.Join(diag.Args, ","), "Account"):
 			ledger++
 		case diag.Code == diagnostics.CodeMarkerTypelessPrivateMember:
 			refused++
 		}
 	}
-	if met015 != 1 || ledger == 0 || refused != 0 {
-		t.Fatalf("want one MET015, the ledger's MKR016 kept and the refused package's dropped; got %+v", diags)
+	if rpcClientTypesNotBuiltByMion != 1 || ledger == 0 || refused != 0 {
+		t.Fatalf("want one rpc-client-types-not-built-by-mion, the ledger's marker-untyped-private-member kept and the refused package's dropped; got %+v", diags)
 	}
 }

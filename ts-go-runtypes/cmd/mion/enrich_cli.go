@@ -245,7 +245,7 @@ func runEnrichScaffold(srcArg, typeName string, mock, friendly bool, out string,
 		fmt.Printf("enrich: nothing to write — mirror file(s) already have the requested export(s)\n")
 	}
 
-	// "In one pass": surface the freshly-scaffolded @todo worklist (FT020/MD020) on
+	// "In one pass": surface the freshly-scaffolded @todo worklist (enrich-text-todo-left/enrich-mock-todo-left) on
 	// stderr via the text-only hygiene scan (no second Program, so no dependency on
 	// resolving the mirror imports). The scaffold SUCCEEDED — its @todo placeholders
 	// are the expected state, so the write lane exits 0; the gate that FAILS on

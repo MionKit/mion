@@ -392,16 +392,16 @@ describe('lint:directives reaches the directive comments the main lint ignores',
     const report = (message: string) => ({message, filename: 'a.ts', labels: []});
     const stdout = JSON.stringify({
       diagnostics: [
-        report('[EXP001] Unused comment'),
-        report('[DWN004] does nothing'),
-        report('[VL002] fixture'),
+        report('[comment-expect-error-unused] Unused comment'),
+        report('[comment-downgrade-error-already-warning] does nothing'),
+        report('[validate-symbol-root] fixture'),
         report('[mion] resolver failed'),
       ],
     });
-    expect(failingDiagnostics(stdout).map((diagnostic: {message: string}) => diagnostic.message.slice(0, 7))).toEqual([
-      '[EXP001',
-      '[DWN004',
-      '[mion] ',
+    expect(failingDiagnostics(stdout).map((diagnostic: {message: string}) => diagnostic.message)).toEqual([
+      '[comment-expect-error-unused] Unused comment',
+      '[comment-downgrade-error-already-warning] does nothing',
+      '[mion] resolver failed',
     ]);
   });
 });
@@ -2052,7 +2052,9 @@ describe('mion compile (tsgo) checks the same projects tsc does', () => {
   it('fails on a TypeScript error or a crash, not on RunType diagnostics alone', () => {
     const tsLine = 'a.ts(1,1): error TS2542: Index signature only permits reading.';
     expect(tsgoCheck.failureLines(0, tsLine)).toEqual([tsLine]);
-    expect(tsgoCheck.failureLines(1, 'b.ts(10,23): error CTA003: forbidden construct.')).toEqual([]);
+    expect(tsgoCheck.failureLines(1, 'b.ts(10,23): error marker-comptime-arg-forbidden-construct: forbidden construct.')).toEqual(
+      []
+    );
     expect(tsgoCheck.failureLines(1, 'panic: nil map')).toEqual(['panic: nil map']);
     expect(tsgoCheck.failureLines(0, 'mion: checked 2 file(s)')).toEqual([]);
   });
@@ -2060,8 +2062,8 @@ describe('mion compile (tsgo) checks the same projects tsc does', () => {
   it('counts TypeScript errors only, not RunType diagnostics or warnings', () => {
     const output = [
       'a.ts(77,3): error TS2542: Index signature only permits reading.',
-      'b.ts(10,23): error CTA003: literal contains a forbidden construct.',
-      'c.ts(5,56): warning VL002: Type `Symbol` can never be validated.',
+      'b.ts(10,23): error marker-comptime-arg-forbidden-construct: literal contains a forbidden construct.',
+      'c.ts(5,56): warning validate-symbol-root: Type `Symbol` can never be validated.',
       'mion: checked 2 file(s), wrote nothing (--no-emit)',
     ].join('\n');
     expect(tsgoCheck.tsErrors(output)).toEqual(['a.ts(77,3): error TS2542: Index signature only permits reading.']);

@@ -191,29 +191,29 @@ describe('enrichment i18n — enrich --i18n --no-emit', () => {
     runEnrich(lenient, 'User');
     runTranslate(lenient, 'pl');
     const lenientRun = runBin(lenient, ['enrich', '--i18n', 'pl', '--no-emit']);
-    expect(lenientRun.out).toContain('TR002');
+    expect(lenientRun.out).toContain('enrich-i18n-todo-left');
     expect(lenientRun.status, 'lenient gate never fails the build').toBe(0);
 
     const strict = i18nFixture('tr-check-strict', 'export interface User { name: string }\n', ['pl'], true);
     runEnrich(strict, 'User');
     runTranslate(strict, 'pl');
     const strictRun = runBin(strict, ['enrich', '--i18n', 'pl', '--no-emit']);
-    expect(strictRun.out).toContain('TR002');
+    expect(strictRun.out).toContain('enrich-i18n-todo-left');
     expect(strictRun.status, 'strict gate fails CI on blanks').toBe(1);
   });
 
-  it('flags a missing translation file (TR001) and an out-of-date one (TR003, vs the src type)', () => {
+  it('flags a missing translation file (enrich-i18n-missing-translation) and an out-of-date one (enrich-i18n-out-of-date, vs the src type)', () => {
     const fixture = i18nFixture('tr-check-missing', 'export interface User { name: string }\n', ['pl']);
     runEnrich(fixture, 'User');
     const missing = runBin(fixture, ['enrich', '--i18n', 'pl', '--no-emit']);
-    expect(missing.out).toContain('TR001');
+    expect(missing.out).toContain('enrich-i18n-missing-translation');
 
     runTranslate(fixture, 'pl');
     // The SOURCE TYPE changes; the translation is now stale even though the
     // friendly mirror hasn't been updated either — staleness is src-driven.
     setSource(fixture, 'export interface User { name: string; age: number }\n');
     const stale = runBin(fixture, ['enrich', '--i18n', 'pl', '--no-emit']);
-    expect(stale.out).toContain('TR003');
+    expect(stale.out).toContain('enrich-i18n-out-of-date');
     expect(stale.out, 'the finding names the src file, not the friendly mirror').toContain('src/models.ts');
   });
 });

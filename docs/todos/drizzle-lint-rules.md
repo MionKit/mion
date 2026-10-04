@@ -16,7 +16,7 @@ drizzle apart, so people and coding agents always know which one to use.
    and reach the client, and every client file that calls it pays for them. Measured in
    `packages/private-drizzle-example-app` (its `reports/drizzle-example-app.md`), per route in a client file:
    1,000 to 3,900 type instantiations with the slim models, 18,500 to 21,200 with drizzle's types.
-   MRT001 / MRT002 already ask for written types; this rule checks where they come from.
+   rpc-handler-missing-return-type / rpc-handler-missing-param-type already ask for written types; this rule checks where they come from.
 
    ```ts
    // flagged: types from drizzle-orm
@@ -47,7 +47,7 @@ The implementer plans the details. What was checked:
   the lint plugin only shows compiler diagnostics and never checks source itself. It reads the
   file's import declarations, and the importing package's dependencies to know a mion dialect is
   installed. Allow the one thing that must stay on drizzle in a mixed setting (a view built from a
-  query builder, DRZ001) inside the drizzle file.
+  query builder, drizzle-migrate-query-builder-view) inside the drizzle file.
 - **Level:** register both rules' codes at `LevelWarning` or `LevelInfo`
   (`ts-go-runtypes/internal/diagnostics/catalog.go`); the level picks the lint rule. A Warning shows under
   `mion/warning` by default; an Info shows only once a project turns on `mion/info` (or sets `levels: 'all'`

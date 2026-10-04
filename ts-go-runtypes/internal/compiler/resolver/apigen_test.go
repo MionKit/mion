@@ -65,7 +65,7 @@ export type Api = {
 };
 `
 
-// apiClientTS makes a route call, a typeErrors and a batch, skips users/remove, and sets up both middlewares (no MET008).
+// apiClientTS makes a route call, a typeErrors and a batch, skips users/remove, and sets up both middlewares (no rpc-client-middleware-not-set-up).
 const apiClientTS = `import {initClient, batch} from '@mionjs/client';
 import type {Api} from './api.ts';
 export const {routes, middlewares} = initClient<Api>({baseURL: 'http://x'});
@@ -94,7 +94,7 @@ func setupApi(t *testing.T, sources map[string]string, genDir string, mode const
 func metDiags(diags []diagnostics.Diagnostic) []diagnostics.Diagnostic {
 	var out []diagnostics.Diagnostic
 	for _, diag := range diags {
-		if strings.HasPrefix(diag.Code, "MET") {
+		if strings.HasPrefix(diag.Code, "rpc-client-") {
 			out = append(out, diag)
 		}
 	}
@@ -338,7 +338,7 @@ export const {routes} = initClient<Api>({baseURL: 'http://x'});
 }
 
 // TestApiGen_ReportsUnreadableApiAndUndeclaredRoute: a loose API type is
-// MET001 at each site; a site naming a route the type lacks is MET002 and the
+// rpc-client-api-unreadable at each site; a site naming a route the type lacks is rpc-client-route-not-declared and the
 // other sites still bundle.
 func TestApiGen_ReportsUnreadableApiAndUndeclaredRoute(t *testing.T) {
 	genDir := t.TempDir()
@@ -353,7 +353,7 @@ export const a = routes.sum(1).call();
 	}
 	diags := metDiags(gen.Diagnostics)
 	if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaUnreadable {
-		t.Fatalf("expected one MET001, got %+v", diags)
+		t.Fatalf("expected one rpc-client-api-unreadable, got %+v", diags)
 	}
 	undeclared := setupApi(t, map[string]string{"client.d.ts": apiClientDTS, "api.ts": apiTypeTS, "client.ts": `import {initClient} from '@mionjs/client';
 import type {Api, RouteSubRequestOf} from './api.ts';
@@ -370,7 +370,7 @@ export const b = routes.sum(1, 2).call();
 	}
 	diags = metDiags(gen.Diagnostics)
 	if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaRouteNotDeclared || !strings.Contains(strings.Join(diags[0].Args, " "), "users/ghost") {
-		t.Fatalf("expected one MET002 naming users/ghost, got %+v", diags)
+		t.Fatalf("expected one rpc-client-route-not-declared naming users/ghost, got %+v", diags)
 	}
 }
 
@@ -756,7 +756,7 @@ func TestApiGen_MirrorShipsBuiltInPureFnsAsFunctions(t *testing.T) {
 	}
 }
 
-// optionalApiTS adds an API with one middleware taking optional params (MET009) and one taking none.
+// optionalApiTS adds an API with one middleware taking optional params (rpc-client-optional-middleware-not-set-up) and one taking none.
 const optionalApiTS = apiTypeTS + `export type OptionalApi = {
   note: {type: 2; handler: (tag?: string) => Promise<void>; options: MfOpts; types?: {params: [tag?: string]; return: void; headers: never; isAsync: false}};
   stamp: {type: 2; handler: () => Promise<number>; options: MfOpts; types?: {params: []; return: number; headers: never; isAsync: false}};
@@ -774,7 +774,7 @@ func generateMetDiags(t *testing.T, client string) []diagnostics.Diagnostic {
 	return metDiags(gen.Diagnostics)
 }
 
-// TestApiGen_ReportsMiddlewaresTheClientNeverSetsUp: MET008 when the middleware needs params, MET009 when all optional.
+// TestApiGen_ReportsMiddlewaresTheClientNeverSetsUp: rpc-client-middleware-not-set-up when the middleware needs params, rpc-client-optional-middleware-not-set-up when all optional.
 func TestApiGen_ReportsMiddlewaresTheClientNeverSetsUp(t *testing.T) {
 	t.Run("required, never set up", func(t *testing.T) {
 		diags := generateMetDiags(t, `import {initClient} from '@mionjs/client';
@@ -784,12 +784,12 @@ export const a = routes.users.getById(1).call();
 export const b = routes.users.getById(2).call();
 `)
 		if len(diags) != 2 {
-			t.Fatalf("expected MET008 for auth and users/audit, got %+v", diags)
+			t.Fatalf("expected rpc-client-middleware-not-set-up for auth and users/audit, got %+v", diags)
 		}
 		for index, want := range []string{"auth", "users/audit"} {
 			diag := diags[index]
 			if diag.Code != diagnostics.CodeApiMetaMiddlewareNotSetUp || diag.Args[0] != want || diag.Args[1] != "users/getById" {
-				t.Errorf("diag %d: want MET008 for %s on users/getById, got %+v", index, want, diag)
+				t.Errorf("diag %d: want rpc-client-middleware-not-set-up for %s on users/getById, got %+v", index, want, diag)
 			}
 			if diag.Site.StartLine != 4 {
 				t.Errorf("diag %d: reported once, at the first call (line 4), got line %d", index, diag.Site.StartLine)
@@ -834,10 +834,10 @@ export const {routes, middlewares} = initClient<OptionalApi>({baseURL: 'http://x
 export const a = routes.ping().call();
 `)
 		if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaOptionalMiddlewareNotSetUp || diags[0].Args[0] != "note" {
-			t.Fatalf("expected one MET009 for note, got %+v", diags)
+			t.Fatalf("expected one rpc-client-optional-middleware-not-set-up for note, got %+v", diags)
 		}
 		if diags[0].Level != diagnostics.LevelRuntimeError {
-			t.Errorf("MET009 stops the build, got level %v", diags[0].Level)
+			t.Errorf("rpc-client-optional-middleware-not-set-up stops the build, got level %v", diags[0].Level)
 		}
 	})
 
@@ -857,11 +857,11 @@ export const a = routes.ping().call();
 		diags := generateMetDiags(t, `import {initClient} from '@mionjs/client';
 import type {OptionalApi} from './api.ts';
 export const {routes, middlewares} = initClient<OptionalApi>({baseURL: 'http://x'});
-// @mion-expect-error MET009
+// @mion-expect-error rpc-client-optional-middleware-not-set-up
 export const a = routes.ping().call();
 `)
 		if len(diags) != 0 {
-			t.Fatalf("the comment silences MET009, got %+v", diags)
+			t.Fatalf("the comment silences rpc-client-optional-middleware-not-set-up, got %+v", diags)
 		}
 	})
 }
@@ -933,7 +933,7 @@ export const a = routes.ping().call();
 	t.Run("bundled, a look-alike the app declares is still a middleware to set up", func(t *testing.T) {
 		diags := generateMetadataDiags(t, constants.ClientRoutesBundle, neverSetUp("LookAlikeApi"))
 		if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaOptionalMiddlewareNotSetUp || diags[0].Args[0] != "mionFetchMetadata" {
-			t.Fatalf("expected one MET009 for the look-alike, got %+v", diags)
+			t.Fatalf("expected one rpc-client-optional-middleware-not-set-up for the look-alike, got %+v", diags)
 		}
 	})
 }
@@ -1020,7 +1020,7 @@ export const other = initClient<MetadataApi>({baseURL: 'http://y'});
 `
 		diags := generateMetadataDiags(t, constants.ClientRoutesFetch, client)
 		if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaFetchNotSetUp || diags[0].Site.StartLine != 7 {
-			t.Fatalf("expected one MET011 at the second initClient, got %+v", diags)
+			t.Fatalf("expected one rpc-client-fetch-not-set-up at the second initClient, got %+v", diags)
 		}
 	})
 	t.Run("off: a setup the build cannot follow covers every client", func(t *testing.T) {
@@ -1044,7 +1044,7 @@ export const w = wide(bare.routes.ping());
 `
 		diags := generateMetadataDiags(t, constants.ClientRoutesBundle, client)
 		if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaRouteWidened || diags[0].Site.StartLine != 9 {
-			t.Fatalf("expected MET003 at the helper's call, got %+v", diags)
+			t.Fatalf("expected rpc-client-route-id-widened at the helper's call, got %+v", diags)
 		}
 	})
 	t.Run("bundled: a widened call that keeps its API answers from that API", func(t *testing.T) {
@@ -1058,14 +1058,14 @@ export const w = wide(bare.routes.ping());
 `
 		diags := generateMetadataDiags(t, constants.ClientRoutesBundle, client)
 		if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaNoMetadataToFetch || diags[0].Site.StartLine != 9 {
-			t.Fatalf("expected MET010 from OptionalApi, not the served client's fallback, got %+v", diags)
+			t.Fatalf("expected rpc-client-no-metadata-route from OptionalApi, not the served client's fallback, got %+v", diags)
 		}
 	})
 	t.Run("off: an API the build cannot read still needs its setup", func(t *testing.T) {
 		client := "import {initClient} from '@mionjs/client';\nexport const loose = initClient<{nothing: string}>({baseURL: 'http://x'});\n"
 		diags := generateMetadataDiags(t, constants.ClientRoutesFetch, client)
 		if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaFetchNotSetUp || diags[0].Site.StartLine != 2 {
-			t.Fatalf("expected MET011 at initClient, got %+v", diags)
+			t.Fatalf("expected rpc-client-fetch-not-set-up at initClient, got %+v", diags)
 		}
 	})
 }
@@ -1075,12 +1075,12 @@ func TestApiGen_MetadataFetchingReportsOncePerApi(t *testing.T) {
 	client := fetchingClient("ServedApi", false, false) + "export const second = initClient<ServedApi>({baseURL: 'http://y'});\n"
 	diags := generateMetadataDiags(t, constants.ClientRoutesFetch, client)
 	if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaFetchNotSetUp || diags[0].Site.StartLine != 4 {
-		t.Fatalf("expected one MET011 at the first initClient, got %+v", diags)
+		t.Fatalf("expected one rpc-client-fetch-not-set-up at the first initClient, got %+v", diags)
 	}
 	bare := fetchingClient("OptionalApi", true, false) + "export const second = initClient<OptionalApi>({baseURL: 'http://y'});\n"
 	diags = generateMetadataDiags(t, constants.ClientRoutesFetch, bare)
 	if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaNoMetadataToFetch || diags[0].Site.StartLine != 4 {
-		t.Fatalf("expected one MET010 at the first initClient, got %+v", diags)
+		t.Fatalf("expected one rpc-client-no-metadata-route at the first initClient, got %+v", diags)
 	}
 }
 
@@ -1091,12 +1091,12 @@ func TestApiGen_MetadataFetchingNeedsAClient(t *testing.T) {
 	}
 }
 
-// TestApiGen_MetadataFetchingSurvivesAnEdit: the fetching facts drop with the Program, so adding the setup clears MET011.
+// TestApiGen_MetadataFetchingSurvivesAnEdit: the fetching facts drop with the Program, so adding the setup clears rpc-client-fetch-not-set-up.
 func TestApiGen_MetadataFetchingSurvivesAnEdit(t *testing.T) {
 	sources := map[string]string{"client.d.ts": apiClientDTS, "router.d.ts": metadataRouterDTS, "api.ts": metadataApiTS, "client.ts": fetchingClient("ServedApi", false, false)}
 	sess := setupApi(t, sources, t.TempDir(), constants.ClientRoutesFetch)
 	if diags := metDiags(sess.Dispatch(protocol.Request{Op: protocol.OpGenerate}).Diagnostics); len(diags) != 1 {
-		t.Fatalf("expected MET011 before the edit, got %+v", diags)
+		t.Fatalf("expected rpc-client-fetch-not-set-up before the edit, got %+v", diags)
 	}
 	sources["client.ts"] = fetchingClient("ServedApi", true, false)
 	if resp := sess.Dispatch(protocol.Request{Op: protocol.OpSetSources, Sources: withRealMarker(t, sources)}); resp.Error != "" {
@@ -1107,7 +1107,7 @@ func TestApiGen_MetadataFetchingSurvivesAnEdit(t *testing.T) {
 	}
 }
 
-// TestApiGen_MiddlewareReadsFollowAnEdit: the middleware reads drop with the Program, so setting one up clears MET009.
+// TestApiGen_MiddlewareReadsFollowAnEdit: the middleware reads drop with the Program, so setting one up clears rpc-client-optional-middleware-not-set-up.
 func TestApiGen_MiddlewareReadsFollowAnEdit(t *testing.T) {
 	client := func(setUp string) string {
 		return `import {initClient} from '@mionjs/client';
@@ -1119,7 +1119,7 @@ export const {routes, middlewares} = initClient<OptionalApi>({baseURL: 'http://x
 	sources := map[string]string{"client.d.ts": apiClientDTS, "router.d.ts": metadataRouterDTS, "api.ts": metadataApiTS, "client.ts": client("")}
 	sess := setupApi(t, sources, t.TempDir(), constants.ClientRoutesBundle)
 	if diags := metDiags(sess.Dispatch(protocol.Request{Op: protocol.OpGenerate}).Diagnostics); len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaOptionalMiddlewareNotSetUp {
-		t.Fatalf("expected MET009 before the edit, got %+v", diags)
+		t.Fatalf("expected rpc-client-optional-middleware-not-set-up before the edit, got %+v", diags)
 	}
 	sources["client.ts"] = client("middlewares.note.onRequest((call) => call());\n")
 	if resp := sess.Dispatch(protocol.Request{Op: protocol.OpSetSources, Sources: withRealMarker(t, sources)}); resp.Error != "" {
@@ -1132,9 +1132,9 @@ export const {routes, middlewares} = initClient<OptionalApi>({baseURL: 'http://x
 
 // TestApiGen_DirectiveAboveALineOpeningCall: a call opening its line is reported there, where the directive above reaches.
 func TestApiGen_DirectiveAboveALineOpeningCall(t *testing.T) {
-	client := strings.Replace(fetchingClient("OptionalApi", true, false), "useFetchMetadata(", "// @mion-expect-error MET010\nuseFetchMetadata(", 1)
+	client := strings.Replace(fetchingClient("OptionalApi", true, false), "useFetchMetadata(", "// @mion-expect-error rpc-client-no-metadata-route\nuseFetchMetadata(", 1)
 	if diags := generateMetadataDiags(t, constants.ClientRoutesBundle, client); len(diags) != 0 {
-		t.Fatalf("the directive silences MET010 at the setup call, got %+v", diags)
+		t.Fatalf("the directive silences rpc-client-no-metadata-route at the setup call, got %+v", diags)
 	}
 }
 
@@ -1169,7 +1169,7 @@ export const a = routes.ping().call();
 	}
 	var out []diagnostics.Diagnostic
 	for _, diag := range metDiags(gen.Diagnostics) {
-		// The fixture has no build version; MET013 is not this test's business.
+		// The fixture has no build version; rpc-client-no-server-version is not this test's business.
 		if diag.Code != diagnostics.CodeApiMetaNoServerVersion {
 			out = append(out, diag)
 		}

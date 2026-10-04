@@ -64,7 +64,7 @@ func ResolveType(prog *program.Program, typeChecker *checker.Checker, cache *run
 	return resolved, nil
 }
 
-// collisionError reports a type-id collision this lane's own cache found, outside the resolver that turns one into MKR014.
+// collisionError reports a type-id collision this lane's own cache found, outside the resolver that turns one into marker-type-id-collision.
 // Without it the mirror files would be keyed by an id two types share.
 func collisionError(prefix string, collision *runtype.HashCollision) error {
 	return fmt.Errorf("%s: two types get the same id %q at hashLength %d (%q and %q); raise hashLength to %d",

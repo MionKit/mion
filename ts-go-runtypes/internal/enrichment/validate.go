@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/cldr"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
@@ -78,7 +79,7 @@ var mockMetaKeys = map[string]bool{
 }
 
 // reservedMetaPrefix is RESERVED for enrichment meta keys, so a type declaring one cannot be enriched: the scaffold could
-// not tell that field from the node meta. The generator refuses the type, the checker reports FT011 / MD011.
+// not tell that field from the node meta. The generator refuses the type, the checker reports enrich-text-reserved-prefix / enrich-mock-reserved-prefix.
 // A bare `$` prefix is NOT reserved, only `rt$` is.
 const reservedMetaPrefix = "rt$"
 
@@ -114,7 +115,7 @@ func checkReservedProperties(findings *[]Finding, ctx *walkCtx, rt *reflection.R
 }
 
 // ReservedPropertyCollisions returns the dotted path of every rt$-prefixed property rt declares, the generator's pre-flight.
-// A non-empty result means the type cannot be scaffolded; the check lanes report the same as FT011 / MD011.
+// A non-empty result means the type cannot be scaffolded; the check lanes report the same as enrich-text-reserved-prefix / enrich-mock-reserved-prefix.
 func ReservedPropertyCollisions(rt *reflection.RunType, resolve func(id string) *reflection.RunType) []string {
 	ctx := newWalkCtx(resolve)
 	var collisions []string
@@ -160,7 +161,7 @@ var friendlyPlaceholders = map[string]bool{
 }
 
 // placeholderPattern matches the closed `$[name]` token set the renderer substitutes.
-// A token name may hold colons, so `$[val:x]` flags FT005 as unknown instead of passing unnoticed.
+// A token name may hold colons, so `$[val:x]` flags enrich-text-unknown-placeholder as unknown instead of passing unnoticed.
 var placeholderPattern = regexp.MustCompile(`\$\[(\w+(?::\w+)*)\]`)
 
 // CheckFriendly walks an authored FriendlyText<T> literal paired with the RunType T resolves to, collecting Findings.
@@ -180,9 +181,9 @@ func CheckMock(rt *reflection.RunType, literal LiteralView, resolve func(id stri
 	return findings
 }
 
-// TODO(refine): FT004 / MD002 (value-shape mismatch) stay with the TS checker, whose mapped types already reject a
-// wrong-shaped value at the call site. MD003 (pool value validates against the field) needs the runtime validator.
-// MD004 (min > max) and FT010 / MD010 (authored-vs-current drift hash) are unimplemented: none of the six is registered.
+// TODO(refine): enrich-text-shape-mismatch / enrich-mock-shape-mismatch (value-shape mismatch) stay with the TS checker, whose mapped types already reject a
+// wrong-shaped value at the call site. enrich-mock-invalid-pool (pool value validates against the field) needs the runtime validator.
+// enrich-mock-inverted-range (min > max) and enrich-text-type-drift / enrich-mock-type-drift (authored-vs-current drift hash) are unimplemented: none of the six is registered.
 
 // childByName indexes property children by field name for O(1) pairing against literal keys.
 func childByName(ctx *walkCtx, rt *reflection.RunType) map[string]*reflection.RunType {
@@ -227,7 +228,7 @@ func checkFriendlyNode(findings *[]Finding, ctx *walkCtx, rt *reflection.RunType
 	defer delete(ctx.seen, rt)
 
 	byName := childByName(ctx, rt)
-	checkReservedProperties(findings, ctx, rt, path, "FT011")
+	checkReservedProperties(findings, ctx, rt, path, diagnostics.CodeFriendlyReservedProp)
 	for _, key := range literal.Keys() {
 		if friendlyMetaKeys[key] {
 			// A meta key belongs to the owning node, not a field: rt$errors was handled above and rt$label is free text.
@@ -235,9 +236,9 @@ func checkFriendlyNode(findings *[]Finding, ctx *walkCtx, rt *reflection.RunType
 		}
 		child, ok := byName[key]
 		if !ok {
-			// FT002: the map names a field T does not declare.
+			// enrich-text-unknown-field: the map names a field T does not declare.
 			*findings = append(*findings, Finding{
-				Code:     "FT002",
+				Code:     diagnostics.CodeFriendlyUnknownField,
 				Severity: Error,
 				Path:     joinPath(path, key),
 				Message:  "unknown field '" + key + "' is not a property of the type",
@@ -257,13 +258,13 @@ func checkFriendlyErrors(findings *[]Finding, errorsView LiteralView, fieldNode 
 	if errorsView == nil {
 		return
 	}
-	// FT009: rt$default is the exclusive catch-all mode, never both it and per-constraint keys, mirroring the TS union.
+	// enrich-text-default-and-messages: rt$default is the exclusive catch-all mode, never both it and per-constraint keys, mirroring the TS union.
 	keys := errorsView.Keys()
 	if len(keys) > 1 {
 		for _, key := range keys {
 			if key == "rt$default" {
 				*findings = append(*findings, Finding{
-					Code:     "FT009",
+					Code:     diagnostics.CodeFriendlyDefaultNotAlone,
 					Severity: Error,
 					Path:     joinPath(path, "rt$errors.rt$default"),
 					Message:  "rt$default is mutually exclusive with per-constraint messages — use {rt$default: '…'} alone, or per-constraint keys without it",
@@ -276,16 +277,16 @@ func checkFriendlyErrors(findings *[]Finding, errorsView LiteralView, fieldNode 
 	for _, key := range errorsView.Keys() {
 		keyPath := joinPath(path, "rt$errors."+key)
 		if !allowed[key] {
-			// FT003: neither type / rt$default nor one of the field's declared format constraints.
+			// enrich-text-unknown-error-key: neither type / rt$default nor one of the field's declared format constraints.
 			*findings = append(*findings, Finding{
-				Code:     "FT003",
+				Code:     diagnostics.CodeFriendlyUnknownConstraint,
 				Severity: Warning,
 				Path:     keyPath,
 				Message:  "error key '" + key + "' is not a declared constraint of this field",
 				Args:     []string{key},
 			})
 		}
-		// FT005: bad `$[…]` placeholders in the template string.
+		// enrich-text-unknown-placeholder: bad `$[…]` placeholders in the template string.
 		if template, ok := errorsView.StringValue(key); ok {
 			checkPlaceholders(findings, template, keyPath)
 			continue
@@ -298,7 +299,7 @@ func checkFriendlyErrors(findings *[]Finding, errorsView LiteralView, fieldNode 
 	checkMissingErrorKeys(findings, keys, fieldNode, path)
 }
 
-// checkMissingErrorKeys reports FT012; a blank value counts as present because FT023 already reports it.
+// checkMissingErrorKeys reports enrich-text-missing-message; a blank value counts as present because enrich-text-blank-value already reports it.
 func checkMissingErrorKeys(findings *[]Finding, keys []string, fieldNode *reflection.RunType, path string) {
 	present := make(map[string]bool, len(keys))
 	for _, key := range keys {
@@ -310,7 +311,7 @@ func checkMissingErrorKeys(findings *[]Finding, keys []string, fieldNode *reflec
 	for _, key := range formatConstraintKeys(fieldNode) {
 		if !present[key] {
 			*findings = append(*findings, Finding{
-				Code:     "FT012",
+				Code:     diagnostics.CodeFriendlyMissingConstraint,
 				Severity: Warning,
 				Path:     joinPath(path, "rt$errors"),
 				Message:  "error key '" + key + "' has no message: this failure shows a generic one",
@@ -320,12 +321,12 @@ func checkMissingErrorKeys(findings *[]Finding, keys []string, fieldNode *reflec
 	}
 }
 
-// checkPluralLeaf validates one plural template: the mandatory `other` backstop (FT006), CLDR arm keys (FT007),
-// per-arm placeholders (FT005), and whether the constraint can pluralize at all (FT008, dead arms otherwise).
+// checkPluralLeaf validates one plural template: the mandatory `other` backstop (enrich-text-plural-missing-other), CLDR arm keys (enrich-text-unknown-plural-arm),
+// per-arm placeholders (enrich-text-unknown-placeholder), and whether the constraint can pluralize at all (enrich-text-plural-without-count, dead arms otherwise).
 func checkPluralLeaf(findings *[]Finding, plural LiteralView, key, keyPath string) {
 	if !CountBearing(key) {
 		*findings = append(*findings, Finding{
-			Code:     "FT008",
+			Code:     diagnostics.CodeFriendlyPluralNoCount,
 			Severity: Info,
 			Path:     keyPath,
 			Message:  "constraint '" + key + "' carries no count — a plural object here has dead arms (only 'other' renders); use a plain string",
@@ -339,7 +340,7 @@ func checkPluralLeaf(findings *[]Finding, plural LiteralView, key, keyPath strin
 		}
 		if !cldr.IsCategory(arm) {
 			*findings = append(*findings, Finding{
-				Code:     "FT007",
+				Code:     diagnostics.CodeFriendlyPluralBadArm,
 				Severity: Warning,
 				Path:     keyPath + "." + arm,
 				Message:  "unknown plural arm '" + arm + "' (CLDR categories: zero, one, two, few, many, other)",
@@ -352,7 +353,7 @@ func checkPluralLeaf(findings *[]Finding, plural LiteralView, key, keyPath strin
 	}
 	if !hasOther {
 		*findings = append(*findings, Finding{
-			Code:     "FT006",
+			Code:     diagnostics.CodeFriendlyPluralNoOther,
 			Severity: Error,
 			Path:     keyPath,
 			Message:  "plural template must carry the mandatory 'other' arm (the render backstop)",
@@ -374,7 +375,7 @@ func allowedErrorKeys(fieldNode *reflection.RunType) map[string]bool {
 	return allowed
 }
 
-// checkPlaceholders emits FT005 for an unrecognised `$[name]`.
+// checkPlaceholders emits enrich-text-unknown-placeholder for an unrecognised `$[name]`.
 func checkPlaceholders(findings *[]Finding, template, path string) {
 	for _, match := range placeholderPattern.FindAllStringSubmatch(template, -1) {
 		name := match[1]
@@ -382,7 +383,7 @@ func checkPlaceholders(findings *[]Finding, template, path string) {
 			continue
 		}
 		*findings = append(*findings, Finding{
-			Code:     "FT005",
+			Code:     diagnostics.CodeFriendlyBadPlaceholder,
 			Severity: Warning,
 			Path:     path,
 			Message:  "unknown placeholder '$[" + name + "]' (expected one of label, val, path, index)",
@@ -411,16 +412,16 @@ func checkMockNode(findings *[]Finding, ctx *walkCtx, rt *reflection.RunType, li
 	defer delete(ctx.seen, rt)
 
 	byName := childByName(ctx, rt)
-	checkReservedProperties(findings, ctx, rt, path, "MD011")
+	checkReservedProperties(findings, ctx, rt, path, diagnostics.CodeMockReservedProp)
 	for _, key := range literal.Keys() {
 		if mockMetaKeys[key] {
 			continue
 		}
 		child, ok := byName[key]
 		if !ok {
-			// MD001: the map names a field T does not declare.
+			// enrich-mock-unknown-field: the map names a field T does not declare.
 			*findings = append(*findings, Finding{
-				Code:     "MD001",
+				Code:     diagnostics.CodeMockUnknownField,
 				Severity: Error,
 				Path:     joinPath(path, key),
 				Message:  "unknown field '" + key + "' is not a property of the type",

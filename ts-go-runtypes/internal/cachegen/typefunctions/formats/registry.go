@@ -19,7 +19,7 @@ type PatternGenFailure struct {
 	Reason string
 	// TimedOut marks a draw that ran out of the sidecar's match budget, retry included.
 	// That verdict is the build host's load as much as the pattern, so the emitter raises the transient
-	// FMT007 instead of FMT005 and the entry stays out of the disk cache.
+	// format-pattern-timeout instead of format-sample-generation-failed and the entry stays out of the disk cache.
 	TimedOut bool
 }
 

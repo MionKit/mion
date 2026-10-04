@@ -750,9 +750,9 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
         await resolver.setSources(sources);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        // CFG001 is the project tsconfig refusing to load, worth saying out loud rather than skipping
+        // config-tsconfig-not-loaded is the project tsconfig refusing to load, worth saying out loud rather than skipping
         // updates silently; the daemon re-parses on the next edit, so a fix needs no dev-server restart.
-        if (message.includes('CFG001')) console.error(`[@mionjs/devtools] HMR update skipped — ${message}`);
+        if (message.includes('config-tsconfig-not-loaded')) console.error(`[@mionjs/devtools] HMR update skipped — ${message}`);
         // Otherwise the changed file is outside the resolver's known set (a config file, say): nothing was
         // regenerated, so nothing went stale.
         return [];

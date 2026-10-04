@@ -1317,43 +1317,43 @@ export const OBJECT = {
     title: 'Top-level function',
     description: 'A function is not data, so the factory throws on first call.',
     validateNotes: [
-      'DataOnly strips every callable. The Go pipeline renders an alwaysThrow factory (VL003 / VE003). Validate `Parameters<F>` or `Awaited<ReturnType<F>>` instead.',
+      'DataOnly strips every callable. The Go pipeline renders an alwaysThrow factory (validate-function-root / validation-errors-function-root). Validate `Parameters<F>` or `Awaited<ReturnType<F>>` instead.',
     ],
-    // @mion-downgrade-error VL003
+    // @mion-downgrade-error validate-function-root
     validate: () => createValidateFn<() => void>(),
-    // @mion-downgrade-error VE003 VL003
+    // @mion-downgrade-error validation-errors-function-root validate-function-root
     standardSchema: () => createStandardSchema<() => void>(),
     // DataOnly<() => void> is never, so the assert skips it (factoryThrows); declared only for the contract.
     validateDataOnly: () => createValidateFn<DataOnly<() => void>>(),
-    // @mion-downgrade-error VL003
+    // @mion-downgrade-error validate-function-root
     validateSchema: () => createValidateFn(RT.func()),
-    // @mion-downgrade-error VL003
+    // @mion-downgrade-error validate-function-root
     deserializeValidate: () => deserializeValidate<() => void>(),
     validateReflect: () => {
       const v: () => void = () => {};
-      // @mion-downgrade-error VL003
+      // @mion-downgrade-error validate-function-root
       return createValidateFn(v);
     },
     deserializeValidateReflect: () => {
       const v: () => void = () => {};
-      // @mion-downgrade-error VL003
+      // @mion-downgrade-error validate-function-root
       return deserializeValidate(v);
     },
-    // @mion-downgrade-error VE003
+    // @mion-downgrade-error validation-errors-function-root
     getValidationErrors: () => createGetValidationErrorsFn<() => void>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<() => void>>(),
-    // @mion-downgrade-error VE003
+    // @mion-downgrade-error validation-errors-function-root
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.func()),
-    // @mion-downgrade-error VE003
+    // @mion-downgrade-error validation-errors-function-root
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<() => void>(),
     getValidationErrorsReflect: () => {
       const v: () => void = () => {};
-      // @mion-downgrade-error VE003
+      // @mion-downgrade-error validation-errors-function-root
       return createGetValidationErrorsFn(v);
     },
     deserializeGetValidationErrorsReflect: () => {
       const v: () => void = () => {};
-      // @mion-downgrade-error VE003
+      // @mion-downgrade-error validation-errors-function-root
       return deserializeGetValidationErrors(v);
     },
     mockType: () => createMockDataFn<() => void>(),
@@ -1374,7 +1374,7 @@ export const OBJECT = {
     description:
       'An interface with a call signature is function-like, so the factory throws on first call, like a bare function.',
     validateNotes: [
-      'DataOnly strips a callable interface, data properties included. The Go pipeline renders an alwaysThrow factory (VL003 / VE003).',
+      'DataOnly strips a callable interface, data properties included. The Go pipeline renders an alwaysThrow factory (validate-function-root / validation-errors-function-root).',
     ],
     // Signature param names are id-relevant (parameters[].name must be
     // per-site reliable), and TS call-signature syntax REQUIRES names, while the value-first
@@ -1382,18 +1382,18 @@ export const OBJECT = {
     // are informationally different types now. Behavior stays identical (the
     // schema thunks still run in the behavior suites).
     idDivergent: true,
-    // @mion-downgrade-error VL003
+    // @mion-downgrade-error validate-function-root
     validate: () => createValidateFn<{(a: number, b: boolean): string; extra: string}>(),
-    // @mion-downgrade-error VE003 VL003
+    // @mion-downgrade-error validation-errors-function-root validate-function-root
     standardSchema: () => createStandardSchema<{(a: number, b: boolean): string; extra: string}>(),
     // DataOnly of a callable is never, so the assert skips it (factoryThrows); declared only for the contract.
     validateDataOnly: () => createValidateFn<DataOnly<{(a: number, b: boolean): string; extra: string}>>(),
     validateSchema: () =>
       createValidateFn(
         RT.callable(RT.func({params: [TF.number(), RT.boolean()], ret: TF.string()}), RT.object({extra: TF.string()}))
-        // @mion-downgrade-error VL003
+        // @mion-downgrade-error validate-function-root
       ),
-    // @mion-downgrade-error VL003
+    // @mion-downgrade-error validate-function-root
     deserializeValidate: () => deserializeValidate<{(a: number, b: boolean): string; extra: string}>(),
     validateReflect: () => {
       const v: {(a: number, b: boolean): string; extra: string} = Object.assign(
@@ -1402,7 +1402,7 @@ export const OBJECT = {
         },
         {extra: 'x'}
       );
-      // @mion-downgrade-error VL003
+      // @mion-downgrade-error validate-function-root
       return createValidateFn(v);
     },
     deserializeValidateReflect: () => {
@@ -1412,18 +1412,18 @@ export const OBJECT = {
         },
         {extra: 'x'}
       );
-      // @mion-downgrade-error VL003
+      // @mion-downgrade-error validate-function-root
       return deserializeValidate(v);
     },
-    // @mion-downgrade-error VE003
+    // @mion-downgrade-error validation-errors-function-root
     getValidationErrors: () => createGetValidationErrorsFn<{(a: number, b: boolean): string; extra: string}>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<{(a: number, b: boolean): string; extra: string}>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(
         RT.callable(RT.func({params: [TF.number(), RT.boolean()], ret: TF.string()}), RT.object({extra: TF.string()}))
-        // @mion-downgrade-error VE003
+        // @mion-downgrade-error validation-errors-function-root
       ),
-    // @mion-downgrade-error VE003
+    // @mion-downgrade-error validation-errors-function-root
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<{(a: number, b: boolean): string; extra: string}>(),
     getValidationErrorsReflect: () => {
       const v: {(a: number, b: boolean): string; extra: string} = Object.assign(
@@ -1432,7 +1432,7 @@ export const OBJECT = {
         },
         {extra: 'x'}
       );
-      // @mion-downgrade-error VE003
+      // @mion-downgrade-error validation-errors-function-root
       return createGetValidationErrorsFn(v);
     },
     deserializeGetValidationErrorsReflect: () => {
@@ -1442,7 +1442,7 @@ export const OBJECT = {
         },
         {extra: 'x'}
       );
-      // @mion-downgrade-error VE003
+      // @mion-downgrade-error validation-errors-function-root
       return deserializeGetValidationErrors(v);
     },
     mockType: () => createMockDataFn<{(a: number, b: boolean): string; extra: string}>(),

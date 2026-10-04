@@ -87,7 +87,7 @@ func buildRedirectEntry(entryKey string, tag string, runType *reflection.RunType
 
 // AssertOverrideCfn verifies the invariant every cfn redirect relies on: the override module it forwards to
 // via `utl.usePureFn` actually rendered. A miss is an emitter bug (the unguarded usePureFn would throw at
-// runtime), so it surfaces as an OVR002 Error at collect time, in sorted-key order. Mirrors
+// runtime), so it surfaces as an override-function-not-built Error at collect time, in sorted-key order. Mirrors
 // AssertCompositeSoftDeps. An override's id looks like any other pure fn's, so membership in overrideIDs is
 // the only thing telling the two apart; there is no prefix to scan for.
 func AssertOverrideCfn(graph entrymodules.Graph, overrideIDs map[string]bool, diagSink *[]diagnostics.Diagnostic) {

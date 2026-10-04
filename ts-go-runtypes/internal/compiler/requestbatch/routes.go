@@ -9,7 +9,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 )
 
-// Element / root rejection reasons, surfaced as BAT001's `{0}` argument (and, prefixed, as BAT004's).
+// Element / root rejection reasons, surfaced as rpc-batch-element-unreadable's `{0}` argument (and, prefixed, as rpc-batch-mapper-unreadable's).
 const (
 	reasonSpread         = "spread element"
 	reasonNotRouteCall   = "not a route call"
@@ -30,7 +30,7 @@ const routeSubRequestName = "RouteSubRequest"
 const initClientName = "initClient"
 
 // resolveRouteRef resolves a batch element (or an `inputFrom()` source) to the route call it names and that
-// call's route id, through const / let bindings, imports and wrappers. A non-empty reason is BAT001's argument.
+// call's route id, through const / let bindings, imports and wrappers. A non-empty reason is rpc-batch-element-unreadable's argument.
 func (scope *fileScope) resolveRouteRef(node *ast.Node, depth int) (routeCall *ast.Node, routeId string, reason string) {
 	if depth > comptimeargs.DepthCap {
 		return nil, "", reasonDepthCap
@@ -138,7 +138,7 @@ func accessChain(expr *ast.Node) (segments []string, root *ast.Node, reason stri
 }
 
 // resolveRootPath resolves the root identifier of an access chain, plus the chain's segments, to the full
-// path from the client object (`initClient()`'s result). A non-empty reason is the BAT001 argument.
+// path from the client object (`initClient()`'s result). A non-empty reason is the rpc-batch-element-unreadable argument.
 func (scope *fileScope) resolveRootPath(identifier *ast.Node, segments []string, depth int) (path []string, reason string) {
 	symbol := scope.typeChecker.GetSymbolAtLocation(identifier)
 	return scope.resolveSymbolPath(symbol, segments, depth)

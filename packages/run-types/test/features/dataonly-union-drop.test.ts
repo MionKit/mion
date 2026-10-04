@@ -74,20 +74,20 @@ describe('DataOnly union-member drop', () => {
 
 describe('DataOnly collapse-to-never / empty still throws', () => {
   test('all members of a union stripped (DataOnly = never)', () => {
-    // @mion-downgrade-error VL002
+    // @mion-downgrade-error validate-symbol-root
     expect(() => createValidateFn<symbol | (() => void)>()).toThrow();
-    // @mion-downgrade-error PJS005
+    // @mion-downgrade-error json-prepare-clone-symbol-root
     expect(() => createJsonEncoderFn<symbol | (() => void)>()).toThrow();
   });
 
   test('array / tuple / Map / Set whose element collapses to never', () => {
-    // @mion-downgrade-error PJS005
+    // @mion-downgrade-error json-prepare-clone-symbol-root
     expect(() => createJsonEncoderFn<symbol[]>()).toThrow();
-    // @mion-downgrade-error PJS005
+    // @mion-downgrade-error json-prepare-clone-symbol-root
     expect(() => createJsonEncoderFn<[string, symbol]>()).toThrow();
-    // @mion-downgrade-error PJS005
+    // @mion-downgrade-error json-prepare-clone-symbol-root
     expect(() => createJsonEncoderFn<Map<string, symbol>>()).toThrow();
-    // @mion-downgrade-error PJS005
+    // @mion-downgrade-error json-prepare-clone-symbol-root
     expect(() => createJsonEncoderFn<Set<symbol>>()).toThrow();
   });
 
@@ -103,17 +103,17 @@ describe('DataOnly collapse-to-never / empty still throws', () => {
   test('all-stripped union at a nested externalized property still throws (gate-elision regression)', () => {
     const buf = new ArrayBuffer(4);
     expect(() => {
-      // @mion-downgrade-error PJ002
+      // @mion-downgrade-error json-prepare-non-data-root
       const encode = createJsonEncoderFn<HasNativeUnion>(undefined, {strategy: 'mutate'});
       return encode({x: buf, y: 1} as HasNativeUnion);
     }).toThrow();
     expect(() => {
-      // @mion-downgrade-error PJS002
+      // @mion-downgrade-error json-prepare-clone-non-data-root
       const encode = createJsonEncoderFn<HasNativeUnion>(); // clone (default)
       return encode({x: buf, y: 1} as HasNativeUnion);
     }).toThrow();
     expect(() => {
-      // @mion-downgrade-error PJS002
+      // @mion-downgrade-error json-prepare-clone-non-data-root
       const encode = createJsonEncoderFn<HasNativeUnion>(undefined, {strategy: 'compact'});
       return encode({x: buf, y: 1} as HasNativeUnion);
     }).toThrow();

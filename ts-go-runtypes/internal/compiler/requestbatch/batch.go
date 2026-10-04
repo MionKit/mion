@@ -89,7 +89,7 @@ func (cache *FileCache) put(filePath string, sites []Site, diags []diagnostics.D
 }
 
 // ExtractFromProgramCached returns the branded batch sites of `files` in file then source order, plus diagnostics.
-// The cache is optional (nil degrades to an uncached walk). Cross-file id collisions (BAT003) are NOT folded
+// The cache is optional (nil degrades to an uncached walk). Cross-file id collisions (rpc-batch-id-collision) are NOT folded
 // in here: run CheckConflicts over the whole-program site set.
 func ExtractFromProgramCached(typeChecker *checker.Checker, markerOpts marker.Options, lookup purefunctions.SourceFileLookup, files []string, cache *FileCache) ([]Site, []diagnostics.Diagnostic) {
 	var sites []Site

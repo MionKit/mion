@@ -111,7 +111,7 @@ func (sess *Session) collectEntryModules(dump protocol.Dump, homes *runtype.RowH
 	// ProvenanceSites anchors any breach at the demanding createJsonEncoderFn/Decoder call site.
 	typefunctions.AssertCompositeSoftDeps(graph, rtOpts.ProvenanceSites, rtOpts.DiagSink)
 	// Same invariant for cfn redirects: an override body a redirect forwards to without its module in the graph
-	// fails the build (OVR002) instead of throwing at runtime.
+	// fails the build (override-function-not-built) instead of throwing at runtime.
 	typefunctions.AssertOverrideCfn(graph, sess.overrideIDs(), rtOpts.DiagSink)
 
 	// Drops every entry whose same-family dep never rendered; the demanded roots that fall out become KindMissing
@@ -606,11 +606,11 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 			metrics.PureFnsMs = elapsedMs(pureFnsStart)
 		}
 		// Batch extraction runs on every scan too: the batch id is spliced into the user's source exactly like a
-		// pure fn's id, and the BAT0xx diagnostics flow unconditionally.
+		// pure fn's id, and the rpc-batch-* diagnostics flow unconditionally.
 		batchSites, batchDiagnostics, batchReplacements := sess.extractBatchesForScan(request.Files)
 		sess.noteOwnBatches(batchSites)
 		// A bundled-API dispatch site (a client that bundles its routes) splices its module binding the same way;
-		// MET0xx diagnostics flow with them.
+		// rpc-client-* diagnostics flow with them.
 		_, apiDiagnostics, apiReplacements := sess.extractApiSitesForScan(request.Files)
 		prepStart := time.Now()
 		added := sess.cache.Added(before)
@@ -657,7 +657,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		renderEntries := request.IncludeEntryModules || request.IncludeRtDiagnostics
 		var rtDiagnostics []diagnostics.Diagnostic
 		// rtPureFnDeps accumulates the pure-fn dependencies the family walkers record while rendering bodies
-		// below, validated against the program registration set for PFE9012 once the collection finishes.
+		// below, validated against the program registration set for purefn-not-registered once the collection finishes.
 		// Only wired when entries render, so a plain rewrite scan collects nothing and the validation is a no-op.
 		var rtPureFnDeps []typefunctions.PureFnDepUse
 		var rtOpts typefunctions.RenderOpts
@@ -702,7 +702,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		}
 		// Flush into the unified response.Diagnostics slice, the only one the Vite plugin's reception loop reads.
 		response.Diagnostics = append(response.Diagnostics, rtDiagnostics...)
-		// PFE9012: a pure-fn dep an emitted body reaches whose registration is absent from the program is an
+		// purefn-not-registered: a pure-fn dep an emitted body reaches whose registration is absent from the program is an
 		// Error the lint surface and the build must see.
 		response.Diagnostics = append(response.Diagnostics, sess.validateProgramPureFnDeps(rtPureFnDeps)...)
 		return response
@@ -736,7 +736,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		// consumes this response.
 		response.Diagnostics = append(response.Diagnostics, sess.programWideDiagnostics()...)
 		response.Diagnostics = append(response.Diagnostics, pureFnsDiagnostics...)
-		// MET015 rides the dump too: `--no-emit` stops here, and settling drops what MET015 explains.
+		// rpc-client-types-not-built-by-mion rides the dump too: `--no-emit` stops here, and settling drops what rpc-client-types-not-built-by-mion explains.
 		response.Diagnostics = append(response.Diagnostics, sess.apiTypesPackages().diags...)
 		dumpBatchSites, dumpBatchDiagnostics := sess.collectProgramBatches()
 		response.Diagnostics = append(response.Diagnostics, dumpBatchDiagnostics...)
@@ -747,7 +747,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		}
 		response.EntryModules = modules
 		response.Diagnostics = append(response.Diagnostics, rtDiagnostics...)
-		// PFE9012 on the whole-program dump, the path batchcompile drives, so a missing registration fails the build.
+		// purefn-not-registered on the whole-program dump, the path batchcompile drives, so a missing registration fails the build.
 		response.Diagnostics = append(response.Diagnostics, sess.validateProgramPureFnDeps(rtPureFnDeps)...)
 		return response
 	case protocol.OpGenerate:
@@ -789,14 +789,14 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 			return protocol.Response{Error: "generate: " + apiErr.Error()}
 		}
 		// Whole-program batch sites: their files join SiteFiles (a file whose only marker use is `batch([...])`
-		// still needs the transform), and a cross-file BAT003 collision is visible only from here.
+		// still needs the transform), and a cross-file rpc-batch-id-collision collision is visible only from here.
 		genBatchSites, genBatchDiagnostics := sess.collectProgramBatches()
 		// The batch transport: a server program (it creates the router, or at least names `@mionjs/router`)
 		// reads its own batches and writes <outDir>/rpc/.
 		// Router-init modules are the ones the transform appends the batch import to, so they join SiteFiles too.
 		// A program that never names the router has nothing to serve the table to: none is written, a stale one
 		// is removed. A server whose router hides behind a wrapper the detector cannot see gets the table plus a
-		// BAT009 warning, and the import is then the author's to write.
+		// rpc-batch-router-init-hidden warning, and the import is then the author's to write.
 		routerInitFiles := sess.routerInitFiles()
 		var rpc rpcCollection
 		if len(routerInitFiles) > 0 || sess.importsRouter() {
@@ -849,7 +849,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		genResponse.Diagnostics = append(genResponse.Diagnostics, sess.checkApiTypeImports(sess.programSourceFiles())...)
 		genResponse.Diagnostics = append(genResponse.Diagnostics, genPureFnsDiagnostics...)
 		genResponse.Diagnostics = append(genResponse.Diagnostics, genDiagnostics...)
-		// PFE9012: same dangling-dep guard on the disk-generation path.
+		// purefn-not-registered: same dangling-dep guard on the disk-generation path.
 		genResponse.Diagnostics = append(genResponse.Diagnostics, sess.validateProgramPureFnDeps(genPureFnDeps)...)
 		return genResponse
 	case protocol.OpSetSources:
@@ -1007,7 +1007,7 @@ func (sess *Session) dispatchSetSources(sources map[string]string) error {
 
 	// Parsed ONCE per session and adopted wholesale in every inferred Program, so daemon rebuilds type-check
 	// exactly like the build. Strict like tsc: a named config that is missing or broken fails the op, with
-	// CFG001 tagging the message so lint hosts can synthesize the catalog diagnostic, and the next setSources
+	// config-tsconfig-not-loaded tagging the message so lint hosts can synthesize the catalog diagnostic, and the next setSources
 	// re-parses, so a fixed config heals without a respawn. (nil, nil) means no config was named.
 	if _, err := sess.ensureInferredConfig(cwd); err != nil {
 		return fmt.Errorf("setSources: %s %v", diagnostics.CodeTsconfigLoadFailed, err)

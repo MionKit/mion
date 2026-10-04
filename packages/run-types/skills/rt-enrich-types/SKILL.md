@@ -37,7 +37,7 @@ marked `@todo`; your job is to fill those gaps with believable, valid content.
 6. **`enrich --i18n <locale|all> [<src.ts>] [--update|--prune]`** — scaffold, reconcile,
    or prune the per-locale translation files of the friendly maps (see **Translations**
    below).
-7. **`enrich --i18n <locale|all> --no-emit`** — report translation status (TR001–TR004,
+7. **`enrich --i18n <locale|all> --no-emit`** — report translation status (enrich-i18n-\*,
    warnings by default); **`--require-complete`** (or tsconfig `i18n.strict`) makes it FAIL
    for CI. See **Translations** below.
 
@@ -64,7 +64,7 @@ source folder (`rootDir`, else the folder all program files share), configurable
 file, anchored at the type's **definition** (not its call sites); the two families never
 share a file, and each family file imports only its own wrapper type.
 
-`enrich --no-emit` flags a mirror outside its family folder as GE001 location drift. `--out`
+`enrich --no-emit` flags a mirror outside its family folder as enrich-mirror-moved location drift. `--out`
 writes one combined file instead, as an explicit escape hatch.
 
 Each family file holds a strict `import type` back to the source (the rename
@@ -118,7 +118,7 @@ declared failable constraint — the mapped type requires each key — or the ex
 scaffold is always per-constraint; switch a node to `rt$default` by hand). Pure data;
 rendered at runtime by `createFriendlyText<T>(map)`, or by `createFriendlyTextI18n` with
 committed translations. The full authoring DSL — node shape, constraint keys, the `$[…]`
-placeholder DSL, plural rules, the `rt$default` mode, the FT0xx checks, runtime
+placeholder DSL, plural rules, the `rt$default` mode, the enrich-text-\* checks, runtime
 rendering — is the **`runtypes-friendly-text`** skill; use it whenever you author or
 fill a friendly map.
 
@@ -161,9 +161,9 @@ Without `<src.ts>`, targets are "sources that have a friendly mirror" — path m
   orphaned, renamed, or down-scoped. Type renames carry across locales via the shared
   `@rtType` id (const, annotation, marker AND intra-file references are renamed in
   place).
-- **`enrich --i18n --no-emit` findings** — TR001 missing translation file; TR002 unfilled
-  `@todo` blanks; TR003 out of date vs the SOURCE TYPE (a src-driven reconcile would
-  change the file); TR004 orphan carcasses awaiting review/prune. All Warnings (exit 0)
+- **`enrich --i18n --no-emit` findings** — enrich-i18n-missing-translation missing translation file; enrich-i18n-todo-left unfilled
+  `@todo` blanks; enrich-i18n-out-of-date out of date vs the SOURCE TYPE (a src-driven reconcile would
+  change the file); enrich-i18n-orphans orphan carcasses awaiting review/prune. All Warnings (exit 0)
   unless tsconfig `i18n.strict: true` OR the `--require-complete` flag flips them to Errors
   (exit 1); the runtime is always lenient regardless.
 
@@ -192,7 +192,7 @@ type-driven `$[val]` rendering (Currency / date bounds) — is covered in the
 Per-field value pools and ranges (`pool`, `min`/`max`, `rt$items`/`rt$length`, `rt$optional`)
 that feed `createMockDataFn<T>(undefined, { data })`: the mechanical generator keeps handling
 structure + format-correctness, you supply _believable_ values. The full authoring DSL
-— node shapes per field kind, the MD0xx checks, end-to-end wiring — is the
+— node shapes per field kind, the enrich-mock-\* checks, end-to-end wiring — is the
 **`runtypes-mock-data`** skill; use it whenever you author or fill a mock map.
 
 ## Authoring checklist

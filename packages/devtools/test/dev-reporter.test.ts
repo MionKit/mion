@@ -15,7 +15,7 @@ const TSCONFIG = JSON.stringify({
   include: ['src'],
 });
 
-// MKR001 (a function called only to read its return type) is a Warning; both getRunTypeId shapes resolve.
+// marker-calls-function-for-type (a function called only to read its return type) is a Warning; both getRunTypeId shapes resolve.
 const A_TS = `import {getRunTypeId} from '@mionjs/run-types';
 function load(): {name: string} {
   return {name: 'x'};
@@ -25,13 +25,13 @@ export const idStatic = getRunTypeId<{name: string}>();
 const sample = {name: 'Ada'};
 export const idReflected = getRunTypeId(sample);
 `;
-// VL002 (a root `symbol`) is a RuntimeError: the dev server reports it and keeps running.
+// validate-symbol-root (a root `symbol`) is a RuntimeError: the dev server reports it and keeps running.
 const B_TS = `import {createValidateFn} from '@mionjs/run-types';
 export const isSymbol = createValidateFn<symbol>();
 `;
-// VL003 (a root function type), added while the dev server runs.
-const VL003_LINE = 'export const isFn = createValidateFn<(a: number) => void>();\n';
-// MKR003 (a marker in a generic function) is a fatal Error: no code is produced for it.
+// validate-function-root (a root function type), added while the dev server runs.
+const FUNCTION_ROOT_LINE = 'export const isFn = createValidateFn<(a: number) => void>();\n';
+// marker-in-generic-function (a marker in a generic function) is a fatal Error: no code is produced for it.
 const FATAL_TS = `import {createValidateFn} from '@mionjs/run-types';
 export function makeValidator<T>() {
   return createValidateFn<T>();
@@ -70,7 +70,7 @@ register('the dev server prints only what breaks running code, once', () => {
         runTypes: {binary: BIN, genDir: path.join(dir, '.mion')},
       }),
     });
-    await waitFor(() => count('error VL002') > 0, 'the start-up report');
+    await waitFor(() => count('error validate-symbol-root') > 0, 'the start-up report');
   });
 
   afterEach(async () => {
@@ -86,35 +86,35 @@ register('the dev server prints only what breaks running code, once', () => {
   };
 
   it('reports the RuntimeError once and the warning as one count line, never clearing the terminal', async () => {
-    expect(count('error VL002')).toBe(1);
-    expect(count('MKR001')).toBe(0);
+    expect(count('error validate-symbol-root')).toBe(1);
+    expect(count('marker-calls-function-for-type')).toBe(0);
     expect(lines()).toContain('mion: 1 warning (1 new). Your editor shows them through the mion lint rules.');
     expect(logged.every((entry) => entry.clear === false)).toBe(true);
   }, 60_000);
 
   it('reports a RuntimeError added by an edit, once, and again after it was fixed and comes back', async () => {
-    await edit('b.ts', B_TS + VL003_LINE);
-    await waitFor(() => count('error VL003') === 1, 'VL003 after the edit');
+    await edit('b.ts', B_TS + FUNCTION_ROOT_LINE);
+    await waitFor(() => count('error validate-function-root') === 1, 'validate-function-root after the edit');
     // An edit that brings nothing new prints nothing.
     const before = logged.length;
-    await edit('b.ts', B_TS + VL003_LINE);
+    await edit('b.ts', B_TS + FUNCTION_ROOT_LINE);
     await new Promise((resolve) => setTimeout(resolve, 1500));
     expect(logged.length).toBe(before);
-    expect(count('error VL002')).toBe(1);
+    expect(count('error validate-symbol-root')).toBe(1);
 
     await edit('b.ts', B_TS);
     await new Promise((resolve) => setTimeout(resolve, 1500));
-    await edit('b.ts', B_TS + VL003_LINE);
-    await waitFor(() => count('error VL003') === 2, 'VL003 printed again once it came back');
+    await edit('b.ts', B_TS + FUNCTION_ROOT_LINE);
+    await waitFor(() => count('error validate-function-root') === 2, 'validate-function-root printed again once it came back');
   }, 90_000);
 
   it('prints a fatal Error once and throws it from the transform, without printing it again', async () => {
     await edit('fatal.ts', FATAL_TS);
-    await waitFor(() => count('error MKR003') === 1, 'MKR003 after the edit');
+    await waitFor(() => count('error marker-in-generic-function') === 1, 'marker-in-generic-function after the edit');
     await expect(vite!.transformRequest('/src/fatal.ts')).rejects.toThrow(
-      /build stopped on 1 mion error\. First: .*error MKR003: /
+      /build stopped on 1 mion error\. First: .*error marker-in-generic-function: /
     );
-    expect(count('MKR003')).toBe(1);
+    expect(count('marker-in-generic-function')).toBe(1);
   }, 60_000);
 
   it("prints a failed regenerate and the edit's own findings, and keeps running", async () => {
@@ -124,7 +124,7 @@ register('the dev server prints only what breaks running code, once', () => {
     fs.writeFileSync(typesDir, '');
     await edit('fatal.ts', FATAL_TS);
     await waitFor(() => count('regenerating after an edit failed') > 0, 'the regenerate failure');
-    await waitFor(() => count('error MKR003') === 1, 'MKR003 from the edit scan');
+    await waitFor(() => count('error marker-in-generic-function') === 1, 'marker-in-generic-function from the edit scan');
   }, 60_000);
 });
 
@@ -152,7 +152,7 @@ export type Api = {
   };
 };
 `;
-// MET002 (a dispatch site names a route the API does not declare) is an Error only the whole-program pass finds.
+// rpc-client-route-not-declared (a dispatch site names a route the API does not declare) is an Error only the whole-program pass finds.
 const GHOST_CLIENT_TS = `import {initClient} from '@mionjs/client';
 import type {Api} from './api.ts';
 import type {InjectApiMetadata} from '@mionjs/run-types';
@@ -172,7 +172,7 @@ register('the dev server fails the file holding a whole-program Error', () => {
     fs.rmSync(dir, {recursive: true, force: true});
   });
 
-  it('prints MET002 once and throws it from the transform of its file', async () => {
+  it('prints rpc-client-route-not-declared once and throws it from the transform of its file', async () => {
     dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'mion-dev-whole-program-')));
     fs.mkdirSync(path.join(dir, 'src'));
     writeMarkerPackage(dir);
@@ -199,9 +199,12 @@ register('the dev server fails the file holding a whole-program Error', () => {
         client: {routes: 'bundle'},
       }),
     });
-    await waitFor(() => printed.some((block) => block.includes('error MET002')), 'MET002 in the start-up report');
+    await waitFor(
+      () => printed.some((block) => block.includes('error rpc-client-route-not-declared')),
+      'rpc-client-route-not-declared in the start-up report'
+    );
     await expect(vite.transformRequest('/src/client.ts')).rejects.toThrow(
-      /build stopped on 1 mion error\. First: .*error MET002: /
+      /build stopped on 1 mion error\. First: .*error rpc-client-route-not-declared: /
     );
   }, 60_000);
 });

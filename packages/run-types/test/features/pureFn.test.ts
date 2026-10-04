@@ -182,7 +182,7 @@ describe('a registration with no injected id', () => {
 // the real body arriving later.
 describe('hollowed registrations', () => {
   it('a null registration caches nothing and does not throw', () => {
-    // @mion-downgrade-error PFN001
+    // @mion-downgrade-error purefn-not-inline
     const hollow = registerPureFn(null);
     expect(hollow).toBe('');
     expect(getRTUtils().getCompiledPureFnByKey(`${HERE}neverRegistered0`)).toBeUndefined();

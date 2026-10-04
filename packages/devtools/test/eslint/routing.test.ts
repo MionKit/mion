@@ -20,28 +20,30 @@ const ruleOf = (partial: Partial<Diagnostic> & {code: string}) => routeDiagnosti
 
 describe('level routing (one rule per level, never per topic)', () => {
   it('sends Error to mion/error and RuntimeError to mion/runtime-error, whatever the family', () => {
-    expect(ruleOf({code: 'MKR003', family: Family.Marker, level: Level.Error})).toBe('error');
-    expect(ruleOf({code: 'FT011', family: Family.Enrich, level: Level.Error})).toBe('error');
-    expect(ruleOf({code: 'VL002', level: Level.RuntimeError})).toBe('runtime-error');
-    expect(ruleOf({code: 'MRT001', family: Family.MionRoute, level: Level.RuntimeError})).toBe('runtime-error');
+    expect(ruleOf({code: 'marker-in-generic-function', family: Family.Marker, level: Level.Error})).toBe('error');
+    expect(ruleOf({code: 'enrich-text-reserved-prefix', family: Family.Enrich, level: Level.Error})).toBe('error');
+    expect(ruleOf({code: 'validate-symbol-root', level: Level.RuntimeError})).toBe('runtime-error');
+    expect(ruleOf({code: 'rpc-handler-missing-return-type', family: Family.MionRoute, level: Level.RuntimeError})).toBe(
+      'runtime-error'
+    );
   });
 
   it('sends Warning to mion/warning and Info to mion/info', () => {
-    expect(ruleOf({code: 'RUK010', level: Level.Warning})).toBe('warning');
-    expect(ruleOf({code: 'FT020', family: Family.Enrich, level: Level.Warning})).toBe('warning');
-    expect(ruleOf({code: 'MRT005', family: Family.MionRoute, level: Level.Warning})).toBe('warning');
-    expect(ruleOf({code: 'VL011', level: Level.Info})).toBe('info');
+    expect(ruleOf({code: 'unknown-keys-function-shared', level: Level.Warning})).toBe('warning');
+    expect(ruleOf({code: 'enrich-text-todo-left', family: Family.Enrich, level: Level.Warning})).toBe('warning');
+    expect(ruleOf({code: 'rpc-handler-non-data-property', family: Family.MionRoute, level: Level.Warning})).toBe('warning');
+    expect(ruleOf({code: 'validate-method-dropped', level: Level.Info})).toBe('info');
   });
 
   it('sends a downgraded finding to mion/warning, with the build note', () => {
-    const report = routeDiagnostic(diagnostic({code: 'VL002', level: Level.RuntimeError, downgraded: true}));
+    const report = routeDiagnostic(diagnostic({code: 'validate-symbol-root', level: Level.RuntimeError, downgraded: true}));
     expect(report.ruleName).toBe('warning');
-    expect(report.message).toMatch(/^\[VL002\] .*\(downgraded\)$/);
+    expect(report.message).toMatch(/^\[validate-symbol-root\] .*\(downgraded\)$/);
   });
 
   it('keeps the stable code in the message for lookup and directive comments', () => {
-    const report = routeDiagnostic(diagnostic({code: 'VL011', args: ['onClick']}));
-    expect(report.message).toContain('[VL011]');
+    const report = routeDiagnostic(diagnostic({code: 'validate-method-dropped', args: ['onClick']}));
+    expect(report.message).toContain('[validate-method-dropped]');
     expect(report.message).toContain('onClick');
   });
 
@@ -79,17 +81,19 @@ describe('anchoredIn: only the linted file findings are reported', () => {
   it('keeps a finding anchored in the linted file, however its path is spelled', () => {
     expect(
       anchoredIn(
-        diagnostic({code: 'VL002', site: {filePath: 'src/a.ts', startLine: 1, startCol: 1}}),
+        diagnostic({code: 'validate-symbol-root', site: {filePath: 'src/a.ts', startLine: 1, startCol: 1}}),
         `${process.cwd()}/src/a.ts`
       )
     ).toBe(true);
   });
 
   it('drops a finding anchored in another file, or in no file', () => {
-    expect(anchoredIn(diagnostic({code: 'OVR001', site: {filePath: '/p/b.ts', startLine: 4, startCol: 1}}), '/p/a.ts')).toBe(
-      false
-    );
-    expect(anchoredIn(diagnostic({code: 'BAT009', site: {filePath: '', startLine: 0, startCol: 0}}), '/p/a.ts')).toBe(false);
+    expect(
+      anchoredIn(diagnostic({code: 'override-duplicate', site: {filePath: '/p/b.ts', startLine: 4, startCol: 1}}), '/p/a.ts')
+    ).toBe(false);
+    expect(
+      anchoredIn(diagnostic({code: 'rpc-batch-router-init-hidden', site: {filePath: '', startLine: 0, startCol: 0}}), '/p/a.ts')
+    ).toBe(false);
   });
 });
 
@@ -97,7 +101,7 @@ describe('location conversion', () => {
   it('converts 1-based wire columns to 0-based loc columns and keeps 1-based lines', () => {
     const report = routeDiagnostic(
       diagnostic({
-        code: 'FT020',
+        code: 'enrich-text-todo-left',
         family: Family.Enrich,
         site: {filePath: 'm.ts', startLine: 5, startCol: 4, endLine: 5, endCol: 9},
       })
@@ -106,26 +110,32 @@ describe('location conversion', () => {
   });
 
   it('emits a start-only loc when the wire site has no end (runtype-family sites)', () => {
-    const report = routeDiagnostic(diagnostic({code: 'VL011', site: {filePath: 'a.ts', startLine: 8, startCol: 48}}));
+    const report = routeDiagnostic(
+      diagnostic({code: 'validate-method-dropped', site: {filePath: 'a.ts', startLine: 8, startCol: 48}})
+    );
     expect(report.loc).toEqual({start: {line: 8, column: 47}});
   });
 
   it('clamps a degenerate site to 1:0 so the report still lands in the file', () => {
-    const report = routeDiagnostic(diagnostic({code: 'VL011', site: {filePath: 'a.ts', startLine: 0, startCol: 0}}));
+    const report = routeDiagnostic(
+      diagnostic({code: 'validate-method-dropped', site: {filePath: 'a.ts', startLine: 0, startCol: 0}})
+    );
     expect(report.loc.start).toEqual({line: 1, column: 0});
   });
 });
 
 describe('message rendering', () => {
   it('substitutes positional args through the catalog headline', () => {
-    const message = renderMessage(diagnostic({code: 'FT002', family: Family.Enrich, args: ['nope']}));
-    expect(message).toBe('[FT002] Unknown field `nope`: the type does not declare it, so this FriendlyText entry is dead.');
+    const message = renderMessage(diagnostic({code: 'enrich-text-unknown-field', family: Family.Enrich, args: ['nope']}));
+    expect(message).toBe(
+      '[enrich-text-unknown-field] Unknown field `nope`: the type does not declare it, so this FriendlyText entry is dead.'
+    );
   });
 
   it('appends related locations inline (no first-class field in lint reports)', () => {
     const message = renderMessage(
       diagnostic({
-        code: 'PFE9004',
+        code: 'purefn-artifact-conflict',
         family: Family.PureFn,
         args: ['ns::fn'],
         related: [{filePath: '/first.ts', startLine: 2, startCol: 1, message: 'first registered here'}],

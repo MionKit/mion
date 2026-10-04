@@ -1,43 +1,43 @@
 package diagnostics
 
-// Request-batch codes (BATxxx), raised when a `batch([...])` call (recognised by the InjectBatchId
+// Request-batch codes (rpc-batch-*), raised when a `batch([...])` call (recognised by the InjectBatchId
 // brand on its resolved signature) cannot be read statically, or when two batches collide.
 //
-// The levels split on whether the id is spliced. BAT001 / BAT002 / BAT004 / BAT005 / BAT006 drop the
+// The levels split on whether the id is spliced. rpc-batch-element-unreadable / rpc-batch-source-not-before / rpc-batch-mapper-unreadable / rpc-batch-duplicate-route / rpc-batch-argument-out-of-range drop the
 // whole site, so no id is injected and `batch()` throws `batch-missing-id` before any network work:
-// LevelError. BAT003 / BAT007 / BAT009 DO inject an id and the batch then fails against the
-// server (BAT009 ships a call whose every request comes back a 404 `batch-unknown-id`):
-// LevelRuntimeError. BAT008 is retired.
+// LevelError. rpc-batch-id-collision / rpc-batch-mapper-missing / rpc-batch-router-init-hidden DO inject an id and the batch then fails against the
+// server (rpc-batch-router-init-hidden ships a call whose every request comes back a 404 `batch-unknown-id`):
+// LevelRuntimeError.
 const (
 	// CodeBatchElementNotReadable: an element of the routes argument is not a route call the build
 	// can trace to the client routes proxy. Args: [0] the reason.
-	CodeBatchElementNotReadable = "BAT001"
+	CodeBatchElementNotReadable = "rpc-batch-element-unreadable"
 	// CodeBatchSourceNotInBatch: an `inputFrom(source, …)` source route is not in the batch, or sits
 	// AFTER the route it feeds (a route only reads the output of one that ran before it). Args:
 	// [0] the source route id, [1] the target route id.
-	CodeBatchSourceNotInBatch = "BAT002"
+	CodeBatchSourceNotInBatch = "rpc-batch-source-not-before"
 	// CodeBatchIdCollision: two different batch definitions hash to the same batch id. Args: [0] the
 	// batch id. Related: the first site.
-	CodeBatchIdCollision = "BAT003"
+	CodeBatchIdCollision = "rpc-batch-id-collision"
 	// CodeBatchMapperNotReadable: an `inputFrom()` mapper argument is neither an inline mapper nor a
 	// readable name. Args: [0] the reason.
-	CodeBatchMapperNotReadable = "BAT004"
+	CodeBatchMapperNotReadable = "rpc-batch-mapper-unreadable"
 	// CodeBatchDuplicateRoute: the same route id is listed twice in one batch; the server keys the
 	// body and the results by route id, so one route cannot run twice. Reported at the second
 	// element. Args: [0] the route id.
-	CodeBatchDuplicateRoute = "BAT005"
+	CodeBatchDuplicateRoute = "rpc-batch-duplicate-route"
 	// CodeBatchMappingParamOutOfRange: an `inputFrom()` sits at an argument position the target route
 	// does not declare. Args: [0] the zero-based argument index, [1] the parameter count the route
 	// declares, [2] the target route id.
-	CodeBatchMappingParamOutOfRange = "BAT006"
+	CodeBatchMappingParamOutOfRange = "rpc-batch-argument-out-of-range"
 	// CodeBatchMapperMissing: a batch names an inline `inputFrom()` mapper the source program
 	// produced no pure function for, so the server has no body to register. Reported at the batch
 	// call. Args: [0] the mapper id.
-	CodeBatchMapperMissing = "BAT007"
+	CodeBatchMapperMissing = "rpc-batch-mapper-missing"
 	// CodeBatchNoRouterInit: batches exist and this program names `@mionjs/router`, but no module
 	// calls `createMionRouter` directly (it sits behind a wrapper the build cannot see through), so
 	// the table was written and nothing imports it. Args: [0] the table module's path.
-	CodeBatchNoRouterInit = "BAT009"
+	CodeBatchNoRouterInit = "rpc-batch-router-init-hidden"
 )
 
 func init() {

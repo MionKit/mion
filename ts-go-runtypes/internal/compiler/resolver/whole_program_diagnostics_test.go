@@ -13,7 +13,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// overridePairSources holds an OVR001 pair across two files: a.ts overrides string, b.ts overrides it again.
+// overridePairSources holds an override-duplicate pair across two files: a.ts overrides string, b.ts overrides it again.
 func overridePairSources() map[string]string {
 	return map[string]string{
 		"runtypes.d.ts": overrideDTS,
@@ -39,7 +39,7 @@ func codesAt(diags []diagnostics.Diagnostic, code string) []string {
 	return files
 }
 
-// TestScanFiles_ReportsOnlyTheRequestedFilesOverrideFindings: a linter would report b.ts's OVR001 at a.ts positions.
+// TestScanFiles_ReportsOnlyTheRequestedFilesOverrideFindings: a linter would report b.ts's override-duplicate at a.ts positions.
 func TestScanFiles_ReportsOnlyTheRequestedFilesOverrideFindings(t *testing.T) {
 	session := setupInline(t, overridePairSources())
 	resp := session.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"a.ts"}})
@@ -53,7 +53,7 @@ func TestScanFiles_ReportsOnlyTheRequestedFilesOverrideFindings(t *testing.T) {
 	}
 	both := session.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"b.ts"}})
 	if got := codesAt(both.Diagnostics, diagnostics.CodeDuplicateOverride); len(got) != 1 || got[0] != "b.ts" {
-		t.Fatalf("scanFiles(b.ts) must return the OVR001 anchored in b.ts, got %v", got)
+		t.Fatalf("scanFiles(b.ts) must return the override-duplicate anchored in b.ts, got %v", got)
 	}
 }
 
@@ -65,11 +65,11 @@ func TestTransform_ReportsOnlyTheRequestedFilesOverrideFindings(t *testing.T) {
 		t.Fatalf("transform: %s", resp.Error)
 	}
 	if got := codesAt(resp.Diagnostics, diagnostics.CodeDuplicateOverride); len(got) != 0 {
-		t.Fatalf("transform(a.ts) must not return b.ts's OVR001, got %v", got)
+		t.Fatalf("transform(a.ts) must not return b.ts's override-duplicate, got %v", got)
 	}
 }
 
-// TestGenerate_ReportsOverrideFindings: OVR001 (RuntimeError) and the kept override's OVR010 (Info).
+// TestGenerate_ReportsOverrideFindings: override-duplicate (RuntimeError) and the kept override's override-validate-affects-json (Info).
 func TestGenerate_ReportsOverrideFindings(t *testing.T) {
 	session := setupGen(t, overridePairSources(), t.TempDir())
 	resp := session.Dispatch(protocol.Request{Op: protocol.OpGenerate})
@@ -77,47 +77,47 @@ func TestGenerate_ReportsOverrideFindings(t *testing.T) {
 		t.Fatalf("generate: %s", resp.Error)
 	}
 	if got := codesAt(resp.Diagnostics, diagnostics.CodeDuplicateOverride); len(got) != 1 || got[0] != "b.ts" {
-		t.Fatalf("generate must report the OVR001 once, anchored in b.ts, got %v", got)
+		t.Fatalf("generate must report the override-duplicate once, anchored in b.ts, got %v", got)
 	}
 	if got := codesAt(resp.Diagnostics, diagnostics.CodeOverrideValidateCrossFamily); len(got) != 1 || got[0] != "a.ts" {
-		t.Fatalf("generate must report OVR010 for the kept validate override, got %v", got)
+		t.Fatalf("generate must report override-validate-affects-json for the kept validate override, got %v", got)
 	}
 	dump := session.Dispatch(protocol.Request{Op: protocol.OpDump})
 	if got := codesAt(dump.Diagnostics, diagnostics.CodeDuplicateOverride); len(got) != 1 {
-		t.Fatalf("dump (mion compile --no-emit) must report the OVR001, got %v", got)
+		t.Fatalf("dump (mion compile --no-emit) must report the override-duplicate, got %v", got)
 	}
 }
 
-// generateAfterScanReportsMKR003 scans a.ts first, as a hot update does.
-func generateAfterScanReportsMKR003(t *testing.T, src string) {
+// generateAfterScanReportsMarkerInGenericFunction scans a.ts first, as a hot update does.
+func generateAfterScanReportsMarkerInGenericFunction(t *testing.T, src string) {
 	t.Helper()
 	session := setupGen(t, map[string]string{"a.ts": src, "b.ts": "export const b = 1;\n"}, t.TempDir())
 	scan := session.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"a.ts"}})
 	if got := codesAt(scan.Diagnostics, diagnostics.CodeMarkerFreeTypeParameter); len(got) != 1 {
-		t.Fatalf("scanFiles must report MKR003, got %v", got)
+		t.Fatalf("scanFiles must report marker-in-generic-function, got %v", got)
 	}
 	gen := session.Dispatch(protocol.Request{Op: protocol.OpGenerate})
 	if gen.Error != "" {
 		t.Fatalf("generate: %s", gen.Error)
 	}
 	if got := codesAt(gen.Diagnostics, diagnostics.CodeMarkerFreeTypeParameter); len(got) != 1 {
-		t.Fatalf("generate after a scan must still report a.ts's MKR003 once, got %v", got)
+		t.Fatalf("generate after a scan must still report a.ts's marker-in-generic-function once, got %v", got)
 	}
 }
 
 func TestGenerate_ReportsFilesAScanReachedFirst_TypeFirst(t *testing.T) {
-	generateAfterScanReportsMKR003(t, `import {getRunTypeId} from '@mionjs/run-types';
+	generateAfterScanReportsMarkerInGenericFunction(t, `import {getRunTypeId} from '@mionjs/run-types';
 export function describe<T>() { return getRunTypeId<T>(); }
 `)
 }
 
 func TestGenerate_ReportsFilesAScanReachedFirst_ValueFirst(t *testing.T) {
-	generateAfterScanReportsMKR003(t, `import {getRunTypeId} from '@mionjs/run-types';
+	generateAfterScanReportsMarkerInGenericFunction(t, `import {getRunTypeId} from '@mionjs/run-types';
 export function describe<T>(value: T) { return getRunTypeId(value); }
 `)
 }
 
-// TestGenerateAndDump_ReportLibSelectionOnce: a lib with no ECMAScript edition is CFG002 once, at the first program file.
+// TestGenerateAndDump_ReportLibSelectionOnce: a lib with no ECMAScript edition is config-lib-missing-base once, at the first program file.
 func TestGenerateAndDump_ReportLibSelectionOnce(t *testing.T) {
 	source := `import {getRunTypeId} from '@mionjs/run-types';
 export const idStatic = getRunTypeId<{name: string}>();
@@ -141,7 +141,7 @@ export const idReflected = getRunTypeId(sample);
 	for _, op := range []string{protocol.OpGenerate, protocol.OpDump} {
 		resp := session.Dispatch(protocol.Request{Op: op})
 		if got := codesAt(resp.Diagnostics, diagnostics.CodeUnsupportedLibSelection); len(got) != 1 {
-			t.Fatalf("%s must report CFG002 once, got %v", op, got)
+			t.Fatalf("%s must report config-lib-missing-base once, got %v", op, got)
 		}
 	}
 }

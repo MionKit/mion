@@ -83,7 +83,7 @@ var allowedGlobals = map[string]bool{
 	// crypto (Web Crypto), allowed for the same reason as Math / Date: a computation namespace
 	// reading a benign host-provided VALUE, not a side-effect channel. randomUUID and
 	// getRandomValues are sync and non-deterministic, which mock-generator pure fns want. The
-	// async crypto.subtle.* is self-limiting: consuming it needs await, which trips PFE9007, so
+	// async crypto.subtle.* is self-limiting: consuming it needs await, which trips purefn-uses-await, so
 	// an async hash never fits; port the hash inline over the typed arrays above instead.
 	"crypto": true,
 	// NOTE: SharedArrayBuffer is intentionally ABSENT, a cross-context shared-MUTATION channel

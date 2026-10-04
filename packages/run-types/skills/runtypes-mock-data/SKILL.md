@@ -1,6 +1,6 @@
 ---
 name: runtypes-mock-data
-description: Author and use a `MockData<T>` for a RunTypes type — the committed, type-keyed map of realistic sample-value POOLS / RANGES per field that feed `createMockDataFn<T>()`. Use when generating mock data, sample values, realistic test fixtures, or seed data for a type; when authoring or editing a `*.rt.ts` enrichment sibling's mock map; or when wiring per-field `{ pool }` / `{ min, max }` / `{ rt$items, rt$length }` / `{ rt$optional }` overrides into `createMockDataFn<T>(undefined, { data })`. Covers the per-field node shape, that pool/range values are validated against the field's type + format at build time (the MD003 rule), and where the map lives.
+description: Author and use a `MockData<T>` for a RunTypes type — the committed, type-keyed map of realistic sample-value POOLS / RANGES per field that feed `createMockDataFn<T>()`. Use when generating mock data, sample values, realistic test fixtures, or seed data for a type; when authoring or editing a `*.rt.ts` enrichment sibling's mock map; or when wiring per-field `{ pool }` / `{ min, max }` / `{ rt$items, rt$length }` / `{ rt$optional }` overrides into `createMockDataFn<T>(undefined, { data })`. Covers the per-field node shape, that pool/range values are validated against the field's type + format at build time (the enrich-mock-invalid-pool rule), and where the map lives.
 ---
 
 # Authoring & using `MockData<T>`
@@ -38,11 +38,11 @@ the generator already mocks every shape mechanically (including `Date`, `Map`, `
   ([`createMockData.ts`](https://github.com/MionKit/mion/blob/main/packages/run-types/src/mocking/createMockData.ts)) —
   pass `createMockDataFn<T>(undefined, { data })` and generated values are drawn from the authored
   pools / ranges (both exported from `@mionjs/run-types`); and the `enrich` / `enrich --no-emit` CLI that
-  scaffolds the mock mirror file and cross-checks it against the live type (MD001) —
+  scaffolds the mock mirror file and cross-checks it against the live type (enrich-mock-unknown-field) —
   see the `rt-enrich-types` skill for the CLI loop.
-- **Designed (not yet wired):** the MD003 pool-value validation (the build-time check
+- **Designed (not yet wired):** the enrich-mock-invalid-pool pool-value validation (the build-time check
   that each pool entry satisfies its field's format — it needs the runtime validator)
-  plus MD002/MD004/MD005. The map is type-checked against `T` by the `MockData<T>`
+  plus enrich-mock-shape-mismatch/enrich-mock-inverted-range/enrich-mock-small-pool. The map is type-checked against `T` by the `MockData<T>`
   mapped type today regardless.
 
 ## The node model — per-field pools / ranges
@@ -70,17 +70,17 @@ One recursive node, uniform at every depth, structure checked against `T` by the
   Map/Set equivalent.
 - **`rt$optional`** — present-probability (0..1) for optional members on an object node.
 
-## The pool-validation superpower (MD003)
+## The pool-validation superpower (enrich-mock-invalid-pool)
 
 Because RunTypes can **validate**, the compiler can check that **every pool / range
 value actually satisfies its field's type and format** — at build time, not test
 runtime. An
 LLM that hallucinates a malformed email into the `email` pool, or a `score` of `150`
-into a `TF.Number<{max: 100}>` field, is caught at parse time (MD003, Error). No
+into a `TF.Number<{max: 100}>` field, is caught at parse time (enrich-mock-invalid-pool, Error). No
 other mock library can do this — it falls straight out of the existing validator.
-MD003 is designed but not wired into `enrich --no-emit` yet; shipped today is MD001 (key not a
-field of `T`, Error). Also designed: MD002 (structural mismatch — left to the
-`MockData<T>` mapped type), MD004 (`min > max` / inverted `rt$length`), MD005 (pool below
+enrich-mock-invalid-pool is designed but not wired into `enrich --no-emit` yet; shipped today is enrich-mock-unknown-field (key not a
+field of `T`, Error). Also designed: enrich-mock-shape-mismatch (structural mismatch — left to the
+`MockData<T>` mapped type), enrich-mock-inverted-range (`min > max` / inverted `rt$length`), enrich-mock-small-pool (pool below
 a configured floor, off by default).
 
 ## Where the map lives — the mock mirror file
@@ -175,7 +175,7 @@ const fixture = makeUser();
 //        profile: { email: 'alice@example.com', score: 72 } }
 ```
 
-Every value above satisfies `User` — and once MD003 is wired into `enrich --no-emit`, a stray
+Every value above satisfies `User` — and once enrich-mock-invalid-pool is wired into `enrich --no-emit`, a stray
 `age: 200` or `email: 'nope'` in the map fails the build, never the test.
 
 ## Authoring checklist
@@ -185,7 +185,7 @@ Every value above satisfies `User` — and once MD003 is wired into `enrich --no
 - Type it `MockData<T>` so structure is checked against `T`.
 - Use `pool` for enumerable/realistic values (names, emails, tags); use `min`/`max` for
   numeric and `Date` ranges.
-- Keep every pool/range value **valid for the field's type + format** — MD003 will
+- Keep every pool/range value **valid for the field's type + format** — enrich-mock-invalid-pool will
   reject `score: 150` against `TF.Number<{max: 100}>`.
 - For arrays set `rt$items` (element values) and `rt$length` (count); fixed tuples take
   `rt$slots`, Map/Set take `rt$keys`/`rt$values` + `rt$size`; for objects use `rt$optional` to
@@ -193,4 +193,4 @@ Every value above satisfies `User` — and once MD003 is wired into `enrich --no
 - Keep mock pools out of production bundles — import them from tests/seeds only
   (normal tree-shaking handles it).
 - Aim for a healthy pool size (the design notes a floor around 50 for realistic
-  variation; MD005 is an off-by-default nudge).
+  variation; enrich-mock-small-pool is an off-by-default nudge).

@@ -5,7 +5,7 @@ package convert
 // target cores live in printtype.go and printbuilder.go. Each printer is a pure walk from a
 // reflection RunType node to source text with no checker access, so they test in isolation. A shape
 // with no native spelling in a target rides the `getRunType<T>()` escape on builders; one with no
-// spelling at all reports CNV001 and the declaration stays untouched.
+// spelling at all reports convert-unsupported-kind and the declaration stays untouched.
 //
 // Every reflection.RunType field must be printed, refused or excused: the TestPrintersCoverRunType
 // tripwire (print_coverage_test.go) fails on a field the printers neither consume nor account for.
@@ -55,7 +55,7 @@ type printContext struct {
 	// closes it, while call sites and const-form input keep refusing.
 	innerCycle bool
 	// walking guards the recursive printers: a node already on the path is a back-edge, closing as a
-	// self-reference at the root's id and reporting CNV001 anywhere else.
+	// self-reference at the root's id and reporting convert-unsupported-kind anywhere else.
 	walking map[string]bool
 	// flags turn on the printing a mode needs, as TypeScript's node builder flags do.
 	flags printFlags

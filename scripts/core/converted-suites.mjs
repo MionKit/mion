@@ -67,7 +67,7 @@ function generate(target) {
   );
   if (result.error) throw result.error;
   // Diagnostics ride stderr, the per-file `rewrote …` lines ride stdout.
-  const refusals = (result.stderr ?? '').split('\n').filter((line) => /CNV\d{3} error/.test(line));
+  const refusals = (result.stderr ?? '').split('\n').filter((line) => /convert-[a-z0-9-]+ error/.test(line));
   const rewritten = (result.stdout ?? '').split('\n').filter((line) => line.startsWith('rewrote ')).length;
   console.log(`-> ${target.name}: rewrote ${rewritten} file(s), ${refusals.length} refusal(s)`);
   const fragments = documentedFragments();

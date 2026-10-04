@@ -39,7 +39,7 @@ func newResolveCtx(typeChecker *checker.Checker, markerOpts marker.Options) *res
 
 // entryFor returns the finished entry for one registration, computing it at most once. cycle is
 // true when the call is already being resolved further up the stack: its id would have to contain
-// itself, so the caller reports PFE9015 rather than recursing forever.
+// itself, so the caller reports purefn-dependency-cycle rather than recursing forever.
 //
 // The call NODE is the key, not its position: a call and the member call wrapping it
 // (`inputFrom(…).asArg()`) start at the same offset. Nodes live exactly as long as the memo, one

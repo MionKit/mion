@@ -35,9 +35,9 @@ export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
 	return resp
 }
 
-// TestFormatPattern_UnsafeEmitsFMT008 — the check has to land on the
+// TestFormatPattern_UnsafeEmitsFormatPatternUnsafe — the check has to land on the
 // user's createValidateFn call site, as an error, naming the pattern.
-func TestFormatPattern_UnsafeEmitsFMT008(t *testing.T) {
+func TestFormatPattern_UnsafeEmitsFormatPatternUnsafe(t *testing.T) {
 	resp := scanPatternSafety(t, `  pattern: {source: '`+unsafePatternSource+`'; mockSamples: ['one two']};`)
 	found := findDiag(resp, diagnostics.CodeFMTPatternUnsafe)
 	if found == nil {

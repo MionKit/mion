@@ -2,7 +2,7 @@
 // source and prove the published RunTypes lint transport
 // (@mionjs/devtools/{oxlint,eslint}) is wired and surfaces an RT diagnostic.
 // The TRANSPORT is under test, not the diagnostic catalog — the caveat's
-// non-serializable member reliably drives a VL0xx Info from the resolver, shown by
+// non-serializable member reliably drives a validate-* Info from the resolver, shown by
 // both configs turning on `mion/info`.
 //
 // oxlint rides build-vite; eslint rides smoke-esbuild — both published linters.
@@ -17,13 +17,13 @@ const E2E_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BIN = path.join(E2E_ROOT, 'node_modules/.bin');
 
 // Wired: a real diagnostic in-container, or the `[mion]` engine line on a host without the platform binary.
-const WIRED = /mion[/(](?:error|runtime-error|warning|info)|\[mion\]|VL0\d\d/i;
+const WIRED = /mion[/(](?:error|runtime-error|warning|info)|\[mion\]|\bvalidate-[a-z]+(?:-[a-z]+)+/i;
 
 // A config failure is NEVER an acceptable outcome: it means the app's lint config
 // points the resolver at the wrong tsconfig (or none), so the lane would "pass" on
 // an error message instead of a real diagnostic. Only a LIVE resolver emits
-// CFG001, so this can't collide with the tolerated missing-binary engine line.
-const MISCONFIGURED = /CFG001/i;
+// config-tsconfig-not-loaded, so this can't collide with the tolerated missing-binary engine line.
+const MISCONFIGURED = /config-tsconfig-not-loaded/i;
 
 // A linter that could not load the plugin or a rule ALSO prints "mion"; a stale path or rule name once passed that way.
 const NOT_WIRED = /Failed to load|Definition for rule|was not found|unknown rule|Cannot find module/i;

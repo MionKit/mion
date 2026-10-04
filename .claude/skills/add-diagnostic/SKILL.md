@@ -12,13 +12,18 @@ rule written for the root of a type, or for one emit path, and never tried one l
 Work through it in order. Each step names the check that fails when you skip it; if you add a rule no check covers,
 add the check.
 
-## 1. Pick Scope and Level
+## 1. Pick the name, Scope and Level
+
+- **Name**: the code IS a readable kebab-case name, starting with the area prefix of its page section
+  (`slugRE` in `internal/diagnostics/catalog.go`), then what went wrong: `validate-symbol-root`,
+  `rpc-handler-throws`. Never a short code like `ABC123`. A shipped name never changes. `register` panics on a
+  name that is not kebab-case or has no known prefix.
 
 - **Scope** (`internal/diagnostics/catalog.go`): `ScopeRoot` only when the SAME trigger one level deeper is a different
   code (a root code vs its child-position drop). Anything else is `ScopeGraph`. `register` panics without one.
 - **Level**: ask the two questions in [ts-go-runtypes/CLAUDE.md](../../../ts-go-runtypes/CLAUDE.md) (is code produced?
   is it broken when it runs?). A function that always throws is `LevelRuntimeError`, never a warning.
-- A new prefix needs a subsystem row in `scripts/core/gen-diagnostics-catalog.mjs`, then
+- A new prefix goes in `slugRE` and needs a subsystem row in `scripts/core/gen-diagnostics-catalog.mjs`, then
   `pnpm miondevx core codegen all`.
 
 ## 2. Write the prose with both examples
@@ -55,7 +60,7 @@ scan.
 - An arm that cannot compile returns `CodeNS`, so the entry renders an alwaysThrow with a root code. Never return empty
   code for a value you did not handle: that ships an identity (for `validate`, "accept everything").
 - A property only drops a value through `strippedPropertyDrop` / `indexSignatureValueDrop`, which emit the note. There
-  is no "absorb and carry on" path, and a failing kind with no code throws under `TFN001` (an internal bug, file it).
+  is no "absorb and carry on" path, and a failing kind with no code throws under `internal-kind-not-compilable` (an internal bug, file it).
 
 ## 6. Keep every shortcut in step with the emitter
 

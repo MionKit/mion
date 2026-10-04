@@ -43,8 +43,8 @@ declare module '@mionjs/run-types/runtime' {
 `
 
 // markerAndPureFnDiags narrows a response's diagnostics to the two families a
-// pure-fn / marker scanner surfaces at a call site — FamilyMarker (CTA0xx /
-// PFN0xx) and FamilyPureFn (PFE90xx) — so the "zero scanner diagnostics"
+// pure-fn / marker scanner surfaces at a call site — FamilyMarker (marker-comptime-arg-* /
+// purefn-*) and FamilyPureFn (purefn-*) — so the "zero scanner diagnostics"
 // acceptance assertions ignore unrelated families.
 func markerAndPureFnDiags(diags []diagnostics.Diagnostic) []diagnostics.Diagnostic {
 	var out []diagnostics.Diagnostic
@@ -101,7 +101,7 @@ export const double = registerPureFn((n: number): number => n * 2);
 
 // TestPureFn_LibraryWrapper_ZeroDiagnostics is the core acceptance test: a
 // library wrapper forwarding the markers lets a consumer register a pure fn with
-// ZERO scanner diagnostics (no CTA003 / PFN001). The consumer's call site is
+// ZERO scanner diagnostics (no marker-comptime-arg-forbidden-construct / purefn-not-inline). The consumer's call site is
 // recognised by BRAND, the fn is rewritten, and the id is spliced, all clean.
 func TestPureFn_LibraryWrapper_ZeroDiagnostics(t *testing.T) {
 	r := setupInline(t, map[string]string{

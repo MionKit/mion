@@ -95,9 +95,9 @@ declare class TscLedger {
   private audit;
 }
 
-describe('class from a plain tsc .d.ts, with MKR016 turned off', () => {
+describe('class from a plain tsc .d.ts, with marker-untyped-private-member turned off', () => {
   test('a typeless private member is an optional any, type form', () => {
-    // @mion-downgrade-error MKR016
+    // @mion-downgrade-error marker-untyped-private-member
     const isLedger = createValidateFn<TscLedger>();
     expect(isLedger({id: 'a'})).toBe(true);
     expect(isLedger({id: 'a', balance: 'anything'})).toBe(true);
@@ -106,7 +106,7 @@ describe('class from a plain tsc .d.ts, with MKR016 turned off', () => {
 
   test('a typeless private member is an optional any, value form', () => {
     const ledger = {id: 'a'} as unknown as TscLedger;
-    // @mion-downgrade-error MKR016
+    // @mion-downgrade-error marker-untyped-private-member
     const isLedger = createValidateFn(ledger);
     expect(isLedger({id: 'a'})).toBe(true);
     expect(isLedger({id: 1})).toBe(false);

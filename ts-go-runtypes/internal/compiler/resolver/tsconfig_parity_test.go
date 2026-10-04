@@ -51,7 +51,7 @@ export const validateUser = createValidateFn<ParityUser>();
 
 // parityTemporalSrc is the lib-sensitive row: Temporal only exists when the
 // config's lib loads ESNext.Temporal — a lane that ignored lib degraded it to
-// any (false TMP001).
+// any (false marker-temporal-lib-missing).
 const parityTemporalSrc = `import {getRunTypeId, createValidateFn} from '@mionjs/run-types';
 
 // static getRunTypeId<T>()
@@ -265,7 +265,7 @@ func TestTsconfigParity_BuildLaneEqualsDaemonLane(t *testing.T) {
 }
 
 // TestSetSources_TsconfigErrors pins the daemon error semantics: a NAMED config
-// that is broken or missing fails the op loudly (CFG001-tagged), nothing named
+// that is broken or missing fails the op loudly (config-tsconfig-not-loaded-tagged), nothing named
 // falls back, and a fixed config heals on the next setSources without a
 // respawn (the parse error is never cached).
 func TestSetSources_TsconfigErrors(t *testing.T) {

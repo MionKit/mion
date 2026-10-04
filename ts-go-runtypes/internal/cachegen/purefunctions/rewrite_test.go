@@ -60,7 +60,7 @@ func TestExtract_NoReplacement_OnFailedExtraction(t *testing.T) {
 	// When the factory arg can't be resolved (e.g. it's a function call
 	// returning the factory rather than an inline function), the
 	// walker silently skips the entry — no replacement, no walker
-	// diagnostic. The shape diagnostic (PFN001) is emitted by the
+	// diagnostic. The shape diagnostic (purefn-not-inline) is emitted by the
 	// marker layer in resolver.scanCall, not by this extractor.
 	source := `
 import {registerPureFnFactory} from '@mionjs/run-types/runtime';

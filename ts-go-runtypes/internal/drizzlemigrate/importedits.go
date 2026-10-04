@@ -55,7 +55,7 @@ func (file *fileRun) rootLocal(imported string, typeOnly bool) string {
 	return local
 }
 
-// helperLocal is rootLocal for a rewrite at node, refusing with DRZ003 when the helper has no free name.
+// helperLocal is rootLocal for a rewrite at node, refusing with drizzle-migrate-name-collision when the helper has no free name.
 func (file *fileRun) helperLocal(node *ast.Node, imported string, typeOnly bool) string {
 	local := file.rootLocal(imported, typeOnly)
 	if local == "" && !file.noHelperName[imported] {

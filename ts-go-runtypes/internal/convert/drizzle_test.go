@@ -154,7 +154,7 @@ func expectRefusal(t *testing.T, diags []convert.Diagnostic, output, wantInMessa
 			return
 		}
 	}
-	t.Fatalf("expected a CNV009 refusal containing %q, got %v\noutput:\n%s", wantInMessage, diags, output)
+	t.Fatalf("expected a convert-drizzle-unsupported refusal containing %q, got %v\noutput:\n%s", wantInMessage, diags, output)
 }
 
 // roundTrip drives builders→type→builders→type and pins the canonical fixpoint.
@@ -800,7 +800,7 @@ func TestDrizzle_RuntimeMismatchRefusals(t *testing.T) {
 
 // ── refusals ─────────────────────────────────────────────────────────────────
 
-func TestDrizzle_RefusalsCNV009(t *testing.T) {
+func TestDrizzle_RefusalsConvertDrizzleUnsupported(t *testing.T) {
 	cases := []struct{ name, source, want string }{
 		{
 			name: "$type override",

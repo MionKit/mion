@@ -61,7 +61,10 @@ async function buildFixture(name: string, runTypes: Partial<MionRunTypesOptions>
     const thrown = e as {loc?: BuildOutcome['loc']; errors?: {loc?: BuildOutcome['loc']}[]};
     loc = thrown.loc ?? thrown.errors?.[0]?.loc;
   }
-  const codes = [...new Set(messages.join('\n').match(/FMT\d{3}/g) ?? [])];
+  // Only the code slot of `file(l,c): error code: …`: the fixture folders share the code names.
+  const codes = [
+    ...new Set([...messages.join('\n').matchAll(/\): (?:error|warning|info) (format-[a-z0-9-]+):/g)].map((match) => match[1])),
+  ];
   return {ok, codes, messages, error, loc};
 }
 
@@ -78,52 +81,52 @@ describe('build halts on pattern diagnostics', () => {
     expect(result.ok).toBe(true);
   }, 60_000);
 
-  it('FMT003: a mockSample that violates a sibling constraint', async () => {
+  it('format-sample-out-of-bounds: a mockSample that violates a sibling constraint', async () => {
     // 'b' is 1 UTF-16 code unit against minLength 5 — a "valid" sample its own validator rejects.
-    const result = await buildFixture('fmt003');
-    expect(result.codes).toContain('FMT003');
+    const result = await buildFixture('format-sample-out-of-bounds');
+    expect(result.codes).toContain('format-sample-out-of-bounds');
     expect(result.ok).toBe(false);
     // The code and place are what the vite overlay shows.
-    expect(result.error).toMatch(/build stopped on 1 mion error\. First: .*FMT003/);
-    expect(result.loc).toMatchObject({file: resolve(FIXTURES, 'fmt003/index.ts'), line: expect.any(Number)});
+    expect(result.error).toMatch(/build stopped on 1 mion error\. First: .*\): error format-sample-out-of-bounds:/);
+    expect(result.loc).toMatchObject({file: resolve(FIXTURES, 'format-sample-out-of-bounds/index.ts'), line: expect.any(Number)});
   }, 60_000);
 
-  it('FMT005: a pattern the sample generator cannot handle', async () => {
-    // Lookarounds, which FMT005 names as the usual case, and no declared samples to fall back on.
-    const result = await buildFixture('fmt005');
-    expect(result.codes).toContain('FMT005');
+  it('format-sample-generation-failed: a pattern the sample generator cannot handle', async () => {
+    // Lookarounds, which format-sample-generation-failed names as the usual case, and no declared samples to fall back on.
+    const result = await buildFixture('format-sample-generation-failed');
+    expect(result.codes).toContain('format-sample-generation-failed');
     expect(result.ok).toBe(false);
   }, 60_000);
 
-  it('FMT005: generation disabled via patternSampleCount: 0', async () => {
+  it('format-sample-generation-failed: generation disabled via patternSampleCount: 0', async () => {
     // Counterpart to pattern-sample-count.test.ts: the passthrough also disables, on a pattern fine at any count > 0.
     const result = await buildFixture('ok', {patternSampleCount: 0});
-    expect(result.codes).toContain('FMT005');
+    expect(result.codes).toContain('format-sample-generation-failed');
     expect(result.ok).toBe(false);
   }, 60_000);
 
-  it('FMT008: a pattern that can be made to backtrack exponentially', async () => {
+  it('format-pattern-unsafe: a pattern that can be made to backtrack exponentially', async () => {
     // `(\w+\s?)*` splits a run of word characters more than one way per turn, so an input
     // that almost matches hangs the validator. Static check, no JS engine involved, which is
     // why it fires on every host and the sample time budget does not.
-    const result = await buildFixture('fmt008');
-    expect(result.codes).toContain('FMT008');
+    const result = await buildFixture('format-pattern-unsafe');
+    expect(result.codes).toContain('format-pattern-unsafe');
     expect(result.ok).toBe(false);
   }, 60_000);
 
-  it('FMT008: unsafePattern opts the same pattern back in', async () => {
+  it('format-pattern-unsafe: unsafePattern opts the same pattern back in', async () => {
     // The escape hatch, for the pattern the check reads wrongly. Same fixture otherwise, so a
     // green build here proves the opt-out is what changed the verdict.
-    const result = await buildFixture('fmt008-optout');
+    const result = await buildFixture('format-pattern-unsafe-optout');
     expect(result.codes).toEqual([]);
     expect(result.ok).toBe(true);
   }, 60_000);
 
-  it('FMT006: two sites sharing a cache entry with different mockSamples', async () => {
+  it('format-sample-conflict: two sites sharing a cache entry with different mockSamples', async () => {
     // mockSamples are excluded from the structural id, so these intern as one entry — and one
     // entry carries one pool, making the survivor depend on scan order.
-    const result = await buildFixture('fmt006');
-    expect(result.codes).toContain('FMT006');
+    const result = await buildFixture('format-sample-conflict');
+    expect(result.codes).toContain('format-sample-conflict');
     expect(result.ok).toBe(false);
   }, 60_000);
 

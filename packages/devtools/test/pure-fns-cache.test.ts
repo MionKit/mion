@@ -9,7 +9,7 @@
 //      into the empty trailing slot.
 //   3. one pure fn reaches another by IMPORTING its id: the dependency is
 //      recorded and the reference is lowered to a quoted literal in the body.
-//   4. response.diagnostics (filtered to PureFn family) surfaces PFE9xxx
+//   4. response.diagnostics (filtered to PureFn family) surfaces purefn-*
 //      diagnostics for bad-shape calls (unresolvable dependency, an explicit id
 //      that disagrees with the computed one, collisions, impure bodies).
 //   5. The diagnostic wire format renders via formatTscDiagnostic into
@@ -216,7 +216,7 @@ export const trimTwice = registerPureFnFactory(function (utl: RTUtils) {
     });
   });
 
-  register('emits PFE9013 for a lookup argument that names no pure fn', async () => {
+  register('emits purefn-dependency-not-id for a lookup argument that names no pure fn', async () => {
     const sources = {
       'bad-dep.ts': `import {registerPureFnFactory, type RTUtils} from '@mionjs/run-types/runtime';
 export const x = registerPureFnFactory(function (utl: RTUtils) {
@@ -226,11 +226,11 @@ export const x = registerPureFnFactory(function (utl: RTUtils) {
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
-      expect(pureFnDiagsOf(response).map((d) => d.code)).toContain('PFE9013');
+      expect(pureFnDiagsOf(response).map((d) => d.code)).toContain('purefn-dependency-not-id');
     });
   });
 
-  register('emits PFE9014 when a written id disagrees with the computed one', async () => {
+  register('emits purefn-id-mismatch when a written id disagrees with the computed one', async () => {
     const sources = {
       'wrong-id.ts': `import {registerPureFn} from '@mionjs/run-types/runtime';
 export const halve = registerPureFn((n: number): number => n / 2, 'wrong-id#pf_somethingElse');
@@ -238,8 +238,8 @@ export const halve = registerPureFn((n: number): number => n / 2, 'wrong-id#pf_s
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
-      const mismatch = pureFnDiagsOf(response).find((d) => d.code === 'PFE9014');
-      expect(mismatch, `expected PFE9014 in ${JSON.stringify(pureFnDiagsOf(response))}`).toBeDefined();
+      const mismatch = pureFnDiagsOf(response).find((d) => d.code === 'purefn-id-mismatch');
+      expect(mismatch, `expected purefn-id-mismatch in ${JSON.stringify(pureFnDiagsOf(response))}`).toBeDefined();
       expect(mismatch!.args?.[0]).toBe('wrong-id#pf_somethingElse');
       expect(mismatch!.args?.[1]).toMatch(ID_RE);
       // No entry: registering one body under two ids is what the code prevents.
@@ -247,7 +247,7 @@ export const halve = registerPureFn((n: number): number => n / 2, 'wrong-id#pf_s
     });
   });
 
-  register('emits PFN001 for non-inline factory reference (was PFE9003 pre-marker-migration)', async () => {
+  register('emits purefn-not-inline for non-inline factory reference', async () => {
     const sources = {
       'bad-fn.ts': `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 declare const externalFn: (utl: unknown) => () => void;
@@ -256,15 +256,15 @@ export const x = registerPureFnFactory(externalFn);
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
-      // PureFunctionFactory<F> brand on the factory param emits PFN001 from
+      // PureFunctionFactory<F> brand on the factory param emits purefn-not-inline from
       // the marker layer when the arg isn't an inline arrow/function
       // expression (or const-bound binding to one).
       const markerCodes = (response.diagnostics ?? []).filter((d) => d.family === Family.Marker).map((d) => d.code);
-      expect(markerCodes).toContain('PFN001');
+      expect(markerCodes).toContain('purefn-not-inline');
     });
   });
 
-  register('emits PFN002 for an EXPORTED pure-fn factory (external handle)', async () => {
+  register('emits purefn-imported-or-exported for an EXPORTED pure-fn factory (external handle)', async () => {
     // A pure-fn literal must have no external handle — the build AOT-compiles it,
     // so the original must not be reachable as a value. An exported factory is.
     const sources = {
@@ -276,12 +276,12 @@ export const cpf = registerPureFnFactory(factory);
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
       const markerCodes = (response.diagnostics ?? []).filter((d) => d.family === Family.Marker).map((d) => d.code);
-      expect(markerCodes).toContain('PFN002');
-      expect(markerCodes).not.toContain('PFN001');
+      expect(markerCodes).toContain('purefn-imported-or-exported');
+      expect(markerCodes).not.toContain('purefn-not-inline');
     });
   });
 
-  register('emits PFN002 for an IMPORTED pure-fn factory (external handle)', async () => {
+  register('emits purefn-imported-or-exported for an IMPORTED pure-fn factory (external handle)', async () => {
     const sources = {
       'lib.ts': `export const factory = () => function v(x: number) { return x; };`,
       'use.ts': `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
@@ -292,7 +292,7 @@ export const cpf = registerPureFnFactory(factory);
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(['use.ts'], {includeEntryModules: true});
       const markerCodes = (response.diagnostics ?? []).filter((d) => d.family === Family.Marker).map((d) => d.code);
-      expect(markerCodes).toContain('PFN002');
+      expect(markerCodes).toContain('purefn-imported-or-exported');
     });
   });
 
@@ -328,7 +328,7 @@ export const cpf = registerPureFnFactory(factory);
     });
   });
 
-  register('emits PFE9010 (forbidden identifier) for eval inside a factory body', async () => {
+  register('emits purefn-forbidden-construct (forbidden identifier) for eval inside a factory body', async () => {
     const sources = {
       'impure.ts': `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const evilFn = registerPureFnFactory(function () {
@@ -341,15 +341,15 @@ export const evilFn = registerPureFnFactory(function () {
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
       const diags = pureFnDiagsOf(response);
-      const evalDiag = diags.find((d) => d.code === 'PFE9010' && d.args?.[0] === 'eval');
+      const evalDiag = diags.find((d) => d.code === 'purefn-forbidden-construct' && d.args?.[0] === 'eval');
       expect(evalDiag).toBeDefined();
       // The printed line shape: file(line,col): severity CODE: headline
       const line = formatTscDiagnostic(evalDiag!);
-      expect(line).toMatch(/^[^(]+\(\d+,\d+\):\s+error\s+PFE9010:/);
+      expect(line).toMatch(/^[^(]+\(\d+,\d+\):\s+error\s+purefn-forbidden-construct:/);
     });
   });
 
-  register('emits PFE9011 (closure variable) for module-level const captured by factory', async () => {
+  register('emits purefn-reads-outer-variable (closure variable) for module-level const captured by factory', async () => {
     // The whole point of the source-rewrite-to-null design: closure
     // captures must blow up at scan time, since the cached fn body
     // can't see anything outside its own scope.
@@ -366,14 +366,14 @@ export const rounder = registerPureFnFactory(function () {
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
       const diags = pureFnDiagsOf(response);
-      const closureDiag = diags.find((d) => d.code === 'PFE9011' && d.args?.[0] === 'PRECISION');
+      const closureDiag = diags.find((d) => d.code === 'purefn-reads-outer-variable' && d.args?.[0] === 'PRECISION');
       expect(closureDiag).toBeDefined();
     });
   });
 
   register('formatTscDiagnostic renders the file(line,col): severity CODE: headline line', () => {
     const line = formatTscDiagnostic({
-      code: 'PFE9012',
+      code: 'purefn-not-registered',
       family: Family.PureFn,
       severity: Severity.Error,
       level: Level.RuntimeError,
@@ -389,9 +389,9 @@ export const rounder = registerPureFnFactory(function () {
     // Headline text comes from the JS catalog; we don't pin the exact
     // copy here (catalog wording can evolve). Just confirm the line
     // shape: <path>(<line>,<col>): <severity> <code>: <headline-with-arg>
-    expect(line).toMatch(/^\/abs\/path\/x\.ts\(12,5\): error PFE9012: /);
+    expect(line).toMatch(/^\/abs\/path\/x\.ts\(12,5\): error purefn-not-registered: /);
     expect(line).toContain('@acme/text#pf_9Zt1bRm4cVaPqL');
-    expect(line).toMatch(/^[^(]+\(\d+,\d+\):\s+(error|warning)\s+[A-Z]+\d+:\s+.+$/);
+    expect(line).toMatch(/^[^(]+\(\d+,\d+\):\s+(error|warning)\s+[a-z][a-z0-9]*(?:-[a-z0-9]+)+:\s+.+$/);
   });
 
   // --- emitMode gating of pure-fn tuples (code | functions | both) ----------
@@ -500,7 +500,7 @@ export const isNode = createValidateFn<Node>(undefined, {rejectCircularRefs: tru
 
   register('formatTscDiagnostic includes Related sites on continuation lines', () => {
     const line = formatTscDiagnostic({
-      code: 'PFE9012',
+      code: 'purefn-not-registered',
       family: Family.PureFn,
       severity: Severity.Error,
       level: Level.RuntimeError,
@@ -523,7 +523,7 @@ export const isNode = createValidateFn<Node>(undefined, {rejectCircularRefs: tru
         },
       ],
     });
-    expect(line).toContain('/abs/b.ts(5,1): error PFE9012:');
+    expect(line).toContain('/abs/b.ts(5,1): error purefn-not-registered:');
     expect(line).toContain('Related: /abs/a.ts(3,1): First registered here');
   });
 });

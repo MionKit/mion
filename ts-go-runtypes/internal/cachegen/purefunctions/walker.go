@@ -120,8 +120,8 @@ func (cache *FileCache) put(filePath string, entries []Entry, diagnostics []diag
 // the correctness contract, the name is a fast-path filter only.
 //
 // Marker-shape diagnostics (non-literal id / factory) are emitted by `resolver.scanCall` via
-// CTA001 / PFN001, NOT here; this pass emits only PFE9005 (destructured factory param),
-// PFE9006-9011 (purity) and PFE9013 (deps).
+// marker-comptime-arg-not-literal / purefn-not-inline, NOT here; this pass emits only purefn-destructured-param (destructured factory param),
+// the purity codes and purefn-dependency-not-id (deps).
 //
 // Entries come out sorted by Key and diagnostics by Site, both deterministic for stable fixtures.
 // The per-Program FileCache is optional: a nil cache degrades to a plain uncached walk.
@@ -201,7 +201,7 @@ func (ctx *resolveCtx) extractFromSourceFile(sourceFile *ast.SourceFile) ([]Entr
 	findCalls(sourceFile, func(call *ast.Node) {
 		entry, diags, cycle := ctx.entryFor(sourceFile, call)
 		if cycle {
-			return // the site that closed the cycle reported PFE9015
+			return // the site that closed the cycle reported purefn-dependency-cycle
 		}
 		diagnostics = append(diagnostics, diags...)
 		if entry != nil {
@@ -282,9 +282,9 @@ func pureFnFormMarker(typeChecker *checker.Checker, markerOpts marker.Options, p
 // factory-vs-direct intent riding the pure-fn parameter's marker. Returns (nil, nil) when the call
 // is not a registration, or when an argument cannot be resolved to its literal form.
 //
-// Marker-shape validation (non-inline factory) is emitted as CTA001 / PFN001 by
-// `resolver.scanCall`; this function does NOT double-report, and emits only PFE9005,
-// PFE9006-9011, PFE9013 and PFE9014.
+// Marker-shape validation (non-inline factory) is emitted as marker-comptime-arg-not-literal / purefn-not-inline by
+// `resolver.scanCall`; this function does NOT double-report, and emits only purefn-destructured-param,
+// the purity codes, purefn-dependency-not-id and purefn-id-mismatch.
 func (ctx *resolveCtx) extractOne(sourceFile *ast.SourceFile, call *ast.Node) (*Entry, []diagnostics.Diagnostic) {
 	callExpr := call.AsCallExpression()
 	if callExpr == nil {
@@ -340,7 +340,7 @@ func calleeIdentifierName(callExpr *ast.CallExpression) string {
 //
 // An id ALREADY written at the call site (the generated built-in constants, or a re-scan of
 // rewritten source) is verified against the computed one rather than trusted: a mismatch is
-// PFE9014 and yields no entry, because letting it through would register one body under two ids.
+// purefn-id-mismatch and yields no entry, because letting it through would register one body under two ids.
 func (ctx *resolveCtx) extractRegistration(sourceFile *ast.SourceFile, call *ast.Node, callExpr *ast.CallExpression, wrap bool, fnParamIndex, idParamIndex int) (*Entry, []diagnostics.Diagnostic) {
 	if callExpr.Arguments == nil || len(callExpr.Arguments.Nodes) <= fnParamIndex {
 		return nil, nil
@@ -349,7 +349,7 @@ func (ctx *resolveCtx) extractRegistration(sourceFile *ast.SourceFile, call *ast
 
 	fnNode, fnResult := comptimeargs.CheckLiteralFunction(ctx.typeChecker, args[fnParamIndex])
 	// A non-inline arg (a hollow `null` registration, a forwarded wrapper param, a re-scanned
-	// `__rt_pf…` binding) is the resolver's PFN001 to report. Bailing quietly keeps the rewrite
+	// `__rt_pf…` binding) is the resolver's purefn-not-inline to report. Bailing quietly keeps the rewrite
 	// idempotent and stops a wrapper forwarding `fn` from extracting.
 	if !fnResult.Ok {
 		return nil, nil
@@ -421,7 +421,7 @@ func pureFnCode(sourceFile *ast.SourceFile, fnNode *ast.Node, wrap bool, lowerin
 // dependencies first (they decide what the body lowers to), then the code, then the id, which is
 // that code's hash, then purity.
 //
-// The FACTORY form (wrap=false) extracts the factory's parameter names (plus the PFE9005
+// The FACTORY form (wrap=false) extracts the factory's parameter names (plus the purefn-destructured-param
 // destructuring guard, the emitter reconstructing `function(<params>){…}` by name) and its static
 // pure-fn dependencies. The DIRECT form (wrap=true) has neither: the synthesised factory takes no
 // `utl` and the pure fn is emitted verbatim inside `return <fn>;`, its own params untouched.
@@ -478,8 +478,8 @@ func (ctx *resolveCtx) buildPureFnEntry(sourceFile *ast.SourceFile, call *ast.No
 	// function, dependencies included.
 	id := IDFor(ctx.markerOpts, sourceFile.FileName(), CodeHash(code))
 
-	// Purity emits PFE9006-PFE9011 without withholding output: the entry still emits when
-	// violations exist, the same posture as PFE9005. It runs on the pure fn itself for BOTH
+	// Purity emits the purity codes (purefn-uses-this to purefn-reads-outer-variable) without withholding output: the entry still emits when
+	// violations exist, the same posture as purefn-destructured-param. It runs on the pure fn itself for BOTH
 	// forms, a captured variable being unsafe either way. The lowered dep arguments are exempt,
 	// being literals by the time the body ships.
 	diags = append(diags, checkPurity(sourceFile, fnNode, exempt)...)

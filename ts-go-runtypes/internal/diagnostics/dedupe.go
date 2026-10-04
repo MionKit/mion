@@ -11,7 +11,7 @@ import (
 // Needed above Walker.EmitDiagnostic's own latch, which dedupes per code per WALK while a walk is
 // per-CACHE-FAMILY: a type demanded by several families is walked several times, each walk blind to
 // its siblings and emitting against EVERY provenance site, so a family-shared emit path (today the
-// FMT00x codes) reports four times where the user should see two.
+// format-* codes) reports four times where the user should see two.
 //
 // Args are what the JS catalog renders the message from, so agreeing on code + args + site means
 // BYTE-IDENTICAL lines and collapsing loses nothing; different args say different things and both

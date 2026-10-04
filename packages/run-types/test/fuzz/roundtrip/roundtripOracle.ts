@@ -13,6 +13,7 @@
 import {normalizeForComparison, deepCloneForRoundTrip} from '../../util/equalsHelpers.ts';
 import type {Decl, GeneratedType, PropShape, TypeShape} from '../core/typeGen.ts';
 import {ALL_LANES, type CompiledCodecs, type LaneId, type WiredCodec} from './roundtripHarness.ts';
+import {controlledCode} from '../type/diagOracle.ts';
 
 export type RoundtripOracleId = 'RT-VALIDATE' | 'RT-AGREE' | 'RT-STABLE' | 'RT-FAILAGREE' | 'RT-NATIVE' | 'RT-THROW';
 
@@ -37,11 +38,6 @@ export function snapshot(value: unknown): string {
   }
   if (text === undefined) text = String(value);
   return text.length > MAX_SNAPSHOT ? text.slice(0, MAX_SNAPSHOT) + '…' : text;
-}
-
-// alwaysThrow messages are rendered by the Go binary as `[CODE] …` (internal/diagnostics).
-function isControlledThrow(message: string): boolean {
-  return /^\[[A-Z][A-Z0-9]*\]/.test(message);
 }
 
 interface Ctx {
@@ -94,7 +90,7 @@ export function checkRoundtrip(compiled: CompiledCodecs, value: unknown, seed: n
       runs.push({id, codec, wire, refused: false, undefinedRoot});
     } catch (err) {
       const message = errMsg(err);
-      if (isControlledThrow(message)) {
+      if (controlledCode(message) !== undefined) {
         runs.push({id, codec, refused: true, undefinedRoot: false});
       } else {
         record(out, 'RT-THROW', id, ctx, `${id} encode threw an uncontrolled error: ${message}`, value);

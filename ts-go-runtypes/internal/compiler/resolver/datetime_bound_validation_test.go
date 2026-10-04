@@ -21,12 +21,12 @@ type boundCase struct {
 	name        string
 	format      string // the format literal, e.g. "date", "time", "dateTime"
 	params      string // the inline params object after the format name
-	wantErr     bool   // expect at least one FMT002
+	wantErr     bool   // expect at least one format-invalid-params
 	msgContains string // when wantErr, a substring the message should contain
 }
 
 // scanBoundCase builds a getRunTypeId<TypeFormat<string, format, params>>()
-// snippet and returns the FMT002 diagnostics.
+// snippet and returns the format-invalid-params diagnostics.
 func scanBoundCase(t *testing.T, format, params string) []diagnostics.Diagnostic {
 	t.Helper()
 	code := `import {createValidateFn} from '@mionjs/run-types';

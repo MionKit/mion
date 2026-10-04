@@ -20,7 +20,7 @@ export function tsErrors(output) {
 export function failureLines(status, output) {
   const errors = tsErrors(output);
   if (errors.length > 0) return errors;
-  return status !== 0 && !/: error [A-Z]+\d+:/.test(output) ? [output] : [];
+  return status !== 0 && !/: error [a-z][a-z0-9]*(?:-[a-z0-9]+)+:/.test(output) ? [output] : [];
 }
 
 export function projects(repoRoot = REPO_ROOT) {

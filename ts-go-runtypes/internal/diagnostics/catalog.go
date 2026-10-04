@@ -17,7 +17,7 @@ import (
 //
 // No → LevelError. Yes and yes → LevelRuntimeError. Yes and no → LevelWarning, or LevelInfo for documented behaviour or advice.
 //
-// Question 1 is per-SITE, not per-build: only CFG001 stops a whole run, every other fatal code
+// Question 1 is per-SITE, not per-build: only config-tsconfig-not-loaded stops a whole run, every other fatal code
 // leaves one thing unbuilt while the build proceeds, which is what makes standing it down
 // meaningless. Severity is DERIVED from it (severityOf): the level is the verdict, severity the
 // word the printed line needs. Numeric to keep the wire compact.
@@ -25,14 +25,14 @@ type Level uint8
 
 const (
 	// LevelError: the build produced NO code for the thing this is about: a config that will not
-	// load (CFG001, the one whole-run stop), a marker whose id could not be computed (MKR003,
-	// MKR010, MKR014), an unreadable `batch()` (BAT001), a refused output path (CFG003).
+	// load (config-tsconfig-not-loaded, the one whole-run stop), a marker whose id could not be computed (marker-in-generic-function,
+	// marker-unresolved-type-parameter, marker-type-id-collision), an unreadable `batch()` (rpc-batch-element-unreadable), a refused output path (config-output-outside-out-dir).
 	// NEVER downgradeable and NEVER silenceable: not halting would only ship a call that throws.
 	LevelError Level = 1
-	// LevelRuntimeError: output IS produced and it throws (an alwaysThrow factory, VL002) or is
+	// LevelRuntimeError: output IS produced and it throws (an alwaysThrow factory, validate-symbol-root) or is
 	// wrong when called (a type that silently became `any`, so the validator accepts every value:
-	// MKR007, MKR013, TMP001, CFG002). A type the author DID write as `any` is not this, the
-	// permissive validator is what was asked for (VL021 / VE020 are LevelInfo).
+	// marker-any-from-unresolved-import, marker-any-from-unresolved-name, marker-temporal-lib-missing, config-lib-missing-base). A type the author DID write as `any` is not this, the
+	// permissive validator is what was asked for (validate-any-accepts-all / validation-errors-any-accepts-all are LevelInfo).
 	// Downgradeable and silenceable: emitting and exiting non-zero is legitimate for a consumer.
 	LevelRuntimeError Level = 2
 	// LevelWarning: worth knowing, nothing is wrong. A member with no data form left out of a
@@ -147,7 +147,7 @@ type Related struct {
 	Message string `json:"message"`
 }
 
-// Diagnostic is the single wire shape for everything the Go binary emits; Code is the stable id (PJ001, MKR001, …).
+// Diagnostic is the single wire shape for everything the Go binary emits; Code is the stable id (json-prepare-never-root, marker-calls-function-for-type, …).
 // Messages are NOT on the wire: templates live in packages/devtools/src/core/diagnosticCatalog.ts and Args carries
 // 0-2 values; runtime alwaysThrow text is the exception, rendered whole by Go. Level rides beside Severity because
 // downgrade and suppression key on it, and a halt decision must not trust the generated front-end catalog, which a
@@ -179,12 +179,12 @@ type Definition struct {
 	// literal. It is the label form the tsc-shaped line needs.
 	Severity Severity
 	// Completeness marks INCOMPLETE (not-yet-authored) enrichment rather than WRONG content
-	// (FT020/FT023, MD020/MD023). A gating bit ORTHOGONAL to Level: those codes are LevelWarning, so
+	// (enrich-text-todo-left/enrich-text-blank-value, enrich-mock-todo-left/enrich-mock-blank-value). A gating bit ORTHOGONAL to Level: those codes are LevelWarning, so
 	// the default health check exits 0, and `enrich --require-complete` plus the bundler's production
 	// gate PROMOTE this bit to a failure. Both must key on the bit, never on the level.
 	Completeness bool
 	// Transient marks a verdict that depends on the build host rather than the type: today only the
-	// pattern-evaluation timeout (FMT007). The disk cache never persists an entry that emitted one,
+	// pattern-evaluation timeout (format-pattern-timeout). The disk cache never persists an entry that emitted one,
 	// so the next build re-derives it instead of replaying a load spike as a permanent error. The
 	// finding still fails the build it was raised in.
 	Transient bool
@@ -193,14 +193,13 @@ type Definition struct {
 	Scope Scope
 	// Raised narrows which passes can raise the code; the zero value is every pass. A directive naming a code
 	// the pass cannot raise is never judged unused there (see PassScope).
-	Raised     Raised
-	Title      string
-	Template   string
-	DocsAnchor string
-	Headline   string
-	Summary    string
-	Fix        string
-	Example    string
+	Raised   Raised
+	Title    string
+	Template string
+	Headline string
+	Summary  string
+	Fix      string
+	Example  string
 	// NestedExample is the Example with its trigger moved one object deeper
 	// (the same member inside a nested object literal, array, Map or union).
 	// Required for a ScopeGraph code that carries an Example; the depth gate
@@ -222,7 +221,13 @@ const (
 // and it is read-only afterwards.
 var Definitions = map[string]Definition{}
 
+// slugRE is a kebab-case name that starts with an area prefix; each area is a section of the All Diagnostics page.
+var slugRE = regexp.MustCompile(`^(?:config|marker|comment|validate|validation-errors|json-prepare|json-restore|data|unknown-keys|format|purefn|override|rpc-handler|rpc-batch|rpc-client|enrich-text|enrich-mock|enrich-mirror|internal)(?:-[a-z0-9]+)+$`)
+
 func register(definition Definition) {
+	if !slugRE.MatchString(definition.Code) {
+		panic("diag: code " + definition.Code + " is not a kebab-case name with an area prefix (slugRE)")
+	}
 	if _, exists := Definitions[definition.Code]; exists {
 		panic("diag: duplicate registration of code " + definition.Code)
 	}

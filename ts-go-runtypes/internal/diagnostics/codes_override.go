@@ -1,20 +1,20 @@
 package diagnostics
 
-// Custom-override codes (OVRxxx). An override pure-fn reuses the PureFunction marker layer (PFN001,
-// PFE9006-9011), so the only override-specific build error is a DUPLICATE: exactly one override per
+// Custom-override codes (override-*). An override pure-fn reuses the PureFunction marker layer (purefn-not-inline,
+// the purity codes), so the only override-specific build error is a DUPLICATE: exactly one override per
 // (type, function), because which of two wins would be order-dependent.
 //
-// OVR001 and OVR002 are LevelRuntimeError, each shipping real output that is wrong: OVR001 keeps the
-// FIRST override and nulls both call sites, so one override silently does not apply, and OVR002's
+// override-duplicate and override-function-not-built are LevelRuntimeError, each shipping real output that is wrong: override-duplicate keeps the
+// FIRST override and nulls both call sites, so one override silently does not apply, and override-function-not-built's
 // redirect body loads a module that is not in the graph and throws on the first call.
 const (
-	CodeDuplicateOverride = "OVR001"
+	CodeDuplicateOverride = "override-duplicate"
 	// CodeOverrideMissingCfn is a build-time tripwire for an emitter bug: a cfn redirect references
 	// an override module that did not render in the entry graph, whose `utl.usePureFn` body would
 	// otherwise throw at runtime. Should never fire in normal operation.
-	CodeOverrideMissingCfn = "OVR002"
+	CodeOverrideMissingCfn = "override-function-not-built"
 	// CodeOverrideValidateCrossFamily warns that overriding `validate` also changes how JSON decoders narrow unions.
-	CodeOverrideValidateCrossFamily = "OVR010"
+	CodeOverrideValidateCrossFamily = "override-validate-affects-json"
 )
 
 func init() {

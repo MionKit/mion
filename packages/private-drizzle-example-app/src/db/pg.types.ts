@@ -62,7 +62,7 @@ export const usersDb = toDrizzle<UsersTable>();
 export const postsDb = toDrizzle<PostsTable>({tables: {users}});
 export const adultUsersDb = toDrizzle(adultUsers);
 
-// Query-builder views stay on drizzle (DRZ001).
+// Query-builder views stay on drizzle (drizzle-migrate-query-builder-view).
 export const busyAuthorsDb = pgView('busy_authors').as((qb) =>
   qb.select({authorId: postsDb.authorId, views: postsDb.views}).from(postsDb).where(gt(postsDb.views, 100))
 );

@@ -81,16 +81,16 @@ type Cache struct {
 	circularIDs map[string]bool
 
 	// Latches when the id computer hit typeid.maxWalkDepth; assignID then returns a placeholder
-	// instead of a truncated node, and the resolver's per-site commit resets it and raises MKR009/MKR008.
+	// instead of a truncated node, and the resolver's per-site commit resets it and raises marker-self-instantiating-generic/marker-type-too-deep.
 	depthExceeded bool
-	// The self-instantiating generic's name (→ MKR009), or "" (→ MKR008).
+	// The self-instantiating generic's name (→ marker-self-instantiating-generic), or "" (→ marker-type-too-deep).
 	depthCulprit string
 	// Samples are NOT id-relevant, so two sites differing only in their declared pools share ONE entry.
 	// The residue: when both DECLARE and the pools differ, whichever interned first wins, so unrelated
 	// edits can change that. Latched here, raised by the resolver, which owns the sites.
 	sampleConflicts []SampleConflict
 
-	// Two distinct structural ids landing on the same short id; the resolver takes it (→ MKR014), and the
+	// Two distinct structural ids landing on the same short id; the resolver takes it (→ marker-type-id-collision), and the
 	// enrichment bridge, which runs its own cache outside the resolver, reads it as a plain error.
 	hashCollision *HashCollision
 	// Numbers the placeholder ids minted after a collision so the doomed walk cannot merge the colliding types into one entry.
@@ -278,7 +278,7 @@ func (cache *Cache) serializeSyntheticUnion(members []*checker.Type) *reflection
 	return reflection.NewRef(id)
 }
 
-// DepthExceeded reports whether the most recent walk hit typeid.maxWalkDepth; the resolver reads it to raise MKR009/MKR008.
+// DepthExceeded reports whether the most recent walk hit typeid.maxWalkDepth; the resolver reads it to raise marker-self-instantiating-generic/marker-type-too-deep.
 func (cache *Cache) DepthExceeded() bool { return cache.depthExceeded }
 
 // ResetDepthExceeded clears the depth-cap latch and the sample conflicts before a fresh top-level walk.
@@ -459,7 +459,7 @@ func (cache *Cache) intern(structural, id string) {
 // Read at call time, not as a package var: version_test.go swaps constants.Version mid-process.
 func versionSalt() string { return constants.Version + "|" }
 
-// uniqueDict assigns a short hash for structural via the dict. On a collision it latches for the resolver (→ MKR014)
+// uniqueDict assigns a short hash for structural via the dict. On a collision it latches for the resolver (→ marker-type-id-collision)
 // and returns a NUMBERED placeholder: an id derived from the shared hash alone would fold the two colliding
 // structurals into ONE cache entry. The build fails on the diagnostic, so the placeholder never ships.
 func (cache *Cache) uniqueDict(structural string, length int) string {
@@ -509,7 +509,7 @@ func (cache *Cache) assignID(tsType *checker.Type) string {
 	cache.idComputer.ResetDepthExceeded()
 	structural := cache.idComputer.Compute(tsType)
 	if cache.idComputer.DepthExceeded() {
-		// Latch the cap and its cause for the resolver (→ MKR009/MKR008) and DON'T project a truncated node.
+		// Latch the cap and its cause for the resolver (→ marker-self-instantiating-generic/marker-type-too-deep) and DON'T project a truncated node.
 		// Over-deep types all collapse onto the shared benign placeholder; the build fails on the diagnostic anyway.
 		cache.depthExceeded = true
 		cache.depthCulprit = cache.idComputer.DepthCulprit()

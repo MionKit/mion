@@ -115,7 +115,7 @@ export const canonicalJson = registerPureFnFactory(function () {
   // JSON equality as a string key: numbers by mathematical value (0 and -0 collide), objects by unordered key set, arrays by order.
   // The runtime twin the mock walker uses is `canonicalJson` in mocking/structuralFormat.ts; the two MUST agree or mocks drift from validators.
   // A primitive's key carries its `typeof` prefix, so the string '{}' and the value {} are different entries.
-  // Recursion rides a factory-LOCAL const: a factory body is inlined without its lexical environment, so self-naming reads as an outer capture (PFE9011).
+  // Recursion rides a factory-LOCAL const: a factory body is inlined without its lexical environment, so self-naming reads as an outer capture (purefn-reads-outer-variable).
   const canonical = (value: any): string => {
     if (value === null || typeof value !== 'object') {
       return typeof value === 'string' ? JSON.stringify(value) : typeof value + ':' + String(value);

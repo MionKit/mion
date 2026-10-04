@@ -1,6 +1,6 @@
 // What a consumer asking for the `source` condition resolves. The non-literal CompTimeArgs call
 // below is deliberate: it mirrors registerPureFnFactory in @mionjs/run-types, and a dependency's
-// internals are not consumer call sites, so its CTA001/CTA003 must be dropped or the build halts.
+// internals are not consumer call sites, so its marker-comptime-arg-not-literal/marker-comptime-arg-forbidden-construct must be dropped or the build halts.
 import type {CompTimeArgs} from '@mionjs/run-types';
 
 export interface SrcTypedUser {

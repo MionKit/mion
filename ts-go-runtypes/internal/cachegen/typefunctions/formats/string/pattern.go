@@ -30,7 +30,7 @@ func recoverPattern(params map[string]any) (source, flags string, ok bool) {
 	return src, flagStr, true
 }
 
-// reportUnrecoveredPattern raises FMT009 for a `pattern` the type walk marked unreadable; it returns whether it did.
+// reportUnrecoveredPattern raises format-pattern-unreadable for a `pattern` the type walk marked unreadable; it returns whether it did.
 func reportUnrecoveredPattern(ctx formats.EmitContext, params map[string]any) bool {
 	pattern, isMap := params["pattern"].(map[string]any)
 	if !isMap {
@@ -200,7 +200,7 @@ func validateSamples(ctx formats.EmitContext, source, flags string, samples []st
 //     survivor: one violating survivor is a latent unsound mock, and each is flagged.
 //
 // Every violation rides one CodeFMTSampleBounds diagnostic, since the walker dedups per code per walk.
-// Independent of FMT001's pattern check: bounds apply even when no pattern is present.
+// Independent of format-sample-mismatch's pattern check: bounds apply even when no pattern is present.
 func validateSampleBounds(ctx formats.EmitContext, params map[string]any) {
 	pool := sampleDrawPool(params)
 	if len(pool) == 0 {
@@ -291,7 +291,7 @@ func lengthBoundViolations(params map[string]any, pool []string) []string {
 	return messages
 }
 
-// charValueViolations returns one composed message per violated char/value sibling; FMT002 allows only one
+// charValueViolations returns one composed message per violated char/value sibling; format-invalid-params allows only one
 // complex param, so at most one applies. Plain Go string ops, no regex, so no RE2 concern.
 func charValueViolations(params map[string]any, pool []string) []string {
 	var messages []string

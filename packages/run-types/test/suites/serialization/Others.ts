@@ -10,17 +10,17 @@ export const OTHERS = {
       'No value-first builder exists for Promise, so all schema variants are not-supported.',
       'Test data is empty since the factory throws before any round-trip.',
     ],
-    // @mion-downgrade-error PJ002
+    // @mion-downgrade-error json-prepare-non-data-root
     mutateEncoder: () => createJsonEncoderFn<Promise<string>>(undefined, {strategy: 'mutate'}),
-    // @mion-downgrade-error PJS002
+    // @mion-downgrade-error json-prepare-clone-non-data-root
     cloneEncoder: () => createJsonEncoderFn<Promise<string>>(undefined, {strategy: 'clone'}),
-    // @mion-downgrade-error PJS002
+    // @mion-downgrade-error json-prepare-clone-non-data-root
     compactEncoder: () => createJsonEncoderFn<Promise<string>>(undefined, {strategy: 'compact'}),
-    // @mion-downgrade-error RJ002
+    // @mion-downgrade-error json-restore-non-data-root
     cloneDecoder: () => createJsonDecoderFn<Promise<string>>(),
-    // @mion-downgrade-error RJ002
+    // @mion-downgrade-error json-restore-non-data-root
     mutateDecoder: () => createJsonDecoderFn<Promise<string>>(undefined, {strategy: 'mutate'}),
-    // @mion-downgrade-error RJ002
+    // @mion-downgrade-error json-restore-non-data-root
     compactDecoder: () => createJsonDecoderFn<Promise<string>>(undefined, {strategy: 'compact'}),
     // Promise has no value-first builder and is non-serializable.
     schemaEncoder: 'not-supported',
@@ -34,17 +34,17 @@ export const OTHERS = {
       'A root `Int8Array` is non-serializable, so the factory renders as alwaysThrow and every encoder / decoder invocation throws for JSON.',
     serializeNotes:
       'No value-first builder exists for Int8Array, so all schema variants are not-supported and test data is empty.',
-    // @mion-downgrade-error PJ002
+    // @mion-downgrade-error json-prepare-non-data-root
     mutateEncoder: () => createJsonEncoderFn<Int8Array>(undefined, {strategy: 'mutate'}),
-    // @mion-downgrade-error PJS002
+    // @mion-downgrade-error json-prepare-clone-non-data-root
     cloneEncoder: () => createJsonEncoderFn<Int8Array>(undefined, {strategy: 'clone'}),
-    // @mion-downgrade-error PJS002
+    // @mion-downgrade-error json-prepare-clone-non-data-root
     compactEncoder: () => createJsonEncoderFn<Int8Array>(undefined, {strategy: 'compact'}),
-    // @mion-downgrade-error RJ002
+    // @mion-downgrade-error json-restore-non-data-root
     cloneDecoder: () => createJsonDecoderFn<Int8Array>(),
-    // @mion-downgrade-error RJ002
+    // @mion-downgrade-error json-restore-non-data-root
     mutateDecoder: () => createJsonDecoderFn<Int8Array>(undefined, {strategy: 'mutate'}),
-    // @mion-downgrade-error RJ002
+    // @mion-downgrade-error json-restore-non-data-root
     compactDecoder: () => createJsonDecoderFn<Int8Array>(undefined, {strategy: 'compact'}),
     // Int8Array has no value-first builder and is non-serializable.
     schemaEncoder: 'not-supported',
@@ -55,7 +55,7 @@ export const OTHERS = {
   non_serializable_interface: {
     title: 'Int8Array in interface',
     description:
-      'An interface member of a directly non-serializable type (`Int8Array`) is DROPPED, matching `DataOnly<{a: Int8Array}>` = `{}`: every encoder serializes the remaining shape and the member round-trips away (a build-time …015 Warning flags the drop). This differs from a non-serializable ARRAY / TUPLE slot, which propagates and alwaysThrows.',
+      'An interface member of a directly non-serializable type (`Int8Array`) is DROPPED, matching `DataOnly<{a: Int8Array}>` = `{}`: every encoder serializes the remaining shape and the member round-trips away (a build-time `-non-data-property-dropped` Warning flags the drop). This differs from a non-serializable ARRAY / TUPLE slot, which propagates and alwaysThrows.',
     serializeNotes: [
       'The `a` member is directly DataOnly-stripped, so it is dropped from the serialized form across every strategy. The mutate path `delete`s it so `JSON.stringify` cannot leak the typed array as a plain object — its output matches clone.',
       'No value-first builder can express the `Int8Array` member, so the schema variants stay not-supported.',
@@ -78,17 +78,17 @@ export const OTHERS = {
       'An array of non-serializable `Int8Array` elements renders the factory as alwaysThrow because a non-serializable element is a propagating position, so every encoder / decoder invocation throws for JSON.',
     serializeNotes:
       'No value-first builder can express the enclosing array, so all schema variants are not-supported and test data is empty.',
-    // @mion-downgrade-error PJ002
+    // @mion-downgrade-error json-prepare-non-data-root
     mutateEncoder: () => createJsonEncoderFn<Int8Array[]>(undefined, {strategy: 'mutate'}),
-    // @mion-downgrade-error PJS002
+    // @mion-downgrade-error json-prepare-clone-non-data-root
     cloneEncoder: () => createJsonEncoderFn<Int8Array[]>(undefined, {strategy: 'clone'}),
-    // @mion-downgrade-error PJS002
+    // @mion-downgrade-error json-prepare-clone-non-data-root
     compactEncoder: () => createJsonEncoderFn<Int8Array[]>(undefined, {strategy: 'compact'}),
-    // @mion-downgrade-error RJ002
+    // @mion-downgrade-error json-restore-non-data-root
     cloneDecoder: () => createJsonDecoderFn<Int8Array[]>(),
-    // @mion-downgrade-error RJ002
+    // @mion-downgrade-error json-restore-non-data-root
     mutateDecoder: () => createJsonDecoderFn<Int8Array[]>(undefined, {strategy: 'mutate'}),
-    // @mion-downgrade-error RJ002
+    // @mion-downgrade-error json-restore-non-data-root
     compactDecoder: () => createJsonDecoderFn<Int8Array[]>(undefined, {strategy: 'compact'}),
     // No value-first builder for Int8Array, so the enclosing array is inexpressible.
     schemaEncoder: 'not-supported',
@@ -102,17 +102,17 @@ export const OTHERS = {
       'A tuple with a non-serializable `Int8Array` slot renders the factory as alwaysThrow because a non-serializable tuple slot is a propagating position, so every encoder / decoder invocation throws for JSON.',
     serializeNotes:
       'No value-first builder can express the enclosing tuple, so all schema variants are not-supported and test data is empty.',
-    // @mion-downgrade-error PJ002
+    // @mion-downgrade-error json-prepare-non-data-root
     mutateEncoder: () => createJsonEncoderFn<[Int8Array]>(undefined, {strategy: 'mutate'}),
-    // @mion-downgrade-error PJS002
+    // @mion-downgrade-error json-prepare-clone-non-data-root
     cloneEncoder: () => createJsonEncoderFn<[Int8Array]>(undefined, {strategy: 'clone'}),
-    // @mion-downgrade-error PJS002
+    // @mion-downgrade-error json-prepare-clone-non-data-root
     compactEncoder: () => createJsonEncoderFn<[Int8Array]>(undefined, {strategy: 'compact'}),
-    // @mion-downgrade-error RJ002
+    // @mion-downgrade-error json-restore-non-data-root
     cloneDecoder: () => createJsonDecoderFn<[Int8Array]>(),
-    // @mion-downgrade-error RJ002
+    // @mion-downgrade-error json-restore-non-data-root
     mutateDecoder: () => createJsonDecoderFn<[Int8Array]>(undefined, {strategy: 'mutate'}),
-    // @mion-downgrade-error RJ002
+    // @mion-downgrade-error json-restore-non-data-root
     compactDecoder: () => createJsonDecoderFn<[Int8Array]>(undefined, {strategy: 'compact'}),
     // No value-first builder for Int8Array, so the enclosing tuple is inexpressible.
     schemaEncoder: 'not-supported',

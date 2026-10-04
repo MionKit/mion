@@ -49,7 +49,7 @@ func TestResolveDowngrade_Wildcard(t *testing.T) {
 			t.Fatal("the wildcard covers every RuntimeError code")
 		}
 		if set.Downgraded(errorDiag(CodeTypeIdCollision)) {
-			t.Fatal("the wildcard never reaches a fatal Error: MKR014 emits no site, so not halting buys nothing")
+			t.Fatal("the wildcard never reaches a fatal Error: marker-type-id-collision emits no site, so not halting buys nothing")
 		}
 	}
 }

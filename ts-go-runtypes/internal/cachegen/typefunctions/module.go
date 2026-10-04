@@ -19,7 +19,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// PureFnDepUse pairs a pure-fn dep with the call sites that demanded it, so PFE9012 anchors at the user's createX<T>().
+// PureFnDepUse pairs a pure-fn dep with the call sites that demanded it, so purefn-not-registered anchors at the user's createX<T>().
 // Sites is empty for a transitively-reached child entry, and the resolver falls back to a file-less diagnostic.
 type PureFnDepUse struct {
 	Dep   protocol.PureFnDep
@@ -47,17 +47,17 @@ type RenderOpts struct {
 	DiagSink *[]diagnostics.Diagnostic
 	// PureFnDepSink collects every pure-fn dep recorded while rendering a LIVE
 	// entry body, paired with the call sites that demanded the entry, so a dep
-	// with no registration surfaces PFE9012 at those sites. Noop, alwaysThrow
+	// with no registration surfaces purefn-not-registered at those sites. Noop, alwaysThrow
 	// and disk-cache-hit entries contribute nothing (no `utl.getPureFn` call, or
 	// no walk at all), so a warm cache validates only what was recomputed. Nil
 	// disables collection; the parallel fan-out shards it per goroutine like DiagSink.
 	PureFnDepSink *[]PureFnDepUse
 	// JSEngine runs the format-pattern checks, the authority for pattern
-	// mockSamples (real `new RegExp` semantics). Nil fails them closed with FMT004.
+	// mockSamples (real `new RegExp` semantics). Nil fails them closed with format-no-js-runtime.
 	JSEngine jsengine.Engine
 	// PatternSampleCount mirrors the resolver's pattern mockSample knob, and
 	// PatternGenFailures the reasons its enrichment pass (which runs BEFORE the
-	// collects) could not generate, keyed by `source \x00 flags`. The FMT005 lane
+	// collects) could not generate, keyed by `source \x00 flags`. The format-sample-generation-failed lane
 	// reads both to tell disabled (count 0) from failed generation.
 	PatternSampleCount int
 	PatternGenFailures map[string]formats.PatternGenFailure
@@ -765,7 +765,7 @@ func writeCachedEntry(runType *reflection.RunType, settings constants.CacheModul
 	if structural == "" {
 		return
 	}
-	// A transient finding (FMT007, a match budget that expired under host load) is
+	// A transient finding (format-pattern-timeout, a match budget that expired under host load) is
 	// a verdict about THIS build's machine, not about the type. Persisting it
 	// replayed a load spike as a permanent build-halting error until the cache was
 	// wiped by hand, and persisting the entry WITHOUT it would let a runaway

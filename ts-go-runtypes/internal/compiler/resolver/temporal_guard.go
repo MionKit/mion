@@ -6,9 +6,9 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// TMP001, the Temporal flavor of the silent-`any` guard family, emitted by the written-syntax walk in
+// marker-temporal-lib-missing, the Temporal flavor of the silent-`any` guard family, emitted by the written-syntax walk in
 // unresolved_name_guard.go for a `Temporal.<KnownName>` reference that resolved any-flavored (a
-// tsconfig `lib` without ESNext.Temporal). Unlike its MKR013 sibling the predicate accepts the true
+// tsconfig `lib` without ESNext.Temporal). Unlike its marker-any-from-unresolved-name sibling the predicate accepts the true
 // `any` intrinsic too, not only the error type: no builtin Temporal name may legitimately mean `any`,
 // and a consumer stub (`type PlainDate = any`) destroys the temporal runtype just as a missing lib does.
 

@@ -9,7 +9,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
-// MKR016: plain tsc's .d.ts drops every `private` member's type, so a published class checks them as `any`.
+// marker-untyped-private-member: plain tsc's .d.ts drops every `private` member's type, so a published class checks them as `any`.
 // Static / value pairs per the marker coverage rule.
 
 // tscLedgerDts is what plain tsc emits for a class with a private field, method and getter.
@@ -41,7 +41,7 @@ func scanLedger(t *testing.T, dts, site string) protocol.Response {
 	return resp
 }
 
-func mkr016Diags(resp protocol.Response) []diagnostics.Diagnostic {
+func markerUntypedPrivateMemberDiags(resp protocol.Response) []diagnostics.Diagnostic {
 	var out []diagnostics.Diagnostic
 	for _, diagnostic := range resp.Diagnostics {
 		if diagnostic.Code == diagnostics.CodeMarkerTypelessPrivateMember {
@@ -55,19 +55,19 @@ func mkr016Diags(resp protocol.Response) []diagnostics.Diagnostic {
 func assertLedgerFires(t *testing.T, site string) {
 	t.Helper()
 	resp := scanLedger(t, tscLedgerDts, site)
-	fired := mkr016Diags(resp)
+	fired := markerUntypedPrivateMemberDiags(resp)
 	if len(fired) != len(tscLedgerMembers) {
-		t.Fatalf("want one MKR016 per typeless private member (%d), got %d (all codes: %v)", len(tscLedgerMembers), len(fired), codesOf(resp))
+		t.Fatalf("want one marker-untyped-private-member per typeless private member (%d), got %d (all codes: %v)", len(tscLedgerMembers), len(fired), codesOf(resp))
 	}
 	members := map[string]bool{}
 	for _, diagnostic := range fired {
 		if len(diagnostic.Args) != 2 || diagnostic.Args[1] != "Account" {
-			t.Errorf("MKR016 must name the member and the class, args=%v", diagnostic.Args)
+			t.Errorf("marker-untyped-private-member must name the member and the class, args=%v", diagnostic.Args)
 			continue
 		}
 		members[diagnostic.Args[0]] = true
 		if diagnostic.Severity != diagnostics.SeverityError {
-			t.Errorf("MKR016 must fail the build, severity %v", diagnostic.Severity)
+			t.Errorf("marker-untyped-private-member must fail the build, severity %v", diagnostic.Severity)
 		}
 	}
 	for _, name := range tscLedgerMembers {
@@ -102,11 +102,11 @@ func assertOptionalAndSetterFire(t *testing.T, site string) {
 	t.Helper()
 	resp := scanLedger(t, optionalLedgerDts, site)
 	members := map[string]bool{}
-	for _, diagnostic := range mkr016Diags(resp) {
+	for _, diagnostic := range markerUntypedPrivateMemberDiags(resp) {
 		members[diagnostic.Args[0]] = true
 	}
 	if !members["note"] || !members["tag"] {
-		t.Errorf("want MKR016 for the optional member and the setter, got %v (codes %v)", members, codesOf(resp))
+		t.Errorf("want marker-untyped-private-member for the optional member and the setter, got %v (codes %v)", members, codesOf(resp))
 	}
 }
 
@@ -123,8 +123,8 @@ func TestTypelessPrivateMember_NestedStaticFires(t *testing.T) {
 import {Account} from '@acme/ledger';
 export const id = getRunTypeId<{owner: string; account: Account}>();
 `)
-	if fired := mkr016Diags(resp); len(fired) != len(tscLedgerMembers) {
-		t.Errorf("want MKR016 one object deeper, got %v", codesOf(resp))
+	if fired := markerUntypedPrivateMemberDiags(resp); len(fired) != len(tscLedgerMembers) {
+		t.Errorf("want marker-untyped-private-member one object deeper, got %v", codesOf(resp))
 	}
 }
 
@@ -134,8 +134,8 @@ import {Account} from '@acme/ledger';
 declare const holder: {owner: string; account: Account};
 export const id = getRunTypeId(holder);
 `)
-	if fired := mkr016Diags(resp); len(fired) != len(tscLedgerMembers) {
-		t.Errorf("want MKR016 one object deeper, got %v", codesOf(resp))
+	if fired := markerUntypedPrivateMemberDiags(resp); len(fired) != len(tscLedgerMembers) {
+		t.Errorf("want marker-untyped-private-member one object deeper, got %v", codesOf(resp))
 	}
 }
 
@@ -150,8 +150,8 @@ var typedLedgers = map[string]string{
 func assertQuietWhenTyped(t *testing.T, site string) {
 	t.Helper()
 	for name, dts := range typedLedgers {
-		if fired := mkr016Diags(scanLedger(t, dts, site)); len(fired) > 0 {
-			t.Errorf("%s: unexpected MKR016 %+v", name, fired)
+		if fired := markerUntypedPrivateMemberDiags(scanLedger(t, dts, site)); len(fired) > 0 {
+			t.Errorf("%s: unexpected marker-untyped-private-member %+v", name, fired)
 		}
 	}
 }
@@ -170,8 +170,8 @@ func assertQuietForSourceClass(t *testing.T, site string) {
 	t.Helper()
 	resolver := setupInline(t, map[string]string{"account.ts": sourceAccount, "consumer.ts": site})
 	resp := resolver.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"consumer.ts"}})
-	if fired := mkr016Diags(resp); len(fired) > 0 {
-		t.Errorf("a source class keeps its private types, unexpected MKR016 %+v", fired)
+	if fired := markerUntypedPrivateMemberDiags(resp); len(fired) > 0 {
+		t.Errorf("a source class keeps its private types, unexpected marker-untyped-private-member %+v", fired)
 	}
 }
 
@@ -195,13 +195,13 @@ func assertDowngradedReadsAsOptionalAny(t *testing.T, site string) {
 	for _, diagnostic := range generated.Diagnostics {
 		if diagnostic.Code == diagnostics.CodeMarkerTypelessPrivateMember {
 			if !diagnostic.Downgraded {
-				t.Errorf("MKR016 under the directive must be kept and marked downgraded: %+v", diagnostic)
+				t.Errorf("marker-untyped-private-member under the directive must be kept and marked downgraded: %+v", diagnostic)
 			}
 			downgraded++
 		}
 	}
 	if downgraded != len(tscLedgerMembers) {
-		t.Errorf("want every MKR016 kept as downgraded, got %d (codes %v)", downgraded, codesIn(generated.Diagnostics))
+		t.Errorf("want every marker-untyped-private-member kept as downgraded, got %d (codes %v)", downgraded, codesIn(generated.Diagnostics))
 	}
 	root := resolveFile(t, resolver, "consumer.ts")
 	types := dump(resolver)
@@ -223,7 +223,7 @@ func assertDowngradedReadsAsOptionalAny(t *testing.T, site string) {
 func TestTypelessPrivateMember_DowngradedReadsAsOptionalAny_Static(t *testing.T) {
 	assertDowngradedReadsAsOptionalAny(t, `import {getRunTypeId} from '@mionjs/run-types';
 import {Account} from '@acme/ledger';
-// @mion-downgrade-error MKR016
+// @mion-downgrade-error marker-untyped-private-member
 export const id = getRunTypeId<Account>();
 `)
 }
@@ -232,7 +232,7 @@ func TestTypelessPrivateMember_DowngradedReadsAsOptionalAny_Value(t *testing.T) 
 	assertDowngradedReadsAsOptionalAny(t, `import {getRunTypeId} from '@mionjs/run-types';
 import {Account} from '@acme/ledger';
 declare const account: Account;
-// @mion-downgrade-error MKR016
+// @mion-downgrade-error marker-untyped-private-member
 export const id = getRunTypeId(account);
 `)
 }
@@ -241,13 +241,13 @@ export const id = getRunTypeId(account);
 const ledgerWithWrittenAnyDts = "export declare class Account { data: any; private balance; }\n"
 
 func TestTypelessPrivateMember_NotHiddenByAWrittenAny_Static(t *testing.T) {
-	if fired := mkr016Diags(scanLedger(t, ledgerWithWrittenAnyDts, testfixtures.LedgerStaticSite)); len(fired) != 1 {
-		t.Errorf("want MKR016 for balance after a written any, got %d", len(fired))
+	if fired := markerUntypedPrivateMemberDiags(scanLedger(t, ledgerWithWrittenAnyDts, testfixtures.LedgerStaticSite)); len(fired) != 1 {
+		t.Errorf("want marker-untyped-private-member for balance after a written any, got %d", len(fired))
 	}
 }
 
 func TestTypelessPrivateMember_NotHiddenByAWrittenAny_Value(t *testing.T) {
-	if fired := mkr016Diags(scanLedger(t, ledgerWithWrittenAnyDts, testfixtures.LedgerValueSite)); len(fired) != 1 {
-		t.Errorf("want MKR016 for balance after a written any, got %d", len(fired))
+	if fired := markerUntypedPrivateMemberDiags(scanLedger(t, ledgerWithWrittenAnyDts, testfixtures.LedgerValueSite)); len(fired) != 1 {
+		t.Errorf("want marker-untyped-private-member for balance after a written any, got %d", len(fired))
 	}
 }

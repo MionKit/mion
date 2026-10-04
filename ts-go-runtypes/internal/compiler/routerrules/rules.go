@@ -16,7 +16,7 @@ const RpcErrorName = "RpcError"
 // errorBaseName is the global class an arm must derive from for the rule to say anything about it.
 const errorBaseName = "Error"
 
-// checkAnnotations is MRT001/MRT002: mion compiles the handler's DECLARED types, so an inferred
+// checkAnnotations is rpc-handler-missing-return-type/rpc-handler-missing-param-type: mion compiles the handler's DECLARED types, so an inferred
 // return type leaves the build nothing to compile. It reads the AST, never inference: what matters is
 // whether the annotation was WRITTEN.
 func (scope *fileScope) checkAnnotations(discovered handler) []diagnostics.Diagnostic {
@@ -62,7 +62,7 @@ func parameterName(paramNode *ast.Node) string {
 	return "<destructured>"
 }
 
-// checkThrows is MRT003: a thrown error leaves the handler's signature for the undeclared
+// checkThrows is rpc-handler-throws: a thrown error leaves the handler's signature for the undeclared
 // `@thrownErrors` slot, where the client sees only its public message, while a returned one reaches the
 // client typed. The walk mirrors purity.go: it descends into nested callbacks, a throw inside a `.map()`
 // still escaping, and never classifies what is thrown, a class, a bare string and a rethrown `unknown`
@@ -103,10 +103,10 @@ func (scope *fileScope) checkThrows(discovered handler) []diagnostics.Diagnostic
 	return found
 }
 
-// checkReturnedErrorType is MRT004: the dispatcher routes a returned error by its mion
+// checkReturnedErrorType is rpc-handler-returns-non-rpc-error: the dispatcher routes a returned error by its mion
 // brand, so an RpcError or a subclass lands in its own typed slot while any other error is dropped into the
 // undeclared `@thrownErrors` slot and the declared return type stops being true. Only a WRITTEN return type
-// is read: without one MRT001 already fires, and an inferred type would report the same handler twice.
+// is read: without one rpc-handler-missing-return-type already fires, and an inferred type would report the same handler twice.
 func (scope *fileScope) checkReturnedErrorType(discovered handler) []diagnostics.Diagnostic {
 	fnLike := discovered.fn.FunctionLikeData()
 	if fnLike == nil || fnLike.Type == nil {
@@ -184,9 +184,9 @@ func (scope *fileScope) derivesFrom(arm *checker.Type, match func(*ast.Symbol) b
 	return walk(checker.Type_symbol(arm), 0)
 }
 
-// checkUnsafePropertyNames is MRT005: writing `__proto__` on a plain object swaps its
+// checkUnsafePropertyNames is rpc-handler-non-data-property: writing `__proto__` on a plain object swaps its
 // prototype instead of adding a key, so the member is dropped from every compiled function, and TypeScript
-// ACCEPTS the declaration. UPN001 reports the drop only while RENDERING a type function, so only for a type
+// ACCEPTS the declaration. data-proto-property-dropped reports the drop only while RENDERING a type function, so only for a type
 // a marker reaches; this reports the DECLARATION anywhere in the file, for types no route reaches yet.
 func (scope *fileScope) checkUnsafePropertyNames() []diagnostics.Diagnostic {
 	var found []diagnostics.Diagnostic

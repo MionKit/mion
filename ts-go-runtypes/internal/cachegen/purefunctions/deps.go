@@ -199,7 +199,7 @@ func (ctx *resolveCtx) calleeFirstParamIsCompTimeArgs(call *ast.Node) bool {
 //     PureFnId<string>`, what tsc emits when the build injected the id): the package's compiled
 //     files say which id that name registers (marker.Options.PureFnBindings). It lowers.
 //
-// An empty id means none of the five applied; the caller reports PFE9013, or PFE9016 when the
+// An empty id means none of the five applied; the caller reports purefn-dependency-not-id, or purefn-package-not-built when the
 // package ships nothing to serve.
 func (ctx *resolveCtx) resolveDepArg(localTable symbolTable, argNode *ast.Node) (id string, lower, cycle bool, cycleFile string) {
 	if argNode == nil {

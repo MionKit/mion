@@ -164,7 +164,7 @@ export const caught = mion.route((ctx, name: string): string => {
 });
 `;
 
-// The mockSample fails a JS-only lookbehind, which the resolver's JS sidecar reports as FMT001, not the lint worker.
+// The mockSample fails a JS-only lookbehind, which the resolver's JS sidecar reports as format-sample-mismatch, not the lint worker.
 // The local TypeFormat brand is recognised structurally, as in the Go resolver tests.
 const UNCHECKED_PATTERN_TS = `import {createValidateFn} from '@mionjs/run-types';
 
@@ -307,7 +307,9 @@ describe.runIf(hasBinary())(
     }
 
     function codesFor(ruleName: RuleName, rel: string): string[] {
-      return reportsFor(ruleName, rel).map((report) => report.message.match(/^\[([A-Z]+\d+)\]/)?.[1] ?? report.message);
+      return reportsFor(ruleName, rel).map(
+        (report) => report.message.match(/^\[([a-z][a-z0-9]*(?:-[a-z0-9]+)+)\]/)?.[1] ?? report.message
+      );
     }
 
     const LEVEL_RULES = ['error', 'runtime-error', 'warning', 'info'] as const;
@@ -334,103 +336,113 @@ describe.runIf(hasBinary())(
         }
       });
 
-      it('routes a Warning marker diagnostic (MKR001, reflection form invoking a function) to mion/warning', () => {
+      it('routes a Warning marker diagnostic (marker-calls-function-for-type, reflection form invoking a function) to mion/warning', () => {
         const reports = reportsFor('warning', 'bad-form.ts');
         expect(reports).toHaveLength(1);
-        expect(reports[0]!.message).toContain('[MKR001]');
+        expect(reports[0]!.message).toContain('[marker-calls-function-for-type]');
         expect(reports[0]!.message).toContain('load');
         expect(reports[0]!.line).toBe(locate(BAD_FORM_TS, 'getRunTypeId(load())').line);
         expect(reportsFor('error', 'bad-form.ts')).toEqual([]);
         expect(reportsFor('runtime-error', 'bad-form.ts')).toEqual([]);
       });
 
-      it('routes an Error marker diagnostic (MKR003, marker in a generic function) to mion/error', () => {
+      it('routes an Error marker diagnostic (marker-in-generic-function, marker in a generic function) to mion/error', () => {
         const reports = reportsFor('error', 'generic-marker.ts');
         expect(reports).toHaveLength(1);
-        expect(reports[0]!.message).toContain('[MKR003]');
+        expect(reports[0]!.message).toContain('[marker-in-generic-function]');
         expect(reports[0]!.line).toBe(locate(GENERIC_MARKER_TS, 'createValidateFn<T>()').line);
         expect(reportsFor('warning', 'generic-marker.ts')).toEqual([]);
       });
 
-      it('checks a file whose marker comes only through a drizzle dialect package (MKR003 on tableFromType<T>())', () => {
+      it('checks a file whose marker comes only through a drizzle dialect package (marker-in-generic-function on tableFromType<T>())', () => {
         expect(DRIZZLE_GENERIC_TS).not.toContain('@mionjs/run-types');
         const reports = reportsFor('error', 'drizzle-generic.ts');
         expect(reports).toHaveLength(1);
-        expect(reports[0]!.message).toContain('[MKR003]');
+        expect(reports[0]!.message).toContain('[marker-in-generic-function]');
         expect(reports[0]!.line).toBe(locate(DRIZZLE_GENERIC_TS, 'tableFromType<T>()').line);
       });
 
-      it('checks a file whose marker comes through a local wrapper module (MKR003 on tableFromType<T>())', () => {
+      it('checks a file whose marker comes through a local wrapper module (marker-in-generic-function on tableFromType<T>())', () => {
         expect(WRAPPED_GENERIC_TS).not.toContain('@mionjs/');
         const reports = reportsFor('error', 'wrapped-generic.ts');
         expect(reports).toHaveLength(1);
-        expect(reports[0]!.message).toContain('[MKR003]');
+        expect(reports[0]!.message).toContain('[marker-in-generic-function]');
         expect(reports[0]!.line).toBe(locate(WRAPPED_GENERIC_TS, 'tableFromType<T>()').line);
       });
 
-      it('reports the Info VL011 method drop only under mion/info', () => {
+      it('reports the Info validate-method-dropped method drop only under mion/info', () => {
         expect(reportsFor('warning', 'widget.ts')).toEqual([]);
         expect(reportsFor('error', 'widget.ts')).toEqual([]);
         expect(reportsFor('runtime-error', 'widget.ts')).toEqual([]);
         const reports = reportsFor('info', 'widget.ts');
         expect(reports).toEqual([
           expect.objectContaining({
-            message: expect.stringMatching(/\[VL011\].*onClick/),
+            message: expect.stringMatching(/\[validate-method-dropped\].*onClick/),
             line: locate(WIDGET_TS, 'createValidateFn<Widget>()').line,
           }),
         ]);
       });
 
-      it('reports a JS-only-pattern sample mismatch as FMT001 under mion/runtime-error at the definition site', () => {
+      it('reports a JS-only-pattern sample mismatch as format-sample-mismatch under mion/runtime-error at the definition site', () => {
         const reports = reportsFor('runtime-error', 'unchecked-pattern.ts');
         expect(reports).toHaveLength(1);
-        expect(reports[0]!.message).toContain('[FMT001]');
+        expect(reports[0]!.message).toContain('[format-sample-mismatch]');
         // The resolver's JS engine ran the real regex — the sample 'nope'
         // fails the JS-only lookbehind, so a plain sample mismatch (never a
-        // missing-runtime FMT004) is reported.
+        // missing-runtime format-no-js-runtime) is reported.
         expect(reports[0]!.message).toContain('nope');
-        expect(reports[0]!.message).not.toContain('[FMT004]');
+        expect(reports[0]!.message).not.toContain('[format-no-js-runtime]');
         expect(reports[0]!.line).toBe(locate(UNCHECKED_PATTERN_TS, 'createValidateFn<TypeFormat').line);
       });
     });
 
     describe('enrichment findings, one pass routed by level', () => {
-      it('the FT020 to-do reports once on the scaffold line with a tight tag span', () => {
-        const reports = reportsFor('warning', 'mirror-dirty.ts').filter((report) => report.message.includes('[FT020]'));
+      it('the enrich-text-todo-left to-do reports once on the scaffold line with a tight tag span', () => {
+        const reports = reportsFor('warning', 'mirror-dirty.ts').filter((report) =>
+          report.message.includes('[enrich-text-todo-left]')
+        );
         expect(reports).toHaveLength(1);
         const expected = locate(MIRROR_DIRTY_TS, TODO_TAG);
         expect(reports[0]).toMatchObject({line: expected.line, column: expected.column});
         expect(reports[0]!.endColumn).toBe(expected.column + TODO_TAG.length);
         // The @todo sits above the FriendlyText const → the FT-family code.
-        expect(reports[0]!.message).toContain('[FT020]');
+        expect(reports[0]!.message).toContain('[enrich-text-todo-left]');
       });
 
       it('reports both carcass forms', () => {
-        const reports = reportsFor('warning', 'mirror-dirty.ts').filter((report) => /\[MD02[12]\]/.test(report.message));
+        const reports = reportsFor('warning', 'mirror-dirty.ts').filter((report) =>
+          /\[enrich-mock-orphan-(?:type|field)\]/.test(report.message)
+        );
         expect(reports).toHaveLength(2);
         // Both carcasses carry no preserved annotation and sit after the last
         // const, so they attribute to the nearest-before MockData family.
-        expect(reports[0]!.message).toContain('[MD021]');
+        expect(reports[0]!.message).toContain('[enrich-mock-orphan-type]');
         expect(reports[0]!.line).toBe(locate(MIRROR_DIRTY_TS, '@rtOrphan export').line);
-        expect(reports[1]!.message).toContain('[MD022]');
+        expect(reports[1]!.message).toContain('[enrich-mock-orphan-field]');
         expect(reports[1]!.line).toBe(locate(MIRROR_DIRTY_TS, '@rtOrphanChild old').line);
       });
 
-      it('anchors FT002/MD001 on the dead keys', () => {
-        expect(codesFor('warning', 'mirror-dirty.ts').sort()).toEqual(['FT002', 'FT020', 'MD001', 'MD021', 'MD022']);
+      it('anchors enrich-text-unknown-field/enrich-mock-unknown-field on the dead keys', () => {
+        expect(codesFor('warning', 'mirror-dirty.ts').sort()).toEqual([
+          'enrich-mock-orphan-field',
+          'enrich-mock-orphan-type',
+          'enrich-mock-unknown-field',
+          'enrich-text-todo-left',
+          'enrich-text-unknown-field',
+        ]);
         const reports = reportsFor('warning', 'mirror-dirty.ts');
-        const ft002 = reports.find((report) => report.message.includes('[FT002]'))!;
-        expect(ft002.message).toContain('`nope`');
-        expect(ft002).toMatchObject(locate(MIRROR_DIRTY_TS, 'nope:'));
-        const md001 = reports.find((report) => report.message.includes('[MD001]'))!;
-        expect(md001.message).toContain('`vanished`');
-        expect(md001).toMatchObject(locate(MIRROR_DIRTY_TS, 'vanished:'));
+        const enrichTextUnknownField = reports.find((report) => report.message.includes('[enrich-text-unknown-field]'))!;
+        expect(enrichTextUnknownField.message).toContain('`nope`');
+        expect(enrichTextUnknownField).toMatchObject(locate(MIRROR_DIRTY_TS, 'nope:'));
+        const enrichMockUnknownField = reports.find((report) => report.message.includes('[enrich-mock-unknown-field]'))!;
+        expect(enrichMockUnknownField.message).toContain('`vanished`');
+        expect(enrichMockUnknownField).toMatchObject(locate(MIRROR_DIRTY_TS, 'vanished:'));
       });
 
-      it('reports GE002 on a dead breadcrumb under mion/runtime-error, anchored to the import', () => {
+      it('reports enrich-mirror-source-missing on a dead breadcrumb under mion/runtime-error, anchored to the import', () => {
         const reports = reportsFor('runtime-error', 'mirror-drift.ts');
         expect(reports).toHaveLength(1);
-        expect(reports[0]!.message).toContain('[GE002]');
+        expect(reports[0]!.message).toContain('[enrich-mirror-source-missing]');
         expect(reports[0]!.message).toContain('./ghost');
         expect(reports[0]!.line).toBe(1);
       });
@@ -450,9 +462,14 @@ describe.runIf(hasBinary())(
     describe('mion route findings', () => {
       it('reports each finding at its level, on a file with no runtypes marker', () => {
         expect(ROUTES_TS).not.toContain('@mionjs/run-types');
-        expect(codesFor('runtime-error', 'routes.ts').sort()).toEqual(['MRT001', 'MRT002', 'MRT003', 'MRT004']);
+        expect(codesFor('runtime-error', 'routes.ts').sort()).toEqual([
+          'rpc-handler-missing-param-type',
+          'rpc-handler-missing-return-type',
+          'rpc-handler-returns-non-rpc-error',
+          'rpc-handler-throws',
+        ]);
         expect(codesFor('error', 'routes.ts')).toEqual([]);
-        expect(codesFor('warning', 'routes.ts')).toContain('MRT005');
+        expect(codesFor('warning', 'routes.ts')).toContain('rpc-handler-non-data-property');
       });
 
       it('reports nothing on correct routes, including the shapes a syntactic rule could not see', () => {
@@ -464,12 +481,17 @@ describe.runIf(hasBinary())(
       // A lint report carries no file, so a finding about a handler defined elsewhere must land at the ROUTE CALL.
       it('checks a handler imported from another module, and reports it at the route call', () => {
         const reports = reportsFor('runtime-error', 'importing-routes.ts');
-        expect(reports.map((one) => one.message.slice(0, 8)).sort()).toEqual(['[MRT001]', '[MRT003]']);
+        expect(reports.map((one) => one.message.slice(0, one.message.indexOf(']') + 1)).sort()).toEqual([
+          '[rpc-handler-missing-return-type]',
+          '[rpc-handler-throws]',
+        ]);
         const lines = IMPORTING_ROUTES_TS.split('\n');
         for (const report of reports) {
           const line = lines[report.line - 1];
           expect(line, `report on line ${report.line} of a ${lines.length}-line file`).toBeDefined();
-          expect(line, `[${report.message.slice(1, 7)}] landed on ${JSON.stringify(line)}`).toContain('mion.route(');
+          expect(line, `${report.message.slice(0, report.message.indexOf(']') + 1)} landed on ${JSON.stringify(line)}`).toContain(
+            'mion.route('
+          );
         }
       });
 

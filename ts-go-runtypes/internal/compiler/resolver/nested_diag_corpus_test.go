@@ -123,7 +123,7 @@ import type {Callable, CallableWithProp, Tagged, uniq} from './shared.ts';
 import {Counter, WithMethod} from './shared.ts';
 `
 
-var alwaysThrowCode = regexp.MustCompile(`'\[([A-Z]+[0-9]+)\] `)
+var alwaysThrowCode = regexp.MustCompile(`'\[([a-z][a-z0-9]*(?:-[a-z0-9]+)+)\] `)
 
 // Quiet by design: a format transform never touches these types, and removeUnknownKeys copies a symbol as is.
 func corpusQuietAllowed(trigger corpusTrigger, family corpusFamily) bool {
@@ -432,22 +432,22 @@ func TestNestedDiagCorpus_WrittenAnyAtRoot(t *testing.T) {
 	}
 }
 
-// The errors union asks validate, whose DataView member throws VL001; the family's own throw is the symbol array's VE002.
+// The errors union asks validate, whose DataView member throws validate-non-data-root; the family's own throw is the symbol array's validation-errors-symbol-root.
 const foreignKindDecl = "export type WithSymbols = {s: symbol[]};\nexport type Members = {k: 'a'; d: DataView[]} | {k: 'b'; n: number};\n"
 const foreignKindType = "{w: WithSymbols; u: Members}"
 
 func TestReachedThrows_ForeignOfAnotherKindIsReported_Static(t *testing.T) {
 	codes := siteCodes(t, withCorpusSources(map[string]string{"site.ts": corpusImports + foreignKindDecl +
 		"export const fn = createGetValidationErrorsFn<" + foreignKindType + ">();\n"}), false)
-	if !slices.Contains(codes, "VE002") || !slices.Contains(codes, "VL001") {
-		t.Errorf("want both the own VE002 and the foreign VL001 at the site, got %v", codes)
+	if !slices.Contains(codes, "validation-errors-symbol-root") || !slices.Contains(codes, "validate-non-data-root") {
+		t.Errorf("want both the own validation-errors-symbol-root and the foreign validate-non-data-root at the site, got %v", codes)
 	}
 }
 
 func TestReachedThrows_ForeignOfAnotherKindIsReported_Value(t *testing.T) {
 	codes := siteCodes(t, withCorpusSources(map[string]string{"site.ts": corpusImports + foreignKindDecl +
 		"declare const value: " + foreignKindType + ";\nexport const fn = createGetValidationErrorsFn(value);\n"}), false)
-	if !slices.Contains(codes, "VE002") || !slices.Contains(codes, "VL001") {
-		t.Errorf("want both the own VE002 and the foreign VL001 at the site, got %v", codes)
+	if !slices.Contains(codes, "validation-errors-symbol-root") || !slices.Contains(codes, "validate-non-data-root") {
+		t.Errorf("want both the own validation-errors-symbol-root and the foreign validate-non-data-root at the site, got %v", codes)
 	}
 }

@@ -284,9 +284,9 @@ func TestFamilyClassifier_Attribution(t *testing.T) {
 // and a tag or marker inside a string is neither a carcass nor makes the file a mirror.
 func TestScanDirtyTags_StringLiteralsNeverFire(t *testing.T) {
 	catalogLike := "export const DIAG = {\n" +
-		"  FT021: {headline: 'example:\\n/* " + OrphanTag + " export const gone = {}; */\\nrun mion enrich --prune'},\n" +
-		"  FT022: {headline: \"a /* " + OrphanChildTag + " old: 1, */ example\"},\n" +
-		"  FT020: {headline: `fresh scaffold:\n" + MarkerCommentPrefix + "User#a1 */\n" + TodoLine + "`},\n" +
+		"  enrich-text-orphan-type: {headline: 'example:\\n/* " + OrphanTag + " export const gone = {}; */\\nrun mion enrich --prune'},\n" +
+		"  enrich-text-orphan-field: {headline: \"a /* " + OrphanChildTag + " old: 1, */ example\"},\n" +
+		"  enrich-text-todo-left: {headline: `fresh scaffold:\n" + MarkerCommentPrefix + "User#a1 */\n" + TodoLine + "`},\n" +
 		"};\n"
 	if findings := ScanDirtyTags(catalogLike); len(findings) != 0 {
 		t.Errorf("tag patterns inside string literals must not fire; got %+v", findings)

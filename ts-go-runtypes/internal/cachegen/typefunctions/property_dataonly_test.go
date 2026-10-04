@@ -15,7 +15,7 @@ import (
 //   - A property whose VALUE is DIRECTLY DataOnly-stripped (symbol / function /
 //     Promise / never / non-serializable native) is DROPPED so the surrounding
 //     object still serializes — `DataOnly<{a: symbol}>` = `{}`. The drop is a
-//     child-position WARNING (…015, or …010 for function-valued props), never an
+//     child-position WARNING (`-non-data-property-dropped`, or `-function-property-dropped` for function-valued props), never an
 //     Error: "Error" means "throws at runtime", and the object serializes fine.
 //   - A property whose value is only STRUCTURALLY unserializable (symbol[],
 //     Map<string,symbol>, a tuple with a stripped slot) is KEPT by DataOnly
@@ -58,8 +58,8 @@ var allSerdeFamilies = []string{
 	"restoreFromJsonMutate", "restoreFromJsonClone",
 }
 
-// nonSerPropDropCodes maps each family to its …015 directly-stripped-property
-// drop Warning (function-valued props use …010 instead — see the function test).
+// nonSerPropDropCodes maps each family to its `-non-data-property-dropped` directly-stripped-property
+// drop Warning (function-valued props use `-function-property-dropped` instead — see the function test).
 var nonSerPropDropCodes = map[string]string{
 	"validate":              diagnostics.CodeVLNonSerializablePropDrop,
 	"validationErrors":      diagnostics.CodeVENonSerializablePropDrop,
@@ -81,8 +81,8 @@ var symbolRootCodes = map[string]string{
 	"restoreFromJsonClone":  diagnostics.CodeRJSymbolRoot,
 }
 
-// functionPropDropCodes maps each family to its …010 function-valued-property
-// drop Warning — the code a function-valued property keeps (NOT …015).
+// functionPropDropCodes maps each family to its `-function-property-dropped` function-valued-property
+// drop Warning — the code a function-valued property keeps (NOT `-non-data-property-dropped`).
 var functionPropDropCodes = map[string]string{
 	"validate":              diagnostics.CodeVLFunctionPropDropped,
 	"validationErrors":      diagnostics.CodeVEFunctionPropDropped,
@@ -94,7 +94,7 @@ var functionPropDropCodes = map[string]string{
 
 // A directly-stripped property value (symbol / Promise / non-serializable native)
 // is DROPPED across every family: the object renders a real factory (never
-// alwaysThrow), the drop is a child-position Warning (…015), and NO Error fires.
+// alwaysThrow), the drop is a child-position Warning (`-non-data-property-dropped`), and NO Error fires.
 func TestF3_DirectlyStrippedPropertyDrops(t *testing.T) {
 	cases := map[string]func() *reflection.RunType{
 		"symbol":           mkSym,
@@ -154,7 +154,7 @@ func TestF3_DroppedPropertyKeepsSiblings(t *testing.T) {
 
 // A STRUCTURALLY-unserializable property value (symbol[] — a symbol in a
 // propagating array-element slot) is NOT dropped: DataOnly keeps `{a: never[]}`,
-// so every family alwaysThrows with a root-position Error, and the …015 drop
+// so every family alwaysThrows with a root-position Error, and the `-non-data-property-dropped` drop
 // warning must NOT fire. (Map<string,symbol> / Set<symbol> / `[number, symbol]`
 // behave identically — every propagating slot collapses the same way.)
 func TestF3_StructurallyUnserializablePropertyFails(t *testing.T) {
@@ -166,7 +166,7 @@ func TestF3_StructurallyUnserializablePropertyFails(t *testing.T) {
 			t.Errorf("[%s] `{a: symbol[]}` must alwaysThrow (symbol[] can't be safely dropped), not serialize; got:\n%s", fam, out)
 		}
 		if _, ok := findCode(sink, nonSerPropDropCodes[fam]); ok {
-			t.Errorf("[%s] a structurally-unserializable property must NOT emit the …015 drop warning; sink=%+v", fam, sink)
+			t.Errorf("[%s] a structurally-unserializable property must NOT emit the `-non-data-property-dropped` drop warning; sink=%+v", fam, sink)
 		}
 		got, ok := findCode(sink, symbolRootCodes[fam])
 		if !ok {
@@ -179,9 +179,9 @@ func TestF3_StructurallyUnserializablePropertyFails(t *testing.T) {
 	}
 }
 
-// A function-VALUED property keeps the existing …010 FunctionPropDropped code,
-// NOT the new …015 — the fix must not reclassify function-typed properties (the
-// VL010/PJ010/… contract pinned by diagnostics_test.go + runtype-diagnostics).
+// A function-VALUED property keeps the existing `-function-property-dropped` code,
+// NOT `-non-data-property-dropped` — the fix must not reclassify function-typed properties (the
+// validate-function-property-dropped/json-prepare-function-property-dropped/… contract pinned by diagnostics_test.go + runtype-diagnostics).
 func TestF3_FunctionValuedPropertyUsesFunctionCode(t *testing.T) {
 	for _, fam := range allSerdeFamilies {
 		dump := objWithProp(mkFn(), false)
@@ -190,7 +190,7 @@ func TestF3_FunctionValuedPropertyUsesFunctionCode(t *testing.T) {
 			t.Errorf("[%s] function-valued property must emit %s (function-drop), got sink=%+v", fam, functionPropDropCodes[fam], sink)
 		}
 		if _, ok := findCode(sink, nonSerPropDropCodes[fam]); ok {
-			t.Errorf("[%s] function-valued property must NOT emit the …015 code (it uses …010)", fam)
+			t.Errorf("[%s] function-valued property must NOT emit the `-non-data-property-dropped` code (it uses `-function-property-dropped`)", fam)
 		}
 	}
 }

@@ -93,7 +93,7 @@ func bigintProp(name string, optional bool) protocol.Dump {
 }
 
 // A DECLARED `__proto__` drops the member and leaves the type working: no
-// alwaysThrow factory, a UPN001 Warning naming the property, and the sibling
+// alwaysThrow factory, a data-proto-property-dropped Warning naming the property, and the sibling
 // property still emitted. That is the same lane a member whose VALUE cannot
 // cross the wire rides (strippedPropertyDrop), keyed on the name instead.
 func TestUnsafeKeys_DeclaredUnsafeNameDropsTheMemberEveryFamily(t *testing.T) {
@@ -132,7 +132,7 @@ func TestUnsafeKeys_RemoveUnknownKeysDropsDeclaredUnsafeName(t *testing.T) {
 }
 
 // `prototype` and `constructor` are ordinary property names: a real factory, no
-// UPN001, and the member carried in the emitted body. `({}).prototype` is
+// data-proto-property-dropped, and the member carried in the emitted body. `({}).prototype` is
 // undefined and `({}).constructor` only needs the own-enumerability presence
 // test, so neither costs the type anything.
 func TestUnsafeKeys_PrototypeAndConstructorAreOrdinaryDeclaredNames(t *testing.T) {
@@ -215,7 +215,7 @@ func TestUnsafeKeys_DeclaredUnsafeNameOneContainerDeeperStillDrops(t *testing.T)
 		dump := protocol.Dump{RunTypes: append(append([]*reflection.RunType{}, shared...), root, wrapperProp, outer)}
 		for _, fam := range []string{"validate", "restoreFromJsonMutate"} {
 			out := renderModule(t, dump, fam)
-			if strings.Contains(out, "[UPN001]") {
+			if strings.Contains(out, "[data-proto-property-dropped]") {
 				t.Errorf("[%s/%s] a member one %s deeper drops, it never throws the root; got:\n%s", fam, label, label, out)
 			}
 			if memberIsTouched(out, "__proto__") {

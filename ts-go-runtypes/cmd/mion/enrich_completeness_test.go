@@ -21,8 +21,8 @@ func mkEnrichDiag(code string) diagnostics.Diagnostic {
 // is expected to carry blanks — but the completeness gate (`--require-complete`,
 // requireComplete=true) fails on it. Wrong/stale content fails BOTH lanes.
 func TestReportEnrichDiagnostics_CompletenessGate(t *testing.T) {
-	// Completeness codes — an unfilled @todo (FT020/MD020) or a blank value
-	// (FT023/MD023): reported by the default check but failing only --require-complete.
+	// Completeness codes — an unfilled @todo (enrich-text-todo-left/enrich-mock-todo-left) or a blank value
+	// (enrich-text-blank-value/enrich-mock-blank-value): reported by the default check but failing only --require-complete.
 	for _, code := range []string{
 		diagnostics.CodeFriendlyTodo, diagnostics.CodeMockTodo,
 		diagnostics.CodeFriendlyBlankValue, diagnostics.CodeMockBlankValue,
@@ -65,11 +65,11 @@ func TestReportEnrichDiagnostics_CompletenessGate(t *testing.T) {
 	}
 }
 
-// An Info finding (FT008, a plural arm that can never fire) is advice: it fails neither lane.
+// An Info finding (enrich-text-plural-without-count, a plural arm that can never fire) is advice: it fails neither lane.
 func TestReportEnrichDiagnostics_InfoNeverFails(t *testing.T) {
 	info := []diagnostics.Diagnostic{mkEnrichDiag(diagnostics.CodeFriendlyPluralNoCount)}
 	if info[0].Level != diagnostics.LevelInfo {
-		t.Fatalf("FT008 must be LevelInfo, got %d", info[0].Level)
+		t.Fatalf("enrich-text-plural-without-count must be LevelInfo, got %d", info[0].Level)
 	}
 	for _, requireComplete := range []bool{false, true} {
 		for _, asJSON := range []bool{false, true} {
@@ -106,20 +106,20 @@ func TestReportEnrichDiagnostics_TextHidesInfo(t *testing.T) {
 	diags := []diagnostics.Diagnostic{mkEnrichDiag(diagnostics.CodeFriendlyPluralNoCount), mkEnrichDiag(diagnostics.CodeFriendlyUnknownField)}
 
 	stdout, stderr := captureReport(t, diags, false, false)
-	if strings.Contains(stdout, "FT008") || !strings.Contains(stdout, diagnostics.CodeFriendlyUnknownField) {
-		t.Errorf("default text report must hide FT008 and keep the error:\n%s", stdout)
+	if strings.Contains(stdout, "enrich-text-plural-without-count") || !strings.Contains(stdout, diagnostics.CodeFriendlyUnknownField) {
+		t.Errorf("default text report must hide enrich-text-plural-without-count and keep the error:\n%s", stdout)
 	}
 	if !strings.Contains(stderr, "1 finding(s)") {
 		t.Errorf("the count must leave hidden Info out: %q", stderr)
 	}
 
 	stdout, stderr = captureReport(t, diags, false, true)
-	if !strings.Contains(stdout, "FT008") || !strings.Contains(stderr, "2 finding(s)") {
-		t.Errorf("levels all must show FT008 and count it:\n%s%s", stdout, stderr)
+	if !strings.Contains(stdout, "enrich-text-plural-without-count") || !strings.Contains(stderr, "2 finding(s)") {
+		t.Errorf("levels all must show enrich-text-plural-without-count and count it:\n%s%s", stdout, stderr)
 	}
 
 	stdout, _ = captureReport(t, diags, true, false)
-	if !strings.Contains(stdout, `"FT008"`) {
+	if !strings.Contains(stdout, `"enrich-text-plural-without-count"`) {
 		t.Errorf("the JSON report must keep Info:\n%s", stdout)
 	}
 }

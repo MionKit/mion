@@ -715,7 +715,7 @@ type Miss struct {
 }
 
 // Result is what Closure found: Entries sorted by id with every transitive dep, and Unresolved left to the
-// program's own registrations and its PFE9012 check.
+// program's own registrations and its purefn-not-registered check.
 type Result struct {
 	Entries []purefunctions.Entry
 	// Roots is the package root each entry was served from, by id.

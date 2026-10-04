@@ -307,16 +307,11 @@ function checkResolverTier(compiled: CompiledType, seed: number, out: Violation[
       // A CONTROLLED alwaysThrow (`[CODE] …`) is the contract for a
       // non-serialisable type — expected. Only an UNCONTROLLED wire failure is a
       // bug (e.g. a TypeError from the runtime / a malformed factory).
-      if (err && !isControlledThrow(err)) {
+      if (err && !controlledCode(err)) {
         out.push({oracle: 'TR4', message: `factory ${key} failed to wire with an uncontrolled error: ${err}`, ...base});
       }
     }
   }
-}
-
-// alwaysThrow messages are rendered by the Go binary as `[CODE] …` (internal/diagnostics).
-function isControlledThrow(message: string): boolean {
-  return /^\[[A-Z][A-Z0-9]*\]/.test(message);
 }
 
 // --- Tier B: behaviour ---
@@ -515,7 +510,7 @@ function probeEncode(fn: (v: unknown) => unknown, value: unknown): EncodeProbe {
     fn(value);
     return {ok: true, uncontrolled: false};
   } catch (err) {
-    const controlled = err instanceof Error && isControlledThrow(err.message);
+    const controlled = err instanceof Error && controlledCode(err.message) !== undefined;
     return {ok: false, uncontrolled: !controlled, error: err instanceof Error ? err.message : String(err)};
   }
 }

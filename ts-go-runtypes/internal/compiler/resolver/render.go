@@ -40,7 +40,7 @@ func (sess *Session) rtRenderOpts(sink *[]diagnostics.Diagnostic, rooted, proven
 		RootedSites:     rooted,
 		EmitMode:        sess.opts.EmitMode,
 		InlineMode:      sess.opts.InlineMode,
-		// The validation authority for mockSamples (FMT001/FMT002), fail-closed with FMT004 when it
+		// The validation authority for mockSamples (format-sample-mismatch/format-invalid-params), fail-closed with format-no-js-runtime when it
 		// cannot run.
 		JSEngine:           sess.opts.JSEngine,
 		PatternSampleCount: sess.opts.PatternSampleCount,
@@ -360,7 +360,7 @@ func (sess *Session) pureFnReportForEntries(entries []purefunctions.Entry) []pro
 }
 
 // collectProgramBatches returns the whole-program batch site set with every batch diagnostic: the
-// per-site BAT001 / BAT002 / BAT004 / BAT005 / BAT006 plus the cross-file BAT003 collisions, which only
+// per-site rpc-batch-element-unreadable / rpc-batch-source-not-before / rpc-batch-mapper-unreadable / rpc-batch-duplicate-route / rpc-batch-argument-out-of-range plus the cross-file rpc-batch-id-collision collisions, which only
 // a whole-program fold can see.
 func (sess *Session) collectProgramBatches() ([]requestbatch.Site, []diagnostics.Diagnostic) {
 	if sess.Program == nil {
@@ -388,7 +388,7 @@ func (sess *Session) batchReportForSites(sites []requestbatch.Site) []protocol.B
 }
 
 // validateProgramPureFnDeps cross-checks the pure-fn dependencies aggregated while rendering RT function
-// entries (opts.PureFnDepSink) against the program-wide registration set, returning PFE9012 for a dep
+// entries (opts.PureFnDepSink) against the program-wide registration set, returning purefn-not-registered for a dep
 // whose id no scanned source file registers. The index is a WHOLE-program extraction, and that is the
 // correctness pivot: the per-file scan set (extractPureFnsForScan) covers only the requested files, so
 // validating against it false-positives on `newRunTypeErr` and friends, which register in the mion
@@ -460,7 +460,7 @@ func (sess *Session) validateProgramPureFnDeps(uses []typefunctions.PureFnDepUse
 	return diags
 }
 
-// pureFnDepDiagKey returns the missing pure-fn id a PFE9012 diagnostic carries in its
+// pureFnDepDiagKey returns the missing pure-fn id a purefn-not-registered diagnostic carries in its
 // first arg (see ValidatePureFnDependencies), falling back to the code for a malformed diagnostic.
 func pureFnDepDiagKey(diag diagnostics.Diagnostic) string {
 	if len(diag.Args) > 0 {

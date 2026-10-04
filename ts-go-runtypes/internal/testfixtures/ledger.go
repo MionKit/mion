@@ -1,7 +1,7 @@
 package testfixtures
 
 // The @acme/ledger fixture: a class with TS private members, read from source, from a plain tsc .d.ts or from a
-// mion-compiled one. Shared by the resolver's MKR016 tests and batchcompile's round trip.
+// mion-compiled one. Shared by the resolver's marker-untyped-private-member tests and batchcompile's round trip.
 
 // LedgerStaticSite reads Account with the static getRunTypeId<T>() call shape.
 const LedgerStaticSite = `import {getRunTypeId} from '@mionjs/run-types';

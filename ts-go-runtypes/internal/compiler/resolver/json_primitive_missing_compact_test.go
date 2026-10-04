@@ -7,21 +7,21 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// JCP001: `compact` over a function / symbol leaf at a propagating position (tuple slot, array element, record value,
+// internal-json-primitive-missing: `compact` over a function / symbol leaf at a propagating position (tuple slot, array element, record value,
 // callable object) must render an alwaysThrow with its sibling's code (cj as clone → PJS*, cjr as mutate → RJ*),
 // never an empty entry the composite still binds.
 
-// jcp001CompactCase pairs a type shape with the root code its
+// internalJsonPrimitiveMissingCompactCase pairs a type shape with the root code its
 // unserializable-leaf position should surface (identical across the compact and
 // sibling strategies).
-type jcp001CompactCase struct {
+type internalJsonPrimitiveMissingCompactCase struct {
 	name    string
 	shape   string
 	encoder string // expected encoder root code (clone == compact)
 	decoder string // expected decoder root code (mutate == compact)
 }
 
-var jcp001CompactCases = []jcp001CompactCase{
+var internalJsonPrimitiveMissingCompactCases = []internalJsonPrimitiveMissingCompactCase{
 	{"tuple_fn", `type T = [string, () => void]`, diagnostics.CodePJSFunctionRoot, diagnostics.CodeRJFunctionRoot},
 	{"array_fn", `type T = Array<() => void>`, diagnostics.CodePJSFunctionRoot, diagnostics.CodeRJFunctionRoot},
 	{"callable_iface", `interface T { (x: number): number; a: string }`, diagnostics.CodePJSFunctionRoot, diagnostics.CodeRJFunctionRoot},
@@ -47,7 +47,7 @@ func runtypeCodes(t *testing.T, shape, fn, strategy string) []string {
 	var codes []string
 	for _, d := range resp.Diagnostics {
 		if d.Code == diagnostics.CodeCompositeMissingPrimitive {
-			t.Fatalf("JCP001 internal breach for %s/%s: args=%v", shape, strategy, d.Args)
+			t.Fatalf("internal-json-primitive-missing internal breach for %s/%s: args=%v", shape, strategy, d.Args)
 		}
 		if d.Family == diagnostics.FamilyRunType {
 			codes = append(codes, d.Code)
@@ -65,10 +65,10 @@ func containsCode(codes []string, want string) bool {
 	return false
 }
 
-// TestJCP001_CompactMatchesSibling pins that compact encode/decode surface the
-// same alwaysThrow root code as clone/mutate and never trip JCP001.
-func TestJCP001_CompactMatchesSibling(t *testing.T) {
-	for _, tc := range jcp001CompactCases {
+// TestInternalJsonPrimitiveMissing_CompactMatchesSibling pins that compact encode/decode surface the
+// same alwaysThrow root code as clone/mutate and never trip internal-json-primitive-missing.
+func TestInternalJsonPrimitiveMissing_CompactMatchesSibling(t *testing.T) {
+	for _, tc := range internalJsonPrimitiveMissingCompactCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Encoder: compact (cj) must match clone (pjs).
 			cloneCodes := runtypeCodes(t, tc.shape, "createJsonEncoderFn", "clone")
@@ -93,20 +93,20 @@ func TestJCP001_CompactMatchesSibling(t *testing.T) {
 	}
 }
 
-// TestJCP001_CompactPropertyDropStillWarns — an unserializable member at a
+// TestInternalJsonPrimitiveMissing_CompactPropertyDropStillWarns — an unserializable member at a
 // PROPERTY position (not propagating) is dropped with a Warning, exactly like
 // the sibling strategies; the object still renders, so no root throw and no
-// JCP001. Guards that the diag-code delegation also wires the per-slot drop
+// internal-json-primitive-missing. Guards that the diag-code delegation also wires the per-slot drop
 // diagnostics (SlotMethodDropped, …), which were silent no-ops before the fix —
 // asserted by matching clone's dropped-property warning code exactly.
-func TestJCP001_CompactPropertyDropStillWarns(t *testing.T) {
+func TestInternalJsonPrimitiveMissing_CompactPropertyDropStillWarns(t *testing.T) {
 	const shape = `interface T { a: string; onClick: () => void }`
 	cloneEnc := runtypeCodes(t, shape, "createJsonEncoderFn", "clone")
 	compactEnc := runtypeCodes(t, shape, "createJsonEncoderFn", "compact")
 	if len(cloneEnc) == 0 {
 		t.Fatalf("clone encoder should warn on a dropped function property, got none")
 	}
-	// Same dropped-property warning code as clone (PJS011 = method/function
+	// Same dropped-property warning code as clone (json-prepare-clone-method-dropped = method/function
 	// value dropped); before the fix compact emitted nothing here.
 	if !containsCode(cloneEnc, diagnostics.CodePJSMethodDropped) {
 		t.Fatalf("expected clone to warn %s, got %v", diagnostics.CodePJSMethodDropped, cloneEnc)

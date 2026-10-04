@@ -18,7 +18,7 @@ var symbolKeyedDropCodes = map[string]string{
 	"restoreFromJsonClone":  diagnostics.CodeRJSymbolKeyedDropped,
 }
 
-// Every serde family drops a symbol-keyed property with its …013 Info, and nothing reads tsgo's `\xFE@tag` as a string key.
+// Every serde family drops a symbol-keyed property with its `-symbol-key-dropped` Info, and nothing reads tsgo's `\xFE@tag` as a string key.
 func TestSymbolKeyedProperty_DropsInEveryFamily(t *testing.T) {
 	for _, fam := range allSerdeFamilies {
 		value := &reflection.RunType{ID: "s", Kind: reflection.KindString}
@@ -56,7 +56,7 @@ func TestSymbolKeyedProperty_StrictCountsStringKeysOnly(t *testing.T) {
 	}
 }
 
-// A union arm's symbol key is dropped with the …013 Info, never merged in as the string key `\xFE@tag`.
+// A union arm's symbol key is dropped with the `-symbol-key-dropped` Info, never merged in as the string key `\xFE@tag`.
 func TestSymbolKeyedProperty_UnionArmDropped(t *testing.T) {
 	for _, fam := range []string{"validate", "prepareForJsonMutate", "prepareForJsonClone", "restoreFromJsonMutate", "restoreFromJsonClone"} {
 		date := mkDate()
@@ -80,7 +80,7 @@ func TestSymbolKeyedProperty_UnionArmDropped(t *testing.T) {
 	}
 }
 
-// A symbol-keyed method is named `[tag]` in its …011 message, never with tsgo's internal `\xFE@` spelling.
+// A symbol-keyed method is named `[tag]` in its `-method-dropped` message, never with tsgo's internal `\xFE@` spelling.
 func TestSymbolKeyedMethod_LabelIsReadable(t *testing.T) {
 	methodDropCodes := map[string]string{
 		"validate":              diagnostics.CodeVLMethodDropped,

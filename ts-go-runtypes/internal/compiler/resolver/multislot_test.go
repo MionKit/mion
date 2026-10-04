@@ -98,8 +98,8 @@ fnAndMeta(() => {});
 	}
 }
 
-// TestMultiSlot_FreeTypeParamPerSlot pins per-slot MKR003: inside a generic
-// wrapper body, a marker slot whose T is still free emits MKR003 for that slot
+// TestMultiSlot_FreeTypeParamPerSlot pins per-slot marker-in-generic-function: inside a generic
+// wrapper body, a marker slot whose T is still free emits marker-in-generic-function for that slot
 // while a concrete-T slot on the same call still injects.
 func TestMultiSlot_NonMarkerGap(t *testing.T) {
 	sites := scanOneCall(t, multiSlotDTS, `import {withGap} from '@mionjs/run-types';
@@ -114,7 +114,7 @@ withGap(() => {});
 	}
 }
 
-// TestMultiSlot_DuplicateKeyPerSlot pins that the duplicate-family rule (MKR006)
+// TestMultiSlot_DuplicateKeyPerSlot pins that the duplicate-family rule (marker-duplicate-function-family)
 // still fires per slot in a multi-marker call.
 func TestMultiSlot_DuplicateKeyPerSlot(t *testing.T) {
 	const dts = `declare module '@mionjs/run-types' {
@@ -129,14 +129,14 @@ dup(() => {});
 	if resp.Error != "" {
 		t.Fatalf("scanFiles: %s", resp.Error)
 	}
-	var mkr006 int
+	var markerDuplicateFunctionFamily int
 	for _, d := range resp.Diagnostics {
 		if d.Code == diagnostics.CodeMarkerDuplicateFnKey {
-			mkr006++
+			markerDuplicateFunctionFamily++
 		}
 	}
-	if mkr006 != 1 {
-		t.Errorf("expected 1 MKR006 (b repeats jsonEncoder), got %d", mkr006)
+	if markerDuplicateFunctionFamily != 1 {
+		t.Errorf("expected 1 marker-duplicate-function-family (b repeats jsonEncoder), got %d", markerDuplicateFunctionFamily)
 	}
 	// Both markers still produce sites; b's fn ids are deduped to one.
 	if len(resp.Sites) != 2 {

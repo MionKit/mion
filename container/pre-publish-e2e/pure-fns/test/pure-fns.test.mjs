@@ -14,6 +14,7 @@ const ARTIFACT_DIR = 'mion-pure-fns';
 const INDEX = 'index.json';
 const HASH_PREFIX = '#pf_';
 const ID = /^@acme\/[a-z]+#pf_[A-Za-z0-9_-]{14}$/;
+const PURE_FN_ERROR = /purefn-(?:forbidden-construct|reads-outer-variable|not-registered|dependency-not-id|id-mismatch|dependency-cycle|package-not-built|artifact-unreadable|artifact-conflict)/;
 
 const tarballOf = (name) => path.join(TARBALLS, readdirSync(TARBALLS).find((file) => file.startsWith(`acme-${name}-`)));
 const entriesOf = (tarball) => execFileSync('tar', ['-tzf', tarball], {encoding: 'utf8'}).trim().split('\n');
@@ -109,7 +110,7 @@ test('consumer (Vite adapter): only the demanded modules are generated, and the 
   assert.equal(own.package, '@acme/consumer');
   assert.deepEqual(own.pureFns.map((row) => row.bindingName), ['stamp']);
   assert.equal(readModule(path.join(CONSUMER, 'dist-vite'), own.pureFns[0].id), readFileSync(path.join(pf, modulePath(own.pureFns[0].id)), 'utf8'));
-  assert.doesNotMatch(readFileSync(path.join(OUT, 'build-vite.log'), 'utf8'), /PFE901\d/);
+  assert.doesNotMatch(readFileSync(path.join(OUT, 'build-vite.log'), 'utf8'), PURE_FN_ERROR);
 });
 
 test('consumer (mion compile): the same modules, its own artifact next to the emit, no library import left', () => {
@@ -122,7 +123,7 @@ test('consumer (mion compile): the same modules, its own artifact next to the em
   assert.deepEqual(own.pureFns.map((row) => [row.bindingName, row.file]), [['stamp', 'src/main.ts']]);
   const emitted = readFileSync(path.join(CONSUMER, 'dist-cli/main.js'), 'utf8');
   assert.ok(!emitted.includes("from '@acme/dates'"), 'lowering left the import unused, so the emit dropped it');
-  assert.doesNotMatch(readFileSync(path.join(OUT, 'build-cli.log'), 'utf8'), /PFE901\d/);
+  assert.doesNotMatch(readFileSync(path.join(OUT, 'build-cli.log'), 'utf8'), PURE_FN_ERROR);
 });
 
 for (const lane of ['vite', 'cli']) {
@@ -146,10 +147,10 @@ test('consumer (mion compile): nothing of @acme/text ran, so title exists nowher
 });
 
 for (const lane of ['vite', 'cli']) {
-  test(`consumer-plain (${lane}): a dependency on a library built without mion fails the build with PFE9016`, () => {
+  test(`consumer-plain (${lane}): a dependency on a library built without mion fails the build with purefn-package-not-built`, () => {
     const {status, output} = readJson(path.join(OUT, `plain-${lane}.json`));
     assert.notEqual(status, 0, 'the build must fail');
-    assert.match(output, /PFE9016/);
+    assert.match(output, /purefn-package-not-built/);
     assert.match(output, /@acme\/plain/);
   });
 }

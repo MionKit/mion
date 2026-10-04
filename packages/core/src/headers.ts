@@ -44,7 +44,7 @@ export function trustedHeadersSubset<Required extends string, Optional extends s
 
 // ############# HeadersSubset -> mion class serializer #############
 // Registered alongside the class so decoders rebuild a real instance: dispatch tests `instanceof HeadersSubset`.
-// `deserialize` is required because the constructor takes the headers map, so the zero-arg default raises CLS002.
+// `deserialize` is required because the constructor takes the headers map, so the zero-arg default raises data-class-constructor-failed.
 // The route's own fns check the decoded body, so the rebuild skips the constructor's check.
 // ⚠️ The registry is keyed by class NAME, so ONE registration covers EVERY generic instantiation.
 registerClassSerializer<HeadersSubset<string, string>>(HeadersSubset, {

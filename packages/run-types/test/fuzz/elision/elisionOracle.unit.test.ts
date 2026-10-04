@@ -38,15 +38,15 @@ describe('elision oracles fire on broken output (negative controls)', () => {
   });
 
   it('position normalization erases coordinates but never real drift', () => {
-    const a = normalizeSitePositions("['rj',,'X','never',,'[RJ001] boom (at g.ts:5:45)']");
-    const b = normalizeSitePositions("['rj',,'X','never',,'[RJ001] boom (at g.ts:3:27)']");
+    const a = normalizeSitePositions("['rj',,'X','never',,'[json-restore-never-root] boom (at g.ts:5:45)']");
+    const b = normalizeSitePositions("['rj',,'X','never',,'[json-restore-never-root] boom (at g.ts:3:27)']");
     expect(a).toBe(b);
-    const c = normalizeSitePositions("['rj',,'X','never',,'[RJ001] BOOM (at g.ts:3:27)']");
+    const c = normalizeSitePositions("['rj',,'X','never',,'[json-restore-never-root] BOOM (at g.ts:3:27)']");
     expect(c).not.toBe(b);
     // The shared-site count is not a coordinate: two spellings disagreeing on it must still differ.
-    const one = normalizeSitePositions("'[RJ001] boom (at g.ts:5:45, and 1 other call site)'");
-    const two = normalizeSitePositions("'[RJ001] boom (at g.ts:3:27, and 2 other call sites)'");
-    expect(one).toBe("'[RJ001] boom (at <site>, and 1 other call site)'");
+    const one = normalizeSitePositions("'[json-restore-never-root] boom (at g.ts:5:45, and 1 other call site)'");
+    const two = normalizeSitePositions("'[json-restore-never-root] boom (at g.ts:3:27, and 2 other call sites)'");
+    expect(one).toBe("'[json-restore-never-root] boom (at <site>, and 1 other call site)'");
     expect(one).not.toBe(two);
   });
 

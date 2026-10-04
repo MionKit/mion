@@ -5,7 +5,7 @@ package convert
 // `DZ.tableFromType<UsersTable>()` (the marker form the devtools transform resolves; the explicit
 // `tableFromType(getRunType<T>())` is recognized and left as written). Both directions keep both names and print both
 // halves. No Go name table: names come from the sentinel literals and the dialect's real exports. A construct with no
-// type spelling reports CNV009 and stays untouched.
+// type spelling reports convert-drizzle-unsupported and stays untouched.
 
 import (
 	"fmt"

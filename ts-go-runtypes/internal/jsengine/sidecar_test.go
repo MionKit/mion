@@ -216,7 +216,7 @@ func TestSidecar_GenerateMemoized(t *testing.T) {
 	}
 }
 
-// TestSidecar_GenerateUnsupportedConstruct pins the FMT005 lane: the
+// TestSidecar_GenerateUnsupportedConstruct pins the format-sample-generation-failed lane: the
 // pattern compiles under new RegExp but randexp throws on it.
 func TestSidecar_GenerateUnsupportedConstruct(t *testing.T) {
 	engine := newTestEngine(t)
@@ -256,7 +256,7 @@ func TestSidecar_GenerateCompileError(t *testing.T) {
 		t.Fatalf("GeneratePattern: %v", err)
 	}
 	if result.CompileError == "" || result.GenerateError != "" {
-		t.Fatalf("invalid syntax must be a CompileError (FMT002 lane), got %+v", result)
+		t.Fatalf("invalid syntax must be a CompileError (format-invalid-params lane), got %+v", result)
 	}
 }
 

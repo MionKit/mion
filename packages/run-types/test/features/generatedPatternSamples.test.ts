@@ -6,7 +6,7 @@
 // createMockDataFn call site pins them (the CompTimeHints lane). The Go
 // matrix (internal/compiler/resolver/format_sample_validation_test.go)
 // proves the build-time enrichment, the seeded/unseeded pool semantics
-// across builds, and the FMT005 failure lanes; this spec proves the
+// across builds, and the format-sample-generation-failed failure lanes; this spec proves the
 // EMITTED artifacts behave within a build: mocks match the regex, validate
 // accepts every mock, and both marker call shapes ride the same cache
 // entry.

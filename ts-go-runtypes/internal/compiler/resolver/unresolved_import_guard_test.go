@@ -11,7 +11,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// MKR007 — a marker site whose T resolved to `any` because the file carries
+// marker-any-from-unresolved-import — a marker site whose T resolved to `any` because the file carries
 // an unresolved import must produce an Error-severity diagnostic naming the
 // file, the call site, and the unresolved specifier (the silent-degradation
 // trap: the emitted validator would accept anything with zero signal). A
@@ -47,27 +47,27 @@ func TestUnresolvedImportAny_DiagnosesBothCallShapes(t *testing.T) {
 	if resp.Error != "" {
 		t.Fatalf("scanFiles broken.ts: %s", resp.Error)
 	}
-	var mkr007 []diagnostics.Diagnostic
+	var markerAnyFromUnresolvedImport []diagnostics.Diagnostic
 	for _, diagnostic := range resp.Diagnostics {
 		if diagnostic.Code == diagnostics.CodeMarkerAnyFromUnresolvedImport {
-			mkr007 = append(mkr007, diagnostic)
+			markerAnyFromUnresolvedImport = append(markerAnyFromUnresolvedImport, diagnostic)
 		}
 	}
 	// The static `getRunTypeId<User>()` AND the reflect `getRunTypeId(user)`
 	// sites both degrade — one diagnostic each. The explicit `<any>` site is
 	// deliberate and silent, so exactly two.
-	if len(mkr007) != 2 {
-		t.Fatalf("want 2 MKR007 diagnostics (static + reflect forms), got %d: %+v", len(mkr007), resp.Diagnostics)
+	if len(markerAnyFromUnresolvedImport) != 2 {
+		t.Fatalf("want 2 marker-any-from-unresolved-import diagnostics (static + reflect forms), got %d: %+v", len(markerAnyFromUnresolvedImport), resp.Diagnostics)
 	}
-	for _, diagnostic := range mkr007 {
+	for _, diagnostic := range markerAnyFromUnresolvedImport {
 		if diagnostic.Severity != diagnostics.SeverityError {
-			t.Fatalf("MKR007 must be Error severity, got %d", diagnostic.Severity)
+			t.Fatalf("marker-any-from-unresolved-import must be Error severity, got %d", diagnostic.Severity)
 		}
 		if len(diagnostic.Args) == 0 || diagnostic.Args[0] != "./missing-module" {
-			t.Fatalf("MKR007 must name the unresolved specifier, got args %v", diagnostic.Args)
+			t.Fatalf("marker-any-from-unresolved-import must name the unresolved specifier, got args %v", diagnostic.Args)
 		}
 		if !strings.HasSuffix(diagnostic.Site.FilePath, "broken.ts") || diagnostic.Site.StartLine <= 0 {
-			t.Fatalf("MKR007 must carry the call site, got %+v", diagnostic.Site)
+			t.Fatalf("marker-any-from-unresolved-import must carry the call site, got %+v", diagnostic.Site)
 		}
 	}
 }
@@ -83,7 +83,7 @@ func TestUnresolvedImportAny_ResolvedFileStaysSilent(t *testing.T) {
 	}
 	for _, diagnostic := range resp.Diagnostics {
 		if diagnostic.Code == diagnostics.CodeMarkerAnyFromUnresolvedImport {
-			t.Fatalf("resolved file must not diagnose MKR007: %+v", diagnostic)
+			t.Fatalf("resolved file must not diagnose marker-any-from-unresolved-import: %+v", diagnostic)
 		}
 	}
 }
@@ -98,27 +98,27 @@ func TestUnresolvedImportAny_NestedMemberDiagnosesBothCallShapes(t *testing.T) {
 	if resp.Error != "" {
 		t.Fatalf("scanFiles nested.ts: %s", resp.Error)
 	}
-	var mkr007 []diagnostics.Diagnostic
+	var markerAnyFromUnresolvedImport []diagnostics.Diagnostic
 	for _, diagnostic := range resp.Diagnostics {
 		switch diagnostic.Code {
 		case diagnostics.CodeMarkerAnyFromUnresolvedImport:
-			mkr007 = append(mkr007, diagnostic)
+			markerAnyFromUnresolvedImport = append(markerAnyFromUnresolvedImport, diagnostic)
 		case diagnostics.CodeMarkerUnresolvedTypeName:
-			t.Errorf("MKR013 must yield to MKR007 for a member the unresolved import explains: %+v", diagnostic)
+			t.Errorf("marker-any-from-unresolved-name must yield to marker-any-from-unresolved-import for a member the unresolved import explains: %+v", diagnostic)
 		}
 	}
-	if len(mkr007) != 2 {
-		t.Fatalf("want 2 MKR007 diagnostics (static + reflect forms over the nested member), got %d: %+v", len(mkr007), resp.Diagnostics)
+	if len(markerAnyFromUnresolvedImport) != 2 {
+		t.Fatalf("want 2 marker-any-from-unresolved-import diagnostics (static + reflect forms over the nested member), got %d: %+v", len(markerAnyFromUnresolvedImport), resp.Diagnostics)
 	}
-	for _, diagnostic := range mkr007 {
+	for _, diagnostic := range markerAnyFromUnresolvedImport {
 		if len(diagnostic.Args) == 0 || diagnostic.Args[0] != "./missing-module" {
-			t.Errorf("nested MKR007 must name the unresolved specifier, got args %v", diagnostic.Args)
+			t.Errorf("nested marker-any-from-unresolved-import must name the unresolved specifier, got args %v", diagnostic.Args)
 		}
 		if !strings.HasSuffix(diagnostic.Site.FilePath, "nested.ts") || diagnostic.Site.StartLine < 13 {
-			t.Errorf("nested MKR007 must land on the marker call, got %+v", diagnostic.Site)
+			t.Errorf("nested marker-any-from-unresolved-import must land on the marker call, got %+v", diagnostic.Site)
 		}
 		if len(diagnostic.Related) != 1 || !strings.Contains(diagnostic.Related[0].Message, "`user`") {
-			t.Errorf("nested MKR007 must relate the member's declaration, got %+v", diagnostic.Related)
+			t.Errorf("nested marker-any-from-unresolved-import must relate the member's declaration, got %+v", diagnostic.Related)
 		}
 	}
 }

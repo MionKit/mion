@@ -2,7 +2,7 @@
 // resolution options. Before the fix the ESLint inline-server spawn passed no
 // --tsconfig, so a cross-package type behind a `source` export condition (the
 // source-resolved monorepo dev setup, dist unbuilt) collapsed to `any` at lint
-// time — 59 false MKR007 in mion, while the build resolved it fine.
+// time — 59 false marker-any-from-unresolved-import in mion, while the build resolved it fine.
 //
 // Two layers: a pure unit check that buildResolverArgs now forwards --tsconfig
 // in server mode (the exact guard that caused the bug), and an integration run
@@ -51,7 +51,7 @@ getRunTypeId<CrossPkgUser>();
 declare const sample: CrossPkgUser;
 getRunTypeId(sample);
 
-// createValidateFn<CrossPkgType>() — the site that produced 59 MKR007 in mion
+// createValidateFn<CrossPkgType>() — the site that produced 59 marker-any-from-unresolved-import in mion
 export const validateUser = createValidateFn<CrossPkgUser>();
 `;
 
@@ -112,7 +112,7 @@ describe.runIf(hasBinary())('eslint tsconfig resolution (integration through mio
   // tsconfig on the first request).
   beforeEach(() => resetSharedSession());
 
-  it('resolves a source-condition cross-package marker: no MKR007', () => {
+  it('resolves a source-condition cross-package marker: no marker-any-from-unresolved-import', () => {
     // settings: {} → tsconfig defaults to 'tsconfig.json' (customConditions:["source"]).
     expect(runRule(rules['runtime-error'], consumerAbs, CONSUMER_SRC, {})).toEqual([]);
   });
@@ -127,6 +127,6 @@ describe.runIf(hasBinary())('eslint tsconfig resolution (integration through mio
       mion: {tsconfig: 'tsconfig.noconditions.json'},
     });
     expect(reports.length).toBeGreaterThan(0);
-    expect(reports.some((report) => report.message.includes('MKR007'))).toBe(true);
+    expect(reports.some((report) => report.message.includes('marker-any-from-unresolved-import'))).toBe(true);
   });
 });

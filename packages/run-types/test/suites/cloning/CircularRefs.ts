@@ -1,5 +1,5 @@
 // cloning / CircularRefs: circular TYPES with TREE values only, since a cyclic value would make the clone recurse.
-// Mirrors the serialization suite's CIRCULAR_REFS keys; circular object unions throw at creation (RUK001, Unions.ts).
+// Mirrors the serialization suite's CIRCULAR_REFS keys; circular object unions throw at creation (unknown-keys-object-union, Unions.ts).
 
 import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';
@@ -37,7 +37,7 @@ export const CIRCULAR_REFS = {
     description:
       'Recursive array of (self | Date | number | string) rebuilds fresh at every level — nested arrays and Date elements clone fresh, scalar elements pass by value.',
     cloneNotes:
-      'The element union carries no object-literal member (the self arm is an array), so the RUK001 object-bearing rule does not fire; the Date instance shared across the sample graphs clones into distinct fresh Dates and deep equality still holds.',
+      'The element union carries no object-literal member (the self arm is an array), so the unknown-keys-object-union object-bearing rule does not fire; the Date instance shared across the sample graphs clones into distinct fresh Dates and deep equality still holds.',
     clone: () => createRemoveUnknownKeysFn<CuArray>(),
     getTestData: () => {
       const date = new Date('2000-08-06T02:13:00.000Z');

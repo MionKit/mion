@@ -115,7 +115,7 @@ names its own hook and reads its own output dir:
 
 A package that registers no pure fn gets no directory, and a stale one is removed. There is
 no option: the directory is what makes a published package's pure fns usable from another
-package (a consumer reaching a package without it fails with `PFE9016`), and `files: ["dist"]`
+package (a consumer reaching a package without it fails with `purefn-package-not-built`), and `files: ["dist"]`
 already ships it. `test/pure-fn-artifact.test.ts` drives every host.
 
 ## emitMode

@@ -290,7 +290,7 @@ export function checkServerManifestAgainstProbes(project: ApiProject): void {
 /** A2: no MET diagnostic and exactly the called routes bundled. **/
 export function checkClientBundle(project: ApiProject, build: CliResult, clientGen = project.clientGen): void {
   if (build.status !== 0) throw new Error(`client compile exited ${build.status}\n--- stderr ---\n${build.stderr}`);
-  const met = build.stderr.split('\n').filter((line) => /\bMET\d{3}\b/.test(line));
+  const met = build.stderr.split('\n').filter((line) => /\brpc-client-[a-z0-9-]+/.test(line));
   if (met.length) throw new Error(`A2: the client build reported bundled-API diagnostics:\n${met.join('\n')}`);
   const manifest = readManifest(clientGen, 'client-manifest.json');
   if (manifest.kind !== 'client') throw new Error(`the client build wrote a ${manifest.kind} manifest`);

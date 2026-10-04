@@ -27,7 +27,7 @@ export const sampleId = getRunTypeId(new Widget());
 
 const LOWERED_TS = `import {createValidateFn} from '@mionjs/run-types';
 
-// @mion-downgrade-error VL002
+// @mion-downgrade-error validate-symbol-root
 export const isSymbol = createValidateFn<symbol>();
 `;
 
@@ -71,7 +71,7 @@ describe.runIf(ready)('eslint end to end (configs.recommended from the built plu
     return new Map(results.map((result) => [path.basename(result.filePath), result.messages]));
   };
 
-  it('hides the Info-level VL011 method drop by default', {timeout: 120_000}, async () => {
+  it('hides the Info-level validate-method-dropped method drop by default', {timeout: 120_000}, async () => {
     const messages = await lint();
     expect(messages.get('widget.ts')).toEqual([]);
   });
@@ -82,7 +82,7 @@ describe.runIf(ready)('eslint end to end (configs.recommended from the built plu
         ruleId: 'mion/warning',
         severity: 1,
         line: 4,
-        message: expect.stringMatching(/^\[VL002\] .*\(downgraded\)$/),
+        message: expect.stringMatching(/^\[validate-symbol-root\] .*\(downgraded\)$/),
       }),
     ]);
   });
@@ -92,7 +92,7 @@ describe.runIf(ready)('eslint end to end (configs.recommended from the built plu
       expect.objectContaining({
         ruleId: 'mion/info',
         severity: 1,
-        message: expect.stringMatching(/\[VL011\].*render/),
+        message: expect.stringMatching(/\[validate-method-dropped\].*render/),
       }),
     ]);
   });

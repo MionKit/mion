@@ -71,7 +71,7 @@ func Files(sites []Site) []string {
 	return files
 }
 
-// CheckConflicts reports BAT003, two sites with DIFFERENT definitions hashing to the same id; the first in
+// CheckConflicts reports rpc-batch-id-collision, two sites with DIFFERENT definitions hashing to the same id; the first in
 // (file, start) order wins and is the Related location of every later colliding site.
 func CheckConflicts(sites []Site) []diagnostics.Diagnostic {
 	var diags []diagnostics.Diagnostic

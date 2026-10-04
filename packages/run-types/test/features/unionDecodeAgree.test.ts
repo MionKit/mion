@@ -34,7 +34,7 @@ type Enveloped = {a: string} | Date;
 type IndexSignatureMember = Record<string, number> | {a: string};
 
 describe('every union decode answers the same', () => {
-  // `removeUnknownKeys` is absent: it refuses object unions (RUK001) and must keep refusing, not quietly agree.
+  // `removeUnknownKeys` is absent: it refuses object unions (unknown-keys-object-union) and must keep refusing, not quietly agree.
   const rows = {
     'two object members, bare wire': {
       clean: {a: 'x'},

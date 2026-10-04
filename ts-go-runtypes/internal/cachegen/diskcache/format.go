@@ -36,7 +36,8 @@ import "encoding/json"
 // v18 stops persisting alwaysThrow entries: their message names a live call site, so a hit replayed the site of the build that wrote it.
 // v19 persists an unnamed entry's findings (another family's site may adopt them) and ElidedRefs (noop-gated children).
 // v20 stores structural ids as base64 (StructuralText): JSON turned a symbol key's 0xFE into U+FFFD, so those entries missed.
-const FormatVersion = 20
+// v21 renames every diagnostic code to its readable name: a v20 entry's stored codes are unknown, and replaying one panics.
+const FormatVersion = 21
 
 // StructuralText is a structural id stored as base64: a JSON string cannot carry tsgo's raw 0xFE symbol-key byte.
 type StructuralText string

@@ -71,7 +71,7 @@ func TestMirrorDriftExitCode(t *testing.T) {
 
 	cosmetic := []driftFinding{finding(diagnostics.CodeGenMirrorDrift, enrichment.Warning)}
 	if got := mirrorDriftExitCode(cosmetic, true); got != 0 {
-		t.Errorf("GE001 location drift is cosmetic and must not fail even --require-complete; exit=%d, want 0", got)
+		t.Errorf("enrich-mirror-moved location drift is cosmetic and must not fail even --require-complete; exit=%d, want 0", got)
 	}
 
 	mixed := []driftFinding{hygiene(diagnostics.CodeFriendlyTodo), hygiene(diagnostics.CodeFriendlyOrphanField)}

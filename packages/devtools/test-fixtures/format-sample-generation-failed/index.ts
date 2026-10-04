@@ -1,5 +1,5 @@
-// FMT005 — a pattern with no declared mockSamples gets them generated, but the generator cannot
-// handle lookarounds (the case FMT005 names outright). With nothing declared to fall back on the
+// format-sample-generation-failed — a pattern with no declared mockSamples gets them generated, but the generator cannot
+// handle lookarounds (the case format-sample-generation-failed names outright). With nothing declared to fall back on the
 // build halts and asks for explicit mockSamples.
 import {createValidateFn} from '@mionjs/run-types';
 import {String} from '@mionjs/run-types/formats';

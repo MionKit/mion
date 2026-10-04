@@ -435,7 +435,7 @@ export const FUNCTIONS = {
         void c;
         return new Date(0);
       }
-      // @mion-downgrade-error PJ003
+      // @mion-downgrade-error json-prepare-function-root
       return createJsonEncoderFn<Parameters<typeof fnWithCallback>>(undefined, {strategy: 'mutate'});
     },
     cloneEncoder: () => {
@@ -445,7 +445,7 @@ export const FUNCTIONS = {
         void c;
         return new Date(0);
       }
-      // @mion-downgrade-error PJS003
+      // @mion-downgrade-error json-prepare-clone-function-root
       return createJsonEncoderFn<Parameters<typeof fnWithCallback>>(undefined, {strategy: 'clone'});
     },
     compactEncoder: () => {
@@ -455,7 +455,7 @@ export const FUNCTIONS = {
         void c;
         return new Date(0);
       }
-      // @mion-downgrade-error PJS003
+      // @mion-downgrade-error json-prepare-clone-function-root
       return createJsonEncoderFn<Parameters<typeof fnWithCallback>>(undefined, {strategy: 'compact'});
     },
     cloneDecoder: () => {
@@ -465,7 +465,7 @@ export const FUNCTIONS = {
         void c;
         return new Date(0);
       }
-      // @mion-downgrade-error RJ003
+      // @mion-downgrade-error json-restore-function-root
       return createJsonDecoderFn<Parameters<typeof fnWithCallback>>();
     },
     mutateDecoder: () => {
@@ -475,7 +475,7 @@ export const FUNCTIONS = {
         void c;
         return new Date(0);
       }
-      // @mion-downgrade-error RJ003
+      // @mion-downgrade-error json-restore-function-root
       return createJsonDecoderFn<Parameters<typeof fnWithCallback>>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
@@ -485,7 +485,7 @@ export const FUNCTIONS = {
         void c;
         return new Date(0);
       }
-      // @mion-downgrade-error RJ003
+      // @mion-downgrade-error json-restore-function-root
       return createJsonDecoderFn<Parameters<typeof fnWithCallback>>(undefined, {strategy: 'compact'});
     },
     // The tuple ends in `() => null`; a function-typed slot renders as alwaysThrow in every family.
@@ -507,7 +507,7 @@ export const FUNCTIONS = {
         void c;
         return Promise.resolve(new Date(0));
       }
-      // @mion-downgrade-error PJ002
+      // @mion-downgrade-error json-prepare-non-data-root
       return createJsonEncoderFn<ReturnType<typeof fnReturnsPromise>>(undefined, {strategy: 'mutate'});
     },
     cloneEncoder: () => {
@@ -517,7 +517,7 @@ export const FUNCTIONS = {
         void c;
         return Promise.resolve(new Date(0));
       }
-      // @mion-downgrade-error PJS002
+      // @mion-downgrade-error json-prepare-clone-non-data-root
       return createJsonEncoderFn<ReturnType<typeof fnReturnsPromise>>(undefined, {strategy: 'clone'});
     },
     compactEncoder: () => {
@@ -527,7 +527,7 @@ export const FUNCTIONS = {
         void c;
         return Promise.resolve(new Date(0));
       }
-      // @mion-downgrade-error PJS002
+      // @mion-downgrade-error json-prepare-clone-non-data-root
       return createJsonEncoderFn<ReturnType<typeof fnReturnsPromise>>(undefined, {strategy: 'compact'});
     },
     cloneDecoder: () => {
@@ -537,7 +537,7 @@ export const FUNCTIONS = {
         void c;
         return Promise.resolve(new Date(0));
       }
-      // @mion-downgrade-error RJ002
+      // @mion-downgrade-error json-restore-non-data-root
       return createJsonDecoderFn<ReturnType<typeof fnReturnsPromise>>();
     },
     mutateDecoder: () => {
@@ -547,7 +547,7 @@ export const FUNCTIONS = {
         void c;
         return Promise.resolve(new Date(0));
       }
-      // @mion-downgrade-error RJ002
+      // @mion-downgrade-error json-restore-non-data-root
       return createJsonDecoderFn<ReturnType<typeof fnReturnsPromise>>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
@@ -557,7 +557,7 @@ export const FUNCTIONS = {
         void c;
         return Promise.resolve(new Date(0));
       }
-      // @mion-downgrade-error RJ002
+      // @mion-downgrade-error json-restore-non-data-root
       return createJsonDecoderFn<ReturnType<typeof fnReturnsPromise>>(undefined, {strategy: 'compact'});
     },
     // Promise return type is non-serializable; no value-first builder.
@@ -579,7 +579,7 @@ export const FUNCTIONS = {
         void c;
         return () => new Date(0);
       }
-      // @mion-downgrade-error PJ003
+      // @mion-downgrade-error json-prepare-function-root
       return createJsonEncoderFn<ReturnType<typeof fnReturnsFunction>>(undefined, {strategy: 'mutate'});
     },
     cloneEncoder: () => {
@@ -589,7 +589,7 @@ export const FUNCTIONS = {
         void c;
         return () => new Date(0);
       }
-      // @mion-downgrade-error PJS003
+      // @mion-downgrade-error json-prepare-clone-function-root
       return createJsonEncoderFn<ReturnType<typeof fnReturnsFunction>>(undefined, {strategy: 'clone'});
     },
     compactEncoder: () => {
@@ -599,7 +599,7 @@ export const FUNCTIONS = {
         void c;
         return () => new Date(0);
       }
-      // @mion-downgrade-error PJS003
+      // @mion-downgrade-error json-prepare-clone-function-root
       return createJsonEncoderFn<ReturnType<typeof fnReturnsFunction>>(undefined, {strategy: 'compact'});
     },
     cloneDecoder: () => {
@@ -609,7 +609,7 @@ export const FUNCTIONS = {
         void c;
         return () => new Date(0);
       }
-      // @mion-downgrade-error RJ003
+      // @mion-downgrade-error json-restore-function-root
       return createJsonDecoderFn<ReturnType<typeof fnReturnsFunction>>();
     },
     mutateDecoder: () => {
@@ -619,7 +619,7 @@ export const FUNCTIONS = {
         void c;
         return () => new Date(0);
       }
-      // @mion-downgrade-error RJ003
+      // @mion-downgrade-error json-restore-function-root
       return createJsonDecoderFn<ReturnType<typeof fnReturnsFunction>>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
@@ -629,7 +629,7 @@ export const FUNCTIONS = {
         void c;
         return () => new Date(0);
       }
-      // @mion-downgrade-error RJ003
+      // @mion-downgrade-error json-restore-function-root
       return createJsonDecoderFn<ReturnType<typeof fnReturnsFunction>>(undefined, {strategy: 'compact'});
     },
     // Return type is another function — non-serializable; no value-first builder.

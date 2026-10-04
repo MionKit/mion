@@ -40,7 +40,7 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
         "import {createMionRouter} from '@mionjs/router';\n" +
         'const mion = createMionRouter();\n' +
         'export const noReturn = mion.route((ctx, name: string) => name);\n',
-      // The API type handed to initClient, imported without `type`: SRV001, a RuntimeError.
+      // The API type handed to initClient, imported without `type`: rpc-client-imports-server-value, a RuntimeError.
       'api.ts':
         "import {createMionRouter} from '@mionjs/router';\nexport const api = createMionRouter();\nexport type MyApi = typeof api;\n",
       'client.ts':
@@ -52,7 +52,7 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
       // A lowered error: the build prints it as a warning, and so must the linter.
       'lowered.ts':
         "import {createValidateFn} from '@mionjs/run-types';\n\n" +
-        '// @mion-downgrade-error VL002\n' +
+        '// @mion-downgrade-error validate-symbol-root\n' +
         'export const isSymbol = createValidateFn<symbol>();\n',
     });
     project.write(
@@ -62,7 +62,7 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
           categories: {correctness: 'off'},
           jsPlugins: [PLUGIN_DIST],
           // `cwd` is NOT a lint setting (the plugin runs in oxlint's cwd): it warns on stderr and changes no finding.
-          // `mion/info` shows the Info VL011 these cases use as proof the engine ran.
+          // `mion/info` shows the Info validate-method-dropped these cases use as proof the engine ran.
           settings: {mion: {cwd: '/nonexistent/not-a-project'}},
           rules: {'mion/error': 'error', 'mion/runtime-error': 'error', 'mion/warning': 'warn', 'mion/info': 'warn'},
           ignorePatterns: ['node_modules/**'],
@@ -92,15 +92,15 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
     // Error findings must fail the commit gate.
     expect(exitCode).toBe(1);
     expect(stdout).toContain('mion(runtime-error)');
-    expect(stdout).toContain('[VL002]');
-    expect(stdout).toContain('[MRT001]');
-    expect(stdout).toMatch(/mion\(runtime-error\)[^\n]*\[SRV001\]/);
+    expect(stdout).toContain('[validate-symbol-root]');
+    expect(stdout).toContain('[rpc-handler-missing-return-type]');
+    expect(stdout).toMatch(/mion\(runtime-error\)[^\n]*\[rpc-client-imports-server-value\]/);
     expect(stdout).toContain('mion(warning)');
-    expect(stdout).toContain('[FT020]');
-    expect(stdout).toContain('[FT002]');
-    // VL011 is Info, shown only because the config above turns mion/info on.
+    expect(stdout).toContain('[enrich-text-todo-left]');
+    expect(stdout).toContain('[enrich-text-unknown-field]');
+    // validate-method-dropped is Info, shown only because the config above turns mion/info on.
     expect(stdout).toContain('mion(info)');
-    expect(stdout).toContain('[VL011]');
+    expect(stdout).toContain('[validate-method-dropped]');
     // The engine itself must not have failed.
     expect(stdout).not.toContain('resolver failed');
     expect(stdout).not.toContain('resolver unavailable');
@@ -125,7 +125,7 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
 
     // Pointed at the real binary the run behaves exactly like the baseline above.
     const honoured = await runOxlint(BIN);
-    expect(honoured.stdout).toContain('[VL011]');
+    expect(honoured.stdout).toContain('[validate-method-dropped]');
     expect(honoured.stdout).not.toContain('resolver failed');
 
     // Pointed at a path that isn't there, the launcher's own error reaches the
@@ -163,13 +163,13 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
 
     // The real binary from the config alone: findings, no engine failure.
     const configured = await runWithSettings(BIN);
-    expect(configured.stdout).toContain('[VL011]');
+    expect(configured.stdout).toContain('[validate-method-dropped]');
     expect(configured.stdout).not.toContain('resolver failed');
 
     // Config wins over the env var: a bogus MION_BIN alongside a good setting must
     // NOT break the run (if MION_BIN won, the launcher would throw).
     const configBeatsEnv = await runWithSettings(BIN, '/nonexistent/rt-bin-loser');
-    expect(configBeatsEnv.stdout).toContain('[VL011]');
+    expect(configBeatsEnv.stdout).toContain('[validate-method-dropped]');
     expect(configBeatsEnv.stdout).not.toContain('rt-bin-loser');
 
     // And a bad configured path fails loudly, naming the setting rather than
@@ -231,21 +231,25 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
     // Error findings fail the run; the engine ran.
     expect(exitCode).toBe(1);
     expect(
-      diagnostics.some((diagnostic) => diagnostic.code === 'mion(runtime-error)' && diagnostic.message.includes('[VL002]'))
+      diagnostics.some(
+        (diagnostic) => diagnostic.code === 'mion(runtime-error)' && diagnostic.message.includes('[validate-symbol-root]')
+      )
     ).toBe(true);
-    expect(diagnostics.some((diagnostic) => diagnostic.code === 'mion(warning)' && diagnostic.message.includes('[FT020]'))).toBe(
-      true
-    );
+    expect(
+      diagnostics.some(
+        (diagnostic) => diagnostic.code === 'mion(warning)' && diagnostic.message.includes('[enrich-text-todo-left]')
+      )
+    ).toBe(true);
     expect(stdout).not.toContain('resolver failed');
-    // The Info-level VL011 method drop is hidden by default.
-    expect(diagnostics.some((diagnostic) => diagnostic.message.includes('[VL011]'))).toBe(false);
+    // The Info-level validate-method-dropped method drop is hidden by default.
+    expect(diagnostics.some((diagnostic) => diagnostic.message.includes('[validate-method-dropped]'))).toBe(false);
     // A `@mion-downgrade-error` line reports as a WARNING under mion/warning, like the build prints it.
     expect(diagnostics.filter((diagnostic) => diagnostic.filename === 'lowered.ts')).toEqual([
       expect.objectContaining({
         code: 'mion(warning)',
         severity: 'warning',
         labels: [expect.objectContaining({span: expect.objectContaining({line: 4})})],
-        message: expect.stringMatching(/^\[VL002\] .*\(downgraded\)$/),
+        message: expect.stringMatching(/^\[validate-symbol-root\] .*\(downgraded\)$/),
       }),
     ]);
   });
@@ -256,7 +260,7 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
       expect.objectContaining({
         code: 'mion(info)',
         severity: 'warning',
-        message: expect.stringContaining('[VL011]'),
+        message: expect.stringContaining('[validate-method-dropped]'),
       }),
     ]);
     expect(stdout).not.toContain('resolver failed');
@@ -264,7 +268,7 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
 });
 
 // Only this run proves `settings.mion.tsconfig` flows from an ACTUAL .oxlintrc.json to the resolver's --tsconfig,
-// so a cross-package type behind a `source` export condition resolves with no false MKR007.
+// so a cross-package type behind a `source` export condition resolves with no false marker-any-from-unresolved-import.
 describe.runIf(ready)('oxlint tsconfig resolution end to end (settings.mion.tsconfig)', () => {
   let project: FixtureProject;
 
@@ -334,23 +338,27 @@ describe.runIf(ready)('oxlint tsconfig resolution end to end (settings.mion.tsco
     }
   };
 
-  it('settings.mion.tsconfig resolves a source-condition cross-package marker (no MKR007)', {timeout: 120_000}, async () => {
-    const {stdout, exitCode} = await runOxlint('.oxlintrc.source.json');
-    expect(stdout).not.toContain('resolver failed');
-    expect(stdout).not.toContain('resolver unavailable');
-    expect(stdout).not.toContain('mion(runtime-error)');
-    expect(stdout).not.toContain('MKR007');
-    expect(exitCode).toBe(0);
-  });
+  it(
+    'settings.mion.tsconfig resolves a source-condition cross-package marker (no marker-any-from-unresolved-import)',
+    {timeout: 120_000},
+    async () => {
+      const {stdout, exitCode} = await runOxlint('.oxlintrc.source.json');
+      expect(stdout).not.toContain('resolver failed');
+      expect(stdout).not.toContain('resolver unavailable');
+      expect(stdout).not.toContain('mion(runtime-error)');
+      expect(stdout).not.toContain('marker-any-from-unresolved-import');
+      expect(exitCode).toBe(0);
+    }
+  );
 
   it(
-    'without the source condition the same fixture still flags MKR007 (proves the setting is the mechanism)',
+    'without the source condition the same fixture still flags marker-any-from-unresolved-import (proves the setting is the mechanism)',
     {timeout: 120_000},
     async () => {
       const {stdout, exitCode} = await runOxlint('.oxlintrc.default.json');
       expect(exitCode).toBe(1);
       expect(stdout).toContain('mion(runtime-error)');
-      expect(stdout).toContain('[MKR007]');
+      expect(stdout).toContain('[marker-any-from-unresolved-import]');
     }
   );
 });
@@ -361,7 +369,9 @@ describe.runIf(ready)('oxlint end to end with the tsconfig downgradeErrors key',
 
   beforeAll(() => {
     project = makeFixtureProject({
-      'tsconfig.json': JSON.stringify({compilerOptions: {strict: true, plugins: [{name: 'mion', downgradeErrors: ['VL002']}]}}),
+      'tsconfig.json': JSON.stringify({
+        compilerOptions: {strict: true, plugins: [{name: 'mion', downgradeErrors: ['validate-symbol-root']}]},
+      }),
       'symbol.ts':
         "import {createValidateFn, getRunTypeId} from '@mionjs/run-types';\n\n" +
         'export const isSymbol = createValidateFn<symbol>();\n' +
@@ -379,13 +389,13 @@ describe.runIf(ready)('oxlint end to end with the tsconfig downgradeErrors key',
 
   afterAll(() => project.cleanup());
 
-  it('reports a tsconfig-lowered VL002 as a downgraded warning, like the build', {timeout: 120_000}, async () => {
+  it('reports a tsconfig-lowered validate-symbol-root as a downgraded warning, like the build', {timeout: 120_000}, async () => {
     const {stdout, exitCode} = await execFileAsync(OXLINT, ['-c', '.oxlintrc.json', '.'], {cwd: project.dir}).then(
       ({stdout}) => ({stdout, exitCode: 0}),
       (error: {stdout?: string; code?: number}) => ({stdout: error.stdout ?? '', exitCode: error.code ?? 1})
     );
     expect(stdout).toContain('mion(warning)');
-    expect(stdout).toMatch(/\[VL002\].*\(downgraded\)/);
+    expect(stdout).toMatch(/\[validate-symbol-root\].*\(downgraded\)/);
     expect(stdout).not.toContain('mion(runtime-error)');
     expect(exitCode).toBe(0);
   });
@@ -442,12 +452,12 @@ describe.runIf(ready)('oxlint reports only the linted file findings', () => {
       (error: {stdout?: string}) => error.stdout ?? ''
     );
     return (JSON.parse(stdout) as {diagnostics: {message: string}[]}).diagnostics.map((diagnostic) =>
-      diagnostic.message.slice(0, 8)
+      diagnostic.message.slice(0, diagnostic.message.indexOf(']') + 1)
     );
   };
 
   it('keeps the override pair out of a lint of c.ts, and reports it when b.ts is linted', {timeout: 120_000}, async () => {
-    expect((await lintCodes('c.ts')).filter((code) => code.startsWith('[OVR'))).toEqual([]);
-    expect(await lintCodes('b.ts')).toContain('[OVR001]');
+    expect((await lintCodes('c.ts')).filter((code) => code.startsWith('[override-'))).toEqual([]);
+    expect(await lintCodes('b.ts')).toContain('[override-duplicate]');
   });
 });

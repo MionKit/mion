@@ -80,7 +80,7 @@ func findingCodes(findings []enrichment.Finding) []string {
 	return codes
 }
 
-func TestCheckFriendly_FT002UnknownField(t *testing.T) {
+func TestCheckFriendly_EnrichTextUnknownField(t *testing.T) {
 	rt := objectRT(map[string]*reflection.RunType{"name": stringRT()})
 	view := newFakeView().
 		obj("name", newFakeView().str("rt$label", "Name")).
@@ -88,24 +88,24 @@ func TestCheckFriendly_FT002UnknownField(t *testing.T) {
 
 	findings := enrichment.CheckFriendly(rt, view, nil)
 
-	var ft002 *enrichment.Finding
+	var enrichTextUnknownField *enrichment.Finding
 	for i := range findings {
-		if findings[i].Code == "FT002" {
-			ft002 = &findings[i]
+		if findings[i].Code == "enrich-text-unknown-field" {
+			enrichTextUnknownField = &findings[i]
 		}
 	}
-	if ft002 == nil {
-		t.Fatalf("expected FT002 for unknown field; got %v", findingCodes(findings))
+	if enrichTextUnknownField == nil {
+		t.Fatalf("expected enrich-text-unknown-field for unknown field; got %v", findingCodes(findings))
 	}
-	if ft002.Severity != enrichment.Error {
-		t.Errorf("FT002 severity = %v, want Error", ft002.Severity)
+	if enrichTextUnknownField.Severity != enrichment.Error {
+		t.Errorf("enrich-text-unknown-field severity = %v, want Error", enrichTextUnknownField.Severity)
 	}
-	if ft002.Path != "nope" {
-		t.Errorf("FT002 path = %q, want %q", ft002.Path, "nope")
+	if enrichTextUnknownField.Path != "nope" {
+		t.Errorf("enrich-text-unknown-field path = %q, want %q", enrichTextUnknownField.Path, "nope")
 	}
 }
 
-func TestCheckFriendly_FT005BadPlaceholder(t *testing.T) {
+func TestCheckFriendly_EnrichTextUnknownPlaceholderBadPlaceholder(t *testing.T) {
 	rt := objectRT(map[string]*reflection.RunType{"name": stringRT()})
 	view := newFakeView().obj("name", newFakeView().
 		obj("rt$errors", newFakeView().str("type", "must be a $[nope] for $[label]")))
@@ -113,18 +113,18 @@ func TestCheckFriendly_FT005BadPlaceholder(t *testing.T) {
 	findings := enrichment.CheckFriendly(rt, view, nil)
 
 	codes := findingCodes(findings)
-	if !contains(codes, "FT005") {
-		t.Fatalf("expected FT005 for bad placeholder; got %v", codes)
+	if !contains(codes, "enrich-text-unknown-placeholder") {
+		t.Fatalf("expected enrich-text-unknown-placeholder for bad placeholder; got %v", codes)
 	}
-	// `$[label]` is valid — exactly one FT005 (for `$[nope]`).
+	// `$[label]` is valid — exactly one enrich-text-unknown-placeholder (for `$[nope]`).
 	count := 0
 	for _, code := range codes {
-		if code == "FT005" {
+		if code == "enrich-text-unknown-placeholder" {
 			count++
 		}
 	}
 	if count != 1 {
-		t.Errorf("FT005 count = %d, want 1 (only $[nope] is bad)", count)
+		t.Errorf("enrich-text-unknown-placeholder count = %d, want 1 (only $[nope] is bad)", count)
 	}
 }
 
@@ -143,7 +143,7 @@ func TestCheckFriendly_Clean(t *testing.T) {
 	}
 }
 
-func TestCheckFriendly_FT003UnknownConstraint(t *testing.T) {
+func TestCheckFriendly_EnrichTextUnknownErrorKeyUnknownConstraint(t *testing.T) {
 	// A string field branded with a FormatString carrying a minLength param —
 	// `type`, `rt$default`, and `minLength` are the only valid rt$errors keys.
 	formatted := &reflection.RunType{
@@ -158,32 +158,32 @@ func TestCheckFriendly_FT003UnknownConstraint(t *testing.T) {
 		obj("rt$errors", newFakeView().
 			str("type", "bad type").
 			str("minLength", "too short"). // declared constraint — OK
-			str("maxLength", "too long"))) // NOT declared — FT003
+			str("maxLength", "too long"))) // NOT declared — enrich-text-unknown-error-key
 
 	findings := enrichment.CheckFriendly(rt, view, nil)
 
-	var ft003 []enrichment.Finding
+	var enrichTextUnknownErrorKey []enrichment.Finding
 	for _, finding := range findings {
-		if finding.Code == "FT003" {
-			ft003 = append(ft003, finding)
+		if finding.Code == "enrich-text-unknown-error-key" {
+			enrichTextUnknownErrorKey = append(enrichTextUnknownErrorKey, finding)
 		}
 	}
-	if len(ft003) != 1 {
-		t.Fatalf("expected exactly one FT003 (maxLength); got %v", findings)
+	if len(enrichTextUnknownErrorKey) != 1 {
+		t.Fatalf("expected exactly one enrich-text-unknown-error-key (maxLength); got %v", findings)
 	}
-	if ft003[0].Severity != enrichment.Warning {
-		t.Errorf("FT003 severity = %v, want Warning", ft003[0].Severity)
+	if enrichTextUnknownErrorKey[0].Severity != enrichment.Warning {
+		t.Errorf("enrich-text-unknown-error-key severity = %v, want Warning", enrichTextUnknownErrorKey[0].Severity)
 	}
-	if ft003[0].Path != "code.rt$errors.maxLength" {
-		t.Errorf("FT003 path = %q, want %q", ft003[0].Path, "code.rt$errors.maxLength")
+	if enrichTextUnknownErrorKey[0].Path != "code.rt$errors.maxLength" {
+		t.Errorf("enrich-text-unknown-error-key path = %q, want %q", enrichTextUnknownErrorKey[0].Path, "code.rt$errors.maxLength")
 	}
 }
 
-// TestCheckFriendly_FT003PresentationParam pins the presentation-param carve
+// TestCheckFriendly_EnrichTextUnknownErrorKeyPresentationParam pins the presentation-param carve
 // out: `isCurrency` is the one number param with NO failable constraint, so it
-// never becomes a valid `rt$errors` key — authoring one is flagged FT003 exactly
+// never becomes a valid `rt$errors` key — authoring one is flagged enrich-text-unknown-error-key exactly
 // like any other undeclared constraint.
-func TestCheckFriendly_FT003PresentationParam(t *testing.T) {
+func TestCheckFriendly_EnrichTextUnknownErrorKeyPresentationParam(t *testing.T) {
 	formatted := &reflection.RunType{
 		Kind: reflection.KindNumber,
 		FormatAnnotation: &reflection.FormatAnnotation{
@@ -196,26 +196,26 @@ func TestCheckFriendly_FT003PresentationParam(t *testing.T) {
 		obj("rt$errors", newFakeView().
 			str("type", "bad type").
 			str("max", "too much").          // declared constraint — OK
-			str("isCurrency", "not money"))) // presentation metadata — FT003
+			str("isCurrency", "not money"))) // presentation metadata — enrich-text-unknown-error-key
 
 	findings := enrichment.CheckFriendly(rt, view, nil)
-	var ft003 []enrichment.Finding
+	var enrichTextUnknownErrorKey []enrichment.Finding
 	for _, finding := range findings {
-		if finding.Code == "FT003" {
-			ft003 = append(ft003, finding)
+		if finding.Code == "enrich-text-unknown-error-key" {
+			enrichTextUnknownErrorKey = append(enrichTextUnknownErrorKey, finding)
 		}
 	}
-	if len(ft003) != 1 {
-		t.Fatalf("expected exactly one FT003 (isCurrency); got %v", findings)
+	if len(enrichTextUnknownErrorKey) != 1 {
+		t.Fatalf("expected exactly one enrich-text-unknown-error-key (isCurrency); got %v", findings)
 	}
-	if ft003[0].Path != "price.rt$errors.isCurrency" {
-		t.Errorf("FT003 path = %q, want %q", ft003[0].Path, "price.rt$errors.isCurrency")
+	if enrichTextUnknownErrorKey[0].Path != "price.rt$errors.isCurrency" {
+		t.Errorf("enrich-text-unknown-error-key path = %q, want %q", enrichTextUnknownErrorKey[0].Path, "price.rt$errors.isCurrency")
 	}
 }
 
 func TestCheckFriendly_FunctionFormErrorsSkipped(t *testing.T) {
 	// A function-form `rt$errors` is not an object literal, so Child("rt$errors")
-	// returns nil and FT003/FT005 are skipped — no findings for the field.
+	// returns nil and enrich-text-unknown-error-key/enrich-text-unknown-placeholder are skipped — no findings for the field.
 	rt := objectRT(map[string]*reflection.RunType{"name": stringRT()})
 	view := newFakeView().obj("name", newFakeView().str("rt$errors", "(failed) => 'x'"))
 
@@ -225,7 +225,7 @@ func TestCheckFriendly_FunctionFormErrorsSkipped(t *testing.T) {
 	}
 }
 
-func TestCheckMock_MD001UnknownField(t *testing.T) {
+func TestCheckMock_EnrichMockUnknownField(t *testing.T) {
 	rt := objectRT(map[string]*reflection.RunType{"name": stringRT()})
 	view := newFakeView().
 		obj("name", newFakeView().str("pool", "ignored")).
@@ -233,20 +233,20 @@ func TestCheckMock_MD001UnknownField(t *testing.T) {
 
 	findings := enrichment.CheckMock(rt, view, nil)
 
-	var md001 *enrichment.Finding
+	var enrichMockUnknownField *enrichment.Finding
 	for i := range findings {
-		if findings[i].Code == "MD001" {
-			md001 = &findings[i]
+		if findings[i].Code == "enrich-mock-unknown-field" {
+			enrichMockUnknownField = &findings[i]
 		}
 	}
-	if md001 == nil {
-		t.Fatalf("expected MD001 for unknown mock field; got %v", findingCodes(findings))
+	if enrichMockUnknownField == nil {
+		t.Fatalf("expected enrich-mock-unknown-field for unknown mock field; got %v", findingCodes(findings))
 	}
-	if md001.Severity != enrichment.Error {
-		t.Errorf("MD001 severity = %v, want Error", md001.Severity)
+	if enrichMockUnknownField.Severity != enrichment.Error {
+		t.Errorf("enrich-mock-unknown-field severity = %v, want Error", enrichMockUnknownField.Severity)
 	}
-	if md001.Path != "ghost" {
-		t.Errorf("MD001 path = %q, want %q", md001.Path, "ghost")
+	if enrichMockUnknownField.Path != "ghost" {
+		t.Errorf("enrich-mock-unknown-field path = %q, want %q", enrichMockUnknownField.Path, "ghost")
 	}
 }
 
@@ -265,7 +265,7 @@ func TestCheckMock_MetaKeysNotFlagged(t *testing.T) {
 }
 
 func TestCheckFriendly_NestedAndArray(t *testing.T) {
-	// Nested object + array element: an unknown key at depth flags FT002 with a
+	// Nested object + array element: an unknown key at depth flags enrich-text-unknown-field with a
 	// dotted path through `rt$items`.
 	inner := objectRT(map[string]*reflection.RunType{"city": stringRT()})
 	addresses := &reflection.RunType{Kind: reflection.KindArray, Child: inner}
@@ -277,24 +277,24 @@ func TestCheckFriendly_NestedAndArray(t *testing.T) {
 			obj("zip", newFakeView().str("rt$label", "Zip")))) // zip not a property
 
 	findings := enrichment.CheckFriendly(rt, view, nil)
-	var ft002 *enrichment.Finding
+	var enrichTextUnknownField *enrichment.Finding
 	for i := range findings {
-		if findings[i].Code == "FT002" {
-			ft002 = &findings[i]
+		if findings[i].Code == "enrich-text-unknown-field" {
+			enrichTextUnknownField = &findings[i]
 		}
 	}
-	if ft002 == nil {
-		t.Fatalf("expected FT002 in nested array element; got %v", findingCodes(findings))
+	if enrichTextUnknownField == nil {
+		t.Fatalf("expected enrich-text-unknown-field in nested array element; got %v", findingCodes(findings))
 	}
-	if ft002.Path != "addresses.rt$items.zip" {
-		t.Errorf("FT002 path = %q, want %q", ft002.Path, "addresses.rt$items.zip")
+	if enrichTextUnknownField.Path != "addresses.rt$items.zip" {
+		t.Errorf("enrich-text-unknown-field path = %q, want %q", enrichTextUnknownField.Path, "addresses.rt$items.zip")
 	}
 }
 
 func TestCheckFriendly_NestedObjectErrorsNotDoubled(t *testing.T) {
 	// A nested-OBJECT field's own `rt$errors` must be checked exactly once — not
 	// once by the parent and again when the object node is walked. One bad
-	// placeholder in profile.rt$errors must yield exactly one FT005, never two.
+	// placeholder in profile.rt$errors must yield exactly one enrich-text-unknown-placeholder, never two.
 	inner := objectRT(map[string]*reflection.RunType{"email": stringRT()})
 	rt := objectRT(map[string]*reflection.RunType{"profile": inner})
 
@@ -305,12 +305,12 @@ func TestCheckFriendly_NestedObjectErrorsNotDoubled(t *testing.T) {
 	findings := enrichment.CheckFriendly(rt, view, nil)
 	count := 0
 	for _, finding := range findings {
-		if finding.Code == "FT005" {
+		if finding.Code == "enrich-text-unknown-placeholder" {
 			count++
 		}
 	}
 	if count != 1 {
-		t.Fatalf("nested-object rt$errors should yield exactly one FT005, got %d: %v", count, findings)
+		t.Fatalf("nested-object rt$errors should yield exactly one enrich-text-unknown-placeholder, got %d: %v", count, findings)
 	}
 }
 
@@ -340,31 +340,31 @@ func TestCheckFriendly_PluralLeafClean(t *testing.T) {
 	}
 }
 
-func TestCheckFriendly_FT006MissingOther(t *testing.T) {
+func TestCheckFriendly_EnrichTextPluralMissingOther(t *testing.T) {
 	rt := objectRT(map[string]*reflection.RunType{"name": formatStringRT(map[string]any{"minLength": 2})})
 	view := newFakeView().obj("name", newFakeView().
 		obj("rt$errors", newFakeView().
 			obj("minLength", newFakeView().str("one", "at least $[val]"))))
 
 	findings := enrichment.CheckFriendly(rt, view, nil)
-	var ft006 *enrichment.Finding
+	var enrichTextPluralMissingOther *enrichment.Finding
 	for i := range findings {
-		if findings[i].Code == "FT006" {
-			ft006 = &findings[i]
+		if findings[i].Code == "enrich-text-plural-missing-other" {
+			enrichTextPluralMissingOther = &findings[i]
 		}
 	}
-	if ft006 == nil {
-		t.Fatalf("expected FT006 for a plural without `other`; got %v", findingCodes(findings))
+	if enrichTextPluralMissingOther == nil {
+		t.Fatalf("expected enrich-text-plural-missing-other for a plural without `other`; got %v", findingCodes(findings))
 	}
-	if ft006.Severity != enrichment.Error {
-		t.Errorf("FT006 severity = %v, want Error", ft006.Severity)
+	if enrichTextPluralMissingOther.Severity != enrichment.Error {
+		t.Errorf("enrich-text-plural-missing-other severity = %v, want Error", enrichTextPluralMissingOther.Severity)
 	}
-	if ft006.Path != "name.rt$errors.minLength" {
-		t.Errorf("FT006 path = %q, want %q", ft006.Path, "name.rt$errors.minLength")
+	if enrichTextPluralMissingOther.Path != "name.rt$errors.minLength" {
+		t.Errorf("enrich-text-plural-missing-other path = %q, want %q", enrichTextPluralMissingOther.Path, "name.rt$errors.minLength")
 	}
 }
 
-func TestCheckFriendly_FT007UnknownArm(t *testing.T) {
+func TestCheckFriendly_EnrichTextUnknownPluralArm(t *testing.T) {
 	rt := objectRT(map[string]*reflection.RunType{"name": formatStringRT(map[string]any{"minLength": 2})})
 	view := newFakeView().obj("name", newFakeView().
 		obj("rt$errors", newFakeView().
@@ -373,24 +373,24 @@ func TestCheckFriendly_FT007UnknownArm(t *testing.T) {
 				str("lots", "way too many")))) // not a CLDR category
 
 	findings := enrichment.CheckFriendly(rt, view, nil)
-	var ft007 *enrichment.Finding
+	var enrichTextUnknownPluralArm *enrichment.Finding
 	for i := range findings {
-		if findings[i].Code == "FT007" {
-			ft007 = &findings[i]
+		if findings[i].Code == "enrich-text-unknown-plural-arm" {
+			enrichTextUnknownPluralArm = &findings[i]
 		}
 	}
-	if ft007 == nil {
-		t.Fatalf("expected FT007 for a non-CLDR arm; got %v", findingCodes(findings))
+	if enrichTextUnknownPluralArm == nil {
+		t.Fatalf("expected enrich-text-unknown-plural-arm for a non-CLDR arm; got %v", findingCodes(findings))
 	}
-	if ft007.Severity != enrichment.Warning {
-		t.Errorf("FT007 severity = %v, want Warning", ft007.Severity)
+	if enrichTextUnknownPluralArm.Severity != enrichment.Warning {
+		t.Errorf("enrich-text-unknown-plural-arm severity = %v, want Warning", enrichTextUnknownPluralArm.Severity)
 	}
-	if ft007.Path != "name.rt$errors.minLength.lots" {
-		t.Errorf("FT007 path = %q, want %q", ft007.Path, "name.rt$errors.minLength.lots")
+	if enrichTextUnknownPluralArm.Path != "name.rt$errors.minLength.lots" {
+		t.Errorf("enrich-text-unknown-plural-arm path = %q, want %q", enrichTextUnknownPluralArm.Path, "name.rt$errors.minLength.lots")
 	}
 }
 
-func TestCheckFriendly_FT008PluralOnNonCountBearing(t *testing.T) {
+func TestCheckFriendly_EnrichTextPluralWithoutCountPluralOnNonCountBearing(t *testing.T) {
 	// `pattern` carries no count: a plural object there has dead arms.
 	rt := objectRT(map[string]*reflection.RunType{"email": formatStringRT(map[string]any{"pattern": "x"})})
 	view := newFakeView().obj("email", newFakeView().
@@ -398,21 +398,21 @@ func TestCheckFriendly_FT008PluralOnNonCountBearing(t *testing.T) {
 			obj("pattern", newFakeView().str("one", "x").str("other", "y"))))
 
 	findings := enrichment.CheckFriendly(rt, view, nil)
-	var ft008 *enrichment.Finding
+	var enrichTextPluralWithoutCount *enrichment.Finding
 	for i := range findings {
-		if findings[i].Code == "FT008" {
-			ft008 = &findings[i]
+		if findings[i].Code == "enrich-text-plural-without-count" {
+			enrichTextPluralWithoutCount = &findings[i]
 		}
 	}
-	if ft008 == nil {
-		t.Fatalf("expected FT008 for a plural on a non-count-bearing constraint; got %v", findingCodes(findings))
+	if enrichTextPluralWithoutCount == nil {
+		t.Fatalf("expected enrich-text-plural-without-count for a plural on a non-count-bearing constraint; got %v", findingCodes(findings))
 	}
-	if ft008.Severity != enrichment.Info {
-		t.Errorf("FT008 severity = %v, want Info (advice, the catalog level)", ft008.Severity)
+	if enrichTextPluralWithoutCount.Severity != enrichment.Info {
+		t.Errorf("enrich-text-plural-without-count severity = %v, want Info (advice, the catalog level)", enrichTextPluralWithoutCount.Severity)
 	}
 }
 
-func TestCheckFriendly_FT005InsidePluralArm(t *testing.T) {
+func TestCheckFriendly_EnrichTextUnknownPlaceholderInsidePluralArm(t *testing.T) {
 	rt := objectRT(map[string]*reflection.RunType{"name": formatStringRT(map[string]any{"minLength": 2})})
 	view := newFakeView().obj("name", newFakeView().
 		obj("rt$errors", newFakeView().
@@ -421,21 +421,21 @@ func TestCheckFriendly_FT005InsidePluralArm(t *testing.T) {
 				str("other", "fine $[val]"))))
 
 	findings := enrichment.CheckFriendly(rt, view, nil)
-	var ft005 []enrichment.Finding
+	var enrichTextUnknownPlaceholder []enrichment.Finding
 	for _, finding := range findings {
-		if finding.Code == "FT005" {
-			ft005 = append(ft005, finding)
+		if finding.Code == "enrich-text-unknown-placeholder" {
+			enrichTextUnknownPlaceholder = append(enrichTextUnknownPlaceholder, finding)
 		}
 	}
-	if len(ft005) != 1 {
-		t.Fatalf("expected exactly one FT005 inside the plural arm; got %v", findings)
+	if len(enrichTextUnknownPlaceholder) != 1 {
+		t.Fatalf("expected exactly one enrich-text-unknown-placeholder inside the plural arm; got %v", findings)
 	}
-	if ft005[0].Path != "name.rt$errors.minLength.one" {
-		t.Errorf("FT005 path = %q, want %q", ft005[0].Path, "name.rt$errors.minLength.one")
+	if enrichTextUnknownPlaceholder[0].Path != "name.rt$errors.minLength.one" {
+		t.Errorf("enrich-text-unknown-placeholder path = %q, want %q", enrichTextUnknownPlaceholder[0].Path, "name.rt$errors.minLength.one")
 	}
 }
 
-func TestCheckFriendly_FT005ColonTokens(t *testing.T) {
+func TestCheckFriendly_EnrichTextUnknownPlaceholderColonTokens(t *testing.T) {
 	// A colon inside a token makes it unknown; a literal colon in prose (`ratio 3:1`) never trips.
 	rt := objectRT(map[string]*reflection.RunType{"price": formatStringRT(map[string]any{"max": 100})})
 	view := newFakeView().obj("price", newFakeView().
@@ -444,18 +444,18 @@ func TestCheckFriendly_FT005ColonTokens(t *testing.T) {
 			str("max", "bad $[label:number:currency] and $[val:nope:x], plain $[val] fine")))
 
 	findings := enrichment.CheckFriendly(rt, view, nil)
-	var ft005 []enrichment.Finding
+	var enrichTextUnknownPlaceholder []enrichment.Finding
 	for _, finding := range findings {
-		if finding.Code == "FT005" {
-			ft005 = append(ft005, finding)
+		if finding.Code == "enrich-text-unknown-placeholder" {
+			enrichTextUnknownPlaceholder = append(enrichTextUnknownPlaceholder, finding)
 		}
 	}
-	if len(ft005) != 3 {
-		t.Fatalf("expected three FT005 (every colon token), got %v", findings)
+	if len(enrichTextUnknownPlaceholder) != 3 {
+		t.Fatalf("expected three enrich-text-unknown-placeholder (every colon token), got %v", findings)
 	}
-	for _, finding := range ft005 {
+	for _, finding := range enrichTextUnknownPlaceholder {
 		if !strings.Contains(finding.Message, "unknown placeholder") {
-			t.Errorf("FT005 message should name an unknown placeholder; got %q", finding.Message)
+			t.Errorf("enrich-text-unknown-placeholder message should name an unknown placeholder; got %q", finding.Message)
 		}
 	}
 }
@@ -469,7 +469,7 @@ func contains(haystack []string, needle string) bool {
 	return false
 }
 
-func TestCheckFriendly_FT011ReservedProperty(t *testing.T) {
+func TestCheckFriendly_EnrichTextReservedPrefix(t *testing.T) {
 	// A source-type property named rt$… collides with the reserved enrichment
 	// meta prefix — Error, whatever the authored literal looks like.
 	rt := objectRT(map[string]*reflection.RunType{"rt$label": stringRT(), "name": stringRT()})
@@ -477,24 +477,24 @@ func TestCheckFriendly_FT011ReservedProperty(t *testing.T) {
 
 	findings := enrichment.CheckFriendly(rt, view, nil)
 
-	var ft011 *enrichment.Finding
+	var enrichTextReservedPrefix *enrichment.Finding
 	for i := range findings {
-		if findings[i].Code == "FT011" {
-			ft011 = &findings[i]
+		if findings[i].Code == "enrich-text-reserved-prefix" {
+			enrichTextReservedPrefix = &findings[i]
 		}
 	}
-	if ft011 == nil {
-		t.Fatalf("expected FT011 for reserved property; got %v", findingCodes(findings))
+	if enrichTextReservedPrefix == nil {
+		t.Fatalf("expected enrich-text-reserved-prefix for reserved property; got %v", findingCodes(findings))
 	}
-	if ft011.Severity != enrichment.Error {
-		t.Errorf("FT011 severity = %v, want Error", ft011.Severity)
+	if enrichTextReservedPrefix.Severity != enrichment.Error {
+		t.Errorf("enrich-text-reserved-prefix severity = %v, want Error", enrichTextReservedPrefix.Severity)
 	}
-	if ft011.Path != "rt$label" {
-		t.Errorf("FT011 path = %q, want %q", ft011.Path, "rt$label")
+	if enrichTextReservedPrefix.Path != "rt$label" {
+		t.Errorf("enrich-text-reserved-prefix path = %q, want %q", enrichTextReservedPrefix.Path, "rt$label")
 	}
 }
 
-func TestCheckMock_MD011ReservedProperty(t *testing.T) {
+func TestCheckMock_EnrichMockReservedPrefix(t *testing.T) {
 	rt := objectRT(map[string]*reflection.RunType{"rt$optional": stringRT()})
 	view := newFakeView()
 
@@ -502,25 +502,25 @@ func TestCheckMock_MD011ReservedProperty(t *testing.T) {
 
 	found := false
 	for _, finding := range findings {
-		if finding.Code == "MD011" && finding.Severity == enrichment.Error && finding.Path == "rt$optional" {
+		if finding.Code == "enrich-mock-reserved-prefix" && finding.Severity == enrichment.Error && finding.Path == "rt$optional" {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatalf("expected MD011 Error at rt$optional; got %v", findingCodes(findings))
+		t.Fatalf("expected enrich-mock-reserved-prefix Error at rt$optional; got %v", findingCodes(findings))
 	}
 }
 
 func TestCheckFriendly_PlainDollarPropertyIsOrdinaryField(t *testing.T) {
 	// The bare `$` prefix is NOT reserved: a property named $label is an
-	// ordinary child field — addressable, no FT002/FT011.
+	// ordinary child field — addressable, no enrich-text-unknown-field/enrich-text-reserved-prefix.
 	rt := objectRT(map[string]*reflection.RunType{"$label": stringRT()})
 	view := newFakeView().obj("$label", newFakeView().str("rt$label", "Dollar label"))
 
 	findings := enrichment.CheckFriendly(rt, view, nil)
 
 	for _, finding := range findings {
-		if finding.Code == "FT002" || finding.Code == "FT011" {
+		if finding.Code == "enrich-text-unknown-field" || finding.Code == "enrich-text-reserved-prefix" {
 			t.Fatalf("a plain $-property must be an ordinary field; got %s at %s", finding.Code, finding.Path)
 		}
 	}
@@ -542,8 +542,8 @@ func TestReservedPropertyCollisions_NestedPaths(t *testing.T) {
 	}
 }
 
-// TestCheckFriendly_FT003NeverFailingParam: a param with no error (separators, float) is no valid key.
-func TestCheckFriendly_FT003NeverFailingParam(t *testing.T) {
+// TestCheckFriendly_EnrichTextUnknownErrorKeyNeverFailingParam: a param with no error (separators, float) is no valid key.
+func TestCheckFriendly_EnrichTextUnknownErrorKeyNeverFailingParam(t *testing.T) {
 	cases := map[string]*reflection.RunType{
 		"separators": {Kind: reflection.KindString, FormatAnnotation: &reflection.FormatAnnotation{Name: "creditCard", Params: map[string]any{"separators": " -"}}},
 		"float":      {Kind: reflection.KindNumber, FormatAnnotation: &reflection.FormatAnnotation{Name: "numberFormat", Params: map[string]any{"float": true}}},
@@ -552,15 +552,15 @@ func TestCheckFriendly_FT003NeverFailingParam(t *testing.T) {
 		t.Run(key, func(t *testing.T) {
 			rt := objectRT(map[string]*reflection.RunType{"field": field})
 			view := newFakeView().obj("field", newFakeView().obj("rt$errors", newFakeView().str("type", "bad").str(key, "never shown")))
-			if !hasFinding(enrichment.CheckFriendly(rt, view, nil), "FT003", "field.rt$errors."+key) {
-				t.Fatalf("expected FT003 on %s", key)
+			if !hasFinding(enrichment.CheckFriendly(rt, view, nil), "enrich-text-unknown-error-key", "field.rt$errors."+key) {
+				t.Fatalf("expected enrich-text-unknown-error-key on %s", key)
 			}
 		})
 	}
 }
 
-// TestCheckFriendly_FT012MissingKey: a missing key the field can fail on warns, unless rt$default is used.
-func TestCheckFriendly_FT012MissingKey(t *testing.T) {
+// TestCheckFriendly_EnrichTextMissingMessageMissingKey: a missing key the field can fail on warns, unless rt$default is used.
+func TestCheckFriendly_EnrichTextMissingMessageMissingKey(t *testing.T) {
 	field := &reflection.RunType{Kind: reflection.KindNumber, FormatAnnotation: &reflection.FormatAnnotation{Name: "numberFormat", Params: map[string]any{"min": 0.0, "max": 10.0}}}
 	rt := objectRT(map[string]*reflection.RunType{"age": field})
 
@@ -568,20 +568,20 @@ func TestCheckFriendly_FT012MissingKey(t *testing.T) {
 	findings := enrichment.CheckFriendly(rt, partial, nil)
 	var missing []string
 	for _, finding := range findings {
-		if finding.Code == "FT012" {
+		if finding.Code == "enrich-text-missing-message" {
 			missing = append(missing, finding.Args...)
 			if finding.Severity != enrichment.Warning || finding.Path != "age.rt$errors" {
-				t.Errorf("FT012 = %+v, want a Warning at age.rt$errors", finding)
+				t.Errorf("enrich-text-missing-message = %+v, want a Warning at age.rt$errors", finding)
 			}
 		}
 	}
 	if len(missing) != 1 || missing[0] != "max" {
-		t.Fatalf("FT012 keys = %v, want [max]; findings %v", missing, findings)
+		t.Fatalf("enrich-text-missing-message keys = %v, want [max]; findings %v", missing, findings)
 	}
 
 	catchAll := newFakeView().obj("age", newFakeView().obj("rt$errors", newFakeView().str("rt$default", "invalid age")))
-	if hasFinding(enrichment.CheckFriendly(rt, catchAll, nil), "FT012", "age.rt$errors") {
-		t.Fatal("rt$default covers every key, so no FT012")
+	if hasFinding(enrichment.CheckFriendly(rt, catchAll, nil), "enrich-text-missing-message", "age.rt$errors") {
+		t.Fatal("rt$default covers every key, so no enrich-text-missing-message")
 	}
 }
 

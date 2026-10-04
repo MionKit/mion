@@ -11,10 +11,15 @@ import type {EnrichCase} from './cases/types.ts';
 
 afterAll(() => cleanupTempDir('no-emit'));
 
-// Completeness codes — an unfilled @todo (FT020/MD020) or a blank scaffold value
-// (FT023/MD023). This suite's spans use blank placeholders, so these are expected;
+// Completeness codes — an unfilled @todo (enrich-text-todo-left/enrich-mock-todo-left) or a blank scaffold value
+// (enrich-text-blank-value/enrich-mock-blank-value). This suite's spans use blank placeholders, so these are expected;
 // they are gated by `--require-complete`, orthogonal to the content checks here.
-const COMPLETENESS_CODES = new Set(['FT020', 'MD020', 'FT023', 'MD023']);
+const COMPLETENESS_CODES = new Set([
+  'enrich-text-todo-left',
+  'enrich-mock-todo-left',
+  'enrich-text-blank-value',
+  'enrich-mock-blank-value',
+]);
 
 for (const {constName, fileBase} of ENRICH_CATEGORIES) {
   const cases = ENRICH_CASES[constName as keyof typeof ENRICH_CASES] as Record<string, EnrichCase>;

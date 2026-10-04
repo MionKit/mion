@@ -37,7 +37,7 @@ void Model;
 // The acceptance is keyed on the parameter's OWN annotation. A plain `string`
 // parameter forwarded into a CompTimeArgs slot carries no such promise: nothing
 // checks it at the wrapper's call sites, so the value really would be lost and
-// it stays CTA001.
+// it stays marker-comptime-arg-not-literal.
 func TestCompTimeArgsForward_PlainParamRejected(t *testing.T) {
 	const code = `import * as TF from '@mionjs/run-types/formats';
 import * as RT from '@mionjs/run-types/builders';
@@ -48,7 +48,7 @@ export function withMax(opts: {maxLength: number}) {
 `
 	cta := scanFormatPatternCTA(t, code)
 	if len(cta) != 1 || cta[0].Code != diagnostics.CodeCompTimeArgsNonLiteral {
-		t.Fatalf("expected 1 CTA001 for a plain object parameter, got %d: %+v", len(cta), cta)
+		t.Fatalf("expected 1 marker-comptime-arg-not-literal for a plain object parameter, got %d: %+v", len(cta), cta)
 	}
 }
 
@@ -64,7 +64,7 @@ void Model;
 `
 	cta := scanFormatPatternCTA(t, code)
 	if len(cta) != 1 || cta[0].Code != diagnostics.CodeCompTimeArgsNonLiteral {
-		t.Fatalf("expected 1 CTA001 for a `let` binding, got %d: %+v", len(cta), cta)
+		t.Fatalf("expected 1 marker-comptime-arg-not-literal for a `let` binding, got %d: %+v", len(cta), cta)
 	}
 }
 

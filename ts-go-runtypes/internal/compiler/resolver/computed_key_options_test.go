@@ -48,10 +48,10 @@ export const reflectedId = getRunTypeId(sample);
 	for _, diagnostic := range response.Diagnostics {
 		if diagnostic.Code == diagnostics.CodeNonEnumerableRequiresOptional {
 			if len(diagnostic.Args) == 0 || diagnostic.Args[0] != "[tag]" {
-				t.Errorf("NE001 must name the computed key as written, got %v", diagnostic.Args)
+				t.Errorf("data-non-enumerable-required must name the computed key as written, got %v", diagnostic.Args)
 			}
 			return
 		}
 	}
-	t.Errorf("expected NE001 for a required @nonEnumerable member, got %+v", response.Diagnostics)
+	t.Errorf("expected data-non-enumerable-required for a required @nonEnumerable member, got %+v", response.Diagnostics)
 }

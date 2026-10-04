@@ -7,10 +7,10 @@
 // tests. buildStart surfaces ALL diagnostic families and halts on Error severity.
 //
 // A project blocked on a finding has two levers, and neither is a blanket:
-//   - `downgradeErrors: ['VL002']` reports those codes as warnings, still
+//   - `downgradeErrors: ['validate-symbol-root']` reports those codes as warnings, still
 //     printed, still visible, just no longer fatal. `'*'` is the wildcard, for
 //     adoption.
-//   - `// @mion-expect-error VL002` above a call site REMOVES that finding, and
+//   - `// @mion-expect-error validate-symbol-root` above a call site REMOVES that finding, and
 //     an unused one is itself an error. Preferred whenever the site is yours.
 //
 // Driven through the rollup entry's hooks with a Rollup-like ctx whose
@@ -55,12 +55,12 @@ const TSCONFIG_DOWNGRADE_SRC = JSON.stringify({
     strict: true,
     skipLibCheck: true,
     types: [],
-    plugins: [{name: 'mion', downgradeErrors: ['VL002']}],
+    plugins: [{name: 'mion', downgradeErrors: ['validate-symbol-root']}],
   },
   include: ['*.ts'],
 });
 
-// `createValidateFn<symbol>()` is a root-position non-validatable type → VL002,
+// `createValidateFn<symbol>()` is a root-position non-validatable type → validate-symbol-root,
 // SeverityError (the alwaysThrow lane). The healthy sites prove the halt is
 // about the ERROR, not the program shape — and pin the getRunTypeId pairing
 // (static form + value-inferred form on equivalent T).
@@ -75,7 +75,7 @@ export const goodReflected = getRunTypeId(sample);
 // call. The finding is REMOVED, not downgraded, so nothing prints at all — and
 // the healthy marker sites below it still resolve.
 const EXPECT_ERROR_SRC = `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
-// @mion-expect-error VL002
+// @mion-expect-error validate-symbol-root
 export const bad = createValidateFn<symbol>();
 export const goodStatic = getRunTypeId<{name: string}>();
 const sample = {name: 'Ada'};
@@ -83,10 +83,10 @@ export const goodReflected = getRunTypeId(sample);
 `;
 
 // A directive over a HEALTHY call: nothing was reported there, so the comment is
-// stale and EXP001 fires. This is the check that stops these comments outliving
+// stale and comment-expect-error-unused fires. This is the check that stops these comments outliving
 // the problem they were added for, and it is what a config list can never do.
 const STALE_EXPECT_SRC = `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
-// @mion-expect-error VL002
+// @mion-expect-error validate-symbol-root
 export const good = createValidateFn<{name: string}>();
 export const goodStatic = getRunTypeId<{name: string}>();
 const sample = {name: 'Ada'};
@@ -98,7 +98,7 @@ export const goodReflected = getRunTypeId(sample);
 // `(downgraded)` note; it just stops halting. That is what a deliberately broken
 // type wants: the finding is true and worth seeing.
 const DOWNGRADE_ERROR_SRC = `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
-// @mion-downgrade-error VL002
+// @mion-downgrade-error validate-symbol-root
 export const bad = createValidateFn<symbol>();
 export const goodStatic = getRunTypeId<{name: string}>();
 const sample = {name: 'Ada'};
@@ -106,9 +106,9 @@ export const goodReflected = getRunTypeId(sample);
 `;
 
 // A downgrade directive over a HEALTHY call: nothing was reported there, so the
-// comment is stale and DWN001 fires.
+// comment is stale and comment-downgrade-error-unused fires.
 const STALE_DOWNGRADE_SRC = `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
-// @mion-downgrade-error VL002
+// @mion-downgrade-error validate-symbol-root
 export const good = createValidateFn<{name: string}>();
 export const goodStatic = getRunTypeId<{name: string}>();
 const sample = {name: 'Ada'};
@@ -116,7 +116,7 @@ export const goodReflected = getRunTypeId(sample);
 `;
 
 // File scope: a block comment before any code covers every line; two bad calls, so one comment answers both.
-const FILE_EXPECT_SRC = `/* @mion-expect-error VL002 */
+const FILE_EXPECT_SRC = `/* @mion-expect-error validate-symbol-root */
 import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 export const firstBad = createValidateFn<symbol>();
 export const secondBad = createValidateFn<symbol>();
@@ -125,7 +125,7 @@ const sample = {name: 'Ada'};
 export const goodReflected = getRunTypeId(sample);
 `;
 
-const FILE_DOWNGRADE_SRC = `/* @mion-downgrade-error VL002 */
+const FILE_DOWNGRADE_SRC = `/* @mion-downgrade-error validate-symbol-root */
 import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 export const firstBad = createValidateFn<symbol>();
 export const secondBad = createValidateFn<symbol>();
@@ -134,8 +134,8 @@ const sample = {name: 'Ada'};
 export const goodReflected = getRunTypeId(sample);
 `;
 
-// Nothing here raises VL002, so the file directive is stale and reports the same way a line one does.
-const STALE_FILE_SRC = `/* @mion-expect-error VL002 */
+// Nothing here raises validate-symbol-root, so the file directive is stale and reports the same way a line one does.
+const STALE_FILE_SRC = `/* @mion-expect-error validate-symbol-root */
 import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 export const good = createValidateFn<{name: string}>();
 export const goodStatic = getRunTypeId<{name: string}>();
@@ -143,7 +143,7 @@ const sample = {name: 'Ada'};
 export const goodReflected = getRunTypeId(sample);
 `;
 
-// A function at a PROPERTY position drops with an Info (VL011), so the strict default must NOT halt on it.
+// A function at a PROPERTY position drops with an Info (validate-method-dropped), so the strict default must NOT halt on it.
 const WARNING_ENTRY_SRC = `import {createValidateFn} from '@mionjs/run-types';
 interface WithHandler {
   name: string;
@@ -153,14 +153,14 @@ export const isWithHandler = createValidateFn<WithHandler>();
 `;
 
 // An import the scan program can't resolve degrades the marker's T to \`any\`
-// (the silent always-true-validator trap) — MKR007, SeverityError, so the
+// (the silent always-true-validator trap) — marker-any-from-unresolved-import, SeverityError, so the
 // strict default halts the build naming the unresolved specifier.
 const UNRESOLVED_IMPORT_SRC = `import {User} from './missing-module';
 import {createValidateFn} from '@mionjs/run-types';
 export const isUser = createValidateFn<User>();
 `;
 
-// Two different types sharing one short type id — MKR014, SeverityError, so the
+// Two different types sharing one short type id — marker-type-id-collision, SeverityError, so the
 // build stops instead of naming two types' functions the same thing. Type ids
 // are exactly hashLength characters, and the first one is always a letter, so
 // hashLength 1 leaves 52 possible ids: a union of 60 string literals mints more
@@ -266,7 +266,7 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
       await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/build stopped on \d+ mion error/);
       // Every diagnostic surfaced BEFORE the halt so the log names the call site.
       const all = ctx.warnings.join('\n');
-      expect(all).toContain('error VL002');
+      expect(all).toContain('error validate-symbol-root');
       expect(all).toContain('entry.ts');
     } finally {
       await callHook(plugin.buildEnd, ctx);
@@ -280,9 +280,9 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
       await callHook(plugin.buildStart, ctx);
       const all = ctx.warnings.join('\n');
       // Downgraded, not hidden: the label flips and the note says why.
-      expect(all).toContain('warning VL002');
+      expect(all).toContain('warning validate-symbol-root');
       expect(all).toContain('(downgraded)');
-      expect(all).not.toContain('error VL002');
+      expect(all).not.toContain('error validate-symbol-root');
       // The transform still runs — the healthy sites inject; both getRunTypeId
       // call shapes resolve through the SAME entry module import.
       const transformed = (await callHook(plugin.transform, ctx, ERROR_ENTRY_SRC, path.join(ERROR_DIR, 'entry.ts'))) as {
@@ -296,24 +296,24 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
   });
 
   register('downgradeErrors names ONE code: that code stops halting, the rest do not', async () => {
-    const plugin = makePlugin(ERROR_DIR, {downgradeErrors: ['VL002']});
+    const plugin = makePlugin(ERROR_DIR, {downgradeErrors: ['validate-symbol-root']});
     const ctx = makeCtx();
     try {
       await callHook(plugin.buildStart, ctx);
-      expect(ctx.warnings.join('\n')).toContain('warning VL002');
+      expect(ctx.warnings.join('\n')).toContain('warning validate-symbol-root');
     } finally {
       await callHook(plugin.buildEnd, ctx);
     }
   });
 
   register('a code the list does not name still halts — this is the whole point', async () => {
-    // MKR007 is a different Error in a different program. Naming VL002 must not
+    // marker-any-from-unresolved-import is a different Error in a different program. Naming validate-symbol-root must not
     // buy amnesty for it.
-    const plugin = makePlugin(UNRESOLVED_DIR, {downgradeErrors: ['VL002']});
+    const plugin = makePlugin(UNRESOLVED_DIR, {downgradeErrors: ['validate-symbol-root']});
     const ctx = makeCtx();
     try {
       await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/build stopped on \d+ mion error/);
-      expect(ctx.warnings.join('\n')).toContain('error MKR007');
+      expect(ctx.warnings.join('\n')).toContain('error marker-any-from-unresolved-import');
     } finally {
       await callHook(plugin.buildEnd, ctx);
     }
@@ -325,13 +325,13 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
     try {
       await callHook(plugin.buildStart, ctx); // must NOT throw — the finding is gone
       const all = ctx.warnings.join('\n');
-      expect(all).not.toContain('VL002');
+      expect(all).not.toContain('validate-symbol-root');
     } finally {
       await callHook(plugin.buildEnd, ctx);
     }
   });
 
-  register('an unused `@mion-expect-error` is reported but does not halt (EXP001)', async () => {
+  register('an unused `@mion-expect-error` is reported but does not halt (comment-expect-error-unused)', async () => {
     // The build emits, and what it emitted is CORRECT: the only thing wrong is a
     // comment. mion does not copy TypeScript here, where the same finding is an
     // error, because in mion an error fails a build.
@@ -340,7 +340,7 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
     try {
       // ctx.error() throws, so a build that returns at all did not halt.
       await callHook(plugin.buildStart, ctx);
-      expect(ctx.warnings.join('\n')).toContain('warning EXP001');
+      expect(ctx.warnings.join('\n')).toContain('warning comment-expect-error-unused');
     } finally {
       await callHook(plugin.buildEnd, ctx);
     }
@@ -354,19 +354,19 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
     try {
       await callHook(plugin.buildStart, ctx); // must NOT throw
       const all = ctx.warnings.join('\n');
-      expect(all).toContain('warning VL002');
+      expect(all).toContain('warning validate-symbol-root');
       expect(all).toContain('(downgraded)');
     } finally {
       await callHook(plugin.buildEnd, ctx);
     }
   });
 
-  register('an unused `@mion-downgrade-error` is reported but does not halt (DWN001)', async () => {
+  register('an unused `@mion-downgrade-error` is reported but does not halt (comment-downgrade-error-unused)', async () => {
     const plugin = makePlugin(STALE_DOWNGRADE_DIR);
     const ctx = makeCtx();
     try {
       await callHook(plugin.buildStart, ctx);
-      expect(ctx.warnings.join('\n')).toContain('warning DWN001');
+      expect(ctx.warnings.join('\n')).toContain('warning comment-downgrade-error-unused');
     } finally {
       await callHook(plugin.buildEnd, ctx);
     }
@@ -377,7 +377,7 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
     const ctx = makeCtx();
     try {
       await callHook(plugin.buildStart, ctx); // must NOT throw — both findings are gone
-      expect(ctx.warnings.join('\n')).not.toContain('VL002');
+      expect(ctx.warnings.join('\n')).not.toContain('validate-symbol-root');
     } finally {
       await callHook(plugin.buildEnd, ctx);
     }
@@ -389,61 +389,67 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
     try {
       await callHook(plugin.buildStart, ctx); // must NOT throw
       const all = ctx.warnings.join('\n');
-      expect(all).toContain('warning VL002');
+      expect(all).toContain('warning validate-symbol-root');
       expect(all).toContain('(downgraded)');
-      expect(all).not.toContain('error VL002');
+      expect(all).not.toContain('error validate-symbol-root');
     } finally {
       await callHook(plugin.buildEnd, ctx);
     }
   });
 
-  register('an unused file directive is reported but does not halt (EXP001)', async () => {
+  register('an unused file directive is reported but does not halt (comment-expect-error-unused)', async () => {
     const plugin = makePlugin(STALE_FILE_DIR);
     const ctx = makeCtx();
     try {
       await callHook(plugin.buildStart, ctx);
-      expect(ctx.warnings.join('\n')).toContain('warning EXP001');
+      expect(ctx.warnings.join('\n')).toContain('warning comment-expect-error-unused');
     } finally {
       await callHook(plugin.buildEnd, ctx);
     }
   });
 
-  register('default (strict): an unresolved import degrading T to `any` halts, naming the specifier (MKR007)', async () => {
-    const plugin = makePlugin(UNRESOLVED_DIR);
-    const ctx = makeCtx();
-    try {
-      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/build stopped on \d+ mion error/);
-      const all = ctx.warnings.join('\n');
-      expect(all).toContain('error MKR007');
-      expect(all).toContain('./missing-module');
-      expect(all).toContain('entry.ts');
-    } finally {
-      await callHook(plugin.buildEnd, ctx);
+  register(
+    'default (strict): an unresolved import degrading T to `any` halts, naming the specifier (marker-any-from-unresolved-import)',
+    async () => {
+      const plugin = makePlugin(UNRESOLVED_DIR);
+      const ctx = makeCtx();
+      try {
+        await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/build stopped on \d+ mion error/);
+        const all = ctx.warnings.join('\n');
+        expect(all).toContain('error marker-any-from-unresolved-import');
+        expect(all).toContain('./missing-module');
+        expect(all).toContain('entry.ts');
+      } finally {
+        await callHook(plugin.buildEnd, ctx);
+      }
     }
-  });
+  );
 
-  register('default (strict): two types sharing one short id halt, naming both and hashLength (MKR014)', async () => {
-    const plugin = makePlugin(COLLISION_DIR);
-    const ctx = makeCtx();
-    try {
-      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/build stopped on \d+ mion error/);
-      const all = ctx.warnings.join('\n');
-      expect(all).toContain('error MKR014');
-      // The option to change, and the value to change it to (1 + 1).
-      expect(all).toContain('hashLength');
-      expect(all).toContain('to 2');
-      expect(all).toContain('entry.ts');
-    } finally {
-      await callHook(plugin.buildEnd, ctx);
+  register(
+    'default (strict): two types sharing one short id halt, naming both and hashLength (marker-type-id-collision)',
+    async () => {
+      const plugin = makePlugin(COLLISION_DIR);
+      const ctx = makeCtx();
+      try {
+        await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/build stopped on \d+ mion error/);
+        const all = ctx.warnings.join('\n');
+        expect(all).toContain('error marker-type-id-collision');
+        // The option to change, and the value to change it to (1 + 1).
+        expect(all).toContain('hashLength');
+        expect(all).toContain('to 2');
+        expect(all).toContain('entry.ts');
+      } finally {
+        await callHook(plugin.buildEnd, ctx);
+      }
     }
-  });
+  );
 
-  register('default: an Info diagnostic (VL011, a skipped method) never halts and is not printed', async () => {
+  register('default: an Info diagnostic (validate-method-dropped, a skipped method) never halts and is not printed', async () => {
     const plugin = makePlugin(WARNING_DIR);
     const ctx = makeCtx();
     try {
       await callHook(plugin.buildStart, ctx); // must not throw
-      expect(ctx.warnings.join('\n')).not.toContain('VL011');
+      expect(ctx.warnings.join('\n')).not.toContain('validate-method-dropped');
     } finally {
       await callHook(plugin.buildEnd, ctx);
     }
@@ -455,8 +461,8 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
     try {
       await callHook(plugin.buildStart, ctx); // must not throw
       const all = ctx.warnings.join('\n');
-      expect(all).toMatch(/entry\.ts\(\d+,\d+\): info VL011: /);
-      expect(all).not.toContain('error VL');
+      expect(all).toMatch(/entry\.ts\(\d+,\d+\): info validate-method-dropped: /);
+      expect(all).not.toContain('error validate-');
     } finally {
       await callHook(plugin.buildEnd, ctx);
     }
@@ -467,7 +473,7 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
     const ctx = makeCtx();
     try {
       await callHook(plugin.buildStart, ctx);
-      expect(ctx.warnings.join('\n')).toContain('info VL011');
+      expect(ctx.warnings.join('\n')).toContain('info validate-method-dropped');
     } finally {
       await callHook(plugin.buildEnd, ctx);
     }
@@ -485,20 +491,20 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
     const ctx = makeCtx();
     try {
       await callHook(plugin.buildStart, ctx); // must NOT throw — the echo downgraded it
-      expect(ctx.warnings.join('\n')).toContain('warning VL002');
+      expect(ctx.warnings.join('\n')).toContain('warning validate-symbol-root');
     } finally {
       await callHook(plugin.buildEnd, ctx);
     }
   });
 
   register('an explicit plugin option overrides the tsconfig echo (option > echo)', async () => {
-    // The tsconfig downgrades VL002; the plugin names a different code, so
-    // VL002 is strict again. An explicit option REPLACES the echo, never merges.
-    const plugin = makePlugin(TSCONFIG_DOWNGRADE_DIR, {downgradeErrors: ['MKR007']});
+    // The tsconfig downgrades validate-symbol-root; the plugin names a different code, so
+    // validate-symbol-root is strict again. An explicit option REPLACES the echo, never merges.
+    const plugin = makePlugin(TSCONFIG_DOWNGRADE_DIR, {downgradeErrors: ['marker-any-from-unresolved-import']});
     const ctx = makeCtx();
     try {
       await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/build stopped on \d+ mion error/);
-      expect(ctx.warnings.join('\n')).toContain('error VL002');
+      expect(ctx.warnings.join('\n')).toContain('error validate-symbol-root');
     } finally {
       await callHook(plugin.buildEnd, ctx);
     }
@@ -507,28 +513,34 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
   // Config-shape checks: these throw at the host boundary, before any build, so
   // they need no binary and run everywhere.
   it('rejects a downgradeErrors code that is not in the catalog', () => {
-    expect(() => makePlugin(ERROR_DIR, {downgradeErrors: ['VL2']})).toThrow(/unknown diagnostic code/);
+    expect(() => makePlugin(ERROR_DIR, {downgradeErrors: ['VL2']})).toThrow(/unknown diagnostic/);
   });
 
   it('rejects a fatal Error: the build produces no code for it', () => {
-    // The rule is the LEVEL, not the pure-fn family. MKR014 emits no site and no
+    // The rule is the LEVEL, not the pure-fn family. marker-type-id-collision emits no site and no
     // injected id, so not halting would only ship a call that throws.
-    expect(() => makePlugin(ERROR_DIR, {downgradeErrors: ['MKR014']})).toThrow(/cannot downgrade MKR014/);
-    expect(() => makePlugin(ERROR_DIR, {downgradeErrors: ['BAT001']})).toThrow(/cannot downgrade BAT001/);
+    expect(() => makePlugin(ERROR_DIR, {downgradeErrors: ['marker-type-id-collision']})).toThrow(
+      /cannot downgrade marker-type-id-collision/
+    );
+    expect(() => makePlugin(ERROR_DIR, {downgradeErrors: ['rpc-batch-element-unreadable']})).toThrow(
+      /cannot downgrade rpc-batch-element-unreadable/
+    );
   });
 
   it('accepts a pure-function purity code: the impure body still ships', () => {
-    // PFE9006 used to be rejected by family. It compiles the offending body and
+    // purefn-uses-this used to be rejected by family. It compiles the offending body and
     // writes it, so it is a RuntimeError and standing it down is a real choice.
-    expect(() => makePlugin(ERROR_DIR, {downgradeErrors: ['PFE9006']})).not.toThrow();
-    // PFE9005 is the one pure-fn code that withholds output, so it stays fatal.
-    expect(() => makePlugin(ERROR_DIR, {downgradeErrors: ['PFE9005']})).toThrow(/cannot downgrade PFE9005/);
+    expect(() => makePlugin(ERROR_DIR, {downgradeErrors: ['purefn-uses-this']})).not.toThrow();
+    // purefn-destructured-param is the one pure-fn code that withholds output, so it stays fatal.
+    expect(() => makePlugin(ERROR_DIR, {downgradeErrors: ['purefn-destructured-param']})).toThrow(
+      /cannot downgrade purefn-destructured-param/
+    );
   });
 
   it('accepts a Warning code and does nothing with it', () => {
     // A code's level can soften between releases; a list entry going inert
     // must never break a consumer's build.
-    expect(() => makePlugin(ERROR_DIR, {downgradeErrors: ['VL011']})).not.toThrow();
+    expect(() => makePlugin(ERROR_DIR, {downgradeErrors: ['validate-method-dropped']})).not.toThrow();
   });
 });
 
@@ -569,7 +581,7 @@ describe('the dev server reports a RuntimeError without halting; every build lan
       await callHook(plugin.buildStart, ctx); // ctx.error() throws, so returning at all means no halt
       const all = devLog.join('\n');
       // Reported with its real label: not downgraded, not hidden.
-      expect(all).toContain('error VL002');
+      expect(all).toContain('error validate-symbol-root');
       expect(all).not.toContain('(downgraded)');
       // The transform serves the file: the healthy sites still inject.
       const transformed = (await callHook(plugin.transform, ctx, ERROR_ENTRY_SRC, path.join(ERROR_DIR, 'entry.ts'))) as {
@@ -587,7 +599,7 @@ describe('the dev server reports a RuntimeError without halting; every build lan
     const ctx = makeCtx();
     try {
       await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/build stopped on \d+ mion error/);
-      expect(ctx.warnings.join('\n')).toContain('error VL002');
+      expect(ctx.warnings.join('\n')).toContain('error validate-symbol-root');
     } finally {
       await callHook(plugin.buildEnd, ctx);
     }
@@ -604,12 +616,12 @@ describe('the dev server reports a RuntimeError without halting; every build lan
   });
 
   // The dev server never stops on a finding: a fatal Error prints once, and the transform of its file throws.
-  register('a fatal Error (MKR014) prints on the dev server without stopping it', async () => {
+  register('a fatal Error (marker-type-id-collision) prints on the dev server without stopping it', async () => {
     const plugin = makeVitePlugin(COLLISION_DIR, 'serve', 'development');
     const ctx = makeCtx();
     try {
       await callHook(plugin.buildStart, ctx);
-      expect(devLog.join('\n')).toContain('error MKR014');
+      expect(devLog.join('\n')).toContain('error marker-type-id-collision');
     } finally {
       await callHook(plugin.buildEnd, ctx);
     }

@@ -8,13 +8,13 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// MKR013 — the unresolved-type-name guard (unresolved_name_guard.go). The
+// marker-any-from-unresolved-name — the unresolved-type-name guard (unresolved_name_guard.go). The
 // detection is the checker's own error-type identity (marker.IsErrorLikeAny),
 // so a deliberately written `any`, and a resolved `type Loose = any`, must
 // never trip it, while a name that failed to resolve must — in BOTH marker
 // shapes (static getRunTypeId<T>() via the written-syntax walk, value-first
 // getRunTypeId(value) via the resolved-slot probe), per the marker coverage
-// rule. Sibling precedence: TMP001 and MKR007 own their causes, MKR013 must
+// rule. Sibling precedence: marker-temporal-lib-missing and marker-any-from-unresolved-import own their causes, marker-any-from-unresolved-name must
 // stay silent beside them.
 
 func scanConsumer(t *testing.T, source string) protocol.Response {
@@ -35,7 +35,7 @@ func codesOf(resp protocol.Response) []string {
 	return codes
 }
 
-func mkr013Diags(resp protocol.Response) []diagnostics.Diagnostic {
+func markerAnyFromUnresolvedNameDiags(resp protocol.Response) []diagnostics.Diagnostic {
 	var out []diagnostics.Diagnostic
 	for _, diagnostic := range resp.Diagnostics {
 		if diagnostic.Code == diagnostics.CodeMarkerUnresolvedTypeName {
@@ -52,15 +52,15 @@ func TestUnresolvedName_StaticFormFires(t *testing.T) {
 	resp := scanConsumer(t, `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<{value: Missing}>();
 `)
-	fired := mkr013Diags(resp)
+	fired := markerAnyFromUnresolvedNameDiags(resp)
 	if len(fired) != 1 {
-		t.Fatalf("want exactly one MKR013, got %d (all codes: %v)", len(fired), codesOf(resp))
+		t.Fatalf("want exactly one marker-any-from-unresolved-name, got %d (all codes: %v)", len(fired), codesOf(resp))
 	}
 	if len(fired[0].Args) != 1 || fired[0].Args[0] != "Missing" {
-		t.Errorf("MKR013 should name the written reference; args=%v", fired[0].Args)
+		t.Errorf("marker-any-from-unresolved-name should name the written reference; args=%v", fired[0].Args)
 	}
 	if fired[0].Severity != diagnostics.SeverityError {
-		t.Errorf("MKR013 must be an error, got %v", fired[0].Severity)
+		t.Errorf("marker-any-from-unresolved-name must be an error, got %v", fired[0].Severity)
 	}
 }
 
@@ -73,12 +73,12 @@ func TestUnresolvedName_ReflectFormFires(t *testing.T) {
 declare const broken: Missing;
 export const id = getRunTypeId(broken);
 `)
-	fired := mkr013Diags(resp)
+	fired := markerAnyFromUnresolvedNameDiags(resp)
 	if len(fired) != 1 {
-		t.Fatalf("want exactly one MKR013, got %d (all codes: %v)", len(fired), codesOf(resp))
+		t.Fatalf("want exactly one marker-any-from-unresolved-name, got %d (all codes: %v)", len(fired), codesOf(resp))
 	}
 	if len(fired[0].Args) != 1 || fired[0].Args[0] != "broken" {
-		t.Errorf("reflect-form MKR013 should name the value argument; args=%v", fired[0].Args)
+		t.Errorf("reflect-form marker-any-from-unresolved-name should name the value argument; args=%v", fired[0].Args)
 	}
 }
 
@@ -91,16 +91,16 @@ func TestUnresolvedName_TransitiveAliasFires(t *testing.T) {
 type Broken = Missing;
 export const id = getRunTypeId<{value: Broken}>();
 `)
-	fired := mkr013Diags(resp)
+	fired := markerAnyFromUnresolvedNameDiags(resp)
 	if len(fired) == 0 {
-		t.Fatalf("transitive error-any must fire MKR013 (all codes: %v)", codesOf(resp))
+		t.Fatalf("transitive error-any must fire marker-any-from-unresolved-name (all codes: %v)", codesOf(resp))
 	}
 	names := make([]string, 0, len(fired))
 	for _, diagnostic := range fired {
 		names = append(names, strings.Join(diagnostic.Args, ","))
 	}
 	if !strings.Contains(strings.Join(names, " "), "Broken") {
-		t.Errorf("MKR013 should name the reference written at the call (Broken); got %v", names)
+		t.Errorf("marker-any-from-unresolved-name should name the reference written at the call (Broken); got %v", names)
 	}
 }
 
@@ -111,8 +111,8 @@ func TestUnresolvedName_DeliberateAnyStaysLegal(t *testing.T) {
 		resp := scanConsumer(t, `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<any>();
 `)
-		if fired := mkr013Diags(resp); len(fired) > 0 {
-			t.Fatalf("written `any` must not fire MKR013: %+v", fired)
+		if fired := markerAnyFromUnresolvedNameDiags(resp); len(fired) > 0 {
+			t.Fatalf("written `any` must not fire marker-any-from-unresolved-name: %+v", fired)
 		}
 	})
 	t.Run("static alias of any", func(t *testing.T) {
@@ -120,8 +120,8 @@ export const id = getRunTypeId<any>();
 type Loose = any;
 export const id = getRunTypeId<Loose>();
 `)
-		if fired := mkr013Diags(resp); len(fired) > 0 {
-			t.Fatalf("`type Loose = any` must not fire MKR013: %+v", fired)
+		if fired := markerAnyFromUnresolvedNameDiags(resp); len(fired) > 0 {
+			t.Fatalf("`type Loose = any` must not fire marker-any-from-unresolved-name: %+v", fired)
 		}
 	})
 	t.Run("value-first over any", func(t *testing.T) {
@@ -129,8 +129,8 @@ export const id = getRunTypeId<Loose>();
 declare const loose: any;
 export const id = getRunTypeId(loose);
 `)
-		if fired := mkr013Diags(resp); len(fired) > 0 {
-			t.Fatalf("value-first over a deliberate `any` must not fire MKR013: %+v", fired)
+		if fired := markerAnyFromUnresolvedNameDiags(resp); len(fired) > 0 {
+			t.Fatalf("value-first over a deliberate `any` must not fire marker-any-from-unresolved-name: %+v", fired)
 		}
 	})
 }
@@ -149,8 +149,8 @@ export const staticId = getRunTypeId<Fine>();
 declare const sample: Fine;
 export const valueId = getRunTypeId(sample);
 `)
-	if fired := mkr013Diags(resp); len(fired) > 0 {
-		t.Fatalf("resolved types must not fire MKR013: %+v", fired)
+	if fired := markerAnyFromUnresolvedNameDiags(resp); len(fired) > 0 {
+		t.Fatalf("resolved types must not fire marker-any-from-unresolved-name: %+v", fired)
 	}
 	if len(resp.Sites) != 2 {
 		t.Fatalf("want the two getRunTypeId sites, got %d", len(resp.Sites))
@@ -160,7 +160,7 @@ export const valueId = getRunTypeId(sample);
 	}
 }
 
-// Sibling precedence: a missing Temporal lib is TMP001's cause — MKR013 must
+// Sibling precedence: a missing Temporal lib is marker-temporal-lib-missing's cause — marker-any-from-unresolved-name must
 // not double-report the same degraded slot. The empty temporal.d.ts overlay
 // simulates a project whose lib does not load the Temporal namespace.
 func TestUnresolvedName_YieldsToTemporalGuard(t *testing.T) {
@@ -181,15 +181,15 @@ export const id = getRunTypeId<Temporal.PlainDate>();
 		}
 	}
 	if !sawTemporal {
-		t.Fatalf("expected TMP001 for the missing Temporal lib (all codes: %v)", codesOf(resp))
+		t.Fatalf("expected marker-temporal-lib-missing for the missing Temporal lib (all codes: %v)", codesOf(resp))
 	}
-	if fired := mkr013Diags(resp); len(fired) > 0 {
-		t.Errorf("MKR013 must yield to TMP001 for the same slot: %+v", fired)
+	if fired := markerAnyFromUnresolvedNameDiags(resp); len(fired) > 0 {
+		t.Errorf("marker-any-from-unresolved-name must yield to marker-temporal-lib-missing for the same slot: %+v", fired)
 	}
 }
 
-// Sibling precedence: an unresolved import is MKR007's cause — the import
-// specifier is the actionable finding, so MKR013 stays silent for the call.
+// Sibling precedence: an unresolved import is marker-any-from-unresolved-import's cause — the import
+// specifier is the actionable finding, so marker-any-from-unresolved-name stays silent for the call.
 func TestUnresolvedName_YieldsToUnresolvedImportGuard(t *testing.T) {
 	resp := scanConsumer(t, `import {getRunTypeId} from '@mionjs/run-types';
 import type {Broken} from './does-not-exist.js';
@@ -202,10 +202,10 @@ export const id = getRunTypeId<Broken>();
 		}
 	}
 	if !sawImport {
-		t.Fatalf("expected MKR007 for the unresolved import (all codes: %v)", codesOf(resp))
+		t.Fatalf("expected marker-any-from-unresolved-import for the unresolved import (all codes: %v)", codesOf(resp))
 	}
-	if fired := mkr013Diags(resp); len(fired) > 0 {
-		t.Errorf("MKR013 must yield to MKR007 for the same call: %+v", fired)
+	if fired := markerAnyFromUnresolvedNameDiags(resp); len(fired) > 0 {
+		t.Errorf("marker-any-from-unresolved-name must yield to marker-any-from-unresolved-import for the same call: %+v", fired)
 	}
 }
 
@@ -219,15 +219,15 @@ func TestUnresolvedName_NestedMemberFires(t *testing.T) {
 interface Payload {id: string; user: Missing}
 export const id = getRunTypeId<Payload>();
 `)
-		fired := mkr013Diags(resp)
+		fired := markerAnyFromUnresolvedNameDiags(resp)
 		if len(fired) != 1 {
-			t.Fatalf("want exactly one MKR013 for the nested member, got %d: %v", len(fired), codesOf(resp))
+			t.Fatalf("want exactly one marker-any-from-unresolved-name for the nested member, got %d: %v", len(fired), codesOf(resp))
 		}
 		if fired[0].Args[0] != "Missing" {
-			t.Errorf("nested MKR013 must name the written type, got %v", fired[0].Args)
+			t.Errorf("nested marker-any-from-unresolved-name must name the written type, got %v", fired[0].Args)
 		}
 		if len(fired[0].Related) != 1 || !strings.Contains(fired[0].Related[0].Message, "`user`") {
-			t.Errorf("nested MKR013 must relate the member's declaration, got %+v", fired[0].Related)
+			t.Errorf("nested marker-any-from-unresolved-name must relate the member's declaration, got %+v", fired[0].Related)
 		}
 	})
 	t.Run("value-first form", func(t *testing.T) {
@@ -236,8 +236,8 @@ interface Payload {id: string; user: Missing}
 declare const payload: Payload;
 export const id = getRunTypeId(payload);
 `)
-		if fired := mkr013Diags(resp); len(fired) != 1 {
-			t.Fatalf("want exactly one MKR013 for the nested member, got %d: %v", len(fired), codesOf(resp))
+		if fired := markerAnyFromUnresolvedNameDiags(resp); len(fired) != 1 {
+			t.Fatalf("want exactly one marker-any-from-unresolved-name for the nested member, got %d: %v", len(fired), codesOf(resp))
 		}
 	})
 	t.Run("two objects deep, through an array and a Map", func(t *testing.T) {
@@ -246,15 +246,15 @@ interface Inner {who: Missing}
 interface Payload {items: Inner[]; byId: Map<string, Inner>}
 export const id = getRunTypeId<Payload>();
 `)
-		if fired := mkr013Diags(resp); len(fired) != 1 {
-			t.Fatalf("want exactly one MKR013 (the shared Inner member, reported once), got %d: %v", len(fired), codesOf(resp))
+		if fired := markerAnyFromUnresolvedNameDiags(resp); len(fired) != 1 {
+			t.Fatalf("want exactly one marker-any-from-unresolved-name (the shared Inner member, reported once), got %d: %v", len(fired), codesOf(resp))
 		}
 	})
 	t.Run("inline literal reports once, not twice", func(t *testing.T) {
 		resp := scanConsumer(t, `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<{value: Missing}>();
 `)
-		if fired := mkr013Diags(resp); len(fired) != 1 {
+		if fired := markerAnyFromUnresolvedNameDiags(resp); len(fired) != 1 {
 			t.Fatalf("the written-syntax walk and the graph walk must not both report a member written at the call, got %d: %+v", len(fired), fired)
 		}
 	})
@@ -264,16 +264,16 @@ type Loose = any;
 interface Payload {id: string; data: any; loose: Loose; bag: Record<string, any>}
 export const id = getRunTypeId<Payload>();
 `)
-		if fired := mkr013Diags(resp); len(fired) > 0 {
-			t.Fatalf("a deliberate `any` member must not fire MKR013: %+v", fired)
+		if fired := markerAnyFromUnresolvedNameDiags(resp); len(fired) > 0 {
+			t.Fatalf("a deliberate `any` member must not fire marker-any-from-unresolved-name: %+v", fired)
 		}
 	})
 }
 
-// Each unresolved member gets its own MKR013: members naming one type share one `any`, which once hid all but the first.
+// Each unresolved member gets its own marker-any-from-unresolved-name: members naming one type share one `any`, which once hid all but the first.
 func assertEachMissingMemberFires(t *testing.T, source string) {
 	t.Helper()
-	fired := mkr013Diags(scanConsumer(t, source))
+	fired := markerAnyFromUnresolvedNameDiags(scanConsumer(t, source))
 	members := map[string]bool{}
 	for _, diagnostic := range fired {
 		for _, related := range diagnostic.Related {
@@ -281,7 +281,7 @@ func assertEachMissingMemberFires(t *testing.T, source string) {
 		}
 	}
 	if len(fired) != 2 || len(members) != 2 {
-		t.Errorf("want one MKR013 per member, got %d: %v", len(fired), members)
+		t.Errorf("want one marker-any-from-unresolved-name per member, got %d: %v", len(fired), members)
 	}
 }
 

@@ -8,7 +8,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// Cross-site mockSamples conflicts (FMT006).
+// Cross-site mockSamples conflicts (format-sample-conflict).
 //
 // mockSamples are NOT id-relevant — they describe how to generate a sample, not
 // what the format validates — so two formats identical apart from their pools
@@ -17,11 +17,11 @@ import (
 // keeps whichever it saw first and scan order silently decides. These tests pin
 // the three outcomes:
 //
-//	both declare, pools differ  → FMT006, naming both pools and the first site
+//	both declare, pools differ  → format-sample-conflict, naming both pools and the first site
 //	one declares, other absent  → no error, and the declared pool is ADOPTED
 //	both declare the same pool  → no error, still one entry
 
-// sampleConflictDiags returns the FMT006 diagnostics from a scan of `files`.
+// sampleConflictDiags returns the format-sample-conflict diagnostics from a scan of `files`.
 func sampleConflictDiags(t *testing.T, files map[string]string) []diagnostics.Diagnostic {
 	t.Helper()
 	session := setupInline(t, files)
@@ -65,7 +65,7 @@ export const _b = getRunTypeId<B>();
 `,
 	})
 	if len(diags) != 1 {
-		t.Fatalf("expected exactly one FMT006, got %d: %+v", len(diags), diags)
+		t.Fatalf("expected exactly one format-sample-conflict, got %d: %+v", len(diags), diags)
 	}
 	// Both pools must appear, so the message alone says what disagrees.
 	joined := strings.Join(diags[0].Args, " | ")
@@ -77,7 +77,7 @@ export const _b = getRunTypeId<B>();
 		t.Fatalf("expected the first-interning site in the args, got %q", joined)
 	}
 	if diags[0].Severity != diagnostics.SeverityError {
-		t.Fatalf("FMT006 must be an error, got severity %v", diags[0].Severity)
+		t.Fatalf("format-sample-conflict must be an error, got severity %v", diags[0].Severity)
 	}
 }
 
@@ -192,6 +192,6 @@ export const _b = getRunTypeId<B>();
 `,
 	})
 	if len(diags) != 1 {
-		t.Fatalf("a reordered pool is a different pool; expected one FMT006, got %d: %+v", len(diags), diags)
+		t.Fatalf("a reordered pool is a different pool; expected one format-sample-conflict, got %d: %+v", len(diags), diags)
 	}
 }

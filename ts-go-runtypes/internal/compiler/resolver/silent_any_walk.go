@@ -12,7 +12,7 @@ import (
 // The whole-graph half of the silent-`any` guard family: the probes in unresolved_import_guard.go /
 // unresolved_name_guard.go only see the ROOT type argument and the syntax written AT the call, so a
 // member that degraded to `any` one object deeper left the root healthy and its validator became
-// `true`. This walk runs the same three predicates (TMP001, MKR007, MKR013) at every member of the
+// `true`. This walk runs the same three predicates (marker-temporal-lib-missing, marker-any-from-unresolved-import, marker-any-from-unresolved-name) at every member of the
 // RESOLVED checker type. A hand-written `any` is the `any` intrinsic, never error-like, so it stays
 // legal here as at the root.
 
@@ -120,26 +120,26 @@ func (state scanState) silentAnyMemberDiag(memberType *checker.Type, memberSymbo
 			})
 		}
 	}
-	// TMP001: a builtin Temporal name may never mean `any`, intrinsic included.
+	// marker-temporal-lib-missing: a builtin Temporal name may never mean `any`, intrinsic included.
 	if typeNode != nil && ast.IsTypeReferenceNode(typeNode) {
 		if temporalName, isTemporal := temporalQualifiedName(typeNode); isTemporal && temporalDegradedToAny(memberType) {
 			return diagnostics.NewWithRelated(diagnostics.CodeTemporalNotLoaded, site, []string{temporalName}, related...), true
 		}
 	}
-	// MKR016: a plain intrinsic `any`, so it must be caught before the error-like check below lets it through.
+	// marker-untyped-private-member: a plain intrinsic `any`, so it must be caught before the error-like check below lets it through.
 	if className, ok := typelessPrivateMember(declaration); ok {
 		return diagnostics.NewWithRelated(diagnostics.CodeMarkerTypelessPrivateMember, site, []string{memberName, className}, related...), true
 	}
 	if !marker.IsErrorLikeAny(memberType) {
 		return diagnostics.Diagnostic{}, false
 	}
-	// MKR007: the declaring file's unresolved import is the actionable cause.
+	// marker-any-from-unresolved-import: the declaring file's unresolved import is the actionable cause.
 	if declarationFile != nil {
 		if specifiers := state.unresolvedImportSpecifiers(declarationFile); len(specifiers) > 0 {
 			return diagnostics.NewWithRelated(diagnostics.CodeMarkerAnyFromUnresolvedImport, site, []string{specifiers[0]}, related...), true
 		}
 	}
-	// MKR013: name the written type when the declaration wrote one.
+	// marker-any-from-unresolved-name: name the written type when the declaration wrote one.
 	written := memberName
 	if typeNode != nil && ast.IsTypeReferenceNode(typeNode) {
 		if name, ok := writtenEntityName(typeNode); ok {

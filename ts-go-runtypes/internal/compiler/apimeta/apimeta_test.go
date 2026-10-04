@@ -222,7 +222,7 @@ export const b = batch([routes.users.getById(1), routes.sum(1, 2), routes.users.
 	}
 }
 
-// TestExtract_WidenedIdIsAnUnreportedSite: the extractor cannot pick MET003 or MET004, fetching is a program fact.
+// TestExtract_WidenedIdIsAnUnreportedSite: the extractor cannot pick rpc-client-route-id-widened or rpc-client-route-id-widened-fetched, fetching is a program fact.
 func TestExtract_WidenedIdIsAnUnreportedSite(t *testing.T) {
 	body := `
 function run(sub: {call(setup?: unknown): unknown}) { return sub.call(); }

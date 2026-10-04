@@ -190,7 +190,7 @@ func (sess *Session) walkApi(typeChecker *checker.Checker, apiType *checker.Type
 	return walk.tree, walk.problem
 }
 
-// clientApiTree walks the API a client names; nil when unreadable, which MET001 owns.
+// clientApiTree walks the API a client names; nil when unreadable, which rpc-client-api-unreadable owns.
 func (sess *Session) clientApiTree(typeChecker *checker.Checker, apiType *checker.Type) *apimeta.Tree {
 	tree, problem := sess.walkApi(typeChecker, apiType)
 	if tree == nil || problem != "" {

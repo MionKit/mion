@@ -30,21 +30,21 @@ type Sku = TypeFormat<string, 'stringFormat', {pattern: typeof p}>;
 // The shape a .d.ts keeps of a const typed as a plain pattern: a source the type does not spell.
 const widenedPatternDecl = `declare const p: {readonly source: string; readonly flags?: string};`
 
-// TestFormatPattern_WidenedEmitsFMT009Static: the validator cannot check a pattern it cannot read, so the build stops.
-func TestFormatPattern_WidenedEmitsFMT009Static(t *testing.T) {
+// TestFormatPattern_WidenedEmitsFormatPatternUnreadableStatic: the validator cannot check a pattern it cannot read, so the build stops.
+func TestFormatPattern_WidenedEmitsFormatPatternUnreadableStatic(t *testing.T) {
 	resp := scanPatternDecl(t, widenedPatternDecl, `export const isSku = createValidateFn<Sku>();`)
 	found := findDiag(resp, diagnostics.CodeFMTPatternUnreadable)
 	if found == nil || found.Severity != diagnostics.SeverityError || found.Site.StartLine <= 0 {
-		t.Fatalf("expected an FMT009 error at the call, got %+v", resp.Diagnostics)
+		t.Fatalf("expected an format-pattern-unreadable error at the call, got %+v", resp.Diagnostics)
 	}
 }
 
-// TestFormatPattern_WidenedEmitsFMT009Value is the value call shape of the same case.
-func TestFormatPattern_WidenedEmitsFMT009Value(t *testing.T) {
+// TestFormatPattern_WidenedEmitsFormatPatternUnreadableValue is the value call shape of the same case.
+func TestFormatPattern_WidenedEmitsFormatPatternUnreadableValue(t *testing.T) {
 	resp := scanPatternDecl(t, widenedPatternDecl, `declare const sku: Sku;
 export const isSku = createValidateFn(sku);`)
 	if findDiag(resp, diagnostics.CodeFMTPatternUnreadable) == nil {
-		t.Fatalf("expected FMT009, got %+v", resp.Diagnostics)
+		t.Fatalf("expected format-pattern-unreadable, got %+v", resp.Diagnostics)
 	}
 }
 
@@ -78,34 +78,34 @@ import * as TF from '@mionjs/run-types/formats';
 
 const widenedStringFormat = `type Sku = TF.String<{pattern: typeof p}>;`
 
-// TestFormatPattern_ErrorsOnlyEmitsFMT009Static: a validation-errors function would skip the pattern as silently.
-func TestFormatPattern_ErrorsOnlyEmitsFMT009Static(t *testing.T) {
+// TestFormatPattern_ErrorsOnlyEmitsFormatPatternUnreadableStatic: a validation-errors function would skip the pattern as silently.
+func TestFormatPattern_ErrorsOnlyEmitsFormatPatternUnreadableStatic(t *testing.T) {
 	resp := scanFormatPattern(t, widenedStringFormat, `export const skuErrors = createGetValidationErrorsFn<Sku>();`)
 	if findDiag(resp, diagnostics.CodeFMTPatternUnreadable) == nil {
-		t.Fatalf("expected FMT009, got %+v", resp.Diagnostics)
+		t.Fatalf("expected format-pattern-unreadable, got %+v", resp.Diagnostics)
 	}
 }
 
-// TestFormatPattern_ErrorsOnlyEmitsFMT009Value is the value call shape of the same case.
-func TestFormatPattern_ErrorsOnlyEmitsFMT009Value(t *testing.T) {
+// TestFormatPattern_ErrorsOnlyEmitsFormatPatternUnreadableValue is the value call shape of the same case.
+func TestFormatPattern_ErrorsOnlyEmitsFormatPatternUnreadableValue(t *testing.T) {
 	resp := scanFormatPattern(t, widenedStringFormat, `declare const sku: Sku;
 export const skuErrors = createGetValidationErrorsFn(sku);`)
 	if findDiag(resp, diagnostics.CodeFMTPatternUnreadable) == nil {
-		t.Fatalf("expected FMT009, got %+v", resp.Diagnostics)
+		t.Fatalf("expected format-pattern-unreadable, got %+v", resp.Diagnostics)
 	}
 }
 
-// TestFormatPattern_NestedMemberEmitsFMT009: the pattern one object deeper is read by the same walk.
-func TestFormatPattern_NestedMemberEmitsFMT009(t *testing.T) {
+// TestFormatPattern_NestedMemberEmitsFormatPatternUnreadable: the pattern one object deeper is read by the same walk.
+func TestFormatPattern_NestedMemberEmitsFormatPatternUnreadable(t *testing.T) {
 	resp := scanFormatPattern(t, widenedStringFormat+`
 type Order = {item: {sku: Sku}};`, `export const isOrder = createValidateFn<Order>();`)
 	if findDiag(resp, diagnostics.CodeFMTPatternUnreadable) == nil {
-		t.Fatalf("expected FMT009, got %+v", resp.Diagnostics)
+		t.Fatalf("expected format-pattern-unreadable, got %+v", resp.Diagnostics)
 	}
 }
 
-// TestFormatPattern_NamedAndPartFormatsEmitFMT009: a named format's own pattern and a part's pattern, in both families.
-func TestFormatPattern_NamedAndPartFormatsEmitFMT009(t *testing.T) {
+// TestFormatPattern_NamedAndPartFormatsEmitFormatPatternUnreadable: a named format's own pattern and a part's pattern, in both families.
+func TestFormatPattern_NamedAndPartFormatsEmitFormatPatternUnreadable(t *testing.T) {
 	cases := map[string]string{
 		"email pattern":     `type Value = TF.Email<{pattern: typeof p}>;`,
 		"email local part":  `type Value = TF.EmailParts<{localPart: {pattern: typeof p}}>;`,
@@ -118,7 +118,7 @@ func TestFormatPattern_NamedAndPartFormatsEmitFMT009(t *testing.T) {
 		} {
 			resp := scanFormatPattern(t, formatDecl, call)
 			if findDiag(resp, diagnostics.CodeFMTPatternUnreadable) == nil {
-				t.Errorf("%s, %s: expected FMT009, got %+v", name, call, resp.Diagnostics)
+				t.Errorf("%s, %s: expected format-pattern-unreadable, got %+v", name, call, resp.Diagnostics)
 			}
 		}
 	}

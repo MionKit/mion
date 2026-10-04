@@ -1,31 +1,31 @@
 package diagnostics
 
-// FriendlyText mirror-file codes (FTxxx): the FriendlyText half of a source type's two generated
+// FriendlyText mirror-file codes (enrich-text-*): the FriendlyText half of a source type's two generated
 // mirrors (labels + rt$errors templates, and the per-locale translation twins). Content validity
-// comes from internal/enrichment/validate.go, the FT02x hygiene codes from the dirty-tag scan in
+// comes from internal/enrichment/validate.go, the enrich-text-* hygiene codes from the dirty-tag scan in
 // internal/enrichment/mirror/hygiene.go; all are opt-in (Request.CheckEnrich, `mion enrich
 // --no-emit`), never emitted by a build. MockData twins live in codes_mock.go, the mirror↔source
 // linkage codes in codes_mirror.go.
 //
 // The levels ask what the reader of a rendered message SEES. Every content finding here only
 // degrades the text (to "value is invalid", the `other` plural arm, the raw field name, or a literal
-// `$[…]` token for FT005) while validation still ran, so all are LevelWarning. FT011 is the one
+// `$[…]` token for enrich-text-unknown-placeholder) while validation still ran, so all are LevelWarning. enrich-text-reserved-prefix is the one
 // LevelError: a property colliding with the reserved `rt$` prefix fails the plan, so no mirror is
 // written at all.
 const (
-	CodeFriendlyUnknownField      = "FT002"
-	CodeFriendlyUnknownConstraint = "FT003"
-	CodeFriendlyBadPlaceholder    = "FT005"
-	CodeFriendlyPluralNoOther     = "FT006"
-	CodeFriendlyPluralBadArm      = "FT007"
-	CodeFriendlyPluralNoCount     = "FT008"
-	CodeFriendlyDefaultNotAlone   = "FT009"
-	CodeFriendlyReservedProp      = "FT011"
-	CodeFriendlyMissingConstraint = "FT012"
-	CodeFriendlyTodo              = "FT020"
-	CodeFriendlyOrphanConst       = "FT021"
-	CodeFriendlyOrphanField       = "FT022"
-	CodeFriendlyBlankValue        = "FT023"
+	CodeFriendlyUnknownField      = "enrich-text-unknown-field"
+	CodeFriendlyUnknownConstraint = "enrich-text-unknown-error-key"
+	CodeFriendlyBadPlaceholder    = "enrich-text-unknown-placeholder"
+	CodeFriendlyPluralNoOther     = "enrich-text-plural-missing-other"
+	CodeFriendlyPluralBadArm      = "enrich-text-unknown-plural-arm"
+	CodeFriendlyPluralNoCount     = "enrich-text-plural-without-count"
+	CodeFriendlyDefaultNotAlone   = "enrich-text-default-and-messages"
+	CodeFriendlyReservedProp      = "enrich-text-reserved-prefix"
+	CodeFriendlyMissingConstraint = "enrich-text-missing-message"
+	CodeFriendlyTodo              = "enrich-text-todo-left"
+	CodeFriendlyOrphanConst       = "enrich-text-orphan-type"
+	CodeFriendlyOrphanField       = "enrich-text-orphan-field"
+	CodeFriendlyBlankValue        = "enrich-text-blank-value"
 )
 
 func init() {

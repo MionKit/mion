@@ -191,7 +191,7 @@ export function make<T>() {
 			return
 		}
 	}
-	t.Fatalf("expected MKR003 for a free T in `new Wrap<T>()`, got %+v", diags)
+	t.Fatalf("expected marker-in-generic-function for a free T in `new Wrap<T>()`, got %+v", diags)
 }
 
 // Argument 0 of Box is data, so its annotation never replaces the class type the constructor resolved.

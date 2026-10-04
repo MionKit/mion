@@ -98,7 +98,7 @@ describe('mion compile (tsc-like CLI)', () => {
     }
   });
 
-  // VL011 (a skipped method) is Info: hidden by default, printed with tsconfig `levels: "all"`, never a failure.
+  // validate-method-dropped (a skipped method) is Info: hidden by default, printed with tsconfig `levels: "all"`, never a failure.
   // Both getRunTypeId shapes ride along (marker coverage rule) and must compile clean.
   const METHOD_TS = `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 export class Pet {
@@ -127,15 +127,15 @@ export const sampleId = getRunTypeId(new Pet());
   register('hides an Info finding unless the tsconfig sets levels: "all"', () => {
     const quiet = compileWithLevels(undefined);
     expect(quiet.status, quiet.report).toBe(0);
-    expect(quiet.stderr).not.toContain('VL011');
+    expect(quiet.stderr).not.toContain('validate-method-dropped');
     expect(quiet.stderr).not.toMatch(/: (error|warning) /);
     expect(quiet.stderr).toContain('checked 1 file(s), wrote nothing');
 
     const shown = compileWithLevels('all');
     expect(shown.status, shown.report).toBe(0);
-    expect(shown.stderr).toMatch(/info VL011/);
+    expect(shown.stderr).toMatch(/info validate-method-dropped/);
     // The same line the bundler plugin prints: the code, then the rendered headline, never the raw args.
-    expect(shown.stderr).toMatch(/\(\d+,\d+\): info VL011: \S.*`speak`/);
-    expect(shown.stderr).not.toMatch(/VL011\(/);
+    expect(shown.stderr).toMatch(/\(\d+,\d+\): info validate-method-dropped: \S.*`speak`/);
+    expect(shown.stderr).not.toMatch(/validate-method-dropped\(/);
   });
 });

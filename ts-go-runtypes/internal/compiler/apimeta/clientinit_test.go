@@ -22,7 +22,7 @@ const serverApi = "import {createMionRouter} from '@mionjs/router';\n" +
 
 const clientImport = "import {initClient} from '@mionjs/client';\n"
 
-// apiTypeImports returns "line name specifier" for each SRV001 in client.ts.
+// apiTypeImports returns "line name specifier" for each rpc-client-imports-server-value in client.ts.
 func apiTypeImports(t *testing.T, client string) []string {
 	t.Helper()
 	overlay := setupOverlay(t, map[string]string{"router.d.ts": routerDts, "other.d.ts": otherClientDts, "server/api.ts": serverApi, "client.ts": client})

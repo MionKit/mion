@@ -14,7 +14,7 @@
 // module imports for files that had existed moments earlier. A host that
 // resolves lazily can re-transform its way out of that; one that resolves the
 // whole graph eagerly (Turbopack) just fails the build.
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -160,6 +160,50 @@ describe('@mionjs/devtools / incremental update keeps the whole program', () => 
         expect(result?.code).toContain('.mion/types/');
         expect(result?.code).toMatch(/getRunTypeId<Contact>\(undefined, __rt_\w+\)/);
       } finally {
+        plugin.buildEnd?.call(ctx);
+        fs.rmSync(root, {recursive: true, force: true});
+      }
+    },
+    120_000
+  );
+  register(
+    'a tsconfig broken mid-session skips the update and says why',
+    async () => {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-hot-overlay-'));
+      writeProject(root);
+
+      const raw = unplugin.raw({binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '.mion', detachResolver: true}, {
+        framework: 'webpack',
+        versions: {},
+      } as UnpluginContextMeta);
+      const plugin = (Array.isArray(raw) ? raw[0] : raw) as {
+        buildStart?: (this: unknown) => Promise<void>;
+        buildEnd?: (this: unknown) => void;
+        rtHotUpdate?: (ctx: unknown, updates: {file: string; content?: string}[]) => Promise<void>;
+      };
+      const ctx = {
+        warn: () => {},
+        error: (message: unknown) => {
+          throw new Error(String(message));
+        },
+      };
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      try {
+        await plugin.buildStart?.call(ctx);
+        fs.writeFileSync(path.join(root, 'tsconfig.json'), '{"extends": "./missing-base.json"}');
+        const models = path.join(root, 'src/models.ts');
+        const edited = fs.readFileSync(models, 'utf8').replace('label: string', 'label: string; nickname: string');
+        fs.writeFileSync(models, edited);
+        await plugin.rtHotUpdate?.(ctx, [{file: models, content: edited}]);
+
+        const logged = errorSpy.mock.calls.map((call) => String(call[0]));
+        expect(
+          logged.some((line) => line.includes('HMR update skipped') && line.includes('config-tsconfig-not-loaded')),
+          logged.join('\n')
+        ).toBe(true);
+      } finally {
+        errorSpy.mockRestore();
         plugin.buildEnd?.call(ctx);
         fs.rmSync(root, {recursive: true, force: true});
       }

@@ -78,9 +78,9 @@ func TestCheckRouterRules_SinglePassFindings(t *testing.T) {
 		if diagnostic.Site.StartLine < 1 || diagnostic.Site.StartCol < 1 {
 			t.Errorf("%s: unanchored site %+v", diagnostic.Code, diagnostic.Site)
 		}
-		// MRT005 is the one route code that is not an error: a declared
+		// rpc-handler-non-data-property is the one route code that is not an error: a declared
 		// `__proto__` drops that MEMBER and the rest of the type keeps working,
-		// so it matches the Warning the build itself reports (UPN001). Every
+		// so it matches the Warning the build itself reports (data-proto-property-dropped). Every
 		// other route rule leaves something that cannot run.
 		wantSeverity := diagnostics.SeverityError
 		if diagnostic.Code == diagnostics.CodeRouteUnsafePropertyName {
@@ -92,7 +92,7 @@ func TestCheckRouterRules_SinglePassFindings(t *testing.T) {
 	}
 }
 
-// TestCheckRouterRules_OptIn pins the gate, not an optimisation: every route code but MRT005 is an Error.
+// TestCheckRouterRules_OptIn pins the gate, not an optimisation: every route code but rpc-handler-non-data-property is an Error.
 // `mion compile` and the bundler plugins stop on an Error, so a build would fail on a rule a team turned off in lint.
 func TestCheckRouterRules_OptIn(t *testing.T) {
 	res := setupInline(t, map[string]string{"router.d.ts": routerRulesDTS, "routes.ts": routerRulesRoutes})

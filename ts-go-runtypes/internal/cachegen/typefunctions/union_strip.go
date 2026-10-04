@@ -58,7 +58,7 @@ func strippedValueDrop(resolved *reflection.RunType, name string, ctx *EmitConte
 	return true
 }
 
-// indexSignatureValueDrop reports whether an index signature's value is a function, dropped with the family's …010 note.
+// indexSignatureValueDrop reports whether an index signature's value is a function, dropped with the family's `-function-property-dropped` note.
 func indexSignatureValueDrop(signature, resolved *reflection.RunType, ctx *EmitContext) bool {
 	if !isCallableValue(resolved, ctx) {
 		return false
@@ -118,7 +118,7 @@ func strippedMemberLabel(resolved *reflection.RunType, ctx *EmitContext) string 
 // wire index on both encode and decode. Removing every member means the projection is `never`, so the
 // ORIGINAL list is returned to preserve the alwaysThrow path (see the file header).
 // A genuine drop raises a build-time Warning via SlotUnionMemberDropped, mirroring the property-drop
-// warnings (VL010 etc.) so the silent projection is visible. The walker's dedup-by-code collapses it to
+// warnings (validate-function-property-dropped etc.) so the silent projection is visible. The walker's dedup-by-code collapses it to
 // one diagnostic per family per walk; unknown-keys emitters register no code, so the slot is a no-op there.
 func dataOnlyUnionMembers(rt *reflection.RunType, ctx *EmitContext) []*reflection.RunType {
 	children := rt.SafeUnionChildren

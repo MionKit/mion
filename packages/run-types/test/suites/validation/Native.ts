@@ -162,42 +162,42 @@ export const NATIVE = {
     title: 'Promise',
     description: 'A `Promise` is not data, so the factory throws on first call.',
     validateNotes: [
-      'DataOnly strips every thenable. The Go pipeline renders an alwaysThrow factory (VL001 / VE001). Validate the resolved value with `Awaited<P>` instead.',
+      'DataOnly strips every thenable. The Go pipeline renders an alwaysThrow factory (validate-non-data-root / validation-errors-non-data-root). Validate the resolved value with `Awaited<P>` instead.',
     ],
-    // @mion-downgrade-error VL001
+    // @mion-downgrade-error validate-non-data-root
     validate: () => createValidateFn<Promise<string>>(),
-    // @mion-downgrade-error VE001 VL001
+    // @mion-downgrade-error validation-errors-non-data-root validate-non-data-root
     standardSchema: () => createStandardSchema<Promise<string>>(),
     validateDataOnly: () => createValidateFn<DataOnly<Promise<string>>>(),
-    // @mion-downgrade-error VL001
+    // @mion-downgrade-error validate-non-data-root
     validateSchema: () => createValidateFn(RT.promise(TF.string())),
-    // @mion-downgrade-error VL001
+    // @mion-downgrade-error validate-non-data-root
     deserializeValidate: () => deserializeValidate<Promise<string>>(),
     validateReflect: () => {
       const v: Promise<string> = Promise.resolve('x');
-      // @mion-downgrade-error VL001
+      // @mion-downgrade-error validate-non-data-root
       return createValidateFn(v);
     },
     deserializeValidateReflect: () => {
       const v: Promise<string> = Promise.resolve('x');
-      // @mion-downgrade-error VL001
+      // @mion-downgrade-error validate-non-data-root
       return deserializeValidate(v);
     },
-    // @mion-downgrade-error VE001
+    // @mion-downgrade-error validation-errors-non-data-root
     getValidationErrors: () => createGetValidationErrorsFn<Promise<string>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<Promise<string>>>(),
-    // @mion-downgrade-error VE001
+    // @mion-downgrade-error validation-errors-non-data-root
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.promise(TF.string())),
-    // @mion-downgrade-error VE001
+    // @mion-downgrade-error validation-errors-non-data-root
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<Promise<string>>(),
     getValidationErrorsReflect: () => {
       const v: Promise<string> = Promise.resolve('x');
-      // @mion-downgrade-error VE001
+      // @mion-downgrade-error validation-errors-non-data-root
       return createGetValidationErrorsFn(v);
     },
     deserializeGetValidationErrorsReflect: () => {
       const v: Promise<string> = Promise.resolve('x');
-      // @mion-downgrade-error VE001
+      // @mion-downgrade-error validation-errors-non-data-root
       return deserializeGetValidationErrors(v);
     },
     mockType: () => createMockDataFn<Promise<string>>(),

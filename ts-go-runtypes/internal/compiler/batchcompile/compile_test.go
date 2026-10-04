@@ -181,9 +181,9 @@ export const isCodeReflect = createValidateFn(sample);
 // TestCompile_ValidatesJsOnlyPatternSamples pins the headline of the JS-engine
 // move: the standalone compile verb — which has no lint lane — now really
 // validates samples of patterns RE2 could never compile. Before, this exact
-// fixture was unverifiable on this path (fail-closed FMT004, or a silent skip
+// fixture was unverifiable on this path (fail-closed format-no-js-runtime, or a silent skip
 // under the removed allowUncheckedPatterns); now the mismatching sample is a
-// plain FMT001. Runs the real node sidecar; skipped only where none exists.
+// plain format-sample-mismatch. Runs the real node sidecar; skipped only where none exists.
 func TestCompile_ValidatesJsOnlyPatternSamples(t *testing.T) {
 	if _, err := exec.LookPath("node"); err != nil {
 		t.Skip("no node in PATH")
@@ -209,22 +209,22 @@ func TestCompile_ValidatesJsOnlyPatternSamples(t *testing.T) {
 	if err != nil {
 		t.Fatalf("compile --no-emit: %v", err)
 	}
-	var fmt001 *diagnostics.Diagnostic
+	var formatSampleMismatch *diagnostics.Diagnostic
 	for i := range result.Diagnostics {
 		if result.Diagnostics[i].Code == diagnostics.CodeFMTSampleMismatch {
-			fmt001 = &result.Diagnostics[i]
+			formatSampleMismatch = &result.Diagnostics[i]
 			break
 		}
 		if result.Diagnostics[i].Code == diagnostics.CodeFMTMissingJsRuntime {
-			t.Fatalf("engine should have run (node is present), got FMT004: %+v", result.Diagnostics[i])
+			t.Fatalf("engine should have run (node is present), got format-no-js-runtime: %+v", result.Diagnostics[i])
 		}
 	}
-	if fmt001 == nil {
+	if formatSampleMismatch == nil {
 		t.Fatalf("expected an %s for the mismatching lookbehind sample, got %+v",
 			diagnostics.CodeFMTSampleMismatch, result.Diagnostics)
 	}
-	if len(fmt001.Args) == 0 || fmt001.Args[0] != "nope" {
-		t.Errorf("expected offending sample 'nope' in args, got %+v", fmt001.Args)
+	if len(formatSampleMismatch.Args) == 0 || formatSampleMismatch.Args[0] != "nope" {
+		t.Errorf("expected offending sample 'nope' in args, got %+v", formatSampleMismatch.Args)
 	}
 }
 

@@ -392,11 +392,11 @@ func TestDowngradeErrorsKey(t *testing.T) {
 	}
 
 	t.Run("list of codes", func(t *testing.T) {
-		plugin, ok, err := parse(t, `["VL002", "PJ001"]`)
+		plugin, ok, err := parse(t, `["validate-symbol-root", "json-prepare-never-root"]`)
 		if err != nil || !ok {
 			t.Fatalf("ok=%v err=%v", ok, err)
 		}
-		if len(plugin.DowngradeErrors) != 2 || plugin.DowngradeErrors[0] != "VL002" {
+		if len(plugin.DowngradeErrors) != 2 || plugin.DowngradeErrors[0] != "validate-symbol-root" {
 			t.Errorf("downgradeErrors = %v", plugin.DowngradeErrors)
 		}
 	})

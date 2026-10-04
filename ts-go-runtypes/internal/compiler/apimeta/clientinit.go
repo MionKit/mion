@@ -100,7 +100,7 @@ func isInitClientCall(typeChecker *checker.Checker, markerOpts marker.Options, c
 	return isClientCall(typeChecker, markerOpts, call, InitClientName)
 }
 
-// ApiTypeImports reports SRV001 once per value import the `initClient` type argument names, local aliases followed.
+// ApiTypeImports reports rpc-client-imports-server-value once per value import the `initClient` type argument names, local aliases followed.
 func ApiTypeImports(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile, filePath string) []diagnostics.Diagnostic {
 	if sourceFile == nil || sourceFile.IsDeclarationFile || !strings.Contains(sourceFile.Text(), InitClientName) {
 		return nil

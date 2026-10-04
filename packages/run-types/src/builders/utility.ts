@@ -9,7 +9,7 @@ import type {InjectRunTypeId, CompTimeArgs} from '../markers.ts';
 
 // The `CompTimeArgs<…>` brand: children ride the carrier and are discarded at runtime, so the
 // scanner requires each be a static builder call (or a `const` bound to one) and a dynamic schema
-// raises a `CTA0xx` diagnostic. Every param here is a single `RunType<…>` (or, for pick/omit, a
+// raises a `marker-comptime-arg-*` diagnostic. Every param here is a single `RunType<…>` (or, for pick/omit, a
 // `const` key array), so the plain wrap preserves inference — no spread juggling like the composers.
 
 export function partial<T>(model: CompTimeArgs<RunType<T>>, id?: InjectRunTypeId<Partial<T>>): RunType<Partial<T>> {

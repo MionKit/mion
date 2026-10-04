@@ -315,7 +315,7 @@ func (ctx *EmitContext) AddPureFnDependency(id string) {
 }
 
 // UsePureFn is the ONE choke point for referencing a package-owned pure fn from an emitted body: it records
-// the dependency (so it rides the entry's SoftDeps / PFE9012 check), hoists the deduped
+// the dependency (so it rides the entry's SoftDeps / purefn-not-registered check), hoists the deduped
 // `const <alias> = utl.getPureFn('<id>')` prologue line, and returns the alias the body calls. A raw
 // `utl.getPureFn` string anywhere else is a review smell: a missed dependency becomes a missing import,
 // since delivery is build-owned.
@@ -355,7 +355,7 @@ const (
 	// SlotUnsafeNamePropDropped — a property DECLARED with a name that is never a
 	// property (reflection.UnsafePropertyNames, i.e. `__proto__`) was dropped, so
 	// `{a: number, __proto__: string}` behaves as `{a: number}`: the VALUE is fine,
-	// the NAME cannot carry data. Every family maps it to the family-agnostic UPN001.
+	// the NAME cannot carry data. Every family maps it to the family-agnostic data-proto-property-dropped.
 	SlotUnsafeNamePropDropped DiagSlot = "unsafe-name-prop-dropped"
 	// SlotUnionMemberDropped — a union member DataOnly strips to `never` was
 	// dropped, so the union projects to its data members (DataOnly<Date | symbol>
@@ -405,7 +405,7 @@ func (ctx *EmitContext) EmitDiagnostic(code string, args ...string) {
 }
 
 // JSEngine returns the JS engine format-pattern checks run on (see formats.EmitContext). Nil when no engine
-// is configured, and the format emitters then fail pattern checks closed with FMT004.
+// is configured, and the format emitters then fail pattern checks closed with format-no-js-runtime.
 func (ctx *EmitContext) JSEngine() jsengine.Engine {
 	if ctx.walker == nil {
 		return nil

@@ -32,7 +32,7 @@ function useAuth(middlewares: ReturnType<typeof initClient<TestServerApi>>['midd
   middlewares.auth.onRequest((auth) => auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'})));
 }
 
-/** A helper typed with the wide subrequest: the build reports the widened id (MET004, a warning since this
+/** A helper typed with the wide subrequest: the build reports the widened id (rpc-client-route-id-widened-fetched, a warning since this
  *  program sets up `useFetchMetadata`) and bundles nothing for the call inside, which the client then fetches. */
 function callThroughWideHelper(sub: RouteSubRequest<any>) {
   return sub.call();

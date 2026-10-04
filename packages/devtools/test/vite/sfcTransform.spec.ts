@@ -220,7 +220,7 @@ describe('Vue SFC transformation turned off', () => {
 
 describe('Vue SFC diagnostics', () => {
   it('fails the build when a marker type comes from an unresolvable import', async () => {
-    // a type imported from another .vue cannot be resolved by a TS program: MKR007 reports the
+    // a type imported from another .vue cannot be resolved by a TS program: marker-any-from-unresolved-import reports the
     // marker resolved to `any`, which would silently accept anything, so the build must stop
     const root = writeFixture({
       'src/Types.vue': `<script lang="ts">export type FromVue = {a: string};</script>\n`,
@@ -244,7 +244,7 @@ const ok = validate({a: 'x'});
         build: {write: false, rollupOptions: {input: path.join(root, 'src', 'entry.ts')}},
         plugins: [mionVitePlugin({tsConfig: path.join(root, 'tsconfig.json')}), vue()],
       })
-    ).rejects.toThrow(/build stopped|MKR007/);
+    ).rejects.toThrow(/build stopped|marker-any-from-unresolved-import/);
 
     rmSync(root, {recursive: true, force: true});
   }, 180_000);

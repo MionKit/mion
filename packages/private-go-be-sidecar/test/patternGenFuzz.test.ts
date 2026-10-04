@@ -48,7 +48,7 @@ function supportedPattern(random: () => number): string {
 }
 
 // Adversarial: constructs randexp throws on or mishandles, plus broken
-// syntax — the FMT005/FMT002 lanes.
+// syntax — the format-sample-generation-failed/format-invalid-params lanes.
 const ADVERSARIAL = [
   '(?<=a)b',
   '(?<!x)y',

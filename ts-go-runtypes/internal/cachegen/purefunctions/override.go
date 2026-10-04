@@ -14,7 +14,7 @@ import (
 // unchanged CollectEntries → module emit, producing the module the type-fn redirect depends on.
 //
 // Returns (Entry{}, false) when fnArg is not an inline function: the resolver's PureFunction brand
-// check (PFN001 / PFE90xx) is the diagnostic surface, so this stays quiet, as extractOne does.
+// check (purefn-not-inline / purefn-*) is the diagnostic surface, so this stays quiet, as extractOne does.
 func ExtractOverrideFn(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile, fnArg *ast.Node) (Entry, bool) {
 	if typeChecker == nil || sourceFile == nil || fnArg == nil {
 		return Entry{}, false

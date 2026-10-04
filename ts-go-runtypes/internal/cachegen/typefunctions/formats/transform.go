@@ -75,7 +75,7 @@ func readReplaceParam(transform map[string]any, key string) (search, replace str
 	return strconv.Quote(searchValue), strconv.Quote(replaceValue), true
 }
 
-// ValidateTransformParams is the FMT002 shape check for params["transform"]; formatLabel ("FormatEmail") prefixes each message.
+// ValidateTransformParams is the format-invalid-params shape check for params["transform"]; formatLabel ("FormatEmail") prefixes each message.
 // The only guard against a typo inside the block: the TS-side exact-params check is shallow, so `{transform: {trimm: true}}` reaches the build unflagged.
 func ValidateTransformParams(params map[string]any, formatLabel string, extraKeys ...string) []string {
 	raw, present := params[TransformParamsKey]

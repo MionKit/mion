@@ -1,6 +1,6 @@
 // `RT.callable` is a TS intersection that the Go scanner projects as one object literal (see src/builders/compose.ts).
 // Param names are id-relevant and `RT.func` leaves them unnamed, so it gets a distinct id from the named interface.
-// A callable interface is not data, so validate refuses both forms at the root (VL003).
+// A callable interface is not data, so validate refuses both forms at the root (validate-function-root).
 
 import * as TF from '@mionjs/run-types/formats';
 import {describe, expect, it} from 'vitest';
@@ -17,10 +17,10 @@ describe('value-first callable builder', () => {
   });
 
   it('refuses a callable interface at the root, in both forms', () => {
-    // @mion-downgrade-error VL003
-    expect(() => createValidateFn(schema)).toThrow(/VL003/);
-    // @mion-downgrade-error VL003
-    expect(() => createValidateFn<CallableIface>()).toThrow(/VL003/);
+    // @mion-downgrade-error validate-function-root
+    expect(() => createValidateFn(schema)).toThrow(/validate-function-root/);
+    // @mion-downgrade-error validate-function-root
+    expect(() => createValidateFn<CallableIface>()).toThrow(/validate-function-root/);
   });
 
   it('InferType recovers the callable interface (assignment-equivalent)', () => {

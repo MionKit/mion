@@ -397,7 +397,7 @@ const routes = {
   // THROWS an undeclared error instead of returning it: pins thrown -> unexpected-slot dispatch
   throwsUnexpectedly: route((_ctx, msg: string): string => {
     // Throwing IS what this fixture pins.
-    // @mion-expect-error MRT003
+    // @mion-expect-error rpc-handler-throws
     throw new RpcError({publicMessage: msg, type: 'db-connection-lost'});
   }),
 

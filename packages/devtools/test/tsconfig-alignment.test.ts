@@ -4,11 +4,11 @@
 //   - daemon/HMR surface (direct server-mode ResolverClient, the
 //     transform-modes pattern): a setSources edit introducing an
 //     option-sensitive type (Temporal, lib-gated) resolves exactly as a build
-//     would — lib present → real type, no TMP001; lib absent → TMP001 — and a
-//     broken/missing NAMED tsconfig fails the op loudly (CFG001) instead of
+//     would — lib present → real type, no marker-temporal-lib-missing; lib absent → marker-temporal-lib-missing — and a
+//     broken/missing NAMED tsconfig fails the op loudly (config-tsconfig-not-loaded) instead of
 //     silently degrading, healing on the next setSources once fixed.
 //   - eslint surface (makeFixtureProject/runRule): the same lib sensitivity
-//     routed through the rules, plus CFG001 reported under mion/error.
+//     routed through the rules, plus config-tsconfig-not-loaded reported under mion/error.
 //
 // Marker coverage rule (CLAUDE.md): fixtures use BOTH getRunTypeId call
 // shapes — static getRunTypeId<T>() and value-first getRunTypeId(value) —
@@ -79,9 +79,9 @@ describe.runIf(hasBinary())('daemon surface — setSources honors the full tscon
     }
   };
 
-  it('lib with ESNext.Temporal: the marker resolves — no TMP001, both getRunTypeId shapes share one id', async () => {
+  it('lib with ESNext.Temporal: the marker resolves — no marker-temporal-lib-missing, both getRunTypeId shapes share one id', async () => {
     const result = await scanTemporal(TSCONFIG_TEMPORAL_LIB);
-    expect((result.diagnostics ?? []).map((diagnostic) => diagnostic.code)).not.toContain('TMP001');
+    expect((result.diagnostics ?? []).map((diagnostic) => diagnostic.code)).not.toContain('marker-temporal-lib-missing');
     expect(result.sites).toHaveLength(3);
     const reflectIds = result.sites.filter((site) => !site.fnId).map((site) => site.id);
     expect(reflectIds).toHaveLength(2);
@@ -90,18 +90,18 @@ describe.runIf(hasBinary())('daemon surface — setSources honors the full tscon
     expect(new Set(result.sites.map((site) => site.id)).size).toBe(1);
   });
 
-  it('lib without Temporal: the same edit degrades and TMP001 fires (config sensitivity, not fixture luck)', async () => {
+  it('lib without Temporal: the same edit degrades and marker-temporal-lib-missing fires (config sensitivity, not fixture luck)', async () => {
     const result = await scanTemporal(TSCONFIG_NO_TEMPORAL_LIB);
-    expect((result.diagnostics ?? []).map((diagnostic) => diagnostic.code)).toContain('TMP001');
+    expect((result.diagnostics ?? []).map((diagnostic) => diagnostic.code)).toContain('marker-temporal-lib-missing');
   });
 
-  it('a broken NAMED tsconfig fails setSources with CFG001, then heals once fixed — same connection', async () => {
+  it('a broken NAMED tsconfig fails setSources with config-tsconfig-not-loaded, then heals once fixed — same connection', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-tsconfig-broken-'));
     const configPath = path.join(dir, 'tsconfig.json');
     fs.writeFileSync(configPath, 'this is not json at all {{{');
     const resolver = new ResolverClient(BIN, dir, 'tsconfig.json', {serverMode: true, singleThreaded: true});
     try {
-      await expect(resolver.setSources({'consumer.ts': 'export const x = 1;\n'})).rejects.toThrow(/CFG001/);
+      await expect(resolver.setSources({'consumer.ts': 'export const x = 1;\n'})).rejects.toThrow(/config-tsconfig-not-loaded/);
       fs.writeFileSync(configPath, TSCONFIG_NO_TEMPORAL_LIB);
       await expect(resolver.setSources({'consumer.ts': 'export const x = 1;\n'})).resolves.toBeUndefined();
     } finally {
@@ -151,20 +151,21 @@ describe.runIf(hasBinary())('eslint surface — option-sensitive types and confi
     expect(runRule(rules['runtime-error'], consumerAbs, TEMPORAL_CONSUMER_SRC, {})).toEqual([]);
   });
 
-  it('lib without Temporal: the TMP001 report fires under mion/runtime-error', () => {
+  it('lib without Temporal: the marker-temporal-lib-missing report fires under mion/runtime-error', () => {
     const reports = runRule(rules['runtime-error'], consumerAbs, TEMPORAL_CONSUMER_SRC, {
       mion: {tsconfig: 'tsconfig.nolib.json'},
     });
     expect(reports.length).toBeGreaterThan(0);
-    expect(reports.some((report) => report.message.includes('TMP001'))).toBe(true);
+    expect(reports.some((report) => report.message.includes('marker-temporal-lib-missing'))).toBe(true);
   });
 
-  it('a broken configured tsconfig reports as CFG001 under mion/error, not an engine failure', () => {
+  it('a broken configured tsconfig reports as config-tsconfig-not-loaded under mion/error, not an engine failure', () => {
     const reports = runRule(rules['error'], consumerAbs, TEMPORAL_CONSUMER_SRC, {
       mion: {tsconfig: 'tsconfig.broken.json'},
     });
     expect(reports.length).toBe(1);
-    expect(reports[0].message).toContain('CFG001');
+    expect(reports[0].message).toContain('config-tsconfig-not-loaded');
+    expect(reports[0].message, 'the arg is the reason, not the resolver call').not.toContain('setSources:');
     expect(reports[0].line).toBe(1);
   });
 });

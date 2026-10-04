@@ -68,24 +68,24 @@ export const ATOMIC = {
   regexp: {
     title: 'regexp',
     description:
-      'A RegExp is not data: a pattern is code the receiver would run. At a root position every serialization family renders an alwaysThrow factory (PJ002 and friends), like a function.',
+      'A RegExp is not data: a pattern is code the receiver would run. At a root position every serialization family renders an alwaysThrow factory (json-prepare-non-data-root and friends), like a function.',
     serializeNotes:
-      'A RegExp-valued property is dropped from the wire with the …015 Warning, the same as a function-valued one; only a `pattern` format carries a regex, fixed at build time.',
-    // @mion-downgrade-error PJ002
+      'A RegExp-valued property is dropped from the wire with the `-non-data-property-dropped` Warning, the same as a function-valued one; only a `pattern` format carries a regex, fixed at build time.',
+    // @mion-downgrade-error json-prepare-non-data-root
     mutateEncoder: () => createJsonEncoderFn<RegExp>(undefined, {strategy: 'mutate'}),
-    // @mion-downgrade-error PJS002
+    // @mion-downgrade-error json-prepare-clone-non-data-root
     cloneEncoder: () => createJsonEncoderFn<RegExp>(undefined, {strategy: 'clone'}),
-    // @mion-downgrade-error PJS002
+    // @mion-downgrade-error json-prepare-clone-non-data-root
     compactEncoder: () => createJsonEncoderFn<RegExp>(undefined, {strategy: 'compact'}),
-    // @mion-downgrade-error RJ002
+    // @mion-downgrade-error json-restore-non-data-root
     cloneDecoder: () => createJsonDecoderFn<RegExp>(),
-    // @mion-downgrade-error RJ002
+    // @mion-downgrade-error json-restore-non-data-root
     mutateDecoder: () => createJsonDecoderFn<RegExp>(undefined, {strategy: 'mutate'}),
-    // @mion-downgrade-error RJ002
+    // @mion-downgrade-error json-restore-non-data-root
     compactDecoder: () => createJsonDecoderFn<RegExp>(undefined, {strategy: 'compact'}),
-    // @mion-downgrade-error PJS002
+    // @mion-downgrade-error json-prepare-clone-non-data-root
     schemaEncoder: () => createJsonEncoderFn(RT.regexp()),
-    // @mion-downgrade-error RJ002
+    // @mion-downgrade-error json-restore-non-data-root
     schemaDecoder: () => createJsonDecoderFn(RT.regexp()),
     factoryThrows: true,
     getTestData: () => ({values: []}),
@@ -301,23 +301,23 @@ export const ATOMIC = {
     title: 'symbol',
     description:
       'symbol at root is unsupported because identity does not survive a JSON round-trip, so the factory is rendered as alwaysThrow.',
-    // @mion-downgrade-error PJ005
+    // @mion-downgrade-error json-prepare-symbol-root
     mutateEncoder: () => createJsonEncoderFn<symbol>(undefined, {strategy: 'mutate'}),
-    // @mion-downgrade-error PJS005
+    // @mion-downgrade-error json-prepare-clone-symbol-root
     cloneEncoder: () => createJsonEncoderFn<symbol>(undefined, {strategy: 'clone'}),
-    // @mion-downgrade-error PJS005
+    // @mion-downgrade-error json-prepare-clone-symbol-root
     compactEncoder: () => createJsonEncoderFn<symbol>(undefined, {strategy: 'compact'}),
-    // @mion-downgrade-error RJ005
+    // @mion-downgrade-error json-restore-symbol-root
     cloneDecoder: () => createJsonDecoderFn<symbol>(),
-    // @mion-downgrade-error RJ005
+    // @mion-downgrade-error json-restore-symbol-root
     mutateDecoder: () => createJsonDecoderFn<symbol>(undefined, {strategy: 'mutate'}),
-    // @mion-downgrade-error RJ005
+    // @mion-downgrade-error json-restore-symbol-root
     compactDecoder: () => createJsonDecoderFn<symbol>(undefined, {strategy: 'compact'}),
     // Bare symbol resolves the same alwaysThrow factory via the value-first path,
     // so each schema thunk throws like the type-first form (factoryThrows below).
-    // @mion-downgrade-error PJS005
+    // @mion-downgrade-error json-prepare-clone-symbol-root
     schemaEncoder: () => createJsonEncoderFn(RT.symbol()),
-    // @mion-downgrade-error RJ005
+    // @mion-downgrade-error json-restore-symbol-root
     schemaDecoder: () => createJsonDecoderFn(RT.symbol()),
     factoryThrows: true,
     getTestData: () => ({values: []}),
@@ -361,22 +361,22 @@ export const ATOMIC = {
   never: {
     title: 'never',
     description: 'never type cannot be JSON-encoded or decoded — invoking the factory throws.',
-    // @mion-downgrade-error PJ001
+    // @mion-downgrade-error json-prepare-never-root
     mutateEncoder: () => createJsonEncoderFn<never>(undefined, {strategy: 'mutate'}),
-    // @mion-downgrade-error PJS001
+    // @mion-downgrade-error json-prepare-clone-never-root
     cloneEncoder: () => createJsonEncoderFn<never>(undefined, {strategy: 'clone'}),
-    // @mion-downgrade-error PJS001
+    // @mion-downgrade-error json-prepare-clone-never-root
     compactEncoder: () => createJsonEncoderFn<never>(undefined, {strategy: 'compact'}),
-    // @mion-downgrade-error RJ001
+    // @mion-downgrade-error json-restore-never-root
     cloneDecoder: () => createJsonDecoderFn<never>(),
-    // @mion-downgrade-error RJ001
+    // @mion-downgrade-error json-restore-never-root
     mutateDecoder: () => createJsonDecoderFn<never>(undefined, {strategy: 'mutate'}),
-    // @mion-downgrade-error RJ001
+    // @mion-downgrade-error json-restore-never-root
     compactDecoder: () => createJsonDecoderFn<never>(undefined, {strategy: 'compact'}),
     // never resolves the same alwaysThrow factory via the value-first path.
-    // @mion-downgrade-error PJS001
+    // @mion-downgrade-error json-prepare-clone-never-root
     schemaEncoder: () => createJsonEncoderFn(RT.never()),
-    // @mion-downgrade-error RJ001
+    // @mion-downgrade-error json-restore-never-root
     schemaDecoder: () => createJsonDecoderFn(RT.never()),
     // The 2020-12 boolean `false` schema denotes never — same alwaysThrow factory.
     factoryThrows: true,
@@ -445,32 +445,32 @@ export const ATOMIC = {
       'This used to encode as `Symbol:` plus the description and decode into a new symbol, so the round trip returned a value the validator accepted but `===` did not match.',
     mutateEncoder: () => {
       const sym = Symbol('hello');
-      // @mion-downgrade-error PJ005
+      // @mion-downgrade-error json-prepare-symbol-root
       return createJsonEncoderFn<typeof sym>(undefined, {strategy: 'mutate'});
     },
     cloneEncoder: () => {
       const sym = Symbol('hello');
-      // @mion-downgrade-error PJS005
+      // @mion-downgrade-error json-prepare-clone-symbol-root
       return createJsonEncoderFn<typeof sym>(undefined, {strategy: 'clone'});
     },
     compactEncoder: () => {
       const sym = Symbol('hello');
-      // @mion-downgrade-error PJS005
+      // @mion-downgrade-error json-prepare-clone-symbol-root
       return createJsonEncoderFn<typeof sym>(undefined, {strategy: 'compact'});
     },
     cloneDecoder: () => {
       const sym = Symbol('hello');
-      // @mion-downgrade-error RJ005
+      // @mion-downgrade-error json-restore-symbol-root
       return createJsonDecoderFn<typeof sym>();
     },
     mutateDecoder: () => {
       const sym = Symbol('hello');
-      // @mion-downgrade-error RJ005
+      // @mion-downgrade-error json-restore-symbol-root
       return createJsonDecoderFn<typeof sym>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       const sym = Symbol('hello');
-      // @mion-downgrade-error RJ005
+      // @mion-downgrade-error json-restore-symbol-root
       return createJsonDecoderFn<typeof sym>(undefined, {strategy: 'compact'});
     },
     // No value-first builder names a unique symbol; `RT.symbol()` is the bare kind.

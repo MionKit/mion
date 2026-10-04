@@ -11,7 +11,7 @@ import (
 )
 
 // Every family that throws on non-data agrees with reflection.NonDataOf at the root: a non-data root throws its own
-// code, a data root never falls to TFN001. A kind reflection.FamilyOf maps fails here until kindRoot has its row.
+// code, a data root never falls to internal-kind-not-compilable. A kind reflection.FamilyOf maps fails here until kindRoot has its row.
 // Roots only: TestNestedDiagCorpus_CoversEveryNonDataKind already makes every non-data kind run at every member position.
 
 // kindRoot builds a minimal root of one kind; a nil builder marks a kind that is only ever a member, never a root.

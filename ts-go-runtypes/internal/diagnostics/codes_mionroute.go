@@ -1,31 +1,31 @@
 package diagnostics
 
-// mion route codes (MRTxxx) over route, query, mutation, middleware and headersMiddleware handlers, resolved by the checker.
+// mion route codes (rpc-handler-*) over route, query, mutation, middleware and headersMiddleware handlers, resolved by the checker.
 // Emitted only when a caller opts in (Request.CheckRouterRules), so a build never fails on one: off in eslint must mean off.
-// MRT001-MRT004 are LevelRuntimeError despite being lint-only: the build emits, but mion compiles the DECLARED types,
-// so the route is broken at runtime. MRT005 is a warning: a dropped member still leaves a working type.
+// rpc-handler-missing-return-type to rpc-handler-returns-non-rpc-error are LevelRuntimeError despite being lint-only: the build emits, but mion compiles the DECLARED types,
+// so the route is broken at runtime. rpc-handler-non-data-property is a warning: a dropped member still leaves a working type.
 const (
 	// CodeRouteMissingReturnType: a handler with no written return type. The build compiles the
 	// DECLARED type, so an inferred one leaves nothing to validate or serialize against. Args: [0]
 	// the helper it was declared through, or the handler type it was annotated with.
-	CodeRouteMissingReturnType = "MRT001"
+	CodeRouteMissingReturnType = "rpc-handler-missing-return-type"
 	// CodeRouteMissingParamType: a handler parameter with no written type. The call context
 	// parameters are exempt, every parameter after them travels on the wire. Args: [0] the parameter
 	// name, [1] the helper or handler type it was declared through.
-	CodeRouteMissingParamType = "MRT002"
+	CodeRouteMissingParamType = "rpc-handler-missing-param-type"
 	// CodeRouteThrowInHandler: a `throw` that escapes a handler leaves its signature, so it lands in
 	// the undeclared `@thrownErrors` slot and the client only sees its public message. A throw caught
 	// inside the same handler is not reported. Args: [0] the helper or handler type.
-	CodeRouteThrowInHandler = "MRT003"
+	CodeRouteThrowInHandler = "rpc-handler-throws"
 	// CodeRouteReturnedErrorType: a declared return arm derives from `Error` but not from
 	// `RpcError`, so it carries no mion brand and the dispatcher reroutes it to `@thrownErrors`
 	// instead of its typed slot. Args: [0] the arm's type name, [1] the helper or handler type.
-	CodeRouteReturnedErrorType = "MRT004"
+	CodeRouteReturnedErrorType = "rpc-handler-returns-non-rpc-error"
 	// CodeRouteUnsafePropertyName: a declared property named `__proto__` is never data, since writing
-	// it on a plain object swaps the prototype, so every compiled function drops the member (UPN001).
+	// it on a plain object swaps the prototype, so every compiled function drops the member (data-proto-property-dropped).
 	// Reports the DECLARATION, so it fires for types no route reaches yet. Args: [0] the property
 	// name.
-	CodeRouteUnsafePropertyName = "MRT005"
+	CodeRouteUnsafePropertyName = "rpc-handler-non-data-property"
 )
 
 func init() {

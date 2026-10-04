@@ -50,7 +50,7 @@ func scanComposerCTA(t *testing.T, code string) []diagnostics.Diagnostic {
 	}
 	var cta []diagnostics.Diagnostic
 	for _, d := range filterDiagsByFamily(resp.Diagnostics, diagnostics.FamilyMarker) {
-		if strings.HasPrefix(d.Code, "CTA") {
+		if strings.HasPrefix(d.Code, "marker-comptime-arg-") {
 			cta = append(cta, d)
 		}
 	}
@@ -162,7 +162,7 @@ void _ok;
 		t.Fatalf("scanFiles: %s", resp.Error)
 	}
 	for _, d := range filterDiagsByFamily(resp.Diagnostics, diagnostics.FamilyMarker) {
-		if strings.HasPrefix(d.Code, "CTA") {
+		if strings.HasPrefix(d.Code, "marker-comptime-arg-") {
 			t.Fatalf("expected no CTA diagnostics for cross-module spread, got %s: %+v", d.Code, d)
 		}
 	}

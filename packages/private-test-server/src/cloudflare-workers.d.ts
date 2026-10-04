@@ -14,7 +14,7 @@
 //
 // It is not optional cosmetics. An UNRESOLVED import poisons the whole file for
 // the resolver: every marker in it resolves to `any`, and the build fails with
-// MKR007 rather than generate validators that check nothing. So the routes in
+// marker-any-from-unresolved-import rather than generate validators that check nothing. So the routes in
 // that worker only validate because this file exists.
 
 interface SqlStorage {

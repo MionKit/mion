@@ -190,9 +190,9 @@ func TestValidateModule_AtomicEmitBodies(t *testing.T) {
 		{"boolean", &reflection.RunType{ID: "boo", Kind: reflection.KindBoolean}, "return typeof v === 'boolean'", false},
 		{"bigint", &reflection.RunType{ID: "big", Kind: reflection.KindBigInt}, "return typeof v === 'bigint'", false},
 		// KindSymbol is unsupported at root. Renderer emits an alwaysThrow
-		// factory whose final slot is the VL002 message, rendered here at
+		// factory whose final slot is the validate-symbol-root message, rendered here at
 		// build time (not a body-bearing validator).
-		{"symbol", &reflection.RunType{ID: "sym", Kind: reflection.KindSymbol}, "init('" + valKey("sym") + "','symbol',,,,,," + quoteJS(buildAlwaysThrowMessage("VL002", "Symbol", nil)) + ")", false},
+		{"symbol", &reflection.RunType{ID: "sym", Kind: reflection.KindSymbol}, "init('" + valKey("sym") + "','symbol',,,,,," + quoteJS(buildAlwaysThrowMessage("validate-symbol-root", "Symbol", nil)) + ")", false},
 		{"null", &reflection.RunType{ID: "nul", Kind: reflection.KindNull}, "return v === null", false},
 		{"undefined", &reflection.RunType{ID: "und", Kind: reflection.KindUndefined}, "return typeof v === 'undefined'", false},
 		{"void", &reflection.RunType{ID: "voi", Kind: reflection.KindVoid}, "return v === undefined", false},
@@ -200,7 +200,7 @@ func TestValidateModule_AtomicEmitBodies(t *testing.T) {
 		{"any", &reflection.RunType{ID: "any", Kind: reflection.KindAny}, "", true},
 		{"unknown", &reflection.RunType{ID: "unk", Kind: reflection.KindUnknown}, "", true},
 		{"object", &reflection.RunType{ID: "obj", Kind: reflection.KindObject}, "return (typeof v === 'object' && v !== null)", false},
-		{"regexp", &reflection.RunType{ID: "reg", Kind: reflection.KindRegexp}, "init('" + valKey("reg") + "','regexp',,,,,," + quoteJS(buildAlwaysThrowMessage("VL001", "RegExp", nil)) + ")", false},
+		{"regexp", &reflection.RunType{ID: "reg", Kind: reflection.KindRegexp}, "init('" + valKey("reg") + "','regexp',,,,,," + quoteJS(buildAlwaysThrowMessage("validate-non-data-root", "RegExp", nil)) + ")", false},
 		{"date", &reflection.RunType{ID: "dat", Kind: reflection.KindClass, SubKind: reflection.SubKindDate}, "return (v instanceof Date && !isNaN(v.getTime()))", false},
 	}
 	for _, row := range rows {
@@ -262,7 +262,7 @@ func TestValidateModule_LiteralEmitBodies(t *testing.T) {
 		},
 		{
 			"symbol", &reflection.RunType{ID: "lsy", Kind: reflection.KindLiteral, Literal: map[string]any{"symbol": "hello"}, Flags: []string{"symbol"}},
-			"init('" + valKey("lsy") + "','literal',,,,,," + quoteJS(buildAlwaysThrowMessage("VL002", "Symbol", nil)) + ")",
+			"init('" + valKey("lsy") + "','literal',,,,,," + quoteJS(buildAlwaysThrowMessage("validate-symbol-root", "Symbol", nil)) + ")",
 		},
 	}
 	for _, row := range rows {
@@ -533,12 +533,12 @@ func TestValidateModule_IndexSignatureEmitBody(t *testing.T) {
 	}
 }
 
-// TestValidateModule_FunctionTopLevelEmitBody: a non-data root function renders an alwaysThrow VL003 factory.
+// TestValidateModule_FunctionTopLevelEmitBody: a non-data root function renders an alwaysThrow validate-function-root factory.
 func TestValidateModule_FunctionTopLevelEmitBody(t *testing.T) {
 	dump := protocol.Dump{RunTypes: []*reflection.RunType{{ID: "fn1", Kind: reflection.KindFunction}}}
 	out := renderToString(t, dump)
-	if !strings.Contains(out, "init('"+valKey("fn1")+"','function',,,,,,"+quoteJS(buildAlwaysThrowMessage("VL003", "Function", nil))+")") {
-		t.Errorf("expected an alwaysThrow VL003 factory in:\n%s", out)
+	if !strings.Contains(out, "init('"+valKey("fn1")+"','function',,,,,,"+quoteJS(buildAlwaysThrowMessage("validate-function-root", "Function", nil))+")") {
+		t.Errorf("expected an alwaysThrow validate-function-root factory in:\n%s", out)
 	}
 }
 
@@ -831,7 +831,7 @@ func TestValidateModule_CodeNSPropagation(t *testing.T) {
 	stringRT := &reflection.RunType{ID: "str", Kind: reflection.KindString}
 	// KindIntersection stands in for a future kind with no emit: the checker resolves real intersections first.
 	unsupportedLeaf := &reflection.RunType{ID: "uns", Kind: reflection.KindIntersection}
-	// A kind with no root code still throws, under the internal TFN001, instead of shipping the identity fn.
+	// A kind with no root code still throws, under the internal internal-kind-not-compilable, instead of shipping the identity fn.
 	throwsInternal := func(out, id, kind string) bool {
 		return strings.Contains(out, "init('"+valKey(id)+"','"+kind+"',,,,,,'["+diagnostics.CodeUnsupportedLeafNoCode+"]")
 	}
@@ -845,7 +845,7 @@ func TestValidateModule_CodeNSPropagation(t *testing.T) {
 		dump := protocol.Dump{RunTypes: []*reflection.RunType{arr, unsupportedLeaf, stringRT}}
 		out := renderToString(t, dump)
 		if !throwsInternal(out, "ar1", "array") {
-			t.Errorf("array with unsupported child must throw with TFN001, got:\n%s", out)
+			t.Errorf("array with unsupported child must throw with internal-kind-not-compilable, got:\n%s", out)
 		}
 		if !strings.Contains(out, "init('"+valKey("str")+"',") {
 			t.Errorf("supported sibling must still render, got:\n%s", out)
@@ -879,7 +879,7 @@ func TestValidateModule_CodeNSPropagation(t *testing.T) {
 		dump := protocol.Dump{RunTypes: []*reflection.RunType{iface, propUns, propOk, unsupportedLeaf, stringRT}}
 		out := renderToString(t, dump)
 		if !throwsInternal(out, "if1", "objectLiteral") {
-			t.Errorf("object with an unsupported property must throw with TFN001, not drop it, got:\n%s", out)
+			t.Errorf("object with an unsupported property must throw with internal-kind-not-compilable, not drop it, got:\n%s", out)
 		}
 	})
 
@@ -895,7 +895,7 @@ func TestValidateModule_CodeNSPropagation(t *testing.T) {
 		dump := protocol.Dump{RunTypes: []*reflection.RunType{un, unsupportedLeaf, stringRT}}
 		out := renderToString(t, dump)
 		if !throwsInternal(out, "un1", "union") {
-			t.Errorf("union with one unsupported member must throw with TFN001, got:\n%s", out)
+			t.Errorf("union with one unsupported member must throw with internal-kind-not-compilable, got:\n%s", out)
 		}
 	})
 
@@ -913,20 +913,20 @@ func TestValidateModule_CodeNSPropagation(t *testing.T) {
 		dump := protocol.Dump{RunTypes: []*reflection.RunType{outerArr, innerArr, unsupportedLeaf}}
 		out := renderToString(t, dump)
 		if !throwsInternal(out, "ao", "array") || !throwsInternal(out, "ai", "array") {
-			t.Errorf("both arrays of unsupported must throw with TFN001, got:\n%s", out)
+			t.Errorf("both arrays of unsupported must throw with internal-kind-not-compilable, got:\n%s", out)
 		}
 	})
 
 	t.Run("plain_user_class_with_nonserializable_subkind_throws", func(t *testing.T) {
-		// alwaysThrow init() carries the fully rendered VL001 message as its
+		// alwaysThrow init() carries the fully rendered validate-non-data-root message as its
 		// final slot (rendered here in Go at build time, not resolved
 		// JS-side).
 		ns := &reflection.RunType{ID: "ns1", Kind: reflection.KindClass, SubKind: reflection.SubKindNonSerializable}
 		dump := protocol.Dump{RunTypes: []*reflection.RunType{ns, stringRT}}
 		out := renderToString(t, dump)
-		wantThrow := quoteJS(buildAlwaysThrowMessage("VL001", "NonSerializableClass", nil))
+		wantThrow := quoteJS(buildAlwaysThrowMessage("validate-non-data-root", "NonSerializableClass", nil))
 		if !strings.Contains(out, "init('"+valKey("ns1")+"','class',,,,,,"+wantThrow+")") {
-			t.Errorf("KindClass+SubKindNonSerializable must emit an alwaysThrow init with the VL001 message, got:\n%s", out)
+			t.Errorf("KindClass+SubKindNonSerializable must emit an alwaysThrow init with the validate-non-data-root message, got:\n%s", out)
 		}
 		// The message rides as a plain string slot, not an embedded throw body.
 		if strings.Contains(out, "throw new Error(") {

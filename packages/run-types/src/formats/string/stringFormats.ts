@@ -151,7 +151,7 @@ export type TransformParamsOf<T> = [FormatNameOf<T>] extends [never]
     : never;
 
 // StringParams — the wire-serialisable params shape for String.
-// Cross-param invariants are validated build-time in Go (FMT002).
+// Cross-param invariants are validated build-time in Go (format-invalid-params).
 export interface StringParams {
   maxLength?: number;
   minLength?: number;
@@ -380,7 +380,7 @@ export interface DomainParams {
   transform?: StringTransformParams;
 }
 
-// The parts road: split on '.' and check each label and the tld. Never with `pattern` (Go FMT002).
+// The parts road: split on '.' and check each label and the tld. Never with `pattern` (Go format-invalid-params).
 export interface DomainPartsParams extends DomainParams {
   maxParts?: number;
   minParts?: number;

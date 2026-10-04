@@ -275,12 +275,12 @@ func ResolveBreadcrumb(mirrorFile, spec string) string {
 	if _, err := os.Stat(dtsCandidate); err == nil {
 		return dtsCandidate
 	}
-	// With neither present the .ts candidate keeps GE002 reporting a concrete path.
+	// With neither present the .ts candidate keeps enrich-mirror-source-missing reporting a concrete path.
 	return tsCandidate
 }
 
 // SourceDeclaresType reports whether sourceText still makes typeName available, by declaration or by re-export.
-// The orphan judgement shares it with the GE003 drift lane, and a false negative DESTRUCTIVELY orphans a live type,
+// The orphan judgement shares it with the enrich-mirror-type-missing drift lane, and a false negative DESTRUCTIVELY orphans a live type,
 // so it errs toward KEEP: a wildcard `export *` could re-export the name, and absence cannot be proven, so it counts.
 func SourceDeclaresType(sourceText, typeName string) bool {
 	// A direct declaration or value binding, the name in the declarator position.

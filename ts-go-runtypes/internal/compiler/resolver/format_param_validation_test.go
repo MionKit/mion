@@ -9,7 +9,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// scanForFormatDiagnostics scans `code` and returns the FMT002
+// scanForFormatDiagnostics scans `code` and returns the format-invalid-params
 // (invalid-params) diagnostics emitted during the validate render.
 func scanForFormatParamDiagnostics(t *testing.T, code string) []diagnostics.Diagnostic {
 	t.Helper()

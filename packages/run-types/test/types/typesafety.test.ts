@@ -232,7 +232,7 @@ function assertionsExactParams(): void {
   TF.string({minLength: 1, maxLenght: 50});
   // @ts-expect-error — `transfrom` (typo for `transform`) is not a string param. A typo INSIDE the
   // block (`transform: {trimm: true}`) is not a TS error, the exact-params check is shallow; the
-  // build rejects it instead (FMT002 from the Go-side ValidateTransformParams).
+  // build rejects it instead (format-invalid-params from the Go-side ValidateTransformParams).
   TF.string({maxLength: 5, transfrom: {trim: true}});
   // @ts-expect-error — `mx` (typo for `max`) is not a bigint param.
   TF.bigInt({min: 0n, mx: 10n});
@@ -341,7 +341,7 @@ function assertionsComposers(): void {
   void _back;
 
   // @ts-expect-error — `array` takes a RunType schema, not the bare builder fn.
-  // @mion-downgrade-error CTA003
+  // @mion-downgrade-error marker-comptime-arg-forbidden-construct
   RT.array(RT.boolean);
 
   // @ts-expect-error — `literal` only accepts string/number/bigint/boolean/null/undefined.

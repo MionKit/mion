@@ -335,7 +335,7 @@ export const slugify = registerPureFn((s: string): string => s.toLowerCase());
     120_000
   );
 
-  // A RuntimeError (a validator for `symbol`, VL002) is reported by `next dev`
+  // A RuntimeError (a validator for `symbol`, validate-symbol-root) is reported by `next dev`
   // and never stops it: the broker comes up, the loader gets its rewrite plus the
   // warning. `next build` halts on it. The broker has no bundler config to read
   // the lane from, so `next dev` says it through NODE_ENV (Next sets it before

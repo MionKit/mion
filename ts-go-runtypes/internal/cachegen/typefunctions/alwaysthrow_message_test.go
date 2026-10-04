@@ -54,7 +54,7 @@ func TestRootThrowHeadline_RemoveUnknownKeysNeverFallsBack(t *testing.T) {
 
 func TestBuildAlwaysThrowMessage_WithProvenance(t *testing.T) {
 	msg := buildAlwaysThrowMessage(diagnostics.CodePJFunctionRoot, "Function", []diagnostics.Site{{FilePath: "src/a.ts", StartLine: 7, StartCol: 3}})
-	if !strings.HasPrefix(msg, "[PJ003] Type `Function` can never be encoded to JSON — the generated function will always fail.") {
+	if !strings.HasPrefix(msg, "[json-prepare-function-root] Type `Function` can never be encoded to JSON — the generated function will always fail.") {
 		t.Errorf("unexpected message prefix: %q", msg)
 	}
 	if !strings.Contains(msg, "(at src/a.ts:7:3)") {

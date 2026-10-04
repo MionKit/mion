@@ -10,7 +10,7 @@ export default defineConfig({
     // the @mionjs/devtools plugin injects the marker payloads at build time.
     // Strict, with nothing downgraded: the adapter's pure-fn helpers moved onto the
     // untracked runtime-key APIs, so they no longer trip the scanner and this
-    // package has no CTA003/PFN001 left to stand down.
+    // package has no marker-comptime-arg-forbidden-construct/purefn-not-inline left to stand down.
     mionVitePlugin({
       tsConfig: resolve(__dirname, 'tsconfig.json'),
     }),

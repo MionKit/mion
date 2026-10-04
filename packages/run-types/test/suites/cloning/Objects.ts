@@ -417,7 +417,7 @@ export const OBJECTS = {
     description:
       'A declared function-typed property is KEPT on the clone, shared by reference — functions cannot be rebuilt, and declared members are never dropped (only undeclared keys are).',
     cloneNotes:
-      'The build emits a RUK010 advisory naming the shared member; serializers drop it on the wire instead. Class METHODS differ — they ride the shared prototype (RUK011).',
+      'The build emits a unknown-keys-function-shared advisory naming the shared member; serializers drop it on the wire instead. Class METHODS differ — they ride the shared prototype (unknown-keys-method-not-copied).',
     clone: () => {
       interface ObjectWithMethods {
         name: string;

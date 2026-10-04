@@ -11,7 +11,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// MKR014 — two different types landing on the same short type id.
+// marker-type-id-collision — two different types landing on the same short type id.
 //
 // Type ids are exactly `hashLength` characters by contract. The dictionary used
 // to answer a collision by re-hashing the loser at a longer length, so two

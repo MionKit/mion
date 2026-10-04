@@ -1,8 +1,8 @@
 package diagnostics
 
-// `@mion-expect-error` directive codes (EXPxxx), raised when the suppression comment is itself
+// `@mion-expect-error` directive codes (comment-expect-error-*), raised when the suppression comment is itself
 // wrong. The directive works like `@ts-expect-error`: it sits on the line above a finding and
-// REMOVES it, and an unused one is reported (EXP001), which is what makes it safer than a
+// REMOVES it, and an unused one is reported (comment-expect-error-unused), which is what makes it safer than a
 // config-level ignore list.
 //
 // All three are LevelWarning: what the build emitted is CORRECT, only a comment is wrong. TypeScript
@@ -10,14 +10,14 @@ package diagnostics
 const (
 	// CodeExpectErrorUnused fires when no diagnostic the directive names was raised on the line below
 	// it. Args: [0] the codes named, or "any" for the bare form. Anchors at the comment.
-	CodeExpectErrorUnused = "EXP001"
+	CodeExpectErrorUnused = "comment-expect-error-unused"
 	// CodeExpectErrorNotSuppressible fires on a never-suppressible code: a pure-fn code (files mode
 	// has no fallback for a failed generation, so proceeding ships missing output) or an EXP code
 	// itself (a directive cannot silence the check on directives). Args: [0] the offending code.
-	CodeExpectErrorNotSuppressible = "EXP002"
+	CodeExpectErrorNotSuppressible = "comment-expect-error-not-allowed"
 	// CodeExpectErrorUnknownCode fires on a code the catalog does not define, almost always a typo
 	// that would otherwise read as a working suppression. Args: [0] the unknown code.
-	CodeExpectErrorUnknownCode = "EXP003"
+	CodeExpectErrorUnknownCode = "comment-expect-error-unknown-name"
 )
 
 func init() {

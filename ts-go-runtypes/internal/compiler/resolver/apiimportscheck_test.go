@@ -41,30 +41,30 @@ func TestApiImports_ScanAndGenerateBothReport(t *testing.T) {
 		t.Fatalf("scan error: %s", scan.Error)
 	}
 	if sites := serverImportSites(scan); len(sites) != 1 || sites[0].FilePath != "client.ts" || sites[0].StartLine != 2 {
-		t.Fatalf("scan: SRV001 sites = %+v, want one at client.ts:2", sites)
+		t.Fatalf("scan: rpc-client-imports-server-value sites = %+v, want one at client.ts:2", sites)
 	}
 	build := session.Dispatch(protocol.Request{Op: protocol.OpGenerate})
 	if build.Error != "" {
 		t.Fatalf("generate error: %s", build.Error)
 	}
 	if sites := serverImportSites(build); len(sites) != 1 || sites[0].StartLine != 2 {
-		t.Fatalf("generate: SRV001 sites = %+v, want one at line 2", sites)
+		t.Fatalf("generate: rpc-client-imports-server-value sites = %+v, want one at line 2", sites)
 	}
 	for _, diagnostic := range build.Diagnostics {
 		if diagnostic.Code == diagnostics.CodeServerImportInClient && diagnostic.Severity != diagnostics.SeverityError {
-			t.Fatalf("SRV001 severity = %d, want an error", diagnostic.Severity)
+			t.Fatalf("rpc-client-imports-server-value severity = %d, want an error", diagnostic.Severity)
 		}
 	}
 }
 
-// A `@mion-expect-error SRV001` above the import silences it on both ops and is not reported as unused.
+// A `@mion-expect-error rpc-client-imports-server-value` above the import silences it on both ops and is not reported as unused.
 func TestApiImports_ExpectErrorSilences(t *testing.T) {
 	sources := map[string]string{}
 	for name, content := range serverImportSources {
 		sources[name] = content
 	}
 	sources["client.ts"] = "import {initClient} from '@mionjs/client';\n" +
-		"// @mion-expect-error SRV001\n" +
+		"// @mion-expect-error rpc-client-imports-server-value\n" +
 		"import {MyApi} from './api';\n" +
 		"export const {routes} = initClient<MyApi>({baseURL: ''});\n"
 	session := setupInline(t, sources)
@@ -74,13 +74,13 @@ func TestApiImports_ExpectErrorSilences(t *testing.T) {
 	} {
 		for _, diagnostic := range response.Diagnostics {
 			if diagnostic.Code == diagnostics.CodeServerImportInClient || diagnostic.Code == diagnostics.CodeExpectErrorUnused {
-				t.Fatalf("got %s at %+v, want the directive to silence SRV001", diagnostic.Code, diagnostic.Site)
+				t.Fatalf("got %s at %+v, want the directive to silence rpc-client-imports-server-value", diagnostic.Code, diagnostic.Site)
 			}
 		}
 	}
 }
 
-// A dependency's own `.ts` source gets no SRV001 (TypeScript provenance); first-party code still does, on both ops.
+// A dependency's own `.ts` source gets no rpc-client-imports-server-value (TypeScript provenance); first-party code still does, on both ops.
 func TestApiImports_DependencySourceIsNotReported(t *testing.T) {
 	const clientSrc = "import {initClient} from '@mionjs/client';\nimport {MyApi} from './api';\nexport const client = initClient<MyApi>({baseURL: ''});\n"
 	const apiSrc = "export type MyApi = {hello: () => string};\nexport const version = 1;\n"
@@ -121,7 +121,7 @@ func TestApiImports_DependencySourceIsNotReported(t *testing.T) {
 		}
 		sites := serverImportSites(response)
 		if len(sites) != 1 || !strings.HasSuffix(sites[0].FilePath, "app.ts") {
-			t.Fatalf("%s: SRV001 sites = %+v, want one in app.ts and none in the dependency", name, sites)
+			t.Fatalf("%s: rpc-client-imports-server-value sites = %+v, want one in app.ts and none in the dependency", name, sites)
 		}
 	}
 }

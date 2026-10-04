@@ -183,7 +183,7 @@ export const wrapped = (registerPureFnFactory(function () { return function () {
 // module-private `const f = function(){…}` or a `function f(){}` declaration —
 // is no longer a valid pure-fn: the build extracts and AOT-compiles the body, so
 // the literal must be inline at the call site. The walker silently skips these
-// (the marker layer emits PFN001 via scanCall), so no entry is extracted and the
+// (the marker layer emits purefn-not-inline via scanCall), so no entry is extracted and the
 // walker emits no diagnostic.
 
 func TestExtract_NamedConstFactory_SilentSkip(t *testing.T) {
@@ -249,7 +249,7 @@ export const fn = registerPureFnFactory(function () { return function () {}; }, 
 	}
 }
 
-func TestExtract_DestructuredParam_PFE9005(t *testing.T) {
+func TestExtract_DestructuredParam_PurefnDestructuredParam(t *testing.T) {
 	_, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
 import {registerPureFnFactory} from '@mionjs/run-types/runtime';
@@ -266,7 +266,7 @@ export const fn = registerPureFnFactory(function ({a, b}) {
 	}
 }
 
-func TestExtract_DestructuredParam_PFE9005_Unnamed(t *testing.T) {
+func TestExtract_DestructuredParam_PurefnDestructuredParam_Unnamed(t *testing.T) {
 	_, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
 import {registerPureFnFactory} from '@mionjs/run-types/runtime';

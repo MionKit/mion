@@ -33,8 +33,8 @@ export type TemplateLeaf = FriendlyTemplate | PluralTemplate;
  *  plural object. Mirror of Go's `CountBearing` (internal/enrichment/classify.go). */
 type CountBearingKeys = 'minLength' | 'maxLength' | 'min' | 'max' | 'lt' | 'gt';
 
-/** Keys are optional because the compiler warns about a missing one (FT012).
- *  No index signature, so an unknown key is an excess-property error in the IDE (FT003). */
+/** Keys are optional because the compiler warns about a missing one (enrich-text-missing-message).
+ *  No index signature, so an unknown key is an excess-property error in the IDE (enrich-text-unknown-error-key). */
 type ConstraintTemplates<Name extends keyof FormatErrorKeys> = {type: FriendlyTemplate} & {
   [K in FormatErrorKeys[Name]]?: K extends CountBearingKeys ? TemplateLeaf : FriendlyTemplate;
 } & {rt$default?: never};
@@ -57,7 +57,7 @@ export type ErrorTemplates<F = never> = [F] extends [never]
     : BareTemplates;
 
 /** Blank values are caught by the `@todo` / diagnostic layer, not TS; `rt$typeName` defaults to the reflected name.
- *  The `rt$` prefix is reserved (`mion enrich` refuses, FT011 flags it), so the child map can't shadow it. */
+ *  The `rt$` prefix is reserved (`mion enrich` refuses, enrich-text-reserved-prefix flags it), so the child map can't shadow it. */
 export interface FriendlyMeta<F = never> {
   rt$label: string;
   rt$errors: ErrorTemplates<F>;

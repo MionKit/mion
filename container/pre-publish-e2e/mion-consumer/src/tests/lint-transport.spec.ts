@@ -38,9 +38,9 @@ describe('mion eslint transport', () => {
         expect(ruleIds, `mion/runtime-error did not fire:\n${output.slice(0, 1200)}`).toContain('mion/runtime-error');
         // A compiler-fed rule reports a plain message carrying the stable code, not
         // an ESLint messageId, so the codes are what pin which finding fired.
-        const codes = messages.flatMap((message) => message.message.match(/^\[(MRT\d+)\]/)?.[1] ?? []);
+        const codes = messages.flatMap((message) => message.message.match(/^\[(rpc-handler-[a-z0-9-]+)\]/)?.[1] ?? []);
         expect(codes, `expected every route code:\n${output.slice(0, 1200)}`).toEqual(
-            expect.arrayContaining(['MRT001', 'MRT002', 'MRT003', 'MRT004'])
+            expect.arrayContaining(['rpc-handler-missing-return-type', 'rpc-handler-missing-param-type', 'rpc-handler-throws', 'rpc-handler-returns-non-rpc-error'])
         );
     });
 });

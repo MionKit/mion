@@ -178,10 +178,10 @@ func TestApiVersion_DeclarationVersionDiffers(t *testing.T) {
 	server := serverVersion(t)
 	_, diags := packageClient(t, "'notTheServer'", constants.ClientRoutesBundle)
 	if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaServerVersionMismatch {
-		t.Fatalf("expected one MET012, got %+v", diags)
+		t.Fatalf("expected one rpc-client-server-version-mismatch, got %+v", diags)
 	}
 	if diags[0].Args[0] != server || diags[0].Args[1] != "notTheServer" || !strings.HasSuffix(diags[0].Site.FilePath, "client.ts") {
-		t.Fatalf("MET012 must sit at initClient and name the client's then the server's version, got %+v", diags[0])
+		t.Fatalf("rpc-client-server-version-mismatch must sit at initClient and name the client's then the server's version, got %+v", diags[0])
 	}
 }
 
@@ -190,7 +190,7 @@ func TestApiVersion_DeclarationWithoutVersionWarns(t *testing.T) {
 	server := serverVersion(t)
 	client, diags := packageClient(t, "string", constants.ClientRoutesBundle)
 	if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaNoServerVersion {
-		t.Fatalf("expected one MET013, got %+v", diags)
+		t.Fatalf("expected one rpc-client-no-server-version, got %+v", diags)
 	}
 	if version := transformedVersion(t, client, "client.ts"); version != server {
 		t.Fatalf("the client injects its own hash, equal to the server's here: want %q, got %q", server, version)
@@ -367,7 +367,7 @@ func TestApiVersion_AllSingleWarnsSharedModules(t *testing.T) {
 		return generated.Diagnostics
 	}
 	if !hasDiagCode(generate(constants.ModuleModeAllSingle), diagnostics.CodeApiMetaSharedModules) {
-		t.Error("allSingle in a program holding client and server must warn MET014")
+		t.Error("allSingle in a program holding client and server must warn rpc-client-shared-modules")
 	}
 	if hasDiagCode(generate(constants.ModuleModeDefault), diagnostics.CodeApiMetaSharedModules) {
 		t.Error("default mode splits the modules per file, so nothing is reported")
@@ -390,7 +390,7 @@ export const {routes} = initClient<Api>({baseURL: 'http://x'});
 		t.Fatalf("generate: %s", generated.Error)
 	}
 	if diags := metDiags(generated.Diagnostics); len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaNoServerVersion {
-		t.Fatalf("expected one MET013, got %+v", diags)
+		t.Fatalf("expected one rpc-client-no-server-version, got %+v", diags)
 	}
 }
 

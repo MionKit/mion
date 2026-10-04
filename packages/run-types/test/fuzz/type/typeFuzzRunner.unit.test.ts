@@ -10,7 +10,7 @@ const base = {target: 'stub', seed: 1, phase: 'valid' as const, value: '{}'};
 
 const serializes = (): string => '{}';
 const alwaysThrows = (): never => {
-  throw new Error('[RT001] not serialisable');
+  throw new Error('[validate-symbol-root] not serialisable');
 };
 const crashes = (): never => {
   throw new TypeError('boom');

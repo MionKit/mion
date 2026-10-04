@@ -198,5 +198,5 @@ func TestBuiltinDelivery_MarkerWithNothingToServeFails(t *testing.T) {
 			return
 		}
 	}
-	t.Fatalf("expected PFE9016 for a marker package with nothing to serve, got %+v", resp.Diagnostics)
+	t.Fatalf("expected purefn-package-not-built for a marker package with nothing to serve, got %+v", resp.Diagnostics)
 }

@@ -45,8 +45,8 @@ With the cascade the server ships a new id, the client has never seen it, and re
 
 Same id implies same body, by construction. Nothing downstream has to verify anything, which is
 why `BodyHash` was removed from the entry, the tuple, the wire and the client store: once the id
-IS the hash of the code, a second hash of the same code carries nothing. It is also why PFE9004
-("two pure functions share an id but have different bodies") is unreachable and was deleted.
+IS the hash of the code, a second hash of the same code carries nothing. It is also why "two pure
+functions share an id but have different bodies" cannot happen, so no diagnostic exists for it.
 
 The disk cache leans on this directly:
 
@@ -67,7 +67,7 @@ built-in constant names, and reaches nothing else.
 ## The one real limitation
 
 Two pure functions that call each other have no answer: each id would have to contain the other.
-That is `PFE9015` (`diagnostics/codes_purefn.go:53`), an Error, raised by the `inProgress` guard
+That is `purefn-dependency-cycle` (`diagnostics/codes_purefn.go:53`), an Error, raised by the `inProgress` guard
 in `resolve.go`. Before it existed, an eager cycle recursed forever at materialisation, so this
 replaced a runtime hang with a build error, but it does forbid a reasonable thing to write.
 

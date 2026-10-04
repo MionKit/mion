@@ -152,7 +152,7 @@ func render(found []diagnostics.Diagnostic) string {
 	return out.String()
 }
 
-// ─────────────────────────── MRT001 / MRT002 ───────────────────────────
+// ─────────────────────────── missing return / param types ───────────────────────────
 
 func TestStrongTypedRoutes_InlineHandler(t *testing.T) {
 	assertCodes(t, checkBody(t, "export const ok = mion.route((ctx, name: string): string => name);"))
@@ -161,7 +161,7 @@ func TestStrongTypedRoutes_InlineHandler(t *testing.T) {
 	assertCodes(t, checkBody(t, "export const bad = mion.route((ctx, name): string => name);"),
 		diagnostics.CodeRouteMissingParamType)
 	assertCodes(t, checkBody(t, "export const bad = mion.route((ctx, name) => name);"),
-		diagnostics.CodeRouteMissingReturnType, diagnostics.CodeRouteMissingParamType)
+		diagnostics.CodeRouteMissingParamType, diagnostics.CodeRouteMissingReturnType)
 }
 
 func TestStrongTypedRoutes_ContextParamsAreExempt(t *testing.T) {
@@ -374,7 +374,7 @@ export const a = mion.route(local);
 	assertAt(t, found, diagnostics.CodeRouteMissingReturnType, "routes.ts", 3)
 }
 
-// ─────────────────────────── MRT003 ───────────────────────────
+// ─────────────────────────── rpc-handler-throws ───────────────────────────
 
 func TestRouterShapes_SameNamedFunctionFromAnotherPackageIsIgnored(t *testing.T) {
 	assertCodes(t, check(t, map[string]string{
@@ -422,7 +422,7 @@ export function helper(name: string): string { throw new Error(name); }
 `))
 }
 
-// ─────────────────────────── MRT004 ───────────────────────────
+// ─────────────────────────── rpc-handler-returns-non-rpc-error ───────────────────────────
 
 func TestReturnedErrorType_RpcErrorIsFine(t *testing.T) {
 	assertCodes(t, check(t, map[string]string{"routes.ts": `import {createMionRouter} from '@mionjs/router';
@@ -472,7 +472,7 @@ export const ok = mion.route((ctx, id: string): string | {code: number} | null =
 `}))
 }
 
-// ─────────────────────────── MRT005 ───────────────────────────
+// ─────────────────────────── rpc-handler-non-data-property ───────────────────────────
 
 func TestUnsafePropertyNames(t *testing.T) {
 	assertCodes(t, check(t, map[string]string{"types.ts": `
@@ -505,7 +505,7 @@ export class Thing { constructor(public ok: number) {} }
 
 func TestUnsafePropertyNames_FiresWithoutAnyRoute(t *testing.T) {
 	// The point of the rule: it reports the declaration, so it works for a type
-	// no route reaches yet, which is exactly what UPN001 cannot do.
+	// no route reaches yet, which is exactly what data-proto-property-dropped cannot do.
 	found := check(t, map[string]string{"types.ts": `export type Wire = {__proto__: string};`})
 	assertCodes(t, found, diagnostics.CodeRouteUnsafePropertyName)
 	if got := found[0].Args; len(got) != 1 || got[0] != "__proto__" {

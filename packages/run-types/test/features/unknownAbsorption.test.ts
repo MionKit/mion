@@ -2,7 +2,7 @@
 // IS `unknown` — one type, one structural id — before any RunTypes machinery
 // runs. So every authoring form of an absorbed union resolves to the same
 // factory as plain `unknown`, the generated functions are unknown's (validate
-// accepts everything — the VL021 lint warning tells the author), and the
+// accepts everything — the validate-any-accepts-all lint warning tells the author), and the
 // convert roundtrip prints the collapsed spelling with the id untouched.
 // `never` is the mirror image: it VANISHES from a union.
 import * as TF from '@mionjs/run-types/formats';
