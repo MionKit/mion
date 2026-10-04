@@ -1,0 +1,479 @@
+[
+  {
+    "name": "one slot varies per site",
+    "entries": [
+      {
+        "severity": 1,
+        "name": "validate-non-data-root",
+        "template": "Type `{type}` can never be validated: the generated function will always fail.",
+        "slots": [
+          "type"
+        ],
+        "args": [
+          "Socket"
+        ],
+        "site": {
+          "filePath": "src/jobs/upload.ts",
+          "startLine": 41,
+          "startCol": 2
+        }
+      },
+      {
+        "severity": 1,
+        "name": "validate-non-data-root",
+        "template": "Type `{type}` can never be validated: the generated function will always fail.",
+        "slots": [
+          "type"
+        ],
+        "args": [
+          "FileHandle"
+        ],
+        "site": {
+          "filePath": "src/routes/user.ts",
+          "startLine": 12,
+          "startCol": 7
+        }
+      },
+      {
+        "severity": 1,
+        "name": "validate-non-data-root",
+        "template": "Type `{type}` can never be validated: the generated function will always fail.",
+        "slots": [
+          "type"
+        ],
+        "args": [
+          "FileHandle"
+        ],
+        "site": {
+          "filePath": "src/routes/files.ts",
+          "startLine": 4,
+          "startCol": 3
+        }
+      }
+    ],
+    "want": "error validate-non-data-root (3)\n  Type `{type}` can never be validated: the generated function will always fail.\n    src/jobs/upload.ts:41:2  type=Socket\n    src/routes/files.ts:4:3  type=FileHandle\n    src/routes/user.ts:12:7  type=FileHandle\n\nmion: 3 errors in 3 files"
+  },
+  {
+    "name": "a slot with one value goes into the message",
+    "entries": [
+      {
+        "severity": 2,
+        "name": "json-restore-non-data-property-dropped",
+        "template": "Property `{property}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): the JSON decoder drops it, so this property is silently not decoded.",
+        "slots": [
+          "property"
+        ],
+        "args": [
+          "onDone"
+        ],
+        "site": {
+          "filePath": "src/models/task.ts",
+          "startLine": 8,
+          "startCol": 5
+        }
+      },
+      {
+        "severity": 2,
+        "name": "json-restore-non-data-property-dropped",
+        "template": "Property `{property}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): the JSON decoder drops it, so this property is silently not decoded.",
+        "slots": [
+          "property"
+        ],
+        "args": [
+          "onDone"
+        ],
+        "site": {
+          "filePath": "src/models/job.ts",
+          "startLine": 15,
+          "startCol": 5
+        }
+      }
+    ],
+    "want": "warning json-restore-non-data-property-dropped (2)\n  Property `onDone` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): the JSON decoder drops it, so this property is silently not decoded.\n    src/models/job.ts:15:5\n    src/models/task.ts:8:5\n\nmion: 2 warnings in 2 files"
+  },
+  {
+    "name": "many slots, only the varying ones per site",
+    "entries": [
+      {
+        "severity": 1,
+        "name": "rpc-client-middleware-not-set-up",
+        "template": "The route `{route}` runs the middleware `{middleware}`, which needs params, but this client never sets it up; every call to the route fails its validation.",
+        "slots": [
+          "route",
+          "middleware"
+        ],
+        "args": [
+          "users/getById",
+          "auth"
+        ],
+        "site": {
+          "filePath": "src/client.ts",
+          "startLine": 4,
+          "startCol": 18
+        }
+      },
+      {
+        "severity": 1,
+        "name": "rpc-client-middleware-not-set-up",
+        "template": "The route `{route}` runs the middleware `{middleware}`, which needs params, but this client never sets it up; every call to the route fails its validation.",
+        "slots": [
+          "route",
+          "middleware"
+        ],
+        "args": [
+          "users/getById",
+          "users/audit"
+        ],
+        "site": {
+          "filePath": "src/client.ts",
+          "startLine": 4,
+          "startCol": 18
+        }
+      }
+    ],
+    "want": "error rpc-client-middleware-not-set-up (2)\n  The route `users/getById` runs the middleware `{middleware}`, which needs params, but this client never sets it up; every call to the route fails its validation.\n    src/client.ts:4:18  middleware=auth\n    src/client.ts:4:18  middleware=users/audit\n\nmion: 2 errors in 1 file"
+  },
+  {
+    "name": "no slots lists only sites",
+    "entries": [
+      {
+        "severity": 3,
+        "name": "rpc-batch-no-routes",
+        "template": "`batch()` has no routes, so it sends nothing.",
+        "site": {
+          "filePath": "b.ts",
+          "startLine": 2,
+          "startCol": 1
+        }
+      },
+      {
+        "severity": 3,
+        "name": "rpc-batch-no-routes",
+        "template": "`batch()` has no routes, so it sends nothing.",
+        "site": {
+          "filePath": "a.ts",
+          "startLine": 9,
+          "startCol": 3
+        }
+      }
+    ],
+    "want": "info rpc-batch-no-routes (2)\n  `batch()` has no routes, so it sends nothing.\n    a.ts:9:3\n    b.ts:2:1\n\nmion: 2 info in 2 files"
+  },
+  {
+    "name": "order: errors, warnings, info, then name",
+    "entries": [
+      {
+        "severity": 3,
+        "name": "validate-method-dropped",
+        "template": "Method `{method}` is silently not validated by `validate`: methods aren't data.",
+        "slots": [
+          "method"
+        ],
+        "args": [
+          "speak"
+        ],
+        "site": {
+          "filePath": "a.ts",
+          "startLine": 1,
+          "startCol": 1
+        }
+      },
+      {
+        "severity": 2,
+        "name": "unknown-keys-value-shared",
+        "template": "The value in {target} is shared with the input, as `sharedValues: 'share'` asks.",
+        "slots": [
+          "target"
+        ],
+        "args": [
+          "`cache`"
+        ],
+        "site": {
+          "filePath": "a.ts",
+          "startLine": 2,
+          "startCol": 1
+        }
+      },
+      {
+        "severity": 1,
+        "name": "validate-symbol-root",
+        "template": "Type `{type}` can never be validated: the generated function will always fail.",
+        "slots": [
+          "type"
+        ],
+        "args": [
+          "Symbol"
+        ],
+        "site": {
+          "filePath": "a.ts",
+          "startLine": 3,
+          "startCol": 1
+        }
+      },
+      {
+        "severity": 1,
+        "name": "marker-calls-function-for-type",
+        "template": "`{function}()` is being called at runtime just so the marker can read its return type: side effects, throws, or async work run for nothing.",
+        "slots": [
+          "function"
+        ],
+        "args": [
+          "load"
+        ],
+        "site": {
+          "filePath": "a.ts",
+          "startLine": 4,
+          "startCol": 1
+        }
+      }
+    ],
+    "want": "error marker-calls-function-for-type (1)\n  `load()` is being called at runtime just so the marker can read its return type: side effects, throws, or async work run for nothing.\n    a.ts:4:1\n\nerror validate-symbol-root (1)\n  Type `Symbol` can never be validated: the generated function will always fail.\n    a.ts:3:1\n\nwarning unknown-keys-value-shared (1)\n  The value in `cache` is shared with the input, as `sharedValues: 'share'` asks.\n    a.ts:2:1\n\ninfo validate-method-dropped (1)\n  Method `speak` is silently not validated by `validate`: methods aren't data.\n    a.ts:1:1\n\nmion: 2 errors, 1 warning, 1 info in 1 file"
+  },
+  {
+    "name": "downgraded sites form their own warning group",
+    "entries": [
+      {
+        "severity": 1,
+        "name": "validate-symbol-root",
+        "template": "Type `{type}` can never be validated: the generated function will always fail.",
+        "slots": [
+          "type"
+        ],
+        "args": [
+          "Symbol"
+        ],
+        "site": {
+          "filePath": "a.ts",
+          "startLine": 3,
+          "startCol": 1
+        }
+      },
+      {
+        "severity": 2,
+        "name": "validate-symbol-root",
+        "template": "Type `{type}` can never be validated: the generated function will always fail.",
+        "slots": [
+          "type"
+        ],
+        "args": [
+          "Symbol"
+        ],
+        "site": {
+          "filePath": "b.ts",
+          "startLine": 7,
+          "startCol": 2
+        },
+        "downgraded": true
+      }
+    ],
+    "want": "error validate-symbol-root (1)\n  Type `Symbol` can never be validated: the generated function will always fail.\n    a.ts:3:1\n\nwarning validate-symbol-root (1) (downgraded)\n  Type `Symbol` can never be validated: the generated function will always fail.\n    b.ts:7:2\n\nmion: 1 error, 1 warning in 2 files"
+  },
+  {
+    "name": "related lines sit under their site",
+    "entries": [
+      {
+        "severity": 1,
+        "name": "marker-unresolved-type-parameter",
+        "template": "Type argument contains the unresolved type parameter `{typeParam}`: a generic must be fully resolved at the marker call, so no id can be computed. See Related for where `{typeParam}` is declared.",
+        "slots": [
+          "typeParam"
+        ],
+        "args": [
+          "T"
+        ],
+        "site": {
+          "filePath": "src/a.ts",
+          "startLine": 5,
+          "startCol": 9
+        },
+        "related": [
+          {
+            "filePath": "src/types.ts",
+            "startLine": 2,
+            "startCol": 15,
+            "message": "`T` is declared here"
+          }
+        ]
+      },
+      {
+        "severity": 1,
+        "name": "marker-unresolved-type-parameter",
+        "template": "Type argument contains the unresolved type parameter `{typeParam}`: a generic must be fully resolved at the marker call, so no id can be computed. See Related for where `{typeParam}` is declared.",
+        "slots": [
+          "typeParam"
+        ],
+        "args": [
+          "U"
+        ],
+        "site": {
+          "filePath": "src/b.ts",
+          "startLine": 1,
+          "startCol": 1
+        }
+      }
+    ],
+    "want": "error marker-unresolved-type-parameter (2)\n  Type argument contains the unresolved type parameter `{typeParam}`: a generic must be fully resolved at the marker call, so no id can be computed. See Related for where `{typeParam}` is declared.\n    src/a.ts:5:9  typeParam=T\n      Related: src/types.ts:2:15 `T` is declared here\n    src/b.ts:1:1  typeParam=U\n\nmion: 2 errors in 2 files"
+  },
+  {
+    "name": "values with spaces or nothing are quoted",
+    "entries": [
+      {
+        "severity": 1,
+        "name": "validate-non-data-root",
+        "template": "Type `{type}` can never be validated: the generated function will always fail.",
+        "slots": [
+          "type"
+        ],
+        "args": [
+          "A | B"
+        ],
+        "site": {
+          "filePath": "a.ts",
+          "startLine": 1,
+          "startCol": 1
+        }
+      },
+      {
+        "severity": 1,
+        "name": "validate-non-data-root",
+        "template": "Type `{type}` can never be validated: the generated function will always fail.",
+        "slots": [
+          "type"
+        ],
+        "args": [
+          "say \"hi\"\tnow"
+        ],
+        "site": {
+          "filePath": "a.ts",
+          "startLine": 2,
+          "startCol": 1
+        }
+      },
+      {
+        "severity": 1,
+        "name": "validate-non-data-root",
+        "template": "Type `{type}` can never be validated: the generated function will always fail.",
+        "slots": [
+          "type"
+        ],
+        "site": {
+          "filePath": "a.ts",
+          "startLine": 3,
+          "startCol": 1
+        }
+      }
+    ],
+    "want": "error validate-non-data-root (3)\n  Type `{type}` can never be validated: the generated function will always fail.\n    a.ts:1:1  type=\"A | B\"\n    a.ts:2:1  type=\"say \\\"hi\\\"\\tnow\"\n    a.ts:3:1  type=\"\"\n\nmion: 3 errors in 1 file"
+  },
+  {
+    "name": "typescript errors group by code, then by message",
+    "entries": [
+      {
+        "severity": 1,
+        "name": "TS2322",
+        "template": "Type 'string' is not assignable to type 'number'.",
+        "site": {
+          "filePath": "src/api.ts",
+          "startLine": 3,
+          "startCol": 1
+        }
+      },
+      {
+        "severity": 1,
+        "name": "TS2322",
+        "template": "Type 'Date' is not assignable to type 'string'.",
+        "site": {
+          "filePath": "src/db.ts",
+          "startLine": 9,
+          "startCol": 4
+        }
+      },
+      {
+        "severity": 1,
+        "name": "TS2322",
+        "template": "Type 'string' is not assignable to type 'number'.",
+        "site": {
+          "filePath": "src/api.ts",
+          "startLine": 1,
+          "startCol": 1
+        }
+      },
+      {
+        "severity": 1,
+        "name": "TS2345",
+        "template": "Argument of type 'X' is not assignable to parameter of type 'Y'.\n  Types of property 'a' are incompatible.",
+        "site": {
+          "filePath": "src/c.ts",
+          "startLine": 2,
+          "startCol": 2
+        }
+      }
+    ],
+    "want": "error TS2322 (3)\n  Type 'string' is not assignable to type 'number'.\n    src/api.ts:1:1\n    src/api.ts:3:1\n  Type 'Date' is not assignable to type 'string'.\n    src/db.ts:9:4\n\nerror TS2345 (1)\n  Argument of type 'X' is not assignable to parameter of type 'Y'.\n        Types of property 'a' are incompatible.\n    src/c.ts:2:2\n\nmion: 4 errors in 3 files"
+  },
+  {
+    "name": "sites with no file or no line",
+    "entries": [
+      {
+        "severity": 1,
+        "name": "config-tsconfig-not-loaded",
+        "template": "Project tsconfig failed to load ({reason}): the build, the linter, and the CLI all read this config, so nothing can run until it loads.",
+        "slots": [
+          "reason"
+        ],
+        "args": [
+          "no such file"
+        ],
+        "site": {
+          "filePath": "",
+          "startLine": 0,
+          "startCol": 0
+        }
+      },
+      {
+        "severity": 2,
+        "name": "comment-expect-error-unused",
+        "template": "Unused `@mion-expect-error {name}`: nothing was reported on the line below it, so the comment is stale and can be deleted.",
+        "slots": [
+          "name"
+        ],
+        "args": [
+          "validate-symbol-root"
+        ],
+        "site": {
+          "filePath": "tsconfig.json",
+          "startLine": 0,
+          "startCol": 0
+        }
+      }
+    ],
+    "want": "error config-tsconfig-not-loaded (1)\n  Project tsconfig failed to load (no such file): the build, the linter, and the CLI all read this config, so nothing can run until it loads.\n    (no file)\n\nwarning comment-expect-error-unused (1)\n  Unused `@mion-expect-error validate-symbol-root`: nothing was reported on the line below it, so the comment is stale and can be deleted.\n    tsconfig.json\n\nmion: 1 error, 1 warning in 1 file"
+  },
+  {
+    "name": "one finding",
+    "entries": [
+      {
+        "severity": 1,
+        "name": "validate-symbol-root",
+        "template": "Type `{type}` can never be validated: the generated function will always fail.",
+        "slots": [
+          "type"
+        ],
+        "args": [
+          "Symbol"
+        ],
+        "site": {
+          "filePath": "a.ts",
+          "startLine": 3,
+          "startCol": 1
+        }
+      }
+    ],
+    "want": "error validate-symbol-root (1)\n  Type `Symbol` can never be validated: the generated function will always fail.\n    a.ts:3:1\n\nmion: 1 error in 1 file"
+  },
+  {
+    "name": "nothing",
+    "entries": [],
+    "want": ""
+  }
+]
