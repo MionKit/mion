@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: guidelines
-status: ready
+status: done
 created: 2026-10-04
 ---
 
@@ -265,3 +265,27 @@ count line beside warnings (`mion: 5 warnings, 2 info (1 new) …`), the same wa
 - Levels, halts, exit codes and downgrade are unchanged.
 - Info shows on the dev server with `levels: 'all'`.
 - Both simplification passes are committed.
+
+## What shipped (reconciled 2026-10-04)
+
+Built as planned, with these differences:
+
+- **Setting name:** `logStyle: 'grouped' | 'lines'`, grouped by default. It is a plugin option, a tsconfig
+  mion key echoed on generate, and the `--log-style` flag on `mion compile` and `mion api-types` (the flag
+  wins over the tsconfig, the plugin option wins over the echo).
+- **Slot order:** a slot's index is its first appearance in the headline, so `Definition.Slots` is
+  derived, never written. Six messages named their values out of that order; their call sites now pass
+  the values in headline order (`rpc-batch-argument-out-of-range`, `rpc-client-middleware-not-set-up`,
+  `rpc-client-optional-middleware-not-set-up`, `rpc-handler-missing-param-type`,
+  `rpc-handler-returns-non-rpc-error`, `marker-type-id-collision`). Every message renders exactly as before.
+- **Layout:** header `error <name> (n)`, the message at two spaces, sites at four, `Related:` lines at
+  six. A TypeScript message chain is indented past the sites. Paths print relative to the project folder
+  when they sit under it.
+- **Next.js:** no collection window was needed. Each print the broker forwards is already one grouped
+  block per request.
+- **Dev server Info: dropped.** It is not a bug: a dev server never prints Info by design, as the Level
+  table in `ts-go-runtypes/CLAUDE.md` and the Error Levels page both say. `levels: 'all'` covers the build
+  and the command line only.
+- **Fuzz:** `packages/devtools/test/grouped-log.fuzz.test.ts` reads every grouped block back into findings
+  and checks nothing is lost, changed or invented. `testdata/grouped/random.json` holds 100 random cases with
+  the TS output, and the Go test holds Go to the same bytes, since CI may run JS without Go.

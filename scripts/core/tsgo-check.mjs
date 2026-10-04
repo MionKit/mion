@@ -38,7 +38,7 @@ export function main() {
   try {
     for (const {dir, config} of list) {
       const cwd = join(REPO_ROOT, 'packages', dir);
-      const result = capture(MION, ['compile', '--cwd', cwd, '--tsconfig', config, '--gen-dir', genDir, '--no-emit']);
+      const result = capture(MION, ['compile', '--cwd', cwd, '--tsconfig', config, '--gen-dir', genDir, '--no-emit', '--log-style', 'lines']);
       if (result.error) die(`tsgo-check: cannot run ${MION} (${result.error.message}); build it with \`pnpm run check:builds\``);
       const lines = failureLines(result.status, `${result.stdout}\n${result.stderr}`);
       if (lines.length > 0) failed.push({dir, config, lines});
