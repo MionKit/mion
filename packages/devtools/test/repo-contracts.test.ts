@@ -8,6 +8,8 @@ import {spawnSync} from 'node:child_process';
 // @ts-expect-error — a plain .mjs repo script, no types.
 import {isCompiledExecutable, miniflareCwdOffenders, specReferenceOffenders} from '../../../scripts/ci/check-tree.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
+import {unparsedScriptOffenders} from '../../../scripts/ci/check-tree.mjs';
+// @ts-expect-error — a plain .mjs repo script, no types.
 import {referenceCycles, referenceGraph, tsconfigReferenceCycles} from '../../../scripts/ci/check-tree.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
 import {workspaceDependencyCycles, workspaceDependencyGraph} from '../../../scripts/ci/check-tree.mjs';
@@ -327,6 +329,16 @@ describe('no file outside docs/todos and docs/done names a todo or done spec', (
   it('a bare directory mention is not a reference', () => {
     const text = 'specs live under docs/todos/ and move to docs/done/ when shipped';
     expect(specReferenceOffenders([{file: 'CLAUDE.md', text}])).toEqual([]);
+  });
+});
+
+describe('every tracked JavaScript file parses', () => {
+  it('reports a script node --check rejects and passes the ones it accepts', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'parse-sweep-'));
+    writeFileSync(join(dir, 'good.mjs'), "if (name !== 'mion') console.log(name);\n");
+    writeFileSync(join(dir, 'good.cjs'), "module.exports = require('node:path');\n");
+    writeFileSync(join(dir, 'bad.mjs'), "if (name !== 'mion's) console.log(name);\n");
+    expect(unparsedScriptOffenders(['good.mjs', 'good.cjs', 'bad.mjs'], dir)).toEqual(['bad.mjs']);
   });
 });
 
