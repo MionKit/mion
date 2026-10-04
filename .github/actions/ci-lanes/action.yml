@@ -125,7 +125,7 @@ runs:
         jq -n --slurpfile lanes .lane-decision/lanes.json --argjson labels "$MION_PR_LABELS" --arg baseRef "$GITHUB_BASE_REF" \
           '{lanes: $lanes[0], labels: $labels, baseRef: $baseRef}' > .lane-decision/decision.json
 
-    # Read by a newer run's comparison; uploaded before ours so two runs started together never both wait for the other's file.
+    # Read by a newer run's comparison; uploaded before ours so a newer run finds it as early as possible.
     - if: inputs.supersede == 'true' && !github.event.pull_request.head.repo.fork
       uses: actions/upload-artifact@v7
       with:
