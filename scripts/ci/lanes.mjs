@@ -16,6 +16,14 @@
 // changes it and the lane re-runs, which a "diff since the last green sha" rule
 // would have missed.
 //
+// A code file (JS/TS, Go) hashes by its CODE in the lanes marked `hash: 'tokens'`:
+// mion-bin/code-digest digests its syntax without comments and blank lines, so a
+// comment-only commit keeps those hashes, against the base and against any earlier
+// run alike. Format, lint, typecheck and the contract tests read comments, so they
+// live in `hash: 'raw'` lanes (js-static, go-static, go-tools). A test that reads a
+// code file's comments or line numbers must read a raw path (TOKEN_HASHED) or run in
+// js-static, or a comment edit can break it unseen.
+//
 // It is fail-safe in every direction: a cache miss runs the lane, an unclassified
 // path runs every lane, and only a job that actually succeeded ever writes a
 // marker.
@@ -30,7 +38,8 @@
 //   lanes --ref <ref>                 hash that tree instead of HEAD
 //   lanes --base <ref>                skip every lane whose inputs equal that tree's (a pull request's base)
 import {createHash} from 'node:crypto';
-import {appendFileSync, readFileSync} from 'node:fs';
+import {appendFileSync, existsSync, readFileSync} from 'node:fs';
+import {join} from 'node:path';
 import {REPO_ROOT} from '../lib/env.mjs';
 import {isGoInput} from '../lib/go-inputs.mjs';
 import {capture, die, note, noteErr, reportCliError} from '../lib/proc.mjs';
@@ -80,15 +89,22 @@ export const LANES = {
   // The api-types tests compile the drizzle example app's server against the real router and core sources.
   go: {
     job: 'go tests + fuzz · the Go suite',
+    hash: 'tokens',
     paths: ['packages/run-types/', 'packages/drizzle-orm', 'packages/private-drizzle-example-app/', 'packages/rpc-router/', 'packages/core/', ...GO_TREE],
   },
-  'js-fuzz': {job: 'go tests + fuzz · the JS fuzz sweep', paths: JS},
+  'js-fuzz': {job: 'go tests + fuzz · the JS fuzz sweep', hash: 'tokens', paths: JS},
   // JS checks that need Go (codegen and drizzle-manifest drift, build-gate tests), so js-lint never sets Go up.
-  'go-tools': {job: 'go tests + fuzz · the Go-backed JS checks', paths: [...JS, 'ts-go-runtypes/']},
-  js: {job: 'js tests + lint', paths: JS},
+  // Raw: the generators copy comments into what they emit (the diagnostic prose).
+  'go-tools': {job: 'go tests + fuzz · the Go-backed JS checks', hash: 'raw', paths: [...JS, 'ts-go-runtypes/']},
+  // gofmt and vet read comments (formatting, //go: directives).
+  'go-static': {job: 'go tests + fuzz · gofmt and vet', hash: 'raw', paths: GO_TREE},
+  js: {job: 'js tests + lint · the JS suite', hash: 'tokens', paths: JS},
+  // Format, lint, typecheck, the docs checks and the contract tests all read comments.
+  'js-static': {job: 'js tests + lint · format, lint and contracts', hash: 'raw', paths: JS},
   // Both halves build with our packages and Go (the site, and the mion competitor).
   smoke: {
     job: 'container smoke',
+    hash: 'tokens',
     paths: [WEBSITE_CODE, 'container/benchmarks/', ...PACKED],
     items: {
       website: {paths: [WEBSITE_CODE, 'packages/', 'version.json', GO_BUILD]},
@@ -96,10 +112,11 @@ export const LANES = {
     },
   },
   // pr-heavy.yml
-  website: {job: 'build the docs site', paths: [WEBSITE_CODE, ...PACKED]},
+  website: {job: 'build the docs site', hash: 'tokens', paths: [WEBSITE_CODE, ...PACKED]},
   // One item per competitor: only mion's runs our packages and the binary, so a package change re-runs only mion.
   bench: {
     job: 'validation benchmarks',
+    hash: 'tokens',
     paths: ['container/benchmarks/', ...PACKED],
     items: {
       mion: {paths: ['container/benchmarks/competitors/mion/', 'container/benchmarks/_deps/competitors/mion/', 'packages/', 'version.json', GO_BUILD]},
@@ -109,6 +126,7 @@ export const LANES = {
   // Items match `release e2e`'s --no-matrix / --no-mion / --no-host-smoke; each installs every packed package.
   e2e: {
     job: 'pre-publish e2e',
+    hash: 'tokens',
     paths: ['container/pre-publish-e2e/', '.github/verdaccio.yaml', ...PACKED],
     items: {
       matrix: {paths: ['container/pre-publish-e2e/apps/', 'container/pre-publish-e2e/build-all.mjs', 'container/pre-publish-e2e/lint-all.mjs', 'container/pre-publish-e2e/test/', 'container/pre-publish-e2e/pure-fns/', 'container/pre-publish-e2e/_deps/']},
@@ -120,6 +138,7 @@ export const LANES = {
   // d1 and durable are Cloudflare drivers over sqlite, so they share its package.
   drizzle: {
     job: 'drizzle suites against real databases',
+    hash: 'tokens',
     paths: ['packages/drizzle-orm', 'packages/run-types/', 'packages/devtools/', 'packages/core/', 'packages/bin-compiler/', 'container/drizzle-e2e/', 'scripts/', 'drizzle-dialects.json', 'drizzle-suites.pin.json', ...WORKSPACE],
     items: {
       pg: {paths: ['packages/drizzle-orm-pg-core/', 'container/drizzle-e2e/pg/', 'container/drizzle-e2e/shared/runners/pg.', 'container/drizzle-e2e/shared/addendum/pg.', 'container/drizzle-e2e/shared/stubs/pg/']},
@@ -140,33 +159,68 @@ export const matches = (path, entries) => entries.some((entry) => entryMatches(p
 // until someone classifies it. Never a free skip.
 export const unclassified = (paths) => paths.filter((path) => !matches(path, FEEDS_NOTHING) && !Object.values(LANES).some((lane) => matches(path, lane.paths)));
 
-// One `git ls-tree` over the whole tree, partitioned per lane. Hashing the OBJECT
-// IDS (not the bytes) keeps it to a single git call on any repo size.
-export function laneHashes(ref = 'HEAD', {cwd = REPO_ROOT} = {}) {
+// Code files a tokens lane hashes by their code. The rest hash raw: fixtures and snapshots (a test reads
+// their exact text or line numbers), the docs examples (the site shows their comments), generated files
+// (codegen drift compares bytes), JSX (not worth the risk for four e2e files), and vendored trees.
+const CODE_FILE = /\.(ts|mts|cts|js|mjs|cjs|go)$/;
+const RAW_CODE = /fixture|testdata|__snapshots__|(^|\/)(_deps|node_modules|third_party)\/|^packages\/private-examples\/|\.generated\.ts$/;
+export const TOKEN_HASHED = (path) => CODE_FILE.test(path) && !RAW_CODE.test(path);
+
+const CODE_DIGEST_BIN = join(REPO_ROOT, 'mion-bin/code-digest');
+
+// One `git ls-tree` over the whole tree. Hashing the OBJECT IDS (not the bytes) keeps it to a single git call.
+export function treeEntries(ref = 'HEAD', {cwd = REPO_ROOT} = {}) {
   const listed = capture('git', ['ls-tree', '-r', ref, '--format=%(objectname) %(path)'], {cwd});
   if (listed.status !== 0) die(`git ls-tree ${ref} failed: ${listed.stderr.trim() || listed.error?.message}`);
-  const entries = listed.stdout
+  return listed.stdout
     .split('\n')
     .filter(Boolean)
     .map((line) => {
       const at = line.indexOf(' ');
       return {objectname: line.slice(0, at), path: line.slice(at + 1)};
     });
+}
+
+// The code digest of every token-hashed blob, from ONE code-digest run. Mode `r` (raw) when the tool is
+// missing or fails, so a tokens lane then hashes object ids under a prefix no token-mode marker shares.
+export function codeDigests(entries, {cwd = REPO_ROOT, bin = CODE_DIGEST_BIN} = {}) {
+  const raw = {mode: 'r', byObject: new Map()};
+  if (!existsSync(bin)) return raw;
+  const input = entries.filter((entry) => TOKEN_HASHED(entry.path)).map((entry) => `${entry.objectname} ${entry.path}\n`).join('');
+  const result = capture(bin, ['-C', cwd], {cwd, input, timeout: 60_000, maxBuffer: 64 * 1024 * 1024});
+  if (result.status !== 0) {
+    noteErr(`code-digest failed, so the tokens lanes hash raw: ${result.stderr.trim() || result.error?.message}`);
+    return raw;
+  }
+  const byObject = new Map();
+  for (const line of result.stdout.split('\n')) {
+    const [objectname, digest] = line.split(' ');
+    if (digest && digest !== '-') byObject.set(objectname, digest);
+  }
+  return {mode: 't', byObject};
+}
+
+// The tree partitioned per lane; `entries` and `digests` let a caller share one code-digest run across two trees.
+export function laneHashes(ref = 'HEAD', {cwd = REPO_ROOT, entries = treeEntries(ref, {cwd}), digests = codeDigests(entries, {cwd})} = {}) {
   const unknown = unclassified(entries.map((entry) => entry.path));
   const unknownSet = new Set(unknown);
   const hashes = {};
-  const hashOf = (feeds) => {
+  const hashOf = (feeds, tokens) => {
     const digest = createHash('sha256');
     for (const entry of entries) {
-      if (feeds(entry.path) || unknownSet.has(entry.path)) digest.update(`${entry.objectname} ${entry.path}\n`);
+      if (!feeds(entry.path) && !unknownSet.has(entry.path)) continue;
+      const id = (tokens && TOKEN_HASHED(entry.path) && digests.byObject.get(entry.objectname)) || entry.objectname;
+      digest.update(`${id} ${entry.path}\n`);
     }
-    return digest.digest('hex').slice(0, 32);
+    const hex = digest.digest('hex').slice(0, 32);
+    return tokens ? `${digests.mode}${hex}` : hex;
   };
   for (const [name, lane] of Object.entries(LANES)) {
-    hashes[name] = hashOf((path) => matches(path, lane.paths));
-    for (const item of Object.keys(lane.items ?? {})) hashes[itemName(name, item)] = hashOf((path) => itemFeeds(lane, item, path));
+    const tokens = lane.hash === 'tokens';
+    hashes[name] = hashOf((path) => matches(path, lane.paths), tokens);
+    for (const item of Object.keys(lane.items ?? {})) hashes[itemName(name, item)] = hashOf((path) => itemFeeds(lane, item, path), tokens);
   }
-  return {hashes, unknown};
+  return {hashes, unknown, mode: digests.mode};
 }
 
 // An item is one independently provable piece of a lane (a database, a competitor); its own edits re-run only it.
@@ -237,19 +291,24 @@ const flagValues = (args, flag) => {
   return end === -1 ? rest : rest.slice(0, end);
 };
 
-// An unreadable base returns undefined, which skips nothing.
-function readBaseHashes(base) {
+// An unreadable base returns no entries, which skips nothing.
+function readBaseEntries(base) {
   if (!base) return undefined;
   if (capture('git', ['rev-parse', '-q', '--verify', `${base}^{commit}`], {cwd: REPO_ROOT}).status !== 0) {
     noteErr(`base ${base} is not available, so no lane is skipped for being unchanged`);
     return undefined;
   }
-  return laneHashes(base).hashes;
+  return treeEntries(base);
 }
 
 export function main(args) {
   const ref = flagValues(args, '--ref')[0] ?? 'HEAD';
-  const {hashes, unknown} = laneHashes(ref);
+  const entries = treeEntries(ref);
+  const baseEntries = readBaseEntries(flagValues(args, '--base')[0]);
+  const digests = codeDigests([...entries, ...(baseEntries ?? [])]);
+  const {hashes, unknown, mode} = laneHashes(ref, {entries, digests});
+  const baseHashes = baseEntries && laneHashes(undefined, {entries: baseEntries, digests}).hashes;
+  noteErr(mode === 't' ? 'code files hash by their code (comments and blank lines ignored) in the tokens lanes' : 'mion-bin/code-digest is unavailable, so every lane hashes raw');
   // stderr: --candidates prints keys on stdout for a shell loop to read.
   if (unknown.length > 0) noteErr(`${unknown.length} path(s) match no lane, so every lane hashes them: ${unknown.slice(0, 5).join(', ')}${unknown.length > 5 ? ' …' : ''}`);
 
@@ -263,7 +322,7 @@ export function main(args) {
   if (wanted.length === 0) {
     note(`lane inputs at ${ref}:`);
     for (const [name, lane] of Object.entries(LANES)) {
-      console.log(`  ${name.padEnd(16)} ${hashes[name]}  ${lane.job}`);
+      console.log(`  ${name.padEnd(16)} ${hashes[name]}  ${lane.hash.padEnd(6)}  ${lane.job}`);
       for (const item of Object.keys(lane.items ?? {})) console.log(`  ${itemName(name, item).padEnd(16)} ${hashes[itemName(name, item)]}`);
     }
     return;
@@ -276,7 +335,7 @@ export function main(args) {
   } catch {
     note(`could not read ${keyFile}, so every lane runs`);
   }
-  const lanes = decide(wanted, {hashes, greenKeys, pr: args.includes('--pr'), baseHashes: readBaseHashes(flagValues(args, '--base')[0])});
+  const lanes = decide(wanted, {hashes, greenKeys, pr: args.includes('--pr'), baseHashes});
   for (const [name, lane] of Object.entries(lanes)) note(`${name.padEnd(16)} ${lane.run ? 'RUN ' : 'skip'}  ${lane.reason}`);
   if (!args.includes('--github')) return console.log(JSON.stringify(lanes, null, 2));
 
@@ -285,7 +344,8 @@ export function main(args) {
     `| ${name} | ${lane.run ? '**run**' : 'skip'} | ${lane.reason} | \`${lane.hash}\` |`,
     ...Object.entries(lane.items ?? {}).map(([item, verdict]) => `| ${itemName(name, item)} | ${verdict.run ? '**run**' : 'skip'} | | \`${verdict.hash}\` |`),
   ]);
-  appendFileSync(process.env.GITHUB_STEP_SUMMARY, ['### CI lanes', '', '| lane | | why | inputs |', '| --- | --- | --- | --- |', ...rows, ''].join('\n'));
+  const modeLine = mode === 't' ? 'Code files hash by their code in the tokens lanes.' : 'code-digest was unavailable, so every lane hashed raw.';
+  appendFileSync(process.env.GITHUB_STEP_SUMMARY, ['### CI lanes', '', modeLine, '', '| lane | | why | inputs |', '| --- | --- | --- | --- |', ...rows, ''].join('\n'));
 }
 
 if (import.meta.main) {

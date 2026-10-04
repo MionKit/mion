@@ -11,6 +11,7 @@
 //                 cross-compiled on macOS, copied on Linux. Used by the bench
 //                 container to mount a Linux ELF on the host.
 //   linux-extract the same for extract-fn-bodies, so the in-container serialization bench needs no Go.
+//   digest        mion-bin/code-digest (the CI gate hashes code files with it), same checks as `go`.
 //   marker-dist   packages/run-types/dist is internally consistent
 //                 (every .d.ts.map has a matching .d.ts, sentinel files present,
 //                 src not newer than dist). Repairs by wiping tsbuildinfo and
@@ -24,7 +25,7 @@
 //   uws           packages/bin-uws/.uws-cache holds the host's uWebSockets.js
 //                 prebuilt binary (fetched on demand, sha256-verified against
 //                 packages/bin-uws/uws-checksums.json by scripts/lib/fetch-uws.mjs).
-//   all           go + extract + marker-dist + plugin-dist + uws.
+//   all           go + extract + digest + marker-dist + plugin-dist + uws.
 //                 Default when no args given.
 //                 NOT linux-go — that's bench-only; the bench script asks for it
 //                 explicitly so `pnpm test` doesn't pay the cross-compile cost.
@@ -36,7 +37,7 @@
 // every subsequent incremental `tsc` skips emitting the missing .d.ts. Detecting
 // the orphan map + wiping the buildinfo forces tsc to emit from scratch.
 //
-// The stamps (mion-bin/.mion.stamp, .extract-fn-bodies.stamp, one per macOS linux slot) let the build gate
+// The stamps (mion-bin/.mion.stamp, .extract-fn-bodies.stamp, .code-digest.stamp, one per macOS linux slot) let the build gate
 // ({trustStamp: true}) skip the reference build, a full link, when the inputs digest
 // (scripts/lib/go-inputs.mjs) matches, ~100ms.
 // The digest needs no Go and no submodule, so a binary restored from the CI cache (`--cache-key`) is
@@ -65,6 +66,11 @@ const EXTRACT_PKG = './cmd/extract-fn-bodies';
 const EXTRACT_BIN = join(REPO_ROOT, 'mion-bin/extract-fn-bodies');
 const EXTRACT_STAMP = join(REPO_ROOT, 'mion-bin/.extract-fn-bodies.stamp');
 export const EXTRACT_INPUTS = ['ts-go-runtypes/cmd/extract-fn-bodies', ...RESOLVER_INPUTS.slice(1)];
+const CODE_DIGEST_PKG = './cmd/code-digest';
+const CODE_DIGEST_BIN = join(REPO_ROOT, 'mion-bin/code-digest');
+const CODE_DIGEST_STAMP = join(REPO_ROOT, 'mion-bin/.code-digest.stamp');
+// No internal/: an edit there must not drop the gate to raw hashing while the tool's cache entry rebuilds.
+export const CODE_DIGEST_INPUTS = ['ts-go-runtypes/cmd/code-digest', ...RESOLVER_INPUTS.slice(2)];
 const GO_VERSION_FILE = join(GO_ROOT, '.go-version');
 const MARKER_PKG_DIR = join(REPO_ROOT, 'packages/run-types');
 const PLUGIN_PKG_DIR = join(REPO_ROOT, 'packages/devtools');
@@ -143,12 +149,16 @@ export function goIdentity() {
 // Exported for the build-gate test.
 export const resolverDigest = (ldflags = goVersionLdflags()) => goInputsDigest(REPO_ROOT, RESOLVER_INPUTS, [ldflags, ...goIdentity()]);
 export const extractDigest = () => goInputsDigest(REPO_ROOT, EXTRACT_INPUTS, goIdentity());
+export const codeDigestDigest = () => goInputsDigest(REPO_ROOT, CODE_DIGEST_INPUTS, goIdentity());
 
 // CI cache key for both prebuilt Go binaries; needs no Go and no submodule.
 export function goBinCacheKey() {
   const combined = createHash('sha256').update(`${resolverDigest()}\n${extractDigest()}`).digest('hex');
   return `mion-go-bins-${process.platform}-${process.arch}-${combined.slice(0, 32)}`;
 }
+
+// code-digest has its own cache entry, the one the gate job restores.
+export const codeDigestCacheKey = () => `mion-code-digest-${process.platform}-${process.arch}-${codeDigestDigest().slice(0, 32)}`;
 
 export const readResolverStamp = () => readStamp(GO_STAMP);
 
@@ -204,6 +214,10 @@ function checkGo({trustStamp = false} = {}) {
 // Prebuilt so the enrich tests and the serialization bench need no Go toolchain.
 function checkExtract({trustStamp = false} = {}) {
   checkStampedGoBin({bin: EXTRACT_BIN, stamp: EXTRACT_STAMP, pkg: EXTRACT_PKG, digest: extractDigest(), ldflags: '', trustStamp});
+}
+
+function checkCodeDigest({trustStamp = false} = {}) {
+  checkStampedGoBin({bin: CODE_DIGEST_BIN, stamp: CODE_DIGEST_STAMP, pkg: CODE_DIGEST_PKG, digest: codeDigestDigest(), ldflags: '', trustStamp});
 }
 
 // ── linux-go / linux-extract ────────────────────────────────────────────────
@@ -305,19 +319,21 @@ function runTarget(target, opts) {
   switch (target) {
     case 'go': return checkGo(opts);
     case 'extract': return checkExtract(opts);
+    case 'digest': return checkCodeDigest(opts);
     case 'linux-go': return checkLinuxGo(opts);
     case 'linux-extract': return checkLinuxExtract(opts);
     case 'marker-dist': return checkMarkerDist();
     case 'plugin-dist': return checkPluginDist();
     case 'uws': return checkUws();
-    case 'all': checkGo(opts); checkExtract(opts); checkMarkerDist(); checkPluginDist(); checkUws(); return;
-    default: fail(`unknown target '${target}'. Valid: go | extract | linux-go | linux-extract | marker-dist | plugin-dist | uws | all`);
+    case 'all': checkGo(opts); checkExtract(opts); checkCodeDigest(opts); checkMarkerDist(); checkPluginDist(); checkUws(); return;
+    default: fail(`unknown target '${target}'. Valid: go | extract | digest | linux-go | linux-extract | marker-dist | plugin-dist | uws | all`);
   }
 }
 
 // opts.trustStamp: the entry point's gate; an explicit `core build` never sets it.
 export function main(args, opts = {}) {
   if (args.includes('--cache-key')) return console.log(goBinCacheKey());
+  if (args.includes('--digest-cache-key')) return console.log(codeDigestCacheKey());
   if (args.length === 0) return runTarget('all', opts);
   for (const target of args) runTarget(target, opts);
 }
