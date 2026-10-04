@@ -164,6 +164,26 @@ export function miniflareCwdWorkers() {
   return miniflareCwdOffenders(candidates.map((file) => ({file, text: readFileSync(join(REPO_ROOT, file), 'utf8')})));
 }
 
+// A rename sweep once turned `'mion'` into `'mion's'` inside a bench script, and nothing ran it, so it sat broken.
+const SCRIPT_SCANNED = ['*.js', '*.mjs', '*.cjs'];
+
+// The files `node --check` rejects, run from `root` so the test can pass a fixture dir.
+export const unparsedScriptOffenders = (files, root = REPO_ROOT) =>
+  files.filter((file) => capture(process.execPath, ['--check', file], {cwd: root}).status !== 0);
+
+export function unparsedScripts() {
+  const listed = capture('git', ['ls-files', '--', ...SCRIPT_SCANNED], {cwd: REPO_ROOT});
+  if (listed.status !== 0) die(`git ls-files failed: ${listed.stderr.trim()}`);
+  const files = listed.stdout
+    .trim()
+    .split('\n')
+    .filter(Boolean)
+    .filter((file) => !file.startsWith('ts-go-runtypes/third_party/') && !/(^|\/)(_deps|node_modules|testdata)\//.test(file))
+    .filter((file) => existsSync(join(REPO_ROOT, file)));
+  if (files.length < 50) die(`the parse sweep listed only ${files.length} scripts, so its pathspecs stopped matching`);
+  return unparsedScriptOffenders(files);
+}
+
 // A cycle makes `tsc --build` refuse the WHOLE graph (TS6202), so no package builds.
 // This one arrived through a package referencing its own test fixture, invisible outside build mode.
 
@@ -248,6 +268,7 @@ export const SWEEPS = [
   {name: 'no tracked file is a compiled executable', run: compiledExecutables, fix: 'git rm it and ignore the build output; a binary is rebuilt from source, never committed'},
   {name: 'no workspace package dependency cycle', run: workspaceDependencyCycles, fix: 'pnpm guesses the build and test order around a cycle; test the package on the other end with its built files read by path instead (see packages/devtools/CLAUDE.md)'},
   {name: 'no tsconfig project reference cycle', run: tsconfigReferenceCycles, fix: 'tsc --build refuses the WHOLE graph with TS6202, so nothing builds; move the code needing the back-reference into the package it points at'},
+  {name: 'every tracked JavaScript file parses', run: unparsedScripts, fix: 'run `node --check <file>` to see the syntax error'},
   {name: 'no miniflare worker depends on the directory it was started from', run: miniflareCwdWorkers, fix: "pass modulesRoot beside scriptPath; without it miniflare names the module relative to process.cwd() and workerd refuses a `..` name"},
 ];
 
