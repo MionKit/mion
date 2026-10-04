@@ -385,122 +385,29 @@ func (printer *DeclPrinter) uniqueSymbolKey(memberName string) (string, bool) {
 	return DeclRef(key), true
 }
 
-// classBody prints a class's instance members; inherited ones are flattened in, statics left out (neither is in the id).
+// classBody prints a class's instance members as TypeScript's typeElementsToClassElements does: the type
+// element printer plus class modifiers. Inherited members are flattened in, statics left out (neither is in the id).
 func (ctx *printContext) classBody(node *reflection.RunType) (string, *Diagnostic) {
 	var parts []string
 	if hasFlag(node, reflection.FlagPrivateFields) {
-		parts = append(parts, "#private;")
+		parts = append(parts, "#private")
 	}
-	members := make([]*reflection.RunType, 0, len(node.Children))
-	for _, memberRef := range node.Children {
-		member := ctx.deref(memberRef)
-		if member == nil {
-			return "", unsupportedDiag(node, ctx.decl)
-		}
-		if !member.IsStatic {
-			members = append(members, member)
-		}
+	members, indexes, diag := ctx.objectMembers(node)
+	if diag != nil {
+		return "", diag
 	}
-	// Merged declarations list their members in the order the compiler bound the files, which varies.
-	sort.SliceStable(members, func(i, j int) bool { return members[i].Name < members[j].Name })
-	for _, member := range members {
-		text, diag := ctx.classMemberText(member)
-		if diag != nil {
-			return "", diag
-		}
-		parts = append(parts, text)
+	texts, diag := ctx.objectMemberTexts(members, indexes)
+	if diag != nil {
+		return "", diag
 	}
+	parts = append(parts, texts...)
 	if len(parts) == 0 {
 		return "{}", nil
 	}
-	return "{\n  " + strings.Join(parts, "\n  ") + "\n}", nil
+	return "{\n  " + strings.Join(parts, ";\n  ") + ";\n}", nil
 }
 
-func (ctx *printContext) classMemberText(member *reflection.RunType) (string, *Diagnostic) {
-	if member.Kind == reflection.KindIndexSignature {
-		text, diag := ctx.indexSignatureText(indexSignature{key: member.Index, value: member.Child, readonly: member.Readonly})
-		return text + ";", diag
-	}
-	key, keyDiag := ctx.memberKey(member)
-	if keyDiag != nil {
-		return "", keyDiag
-	}
-	prefix := nonEnumerableTag(member.NonEnumerable)
-	if member.Visibility != nil {
-		switch *member.Visibility {
-		case reflection.VisibilityProtected:
-			prefix += "protected "
-		case reflection.VisibilityPrivate:
-			// A typeless `private x;` is how a `.d.ts` hides a private member's type; the id reads it as optional `any`.
-			if child := ctx.deref(member.Child); child != nil && child.Kind == reflection.KindAny && member.Kind == reflection.KindProperty {
-				return prefix + "private " + readonlyPrefix(member.Readonly) + key + ";", nil
-			}
-			prefix += "private "
-		}
-	}
-	if member.IsAbstract {
-		prefix += "abstract "
-	}
-	optionalMark := ""
-	if member.Optional {
-		optionalMark = "?"
-	}
-	switch member.Kind {
-	case reflection.KindMethod, reflection.KindMethodSignature:
-		paramsText, paramsDiag := ctx.parameterListText(member)
-		if paramsDiag != nil {
-			return "", paramsDiag
-		}
-		returnText, returnDiag := ctx.returnText(member)
-		if returnDiag != nil {
-			return "", returnDiag
-		}
-		if hasFlag(member, reflection.FlagField) || member.Readonly {
-			return fmt.Sprintf("%s%s%s%s: (%s) => %s;", prefix, readonlyPrefix(member.Readonly), key, optionalMark, paramsText, returnText), nil
-		}
-		return fmt.Sprintf("%s%s%s(%s): %s;", prefix, key, optionalMark, paramsText, returnText), nil
-	case reflection.KindProperty, reflection.KindPropertySignature:
-		childText, childDiag := ctx.typeExpr(member.Child)
-		if childDiag != nil {
-			return "", childDiag
-		}
-		if hasFlag(member, reflection.FlagAccessor) {
-			text := fmt.Sprintf("%sget %s(): %s;", prefix, key, childText)
-			if !member.Readonly {
-				text += fmt.Sprintf(" %sset %s(value: %s);", prefix, key, childText)
-			}
-			return text, nil
-		}
-		return fmt.Sprintf("%s%s%s%s: %s;", prefix, readonlyPrefix(member.Readonly), key, optionalMark, childText), nil
-	}
-	return "", unsupportedDiag(member, ctx.decl)
-}
-
-func (ctx *printContext) returnText(signature *reflection.RunType) (string, *Diagnostic) {
-	if signature.Return == nil {
-		return "void", nil
-	}
-	return ctx.typeExpr(signature.Return)
-}
-
-// memberKey spells a member's key: an identifier, a quoted string or, when declaring unique symbols, a symbol.
-func (ctx *printContext) memberKey(member *reflection.RunType) (string, *Diagnostic) {
-	if reflection.IsSymbolKeyedName(member.Name) {
-		if ctx.flags&flagsDeclareUniqueSymbols != 0 {
-			if spelled, ok := ctx.declarations.uniqueSymbolKey(member.Name); ok {
-				return "[" + spelled + "]", nil
-			}
-		}
-		return "", &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
-			Message: fmt.Sprintf("symbol-keyed member %q is not convertible yet", member.Name)}
-	}
-	if member.IsSafeName {
-		return member.Name, nil
-	}
-	return quoteSingle(member.Name), nil
-}
-
-// statement renders the declaration as an exported top-level statement under name, its placeholders unspelled.
+// declarationStatement renders the declaration as an exported top-level statement under name, its placeholders unspelled.
 func (decl *PrintedDecl) declarationStatement(name string) string {
 	switch decl.Kind {
 	case DeclClass:

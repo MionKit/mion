@@ -559,58 +559,75 @@ func escapeTemplateText(text string) string {
 // one `[key: K]: V` clause per index signature. The type target prints it directly, and the builders
 // escape embeds it when its own form has no word for the shape.
 func (ctx *printContext) objectLiteralText(members []*objectMember, indexes []indexSignature) (string, *Diagnostic) {
-	var parts []string
+	texts, diag := ctx.objectMemberTexts(members, indexes)
+	if diag != nil {
+		return "", diag
+	}
+	return "{" + strings.Join(texts, "; ") + "}", nil
+}
+
+// objectMemberTexts prints each member, then each index signature, for an object literal or a class body.
+func (ctx *printContext) objectMemberTexts(members []*objectMember, indexes []indexSignature) ([]string, *Diagnostic) {
+	texts := make([]string, 0, len(members)+len(indexes))
 	for _, member := range members {
-		if member.signatureNode != nil {
-			// A method or call-signature member keeps its signature syntax: a property-typed arrow
-			// would be a different member kind, and id.
-			paramsText, paramsDiag := ctx.parameterListText(member.signatureNode)
-			if paramsDiag != nil {
-				return "", paramsDiag
-			}
-			returnText, returnDiag := ctx.returnText(member.signatureNode)
-			if returnDiag != nil {
-				return "", returnDiag
-			}
-			optionalMark := ""
-			if member.optional {
-				optionalMark = "?"
-			}
-			tag := nonEnumerableTag(member.nonEnumerable)
-			switch {
-			case member.callSignature:
-				parts = append(parts, fmt.Sprintf("(%s): %s", paramsText, returnText))
-			case member.readonly:
-				// Method syntax cannot spell `readonly`, and the property-arrow form reflects back
-				// identically.
-				parts = append(parts, fmt.Sprintf("%sreadonly %s%s: (%s) => %s", tag, member.key, optionalMark, paramsText, returnText))
-			default:
-				parts = append(parts, fmt.Sprintf("%s%s%s(%s): %s", tag, member.key, optionalMark, paramsText, returnText))
-			}
-			continue
+		text, diag := ctx.objectMemberText(member)
+		if diag != nil {
+			return nil, diag
 		}
-		innerText, innerDiag := ctx.typeExpr(member.child)
-		if innerDiag != nil {
-			return "", innerDiag
-		}
-		prefix := ""
-		if member.readonly {
-			prefix = "readonly "
-		}
-		suffix := ""
-		if member.optional {
-			suffix = "?"
-		}
-		parts = append(parts, fmt.Sprintf("%s%s%s%s: %s", nonEnumerableTag(member.nonEnumerable), prefix, member.key, suffix, innerText))
+		texts = append(texts, text)
 	}
 	for _, index := range indexes {
 		indexText, indexDiag := ctx.indexSignatureText(index)
 		if indexDiag != nil {
-			return "", indexDiag
+			return nil, indexDiag
 		}
-		parts = append(parts, indexText)
+		texts = append(texts, indexText)
 	}
-	return "{" + strings.Join(parts, "; ") + "}", nil
+	return texts, nil
+}
+
+func (ctx *printContext) objectMemberText(member *objectMember) (string, *Diagnostic) {
+	prefix := nonEnumerableTag(member.nonEnumerable) + member.modifiers
+	optionalMark := ""
+	if member.optional {
+		optionalMark = "?"
+	}
+	if member.typeless {
+		return prefix + readonlyPrefix(member.readonly) + member.key, nil
+	}
+	if member.signatureNode != nil {
+		// A method or call-signature member keeps its signature syntax: a property-typed arrow would be a
+		// different member kind, and id.
+		paramsText, paramsDiag := ctx.parameterListText(member.signatureNode)
+		if paramsDiag != nil {
+			return "", paramsDiag
+		}
+		returnText, returnDiag := ctx.returnText(member.signatureNode)
+		if returnDiag != nil {
+			return "", returnDiag
+		}
+		switch {
+		case member.callSignature:
+			return fmt.Sprintf("(%s): %s", paramsText, returnText), nil
+		case member.readonly || member.field:
+			// Method syntax cannot spell `readonly`, and a function-valued field is a property; the
+			// property-arrow form reflects back identically.
+			return fmt.Sprintf("%s%s%s%s: (%s) => %s", prefix, readonlyPrefix(member.readonly), member.key, optionalMark, paramsText, returnText), nil
+		}
+		return fmt.Sprintf("%s%s%s(%s): %s", prefix, member.key, optionalMark, paramsText, returnText), nil
+	}
+	innerText, innerDiag := ctx.typeExpr(member.child)
+	if innerDiag != nil {
+		return "", innerDiag
+	}
+	if member.accessor {
+		text := fmt.Sprintf("%sget %s(): %s", prefix, member.key, innerText)
+		if !member.readonly {
+			text += fmt.Sprintf("; %sset %s(value: %s)", prefix, member.key, innerText)
+		}
+		return text, nil
+	}
+	return fmt.Sprintf("%s%s%s%s: %s", prefix, readonlyPrefix(member.readonly), member.key, optionalMark, innerText), nil
 }
 
 // nonEnumerableTag keeps a guarded member's id (own line, or the parser drops it); only declaration printing reaches it.
