@@ -734,11 +734,13 @@ func (trimmer *trimmer) builtinSpelling(decl *convert.OutsideDecl) string {
 	return decl.Name
 }
 
-// referenceLines are the `/// <reference>` lines the entry needs, so a client loads the same platform types.
-func (state *outsideState) referenceLines() []string {
+// referenceLines are the `/// <reference>` lines the entry needs, so a client loads the same platform types: the
+// tsconfig `types` entry that loaded each reached package, as written, and each reached non-ES lib (`dom`); the ES
+// libs follow the client's own target.
+func (state *outsideState) referenceLines(typesEntries []string) []string {
 	var lines []string
 	for _, pkg := range slices.Sorted(maps.Keys(state.environment)) {
-		lines = append(lines, fmt.Sprintf("/// <reference types=%q />", typesReference(pkg)))
+		lines = append(lines, fmt.Sprintf("/// <reference types=%q />", typesEntryFor(pkg, typesEntries)))
 	}
 	for _, lib := range slices.Sorted(maps.Keys(state.libs)) {
 		if !strings.HasPrefix(lib, "es") && !strings.HasPrefix(lib, "decorators") {
@@ -746,6 +748,21 @@ func (state *outsideState) referenceLines() []string {
 		}
 	}
 	return lines
+}
+
+// typesEntryFor is the tsconfig `types` entry that loads pkg (`vite/client` for vite), else the name pkg loads by.
+func typesEntryFor(pkg string, typesEntries []string) string {
+	for _, entry := range typesEntries {
+		parts := strings.Split(entry, "/")
+		root := parts[0]
+		if strings.HasPrefix(entry, "@") && len(parts) > 1 {
+			root = parts[0] + "/" + parts[1]
+		}
+		if pkg == root || pkg == "@types/"+strings.ReplaceAll(strings.TrimPrefix(root, "@"), "/", "__") {
+			return entry
+		}
+	}
+	return typesReference(pkg)
 }
 
 // typesReference is the `types` name a package loads by: `@types/node` → `node`, `@types/a__b` → `@a/b`.

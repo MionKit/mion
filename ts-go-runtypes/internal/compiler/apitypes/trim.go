@@ -112,7 +112,7 @@ func Trim(input Input) (*Output, error) {
 	if err := trimmer.renderOutside(output.Files); err != nil {
 		return nil, err
 	}
-	lines := trimmer.outside.referenceLines()
+	lines := trimmer.outside.referenceLines(trimmer.program.TS.Options().Types)
 	// A kept augmentation or global only applies once its file loads, and a client loads what the entry reaches.
 	for _, file := range trimmer.sortedFiles() {
 		if file != entry && output.Files[trimmer.relative(file.path)] != "" && file.keptAugmentation() {
@@ -172,6 +172,7 @@ func Check(input Input, output *Output) ([]string, string, error) {
 	}
 	return movedIDs(output.apiIDs, trimmer.apiMemberIDs(entry, output.ApiExports)), version, nil
 }
+
 // newTrimmer builds a program over the declarations alone, with a tsconfig that extends the project's.
 func newTrimmer(input Input, declarations map[string]string) (*trimmer, func(), error) {
 	declarationDir := filepath.Clean(input.DeclarationDir)

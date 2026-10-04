@@ -242,3 +242,15 @@ import type { RequestOptions } from 'node:http';
 	assertSelfContained(t, output, input, "@types/node")
 	assertContains(t, output.Files["index.d.ts"], "import type { RequestOptions } from 'node:http';")
 }
+
+// TestOutside_ReferenceLinesNameTheTypesEntry: a subpath entry is kept as written; ES libs follow the client's target.
+func TestOutside_ReferenceLinesNameTheTypesEntry(t *testing.T) {
+	state := &outsideState{environment: map[string]bool{"vite": true, "@types/node": true, "@types/scope__pkg": true}, libs: map[string]bool{
+		"es2022": true, "es2022.full": true, "es5": true, "esnext": true, "decorators.legacy": true, "dom": true, "es2021.weakref": true}}
+	got := strings.Join(state.referenceLines([]string{"vite/client", "node"}), "\n")
+	want := strings.Join([]string{`/// <reference types="node" />`, `/// <reference types="@scope/pkg" />`, `/// <reference types="vite/client" />`,
+		`/// <reference lib="dom" />`}, "\n")
+	if got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
