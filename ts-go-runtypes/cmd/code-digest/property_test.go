@@ -1,8 +1,6 @@
 package main
 
 import (
-	"go/scanner"
-	"go/token"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -16,8 +14,11 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
-// Paths whose code files the lanes hash raw anyway, and that may hold deliberately broken code.
-var notTokenHashed = regexp.MustCompile(`(^|/)(third_party|_deps|node_modules)/|fixture|testdata|__snapshots__`)
+// RAW_CODE in scripts/ci/lanes.mjs: paths the lanes hash raw, some holding deliberately broken code.
+var notTokenHashed = regexp.MustCompile(`fixture|testdata|__snapshots__|(^|/)(_deps|node_modules|third_party)/|^packages/private-examples/|^packages/private-drizzle-example-app/src/server/|^container/pre-publish-e2e/(build|lint)-all\.mjs$|\.generated\.(ts|go)$`)
+
+// Only what the go lane hashes, so a file this test reads always re-runs it; the JS oracle test sweeps the rest.
+var goLanePaths = []string{"ts-go-runtypes/", "packages/run-types/src/"}
 
 func repoCodeFiles(t *testing.T) (string, []string) {
 	t.Helper()
@@ -25,15 +26,18 @@ func repoCodeFiles(t *testing.T) (string, []string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	listed, err := exec.Command("git", "-C", root, "ls-files", "*.ts", "*.mts", "*.cts", "*.js", "*.mjs", "*.cjs", "*.go").Output()
+	listed, err := exec.Command("git", append([]string{"-C", root, "ls-files", "--"}, goLanePaths...)...).Output()
 	if err != nil {
 		t.Skipf("no git checkout: %v", err)
 	}
 	var files []string
 	for _, file := range strings.Split(strings.TrimSpace(string(listed)), "\n") {
-		if !notTokenHashed.MatchString(file) {
+		if language(file) != "" && !notTokenHashed.MatchString(file) {
 			files = append(files, file)
 		}
+	}
+	if len(files) < 500 {
+		t.Fatalf("only %d code files under %v: the sweep lost its corpus", len(files), goLanePaths)
 	}
 	return root, files
 }
@@ -42,33 +46,19 @@ func repoCodeFiles(t *testing.T) (string, []string) {
 func tokenRanges(t *testing.T, filePath, text string) [][2]int {
 	t.Helper()
 	var ranges [][2]int
-	if strings.HasSuffix(filePath, ".go") {
-		fileSet := token.NewFileSet()
-		file := fileSet.AddFile("", fileSet.Base(), len(text))
-		var goScanner scanner.Scanner
-		goScanner.Init(file, []byte(text), nil, 0)
-		for {
-			pos, tok, lit := goScanner.Scan()
-			if tok == token.EOF {
-				break
-			}
-			if tok == token.SEMICOLON && lit == "\n" {
-				continue
-			}
-			width := len(lit)
-			if width == 0 {
-				width = len(tok.String())
-			}
-			ranges = append(ranges, [2]int{file.Offset(pos), file.Offset(pos) + width})
+	hook := func(start, end int) { ranges = append(ranges, [2]int{start, end}) }
+	var out strings.Builder
+	if language(filePath) == "go" {
+		if err := goTokens(text, &out, hook); err != nil {
+			t.Fatalf("%s: %v", filePath, err)
 		}
 		return ranges
 	}
 	kind := core.ScriptKindTS
-	if !strings.HasSuffix(filePath, "ts") {
+	if language(filePath) == "js" {
 		kind = core.ScriptKindJS
 	}
-	var out strings.Builder
-	if err := tsWalk(filePath, text, kind, &out, func(start, end int) { ranges = append(ranges, [2]int{start, end}) }); err != nil {
+	if err := tsWalk(filePath, text, kind, &out, hook); err != nil {
 		t.Fatalf("%s: %v", filePath, err)
 	}
 	return ranges

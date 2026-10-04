@@ -3,7 +3,7 @@
 //
 // Run:
 //
-//	printf '<objectname> <path>\n…' | code-digest -C <repo>   prints `<objectname> <digest>`, or `<objectname> -` to hash raw
+//	printf '<objectname> <path>\n…' | code-digest -C <repo>   prints `<objectname> <language> <digest>`, or digest `-` to hash raw
 //	code-digest --markers                                      prints the directive markers kept as code
 package main
 
@@ -31,8 +31,8 @@ func main() {
 	markers := flag.Bool("markers", false, "print the directive markers and exit")
 	flag.Parse()
 	if *markers {
-		for _, entry := range append(append([]directive{}, tsDirectives...), goDirectives...) {
-			fmt.Println(entry.marker)
+		for _, marker := range append(append([]string{}, tsDirectives...), goDirectives...) {
+			fmt.Println(marker)
 		}
 		return
 	}
@@ -44,7 +44,7 @@ func main() {
 	writer := bufio.NewWriter(os.Stdout)
 	defer writer.Flush()
 	for _, entry := range blobs {
-		fmt.Fprintf(writer, "%s %s\n", entry.objectname, entry.digest)
+		fmt.Fprintf(writer, "%s %s %s\n", entry.objectname, language(entry.path), entry.digest)
 	}
 }
 
@@ -55,10 +55,12 @@ func readBlobs(dir string, input io.Reader) ([]*blob, error) {
 	lines := bufio.NewScanner(input)
 	for lines.Scan() {
 		objectname, filePath, ok := strings.Cut(lines.Text(), " ")
-		if !ok || seen[objectname] {
+		// One blob can sit at a .ts and a .js path, and the two languages digest it differently.
+		key := objectname + " " + language(filePath)
+		if !ok || seen[key] {
 			continue
 		}
-		seen[objectname] = true
+		seen[key] = true
 		blobs = append(blobs, &blob{objectname: objectname, path: filePath, digest: "-"})
 	}
 	if err := lines.Err(); err != nil {
