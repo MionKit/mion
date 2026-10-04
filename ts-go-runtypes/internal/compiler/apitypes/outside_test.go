@@ -306,8 +306,7 @@ func TestOutside_AScriptFileExtendingAnOutsideGlobalKeepsTheImport(t *testing.T)
 	assertChecks(t, input, output)
 }
 
-// typeNodeKinds says how the type-use walk treats each syntax kind that can hold a type: `arm:` kinds name a type and
-// go through visitTypeUse, `climbed:` kinds widen a use (climbUse), `walked:` kinds only have their children visited.
+// typeNodeKinds: `arm:` kinds go through visitTypeUse, `climbed:` kinds widen a use (climbUse), `walked:` only visit children.
 var typeNodeKinds = map[ast.Kind]string{
 	ast.KindTypeReference:               "arm: transformTypeReference",
 	ast.KindExpressionWithTypeArguments: "arm: transformExpressionWithTypeArguments",
@@ -351,7 +350,7 @@ export declare function guard(x: unknown): x is Base;
 export interface Self { me(): this }
 `
 
-// TestOutside_EveryTypeNodeKindHasARow: every syntax kind that can hold a type has a row, and only arm rows are visited.
+// TestOutside_EveryTypeNodeKindHasARow: visitTypeUse must answer exactly the `arm:` rows.
 func TestOutside_EveryTypeNodeKindHasARow(t *testing.T) {
 	kinds := []ast.Kind{ast.KindExpressionWithTypeArguments}
 	for kind := ast.KindFirstTypeNode; kind <= ast.KindLastTypeNode; kind++ {

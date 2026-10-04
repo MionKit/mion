@@ -2,7 +2,7 @@ package convert
 
 import "testing"
 
-// TestDeclKind_EveryKindAnswersEveryQuestion: a kind missing from a declaration-kind switch panics here, not in a build.
+// TestDeclKind_EveryKindAnswersEveryQuestion: a kind missing from a switch panics here, not in a build.
 func TestDeclKind_EveryKindAnswersEveryQuestion(t *testing.T) {
 	for kind := DeclClass; kind < declKindCount; kind++ {
 		func() {
