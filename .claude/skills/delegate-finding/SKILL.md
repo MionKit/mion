@@ -12,7 +12,7 @@ Related findings are NOT delegated — they are fixed in the current task and PR
 **Delegation is one level deep.** Only a session the user started directly may run this skill. A delegated session (its prompt names a parent session) never spawns another one:
 
 - It fixes every finding it meets in its own PR. A fix often has more than one cause, so a second issue on the same feature counts as related.
-- A finding that is clearly unrelated goes in a **Not fixed here** section of its PR description and in its final message, with the evidence. The parent session or the user picks it up from there. It never opens a session for it, and never relies on messaging the parent (a cloud child cannot reliably reach it).
+- A finding that is clearly unrelated becomes a guidelines todo (the [create-todo skill](../create-todo/)), committed in its own PR, and is named in its PR description and final message. It never opens a session for it.
 
 ## The flow
 
@@ -28,7 +28,7 @@ Related findings are NOT delegated — they are fixed in the current task and PR
 
 5. **Instruct the child** (its prompt must be standalone — it starts with zero context). It always opens with a link to this session, `https://claude.ai/code/<your session id>` (`get_session` with no id prints it), so the user can trace every child back to its parent. Template:
 
-   > You are fixing a finding delegated from the parent session https://claude.ai/code/<parent-session-id>. The spec is `docs/todos/<file>.md` on this checkout. Create a NEW branch cut from `origin/main` (e.g. `fix/<finding>`), carry the spec onto it with `git checkout <stable-sha> -- docs/todos/<file>.md`, then run the **implement-todo skill** on that spec end to end: plan, implement, PR-readiness gate, move the spec to `docs/done/`, push, and open a PR. Your PR must contain ONLY the finding's fix — none of the parent branch's in-flight work. Link the parent session in the PR description. You are a delegated session: fix every other issue you find in this same PR, and never start another session. An issue clearly unrelated to this fix goes in a "Not fixed here" section of your PR description and your final message instead.
+   > You are fixing a finding delegated from the parent session https://claude.ai/code/<parent-session-id>. The spec is `docs/todos/<file>.md` on this checkout. Create a NEW branch cut from `origin/main` (e.g. `fix/<finding>`), carry the spec onto it with `git checkout <stable-sha> -- docs/todos/<file>.md`, then run the **implement-todo skill** on that spec end to end: plan, implement, PR-readiness gate, move the spec to `docs/done/`, push, and open a PR. Your PR must contain ONLY the finding's fix — none of the parent branch's in-flight work. Link the parent session in the PR description. You are a delegated session: fix every other issue you find in this same PR, and never start another session. An issue clearly unrelated to this fix becomes a guidelines todo in `docs/todos/` (create-todo skill), committed in this PR and named in its description.
 
    The new branch is cut from `origin/main` (not from the stable commit) so the finding's PR carries only the fix; the stable-commit checkout exists to give the child the todo and the context, not to be its PR base.
 
