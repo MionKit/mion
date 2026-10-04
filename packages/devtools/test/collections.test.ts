@@ -1,7 +1,7 @@
 // End-to-end collection-type round-trip tests. Mirrors members.test.ts's
 // `evalCacheFor` + `getTypeFor` setup. Each scenario has paired static
 // (getRunTypeId<T>()) and reflect (getRunTypeId(v)) tests per the
-// marker test coverage rule (CLAUDE.md). Exercises the modifier and
+// marker test coverage rule (AGENTS.md). Exercises the modifier and
 // position fields the Go serializer populates: optional/readonly/
 // visibility/abstract/static, isSafeName on properties/methods, and
 // position on tuple members.

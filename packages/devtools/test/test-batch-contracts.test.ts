@@ -1,6 +1,6 @@
 // Contract tests for the `test:ci` batches and for the per-project timeouts they run under.
 //
-// `pnpm run test:ci` is the OOM fallback CLAUDE.md points contributors at, and its
+// `pnpm run test:ci` is the OOM fallback AGENTS.md points contributors at, and its
 // batch list used to be typed by hand into package.json with nothing tying it to
 // vitest.config.ts. It drifted: it named the 16 mion projects and none of the 5
 // runtypes ones, so it returned green having run 88 of the 397 test files. The 309

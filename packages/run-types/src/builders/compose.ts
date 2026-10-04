@@ -7,7 +7,7 @@
 // grouped `tuple` / `func` capture each group with `const T`, never a `readonly [...T]` spread:
 // intersecting a spread target with the `CompTimeArgs` brand collapses the tuple to an array, so
 // `const` + `MapTuple`'s `-readonly` is what keeps per-slot inference. Minimal `infer` per
-// CLAUDE.md; the type-level helpers all live in static.ts, so this file is runtime-only.
+// AGENTS.md; the type-level helpers all live in static.ts, so this file is runtime-only.
 
 import {builderResult} from '../runtypes/builderCore.ts';
 import type {RunType} from '../runtypes/types.ts';

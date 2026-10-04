@@ -13,7 +13,7 @@
 // matches the emitted `utl.getClassSerializer(<rt.ID>)` lookup and is
 // minification-safe.
 //
-// Pairing rule (CLAUDE.md): static form `createXxx<Foo>()` and reflect form
+// Pairing rule (AGENTS.md): static form `createXxx<Foo>()` and reflect form
 // `createXxx(value)` are exercised as distinct cases; both resolve to the same
 // cache entry for equivalent T, so a serializer registered once for the class
 // serves both.

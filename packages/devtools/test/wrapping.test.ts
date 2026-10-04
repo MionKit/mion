@@ -1,7 +1,7 @@
 // Wrapping tests — every scenario lives in its own runTest with a
 // self-contained inline source. Each direct-marker scenario has paired
 // _static (getRunTypeId<T>()) and _reflect (getRunTypeId(v)) tests per
-// the marker test coverage rule (CLAUDE.md). User-defined wrappers and
+// the marker test coverage rule (AGENTS.md). User-defined wrappers and
 // passthrough scenarios are also covered for both wrapper-arity shapes.
 //
 // Coverage matrix:

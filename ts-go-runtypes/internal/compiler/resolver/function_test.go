@@ -16,7 +16,7 @@ import (
 // full-shape assertions.
 //
 // Each scenario has paired *_Static / *_Reflect tests per the marker
-// test coverage rule (CLAUDE.md) and shares an assertion helper.
+// test coverage rule (AGENTS.md) and shares an assertion helper.
 
 // ---- F35 — rest-only function ----------------------------------------------
 //

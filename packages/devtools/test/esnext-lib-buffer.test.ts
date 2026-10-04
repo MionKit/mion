@@ -11,7 +11,7 @@
 // The lib is written into a real tsconfig here rather than inherited, so the
 // lib version is part of the test instead of an accident of the repo config.
 //
-// Marker coverage rule (CLAUDE.md): both getRunTypeId call shapes, with id
+// Marker coverage rule (AGENTS.md): both getRunTypeId call shapes, with id
 // equality asserted between them.
 
 import fs from 'node:fs';

@@ -219,7 +219,7 @@ describe('published packages ship a README', () => {
     // it relates to its siblings, and where the real docs live. Anything that
     // restates the docs site (option tables, usage walkthroughs) drifts out of
     // sync, and anything internal (env vars, dev-only knobs) does not belong on a
-    // public npm page at all. See the README rule in CLAUDE.md.
+    // public npm page at all. See the README rule in AGENTS.md.
     it(`${manifest.name} README stays a description plus links`, () => {
       const readme = readFileSync(join(packageDir, 'README.md'), 'utf8');
       const lines = readme.split('\n');
@@ -305,7 +305,7 @@ describe('no file outside docs/todos and docs/done names a todo or done spec', (
       'packages/core/src/x.ts',
       '.github/workflows/ci.yml',
       'docs/FUZZING.md',
-      '.claude/skills/foo/SKILL.md',
+      '.agents/skills/foo/SKILL.md',
       'docs/maybe/parked.md',
       'ts-go-runtypes/internal/x/x.go',
     ];
@@ -330,7 +330,7 @@ describe('no file outside docs/todos and docs/done names a todo or done spec', (
 
   it('a bare directory mention is not a reference', () => {
     const text = 'specs live under docs/todos/ and move to docs/done/ when shipped';
-    expect(specReferenceOffenders([{file: 'CLAUDE.md', text}])).toEqual([]);
+    expect(specReferenceOffenders([{file: 'AGENTS.md', text}])).toEqual([]);
   });
 });
 
@@ -1933,7 +1933,7 @@ describe('Go build outputs under ts-go-runtypes are ignored', () => {
   it('keeps every source, config and fixture path', () => {
     for (const path of [
       'ts-go-runtypes/go.mod',
-      'ts-go-runtypes/CLAUDE.md',
+      'ts-go-runtypes/AGENTS.md',
       'ts-go-runtypes/cmd/mion/main.go',
       'ts-go-runtypes/cmd/mion/testdata/fixture',
       'ts-go-runtypes/internal/reflection/x.go',

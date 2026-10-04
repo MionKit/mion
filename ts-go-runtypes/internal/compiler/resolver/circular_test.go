@@ -16,7 +16,7 @@ import (
 // equivalent of runtime referential equality).
 //
 // Each scenario has paired *_Static / *_Reflect tests per the marker test
-// coverage rule (CLAUDE.md).
+// coverage rule (AGENTS.md).
 
 // ---- F29 — Circular object with optional self-reference ---------------------
 //

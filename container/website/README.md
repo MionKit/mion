@@ -15,5 +15,5 @@ pnpm miondevx website shell                # debug shell inside the container
 ```
 
 - [CONTAINER.md](CONTAINER.md) — the image, its layout, and the full command reference.
-- [CLAUDE.md](CLAUDE.md) — stack, content tree, subsites, MDC components, `<code-import>` and twoslash usage.
+- [AGENTS.md](AGENTS.md) — stack, content tree, subsites, MDC components, `<code-import>` and twoslash usage.
 - [docs/WEBSITE-DOCGEN.md](../../docs/WEBSITE-DOCGEN.md) — the generated benchmark data the docs read.

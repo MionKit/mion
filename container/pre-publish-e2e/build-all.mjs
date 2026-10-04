@@ -96,7 +96,7 @@ const APP_LIST = [
   // — `next build` is a CLI — so it runs out-of-process like the bun apps.
   // It is also the repo's ONLY `next build` coverage (next is ~202MB and not a
   // workspace dep, so a vitest equivalent would never run) — see
-  // packages/devtools/src/runtypes/next/CLAUDE.md.
+  // packages/devtools/src/runtypes/next/AGENTS.md.
   {name: 'smoke-next', adapter: 'next'},
   // The mion half of the Next story: the app HOSTS the API through an App Router catch-all
   // handler, so one build produces the front end and the API from one program. smoke-next

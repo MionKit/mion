@@ -8,7 +8,7 @@
 // mion on Next.js, COMPOSED from the pieces ../runtypes/next exports individually rather than nesting one
 // wrapper in another: Turbopack has no plugin API and runs no webpack PLUGINS, so that lane is a broker started
 // from `next.config` plus a `turbopack.rules` loader that asks it to rewrite each file, while `next --webpack`
-// falls back to the ordinary unplugin webpack plugin. ⚠️ Read ../runtypes/next/CLAUDE.md before changing
+// falls back to the ordinary unplugin webpack plugin. ⚠️ Read ../runtypes/next/AGENTS.md before changing
 // anything here or there: it records invariants that look like cleanups and are not. mion adds only the shared
 // option mapping (./options.ts), so a knob added for vite reaches Next in the same commit, `client` pointer
 // included. Nothing of the batch transport is ported: the SERVER build generates the table and mapper modules,

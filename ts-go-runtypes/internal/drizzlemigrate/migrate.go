@@ -28,7 +28,7 @@ const (
 // Diagnostic codes (drizzle-migrate-* family), alongside internal/convert's convert-* ones.
 const (
 	// A view built from a query builder: its columns come from drizzle's select typing, the exact generic
-	// chain the slim design removes, so it stays drizzle (packages/drizzle-orm/CLAUDE.md records it).
+	// chain the slim design removes, so it stays drizzle (packages/drizzle-orm/AGENTS.md records it).
 	CodeQueryBuilderView = "drizzle-migrate-query-builder-view"
 	// A declaration whose head is ours but whose shape has no clean split.
 	CodeUnsupportedHead = "drizzle-migrate-unsupported-head"

@@ -30,7 +30,7 @@ jobs:
         run: |
           version=$(jq -r .version version.json)
           if npm view "@mionjs/run-types@${version}" version >/dev/null 2>&1; then
-            echo "::error title=version ${version} is already on npm::This PR would merge and then fail publish.yml's preflight. Land a version-bump PR on main first (pnpm miondevx release bump - see .claude/skills/release-to-prod/SKILL.md), then re-cut release/vX.Y.Z at a main commit that includes the bump."
+            echo "::error title=version ${version} is already on npm::This PR would merge and then fail publish.yml's preflight. Land a version-bump PR on main first (pnpm miondevx release bump - see .agents/skills/release-to-prod/SKILL.md), then re-cut release/vX.Y.Z at a main commit that includes the bump."
             exit 1
           fi
           echo "OK: ${version} is not on npm yet — safe to promote."
@@ -45,7 +45,7 @@ jobs:
   # A head that is literally main (the legacy flow, and publish.yml's merge-shape
   # recovery empty-merge) is trivially its own ancestor and still passes. Uses git
   # objects only — no secrets — so fork PRs run it too. Add this check to the prod
-  # ruleset's required status checks (see .claude/skills/release-to-prod/SKILL.md).
+  # ruleset's required status checks (see .agents/skills/release-to-prod/SKILL.md).
   main-ancestor:
     name: release head is an ancestor of main
     runs-on: ubuntu-latest
@@ -63,7 +63,7 @@ jobs:
           if git merge-base --is-ancestor "${HEAD_SHA}" origin/main; then
             echo "OK: release head ${HEAD_SHA} is an ancestor of origin/main — prod stays main-pure."
           else
-            echo "::error title=release head is not an ancestor of main::This release PR's head is not a frozen prefix of main, so merging it would put a non-main commit into prod's ancestry. A commit was likely authored directly on the release branch. Land every fix on main first, then re-cut the branch forward to a main commit that includes it (git branch -f release/vX.Y.Z origin/main && git push --force-with-lease). Never cherry-pick or commit onto the release branch. Full process: .claude/skills/release-to-prod/SKILL.md"
+            echo "::error title=release head is not an ancestor of main::This release PR's head is not a frozen prefix of main, so merging it would put a non-main commit into prod's ancestry. A commit was likely authored directly on the release branch. Land every fix on main first, then re-cut the branch forward to a main commit that includes it (git branch -f release/vX.Y.Z origin/main && git push --force-with-lease). Never cherry-pick or commit onto the release branch. Full process: .agents/skills/release-to-prod/SKILL.md"
             exit 1
           fi
 

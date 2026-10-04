@@ -20,7 +20,7 @@ framework packages at 0.8.10 and the type-system packages under their old scope,
 
 ## Plan
 
-Follow the [release-to-prod skill](../../.claude/skills/release-to-prod/SKILL.md) end to
+Follow the [release-to-prod skill](../../.agents/skills/release-to-prod/SKILL.md) end to
 end. The points specific to this FIRST cut:
 
 1. **Bump to 0.13.0** (`pnpm miondevx release bump minor`). The framework packages jump from

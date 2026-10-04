@@ -11,7 +11,7 @@
 // graph (same-hash convergence is asserted across all suites in
 // test/suites/id-integrity/).
 //
-// Per the CLAUDE.md marker-coverage rule every case carries BOTH forms:
+// Per the AGENTS.md marker-coverage rule every case carries BOTH forms:
 //   - static  `createValidateFn<InferType<typeof Model>>()`
 //   - reflect `createValidateFn(value)` where `value` is a runtime object whose
 //     declared type is `InferType<typeof Model>` (the format brand can't be

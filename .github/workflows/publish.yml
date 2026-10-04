@@ -19,7 +19,7 @@ name: prod · publish
 # reads the version from the gate's build job output and tags exactly that.
 #
 # MERGE MODEL: prod advances ONLY by true merge commits of main (release PRs are
-# landed with "Create a merge commit" — see .claude/skills/release-to-prod/).
+# landed with "Create a merge commit" — see .agents/skills/release-to-prod/).
 # The merge-shape job below enforces it FIRST, before the expensive gate: a
 # rebase-and-merge or squash lands the same content as copied commits, main's
 # history stops being an ancestor of prod, and the NEXT release PR becomes
@@ -54,7 +54,7 @@ jobs:
         run: |
           parents=$(git cat-file -p HEAD | grep -c '^parent ' || true)
           if [ "$parents" -lt 2 ]; then
-            echo "::error title=prod was rebased or squashed::The release PR was landed with 'Rebase and merge' or 'Squash and merge'. prod must advance only by true merge commits of main. Nothing was staged, tagged, or released. Fix: open a NEW pull request from main into prod (it will show zero file changes - that is expected), and merge it with 'Create a merge commit'. That empty merge reunifies the histories and this workflow re-runs on it normally. Full process: .claude/skills/release-to-prod/SKILL.md"
+            echo "::error title=prod was rebased or squashed::The release PR was landed with 'Rebase and merge' or 'Squash and merge'. prod must advance only by true merge commits of main. Nothing was staged, tagged, or released. Fix: open a NEW pull request from main into prod (it will show zero file changes - that is expected), and merge it with 'Create a merge commit'. That empty merge reunifies the histories and this workflow re-runs on it normally. Full process: .agents/skills/release-to-prod/SKILL.md"
             echo "" >&2
             echo "This push to prod is a plain commit (one parent), not a merge commit," >&2
             echo "meaning the release PR was rebase-merged or squashed." >&2
@@ -70,7 +70,7 @@ jobs:
             echo "  3. The empty merge reunifies the histories; this workflow re-runs" >&2
             echo "     on it and proceeds normally." >&2
             echo "" >&2
-            echo "Full process: .claude/skills/release-to-prod/SKILL.md" >&2
+            echo "Full process: .agents/skills/release-to-prod/SKILL.md" >&2
             exit 1
           fi
           echo "OK: prod advanced by a merge commit ($parents parents)."

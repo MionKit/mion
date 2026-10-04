@@ -10,7 +10,7 @@
 //   - eslint surface (makeFixtureProject/runRule): the same lib sensitivity
 //     routed through the rules, plus config-tsconfig-not-loaded reported under mion/error.
 //
-// Marker coverage rule (CLAUDE.md): fixtures use BOTH getRunTypeId call
+// Marker coverage rule (AGENTS.md): fixtures use BOTH getRunTypeId call
 // shapes — static getRunTypeId<T>() and value-first getRunTypeId(value) —
 // with id equality asserted between them.
 

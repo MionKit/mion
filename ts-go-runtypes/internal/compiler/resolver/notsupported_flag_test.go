@@ -15,7 +15,7 @@ import (
 // these members at compile time; this is the
 // reflection annotation only.
 //
-// Paired *_Static / *_Reflect per the marker test coverage rule (CLAUDE.md),
+// Paired *_Static / *_Reflect per the marker test coverage rule (AGENTS.md),
 // sharing one assertion helper.
 
 const notSupportedMixed = `interface Mixed { a: string; greet(name: string): string; sym: symbol; }`

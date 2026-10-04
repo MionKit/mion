@@ -1,5 +1,5 @@
 // End-to-end atomic round-trip tests. Each scenario has paired *_static
-// and *_reflect tests per the marker test coverage rule (CLAUDE.md):
+// and *_reflect tests per the marker test coverage rule (AGENTS.md):
 //   static  uses getRunTypeId<T>() — explicit type, no value
 //   reflect uses getRunTypeId(v) — T inferred from a runtime value
 //

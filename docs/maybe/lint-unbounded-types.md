@@ -33,7 +33,7 @@ The implementer plans the details. What was checked:
   user class, a recursive type. Named string formats without a length bound (an email, a URL)
   count as unbounded today; decide whether the rule accepts formats with an intrinsic maximum.
 - **Scope and level.** Fire per site (`ScopeGraph`, with the nested example the catalog rules in
-  `ts-go-runtypes/CLAUDE.md` require); a warning by default, since nothing is broken, promoted to an
+  `ts-go-runtypes/AGENTS.md` require); a warning by default, since nothing is broken, promoted to an
   error by the rule's severity. Decide whether it covers every marker (`createValidateFn<T>()`
   included) or only mion route / middleware params and return types, and whether a route with an
   explicit `maxBodySize` option is exempt.

@@ -1,5 +1,5 @@
 // Per-STEP instantiation budgets for the model pipeline over the slim packages (see
-// .claude/skills/drizzle-slim-schemas/ARCHITECTURE.md), per dialect: 1 slim table, 2 refineTableType, 3 the flat models,
+// .agents/skills/drizzle-slim-schemas/ARCHITECTURE.md), per dialect: 1 slim table, 2 refineTableType, 3 the flat models,
 // 4 a mion route api, 5 initClient's mapping, 6 the db query through toDrizzle (the ONE step paying drizzle's generics).
 // Nothing else catches a checker-cost regression, ours or a drizzle upgrade's. Snippets compile CUMULATIVELY; each
 // step's DELTA is budgeted, plus the chain TOTAL, since deltas cannot see work moving between layers. Budgets are set

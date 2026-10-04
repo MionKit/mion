@@ -92,7 +92,7 @@ func assertHashID(t *testing.T, id string) {
 // =========================================================================
 // Primitive kinds — id is just the kind number, no payload.
 //
-// Per the marker test coverage rule (CLAUDE.md), every scenario gets two
+// Per the marker test coverage rule (AGENTS.md), every scenario gets two
 // paired tests: a *_Static using `getRunTypeId<T>()` and a *_Reflect using
 // `getRunTypeId(v)`. Both must resolve to the same atomic Kind; the
 // hash equivalence between the two forms is asserted by TestAtomic_String

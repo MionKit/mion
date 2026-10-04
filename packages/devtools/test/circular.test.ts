@@ -9,7 +9,7 @@
 //
 // Each scenario has paired static (getRunTypeId<T>()) and reflect
 // (getRunTypeId(v)) tests per the marker test coverage rule
-// (CLAUDE.md).
+// (AGENTS.md).
 
 import {describe, expect} from 'vitest';
 import {ReflectionKind, type RunType} from '../src/core/protocol.ts';

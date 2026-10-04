@@ -37,7 +37,7 @@ drizzle apart, so people and coding agents always know which one to use.
 The implementer plans the details. What was checked:
 
 - **Rule 1 is a resolver diagnostic.** Every mion route check is a Go diagnostic the linter reports
-  under the rule of its level (read `packages/devtools/src/lint/CLAUDE.md` first). Route checks live
+  under the rule of its level (read `packages/devtools/src/lint/AGENTS.md` first). Route checks live
   in `ts-go-runtypes/internal/compiler/routerrules/`;
   `checkReturnedErrorType` in `rules.go` already reads a handler's written return type, the place to
   start. Params too. A drizzle type is one whose alias or declaration comes from `drizzle-orm`

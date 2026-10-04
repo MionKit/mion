@@ -1,7 +1,7 @@
 // End-to-end member-type round-trip tests. Mirrors atomic.test.ts's
 // `evalCacheFor` + `getTypeFor` setup. Each scenario has paired static
 // (getRunTypeId<T>()) and reflect (getRunTypeId(v)) tests per the
-// marker test coverage rule (CLAUDE.md). The recursive fixture is the
+// marker test coverage rule (AGENTS.md). The recursive fixture is the
 // critical cycle-safety proof — child slots must close on the root via
 // referential equality after the virtual cache evaluates.
 

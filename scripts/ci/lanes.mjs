@@ -48,7 +48,7 @@ import {capture, die, note, noteErr, reportCliError} from '../lib/proc.mjs';
 // tracked file, so while they lived in the js-lint suite, ignoring .claude/ or a
 // root doc here would have let an offending edit through unchecked. They now run
 // in the always-on gate job instead, ungated by anything.
-export const FEEDS_NOTHING = ['docs/', 'tools/', 'assets/', '.claude/', '.vscode/', '.husky/', '.git-blame-ignore-revs', 'CHANGELOG.md', 'CLAUDE.md', 'README.md', 'SETUP.md', 'LICENSE'];
+export const FEEDS_NOTHING = ['docs/', 'tools/', 'assets/', '.agents/', '.claude/', '.codex/', '.vscode/', '.husky/', '.git-blame-ignore-revs', 'CHANGELOG.md', 'AGENTS.md', 'README.md', 'SETUP.md', 'LICENSE'];
 
 // A lane that only RUNS the Go binaries skips what never compiles into them, and the cmd/gen-* codegen tools.
 // code-digest only runs in the gate and the JS tests, so it feeds the JS lanes instead.

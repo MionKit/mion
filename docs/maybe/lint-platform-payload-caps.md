@@ -44,6 +44,6 @@ The implementer plans the details. What was checked:
   nowhere in the code today; this doc is their home until the diagnostic ships.
 - **Severity level.** These findings never affect the build, so they are Warnings (shown under
   `mion/warning`) or Info (shown once a project turns on `mion/info`); see
-  `packages/devtools/src/lint/CLAUDE.md`.
+  `packages/devtools/src/lint/AGENTS.md`.
 - **Docs**: the linter page's "Route Checks" gains a section; the security page's ceilings table can grow a
   response column back once the response diagnostic exists.

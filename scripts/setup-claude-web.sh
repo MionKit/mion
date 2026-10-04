@@ -585,7 +585,7 @@ main "$@"
 # | than share it.                                                          |
 # |                                                                         |
 # | The interactive, cross-platform, user-assist setup lives separately in  |
-# | .claude/skills/ts-runtypes-setup/ - that one is for humans on their own |
+# | .agents/skills/ts-runtypes-setup/ - that one is for humans on their own |
 # | machines (macOS + Linux, brew/apt/dnf/...). THIS one is the autonomous  |
 # | web installer. They are intentionally NOT shared and evolve separately. |
 # +-------------------------------------------------------------------------+

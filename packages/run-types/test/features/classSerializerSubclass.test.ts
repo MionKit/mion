@@ -14,7 +14,7 @@
 // documented unregistered behaviour. A value of a class the signature does not name is a type
 // error, not a supported path, so no test here encodes a subclass through a base-only type.
 //
-// Marker rule (CLAUDE.md): every case exercises BOTH createXxx<T>() (static) and
+// Marker rule (AGENTS.md): every case exercises BOTH createXxx<T>() (static) and
 // createXxx(value) (reflect).
 
 import {afterEach, describe, expect, it} from 'vitest';

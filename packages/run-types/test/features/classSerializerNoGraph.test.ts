@@ -13,7 +13,7 @@
 //   3. the class's runtype GRAPH is absent from the registry — the old
 //      InjectRunTypeId form used to force it just to read one string.
 //
-// Marker coverage rule (CLAUDE.md): the suite also pairs both getRunTypeId
+// Marker coverage rule (AGENTS.md): the suite also pairs both getRunTypeId
 // call shapes on a plain DTO (NOT the class — reflecting the class would
 // register the very graph assertion 3 proves absent) and asserts their hash
 // equivalence.

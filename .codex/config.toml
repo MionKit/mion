@@ -1,0 +1,25 @@
+project_doc_max_bytes = 131072
+
+[features]
+multi_agent = true
+codex_hooks = true
+
+[agents.pr-reviewer]
+description = "Independent, read-only PR reviewer following the shared review-pr skill."
+config_file = "agents/pr-reviewer.toml"
+
+[agents.docs-simplifier]
+description = "Independent documentation simplifier following the shared simplify-docs skill."
+config_file = "agents/docs-simplifier.toml"
+
+[agents.comments-simplifier]
+description = "Independent comment simplifier following the shared simplify-comments skill."
+config_file = "agents/comments-simplifier.toml"
+
+[[hooks.SessionStart]]
+matcher = "startup|resume"
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = 'node "$(git rev-parse --show-toplevel)/.codex/hooks/session-start.mjs"'
+timeout = 30

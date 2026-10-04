@@ -7,7 +7,7 @@
 // guarantee, and the doc's probe #5 (the builder's injected id equals the
 // canonical marker id for its return type).
 //
-// Per the CLAUDE.md marker-coverage rule every scenario carries BOTH forms — the
+// Per the AGENTS.md marker-coverage rule every scenario carries BOTH forms — the
 // static `getRunTypeId<T>()` and the reflection `getRunTypeId(value)` — and
 // both must resolve to the same node the builder returns.
 //
