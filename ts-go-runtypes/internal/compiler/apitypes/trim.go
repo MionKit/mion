@@ -79,6 +79,7 @@ func Trim(input Input) (*Output, error) {
 	for trimmer.placeOutside() {
 		trimmer.mark(entry, nil)
 	}
+	trimmer.cutUnkeptMembers()
 	if len(trimmer.errs) > 0 {
 		return nil, errors.Join(trimmer.errs...)
 	}
@@ -332,7 +333,10 @@ func (trimmer *trimmer) mark(entry *fileInfo, apiExports []string) {
 		}
 		trimmer.drain()
 	}
-	// A kept member block ships only its kept members.
+}
+
+// cutUnkeptMembers cuts a kept member block down to its kept members, once marking is final.
+func (trimmer *trimmer) cutUnkeptMembers() {
 	for _, file := range trimmer.files {
 		for _, member := range file.items {
 			if member.kind == itemMember && !member.kept && member.block.kept {

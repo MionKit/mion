@@ -40,6 +40,12 @@ export * from './extra.js';
 // trimWithGeo trims an API whose index.d.ts reaches the geo package, laid out beside the usual stubs.
 func trimWithGeo(t *testing.T, index string, extra map[string]string) (*Output, Input) {
 	t.Helper()
+	return trimFilesWithGeo(t, map[string]string{"index.d.ts": index}, extra)
+}
+
+// trimFilesWithGeo is trimWithGeo over several declaration files.
+func trimFilesWithGeo(t *testing.T, files map[string]string, extra map[string]string) (*Output, Input) {
+	t.Helper()
 	project := map[string]string{
 		"node_modules/geo/package.json": `{"name": "geo", "types": "index.d.ts"}`,
 		"node_modules/geo/index.d.ts":   geoDTS,
@@ -48,7 +54,7 @@ func trimWithGeo(t *testing.T, index string, extra map[string]string) (*Output, 
 	for rel, text := range extra {
 		project[rel] = text
 	}
-	output, input, err := tryTrimIn(t, map[string]string{"index.d.ts": index}, "", project)
+	output, input, err := tryTrimIn(t, files, "", project)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,4 +194,16 @@ func TestOutside_ADomTypeAddsItsLibReference(t *testing.T) {
 	assertContains(t, output.Files["index.d.ts"], `/// <reference lib="dom" />`)
 	assertLacks(t, output.Files["index.d.ts"], `reference lib="es`)
 	assertSelfContained(t, output, input)
+}
+
+// TestOutside_AGlobalMemberOnlyAPrintedTypeReachesShips: the project class a printed type names is kept late, and the
+// global member only it reads must still ship.
+func TestOutside_AGlobalMemberOnlyAPrintedTypeReachesShips(t *testing.T) {
+	output, input := trimFilesWithGeo(t, map[string]string{
+		"index.d.ts":  "import type { Page } from 'geo';\nimport type { Owner } from './owner.ts';\n" + apiOf(`get: import("@mionjs/router").PublicRoute<(u: Used) => Promise<Page<Owner>>>;`),
+		"owner.d.ts":  "export declare class Owner { badge: Branded }\n",
+		"global.d.ts": "declare global {\n    interface Used { a: string }\n    interface Branded { tag: string }\n}\nexport {};\n",
+	}, nil)
+	assertSelfContained(t, output, input)
+	assertContains(t, output.Files["global.d.ts"], "interface Used", "interface Branded")
 }
