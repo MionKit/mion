@@ -164,10 +164,10 @@ export function miniflareCwdWorkers() {
   return miniflareCwdOffenders(candidates.map((file) => ({file, text: readFileSync(join(REPO_ROOT, file), 'utf8')})));
 }
 
-// A rename sweep once turned `'mion'` into `'mion's'` inside a bench script, and nothing ran it, so it sat broken.
+// A script nothing runs breaks silently, as a bench script once did.
 const SCRIPT_SCANNED = ['*.js', '*.mjs', '*.cjs'];
 
-// The files `node --check` rejects, run from `root` so the test can pass a fixture dir.
+// `root` lets the test pass a fixture dir.
 export const unparsedScriptOffenders = (files, root = REPO_ROOT) =>
   files.filter((file) => capture(process.execPath, ['--check', file], {cwd: root}).status !== 0);
 
