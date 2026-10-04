@@ -166,3 +166,17 @@ There will be no shared `.agents/roles/` directory and no shared hook migration.
   repository tests are recorded below as completed.
 
 This task does not deploy, merge, or modify cloud credentials.
+
+
+## Final checks
+
+- 305 repository and CI contract tests passed.
+- All eight always-on repository hygiene sweeps passed.
+- Review scope reports the governing root and nested `AGENTS.md` files.
+- The setup script resolves the checkout root through both skill paths.
+- The independent comment simplifier reviewed 80 source targets and shortened
+  comments in 77 files. The caller removed one stale private-plan pointer from
+  the kept block while preserving its per-rule and paired-marker requirements.
+- The comment-only diff guard passed. No application behavior changed.
+- Guideline shortening is explicitly deferred to a separate task and PR, with
+  a 100-line limit per `AGENTS.md` and no duplicated implementation details.
