@@ -297,17 +297,19 @@ const (
 
 // apiUnit is one named declaration (several statements for a merge or overloads), the unit labelled kept or poison.
 type apiUnit struct {
-	index    int
-	file     int // 0 is the API file
-	kind     unitKind
-	refs     []*apiUnit
-	reached  bool
-	heavy    bool // a poison unit that also reads heavy-pkg
-	lib      bool // a unit that also reads lib-pkg, whose types the package prints
-	global   bool // declared in a `declare global` block, read by its bare name
-	generic  bool // has a type parameter whose default reads its first ref
-	exported bool
-	name     string
+	index   int
+	file    int // 0 is the API file
+	kind    unitKind
+	refs    []*apiUnit
+	reached bool
+	heavy   bool // a poison unit that also reads heavy-pkg
+	lib     bool // a unit that also reads lib-pkg, whose types the package prints
+	global  bool // declared in a `declare global` block, read by its bare name
+	generic bool // has a type parameter whose default reads its first ref
+	// implemented: a class restates this interface's members, so an augmentation would break the class
+	implemented bool
+	exported    bool
+	name        string
 }
 
 func (unit *apiUnit) isType() bool { return unit.kind != kindConst && unit.kind != kindFunction }
@@ -559,7 +561,7 @@ func (graph *apiGraph) render(rng *rand.Rand) {
 		}
 		// A relative augmentation of another file's interface ships exactly when that interface does.
 		for _, unit := range graph.units {
-			if file > 0 && unit.file > 0 && unit.file != file && plainInterface(unit) && !unit.generic && !bareInterface(unit) && rng.Intn(4) == 0 {
+			if file > 0 && unit.file > 0 && unit.file != file && plainInterface(unit) && !unit.generic && !unit.implemented && rng.Intn(4) == 0 {
 				fmt.Fprintf(&builder, "declare module '%s' {\n    interface %s { aug%d_%d: string }\n}\n", specifierOf(unit.file), unit.name, unit.index, file)
 			}
 		}
@@ -689,6 +691,7 @@ func (graph *apiGraph) renderUnit(rng *rand.Rand, unit *apiUnit, imports *fileIm
 	} else if unit.kind == kindClass && len(refs) > 0 && bareInterface(refs[0]) && rng.Intn(2) == 0 {
 		heritage = " implements " + graph.typeRef(rng, unit.file, refs[0], imports, true)
 		implemented = fmt.Sprintf("id%d: string; ", refs[0].index)
+		refs[0].implemented = true
 		refs = refs[1:]
 	}
 	indent := ""
