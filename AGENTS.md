@@ -19,15 +19,13 @@ For questions, approval, independent agents, and background sessions, follow
 when tool names differ. Report unavailable capabilities instead of silently
 skipping a required step or reviewing your own work.
 
-## ⚠️ IMPORTANT!!! any issue found during a task must be FIXED, not filed for later
+## Every discovered issue must be fixed or explicitly tracked
 
-This is the rule broken most often, so it comes first!! Any issue or blocker you discover while doing a task should be fixed before task gets done:
+Never leave a discovered bug, blocker or necessary fix unnoticed or unattended.
 
-- **Related to the current task** → fix it in the SAME task and the SAME pull request, with its own commit and its own test. Size buys no exemption — a big related finding means a bigger PR, not a later one.
-- **Completely Unrelated to the current task** → delegate it to a PARALLEL background agent, never a backlog — run the [delegate-finding skill](.agents/skills/delegate-finding/). That takes care of creating the todo and delegating it to a parallel agent. A delegated session never delegates again: it fixes everything in its own PR and files a truly unrelated finding as a todo in that PR.
-- A [docs/todos/](docs/todos/) spec is a commitment to solve it, never a way to close the loop!
-
-**Absolute:** never let a finding slide and get lost, either fix it or delegate it to a parallel assistant session. Ask if there are open questions you can't solve!
+- **Related to the current task:** fix it in the same branch and pull request, with its own commit and appropriate tests.
+- **Deferred work:** create an actionable document in [docs/todos/](docs/todos/) in the pull request and link it from the PR description. Record the problem, affected behavior and acceptance criteria. A todo remains open work until the fix is completed.
+- **Completed work:** [docs/done/](docs/done/) contains completed work only. Never leave an unresolved bug, proposed fix or follow-up hidden in a done document. Implement related fixes in the current PR or move outstanding work into an explicit todo before marking the work done.
 
 ## ⚠️ A removed thing leaves NO trace
 
