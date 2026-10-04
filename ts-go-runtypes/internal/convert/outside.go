@@ -406,7 +406,7 @@ func (ctx *printContext) classMemberText(member *reflection.RunType) (string, *D
 		case 2:
 			// A typeless `private x;` is how a `.d.ts` hides a private member's type; the id reads it as optional `any`.
 			if child := ctx.deref(member.Child); child != nil && child.Kind == reflection.KindAny && member.Kind == reflection.KindProperty {
-				return prefix + "private " + key + ";", nil
+				return prefix + "private " + readonlyPrefix(member.Readonly) + key + ";", nil
 			}
 			prefix += "private "
 		}
