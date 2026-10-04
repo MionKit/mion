@@ -12,7 +12,7 @@ If environment is not already setup you can run the [mion-setup skill](.claude/s
 This is the rule broken most often, so it comes first!! Any issue or blocker you discover while doing a task should be fixed before task gets done:
 
 - **Related to the current task** → fix it in the SAME task and the SAME pull request, with its own commit and its own test. Size buys no exemption — a big related finding means a bigger PR, not a later one.
-- **Completely Unrelated to the current task** → delegate it to a PARALLEL background agent, never a backlog — run the [delegate-finding skill](.claude/skills/delegate-finding/). That takes care of creating the todo and delegating it to a parallel agent.
+- **Completely Unrelated to the current task** → delegate it to a PARALLEL background agent, never a backlog — run the [delegate-finding skill](.claude/skills/delegate-finding/). That takes care of creating the todo and delegating it to a parallel agent. A delegated session never delegates again: it fixes everything in its own PR and lists a truly unrelated finding in that PR's description.
 - A [docs/todos/](docs/todos/) spec is a commitment to solve it, never a way to close the loop!
 
 **Absolute:** never let a finding slide and get lost, either fix it or delegate it to a parallel claude session. Ask if there are open questions you can't solve!
