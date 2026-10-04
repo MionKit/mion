@@ -68,6 +68,7 @@ export const AREAS = {
         flags: [
           ['--trust-stamp', 'skip the reference build when mion-bin/.mion.stamp matches (the gate and the pre-hooks)'],
           ['--cache-key', 'print the CI cache key of the prebuilt Go binaries, build nothing (needs no Go)'],
+          ['--digest-cache-key', 'print the CI cache key of mion-bin/code-digest, build nothing (needs no Go)'],
         ],
         ...noBuild,
       },

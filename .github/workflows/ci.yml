@@ -318,7 +318,7 @@ jobs:
       # The contract tests read source and workflow text, comments included, so they also run on a comment-only edit.
       - name: Contract tests
         if: fromJSON(needs.lanes.outputs.lanes)['js-static'].run
-        run: pnpm exec vitest run contracts
+        run: pnpm test contracts
       # The list of test files already passed at their exact inputs; a pull request restores its own newest, else main's.
       - name: Restore the passed test list
         if: fromJSON(needs.lanes.outputs.lanes).js.run

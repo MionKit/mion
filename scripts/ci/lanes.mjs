@@ -39,7 +39,7 @@
 //   lanes --base <ref>                skip every lane whose inputs equal that tree's (a pull request's base)
 import {createHash} from 'node:crypto';
 import {appendFileSync, existsSync, readFileSync} from 'node:fs';
-import {join} from 'node:path';
+import {CODE_DIGEST_BIN} from '../core/build.mjs';
 import {REPO_ROOT} from '../lib/env.mjs';
 import {isGoInput} from '../lib/go-inputs.mjs';
 import {capture, die, note, noteErr, reportCliError} from '../lib/proc.mjs';
@@ -54,7 +54,9 @@ import {capture, die, note, noteErr, reportCliError} from '../lib/proc.mjs';
 export const FEEDS_NOTHING = ['docs/', 'tools/', 'assets/', '.claude/', '.vscode/', '.husky/', '.git-blame-ignore-revs', 'CHANGELOG.md', 'CLAUDE.md', 'README.md', 'SETUP.md', 'LICENSE'];
 
 // A lane that only RUNS the Go binaries skips what never compiles into them, and the cmd/gen-* codegen tools.
-const GO_BUILD = {prefix: 'ts-go-runtypes/', keep: (path) => isGoInput(path) && !path.startsWith('ts-go-runtypes/cmd/gen-')};
+// code-digest only runs in the gate and in the JS tests, so it feeds the JS lanes instead (CODE_DIGEST below).
+const GO_BUILD = {prefix: 'ts-go-runtypes/', keep: (path) => isGoInput(path) && !path.startsWith('ts-go-runtypes/cmd/gen-') && !path.startsWith(CODE_DIGEST)};
+const CODE_DIGEST = 'ts-go-runtypes/cmd/code-digest/';
 
 // The js lane still checks page links and CSS imports; the release gate and prod deploy still build them.
 const WEBSITE_CODE = {prefix: 'container/website/', keep: (path) => !path.startsWith('container/website/content/') && !path.endsWith('.css')};
@@ -71,7 +73,7 @@ const GO_TREE = ['ts-go-runtypes/', ...REPO_CONFIG];
 // workflow files. The old path filter listed none of them, so a content-only pull
 // request skipped js-lint and the code-import gate never ran on the very commit
 // that could break it.
-const JS = ['packages/', 'scripts/', 'container/', 'vitest.config.ts', 'version.json', 'drizzle-dialects.json', 'drizzle-suites.pin.json', '.env.sample', '.oxlintrc.json', '.oxfmtrc.json', 'eslint.config.js', '.github/workflows/', ...WORKSPACE];
+const JS = ['packages/', 'scripts/', 'container/', CODE_DIGEST, 'vitest.config.ts', 'version.json', 'drizzle-dialects.json', 'drizzle-suites.pin.json', '.env.sample', '.oxlintrc.json', '.oxfmtrc.json', 'eslint.config.js', '.github/workflows/', ...WORKSPACE];
 // What a lane that packs and installs the workspace reads. No container/ (those
 // lanes name their own image dir) and no workflow files.
 const PACKED = ['packages/', 'scripts/', 'version.json', ...WORKSPACE];
@@ -160,16 +162,19 @@ export const matches = (path, entries) => entries.some((entry) => entryMatches(p
 export const unclassified = (paths) => paths.filter((path) => !matches(path, FEEDS_NOTHING) && !Object.values(LANES).some((lane) => matches(path, lane.paths)));
 
 // Code files a tokens lane hashes by their code. The rest hash raw: fixtures and snapshots (a test reads
-// their exact text or line numbers), the docs examples (the site shows their comments), generated files
-// (codegen drift compares bytes), JSX (not worth the risk for four e2e files), and vendored trees.
+// their exact text or line numbers), the docs examples (the site shows their comments), files a test parses
+// comments out of (the drizzle example's `// case:` routes, the e2e scripts' cli([...]) calls), generated
+// files (codegen drift compares bytes), JSX (not worth the risk for four e2e files), and vendored trees.
+// ts-go-runtypes/cmd/code-digest/property_test.go keeps a copy of RAW_CODE.
 const CODE_FILE = /\.(ts|mts|cts|js|mjs|cjs|go)$/;
-const RAW_CODE = /fixture|testdata|__snapshots__|(^|\/)(_deps|node_modules|third_party)\/|^packages\/private-examples\/|\.generated\.ts$/;
+const RAW_CODE =
+  /fixture|testdata|__snapshots__|(^|\/)(_deps|node_modules|third_party)\/|^packages\/private-examples\/|^packages\/private-drizzle-example-app\/src\/server\/|^container\/pre-publish-e2e\/(build|lint)-all\.mjs$|\.generated\.(ts|go)$/;
 export const TOKEN_HASHED = (path) => CODE_FILE.test(path) && !RAW_CODE.test(path);
-
-const CODE_DIGEST_BIN = join(REPO_ROOT, 'mion-bin/code-digest');
+// The same blob can sit at a .ts and a .js path, so a digest is keyed by blob and language.
+const digestKey = (entry) => `${entry.objectname} ${entry.path.endsWith('.go') ? 'go' : /\.[cm]?ts$/.test(entry.path) ? 'ts' : 'js'}`;
 
 // One `git ls-tree` over the whole tree. Hashing the OBJECT IDS (not the bytes) keeps it to a single git call.
-export function treeEntries(ref = 'HEAD', {cwd = REPO_ROOT} = {}) {
+function treeEntries(ref = 'HEAD', {cwd = REPO_ROOT} = {}) {
   const listed = capture('git', ['ls-tree', '-r', ref, '--format=%(objectname) %(path)'], {cwd});
   if (listed.status !== 0) die(`git ls-tree ${ref} failed: ${listed.stderr.trim() || listed.error?.message}`);
   return listed.stdout
@@ -184,7 +189,7 @@ export function treeEntries(ref = 'HEAD', {cwd = REPO_ROOT} = {}) {
 // The code digest of every token-hashed blob, from ONE code-digest run. Mode `r` (raw) when the tool is
 // missing or fails, so a tokens lane then hashes object ids under a prefix no token-mode marker shares.
 export function codeDigests(entries, {cwd = REPO_ROOT, bin = CODE_DIGEST_BIN} = {}) {
-  const raw = {mode: 'r', byObject: new Map()};
+  const raw = {mode: 'r', byKey: new Map()};
   if (!existsSync(bin)) return raw;
   const input = entries.filter((entry) => TOKEN_HASHED(entry.path)).map((entry) => `${entry.objectname} ${entry.path}\n`).join('');
   const result = capture(bin, ['-C', cwd], {cwd, input, timeout: 60_000, maxBuffer: 64 * 1024 * 1024});
@@ -192,12 +197,12 @@ export function codeDigests(entries, {cwd = REPO_ROOT, bin = CODE_DIGEST_BIN} = 
     noteErr(`code-digest failed, so the tokens lanes hash raw: ${result.stderr.trim() || result.error?.message}`);
     return raw;
   }
-  const byObject = new Map();
+  const byKey = new Map();
   for (const line of result.stdout.split('\n')) {
-    const [objectname, digest] = line.split(' ');
-    if (digest && digest !== '-') byObject.set(objectname, digest);
+    const [objectname, language, digest] = line.split(' ');
+    if (digest && digest !== '-') byKey.set(`${objectname} ${language}`, digest);
   }
-  return {mode: 't', byObject};
+  return {mode: 't', byKey};
 }
 
 // The tree partitioned per lane; `entries` and `digests` let a caller share one code-digest run across two trees.
@@ -209,7 +214,7 @@ export function laneHashes(ref = 'HEAD', {cwd = REPO_ROOT, entries = treeEntries
     const digest = createHash('sha256');
     for (const entry of entries) {
       if (!feeds(entry.path) && !unknownSet.has(entry.path)) continue;
-      const id = (tokens && TOKEN_HASHED(entry.path) && digests.byObject.get(entry.objectname)) || entry.objectname;
+      const id = (tokens && TOKEN_HASHED(entry.path) && digests.byKey.get(digestKey(entry))) || entry.objectname;
       digest.update(`${id} ${entry.path}\n`);
     }
     const hex = digest.digest('hex').slice(0, 32);
@@ -292,22 +297,27 @@ const flagValues = (args, flag) => {
 };
 
 // An unreadable base returns no entries, which skips nothing.
-function readBaseEntries(base) {
+function readBaseEntries(base, cwd) {
   if (!base) return undefined;
-  if (capture('git', ['rev-parse', '-q', '--verify', `${base}^{commit}`], {cwd: REPO_ROOT}).status !== 0) {
+  if (capture('git', ['rev-parse', '-q', '--verify', `${base}^{commit}`], {cwd}).status !== 0) {
     noteErr(`base ${base} is not available, so no lane is skipped for being unchanged`);
     return undefined;
   }
-  return treeEntries(base);
+  return treeEntries(base, {cwd});
+}
+
+// The tree and its base from ONE code-digest run, so the two always hash in the same mode.
+export function refAndBaseHashes(ref, base, {cwd = REPO_ROOT} = {}) {
+  const entries = treeEntries(ref, {cwd});
+  const baseEntries = readBaseEntries(base, cwd);
+  const digests = codeDigests([...entries, ...(baseEntries ?? [])], {cwd});
+  const baseHashes = baseEntries && laneHashes(undefined, {entries: baseEntries, digests}).hashes;
+  return {...laneHashes(ref, {entries, digests}), baseHashes};
 }
 
 export function main(args) {
   const ref = flagValues(args, '--ref')[0] ?? 'HEAD';
-  const entries = treeEntries(ref);
-  const baseEntries = readBaseEntries(flagValues(args, '--base')[0]);
-  const digests = codeDigests([...entries, ...(baseEntries ?? [])]);
-  const {hashes, unknown, mode} = laneHashes(ref, {entries, digests});
-  const baseHashes = baseEntries && laneHashes(undefined, {entries: baseEntries, digests}).hashes;
+  const {hashes, unknown, mode, baseHashes} = refAndBaseHashes(ref, flagValues(args, '--base')[0]);
   noteErr(mode === 't' ? 'code files hash by their code (comments and blank lines ignored) in the tokens lanes' : 'mion-bin/code-digest is unavailable, so every lane hashes raw');
   // stderr: --candidates prints keys on stdout for a shell loop to read.
   if (unknown.length > 0) noteErr(`${unknown.length} path(s) match no lane, so every lane hashes them: ${unknown.slice(0, 5).join(', ')}${unknown.length > 5 ? ' …' : ''}`);

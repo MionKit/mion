@@ -42,7 +42,7 @@ describe('build gate — the mion-bin/mion stamp', () => {
   let original = '';
   beforeAll(() => {
     // The authoritative check (never trusts the stamp) leaves a fresh stamp behind.
-    const result = spawnSync(process.execPath, [BUILD, 'go', 'extract'], {cwd: REPO_ROOT, encoding: 'utf8'});
+    const result = spawnSync(process.execPath, [BUILD, 'go', 'extract', 'digest'], {cwd: REPO_ROOT, encoding: 'utf8'});
     expect(result.status, result.stderr).toBe(0);
     expect(existsSync(STAMP)).toBe(true);
     original = readFileSync(STAMP, 'utf8');
@@ -63,6 +63,13 @@ describe('build gate — the mion-bin/mion stamp', () => {
     const {status, out} = trusted(['go'], withoutGo());
     expect(status, out).toBe(0);
     expect(out).toContain('mion-bin/mion is up to date (stamp)');
+  }, 60_000);
+
+  // js-lint restores code-digest from the cache and checks it with no Go, as part of `all`.
+  it('trusts the code-digest stamp with no Go on PATH', () => {
+    const {status, out} = trusted(['digest'], withoutGo());
+    expect(status, out).toBe(0);
+    expect(out).toContain('mion-bin/code-digest is up to date (stamp)');
   }, 60_000);
 
   // The smoke job copies the restored binaries into the linux slots the containers mount.

@@ -8,9 +8,10 @@ import ts from 'typescript';
 import {describe, expect, it} from 'vitest';
 // @ts-expect-error — a plain .mjs repo script, no types.
 import {TOKEN_HASHED, codeDigests} from '../../../scripts/ci/lanes.mjs';
+// @ts-expect-error — a plain .mjs repo script, no types.
+import {CODE_DIGEST_BIN} from '../../../scripts/core/build.mjs';
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
-const BIN = path.join(REPO_ROOT, 'mion-bin/code-digest');
 
 // Every comment range in the file, from the leading and trailing trivia of every token.
 function commentRanges(sourceFile: ts.SourceFile): ts.CommentRange[] {
@@ -29,7 +30,7 @@ function commentRanges(sourceFile: ts.SourceFile): ts.CommentRange[] {
     children.forEach(visit);
   };
   visit(sourceFile);
-  return [...ranges.values()].sort((a, b) => a.pos - b.pos);
+  return [...ranges.values()].sort((left, right) => left.pos - right.pos);
 }
 
 // A stripped comment leaves a newline when it held one, so automatic semicolons stay where they were.
@@ -55,13 +56,10 @@ function strip(file: string, text: string, markers: string[]): {stripped: string
 
 describe('code-digest against the TypeScript parser', () => {
   it('gives every token-hashed TS/JS file the same digest with its comments stripped', () => {
-    const markers = spawnSync(BIN, ['--markers'], {encoding: 'utf8'}).stdout.split('\n').filter(Boolean);
+    const markers = spawnSync(CODE_DIGEST_BIN, ['--markers'], {encoding: 'utf8'}).stdout.split('\n').filter(Boolean);
     expect(markers.length, 'mion-bin/code-digest is missing: run pnpm run check:builds').toBeGreaterThan(10);
-    const listed = spawnSync('git', ['ls-files', '*.ts', '*.mts', '*.cts', '*.js', '*.mjs', '*.cjs'], {
-      cwd: REPO_ROOT,
-      encoding: 'utf8',
-    });
-    const files = listed.stdout.split('\n').filter((file) => file && TOKEN_HASHED(file));
+    const listed = spawnSync('git', ['ls-files'], {cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024});
+    const files = listed.stdout.split('\n').filter((file) => TOKEN_HASHED(file) && !file.endsWith('.go'));
     const scratch = mkdtempSync(path.join(os.tmpdir(), 'code-digest-oracle-'));
     try {
       spawnSync('git', ['init', '-q'], {cwd: scratch});
@@ -70,7 +68,6 @@ describe('code-digest against the TypeScript parser', () => {
       for (const file of files) {
         const text = readFileSync(path.join(REPO_ROOT, file), 'utf8');
         const result = strip(file, text, markers);
-        if (result.removed === 0) continue;
         removed += result.removed;
         const original = path.join(scratch, 'original', file);
         const stripped = path.join(scratch, 'stripped', file);
@@ -80,7 +77,7 @@ describe('code-digest against the TypeScript parser', () => {
         writeFileSync(stripped, result.stripped);
         pairs.push({file, original, stripped});
       }
-      expect(pairs.length).toBeGreaterThan(500);
+      expect(pairs.length).toBeGreaterThan(1000);
       const paths = pairs.flatMap((pair) => [pair.original, pair.stripped]);
       const hashed = spawnSync('git', ['hash-object', '-w', '--stdin-paths'], {
         cwd: scratch,
@@ -94,12 +91,14 @@ describe('code-digest against the TypeScript parser', () => {
         {objectname: ids[2 * at], path: pair.file},
         {objectname: ids[2 * at + 1], path: pair.file},
       ]);
-      const {mode, byObject} = codeDigests(entries, {cwd: scratch});
+      const {mode, byKey} = codeDigests(entries, {cwd: scratch});
       expect(mode).toBe('t');
-      const moved = pairs.filter((pair, at) => {
-        const before = byObject.get(ids[2 * at]);
-        return before !== undefined && before !== byObject.get(ids[2 * at + 1]);
-      });
+      const key = (id: string, file: string): string => `${id} ${/\.[cm]?ts$/.test(file) ? 'ts' : 'js'}`;
+      // A raw fallback hides nothing but skips nothing either: every token-hashed file must digest.
+      expect(pairs.filter((pair, at) => !byKey.has(key(ids[2 * at], pair.file))).map((pair) => pair.file)).toEqual([]);
+      const moved = pairs.filter(
+        (pair, at) => byKey.get(key(ids[2 * at], pair.file)) !== byKey.get(key(ids[2 * at + 1], pair.file))
+      );
       expect(
         moved.map((pair) => pair.file),
         `${removed} comments stripped`
