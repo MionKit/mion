@@ -181,3 +181,11 @@ func TestOutside_APrintedTypeNamingAPlatformClassSpellsItWhereItIsDeclared(t *te
 	assertContains(t, output.Files["_outside/conn.d.ts"], "socket: Socketish", `request: import("node:http").IncomingMessage`)
 	assertContains(t, output.Files["index.d.ts"], `/// <reference types="node" />`)
 }
+
+func TestOutside_ADomTypeAddsItsLibReference(t *testing.T) {
+	output, input := trimWithGeo(t, apiOf(`get: import("@mionjs/router").PublicRoute<(b: Blob) => Promise<void>>;`),
+		map[string]string{"tsconfig.json": `{"compilerOptions": {"target": "ES2022", "module": "ESNext", "moduleResolution": "bundler", "strict": true, "lib": ["ES2022", "DOM"], "types": []}, "include": ["src"]}`})
+	assertContains(t, output.Files["index.d.ts"], `/// <reference lib="dom" />`)
+	assertLacks(t, output.Files["index.d.ts"], `reference lib="es`)
+	assertSelfContained(t, output, input)
+}
