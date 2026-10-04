@@ -471,6 +471,7 @@ func (trimmer *trimmer) placeOutside() bool {
 		case (decl.Kind == convert.OutsideClass || decl.Kind == convert.OutsideEnum) && found.kind == originMion:
 			state.projectDecls[key] = projectDecl{pkg: found.pkg, name: decl.Name}
 			state.homes[key] = ""
+			trimmer.externals[found.pkg] = true
 		case found.kind == originOutside:
 			state.homes[key] = found.pkg
 		default:

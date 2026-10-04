@@ -1,6 +1,7 @@
 package apitypes
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -64,7 +65,7 @@ func trimFilesWithGeo(t *testing.T, files map[string]string, extra map[string]st
 // assertSelfContained: no peer but the router (and the listed libraries), the package checks alone, ids hold.
 func assertSelfContained(t *testing.T, output *Output, input Input, peers ...string) {
 	t.Helper()
-	want := strings.Join(append([]string{"@mionjs/router"}, peers...), ",")
+	want := strings.Join(slices.Sorted(slices.Values(append([]string{"@mionjs/router"}, peers...))), ",")
 	if strings.Join(output.Externals, ",") != want {
 		t.Errorf("peers %v, want %s; warnings %v", output.Externals, want, output.Warnings)
 	}
@@ -253,4 +254,16 @@ func TestOutside_ReferenceLinesNameTheTypesEntry(t *testing.T) {
 	if got != want {
 		t.Errorf("got:\n%s\nwant:\n%s", got, want)
 	}
+}
+
+func TestOutside_AMionClassInsideAPrintedTypeStaysAMionImport(t *testing.T) {
+	output, input := trimWithGeo(t, `import type { Outcome } from 'wrap';
+`+apiOf(`get: import("@mionjs/router").PublicRoute<() => Promise<Outcome>>;`), map[string]string{
+		"node_modules/@mionjs/core/package.json": `{"name": "@mionjs/core", "types": "index.d.ts"}`,
+		"node_modules/@mionjs/core/index.d.ts":   "export declare class RpcError { type: string; message: string }\n",
+		"node_modules/wrap/package.json":         `{"name": "wrap", "types": "index.d.ts"}`,
+		"node_modules/wrap/index.d.ts":           "import type { RpcError } from '@mionjs/core';\nexport interface Outcome { error: RpcError | null }\n",
+	})
+	assertSelfContained(t, output, input, "@mionjs/core")
+	assertContains(t, output.Files["_outside/wrap.d.ts"], `import("@mionjs/core").RpcError`)
 }
