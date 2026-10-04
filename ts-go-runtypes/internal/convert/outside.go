@@ -255,7 +255,7 @@ func (printer *OutsidePrinter) classRef(node *reflection.RunType) (string, *Diag
 		return "", diag
 	}
 	if _, done := printer.decls[key]; !done {
-		decl := &OutsideDecl{Key: key, Kind: OutsideClass, Name: node.TypeName, NodeID: node.ID, abstract: node.IsAbstract}
+		decl := &OutsideDecl{Key: key, Kind: OutsideClass, Name: node.TypeName, NodeID: node.ID, abstract: printer.isAbstract(node)}
 		if decl.Name == "" {
 			decl.Name = node.ClassRef.Name
 		}
@@ -269,6 +269,17 @@ func (printer *OutsidePrinter) classRef(node *reflection.RunType) (string, *Diag
 		decl.Body = text
 	}
 	return OutsideRef(key), nil
+}
+
+// isAbstract: an abstract member needs an abstract class, which the reflected class does not always say.
+func (printer *OutsidePrinter) isAbstract(node *reflection.RunType) bool {
+	if node.IsAbstract {
+		return true
+	}
+	return slices.ContainsFunc(node.Children, func(member *reflection.RunType) bool {
+		member = printer.deref(member)
+		return member != nil && member.IsAbstract && !member.IsStatic
+	})
 }
 
 // builtinRef spells a platform class through the caller, which knows where it is declared.

@@ -238,3 +238,25 @@ func TestOutside_TheCacheKeepsCheckerTypesOnlyWhenAsked(t *testing.T) {
 		t.Errorf("a program swap drops the kept types")
 	}
 }
+
+func TestOutside_AbstractClassesAndClassIndexSignatures(t *testing.T) {
+	printed := assertOutsideIDs(t, `export declare abstract class Shape {
+  [key: string]: unknown;
+  readonly [index: number]: string;
+  abstract area(): number;
+  name: string;
+}
+export declare class Square extends Shape { area(): number; side: number }
+export type Holder = {shape: Shape; square: Square};
+`, "Holder")
+	assertContainsAll(t, printed, "export declare abstract class Shape", "readonly [key: number]: string;", "abstract area(): number;")
+}
+
+func assertContainsAll(t *testing.T, text string, wanted ...string) {
+	t.Helper()
+	for _, fragment := range wanted {
+		if !strings.Contains(text, fragment) {
+			t.Errorf("missing %q in:\n%s", fragment, text)
+		}
+	}
+}
