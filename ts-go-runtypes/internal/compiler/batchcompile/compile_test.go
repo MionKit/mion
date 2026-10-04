@@ -470,3 +470,31 @@ export const nested: {list: {id: string}[]} = users;
 		t.Errorf("want an indented chain line under the nested error, got %q", result.TypeDiagnostics[1])
 	}
 }
+
+// TestCompile_TypeEntriesMatchTheLines: the grouped log prints TypeScript's errors from TypeEntries, so each
+// entry must say what its line says: the TS code as the name, the place, and the text after "error TSnnnn: ".
+func TestCompile_TypeEntriesMatchTheLines(t *testing.T) {
+	tmp := t.TempDir()
+	writeFile(t, filepath.Join(tmp, "tsconfig.json"), tsconfigJSON)
+	writeFile(t, filepath.Join(tmp, "src", "chain.ts"), `type User = {id: number; name: string};
+export const user: User = {id: 1, name: 2};
+const users: {list: User[]} = {list: [{id: 1, name: 'a'}]};
+export const nested: {list: {id: string}[]} = users;
+`)
+	result, err := Run(typeErrorOptions(tmp, func(opts *Options) { opts.NoEmit = true }))
+	if err != nil {
+		t.Fatalf("compile --no-emit: %v", err)
+	}
+	if len(result.TypeEntries) != len(result.TypeDiagnostics) || len(result.TypeEntries) != 2 {
+		t.Fatalf("want one entry per line, got %d entries for %q", len(result.TypeEntries), result.TypeDiagnostics)
+	}
+	for index, entry := range result.TypeEntries {
+		want := fmt.Sprintf("src/chain.ts(%d,%d): error %s: %s", entry.Site.StartLine, entry.Site.StartCol, entry.Name, entry.Template)
+		if result.TypeDiagnostics[index] != want || entry.Severity != diagnostics.SeverityError || !strings.HasPrefix(entry.Name, "TS") {
+			t.Errorf("entry %d = %+v does not match its line %q", index, entry, result.TypeDiagnostics[index])
+		}
+	}
+	if !strings.Contains(result.TypeEntries[1].Template, "\n  ") {
+		t.Errorf("the entry keeps the message chain, got %q", result.TypeEntries[1].Template)
+	}
+}

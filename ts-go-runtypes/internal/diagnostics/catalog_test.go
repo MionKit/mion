@@ -2,6 +2,8 @@ package diagnostics
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -40,15 +42,52 @@ func TestEveryCodeHasHeadline(t *testing.T) {
 }
 
 // TestHeadlineSlotsAreNamed: grouped output prints a headline once with its slot names, so a numbered
-// `{0}` would reach the reader; Slots must list every name once, in first-appearance order.
+// `{0}` would reach the reader.
 func TestHeadlineSlotsAreNamed(t *testing.T) {
 	numbered := regexp.MustCompile(`\{\d+\}`)
 	for code, def := range Definitions {
 		if numbered.MatchString(def.Headline) {
 			t.Errorf("code %q: Headline has a numbered slot, name it: %q", code, def.Headline)
 		}
-		if got := headlineSlots(def.Headline); !slices.Equal(got, def.Slots) {
-			t.Errorf("code %q: Slots = %q, want %q", code, def.Slots, got)
+	}
+}
+
+// TestHeadlineSlotOrder: a slot's arg index is where it first appears in the headline, so a rewording that
+// moves one swaps the values at every call site. testdata/slots.json makes that a visible, reviewed change.
+func TestHeadlineSlotOrder(t *testing.T) {
+	goldenPath := filepath.Join("testdata", "slots.json")
+	current := map[string][]string{}
+	for code, def := range Definitions {
+		if len(def.Slots) > 0 {
+			current[code] = def.Slots
+		}
+	}
+	if os.Getenv("MION_UPDATE_GOLDEN") == "1" {
+		data, err := json.MarshalIndent(current, "", "  ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(goldenPath, append(data, '\n'), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	data, err := os.ReadFile(goldenPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var golden map[string][]string
+	if err := json.Unmarshal(data, &golden); err != nil {
+		t.Fatal(err)
+	}
+	for code, slots := range current {
+		if !slices.Equal(slots, golden[code]) {
+			t.Errorf("code %q: slots %q, testdata/slots.json has %q; reorder the call sites' args, then rerun with MION_UPDATE_GOLDEN=1", code, slots, golden[code])
+		}
+	}
+	for code := range golden {
+		if _, ok := current[code]; !ok {
+			t.Errorf("code %q: in testdata/slots.json but has no slots now; rerun with MION_UPDATE_GOLDEN=1", code)
 		}
 	}
 }

@@ -112,6 +112,7 @@ interface PluginOptionsLite {
     suppressHmr?: boolean;
   };
   downgradeErrors?: string[] | '*';
+  logStyle?: 'grouped' | 'lines';
 }
 
 // makePlugin instantiates the Vite plugin over the project. unplugin merges the
@@ -409,15 +410,24 @@ describeIfBinary('@mionjs/devtools / plugin-driven enrichment sync', () => {
     } finally {
       await teardown(dev);
     }
-    const downgraded = makePlugin(project, {enrich: {friendly: true, mock: true}, downgradeErrors: '*'});
-    const on = recordingCtx();
-    try {
-      await driveBuild(downgraded, project, 'build', on); // must NOT throw
-      const all = on.warnings.join('\n');
-      expect(all, 'the finding is still reported').toMatch(/warning enrich-(?:text|mock)-[a-z0-9-]+/);
-      expect(all, 'and marked so it does not read as an ordinary warning').toContain('(downgraded)');
-    } finally {
-      await teardown(downgraded);
+    for (const logStyle of ['grouped', 'lines'] as const) {
+      const downgraded = makePlugin(project, {enrich: {friendly: true, mock: true}, downgradeErrors: '*', logStyle});
+      const on = recordingCtx();
+      try {
+        await driveBuild(downgraded, project, 'build', on); // must NOT throw
+        const all = on.warnings.join('\n');
+        expect(all, 'the finding is still reported').toMatch(/warning enrich-(?:text|mock)-[a-z0-9-]+/);
+        expect(all, 'and marked so it does not read as an ordinary warning').toContain('(downgraded)');
+        const enrich = on.warnings.filter((warning) => warning.includes('enrich-'));
+        if (logStyle === 'grouped') {
+          expect(enrich, 'one grouped block for the whole gate').toHaveLength(1);
+          expect(enrich[0]).toMatch(/^warning enrich-(?:text|mock)-[a-z0-9-]+ \(\d+\) \(downgraded\)$/m);
+        } else {
+          expect(enrich.every((warning) => /\(\d+,\d+\): warning enrich-[a-z0-9-]+: .*\(downgraded\)$/.test(warning))).toBe(true);
+        }
+      } finally {
+        await teardown(downgraded);
+      }
     }
   }, 60_000);
 

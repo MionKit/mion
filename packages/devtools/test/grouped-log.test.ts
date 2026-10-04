@@ -3,6 +3,7 @@
 import {readFileSync} from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
+import {fillSlots, renderHeadline} from '../src/core/diagnosticCatalog.ts';
 import {entryOf, formatGrouped} from '../src/core/groupedLog.ts';
 import {Family, Level, Severity} from '../src/core/protocol.ts';
 import type {GroupedEntry} from '../src/core/types.ts';
@@ -39,5 +40,15 @@ describe('formatGrouped', () => {
     });
     expect(entryOf(diagnostic, true)).toMatchObject({severity: Severity.Warning, downgraded: true});
     expect(entryOf({...diagnostic, code: 'no-such-code'}, false).template).toMatch(/^Unrecognised diagnostic code/);
+  });
+});
+
+describe('fillSlots', () => {
+  it('fills each named slot from its arg, a repeated slot twice, a missing arg with nothing', () => {
+    expect(fillSlots('Make `{property}` optional (`{property}?`)', ['property'], ['id'])).toBe('Make `id` optional (`id?`)');
+    expect(fillSlots('`{route}` at {index}', ['route', 'index'], ['users/get'])).toBe('`users/get` at ');
+    expect(renderHeadline('validate-symbol-root', ['Symbol'])).toBe(
+      'Type `Symbol` can never be validated: the generated function will always fail.'
+    );
   });
 });

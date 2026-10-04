@@ -387,32 +387,42 @@ export const reflectedId = getRunTypeId(sample);
       120_000
     );
 
-    register(
-      'next build (NODE_ENV=production): the broker halts and every loader request fails naming the code',
-      async () => {
-        const root = writeBadProject();
-        const entry = path.join(root, 'src/entry.ts');
-        const warned = vi.spyOn(console, 'warn').mockImplementation(() => {});
-        const handle = await withNodeEnv('production', () =>
-          startBroker(root, {binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '.mion'})
-        );
-        try {
-          const reply = await askBroker(handle.socketPath, entry, BAD_ENTRY);
-          expect(reply.ok).toBe(false);
-          // The halt reaches the loader as the same Error, never wrapped in a second one.
-          expect(String(reply.error)).toMatch(/^Error: @mionjs\/devtools: build stopped on \d+ mion error/);
-          // Each print is one grouped block, never one line per finding.
-          const printed = [...warned.mock.calls.map((call) => String(call[0])), ...(reply.warnings ?? [])].join('\n');
-          expect(printed).toMatch(/^(\[@mionjs\/devtools\] )?error [a-z-]+ \(\d+\)$/m);
-          expect(printed).not.toMatch(/\(\d+,\d+\): error /);
-        } finally {
-          warned.mockRestore();
-          await handle.close();
-          fs.rmSync(root, {recursive: true, force: true});
-        }
-      },
-      120_000
-    );
+    for (const logStyle of ['grouped', 'lines'] as const) {
+      register(
+        `next build (NODE_ENV=production): the broker halts and every loader request fails naming the code (${logStyle})`,
+        async () => {
+          const root = writeBadProject();
+          const entry = path.join(root, 'src/entry.ts');
+          const warned = vi.spyOn(console, 'warn').mockImplementation(() => {});
+          try {
+            const handle = await withNodeEnv('production', () =>
+              startBroker(root, {binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '.mion', logStyle})
+            );
+            try {
+              const reply = await askBroker(handle.socketPath, entry, BAD_ENTRY);
+              expect(reply.ok).toBe(false);
+              // The halt reaches the loader as the same Error, never wrapped in a second one.
+              expect(String(reply.error)).toMatch(/^Error: @mionjs\/devtools: build stopped on \d+ mion error/);
+              const printed = [...warned.mock.calls.map((call) => String(call[0])), ...(reply.warnings ?? [])].join('\n');
+              // Each print is one grouped block, or one line per finding with `lines`.
+              if (logStyle === 'grouped') {
+                expect(printed).toMatch(/^(\[@mionjs\/devtools\] )?error [a-z-]+ \(\d+\)$/m);
+                expect(printed).not.toMatch(/\(\d+,\d+\): error /);
+              } else {
+                expect(printed).toMatch(/\(\d+,\d+\): error [a-z-]+: /);
+                expect(printed).not.toMatch(/^(\[@mionjs\/devtools\] )?error [a-z-]+ \(\d+\)$/m);
+              }
+            } finally {
+              await handle.close();
+            }
+          } finally {
+            warned.mockRestore();
+            fs.rmSync(root, {recursive: true, force: true});
+          }
+        },
+        120_000
+      );
+    }
 
     register(
       'devServer: true names the lane without NODE_ENV',

@@ -471,6 +471,30 @@ function listFiles(dir: string): string[] {
   return (fs.readdirSync(dir, {recursive: true}) as string[]).filter((rel) => fs.statSync(path.join(dir, rel)).isFile()).sort();
 }
 
+describe('mion api-types — log style', () => {
+  register('prints findings grouped by default and one line each with --log-style lines', () => {
+    const base = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-api-types-log-'));
+    try {
+      const bad = `import {createValidateFn} from '@mionjs/run-types';\nexport const isSymbol = createValidateFn<symbol>();\n`;
+      const server = writeProject(base, 'server', {'server.ts': TYPES_SERVER_TS, 'db.ts': TYPES_DB_TS, 'bad.ts': bad});
+      installRouter(server);
+      const apiTypes = (flags: string[]) =>
+        runCli(['api-types', '--cwd', server, '--tsconfig', 'tsconfig.json', '--out', path.join(base, 'out'), ...flags], {
+          label: 'api-types-log-style',
+        });
+      const grouped = apiTypes([]);
+      expect(grouped.status).toBe(1);
+      expect(grouped.stderr).toMatch(/^error validate-symbol-root \(1\)\n {2}Type `Symbol` .*\n {4}src\/bad\.ts:\d+:\d+$/m);
+      const lines = apiTypes(['--log-style', 'lines']);
+      expect(lines.status).toBe(1);
+      expect(lines.stderr).toMatch(/src\/bad\.ts\(\d+,\d+\): error validate-symbol-root: /);
+      expect(lines.stderr).not.toMatch(/^error validate-symbol-root \(/m);
+    } finally {
+      fs.rmSync(base, {recursive: true, force: true});
+    }
+  });
+});
+
 describe('mion api-types — a types-only package for an API client', () => {
   register('builds the trimmed package, a client builds against it, and refuses it without the marker', () => {
     const base = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-api-types-'));
