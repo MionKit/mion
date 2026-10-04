@@ -361,8 +361,7 @@ func (trimmer *trimmer) replaceUse(file *fileInfo, use *ast.Node, typeUse typeUs
 		return keep(err.Error())
 	}
 	key := ""
-	if decl := trimmer.outside.printer.Decl(strings.Trim(text, "\x00")); decl != nil && text == convert.DeclRef(decl.Key) &&
-		(decl.Kind == convert.DeclClass || decl.Kind == convert.DeclEnum || decl.Kind == convert.DeclAlias) {
+	if decl := trimmer.outside.printer.Decl(strings.Trim(text, "\x00")); decl != nil && text == convert.DeclRef(decl.Key) && decl.Kind.HasHome() {
 		// A use that is one named declaration points at it rather than at an alias of it.
 		key = decl.Key
 	} else {
@@ -437,8 +436,7 @@ func (trimmer *trimmer) placeOutside() bool {
 			continue
 		}
 		decl := state.decl(key)
-		switch decl.Kind {
-		case convert.DeclUniqueSymbol, convert.DeclBuiltin:
+		if !decl.Kind.HasHome() {
 			// Declared in each file that spells it, or where the platform declares it.
 			state.homes[key] = ""
 			continue
@@ -446,7 +444,7 @@ func (trimmer *trimmer) placeOutside() bool {
 		symbol := state.declSymbol(decl)
 		found := trimmer.originOf(symbol)
 		switch {
-		case (decl.Kind == convert.DeclClass || decl.Kind == convert.DeclEnum) && found.kind == originProject:
+		case decl.Kind.KeepsItsName() && found.kind == originProject:
 			if project, ok := trimmer.exportedProjectDecl(symbol, decl.Name); ok {
 				state.projectDecls[key] = project
 				state.homes[key] = ""
@@ -459,7 +457,7 @@ func (trimmer *trimmer) placeOutside() bool {
 				continue
 			}
 			state.homes[key] = sharedOutside
-		case (decl.Kind == convert.DeclClass || decl.Kind == convert.DeclEnum) && found.kind == originMion:
+		case decl.Kind.KeepsItsName() && found.kind == originMion:
 			state.projectDecls[key] = projectDecl{pkg: found.pkg, name: decl.Name}
 			state.homes[key] = ""
 			trimmer.externals[found.pkg] = true
@@ -582,7 +580,7 @@ func (trimmer *trimmer) renderOutside(files map[string]string) error {
 		spellings[home] = map[string]string{}
 		for _, entry := range placed {
 			spellings[home][entry.Decl.Key] = entry.Spelling
-			if entry.Decl.Kind != convert.DeclUniqueSymbol {
+			if entry.Decl.Kind.HasHome() {
 				homeOf[entry.Decl.Key] = home
 			}
 		}

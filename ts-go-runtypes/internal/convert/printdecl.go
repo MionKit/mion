@@ -25,7 +25,32 @@ const (
 	DeclUniqueSymbol
 	// DeclBuiltin is a platform class, spelled by the caller where it is declared and never printed.
 	DeclBuiltin
+	// declKindCount bounds the kind loop in printdecl_kinds_test.go.
+	declKindCount
 )
+
+// KeepsItsName: a class or enum id includes its name, so the name never changes and a kept project or mion copy is used instead.
+func (kind DeclKind) KeepsItsName() bool {
+	switch kind {
+	case DeclClass, DeclEnum:
+		return true
+	case DeclAlias, DeclUniqueSymbol, DeclBuiltin:
+		return false
+	}
+	panic(fmt.Sprintf("convert: DeclKind %d has no KeepsItsName case", kind))
+}
+
+// HasHome: it ships as its own statement in one file; a unique symbol is declared in each file that spells it, and a
+// platform class is never printed.
+func (kind DeclKind) HasHome() bool {
+	switch kind {
+	case DeclClass, DeclEnum, DeclAlias:
+		return true
+	case DeclUniqueSymbol, DeclBuiltin:
+		return false
+	}
+	panic(fmt.Sprintf("convert: DeclKind %d has no HasHome case", kind))
+}
 
 // PrintedDecl is one declaration printed text refers to. Body holds placeholders (DeclRef) for the others.
 type PrintedDecl struct {
@@ -395,8 +420,10 @@ func (decl *PrintedDecl) declarationStatement(name string) string {
 		return fmt.Sprintf("export type %s = %s;", name, decl.Body)
 	case DeclUniqueSymbol:
 		return fmt.Sprintf("declare const %s: unique symbol;", name)
+	case DeclBuiltin:
+		return ""
 	}
-	return ""
+	panic(fmt.Sprintf("convert: DeclKind %d has no declarationStatement case", decl.Kind))
 }
 
 // PlacedDecl is a declaration laid out in one file: Spelling is how that file names it.
@@ -420,7 +447,7 @@ func LayoutDecls(decls []*PrintedDecl, taken map[string]bool) []PlacedDecl {
 		return name
 	}
 	for _, decl := range decls {
-		if decl.Kind != DeclClass && decl.Kind != DeclEnum {
+		if !decl.Kind.KeepsItsName() {
 			continue
 		}
 		if !used[decl.Name] {
