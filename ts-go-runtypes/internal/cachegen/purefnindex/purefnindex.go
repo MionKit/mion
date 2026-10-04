@@ -231,9 +231,12 @@ func (store *Store) ownerOf(root string) packageOwner {
 	if info.Marker != nil {
 		row.owner = info.Marker.Package
 		store.servedBy[row.owner] = append(store.servedBy[row.owner], root)
-		// The other packages' pure fns it ships, for a client that does not install them.
+		// The other packages' pure fns it ships, for a client that does not install them, only from its own vendor dir.
+		vendorRoot := tspath.CombinePaths(root, VendorDir) + "/"
 		for owner, dir := range info.Marker.Vendored {
-			store.servedBy[owner] = append(store.servedBy[owner], tspath.ResolvePath(root, dir))
+			if vendored := tspath.ResolvePath(root, dir); strings.HasPrefix(vendored+"/", vendorRoot) && vendored+"/" != vendorRoot {
+				store.servedBy[owner] = append(store.servedBy[owner], vendored)
+			}
 		}
 	}
 	store.owners[root] = row
