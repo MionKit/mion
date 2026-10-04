@@ -96,7 +96,7 @@ func TestDigest_ToolCommentsCount(t *testing.T) {
 
 // The digest of a fixed corpus is pinned, so a change to the token rules cannot ship without a toolVersion bump.
 func TestDigest_RulesChangeBumpsToolVersion(t *testing.T) {
-	// The goldens of the current toolVersion: a rules change moves them, and a new version gets new goldens.
+	// The toolVersion the goldens below were computed under.
 	const goldenVersion = "2"
 	corpus := []struct{ path, text, golden string }{
 		{"a.ts", "export const a = `x${1}` + /re/g.source; // c\n", "1264c62476f9f66870d04a472885288d3a89cb1bd87c4491fa4c0725978f2243"},

@@ -51,8 +51,7 @@ var goDirectives = []string{
 	"//nolint",  // linter suppressions
 }
 
-// directiveLines returns every line holding a marker, trimmed. A marker inside a string also counts,
-// which can only cost a re-run.
+// directiveLines also matches a marker inside a string, which can only cost a re-run.
 func directiveLines(text string, directives []string) []string {
 	var lines []string
 	for _, line := range strings.Split(text, "\n") {
