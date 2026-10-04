@@ -26,6 +26,14 @@ export type PublicApi<R> = {
 };
 `
 
+// libPkgDTS is an outside package reached API types use: its types are printed into the package, never imported.
+const libPkgDTS = `export interface LibItem { label: string; count?: number }
+export declare class LibMoney { #private; amount: number; add(other: LibMoney): LibMoney; map<T>(fn: (value: number) => T): T[] }
+export declare enum LibRole { Admin = "admin", User = "user" }
+export interface LibPage<T> { items: T[]; total: number }
+export type LibTree = { value: string; children: LibTree[] };
+`
+
 const nodeStubDTS = `declare module 'node:http' { export interface IncomingMessage { url?: string } }
 `
 
@@ -57,6 +65,8 @@ func tryTrimIn(t *testing.T, files map[string]string, entry string, project map[
 	write("node_modules/@types/node/index.d.ts", nodeStubDTS)
 	write("node_modules/ext-pkg/package.json", `{"name": "ext-pkg", "types": "index.d.ts"}`)
 	write("node_modules/ext-pkg/index.d.ts", "export type Ext = {e: boolean};\nexport type OnlyServer = {s: boolean};\nexport interface Box {a: boolean}\n")
+	write("node_modules/lib-pkg/package.json", `{"name": "lib-pkg", "types": "index.d.ts"}`)
+	write("node_modules/lib-pkg/index.d.ts", libPkgDTS)
 	// A server-only package: nothing from it may reach the published package.
 	write("node_modules/heavy-pkg/package.json", `{"name": "heavy-pkg", "types": "index.d.ts"}`)
 	write("node_modules/heavy-pkg/index.d.ts", "export declare class HeavyDb { query(sql: string): unknown }\nexport interface HeavyClient { db: HeavyDb }\nexport type HeavyRow = { id: string };\n")
