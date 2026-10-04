@@ -1,6 +1,7 @@
 package convert_test
 
 import (
+	"maps"
 	"strings"
 	"testing"
 
@@ -14,7 +15,13 @@ import (
 // printOutside prints each named declaration of main.ts through the outside printer into one standalone file.
 func printOutside(t *testing.T, source string, names ...string) string {
 	t.Helper()
-	prog, session, cwd := setupConvert(t, map[string]string{"main.ts": source})
+	return printOutsideIn(t, map[string]string{"main.ts": source}, names...)
+}
+
+// printOutsideIn is printOutside over a full sources map; main.ts holds the declarations.
+func printOutsideIn(t *testing.T, sources map[string]string, names ...string) string {
+	t.Helper()
+	prog, session, cwd := setupConvert(t, sources)
 	defer session.Close()
 	sourceFile := prog.SourceFile(tspath.ResolvePath(cwd, "main.ts"))
 	typeChecker := session.Checker()
@@ -73,9 +80,17 @@ func contains(list []string, wanted string) bool {
 // assertOutsideIDs: every printed declaration resolves to the id of the original it was printed from.
 func assertOutsideIDs(t *testing.T, source string, names ...string) string {
 	t.Helper()
-	printed := printOutside(t, source, names...)
-	original := declIDs(t, source)
-	again := declIDs(t, printed)
+	return assertOutsideIDsIn(t, map[string]string{"main.ts": source}, names...)
+}
+
+// assertOutsideIDsIn is assertOutsideIDs over a full sources map, the printed main.ts beside the same other files.
+func assertOutsideIDsIn(t *testing.T, sources map[string]string, names ...string) string {
+	t.Helper()
+	printed := printOutsideIn(t, sources, names...)
+	withPrinted := maps.Clone(sources)
+	withPrinted["main.ts"] = printed
+	original := declIDsIn(t, sources)
+	again := declIDsIn(t, withPrinted)
 	for _, name := range names {
 		if original[name] == "" || original[name] != again[name] {
 			t.Errorf("%s: printed id %q, original %q\n%s", name, again[name], original[name], printed)
