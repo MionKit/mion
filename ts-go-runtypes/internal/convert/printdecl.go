@@ -1,8 +1,8 @@
 package convert
 
-// printdecl.go prints reflected types as standalone declarations for a published types package that ships another
-// package's types instead of importing them. A named class or enum, a unique symbol key and a recursive shape
-// become declarations of their own, referenced from printed text through placeholders the caller spells per file.
+// printdecl.go prints standalone declarations for a types package that ships another package's types instead of
+// importing them. Classes, enums, unique symbols and recursive shapes become their own declarations, referenced
+// through placeholders the caller spells per file.
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// DeclKind names what an PrintedDecl declares.
+// DeclKind names what a PrintedDecl declares.
 type DeclKind int
 
 const (
@@ -43,7 +43,7 @@ type DeclPrinter struct {
 	names   *nameTable
 	decls   map[string]*PrintedDecl
 	order   []string
-	// failed holds the refusal of a declaration whose body could not print, returned to every later use of it.
+	// failed holds a refused declaration's diagnostic, returned to every later use.
 	failed   map[string]*Diagnostic
 	usedName map[string]int
 	needs    importNeeds
@@ -161,8 +161,7 @@ func (printer *DeclPrinter) deref(node *reflection.RunType) *reflection.RunType 
 	return node
 }
 
-// isRecursiveShape: a shape the serializer found a back-edge to prints once, as a named alias; a class or enum
-// closes its cycle by its own name.
+// isRecursiveShape: a back-edged shape prints once as a named alias; a class or enum closes its cycle by its name.
 func isRecursiveShape(node *reflection.RunType) bool {
 	return node.IsCircular && !isUserClass(node) && node.Kind != reflection.KindEnum
 }
@@ -360,8 +359,7 @@ func (printer *DeclPrinter) uniqueSymbolKey(memberName string) (string, bool) {
 	return DeclRef(key), true
 }
 
-// classBody prints a class's instance members as TypeScript's typeElementsToClassElements does: the type
-// element printer plus class modifiers. Inherited members are flattened in, statics left out (neither is in the id).
+// classBody mirrors TypeScript's typeElementsToClassElements; as in the id, inherited members flatten in, statics drop.
 func (ctx *printContext) classBody(node *reflection.RunType) (string, *Diagnostic) {
 	var parts []string
 	if hasFlag(node, reflection.FlagPrivateFields) {
@@ -382,7 +380,7 @@ func (ctx *printContext) classBody(node *reflection.RunType) (string, *Diagnosti
 	return "{\n  " + strings.Join(parts, ";\n  ") + ";\n}", nil
 }
 
-// declarationStatement renders the declaration as an exported top-level statement under name, its placeholders unspelled.
+// declarationStatement renders decl as a top-level statement under name, placeholders unspelled.
 func (decl *PrintedDecl) declarationStatement(name string) string {
 	switch decl.Kind {
 	case DeclClass:
@@ -408,8 +406,7 @@ type PlacedDecl struct {
 	Statement string
 }
 
-// LayoutDecls names each declaration in one file; taken lists names the file already uses.
-// A class or enum keeps the name its id needs, so a second one under that name goes in a namespace.
+// LayoutDecls names decls in one file around taken; a class or enum keeps its id's name, in a namespace on a clash.
 func LayoutDecls(decls []*PrintedDecl, taken map[string]bool) []PlacedDecl {
 	used := map[string]bool{}
 	for name := range taken {
@@ -431,7 +428,6 @@ func LayoutDecls(decls []*PrintedDecl, taken map[string]bool) []PlacedDecl {
 			out = append(out, PlacedDecl{Decl: decl, Spelling: decl.Name, Statement: decl.declarationStatement(decl.Name)})
 			continue
 		}
-		// A namespace keeps the name the id needs for a second declaration under it.
 		namespace := free(decl.Name)
 		inner := strings.TrimPrefix(decl.declarationStatement(decl.Name), "export declare ")
 		statement := fmt.Sprintf("export declare namespace %s {\n  %s\n}", namespace, strings.ReplaceAll(inner, "\n", "\n  "))
