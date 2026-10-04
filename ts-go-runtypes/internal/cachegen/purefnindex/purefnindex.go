@@ -229,6 +229,10 @@ func (store *Store) ownerOf(root string) packageOwner {
 	if info.Marker != nil {
 		row.owner = info.Marker.Package
 		store.servedBy[row.owner] = append(store.servedBy[row.owner], root)
+		// The other packages' pure fns it ships, for a client that does not install them.
+		for owner, dir := range info.Marker.Vendored {
+			store.servedBy[owner] = append(store.servedBy[owner], tspath.ResolvePath(root, dir))
+		}
 	}
 	store.owners[root] = row
 	return row
@@ -307,6 +311,16 @@ func (idx *PackageIndex) nameOf(id string) string {
 		}
 	}
 	return ""
+}
+
+// ModuleText returns the module an artifact serves the id from, as it ships.
+func (idx *PackageIndex) ModuleText(id string) (string, bool) {
+	for _, dir := range idx.listed[id] {
+		if content, ok := idx.store.fs.ReadFile(tspath.CombinePaths(dir, ModulePath(id))); ok {
+			return content, true
+		}
+	}
+	return "", false
 }
 
 // Row returns the served row, reading the id's module on first demand from every directory listing it; the

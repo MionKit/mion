@@ -59,7 +59,7 @@ func TestReadPackage_Marker(t *testing.T) {
 		{"no package", `{"format": 1, "compiler": "1"}`, "not a mion API marker"},
 		{"no format", `{"package": "x", "compiler": "1"}`, "not a mion API marker"},
 		{"no compiler", `{"format": 1, "package": "x"}`, "not a mion API marker"},
-		{"newer format", `{"format": 2, "package": "x", "compiler": "1"}`, "newer than this compiler"},
+		{"newer format", `{"format": 3, "package": "x", "compiler": "1"}`, "newer than this compiler"},
 	}
 	for _, testCase := range refused {
 		files := map[string]string{"package.json": pkg}
