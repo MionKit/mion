@@ -278,8 +278,15 @@ func (trimmer *trimmer) printOutsideUses(current *item) {
 		}
 		switch node.Kind {
 		case ast.KindTypeReference, ast.KindExpressionWithTypeArguments, ast.KindImportType, ast.KindTypeQuery:
-			if found, outside := trimmer.outsideUse(file, node); outside && trimmer.replaceUse(file, climbUse(node), found) {
-				return false
+			if found, outside := trimmer.outsideUse(file, node); outside {
+				use := climbUse(node)
+				if use != node && hasFreeTypeParameters(trimmer.checker, use) {
+					// `X[K]` under a mapped `K` cannot print, `X` alone can.
+					use = node
+				}
+				if trimmer.replaceUse(file, use, found) {
+					return false
+				}
 			}
 		}
 		node.ForEachChild(walk)
@@ -318,6 +325,10 @@ func (trimmer *trimmer) replaceUse(file *fileInfo, use *ast.Node, found origin) 
 		return keep("a script file cannot import the printed class it extends")
 	}
 	tsType := checker.Checker_getTypeFromTypeNode(trimmer.checker, use)
+	if tsType != nil && tsType.Flags()&checker.TypeFlagsSubstitution != 0 {
+		// A conditional's true branch narrows the type it names; the use still names that type.
+		tsType = tsType.AsSubstitutionType().BaseType()
+	}
 	if tsType == nil {
 		return keep("it has no type")
 	}
@@ -596,9 +607,9 @@ func (trimmer *trimmer) renderOutside(files map[string]string) error {
 			}
 		}
 	}
-	for path := range files {
-		if strings.HasPrefix(path, outsideDir+"/") {
-			return fmt.Errorf("api types: the project emits %s, which the printed declarations of other packages need", path)
+	for _, home := range homes {
+		if _, taken := files[outsideFile(home)]; taken {
+			return fmt.Errorf("api types: the project emits %s, which the printed declarations of %s need", outsideFile(home), home)
 		}
 	}
 	spellFrom := func(from string, bindings map[string]string) func(string) string {

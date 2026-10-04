@@ -57,6 +57,7 @@ func runApiTypesCase(t *testing.T, graph *apiGraph, caseSeed int64) []string {
 	var failures []string
 	failures = append(failures, oracleNoLeak(output)...)
 	failures = append(failures, oracleNoLoss(t, graph, input, output)...)
+	failures = append(failures, oracleClientParity(t, input, output)...)
 	again, err := Trim(Input{Cwd: input.Cwd, TsconfigPath: input.TsconfigPath, DeclarationDir: input.DeclarationDir, Declarations: absoluteFiles(input, output.Files), Entry: input.Entry})
 	if err != nil {
 		failures = append(failures, "re-trimming the output failed: "+err.Error())
@@ -80,7 +81,7 @@ func runApiTypesCase(t *testing.T, graph *apiGraph, caseSeed int64) []string {
 func oracleNoLeak(output *Output) []string {
 	var failures []string
 	for _, rel := range slices.Sorted(maps.Keys(output.Files)) {
-		for _, leak := range []string{"POISON_", "heavy-pkg", "node:http"} {
+		for _, leak := range []string{"POISON_", "heavy-pkg", "node:http", "'lib-pkg'", `"lib-pkg"`} {
 			if strings.Contains(output.Files[rel], leak) {
 				failures = append(failures, fmt.Sprintf("no leak: %s ships %q", rel, leak))
 			}
@@ -89,7 +90,23 @@ func oracleNoLeak(output *Output) []string {
 	if strings.Join(output.Externals, ",") != "@mionjs/router" {
 		failures = append(failures, fmt.Sprintf("no leak: peers %v, want only @mionjs/router", output.Externals))
 	}
+	for _, warning := range output.Warnings {
+		failures = append(failures, "no leak: a type stayed an import: "+warning)
+	}
 	return failures
+}
+
+// oracleClientParity: a client with the package alone, none of the server's other packages, computes the server's ids.
+func oracleClientParity(t *testing.T, input Input, output *Output) []string {
+	t.Helper()
+	client, problems := clientMemberIDs(t, input, output, nil)
+	if len(problems) > 0 {
+		return []string{"client parity: the package does not type-check alone:\n" + strings.Join(problems, "\n")}
+	}
+	if server := serverMemberIDs(t, input, output.ApiExports); server != client {
+		return []string{fmt.Sprintf("client parity: the client's ids differ\nserver: %s\nclient: %s", server, client)}
+	}
+	return nil
 }
 
 // oracleNoLoss: the output checks alone, ships every reached type, keeps the build version and the API's type ids.
@@ -166,6 +183,8 @@ func TestFuzz_ApiTypesGeneratorCoversEveryPosition(t *testing.T) {
 		"public middleware": ": MiddlewareDef<(ctx: unknown", "private middleware": "MiddlewareDef<(ctx?: ",
 		"raw middleware": "RawMiddlewareDef<(", "expanded api": `import("@mionjs/router").PublicRoute<`,
 		"route group": ": { m", "other export": "POISON_serverOnly", "heavy import": "import type { HeavyDb } from 'heavy-pkg'", "heavy import type": `import("heavy-pkg")`,
+		"outside import": "} from 'lib-pkg'", "outside namespace": "* as LibNS from 'lib-pkg'", "outside import type": `import("lib-pkg")`,
+		"outside generic over a project type": "LibPage<KEEP_",
 	}
 	seen := map[string]bool{}
 	for seed := int64(0); seed < 300; seed++ {
@@ -233,6 +252,15 @@ func TestFuzz_ApiTypesOraclesFire(t *testing.T) {
 		t.Errorf("no loss must fire on changed type ids alone, got %v", failures)
 	}
 
+	if len(oracleClientParity(t, input, retyped)) == 0 {
+		t.Error("client parity must fire on changed type ids")
+	}
+	imported := copyOutput(output)
+	imported.Files[output.Entry] = "import type { LibItem } from 'lib-pkg';\nexport type Imported = LibItem;\n" + imported.Files[output.Entry]
+	if len(oracleClientParity(t, input, imported)) == 0 {
+		t.Error("client parity must fire on an import of a package the client lacks")
+	}
+
 	changed := copyOutput(output)
 	changed.Files[output.Entry] += "export type Extra = 1;\n"
 	if len(oracleSameFiles("probe", output.Files, changed.Files)) == 0 {
@@ -274,6 +302,7 @@ type apiUnit struct {
 	refs     []*apiUnit
 	reached  bool
 	heavy    bool // a poison unit that also reads heavy-pkg
+	lib      bool // a unit that also reads lib-pkg, whose types the package prints
 	global   bool // declared in a `declare global` block, read by its bare name
 	generic  bool // has a type parameter whose default reads its first ref
 	exported bool
@@ -366,6 +395,7 @@ func generateApiGraph(rng *rand.Rand) *apiGraph {
 			unit.heavy = rng.Intn(2) == 0
 		}
 		unit.exported = unit.file > 0 || rng.Intn(2) == 0
+		unit.lib = !unit.global && rng.Intn(3) == 0
 	}
 	for _, unit := range graph.units {
 		for _, ref := range unit.refs {
@@ -412,6 +442,8 @@ type fileImports struct {
 	namespaces map[int]string
 	barrel     []string
 	heavy      bool
+	lib        []string
+	libNS      bool
 }
 
 func addBinding(list *[]string, binding string) {
@@ -526,7 +558,7 @@ func (graph *apiGraph) render(rng *rand.Rand) {
 		}
 		// A relative augmentation of another file's interface ships exactly when that interface does.
 		for _, unit := range graph.units {
-			if file > 0 && unit.file > 0 && unit.file != file && plainInterface(unit) && !unit.generic && rng.Intn(4) == 0 {
+			if file > 0 && unit.file > 0 && unit.file != file && plainInterface(unit) && !unit.generic && !bareInterface(unit) && rng.Intn(4) == 0 {
 				fmt.Fprintf(&builder, "declare module '%s' {\n    interface %s { aug%d_%d: string }\n}\n", specifierOf(unit.file), unit.name, unit.index, file)
 			}
 		}
@@ -574,6 +606,12 @@ func (imports *fileImports) render() string {
 	if imports.heavy {
 		builder.WriteString("import type { HeavyDb } from 'heavy-pkg';\n")
 	}
+	if len(imports.lib) > 0 {
+		fmt.Fprintf(&builder, "import type { %s } from 'lib-pkg';\n", strings.Join(imports.lib, ", "))
+	}
+	if imports.libNS {
+		builder.WriteString("import type * as LibNS from 'lib-pkg';\n")
+	}
 	return builder.String()
 }
 
@@ -595,6 +633,9 @@ func (graph *apiGraph) members(rng *rand.Rand, unit *apiUnit, refs []*apiUnit, i
 			parts = append(parts, `client: import("heavy-pkg").HeavyClient`)
 		}
 	}
+	if unit.lib && !merged {
+		parts = append(parts, fmt.Sprintf("lib%d: %s", unit.index, position(rng, graph.libRef(rng, unit, refs, imports))))
+	}
 	if unit.generic && !merged {
 		parts = append(parts, fmt.Sprintf("gen%d: T0", unit.index))
 	}
@@ -602,6 +643,30 @@ func (graph *apiGraph) members(rng *rand.Rand, unit *apiUnit, refs []*apiUnit, i
 		parts = append(parts, fallback)
 	}
 	return "{ " + strings.Join(parts, "; ") + "; }"
+}
+
+// libRef names a lib-pkg type the way declaration emit may: a named or namespace import, or an import type.
+func (graph *apiGraph) libRef(rng *rand.Rand, unit *apiUnit, refs []*apiUnit, imports *fileImports) string {
+	names := []string{"LibItem", "LibMoney", "LibRole", "LibTree", "LibPage"}
+	name := names[rng.Intn(len(names))]
+	entity := name
+	switch rng.Intn(3) {
+	case 0:
+		addBinding(&imports.lib, name)
+	case 1:
+		imports.libNS = true
+		entity = "LibNS." + name
+	default:
+		entity = `import("lib-pkg").` + name
+	}
+	if name != "LibPage" {
+		return entity
+	}
+	// An outside generic over a project type prints with the project type kept by name.
+	if len(refs) > 0 && refs[0].isType() && refs[0].kind != kindNamespace {
+		return entity + "<" + graph.typeRef(rng, unit.file, refs[0], imports, false) + ">"
+	}
+	return entity + "<string>"
 }
 
 func (graph *apiGraph) renderUnit(rng *rand.Rand, unit *apiUnit, imports *fileImports) string {
@@ -655,7 +720,7 @@ func (graph *apiGraph) renderUnit(rng *rand.Rand, unit *apiUnit, imports *fileIm
 
 // bareInterface: an interface rendered as `{ id<n>: string; }` alone, so a class can implement it by restating that.
 func bareInterface(unit *apiUnit) bool {
-	return unit.kind == kindInterface && len(unit.refs) == 0 && !unit.generic && !unit.global && !unit.heavy
+	return unit.kind == kindInterface && len(unit.refs) == 0 && !unit.generic && !unit.global && !unit.heavy && !unit.lib
 }
 
 // plainInterface: an interface a heritage clause can name.
