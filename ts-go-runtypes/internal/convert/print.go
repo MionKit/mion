@@ -882,6 +882,10 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 			child:         child,
 		})
 	}
+	if ctx.outside != nil {
+		// Merged declarations list their members in the order the compiler bound the files, which varies.
+		sort.SliceStable(members, func(i, j int) bool { return members[i].name < members[j].name })
+	}
 	return members, indexes, nil
 }
 

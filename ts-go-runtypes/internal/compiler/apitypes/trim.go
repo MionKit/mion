@@ -41,8 +41,11 @@ type Output struct {
 	// ApiExports are the entry's exports that carry a build version, sorted.
 	ApiExports   []string
 	BuildVersion string
-	// Externals are the packages the kept declarations import, sorted (`@types/node` for a node builtin).
+	// Externals are the packages the kept declarations import, sorted (`@types/node` for a node builtin): the mion
+	// packages, the tsconfig libraries and any package a type could not be printed from.
 	Externals []string
+	// Warnings name each outside type that stayed an import, and why.
+	Warnings []string
 	// uses counts each kept declaration's kept users (`file#name`); removed and cutMembers name what went. Tests read them.
 	uses       map[string]int
 	removed    []string
@@ -69,7 +72,11 @@ func Trim(input Input) (*Output, error) {
 		return nil, err
 	}
 	containers := trimmer.cutPrivateMembers()
+	trimmer.outside = newOutsideState(trimmer)
 	trimmer.mark(entry, apiExports)
+	for trimmer.placeOutside() {
+		trimmer.mark(entry, nil)
+	}
 	if len(trimmer.errs) > 0 {
 		return nil, errors.Join(trimmer.errs...)
 	}
@@ -98,10 +105,20 @@ func Trim(input Input) (*Output, error) {
 			output.cutMembers = append(output.cutMembers, trimmer.relative(file.path)+"#"+cut)
 		}
 	}
+	if err := trimmer.renderOutside(output.Files); err != nil {
+		return nil, err
+	}
+	if lines := trimmer.outside.referenceLines(); len(lines) > 0 {
+		output.Files[output.Entry] = strings.Join(lines, "\n") + "\n" + output.Files[output.Entry]
+	}
+	for pkg := range trimmer.outside.environment {
+		trimmer.externals[pkg] = true
+	}
 	for name := range trimmer.externals {
 		output.Externals = append(output.Externals, name)
 	}
 	sort.Strings(output.Externals)
+	output.Warnings = sortedKeys(trimmer.outside.warnings)
 	sort.Strings(output.removed)
 	sort.Strings(output.cutMembers)
 	return output, nil
@@ -195,6 +212,8 @@ type trimmer struct {
 	reachedPackageFiles map[*ast.SourceFile]bool
 	queue               []*item
 	errs                []error
+	// outside prints the types other packages declare; nil when only checking.
+	outside *outsideState
 }
 
 func (trimmer *trimmer) relative(abs string) string {
@@ -442,6 +461,7 @@ func (trimmer *trimmer) follow(current *item) {
 		if isMemberBlock(current.statement) {
 			return // its members are followed one by one
 		}
+		trimmer.printOutsideUses(current)
 		if current.block != nil {
 			trimmer.keep(current.block, current)
 		}

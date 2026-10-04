@@ -72,7 +72,11 @@ type fileInfo struct {
 	imported bool
 }
 
-type textRange struct{ start, end int }
+// textRange is a cut range; text, when set, is written in its place.
+type textRange struct {
+	start, end int
+	text       string
+}
 
 func newFileInfo(path string, source *ast.SourceFile) *fileInfo {
 	file := &fileInfo{path: path, source: source, text: source.Text(), locals: map[string][]*item{}}
@@ -487,6 +491,7 @@ func (file *fileInfo) slice(start, end int) string {
 			continue
 		}
 		builder.WriteString(file.text[cursor:hole.start])
+		builder.WriteString(hole.text)
 		cursor = hole.end
 	}
 	builder.WriteString(file.text[cursor:end])

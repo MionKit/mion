@@ -180,17 +180,19 @@ export declare const routes: { raw: (s: Shared, o: OnlyRaw) => void };
 	assertChecks(t, input, output)
 }
 
-// TestTrim_KeepsAnExternalImportTheApiShares: the shared external binding stays and its package becomes a peer.
-func TestTrim_KeepsAnExternalImportTheApiShares(t *testing.T) {
+// TestTrim_PrintsAnExternalTypeTheApiShares: the shared external type is printed under _outside/, so its package is no peer.
+func TestTrim_PrintsAnExternalTypeTheApiShares(t *testing.T) {
 	output, input := trimProject(t, map[string]string{
 		"index.d.ts": `import type { Ext, OnlyServer } from 'ext-pkg';
 export declare const routes: { raw: (e: Ext, s: OnlyServer) => void };
 ` + apiOf(`ext: import("@mionjs/router").PublicRoute<(e: Ext) => Promise<Ext>>;`),
 	}, "")
-	assertContains(t, output.Files["index.d.ts"], "import type { Ext } from 'ext-pkg';")
-	assertLacks(t, output.Files["index.d.ts"], "OnlyServer")
-	if strings.Join(output.Externals, ",") != "@mionjs/router,ext-pkg" {
-		t.Errorf("externals %v", output.Externals)
+	assertContains(t, output.Files["index.d.ts"], `import("./_outside/ext-pkg.js").Ext`)
+	assertLacks(t, output.Files["index.d.ts"], "OnlyServer", "from 'ext-pkg'")
+	assertContains(t, output.Files["_outside/ext-pkg.d.ts"], "export type Ext = {e: boolean};")
+	assertLacks(t, output.Files["_outside/ext-pkg.d.ts"], "OnlyServer")
+	if strings.Join(output.Externals, ",") != "@mionjs/router" {
+		t.Errorf("a printed package is no peer, got %v", output.Externals)
 	}
 	assertChecks(t, input, output)
 }
@@ -386,8 +388,7 @@ func TestTrim_KeepsAFileAModule(t *testing.T) {
 	assertChecks(t, onlyInput, only)
 }
 
-// TestTrim_KeepsAugmentationsFromOtherFiles: an augmentation in a file nothing names stays when it augments a
-// module the kept code imports or declares a global it reads, and goes otherwise.
+// TestTrim_KeepsAugmentationsFromOtherFiles: a global augmentation kept code reads stays; a package's rides its printed type.
 func TestTrim_KeepsAugmentationsFromOtherFiles(t *testing.T) {
 	output, input := trimProject(t, map[string]string{
 		"index.d.ts":     "import type { Box } from 'ext-pkg';\n" + apiOf(`get: import("@mionjs/router").PublicRoute<(e: Box, b: Branded) => Promise<void>>;`),
@@ -395,7 +396,10 @@ func TestTrim_KeepsAugmentationsFromOtherFiles(t *testing.T) {
 		"global.d.ts":    "declare global {\n    interface Branded { tag: string }\n}\nexport {};\n",
 		"unrelated.d.ts": "declare module 'other-pkg' {\n    interface Other { x: string }\n}\ndeclare global {\n    interface NotRead { y: string }\n}\nexport {};\n",
 	}, "")
-	assertContains(t, output.Files["augment.d.ts"], "interface Box { extra: string }", "export {}")
+	if _, kept := output.Files["augment.d.ts"]; kept {
+		t.Errorf("an augmentation of a printed package must not ship: the printed type carries its members")
+	}
+	assertContains(t, output.Files["_outside/ext-pkg.d.ts"], "export type Box = {a: boolean; extra: string};")
 	assertContains(t, output.Files["global.d.ts"], "interface Branded")
 	if _, kept := output.Files["unrelated.d.ts"]; kept {
 		t.Errorf("an augmentation nothing kept reads must go")
@@ -472,12 +476,13 @@ export declare const api: PublicApi<typeof routes> & ApiBuildVersion<"v1">;
 	}
 	output, input := trimProject(t, files, "")
 	index := output.Files["index.d.ts"]
-	assertContains(t, index, "import type { Shared } from './shared.ts';", "import type { Ext } from 'ext-pkg';", "type LocalShared", "get: RouteDef")
-	assertLacks(t, index, "OnlyRaw", "OnlyServer", "IncomingMessage", "LocalOnlyRaw", "raw:", "RawMiddlewareDef")
+	assertContains(t, index, "import type { Shared } from './shared.ts';", `e: import("./_outside/ext-pkg.js").Ext`, "type LocalShared", "get: RouteDef")
+	assertLacks(t, index, "OnlyRaw", "OnlyServer", "IncomingMessage", "LocalOnlyRaw", "raw:", "RawMiddlewareDef", "from 'ext-pkg'")
 	assertContains(t, output.Files["shared.d.ts"], "export type Shared")
 	assertLacks(t, output.Files["shared.d.ts"], "OnlyRaw")
-	if strings.Join(output.Externals, ",") != "@mionjs/router,ext-pkg" {
-		t.Errorf("only the shared external stays a peer, got %v", output.Externals)
+	assertLacks(t, output.Files["_outside/ext-pkg.d.ts"], "OnlyServer")
+	if strings.Join(output.Externals, ",") != "@mionjs/router" {
+		t.Errorf("the shared external is printed, so no peer but the router, got %v", output.Externals)
 	}
 	if output.uses["index.d.ts#LocalShared"] != 1 || output.uses["shared.d.ts#Shared"] != 1 {
 		t.Errorf("each shared type keeps the one kept user it has left, got %v", output.uses)

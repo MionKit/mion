@@ -180,8 +180,8 @@ export type Branded = { [Symbol.brand]: string; count: typeof globalThis.counter
 	assertChecks(t, input, output)
 }
 
-// TestTrim_KeepsAnAugmentationOfAPackageReachedThroughAnother: the API reaches ext-dep only through ext-wrap's Wrapped.
-func TestTrim_KeepsAnAugmentationOfAPackageReachedThroughAnother(t *testing.T) {
+// TestTrim_PrintsAnAugmentationOfAPackageReachedThroughAnother: Wrapped's printed type carries ext-dep's augmented member.
+func TestTrim_PrintsAnAugmentationOfAPackageReachedThroughAnother(t *testing.T) {
 	project := map[string]string{
 		"node_modules/ext-dep/package.json":  `{"name": "ext-dep", "types": "index.d.ts"}`,
 		"node_modules/ext-dep/index.d.ts":    "export interface Inner { id: string }\n",
@@ -195,6 +195,7 @@ func TestTrim_KeepsAnAugmentationOfAPackageReachedThroughAnother(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertContains(t, output.Files["index.d.ts"], "declare module 'ext-dep'", "extra: string")
+	assertLacks(t, output.Files["index.d.ts"], "declare module 'ext-dep'")
+	assertContains(t, output.Files["_outside/ext-wrap.d.ts"], "export type Wrapped = {inner: {extra: string; id: string}};")
 	assertChecks(t, input, output)
 }
