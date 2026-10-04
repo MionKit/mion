@@ -403,7 +403,12 @@ describe('every workflow gates on the lanes it declares', () => {
           )
         );
       }
-      expect(workflow, `${file} reads a verdict from the gate alone`).not.toMatch(
+      // A job that waits in-job decides only whether to start from the gate; its steps read the re-decided env.MION_LANES.
+      const withoutStartConditions = workflow.replace(
+        /^ {4}if: \$\{\{ !cancelled\(\) && needs\.lanes\.result == 'success' && \(fromJSON\(needs\.lanes\.outputs\.lanes\).*$/gm,
+        ''
+      );
+      expect(withoutStartConditions, `${file} reads a verdict from the gate alone`).not.toMatch(
         /fromJSON\(needs\.lanes\.outputs\.lanes\)(\.[\w]+|\['[\w-]+'\])\.(run|runItems)\b/
       );
     });
@@ -535,7 +540,7 @@ const jobOf = (workflow: string, name: string): string => {
 describe('a new commit cancels only what it changed', () => {
   // The heavy job each waiter guards, and the lanes that job reads.
   const WAITERS = {
-    'ci.yml': {'go-fuzz': ['go', 'js-fuzz', 'go-tools', 'go-static'], 'js-lint': ['js', 'js-static'], smoke: ['smoke']},
+    'ci.yml': {smoke: ['smoke']},
     'pr-heavy.yml': {website: ['website'], bench: ['bench'], 'pre-publish-build': ['e2e']},
     'drizzle-e2e.yml': {build: ['drizzle']},
   } as const;
@@ -545,6 +550,11 @@ describe('a new commit cancels only what it changed', () => {
   const READERS: [string, string, string][] = [
     ['pr-heavy.yml', 'pre-publish-e2e', 'e2e-wait'],
     ['drizzle-e2e.yml', 'drizzle-e2e', 'drizzle-wait'],
+  ];
+  // Heavy jobs that wait in a step, so the lanes that read comments run at once; they read the gate's MION_LANES and the step re-decides it.
+  const IN_JOB_WAITERS: [string, string][] = [
+    ['ci.yml', 'go-fuzz'],
+    ['ci.yml', 'js-lint'],
   ];
   const gates = LANES as Record<string, {gate: {label?: string; unless?: string; base?: string}}>;
   const labelsIn = (condition: string, negated: boolean) =>
@@ -608,6 +618,67 @@ describe('a new commit cancels only what it changed', () => {
     }
   }
 
+  // The cheap lanes hash raw and must start at once on a comment-only commit; the code lanes then wait inside the job.
+  describe('waits inside go-fuzz and js-lint, after the checks that read comments', () => {
+    const ci = read('.github/workflows/ci.yml');
+    const WAITS_IN: Record<string, {lanes: string[]; name: string; first: string; last: string}> = {
+      'go-fuzz': {
+        lanes: ['go', 'js-fuzz', 'go-tools', 'go-static'],
+        name: 'go tests + fuzz',
+        first: 'Go formatting (our code only; never third_party)',
+        last: 'Go test suite (fuzz sweeps at quick budgets)',
+      },
+      'js-lint': {
+        lanes: ['js', 'js-static'],
+        name: 'js tests + lint',
+        first: 'Check formatting (no build needed — runs first)',
+        last: 'JS suite (everything except test/fuzz)',
+      },
+    };
+    for (const [job, {lanes, name, first, last}] of Object.entries(WAITS_IN)) {
+      it(`${job} starts from the gate alone, with no waiter job, and may read the actions`, () => {
+        const heavy = jobOf(ci, job);
+        expect(ci).not.toContain(`  ${job}-wait:`);
+        expect(heavy).toContain('    needs: lanes\n');
+        expect(heavy).toContain('      actions: read\n');
+        expect(heavy).toContain('      MION_LANES: ${{ needs.lanes.outputs.lanes }}\n');
+        expect(heavy).toMatch(/uses: actions\/checkout@v5\n\s+with:\n(\s+#.*\n)?\s+fetch-depth: 2\n/);
+      });
+
+      it(`${job} waits for exactly its lanes, ends on its own job failing in the older run, and keeps the gate verdict on a failed wait`, () => {
+        const heavy = jobOf(ci, job);
+        const steps = [...heavy.matchAll(/- name: (Wait for the older run's .+)\n((?:\s{8,}.+\n)+)/g)];
+        expect(steps.length).toBeGreaterThan(0);
+        for (const [, , body] of steps) {
+          expect(body).toContain('continue-on-error: true');
+          expect(body).toContain('uses: ./.github/actions/wait-for-older-run');
+          expect(body).toContain(`lanes: ${lanes.join(' ')}\n`);
+          expect(body).toContain(`jobs: ${name}\n`);
+        }
+        expect(name.startsWith(/^ {4}name: (.+)$/m.exec(heavy)?.[1] ?? '')).toBe(true);
+      });
+
+      it(`${job} runs the comment-reading steps before the wait, and the code steps after it`, () => {
+        const heavy = jobOf(ci, job);
+        const late = heavy.lastIndexOf("- name: Wait for the older run's");
+        expect(heavy.indexOf(`- name: ${first}`)).toBeLessThan(late);
+        expect(late).toBeLessThan(heavy.indexOf(`- name: ${last}`));
+      });
+    }
+
+    it('re-decides from the markers without cancelling or keeping runs, and hands the verdict to the steps below', () => {
+      const action = read('.github/actions/wait-for-older-run/action.yml');
+      expect(action).toMatch(
+        /uses: \.\/\.github\/actions\/ci-lanes\n\s+with:\n\s+lanes: \$\{\{ inputs\.lanes \}\}\n\s+supersede: 'false'/
+      );
+      // Without --pr a js wait looks for the full js marker, which a pull request's partial run never saves.
+      expect(action).toContain(
+        `--jobs '\${{ inputs.jobs }}' --timeout $(( \${{ inputs.minutes }} - 10 )) \${{ github.event_name == 'pull_request' && '--pr' || '' }}`
+      );
+      expect(action).toContain('>> "$GITHUB_ENV"');
+    });
+  });
+
   it('waits on every drizzle dialect job, which GitHub names after the dialect alone', () => {
     const jobs = /^ {6}jobs: (.+)$/m.exec(jobOf(read('.github/workflows/drizzle-e2e.yml'), 'drizzle-wait'))?.[1].split('|');
     for (const item of Object.keys((LANES as Record<string, {items: object}>).drizzle.items)) expect(jobs).toContain(item);
@@ -626,6 +697,10 @@ describe('a new commit cancels only what it changed', () => {
         if (!job.includes('env.MION_LANES')) continue;
         checked += 1;
         const name = job.slice(0, job.indexOf(':'));
+        if (IN_JOB_WAITERS.some(([owner, owned]) => owner === file && owned === name)) {
+          expect(job).toContain('      MION_LANES: ${{ needs.lanes.outputs.lanes }}\n');
+          continue;
+        }
         const waiter = owners.find(([owned]) => owned === name)?.[1];
         expect(waiter, `${file}: ${name} reads MION_LANES with no waiter`).toBeDefined();
         expect(job).toContain(`      MION_LANES: \${{ needs.${waiter}.outputs.lanes || needs.lanes.outputs.lanes }}\n`);

@@ -125,37 +125,36 @@ jobs:
       - name: Whole-tree sweeps (see SWEEPS in scripts/ci/check-tree.mjs)
         run: node scripts/ci/check-tree.mjs
 
-  # Lets go-fuzz wait for an older run's markers instead of repeating its work (scripts/ci/supersede.mjs).
-  go-fuzz-wait:
-    name: go tests + fuzz · wait for an older run
-    needs: lanes
-    if: fromJSON(needs.lanes.outputs.lanes).go.deferredTo || fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].deferredTo || fromJSON(needs.lanes.outputs.lanes)['go-tools'].deferredTo || fromJSON(needs.lanes.outputs.lanes)['go-static'].deferredTo
-    permissions:
-      contents: read
-      # reading the markers and the older run's jobs
-      actions: read
-    uses: ./.github/workflows/lane-wait.yml
-    with:
-      lanes: go js-fuzz go-tools go-static
-      jobs: go tests + fuzz
-      decision: ${{ needs.lanes.outputs.lanes }}
-      minutes: 70
-
   # ── go-fuzz: Go suite + every JS fuzz lane ────────────────────────────────
   # The JS fuzz lanes ride this Go-bound runner to balance it against js-lint; the Go suite is the wall floor.
   go-fuzz:
     name: go tests + fuzz
-    needs: [lanes, go-fuzz-wait]
-    if: ${{ !cancelled() && needs.lanes.result == 'success' && (fromJSON(needs.go-fuzz-wait.outputs.lanes || needs.lanes.outputs.lanes).go.run || fromJSON(needs.go-fuzz-wait.outputs.lanes || needs.lanes.outputs.lanes)['js-fuzz'].run || fromJSON(needs.go-fuzz-wait.outputs.lanes || needs.lanes.outputs.lanes)['go-tools'].run || fromJSON(needs.go-fuzz-wait.outputs.lanes || needs.lanes.outputs.lanes)['go-static'].run) && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults') }}
+    needs: lanes
+    if: ${{ !cancelled() && needs.lanes.result == 'success' && (fromJSON(needs.lanes.outputs.lanes).go.run || fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].run || fromJSON(needs.lanes.outputs.lanes)['go-tools'].run || fromJSON(needs.lanes.outputs.lanes)['go-static'].run) && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults') }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # the wait step reads the markers and the older run's jobs
+      actions: read
     env:
-      MION_LANES: ${{ needs.go-fuzz-wait.outputs.lanes || needs.lanes.outputs.lanes }}
+      MION_LANES: ${{ needs.lanes.outputs.lanes }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          # the re-decide after the wait compares against HEAD^1, the PR merge commit's base tip
+          fetch-depth: 2
       - uses: ./.github/actions/bootstrap
       - uses: ./.github/actions/resolver
         with:
           toolchain: 'true'
+      # Only when this commit changes nothing the older run reads, comments included: its cheap checks wait too.
+      - name: Wait for the older run's Go checks
+        if: fromJSON(env.MION_LANES)['go-static'].deferredTo || fromJSON(env.MION_LANES)['go-tools'].deferredTo
+        continue-on-error: true
+        uses: ./.github/actions/wait-for-older-run
+        with:
+          lanes: go js-fuzz go-tools go-static
+          jobs: go tests + fuzz
       # Fail-fast: cheap checks first. gofmt is instant; vet compiles (cache-warm)
       # and warms the compile cache the go-test + resolver-build steps reuse.
       # go-static hashes raw, so a comment-only Go edit still gets gofmt and vet.
@@ -186,6 +185,41 @@ jobs:
         with:
           lane: go-static
           hash: ${{ fromJSON(needs.lanes.outputs.lanes)['go-static'].hash }}
+      # go-tools: JS checks that need Go, kept here so js-lint never sets Go up.
+      # The Go→TS mirrors have no other CI drift gate; miondevx owns the generator list, so a new one is covered.
+      - name: Codegen drift (Go→TS mirrors must be in sync)
+        if: fromJSON(env.MION_LANES)['go-tools'].run
+        run: pnpm miondevx core codegen all --check
+      # The other committed extraction: fails on d.ts drift, pending entries, and migrated column fns the proxies miss.
+      - name: Drizzle manifest drift (proxy coverage + no pending)
+        if: fromJSON(env.MION_LANES)['go-tools'].run
+        run: pnpm miondevx core drizzle-manifest --check
+      # Excluded from js-lint's suite: it runs real `go build`s.
+      - name: Build-gate tests (need Go)
+        if: fromJSON(env.MION_LANES)['go-tools'].run
+        run: pnpm test packages/devtools/test/build-gate.test.ts
+      # The full run is in release-gate.yml; the refusal count takes seconds, so a PR that moves it fails here.
+      - name: Converted-suites refusal count
+        if: fromJSON(env.MION_LANES)['go-tools'].run
+        run: pnpm miondevx core converted-suites --refusals-only
+
+      # Saved right after each lane's own steps, so a later cancel keeps it; a skipped lane proved nothing and saves none.
+      - name: Record the go-tools checks as green
+        if: success() && fromJSON(env.MION_LANES)['go-tools'].run
+        uses: ./.github/actions/save-lane-green
+        with:
+          lane: go-tools
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes)['go-tools'].hash }}
+
+      # go-static and go-tools read comments, so they run above without waiting. Everything below hashes
+      # by code: a comment-only commit waits here for the older run's markers, then has nothing left to run.
+      - name: Wait for the older run's Go and fuzz lanes
+        if: fromJSON(env.MION_LANES).go.deferredTo || fromJSON(env.MION_LANES)['js-fuzz'].deferredTo
+        continue-on-error: true
+        uses: ./.github/actions/wait-for-older-run
+        with:
+          lanes: go js-fuzz go-tools go-static
+          jobs: go tests + fuzz
       # MION_FUZZ_ITER is the convert and apitypes lanes' quick budget, pinned by fuzz-lane-contracts.test.ts.
       # Replay: `pnpm miondevx core fuzz <convert|apitypes> --quick`.
       # ./cmd/... rides along: the `mion` CLI's own gates (the enrich check exit
@@ -241,56 +275,18 @@ jobs:
           lane: js-fuzz
           hash: ${{ fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].hash }}
 
-      # go-tools: JS checks that need Go, kept here so js-lint never sets Go up.
-      # The Go→TS mirrors have no other CI drift gate; miondevx owns the generator list, so a new one is covered.
-      - name: Codegen drift (Go→TS mirrors must be in sync)
-        if: fromJSON(env.MION_LANES)['go-tools'].run
-        run: pnpm miondevx core codegen all --check
-      # The other committed extraction: fails on d.ts drift, pending entries, and migrated column fns the proxies miss.
-      - name: Drizzle manifest drift (proxy coverage + no pending)
-        if: fromJSON(env.MION_LANES)['go-tools'].run
-        run: pnpm miondevx core drizzle-manifest --check
-      # Excluded from js-lint's suite: it runs real `go build`s.
-      - name: Build-gate tests (need Go)
-        if: fromJSON(env.MION_LANES)['go-tools'].run
-        run: pnpm test packages/devtools/test/build-gate.test.ts
-      # The full run is in release-gate.yml; the refusal count takes seconds, so a PR that moves it fails here.
-      - name: Converted-suites refusal count
-        if: fromJSON(env.MION_LANES)['go-tools'].run
-        run: pnpm miondevx core converted-suites --refusals-only
-
-      # Saved right after each lane's own steps, so a later cancel keeps it; a skipped lane proved nothing and saves none.
-      - name: Record the go-tools checks as green
-        if: success() && fromJSON(env.MION_LANES)['go-tools'].run
-        uses: ./.github/actions/save-lane-green
-        with:
-          lane: go-tools
-          hash: ${{ fromJSON(needs.lanes.outputs.lanes)['go-tools'].hash }}
-
-  # Lets js-lint wait for an older run's markers instead of repeating its work (scripts/ci/supersede.mjs).
-  js-lint-wait:
-    name: js tests + lint · wait for an older run
-    needs: lanes
-    if: fromJSON(needs.lanes.outputs.lanes).js.deferredTo || fromJSON(needs.lanes.outputs.lanes)['js-static'].deferredTo
-    permissions:
-      contents: read
-      # reading the markers and the older run's jobs
-      actions: read
-    uses: ./.github/workflows/lane-wait.yml
-    with:
-      lanes: js js-static
-      jobs: js tests + lint
-      decision: ${{ needs.lanes.outputs.lanes }}
-      minutes: 70
-
   # ── js-lint: the rest of the JS suite + lint/typecheck/format ─────────────
   # Everything but the fuzz tree, plus the static checks; with go-fuzz, a complete disjoint partition of the JS suite.
   js-lint:
     name: js tests + lint
-    needs: [lanes, js-lint-wait]
-    if: ${{ !cancelled() && needs.lanes.result == 'success' && (fromJSON(needs.js-lint-wait.outputs.lanes || needs.lanes.outputs.lanes).js.run || fromJSON(needs.js-lint-wait.outputs.lanes || needs.lanes.outputs.lanes)['js-static'].run) && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults') }}
+    needs: lanes
+    if: ${{ !cancelled() && needs.lanes.result == 'success' && (fromJSON(needs.lanes.outputs.lanes).js.run || fromJSON(needs.lanes.outputs.lanes)['js-static'].run) && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults') }}
+    permissions:
+      contents: read
+      # the wait step reads the markers and the older run's jobs
+      actions: read
     env:
-      MION_LANES: ${{ needs.js-lint-wait.outputs.lanes || needs.lanes.outputs.lanes }}
+      MION_LANES: ${{ needs.lanes.outputs.lanes }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -306,6 +302,14 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.11
+      # Only when this commit changes nothing the older run reads, comments included: its static checks wait too.
+      - name: Wait for the older run's static checks
+        if: fromJSON(env.MION_LANES)['js-static'].deferredTo
+        continue-on-error: true
+        uses: ./.github/actions/wait-for-older-run
+        with:
+          lanes: js js-static
+          jobs: js tests + lint
       # Fail-fast ordering — cheap checks before the suite.
       # The gofmt half runs in go-fuzz, the job that has Go.
       - name: Check formatting (no build needed — runs first)
@@ -365,6 +369,15 @@ jobs:
         with:
           lane: js-static
           hash: ${{ fromJSON(needs.lanes.outputs.lanes)['js-static'].hash }}
+      # js-static reads comments, so it ran above without waiting. The suite below hashes by code:
+      # a comment-only commit waits here for the older run's marker, then has nothing left to run.
+      - name: Wait for the older run's JS suite
+        if: fromJSON(env.MION_LANES).js.deferredTo
+        continue-on-error: true
+        uses: ./.github/actions/wait-for-older-run
+        with:
+          lanes: js js-static
+          jobs: js tests + lint
       # The list of test files already passed at their exact inputs; a pull request restores its own newest, else main's.
       - name: Restore the passed test list
         if: fromJSON(env.MION_LANES).js.run

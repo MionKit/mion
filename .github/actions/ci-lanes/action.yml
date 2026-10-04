@@ -28,8 +28,8 @@ description: >
 
   It also decides what happens to OLDER active runs of the same workflow (scripts/ci/supersede.mjs):
   one whose live lanes all hash the same as ours is kept, and our verdict for those lanes
-  gains `deferredTo: <run id>`, which starts a waiter job instead of a second run of the
-  work. Any other older run is cancelled. The workflow's own concurrency group carries
+  gains `deferredTo: <run id>`, which makes the job wait for that run (a waiter job, or a wait step
+  placed after the checks that read comments) instead of repeating the work. Any other older run is cancelled. The workflow's own concurrency group carries
   the run id, so GitHub no longer cancels blindly; it still does for a fork, whose token
   cannot cancel runs.
 
