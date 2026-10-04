@@ -1,9 +1,12 @@
 package apitypes
 
 import (
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/microsoft/typescript-go/shim/ast"
 )
 
 // geoDTS is an outside package the API reaches: one declaration per shape a printed type must keep.
@@ -301,4 +304,92 @@ func TestOutside_AScriptFileExtendingAnOutsideGlobalKeepsTheImport(t *testing.T)
 		t.Errorf("an extends clause in a script file must stay an import with a warning, got %v", output.Warnings)
 	}
 	assertChecks(t, input, output)
+}
+
+// typeNodeKinds says how the type-use walk treats each syntax kind that can hold a type: `arm:` kinds name a type and
+// go through visitTypeUse, `climbed:` kinds widen a use (climbUse), `walked:` kinds only have their children visited.
+var typeNodeKinds = map[ast.Kind]string{
+	ast.KindTypeReference:               "arm: transformTypeReference",
+	ast.KindExpressionWithTypeArguments: "arm: transformExpressionWithTypeArguments",
+	ast.KindImportType:                  "arm: transformImportType",
+	ast.KindTypeQuery:                   "arm: transformTypeQuery",
+	ast.KindIndexedAccessType:           "climbed: `X[K]` prints the member it reads",
+	ast.KindParenthesizedType:           "climbed: parentheses add nothing",
+	ast.KindTypePredicate:               "walked: `x is T`",
+	ast.KindFunctionType:                "walked",
+	ast.KindConstructorType:             "walked",
+	ast.KindTypeLiteral:                 "walked",
+	ast.KindArrayType:                   "walked",
+	ast.KindTupleType:                   "walked",
+	ast.KindOptionalType:                "walked",
+	ast.KindRestType:                    "walked",
+	ast.KindUnionType:                   "walked",
+	ast.KindIntersectionType:            "walked",
+	ast.KindConditionalType:             "walked",
+	ast.KindInferType:                   "walked",
+	ast.KindThisType:                    "walked: hasFreeTypeParameters keeps a use naming `this` as written",
+	ast.KindTypeOperator:                "walked",
+	ast.KindMappedType:                  "walked",
+	ast.KindLiteralType:                 "walked",
+	ast.KindNamedTupleMember:            "walked",
+	ast.KindTemplateLiteralType:         "walked",
+	ast.KindTemplateLiteralTypeSpan:     "walked",
+}
+
+const typeNodeKindsSample = `export declare class Base { a: string }
+export declare class Derived extends Base {}
+declare const value: { a: string };
+export type Sample = {
+  ref: Base; query: typeof value; imported: import('./sample.js').Base;
+  fn: (x: string) => void; ctor: new () => Base; literal: { a: string }; array: string[];
+  tuple: [string, number?, ...boolean[]]; named: [first: string];
+  union: string | number; both: { a: string } & { b: string };
+  conditional: Base extends Array<infer U> ? U : never; paren: (string); op: keyof Base;
+  indexed: Base['a']; mapped: { [K in 'a']: K }; lit: 'x'; tpl: ` + "`a${string}`" + `;
+};
+export declare function guard(x: unknown): x is Base;
+export interface Self { me(): this }
+`
+
+// TestOutside_EveryTypeNodeKindHasARow: every syntax kind that can hold a type has a row, and only arm rows are visited.
+func TestOutside_EveryTypeNodeKindHasARow(t *testing.T) {
+	kinds := []ast.Kind{ast.KindExpressionWithTypeArguments}
+	for kind := ast.KindFirstTypeNode; kind <= ast.KindLastTypeNode; kind++ {
+		kinds = append(kinds, kind)
+	}
+	for _, kind := range kinds {
+		if _, ok := typeNodeKinds[kind]; !ok {
+			t.Errorf("syntax kind %v has no row in typeNodeKinds: say which arm visits it, or that it is climbed or walked", kind)
+		}
+	}
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "tsconfig.json"), `{"compilerOptions": {"target": "ES2022", "module": "ESNext", "moduleResolution": "bundler", "strict": true}}`)
+	declarationDir := filepath.Join(dir, "decl")
+	samplePath := filepath.Join(declarationDir, "sample.d.ts")
+	trimmer, release, err := newTrimmer(Input{Cwd: dir, TsconfigPath: filepath.Join(dir, "tsconfig.json"), DeclarationDir: declarationDir},
+		map[string]string{samplePath: typeNodeKindsSample})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	trimmer.outside = newOutsideState(trimmer)
+	file := trimmer.files[samplePath]
+	seen := map[ast.Kind]bool{}
+	var walk func(node *ast.Node) bool
+	walk = func(node *ast.Node) bool {
+		if row, ok := typeNodeKinds[node.Kind]; ok {
+			seen[node.Kind] = true
+			if _, visited := trimmer.visitTypeUse(file, node); visited != strings.HasPrefix(row, "arm:") {
+				t.Errorf("syntax kind %v: visitTypeUse says %v, its row says %q", node.Kind, visited, row)
+			}
+		}
+		node.ForEachChild(walk)
+		return false
+	}
+	walk(file.source.AsNode())
+	for kind := range typeNodeKinds {
+		if !seen[kind] {
+			t.Errorf("syntax kind %v has a row but typeNodeKindsSample never writes one", kind)
+		}
+	}
 }
