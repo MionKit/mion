@@ -7,6 +7,7 @@ import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/microsoft/typescript-go/shim/tspath"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/convert"
 )
 
@@ -180,5 +181,27 @@ export type Holder = {event: Event};
 `, "Holder")
 	if !strings.Contains(printed, "import type { TypeFormat } from '@mionjs/run-types';") {
 		t.Errorf("a format brand needs its import:\n%s", printed)
+	}
+}
+
+// TestOutside_TheCacheKeepsCheckerTypesOnlyWhenAsked: a build's cache never pins checker types past a program swap.
+func TestOutside_TheCacheKeepsCheckerTypesOnlyWhenAsked(t *testing.T) {
+	prog, session, cwd := setupConvert(t, map[string]string{"main.ts": "export type H = {a: string};\n"})
+	defer session.Close()
+	statement := prog.SourceFile(tspath.ResolvePath(cwd, "main.ts")).Statements.Nodes[0]
+	tsType := checker.Checker_getDeclaredTypeOfSymbol(session.Checker(), session.Checker().GetSymbolAtLocation(statement.Name()))
+	plain := runtype.NewCache(session.Checker(), runtype.Options{})
+	if plain.TypeByID(plain.AssignID(tsType)) != nil {
+		t.Errorf("a cache that did not ask keeps no checker type")
+	}
+	keeping := runtype.NewCache(session.Checker(), runtype.Options{})
+	keeping.KeepTypes()
+	id := keeping.AssignID(tsType)
+	if keeping.TypeByID(id) != tsType {
+		t.Errorf("a cache that asked keeps the type behind each id")
+	}
+	keeping.Rebind(session.Checker())
+	if keeping.TypeByID(id) != nil {
+		t.Errorf("a program swap drops the kept types")
 	}
 }
