@@ -260,3 +260,11 @@ func assertContainsAll(t *testing.T, text string, wanted ...string) {
 		}
 	}
 }
+
+// TestOutside_LayoutKeepsTheNamesTheFileAlreadyBinds: a printed class named like a format import moves into a namespace.
+func TestOutside_LayoutKeepsTheNamesTheFileAlreadyBinds(t *testing.T) {
+	placed := convert.LayoutOutsideFile([]*convert.OutsideDecl{{Key: "c:1", Kind: convert.OutsideClass, Name: "TF", Body: "{}"}}, map[string]bool{"TF": true})
+	if len(placed) != 1 || placed[0].Spelling != "TF$2.TF" || !strings.Contains(placed[0].Statement, "namespace TF$2") {
+		t.Errorf("got %+v", placed)
+	}
+}

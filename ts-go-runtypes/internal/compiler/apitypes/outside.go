@@ -569,6 +569,8 @@ func (trimmer *trimmer) renderOutside(files map[string]string) error {
 	spellings := map[string]map[string]string{}
 	homeOf := map[string]string{}
 	statements := map[string][]convert.OutsidePlaced{}
+	// The format imports every printed file may hold bind these names.
+	formatBindings := map[string]bool{"TypeFormat": true, "TF": true, "TFT": true}
 	homes := make([]string, 0, len(byHome))
 	for home := range byHome {
 		homes = append(homes, home)
@@ -583,7 +585,7 @@ func (trimmer *trimmer) renderOutside(files map[string]string) error {
 				}
 			}
 		}
-		placed := convert.LayoutOutsideFile(decls, nil)
+		placed := convert.LayoutOutsideFile(decls, formatBindings)
 		statements[home] = placed
 		spellings[home] = map[string]string{}
 		for _, entry := range placed {
