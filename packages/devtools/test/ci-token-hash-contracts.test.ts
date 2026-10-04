@@ -142,23 +142,22 @@ describe('the CI wiring', () => {
       'Typecheck the mion examples',
       'Contract tests',
     ]) {
-      expect(
-        new RegExp(`- name: ${name}.*\\n\\s+if: fromJSON\\(needs\\.lanes\\.outputs\\.lanes\\)\\['js-static'\\]\\.run`).test(ci),
-        name
-      ).toBe(true);
+      expect(new RegExp(`- name: ${name}.*\\n\\s+if: fromJSON\\(env\\.MION_LANES\\)\\['js-static'\\]\\.run`).test(ci), name).toBe(
+        true
+      );
     }
     for (const name of [
       'JS suite (everything except test/fuzz)',
       'platform-bun suite (bun:test)',
       'Restore the passed test list',
     ]) {
-      expect(stepIf(name), name).toBe('fromJSON(needs.lanes.outputs.lanes).js.run');
+      expect(stepIf(name), name).toBe('fromJSON(env.MION_LANES).js.run');
     }
   });
 
   it('runs gofmt and vet on go-static', () => {
     for (const name of ['Go formatting (our code only; never third_party)', 'Go vet (our code only; never third_party)']) {
-      expect(stepIf(name), name).toBe("fromJSON(needs.lanes.outputs.lanes)['go-static'].run");
+      expect(stepIf(name), name).toBe("fromJSON(env.MION_LANES)['go-static'].run");
     }
   });
 

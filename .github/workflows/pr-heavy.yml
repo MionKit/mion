@@ -27,6 +27,9 @@ name: pr · website + benchmarks + pre-publish e2e (label-gated)
 # pull request honest without re-running work that is already proven.
 # The website lane ignores page text (container/website/content/) and CSS; the release gate still builds them.
 #
+# A new commit cancels only what it changed: an older run whose live lanes all hash
+# the same is kept, and each `*-wait` job waits for its markers (scripts/ci/supersede.mjs).
+#
 # Deliberately NOT pull_request_target: that would hand secrets and write
 # permissions to fork code. And deliberately no deploy step — this proves the
 # build, website-deploy.yml remains the only thing that ships a site.
@@ -41,8 +44,10 @@ on:
 permissions:
   contents: read
 
+# Per run: the gate cancels the stale older runs itself (scripts/ci/supersede.mjs).
+# A fork's read-only token cannot cancel, so forks keep GitHub's per-ref cancel.
 concurrency:
-  group: pr-heavy-${{ github.ref }}
+  group: pr-heavy-${{ github.ref }}-${{ github.event.pull_request.head.repo.fork && 'fork' || github.run_id }}
   cancel-in-progress: true
 
 jobs:
@@ -53,7 +58,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      actions: read
+      # the markers, the older runs' decisions, and cancelling the stale ones
+      actions: write
       # reading the live labels
       pull-requests: read
     outputs:
@@ -68,10 +74,26 @@ jobs:
         with:
           lanes: website bench e2e
 
+  # Lets website wait for an older run's markers instead of repeating its work (scripts/ci/supersede.mjs).
+  website-wait:
+    name: build the docs site · wait for an older run
+    needs: lanes
+    if: fromJSON(needs.lanes.outputs.lanes).website.deferredTo
+    permissions:
+      contents: read
+      # reading the markers and the older run's jobs
+      actions: read
+    uses: ./.github/workflows/lane-wait.yml
+    with:
+      lanes: website
+      jobs: build the docs site
+      decision: ${{ needs.lanes.outputs.lanes }}
+      minutes: 70
+
   website:
     name: build the docs site
-    needs: lanes
-    if: contains(fromJSON(needs.lanes.outputs.labels), 'website') && fromJSON(needs.lanes.outputs.lanes).website.run
+    needs: [lanes, website-wait]
+    if: ${{ !cancelled() && needs.lanes.result == 'success' && contains(fromJSON(needs.lanes.outputs.labels), 'website') && fromJSON(needs.website-wait.outputs.lanes || needs.lanes.outputs.lanes).website.run }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -112,17 +134,33 @@ jobs:
           lane: website
           hash: ${{ fromJSON(needs.lanes.outputs.lanes).website.hash }}
 
+  # Lets bench wait for an older run's markers instead of repeating its work (scripts/ci/supersede.mjs).
+  bench-wait:
+    name: validation benchmarks · wait for an older run
+    needs: lanes
+    if: fromJSON(needs.lanes.outputs.lanes).bench.deferredTo
+    permissions:
+      contents: read
+      # reading the markers and the older run's jobs
+      actions: read
+    uses: ./.github/workflows/lane-wait.yml
+    with:
+      lanes: bench
+      jobs: validation benchmarks
+      decision: ${{ needs.lanes.outputs.lanes }}
+      minutes: 130
+
   bench:
     name: validation benchmarks · ${{ matrix.competitor }}
-    needs: lanes
-    if: contains(fromJSON(needs.lanes.outputs.labels), 'bench') && fromJSON(needs.lanes.outputs.lanes).bench.run
+    needs: [lanes, bench-wait]
+    if: ${{ !cancelled() && needs.lanes.result == 'success' && contains(fromJSON(needs.lanes.outputs.labels), 'bench') && fromJSON(needs.bench-wait.outputs.lanes || needs.lanes.outputs.lanes).bench.run }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
         # The unproven lanes.mjs items: a mion change re-runs the mion lane alone.
-        competitor: ${{ fromJSON(needs.lanes.outputs.lanes).bench.runItems }}
+        competitor: ${{ fromJSON(needs.bench-wait.outputs.lanes || needs.lanes.outputs.lanes).bench.runItems }}
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/free-disk
@@ -150,7 +188,7 @@ jobs:
   bench-green:
     name: record the benchmarks as green
     needs: [lanes, bench]
-    if: success()
+    if: ${{ !cancelled() && needs.bench.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -158,6 +196,22 @@ jobs:
         with:
           lane: bench
           hash: ${{ fromJSON(needs.lanes.outputs.lanes).bench.hash }}
+
+  # Lets the e2e build and consumer lanes wait for an older run's markers instead of redoing them (scripts/ci/supersede.mjs).
+  e2e-wait:
+    name: pre-publish e2e · wait for an older run
+    needs: lanes
+    if: fromJSON(needs.lanes.outputs.lanes).e2e.deferredTo
+    permissions:
+      contents: read
+      # reading the markers and the older run's jobs
+      actions: read
+    uses: ./.github/workflows/lane-wait.yml
+    with:
+      lanes: e2e
+      jobs: pre-publish e2e
+      decision: ${{ needs.lanes.outputs.lanes }}
+      minutes: 160
 
   # ── pre-publish e2e: the release gate's consumer lanes, on a PR ─────────────
   # Two jobs like drizzle-e2e.yml: ONE build that packs the tarballs, then the e2e
@@ -171,8 +225,8 @@ jobs:
   # OS-agnostic and the release gate keeps running them.
   pre-publish-build:
     name: pre-publish e2e · build + pack
-    needs: lanes
-    if: contains(fromJSON(needs.lanes.outputs.labels), 'pre-publish-e2e') && fromJSON(needs.lanes.outputs.lanes).e2e.run
+    needs: [lanes, e2e-wait]
+    if: ${{ !cancelled() && needs.lanes.result == 'success' && contains(fromJSON(needs.lanes.outputs.labels), 'pre-publish-e2e') && fromJSON(needs.e2e-wait.outputs.lanes || needs.lanes.outputs.lanes).e2e.run }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -215,8 +269,11 @@ jobs:
 
   pre-publish-e2e:
     name: pre-publish e2e · consumer lanes
-    needs: [lanes, pre-publish-build]
+    needs: [lanes, e2e-wait, pre-publish-build]
+    if: ${{ !cancelled() && needs.pre-publish-build.result == 'success' }}
     runs-on: ubuntu-latest
+    env:
+      MION_LANES: ${{ needs.e2e-wait.outputs.lanes || needs.lanes.outputs.lanes }}
     timeout-minutes: 90
     # packages:read lets the job pull the prebuilt e2e image.
     permissions:
@@ -252,24 +309,24 @@ jobs:
       - name: Pre-publish e2e (container backend)
         run: >-
           pnpm miondevx release e2e --backend container
-          ${{ !contains(fromJSON(needs.lanes.outputs.lanes).e2e.runItems, 'matrix') && '--no-matrix' || '' }}
-          ${{ !contains(fromJSON(needs.lanes.outputs.lanes).e2e.runItems, 'mion') && '--no-mion' || '' }}
-          ${{ !contains(fromJSON(needs.lanes.outputs.lanes).e2e.runItems, 'host-smoke') && '--no-host-smoke' || '' }}
+          ${{ !contains(fromJSON(env.MION_LANES).e2e.runItems, 'matrix') && '--no-matrix' || '' }}
+          ${{ !contains(fromJSON(env.MION_LANES).e2e.runItems, 'mion') && '--no-mion' || '' }}
+          ${{ !contains(fromJSON(env.MION_LANES).e2e.runItems, 'host-smoke') && '--no-host-smoke' || '' }}
       # Markers ride the job that PROVES the lane, not the packer: one per half that ran, then the lane's (all three).
       - name: Record the bundler matrix as green
-        if: success() && contains(fromJSON(needs.lanes.outputs.lanes).e2e.runItems, 'matrix')
+        if: success() && contains(fromJSON(env.MION_LANES).e2e.runItems, 'matrix')
         uses: ./.github/actions/save-lane-green
         with:
           lane: e2e.matrix
           hash: ${{ fromJSON(needs.lanes.outputs.lanes).e2e.items.matrix.hash }}
       - name: Record the mion consumer lanes as green
-        if: success() && contains(fromJSON(needs.lanes.outputs.lanes).e2e.runItems, 'mion')
+        if: success() && contains(fromJSON(env.MION_LANES).e2e.runItems, 'mion')
         uses: ./.github/actions/save-lane-green
         with:
           lane: e2e.mion
           hash: ${{ fromJSON(needs.lanes.outputs.lanes).e2e.items.mion.hash }}
       - name: Record the host smoke as green
-        if: success() && contains(fromJSON(needs.lanes.outputs.lanes).e2e.runItems, 'host-smoke')
+        if: success() && contains(fromJSON(env.MION_LANES).e2e.runItems, 'host-smoke')
         uses: ./.github/actions/save-lane-green
         with:
           lane: e2e.host-smoke

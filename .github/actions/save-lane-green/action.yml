@@ -3,9 +3,10 @@ description: >
   Write the marker that lets a later run skip this lane. The key IS the claim
   ("these exact inputs passed"); the payload is a throwaway file, never read back.
 
-  Call this as the LAST step of a lane's job, and leave the default `if: success()`
-  in place: a marker written by a job that failed, or that was cancelled part-way,
-  would skip a lane that never proved anything.
+  Call this right after the last step the lane gates (a job holding several lanes
+  saves each one as soon as its own steps pass, so a later cancel keeps it), and
+  leave the default `if: success()` in place: a marker written after a failed or
+  cancelled step would skip a lane that never proved anything.
 
 inputs:
   lane:
