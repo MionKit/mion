@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -12,16 +11,9 @@ import (
 	"github.com/microsoft/typescript-go/shim/tspath"
 )
 
-var errUnsure = errors.New("unsure")
-
-// tsTokens writes the syntax tree minus trivia: every node as `(kind … )`, every token as `kind text`.
+// tsWalk writes the syntax tree minus trivia: every node as `(kind … )`, every token as `kind text`.
 // The tree carries what a line break decides (automatic semicolons), so line breaks themselves drop out.
-func tsTokens(path, text string, scriptKind core.ScriptKind, out *strings.Builder) error {
-	return tsWalk(path, text, scriptKind, out, nil)
-}
-
-// tsWalk is tsTokens with a hook told the range of every token, which the property test inserts comments before.
-func tsWalk(path, text string, scriptKind core.ScriptKind, out *strings.Builder, onToken func(start, end int)) error {
+func tsWalk(path, text string, scriptKind core.ScriptKind, out *strings.Builder, onToken tokenHook) error {
 	fileName := "/code-digest/" + path
 	sourceFile := parser.ParseSourceFile(ast.SourceFileParseOptions{FileName: fileName, Path: tspath.Path(fileName)}, text, scriptKind)
 	if sourceFile == nil || len(sourceFile.Diagnostics()) > 0 || len(sourceFile.JSDiagnostics()) > 0 {
@@ -41,12 +33,25 @@ func tsWalk(path, text string, scriptKind core.ScriptKind, out *strings.Builder,
 	return nil
 }
 
+// tsWalker's row per kind: a token is emitted whole, a JSDoc node is dropped (it lives in a comment),
+// anything else is walked through (its children, plus the punctuation and keywords scanned between them).
+func walkRow(kind ast.Kind) string {
+	switch {
+	case ast.IsJSDocKind(kind):
+		return "dropped"
+	case ast.IsTokenKind(kind):
+		return "emitted whole"
+	default:
+		return "walked through"
+	}
+}
+
 type tsWalker struct {
 	text      string
 	out       *strings.Builder
 	scan      *scanner.Scanner
 	covered   int
-	onToken   func(start, end int)
+	onToken   tokenHook
 	keepJSDoc bool
 }
 
@@ -54,14 +59,14 @@ func (walker *tsWalker) node(node *ast.Node) error {
 	var children []*ast.Node
 	node.ForEachChild(func(child *ast.Node) bool {
 		// Reparsed nodes are synthesized from JSDoc in JS files and sit inside comments.
-		if child.Flags&ast.NodeFlagsReparsed == 0 && !ast.IsJSDocKind(child.Kind) {
+		if child.Flags&ast.NodeFlagsReparsed == 0 && walkRow(child.Kind) != "dropped" {
 			children = append(children, child)
 		}
 		return false
 	})
 	fmt.Fprintf(walker.out, "(%v\n", node.Kind)
 	// A token node is emitted whole: its text may be a regex, a string or a template that a fresh scan would misread.
-	if len(children) == 0 && ast.IsTokenKind(node.Kind) {
+	if len(children) == 0 && walkRow(node.Kind) == "emitted whole" {
 		if err := walker.token(node.Kind, scanner.SkipTrivia(walker.text, node.Pos()), node.End()); err != nil {
 			return err
 		}
@@ -107,9 +112,7 @@ func (walker *tsWalker) token(kind ast.Kind, start, end int) error {
 		return errUnsure
 	}
 	walker.trivia(start)
-	if walker.onToken != nil {
-		walker.onToken(start, end)
-	}
+	walker.onToken(start, end)
 	fmt.Fprintf(walker.out, "%v %d:%s\n", kind, end-start, walker.text[start:end])
 	walker.covered = end
 	return nil
@@ -124,14 +127,14 @@ func (walker *tsWalker) trivia(end int) {
 	for at := walker.covered; at < end; {
 		switch {
 		case strings.HasPrefix(text[at:], "/*"):
-			close := strings.Index(text[at+2:], "*/")
-			if close == -1 {
+			commentEnd := strings.Index(text[at+2:], "*/")
+			if commentEnd == -1 {
 				return
 			}
-			if block := text[at : at+close+4]; strings.HasPrefix(block, "/**") {
+			if block := text[at : at+commentEnd+4]; strings.HasPrefix(block, "/**") {
 				fmt.Fprintf(walker.out, "jsdoc %d:%s\n", len(block), block)
 			}
-			at += close + 4
+			at += commentEnd + 4
 		case strings.HasPrefix(text[at:], "//"), strings.HasPrefix(text[at:], "#!"):
 			lineEnd := strings.IndexByte(text[at:], '\n')
 			if lineEnd == -1 {
