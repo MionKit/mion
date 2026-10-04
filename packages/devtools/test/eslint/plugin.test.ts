@@ -125,7 +125,7 @@ const PLAIN_TS = `// ${TODO_TAG}: hand-written file, not enrichment
 export const answer = 42;
 `;
 
-// ROUTES_TS carries one finding of each MRT code and NO runtypes marker,
+// ROUTES_TS carries one finding of each rpc-handler-* code and NO runtypes marker,
 // which is the point of the fixture: a route file need not import the marker
 // package, so the pre-filter has to admit it on the router signals alone or the
 // checks would never run.
@@ -405,7 +405,7 @@ describe.runIf(hasBinary())(
         const expected = locate(MIRROR_DIRTY_TS, TODO_TAG);
         expect(reports[0]).toMatchObject({line: expected.line, column: expected.column});
         expect(reports[0]!.endColumn).toBe(expected.column + TODO_TAG.length);
-        // The @todo sits above the FriendlyText const → the FT-family code.
+        // The @todo sits above the FriendlyText const → the enrich-text-* code.
         expect(reports[0]!.message).toContain('[enrich-text-todo-left]');
       });
 

@@ -210,7 +210,7 @@ func TestParallelScan_EquivalentToSerial(t *testing.T) {
 		t.Fatalf("fixture produced no sites")
 	}
 	if len(serialResponse.Diagnostics) == 0 {
-		t.Fatalf("fixture produced no diagnostics (MKR/CTA coverage missing)")
+		t.Fatalf("fixture produced no diagnostics (marker-* coverage missing)")
 	}
 
 	serialJSON := responseJSON(t, serialResponse)

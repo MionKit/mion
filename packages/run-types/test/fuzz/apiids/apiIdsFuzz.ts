@@ -1,6 +1,6 @@
 // The bundled-API id lane: per generated type, the real `mion` binary builds the server alone, then the whole program.
 // A1: every server manifest row's ids equal a reflection-marker probe's (both getRunTypeId call shapes). A2: the
-// client build reports no MET diagnostic and bundles exactly the routes it calls. A3: `mion api-check` passes.
+// client build reports no rpc-client-* diagnostic and bundles exactly the routes it calls. A3: `mion api-check` passes.
 // A4: a client built against the server's `mion api-types` package passes A2 and A3 too.
 // The negative control lives in the integration test.
 
@@ -287,7 +287,7 @@ export function checkServerManifestAgainstProbes(project: ApiProject): void {
   }
 }
 
-/** A2: no MET diagnostic and exactly the called routes bundled. **/
+/** A2: no rpc-client-* diagnostic and exactly the called routes bundled. **/
 export function checkClientBundle(project: ApiProject, build: CliResult, clientGen = project.clientGen): void {
   if (build.status !== 0) throw new Error(`client compile exited ${build.status}\n--- stderr ---\n${build.stderr}`);
   const met = build.stderr.split('\n').filter((line) => /\brpc-client-[a-z0-9-]+/.test(line));

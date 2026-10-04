@@ -157,7 +157,7 @@ var headlineByCode = map[string]string{
 	// ─────────── FriendlyText mirror files (enrich-text-*) ───────────
 	//
 	// A source type enriches into TWO generated files: a FriendlyText mirror (labels + error
-	// messages, plus its per-locale twins) and a MockData mirror. FT codes fire in the first, MD
+	// messages, plus its per-locale twins) and a MockData mirror. enrich-text-* codes fire in the first, enrich-mock-*
 	// codes in the second, and the shared gen/prune/update commands regenerate both.
 
 	CodeFriendlyUnknownField:      "Unknown field `{0}`: the type does not declare it, so this FriendlyText entry is dead.",

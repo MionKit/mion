@@ -166,7 +166,7 @@ func TestExpectError_ExpCodeCannotBeSuppressed(t *testing.T) {
 	// A directive cannot silence the check that keeps directives honest.
 	codes := generateDiagnostics(t, withDirective("// @mion-expect-error comment-expect-error-unused"))
 	if !contains(codes, diagnostics.CodeExpectErrorNotSuppressible) {
-		t.Fatalf("EXP codes are never suppressible, so comment-expect-error-not-allowed; got %v", codes)
+		t.Fatalf("comment-expect-error-* codes are never suppressible, so comment-expect-error-not-allowed; got %v", codes)
 	}
 }
 

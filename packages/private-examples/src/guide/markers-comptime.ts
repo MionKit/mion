@@ -6,7 +6,7 @@ type Flag = {kind: 'on' | 'off'};
 const isFlag = createValidateFn<Flag>(undefined, {checkUnknowns: true});
 const encode = createJsonEncoderFn<Flag>(undefined, {strategy: 'compact'});
 
-// a computed value is not a literal, so the build fails with a CTA error
+// a computed value is not a literal, so the build fails with a marker-comptime-arg-* error
 const strictAtNight = new Date().getHours() < 6;
 createValidateFn<Flag>(undefined, {checkUnknowns: strictAtNight});
 

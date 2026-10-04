@@ -38,7 +38,7 @@ const runtypesDTSWithPureFn = `declare module '@mionjs/run-types' {
 `
 
 // pureFnDepDiags filters a response's diagnostics down to the pure-fn family
-// (PFE*) so the assertions ignore any marker/runtype diagnostics the fixture
+// (purefn-*) so the assertions ignore any marker/runtype diagnostics the fixture
 // also produces.
 func pureFnDepDiags(diags []diagnostics.Diagnostic) []diagnostics.Diagnostic {
 	return filterDiagsByFamily(diags, diagnostics.FamilyPureFn)

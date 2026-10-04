@@ -12,11 +12,11 @@ import (
 // an inline `{source, flags, mockSamples}` literal and a `registerFormatPattern`
 // value bound to a const. Both are compile-time literals — the scanner recovers
 // the bundle from the property's resolved TYPE either way — so neither may raise
-// a CTA finding. These run against the REAL marker package (no ambient overlay),
+// a marker-comptime-arg-* finding. These run against the REAL marker package (no ambient overlay),
 // so the shape under test is the one a consumer writes.
 
 // scanFormatPatternCTA scans a single test.ts against the real marker package
-// and returns its CTA-family diagnostics.
+// and returns its marker-comptime-arg-* diagnostics.
 func scanFormatPatternCTA(t *testing.T, code string) []diagnostics.Diagnostic {
 	t.Helper()
 	session := setupInline(t, map[string]string{"test.ts": code})
@@ -49,7 +49,7 @@ const Model = RT.object({
 void Model;
 `
 	if cta := scanFormatPatternCTA(t, code); len(cta) != 0 {
-		t.Fatalf("expected no CTA diagnostics for the inline and registerFormatPattern pattern forms, got %d: %+v", len(cta), cta)
+		t.Fatalf("expected no marker-comptime-arg-* diagnostics for the inline and registerFormatPattern pattern forms, got %d: %+v", len(cta), cta)
 	}
 }
 

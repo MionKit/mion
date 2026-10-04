@@ -60,7 +60,7 @@ type Directive struct {
 	// empty slice is the BARE form (`// @mion-expect-error` with nothing after
 	// it), which covers any suppressible code reported on that line.
 	Codes []string
-	// Site is the comment's own span, where the EXP codes anchor so the squiggle
+	// Site is the comment's own span, where the comment-expect-error-* codes anchor so the squiggle
 	// lands on the comment the user must fix.
 	Site Site
 }
@@ -79,7 +79,7 @@ var notSuppressible = map[string]bool{
 }
 
 // Downgradeable reports whether a directive may lower code to a warning: only a LevelRuntimeError has output to keep.
-// The caller reports LevelError, Warning or Info, and unknown codes each as its own DWN code, because the fix differs.
+// The caller reports LevelError, Warning or Info, and unknown codes each as its own comment-downgrade-error-* code, because the fix differs.
 func Downgradeable(code string) bool {
 	definition, registered := Definitions[code]
 	return registered && definition.Level == LevelRuntimeError
@@ -100,13 +100,13 @@ func Suppressible(code string) bool {
 	return !notSuppressible[code]
 }
 
-// ApplyDirectives applies every directive and returns the survivors, in order, followed by the EXP /
-// DWN diagnostics the directives themselves earned. A directive that named a bad code does NOT also
+// ApplyDirectives applies every directive and returns the survivors, in order, followed by the comment-expect-error-* /
+// comment-downgrade-error-* diagnostics the directives themselves earned. A directive that named a bad code does NOT also
 // report its unused code: the user has one problem to fix, not two.
 //
 // normalize puts both sides' paths in one spelling, since a diagnostic site echoes the CALLER's
 // spelling while a directive is found through the program's resolved path; nil compares verbatim.
-// scope keeps the EXP codes from firing on a question this pass cannot answer, see PassScope.
+// scope keeps the comment-expect-error-* codes from firing on a question this pass cannot answer, see PassScope.
 func ApplyDirectives(list []Diagnostic, directives []Directive, normalize func(string) string, scope PassScope) []Diagnostic {
 	if len(directives) == 0 {
 		return list
@@ -220,7 +220,7 @@ func (directive Directive) unusedCode() string {
 // file the pass did not read, a family it did not ask for (the build skips enrichment and mion-route, which the
 // lint pass needs), or a code it cannot raise (Lacks). comment-expect-error-not-allowed / comment-expect-error-unknown-name need only Files; comment-expect-error-unused needs them all.
 type PassScope struct {
-	// Reports turns the EXP codes on. A pass that is only rewriting source
+	// Reports turns the comment-expect-error-* codes on. A pass that is only rewriting source
 	// leaves it false and silences without judging.
 	Reports bool
 	// Files the pass examined, in the caller's own spelling normalized by the

@@ -212,7 +212,7 @@ export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
 
 // TestFormatSamples_LookbehindValidates — the headline of the JS-engine
 // move: a pattern using JS-only regex syntax is REALLY validated now. A
-// matching sample passes with no FMT diagnostic at all (previously the
+// matching sample passes with no format-* diagnostic at all (previously the
 // build failed closed with format-no-js-runtime); a mismatching one is a plain format-sample-mismatch.
 func TestFormatSamples_LookbehindValidates(t *testing.T) {
 	good := scanBuild(t, setupInline(t, map[string]string{"a.ts": lookbehindSource("ab")}))
