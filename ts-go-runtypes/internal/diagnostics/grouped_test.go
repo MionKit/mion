@@ -52,6 +52,34 @@ func TestFormatGrouped_SharedCorpus(t *testing.T) {
 	}
 }
 
+// TestFormatGrouped_RandomCorpus: the random cases packages/devtools/test/grouped-log.fuzz.test.ts writes,
+// with the bytes its TS twin printed; CI runs the two in different jobs, so the file is the bridge.
+func TestFormatGrouped_RandomCorpus(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("testdata", "grouped", "random.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var corpus struct {
+		Cwd   string `json:"cwd"`
+		Cases []struct {
+			Seed    int            `json:"seed"`
+			Entries []GroupedEntry `json:"entries"`
+			Want    string         `json:"want"`
+		} `json:"cases"`
+	}
+	if err := json.Unmarshal(data, &corpus); err != nil {
+		t.Fatal(err)
+	}
+	if len(corpus.Cases) < 50 {
+		t.Fatalf("expected the random corpus, got %d cases", len(corpus.Cases))
+	}
+	for _, testCase := range corpus.Cases {
+		if got := FormatGrouped(testCase.Entries, corpus.Cwd); got != testCase.Want {
+			t.Errorf("seed %d: Go printed\n%s\nTS printed\n%s", testCase.Seed, got, testCase.Want)
+		}
+	}
+}
+
 func TestEntryOf(t *testing.T) {
 	diagnostic := New(CodeVLSymbolRoot, Site{FilePath: "a.ts", StartLine: 3, StartCol: 1}, "Symbol")
 	entry := EntryOf(diagnostic, false)
