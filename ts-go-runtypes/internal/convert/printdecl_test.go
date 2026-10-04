@@ -13,20 +13,20 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/convert"
 )
 
-// printOutside prints each named declaration of main.ts through the outside printer into one standalone file.
-func printOutside(t *testing.T, source string, names ...string) string {
+// printDecls prints each named declaration of main.ts through the declaration printer into one standalone file.
+func printDecls(t *testing.T, source string, names ...string) string {
 	t.Helper()
-	return printOutsideIn(t, map[string]string{"main.ts": source}, names...)
+	return printDeclsIn(t, map[string]string{"main.ts": source}, names...)
 }
 
-// printOutsideIn is printOutside over a full sources map; main.ts holds the declarations.
-func printOutsideIn(t *testing.T, sources map[string]string, names ...string) string {
+// printDeclsIn is printDecls over a full sources map; main.ts holds the declarations.
+func printDeclsIn(t *testing.T, sources map[string]string, names ...string) string {
 	t.Helper()
 	prog, session, cwd := setupConvert(t, sources)
 	defer session.Close()
 	sourceFile := prog.SourceFile(tspath.ResolvePath(cwd, "main.ts"))
 	typeChecker := session.Checker()
-	printer := convert.NewOutsidePrinter(session.Cache().NodeByID)
+	printer := convert.NewDeclPrinter(session.Cache().NodeByID)
 	exprs := map[string]string{}
 	for _, statement := range sourceFile.Statements.Nodes {
 		if statement.Kind != ast.KindTypeAliasDeclaration {
@@ -38,7 +38,7 @@ func printOutsideIn(t *testing.T, sources map[string]string, names ...string) st
 		}
 		symbol := typeChecker.GetSymbolAtLocation(statement.Name())
 		node := session.Cache().SerializeTopLevel(checker.Checker_getDeclaredTypeOfSymbol(typeChecker, symbol))
-		text, err := printer.Expr(node)
+		text, err := printer.TypeToString(node)
 		if err != nil {
 			t.Fatalf("print %s: %v", name, err)
 		}
@@ -61,24 +61,24 @@ func printOutsideIn(t *testing.T, sources map[string]string, names ...string) st
 	}
 	lines := printer.FormatImports()
 	for _, entry := range placed {
-		lines = append(lines, convert.ReplaceOutsideRefs(entry.Statement, spell))
+		lines = append(lines, convert.ReplaceDeclRefs(entry.Statement, spell))
 	}
 	for _, name := range names {
-		lines = append(lines, "export type "+name+" = "+convert.ReplaceOutsideRefs(exprs[name], spell)+";")
+		lines = append(lines, "export type "+name+" = "+convert.ReplaceDeclRefs(exprs[name], spell)+";")
 	}
 	return strings.Join(lines, "\n") + "\n"
 }
 
-// assertOutsideIDs: every printed declaration resolves to the id of the original it was printed from.
-func assertOutsideIDs(t *testing.T, source string, names ...string) string {
+// assertDeclIDs: every printed declaration resolves to the id of the original it was printed from.
+func assertDeclIDs(t *testing.T, source string, names ...string) string {
 	t.Helper()
-	return assertOutsideIDsIn(t, map[string]string{"main.ts": source}, names...)
+	return assertDeclIDsIn(t, map[string]string{"main.ts": source}, names...)
 }
 
-// assertOutsideIDsIn is assertOutsideIDs over a full sources map, the printed main.ts beside the same other files.
-func assertOutsideIDsIn(t *testing.T, sources map[string]string, names ...string) string {
+// assertDeclIDsIn is assertDeclIDs over a full sources map, the printed main.ts beside the same other files.
+func assertDeclIDsIn(t *testing.T, sources map[string]string, names ...string) string {
 	t.Helper()
-	printed := printOutsideIn(t, sources, names...)
+	printed := printDeclsIn(t, sources, names...)
 	withPrinted := maps.Clone(sources)
 	withPrinted["main.ts"] = printed
 	original := declIDsIn(t, sources)
@@ -91,8 +91,8 @@ func assertOutsideIDsIn(t *testing.T, sources map[string]string, names ...string
 	return printed
 }
 
-func TestOutside_ClassKeepsItsIDWithMembersMethodsAndPrivateFields(t *testing.T) {
-	printed := assertOutsideIDs(t, `export declare class Money {
+func TestDeclPrinter_ClassKeepsItsIDWithMembersMethodsAndPrivateFields(t *testing.T) {
+	printed := assertDeclIDs(t, `export declare class Money {
   #private;
   private hidden;
   private readonly sealed;
@@ -114,21 +114,21 @@ export type Wallet = {main: Money; history: Money[]};
 	}
 }
 
-func TestOutside_InheritedMembersFlattenIntoTheClass(t *testing.T) {
-	assertOutsideIDs(t, `export declare class Base { id: string; touch(at: Date): void }
+func TestDeclPrinter_InheritedMembersFlattenIntoTheClass(t *testing.T) {
+	assertDeclIDs(t, `export declare class Base { id: string; touch(at: Date): void }
 export declare class Item extends Base { name: string }
 export type Holder = {item: Item};
 `, "Holder")
 }
 
-func TestOutside_ErrorSubclassKeepsItsGuardedMembers(t *testing.T) {
-	assertOutsideIDs(t, `export declare class AppError extends Error { code: number }
+func TestDeclPrinter_ErrorSubclassKeepsItsGuardedMembers(t *testing.T) {
+	assertDeclIDs(t, `export declare class AppError extends Error { code: number }
 export type Failure = {error: AppError};
 `, "Failure")
 }
 
-func TestOutside_EnumsAndEnumMembers(t *testing.T) {
-	printed := assertOutsideIDs(t, `export enum Role { Admin = 'admin', User = 'user' }
+func TestDeclPrinter_EnumsAndEnumMembers(t *testing.T) {
+	printed := assertDeclIDs(t, `export enum Role { Admin = 'admin', User = 'user' }
 export enum Level { Low, High = 5 }
 export type Access = {role: Role; level: Level; admin: Role.Admin};
 `, "Access")
@@ -137,8 +137,8 @@ export type Access = {role: Role; level: Level; admin: Role.Admin};
 	}
 }
 
-func TestOutside_UniqueSymbolKeysAndWellKnownSymbols(t *testing.T) {
-	printed := assertOutsideIDs(t, `declare const brand: unique symbol;
+func TestDeclPrinter_UniqueSymbolKeysAndWellKnownSymbols(t *testing.T) {
+	printed := assertDeclIDs(t, `declare const brand: unique symbol;
 export type UserId = string & {[brand]: 'UserId'};
 export interface Bag { [Symbol.iterator](): Iterator<number>; size: number }
 export type Holder = {id: UserId; bag: Bag};
@@ -148,22 +148,22 @@ export type Holder = {id: UserId; bag: Bag};
 	}
 }
 
-func TestOutside_RecursiveShapesPrintAsNamedAliases(t *testing.T) {
-	assertOutsideIDs(t, `export interface TreeNode { value: string; children: TreeNode[]; parent?: TreeNode }
+func TestDeclPrinter_RecursiveShapesPrintAsNamedAliases(t *testing.T) {
+	assertDeclIDs(t, `export interface TreeNode { value: string; children: TreeNode[]; parent?: TreeNode }
 export type Json = string | number | boolean | null | Json[] | {[key: string]: Json};
 export type Holder = {tree: TreeNode; json: Json};
 `, "Holder")
 }
 
-func TestOutside_GenericsPrintTheirInstantiation(t *testing.T) {
-	assertOutsideIDs(t, `export interface Page<T> { items: T[]; total: number; first(): T | undefined }
+func TestDeclPrinter_GenericsPrintTheirInstantiation(t *testing.T) {
+	assertDeclIDs(t, `export interface Page<T> { items: T[]; total: number; first(): T | undefined }
 export declare class Box<T> { value: T; get<K>(key: K): T }
 export type Holder = {users: Page<{id: string}>; box: Box<number>; other: Box<string>};
 `, "Holder")
 }
 
-func TestOutside_NonEnumerableMembers(t *testing.T) {
-	assertOutsideIDs(t, `export interface Meta {
+func TestDeclPrinter_NonEnumerableMembers(t *testing.T) {
+	assertDeclIDs(t, `export interface Meta {
   /** @nonEnumerable */
   cached?: string;
   name: string;
@@ -172,8 +172,8 @@ export type Holder = {meta: Meta};
 `, "Holder")
 }
 
-func TestOutside_NativesFormatsTuplesAndFunctions(t *testing.T) {
-	printed := assertOutsideIDs(t, `import type * as TF from '@mionjs/run-types/formats';
+func TestDeclPrinter_NativesFormatsTuplesAndFunctions(t *testing.T) {
+	printed := assertDeclIDs(t, `import type * as TF from '@mionjs/run-types/formats';
 export interface Event {
   at: Date;
   tags: Set<string>;
@@ -192,8 +192,8 @@ export type Holder = {event: Event};
 	}
 }
 
-// TestOutside_ARefusedClassBodyRefusesEveryUse: a class whose body cannot print is never left as an empty declaration.
-func TestOutside_ARefusedClassBodyRefusesEveryUse(t *testing.T) {
+// TestDeclPrinter_ARefusedClassBodyRefusesEveryUse: a class whose body cannot print is never left as an empty declaration.
+func TestDeclPrinter_ARefusedClassBodyRefusesEveryUse(t *testing.T) {
 	prog, session, cwd := setupConvert(t, map[string]string{"main.ts": `import type {TypeFormat} from '@mionjs/run-types';
 export declare class Odd { value: TypeFormat<string, 'notAFormat', {}> }
 export type First = {odd: Odd};
@@ -201,14 +201,14 @@ export type Second = {again: Odd};
 `})
 	defer session.Close()
 	sourceFile := prog.SourceFile(tspath.ResolvePath(cwd, "main.ts"))
-	printer := convert.NewOutsidePrinter(session.Cache().NodeByID)
+	printer := convert.NewDeclPrinter(session.Cache().NodeByID)
 	for _, statement := range sourceFile.Statements.Nodes {
 		if statement.Kind != ast.KindTypeAliasDeclaration {
 			continue
 		}
 		symbol := session.Checker().GetSymbolAtLocation(statement.Name())
 		node := session.Cache().SerializeTopLevel(checker.Checker_getDeclaredTypeOfSymbol(session.Checker(), symbol))
-		if text, err := printer.Expr(node); err == nil {
+		if text, err := printer.TypeToString(node); err == nil {
 			t.Errorf("%s must refuse like the first use, printed %q", statement.Name().Text(), text)
 		}
 	}
@@ -217,8 +217,8 @@ export type Second = {again: Odd};
 	}
 }
 
-// TestOutside_TheCacheKeepsCheckerTypesOnlyWhenAsked: a build's cache never pins checker types past a program swap.
-func TestOutside_TheCacheKeepsCheckerTypesOnlyWhenAsked(t *testing.T) {
+// TestDeclPrinter_TheCacheKeepsCheckerTypesOnlyWhenAsked: a build's cache never pins checker types past a program swap.
+func TestDeclPrinter_TheCacheKeepsCheckerTypesOnlyWhenAsked(t *testing.T) {
 	prog, session, cwd := setupConvert(t, map[string]string{"main.ts": "export type H = {a: string};\n"})
 	defer session.Close()
 	statement := prog.SourceFile(tspath.ResolvePath(cwd, "main.ts")).Statements.Nodes[0]
@@ -239,8 +239,8 @@ func TestOutside_TheCacheKeepsCheckerTypesOnlyWhenAsked(t *testing.T) {
 	}
 }
 
-func TestOutside_AbstractClassesAndClassIndexSignatures(t *testing.T) {
-	printed := assertOutsideIDs(t, `export declare abstract class Shape {
+func TestDeclPrinter_AbstractClassesAndClassIndexSignatures(t *testing.T) {
+	printed := assertDeclIDs(t, `export declare abstract class Shape {
   [key: string]: unknown;
   readonly [index: number]: string;
   abstract area(): number;
@@ -261,9 +261,9 @@ func assertContainsAll(t *testing.T, text string, wanted ...string) {
 	}
 }
 
-// TestOutside_LayoutKeepsTheNamesTheFileAlreadyBinds: a printed class named like a format import moves into a namespace.
-func TestOutside_LayoutKeepsTheNamesTheFileAlreadyBinds(t *testing.T) {
-	placed := convert.LayoutOutsideFile([]*convert.OutsideDecl{{Key: "c:1", Kind: convert.OutsideClass, Name: "TF", Body: "{}"}}, map[string]bool{"TF": true})
+// TestDeclPrinter_LayoutKeepsTheNamesTheFileAlreadyBinds: a printed class named like a format import moves into a namespace.
+func TestDeclPrinter_LayoutKeepsTheNamesTheFileAlreadyBinds(t *testing.T) {
+	placed := convert.LayoutOutsideFile([]*convert.PrintedDecl{{Key: "c:1", Kind: convert.DeclClass, Name: "TF", Body: "{}"}}, map[string]bool{"TF": true})
 	if len(placed) != 1 || placed[0].Spelling != "TF$2.TF" || !strings.Contains(placed[0].Statement, "namespace TF$2") {
 		t.Errorf("got %+v", placed)
 	}

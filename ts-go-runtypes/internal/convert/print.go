@@ -57,8 +57,8 @@ type printContext struct {
 	// walking guards the recursive printers: a node already on the path is a back-edge, closing as a
 	// self-reference at the root's id and reporting CNV001 anywhere else.
 	walking map[string]bool
-	// outside prints for a published types package: classes, enums and symbol keys become declarations of their own.
-	outside *OutsidePrinter
+	// declarations prints for a published types package: classes, enums and symbol keys become declarations of their own.
+	declarations *DeclPrinter
 }
 
 // enter marks a node as on-path and returns the unmark func; the second result is false when the
@@ -836,7 +836,7 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 			indexes = append(indexes, indexSignature{key: indexKey, value: indexValue, readonly: member.Readonly})
 			continue
 		}
-		if member.NonEnumerable && ctx.outside == nil {
+		if member.NonEnumerable && ctx.declarations == nil {
 			// The @nonEnumerable JSDoc marker folds into the id but has no printed spelling, and
 			// dropping it would move the id, so the declaration refuses.
 			return nil, nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
@@ -878,7 +878,7 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 			child:         child,
 		})
 	}
-	if ctx.outside != nil {
+	if ctx.declarations != nil {
 		// Merged declarations list their members in the order the compiler bound the files, which varies.
 		sort.SliceStable(members, func(i, j int) bool { return members[i].name < members[j].name })
 	}
