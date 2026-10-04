@@ -433,9 +433,15 @@ describe('pure fns served across packages: dist lane, src lane, and the unbuilt 
       label: 'package-purefns-legacy-compile',
     });
     expect(run.status, run.report).not.toBe(0);
-    const unbuilt = run.stderr.split('\n').filter((line) => line.includes('purefn-package-not-built'));
-    expect(unbuilt, run.stderr).toHaveLength(1);
-    expect(unbuilt[0]).toContain(PAD_ID);
-    expect(unbuilt[0]).toContain('@acme/legacy');
+    // Grouped: the name once, then the message with both values filled in.
+    const lines = run.stderr.split('\n');
+    const header = lines.findIndex((line) => line === 'error purefn-package-not-built (1)');
+    expect(header, run.stderr).toBeGreaterThanOrEqual(0);
+    expect(
+      lines.filter((line) => line.includes('purefn-package-not-built')),
+      run.stderr
+    ).toHaveLength(1);
+    expect(lines[header + 1]).toContain(PAD_ID);
+    expect(lines[header + 1]).toContain('@acme/legacy');
   });
 });
