@@ -39,7 +39,7 @@ const intEnv = (name, dflt) => {
 };
 
 const COMPETITOR = argOf('--competitor');
-if (COMPETITOR !== 'mion's && COMPETITOR !== 'typia') {
+if (COMPETITOR !== 'mion' && COMPETITOR !== 'typia') {
   console.error('compiletime: --competitor must be mion or typia');
   process.exit(1);
 }
