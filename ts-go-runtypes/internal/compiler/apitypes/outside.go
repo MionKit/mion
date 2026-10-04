@@ -140,21 +140,97 @@ func libName(fileName string) string {
 	return strings.TrimSuffix(strings.TrimPrefix(filepath.Base(fileName), "lib."), ".d.ts")
 }
 
-// useName is the name node a type use resolves through, nil for a use with none.
-func useName(node *ast.Node) *ast.Node {
+// typeUse is what one arm reads off a node that names a type.
+type typeUse struct {
+	// found is where the named type is declared; a `typeof` a project value typed outside counts as outside.
+	found origin
+	// name is the node the use resolves through, nil for an import type.
+	name     *ast.Node
+	hint     string
+	heritage bool
+}
+
+// visitTypeUse is the one switch over the nodes that name a type, as TypeScript's visitDeclarationSubtree; file may be nil.
+func (trimmer *trimmer) visitTypeUse(file *fileInfo, node *ast.Node) (typeUse, bool) {
 	switch node.Kind {
 	case ast.KindTypeReference:
-		return rightmost(node.AsTypeReferenceNode().TypeName)
+		return trimmer.transformTypeReference(node), true
 	case ast.KindExpressionWithTypeArguments:
-		expression := node.Expression()
-		if expression.Kind == ast.KindPropertyAccessExpression {
-			return expression.Name()
-		}
-		return expression
+		return trimmer.transformExpressionWithTypeArguments(node), true
+	case ast.KindImportType:
+		return trimmer.transformImportType(file, node), true
 	case ast.KindTypeQuery:
-		return ast.GetFirstIdentifier(node.AsTypeQueryNode().ExprName)
+		return trimmer.transformTypeQuery(node), true
 	}
-	return nil
+	return typeUse{}, false
+}
+
+func (trimmer *trimmer) transformTypeReference(node *ast.Node) typeUse {
+	name := rightmost(node.AsTypeReferenceNode().TypeName)
+	return typeUse{found: trimmer.originOf(trimmer.checker.GetSymbolAtLocation(name)), name: name, hint: identifierHint(name.Text())}
+}
+
+// transformExpressionWithTypeArguments reads an `extends` / `implements` clause, which needs an imported binding.
+func (trimmer *trimmer) transformExpressionWithTypeArguments(node *ast.Node) typeUse {
+	name := node.Expression()
+	if name.Kind == ast.KindPropertyAccessExpression {
+		name = name.Name()
+	}
+	use := typeUse{found: trimmer.originOf(trimmer.checker.GetSymbolAtLocation(name)), name: name, heritage: true, hint: "Printed"}
+	if ast.IsIdentifier(name) {
+		use.hint = identifierHint(name.Text())
+	}
+	return use
+}
+
+func (trimmer *trimmer) transformImportType(file *fileInfo, node *ast.Node) typeUse {
+	importType := node.AsImportTypeNode()
+	use := typeUse{found: origin{kind: originProject}, hint: "Printed"}
+	if qualifier := importType.Qualifier; qualifier != nil {
+		use.hint = identifierHint(rightmost(qualifier).Text())
+	}
+	if file == nil || importType.Argument == nil || importType.Argument.Kind != ast.KindLiteralType {
+		return use
+	}
+	literal := importType.Argument.AsLiteralTypeNode().Literal
+	if trimmer.resolveModule(file, moduleText(literal)) != nil {
+		return use
+	}
+	if symbol := trimmer.checker.GetSymbolAtLocation(literal); symbol != nil {
+		use.found = trimmer.originOf(symbol)
+	}
+	return use
+}
+
+// transformTypeQuery reads `typeof x…`; a project value declared as an outside type counts as that type, so it never ships.
+func (trimmer *trimmer) transformTypeQuery(node *ast.Node) typeUse {
+	exprName := node.AsTypeQueryNode().ExprName
+	parts := []string{}
+	for name := exprName; name != nil; {
+		if name.Kind == ast.KindQualifiedName {
+			parts = append([]string{name.AsQualifiedName().Right.Text()}, parts...)
+			name = name.AsQualifiedName().Left
+			continue
+		}
+		parts = append([]string{name.Text()}, parts...)
+		break
+	}
+	name := ast.GetFirstIdentifier(exprName)
+	symbol := trimmer.checker.GetSymbolAtLocation(name)
+	use := typeUse{found: trimmer.originOf(symbol), name: name, hint: identifierHint(strings.Join(parts, "_"))}
+	if use.found.kind != originProject || symbol == nil {
+		return use
+	}
+	if symbol.Flags&ast.SymbolFlagsAlias != 0 {
+		symbol = trimmer.checker.GetAliasedSymbol(symbol)
+	}
+	for _, declaration := range symbol.Declarations {
+		if reached := trimmer.reachesOutside(declaration); reached != nil {
+			use.found = *reached
+			return use
+		}
+	}
+	return use
 }
 
 func rightmost(name *ast.Node) *ast.Node {
@@ -162,52 +238,6 @@ func rightmost(name *ast.Node) *ast.Node {
 		return name.AsQualifiedName().Right
 	}
 	return name
-}
-
-// outsideUse reports the package a use must print from; `typeof` a project value typed outside counts, so it never ships.
-func (trimmer *trimmer) outsideUse(file *fileInfo, node *ast.Node) (origin, bool) {
-	switch node.Kind {
-	case ast.KindTypeReference, ast.KindExpressionWithTypeArguments:
-		found := trimmer.originOf(trimmer.checker.GetSymbolAtLocation(useName(node)))
-		return found, found.kind == originOutside
-	case ast.KindImportType:
-		found := trimmer.importTypeOrigin(file, node)
-		return found, found.kind == originOutside
-	case ast.KindTypeQuery:
-		symbol := trimmer.checker.GetSymbolAtLocation(useName(node))
-		found := trimmer.originOf(symbol)
-		if found.kind == originOutside {
-			return found, true
-		}
-		if found.kind != originProject || symbol == nil {
-			return found, false
-		}
-		if symbol.Flags&ast.SymbolFlagsAlias != 0 {
-			symbol = trimmer.checker.GetAliasedSymbol(symbol)
-		}
-		for _, declaration := range symbol.Declarations {
-			if reached := trimmer.reachesOutside(declaration); reached != nil {
-				return *reached, true
-			}
-		}
-	}
-	return origin{}, false
-}
-
-func (trimmer *trimmer) importTypeOrigin(file *fileInfo, node *ast.Node) origin {
-	importType := node.AsImportTypeNode()
-	if importType.Argument == nil || importType.Argument.Kind != ast.KindLiteralType {
-		return origin{kind: originProject}
-	}
-	literal := importType.Argument.AsLiteralTypeNode().Literal
-	if trimmer.resolveModule(file, moduleText(literal)) != nil {
-		return origin{kind: originProject}
-	}
-	symbol := trimmer.checker.GetSymbolAtLocation(literal)
-	if symbol == nil {
-		return origin{kind: originProject}
-	}
-	return trimmer.originOf(symbol)
 }
 
 // reachesOutside reports the outside package a project value or alias is declared as (`declare const users: PgTable<…>`).
@@ -228,14 +258,11 @@ func (trimmer *trimmer) reachesOutside(declaration *ast.Node) *origin {
 	}
 	if typeNode != nil {
 		file := trimmer.files[filepath.Clean(ast.GetSourceFileOfNode(typeNode).FileName())]
-		switch typeNode.Kind {
-		case ast.KindTypeReference, ast.KindTypeQuery, ast.KindImportType:
-			if file != nil {
-				if reached, outside := trimmer.outsideUse(file, typeNode); outside {
-					found = &reached
-				}
+		if use, isUse := trimmer.visitTypeUse(file, typeNode); isUse {
+			if file != nil && use.found.kind == originOutside {
+				found = &use.found
 			}
-			if name := useName(typeNode); found == nil && name != nil {
+			if name := use.name; found == nil && name != nil {
 				symbol := trimmer.checker.GetSymbolAtLocation(name)
 				if symbol != nil && symbol.Flags&ast.SymbolFlagsAlias != 0 {
 					symbol = trimmer.checker.GetAliasedSymbol(symbol)
@@ -274,17 +301,14 @@ func (trimmer *trimmer) printOutsideUses(current *item) {
 		if file.inHole(node) {
 			return false
 		}
-		switch node.Kind {
-		case ast.KindTypeReference, ast.KindExpressionWithTypeArguments, ast.KindImportType, ast.KindTypeQuery:
-			if found, outside := trimmer.outsideUse(file, node); outside {
-				use := climbUse(node)
-				if use != node && hasFreeTypeParameters(trimmer.checker, use) {
-					// `X[K]` under a mapped `K` cannot print, `X` alone can.
-					use = node
-				}
-				if trimmer.replaceUse(file, use, found) {
-					return false
-				}
+		if typeUse, isUse := trimmer.visitTypeUse(file, node); isUse && typeUse.found.kind == originOutside {
+			use := climbUse(node)
+			if use != node && hasFreeTypeParameters(trimmer.checker, use) {
+				// `X[K]` under a mapped `K` cannot print, `X` alone can.
+				use = node
+			}
+			if trimmer.replaceUse(file, use, typeUse) {
+				return false
 			}
 		}
 		node.ForEachChild(walk)
@@ -309,7 +333,8 @@ func climbUse(node *ast.Node) *ast.Node {
 }
 
 // replaceUse prints a use and cuts it for a reference; false keeps it as written, its package a peer.
-func (trimmer *trimmer) replaceUse(file *fileInfo, use *ast.Node, found origin) bool {
+func (trimmer *trimmer) replaceUse(file *fileInfo, use *ast.Node, typeUse typeUse) bool {
+	found := typeUse.found
 	label := strings.TrimSpace(file.text[scanner.GetTokenPosOfNode(use, file.source, false):use.End()])
 	keep := func(reason string) bool {
 		trimmer.outside.warnings[fmt.Sprintf("%s: `%s` from %s stays an import, so %s stays a peer dependency: %s", trimmer.relative(file.path), label, found.pkg, found.pkg, reason)] = true
@@ -318,7 +343,7 @@ func (trimmer *trimmer) replaceUse(file *fileInfo, use *ast.Node, found origin) 
 	if hasFreeTypeParameters(trimmer.checker, use) {
 		return keep("it uses a type parameter, which a printed type cannot keep")
 	}
-	heritage := use.Kind == ast.KindExpressionWithTypeArguments
+	heritage := typeUse.heritage
 	if heritage && !ast.IsExternalModule(file.source) {
 		return keep("a script file cannot import the printed class it extends")
 	}
@@ -343,7 +368,7 @@ func (trimmer *trimmer) replaceUse(file *fileInfo, use *ast.Node, found origin) 
 	} else {
 		key = "u:" + node.ID
 		if _, exists := trimmer.outside.uses[key]; !exists {
-			trimmer.outside.uses[key] = &convert.PrintedDecl{Key: key, Kind: convert.DeclAlias, Name: useHint(use), NodeID: node.ID, Body: text}
+			trimmer.outside.uses[key] = &convert.PrintedDecl{Key: key, Kind: convert.DeclAlias, Name: typeUse.hint, NodeID: node.ID, Body: text}
 			trimmer.outside.homes[key] = found.pkg
 		}
 	}
@@ -379,39 +404,6 @@ func hasFreeTypeParameters(typeChecker *checker.Checker, use *ast.Node) bool {
 	}
 	walk(use)
 	return found
-}
-
-// useHint names the alias a use prints as, after what it named.
-func useHint(use *ast.Node) string {
-	for use.Kind == ast.KindIndexedAccessType || use.Kind == ast.KindParenthesizedType {
-		if use.Kind == ast.KindParenthesizedType {
-			use = use.AsParenthesizedTypeNode().Type
-		} else {
-			use = use.AsIndexedAccessTypeNode().ObjectType
-		}
-	}
-	switch use.Kind {
-	case ast.KindTypeQuery:
-		parts := []string{}
-		for name := use.AsTypeQueryNode().ExprName; name != nil; {
-			if name.Kind == ast.KindQualifiedName {
-				parts = append([]string{name.AsQualifiedName().Right.Text()}, parts...)
-				name = name.AsQualifiedName().Left
-				continue
-			}
-			parts = append([]string{name.Text()}, parts...)
-			break
-		}
-		return identifierHint(strings.Join(parts, "_"))
-	case ast.KindImportType:
-		if qualifier := use.AsImportTypeNode().Qualifier; qualifier != nil {
-			return identifierHint(rightmost(qualifier).Text())
-		}
-	}
-	if name := useName(use); name != nil && ast.IsIdentifier(name) {
-		return identifierHint(name.Text())
-	}
-	return "Printed"
 }
 
 func identifierHint(text string) string {
