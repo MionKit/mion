@@ -42,8 +42,7 @@ type Output struct {
 	// ApiExports are the entry's exports that carry a build version, sorted.
 	ApiExports   []string
 	BuildVersion string
-	// Externals are the packages the kept declarations import, sorted (`@types/node` for a node builtin): the mion
-	// packages, the tsconfig libraries and any package a type could not be printed from.
+	// Externals are the imported packages, sorted (`@types/node` for a builtin): mion, tsconfig libs, packages a type could not print from.
 	Externals []string
 	// Warnings name each outside type that stayed an import, and why.
 	Warnings []string
@@ -141,8 +140,8 @@ func Trim(input Input) (*Output, error) {
 	return output, nil
 }
 
-// Check type-checks the trimmed files on their own, libs included, reads the build version back from the trimmed
-// entry, and recomputes the API's type ids, so a trim or a print that moved one cannot pass unseen.
+// Check type-checks the trimmed files alone (libs included) and reads the build version back from the entry.
+// It recomputes the API's type ids, so a trim or a print that moved one fails.
 func Check(input Input, output *Output) ([]string, string, error) {
 	declarations := make(map[string]string, len(output.Files))
 	for rel, text := range output.Files {

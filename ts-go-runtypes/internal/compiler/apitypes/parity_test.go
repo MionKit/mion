@@ -15,8 +15,7 @@ import (
 // clientPackage is the name the parity client installs the types package under.
 const clientPackage = "@acme/api-types"
 
-// assertIDParity installs the package alone into a fresh client and compares each API member's id with the server's.
-// The client gets the mion packages and the tsconfig libraries it lists, never the server's other dependencies.
+// assertIDParity installs the package in a fresh client with only mion and clientTypes, then compares member ids.
 func assertIDParity(t *testing.T, input Input, output *Output, clientTypes ...string) {
 	t.Helper()
 	server := serverMemberIDs(t, input, output.ApiExports)

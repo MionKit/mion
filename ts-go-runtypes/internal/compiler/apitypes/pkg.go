@@ -61,8 +61,7 @@ type typesPackage struct {
 	PeerDependencies map[string]string `json:"peerDependencies"`
 }
 
-// BuildPackage returns the package's files by slash path relative to its root, and a warning for each package that
-// stays a peer because its pure fns could not be copied in.
+// BuildPackage returns files by root-relative slash path, and a warning per package whose pure fns could not be copied.
 func BuildPackage(input PackageInput) (map[string]string, []string, error) {
 	content, err := os.ReadFile(filepath.Join(input.ServerRoot, "package.json"))
 	if err != nil {
@@ -139,8 +138,8 @@ func BuildPackage(input PackageInput) (map[string]string, []string, error) {
 	return files, vendor.warnings, nil
 }
 
-// reachedArtifact keeps the ids the kept declarations name and every override (it changes its type's id wherever a
-// client meets it), plus their dependencies; the ids they need from other packages are returned.
+// reachedArtifact keeps the ids the declarations name and every override (it moves its type's id anywhere), with deps.
+// It returns the ids other packages own.
 func reachedArtifact(artifact, declarations map[string]string) (map[string]string, []string, error) {
 	indexText, ok := artifact[constants.PureFnArtifactIndexFile]
 	if !ok {

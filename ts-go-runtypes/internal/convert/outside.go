@@ -501,8 +501,8 @@ type OutsidePlaced struct {
 	Statement string
 }
 
-// LayoutOutsideFile names the declarations one file holds. A class or enum keeps its own name, which its id needs, so a
-// second one under that name goes in a namespace; an alias takes a free name; taken lists names the file already uses.
+// LayoutOutsideFile names each declaration in one file; taken lists names the file already uses.
+// A class or enum keeps the name its id needs, so a second one under that name goes in a namespace.
 func LayoutOutsideFile(decls []*OutsideDecl, taken map[string]bool) []OutsidePlaced {
 	used := map[string]bool{}
 	for name := range taken {

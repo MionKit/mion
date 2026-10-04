@@ -82,7 +82,7 @@ func isPlatformDeclaration(declaration *ast.Node, environment Environment) bool 
 	return !ast.IsExternalModule(sourceFile) || insideGlobalAugmentation(declaration)
 }
 
-// IsBundledLibFile reports a default lib file of the bundled tsgo lib, never a package's file that is merely named like one.
+// IsBundledLibFile is true only for the bundled tsgo lib, not a package file merely named like a default lib.
 func IsBundledLibFile(fileName string) bool {
 	return IsDefaultLibFileName(fileName) && strings.HasPrefix(tspath.NormalizePath(fileName), bundledLibPrefix)
 }

@@ -616,8 +616,7 @@ func (ctx *printContext) objectLiteralText(members []*objectMember, indexes []in
 	return "{" + strings.Join(parts, "; ") + "}", nil
 }
 
-// nonEnumerableTag is the JSDoc marker a guarded member needs to keep its id, on its own line or the parser drops it;
-// only outside printing reaches it.
+// nonEnumerableTag keeps a guarded member's id (own line, or the parser drops it); only outside printing reaches it.
 func nonEnumerableTag(nonEnumerable bool) string {
 	if nonEnumerable {
 		return "\n/** @nonEnumerable */\n"

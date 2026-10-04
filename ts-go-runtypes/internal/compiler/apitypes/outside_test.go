@@ -213,8 +213,7 @@ export type Kept = Address extends object ? Address : never;
 	assertLacks(t, output.Files["_outside/geo.d.ts"], "= unknown")
 }
 
-// TestOutside_AGlobalMemberOnlyAPrintedTypeReachesShips: the project class a printed type names is kept late, and the
-// global member only it reads must still ship.
+// TestOutside_AGlobalMemberOnlyAPrintedTypeReachesShips: a project class kept late still ships the global member it reads.
 func TestOutside_AGlobalMemberOnlyAPrintedTypeReachesShips(t *testing.T) {
 	output, input := trimFilesWithGeo(t, map[string]string{
 		"index.d.ts":  "import type { Page } from 'geo';\nimport type { Owner } from './owner.ts';\n" + apiOf(`get: import("@mionjs/router").PublicRoute<(u: Used) => Promise<Page<Owner>>>;`),
