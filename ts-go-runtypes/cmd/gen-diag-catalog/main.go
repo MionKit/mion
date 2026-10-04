@@ -16,15 +16,16 @@ import (
 // record carries Family and Level as labels so the JS side never mirrors the numeric enum values.
 // Severity stays off: it derives from Level, and only the live wire diagnostic needs it.
 type record struct {
-	Code         string `json:"code"`
-	Family       string `json:"family"`
-	Level        string `json:"level"`
-	Completeness bool   `json:"completeness,omitempty"`
-	Internal     bool   `json:"internal,omitempty"`
-	Headline     string `json:"headline"`
-	Summary      string `json:"summary"`
-	Fix          string `json:"fix,omitempty"`
-	Example      string `json:"example,omitempty"`
+	Code         string   `json:"code"`
+	Family       string   `json:"family"`
+	Level        string   `json:"level"`
+	Completeness bool     `json:"completeness,omitempty"`
+	Internal     bool     `json:"internal,omitempty"`
+	Headline     string   `json:"headline"`
+	Slots        []string `json:"slots,omitempty"`
+	Summary      string   `json:"summary"`
+	Fix          string   `json:"fix,omitempty"`
+	Example      string   `json:"example,omitempty"`
 }
 
 // familyLabel maps the numeric Family to a stable lowercase string.
@@ -54,6 +55,7 @@ func main() {
 			Completeness: definition.Completeness,
 			Internal:     strings.HasPrefix(definition.Headline, "Internal error:"),
 			Headline:     definition.Headline,
+			Slots:        definition.Slots,
 			Summary:      definition.Summary,
 			Fix:          definition.Fix,
 			Example:      definition.Example,

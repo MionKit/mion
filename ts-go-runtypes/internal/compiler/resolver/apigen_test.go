@@ -788,7 +788,7 @@ export const b = routes.users.getById(2).call();
 		}
 		for index, want := range []string{"auth", "users/audit"} {
 			diag := diags[index]
-			if diag.Code != diagnostics.CodeApiMetaMiddlewareNotSetUp || diag.Args[0] != want || diag.Args[1] != "users/getById" {
+			if diag.Code != diagnostics.CodeApiMetaMiddlewareNotSetUp || diag.Args[1] != want || diag.Args[0] != "users/getById" {
 				t.Errorf("diag %d: want rpc-client-middleware-not-set-up for %s on users/getById, got %+v", index, want, diag)
 			}
 			if diag.Site.StartLine != 4 {
@@ -833,7 +833,7 @@ import type {OptionalApi} from './api.ts';
 export const {routes, middlewares} = initClient<OptionalApi>({baseURL: 'http://x'});
 export const a = routes.ping().call();
 `)
-		if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaOptionalMiddlewareNotSetUp || diags[0].Args[0] != "note" {
+		if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaOptionalMiddlewareNotSetUp || diags[0].Args[1] != "note" {
 			t.Fatalf("expected one rpc-client-optional-middleware-not-set-up for note, got %+v", diags)
 		}
 		if diags[0].Level != diagnostics.LevelRuntimeError {
@@ -932,7 +932,7 @@ export const a = routes.ping().call();
 
 	t.Run("bundled, a look-alike the app declares is still a middleware to set up", func(t *testing.T) {
 		diags := generateMetadataDiags(t, constants.ClientRoutesBundle, neverSetUp("LookAlikeApi"))
-		if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaOptionalMiddlewareNotSetUp || diags[0].Args[0] != "mionFetchMetadata" {
+		if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaOptionalMiddlewareNotSetUp || diags[0].Args[1] != "mionFetchMetadata" {
 			t.Fatalf("expected one rpc-client-optional-middleware-not-set-up for the look-alike, got %+v", diags)
 		}
 	})

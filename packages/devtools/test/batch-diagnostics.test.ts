@@ -191,7 +191,7 @@ async function expectInjected(run: BuildRun, file: string, sites: BatchSite[]): 
 
 // expectHalted asserts the build stopped on `code` reported at `file`, on the
 // line of `needle`, with the report carrying no site for that file. `reason`
-// (when given) must appear rendered in the headline (never a raw `{0}`).
+// (when given) must appear rendered in the headline (never a raw `{slot}`).
 function expectHalted(
   run: BuildRun,
   code: string,
@@ -206,7 +206,7 @@ function expectHalted(
   expect(hits.length, `exactly one ${code}, got:\n${run.warns.join('\n')}`).toBe(1);
   const hit = hits[0];
   expect(hit).toContain(`${fileTail(file)}(${lineOf(source, needle)},`);
-  expect(hit).not.toContain('{0}');
+  expect(hit).not.toMatch(/\{[A-Za-z]\w*\}/);
   if (typeof reason === 'string') expect(hit).toContain(reason);
   else if (reason) expect(hit).toMatch(reason);
   expect(run.phases).toEqual(['build']);

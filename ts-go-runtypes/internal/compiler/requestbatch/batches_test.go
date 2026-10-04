@@ -706,12 +706,12 @@ func TestShapes_DuplicateRoute_RpcBatchDuplicateRoute(t *testing.T) {
 func TestMappings_ParamOutOfRange_RpcBatchArgumentOutOfRange(t *testing.T) {
 	const user = routesBound + "const user = routes.users.getById(1);\n"
 	cases := map[string]struct{ body, at, args string }{
-		"one past a single param":  {user + "export const b = batch([user, routes.orders.getById(1, inputFrom(user, (u: {id: number}) => u.id))]);", "inputFrom(user, (u: {id: number}) => u.id)", "1|1|orders/getById"},
-		"far past":                 {user + "export const b = batch([user, routes.orders.getById(1, 2, 3, inputFrom(user, (u: {id: number}) => u.id))]);", "inputFrom(user, (u: {id: number}) => u.id)", "3|1|orders/getById"},
-		"past an optional param":   {user + "export const b = batch([user, routes.users.search('ann', 5, inputFrom(user, (u: {id: number}) => u.id + 1))]);", "inputFrom(user, (u: {id: number}) => u.id + 1)", "2|2|users/search"},
-		"past three params":        {user + "export const b = batch([user, routes.orders.report(1, 'open', 10, inputFrom(user, (u: {id: number}) => u.id + 5))]);", "inputFrom(user, (u: {id: number}) => u.id + 5)", "3|3|orders/report"},
-		"bound ref out of range":   {user + "const ref = inputFrom(user, (u: {id: number}) => u.id);\nexport const b = batch([user, routes.orders.getById(1, ref.asArg())]);", "ref.asArg()", "1|1|orders/getById"},
-		"inline mapper past param": {user + "export const b = batch([user, routes.orders.getById(1, inputFrom(user, (u: {id: number}) => u.id))]);", "u.id)", "1|1|orders/getById"},
+		"one past a single param":  {user + "export const b = batch([user, routes.orders.getById(1, inputFrom(user, (u: {id: number}) => u.id))]);", "inputFrom(user, (u: {id: number}) => u.id)", "1|orders/getById|1"},
+		"far past":                 {user + "export const b = batch([user, routes.orders.getById(1, 2, 3, inputFrom(user, (u: {id: number}) => u.id))]);", "inputFrom(user, (u: {id: number}) => u.id)", "3|orders/getById|1"},
+		"past an optional param":   {user + "export const b = batch([user, routes.users.search('ann', 5, inputFrom(user, (u: {id: number}) => u.id + 1))]);", "inputFrom(user, (u: {id: number}) => u.id + 1)", "2|users/search|2"},
+		"past three params":        {user + "export const b = batch([user, routes.orders.report(1, 'open', 10, inputFrom(user, (u: {id: number}) => u.id + 5))]);", "inputFrom(user, (u: {id: number}) => u.id + 5)", "3|orders/report|3"},
+		"bound ref out of range":   {user + "const ref = inputFrom(user, (u: {id: number}) => u.id);\nexport const b = batch([user, routes.orders.getById(1, ref.asArg())]);", "ref.asArg()", "1|orders/getById|1"},
+		"inline mapper past param": {user + "export const b = batch([user, routes.orders.getById(1, inputFrom(user, (u: {id: number}) => u.id))]);", "u.id)", "1|orders/getById|1"},
 	}
 	for name, testCase := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -721,7 +721,7 @@ func TestMappings_ParamOutOfRange_RpcBatchArgumentOutOfRange(t *testing.T) {
 	}
 	// Two mappings on one call, one in range and one out: only the second reports.
 	diag := singleDiag(t, user+"export const b = batch([user, routes.orders.getById(inputFrom(user, (u: {id: number}) => u.id), inputFrom(user, (u: {id: number}) => u.id + 6))]);", diagnostics.CodeBatchMappingParamOutOfRange)
-	if got := strings.Join(diag.Args, "|"); got != "1|1|orders/getById" {
+	if got := strings.Join(diag.Args, "|"); got != "1|orders/getById|1" {
 		t.Errorf("rpc-batch-argument-out-of-range args = %q", got)
 	}
 }

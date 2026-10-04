@@ -6,7 +6,7 @@ package diagnostics
 import (
 	"fmt"
 	"regexp"
-	"strconv"
+	"slices"
 	"strings"
 )
 
@@ -167,7 +167,7 @@ type Diagnostic struct {
 }
 
 // Definition is one code's catalog entry; messages.go folds on Headline, prose.go the website text (Summary mandatory).
-// `{0}`, `{1}` in Headline substitute against Diagnostic.Args, so the wire carries only code + args.
+// A `{name}` in Headline is a slot; Slots lists them in first-appearance order, the order of Diagnostic.Args.
 // internal/compiler/resolver/diag_examples_test.go asserts every non-empty Example really fires this code.
 type Definition struct {
 	Code   string
@@ -197,6 +197,7 @@ type Definition struct {
 	Title    string
 	Template string
 	Headline string
+	Slots    []string
 	Summary  string
 	Fix      string
 	Example  string
@@ -320,7 +321,18 @@ func NewWithRelated(code string, site Site, args []string, related ...Related) D
 	return out
 }
 
-var headlineArgRE = regexp.MustCompile(`\{(\d+)\}`)
+var headlineSlotRE = regexp.MustCompile(`\{([A-Za-z]\w*)\}`)
+
+// headlineSlots lists a headline's slot names in first-appearance order, each once.
+func headlineSlots(headline string) []string {
+	var slots []string
+	for _, match := range headlineSlotRE.FindAllStringSubmatch(headline, -1) {
+		if !slices.Contains(slots, match[1]) {
+			slots = append(slots, match[1])
+		}
+	}
+	return slots
+}
 
 // renderHeadline is the Go twin of renderHeadline in packages/devtools/src/core/diagnosticCatalog.ts.
 func renderHeadline(code string, args []string) string {
@@ -328,9 +340,13 @@ func renderHeadline(code string, args []string) string {
 	if !ok {
 		return "Unrecognised diagnostic code (" + code + ") — please file an issue."
 	}
-	return headlineArgRE.ReplaceAllStringFunc(definition.Headline, func(placeholder string) string {
-		index, _ := strconv.Atoi(placeholder[1 : len(placeholder)-1])
-		if index < len(args) {
+	return fillSlots(definition.Headline, definition.Slots, args)
+}
+
+// fillSlots puts each slot's arg in place; a slot with no arg renders empty.
+func fillSlots(headline string, slots, args []string) string {
+	return headlineSlotRE.ReplaceAllStringFunc(headline, func(placeholder string) string {
+		if index := slices.Index(slots, placeholder[1:len(placeholder)-1]); index >= 0 && index < len(args) {
 			return args[index]
 		}
 		return ""

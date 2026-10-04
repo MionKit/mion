@@ -353,7 +353,7 @@ export const b = batch([routes.users.getById(1), routes.users.getById(2)]);
 import {routes} from './routes.ts';
 const user = routes.users.getById(1);
 export const b = batch([user, routes.orders.getById(1, inputFrom(user, (u: {id: number}) => u.id))]);
-`, diagnostics.CodeBatchMappingParamOutOfRange, "1|1|orders/getById"},
+`, diagnostics.CodeBatchMappingParamOutOfRange, "1|orders/getById|1"},
 	}
 	for name, testCase := range cases {
 		t.Run(name, func(t *testing.T) {

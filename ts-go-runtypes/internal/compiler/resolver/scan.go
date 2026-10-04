@@ -377,9 +377,9 @@ func (sess *Session) commitPending(pending pendingCall) (protocol.Site, []diagno
 		args := []string{
 			collision.Hash,
 			clipStructural(collision.Owner),
+			sess.formatIDOrigin(collision.Hash),
 			clipStructural(collision.Structural),
 			strconv.Itoa(collision.Length + 1),
-			sess.formatIDOrigin(collision.Hash),
 		}
 		// The winner is a call site only when a marker asked for that type directly; an inner node (a union
 		// member, a tuple slot) has none, so the message says "another site" instead of carrying a Related

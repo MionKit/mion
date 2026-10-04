@@ -10,11 +10,14 @@ import {DIAGNOSTIC_CATALOG} from './go-generated/diagnosticCatalog.generated.ts'
 export {DIAGNOSTIC_CATALOG} from './go-generated/diagnosticCatalog.generated.ts';
 export type {DiagnosticEntry} from './go-generated/diagnosticCatalog.generated.ts';
 
-function substitute(template: string, args: readonly string[] | undefined): string {
+const SLOT = /\{([A-Za-z]\w*)\}/g;
+
+/** Twin of fillSlots in internal/diagnostics/catalog.go; a slot with no arg renders empty. */
+export function fillSlots(template: string, slots: readonly string[] | undefined, args: readonly string[] | undefined): string {
   if (!args || args.length === 0) return template;
-  return template.replace(/\{(\d+)\}/g, (_match, idx) => {
-    const i = Number(idx);
-    return i < args.length ? args[i] : '';
+  return template.replace(SLOT, (_match, name: string) => {
+    const index = slots?.indexOf(name) ?? -1;
+    return index >= 0 && index < args.length ? args[index] : '';
   });
 }
 
@@ -22,5 +25,5 @@ function substitute(template: string, args: readonly string[] | undefined): stri
 export function renderHeadline(code: string, args?: readonly string[]): string {
   const entry = DIAGNOSTIC_CATALOG[code];
   if (!entry) return `Unrecognised diagnostic code (${code}) — please file an issue.`;
-  return substitute(entry.headline, args);
+  return fillSlots(entry.headline, entry.slots, args);
 }

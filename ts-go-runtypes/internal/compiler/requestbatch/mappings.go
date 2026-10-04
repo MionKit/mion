@@ -176,7 +176,7 @@ func (scope *fileScope) readMapping(mapperCall, written *ast.Node, routeIds []st
 		return Mapping{}, []diagnostics.Diagnostic{scope.diag(diagnostics.CodeBatchSourceNotInBatch, written, fromId, toId)}
 	}
 	if count, bounded := scope.parameterCount(targetCall); bounded && paramIndex >= count {
-		return Mapping{}, []diagnostics.Diagnostic{scope.diag(diagnostics.CodeBatchMappingParamOutOfRange, written, strconv.Itoa(paramIndex), strconv.Itoa(count), toId)}
+		return Mapping{}, []diagnostics.Diagnostic{scope.diag(diagnostics.CodeBatchMappingParamOutOfRange, written, strconv.Itoa(paramIndex), toId, strconv.Itoa(count))}
 	}
 	return Mapping{FromId: fromId, ToId: toId, ParamIndex: paramIndex, MapperKey: mapperKey}, nil
 }
