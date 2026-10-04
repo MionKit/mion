@@ -9,12 +9,12 @@ import (
 	"testing"
 )
 
-// TestFuzz_OutsidePrint: random outside-printed declarations keep the original ids and print the same text twice.
-func TestFuzz_OutsidePrint(t *testing.T) {
+// TestFuzz_DeclPrint: random printed declarations keep the original ids and print the same text twice.
+func TestFuzz_DeclPrint(t *testing.T) {
 	if testing.Short() {
 		t.Skip("randomized sweep skipped under -short")
 	}
-	seed := entrySeed(t, "convert-outside")
+	seed := entrySeed(t, "convert-decl")
 	rng := rand.New(rand.NewSource(seed))
 	iterations := 6
 	if raw := os.Getenv("MION_FUZZ_ITER"); raw != "" {
@@ -25,10 +25,10 @@ func TestFuzz_OutsidePrint(t *testing.T) {
 		iterations = parsed
 	}
 	for iteration := 0; iteration < iterations; iteration++ {
-		source := randomOutsideFile(rng)
+		source := randomDeclFile(rng)
 		t.Logf("seed %d iteration %d:\n%s", seed, iteration, source)
-		printed := assertOutsideIDsIn(t, fuzzSources(source), "Root")
-		if again := printOutsideIn(t, fuzzSources(source), "Root"); again != printed {
+		printed := assertDeclIDsIn(t, fuzzSources(source), "Root")
+		if again := printDeclsIn(t, fuzzSources(source), "Root"); again != printed {
 			t.Errorf("printing is not deterministic:\n--- first ---\n%s\n--- second ---\n%s", printed, again)
 		}
 		if t.Failed() {
@@ -37,8 +37,8 @@ func TestFuzz_OutsidePrint(t *testing.T) {
 	}
 }
 
-// randomOutsideFile declares classes, enums, a symbol brand, a recursive and a generic interface, and a Root reaching each.
-func randomOutsideFile(rng *rand.Rand) string {
+// randomDeclFile declares classes, enums, a symbol brand, a recursive and a generic interface, and a Root reaching each.
+func randomDeclFile(rng *rand.Rand) string {
 	atoms := []string{"string", "number", "boolean", "bigint", "null", "undefined", "unknown", "Date", "RegExp"}
 	stringPool := []string{"ana", "with 'quote'", "ünïcode"}
 	field := func() string { return randomTypeText(rng, atoms, stringPool, 1) }

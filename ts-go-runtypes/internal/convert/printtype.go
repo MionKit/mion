@@ -79,16 +79,16 @@ func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic
 	if refText, refDiag, isRef := ctx.declRef(node, TargetType); isRef {
 		return refText, refDiag
 	}
-	if ctx.outside != nil {
-		if aliasText, aliasDiag, isAlias := ctx.outside.aliasRef(ctx, node); isAlias {
+	if ctx.declarations != nil {
+		if aliasText, aliasDiag, isAlias := ctx.declarations.aliasRef(ctx, node); isAlias {
 			return aliasText, aliasDiag
 		}
 		// A class or enum closes its own cycles by name.
 		if isUserClass(node) {
-			return ctx.outside.classRef(node)
+			return ctx.declarations.classRef(node)
 		}
 		if node.Kind == reflection.KindEnum && len(node.TypeMeta) == 0 {
-			return ctx.outside.enumRef(node)
+			return ctx.declarations.enumRef(node)
 		}
 	}
 	leave, entered := ctx.enter(node)
@@ -287,15 +287,15 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 		if isRegExpNode(node) {
 			return "RegExp", nil
 		}
-		if ctx.outside != nil && node.ClassRef != nil && node.SubKind == reflection.SubKindNonSerializable {
-			return ctx.typeArgumentsText(ctx.outside.builtinRef(node), node)
+		if ctx.declarations != nil && node.ClassRef != nil && node.SubKind == reflection.SubKindNonSerializable {
+			return ctx.typeArgumentsText(ctx.declarations.builtinRef(node), node)
 		}
 		return ctx.classSpelling(node)
 	case reflection.KindRegexp:
 		return "RegExp", nil
 	case reflection.KindEnum:
-		if ctx.outside != nil {
-			return ctx.outside.enumRef(node)
+		if ctx.declarations != nil {
+			return ctx.declarations.enumRef(node)
 		}
 		return ctx.enumSpelling(node)
 	case reflection.KindUnion:
@@ -616,7 +616,7 @@ func (ctx *printContext) objectLiteralText(members []*objectMember, indexes []in
 	return "{" + strings.Join(parts, "; ") + "}", nil
 }
 
-// nonEnumerableTag keeps a guarded member's id (own line, or the parser drops it); only outside printing reaches it.
+// nonEnumerableTag keeps a guarded member's id (own line, or the parser drops it); only declaration printing reaches it.
 func nonEnumerableTag(nonEnumerable bool) string {
 	if nonEnumerable {
 		return "\n/** @nonEnumerable */\n"

@@ -44,11 +44,11 @@ type origin struct {
 
 type outsideState struct {
 	cache      *runtype.Cache
-	printer    *convert.OutsidePrinter
+	printer    *convert.DeclPrinter
 	statements map[*ast.Node]bool
 	reaches    map[*ast.Node]*origin
 	// uses are the aliases a replaced use points at, by key; homes is the package each declaration ships in.
-	uses  map[string]*convert.OutsideDecl
+	uses  map[string]*convert.PrintedDecl
 	homes map[string]string
 	// projectDecls are project classes and enums printed text names, by key: their kept file and exported name.
 	projectDecls map[string]projectDecl
@@ -74,9 +74,9 @@ func newOutsideState(trimmer *trimmer) *outsideState {
 	cache.SetMarkerOptions(markerOpts)
 	cache.SetEnvironment(trimmer.program.EnvironmentFile)
 	return &outsideState{
-		cache: cache, printer: convert.NewOutsidePrinter(cache.NodeByID),
+		cache: cache, printer: convert.NewDeclPrinter(cache.NodeByID),
 		statements: map[*ast.Node]bool{}, reaches: map[*ast.Node]*origin{},
-		uses: map[string]*convert.OutsideDecl{}, homes: map[string]string{}, projectDecls: map[string]projectDecl{},
+		uses: map[string]*convert.PrintedDecl{}, homes: map[string]string{}, projectDecls: map[string]projectDecl{},
 		warnings: map[string]bool{}, environment: map[string]bool{}, libs: map[string]bool{},
 	}
 }
@@ -331,19 +331,19 @@ func (trimmer *trimmer) replaceUse(file *fileInfo, use *ast.Node, found origin) 
 		return keep("it has no type")
 	}
 	node := trimmer.outside.cache.SerializeTopLevel(tsType)
-	text, err := trimmer.outside.printer.Expr(node)
+	text, err := trimmer.outside.printer.TypeToString(node)
 	if err != nil {
 		return keep(err.Error())
 	}
 	key := ""
-	if decl := trimmer.outside.printer.Decl(strings.Trim(text, "\x00")); decl != nil && text == convert.OutsideRef(decl.Key) &&
-		(decl.Kind == convert.OutsideClass || decl.Kind == convert.OutsideEnum || decl.Kind == convert.OutsideAlias) {
+	if decl := trimmer.outside.printer.Decl(strings.Trim(text, "\x00")); decl != nil && text == convert.DeclRef(decl.Key) &&
+		(decl.Kind == convert.DeclClass || decl.Kind == convert.DeclEnum || decl.Kind == convert.DeclAlias) {
 		// A use that is one named declaration points at it rather than at an alias of it.
 		key = decl.Key
 	} else {
 		key = "u:" + node.ID
 		if _, exists := trimmer.outside.uses[key]; !exists {
-			trimmer.outside.uses[key] = &convert.OutsideDecl{Key: key, Kind: convert.OutsideAlias, Name: useHint(use), NodeID: node.ID, Body: text}
+			trimmer.outside.uses[key] = &convert.PrintedDecl{Key: key, Kind: convert.DeclAlias, Name: useHint(use), NodeID: node.ID, Body: text}
 			trimmer.outside.homes[key] = found.pkg
 		}
 	}
@@ -352,7 +352,7 @@ func (trimmer *trimmer) replaceUse(file *fileInfo, use *ast.Node, found origin) 
 	}
 	// The range starts with the use's leading trivia, as a read's node does, so nothing inside it counts as read.
 	tokenStart := scanner.GetTokenPosOfNode(use, file.source, false)
-	file.holes = append(file.holes, textRange{start: use.Pos(), end: use.End(), text: file.text[use.Pos():tokenStart] + convert.OutsideRef(key)})
+	file.holes = append(file.holes, textRange{start: use.Pos(), end: use.End(), text: file.text[use.Pos():tokenStart] + convert.DeclRef(key)})
 	return true
 }
 
@@ -428,7 +428,7 @@ func identifierHint(text string) string {
 }
 
 // decl returns the declaration a key names, a use alias or one the printer collected.
-func (state *outsideState) decl(key string) *convert.OutsideDecl {
+func (state *outsideState) decl(key string) *convert.PrintedDecl {
 	if decl, ok := state.uses[key]; ok {
 		return decl
 	}
@@ -446,7 +446,7 @@ func (trimmer *trimmer) placeOutside() bool {
 		}
 		decl := state.decl(key)
 		switch decl.Kind {
-		case convert.OutsideSymbol, convert.OutsideBuiltin:
+		case convert.DeclUniqueSymbol, convert.DeclBuiltin:
 			// Declared in each file that spells it, or where the platform declares it.
 			state.homes[key] = ""
 			continue
@@ -454,7 +454,7 @@ func (trimmer *trimmer) placeOutside() bool {
 		symbol := state.declSymbol(decl)
 		found := trimmer.originOf(symbol)
 		switch {
-		case (decl.Kind == convert.OutsideClass || decl.Kind == convert.OutsideEnum) && found.kind == originProject:
+		case (decl.Kind == convert.DeclClass || decl.Kind == convert.DeclEnum) && found.kind == originProject:
 			if project, ok := trimmer.exportedProjectDecl(symbol, decl.Name); ok {
 				state.projectDecls[key] = project
 				state.homes[key] = ""
@@ -467,7 +467,7 @@ func (trimmer *trimmer) placeOutside() bool {
 				continue
 			}
 			state.homes[key] = sharedOutside
-		case (decl.Kind == convert.OutsideClass || decl.Kind == convert.OutsideEnum) && found.kind == originMion:
+		case (decl.Kind == convert.DeclClass || decl.Kind == convert.DeclEnum) && found.kind == originMion:
 			state.projectDecls[key] = projectDecl{pkg: found.pkg, name: decl.Name}
 			state.homes[key] = ""
 			trimmer.externals[found.pkg] = true
@@ -485,7 +485,7 @@ func (state *outsideState) reachedKeys(trimmer *trimmer) []string {
 	var queue []string
 	for _, file := range trimmer.sortedFiles() {
 		for _, hole := range file.holes {
-			for _, key := range convert.OutsideRefKeys(hole.text) {
+			for _, key := range convert.DeclRefKeys(hole.text) {
 				queue = append(queue, strings.TrimPrefix(key, heritageMark))
 			}
 		}
@@ -501,19 +501,19 @@ func (state *outsideState) reachedKeys(trimmer *trimmer) []string {
 		seen[key] = true
 		out = append(out, key)
 		if decl := state.decl(key); decl != nil {
-			queue = append(queue, convert.OutsideRefKeys(decl.Body)...)
+			queue = append(queue, convert.DeclRefKeys(decl.Body)...)
 		}
 	}
 	return out
 }
 
 // declSymbol is the symbol a printed declaration came from: a class, an enum, or the alias a recursive shape names.
-func (state *outsideState) declSymbol(decl *convert.OutsideDecl) *ast.Symbol {
+func (state *outsideState) declSymbol(decl *convert.PrintedDecl) *ast.Symbol {
 	tsType := state.cache.TypeByID(decl.NodeID)
 	if tsType == nil {
 		return nil
 	}
-	if alias := checker.Type_alias(tsType); alias != nil && decl.Kind == convert.OutsideAlias {
+	if alias := checker.Type_alias(tsType); alias != nil && decl.Kind == convert.DeclAlias {
 		return alias.Symbol()
 	}
 	return tsType.Symbol()
@@ -559,7 +559,7 @@ func relativePath(from, to string) string {
 // renderOutside writes the printed declaration files and spells every reference, the project files' included.
 func (trimmer *trimmer) renderOutside(files map[string]string) error {
 	state := trimmer.outside
-	byHome := map[string][]*convert.OutsideDecl{}
+	byHome := map[string][]*convert.PrintedDecl{}
 	for _, key := range state.reachedKeys(trimmer) {
 		if home := state.homes[key]; home != "" {
 			byHome[home] = append(byHome[home], state.decl(key))
@@ -579,8 +579,8 @@ func (trimmer *trimmer) renderOutside(files map[string]string) error {
 	for _, home := range homes {
 		decls := byHome[home]
 		for _, decl := range decls {
-			for _, key := range convert.OutsideRefKeys(decl.Body) {
-				if referenced := state.decl(key); referenced != nil && referenced.Kind == convert.OutsideSymbol {
+			for _, key := range convert.DeclRefKeys(decl.Body) {
+				if referenced := state.decl(key); referenced != nil && referenced.Kind == convert.DeclUniqueSymbol {
 					decls = append(decls, referenced)
 				}
 			}
@@ -590,7 +590,7 @@ func (trimmer *trimmer) renderOutside(files map[string]string) error {
 		spellings[home] = map[string]string{}
 		for _, entry := range placed {
 			spellings[home][entry.Decl.Key] = entry.Spelling
-			if entry.Decl.Kind != convert.OutsideSymbol {
+			if entry.Decl.Kind != convert.DeclUniqueSymbol {
 				homeOf[entry.Decl.Key] = home
 			}
 		}
@@ -608,9 +608,9 @@ func (trimmer *trimmer) renderOutside(files map[string]string) error {
 			switch {
 			case decl == nil:
 				return "unknown"
-			case decl.Kind == convert.OutsideSymbol:
+			case decl.Kind == convert.DeclUniqueSymbol:
 				return decl.Name
-			case decl.Kind == convert.OutsideBuiltin:
+			case decl.Kind == convert.DeclBuiltin:
 				return trimmer.builtinSpelling(decl)
 			}
 			if project, ok := state.projectDecls[key]; ok {
@@ -637,7 +637,7 @@ func (trimmer *trimmer) renderOutside(files map[string]string) error {
 	}
 	for path, text := range files {
 		bindings, imports := trimmer.heritageBindings(path, text, spellings, homeOf)
-		text = convert.ReplaceOutsideRefs(text, spellFrom(path, bindings))
+		text = convert.ReplaceDeclRefs(text, spellFrom(path, bindings))
 		files[path] = insertImports(text, imports)
 	}
 	for _, home := range homes {
@@ -645,7 +645,7 @@ func (trimmer *trimmer) renderOutside(files map[string]string) error {
 		var lines []string
 		lines = append(lines, state.printer.FormatImports()...)
 		for _, entry := range statements[home] {
-			lines = append(lines, convert.ReplaceOutsideRefs(entry.Statement, spellFrom(path, nil)))
+			lines = append(lines, convert.ReplaceDeclRefs(entry.Statement, spellFrom(path, nil)))
 		}
 		files[path] = strings.Join(lines, "\n") + "\nexport {};\n"
 	}
@@ -656,7 +656,7 @@ func (trimmer *trimmer) renderOutside(files map[string]string) error {
 func (trimmer *trimmer) heritageBindings(path, text string, spellings map[string]map[string]string, homeOf map[string]string) (map[string]string, []string) {
 	bindings := map[string]string{}
 	var imports []string
-	for _, key := range convert.OutsideRefKeys(text) {
+	for _, key := range convert.DeclRefKeys(text) {
 		if !strings.HasPrefix(key, heritageMark) {
 			continue
 		}
@@ -718,7 +718,7 @@ func insertImports(text string, imports []string) string {
 }
 
 // builtinSpelling names a platform class where it is declared: a global by name, an ambient module's through it.
-func (trimmer *trimmer) builtinSpelling(decl *convert.OutsideDecl) string {
+func (trimmer *trimmer) builtinSpelling(decl *convert.PrintedDecl) string {
 	symbol := trimmer.outside.declSymbol(decl)
 	if symbol != nil {
 		// Records the library the client must load for it.
