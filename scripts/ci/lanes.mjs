@@ -30,12 +30,12 @@
 //   lanes --decide <lane…>            decide those lanes, print the JSON verdict
 //   lanes --candidates <lane…> [--pr] print the marker keys that could prove those lanes
 //   lanes --green-keys <file>         the marker keys already recorded green
-//   lanes --github                    also write `lanes=<json>` to $GITHUB_OUTPUT
-//                                     and a table to $GITHUB_STEP_SUMMARY
+//   lanes --github                    also write a table to $GITHUB_STEP_SUMMARY
 //   lanes --ref <ref>                 hash that tree instead of HEAD
 //   lanes --base <ref>                skip every lane whose inputs equal that tree's (a pull request's base)
+//   lanes --out <file>                write the verdict JSON there instead of printing it
 import {createHash} from 'node:crypto';
-import {appendFileSync, existsSync, readFileSync} from 'node:fs';
+import {appendFileSync, existsSync, readFileSync, writeFileSync} from 'node:fs';
 import {CODE_DIGEST_BIN} from '../core/build.mjs';
 import {REPO_ROOT} from '../lib/env.mjs';
 import {isGoInput} from '../lib/go-inputs.mjs';
@@ -75,6 +75,9 @@ const JS = ['packages/', 'scripts/', 'container/', CODE_DIGEST, 'vitest.config.t
 // lanes name their own image dir) and no workflow files.
 const PACKED = ['packages/', 'scripts/', 'version.json', ...WORKSPACE];
 
+// The label that turns off ci.yml's heavy jobs, and stops any run already going.
+export const SKIP_DEFAULTS = 'skip-defaults';
+
 // Lane -> the paths whose CONTENT decides it. A lane hashes these and nothing
 // else, so a file outside every entry cannot make it re-run.
 //
@@ -82,6 +85,9 @@ const PACKED = ['packages/', 'scripts/', 'version.json', ...WORKSPACE];
 // it and saves its marker. `go` and `js-fuzz` therefore split the two halves of
 // the go-fuzz job: the Go suite and the JS fuzz sweep run on the same runner but
 // answer to different inputs, and neither may claim the other's marker.
+//
+// `gate` mirrors the job `if:` labels (ci-lane-contracts.test.ts), so a newer run sees what an older one runs.
+const DEFAULTS = {unless: SKIP_DEFAULTS};
 export const LANES = {
   // ci.yml
   // The Go suites mount the real marker and drizzle packages (internal/testfixtures/realmarker.go, realdrizzle.go).
@@ -89,21 +95,23 @@ export const LANES = {
   go: {
     job: 'go tests + fuzz · the Go suite',
     hash: 'tokens',
+    gate: DEFAULTS,
     paths: ['packages/run-types/', 'packages/drizzle-orm', 'packages/private-drizzle-example-app/', 'packages/rpc-router/', 'packages/core/', ...GO_TREE],
   },
-  'js-fuzz': {job: 'go tests + fuzz · the JS fuzz sweep', hash: 'tokens', paths: JS},
+  'js-fuzz': {job: 'go tests + fuzz · the JS fuzz sweep', hash: 'tokens', gate: DEFAULTS, paths: JS},
   // JS checks that need Go (codegen and drizzle-manifest drift, build-gate tests), so js-lint never sets Go up.
   // Raw: the generators copy comments into what they emit (the diagnostic prose).
-  'go-tools': {job: 'go tests + fuzz · the Go-backed JS checks', hash: 'raw', paths: [...JS, 'ts-go-runtypes/']},
+  'go-tools': {job: 'go tests + fuzz · the Go-backed JS checks', hash: 'raw', gate: DEFAULTS, paths: [...JS, 'ts-go-runtypes/']},
   // gofmt and vet read comments (formatting, //go: directives).
-  'go-static': {job: 'go tests + fuzz · gofmt and vet', hash: 'raw', paths: GO_TREE},
-  js: {job: 'js tests + lint · the JS suite', hash: 'tokens', paths: JS},
+  'go-static': {job: 'go tests + fuzz · gofmt and vet', hash: 'raw', gate: DEFAULTS, paths: GO_TREE},
+  js: {job: 'js tests + lint · the JS suite', hash: 'tokens', gate: DEFAULTS, paths: JS},
   // Format, lint, typecheck, the docs checks and the contract tests all read comments.
-  'js-static': {job: 'js tests + lint · format, lint and contracts', hash: 'raw', paths: JS},
+  'js-static': {job: 'js tests + lint · format, lint and contracts', hash: 'raw', gate: DEFAULTS, paths: JS},
   // Both halves build with our packages and Go (the site, and the mion competitor).
   smoke: {
     job: 'container smoke',
     hash: 'tokens',
+    gate: DEFAULTS,
     paths: [WEBSITE_CODE, 'container/benchmarks/', ...PACKED],
     items: {
       website: {paths: [WEBSITE_CODE, 'packages/', 'version.json', GO_BUILD]},
@@ -111,11 +119,12 @@ export const LANES = {
     },
   },
   // pr-heavy.yml
-  website: {job: 'build the docs site', hash: 'tokens', paths: [WEBSITE_CODE, ...PACKED]},
+  website: {job: 'build the docs site', hash: 'tokens', gate: {label: 'website'}, paths: [WEBSITE_CODE, ...PACKED]},
   // One item per competitor: only mion's runs our packages and the binary, so a package change re-runs only mion.
   bench: {
     job: 'validation benchmarks',
     hash: 'tokens',
+    gate: {label: 'bench'},
     paths: ['container/benchmarks/', ...PACKED],
     items: {
       mion: {paths: ['container/benchmarks/competitors/mion/', 'container/benchmarks/_deps/competitors/mion/', 'packages/', 'version.json', GO_BUILD]},
@@ -126,6 +135,7 @@ export const LANES = {
   e2e: {
     job: 'pre-publish e2e',
     hash: 'tokens',
+    gate: {label: 'pre-publish-e2e'},
     paths: ['container/pre-publish-e2e/', '.github/verdaccio.yaml', ...PACKED],
     items: {
       matrix: {paths: ['container/pre-publish-e2e/apps/', 'container/pre-publish-e2e/build-all.mjs', 'container/pre-publish-e2e/lint-all.mjs', 'container/pre-publish-e2e/test/', 'container/pre-publish-e2e/pure-fns/', 'container/pre-publish-e2e/_deps/']},
@@ -138,6 +148,8 @@ export const LANES = {
   drizzle: {
     job: 'drizzle suites against real databases',
     hash: 'tokens',
+    // A PR into prod runs it without the label (drizzle-e2e.yml's `decide` job, which may still skip it).
+    gate: {label: 'drizzle-e2e', base: 'prod'},
     paths: ['packages/drizzle-orm', 'packages/run-types/', 'packages/devtools/', 'packages/core/', 'packages/bin-compiler/', 'container/drizzle-e2e/', 'scripts/', 'drizzle-dialects.json', 'drizzle-suites.pin.json', ...WORKSPACE],
     items: {
       pg: {paths: ['packages/drizzle-orm-pg-core/', 'container/drizzle-e2e/pg/', 'container/drizzle-e2e/shared/runners/pg.', 'container/drizzle-e2e/shared/addendum/pg.', 'container/drizzle-e2e/shared/stubs/pg/']},
@@ -234,6 +246,14 @@ export function itemFeeds(lane, item, path) {
 // that this content passed, which is why a marker proven on another branch counts.
 export const greenKey = (lane, hash) => `mion-lane-green-${lane}-${hash}`;
 
+// Whether a run with these labels, on a pull request into baseRef, lets the lane's job run at all.
+export function laneLive(name, {labels, baseRef}) {
+  const gate = LANES[name]?.gate ?? {};
+  if (gate.unless && labels.includes(gate.unless)) return false;
+  if (gate.label && !labels.includes(gate.label) && !(gate.base && gate.base === baseRef)) return false;
+  return true;
+}
+
 // Narrower markers only a pull request accepts: `core test-pr` saves js-pr for its partial run.
 // A push to main never accepts them, so main still runs the full suite once after the merge.
 export const PR_PROOF = {js: 'js-pr'};
@@ -281,7 +301,7 @@ export function decide(wanted, {hashes, greenKeys = [], pr = false, baseHashes})
   return lanes;
 }
 
-const flagValues = (args, flag) => {
+export const flagValues = (args, flag) => {
   const at = args.indexOf(flag);
   if (at === -1) return [];
   const rest = args.slice(at + 1);
@@ -340,9 +360,11 @@ export function main(args) {
   }
   const lanes = decide(wanted, {hashes, greenKeys, pr: args.includes('--pr'), baseHashes});
   for (const [name, lane] of Object.entries(lanes)) note(`${name.padEnd(16)} ${lane.run ? 'RUN ' : 'skip'}  ${lane.reason}`);
-  if (!args.includes('--github')) return console.log(JSON.stringify(lanes, null, 2));
+  const out = flagValues(args, '--out')[0];
+  if (out) writeFileSync(out, JSON.stringify(lanes));
+  else console.log(JSON.stringify(lanes, null, 2));
+  if (!args.includes('--github')) return;
 
-  appendFileSync(process.env.GITHUB_OUTPUT, `lanes=${JSON.stringify(lanes)}\n`);
   const rows = Object.entries(lanes).flatMap(([name, lane]) => [
     `| ${name} | ${lane.run ? '**run**' : 'skip'} | ${lane.reason} | \`${lane.hash}\` |`,
     ...Object.entries(lane.items ?? {}).map(([item, verdict]) => `| ${itemName(name, item)} | ${verdict.run ? '**run**' : 'skip'} | | \`${verdict.hash}\` |`),
