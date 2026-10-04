@@ -184,6 +184,31 @@ export type Holder = {event: Event};
 	}
 }
 
+// TestOutside_ARefusedClassBodyRefusesEveryUse: a class whose body cannot print is never left as an empty declaration.
+func TestOutside_ARefusedClassBodyRefusesEveryUse(t *testing.T) {
+	prog, session, cwd := setupConvert(t, map[string]string{"main.ts": `import type {TypeFormat} from '@mionjs/run-types';
+export declare class Odd { value: TypeFormat<string, 'notAFormat', {}> }
+export type First = {odd: Odd};
+export type Second = {again: Odd};
+`})
+	defer session.Close()
+	sourceFile := prog.SourceFile(tspath.ResolvePath(cwd, "main.ts"))
+	printer := convert.NewOutsidePrinter(session.Cache().NodeByID)
+	for _, statement := range sourceFile.Statements.Nodes {
+		if statement.Kind != ast.KindTypeAliasDeclaration {
+			continue
+		}
+		symbol := session.Checker().GetSymbolAtLocation(statement.Name())
+		node := session.Cache().SerializeTopLevel(checker.Checker_getDeclaredTypeOfSymbol(session.Checker(), symbol))
+		if text, err := printer.Expr(node); err == nil {
+			t.Errorf("%s must refuse like the first use, printed %q", statement.Name().Text(), text)
+		}
+	}
+	if decls := printer.Decls(); len(decls) != 0 {
+		t.Errorf("a refused class leaves no declaration, got %+v", decls[0])
+	}
+}
+
 // TestOutside_TheCacheKeepsCheckerTypesOnlyWhenAsked: a build's cache never pins checker types past a program swap.
 func TestOutside_TheCacheKeepsCheckerTypesOnlyWhenAsked(t *testing.T) {
 	prog, session, cwd := setupConvert(t, map[string]string{"main.ts": "export type H = {a: string};\n"})
