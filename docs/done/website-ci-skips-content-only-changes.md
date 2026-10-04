@@ -49,8 +49,6 @@ All in `scripts/ci/lanes.mjs`; the workflows already read the lane verdicts and 
    (no "unknown path re-runs every lane" fallback) and `js-lint` still runs
    `check-code-imports` over every `<code-import>` in the content tree.
 4. Update the prose that describes the lanes:
-   - The `website` label line under **PR readiness** in root `CLAUDE.md`: say a commit that
-     only changes `content/` or CSS skips the site build even with the label.
    - The header and `container-build` step comments of `.github/workflows/pr-heavy.yml`, and
      the `smoke` job comment in `.github/workflows/ci.yml`.
    - The lane description comment above `smoke` / `website` in `lanes.mjs`.
@@ -86,8 +84,8 @@ commit that edits one content page to see `website` and `smoke.website` hashes u
 
 ## Docs
 
-None on the website, because this only changes which CI jobs run; contributors read it in
-root `CLAUDE.md` (step 4).
+None. This only changes which CI jobs run, so the code and its workflow comments are the
+record. Root `CLAUDE.md` stays unchanged: it explains the overall setup, not CI details.
 
 ## Out of scope
 
