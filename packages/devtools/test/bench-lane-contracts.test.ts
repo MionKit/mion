@@ -19,6 +19,7 @@ import {readFileSync, readdirSync, existsSync, mkdtempSync, writeFileSync} from 
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {resolve, dirname, join} from 'node:path';
 import {tmpdir} from 'node:os';
+import {TYPESCRIPT_FLOOR_MAJOR} from '../src/core/typescript-floor.ts';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const BENCH_DIR = join(REPO_ROOT, 'container/benchmarks');
@@ -530,6 +531,22 @@ describe('the typia lane pins a toolchain that agrees with itself', () => {
     expect(Number(manifest.devDependencies.typescript.split('.')[0])).toBeGreaterThanOrEqual(7);
     expect(manifest.devDependencies).not.toHaveProperty('@typescript/native-preview');
   });
+});
+
+describe('every bench lane that loads the devtools plugin runs a supported TypeScript', () => {
+  // A lane below the floor still builds but warns, and its numbers come from an unsupported setup.
+  it.each(['container/benchmarks/_deps/competitors/mion/package.json', 'container/mion-bench/_deps/mion/package.json'])(
+    '%s',
+    (manifestPath) => {
+      const manifest = JSON.parse(read(manifestPath)) as {
+        dependencies?: Record<string, string>;
+        devDependencies?: Record<string, string>;
+      };
+      const typescript = manifest.devDependencies?.typescript ?? manifest.dependencies?.typescript ?? '';
+      expect(typescript).toMatch(/^\d+\.\d+\.\d+$/);
+      expect(Number(typescript.split('.')[0])).toBeGreaterThanOrEqual(TYPESCRIPT_FLOOR_MAJOR);
+    }
+  );
 });
 
 describe('the image bakes the compiled typia plugin, or fails to build', () => {
