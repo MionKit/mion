@@ -62,6 +62,7 @@ type projectDecl struct {
 
 func newOutsideState(trimmer *trimmer) *outsideState {
 	cache := runtype.NewCache(trimmer.checker, runtype.Options{})
+	cache.KeepTypes()
 	markerOpts := marker.WithDefaults(marker.Options{})
 	markerOpts.FS = trimmer.program.FS
 	markerOpts.Cwd = trimmer.cwd

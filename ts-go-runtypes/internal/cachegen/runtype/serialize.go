@@ -50,8 +50,9 @@ type Cache struct {
 
 	// Type table keyed by wire id. nodes[id] is the canonical entry.
 	nodes map[string]*reflection.RunType
-	// The checker type each wire id was first projected from, for callers that print a node where it is declared.
-	typeByID map[string]*checker.Type
+	// The checker type each wire id was first projected from, kept only after KeepTypes (api-types printing).
+	typeByID  map[string]*checker.Type
+	keepTypes bool
 
 	// Insertion order, read by Added(); Dump sorts by id instead.
 	insertOrder []string
@@ -205,6 +206,7 @@ func (cache *Cache) Rebind(typeChecker *checker.Checker) {
 	// Dead after a swap: these hold pointers into the previous Program's checker state.
 	cache.foreignComputers = nil
 	cache.byPtr = make(map[*checker.Type]string)
+	cache.typeByID = make(map[string]*checker.Type)
 	// Every per-file key belongs to the previous Program's source files, so the next scanFiles starts from empty.
 	cache.fileTypeIDs = make(map[string]map[string]struct{})
 	cache.declFiles = make(map[string][]string)
@@ -381,8 +383,11 @@ func (cache *Cache) SerializeTopLevel(tsType *checker.Type) *reflection.RunType 
 	return cache.nodes[id]
 }
 
-// TypeByID returns the checker type the id was first projected from, nil when none; it belongs to the checker that
-// projected it.
+// KeepTypes makes the cache remember the checker type behind each id, for TypeByID.
+func (cache *Cache) KeepTypes() { cache.keepTypes = true }
+
+// TypeByID returns the checker type the id was first projected from, nil without KeepTypes; it belongs to the checker
+// that projected it.
 func (cache *Cache) TypeByID(id string) *checker.Type {
 	return cache.typeByID[id]
 }
@@ -529,7 +534,9 @@ func (cache *Cache) assignID(tsType *checker.Type) string {
 	id := cache.uniqueDict(structural, cache.opts.hashLength())
 
 	cache.byPtr[tsType] = id
-	cache.typeByID[id] = tsType
+	if cache.keepTypes {
+		cache.typeByID[id] = tsType
+	}
 	cache.intern(structural, id)
 	cache.recordDeclFiles(id, tsType)
 
