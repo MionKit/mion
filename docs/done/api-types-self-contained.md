@@ -221,6 +221,13 @@ Built as planned, with these differences:
   bound the files, which varies; a recursive shape prints once as a named alias shared by every use; a class with an
   abstract member prints `abstract`; a refused class or alias refuses every later use. The checker types printing
   reads are kept only for api-types (`KeepTypes`) and dropped on a program swap.
+- **Printer shape follows TypeScript's node builder.** The declaration printer is `convert/printdecl.go`
+  (`DeclPrinter`, `TypeToString`, `expandClassDecl`, `expandEnumDecl`, `serializeTypeAlias`, `LayoutDecls`,
+  `MakeUniqueName`), not a new `declprint.go` with `PrintClass` / `PrintEnum`. Its modes are named print flags
+  inside the shared switch arms, a class body goes through the object member printer plus class modifiers (as
+  `typeElementsToClassElements` / `addClassModifiers`), and a recursive shape is one the serializer flagged
+  `IsCircular`. `TestPrintersCoverRunType` gives every `RunType` field a declaration-printing decision too, and
+  `TestPrinters_EveryKindHasAnArm` makes every kind name the arm that prints it or be refused.
 - **A class or enum from a mion package** inside a printed type stays a `import("@mionjs/…")` reference, and that
   package becomes a peer like any other mion package.
 - **Pure functions** of other packages are vendored through the pure fn store's closure into
@@ -245,8 +252,8 @@ Built as planned, with these differences:
 - **Docs:** a new page, `container/website/content/01.rpc/07.devtools/05.api-types.md`, holds the types-only
   package sections moved off the CLI page plus the new ones.
 - **Tests:** `apitypes/outside_test.go` (one fixture per shape, each checked on a bare client by `assertIDParity`),
-  `apitypes/parity_test.go`, the fuzz lane's `lib-pkg` positions and client-parity oracle, `convert/outside_test.go`,
-  the flipped drizzle test, `pkg_test.go` + `purefnindex_test.go` for vendoring, `convert/outside_fuzz_test.go`
-  (the `convert-outside` seed lane), two devtools CLI tests (a printed package, and the type-parameter warning), a
+  `apitypes/parity_test.go`, the fuzz lane's `lib-pkg` positions and client-parity oracle, `convert/printdecl_test.go`,
+  the flipped drizzle test, `pkg_test.go` + `purefnindex_test.go` for vendoring, `convert/printdecl_fuzz_test.go`
+  (the `convert-decl` seed lane), two devtools CLI tests (a printed package, and the type-parameter warning), a
   run-types class-registry test over both call shapes, and the pre-publish e2e lane's `@acme/geo` fixture (an
   interface, an enum and a `#private` class).
