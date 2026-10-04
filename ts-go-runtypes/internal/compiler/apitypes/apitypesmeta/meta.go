@@ -11,8 +11,14 @@ import (
 	vfspkg "github.com/microsoft/typescript-go/shim/vfs"
 )
 
-// MarkerFormat is the marker's `format`; a higher one is a newer compiler's and is refused, never misread.
-const MarkerFormat = 1
+// MarkerFormat is the newest marker `format` this compiler reads; a higher one is a newer compiler's and is refused,
+// never misread. A marker is written at MarkerFormatVendored only when it lists vendored packages.
+const MarkerFormat = MarkerFormatVendored
+
+const (
+	MarkerFormatPlain    = 1
+	MarkerFormatVendored = 2
+)
 
 // Marker is the content of constants.ApiTypesMarkerFile.
 type Marker struct {
@@ -21,6 +27,8 @@ type Marker struct {
 	Package      string `json:"package"`
 	Compiler     string `json:"compiler"`
 	BuildVersion string `json:"buildVersion"`
+	// Vendored maps each other package whose pure fns ship inside to the directory holding them, relative to the root.
+	Vendored map[string]string `json:"vendored,omitempty"`
 }
 
 // Render writes the marker as indented JSON with a trailing newline.

@@ -3,6 +3,7 @@ package apitypes
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path"
 	"path/filepath"
@@ -59,34 +60,42 @@ type typesPackage struct {
 	PeerDependencies map[string]string `json:"peerDependencies"`
 }
 
-// BuildPackage returns the package's files by slash path relative to its root.
-func BuildPackage(input PackageInput) (map[string]string, error) {
+// BuildPackage returns the package's files by slash path relative to its root, and a warning for each package that
+// stays a peer because its pure fns could not be copied in.
+func BuildPackage(input PackageInput) (map[string]string, []string, error) {
 	content, err := os.ReadFile(filepath.Join(input.ServerRoot, "package.json"))
 	if err != nil {
-		return nil, fmt.Errorf("api types: read the server package.json: %w", err)
+		return nil, nil, fmt.Errorf("api types: read the server package.json: %w", err)
 	}
 	var server serverPackage
 	if err := json.Unmarshal(content, &server); err != nil {
-		return nil, fmt.Errorf("api types: parse the server package.json: %w", err)
+		return nil, nil, fmt.Errorf("api types: parse the server package.json: %w", err)
 	}
 	if server.Name == "" {
-		return nil, fmt.Errorf("api types: the server package.json has no name: its pure fn ids and the marker need one")
+		return nil, nil, fmt.Errorf("api types: the server package.json has no name: its pure fn ids and the marker need one")
 	}
 	files := map[string]string{}
 	for rel, text := range input.Trimmed.Files {
 		files[rel] = text
 	}
-	artifact, artifactPeers, err := reachedArtifact(input.PureFnArtifact, input.Trimmed.Files)
+	artifact, foreignIDs, err := reachedArtifact(input.PureFnArtifact, input.Trimmed.Files)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	for rel, text := range artifact {
 		files[path.Join(constants.PureFnArtifactDir, filepath.ToSlash(rel))] = text
 	}
+	vendor := vendorPureFns(input.ServerRoot, foreignIDs)
+	maps.Copy(files, vendor.files)
 	files[path.Join(constants.ApiTypesManifestDir, constants.ApiModuleDir, constants.ApiManifestFile)] = input.Manifest
-	files[constants.ApiTypesMarkerFile] = apitypesmeta.Marker{
-		Format: apitypesmeta.MarkerFormat, Package: server.Name, Compiler: input.Compiler, BuildVersion: input.Trimmed.BuildVersion,
-	}.Render()
+	marker := apitypesmeta.Marker{
+		Format: apitypesmeta.MarkerFormatPlain, Package: server.Name, Compiler: input.Compiler, BuildVersion: input.Trimmed.BuildVersion,
+	}
+	if len(vendor.dirs) > 0 {
+		marker.Format, marker.Vendored = apitypesmeta.MarkerFormatVendored, vendor.dirs
+	}
+	files[constants.ApiTypesMarkerFile] = marker.Render()
+	artifactPeers := vendor.peers
 
 	peers := map[string]string{}
 	for _, name := range append(append(append([]string(nil), mionPeers...), input.Trimmed.Externals...), artifactPeers...) {
@@ -126,11 +135,11 @@ func BuildPackage(input PackageInput) (map[string]string, error) {
 	}
 	encoded, _ := json.MarshalIndent(pkg, "", "  ")
 	files["package.json"] = string(encoded) + "\n"
-	return files, nil
+	return files, vendor.warnings, nil
 }
 
 // reachedArtifact keeps the ids the kept declarations name and every override (it changes its type's id wherever a
-// client meets it), plus their dependencies; other packages those depend on are returned as peers.
+// client meets it), plus their dependencies; the ids they need from other packages are returned.
 func reachedArtifact(artifact, declarations map[string]string) (map[string]string, []string, error) {
 	indexText, ok := artifact[constants.PureFnArtifactIndexFile]
 	if !ok {
@@ -155,7 +164,7 @@ func reachedArtifact(artifact, declarations map[string]string) (map[string]strin
 		pending = append(pending, override.ID)
 	}
 	reached := map[string]bool{}
-	owners := map[string]bool{}
+	foreign := map[string]bool{}
 	for len(pending) > 0 {
 		id := pending[0]
 		pending = pending[1:]
@@ -170,7 +179,7 @@ func reachedArtifact(artifact, declarations map[string]string) (map[string]strin
 		for _, dependency := range entry.PureFnDependencies {
 			pending = append(pending, dependency)
 			if owner := purefnindex.PackageOfID(dependency); owner != "" && owner != index.Package {
-				owners[owner] = true
+				foreign[dependency] = true
 			}
 		}
 	}
@@ -187,12 +196,7 @@ func reachedArtifact(artifact, declarations map[string]string) (map[string]strin
 	}
 	index.PureFns = rows
 	kept[constants.PureFnArtifactIndexFile] = string(index.Render())
-	peers := make([]string, 0, len(owners))
-	for owner := range owners {
-		peers = append(peers, owner)
-	}
-	sort.Strings(peers)
-	return kept, peers, nil
+	return kept, sortedKeys(foreign), nil
 }
 
 // rangeOf: a range only the workspace understands (`workspace:`, `catalog:`, `link:`, `file:`) becomes ^installed, else "*".

@@ -127,7 +127,7 @@ func buildApiTypes(cwd, tsconfigPath, declarationDir string, compileResult *batc
 		return fmt.Errorf("the trimmed API type carries build version %q but the manifest %q: export the value initRoutes returns, unannotated", trimmedVersion, serverManifest.BuildVersion)
 	}
 	manifest := serverManifest.Render()
-	files, err := apitypes.BuildPackage(apitypes.PackageInput{
+	files, warnings, err := apitypes.BuildPackage(apitypes.PackageInput{
 		ServerRoot: serverRoot, Name: name, Version: version, Trimmed: trimmed,
 		PureFnArtifact: compileResult.PureFnArtifact, Manifest: string(manifest), Compiler: constants.Version,
 	})
@@ -140,6 +140,9 @@ func buildApiTypes(cwd, tsconfigPath, declarationDir string, compileResult *batc
 	}
 	if err := apitypes.WritePackage(outDir, files); err != nil {
 		return err
+	}
+	for _, warning := range warnings {
+		fmt.Fprintf(os.Stderr, "mion: warning: %s\n", warning)
 	}
 	fmt.Fprintf(os.Stderr, "mion: wrote %s (%d declaration file(s), %s, build version %s)\n",
 		relPath(outDir), len(trimmed.Files), strings.Join(trimmed.ApiExports, ", "), trimmed.BuildVersion)

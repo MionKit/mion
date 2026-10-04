@@ -2,8 +2,10 @@ package apitypes
 
 import (
 	"encoding/json"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -32,7 +34,7 @@ func TestBuildPackage_ManifestMarkerAndPeers(t *testing.T) {
   "dependencies": {"@mionjs/router": "workspace:*", "ext-pkg": "^2.0.0"},
   "peerDependencies": {"@mionjs/core": "^0.12.0"}}`)
 	writeFile(t, filepath.Join(root, "node_modules/@mionjs/router/package.json"), `{"name": "@mionjs/router", "version": "0.12.5"}`)
-	files, err := BuildPackage(PackageInput{
+	files, _, err := BuildPackage(PackageInput{
 		ServerRoot: root,
 		Trimmed:    &Output{Files: map[string]string{"index.d.ts": "export {};\n"}, Entry: "index.d.ts", BuildVersion: "v1", Externals: []string{"@mionjs/router", "ext-pkg", "@types/node"}},
 		Manifest:   "{}\n",
@@ -85,7 +87,7 @@ func TestBuildPackage_ManifestMarkerAndPeers(t *testing.T) {
 func TestBuildPackage_NeedsAServerName(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "package.json"), `{"version": "1.0.0"}`)
-	if _, err := BuildPackage(PackageInput{ServerRoot: root, Trimmed: &Output{Entry: "index.d.ts"}}); err == nil || !strings.Contains(err.Error(), "no name") {
+	if _, _, err := BuildPackage(PackageInput{ServerRoot: root, Trimmed: &Output{Entry: "index.d.ts"}}); err == nil || !strings.Contains(err.Error(), "no name") {
 		t.Fatalf("got %v", err)
 	}
 }
@@ -113,7 +115,13 @@ func TestWritePackage_RefusesAForeignDirectory(t *testing.T) {
 // artifactOf renders a server artifact the way a build writes it: the index plus each entry's module.
 func artifactOf(t *testing.T, overrides []purefnindex.ArtifactOverrideRow, entries ...purefunctions.Entry) map[string]string {
 	t.Helper()
-	files := map[string]string{constants.PureFnArtifactIndexFile: string(purefnindex.RenderArtifactIndex("@acme/api", "/srv", entries, overrides))}
+	return packageArtifactOf(t, "@acme/api", overrides, entries...)
+}
+
+// packageArtifactOf is artifactOf for any package.
+func packageArtifactOf(t *testing.T, packageName string, overrides []purefnindex.ArtifactOverrideRow, entries ...purefunctions.Entry) map[string]string {
+	t.Helper()
+	files := map[string]string{constants.PureFnArtifactIndexFile: string(purefnindex.RenderArtifactIndex(packageName, "/srv", entries, overrides))}
 	graph := purefunctions.CollectEntries(entries, constants.EmitCode)
 	graph.AddMissingStubs(nil)
 	modules, err := entrymodules.RenderGrouped(graph, nil)
@@ -175,5 +183,61 @@ func TestRangeOf_WorkspaceOnlyRanges(t *testing.T) {
 		if got := rangeOf(root, name, server); got != want {
 			t.Errorf("rangeOf(%s) = %q, want %q", name, got, want)
 		}
+	}
+}
+
+// TestBuildPackage_ShipsOtherPackagesPureFns: a dep another package owns is copied in with its own deps, so that
+// package is no peer; a mion package, and one that ships no artifact, stay peers.
+func TestBuildPackage_ShipsOtherPackagesPureFns(t *testing.T) {
+	const (
+		namedID  = "@acme/api#pf_named000000000"
+		slugID   = "@acme/text#pf_slug00000000000"
+		lowerID  = "@acme/case#pf_lower0000000000"
+		coreID   = "@mionjs/core#pf_core00000000000"
+		sourceID = "@acme/raw#pf_raw000000000000"
+	)
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "package.json"), `{"name": "@acme/api", "version": "1.0.0"}`)
+	install := func(name string, entries ...purefunctions.Entry) {
+		dir := filepath.Join(root, "node_modules", filepath.FromSlash(name))
+		writeFile(t, filepath.Join(dir, "package.json"), `{"name": "`+name+`"}`)
+		for rel, text := range packageArtifactOf(t, name, nil, entries...) {
+			writeFile(t, filepath.Join(dir, "dist", constants.PureFnArtifactDir, filepath.FromSlash(rel)), text)
+		}
+	}
+	install("@acme/text", purefunctions.Entry{ID: slugID, BindingName: "slug", ParamNames: []string{"utl"}, Code: "return (s) => utl.getPureFn('" + lowerID + "')(s);", PureFnDependencies: []string{lowerID}})
+	install("@acme/case", purefunctions.Entry{ID: lowerID, BindingName: "lower", ParamNames: []string{"utl"}, Code: "return (s) => s.toLowerCase();"})
+	writeFile(t, filepath.Join(root, "node_modules", "@acme", "raw", "package.json"), `{"name": "@acme/raw"}`)
+	named := purefunctions.Entry{ID: namedID, BindingName: "shout", ParamNames: []string{"utl"}, Code: "return 1;", PureFnDependencies: []string{slugID, coreID, sourceID}}
+	files, warnings, err := BuildPackage(PackageInput{
+		ServerRoot:     root,
+		Trimmed:        &Output{Files: map[string]string{"index.d.ts": "export declare const shout: PureFnId<'" + namedID + "'>;\n"}, Entry: "index.d.ts", BuildVersion: "v1"},
+		PureFnArtifact: artifactOf(t, nil, named),
+		Manifest:       "{}\n",
+		Compiler:       "9.9.9",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{".mion/vendor/@acme/text/package.json", ".mion/vendor/@acme/text/mion-pure-fns/index.json",
+		".mion/vendor/@acme/text/mion-pure-fns/" + purefnindex.ModulePath(slugID), ".mion/vendor/@acme/case/mion-pure-fns/" + purefnindex.ModulePath(lowerID)} {
+		if files[path] == "" {
+			t.Errorf("missing %s in %v", path, slices.Sorted(maps.Keys(files)))
+		}
+	}
+	var marker apitypesmeta.Marker
+	if err := json.Unmarshal([]byte(files["mion-api.json"]), &marker); err != nil || marker.Format != apitypesmeta.MarkerFormatVendored ||
+		marker.Vendored["@acme/text"] != "./.mion/vendor/@acme/text" || marker.Vendored["@acme/case"] != "./.mion/vendor/@acme/case" {
+		t.Errorf("the marker must list the vendored packages: %s (%v)", files["mion-api.json"], err)
+	}
+	var pkg struct{ PeerDependencies map[string]string }
+	if err := json.Unmarshal([]byte(files["package.json"]), &pkg); err != nil {
+		t.Fatal(err)
+	}
+	if _, peer := pkg.PeerDependencies["@acme/text"]; peer || pkg.PeerDependencies["@acme/raw"] == "" || pkg.PeerDependencies["@mionjs/core"] == "" {
+		t.Errorf("peers %v: a copied package is none, an unbuilt one and a mion one are", pkg.PeerDependencies)
+	}
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "@acme/raw") {
+		t.Errorf("the unbuilt package must be named in a warning, got %v", warnings)
 	}
 }
