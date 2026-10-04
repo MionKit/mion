@@ -16,7 +16,7 @@ import (
 
 // Bump when the token rules change, so every marker saved under the old rules stops matching.
 // The marker tables are folded into the digest too, so editing them re-keys without a bump.
-const toolVersion = "2"
+const toolVersion = "3"
 
 var errUnsure = errors.New("unsure")
 
@@ -27,7 +27,7 @@ func noHook(int, int) {}
 
 // A line holding one of these markers counts as code, because a tool reads it.
 var tsDirectives = []string{
-	"@",                   // JSDoc tags the resolver reads (@nonEnumerable), @ts-*, @mion-expect-error, @vite-ignore, @vitest-environment, enrichment tags
+	"@",                   // JSDoc and tool tags; scoped package mentions alone are prose.
 	"#!",                  // the shebang picks the interpreter of a bin
 	"eslint-",             // lint suppressions
 	"oxlint-",             // lint suppressions
@@ -51,12 +51,30 @@ var goDirectives = []string{
 	"//nolint",  // linter suppressions
 }
 
+var scopedPackageMention = regexp.MustCompile(`@[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*`)
+
+// Keep tool namespaces even when a directive's argument starts with a slash.
+func withoutPackageMentions(line string) string {
+	return scopedPackageMention.ReplaceAllStringFunc(line, func(mention string) string {
+		for _, prefix := range []string{"@mion-", "@ts-", "@rt", "@todo/", "@vite-ignore", "@vitest-"} {
+			if strings.HasPrefix(mention, prefix) {
+				return mention
+			}
+		}
+		return ""
+	})
+}
+
 // directiveLines also matches a marker inside a string, which can only cost a re-run.
 func directiveLines(text string, directives []string) []string {
 	var lines []string
 	for _, line := range strings.Split(text, "\n") {
 		for _, marker := range directives {
-			if strings.Contains(line, marker) {
+			probe := line
+			if marker == "@" {
+				probe = withoutPackageMentions(line)
+			}
+			if strings.Contains(probe, marker) {
 				lines = append(lines, strings.TrimSpace(line))
 				break
 			}

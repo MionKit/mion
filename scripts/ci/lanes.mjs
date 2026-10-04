@@ -42,7 +42,7 @@ import {isGoInput} from '../lib/go-inputs.mjs';
 import {capture, die, note, noteErr, reportCliError} from '../lib/proc.mjs';
 
 // Ignored paths are safe only while whole-tree sweeps stay in the always-on scripts/ci/check-tree.mjs gate.
-export const FEEDS_NOTHING = ['docs/', 'tools/', 'assets/', '.agents/', '.claude/', '.codex/', '.vscode/', '.husky/', '.git-blame-ignore-revs', 'CHANGELOG.md', 'AGENTS.md', 'README.md', 'SETUP.md', 'LICENSE'];
+export const FEEDS_NOTHING = ['docs/', 'tools/', 'assets/', '.agents/', '.claude/', '.codex/', '.vscode/', '.husky/', '.git-blame-ignore-revs', 'CHANGELOG.md', 'AGENTS.md', 'CLAUDE.md', 'README.md', 'SETUP.md', 'LICENSE'];
 
 // A lane that only RUNS the Go binaries skips what never compiles into them, and the cmd/gen-* codegen tools.
 // code-digest only runs in the gate and the JS tests, so it feeds the JS lanes instead.
@@ -162,7 +162,9 @@ export const matches = (path, entries) => entries.some((entry) => entryMatches(p
 // A tracked path that matches no lane and no FEEDS_NOTHING entry is an unknown
 // risk: it joins EVERY lane's hash, so adding a directory re-runs everything
 // until someone classifies it. Never a free skip.
-export const unclassified = (paths) => paths.filter((path) => !matches(path, FEEDS_NOTHING) && !Object.values(LANES).some((lane) => matches(path, lane.paths)));
+// Recognize both instruction names in either tree; formatting still reads scoped Markdown in raw lanes.
+const agentInstruction = (path) => /(^|\/)(AGENTS|CLAUDE)\.md$/.test(path);
+export const unclassified = (paths) => paths.filter((path) => !agentInstruction(path) && !matches(path, FEEDS_NOTHING) && !Object.values(LANES).some((lane) => matches(path, lane.paths)));
 
 // Raw: text a test or the site reads (fixtures, snapshots, examples, `// case:` routes, e2e cli([...]), generated files).
 // JSX (four e2e files, not worth the risk) and vendored trees too; cmd/code-digest/property_test.go copies RAW_CODE.
@@ -212,6 +214,7 @@ export function laneHashes(ref = 'HEAD', {cwd = REPO_ROOT, entries = treeEntries
   const hashOf = (feeds, tokens) => {
     const digest = createHash('sha256');
     for (const entry of entries) {
+      if (tokens && agentInstruction(entry.path)) continue;
       if (!feeds(entry.path) && !unknownSet.has(entry.path)) continue;
       const id = (tokens && TOKEN_HASHED(entry.path) && digests.byKey.get(digestKey(entry))) || entry.objectname;
       digest.update(`${id} ${entry.path}\n`);

@@ -46,7 +46,8 @@ describe('the lane table', () => {
   });
 
   it('leaves the docs and agent trees feeding nothing, which is the whole point', () => {
-    for (const dir of ['docs/', '.agents/', '.claude/', '.codex/', 'AGENTS.md']) expect(FEEDS_NOTHING).toContain(dir);
+    for (const dir of ['docs/', '.agents/', '.claude/', '.codex/', 'AGENTS.md', 'CLAUDE.md'])
+      expect(FEEDS_NOTHING).toContain(dir);
     for (const lane of Object.values(LANES) as {paths: string[]}[]) {
       for (const ignored of FEEDS_NOTHING) expect(lane.paths, `${ignored} must feed no lane`).not.toContain(ignored);
     }
@@ -58,6 +59,54 @@ describe('the lane table', () => {
   // error placeholder rendered into the page.
   it('feeds the docs content and the examples into the js lane that checks them', () => {
     for (const fed of ['container/', 'packages/']) expect(LANES.js.paths).toContain(fed);
+  });
+
+  it('skips instruction changes in tokens lanes while raw lanes keep checking scoped Markdown', () => {
+    const source = {objectname: 'source', path: 'packages/run-types/src/a.ts'};
+    const scopes = [
+      '',
+      'packages/run-types/src/builders/',
+      'packages/devtools/',
+      'ts-go-runtypes/',
+      'container/website/',
+      'new-scope/',
+    ];
+    const instructions = scopes.map((scope) => ({objectname: 'old', path: `${scope}CLAUDE.md`}));
+    const renamed = scopes.map((scope) => ({objectname: 'new', path: `${scope}AGENTS.md`}));
+    const config = ['.agents/skills/a/SKILL.md', '.claude/settings.json', '.codex/config.toml'].map((path) => ({
+      objectname: 'agent',
+      path,
+    }));
+    for (const mode of ['t', 'r']) {
+      const digests = {mode, byKey: new Map()};
+      const base = laneHashes(undefined, {entries: [source], digests});
+      for (const entries of [
+        [source, ...instructions],
+        [source, ...renamed, ...config],
+      ]) {
+        const head = laneHashes(undefined, {entries, digests});
+        expect(head.unknown).toEqual([]);
+        const tokenLanes = Object.entries(LANES)
+          .filter(([, lane]) => (lane as {hash: string}).hash === 'tokens')
+          .map(([name]) => name);
+        for (const name of tokenLanes) {
+          expect(head.hashes[name]).toBe(base.hashes[name]);
+          for (const item of Object.keys(LANES[name].items ?? {}))
+            expect(head.hashes[`${name}.${item}`]).toBe(base.hashes[`${name}.${item}`]);
+        }
+        expect(head.hashes['js-static']).not.toBe(base.hashes['js-static']);
+        expect(head.hashes['go-static']).not.toBe(base.hashes['go-static']);
+        expect(head.hashes['go-tools']).not.toBe(base.hashes['go-tools']);
+        for (const verdict of Object.values(decide(tokenLanes, {hashes: head.hashes, baseHashes: base.hashes}))) {
+          expect((verdict as {run: boolean}).run).toBe(false);
+        }
+      }
+      // Instruction names must not hide actual configuration, fixtures or an unknown input.
+      for (const path of ['package.json', '.gitignore', 'packages/x/testdata/AGENTS.md.txt', 'new-scope/AGENTS.md.js']) {
+        const changed = laneHashes(undefined, {entries: [source, {objectname: 'changed', path}], digests});
+        expect(changed.hashes.js, path).not.toBe(base.hashes.js);
+      }
+    }
   });
 
   // The two trees read into each other, and the old path gate got BOTH wrong: it
