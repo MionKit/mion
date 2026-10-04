@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strings"
 	"testing"
 
@@ -95,20 +94,12 @@ func TestTrim_DrizzleExampleAppSlimRoutesShipNoDrizzle(t *testing.T) {
 	assertNeverShips(t, output, "drizzle-orm", "usersDb", "declare const db")
 }
 
-// TestTrim_DrizzleExampleAppReachesDrizzleOnlyThroughItsPlainDrizzleRoutes: the whole app as one API.
-func TestTrim_DrizzleExampleAppReachesDrizzleOnlyThroughItsPlainDrizzleRoutes(t *testing.T) {
+// TestTrim_DrizzleExampleAppPrintsItsPlainDrizzleRows: the plain drizzle routes ship their rows printed, no drizzle-orm.
+func TestTrim_DrizzleExampleAppPrintsItsPlainDrizzleRows(t *testing.T) {
 	output := trimDrizzleExampleApp(t, fullApiTS)
-	var importing []string
-	for rel, text := range output.Files {
-		if strings.Contains(text, `"drizzle-orm`) || strings.Contains(text, `'drizzle-orm`) {
-			importing = append(importing, rel)
-		}
-	}
-	sort.Strings(importing)
-	if strings.Join(importing, ",") != "db/mysql.drizzle.d.ts,db/pg.drizzle.d.ts,db/sqlite.drizzle.d.ts" {
-		t.Errorf("only the plain drizzle tables may reach drizzle-orm, got %v", importing)
-	}
-	assertLacks(t, strings.Join(mapValues(output.Files), "\n"), "drizzle-orm/mysql-proxy", "drizzle-orm/pg-proxy", "drizzle-orm/sqlite-proxy", "Relations<")
+	assertNeverShips(t, output, "drizzle-orm", "usersDb:", "Relations<")
+	assertContains(t, output.Files["_outside/drizzle-orm.d.ts"], "export type usersDb_$inferSelect = {", "createdAt: Date")
+	assertContains(t, output.Files["db/pg.drizzle.d.ts"], `export type User = import("../_outside/drizzle-orm.js").usersDb_$inferSelect;`)
 }
 
 // trimDrizzleExampleApp trims the reference app's server with apiText as its API entry.

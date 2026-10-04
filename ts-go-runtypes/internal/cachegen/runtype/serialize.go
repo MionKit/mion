@@ -50,6 +50,8 @@ type Cache struct {
 
 	// Type table keyed by wire id. nodes[id] is the canonical entry.
 	nodes map[string]*reflection.RunType
+	// The checker type each wire id was first projected from, for callers that print a node where it is declared.
+	typeByID map[string]*checker.Type
 
 	// Insertion order, read by Added(); Dump sorts by id instead.
 	insertOrder []string
@@ -108,6 +110,7 @@ func NewCache(typeChecker *checker.Checker, opts Options) *Cache {
 		byStructural: make(map[string]string),
 		byID:         make(map[string]string),
 		nodes:        make(map[string]*reflection.RunType),
+		typeByID:     make(map[string]*checker.Type),
 		fileTypeIDs:  make(map[string]map[string]struct{}),
 		declFiles:    make(map[string][]string),
 		dict:         hashid.New(),
@@ -161,6 +164,7 @@ func (cache *Cache) Clear() {
 	cache.byStructural = make(map[string]string)
 	cache.byID = make(map[string]string)
 	cache.nodes = make(map[string]*reflection.RunType)
+	cache.typeByID = make(map[string]*checker.Type)
 	cache.insertOrder = cache.insertOrder[:0]
 	cache.fileTypeIDs = make(map[string]map[string]struct{})
 	cache.declFiles = make(map[string][]string)
@@ -377,6 +381,12 @@ func (cache *Cache) SerializeTopLevel(tsType *checker.Type) *reflection.RunType 
 	return cache.nodes[id]
 }
 
+// TypeByID returns the checker type the id was first projected from, nil when none; it belongs to the checker that
+// projected it.
+func (cache *Cache) TypeByID(id string) *checker.Type {
+	return cache.typeByID[id]
+}
+
 // NodeByID returns the canonical full Type for id, or nil; the enrichment and demand-scope walkers follow child KindRef slots with it.
 func (cache *Cache) NodeByID(id string) *reflection.RunType {
 	return cache.nodes[id]
@@ -519,6 +529,7 @@ func (cache *Cache) assignID(tsType *checker.Type) string {
 	id := cache.uniqueDict(structural, cache.opts.hashLength())
 
 	cache.byPtr[tsType] = id
+	cache.typeByID[id] = tsType
 	cache.intern(structural, id)
 	cache.recordDeclFiles(id, tsType)
 

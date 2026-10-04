@@ -332,14 +332,19 @@ func (ctx *printContext) classBody(node *reflection.RunType) (string, *Diagnosti
 	if hasFlag(node, reflection.FlagPrivateFields) {
 		parts = append(parts, "#private;")
 	}
+	members := make([]*reflection.RunType, 0, len(node.Children))
 	for _, memberRef := range node.Children {
 		member := ctx.deref(memberRef)
 		if member == nil {
 			return "", unsupportedDiag(node, ctx.decl)
 		}
-		if member.IsStatic {
-			continue
+		if !member.IsStatic {
+			members = append(members, member)
 		}
+	}
+	// Merged declarations list their members in the order the compiler bound the files, which varies.
+	sort.SliceStable(members, func(i, j int) bool { return members[i].Name < members[j].Name })
+	for _, member := range members {
 		text, diag := ctx.classMemberText(member)
 		if diag != nil {
 			return "", diag
