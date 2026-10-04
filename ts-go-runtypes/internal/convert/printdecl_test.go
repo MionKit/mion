@@ -155,7 +155,7 @@ export type Holder = {tree: TreeNode; json: Json};
 `, "Holder")
 }
 
-// TestDeclPrinter_AMutualCycleKeepsItsIDsFromEitherEnd: the serializer flags whichever end it met first, and either flag closes the cycle.
+// TestDeclPrinter_AMutualCycleKeepsItsIDsFromEitherEnd: the serializer flags whichever end it met first.
 func TestDeclPrinter_AMutualCycleKeepsItsIDsFromEitherEnd(t *testing.T) {
 	assertDeclIDs(t, `export interface Order { lines: Line[] }
 export interface Line { order: Order; sku: string }

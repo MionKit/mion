@@ -114,9 +114,8 @@ var printerDispositionByField = map[string]string{
 	"Implements":       "authoring: same",
 }
 
-// declarationDispositionByField overrides printerDispositionByField for the declaration printer, which prints
-// classes and enums in full instead of by name. Its oracle is the type id (assertDeclIDs, the api-types Check),
-// so `notInID:` marks a field it leaves out because the id leaves it out.
+// declarationDispositionByField overrides the base table for the declaration printer, checked against the type id.
+// `notInID:` marks a field it leaves out because the id does (assertDeclIDs, the api-types Check).
 var declarationDispositionByField = map[string]string{
 	"NonEnumerable": "printed: the `/** @nonEnumerable */` tag (flagsNonEnumerableTag)",
 	"Visibility":    "printed: classModifiers spells private / protected; a typeless private member prints `private x`",
@@ -185,8 +184,7 @@ func TestPrintersCoverRunType(t *testing.T) {
 	check("declaration", runType, declaration, canonicalCompared, withNotInID, legalDeclared)
 }
 
-// printerKindArms says which printer arm spells each kind and builds the smallest node that reaches it; a nil build
-// marks a kind the printers refuse. A new kind fails TestPrinters_EveryKindHasAnArm until it has a row.
+// printerKindArms names each kind's printer arm and the smallest node reaching it; a nil build is a bare node.
 var printerKindArms = map[reflection.ReflectionKind]struct {
 	arm   string
 	build func() *reflection.RunType

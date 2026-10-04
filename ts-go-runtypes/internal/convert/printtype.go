@@ -596,8 +596,7 @@ func (ctx *printContext) objectMemberText(member *objectMember) (string, *Diagno
 		return prefix + readonlyPrefix(member.readonly) + member.key, nil
 	}
 	if member.signatureNode != nil {
-		// A method or call-signature member keeps its signature syntax: a property-typed arrow would be a
-		// different member kind, and id.
+		// Keep signature syntax: a property-typed arrow is a different member kind, and id.
 		paramsText, paramsDiag := ctx.parameterListText(member.signatureNode)
 		if paramsDiag != nil {
 			return "", paramsDiag
@@ -610,8 +609,7 @@ func (ctx *printContext) objectMemberText(member *objectMember) (string, *Diagno
 		case member.callSignature:
 			return fmt.Sprintf("(%s): %s", paramsText, returnText), nil
 		case member.readonly || member.field:
-			// Method syntax cannot spell `readonly`, and a function-valued field is a property; the
-			// property-arrow form reflects back identically.
+			// Method syntax cannot spell `readonly` and a function field is a property; the arrow form reflects back identically.
 			return fmt.Sprintf("%s%s%s%s: (%s) => %s", prefix, readonlyPrefix(member.readonly), member.key, optionalMark, paramsText, returnText), nil
 		}
 		return fmt.Sprintf("%s%s%s(%s): %s", prefix, member.key, optionalMark, paramsText, returnText), nil
