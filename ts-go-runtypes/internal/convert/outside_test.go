@@ -88,6 +88,7 @@ func TestOutside_ClassKeepsItsIDWithMembersMethodsAndPrivateFields(t *testing.T)
 	printed := assertOutsideIDs(t, `export declare class Money {
   #private;
   private hidden;
+  private readonly sealed;
   protected cents: number;
   amount: number;
   readonly currency: string;
