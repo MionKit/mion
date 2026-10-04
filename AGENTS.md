@@ -24,10 +24,10 @@ skipping a required step or reviewing your own work.
 This is the rule broken most often, so it comes first!! Any issue or blocker you discover while doing a task should be fixed before task gets done:
 
 - **Related to the current task** → fix it in the SAME task and the SAME pull request, with its own commit and its own test. Size buys no exemption — a big related finding means a bigger PR, not a later one.
-- **Completely Unrelated to the current task** → fix it as part of the current branch or file a todo in [docs/todos/](docs/todos/) in the current PR. Do not open a background session.
+- **Completely Unrelated to the current task** → delegate it to a PARALLEL background agent, never a backlog — run the [delegate-finding skill](.agents/skills/delegate-finding/). That takes care of creating the todo and delegating it to a parallel agent. If the agent cannot delegate, file a todo in the current PR instead. A delegated session never delegates again: it fixes everything in its own PR and files a truly unrelated finding as a todo in that PR.
 - A [docs/todos/](docs/todos/) spec is a commitment to solve it, never a way to close the loop!
 
-**Absolute:** never let a finding slide and get lost, either fix it in the current branch or file a todo in the current PR. Ask if there are open questions you can't solve!
+**Absolute:** never let a finding slide and get lost, either fix it or delegate it to a parallel assistant session. Ask if there are open questions you can't solve!
 
 ## ⚠️ A removed thing leaves NO trace
 
