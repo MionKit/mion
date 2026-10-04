@@ -29,7 +29,7 @@ const (
 	declKindCount
 )
 
-// KeepsItsName: a class or enum id includes its name, so the name never changes and a kept project or mion copy is used instead.
+// KeepsItsName: a class or enum id includes its name, so it is never renamed and a project or mion copy is reused.
 func (kind DeclKind) KeepsItsName() bool {
 	switch kind {
 	case DeclClass, DeclEnum:
@@ -40,8 +40,7 @@ func (kind DeclKind) KeepsItsName() bool {
 	panic(fmt.Sprintf("convert: DeclKind %d has no KeepsItsName case", kind))
 }
 
-// HasHome: it ships as its own statement in one file; a unique symbol is declared in each file that spells it, and a
-// platform class is never printed.
+// HasHome: it ships as its own statement in one file; a unique symbol repeats per file, a platform class never prints.
 func (kind DeclKind) HasHome() bool {
 	switch kind {
 	case DeclClass, DeclEnum, DeclAlias:

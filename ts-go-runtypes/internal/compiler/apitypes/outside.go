@@ -142,7 +142,7 @@ func libName(fileName string) string {
 
 // typeUse is what one arm reads off a node that names a type.
 type typeUse struct {
-	// found is where the named type is declared; a `typeof` a project value typed outside counts as outside.
+	// found: a `typeof` a project value typed outside counts as outside.
 	found origin
 	// name is the node the use resolves through, nil for an import type.
 	name     *ast.Node
@@ -150,7 +150,7 @@ type typeUse struct {
 	heritage bool
 }
 
-// visitTypeUse is the one switch over the nodes that name a type, as TypeScript's visitDeclarationSubtree; file may be nil.
+// visitTypeUse is the only switch over type-naming nodes, as TypeScript's visitDeclarationSubtree; file may be nil.
 func (trimmer *trimmer) visitTypeUse(file *fileInfo, node *ast.Node) (typeUse, bool) {
 	switch node.Kind {
 	case ast.KindTypeReference:
@@ -202,7 +202,7 @@ func (trimmer *trimmer) transformImportType(file *fileInfo, node *ast.Node) type
 	return use
 }
 
-// transformTypeQuery reads `typeof x…`; a project value declared as an outside type counts as that type, so it never ships.
+// transformTypeQuery counts `typeof` a project value declared as an outside type as that type, so it never ships.
 func (trimmer *trimmer) transformTypeQuery(node *ast.Node) typeUse {
 	exprName := node.AsTypeQueryNode().ExprName
 	parts := []string{}
