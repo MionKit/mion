@@ -39,14 +39,12 @@ type PrintedDecl struct {
 
 // DeclPrinter prints reflected nodes, collecting the declarations their text refers to.
 type DeclPrinter struct {
-	resolve  func(id string) *reflection.RunType
-	names    *nameTable
-	decls    map[string]*PrintedDecl
-	order    []string
-	aliasIDs map[string]bool
+	resolve func(id string) *reflection.RunType
+	names   *nameTable
+	decls   map[string]*PrintedDecl
+	order   []string
 	// failed holds the refusal of a declaration whose body could not print, returned to every later use of it.
 	failed   map[string]*Diagnostic
-	scanned  map[string]bool
 	usedName map[string]int
 	needs    importNeeds
 }
@@ -57,9 +55,7 @@ func NewDeclPrinter(resolve func(id string) *reflection.RunType) *DeclPrinter {
 		resolve:  resolve,
 		names:    &nameTable{RT: "RT", TF: "TF", TFT: "TFT", InferType: "InferType", GetRunType: "getRunType", TypeFormat: "TypeFormat", taken: map[string]bool{}},
 		decls:    map[string]*PrintedDecl{},
-		aliasIDs: map[string]bool{},
 		failed:   map[string]*Diagnostic{},
-		scanned:  map[string]bool{},
 		usedName: map[string]int{},
 	}
 }
@@ -139,9 +135,8 @@ func (printer *DeclPrinter) TypeToString(node *reflection.RunType) (string, erro
 	if node == nil {
 		return "", fmt.Errorf("no reflected type")
 	}
-	printer.scanCycles(node)
 	ctx := printer.context(node.ID)
-	if printer.aliasIDs[node.ID] {
+	if isRecursiveShape(node) {
 		// A recursive shape is its alias, so every use of it shares one declaration.
 		ctx.rootID = ""
 	}
@@ -166,30 +161,10 @@ func (printer *DeclPrinter) deref(node *reflection.RunType) *reflection.RunType 
 	return node
 }
 
-// scanCycles marks the shapes a back-edge returns to: each prints once, as a named alias.
-func (printer *DeclPrinter) scanCycles(root *reflection.RunType) {
-	onPath := map[string]bool{}
-	var visit func(node *reflection.RunType)
-	visit = func(node *reflection.RunType) {
-		node = printer.deref(node)
-		if node == nil || node.ID == "" {
-			return
-		}
-		if onPath[node.ID] {
-			if !isUserClass(node) && node.Kind != reflection.KindEnum {
-				printer.aliasIDs[node.ID] = true
-			}
-			return
-		}
-		if printer.scanned[node.ID] {
-			return
-		}
-		printer.scanned[node.ID] = true
-		onPath[node.ID] = true
-		node.EachRefSlot(visit)
-		delete(onPath, node.ID)
-	}
-	visit(root)
+// isRecursiveShape: a shape the serializer found a back-edge to prints once, as a named alias; a class or enum
+// closes its cycle by its own name.
+func isRecursiveShape(node *reflection.RunType) bool {
+	return node.IsCircular && !isUserClass(node) && node.Kind != reflection.KindEnum
 }
 
 func isUserClass(node *reflection.RunType) bool {
@@ -224,7 +199,7 @@ func (printer *DeclPrinter) fail(key string, diag *Diagnostic) *Diagnostic {
 
 // aliasRef spells a reference to a recursive shape, declaring its alias on first use.
 func (printer *DeclPrinter) aliasRef(ctx *printContext, node *reflection.RunType) (string, *Diagnostic, bool) {
-	if !printer.aliasIDs[node.ID] || (node.ID == ctx.rootID && len(ctx.walking) == 0) {
+	if !isRecursiveShape(node) || (node.ID == ctx.rootID && len(ctx.walking) == 0) {
 		return "", nil, false
 	}
 	key := "a:" + node.ID
