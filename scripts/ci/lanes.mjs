@@ -16,13 +16,10 @@
 // changes it and the lane re-runs, which a "diff since the last green sha" rule
 // would have missed.
 //
-// A code file (JS/TS, Go) hashes by its CODE in the lanes marked `hash: 'tokens'`:
-// mion-bin/code-digest digests its syntax without comments and blank lines, so a
-// comment-only commit keeps those hashes, against the base and against any earlier
-// run alike. Format, lint, typecheck and the contract tests read comments, so they
-// live in `hash: 'raw'` lanes (js-static, go-static, go-tools). A test that reads a
-// code file's comments or line numbers must read a raw path (TOKEN_HASHED) or run in
-// js-static, or a comment edit can break it unseen.
+// In `hash: 'tokens'` lanes a code file hashes by its code (mion-bin/code-digest drops comments
+// and blank lines), so a comment-only commit keeps their hashes; checks that read comments use `raw`
+// lanes. A test reading a code file's comments or line numbers must read a raw path (TOKEN_HASHED)
+// or run in js-static, or a comment edit can break it unseen.
 //
 // It is fail-safe in every direction: a cache miss runs the lane, an unclassified
 // path runs every lane, and only a job that actually succeeded ever writes a
@@ -54,7 +51,7 @@ import {capture, die, note, noteErr, reportCliError} from '../lib/proc.mjs';
 export const FEEDS_NOTHING = ['docs/', 'tools/', 'assets/', '.claude/', '.vscode/', '.husky/', '.git-blame-ignore-revs', 'CHANGELOG.md', 'CLAUDE.md', 'README.md', 'SETUP.md', 'LICENSE'];
 
 // A lane that only RUNS the Go binaries skips what never compiles into them, and the cmd/gen-* codegen tools.
-// code-digest only runs in the gate and in the JS tests, so it feeds the JS lanes instead (CODE_DIGEST below).
+// code-digest only runs in the gate and the JS tests, so it feeds the JS lanes instead.
 const GO_BUILD = {prefix: 'ts-go-runtypes/', keep: (path) => isGoInput(path) && !path.startsWith('ts-go-runtypes/cmd/gen-') && !path.startsWith(CODE_DIGEST)};
 const CODE_DIGEST = 'ts-go-runtypes/cmd/code-digest/';
 
@@ -161,11 +158,8 @@ export const matches = (path, entries) => entries.some((entry) => entryMatches(p
 // until someone classifies it. Never a free skip.
 export const unclassified = (paths) => paths.filter((path) => !matches(path, FEEDS_NOTHING) && !Object.values(LANES).some((lane) => matches(path, lane.paths)));
 
-// Code files a tokens lane hashes by their code. The rest hash raw: fixtures and snapshots (a test reads
-// their exact text or line numbers), the docs examples (the site shows their comments), files a test parses
-// comments out of (the drizzle example's `// case:` routes, the e2e scripts' cli([...]) calls), generated
-// files (codegen drift compares bytes), JSX (not worth the risk for four e2e files), and vendored trees.
-// ts-go-runtypes/cmd/code-digest/property_test.go keeps a copy of RAW_CODE.
+// Raw: text a test or the site reads (fixtures, snapshots, examples, `// case:` routes, e2e cli([...]), generated files).
+// JSX (four e2e files, not worth the risk) and vendored trees too; cmd/code-digest/property_test.go copies RAW_CODE.
 const CODE_FILE = /\.(ts|mts|cts|js|mjs|cjs|go)$/;
 const RAW_CODE =
   /fixture|testdata|__snapshots__|(^|\/)(_deps|node_modules|third_party)\/|^packages\/private-examples\/|^packages\/private-drizzle-example-app\/src\/server\/|^container\/pre-publish-e2e\/(build|lint)-all\.mjs$|\.generated\.(ts|go)$/;
@@ -186,8 +180,7 @@ function treeEntries(ref = 'HEAD', {cwd = REPO_ROOT} = {}) {
     });
 }
 
-// The code digest of every token-hashed blob, from ONE code-digest run. Mode `r` (raw) when the tool is
-// missing or fails, so a tokens lane then hashes object ids under a prefix no token-mode marker shares.
+// Mode `r` when the tool is missing or fails, so a raw-hashed tokens lane never matches a token-mode marker.
 export function codeDigests(entries, {cwd = REPO_ROOT, bin = CODE_DIGEST_BIN} = {}) {
   const raw = {mode: 'r', byKey: new Map()};
   if (!existsSync(bin)) return raw;
@@ -205,7 +198,7 @@ export function codeDigests(entries, {cwd = REPO_ROOT, bin = CODE_DIGEST_BIN} = 
   return {mode: 't', byKey};
 }
 
-// The tree partitioned per lane; `entries` and `digests` let a caller share one code-digest run across two trees.
+// `entries` and `digests` let a caller share one code-digest run across two trees.
 export function laneHashes(ref = 'HEAD', {cwd = REPO_ROOT, entries = treeEntries(ref, {cwd}), digests = codeDigests(entries, {cwd})} = {}) {
   const unknown = unclassified(entries.map((entry) => entry.path));
   const unknownSet = new Set(unknown);

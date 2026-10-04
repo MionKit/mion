@@ -1,10 +1,6 @@
-// code-digest hashes JS/TS and Go files by their code alone, so a CI lane can treat a commit that only
-// touches comments or blank lines as unchanged (scripts/ci/lanes.mjs runs it from the gate job).
-//
-// Run:
-//
-//	printf '<objectname> <path>\n…' | code-digest -C <repo>   prints `<objectname> <language> <digest>`, or digest `-` to hash raw
-//	code-digest --markers                                      prints the directive markers kept as code
+// code-digest hashes JS/TS and Go files by their code alone, so a CI lane (scripts/ci/lanes.mjs) treats a
+// comment-only commit as unchanged. Reads `<objectname> <path>` lines, prints `<objectname> <language> <digest>`,
+// digest `-` meaning hash raw; --markers prints the directive markers kept as code.
 package main
 
 import (

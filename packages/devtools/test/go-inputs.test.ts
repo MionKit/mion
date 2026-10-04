@@ -186,7 +186,7 @@ describe('go-inputs — the CI cache key for the prebuilt binaries', () => {
     expect(resolverDigest()).not.toBe(extractDigest());
   });
 
-  // The gate restores only code-digest, so a resolver edit under internal/ must not move its key and drop the gate to raw hashing.
+  // The gate restores only code-digest, so an internal/ edit must not move its key and drop the gate to raw hashing.
   it('keys code-digest on its own inputs, without internal/', () => {
     expect(CODE_DIGEST_INPUTS).toEqual(['ts-go-runtypes/cmd/code-digest', ...RESOLVER_INPUTS.slice(2)]);
     expect(CODE_DIGEST_INPUTS).not.toContain('ts-go-runtypes/internal');

@@ -1,5 +1,4 @@
-// Contract tests for token hashing: the lanes marked `tokens` hash a code file by its code (mion-bin/code-digest),
-// so a comment-only commit skips them, while the `raw` lanes that read comments still run.
+// A comment-only commit skips the `tokens` lanes, while the `raw` lanes that read comments still run.
 import {spawnSync} from 'node:child_process';
 import {mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import os from 'node:os';
@@ -119,7 +118,7 @@ describe('a comment-only commit', () => {
       for (const name of laneNames('tokens')) expect(comments.hashes[name], name).toBe(base.hashes[name]);
       for (const name of laneNames('raw')) expect(comments.hashes[name], name).not.toBe(base.hashes[name]);
       for (const name of ['js', 'go', 'js-static', 'go-static']) expect(code.hashes[name], name).not.toBe(comments.hashes[name]);
-      // Against the PR base: one shared code-digest run, the tokens lanes skip and the raw lanes run.
+      // Against the PR base the tokens lanes skip and the raw lanes run.
       const {hashes, baseHashes, mode} = refAndBaseHashes('HEAD~1', 'HEAD~2', {cwd: repo});
       expect(mode).toBe('t');
       const verdict = decide(Object.keys(LANES), {hashes, baseHashes});

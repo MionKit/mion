@@ -11,8 +11,7 @@ import (
 	"github.com/microsoft/typescript-go/shim/tspath"
 )
 
-// tsWalk writes the syntax tree minus trivia: every node as `(kind … )`, every token as `kind text`.
-// The tree carries what a line break decides (automatic semicolons), so line breaks themselves drop out.
+// tsWalk writes the syntax tree minus trivia; the tree carries the automatic semicolons a line break decides.
 func tsWalk(path, text string, scriptKind core.ScriptKind, out *strings.Builder, onToken tokenHook) error {
 	fileName := "/code-digest/" + path
 	sourceFile := parser.ParseSourceFile(ast.SourceFileParseOptions{FileName: fileName, Path: tspath.Path(fileName)}, text, scriptKind)
@@ -33,8 +32,7 @@ func tsWalk(path, text string, scriptKind core.ScriptKind, out *strings.Builder,
 	return nil
 }
 
-// tsWalker's row per kind: a token is emitted whole, a JSDoc node is dropped (it lives in a comment),
-// anything else is walked through (its children, plus the punctuation and keywords scanned between them).
+// walkRow is how tsWalker treats a kind; a JSDoc node is dropped because it lives in a comment.
 func walkRow(kind ast.Kind) string {
 	switch {
 	case ast.IsJSDocKind(kind):

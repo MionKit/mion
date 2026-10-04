@@ -1,5 +1,4 @@
-// Oracle for mion-bin/code-digest: TypeScript's own JS parser finds every comment in each token-hashed repo
-// file, strips the ones that are not directives, and the Go digest of the stripped text must not move.
+// Oracle: TypeScript's own parser strips every non-directive comment, and the Go code digest must not move.
 import {spawnSync} from 'node:child_process';
 import {mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import os from 'node:os';
@@ -13,7 +12,6 @@ import {CODE_DIGEST_BIN} from '../../../scripts/core/build.mjs';
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
 
-// Every comment range in the file, from the leading and trailing trivia of every token.
 function commentRanges(sourceFile: ts.SourceFile): ts.CommentRange[] {
   const text = sourceFile.text;
   const ranges = new Map<number, ts.CommentRange>();
