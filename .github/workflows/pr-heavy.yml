@@ -25,6 +25,8 @@ name: pr · website + benchmarks + pre-publish e2e (label-gated)
 # lane hashes the paths that feed it (scripts/ci/lanes.mjs) and runs only when that
 # hash has not already passed. Label AND content, so `synchronize` keeps a labelled
 # pull request honest without re-running work that is already proven.
+# The website lane does not read page text (container/website/content/) or CSS, so
+# a content-only commit skips the site build; the release gate still builds it.
 #
 # Deliberately NOT pull_request_target: that would hand secrets and write
 # permissions to fork code. And deliberately no deploy step — this proves the

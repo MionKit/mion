@@ -47,6 +47,10 @@ export const FEEDS_NOTHING = ['docs/', 'tools/', 'assets/', '.claude/', '.vscode
 // A lane that only RUNS the Go binaries skips what never compiles into them, and the cmd/gen-* codegen tools.
 const GO_BUILD = {prefix: 'ts-go-runtypes/', keep: (path) => isGoInput(path) && !path.startsWith('ts-go-runtypes/cmd/gen-')};
 
+// Page text and styling never break the site code, so they skip the website lanes; the release gate and the prod deploy still build them.
+const isWebsiteContent = (path) => path.startsWith('container/website/content/') || path.endsWith('.css');
+const WEBSITE_CODE = {prefix: 'container/website/', keep: (path) => !isWebsiteContent(path)};
+
 // Every lane hashes these: the Go binaries are the engine every lane runs (a submodule bump moves every hash).
 // Repo-wide config changes rarely enough that the over-run costs nothing.
 const REPO_CONFIG = ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'tsconfig.json', '.npmrc', '.editorconfig', '.prettierrc', '.prettierignore', '.gitignore', '.gitmodules', 'cliff.toml', 'commitlint.config.js', '.github/actions/'];
@@ -86,14 +90,14 @@ export const LANES = {
   // Both halves build with our packages and Go (the site, and the mion competitor).
   smoke: {
     job: 'container smoke',
-    paths: ['container/website/', 'container/benchmarks/', ...PACKED],
+    paths: [WEBSITE_CODE, 'container/benchmarks/', ...PACKED],
     items: {
-      website: {paths: ['container/website/', 'packages/', 'version.json', GO_BUILD]},
+      website: {paths: [WEBSITE_CODE, 'packages/', 'version.json', GO_BUILD]},
       bench: {paths: ['container/benchmarks/', 'packages/', 'version.json', GO_BUILD]},
     },
   },
   // pr-heavy.yml
-  website: {job: 'build the docs site', paths: ['container/website/', ...PACKED]},
+  website: {job: 'build the docs site', paths: [WEBSITE_CODE, ...PACKED]},
   // One item per competitor: only mion's runs our packages and the binary, so a package change re-runs only mion.
   bench: {
     job: 'validation benchmarks',

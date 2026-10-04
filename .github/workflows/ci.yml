@@ -47,7 +47,7 @@ name: ci
 #
 # A FOURTH job, `smoke`, runs the website serves-a-page + benchmark
 # competitor-build checks. It is content-gated (only when container inputs change,
-# decided by the tiny `lanes` job) and runs in PARALLEL with the verify jobs
+# decided by the tiny `lanes` job; website page text and CSS do not count) and runs in PARALLEL with the verify jobs
 # instead of tailing them. It NEVER builds the shared image: it PULLS the
 # prebuilt one (competitor node_modules baked in) and mounts our freshly built
 # binary; if the image can't be pulled the job fails (rebuild + push it from
