@@ -39,7 +39,7 @@ Files convert as a set: declarations that reference each other stay name
 references, cycles close at the root, imports are managed, and a reference to
 a convertible declaration outside the run errors (convert-outside-set) instead of inlining.
 Declarations already in the target form are left byte-identical. A declaration
-the converter cannot express reports a CNV diagnostic and stays untouched;
+the converter cannot express reports a convert-* diagnostic and stays untouched;
 any error makes the exit code non-zero.
 `)
 	}

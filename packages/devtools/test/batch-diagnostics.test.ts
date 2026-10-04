@@ -161,7 +161,7 @@ function expectClean(run: BuildRun, file: string, count = 1): BatchSite[] {
   expect(run.error, `build must not halt:\n${run.warns.join('\n')}`).toBeNull();
   expect(
     run.warns.filter((w) => /\brpc-batch-[a-z0-9-]+/.test(w)),
-    'no BAT diagnostic expected'
+    'no rpc-batch-* diagnostic expected'
   ).toEqual([]);
   expect(run.phases).toEqual(['build']);
   const sites = run.sites.filter((s) => s.file.endsWith(file));

@@ -502,7 +502,7 @@ CLI (below) rather than scraping editor output.
 Both run as out-of-band CLI modes of the Go binary (an opt-in bundler-plugin option
 can additionally drive the mechanical scaffold + sync — not translation, not the LLM
 step — in dev/watch). Validation runs via `enrich --no-emit` (CI / agents); surfacing
-the same FT/MD diagnostics *always-on during a Vite build* is the deferred integration
+the same enrich-text-* / enrich-mock-* diagnostics *always-on during a Vite build* is the deferred integration
 (see Validation below).
 
 ### The agent loop — the compiler as a tool for the LLM

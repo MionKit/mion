@@ -472,7 +472,7 @@ and the client apart.
   reflection marker assigns to the same types (a probes file, both
   `getRunTypeId` call shapes), so the API tree walk and the marker scanner
   agree.
-- **A2** the client build reports no `MET` diagnostic and bundles exactly the
+- **A2** the client build reports no `rpc-client-*` diagnostic and bundles exactly the
   routes it calls.
 - **A3** `mion api-check` over the server manifest of the server build and the
   client manifest of the client build exits 0.

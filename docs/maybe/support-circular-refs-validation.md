@@ -28,7 +28,7 @@ encoders, which can never represent a cycle):
   ("assume valid — it is being checked"). Every node in the cyclic graph is
   still structurally validated exactly once.
 - verr in support mode records nothing for the cycle — descent just stops.
-- Mutually exclusive with `rejectCircularRefs` on one call (CTA-lane compile
+- Mutually exclusive with `rejectCircularRefs` on one call (marker-comptime-arg-* compile
   error if both are set).
 
 ## Scenarios where this is valid
