@@ -113,7 +113,7 @@ func (trimmer *trimmer) originOfFile(sourceFile *ast.SourceFile) origin {
 	if trimmer.files[fileName] != nil || filepath.Dir(fileName) == trimmer.declarationDir {
 		return origin{kind: originProject}
 	}
-	if typeid.IsDefaultLibFileName(fileName) && !strings.Contains(filepath.ToSlash(fileName), "/node_modules/") {
+	if typeid.IsBundledLibFile(sourceFile.FileName()) {
 		if trimmer.outside != nil {
 			trimmer.outside.libs[libName(fileName)] = true
 		}
