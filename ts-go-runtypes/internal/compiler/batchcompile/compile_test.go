@@ -471,8 +471,7 @@ export const nested: {list: {id: string}[]} = users;
 	}
 }
 
-// TestCompile_TypeEntriesMatchTheLines: the grouped log prints TypeScript's errors from TypeEntries, so each
-// entry must say what its line says: the TS code as the name, the place, and the text after "error TSnnnn: ".
+// TestCompile_TypeEntriesMatchTheLines: the grouped log prints TypeScript's errors from TypeEntries, so each entry must match its line.
 func TestCompile_TypeEntriesMatchTheLines(t *testing.T) {
 	tmp := t.TempDir()
 	writeFile(t, filepath.Join(tmp, "tsconfig.json"), tsconfigJSON)

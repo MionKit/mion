@@ -1,6 +1,6 @@
-// Fuzz of the grouped log. The oracle reads a grouped block back into findings: every input finding must come
-// back exactly once (name, level, place, rendered message, related lines), nothing extra, and the counts must add up.
-// testdata/grouped/random.json pins the Go twin to the same bytes over random input, since CI may have no Go.
+// The oracle reads a grouped block back into findings: each input finding comes back exactly once (name, level,
+// place, message, related lines), nothing extra, counts adding up. testdata/grouped/random.json pins the Go twin
+// to the same bytes over random input, since CI may have no Go.
 
 import {readFileSync, writeFileSync} from 'node:fs';
 import path from 'node:path';

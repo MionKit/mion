@@ -191,9 +191,7 @@ async function expectInjected(run: BuildRun, file: string, sites: BatchSite[]): 
   return code!;
 }
 
-// expectHalted asserts the build stopped on `code` reported at `file`, on the
-// line of `needle`, with the report carrying no site for that file. `reason`
-// (when given) must appear rendered in the headline (never a raw `{slot}`).
+// expectHalted: one `code` at `needle`'s line, no batch site for `file`, and `reason` rendered, never a raw `{slot}`.
 function expectHalted(
   run: BuildRun,
   code: string,

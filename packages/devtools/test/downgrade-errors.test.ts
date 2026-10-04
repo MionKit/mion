@@ -306,8 +306,7 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
 
   for (const logStyle of ['grouped', 'lines'] as const) {
     register(`a file transform prints its own errors in the ${logStyle} log, then stops`, async () => {
-      // The finding exists only in the code handed to the transform (as if an upstream plugin added it), so
-      // the whole-program check never saw it and the transform reports it.
+      // The finding exists only in the code handed to the transform, so only the transform reports it.
       const dir = path.join(FIXTURE_DIR, `drifted-${logStyle}`);
       writeFixture(dir, WARNING_ENTRY_SRC);
       const drifted = `${WARNING_ENTRY_SRC.replace('{createValidateFn}', '{createValidateFn, getRunTypeId}')}export function makeId<T>() {\n  return getRunTypeId<T>();\n}\n`;

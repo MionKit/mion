@@ -514,8 +514,7 @@ func TestUnsafePropertyNames_FiresWithoutAnyRoute(t *testing.T) {
 	}
 }
 
-// TestArgsFollowTheHeadlineSlots: both headlines name the handler label before the parameter or error type,
-// so the args come in that order; swapped, the message reads "mion `name` handler parameter `route`".
+// TestArgsFollowTheHeadlineSlots: headlines name the handler first; swapped, one reads "mion `name` handler parameter `route`".
 func TestArgsFollowTheHeadlineSlots(t *testing.T) {
 	found := check(t, crossModuleFiles())
 	for code, want := range map[string][]string{

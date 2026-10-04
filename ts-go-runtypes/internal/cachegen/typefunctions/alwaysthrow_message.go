@@ -47,7 +47,7 @@ func rootThrowHeadline(code, kindLabel string) string {
 	}
 	wording, ok := rootThrowWording[code]
 	if !ok {
-		// A headline written about its argument (the unknown-keys refusals) already says the function always throws: throw it as is.
+		// A headline about its argument (the unknown-keys refusals) already says the function always throws: use it as is.
 		if definition, known := diagnostics.Definitions[code]; known && len(definition.Slots) > 0 {
 			return strings.ReplaceAll(definition.Headline, "{"+definition.Slots[0]+"}", kindLabel)
 		}

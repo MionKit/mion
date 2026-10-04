@@ -161,8 +161,7 @@ export interface PluginOptions {
   downgradeErrors?: string[] | typeof DOWNGRADE_ALL;
   // Unset hides Info findings, `'all'` prints them; never changes what halts. Overrides the tsconfig plugin key.
   levels?: typeof LEVELS_ALL;
-  // Unset or `'grouped'` prints findings grouped by name, each message once; `'lines'` prints one line each.
-  // Overrides the tsconfig plugin key.
+  // Unset or `'grouped'` groups findings by name, each message once; `'lines'` prints one each. Overrides tsconfig.
   logStyle?: LogStyle;
   // JS runtime the resolver runs format-pattern checks on (--js-runtime); defaults to this plugin's own
   // process.execPath, so the serve lane needs no configuration. Host-specific like `binary` — no tsconfig key.
@@ -587,8 +586,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     let fatal = 0;
     const findings: Finding[] = [];
     for (const diagnostic of incomplete) {
-      // A completeness finding is a LevelWarning, so isDowngraded never lowers it — yet it halts here, so
-      // this gate applies `downgradeErrors` to it directly, by code or by wildcard.
+      // isDowngraded never lowers a completeness Warning, yet it halts here, so apply `downgradeErrors` by code or `*`.
       const standDown =
         isDowngraded(downgrade, diagnostic) ||
         (DIAGNOSTIC_CATALOG[diagnostic.code]?.completeness === true && (downgrade.all || downgrade.codes.has(diagnostic.code)));
@@ -596,8 +594,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       if (!standDown) fatal += 1;
     }
     printFindings(ctx, findings, grouped, cwdAbs || process.cwd());
-    // The stale-mirror half carries no diagnostic code, so only the wildcard can
-    // stand it down.
+    // The stale-mirror half carries no diagnostic code, so only the wildcard lowers it.
     const staleCount = downgrade.all ? 0 : stale.length;
     if (staleCount === 0 && fatal === 0) return;
     const parts: string[] = [];
@@ -886,8 +883,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       // types/.gitignore) are written by the Go side inside generate, so the CLI compile lane gets them too.
       const gen = await regenerate();
       if (gen.outDir) genDirAbs = gen.outDir;
-      // Adopting the echo (under the explicit plugin option) is how a tsconfig-only setting reaches this
-      // dependency-free host.
+      // Adopting the echo under the explicit option is how a tsconfig-only setting reaches this dependency-free host.
       downgrade = resolveDowngradeErrors(options.downgradeErrors ?? gen.downgradeErrors);
       showInfo = resolveShowInfo(options.levels ?? gen.levels);
       grouped = resolveGrouped(options.logStyle ?? gen.logStyle);

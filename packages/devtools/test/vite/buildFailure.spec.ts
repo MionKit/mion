@@ -61,7 +61,7 @@ async function buildFixture(name: string, runTypes: Partial<MionRunTypesOptions>
     const thrown = e as {loc?: BuildOutcome['loc']; errors?: {loc?: BuildOutcome['loc']}[]};
     loc = thrown.loc ?? thrown.errors?.[0]?.loc;
   }
-  // Only the name slot of a grouped `error name (n)` header or a `file(l,c): error name: …` line: the fixture folders share the names.
+  // Only the name in a grouped `error name (n)` header or a `file(l,c): error name:` line: fixture folders share names.
   const codes = [
     ...new Set(
       [...messages.join('\n').matchAll(/(?:error|warning|info) (format-[a-z0-9-]+)(?::| \(\d+\))/g)].map((match) => match[1])

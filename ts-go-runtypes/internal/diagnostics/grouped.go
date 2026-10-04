@@ -7,8 +7,7 @@ import (
 	"strings"
 )
 
-// GroupedEntry is one finding as the grouped log sees it. Go twin of GroupedEntry in
-// packages/devtools/src/core/surface.ts; the shared fixtures under testdata/grouped pin both.
+// GroupedEntry is twin of GroupedEntry in packages/devtools/src/core/types.ts; testdata/grouped pins both.
 type GroupedEntry struct {
 	Severity Severity `json:"severity"`
 	Name     string   `json:"name"`
@@ -68,9 +67,7 @@ type groupedGroup struct {
 	size       int
 }
 
-// FormatGrouped prints entries grouped by severity and name, each message once, then one line per site
-// with the slot values that differ, and closes with a count line. A path under cwd prints relative to it;
-// an empty cwd keeps every path as given. Empty input prints nothing.
+// FormatGrouped prints each name once with its message, then its sites with the slot values that differ; paths under a non-empty cwd print relative.
 func FormatGrouped(entries []GroupedEntry, cwd string) string {
 	if len(entries) == 0 {
 		return ""
@@ -218,7 +215,7 @@ func groupedLocation(site Site) string {
 	return fmt.Sprintf("%s:%d:%d", site.FilePath, site.StartLine, site.StartCol)
 }
 
-// groupedValue quotes a value that is empty or holds whitespace or a quote, so where one value ends stays visible.
+// groupedValue quotes a value that is empty or holds whitespace or a quote, so where it ends stays visible.
 func groupedValue(value string) string {
 	if value != "" && !strings.ContainsAny(value, " \t\n\r\"") {
 		return value
