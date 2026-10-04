@@ -155,7 +155,8 @@ func (printer *DeclPrinter) TypeToString(node *reflection.RunType) (string, erro
 
 func (printer *DeclPrinter) context(rootID string) *printContext {
 	return &printContext{names: printer.names, opts: Options{Target: TargetType}, decl: printedDeclLabel,
-		resolve: printer.resolve, rootID: rootID, declarations: printer}
+		resolve: printer.resolve, rootID: rootID, declarations: printer,
+		flags: flagsDeclareNamedTypes | flagsDeclareUniqueSymbols | flagsNonEnumerableTag | flagsSortMembers}
 }
 
 func (printer *DeclPrinter) deref(node *reflection.RunType) *reflection.RunType {
@@ -485,7 +486,7 @@ func (ctx *printContext) returnText(signature *reflection.RunType) (string, *Dia
 // memberKey spells a member's key: an identifier, a quoted string or, when declaring unique symbols, a symbol.
 func (ctx *printContext) memberKey(member *reflection.RunType) (string, *Diagnostic) {
 	if reflection.IsSymbolKeyedName(member.Name) {
-		if ctx.declarations != nil {
+		if ctx.flags&flagsDeclareUniqueSymbols != 0 {
 			if spelled, ok := ctx.declarations.uniqueSymbolKey(member.Name); ok {
 				return "[" + spelled + "]", nil
 			}

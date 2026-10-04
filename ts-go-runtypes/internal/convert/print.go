@@ -57,9 +57,25 @@ type printContext struct {
 	// walking guards the recursive printers: a node already on the path is a back-edge, closing as a
 	// self-reference at the root's id and reporting CNV001 anywhere else.
 	walking map[string]bool
-	// declarations prints for a published types package: classes, enums and symbol keys become declarations of their own.
+	// flags turn on the printing a mode needs, as TypeScript's node builder flags do.
+	flags printFlags
+	// declarations collects the declarations the flagged arms print, as TypeScript's symbol tracker would.
 	declarations *DeclPrinter
 }
+
+// printFlags are the printing modes beyond `mion convert`'s; a DeclPrinter sets every one.
+type printFlags uint32
+
+const (
+	// flagsDeclareNamedTypes prints classes, enums, platform classes and recursive shapes as declarations.
+	flagsDeclareNamedTypes printFlags = 1 << iota
+	// flagsDeclareUniqueSymbols prints a symbol key as `[name]` with a declared unique symbol.
+	flagsDeclareUniqueSymbols
+	// flagsNonEnumerableTag prints @nonEnumerable as a JSDoc tag instead of refusing the member.
+	flagsNonEnumerableTag
+	// flagsSortMembers prints members sorted by name, since merged declarations bind in file order.
+	flagsSortMembers
+)
 
 // enter marks a node as on-path and returns the unmark func; the second result is false when the
 // node was already on the path.
@@ -836,7 +852,7 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 			indexes = append(indexes, indexSignature{key: indexKey, value: indexValue, readonly: member.Readonly})
 			continue
 		}
-		if member.NonEnumerable && ctx.declarations == nil {
+		if member.NonEnumerable && ctx.flags&flagsNonEnumerableTag == 0 {
 			// The @nonEnumerable JSDoc marker folds into the id but has no printed spelling, and
 			// dropping it would move the id, so the declaration refuses.
 			return nil, nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
@@ -878,7 +894,7 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 			child:         child,
 		})
 	}
-	if ctx.declarations != nil {
+	if ctx.flags&flagsSortMembers != 0 {
 		// Merged declarations list their members in the order the compiler bound the files, which varies.
 		sort.SliceStable(members, func(i, j int) bool { return members[i].name < members[j].name })
 	}

@@ -79,7 +79,7 @@ func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic
 	if refText, refDiag, isRef := ctx.declRef(node, TargetType); isRef {
 		return refText, refDiag
 	}
-	if ctx.declarations != nil {
+	if ctx.flags&flagsDeclareNamedTypes != 0 {
 		if aliasText, aliasDiag, isAlias := ctx.declarations.aliasRef(ctx, node); isAlias {
 			return aliasText, aliasDiag
 		}
@@ -287,14 +287,14 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 		if isRegExpNode(node) {
 			return "RegExp", nil
 		}
-		if ctx.declarations != nil && node.ClassRef != nil && node.SubKind == reflection.SubKindNonSerializable {
+		if ctx.flags&flagsDeclareNamedTypes != 0 && node.ClassRef != nil && node.SubKind == reflection.SubKindNonSerializable {
 			return ctx.typeArgumentsText(ctx.declarations.builtinRef(node), node)
 		}
 		return ctx.classSpelling(node)
 	case reflection.KindRegexp:
 		return "RegExp", nil
 	case reflection.KindEnum:
-		if ctx.declarations != nil {
+		if ctx.flags&flagsDeclareNamedTypes != 0 {
 			return ctx.declarations.enumRef(node)
 		}
 		return ctx.enumSpelling(node)
