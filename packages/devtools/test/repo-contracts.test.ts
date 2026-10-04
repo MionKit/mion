@@ -342,6 +342,20 @@ describe('every tracked JavaScript file parses', () => {
   });
 });
 
+// No CI lane runs the compile-time bench, so these pin the two things that broke it unseen.
+describe('the compile-time bench loads what its lanes install', () => {
+  const read = (file: string) => readFileSync(join(REPO_ROOT, file), 'utf8');
+
+  it('imports the vite plugin from the subpath the mion lane uses, which the devtools export', () => {
+    const subpath = /importExport\([^)]*'@mionjs\/devtools'\), '([^']+)'\)/.exec(
+      read('container/benchmarks/compiletime/compiletime.mjs')
+    )?.[1];
+    expect(subpath).toBeDefined();
+    expect(read('container/benchmarks/competitors/mion/vite.config.ts')).toContain(`from '@mionjs/devtools${subpath!.slice(1)}'`);
+    expect(JSON.parse(read('packages/devtools/package.json')).exports[subpath!]).toBeDefined();
+  });
+});
+
 describe('check-code-imports fails on an example no page uses', () => {
   const src = 'packages/private-examples/src';
   const fixture = (files: Record<string, string>): string => {
