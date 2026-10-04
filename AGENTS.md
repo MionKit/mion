@@ -5,7 +5,7 @@
 > Do not load linked / relevant files into context unless the current task strictly needs them!
 
 For setup, build, test, and publish workflows, see [SETUP.md](SETUP.md), the single setup document.
-If environment is not already setup you can run the [mion-setup skill](.agents/skills/ts-runtypes-setup/) — it drives the whole host bootstrap end-to-end. Don't hand-roll a bootstrap! 
+If environment is not already setup you can run the [mion-setup skill](.agents/skills/ts-runtypes-setup/) — it drives the whole host bootstrap end-to-end. Don't hand-roll a bootstrap!
 
 ## Assistant support
 
