@@ -60,14 +60,40 @@ describe('supersede', () => {
     expect(plan).toMatchObject({keep: [7], cancel: [], deferred: {'bench.mion': 7}});
   });
 
-  // A comment-only commit moves a raw lane's hash. That lane reruns here, so waiting on the older run only delays it.
-  it('cancels an older run when a raw lane changed, even though the code lanes did not', () => {
-    const withStatic = (staticHash: string): Decision => {
-      const decision = ci();
+  // A comment-only commit changes only the raw lanes' hashes; the code lanes keep waiting on the older run.
+  it('keeps an older run when only a raw lane changed, defers the code lanes and reruns the raw one here', () => {
+    const withStatic = (staticHash: string, hashes = {}): Decision => {
+      const decision = ci(hashes);
       return {...decision, lanes: {...decision.lanes, 'js-static': {run: true, hash: staticHash}}};
     };
     const plan = supersede({ours: withStatic('s2'), older: [{runId: 7, decision: withStatic('s1')}]});
-    expect(plan).toMatchObject({keep: [], cancel: [7], deferred: {}, reasons: {7: 'this commit changes js-static'}});
+    expect(plan).toMatchObject({keep: [7], cancel: [], deferred: {go: 7, 'js-fuzz': 7, js: 7}});
+    expect(plan.lanes['js-static']).toEqual({run: true, hash: 's2'});
+    const codeToo = supersede({ours: withStatic('s2', {js: 'j2'}), older: [{runId: 7, decision: withStatic('s1')}]});
+    expect(codeToo).toMatchObject({keep: [], cancel: [7], reasons: {7: 'this commit changes js'}});
+  });
+
+  it('cancels an older run of only a changed raw lane: nothing waits on it', () => {
+    const only = (hash: string): Decision => ({lanes: {'js-static': {run: true, hash}}, labels: []});
+    expect(supersede({ours: only('s2'), older: [{runId: 7, decision: only('s1')}]})).toMatchObject({keep: [], cancel: [7]});
+  });
+
+  // A comment-only commit changes only the raw lanes' hashes; the code lanes keep waiting on the older run.
+  it('keeps an older run when only a raw lane changed, defers the code lanes and reruns the raw one here', () => {
+    const withStatic = (staticHash: string, hashes = {}): Decision => {
+      const decision = ci(hashes);
+      return {...decision, lanes: {...decision.lanes, 'js-static': {run: true, hash: staticHash}}};
+    };
+    const plan = supersede({ours: withStatic('s2'), older: [{runId: 7, decision: withStatic('s1')}]});
+    expect(plan).toMatchObject({keep: [7], cancel: [], deferred: {go: 7, 'js-fuzz': 7, js: 7}});
+    expect(plan.lanes['js-static']).toEqual({run: true, hash: 's2'});
+    const codeToo = supersede({ours: withStatic('s2', {js: 'j2'}), older: [{runId: 7, decision: withStatic('s1')}]});
+    expect(codeToo).toMatchObject({keep: [], cancel: [7], reasons: {7: 'this commit changes js'}});
+  });
+
+  it('cancels an older run of only a changed raw lane: nothing waits on it', () => {
+    const only = (hash: string): Decision => ({lanes: {'js-static': {run: true, hash}}, labels: []});
+    expect(supersede({ours: only('s2'), older: [{runId: 7, decision: only('s1')}]})).toMatchObject({keep: [], cancel: [7]});
   });
 
   it('cancels an older run whose gate has not decided yet', () => {
