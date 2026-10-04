@@ -572,3 +572,15 @@ func TestTrim_LeavesOtherTypesAlone(t *testing.T) {
 	}
 	assertChecks(t, input, output)
 }
+
+// TestTrim_AnAugmentationFileNothingImportsLoadsFromTheEntry: a client loads only what the entry reaches.
+func TestTrim_AnAugmentationFileNothingImportsLoadsFromTheEntry(t *testing.T) {
+	output, input := trimProject(t, map[string]string{
+		"index.d.ts":   "import type { Box } from './box.ts';\n" + apiOf(`get: import("@mionjs/router").PublicRoute<(b: Box) => Promise<void>>;`),
+		"box.d.ts":     "export interface Box { a: string }\n",
+		"augment.d.ts": "declare module './box.ts' {\n    interface Box { extra: number }\n}\nexport {};\n",
+	}, "")
+	assertContains(t, output.Files["index.d.ts"], `/// <reference path="./augment.d.ts" />`)
+	assertChecks(t, input, output)
+	assertIDParity(t, input, output)
+}
