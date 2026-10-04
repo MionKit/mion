@@ -6,7 +6,8 @@ import {readFileSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
 import {formatGrouped, severityLabel} from '../src/core/groupedLog.ts';
-import {Severity, type DiagnosticRelated, type GroupedEntry} from '../src/core/protocol.ts';
+import {Severity, type DiagnosticRelated} from '../src/core/protocol.ts';
+import type {GroupedEntry} from '../src/core/types.ts';
 
 const RANDOM_CORPUS = path.resolve(
   import.meta.dirname,
@@ -52,6 +53,8 @@ const VALUES = [
   'FileHandle',
   'A | B',
   '',
+  '"a"',
+  '""',
   'say "hi"',
   'tab\there',
   'line\nbreak',
@@ -61,7 +64,15 @@ const VALUES = [
   '0',
   'x',
 ];
-const PATHS = ['/work/app/src/a.ts', '/work/app/src/b.ts', '/work/app/deep/c.ts', '/work/lib/out.ts', 'src/rel.ts', ''];
+const PATHS = [
+  '/work/app/src/a.ts',
+  '/work/app/src/b.ts',
+  '/work/app/deep/c.ts',
+  '/work/lib/out.ts',
+  '/work/app',
+  'src/rel.ts',
+  '',
+];
 
 function pick<T>(rng: () => number, list: readonly T[]): T {
   return list[Math.floor(rng() * list.length)];
@@ -120,7 +131,7 @@ function fill(template: string, slots: readonly string[], args: readonly string[
 function relative(filePath: string): string {
   if (!filePath.startsWith('/')) return filePath;
   const rel = path.posix.relative(CWD, filePath);
-  return rel.startsWith('..') ? filePath : rel;
+  return rel === '' || rel.startsWith('..') ? filePath : rel;
 }
 
 function location(site: {filePath: string; startLine: number; startCol: number}): string {
@@ -173,9 +184,10 @@ function readBack(text: string): {keys: string[]; problems: string[]} {
     let sites = 0;
     const flush = () => {
       if (!current) return;
+      const {values} = current;
       const filled = message
         .join('\n')
-        .replace(/\{([A-Za-z]\w*)\}/g, (placeholder, name: string) => current!.values.get(name) ?? placeholder);
+        .replace(/\{([A-Za-z]\w*)\}/g, (placeholder, name: string) => values.get(name) ?? placeholder);
       keys.push(JSON.stringify([header[1], header[2], Boolean(header[4]), current.loc, filled, current.related]));
       current = undefined;
     };
@@ -209,8 +221,8 @@ function expectedCountLine(entries: readonly GroupedEntry[]): string {
     [count(Severity.Warning), 'warning', 'warnings'],
     [count(Severity.Info), 'info', 'info'],
   ]
-    .filter(([n]) => (n as number) > 0)
-    .map(([n, one, many]) => `${n} ${n === 1 ? one : many}`);
+    .filter(([count]) => (count as number) > 0)
+    .map(([count, one, many]) => `${count} ${count === 1 ? one : many}`);
   const files = new Set(entries.map((entry) => relative(entry.site.filePath)).filter((file) => file !== ''));
   return `mion: ${parts.join(', ')}${files.size ? ` in ${files.size} ${files.size === 1 ? 'file' : 'files'}` : ''}`;
 }
@@ -266,19 +278,19 @@ describe('grouped log fuzz', () => {
       },
     ];
     const text = formatGrouped(entries, CWD);
-    const siteLine = text.split('\n').find((line) => /^ {4}\S/.test(line))!;
+    const siteLine = text.split('\n').find((line) => /^ {4}\S/.test(line)) as string;
     expect(checkGrouped(entries, text.replace(`${siteLine}\n`, ''))).toBeDefined();
     expect(checkGrouped(entries, text.replace(/=(\S+)/, '=changed'))).toBeDefined();
     expect(
       checkGrouped(
         entries,
-        text.replace(/\((\d+)\)/, (_m, n: string) => `(${Number(n) + 1})`)
+        text.replace(/\((\d+)\)/, (_match, count: string) => `(${Number(count) + 1})`)
       )
     ).toBeDefined();
     expect(
       checkGrouped(
         entries,
-        text.replace(/mion: (\d+)/, (_m, n: string) => `mion: ${Number(n) + 1}`)
+        text.replace(/mion: (\d+)/, (_match, count: string) => `mion: ${Number(count) + 1}`)
       )
     ).toBeDefined();
     expect(checkGrouped(entries, text)).toBeUndefined();

@@ -13,7 +13,7 @@ export type {DiagnosticEntry} from './go-generated/diagnosticCatalog.generated.t
 const SLOT = /\{([A-Za-z]\w*)\}/g;
 
 /** Twin of fillSlots in internal/diagnostics/catalog.go; a slot with no arg renders empty. */
-function fillSlots(template: string, slots: readonly string[] | undefined, args: readonly string[] | undefined): string {
+export function fillSlots(template: string, slots: readonly string[] | undefined, args: readonly string[] | undefined): string {
   if (!args || args.length === 0) return template;
   return template.replace(SLOT, (_match, name: string) => {
     const index = slots?.indexOf(name) ?? -1;

@@ -535,6 +535,67 @@
     "want": "error validate-symbol-root (3)\n  Type `Symbol` can never be validated: the generated function will always fail.\n    /work/lib/c.ts:4:1\n    src/a.ts:3:1\n      Related: src/b.ts:1:2 first here\n    src/rel.ts:5:1\n\nmion: 3 errors in 3 files"
   },
   {
+    "name": "a value holding a quote is quoted",
+    "entries": [
+      {
+        "severity": 1,
+        "name": "validate-symbol-root",
+        "template": "Type `{type}` can never be validated: the generated function will always fail.",
+        "slots": [
+          "type"
+        ],
+        "args": [
+          "\"a\""
+        ],
+        "site": {
+          "filePath": "a.ts",
+          "startLine": 1,
+          "startCol": 1
+        }
+      },
+      {
+        "severity": 1,
+        "name": "validate-symbol-root",
+        "template": "Type `{type}` can never be validated: the generated function will always fail.",
+        "slots": [
+          "type"
+        ],
+        "args": [
+          "\"\""
+        ],
+        "site": {
+          "filePath": "a.ts",
+          "startLine": 2,
+          "startCol": 1
+        }
+      }
+    ],
+    "want": "error validate-symbol-root (2)\n  Type `{type}` can never be validated: the generated function will always fail.\n    a.ts:1:1  type=\"\\\"a\\\"\"\n    a.ts:2:1  type=\"\\\"\\\"\"\n\nmion: 2 errors in 1 file"
+  },
+  {
+    "name": "the project folder itself keeps its path",
+    "cwd": "/work/app",
+    "entries": [
+      {
+        "severity": 1,
+        "name": "config-tsconfig-not-loaded",
+        "template": "Project tsconfig failed to load ({reason}).",
+        "slots": [
+          "reason"
+        ],
+        "args": [
+          "x"
+        ],
+        "site": {
+          "filePath": "/work/app",
+          "startLine": 0,
+          "startCol": 0
+        }
+      }
+    ],
+    "want": "error config-tsconfig-not-loaded (1)\n  Project tsconfig failed to load (x).\n    /work/app\n\nmion: 1 error in 1 file"
+  },
+  {
     "name": "nothing",
     "entries": [],
     "want": ""

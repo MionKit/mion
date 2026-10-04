@@ -464,19 +464,6 @@ export interface Diagnostic {
   downgraded?: boolean;
 }
 
-// One finding as the grouped log sees it; twin of Go diagnostics.GroupedEntry. Template carries `{slot}` names
-// when slots is set, else it is the finished text.
-export interface GroupedEntry {
-  severity: Severity;
-  name: string;
-  template: string;
-  slots?: readonly string[];
-  args?: readonly string[];
-  site: DiagnosticSite;
-  related?: DiagnosticRelated[];
-  downgraded?: boolean;
-}
-
 export interface Dump {
   runTypes: RunType[];
   sites: Site[];

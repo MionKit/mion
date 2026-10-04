@@ -145,9 +145,9 @@ for (const kind of BUILDS) {
   test(`client-types-nomarker (${kind}): a types-only package without its marker fails with one rpc-client-types-not-built-by-mion`, () => {
     const {status, output} = build(`client-types-nomarker-${kind}`);
     assert.notEqual(status, 0, output);
-    // the Vite error repeats its first finding, so count distinct messages
-    const rpcClientTypesNotBuiltByMion = new Set(output.split('\n').filter((line) => line.includes('rpc-client-types-not-built-by-mion')).map((line) => line.slice(line.indexOf('rpc-client-types-not-built-by-mion'))));
-    assert.equal(rpcClientTypesNotBuiltByMion.size, 1, output);
+    // the grouped log names its count in the header; the Vite halt only repeats the first finding
+    const counts = new Set([...output.matchAll(/rpc-client-types-not-built-by-mion \((\d+)\)/g)].map((match) => match[1]));
+    assert.deepEqual([...counts], ['1'], output);
     assert.doesNotMatch(output, VERSION_DRIFT);
   });
 }

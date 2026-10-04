@@ -19,7 +19,7 @@ export class DevReporter {
     private readonly print: (block: string) => void,
     private readonly cwd: () => string,
     // Read per print: the tsconfig `logStyle` echo only arrives with the first generate.
-    private readonly grouped: () => boolean = () => false
+    private readonly grouped: () => boolean
   ) {}
 
   // update takes the COMPLETE current list (a whole-program generate) and forgets what is gone.
