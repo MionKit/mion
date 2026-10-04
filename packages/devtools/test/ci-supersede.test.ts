@@ -1,4 +1,4 @@
-// What a new CI run keeps of an older one (scripts/ci/supersede.mjs). A wrong keep is harmless (waiters re-decide);
+// Which older CI runs a new run keeps (scripts/ci/supersede.mjs). A wrong keep is harmless (waiters re-decide);
 // a wrong defer waits on work nobody does, a wrong cancel throws away work the commit never touched.
 import {mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import os from 'node:os';
