@@ -11,6 +11,9 @@
 
 import fs from 'node:fs';
 
+// typia's lane installs TypeScript 7, which ships no JavaScript parser API.
+export const hasParserApi = (tsModule) => typeof (tsModule?.default ?? tsModule)?.createSourceFile === 'function';
+
 export function makeExtractors(ts) {
   const read = (f) => fs.readFileSync(f, 'utf8');
   const sf = (f) => ts.createSourceFile(f, read(f), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);

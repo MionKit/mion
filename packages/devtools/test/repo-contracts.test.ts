@@ -9,6 +9,8 @@ import {spawnSync} from 'node:child_process';
 import {isCompiledExecutable, miniflareCwdOffenders, specReferenceOffenders} from '../../../scripts/ci/check-tree.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
 import {unparsedScriptOffenders} from '../../../scripts/ci/check-tree.mjs';
+// @ts-expect-error — a plain .mjs bench script, no types.
+import {hasParserApi} from '../../../container/benchmarks/_lib/extract-cases.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
 import {referenceCycles, referenceGraph, tsconfigReferenceCycles} from '../../../scripts/ci/check-tree.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
@@ -353,6 +355,13 @@ describe('the compile-time bench loads what its lanes install', () => {
     expect(subpath).toBeDefined();
     expect(read('container/benchmarks/competitors/mion/vite.config.ts')).toContain(`from '@mionjs/devtools${subpath!.slice(1)}'`);
     expect(JSON.parse(read('packages/devtools/package.json')).exports[subpath!]).toBeDefined();
+  });
+
+  it('skips a TypeScript with no parser API, such as the TypeScript 7 the typia lane installs', () => {
+    expect(hasParserApi(ts)).toBe(true);
+    expect(hasParserApi({default: ts})).toBe(true);
+    expect(hasParserApi({default: {version: '7.0.2'}})).toBe(false);
+    expect(hasParserApi({})).toBe(false);
   });
 });
 
