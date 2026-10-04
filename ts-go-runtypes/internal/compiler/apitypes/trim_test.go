@@ -591,3 +591,18 @@ func TestTrim_AnAugmentationFileNothingImportsLoadsFromTheEntry(t *testing.T) {
 	assertChecks(t, input, output)
 	assertIDParity(t, input, output)
 }
+
+// TestTrim_KeepsAGlobalFromAScriptFile: a file with no import or export declares globals, so a client must load it.
+func TestTrim_KeepsAGlobalFromAScriptFile(t *testing.T) {
+	output, input := trimFilesWithGeo(t, map[string]string{
+		"index.d.ts":  apiOf(`get: import("@mionjs/router").PublicRoute<(o: Office) => Promise<void>>;`),
+		"office.d.ts": "interface Office { floor: number }\ninterface Unread { u: number }\n",
+	}, nil)
+	if !strings.Contains(output.Files["office.d.ts"], "interface Office") || strings.Contains(output.Files["office.d.ts"], "Unread") {
+		t.Errorf("the global the API reads must ship, alone:\n%s", output.Files["office.d.ts"])
+	}
+	if !strings.Contains(output.Files[output.Entry], `/// <reference path="./office.d.ts" />`) {
+		t.Errorf("the entry must load the script file:\n%s", output.Files[output.Entry])
+	}
+	assertSelfContained(t, output, input)
+}
