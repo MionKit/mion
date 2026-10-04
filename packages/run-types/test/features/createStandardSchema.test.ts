@@ -1,13 +1,4 @@
-// End-to-end acceptance test for createStandardSchema<T>. Drives the FULL
-// vite-plugin pipeline via vitest's vite integration: the plugin transforms
-// this file, injecting the ARRAY of two entry tuples (val + verr) at the single
-// trailing InjectTypeFnArgs<T,'validate','validationErrors'> slot; at runtime the factory
-// resolves both compiled fns and builds the two-tier `validate`.
-//
-// Per the AGENTS.md marker-coverage rule both call shapes are exercised — the
-// static `createStandardSchema<T>()` form and the value-first
-// `createStandardSchema(rt)` form — with a hash-equivalence assertion that the
-// two forms resolve to behaviourally identical validators.
+// One injected tuple array supplies validation and errors; both forms must behave equally (AGENTS.md marker coverage).
 
 import {describe, test, expect} from 'vitest';
 import {createStandardSchema} from '@mionjs/run-types';
@@ -60,10 +51,7 @@ describe('createStandardSchema<T> — Standard Schema v1 surface', () => {
     if (!result.issues) expect(result.value).toBe(input);
   });
 
-  // AGENTS.md marker-coverage: hash-equivalence between the two call shapes.
-  // The factory returns a fresh adapter object each call (so `.toBe` does not
-  // apply), so assert BEHAVIOURAL convergence — both forms accept/reject the
-  // same samples identically, proving they resolved the same compiled fns.
+  // Fresh adapter objects require behavior comparison rather than identity (AGENTS.md marker coverage).
   test('static and value-first forms resolve equivalent validators', () => {
     const fromType = createStandardSchema<string>();
     const fromSchema = createStandardSchema(TF.string());

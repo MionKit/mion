@@ -1,13 +1,5 @@
-// ESLint v9 flat config wiring the mion lint transport from the PUBLISHED package.
-//
-// This is the one thing a workspace test cannot cover: AGENTS.md records that
-// @mionjs/devtools is consumed COMPILED — the `./eslint` entry is loaded through
-// node, which never sees the `source` export condition, so what runs is the
-// package's `dist/` output. Here that output arrives inside a tarball verdaccio
-// served, which is as close to a consumer as this gets.
-//
-// The `mion/*` rules are compiler-fed, so this lane also proves the published resolver runs for a consumer install.
-// The parser stays plain TS: the rules take type information from the resolver.
+// Consumer installs load the published dist, never the source export condition (AGENTS.md).
+// Compiler-fed rules also require the published resolver; a plain TS parser suffices.
 import mion from '@mionjs/devtools/eslint';
 import tsParser from '@typescript-eslint/parser';
 

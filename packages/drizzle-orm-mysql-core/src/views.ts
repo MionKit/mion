@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// MANUAL-COLUMN views only. `mysqlView(name)` with no columns (the query-builder form) is NOT supported: its columns
-// come from drizzle's select typing (packages/drizzle-orm/AGENTS.md).
+// Query-builder views require drizzle's select generics; only manual columns are supported (packages/drizzle-orm/AGENTS.md).
 
 import type {
   DrizzleContext,

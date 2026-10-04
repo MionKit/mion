@@ -5,17 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Inheritance inside a union: a base class and its subclass BOTH declared, `Sub | Base`.
-//
-// Pinned rule: the union picks a class arm by exact constructor, so a registered subclass
-// encodes under its own arm with every field it declares and comes back as itself, whatever
-// order the checker listed the members in. An unregistered subclass takes the structural road:
-// its arm still wins (its shape is the more specific one) and it decodes to a plain object, the
-// documented unregistered behaviour. A value of a class the signature does not name is a type
-// error, not a supported path, so no test here encodes a subclass through a base-only type.
-//
-// Marker rule (AGENTS.md): every case exercises BOTH createXxx<T>() (static) and
-// createXxx(value) (reflect).
+// Class unions must prefer exact constructors regardless of member order; unregistered subclasses decode structurally.
+// Base-only signatures cannot encode unnamed subclasses; see AGENTS.md marker coverage.
 
 import {afterEach, describe, expect, it} from 'vitest';
 import {createJsonEncoderFn, createJsonDecoderFn, createValidateFn, createGetValidationErrorsFn} from '@mionjs/run-types';

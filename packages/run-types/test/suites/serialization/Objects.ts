@@ -1490,12 +1490,8 @@ export const OBJECTS = {
       return {values: [objWithMethod], deserializedValues: [{name: 'John'}]};
     },
   },
-  // Registered user classes reconstruct a real instance on decode (the class
-  // serializer registry). Kept in the OBJECTS group (a class is object-like) so
-  // they flow through every existing serialization consumer. Each thunk defines
-  // the class + its registerClassSerializer INLINE (self-contained, per the
-  // suite AGENTS.md); value-first schema is 'not-supported' (a class is not an
-  // `RT.*` model), so id-integrity skips them.
+  // OBJECTS reaches every serialization consumer; thunks must register classes inline (suite AGENTS.md).
+  // Classes are not RT models, so unsupported value-first schemas skip id-integrity.
   registered_root_class: {
     title: 'Registered root class (Date + bigint + array)',
     serializeNotes:

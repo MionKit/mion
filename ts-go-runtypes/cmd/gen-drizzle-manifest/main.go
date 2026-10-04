@@ -1,24 +1,6 @@
-// gen-drizzle-manifest maintains the per-dialect drizzle column manifests
-// (one <dialect>.manifest.json inside each dialect package), the committed
-// record of every value export of the configured drizzle-orm dialect modules
-// and the migration status of each column builder in the
-// @mionjs/drizzle-orm-<dialect>-core root modules. Everything the tool needs
-// - the dialects, their drizzle modules, package dirs, proxy files and
-// manifest paths - comes from the REQUIRED --config file
-// (drizzle-dialects.json at the repo root, hand-owned); nothing is
-// hardcoded here.
-//
-// The generator decides WHAT needs migrating; the drizzle-slim-schemas
-// skill (.agents/skills/drizzle-slim-schemas/) decides HOW each column maps
-// to a runtype format. Humans hand-edit ONLY `status` and `reason` on column
-// and function entries; every other field is regenerated from drizzle-orm's
-// d.ts through the embedded tsgo checker (internal/compiler/program).
-//
-// Run (from the repo root, via miondevx):
-//
-//	pnpm miondevx core drizzle-manifest            # regenerate / refresh in place
-//	pnpm miondevx core drizzle-manifest --check    # CI gate: read-only drift + pending + coverage
-//	pnpm miondevx core drizzle-manifest --pending  # read-only: list every entry awaiting review, with params + reason
+// Dialects and paths come only from --config; drizzle-dialects.json is hand-owned.
+// Only manifest status and reason fields are hand-edited; all other fields come from drizzle declarations.
+// Format mappings belong to .agents/skills/drizzle-slim-schemas/; this generator records migration status.
 package main
 
 import (

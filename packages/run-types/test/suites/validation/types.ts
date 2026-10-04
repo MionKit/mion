@@ -62,12 +62,7 @@ export interface ValidationCase {
   /** Plugin-rewritten thunk returning the validate validator — STATIC
    *  form. Caller supplies `T` explicitly via the type argument. */
   validate: ValidateThunk;
-  /** Plugin-rewritten thunk returning the validate validator — REFLECT
-   *  form. Calls `createValidateFn(value)` with a runtime value annotated
-   *  to type T; the type checker infers T from the annotation, the
-   *  value itself is discarded at runtime. Paired with `validate` per
-   *  the AGENTS.md "Marker test coverage rule" to verify both call
-   *  shapes produce the same validator end-to-end. **/
+  /** Runtime values are discarded; their annotations drive inference for AGENTS.md paired marker coverage. **/
   validateReflect: ValidateThunk;
   /** Plugin-rewritten thunk returning the validator rebuilt from the
    *  serialized `RTCompiledFnData.code` body via

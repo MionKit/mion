@@ -7,12 +7,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// Collection-shape tests. Each scenario has paired *_Static / *_Reflect
-// tests per the marker test coverage rule (AGENTS.md) and shares an
-// assertion helper. Exercises the modifier-and-default fields populated
-// by serialize.go's appendProperty / projectSignatureInto / projectTuple
-// — readonly, visibility, abstract, static, isSafeName, position,
-// default — none of which had end-to-end coverage before.
+// Paired forms follow AGENTS.md marker coverage; F23-F28 cover serialize.go modifier and default fields.
 
 // ---- F23 — object with optional / readonly / unsafe name ---------------------
 

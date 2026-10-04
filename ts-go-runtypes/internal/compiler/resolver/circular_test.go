@@ -7,16 +7,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// Circular-type tests adapted from circularRefs.spec.ts
-// (ref: packages/run-types/src/nodes/collection/circularRefs.spec.ts).
-// The reference spec exercises RT validation behaviour; this suite exercises only
-// the structural projection — that our serializer walks every shape without
-// infinite recursion, lands one canonical RunType per recursive type in the
-// cache, and that the back-edge closes via id equality (the wire-level
-// equivalent of runtime referential equality).
-//
-// Each scenario has paired *_Static / *_Reflect tests per the marker test
-// coverage rule (AGENTS.md).
+// Adapted from packages/run-types/src/nodes/collection/circularRefs.spec.ts; tests projection, not validation.
+// Equal back-edge ids represent runtime identity; paired forms follow AGENTS.md marker coverage.
 
 // ---- F29 — Circular object with optional self-reference ---------------------
 //

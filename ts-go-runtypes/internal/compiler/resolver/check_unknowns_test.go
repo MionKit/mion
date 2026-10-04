@@ -170,8 +170,7 @@ export const isUser = createValidateFn<User>(undefined, {checkUnknowns: true, nu
 	}
 }
 
-// Marker test coverage rule (ts-go-runtypes/AGENTS.md): both getRunTypeId call
-// shapes, written as paired tests using the natural shape for each intent.
+// Paired forms follow ts-go-runtypes/AGENTS.md marker coverage.
 
 func TestCheckUnknowns_MarkerStaticForm(t *testing.T) {
 	r := setupInline(t, map[string]string{"static.ts": `import {getRunTypeId} from '@mionjs/run-types';

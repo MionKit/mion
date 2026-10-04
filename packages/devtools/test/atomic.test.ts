@@ -1,15 +1,4 @@
-// End-to-end atomic round-trip tests. Each scenario has paired *_static
-// and *_reflect tests per the marker test coverage rule (AGENTS.md):
-//   static  uses getRunTypeId<T>() — explicit type, no value
-//   reflect uses getRunTypeId(v) — T inferred from a runtime value
-//
-// Per-test sequence is:
-//   1. Spawn the Go binary with this test's inline source(s)
-//   2. rewrite() to inject the trailing-InjectRunTypeId<T> id
-//   3. Render a runtypes-cache JS module from the resolver dump
-//   4. Eval the module and assert the resulting reflection-shape RunType
-//      contains real runtime values where applicable (BigInt / Symbol /
-//      RegExp / globalThis.Date instances)
+// AGENTS.md requires paired static and reflection tests with equal ids.
 
 import {describe, expect} from 'vitest';
 import {ReflectionKind} from '../src/core/protocol.ts';

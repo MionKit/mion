@@ -5,14 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Guards the post-deepkit reality: `import type` is SAFE for types used in routes.
-//
-// Under deepkit, reflection was emitted from the import statement, so `import type` erased the
-// metadata and silently broke validation — the reason mion shipped the `@mionjs/no-type-imports`
-// ESLint rule and AGENTS.md's "TYPE IMPORTS !!CRITICAL!!" warning. Under RunTypes the resolver
-// reads the TypeScript program at build time and injects at the route() call site, so an erased
-// import changes nothing. The rule and the warning were deleted on the strength of this spec —
-// if it ever fails, that deletion was wrong.
+// Type-only route imports are safe because reflection uses the build-time program, not runtime import metadata.
 
 import {describe, it, expect, beforeEach} from 'vitest';
 import type {ProbeUser, ProbeCount} from './typeOnlyImports.models.ts';

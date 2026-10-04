@@ -1,15 +1,5 @@
-// End-to-end circular-type round-trip tests. Adapted from
-// circularRefs.spec.ts
-// (ref: packages/run-types/src/nodes/collection/circularRefs.spec.ts).
-//
-// The reference spec exercises RT validation; this suite only proves the
-// structural pipeline — the emit footer wires each circular shape into a
-// graph that closes by *referential equality* once the virtual cache
-// module evaluates, just like the reference runtime graph does.
-//
-// Each scenario has paired static (getRunTypeId<T>()) and reflect
-// (getRunTypeId(v)) tests per the marker test coverage rule
-// (AGENTS.md).
+// Adapted from packages/run-types/src/nodes/collection/circularRefs.spec.ts; checks graph identity, not validation.
+// AGENTS.md requires paired static and reflection tests.
 
 import {describe, expect} from 'vitest';
 import {ReflectionKind, type RunType} from '../src/core/protocol.ts';

@@ -1,19 +1,5 @@
-// Class reconstruction inside a JSON UNION.
-//
-// A union that contains named class members routes each class through the flat
-// union's per-member index dispatch (a numeric [idx,value] envelope), guarded
-// on encode by instance identity (`v instanceof cs.cls`).
-// Decode reconstructs the right instance per member. This covers:
-//   - distinct-shape class unions (Circle | Square),
-//   - SAME-shape class unions (Vec | Loc, both {x,y}) — sound only because the
-//     class name is folded into the structural id so the two members are
-//     distinct nodes with distinct indices,
-//   - class + plain-object unions (Coin | {note}) — the instance reconstructs,
-//     the plain object stays plain,
-//   - unregistered members fall back to plain objects (no throw).
-//
-// Marker rule (AGENTS.md): every case exercises BOTH createXxx<T>() (static)
-// and createXxx(value) (reflect).
+// Class names must distinguish structurally identical union members; unregistered members remain plain objects.
+// AGENTS.md requires both marker forms.
 
 import {afterEach, describe, expect, it} from 'vitest';
 import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';

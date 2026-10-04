@@ -1,22 +1,6 @@
-// The Next broker: one resolver and one whole-program buildStart shared by every
-// Turbopack loader worker.
-//
-// Why this exists at all: Turbopack has no plugin API, so the only way in is a
-// webpack-style loader, and Turbopack runs loaders in a POOL OF NODE WORKER
-// PROCESSES (four on a typical machine). A loader that started its own resolver
-// would start four of them and pay for four whole-program tsgo builds per build.
-// Measured before the broker: 4 resolvers, buildStarts of 310/307/528/522ms.
-// After: 1 resolver, one 323ms buildStart.
-//
-// # Why there is no `next build` test in this file
-//
-// `next` is ~202MB and is NOT a workspace dependency, so a vitest test that shells out to
-// it would be permanently skipped here and in CI — a test that never runs, which is worse
-// than no test. This file covers what can be proven WITHOUT Next; the real Turbopack build
-// is covered in the e2e container, where Next is installed:
-// container/pre-publish-e2e/apps/smoke-next (+ its entry in build-all.mjs and its
-// assertions in test/build-outputs.test.mjs). A change to the adapter needs BOTH.
-// See src/runtypes/next/AGENTS.md.
+// Turbopack has no plugin API and uses worker processes; one broker avoids a resolver build per worker.
+// Next is not a workspace dependency; real builds run in container/pre-publish-e2e/apps/smoke-next.
+// Adapter changes need both this suite and container coverage; see src/runtypes/next/AGENTS.md.
 import {describe, expect, it, vi} from 'vitest';
 import fs from 'node:fs';
 import net from 'node:net';
@@ -162,9 +146,7 @@ export const slugify = registerPureFn((s: string): string => s.toLowerCase());
         // through the shared transform hook's addWatchFile, so this also pins
         // that the Next lane and the bundler lanes share ONE mechanism.
         expect(reply.typeDeps?.map((file: string) => path.basename(file))).toContain('entry.ts');
-        // Both still ride: an EMPTY typeDeps means "unknown", not "no
-        // dependencies", and the stamp is what keeps that case correct rather
-        // than silently stale (src/runtypes/next/AGENTS.md invariant 7).
+        // Empty typeDeps means unknown; the stamp prevents stale rewrites (src/runtypes/next/AGENTS.md, 7).
         expect(reply.stamp).toBeTruthy();
       } finally {
         await first.close();

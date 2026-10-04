@@ -1,11 +1,5 @@
-// End-to-end intersection-collapse round-trip tests. Mirrors the Go-side
-// suite in internal/compiler/resolver/intersection_collapse_test.go but exercises
-// the full pipeline: rewrite → resolver → runTypeCacheSource → eval module →
-// assert on the materialised RunType. Every scenario has paired *_static
-// and *_reflect tests per the marker test coverage rule (AGENTS.md).
-//
-// The collapse algorithm itself is documented in
-// internal/serialize/intersection_collapse.go.
+// Mirrors internal/compiler/resolver/intersection_collapse_test.go; see AGENTS.md marker coverage.
+// Collapse rules: internal/serialize/intersection_collapse.go.
 
 import {describe, expect} from 'vitest';
 import {ReflectionKind, type RunType} from '../src/core/protocol.ts';

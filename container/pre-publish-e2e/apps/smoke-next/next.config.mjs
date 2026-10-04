@@ -1,19 +1,6 @@
-// smoke-next — the Next.js / Turbopack adapter.
-//
-// Turbopack is Next 16's default bundler and exposes no plugin API, so this is
-// the only app in the matrix NOT driven by a bundler plugin: RunTypes gets in
-// through `withRunTypes`, which starts one broker here in the config process and
-// registers a loader in `turbopack.rules` for the worker processes Turbopack
-// runs loaders in.
-//
-// The page prerenders the shared selfCheck() at build time, so a passing build
-// proves the rewrite survived Turbopack AND the transformed code actually ran.
-//
-// This app is the ONLY `next build` coverage in the repo: `next` is ~202MB and is not a
-// workspace dependency, so an equivalent vitest test would be permanently skipped. The
-// unit-testable half of the adapter lives in
-// packages/devtools/test/next-broker.test.ts; the rules are in
-// packages/devtools/src/runtypes/next/AGENTS.md.
+// Turbopack has no plugin API; withRunTypes connects its loader workers to one broker in the config process.
+// Prerendering selfCheck proves the transformed code runs. Next is not a workspace dependency, so coverage lives here.
+// Unit tests: packages/devtools/test/next-broker.test.ts; rules: packages/devtools/src/runtypes/next/AGENTS.md.
 import path from 'node:path';
 import {withRunTypes} from '@mionjs/devtools/runtypes/next';
 

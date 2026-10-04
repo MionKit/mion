@@ -1,9 +1,5 @@
-// End-to-end member-type round-trip tests. Mirrors atomic.test.ts's
-// `evalCacheFor` + `getTypeFor` setup. Each scenario has paired static
-// (getRunTypeId<T>()) and reflect (getRunTypeId(v)) tests per the
-// marker test coverage rule (AGENTS.md). The recursive fixture is the
-// critical cycle-safety proof — child slots must close on the root via
-// referential equality after the virtual cache evaluates.
+// Mirrors atomic.test.ts's evalCacheFor/getTypeFor setup; recursive child slots must close on the root by identity.
+// AGENTS.md requires paired marker forms.
 
 import {describe, expect} from 'vitest';
 import {KIND_REF, ReflectionKind, type RunType} from '../src/core/protocol.ts';

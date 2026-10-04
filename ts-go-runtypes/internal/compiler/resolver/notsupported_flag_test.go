@@ -7,16 +7,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// NotSupported reflection-flag tests. The serializer KEEPS non-data members
-// (method signatures, symbols, …) in the reflected tree; PopulateFamily flags
-// exactly those nodes with NotSupported at cache-exit. The data members and
-// the non-data node's OWN children stay unflagged — only the node itself
-// carries the flag. The type-function emitters are unchanged: they still drop
-// these members at compile time; this is the
-// reflection annotation only.
-//
-// Paired *_Static / *_Reflect per the marker test coverage rule (AGENTS.md),
-// sharing one assertion helper.
+// NotSupported marks only the non-data node, never its children; type-function emitters still drop non-data members.
+// Paired forms follow AGENTS.md marker coverage.
 
 const notSupportedMixed = `interface Mixed { a: string; greet(name: string): string; sym: symbol; }`
 

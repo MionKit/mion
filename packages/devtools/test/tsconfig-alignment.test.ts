@@ -1,18 +1,5 @@
-// One tsconfig, one behavior — the JS-side pins of the config-alignment
-// contract on both public surfaces:
-//
-//   - daemon/HMR surface (direct server-mode ResolverClient, the
-//     transform-modes pattern): a setSources edit introducing an
-//     option-sensitive type (Temporal, lib-gated) resolves exactly as a build
-//     would — lib present → real type; lib absent → marker-temporal-lib-missing — and a
-//     broken/missing NAMED tsconfig fails the op loudly (config-tsconfig-not-loaded) instead of
-//     silently degrading, healing on the next setSources once fixed.
-//   - eslint surface (makeFixtureProject/runRule): the same lib sensitivity
-//     routed through the rules, plus config-tsconfig-not-loaded reported under mion/error.
-//
-// Marker coverage rule (AGENTS.md): fixtures use BOTH getRunTypeId call
-// shapes — static getRunTypeId<T>() and value-first getRunTypeId(value) —
-// with id equality asserted between them.
+// Daemon edits and lint must honor the build tsconfig, report broken configs, and recover when fixed.
+// AGENTS.md requires both marker forms with equal ids.
 
 import fs from 'node:fs';
 import os from 'node:os';

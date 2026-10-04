@@ -1,22 +1,5 @@
-// registerClassSerializer must NOT force the class's reflection graph.
-//
-// The registration site carries `InjectTypeFnArgs<T, 'classSerializerReg'>`: the plugin
-// injects a tiny classSerializerReg NAME CARD (family tag 'csr', its typeName
-// slot holding the build-time class name) instead of the runtype entry tuple.
-// This file deliberately contains NO reflection site for the class — only the
-// registration and the JSON codec sites — so the assertions prove:
-//
-//   1. the custom serializer still routes end-to-end (register → encode →
-//      decode → real instance), keyed by the card's type id;
-//   2. the card entry is registered under the 'csr' family and carries the
-//      source class name (the name-fallback lane's minification-safe key);
-//   3. the class's runtype GRAPH is absent from the registry — the old
-//      InjectRunTypeId form used to force it just to read one string.
-//
-// Marker coverage rule (AGENTS.md): the suite also pairs both getRunTypeId
-// call shapes on a plain DTO (NOT the class — reflecting the class would
-// register the very graph assertion 3 proves absent) and asserts their hash
-// equivalence.
+// Reflecting the class would invalidate the absent-graph assertion; pair marker forms on a DTO instead (AGENTS.md).
+// Registration needs a minification-safe class name card, never the reflection graph.
 
 import {afterEach, describe, expect, it} from 'vitest';
 import {createJsonEncoderFn, createJsonDecoderFn, getRunTypeId} from '@mionjs/run-types';

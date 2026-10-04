@@ -1,13 +1,5 @@
-// mion-next — a Next.js app that HOSTS the mion API, not just consumes it.
-//
-// smoke-next next door covers the type transform under Turbopack. This app covers the
-// framework half: `app/api/[...mion]/route.ts` re-exports the App Router handlers
-// @mionjs/platform-vercel builds from the routes, so one Next build produces both the
-// front end and the API, from one program.
-//
-// Container-only, like smoke-next: `next` is ~202MB and not a workspace dependency, so a
-// vitest equivalent would be permanently skipped. See
-// packages/devtools/src/runtypes/next/AGENTS.md.
+// App Router handlers produce the API and front end in one build; smoke-next covers the type transform.
+// Next is not a workspace dependency, so Vitest cannot run this coverage; see packages/devtools/src/runtypes/next/AGENTS.md.
 import path from 'node:path';
 import {withMion} from '@mionjs/devtools/next';
 

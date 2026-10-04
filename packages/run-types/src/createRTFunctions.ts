@@ -59,11 +59,7 @@ export interface ValidateOptions {
   numberMode?: 'isFinite' | 'typeof' | 'notNaN';
 }
 
-/** Validator returned by `createValidateFn<T>()`. The guard narrows to `DataOnly<T>`, the
- *  serialisable projection of `T` the validator actually enforces (functions / methods / symbols are
- *  silently dropped from the validated shape; see AGENTS.md "validate contract"). `T` defaults to
- *  `unknown` so the bare `ValidateFn` alias stays a plain `(value) => boolean`-shaped guard for the
- *  cache typedefs that carry no source type. **/
+/** Non-data members are excluded (AGENTS.md validate contract); unknown defaults keep untyped cache guards boolean-shaped. **/
 export type ValidateFn<T = unknown> = (value: unknown) => value is DataOnly<T>;
 
 /** Path segment for a Map / Set entry. `key` is the entry's iteration index: a Map/Set entry has no

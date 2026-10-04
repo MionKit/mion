@@ -7,16 +7,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// =========================================================================
-// Intersection collapse — per-rule coverage.
-//
-// Rules and goals are documented in
-// /root/.claude/plans/intersection-zesty-spindle.md §E.1 and the collapse
-// table in §Reference algorithms. Each test asserts a single rule.
-// Paired *_Static / *_Reflect tests follow the marker coverage rule
-// (AGENTS.md): static form via getRunTypeId<T>() vs reflection via
-// getRunTypeId(v).
-// =========================================================================
+// Each test isolates one collapse rule; pair Static and Reflect cases per AGENTS.md marker coverage.
 
 // ---- two-object-literal merge ------------------------------------------------
 
