@@ -115,7 +115,7 @@ func Trim(input Input) (*Output, error) {
 	lines := trimmer.outside.referenceLines(trimmer.program.TS.Options().Types)
 	// A kept augmentation or global only applies once its file loads, and a client loads what the entry reaches.
 	for _, file := range trimmer.sortedFiles() {
-		if file != entry && output.Files[trimmer.relative(file.path)] != "" && file.keptAugmentation() {
+		if file != entry && output.Files[trimmer.relative(file.path)] != "" && (file.keptAugmentation() || !ast.IsExternalModule(file.source)) {
 			lines = append(lines, fmt.Sprintf("/// <reference path=%q />", relativePath(output.Entry, trimmer.relative(file.path))))
 		}
 	}
@@ -489,13 +489,17 @@ func (trimmer *trimmer) follow(current *item) {
 			trimmer.keep(current.block, current)
 		}
 		for _, read := range current.reads(file) {
-			if len(file.locals[read.name]) == 0 {
+			targets := file.locals[read.name]
+			if len(targets) == 0 {
+				targets = trimmer.scriptGlobals(read.name)
+			}
+			if len(targets) == 0 {
 				trimmer.unresolved[read.name] = true
 			}
 			if read.name == "globalThis" && read.member != "" {
 				trimmer.unresolved[read.member] = true
 			}
-			for _, target := range file.locals[read.name] {
+			for _, target := range targets {
 				trimmer.use(target, current, read.member)
 			}
 		}
@@ -514,6 +518,17 @@ func (trimmer *trimmer) follow(current *item) {
 	case itemReExport:
 		trimmer.followModule(current, file, current.specifier, current.statement.AsExportDeclaration().ModuleSpecifier, current.importedName)
 	}
+}
+
+// scriptGlobals are the project declarations of name in files with no import or export, which every file sees.
+func (trimmer *trimmer) scriptGlobals(name string) []*item {
+	var out []*item
+	for _, file := range trimmer.sortedFiles() {
+		if !ast.IsExternalModule(file.source) {
+			out = append(out, file.locals[name]...)
+		}
+	}
+	return out
 }
 
 // use keeps a local a kept item reads; a namespace import read as `ns.member` provides only that member.

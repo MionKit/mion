@@ -267,3 +267,17 @@ func TestOutside_AMionClassInsideAPrintedTypeStaysAMionImport(t *testing.T) {
 	assertSelfContained(t, output, input, "@mionjs/core")
 	assertContains(t, output.Files["_outside/wrap.d.ts"], `import("@mionjs/core").RpcError`)
 }
+
+func TestOutside_AScriptFileExtendingAnOutsideGlobalKeepsTheImport(t *testing.T) {
+	output, input := trimFilesWithGeo(t, map[string]string{
+		"index.d.ts":  "import 'glob-pkg';\n" + apiOf(`get: import("@mionjs/router").PublicRoute<(o: Office) => Promise<void>>;`),
+		"office.d.ts": "interface Office extends GlobBase { floor: number }\n",
+	}, map[string]string{
+		"node_modules/glob-pkg/package.json": `{"name": "glob-pkg", "types": "index.d.ts"}`,
+		"node_modules/glob-pkg/index.d.ts":   "export {};\ndeclare global { interface GlobBase { g: string } }\n",
+	})
+	if !slices.ContainsFunc(output.Warnings, func(warning string) bool { return strings.Contains(warning, "script file") }) {
+		t.Errorf("an extends clause in a script file must stay an import with a warning, got %v", output.Warnings)
+	}
+	assertChecks(t, input, output)
+}
