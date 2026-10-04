@@ -196,6 +196,22 @@ func TestOutside_ADomTypeAddsItsLibReference(t *testing.T) {
 	assertSelfContained(t, output, input)
 }
 
+func TestOutside_AMappedIndexOverAnOutsideTypePrintsTheTypeAlone(t *testing.T) {
+	output, input := trimWithGeo(t, `import type { Address } from 'geo';
+export type Copy = { [K in keyof Address]: Address[K] };
+`+apiOf(`get: import("@mionjs/router").PublicRoute<() => Promise<Copy>>;`), nil)
+	assertSelfContained(t, output, input)
+	assertContains(t, output.Files["index.d.ts"], `[K in keyof import("./_outside/geo.js").Address]: import("./_outside/geo.js").Address[K]`)
+}
+
+func TestOutside_AConditionalTrueBranchPrintsTheTypeItNames(t *testing.T) {
+	output, input := trimWithGeo(t, `import type { Address } from 'geo';
+export type Kept = Address extends object ? Address : never;
+`+apiOf(`get: import("@mionjs/router").PublicRoute<() => Promise<Kept>>;`), nil)
+	assertSelfContained(t, output, input)
+	assertLacks(t, output.Files["_outside/geo.d.ts"], "= unknown")
+}
+
 // TestOutside_AGlobalMemberOnlyAPrintedTypeReachesShips: the project class a printed type names is kept late, and the
 // global member only it reads must still ship.
 func TestOutside_AGlobalMemberOnlyAPrintedTypeReachesShips(t *testing.T) {
@@ -206,4 +222,23 @@ func TestOutside_AGlobalMemberOnlyAPrintedTypeReachesShips(t *testing.T) {
 	}, nil)
 	assertSelfContained(t, output, input)
 	assertContains(t, output.Files["global.d.ts"], "interface Used", "interface Branded")
+}
+
+func TestOutside_MoreDeclarationShapes(t *testing.T) {
+	extra := map[string]string{
+		"node_modules/@types/node/index.d.ts": nodeTypesDTS + "declare module 'node:http' { export interface RequestOptions { host?: string } }\n",
+		"node_modules/legacy/package.json":     `{"name": "legacy", "types": "index.d.ts"}`,
+		"node_modules/legacy/index.d.ts":       "declare namespace Legacy { interface Config { port: number } }\ndeclare const Legacy: { version: string };\nexport = Legacy;\n",
+		"node_modules/sub/package.json":        `{"name": "sub", "exports": {"./models": {"types": "./models.d.ts"}}}`,
+		"node_modules/sub/models.d.ts":         "export interface Model { id: string }\n",
+		"node_modules/merged/package.json":     `{"name": "merged", "types": "index.d.ts"}`,
+		"node_modules/merged/index.d.ts":       "export interface Both { a: string }\nexport declare namespace Both { const tag: string }\nexport interface Global2 { g: Glob }\ndeclare global { interface Glob { deep: number } }\n",
+	}
+	output, input := trimWithGeo(t, `import type Legacy = require('legacy');
+import type { Model } from 'sub/models';
+import type { Both, Global2 } from 'merged';
+import type { RequestOptions } from 'node:http';
+`+apiOf(`get: import("@mionjs/router").PublicRoute<(c: Legacy.Config, m: Model, b: Both, g: Global2, r: RequestOptions) => Promise<void>>;`), extra)
+	assertSelfContained(t, output, input, "@types/node")
+	assertContains(t, output.Files["index.d.ts"], "import type { RequestOptions } from 'node:http';")
 }
