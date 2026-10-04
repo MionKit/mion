@@ -955,6 +955,21 @@ func TestTypesOnly_AnInstalledPackageWinsOverItsVendoredCopy(t *testing.T) {
 	}
 }
 
+// TestTypesOnly_AnInstalledCopyWithoutTheIdFallsBackToTheVendoredOne: another version of the package is installed, and
+// the vendored copy still serves the body the types package was built against.
+func TestTypesOnly_AnInstalledCopyWithoutTheIdFallsBackToTheVendoredOne(t *testing.T) {
+	installed := "/virtual/app/node_modules/@acme/dates"
+	other := purefunctions.Entry{ID: "@acme/dates#pf_other0000000000", BindingName: "other", ParamNames: []string{"utl"}, Code: "return 1;"}
+	store := storeOver(merge(vendoredTypesPackage(),
+		map[string]string{installed + "/package.json": `{"name":"@acme/dates"}`},
+		artifactDir(installed+"/dist/"+constants.PureFnArtifactDir, "@acme/dates", constants.EmitCode, other)))
+	store.Package(typesPkg)
+	result := store.Closure([]Demand{{ID: titleID, FromDir: "/virtual/app"}})
+	if len(result.Missing)+len(result.Unresolved) != 0 || result.Roots[isoDayID] != typesPkg+"/.mion/vendor/@acme/dates" {
+		t.Fatalf("the vendored copy must serve the missing id: roots=%v missing=%+v unresolved=%v", result.Roots, result.Missing, result.Unresolved)
+	}
+}
+
 // TestTypesOnly_AVendoredDirOutsideTheVendorFolderIsIgnored: a marker cannot point the store outside its own package.
 func TestTypesOnly_AVendoredDirOutsideTheVendorFolderIsIgnored(t *testing.T) {
 	files := vendoredTypesPackage()
