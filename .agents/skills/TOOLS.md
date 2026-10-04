@@ -52,8 +52,8 @@ steer the new session in their sessions list.
 - Codex CLI or cloud: use an exposed user-visible session API if one is available.
   Internal `spawn_agent` alone does not satisfy this workflow.
 - If the required session API, source/revision support, or authorization is missing,
-  report exactly what is missing. Keep the issue visible and continue independent
-  work on the current task. Never claim delegation succeeded until a session exists.
+  file the finding as a guidelines todo in the current PR instead (the header of the
+  delegate-finding skill). Never claim delegation succeeded until a session exists.
 - Use real session links or identifiers supplied by the host. Record the stable
   commit, child session, and merge-order dependency as required by the skill.
 
