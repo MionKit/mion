@@ -101,6 +101,7 @@ test('@acme/api-types: types only, the marker, the manifest and the pure fns, an
   assert.ok(entries.includes('package/_outside/@acme/geo.d.ts'), "the outside package's types ship printed");
   const printed = execFileSync('tar', ['-xzOf', TYPES_TARBALL, 'package/_outside/@acme/geo.d.ts'], {encoding: 'utf8'});
   assert.match(printed, /export declare enum Stock/);
+  assert.match(printed, /export declare class Crate \{/);
   for (const entry of entries.filter((name) => name.endsWith('.d.ts'))) {
     const text = execFileSync('tar', ['-xzOf', TYPES_TARBALL, entry], {encoding: 'utf8'});
     assert.doesNotMatch(text, /['"]@acme\/geo['"]/, `${entry} imports no outside package`);
