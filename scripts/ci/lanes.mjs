@@ -246,7 +246,7 @@ export function itemFeeds(lane, item, path) {
 // that this content passed, which is why a marker proven on another branch counts.
 export const greenKey = (lane, hash) => `mion-lane-green-${lane}-${hash}`;
 
-// Whether a run with these labels, on a pull request into baseRef, lets the lane's job run at all.
+// Whether the run's labels and pull request base let the lane's job run at all.
 export function laneLive(name, {labels, baseRef}) {
   const gate = LANES[name]?.gate ?? {};
   if (gate.unless && labels.includes(gate.unless)) return false;

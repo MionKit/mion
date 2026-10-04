@@ -925,7 +925,7 @@ describe('the converted-suites refusal count runs per PR', () => {
   });
 });
 
-// `opened` and `labeled` fire together and concurrency cancels one; the `opened` payload has no labels.
+// `opened` and `labeled` fire together and either run may outlive the other; the `opened` payload has no labels.
 describe('label gates read the live labels, never the event payload', () => {
   const LIVE_LABELS = 'fromJSON(needs.lanes.outputs.labels)';
   const action = read('.github/actions/ci-lanes/action.yml');

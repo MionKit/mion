@@ -1,11 +1,6 @@
-// supersede.mjs — which older runs of a workflow a new run keeps, and which of its lanes wait on them.
-//
 // GitHub's concurrency cancel kills an older run even when the new commit changes nothing it reads. Instead, an
 // older run whose live lanes all hash the same is kept and our jobs for those lanes wait for its markers.
-//
-// Usage (CI only, from the ci-lanes action and the lane-wait workflow):
-//   supersede --plan --decision <file> --older <file> --out <file> [--github]   our lanes with the waits to --out, `cancel=` as an output
-//   supersede --wait --decision <file> --lanes <lane…> --jobs '<name>|…' --timeout <minutes> [--pr]   wait for the deferred lanes' markers
+// CI only: --plan runs in the ci-lanes action, --wait in the lane-wait workflow.
 import {appendFileSync, readFileSync, writeFileSync} from 'node:fs';
 import {LANES, PR_PROOF, flagValues, greenKey, laneLive} from './lanes.mjs';
 import {capture, die, noteErr, reportCliError} from '../lib/proc.mjs';
@@ -26,10 +21,8 @@ const hashOf = (lanes, key) => {
   return item ? lanes[name]?.items?.[item]?.hash : lanes[name]?.hash;
 };
 
-// `ours` and each older `decision` are {lanes, labels, baseRef}. Each of our lanes waits on the oldest unchanged
-// run that runs it, and a run is kept only while one of our lanes waits on it. A label that turns a lane off
-// here (skip-defaults) leaves nothing waiting on it, so an older run of only such lanes is cancelled.
-// A changed raw lane (a comment edit) does not cancel: it reruns here while the code lanes wait.
+// `ours` and each older `decision` are {lanes, labels, baseRef}; a run is kept only while one of our lanes waits on it.
+// So a label turning our lanes off (skip-defaults) cancels it; a changed raw lane (a comment edit) reruns here instead.
 export function supersede({ours, older}) {
   const lanes = structuredClone(ours.lanes);
   const ourLive = liveKeys(ours);
@@ -83,7 +76,7 @@ const FAILED = new Set(['failure', 'timed_out']);
 const pollMs = (waited) => (waited < 10 * 60_000 ? 60_000 : 180_000);
 
 // `jobs` are the waiting job's name prefixes. Never cancels: the run may be proving lanes for other waiters.
-// A gh error is one more poll; at the deadline it returns, since running the lane is the safe default.
+// At the deadline it returns, since running the lane is the safe default.
 export function waitForRun({groups, jobs, gh, sleep, now, deadline}) {
   const outcomes = groups.map(() => null);
   const started = now();
