@@ -103,13 +103,13 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 
 ## Done when
 
-- Every message slot has a name, and every message renders to exactly today's text (a Go test over
-  the whole catalog, and the generated TS catalog check).
+- Every message slot has a name, and every message renders to exactly today's text (checked once over
+  the whole catalog during the migration; `testdata/slots.json` pins each slot order from then on).
 - One setting switches all lanes (CLI, plugin build, per file transform, dev server, Next.js)
   between grouped (default) and today's output, with Go and Vitest tests for both values per lane.
 - The today's-output value prints byte-identical to the current output.
 - Levels, halts, exit codes and downgrade behave exactly as before (existing tests stay green).
-- Info shows on the dev server with `levels: 'all'`.
+- Dev server Info stays hidden by design (see What shipped).
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched
   source file, each committed on its own.
 
@@ -203,7 +203,7 @@ mion: 3 errors, 2 warnings in 5 files
 - **Lint plugin**: untouched (editors show one finding per site). It renders through
   `renderHeadline`, which keeps the same text.
 
-### 5. Related fix in the same PR
+### 5. Related fix in the same PR (dropped, see What shipped)
 
 `DevReporter` drops Info even with `levels: 'all'`, because `showInfo` never reaches it
 (`devReporter.ts:61`). Pass `showInfo` in. With `levels: 'all'`, Info is counted in the dev
@@ -220,8 +220,7 @@ count line beside warnings (`mion: 5 warnings, 2 info (1 new) …`), the same wa
   - `formatGrouped` against the same fixtures.
   - Every lane with both values: `compile-cli.test.ts` (grouped by default, `--log-style lines`,
     the tsconfig key, exit codes), `build-halt.test.ts`, `downgrade-errors.test.ts`,
-    `batch-diagnostics.test.ts`, `enrich-plugin-sync.test.ts`, `dev-reporter.test.ts` (plus Info
-    with `levels: 'all'`), `next-broker.test.ts`, `vite/buildFailure.spec.ts`.
+    `batch-diagnostics.test.ts`, `enrich-plugin-sync.test.ts`, `dev-reporter.test.ts` , `next-broker.test.ts`, `vite/buildFailure.spec.ts`.
   - Option parity and preset pass-through (`plugin-option-parity.test.ts`,
     `mion-presets.test.ts`).
   - Existing tests that pin the one-line format either set `logStyle: 'lines'` or assert the new
@@ -263,7 +262,7 @@ count line beside warnings (`mion: 5 warnings, 2 info (1 new) …`), the same wa
 - One setting switches every lane between grouped (the default) and `lines`, tested both ways.
 - `lines` output is byte-identical to today's.
 - Levels, halts, exit codes and downgrade are unchanged.
-- Info shows on the dev server with `levels: 'all'`.
+- Dev server Info stays hidden by design (see What shipped).
 - Both simplification passes are committed.
 
 ## What shipped (reconciled 2026-10-04)
@@ -289,3 +288,12 @@ Built as planned, with these differences:
 - **Fuzz:** `packages/devtools/test/grouped-log.fuzz.test.ts` reads every grouped block back into findings
   and checks nothing is lost, changed or invented. `testdata/grouped/random.json` holds 100 random cases with
   the TS output, and the Go test holds Go to the same bytes, since CI may run JS without Go.
+- **Where the code lives:** the TS twin is `core/groupedLog.ts`, not `surface.ts`; the types it shares with
+  other modules (`GroupedEntry`, `Finding`, `LogStyle`) are in `core/types.ts`. The enrichment gate prints
+  through `printFindings`, the helper `surfaceDiagnostics` also uses, because its downgrade rule and halt
+  message are its own.
+- **Quoting:** a value is quoted when it is empty or holds whitespace or a `"`.
+- **Slot order is pinned:** `testdata/slots.json` lists every code's slots, so a rewording that moves a slot
+  fails a test until the call sites pass their values in the new order.
+- **A repo script reads the old form:** `scripts/core/tsgo-check.mjs` parses `mion compile` line by line, so
+  it passes `--log-style lines`.
