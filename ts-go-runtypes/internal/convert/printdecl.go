@@ -518,24 +518,24 @@ func (decl *PrintedDecl) declarationStatement(name string) string {
 	return ""
 }
 
-// OutsidePlaced is a declaration laid out in one file: Spelling is how that file names it.
-type OutsidePlaced struct {
+// PlacedDecl is a declaration laid out in one file: Spelling is how that file names it.
+type PlacedDecl struct {
 	Decl      *PrintedDecl
 	Spelling  string
 	Statement string
 }
 
-// LayoutOutsideFile names each declaration in one file; taken lists names the file already uses.
+// LayoutDecls names each declaration in one file; taken lists names the file already uses.
 // A class or enum keeps the name its id needs, so a second one under that name goes in a namespace.
-func LayoutOutsideFile(decls []*PrintedDecl, taken map[string]bool) []OutsidePlaced {
+func LayoutDecls(decls []*PrintedDecl, taken map[string]bool) []PlacedDecl {
 	used := map[string]bool{}
 	for name := range taken {
 		used[name] = true
 	}
 	symbols := map[string]bool{}
-	out := make([]OutsidePlaced, 0, len(decls))
+	out := make([]PlacedDecl, 0, len(decls))
 	free := func(base string) string {
-		name := FreeName(base, func(candidate string) bool { return used[candidate] })
+		name := MakeUniqueName(base, func(candidate string) bool { return used[candidate] })
 		used[name] = true
 		return name
 	}
@@ -545,34 +545,34 @@ func LayoutOutsideFile(decls []*PrintedDecl, taken map[string]bool) []OutsidePla
 		}
 		if !used[decl.Name] {
 			used[decl.Name] = true
-			out = append(out, OutsidePlaced{Decl: decl, Spelling: decl.Name, Statement: decl.declarationStatement(decl.Name)})
+			out = append(out, PlacedDecl{Decl: decl, Spelling: decl.Name, Statement: decl.declarationStatement(decl.Name)})
 			continue
 		}
 		// A namespace keeps the name the id needs for a second declaration under it.
 		namespace := free(decl.Name)
 		inner := strings.TrimPrefix(decl.declarationStatement(decl.Name), "export declare ")
 		statement := fmt.Sprintf("export declare namespace %s {\n  %s\n}", namespace, strings.ReplaceAll(inner, "\n", "\n  "))
-		out = append(out, OutsidePlaced{Decl: decl, Spelling: namespace + "." + decl.Name, Statement: statement})
+		out = append(out, PlacedDecl{Decl: decl, Spelling: namespace + "." + decl.Name, Statement: statement})
 	}
 	for _, decl := range decls {
 		switch decl.Kind {
 		case DeclAlias:
 			name := free(decl.Name)
-			out = append(out, OutsidePlaced{Decl: decl, Spelling: name, Statement: decl.declarationStatement(name)})
+			out = append(out, PlacedDecl{Decl: decl, Spelling: name, Statement: decl.declarationStatement(name)})
 		case DeclUniqueSymbol:
 			if symbols[decl.Name] {
 				continue
 			}
 			symbols[decl.Name] = true
 			used[decl.Name] = true
-			out = append(out, OutsidePlaced{Decl: decl, Spelling: decl.Name, Statement: decl.declarationStatement(decl.Name)})
+			out = append(out, PlacedDecl{Decl: decl, Spelling: decl.Name, Statement: decl.declarationStatement(decl.Name)})
 		}
 	}
 	return out
 }
 
-// FreeName is base, or base suffixed `$2`, `$3`…, the first that taken does not hold.
-func FreeName(base string, taken func(name string) bool) string {
+// MakeUniqueName is base, or base suffixed `$2`, `$3`…, the first that taken does not hold.
+func MakeUniqueName(base string, taken func(name string) bool) string {
 	name := base
 	for index := 2; taken(name); index++ {
 		name = base + "$" + strconv.Itoa(index)

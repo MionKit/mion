@@ -568,7 +568,7 @@ func (trimmer *trimmer) renderOutside(files map[string]string) error {
 	// A symbol key is declared in each file that spells it, never imported.
 	spellings := map[string]map[string]string{}
 	homeOf := map[string]string{}
-	statements := map[string][]convert.OutsidePlaced{}
+	statements := map[string][]convert.PlacedDecl{}
 	// The format imports every printed file may hold bind these names.
 	formatBindings := map[string]bool{"TypeFormat": true, "TF": true, "TFT": true}
 	homes := make([]string, 0, len(byHome))
@@ -585,7 +585,7 @@ func (trimmer *trimmer) renderOutside(files map[string]string) error {
 				}
 			}
 		}
-		placed := convert.LayoutOutsideFile(decls, formatBindings)
+		placed := convert.LayoutDecls(decls, formatBindings)
 		statements[home] = placed
 		spellings[home] = map[string]string{}
 		for _, entry := range placed {
@@ -686,7 +686,7 @@ func (trimmer *trimmer) heritageBindings(path, text string, spellings map[string
 
 // freeName is base, or base suffixed, so it names nothing text already names.
 func freeName(text, base string) string {
-	return convert.FreeName(base, func(name string) bool { return containsWord(text, name) })
+	return convert.MakeUniqueName(base, func(name string) bool { return containsWord(text, name) })
 }
 
 func containsWord(text, word string) bool {

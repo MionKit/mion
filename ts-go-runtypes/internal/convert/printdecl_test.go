@@ -48,7 +48,7 @@ func printDeclsIn(t *testing.T, sources map[string]string, names ...string) stri
 	for _, name := range names {
 		taken[name] = true
 	}
-	placed := convert.LayoutOutsideFile(printer.Decls(), taken)
+	placed := convert.LayoutDecls(printer.Decls(), taken)
 	spellings := map[string]string{}
 	for _, entry := range placed {
 		spellings[entry.Decl.Key] = entry.Spelling
@@ -263,7 +263,7 @@ func assertContainsAll(t *testing.T, text string, wanted ...string) {
 
 // TestDeclPrinter_LayoutKeepsTheNamesTheFileAlreadyBinds: a printed class named like a format import moves into a namespace.
 func TestDeclPrinter_LayoutKeepsTheNamesTheFileAlreadyBinds(t *testing.T) {
-	placed := convert.LayoutOutsideFile([]*convert.PrintedDecl{{Key: "c:1", Kind: convert.DeclClass, Name: "TF", Body: "{}"}}, map[string]bool{"TF": true})
+	placed := convert.LayoutDecls([]*convert.PrintedDecl{{Key: "c:1", Kind: convert.DeclClass, Name: "TF", Body: "{}"}}, map[string]bool{"TF": true})
 	if len(placed) != 1 || placed[0].Spelling != "TF$2.TF" || !strings.Contains(placed[0].Statement, "namespace TF$2") {
 		t.Errorf("got %+v", placed)
 	}
