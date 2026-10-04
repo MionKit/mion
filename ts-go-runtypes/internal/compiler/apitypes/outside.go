@@ -328,7 +328,7 @@ func (trimmer *trimmer) replaceUse(file *fileInfo, use *ast.Node, found origin) 
 	}
 	key := ""
 	if keys := convert.OutsideRefKeys(text); len(keys) == 1 && text == convert.OutsideRef(keys[0]) &&
-		(strings.HasPrefix(keys[0], "c:") || strings.HasPrefix(keys[0], "e:")) {
+		(strings.HasPrefix(keys[0], "c:") || strings.HasPrefix(keys[0], "e:") || strings.HasPrefix(keys[0], "a:")) {
 		key = keys[0]
 	} else {
 		key = "u:" + node.ID
@@ -724,6 +724,8 @@ func insertImports(text string, imports []string) string {
 func (trimmer *trimmer) builtinSpelling(decl *convert.OutsideDecl) string {
 	symbol := trimmer.outside.declSymbol(decl)
 	if symbol != nil {
+		// Records the library the client must load for it.
+		trimmer.originOf(symbol)
 		for _, declaration := range symbol.Declarations {
 			for parent := declaration.Parent; parent != nil; parent = parent.Parent {
 				if parent.Kind == ast.KindModuleDeclaration && parent.Name() != nil && parent.Name().Kind == ast.KindStringLiteral {

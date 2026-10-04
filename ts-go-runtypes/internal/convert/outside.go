@@ -136,6 +136,10 @@ func (printer *OutsidePrinter) Expr(node *reflection.RunType) (string, error) {
 	}
 	printer.scanCycles(node)
 	ctx := printer.context(node.ID)
+	if printer.aliasIDs[node.ID] {
+		// A recursive shape is its alias, so every use of it shares one declaration.
+		ctx.rootID = ""
+	}
 	text, diag := ctx.typeExpr(node)
 	printer.needs.merge(ctx.needs)
 	if diag != nil {

@@ -88,6 +88,9 @@ func assertChecks(t *testing.T, input Input, output *Output) {
 	if version != output.BuildVersion {
 		t.Fatalf("the trimmed entry must carry the build version %q, got %q", output.BuildVersion, version)
 	}
+	if err := VerifyIDs(input, output); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func assertContains(t *testing.T, text string, wanted ...string) {
