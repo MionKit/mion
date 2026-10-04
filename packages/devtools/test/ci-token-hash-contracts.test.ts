@@ -6,13 +6,13 @@ import os from 'node:os';
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
 // @ts-expect-error — a plain .mjs repo script, no types.
-import {LANES, TOKEN_HASHED, codeDigests, laneHashes} from '../../../scripts/ci/lanes.mjs';
+import {LANES, TOKEN_HASHED, codeDigests, decide, laneHashes, refAndBaseHashes} from '../../../scripts/ci/lanes.mjs';
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
 const read = (rel: string): string => readFileSync(path.join(REPO_ROOT, rel), 'utf8');
-type Lane = {hash: string; items?: Record<string, unknown>};
+type Lane = {hash: 'tokens' | 'raw'; items?: Record<string, unknown>};
 const lanes = Object.entries(LANES) as [string, Lane][];
-const laneNames = (mode: string): string[] =>
+const laneNames = (mode: Lane['hash']): string[] =>
   lanes.flatMap(([name, lane]) =>
     lane.hash === mode ? [name, ...Object.keys(lane.items ?? {}).map((item) => `${name}.${item}`)] : []
   );
@@ -41,6 +41,9 @@ describe('the hash mode of each lane', () => {
       'ts-go-runtypes/internal/convert/testdata/a.ts',
       'packages/devtools/test/__snapshots__/a.ts',
       'packages/private-examples/src/a.ts',
+      'packages/private-drizzle-example-app/src/server/users.routes.ts',
+      'container/pre-publish-e2e/build-all.mjs',
+      'ts-go-runtypes/internal/cachegen/purefnids/ids.generated.go',
       'packages/run-types/src/go-generated/fnHashes.generated.ts',
       'container/pre-publish-e2e/apps/mion-next/app/page.tsx',
       'container/benchmarks/_deps/competitors/zod/a.ts',
@@ -57,12 +60,12 @@ describe('laneHashes', () => {
     {objectname: 'a'.repeat(40), path: 'packages/core/src/index.ts'},
     {objectname: 'b'.repeat(40), path: 'ts-go-runtypes/internal/reflection/kind.go'},
   ];
-  const withDigests = (byObject: Map<string, string>, mode = 't') =>
-    laneHashes(undefined, {entries, digests: {mode, byObject}}).hashes;
+  const withDigests = (byKey: Map<string, string>, mode: 't' | 'r' = 't') =>
+    laneHashes(undefined, {entries, digests: {mode, byKey}}).hashes;
 
   it('puts the digest in the tokens lanes only, under a t prefix', () => {
     const plain = withDigests(new Map());
-    const digested = withDigests(new Map([[entries[0].objectname, 'c'.repeat(64)]]));
+    const digested = withDigests(new Map([[`${entries[0].objectname} ts`, 'c'.repeat(64)]]));
     expect(digested.js).not.toBe(plain.js);
     expect(digested.js.startsWith('t')).toBe(true);
     expect(digested['js-static']).toBe(plain['js-static']);
@@ -114,8 +117,13 @@ describe('a comment-only commit', () => {
       const [base, comments, code] = ['HEAD~2', 'HEAD~1', 'HEAD'].map((ref) => laneHashes(ref, {cwd: repo}));
       expect(base.mode, 'mion-bin/code-digest is missing: run pnpm run check:builds').toBe('t');
       for (const name of laneNames('tokens')) expect(comments.hashes[name], name).toBe(base.hashes[name]);
-      for (const name of ['js-static', 'go-static', 'go-tools']) expect(comments.hashes[name], name).not.toBe(base.hashes[name]);
+      for (const name of laneNames('raw')) expect(comments.hashes[name], name).not.toBe(base.hashes[name]);
       for (const name of ['js', 'go', 'js-static', 'go-static']) expect(code.hashes[name], name).not.toBe(comments.hashes[name]);
+      // Against the PR base: one shared code-digest run, the tokens lanes skip and the raw lanes run.
+      const {hashes, baseHashes, mode} = refAndBaseHashes('HEAD~1', 'HEAD~2', {cwd: repo});
+      expect(mode).toBe('t');
+      const verdict = decide(Object.keys(LANES), {hashes, baseHashes});
+      for (const [name, lane] of lanes) expect(verdict[name].run, name).toBe(lane.hash === 'raw');
     } finally {
       rmSync(repo, {recursive: true, force: true});
     }
@@ -166,5 +174,9 @@ describe('the CI wiring', () => {
     expect(resolver).toContain('node scripts/core/build.mjs --digest-cache-key');
     expect(resolver).toContain('run: node scripts/core/build.mjs digest');
     expect(resolver).toMatch(/Save the code-digest tool\n\s+if: steps\.restore-digest\.outputs\.cache-hit != 'true'/);
+    // A digest miss must set up Go even when the main binaries hit, or the build step runs without it.
+    const goSetup = resolver.match(/if: inputs\.toolchain == 'true' \|\| .+/g) ?? [];
+    expect(goSetup).toHaveLength(3);
+    for (const condition of goSetup) expect(condition).toContain("steps.restore-digest.outputs.cache-hit != 'true'");
   });
 });

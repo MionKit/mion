@@ -10,8 +10,11 @@ import {goInputFiles, goInputsDigest, isGoInput, readStamp, writeStamp} from '..
 // @ts-expect-error plain ESM dev script, no types
 import {WASM_INPUTS, isWasmInput, readWasmStamp, wasmInputsDigest} from '../../../scripts/website/playground-wasm-inputs.mjs';
 import {
+  CODE_DIGEST_INPUTS,
   EXTRACT_INPUTS,
   RESOLVER_INPUTS,
+  codeDigestCacheKey,
+  codeDigestDigest,
   extractDigest,
   goBinCacheKey,
   goIdentity,
@@ -181,5 +184,13 @@ describe('go-inputs — the CI cache key for the prebuilt binaries', () => {
     expect(RESOLVER_INPUTS[0]).toBe('ts-go-runtypes/cmd/mion');
     expect(EXTRACT_INPUTS).toEqual(['ts-go-runtypes/cmd/extract-fn-bodies', ...RESOLVER_INPUTS.slice(1)]);
     expect(resolverDigest()).not.toBe(extractDigest());
+  });
+
+  // The gate restores only code-digest, so a resolver edit under internal/ must not move its key and drop the gate to raw hashing.
+  it('keys code-digest on its own inputs, without internal/', () => {
+    expect(CODE_DIGEST_INPUTS).toEqual(['ts-go-runtypes/cmd/code-digest', ...RESOLVER_INPUTS.slice(2)]);
+    expect(CODE_DIGEST_INPUTS).not.toContain('ts-go-runtypes/internal');
+    expect(codeDigestDigest()).not.toBe(extractDigest());
+    expect(codeDigestCacheKey()).toMatch(new RegExp(`^mion-code-digest-${process.platform}-${process.arch}-[0-9a-f]{32}$`));
   });
 });

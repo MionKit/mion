@@ -67,7 +67,7 @@ const EXTRACT_BIN = join(REPO_ROOT, 'mion-bin/extract-fn-bodies');
 const EXTRACT_STAMP = join(REPO_ROOT, 'mion-bin/.extract-fn-bodies.stamp');
 export const EXTRACT_INPUTS = ['ts-go-runtypes/cmd/extract-fn-bodies', ...RESOLVER_INPUTS.slice(1)];
 const CODE_DIGEST_PKG = './cmd/code-digest';
-const CODE_DIGEST_BIN = join(REPO_ROOT, 'mion-bin/code-digest');
+export const CODE_DIGEST_BIN = join(REPO_ROOT, 'mion-bin/code-digest');
 const CODE_DIGEST_STAMP = join(REPO_ROOT, 'mion-bin/.code-digest.stamp');
 // No internal/: an edit there must not drop the gate to raw hashing while the tool's cache entry rebuilds.
 export const CODE_DIGEST_INPUTS = ['ts-go-runtypes/cmd/code-digest', ...RESOLVER_INPUTS.slice(2)];
