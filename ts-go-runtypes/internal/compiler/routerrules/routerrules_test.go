@@ -2,6 +2,7 @@ package routerrules
 
 import (
 	"context"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -510,5 +511,20 @@ func TestUnsafePropertyNames_FiresWithoutAnyRoute(t *testing.T) {
 	assertCodes(t, found, diagnostics.CodeRouteUnsafePropertyName)
 	if got := found[0].Args; len(got) != 1 || got[0] != "__proto__" {
 		t.Fatalf("args = %v, want [__proto__]", got)
+	}
+}
+
+// TestArgsFollowTheHeadlineSlots: both headlines name the handler label before the parameter or error type,
+// so the args come in that order; swapped, the message reads "mion `name` handler parameter `route`".
+func TestArgsFollowTheHeadlineSlots(t *testing.T) {
+	found := check(t, crossModuleFiles())
+	for code, want := range map[string][]string{
+		diagnostics.CodeRouteMissingParamType:  {"route", "name"},
+		diagnostics.CodeRouteReturnedErrorType: {"route", "Error"},
+	} {
+		index := slices.IndexFunc(found, func(one diagnostics.Diagnostic) bool { return one.Code == code })
+		if index < 0 || !slices.Equal(found[index].Args, want) {
+			t.Errorf("%s args, want %q\n%s", code, want, render(found))
+		}
 	}
 }

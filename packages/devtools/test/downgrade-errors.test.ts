@@ -236,6 +236,7 @@ const TSCONFIG_DOWNGRADE_DIR = path.join(FIXTURE_DIR, 'tsconfig-downgrade-progra
 const COLLISION_DIR = path.join(FIXTURE_DIR, 'type-id-collision-program');
 const TSCONFIG_LEVELS_DIR = path.join(FIXTURE_DIR, 'tsconfig-levels-program');
 const TSCONFIG_LOG_STYLE_DIR = path.join(FIXTURE_DIR, 'tsconfig-log-style-program');
+const TSCONFIG_BAD_LOG_STYLE_DIR = path.join(FIXTURE_DIR, 'tsconfig-bad-log-style-program');
 const EXPECT_ERROR_DIR = path.join(FIXTURE_DIR, 'expect-error-program');
 const STALE_EXPECT_DIR = path.join(FIXTURE_DIR, 'stale-expect-program');
 const DOWNGRADE_ERROR_DIR = path.join(FIXTURE_DIR, 'downgrade-error-program');
@@ -253,6 +254,7 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
     writeFixture(WARNING_DIR, WARNING_ENTRY_SRC);
     writeFixture(TSCONFIG_LEVELS_DIR, WARNING_ENTRY_SRC, TSCONFIG_LEVELS_SRC);
     writeFixture(TSCONFIG_LOG_STYLE_DIR, WARNING_ENTRY_SRC, TSCONFIG_LOG_STYLE_SRC);
+    writeFixture(TSCONFIG_BAD_LOG_STYLE_DIR, WARNING_ENTRY_SRC, TSCONFIG_LOG_STYLE_SRC.replace('"lines"', '"line"'));
     writeFixture(UNRESOLVED_DIR, UNRESOLVED_IMPORT_SRC);
     writeFixture(TSCONFIG_DOWNGRADE_DIR, ERROR_ENTRY_SRC, TSCONFIG_DOWNGRADE_SRC);
     writeFixture(COLLISION_DIR, COLLISION_ENTRY_SRC, TSCONFIG_HASHLENGTH1_SRC);
@@ -297,6 +299,64 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
       } | null;
       expect(transformed).toBeTruthy();
       expect(transformed!.code).toContain('getRunTypeId');
+    } finally {
+      await callHook(plugin.buildEnd, ctx);
+    }
+  });
+
+  for (const logStyle of ['grouped', 'lines'] as const) {
+    register(`a file transform prints its own errors in the ${logStyle} log, then stops`, async () => {
+      // The finding exists only in the code handed to the transform (as if an upstream plugin added it), so
+      // the whole-program check never saw it and the transform reports it.
+      const dir = path.join(FIXTURE_DIR, `drifted-${logStyle}`);
+      writeFixture(dir, WARNING_ENTRY_SRC);
+      const drifted = `${WARNING_ENTRY_SRC.replace('{createValidateFn}', '{createValidateFn, getRunTypeId}')}export function makeId<T>() {\n  return getRunTypeId<T>();\n}\n`;
+      const plugin = makePlugin(dir, {logStyle});
+      const ctx = makeCtx();
+      try {
+        await callHook(plugin.buildStart, ctx);
+        const before = ctx.warnings.length;
+        await expect(callHook(plugin.transform, ctx, drifted, path.join(dir, 'entry.ts'))).rejects.toThrow(
+          /build stopped on 1 mion error/
+        );
+        const fresh = ctx.warnings.slice(before).filter((warning) => warning.includes('marker-in-generic-function'));
+        expect(fresh).toHaveLength(1);
+        if (logStyle === 'grouped') expect(fresh[0]).toMatch(/^error marker-in-generic-function \(1\)\n/);
+        else expect(fresh[0]).toMatch(/entry\.ts\(\d+,\d+\): error marker-in-generic-function: /);
+      } finally {
+        await callHook(plugin.buildEnd, ctx);
+      }
+    });
+  }
+
+  for (const logStyle of ['grouped', 'lines'] as const) {
+    register(`a watch rebuild prints an edit's findings in the ${logStyle} log, and never stops`, async () => {
+      const dir = path.join(FIXTURE_DIR, `watch-${logStyle}`);
+      writeFixture(dir, WARNING_ENTRY_SRC);
+      const plugin = makePlugin(dir, {logStyle});
+      const ctx = makeCtx();
+      try {
+        await callHook(plugin.buildStart, ctx);
+        const before = ctx.warnings.length;
+        const entry = path.join(dir, 'entry.ts');
+        const edited = `${WARNING_ENTRY_SRC.replace('{createValidateFn}', '{createValidateFn, getRunTypeId}')}export function makeId<T>() {\n  return getRunTypeId<T>();\n}\n`;
+        fs.writeFileSync(entry, edited);
+        await plugin.rtHotUpdate(ctx, [{file: entry, content: edited}]);
+        const fresh = ctx.warnings.slice(before).filter((warning) => warning.includes('marker-in-generic-function'));
+        expect(fresh).toHaveLength(1);
+        if (logStyle === 'grouped') expect(fresh[0]).toMatch(/^error marker-in-generic-function \(1\)\n/);
+        else expect(fresh[0]).toMatch(/entry\.ts\(\d+,\d+\): error marker-in-generic-function: /);
+      } finally {
+        await callHook(plugin.buildEnd, ctx);
+      }
+    });
+  }
+
+  register('a bad tsconfig logStyle stops the build when buildStart adopts it', async () => {
+    const plugin = makePlugin(TSCONFIG_BAD_LOG_STYLE_DIR);
+    const ctx = makeCtx();
+    try {
+      await expect(callHook(plugin.buildStart, ctx)).rejects.toThrow(/invalid logStyle "line"/);
     } finally {
       await callHook(plugin.buildEnd, ctx);
     }

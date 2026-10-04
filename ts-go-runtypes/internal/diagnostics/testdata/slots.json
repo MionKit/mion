@@ -1,0 +1,468 @@
+{
+  "comment-downgrade-error-already-warning": [
+    "name"
+  ],
+  "comment-downgrade-error-not-allowed": [
+    "name"
+  ],
+  "comment-downgrade-error-unknown-name": [
+    "name"
+  ],
+  "comment-downgrade-error-unused": [
+    "name"
+  ],
+  "comment-expect-error-not-allowed": [
+    "name"
+  ],
+  "comment-expect-error-unknown-name": [
+    "name"
+  ],
+  "comment-expect-error-unused": [
+    "name"
+  ],
+  "config-lib-missing-base": [
+    "libs"
+  ],
+  "config-output-outside-out-dir": [
+    "file",
+    "outDir"
+  ],
+  "config-tsconfig-not-loaded": [
+    "reason"
+  ],
+  "data-non-enumerable-required": [
+    "property"
+  ],
+  "data-proto-property-dropped": [
+    "property"
+  ],
+  "enrich-mirror-moved": [
+    "expected",
+    "actual"
+  ],
+  "enrich-mirror-source-missing": [
+    "source",
+    "reason"
+  ],
+  "enrich-mirror-type-missing": [
+    "source",
+    "type"
+  ],
+  "enrich-mirror-unreadable": [
+    "reason"
+  ],
+  "enrich-mock-reserved-prefix": [
+    "property"
+  ],
+  "enrich-mock-unknown-field": [
+    "field"
+  ],
+  "enrich-text-missing-message": [
+    "key"
+  ],
+  "enrich-text-plural-without-count": [
+    "constraint"
+  ],
+  "enrich-text-reserved-prefix": [
+    "property"
+  ],
+  "enrich-text-unknown-error-key": [
+    "key"
+  ],
+  "enrich-text-unknown-field": [
+    "field"
+  ],
+  "enrich-text-unknown-placeholder": [
+    "placeholder"
+  ],
+  "enrich-text-unknown-plural-arm": [
+    "arm"
+  ],
+  "format-invalid-params": [
+    "reason"
+  ],
+  "format-no-js-runtime": [
+    "pattern",
+    "reason"
+  ],
+  "format-pattern-timeout": [
+    "pattern",
+    "reason"
+  ],
+  "format-pattern-unreadable": [
+    "pattern"
+  ],
+  "format-pattern-unsafe": [
+    "pattern",
+    "reason",
+    "input"
+  ],
+  "format-sample-conflict": [
+    "format",
+    "samples",
+    "otherSamples",
+    "otherSite"
+  ],
+  "format-sample-generation-failed": [
+    "pattern",
+    "reason"
+  ],
+  "format-sample-mismatch": [
+    "sample",
+    "pattern"
+  ],
+  "format-sample-out-of-bounds": [
+    "reason"
+  ],
+  "internal-json-primitive-missing": [
+    "composite",
+    "primitive",
+    "type"
+  ],
+  "internal-kind-not-compilable": [
+    "type"
+  ],
+  "json-prepare-clone-function-property-dropped": [
+    "property"
+  ],
+  "json-prepare-clone-function-root": [
+    "type"
+  ],
+  "json-prepare-clone-method-dropped": [
+    "method"
+  ],
+  "json-prepare-clone-never-root": [
+    "type"
+  ],
+  "json-prepare-clone-non-data-property-dropped": [
+    "property"
+  ],
+  "json-prepare-clone-non-data-root": [
+    "type"
+  ],
+  "json-prepare-clone-static-dropped": [
+    "member"
+  ],
+  "json-prepare-clone-symbol-key-dropped": [
+    "property"
+  ],
+  "json-prepare-clone-symbol-root": [
+    "type"
+  ],
+  "json-prepare-clone-union-member-dropped": [
+    "type"
+  ],
+  "json-prepare-function-property-dropped": [
+    "property"
+  ],
+  "json-prepare-function-root": [
+    "type"
+  ],
+  "json-prepare-method-dropped": [
+    "method"
+  ],
+  "json-prepare-never-root": [
+    "type"
+  ],
+  "json-prepare-non-data-property-dropped": [
+    "property"
+  ],
+  "json-prepare-non-data-root": [
+    "type"
+  ],
+  "json-prepare-static-dropped": [
+    "member"
+  ],
+  "json-prepare-symbol-key-dropped": [
+    "property"
+  ],
+  "json-prepare-symbol-root": [
+    "type"
+  ],
+  "json-prepare-union-member-dropped": [
+    "type"
+  ],
+  "json-restore-function-property-dropped": [
+    "property"
+  ],
+  "json-restore-function-root": [
+    "type"
+  ],
+  "json-restore-method-dropped": [
+    "method"
+  ],
+  "json-restore-never-root": [
+    "type"
+  ],
+  "json-restore-non-data-property-dropped": [
+    "property"
+  ],
+  "json-restore-non-data-root": [
+    "type"
+  ],
+  "json-restore-static-dropped": [
+    "member"
+  ],
+  "json-restore-symbol-key-dropped": [
+    "property"
+  ],
+  "json-restore-symbol-root": [
+    "type"
+  ],
+  "json-restore-union-member-dropped": [
+    "type"
+  ],
+  "marker-any-from-unresolved-import": [
+    "import"
+  ],
+  "marker-any-from-unresolved-name": [
+    "name"
+  ],
+  "marker-calls-function-for-type": [
+    "function"
+  ],
+  "marker-comptime-arg-forbidden-construct": [
+    "construct"
+  ],
+  "marker-comptime-arg-widened-const": [
+    "member"
+  ],
+  "marker-duplicate-function-family": [
+    "family"
+  ],
+  "marker-generic-missing-type-argument": [
+    "type",
+    "typeParam"
+  ],
+  "marker-self-instantiating-generic": [
+    "type"
+  ],
+  "marker-temporal-lib-missing": [
+    "type"
+  ],
+  "marker-type-id-collision": [
+    "id",
+    "firstType",
+    "firstSite",
+    "secondType",
+    "hashLength"
+  ],
+  "marker-unknown-function-family": [
+    "family",
+    "hint"
+  ],
+  "marker-unresolved-type-parameter": [
+    "typeParam"
+  ],
+  "marker-untrusted-package": [
+    "name",
+    "package"
+  ],
+  "marker-untyped-private-member": [
+    "member",
+    "class"
+  ],
+  "override-duplicate": [
+    "key"
+  ],
+  "override-function-not-built": [
+    "entry",
+    "function"
+  ],
+  "purefn-artifact-conflict": [
+    "fn",
+    "first",
+    "second"
+  ],
+  "purefn-artifact-unreadable": [
+    "file",
+    "reason"
+  ],
+  "purefn-dependency-cycle": [
+    "fn",
+    "id",
+    "target"
+  ],
+  "purefn-dependency-not-id": [
+    "namespace",
+    "fn"
+  ],
+  "purefn-destructured-param": [
+    "factory"
+  ],
+  "purefn-forbidden-construct": [
+    "construct"
+  ],
+  "purefn-id-mismatch": [
+    "id",
+    "computedId"
+  ],
+  "purefn-not-registered": [
+    "fn"
+  ],
+  "purefn-package-not-built": [
+    "fn",
+    "package"
+  ],
+  "purefn-reads-outer-variable": [
+    "name"
+  ],
+  "rpc-batch-argument-out-of-range": [
+    "index",
+    "route",
+    "count"
+  ],
+  "rpc-batch-duplicate-route": [
+    "route"
+  ],
+  "rpc-batch-element-unreadable": [
+    "reason"
+  ],
+  "rpc-batch-id-collision": [
+    "id"
+  ],
+  "rpc-batch-mapper-missing": [
+    "mapper"
+  ],
+  "rpc-batch-mapper-unreadable": [
+    "reason"
+  ],
+  "rpc-batch-router-init-hidden": [
+    "file"
+  ],
+  "rpc-batch-source-not-before": [
+    "source",
+    "target"
+  ],
+  "rpc-client-api-unreadable": [
+    "reason"
+  ],
+  "rpc-client-imports-server-value": [
+    "name",
+    "module"
+  ],
+  "rpc-client-middleware-not-set-up": [
+    "route",
+    "middleware"
+  ],
+  "rpc-client-option-widened": [
+    "option",
+    "route"
+  ],
+  "rpc-client-optional-middleware-not-set-up": [
+    "route",
+    "middleware"
+  ],
+  "rpc-client-route-not-declared": [
+    "route"
+  ],
+  "rpc-client-server-version-mismatch": [
+    "clientVersion",
+    "serverVersion"
+  ],
+  "rpc-client-types-not-built-by-mion": [
+    "package",
+    "reason"
+  ],
+  "rpc-client-types-other-mion-version": [
+    "package",
+    "builtWith",
+    "running"
+  ],
+  "rpc-client-version-mismatch": [
+    "clientVersion",
+    "apiVersion"
+  ],
+  "rpc-handler-missing-param-type": [
+    "handler",
+    "param"
+  ],
+  "rpc-handler-missing-return-type": [
+    "handler"
+  ],
+  "rpc-handler-non-data-property": [
+    "property"
+  ],
+  "rpc-handler-returns-non-rpc-error": [
+    "handler",
+    "errorType"
+  ],
+  "rpc-handler-throws": [
+    "handler"
+  ],
+  "unknown-keys-function-shared": [
+    "target"
+  ],
+  "unknown-keys-method-not-copied": [
+    "member"
+  ],
+  "unknown-keys-non-data-shared": [
+    "target"
+  ],
+  "unknown-keys-private-fields": [
+    "target"
+  ],
+  "unknown-keys-shared-value-refused": [
+    "target"
+  ],
+  "unknown-keys-static-dropped": [
+    "member"
+  ],
+  "unknown-keys-symbol-key": [
+    "target"
+  ],
+  "unknown-keys-value-shared": [
+    "target"
+  ],
+  "validate-function-property-dropped": [
+    "property"
+  ],
+  "validate-function-root": [
+    "type"
+  ],
+  "validate-method-dropped": [
+    "method"
+  ],
+  "validate-non-data-property-dropped": [
+    "property"
+  ],
+  "validate-non-data-root": [
+    "type"
+  ],
+  "validate-static-dropped": [
+    "member"
+  ],
+  "validate-symbol-key-dropped": [
+    "property"
+  ],
+  "validate-symbol-root": [
+    "type"
+  ],
+  "validate-union-member-dropped": [
+    "type"
+  ],
+  "validation-errors-function-property-dropped": [
+    "property"
+  ],
+  "validation-errors-function-root": [
+    "type"
+  ],
+  "validation-errors-method-dropped": [
+    "method"
+  ],
+  "validation-errors-non-data-property-dropped": [
+    "property"
+  ],
+  "validation-errors-non-data-root": [
+    "type"
+  ],
+  "validation-errors-static-dropped": [
+    "member"
+  ],
+  "validation-errors-symbol-key-dropped": [
+    "property"
+  ],
+  "validation-errors-symbol-root": [
+    "type"
+  ]
+}

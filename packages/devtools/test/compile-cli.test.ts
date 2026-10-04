@@ -109,11 +109,10 @@ export const isPet = createValidateFn<Pet>();
 export const petId = getRunTypeId<Pet>();
 export const sampleId = getRunTypeId(new Pet());
 `;
-  const compileWithLevels = (levels: string | undefined, plugin: Record<string, string> = {}, flags: string[] = []) => {
+  const compileWithLevels = (plugin: Record<string, string> = {}, flags: string[] = []) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-compile-levels-'));
     const tsconfig = JSON.parse(TSCONFIG);
-    if (levels || Object.keys(plugin).length > 0)
-      tsconfig.compilerOptions.plugins = [{name: 'mion', ...(levels ? {levels} : {}), ...plugin}];
+    if (Object.keys(plugin).length > 0) tsconfig.compilerOptions.plugins = [{name: 'mion', ...plugin}];
     fs.writeFileSync(path.join(dir, 'tsconfig.json'), JSON.stringify(tsconfig));
     fs.mkdirSync(path.join(dir, 'src'));
     writeMarkerPackage(dir);
@@ -128,13 +127,13 @@ export const sampleId = getRunTypeId(new Pet());
   };
 
   register('hides an Info finding unless the tsconfig sets levels: "all"', () => {
-    const quiet = compileWithLevels(undefined);
+    const quiet = compileWithLevels();
     expect(quiet.status, quiet.report).toBe(0);
     expect(quiet.stderr).not.toContain('validate-method-dropped');
     expect(quiet.stderr).not.toMatch(/: (error|warning) /);
     expect(quiet.stderr).toContain('checked 1 file(s), wrote nothing');
 
-    const shown = compileWithLevels('all');
+    const shown = compileWithLevels({levels: 'all'});
     expect(shown.status, shown.report).toBe(0);
     // Grouped by default: the name, the message with its one value filled in, then the site.
     expect(shown.stderr).toMatch(/^info validate-method-dropped \(1\)\n {2}Method `speak` .*\n {4}src\/pet\.ts:\d+:\d+$/m);
@@ -143,7 +142,10 @@ export const sampleId = getRunTypeId(new Pet());
   });
 
   register('prints one line per finding with --log-style lines, as with the tsconfig logStyle: "lines"', () => {
-    for (const shown of [compileWithLevels('all', {}, ['--log-style', 'lines']), compileWithLevels('all', {logStyle: 'lines'})]) {
+    for (const shown of [
+      compileWithLevels({levels: 'all'}, ['--log-style', 'lines']),
+      compileWithLevels({levels: 'all', logStyle: 'lines'}),
+    ]) {
       expect(shown.status, shown.report).toBe(0);
       // The same line the bundler plugin prints: the code, then the rendered headline, never the raw args.
       expect(shown.stderr).toMatch(/\(\d+,\d+\): info validate-method-dropped: \S.*`speak`/);
@@ -152,16 +154,16 @@ export const sampleId = getRunTypeId(new Pet());
   });
 
   register('the --log-style flag wins over the tsconfig logStyle', () => {
-    const shown = compileWithLevels('all', {logStyle: 'lines'}, ['--log-style', 'grouped']);
+    const shown = compileWithLevels({levels: 'all', logStyle: 'lines'}, ['--log-style', 'grouped']);
     expect(shown.status, shown.report).toBe(0);
     expect(shown.stderr).toMatch(/^info validate-method-dropped \(1\)$/m);
   });
 
   register('refuses an unknown logStyle', () => {
-    const fromFlag = compileWithLevels(undefined, {}, ['--log-style', 'line']);
+    const fromFlag = compileWithLevels({}, ['--log-style', 'line']);
     expect(fromFlag.status).toBe(1);
     expect(fromFlag.stderr).toContain('logStyle: unknown value "line"');
-    const fromTsconfig = compileWithLevels(undefined, {logStyle: 'line'});
+    const fromTsconfig = compileWithLevels({logStyle: 'line'});
     expect(fromTsconfig.status).toBe(1);
     expect(fromTsconfig.stderr).toContain('logStyle: unknown value "line"');
   });
