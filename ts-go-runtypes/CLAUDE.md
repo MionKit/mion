@@ -4,6 +4,15 @@ The Go program is the side-channel type resolver behind the `RunTypes/*` package
 
 Test seam with the JS side: the Vite plugin's tests spawn the compiled `mion-bin/mion`, so the binary MUST be built before `pnpm test` (the root `pretest` covers it, see [SETUP.md → Build](../SETUP.md#build)). After modifying Go sources, rebuild `mion-bin/mion` before re-running JS plugin tests. Go-only tests exercise the packages directly and don't need the prebuilt binary — but they DO read the built marker dist (`packages/run-types/dist`); `pnpm run check:builds` covers both.
 
+## ⚠️ IMPORTANT: every Go walk is a visitor, and a test proves it reaches every node
+
+Any Go code that walks a tree or graph follows TypeScript's own pattern (its node builder and `.d.ts` emitter). This covers a `RunType` graph, a checker type, tsgo syntax nodes or our own declaration kinds. The rules:
+
+- **One switch per walk, one arm per kind.** Dispatch on the node's kind in ONE switch, and each kind gets its own function, named the way TypeScript names it (`transformTypeReference`, `expandClassDecl`). Never re-test the same kinds in helpers around it: `typeExprCore` (convert/printtype.go) and `visitTypeUse` (compiler/apitypes/outside.go) are the models.
+- **A mode is a flag checked inside an arm**, never a second dispatch before the switch or a nil-field check (see `printFlags` in convert/print.go, TypeScript's `nodebuilder.Flags`).
+- **Children and descendants are always visited.** Over a `RunType` use `reflection.WalkGraph` / `EachRefSlot`; over syntax use `ForEachChild`; never a hand-picked `range node.Children` for a whole-type question (see the walk rule below).
+- **Every walk ships with its coverage test.** It loops over every kind and fails when one has no row saying which arm handles it, or that it is refused or only walked through. It also checks each row against the real code. Copy an existing one: `TestPrinters_EveryKindHasAnArm` and `TestPrintersCoverRunType` (convert), `TestOutside_EveryTypeNodeKindHasARow` (apitypes), `TestNonDataAgreement_EveryKindHasARow` (typefunctions), `TestEachRefSlot_CoversEveryChildSlot` (reflection). Break one row on purpose and watch the test fail before you trust it.
+
 ## Directory map
 
 - [cmd/](cmd/) — the resolver binary (`mion`), its WASM twin (`mion-wasm`), and the `gen-*` / `extract-*` codegen commands (fn-hashes, diag-catalog, ts-constants, builtin-purefn ids, run-type-kind, type-formats, plugin-keys, sourcerewrite-fixtures, fn-bodies).
