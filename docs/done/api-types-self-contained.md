@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: guidelines
-status: ready
+status: done
 created: 2026-10-03
 ---
 
@@ -201,3 +201,32 @@ each committed on their own, `git mv` the spec into `docs/done/` reconciled with
   server's ids.
 - Every shape above is covered; the drizzle app ships no `drizzle-orm` import or peer.
 - Both simplification passes ran and are committed on their own.
+
+## What shipped
+
+Built as planned, with these differences:
+
+- **Platform types** stay imports, and the entry gets `/// <reference types>` / `/// <reference lib>` lines only for
+  the tsconfig libraries kept code actually reaches (`lib` lines for non-`es*` libs only, such as `dom`). A
+  `declare global` block of another package needs no copy: printing resolves its types structurally.
+- **A use the printer cannot keep** (one naming a type parameter, a heritage clause in a script file, a printer
+  refusal) stays an import with a warning and keeps its package a peer, instead of failing the build.
+  `apitypes.VerifyIDs` (run by `mion api-types` after `Check`) fails the build if printing ever moves an id.
+- **Printer details:** method type parameters print as `unknown` (the id reads them that way); statics are left out
+  (not in the id); members print sorted by name, because merged declarations list them in the order the compiler
+  bound the files, which varies; a recursive shape prints once as a named alias shared by every use.
+- **Pure functions** are copied from each other package's installed `mion-pure-fns/` into `.mion/vendor/<owner>/`,
+  which the marker (format 2, only when something is vendored) lists and the client's pure fn index serves when
+  that package is not installed. A mion package, or one that ships no artifact, stays a peer with a warning. No
+  duplicate warning was added: a pure fn id is the hash of its shipped body, so two copies under one id are the
+  same code.
+- **Found and fixed on the way:** a shipped file holding only an augmentation or globals was never loaded by a
+  client (it loads what the entry reaches), so its members went missing; the entry now references each such file.
+  The fuzz lane's new client-parity oracle found it, along with two printing gaps it also fixed (a mapped `X[K]`, a
+  conditional's true branch).
+- **Docs:** a new page, `container/website/content/01.rpc/07.devtools/05.api-types.md`, holds the types-only
+  package sections moved off the CLI page plus the new ones.
+- **Tests:** `apitypes/outside_test.go` (one fixture per shape, each checked on a bare client by `assertIDParity`),
+  `apitypes/parity_test.go`, the fuzz lane's `lib-pkg` positions and client-parity oracle, `convert/outside_test.go`,
+  the flipped drizzle test, `pkg_test.go` + `purefnindex_test.go` for vendoring, the devtools CLI test, a run-types
+  class-registry test, and the pre-publish e2e lane's `@acme/geo` fixture.
