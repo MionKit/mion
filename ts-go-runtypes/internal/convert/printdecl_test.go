@@ -155,6 +155,18 @@ export type Holder = {tree: TreeNode; json: Json};
 `, "Holder")
 }
 
+// TestDeclPrinter_AMutualCycleKeepsItsIDsFromEitherEnd: the serializer flags whichever end it met first, and either flag closes the cycle.
+func TestDeclPrinter_AMutualCycleKeepsItsIDsFromEitherEnd(t *testing.T) {
+	assertDeclIDs(t, `export interface Order { lines: Line[] }
+export interface Line { order: Order; sku: string }
+export type FromOrder = {order: Order};
+`, "FromOrder")
+	assertDeclIDs(t, `export interface Order { lines: Line[] }
+export interface Line { order: Order; sku: string }
+export type FromLine = {line: Line};
+`, "FromLine")
+}
+
 func TestDeclPrinter_GenericsPrintTheirInstantiation(t *testing.T) {
 	assertDeclIDs(t, `export interface Page<T> { items: T[]; total: number; first(): T | undefined }
 export declare class Box<T> { value: T; get<K>(key: K): T }
