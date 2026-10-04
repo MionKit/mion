@@ -25,8 +25,7 @@ name: pr · website + benchmarks + pre-publish e2e (label-gated)
 # lane hashes the paths that feed it (scripts/ci/lanes.mjs) and runs only when that
 # hash has not already passed. Label AND content, so `synchronize` keeps a labelled
 # pull request honest without re-running work that is already proven.
-# The website lane does not read page text (container/website/content/) or CSS, so
-# a content-only commit skips the site build; the release gate still builds it.
+# The website lane ignores page text (container/website/content/) and CSS; the release gate still builds them.
 #
 # Deliberately NOT pull_request_target: that would hand secrets and write
 # permissions to fork code. And deliberately no deploy step — this proves the
@@ -95,8 +94,7 @@ jobs:
           password: ${{ secrets.GHCR_PAT }}
       # The container-only prod build, NOT the full pipeline. This is the part a
       # PR can actually prove: the site compiles, every content page and every
-      # <code-import> resolves against the current packages. A commit that only
-      # changes content/ or CSS skips it; the release gate still builds those.
+      # <code-import> resolves against the current packages. Page text and CSS alone skip it.
       #
       # The full `website build` is deliberately not used: it regenerates every
       # benchmark dataset, which is a long container run this lane has no reason to
