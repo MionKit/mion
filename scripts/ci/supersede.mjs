@@ -22,7 +22,7 @@ const hashOf = (lanes, key) => {
 };
 
 // `ours` and each older `decision` are {lanes, labels, baseRef}; a run is kept only while one of our lanes waits on it.
-// So a label turning our lanes off (skip-defaults) cancels it; a changed raw lane (a comment edit) reruns here instead.
+// A label turning our lanes off (skip-defaults) cancels it, and so does any changed lane: waiting on a run we then repeat only costs time.
 export function supersede({ours, older}) {
   const lanes = structuredClone(ours.lanes);
   const ourLive = liveKeys(ours);
@@ -33,12 +33,11 @@ export function supersede({ours, older}) {
   for (const {runId, decision} of [...older].sort((first, second) => first.runId - second.runId)) {
     const live = decision ? liveKeys(decision) : new Map();
     const changed = [...live].filter(([key, hash]) => hashOf(ours.lanes, key) !== hash).map(([key]) => key);
-    const blocking = changed.filter((key) => LANES[key.split('.')[0]]?.hash !== 'raw');
     const waitedOn = [...live.keys()].filter((key) => ourLive.has(key) && deferred[key] === undefined && !changed.includes(key));
     const reason = !decision
       ? 'its gate has not decided yet'
-      : blocking.length > 0
-        ? `this commit changes ${blocking.join(', ')}`
+      : changed.length > 0
+        ? `this commit changes ${changed.join(', ')}`
         : waitedOn.length === 0
           ? 'nothing it runs is still needed here'
           : null;
