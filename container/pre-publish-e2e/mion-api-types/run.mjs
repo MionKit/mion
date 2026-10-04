@@ -11,6 +11,7 @@ const BIN = path.join(ROOT, 'node_modules/.bin');
 const OUT = path.join(HERE, 'out');
 const TARBALLS = path.join(OUT, 'tarballs');
 const API = path.join(HERE, 'libs/api');
+const GEO = path.join(HERE, 'libs/geo');
 const CLIENT = path.join(HERE, 'client');
 const CLIENT_FETCH = path.join(HERE, 'client-fetch');
 const PORT = 8247;
@@ -57,7 +58,15 @@ function clean() {
   mkdirSync(TARBALLS, {recursive: true});
 }
 
+// @acme/geo is on no registry: whoever builds or installs the whole server gets it from here.
+function installGeo(dir) {
+  cpSync(GEO, path.join(dir, 'node_modules/@acme/geo'), {recursive: true});
+}
+
 function buildApi() {
+  log('@acme/geo: the outside package the API reaches, packed for the clients that install the whole server');
+  run('npm', ['pack', '--pack-destination', TARBALLS], GEO);
+  installGeo(API);
   log('@acme/api: `mion compile` with declarations and the gen dir inside dist, then pack');
   run(MION, ['compile', '--cwd', API, '--tsconfig', 'tsconfig.json', '--gen-dir', 'dist/.mion'], API);
   run('npm', ['pack', '--pack-destination', TARBALLS], API);
@@ -67,6 +76,7 @@ function buildApi() {
   cpSync(API, plain, {recursive: true, filter: (from) => !/[/\\](dist|node_modules|\.mion)$/.test(from)});
   const manifestFile = path.join(plain, 'package.json');
   writeFileSync(manifestFile, JSON.stringify({...JSON.parse(readFileSync(manifestFile, 'utf8')), version: '0.0.1-plain'}, null, 2));
+  installGeo(plain);
   run(TSC, ['-p', path.join(plain, 'tsconfig.json')], plain);
   run('npm', ['pack', '--pack-destination', TARBALLS], plain);
 }
@@ -106,7 +116,8 @@ function clientCopy(name, tsconfigEdit, overlay, typesOnly = false) {
 }
 
 function buildClient(name, dir, tarball, routes = 'bundle') {
-  npmInstall(dir, [tarball]);
+  // A client of the whole server needs the outside package its .d.ts imports; a types-only client never does.
+  npmInstall(dir, path.basename(tarball).startsWith('acme-api-types-') ? [tarball] : [tarball, tarballOf('0.0.0', 'geo')]);
   const vite = capture(process.execPath, [path.join(HERE, 'vite-build.mjs'), dir, routes], HERE);
   writeFileSync(path.join(OUT, `${name}-vite.json`), JSON.stringify(vite, null, 2));
   const cli = capture(MION, ['compile', '--cwd', dir, '--tsconfig', 'tsconfig.json', '--gen-dir', '.mion-cli', '--client-routes', routes], dir);

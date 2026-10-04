@@ -2,7 +2,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
-import {readFileSync} from 'node:fs';
+import {existsSync, readFileSync} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -98,6 +98,13 @@ test('@acme/api-types: types only, the marker, the manifest and the pure fns, an
     assert.ok(!dts.includes(serverOnly), `${serverOnly} is not published`);
   }
   assert.ok(dts.includes('class Product'), 'a type the API reaches stays');
+  assert.ok(entries.includes('package/_outside/@acme/geo.d.ts'), "the outside package's types ship printed");
+  const printed = execFileSync('tar', ['-xzOf', TYPES_TARBALL, 'package/_outside/@acme/geo.d.ts'], {encoding: 'utf8'});
+  assert.match(printed, /export declare enum Stock/);
+  for (const entry of entries.filter((name) => name.endsWith('.d.ts'))) {
+    const text = execFileSync('tar', ['-xzOf', TYPES_TARBALL, entry], {encoding: 'utf8'});
+    assert.doesNotMatch(text, /['"]@acme\/geo['"]/, `${entry} imports no outside package`);
+  }
   const manifest = execFileSync('tar', ['-xzOf', TYPES_TARBALL, 'package/.mion/api/manifest.json'], {encoding: 'utf8'});
   for (const serverOnly of ['serverRaw', 'serverAudit']) assert.ok(!manifest.includes(serverOnly), `${serverOnly} is not in the shipped manifest`);
   const pkg = JSON.parse(execFileSync('tar', ['-xzOf', TYPES_TARBALL, 'package/package.json'], {encoding: 'utf8'}));
@@ -105,6 +112,7 @@ test('@acme/api-types: types only, the marker, the manifest and the pure fns, an
   assert.equal(pkg.peerDependencies['@types/node'], undefined, "the raw middleware's node:http import leaves no peer");
   assert.deepEqual(pkg.mion, {apiTypes: './mion-api.json'});
   for (const peer of ['@mionjs/core', '@mionjs/router', '@mionjs/run-types']) assert.ok(pkg.peerDependencies[peer], `${peer} is a peer`);
+  assert.equal(pkg.peerDependencies['@acme/geo'], undefined, 'a printed outside package is no peer');
   const marker = JSON.parse(execFileSync('tar', ['-xzOf', TYPES_TARBALL, 'package/mion-api.json'], {encoding: 'utf8'}));
   assert.equal(marker.package, '@acme/api');
   assert.equal(marker.buildVersion, serverVersion());
@@ -120,6 +128,7 @@ for (const name of ['client-types', 'client-types-fetch']) {
       assert.deepEqual(report.product, {sku: 'ABC-1234', label: null});
       assert.equal(report.error, null);
       assert.ok(report.invalid, 'a sku that breaks the published pattern is refused');
+      assert.ok(!existsSync(path.join(OUT, name, 'node_modules/@acme/geo')), 'the client never installs the outside package');
     });
   }
 }

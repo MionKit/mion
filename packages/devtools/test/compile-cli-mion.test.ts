@@ -431,6 +431,26 @@ declare const user: User;
 export const valueId = getRunTypeId(user);
 `;
 
+const GEO_LIB_DTS = `export interface Address { street: string; city: string }
+export declare class Money { #private; amount: number; add(other: Money): Money }
+export declare enum Role { Admin = "admin", User = "user" }
+`;
+const OUTSIDE_SERVER_TS = `import {createMionRouter} from '@mionjs/router';
+import type {Address, Money, Role} from 'geo-lib';
+export interface Order {id: number; ship: Address; total: Money; by: Role}
+export const mion = createMionRouter();
+export const api = mion.initRoutes({orders: {get: {type: 1 as const, handler: (id: number): Order => ({id}) as unknown as Order}}});
+`;
+const OUTSIDE_CLIENT_TS = `import {initClient} from '@mionjs/client';
+import {getRunTypeId} from '@mionjs/run-types';
+import type {api, Order} from '@acme/server-app-types';
+export const {routes} = initClient<typeof api>({baseURL: 'http://x'});
+export const getOrder = routes.orders.get(1).call();
+export const staticId = getRunTypeId<Order>();
+declare const order: Order;
+export const valueId = getRunTypeId(order);
+`;
+
 function installRouter(project: string): void {
   const router = path.join(project, 'node_modules', '@mionjs', 'router');
   fs.mkdirSync(router, {recursive: true});
@@ -514,6 +534,63 @@ describe('mion api-types — a types-only package for an API client', () => {
       expect(output.match(/MET015/g)).toHaveLength(1);
       expect(output).toContain('@acme/server-app-types');
       expect(output).not.toMatch(/MET01[23]/);
+    } finally {
+      fs.rmSync(base, {recursive: true, force: true});
+    }
+  });
+
+  register('prints the types an outside package declares, so a client builds without installing it', () => {
+    const base = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-api-types-outside-'));
+    try {
+      const server = writeProject(base, 'server', {'server.ts': OUTSIDE_SERVER_TS});
+      installRouter(server);
+      const geo = path.join(server, 'node_modules', 'geo-lib');
+      fs.mkdirSync(geo, {recursive: true});
+      fs.writeFileSync(path.join(geo, 'package.json'), JSON.stringify({name: 'geo-lib', version: '2.0.0', types: 'index.d.ts'}));
+      fs.writeFileSync(path.join(geo, 'index.d.ts'), GEO_LIB_DTS);
+      const serverPkg = JSON.parse(fs.readFileSync(path.join(server, 'package.json'), 'utf8'));
+      serverPkg.version = '1.0.0';
+      serverPkg.dependencies = {'@mionjs/router': '^0.0.1', 'geo-lib': '^2.0.0'};
+      fs.writeFileSync(path.join(server, 'package.json'), JSON.stringify(serverPkg));
+      const out = path.join(base, 'api-types');
+      const built = runCli(['api-types', '--cwd', server, '--tsconfig', 'tsconfig.json', '--out', out], {
+        label: 'api-types-outside',
+      });
+      expect(built.status, built.report).toBe(0);
+      expect(built.stderr).not.toContain('warning');
+
+      const printed = fs.readFileSync(path.join(out, '_outside', 'geo-lib.d.ts'), 'utf8');
+      expect(printed).toContain('export declare class Money {');
+      expect(printed).toContain("export declare enum Role { Admin = 'admin', User = 'user' }");
+      for (const file of listFiles(out).filter((rel) => rel.endsWith('.d.ts'))) {
+        expect(fs.readFileSync(path.join(out, file), 'utf8')).not.toMatch(/['"]geo-lib['"]/);
+      }
+      const pkg = JSON.parse(fs.readFileSync(path.join(out, 'package.json'), 'utf8'));
+      expect(Object.keys(pkg.peerDependencies)).not.toContain('geo-lib');
+
+      // the client installs the types package and the mion packages, never geo-lib
+      const client = writeProject(base, 'client', {'client.d.ts': API_CLIENT_DTS, 'a.ts': OUTSIDE_CLIENT_TS});
+      installRouter(client);
+      const installed = path.join(client, 'node_modules', '@acme', 'server-app-types');
+      fs.cpSync(out, installed, {recursive: true});
+      const clientGen = path.join(client, '.mion');
+      const compiled = runCli(['compile', '--cwd', client, '--tsconfig', 'tsconfig.json', '--gen-dir', clientGen], {
+        label: 'api-types-outside-client',
+      });
+      expect(compiled.status, compiled.report).toBe(0);
+      const serverVersion = (
+        fs.readFileSync(path.join(out, 'server.d.ts'), 'utf8').match(/ApiBuildVersion<"([A-Za-z0-9]{12})">/) as RegExpMatchArray
+      )[1];
+      expect(injectedVersion(path.join(client, 'dist', 'a.js'))).toBe(serverVersion);
+      // both getRunTypeId shapes name the printed type and agree on its id
+      const clientJs = fs.readFileSync(path.join(client, 'dist', 'a.js'), 'utf8');
+      const ids = [...clientJs.matchAll(/getRunTypeId\((?:undefined|order), (__rt_[A-Za-z0-9_$]+)\)/g)].map((match) => match[1]);
+      expect(ids).toHaveLength(2);
+      expect(ids[0]).toBe(ids[1]);
+      const check = runCli(['api-check', '--server-gen-dir', path.join(installed, '.mion'), '--client-gen-dir', clientGen], {
+        label: 'api-types-outside-check',
+      });
+      expect(check.status, check.report).toBe(0);
     } finally {
       fs.rmSync(base, {recursive: true, force: true});
     }
