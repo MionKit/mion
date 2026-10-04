@@ -1,6 +1,7 @@
 name: Resolver binaries
 description: >
-  Restore the prebuilt mion-bin/mion + mion-bin/extract-fn-bodies (and their stamps)
+  Restore the prebuilt mion-bin/mion + mion-bin/extract-fn-bodies (and their stamps),
+  plus mion-bin/code-digest under its own key,
   from the Actions cache, keyed on the content of every Go input they link. The ONLY
   place a job sets up Go and the tsgolint submodule: on a hit a job that only RUNS
   the binaries skips the submodule, setup-go and the Go build cache entirely; on a
@@ -22,7 +23,9 @@ runs:
   steps:
     - id: key
       shell: bash
-      run: echo "key=$(node scripts/core/build.mjs --cache-key)" >> "$GITHUB_OUTPUT"
+      run: |
+        echo "key=$(node scripts/core/build.mjs --cache-key)" >> "$GITHUB_OUTPUT"
+        echo "digest-key=$(node scripts/core/build.mjs --digest-cache-key)" >> "$GITHUB_OUTPUT"
 
     - id: restore
       uses: actions/cache/restore@v4
@@ -34,12 +37,21 @@ runs:
           mion-bin/.extract-fn-bodies.stamp
         key: ${{ steps.key.outputs.key }}
 
+    # code-digest has its own key, so an internal/ edit never sends the gate (which restores only this) to raw hashing.
+    - id: restore-digest
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          mion-bin/code-digest
+          mion-bin/.code-digest.stamp
+        key: ${{ steps.key.outputs.digest-key }}
+
     # Never `submodules: recursive`: it also pulls typescript-go's TypeScript corpus (~620 MB), which no build reads.
     # The resolver builds only with the patches applied; `git apply`, not `git am`, needs no committer identity on CI.
     # `cd`, not `git -C`: bash expands the patch glob in its own directory, before git ever moves.
     - name: Fetch the tsgolint submodule without the TypeScript corpus, and apply its patches
       id: tsgo
-      if: inputs.toolchain == 'true' || steps.restore.outputs.cache-hit != 'true'
+      if: inputs.toolchain == 'true' || steps.restore.outputs.cache-hit != 'true' || steps.restore-digest.outputs.cache-hit != 'true'
       shell: bash
       run: |
         git submodule update --init --depth 1 ts-go-runtypes/third_party/tsgolint
@@ -50,7 +62,7 @@ runs:
     # Before the cache restore so the installed Go version can join its key; cache: false leaves GOCACHE to us.
     - uses: actions/setup-go@v6
       id: go
-      if: inputs.toolchain == 'true' || steps.restore.outputs.cache-hit != 'true'
+      if: inputs.toolchain == 'true' || steps.restore.outputs.cache-hit != 'true' || steps.restore-digest.outputs.cache-hit != 'true'
       with:
         go-version-file: ts-go-runtypes/.go-version
         cache: false
@@ -62,7 +74,7 @@ runs:
     # An exact-key hit never re-saves, so a stale cache never heals; restore-keys stay within one Go version for that.
     # CACHE SALT (`v2`): action IDs embed absolute `replace`d package paths (no -trimpath); bump on a Go tree move.
     - name: Restore Go build cache (keyed on Go + the tsgolint pin, not our sources)
-      if: inputs.toolchain == 'true' || steps.restore.outputs.cache-hit != 'true'
+      if: inputs.toolchain == 'true' || steps.restore.outputs.cache-hit != 'true' || steps.restore-digest.outputs.cache-hit != 'true'
       uses: actions/cache@v4
       with:
         path: |
@@ -88,3 +100,17 @@ runs:
           mion-bin/extract-fn-bodies
           mion-bin/.extract-fn-bodies.stamp
         key: ${{ steps.key.outputs.key }}
+
+    - name: Build the code-digest tool
+      if: steps.restore-digest.outputs.cache-hit != 'true'
+      shell: bash
+      run: node scripts/core/build.mjs digest
+
+    - name: Save the code-digest tool
+      if: steps.restore-digest.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          mion-bin/code-digest
+          mion-bin/.code-digest.stamp
+        key: ${{ steps.key.outputs.digest-key }}

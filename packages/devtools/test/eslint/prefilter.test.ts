@@ -32,14 +32,18 @@ const TAGS_GO = fs.readFileSync(path.resolve(__dirname, '../../../../ts-go-runty
 const NAMES_GO = fs.readFileSync(path.resolve(__dirname, '../../../../ts-go-runtypes/internal/enrichment/names.go'), 'utf8');
 
 describe('constant sync with internal/enrichment/mirror/tags.go', () => {
-  it('tag literals match the Go definitions byte for byte', () => {
-    expect(TAGS_GO).toContain(`RtTypeTag = "${RT_TYPE_TAG}"`);
-    expect(TAGS_GO).toContain(`RtIdsTag  = "${RT_IDS_TAG}"`);
-    expect(TAGS_GO).toContain(`TodoTag = "${TODO_TAG}"`);
-    expect(TAGS_GO).toContain(`OrphanTag      = "${ORPHAN_TAG}"`);
+  // gofmt re-aligns a const block when a comment or a neighbour changes, so the spacing around `=` is free.
+  const goConst = (name: string, value: string): RegExp =>
+    new RegExp(`\\b${name}\\s+=\\s+"${value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`);
+
+  it('tag literals match the Go definitions', () => {
+    expect(TAGS_GO).toMatch(goConst('RtTypeTag', RT_TYPE_TAG));
+    expect(TAGS_GO).toMatch(goConst('RtIdsTag', RT_IDS_TAG));
+    expect(TAGS_GO).toMatch(goConst('TodoTag', TODO_TAG));
+    expect(TAGS_GO).toMatch(goConst('OrphanTag', ORPHAN_TAG));
     expect(ORPHAN_CHILD_TAG).toBe(`${ORPHAN_TAG}Child`);
-    expect(NAMES_GO).toContain(`FriendlyTextName = "${FRIENDLY_TEXT_NAME}"`);
-    expect(NAMES_GO).toContain(`MockDataName     = "${MOCK_DATA_NAME}"`);
+    expect(NAMES_GO).toMatch(goConst('FriendlyTextName', FRIENDLY_TEXT_NAME));
+    expect(NAMES_GO).toMatch(goConst('MockDataName', MOCK_DATA_NAME));
   });
 
   it('composite constants keep the Go composition shape', () => {

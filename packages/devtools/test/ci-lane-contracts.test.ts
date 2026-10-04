@@ -32,7 +32,7 @@ import {SWEEPS} from '../../../scripts/ci/check-tree.mjs';
 const REPO_ROOT = path.resolve(__dirname, '../../..');
 const read = (rel: string): string => readFileSync(path.join(REPO_ROOT, rel), 'utf8');
 const WORKFLOWS = {
-  'ci.yml': ['go', 'js-fuzz', 'go-tools', 'js', 'smoke'],
+  'ci.yml': ['go', 'js-fuzz', 'go-tools', 'go-static', 'js', 'js-static', 'smoke'],
   'pr-heavy.yml': ['website', 'bench', 'e2e'],
   'drizzle-e2e.yml': ['drizzle'],
 } as const;
@@ -107,7 +107,7 @@ describe('the lane table', () => {
       'ts-go-runtypes/cmd/gen-ts-constants/main.go',
     ]) {
       for (const [name, lane] of Object.entries(LANES) as [string, {paths: unknown[]}][]) {
-        expect(matches(path, lane.paths), `${name} reads ${path}`).toBe(name === 'go' || name === 'go-tools');
+        expect(matches(path, lane.paths), `${name} reads ${path}`).toBe(['go', 'go-tools', 'go-static'].includes(name));
       }
     }
     for (const path of [

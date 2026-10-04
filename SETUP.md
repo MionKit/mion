@@ -103,6 +103,7 @@ pnpm run check:tree                             # the whole-tree hygiene sweeps 
 ```
 
 A lane runs unless a marker says its exact inputs already passed, so a commit that changes nothing a lane reads skips it. The lane table is [scripts/ci/lanes.mjs](scripts/ci/lanes.mjs).
+The test lanes read JS/TS and Go files by their code (`mion-bin/code-digest`), so a commit that only changes comments or blank lines skips them. Format, lint, typecheck, the contract tests, gofmt and vet still run on it.
 
 ---
 

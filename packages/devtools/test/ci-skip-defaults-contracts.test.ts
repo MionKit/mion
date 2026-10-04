@@ -47,7 +47,9 @@ describe('the skip-defaults label', () => {
     expect(jobCondition('go-fuzz')).toMatch(
       /^\(fromJSON\(needs\.lanes\.outputs\.lanes\)[.[].+ \|\| fromJSON\(needs\.lanes\.outputs\.lanes\)[.[].+\) && !contains/
     );
-    expect(jobCondition('js-lint')).toMatch(/^fromJSON\(needs\.lanes\.outputs\.lanes\)\.js\.run && !contains/);
+    expect(jobCondition('js-lint')).toMatch(
+      /^\(fromJSON\(needs\.lanes\.outputs\.lanes\)\.js\.run \|\| fromJSON\(needs\.lanes\.outputs\.lanes\)\['js-static'\]\.run\) && !contains/
+    );
     expect(jobCondition('smoke')).toMatch(/^fromJSON\(needs\.lanes\.outputs\.lanes\)\.smoke\.run && !contains/);
   });
 });

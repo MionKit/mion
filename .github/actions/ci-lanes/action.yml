@@ -16,6 +16,10 @@ description: >
   push to main owns proving the base (without it a docs-only pull request re-ran
   every lane whenever main's own run was still going or got cancelled).
 
+  Code files hash by their code in the lanes lanes.mjs marks `tokens`, through
+  mion-bin/code-digest restored from its own cache entry, so a commit that only
+  touches comments or blank lines skips them. A cache miss hashes them raw.
+
   Also emits `labels`, the pull request's labels read live from the API (`[]` off a
   pull request), so a label gate never trusts the event payload: opening a PR with a
   label fires `opened` and `labeled` together, concurrency cancels one, and the
@@ -52,6 +56,19 @@ runs:
         # locate the store, which fails the whole step here: this job installs
         # nothing, so pnpm is not on PATH and there is no install to cache.
         package-manager-cache: false
+
+    # The resolver action saves this entry wherever Go is set up; a miss leaves the gate hashing raw.
+    - name: Key the code-digest tool
+      id: digest-key
+      shell: bash
+      run: echo "key=$(node scripts/core/build.mjs --digest-cache-key)" >> "$GITHUB_OUTPUT"
+    - name: Restore the code-digest tool
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          mion-bin/code-digest
+          mion-bin/.code-digest.stamp
+        key: ${{ steps.digest-key.outputs.key }}
 
     # Dependency-free node, run BEFORE any bootstrap so a skipped lane costs a
     # checkout, not an install.

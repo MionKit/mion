@@ -109,7 +109,7 @@ jobs:
       - id: decide
         uses: ./.github/actions/ci-lanes
         with:
-          lanes: go js-fuzz go-tools js smoke
+          lanes: go js-fuzz go-tools go-static js js-static smoke
       # The whole-tree hygiene sweeps live HERE, in the one job nothing can skip,
       # because they read docs/, .claude/ and the root prose files — exactly the
       # paths every lane deliberately ignores. Gated on a lane they would miss the
@@ -124,7 +124,7 @@ jobs:
   go-fuzz:
     name: go tests + fuzz
     needs: lanes
-    if: (fromJSON(needs.lanes.outputs.lanes).go.run || fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].run || fromJSON(needs.lanes.outputs.lanes)['go-tools'].run) && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults')
+    if: (fromJSON(needs.lanes.outputs.lanes).go.run || fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].run || fromJSON(needs.lanes.outputs.lanes)['go-tools'].run || fromJSON(needs.lanes.outputs.lanes)['go-static'].run) && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -134,10 +134,9 @@ jobs:
           toolchain: 'true'
       # Fail-fast: cheap checks first. gofmt is instant; vet compiles (cache-warm)
       # and warms the compile cache the go-test + resolver-build steps reuse.
-      # Go-specific steps run only when the Go tree changed; a packages-only
-      # change still runs the fuzz half below (which spawns the binary).
+      # go-static hashes raw, so a comment-only Go edit still gets gofmt and vet.
       - name: Go formatting (our code only; never third_party)
-        if: fromJSON(needs.lanes.outputs.lanes).go.run
+        if: fromJSON(needs.lanes.outputs.lanes)['go-static'].run
         working-directory: ts-go-runtypes
         run: |
           unformatted="$(gofmt -l cmd internal)"
@@ -147,7 +146,7 @@ jobs:
             exit 1
           fi
       - name: Go vet (our code only; never third_party)
-        if: fromJSON(needs.lanes.outputs.lanes).go.run
+        if: fromJSON(needs.lanes.outputs.lanes)['go-static'].run
         working-directory: ts-go-runtypes
         run: go vet ./cmd/... ./internal/...
       # Build BEFORE the Go suite: since the real-package migration the Go
@@ -239,13 +238,19 @@ jobs:
         with:
           lane: go-tools
           hash: ${{ fromJSON(needs.lanes.outputs.lanes)['go-tools'].hash }}
+      - name: Record gofmt and vet as green
+        if: success() && fromJSON(needs.lanes.outputs.lanes)['go-static'].run
+        uses: ./.github/actions/save-lane-green
+        with:
+          lane: go-static
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes)['go-static'].hash }}
 
   # ── js-lint: the rest of the JS suite + lint/typecheck/format ─────────────
   # Everything but the fuzz tree, plus the static checks; with go-fuzz, a complete disjoint partition of the JS suite.
   js-lint:
     name: js tests + lint
     needs: lanes
-    if: fromJSON(needs.lanes.outputs.lanes).js.run && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults')
+    if: (fromJSON(needs.lanes.outputs.lanes).js.run || fromJSON(needs.lanes.outputs.lanes)['js-static'].run) && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -264,6 +269,7 @@ jobs:
       # Fail-fast ordering — cheap checks before the suite.
       # The gofmt half runs in go-fuzz, the job that has Go.
       - name: Check formatting (no build needed — runs first)
+        if: fromJSON(needs.lanes.outputs.lanes)['js-static'].run
         run: pnpm run check-format:js
       # `pnpm run lint` runs typecheck, which reads the built dists; the JS suite
       # also spawns the binary — one build feeds both.
@@ -272,38 +278,50 @@ jobs:
       # The drizzle-orm version line: package versions, peer ranges and
       # manifest drizzleOrm fields must all match the installed drizzle-orm.
       - name: Drizzle version-line guard
+        if: fromJSON(needs.lanes.outputs.lanes)['js-static'].run
         run: pnpm miondevx release check-drizzle-versions
       # Same shape as the codegen drift gate, for the other hand-maintained
       # mirror: every secret/dev row in the env REGISTRY must appear in
       # .env.sample (and no internal var may). Cheap and dependency-free.
       - name: Env registry drift (.env.sample must mirror REGISTRY)
+        if: fromJSON(needs.lanes.outputs.lanes)['js-static'].run
         run: pnpm run check:env
       # Same shape again, for the vitest project list: every project in
       # vitest.config.ts must sit in exactly one `test:ci` batch. Without this the
       # batch list drifts silently and `test:ci` returns green having skipped
       # whole projects (it once skipped all 5 runtypes ones, 309 test files).
       - name: Test-batch drift (test:ci must cover every vitest project)
+        if: fromJSON(needs.lanes.outputs.lanes)['js-static'].run
         run: pnpm run check:test-batches
       # And again for the type-check coverage: `pnpm -r run typecheck:test` skips a
       # package with no such script and says nothing. Twelve packages had none, which
       # is how a call with no import shipped in platform-uws. The root typecheck runs
       # this too; a named step makes the failure read as the gap it is.
       - name: Typecheck coverage (every package must run typecheck:test)
+        if: fromJSON(needs.lanes.outputs.lanes)['js-static'].run
         run: pnpm run check:typecheck-coverage
       - name: Lint + typecheck
+        if: fromJSON(needs.lanes.outputs.lanes)['js-static'].run
         run: pnpm run lint
       # A dangling <code-import> path or comment marker does not fail the website
       # build — it renders an error placeholder in place of the example. This makes
       # it loud, and fails on an example no page imports.
       - name: Code-import check
+        if: fromJSON(needs.lanes.outputs.lanes)['js-static'].run
         run: pnpm run check-code-imports
       # Source-resolution typecheck of the mion half of packages/private-examples. The
       # runtypes half is compiled by `pnpm run lint`'s typecheck; the two halves
       # need different module resolution, so they are separate programs.
       - name: Typecheck the mion examples
+        if: fromJSON(needs.lanes.outputs.lanes)['js-static'].run
         run: pnpm run check-types-examples
+      # The contract tests read source and workflow text, comments included, so they also run on a comment-only edit.
+      - name: Contract tests
+        if: fromJSON(needs.lanes.outputs.lanes)['js-static'].run
+        run: pnpm exec vitest run contracts
       # The list of test files already passed at their exact inputs; a pull request restores its own newest, else main's.
       - name: Restore the passed test list
+        if: fromJSON(needs.lanes.outputs.lanes).js.run
         uses: actions/cache/restore@v4
         with:
           path: node_modules/.cache/mion/vitest-passed.json
@@ -316,6 +334,7 @@ jobs:
       # An --exclude glob matches paths relative to each project's root, so it must not name the package dir.
       - name: JS suite (everything except test/fuzz)
         id: suite
+        if: fromJSON(needs.lanes.outputs.lanes).js.run
         run: |
           if [ "${{ github.event_name }}" = pull_request ] && git rev-parse -q --verify HEAD^2 >/dev/null; then
             echo "scope=partial" >> "$GITHUB_OUTPUT"
@@ -335,6 +354,7 @@ jobs:
       # projects above and need their own step. Without this the whole bun
       # injection lane is unverified.
       - name: platform-bun suite (bun:test)
+        if: fromJSON(needs.lanes.outputs.lanes).js.run
         run: pnpm run test:bun
       # A spawned resolver that PANICS writes its full stdout+stderr here (the
       # assertion message only carries the crash header, so a log pipeline
@@ -360,6 +380,12 @@ jobs:
         with:
           lane: js-pr
           hash: ${{ fromJSON(needs.lanes.outputs.lanes).js.hash }}
+      - name: Record format, lint and contracts as green
+        if: success() && fromJSON(needs.lanes.outputs.lanes)['js-static'].run
+        uses: ./.github/actions/save-lane-green
+        with:
+          lane: js-static
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes)['js-static'].hash }}
 
   # ── commitlint: Conventional Commits gate on the PR's commits ──────────────
   # Validates every commit in the PR range against commitlint.config.js. PR-only
