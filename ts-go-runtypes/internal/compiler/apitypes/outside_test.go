@@ -268,6 +268,28 @@ func TestOutside_AMionClassInsideAPrintedTypeStaysAMionImport(t *testing.T) {
 	assertContains(t, output.Files["_outside/wrap.d.ts"], `import("@mionjs/core").RpcError`)
 }
 
+func TestOutside_AnUnexportedProjectClassAPrintedTypeNamesShipsShared(t *testing.T) {
+	output, input := trimWithGeo(t, `import type { Page } from 'geo';
+declare class Hidden { secret: string }
+`+apiOf(`get: import("@mionjs/router").PublicRoute<() => Promise<Page<Hidden>>>;`), nil)
+	assertSelfContained(t, output, input)
+	assertContains(t, output.Files["_outside/_shared.d.ts"], "export declare class Hidden {")
+}
+
+func TestOutside_AProjectFileUnderOutsideCollides(t *testing.T) {
+	_, _, err := tryTrimIn(t, map[string]string{
+		"index.d.ts":        "import type { Address } from 'geo';\nimport type { Local } from './_outside/geo.ts';\n" + apiOf(`get: import("@mionjs/router").PublicRoute<(a: Address, l: Local) => Promise<void>>;`),
+		"_outside/geo.d.ts": "export type Local = { l: string };\n",
+	}, "", map[string]string{
+		"node_modules/geo/package.json": `{"name": "geo", "types": "index.d.ts"}`,
+		"node_modules/geo/index.d.ts":   geoDTS,
+		"node_modules/geo/extra.d.ts":   "export type Extra = { note: string };\n",
+	})
+	if err == nil || !strings.Contains(err.Error(), "the project emits _outside/geo.d.ts") {
+		t.Fatalf("a project file at a printed file's path must stop the build, got %v", err)
+	}
+}
+
 func TestOutside_AScriptFileExtendingAnOutsideGlobalKeepsTheImport(t *testing.T) {
 	output, input := trimFilesWithGeo(t, map[string]string{
 		"index.d.ts":  "import 'glob-pkg';\n" + apiOf(`get: import("@mionjs/router").PublicRoute<(o: Office) => Promise<void>>;`),
