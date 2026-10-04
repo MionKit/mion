@@ -954,3 +954,17 @@ func TestTypesOnly_AnInstalledPackageWinsOverItsVendoredCopy(t *testing.T) {
 		t.Fatalf("ResolvePackage = %q, %v; want the installed copy", root, ok)
 	}
 }
+
+// TestTypesOnly_AVendoredDirOutsideTheVendorFolderIsIgnored: a marker cannot point the store outside its own package.
+func TestTypesOnly_AVendoredDirOutsideTheVendorFolderIsIgnored(t *testing.T) {
+	files := vendoredTypesPackage()
+	elsewhere := typesPkg + "/elsewhere/@acme/dates"
+	files[typesPkg+"/mion-api.json"] = `{"format":2,"package":"@acme/text","compiler":"dev","buildVersion":"v1","vendored":{"@acme/dates":"./elsewhere/@acme/dates"}}`
+	files = merge(files, map[string]string{elsewhere + "/package.json": `{"name":"@acme/dates"}`},
+		artifactDir(elsewhere+"/"+constants.PureFnArtifactDir, "@acme/dates", constants.EmitCode, isoDayEntry))
+	store := storeOver(files)
+	store.Package(typesPkg)
+	if result := store.Closure([]Demand{{ID: titleID, FromDir: "/virtual/app"}}); len(result.Unresolved) != 1 {
+		t.Fatalf("a vendored dir outside .mion/vendor must not serve, got entries %v", codes(result.Entries))
+	}
+}
