@@ -678,7 +678,6 @@ func runCompile(args []string) {
 	}
 }
 
-// registerLogStyleFlag adds --log-style to a command that prints a build's diagnostics.
 func registerLogStyleFlag(fs *flag.FlagSet) *string {
 	return fs.String("log-style", "",
 		"how diagnostics print: \"grouped\" (default) groups them by name, \"lines\" prints one line each (also the tsconfig \"logStyle\" plugin key, flag overrides it)")
@@ -723,8 +722,7 @@ func printBuildDiagnostics(command string, cfg sessionConfig, compileResult *bat
 		if !diagnostics.Shown(d, showInfo) {
 			continue
 		}
-		// Printed with the bundler's one-word note, or a downgraded error reads as an ordinary warning.
-		// d.Downgraded is the resolver-stamped `@mion-downgrade-error` comment, downgrade the tsconfig setting.
+		// The note keeps a downgraded error from reading as a plain warning; d.Downgraded is the `@mion-downgrade-error` comment.
 		downgraded := d.Downgraded || downgrade.Downgraded(d)
 		if grouped {
 			entries = append(entries, diagnostics.EntryOf(d, downgraded))

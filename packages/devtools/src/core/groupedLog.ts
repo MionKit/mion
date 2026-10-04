@@ -23,7 +23,6 @@ interface Group {
   size: number;
 }
 
-// A downgraded finding prints as a warning.
 export function entryOf(diagnostic: Diagnostic, downgraded: boolean): GroupedEntry {
   const entry = DIAGNOSTIC_CATALOG[diagnostic.code];
   return {
@@ -38,7 +37,7 @@ export function entryOf(diagnostic: Diagnostic, downgraded: boolean): GroupedEnt
   };
 }
 
-// A path under cwd prints relative to it; an empty cwd keeps every path as given.
+// Paths under a non-empty cwd print relative to it.
 export function formatGrouped(allEntries: readonly GroupedEntry[], cwd = ''): string {
   if (allEntries.length === 0) return '';
   const entries = cwd === '' ? allEntries : allEntries.map((entry) => relativeEntry(entry, cwd));
@@ -132,7 +131,7 @@ function location(site: DiagnosticSite): string {
   return `${site.filePath}:${site.startLine}:${site.startCol}`;
 }
 
-// An empty value or one holding whitespace or a quote is quoted, so where it ends stays visible.
+// A value that is empty or holds whitespace or a quote is quoted, so where it ends stays visible.
 function quoted(value: string): string {
   if (value !== '' && !/[ \t\n\r"]/.test(value)) return value;
   return `"${value.replace(/[\\"\n\r\t]/g, (char) => ESCAPES[char])}"`;

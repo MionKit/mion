@@ -41,8 +41,7 @@ func TestEveryCodeHasHeadline(t *testing.T) {
 	}
 }
 
-// TestHeadlineSlotsAreNamed: grouped output prints a headline once with its slot names, so a numbered
-// `{0}` would reach the reader.
+// TestHeadlineSlotsAreNamed: the grouped log prints slot names, so a numbered `{0}` would reach the reader.
 func TestHeadlineSlotsAreNamed(t *testing.T) {
 	numbered := regexp.MustCompile(`\{\d+\}`)
 	for code, def := range Definitions {
@@ -52,8 +51,7 @@ func TestHeadlineSlotsAreNamed(t *testing.T) {
 	}
 }
 
-// TestHeadlineSlotOrder: a slot's arg index is where it first appears in the headline, so a rewording that
-// moves one swaps the values at every call site. testdata/slots.json makes that a visible, reviewed change.
+// TestHeadlineSlotOrder: a rewording that moves a slot swaps args at every call site; testdata/slots.json shows it.
 func TestHeadlineSlotOrder(t *testing.T) {
 	goldenPath := filepath.Join("testdata", "slots.json")
 	current := map[string][]string{}

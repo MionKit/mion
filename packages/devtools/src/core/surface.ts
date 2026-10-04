@@ -61,7 +61,6 @@ interface SurfaceOptions {
   grouped: boolean;
 }
 
-// One warning per finding, or one grouped block for all of them.
 export function printFindings(
   ctx: HostContext | undefined,
   findings: readonly Finding[],
@@ -83,8 +82,7 @@ export function printFindings(
     hostWarn(ctx, downgraded ? formatDowngraded(diagnostic) : formatTscDiagnostic(diagnostic));
 }
 
-// Halts ONCE after printing everything, so the log holds the whole list with the failure below it.
-// Applying `downgrade` in this one loop is what makes every halt site follow it.
+// Halts ONCE after printing, so the failure sits below the list; this one loop makes every halt follow `downgrade`.
 export function surfaceDiagnostics(ctx: HostContext | undefined, diagnostics: Diagnostic[], options: SurfaceOptions): void {
   let first: Diagnostic | undefined;
   let count = 0;
