@@ -11,6 +11,7 @@ import {mionFetchMetadata} from '@mionjs/router/middlewares';
 import {overrideValidate, registerFormatPattern} from '@mionjs/run-types';
 import type * as TF from '@mionjs/run-types/formats';
 import type {IncomingMessage} from 'node:http';
+import type {Shelf, Stock} from '@acme/geo';
 import {AuditLog} from './audit.js';
 import type {RawSecret} from './internal.js';
 
@@ -40,6 +41,8 @@ export const api = mion.initRoutes({
     products: {
         getBySku: mion.route((_ctx, code: TF.String<{pattern: typeof skuPattern}>): Product => new Product(code, null)),
         remove: mion.route((_ctx, code: string, note?: Note): boolean => code.length > 0 && note !== ''),
+        // reaches an outside package: the types-only package prints its types, so a client never installs it
+        shelf: mion.route((_ctx, code: string): {shelf: Shelf; stock: Stock} | null => (code ? null : null)),
     },
 });
 
