@@ -12,6 +12,7 @@ package resolver_test
 // gone. Suppressing it instead would hide a correct statement about the code.
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -239,5 +240,29 @@ func TestScanFiles_EchoesTheTsconfigDowngradeErrors(t *testing.T) {
 	}
 	if len(response.DowngradeErrors) != 1 || response.DowngradeErrors[0] != diagnostics.CodeVLSymbolRoot {
 		t.Fatalf("scanFiles must echo the tsconfig downgradeErrors, got %v", response.DowngradeErrors)
+	}
+}
+
+// TestGenerate_EchoesTheTsconfigPrintSettings: a dependency-free host reads `levels` and `logStyle` off generate.
+func TestGenerate_EchoesTheTsconfigPrintSettings(t *testing.T) {
+	session := setupInlineWith(t, map[string]string{"entry.ts": validateSymbolRootSource}, func(programOpts *program.Options, resolverOpts *resolver.Options) {
+		programOpts.SingleThreaded = true
+		resolverOpts.SingleThreaded = true
+		resolverOpts.TsconfigLevels = "all"
+		resolverOpts.TsconfigLogStyle = diagnostics.LogStyleLines
+	})
+	response := session.Dispatch(protocol.Request{Op: protocol.OpGenerate})
+	if response.Error != "" {
+		t.Fatalf("generate: %s", response.Error)
+	}
+	if response.Levels != "all" || response.LogStyle != diagnostics.LogStyleLines {
+		t.Fatalf("generate must echo levels and logStyle, got %q and %q", response.Levels, response.LogStyle)
+	}
+	wire, err := json.Marshal(response)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(wire), `"logStyle":"lines"`) {
+		t.Fatalf("the wire must carry logStyle, got %s", wire)
 	}
 }

@@ -44,6 +44,7 @@ func runApiTypes(args []string) {
 	outFlag := fs.String("out", "api-types", "the package directory to write (replaced on every run)")
 	nameFlag := fs.String("name", "", "the package name (default: the server package name plus -types)")
 	versionFlag := fs.String("version", "", "the package version (default: the server package version)")
+	logStyle := registerLogStyleFlag(fs)
 	entryFlag := fs.String("entry", "", "the source file exporting the API (default: package.json \"types\", then the one file exporting an API)")
 	fs.Usage = func() { printUsage(fs, apiTypesUsage) }
 	_ = fs.Parse(args)
@@ -61,6 +62,7 @@ func runApiTypes(args []string) {
 	if _, err := diagnostics.ResolveLevels(cfg.opts.TsconfigLevels); err != nil {
 		fatal("api-types: %v", err)
 	}
+	grouped := resolveLogStyle("api-types", *logStyle, cfg)
 	genDir, err := os.MkdirTemp("", "mion-api-types-")
 	if err != nil {
 		fatal("api-types: %v", err)
@@ -75,7 +77,7 @@ func runApiTypes(args []string) {
 		os.RemoveAll(genDir)
 		fatal("api-types: %v", compileErr)
 	}
-	if printBuildDiagnostics("api-types", cfg, compileResult) > 0 {
+	if printBuildDiagnostics("api-types", cfg, compileResult, grouped) > 0 {
 		os.RemoveAll(genDir)
 		exitAfterProfiling(1)
 	}

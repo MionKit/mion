@@ -12,6 +12,7 @@ import (
 // packages/devtools reads too, so both print the same bytes.
 type groupedCase struct {
 	Name    string         `json:"name"`
+	Cwd     string         `json:"cwd,omitempty"`
 	Entries []GroupedEntry `json:"entries"`
 	Want    string         `json:"want"`
 }
@@ -28,7 +29,7 @@ func TestFormatGrouped_SharedCorpus(t *testing.T) {
 	}
 	if os.Getenv("MION_UPDATE_GOLDEN") == "1" {
 		for index := range cases {
-			cases[index].Want = FormatGrouped(cases[index].Entries)
+			cases[index].Want = FormatGrouped(cases[index].Entries, cases[index].Cwd)
 		}
 		var out strings.Builder
 		encoder := json.NewEncoder(&out)
@@ -44,7 +45,7 @@ func TestFormatGrouped_SharedCorpus(t *testing.T) {
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.Name, func(t *testing.T) {
-			if got := FormatGrouped(testCase.Entries); got != testCase.Want {
+			if got := FormatGrouped(testCase.Entries, testCase.Cwd); got != testCase.Want {
 				t.Errorf("FormatGrouped:\n%s\nwant:\n%s", got, testCase.Want)
 			}
 		})
@@ -71,7 +72,7 @@ func TestFormatGrouped_KeepsEveryFinding(t *testing.T) {
 	for index, typeName := range []string{"Socket", "FileHandle", "FileHandle", "Pipe"} {
 		entries = append(entries, EntryOf(New(CodeVLSymbolRoot, Site{FilePath: "src/f.ts", StartLine: index + 1, StartCol: 2}, typeName), false))
 	}
-	got := FormatGrouped(entries)
+	got := FormatGrouped(entries, "")
 	for index, typeName := range []string{"Socket", "FileHandle", "FileHandle", "Pipe"} {
 		line := "src/f.ts:" + string(rune('1'+index)) + ":2  type=" + typeName
 		if !strings.Contains(got, line) {

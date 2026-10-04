@@ -4,6 +4,7 @@
 import path from 'node:path';
 import {isDowngraded, NONE, type DowngradeSet} from './downgradeErrors.ts';
 import {Level, type Diagnostic} from './protocol.ts';
+import {entryOf, formatGrouped} from './groupedLog.ts';
 import {formatTscDiagnostic} from './surface.ts';
 
 export class DevReporter {
@@ -16,13 +17,15 @@ export class DevReporter {
 
   constructor(
     private readonly print: (block: string) => void,
-    private readonly cwd: () => string
+    private readonly cwd: () => string,
+    // Read per print: the tsconfig `logStyle` echo only arrives with the first generate.
+    private readonly grouped: () => boolean = () => false
   ) {}
 
   // update takes the COMPLETE current list (a whole-program generate) and forgets what is gone.
   update(diagnostics: Diagnostic[], downgrade: DowngradeSet = NONE): void {
     const {errors, warnings} = this.split(diagnostics, downgrade);
-    const lines = [...errors].filter(([key]) => !this.printed.has(key)).map(([, diagnostic]) => formatTscDiagnostic(diagnostic));
+    const lines = this.errorLines([...errors].filter(([key]) => !this.printed.has(key)).map(([, diagnostic]) => diagnostic));
     const fresh = [...warnings.keys()].filter((key) => !this.warned.has(key)).length;
     this.printed = new Set(errors.keys());
     this.warned = new Set(warnings.keys());
@@ -39,12 +42,13 @@ export class DevReporter {
   // add forgets nothing: the file may sit outside the program the last update covered.
   add(diagnostics: Diagnostic[], downgrade: DowngradeSet = NONE): void {
     const {errors} = this.split(diagnostics, downgrade);
-    const lines: string[] = [];
+    const fresh: Diagnostic[] = [];
     for (const [key, diagnostic] of errors) {
       if (this.printed.has(key)) continue;
       this.printed.add(key);
-      lines.push(formatTscDiagnostic(diagnostic));
+      fresh.push(diagnostic);
     }
+    const lines = this.errorLines(fresh);
     if (lines.length > 0) this.print(lines.join('\n'));
   }
 
@@ -56,6 +60,18 @@ export class DevReporter {
       if (!byKey.has(this.keyOf(diagnostic))) byKey.set(this.keyOf(diagnostic), diagnostic);
     }
     return [...byKey.values()];
+  }
+
+  private errorLines(errors: Diagnostic[]): string[] {
+    if (errors.length === 0) return [];
+    if (this.grouped())
+      return [
+        formatGrouped(
+          errors.map((diagnostic) => entryOf(diagnostic, false)),
+          this.cwd()
+        ),
+      ];
+    return errors.map((diagnostic) => formatTscDiagnostic(diagnostic));
   }
 
   private split(diagnostics: Diagnostic[], downgrade: DowngradeSet) {

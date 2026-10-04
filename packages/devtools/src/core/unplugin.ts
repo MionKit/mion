@@ -11,16 +11,8 @@ import {PURE_FN_ARTIFACT_DIR, type ClientRoutes, type ModuleMode} from './go-gen
 import {assertValidClientRoutes, assertValidModuleMode} from './option-guards.ts';
 import {mayHoldMarkerCalls} from './markerImports.ts';
 import {isDowngraded, resolveDowngradeErrors, DOWNGRADE_ALL, type DowngradeSet} from './downgradeErrors.ts';
-import {LEVELS_ALL, resolveShowInfo} from './levels.ts';
-import {
-  formatDowngraded,
-  formatTscDiagnostic,
-  haltError,
-  hostHalt,
-  hostWarn,
-  surfaceDiagnostics,
-  type HostContext,
-} from './surface.ts';
+import {LEVELS_ALL, resolveGrouped, resolveShowInfo, type LogStyle} from './levels.ts';
+import {haltError, hostHalt, hostWarn, printFindings, surfaceDiagnostics, type Finding, type HostContext} from './surface.ts';
 import {DevReporter} from './devReporter.ts';
 import {createTypeDepsIndex, depKey} from './type-deps.ts';
 import {warnBelowTypeScriptFloor} from './typescript-floor.ts';
@@ -168,6 +160,9 @@ export interface PluginOptions {
   downgradeErrors?: string[] | typeof DOWNGRADE_ALL;
   // Unset hides Info findings, `'all'` prints them; never changes what halts. Overrides the tsconfig plugin key.
   levels?: typeof LEVELS_ALL;
+  // Unset or `'grouped'` prints findings grouped by name, each message once; `'lines'` prints one line each.
+  // Overrides the tsconfig plugin key.
+  logStyle?: LogStyle;
   // JS runtime the resolver runs format-pattern checks on (--js-runtime); defaults to this plugin's own
   // process.execPath, so the serve lane needs no configuration. Host-specific like `binary` — no tsconfig key.
   jsRuntime?: string;
@@ -247,6 +242,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   let downgrade: DowngradeSet = resolveDowngradeErrors(options.downgradeErrors);
   // Same precedence as downgrade: the option, else the tsconfig echo adopted in buildStart.
   let showInfo = resolveShowInfo(options.levels);
+  let grouped = resolveGrouped(options.logStyle);
   // An explicit `false` wins even when a handler is set; a handler with no setting means 'callback'.
   const reportMode: 'file' | 'callback' | false =
     options.pureFnReport ?? (options.onPureFnReport || options.onBatchReport ? 'callback' : false);
@@ -302,7 +298,11 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     diagnostic.level === Level.Error || (diagnostic.level === Level.RuntimeError && !isDevServer());
   const devPrint = (block: string): void =>
     viteLogger ? viteLogger.warn(block, {clear: false, timestamp: true}) : console.warn(`[@mionjs/devtools] ${block}`);
-  const devReporter = new DevReporter(devPrint, () => cwdAbs || process.cwd());
+  const devReporter = new DevReporter(
+    devPrint,
+    () => cwdAbs || process.cwd(),
+    () => grouped
+  );
   // A regenerate failure mid-edit must neither stop the dev server nor pass silently.
   const devRegenerateFailed = (error: unknown): void =>
     devPrint(`@mionjs/devtools: regenerating after an edit failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -430,7 +430,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     const errors = diagnostics.filter(
       (diagnostic) => diagnostic.level === Level.Error || diagnostic.level === Level.RuntimeError
     );
-    surfaceDiagnostics(ctx, errors, {halts, downgrade, activeFile, cwd});
+    surfaceDiagnostics(ctx, errors, {halts, downgrade, activeFile, cwd, grouped});
   }
 
   // The 'go'-mode path, and the safe fallback for 'edits' mode when the source-consistency guard fails.
@@ -584,19 +584,17 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       );
     }
     let fatal = 0;
+    const findings: Finding[] = [];
     for (const diagnostic of incomplete) {
       // A completeness finding is a LevelWarning, so isDowngraded never lowers it — yet it halts here, so
       // this gate applies `downgradeErrors` to it directly, by code or by wildcard.
       const standDown =
         isDowngraded(downgrade, diagnostic) ||
         (DIAGNOSTIC_CATALOG[diagnostic.code]?.completeness === true && (downgrade.all || downgrade.codes.has(diagnostic.code)));
-      if (standDown) {
-        hostWarn(ctx, formatDowngraded(diagnostic));
-        continue;
-      }
-      hostWarn(ctx, formatTscDiagnostic(diagnostic));
-      fatal += 1;
+      findings.push({diagnostic, downgraded: standDown});
+      if (!standDown) fatal += 1;
     }
+    printFindings(ctx, findings, grouped, cwdAbs || process.cwd());
     // The stale-mirror half carries no diagnostic code, so only the wildcard can
     // stand it down.
     const staleCount = downgrade.all ? 0 : stale.length;
@@ -811,7 +809,14 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     if (anyEnrichFamily) await syncEnrich(rels);
 
     // The Vue SFC pass of a build drives this leaf too.
-    if (!isDevServer()) surfaceDiagnostics(ctx, result.diagnostics ?? [], {halts: () => false, downgrade, showInfo});
+    if (!isDevServer())
+      surfaceDiagnostics(ctx, result.diagnostics ?? [], {
+        halts: () => false,
+        downgrade,
+        showInfo,
+        cwd: cwdAbs || process.cwd(),
+        grouped,
+      });
 
     const stale = staleSiteFiles(relevant.map((update) => update.file));
     // Reported from the SHARED leaf, so the contract does not depend on which host drove the update.
@@ -884,6 +889,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       // dependency-free host.
       downgrade = resolveDowngradeErrors(options.downgradeErrors ?? gen.downgradeErrors);
       showInfo = resolveShowInfo(options.levels ?? gen.levels);
+      grouped = resolveGrouped(options.logStyle ?? gen.logStyle);
       // A universal hook, so every adapter gets the report; a watch-mode rebuild re-runs buildStart and
       // re-fires 'build' with the fresh one.
       if (reportEnabled && options.onPureFnReport) options.onPureFnReport(gen.pureFnSites ?? [], 'build');
@@ -898,7 +904,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       // server. The split is the LEVEL, never the diagnostic family: a fatal marker or batch code is not
       // pure-fn, and a purity violation still ships the compiled body, so it is a RuntimeError.
       if (isDevServer()) devReporter.update(gen.diagnostics ?? [], downgrade);
-      else surfaceDiagnostics(this, gen.diagnostics ?? [], {halts, downgrade, showInfo, cwd: cwdAbs || process.cwd()});
+      else surfaceDiagnostics(this, gen.diagnostics ?? [], {halts, downgrade, showInfo, cwd: cwdAbs || process.cwd(), grouped});
       // Dev/watch WRITES the mirrors up front, a whole-program pass so they exist before the first edit;
       // every other lane (a production build, a non-Vite bundler) takes the read-only drift gate instead.
       if (anyEnrichFamily) {

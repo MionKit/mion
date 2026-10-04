@@ -27,3 +27,14 @@ func TestShownHidesOnlyInfo(t *testing.T) {
 		t.Error("Info must show with levels: all")
 	}
 }
+
+func TestResolveLogStyle(t *testing.T) {
+	for value, want := range map[string]bool{"": true, LogStyleGrouped: true, LogStyleLines: false} {
+		if grouped, err := ResolveLogStyle(value); err != nil || grouped != want {
+			t.Errorf("ResolveLogStyle(%q) = %v, %v; want %v", value, grouped, err, want)
+		}
+	}
+	if _, err := ResolveLogStyle("line"); err == nil {
+		t.Error("an unknown value must error, a typo would otherwise read as working")
+	}
+}

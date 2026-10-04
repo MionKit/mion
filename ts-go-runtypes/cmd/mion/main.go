@@ -365,6 +365,7 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		ClientRoutes:            clientRoutes,
 		TsconfigDowngradeErrors: plugin.DowngradeErrors,
 		TsconfigLevels:          plugin.Levels,
+		TsconfigLogStyle:        plugin.LogStyle,
 		EnrichSourceLocale:      pluginI18nSourceLocale(plugin),
 		EnrichLocales:           pluginI18nLocales(plugin),
 		SingleThreaded:          merged.singleThreaded,
@@ -642,6 +643,7 @@ func runCompile(args []string) {
 		"where compile writes the generated cache modules (default <cwd>/.mion; also the tsconfig \"genDir\" plugin key, flag overrides it)")
 	noEmit := fs.Bool("no-emit", false,
 		"report the RunType-family diagnostics without writing (tsc --noEmit-style): scan only, emit no .js and no cache modules")
+	logStyle := registerLogStyleFlag(fs)
 	fs.Usage = func() { printUsage(fs, compileUsage) }
 	_ = fs.Parse(args)
 
@@ -651,6 +653,7 @@ func runCompile(args []string) {
 	if cfg.tsconfigPath == "" {
 		fatal("compile: no tsconfig.json found searching upward from %s (tsc-style discovery) — pass --tsconfig", cfg.absCwd)
 	}
+	grouped := resolveLogStyle("compile", *logStyle, cfg)
 
 	compileResult, compileErr := batchcompile.Run(batchcompile.Options{
 		Cwd:          cfg.absCwd,
@@ -663,7 +666,7 @@ func runCompile(args []string) {
 	if compileErr != nil {
 		fatal("compile: %v", compileErr)
 	}
-	errorCount := printBuildDiagnostics("compile", cfg, compileResult)
+	errorCount := printBuildDiagnostics("compile", cfg, compileResult, grouped)
 	if *noEmit {
 		fmt.Fprintf(os.Stderr, "mion: checked %d file(s), wrote nothing (--no-emit)\n", compileResult.CheckedFiles)
 	} else {
@@ -675,8 +678,27 @@ func runCompile(args []string) {
 	}
 }
 
+// registerLogStyleFlag adds --log-style to a command that prints a build's diagnostics.
+func registerLogStyleFlag(fs *flag.FlagSet) *string {
+	return fs.String("log-style", "",
+		"how diagnostics print: \"grouped\" (default) groups them by name, \"lines\" prints one line each (also the tsconfig \"logStyle\" plugin key, flag overrides it)")
+}
+
+// resolveLogStyle picks the flag over the tsconfig `logStyle` and stops the run on an unknown value.
+func resolveLogStyle(command, flagValue string, cfg sessionConfig) bool {
+	value := cfg.opts.TsconfigLogStyle
+	if flagValue != "" {
+		value = flagValue
+	}
+	grouped, err := diagnostics.ResolveLogStyle(value)
+	if err != nil {
+		fatal(command+": %v", err)
+	}
+	return grouped
+}
+
 // printBuildDiagnostics prints a compile run's diagnostics the way a bundler build does and returns the error count.
-func printBuildDiagnostics(command string, cfg sessionConfig, compileResult *batchcompile.Result) int {
+func printBuildDiagnostics(command string, cfg sessionConfig, compileResult *batchcompile.Result, grouped bool) int {
 	// Same tsconfig `downgradeErrors` as a bundler build, so the CLI grows no flag of its own.
 	downgrade, downgradeErr := diagnostics.ResolveDowngrade(cfg.opts.TsconfigDowngradeErrors)
 	if downgradeErr != nil {
@@ -686,9 +708,14 @@ func printBuildDiagnostics(command string, cfg sessionConfig, compileResult *bat
 	if levelsErr != nil {
 		fatal(command+": %v", levelsErr)
 	}
+	var entries []diagnostics.GroupedEntry
 	// TypeScript errors fail the build as in tsc; downgradeErrors and levels never apply to them.
-	for _, line := range compileResult.TypeDiagnostics {
-		fmt.Fprintln(os.Stderr, line)
+	if grouped {
+		entries = append(entries, compileResult.TypeEntries...)
+	} else {
+		for _, line := range compileResult.TypeDiagnostics {
+			fmt.Fprintln(os.Stderr, line)
+		}
 	}
 	errorCount := compileResult.TypeErrorCount
 	// Each whole-program op runs the `@mion-expect-error` unused check, so without Dedupe it reports once per pass.
@@ -698,14 +725,18 @@ func printBuildDiagnostics(command string, cfg sessionConfig, compileResult *bat
 		}
 		// Printed with the bundler's one-word note, or a downgraded error reads as an ordinary warning.
 		// d.Downgraded is the resolver-stamped `@mion-downgrade-error` comment, downgrade the tsconfig setting.
-		if d.Downgraded || downgrade.Downgraded(d) {
-			fmt.Fprintln(os.Stderr, diagnostics.Format(d, true))
-			continue
+		downgraded := d.Downgraded || downgrade.Downgraded(d)
+		if grouped {
+			entries = append(entries, diagnostics.EntryOf(d, downgraded))
+		} else {
+			fmt.Fprintln(os.Stderr, diagnostics.Format(d, downgraded))
 		}
-		fmt.Fprintln(os.Stderr, diagnostics.Format(d, false))
-		if d.Severity == diagnostics.SeverityError {
+		if !downgraded && d.Severity == diagnostics.SeverityError {
 			errorCount++
 		}
+	}
+	if len(entries) > 0 {
+		fmt.Fprintln(os.Stderr, diagnostics.FormatGrouped(entries, cfg.absCwd))
 	}
 	return errorCount
 }

@@ -6,7 +6,7 @@ import path from 'node:path';
 import type {UnpluginContext, UnpluginMessage} from 'unplugin';
 import {renderHeadline} from './diagnosticCatalog.ts';
 import {DOWNGRADED_NOTE, isDowngraded, NONE, type DowngradeSet} from './downgradeErrors.ts';
-import {severityLabel} from './groupedLog.ts';
+import {entryOf, formatGrouped, severityLabel} from './groupedLog.ts';
 import {isShown} from './levels.ts';
 import {Severity, type Diagnostic} from './protocol.ts';
 
@@ -56,6 +56,35 @@ interface SurfaceOptions {
   activeFile?: string;
   // Base for a relative site or activeFile: the plugin's working directory.
   cwd?: string;
+  // The `logStyle` setting: one grouped block per call, or one warning per finding.
+  grouped: boolean;
+}
+
+export interface Finding {
+  diagnostic: Diagnostic;
+  downgraded: boolean;
+}
+
+// One warning per finding, or one grouped block for all of them.
+export function printFindings(
+  ctx: HostContext | undefined,
+  findings: readonly Finding[],
+  grouped: boolean,
+  cwd = process.cwd()
+): void {
+  if (findings.length === 0) return;
+  if (grouped) {
+    hostWarn(
+      ctx,
+      formatGrouped(
+        findings.map(({diagnostic, downgraded}) => entryOf(diagnostic, downgraded)),
+        cwd
+      )
+    );
+    return;
+  }
+  for (const {diagnostic, downgraded} of findings)
+    hostWarn(ctx, downgraded ? formatDowngraded(diagnostic) : formatTscDiagnostic(diagnostic));
 }
 
 // Halts ONCE after printing everything, so the log holds the whole list with the failure below it.
@@ -63,15 +92,17 @@ interface SurfaceOptions {
 export function surfaceDiagnostics(ctx: HostContext | undefined, diagnostics: Diagnostic[], options: SurfaceOptions): void {
   let first: Diagnostic | undefined;
   let count = 0;
+  const findings: Finding[] = [];
   for (const diagnostic of diagnostics) {
     if (!isShown(diagnostic, options.showInfo ?? false)) continue;
     // NONE, not a skip: a `@mion-downgrade-error` comment lowers its finding even with no set configured.
     const downgraded = isDowngraded(options.downgrade ?? NONE, diagnostic);
-    hostWarn(ctx, downgraded ? formatDowngraded(diagnostic) : formatTscDiagnostic(diagnostic));
+    findings.push({diagnostic, downgraded});
     if (downgraded || !options.halts(diagnostic)) continue;
     count += 1;
     first ??= diagnostic;
   }
+  printFindings(ctx, findings, options.grouped, options.cwd);
   if (first) hostHalt(ctx, haltError(first, count, options.activeFile, options.cwd));
 }
 

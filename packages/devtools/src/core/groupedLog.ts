@@ -1,6 +1,7 @@
 // The grouped log: each diagnostic name once with its message, then one line per site. Twin of
 // internal/diagnostics/grouped.go; testdata/grouped/cases.json there pins both to the same bytes.
 
+import path from 'node:path';
 import {DIAGNOSTIC_CATALOG, renderHeadline} from './diagnosticCatalog.ts';
 import {DOWNGRADED_NOTE} from './downgradeErrors.ts';
 import {Severity, type Diagnostic, type DiagnosticSite, type GroupedEntry} from './protocol.ts';
@@ -36,8 +37,10 @@ export function entryOf(diagnostic: Diagnostic, downgraded: boolean): GroupedEnt
   };
 }
 
-export function formatGrouped(entries: readonly GroupedEntry[]): string {
-  if (entries.length === 0) return '';
+// A path under cwd prints relative to it; an empty cwd keeps every path as given.
+export function formatGrouped(allEntries: readonly GroupedEntry[], cwd = ''): string {
+  if (allEntries.length === 0) return '';
+  const entries = cwd === '' ? allEntries : allEntries.map((entry) => relativeEntry(entry, cwd));
   const groups: Group[] = [];
   for (const entry of entries) {
     const downgraded = entry.downgraded ?? false;
@@ -99,6 +102,19 @@ function blockText(block: Block): string {
     for (const related of entry.related ?? []) text += `\n      Related: ${location(related)} ${related.message}`;
   }
   return text;
+}
+
+function relativeEntry(entry: GroupedEntry, cwd: string): GroupedEntry {
+  const site = {...entry.site, filePath: relativePath(entry.site.filePath, cwd)};
+  const related = entry.related?.map((pointer) => ({...pointer, filePath: relativePath(pointer.filePath, cwd)}));
+  return related ? {...entry, site, related} : {...entry, site};
+}
+
+function relativePath(filePath: string, cwd: string): string {
+  if (!path.isAbsolute(filePath)) return filePath;
+  const rel = path.relative(cwd, filePath);
+  if (rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) return filePath;
+  return rel.split(path.sep).join('/');
 }
 
 function argAt(args: readonly string[] | undefined, index: number): string {

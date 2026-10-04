@@ -185,6 +185,11 @@ const TSCONFIG_LEVELS_SRC = JSON.stringify({
   include: ['*.ts'],
 });
 
+const TSCONFIG_LOG_STYLE_SRC = JSON.stringify({
+  compilerOptions: {...JSON.parse(TSCONFIG_SRC).compilerOptions, plugins: [{name: 'mion', levels: 'all', logStyle: 'lines'}]},
+  include: ['*.ts'],
+});
+
 const COLLISION_ENTRY_SRC = `import {getRunTypeId} from '@mionjs/run-types';
 type Big = ${Array.from({length: 60}, (_, i) => `'v${i}'`).join(' | ')};
 export const staticForm = getRunTypeId<Big>();
@@ -230,6 +235,7 @@ const UNRESOLVED_DIR = path.join(FIXTURE_DIR, 'unresolved-import-program');
 const TSCONFIG_DOWNGRADE_DIR = path.join(FIXTURE_DIR, 'tsconfig-downgrade-program');
 const COLLISION_DIR = path.join(FIXTURE_DIR, 'type-id-collision-program');
 const TSCONFIG_LEVELS_DIR = path.join(FIXTURE_DIR, 'tsconfig-levels-program');
+const TSCONFIG_LOG_STYLE_DIR = path.join(FIXTURE_DIR, 'tsconfig-log-style-program');
 const EXPECT_ERROR_DIR = path.join(FIXTURE_DIR, 'expect-error-program');
 const STALE_EXPECT_DIR = path.join(FIXTURE_DIR, 'stale-expect-program');
 const DOWNGRADE_ERROR_DIR = path.join(FIXTURE_DIR, 'downgrade-error-program');
@@ -246,6 +252,7 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
     writeFixture(ERROR_DIR, ERROR_ENTRY_SRC);
     writeFixture(WARNING_DIR, WARNING_ENTRY_SRC);
     writeFixture(TSCONFIG_LEVELS_DIR, WARNING_ENTRY_SRC, TSCONFIG_LEVELS_SRC);
+    writeFixture(TSCONFIG_LOG_STYLE_DIR, WARNING_ENTRY_SRC, TSCONFIG_LOG_STYLE_SRC);
     writeFixture(UNRESOLVED_DIR, UNRESOLVED_IMPORT_SRC);
     writeFixture(TSCONFIG_DOWNGRADE_DIR, ERROR_ENTRY_SRC, TSCONFIG_DOWNGRADE_SRC);
     writeFixture(COLLISION_DIR, COLLISION_ENTRY_SRC, TSCONFIG_HASHLENGTH1_SRC);
@@ -456,7 +463,7 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
   });
 
   register("levels: 'all' prints the Info diagnostic with the info label, and it still never halts", async () => {
-    const plugin = makePlugin(WARNING_DIR, {levels: 'all'});
+    const plugin = makePlugin(WARNING_DIR, {levels: 'all', logStyle: 'lines'});
     const ctx = makeCtx();
     try {
       await callHook(plugin.buildStart, ctx); // must not throw
@@ -466,6 +473,49 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
     } finally {
       await callHook(plugin.buildEnd, ctx);
     }
+  });
+
+  register('grouped by default: one warning holds every finding, each name once', async () => {
+    const plugin = makePlugin(WARNING_DIR, {levels: 'all'});
+    const ctx = makeCtx();
+    try {
+      await callHook(plugin.buildStart, ctx);
+      expect(ctx.warnings).toHaveLength(1);
+      expect(ctx.warnings[0]).toMatch(/^info validate-method-dropped \(\d+\)$/m);
+      expect(ctx.warnings[0]).toMatch(/^ {4}entry\.ts:\d+:\d+/m);
+      expect(ctx.warnings[0]).toMatch(/^mion: .*info in 1 file$/m);
+    } finally {
+      await callHook(plugin.buildEnd, ctx);
+    }
+  });
+
+  register('a halting build prints one grouped block, then stops with the same message as before', async () => {
+    const plugin = makePlugin(ERROR_DIR);
+    const ctx = makeCtx();
+    try {
+      await expect(callHook(plugin.buildStart, ctx)).rejects.toThrow(
+        /build stopped on \d+ mion errors?\. First: .*\(\d+,\d+\): error /
+      );
+      expect(ctx.warnings).toHaveLength(1);
+      expect(ctx.warnings[0]).toMatch(/^error [a-z-]+ \(\d+\)$/m);
+    } finally {
+      await callHook(plugin.buildEnd, ctx);
+    }
+  });
+
+  register("tsconfig logStyle: 'lines' (echoed, no plugin option) prints one warning per finding", async () => {
+    const plugin = makePlugin(TSCONFIG_LOG_STYLE_DIR);
+    const ctx = makeCtx();
+    try {
+      await callHook(plugin.buildStart, ctx);
+      expect(ctx.warnings.join('\n')).toMatch(/entry\.ts\(\d+,\d+\): info validate-method-dropped: /);
+    } finally {
+      await callHook(plugin.buildEnd, ctx);
+    }
+  });
+
+  it('refuses a logStyle value other than grouped or lines at the host boundary', () => {
+    expect(() => makePlugin(WARNING_DIR, {logStyle: 'line'})).toThrow(/invalid logStyle "line"/);
   });
 
   register("tsconfig levels: 'all' (echoed, no plugin option) prints Info too", async () => {

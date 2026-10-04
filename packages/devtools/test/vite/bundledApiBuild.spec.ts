@@ -237,7 +237,7 @@ register('bundled API through a real vite build', () => {
     writeFileSync(path.join(root, 'src', 'a.ts'), CLIENT.replace(/^middlewares\.auth.*$/m, ''));
     const warnings: string[] = [];
     await expect(buildClient('bundle', warnings)).rejects.toThrow(/build stopped/);
-    expect(warnings.join('\n')).toMatch(/rpc-client-middleware-not-set-up.*`auth`/);
+    expect(warnings.join('\n')).toMatch(/error rpc-client-middleware-not-set-up \(1\)\n.*middleware `auth`/);
   });
 
   it('bundles with no option: bundled is the default', async () => {

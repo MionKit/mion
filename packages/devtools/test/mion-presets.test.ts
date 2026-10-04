@@ -44,6 +44,11 @@ describe('toRunTypesOptions — the mapping both presets share', () => {
     expect(toRunTypesOptions({runTypes: {levels: 'all'}}).levels).toBe('all');
   });
 
+  it('passes logStyle through, undefined when unset so a tsconfig-only value still reaches the host', () => {
+    expect(toRunTypesOptions({}).logStyle).toBeUndefined();
+    expect(toRunTypesOptions({runTypes: {logStyle: 'lines'}}).logStyle).toBe('lines');
+  });
+
   it('maps derivedPayloadLimits onto the resolver jsonMaxBytes key, undefined passing through', () => {
     expect(toRunTypesOptions({}).jsonMaxBytes).toBeUndefined();
     expect(toRunTypesOptions({runTypes: {derivedPayloadLimits: false}}).jsonMaxBytes).toBe(false);

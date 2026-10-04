@@ -63,6 +63,8 @@ type Options struct {
 	TsconfigDowngradeErrors []string
 	// TsconfigLevels is echoed on Response.Levels the same way; hiding Info is print policy too.
 	TsconfigLevels string
+	// TsconfigLogStyle is echoed on Response.LogStyle the same way; grouping is print policy too.
+	TsconfigLogStyle string
 	// SingleThreaded mirrors program.Options.SingleThreaded, and also forces the serial scan path.
 	SingleThreaded bool
 	// DisableParallelScan forces the serial marker scan; the zero value is parallel-on (same idiom as SingleThreaded).

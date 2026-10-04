@@ -7,13 +7,18 @@ import {entryOf, formatGrouped} from '../src/core/groupedLog.ts';
 import {Family, Level, Severity, type GroupedEntry} from '../src/core/protocol.ts';
 
 const CORPUS = path.resolve(import.meta.dirname, '../../../ts-go-runtypes/internal/diagnostics/testdata/grouped/cases.json');
-const cases = JSON.parse(readFileSync(CORPUS, 'utf8')) as {name: string; entries: GroupedEntry[] | null; want: string}[];
+const cases = JSON.parse(readFileSync(CORPUS, 'utf8')) as {
+  name: string;
+  cwd?: string;
+  entries: GroupedEntry[] | null;
+  want: string;
+}[];
 
 describe('formatGrouped', () => {
   it('reads a non-empty corpus', () => expect(cases.length).toBeGreaterThan(5));
   for (const testCase of cases) {
     it(`prints the same bytes as Go: ${testCase.name}`, () => {
-      expect(formatGrouped(testCase.entries ?? [])).toBe(testCase.want);
+      expect(formatGrouped(testCase.entries ?? [], testCase.cwd)).toBe(testCase.want);
     });
   }
 

@@ -70,8 +70,10 @@ type Result struct {
 	Diagnostics  []diagnostics.Diagnostic
 	// TypeDiagnostics are TypeScript's own diagnostics, already rendered as tsc prints them.
 	TypeDiagnostics []string
-	TypeErrorCount  int
-	CheckedFiles    int // non-declaration source files the scan read
+	// TypeEntries are the same diagnostics for the grouped log, in the same order.
+	TypeEntries    []diagnostics.GroupedEntry
+	TypeErrorCount int
+	CheckedFiles   int // non-declaration source files the scan read
 	// Declarations (DeclarationsOnly) holds each emitted .d.ts by absolute path under DeclarationDir.
 	Declarations map[string]string
 	// PureFnArtifact is the package's `mion-pure-fns/` content, path inside the directory to text.
@@ -135,7 +137,7 @@ func Run(opts Options) (*Result, error) {
 	}
 
 	// The ORIGINAL program, never the overlaid one: its rewritten imports point at rtmod: modules TypeScript cannot resolve.
-	result.TypeDiagnostics, result.TypeErrorCount = typeDiagnostics(p1.TS, cwd)
+	result.TypeDiagnostics, result.TypeEntries, result.TypeErrorCount = typeDiagnostics(p1.TS, cwd)
 
 	// The OpDump above already ran the full scan and its diagnostics in memory, so nothing more is needed.
 	if opts.NoEmit {
@@ -283,7 +285,7 @@ func Run(opts Options) (*Result, error) {
 }
 
 // typeDiagnostics renders each diagnostic tsc reports the way tsc prints it without --pretty.
-func typeDiagnostics(tsProgram *compiler.Program, cwd string) ([]string, int) {
+func typeDiagnostics(tsProgram *compiler.Program, cwd string) ([]string, []diagnostics.GroupedEntry, int) {
 	ctx := context.Background()
 	found := compiler.GetDiagnosticsOfAnyProgram(ctx, tsProgram, nil, false, tsProgram.GetBindDiagnostics, tsProgram.GetSemanticDiagnostics)
 	return renderDiagnostics(found, cwd)
@@ -299,7 +301,7 @@ func emitSkippedAt(stage string, result *compiler.EmitResult, cwd string, locate
 	if result == nil || !result.EmitSkipped {
 		return nil
 	}
-	lines, _ := renderDiagnosticsAt(result.Diagnostics, cwd, locate)
+	lines, _, _ := renderDiagnosticsAt(result.Diagnostics, cwd, locate)
 	if len(lines) == 0 {
 		return fmt.Errorf("compile: tsgo %s was skipped", stage)
 	}
@@ -307,21 +309,27 @@ func emitSkippedAt(stage string, result *compiler.EmitResult, cwd string, locate
 }
 
 // renderDiagnostics formats diagnostics as tsc prints them without --pretty.
-func renderDiagnostics(found []*ast.Diagnostic, cwd string) ([]string, int) {
+func renderDiagnostics(found []*ast.Diagnostic, cwd string) ([]string, []diagnostics.GroupedEntry, int) {
 	return renderDiagnosticsAt(found, cwd, nil)
 }
 
 // diagnosticLocator moves a position in an overlaid file to the file and position the user wrote.
 type diagnosticLocator func(file *ast.SourceFile, pos int) (*ast.SourceFile, int)
 
-func renderDiagnosticsAt(found []*ast.Diagnostic, cwd string, locate diagnosticLocator) ([]string, int) {
+func renderDiagnosticsAt(found []*ast.Diagnostic, cwd string, locate diagnosticLocator) ([]string, []diagnostics.GroupedEntry, int) {
 	found = compiler.SortAndDeduplicateDiagnostics(found)
 	lines := make([]string, 0, len(found))
+	entries := make([]diagnostics.GroupedEntry, 0, len(found))
 	errorCount := 0
 	for _, diagnostic := range found {
 		category := diagnostic.Category().Name()
-		if category == "error" {
+		entry := diagnostics.GroupedEntry{Severity: diagnostics.SeverityInfo, Name: fmt.Sprintf("TS%d", diagnostic.Code())}
+		switch category {
+		case "error":
 			errorCount++
+			entry.Severity = diagnostics.SeverityError
+		case "warning":
+			entry.Severity = diagnostics.SeverityWarning
 		}
 		var builder strings.Builder
 		if file := diagnostic.File(); file != nil {
@@ -335,12 +343,17 @@ func renderDiagnosticsAt(found []*ast.Diagnostic, cwd string, locate diagnosticL
 				fileName = filepath.ToSlash(rel)
 			}
 			fmt.Fprintf(&builder, "%s(%d,%d): ", fileName, line+1, int(character)+1)
+			entry.Site = diagnostics.Site{FilePath: fileName, StartLine: line + 1, StartCol: int(character) + 1}
 		}
-		fmt.Fprintf(&builder, "%s TS%d: %s", category, diagnostic.Code(), diagnostic.String())
+		fmt.Fprintf(&builder, "%s TS%d: ", category, diagnostic.Code())
+		messageStart := builder.Len()
+		builder.WriteString(diagnostic.String())
 		writeMessageChain(&builder, diagnostic.MessageChain(), 1)
+		entry.Template = builder.String()[messageStart:]
 		lines = append(lines, builder.String())
+		entries = append(entries, entry)
 	}
-	return lines, errorCount
+	return lines, entries, errorCount
 }
 
 // writeMessageChain appends the nested detail lines, indented as tsc indents them.
