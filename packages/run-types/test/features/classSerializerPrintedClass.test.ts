@@ -51,6 +51,8 @@ describe('classSerializer / a printed class finds the class the client registers
   it('static — the printed class has the real class id, so the exact lookup finds it', () => {
     register();
     expect(getRunTypeId<printed.Money>()).toBe(getRunTypeId<Money>());
+    // both call shapes resolve the printed class to the same id
+    expect(getRunTypeId<printed.Money>()).toBe(getRunTypeId(new Money(1) as unknown as printed.Money));
     const decoded = createJsonDecoderFn<printed.Money>()(createJsonEncoderFn<Money>()(new Money(5)) as string);
     expect(decoded).toBeInstanceOf(Money);
     expect((decoded as Money).add(new Money(1)).amount).toBe(6);
