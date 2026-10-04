@@ -819,6 +819,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		// Echoed like OutDir, so the dependency-free host can adopt a tsconfig-only setting.
 		genResponse.DowngradeErrors = sess.opts.TsconfigDowngradeErrors
 		genResponse.Levels = sess.opts.TsconfigLevels
+		genResponse.LogStyle = sess.opts.TsconfigLogStyle
 		// The opt-in build report feeds the in-process callback; with file output on it is also written beside
 		// the generated modules, which is how an out-of-process consumer (a separate server build, the
 		// --compile lane) reads it.

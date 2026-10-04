@@ -43,6 +43,8 @@ export interface MionRunTypesOptions {
   downgradeErrors?: TsRuntypesPluginOptions['downgradeErrors'];
   /** `'all'` also prints Info findings (a skipped method, a validator on `any`), hidden by default; never changes what stops the build. */
   levels?: TsRuntypesPluginOptions['levels'];
+  /** `'lines'` prints one line per finding; the default `'grouped'` prints each message once with its sites. */
+  logStyle?: TsRuntypesPluginOptions['logStyle'];
   /** How many mockSamples to generate for a TypeFormat pattern that declares none. Declared mockSamples always
    *  win over generation, and a pattern the generator cannot handle (usually lookarounds) fails the build with
    *  format-sample-generation-failed, asking for explicit mockSamples. */
@@ -130,6 +132,8 @@ export function toRunTypesOptions(options: MionPresetOptions = {}): TsRuntypesPl
     downgradeErrors: rt.downgradeErrors,
     // Undefined when unset, like downgradeErrors, so a tsconfig-only `levels` still reaches the host.
     levels: rt.levels,
+    // Undefined when unset, so a tsconfig-only `logStyle` still reaches the host.
+    logStyle: rt.logStyle,
     patternSampleCount: rt.patternSampleCount,
     patternSampleRetries: rt.patternSampleRetries,
     jsonMaxBytes: rt.derivedPayloadLimits,

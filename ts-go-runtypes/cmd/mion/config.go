@@ -106,6 +106,8 @@ type tsRuntypesPlugin struct {
 	DowngradeErrors downgradeErrorsKey `json:"downgradeErrors"`
 	// Levels: absent hides LevelInfo, "all" shows it. Echoed on generate like downgradeErrors; `mion compile` reads it too.
 	Levels string `json:"levels"`
+	// LogStyle: absent or "grouped" prints findings grouped by name, "lines" one line each. Echoed on generate like levels.
+	LogStyle string `json:"logStyle"`
 	// Validate holds project-wide ValidateOptions defaults the scanner merges per field into each site (site wins).
 	// It folds into the fnHash variant, so it is NOT a disk fingerprint input; nil keeps the built-in defaults.
 	Validate *validatePluginConfig `json:"validate"`

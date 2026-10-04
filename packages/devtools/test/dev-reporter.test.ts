@@ -5,6 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 import {createLogger, createServer, type ViteDevServer} from 'vite';
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
+import {DevReporter} from '../src/core/devReporter.ts';
+import {Family, Level, Severity, type Diagnostic} from '../src/core/protocol.ts';
 import {mionVitePlugin} from '../src/vite/index.ts';
 import {BIN, hasBinary, waitFor, writeMarkerPackage} from './helpers/inline.ts';
 
@@ -87,6 +89,9 @@ register('the dev server prints only what breaks running code, once', () => {
 
   it('reports the RuntimeError once and the warning as one count line, never clearing the terminal', async () => {
     expect(count('error validate-symbol-root')).toBe(1);
+    // Grouped by default: the name once, then the site relative to the project.
+    expect(lines()).toContain('error validate-symbol-root (1)');
+    expect(lines().some((line) => /^ {4}src\/b\.ts:\d+:\d+$/.test(line))).toBe(true);
     expect(count('marker-calls-function-for-type')).toBe(0);
     expect(lines()).toContain('mion: 1 warning (1 new). Your editor shows them through the mion lint rules.');
     expect(logged.every((entry) => entry.clear === false)).toBe(true);
@@ -207,4 +212,50 @@ register('the dev server fails the file holding a whole-program Error', () => {
       /build stopped on 1 mion error\. First: .*error rpc-client-route-not-declared: /
     );
   }, 60_000);
+});
+
+describe('DevReporter logStyle', () => {
+  const diagnostic = (file: string, line: number): Diagnostic => ({
+    code: 'validate-symbol-root',
+    family: Family.RunType,
+    severity: Severity.Error,
+    level: Level.RuntimeError,
+    args: ['symbol'],
+    site: {filePath: file, startLine: line, startCol: 1},
+  });
+  const report = (grouped: boolean): string[] => {
+    const printed: string[] = [];
+    const reporter = new DevReporter(
+      (block) => printed.push(block),
+      () => '/app',
+      () => grouped
+    );
+    reporter.update([diagnostic('/app/src/a.ts', 2), diagnostic('/app/src/b.ts', 5)]);
+    reporter.add([diagnostic('/app/src/c.ts', 1), diagnostic('/app/src/a.ts', 2)]);
+    return printed;
+  };
+
+  it('grouped prints each batch of new errors as one block, the name once', () => {
+    const [first, second] = report(true);
+    expect(first).toBe(
+      [
+        'error validate-symbol-root (2)',
+        '  Type `symbol` can never be validated: the generated function will always fail.',
+        '    src/a.ts:2:1',
+        '    src/b.ts:5:1',
+        '',
+        'mion: 2 errors in 2 files',
+      ].join('\n')
+    );
+    expect(second).toMatch(/^error validate-symbol-root \(1\)\n.*\n {4}src\/c\.ts:1:1\n/);
+  });
+
+  it('lines prints one line per new error', () => {
+    const [first, second] = report(false);
+    expect(first.split('\n')).toEqual([
+      expect.stringMatching(/^\/app\/src\/a\.ts\(2,1\): error validate-symbol-root: /),
+      expect.stringMatching(/^\/app\/src\/b\.ts\(5,1\): error validate-symbol-root: /),
+    ]);
+    expect(second).toMatch(/^\/app\/src\/c\.ts\(1,1\): error validate-symbol-root: /);
+  });
 });

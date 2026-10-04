@@ -472,6 +472,69 @@
     "want": "error validate-symbol-root (1)\n  Type `Symbol` can never be validated: the generated function will always fail.\n    a.ts:3:1\n\nmion: 1 error in 1 file"
   },
   {
+    "name": "paths under cwd print relative to it",
+    "cwd": "/work/app",
+    "entries": [
+      {
+        "severity": 1,
+        "name": "validate-symbol-root",
+        "template": "Type `{type}` can never be validated: the generated function will always fail.",
+        "slots": [
+          "type"
+        ],
+        "args": [
+          "Symbol"
+        ],
+        "site": {
+          "filePath": "/work/app/src/a.ts",
+          "startLine": 3,
+          "startCol": 1
+        },
+        "related": [
+          {
+            "filePath": "/work/app/src/b.ts",
+            "startLine": 1,
+            "startCol": 2,
+            "message": "first here"
+          }
+        ]
+      },
+      {
+        "severity": 1,
+        "name": "validate-symbol-root",
+        "template": "Type `{type}` can never be validated: the generated function will always fail.",
+        "slots": [
+          "type"
+        ],
+        "args": [
+          "Symbol"
+        ],
+        "site": {
+          "filePath": "/work/lib/c.ts",
+          "startLine": 4,
+          "startCol": 1
+        }
+      },
+      {
+        "severity": 1,
+        "name": "validate-symbol-root",
+        "template": "Type `{type}` can never be validated: the generated function will always fail.",
+        "slots": [
+          "type"
+        ],
+        "args": [
+          "Symbol"
+        ],
+        "site": {
+          "filePath": "src/rel.ts",
+          "startLine": 5,
+          "startCol": 1
+        }
+      }
+    ],
+    "want": "error validate-symbol-root (3)\n  Type `Symbol` can never be validated: the generated function will always fail.\n    /work/lib/c.ts:4:1\n    src/a.ts:3:1\n      Related: src/b.ts:1:2 first here\n    src/rel.ts:5:1\n\nmion: 3 errors in 3 files"
+  },
+  {
     "name": "nothing",
     "entries": [],
     "want": ""

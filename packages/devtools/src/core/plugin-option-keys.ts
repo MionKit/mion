@@ -24,6 +24,7 @@ const PLUGIN_OPTION_KEY_TABLE = {
   sourcesContent: true,
   downgradeErrors: true,
   levels: true,
+  logStyle: true,
   jsRuntime: true,
   detachResolver: true,
   devServer: true,

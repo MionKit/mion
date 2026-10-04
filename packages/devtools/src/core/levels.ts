@@ -11,6 +11,19 @@ export function resolveShowInfo(value: unknown): boolean {
   throw new Error(`[@mionjs/devtools] invalid levels ${JSON.stringify(value)} — the only accepted value is '${LEVELS_ALL}'`);
 }
 
+export const LOG_STYLE_GROUPED = 'grouped';
+export const LOG_STYLE_LINES = 'lines';
+export type LogStyle = typeof LOG_STYLE_GROUPED | typeof LOG_STYLE_LINES;
+
+// The `logStyle` setting, unset groups; twin of ResolveLogStyle in ts-go-runtypes/internal/diagnostics/logstyle.go.
+export function resolveGrouped(value: unknown): boolean {
+  if (value === undefined || value === '' || value === LOG_STYLE_GROUPED) return true;
+  if (value === LOG_STYLE_LINES) return false;
+  throw new Error(
+    `[@mionjs/devtools] invalid logStyle ${JSON.stringify(value)} — the accepted values are '${LOG_STYLE_GROUPED}' and '${LOG_STYLE_LINES}'`
+  );
+}
+
 export function isShown(diagnostic: Diagnostic, showInfo: boolean): boolean {
   return showInfo || diagnostic.level !== Level.Info;
 }

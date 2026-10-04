@@ -181,6 +181,8 @@ type Response struct {
 	DowngradeErrors []string `json:"downgradeErrors,omitempty"`
 	// Levels echoes the tsconfig plugin's `levels` on OpGenerate ("" when unset); the host's own option wins.
 	Levels string `json:"levels,omitempty"`
+	// LogStyle echoes the tsconfig plugin's `logStyle` on OpGenerate ("" when unset); the host's own option wins.
+	LogStyle string `json:"logStyle,omitempty"`
 	// Transformed carries one TransformResult per file for OpTransform, keyed by file path, scoped to the
 	// request's Files.
 	Transformed map[string]TransformResult `json:"transformed,omitempty"`
@@ -487,6 +489,9 @@ func (response Response) MarshalJSON() ([]byte, error) {
 	}
 	if response.Levels != "" {
 		out["levels"] = response.Levels
+	}
+	if response.LogStyle != "" {
+		out["logStyle"] = response.LogStyle
 	}
 	if len(response.Transformed) > 0 {
 		out["transformed"] = response.Transformed

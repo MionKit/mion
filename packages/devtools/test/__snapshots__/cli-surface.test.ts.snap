@@ -33,6 +33,8 @@ Flags:
     	JS runtime path the format-pattern checks run on (default: MION_JS_RUNTIME, then node, then bun from PATH; any node-compatible runtime works)
   --json-max-bytes
     	emit on every fully bounded reflection root the largest compact-JSON size a valid value can have (per-route size limits); --json-max-bytes=false emits none
+  --log-style string
+    	how diagnostics print: "grouped" (default) groups them by name, "lines" prints one line each (also the tsconfig "logStyle" plugin key, flag overrides it)
   --marker-packages packages
     	comma-separated packages additionally allowed to declare the marker types (InjectRunTypeId, CompTimeArgs, …); @mionjs/run-types is always accepted
   --module-mode string

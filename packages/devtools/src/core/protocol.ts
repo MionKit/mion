@@ -377,6 +377,8 @@ export interface Response {
   downgradeErrors?: string[];
   // Echo of the tsconfig plugin's `levels` on `generate`, absent when unset; the host's own option wins.
   levels?: string;
+  // Echo of the tsconfig plugin's `logStyle` on `generate`, absent when unset; the host's own option wins.
+  logStyle?: string;
   // One TransformResult per file for the `transform` op, keyed by file path.
   transformed?: Record<string, TransformResult>;
   // Every non-fatal diagnostic the Go binary emits; the Family discriminator says which subsystem produced it.

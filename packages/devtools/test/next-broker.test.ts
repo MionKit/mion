@@ -17,7 +17,7 @@
 // container/pre-publish-e2e/apps/smoke-next (+ its entry in build-all.mjs and its
 // assertions in test/build-outputs.test.mjs). A change to the adapter needs BOTH.
 // See src/runtypes/next/CLAUDE.md.
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
 import fs from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
@@ -392,6 +392,7 @@ export const reflectedId = getRunTypeId(sample);
       async () => {
         const root = writeBadProject();
         const entry = path.join(root, 'src/entry.ts');
+        const warned = vi.spyOn(console, 'warn').mockImplementation(() => {});
         const handle = await withNodeEnv('production', () =>
           startBroker(root, {binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '.mion'})
         );
@@ -400,7 +401,12 @@ export const reflectedId = getRunTypeId(sample);
           expect(reply.ok).toBe(false);
           // The halt reaches the loader as the same Error, never wrapped in a second one.
           expect(String(reply.error)).toMatch(/^Error: @mionjs\/devtools: build stopped on \d+ mion error/);
+          // Each print is one grouped block, never one line per finding.
+          const printed = [...warned.mock.calls.map((call) => String(call[0])), ...(reply.warnings ?? [])].join('\n');
+          expect(printed).toMatch(/^(\[@mionjs\/devtools\] )?error [a-z-]+ \(\d+\)$/m);
+          expect(printed).not.toMatch(/\(\d+,\d+\): error /);
         } finally {
+          warned.mockRestore();
           await handle.close();
           fs.rmSync(root, {recursive: true, force: true});
         }

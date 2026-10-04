@@ -2,6 +2,7 @@ package diagnostics
 
 import (
 	"fmt"
+	"path/filepath"
 	"slices"
 	"strings"
 )
@@ -56,11 +57,13 @@ type groupedGroup struct {
 }
 
 // FormatGrouped prints entries grouped by severity and name, each message once, then one line per site
-// with the slot values that differ, and closes with a count line. Empty input prints nothing.
-func FormatGrouped(entries []GroupedEntry) string {
+// with the slot values that differ, and closes with a count line. A path under cwd prints relative to it;
+// an empty cwd keeps every path as given. Empty input prints nothing.
+func FormatGrouped(entries []GroupedEntry, cwd string) string {
 	if len(entries) == 0 {
 		return ""
 	}
+	entries = relativeEntries(entries, cwd)
 	var groups []*groupedGroup
 	for _, entry := range entries {
 		index := slices.IndexFunc(groups, func(group *groupedGroup) bool {
@@ -156,6 +159,35 @@ func writeGroupedBlock(builder *strings.Builder, block *groupedBlock) {
 			builder.WriteString("\n      Related: " + groupedLocation(related.Site) + " " + related.Message)
 		}
 	}
+}
+
+func relativeEntries(entries []GroupedEntry, cwd string) []GroupedEntry {
+	if cwd == "" {
+		return entries
+	}
+	out := make([]GroupedEntry, len(entries))
+	for index, entry := range entries {
+		entry.Site.FilePath = relativePath(entry.Site.FilePath, cwd)
+		if len(entry.Related) > 0 {
+			related := slices.Clone(entry.Related)
+			for relatedIndex := range related {
+				related[relatedIndex].FilePath = relativePath(related[relatedIndex].FilePath, cwd)
+			}
+			entry.Related = related
+		}
+		out[index] = entry
+	}
+	return out
+}
+
+func relativePath(path, cwd string) string {
+	if !filepath.IsAbs(path) {
+		return path
+	}
+	if rel, err := filepath.Rel(cwd, path); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return filepath.ToSlash(rel)
+	}
+	return path
 }
 
 func argAt(args []string, index int) string {

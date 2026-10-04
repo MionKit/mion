@@ -121,6 +121,8 @@ async function withBuild(
     cwd: FIXTURE_DIR,
     tsconfig: 'tsconfig.json',
     genDir: path.join(FIXTURE_DIR, '.mion'),
+    // The assertions read one warning per finding with its `file(line,col)`.
+    logStyle: 'lines',
     onBatchReport: (sites: BatchSite[], phase: 'build' | 'update') => {
       run.sites = sites;
       run.phases.push(phase);
