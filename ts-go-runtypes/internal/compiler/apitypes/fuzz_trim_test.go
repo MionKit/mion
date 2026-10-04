@@ -103,16 +103,17 @@ func oracleClientParity(t *testing.T, input Input, output *Output) []string {
 	if len(problems) > 0 {
 		return []string{"client parity: the package does not type-check alone:\n" + strings.Join(problems, "\n")}
 	}
-	if server := serverMemberIDs(t, input, output.ApiExports); server != client {
-		return []string{fmt.Sprintf("client parity: the client's ids differ\nserver: %s\nclient: %s", server, client)}
+	var failures []string
+	for _, moved := range movedIDs(serverMemberIDs(t, input, output.ApiExports), client) {
+		failures = append(failures, "client parity: "+moved)
 	}
-	return nil
+	return failures
 }
 
 // oracleNoLoss: the output checks alone, ships every reached type, keeps the build version and the API's type ids.
 func oracleNoLoss(t *testing.T, graph *apiGraph, input Input, output *Output) []string {
 	t.Helper()
-	problems, version, err := Check(input, output.Files, output.Entry)
+	problems, version, err := Check(input, output)
 	if err != nil {
 		return []string{"no loss: check failed: " + err.Error()}
 	}
@@ -163,7 +164,7 @@ func fullProgramProblems(input Input, entry string) []string {
 		rel, _ := filepath.Rel(input.DeclarationDir, abs)
 		files[filepath.ToSlash(rel)] = text
 	}
-	problems, _, err := Check(input, files, entry)
+	problems, _, err := Check(input, &Output{Files: files, Entry: entry})
 	if err != nil {
 		return []string{err.Error()}
 	}
@@ -248,7 +249,7 @@ func TestFuzz_ApiTypesOraclesFire(t *testing.T) {
 	for rel, text := range retyped.Files {
 		retyped.Files[rel] = strings.ReplaceAll(text, ": string;", ": number;")
 	}
-	if failures := oracleNoLoss(t, graph, input, retyped); len(failures) != 1 || !strings.Contains(failures[0], "type ids changed") {
+	if failures := oracleNoLoss(t, graph, input, retyped); len(failures) == 0 || slices.ContainsFunc(failures, func(failure string) bool { return !strings.Contains(failure, "type ids changed") }) {
 		t.Errorf("no loss must fire on changed type ids alone, got %v", failures)
 	}
 

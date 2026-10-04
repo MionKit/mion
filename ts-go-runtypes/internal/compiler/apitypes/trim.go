@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -46,8 +47,8 @@ type Output struct {
 	Externals []string
 	// Warnings name each outside type that stayed an import, and why.
 	Warnings []string
-	// apiIDs are the API members' type ids on the server, which VerifyIDs holds the package to.
-	apiIDs string
+	// apiIDs are the API members' type ids on the server, by member path, which Check holds the package to.
+	apiIDs map[string]string
 	// uses counts each kept declaration's kept users (`file#name`); removed and cutMembers name what went. Tests read them.
 	uses       map[string]int
 	removed    []string
@@ -134,17 +135,17 @@ func Trim(input Input) (*Output, error) {
 		output.Externals = append(output.Externals, name)
 	}
 	sort.Strings(output.Externals)
-	output.Warnings = sortedKeys(trimmer.outside.warnings)
+	output.Warnings = slices.Sorted(maps.Keys(trimmer.outside.warnings))
 	sort.Strings(output.removed)
 	sort.Strings(output.cutMembers)
 	return output, nil
 }
 
-// Check type-checks the trimmed files on their own, libs included, and reads the build version back from the
-// trimmed entry, so a trim that changed the API's ids cannot pass unseen.
-func Check(input Input, files map[string]string, entry string) ([]string, string, error) {
-	declarations := make(map[string]string, len(files))
-	for rel, text := range files {
+// Check type-checks the trimmed files on their own, libs included, reads the build version back from the trimmed
+// entry, and recomputes the API's type ids, so a trim or a print that moved one cannot pass unseen.
+func Check(input Input, output *Output) ([]string, string, error) {
+	declarations := make(map[string]string, len(output.Files))
+	for rel, text := range output.Files {
 		declarations[filepath.Join(filepath.Clean(input.DeclarationDir), filepath.FromSlash(rel))] = text
 	}
 	trimmer, release, err := newTrimmer(input, declarations)
@@ -165,10 +166,12 @@ func Check(input Input, files map[string]string, entry string) ([]string, string
 	if len(lines) > 0 {
 		return lines, "", nil
 	}
-	_, _, version, err := trimmer.findEntry(filepath.Join(trimmer.declarationDir, filepath.FromSlash(entry)))
-	return nil, version, err
+	entry, _, version, err := trimmer.findEntry(filepath.Join(trimmer.declarationDir, filepath.FromSlash(output.Entry)))
+	if err != nil || output.apiIDs == nil {
+		return nil, version, err
+	}
+	return movedIDs(output.apiIDs, trimmer.apiMemberIDs(entry, output.ApiExports)), version, nil
 }
-
 // newTrimmer builds a program over the declarations alone, with a tsconfig that extends the project's.
 func newTrimmer(input Input, declarations map[string]string) (*trimmer, func(), error) {
 	declarationDir := filepath.Clean(input.DeclarationDir)

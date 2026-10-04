@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -196,7 +197,7 @@ func reachedArtifact(artifact, declarations map[string]string) (map[string]strin
 	}
 	index.PureFns = rows
 	kept[constants.PureFnArtifactIndexFile] = string(index.Render())
-	return kept, sortedKeys(foreign), nil
+	return kept, slices.Sorted(maps.Keys(foreign)), nil
 }
 
 // rangeOf: a range only the workspace understands (`workspace:`, `catalog:`, `link:`, `file:`) becomes ^installed, else "*".

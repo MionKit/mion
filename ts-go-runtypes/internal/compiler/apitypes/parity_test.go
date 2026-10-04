@@ -24,12 +24,12 @@ func assertIDParity(t *testing.T, input Input, output *Output, clientTypes ...st
 	if len(problems) > 0 {
 		t.Fatalf("the client does not type-check with the package alone:\n%s\nfiles: %v", strings.Join(problems, "\n"), output.Files)
 	}
-	if server != client {
-		t.Errorf("a client computes other ids than the server\nserver: %s\nclient: %s\nfiles: %v", server, client, output.Files)
+	if moved := movedIDs(server, client); len(moved) > 0 {
+		t.Errorf("a client computes other ids than the server:\n%s\nfiles: %v", strings.Join(moved, "\n"), output.Files)
 	}
 }
 
-func serverMemberIDs(t *testing.T, input Input, apiExports []string) string {
+func serverMemberIDs(t *testing.T, input Input, apiExports []string) map[string]string {
 	t.Helper()
 	trimmer, release, err := newTrimmer(input, input.Declarations)
 	if err != nil {
@@ -44,7 +44,7 @@ func serverMemberIDs(t *testing.T, input Input, apiExports []string) string {
 }
 
 // clientMemberIDs also returns the client's type errors, which an import of a package it lacks raises.
-func clientMemberIDs(t *testing.T, input Input, output *Output, clientTypes []string) (string, []string) {
+func clientMemberIDs(t *testing.T, input Input, output *Output, clientTypes []string) (map[string]string, []string) {
 	t.Helper()
 	dir := t.TempDir()
 	packageDir := filepath.Join(dir, "node_modules", filepath.FromSlash(clientPackage))
@@ -94,7 +94,7 @@ func clientMemberIDs(t *testing.T, input Input, output *Output, clientTypes []st
 	}
 	entry := prog.SourceFile(filepath.Join(packageDir, filepath.FromSlash(output.Entry)))
 	if entry == nil {
-		entry = prog.SourceFile(tspathResolve(packageDir, output.Entry))
+		entry = prog.SourceFile(realPath(packageDir, output.Entry))
 	}
 	if entry == nil {
 		t.Fatalf("the client program does not load the package entry %s", output.Entry)
@@ -103,7 +103,7 @@ func clientMemberIDs(t *testing.T, input Input, output *Output, clientTypes []st
 	return exportedMemberIDs(typeChecker, typeChecker.GetSymbolAtLocation(entry.AsNode()), computer, output.ApiExports), problems
 }
 
-func tspathResolve(dir, rel string) string {
+func realPath(dir, rel string) string {
 	resolved, err := filepath.EvalSymlinks(filepath.Join(dir, filepath.FromSlash(rel)))
 	if err != nil {
 		return ""

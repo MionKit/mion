@@ -6,7 +6,9 @@ package apitypes
 
 import (
 	"fmt"
+	"maps"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -17,6 +19,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype/typeid"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/convert"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/tsimports"
 )
 
 // outsideDir holds the printed declarations, one file per package.
@@ -57,6 +60,8 @@ type outsideState struct {
 
 type projectDecl struct {
 	file *fileInfo
+	// pkg is the mion package a class or enum is imported from, when no project file declares it.
+	pkg  string
 	name string
 }
 
@@ -147,7 +152,7 @@ func useName(node *ast.Node) *ast.Node {
 		}
 		return expression
 	case ast.KindTypeQuery:
-		return leftmost(node.AsTypeQueryNode().ExprName)
+		return ast.GetFirstIdentifier(node.AsTypeQueryNode().ExprName)
 	}
 	return nil
 }
@@ -155,13 +160,6 @@ func useName(node *ast.Node) *ast.Node {
 func rightmost(name *ast.Node) *ast.Node {
 	if name != nil && name.Kind == ast.KindQualifiedName {
 		return name.AsQualifiedName().Right
-	}
-	return name
-}
-
-func leftmost(name *ast.Node) *ast.Node {
-	for name != nil && name.Kind == ast.KindQualifiedName {
-		name = name.AsQualifiedName().Left
 	}
 	return name
 }
@@ -339,9 +337,10 @@ func (trimmer *trimmer) replaceUse(file *fileInfo, use *ast.Node, found origin) 
 		return keep(err.Error())
 	}
 	key := ""
-	if keys := convert.OutsideRefKeys(text); len(keys) == 1 && text == convert.OutsideRef(keys[0]) &&
-		(strings.HasPrefix(keys[0], "c:") || strings.HasPrefix(keys[0], "e:") || strings.HasPrefix(keys[0], "a:")) {
-		key = keys[0]
+	if decl := trimmer.outside.printer.Decl(strings.Trim(text, "\x00")); decl != nil && text == convert.OutsideRef(decl.Key) &&
+		(decl.Kind == convert.OutsideClass || decl.Kind == convert.OutsideEnum || decl.Kind == convert.OutsideAlias) {
+		// A use that is one named declaration points at it rather than at an alias of it.
+		key = decl.Key
 	} else {
 		key = "u:" + node.ID
 		if _, exists := trimmer.outside.uses[key]; !exists {
@@ -419,11 +418,11 @@ func useHint(use *ast.Node) string {
 func identifierHint(text string) string {
 	var out strings.Builder
 	for _, char := range text {
-		if char == '_' || char == '$' || (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || (char >= '0' && char <= '9') {
+		if scanner.IsIdentifierPart(char) {
 			out.WriteRune(char)
 		}
 	}
-	if out.Len() == 0 || (out.String()[0] >= '0' && out.String()[0] <= '9') {
+	if out.Len() == 0 || !scanner.IsIdentifierStart([]rune(out.String())[0]) {
 		return "Printed" + out.String()
 	}
 	return out.String()
@@ -448,10 +447,8 @@ func (trimmer *trimmer) placeOutside() bool {
 		}
 		decl := state.decl(key)
 		switch decl.Kind {
-		case convert.OutsideSymbol:
-			state.homes[key] = ""
-			continue
-		case convert.OutsideBuiltin:
+		case convert.OutsideSymbol, convert.OutsideBuiltin:
+			// Declared in each file that spells it, or where the platform declares it.
 			state.homes[key] = ""
 			continue
 		}
@@ -472,7 +469,7 @@ func (trimmer *trimmer) placeOutside() bool {
 			}
 			state.homes[key] = sharedOutside
 		case (decl.Kind == convert.OutsideClass || decl.Kind == convert.OutsideEnum) && found.kind == originMion:
-			state.projectDecls[key] = projectDecl{name: "import(\"" + found.pkg + "\")." + decl.Name}
+			state.projectDecls[key] = projectDecl{pkg: found.pkg, name: decl.Name}
 			state.homes[key] = ""
 		case found.kind == originOutside:
 			state.homes[key] = found.pkg
@@ -546,26 +543,14 @@ func outsideFile(pkg string) string {
 
 // moduleSpecifier is the relative import path from one slash path to another .d.ts, as a client resolves it.
 func moduleSpecifier(from, to string) string {
-	rel, err := filepath.Rel(filepath.Dir(filepath.FromSlash(from)), filepath.FromSlash(to))
-	if err != nil {
-		rel = to
-	}
-	rel = filepath.ToSlash(rel)
-	rel = strings.TrimSuffix(rel, ".d.ts") + ".js"
-	if !strings.HasPrefix(rel, ".") {
-		rel = "./" + rel
-	}
-	return rel
+	return strings.TrimSuffix(relativePath(from, to), ".d.ts") + ".js"
 }
 
-// relativePath is the `/// <reference path>` from one slash path to another file.
+// relativePath is the `/// <reference path>` from one slash path to another file; a dot-folder target still gets `./`.
 func relativePath(from, to string) string {
-	rel, err := filepath.Rel(filepath.Dir(filepath.FromSlash(from)), filepath.FromSlash(to))
-	if err != nil {
-		return to
-	}
+	rel, _ := filepath.Rel(filepath.Dir(filepath.FromSlash(from)), filepath.FromSlash(to))
 	rel = filepath.ToSlash(rel)
-	if !strings.HasPrefix(rel, ".") {
+	if !strings.HasPrefix(rel, "./") && !strings.HasPrefix(rel, "../") {
 		rel = "./" + rel
 	}
 	return rel
@@ -628,7 +613,7 @@ func (trimmer *trimmer) renderOutside(files map[string]string) error {
 			}
 			if project, ok := state.projectDecls[key]; ok {
 				if project.file == nil {
-					return project.name
+					return fmt.Sprintf("import(%q).%s", project.pkg, project.name)
 				}
 				target := trimmer.relative(project.file.path)
 				if heritage {
@@ -687,7 +672,7 @@ func (trimmer *trimmer) heritageBindings(path, text string, spellings map[string
 		}
 		head, rest, qualified := strings.Cut(spelling, ".")
 		local := freeName(text, head)
-		imports = append(imports, fmt.Sprintf("import { %s } from %q;", importSpecifier(head, local), specifier))
+		imports = append(imports, tsimports.Render(specifier, "", []tsimports.Binding{{Imported: head, Local: local}}))
 		if qualified {
 			local += "." + rest
 		}
@@ -697,20 +682,9 @@ func (trimmer *trimmer) heritageBindings(path, text string, spellings map[string
 	return bindings, imports
 }
 
-func importSpecifier(name, local string) string {
-	if name == local {
-		return name
-	}
-	return name + " as " + local
-}
-
 // freeName is base, or base suffixed, so it names nothing text already names.
 func freeName(text, base string) string {
-	name := base
-	for index := 2; containsWord(text, name); index++ {
-		name = fmt.Sprintf("%s$%d", base, index)
-	}
-	return name
+	return convert.FreeName(base, func(name string) bool { return containsWord(text, name) })
 }
 
 func containsWord(text, word string) bool {
@@ -721,15 +695,11 @@ func containsWord(text, word string) bool {
 		}
 		index += start
 		before, after := index-1, index+len(word)
-		if (before < 0 || !isWordChar(text[before])) && (after >= len(text) || !isWordChar(text[after])) {
+		if (before < 0 || !scanner.IsIdentifierPart(rune(text[before]))) && (after >= len(text) || !scanner.IsIdentifierPart(rune(text[after]))) {
 			return true
 		}
 		start = index + 1
 	}
-}
-
-func isWordChar(char byte) bool {
-	return char == '_' || char == '$' || (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || (char >= '0' && char <= '9')
 }
 
 // insertImports puts import lines after a file's leading comments and reference lines.
@@ -765,10 +735,10 @@ func (trimmer *trimmer) builtinSpelling(decl *convert.OutsideDecl) string {
 // referenceLines are the `/// <reference>` lines the entry needs, so a client loads the same platform types.
 func (state *outsideState) referenceLines() []string {
 	var lines []string
-	for _, pkg := range sortedKeys(state.environment) {
+	for _, pkg := range slices.Sorted(maps.Keys(state.environment)) {
 		lines = append(lines, fmt.Sprintf("/// <reference types=%q />", typesReference(pkg)))
 	}
-	for _, lib := range sortedKeys(state.libs) {
+	for _, lib := range slices.Sorted(maps.Keys(state.libs)) {
 		if !strings.HasPrefix(lib, "es") && !strings.HasPrefix(lib, "decorators") {
 			lines = append(lines, fmt.Sprintf("/// <reference lib=%q />", lib))
 		}
@@ -786,13 +756,4 @@ func typesReference(pkg string) string {
 		return "@" + scope + "/" + rest
 	}
 	return name
-}
-
-func sortedKeys(set map[string]bool) []string {
-	out := make([]string, 0, len(set))
-	for key := range set {
-		out = append(out, key)
-	}
-	sort.Strings(out)
-	return out
 }
