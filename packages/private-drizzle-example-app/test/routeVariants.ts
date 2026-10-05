@@ -9,7 +9,7 @@ export const VARIANTS: Variant[] = ['drizzle', 'types', 'builders'];
 
 const cap = (text: string) => text[0].toUpperCase() + text.slice(1);
 
-// Slim model imports and companion database imports follow the same variant.
+// Model and database imports must match variants.
 export const dbFileOf = (dialect: Dialect, variant: Variant) => `../db/${dialect}.${variant}.ts`;
 
 export const routesName = (dialect: Dialect, variant: Variant) => `${dialect}${cap(variant)}Routes`;

@@ -12,7 +12,7 @@ it.each([
   expect(measured.errors.join('\n')).toContain(message);
 });
 
-// Compile the client alone, matching a consumer that imports the API type.
+// Compile only the client to match API-type consumers.
 describe.each(DIALECTS)('%s explicit public type boundary', (dialect) => {
   it.each(['builders', 'types'] as const)(
     '%s costs the same with schemas, conversion and routes in one file',

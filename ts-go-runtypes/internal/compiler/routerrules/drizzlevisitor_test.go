@@ -12,8 +12,7 @@ import (
 	"github.com/microsoft/typescript-go/shim/checker"
 )
 
-// These are structural dispatch tests. Diagnostic behavior is exercised through
-// the real resolver by the frontend Drizzle suites.
+// Frontend Drizzle suites exercise diagnostics through the real resolver; these tests check dispatch structure.
 func TestDrizzleVisitor_EveryTypeNodeKindHasARow(t *testing.T) {
 	rows := map[ast.Kind]string{
 		ast.KindTypeReference: "visitTypeReference", ast.KindTypeQuery: "visitTypeQuery", ast.KindImportType: "visitImportType",
@@ -94,7 +93,7 @@ func TestDrizzleVisitor_EveryTypeNodeKindHasARow(t *testing.T) {
 }
 
 func TestDrizzleSchemaSurface_AllDialectsHaveRows(t *testing.T) {
-	// Gate against misspelling exported names such as MysqlTable and SqliteTable.
+	// Catch misspelled exports such as MysqlTable and SqliteTable.
 	source, err := parser.ParseFile(token.NewFileSet(), "drizzle.go", nil, 0)
 	if err != nil {
 		t.Fatal(err)
@@ -194,7 +193,7 @@ func TestDrizzleDispatch_AllSyntaxWalksHaveCoverage(t *testing.T) {
 					}
 					return true
 				})
-				// Some visitors inspect a node, then visit children after the switch.
+				// Some visitors walk children after the switch.
 				if name == "default" && len(clause.Body) == 0 {
 					matched = strings.Contains(table["default"], "ForEachChild")
 				}

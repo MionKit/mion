@@ -1,4 +1,3 @@
-// MySQL on slim builders: slim tables and public model types.
 import * as DZ from '@mionjs/drizzle-orm-mysql-core';
 import {$type, sql, tableRef} from '@mionjs/drizzle-orm';
 

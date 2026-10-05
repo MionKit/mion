@@ -13,33 +13,28 @@ import runTypes from '@mionjs/devtools/runtypes/vite';
 export default defineConfig({
   plugins: [
     runTypes({
-      // The tsconfig the conversion itself was checked with, so the transform
-      // and the typecheck can never disagree about how a name resolves.
-      // Lowercase `s`: `@mionjs/devtools/runtypes/vite` takes `tsconfig`, and an
-      // unknown key is silently ignored (`tsConfig` is @mionjs/devtools' own
-      // spelling, which that wrapper maps across).
+      // Use the conversion’s tsconfig to keep name resolution identical.
+      // Lowercase tsconfig is required by runtypes/vite; unknown keys such as the wrapper’s tsConfig are ignored.
       tsconfig: path.resolve(import.meta.dirname, 'tsconfig.json'),
-      // Inside the tree, which is container-local and thrown away with it.
+      // Container-local output is discarded with the tree.
       genDir: path.resolve(import.meta.dirname, '.mion'),
-      // These database comparison fixtures keep slim schemas and materializations together.
+      // Comparison fixtures keep slim schemas beside Drizzle materializations.
       downgradeErrors: ['rpc-handler-drizzle-import'],
     }),
   ],
   resolve: {
-    // drizzle's suites reach their helpers through this alias.
+    // Drizzle suite helpers depend on this alias.
     alias: {'~': path.resolve(import.meta.dirname, 'tests')},
   },
   test: {
     include: ['tests/**/mion-*.test.ts'],
-    // One file at a time, and no parallelism inside it: the suites create and
-    // drop the SAME table names constantly, so two workers on one database race.
+    // Suites create and drop the same tables; parallel workers on one database would race.
     fileParallelism: false,
     pool: 'forks',
     maxWorkers: 1,
     minWorkers: 1,
     isolate: false,
-    // The suites are long; a cold database plus ~500 cases needs room, and this
-    // tree also pays the resolver's scan on the way in.
+    // Allow for a cold database, about 500 cases, and the resolver scan.
     testTimeout: 120_000,
     hookTimeout: 180_000,
     reporters: ['default'],

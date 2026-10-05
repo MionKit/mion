@@ -1,5 +1,5 @@
 /* @mion-expect-error rpc-handler-drizzle-import */
-// These fixtures compare slim schemas with their Drizzle materializations.
+// Compare slim schemas with their Drizzle materializations.
 /* ########
  * 2026 mion
  * Author: Ma-jerez

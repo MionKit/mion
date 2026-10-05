@@ -945,17 +945,15 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       if (!resolver) return null;
       if (!/\.[mc]?[jt]sx?$/.test(id)) return null;
       const rel = path.relative(cwdAbs || process.cwd(), id);
-      // The site-file set is the real gate, so wrapper frameworks need no configuration.
-      // A file created since the last scan falls back to the text gate the linter shares.
+      // Wrapper sites need no configuration; new files use the linter’s text gate until the next scan.
       const inSiteSet = siteFiles.has(siteKey(rel));
       if (!inSiteSet && !mayHoldMarkerCalls(code, id, options.markers) && !mayHoldDrizzleSchemas(code)) return null;
 
       try {
-        // `await` keeps the rejection inside this try — `return promise` would let it escape.
+        // `await` keeps rejections in this catch; returning the promise would bypass it.
         return await (transformMode === 'edits' ? transformViaEdits(this, rel, code) : transformViaGo(this, rel, {code}));
       } catch (error) {
-        // A text-fallback file may be a false positive outside the resolver's program, with no sites to inject.
-        // Site-set files keep failing loud: there a program miss would silently lose real injections.
+        // Text gates can admit files outside the program; a site-set miss must fail or real injections would be lost.
         if (!inSiteSet && error instanceof Error && error.message.includes('source file not in program')) return null;
         throw error;
       }
