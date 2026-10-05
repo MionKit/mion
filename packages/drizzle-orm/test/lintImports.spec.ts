@@ -71,6 +71,23 @@ it('checks import types and Drizzle re-exports in schema files', async () => {
     ).toHaveLength(1);
   }
 });
+it.each([
+  ["export * from '@mionjs/drizzle-orm-pg-core/drizzle';", 1],
+  ["export * from './heavy.ts';", 1],
+  ["export * from './clean.ts';", 0],
+] as const)('follows star re-export dependencies: %s', async (dependency, count) => {
+  const diagnostics = await scan(
+    {
+      'schema.ts': tables() + '\n' + dependency,
+      'heavy.ts': "export * from './cycle.ts'; export {sql} from 'drizzle-orm';",
+      'cycle.ts': "export * from './heavy.ts';",
+      'clean.ts': "export * from './clean-cycle.ts'; export const id=1;",
+      'clean-cycle.ts': "export * from './clean.ts';",
+    },
+    'schema.ts'
+  );
+  expect(diagnostics.filter((d) => d.code === SCHEMA_CODE)).toHaveLength(count);
+});
 it('recognizes models authored through import-type syntax', async () => {
   const source = `import {users} from './schema.ts';
  import type {SQL} from 'drizzle-orm';
