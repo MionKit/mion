@@ -96,6 +96,17 @@ it('recognizes models authored through import-type syntax', async () => {
     (await scan({'schema.ts': tables(), 'model.ts': source}, 'model.ts')).filter((d) => d.code === SCHEMA_CODE)
   ).toHaveLength(1);
 });
+it.each([
+  ['InferSelectModel<typeof users>', 1],
+  ['User', 0],
+] as const)('distinguishes interface model derivation from consumption: %s', async (base, count) => {
+  const source = `import type {InferSelectModel} from '@mionjs/drizzle-orm';
+import {users, type User} from './schema.ts'; import type {SQL} from 'drizzle-orm';
+export interface PublicUser extends ${base} {}`;
+  expect(
+    (await scan({'schema.ts': tables(), 'model.ts': source}, 'model.ts')).filter((d) => d.code === SCHEMA_CODE)
+  ).toHaveLength(count);
+});
 it.each(['$inferSelect', '$inferInsert'])('recognizes models authored through typeof table.%s', async (property) => {
   const source = `import {users} from './schema.ts';
  import type {SQL} from 'drizzle-orm';
