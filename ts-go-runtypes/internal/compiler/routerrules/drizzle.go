@@ -355,6 +355,8 @@ func (walk *slimSchemaVisitor) visit(node *ast.Node) bool {
 		walk.visitCall(node)
 	case ast.KindTypeAliasDeclaration:
 		walk.visitAlias(node)
+	case ast.KindInterfaceDeclaration:
+		walk.visitInterfaceDeclaration(node)
 	}
 	node.ForEachChild(walk.visit)
 	return false
@@ -375,6 +377,9 @@ func (walk *slimSchemaVisitor) visitAlias(node *ast.Node) {
 		return walk.visitAuthoredType(child)
 	})
 }
+func (walk *slimSchemaVisitor) visitInterfaceDeclaration(node *ast.Node) {
+	node.ForEachChild(walk.visitAuthoredType)
+}
 func (walk *slimSchemaVisitor) visitAuthoredType(node *ast.Node) bool {
 	switch node.Kind {
 	case ast.KindTypeReference:
@@ -389,8 +394,15 @@ func (walk *slimSchemaVisitor) visitAuthoredType(node *ast.Node) bool {
 		if walk.scope.slimSchemaSymbol(walk.scope.resolveSymbol(node.AsTypeQueryNode().ExprName)) {
 			walk.authored = true
 		}
+	case ast.KindExpressionWithTypeArguments:
+		walk.visitExpressionWithTypeArguments(node)
 	}
 	return node.ForEachChild(walk.visitAuthoredType)
+}
+func (walk *slimSchemaVisitor) visitExpressionWithTypeArguments(node *ast.Node) {
+	if walk.scope.slimSchemaSymbol(walk.scope.resolveSymbol(node.AsExpressionWithTypeArguments().Expression)) {
+		walk.authored = true
+	}
 }
 func (walk *slimSchemaVisitor) heavyDependency(node *ast.Node) bool {
 	switch node.Kind {

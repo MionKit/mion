@@ -132,10 +132,10 @@ func TestDrizzleDispatch_AllSyntaxWalksHaveCoverage(t *testing.T) {
 		},
 		"slimSchemaVisitor.visit": {
 			"KindImportDeclaration": "append", "KindExportDeclaration": "append", "KindImportType": "append",
-			"KindCallExpression": "visitCall", "KindTypeAliasDeclaration": "visitAlias", "default": "ForEachChild",
+			"KindCallExpression": "visitCall", "KindTypeAliasDeclaration": "visitAlias", "KindInterfaceDeclaration": "visitInterfaceDeclaration", "default": "ForEachChild",
 		},
 		"slimModuleVisitor.visit":             {"KindImportDeclaration": "visitImport", "KindExportDeclaration": "visitExport", "KindTypeReference": "visitReference", "default": "ForEachChild"},
-		"slimSchemaVisitor.visitAuthoredType": {"KindTypeReference": "slimSchemaSymbol", "KindImportType": "slimSchemaSymbol", "KindTypeQuery": "slimSchemaSymbol", "default": "ForEachChild"},
+		"slimSchemaVisitor.visitAuthoredType": {"KindTypeReference": "slimSchemaSymbol", "KindImportType": "slimSchemaSymbol", "KindTypeQuery": "slimSchemaSymbol", "KindExpressionWithTypeArguments": "visitExpressionWithTypeArguments", "default": "ForEachChild"},
 	}
 	file, err := parser.ParseFile(token.NewFileSet(), "drizzle.go", nil, 0)
 	if err != nil {
