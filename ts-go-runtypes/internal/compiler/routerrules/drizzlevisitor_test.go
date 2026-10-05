@@ -16,7 +16,7 @@ import (
 func TestDrizzleVisitor_EveryTypeNodeKindHasARow(t *testing.T) {
 	rows := map[ast.Kind]string{
 		ast.KindTypeReference: "visitTypeReference", ast.KindTypeQuery: "visitTypeQuery", ast.KindImportType: "visitImportType",
-		ast.KindTypePredicate: "children", ast.KindFunctionType: "children", ast.KindConstructorType: "children",
+		ast.KindTypePredicate: "children", ast.KindFunctionType: "visitFunctionType", ast.KindConstructorType: "visitConstructorType",
 		ast.KindTypeLiteral: "children", ast.KindArrayType: "children", ast.KindTupleType: "children", ast.KindOptionalType: "children",
 		ast.KindRestType: "children", ast.KindUnionType: "children", ast.KindIntersectionType: "children", ast.KindConditionalType: "children",
 		ast.KindInferType: "children", ast.KindThisType: "children", ast.KindTypeOperator: "children", ast.KindIndexedAccessType: "children",
@@ -121,10 +121,10 @@ func TestDrizzleDispatch_AllSyntaxWalksHaveCoverage(t *testing.T) {
 	rows := map[string]map[string]string{
 		"drizzleProvenance.visit": {
 			"KindTypeReference": "visitTypeReference", "KindTypeQuery": "visitTypeQuery", "KindImportType": "visitImportType",
-			"KindIdentifier": "visitName", "KindQualifiedName": "visitName", "KindPropertyAccessExpression": "visitName", "KindElementAccessExpression": "visitName",
-			"KindVariableDeclaration": "visitValueDeclaration", "KindPropertyDeclaration": "visitValueDeclaration", "KindPropertySignature": "visitValueDeclaration", "KindParameter": "visitValueDeclaration",
-			"KindFunctionDeclaration": "visitFunction", "KindFunctionExpression": "visitFunction", "KindArrowFunction": "visitFunction", "KindMethodDeclaration": "visitFunction", "KindMethodSignature": "visitFunction",
-			"KindCallExpression": "visitCall", "KindObjectLiteralExpression": "visitObjectLiteral", "KindClassDeclaration": "visitClassDeclaration", "KindClassExpression": "visitClassExpression", "default": "ForEachChild",
+			"KindIdentifier": "visitIdentifier", "KindQualifiedName": "visitQualifiedName", "KindPropertyAccessExpression": "visitPropertyAccessExpression", "KindElementAccessExpression": "visitElementAccessExpression",
+			"KindVariableDeclaration": "visitVariableDeclaration", "KindPropertyDeclaration": "visitPropertyDeclaration", "KindPropertySignature": "visitPropertySignature", "KindParameter": "visitParameter",
+			"KindFunctionDeclaration": "visitFunctionDeclaration", "KindFunctionExpression": "visitFunctionExpression", "KindArrowFunction": "visitArrowFunction", "KindMethodDeclaration": "visitMethodDeclaration", "KindMethodSignature": "visitMethodSignature",
+			"KindGetAccessor": "visitGetAccessor", "KindSetAccessor": "visitSetAccessor", "KindFunctionType": "visitFunctionType", "KindConstructorType": "visitConstructorType", "KindCallSignature": "visitCallSignature", "KindConstructSignature": "visitConstructSignature", "KindCallExpression": "visitCall", "KindObjectLiteralExpression": "visitObjectLiteral", "KindClassDeclaration": "visitClassDeclaration", "KindClassExpression": "visitClassExpression", "default": "ForEachChild",
 		},
 		"drizzleProvenance.visitClassMember": {"KindConstructor": "visitConstructor", "KindClassStaticBlockDeclaration": "refused", "default": "visit"},
 		"drizzleProvenance.visitReturns": {

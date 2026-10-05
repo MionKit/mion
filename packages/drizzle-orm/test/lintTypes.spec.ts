@@ -264,6 +264,8 @@ it.each([
   ['ReturnType<typeof accept>', 0],
   ['ReturnType<typeof plain>', 1],
   ['{first:ReturnType<typeof accept>; callback:typeof accept}', 1],
+  ['ReturnType<Accept>', 0],
+  ['Parameters<Plain>[0]', 0],
 ] as const)('retains the requested part of a public function type: %s', async (type, count) => {
   const diagnostics = await scan({
     'schema.ts': tables(),
@@ -273,6 +275,7 @@ import type {User} from './schema.ts';
 declare function consume(row:import('drizzle-orm').SQL):void;
 const accept=(id:DbUser['id']):number=>id;
 const plain=(id:User['id']):DbUser=>{throw new Error()};
+type Accept=(id:DbUser['id'])=>number; type Plain=(id:User['id'])=>DbUser;
 export const read=query((_ctx, input:${type}):void=>{});`,
   });
   expect(diagnostics.filter((d) => d.code === TYPE_CODE)).toHaveLength(count);
