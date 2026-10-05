@@ -102,9 +102,43 @@ func (walk *drizzleProvenance) visit(node *ast.Node) bool {
 	case ast.KindObjectLiteralExpression:
 		// A reconstructed object has its own structural type, not the origin of each expression.
 		return walk.visitObjectLiteral(node)
+	case ast.KindClassDeclaration:
+		return walk.visitClassDeclaration(node)
+	case ast.KindClassExpression:
+		return walk.visitClassExpression(node)
 	default:
 		return node.ForEachChild(walk.visit)
 	}
+}
+
+func (walk *drizzleProvenance) visitClassDeclaration(node *ast.Node) bool {
+	return node.ForEachChild(func(child *ast.Node) bool {
+		return child != node.Name() && walk.visitClassMember(child)
+	})
+}
+func (walk *drizzleProvenance) visitClassExpression(node *ast.Node) bool {
+	return node.ForEachChild(func(child *ast.Node) bool {
+		return child != node.Name() && walk.visitClassMember(child)
+	})
+}
+func (walk *drizzleProvenance) visitClassMember(node *ast.Node) bool {
+	switch node.Kind {
+	case ast.KindConstructor:
+		return walk.visitConstructor(node)
+	case ast.KindClassStaticBlockDeclaration:
+		return false
+	default:
+		if ast.GetCombinedModifierFlags(node)&(ast.ModifierFlagsStatic|ast.ModifierFlagsPrivate|ast.ModifierFlagsProtected) != 0 {
+			return false
+		}
+		return walk.visit(node)
+	}
+}
+func (walk *drizzleProvenance) visitConstructor(node *ast.Node) bool {
+	return node.ForEachChild(func(child *ast.Node) bool {
+		return ast.GetCombinedModifierFlags(child)&ast.ModifierFlagsParameterPropertyModifier != 0 &&
+			ast.GetCombinedModifierFlags(child)&(ast.ModifierFlagsPrivate|ast.ModifierFlagsProtected) == 0 && walk.visit(child)
+	})
 }
 
 func (walk *drizzleProvenance) visitObjectLiteral(node *ast.Node) bool {
