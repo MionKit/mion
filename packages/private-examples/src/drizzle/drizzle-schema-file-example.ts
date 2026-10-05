@@ -9,8 +9,6 @@ import {
   auditPolicy as recordedAuditPolicy,
 } from './drizzle-schema-authoring-example.ts';
 
-// materialized for drizzle-kit
-
 export const accountsTable = toDrizzle(accounts);
 export const paidAccountsView = toDrizzle(paidAccounts);
 

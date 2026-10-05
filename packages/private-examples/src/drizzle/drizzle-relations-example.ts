@@ -4,12 +4,10 @@ import {relations} from 'drizzle-orm';
 import type {ExtractTablesWithRelations} from 'drizzle-orm';
 import type {PgDatabase, PgQueryResultHKT} from 'drizzle-orm/pg-core';
 
-// the query side: drizzle, over the materialized tables
-
 const authorsDb = toDrizzle(authors);
 const postsDb = toDrizzle(posts);
 
-// relations() takes the real drizzle tables, so it lives here
+// relations need real Drizzle tables
 const authorsRelations = relations(authorsDb, ({many}) => ({
   posts: many(postsDb),
 }));
@@ -20,7 +18,7 @@ const postsRelations = relations(postsDb, ({one}) => ({
   }),
 }));
 
-// what you pass to drizzle(client, {schema})
+// passed to drizzle(client, {schema})
 export const schema = {
   authors: authorsDb,
   posts: postsDb,
@@ -34,7 +32,7 @@ declare const db: PgDatabase<
   ExtractTablesWithRelations<typeof schema>
 >;
 
-// nested reads work as in plain drizzle
+// nested results
 export async function authorsWithPosts() {
   return db.query.authors.findMany({with: {posts: true}});
 }

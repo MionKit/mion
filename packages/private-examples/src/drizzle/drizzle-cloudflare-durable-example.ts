@@ -9,7 +9,7 @@ import {
 
 const notesDb = toDrizzle(notes);
 
-// the part of a Durable Object's storage drizzle needs
+// storage needed by Drizzle
 interface Storage {
   sql: {exec(query: string, ...bindings: unknown[]): unknown};
 }
@@ -21,7 +21,7 @@ export class NotesObject {
     this.db = drizzle(storage as never);
   }
 
-  // same models, validators and table as every other database
+  // models, validators and table work across databases
   async addNote(note: NewNote): Promise<Note> {
     const [row] = await this.db.insert(notesDb).values(note).returning();
     return row;
