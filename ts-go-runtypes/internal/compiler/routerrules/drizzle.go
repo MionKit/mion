@@ -127,7 +127,7 @@ func (walk *drizzleProvenance) visitImportType(node *ast.Node) bool {
 	return (imported.Qualifier != nil && walk.visitName(imported.Qualifier)) || node.ForEachChild(walk.visit)
 }
 func (walk *drizzleProvenance) visitTypeQuery(node *ast.Node) bool {
-	return walk.visitName(node.AsTypeQueryNode().ExprName)
+	return walk.visitName(node.AsTypeQueryNode().ExprName) || node.ForEachChild(walk.visit)
 }
 func (walk *drizzleProvenance) visitName(node *ast.Node) bool {
 	symbol := walk.scope.resolveSymbol(node)
