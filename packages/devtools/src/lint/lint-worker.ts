@@ -99,6 +99,8 @@ async function lintOne(request: LintWorkerRequest): Promise<LintWorkerResponse> 
       return {seq: request.seq, diagnostics, downgradeErrors: result.downgradeErrors};
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      // The conservative import gate can admit JavaScript excluded by the compiler's allowJs setting.
+      if (message.includes('source file not in program:')) return {seq: request.seq, diagnostics: []};
       // config-tsconfig-not-loaded is the daemon refusing to load the project tsconfig: deterministic, so retrying is pointless, and
       // the config problem is the actionable error, so it reports at the file top instead of "engine
       // unavailable". The connection stays up; the daemon re-parses on the next setSources, so a fix heals the
