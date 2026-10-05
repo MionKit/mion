@@ -4,6 +4,14 @@ import {describe, expect, it} from 'vitest';
 import {measureCase, measureDirectModel, readRouteFile} from './costHarness.ts';
 import {DIALECTS} from './routeVariants.ts';
 
+it.each([
+  ["const invalid:number='wrong';", 'not assignable'],
+  ['const = 1;', 'Variable declaration expected'],
+])('rejects an invalid measured model dependency: %s', (invalid, message) => {
+  const measured = measureDirectModel(`export type User={name:string}; ${invalid}`, './__cost_model__.ts');
+  expect(measured.errors.join('\n')).toContain(message);
+});
+
 // Compile the client alone, matching a consumer that imports the API type.
 describe.each(DIALECTS)('%s explicit public type boundary', (dialect) => {
   it.each(['builders', 'types'] as const)(

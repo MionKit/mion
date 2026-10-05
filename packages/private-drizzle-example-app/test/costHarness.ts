@@ -15,6 +15,8 @@ const OPTIONS: ts.CompilerOptions = {
   noEmit: true,
   target: ts.ScriptTarget.ES2023,
   moduleDetection: ts.ModuleDetectionKind.Force,
+  types: ['node'],
+  typeRoots: [fileURLToPath(new URL('../../../node_modules/@types/', import.meta.url))],
 };
 
 // Parsed once for the whole run: every program shares the lib, workspace and drizzle source files.
@@ -179,11 +181,12 @@ export function measureDirectModel(
   ]);
   const program = ts.createProgram([CLIENT_FILE], OPTIONS, hostFor(files));
   const source = program.getSourceFile(CLIENT_FILE)!;
-  const errors = [...program.getSyntacticDiagnostics(source), ...program.getSemanticDiagnostics(source)].map((diag) =>
+  program.getSyntacticDiagnostics(source);
+  program.getSemanticDiagnostics(source);
+  const clientCost = program.getInstantiationCount();
+  const errors = [...program.getSyntacticDiagnostics(), ...program.getSemanticDiagnostics()].map((diag) =>
     ts.flattenDiagnosticMessageText(diag.messageText, '\n')
   );
-  const clientCost = program.getInstantiationCount();
-  program.getSemanticDiagnostics();
   return {
     client: clientCost,
     whole: program.getInstantiationCount(),
