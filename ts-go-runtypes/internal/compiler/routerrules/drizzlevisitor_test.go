@@ -165,6 +165,9 @@ func TestDrizzleDispatch_AllSyntaxWalksHaveCoverage(t *testing.T) {
 		actual := map[string]string{}
 		for _, node := range dispatch.Body.List {
 			clause := node.(*goast.CaseClause)
+			if len(clause.List) > 1 {
+				t.Errorf("%s groups handled kinds in one arm", key)
+			}
 			names := []string{"default"}
 			if clause.List != nil {
 				names = nil
@@ -178,7 +181,7 @@ func TestDrizzleDispatch_AllSyntaxWalksHaveCoverage(t *testing.T) {
 					t.Errorf("%s %s has no row", key, name)
 					continue
 				}
-				matched := target == "refused"
+				matched := target == "refused" && len(clause.Body) == 1 && isFalseReturn(clause.Body[0])
 				goast.Inspect(clause, func(child goast.Node) bool {
 					if call, ok := child.(*goast.CallExpr); ok {
 						if callee, ok := call.Fun.(*goast.SelectorExpr); ok && callee.Sel.Name == target {
@@ -201,7 +204,7 @@ func TestDrizzleDispatch_AllSyntaxWalksHaveCoverage(t *testing.T) {
 			}
 		}
 		for kind := ast.KindUnknown; kind < ast.KindCount; kind++ {
-			name := kind.String()
+			name := "Kind" + kind.String()
 			if _, ok := table[name]; !ok {
 				name = "default"
 			}
@@ -213,14 +216,23 @@ func TestDrizzleDispatch_AllSyntaxWalksHaveCoverage(t *testing.T) {
 			matched := false
 			goast.Inspect(fn.Body, func(node goast.Node) bool {
 				if call, ok := node.(*goast.CallExpr); ok {
-					if callee, ok := call.Fun.(*goast.SelectorExpr); ok && callee.Sel.Name == "ForEachChild" {
-						matched = true
+					if callee, ok := call.Fun.(*goast.SelectorExpr); ok && callee.Sel.Name == "ForEachChild" && len(call.Args) == 1 {
+						if visitor, ok := call.Args[0].(*goast.SelectorExpr); ok && visitor.Sel.Name == fn.Name.Name {
+							matched = true
+						}
 					}
 				}
 				return true
 			})
-			if !matched {
+			if matched {
+				actual["default"] = "ForEachChild"
+			} else {
 				t.Errorf("%s must walk all other kinds", key)
+			}
+		}
+		for kind, target := range table {
+			if actual[kind] != target {
+				t.Errorf("%s missing or misrouted row %s -> %s", key, kind, target)
 			}
 		}
 		delete(rows, key)
@@ -262,4 +274,13 @@ func TestDrizzleCheckerWalk_ChildSlotsHaveArms(t *testing.T) {
 			}
 		}
 	}
+}
+
+func isFalseReturn(statement goast.Stmt) bool {
+	returned, ok := statement.(*goast.ReturnStmt)
+	if !ok || len(returned.Results) != 1 {
+		return false
+	}
+	value, ok := returned.Results[0].(*goast.Ident)
+	return ok && value.Name == "false"
 }
