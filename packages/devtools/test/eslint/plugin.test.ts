@@ -38,6 +38,7 @@ const DIALECT_PACKAGE_JSON = JSON.stringify({
   peerDependencies: {'@mionjs/run-types': '*'},
 });
 const DIALECT_DTS = `import type {InjectRunTypeId} from '@mionjs/run-types';
+export interface PgTable<Name extends string, Cols> {name: Name; columns: Cols}
 export declare function tableFromType<T>(options?: {schema?: string}, id?: InjectRunTypeId<T>): T;
 `;
 
@@ -260,6 +261,12 @@ describe.runIf(hasBinary())(
       'bad-form.ts': BAD_FORM_TS,
       'generic-marker.ts': GENERIC_MARKER_TS,
       'drizzle-generic.ts': DRIZZLE_GENERIC_TS,
+      'drizzle-public.ts': `import {createMionRouter} from '@mionjs/router';
+import type {Row} from 'drizzle-orm';
+export const read=createMionRouter().route((_ctx):Row=>({id:1}));`,
+      'drizzle-schema.ts': `import type {PgTable} from '@mionjs/drizzle-orm-pg-core';
+import type {Row} from 'drizzle-orm';
+export type Users=PgTable<'users',{id:number}>;`,
       'tables.ts': TABLES_TS,
       'wrapped-generic.ts': WRAPPED_GENERIC_TS,
       'widget.ts': WIDGET_TS,
@@ -279,6 +286,8 @@ describe.runIf(hasBinary())(
       project = makeFixtureProject(texts);
       project.write('node_modules/@mionjs/drizzle-orm-pg-core/package.json', DIALECT_PACKAGE_JSON);
       project.write('node_modules/@mionjs/drizzle-orm-pg-core/index.d.ts', DIALECT_DTS);
+      project.write('node_modules/drizzle-orm/package.json', JSON.stringify({name: 'drizzle-orm', types: 'index.d.ts'}));
+      project.write('node_modules/drizzle-orm/index.d.ts', 'export interface Row {id:number}');
       for (const rel of Object.keys(texts)) abs.set(rel, `${project.dir}/${rel}`);
       // The plugin roots the resolver at process.cwd(), exactly like a real
       // editor/CI run from the project root — so drive this in-process suite
@@ -453,6 +462,13 @@ describe.runIf(hasBinary())(
 
     // A file with no runtypes marker still gets a resolver pass.
     describe('mion route findings', () => {
+      it('routes public Drizzle types to warning and schema isolation to runtime-error', () => {
+        expect(codesFor('warning', 'drizzle-public.ts')).toEqual(['rpc-handler-drizzle-type']);
+        expect(codesFor('runtime-error', 'drizzle-public.ts')).toEqual([]);
+        expect(codesFor('runtime-error', 'drizzle-schema.ts')).toEqual(['rpc-handler-drizzle-import']);
+        expect(codesFor('warning', 'drizzle-schema.ts')).toEqual([]);
+        expect(reportsFor('runtime-error', 'drizzle-schema.ts')[0].message).toContain('clients can import slim models');
+      });
       it('reports each finding at its level, on a file with no runtypes marker', () => {
         expect(ROUTES_TS).not.toContain('@mionjs/run-types');
         expect(codesFor('runtime-error', 'routes.ts').sort()).toEqual([

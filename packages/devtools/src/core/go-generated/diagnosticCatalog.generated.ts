@@ -888,6 +888,19 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     family: 'marker',
     slots: ['clientVersion', 'apiVersion'],
   },
+  'rpc-handler-drizzle-import': {
+    headline:
+      'This file defines a slim schema or model and depends on Drizzle. Move toDrizzle and heavy database imports to a separate query or database file so clients can import slim models without server dependencies.',
+    level: 'runtimeError',
+    family: 'mionroute',
+  },
+  'rpc-handler-drizzle-type': {
+    headline:
+      'Public handler {position} depends on drizzle-orm. Use a slim @mionjs/drizzle-orm model or a plain public type to keep client type checking small.',
+    level: 'warning',
+    family: 'mionroute',
+    slots: ['position'],
+  },
   'rpc-handler-missing-param-type': {
     headline:
       'mion `{handler}` handler parameter `{param}` has no type annotation; every parameter after the call context travels on the wire and must declare its type.',

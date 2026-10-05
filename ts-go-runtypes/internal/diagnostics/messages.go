@@ -57,6 +57,8 @@ var headlineByCode = map[string]string{
 	"rpc-handler-missing-param-type":               "mion `{handler}` handler parameter `{param}` has no type annotation; every parameter after the call context travels on the wire and must declare its type.",
 	"rpc-handler-throws":                           "mion `{handler}` handlers must return errors, not throw them; return an `RpcError` to let the chain continue, or a `FatalError` to stop the request.",
 	"rpc-handler-returns-non-rpc-error":            "mion `{handler}` handler declares it can answer with `{errorType}`, which is not an `RpcError`; only an `RpcError` (or a subclass such as `FatalError`) carries the mion brand.",
+	"rpc-handler-drizzle-type":                     "Public handler {position} depends on drizzle-orm. Use a slim @mionjs/drizzle-orm model or a plain public type to keep client type checking small.",
+	"rpc-handler-drizzle-import":                   "This file defines a slim schema or model and depends on Drizzle. Move toDrizzle and heavy database imports to a separate query or database file so clients can import slim models without server dependencies.",
 	"rpc-handler-non-data-property":                "Property `{property}` can never be data and is dropped from every compiled function; rename it.",
 	"rpc-client-imports-server-value":              "`{name}` is passed to `initClient` but imported as a value from \"{module}\", which can put that server module in the client bundle; use `import type`.",
 	"rpc-batch-mapper-missing":                     "Batch mapper `{mapper}` has no generated pure function in this program; the server build cannot register it.",

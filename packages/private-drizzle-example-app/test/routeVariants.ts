@@ -9,7 +9,7 @@ export const VARIANTS: Variant[] = ['drizzle', 'types', 'builders'];
 
 const cap = (text: string) => text[0].toUpperCase() + text.slice(1);
 
-// One file per variant holds its tables, drizzle handles and model types.
+// Slim model imports and companion database imports follow the same variant.
 export const dbFileOf = (dialect: Dialect, variant: Variant) => `../db/${dialect}.${variant}.ts`;
 
 export const routesName = (dialect: Dialect, variant: Variant) => `${dialect}${cap(variant)}Routes`;
@@ -34,6 +34,8 @@ export function deriveVariant(buildersSource: string, dialect: Dialect, variant:
   const swapped = buildersSource
     .split(`'${dbFileOf(dialect, 'builders')}'`)
     .join(`'${dbFileOf(dialect, variant)}'`)
+    .split(`'../db/${dialect}.builders.db.ts'`)
+    .join(`'../db/${dialect}.${variant}${variant === 'drizzle' ? '' : '.db'}.ts'`)
     .split(routesName(dialect, 'builders'))
     .join(routesName(dialect, variant));
   return variant === 'drizzle' ? dropUnusedTypeImports(stripReturnTypes(swapped)) : swapped;

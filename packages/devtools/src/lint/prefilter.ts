@@ -52,6 +52,7 @@ export function needsResolverPass(text: string, file?: string, markers?: MarkerG
     referencesMarkerModule(text, file, markers) ||
     looksLikeEnrichmentFile(text) ||
     referencesRouter(text) ||
-    declaresUnsafePropertyName(text)
+    declaresUnsafePropertyName(text) ||
+    text.includes('drizzle')
   );
 }

@@ -1,5 +1,5 @@
 import * as DZ from '@mionjs/drizzle-orm-sqlite-core';
-import type {InferSelectModel} from '@mionjs/drizzle-orm';
+import type {InferInsertModel, InferSelectModel} from '@mionjs/drizzle-orm';
 import {createValidateFn} from '@mionjs/run-types';
 
 // a recorded table, not drizzle's SQLiteTable: toDrizzle() builds that on demand
@@ -10,6 +10,7 @@ export const notes = DZ.sqliteTable('notes', {
   createdAt: DZ.integer('created_at', {mode: 'timestamp', notNull: true}), // a real Date
 });
 
+export type NewNote = InferInsertModel<typeof notes>;
 export type Note = InferSelectModel<typeof notes>;
 
 export const validateNote = createValidateFn<Note>();

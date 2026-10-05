@@ -629,6 +629,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 			combinedDiagnostics = append(combinedDiagnostics, sess.checkRouterRuleFiles(request.Files)...)
 		}
 		combinedDiagnostics = append(combinedDiagnostics, sess.checkApiTypeImports(request.Files)...)
+		combinedDiagnostics = append(combinedDiagnostics, sess.checkDrizzleFiles(request.Files)...)
 		// Override arg-nulling replacements ride the same Replacements channel as pure-fn factory nullings.
 		allReplacements := append(append(append(append([]protocol.Replacement(nil), pureFnReplacements...), batchReplacements...), apiReplacements...), sess.collectOverrideReplacements(request.Files)...)
 		response := protocol.Response{
@@ -848,6 +849,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		// buildStart consumes THIS response.
 		genResponse.Diagnostics = append(genResponse.Diagnostics, sess.programWideDiagnostics()...)
 		genResponse.Diagnostics = append(genResponse.Diagnostics, sess.checkApiTypeImports(sess.programSourceFiles())...)
+		genResponse.Diagnostics = append(genResponse.Diagnostics, sess.checkDrizzleFiles(sess.programSourceFiles())...)
 		genResponse.Diagnostics = append(genResponse.Diagnostics, genPureFnsDiagnostics...)
 		genResponse.Diagnostics = append(genResponse.Diagnostics, genDiagnostics...)
 		// purefn-not-registered: same dangling-dep guard on the disk-generation path.
@@ -976,6 +978,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		}
 		combinedDiagnostics := append(append(append(append(append([]diagnostics.Diagnostic{}, pureFnDiagnostics...), batchDiagnostics...), apiDiagnostics...), markerDiagnostics...), sess.diagnosticsInFiles(sess.overrideDiagnostics, request.Files)...)
 		combinedDiagnostics = sess.appendLibSelectionDiagnostic(combinedDiagnostics, request.Files)
+		combinedDiagnostics = append(combinedDiagnostics, sess.checkDrizzleFiles(request.Files)...)
 		response := protocol.Response{
 			Transformed:   transformed,
 			Sites:         sites,

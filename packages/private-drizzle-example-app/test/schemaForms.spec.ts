@@ -1,14 +1,14 @@
 import {getTableConfig as pgConfig} from 'drizzle-orm/pg-core';
 import {getTableConfig as mysqlConfig} from 'drizzle-orm/mysql-core';
 import {getTableConfig as sqliteConfig} from 'drizzle-orm/sqlite-core';
-import * as pgBuilders from '../src/db/pg.builders.ts';
-import * as pgTypes from '../src/db/pg.types.ts';
+import * as pgBuilders from '../src/db/pg.builders.db.ts';
+import * as pgTypes from '../src/db/pg.types.db.ts';
 import * as pgDrizzle from '../src/db/pg.drizzle.ts';
-import * as mysqlBuilders from '../src/db/mysql.builders.ts';
-import * as mysqlTypes from '../src/db/mysql.types.ts';
+import * as mysqlBuilders from '../src/db/mysql.builders.db.ts';
+import * as mysqlTypes from '../src/db/mysql.types.db.ts';
 import * as mysqlDrizzle from '../src/db/mysql.drizzle.ts';
-import * as sqliteBuilders from '../src/db/sqlite.builders.ts';
-import * as sqliteTypes from '../src/db/sqlite.types.ts';
+import * as sqliteBuilders from '../src/db/sqlite.builders.db.ts';
+import * as sqliteTypes from '../src/db/sqlite.types.db.ts';
 import * as sqliteDrizzle from '../src/db/sqlite.drizzle.ts';
 
 type Config = (table: never) => {

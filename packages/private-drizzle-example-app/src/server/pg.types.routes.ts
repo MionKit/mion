@@ -1,6 +1,6 @@
 import {avg, count, eq, gte, sql} from 'drizzle-orm';
 import {mion} from './mion.ts';
-import {adultUsersDb, busyAuthorsDb, db, postsDb, usersDb} from '../db/pg.types.ts';
+import {adultUsersDb, busyAuthorsDb, db, postsDb, usersDb} from '../db/pg.types.db.ts';
 import type {AdultUser, BusyAuthor, NewUser, Post, User, UserPatch} from '../db/pg.types.ts';
 
 // The builders routes over the type-form tables: only the imports differ.

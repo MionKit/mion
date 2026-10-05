@@ -5,6 +5,8 @@ package diagnostics
 // The rpc-handler-* errors are LevelRuntimeError despite being lint-only: the build emits, but mion compiles the DECLARED types,
 // so the route is broken at runtime. rpc-handler-non-data-property is a warning: a dropped member still leaves a working type.
 const (
+	CodeRouteDrizzleType        = "rpc-handler-drizzle-type"
+	CodeDrizzleSchemaDependency = "rpc-handler-drizzle-import"
 	// CodeRouteMissingReturnType: a handler with no written return type. The build compiles the
 	// DECLARED type, so an inferred one leaves nothing to validate or serialize against. Args: [0]
 	// the helper it was declared through, or the handler type it was annotated with.
@@ -30,6 +32,8 @@ const (
 
 func init() {
 	for _, definition := range []Definition{
+		{Code: CodeRouteDrizzleType, Family: FamilyMionRoute, Level: LevelWarning, Scope: ScopeGraph, Title: "Public handler type depends on Drizzle"},
+		{Code: CodeDrizzleSchemaDependency, Family: FamilyMionRoute, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "Slim schema file depends on Drizzle"},
 		{Code: CodeRouteMissingReturnType, Family: FamilyMionRoute, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "mion handler has no return type annotation"},
 		{Code: CodeRouteMissingParamType, Family: FamilyMionRoute, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "mion handler parameter has no type annotation"},
 		{Code: CodeRouteThrowInHandler, Family: FamilyMionRoute, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "mion handlers return errors, they never throw them"},

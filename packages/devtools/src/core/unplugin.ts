@@ -948,7 +948,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       // The site-file set is the real gate, so wrapper frameworks need no configuration.
       // A file created since the last scan falls back to the text gate the linter shares.
       const inSiteSet = siteFiles.has(siteKey(rel));
-      if (!inSiteSet && !mayHoldMarkerCalls(code, id, options.markers)) return null;
+      if (!inSiteSet && !mayHoldMarkerCalls(code, id, options.markers) && !code.includes('drizzle')) return null;
 
       try {
         // `await` keeps the rejection inside this try — `return promise` would let it escape.

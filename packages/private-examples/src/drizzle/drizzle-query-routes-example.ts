@@ -2,14 +2,14 @@ import {eq} from 'drizzle-orm';
 import {drizzle} from 'drizzle-orm/pg-proxy';
 import {createMionRouter} from '@mionjs/router';
 import {toDrizzle} from '@mionjs/drizzle-orm-pg-core/drizzle';
+import {schema} from './drizzle-relations-example.ts';
 import {
   authors,
   posts,
-  schema,
   type Author,
-  type AuthorWithPosts,
   type Post,
-} from './drizzle-relations-example.ts';
+  type AuthorWithPosts,
+} from './drizzle-relations-schema-example.ts';
 
 const authorsDb = toDrizzle(authors);
 const postsDb = toDrizzle(posts);

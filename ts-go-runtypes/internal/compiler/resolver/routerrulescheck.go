@@ -35,3 +35,7 @@ func (sess *Session) checkEachFile(files []string, check func(*checker.Checker, 
 	}
 	return out
 }
+
+func (sess *Session) checkDrizzleFiles(files []string) []diagnostics.Diagnostic {
+	return sess.dropExternalLibraryDiagnostics(sess.checkEachFile(files, routerrules.CheckDrizzleSourceFile))
+}
