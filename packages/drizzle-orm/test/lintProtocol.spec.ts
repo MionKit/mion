@@ -13,22 +13,19 @@ const codes = (diags: Awaited<ReturnType<typeof scan>> | undefined) =>
 it.each(['filesystem', 'resolver'] as const)('cleans up rejected fixture setup: %s', async (stage) => {
   const failure = new Error('fixture setup failed');
   let directory = '';
-  let client: ResolverClient | undefined;
   const createDirectory = fs.mkdtempSync;
   vi.spyOn(fs, 'mkdtempSync').mockImplementation((...args) => {
     directory = createDirectory(...args);
     return directory;
   });
   const closed = vi.spyOn(ResolverClient.prototype, 'close');
+  const sources = vi.spyOn(ResolverClient.prototype, 'setSources');
   if (stage === 'filesystem') {
     vi.spyOn(fs, 'symlinkSync').mockImplementationOnce(() => {
       throw failure;
     });
   } else {
-    vi.spyOn(ResolverClient.prototype, 'setSources').mockImplementation(function (this: ResolverClient) {
-      client = this;
-      return Promise.reject(failure);
-    });
+    sources.mockRejectedValue(failure);
   }
   try {
     await expect(fixture({'schema.ts': tables()})).rejects.toBe(failure);
@@ -36,7 +33,7 @@ it.each(['filesystem', 'resolver'] as const)('cleans up rejected fixture setup: 
     expect(fs.existsSync(directory)).toBe(false);
     if (stage === 'resolver') expect(closed).toHaveBeenCalledOnce();
   } finally {
-    client?.close();
+    for (const context of sources.mock.contexts) (context as ResolverClient).close();
     fs.rmSync(directory, {recursive: true, force: true});
     vi.restoreAllMocks();
   }
