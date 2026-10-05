@@ -133,7 +133,15 @@ describe('referencesMarkerModule follows imports', () => {
     expect(referencesMarkerModule(own, file)).toBe(false);
     expect(referencesMarkerModule(own, file, {packages: ['@my-org/markers']})).toBe(true);
   });
-
+  it('admits Drizzle import types when every pre-existing gate rejects the file', () => {
+    const text = "export type Statement=import('drizzle-orm').SQL;";
+    const file = path.join(dir, 'src/statement.ts');
+    expect(referencesMarkerModule(text, file)).toBe(false);
+    expect(referencesRouter(text)).toBe(false);
+    expect(looksLikeEnrichmentFile(text)).toBe(false);
+    expect(declaresUnsafePropertyName(text)).toBe(false);
+    expect(needsResolverPass(text, file)).toBe(true);
+  });
   it('admits a real repo file importing only a drizzle dialect package', () => {
     const file = path.join(REPO_ROOT, 'packages/drizzle-orm-pg-core/test/users.ts');
     const text = `import {tableFromType} from '@mionjs/drizzle-orm-pg-core';\nexport const users = tableFromType<Users>();`;
