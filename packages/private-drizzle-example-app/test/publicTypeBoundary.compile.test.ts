@@ -37,6 +37,7 @@ describe.each(DIALECTS)('%s explicit public type boundary', (dialect) => {
       expect(directSplit.drizzleFiles).toBe(0);
       expect(directMixed.drizzleFiles).toBeGreaterThan(0);
       expect(directMixed.whole).toBeGreaterThan(directSplit.whole);
+      expect(directMixed.client).toBe(directSplit.client);
       for (const name of ['selectAll', 'innerJoin', 'relations']) {
         const routeCase = cases.find((c) => c.name === name);
         expect(routeCase, name).toBeDefined();
@@ -44,6 +45,7 @@ describe.each(DIALECTS)('%s explicit public type boundary', (dialect) => {
         const mixed = measureCase(mixedHeader, routeCase!);
         expect([...split.errors, ...mixed.errors], name).toEqual([]);
         expect(mixed.client.total, name).toBe(split.client.total);
+        expect(mixed.rawClient, name).toBe(split.rawClient);
       }
     },
     900_000

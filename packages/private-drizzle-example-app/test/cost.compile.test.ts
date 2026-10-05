@@ -50,7 +50,7 @@ function writeReport(all: Costs): void {
   mkdirSync(dir, {recursive: true});
   writeFileSync(
     `${dir}drizzle-example-app.json`,
-    `${JSON.stringify(all, (key, value) => (key === 'errors' ? undefined : value), 2)}\n`
+    `${JSON.stringify(all, (key, value) => (key === 'errors' || key === 'rawClient' ? undefined : value), 2)}\n`
   );
   const PARTS = ['params', 'return', 'total'] as const;
   const table = (dialect: Dialect, side: 'server' | 'client') => {
