@@ -224,6 +224,22 @@ it('accepts a published plain signature and local reconstructed query results', 
     ).filter((d) => d.code === TYPE_CODE)
   ).toEqual([]);
 });
+it.each([
+  ["DbUser['id']", 1],
+  ["User['id']", 0],
+  ['number', 0],
+] as const)('preserves generic type-query arguments: %s', async (type, count) => {
+  const diagnostics = await scan({
+    'schema.ts': tables(),
+    'db.ts': database(),
+    'routes.ts': `import {query} from '@mionjs/router';
+import type {DbUser} from './db.ts'; import type {User} from './schema.ts';
+declare function identity<T>():T;
+export const read=query((_ctx):ReturnType<typeof identity<${type}>>=>1);`,
+  });
+  expect(diagnostics.filter((d) => d.code === TYPE_CODE)).toHaveLength(count);
+});
+
 it('reports the exact written annotation span', async () => {
   const source = `import {query} from '@mionjs/router';import type {DbUser} from './db.ts';
 export const list=query((_ctx):DbUser => {throw new Error()});`;
