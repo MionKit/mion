@@ -131,7 +131,7 @@ func TestDrizzleDispatch_AllSyntaxWalksHaveCoverage(t *testing.T) {
 			"KindReturnStatement": "visit", "KindFunctionDeclaration": "refused", "KindFunctionExpression": "refused", "KindArrowFunction": "refused", "KindMethodDeclaration": "refused", "KindClassDeclaration": "refused", "KindClassExpression": "refused", "default": "ForEachChild",
 		},
 		"slimSchemaVisitor.visit": {
-			"KindImportDeclaration": "append", "KindExportDeclaration": "append", "KindImportType": "append",
+			"KindImportDeclaration": "visitImportDeclaration", "KindExportDeclaration": "visitExportDeclaration", "KindImportType": "visitImportType",
 			"KindCallExpression": "visitCall", "KindTypeAliasDeclaration": "visitAlias", "KindInterfaceDeclaration": "visitInterfaceDeclaration", "default": "ForEachChild",
 		},
 		"slimModuleVisitor.visit":             {"KindImportDeclaration": "visitImport", "KindExportDeclaration": "visitExport", "KindTypeReference": "visitReference", "default": "ForEachChild"},
