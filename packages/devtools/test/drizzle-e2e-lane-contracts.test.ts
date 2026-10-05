@@ -39,6 +39,11 @@ describe('drizzle-e2e lane wiring', () => {
 
   const lanes = laneKeys(runSuite, 'const DIALECTS = {');
 
+  it('downgrades only schema isolation for deliberately mixed database comparison fixtures', () => {
+    const config = read('container/drizzle-e2e/shared/vitest.types.config.ts');
+    expect(/downgradeErrors:\s*(\[[^\]]*\])/.exec(config)?.[1]).toBe("['rpc-handler-drizzle-import']");
+  });
+
   it('every lane the container knows is offered by the release script and by CI', () => {
     expect(lanes).toContain('durable'); // the shape most likely to be dropped: not a dialect
 

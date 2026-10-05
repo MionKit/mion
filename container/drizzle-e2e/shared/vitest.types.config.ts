@@ -21,6 +21,8 @@ export default defineConfig({
       tsconfig: path.resolve(import.meta.dirname, 'tsconfig.json'),
       // Inside the tree, which is container-local and thrown away with it.
       genDir: path.resolve(import.meta.dirname, '.mion'),
+      // These database comparison fixtures keep slim schemas and materializations together.
+      downgradeErrors: ['rpc-handler-drizzle-import'],
     }),
   ],
   resolve: {
