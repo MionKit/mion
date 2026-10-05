@@ -67,23 +67,31 @@ func (scope *fileScope) drizzleSymbol(symbol *ast.Symbol) bool {
 // Written syntax preserves provenance that the checker erases when a mapped model
 // or an indexed access simplifies to a plain object or primitive.
 func (scope *fileScope) drizzleOrigin(root *ast.Node) bool {
-	walk := &drizzleProvenance{scope: scope, nodes: map[*ast.Node]bool{}, types: map[*checker.Type]bool{}, activeTargets: map[*checker.Type]bool{}}
+	walk := &drizzleProvenance{scope: scope, nodes: map[*ast.Node]uint8{}, types: map[*checker.Type]uint8{}, activeTargets: map[*checker.Type]bool{}}
 	return walk.visit(root)
 }
 
+const (
+	drizzleFullSignature uint8 = iota
+	drizzleReturnSignature
+	drizzleParameterSignature
+)
+
 type drizzleProvenance struct {
 	scope         *fileScope
-	nodes         map[*ast.Node]bool
-	types         map[*checker.Type]bool
+	nodes         map[*ast.Node]uint8
+	types         map[*checker.Type]uint8
 	activeTargets map[*checker.Type]bool
 	syntaxOnly    bool
+	signaturePart uint8
 }
 
 func (walk *drizzleProvenance) visit(node *ast.Node) bool {
-	if node == nil || walk.nodes[node] {
+	mode := uint8(1) << walk.signaturePart
+	if node == nil || walk.nodes[node]&mode != 0 {
 		return false
 	}
-	walk.nodes[node] = true
+	walk.nodes[node] |= mode
 	switch node.Kind {
 	case ast.KindTypeReference:
 		return walk.visitTypeReference(node)
@@ -148,6 +156,19 @@ func (walk *drizzleProvenance) visitObjectLiteral(node *ast.Node) bool {
 	return walk.visitType(walk.scope.typeChecker.GetTypeAtLocation(node))
 }
 func (walk *drizzleProvenance) visitTypeReference(node *ast.Node) bool {
+	previous := walk.signaturePart
+	defer func() { walk.signaturePart = previous }()
+	if symbol := walk.scope.resolveSymbol(node.AsTypeReferenceNode().TypeName); symbol != nil {
+		for _, declaration := range symbol.Declarations {
+			if bundledDeclaration(declaration) {
+				if symbol.Name == "ReturnType" {
+					walk.signaturePart = drizzleReturnSignature
+				} else if symbol.Name == "Parameters" || symbol.Name == "ConstructorParameters" {
+					walk.signaturePart = drizzleParameterSignature
+				}
+			}
+		}
+	}
 	if walk.visitName(node.AsTypeReferenceNode().TypeName) {
 		return true
 	}
@@ -188,6 +209,16 @@ func (walk *drizzleProvenance) visitFunction(node *ast.Node) bool {
 	if fn == nil {
 		return false
 	}
+	if walk.signaturePart != drizzleReturnSignature && fn.Parameters != nil {
+		for _, parameter := range fn.Parameters.Nodes {
+			if walk.visit(parameter) {
+				return true
+			}
+		}
+	}
+	if walk.signaturePart == drizzleParameterSignature {
+		return false
+	}
 	if fn.Type != nil {
 		return walk.visit(fn.Type)
 	}
@@ -221,7 +252,7 @@ func (walk *drizzleProvenance) visitCall(node *ast.Node) bool {
 			if module == "drizzle-orm" || strings.HasPrefix(module, "drizzle-orm/") {
 				return true
 			}
-			if walk.visit(decl) {
+			if walk.visitReturnDeclaration(decl) {
 				return true
 			}
 		}
@@ -229,11 +260,18 @@ func (walk *drizzleProvenance) visitCall(node *ast.Node) bool {
 	}
 	return !walk.syntaxOnly && walk.visitType(walk.scope.typeChecker.GetTypeAtLocation(node))
 }
+func (walk *drizzleProvenance) visitReturnDeclaration(node *ast.Node) bool {
+	previous := walk.signaturePart
+	walk.signaturePart = drizzleReturnSignature
+	defer func() { walk.signaturePart = previous }()
+	return walk.visit(node)
+}
 func (walk *drizzleProvenance) visitType(t *checker.Type) bool {
-	if t == nil || walk.types[t] {
+	mode := uint8(1) << walk.signaturePart
+	if t == nil || walk.types[t]&mode != 0 {
 		return false
 	}
-	walk.types[t] = true
+	walk.types[t] |= mode
 	if walk.scope.drizzleSymbol(t.Symbol()) {
 		return true
 	}
@@ -283,7 +321,19 @@ func (walk *drizzleProvenance) visitObjectType(t *checker.Type) bool {
 		}
 	}
 	for _, sig := range walk.scope.typeChecker.GetSignaturesOfType(t, checker.SignatureKindCall) {
-		if walk.visitType(walk.scope.typeChecker.GetReturnTypeOfSignature(sig)) {
+		if walk.signaturePart != drizzleReturnSignature {
+			for _, parameter := range sig.Parameters() {
+				for _, declaration := range parameter.Declarations {
+					if walk.visit(declaration) {
+						return true
+					}
+				}
+				if walk.visitType(walk.scope.typeChecker.GetTypeOfSymbol(parameter)) {
+					return true
+				}
+			}
+		}
+		if walk.signaturePart != drizzleParameterSignature && (walk.visitReturnDeclaration(sig.Declaration()) || walk.visitType(walk.scope.typeChecker.GetReturnTypeOfSignature(sig))) {
 			return true
 		}
 	}
@@ -429,7 +479,7 @@ func (walk *slimSchemaVisitor) moduleDependency(node *ast.Node) bool {
 // Dependency declarations retain written provenance. Expanding third-party
 // callable types here can instantiate unrelated recursive test/framework types.
 func (walk *slimSchemaVisitor) dependencyOrigin(node *ast.Node) bool {
-	dependency := &drizzleProvenance{scope: walk.scope, nodes: map[*ast.Node]bool{}, types: map[*checker.Type]bool{}, activeTargets: map[*checker.Type]bool{}, syntaxOnly: true}
+	dependency := &drizzleProvenance{scope: walk.scope, nodes: map[*ast.Node]uint8{}, types: map[*checker.Type]uint8{}, activeTargets: map[*checker.Type]bool{}, syntaxOnly: true}
 	return dependency.visit(node)
 }
 
