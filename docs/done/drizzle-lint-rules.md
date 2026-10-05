@@ -541,3 +541,8 @@ The reference app's post-review run passed 147 tests. The public-type suite pass
 The full client run exposed a repeatable first-request timeout during lazy format loading. Drizzle checks now skip external-library implementation files before resolving types, using TypeScript resolution provenance. Schema builder calls inspect signature ownership before resolving arguments; locally aliased builders remain covered in all three dialects. The existing client timeout is unchanged, and all 396 client tests pass.
 
 The wider import admission exposed lint-only false positives for ordinary JavaScript. Node-only imports do not admit a schema pass. When the compiler excludes JavaScript (`allowJs: false`), the lint transport handles its source-file rejection without restarting the resolver, matching the bundler fallback. Frontend regressions verify that the connection still checks the next supported file and that JavaScript schema isolation still reports when `allowJs` is enabled.
+
+
+## Durable Objects CI Follow-up
+
+The Durable Objects type-road runner uses the esbuild adapter directly and does not load the shared Vite configuration. Its comparison fixtures intentionally combine slim declarations and Drizzle materializations. The runner now applies the same code-specific `rpc-handler-drizzle-import` downgrade as the Vite lanes, preserving the warning and all other blocking errors. The frontend lane-contract test covers both entry points; it failed for the Durable runner before the fix and passed after it.

@@ -134,6 +134,7 @@ async function runTypesPlugin() {
     tsconfig: 'tsconfig.json',
     // Inside the tree, which is container-local and thrown away with it.
     genDir: '.mion',
+    downgradeErrors: ['rpc-handler-drizzle-import'],
   });
 }
 
