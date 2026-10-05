@@ -2,6 +2,12 @@ import {expect, it, vi} from 'vitest';
 vi.setConfig({testTimeout: 60000});
 import {database, fixture, scan, tables, SCHEMA_CODE, TYPE_CODE} from './lintFixture.ts';
 
+const codes = (diags: Awaited<ReturnType<typeof scan>> | undefined) =>
+  diags
+    ?.map((d) => d.code)
+    .filter((code) => code === SCHEMA_CODE || code === TYPE_CODE)
+    .sort();
+
 it('agrees across scan, transform and generate without opting into old lint rules', async () => {
   const f = await fixture({
     'schema.ts': tables() + "\nimport type {SQL} from 'drizzle-orm';",
@@ -10,11 +16,6 @@ it('agrees across scan, transform and generate without opting into old lint rule
  export const list=query(async (_ctx):Promise<DbUser[]>=>[]);`,
   });
   try {
-    const codes = (diags: {code: string}[] | undefined) =>
-      diags
-        ?.map((d) => d.code)
-        .filter((code) => code === SCHEMA_CODE || code === TYPE_CODE)
-        .sort();
     const scanned = await f.client.scanFiles(f.files);
     expect(codes(scanned.diagnostics)).toEqual([SCHEMA_CODE, TYPE_CODE].sort());
     expect(codes((await f.client.transform(f.files)).diagnostics)).toEqual(codes(scanned.diagnostics));
@@ -75,11 +76,6 @@ it('does not duplicate the new checks when old router checks are enabled and mat
  export const list=query((_ctx):DbUser=>({id:1,name:'Ada'}));`,
   });
   try {
-    const codes = (diags: {code: string}[] | undefined) =>
-      diags
-        ?.map((d) => d.code)
-        .filter((code) => code === TYPE_CODE || code === SCHEMA_CODE)
-        .sort();
     const standard = codes((await f.client.scanFiles(f.files)).diagnostics);
     expect(codes((await f.client.scanFiles(f.files, {checkRouterRules: true})).diagnostics)).toEqual(standard);
     expect(codes((await f.client.transform(f.files, {emitEdits: true})).diagnostics)).toEqual(standard);
