@@ -24,7 +24,7 @@ const localVerdicts = new Map<string, {mtimeMs: number; verdict: boolean}>();
 
 // Imported declarations can hide package ownership behind aliases and barrels; only Go can classify them.
 export function mayHoldDrizzleSchemas(text: string): boolean {
-  return text.includes('drizzle') || importSpecifiers(text).size > 0;
+  return text.includes('drizzle') || [...importSpecifiers(text)].some((specifier) => !specifier.startsWith('node:'));
 }
 
 // With checkPackage:false a marker can be declared anywhere, so every file passes.
