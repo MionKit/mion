@@ -124,8 +124,9 @@ func TestDrizzleDispatch_AllSyntaxWalksHaveCoverage(t *testing.T) {
 			"KindIdentifier": "visitName", "KindQualifiedName": "visitName", "KindPropertyAccessExpression": "visitName", "KindElementAccessExpression": "visitName",
 			"KindVariableDeclaration": "visitValueDeclaration", "KindPropertyDeclaration": "visitValueDeclaration", "KindPropertySignature": "visitValueDeclaration", "KindParameter": "visitValueDeclaration",
 			"KindFunctionDeclaration": "visitFunction", "KindFunctionExpression": "visitFunction", "KindArrowFunction": "visitFunction", "KindMethodDeclaration": "visitFunction", "KindMethodSignature": "visitFunction",
-			"KindCallExpression": "visitCall", "KindObjectLiteralExpression": "visitObjectLiteral", "default": "ForEachChild",
+			"KindCallExpression": "visitCall", "KindObjectLiteralExpression": "visitObjectLiteral", "KindClassDeclaration": "visitClassDeclaration", "KindClassExpression": "visitClassExpression", "default": "ForEachChild",
 		},
+		"drizzleProvenance.visitClassMember": {"KindConstructor": "visitConstructor", "KindClassStaticBlockDeclaration": "refused", "default": "visit"},
 		"drizzleProvenance.visitReturns": {
 			"KindReturnStatement": "visit", "KindFunctionDeclaration": "refused", "KindFunctionExpression": "refused", "KindArrowFunction": "refused", "KindMethodDeclaration": "refused", "KindClassDeclaration": "refused", "KindClassExpression": "refused", "default": "ForEachChild",
 		},

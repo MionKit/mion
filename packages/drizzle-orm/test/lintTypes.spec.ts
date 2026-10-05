@@ -240,6 +240,23 @@ export const read=query((_ctx):ReturnType<typeof identity<${type}>>=>1);`,
   expect(diagnostics.filter((d) => d.code === TYPE_CODE)).toHaveLength(count);
 });
 
+it.each([
+  ['constructor(){getTableName(usersDb);}', 0],
+  ['static value=getTableName(usersDb); static {getTableName(usersDb);}', 0],
+  ['row!:DbUser;', 1],
+  ['constructor(public row:DbUser){}', 1],
+] as const)('checks class instance types without inspecting internal statements: %s', async (members, count) => {
+  const diagnostics = await scan({
+    'schema.ts': tables(),
+    'db.ts': database(),
+    'routes.ts': `import {query} from '@mionjs/router'; import {getTableName} from 'drizzle-orm';
+import {usersDb} from './db.ts'; import type {DbUser} from './db.ts';
+class PublicRow {id:number=1; ${members}}
+export const read=query((_ctx):PublicRow=>{throw new Error()});`,
+  });
+  expect(diagnostics.filter((d) => d.code === TYPE_CODE)).toHaveLength(count);
+});
+
 it('reports the exact written annotation span', async () => {
   const source = `import {query} from '@mionjs/router';import type {DbUser} from './db.ts';
 export const list=query((_ctx):DbUser => {throw new Error()});`;
