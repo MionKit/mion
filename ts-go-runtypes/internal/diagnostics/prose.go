@@ -433,6 +433,15 @@ export const isOuter = createValidateFn<Outer>();`,
 
 	// ──────────── mion route rules: unsafe property name (rpc-handler-non-data-property) ────────────
 
+	// These checks require resolved router and Drizzle packages; frontend fixtures cover nested public types.
+	CodeRouteDrizzleType: {
+		Summary: "A written public parameter or return type depends on drizzle-orm, including nested models and model projections. Client type checking must expand those database types. Use a slim model from @mionjs/drizzle-orm or a plain public type. Drizzle queries and internal types inside the handler are allowed.",
+		Fix:     "import type {User} from './schema.ts';\nconst list = mion.query(async (_ctx): Promise<User[]> => db.select().from(usersDb));",
+	},
+	CodeDrizzleSchemaDependency: {
+		Summary: "A file that defines slim schemas or models also imports Drizzle types or the toDrizzle bridge. Clients may import these models directly, loading heavy database declarations or server dependencies. Keep schemas and models in their own file. Import them into a companion file for toDrizzle, database setup, relations and queries. A query or router file may import both kinds of types when it does not define slim schemas or models.",
+		Fix:     "// schema.ts: define slim tables and models\n// db.ts: import the slim tables, then call toDrizzle",
+	},
 	CodeRouteUnsafePropertyName: {
 		Summary: "Writing `__proto__` on a plain object changes its prototype instead of adding a key, so the value never round trips, even though TypeScript accepts the type. It is reported on the declaration in any interface, type literal or class, even before a route uses it. Rename the property to keep the data (`prototype` and `constructor` are fine).",
 		Fix:     `interface Settings { ok: number; parent: string }`,

@@ -166,3 +166,28 @@ export function measureCase(header: string, routeCase: RouteCase): CaseCost {
     errors: [...full.errors, ...params.errors],
   };
 }
+
+export function measureDirectModel(
+  header: string,
+  modulePath: string
+): {client: number; whole: number; drizzleFiles: number; errors: string[]} {
+  const modelFile = `${SERVER_DIR}__cost_model__.ts`;
+  const client = `import type {User} from '${modulePath}'; export const name=(user:User):string=>user.name;`;
+  const files = new Map([
+    [modelFile, header],
+    [CLIENT_FILE, client],
+  ]);
+  const program = ts.createProgram([CLIENT_FILE], OPTIONS, hostFor(files));
+  const source = program.getSourceFile(CLIENT_FILE)!;
+  const errors = [...program.getSyntacticDiagnostics(source), ...program.getSemanticDiagnostics(source)].map((diag) =>
+    ts.flattenDiagnosticMessageText(diag.messageText, '\n')
+  );
+  const clientCost = program.getInstantiationCount();
+  program.getSemanticDiagnostics();
+  return {
+    client: clientCost,
+    whole: program.getInstantiationCount(),
+    drizzleFiles: program.getSourceFiles().filter((file) => file.fileName.includes('/node_modules/drizzle-orm/')).length,
+    errors,
+  };
+}

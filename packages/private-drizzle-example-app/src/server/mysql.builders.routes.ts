@@ -1,6 +1,6 @@
 import {avg, count, eq, gte, sql} from 'drizzle-orm';
 import {mion} from './mion.ts';
-import {adultUsersDb, busyAuthorsDb, db, postsDb, usersDb} from '../db/mysql.builders.ts';
+import {adultUsersDb, busyAuthorsDb, db, postsDb, usersDb} from '../db/mysql.builders.db.ts';
 import type {AdultUser, BusyAuthor, NewUser, Post, User, UserPatch} from '../db/mysql.builders.ts';
 
 // Params and return types written from the slim models.

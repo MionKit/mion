@@ -73,6 +73,19 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
     );
   });
 
+  it('reports public Drizzle types as a warning without failing the host', {timeout: 120000}, async () => {
+    project.write('node_modules/drizzle-orm/package.json', JSON.stringify({name: 'drizzle-orm', types: 'index.d.ts'}));
+    project.write('node_modules/drizzle-orm/index.d.ts', 'export interface Row {id:number}');
+    project.write(
+      'drizzle-public.ts',
+      `import {createMionRouter} from '@mionjs/router';import type {Row} from 'drizzle-orm';
+    export const read=createMionRouter().route((_ctx):Row=>({id:1}));`
+    );
+    const result = await execFileAsync(OXLINT, ['-c', '.oxlintrc.json', 'drizzle-public.ts'], {cwd: project.dir});
+    expect(result.stdout).toContain('[rpc-handler-drizzle-type]');
+    expect(result.stdout).toContain('mion(warning)');
+  });
+
   afterAll(() => {
     project.cleanup();
   });

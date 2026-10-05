@@ -1,10 +1,7 @@
 import {drizzle} from 'drizzle-orm/d1';
 import {eq} from 'drizzle-orm';
 import {toDrizzle} from '@mionjs/drizzle-orm-sqlite-core/drizzle';
-import type {InferSelectModel} from '@mionjs/drizzle-orm';
-import {notes} from './drizzle-proxy-sqlite-example.ts';
-
-export type Note = InferSelectModel<typeof notes>;
+import {notes, type Note} from './drizzle-proxy-sqlite-example.ts';
 
 // the real drizzle table, built once
 const notesDb = toDrizzle(notes);

@@ -1,11 +1,11 @@
 import {drizzle} from 'drizzle-orm/durable-sqlite';
 import type {DrizzleSqliteDODatabase} from 'drizzle-orm/durable-sqlite';
 import {toDrizzle} from '@mionjs/drizzle-orm-sqlite-core/drizzle';
-import type {InferInsertModel, InferSelectModel} from '@mionjs/drizzle-orm';
-import {notes} from './drizzle-proxy-sqlite-example.ts';
-
-export type Note = InferSelectModel<typeof notes>;
-export type NewNote = InferInsertModel<typeof notes>;
+import {
+  notes,
+  type Note,
+  type NewNote,
+} from './drizzle-proxy-sqlite-example.ts';
 
 const notesDb = toDrizzle(notes);
 
