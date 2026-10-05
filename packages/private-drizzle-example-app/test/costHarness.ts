@@ -56,6 +56,7 @@ export interface SideCost {
 export interface CaseCost {
   server: SideCost;
   client: SideCost;
+  rawClient: number;
   errors: string[];
 }
 
@@ -118,7 +119,7 @@ function count(files: Map<string, string>, root: string): {instantiations: numbe
 }
 
 /** Instantiations of one route body, on the server alone and in a client calling it, net of the empty file. */
-function measureBody(header: string, body: string): {server: number; client: number; errors: string[]} {
+function measureBody(header: string, body: string): {server: number; client: number; rawClient: number; errors: string[]} {
   const key = body.slice(0, body.indexOf(':')).trim();
   const call = key ? `export const result = routes.${key}(...([] as unknown as Parameters<typeof routes.${key}>)).call();` : '';
   const baseline = baselineOf(header);
@@ -133,6 +134,7 @@ function measureBody(header: string, body: string): {server: number; client: num
   return {
     server: server.instantiations - baseline.server,
     client: client.instantiations - baseline.client,
+    rawClient: client.instantiations,
     errors: [...server.errors, ...client.errors],
   };
 }
@@ -165,6 +167,7 @@ export function measureCase(header: string, routeCase: RouteCase): CaseCost {
   return {
     server: side(full.server, params.server),
     client: side(full.client, params.client),
+    rawClient: full.rawClient,
     errors: [...full.errors, ...params.errors],
   };
 }
