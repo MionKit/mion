@@ -99,12 +99,44 @@ func (walk *drizzleProvenance) visit(node *ast.Node) bool {
 		return walk.visitTypeQuery(node)
 	case ast.KindImportType:
 		return walk.visitImportType(node)
-	case ast.KindIdentifier, ast.KindQualifiedName, ast.KindPropertyAccessExpression, ast.KindElementAccessExpression:
-		return walk.visitName(node)
-	case ast.KindVariableDeclaration, ast.KindPropertyDeclaration, ast.KindPropertySignature, ast.KindParameter:
-		return walk.visitValueDeclaration(node)
-	case ast.KindFunctionDeclaration, ast.KindFunctionExpression, ast.KindArrowFunction, ast.KindMethodDeclaration, ast.KindMethodSignature:
-		return walk.visitFunction(node)
+	case ast.KindIdentifier:
+		return walk.visitIdentifier(node)
+	case ast.KindQualifiedName:
+		return walk.visitQualifiedName(node)
+	case ast.KindPropertyAccessExpression:
+		return walk.visitPropertyAccessExpression(node)
+	case ast.KindElementAccessExpression:
+		return walk.visitElementAccessExpression(node)
+	case ast.KindVariableDeclaration:
+		return walk.visitVariableDeclaration(node)
+	case ast.KindPropertyDeclaration:
+		return walk.visitPropertyDeclaration(node)
+	case ast.KindPropertySignature:
+		return walk.visitPropertySignature(node)
+	case ast.KindParameter:
+		return walk.visitParameter(node)
+	case ast.KindFunctionDeclaration:
+		return walk.visitFunctionDeclaration(node)
+	case ast.KindFunctionExpression:
+		return walk.visitFunctionExpression(node)
+	case ast.KindArrowFunction:
+		return walk.visitArrowFunction(node)
+	case ast.KindMethodDeclaration:
+		return walk.visitMethodDeclaration(node)
+	case ast.KindMethodSignature:
+		return walk.visitMethodSignature(node)
+	case ast.KindGetAccessor:
+		return walk.visitGetAccessor(node)
+	case ast.KindSetAccessor:
+		return walk.visitSetAccessor(node)
+	case ast.KindFunctionType:
+		return walk.visitFunctionType(node)
+	case ast.KindConstructorType:
+		return walk.visitConstructorType(node)
+	case ast.KindCallSignature:
+		return walk.visitCallSignature(node)
+	case ast.KindConstructSignature:
+		return walk.visitConstructSignature(node)
 	case ast.KindCallExpression:
 		return walk.visitCall(node)
 	case ast.KindObjectLiteralExpression:
@@ -147,6 +179,64 @@ func (walk *drizzleProvenance) visitConstructor(node *ast.Node) bool {
 		return ast.GetCombinedModifierFlags(child)&ast.ModifierFlagsParameterPropertyModifier != 0 &&
 			ast.GetCombinedModifierFlags(child)&(ast.ModifierFlagsPrivate|ast.ModifierFlagsProtected) == 0 && walk.visit(child)
 	})
+}
+
+func (walk *drizzleProvenance) visitIdentifier(node *ast.Node) bool {
+	return walk.visitName(node)
+}
+func (walk *drizzleProvenance) visitQualifiedName(node *ast.Node) bool {
+	return walk.visitName(node)
+}
+func (walk *drizzleProvenance) visitPropertyAccessExpression(node *ast.Node) bool {
+	return walk.visitName(node)
+}
+func (walk *drizzleProvenance) visitElementAccessExpression(node *ast.Node) bool {
+	return walk.visitName(node)
+}
+func (walk *drizzleProvenance) visitVariableDeclaration(node *ast.Node) bool {
+	return walk.visitValueDeclaration(node)
+}
+func (walk *drizzleProvenance) visitPropertyDeclaration(node *ast.Node) bool {
+	return walk.visitValueDeclaration(node)
+}
+func (walk *drizzleProvenance) visitPropertySignature(node *ast.Node) bool {
+	return walk.visitValueDeclaration(node)
+}
+func (walk *drizzleProvenance) visitParameter(node *ast.Node) bool {
+	return walk.visitValueDeclaration(node)
+}
+func (walk *drizzleProvenance) visitFunctionDeclaration(node *ast.Node) bool {
+	return walk.visitFunction(node)
+}
+func (walk *drizzleProvenance) visitFunctionExpression(node *ast.Node) bool {
+	return walk.visitFunction(node)
+}
+func (walk *drizzleProvenance) visitArrowFunction(node *ast.Node) bool {
+	return walk.visitFunction(node)
+}
+func (walk *drizzleProvenance) visitMethodDeclaration(node *ast.Node) bool {
+	return walk.visitFunction(node)
+}
+func (walk *drizzleProvenance) visitMethodSignature(node *ast.Node) bool {
+	return walk.visitFunction(node)
+}
+func (walk *drizzleProvenance) visitGetAccessor(node *ast.Node) bool {
+	return walk.visitFunction(node)
+}
+func (walk *drizzleProvenance) visitSetAccessor(node *ast.Node) bool {
+	return walk.visitFunction(node)
+}
+func (walk *drizzleProvenance) visitFunctionType(node *ast.Node) bool {
+	return walk.visitFunction(node)
+}
+func (walk *drizzleProvenance) visitConstructorType(node *ast.Node) bool {
+	return walk.visitFunction(node)
+}
+func (walk *drizzleProvenance) visitCallSignature(node *ast.Node) bool {
+	return walk.visitFunction(node)
+}
+func (walk *drizzleProvenance) visitConstructSignature(node *ast.Node) bool {
+	return walk.visitFunction(node)
 }
 
 func (walk *drizzleProvenance) visitObjectLiteral(node *ast.Node) bool {
@@ -238,7 +328,17 @@ func (walk *drizzleProvenance) visitReturns(node *ast.Node) bool {
 	switch node.Kind {
 	case ast.KindReturnStatement:
 		return walk.visit(node.AsReturnStatement().Expression)
-	case ast.KindFunctionDeclaration, ast.KindFunctionExpression, ast.KindArrowFunction, ast.KindMethodDeclaration, ast.KindClassDeclaration, ast.KindClassExpression:
+	case ast.KindFunctionDeclaration:
+		return false
+	case ast.KindFunctionExpression:
+		return false
+	case ast.KindArrowFunction:
+		return false
+	case ast.KindMethodDeclaration:
+		return false
+	case ast.KindClassDeclaration:
+		return false
+	case ast.KindClassExpression:
 		return false
 	default:
 		return node.ForEachChild(walk.visitReturns)
