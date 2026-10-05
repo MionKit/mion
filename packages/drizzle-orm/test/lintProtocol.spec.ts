@@ -1,12 +1,46 @@
 import {expect, it, vi} from 'vitest';
 vi.setConfig({testTimeout: 60000});
 import {database, fixture, scan, tables, SCHEMA_CODE, TYPE_CODE} from './lintFixture.ts';
+import fs from 'node:fs';
+import {ResolverClient} from '../../devtools/src/core/resolver-client.ts';
 
 const codes = (diags: Awaited<ReturnType<typeof scan>> | undefined) =>
   diags
     ?.map((d) => d.code)
     .filter((code) => code === SCHEMA_CODE || code === TYPE_CODE)
     .sort();
+
+it.each(['filesystem', 'resolver'] as const)('cleans up rejected fixture setup: %s', async (stage) => {
+  const failure = new Error('fixture setup failed');
+  let directory = '';
+  let client: ResolverClient | undefined;
+  const createDirectory = fs.mkdtempSync;
+  vi.spyOn(fs, 'mkdtempSync').mockImplementation((...args) => {
+    directory = createDirectory(...args);
+    return directory;
+  });
+  const closed = vi.spyOn(ResolverClient.prototype, 'close');
+  if (stage === 'filesystem') {
+    vi.spyOn(fs, 'symlinkSync').mockImplementationOnce(() => {
+      throw failure;
+    });
+  } else {
+    vi.spyOn(ResolverClient.prototype, 'setSources').mockImplementation(function (this: ResolverClient) {
+      client = this;
+      return Promise.reject(failure);
+    });
+  }
+  try {
+    await expect(fixture({'schema.ts': tables()})).rejects.toBe(failure);
+    expect(directory).not.toBe('');
+    expect(fs.existsSync(directory)).toBe(false);
+    if (stage === 'resolver') expect(closed).toHaveBeenCalledOnce();
+  } finally {
+    client?.close();
+    fs.rmSync(directory, {recursive: true, force: true});
+    vi.restoreAllMocks();
+  }
+});
 
 it('agrees across scan, transform and generate without opting into old lint rules', async () => {
   const f = await fixture({
