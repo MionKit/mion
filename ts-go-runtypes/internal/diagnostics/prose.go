@@ -777,7 +777,7 @@ useFetchMetadata(middlewares.mionFetchMetadata);`,
 		Fix:     "mion api-types --tsconfig tsconfig.json --out api-types",
 	},
 	CodeApiMetaTypesOtherCompiler: {
-		Summary: "Type ids include the mion version that computed them, so a client and a server built by different versions get different ids, and the server answers every call with a version mismatch. Build the client with the mion version the types package names, or rebuild the package with yours.",
+		Summary: "Type ids include the mion version that computed them, so different versions can produce incompatible ids. The client reports a mismatch after reading the server response; fetched route metadata can restore compatible route types. Build the client with the mion version the types package names, or rebuild the package with yours.",
 		Fix:     "npm install -D @mionjs/bin-compiler@<the version in mion-api.json>",
 	},
 	CodeApiMetaSharedModules: {
