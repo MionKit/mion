@@ -514,11 +514,30 @@ The schema/model role check also covers standalone PostgreSQL enums, schemas and
 ## Local Verification (5 October 2026)
 
 - All 24 JavaScript test projects passed, run sequentially because this host cannot fit all resolver processes at once.
-- The completed-binary rerun passed all 149 root Drizzle tests and the 11 native comparison contract tests.
-- The reference app passed 145 tests, including all six public-type boundary comparisons and its real-file import hygiene check. Its generated cost reports remained unchanged.
+- The completed-binary rerun passed all 174 root Drizzle tests and the 11 native comparison contract tests.
+- The reference app passed 147 tests, including all six public-type boundary comparisons and its real-file import hygiene check. Its generated cost reports remained unchanged.
 - The full Go internal and command suites passed. The diagnostic slot snapshot includes the new `position` argument.
 - `pnpm run lint` passed, including directives, both linters, TypeScript checks and native compiler checks across 26 projects.
 - Formatting checks passed. Full code generation reproduced the expected generated outputs.
 - All 289 documentation code imports resolved.
 
-Independent review, documentation/comment simplification and PR CI follow this local gate in Automatic mode.
+## Independent Review (5 October 2026)
+
+The independent review returned 19 unique findings. Eighteen were addressed:
+
+- Written generic type-query arguments and function parameters retain their Drizzle provenance. `ReturnType` follows returns and `Parameters` follows parameters; plain return boundaries remain valid.
+- Class instance annotations exclude constructor statements and static implementation. Public instance fields and constructor parameter properties retain their type provenance.
+- Schema isolation follows bridge and local star re-exports with cycle protection, and recognizes interfaces deriving slim models.
+- The shared JavaScript admission gate admits imported declarations conservatively. Go resolves ownership, including local barrels and package aliases without Drizzle spelling in the source. Frontend tests exercise the lint plugin and a bundler fallback with no marker sites.
+- Fixture setup failures close the resolver and remove temporary files before rethrowing the original error.
+- Performance programs load Node types and validate whole-program syntax and semantics. Layout assertions compare raw client instantiations alongside baseline-subtracted counts. Direct model imports also compare raw client counts.
+- Each handled syntax kind has its own dispatch arm and named handler. Structural guards verify refusal behavior, checker dispatch and recursive child edges. Deliberately broken refusal, object-dispatch and index-key edges failed their guards; restoring the implementation passed.
+- Diagnostic collection and protocol test helpers were simplified.
+
+The remaining finding proposed removing the worker's `Note` and `NewNote` re-exports. They remain because those types were already exported from that module; the schema split preserves its existing interface.
+
+The reference app's post-review run passed 147 tests. The public-type suite passed 76 tests, schema isolation 45, and resolver protocol 8. The post-review frontend, full Go, lint/typecheck, formatting and code-generation gates passed. Independent simplification passes and PR CI follow in Automatic mode.
+
+The full client run exposed a repeatable first-request timeout during lazy format loading. Drizzle checks now skip external-library implementation files before resolving types, using TypeScript resolution provenance. Schema builder calls inspect signature ownership before resolving arguments; locally aliased builders remain covered in all three dialects. The existing client timeout is unchanged, and all 396 client tests pass.
+
+The wider import admission exposed lint-only false positives for ordinary JavaScript. Node-only imports do not admit a schema pass. When the compiler excludes JavaScript (`allowJs: false`), the lint transport handles its source-file rejection without restarting the resolver, matching the bundler fallback. Frontend regressions verify that the connection still checks the next supported file and that JavaScript schema isolation still reports when `allowJs` is enabled.
