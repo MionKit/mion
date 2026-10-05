@@ -376,16 +376,11 @@ func (scope *fileScope) checkSlimSchemaDependencies() []diagnostics.Diagnostic {
 	if !walk.authored {
 		return nil
 	}
-	imports := walk.dependencies
-	walk.dependencies = nil
-	for _, node := range imports {
-		if walk.heavyDependency(node) {
-			walk.dependencies = append(walk.dependencies, node)
-		}
-	}
 	var found []diagnostics.Diagnostic
 	for _, dependency := range walk.dependencies {
-		found = append(found, scope.diag(diagnostics.CodeDrizzleSchemaDependency, dependency))
+		if walk.heavyDependency(dependency) {
+			found = append(found, scope.diag(diagnostics.CodeDrizzleSchemaDependency, dependency))
+		}
 	}
 	return found
 }
@@ -423,9 +418,7 @@ func (walk *slimSchemaVisitor) visitCall(node *ast.Node) {
 }
 func (walk *slimSchemaVisitor) visitAlias(node *ast.Node) {
 	// Follow children, not imported declarations: consuming an existing model is allowed.
-	node.ForEachChild(func(child *ast.Node) bool {
-		return walk.visitAuthoredType(child)
-	})
+	node.ForEachChild(walk.visitAuthoredType)
 }
 func (walk *slimSchemaVisitor) visitInterfaceDeclaration(node *ast.Node) {
 	node.ForEachChild(walk.visitAuthoredType)
