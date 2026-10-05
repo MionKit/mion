@@ -2,7 +2,7 @@
 // produce no diagnostic, so the rules skip it, the common case for most files in a lint run.
 
 import {FRIENDLY_TEXT_NAME, MARKER_COMMENT_PREFIX, MOCK_DATA_NAME} from '../core/go-generated/runtypes-constants.generated.ts';
-import {mayHoldMarkerCalls, type MarkerGateOptions} from '../core/markerImports.ts';
+import {mayHoldDrizzleSchemas, mayHoldMarkerCalls, type MarkerGateOptions} from '../core/markerImports.ts';
 
 // Gates the compiler-diagnostics pass with the build fallback's own gate, so lint and build admit the same files.
 export function referencesMarkerModule(text: string, file?: string, markers?: MarkerGateOptions): boolean {
@@ -53,6 +53,6 @@ export function needsResolverPass(text: string, file?: string, markers?: MarkerG
     looksLikeEnrichmentFile(text) ||
     referencesRouter(text) ||
     declaresUnsafePropertyName(text) ||
-    text.includes('drizzle')
+    mayHoldDrizzleSchemas(text)
   );
 }

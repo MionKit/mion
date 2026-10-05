@@ -9,7 +9,7 @@ import {applyEdits, sourceHash} from './apply-edits.ts';
 import {Level, type BatchSite, type Diagnostic, type PureFnSite} from './protocol.ts';
 import {PURE_FN_ARTIFACT_DIR, type ClientRoutes, type ModuleMode} from './go-generated/runtypes-constants.generated.ts';
 import {assertValidClientRoutes, assertValidModuleMode} from './option-guards.ts';
-import {mayHoldMarkerCalls} from './markerImports.ts';
+import {mayHoldDrizzleSchemas, mayHoldMarkerCalls} from './markerImports.ts';
 import {isDowngraded, resolveDowngradeErrors, DOWNGRADE_ALL, type DowngradeSet} from './downgradeErrors.ts';
 import {LEVELS_ALL, resolveGrouped, resolveShowInfo} from './levels.ts';
 import {haltError, hostHalt, hostWarn, printFindings, surfaceDiagnostics, type HostContext} from './surface.ts';
@@ -948,7 +948,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       // The site-file set is the real gate, so wrapper frameworks need no configuration.
       // A file created since the last scan falls back to the text gate the linter shares.
       const inSiteSet = siteFiles.has(siteKey(rel));
-      if (!inSiteSet && !mayHoldMarkerCalls(code, id, options.markers) && !code.includes('drizzle')) return null;
+      if (!inSiteSet && !mayHoldMarkerCalls(code, id, options.markers) && !mayHoldDrizzleSchemas(code)) return null;
 
       try {
         // `await` keeps the rejection inside this try — `return promise` would let it escape.

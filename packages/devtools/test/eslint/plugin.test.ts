@@ -8,6 +8,7 @@ import {resetSharedSession} from '../../src/lint/session.ts';
 import {ResolverClient} from '../../src/core/resolver-client.ts';
 import {TODO_LINE, TODO_TAG} from '../../src/core/go-generated/runtypes-constants.generated.ts';
 import {BIN, hasBinary, makeFixtureProject, runRule, type FixtureProject, type LintReportedProblem} from './fixture.ts';
+import {referencesMarkerModule} from '../../src/lint/prefilter.ts';
 
 const FORMS_TS = `import {getRunTypeId} from '@mionjs/run-types';
 
@@ -40,6 +41,8 @@ const DIALECT_PACKAGE_JSON = JSON.stringify({
 const DIALECT_DTS = `import type {InjectRunTypeId} from '@mionjs/run-types';
 export interface PgTable<Name extends string, Cols> {name: Name; columns: Cols}
 export declare function tableFromType<T>(options?: {schema?: string}, id?: InjectRunTypeId<T>): T;
+export declare function pgTable(name:string, columns:unknown):PgTable<string,unknown>;
+export declare function integer(name:string):unknown;
 `;
 
 const DRIZZLE_GENERIC_TS = `import {tableFromType} from '@mionjs/drizzle-orm-pg-core';
@@ -267,6 +270,16 @@ export const read=createMionRouter().route((_ctx):Row=>({id:1}));`,
       'drizzle-schema.ts': `import type {PgTable} from '@mionjs/drizzle-orm-pg-core';
 import type {Row} from 'drizzle-orm';
 export type Users=PgTable<'users',{id:number}>;`,
+      'hidden-schema.ts': `import {table,field,convert} from './hidden-barrel.ts';
+export const users=table('users',{id:field('id')}); export const db=convert(users);`,
+      'aliased-packages.ts': `import type {PgTable} from '@acme/models'; import type {Row} from '@acme/database';
+export type Users=PgTable<'users',{id:number}>;`,
+      'plain-import.ts': "import {id} from './plain-export.ts'; export const value=id;",
+      'plain-export.ts': 'export const id=1;',
+      'hidden-barrel.ts': "export * from './hidden-middle.ts';",
+      'hidden-middle.ts': "export * from './hidden-impl.ts';",
+      'hidden-impl.ts': `export {pgTable as table,integer as field} from '@mionjs/drizzle-orm-pg-core';
+export {sql as convert} from 'drizzle-orm';`,
       'tables.ts': TABLES_TS,
       'wrapped-generic.ts': WRAPPED_GENERIC_TS,
       'widget.ts': WIDGET_TS,
@@ -286,8 +299,24 @@ export type Users=PgTable<'users',{id:number}>;`,
       project = makeFixtureProject(texts);
       project.write('node_modules/@mionjs/drizzle-orm-pg-core/package.json', DIALECT_PACKAGE_JSON);
       project.write('node_modules/@mionjs/drizzle-orm-pg-core/index.d.ts', DIALECT_DTS);
+      project.write(
+        'node_modules/@acme/models/package.json',
+        JSON.stringify({name: '@mionjs/drizzle-orm-pg-core', exports: {'.': './index.d.ts'}})
+      );
+      project.write(
+        'node_modules/@acme/models/index.d.ts',
+        'export interface PgTable<Name extends string, Cols> {name:Name; columns:Cols}'
+      );
+      project.write(
+        'node_modules/@acme/database/package.json',
+        JSON.stringify({name: 'drizzle-orm', exports: {'.': './index.d.ts'}})
+      );
+      project.write('node_modules/@acme/database/index.d.ts', 'export interface Row {id:number}');
       project.write('node_modules/drizzle-orm/package.json', JSON.stringify({name: 'drizzle-orm', types: 'index.d.ts'}));
-      project.write('node_modules/drizzle-orm/index.d.ts', 'export interface Row {id:number}');
+      project.write(
+        'node_modules/drizzle-orm/index.d.ts',
+        'export interface Row {id:number} export declare function sql(value:unknown):unknown;'
+      );
       for (const rel of Object.keys(texts)) abs.set(rel, `${project.dir}/${rel}`);
       // The plugin roots the resolver at process.cwd(), exactly like a real
       // editor/CI run from the project root — so drive this in-process suite
@@ -462,6 +491,17 @@ export type Users=PgTable<'users',{id:number}>;`,
 
     // A file with no runtypes marker still gets a resolver pass.
     describe('mion route findings', () => {
+      it('admits package aliases while Go decides dependency ownership', () => {
+        expect(referencesMarkerModule(texts['aliased-packages.ts']!, abs.get('aliased-packages.ts'))).toBe(false);
+        expect(texts['aliased-packages.ts']).not.toContain('drizzle');
+        expect(codesFor('runtime-error', 'aliased-packages.ts')).toEqual(['rpc-handler-drizzle-import']);
+        expect(codesFor('runtime-error', 'plain-import.ts')).toEqual([]);
+      });
+      it('admits aliased schema builders and conversion behind multiple local barrels', () => {
+        expect(referencesMarkerModule(texts['hidden-schema.ts']!, abs.get('hidden-schema.ts'))).toBe(false);
+        expect(texts['hidden-schema.ts']).not.toContain('drizzle');
+        expect(codesFor('runtime-error', 'hidden-schema.ts')).toEqual(['rpc-handler-drizzle-import']);
+      });
       it('routes public Drizzle types to warning and schema isolation to runtime-error', () => {
         expect(codesFor('warning', 'drizzle-public.ts')).toEqual(['rpc-handler-drizzle-type']);
         expect(codesFor('runtime-error', 'drizzle-public.ts')).toEqual([]);
