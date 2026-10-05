@@ -257,6 +257,27 @@ export const read=query((_ctx):PublicRow=>{throw new Error()});`,
   expect(diagnostics.filter((d) => d.code === TYPE_CODE)).toHaveLength(count);
 });
 
+it.each([
+  ['typeof consume', 1],
+  ['Parameters<typeof accept>[0]', 1],
+  ['Parameters<typeof plain>[0]', 0],
+  ['ReturnType<typeof accept>', 0],
+  ['ReturnType<typeof plain>', 1],
+  ['{first:ReturnType<typeof accept>; callback:typeof accept}', 1],
+] as const)('retains the requested part of a public function type: %s', async (type, count) => {
+  const diagnostics = await scan({
+    'schema.ts': tables(),
+    'db.ts': database(),
+    'routes.ts': `import {query} from '@mionjs/router'; import type {DbUser} from './db.ts';
+import type {User} from './schema.ts';
+declare function consume(row:import('drizzle-orm').SQL):void;
+const accept=(id:DbUser['id']):number=>id;
+const plain=(id:User['id']):DbUser=>{throw new Error()};
+export const read=query((_ctx, input:${type}):void=>{});`,
+  });
+  expect(diagnostics.filter((d) => d.code === TYPE_CODE)).toHaveLength(count);
+});
+
 it('reports the exact written annotation span', async () => {
   const source = `import {query} from '@mionjs/router';import type {DbUser} from './db.ts';
 export const list=query((_ctx):DbUser => {throw new Error()});`;
