@@ -5,7 +5,7 @@ import type {InferInsertModel, InferSelectModel} from '@mionjs/drizzle-orm';
 const notesTable = sqliteTable('notes', {
   id: integer('id', {primaryKey: [{autoIncrement: true}]}),
   title: text('title', {length: 120, notNull: true}),
-  // Its model is a Date, the interesting half of the round trip.
+  // Date models must survive the timestamp round trip.
   createdAt: integer('created_at', {mode: 'timestamp', notNull: true}),
 });
 export const apiNotes = refineTableType(notesTable, {title: {minLength: 3}});

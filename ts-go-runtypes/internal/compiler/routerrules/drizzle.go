@@ -12,8 +12,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
-// CheckDrizzleSourceFile also runs during builds. Query bodies are allowed to use
-// Drizzle; only written public types and locally authored slim schemas are checked.
+// CheckDrizzleSourceFile checks written public types and authored slim schemas in builds too; query bodies allow Drizzle.
 func CheckDrizzleSourceFile(tc *checker.Checker, opts marker.Options, sf *ast.SourceFile, path string) []diagnostics.Diagnostic {
 	if sf == nil || sf.IsDeclarationFile {
 		return nil
@@ -64,8 +63,7 @@ func (scope *fileScope) drizzleSymbol(symbol *ast.Symbol) bool {
 	return false
 }
 
-// Written syntax preserves provenance that the checker erases when a mapped model
-// or an indexed access simplifies to a plain object or primitive.
+// Written syntax retains mapped-model and indexed-access provenance erased by checker simplification.
 func (scope *fileScope) drizzleOrigin(root *ast.Node) bool {
 	walk := &drizzleProvenance{scope: scope, nodes: map[*ast.Node]uint8{}, types: map[*checker.Type]uint8{}, activeTargets: map[*checker.Type]bool{}}
 	return walk.visit(root)
@@ -140,7 +138,7 @@ func (walk *drizzleProvenance) visit(node *ast.Node) bool {
 	case ast.KindCallExpression:
 		return walk.visitCall(node)
 	case ast.KindObjectLiteralExpression:
-		// A reconstructed object has its own structural type, not the origin of each expression.
+		// Reconstructed objects have their own structural type, independent of expression origins.
 		return walk.visitObjectLiteral(node)
 	case ast.KindClassDeclaration:
 		return walk.visitClassDeclaration(node)
@@ -460,7 +458,7 @@ func slimModule(module string) bool {
 	return module == "@mionjs/drizzle-orm" || module == "@mionjs/drizzle-orm-pg-core" || module == "@mionjs/drizzle-orm-mysql-core" || module == "@mionjs/drizzle-orm-sqlite-core"
 }
 
-// Names select the schema/model surface only after resolving package ownership.
+// Schema/model names matter only within their owning package.
 func (scope *fileScope) slimSchemaSymbol(symbol *ast.Symbol) bool {
 	if symbol == nil {
 		return false
@@ -529,7 +527,7 @@ func (walk *slimSchemaVisitor) visitImportType(node *ast.Node) bool {
 }
 
 func (walk *slimSchemaVisitor) visitCall(node *ast.Node) {
-	// Inspect declarations before resolving arguments; ordinary generic calls cannot author a slim schema.
+	// Ordinary generic calls cannot author slim schemas; inspect declarations before resolving arguments.
 	calleeType := walk.scope.typeChecker.GetTypeAtLocation(node.AsCallExpression().Expression)
 	possibleBuilder := false
 	for _, signature := range walk.scope.typeChecker.GetSignaturesOfType(calleeType, checker.SignatureKindCall) {
@@ -551,7 +549,7 @@ func (walk *slimSchemaVisitor) visitCall(node *ast.Node) {
 	}
 }
 func (walk *slimSchemaVisitor) visitTypeAliasDeclaration(node *ast.Node) {
-	// Follow children, not imported declarations: consuming an existing model is allowed.
+	// Imported models are allowed; walk children, not imported declarations.
 	node.ForEachChild(walk.visitAuthoredType)
 }
 func (walk *slimSchemaVisitor) visitInterfaceDeclaration(node *ast.Node) {
@@ -612,8 +610,7 @@ func (walk *slimSchemaVisitor) moduleDependency(node *ast.Node) bool {
 	return dependency.visitModule(walk.scope.typeChecker.GetSymbolAtLocation(node))
 }
 
-// Dependency declarations retain written provenance. Expanding third-party
-// callable types here can instantiate unrelated recursive test/framework types.
+// Written declarations retain provenance; expanding third-party callables can instantiate unrelated recursive types.
 func (walk *slimSchemaVisitor) dependencyOrigin(node *ast.Node) bool {
 	dependency := &drizzleProvenance{scope: walk.scope, nodes: map[*ast.Node]uint8{}, types: map[*checker.Type]uint8{}, activeTargets: map[*checker.Type]bool{}, syntaxOnly: true}
 	return dependency.visit(node)
@@ -624,8 +621,7 @@ func bundledDeclaration(node *ast.Node) bool {
 	return sf != nil && strings.HasPrefix(tspath.NormalizePath(sf.FileName()), tspath.NormalizePath(bundled.LibPath()))
 }
 
-// Slim entry points have a large generic surface. Follow their resolved module
-// dependencies without instantiating every exported column and builder type.
+// Follow slim module dependencies without instantiating their large generic column/builder surface.
 type slimModuleVisitor struct {
 	scope *fileScope
 	seen  map[*ast.Symbol]bool

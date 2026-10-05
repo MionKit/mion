@@ -22,7 +22,7 @@ const packageVerdicts = new Map<string, boolean>();
 const packageJsonLookups = new Map<string, string>();
 const localVerdicts = new Map<string, {mtimeMs: number; verdict: boolean}>();
 
-// Imported declarations can hide package ownership behind aliases and barrels; only Go can classify them.
+// Aliases and barrels hide package ownership; Go must classify imported declarations.
 export function mayHoldDrizzleSchemas(text: string): boolean {
   return text.includes('drizzle') || [...importSpecifiers(text)].some((specifier) => !specifier.startsWith('node:'));
 }

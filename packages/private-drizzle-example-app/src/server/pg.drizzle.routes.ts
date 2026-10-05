@@ -1,5 +1,5 @@
 /* @mion-expect-error rpc-handler-missing-return-type rpc-handler-drizzle-type */
-// Intentional heavy types for the type-cost comparison.
+// Heavy types enable the type-cost comparison.
 import {avg, count, eq, gte, sql} from 'drizzle-orm';
 import {mion} from './mion.ts';
 import {adultUsersDb, busyAuthorsDb, db, postsDb, usersDb} from '../db/pg.drizzle.ts';

@@ -84,7 +84,7 @@ async function ensureConnection(tsconfig: string, binary: string): Promise<Resol
 const connectionLostPattern = /resolver exited|spawn failed|resolver is closed/;
 
 async function lintOne(request: LintWorkerRequest): Promise<LintWorkerResponse> {
-  // Retry once so a transient failure does not poison the run; the direct-path fallback may itself fail and report.
+  // Retry once to recover transient failures; the fallback can also fail.
   for (let attempt = 0; ; attempt++) {
     let stage: 'connect' | 'scan' = 'connect';
     try {
@@ -93,18 +93,15 @@ async function lintOne(request: LintWorkerRequest): Promise<LintWorkerResponse> 
       const rel = path.relative(process.cwd(), request.file) || request.file;
       await resolver.setSources({[rel]: request.text});
       const result = await resolver.scanFiles([rel], {checkEnrich: true, checkRouterRules: true, includeRtDiagnostics: true});
-      // Pattern verdicts (format-*) arrive as ordinary diagnostics: the resolver runs the JS
-      // engine itself, so this worker re-checks nothing.
+      // The resolver runs the JS engine for format-* verdicts; the worker must not recheck them.
       const diagnostics = (result.diagnostics ?? []) as Diagnostic[];
       return {seq: request.seq, diagnostics, downgradeErrors: result.downgradeErrors};
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      // The conservative import gate can admit JavaScript excluded by the compiler's allowJs setting.
+      // The import gate can admit JavaScript excluded by allowJs.
       if (message.includes('source file not in program:')) return {seq: request.seq, diagnostics: []};
-      // config-tsconfig-not-loaded is the daemon refusing to load the project tsconfig: deterministic, so retrying is pointless, and
-      // the config problem is the actionable error, so it reports at the file top instead of "engine
-      // unavailable". The connection stays up; the daemon re-parses on the next setSources, so a fix heals the
-      // next lint.
+      // Config failures are deterministic; report them at the file top without retrying or closing the connection.
+      // The daemon reparses on setSources, so a fixed config heals on the next lint.
       if (message.includes('config-tsconfig-not-loaded')) {
         return {
           seq: request.seq,

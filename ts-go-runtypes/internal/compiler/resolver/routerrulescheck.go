@@ -43,7 +43,7 @@ func (sess *Session) checkDrizzleFiles(files []string) []diagnostics.Diagnostic 
 	var out []diagnostics.Diagnostic
 	for _, file := range files {
 		sourceFile, err := sess.sourceFile(file)
-		// Dependency findings are discarded anyway; avoid instantiating their implementation types.
+		// Dependency findings are discarded; avoid instantiating their implementation types.
 		if err != nil || sourceFile == nil || sess.Program.TS.IsSourceFileFromExternalLibrary(sourceFile) {
 			continue
 		}

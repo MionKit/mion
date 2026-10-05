@@ -123,7 +123,7 @@ describe('drizzle-e2e typecheck normalization', () => {
   });
 });
 
-// toDrizzle rows keep their column formats, so drizzle's own exact-type assertions stop matching.
+// toDrizzle preserves column formats, breaking Drizzle’s exact-type assertions.
 describe('an added error on an exact-type assertion is set apart, any other still fails', () => {
   const source = [
     'const result = await db.select().from(users);',
