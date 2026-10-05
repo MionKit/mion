@@ -18,18 +18,18 @@ const db = drizzle(async () => ({rows: []}), {schema});
 const mion = createMionRouter();
 
 export const blogApi = mion.initRoutes({
-  // whole rows: the model
+  // whole rows
   listAuthors: mion.route(
     async (): Promise<Author[]> => db.select().from(authorsDb)
   ),
 
-  // selected columns: pick them from the model
+  // selected model fields
   authorNames: mion.route(
     async (): Promise<Pick<Author, 'id' | 'name'>[]> =>
       db.select({id: authorsDb.id, name: authorsDb.name}).from(authorsDb)
   ),
 
-  // a join: one model per table
+  // one model per joined table
   postsWithAuthor: mion.route(
     async (): Promise<{post: Post; author: Author}[]> =>
       db
@@ -38,7 +38,7 @@ export const blogApi = mion.initRoutes({
         .innerJoin(authorsDb, eq(postsDb.authorId, authorsDb.id))
   ),
 
-  // relations: the nested shape built from the models
+  // nested models
   authorsWithPosts: mion.route(
     async (): Promise<AuthorWithPosts[]> =>
       db.query.authors.findMany({with: {posts: true}})

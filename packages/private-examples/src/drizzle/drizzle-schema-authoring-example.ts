@@ -1,8 +1,6 @@
 import * as DZ from '@mionjs/drizzle-orm-pg-core';
 import {sql} from '@mionjs/drizzle-orm';
 
-// declared with the slim packages, no drizzle types
-
 export const plan = DZ.pgEnum('plan', ['free', 'pro']);
 export const invoiceSeq = DZ.pgSequence('invoice_seq', {startWith: 1000});
 export const billing = DZ.pgSchema('billing');

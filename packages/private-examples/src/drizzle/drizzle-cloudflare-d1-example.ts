@@ -3,10 +3,10 @@ import {eq} from 'drizzle-orm';
 import {toDrizzle} from '@mionjs/drizzle-orm-sqlite-core/drizzle';
 import {notes, type Note} from './drizzle-proxy-sqlite-example.ts';
 
-// the real drizzle table, built once
+// built once
 const notesDb = toDrizzle(notes);
 
-// whatever your Worker's env binds the database to
+// the database binding
 interface Env {
   DB: Parameters<typeof drizzle>[0];
 }
@@ -16,7 +16,7 @@ export async function findNote(
   id: number
 ): Promise<Note | undefined> {
   const db = drizzle(env.DB);
-  // typed rows, the timestamp column already a real Date
+  // the timestamp is already a Date
   const [note] = await db.select().from(notesDb).where(eq(notesDb.id, id));
   return note;
 }
