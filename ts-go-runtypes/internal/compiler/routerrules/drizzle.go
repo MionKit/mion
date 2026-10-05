@@ -493,9 +493,12 @@ type slimSchemaVisitor struct {
 
 func (walk *slimSchemaVisitor) visit(node *ast.Node) bool {
 	switch node.Kind {
-	case ast.KindImportDeclaration, ast.KindExportDeclaration, ast.KindImportType:
-		walk.dependencies = append(walk.dependencies, node)
-		return false
+	case ast.KindImportDeclaration:
+		return walk.visitImportDeclaration(node)
+	case ast.KindExportDeclaration:
+		return walk.visitExportDeclaration(node)
+	case ast.KindImportType:
+		return walk.visitImportType(node)
 	case ast.KindCallExpression:
 		walk.visitCall(node)
 	case ast.KindTypeAliasDeclaration:
@@ -506,6 +509,19 @@ func (walk *slimSchemaVisitor) visit(node *ast.Node) bool {
 	node.ForEachChild(walk.visit)
 	return false
 }
+func (walk *slimSchemaVisitor) visitImportDeclaration(node *ast.Node) bool {
+	walk.dependencies = append(walk.dependencies, node)
+	return false
+}
+func (walk *slimSchemaVisitor) visitExportDeclaration(node *ast.Node) bool {
+	walk.dependencies = append(walk.dependencies, node)
+	return false
+}
+func (walk *slimSchemaVisitor) visitImportType(node *ast.Node) bool {
+	walk.dependencies = append(walk.dependencies, node)
+	return false
+}
+
 func (walk *slimSchemaVisitor) visitCall(node *ast.Node) {
 	sig := walk.scope.typeChecker.GetResolvedSignature(node)
 	if sig == nil || sig.Declaration() == nil || !slimModule(marker.DeclaringModuleOfNode(sig.Declaration(), walk.scope.markerOpts.FS)) {
