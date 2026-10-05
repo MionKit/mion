@@ -502,7 +502,7 @@ func (walk *slimSchemaVisitor) visit(node *ast.Node) bool {
 	case ast.KindCallExpression:
 		walk.visitCall(node)
 	case ast.KindTypeAliasDeclaration:
-		walk.visitAlias(node)
+		walk.visitTypeAliasDeclaration(node)
 	case ast.KindInterfaceDeclaration:
 		walk.visitInterfaceDeclaration(node)
 	}
@@ -532,7 +532,7 @@ func (walk *slimSchemaVisitor) visitCall(node *ast.Node) {
 		walk.authored = true
 	}
 }
-func (walk *slimSchemaVisitor) visitAlias(node *ast.Node) {
+func (walk *slimSchemaVisitor) visitTypeAliasDeclaration(node *ast.Node) {
 	// Follow children, not imported declarations: consuming an existing model is allowed.
 	node.ForEachChild(walk.visitAuthoredType)
 }
@@ -542,21 +542,30 @@ func (walk *slimSchemaVisitor) visitInterfaceDeclaration(node *ast.Node) {
 func (walk *slimSchemaVisitor) visitAuthoredType(node *ast.Node) bool {
 	switch node.Kind {
 	case ast.KindTypeReference:
-		if walk.scope.slimSchemaSymbol(walk.scope.resolveSymbol(node.AsTypeReferenceNode().TypeName)) {
-			walk.authored = true
-		}
+		walk.visitAuthoredTypeReference(node)
 	case ast.KindImportType:
-		if qualifier := node.AsImportTypeNode().Qualifier; qualifier != nil && walk.scope.slimSchemaSymbol(walk.scope.resolveSymbol(qualifier)) {
-			walk.authored = true
-		}
+		walk.visitAuthoredImportType(node)
 	case ast.KindTypeQuery:
-		if walk.scope.slimSchemaSymbol(walk.scope.resolveSymbol(node.AsTypeQueryNode().ExprName)) {
-			walk.authored = true
-		}
+		walk.visitAuthoredTypeQuery(node)
 	case ast.KindExpressionWithTypeArguments:
 		walk.visitExpressionWithTypeArguments(node)
 	}
 	return node.ForEachChild(walk.visitAuthoredType)
+}
+func (walk *slimSchemaVisitor) visitAuthoredTypeReference(node *ast.Node) {
+	if walk.scope.slimSchemaSymbol(walk.scope.resolveSymbol(node.AsTypeReferenceNode().TypeName)) {
+		walk.authored = true
+	}
+}
+func (walk *slimSchemaVisitor) visitAuthoredImportType(node *ast.Node) {
+	if qualifier := node.AsImportTypeNode().Qualifier; qualifier != nil && walk.scope.slimSchemaSymbol(walk.scope.resolveSymbol(qualifier)) {
+		walk.authored = true
+	}
+}
+func (walk *slimSchemaVisitor) visitAuthoredTypeQuery(node *ast.Node) {
+	if walk.scope.slimSchemaSymbol(walk.scope.resolveSymbol(node.AsTypeQueryNode().ExprName)) {
+		walk.authored = true
+	}
 }
 func (walk *slimSchemaVisitor) visitExpressionWithTypeArguments(node *ast.Node) {
 	if walk.scope.slimSchemaSymbol(walk.scope.resolveSymbol(node.AsExpressionWithTypeArguments().Expression)) {

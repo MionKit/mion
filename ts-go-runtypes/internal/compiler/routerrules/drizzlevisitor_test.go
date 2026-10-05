@@ -132,10 +132,10 @@ func TestDrizzleDispatch_AllSyntaxWalksHaveCoverage(t *testing.T) {
 		},
 		"slimSchemaVisitor.visit": {
 			"KindImportDeclaration": "visitImportDeclaration", "KindExportDeclaration": "visitExportDeclaration", "KindImportType": "visitImportType",
-			"KindCallExpression": "visitCall", "KindTypeAliasDeclaration": "visitAlias", "KindInterfaceDeclaration": "visitInterfaceDeclaration", "default": "ForEachChild",
+			"KindCallExpression": "visitCall", "KindTypeAliasDeclaration": "visitTypeAliasDeclaration", "KindInterfaceDeclaration": "visitInterfaceDeclaration", "default": "ForEachChild",
 		},
 		"slimModuleVisitor.visit":             {"KindImportDeclaration": "visitImport", "KindExportDeclaration": "visitExport", "KindTypeReference": "visitReference", "default": "ForEachChild"},
-		"slimSchemaVisitor.visitAuthoredType": {"KindTypeReference": "slimSchemaSymbol", "KindImportType": "slimSchemaSymbol", "KindTypeQuery": "slimSchemaSymbol", "KindExpressionWithTypeArguments": "visitExpressionWithTypeArguments", "default": "ForEachChild"},
+		"slimSchemaVisitor.visitAuthoredType": {"KindTypeReference": "visitAuthoredTypeReference", "KindImportType": "visitAuthoredImportType", "KindTypeQuery": "visitAuthoredTypeQuery", "KindExpressionWithTypeArguments": "visitExpressionWithTypeArguments", "default": "ForEachChild"},
 	}
 	file, err := parser.ParseFile(token.NewFileSet(), "drizzle.go", nil, 0)
 	if err != nil {
