@@ -8,6 +8,13 @@ it('checks schemas importing recursive third-party test helpers without expandin
 }, 10000);
 
 describe.each(dialects)('$name slim schema isolation', (dialect) => {
+  it('recognizes locally aliased schema builders', async () => {
+    const source = `import {${dialect.table}, ${dialect.name === 'mysql' ? 'int' : 'integer'} as integer} from '@mionjs/drizzle-orm-${dialect.module}-core';
+      import type {SQL} from 'drizzle-orm';
+      const makeTable = ${dialect.table};
+      export const users = makeTable('users', {id: integer('id')});`;
+    expect((await scan({'schema.ts': source}, 'schema.ts')).filter((d) => d.code === SCHEMA_CODE)).toHaveLength(1);
+  });
   it.each([
     `import {toDrizzle} from '@mionjs/drizzle-orm-${dialect.module}-core/drizzle';`,
     `import * as bridge from '@mionjs/drizzle-orm-${dialect.module}-core/drizzle';`,

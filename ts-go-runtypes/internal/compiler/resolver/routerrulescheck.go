@@ -37,5 +37,17 @@ func (sess *Session) checkEachFile(files []string, check func(*checker.Checker, 
 }
 
 func (sess *Session) checkDrizzleFiles(files []string) []diagnostics.Diagnostic {
-	return sess.dropExternalLibraryDiagnostics(sess.checkEachFile(files, routerrules.CheckDrizzleSourceFile))
+	if sess.Program == nil || sess.checker == nil {
+		return nil
+	}
+	var out []diagnostics.Diagnostic
+	for _, file := range files {
+		sourceFile, err := sess.sourceFile(file)
+		// Dependency findings are discarded anyway; avoid instantiating their implementation types.
+		if err != nil || sourceFile == nil || sess.Program.TS.IsSourceFileFromExternalLibrary(sourceFile) {
+			continue
+		}
+		out = append(out, routerrules.CheckDrizzleSourceFile(sess.checker, sess.marker, sourceFile, file)...)
+	}
+	return sess.dropExternalLibraryDiagnostics(out)
 }

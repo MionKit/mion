@@ -529,6 +529,18 @@ func (walk *slimSchemaVisitor) visitImportType(node *ast.Node) bool {
 }
 
 func (walk *slimSchemaVisitor) visitCall(node *ast.Node) {
+	// Inspect declarations before resolving arguments; ordinary generic calls cannot author a slim schema.
+	calleeType := walk.scope.typeChecker.GetTypeAtLocation(node.AsCallExpression().Expression)
+	possibleBuilder := false
+	for _, signature := range walk.scope.typeChecker.GetSignaturesOfType(calleeType, checker.SignatureKindCall) {
+		if declaration := signature.Declaration(); declaration != nil && slimModule(marker.DeclaringModuleOfNode(declaration, walk.scope.markerOpts.FS)) {
+			possibleBuilder = true
+			break
+		}
+	}
+	if !possibleBuilder {
+		return
+	}
 	sig := walk.scope.typeChecker.GetResolvedSignature(node)
 	if sig == nil || sig.Declaration() == nil || !slimModule(marker.DeclaringModuleOfNode(sig.Declaration(), walk.scope.markerOpts.FS)) {
 		return
