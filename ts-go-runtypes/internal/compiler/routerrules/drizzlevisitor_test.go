@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/microsoft/typescript-go/shim/ast"
+	"github.com/microsoft/typescript-go/shim/checker"
 )
 
 // These are structural dispatch tests. Diagnostic behavior is exercised through
@@ -243,35 +244,188 @@ func TestDrizzleDispatch_AllSyntaxWalksHaveCoverage(t *testing.T) {
 }
 
 func TestDrizzleCheckerWalk_ChildSlotsHaveArms(t *testing.T) {
-	required := map[string]map[string]bool{
-		"visitCompoundType": {"Types": false, "visitType": false},
-		"visitObjectType":   {"GetTypeArguments": false, "GetPropertiesOfType": false, "GetTypeOfSymbol": false, "GetSignaturesOfType": false, "GetReturnTypeOfSignature": false, "GetIndexInfosOfType": false, "KeyType": false, "ValueType": false, "visitType": false},
+	required := map[string][]struct{ collection, accessor, visitor string }{
+		"visitCompoundType": {{"Types", "", "visitType"}},
+		"visitObjectType": {
+			{"GetTypeArguments", "", "visitType"},
+			{"GetPropertiesOfType", "GetTypeOfSymbol", "visitType"},
+			{"GetSignaturesOfType", "GetReturnTypeOfSignature", "visitType"},
+			{"Parameters", "GetTypeOfSymbol", "visitType"},
+			{"Declarations", "", "visit"},
+			{"GetIndexInfosOfType", "KeyType", "visitType"},
+			{"GetIndexInfosOfType", "ValueType", "visitType"},
+		},
 	}
 	file, err := parser.ParseFile(token.NewFileSet(), "drizzle.go", nil, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, decl := range file.Decls {
-		if fn, ok := decl.(*goast.FuncDecl); ok {
-			if slots, ok := required[fn.Name.Name]; ok {
-				goast.Inspect(fn.Body, func(node goast.Node) bool {
-					if call, ok := node.(*goast.CallExpr); ok {
-						if callee, ok := call.Fun.(*goast.SelectorExpr); ok {
-							if _, ok := slots[callee.Sel.Name]; ok {
-								slots[callee.Sel.Name] = true
-							}
+		fn, ok := decl.(*goast.FuncDecl)
+		if !ok {
+			continue
+		}
+		for _, slot := range required[fn.Name.Name] {
+			found := false
+			goast.Inspect(fn.Body, func(node goast.Node) bool {
+				loop, ok := node.(*goast.RangeStmt)
+				if !ok {
+					return true
+				}
+				getter := loop.X
+				if call, ok := getter.(*goast.CallExpr); ok {
+					getter = call.Fun
+				}
+				selection, ok := getter.(*goast.SelectorExpr)
+				if !ok || selection.Sel.Name != slot.collection {
+					return true
+				}
+				value, ok := loop.Value.(*goast.Ident)
+				if !ok {
+					return true
+				}
+				goast.Inspect(loop.Body, func(child goast.Node) bool {
+					call, ok := child.(*goast.CallExpr)
+					if !ok || len(call.Args) != 1 {
+						return true
+					}
+					visitor, ok := call.Fun.(*goast.SelectorExpr)
+					if !ok || visitor.Sel.Name != slot.visitor {
+						return true
+					}
+					argument := call.Args[0]
+					if slot.accessor == "" {
+						if named, ok := argument.(*goast.Ident); ok && named.Name == value.Name {
+							found = true
+						}
+						return true
+					}
+					extracted, ok := argument.(*goast.CallExpr)
+					if !ok {
+						return true
+					}
+					accessor, ok := extracted.Fun.(*goast.SelectorExpr)
+					if !ok || accessor.Sel.Name != slot.accessor {
+						return true
+					}
+					if receiver, ok := accessor.X.(*goast.Ident); ok && receiver.Name == value.Name {
+						found = true
+					}
+					for _, arg := range extracted.Args {
+						if named, ok := arg.(*goast.Ident); ok && named.Name == value.Name {
+							found = true
 						}
 					}
 					return true
 				})
+				return true
+			})
+			if !found {
+				t.Errorf("%s does not recurse through %s/%s", fn.Name.Name, slot.collection, slot.accessor)
 			}
 		}
+		delete(required, fn.Name.Name)
 	}
-	for visitor, slots := range required {
-		for slot, seen := range slots {
-			if !seen {
-				t.Errorf("%s does not visit %s", visitor, slot)
+	for visitor := range required {
+		t.Errorf("missing visitor %s", visitor)
+	}
+}
+
+func TestDrizzleCheckerWalk_EveryTypeFlagHasARow(t *testing.T) {
+	rows := map[checker.TypeFlags]struct{ name, target string }{
+		checker.TypeFlagsAny:             {"TypeFlagsAny", "refused"},
+		checker.TypeFlagsUnknown:         {"TypeFlagsUnknown", "refused"},
+		checker.TypeFlagsUndefined:       {"TypeFlagsUndefined", "refused"},
+		checker.TypeFlagsNull:            {"TypeFlagsNull", "refused"},
+		checker.TypeFlagsVoid:            {"TypeFlagsVoid", "refused"},
+		checker.TypeFlagsString:          {"TypeFlagsString", "refused"},
+		checker.TypeFlagsNumber:          {"TypeFlagsNumber", "refused"},
+		checker.TypeFlagsBigInt:          {"TypeFlagsBigInt", "refused"},
+		checker.TypeFlagsBoolean:         {"TypeFlagsBoolean", "refused"},
+		checker.TypeFlagsESSymbol:        {"TypeFlagsESSymbol", "refused"},
+		checker.TypeFlagsStringLiteral:   {"TypeFlagsStringLiteral", "refused"},
+		checker.TypeFlagsNumberLiteral:   {"TypeFlagsNumberLiteral", "refused"},
+		checker.TypeFlagsBigIntLiteral:   {"TypeFlagsBigIntLiteral", "refused"},
+		checker.TypeFlagsBooleanLiteral:  {"TypeFlagsBooleanLiteral", "refused"},
+		checker.TypeFlagsUniqueESSymbol:  {"TypeFlagsUniqueESSymbol", "refused"},
+		checker.TypeFlagsEnumLiteral:     {"TypeFlagsEnumLiteral", "refused"},
+		checker.TypeFlagsEnum:            {"TypeFlagsEnum", "refused"},
+		checker.TypeFlagsNonPrimitive:    {"TypeFlagsNonPrimitive", "refused"},
+		checker.TypeFlagsNever:           {"TypeFlagsNever", "refused"},
+		checker.TypeFlagsTypeParameter:   {"TypeFlagsTypeParameter", "refused"},
+		checker.TypeFlagsObject:          {"TypeFlagsObject", "visitObjectType"},
+		checker.TypeFlagsIndex:           {"TypeFlagsIndex", "refused"},
+		checker.TypeFlagsTemplateLiteral: {"TypeFlagsTemplateLiteral", "refused"},
+		checker.TypeFlagsStringMapping:   {"TypeFlagsStringMapping", "refused"},
+		checker.TypeFlagsSubstitution:    {"TypeFlagsSubstitution", "refused"},
+		checker.TypeFlagsIndexedAccess:   {"TypeFlagsIndexedAccess", "refused"},
+		checker.TypeFlagsConditional:     {"TypeFlagsConditional", "refused"},
+		checker.TypeFlagsUnion:           {"TypeFlagsUnion", "visitUnionType"},
+		checker.TypeFlagsIntersection:    {"TypeFlagsIntersection", "visitIntersectionType"},
+		checker.TypeFlagsReserved1:       {"TypeFlagsReserved1", "refused"},
+		checker.TypeFlagsReserved2:       {"TypeFlagsReserved2", "refused"},
+		checker.TypeFlagsReserved3:       {"TypeFlagsReserved3", "refused"},
+	}
+	for bit := uint64(1); bit <= uint64(checker.TypeFlagsReserved3); bit <<= 1 {
+		if rows[checker.TypeFlags(bit)].name == "" {
+			t.Errorf("checker flag %d has no row", bit)
+		}
+	}
+	file, err := parser.ParseFile(token.NewFileSet(), "drizzle.go", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fn *goast.FuncDecl
+	for _, decl := range file.Decls {
+		if candidate, ok := decl.(*goast.FuncDecl); ok && candidate.Name.Name == "visitType" {
+			fn = candidate
+		}
+	}
+	if fn == nil {
+		t.Fatal("missing checker dispatch")
+	}
+	if len(fn.Body.List) == 0 || !isFalseReturn(fn.Body.List[len(fn.Body.List)-1]) {
+		t.Error("unhandled flags must return false")
+	}
+	arms := map[string]*goast.CaseClause{}
+	goast.Inspect(fn.Body, func(node goast.Node) bool {
+		clause, ok := node.(*goast.CaseClause)
+		if !ok {
+			return true
+		}
+		for _, condition := range clause.List {
+			goast.Inspect(condition, func(child goast.Node) bool {
+				if flag, ok := child.(*goast.SelectorExpr); ok && strings.HasPrefix(flag.Sel.Name, "TypeFlags") {
+					arms[flag.Sel.Name] = clause
+				}
+				return true
+			})
+		}
+		return false
+	})
+	for _, row := range rows {
+		arm := arms[row.name]
+		if row.target == "refused" {
+			if arm != nil {
+				t.Errorf("%s unexpectedly dispatched", row.name)
 			}
+			continue
+		}
+		if arm == nil {
+			t.Errorf("%s has no dispatch", row.name)
+			continue
+		}
+		found := false
+		goast.Inspect(arm, func(node goast.Node) bool {
+			if call, ok := node.(*goast.CallExpr); ok {
+				if callee, ok := call.Fun.(*goast.SelectorExpr); ok && callee.Sel.Name == row.target {
+					found = true
+				}
+			}
+			return true
+		})
+		if !found {
+			t.Errorf("%s does not call %s", row.name, row.target)
 		}
 	}
 }

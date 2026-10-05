@@ -382,12 +382,18 @@ func (walk *drizzleProvenance) visitType(t *checker.Type) bool {
 	}
 	flags := checker.Type_flags(t)
 	switch {
-	case flags&(checker.TypeFlagsUnion|checker.TypeFlagsIntersection) != 0:
-		return walk.visitCompoundType(t)
+	case flags&checker.TypeFlagsUnion != 0:
+		return walk.visitUnionType(t)
+	case flags&checker.TypeFlagsIntersection != 0:
+		return walk.visitIntersectionType(t)
 	case flags&checker.TypeFlagsObject != 0:
 		return walk.visitObjectType(t)
 	}
 	return false
+}
+func (walk *drizzleProvenance) visitUnionType(t *checker.Type) bool { return walk.visitCompoundType(t) }
+func (walk *drizzleProvenance) visitIntersectionType(t *checker.Type) bool {
+	return walk.visitCompoundType(t)
 }
 func (walk *drizzleProvenance) visitCompoundType(t *checker.Type) bool {
 	for _, arm := range t.Types() {
