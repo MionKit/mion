@@ -536,7 +536,7 @@ The independent review returned 19 unique findings. Eighteen were addressed:
 
 The remaining finding proposed removing the worker's `Note` and `NewNote` re-exports. They remain because those types were already exported from that module; the schema split preserves its existing interface.
 
-The reference app's post-review run passed 147 tests. The public-type suite passed 76 tests, schema isolation 45, and resolver protocol 8. The post-review frontend, full Go, lint/typecheck, formatting and code-generation gates passed. Independent simplification passes and PR CI follow in Automatic mode.
+The reference app's post-review run passed 147 tests. The public-type suite passed 76 tests, schema isolation 45, and resolver protocol 8. The post-review frontend, full Go, lint/typecheck, formatting and code-generation gates passed. Independent documentation and comment simplification passes completed in Automatic mode. The documentation pass retained all query variants and separate schema/query modules. The comment pass retained diagnostic directives and restored written-type scope, per-call-site reporting and output-root precedence. PR CI follows in Automatic mode.
 
 The full client run exposed a repeatable first-request timeout during lazy format loading. Drizzle checks now skip external-library implementation files before resolving types, using TypeScript resolution provenance. Schema builder calls inspect signature ownership before resolving arguments; locally aliased builders remain covered in all three dialects. The existing client timeout is unchanged, and all 396 client tests pass.
 
