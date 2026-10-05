@@ -6,13 +6,71 @@ import {MessagePort} from 'node:worker_threads';
 import {afterAll, describe, expect, it, vi} from 'vitest';
 import {LintSession} from '../../src/lint/session.ts';
 import {LINT_WORKER_REQUEST_KEYS} from '../../src/lint/session-protocol.ts';
-import {makeFixtureProject, type FixtureProject} from './fixture.ts';
+import {BIN, makeFixtureProject, type FixtureProject} from './fixture.ts';
 
 describe('LintSession failure paths', () => {
   const projects: FixtureProject[] = [];
 
   afterAll(() => {
     for (const project of projects) project.cleanup();
+  });
+
+  it('skips files excluded by the compiler and keeps checking supported files', () => {
+    const project = makeFixtureProject({
+      'tsconfig.json': JSON.stringify({
+        compilerOptions: {target: 'ESNext', module: 'NodeNext', moduleResolution: 'NodeNext', allowJs: false, noEmit: true},
+        include: ['*.ts'],
+      }),
+      'launcher.mjs': "import {value} from './helper.js'; export const result = value;",
+      'helper.js': 'export const value = 1;',
+      'supported.ts': "import {createValidateFn} from '@mionjs/run-types'; export const check = createValidateFn<symbol>();",
+    });
+    projects.push(project);
+    const session = new LintSession();
+    const options = {binary: BIN, tsconfig: `${project.dir}/tsconfig.json`};
+    try {
+      expect(session.lintFileSync(`${project.dir}/launcher.mjs`, project.read('launcher.mjs'), options)).toEqual({
+        diagnostics: [],
+      });
+      const result = session.lintFileSync(`${project.dir}/supported.ts`, project.read('supported.ts'), options);
+      expect('diagnostics' in result && result.diagnostics.some((diagnostic) => diagnostic.code === 'validate-symbol-root')).toBe(
+        true
+      );
+    } finally {
+      session.dispose();
+    }
+  });
+
+  it('checks authored JavaScript schemas when allowJs is enabled', () => {
+    const project = makeFixtureProject({
+      'tsconfig.json': JSON.stringify({
+        compilerOptions: {target: 'ESNext', module: 'NodeNext', moduleResolution: 'NodeNext', allowJs: true, noEmit: true},
+        include: ['*.mjs'],
+      }),
+      'node_modules/@mionjs/drizzle-orm-pg-core/package.json': JSON.stringify({
+        name: '@mionjs/drizzle-orm-pg-core',
+        types: 'index.d.ts',
+      }),
+      'node_modules/@mionjs/drizzle-orm-pg-core/index.d.ts':
+        'export interface PgTable<Name extends string,Cols>{name:Name;columns:Cols}\nexport function pgTable<Name extends string,Cols>(name:Name,columns:Cols):PgTable<Name,Cols>;',
+      'node_modules/drizzle-orm/package.json': JSON.stringify({name: 'drizzle-orm', types: 'index.d.ts'}),
+      'node_modules/drizzle-orm/index.d.ts': 'export function sql():string;',
+      'schema.mjs':
+        "import {pgTable} from '@mionjs/drizzle-orm-pg-core'; import {sql} from 'drizzle-orm'; export const users = pgTable('users',{id:1});",
+    });
+    projects.push(project);
+    const session = new LintSession();
+    try {
+      const result = session.lintFileSync(`${project.dir}/schema.mjs`, project.read('schema.mjs'), {
+        binary: BIN,
+        tsconfig: `${project.dir}/tsconfig.json`,
+      });
+      expect(
+        'diagnostics' in result && result.diagnostics.some((diagnostic) => diagnostic.code === 'rpc-handler-drizzle-import')
+      ).toBe(true);
+    } finally {
+      session.dispose();
+    }
   });
 
   it('surfaces a stuck engine as an engineError, quickly and stickily', {timeout: 30_000}, () => {
