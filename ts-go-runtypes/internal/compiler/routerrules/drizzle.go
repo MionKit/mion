@@ -396,26 +396,22 @@ func (walk *slimSchemaVisitor) heavyDependency(node *ast.Node) bool {
 	switch node.Kind {
 	case ast.KindImportDeclaration:
 		declaration := node.AsImportDeclaration()
-		symbol := walk.scope.typeChecker.GetSymbolAtLocation(declaration.ModuleSpecifier)
-		if symbol != nil {
-			for _, decl := range symbol.Declarations {
-				if slimModule(marker.DeclaringModuleOfNode(decl, walk.scope.markerOpts.FS)) {
-					dependency := &slimModuleVisitor{scope: walk.scope, seen: map[*ast.Symbol]bool{}}
-					return dependency.visitModule(symbol)
-				}
-			}
-		}
-		return walk.scope.drizzleSymbol(symbol) || walk.dependencyOrigin(declaration.ImportClause)
+		return walk.moduleDependency(declaration.ModuleSpecifier) || walk.dependencyOrigin(declaration.ImportClause)
 	case ast.KindExportDeclaration:
 		declaration := node.AsExportDeclaration()
 		if declaration.ModuleSpecifier == nil {
 			return false
 		}
-		return walk.scope.drizzleSymbol(walk.scope.typeChecker.GetSymbolAtLocation(declaration.ModuleSpecifier)) || walk.dependencyOrigin(declaration.ExportClause)
+		return walk.moduleDependency(declaration.ModuleSpecifier) || walk.dependencyOrigin(declaration.ExportClause)
 	case ast.KindImportType:
 		return walk.dependencyOrigin(node)
 	}
 	return false
+}
+
+func (walk *slimSchemaVisitor) moduleDependency(node *ast.Node) bool {
+	dependency := &slimModuleVisitor{scope: walk.scope, seen: map[*ast.Symbol]bool{}}
+	return dependency.visitModule(walk.scope.typeChecker.GetSymbolAtLocation(node))
 }
 
 // Dependency declarations retain written provenance. Expanding third-party
@@ -446,7 +442,9 @@ func (walk *slimModuleVisitor) visitModule(symbol *ast.Symbol) bool {
 	}
 	walk.seen[symbol] = true
 	for _, decl := range symbol.Declarations {
-		if slimModule(marker.DeclaringModuleOfNode(decl, walk.scope.markerOpts.FS)) && decl.ForEachChild(walk.visit) {
+		module := marker.DeclaringModuleOfNode(decl, walk.scope.markerOpts.FS)
+		local := module == marker.DeclaringModuleOfNode(walk.scope.sourceFile.AsNode(), walk.scope.markerOpts.FS)
+		if (slimModule(module) || local) && decl.ForEachChild(walk.visit) {
 			return true
 		}
 	}
