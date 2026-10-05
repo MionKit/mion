@@ -253,6 +253,9 @@ describe('declaresUnsafePropertyName', () => {
 });
 
 describe('needsResolverPass', () => {
+  it('skips ordinary files importing only Node builtins', () => {
+    expect(needsResolverPass("import {writeFileSync} from 'node:fs'; export const size = 1000;")).toBe(false);
+  });
   it('is the union of all three gates', () => {
     expect(needsResolverPass(`import {getRunTypeId} from '@mionjs/run-types';`)).toBe(true);
     expect(needsResolverPass(`export const f: ${FRIENDLY_TEXT_NAME}<User> = {};`)).toBe(true);
