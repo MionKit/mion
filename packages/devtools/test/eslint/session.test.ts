@@ -3,6 +3,7 @@
 // don't re-pay the failure.
 
 import {MessagePort} from 'node:worker_threads';
+import {chmodSync} from 'node:fs';
 import {afterAll, describe, expect, it, vi} from 'vitest';
 import {LintSession} from '../../src/lint/session.ts';
 import {LINT_WORKER_REQUEST_KEYS} from '../../src/lint/session-protocol.ts';
@@ -68,6 +69,29 @@ describe('LintSession failure paths', () => {
       expect('diagnostics' in result && result.diagnostics.some((diagnostic) => diagnostic.code === 'drizzle-mixed-types')).toBe(
         true
       );
+    } finally {
+      session.dispose();
+    }
+  });
+
+  it('surfaces a missing TypeScript source as an engine error', () => {
+    const project = makeFixtureProject({'a.ts': 'export const a = 1;'});
+    projects.push(project);
+    const binary = project.write(
+      'resolver.mjs',
+      `#!${process.execPath}
+import {createInterface} from 'node:readline';
+createInterface({input: process.stdin}).on('line', (line) => {
+  const request = JSON.parse(line);
+  const response = request.op === 'scanFiles' ? {error: 'source file not in program: ' + request.files[0]} : {};
+  console.log(JSON.stringify(response));
+});`
+    );
+    chmodSync(binary, 0o755);
+    const session = new LintSession();
+    try {
+      const result = session.lintFileSync(`${project.dir}/a.ts`, project.read('a.ts'), {binary});
+      expect('engineError' in result && result.engineError).toContain('source file not in program:');
     } finally {
       session.dispose();
     }
