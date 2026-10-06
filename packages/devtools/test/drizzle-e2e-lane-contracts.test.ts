@@ -39,13 +39,10 @@ describe('drizzle-e2e lane wiring', () => {
 
   const lanes = laneKeys(runSuite, 'const DIALECTS = {');
 
-  it.each(['vitest.types.config.ts', 'runners/durable-worker.mjs'])(
-    '%s downgrades only schema isolation for deliberately mixed database comparison fixtures',
-    (file) => {
-      const config = read(`container/drizzle-e2e/shared/${file}`);
-      expect(/downgradeErrors:\s*(\[[^\]]*\])/.exec(config)?.[1]).toBe("['rpc-handler-drizzle-import']");
-    }
-  );
+  it.each(['vitest.types.config.ts', 'runners/durable-worker.mjs'])('%s keeps build-wide diagnostics enabled', (file) => {
+    const config = read(`container/drizzle-e2e/shared/${file}`);
+    expect(config).not.toContain('downgradeErrors:');
+  });
 
   it('every lane the container knows is offered by the release script and by CI', () => {
     expect(lanes).toContain('durable'); // the shape most likely to be dropped: not a dialect

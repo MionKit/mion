@@ -29,6 +29,7 @@ import {execFileSync, spawnSync} from 'node:child_process';
 import {cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {diffTypeErrors, errorLines} from '/drizzle-src/baseline.mjs';
+import {annotateFixtureDiagnostics} from '/drizzle-src/fixture-diagnostics.mjs';
 
 const DIALECT = process.env.MION_DRIZZLE_DIALECT ?? '';
 const VERSION = process.env.MION_DRIZZLE_VERSION ?? '';
@@ -247,6 +248,15 @@ if (TYPE_PASS) {
   // valid builders code and its test still runs. The coverage gate below is
   // what decides whether the refusals cost us anything.
   console.log(`-> converted ${convertedCount} table(s) with ${(convertReport.refusals ?? []).length} refusal(s)`);
+  const {ResolverClient} = await import(path.join(HOME, 'node_modules', '@mionjs', 'devtools', 'dist', 'core', 'resolver-client.js'));
+  const resolver = new ResolverClient(binary, TYPES, path.join(TYPES, 'tsconfig.json'));
+  try {
+    const result = await resolver.generate();
+    const count = annotateFixtureDiagnostics(TYPES, result.diagnostics ?? []);
+    console.log(`-> marked ${count} expected schema-isolation lines in generated comparison fixtures`);
+  } finally {
+    resolver.close();
+  }
 }
 
 // ── 6. the database, then the tests ─────────────────────────────────────────

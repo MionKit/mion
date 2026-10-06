@@ -18,8 +18,6 @@ export default defineConfig({
       tsconfig: path.resolve(import.meta.dirname, 'tsconfig.json'),
       // Container-local output is discarded with the tree.
       genDir: path.resolve(import.meta.dirname, '.mion'),
-      // Comparison fixtures keep slim schemas beside Drizzle materializations.
-      downgradeErrors: ['rpc-handler-drizzle-import'],
     }),
   ],
   resolve: {
