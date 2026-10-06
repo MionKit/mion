@@ -262,7 +262,6 @@ func (scope PassScope) canJudge(directive Directive) bool {
 	return true
 }
 
-// allFamilies is every family a directive could ever silence.
 var allFamilies = []Family{FamilyPureFn, FamilyMarker, FamilyRunType, FamilyEnrich, FamilyMionRoute, FamilyDrizzle}
 
 // directiveKey addresses one silenced line. Diagnostics and directives are

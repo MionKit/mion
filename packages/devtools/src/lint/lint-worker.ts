@@ -104,8 +104,8 @@ async function lintOne(request: LintWorkerRequest): Promise<LintWorkerResponse> 
           ? {seq: request.seq, diagnostics: []}
           : {seq: request.seq, error: message};
       }
-      // Config failures are deterministic; report them at the file top without retrying or closing the connection.
-      // The daemon reparses on setSources, so a fixed config heals on the next lint.
+      // Config failures are deterministic; keep the connection for the next lint.
+      // setSources reparses the config, so fixes apply on the next lint.
       if (message.includes('config-tsconfig-not-loaded')) {
         return {
           seq: request.seq,
