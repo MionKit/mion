@@ -99,7 +99,11 @@ async function lintOne(request: LintWorkerRequest): Promise<LintWorkerResponse> 
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       // The import gate can admit JavaScript excluded by allowJs.
-      if (message.includes('source file not in program:')) return {seq: request.seq, diagnostics: []};
+      if (stage === 'scan' && message.includes('source file not in program:')) {
+        return /\.(?:[cm]?js|jsx)$/i.test(request.file)
+          ? {seq: request.seq, diagnostics: []}
+          : {seq: request.seq, error: message};
+      }
       // Config failures are deterministic; report them at the file top without retrying or closing the connection.
       // The daemon reparses on setSources, so a fixed config heals on the next lint.
       if (message.includes('config-tsconfig-not-loaded')) {
