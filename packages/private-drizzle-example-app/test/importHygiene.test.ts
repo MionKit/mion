@@ -19,9 +19,7 @@ it('keeps the real slim schemas, database companions and public routes free of D
   try {
     await client.setSources(Object.fromEntries(files.map((file) => [file, readFileSync(file, 'utf8')])));
     const diagnostics = (await client.scanFiles(files)).diagnostics ?? [];
-    expect(diagnostics.filter((d) => d.code === 'rpc-handler-drizzle-type' || d.code === 'rpc-handler-drizzle-import')).toEqual(
-      []
-    );
+    expect(diagnostics.filter((d) => d.code === 'drizzle-type-not-allowed' || d.code === 'drizzle-mixed-types')).toEqual([]);
   } finally {
     client.close();
   }

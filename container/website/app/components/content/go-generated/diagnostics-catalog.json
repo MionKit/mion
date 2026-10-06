@@ -47,6 +47,11 @@
       "description": "From custom per-type function overrides."
     },
     {
+      "key": "drizzle",
+      "label": "Drizzle",
+      "description": "Slim schema isolation and public database type boundaries."
+    },
+    {
       "key": "mion-routes",
       "label": "mion routes",
       "description": "From the rules over mion route, middleware and headersMiddleware handlers, reported as you write them."
@@ -1118,17 +1123,17 @@
       "example": null
     },
     {
-      "code": "rpc-handler-drizzle-import",
-      "subsystem": "mion-routes",
+      "code": "drizzle-mixed-types",
+      "subsystem": "drizzle",
       "level": "runtimeError",
-      "headline": "This file defines a slim schema or model and depends on Drizzle. Move toDrizzle and heavy database imports to a separate query or database file so clients can import slim models without server dependencies.",
+      "headline": "This file defines a slim Mion schema or model and depends on heavy Drizzle types or toDrizzle. Keep slim models in their own file so clients can import them without loading database types or server code. Move toDrizzle and heavy Drizzle imports to a separate query or database file.",
       "summary": "A file that defines slim schemas or models also imports Drizzle types or the toDrizzle bridge. Clients may import these models directly, loading heavy database declarations or server dependencies. Keep schemas and models in their own file. Import them into a companion file for toDrizzle, database setup, relations and queries. A query or router file may import both kinds of types when it does not define slim schemas or models.",
       "fix": "// schema.ts: define slim tables and models\n// db.ts: import the slim tables, then call toDrizzle",
       "example": null
     },
     {
-      "code": "rpc-handler-drizzle-type",
-      "subsystem": "mion-routes",
+      "code": "drizzle-type-not-allowed",
+      "subsystem": "drizzle",
       "level": "warning",
       "headline": "Public handler {position} depends on drizzle-orm. Use a slim @mionjs/drizzle-orm model or a plain public type to keep client type checking small.",
       "summary": "A written public parameter or return type depends on drizzle-orm, including nested models and model projections. Client type checking must expand those database types. Use a slim model from @mionjs/drizzle-orm or a plain public type. Drizzle queries and internal types inside the handler are allowed.",

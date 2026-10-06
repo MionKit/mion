@@ -3,6 +3,7 @@ vi.setConfig({testTimeout: 60000});
 import {database, fixture, scan, tables, SCHEMA_CODE, TYPE_CODE} from './lintFixture.ts';
 import fs from 'node:fs';
 import {ResolverClient} from '../../devtools/src/core/resolver-client.ts';
+import {Family} from '../../devtools/src/core/protocol.ts';
 
 const codes = (diags: Awaited<ReturnType<typeof scan>> | undefined) =>
   diags
@@ -49,6 +50,10 @@ it('agrees across scan, transform and generate without opting into old lint rule
   try {
     const scanned = await f.client.scanFiles(f.files);
     expect(codes(scanned.diagnostics)).toEqual([SCHEMA_CODE, TYPE_CODE].sort());
+    expect(scanned.diagnostics?.filter((d) => d.code === SCHEMA_CODE || d.code === TYPE_CODE).map((d) => d.family)).toEqual([
+      Family.Drizzle,
+      Family.Drizzle,
+    ]);
     expect(codes((await f.client.transform(f.files)).diagnostics)).toEqual(codes(scanned.diagnostics));
     expect(codes((await f.client.generate()).diagnostics)).toEqual(codes(scanned.diagnostics));
   } finally {
@@ -61,6 +66,16 @@ it('lets existing diagnostic directives suppress and downgrade schema isolation'
   expect(suppressed.filter((d) => d.code === SCHEMA_CODE)).toEqual([]);
   const downgraded = await scan({'schema.ts': '/* @mion-downgrade-error ' + SCHEMA_CODE + ' */\n' + source}, 'schema.ts');
   expect(downgraded.filter((d) => d.code === SCHEMA_CODE)).toMatchObject([{downgraded: true}]);
+});
+
+it.each(['scan', 'generate'] as const)('reports stale Drizzle directives during %s', async (operation) => {
+  const f = await fixture({'schema.ts': `/* @mion-expect-error ${SCHEMA_CODE} */\n${tables()}`});
+  try {
+    const result = operation === 'scan' ? await f.client.scanFiles(f.files) : await f.client.generate();
+    expect(result.diagnostics?.filter((d) => d.code === 'comment-expect-error-unused')).toHaveLength(1);
+  } finally {
+    f.close();
+  }
 });
 
 it('a compiler build succeeds with a public-type warning and fails with schema isolation', async () => {

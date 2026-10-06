@@ -65,9 +65,9 @@ describe('LintSession failure paths', () => {
         binary: BIN,
         tsconfig: `${project.dir}/tsconfig.json`,
       });
-      expect(
-        'diagnostics' in result && result.diagnostics.some((diagnostic) => diagnostic.code === 'rpc-handler-drizzle-import')
-      ).toBe(true);
+      expect('diagnostics' in result && result.diagnostics.some((diagnostic) => diagnostic.code === 'drizzle-mixed-types')).toBe(
+        true
+      );
     } finally {
       session.dispose();
     }

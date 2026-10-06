@@ -1,4 +1,4 @@
-/* @mion-expect-error rpc-handler-drizzle-import */
+/* @mion-expect-error drizzle-mixed-types */
 // Compare slim schemas with their Drizzle materializations.
 /* ########
  * 2026 mion

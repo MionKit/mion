@@ -494,18 +494,18 @@ export {sql as convert} from 'drizzle-orm';`,
       it('admits package aliases while Go decides dependency ownership', () => {
         expect(referencesMarkerModule(texts['aliased-packages.ts']!, abs.get('aliased-packages.ts'))).toBe(false);
         expect(texts['aliased-packages.ts']).not.toContain('drizzle');
-        expect(codesFor('runtime-error', 'aliased-packages.ts')).toEqual(['rpc-handler-drizzle-import']);
+        expect(codesFor('runtime-error', 'aliased-packages.ts')).toEqual(['drizzle-mixed-types']);
         expect(codesFor('runtime-error', 'plain-import.ts')).toEqual([]);
       });
       it('admits aliased schema builders and conversion behind multiple local barrels', () => {
         expect(referencesMarkerModule(texts['hidden-schema.ts']!, abs.get('hidden-schema.ts'))).toBe(false);
         expect(texts['hidden-schema.ts']).not.toContain('drizzle');
-        expect(codesFor('runtime-error', 'hidden-schema.ts')).toEqual(['rpc-handler-drizzle-import']);
+        expect(codesFor('runtime-error', 'hidden-schema.ts')).toEqual(['drizzle-mixed-types']);
       });
       it('routes public Drizzle types to warning and schema isolation to runtime-error', () => {
-        expect(codesFor('warning', 'drizzle-public.ts')).toEqual(['rpc-handler-drizzle-type']);
+        expect(codesFor('warning', 'drizzle-public.ts')).toEqual(['drizzle-type-not-allowed']);
         expect(codesFor('runtime-error', 'drizzle-public.ts')).toEqual([]);
-        expect(codesFor('runtime-error', 'drizzle-schema.ts')).toEqual(['rpc-handler-drizzle-import']);
+        expect(codesFor('runtime-error', 'drizzle-schema.ts')).toEqual(['drizzle-mixed-types']);
         expect(codesFor('warning', 'drizzle-schema.ts')).toEqual([]);
         expect(reportsFor('runtime-error', 'drizzle-schema.ts')[0].message).toContain('clients can import slim models');
       });

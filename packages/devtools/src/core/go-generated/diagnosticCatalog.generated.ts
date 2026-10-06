@@ -17,7 +17,7 @@ export interface DiagnosticEntry {
    *  downgrade an `error`. */
   readonly level: 'error' | 'runtimeError' | 'warning' | 'info';
   /** Which part of the compiler raises the code. */
-  readonly family: 'purefn' | 'marker' | 'runtype' | 'enrich' | 'mionroute';
+  readonly family: 'purefn' | 'marker' | 'runtype' | 'enrich' | 'mionroute' | 'drizzle';
   /** Set on the unfilled-enrichment-scaffold codes. Orthogonal to level: those
    *  are warnings, and this bit is what the completeness gates promote. */
   readonly completeness?: boolean;
@@ -105,6 +105,19 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     level: 'warning',
     family: 'runtype',
     slots: ['property'],
+  },
+  'drizzle-mixed-types': {
+    headline:
+      'This file defines a slim Mion schema or model and depends on heavy Drizzle types or toDrizzle. Keep slim models in their own file so clients can import them without loading database types or server code. Move toDrizzle and heavy Drizzle imports to a separate query or database file.',
+    level: 'runtimeError',
+    family: 'drizzle',
+  },
+  'drizzle-type-not-allowed': {
+    headline:
+      'Public handler {position} depends on drizzle-orm. Use a slim @mionjs/drizzle-orm model or a plain public type to keep client type checking small.',
+    level: 'warning',
+    family: 'drizzle',
+    slots: ['position'],
   },
   'enrich-mirror-moved': {
     headline:
@@ -887,19 +900,6 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     level: 'runtimeError',
     family: 'marker',
     slots: ['clientVersion', 'apiVersion'],
-  },
-  'rpc-handler-drizzle-import': {
-    headline:
-      'This file defines a slim schema or model and depends on Drizzle. Move toDrizzle and heavy database imports to a separate query or database file so clients can import slim models without server dependencies.',
-    level: 'runtimeError',
-    family: 'mionroute',
-  },
-  'rpc-handler-drizzle-type': {
-    headline:
-      'Public handler {position} depends on drizzle-orm. Use a slim @mionjs/drizzle-orm model or a plain public type to keep client type checking small.',
-    level: 'warning',
-    family: 'mionroute',
-    slots: ['position'],
   },
   'rpc-handler-missing-param-type': {
     headline:

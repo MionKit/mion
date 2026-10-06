@@ -31,10 +31,8 @@ describe('level routing (one rule per level, never per topic)', () => {
   it('sends Warning to mion/warning and Info to mion/info', () => {
     expect(ruleOf({code: 'unknown-keys-function-shared', level: Level.Warning})).toBe('warning');
     expect(ruleOf({code: 'enrich-text-todo-left', family: Family.Enrich, level: Level.Warning})).toBe('warning');
-    expect(ruleOf({code: 'rpc-handler-drizzle-type', family: Family.MionRoute, level: Level.Warning})).toBe('warning');
-    expect(ruleOf({code: 'rpc-handler-drizzle-import', family: Family.MionRoute, level: Level.RuntimeError})).toBe(
-      'runtime-error'
-    );
+    expect(ruleOf({code: 'drizzle-type-not-allowed', family: Family.Drizzle, level: Level.Warning})).toBe('warning');
+    expect(ruleOf({code: 'drizzle-mixed-types', family: Family.Drizzle, level: Level.RuntimeError})).toBe('runtime-error');
     expect(ruleOf({code: 'rpc-handler-non-data-property', family: Family.MionRoute, level: Level.Warning})).toBe('warning');
     expect(ruleOf({code: 'validate-method-dropped', level: Level.Info})).toBe('info');
   });

@@ -82,7 +82,7 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
     export const read=createMionRouter().route((_ctx):Row=>({id:1}));`
     );
     const result = await execFileAsync(OXLINT, ['-c', '.oxlintrc.json', 'drizzle-public.ts'], {cwd: project.dir});
-    expect(result.stdout).toContain('[rpc-handler-drizzle-type]');
+    expect(result.stdout).toContain('[drizzle-type-not-allowed]');
     expect(result.stdout).toContain('mion(warning)');
   });
 
@@ -98,7 +98,7 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
     const result = await execFileAsync(OXLINT, ['-c', '.oxlintrc.json', 'node-only.mjs', 'builtin-public.ts'], {
       cwd: project.dir,
     });
-    expect(result.stdout).toContain('[rpc-handler-drizzle-type]');
+    expect(result.stdout).toContain('[drizzle-type-not-allowed]');
     expect(result.stdout).not.toContain('resolver did not answer');
     expect(result.stdout).not.toContain('source file not in program');
   });

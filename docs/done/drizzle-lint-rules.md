@@ -77,7 +77,7 @@ Mode: Automatic. The user approved the refined plan and requested RuntimeError f
 
 ## Goal and agreed scope
 
-Keep Drizzle's heavy type derivations out of the public types clients use. Add two compiler diagnostics, `rpc-handler-drizzle-type` and `rpc-handler-drizzle-import`, at `LevelWarning` for public types and `LevelRuntimeError` for schema/model isolation, through the corresponding existing level rules.
+Keep Drizzle's heavy type derivations out of the public types clients use. Add two compiler diagnostics, `drizzle-type-not-allowed` and `drizzle-mixed-types`, at `LevelWarning` for public types and `LevelRuntimeError` for schema/model isolation, through the corresponding existing level rules.
 
 The warning checks written public route parameter and return annotations, including nested types and aliases. Parameters remain part of this same check from the original todo because clients also instantiate argument types. Context parameters are exempt.
 
@@ -545,4 +545,6 @@ The wider import admission exposed lint-only false positives for ordinary JavaSc
 
 ## Durable Objects CI Follow-up
 
-The Durable Objects type-road runner uses the esbuild adapter directly and does not load the shared Vite configuration. Its comparison fixtures intentionally combine slim declarations and Drizzle materializations. Both adapters now consume generated fixtures with `// @mion-downgrade-error rpc-handler-drizzle-import` directly above diagnosed lines, instead of build-wide downgrades. The preparation step only annotates generated files under the type comparison tree's `tests` directory. Resolver tests verify warning visibility, duplicate handling and unchanged blocking behavior for other files, codes and additional imports in the same file.
+Both checks belong to the `drizzle` diagnostic family: `drizzle-mixed-types` remains RuntimeError and `drizzle-type-not-allowed` remains Warning. Their generated catalogs, diagnostic directives, comparison fixtures and frontend tests use these names. The family participates in directive validation for both builds and lint scans.
+
+The Durable Objects type-road runner uses the esbuild adapter directly and does not load the shared Vite configuration. Its comparison fixtures intentionally combine slim declarations and Drizzle materializations. Both adapters now consume generated fixtures with `// @mion-downgrade-error drizzle-mixed-types` directly above diagnosed lines, instead of build-wide downgrades. The preparation step only annotates generated files under the type comparison tree's `tests` directory. Resolver tests verify warning visibility, duplicate handling and unchanged blocking behavior for other files, codes and additional imports in the same file.
