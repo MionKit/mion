@@ -1126,7 +1126,7 @@
       "code": "drizzle-mixed-types",
       "subsystem": "drizzle",
       "level": "runtimeError",
-      "headline": "This file defines a slim Mion schema or model and depends on heavy Drizzle types or toDrizzle. Keep slim models in their own file so clients can import them without loading database types or server code. Move toDrizzle and heavy Drizzle imports to a separate query or database file.",
+      "headline": "This file defines a slim Mion schema or model and imports heavy Drizzle types or toDrizzle. Keep slim models in their own file so clients can import them without loading database types or server code. Move toDrizzle and heavy Drizzle imports to a separate query or database file.",
       "summary": "A file that defines slim schemas or models also imports Drizzle types or the toDrizzle bridge. Clients may import these models directly, loading heavy database declarations or server dependencies. Keep schemas and models in their own file. Import them into a companion file for toDrizzle, database setup, relations and queries. A query or router file may import both kinds of types when it does not define slim schemas or models.",
       "fix": "// schema.ts: define slim tables and models\n// db.ts: import the slim tables, then call toDrizzle",
       "example": null
