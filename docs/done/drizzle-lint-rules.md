@@ -504,8 +504,8 @@ Additional affected sources:
 
 - `packages/private-drizzle-example-app/test/importHygiene.test.ts` scans the 18 real schema, companion and route files.
 - `packages/private-test-server/src/cloudflare-storage.schema.ts` owns the slim Note models; its worker consumes them.
-- `container/drizzle-e2e/shared/vitest.types.config.ts` downgrades only schema isolation in the intentionally mixed database comparison harness.
-- `packages/devtools/test/drizzle-e2e-lane-contracts.test.ts` checks that the comparison exception remains code-specific.
+- `container/drizzle-e2e/shared/fixture-diagnostics.mjs` inserts line-scoped schema-isolation downgrade directives into diagnosed generated comparison fixtures. `run-suite.mjs` scans the translated type fixtures before their build.
+- The Vite and Durable esbuild configurations keep build-wide errors enabled. Frontend lane-contract and resolver tests verify that expected fixture warnings remain visible while other files, codes and lines remain blocking.
 - Each dialect's existing comparison fixtures (`drizzleTypeSource.integration.spec.ts`, `index.spec.ts`, `nestedMarkerCalls.spec.ts`, `tableEquality.fuzz.spec.ts`, `type-pins.stub.ts`, `typeTables.spec.ts`, `valueHelpers.spec.ts`) has an explicit schema-isolation directive. Those fixtures compare slim schemas with their materializations.
 
 The schema/model role check also covers standalone PostgreSQL enums, schemas and sequences, import-type model aliases, and `typeof table.$inferSelect` / `$inferInsert` model aliases. Real third-party test helpers have a regression case against recursive callable-type expansion.
@@ -545,4 +545,4 @@ The wider import admission exposed lint-only false positives for ordinary JavaSc
 
 ## Durable Objects CI Follow-up
 
-The Durable Objects type-road runner uses the esbuild adapter directly and does not load the shared Vite configuration. Its comparison fixtures intentionally combine slim declarations and Drizzle materializations. The runner now applies the same code-specific `rpc-handler-drizzle-import` downgrade as the Vite lanes, preserving the warning and all other blocking errors. The frontend lane-contract test covers both entry points; it failed for the Durable runner before the fix and passed after it.
+The Durable Objects type-road runner uses the esbuild adapter directly and does not load the shared Vite configuration. Its comparison fixtures intentionally combine slim declarations and Drizzle materializations. Both adapters now consume generated fixtures with `// @mion-downgrade-error rpc-handler-drizzle-import` directly above diagnosed lines, instead of build-wide downgrades. The preparation step only annotates generated files under the type comparison tree's `tests` directory. Resolver tests verify warning visibility, duplicate handling and unchanged blocking behavior for other files, codes and additional imports in the same file.
