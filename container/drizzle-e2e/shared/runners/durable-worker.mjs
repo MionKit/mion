@@ -115,24 +115,15 @@ try {
   throw new Error(`durable-worker: bundling the suite failed\n${messages.join('\n') || String(error)}`);
 }
 
-// The devtools esbuild plugin, loaded from the install so it is the PUBLISHED
-// one the lane installed from verdaccio, exactly like the resolver binary.
+// Load the published plugin from verdaccio, like the resolver binary.
 async function runTypesPlugin() {
-  // Segments, so no grep for the joined path can see this: '@mionjs' + 'devtools'.
-  // It read '@ts-runtypes' before the rename and the esbuild entry moved under
-  // runtypes/ when the two devtools packages merged.
   const mod = await import(path.join(HOME, 'node_modules', '@mionjs', 'devtools', 'dist', 'runtypes', 'esbuild.js'));
   return mod.default({
-    // The project root. Without it the plugin falls back to process.cwd(), which
-    // is the INSTALL, and every marker site then looks like a file outside the
-    // program: the build succeeds and injects nothing, and the failure only shows
-    // up at runtime as "no id injected".
+    // Without cwd, the install directory becomes the root and markers receive no IDs.
     cwd: tree,
-    // The tsconfig the conversion itself was checked with, so the transform and
-    // the typecheck can never disagree about how a name resolves. Lowercase `s`:
-    // the option is `tsconfig`, and an unknown key is silently ignored.
+    // Use the conversion’s tsconfig; unknown keys, including tsConfig, are silently ignored.
     tsconfig: 'tsconfig.json',
-    // Inside the tree, which is container-local and thrown away with it.
+    // Container-local output is discarded with the tree.
     genDir: '.mion',
   });
 }

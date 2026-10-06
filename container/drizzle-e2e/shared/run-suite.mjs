@@ -244,9 +244,7 @@ if (TYPE_PASS) {
   if (!existsSync(convertReportFile)) throw new Error('run-suite: the converter wrote no report');
   convertReport = JSON.parse(readFileSync(convertReportFile, 'utf8'));
   convertedCount = (convertReport.files ?? []).reduce((total, file) => total + (file.converted?.length ?? 0), 0);
-  // A refusal costs COVERAGE, never correctness: the refused declaration stays
-  // valid builders code and its test still runs. The coverage gate below is
-  // what decides whether the refusals cost us anything.
+  // Refused declarations stay valid; refusals only cost coverage at the gate below.
   console.log(`-> converted ${convertedCount} table(s) with ${(convertReport.refusals ?? []).length} refusal(s)`);
   const {ResolverClient} = await import(path.join(HOME, 'node_modules', '@mionjs', 'devtools', 'dist', 'core', 'resolver-client.js'));
   const resolver = new ResolverClient(binary, TYPES, path.join(TYPES, 'tsconfig.json'));
