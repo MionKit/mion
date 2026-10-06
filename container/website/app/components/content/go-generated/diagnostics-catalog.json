@@ -1135,8 +1135,8 @@
       "code": "drizzle-type-not-allowed",
       "subsystem": "drizzle",
       "level": "warning",
-      "headline": "Public handler {position} depends on drizzle-orm. Use a slim @mionjs/drizzle-orm model or a plain public type to keep client type checking small.",
-      "summary": "A written public parameter or return type depends on drizzle-orm, including nested models and model projections. Client type checking must expand those database types. Use a slim model from @mionjs/drizzle-orm or a plain public type. Drizzle queries and internal types inside the handler are allowed.",
+      "headline": "Public handler {position} uses a Drizzle ORM type. Use a slim @mionjs/drizzle-orm model or a plain public type to keep client type checking small.",
+      "summary": "A written public parameter or return type uses a Drizzle ORM type, including nested models and model projections. Client type checking must expand those database types. Use a slim model from @mionjs/drizzle-orm or a plain public type. Drizzle queries and internal types inside the handler are allowed.",
       "fix": "import type {User} from './schema.ts';\nconst list = mion.query(async (_ctx): Promise<User[]> => db.select().from(usersDb));",
       "example": null
     },

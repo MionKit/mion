@@ -57,7 +57,7 @@ var headlineByCode = map[string]string{
 	"rpc-handler-missing-param-type":               "mion `{handler}` handler parameter `{param}` has no type annotation; every parameter after the call context travels on the wire and must declare its type.",
 	"rpc-handler-throws":                           "mion `{handler}` handlers must return errors, not throw them; return an `RpcError` to let the chain continue, or a `FatalError` to stop the request.",
 	"rpc-handler-returns-non-rpc-error":            "mion `{handler}` handler declares it can answer with `{errorType}`, which is not an `RpcError`; only an `RpcError` (or a subclass such as `FatalError`) carries the mion brand.",
-	"drizzle-type-not-allowed":                     "Public handler {position} depends on drizzle-orm. Use a slim @mionjs/drizzle-orm model or a plain public type to keep client type checking small.",
+	"drizzle-type-not-allowed":                     "Public handler {position} uses a Drizzle ORM type. Use a slim @mionjs/drizzle-orm model or a plain public type to keep client type checking small.",
 	"drizzle-mixed-types":                          "This file defines a slim Mion schema or model and imports heavy Drizzle types or toDrizzle. Keep slim models in their own file so clients can import them without loading database types or server code. Move toDrizzle and heavy Drizzle imports to a separate query or database file.",
 	"rpc-handler-non-data-property":                "Property `{property}` can never be data and is dropped from every compiled function; rename it.",
 	"rpc-client-imports-server-value":              "`{name}` is passed to `initClient` but imported as a value from \"{module}\", which can put that server module in the client bundle; use `import type`.",

@@ -1,0 +1,41 @@
+{
+  "dialect": "sqlite",
+  "results": [
+    {
+      "name": "empty context",
+      "client": 1954,
+      "registeredClient": 2004
+    },
+    {
+      "name": "small context",
+      "client": 2012,
+      "registeredClient": 2070
+    },
+    {
+      "name": "database context",
+      "client": 13977,
+      "registeredClient": 14035
+    },
+    {
+      "name": "unused database context",
+      "client": 13977,
+      "registeredClient": 14035
+    },
+    {
+      "name": "light handler context",
+      "client": 13969,
+      "registeredClient": 14027
+    },
+    {
+      "name": "opaque database context",
+      "client": 1994,
+      "registeredClient": 2052
+    },
+    {
+      "name": "written database context",
+      "client": 13969,
+      "registeredClient": 14027
+    }
+  ],
+  "inferredResultClient": 13982
+}

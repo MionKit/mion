@@ -114,7 +114,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   'drizzle-type-not-allowed': {
     headline:
-      'Public handler {position} depends on drizzle-orm. Use a slim @mionjs/drizzle-orm model or a plain public type to keep client type checking small.',
+      'Public handler {position} uses a Drizzle ORM type. Use a slim @mionjs/drizzle-orm model or a plain public type to keep client type checking small.',
     level: 'warning',
     family: 'drizzle',
     slots: ['position'],
