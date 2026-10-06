@@ -15,8 +15,8 @@ const router = `declare module '@mionjs/router' {
  export const middleware: MiddlewareHelper;
  export const headersMiddleware: HeadersMiddlewareHelper;
 }`;
-export const TYPE_CODE = 'rpc-handler-drizzle-type';
-export const SCHEMA_CODE = 'rpc-handler-drizzle-import';
+export const TYPE_CODE = 'drizzle-type-not-allowed';
+export const SCHEMA_CODE = 'drizzle-mixed-types';
 export const dialects = [
   {name: 'pg', module: 'pg', table: 'pgTable', type: 'PgTable'},
   {name: 'mysql', module: 'mysql', table: 'mysqlTable', type: 'MysqlTable'},

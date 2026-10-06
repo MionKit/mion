@@ -25,13 +25,13 @@ func CheckDrizzleSourceFile(tc *checker.Checker, opts marker.Options, sf *ast.So
 			continue
 		}
 		if fn.Type != nil && scope.drizzleOrigin(fn.Type) {
-			found = append(found, scope.diag(diagnostics.CodeRouteDrizzleType, h.at(fn.Type), "return type"))
+			found = append(found, scope.diag(diagnostics.CodeDrizzlePublicType, h.at(fn.Type), "return type"))
 		}
 		if fn.Parameters != nil {
 			for i, p := range fn.Parameters.Nodes {
 				if i >= h.ctxParams {
 					if annotation := ast.GetTypeAnnotationNode(p); annotation != nil && scope.drizzleOrigin(annotation) {
-						found = append(found, scope.diag(diagnostics.CodeRouteDrizzleType, h.at(annotation), "parameter `"+parameterName(p)+"`"))
+						found = append(found, scope.diag(diagnostics.CodeDrizzlePublicType, h.at(annotation), "parameter `"+parameterName(p)+"`"))
 					}
 				}
 			}

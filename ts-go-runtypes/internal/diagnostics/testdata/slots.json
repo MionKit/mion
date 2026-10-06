@@ -373,7 +373,7 @@
     "clientVersion",
     "apiVersion"
   ],
-  "rpc-handler-drizzle-type": [
+  "drizzle-type-not-allowed": [
     "position"
   ],
   "rpc-handler-missing-param-type": [

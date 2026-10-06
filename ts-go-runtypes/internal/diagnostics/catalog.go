@@ -109,6 +109,8 @@ const (
 	// however it is written. Emitted only on opt-in (Request.CheckRouterRules), so a build never
 	// fails on a lint-only finding.
 	FamilyMionRoute Family = 5
+	// FamilyDrizzle covers slim schema isolation and public database type boundaries.
+	FamilyDrizzle Family = 6
 )
 
 // Scope says where in a marker's type a code's trigger can sit, and is what the depth gate in
@@ -223,7 +225,7 @@ const (
 var Definitions = map[string]Definition{}
 
 // slugRE is a kebab-case name that starts with an area prefix; each area is a section of the All Diagnostics page.
-var slugRE = regexp.MustCompile(`^(?:config|marker|comment|validate|validation-errors|json-prepare|json-restore|data|unknown-keys|format|purefn|override|rpc-handler|rpc-batch|rpc-client|enrich-text|enrich-mock|enrich-mirror|internal)(?:-[a-z0-9]+)+$`)
+var slugRE = regexp.MustCompile(`^(?:drizzle|config|marker|comment|validate|validation-errors|json-prepare|json-restore|data|unknown-keys|format|purefn|override|rpc-handler|rpc-batch|rpc-client|enrich-text|enrich-mock|enrich-mirror|internal)(?:-[a-z0-9]+)+$`)
 
 func register(definition Definition) {
 	if !slugRE.MatchString(definition.Code) {

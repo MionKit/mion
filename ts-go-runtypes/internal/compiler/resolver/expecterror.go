@@ -44,8 +44,9 @@ func (sess *Session) settleDiagnostics(list []diagnostics.Diagnostic, request pr
 // shows up. Every other op silences without judging.
 func (sess *Session) directiveScope(request protocol.Request) diagnostics.PassScope {
 	families := map[diagnostics.Family]bool{
-		diagnostics.FamilyPureFn: true,
-		diagnostics.FamilyMarker: true,
+		diagnostics.FamilyPureFn:  true,
+		diagnostics.FamilyMarker:  true,
+		diagnostics.FamilyDrizzle: true,
 	}
 	switch request.Op {
 	case protocol.OpGenerate:

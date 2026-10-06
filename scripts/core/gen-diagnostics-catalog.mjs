@@ -71,6 +71,12 @@ const SUBSYSTEMS = [
     prefixes: ['override-'],
   },
   {
+    key: 'drizzle',
+    label: 'Drizzle',
+    description: 'Slim schema isolation and public database type boundaries.',
+    prefixes: ['drizzle-'],
+  },
+  {
     key: 'mion-routes',
     label: 'mion routes',
     description: 'From the rules over mion route, middleware and headersMiddleware handlers, reported as you write them.',
@@ -178,7 +184,7 @@ export interface DiagnosticEntry {
    *  downgrade an \`error\`. */
   readonly level: 'error' | 'runtimeError' | 'warning' | 'info';
   /** Which part of the compiler raises the code. */
-  readonly family: 'purefn' | 'marker' | 'runtype' | 'enrich' | 'mionroute';
+  readonly family: 'purefn' | 'marker' | 'runtype' | 'enrich' | 'mionroute' | 'drizzle';
   /** Set on the unfilled-enrichment-scaffold codes. Orthogonal to level: those
    *  are warnings, and this bit is what the completeness gates promote. */
   readonly completeness?: boolean;

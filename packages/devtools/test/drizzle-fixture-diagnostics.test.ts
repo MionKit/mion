@@ -36,7 +36,7 @@ export type Users = PgTable<'users', {id: number}>;`;
   };
   try {
     const before = await generate();
-    expect(before.filter((d) => d.code === 'rpc-handler-drizzle-import')).toHaveLength(4);
+    expect(before.filter((d) => d.code === 'drizzle-mixed-types')).toHaveLength(4);
     expect(
       annotateFixtureDiagnostics(project.dir, [
         ...before,
@@ -45,19 +45,17 @@ export type Users = PgTable<'users', {id: number}>;`;
       ])
     ).toBe(2);
     const source = readFileSync(path.join(project.dir, 'tests/schema.ts'), 'utf8');
-    expect(source).toBe(
-      schema.replaceAll('import type {SQL', '// @mion-downgrade-error rpc-handler-drizzle-import\nimport type {SQL')
-    );
+    expect(source).toBe(schema.replaceAll('import type {SQL', '// @mion-downgrade-error drizzle-mixed-types\nimport type {SQL'));
     expect(readFileSync(path.join(project.dir, 'server.ts'), 'utf8')).toBe(schema);
     const after = await generate();
-    const findings = after.filter((d) => d.code === 'rpc-handler-drizzle-import');
+    const findings = after.filter((d) => d.code === 'drizzle-mixed-types');
     expect(findings).toHaveLength(4);
     expect(findings.filter((d) => d.site.filePath.endsWith('tests/schema.ts')).every((d) => d.downgraded)).toBe(true);
     expect(findings.filter((d) => d.site.filePath.endsWith('server.ts')).every((d) => !d.downgraded)).toBe(true);
     expect(after.filter((d) => d.code.startsWith('comment-'))).toEqual([]);
     expect(annotateFixtureDiagnostics(project.dir, after)).toBe(0);
     writeFileSync(path.join(project.dir, 'tests/schema.ts'), `${source}\nimport type {SQL as ExtraSQL} from 'drizzle-orm';`);
-    const additional = (await generate()).filter((d) => d.code === 'rpc-handler-drizzle-import');
+    const additional = (await generate()).filter((d) => d.code === 'drizzle-mixed-types');
     expect(
       additional
         .filter((d) => d.site.filePath.endsWith('tests/schema.ts'))

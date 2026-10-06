@@ -1,4 +1,4 @@
-/* @mion-expect-error rpc-handler-missing-return-type rpc-handler-drizzle-type */
+/* @mion-expect-error rpc-handler-missing-return-type drizzle-type-not-allowed */
 // Heavy types enable the type-cost comparison.
 import {avg, count, eq, gte, sql} from 'drizzle-orm';
 import {mion} from './mion.ts';

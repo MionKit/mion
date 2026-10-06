@@ -31,7 +31,7 @@ export type Users=PgTable<'users',{id:number}>;`;
       cwd: project.dir,
       tsconfig: 'tsconfig.json',
       detachResolver: true,
-      downgradeErrors: ['rpc-handler-drizzle-import'],
+      downgradeErrors: ['drizzle-mixed-types'],
     },
     {
       framework: 'webpack',
@@ -61,7 +61,7 @@ export type Users=PgTable<'users',{id:number}>;`;
     await plugin.buildStart?.call(ctx);
     ctx.warn.mockClear();
     expect(await plugin.transform!.call(ctx, mixed, file)).toBeNull();
-    expect(ctx.warn.mock.calls.flat().join('\n')).toContain('rpc-handler-drizzle-import');
+    expect(ctx.warn.mock.calls.flat().join('\n')).toContain('drizzle-mixed-types');
   } finally {
     await plugin.buildEnd?.call(ctx);
     project.cleanup();
