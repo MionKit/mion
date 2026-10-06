@@ -1,0 +1,41 @@
+{
+  "dialect": "mysql",
+  "results": [
+    {
+      "name": "empty context",
+      "client": 1941,
+      "registeredClient": 1991
+    },
+    {
+      "name": "small context",
+      "client": 1999,
+      "registeredClient": 2057
+    },
+    {
+      "name": "database context",
+      "client": 14633,
+      "registeredClient": 14691
+    },
+    {
+      "name": "unused database context",
+      "client": 14633,
+      "registeredClient": 14691
+    },
+    {
+      "name": "light handler context",
+      "client": 14625,
+      "registeredClient": 14683
+    },
+    {
+      "name": "opaque database context",
+      "client": 1981,
+      "registeredClient": 2039
+    },
+    {
+      "name": "written database context",
+      "client": 14625,
+      "registeredClient": 14683
+    }
+  ],
+  "inferredResultClient": 14640
+}

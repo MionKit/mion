@@ -435,7 +435,7 @@ export const isOuter = createValidateFn<Outer>();`,
 
 	// Resolved router and Drizzle packages are required; frontend fixtures cover nested public types.
 	CodeDrizzlePublicType: {
-		Summary: "A written public parameter or return type depends on drizzle-orm, including nested models and model projections. Client type checking must expand those database types. Use a slim model from @mionjs/drizzle-orm or a plain public type. Drizzle queries and internal types inside the handler are allowed.",
+		Summary: "A written public parameter or return type uses a Drizzle ORM type, including nested models and model projections. Client type checking must expand those database types. Use a slim model from @mionjs/drizzle-orm or a plain public type. Drizzle queries and internal types inside the handler are allowed.",
 		Fix:     "import type {User} from './schema.ts';\nconst list = mion.query(async (_ctx): Promise<User[]> => db.select().from(usersDb));",
 	},
 	CodeDrizzleSchemaDependency: {

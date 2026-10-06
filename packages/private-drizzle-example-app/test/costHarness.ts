@@ -172,6 +172,22 @@ export function measureCase(header: string, routeCase: RouteCase): CaseCost {
   };
 }
 
+export function measureRegisteredClient(header: string, body: string): {client: number; errors: string[]} {
+  const server = `${header}\nconst definitions = {${body}};\nconst api = mion.initRoutes(definitions);\nexport type Api = typeof api;`;
+  const serverCheck = count(new Map([[SERVER_FILE, server]]), SERVER_FILE);
+  const client = count(
+    new Map([
+      [SERVER_FILE, server],
+      [
+        CLIENT_FILE,
+        clientSource('export const result = routes.list(...([] as unknown as Parameters<typeof routes.list>)).call();'),
+      ],
+    ]),
+    CLIENT_FILE
+  );
+  return {client: client.instantiations, errors: [...serverCheck.errors, ...client.errors]};
+}
+
 export function measureDirectModel(
   header: string,
   modulePath: string
