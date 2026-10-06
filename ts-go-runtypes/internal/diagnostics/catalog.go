@@ -109,7 +109,7 @@ const (
 	// however it is written. Emitted only on opt-in (Request.CheckRouterRules), so a build never
 	// fails on a lint-only finding.
 	FamilyMionRoute Family = 5
-	// FamilyDrizzle covers slim schema isolation and public database type boundaries.
+	// FamilyDrizzle covers slim schema isolation and public types.
 	FamilyDrizzle Family = 6
 )
 

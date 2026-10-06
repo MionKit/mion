@@ -39,9 +39,7 @@ func (sess *Session) settleDiagnostics(list []diagnostics.Diagnostic, request pr
 	return diagnostics.ApplyDirectives(list, directives, sess.absPath, scope)
 }
 
-// directiveScope: OpGenerate (the build) covers every file but no opt-in family; OpScanFiles (the lint) covers its
-// files and, with both opt-ins, every family minus whole-program codes, so the editor is where a stale directive
-// shows up. Every other op silences without judging.
+// directiveScope judges stale directives only for families and files checked by generate or scan.
 func (sess *Session) directiveScope(request protocol.Request) diagnostics.PassScope {
 	families := map[diagnostics.Family]bool{
 		diagnostics.FamilyPureFn:  true,
@@ -50,12 +48,11 @@ func (sess *Session) directiveScope(request protocol.Request) diagnostics.PassSc
 	}
 	switch request.Op {
 	case protocol.OpGenerate:
-		// A generate renders every entry, so the RunType family is always in play.
+		// Generate renders every entry.
 		families[diagnostics.FamilyRunType] = true
 		return diagnostics.PassScope{Reports: true, Families: families}
 	case protocol.OpScanFiles:
-		// The RunType family only renders when the request asked for entries or
-		// for their diagnostics; a plain rewrite scan raises none of them.
+		// A plain rewrite scan raises no RunType diagnostics.
 		if request.IncludeEntryModules || request.IncludeRtDiagnostics {
 			families[diagnostics.FamilyRunType] = true
 		}

@@ -12,7 +12,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
-// CheckDrizzleSourceFile checks written public types and authored slim schemas in builds too; query bodies allow Drizzle.
+// CheckDrizzleSourceFile also runs in builds; query bodies allow Drizzle.
 func CheckDrizzleSourceFile(tc *checker.Checker, opts marker.Options, sf *ast.SourceFile, path string) []diagnostics.Diagnostic {
 	if sf == nil || sf.IsDeclarationFile {
 		return nil
