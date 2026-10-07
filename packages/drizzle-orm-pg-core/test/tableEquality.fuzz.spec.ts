@@ -1,4 +1,3 @@
-/* @mion-expect-error drizzle-mixed-types */
 // Compare slim schemas with their Drizzle materializations.
 /* ########
  * 2026 mion
@@ -12,13 +11,17 @@
 // source-to-graph half is drizzleTypeSource.integration.spec.ts, the generator test/tableSpecShared.ts.
 
 import {describe, it, expect} from 'vitest';
+// @mion-expect-error drizzle-mixed-types
 import * as dzPg from 'drizzle-orm/pg-core';
+// @mion-expect-error drizzle-mixed-types
 import {sql as dzSql} from 'drizzle-orm';
 import {mixSeed, mulberry32} from '../../run-types/test/fuzz/core/seededRng.ts';
 import {sql as slimSql, buildRtTableFromGraph, tableRef} from '@mionjs/drizzle-orm';
 import * as slim from '../src/index.ts';
 import {pgBuildTable} from '../src/table.ts';
+// @mion-expect-error drizzle-mixed-types
 import {toDrizzle} from '../src/drizzle.ts';
+// @mion-expect-error drizzle-mixed-types
 import {
   buildTable,
   buildView,

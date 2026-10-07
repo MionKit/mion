@@ -1,4 +1,3 @@
-/* @mion-expect-error drizzle-mixed-types */
 // Compare slim schemas with their Drizzle materializations.
 /* ########
  * 2026 mion
@@ -15,10 +14,13 @@
 // coverage rule does not apply here.
 
 import {describe, it, expect} from 'vitest';
+// @mion-expect-error drizzle-mixed-types
 import * as dzPg from 'drizzle-orm/pg-core';
+// @mion-expect-error drizzle-mixed-types
 import {getTableConfig} from 'drizzle-orm/pg-core';
 import {index, integer, pgSchema, pgSequence, pgTable, pgTableCreator, varchar} from '../src/index.ts';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
+// @mion-expect-error drizzle-mixed-types
 import {toDrizzle} from '../src/drizzle.ts';
 
 /** Compact getTableConfig projection: just what the helper wiring decides

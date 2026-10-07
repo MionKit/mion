@@ -1,4 +1,3 @@
-/* @mion-expect-error drizzle-mixed-types */
 // Compare slim schemas with their Drizzle materializations.
 /* ########
  * 2026 mion
@@ -10,7 +9,9 @@
 // sqlite columns at run time: builder tables and hand-written table types against raw drizzle.
 
 import {describe, it, expect} from 'vitest';
+// @mion-expect-error drizzle-mixed-types
 import {sql as dzSql} from 'drizzle-orm';
+// @mion-expect-error drizzle-mixed-types
 import * as dz from 'drizzle-orm/sqlite-core';
 import {createValidateFn, getRunType, getRunTypeId} from '@mionjs/run-types';
 import type {UUID} from '@mionjs/run-types/formats';
@@ -52,8 +53,11 @@ import {
   uniqueIndex,
   view,
 } from '../src/index.ts';
+// @mion-expect-error drizzle-mixed-types
 import {drizzle as proxyDb} from 'drizzle-orm/sqlite-proxy';
+// @mion-expect-error drizzle-mixed-types
 import {toDrizzle} from '../src/drizzle.ts';
+// @mion-expect-error drizzle-mixed-types
 import {project, projectView} from './tableSpecShared.ts';
 
 const users = sqliteTable('users', {

@@ -1,4 +1,3 @@
-/* @mion-expect-error drizzle-mixed-types */
 // Compare slim schemas with their Drizzle materializations.
 /* ########
  * 2026 mion
@@ -15,6 +14,7 @@
 // captured param with no runtime guards.
 
 import {describe, it, expect} from 'vitest';
+// @mion-expect-error drizzle-mixed-types
 import {
   getTableConfig,
   getViewConfig,
@@ -48,6 +48,7 @@ import {
   inet as dzInet,
   bit as dzBit,
 } from 'drizzle-orm/pg-core';
+// @mion-expect-error drizzle-mixed-types
 import {sql as dzRealSql} from 'drizzle-orm';
 import {
   bigint,
@@ -81,6 +82,7 @@ import {
 } from '../src/index.ts';
 import type {InferSelectViewModel} from '@mionjs/drizzle-orm';
 import {$type, refineTableType, sql, tableRef} from '@mionjs/drizzle-orm';
+// @mion-expect-error drizzle-mixed-types
 import {toDrizzle} from '../src/drizzle.ts';
 
 // ── the equality oracle ──────────────────────────────────────────────────────
