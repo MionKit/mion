@@ -507,7 +507,9 @@ export {sql as convert} from 'drizzle-orm';`,
         expect(codesFor('runtime-error', 'drizzle-public.ts')).toEqual([]);
         expect(codesFor('runtime-error', 'drizzle-schema.ts')).toEqual(['drizzle-mixed-types']);
         expect(codesFor('warning', 'drizzle-schema.ts')).toEqual([]);
-        expect(reportsFor('runtime-error', 'drizzle-schema.ts')[0].message).toContain('clients can import slim models');
+        expect(reportsFor('runtime-error', 'drizzle-schema.ts')[0].message).toContain(
+          'clients can import them without loading database types or server code'
+        );
       });
       it('reports each finding at its level, on a file with no runtypes marker', () => {
         expect(ROUTES_TS).not.toContain('@mionjs/run-types');
