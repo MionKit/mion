@@ -1,4 +1,3 @@
-/* @mion-expect-error drizzle-mixed-types */
 // Compare slim schemas with their Drizzle materializations.
 /* ########
  * 2026 mion
@@ -12,6 +11,7 @@
 // materialization is memoized, and refineTableType is identity.
 
 import {describe, it, expect} from 'vitest';
+// @mion-expect-error drizzle-mixed-types
 import {
   getTableConfig,
   check as dzCheck,
@@ -23,11 +23,14 @@ import {
   text as dzText,
   unique as dzUnique,
 } from 'drizzle-orm/sqlite-core';
+// @mion-expect-error drizzle-mixed-types
 import * as dzSqlite from 'drizzle-orm/sqlite-core';
+// @mion-expect-error drizzle-mixed-types
 import {sql as dzRealSql} from 'drizzle-orm';
 import {check, foreignKey, index, integer, numeric, primaryKey, real, sqliteTable, text, unique} from '../src/index.ts';
 import type {InferSelectViewModel} from '@mionjs/drizzle-orm';
 import {refineTableType, sql, tableRef} from '@mionjs/drizzle-orm';
+// @mion-expect-error drizzle-mixed-types
 import {toDrizzle} from '../src/drizzle.ts';
 import {sqliteView} from '../src/views.ts';
 

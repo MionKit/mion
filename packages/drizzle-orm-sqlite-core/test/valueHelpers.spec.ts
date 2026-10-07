@@ -1,4 +1,3 @@
-/* @mion-expect-error drizzle-mixed-types */
 // Compare slim schemas with their Drizzle materializations.
 /* ########
  * 2026 mion
@@ -14,10 +13,13 @@
 // Marker test coverage rule does not apply here.
 
 import {describe, it, expect} from 'vitest';
+// @mion-expect-error drizzle-mixed-types
 import * as dzSqlite from 'drizzle-orm/sqlite-core';
+// @mion-expect-error drizzle-mixed-types
 import {getTableConfig} from 'drizzle-orm/sqlite-core';
 import {index, integer, sqliteTable, sqliteTableCreator, text} from '../src/index.ts';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
+// @mion-expect-error drizzle-mixed-types
 import {toDrizzle} from '../src/drizzle.ts';
 
 /** Compact getTableConfig projection: just what the helper wiring decides

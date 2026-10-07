@@ -1,4 +1,3 @@
-/* @mion-expect-error drizzle-mixed-types */
 // Compare slim schemas with their Drizzle materializations.
 /* ########
  * 2026 mion
@@ -34,10 +33,15 @@ import type {
   RefinedTable,
 } from '@mionjs/drizzle-orm';
 import {$type, refineTableType, sql, tableRef, type TableRef} from '@mionjs/drizzle-orm';
+// @mion-expect-error drizzle-mixed-types
 import type {InferSelectModel as DzInferSelectModel} from 'drizzle-orm';
+// @mion-expect-error drizzle-mixed-types
 import * as dz from 'drizzle-orm/pg-core';
+// @mion-expect-error drizzle-mixed-types
 import type {PgDatabase, PgQueryResultHKT} from 'drizzle-orm/pg-core';
+// @mion-expect-error drizzle-mixed-types
 import type {ToDrizzleTable} from '../src/drizzle.ts';
+// @mion-expect-error drizzle-mixed-types
 import {toDrizzle} from '../src/drizzle.ts';
 import type {
   Bigint,

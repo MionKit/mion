@@ -1,4 +1,3 @@
-/* @mion-expect-error drizzle-mixed-types */
 // Compare slim schemas with their Drizzle materializations.
 /* ########
  * 2026 mion
@@ -10,9 +9,11 @@
 // A tableFromType<T>() nested in toDrizzle<T>() options must get its own id.
 
 import {describe, it, expect} from 'vitest';
+// @mion-expect-error drizzle-mixed-types
 import {getTableConfig} from 'drizzle-orm/mysql-core';
 import type {Int, MysqlTable} from '../src/index.ts';
 import {tableFromType} from '../src/index.ts';
+// @mion-expect-error drizzle-mixed-types
 import {toDrizzle} from '../src/drizzle.ts';
 
 type Parents = MysqlTable<'parents', {id: Int<{primaryKey: true}>}>;

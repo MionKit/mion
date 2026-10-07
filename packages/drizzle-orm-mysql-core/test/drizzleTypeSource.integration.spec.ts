@@ -1,4 +1,3 @@
-/* @mion-expect-error drizzle-mixed-types */
 // Compare slim schemas with their Drizzle materializations.
 /* ########
  * 2026 mion
@@ -13,13 +12,16 @@
 
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
+// @mion-expect-error drizzle-mixed-types
 import * as dzMy from 'drizzle-orm/mysql-core';
+// @mion-expect-error drizzle-mixed-types
 import {sql as dzSql} from 'drizzle-orm';
 import {mixSeed, mulberry32} from '../../run-types/test/fuzz/core/seededRng.ts';
 import {entrySeed, parseSeed} from '../../run-types/test/fuzz/core/fuzzPolicy.ts';
 // The LIGHT helpers: no marker call sites of their own.
 import {evalEntryModules, instantiateRunTypes, BIN, hasBinary} from '../../devtools/test/helpers/inline.ts';
 import {ResolverClient} from '../../devtools/src/core/resolver-client.ts';
+// @mion-expect-error drizzle-mixed-types
 import {
   buildTable,
   FUZZ_PARENT_NAME,
@@ -33,6 +35,7 @@ import {
 } from './tableSpecShared.ts';
 import {buildRtTableFromGraph} from '@mionjs/drizzle-orm';
 import {mysqlBuildTable} from '../src/table.ts';
+// @mion-expect-error drizzle-mixed-types
 import {toDrizzle} from '../src/drizzle.ts';
 import {int, mysqlTable} from '../src/index.ts';
 

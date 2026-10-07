@@ -1,4 +1,3 @@
-/* @mion-expect-error drizzle-mixed-types */
 // Compare slim schemas with their Drizzle materializations.
 /* ########
  * 2026 mion
@@ -11,6 +10,7 @@
 // table a hand-written drizzle file builds (getTableConfig oracle).
 
 import {describe, it, expect} from 'vitest';
+// @mion-expect-error drizzle-mixed-types
 import {
   getTableConfig,
   check as dzCheck,
@@ -31,7 +31,9 @@ import {
   year as dzYear,
   datetime as dzDatetime,
 } from 'drizzle-orm/mysql-core';
+// @mion-expect-error drizzle-mixed-types
 import * as dzMy from 'drizzle-orm/mysql-core';
+// @mion-expect-error drizzle-mixed-types
 import {sql as dzRealSql} from 'drizzle-orm';
 import {
   boolean,
@@ -54,6 +56,7 @@ import {
 } from '../src/index.ts';
 import type {InferSelectModel, InferSelectViewModel} from '@mionjs/drizzle-orm';
 import {$type, refineTableType, sql, tableRef} from '@mionjs/drizzle-orm';
+// @mion-expect-error drizzle-mixed-types
 import {toDrizzle} from '../src/drizzle.ts';
 import {mysqlView} from '../src/views.ts';
 
