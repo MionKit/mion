@@ -7,10 +7,12 @@ import {existsSync, readFileSync} from 'node:fs';
 
 const git = (...args) =>
   execFileSync('git', args, {encoding: 'utf8', maxBuffer: 1 << 28, stdio: ['ignore', 'pipe', 'ignore']});
-const [base, ...paths] = process.argv.slice(2);
+// Split each arg on spaces too: a quoted "$PATHS" in zsh arrives as one arg and would match nothing.
+const [base, ...paths] = process.argv.slice(2).flatMap((arg) => arg.split(/\s+/).filter(Boolean));
 if (!base || paths.length === 0) throw new Error('usage: lost-tokens.mjs <base> <path>...');
 
 const oldFiles = git('ls-tree', '-r', '--name-only', base, '--', ...paths).split('\n').filter(Boolean);
+if (oldFiles.length === 0) throw new Error(`no file at ${base} matches: ${paths.join(' ')}`);
 // New text = every changed or untracked file anywhere (moves can leave the task dir) plus the task paths.
 const changed = git('diff', '--name-only', base).split('\n');
 const untracked = git('ls-files', '--others', '--exclude-standard').split('\n');
