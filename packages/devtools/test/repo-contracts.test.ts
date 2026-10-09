@@ -9,6 +9,8 @@ import {spawnSync} from 'node:child_process';
 import {isCompiledExecutable, miniflareCwdOffenders, specReferenceOffenders} from '../../../scripts/ci/check-tree.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
 import {unparsedScriptOffenders} from '../../../scripts/ci/check-tree.mjs';
+// @ts-expect-error — a plain .mjs repo script, no types.
+import {agentDocOffenders, AGENT_DOC_MAX_LINES, AGENT_DOC_MAX_WIDTH} from '../../../scripts/ci/check-tree.mjs';
 // @ts-expect-error — a plain .mjs bench script, no types.
 import {hasParserApi} from '../../../container/benchmarks/_lib/extract-cases.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
@@ -327,6 +329,63 @@ describe('no file outside docs/todos and docs/done names a todo or done spec', (
   it('a bare directory mention is not a reference', () => {
     const text = 'specs live under docs/todos/ and move to docs/done/ when shipped';
     expect(specReferenceOffenders([{file: 'AGENTS.md', text}])).toEqual([]);
+  });
+});
+
+describe('every AGENTS.md, CLAUDE.md and skill file stays short and narrow', () => {
+  const longText = (lines: number, width = 10): string => `${'x'.repeat(width)}\n`.repeat(lines);
+  const max = AGENT_DOC_MAX_LINES as number;
+  const wide = AGENT_DOC_MAX_WIDTH as number;
+
+  it('caps lines at 100 and width at a reasonable prose limit', () => {
+    expect(max).toBe(100);
+    expect(wide).toBeGreaterThanOrEqual(80);
+    expect(wide).toBeLessThanOrEqual(130);
+  });
+
+  it('reports a file with too many lines, and passes one at the limit', () => {
+    expect(agentDocOffenders([{file: 'AGENTS.md', text: longText(max + 1)}])).toEqual([
+      `AGENTS.md: ${max + 1} lines (max ${max})`,
+    ]);
+    expect(agentDocOffenders([{file: 'AGENTS.md', text: longText(max)}])).toEqual([]);
+  });
+
+  it('reports a line over the width, counting characters rather than bytes', () => {
+    const text = `ok\n${'x'.repeat(wide + 1)}\n`;
+    expect(agentDocOffenders([{file: 'CLAUDE.md', text}])).toEqual([`CLAUDE.md: 1 line(s) over ${wide} chars, first at line 2`]);
+    expect(agentDocOffenders([{file: 'CLAUDE.md', text: `${'é'.repeat(wide)}\n`}])).toEqual([]);
+  });
+
+  it('reports both problems in one row', () => {
+    const [row] = agentDocOffenders([{file: 'AGENTS.md', text: longText(max + 1, wide + 1)}]);
+    expect(row).toContain(`${max + 1} lines`);
+    expect(row).toContain(`${max + 1} line(s) over ${wide} chars, first at line 1`);
+  });
+
+  it('covers AGENTS.md and CLAUDE.md at any depth, every file inside a skills dir and .agents/', () => {
+    const files = [
+      'AGENTS.md',
+      '.agents/docs/git.md',
+      'packages/core/AGENTS.md',
+      'CLAUDE.md',
+      '.agents/skills/foo/SKILL.md',
+      '.agents/skills/foo/references/notes.md',
+      '.agents/skills/foo/setup.sh',
+      'packages/run-types/skills/bar/SKILL.md',
+    ];
+    expect(agentDocOffenders(files.map((file) => ({file, text: longText(max + 1)})))).toHaveLength(files.length);
+  });
+
+  it('ignores other docs, the submodule and dependency trees', () => {
+    const files = [
+      'README.md',
+      'docs/AGENTS-notes.md',
+      'packages/core/src/skills.ts',
+      'ts-go-runtypes/third_party/tsgolint/AGENTS.md',
+      'node_modules/pkg/skills/SKILL.md',
+      'container/website/_deps/zod/AGENTS.md',
+    ];
+    expect(agentDocOffenders(files.map((file) => ({file, text: longText(max + 1, wide + 1)})))).toEqual([]);
   });
 });
 

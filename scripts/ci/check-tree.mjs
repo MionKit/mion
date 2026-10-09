@@ -184,6 +184,38 @@ export function unparsedScripts() {
   return unparsedScriptOffenders(files);
 }
 
+// Agent instructions are read whole into every session, so they stay short and narrow.
+export const AGENT_DOC_MAX_LINES = 100;
+export const AGENT_DOC_MAX_WIDTH = 120;
+export const AGENT_DOC = /(^|\/)(AGENTS|CLAUDE)\.md$|(^|\/)skills\/|^\.agents\//;
+const AGENT_DOC_EXEMPT = /^ts-go-runtypes\/third_party\/|(^|\/)(_deps|node_modules)\//;
+
+// Pure over (path, text) so the rule is testable without a checkout; width counts characters, not bytes.
+export const agentDocOffenders = (entries) =>
+  entries
+    .filter(({file}) => AGENT_DOC.test(file) && !AGENT_DOC_EXEMPT.test(file))
+    .flatMap(({file, text}) => {
+      const lines = text.replace(/\n$/, '').split('\n');
+      const wide = lines.map((line, i) => ({at: i + 1, width: [...line].length})).filter(({width}) => width > AGENT_DOC_MAX_WIDTH);
+      const problems = [];
+      if (lines.length > AGENT_DOC_MAX_LINES) problems.push(`${lines.length} lines (max ${AGENT_DOC_MAX_LINES})`);
+      if (wide.length > 0) problems.push(`${wide.length} line(s) over ${AGENT_DOC_MAX_WIDTH} chars, first at line ${wide[0].at}`);
+      return problems.length > 0 ? [`${file}: ${problems.join(', ')}`] : [];
+    });
+
+export function agentDocs() {
+  const listed = capture('git', ['ls-files', '-z', '--stage'], {cwd: REPO_ROOT, maxBuffer: 64 * 1024 * 1024});
+  if (listed.status !== 0) die(`git ls-files failed: ${listed.stderr.trim()}`);
+  // Mode 120000 is a symlink: .claude/skills points at .agents/skills, which is already listed.
+  const files = listed.stdout
+    .split('\0')
+    .filter((row) => row && !row.startsWith('120000 '))
+    .map((row) => row.slice(row.indexOf('\t') + 1))
+    .filter((file) => AGENT_DOC.test(file) && existsSync(join(REPO_ROOT, file)));
+  if (files.length < 10) die(`the agent doc sweep listed only ${files.length} files, so its pattern stopped matching`);
+  return agentDocOffenders(files.map((file) => ({file, text: readFileSync(join(REPO_ROOT, file), 'utf8')})));
+}
+
 // A cycle makes `tsc --build` refuse the WHOLE graph (TS6202), so no package builds.
 // This one arrived through a package referencing its own test fixture, invisible outside build mode.
 
@@ -268,6 +300,7 @@ export const SWEEPS = [
   {name: 'no tracked file is a compiled executable', run: compiledExecutables, fix: 'git rm it and ignore the build output; a binary is rebuilt from source, never committed'},
   {name: 'no workspace package dependency cycle', run: workspaceDependencyCycles, fix: 'pnpm guesses the build and test order around a cycle; test the package on the other end with its built files read by path instead (see packages/devtools/AGENTS.md)'},
   {name: 'no tsconfig project reference cycle', run: tsconfigReferenceCycles, fix: 'tsc --build refuses the WHOLE graph with TS6202, so nothing builds; move the code needing the back-reference into the package it points at'},
+  {name: 'every AGENTS.md, CLAUDE.md and skill file stays short and narrow', run: agentDocs, fix: `keep it under ${AGENT_DOC_MAX_LINES} lines and ${AGENT_DOC_MAX_WIDTH} chars wide; split detail into smaller linked files the agent reads only when needed`},
   {name: 'every tracked JavaScript file parses', run: unparsedScripts, fix: 'run `node --check <file>` to see the syntax error'},
   {name: 'no miniflare worker depends on the directory it was started from', run: miniflareCwdWorkers, fix: "pass modulesRoot beside scriptPath; without it miniflare names the module relative to process.cwd() and workerd refuses a `..` name"},
 ];
