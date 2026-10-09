@@ -1,7 +1,7 @@
 package resolver_test
 
 // ScopeRoot findings must ignore inherited provenance below a marker root; family findings must stay on their own entry.
-// Move each trigger one level deeper or one family over to catch overreporting (AGENTS.md).
+// Move each trigger one level deeper or one family over to catch overreporting (ts-go-runtypes/internal/reflection/AGENTS.md).
 
 import (
 	"strings"

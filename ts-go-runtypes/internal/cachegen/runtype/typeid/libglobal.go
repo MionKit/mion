@@ -1,7 +1,7 @@
 // Platform classes are non-data by declaration origin, never name; ordinary imports do not make a class platform.
 // program.EnvironmentFile covers bundled libs, configured types and type references, including ambient module classes.
 // types: ["*"] loads all @types; absent types loads only libs and references.
-// Keep ts-go-runtypes/AGENTS.md and validation docs aligned; see platform_declared_test.go and program/environment_test.go.
+// Keep this dir's AGENTS.md and validation docs aligned; see platform_declared_test.go and program/environment_test.go.
 package typeid
 
 import (
