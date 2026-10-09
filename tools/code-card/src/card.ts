@@ -191,6 +191,8 @@ export async function renderCardHtml(card: Card, {zoom = 1}: RenderOptions = {})
   const badge = card.badge ? `<code class="badge">${escapeHtml(card.badge)}</code>` : '';
   const slots: Record<string, string> = {
     pageTitle: escapeHtml(card.title.replace(/\*/g, '')),
+    // Stats cards get larger type: they are read as a phone-sized thumbnail.
+    kind: card.chart ? 'stats-card' : 'code-card',
     fontFaces: fontFaces(),
     // The screenshot tool saves at CSS pixels, so a sharp 2x PNG means zooming the page itself.
     zoom: String(zoom),

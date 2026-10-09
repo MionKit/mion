@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import {parseCard, renderCardHtml} from '../src/card.ts';
-import {MAX_BARS, MAX_TILES, parseChart} from '../src/chart.ts';
+import {MAX_BARS, MAX_FACTS, MAX_TILES, parseChart} from '../src/chart.ts';
 
 const statsCard = `---
 title: "*7× lighter* docs"
@@ -29,6 +29,7 @@ describe('code card: stats fence', () => {
         {label: 'Root size', before: '44.1', after: '6.2', unit: 'KB'},
         {label: 'Over limit', before: '58', after: '0', unit: ''},
       ],
+      facts: [],
     });
   });
 
@@ -88,7 +89,20 @@ describe('code card: stats fence', () => {
     expect(() => parseChart('diff: 1 | 2\ndiff: 3 | 4')).toThrow('stats line 2: only one diff line per card');
   });
 
-  it('refuses a highlight on a stats card', () => {
+  it('groups facts into one list and sizes four tiles as a 2x2 grid', async () => {
+    const card = parseCard(
+      '---\ntitle: Hi\n---\n```stats\ntile: 1 | a\ntile: 2 | b\ntile: 3 | c\ntile: 4 | d\nfact: Root file | 307 → 89 lines\n```\n'
+    );
+    expect(card.chart?.facts).toEqual([{label: 'Root file', value: '307 → 89 lines'}]);
+    const html = await renderCardHtml(card);
+    expect(html).toContain('<div class="tiles count-4">');
+    expect(html).toContain('<div class="fact"><span>Root file</span><b>307 → 89 lines</b></div>');
+    expect(html).toContain('<body class="stats-card">');
+    expect(() => parseChart('fact: only label')).toThrow('use "fact: <label> | <value>"');
+    expect(() => parseChart(Array(MAX_FACTS + 1).fill('fact: a | b').join('\n'))).toThrow(`the window fits ${MAX_FACTS}`);
+  });
+
+    it('refuses a highlight on a stats card', () => {
     expect(() => parseCard('---\ntitle: Hi\nhighlight: 1\n---\n```stats\ntile: 1 | x\n```\n')).toThrow(
       'highlight does not apply to a stats block'
     );

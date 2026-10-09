@@ -1,7 +1,8 @@
 # Stats cards
 
-Same window, same frontmatter. A ` ```stats ` fence draws big-number tiles, a GitHub-style diff line
-and one before / after bar chart instead of code. Use for results: sizes, counts, costs, speed-ups.
+Same window, same frontmatter. A ` ```stats ` fence draws big-number tiles, a fact list, a GitHub-style diff line
+and a before / after bar chart instead of code, in larger type.
+Use for results: sizes, counts, costs, speed-ups.
 
 ````md
 ---
@@ -20,11 +21,14 @@ bar: Biggest file | 962 | 99 | lines
 ````
 
 - `tile: <value> | <label>`: a big number in the olive accent, label under it. 1 to 4 tiles, value ≤ 12 chars.
+  4 tiles = a 2x2 grid of big numbers, readable as a phone thumbnail. Best layout for a post.
 - `diff: <added> | <removed> | <label>`: GitHub-style `+added −removed` and its 5 squares. One per card.
   Numbers from `git diff --shortstat <base>` (`git add -N` new files first, so they count).
+- `fact: <label> | <value>`: one row in a compact 2-column list. Up to 6. Groups the smaller results.
 - `bar: <label> | <before> | <after> | <unit>`: grey bar = before, olive bar = after, plus the % change.
   Unit optional. Numbers may use `,`. Up to 6 bars. Each row scales to itself, so units can mix.
-- Any mix of tiles, diff and bars is fine. `highlight` is refused on a stats card.
+- Any mix of tiles, facts, diff and bars is fine. For a phone: 4 tiles + facts + diff, no bars.
+- `highlight` is refused on a stats card.
 - Labels ≤ 44 chars. Two bars with the same label read as a mistake: name what differs.
 
 ## Rules for stats cards
