@@ -1,38 +1,36 @@
 ---
 name: add-diagnostic
-description: Checklist for adding or changing a build diagnostic or a type-function emit arm in the Go resolver, so it reaches every nested position and the right call site. Use before touching diagnostics/, cachegen/typefunctions/ or a code's prose.
+description: Checklist for a new or changed diagnostic or emit arm. Use before editing diagnostics/ or typefunctions/.
 ---
 
 # add-diagnostic
 
 Use [the tool mapping](../TOOLS.md) for assistant-specific calls and fallbacks.
 
-Every bug this checklist guards against built clean and failed later: a function that threw at runtime with no build
-error, a member dropped with no note, a note on a call site whose function never runs that code. Each one came from a
-rule written for the root of a type, or for one emit path, and never tried one level deeper.
+Goal: the diagnostic reaches every nested position and the right call site.
+Every bug here built clean, then failed: a runtime throw with no build error, a member dropped with no note,
+a note on a call site whose function never runs that code. Cause: a rule written for a type's root, or one emit path,
+never tried one level deeper.
 
-Work through it in order. Each step names the check that fails when you skip it; if you add a rule no check covers,
-add the check.
+Work in order: each step names the check that fails when skipped. New rule no check covers → add the check.
 
 ## 1. Pick the name, Scope and Level
 
-- **Name**: the code IS a readable kebab-case name, starting with the area prefix of its page section
+- **Name**: the code IS a readable kebab-case name: area prefix of its page section
   (`slugRE` in `internal/diagnostics/catalog.go`), then what went wrong: `validate-symbol-root`,
-  `rpc-handler-throws`. Never a short code like `ABC123`. A shipped name never changes. `register` panics on a
-  name that is not kebab-case or has no known prefix.
-
+  `rpc-handler-throws`. Never a short code like `ABC123`. A shipped name never changes.
+  `register` panics on a name that is not kebab-case or has no known prefix.
 - **Scope** (`internal/diagnostics/catalog.go`): `ScopeRoot` only when the SAME trigger one level deeper is a different
   code (a root code vs its child-position drop). Anything else is `ScopeGraph`. `register` panics without one.
-- **Level**: ask the two questions in [ts-go-runtypes/AGENTS.md](../../../ts-go-runtypes/AGENTS.md) (is code produced?
-  is it broken when it runs?). A function that always throws is `LevelRuntimeError`, never a warning.
+- **Level**: ask the two questions in [diagnostics/AGENTS.md](../../../ts-go-runtypes/internal/diagnostics/AGENTS.md)
+  (is code produced? is it broken when it runs?). A function that always throws is `LevelRuntimeError`, never a warning.
 - A new prefix goes in `slugRE` and needs a subsystem row in `scripts/core/gen-diagnostics-catalog.mjs`, then
   `pnpm miondevx core codegen all`.
 
 ## 2. Write the prose with both examples
 
-`internal/diagnostics/prose.go`: `Summary`, `Fix`, `Example`, and for `ScopeGraph` a `NestedExample` (the same trigger
-one object deeper). `TestDiagExamples_TriggerTheirCode` and `TestDiagExamples_TriggerAtDepth` feed both through a real
-scan.
+`internal/diagnostics/prose.go`: `Summary`, `Fix`, `Example`, + for `ScopeGraph` a `NestedExample` (same trigger
+one object deeper). `TestDiagExamples_TriggerTheirCode` + `TestDiagExamples_TriggerAtDepth` run both in a real scan.
 
 ## 3. Decide "is it data?" in one place
 
@@ -59,10 +57,10 @@ scan.
 
 ## 5. No silent fallback
 
-- An arm that cannot compile returns `CodeNS`, so the entry renders an alwaysThrow with a root code. Never return empty
+- An arm that cannot compile returns `CodeNS` → the entry renders an alwaysThrow with a root code. Never return empty
   code for a value you did not handle: that ships an identity (for `validate`, "accept everything").
-- A property only drops a value through `strippedPropertyDrop` / `indexSignatureValueDrop`, which emit the note. There
-  is no "absorb and carry on" path, and a failing kind with no code throws under `internal-kind-not-compilable` (an internal bug, file it).
+- A property drops a value ONLY through `strippedPropertyDrop` / `indexSignatureValueDrop`, which emit the note.
+- No "absorb and carry on" path. Failing kind, no code → throws `internal-kind-not-compilable` (internal bug, file it).
 
 ## 6. Keep every shortcut in step with the emitter
 
@@ -70,7 +68,7 @@ The noop, JSON-compat and safe-to-share predicates (`noop_types.go`, `json_compa
 "no work needed" WITHOUT walking. When one says yes, the child is never compiled.
 
 - A kind the emitter refuses must answer "no" there too (the `NonDataOf` guard at the top does this for non-data).
-- A child the noop gate skips is still rendered for its findings (the `elided` list in `module.go`); keep new gates on that path.
+- A child the noop gate skips is still rendered for its findings (`elided` list in `module.go`): keep new gates there.
 - The runtime tripwire `noop-predicate mismatch` on stderr means a predicate and an emitter disagree: fix the arm.
 
 ## 7. Add it to the grid
