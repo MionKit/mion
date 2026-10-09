@@ -4,6 +4,7 @@ import {existsSync, readFileSync} from 'node:fs';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {codeToHtml} from 'shiki';
+import {type Chart, chartHtml, parseChart} from './chart.ts';
 
 export const PACKAGE_DIR = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const CARDS_DIR = join(PACKAGE_DIR, 'cards');
@@ -33,6 +34,8 @@ export type Card = {
   padding: number;
   codeSize: number;
   code: string;
+  // Set only for a `stats` fence, which draws tiles and bars instead of code.
+  chart?: Chart;
 };
 
 export const maxColumns = (padding: number, codeSize: number) =>
@@ -97,7 +100,10 @@ export function validateCard(input: unknown, source = 'card'): Card {
   if (!text.code?.trim()) throw cardError(source, 'the code block is empty');
   const code = text.code.replace(/\s+$/, '');
   const codeLines = code.split('\n');
-  codeLines.forEach((line, i) => {
+  const lang = text.lang?.trim() || 'ts';
+  const chart = lang === 'stats' ? parseChart(code, source) : undefined;
+  if (chart && text.highlight?.trim()) throw cardError(source, 'highlight does not apply to a stats block');
+  if (!chart) codeLines.forEach((line, i) => {
     const columns = [...line].length;
     if (columns > columnLimit)
       throw cardError(
@@ -105,18 +111,20 @@ export function validateCard(input: unknown, source = 'card'): Card {
         `code line ${i + 1} is ${columns} columns, the window fits ${columnLimit} (lower codeSize or padding for more)`
       );
   });
-  return {
+  const card: Card = {
     title: text.title.trim(),
     subtitle: text.subtitle?.trim() ?? '',
     file: text.file?.trim() ?? '',
     footer: text.footer?.trim() ?? '',
     badge: text.badge?.trim() ?? '',
-    lang: text.lang?.trim() || 'ts',
-    highlight: parseHighlight(text.highlight ?? '', codeLines.length, source),
+    lang,
+    highlight: chart ? [] : parseHighlight(text.highlight ?? '', codeLines.length, source),
     padding,
     codeSize,
     code,
   };
+  if (chart) card.chart = chart;
+  return card;
 }
 
 function parseSize(
@@ -166,17 +174,19 @@ function fontFaces(): string {
 
 export async function renderCardHtml(card: Card, {zoom = 1}: RenderOptions = {}): Promise<string> {
   const highlighted = new Set(card.highlight);
-  const code = await codeToHtml(card.code, {
-    lang: card.lang,
-    theme: THEME,
-    transformers: [
-      {
-        line(node, line) {
-          if (highlighted.has(line)) this.addClassToHast(node, 'hl');
-        },
-      },
-    ],
-  });
+  const code = card.chart
+    ? chartHtml(card.chart, escapeHtml)
+    : await codeToHtml(card.code, {
+        lang: card.lang,
+        theme: THEME,
+        transformers: [
+          {
+            line(node, line) {
+              if (highlighted.has(line)) this.addClassToHast(node, 'hl');
+            },
+          },
+        ],
+      });
   const footer = card.footer ? `<span>${escapeHtml(card.footer)}</span>` : '';
   const badge = card.badge ? `<code class="badge">${escapeHtml(card.badge)}</code>` : '';
   const slots: Record<string, string> = {

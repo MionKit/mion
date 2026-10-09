@@ -106,6 +106,144 @@
         margin: 0 -32px;
         padding-left: 29px;
       }
+      /* stats fence: tiles + one before / after bar chart */
+      .stats {
+        padding: 32px;
+        display: flex;
+        flex-direction: column;
+        gap: 36px;
+      }
+      .tiles {
+        display: flex;
+        gap: 16px;
+      }
+      .tile {
+        flex: 1;
+        padding: 22px 22px 20px;
+        border-radius: 12px;
+        background: #ffffff08;
+        box-shadow: 0 0 0 1px #ffffff12;
+      }
+      .tile b {
+        display: block;
+        font-size: 50px;
+        font-weight: 800;
+        letter-spacing: -1.5px;
+        line-height: 1;
+        background: linear-gradient(90deg, var(--accent-light), var(--accent));
+        -webkit-background-clip: text;
+        color: transparent;
+      }
+      .tile span {
+        display: block;
+        margin-top: 10px;
+        color: var(--text-muted);
+        font-size: 17px;
+        font-weight: 500;
+        line-height: 1.3;
+      }
+      .diff {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        padding: 18px 22px;
+        border-radius: 12px;
+        background: #ffffff08;
+        box-shadow: 0 0 0 1px #ffffff12;
+        font: 700 30px 'JetBrains Mono', monospace;
+      }
+      .diff .what {
+        font: 600 19px Inter, sans-serif;
+        color: var(--text-footer);
+        margin-right: auto;
+      }
+      .diff .add {
+        color: #3fb950;
+      }
+      .diff .del {
+        color: #f85149;
+      }
+      .diff .squares {
+        display: flex;
+        gap: 4px;
+      }
+      .diff .squares i {
+        width: 18px;
+        height: 18px;
+        border-radius: 3px;
+      }
+      .diff .squares .add {
+        background: #3fb950;
+      }
+      .diff .squares .del {
+        background: #f85149;
+      }
+      .diff .squares .none {
+        background: #ffffff22;
+      }
+      .chart {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+      .chart .row {
+        display: grid;
+        grid-template-columns: 220px 1fr 300px;
+        align-items: center;
+        gap: 20px;
+      }
+      .chart .label {
+        color: var(--text-footer);
+        font-size: 18px;
+        font-weight: 600;
+      }
+      .chart .track {
+        position: relative;
+        height: 26px;
+      }
+      .chart i {
+        position: absolute;
+        inset: 0 auto 0 0;
+        border-radius: 6px;
+      }
+      .chart .before {
+        background: #ffffff1c;
+      }
+      .chart .after {
+        background: linear-gradient(90deg, var(--accent), var(--accent-light));
+        box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 45%, transparent);
+      }
+      .chart .value {
+        font: 500 17px 'JetBrains Mono', monospace;
+        color: var(--text-muted);
+        white-space: nowrap;
+      }
+      .chart .value strong {
+        color: var(--title);
+        font-weight: 700;
+      }
+      .chart .value em {
+        font-style: normal;
+        margin-left: 10px;
+        color: var(--accent-light);
+      }
+      .chart .legend {
+        display: flex;
+        gap: 22px;
+        margin-left: 240px;
+        color: var(--text-muted);
+        font-size: 15px;
+      }
+      .chart .legend span {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .chart .legend i {
+        position: static;
+        width: 22px;
+        height: 12px;
+      }
       .foot {
         display: flex;
         justify-content: space-between;
