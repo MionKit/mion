@@ -1,6 +1,7 @@
 # @mionjs/code-card
 
 Private, never published. Turns a small markdown card (title, subtitle, code, footer) into a shareable PNG: the code in an editor window, coloured by Shiki, in the mion colours.
+A `stats` fence draws big-number tiles and a before / after bar chart instead of code.
 
 ```bash
 pnpm miondevx card new <name> [--tmp]   # scaffold a card
