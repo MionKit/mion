@@ -1,212 +1,83 @@
 ---
 name: rt-enrich-types
-description: Drive the RunTypes enrichment workflow — author and maintain the committed, type-keyed FriendlyText<T> (human labels + error messages) and MockData<T> (realistic sample data) for a type. Use when scaffolding or filling a type's enrichment file, when running the `mion` CLI (`enrich` / `enrich --update` / `enrich --prune` / `enrich --no-emit` / `enrich --require-complete`), when filling `@todo` blanks the compiler left, or when working with the enrichment JSDoc tags (`@rtType`, `@rtIds`, `@rtOrphan`, `@rtOrphanChild`, `@todo`). Covers the mirror directory, the compiler-scaffolds/agent-fills loop, the CLI verbs, and the tsconfig i18n block; the per-family authoring DSLs are the runtypes-friendly-text and runtypes-mock-data skills.
+description: FriendlyText/MockData enrich loop: mion enrich CLI, @todo blanks, @rt* tags, i18n. Use to scaffold/fill.
 ---
 
-# RunTypes enrichment — the compiler scaffolds, you fill the blanks
+# RunTypes enrichment: compiler scaffolds, you fill blanks
 
-Enrichment is the **committed, type-keyed data RunTypes can't generate on its own**: human
-labels + error messages (`FriendlyText<T>`) and realistic sample values (`MockData<T>`).
-Unlike validators/codecs (pure functions of the type, recomputed every build, never
-committed), enrichment is **authored once, committed, and validated against the type
-forever after**. Full design: [docs/AI_ENRICHMENT.md](https://github.com/MionKit/mion/blob/main/docs/AI_ENRICHMENT.md).
-
-The division of labour: **the compiler writes the code; you (the agent) fill the blanks.**
-The compiler scaffolds a real, type-accurate file with every field in place and the gaps
-marked `@todo`; your job is to fill those gaps with believable, valid content.
+- Enrichment = committed, type-keyed data RunTypes cannot generate on its own.
+  - `FriendlyText<T>`: human labels + error messages. `MockData<T>`: realistic sample values.
+- Validators/codecs: pure functions of the type, recomputed every build, never committed.
+- Enrichment: authored once, committed, validated against the type forever after.
+- Full design: [docs/AI_ENRICHMENT.md](https://github.com/MionKit/mion/blob/main/docs/AI_ENRICHMENT.md).
+- Compiler writes the code: real, type-accurate file, every field in place, gaps marked `@todo`.
+- You (the agent) fill the gaps with believable, valid content.
+- ⚠️ Never call an LLM inside a build. Authoring = explicit out-of-band step → reviewable, committed diff.
 
 ## The loop
 
-1. **`enrich`** — the compiler scaffolds the mirror file: one entry per field, correctly
-   typed, each blank marked `@todo`.
-2. **Fill the `@todo`s** — write the labels, messages, and sample values; delete each
-   `@todo` line as you finish it.
-3. **`enrich --no-emit`** — the health check: the compiler validates every authored value
-   against the live type. It fails on WRONG or stale content (a dead field, a leftover
-   carcass) but only REPORTS the unfilled blanks (`@todo` lines, empty `''` labels/messages,
-   empty `[]` pools), since a fresh scaffold is expected to carry them. Fix anything it fails
-   on, repeat until clean.
-   3b. **`enrich --require-complete`** — the "am I done?" gate. Everything `--no-emit` checks,
-   plus it FAILS on any unfilled blank. A blank value ships blank to the app, so it is
-   treated exactly like an unresolved `@todo`. Run it before you call the enrichment finished
-   (it is what CI and a production bundler build enforce).
-4. **`enrich --update`** — when the type later changes, re-sync the file _value-preservingly_
-   (property merge + field rename + orphaning); fill any new `@todo`s it adds.
-5. **`enrich --prune`** — the only destructive op: removes the `@rtOrphan`/`@rtOrphanChild`
-   carcasses left by deleted types/fields.
-6. **`enrich --i18n <locale|all> [<src.ts>] [--update|--prune]`** — scaffold, reconcile,
-   or prune the per-locale translation files of the friendly maps (see **Translations**
-   below).
-7. **`enrich --i18n <locale|all> --no-emit`** — report translation status (enrich-i18n-\*,
-   warnings by default); **`--require-complete`** (or tsconfig `i18n.strict`) makes it FAIL
-   for CI. See **Translations** below.
+1. **`enrich`**: scaffold the mirror file. One entry per field, correctly typed, each blank marked `@todo`.
+2. **Fill the `@todo`s**: labels, messages, sample values. Delete each `@todo` line when done.
+3. **`enrich --no-emit`**: health check. Validates every authored value against the live type.
+   - FAILS on WRONG or stale content (dead field, leftover carcass).
+   - Only REPORTS unfilled blanks: `@todo` lines, empty `''` labels/messages, empty `[]` pools.
+   - (A fresh scaffold is expected to carry blanks.) Fix what fails, repeat until clean.
+   - **3b. `enrich --require-complete`**: the "am I done?" gate. All `--no-emit` checks + FAILS on any blank.
+     A blank value ships blank to the app → treated exactly like an unresolved `@todo`.
+     Run before calling enrichment finished. CI and a production bundler build enforce it.
+4. **`enrich --update`**: type changed → value-preserving re-sync (property merge + field rename + orphaning).
+   Fill any new `@todo`s it adds.
+5. **`enrich --prune`**: the only destructive op. Removes `@rtOrphan`/`@rtOrphanChild` carcasses
+   left by deleted types/fields.
+6. **`enrich --i18n <locale|all> [<src.ts>] [--update|--prune]`**: scaffold, reconcile or prune
+   per-locale translation files of the friendly maps.
+7. **`enrich --i18n <locale|all> --no-emit`**: translation status (enrich-i18n-\*, warnings by default).
+   **`--require-complete`** (or tsconfig `i18n.strict`) makes it FAIL for CI.
 
-Every verb takes **`--tsconfig <path>`**. Without it the CLI finds the config exactly as
-tsc does — searching upward from the working directory. The ONE resolved config feeds
-both the genDir/i18n settings AND type resolution — the CLI reads types under the same
-compiler options as the build. A config that was named or discovered but is missing or
-broken stops the command with an error; only a project with no tsconfig at all falls back
-to the built-in defaults.
+Translations (steps 6-7): CLI, `--update` rules, findings, tsconfig `i18n` block → [translations.md](translations.md).
 
-Never call an LLM inside a build — enrichment authoring is an explicit, out-of-band step
-that produces a reviewable, committed diff.
+## tsconfig
 
-## Where it lives — the mirror directory, one file per family
+- Every verb takes **`--tsconfig <path>`**. Without it: found exactly as tsc does, searching upward from cwd.
+- ONE resolved config feeds genDir/i18n settings AND type resolution (same compiler options as the build).
+- Config named or discovered but missing/broken → command stops with an error.
+- Only a project with no tsconfig at all falls back to built-in defaults.
 
-Enrichment is committed to a **mirror directory** whose tree shadows your source, split
-**per family**: a type defined in `src/models/user.ts` gets its `friendly<Name>`
-consts (`FriendlyText<Name>`) in `<genDir>/enriched/friendly/src/models/user.ts` and its
-`mock<Name>` consts (`MockData<Name>`) in `<genDir>/enriched/mock/src/models/user.ts`. The
-path follows the source file from the tsconfig folder, or from `rootDir` when set
-(`rootDir: "src"` gives `friendly/models/user.ts`). Default `genDir`: `.mion` in the
-source folder (`rootDir`, else the folder all program files share), configurable via the
-`mion` entry under `compilerOptions.plugins` in `tsconfig.json`. One mirror file per family per source
-file, anchored at the type's **definition** (not its call sites); the two families never
-share a file, and each family file imports only its own wrapper type.
+## Mirror directory + JSDoc tags
 
-`enrich --no-emit` flags a mirror outside its family folder as enrich-mirror-moved location drift. `--out`
-writes one combined file instead, as an explicit escape hatch.
+Where files live, consumer imports, tag ownership table → [mirror.md](mirror.md). Read before editing a mirror file.
 
-Each family file holds a strict `import type` back to the source (the rename
-**breadcrumb**) and committed consts you import by name:
+- `@rt`-prefixed tags = compiler-owned. Never edit by hand. Plain `@todo` = yours; compiler only emits it.
+- `--update` never edits your values. `--prune` is the only command that deletes.
 
-```ts
-// src/.mion/enriched/mock/src/models/user.ts — GENERATED, COMMITTED, hand-editable
-import type {User} from '../../../../../models/user';
-import type {MockData} from '@mionjs/run-types';
+## `FriendlyText<T>`: labels + error messages
 
-/** @rtType User#9f3a @rtIds {age: b2, name: a1} */
-// @todo: generated skeleton — fill in real data, then delete this line
-export const mockUser: MockData<User> = {name: {pool: []}, age: {pool: []}};
-```
+- Combined per-field map: `rt$label` (human name) + `rt$errors`.
+- `rt$errors`: one template per declared failable constraint, or exclusive `{rt$default: '…'}` catch-all.
+  - `type` required. Other constraint keys optional in the type: `enrich` scaffolds each, a missing one is reported.
+  - Count-bearing constraints scaffold plural objects.
+  - Scaffold always per-constraint. Switch a node to `rt$default` by hand.
+- Pure data. Rendered at runtime by `createFriendlyText<T>(map)`, or `createFriendlyTextI18n` + committed translations.
+- Full DSL (node shape, constraint keys, `$[…]` placeholders, plurals, `rt$default`, enrich-text-\* checks,
+  runtime rendering) = **`runtypes-friendly-text`** skill. Use it whenever you author or fill a friendly map.
 
-Consumers use a **real, committed import** (never plugin-injected — enrichment is
-committed, so its link is committed too):
+## `MockData<T>`: realistic sample data
 
-```ts
-// src/services/userForm.ts
-import {createMockDataFn} from '@mionjs/run-types/mocking';
-import {friendlyUser} from '../.mion/enriched/friendly/src/models/user';
-import {mockUser} from '../.mion/enriched/mock/src/models/user';
-import type {User} from '../models/user';
-
-createMockDataFn<User>(undefined, {data: mockUser});
-```
-
-## The JSDoc tags
-
-`@rt`-prefixed tags are **compiler-owned** — the compiler reads/writes them; do not edit
-them by hand. A plain `@todo` is **yours** — the compiler only emits it.
-
-| Tag                     | Owner    | Meaning                                                                                            |
-| ----------------------- | -------- | -------------------------------------------------------------------------------------------------- |
-| `@rtType <Name>#<id>`   | compiler | the const's stable structural identity; reconcile matches by this, not the var name                |
-| `@rtIds {field: id, …}` | compiler | each field's child type id — lets `--update` detect a field **rename** and carry your value across |
-| `@rtOrphan …`           | compiler | a whole const whose source type is gone — commented out (value preserved), removed by `--prune`    |
-| `@rtOrphanChild …`      | compiler | a single field removed from the type — commented out (value preserved), removed by `--prune`       |
-| `@todo …`               | **you**  | a blank the compiler scaffolded — fill it in, then **delete the line**                             |
-
-Hand-authored comments are preserved across `--update` and travel with a renamed field.
-`--update` never edits your values; it only adds blanks, flags stale values, and orphans
-gone fields. `--prune` is the only command that deletes.
-
-## `FriendlyText<T>` — labels + error messages
-
-A combined, per-field map: `rt$label` (a human name) + `rt$errors` (one message template per
-declared failable constraint — the mapped type requires each key — or the exclusive
-`{rt$default: '…'}` catch-all; count-bearing constraints scaffold plural objects; the
-scaffold is always per-constraint; switch a node to `rt$default` by hand). Pure data;
-rendered at runtime by `createFriendlyText<T>(map)`, or by `createFriendlyTextI18n` with
-committed translations. The full authoring DSL — node shape, constraint keys, the `$[…]`
-placeholder DSL, plural rules, the `rt$default` mode, the enrich-text-\* checks, runtime
-rendering — is the **`runtypes-friendly-text`** skill; use it whenever you author or
-fill a friendly map.
-
-## Translations — per-locale friendly files
-
-The friendly map you author IS the source language (tsconfig `i18n.sourceLocale`, default
-`en`) — there is no separate default catalog and no separate translation type. Each
-target locale gets committed `FriendlyText<T>` files that shadow the friendly mirror
-tree: `<i18nDir>/<locale>/<rel>.ts` (default `i18nDir`: `<genDir>/enriched/i18n`, resolved
-under the project root; the locale is a path segment, so `pt-BR` works verbatim). The
-const per type is `<locale>_friendly<Name>` (BCP-47 `-` becomes `_`:
-`pt_BR_friendlyUser`), annotated `FriendlyText<Name>`, carrying the SAME
-`@rtType <Name>#<id> @rtIds {…}` markers as the source — the path + const prefix carry
-the locale. Every locale file is generated FROM THE SOURCE TYPE by the same driver as
-the friendly mirror itself; the mirror is a discovery input only (which sources
-translate), never a content input.
-
-```
-mion enrich --i18n <locale> [<src.ts>]           # scaffold (create-only)
-mion enrich --i18n <locale> --update [<src.ts>]  # reconcile from the SOURCE TYPE
-mion enrich --i18n <locale> --prune  [<src.ts>]  # strip @rtOrphan carcasses (the only delete)
-mion enrich --i18n all [--update]                # fan out over tsconfig i18n.locales
-mion enrich --i18n <locale|all> --no-emit        # report status (warnings, exit 0)
-mion enrich --i18n <locale|all> --require-complete  # completeness gate (fails CI)
-```
-
-Without `<src.ts>`, targets are "sources that have a friendly mirror" — path math over
-`<genDir>/enriched/friendly/`; the mirror's content is never read.
-
-- **Scaffold + fill rules** — a scaffold is the type's tree with every string leaf and
-  plural arm as an `@todo` blank (`''`); it NEVER copies source text as if translated.
-  The authoring rules (translate only blank leaves, arms are locale-owned, prune
-  freely) are in the **`runtypes-friendly-text`** skill's Translations section.
-- **`--update`** — the same value-preserving reconcile as `enrich --update` (one driver for
-  every friendly-family file), including the one-level `rt$errors` descent: a newly
-  declared constraint key arrives as a blank of the right kind (string, or a plural with
-  THAT FILE's locale arms); a dropped RECOGNIZED constraint key becomes an
-  `@rtOrphanChild` carcass (unknown keys are author-owned, untouched); a same-key leaf is
-  kept byte-identical; a `rt$default`-only node is never descended. Plural arms are never
-  orphaned, renamed, or down-scoped. Type renames carry across locales via the shared
-  `@rtType` id (const, annotation, marker AND intra-file references are renamed in
-  place).
-- **`enrich --i18n --no-emit` findings** — enrich-i18n-missing-translation missing translation file; enrich-i18n-todo-left unfilled
-  `@todo` blanks; enrich-i18n-out-of-date out of date vs the SOURCE TYPE (a src-driven reconcile would
-  change the file); enrich-i18n-orphans orphan carcasses awaiting review/prune. All Warnings (exit 0)
-  unless tsconfig `i18n.strict: true` OR the `--require-complete` flag flips them to Errors
-  (exit 1); the runtime is always lenient regardless.
-
-The `i18n` block lives on the `mion` tsconfig plugin entry (dormant by default —
-zero change when absent):
-
-```jsonc
-{
-  "name": "mion",
-
-  "i18n": {
-    "sourceLocale": "en", // language the source FriendlyText maps are written in
-    "dir": "src/.mion/enriched/i18n", // translation subtree root (default <genDir>/enriched/i18n)
-    "locales": ["es", "pl", "pt-BR"], // target locales (the source locale is NOT listed)
-    "strict": false, // when true, the i18n check fails on incompleteness by default (same as --require-complete)
-  },
-}
-```
-
-Runtime rendering — `createFriendlyTextI18n`, `resolveLocale` matching, per-leaf fallback,
-type-driven `$[val]` rendering (Currency / date bounds) — is covered in the
-**`runtypes-friendly-text`** skill.
-
-## `MockData<T>` — realistic sample data
-
-Per-field value pools and ranges (`pool`, `min`/`max`, `rt$items`/`rt$length`, `rt$optional`)
-that feed `createMockDataFn<T>(undefined, { data })`: the mechanical generator keeps handling
-structure + format-correctness, you supply _believable_ values. The full authoring DSL
-— node shapes per field kind, the enrich-mock-\* checks, end-to-end wiring — is the
-**`runtypes-mock-data`** skill; use it whenever you author or fill a mock map.
+- Per-field pools + ranges: `pool`, `min`/`max`, `rt$items`/`rt$length`, `rt$optional`.
+- Feeds `createMockDataFn<T>(undefined, { data })`.
+- Mechanical generator keeps handling structure + format-correctness; you supply _believable_ values.
+- Full DSL (node shapes per field kind, enrich-mock-\* checks, end-to-end wiring) = **`runtypes-mock-data`** skill.
+  Use it whenever you author or fill a mock map.
 
 ## Authoring checklist
 
-- The `enrich` scaffold lays out every field; write values that fit each field's kind + format.
-- Fill **every `@todo`** the scaffold left AND every blank value (`''` label/message, `[]`
-  pool), then **delete that `@todo` line**. A leftover blank is treated exactly like an
-  unresolved `@todo` by the completeness gate.
-- Never touch `@rt*` tags or `@rtOrphan`/`@rtOrphanChild` comment blocks — the compiler
-  owns them; `--prune` clears orphans.
-- After editing, run `enrich --no-emit` and resolve every Error. Before you call the
-  enrichment finished, run `enrich --require-complete` (and `enrich --i18n <locale|all>
---require-complete` for translations) — it fails until every `@todo` and blank is filled.
-- When the type changes, prefer `enrich --update` (keeps your values) over regenerating.
-- The family-specific rules — friendly constraint keys, plural arms, translation fill
-  discipline, mock pools/ranges — are in the **`runtypes-friendly-text`** and
-  **`runtypes-mock-data`** skills' checklists.
+- `enrich` scaffold lays out every field. Write values that fit each field's kind + format.
+- Fill **every `@todo`** AND every blank value (`''` label/message, `[]` pool), then **delete that `@todo` line**.
+  A leftover blank = unresolved `@todo` for the completeness gate.
+- Never touch `@rt*` tags or `@rtOrphan`/`@rtOrphanChild` comment blocks. Compiler owns them; `--prune` clears orphans.
+- After editing: `enrich --no-emit`, resolve every Error.
+- Before calling it finished: `enrich --require-complete` (+ `enrich --i18n <locale|all> --require-complete`
+  for translations). Fails until every `@todo` and blank is filled.
+- Type changed → prefer `enrich --update` (keeps your values) over regenerating.
+- Family rules (friendly constraint keys, plural arms, translation fill discipline, mock pools/ranges):
+  **`runtypes-friendly-text`** and **`runtypes-mock-data`** skills' checklists.
