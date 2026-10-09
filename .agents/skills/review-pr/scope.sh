@@ -21,7 +21,10 @@ merge_base=$(git merge-base "$base_ref" HEAD 2>/dev/null) || {
 range="$merge_base..HEAD"
 
 section() { printf '\n## %s\n' "$1"; }
-indent()  { local out; out=$(cat); if [ -z "$out" ]; then echo "  (none)"; else printf '%s\n' "$out" | sed 's/^/  /'; fi; }
+indent()  {
+  local out; out=$(cat)
+  if [ -z "$out" ]; then echo "  (none)"; else printf '%s\n' "$out" | sed 's/^/  /'; fi
+}
 area()    { awk -F/ '{ if ($1=="packages" && NF>1) print $1"/"$2; else print $1 }'; }
 
 printf '## Target\n'
@@ -69,6 +72,7 @@ section "Test files changed"
 printf '%s\n' "$tests" | grep -v '^$' | indent
 
 section "Source areas changed with no test change"
-src_areas=$(printf '%s\n' "$changed" | grep -vE '\.(spec|test)\.ts$|_test\.go$' | grep -E '^(packages|ts-go-runtypes)/' | area | sort -u)
+src_areas=$(printf '%s\n' "$changed" | grep -vE '\.(spec|test)\.ts$|_test\.go$' \
+  | grep -E '^(packages|ts-go-runtypes)/' | area | sort -u)
 test_areas=$(printf '%s\n' "$tests" | grep -v '^$' | area | sort -u)
 comm -23 <(printf '%s\n' "$src_areas" | grep -v '^$') <(printf '%s\n' "$test_areas" | grep -v '^$') | indent

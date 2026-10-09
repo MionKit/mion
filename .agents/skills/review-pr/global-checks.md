@@ -1,16 +1,11 @@
 # Global review checks
 
-The criteria that are not written in any AGENTS.md: ordinary good-engineering
-review. This file is the **second** source and the smaller one. The guidelines
-themselves live in the AGENTS.md files above each changed directory, they are
-read in full at review time, and they win wherever the two overlap.
+Ordinary engineering checks no AGENTS.md states. Second, smaller source: AGENTS.md files above
+each changed dir are the guidelines, read in full every review, and win on overlap.
 
-It is a **catalog to filter**, never a list to run whole, and never a substitute
-for reading those files.
-
-Each item has an id, so the review list and the final report point at the same
-thing. Include an item only when its trigger is in the
-diff, and say in the review list which groups you dropped and why.
+- Catalog to filter: never run whole, never a substitute for reading those files.
+- Include an item only when its trigger is in the diff. Ids shared by review list + final report.
+- Say in the review list which groups you dropped and why.
 
 ## S - spec and description (include always)
 
