@@ -1,42 +1,27 @@
 # Request Mocking
 
-Intercept, mock, modify, and block network requests.
+Intercept, mock, modify, block network requests.
 
 ## CLI Route Commands
 
 ```bash
-# Mock with custom status
-playwright-cli route "**/*.jpg" --status=404
-
-# Mock with JSON body
+playwright-cli route "**/*.jpg" --status=404                     # custom status
 playwright-cli route "**/api/users" --body='[{"id":1,"name":"Alice"}]' --content-type=application/json
-
-# Mock with custom headers
 playwright-cli route "**/api/data" --body='{"ok":true}' --header="X-Custom: value"
-
-# Remove headers from requests
-playwright-cli route "**/*" --remove-header=cookie,authorization
-
-# List active routes
-playwright-cli route-list
-
-# Remove a route or all routes
-playwright-cli unroute "**/*.jpg"
-playwright-cli unroute
+playwright-cli route "**/*" --remove-header=cookie,authorization  # strip request headers
+playwright-cli route-list                                         # active routes
+playwright-cli unroute "**/*.jpg"                                 # one route
+playwright-cli unroute                                            # all routes
 ```
 
 ## URL Patterns
 
-```
-**/api/users           - Exact path match
-**/api/*/details       - Wildcard in path
-**/*.{png,jpg,jpeg}    - Match file extensions
-**/search?q=*          - Match query parameters
-```
+- `**/api/users`: exact path. `**/api/*/details`: wildcard in path.
+- `**/*.{png,jpg,jpeg}`: file extensions. `**/search?q=*`: query params.
 
 ## Advanced Mocking with run-code
 
-For conditional responses, request body inspection, response modification, or delays:
+For conditional responses, request body inspection, response modification, delays.
 
 ### Conditional Response Based on Request
 

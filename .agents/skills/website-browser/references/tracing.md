@@ -1,139 +1,51 @@
 # Tracing
 
-Capture detailed execution traces for debugging and analysis. Traces include DOM snapshots, screenshots, network activity, and console logs.
+Detailed execution traces for debugging + analysis: DOM snapshots, screenshots, network activity, console logs.
 
 ## Basic Usage
 
 ```bash
-# Start trace recording
 playwright-cli tracing-start
-
-# Perform actions
 playwright-cli open https://example.com
 playwright-cli click e1
 playwright-cli fill e2 "test"
-
-# Stop trace recording
 playwright-cli tracing-stop
 ```
 
 ## Trace Output Files
 
-When you start tracing, Playwright creates a `traces/` directory with several files:
+Tracing writes to `.playwright-cli/traces/`:
 
-### `trace-{timestamp}.trace`
-
-**Action log** - The main trace file containing:
-- Every action performed (clicks, fills, navigations)
-- DOM snapshots before and after each action
-- Screenshots at each step
-- Timing information
-- Console messages
-- Source locations
-
-### `trace-{timestamp}.network`
-
-**Network log** - Complete network activity:
-- All HTTP requests and responses
-- Request headers and bodies
-- Response headers and bodies
-- Timing (DNS, connect, TLS, TTFB, download)
-- Resource sizes
-- Failed requests and errors
-
-### `resources/`
-
-**Resources directory** - Cached resources:
-- Images, fonts, stylesheets, scripts
-- Response bodies for replay
-- Assets needed to reconstruct page state
-
-## What Traces Capture
-
-| Category | Details |
-|----------|---------|
-| **Actions** | Clicks, fills, hovers, keyboard input, navigations |
-| **DOM** | Full DOM snapshot before/after each action |
-| **Screenshots** | Visual state at each step |
-| **Network** | All requests, responses, headers, bodies, timing |
-| **Console** | All console.log, warn, error messages |
-| **Timing** | Precise timing for each operation |
+- `trace-{timestamp}.trace`: action log. Every action (clicks, fills, hovers, keyboard input, navigations).
+  Also DOM snapshots before + after each action, screenshots per step, timing, console messages, source locations.
+- `trace-{timestamp}.network`: all HTTP requests + responses, headers + bodies, resource sizes, failures + errors.
+  Timing: DNS, connect, TLS, TTFB, download.
+- `resources/`: cached images, fonts, stylesheets, scripts, response bodies for replay, assets to rebuild page state.
 
 ## Use Cases
 
-### Debugging Failed Actions
-
-```bash
-playwright-cli tracing-start
-playwright-cli open https://app.example.com
-
-# This click fails - why?
-playwright-cli click e5
-
-playwright-cli tracing-stop
-# Open trace to see DOM state when click was attempted
-```
-
-### Analyzing Performance
-
-```bash
-playwright-cli tracing-start
-playwright-cli open https://slow-site.com
-playwright-cli tracing-stop
-
-# View network waterfall to identify slow resources
-```
-
-### Capturing Evidence
-
-```bash
-# Record a complete user flow for documentation
-playwright-cli tracing-start
-
-playwright-cli open https://app.example.com/checkout
-playwright-cli fill e1 "4111111111111111"
-playwright-cli fill e2 "12/25"
-playwright-cli fill e3 "123"
-playwright-cli click e4
-
-playwright-cli tracing-stop
-# Trace shows exact sequence of events
-```
+- Failed action (e.g. a click fails): open the trace, see DOM state when click was attempted.
+- Performance: trace the page load, view network waterfall to find slow resources.
+- Evidence: record a full user flow for documentation. Trace shows exact event sequence.
 
 ## Trace vs Video vs Screenshot
 
 | Feature | Trace | Video | Screenshot |
 |---------|-------|-------|------------|
-| **Format** | .trace file | .webm video | .png/.jpeg image |
+| **Format** | .trace file (Trace Viewer) | .webm video | .png/.jpeg image |
 | **DOM inspection** | Yes | No | No |
 | **Network details** | Yes | No | No |
 | **Step-by-step replay** | Yes | Continuous | Single frame |
 | **File size** | Medium | Large | Small |
-| **Best for** | Debugging | Demos | Quick capture |
+| **Best for** | Debugging | Demos, documentation | Quick capture |
 
 ## Best Practices
 
-### 1. Start Tracing Before the Problem
-
-```bash
-# Trace the entire flow, not just the failing step
-playwright-cli tracing-start
-playwright-cli open https://example.com
-# ... all steps leading to the issue ...
-playwright-cli tracing-stop
-```
-
-### 2. Clean Up Old Traces
-
-Traces can consume significant disk space:
-
-```bash
-# Remove traces older than 7 days
-find .playwright-cli/traces -mtime +7 -delete
-```
+- Start tracing before the problem: trace the whole flow, not just the failing step.
+- Traces eat disk. Remove ones older than 7 days: `find .playwright-cli/traces -mtime +7 -delete`.
 
 ## Limitations
 
-- Traces add overhead to automation
-- Large traces can consume significant disk space
-- Some dynamic content may not replay perfectly
+- Traces add overhead to automation.
+- Large traces can consume significant disk space.
+- Some dynamic content may not replay perfectly.
