@@ -105,7 +105,7 @@ export function chartHtml(chart: Chart, escape: (text: string) => string): strin
   return `<div class="stats">${tiles}${facts}${diff}${bars}</div>`;
 }
 
-// GitHub's diffstat: +added in green, -removed in red, five squares split by share.
+// Mirrors GitHub's diffstat line.
 function diffHtml(diff: Diff, escape: (text: string) => string): string {
   const added = toNumber(diff.added);
   const removed = toNumber(diff.removed);
