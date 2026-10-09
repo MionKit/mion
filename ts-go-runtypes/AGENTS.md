@@ -1,122 +1,86 @@
-# ts-go-runtypes guidelines (the Go resolver)
+# ts-go-runtypes (the Go resolver)
 
-The Go program is the side-channel type resolver behind the `RunTypes/*` packages; the JS packages are the only public surface. Compiler-driven: it reaches into tsgo's checker via the `oxc-project/tsgolint` shim to answer call-site type queries. Go ≥ 1.26 (enforced by [go.mod](go.mod)); tests: `go -C ts-go-runtypes test ./internal/... ./cmd/...`.
+Side-channel type resolver behind `RunTypes/*`. Read before touching anything under `ts-go-runtypes/`.
 
-Test seam with the JS side: the Vite plugin's tests spawn the compiled `mion-bin/mion`, so the binary MUST be built before `pnpm test` (the root `pretest` covers it, see [SETUP.md → Build](../SETUP.md#build)). After modifying Go sources, rebuild `mion-bin/mion` before re-running JS plugin tests. Go-only tests exercise the packages directly and don't need the prebuilt binary — but they DO read the built marker dist (`packages/run-types/dist`); `pnpm run check:builds` covers both.
+- Compiler-driven: reaches tsgo's checker via the `oxc-project/tsgolint` shim, answers call-site type queries.
+- JS packages are the only public surface.
+- Go ≥ 1.26 (enforced by [go.mod](go.mod)). Tests: `go -C ts-go-runtypes test ./internal/... ./cmd/...`.
 
-## ⚠️ IMPORTANT: every Go walk is a visitor, and a test proves it reaches every node
+## Test seam with JS
 
-Any Go code that walks a tree or graph follows TypeScript's own pattern (its node builder and `.d.ts` emitter). This covers a `RunType` graph, a checker type, tsgo syntax nodes or our own declaration kinds. The rules:
+- Vite plugin tests spawn `mion-bin/mion` → MUST be built before `pnpm test` (root `pretest` does it).
+  See [SETUP.md → Build](../SETUP.md#build). After a Go edit: rebuild it before re-running JS plugin tests.
+- Go-only tests need no binary, but DO read built marker dist `packages/run-types/dist`.
+- `pnpm run check:builds` covers both.
 
-- **One switch per walk, one arm per kind.** Dispatch on the node's kind in ONE switch, and each kind gets its own function, named the way TypeScript names it (`transformTypeReference`, `expandClassDecl`). Never re-test the same kinds in helpers around it: `typeExprCore` (convert/printtype.go) and `visitTypeUse` (compiler/apitypes/outside.go) are the models.
-- **A mode is a flag checked inside an arm**, never a second dispatch before the switch or a nil-field check (see `printFlags` in convert/print.go, TypeScript's `nodebuilder.Flags`).
-- **Children and descendants are always visited.** Over a `RunType` use `reflection.WalkGraph` / `EachRefSlot`; over syntax use `ForEachChild`; never a hand-picked `range node.Children` for a whole-type question (see the walk rule below).
-- **Every walk ships with its coverage test.** It loops over every kind and fails when one has no row saying which arm handles it, or that it is refused or only walked through. It also checks each row against the real code. Copy an existing one: `TestPrinters_EveryKindHasAnArm` and `TestPrintersCoverRunType` (convert), `TestOutside_EveryTypeNodeKindHasARow` (apitypes), `TestNonDataAgreement_EveryKindHasARow` (typefunctions), `TestEachRefSlot_CoversEveryChildSlot` (reflection). Break one row on purpose and watch the test fail before you trust it.
+## ⚠️ Every Go walk is a visitor, and a test proves it reaches every node
+
+Any walk over a `RunType` graph, checker type, tsgo syntax or our declaration kinds.
+Pattern = TypeScript's own (its node builder + `.d.ts` emitter).
+
+- One switch per walk, one arm per kind. Each kind → own fn, named TS-style:
+  `transformTypeReference`, `expandClassDecl`.
+- Never re-test the same kinds in helpers around it. Models: `typeExprCore` (convert/printtype.go),
+  `visitTypeUse` (compiler/apitypes/outside.go).
+- A mode = a flag checked inside an arm. Never a second dispatch before the switch, never a nil-field check.
+  Model: `printFlags` (convert/print.go), TypeScript's `nodebuilder.Flags`.
+- Always visit children + descendants: `RunType` → `reflection.WalkGraph` / `EachRefSlot`, syntax → `ForEachChild`.
+- Never a hand-picked `range node.Children` for a whole-type question: [walk rule](internal/reflection/AGENTS.md).
+- Coverage test per walk: loops every kind, fails on a kind with no row (its arm, refused, or only walked through).
+  It also checks each row against the real code.
+- Copy one: `TestPrinters_EveryKindHasAnArm` + `TestPrintersCoverRunType` (convert),
+  `TestOutside_EveryTypeNodeKindHasARow` (apitypes), `TestNonDataAgreement_EveryKindHasARow` (typefunctions),
+  `TestEachRefSlot_CoversEveryChildSlot` (reflection).
+- Break one row on purpose, watch the test fail, then trust it.
 
 ## Directory map
 
-- [cmd/](cmd/) — the resolver binary (`mion`), its WASM twin (`mion-wasm`), and the `gen-*` / `extract-*` codegen commands (fn-hashes, diag-catalog, ts-constants, builtin-purefn ids, run-type-kind, type-formats, plugin-keys, sourcerewrite-fixtures, fn-bodies).
-- [internal/](internal/) — pipeline packages (below). Our only writable Go tree apart from `cmd/`.
-- `go build` outputs are ignored ([.gitignore](.gitignore)): an extensionless file at the module root or inside a `cmd/<x>/` dir is a binary, never a source. Every command runs from source (`go run ./cmd/<x>`), and a committed binary fails the `check:tree` sweep.
-- ⚠️ [third_party/](third_party/) — `oxc-project/tsgolint` submodule (which nests `microsoft/typescript-go`). **OFF-LIMITS — never edit anything under here, including the patches at `third_party/tsgolint/patches/`.** Local changes are discarded by `git submodule update`, and `.gitmodules` declares `ignore = dirty` so accidental edits are invisible to `git status`. Bumping the pinned revision is a separate intentional commit on the submodule pointer. If a change seems genuinely required, STOP and surface the case — the patch workflow is in [SETUP.md → Patching tsgolint](../SETUP.md#patching-tsgolints-typescript-go).
+- [cmd/](cmd/): resolver binary (`mion`), WASM twin (`mion-wasm`), `gen-*` / `extract-*` codegen commands:
+  fn-hashes, diag-catalog, ts-constants, builtin-purefn ids, run-type-kind, type-formats, plugin-keys,
+  sourcerewrite-fixtures, fn-bodies.
+- [internal/](internal/): pipeline packages (below). Our only writable Go tree besides `cmd/`.
+- `go build` outputs ignored ([.gitignore](.gitignore)): extensionless file at module root or in `cmd/<x>/` = binary.
+- Run every command from source (`go run ./cmd/<x>`). A committed binary fails the `check:tree` sweep.
+- ⚠️ [third_party/](third_party/): `oxc-project/tsgolint` submodule (nests `microsoft/typescript-go`). OFF-LIMITS.
+  - Never edit anything under it, patches at `third_party/tsgolint/patches/` included.
+  - `git submodule update` discards local edits. `.gitmodules` `ignore = dirty` hides them from `git status`.
+  - Bumping the pinned revision = separate intentional commit on the submodule pointer.
+  - Change seems required → STOP, surface it. [Patching tsgolint](../SETUP.md#patching-tsgolints-typescript-go).
+- [compiler/](internal/compiler/): source transformers (program, marker, builders, comptimeargs, resolver,
+  sourcerewrite, entrymodules, batchcompile).
+- [cachegen/](internal/cachegen/): cache generation (runtype, typefunctions, purefunctions, purefnindex, purefnids,
+  operations, diskcache, hashid).
+- [enrichment/](internal/enrichment/): FriendlyText / MockData codegen (astcheck, cldr, mirror, enrichgen).
+  `enrichgen` = shared plan/config/check leaf the CLI verb and daemon op both call → they never drift.
+- [diagnostics/](internal/diagnostics/): diagnostic catalog + severity messages, shared by resolver and lint plugin.
+- [reflection/](internal/reflection/): canonical RunType reflection model every stage shares
+  (kinds, subkinds, families, schema checks, temporal registry, ref-slot walking).
+- [protocol/](internal/protocol/): Go ⇄ JS wire envelope (ops, Request/Response, scan sites, Site demand).
+- Auxiliary, small, no cross-package state: `constants`, `jsquote`, `testfixtures` (F1..F17 fixtures), `textpos`.
 
-Working subpackages under `internal/`:
+## Area rules
 
-- [compiler/](internal/compiler/) — source transformers (program, marker, builders, comptimeargs, resolver, sourcerewrite, entrymodules, batchcompile).
-- [cachegen/](internal/cachegen/) — cache generation (runtype, typefunctions, purefunctions, purefnindex, purefnids, operations, diskcache, hashid).
-  ⚠️ **What a pure fn's id is made of is load bearing.** Read [purefunctions/AGENTS.md](internal/cachegen/purefunctions/AGENTS.md) before changing it: the hash of the SHIPPED body, and the dependency ordering it forces, each buy a property that a location-based id drops, and the alternatives already ruled out are listed there with their counterexamples.
-  `purefnindex` serves the pure fns an INSTALLED package ships, the marker package's own built-ins included: one lane, no table compiled into the binary. Every mion build syncs the package's own pure-fn CACHE MODULES into one directory in its output directory, `mion-pure-fns/` (`constants.PureFnArtifactDir`): the same `<package>/<hash>.js` files generate writes under `<genDir>/types/pf/`, byte for byte, plus an `index.json` mapping each binding name and source file to its id (shape in `purefnindex/artifact.go`). A consumer's compiler decodes the index on first touch of the package (a `.d.ts` import is a NAME, never an id) and opens a module only for an id its build demands, so memory follows what the consumer uses, never a bundle. When no artifact directory is found, the rows are extracted from the package's TypeScript sources with the same extractor a build runs. `@mionjs/run-types` is on the artifact lane like everything else: its own build runs `mion compile`, which writes `dist/mion-pure-fns/` beside the emit, and its dist stays hollowed so those bodies never reach a consumer's bundle twice. Five rules hold it together:
-  - **The bundle is never opened, and a module only on demand.** A bundle is whatever the library's bundler produced, minified, chunked, tree-shaken, in the library's emit mode; reading it costs its size and misses what the bundler dropped. The artifact is rendered by the library's own generate step from the whole program (`renderPureFnArtifact`, `resolver/render.go`: the pure-fn slice of the final graph, per entry whatever the module mode, imports relativized as on disk), so a registration the bundle lost is still there. `ReadModule` reads one tuple off one module in whatever emit mode the library used (a `functions`-mode module carries the body as a live function literal whose block text is the code string). `TestArtifact_BundleIsNeverOpened` and `TestArtifact_OnlyDemandedModulesAreOpened` pin both with a recording FS.
-  - **An id is matched, never decoded.** It is the package plus a hash of the body that ships, so it says nothing about where that body lives; a served row keeps the library's id verbatim, and its module path is derived from the id (`ModulePath`). A demanded id a package with rows does not produce is `purefn-not-registered`; a package that ships nothing to serve at all is the ERROR `purefn-package-not-built`, reported per id, the marker package included: the consumer's pure fn cannot be built, so the package has to be built with mion (or ship its sources). A file this compiler cannot use (an index of a newer `format` or not an index, a listed module missing or holding no tuple for its id) is the warning `purefn-artifact-unreadable` naming the file, and two artifact directories of one package disagreeing on an id (a different body when demanded, a different name in the index) is the error `purefn-artifact-conflict`; identical copies from an ESM and a CJS build merge silently. A body no build demands is never compared.
-  - **`purefunctions` produces the ids, not this package.** `resolveCtx` already resolves a registration recursively and memoises it, following a dependency through its import. `purefnindex` only chooses which files to hand it and indexes what comes back. It reuses the SESSION's checker and `FileCache` whenever the session's program already holds those sources (in-repo, via the `source` condition), because two resolvers hashing the same bodies would split one function into two entries.
-  - **A package's own build is the single producer of its built-ins.** `collectProgramPureFns` drops every `purefnids.Has` entry from the whole-program graph, because an in-repo consumer resolves the marker package through the `source` condition and would otherwise produce a second body for an id the table already serves. That filter lifts for the package that OWNS them (`sess.ownPackage()`), which is how its artifact comes out complete. The rewrite filter in `extractPureFnsForScan` does NOT lift: its own registration call sites stay unrewritten, so they keep their explicit id from `pure-fn-ids.generated.ts` and no emitted import dangles when nothing demands the module. `cmd/gen-builtin-purefns` writes that TS file and the Go id constants from one extractor pass, so the constants and the served bodies cannot disagree.
-  - **A dep resolves from the package that names it.** The walk of a package root for artifact directories skips `node_modules` and hidden dirs (a consumer's `.mion` holds served COPIES of other packages' rows), visits every child of a directory before descending (a shallower directory is listed first) and never enters an artifact directory; a row's dep on another package is located by a node_modules walk from that row's package root, so a nested install lands on the copy the package was built against. Only the building package's own rows go into its artifact: a workspace sibling the program reaches through the `source` condition belongs to its own.
-  The output side: generate returns the artifact as a map (path inside the directory to content) on the Response, no second copy under `<genDir>/types/`; `mion compile` syncs it into the tsconfig `outDir` and each bundler adapter into its own output dir from its post-bundle hook (`SyncArtifactDir` and its TS twin: write-on-change, delete every other file, remove the directory when empty), because generate runs at `buildStart`, before a bundler empties that dir.
-- [enrichment/](internal/enrichment/) — FriendlyText / MockData codegen (astcheck, cldr, mirror, enrichgen — the shared plan/config/check leaf the CLI verb and the daemon op both call, so they can never drift).
-- [diagnostics/](internal/diagnostics/) — diagnostic catalog + severity messages shared by resolver and lint plugin.
-- [reflection/](internal/reflection/) — the canonical RunType reflection model every pipeline stage shares (kinds, subkinds, families, schema checks, temporal registry, ref-slot walking).
-- [protocol/](internal/protocol/) — Go ⇄ JS wire envelope (ops, Request/Response, scan sites, Site demand).
-- Auxiliary (kept small, no cross-package state): `constants`, `jsquote`, `testfixtures` (F1–F17 fixtures), `textpos`.
+- Whole-type rules: [reflection/AGENTS.md](internal/reflection/AGENTS.md). Read before a rule over a whole type.
+- ⚠️ Pure fn id = SHIPPED body hash: [purefunctions/AGENTS.md](internal/cachegen/purefunctions/AGENTS.md).
+  Read before changing what an id is made of: ruled-out alternatives + counterexamples live there.
+- Pure fns from installed packages: [purefnindex/AGENTS.md](internal/cachegen/purefnindex/AGENTS.md).
+  Read before touching the `mion-pure-fns/` artifact lane.
+- JSON decoder guards, format error keys: [typefunctions/AGENTS.md](internal/cachegen/typefunctions/AGENTS.md).
+  Read before adding a decoder arm, format or format param.
+- Diagnostic Levels: [diagnostics/AGENTS.md](internal/diagnostics/AGENTS.md). Read before picking a code's Level.
+- Platform classes, `URL`, readonly: [typeid/AGENTS.md](internal/cachegen/runtype/typeid/AGENTS.md).
+  Read before changing what counts as data or what enters a type id.
+- Installed package types: [compiler/AGENTS.md](internal/compiler/AGENTS.md). Read before reusing shipped ids or code.
+- New or changed diagnostic or emit arm → run [add-diagnostic](../.agents/skills/add-diagnostic/SKILL.md).
 
-## ⚠️ MustValidateJson: a JSON decoder checks the wire shape before it converts
+## Marker test coverage rule
 
-Validation runs on the RESTORED value, after decode, so the decoder is the one check between attacker-controlled JSON and a constructor (`new Date(true)` is epoch 1, `BigInt('')` is `0n`, `new Set(null)` is an empty set). The rule: a restore arm converts only the exact form the encoder writes and leaves anything else untouched for validate to refuse, with a `typeof`, `Array.isArray`, `Number.isInteger` or bigint-regex check on the SAME variable it converts.
+Any test exercising the marker API: Go under [internal/](internal/) AND the JS plugin under
+[packages/devtools/test/](../packages/devtools/test/).
 
-- The table of kinds that convert is [reflection/must_validate_json.go](internal/reflection/must_validate_json.go) (`MustValidateJson`). Adding a kind whose decoder calls a constructor on a wire value means adding it there AND guarding the arm on every JSON road (`json_restore.go`, `json_compact_restore.go`, `json_restore_safe.go`).
-- Two checks fail otherwise: `must_validate_json_test.go` in [cachegen/typefunctions](internal/cachegen/typefunctions/) (per kind, and the inverse: a transform under an unflagged kind) and the `GC-GUARD` generated-code oracle on the JS side (`packages/run-types/test/fuzz/security/generatedCodeOracle.ts`, run over the nasty corpus in `pnpm test` and by the `secgen` fuzz lane).
-
-## ⚠️ A new format or param needs error-key samples, or CI fails
-
-FriendlyText `rt$errors` keys are read from each format's own validation-errors code (`formats.ErrorKeysFor`, [cachegen/typefunctions/formats/errorkeys.go](internal/cachegen/typefunctions/formats/errorkeys.go)), never from a hand list. The editor's per-format key list is the union over sample params in [errorkeys_samples.go](internal/cachegen/typefunctions/formats/errorkeys_samples.go), so:
-
-- A new format needs samples reaching every branch of its error code (`TestErrorKeySamples_EveryFormat` fails otherwise), and a row in `ParamsByFormat` in `packages/run-types/test/types/formatErrorKeysCoverage.test.ts` (typecheck fails otherwise).
-- A new param needs a sample, or an `excludedParams` entry with a written reason; `formatErrorKeysCoverage.test.ts` fails typecheck until then.
-- Then run `pnpm miondevx core codegen errorkeys`; CI's `codegen all --check` fails on a stale `formatErrorKeys.generated.ts`.
-
-## ⚠️ A rule that holds for a whole type is implemented as a walk, never as a look at the root
-
-Rules kept landing on the root node only (the prototype-named property check, the circular-reference skeleton for a Map or Set, the silent-`any` guards, the bare-generic check), each found by accident when a member one object deeper slipped through. Three things make that class of bug a failing test instead of a review question:
-
-- **One walk per side.** A standalone pass over a `RunType` graph (a build rule, a "does this graph contain X" predicate) goes through `reflection.WalkGraph` ([reflection/walk.go](internal/reflection/walk.go)): it resolves refs, guards cycles and descends through `EachRefSlot`, so a slot added to `RunType` reaches every pass without a change to the pass. On the checker side the twins are `detectSilentAnyInGraph` (resolver, over `*checker.Type`) and `marker.EachWrittenTypeRef` (over written syntax, following each reference into the declaration it names). A hand-rolled `for _, child := range node.Children` in a new pass is the bug. The kind-aware noop and compat predicates in [cachegen/typefunctions](internal/cachegen/typefunctions/) are the one deliberate exception: each mirrors its own emitter's arms and must stay per-kind. Object members there go through `objectMembers`, THE member list a codec walks (declared children plus the patternProperties entries as synthetic index signatures).
-- **The slot list is gated.** `EachRefSlot` ([reflection/refslots.go](internal/reflection/refslots.go)) is the one enumeration of child-bearing slots; `refslots_test.go` fills every `*RunType` / `[]*RunType` field through Go reflection and fails when one is not visited, so a new slot cannot go unwired.
-- **Every diagnostic declares its Scope.** A registered code says whether it fires for the root type by design (`ScopeRoot`), anywhere in the type (`ScopeGraph`) or not from a type at all (`ScopeNotSource`); `register` panics without it. A `ScopeGraph` code with an `Example` in [diagnostics/prose.go](internal/diagnostics/prose.go) must also carry a `NestedExample`, the same trigger one object deeper, and `TestDiagExamples_TriggerAtDepth` in [compiler/resolver](internal/compiler/resolver/) feeds it through the real scan. That "same test, one level deeper" twin is the cheapest detector this class has: write it for any new rule, gate or not.
-
-- **"Is it data?" is decided once.** `reflection.NonDataOf` ([reflection/nondata.go](internal/reflection/nondata.go)) is the Go mirror of `DataOnly<T>`: the strip checks, the root codes, the JSON noop / compat / safe-to-share shortcuts and the wire `NotSupported` flag all read it. A hand-written kind test in an emitter or a shortcut is the bug; `nondata_agreement_test.go` in [cachegen/typefunctions](internal/cachegen/typefunctions/) fails when a kind has no row or a family's root disagrees.
-- **A class the platform declares is not data, found by where it is declared.** `typeid.NotDataBuiltinOf` ([cachegen/runtype/typeid/libglobal.go](internal/cachegen/runtype/typeid/libglobal.go)) says so for an interface or class with at least one declaration in the platform, as long as no other declaration adds a member the platform lacks (its own or inherited) or extends something. An empty merge, a `var` or a restated member list changes nothing. No name list, ever, and no folder test.
-  - **The platform is the bundled lib plus the environment the project loads**, `program.EnvironmentFile` ([compiler/program/environment.go](internal/compiler/program/environment.go)): what the tsconfig `types` list resolves to, what any `/// <reference types>` resolves to (a dependency's included: `@types/express` loads `node`), and every file those pull in through `/// <reference>`. Imports are never followed. Inside the environment only a script file or a `declare global` block counts, so a class a loaded package exports from a module stays data. It is built once per Program and handed to the cache with `Cache.SetEnvironment` on every program swap.
-  - **Settled limits, not bugs:** an ambient `declare module "x"` class in a loaded package counts (`EventEmitter` from `@types/node` needs it); `types: ["*"]` loads every `@types` package, so their globals count; with no `types` list (or no tsconfig) the environment is only what a `/// <reference types>` loads, which is also all tsgo loads, so there is no fallback, and a name nothing loads becomes a silent `any` the build reports (`marker-any-from-unresolved-name`); a library the code imports never counts, even under `node_modules`. `platform_declared_test.go` pins each one, with mutation-proof pairs for both call shapes; `program/environment_test.go` runs on real files, the only place the compiler flags a dependency as an external library.
-  - **`URL` is a supported native, not a platform class**: `typeid.IsNativeUrl` ([cachegen/runtype/typeid/nativeurl.go](internal/cachegen/runtype/typeid/nativeurl.go)) runs before `NotDataBuiltinOf` and accepts a `URL` from any `.d.ts` (lib.dom, the `@types/node` global, `node:url`), with the same merge rule (`declaredBy`): an empty merge, even in a `.ts` file, keeps it native.
-  - **`DataOnly<T>` cannot see where a class was declared**, so it keeps their shape: a settled limit, Go is the one source of truth, do not add a generated or fixed list to the TypeScript side.
-- **A finding reaches the sites whose FUNCTION calls its entry**, never the sites whose type merely contains it. A walk reports at the sites that named its type; `ReportReachedFindings` walks the entry graph (other families and noop-skipped children included) for the rest. `TestNestedDiagCorpus` in [compiler/resolver](internal/compiler/resolver/) puts every non-data trigger at every position under every family and fails on a silent throw, a silent drop, or a build that disagrees with the dev scan; its `Covers*` gates fail when a family or a non-data kind has no row.
-
-Adding or changing a diagnostic or an emit arm: run the [add-diagnostic skill](../.agents/skills/add-diagnostic/SKILL.md) checklist.
-
-## ⚠️ Every diagnostic declares its Level, and two questions pick it
-
-"Error" used to mean two unrelated things: the build could not produce the code, and the build produced code that is broken. Those want opposite things from a consumer, so a code now declares one of FOUR levels in [diagnostics/catalog.go](internal/diagnostics/catalog.go), and `register` panics without it (`Severity` is derived from it, never written).
-
-Pick it by asking, in order:
-
-1. If we let this through, does the build still produce the code for this?
-2. If it does, is that code broken when it runs?
-
-No → `LevelError`. Yes and yes → `LevelRuntimeError`. Yes and no → `LevelWarning`, or `LevelInfo` when the finding is the documented behaviour (a member with no data form left out) or pure advice.
-
-| Level | What it means | What a consumer may do |
-| --- | --- | --- |
-| `LevelError` | No code was produced for the thing: no cache entry, no injected id, no extracted body, no batch id | Stop. Never downgradeable, never silenceable. A build halts; a dev server prints it and fails the transform of the file it sits in, so the overlay shows it |
-| `LevelRuntimeError` | Code IS written and it throws, or it no longer checks what was asked for | Report it. Every build lane halts (emitting and exiting non-zero is legitimate); a dev server reports it and keeps running, which is the reason the level exists. `downgradeErrors`, `@mion-expect-error` (removes it) or `@mion-downgrade-error` (keeps it, stops the halt) may stand one down |
-| `LevelWarning` | Worth knowing, nothing is wrong, but the output may surprise (a clone sharing a value, a tag that does nothing) | Report it |
-| `LevelInfo` | The documented behaviour, or advice | Hide it unless asked: the `levels: 'all'` plugin option or tsconfig key in a build, the `mion/info` rule in the editor. A dev server never prints it. Never halts |
-
-Three things that trip people up:
-
-- **Question 1 is per-SITE, not per-build.** Only `config-tsconfig-not-loaded` stops a whole run. Every other fatal code leaves ONE thing unbuilt while the rest of the build proceeds. That is still "no output" for the thing the finding is about, and it is what makes standing it down meaningless: not halting buys a call that throws anyway.
-- **Read the emit path, not the intent.** The pure-fn family was documented as fatal as a block and is mostly not: only `purefn-destructured-param` withholds output, a purity violation compiles the offending body and ships it. Answer question 1 from what the code does.
-- **A middleware the client never sets up is a `LevelRuntimeError`, optional params included (`rpc-client-middleware-not-set-up`, `rpc-client-optional-middleware-not-set-up`).** The call still sends, but the middleware never gets its client half, and one like route sync refuses every call without it. A middleware with no params and no headers is never reported: the client picks up its answer without a hook. The one exception is mion's own metadata middleware, recognised by its `@mionjs/router` declaration (`apimeta.routerDeclares`), or in a published API's `.d.ts`, which inlines its type, by its handler naming `@mionjs/core`'s `FetchMetadataHandler` (`publishedFetchMetadata`): `useFetchMetadata` sets it up, and the fetching check owns it instead (`rpc-client-no-metadata-route` when the API places none, `rpc-client-fetch-not-set-up` when a fetching client never calls `useFetchMetadata`).
-- **A permissive validator is only wrong when the type was not actually `any`.** A type the author wrote as `any` gets an accept-everything validator because that is what was asked for (`validate-any-accepts-all` / `validation-errors-any-accepts-all` are Info). A type that BECAME `any` because a name, an import or a lib failed to resolve is a `LevelRuntimeError` (`marker-any-from-unresolved-import`, `marker-any-from-unresolved-name`, `marker-temporal-lib-missing`, `config-lib-missing-base`); `detectSilentAnyInGraph` is what tells the two apart.
-
-`Completeness` is deliberately NOT a level: the unfilled-scaffold codes are warnings (a mirror with blank labels still runs), and that bit is what `enrich --require-complete` and the bundler's production enrichment gate promote. A gate keying on the level instead silently stops working.
-
-## A type from an installed package is always rebuilt from its `.d.ts`
-
-A consumer that names a package's type (`createValidate<LibUser>()`) builds its own ids and code from the `.d.ts`, under its own tsconfig. Never make the compiler reuse ids or generated code a package ships instead:
-
-- A package only generated the families its own call sites asked for; any other family would be rebuilt anyway.
-- A package type nested in the consumer's own type, or a generic the consumer instantiates (`Page<LibUser>`), has no id in the package.
-- The consumer's checker decides what the type is for the consumer's code; code built under the package's tsconfig would check a different type.
-- A package that wants its own build used exports the function (`export const validateUser = createValidate<User>()`), and a regular import runs it unchanged.
-
-Two builds that must agree over a wire (a mion client and server) compare ids instead (`ApiBuildVersion`, `rpc-client-server-version-mismatch`). Pure fns are the one shipped artifact (`mion-pure-fns/`): their bodies are not derived from a type, so a `.d.ts` cannot rebuild them.
-
-## Readonly is part of the type id, though no type function reads it
-
-`readonly` on a property, an index signature, a tuple or an array changes no generated code, yet it is in the structural id (`readonlyBit` in [typeid.go](internal/cachegen/runtype/typeid/typeid.go)) and in reflection. Equal ids share ONE node, so a flag left out of the id would make reflection, the `jsonSchema` doc's `tsReadonly` and `mion convert` report whichever twin was projected first. A new readonly position goes in the projection and the id together, through one shared predicate (`typeid.IsReadonlyCollection`).
-
-## ⚠️ Marker test coverage rule
-
-Applies to any test exercising the marker API — Go under [internal/](internal/) AND the JS plugin under [packages/devtools/test/](../packages/devtools/test/):
-
-- MUST cover both call shapes of `getRunTypeId`: static `getRunTypeId<T>()` (caller supplies T, no value) AND reflection `getRunTypeId(value)` (T inferred from the value).
-- Write paired tests (not parameterized); use the natural call shape for each intent — e.g. `getRunTypeId<string>()` vs `const s: string = 'hello'; getRunTypeId(s);`. Both forms should resolve to the same cache entry for equivalent T.
-- At least one paired test per suite must assert hash equivalence between the two forms (see `TestAtomic_FormEquivalence` in [internal/compiler/resolver/atomic_test.go](internal/compiler/resolver/atomic_test.go)).
+- MUST cover both `getRunTypeId` call shapes: static `getRunTypeId<T>()` (caller supplies T, no value)
+  AND reflection `getRunTypeId(value)` (T inferred from the value).
+- Paired tests, not parameterized. Natural shape per intent: `getRunTypeId<string>()` vs
+  `const s: string = 'hello'; getRunTypeId(s);`. Both resolve to the same cache entry for equivalent T.
+- ≥1 paired test per suite asserts hash equivalence of the two forms
+  (`TestAtomic_FormEquivalence` in [atomic_test.go](internal/compiler/resolver/atomic_test.go)).

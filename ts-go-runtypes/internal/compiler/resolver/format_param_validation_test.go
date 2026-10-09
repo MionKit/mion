@@ -153,7 +153,7 @@ export const _ = createValidateFn<` + tc.spelled + `>();
 	}
 }
 
-// Nested contradictions must report too (ts-go-runtypes/AGENTS.md walk rule).
+// Nested contradictions must report too (ts-go-runtypes/internal/reflection/AGENTS.md walk rule).
 func TestStructuralParams_ContradictionReportsAtDepth(t *testing.T) {
 	code := `import {createValidateFn} from '@mionjs/run-types';
 import * as TF from '@mionjs/run-types/formats';
