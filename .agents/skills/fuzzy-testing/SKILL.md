@@ -1,144 +1,91 @@
 ---
 name: fuzzy-testing
-description: Add a fuzz or property test the structured way, deciding what must always hold before building the check. Use when adding a fuzz test or running a unit test over random inputs.
+description: Add a fuzz or property test, rules first. Use when adding a fuzz test or a unit test over random inputs.
 ---
 
-# Fuzzy testing — guide the user through it
+# Fuzzy testing: guide the user through it
 
 Use [the tool mapping](../TOOLS.md) for assistant-specific calls and fallbacks.
 
-Use this when you're helping someone add a fuzz / property test, or you've spotted a
-good candidate and want to propose one. Your job is to **guide a short discovery**,
-not to recite a method at them. You investigate their repo, ask focused questions, and
-iterate until the two of you have: the rules worth checking, the tools to check them,
-and a running test.
+Use when helping add a fuzz / property test, or proposing one for a good candidate.
+Job: guide a short discovery, not recite a method. End with: rules worth checking, tools to check them, a running test.
 
-Who does what: **the user** brings domain knowledge (what "correct" means for their
-code). **You** bring the method, the digging through their codebase, and the writing.
-You drive.
+- Fuzz test = flood of random inputs, one rule (oracle) checked on every output. Bug = whatever breaks the rule.
+- Parts: input maker (generator) → code under test → what you can see (observation) → rule (oracle).
+- Seed = one saved number that replays a run exactly. Shrinking = cut a failing input to its smallest form.
+- The two hard parts: (1) inputs the code accepts, (2) knowing when an output is wrong. Never "randomise bytes".
+- User brings domain knowledge (what "correct" means). You bring method, repo digging, writing. You drive.
 
-How to run it:
+## How to run it
 
-- **Investigate before you ask.** Read the code, grep for existing tests and input
-  generators, look at how the code is called. Come to the user with findings, then ask.
-  Blank questions ("what are your invariants?") waste their time; grounded ones
-  ("you have `encode` and `decode` — should decoding an encode give the value back?")
-  move fast.
-- **One focused question at a time.** Guide, don't interrogate.
-- **Iterate — especially the rules (step 3) and the tools (step 4).** You will not get
-  the full list in one pass. Propose a few candidates from what you found, let the user
-  confirm or correct, refine, then come back for more.
-- **Stay grounded.** Every rule and tool you propose should point at something real:
-  their code, an existing test, a stated promise, a past bug.
-- **Hold the line on soundness.** Keep reminding the user: a red test must mean a real
-  bug. You'll prove each rule by breaking the output on purpose and watching it fire.
+- Investigate before you ask: read the code, grep tests + input makers, see how it is called. Bring findings.
+- Grounded questions only ("you have `encode` + `decode`: should decode(encode(x)) give x back?").
+  Never blank ones ("what are your invariants?").
+- One focused question at a time. Guide, don't interrogate.
+- Iterate, above all on rules (step 3) and tools (step 4): propose a few, user confirms / corrects, refine, repeat.
+- Every rule + tool points at something real: their code, an existing test, a stated promise, a past bug.
+- Hold the line on soundness: red test = real bug. Prove each rule by breaking the output on purpose.
 
-## Start here: are we defining something new, or growing an existing test?
+## Start here: new test, or grow an existing one?
 
-Your first move, before anything else, is to ask the user this one question:
+1. Ask first, before anything else:
+   > Do you want to **define a new fuzz test from scratch**, or do you **already have a test (or one specific
+   > behaviour or bug) we can use as the starting point**?
+2. Existing test / concrete behaviour → [grow-test.md](references/grow-test.md) first, then steps 4 + 5.
+   It hands you step 1 + a first cut of step 3 for free.
+3. New (code only, no test) → steps 1 to 5 in order.
+4. Unsure which → grep for tests that already exercise this code, bring them back.
+- Steps 1-3 = conversation + investigation. Steps 4-5 = building.
 
-> Do you want to **define a new fuzz test from scratch**, or do you **already have a
-> test (or one specific behaviour or bug) we can use as the starting point**?
+## Step 1: What you test, what you can see
 
-An existing test is the best possible start — it hands you the boundary (step 1) and a
-first cut of the rules (step 3) for free. So route on their answer:
+- Steer to the smallest thing callable directly. Wrap side effects so they come back as a value.
+- List every output you can watch, confirm with the user nothing is missing. Rules only check what you see.
+- Land on one callable boundary with a watchable output. Detail → [scope.md](references/scope.md).
 
-- **They point you at an existing test** (or a concrete behaviour they want pinned down):
-  do the **[shortcut](worksheet-C.md)** first to grow it, then finish with steps 4 and 5.
-- **It's new** (they only have code, no test yet): walk steps 1 to 5 in order.
+## Step 2: Worth fuzzing?
 
-If you're not sure which they have, go look: grep for tests that already exercise this
-code, and bring what you find back to them. Either way, steps 1–3 are conversation and
-investigation; steps 4–5 are building.
+- Gut-check out loud: loop it fast? repeatable or forceable? cheap right/wrong check?
+  Detail → [scope.md](references/scope.md#step-2-worth-fuzzing).
+- Any no → say so, suggest hand-written examples. Talking them OUT of fuzzing is part of the job.
 
-## Step 1: Pin down what you're testing, and what you can see
+## Step 3: Discover the rules (the heart, iterate)
 
-- Ask the user which piece of code they want to trust more. Steer them to the smallest
-  thing you can call directly — smaller means faster runs and sharper rules.
-- Read it. Note its signature. Work out how it's reached: a plain function, a CLI, a
-  server, the filesystem? If it has side effects, plan a thin wrapper that hands them
-  back as a value (`run(input) -> {result, files, diagnostics}`).
-- Work out what you can observe: return value, thrown errors, files written, logs, exit
-  code, diagnostics. Tell the user what you found and confirm nothing's missing — the
-  rules can only check what you can see.
-- Land on one agreed thing: a callable boundary with a watchable output.
+- Harvest assertions from existing tests. Walk the rule shapes with the user, in their terms. Loop.
+- Most code fits 3 to 5 shapes. Ground each rule (spec, past bug, guess). Drop the guesses.
+- ⚠️ Iron rule: red = real bug. Break the output on purpose, watch each rule fire (negative control). Non-negotiable.
+- Detail, shape checklist, repo oracles → [rules.md](references/rules.md).
 
-## Step 2: Decide together if it's even worth fuzzing
+## Step 4: Inventory tools, build only the gaps (iterate)
 
-Run the three-question gut-check out loud with the user:
+- Look before you build: grep for input maker, seeded RNG, runner, shrinker. Report what exists, never rebuild it.
+- Repo has `createMockDataFn`, `mutateToInvalid`, `randomJunk`, `withSeededRandom` / `mixSeed`.
+- Pick the input maker with the user by how a valid input is described: [input-makers.md](references/input-makers.md).
+- Seed, shrinking, loop, gap table: [replay-and-loop.md](references/replay-and-loop.md).
+- Wire the step-3 rules into the loop with the templates below.
 
-- Can we run it over and over, fast, in a loop? (You can usually tell from the code.)
-- Is it repeatable, or can we force that? (Scan for clocks, randomness, network.)
-- **Is there a cheap way to tell right from wrong without redoing its work?** Ask the
-  user straight: "if I hand you an output, how would you spot a wrong one without
-  re-running the logic?" This question kills most bad candidates.
+## Step 5: Run it hard, pin what breaks
 
-If any answer is no, say so plainly and suggest a few hand-written examples instead.
-Talking someone _out_ of fuzzing when it doesn't fit is part of the job.
-
-## Step 3: Discover the rules — iterate (this is the heart)
-
-A back-and-forth, not a form you fill once. Use [worksheet-B.md](worksheet-B.md) as your
-prompt list.
-
-- **Harvest first.** Grep for existing example/unit tests of this code. Their assertions
-  are candidate rules already — pull them out and bring them to the user.
-- **Walk the rule shapes with the user.** For each shape on the checklist, ask a pointed
-  question grounded in their code ("should running this twice change nothing the second
-  time?", "what inputs are illegal here, and what should happen?"). Propose the rule in
-  their terms; let them confirm or correct it.
-- **Loop.** Offer a few, get reactions, refine, come back for the rest. Stop when you've
-  covered the shapes that fit — most code has three to five.
-- **Ground each rule.** Ask where it comes from: a spec, a past bug, or a guess. Drop
-  the guesses; an invented rule is the main cause of false alarms.
-- **Set up the iron rule now.** Tell the user plainly: a red test must always mean a
-  real bug, so before you trust a rule you will break the output on purpose and watch it
-  fire (the negative control). This habit is non-negotiable.
-
-## Step 4: Inventory the tools, build only the gaps — iterate
-
-Use [worksheet-A.md](worksheet-A.md) and the templates.
-
-- **Look before you build.** Grep the repo for what already exists: an input maker /
-  mock generator, a seeded random source, a test runner, a shrinker. In THIS repo:
-  `createMockDataFn`, `mutateToInvalid`, `randomJunk`, `withSeededRandom` / `mixSeed`.
-  Report what's there so you don't rebuild it.
-- **Pick the input maker with the user**, based on what describes a valid input (the
-  table in worksheet-A). Propose, confirm, adjust.
-- **Fill the gap list together**, build only what's missing, and wire the step-3 rules
-  into the loop (templates: oracle-layer, seeded-runner, model-based).
-
-## Step 5: Run it hard, and pin what breaks
-
-- Run thousands of inputs. For each failure, shrink to the smallest input and SAVE it as
-  an ordinary test — show the user that minimal reproducer; it's the most convincing
-  thing you'll produce.
-- A clean run over thousands of tries is also a result. Tell the user what confidence
-  they now have that they didn't before.
-
-## Shortcut — already have a normal test? Grow it.
-
-Use [worksheet-C.md](worksheet-C.md). If example tests exist, start there: widen the
-test's input into the input maker, and lift its check (true for one input) into a rule
-(true for all inputs). You get steps 1 and 3 mostly for free. Keep the original test as
-the fast reproducer.
+- Run thousands of inputs. Each failure → shrink to smallest input → SAVE as an ordinary regression test.
+- Show the user that minimal reproducer: the most convincing thing you produce.
+- Clean run over thousands of tries is a result too: tell the user the confidence they gained.
 
 ## Templates to adapt
 
-- [`templates/oracle-layer.ts`](templates/oracle-layer.ts) — gather the rule-checks in
-  one place, each returning a replayable failure record or nothing.
-- [`templates/seeded-runner.ts`](templates/seeded-runner.ts) — the replayable loop, a
-  run-it-a-lot mode, and a shrinker.
-- [`templates/model-based.ts`](templates/model-based.ts) — for code with memory:
-  generate a sequence of actions instead of one value.
+- [`templates/oracle-layer.ts`](templates/oracle-layer.ts): all rule-checks in one place, each → failure record or null.
+- [`templates/seeded-runner.ts`](templates/seeded-runner.ts): replayable loop, run-it-a-lot mode, shrinker.
+- [`templates/model-based.ts`](templates/model-based.ts): code with memory, a sequence of actions per input.
+- No extra libraries (no fast-check here). fast-check, if present, can replace loop + shrinker; rule-checks stay.
 
-No extra libraries needed (this repo has no fast-check). If fast-check is available it
-can replace the loop and the shrinker; the rule-checks stay the same.
+## Examples
 
-## You're done when you and the user have
+- Whole method in 30 lines (codec): [codec-example.md](references/codec-example.md).
+- Pipeline case: [enrich-pipeline.md](references/enrich-pipeline.md), [enrich-fuzzer.md](references/enrich-fuzzer.md).
 
-A clear boundary and what you can observe; the rules written down (at least one strong
-rule plus the "doesn't crash" floor), each one grounded and proven by a negative
-control; a runner you can replay from a seed; and at least one saved failing input, or a
-clean run over thousands of inputs. The enrichment fuzzer
-(`packages/run-types/test/fuzz/enrich/`) is the reference.
+## Done when you and the user have
+
+- A clear boundary + what you can observe. Inventory of the pieces (have / build).
+- Rules written down: at least one strong rule + the "doesn't crash" floor. Each grounded, proven by a negative control.
+- A runner replayable from a seed.
+- At least one saved failing input, or a clean run over thousands of inputs.
+- Reference: the enrichment fuzzer (`packages/run-types/test/fuzz/enrich/`).

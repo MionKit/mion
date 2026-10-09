@@ -1,7 +1,7 @@
 /**
- * The replayable loop, a run-it-a-lot mode, and a shrinker (from the tools worksheet).
- * Needs no extra libraries; adapt from packages/run-types/test/fuzz/seededRng.ts +
- * fuzzRunner.ts. If fast-check is available, `fc.assert(fc.property(gen, oracle))`
+ * The replayable loop, a run-it-a-lot mode, and a shrinker (references/replay-and-loop.md).
+ * Needs no extra libraries; adapt from packages/run-types/test/fuzz/core/seededRng.ts +
+ * value/fuzzRunner.ts. If fast-check is available, `fc.assert(fc.property(gen, oracle))`
  * replaces this whole file (and shrinks for free) — your rule-checks stay the same.
  */
 import type {Violation, CheckCtx} from './oracle-layer.ts';

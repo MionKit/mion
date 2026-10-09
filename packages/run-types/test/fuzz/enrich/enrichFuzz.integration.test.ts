@@ -1,4 +1,4 @@
-// Oracles mirror enrichReconcile.test.ts; rule definitions: .agents/skills/fuzzy-testing/framework-fuzzy-testing.md, 6.
+// Oracles mirror enrichReconcile.test.ts; rule definitions: .agents/skills/fuzzy-testing/references/enrich-pipeline.md.
 // Requires mion-bin/mion, built by pretest; skips without it.
 // MION_FUZZ_ENRICH_REPLAY=<seed> repeats failures; knobs: MION_FUZZ_SEED, MION_FUZZ_ENRICH_SEQUENCES, MION_FUZZ_ENRICH_MAXCMDS.
 

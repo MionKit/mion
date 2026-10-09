@@ -84,7 +84,8 @@ export interface ModelFuzzReport {
 }
 
 /** Run many sequences; on the first failure, cut it down to the fewest leading actions. */
-export function runModelFuzz(makeWorld: () => World, baseSeed: number, sequences: number, maxSteps: number): ModelFuzzReport {
+export function runModelFuzz(makeWorld: () => World, baseSeed: number, sequences: number, maxSteps: number):
+  ModelFuzzReport {
   for (let i = 0; i < sequences; i++) {
     const seed = mixSeed(baseSeed, 'seq', i);
     const result = runOneSequence(makeWorld, seed, maxSteps);
