@@ -1,10 +1,10 @@
 /**
- * One place that gathers all your rule-checks (this is the rules worksheet's
+ * One place that gathers all your rule-checks (this is the step-3 rules page's
  * deliverable). One check*() per rule; each returns a replayable failure record
  * (a Violation) or null when the rule holds. Adapt from
- * packages/run-types/test/fuzz/fuzzOracle.ts. Replace the generic <Value, Output,
+ * packages/run-types/test/fuzz/value/fuzzOracle.ts. Replace the generic <Value, Output,
  * Wire> with the real types of the code you're testing, and keep only the checks whose
- * rule shape survived the checklist in the rules worksheet.
+ * rule shape survived the checklist in references/rules.md.
  */
 
 /** The error the code is *expected* to throw — a controlled outcome, not a bug (① never crashes). */
@@ -16,7 +16,8 @@ export interface Target<Value, Output, Wire = string> {
   run: (input: Value) => Output; // the code under test, wrapped so you can call it directly
   encode?: (value: Value) => Wire; // for ② do it then undo it
   decode?: (wire: Wire) => Value;
-  reference?: (input: Value) => Output; // a second, trusted way to get the answer (⑤ compare to a trusted source)
+  // a second, trusted way to get the answer (⑤ compare to a trusted source)
+  reference?: (input: Value) => Output;
 }
 
 export interface CheckCtx {
@@ -31,7 +32,12 @@ export interface Violation {
   message: string;
 }
 
-const fail = (rule: string, ctx: CheckCtx, title: string, message: string): Violation => ({rule, title, seed: ctx.seed, message});
+const fail = (rule: string, ctx: CheckCtx, title: string, message: string): Violation => ({
+  rule,
+  title,
+  seed: ctx.seed,
+  message,
+});
 
 /** ① never crashes — only CONTROLLED outcomes; never an uncontrolled throw or hang. */
 export function checkTotality<V, O, W>(target: Target<V, O, W>, value: V, ctx: CheckCtx): Violation | null {

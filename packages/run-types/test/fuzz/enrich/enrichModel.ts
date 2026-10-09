@@ -1,4 +1,4 @@
-// Oracles match test/suites/enrich/enrichReconcile.test.ts and .agents/skills/fuzzy-testing/framework-fuzzy-testing.md, 6.4.
+// Oracles match test/suites/enrich/enrichReconcile.test.ts and .agents/skills/fuzzy-testing/references/enrich-pipeline.md.
 // R1/R6 require fixed points; R2 bounds type-edit changes; R3 preserves unrelated authored values.
 // R5 reports malformed mirrors; R7a preserves removed values as @rtOrphanChild; R8 prunes orphans but preserves @todo.
 // R10 forbids panics and hangs.
