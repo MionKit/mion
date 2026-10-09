@@ -80,7 +80,8 @@ frontmatter name; the setup skill is named `mion-setup`.
 ```bash
 git clone git@github.com:MionKit/mion.git
 cd mion
-git submodule update --init --recursive
+git submodule update --init ts-go-runtypes/third_party/tsgolint   # NEVER --recursive (620MB TypeScript corpus)
+(cd ts-go-runtypes/third_party/tsgolint && git submodule update --init typescript-go)
 (cd ts-go-runtypes/third_party/tsgolint/typescript-go && git apply --3way ../patches/*.patch)
 pnpm install --frozen-lockfile
 pnpm exec husky                   # wire the git commit hooks (separate step — see below)
@@ -88,7 +89,7 @@ pnpm exec husky                   # wire the git commit hooks (separate step —
 
 What this does:
 
-1. Pulls `oxc-project/tsgolint` (which nests `microsoft/typescript-go`).
+1. Pulls `oxc-project/tsgolint`, then the `microsoft/typescript-go` it nests, in two non-recursive steps (`--recursive` would also fetch typescript-go's 620MB `_submodules/TypeScript` corpus, used only by its own testrunner).
 2. Applies the five vendored patches to the `typescript-go` working tree via `git apply --3way` — no commits needed (CI-safe, no git identity required). The patches are upstream tsgolint artifacts; never edit them.
 3. Installs workspace deps from the committed lockfile.
 4. Wires husky's git hooks — `commit-msg` → commitlint (Conventional Commits, feeding the git-cliff changelog) and `pre-commit` → lint-staged. This is a SEPARATE, explicit step because `ignoreScripts: true` (the pnpm supply-chain policy) blocks husky's `prepare` from auto-running on install, and git hooks are per-clone local state (`core.hooksPath`), never cloned. Skip it and your commits aren't checked locally — CI's `commitlint` job still gates PRs, but you lose the fast local feedback.
@@ -198,7 +199,7 @@ The website only needs **podman**; the benchmarks additionally need **Node + pnp
 
 The docs site has an interactive **playground** page (`/playground`) that resolves a TypeScript type **and runs the functions RunTypes generates for it** (validate, JSON encode + decode, RunType graph) entirely in the browser, with no server round-trip. It is a Nuxt Vue component — [`container/website/app/components/content/RuntypesPlayground.vue`](container/website/app/components/content/RuntypesPlayground.vue) wraps the client-only Monaco UI [`container/website/app/components/playground/PlaygroundStage.client.vue`](container/website/app/components/playground/PlaygroundStage.client.vue), driven by the framework-agnostic engine at [`container/website/app/playground/`](container/website/app/playground/). Monaco + prettier are dependencies of the website image ([`container/website/_deps/package.json`](container/website/_deps/package.json)); the component imports the `mion` runtime factories from source (aliased in [`nuxt.config.ts`](container/website/nuxt.config.ts)).
 
-Two inputs are **host-built** (the container is Node-only, with no Go toolchain): the resolver WASM and the mion source overlay the resolver type-checks snippets against. The website driver builds and stages them automatically whenever it serves the site (`pnpm miondevx website dev` / `build` / `preview` / `check`), so `/playground` just works after a normal `pnpm miondevx website dev`. It needs the Go toolchain + bootstrapped submodule on the host (see [Bootstrap](#bootstrap)); when those are absent or the build fails the site still runs and only `/playground` shows an error state. Skip the auto-build with `MION_WEBSITE_SKIP_PLAYGROUND=1`.
+Two inputs are **host-built** (the container is Node-only, with no Go toolchain): the resolver WASM and the mion source overlay the resolver type-checks snippets against. The website driver builds and stages them automatically whenever it serves the site (`pnpm miondevx website dev` / `build` / `preview` / `check`), so `/playground` just works after a normal `pnpm miondevx website dev`. It needs the Go toolchain + bootstrapped submodule on the host (see [Clone & bootstrap](#clone--bootstrap)); when those are absent or the build fails the site still runs and only `/playground` shows an error state. Skip the auto-build with `MION_WEBSITE_SKIP_PLAYGROUND=1`.
 
 You can also build the assets directly:
 
@@ -296,7 +297,7 @@ func New(program *program.Program, checker *checker.Checker) { ... }
 
 ## Pre-commit hooks
 
-Two Husky hooks, both activated automatically by `pnpm install` via the root `prepare` script (run `pnpm exec husky` to force activation):
+Two Husky hooks. `ignoreScripts: true` blocks the root `prepare` script on install, so wire them once per clone with `pnpm exec husky` (see [Clone & bootstrap](#clone--bootstrap)):
 
 - [`.husky/pre-commit`](.husky/pre-commit) runs `pnpm exec lint-staged` on staged files. The `lint-staged` config in [package.json](package.json) runs oxlint (`--no-error-on-unmatched-pattern`, so a commit of only ignored files still passes) + oxfmt `--check` on staged `.ts` files (specs are format-checked but not lint-gated, since the general oxlint pass skips `test/**`).
 - [`.husky/commit-msg`](.husky/commit-msg) runs `pnpm exec commitlint --edit` to validate the commit message against [Conventional Commits](https://www.conventionalcommits.org) (stock `@commitlint/config-conventional`, see [`commitlint.config.js`](commitlint.config.js)).
@@ -557,10 +558,10 @@ It waits for the version to be resolvable (a fresh publish can lag across the re
 | `pnpm install` rejects a dependency with "minimum release age" | `pnpm-workspace.yaml` blocks packages <30 days old                          | Wait or add a targeted entry under `minimumReleaseAgeExclude`.                                                                 |
 | `pnpm install` fails on a peer dep                             | `strictPeerDependencies: true`                                              | Add the peer to the package's `peerDependencies` or `devDependencies`.                                                         |
 | JS plugin tests error spawning the resolver                    | `mion-bin/mion` not built                                             | `pnpm run check:builds` or `go -C ts-go-runtypes build -o ../mion-bin/mion ./cmd/mion`.                       |
-| A consumer project's lint lane fails `Unable to resolve @mionjs/native-compiler-<os>-<arch>` | No platform package installed (an unpublished build consumed as `file:` tarballs, a `--no-optional` install, or an air-gapped mirror) | Point the launcher at a binary: `MION_BIN=/abs/path/to/mion` (see [Dev loop](#pointing-a-consumer-project-at-a-specific-binary-rt_bin)). |
+| A consumer project's lint lane fails `Unable to resolve @mionjs/native-compiler-<os>-<arch>` | No platform package installed (an unpublished build consumed as `file:` tarballs, a `--no-optional` install, or an air-gapped mirror) | Point the launcher at a binary: `MION_BIN=/abs/path/to/mion` (see [Dev loop](#pointing-a-consumer-project-at-a-specific-binary-mion_bin)). |
 | `pnpm run typecheck` errors "cannot find project" / missing reference | New package missing from root `tsconfig.json` `references`            | Add the package path to the root `tsconfig.json`.                                                                              |
 | oxlint fails to load with `Plugin 'runtypes' not found`        | Stale/missing `@mionjs/devtools` dist (the `jsPlugins` entry)              | Rebuild it: `pnpm --filter @mionjs/devtools run build` (or `pnpm run check:builds`).                                          |
-| Husky hook not firing                                          | `prepare` script did not run                                                | `pnpm install` again, or `pnpm exec husky` to force activation.                                                                |
+| Husky hook not firing                                          | Hooks never wired (`ignoreScripts: true` blocks `prepare` on install)       | `pnpm exec husky` once per clone.                                                                                              |
 | `pnpm run changelog` fails: `git-cliff: command not found`     | git-cliff binary not installed (deliberately not an npm dep)                | `cargo install git-cliff` (or `brew install git-cliff` / a prebuilt release). Not needed to cut a release — CI uses `orhun/git-cliff-action`. |
 | Commit rejected by `commit-msg` hook                           | Message is not a valid Conventional Commit                                  | Re-commit with `type(scope): summary`, or run `pnpm run commit` for an interactive prompt.                                     |
 | `podman machine start` fails with `vfkit exited unexpectedly`  | Rosetta 2 missing on Apple Silicon                                          | `softwareupdate --install-rosetta --agree-to-license`, then re-run `podman machine start`.                                     |

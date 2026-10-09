@@ -1,4 +1,4 @@
-// Consumer installs load the published dist, never the source export condition (AGENTS.md).
+// Consumer installs load the published dist, never the source export condition (packages/devtools/AGENTS.md).
 // Compiler-fed rules also require the published resolver; a plain TS parser suffices.
 import mion from '@mionjs/devtools/eslint';
 import tsParser from '@typescript-eslint/parser';

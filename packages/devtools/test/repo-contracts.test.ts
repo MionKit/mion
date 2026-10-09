@@ -217,7 +217,7 @@ describe('published packages ship a README', () => {
       expect(relative).toEqual([]);
     });
 
-    // Duplicated docs drift; published READMEs must exclude internal options (AGENTS.md README rule).
+    // Duplicated docs drift; published READMEs must exclude internal options (packages/AGENTS.md README rule).
     it(`${manifest.name} README stays a description plus links`, () => {
       const readme = readFileSync(join(packageDir, 'README.md'), 'utf8');
       const lines = readme.split('\n');
