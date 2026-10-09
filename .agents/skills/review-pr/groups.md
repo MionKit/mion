@@ -1,108 +1,87 @@
-# The groups
+# Group checker: steps 5-6
 
-How to work each group of the checklist. Each group runs in its own
-agent, so read the section for your group, plus the two general sections.
+You get one group: its items, the merge-base, the intent. You did not build the list and cannot see other groups.
 
-**A group never restates a repo rule.** The items carry what to check, and a
-repo item names the file it came from so you read the current text. Rules
-change; anything copied in here would go stale silently.
+## Step 5 - Check your group
 
-There is no documentation group and no comments group, and nothing about a page
-or a comment belongs in another group either. The `docs-simplifier` and
-`comments-simplifier` agents own both and run after this review. Missing
-documentation is deliberately not a finding: the simplify pass is built to cut
-rather than add, against the bias of writing docs beside the code, and a
-reviewer asking for more pages undoes that.
+1. Read the diff, exactly `git diff <MERGE_BASE>..HEAD` (area by area if large), and the spec if in it.
+2. Read your group's section below, nothing else. Group `U` (user) has no section: judge vs the diff with these rules.
 
-## Before every group
+- Check your items in order, nothing else. Another group's item is another agent's job.
+- Answer EVERY item: pass, fail, or not applicable. A skipped-to-return item goes missing.
+- Item tagged `[repo: <file>]` → open that file, read current wording, quote it. Paraphrase = pointer, not rule.
+- Rule narrower than the item → pass with a note. Wider and the diff breaks it → fail with the real quote.
+- Group that passes everything in a few lines skimmed. One group, fresh context: go back and read.
 
-Diff range (use exactly this, nothing else):  git diff <MERGE_BASE>..HEAD
+Record each answer as you go:
 
-Take only this group's items. Check them in order. Answer every one: pass, fail,
-or not applicable, in the shape step 5 of the skill gives.
+```
+- id:     A5
+  result: pass | fail | not-applicable
+  where:  path/to/file.ts:LINE        (for a fail, and for a pass you had to work for)
+  evidence: the exact line(s) from the diff
+  reason: the quoted rule, or why it costs the reader
+  fix:    the concrete smaller change, with the replacement text where short
+  severity: blocking | worth-fixing | nit
+  confidence: high | medium | low
+```
 
-For any item tagged `[repo: <file>]`, open that file and read the rule in its
-current wording before judging, then quote what you read. Your paraphrase on the
-checklist is a pointer, not the rule.
+Serious problem no item covers → record as **off-list**, same shape. Real problems only, no padding.
 
-Cite only lines that exist in this diff. Quote a rule only if you read it in a
-real file, naming that file.
+## Step 6 - Verify before you report
+
+Nothing reaches the report unverified, your own hour-old findings included:
+
+- **Citation real**: open file at cited line; code says what the finding claims. Cite only lines in this diff.
+- **Rule real**: quote the line it breaks, confirm it exists in a real file, name the file.
+  Cannot quote → drop it or label it taste.
+- **Simpler is simpler**: removes more lines than it adds, same behaviour. Cannot show it → drop.
+- **In scope**: change = the diff. Untouched code (even next to it) → off-list, say so.
+- **Count survivors**: list + count every finding that passed. Count per FINDING, never per item
+  (an item's second finding is the one that goes missing).
+
+End your turn: every item's answer in the shape above, then the count. That is your whole report.
 
 ## Group S: spec and description
 
-Read the spec and the PR description again, now against the diff rather than
-against themselves. Both were written before the code.
+Re-read spec + PR description against the diff, not against themselves.
 
-Check what shipped against the spec's own `Done when`, item by item, and against
-its `Out of scope`: something listed out of scope that shipped anyway is a
-finding, and so is a `Done when` line nothing in the diff satisfies. A spec that
-shipped only part of what it promised must say so and leave the rest as a new
-`docs/todos/` spec, never as a half-done note.
-
-A spec still sitting in `docs/todos/` after its work shipped is a fail. So is a
-description that claims something the diff does not do.
+- Check `Done when` item by item: a line nothing in the diff satisfies = finding.
+- Check `Out of scope`: something listed there that shipped = finding.
+- Partial ship must say so; rest becomes a new `docs/todos/` spec, never a half-done note.
+- Fail: spec still in `docs/todos/` after its work shipped. Fail: description claims what the diff does not do.
 
 ## Group G: repo guidelines
 
-These items come from the AGENTS.md files that govern the changed paths:
-dependency shape, environment variables, file placement, build steps, commit and
-branch shape, and anything else with no other group.
+Items from AGENTS.md files governing changed paths: dependency shape, env vars, file placement,
+build steps, commit + branch shape, anything with no other group.
 
-Read each named AGENTS.md in full before checking its items. They are short.
-Where one points at another document for an area this diff touches, follow the
-pointer and read that too.
-
-Judge against the wording you read, not against what the item paraphrases. If
-the rule turns out narrower than the item suggests, say so and mark the item
-pass with a note. If it is wider and the diff breaks the wider version, that is
-a fail with the real quote.
+- Read each named AGENTS.md in full first. They are short.
+- One points at another doc for an area this diff touches → read that too.
 
 ## Group T: types and reuse
 
-Work from the additions: list every type, interface, enum and exported function
-the diff ADDS, then check your items against that list.
-
-Search before you judge. For each addition, grep the same package, then its
-siblings, then the shared packages, for the same field set, the same shape, or
-the same job under another name. A reuse claim with no existing declaration to
-point at is not a finding, so name the existing one by file and line and show
-the derived form you propose (Pick, Omit, Partial, Extract, ReturnType, a
-generic parameter, or extending it).
-
-Before flagging, check whether the import would cross a package boundary the
-repo does not allow. The package AGENTS.md states its boundaries; read it rather
-than assuming. Deliberate duplication across such a boundary is correct.
+- List every type, interface, enum, exported function the diff ADDS. Check items against that list.
+- Search before judging: grep same package, then siblings, then shared packages: same fields, shape, or job.
+- Reuse claim needs an existing declaration (file + line) and the derived form
+  (Pick, Omit, Partial, Extract, ReturnType, a generic parameter, or extending it). None → not a finding.
+- Import would cross a package boundary the repo forbids? Package AGENTS.md states boundaries: read it.
+  Deliberate duplication across such a boundary is correct.
 
 ## Group A: architecture and size
 
-Work from the diff stat and the added files the scope script printed, so size is
-a number rather than an impression.
-
-Start by restating the intent in one sentence and describing the smallest change
-that would achieve it. Compare that to the diff, then check your items.
-
-Every architecture fail carries a number: roughly how many committed lines the
-simpler shape removes, and confirmation that behaviour is unchanged. If the
-simpler shape is only different, not smaller and not clearer, mark the item pass
-and move on.
-
-For placement, read the AGENTS.md of the packages involved and judge against
-what they state, not against what looks tidy.
-
-Do not propose refactoring code the diff does not touch.
+- Work from diff stat + added files the scope script printed: size is a number, not an impression.
+- First: intent in one sentence + the smallest change achieving it. Compare to the diff. Then items.
+- Every fail carries a number: ~committed lines the simpler shape removes, behaviour unchanged.
+  Only different, not smaller or clearer → pass, move on.
+- New file: low bar to question it. What would it cost in the file that already owns that job? Often nothing.
+- Placement: judge vs what involved packages' AGENTS.md state, not what looks tidy.
+- Never propose refactoring code the diff does not touch.
 
 ## Group B: behaviour and tests
 
-Read the changed code closely enough to say what it does now versus before, then
-check your items.
-
-For a behaviour item, a fail needs the input or state that reaches it: "empty
-array reaches line 42 and it indexes [0]". A worry with no path to it is not a
-finding.
-
-For a coverage item, name the test that should exist and what it would pin.
-Check whether an existing test already covers it before calling it missing, and
-check whether any test was weakened, skipped or deleted in this diff.
-
-Do not run anything. You are reading tests, not executing them, and reporting a
-result you did not produce would be a false claim.
+- Read changed code enough to say what it does now vs before. Then items.
+- Behaviour fail needs the input/state reaching it: "empty array reaches line 42 and it indexes [0]".
+  Worry with no path = not a finding.
+- Coverage: name the missing test + what it pins. Check an existing test does not already cover it.
+- Check for tests weakened, skipped or deleted in this diff.
