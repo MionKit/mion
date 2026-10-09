@@ -1,12 +1,14 @@
-// A `stats` fence: big-number tiles, a GitHub-style diff line and one before / after bar chart, inside the window.
+// A `stats` fence: big-number tiles, a GitHub-style diff line, a short fact list and a before / after bar chart.
 
 export type Tile = {value: string; label: string};
 export type Bar = {label: string; before: string; after: string; unit: string};
 export type Diff = {added: string; removed: string; label: string};
-export type Chart = {tiles: Tile[]; bars: Bar[]; diff?: Diff};
+export type Fact = {label: string; value: string};
+export type Chart = {tiles: Tile[]; bars: Bar[]; facts: Fact[]; diff?: Diff};
 
 export const MAX_TILES = 4;
 export const MAX_BARS = 6;
+export const MAX_FACTS = 6;
 const MAX_TILE_VALUE = 12;
 const MAX_LABEL = 44;
 
@@ -15,7 +17,7 @@ const chartError = (source: string, line: number, message: string) => new Error(
 const toNumber = (text: string) => Number(text.replace(/[,_\s]/g, ''));
 
 export function parseChart(block: string, source = 'card'): Chart {
-  const chart: Chart = {tiles: [], bars: []};
+  const chart: Chart = {tiles: [], bars: [], facts: []};
   block.split('\n').forEach((raw, index) => {
     const line = index + 1;
     if (!raw.trim()) return;
@@ -51,12 +53,19 @@ export function parseChart(block: string, source = 'card'): Chart {
       if (chart.diff) throw chartError(source, line, 'only one diff line per card');
       if ([...label].length > MAX_LABEL) throw chartError(source, line, `diff label is over ${MAX_LABEL} characters`);
       chart.diff = {added, removed, label};
+    } else if (kind === 'fact') {
+      const [label, value = ''] = parts;
+      if (parts.length > 2 || !label || !value) throw chartError(source, line, 'use "fact: <label> | <value>"');
+      if ([...label].length > MAX_LABEL || [...value].length > MAX_LABEL)
+        throw chartError(source, line, `fact label or value is over ${MAX_LABEL} characters`);
+      chart.facts.push({label, value});
     } else {
-      throw chartError(source, line, `unknown line "${raw.trim()}" (use "tile: …", "diff: …" or "bar: …")`);
+      throw chartError(source, line, `unknown line "${raw.trim()}" (use "tile: …", "diff: …", "fact: …" or "bar: …")`);
     }
   });
-  if (chart.tiles.length === 0 && chart.bars.length === 0 && !chart.diff) throw new Error(`${source}: the stats block is empty`);
+  if (chart.tiles.length + chart.bars.length + chart.facts.length === 0 && !chart.diff) throw new Error(`${source}: the stats block is empty`);
   if (chart.tiles.length > MAX_TILES) throw new Error(`${source}: ${chart.tiles.length} tiles, the window fits ${MAX_TILES}`);
+  if (chart.facts.length > MAX_FACTS) throw new Error(`${source}: ${chart.facts.length} facts, the window fits ${MAX_FACTS}`);
   if (chart.bars.length > MAX_BARS) throw new Error(`${source}: ${chart.bars.length} bars, the window fits ${MAX_BARS}`);
   return chart;
 }
@@ -64,7 +73,7 @@ export function parseChart(block: string, source = 'card'): Chart {
 // Each bar is scaled to its own row, so rows in different units share one chart.
 export function chartHtml(chart: Chart, escape: (text: string) => string): string {
   const tiles = chart.tiles.length
-    ? `<div class="tiles">${chart.tiles
+    ? `<div class="tiles count-${chart.tiles.length}">${chart.tiles
         .map((tile) => `<div class="tile"><b>${escape(tile.value)}</b><span>${escape(tile.label)}</span></div>`)
         .join('')}</div>`
     : '';
@@ -86,9 +95,14 @@ export function chartHtml(chart: Chart, escape: (text: string) => string): strin
     })
     .join('');
   const diff = chart.diff ? diffHtml(chart.diff, escape) : '';
+  const facts = chart.facts.length
+    ? `<div class="facts">${chart.facts
+        .map((fact) => `<div class="fact"><span>${escape(fact.label)}</span><b>${escape(fact.value)}</b></div>`)
+        .join('')}</div>`
+    : '';
   const legend = '<div class="legend"><span><i class="before"></i>before</span><span><i class="after"></i>after</span></div>';
   const bars = rows ? `<div class="chart">${rows}${legend}</div>` : '';
-  return `<div class="stats">${tiles}${diff}${bars}</div>`;
+  return `<div class="stats">${tiles}${facts}${diff}${bars}</div>`;
 }
 
 // GitHub's diffstat: +added in green, -removed in red, five squares split by share.
