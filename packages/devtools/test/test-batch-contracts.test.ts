@@ -1,4 +1,4 @@
-// test:ci is the AGENTS.md OOM fallback; its groups must cover every project declared in vitest.config.ts.
+// test:ci is the OOM fallback (.agents/docs/testing.md); its groups must cover every project in vitest.config.ts.
 
 import {describe, it, expect} from 'vitest';
 import {readFileSync} from 'node:fs';

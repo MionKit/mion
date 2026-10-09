@@ -66,7 +66,7 @@ On a warm tree the gate is cheap: [core/build.mjs](core/build.mjs) stamps `mion-
 
 `.env` is dev-only, git-ignored, loaded ONCE by [lib/env.mjs](lib/env.mjs)'s `loadEnv()`. Skipped when `CI` is set. `process.loadEnvFile` does NOT override an already-set var, so real inline env or CI env always wins.
 
-The **env-var registry** in [lib/env.mjs](lib/env.mjs) (`REGISTRY`) is the single source of truth for every env var the project consumes. `pnpm run check:env` prints it. Any new env var a script / container / CI step / test reads MUST be added there — the registry is the contract (see the root [AGENTS.md](../AGENTS.md) → *Environment variables*).
+The **env-var registry** in [lib/env.mjs](lib/env.mjs) (`REGISTRY`) is the single source of truth for every env var the project consumes. `pnpm run check:env` prints it. Any new env var a script / container / CI step / test reads MUST be added there — the registry is the contract (see [env-vars.md](../.agents/docs/env-vars.md)).
 
 ## Conventions
 
@@ -85,6 +85,6 @@ The **env-var registry** in [lib/env.mjs](lib/env.mjs) (`REGISTRY`) is the singl
 
 ## Related
 
-- Root [AGENTS.md](../AGENTS.md) → *Development workflow* section describes the miondevx CLI from a maintainer's perspective.
+- [AGENTS.md](AGENTS.md) holds the agent rules for the miondevx CLI.
 - [SETUP.md](../SETUP.md) has the full host bootstrap + build / test / publish reference.
 - The [mion-setup skill](../.agents/skills/ts-runtypes-setup/) drives the end-to-end host bootstrap automatically.

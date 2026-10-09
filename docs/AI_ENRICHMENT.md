@@ -1072,5 +1072,5 @@ overall architecture) and documented here:
 - **`MockData` pool floor** (enrich-mock-small-pool) — warn-only, threshold configurable, off by
   default.
 
-See [AGENTS.md](../AGENTS.md) → "validate contract" for the serializable-data semantics
+See [architecture.md](../.agents/docs/architecture.md#validate-contract-serializable-data-only) for the serializable-data semantics
 that bound what the friendly-error layer can describe.

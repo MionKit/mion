@@ -387,7 +387,7 @@ describe('js-lint — the passed test list', () => {
 });
 
 // Whole-tree sweeps must remain in the always-on gate or ignored paths bypass their checks.
-// Failed dependencies appear neutral on GitHub; the gate must require no installs (AGENTS.md).
+// Failed dependencies appear neutral on GitHub; the gate must require no installs (.github/actions/ci-lanes).
 describe('the gate job stands on its own', () => {
   const action = read('.github/actions/ci-lanes/action.yml');
 
