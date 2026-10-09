@@ -37,8 +37,8 @@ website source *and* its Nuxt/TS/ESLint config — is bind-mounted at run time.
 ## Usage
 
 All commands run from the **repo root**. Running the site is
-[`scripts/website/site.mjs`](../scripts/website/site.mjs); the image lifecycle is
-[`scripts/container/image.mjs`](../scripts/container/image.mjs):
+[`scripts/website/site.mjs`](../../scripts/website/site.mjs); the image lifecycle is
+[`scripts/container/image.mjs`](../../scripts/container/image.mjs):
 
 ```bash
 # --- run the site (site.mjs) ---
@@ -70,7 +70,7 @@ image (offline, or to test a dep bump before pushing).
 | Variable             | Default          | Purpose                                              |
 | -------------------- | ---------------- | ---------------------------------------------------- |
 | `MION_WEBSITE_PORT`       | `3000`           | Host port for the dev server.                        |
-| `MION_WEBSITE_POLL=1`     | off              | Filesystem polling for watchers (macOS / VM mounts). |
+| `MION_WEBSITE_POLL=1`     | on macOS, else off | Filesystem polling for watchers (macOS / VM mounts). |
 | `MION_WEBSITE_ENGINE`     | `podman`         | Container engine.                                    |
 | `MION_WEBSITE_IMAGE`      | `tsrt-website:dev` | Image tag.                                          |
 | `MION_WEBSITE_MOUNT_OPTS` | empty            | Extra bind-mount opts, e.g. `:z` on SELinux hosts.   |
@@ -93,7 +93,7 @@ via `MION_WEBSITE_REPO_CONTEXT`). Only `packages/` is exposed, and every
 to check both mechanisms render.
 
 On **macOS** (podman runs in a Linux VM), inotify events don't always cross the
-VM mount boundary — run with polling:
+VM mount boundary, so polling is on by default there. Force it on any other host:
 
 ```bash
 MION_WEBSITE_POLL=1 pnpm miondevx website dev
@@ -136,7 +136,7 @@ extra framework to install.
 - This is the **single shared image**: it also bakes the benchmark dependencies
   under `/bench` (`/bench/competitors/<name>` + `/bench/typecost`), which
   `scripts/website/bench-data/bench.mjs` runs against. So one image builds the whole site,
-  benchmark data included. See [SETUP.md](../SETUP.md) and
+  benchmark data included. See [SETUP.md](../../SETUP.md) and
   [container/benchmarks/README.md](../benchmarks/README.md).
 - Nuxt's generated caches (`.nuxt`, `.data`, `node_modules/.cache`) live in
   named podman volumes, so the host source tree is never written to and restarts
