@@ -4,12 +4,14 @@ Why `drizzle-mixed-types` exists. A client imports one slim model (`User`, `Post
 
 ![Stats card](../../../tools/code-card/cards/drizzle-type-cost.png)
 
+Rerun everything: [tools/drizzle-type-cost](../../../tools/drizzle-type-cost/README.md).
+
 ## Answer
 
 - **Editor: no.** The checker is lazy. Checking only the client file costs the same in both layouts, from 1 to 60 tables.
 - **Full type check: yes.** `tsc` / `tsgo` on the client project checks every `.ts` file the client reaches. The shared file's `toDrizzle` calls, relations and queries get checked too: 5× more type work for the example app, 20× for 60 tables.
-- **Files loaded: yes, in every mode.** The client loads about 300 extra Drizzle declaration files (257 → 559), even in the editor. About +0.08 s and +25 MB with `tsgo`.
-- **Bundle: yes, on a value import.** Importing the slim `users` table as a value (forms, validation) bundles drizzle-orm: 11 KB → 123 KB. A type-only import changes nothing.
+- **Files loaded: yes, in every mode.** The client loads about 300 extra Drizzle declaration files (257 → 559), even in the editor. About +0.08 s and +25 to 28 MB with `tsgo`.
+- **Bundle: yes, on a value import.** Importing the slim `users` table as a value (forms, validation) bundles drizzle-orm: 11 KB → 121 KB. A type-only import changes nothing.
 - **Only escape:** the shared file reaches the client as a compiled `.d.ts` with `skipLibCheck` (published package, built project reference). Type work is then equal, but the extra files still load.
 
 ## Setup
@@ -53,5 +55,5 @@ Generated pg tables (5 columns each), one `toDrizzle` and one query per table, c
 
 | | split | same file |
 | --- | ---: | ---: |
-| Bytes | 10,911 | 123,408 |
+| Bytes | 10,911 | 121,383 |
 | drizzle-orm modules | 0 | 105 |
