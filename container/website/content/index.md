@@ -67,7 +67,7 @@ blur: 150px
       :::::div{class="home-pitch"}
       ## RunTypes<br>Ready for compiled TypeScript
 
-      TypeScript is starting to compile ahead of time. RunTypes is ready: it compiles validation, JSON round trip, mock data and reflection at build time, straight from your types. No schema to read while your app runs.
+      TypeScript is starting to compile ahead of time. RunTypes is ready: it generates validation, JSON round trip, mock data and reflection from your types at build time. No schemas to write.
 
         ::::::div{class="home-links"}
           :::::::u-button

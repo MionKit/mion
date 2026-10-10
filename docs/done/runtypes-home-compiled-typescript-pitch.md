@@ -1,7 +1,7 @@
 ---
 type: docs
 spec: full-plan
-status: ready
+status: done
 created: 2026-10-10
 ---
 
@@ -14,7 +14,7 @@ attention. Projects promise speed close to Go, some even zero-copy data handling
 strings while the app runs (`eval`, `new Function`) has no place: an ahead-of-time compiler cannot compile code
 that does not exist yet.
 
-Most fast validators (Zod 4, TypeBox compiler, AJV) get their speed that way: they read a schema object at runtime,
+JIT validators like Zod 4 get their speed that way: they read a schema object at runtime,
 build a JavaScript string, and turn it into a function with `new Function`. Without that step they drop to a
 slow path or stop working.
 
@@ -42,8 +42,8 @@ Edits in TWO files:
 - `#description` (lines 32-33): replace "Why stop at validation?" + paragraph with a short pitch, e.g.
 
   > **Compiled TypeScript is becoming a reality.**
-  > <br/>RunTypes gets everything from your types at build time: validation, JSON round trip, mocking and
-  > reflection. No schema objects to read while your app runs.
+  > <br/>RunTypes generates validation, JSON round trip, mocking and reflection from your types at build
+  > time. No schemas to write.
 
   Wording is a starting point. Final copy follows the prose rules below.
 
@@ -55,7 +55,7 @@ Edits in TWO files:
   > ## RunTypes<br>Ready for compiled TypeScript
   >
   > TypeScript is starting to compile ahead of time. RunTypes gets everything from your types at build time:
-  > validation, JSON round trip, mock data and reflection. No schema to read while your app runs.
+  > validation, JSON round trip, mock data and reflection. No schemas to write.
 
 - Text only: keep the button, the `twoslash-code` example and the layout. No card here.
 - `index.md` gets the simplest wording on the site (`.agents/docs/website-writing.md`, Home page). Same claim
@@ -73,7 +73,7 @@ Edits in TWO files:
   `container/website/app/assets/css/mion.css` around lines 413 and 540).
 - Prose column, three short points, one or two sentences each:
   1. Compiled TypeScript cannot compile code built from strings while the app runs.
-  2. JIT validators (Zod 4 and most fast validators) only learn your schema when the app runs, so their speed
+  2. JIT validators like Zod 4 only learn your schema when the app runs, so their speed
      depends on building code from strings. In compiled TypeScript they drop to a slow path or stop working.
   3. RunTypes gets the full shape from your types and compiles its functions at compile time, before your app
      ever starts. Your types are the schema, no runtime schema object at all.
@@ -95,6 +95,10 @@ Edits in TWO files:
 - Competitor lines stay accurate: Zod 4 has a slower mode without `new Function` (`jitless`), so say JIT
   validators "drop to a slow path or stop working", not "won't run". Check a library's current docs before
   naming it.
+- Say "generated at build time" for the whole toolbelt: mocking walks the type data at runtime, so only
+  validation and the JSON round trip are "compiled". No "no schema at runtime" line for the same reason.
+- Name only Zod 4 as a JIT validator: AJV can also generate standalone code ahead of time.
+- Card heading says "Compiled at build time, not at runtime", never "no code built while your app runs".
 - Name no specific ahead-of-time TypeScript compiler project unless verified to exist and linked. Generic wording
   ("ahead-of-time TypeScript compilers") is the default.
 - No speed numbers for compiled TypeScript (Go / Rust comparisons) on the page: they are not ours to prove.
