@@ -368,6 +368,30 @@
   height: 12px;
 }
 
+/* Narrow cards (a phone): scale at half the rate and stack the rows, so text stays readable. The breakpoint is
+   in rem because px would scale. The PNG is always 1200px wide, so only the website uses this. */
+@container (max-width: 40rem) {
+  .code-card .stage {
+    --u: calc(100cqw / 600);
+  }
+  .code-card .cc-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .code-card .cc-legend {
+    margin-left: 0;
+  }
+  .code-card .cc-facts {
+    grid-template-columns: 1fr;
+  }
+  .code-card .cc-tiles {
+    flex-wrap: wrap;
+  }
+  .code-card .cc-tile {
+    min-width: 40%;
+  }
+}
+
 /* Animation: no class = the final state (PNG, no JS, reduced motion). The player adds cc-armed (every animated
    element waits at its first keyframe), cc-play (they run in --cc-i order), cc-paused (they hold where they are). */
 .code-card [data-cc] {
