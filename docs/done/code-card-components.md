@@ -1,11 +1,33 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done
 created: 2026-10-10
 ---
 
 # Code cards: a Vue component library, rendered standalone, embedded on the website
+
+## As built
+
+Shipped as planned, with these differences:
+
+- **Strict render:** Vue swallows an error thrown from `warnHandler`, so `renderStrict()` (`src/render.ts`) collects
+  every warning and error during `renderToString` and throws them after.
+- **Code snippets:** a code card imports its code as `./<name>.snippet.ts?raw`; `cards/` is excluded from the tool's
+  `tsc` (snippets may show APIs that do not exist yet). `card new` writes both files.
+- **Sizes:** `card.css` is written in px for a 1200px card; `scaleCss()` turns each `Npx` into `calc(N * var(--u))`
+  at render and export time. `rem` values never scale (the code font floor, the breakpoint).
+- **Narrow screens:** below 40rem the card scales at half the rate and stacks bar rows and facts (`@container`), so
+  a phone stays readable. The PNG (always 1200px) never hits it.
+- **Fonts on the site:** exported to `public/fonts/code-card/` with their licences, under their own families
+  (`Card Inter`, `Card Mono`) so they never clash with the site's.
+- **Helpers:** the sequence counter and prop validators live in `components/shared.ts` (`defineProps` cannot use
+  local functions).
+- **Browser:** `MION_CARD_BROWSER` (registered dev var) sets the default `--browser` for `shot` / `serve` and the
+  Chromium tests, which run through `playwright-cli` like `shot` does (`withBrowser`, `evalJson` in `src/shoot.ts`).
+- **Manifest hash:** shared by export and check-tree in `scripts/lib/card-manifest.mjs`; only cards in `cards/`
+  export, and only `drizzle-type-cost` is exported (the one a page uses).
+- **Port check:** the reshot `drizzle-type-cost.png` is byte-identical to the markdown-era PNG.
 
 ## Problem
 
@@ -19,8 +41,6 @@ facts / diff) into a PNG. Three limits:
   selectable.
 - **Checks guess.** Wrapping and overflow are estimated from character counts (`src/card.ts:41` `maxColumns`,
   `src/chart.ts:12-13` label limits), not measured.
-
-Assumes the `drizzle-type-cost` card, its PNG and the linter page image (PR #468) are on `main`.
 
 Goal: cards built from a small, growing library of Vue components. The card tool renders them alone (no Nuxt, no
 container). A card has two outputs from one source: a PNG (fully drawn, no motion) and an HTML fragment that carries
