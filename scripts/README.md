@@ -31,7 +31,7 @@ Each area is a subdirectory under `scripts/` plus a dispatch case in [miondevx.m
 | `release`   | [release/](release/)       | npm publish pipeline (preflight → publish → website → CI deploy)         |
 | `container` | [container/](container/)   | Podman image lifecycle (tsrt-website + tsrt-e2e): build / push / pull    |
 | `env`       | [env/](env/)               | `.env` registry check + one-shot secret pushers                          |
-| `card`      | [tools/code-card/](../tools/code-card/) | Shareable code images: card files rendered to PNG, plus a preview server (see the [code-card skill](../.agents/skills/code-card/SKILL.md)) |
+| `card`      | [tools/code-card/](../tools/code-card/) | Shareable cards: Vue cards rendered to PNG or exported to the website, plus a preview server (see the [card skill](../.agents/skills/card/SKILL.md)) |
 | `lib`       | [lib/](lib/)               | Shared helpers: the command registry, env loading, spawn wrappers, CliError, the Go input digest, podman helpers… |
 
 Top-level aliases (no area prefix): `verify`, `fmt`, `clean` — see `pnpm miondevx` for details.
