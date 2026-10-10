@@ -1,4 +1,4 @@
-// `miondevx card new <name>`: write a starter card into cards/ (kept in git) or tmp/ (ignored).
+// `miondevx card new <name>`: write a starter code card + its snippet into cards/ (kept in git) or tmp/ (ignored).
 
 import {existsSync, mkdirSync, writeFileSync} from 'node:fs';
 import {join, relative} from 'node:path';
@@ -16,29 +16,35 @@ export function parseNewArgs(argv: string[]): {name: string; tmp: boolean} {
   return {name, tmp: Boolean(values.tmp)};
 }
 
-export const starterCard = () => `---
-title: *Short title* in one line
-subtitle: One plain sentence on what the code shows.
-file: example.ts
-highlight: 3
-footer: One short line under the window.
-badge: @mionjs/run-types
----
+/** A code card: the frame, one window, the code from a sibling snippet file. */
+export const starterCard = (name: string) => `<script setup lang="ts">
+import code from './${name}.snippet.ts?raw';
+</script>
 
-\`\`\`ts
-import { getRunTypeId } from '@mionjs/run-types';
+<template>
+  <CardFrame subtitle="One plain sentence on what the code shows." footer="One short line under the window." badge="@mionjs/run-types">
+    <template #title><em>Short title</em> in one line</template>
+    <CardWindow file="example.ts">
+      <CardCode :code="code" highlight="3" />
+    </CardWindow>
+  </CardFrame>
+</template>
+`;
 
-const id = getRunTypeId<{ name: string }>();
-\`\`\`
+export const starterSnippet = () => `import {getRunTypeId} from '@mionjs/run-types';
+
+const id = getRunTypeId<{name: string}>();
 `;
 
 export function main(argv: string[]): void {
   const {name, tmp} = parseNewArgs(argv);
   const dir = tmp ? TMP_DIR : CARDS_DIR;
-  const path = join(dir, `${name}.md`);
-  if (existsSync(path)) throw new Error(`${relative(PACKAGE_DIR, path)} already exists`);
+  const path = join(dir, `${name}.vue`);
+  const snippet = join(dir, `${name}.snippet.ts`);
+  for (const file of [path, snippet]) if (existsSync(file)) throw new Error(`${relative(PACKAGE_DIR, file)} already exists`);
   mkdirSync(dir, {recursive: true});
-  writeFileSync(path, starterCard());
+  writeFileSync(path, starterCard(name));
+  writeFileSync(snippet, starterSnippet());
   console.log(path);
 }
 

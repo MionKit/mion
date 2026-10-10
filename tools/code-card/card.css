@@ -1,0 +1,422 @@
+/* Every card's look, shared by the PNG page and the website. Sizes are written in px for a 1200px-wide card;
+   scaleCss() (src/render.ts) turns each one into a multiple of --u, so the card scales with its container.
+   rem values never scale (a floor for readable code). Colours are site tokens only: the PNG page inlines the rpc
+   theme, the website brings its own. */
+
+.code-card {
+  container-type: inline-size;
+  font-family: 'Card Inter', sans-serif;
+  text-align: left;
+  line-height: normal;
+  letter-spacing: normal;
+  --cc-step: 0.12s;
+  --cc-sub-step: 0.04s;
+  --cc-speed: 0.6s;
+  --accent: var(--site-accent);
+  --accent-mid: var(--site-brand-500);
+  --accent-light: var(--site-brand-300);
+  --badge-text: var(--site-brand-100);
+  --title: #ffffff;
+  --text-muted: #a1a1aa;
+  --text-footer: #d4d4d8;
+  --code-bg: #1a1b26;
+  --bar-bg: #16161e;
+  --file-name: #7a82a8;
+  --bg-from: #2a2b2e;
+  --bg-mid: #1c1d20;
+  --bg-to: #161719;
+}
+.code-card * {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  text-decoration: none;
+}
+.code-card .stage {
+  --u: calc(100cqw / 1200);
+  padding: 40px;
+  background:
+    radial-gradient(700px 420px at 6% 0%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 60%),
+    radial-gradient(700px 420px at 100% 100%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 60%),
+    linear-gradient(135deg, var(--bg-from), var(--bg-mid) 55%, var(--bg-to));
+}
+
+/* frame: title, subtitle, footer, badge */
+.code-card .cc-title {
+  color: var(--title);
+  font-size: 44px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  line-height: 1.1;
+}
+.code-card .cc-title em {
+  font-style: normal;
+  background: linear-gradient(90deg, var(--accent-light), var(--accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.code-card .cc-sub {
+  color: var(--text-muted);
+  font-size: 20px;
+  margin-top: 12px;
+  font-weight: 500;
+}
+.code-card .cc-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  margin-top: 32px;
+  color: var(--text-footer);
+  font-size: 18px;
+  font-weight: 600;
+}
+.code-card .cc-badge {
+  font: 500 17px 'Card Mono', monospace;
+  color: var(--badge-text);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  padding: 6px 12px;
+  border-radius: 8px;
+  margin-left: auto;
+}
+.code-card.cc-kind-stats .cc-title {
+  font-size: 60px;
+  letter-spacing: -1.5px;
+}
+.code-card.cc-kind-stats .cc-sub {
+  font-size: 28px;
+  margin-top: 16px;
+}
+.code-card.cc-kind-stats .cc-foot {
+  font-size: 26px;
+}
+.code-card.cc-kind-stats .cc-badge {
+  font-size: 22px;
+}
+
+/* window: the editor chrome around code or stats */
+.code-card .cc-win {
+  margin-top: 36px;
+  background: var(--code-bg);
+  border-radius: 16px;
+  box-shadow:
+    0 30px 80px #0009,
+    0 0 0 1px #ffffff14;
+  overflow: hidden;
+}
+.code-card .cc-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 20px;
+  background: var(--bar-bg);
+  border-bottom: 1px solid #ffffff0d;
+}
+.code-card .cc-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+}
+.code-card .cc-file {
+  margin-left: 14px;
+  color: var(--file-name);
+  font: 500 15px 'Card Mono', monospace;
+}
+.code-card .cc-body {
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+}
+.code-card .cc-body:has(> .cc-code) {
+  padding: 0;
+}
+
+/* code: Shiki lines, highlighted lines get the accent band */
+.code-card .cc-code {
+  --code-size: max(22px, 0.6875rem);
+  overflow-x: auto;
+}
+.code-card .cc-code pre {
+  font: 400 var(--code-size) / 1.7 'Card Mono', 'Noto Color Emoji', monospace;
+  padding: 28px 32px 32px;
+  white-space: pre;
+  font-variant-ligatures: none;
+  background: transparent !important;
+}
+/* Flex drops the whitespace between rows, so each row, emoji or not, is one full band. */
+.code-card .cc-code pre code {
+  display: flex;
+  flex-direction: column;
+}
+.code-card .cc-code .line {
+  min-height: calc(var(--code-size) * 1.7);
+}
+.code-card .cc-code .line.hl {
+  background: color-mix(in srgb, var(--accent-mid) 12%, transparent);
+  border-left: 3px solid var(--accent-mid);
+  margin: 0 -32px;
+  padding-left: 29px;
+}
+
+/* tiles: big numbers, a 2x2 grid at four */
+.code-card .cc-tiles {
+  display: flex;
+  gap: 16px;
+}
+.code-card .cc-tile {
+  flex: 1;
+  padding: 22px 22px 20px;
+  border-radius: 12px;
+  background: #ffffff08;
+  box-shadow: 0 0 0 1px #ffffff12;
+}
+.code-card .cc-tile b {
+  display: block;
+  font-size: 50px;
+  font-weight: 800;
+  letter-spacing: -1.5px;
+  line-height: 1;
+  white-space: nowrap;
+  background: linear-gradient(90deg, var(--accent-light), var(--accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.code-card .cc-tile span {
+  display: block;
+  margin-top: 10px;
+  color: var(--text-muted);
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+.code-card.cc-kind-stats .cc-tile b {
+  font-size: 50px;
+}
+.code-card .cc-tiles.cc-count-4 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.code-card .cc-tiles.cc-count-4 .cc-tile {
+  padding: 30px 32px 28px;
+}
+.code-card .cc-tiles.cc-count-4 .cc-tile b {
+  font-size: 92px;
+  letter-spacing: -3px;
+}
+.code-card .cc-tiles.cc-count-4 .cc-tile span {
+  font-size: 28px;
+  margin-top: 14px;
+}
+
+/* facts: a compact 2-column list */
+.code-card .cc-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 40px;
+  padding: 4px 6px;
+}
+.code-card .cc-fact {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  font-size: 24px;
+  line-height: 1.3;
+  border-bottom: 1px solid #ffffff12;
+  padding-bottom: 10px;
+}
+.code-card .cc-fact span {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.code-card .cc-fact b {
+  color: var(--title);
+  font: 700 24px 'Card Mono', monospace;
+  white-space: nowrap;
+}
+
+/* diff: GitHub's diffstat line */
+.code-card .cc-diff {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 22px;
+  border-radius: 12px;
+  background: #ffffff08;
+  box-shadow: 0 0 0 1px #ffffff12;
+  font: 700 30px 'Card Mono', monospace;
+}
+.code-card .cc-diff .cc-what {
+  font: 600 19px 'Card Inter', sans-serif;
+  color: var(--text-footer);
+  margin-right: auto;
+}
+.code-card .cc-diff .cc-add {
+  color: #3fb950;
+}
+.code-card .cc-diff .cc-del {
+  color: #f85149;
+}
+.code-card .cc-squares {
+  display: flex;
+  gap: 4px;
+}
+.code-card .cc-squares i {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+}
+.code-card .cc-squares .cc-add {
+  background: #3fb950;
+}
+.code-card .cc-squares .cc-del {
+  background: #f85149;
+}
+.code-card .cc-squares .cc-none {
+  background: #ffffff22;
+}
+.code-card.cc-kind-stats .cc-diff {
+  padding: 0 6px;
+  background: none;
+  box-shadow: none;
+  font-size: 24px;
+  gap: 14px;
+}
+.code-card.cc-kind-stats .cc-diff .cc-what {
+  font-size: 22px;
+  color: var(--text-muted);
+}
+.code-card.cc-kind-stats .cc-squares i {
+  width: 14px;
+  height: 14px;
+}
+
+/* bars: grey before, olive after, the % change */
+.code-card .cc-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.code-card .cc-row {
+  display: grid;
+  grid-template-columns: 220px 1fr 300px;
+  align-items: center;
+  gap: 20px;
+}
+.code-card .cc-label {
+  color: var(--text-footer);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.code-card .cc-track {
+  position: relative;
+  height: 26px;
+}
+.code-card .cc-track i,
+.code-card .cc-legend i {
+  display: block;
+  border-radius: 6px;
+}
+.code-card .cc-track i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  transform-origin: left center;
+}
+.code-card .cc-before {
+  background: #ffffff1c;
+}
+.code-card .cc-after {
+  background: linear-gradient(90deg, var(--accent), var(--accent-light));
+  box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.code-card .cc-value {
+  font: 500 17px 'Card Mono', monospace;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.code-card .cc-value strong {
+  color: var(--title);
+  font-weight: 700;
+}
+.code-card .cc-value em {
+  font-style: normal;
+  margin-left: 10px;
+  color: var(--accent-light);
+}
+.code-card .cc-legend {
+  display: flex;
+  gap: 22px;
+  margin-left: 240px;
+  color: var(--text-muted);
+  font-size: 15px;
+}
+.code-card .cc-legend span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.code-card .cc-legend i {
+  width: 22px;
+  height: 12px;
+}
+
+/* Animation: no class = the final state (PNG, no JS, reduced motion). The player adds cc-armed (every animated
+   element waits at its first keyframe), cc-play (they run in --cc-i order), cc-paused (they hold where they are). */
+.code-card [data-cc] {
+  --cc-name: cc-rise;
+}
+.code-card [data-cc='grow'] {
+  --cc-name: cc-grow;
+}
+.code-card [data-cc='fade'] {
+  --cc-name: cc-fade;
+}
+.code-card [data-cc='line'] {
+  --cc-name: cc-line;
+}
+.code-card.cc-armed [data-cc] {
+  animation: var(--cc-name) var(--cc-speed) cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(var(--cc-i, 0) * var(--cc-step) + var(--cc-sub, 0) * var(--cc-sub-step));
+  animation-play-state: paused;
+}
+.code-card.cc-armed.cc-play [data-cc] {
+  animation-play-state: running;
+}
+.code-card.cc-armed.cc-play.cc-paused [data-cc] {
+  animation-play-state: paused;
+}
+@keyframes cc-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+@keyframes cc-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes cc-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes cc-line {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .code-card [data-cc] {
+    animation: none !important;
+  }
+}

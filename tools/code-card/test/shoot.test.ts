@@ -1,9 +1,12 @@
-import {describe, expect, it} from 'vitest';
+import {afterEach, describe, expect, it, vi} from 'vitest';
 import {existsSync} from 'node:fs';
-import {ZOOM, cliConfig, cliFailure, cliScript, parseShotArgs} from '../src/shoot.ts';
+import {ZOOM, cliConfig, cliFailure, cliScript, parseChecks, parseShotArgs} from '../src/shoot.ts';
 
 describe('code card: shot', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
   it('names or --all, plus --out and --browser', () => {
+    vi.stubEnv('MION_CARD_BROWSER', '');
     expect(parseShotArgs(['a', 'b', '--out', 'dir', '--browser=/bin/chrome'])).toEqual({
       all: false,
       out: 'dir',
@@ -14,6 +17,9 @@ describe('code card: shot', () => {
     expect(() => parseShotArgs([])).toThrow('usage: miondevx card shot');
     expect(() => parseShotArgs(['a', '--all'])).toThrow('not both');
     expect(() => parseShotArgs(['a', '--nope'])).toThrow(/Unknown option/);
+    vi.stubEnv('MION_CARD_BROWSER', '/opt/chrome');
+    expect(parseShotArgs(['a']).browser).toBe('/opt/chrome');
+    expect(parseShotArgs(['a', '--browser', '/bin/chrome']).browser).toBe('/bin/chrome');
   });
 
   it('asks playwright-cli for a sandbox-free chromium with a 2x viewport, and the given browser', () => {
@@ -39,6 +45,12 @@ describe('code card: shot', () => {
     const report = '### Error\nError: ".stage" does not match any elements.';
     expect(cliFailure(report)).toBe('".stage" does not match any elements.');
     expect(cliFailure('  something else  ')).toBe('something else');
+  });
+
+  it("reads the page's layout check results", () => {
+    expect(parseChecks([])).toEqual([]);
+    expect(parseChecks(['wraps'])).toEqual(['wraps']);
+    expect(() => parseChecks({})).toThrow('unexpected layout check output');
   });
 
   it('finds the root playwright-cli from the package', () => {

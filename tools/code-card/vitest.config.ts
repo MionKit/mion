@@ -1,7 +1,9 @@
+import vue from '@vitejs/plugin-vue';
 import {defineConfig} from 'vitest/config';
 
-// No plugins: the card app is plain Node, and taking a PNG needs a browser, so these tests stop at the HTML.
+// plugin-vue compiles the components the tests render; taking a PNG needs a browser, so tests stop at the HTML.
 export default defineConfig({
+  plugins: [vue()],
   test: {
     name: 'code-card',
     environment: 'node',

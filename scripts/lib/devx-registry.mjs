@@ -394,15 +394,15 @@ export const AREAS = {
     ],
   },
   card: {
-    summary: 'shareable code images: a snippet in an editor window, rendered to PNG',
+    summary: 'shareable cards: Vue components rendered to PNG, or exported to the website',
     ...noBuild,
     ...bareHelp,
     commands: [
-      {name: 'new', args: '<name>', summary: 'scaffold a card in tools/code-card/cards/', flags: [['--tmp', 'in tmp/ instead (git ignores it)']]},
+      {name: 'new', args: '<name>', summary: 'scaffold a code card in tools/code-card/cards/', flags: [['--tmp', 'in tmp/ instead (git ignores it)']]},
       {
         name: 'shot',
         args: '<name|path…>',
-        summary: 'render cards to PNG (2400px wide), next to each card by default',
+        summary: 'check the layout and render cards to PNG (2400px wide), next to each card by default',
         flags: [
           ['--all', 'every card in cards/'],
           ['--out <dir>', 'write the PNGs there'],
@@ -411,11 +411,17 @@ export const AREAS = {
       },
       {
         name: 'serve',
-        summary: 'preview service: a card list, live pages and PNG downloads',
+        summary: 'preview service: a card list, live pages with play / pause / replay, PNG downloads',
         flags: [
           ['--port <n>', 'port (default 4400)'],
           ['--browser <path>', "the Chromium binary (default: Playwright's own)"],
         ],
+      },
+      {
+        name: 'export',
+        args: '<name…>',
+        summary: 'write cards, their stylesheet, fonts and player to the website (container/website/app/data/cards/)',
+        flags: [['--all', 'every card in cards/']],
       },
       {name: 'test', summary: 'type check + tests of tools/code-card (no CI lane runs them)'},
     ],
