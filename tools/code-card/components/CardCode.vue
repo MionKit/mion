@@ -16,12 +16,13 @@ const props = withDefaults(
 const THEME = 'tokyo-night';
 const step = nextStep();
 const code = props.code.replace(/^\n/, '').replace(/\s+$/, '');
+if (!code.trim()) throw new Error('CardCode: the code is empty');
 const lineCount = code.split('\n').length;
 const marked = parseHighlight(props.highlight, lineCount);
 
 function parseHighlight(spec: string, count: number): Set<number> {
   const lines = new Set<number>();
-  for (const part of spec.split(',').map((p) => p.trim()).filter(Boolean)) {
+  for (const part of spec.split(',').map((piece) => piece.trim()).filter(Boolean)) {
     const match = part.match(/^(\d+)(?:-(\d+))?$/);
     if (!match) throw new Error(`CardCode: highlight "${spec}" must look like 3, 11-12 or 3,7-8`);
     const from = Number(match[1]);

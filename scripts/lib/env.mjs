@@ -71,7 +71,6 @@ export const REGISTRY = [
   {name: 'MION_WEBSITE_PORT', scope: 'dev', task: '-', desc: 'Dev server host port (default 3000)'},
   {name: 'MION_WEBSITE_AGENT_PORT', scope: 'dev', task: '-', desc: 'Agent-mode host port (default 3100)'},
   {name: 'MION_WEBSITE_AGENT_IDLE_SECONDS', scope: 'dev', task: '-', desc: 'Agent-mode idle self-stop seconds (default 300)'},
-  {name: 'MION_CARD_BROWSER', scope: 'dev', task: '-', desc: "Chromium binary for `miondevx card shot` / `serve` and the card tests (default: Playwright's own; --browser wins)"},
   {name: 'MION_WEBSITE_POLL', scope: 'dev', task: '-', desc: 'Force fs polling for watchers (default 1 on macOS, 0 on Linux)'},
   {name: 'MION_WEBSITE_REPO_CONTEXT', scope: 'dev', task: '-', desc: 'Host checkout with packages/ for code-import/twoslash (default this repo)'},
   {name: 'MION_WEBSITE_DOCDATA', scope: 'dev', task: '-', desc: 'Host dir of generated bench/test JSON the docs read (default .docdata)'},
@@ -185,6 +184,8 @@ export const REGISTRY = [
   {name: 'MION_ALLOW_UNVERIFIED_PUBLISH', scope: 'dev', task: 'publish-npm', desc: 'Set to 1 to publish tarballs with no e2e receipt (scripts/release/receipt.mjs receiptOptOut, the env twin of --no-receipt). The receipt is what makes "e2e passed" a checkable precondition rather than a convention, so this is an escape hatch for a broken gate, never a normal step'},
   {name: 'MION_UPDATE_GOLDEN', scope: 'dev', task: '-', desc: 'Set to 1 to REWRITE a golden corpus instead of failing on drift: the schema documents (ts-go-runtypes/internal/convert/schemadocprobe_test.go) the diagnostic slot order (ts-go-runtypes/internal/diagnostics/catalog_test.go rewrites testdata/slots.json) and the grouped log (internal/diagnostics/grouped_test.go rewrites testdata/grouped/cases.json, packages/devtools/test/grouped-log.fuzz.test.ts rewrites testdata/grouped/random.json). Only after an INTENTIONAL change: the corpus is what catches an accidental one'},
 
+  // — code card knobs (tools/code-card, `miondevx card`) —
+  {name: 'MION_CARD_BROWSER', scope: 'dev', task: '-', desc: "Chromium binary for `miondevx card shot` / `serve` and the card tests (default: Playwright's own; --browser wins)"},
   // — lint knobs (the @mionjs/devtools OXlint/ESLint plugin) —
   {name: 'MION_LINT_PRESPAWN', scope: 'dev', task: '-', desc: "Set 0 to skip the lint plugin's load-time resolver pre-spawn (small hosts)"},
 

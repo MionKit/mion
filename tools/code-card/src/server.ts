@@ -75,7 +75,7 @@ export function createCardServer({browser, cardPaths = {}}: CardServerOptions = 
       try {
         const outPath = join(workDir, `${name}.png`);
         const self = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-        await shootUrls([{url: `${self}/card/${name}?zoom=${ZOOM}&shot`, outPath, name}], {browser});
+        await shootUrls([{url: `${self}/card/${name}?zoom=${ZOOM}&shot`, outPath}], {browser});
         send(200, 'image/png', readFileSync(outPath), {'content-disposition': `attachment; filename="${name}.png"`});
       } finally {
         rmSync(workDir, {recursive: true, force: true});

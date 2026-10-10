@@ -1,9 +1,19 @@
+import {mkdirSync, rmSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {afterAll, describe, expect, it} from 'vitest';
-import {CARDS_DIR} from '../src/card.ts';
+import {CARDS_DIR, TMP_DIR} from '../src/card.ts';
 import {cardCss, closeRenderer, renderFragment, renderPage, scaleCss} from '../src/render.ts';
 
-afterAll(() => closeRenderer());
+const DIR = join(TMP_DIR, 'render-test');
+const card = (name: string, template: string, script = '') => {
+  mkdirSync(DIR, {recursive: true});
+  writeFileSync(join(DIR, `${name}.vue`), `${script}<template>${template}</template>\n`);
+  return join(DIR, `${name}.vue`);
+};
+afterAll(async () => {
+  await closeRenderer();
+  rmSync(DIR, {recursive: true, force: true});
+});
 
 describe('code card: render', () => {
   it('scales every px size with the card width, never rem', () => {
@@ -23,6 +33,19 @@ describe('code card: render', () => {
     expect(html).toMatch(/^<div class="code-card cc-kind-code"/);
     expect(html).toContain('<em>Typed match</em> coming soon to run-types');
     expect(html).not.toMatch(/<html|@font-face/);
+  });
+
+  it('refuses a card that is not one CardFrame', async () => {
+    await expect(renderFragment(card('bare', '<CardWindow file="x" />'))).rejects.toThrow('the card must be one <CardFrame>');
+  });
+
+  it('keeps a $ in the code as written', async () => {
+    const path = card(
+      'dollars',
+      '<CardFrame><template #title>Hi</template><CardWindow><CardCode :code="code" /></CardWindow></CardFrame>',
+      `<script setup lang="ts">const code = "const s = '$& $1 $$';";</script>\n`
+    );
+    expect(await renderPage(path)).toContain('$&#x26; $1 $$');
   });
 
   it('the PNG page: fonts inlined, rpc theme, player, no preview controls', async () => {
