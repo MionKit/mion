@@ -1,6 +1,6 @@
 # Drizzle type cost: slim models next to toDrizzle
 
-Why `drizzle-mixed-types` exists. A client imports one slim model (`User`, `Post`) from a file. In one layout that file holds only the slim schema. In the other it also holds `toDrizzle`, relations and the `drizzle()` database, optionally with a few queries. Does the client pay for the Drizzle side it never uses?
+Why `drizzle-mixed-types` exists. A client imports one slim model (`User`, `Post`) from a file holding either only the slim schema, or also `toDrizzle`, relations and the `drizzle()` database (optionally with a few queries). Does the client pay for the Drizzle side it never uses?
 
 ![Stats card](../../../tools/code-card/cards/drizzle-type-cost.png)
 
@@ -17,7 +17,7 @@ Why `drizzle-mixed-types` exists. A client imports one slim model (`User`, `Post
 - Fixtures: the six real schema files of `src/db/` (pg, mysql, sqlite × builders, types) with their `.db.ts` companions. "Same file" = both concatenated. "Same file + queries" adds a select, a join, a relational query and a view select.
 - Clients: type-only (`import type {User, Post, NewUser}`) and value (`import {users}`).
 - Mion packages consumed as emitted `.d.ts` (like an installed package), drizzle-orm 0.45.2 from the workspace. `strict`, `skipLibCheck`, bundler resolution.
-- Tools: TypeScript 6.0.3 API (client file only vs whole program), `tsc` and `tsgo` (native, built from the pinned typescript-go submodule) with `--extendedDiagnostics`, median of 5 runs (3 for the scaling table), esbuild for bundles.
+- Tools: TypeScript 6.0.3 API (client file only vs whole program), `tsc` and `tsgo` (native, built from the typescript-go submodule) with `--extendedDiagnostics`, median of 5 runs (3 for the scaling table), esbuild for bundles.
 - Every fixture compiled with zero errors.
 
 ## Example app, type-only client
