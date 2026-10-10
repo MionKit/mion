@@ -36,7 +36,12 @@ describe('code card components', () => {
     const html = await renderCard(() =>
       frame(() => h(component('CardWindow'), {file: 'f.ts'}, () => h(component('CardTiles'), () => [tile('1'), tile('2')])))
     );
-    expect(sequence(html)).toEqual([0, 1, 2, 3]);
+    expect(sequence(html)).toEqual([0, 1, 2]);
+  });
+
+  it('CardWindow: the frame never animates, so the block shows before its content plays', async () => {
+    const html = await renderCard(() => frame(() => h(component('CardWindow'), {file: 'f.ts'}, () => null)));
+    expect(html).toContain('<div class="cc-win"><div class="cc-bar">');
   });
 
   it('CardBar: widths scale to the larger value, with the % change', async () => {
@@ -89,5 +94,21 @@ describe('code card components', () => {
     for (const bad of ['4', '0', '3-2']) await expect(code(bad), bad).rejects.toThrow('outside the code');
     for (const bad of ['two', '1-', '2..3']) await expect(code(bad), bad).rejects.toThrow('must look like');
     await expect(code('', '  \n')).rejects.toThrow('the code is empty');
+  });
+
+  it('CardLanes + CardLane: one beat per name, step, run, hit and result; a stopped lane bounces, shakes and dims', async () => {
+    const steps = [{label: 'type', value: 'type User'}];
+    const lane = (props: Record<string, unknown>) => h(component('CardLane'), {label: 'L', steps, result: 'R', ...props});
+    const lanes = (...children: ReturnType<typeof h>[]) => renderCard(() => frame(() => h(component('CardLanes'), {gate: 'AOT compiler'}, () => children)));
+    const html = await lanes(lane({stopped: true}), lane({packet: 'isUser'}));
+    // title, gate, then per lane: name, 1 step, run, hit, result
+    expect([...new Set(sequence(html))].sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    for (const motion of ['bounce', 'shake', 'dim', 'stamp', 'travel']) expect(html).toContain(`data-cc="${motion}"`);
+    expect([...html.matchAll(/data-cc="(bounce|travel)"/g)].map((match) => match[1])).toEqual(['bounce', 'travel']);
+    await expect(lanes(lane({steps: []}))).rejects.toThrow('1 to 3 steps, got 0');
+    await expect(lanes(lane({steps: [{label: 'x', value: ' '}]}))).rejects.toThrow('a label and a value');
+    await expect(lanes(lane({packet: '123456789'}))).rejects.toThrow('over 8 characters');
+    await expect(renderCard(() => lane({}))).rejects.toThrow('inside a CardLanes');
+    await expect(renderCard(() => h(component('CardLanes'), {gate: ' '}))).rejects.toThrow('needs a name');
   });
 });

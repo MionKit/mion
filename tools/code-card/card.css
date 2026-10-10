@@ -21,6 +21,7 @@
   --code-bg: #1a1b26;
   --bar-bg: #16161e;
   --file-name: #7a82a8;
+  --bad: #f85149;
   --bg-from: #2a2b2e;
   --bg-mid: #1c1d20;
   --bg-to: #161719;
@@ -367,6 +368,234 @@
   height: 12px;
 }
 
+/* lanes: steps run to one shared gate (the wall), then pass through it or bounce off it */
+.code-card .cc-lanes {
+  --cc-gate-w: 110px;
+  --cc-end-w: 230px;
+  --cc-gap: 20px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+.code-card .cc-lanes-head,
+.code-card .cc-lane {
+  display: grid;
+  grid-template-columns: 1fr var(--cc-gate-w) var(--cc-end-w);
+  column-gap: var(--cc-gap);
+}
+.code-card .cc-lanes-head {
+  height: 24px;
+  margin-bottom: -14px;
+  align-items: end;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.code-card .cc-gate-name {
+  grid-column: 2;
+  justify-self: center;
+  color: var(--text-footer);
+}
+.code-card .cc-outcome {
+  grid-column: 3;
+  color: var(--text-muted);
+}
+.code-card .cc-wall {
+  position: absolute;
+  top: 34px;
+  bottom: -8px;
+  right: calc(var(--cc-end-w) + var(--cc-gap) + var(--cc-gate-w) / 2 - 7px);
+  width: 14px;
+  border-radius: 4px;
+  background: repeating-linear-gradient(-45deg, #ffffff38 0 6px, #ffffff12 6px 12px);
+  box-shadow: 0 0 0 1px #ffffff1c;
+  transform-origin: top center;
+}
+.code-card .cc-lane {
+  row-gap: 14px;
+  align-items: center;
+}
+.code-card .cc-lane-name {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.code-card .cc-lane-name b {
+  color: var(--title);
+  font-size: 22px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.code-card .cc-lane-name span {
+  color: var(--text-muted);
+  font-size: 17px;
+  font-weight: 500;
+}
+.code-card .cc-lane-steps {
+  display: flex;
+  align-items: center;
+}
+.code-card .cc-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #ffffff0a;
+  box-shadow: 0 0 0 1px #ffffff1c;
+}
+.code-card .cc-step + .cc-step {
+  margin-left: 34px;
+}
+.code-card .cc-step + .cc-step::before {
+  content: '→';
+  position: absolute;
+  left: -27px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 20px;
+}
+.code-card .cc-step span {
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.code-card .cc-step code {
+  color: var(--title);
+  font: 500 17px 'Card Mono', monospace;
+  white-space: nowrap;
+}
+.code-card .cc-lane:not(.cc-stopped) .cc-step {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.code-card .cc-lane-track {
+  position: relative;
+  flex: 1;
+  min-width: 70px;
+  height: 2px;
+  margin-left: 10px;
+  margin-right: calc(-1 * (var(--cc-gap) + var(--cc-gate-w) / 2 - 7px));
+}
+.code-card .cc-lane-line {
+  position: absolute;
+  inset: 0;
+  background: #ffffff40;
+  transform-origin: left center;
+}
+.code-card .cc-lane:not(.cc-stopped) .cc-lane-line,
+.code-card .cc-gate-pass {
+  background: linear-gradient(90deg, var(--accent), var(--accent-light));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+/* Starts 70px in, so the packet leaves from the last step instead of covering it. */
+.code-card .cc-packet {
+  position: absolute;
+  inset: 0 0 0 70px;
+  opacity: 0;
+}
+.code-card .cc-packet b {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 3px 9px;
+  border-radius: 6px;
+  font: 700 14px 'Card Mono', monospace;
+  white-space: nowrap;
+  color: var(--title);
+  background: #ffffff30;
+}
+.code-card .cc-lane:not(.cc-stopped) .cc-packet b {
+  color: var(--bg-to);
+  background: var(--accent-light);
+  box-shadow: 0 0 16px var(--accent);
+}
+.code-card .cc-gate {
+  position: relative;
+  align-self: stretch;
+}
+.code-card .cc-gate-hit {
+  position: absolute;
+  left: 50%;
+  top: -10px;
+  bottom: -10px;
+  width: 14px;
+  margin-left: -7px;
+  border-radius: 4px;
+  background: var(--accent);
+  box-shadow: 0 0 28px var(--accent);
+}
+.code-card .cc-stopped .cc-gate-hit {
+  background: var(--bad);
+  box-shadow: 0 0 28px var(--bad);
+}
+.code-card .cc-stamp {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--bad);
+  color: var(--title);
+  font-size: 24px;
+  font-weight: 800;
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--bad) 25%, transparent);
+}
+.code-card .cc-gate-pass {
+  position: absolute;
+  left: 0;
+  right: calc(-1 * var(--cc-gap));
+  top: 50%;
+  height: 2px;
+  margin-top: -1px;
+  transform-origin: left center;
+}
+.code-card .cc-lane-end {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent),
+    0 0 30px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.code-card .cc-lane-end b {
+  color: var(--accent-light);
+  font-size: 21px;
+  font-weight: 800;
+}
+.code-card .cc-lane-end span {
+  color: var(--text-muted);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+.code-card .cc-stopped .cc-lane-end {
+  background: color-mix(in srgb, var(--bad) 10%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bad) 45%, transparent);
+}
+.code-card .cc-stopped .cc-lane-end b {
+  color: var(--bad);
+}
+.code-card .cc-stopped .cc-lane-path {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
 /* Phones: half the scale rate, rows stacked. A rem breakpoint, as px would scale; the PNG never gets this narrow. */
 @container (max-width: 40rem) {
   .code-card .stage {
@@ -388,6 +617,34 @@
   .code-card .cc-tile {
     min-width: 40%;
   }
+  .code-card .cc-lanes {
+    --cc-gate-w: 40px;
+    --cc-end-w: 0px;
+    --cc-gap: 12px;
+  }
+  .code-card .cc-outcome {
+    display: none;
+  }
+  .code-card .cc-gate-name {
+    grid-column: 1 / 3;
+    justify-self: end;
+  }
+  .code-card .cc-lane-steps {
+    flex-wrap: wrap;
+    row-gap: 12px;
+  }
+  .code-card .cc-lane-end {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  /* Wrapped steps: the track sits on the last line, one step tall. */
+  .code-card .cc-gate {
+    align-self: end;
+    height: 63px;
+  }
+  .code-card .cc-gate-pass {
+    right: 0;
+  }
 }
 
 /* No player class = the final state (PNG, no JS, reduced motion); the player adds cc-armed, cc-play, cc-paused. */
@@ -403,10 +660,40 @@
 .code-card [data-cc='line'] {
   --cc-name: cc-line;
 }
+.code-card [data-cc='pop'] {
+  --cc-name: cc-pop;
+}
+.code-card [data-cc='wall'] {
+  --cc-name: cc-wall;
+}
+.code-card [data-cc='travel'] {
+  --cc-name: cc-travel;
+}
+.code-card [data-cc='bounce'] {
+  --cc-name: cc-bounce;
+}
+.code-card [data-cc='hit'] {
+  --cc-name: cc-hit;
+}
+.code-card [data-cc='stamp'] {
+  --cc-name: cc-stamp;
+}
+.code-card [data-cc='shake'] {
+  --cc-name: cc-shake;
+}
+.code-card [data-cc='dim'] {
+  --cc-name: cc-dim;
+}
 .code-card.cc-armed [data-cc] {
   animation: var(--cc-name) var(--cc-speed) cubic-bezier(0.2, 0.7, 0.2, 1) both;
   animation-delay: calc(var(--cc-i, 0) * var(--cc-step) + var(--cc-sub, 0) * var(--cc-sub-step));
   animation-play-state: paused;
+}
+/* A packet arrives at the gate one step after it leaves: at 66% of 1.5 steps. */
+.code-card.cc-armed [data-cc='travel'],
+.code-card.cc-armed [data-cc='bounce'] {
+  animation-duration: calc(var(--cc-step) * 1.5);
+  animation-timing-function: ease-in;
 }
 .code-card.cc-armed.cc-play [data-cc] {
   animation-play-state: running;
@@ -434,6 +721,106 @@
   from {
     opacity: 0;
     transform: translateX(-10px);
+  }
+}
+@keyframes cc-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+@keyframes cc-wall {
+  from {
+    transform: scaleY(0);
+  }
+}
+/* The final state hides the packet: it only exists in motion. */
+@keyframes cc-travel {
+  0% {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  8% {
+    opacity: 1;
+  }
+  66% {
+    transform: translateX(0);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(45%);
+  }
+}
+@keyframes cc-bounce {
+  0% {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  8% {
+    opacity: 1;
+  }
+  66% {
+    transform: translateX(0);
+  }
+  78% {
+    transform: translateX(-12%);
+  }
+  88% {
+    opacity: 1;
+    transform: translateX(-6%);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-6%);
+  }
+}
+@keyframes cc-hit {
+  0% {
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+    transform: scaleX(2.6);
+  }
+}
+@keyframes cc-stamp {
+  0% {
+    opacity: 0;
+    transform: scale(2.6) rotate(-25deg);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(0.9) rotate(4deg);
+  }
+  75% {
+    transform: scale(1.06);
+  }
+}
+@keyframes cc-shake {
+  15% {
+    transform: translateX(-9px);
+  }
+  35% {
+    transform: translateX(7px);
+  }
+  55% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(3px);
+  }
+}
+@keyframes cc-dim {
+  from {
+    filter: grayscale(0);
+    opacity: 1;
   }
 }
 @media (prefers-reduced-motion: reduce) {
