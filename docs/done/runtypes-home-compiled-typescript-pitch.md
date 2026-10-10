@@ -98,7 +98,8 @@ Edits in TWO files:
 - Say "generated at build time" for the whole toolbelt: mocking walks the type data at runtime, so only
   validation and the JSON round trip are "compiled". No "no schema at runtime" line for the same reason.
 - Name only Zod 4 as a JIT validator: AJV can also generate standalone code ahead of time.
-- Card heading is "Why JIT validators won't be enough" (user's ask), never "no code built while your app runs".
+- "JIT validators won't be enough" lives only in the animated card's title (user's ask); the text box under it is
+  "Compiled TypeScript is on its way". Never "no code built while your app runs".
 - Compiled TypeScript projects are named in one short linked list (user's ask): scriptc (Vercel Labs), Porffor,
   Perry and Bun's experimental ahead-of-time mode (its WebKit pull request says `new Function` code stays
   interpreted). Each verified to exist before linking; no claims beyond what its own pages say.
