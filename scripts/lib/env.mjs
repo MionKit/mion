@@ -71,6 +71,7 @@ export const REGISTRY = [
   {name: 'MION_WEBSITE_PORT', scope: 'dev', task: '-', desc: 'Dev server host port (default 3000)'},
   {name: 'MION_WEBSITE_AGENT_PORT', scope: 'dev', task: '-', desc: 'Agent-mode host port (default 3100)'},
   {name: 'MION_WEBSITE_AGENT_IDLE_SECONDS', scope: 'dev', task: '-', desc: 'Agent-mode idle self-stop seconds (default 300)'},
+  {name: 'MION_CARD_BROWSER', scope: 'dev', task: '-', desc: "Chromium binary for `miondevx card shot` / `serve` and the card tests (default: Playwright's own; --browser wins)"},
   {name: 'MION_WEBSITE_POLL', scope: 'dev', task: '-', desc: 'Force fs polling for watchers (default 1 on macOS, 0 on Linux)'},
   {name: 'MION_WEBSITE_REPO_CONTEXT', scope: 'dev', task: '-', desc: 'Host checkout with packages/ for code-import/twoslash (default this repo)'},
   {name: 'MION_WEBSITE_DOCDATA', scope: 'dev', task: '-', desc: 'Host dir of generated bench/test JSON the docs read (default .docdata)'},

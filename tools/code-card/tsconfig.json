@@ -1,5 +1,6 @@
 {
   // noEmit-only: this package ships nothing, Node runs its .ts sources directly.
+  // cards/ holds snippets of APIs that may not exist yet, so it is never type checked.
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "composite": false,
@@ -13,5 +14,5 @@
     "lib": ["ES2023", "DOM"]
   },
   "include": ["."],
-  "exclude": ["node_modules", "tmp"]
+  "exclude": ["node_modules", "tmp", "cards"]
 }

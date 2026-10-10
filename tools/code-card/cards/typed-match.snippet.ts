@@ -1,13 +1,3 @@
----
-title: *Typed match* coming soon to run-types
-subtitle: Match unknown data by type. The runtime check is generated at build time.
-file: feed.ts
-highlight: 11-12
-footer: No schemas to keep in sync. Just TypeScript.
-badge: @mionjs/run-types
----
-
-```ts
 import { match } from '@mionjs/run-types';
 
 interface User  { id: number; name: string; email: string }
@@ -23,4 +13,3 @@ const message = match(data)
   .otherwise(() => '🤷 Not something I know');
 
 message; // string, and every branch is fully typed
-```

@@ -514,13 +514,16 @@ async function runContainer(args) {
 }
 
 // ── card: shareable code images (tools/code-card/) ────────────────────────
-// A child process, never an import: the app has its own deps (shiki, playwright-cli) and .ts sources.
+// A child process, never an import: the app has its own deps (vue, vite, shiki, playwright-cli) and .ts sources.
+// The renderer strips the player's types with node:module, still flagged experimental.
+const CARD_NODE = ['--disable-warning=ExperimentalWarning'];
 function runCard(args) {
   const [sub, ...rest] = args;
   if (!lookup('card', sub)) die(usage('card'), 2);
-  if (sub === 'new') return proxy('node', ['tools/code-card/src/new.ts', ...rest]);
-  if (sub === 'shot') return proxy('node', ['tools/code-card/src/shoot.ts', ...rest]);
-  if (sub === 'serve') return proxy('node', ['tools/code-card/src/server.ts', ...rest]);
+  if (sub === 'new') return proxy('node', [...CARD_NODE, 'tools/code-card/src/new.ts', ...rest]);
+  if (sub === 'shot') return proxy('node', [...CARD_NODE, 'tools/code-card/src/shoot.ts', ...rest]);
+  if (sub === 'serve') return proxy('node', [...CARD_NODE, 'tools/code-card/src/server.ts', ...rest]);
+  if (sub === 'export') return proxy('node', [...CARD_NODE, 'tools/code-card/src/export.ts', ...rest]);
   if (sub === 'test') return proxy('pnpm', ['--filter', '@mionjs/code-card', 'run', 'test']);
   die(usage('card'), 2);
 }

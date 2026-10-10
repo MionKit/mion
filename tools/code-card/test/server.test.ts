@@ -1,12 +1,16 @@
 // The PNG route needs a browser, so it is covered by hand with `miondevx card serve`.
 import type {AddressInfo} from 'node:net';
 import {join} from 'node:path';
-import {afterAll, beforeAll, describe, expect, it} from 'vitest';
+import {afterAll, afterEach, beforeAll, describe, expect, it, vi} from 'vitest';
 import {CARDS_DIR} from '../src/card.ts';
+import {closeRenderer} from '../src/render.ts';
 import {DEFAULT_PORT, createCardServer, parseServeArgs} from '../src/server.ts';
 
 describe('code card: serve flags', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
   it('--port and --browser', () => {
+    vi.stubEnv('MION_CARD_BROWSER', '');
     expect(parseServeArgs([])).toEqual({port: DEFAULT_PORT, browser: undefined});
     expect(parseServeArgs(['--port', '5000', '--browser', '/bin/chrome'])).toEqual({port: 5000, browser: '/bin/chrome'});
     expect(() => parseServeArgs(['--port', 'x'])).toThrow('--port must be a number');
@@ -15,13 +19,16 @@ describe('code card: serve flags', () => {
 });
 
 describe('code card: preview server', () => {
-  const server = createCardServer({cardPaths: {'card-0': join(CARDS_DIR, 'typed-match.md')}});
+  const server = createCardServer({cardPaths: {'card-0': join(CARDS_DIR, 'typed-match.vue')}});
   let base = '';
   beforeAll(async () => {
     await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
     base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   });
-  afterAll(() => new Promise<void>((done) => server.close(() => done())));
+  afterAll(async () => {
+    await new Promise<void>((done) => server.close(() => done()));
+    await closeRenderer();
+  });
 
   it('lists the kept cards with preview and download links', async () => {
     const page = await (await fetch(`${base}/`)).text();
@@ -29,19 +36,13 @@ describe('code card: preview server', () => {
     expect(page).toContain('<a href="/card/typed-match.png" download>');
   });
 
-  it('renders a card page', async () => {
+  it('renders a card page with the play / pause / replay preview, and the plain page on ?shot', async () => {
     const response = await fetch(`${base}/card/typed-match`);
     expect(response.status).toBe(200);
-    expect(await response.text()).toContain('<span class="accent">Typed match</span>');
-  });
-
-  it('renders a card sent as JSON, and names what is wrong with a bad one', async () => {
-    const post = (body: string) => fetch(`${base}/render`, {method: 'POST', body});
-    const good = await post(JSON.stringify({title: '*Hi*', code: 'x;'}));
-    expect(await good.text()).toContain('<h1><span class="accent">Hi</span></h1>');
-    const bad = await post(JSON.stringify({title: 'Hi', code: 'x;', colour: 'red'}));
-    expect(bad.status).toBe(400);
-    expect(await bad.text()).toContain('unknown key "colour"');
+    const page = await response.text();
+    expect(page).toContain('<em>Typed match</em>');
+    expect(page).toContain('<button data-do="play">Play</button>');
+    expect(await (await fetch(`${base}/card/typed-match?shot`)).text()).not.toContain('class="cc-preview"');
   });
 
   it('zooms a page on ?zoom= and refuses a zoom out of range', async () => {
@@ -52,7 +53,7 @@ describe('code card: preview server', () => {
   });
 
   it('serves a card by the id the shot command gave it, wherever the file lives', async () => {
-    expect(await (await fetch(`${base}/card/card-0`)).text()).toContain('<span class="accent">Typed match</span>');
+    expect(await (await fetch(`${base}/card/card-0`)).text()).toContain('<em>Typed match</em>');
   });
 
   it('names a missing card', async () => {
