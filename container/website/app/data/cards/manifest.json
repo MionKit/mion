@@ -1,6 +1,6 @@
 {
   "drizzle-type-cost": {
-    "hash": "1e97c130f574945f57ed214d3197d867c5d627515b78b8dfa6e297829143133c",
+    "hash": "97abca8d89cd3c32bac7f0700e749e5ceee91ab2a8c5ef6fc0db08a01a256525",
     "sources": [
       "tools/code-card/card.css",
       "tools/code-card/cards/drizzle-type-cost.vue",
