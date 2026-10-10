@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Shows the HTML `pnpm miondevx card export` wrote, which brings its own look and animation. Prerendered in its
-// final state, it plays the first time it scrolls into view (never under reduced motion).
+// final state, it plays once its top is 35% of the screen above the bottom edge (never under reduced motion).
 import {arm, play} from '../../utils/codeCardPlayer'
 import '../../assets/css/code-card.css'
 
@@ -13,7 +13,7 @@ const html = await cards[`../../data/cards/${props.name}.html`]?.()
 const root = ref<HTMLElement>()
 let observer: IntersectionObserver | undefined
 
-// Armed in the observer callback, not on mount: a card already on screen plays at once, never vanishing for a frame.
+// Armed in the observer callback, not on mount: a card already past that line plays at once, never vanishing for a frame.
 onMounted(() => {
   const card = root.value?.querySelector('.code-card')
   if (!card) return
@@ -25,7 +25,8 @@ onMounted(() => {
       play(card)
       observer?.disconnect()
     },
-    {threshold: 0.25}
+    // the bottom 35% of the screen does not count, so the reader has scrolled into the card before it plays
+    {rootMargin: '0px 0px -35% 0px'}
   )
   observer.observe(card)
 })
