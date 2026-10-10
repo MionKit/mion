@@ -54,6 +54,26 @@ import { match } from '@mionjs/run-types';
 | `codeSize` | no | Code font size, in px. Default `22`, from `12` to `32`. |
 | fence language | no | Picks the colouring: `ts` (default), `js`, `json`, `bash`, `go`… |
 
+### More than one code block
+
+A card can stack several windows. Any block can sit under a `## heading` line (caption above its window,
+`*text*` = accent) and set its own `file` / `highlight` on the fence line. Frontmatter `file` + `highlight`
+belong to the first block (set them in one place only). Highlight lines count from the top of each block.
+
+````md
+```ts
+// server code…
+```
+
+## *Bonus*: the client
+```ts file=client.ts highlight=3-4
+// client code…
+```
+````
+
+- Only blank lines, `## heading` lines and code blocks go under the frontmatter. Other text is refused.
+- A `stats` block must be the only block.
+
 - App refuses a card with an unknown key, bad highlight range, size out of range, or code line too long for the window.
   The error names the problem and the limit.
 - Defaults fit 80 columns. Smaller `codeSize` or `padding` fits more.
@@ -63,7 +83,7 @@ import { match } from '@mionjs/run-types';
 
 - **Real API only.** Every name in the code exists in the repo, or is a planned feature the user named.
   API not shipped yet → say "coming soon" in the title.
-- **Short:** a title that fits one line, about 15 lines of code at most, one idea per card.
+- **Short:** a title that fits one line, about 15 lines of code per block, one idea per card.
 - Highlight the two or three lines the card is about, not more.
 - Plain words in subtitle + footer ([writing rules](../../docs/website-writing.md)). No em dashes.
 

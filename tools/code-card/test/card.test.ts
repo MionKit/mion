@@ -39,14 +39,19 @@ describe('code card: parseCard', () => {
     expect(card).toEqual({
       title: '*Typed match* coming soon',
       subtitle: 'Match unknown data by type.',
-      file: 'feed.ts',
       footer: 'Just TypeScript.',
       badge: '@mionjs/run-types',
-      lang: 'ts',
-      highlight: [2, 3],
       padding: DEFAULT_PADDING,
       codeSize: DEFAULT_CODE_SIZE,
-      code: "const a = 1;\nconst b = 'two';\nconst c = <T>(value: T) => value;",
+      blocks: [
+        {
+          heading: '',
+          file: 'feed.ts',
+          lang: 'ts',
+          highlight: [2, 3],
+          code: "const a = 1;\nconst b = 'two';\nconst c = <T>(value: T) => value;",
+        },
+      ],
     });
   });
 
@@ -55,24 +60,22 @@ describe('code card: parseCard', () => {
     expect(card).toMatchObject({
       title: 'Hi',
       subtitle: '',
-      file: '',
       footer: '',
       badge: '',
-      lang: 'ts',
-      highlight: [],
-      code: 'x;',
+      blocks: [{heading: '', file: '', lang: 'ts', highlight: [], code: 'x;'}],
     });
   });
 
   it('keeps a four-backtick fence open across a three-backtick line', () => {
     const card = parseCard('---\ntitle: Hi\n---\n````md\n```ts\nx;\n```\n````\n');
-    expect(card.lang).toBe('md');
-    expect(card.code).toBe('```ts\nx;\n```');
+    expect(card.blocks[0].lang).toBe('md');
+    expect(card.blocks[0].code).toBe('```ts\nx;\n```');
   });
 
   it.each([
     ['no title', '```ts\nx;\n```', 'missing title'],
-    ['no code block', '---\ntitle: Hi\n---\ntext', 'no fenced code block'],
+    ['no code block', '---\ntitle: Hi\n---\n', 'no fenced code block'],
+    ['loose text', '---\ntitle: Hi\n---\ntext\n```ts\nx;\n```', 'line 4: only code blocks and "## heading" lines'],
     ['an open fence', '---\ntitle: Hi\n---\n```ts\nx;', 'no closing fence'],
     ['an empty block', '---\ntitle: Hi\n---\n```ts\n\n```', 'code block is empty'],
     ['an open frontmatter', '---\ntitle: Hi\n```ts\nx;\n```', 'no closing ---'],
@@ -92,6 +95,56 @@ describe('code card: parseCard', () => {
     expect(() =>
       parseCard(`---\ntitle: Hi\n---\n\`\`\`ts\n${'👋'.repeat(maxColumns(DEFAULT_PADDING, DEFAULT_CODE_SIZE))}\n\`\`\``)
     ).not.toThrow();
+  });
+});
+
+describe('code card: several blocks', () => {
+  const twoBlocks = `---
+title: Server and client
+file: server.ts
+highlight: 1
+---
+
+## Server
+
+\`\`\`ts
+const a = 1;
+\`\`\`
+
+## *Bonus*: the client
+\`\`\`js file=client.js highlight="2"
+call();
+done();
+\`\`\`
+`;
+
+  it('reads each block with its own heading, file, language and highlight', () => {
+    expect(parseCard(twoBlocks).blocks).toEqual([
+      {heading: 'Server', file: 'server.ts', lang: 'ts', highlight: [1], code: 'const a = 1;'},
+      {heading: '*Bonus*: the client', file: 'client.js', lang: 'js', highlight: [2], code: 'call();\ndone();'},
+    ]);
+  });
+
+  it('draws one window per block, each heading above its own window', async () => {
+    const html = await renderCardHtml(parseCard(twoBlocks));
+    expect(html.match(/<div class="win">/g)).toHaveLength(2);
+    expect(html).toContain('<h2>Server</h2><div class="win">');
+    expect(html).toContain('<h2><span class="accent">Bonus</span>: the client</h2>');
+    expect(html).toContain('<span class="file">client.js</span>');
+    const lines = [...html.matchAll(/<span class="line( hl)?">/g)].map((match) => Boolean(match[1]));
+    expect(lines).toEqual([true, false, true]);
+  });
+
+  it.each([
+    ['a heading with no block', '## Lost', 'heading "Lost" has no code block under it'],
+    ['two headings in a row', '## One\n## Two\n```ts\nx;\n```', 'two headings in a row'],
+    ['an unknown fence attribute', '```ts title=x\nx;\n```', 'unknown fence attribute "title"'],
+    ['file set twice', '```ts file=b.ts\nx;\n```', '"file" is set twice'],
+    ['a stats block next to code', '```stats\ntile: 1 | one\n```\n```ts\nx;\n```', 'a stats block must be the only block'],
+    ['a too-wide line in block 2', `\`\`\`ts\nx;\n\`\`\`\n\`\`\`ts\n${'x'.repeat(81)}\n\`\`\``, 'block 2: code line 1 is 81 columns'],
+    ['a highlight past the block', '```ts\nx;\n```\n```ts highlight=2\nx;\n```', 'block 2: highlight "2" is outside lines 1-1'],
+  ])('fails on %s', (_, body, message) => {
+    expect(() => parseCard(`---\ntitle: Hi\nfile: a.ts\n---\n${body}`, 'demo.md')).toThrow(message);
   });
 });
 
@@ -139,9 +192,10 @@ describe('code card: padding and codeSize', () => {
   });
 
   it('takes numbers from JSON, but not other types', () => {
-    expect(validateCard({title: 'Hi', code: 'x;', padding: 10, codeSize: 18})).toMatchObject({padding: 10, codeSize: 18});
-    expect(() => validateCard({title: 'Hi', code: 'x;', padding: true})).toThrow('"padding" must be a string');
-    expect(() => validateCard({title: 'Hi', code: 'x;', title2: 1})).toThrow('unknown key');
+    const blocks = [{code: 'x;'}];
+    expect(validateCard({title: 'Hi', blocks, padding: 10, codeSize: 18})).toMatchObject({padding: 10, codeSize: 18});
+    expect(() => validateCard({title: 'Hi', blocks, padding: true})).toThrow('"padding" must be a string');
+    expect(() => validateCard({title: 'Hi', blocks, title2: 1})).toThrow('unknown key');
   });
 
   it('writes both into the page', async () => {
@@ -153,7 +207,14 @@ describe('code card: padding and codeSize', () => {
 
 describe('code card: validateCard (the JSON road)', () => {
   it('rejects a value that is not a string', () => {
-    expect(() => validateCard({title: 'Hi', code: 'x;', highlight: 2})).toThrow('"highlight" must be a string');
+    expect(() => validateCard({title: 'Hi', blocks: [{code: 'x;'}], highlight: 2})).toThrow('"highlight" must be a string');
+    expect(() => validateCard({title: 'Hi', blocks: [{code: 'x;', lang: 1}]})).toThrow('"lang" must be a string');
+  });
+  it('needs a list of blocks, each with known keys only', () => {
+    expect(() => validateCard({title: 'Hi'})).toThrow('"blocks" must be a list of one or more code blocks');
+    expect(() => validateCard({title: 'Hi', blocks: []})).toThrow('"blocks" must be a list');
+    expect(() => validateCard({title: 'Hi', blocks: ['x;']})).toThrow('a code block must be an object');
+    expect(() => validateCard({title: 'Hi', blocks: [{code: 'x;', colour: 'red'}]})).toThrow('unknown block key "colour"');
   });
   it('rejects something that is not an object', () => {
     expect(() => validateCard(null)).toThrow('must be an object');

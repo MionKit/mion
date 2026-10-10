@@ -17,10 +17,10 @@ bar: Over limit | 58 | 0
 
 describe('code card: stats fence', () => {
   it('reads tiles and bars, and keeps no highlight', () => {
-    const card = parseCard(statsCard);
-    expect(card.lang).toBe('stats');
-    expect(card.highlight).toEqual([]);
-    expect(card.chart).toEqual({
+    const [block] = parseCard(statsCard).blocks;
+    expect(block.lang).toBe('stats');
+    expect(block.highlight).toEqual([]);
+    expect(block.chart).toEqual({
       tiles: [
         {value: '7×', label: 'lighter root file'},
         {value: '58 → 0', label: 'files over the limit'},
@@ -34,7 +34,7 @@ describe('code card: stats fence', () => {
   });
 
   it('leaves a code card without a chart key', () => {
-    expect(parseCard('---\ntitle: Hi\n---\n```ts\nx;\n```\n')).not.toHaveProperty('chart');
+    expect(parseCard('---\ntitle: Hi\n---\n```ts\nx;\n```\n').blocks[0]).not.toHaveProperty('chart');
   });
 
   it('draws tiles, bars scaled to their own row, the change and a legend instead of code', async () => {
@@ -74,7 +74,7 @@ describe('code card: stats fence', () => {
 
   it('draws a GitHub-style diff line: green added, red removed, five squares split by share', async () => {
     const card = parseCard('---\ntitle: Hi\n---\n```stats\ndiff: 6,533 | 7,289 | 158 files changed\n```\n');
-    expect(card.chart?.diff).toEqual({added: '6,533', removed: '7,289', label: '158 files changed'});
+    expect(card.blocks[0].chart?.diff).toEqual({added: '6,533', removed: '7,289', label: '158 files changed'});
     const html = await renderCardHtml(card);
     expect(html).toContain('<span class="what">158 files changed</span><span class="add">+6,533</span>');
     expect(html).toContain('<span class="del">−7,289</span>');
@@ -93,7 +93,7 @@ describe('code card: stats fence', () => {
     const card = parseCard(
       '---\ntitle: Hi\n---\n```stats\ntile: 1 | a\ntile: 2 | b\ntile: 3 | c\ntile: 4 | d\nfact: Root file | 307 → 89 lines\n```\n'
     );
-    expect(card.chart?.facts).toEqual([{label: 'Root file', value: '307 → 89 lines'}]);
+    expect(card.blocks[0].chart?.facts).toEqual([{label: 'Root file', value: '307 → 89 lines'}]);
     const html = await renderCardHtml(card);
     expect(html).toContain('<div class="tiles count-4">');
     expect(html).toContain('<div class="fact"><span>Root file</span><b>307 → 89 lines</b></div>');

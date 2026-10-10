@@ -1,4 +1,5 @@
-// A code card is a markdown file: flat `key: value` frontmatter plus ONE fenced code block.
+// A code card is a markdown file: flat `key: value` frontmatter plus one or more fenced code blocks,
+// each optionally captioned by a `## heading` line right above it.
 
 import {existsSync, readFileSync} from 'node:fs';
 import {dirname, join, resolve} from 'node:path';
@@ -20,22 +21,30 @@ export const DEFAULT_CODE_SIZE = 22;
 export const PADDING_RANGE = [0, 120] as const;
 export const CODE_SIZE_RANGE = [12, 32] as const;
 export const CARD_KEYS = ['title', 'subtitle', 'file', 'highlight', 'footer', 'badge', 'padding', 'codeSize'] as const;
+// Per-block keys: a fence line sets `file` and `highlight` as `key=value` attributes, a `## ` line sets `heading`.
+export const BLOCK_KEYS = ['heading', 'file', 'highlight', 'lang', 'code'] as const;
+const FENCE_ATTRS = ['file', 'highlight'];
 const NUMBER_KEYS = ['padding', 'codeSize'];
 export const CARD_NAME = /^[a-z0-9][a-z0-9-]*$/;
+
+export type CodeBlock = {
+  heading: string;
+  file: string;
+  lang: string;
+  highlight: number[];
+  code: string;
+  // Set only for a `stats` fence, which draws tiles and bars instead of code.
+  chart?: Chart;
+};
 
 export type Card = {
   title: string;
   subtitle: string;
-  file: string;
   footer: string;
   badge: string;
-  lang: string;
-  highlight: number[];
   padding: number;
   codeSize: number;
-  code: string;
-  // Set only for a `stats` fence, which draws tiles and bars instead of code.
-  chart?: Chart;
+  blocks: CodeBlock[];
 };
 
 export const maxColumns = (padding: number, codeSize: number) =>
@@ -56,6 +65,19 @@ const unquote = (value: string) => {
   return quoted ? value.slice(1, -1) : value;
 };
 
+const FENCE_OPEN = /^(`{3,})([\w-]*)((?:\s+\w+=(?:"[^"]*"|\S+))*)\s*$/;
+const HEADING = /^##\s+(.+)$/;
+
+function parseFenceAttrs(attrs: string, line: number, source: string): Record<string, string> {
+  const found: Record<string, string> = {};
+  for (const [, key, value] of attrs.matchAll(/(\w+)=("[^"]*"|\S+)/g)) {
+    if (!FENCE_ATTRS.includes(key))
+      throw cardError(source, `line ${line}: unknown fence attribute "${key}" (known: ${FENCE_ATTRS.join(', ')})`);
+    found[key] = unquote(value);
+  }
+  return found;
+}
+
 export function parseCard(markdown: string, source = 'card'): Card {
   const lines = markdown.replace(/\r\n/g, '\n').split('\n');
   const fields: Record<string, string> = {};
@@ -71,22 +93,44 @@ export function parseCard(markdown: string, source = 'card'): Card {
     }
     at = end + 1;
   }
-  const open = lines.findIndex((line, i) => i >= at && /^`{3,}[\w-]*\s*$/.test(line));
-  if (open === -1) throw cardError(source, 'no fenced code block');
-  const fence = (lines[open].match(/^`+/) as RegExpMatchArray)[0];
-  const close = lines.findIndex((line, i) => i > open && line.trimEnd() === fence);
-  if (close === -1) throw cardError(source, 'code block has no closing fence');
-  const lang = lines[open].slice(fence.length).trim() || 'ts';
-  return validateCard({...fields, lang, code: lines.slice(open + 1, close).join('\n')}, source);
+  const blocks: Record<string, string>[] = [];
+  let heading: string | undefined;
+  for (let i = at; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line.trim()) continue;
+    const titled = line.match(HEADING);
+    if (titled) {
+      if (heading !== undefined) throw cardError(source, `line ${i + 1}: two headings in a row, a heading needs a code block under it`);
+      heading = titled[1].trim();
+      continue;
+    }
+    const open = line.match(FENCE_OPEN);
+    if (!open) throw cardError(source, `line ${i + 1}: only code blocks and "## heading" lines go under the frontmatter: ${line}`);
+    const close = lines.findIndex((next, j) => j > i && next.trimEnd() === open[1]);
+    if (close === -1) throw cardError(source, 'code block has no closing fence');
+    blocks.push({
+      ...(heading === undefined ? {} : {heading}),
+      ...parseFenceAttrs(open[3], i + 1, source),
+      lang: open[2],
+      code: lines.slice(i + 1, close).join('\n'),
+    });
+    heading = undefined;
+    i = close;
+  }
+  if (heading !== undefined) throw cardError(source, `heading "${heading}" has no code block under it`);
+  if (!blocks.length) throw cardError(source, 'no fenced code block');
+  return validateCard({...fields, blocks}, source);
 }
 
 // Also the entry point for a card sent as JSON to the preview server.
+// Frontmatter `file` and `highlight` belong to the first block.
 export function validateCard(input: unknown, source = 'card'): Card {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw cardError(source, 'a card must be an object');
   const fields = input as Record<string, unknown>;
-  const known: string[] = [...CARD_KEYS, 'lang', 'code'];
   for (const [key, value] of Object.entries(fields)) {
-    if (!known.includes(key)) throw cardError(source, `unknown key "${key}" (known: ${CARD_KEYS.join(', ')})`);
+    if (key === 'blocks') continue;
+    if (!(CARD_KEYS as readonly string[]).includes(key))
+      throw cardError(source, `unknown key "${key}" (known: ${[...CARD_KEYS, 'blocks'].join(', ')})`);
     const numeric = NUMBER_KEYS.includes(key) && typeof value === 'number';
     if (typeof value !== 'string' && !numeric) throw cardError(source, `"${key}" must be a string`);
   }
@@ -94,9 +138,46 @@ export function validateCard(input: unknown, source = 'card'): Card {
   const sizes = fields as Partial<Record<string, string | number>>;
   const padding = parseSize(sizes.padding, 'padding', DEFAULT_PADDING, PADDING_RANGE, source);
   const codeSize = parseSize(sizes.codeSize, 'codeSize', DEFAULT_CODE_SIZE, CODE_SIZE_RANGE, source);
-  const columnLimit = maxColumns(padding, codeSize);
   const text = fields as Partial<Record<string, string>>;
   if (!text.title?.trim()) throw cardError(source, 'missing title');
+  const rawBlocks = fields.blocks;
+  if (!Array.isArray(rawBlocks) || !rawBlocks.length) throw cardError(source, '"blocks" must be a list of one or more code blocks');
+  const blocks = rawBlocks.map((raw, index) => {
+    const blockSource = rawBlocks.length > 1 ? `${source}: block ${index + 1}` : source;
+    const own = index === 0 ? firstBlockWithFrontmatter(raw, text, blockSource) : raw;
+    return validateBlock(own, maxColumns(padding, codeSize), blockSource);
+  });
+  if (blocks.length > 1 && blocks.some((block) => block.chart)) throw cardError(source, 'a stats block must be the only block');
+  return {
+    title: text.title.trim(),
+    subtitle: text.subtitle?.trim() ?? '',
+    footer: text.footer?.trim() ?? '',
+    badge: text.badge?.trim() ?? '',
+    padding,
+    codeSize,
+    blocks,
+  };
+}
+
+function firstBlockWithFrontmatter(raw: unknown, text: Partial<Record<string, string>>, source: string): unknown {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return raw;
+  const block = {...(raw as Record<string, unknown>)};
+  for (const key of FENCE_ATTRS) {
+    if (text[key] === undefined) continue;
+    if (block[key] !== undefined) throw cardError(source, `"${key}" is set twice: in the frontmatter and on the first block`);
+    block[key] = text[key];
+  }
+  return block;
+}
+
+function validateBlock(input: unknown, columnLimit: number, source: string): CodeBlock {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw cardError(source, 'a code block must be an object');
+  for (const [key, value] of Object.entries(input)) {
+    if (!(BLOCK_KEYS as readonly string[]).includes(key))
+      throw cardError(source, `unknown block key "${key}" (known: ${BLOCK_KEYS.join(', ')})`);
+    if (typeof value !== 'string') throw cardError(source, `"${key}" must be a string`);
+  }
+  const text = input as Partial<Record<string, string>>;
   if (!text.code?.trim()) throw cardError(source, 'the code block is empty');
   const code = text.code.replace(/\s+$/, '');
   const codeLines = code.split('\n');
@@ -111,20 +192,15 @@ export function validateCard(input: unknown, source = 'card'): Card {
         `code line ${i + 1} is ${columns} columns, the window fits ${columnLimit} (lower codeSize or padding for more)`
       );
   });
-  const card: Card = {
-    title: text.title.trim(),
-    subtitle: text.subtitle?.trim() ?? '',
+  const block: CodeBlock = {
+    heading: text.heading?.trim() ?? '',
     file: text.file?.trim() ?? '',
-    footer: text.footer?.trim() ?? '',
-    badge: text.badge?.trim() ?? '',
     lang,
     highlight: chart ? [] : parseHighlight(text.highlight ?? '', codeLines.length, source),
-    padding,
-    codeSize,
     code,
   };
-  if (chart) card.chart = chart;
-  return card;
+  if (chart) block.chart = chart;
+  return block;
 }
 
 function parseSize(
@@ -172,12 +248,12 @@ function fontFaces(): string {
   return fontFacesCache;
 }
 
-export async function renderCardHtml(card: Card, {zoom = 1}: RenderOptions = {}): Promise<string> {
-  const highlighted = new Set(card.highlight);
-  const code = card.chart
-    ? chartHtml(card.chart, escapeHtml)
-    : await codeToHtml(card.code, {
-        lang: card.lang,
+async function blockHtml(block: CodeBlock): Promise<string> {
+  const highlighted = new Set(block.highlight);
+  const code = block.chart
+    ? chartHtml(block.chart, escapeHtml)
+    : await codeToHtml(block.code, {
+        lang: block.lang,
         theme: THEME,
         transformers: [
           {
@@ -187,12 +263,20 @@ export async function renderCardHtml(card: Card, {zoom = 1}: RenderOptions = {})
           },
         ],
       });
+  const heading = block.heading ? `<h2>${titleHtml(block.heading)}</h2>` : '';
+  const file = block.file ? `<span class="file">${escapeHtml(block.file)}</span>` : '';
+  const dots = '<i class="dot" style="background: #ff5f57"></i><i class="dot" style="background: #febc2e"></i><i class="dot" style="background: #28c840"></i>';
+  return `${heading}<div class="win"><div class="bar">${dots}${file}</div>${code}</div>`;
+}
+
+export async function renderCardHtml(card: Card, {zoom = 1}: RenderOptions = {}): Promise<string> {
+  const blocks = (await Promise.all(card.blocks.map(blockHtml))).join('\n');
   const footer = card.footer ? `<span>${escapeHtml(card.footer)}</span>` : '';
   const badge = card.badge ? `<code class="badge">${escapeHtml(card.badge)}</code>` : '';
   const slots: Record<string, string> = {
     pageTitle: escapeHtml(card.title.replace(/\*/g, '')),
     // Stats cards get larger type: they are read as a phone-sized thumbnail.
-    kind: card.chart ? 'stats-card' : 'code-card',
+    kind: card.blocks[0].chart ? 'stats-card' : 'code-card',
     fontFaces: fontFaces(),
     // The screenshot tool saves at CSS pixels, so a sharp 2x PNG means zooming the page itself.
     zoom: String(zoom),
@@ -201,8 +285,7 @@ export async function renderCardHtml(card: Card, {zoom = 1}: RenderOptions = {})
     codeSize: `${card.codeSize}px`,
     title: titleHtml(card.title),
     subtitle: card.subtitle ? `<div class="sub">${escapeHtml(card.subtitle)}</div>` : '',
-    file: card.file ? `<span class="file">${escapeHtml(card.file)}</span>` : '',
-    code,
+    blocks,
     foot: footer || badge ? `<div class="foot">${footer}${badge}</div>` : '',
   };
   // A function replacer, so a `$` in the code is never read as a replacement pattern.

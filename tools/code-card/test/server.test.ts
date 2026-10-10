@@ -37,9 +37,9 @@ describe('code card: preview server', () => {
 
   it('renders a card sent as JSON, and names what is wrong with a bad one', async () => {
     const post = (body: string) => fetch(`${base}/render`, {method: 'POST', body});
-    const good = await post(JSON.stringify({title: '*Hi*', code: 'x;'}));
+    const good = await post(JSON.stringify({title: '*Hi*', blocks: [{code: 'x;'}]}));
     expect(await good.text()).toContain('<h1><span class="accent">Hi</span></h1>');
-    const bad = await post(JSON.stringify({title: 'Hi', code: 'x;', colour: 'red'}));
+    const bad = await post(JSON.stringify({title: 'Hi', blocks: [{code: 'x;'}], colour: 'red'}));
     expect(bad.status).toBe(400);
     expect(await bad.text()).toContain('unknown key "colour"');
   });

@@ -68,6 +68,21 @@
           0 0 0 1px #ffffff14;
         overflow: hidden;
       }
+      h2 {
+        margin-top: 36px;
+        color: var(--title);
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+      }
+      h2 .accent {
+        background: linear-gradient(90deg, var(--accent-light), var(--accent));
+        -webkit-background-clip: text;
+        color: transparent;
+      }
+      h2 + .win {
+        margin-top: 16px;
+      }
       .bar {
         display: flex;
         align-items: center;
@@ -336,12 +351,7 @@
     <div class="stage">
       <h1>{{title}}</h1>
       {{subtitle}}
-      <div class="win">
-        <div class="bar">
-          <i class="dot" style="background: #ff5f57"></i><i class="dot" style="background: #febc2e"></i><i class="dot" style="background: #28c840"></i>{{file}}
-        </div>
-        {{code}}
-      </div>
+      {{blocks}}
       {{foot}}
     </div>
   </body>
