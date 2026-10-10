@@ -16,7 +16,6 @@ export function parseNewArgs(argv: string[]): {name: string; tmp: boolean} {
   return {name, tmp: Boolean(values.tmp)};
 }
 
-/** A code card: the frame, one window, the code from a sibling snippet file. */
 export const starterCard = (name: string) => `<script setup lang="ts">
 import code from './${name}.snippet.ts?raw';
 </script>

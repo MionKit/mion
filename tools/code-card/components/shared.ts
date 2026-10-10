@@ -1,5 +1,3 @@
-// Helpers the components share: the entrance sequence and the prop validators.
-
 import {inject, provide} from 'vue';
 
 const KEY = Symbol('code-card-sequence');
@@ -24,10 +22,8 @@ export const toNumber = (value: string | number): number =>
 // Number('') is 0, so an empty value must be refused before it is read as one.
 const isWritten = (value: string | number) => String(value).trim() !== '';
 
-/** A bar value: a number of zero or more, separators allowed. */
 export const isAmount = (value: string | number) => isWritten(value) && Number.isFinite(toNumber(value)) && toNumber(value) >= 0;
 
-/** A diff line count: a whole number of zero or more. */
 export const isCount = (value: string | number) => isWritten(value) && Number.isInteger(toNumber(value)) && toNumber(value) >= 0;
 
 /** A tile value is read at a glance: up to 12 characters (an emoji counts once). */

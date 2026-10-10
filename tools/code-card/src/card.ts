@@ -1,5 +1,3 @@
-// Where cards live and how a card name maps to its `.vue` file.
-
 import {existsSync, readdirSync} from 'node:fs';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';

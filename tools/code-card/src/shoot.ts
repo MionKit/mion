@@ -71,7 +71,7 @@ function runCli(session: string, cwd: string, args: string[]): Promise<{status: 
 
 type Cli = (...args: string[]) => Promise<string>;
 
-/** Opens `url` in a headless Chromium and hands `work` the CLI. The CLI reports some failures only in its output. */
+/** The CLI reports some failures only in its output, not in its exit code. */
 export async function withBrowser<T>(url: string, browser: string | undefined, work: (cli: Cli) => Promise<T>): Promise<T> {
   const workDir = mkdtempSync(join(tmpdir(), 'code-card-'));
   const configPath = join(workDir, 'cli.config.json');
