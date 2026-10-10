@@ -25,6 +25,7 @@
   --code-bg: #1a1b26;
   --bar-bg: #16161e;
   --file-name: #7a82a8;
+  --bad: #f85149;
   --bg-from: #2a2b2e;
   --bg-mid: #1c1d20;
   --bg-to: #161719;
@@ -371,6 +372,234 @@
   height: calc(12 * var(--u));
 }
 
+/* lanes: steps run to one shared gate (the wall), then pass through it or bounce off it */
+.code-card .cc-lanes {
+  --cc-gate-w: calc(110 * var(--u));
+  --cc-end-w: calc(230 * var(--u));
+  --cc-gap: calc(20 * var(--u));
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: calc(30 * var(--u));
+}
+.code-card .cc-lanes-head,
+.code-card .cc-lane {
+  display: grid;
+  grid-template-columns: 1fr var(--cc-gate-w) var(--cc-end-w);
+  column-gap: var(--cc-gap);
+}
+.code-card .cc-lanes-head {
+  height: calc(24 * var(--u));
+  margin-bottom: calc(-14 * var(--u));
+  align-items: end;
+  font-size: calc(14 * var(--u));
+  font-weight: 700;
+  letter-spacing: calc(1 * var(--u));
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.code-card .cc-gate-name {
+  grid-column: 2;
+  justify-self: center;
+  color: var(--text-footer);
+}
+.code-card .cc-outcome {
+  grid-column: 3;
+  color: var(--text-muted);
+}
+.code-card .cc-wall {
+  position: absolute;
+  top: calc(34 * var(--u));
+  bottom: calc(-8 * var(--u));
+  right: calc(var(--cc-end-w) + var(--cc-gap) + var(--cc-gate-w) / 2 - calc(7 * var(--u)));
+  width: calc(14 * var(--u));
+  border-radius: calc(4 * var(--u));
+  background: repeating-linear-gradient(-45deg, #ffffff38 0 calc(6 * var(--u)), #ffffff12 calc(6 * var(--u)) calc(12 * var(--u)));
+  box-shadow: 0 0 0 calc(1 * var(--u)) #ffffff1c;
+  transform-origin: top center;
+}
+.code-card .cc-lane {
+  row-gap: calc(14 * var(--u));
+  align-items: center;
+}
+.code-card .cc-lane-name {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: baseline;
+  gap: calc(12 * var(--u));
+}
+.code-card .cc-lane-name b {
+  color: var(--title);
+  font-size: calc(22 * var(--u));
+  font-weight: 700;
+  white-space: nowrap;
+}
+.code-card .cc-lane-name span {
+  color: var(--text-muted);
+  font-size: calc(17 * var(--u));
+  font-weight: 500;
+}
+.code-card .cc-lane-steps {
+  display: flex;
+  align-items: center;
+}
+.code-card .cc-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: calc(4 * var(--u));
+  padding: calc(10 * var(--u)) calc(14 * var(--u));
+  border-radius: calc(10 * var(--u));
+  background: #ffffff0a;
+  box-shadow: 0 0 0 calc(1 * var(--u)) #ffffff1c;
+}
+.code-card .cc-step + .cc-step {
+  margin-left: calc(34 * var(--u));
+}
+.code-card .cc-step + .cc-step::before {
+  content: '→';
+  position: absolute;
+  left: calc(-27 * var(--u));
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: calc(20 * var(--u));
+}
+.code-card .cc-step span {
+  color: var(--text-muted);
+  font-size: calc(14 * var(--u));
+  font-weight: 500;
+  white-space: nowrap;
+}
+.code-card .cc-step code {
+  color: var(--title);
+  font: 500 calc(17 * var(--u)) 'Card Mono', monospace;
+  white-space: nowrap;
+}
+.code-card .cc-lane:not(.cc-stopped) .cc-step {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  box-shadow: 0 0 0 calc(1 * var(--u)) color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.code-card .cc-lane-track {
+  position: relative;
+  flex: 1;
+  min-width: calc(70 * var(--u));
+  height: calc(2 * var(--u));
+  margin-left: calc(10 * var(--u));
+  margin-right: calc(-1 * (var(--cc-gap) + var(--cc-gate-w) / 2 - calc(7 * var(--u))));
+}
+.code-card .cc-lane-line {
+  position: absolute;
+  inset: 0;
+  background: #ffffff40;
+  transform-origin: left center;
+}
+.code-card .cc-lane:not(.cc-stopped) .cc-lane-line,
+.code-card .cc-gate-pass {
+  background: linear-gradient(90deg, var(--accent), var(--accent-light));
+  box-shadow: 0 0 calc(12 * var(--u)) color-mix(in srgb, var(--accent) 60%, transparent);
+}
+/* Starts 70px in, so the packet leaves from the last step instead of covering it. */
+.code-card .cc-packet {
+  position: absolute;
+  inset: 0 0 0 calc(70 * var(--u));
+  opacity: 0;
+}
+.code-card .cc-packet b {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: calc(3 * var(--u)) calc(9 * var(--u));
+  border-radius: calc(6 * var(--u));
+  font: 700 calc(14 * var(--u)) 'Card Mono', monospace;
+  white-space: nowrap;
+  color: var(--title);
+  background: #ffffff30;
+}
+.code-card .cc-lane:not(.cc-stopped) .cc-packet b {
+  color: var(--bg-to);
+  background: var(--accent-light);
+  box-shadow: 0 0 calc(16 * var(--u)) var(--accent);
+}
+.code-card .cc-gate {
+  position: relative;
+  align-self: stretch;
+}
+.code-card .cc-gate-hit {
+  position: absolute;
+  left: 50%;
+  top: calc(-10 * var(--u));
+  bottom: calc(-10 * var(--u));
+  width: calc(14 * var(--u));
+  margin-left: calc(-7 * var(--u));
+  border-radius: calc(4 * var(--u));
+  background: var(--accent);
+  box-shadow: 0 0 calc(28 * var(--u)) var(--accent);
+}
+.code-card .cc-stopped .cc-gate-hit {
+  background: var(--bad);
+  box-shadow: 0 0 calc(28 * var(--u)) var(--bad);
+}
+.code-card .cc-stamp {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(44 * var(--u));
+  height: calc(44 * var(--u));
+  margin: calc(-22 * var(--u)) 0 0 calc(-22 * var(--u));
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--bad);
+  color: var(--title);
+  font-size: calc(24 * var(--u));
+  font-weight: 800;
+  box-shadow: 0 0 0 calc(6 * var(--u)) color-mix(in srgb, var(--bad) 25%, transparent);
+}
+.code-card .cc-gate-pass {
+  position: absolute;
+  left: 0;
+  right: calc(-1 * var(--cc-gap));
+  top: 50%;
+  height: calc(2 * var(--u));
+  margin-top: calc(-1 * var(--u));
+  transform-origin: left center;
+}
+.code-card .cc-lane-end {
+  display: flex;
+  flex-direction: column;
+  gap: calc(4 * var(--u));
+  padding: calc(12 * var(--u)) calc(16 * var(--u));
+  border-radius: calc(10 * var(--u));
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  box-shadow:
+    0 0 0 calc(1 * var(--u)) color-mix(in srgb, var(--accent) 55%, transparent),
+    0 0 calc(30 * var(--u)) color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.code-card .cc-lane-end b {
+  color: var(--accent-light);
+  font-size: calc(21 * var(--u));
+  font-weight: 800;
+}
+.code-card .cc-lane-end span {
+  color: var(--text-muted);
+  font-size: calc(15 * var(--u));
+  font-weight: 500;
+  line-height: 1.3;
+}
+.code-card .cc-stopped .cc-lane-end {
+  background: color-mix(in srgb, var(--bad) 10%, transparent);
+  box-shadow: 0 0 0 calc(1 * var(--u)) color-mix(in srgb, var(--bad) 45%, transparent);
+}
+.code-card .cc-stopped .cc-lane-end b {
+  color: var(--bad);
+}
+.code-card .cc-stopped .cc-lane-path {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
 /* Phones: half the scale rate, rows stacked. A rem breakpoint, as px would scale; the PNG never gets this narrow. */
 @container (max-width: 40rem) {
   .code-card .stage {
@@ -392,6 +621,34 @@
   .code-card .cc-tile {
     min-width: 40%;
   }
+  .code-card .cc-lanes {
+    --cc-gate-w: calc(40 * var(--u));
+    --cc-end-w: calc(0 * var(--u));
+    --cc-gap: calc(12 * var(--u));
+  }
+  .code-card .cc-outcome {
+    display: none;
+  }
+  .code-card .cc-gate-name {
+    grid-column: 1 / 3;
+    justify-self: end;
+  }
+  .code-card .cc-lane-steps {
+    flex-wrap: wrap;
+    row-gap: calc(12 * var(--u));
+  }
+  .code-card .cc-lane-end {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  /* Wrapped steps: the track sits on the last line, one step tall. */
+  .code-card .cc-gate {
+    align-self: end;
+    height: calc(63 * var(--u));
+  }
+  .code-card .cc-gate-pass {
+    right: 0;
+  }
 }
 
 /* No player class = the final state (PNG, no JS, reduced motion); the player adds cc-armed, cc-play, cc-paused. */
@@ -407,10 +664,40 @@
 .code-card [data-cc='line'] {
   --cc-name: cc-line;
 }
+.code-card [data-cc='pop'] {
+  --cc-name: cc-pop;
+}
+.code-card [data-cc='wall'] {
+  --cc-name: cc-wall;
+}
+.code-card [data-cc='travel'] {
+  --cc-name: cc-travel;
+}
+.code-card [data-cc='bounce'] {
+  --cc-name: cc-bounce;
+}
+.code-card [data-cc='hit'] {
+  --cc-name: cc-hit;
+}
+.code-card [data-cc='stamp'] {
+  --cc-name: cc-stamp;
+}
+.code-card [data-cc='shake'] {
+  --cc-name: cc-shake;
+}
+.code-card [data-cc='dim'] {
+  --cc-name: cc-dim;
+}
 .code-card.cc-armed [data-cc] {
   animation: var(--cc-name) var(--cc-speed) cubic-bezier(0.2, 0.7, 0.2, 1) both;
   animation-delay: calc(var(--cc-i, 0) * var(--cc-step) + var(--cc-sub, 0) * var(--cc-sub-step));
   animation-play-state: paused;
+}
+/* A packet arrives at the gate one step after it leaves: at 66% of 1.5 steps. */
+.code-card.cc-armed [data-cc='travel'],
+.code-card.cc-armed [data-cc='bounce'] {
+  animation-duration: calc(var(--cc-step) * 1.5);
+  animation-timing-function: ease-in;
 }
 .code-card.cc-armed.cc-play [data-cc] {
   animation-play-state: running;
@@ -438,6 +725,106 @@
   from {
     opacity: 0;
     transform: translateX(calc(-10 * var(--u)));
+  }
+}
+@keyframes cc-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+@keyframes cc-wall {
+  from {
+    transform: scaleY(0);
+  }
+}
+/* The final state hides the packet: it only exists in motion. */
+@keyframes cc-travel {
+  0% {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  8% {
+    opacity: 1;
+  }
+  66% {
+    transform: translateX(0);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(45%);
+  }
+}
+@keyframes cc-bounce {
+  0% {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  8% {
+    opacity: 1;
+  }
+  66% {
+    transform: translateX(0);
+  }
+  78% {
+    transform: translateX(-12%);
+  }
+  88% {
+    opacity: 1;
+    transform: translateX(-6%);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-6%);
+  }
+}
+@keyframes cc-hit {
+  0% {
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+    transform: scaleX(2.6);
+  }
+}
+@keyframes cc-stamp {
+  0% {
+    opacity: 0;
+    transform: scale(2.6) rotate(-25deg);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(0.9) rotate(4deg);
+  }
+  75% {
+    transform: scale(1.06);
+  }
+}
+@keyframes cc-shake {
+  15% {
+    transform: translateX(calc(-9 * var(--u)));
+  }
+  35% {
+    transform: translateX(calc(7 * var(--u)));
+  }
+  55% {
+    transform: translateX(calc(-5 * var(--u)));
+  }
+  75% {
+    transform: translateX(calc(3 * var(--u)));
+  }
+}
+@keyframes cc-dim {
+  from {
+    filter: grayscale(0);
+    opacity: 1;
   }
 }
 @media (prefers-reduced-motion: reduce) {

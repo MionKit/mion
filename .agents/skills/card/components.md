@@ -7,7 +7,7 @@ props, its limits, how it enters. Add a component → add its entry ([content.md
   - Props: `#title` slot (`<em>` = accent words), `subtitle`, `footer`, `badge`,
     `kind` (`code` / `stats`: larger type, read as a phone thumbnail), `step`, `speed` (CSS times).
   - Limit: title on one line. Enters: title, then subtitle rise.
-- **`CardWindow`**: editor window, three dots, file name. Props: `file`. Enters: rises.
+- **`CardWindow`**: editor window, three dots, file name. Props: `file`. Never animates: the empty frame shows first.
 - **`CardCode`**: Shiki code with highlighted lines.
   - Props: `code`, `lang` (default `ts`), `highlight` (`3`, `11-12` or `3,7-8`, 1-based).
   - Limit: no line wider than the window. Enters: lines slide in one by one.
@@ -22,6 +22,13 @@ props, its limits, how it enters. Add a component → add its entry ([content.md
   Enters: each row rises.
 - **`CardDiff`**: GitHub's `+added −removed` and 5 squares in their ratio.
   - Props: `added`, `removed` (whole numbers), `label`. Enters: rises, then the squares fade in.
+
+- **`CardLanes`** + **`CardLane`**: lanes that run to one shared wall (a compiler, a check): each passes or bounces.
+  - Props: `CardLanes` `gate` (wall name), `outcome` (header over the results); `CardLane` `label`, `detail`,
+    `steps` (`[{label, value}]`, value = one line of code), `result`, `note`, `stopped`, `packet` (≤ 8 characters).
+  - Limits: 1 to 3 steps per lane. Enters: wall, then per lane its name, steps pop, a packet runs to the wall,
+    passes (olive) or bounces (red ✕, lane shakes and greys out), then the result pops.
+  - `step` ≈ `0.8s` leaves time to read.
 
 Entrance order = render order. `CardFrame`'s `step` is the gap between two elements, `speed` one entrance.
 Bars: say in the subtitle what before and after are, or name them in `CardBars`.

@@ -28,3 +28,7 @@ export const isCount = (value: string | number) => isWritten(value) && Number.is
 
 /** A tile value is read at a glance: up to 12 characters (an emoji counts once). */
 export const isTileValue = (value: string) => [...value].length > 0 && [...value].length <= 12;
+
+/** What a CardLanes hands its lanes: the gate's name and the step it enters on. */
+export type Gate = {name: string; step: {'--cc-i': number}};
+export const GATE_KEY = Symbol('code-card-gate');
