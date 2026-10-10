@@ -12,6 +12,6 @@ bar: Full check, 60 tables | 197,349 | 9,820 | steps
 bar: tsgo full check, 60 tables | 0.55 | 0.23 | s
 bar: tsc full check, 60 tables | 2.23 | 1.12 | s
 bar: Files the client loads | 559 | 257 | files
-bar: Bundle, value import | 123 | 11 | KB
+bar: Bundle, value import | 121 | 11 | KB
 bar: Editor, client file only | 641 | 641 | steps
 ```
