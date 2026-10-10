@@ -36,8 +36,9 @@ Edits in TWO files:
 - Frontmatter `seo.title` (line 6): new title around compiled TypeScript, e.g.
   `'RunTypes: Ready for compiled TypeScript'`. Update `seo.description` (line 7) and `description` (line 3)
   to match, one sentence each, under about 100 characters.
-- `slided-title` `leading` (line 23): replace "The evolution of validation libraries" with the new line, e.g.
-  "Compiled TypeScript is coming. RunTypes is ready." Keep the rotating `titles` list as is.
+- `slided-title` `leading` (line 23): replace "The evolution of validation libraries" with
+  "Ready for compiled TypeScript". Keep the rotating `titles` list as is. A longer line ("Compiled TypeScript is
+  coming. RunTypes is ready.") wrapped to three lines of hero text, so the short one shipped.
 - `#description` (lines 32-33): replace "Why stop at validation?" + paragraph with a short pitch, e.g.
 
   > **Compiled TypeScript is becoming a reality.**
@@ -76,13 +77,13 @@ Edits in TWO files:
      depends on building code from strings. In compiled TypeScript they drop to a slow path or stop working.
   3. RunTypes gets the full shape from your types and compiles its functions at compile time, before your app
      ever starts. Your types are the schema, no runtime schema object at all.
-- Code column: a small hand-written fence (a deliberately partial fragment, allowed by the prose rules) with two
-  code-group tabs:
-  - `[JIT validator]`: a Zod-style schema plus a comment showing the library turns it into
-    `new Function(...)` at runtime.
-  - `[RunTypes]`: a plain type plus `createValidateFn<User>()` and a comment that the check is generated at
-    build time. Reuse the type from the "Compile time code generation" section (lines 308-316) so the page stays
-    consistent.
+- Code column: two hand-written fences (deliberately partial fragments, allowed by the prose rules), stacked in a
+  plain `:::::div` so both show at once and fill the card height (code-group tabs left half the card empty):
+  - `[JIT validator]`: a Zod-style schema plus a short comment that it becomes a string and `new Function(...)`
+    at runtime.
+  - `[RunTypes]`: a plain type plus `createValidateFn<User>()` and a comment that it is compiled at build time.
+    Same `User` type as the "Compile time code generation" section so the page stays consistent.
+  Comments kept short so they do not wrap on a phone.
 - Footer link: `[Build-time, not run-time →](/runtypes/introduction/built-on-typescript-go)`.
 
 ### Claim rules (required, user decision)
