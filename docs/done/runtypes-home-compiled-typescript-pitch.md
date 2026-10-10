@@ -98,9 +98,10 @@ Edits in TWO files:
 - Say "generated at build time" for the whole toolbelt: mocking walks the type data at runtime, so only
   validation and the JSON round trip are "compiled". No "no schema at runtime" line for the same reason.
 - Name only Zod 4 as a JIT validator: AJV can also generate standalone code ahead of time.
-- Card heading says "Compiled at build time, not at runtime", never "no code built while your app runs".
-- Name no specific ahead-of-time TypeScript compiler project unless verified to exist and linked. Generic wording
-  ("ahead-of-time TypeScript compilers") is the default.
+- Card heading is "Why JIT validators won't be enough" (user's ask), never "no code built while your app runs".
+- Compiled TypeScript projects are named in one short linked list (user's ask): scriptc (Vercel Labs), Porffor,
+  Perry and Bun's experimental ahead-of-time mode (its WebKit pull request says `new Function` code stays
+  interpreted). Each verified to exist before linking; no claims beyond what its own pages say.
 - No speed numbers for compiled TypeScript (Go / Rust comparisons) on the page: they are not ours to prove.
 
 ### Prose rules
