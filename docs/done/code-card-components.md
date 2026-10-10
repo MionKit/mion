@@ -26,7 +26,11 @@ Shipped as planned, with these differences:
 - **Browser:** `MION_CARD_BROWSER` (registered dev var) sets the default `--browser` for `shot` / `serve` and the
   Chromium tests, which run through `playwright-cli` like `shot` does (`withBrowser`, `evalJson` in `src/shoot.ts`).
 - **Manifest hash:** shared by export and check-tree in `scripts/lib/card-manifest.mjs`; only cards in `cards/`
-  export, and only `drizzle-type-cost` is exported (the one a page uses).
+  export, and only `drizzle-type-cost` is exported (the one a page uses). A contract test checks every
+  `::code-card` name on a page has its exported HTML.
+- **Player:** the PNG page strips its types with Vite's `transformWithOxc`; the website gets the `.ts` source.
+- **Adapter:** `CodeCard.vue` loads only the card a page shows (lazy glob), and arms it in the observer's first
+  callback: a card already in view plays at once instead of blanking for a frame.
 - **Port check:** the reshot `drizzle-type-cost.png` is byte-identical to the markdown-era PNG.
 
 ## Problem
@@ -73,7 +77,8 @@ Starting set, ported from today's markup (`template.html`, `src/chart.ts:74-123`
 
 - Components render `div` / `span` / `p` only, never `h1` or `pre` outside `CardCode`, so the site's prose styles
   never reach them.
-- Limits move into prop validators (4 tiles max, numeric `before` / `after`, not both 0).
+- Limits fail the render: prop validators where one prop decides (numeric `before` / `after`, tile value length),
+  a `throw` where it takes more (1 to 4 tiles, not both 0, highlight in range, empty code).
 - Each component owns its entrance animation (step 4): `CardBar` grows from 0, `CardTile` / `CardFact` fade and rise,
   `CardCode` lines appear one by one, `CardDiff` squares fill. Containers number their children (`--cc-i`) so they
   appear in sequence.
@@ -97,9 +102,10 @@ Lightweight first: CSS `@keyframes` driven by classes on the card root, plus a ~
 - **States.** No class = final state: the PNG, a page without JS, and reduced motion all show the fully drawn card.
   `cc-armed` = entrance start state (bars at 0, tiles hidden). `cc-play` = keyframes run. `cc-paused` =
   `animation-play-state: paused` on everything.
-- **Sequence.** Each animated element gets `animation-delay: calc(var(--cc-i) * var(--cc-step))`; a card can tune
+- **Sequence.** Each animated element gets `animation-delay: calc(var(--cc-i) * var(--cc-step) + var(--cc-sub) *
+  var(--cc-sub-step))` (`--cc-sub` orders parts inside one element: code lines, diff squares); a card can tune
   `--cc-step` and `--cc-speed` on `CardFrame`. Order = document order unless a component sets `--cc-i` itself.
-- **Player** (`tools/code-card/player.ts`, shipped with the export as plain JS): `arm(el)`, `play(el)`, `pause(el)`,
+- **Player** (`tools/code-card/player.ts`, copied as-is to the website, which compiles it): `arm(el)`, `play(el)`, `pause(el)`,
   `reset(el)`; `arm` does nothing under `prefers-reduced-motion`. It only toggles classes, so it stays the same when
   cards get richer animations later.
 - **Preview without the website:** `card serve` arms every card and shows Play / Pause / Replay buttons, so motion is
@@ -114,21 +120,21 @@ Lightweight first: CSS `@keyframes` driven by classes on the card root, plus a ~
 - `shell.html` (replaces `template.html`): the head from `template.html:1-7`, the inlined fonts (`card.ts:46-50`,
   `:167-173`), `card.css`, and `container/website/sites/rpc/theme.css` inlined under `data-site="rpc"`, so colours
   have one source. Zoom stays the screenshot's 2x (`shoot.ts` `ZOOM`).
-- **Layout checks in the page.** A small script in the shell measures after fonts load and sets
-  `data-card-errors` on the root: title on more than one line, any horizontal overflow, a tile value or bar label
-  that wraps. `serve` shows them as a red banner; `shoot` reads them with `playwright-cli eval` before
-  `screenshot` (`src/shoot.ts:87`) and fails the card.
+- **Layout checks in the page.** A small script in the shell measures after fonts load and resolves
+  `window.cardChecks` to a list of problems: a title, tile value, bar label or fact on more than one line; code
+  wider than its window; anything past the content edge of its window or card. `serve` shows them as a red banner;
+  `shoot` reads them with `playwright-cli eval` before `screenshot` and fails the card.
 
 ### 6. Remove the markdown format (no trace left)
 
 - `src/card.ts`: delete `:14-42` (constants, `Card`, `maxColumns`), `:52-158` (`parseCard`, `validateCard`,
   `parseSize`, `parseHighlight`), `:163` `titleHtml`, `:175-213` `renderCardHtml`. Keep `PACKAGE_DIR`, `CARDS_DIR`,
-  `TMP_DIR`, `CARD_NAME`, `escapeHtml`; `resolveCardPath` / `loadCard` (`:215-228`) resolve `<name>.vue`.
+  `TMP_DIR`, `CARD_NAME`, `escapeHtml`; `resolveCardPath` (`:215-226`) resolves `<name>.vue`.
 - Delete `src/chart.ts`, `template.html`, `test/card.test.ts`, `test/chart.test.ts`.
 - `src/server.ts`: list `.vue` (`:31`), drop `POST /render` + `readBody` (`:47-60`, `:78-81`), render through
   `render.ts` (`:86-88`).
-- `src/shoot.ts`: imports `:11`, the `.md` listing `:100`, `basename(..., '.md')` `:113` → `.vue`; add the
-  `data-card-errors` read before `:87`.
+- `src/shoot.ts`: imports `:11`, the `.md` listing `:100`, `basename(..., '.md')` `:113` → `.vue`; read the layout
+  checks before `:87`.
 - `src/new.ts`: `starterCard` (`:19-34`) becomes a `.vue` starter composing `CardFrame` + `CardWindow` +
   `CardCode`; file name `:38` ends in `.vue`.
 - Convert `cards/typed-match.md` and `cards/drizzle-type-cost.md` to `.vue`, delete the `.md`, reshoot both PNGs and
@@ -138,10 +144,13 @@ Lightweight first: CSS `@keyframes` driven by classes on the card root, plus a ~
 ### 7. Export to the website: `card export <name…> | --all`
 
 - New `src/export.ts`. Per card: SSR fragment (no `<html>`, no fonts) → `container/website/app/data/cards/<name>.html`.
-  Copies `card.css` → `container/website/app/assets/css/code-card.css` and the built player →
-  `container/website/app/utils/codeCardPlayer.ts`. Writes
-  `container/website/app/data/cards/manifest.json`: `{<name>: {hash, sources: [repo paths]}}`, where `sources` is
-  the card, every component and `card.css`, and `hash` a sha256 over them.
+  Writes `card.css` (fonts from `public/`, sizes scaled) → `container/website/app/assets/css/code-card.css`, copies
+  `player.ts` → `container/website/app/utils/codeCardPlayer.ts` and the fonts + licences →
+  `public/fonts/code-card/`. Writes `container/website/app/data/cards/manifest.json`:
+  `{<name>: {hash, sources, outputs}}`. `sources` = the card and every local file it imports, the components,
+  `card.css`, `player.ts`, the fonts and `src/render.ts`; `hash` = a sha256 over them. `outputs` = each exported
+  file with its own hash, so a hand edit on the website side fails too. `--all` rebuilds the manifest and removes
+  cards that are gone.
 - Register in `scripts/miondevx.mjs:516-525` and `scripts/lib/devx-registry.mjs:396-421`.
 - Only cards someone exports reach the site; `tmp/` cards never do.
 
