@@ -31,6 +31,9 @@ Shipped as planned, with these differences:
 - **Player:** the PNG page strips its types with Vite's `transformWithOxc`; the website gets the `.ts` source.
 - **Adapter:** `CodeCard.vue` loads only the card a page shows (lazy glob), and arms it in the observer's first
   callback: a card already in view plays at once instead of blanking for a frame.
+- **Where the card shows:** the Drizzle overview's new section "Organising Schema and Database Files" (the split,
+  what the two Drizzle lint rules enforce, the card); the linter's "Separating Database Code" links to it instead of
+  repeating the card.
 - **Port check:** the reshot `drizzle-type-cost.png` is byte-identical to the markdown-era PNG.
 
 ## Problem
