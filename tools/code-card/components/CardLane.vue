@@ -28,7 +28,7 @@ for (const step of props.steps)
   if (!step.label?.trim() || !step.value?.trim()) throw new Error(`CardLane "${props.label}": every step needs a label and a value`);
 if ([...props.packet].length > 8) throw new Error(`CardLane "${props.label}": packet "${props.packet}" is over 8 characters`);
 
-// Beats, in story order: name, each step, the run, the hit at the gate, the result.
+// Beats in play order.
 const head = nextStep();
 const stepBeats = props.steps.map(() => nextStep());
 const run = nextStep();
