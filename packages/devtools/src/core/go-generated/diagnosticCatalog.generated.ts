@@ -108,7 +108,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   'drizzle-mixed-types': {
     headline:
-      'This file defines a slim Mion schema or model and imports heavy Drizzle types or toDrizzle. Keep slim models in their own file so clients can import them without loading database types or server code. Move toDrizzle and heavy Drizzle imports to a separate query or database file.',
+      'This file defines a slim Mion schema or model and imports heavy Drizzle types or toDrizzle. A client importing a model from this file also type-checks its toDrizzle and query code in a full check, and bundles drizzle-orm on a value import. Move toDrizzle and heavy Drizzle imports to a separate query or database file.',
     level: 'runtimeError',
     family: 'drizzle',
   },

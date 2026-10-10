@@ -508,7 +508,7 @@ export {sql as convert} from 'drizzle-orm';`,
         expect(codesFor('runtime-error', 'drizzle-schema.ts')).toEqual(['drizzle-mixed-types']);
         expect(codesFor('warning', 'drizzle-schema.ts')).toEqual([]);
         expect(reportsFor('runtime-error', 'drizzle-schema.ts')[0].message).toContain(
-          'clients can import them without loading database types or server code'
+          'also type-checks its toDrizzle and query code in a full check'
         );
       });
       it('reports each finding at its level, on a file with no runtypes marker', () => {

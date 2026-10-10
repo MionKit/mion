@@ -474,6 +474,7 @@ func (scope *fileScope) slimSchemaSymbol(symbol *ast.Symbol) bool {
 	return false
 }
 
+// Measured why: packages/private-drizzle-example-app/reports/drizzle-type-cost.md.
 func (scope *fileScope) checkSlimSchemaDependencies() []diagnostics.Diagnostic {
 	walk := &slimSchemaVisitor{scope: scope}
 	scope.sourceFile.AsNode().ForEachChild(walk.visit)

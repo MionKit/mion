@@ -439,7 +439,7 @@ export const isOuter = createValidateFn<Outer>();`,
 		Fix:     "import type {User} from './schema.ts';\nconst list = mion.query(async (_ctx): Promise<User[]> => db.select().from(usersDb));",
 	},
 	CodeDrizzleSchemaDependency: {
-		Summary: "A file that defines slim schemas or models also imports Drizzle types or the toDrizzle bridge. Clients may import these models directly, loading heavy database declarations or server dependencies. Keep schemas and models in their own file. Import them into a companion file for toDrizzle, database setup, relations and queries. A query or router file may import both kinds of types when it does not define slim schemas or models.",
+		Summary: "A file that defines slim schemas or models also imports Drizzle types or the toDrizzle bridge. The editor checks a client lazily, so its cost there does not change. But a full type check (tsc or tsgo, as in CI) of a client importing one model from this file also checks every toDrizzle call, relation and query in it, and loads Drizzle's declarations: measured 5 to 20 times more type work. A value import also bundles drizzle-orm into the client. Keep schemas and models in their own file. Import them into a companion file for toDrizzle, database setup, relations and queries. A query or router file may import both kinds of types when it does not define slim schemas or models.",
 		Fix:     "// schema.ts: define slim tables and models\n// db.ts: import the slim tables, then call toDrizzle",
 	},
 	CodeRouteUnsafePropertyName: {
