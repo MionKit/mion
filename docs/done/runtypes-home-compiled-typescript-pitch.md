@@ -110,6 +110,17 @@ Follow `container/website/AGENTS.md` (Writing guidelines) and `.agents/docs/webs
 second person, under about twenty words a sentence, no em or en dashes, no metaphors. The page is a hand-tuned
 home, so slogan-style section titles that match its neighbours are fine.
 
+### 4. Animated card (user follow-up)
+
+- The section opens with an animated card, `jit-wall`, built with the card skill
+  (`tools/code-card/cards/jit-wall.vue`, exported to `container/website/app/data/cards/`). Two lanes run to a wall
+  labelled "AOT compiler": the JIT lane bounces off it, the RunTypes lane passes into the binary.
+- New card parts `CardLanes` + `CardLane`. `CardWindow` never animates, on every card: the empty frame shows the
+  reader a block is there before its content plays. `step="0.8s"` leaves time to read.
+- `CodeCard.vue` starts a card only once its top is 35% of the screen above the bottom edge.
+- Under the card, the page text stays: "Compiled TypeScript is on its way" with the project tiles (`stat-tiles`), and
+  the Zod 4 and RunTypes paragraphs with the link. The side-by-side code fences were dropped: the card shows that.
+
 ## Tests
 
 No source code changes, so no unit tests. Checks that cover a content page:
