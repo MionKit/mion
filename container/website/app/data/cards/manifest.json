@@ -1,0 +1,21 @@
+{
+  "drizzle-type-cost": {
+    "hash": "1e97c130f574945f57ed214d3197d867c5d627515b78b8dfa6e297829143133c",
+    "sources": [
+      "tools/code-card/card.css",
+      "tools/code-card/cards/drizzle-type-cost.vue",
+      "tools/code-card/components/CardBar.vue",
+      "tools/code-card/components/CardBars.vue",
+      "tools/code-card/components/CardCode.vue",
+      "tools/code-card/components/CardDiff.vue",
+      "tools/code-card/components/CardFact.vue",
+      "tools/code-card/components/CardFacts.vue",
+      "tools/code-card/components/CardFrame.vue",
+      "tools/code-card/components/CardTile.vue",
+      "tools/code-card/components/CardTiles.vue",
+      "tools/code-card/components/CardWindow.vue",
+      "tools/code-card/components/shared.ts",
+      "tools/code-card/player.ts"
+    ]
+  }
+}
