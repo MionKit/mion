@@ -1,6 +1,6 @@
 {
   "drizzle-type-cost": {
-    "hash": "97abca8d89cd3c32bac7f0700e749e5ceee91ab2a8c5ef6fc0db08a01a256525",
+    "hash": "1130c0d08a3ec272e13f80bcebf7c231291a1ecfa875495be85b69d2c3a817e2",
     "sources": [
       "tools/code-card/card.css",
       "tools/code-card/cards/drizzle-type-cost.vue",
@@ -15,7 +15,23 @@
       "tools/code-card/components/CardTiles.vue",
       "tools/code-card/components/CardWindow.vue",
       "tools/code-card/components/shared.ts",
-      "tools/code-card/player.ts"
-    ]
+      "tools/code-card/fonts/OFL-Inter.txt",
+      "tools/code-card/fonts/OFL-JetBrainsMono.txt",
+      "tools/code-card/fonts/inter.woff2",
+      "tools/code-card/fonts/jetbrains-mono-italic.woff2",
+      "tools/code-card/fonts/jetbrains-mono.woff2",
+      "tools/code-card/player.ts",
+      "tools/code-card/src/render.ts"
+    ],
+    "outputs": {
+      "container/website/app/assets/css/code-card.css": "57f17ed8aa3af1e880a70daf0611cdca9833127715ec0a3d67f6c1f2e394cbb9",
+      "container/website/app/data/cards/drizzle-type-cost.html": "72e532906be8880b29bb0463ac5fbbc6da6672e7c326d515a921b30c8a845b69",
+      "container/website/app/utils/codeCardPlayer.ts": "e13a5c9525eb0d6ec410970cde9fe2273f65b8e402c08526a72535f655b6f13b",
+      "container/website/public/fonts/code-card/OFL-Inter.txt": "338c094fbd0de0c0817e6ed12bdca4ed8e1dbc7f4ee19102cda181c0648eff93",
+      "container/website/public/fonts/code-card/OFL-JetBrainsMono.txt": "247d10ed1c1c0039ddc98533e948967135e7175eec6d410dd9ab2b73a15077f7",
+      "container/website/public/fonts/code-card/inter.woff2": "ed9c26a1b7e0647c9976a883f26238301f01b1e516a174c2b5dfd9d40ba04f9b",
+      "container/website/public/fonts/code-card/jetbrains-mono-italic.woff2": "e107e9a065e82aa3f38fe4bb50753b97ddbebfad94c4b060e9b06f9d4bb93d3a",
+      "container/website/public/fonts/code-card/jetbrains-mono.woff2": "6c30cbafe5f844f66cd6ee70e9f7e85c5d7b5b5b8408d0c9253a6513df0ef064"
+    }
   }
 }

@@ -54,22 +54,24 @@
       window.cardPlayer = {arm, play, pause, reset, card};
       window.cardChecks = document.fonts.ready.then(() => {
         const errors = [];
-        const stage = card.querySelector('.stage').getBoundingClientRect();
         const text = (el) => JSON.stringify(el.textContent.trim().slice(0, 60));
+        // client rects are in zoomed pixels, computed sizes are not
+        const zoom = (el) => el.currentCSSZoom ?? 1;
         for (const el of card.querySelectorAll('[data-check~="one-line"]')) {
           const style = getComputedStyle(el);
-          // client rects are in zoomed pixels, computed sizes are not
-          const lineHeight = (parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.25) * (el.currentCSSZoom ?? 1);
+          const lineHeight = (parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.25) * zoom(el);
           const range = document.createRange();
           range.selectNodeContents(el);
           const rects = [...range.getClientRects()];
-          const height = Math.max(...rects.map((r) => r.bottom)) - Math.min(...rects.map((r) => r.top));
+          const height = Math.max(...rects.map((rect) => rect.bottom)) - Math.min(...rects.map((rect) => rect.top));
           if (height > lineHeight * 1.5) errors.push(`wraps onto a second line: ${text(el)}`);
         }
         for (const el of card.querySelectorAll('[data-check~="no-overflow"]'))
           if (el.scrollWidth > el.clientWidth + 1) errors.push(`too wide, scrolls sideways: ${text(el)}`);
+        // Past the padding of its window body (which clips it) or of the card: cut off, or crowding the edge.
+        const contentRight = (box) => box.getBoundingClientRect().right - parseFloat(getComputedStyle(box).paddingRight) * zoom(box);
         for (const el of card.querySelectorAll('.stage *'))
-          if (!el.closest('[data-check~="no-overflow"]') && el.getBoundingClientRect().right > stage.right + 0.5)
+          if (!el.closest('[data-check~="no-overflow"]') && el.getBoundingClientRect().right > contentRight(el.parentElement.closest('.cc-body, .stage')) + 0.5)
             errors.push(`sticks out of the card: ${text(el)}`);
         return [...new Set(errors)];
       });

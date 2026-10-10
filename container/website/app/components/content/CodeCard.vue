@@ -1,24 +1,29 @@
 <script setup lang="ts">
 // A card from tools/code-card, as the finished HTML `pnpm miondevx card export` wrote: the card brings its own
-// look and animation. Imported, not fetched, so the card is in the prerendered HTML in its final state; on mount
-// the player arms it and plays it the first time it scrolls into view (never under reduced motion).
+// look and animation. The card is in the prerendered HTML in its final state; the player arms it and plays it the
+// first time it scrolls into view (never under reduced motion).
 import {arm, play} from '../../utils/codeCardPlayer'
 import '../../assets/css/code-card.css'
 
 const props = defineProps<{name: string}>()
 
-const cards = import.meta.glob<string>('../../data/cards/*.html', {query: '?raw', import: 'default', eager: true})
-const html = cards[`../../data/cards/${props.name}.html`]
+// Lazy: a page downloads only the cards it shows; prerendering puts the HTML in the page.
+const cards = import.meta.glob<string>('../../data/cards/*.html', {query: '?raw', import: 'default'})
+const html = await cards[`../../data/cards/${props.name}.html`]?.()
 
 const root = ref<HTMLElement>()
 let observer: IntersectionObserver | undefined
 
+// Armed only once the first callback says where the card is: one already on screen plays at once instead of
+// vanishing for a frame first.
 onMounted(() => {
   const card = root.value?.querySelector('.code-card')
-  if (!card || !arm(card)) return
+  if (!card) return
   observer = new IntersectionObserver(
     (entries) => {
-      if (!entries.some((entry) => entry.isIntersecting)) return
+      const visible = entries.some((entry) => entry.isIntersecting)
+      if (!card.classList.contains('cc-armed') && !arm(card)) return observer?.disconnect()
+      if (!visible) return
       play(card)
       observer?.disconnect()
     },

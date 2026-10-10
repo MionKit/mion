@@ -1,5 +1,6 @@
-// The manifest of code cards exported to the website: each card's source files and their hash. `pnpm miondevx
-// card export` writes it; check-tree rehashes it, so a card edited without a re-export fails CI.
+// The manifest of code cards exported to the website: each card's sources and the files written from them, with
+// their hashes. `pnpm miondevx card export` writes it; check-tree rehashes it, so a card edited without a re-export,
+// or an exported file edited by hand, fails CI.
 import {createHash} from 'node:crypto';
 import {existsSync, readFileSync, readdirSync} from 'node:fs';
 import {join} from 'node:path';
@@ -22,11 +23,15 @@ export function staleCards(root) {
   const stale = [];
   for (const file of fragments)
     if (!manifest[file.slice(0, -'.html'.length)]) stale.push(`${CARDS_EXPORT_DIR}/${file}: not in ${CARD_MANIFEST}`);
-  for (const [name, {hash, sources}] of Object.entries(manifest)) {
-    if (!existsSync(join(dir, `${name}.html`))) stale.push(`${name}: ${CARDS_EXPORT_DIR}/${name}.html is missing`);
+  for (const [name, {hash, sources, outputs}] of Object.entries(manifest)) {
     const missing = sources.filter((source) => !existsSync(join(root, source)));
     if (missing.length) stale.push(`${name}: its source ${missing.join(', ')} is gone`);
     else if (hashSources(root, sources) !== hash) stale.push(`${name}: its sources changed since the last export`);
+    // the exported files themselves: missing, or edited by hand
+    for (const [output, outputHash] of Object.entries(outputs)) {
+      if (!existsSync(join(root, output))) stale.push(`${name}: ${output} is missing`);
+      else if (hashSources(root, [output]) !== outputHash) stale.push(`${name}: ${output} was edited by hand`);
+    }
   }
   return stale;
 }

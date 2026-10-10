@@ -2,17 +2,16 @@
 // No website and no browser: the HTML is the card's final state, the PNG page and the website export both use it.
 
 import {readFileSync, readdirSync} from 'node:fs';
-import {stripTypeScriptTypes} from 'node:module';
 import {basename, join} from 'node:path';
 import vue from '@vitejs/plugin-vue';
-import {type ViteDevServer, createServer} from 'vite';
+import {type ViteDevServer, createServer, transformWithOxc} from 'vite';
 import {type App, type Component, createSSRApp} from 'vue';
 import {renderToString} from 'vue/server-renderer';
 import {COMPONENTS_DIR, PACKAGE_DIR, PAGE_WIDTH, REPO_DIR, escapeHtml} from './card.ts';
 
-export const THEME_FILE = join(REPO_DIR, 'container/website/sites/rpc/theme.css');
+const THEME_FILE = join(REPO_DIR, 'container/website/sites/rpc/theme.css');
 
-export const FONTS = [
+const FONTS = [
   ['Card Inter', 'normal', '100 900', 'inter.woff2'],
   ['Card Mono', 'normal', '100 800', 'jetbrains-mono.woff2'],
   ['Card Mono', 'italic', '100 800', 'jetbrains-mono-italic.woff2'],
@@ -30,7 +29,8 @@ export const scaleCss = (css: string) => css.replace(/(-?\d*\.?\d+)px\b/g, 'calc
 
 export const cardCss = () => scaleCss(readFileSync(join(PACKAGE_DIR, 'card.css'), 'utf8'));
 
-export const playerJs = () => stripTypeScriptTypes(readFileSync(join(PACKAGE_DIR, 'player.ts'), 'utf8'));
+// The PNG page needs the player as plain JS; the website compiles the .ts copy itself.
+const playerJs = async () => (await transformWithOxc(readFileSync(join(PACKAGE_DIR, 'player.ts'), 'utf8'), 'player.ts')).code;
 
 let server: Promise<ViteDevServer> | undefined;
 
@@ -85,7 +85,7 @@ export async function renderStrict(app: App, name: string): Promise<string> {
   return html;
 }
 
-export type PageOptions = {zoom?: number; preview?: boolean};
+type PageOptions = {zoom?: number; preview?: boolean};
 
 const fontData = (file: string) =>
   `data:font/woff2;base64,${readFileSync(join(PACKAGE_DIR, 'fonts', file)).toString('base64')}`;
@@ -120,7 +120,7 @@ export async function renderPage(cardPath: string, {zoom = 1, preview = false}: 
     pageWidth: String(PAGE_WIDTH),
     controls: preview ? PREVIEW_CONTROLS : '',
     card,
-    player: playerJs(),
+    player: await playerJs(),
     previewScript: preview ? PREVIEW_SCRIPT : '',
   };
   // A function replacer, so a `$` in the card is never read as a replacement pattern.

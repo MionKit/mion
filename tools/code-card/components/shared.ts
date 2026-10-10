@@ -5,7 +5,7 @@ import {inject, provide} from 'vue';
 const KEY = Symbol('code-card-sequence');
 
 /** Starts the card's sequence; returns the frame's own step function (a component cannot inject what it provides). */
-export function provideSequence(): () => {'--cc-i': number} {
+export function provideSequence(): typeof nextStep {
   const sequence = {next: 0};
   provide(KEY, sequence);
   return () => ({'--cc-i': sequence.next++});
@@ -21,11 +21,14 @@ export function nextStep(): {'--cc-i': number} {
 export const toNumber = (value: string | number): number =>
   typeof value === 'number' ? value : Number(value.replace(/[,_\s]/g, ''));
 
+// Number('') is 0, so an empty value must be refused before it is read as one.
+const isWritten = (value: string | number) => String(value).trim() !== '';
+
 /** A bar value: a number of zero or more, separators allowed. */
-export const isAmount = (value: string | number) => Number.isFinite(toNumber(value)) && toNumber(value) >= 0;
+export const isAmount = (value: string | number) => isWritten(value) && Number.isFinite(toNumber(value)) && toNumber(value) >= 0;
 
 /** A diff line count: a whole number of zero or more. */
-export const isCount = (value: string | number) => Number.isInteger(toNumber(value)) && toNumber(value) >= 0;
+export const isCount = (value: string | number) => isWritten(value) && Number.isInteger(toNumber(value)) && toNumber(value) >= 0;
 
-/** A tile value is read at a glance: up to 12 characters. */
-export const isTileValue = (value: string) => value.length > 0 && value.length <= 12;
+/** A tile value is read at a glance: up to 12 characters (an emoji counts once). */
+export const isTileValue = (value: string) => [...value].length > 0 && [...value].length <= 12;

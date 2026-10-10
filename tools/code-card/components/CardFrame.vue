@@ -14,7 +14,7 @@ const props = withDefaults(
     /** Duration of one element's entrance, as a CSS time. */
     speed?: string;
   }>(),
-  {subtitle: '', footer: '', badge: '', kind: 'code', step: undefined, speed: undefined}
+  {subtitle: '', footer: '', badge: '', kind: 'code'}
 );
 defineSlots<{title(): unknown; default(): unknown}>();
 

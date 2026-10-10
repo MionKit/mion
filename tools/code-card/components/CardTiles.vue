@@ -17,5 +17,5 @@ function countClass(tiles: VNode[]): string {
 </script>
 
 <template>
-  <div class="cc-tiles" :class="countClass(slots.default())"><slot /></div>
+  <div class="cc-tiles" :class="countClass(slots.default?.() ?? [])"><slot /></div>
 </template>

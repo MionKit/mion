@@ -1,6 +1,6 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {existsSync} from 'node:fs';
-import {ZOOM, cliConfig, cliFailure, cliScript, parseChecks, parseShotArgs} from '../src/shoot.ts';
+import {ZOOM, cliConfig, cliFailure, cliScript, parseShotArgs} from '../src/shoot.ts';
 
 describe('code card: shot', () => {
   afterEach(() => vi.unstubAllEnvs());
@@ -45,12 +45,6 @@ describe('code card: shot', () => {
     const report = '### Error\nError: ".stage" does not match any elements.';
     expect(cliFailure(report)).toBe('".stage" does not match any elements.');
     expect(cliFailure('  something else  ')).toBe('something else');
-  });
-
-  it("reads the page's layout check results", () => {
-    expect(parseChecks([])).toEqual([]);
-    expect(parseChecks(['wraps'])).toEqual(['wraps']);
-    expect(() => parseChecks({})).toThrow('unexpected layout check output');
   });
 
   it('finds the root playwright-cli from the package', () => {

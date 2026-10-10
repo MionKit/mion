@@ -1,6 +1,6 @@
 // Where cards live and how a card name maps to its `.vue` file.
 
-import {existsSync} from 'node:fs';
+import {existsSync, readdirSync} from 'node:fs';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -14,6 +14,12 @@ export const CARD_NAME = /^[a-z0-9][a-z0-9-]*$/;
 
 export const escapeHtml = (text: string) =>
   text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+/** Every card kept in git, as paths. */
+export const keptCards = () =>
+  readdirSync(CARDS_DIR)
+    .filter((file) => file.endsWith('.vue'))
+    .map((file) => join(CARDS_DIR, file));
 
 export function resolveCardPath(nameOrPath: string): string {
   if (nameOrPath.endsWith('.vue') || nameOrPath.includes('/')) {

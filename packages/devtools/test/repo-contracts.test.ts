@@ -300,7 +300,9 @@ describe('every code card on the website matches its sources', () => {
     writeFileSync(join(root, 'tools/card.vue'), '<template />');
     writeFileSync(join(root, CARDS_EXPORT_DIR, 'demo.html'), '<div class="code-card"></div>');
     const sources = ['tools/card.vue'];
-    writeFileSync(join(root, CARD_MANIFEST), JSON.stringify({demo: {hash: hashSources(root, sources), sources}}));
+    const fragment = `${CARDS_EXPORT_DIR}/demo.html`;
+    const outputs = {[fragment]: hashSources(root, [fragment])};
+    writeFileSync(join(root, CARD_MANIFEST), JSON.stringify({demo: {hash: hashSources(root, sources), sources, outputs}}));
     return root;
   };
 
@@ -317,17 +319,41 @@ describe('every code card on the website matches its sources', () => {
     expect(staleCards(gone)).toEqual(['demo: its source tools/card.vue is gone']);
   });
 
-  it('fails an exported card missing from the manifest, and a manifest card with no HTML', () => {
-    const orphan = tree();
-    writeFileSync(join(orphan, CARDS_EXPORT_DIR, 'other.html'), '');
-    expect(staleCards(orphan)).toEqual([`${CARDS_EXPORT_DIR}/other.html: not in ${CARD_MANIFEST}`]);
+  it('fails an exported file edited by hand, or missing', () => {
+    const edited = tree();
+    writeFileSync(join(edited, CARDS_EXPORT_DIR, 'demo.html'), '<div class="code-card">edited</div>');
+    expect(staleCards(edited)).toEqual([`demo: ${CARDS_EXPORT_DIR}/demo.html was edited by hand`]);
     const missing = tree();
     rmSync(join(missing, CARDS_EXPORT_DIR, 'demo.html'));
     expect(staleCards(missing)).toEqual([`demo: ${CARDS_EXPORT_DIR}/demo.html is missing`]);
   });
 
-  it('the repo itself is in sync', () => {
-    expect(staleCards(REPO_ROOT)).toEqual([]);
+  it('fails an exported card missing from the manifest', () => {
+    const orphan = tree();
+    writeFileSync(join(orphan, CARDS_EXPORT_DIR, 'other.html'), '');
+    expect(staleCards(orphan)).toEqual([`${CARDS_EXPORT_DIR}/other.html: not in ${CARD_MANIFEST}`]);
+  });
+});
+
+// The website shows cards through CodeCard.vue, which looks a fragment up by name: a page naming a card that was
+// never exported renders an error box instead, and only a browser would notice.
+describe('every code card a page shows is exported', () => {
+  const CODE_CARD = join(REPO_ROOT, 'container/website/app/components/content/CodeCard.vue');
+
+  it('every ::code-card name has its exported HTML', () => {
+    const pages = globSync('container/website/content/**/*.md', {cwd: REPO_ROOT});
+    const names = pages.flatMap((page) =>
+      [...readFileSync(join(REPO_ROOT, page), 'utf8').matchAll(/^::code-card\{name="([^"]+)"\}/gm)].map((match) => match[1])
+    );
+    expect(names.length).toBeGreaterThan(0);
+    for (const name of names) expect(existsSync(join(REPO_ROOT, CARDS_EXPORT_DIR, `${name}.html`)), name).toBe(true);
+  });
+
+  it('the adapter reads the exported folder and plays cards with the exported player', () => {
+    const source = readFileSync(CODE_CARD, 'utf8');
+    expect(source).toContain(`import.meta.glob<string>('../../data/cards/*.html'`);
+    expect(source).toContain("import {arm, play} from '../../utils/codeCardPlayer'");
+    expect(source).toContain("import '../../assets/css/code-card.css'");
   });
 });
 
