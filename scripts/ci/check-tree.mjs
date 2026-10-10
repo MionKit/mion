@@ -5,6 +5,7 @@
 // Usage: `pnpm run check:tree`, or `node scripts/ci/check-tree.mjs`.
 import {closeSync, existsSync, openSync, readFileSync, readSync} from 'node:fs';
 import {join, posix} from 'node:path';
+import {staleCards} from '../lib/card-manifest.mjs';
 import {REPO_ROOT} from '../lib/env.mjs';
 import {capture, die, note, reportCliError, success} from '../lib/proc.mjs';
 
@@ -293,6 +294,9 @@ export function workspaceDependencyCycles() {
   return referenceCycles(workspaceDependencyGraph(files.map((file) => ({file, text: readFileSync(join(REPO_ROOT, file), 'utf8')}))));
 }
 
+// tools/ feeds no CI lane, so an edited card would never reach the website without this.
+export const staleCodeCards = () => staleCards(REPO_ROOT);
+
 export const SWEEPS = [
   {name: 'no file outside docs/todos and docs/done names a spec', run: specReferences, fix: 'put the reasoning in the file that needs it; a spec gets deleted and the reference rots'},
   {name: 'no tracked file outside docs/ names the old repository', run: oldRepoReferences, fix: 'point it at MionKit/mion'},
@@ -302,6 +306,7 @@ export const SWEEPS = [
   {name: 'no tsconfig project reference cycle', run: tsconfigReferenceCycles, fix: 'tsc --build refuses the WHOLE graph with TS6202, so nothing builds; move the code needing the back-reference into the package it points at'},
   {name: 'every AGENTS.md, CLAUDE.md and skill file stays short and narrow', run: agentDocs, fix: `keep it under ${AGENT_DOC_MAX_LINES} lines and ${AGENT_DOC_MAX_WIDTH} chars wide; split detail into smaller linked files the agent reads only when needed`},
   {name: 'every tracked JavaScript file parses', run: unparsedScripts, fix: 'run `node --check <file>` to see the syntax error'},
+  {name: 'every code card on the website matches its sources', run: staleCodeCards, fix: 'run `pnpm miondevx card export <name>` (or `--all`) and commit the result'},
   {name: 'no miniflare worker depends on the directory it was started from', run: miniflareCwdWorkers, fix: "pass modulesRoot beside scriptPath; without it miniflare names the module relative to process.cwd() and workerd refuses a `..` name"},
 ];
 

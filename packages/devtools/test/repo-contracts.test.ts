@@ -17,7 +17,7 @@ import {hasParserApi} from '../../../container/benchmarks/_lib/extract-cases.mjs
 import {referenceCycles, referenceGraph, tsconfigReferenceCycles} from '../../../scripts/ci/check-tree.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
 import {workspaceDependencyCycles, workspaceDependencyGraph} from '../../../scripts/ci/check-tree.mjs';
-import {readFileSync, existsSync, readdirSync, statSync, mkdirSync, mkdtempSync, writeFileSync, globSync} from 'node:fs';
+import {readFileSync, existsSync, readdirSync, statSync, mkdirSync, mkdtempSync, writeFileSync, globSync, rmSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {resolve, dirname, join, posix} from 'node:path';
 import {tmpdir} from 'node:os';
@@ -25,6 +25,8 @@ import {tmpdir} from 'node:os';
 import {sampleKeys, sampleMirrorDrift} from '../../../scripts/env/check.mjs';
 // @ts-expect-error — a plain .mjs script, no types
 import {REGISTRY} from '../../../scripts/lib/env.mjs';
+// @ts-expect-error — a plain .mjs repo script, no types.
+import {CARD_MANIFEST, CARDS_EXPORT_DIR, hashSources, staleCards} from '../../../scripts/lib/card-manifest.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
 import {stripSourceCondition} from '../../../scripts/lib/publish-manifest.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
@@ -286,6 +288,46 @@ describe('published packages point at this repository', () => {
     const source = readFileSync(join(REPO_ROOT, 'scripts/release/build-binaries.mjs'), 'utf8');
     expect(source).toContain(`${REPO_URL})`);
     expect(source).toContain(`${REPO_URL}/blob/main/LICENSE`);
+  });
+});
+
+describe('every code card on the website matches its sources', () => {
+  // A throwaway tree with one card exported, then broken one way at a time.
+  const tree = () => {
+    const root = mkdtempSync(join(tmpdir(), 'cards-'));
+    mkdirSync(join(root, CARDS_EXPORT_DIR), {recursive: true});
+    mkdirSync(join(root, 'tools'), {recursive: true});
+    writeFileSync(join(root, 'tools/card.vue'), '<template />');
+    writeFileSync(join(root, CARDS_EXPORT_DIR, 'demo.html'), '<div class="code-card"></div>');
+    const sources = ['tools/card.vue'];
+    writeFileSync(join(root, CARD_MANIFEST), JSON.stringify({demo: {hash: hashSources(root, sources), sources}}));
+    return root;
+  };
+
+  it('passes a card exported from its current sources', () => {
+    expect(staleCards(tree())).toEqual([]);
+  });
+
+  it('fails a card whose source changed, or is gone', () => {
+    const changed = tree();
+    writeFileSync(join(changed, 'tools/card.vue'), '<template><p /></template>');
+    expect(staleCards(changed)).toEqual(['demo: its sources changed since the last export']);
+    const gone = tree();
+    rmSync(join(gone, 'tools/card.vue'));
+    expect(staleCards(gone)).toEqual(['demo: its source tools/card.vue is gone']);
+  });
+
+  it('fails an exported card missing from the manifest, and a manifest card with no HTML', () => {
+    const orphan = tree();
+    writeFileSync(join(orphan, CARDS_EXPORT_DIR, 'other.html'), '');
+    expect(staleCards(orphan)).toEqual([`${CARDS_EXPORT_DIR}/other.html: not in ${CARD_MANIFEST}`]);
+    const missing = tree();
+    rmSync(join(missing, CARDS_EXPORT_DIR, 'demo.html'));
+    expect(staleCards(missing)).toEqual([`demo: ${CARDS_EXPORT_DIR}/demo.html is missing`]);
+  });
+
+  it('the repo itself is in sync', () => {
+    expect(staleCards(REPO_ROOT)).toEqual([]);
   });
 });
 
