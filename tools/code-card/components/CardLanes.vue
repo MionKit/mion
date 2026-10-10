@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Lanes that all meet one gate (a compiler, a check) drawn as a wall: each CardLane passes it or is stopped at it.
+// One gate (a compiler, a check) drawn as a wall, which each CardLane passes or is stopped at.
 import {provide} from 'vue';
 import {GATE_KEY, type Gate, nextStep} from './shared.ts';
 

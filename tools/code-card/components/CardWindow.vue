@@ -1,6 +1,5 @@
 <script setup lang="ts">
-// The editor window: three dots, a file name, then code or stats. Never animated: the empty frame shows the
-// reader a block is there before its content plays.
+// Never animated: the empty frame shows the reader a block is there before its content plays.
 withDefaults(defineProps<{file?: string}>(), {file: ''});
 </script>
 
