@@ -65,9 +65,9 @@ blur: 150px
   #body
     ::::div{class="home-split home-split--top"}
       :::::div{class="home-pitch"}
-      ## RunTypes<br>One type, many functions
+      ## RunTypes<br>Ready for compiled TypeScript
 
-      Your validator already knows the exact shape of your data. RunTypes turns that same knowledge into validation, JSON round trip, mock data and reflection, generated at build time straight from your TypeScript types. No schemas, no drift.
+      TypeScript is starting to compile ahead of time. RunTypes is ready: it compiles validation, JSON round trip, mock data and reflection at build time, straight from your types. No schema to read while your app runs.
 
         ::::::div{class="home-links"}
           :::::::u-button
