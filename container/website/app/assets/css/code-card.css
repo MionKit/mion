@@ -2,10 +2,9 @@
 @font-face{font-family:'Card Inter';font-style:normal;font-weight:100 900;font-display:block;src:url(/fonts/code-card/inter.woff2) format('woff2');}
 @font-face{font-family:'Card Mono';font-style:normal;font-weight:100 800;font-display:block;src:url(/fonts/code-card/jetbrains-mono.woff2) format('woff2');}
 @font-face{font-family:'Card Mono';font-style:italic;font-weight:100 800;font-display:block;src:url(/fonts/code-card/jetbrains-mono-italic.woff2) format('woff2');}
-/* Every card's look, shared by the PNG page and the website. Sizes are written in px for a calc(1200 * var(--u))-wide card;
-   scaleCss() (src/render.ts) turns each one into a multiple of --u, so the card scales with its container.
-   rem values never scale (a floor for readable code). Colours are site tokens only: the PNG page inlines the rpc
-   theme, the website brings its own. */
+/* Shared by the PNG page and the website. Sizes are px at a 1200 px card width: scaleCss() (src/render.ts) turns
+   them into multiples of --u; rem never scales (a floor for readable code). Colours are site tokens only: the PNG
+   page inlines the rpc theme, the website brings its own. */
 
 .code-card {
   container-type: inline-size;
@@ -372,8 +371,7 @@
   height: calc(12 * var(--u));
 }
 
-/* Narrow cards (a phone): scale at half the rate and stack the rows, so text stays readable. The breakpoint is
-   in rem because px would scale. The PNG is always calc(1200 * var(--u)) wide, so only the website uses this. */
+/* Phones: half the scale rate, rows stacked. A rem breakpoint, as px would scale; the PNG never gets this narrow. */
 @container (max-width: 40rem) {
   .code-card .stage {
     --u: calc(100cqw / 600);
@@ -396,8 +394,7 @@
   }
 }
 
-/* Animation: no class = the final state (PNG, no JS, reduced motion). The player adds cc-armed (every animated
-   element waits at its first keyframe), cc-play (they run in --cc-i order), cc-paused (they hold where they are). */
+/* No player class = the final state (PNG, no JS, reduced motion); the player adds cc-armed, cc-play, cc-paused. */
 .code-card [data-cc] {
   --cc-name: cc-rise;
 }

@@ -20,7 +20,8 @@ describe('code card: render', () => {
     expect(scaleCss('a { padding: 40px 0.5px; margin: -2px; top: 1rem }')).toBe(
       'a { padding: calc(40 * var(--u)) calc(0.5 * var(--u)); margin: calc(-2 * var(--u)); top: 1rem }'
     );
-    expect(cardCss()).not.toMatch(/\d+px/);
+    expect(scaleCss('/* a 1200px card */ a { top: 2px }')).toBe('/* a 1200px card */ a { top: calc(2 * var(--u)) }');
+    expect(cardCss().replace(/\/\*[\s\S]*?\*\//g, '')).not.toMatch(/\d+px/);
   });
 
   it('the stylesheet uses site colour tokens, never the olive itself', () => {

@@ -24,7 +24,9 @@ export const fontFaces = (src: (file: string) => string) =>
   ).join('\n');
 
 /** Each `Npx` becomes `calc(N * var(--u))`, so the card scales with its container; 1200px wide = 1px per --u. */
-export const scaleCss = (css: string) => css.replace(/(-?\d*\.?\d+)px\b/g, 'calc($1 * var(--u))');
+export const scaleCss = (css: string) =>
+  // comments pass through as written
+  css.replace(/\/\*[\s\S]*?\*\/|(-?\d*\.?\d+)px\b/g, (match, size?: string) => (size === undefined ? match : `calc(${size} * var(--u))`));
 
 export const cardCss = () => scaleCss(readFileSync(join(PACKAGE_DIR, 'card.css'), 'utf8'));
 
