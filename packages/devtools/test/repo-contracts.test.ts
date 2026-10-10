@@ -292,7 +292,6 @@ describe('published packages point at this repository', () => {
 });
 
 describe('every code card on the website matches its sources', () => {
-  // A throwaway tree with one card exported, then broken one way at a time.
   const tree = () => {
     const root = mkdtempSync(join(tmpdir(), 'cards-'));
     mkdirSync(join(root, CARDS_EXPORT_DIR), {recursive: true});
@@ -335,8 +334,7 @@ describe('every code card on the website matches its sources', () => {
   });
 });
 
-// The website shows cards through CodeCard.vue, which looks a fragment up by name: a page naming a card that was
-// never exported renders an error box instead, and only a browser would notice.
+// CodeCard.vue renders an error box for a card never exported, and only a browser would notice.
 describe('every code card a page shows is exported', () => {
   const CODE_CARD = join(REPO_ROOT, 'container/website/app/components/content/CodeCard.vue');
 

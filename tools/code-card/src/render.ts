@@ -1,5 +1,4 @@
-// Renders a `.vue` card to HTML in Node: Vite compiles the card and the components, Vue renders them to a string.
-// No website and no browser: the HTML is the card's final state, the PNG page and the website export both use it.
+// Renders a `.vue` card to HTML in Node, no browser: its final state, used by the PNG page and the website export.
 
 import {readFileSync, readdirSync} from 'node:fs';
 import {basename, join} from 'node:path';
@@ -90,7 +89,6 @@ type PageOptions = {zoom?: number; preview?: boolean};
 const fontData = (file: string) =>
   `data:font/woff2;base64,${readFileSync(join(PACKAGE_DIR, 'fonts', file)).toString('base64')}`;
 
-// The preview arms and plays the card on load; its buttons replay or pause it, and failed checks show above it.
 const PREVIEW_CONTROLS =
   '<div class="cc-preview"><button data-do="play">Play</button><button data-do="pause">Pause</button>' +
   '<button data-do="reset">Replay</button><span class="cc-hint"></span></div><div class="cc-errors"></div>';

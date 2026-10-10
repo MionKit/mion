@@ -1,5 +1,4 @@
-// `miondevx card export <name…> | --all`: hands finished cards to the website. Per card the HTML fragment; for all
-// cards the stylesheet, the fonts and the player; plus the manifest check-tree uses to catch a stale export.
+// `miondevx card export`: card HTML, shared stylesheet, fonts and player for the website, plus check-tree's manifest.
 
 import {copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync} from 'node:fs';
 import {basename, dirname, join, relative, resolve} from 'node:path';
@@ -28,8 +27,7 @@ export function parseExportArgs(argv: string[]): {all: boolean; cards: string[]}
 
 const repoPath = (path: string) => relative(REPO_DIR, path).split('\\').join('/');
 
-/** Every file the exported card depends on: the card and its local imports, the components, stylesheet, player,
- *  fonts, and the renderer that turns them into the website's files. */
+/** Every file the exported card depends on, the renderer included. */
 export function cardSources(cardPath: string): string[] {
   const local = [...readFileSync(cardPath, 'utf8').matchAll(LOCAL_IMPORT)].map((match) => resolve(dirname(cardPath), match[1]));
   const components = readdirSync(COMPONENTS_DIR).map((file) => join(COMPONENTS_DIR, file));
@@ -38,7 +36,6 @@ export function cardSources(cardPath: string): string[] {
   return [...new Set([cardPath, ...local, ...components, ...fonts, ...tool].map(repoPath))].sort();
 }
 
-/** The website's copy of the stylesheet: the card fonts served from public/, then the scaled card rules. */
 export const websiteCss = () => `/* ${GENERATED} */\n${fontFaces((file) => `${FONT_URL}/${file}`)}\n${cardCss()}`;
 
 /** Writes the files every card shares; returns their repo paths. */

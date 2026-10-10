@@ -1,5 +1,4 @@
-// `miondevx card serve`: cards are re-rendered on every request, so an edit shows on refresh. A card page plays its
-// animation with Play / Pause / Replay buttons and lists failed layout checks; `?shot` serves the plain page.
+// `miondevx card serve`: cards are re-rendered on every request, so an edit shows on refresh.
 
 import {existsSync, mkdtempSync, readFileSync, readdirSync, rmSync} from 'node:fs';
 import {createServer, type Server} from 'node:http';

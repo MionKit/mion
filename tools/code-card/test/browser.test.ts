@@ -1,5 +1,4 @@
-// In Chromium: the layout checks fail a bad card, and the animation starts empty and ends on the PNG's layout.
-// Uses Playwright's own Chromium, or MION_CARD_BROWSER where it is not installed.
+// In Chromium (Playwright's or MION_CARD_BROWSER): layout checks fail a bad card; the animation ends on the PNG layout.
 import {existsSync, mkdirSync, rmSync, writeFileSync} from 'node:fs';
 import type {AddressInfo} from 'node:net';
 import {join} from 'node:path';

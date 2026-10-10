@@ -1,5 +1,4 @@
-// Plays a card's own class animations: card.css does the motion, this only toggles classes on `.code-card`.
-// arm = wait at the first frame, play = run in sequence, pause = hold, reset = back to armed. Copied to the website.
+// Only toggles classes on `.code-card`; card.css does the motion. Copied verbatim to the website.
 
 const ARMED = 'cc-armed';
 const PLAYING = 'cc-play';

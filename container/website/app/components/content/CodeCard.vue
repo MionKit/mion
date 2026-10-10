@@ -1,7 +1,6 @@
 <script setup lang="ts">
-// A card from tools/code-card, as the finished HTML `pnpm miondevx card export` wrote: the card brings its own
-// look and animation. The card is in the prerendered HTML in its final state; the player arms it and plays it the
-// first time it scrolls into view (never under reduced motion).
+// Shows the HTML `pnpm miondevx card export` wrote, which brings its own look and animation. Prerendered in its
+// final state, it plays the first time it scrolls into view (never under reduced motion).
 import {arm, play} from '../../utils/codeCardPlayer'
 import '../../assets/css/code-card.css'
 
@@ -14,8 +13,7 @@ const html = await cards[`../../data/cards/${props.name}.html`]?.()
 const root = ref<HTMLElement>()
 let observer: IntersectionObserver | undefined
 
-// Armed only once the first callback says where the card is: one already on screen plays at once instead of
-// vanishing for a frame first.
+// Armed in the observer callback, not on mount: a card already on screen plays at once, never vanishing for a frame.
 onMounted(() => {
   const card = root.value?.querySelector('.code-card')
   if (!card) return
