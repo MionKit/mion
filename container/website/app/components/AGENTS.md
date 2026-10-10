@@ -15,6 +15,9 @@ Vue components the docs pages and layouts use. Read before adding or editing a c
   - `HomeTestTiles` (root landing test tiles): tile list lives in the component (else on the landing collection
     a frontmatter list silently collapses to its first key).
   - `TwoslashCode`: usage in [server/AGENTS.md](../../server/AGENTS.md).
+  - `CodeCard` (`::code-card{name="…"}`): a card from `tools/code-card/`, as the HTML `pnpm miondevx card export`
+    wrote to `app/data/cards/`; it plays the card's own animation on scroll. Never hand-edit `app/data/cards/`,
+    `assets/css/code-card.css`, `utils/codeCardPlayer.ts` or `public/fonts/code-card/`: export again.
   - Also: `StatTiles`, `DiagnosticCatalog`, `DetailPanel`, `RealWorldScenario`, `RuntypesPlayground`, `SlidedTitle`,
     `TypeSafeAnimation`, `StylishList`, `HoverList`, `PlatformTiles`, `MionType`, `GradientBg`, `Spacer`,
     `AppHeaderLogo`, `MionLogo`.

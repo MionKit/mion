@@ -44,5 +44,5 @@ pnpm miondevx release all
 
 - [tools/](../tools/): private dev tools with their own deps, outside `packages/` → no CI lane, root test run or
   root lint touches them.
-- [tools/code-card/](../tools/code-card/) renders a markdown card to a shareable PNG: `pnpm miondevx card`,
-  own checks `pnpm miondevx card test`. Agents use the [code-card skill](../.agents/skills/code-card/).
+- [tools/code-card/](../tools/code-card/) renders `.vue` cards to a shareable PNG or the website: `pnpm miondevx card`,
+  own checks `pnpm miondevx card test`. Agents use the [card skill](../.agents/skills/card/).
