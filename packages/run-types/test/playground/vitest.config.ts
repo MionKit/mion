@@ -20,6 +20,7 @@ import {fileURLToPath} from 'node:url';
 // exact-match regex leaves every other specifier untouched.
 const rtAlias = [
   {find: /^@mionjs\/run-types\/formats$/, replacement: fileURLToPath(new URL('../../src/formats/index.ts', import.meta.url))},
+  {find: /^@mionjs\/run-types\/mocking$/, replacement: fileURLToPath(new URL('../../src/mocking/index.ts', import.meta.url))},
   {find: /^@mionjs\/run-types$/, replacement: fileURLToPath(new URL('../../src/index.ts', import.meta.url))},
 ];
 
