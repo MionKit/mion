@@ -1710,4 +1710,30 @@ export const OBJECTS = {
       };
     },
   },
+  nullable_optional_fields: {
+    title: 'Nullable optional fields',
+    description:
+      'Optional props that may also be null ({s?: string | null; n?: number | null}); a present null and an absent prop stay distinct on every strategy.',
+    mutateEncoder: () => createJsonEncoderFn<{s?: string | null; n?: number | null}>(undefined, {strategy: 'mutate'}),
+    cloneEncoder: () => createJsonEncoderFn<{s?: string | null; n?: number | null}>(undefined, {strategy: 'clone'}),
+    compactEncoder: () => createJsonEncoderFn<{s?: string | null; n?: number | null}>(undefined, {strategy: 'compact'}),
+    cloneDecoder: () => createJsonDecoderFn<{s?: string | null; n?: number | null}>(),
+    mutateDecoder: () => createJsonDecoderFn<{s?: string | null; n?: number | null}>(undefined, {strategy: 'mutate'}),
+    compactDecoder: () => createJsonDecoderFn<{s?: string | null; n?: number | null}>(undefined, {strategy: 'compact'}),
+    schemaEncoder: () =>
+      createJsonEncoderFn(
+        RT.object({
+          s: RT.optional(RT.union([TF.string(), RT.literal(null)])),
+          n: RT.optional(RT.union([TF.number(), RT.literal(null)])),
+        })
+      ),
+    schemaDecoder: () =>
+      createJsonDecoderFn(
+        RT.object({
+          s: RT.optional(RT.union([TF.string(), RT.literal(null)])),
+          n: RT.optional(RT.union([TF.number(), RT.literal(null)])),
+        })
+      ),
+    getTestData: () => ({values: [{s: 'x', n: 1}, {s: null, n: null}, {}]}),
+  },
 } as const satisfies Record<string, SerializationCase>;

@@ -8,15 +8,18 @@ describe('G1 index signature does not corrupt a named sibling property', () => {
     type A = {p0: number; [k: number]: bigint};
     const make = (): A => ({p0: 1, 5: 7n, 9: 11n});
 
-    // JSON, every encoder strategy paired with its decoder.
-    // The strategy is read at build time, so each one is spelled at its own call site; a variable
-    // resolves to no strategy and the call falls back to the default.
+    // The strategy is read at build time; a variable falls back to the default, so each is spelled out.
     const pairs = [
       ['clone', createJsonEncoderFn<A>(undefined, {strategy: 'clone'}), createJsonDecoderFn<A>(undefined, {strategy: 'clone'})],
       [
         'mutate',
         createJsonEncoderFn<A>(undefined, {strategy: 'mutate'}),
         createJsonDecoderFn<A>(undefined, {strategy: 'mutate'}),
+      ],
+      [
+        'compact',
+        createJsonEncoderFn<A>(undefined, {strategy: 'compact'}),
+        createJsonDecoderFn<A>(undefined, {strategy: 'compact'}),
       ],
     ] as const;
     for (const [enc, encode, decode] of pairs) {

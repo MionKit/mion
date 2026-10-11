@@ -220,8 +220,8 @@ paired with its same-named decoder, and the `rjs` restore over the clone wire �
 
 Oracle IDs (`roundtripOracle.ts`): **RT-VALIDATE** (both input and output
 validate), **RT-AGREE** (re-encoding each lane's decoded value through the
-canonical clone encoder reproduces the original clone wire — every lane
-round-trips to the same DataOnly value), **RT-STABLE** (each lane's own wire is
+clone, mutate and compact encoders reproduces each one's wire of the original
+value — every lane round-trips to the same DataOnly value), **RT-STABLE** (each lane's own wire is
 byte-stable under re-encode), **RT-FAILAGREE** (a type one lane refuses, every
 lane refuses), **RT-NATIVE** (keyed encoders emit JSON that native `JSON.parse`
 reads back identically — an encoder check independent of our decoders), and

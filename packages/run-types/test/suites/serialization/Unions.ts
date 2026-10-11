@@ -833,4 +833,343 @@ export const UNIONS = {
       ],
     }),
   },
+  union_payment_method: {
+    title: 'Payment method union',
+    description:
+      "Discriminated union of three object shapes with disjoint props; compact writes one positional array over every member's props, a missing prop holding the first of 0, null, false its type cannot be.",
+    mutateEncoder: () =>
+      createJsonEncoderFn<
+        | {type: 'credit_card'; lastFourDigits: string; expiryMonth: number; expiryYear: number; brand: string}
+        | {type: 'bank_account'; bankName: string; accountLastFour: string; routingNumber: string}
+        | {type: 'paypal'; email: string}
+      >(undefined, {strategy: 'mutate'}),
+    cloneEncoder: () =>
+      createJsonEncoderFn<
+        | {type: 'credit_card'; lastFourDigits: string; expiryMonth: number; expiryYear: number; brand: string}
+        | {type: 'bank_account'; bankName: string; accountLastFour: string; routingNumber: string}
+        | {type: 'paypal'; email: string}
+      >(undefined, {strategy: 'clone'}),
+    compactEncoder: () =>
+      createJsonEncoderFn<
+        | {type: 'credit_card'; lastFourDigits: string; expiryMonth: number; expiryYear: number; brand: string}
+        | {type: 'bank_account'; bankName: string; accountLastFour: string; routingNumber: string}
+        | {type: 'paypal'; email: string}
+      >(undefined, {strategy: 'compact'}),
+    cloneDecoder: () =>
+      createJsonDecoderFn<
+        | {type: 'credit_card'; lastFourDigits: string; expiryMonth: number; expiryYear: number; brand: string}
+        | {type: 'bank_account'; bankName: string; accountLastFour: string; routingNumber: string}
+        | {type: 'paypal'; email: string}
+      >(),
+    mutateDecoder: () =>
+      createJsonDecoderFn<
+        | {type: 'credit_card'; lastFourDigits: string; expiryMonth: number; expiryYear: number; brand: string}
+        | {type: 'bank_account'; bankName: string; accountLastFour: string; routingNumber: string}
+        | {type: 'paypal'; email: string}
+      >(undefined, {strategy: 'mutate'}),
+    compactDecoder: () =>
+      createJsonDecoderFn<
+        | {type: 'credit_card'; lastFourDigits: string; expiryMonth: number; expiryYear: number; brand: string}
+        | {type: 'bank_account'; bankName: string; accountLastFour: string; routingNumber: string}
+        | {type: 'paypal'; email: string}
+      >(undefined, {strategy: 'compact'}),
+    schemaEncoder: () =>
+      createJsonEncoderFn(
+        RT.union([
+          RT.object({
+            type: RT.literal('credit_card'),
+            lastFourDigits: TF.string(),
+            expiryMonth: TF.number(),
+            expiryYear: TF.number(),
+            brand: TF.string(),
+          }),
+          RT.object({
+            type: RT.literal('bank_account'),
+            bankName: TF.string(),
+            accountLastFour: TF.string(),
+            routingNumber: TF.string(),
+          }),
+          RT.object({type: RT.literal('paypal'), email: TF.string()}),
+        ])
+      ),
+    schemaDecoder: () =>
+      createJsonDecoderFn(
+        RT.union([
+          RT.object({
+            type: RT.literal('credit_card'),
+            lastFourDigits: TF.string(),
+            expiryMonth: TF.number(),
+            expiryYear: TF.number(),
+            brand: TF.string(),
+          }),
+          RT.object({
+            type: RT.literal('bank_account'),
+            bankName: TF.string(),
+            accountLastFour: TF.string(),
+            routingNumber: TF.string(),
+          }),
+          RT.object({type: RT.literal('paypal'), email: TF.string()}),
+        ])
+      ),
+    getTestData: () => ({
+      values: [
+        {type: 'credit_card', lastFourDigits: '4242', expiryMonth: 12, expiryYear: 2025, brand: 'visa'},
+        {type: 'bank_account', bankName: 'Chase', accountLastFour: '1234', routingNumber: '021000021'},
+        {type: 'paypal', email: 'john.paypal@example.com'},
+      ],
+    }),
+  },
+  union_shared_optional: {
+    title: 'Members sharing a prop',
+    description:
+      'Union where one member adds an optional prop to the other ({email} | {email; phone?}); no member is picked on encode, so the optional survives on every strategy.',
+    mutateEncoder: () => createJsonEncoderFn<{email: string} | {email: string; phone?: string}>(undefined, {strategy: 'mutate'}),
+    cloneEncoder: () => createJsonEncoderFn<{email: string} | {email: string; phone?: string}>(undefined, {strategy: 'clone'}),
+    compactEncoder: () =>
+      createJsonEncoderFn<{email: string} | {email: string; phone?: string}>(undefined, {strategy: 'compact'}),
+    cloneDecoder: () => createJsonDecoderFn<{email: string} | {email: string; phone?: string}>(),
+    mutateDecoder: () => createJsonDecoderFn<{email: string} | {email: string; phone?: string}>(undefined, {strategy: 'mutate'}),
+    compactDecoder: () =>
+      createJsonDecoderFn<{email: string} | {email: string; phone?: string}>(undefined, {strategy: 'compact'}),
+    schemaEncoder: () =>
+      createJsonEncoderFn(
+        RT.union([RT.object({email: TF.string()}), RT.object({email: TF.string(), phone: RT.optional(TF.string())})])
+      ),
+    schemaDecoder: () =>
+      createJsonDecoderFn(
+        RT.union([RT.object({email: TF.string()}), RT.object({email: TF.string(), phone: RT.optional(TF.string())})])
+      ),
+    getTestData: () => ({values: [{email: 'a@b.c', phone: '123'}, {email: 'a@b.c'}]}),
+  },
+  union_object_or_null: {
+    title: 'Object or null',
+    description:
+      'Union of one object and null; null is a plain JSON scalar, so compact needs no member index to tell it from the object.',
+    mutateEncoder: () => createJsonEncoderFn<{tag: string} | null>(undefined, {strategy: 'mutate'}),
+    cloneEncoder: () => createJsonEncoderFn<{tag: string} | null>(undefined, {strategy: 'clone'}),
+    compactEncoder: () => createJsonEncoderFn<{tag: string} | null>(undefined, {strategy: 'compact'}),
+    cloneDecoder: () => createJsonDecoderFn<{tag: string} | null>(),
+    mutateDecoder: () => createJsonDecoderFn<{tag: string} | null>(undefined, {strategy: 'mutate'}),
+    compactDecoder: () => createJsonDecoderFn<{tag: string} | null>(undefined, {strategy: 'compact'}),
+    schemaEncoder: () => createJsonEncoderFn(RT.union([RT.object({tag: TF.string()}), RT.literal(null)])),
+    schemaDecoder: () => createJsonDecoderFn(RT.union([RT.object({tag: TF.string()}), RT.literal(null)])),
+    getTestData: () => ({values: [{tag: 'x'}, null]}),
+  },
+  union_object_or_string_array: {
+    title: 'Object or string array',
+    description:
+      'Union of an object and a string array; compact writes the object as an array too, so it keeps the member index to tell them apart.',
+    mutateEncoder: () => createJsonEncoderFn<{a: string} | string[]>(undefined, {strategy: 'mutate'}),
+    cloneEncoder: () => createJsonEncoderFn<{a: string} | string[]>(undefined, {strategy: 'clone'}),
+    compactEncoder: () => createJsonEncoderFn<{a: string} | string[]>(undefined, {strategy: 'compact'}),
+    cloneDecoder: () => createJsonDecoderFn<{a: string} | string[]>(),
+    mutateDecoder: () => createJsonDecoderFn<{a: string} | string[]>(undefined, {strategy: 'mutate'}),
+    compactDecoder: () => createJsonDecoderFn<{a: string} | string[]>(undefined, {strategy: 'compact'}),
+    schemaEncoder: () => createJsonEncoderFn(RT.union([RT.object({a: TF.string()}), RT.array(TF.string())])),
+    schemaDecoder: () => createJsonDecoderFn(RT.union([RT.object({a: TF.string()}), RT.array(TF.string())])),
+    getTestData: () => ({values: [{a: 'x'}, ['x', 'y'], []]}),
+  },
+  union_shared_slot_types: {
+    title: 'Same prop, different types',
+    description:
+      'Members declare one optional prop with different types (Date on one, number on another, absent on a third); the prop keeps its per-member codec on every strategy.',
+    mutateEncoder: () =>
+      createJsonEncoderFn<{k: 'a'; f?: Date} | {k: 'b'; f?: number} | {k: 'c'}>(undefined, {strategy: 'mutate'}),
+    cloneEncoder: () => createJsonEncoderFn<{k: 'a'; f?: Date} | {k: 'b'; f?: number} | {k: 'c'}>(undefined, {strategy: 'clone'}),
+    compactEncoder: () =>
+      createJsonEncoderFn<{k: 'a'; f?: Date} | {k: 'b'; f?: number} | {k: 'c'}>(undefined, {strategy: 'compact'}),
+    cloneDecoder: () => createJsonDecoderFn<{k: 'a'; f?: Date} | {k: 'b'; f?: number} | {k: 'c'}>(),
+    mutateDecoder: () =>
+      createJsonDecoderFn<{k: 'a'; f?: Date} | {k: 'b'; f?: number} | {k: 'c'}>(undefined, {strategy: 'mutate'}),
+    compactDecoder: () =>
+      createJsonDecoderFn<{k: 'a'; f?: Date} | {k: 'b'; f?: number} | {k: 'c'}>(undefined, {strategy: 'compact'}),
+    schemaEncoder: () =>
+      createJsonEncoderFn(
+        RT.union([
+          RT.object({k: RT.literal('a'), f: RT.optional(TF.date())}),
+          RT.object({k: RT.literal('b'), f: RT.optional(TF.number())}),
+          RT.object({k: RT.literal('c')}),
+        ])
+      ),
+    schemaDecoder: () =>
+      createJsonDecoderFn(
+        RT.union([
+          RT.object({k: RT.literal('a'), f: RT.optional(TF.date())}),
+          RT.object({k: RT.literal('b'), f: RT.optional(TF.number())}),
+          RT.object({k: RT.literal('c')}),
+        ])
+      ),
+    getTestData: () => ({
+      values: [{k: 'a', f: new Date('2024-01-01T00:00:00.000Z')}, {k: 'a'}, {k: 'b', f: 1}, {k: 'b'}, {k: 'c'}],
+    }),
+  },
+  union_nested_object_unions: {
+    title: 'Nested object unions',
+    description:
+      'Three-level nesting: a union of objects whose props hold more unions of objects (an optional style union holding an array of a mark union with an optional Date, a nullable caption object, an array of an item union with a nullable string), each level resolving its own members.',
+    mutateEncoder: () =>
+      createJsonEncoderFn<
+        | {
+            kind: 'text';
+            body: string;
+            style?: {type: 'plain'} | {type: 'rich'; marks: ({mark: 'bold'} | {mark: 'link'; href: string; at?: Date})[]};
+          }
+        | {kind: 'image'; src: string; caption?: {lang: string; text: string} | null}
+        | {kind: 'group'; items: ({kind: 'ref'; id: number} | {kind: 'inline'; note: string | null})[]}
+      >(undefined, {strategy: 'mutate'}),
+    cloneEncoder: () =>
+      createJsonEncoderFn<
+        | {
+            kind: 'text';
+            body: string;
+            style?: {type: 'plain'} | {type: 'rich'; marks: ({mark: 'bold'} | {mark: 'link'; href: string; at?: Date})[]};
+          }
+        | {kind: 'image'; src: string; caption?: {lang: string; text: string} | null}
+        | {kind: 'group'; items: ({kind: 'ref'; id: number} | {kind: 'inline'; note: string | null})[]}
+      >(undefined, {strategy: 'clone'}),
+    compactEncoder: () =>
+      createJsonEncoderFn<
+        | {
+            kind: 'text';
+            body: string;
+            style?: {type: 'plain'} | {type: 'rich'; marks: ({mark: 'bold'} | {mark: 'link'; href: string; at?: Date})[]};
+          }
+        | {kind: 'image'; src: string; caption?: {lang: string; text: string} | null}
+        | {kind: 'group'; items: ({kind: 'ref'; id: number} | {kind: 'inline'; note: string | null})[]}
+      >(undefined, {strategy: 'compact'}),
+    cloneDecoder: () =>
+      createJsonDecoderFn<
+        | {
+            kind: 'text';
+            body: string;
+            style?: {type: 'plain'} | {type: 'rich'; marks: ({mark: 'bold'} | {mark: 'link'; href: string; at?: Date})[]};
+          }
+        | {kind: 'image'; src: string; caption?: {lang: string; text: string} | null}
+        | {kind: 'group'; items: ({kind: 'ref'; id: number} | {kind: 'inline'; note: string | null})[]}
+      >(),
+    mutateDecoder: () =>
+      createJsonDecoderFn<
+        | {
+            kind: 'text';
+            body: string;
+            style?: {type: 'plain'} | {type: 'rich'; marks: ({mark: 'bold'} | {mark: 'link'; href: string; at?: Date})[]};
+          }
+        | {kind: 'image'; src: string; caption?: {lang: string; text: string} | null}
+        | {kind: 'group'; items: ({kind: 'ref'; id: number} | {kind: 'inline'; note: string | null})[]}
+      >(undefined, {strategy: 'mutate'}),
+    compactDecoder: () =>
+      createJsonDecoderFn<
+        | {
+            kind: 'text';
+            body: string;
+            style?: {type: 'plain'} | {type: 'rich'; marks: ({mark: 'bold'} | {mark: 'link'; href: string; at?: Date})[]};
+          }
+        | {kind: 'image'; src: string; caption?: {lang: string; text: string} | null}
+        | {kind: 'group'; items: ({kind: 'ref'; id: number} | {kind: 'inline'; note: string | null})[]}
+      >(undefined, {strategy: 'compact'}),
+    schemaEncoder: () =>
+      createJsonEncoderFn(
+        RT.union([
+          RT.object({
+            kind: RT.literal('text'),
+            body: TF.string(),
+            style: RT.optional(
+              RT.union([
+                RT.object({type: RT.literal('plain')}),
+                RT.object({
+                  type: RT.literal('rich'),
+                  marks: RT.array(
+                    RT.union([
+                      RT.object({mark: RT.literal('bold')}),
+                      RT.object({mark: RT.literal('link'), href: TF.string(), at: RT.optional(TF.date())}),
+                    ])
+                  ),
+                }),
+              ])
+            ),
+          }),
+          RT.object({
+            kind: RT.literal('image'),
+            src: TF.string(),
+            caption: RT.optional(RT.union([RT.object({lang: TF.string(), text: TF.string()}), RT.literal(null)])),
+          }),
+          RT.object({
+            kind: RT.literal('group'),
+            items: RT.array(
+              RT.union([
+                RT.object({kind: RT.literal('ref'), id: TF.number()}),
+                RT.object({kind: RT.literal('inline'), note: RT.union([TF.string(), RT.literal(null)])}),
+              ])
+            ),
+          }),
+        ])
+      ),
+    schemaDecoder: () =>
+      createJsonDecoderFn(
+        RT.union([
+          RT.object({
+            kind: RT.literal('text'),
+            body: TF.string(),
+            style: RT.optional(
+              RT.union([
+                RT.object({type: RT.literal('plain')}),
+                RT.object({
+                  type: RT.literal('rich'),
+                  marks: RT.array(
+                    RT.union([
+                      RT.object({mark: RT.literal('bold')}),
+                      RT.object({mark: RT.literal('link'), href: TF.string(), at: RT.optional(TF.date())}),
+                    ])
+                  ),
+                }),
+              ])
+            ),
+          }),
+          RT.object({
+            kind: RT.literal('image'),
+            src: TF.string(),
+            caption: RT.optional(RT.union([RT.object({lang: TF.string(), text: TF.string()}), RT.literal(null)])),
+          }),
+          RT.object({
+            kind: RT.literal('group'),
+            items: RT.array(
+              RT.union([
+                RT.object({kind: RT.literal('ref'), id: TF.number()}),
+                RT.object({kind: RT.literal('inline'), note: RT.union([TF.string(), RT.literal(null)])}),
+              ])
+            ),
+          }),
+        ])
+      ),
+    getTestData: () => ({
+      values: [
+        {kind: 'text', body: 'hi'},
+        {kind: 'text', body: 'hi', style: {type: 'plain'}},
+        {
+          kind: 'text',
+          body: 'hi',
+          style: {
+            type: 'rich',
+            marks: [
+              {mark: 'bold'},
+              {mark: 'link', href: '/a'},
+              {mark: 'link', href: '/b', at: new Date('2024-01-01T00:00:00.000Z')},
+            ],
+          },
+        },
+        {kind: 'image', src: 'a.png'},
+        {kind: 'image', src: 'a.png', caption: null},
+        {kind: 'image', src: 'a.png', caption: {lang: 'en', text: 'cat'}},
+        {kind: 'group', items: []},
+        {
+          kind: 'group',
+          items: [
+            {kind: 'ref', id: 1},
+            {kind: 'inline', note: null},
+            {kind: 'inline', note: 'x'},
+          ],
+        },
+      ],
+    }),
+  },
 } as const satisfies Record<string, SerializationCase>;
