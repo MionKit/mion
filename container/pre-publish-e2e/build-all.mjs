@@ -94,6 +94,7 @@ const APP_LIST = [
   // Next is not a workspace dependency; this supplies build coverage (packages/devtools/src/runtypes/next/AGENTS.md).
   {name: 'smoke-next', adapter: 'next'},
   // The same Turbopack lane over the typed .ts cache modules emitMode 'ts' writes (its tsconfig asks for it).
+  // No type-edit rebuild: smoke-next already proves it, and the mode changes nothing in it.
   {name: 'smoke-next-ts', adapter: 'next', typeEdit: false},
   // The mion half of the Next story: the app HOSTS the API through an App Router catch-all
   // handler, so one build produces the front end and the API from one program. smoke-next

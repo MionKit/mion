@@ -67,8 +67,9 @@ func holeHead(match string) string {
 	return strings.ReplaceAll(match, "undefined", "")
 }
 
-// moduleHead is a module's text up to its live factory, the factory slot opening outside any quoted string, with the
-// type-only imports and tuple annotations emitMode ts adds removed: everything else must match byte for byte.
+// moduleHead is a module's text up to its live factory, the factory slot opening outside any quoted string, minus what
+// emitMode ts adds (type-only imports, `declare const` lines, tuple annotations and checks, the typed ini parameters,
+// `undefined` head slots): everything else must match byte for byte.
 func moduleHead(module string) string {
 	var lines []string
 	for _, line := range strings.SplitAfter(module, "\n") {
