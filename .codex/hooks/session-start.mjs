@@ -1,11 +1,10 @@
 import {spawnSync} from 'node:child_process';
 import {accessSync, constants, existsSync, readFileSync, readdirSync} from 'node:fs';
 import {join} from 'node:path';
-import {pathToFileURL} from 'node:url';
 
 const capture = (command, args, cwd) => spawnSync(command, args, {cwd, encoding: 'utf8', timeout: 2000});
 
-async function report() {
+function report() {
   let cwd = process.cwd();
   const input = readFileSync(0, 'utf8').trim();
   if (input) cwd = JSON.parse(input).cwd || cwd;
@@ -42,9 +41,8 @@ async function report() {
     executable = false;
   }
   check(executable, 'mion-bin/mion executable');
-  const {chromiumStatus} = await import(pathToFileURL(join(root, 'scripts/lib/playwright-chromium.mjs')).href);
-  const chromium = chromiumStatus(root);
-  check(chromium.ok, `Playwright Chromium (${chromium.label})`);
+  const chromium = spawnSync(process.execPath, ['scripts/lib/playwright-chromium.mjs', '--check'], {cwd: root, encoding: 'utf8'});
+  lines.push(chromium.stdout.trim() || 'MISSING Playwright Chromium (the check could not run)');
   return ['Mion startup check (read only):', ...lines,
     lines.some((line) => line.startsWith('MISSING'))
       ? 'Use the ts-runtypes-setup skill and SETUP.md for missing dependencies. This hook does not install or build.'
@@ -52,7 +50,7 @@ async function report() {
 }
 
 try {
-  console.log(JSON.stringify({hookSpecificOutput: {hookEventName: 'SessionStart', additionalContext: await report()}}));
+  console.log(JSON.stringify({hookSpecificOutput: {hookEventName: 'SessionStart', additionalContext: report()}}));
 } catch {
   console.log(JSON.stringify({hookSpecificOutput: {hookEventName: 'SessionStart', additionalContext: 'Mion startup check could not read its input. Check SETUP.md before running project commands.'}}));
 }

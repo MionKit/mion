@@ -9,18 +9,20 @@ import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const REPO_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+const NO_CLI = '@playwright/cli not installed (run pnpm install)';
 
-const cliScript = (root) => createRequire(join(root, 'package.json')).resolve('@playwright/cli/playwright-cli.js');
-const runCli = (root, args, options = {}) =>
-  spawnSync(process.execPath, [cliScript(root), 'install-browser', 'chromium', ...args], {cwd: root, encoding: 'utf8', ...options});
+const runCli = (args, options = {}) => {
+  const cli = createRequire(join(REPO_DIR, 'package.json')).resolve('@playwright/cli/playwright-cli.js');
+  return spawnSync(process.execPath, [cli, 'install-browser', 'chromium', ...args], {cwd: REPO_DIR, encoding: 'utf8', ...options});
+};
 
 /** `--dry-run` lists every dir the install fills; Playwright writes INSTALLATION_COMPLETE into each one last. */
-export function chromiumStatus(root = REPO_DIR) {
+function chromiumStatus() {
   let dryRun;
   try {
-    dryRun = runCli(root, ['--dry-run']);
+    dryRun = runCli(['--dry-run']);
   } catch {
-    return {ok: false, label: '@playwright/cli not installed (run pnpm install)'};
+    return {ok: false, label: NO_CLI};
   }
   const dirs = [...new Set([...(dryRun.stdout ?? '').matchAll(/Install location:\s+(\S.*)$/gm)].map((match) => match[1].trim()))];
   if (dryRun.status !== 0 || !dirs.length) return {ok: false, label: `cannot read the install plan: ${(dryRun.stderr || dryRun.stdout || '').trim()}`};
@@ -29,18 +31,19 @@ export function chromiumStatus(root = REPO_DIR) {
   return missing.length ? {ok: false, label: `${missing.join(', ')} not installed`} : {ok: true, label: chromium};
 }
 
-function main(argv) {
-  const before = chromiumStatus();
-  if (before.ok || argv.includes('--check')) {
-    console.log(`${before.ok ? 'OK' : 'MISSING'} Playwright Chromium: ${before.label}`);
-    return before.ok ? 0 : 1;
-  }
-  // pnpm install keeps skipping browser downloads; only this one command may fetch.
-  const {PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: _skip, ...env} = process.env;
-  runCli(REPO_DIR, [], {env, stdio: 'inherit'});
-  const after = chromiumStatus();
-  console.log(`${after.ok ? 'OK' : 'MISSING'} Playwright Chromium: ${after.label}`);
-  return after.ok ? 0 : 1;
+function report({ok, label}) {
+  console.log(`${ok ? 'OK' : 'MISSING'} Playwright Chromium: ${label}`);
+  return ok ? 0 : 1;
 }
 
-if (import.meta.main) process.exit(main(process.argv.slice(2)));
+function main(argv) {
+  const before = chromiumStatus();
+  // Skip the install when present: it would still take Playwright's lock and prune other browsers.
+  if (before.ok || before.label === NO_CLI || argv.includes('--check')) return report(before);
+  // pnpm install keeps skipping browser downloads; only this one command may fetch.
+  const {PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: _skip, ...env} = process.env;
+  runCli([], {env, stdio: 'inherit'});
+  return report(chromiumStatus());
+}
+
+process.exit(main(process.argv.slice(2)));
