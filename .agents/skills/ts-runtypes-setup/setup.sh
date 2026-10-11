@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# setup.sh: mion host bootstrap (deps, podman engine, submodules + patches, install, hooks, builds, Playwright Chromium, .env).
+# setup.sh: mion host bootstrap (deps, podman engine, submodules + patches, install, hooks, builds,
+# Playwright Chromium, .env).
 # Usage: bash .agents/skills/ts-runtypes-setup/setup.sh [--check]   (--check = report only, never install)
 # Exit: 0 ok, 1 a required install / bootstrap step failed, 3 unsupported OS or no supported package manager.
 # Version minimums mirror SETUP.md#prerequisites; keep both in sync.
