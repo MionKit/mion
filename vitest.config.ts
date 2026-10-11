@@ -1,6 +1,6 @@
 import {defineConfig} from 'vitest/config';
 
-// Root vitest config — the 5 runtypes projects + the 19 mion-side projects run from
+// Root vitest config — the 6 runtypes projects + the 19 mion-side projects run from
 // one root, and this list is the SINGLE SOURCE OF TRUTH for which projects exist:
 // `test:ci` batches them with --project filters (scripts/core/test-batches.mjs), and
 // `pnpm run check:test-batches` fails if a project added here belongs to no batch.
@@ -27,6 +27,8 @@ export default defineConfig({
     projects: [
       // ── runtypes side ──
       'packages/run-types/vitest.config.ts',
+      // The feature suite over typed `.ts` cache modules (emitMode 'ts').
+      'packages/run-types/vitest.ts-emit.config.ts',
       'packages/devtools/vitest.core.config.ts',
       // The playground engine suite (relocated from the dissolved
       // runtypes-playground package) — a standalone project co-located under
