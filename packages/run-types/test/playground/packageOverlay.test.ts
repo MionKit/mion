@@ -9,8 +9,7 @@ import {fileURLToPath} from 'node:url';
 import {describe, expect, it} from 'vitest';
 import {buildRuntypesOverlay} from '../../../../scripts/website/playground-overlay.mjs';
 
-// A subpath missing from the overlay makes every snippet importing it resolve to nothing, which the
-// playground reports as "produced no call site" (how `/mocking` broke mock generation).
+// A subpath missing from the overlay makes the playground report "produced no call site" for snippets importing it.
 const PACKAGE_DIR = new URL('../../', import.meta.url);
 const VIRTUAL_ROOT = 'node_modules/@mionjs/run-types';
 
