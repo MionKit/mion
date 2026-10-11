@@ -1,6 +1,5 @@
 <script setup lang="ts">
-// The root landing's RunTypes feature tiles. Kept in code for the same reason as HomeTestTiles: on the LANDING
-// collection a tile list authored in the page arrives as a single tile.
+// Kept in code like HomeTestTiles: on the LANDING collection a page-authored tile list arrives as a single tile.
 </script>
 
 <template>
