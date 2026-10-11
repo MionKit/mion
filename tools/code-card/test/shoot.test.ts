@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import {existsSync} from 'node:fs';
-import {ZOOM, cliConfig, cliFailure, cliScript, parseShotArgs} from '../src/shoot.ts';
+import {CLI_CONFIG, ZOOM, cliFailure, cliScript, parseShotArgs} from '../src/shoot.ts';
 
 describe('code card: shot', () => {
   it('names or --all, plus --out', () => {
@@ -13,7 +13,7 @@ describe('code card: shot', () => {
 
   it('asks playwright-cli for a sandbox-free chromium with a 2x viewport', () => {
     expect(ZOOM).toBe(2);
-    expect(cliConfig()).toEqual({
+    expect(CLI_CONFIG).toEqual({
       browser: {
         browserName: 'chromium',
         launchOptions: {headless: true, chromiumSandbox: false},

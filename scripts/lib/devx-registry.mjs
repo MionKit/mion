@@ -420,6 +420,7 @@ export const AREAS = {
         flags: [['--all', 'every card in cards/']],
       },
       {name: 'test', summary: 'type check + tests of tools/code-card (no CI lane runs them)'},
+      {name: 'install-browser', summary: "install Playwright's Chromium if missing (both setups run it)"},
     ],
   },
   env: {
