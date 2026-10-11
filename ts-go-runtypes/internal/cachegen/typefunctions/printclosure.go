@@ -12,7 +12,7 @@ import "strings"
 // validateFactoryPreambleLines) and propagates lexically, so a per-factory copy would inflate every entry.
 // factoryName and innerFnName are the caller's, which owns the naming convention; innerFnName is passed in
 // rather than re-parsed out of innerFnDeclaration. contextLines is Walker.ContextLines, empty when none.
-func WrapClosure(factoryName string, innerFnName string, innerFnDeclaration string, contextLines string) (decl, body string) {
+func WrapClosure(factoryName string, innerFnName string, innerFnDeclaration string, contextLines string, types ClosureTypes) (decl, body string) {
 	var b strings.Builder
 	if contextLines != "" {
 		b.WriteString(contextLines)
@@ -22,6 +22,12 @@ func WrapClosure(factoryName string, innerFnName string, innerFnDeclaration stri
 	b.WriteString("return ")
 	b.WriteString(innerFnName)
 	body = b.String()
-	decl = "function " + factoryName + "(utl){" + body + "}"
+	decl = "function " + factoryName + "(utl" + types.Utl + ")" + types.Result + "{" + body + "}"
 	return decl, body
+}
+
+// ClosureTypes are the factory's TS-only annotations, tsMark spans: the `utl` parameter type and the returned fn type.
+type ClosureTypes struct {
+	Utl    string
+	Result string
 }

@@ -499,6 +499,8 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 	}
 
 	walker := NewWalker(runType, innerName, emitter)
+	walker.Typed = opts.EmitMode.EmitsTypes()
+	walker.FamilyTag = settings.Tag
 	walker.inlineCtx.InlineAllInternal = opts.InlineMode.AllInternal()
 	walker.RefTable = refTable
 	walker.facts = opts.Facts
@@ -598,7 +600,7 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 		}
 		return entryRender{argsText: argsText, isNoop: true, findings: walker.findings, elided: walker.elidedDependencies}
 	}
-	createRTFn, factoryBody := WrapClosure(factoryName, walker.FnName, innerFn, walker.ContextLines())
+	createRTFn, factoryBody := WrapClosure(factoryName, walker.FnName, innerFn, walker.ContextLines(), walker.ClosureTypes())
 	// The `code` arg carries the factory BODY, the text between the
 	// `function(utl){ … }` braces, so a consumer holding only the serialized data
 	// can rebuild the validator via `new Function('utl', code)(rtUtils)`.
@@ -611,14 +613,7 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 	//
 	// First arg is the namespaced cache key == the entry-module key, so the
 	// JS-side cache slot is distinct from the same runtype's other-family entries.
-	codeArg := "undefined"
-	if opts.EmitMode.EmitsCode() {
-		codeArg = quoteJS(factoryBody)
-	}
-	createRTFnArg := "u"
-	if opts.EmitMode.EmitsFactory() {
-		createRTFnArg = createRTFn
-	}
+	codeArg, createRTFnArg := fnSlots(opts.EmitMode, factoryBody, createRTFn)
 	tail := []string{
 		quoteJS(innerName),
 		quoteJS(rtTypeName(runType)),
@@ -1055,4 +1050,20 @@ func joinArgs(args []string) string {
 		b = append(b, a...)
 	}
 	return string(b)
+}
+
+// fnSlots renders the code and factory slots for mode from marked text: the code string is always plain JS, and the
+// factory keeps its TS annotations only in emitMode ts.
+func fnSlots(mode constants.EmitMode, factoryBody, factoryDecl string) (codeArg, createRTFnArg string) {
+	codeArg = "undefined"
+	if mode.EmitsCode() {
+		codeArg = quoteJS(JsText(factoryBody))
+	}
+	createRTFnArg = "u"
+	if mode.EmitsTypes() {
+		createRTFnArg = TsText(factoryDecl)
+	} else if mode.EmitsFactory() {
+		createRTFnArg = JsText(factoryDecl)
+	}
+	return codeArg, createRTFnArg
 }

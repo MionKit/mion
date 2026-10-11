@@ -169,16 +169,11 @@ func collectJsonCompositeEntry(runType *reflection.RunType, tag string, composit
 		softDeps = append(append([]string(nil), deps...), purefnids.FindCycle)
 	}
 
-	contextLines, innerFn := jsonCompositeBody(composite, runType.ID, entryKey, isLive, wrapRoot, skeletonJS)
-	_, factoryBody := WrapClosure("g_"+entryKey, entryKey, innerFn, contextLines)
-	codeArg := "undefined"
-	if opts.EmitMode.EmitsCode() {
-		codeArg = quoteJS(factoryBody)
-	}
-	createRTFnArg := "u"
-	if opts.EmitMode.EmitsFactory() {
-		createRTFnArg = "function g_" + entryKey + "(utl){" + factoryBody + "}"
-	}
+	typed := opts.EmitMode.EmitsTypes()
+	contextLines, innerFn := jsonCompositeBody(composite, runType.ID, entryKey, isLive, wrapRoot, skeletonJS, tag, typed)
+	closureTypes := ClosureTypes{Utl: tsAnnIf(typed, ": RTUtils"), Result: tsAnnIf(typed, ": "+FnType(tag, runType.ID))}
+	factoryDecl, factoryBody := WrapClosure("g_"+entryKey, entryKey, innerFn, contextLines, closureTypes)
+	codeArg, createRTFnArg := fnSlots(opts.EmitMode, factoryBody, factoryDecl)
 	args := holeifyArgs([]string{
 		quoteJS(entryKey),
 		quoteJS(rtTypeName(runType)),
@@ -234,14 +229,14 @@ func rootNeedsDataOnlyWrap(runType *reflection.RunType) bool {
 
 // jsonCompositeBody names the inner fn after the entry key so stack traces identify it.
 // An identity primitive elides, matching its family noop fn byte for byte (identity for pj/pjs/rj/rjs).
-func jsonCompositeBody(composite constants.JsonComposite, id string, entryKey string, isLive func(primOp string) bool, wrapRoot bool, circularSkeletonJS string) (contextLines string, innerFn string) {
+func jsonCompositeBody(composite constants.JsonComposite, id string, entryKey string, isLive func(primOp string) bool, wrapRoot bool, circularSkeletonJS string, tag string, typed bool) (contextLines string, innerFn string) {
 	// The direct `.fn` read always resolves: a noop primitive registers with the family noop fn pre-set (entryTuple.ts
 	// familyMeta), getRT materializes before returning, and demand renders an entry for every primitive a composite wraps.
 	// Noop or missing resolution is rtUtils' job: emitted code never carries fallbacks.
 	var ctx []string
 	resolve := func(name, primOp string) {
 		key := operations.PlainHash(primOp) + "_" + id
-		ctx = append(ctx, "const "+name+" = utl.getRT("+quoteJS(key)+").fn")
+		ctx = append(ctx, "const "+name+" = utl.getRT"+tsAnnIf(typed, "<"+KeyFnType(key)+">")+"("+quoteJS(key)+")"+tsAnnIf(typed, "!")+".fn")
 	}
 	// wrap passes expr through untouched (no binding, no import, no call) when the primitive is the family identity.
 	wrap := func(name, primOp, expr string) string {
@@ -277,11 +272,11 @@ func jsonCompositeBody(composite constants.JsonComposite, id string, entryKey st
 		// into the factory closure.
 		if circularSkeletonJS != "" {
 			ctx = append(ctx,
-				"const "+circularGuardFnAlias+" = utl.getPureFn('"+purefnids.FindCycle+"')",
+				"const "+circularGuardFnAlias+" = utl.getPureFn('"+purefnids.FindCycle+"')"+tsAnnIf(typed, "!"),
 				"const "+circularGuardContextKey+" = "+circularSkeletonJS)
 			body = "const cyR=" + circularGuardFnAlias + "(v," + circularGuardContextKey + ");if(cyR)throw utl.circularError(cyR);" + body
 		}
-		innerFn = "function " + entryKey + "(v){" + body + "}"
+		innerFn = "function " + entryKey + "(v" + tsAnnIf(typed, ": any") + ")" + tsAnnIf(typed, ": "+innerResult(tag, id)) + "{" + body + "}"
 	case "jsonDecoder":
 		switch composite.Strategy {
 		case "clone":
@@ -293,7 +288,7 @@ func jsonCompositeBody(composite constants.JsonComposite, id string, entryKey st
 			// Inverse of compactForJson: rebuild the keyed object from the positional array JSON.parse produced.
 			body = "return " + wrap("cjrFn", "compactFromJson", "JSON.parse(s)") + ";"
 		}
-		innerFn = "function " + entryKey + "(s){" + body + "}"
+		innerFn = "function " + entryKey + "(s" + tsAnnIf(typed, ": string") + ")" + tsAnnIf(typed, ": "+innerResult(tag, id)) + "{" + body + "}"
 	}
 	return strings.Join(ctx, ";\n"), innerFn
 }
