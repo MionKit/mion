@@ -123,7 +123,7 @@ export interface RunType<T = unknown> extends SchemaChecks {
   implements?: RunType[];
   extends?: RunType;
   /** The built-in class constructor (`Date`, `Map`, …) a platform-class node stands for, wired by the bundle ini. */
-  classType?: abstract new (...args: any[]) => unknown;
+  classType?: object;
   /** Phantom carrier of the source TS type `T`. Never set at runtime; exists only so `InferType<RunType<T>>`
    *  recovers `T` by indexed access (no `infer`). `T` rides INSIDE a `{t: T}` wrapper so the optional `?` adds
    *  `| undefined` to the WRAPPER, not to `T`, preserving an intentional `null`/`undefined` `T` (a bare-`T`
