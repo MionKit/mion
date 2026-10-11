@@ -64,7 +64,7 @@ func indexJSON(packageName string, rows ...ArtifactIndexRow) string {
 func moduleFor(entry purefunctions.Entry, mode constants.EmitMode) string {
 	graph := purefunctions.CollectEntries([]purefunctions.Entry{entry}, mode)
 	graph.AddMissingStubs(nil)
-	modules, err := entrymodules.RenderGrouped(graph, nil)
+	modules, err := entrymodules.RenderGrouped(graph, nil, false)
 	if err != nil {
 		panic(err)
 	}
@@ -611,7 +611,7 @@ func TestArtifact_EqualsSourceExtraction(t *testing.T) {
 	for _, mode := range []constants.EmitMode{constants.EmitCode, constants.EmitFunctions} {
 		graph := purefunctions.CollectEntries(raw, mode)
 		graph.AddMissingStubs(nil)
-		modules, err := entrymodules.RenderGrouped(graph, nil)
+		modules, err := entrymodules.RenderGrouped(graph, nil, false)
 		if err != nil {
 			t.Fatal(err)
 		}

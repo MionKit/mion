@@ -36,7 +36,7 @@ func rpcTestSites() []requestbatch.Site {
 
 func TestRenderBatchesModule_SkipsMissingMapperAndSortsIds(t *testing.T) {
 	entries := []purefunctions.Entry{{ID: "@acme/app/src/mappers#pf_known", Code: "return (u) => u.id;"}}
-	module := renderBatchesModule(rpcTestSites(), entries)
+	module := renderBatchesModule(rpcTestSites(), entries, jsModuleExt)
 	if !strings.Contains(module, "import {__rt_pf$2F$40acme$2Fapp$2Fsrc$2Fmappers$2Fknown} from './pf/@acme/app/src/mappers/known.js';") {
 		t.Errorf("module lacks the known mapper import:\n%s", module)
 	}
@@ -59,7 +59,7 @@ func TestRenderBatchesModule_SkipsMissingMapperAndSortsIds(t *testing.T) {
 	for i, j := 0, len(reversed)-1; i < j; i, j = i+1, j-1 {
 		reversed[i], reversed[j] = reversed[j], reversed[i]
 	}
-	if renderBatchesModule(reversed, entries) != module {
+	if renderBatchesModule(reversed, entries, jsModuleExt) != module {
 		t.Errorf("module differs with the sites reversed")
 	}
 }

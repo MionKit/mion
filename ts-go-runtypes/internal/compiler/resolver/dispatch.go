@@ -135,7 +135,10 @@ func (sess *Session) collectEntryModules(dump protocol.Dump, homes *runtype.RowH
 	pruneUnreachableTypeFnEntries(graph, demanded)
 
 	renderStart := time.Now()
-	modules, err := entrymodules.RenderGrouped(graph, sess.moduleGrouping())
+	if sess.opts.EmitMode.EmitsTypes() {
+		addTypeModules(graph, sess.cache.NodeByID)
+	}
+	modules, err := entrymodules.RenderGrouped(graph, sess.moduleGrouping(), sess.opts.EmitMode.EmitsTypes())
 	if metrics != nil {
 		metrics.RenderMs["entryModules"] = elapsedMs(renderStart)
 	}
@@ -753,7 +756,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		if genModulesErr != nil {
 			return protocol.Response{Error: genModulesErr.Error()}
 		}
-		manifest, genErr := generateToDisk(outDir, genModules)
+		manifest, genErr := generateToDisk(outDir, genModules, moduleExt(sess.opts.EmitMode))
 		if genErr != nil {
 			return protocol.Response{Error: genErr.Error()}
 		}
@@ -899,7 +902,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 				importBlock, edits := sourcerewrite.ComputeEdits(source, fileSites, fileReplacements)
 				if importBlock != "" && transformOutDir != "" {
 					// Only the injected block has rtmod: specifiers; relativizing it matches go-mode output.
-					importBlock = relativizeUserImports(sess.absPath(file), transformOutDir, importBlock)
+					importBlock = relativizeUserImports(sess.absPath(file), transformOutDir, importBlock, moduleExt(sess.opts.EmitMode))
 				}
 				transformed[file] = protocol.TransformResult{
 					ImportBlock: importBlock,
@@ -912,7 +915,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 			code, sourceMap := sourcerewrite.Apply(file, source, fileSites, fileReplacements)
 			if transformOutDir != "" {
 				// Absolute bases keep filepath.Rel valid; the injected block stays one line to preserve the source map.
-				code = relativizeUserImports(sess.absPath(file), transformOutDir, code)
+				code = relativizeUserImports(sess.absPath(file), transformOutDir, code, moduleExt(sess.opts.EmitMode))
 			}
 			if sess.opts.OmitSourcesContent && sourceMap != nil {
 				// The bundler supplies source content; nil slots must remain aligned with Sources.

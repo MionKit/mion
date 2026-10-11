@@ -815,14 +815,7 @@ func (w *Walker) createFnInContext(body string, codeType CodeType, params, args 
 	if codeType != CodeRB {
 		prefix = "return "
 	}
-	typedParams := params
-	if w.Typed {
-		typedParams = make([]string, len(params))
-		for i, param := range params {
-			typedParams[i] = param + w.tsAnn(": any")
-		}
-	}
-	w.ContextItems.set(name, "const "+name+" = function("+strings.Join(typedParams, ",")+"){"+prefix+body+"}")
+	w.ContextItems.set(name, "const "+name+" = function("+strings.Join(params, ",")+"){"+prefix+body+"}")
 	return name + "(" + strings.Join(args, ",") + ")"
 }
 

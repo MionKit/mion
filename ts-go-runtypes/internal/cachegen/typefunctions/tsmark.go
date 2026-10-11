@@ -1,6 +1,7 @@
 package typefunctions
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
@@ -51,7 +52,34 @@ func TsText(text string) string {
 
 // TypeRef is the name a typed module gives the printed type of runtype id.
 func TypeRef(typeID string) string {
-	return "T_" + typeID
+	return constants.TypeRefPrefix + typeID
+}
+
+// TypeRefsIn lists the type ids a typed entry's text names: its own and its deps', each kept only when text spells it.
+func TypeRefsIn(key string, deps []string, text string) []string {
+	var ids []string
+	for _, candidate := range append([]string{key}, deps...) {
+		typeID := KeyTypeID(candidate)
+		if typeID != "" && !slices.Contains(ids, typeID) && spellsIdentifier(text, TypeRef(typeID)) {
+			ids = append(ids, typeID)
+		}
+	}
+	return ids
+}
+
+// spellsIdentifier reports name standing alone in text, not as part of a longer identifier.
+func spellsIdentifier(text, name string) bool {
+	for offset := 0; ; {
+		index := strings.Index(text[offset:], name)
+		if index < 0 {
+			return false
+		}
+		end := offset + index + len(name)
+		if end == len(text) || !isIdentPart(text[end]) {
+			return true
+		}
+		offset = end
+	}
 }
 
 // tsSignature is one family's typed fn shape; `%T` stands for the root's TypeRef.

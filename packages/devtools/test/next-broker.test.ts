@@ -292,6 +292,34 @@ export const slugify = registerPureFn((s: string): string => s.toLowerCase());
   );
 
   register(
+    'moves the invalidation stamp when a typed (.ts) runtype module changes',
+    async () => {
+      // emitMode 'ts' writes `.ts` modules, and a runtype module keeps its name when its types change, so the stamp must
+      // hash a `.ts` one's content exactly as it hashes a `.js` one's. Driven at the file level, like the rpc case.
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-next-broker-'));
+      writeProject(root);
+      const entry = path.join(root, 'src/entry.ts');
+      const handle = await startBroker(root, {binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '.mion'});
+      try {
+        expect((await askBroker(handle.socketPath, entry, fs.readFileSync(entry, 'utf8'))).ok).toBe(true);
+        const typedModule = path.join(root, '.mion/types/rt/typedProbe.ts');
+        fs.writeFileSync(typedModule, 'export const rows = [1];\n');
+        const first = await askBroker(handle.socketPath, entry, fs.readFileSync(entry, 'utf8'));
+        const before = fs.readFileSync(first.stamp, 'utf8');
+
+        fs.writeFileSync(typedModule, 'export const rows = [2];\n');
+        const second = await askBroker(handle.socketPath, entry, fs.readFileSync(entry, 'utf8'));
+        expect(second.ok).toBe(true);
+        expect(fs.readFileSync(second.stamp, 'utf8')).not.toBe(before);
+      } finally {
+        await handle.close();
+        fs.rmSync(root, {recursive: true, force: true});
+      }
+    },
+    120_000
+  );
+
+  register(
     'resolves both getRunTypeId call shapes to the same id',
     async () => {
       // The marker coverage rule: static getRunTypeId<T>() and reflection

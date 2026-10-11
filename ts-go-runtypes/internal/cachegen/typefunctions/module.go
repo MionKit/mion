@@ -10,6 +10,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/diskcache"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/tsannotate"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
@@ -1061,7 +1062,7 @@ func fnSlots(mode constants.EmitMode, factoryBody, factoryDecl string) (codeArg,
 	}
 	createRTFnArg = "u"
 	if mode.EmitsTypes() {
-		createRTFnArg = TsText(factoryDecl)
+		createRTFnArg = tsannotate.Function(TsText(factoryDecl))
 	} else if mode.EmitsFactory() {
 		createRTFnArg = JsText(factoryDecl)
 	}

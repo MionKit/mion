@@ -82,7 +82,7 @@ func TestCollectEntries_RenderedModuleShape(t *testing.T) {
 		{ID: "@acme/app/src/pure#pf_y", Code: "return utl.usePureFn('@acme/app/src/pure#pf_x')();",
 			ParamNames: []string{}, PureFnDependencies: []string{"@acme/app/src/pure#pf_x"}},
 	}, constants.EmitBoth)
-	modules, err := entrymodules.RenderGrouped(graph, nil)
+	modules, err := entrymodules.RenderGrouped(graph, nil, false)
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}

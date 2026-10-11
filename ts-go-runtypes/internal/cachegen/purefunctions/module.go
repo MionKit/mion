@@ -32,7 +32,9 @@ func CollectEntries(entries []Entry, emitMode constants.EmitMode) entrymodules.G
 			codeArg = jsquote.Single(entry.Code)
 		}
 		createPureFnArg := ""
-		if emitMode.EmitsFactory() {
+		if emitMode.EmitsTypes() {
+			createPureFnArg = createPureFnTS(entry.Code, entry.ParamNames)
+		} else if emitMode.EmitsFactory() {
 			createPureFnArg = createPureFnJS(entry.Code, entry.ParamNames)
 		}
 		args := trimTrailingHoles([]string{
@@ -50,6 +52,7 @@ func CollectEntries(entries []Entry, emitMode constants.EmitMode) entrymodules.G
 			Kind:     entrymodules.KindPureFn,
 			ArgsText: strings.Join(args, ","),
 			SoftDeps: append([]string(nil), entry.PureFnDependencies...),
+			Ambient:  ambientNames(entry.Code, emitMode),
 		})
 	}
 	return graph

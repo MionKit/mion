@@ -59,7 +59,7 @@ func libArtifact(dir string, mode constants.EmitMode, entries ...purefunctions.E
 	files := map[string]string{dir + "/" + constants.PureFnArtifactIndexFile: string(payload) + "\n"}
 	graph := purefunctions.CollectEntries(entries, mode)
 	graph.AddMissingStubs(nil)
-	modules, err := entrymodules.RenderGrouped(graph, nil)
+	modules, err := entrymodules.RenderGrouped(graph, nil, false)
 	if err != nil {
 		panic(err)
 	}
