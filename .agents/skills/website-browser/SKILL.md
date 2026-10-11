@@ -72,11 +72,13 @@ podman rm -f tsrt-website-agent 2>/dev/null || true  # stop agent server now (el
 - Pinned root devDependency `@playwright/cli` (Microsoft agent CLI, not the `playwright` test runner).
 - In root [package.json](../../../package.json) + lockfile → `pnpm install` brings it.
 - Check: `pnpm exec playwright-cli --version`.
-- ⚠️ Browser binaries NOT auto-installed (postinstall download skipped).
-  Cause: `ignoreScripts: true` in [pnpm-workspace.yaml](../../../pnpm-workspace.yaml).
-  Once per machine: `pnpm exec playwright install chromium`.
+- Browser = Playwright's Chromium, set in [.playwright/cli.config.json](../../../.playwright/cli.config.json).
+  Its default (Google Chrome) is never installed. Config only read from repo root.
+  Sandbox off: containers and CI cannot run it.
+- Both setups install the Chromium (`ignoreScripts: true` skips the postinstall download).
+  Missing → `pnpm miondevx card install-browser`.
 - Upgrade: `pnpm add -D -w @playwright/cli@<version>`. Version ≥ 30 days old (`minimumReleaseAge`).
-- Stays exact-pinned (`savePrefix: ''`). Browser revision changed → rerun `pnpm exec playwright install chromium`.
+- Stays exact-pinned (`savePrefix: ''`). Browser revision changed → rerun `pnpm miondevx card install-browser`.
 
 ## Deeper references
 
