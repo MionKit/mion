@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done (2026-10-11)
 created: 2026-10-11
 ---
 
@@ -80,7 +80,7 @@ Paths under `ts-go-runtypes/internal/cachegen/typefunctions/` unless stated. Lin
 **Wire classes, one visitor** (new `compact_placeholder.go`)
 - `compactWireClasses(rt, ctx, visited)` → bitset `{number, null, boolean}` of what a slot's encoded
   value can be. One arm per `ReflectionKind` (visitor rule, `ts-go-runtypes/AGENTS.md`):
-  Number/numeric literal/numeric or mixed enum → number; Null/Undefined/Void → null; Boolean/boolean
+  Number/numeric literal/numeric or mixed enum → number (an enum with no values → all three); Null/Undefined/Void → null; Boolean/boolean
   literal → boolean; `any`/`unknown`/`object`/`{}`/Intersection/TypeParameter/Infer/Parameter/EnumMember
   → all three (conservative); String/TemplateLiteral/BigInt/string+bigint literals/Array/Tuple/
   ObjectLiteral/IndexSignature → none; Class → none except a named user class with a serializer (all
@@ -97,6 +97,7 @@ Paths under `ts-go-runtypes/internal/cachegen/typefunctions/` unless stated. Lin
   dedup branch at :425-431 (dedup keeps the first member's `Optional`).
 - Extract the bucketing at :124-148 into `classifyFlatMember(resolved, ctx)`, diagnostic-free, so the
   layout and the predicates share one classifier.
+- A union that falls back to the keyed form clears every `Placeholder`, so the keyed emit never reads one.
 
 **Compact layout + wrapper rule** (`union_flat_compact.go:76-82`, `buildCompactFlatLayout`)
 
@@ -129,7 +130,9 @@ Paths under `ts-go-runtypes/internal/cachegen/typefunctions/` unless stated. Lin
     default:                      slot = "(" + present + " ? " + expr + " : " + mp.Placeholder + ")"
 
 (`expr` from `emitMergedPropPrepareSafe`, keeps `[subIdx, v]`; `present` = `namedPropertyPresenceTest`.)
-Wrap at :748-751 unchanged.
+Wrap at :748-751 unchanged. A sub-wrapped slot whose value matches no candidate cannot drop its key, so
+`emitMergedPropPrepareSafe` ends its dispatch arms with `return <Placeholder>` when the prop has one
+(empty on the keyed form, which keeps falling through to `undefined`).
 
 **Union decode**
 - `json_restore_clone.go:264-267`: `if layout.PositionalMerged { objectArm = emitMergedPropsPositionalRebuild }`.
@@ -146,15 +149,19 @@ Wrap at :748-751 unchanged.
 
 **Noop predicates**
 - `noop_types.go:678-683` (`compactFromJsonNoopRecursive`): add `!compactUnionHasMergedMember(rt, ctx)`
-  as the first conjunct (already implied by `unionMemberHidesKey`; makes it explicit).
+  as the first conjunct (already implied by `unionMemberHidesKey`; makes it explicit). The new helper
+  (`union_flat_compact.go`) asks `classifyFlatMember` of every surviving member through `anyUnionMember`.
 - `compactUnionNeedsEnvelope` (`union_flat_compact.go:20-35`): unchanged, document that it only decides
-  unions with no positional branch. Encode predicate `isNoopForPrepareJsonSafe` (`noop_types.go:399-425`)
+  unions with no positional branch. `compactPositionalNeedsEnvelope` also wraps when an always-scalar
+  member carries a user `compactForJson` override (it owns its wire shape). Encode predicate `isNoopForPrepareJsonSafe` (`noop_types.go:399-425`)
   is false for every union: no change.
 
 **Size bound** (`ts-go-runtypes/internal/cachegen/jsonsize/jsonsize.go`)
 - The doc at :10-12 ("never larger than the keyed form") stops being true for unions. In `unionBytes`
   (:423-441) take `max(largest, positionalBound)`, `positionalBound = 2 + Σ over merged props of
-  (max(valueBytes + subWrapBytes, placeholderBytes) + 1)`. Counterexample to pin:
+  (max(valueBytes + subWrapBytes, placeholderBytes) + 1)`, shipped as `positionalMergedBytes`: the
+  sub-envelope is charged only to a name two or more object members declare, the placeholder is
+  `false` (5 bytes). Counterexample to pin:
   `{a: string(≤1000)} | {b1..b50: boolean}`. Plain objects stay safe (a slot ≤ 6 bytes ≤ `"k":v,`).
 
 **Untouched, confirmed**: `json_schema_doc.go:45`, `remove_unknown_keys.go:458/606`,
@@ -210,7 +217,7 @@ through the fuzzy-testing skill, no new fuzzer:
 - `fuzz/type/typeFuzzRunner.unit.test.ts:65-84`: `{p?: null | string}` → not at risk.
 - `fuzz/type/compactUnionNestedObject.smoke.test.ts`: PaymentMethod, nullable object, keyed fallback.
 - `fuzz/type/jsonSizeFuzzRunner.ts:183`, `unionMergedPropJsonSize.smoke.test.ts`: measure compact
-  output against the bound.
+  output against the bound (shipped as a third oracle, `JS-MAX-COMPACT`, beside `JS-MAX-ENCODER`).
 - Wording: `value/fuzzOracle.ts:777`, `type/diagOracle.ts:83`, `fuzz/README.md:233`.
 - Run: `pnpm miondevx core fuzz roundtrip types value jsonsize elision secjson secgen --quick`.
 
