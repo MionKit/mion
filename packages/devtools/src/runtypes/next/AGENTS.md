@@ -19,7 +19,7 @@
     the app. Page prerenders shared `selfCheck()` → passing build proves the rewrite survived Turbopack
     **and** the transformed code ran.
   - [`apps/smoke-next-ts/`](../../../../../container/pre-publish-e2e/apps/smoke-next-ts/):
-    the same check over the typed `.ts` cache modules emitMode 'ts' writes.
+    the same check in emitMode 'ts' (typed `.ts` cache modules).
   - [`build-all.mjs`](../../../../../container/pre-publish-e2e/build-all.mjs):
     `smoke-next` entry + its `buildNext` driver (out-of-process, like the bun apps).
   - [`test/build-outputs.test.mjs`](../../../../../container/pre-publish-e2e/test/build-outputs.test.mjs):

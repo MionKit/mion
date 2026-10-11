@@ -295,7 +295,7 @@ measured against the encoder that drops them.
   MUST pass the bound (the negative control), so the comparison cannot go vacuous.
 - Test: `jsonSizeBound.integration` (the soak, `MION_FUZZ_JSONSIZE_SOAK_MS`).
 
-### `type/typedEmitFuzz` — emitMode `ts` against emitMode `both`
+### `type/typedEmitFuzz`: emitMode `ts` against emitMode `both`
 
 Compiles each generated type twice, once as emitMode `both` and once as typed `.ts` modules.
 
