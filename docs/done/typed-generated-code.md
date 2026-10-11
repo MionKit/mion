@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done
 created: 2026-10-11
 ---
 
@@ -61,13 +61,13 @@ import type {RTUtils, FnTypeTuple} from '@mionjs/run-types/runtime';
 import type {T_mn8nDjJ} from './t/mn8nDjJ.ts';
 import type {T_j45Rp1D} from './t/j45Rp1D.ts';
 import {__rt_Eq2V_j45Rp1D} from './Eq2V_j45Rp1D.ts';
-export const __rt_Eq2V_mn8nDjJ: FnTypeTuple = ['val',()=>[__rt_Eq2V_j45Rp1D],,'Eq2V_mn8nDjJ','User',
+export const __rt_Eq2V_mn8nDjJ: any=['val',()=>[__rt_Eq2V_j45Rp1D],undefined,'Eq2V_mn8nDjJ','User',
   '<code string, byte-identical to both mode>',,['Eq2V_j45Rp1D'],,
   function g_Eq2V_mn8nDjJ(utl: RTUtils): (v: unknown) => v is T_mn8nDjJ {
-    const Eq2V_j45Rp1D = utl.getRT<(v: unknown) => v is T_j45Rp1D>('Eq2V_j45Rp1D')!;
+    const Eq2V_j45Rp1D = utl.getRT<(v: any, ...rest: any[]) => v is T_j45Rp1D>('Eq2V_j45Rp1D')!;
     const ctxFn0 = function(v: any){…};
     function Eq2V_mn8nDjJ(v: any): v is T_mn8nDjJ {…same body…}
-    return Eq2V_mn8nDjJ}];
+    return Eq2V_mn8nDjJ}] satisfies FnTypeTuple;
 ```
 
 ## Plan
@@ -115,18 +115,19 @@ export const __rt_Eq2V_mn8nDjJ: FnTypeTuple = ['val',()=>[__rt_Eq2V_j45Rp1D],,'E
   - The factory slot is `jsText(createRTFn)` for `functions` / `both`, and `tsText(createRTFn)` for `ts`.
   - Same split in `override.go:59-66` (cast `utl.usePureFn(k)` + `tsAnn(" as "+sig)`) and
     `json_composite.go:166-179,237-296`: `const pjsFn = utl.getRT<sig>(…)!.fn`, inner `(v: T_x)` / `(s: string)`.
-- Signatures: a new `Emitter` method `TsSignature(typeRef string) FnTsSig` (param types + return), one per emitter.
-  Strict and union-keys emitters inherit. JSON composites set theirs in `json_composite.go`.
+- Signatures: one table keyed by family tag (`typefunctions/tsmark.go` `tsSignatures`), shared by the walker and
+  the JSON composites. A tag is enough, so no `Emitter` method. Loose rows (marked below) return `any` inside and the
+  factory casts once: `return K as unknown as <fn type>`, since an any-typed body cannot meet a precise or `never` result.
 
 | Tags | Signature |
 |---|---|
 | val vst vuk | `(v: unknown) => v is T` (inner `v: any`) |
 | verr vest veuk | `(v: unknown, pth?: RTValidationErrorPathSegment[], er?: RTValidationError[]) => RTValidationError[]` |
-| ruk ruks rukr, fmt | `(v: T) => T` |
+| ruk ruks rukr, fmt | `(v: T) => T` (loose) |
 | pj pjs cj | `(v: T) => unknown` |
-| rj rjs cjr | `(v: unknown) => T` |
+| rj rjs cjr | `(v: unknown) => T` (loose) |
 | jeCL jeMU jeCO | `(v: T) => string \| undefined` |
-| jdCL jdMU jdCO | `(s: string) => T` |
+| jdCL jdMU jdCO | `(s: string) => T` (loose) |
 | jsc | `(v?: unknown) => unknown` |
 | csr | `(v?: unknown) => string \| null` |
 
@@ -156,8 +157,9 @@ export const __rt_Eq2V_mn8nDjJ: FnTypeTuple = ['val',()=>[__rt_Eq2V_j45Rp1D],,'E
     Excluded from the deps thunk, `levelOrder`, `Cascade` and `AddMissingStubs`, because type-only cycles are legal.
   - `renderModule` (`:475`) / `renderBundle` (`:543`) render a `KindTypeDecl` as imports + `/** <typeName> */` + `export type T_<id> = …;`.
   - The `ts` header on every non-type module adds the `@mionjs/run-types` / `/runtime` type imports it uses.
-  - Each `export const` gets `: FnTypeTuple` / `PureFnTuple` / `RunTypeBundleTuple` / `RunTypeFacadeTuple` / `MissingTuple`,
-    so `isolatedDeclarations` passes.
+  - Each `export const` gets `: any` plus ` satisfies FnTypeTuple` (or `PureFnTuple` / `RunTypeBundleTuple` /
+    `RunTypeFacadeTuple` / `MissingTuple`), so `isolatedDeclarations` passes and importers keep the loose JS shape.
+    Head holes (kind, deps, ini) are written `undefined`; trailing holes stay holes.
 - Collect: in `resolver/dispatch.go:80` `collectEntryModules`, after the families and composites merge (`:88-97`):
   - when `EmitsTypes()`, collect every type id a live type-fn entry names (its root + every `T_` its signature or marks reference)
   - render one `KindTypeDecl` per id, closing over child ids through the printer's `DeclRefKeys`
@@ -165,7 +167,9 @@ export const __rt_Eq2V_mn8nDjJ: FnTypeTuple = ['val',()=>[__rt_Eq2V_j45Rp1D],,'E
   - `sess.cache.NodeByID` is in scope there (`render.go:61`)
 - Runtype data bundles + facades (`rt/<hash>`, `cachegen/runtype/entries.go`) become `.ts` too:
   `function ini(rtu: RTUtils){const c=(id: string)=>rtu.useRunType(id);` (`entrymodules.go:510,594`).
-- Pure-fn modules (`cachegen/purefunctions/module.go:148` `createPureFnJS`): every param gets `: any`.
+- Pure-fn modules (`cachegen/purefunctions/module.go:148` `createPureFnJS`): `cachegen/tsannotate` parses the factory
+  and adds `: any` to untyped params, catch bindings and untyped locals, and `_` to unread params and loop variables
+  (a `v is T` predicate follows the rename). A `typeof Bun`-only global gets a module-level `declare const Bun: unknown;`.
   The code string and the id hash (shipped stripped body) do not change.
   Package / builtin pure fns served from artifacts (`resolver/package_purefns.go:24`) get the same treatment.
 - rpc batch modules (`resolver/rpcgen.go:125-198`) follow the mode (`.ts` + typed). The api mirror stays `.js` `functions`.
@@ -253,7 +257,7 @@ Follow the fuzzy-testing skill rules.
 
 - `container/website/content/02.runtypes/01.introduction/04.configuration.md`:
   - option table row (`:16`): add `ts`
-  - new section "Typed output (`emitMode: 'ts'`)": `.ts` files, `T_<id>` type modules, the tsconfig flag
+  - new section "Typed Output": `.ts` files, `T_<id>` type modules, the tsconfig flag
     needed for `.ts` import paths, `mion compile` writing a TS tree for native compilers
 - `container/website/content/01.rpc/07.devtools/02.vite.md:132-134`: option type `'code' | 'both' | 'ts'`.
 - `container/website/content/01.rpc/07.devtools/04.cli.md:54-63`: Output Locations, `ts` mode row.
@@ -261,6 +265,23 @@ Follow the fuzzy-testing skill rules.
 
 Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagent) over every page and example
 this change touched, review its report against the code, and commit it as its own commit.
+
+## What shipped (beyond the plan above)
+
+- `getRT` lookups type the child's result over `any` inputs, `(v: any, ...rest: any[]) => <result>`: a body only
+  holds `any` values, and a `never` input type would refuse them.
+- Dead declarations: `Walker.ContextLines` keeps only the context items the body reaches (every mode). Map checks
+  bind a key / value local only when the child code reads it; string length errors bind `codePointLength` lazily.
+- A void root restore returns `undefined` instead of assigning to the parameter.
+- Runtime type fixes the strict lane found: `code` optional in `FnTypeTuple`, `classType` as
+  `abstract new (...args: any[]) => unknown`, `rels` rows may be `undefined`.
+- The `mion-pure-fns/` artifact stays JS (other builds read it as data). `mion compile` in `ts` needs an `outDir`.
+- The strictest tsconfig needs `lib: ['ES2023', 'DOM']` (generated code reads `URL` and friends).
+- Fuzz: the `typedemit` lane (`test/fuzz/type/typedEmitFuzz.ts`), rules TE1 strip parity, TE2 same verdict as
+  `both`, TE3 one strictest tsc program per run. It found the dead-declaration, loose-family, lookup-input,
+  predicate-rename and loop-variable fixes, each with its own Go test.
+- Docs that could go stale: the configuration page's Typed Output section, the vite and cli devtools pages,
+  `.agents/docs/architecture.md`.
 
 ## Out of scope
 
