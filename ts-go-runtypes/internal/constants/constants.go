@@ -434,8 +434,8 @@ func (mode ClientRoutesMode) Valid() bool {
 }
 
 // EmitMode selects what each compiled fn entry ships in its code/factory slots; the --emit-mode CLI flag and the
-// plugin's `emitMode` option validate against this set. NOT mirrored to TS (the plugin hard-codes the three
-// string literals on its option type); the runtime reads only what the slots carry, never the mode itself.
+// plugin's `emitMode` option validate against this set. NOT mirrored to TS (the plugin hard-codes the string
+// literals on its option type); the runtime reads only what the slots carry, never the mode itself.
 type EmitMode string
 
 const (
@@ -449,22 +449,30 @@ const (
 	// EmitBoth ships the code string AND the live factory (the body twice), for runtimes that disallow
 	// `new Function` (CSP) yet still read `.code`.
 	EmitBoth EmitMode = "both"
+	// EmitTS ships what EmitBoth ships, written as `.ts` modules: the factory carries type annotations and a
+	// type module per type id, while the code string stays byte-identical to EmitBoth's.
+	EmitTS EmitMode = "ts"
 )
 
 // EmitsCode reports whether the code-string slot is populated; the zero value ("") behaves as EmitCode, so a
 // RenderOpts{} default emits the code string.
 func (mode EmitMode) EmitsCode() bool {
-	return mode == EmitCode || mode == EmitBoth || mode == ""
+	return mode == EmitCode || mode == EmitBoth || mode == EmitTS || mode == ""
 }
 
 // EmitsFactory reports whether the live createRTFn factory slot is populated.
 func (mode EmitMode) EmitsFactory() bool {
-	return mode == EmitFunctions || mode == EmitBoth
+	return mode == EmitFunctions || mode == EmitBoth || mode == EmitTS
 }
 
-// Valid reports whether mode is one of the three known values, for the --emit-mode flag.
+// EmitsTypes reports whether modules are written as typed `.ts` source.
+func (mode EmitMode) EmitsTypes() bool {
+	return mode == EmitTS
+}
+
+// Valid reports whether mode is one of the known values, for the --emit-mode flag.
 func (mode EmitMode) Valid() bool {
-	return mode == EmitCode || mode == EmitFunctions || mode == EmitBoth
+	return mode == EmitCode || mode == EmitFunctions || mode == EmitBoth || mode == EmitTS
 }
 
 // InlineMode selects the child-inlining policy DefaultIsRTInlined applies to compound nodes; exposed as the

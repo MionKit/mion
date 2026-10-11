@@ -35,3 +35,22 @@ func TestOptionSubsetsDropOnlyImpossibleCombinations(t *testing.T) {
 		}
 	}
 }
+
+func TestEmitModeSlots(t *testing.T) {
+	cases := []struct {
+		mode                        EmitMode
+		valid, code, factory, typed bool
+	}{
+		{"", false, true, false, false},
+		{EmitCode, true, true, false, false},
+		{EmitFunctions, true, false, true, false},
+		{EmitBoth, true, true, true, false},
+		{EmitTS, true, true, true, true},
+		{"typed", false, false, false, false},
+	}
+	for _, c := range cases {
+		if c.mode.Valid() != c.valid || c.mode.EmitsCode() != c.code || c.mode.EmitsFactory() != c.factory || c.mode.EmitsTypes() != c.typed {
+			t.Errorf("%q: valid=%v code=%v factory=%v typed=%v", c.mode, c.mode.Valid(), c.mode.EmitsCode(), c.mode.EmitsFactory(), c.mode.EmitsTypes())
+		}
+	}
+}

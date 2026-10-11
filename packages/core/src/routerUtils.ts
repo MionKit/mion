@@ -136,7 +136,7 @@ export function getJitFunctionsFromHash(jitHash: string, strategy: ParserStrateg
   const cached = jitFunctionsCache.get(cacheKey);
   if (cached) return cached;
 
-  // the MionTypeFn cast also asserts `code`, which holds because mion only allows emitMode 'code' | 'both'
+  // the MionTypeFn cast also asserts `code`, which holds because mion only allows emitMode 'code' | 'both' | 'ts'
   const utl = getRTUtils();
   const hashes = getJitFnHashes(jitHash, strategy);
   const isType = utl.getRT(hashes.isType);

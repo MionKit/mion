@@ -23,9 +23,10 @@ describe('toRunTypesOptions — the mapping both presets share', () => {
     );
   });
 
-  it('accepts the two modes mion does support', () => {
+  it('accepts the modes mion does support', () => {
     expect(toRunTypesOptions({runTypes: {emitMode: 'code'}}).emitMode).toBe('code');
     expect(toRunTypesOptions({runTypes: {emitMode: 'both'}}).emitMode).toBe('both');
+    expect(toRunTypesOptions({runTypes: {emitMode: 'ts'}}).emitMode).toBe('ts');
   });
 
   it('downgrades nothing by default so Error diagnostics halt the build', () => {

@@ -20,9 +20,10 @@ describe('mionVitePlugin emitMode', () => {
     expect(() => mionVitePlugin({runTypes: {emitMode: 'functions' as never}})).toThrow(/emitMode: 'functions' is not supported/);
   });
 
-  it("accepts 'code' and 'both'", () => {
+  it("accepts 'code', 'both' and 'ts'", () => {
     expect(() => mionVitePlugin({runTypes: {emitMode: 'code'}})).not.toThrow();
     expect(() => mionVitePlugin({runTypes: {emitMode: 'both'}})).not.toThrow();
+    expect(() => mionVitePlugin({runTypes: {emitMode: 'ts'}})).not.toThrow();
   });
 
   it('accepts an omitted emitMode (defaults to code)', () => {

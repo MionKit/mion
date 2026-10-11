@@ -7,7 +7,7 @@ import type {PureFunctionData, CompiledPureFunction} from '@mionjs/run-types';
 export type {PureFunctionData, CompiledPureFunction};
 
 /** A pure fn as mion SERIALIZES it: `code` is guaranteed because mion restricts `emitMode` to
- *  'code' | 'both' (see mionVitePlugin). The client rebuilds the factory from `code`+`paramNames`,
+ *  'code' | 'both' | 'ts' (see mionVitePlugin). The client rebuilds the factory from `code`+`paramNames`,
  *  so an entry without code cannot be restored and must never reach the wire. */
 export type SerializablePureFunction = PureFunctionData & Required<Pick<PureFunctionData, 'code'>>;
 /** Reference built by inputFrom(): names a server-side mapper by its mion registry key. The mapper never

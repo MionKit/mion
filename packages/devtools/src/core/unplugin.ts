@@ -74,7 +74,8 @@ export interface PluginOptions {
   //   - 'code' (default): body string only; `materializeRTFn` rebuilds the factory via `new Function` on first lookup.
   //   - 'functions': live factory only, for runtimes that disallow `new Function` (WorkerD, CSP without `unsafe-eval`).
   //   - 'both': code string AND factory; test setups use it so suites cover both materialisation paths.
-  emitMode?: 'code' | 'functions' | 'both';
+  //   - 'ts': what 'both' ships, written as typed `.ts` modules with one type module per type id.
+  emitMode?: 'code' | 'functions' | 'both' | 'ts';
   // Project-wide defaults for the per-call-site ValidateOptions bag, merged per field (a per-call option wins).
   //   - numberMode: the base `number` check — 'isFinite' (default; rejects NaN/Infinity), 'typeof' (accepts
   //     them), or 'notNaN' (rejects NaN, accepts Infinity). Eases migration from a looser library.

@@ -115,7 +115,7 @@ export type {CompiledFnData, CompiledTypeFn, CompiledFnArgs, InitializedTypeFn};
 
 /** A compiled type fn as mion consumes it: a narrowing of RunTypes' own types, not a mirror.
  *  `createRTFn`/`fn` are guaranteed by `InitializedTypeFn`, what `getRTUtils().getRT()` already returns.
- *  `code` is guaranteed only because mion restricts `emitMode` to 'code' | 'both' and the vite plugin throws
+ *  `code` is guaranteed only because mion restricts `emitMode` to 'code' | 'both' | 'ts' and the vite plugin throws
  *  on 'functions', the one mode where RunTypes omits it; that is what makes the construction sites' assert sound. */
 export type MionTypeFn<Fn extends AnyFn = AnyFn> = InitializedTypeFn<Fn> & Required<Pick<CompiledFnData, 'code'>>;
 
