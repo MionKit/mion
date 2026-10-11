@@ -79,6 +79,9 @@ func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic
 	if refText, refDiag, isRef := ctx.declRef(node, TargetType); isRef {
 		return refText, refDiag
 	}
+	if ctx.flags&flagsReferenceChildren != 0 && len(ctx.walking) > 0 && typeModuleWorthy(node) {
+		return DeclRef(TypeModuleKey(node.ID)), nil
+	}
 	if ctx.flags&flagsDeclareNamedTypes != 0 {
 		if aliasText, aliasDiag, isAlias := ctx.declarations.aliasRef(ctx, node); isAlias {
 			return aliasText, aliasDiag
@@ -242,6 +245,14 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 		}
 		return fmt.Sprintf("Promise<%s>", childText), nil
 	case reflection.KindClass:
+		if ctx.flags&flagsDataOnly != 0 && isUserClass(node) {
+			// A class instance's data projection is its public data members, structurally.
+			members, indexes, diag := ctx.objectMembers(node)
+			if diag != nil {
+				return "", diag
+			}
+			return ctx.objectLiteralText(members, indexes)
+		}
 		if ctx.flags&flagsDeclareNamedTypes != 0 && isUserClass(node) {
 			// Its body prints in its own context, so a class closes its own cycles by name.
 			return ctx.declarations.classRef(node)
@@ -291,6 +302,9 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 	case reflection.KindRegexp:
 		return "RegExp", nil
 	case reflection.KindEnum:
+		if ctx.flags&flagsDataOnly != 0 {
+			return enumValuesText(node)
+		}
 		if ctx.flags&flagsDeclareNamedTypes != 0 {
 			return ctx.declarations.enumRef(node)
 		}
@@ -299,6 +313,9 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 		var parts []string
 		for _, armRef := range node.Children {
 			armNode := ctx.deref(armRef)
+			if ctx.flags&flagsDataOnly != 0 && reflection.NonDataOf(armNode, ctx.deref) != reflection.Data {
+				continue
+			}
 			armText, diag := ctx.typeExpr(armNode)
 			if diag != nil {
 				return "", diag
@@ -309,6 +326,9 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 				armText = "(" + armText + ")"
 			}
 			parts = append(parts, armText)
+		}
+		if len(parts) == 0 {
+			return "never", nil
 		}
 		return strings.Join(sortArms(parts), " | "), nil
 	case reflection.KindObjectLiteral:

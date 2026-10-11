@@ -71,6 +71,8 @@ type DeclPrinter struct {
 	failed   map[string]*Diagnostic
 	usedName map[string]int
 	needs    importNeeds
+	// flags are the printing modes every context gets.
+	flags printFlags
 }
 
 // NewDeclPrinter prints over the graph resolve serves (runtype.Cache.NodeByID).
@@ -81,6 +83,7 @@ func NewDeclPrinter(resolve func(id string) *reflection.RunType) *DeclPrinter {
 		decls:    map[string]*PrintedDecl{},
 		failed:   map[string]*Diagnostic{},
 		usedName: map[string]int{},
+		flags:    flagsDeclareNamedTypes | flagsDeclareUniqueSymbols | flagsNonEnumerableTag | flagsSortMembers,
 	}
 }
 
@@ -140,14 +143,18 @@ func (printer *DeclPrinter) Decls() []*PrintedDecl {
 
 // FormatImports are the import lines printed text needs for format brands.
 func (printer *DeclPrinter) FormatImports() []string {
+	return printer.needs.formatImportLines()
+}
+
+func (needs importNeeds) formatImportLines() []string {
 	var lines []string
-	if printer.needs.useTypeFormat {
+	if needs.useTypeFormat {
 		lines = append(lines, fmt.Sprintf("import type { TypeFormat } from '%s';", moduleCore))
 	}
-	if printer.needs.useTF {
+	if needs.useTF {
 		lines = append(lines, fmt.Sprintf("import type * as TF from '%s';", moduleFormats))
 	}
-	if printer.needs.useTFT {
+	if needs.useTFT {
 		lines = append(lines, fmt.Sprintf("import type * as TFT from '%s';", moduleTemporal))
 	}
 	return lines
@@ -174,8 +181,7 @@ func (printer *DeclPrinter) TypeToString(node *reflection.RunType) (string, erro
 
 func (printer *DeclPrinter) context(rootID string) *printContext {
 	return &printContext{names: printer.names, opts: Options{Target: TargetType}, decl: printedDeclLabel,
-		resolve: printer.resolve, rootID: rootID, declarations: printer,
-		flags: flagsDeclareNamedTypes | flagsDeclareUniqueSymbols | flagsNonEnumerableTag | flagsSortMembers}
+		resolve: printer.resolve, rootID: rootID, declarations: printer, flags: printer.flags}
 }
 
 func (printer *DeclPrinter) deref(node *reflection.RunType) *reflection.RunType {
@@ -483,4 +489,65 @@ func MakeUniqueName(base string, taken func(name string) bool) string {
 		name = base + "$" + strconv.Itoa(index)
 	}
 	return name
+}
+
+// TypeModuleKey is the placeholder key a type-module printer gives a referenced child node.
+func TypeModuleKey(typeID string) string { return "t:" + typeID }
+
+// TypeModuleID reads a placeholder key back to its node id, false for any other key.
+func TypeModuleID(key string) (string, bool) { return strings.CutPrefix(key, "t:") }
+
+// typeModuleWorthy: a node printed in its own type module, the kinds users name; platform classes and atoms inline.
+func typeModuleWorthy(node *reflection.RunType) bool {
+	if node.Kind == reflection.KindClass {
+		return isUserClass(node)
+	}
+	return referenceWorthy(node)
+}
+
+// NewTypeModulePrinter prints the DataOnly<T> projection of a node with every reference-worthy child a
+// TypeModuleKey placeholder, so each type id prints once, in its own module.
+func NewTypeModulePrinter(resolve func(id string) *reflection.RunType) *DeclPrinter {
+	printer := NewDeclPrinter(resolve)
+	printer.flags = flagsReferenceChildren | flagsDataOnly | flagsSortMembers
+	return printer
+}
+
+// TypeModuleText prints node's type expression plus the format import lines that text alone needs.
+func (printer *DeclPrinter) TypeModuleText(node *reflection.RunType) (text string, imports []string, err error) {
+	node = printer.deref(node)
+	if node == nil {
+		return "", nil, fmt.Errorf("no reflected type")
+	}
+	ctx := printer.context(node.ID)
+	text, diag := ctx.typeExpr(node)
+	if diag != nil {
+		return "", nil, fmt.Errorf("%s", diag.Message)
+	}
+	return text, ctx.needs.formatImportLines(), nil
+}
+
+// enumValuesText spells an enum's data projection, the union of its member values.
+func enumValuesText(node *reflection.RunType) (string, *Diagnostic) {
+	names := make([]string, 0, len(node.EnumVal))
+	for name := range node.EnumVal {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	seen := map[string]bool{}
+	var parts []string
+	for _, name := range names {
+		valueText, ok := enumValueText(node.EnumVal[name])
+		if !ok {
+			return "", unsupportedDiag(node, printedDeclLabel)
+		}
+		if !seen[valueText] {
+			seen[valueText] = true
+			parts = append(parts, valueText)
+		}
+	}
+	if len(parts) == 0 {
+		return "never", nil
+	}
+	return strings.Join(parts, " | "), nil
 }

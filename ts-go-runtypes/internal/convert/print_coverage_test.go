@@ -283,6 +283,7 @@ func TestPrinters_EveryKindHasAnArm(t *testing.T) {
 		}
 		printer := convert.NewDeclPrinter(func(string) *reflection.RunType { return nil })
 		text, err := printer.TypeToString(build())
+		moduleText, _, moduleErr := convert.NewTypeModulePrinter(func(string) *reflection.RunType { return nil }).TypeModuleText(build())
 		switch {
 		case refused && err == nil:
 			t.Errorf("kind %d is marked refused but printed %q", kind, text)
@@ -290,6 +291,8 @@ func TestPrinters_EveryKindHasAnArm(t *testing.T) {
 			t.Errorf("kind %d is refused with %q, not the unsupported-kind diagnostic", kind, err)
 		case !refused && err != nil:
 			t.Errorf("kind %d (%s) does not print: %v", kind, row.arm, err)
+		case refused != (moduleErr != nil):
+			t.Errorf("kind %d (%s): the type-module printer disagrees, printed %q, err %v", kind, row.arm, moduleText, moduleErr)
 		}
 	}
 }
