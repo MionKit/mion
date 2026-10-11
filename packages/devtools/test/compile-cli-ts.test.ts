@@ -4,15 +4,12 @@ import {describe, expect, it} from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {createRequire} from 'node:module';
-import * as nodeModule from 'node:module';
-import {execFileSync, spawnSync} from 'node:child_process';
+import {execFileSync} from 'node:child_process';
 import {hasBinary} from './helpers/inline.ts';
 import {runCli} from './helpers/cliCrash.ts';
+import {stripParityViolation, strictestTypeCheck, typeModuleViolation} from './helpers/typedEmit.ts';
 
 const register = hasBinary() ? it : it.skip;
-const require = createRequire(import.meta.url);
-const stripTypeScriptTypes = (nodeModule as unknown as {stripTypeScriptTypes: (code: string) => string}).stripTypeScriptTypes;
 
 const TSCONFIG = `{
   "compilerOptions": {
@@ -21,19 +18,6 @@ const TSCONFIG = `{
     "allowImportingTsExtensions": true, "rewriteRelativeImportExtensions": true
   },
   "include": ["src"]
-}
-`;
-
-// Every strictness flag a consumer may run their type check with.
-const STRICTEST_TSCONFIG = `{
-  "compilerOptions": {
-    "target": "ES2022", "module": "ESNext", "moduleResolution": "Bundler", "lib": ["ES2023"], "types": [],
-    "noEmit": true, "declaration": true, "skipLibCheck": true, "strict": true, "noImplicitAny": true,
-    "exactOptionalPropertyTypes": true, "noUncheckedIndexedAccess": true, "noPropertyAccessFromIndexSignature": true,
-    "noUnusedLocals": true, "noUnusedParameters": true, "verbatimModuleSyntax": true, "isolatedModules": true,
-    "isolatedDeclarations": true, "erasableSyntaxOnly": true, "allowImportingTsExtensions": true
-  },
-  "include": ["dist", ".mion"]
 }
 `;
 
@@ -129,17 +113,6 @@ function filesUnder(dir: string, extension: string): string[] {
     .sort();
 }
 
-// Differences the two modes may have by design, none of them logic: emitMode ts names `.ts` files, spells an absent
-// tuple-head slot `undefined`, prefixes an unused parameter `_` and parenthesizes a lone arrow parameter to type it.
-function normalize(code: string): string {
-  return code
-    .replace(/\s+/g, '')
-    .replace(/\.ts'/g, ".js'")
-    .replace(/=\[([^,]+),(undefined|\(\)=>\[[^\]]*\]|rtL|),(undefined|ini\d*|),/g, (head) => head.replaceAll('undefined', ''))
-    .replace(/\b_([A-Za-z$])/g, '$1')
-    .replace(/\(([A-Za-z_$][\w$]*)\)=>/g, '$1=>');
-}
-
 describe('mion compile --emit-mode ts', () => {
   register(
     'writes a TypeScript tree that type-checks strictly, runs, and strips to emitMode both',
@@ -191,13 +164,7 @@ describe('mion compile --emit-mode ts', () => {
         expect(filesUnder(typesDir, '.ts').some((name) => name.startsWith('t/'))).toBe(true);
 
         // (a) Zero errors under the strictest consumer tsconfig.
-        fs.writeFileSync(path.join(project, 'tsconfig.strictest.json'), STRICTEST_TSCONFIG);
-        const tsc = spawnSync(process.execPath, [require.resolve('typescript/bin/tsc'), '-p', 'tsconfig.strictest.json'], {
-          cwd: project,
-          encoding: 'utf8',
-        });
-        expect(tsc.stdout + tsc.stderr).toBe('');
-        expect(tsc.status).toBe(0);
+        expect(strictestTypeCheck(project, ['dist', '.mion'])).toBe('');
 
         // (b) Plain node runs the tree (type stripping), every compiled fn answering correctly.
         const stdout = execFileSync(process.execPath, [path.join(project, 'dist', 'main.ts')], {cwd: project, encoding: 'utf8'});
@@ -223,14 +190,16 @@ describe('mion compile --emit-mode ts', () => {
         const typedModules = filesUnder(typesDir, '.ts');
         expect(bothModules.length).toBeGreaterThan(5);
         for (const name of typedModules) {
-          const stripped = stripTypeScriptTypes(fs.readFileSync(path.join(typesDir, name), 'utf8'));
+          const typedModule = fs.readFileSync(path.join(typesDir, name), 'utf8');
           if (name.startsWith('t/')) {
-            expect(stripped.replace(/\/\*\*.*?\*\//gs, '').trim(), name).toBe('');
+            expect(typeModuleViolation(name, typedModule)).toBeNull();
             continue;
           }
           const twin = name.replace(/\.ts$/, '.js');
           expect(bothModules, `${name} has no emitMode both twin`).toContain(twin);
-          expect(normalize(stripped), name).toBe(normalize(fs.readFileSync(path.join(base, 'both', 'types', twin), 'utf8')));
+          expect(
+            stripParityViolation(name, typedModule, fs.readFileSync(path.join(base, 'both', 'types', twin), 'utf8'))
+          ).toBeNull();
         }
         expect(typedModules.filter((name) => !name.startsWith('t/')).length).toBe(bothModules.length);
       } finally {

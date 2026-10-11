@@ -58,7 +58,7 @@ test/fuzz/
 ├── value/                       # fix the type, fuzz the VALUE           (O1–O7, O18–O25)
 ├── roundtrip/                   # one type, every codec strategy must agree (RT-*)
 ├── type/                        # fuzz the TYPE itself                    (TR1–TR4 + O*)
-│                                # (type/ also hosts the JSON size bound lane, JS-MAX-*)
+│                                # (type/ also hosts the JSON size bound lane, JS-MAX-*, and typed emit, TE1–TE3)
 ├── cloning/                     # exact-shape clone vs a reference interpreter (O15–O17)
 ├── elision/                     # unused-builder elision: the two spellings stay equivalent (E0–E3)
 ├── security/                    # attack the DECODERS: hostile JSON trees, format pumps (SJ-*, SF-*, GC-*)
@@ -294,6 +294,20 @@ measured against the encoder that drops them.
 - `jsonSizeFuzzRunner.ts` keeps a deterministic floor whose hand-inflated value
   MUST pass the bound (the negative control), so the comparison cannot go vacuous.
 - Test: `jsonSizeBound.integration` (the soak, `MION_FUZZ_JSONSIZE_SOAK_MS`).
+
+### `type/typedEmitFuzz` — emitMode `ts` against emitMode `both`
+
+Compiles each generated type twice, once as emitMode `both` and once as typed `.ts` modules.
+
+- **TE1 strip parity**: each typed module with its types stripped (Node's `stripTypeScriptTypes`) is its `both`
+  twin, code string included; a type module strips to nothing but its doc comment.
+- **TE2 same verdict**: the typed root validator, built from its own typed factory, answers like the `both` one on
+  generated valid values and their one-spot corruptions.
+- **TE3 strict types**: every typed module of a run type-checks with zero errors under the strictest consumer
+  tsconfig, in one tsc program per run.
+- Negative controls: `typedEmitFuzz.unit.test.ts` breaks each rule on purpose. The rules live in
+  `devtools/test/helpers/typedEmit.ts`, shared with the `mion compile --emit-mode ts` test.
+- Test: `typedEmitFuzz.integration` (the soak, `MION_FUZZ_TYPEDEMIT_SOAK_MS`).
 
 ### `cloning/` — the compiled clone vs a reference interpreter
 
@@ -538,7 +552,7 @@ The `miondevx` front door builds the binary first, then runs the suite:
 
 ```bash
 pnpm miondevx core fuzz <lane…> [--quick|--soak]
-#   lane ∈   unit | value | types | nondata | roundtrip | cloning |
+#   lane ∈   unit | value | types | nondata | roundtrip | typedemit | cloning |
 #            secjson | secformat | secgen |
 #            enrich | i18n | typemod | race | sidecar | patterngen | convert | convertcli | apiids | apitypes | all
 #   --quick  the per-PR tier: ~2x the fixed batch (what ci.yml runs)

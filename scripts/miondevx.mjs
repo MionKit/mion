@@ -95,6 +95,8 @@ const FUZZ = {
   elision: {patterns: ['elision/elisionFuzz.integration'], quick: {MION_FUZZ_ELISION_SOAK_MS: '10000'}, soak: {MION_FUZZ_ELISION_SOAK_MS: '60000'}},
   // The JSON size bound: the build-time jsonMaxBytes against what the serializer really emits (test/fuzz/type/jsonSizeBound).
   jsonsize: {patterns: ['type/jsonSizeBound.integration'], quick: {MION_FUZZ_JSONSIZE_SOAK_MS: '10000'}, soak: {MION_FUZZ_JSONSIZE_SOAK_MS: '60000'}},
+  // emitMode 'ts' against emitMode 'both': strip parity, the same verdict, strict types (test/fuzz/type/typedEmitFuzz).
+  typedemit: {patterns: ['type/typedEmitFuzz.integration'], quick: {MION_FUZZ_TYPEDEMIT_SOAK_MS: '10000'}, soak: {MION_FUZZ_TYPEDEMIT_SOAK_MS: '60000'}},
   // Security lanes: hostile JSON trees and format pump strings against the decoders (test/fuzz/security/).
   secjson: {patterns: ['security/jsonDecodeFuzz.integration'], quick: {MION_FUZZ_SECJSON_SOAK_MS: '10000'}, soak: {MION_FUZZ_SECJSON_SOAK_MS: '60000'}},
   secformat: {patterns: ['security/formatPatternFuzz.integration'], quick: {MION_FUZZ_SECFORMAT_SOAK_MS: '10000'}, soak: {MION_FUZZ_SECFORMAT_SOAK_MS: '60000'}},
