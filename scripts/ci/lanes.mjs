@@ -42,7 +42,7 @@ import {isGoInput} from '../lib/go-inputs.mjs';
 import {capture, die, note, noteErr, reportCliError} from '../lib/proc.mjs';
 
 // Ignored paths are safe only while whole-tree sweeps stay in the always-on scripts/ci/check-tree.mjs gate.
-export const FEEDS_NOTHING = ['docs/', 'tools/', 'assets/', '.agents/', '.claude/', '.codex/', '.vscode/', '.husky/', '.git-blame-ignore-revs', 'CHANGELOG.md', 'AGENTS.md', 'CLAUDE.md', 'README.md', 'SETUP.md', 'LICENSE'];
+export const FEEDS_NOTHING = ['docs/', 'tools/', 'assets/', '.agents/', '.claude/', '.codex/', '.vscode/', '.husky/', '.playwright/', '.git-blame-ignore-revs', 'CHANGELOG.md', 'AGENTS.md', 'CLAUDE.md', 'README.md', 'SETUP.md', 'LICENSE'];
 
 // A lane that only RUNS the Go binaries skips what never compiles into them, and the cmd/gen-* codegen tools.
 // code-digest only runs in the gate and the JS tests, so it feeds the JS lanes instead.
