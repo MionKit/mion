@@ -148,6 +148,13 @@ func Run(opts Options) (*Result, error) {
 		return result, nil
 	}
 
+	var tsOutDir, tsSrcDir string
+	if resolverOpts.EmitMode.EmitsTypes() {
+		if tsOutDir, tsSrcDir, err = typeScriptTreeDirs(p1, cwd); err != nil {
+			return nil, err
+		}
+	}
+
 	// Generate BEFORE the transform: generate's SiteFiles is the COMPLETE rewrite set where the dump lists
 	// marker sites alone, so a file whose only rewrite is a batch id would otherwise be emitted untouched.
 	gen := r1.Dispatch(protocol.Request{Op: protocol.OpGenerate})
@@ -200,7 +207,7 @@ func Run(opts Options) (*Result, error) {
 	}
 
 	if resolverOpts.EmitMode.EmitsTypes() {
-		return writeTypeScriptTree(result, p1, cwd, genDir, rewrittenByAbs, resolverOpts.EmitMode, gen.PureFnArtifact)
+		return writeTypeScriptTree(result, p1, cwd, genDir, tsOutDir, tsSrcDir, rewrittenByAbs, resolverOpts.EmitMode, gen.PureFnArtifact)
 	}
 
 	// ── Pass 2: overlaid program, emit, relativize + compose ──────────────────
