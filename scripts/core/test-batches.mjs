@@ -17,12 +17,9 @@ const ROOT_CONFIG = 'vitest.config.ts';
 // vitest.config.ts and each project must appear exactly once, which is what
 // `--check` enforces.
 //
-// The runtypes side runs first and gets four batches of its own: `runtypes` (220
-// test files) and `devtools-core` (87, and it spawns the binary) are the two
-// heaviest projects in the repo, which is the whole reason batching exists, and
-// `runtypes-ts` reruns the feature suite over typed modules. The three small
-// runtypes projects share the fourth. The four mion batches below are the
-// original grouping, unchanged.
+// The runtypes side runs first: `runtypes` (220 test files) and `devtools-core`
+// (87, and it spawns the binary) are the heaviest projects, the reason batching
+// exists; `runtypes-ts` reruns the feature suite over typed modules.
 //
 // `devtools-core` and `devtools` are two vitest projects in ONE package
 // (packages/devtools) since the two devtools packages merged: the `devtools`

@@ -1,14 +1,8 @@
-// The emitMode 'ts' lane: every generated type compiles twice, once as emitMode 'both' and once as typed `.ts`
-// modules, and three rules hold on every one:
-//
-//   TE1 strip parity: each typed module minus its types IS its emitMode 'both' twin (code string included), and a
-//      type module strips to nothing, so the typed output is the shipped logic with types added.
-//   TE2 same verdict: the typed root validator, built from its own typed factory, answers exactly as the 'both'
-//      validator on generated valid values and their one-spot corruptions (compare to a trusted source).
-//   TE3 strict types: all typed modules of a run type-check with zero errors under the strictest consumer tsconfig,
-//      one tsc program per run.
-//
-// TE1 and TE2 run per type; TE3 runs once at the end over every type the run wrote.
+// The emitMode 'ts' lane: each generated type compiles as emitMode 'both' and as typed `.ts` modules. TE1 strip parity:
+// each typed module minus its types IS its 'both' twin, code string included, and a type module strips to nothing.
+// TE2 same verdict: the typed root validator, built from its own typed factory, answers as the 'both' one on valid
+// values and their one-spot corruptions. TE3 strict types: one tsc run at the end finds zero errors in every typed
+// module under the strictest consumer tsconfig. TE1 and TE2 run per type.
 
 import fs from 'node:fs';
 import os from 'node:os';

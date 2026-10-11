@@ -1053,8 +1053,7 @@ func joinArgs(args []string) string {
 	return string(b)
 }
 
-// fnSlots renders the code and factory slots for mode from marked text: the code string is always plain JS, and the
-// factory keeps its TS annotations only in emitMode ts.
+// fnSlots: the code string is always plain JS; the factory keeps its TS annotations only in emitMode ts.
 func fnSlots(mode constants.EmitMode, factoryBody, factoryDecl string) (codeArg, createRTFnArg string) {
 	codeArg = "undefined"
 	if mode.EmitsCode() {
