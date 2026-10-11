@@ -676,10 +676,8 @@ func compactFromJsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 		return compactFromJsonNoopRecursive(rt.Child, ctx, visited)
 
 	case reflection.KindUnion:
-		// The compact union arm is the SAFE restore over the compact layout: the shared flat-union rule
-		// (roundTripsRaw ⇒ identity), no member positionalizes (union_flat_compact.go), AND no member can hide
-		// an undeclared key, the safe restore rebuilding each object from its declared shape (an object member, which
-		// compact always rebuilds from positions, hides one).
+		// The compact union arm is the SAFE restore, rebuilding each object from its declared shape, so a member that can
+		// hide an undeclared key (any object member, rebuilt from positions) rules out the identity.
 		return unionJsonNoop(rt, ctx) && !compactUnionNeedsEnvelope(rt, ctx, visited) &&
 			!anyUnionMember(rt, ctx, unionMemberHidesKey)
 	}

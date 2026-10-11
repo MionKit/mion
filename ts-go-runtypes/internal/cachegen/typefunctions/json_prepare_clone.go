@@ -859,7 +859,7 @@ func emitMergedPropPrepareSafe(mp FlatMergedProp, accessor, discAccessor string,
 	if mp.Placeholder != "" {
 		arms = append(arms, "return "+mp.Placeholder+";")
 	}
-	// Dispatch arms hoist into a context fn; no candidate matching falls through to undefined.
+	// Dispatch arms hoist into a context fn; on the keyed form no candidate matching falls through to undefined.
 	params := ctx.CtxFnParams(accessor)
 	return ctx.CreateFnInContext(strings.Join(arms, " "), CodeRB, params, params), true
 }

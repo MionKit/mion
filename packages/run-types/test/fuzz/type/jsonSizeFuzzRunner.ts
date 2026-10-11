@@ -9,8 +9,7 @@
 //                       compiled encoder; see `stringifyWire`)
 //   - JS-MAX-ENCODER:   the compiled JSON encoder's output in UTF-8 bytes (what
 //                       the router / client really put on the wire)
-//   - JS-MAX-COMPACT:   the compiled compact encoder's output, whose positional
-//                       union array can outgrow every keyed member
+//   - JS-MAX-COMPACT:   the compact encoder's output, whose positional union array can outgrow every keyed member
 // All must be <= jsonMaxBytes. Two generator presets run: the serialisable
 // one, and the DataOnly one (functions / symbols / Promise members), so the
 // walk's "a dropped member costs at most `null`" rule is checked against the

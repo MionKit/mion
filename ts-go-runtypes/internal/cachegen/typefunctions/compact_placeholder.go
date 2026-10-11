@@ -4,10 +4,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// The compact strategy writes a missing slot (an absent optional, a hidden `nonEnumerable` prop, a merged union prop
-// the value's member does not carry) as a placeholder: the first of `0`, `null`, `false` the slot's ENCODED value can
-// never be, so the decoder can tell "absent" from every value the slot can hold. compactWireClasses answers which of
-// the three a slot's wire value can be; a slot that can be all three has no free placeholder.
+// A compact missing slot (absent optional, hidden `nonEnumerable` prop, merged union prop the member lacks) holds
+// the first of `0`, `null`, `false` the slot's ENCODED value can never be, so the decoder can tell it from a value.
 
 // wireClasses is a bitset over the three placeholder candidates a compact wire value can be.
 type wireClasses uint8
@@ -19,9 +17,8 @@ const (
 	wireAll = wireNumber | wireNull | wireBoolean
 )
 
-// compactWireClasses reports which of number / null / boolean the compact encode of a value of rt can produce.
-// Unsure answers all three: a wrong "none" would let a real value read as absent, a wrong "all" only costs a byte.
-// visited is the cycle set: a revisit adds nothing (least fixpoint).
+// compactWireClasses reports which of number / null / boolean rt's compact encode can be; a revisit adds nothing.
+// Unsure answers all three: a wrong "none" lets a real value read as absent, a wrong "all" only costs a byte.
 func compactWireClasses(rt *reflection.RunType, ctx *EmitContext, visited map[string]struct{}) wireClasses {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
@@ -96,8 +93,7 @@ func wireClassesOfEnum(rt *reflection.RunType) wireClasses {
 	return 0
 }
 
-// wireClassesOfObjectLiteral: a declared shape travels as an array or a keyed object. `{}` admits any non-nullish
-// value, so it answers all three.
+// wireClassesOfObjectLiteral: a declared shape travels as an array or keyed object; `{}` admits any non-nullish value.
 func wireClassesOfObjectLiteral(rt *reflection.RunType, ctx *EmitContext) wireClasses {
 	for _, child := range objectMembers(rt) {
 		if member := ctx.ResolveRef(child); member != nil && !member.IsStatic && !isMethodMember(member.Kind) {
@@ -107,8 +103,7 @@ func wireClassesOfObjectLiteral(rt *reflection.RunType, ctx *EmitContext) wireCl
 	return wireAll
 }
 
-// wireClassesOfClass: builtins travel as strings or arrays, an anonymous class as an array; a named user class may
-// carry a registered serializer that writes anything.
+// wireClassesOfClass: builtins and anonymous classes are strings or arrays; a named one may have a serializer.
 func wireClassesOfClass(rt *reflection.RunType) wireClasses {
 	if rt.SubKind == reflection.SubKindNone && userClassName(rt) != "" {
 		return wireAll
@@ -126,8 +121,7 @@ func wireClassesOfUnion(rt *reflection.RunType, ctx *EmitContext, visited map[st
 	return classes
 }
 
-// firstFreePlaceholder picks the first of `0`, `null`, `false` outside classes. With none free it answers `null`
-// and ok=false: a present `null` then reads as absent, the documented collapse of an `any` / `unknown` optional.
+// firstFreePlaceholder with none free answers `null`, ok=false: a present `null` then reads as absent, by design.
 func firstFreePlaceholder(classes wireClasses) (string, bool) {
 	switch {
 	case classes&wireNumber == 0:
@@ -140,10 +134,8 @@ func firstFreePlaceholder(classes wireClasses) (string, bool) {
 	return "null", false
 }
 
-// mergedSlotPlaceholder is a positional merged union slot's placeholder, empty for a Required slot.
-// A sub-wrapped slot is always a `[subIdx, value]` array. With no free value `null` still works unless a member
-// declaring the prop REQUIRED can hold `null`: that `null` would read as absent and fail validation, so ok=false
-// sends the whole union back to the keyed form.
+// mergedSlotPlaceholder answers `0` for a sub-wrapped slot, always a `[subIdx, value]` array.
+// ok=false sends the union keyed: with no free value, a REQUIRED member's `null` would read absent and fail validation.
 func mergedSlotPlaceholder(mp FlatMergedProp, ctx *EmitContext) (string, bool) {
 	if mp.Required {
 		return "", true

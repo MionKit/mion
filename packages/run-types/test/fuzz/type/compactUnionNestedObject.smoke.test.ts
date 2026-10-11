@@ -1,10 +1,6 @@
-// Regression (roundtrip soak, seed 0xd179ff0b / per-type seed 2792797093): a
-// union of JSON-compatible object members round-trips raw on the keyed JSON
-// strategies (no envelope, identity decode). The compact strategy once reused
-// that rule while positionalizing every NESTED object, so
-// `{kind: 't1', f0: [{"with\"quote": true}]}` came back as `{kind: 't1', f0: [[true]]}`
-// on the compact lane only. Compact now writes a union's object members as ONE
-// positional array, so every lane here must agree, positional or keyed fallback.
+// Regression (roundtrip soak, seed 0xd179ff0b / per-type seed 2792797093): compact once positionalized a NESTED
+// object inside a union the keyed strategies pass through raw, so `{kind: 't1', f0: [{"with\"quote": true}]}` came
+// back as `{kind: 't1', f0: [[true]]}`. Every lane here must agree, positional or keyed fallback.
 import {describe, it, expect} from 'vitest';
 import {compileCodecs, openClient, hasBinary, ALL_LANES} from '../roundtrip/roundtripHarness.ts';
 import {typecheckGeneratedType} from './tsValidate.ts';

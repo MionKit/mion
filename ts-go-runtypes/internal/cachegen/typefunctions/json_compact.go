@@ -12,9 +12,8 @@ import (
 // no key names on the wire. Every other arm is reused from the prepareForJsonClone helpers, and recursion routes back
 // through THIS emitter via ctx.CompileChild, so a nested object inside an array, tuple or union member goes positional
 // too. Pairs with CompactFromJsonEmitter, which rebuilds the keyed object from positions.
-// Wire shape of `{a, b?: string, c}` in canonical order: `[v.a, (v.b === undefined ? 0 : v.b), v.c]`. A missing slot
-// holds the first of `0` / `null` / `false` its value can never be (firstFreePlaceholder); the decoder maps it back
-// to absent.
+// Wire shape of `{a, b?: string, c}` in canonical order: `[v.a, (v.b === undefined ? 0 : v.b), v.c]`; the decoder
+// maps a missing slot's placeholder (firstFreePlaceholder) back to absent.
 type CompactForJsonEmitter struct{}
 
 func (CompactForJsonEmitter) Args() []ArgSpec {
@@ -121,8 +120,7 @@ func (CompactForJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Co
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindUnion:
-		// The flat-union encode over the compact layout (union_flat_compact.go): the merged object goes positional, one
-		// array over every member's props, and nested objects inside members go positional via CompileChild.
+		// Layout rules live in union_flat_compact.go; nested objects inside members go positional via CompileChild.
 		return emitUnionPrepareForJsonCloneLayout(rt, ctx, v, buildCompactFlatLayout(rt, ctx))
 
 	case reflection.KindIntersection:
@@ -216,8 +214,7 @@ func collectCompactDeclaredSlots(rt *reflection.RunType, ctx *EmitContext) []com
 	return slots
 }
 
-// emitObjectCompactForJson is the positional-array object encode: declared properties take positions 0..N-1 in canonical
-// order and an absent optional holds its slot's placeholder, so later positions stay aligned.
+// emitObjectCompactForJson puts declared props at 0..N-1 in canonical order; a placeholder keeps later ones aligned.
 func emitObjectCompactForJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if isCallableValue(rt, ctx) {
 		return RTCode{Code: "", Type: CodeNS}

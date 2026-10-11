@@ -294,7 +294,6 @@ func emitBareUnionRestoreSafe(ctx *EmitContext, v string, layout FlatLayout, obj
 			return RTCode{Code: "", Type: CodeNS}
 		}
 		if body != "" {
-			// A positional merged object is an array on the wire, a keyed one is a non-array object.
 			guard := unknownKeysObjectGuard(v)
 			if layout.PositionalMerged {
 				guard = "Array.isArray(" + v + ")"
@@ -320,7 +319,7 @@ func emitMergedPropsRebuild(ctx *EmitContext, v string, layout FlatLayout) (stri
 	for i, mp := range layout.MergedProps {
 		accessor := propertyAccessor(v, mp.Name, mp.IsSafeName)
 		present := namedPropertyPresenceTest(mp.Name, v, accessor)
-		// A positional slot reads by index; its placeholder maps to absent before any child restore runs.
+		// The placeholder maps to absent before any child restore runs.
 		if layout.PositionalMerged {
 			accessor = v + "[" + strconv.Itoa(i) + "]"
 			present = accessor + " !== undefined && " + accessor + " !== " + mp.Placeholder

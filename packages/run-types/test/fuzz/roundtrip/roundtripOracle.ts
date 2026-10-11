@@ -7,8 +7,8 @@
 //   RT-FAILAGREE  a type one lane refuses, every lane refuses.
 //   RT-NATIVE     native JSON.parse reads the keyed encoders' output back to the same JSON-safe value.
 //   RT-THROW      no lane throws an uncontrolled error on a valid value.
-// compact collapses a present `null` optional with no free placeholder to absent (skipped via compactNullRisk); mutate works in place, so every
-// lane encodes a fresh clone; RT-NATIVE runs only on JSON-safe values (jsonRoundTripSafe).
+// compact collapses some present `null` optionals to absent (skipped via compactNullRisk); mutate works in place, so
+// every lane encodes a fresh clone; RT-NATIVE runs only on JSON-safe values (jsonRoundTripSafe).
 
 import {normalizeForComparison, deepCloneForRoundTrip} from '../../util/equalsHelpers.ts';
 import type {Decl, GeneratedType, PropShape, TypeShape} from '../core/typeGen.ts';
@@ -68,8 +68,7 @@ export function checkRoundtrip(compiled: CompiledCodecs, value: unknown, seed: n
   if (inputValid.threw) record(out, 'RT-THROW', 'all', ctx, `validate threw on the generated value: ${inputValid.threw}`, value);
   else if (!inputValid.ok) record(out, 'RT-VALIDATE', 'all', ctx, 'validate rejected the generated value', value);
 
-  // Lanes to exercise: every wired lane, minus compact when an optional field with no free placeholder
-  // could carry a present `null` (the compact wire can't distinguish it).
+  // Compact can't tell a present `null` from absent where an optional has no free placeholder.
   const compactExcluded = compactNullRisk(compiled.gen);
   const lanes = ALL_LANES.filter((id) => compiled.codecs[id] && !(id === 'compact' && compactExcluded));
 
@@ -314,14 +313,8 @@ function safe(value: unknown, seen: Set<object>): boolean {
 }
 
 // =============================================================================
-// compactNullRisk — STATIC over-approximation: true when the type has an
-// optional property that can be `null` and whose compact slot has NO free
-// placeholder. Compact writes a missing slot as the first of `0`, `null`,
-// `false` the slot's wire value can never be; only a slot that can be all three
-// (`any`, `unknown`, `number | null | boolean`) falls back to `null`, so a
-// present `null` there decodes to undefined. A union's object members share one
-// slot per prop name, so their wire values are ORed. Over-excludes types that
-// merely COULD carry such a null, which only costs the compact lane on those types.
+// compactNullRisk is a STATIC over-approximation: over-excluding a type only costs it the compact lane.
+// A slot whose wire value can be a number, `null` and a boolean has no free placeholder: a present `null` reads absent.
 // =============================================================================
 
 const WIRE_NUMBER = 1;

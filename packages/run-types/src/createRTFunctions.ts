@@ -171,8 +171,7 @@ export type JsonValueStrategy = 'clone' | 'mutate' | 'compact';
 export type PrepareForJsonOptions = {strategy?: JsonValueStrategy};
 export type RestoreFromJsonOptions = {strategy?: JsonValueStrategy};
 
-/** `'compact'` writes an absent optional as the first of `0`, `null`, `false` its type cannot hold, so `T | null`
- *  keeps a present `null`; only an `any` / `unknown`-like optional reads a present `null` as absent. **/
+/** `'compact'` cannot tell a present `null` from absent on an `any` / `unknown`-like optional. **/
 export type JsonEncoderStrategy = JsonValueStrategy;
 // Both options are COMPILE-TIME (see ValidateOptions.rejectCircularRefs): `strategy`
 // selects the composite, and `rejectCircularRefs` forks it into an armed variant

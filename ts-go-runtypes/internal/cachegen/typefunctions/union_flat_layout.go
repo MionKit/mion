@@ -37,8 +37,7 @@ type FlatLayout struct {
 	// object inside the array is never compiled and its undeclared keys ride straight through.
 	// A conjunct rather than a verdict, because buildCompactFlatLayout mutates AtomicNeedsTuple afterwards.
 	AtomicsExtraProof bool
-	// PositionalMerged is set only by buildCompactFlatLayout: the merged object travels as ONE array over
-	// MergedProps, a missing prop holding its slot's Placeholder.
+	// PositionalMerged, set only by buildCompactFlatLayout, sends the merged object as ONE array over MergedProps.
 	PositionalMerged bool
 }
 
