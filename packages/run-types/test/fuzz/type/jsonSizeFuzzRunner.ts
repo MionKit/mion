@@ -81,10 +81,10 @@ export const FLOOR_TYPE: GeneratedType = {
 };
 /** `{"tag":<2 + 6 × 8>,"items":[24,24,24]}`, the walk's own arithmetic. **/
 export const FLOOR_BOUND = 2 + (5 + 1 + (2 + 6 * 8)) + 1 + (7 + 1 + (2 + 3 * 24 + 2));
-/** Nine control characters (each `\uXXXX`, 6 bytes) where the type allows eight
- *  units, next to three longest-spelling doubles: 4 bytes over the bound. **/
+/** Twelve control characters (each `\uXXXX`, 6 bytes) where the type allows eight
+ *  units, next to three longest-spelling doubles: over the bound keyed and compact (152 bytes). **/
 const FLOOR_INFLATED = {
-  tag: '\u0001'.repeat(9),
+  tag: '\u0001'.repeat(12),
   items: [-1.7976931348623157e308, -1.7976931348623157e308, -1.7976931348623157e308],
 };
 
