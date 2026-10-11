@@ -48,10 +48,12 @@ describe('flat-union merged prop with a DataOnly-stripped sibling', () => {
       .then((compiled) => {
         expect(compiled.resolverError, compiled.resolverError).toBeUndefined();
         expect(compiled.evalError, compiled.evalError).toBeUndefined();
-        const {jsonEncode, jsonDecode} = compiled.wired;
+        const {jsonEncode, jsonDecode, compactEncode, compactDecode} = compiled.wired;
         // A t2 value carries f2 as a Uint8Array (the stripped member's type).
         const t2 = {kind: 't2', f2: new Uint8Array([1, 2, 3])};
         expect(jsonDecode!(jsonEncode!(t2)!)).toEqual({kind: 't2'});
+        // The positional compact slot cannot drop the key: it writes the placeholder, which decodes to absent.
+        expect(compactDecode!(compactEncode!(t2)!)).toEqual({kind: 't2'});
         // A t1 value's real Date still round-trips.
         const t1 = {kind: 't1', f2: new Date(1000)};
         expect(jsonDecode!(jsonEncode!(t1)!)).toEqual(t1);

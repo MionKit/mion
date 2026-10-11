@@ -139,7 +139,7 @@ export type CompactEvent = {
   attendees: SimpleUser[];
 };
 
-export type CompactPayment =
+type CompactPayment =
   | {type: 'credit_card'; lastFourDigits: string; expiryMonth: number; expiryYear: number; brand: string}
   | {type: 'bank_account'; bankName: string; accountLastFour: string; routingNumber: string}
   | {type: 'paypal'; email: string};

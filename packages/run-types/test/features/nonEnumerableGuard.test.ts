@@ -59,6 +59,10 @@ describe('@nonEnumerable guard on an optional prop — JSON strategies', () => {
       const shown = decode(encode(withSecret(true)) as string) as Record<string, unknown>;
       expect(shown.id).toBe('d1');
       expect(shown.secret).toBe('shhh');
+
+      // An enumerable `undefined` is absent too, never a present null.
+      const blank = decode(encode({id: 'd1', secret: undefined}) as string) as Record<string, unknown>;
+      expect(blank).toEqual({id: 'd1'});
     });
   }
 

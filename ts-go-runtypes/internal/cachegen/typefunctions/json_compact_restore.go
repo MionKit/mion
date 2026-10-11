@@ -12,7 +12,7 @@ import (
 // keyed object, each property's restore applied by position. Every other arm is reused from the restoreFromJsonMutate
 // helpers, and recursion routes back through THIS emitter via ctx.CompileChild.
 // The object arm REBINDS its accessor to the rebuilt object (`v = _r`), so it works inlined and as a dependency call.
-// An optional slot maps its placeholder (compactSlotPlaceholder) back to absent.
+// An optional slot maps its placeholder (firstFreePlaceholder) back to absent.
 type CompactFromJsonEmitter struct{}
 
 func (CompactFromJsonEmitter) Args() []ArgSpec {

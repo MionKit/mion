@@ -1,6 +1,7 @@
 package typefunctions
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
@@ -262,9 +263,7 @@ func emitUnionRestoreFromJsonCloneLayout(rt *reflection.RunType, ctx *EmitContex
 		return RTCode{Code: "", Type: CodeS}
 	}
 	objectArm := emitMergedPropsRebuild
-	if layout.PositionalMerged {
-		objectArm = emitMergedPropsPositionalRebuild
-	} else if layout.hasIndexSignatureMember(ctx) {
+	if layout.hasIndexSignatureMember(ctx) {
 		objectArm = emitMergedPropsInPlace
 	}
 	if layout.AtomicNeedsTuple {
@@ -318,15 +317,21 @@ func emitMergedPropsRebuild(ctx *EmitContext, v string, layout FlatLayout) (stri
 	rVar := ctx.NextLocalVar("r")
 	var restore strings.Builder
 	restore.WriteString("const " + rVar + " = {};")
-	for _, mp := range layout.MergedProps {
+	for i, mp := range layout.MergedProps {
 		accessor := propertyAccessor(v, mp.Name, mp.IsSafeName)
+		present := namedPropertyPresenceTest(mp.Name, v, accessor)
+		// A positional slot reads by index; its placeholder maps to absent before any child restore runs.
+		if layout.PositionalMerged {
+			accessor = v + "[" + strconv.Itoa(i) + "]"
+			present = accessor + " !== undefined && " + accessor + " !== " + mp.Placeholder
+		}
 		propCode, ok := emitMergedPropRestore(mp, accessor, ctx)
 		if !ok {
 			return "", false
 		}
 		write := terminated(propCode) + propertyAccessor(rVar, mp.Name, mp.IsSafeName) + " = " + accessor + ";"
 		if !mp.Required {
-			write = "if (" + namedPropertyPresenceTest(mp.Name, v, accessor) + ") {" + write + "}"
+			write = "if (" + present + ") {" + write + "}"
 		}
 		restore.WriteString(write)
 	}

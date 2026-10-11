@@ -701,19 +701,10 @@ func emitUnionPrepareForJsonCloneLayout(rt *reflection.RunType, ctx *EmitContext
 		clauses = append(clauses, "if ("+arm.Guard+") return "+exprByIndex[arm.Member.OriginalIndex]+";")
 	}
 
-	if len(layout.ObjectMembers) > 0 && layout.PositionalMerged {
-		objLit, ok := emitMergedObjectPositional(layout, v, ctx)
-		if !ok {
-			return RTCode{Code: "", Type: CodeNS}
-		}
-		result := objLit
-		if layout.AtomicNeedsTuple {
-			result = "[-1, " + objLit + "]"
-		}
-		clauses = append(clauses, "if ("+objectGuard(v, "")+") return "+result+";")
-	} else if len(layout.ObjectMembers) > 0 {
+	if len(layout.ObjectMembers) > 0 {
 		discAccessor := layout.discAccessor(v)
 		var props []safePropEmit
+		var slots []string
 		for _, mp := range layout.MergedProps {
 			accessor := propertyAccessor(v, mp.Name, mp.IsSafeName)
 			propExpr, ok := emitMergedPropPrepareSafe(mp, accessor, discAccessor, ctx)
@@ -729,6 +720,22 @@ func emitUnionPrepareForJsonCloneLayout(rt *reflection.RunType, ctx *EmitContext
 				optional = true
 				presenceGuard = mergedPropSurvivingGuard(mp, accessor, ctx)
 			}
+			if layout.PositionalMerged {
+				// A positional slot cannot drop its key: a missing or foreign value writes the placeholder.
+				// `constructor` is own-enumerable yet maybe `undefined`, so presence tests both.
+				present := accessor + " !== undefined"
+				if isInheritedPropertyName(mp.Name) {
+					present = namedPropertyPresenceTest(mp.Name, v, accessor) + " && " + present
+				}
+				if presenceGuard != "" {
+					present += " && (" + presenceGuard + ")"
+				}
+				if optional {
+					propExpr = "(" + present + " ? " + propExpr + " : " + mp.Placeholder + ")"
+				}
+				slots = append(slots, propExpr)
+				continue
+			}
 			props = append(props, safePropEmit{
 				name:          mp.Name,
 				isSafeName:    mp.IsSafeName,
@@ -739,7 +746,9 @@ func emitUnionPrepareForJsonCloneLayout(rt *reflection.RunType, ctx *EmitContext
 			})
 		}
 		var objLit string
-		if layout.hasIndexSignatureMember(ctx) {
+		if layout.PositionalMerged {
+			objLit = "[" + strings.Join(slots, ",") + "]"
+		} else if layout.hasIndexSignatureMember(ctx) {
 			objLit = emitMergedObjectOpenClone(layout, v, props, ctx)
 		} else {
 			clone := buildSafeObjectClone(props, ctx)

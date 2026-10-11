@@ -20,6 +20,8 @@ type PaymentMethod =
 type Contact = {email: string} | {email: string; phone?: string};
 type ObjectOrStrings = {a: string} | string[];
 type TagOrNull = {tag: string} | null;
+type ObjectOrUndefined = {a: string} | undefined;
+type SubWrapped = {k: 'a'; f?: Date} | {k: 'b'; f?: number} | {k: 'c'};
 
 describe('serialization / compact union encoding', () => {
   it('the soak shape: tuple of a quoted-key object inside a tagged union round-trips', () => {
@@ -84,6 +86,26 @@ describe('serialization / compact union encoding', () => {
     expect(enc(null)).toBe('null');
     expect(dec('["x"]')).toEqual({tag: 'x'});
     expect(dec('null')).toBe(null);
+  });
+
+  it('`undefined` is not a plain scalar on the wire, so it keeps the wrapper', () => {
+    const enc = createJsonEncoderFn<ObjectOrUndefined>(undefined, compact);
+    const dec = createJsonDecoderFn<ObjectOrUndefined>(undefined, compact);
+    expect(enc({a: 'x'})).toBe('[-1,["x"]]');
+    expect(dec(enc({a: 'x'})!)).toEqual({a: 'x'});
+    expect(dec(enc(undefined)!)).toBe(undefined);
+  });
+
+  it('a value matching no candidate of a shared slot writes the placeholder', () => {
+    const enc = createJsonEncoderFn<SubWrapped>(undefined, compact);
+    const dec = createJsonDecoderFn<SubWrapped>(undefined, compact);
+    const when = new Date('2024-01-01T00:00:00.000Z');
+    expect(dec(enc({k: 'a', f: when})!)).toEqual({k: 'a', f: when});
+    expect(dec(enc({k: 'b', f: 1})!)).toEqual({k: 'b', f: 1});
+    // `f` is undeclared on `c`: the slot holds `0` and decodes absent.
+    const stray = {k: 'c', f: 1} as SubWrapped;
+    expect(enc(stray)).toBe('["c",0]');
+    expect(dec(enc(stray)!)).toEqual({k: 'c'});
   });
 
   it('keyed strategies still round-trip the same union raw, without an envelope', () => {

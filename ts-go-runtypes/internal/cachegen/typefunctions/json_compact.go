@@ -13,7 +13,7 @@ import (
 // through THIS emitter via ctx.CompileChild, so a nested object inside an array, tuple or union member goes positional
 // too. Pairs with CompactFromJsonEmitter, which rebuilds the keyed object from positions.
 // Wire shape of `{a, b?: string, c}` in canonical order: `[v.a, (v.b === undefined ? 0 : v.b), v.c]`. A missing slot
-// holds the first of `0` / `null` / `false` its value can never be (compactSlotPlaceholder); the decoder maps it back
+// holds the first of `0` / `null` / `false` its value can never be (firstFreePlaceholder); the decoder maps it back
 // to absent.
 type CompactForJsonEmitter struct{}
 
@@ -153,7 +153,7 @@ type compactDeclaredSlot struct {
 	optional      bool
 	nonEnumerable bool                // guarded: placeholder driven by own-enumerability
 	childRef      *reflection.RunType // the property's value-type ref (.Child)
-	placeholder   string              // the absent marker, see compactSlotPlaceholder
+	placeholder   string              // the absent marker, see firstFreePlaceholder
 }
 
 // objectHasIndexSignature reports whether the object carries any index signature, in which case it stays KEYED: a record
@@ -203,13 +203,14 @@ func collectCompactDeclaredSlots(rt *reflection.RunType, ctx *EmitContext) []com
 		if strippedPropertyDrop(propResolved, resolved.Name, ctx) {
 			continue
 		}
+		placeholder, _ := firstFreePlaceholder(compactWireClasses(resolved.Child, ctx, make(map[string]struct{})))
 		slots = append(slots, compactDeclaredSlot{
 			name:          resolved.Name,
 			isSafeName:    resolved.IsSafeName,
 			optional:      resolved.Optional,
 			nonEnumerable: isEnumerabilityGuarded(resolved),
 			childRef:      resolved.Child,
-			placeholder:   compactSlotPlaceholder(resolved.Child, ctx),
+			placeholder:   placeholder,
 		})
 	}
 	return slots
@@ -238,7 +239,7 @@ func emitObjectCompactForJson(rt *reflection.RunType, ctx *EmitContext, v string
 		if slot.nonEnumerable {
 			// A guarded (lib-global-inherited / `@nonEnumerable`) property holds its value only when it is own-enumerable on
 			// v (`JSON.stringify` semantics), else the placeholder the decoder maps back to absent.
-			expr = "(!" + propertyIsEnumerableGuard(v, slot.name) + " ? " + slot.placeholder + " : " + expr + ")"
+			expr = "(!" + propertyIsEnumerableGuard(v, slot.name) + " || " + accessor + " === undefined ? " + slot.placeholder + " : " + expr + ")"
 		} else if slot.optional {
 			// Absent optional takes the placeholder compactFromJson maps back to absent, keeping positions aligned.
 			expr = "(" + accessor + " === undefined ? " + slot.placeholder + " : " + expr + ")"
