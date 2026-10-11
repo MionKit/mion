@@ -65,15 +65,11 @@ blur: 150px
   #body
     ::::div{class="home-split home-split--top"}
       :::::div{class="home-pitch"}
-      ## RunTypes<br>Bring TypeScript to runtime
+      ## RunTypes<br>Bringing TypeScript to runtime
 
       Everything is generated at compile time, derived from your types:
 
-        ::::::stat-tiles
-        ---
-        tiles: [{value: Validation, label: Type guards and error lists, hue: 200}, {value: Serialization, label: 'JSON that keeps Date, Set, bigint', hue: 255}, {value: Mocking, label: Sample data that fits the type, hue: 310}, {value: Reflection, label: Walk your types at runtime, hue: 30}]
-        ---
-        ::::::
+        :home-runtypes-tiles
 
         ::::::div{class="home-links"}
           :::::::u-button
