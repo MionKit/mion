@@ -314,7 +314,13 @@ ensure_go() {
     # at the toolchain's GOROOT so `go version` on the harness PATH reports 1.26.
     warn "go.dev tarball blocked - falling back to proxy.golang.org via GOTOOLCHAIN=go$GO_INSTALL_VERSION"
     if install_go_via_proxy; then verify_go_on_path; return; fi
-    # Both paths failed. GOTOOLCHAIN=auto could still let step 8's `go build`
+    # Both paths failed. A Go that still meets go.mod builds the resolver, only
+    # not with CI's exact toolchain: warn and go on.
+    if version_ge "${cur:-0}" "$GO_MIN"; then
+      warn "both go.dev and proxy.golang.org failed; keeping go ${cur:-?} (>= $GO_MIN, but CI pins $GO_INSTALL_VERSION)"
+      return 0
+    fi
+    # Below go.mod: GOTOOLCHAIN=auto could still let step 8's `go build`
     # succeed, but `go version` on PATH would keep reporting the old toolchain -
     # which is why agents report "go is not updated" even after this script ran.
     # Fail hard so the operator sees it, instead of pretending everything is fine.

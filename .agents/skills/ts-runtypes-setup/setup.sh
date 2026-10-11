@@ -14,7 +14,8 @@ NODE_MIN=26
 PNPM_MIN=11
 GO_MIN=1.26
 # The CI pin; used only when Go is absent on Linux and the tarball is fetched.
-GO_INSTALL_VERSION="$(tr -d '[:space:]' < "$REPO_DIR/ts-go-runtypes/.go-version")"
+GO_INSTALL_VERSION="$(tr -d '[:space:]' < "$REPO_DIR/ts-go-runtypes/.go-version" 2>/dev/null)"
+[ -n "$GO_INSTALL_VERSION" ] || { echo "ts-go-runtypes/.go-version missing or empty" >&2; exit 1; }
 
 CHECK_ONLY=0
 [ "${1:-}" = "--check" ] && CHECK_ONLY=1
