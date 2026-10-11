@@ -27,13 +27,13 @@ const FILE = 'playground.ts';
 
 type Factory = (...args: unknown[]) => (...callArgs: unknown[]) => unknown;
 
-// Every public entry a factory can come from: mock generation lives on its own subpath, off the main one.
+// Mock generation lives on its own subpath, off the root entry.
 const ENTRIES = [
   {specifier: '@mionjs/run-types', exports: RT as unknown as Record<string, unknown>},
   {specifier: '@mionjs/run-types/mocking', exports: RTMocking as unknown as Record<string, unknown>},
 ];
 
-// factoryEntry finds the entry that exports `factory`, so the snippet imports it from where it really lives.
+// The snippet must import each factory from the entry that exports it, or the resolver finds no call site.
 function factoryEntry(factory: string): {specifier: string; fn: Factory} {
   for (const {specifier, exports} of ENTRIES) {
     if (typeof exports[factory] === 'function') return {specifier, fn: exports[factory] as Factory};
@@ -139,10 +139,7 @@ function linkRootTuple(entryModules: Record<string, string>, binding: string): u
 // engine, and is covered by test/playground/engine.test.ts.
 export type Mode = 'type' | 'builder';
 
-// factoryImport renders the import line the playground shows around a snippet,
-// the same `import { <factory> } from '<entry>'` the engine prepends before
-// resolving (see `scan` below), surfaced verbatim so the type column can display
-// the real surrounding code the user would write.
+// The same import `scan` prepends before resolving, shown so the type column displays the code the user would write.
 export function factoryImport(factory: string): string {
   return `import { ${factory} } from '${factoryEntry(factory).specifier}';`;
 }
@@ -193,11 +190,8 @@ function scan(
   mode: Mode = 'type',
   options?: string
 ): ScanResult {
-  // Only the factory import is injected; the user snippet writes its own
-  // `import * as RT from '@mionjs/run-types/builders'` / `import type { … } from
-  // '@mionjs/run-types/formats'`, so the imports read like real code (and aren't
-  // duplicated). `options` (a JSON strategy literal) rides the options slot so
-  // its comptime value is folded into the injected fn hash, see factoryCall.
+  // Only the factory import is injected: the snippet writes its own imports, so it reads like real code.
+  // `options` rides the options slot so its comptime value is folded into the injected fn hash.
   const args = mode !== 'type' ? [ROOT_TYPE] : [];
   if (options) args.push(mode !== 'type' ? options : `undefined, ${options}`);
   const call = mode !== 'type' ? `${factory}(${args.join(', ')});` : `${factory}<${ROOT_TYPE}>(${args.join(', ')});`;
@@ -206,11 +200,7 @@ function scan(
   const result = dispatch({op: 'scanFiles', files: [FILE], includeRunTypes: true, includeEntryModules: true});
   const sites = (result.sites as ScanResult['site'][]) ?? [];
   return {
-    // The factory call is appended LAST, so its site has the highest source
-    // position. Pick it, not sites[0]: in builder mode a builder snippet's
-    // own `const MyType = RT.object(...)` carries its OWN reflection marker
-    // (the builder's InjectRunTypeId `id` param) and emits an earlier site, the
-    // one we must NOT link against (it's the runtype facade, not the factory).
+    // Not sites[0]: a builder snippet's own `RT.object(...)` emits an earlier reflection site, the runtype facade.
     site: pickFactorySite(sites),
     entryModules: (result.entryModules as Record<string, string>) ?? {},
     runTypes: (result.runTypes as RunTypeNode[]) ?? [],

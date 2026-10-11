@@ -20,7 +20,7 @@
 import {readdirSync, readFileSync, statSync, writeFileSync} from 'node:fs';
 import {dirname, join, relative, sep} from 'node:path';
 
-// The virtual package.json: the real package's `source` export conditions, so a new subpath can never be missing here.
+// Copies the real `source` export conditions, so a new subpath can never be missing here.
 function virtualPackageJson(packageDir) {
   const {name, exports} = JSON.parse(readFileSync(join(packageDir, 'package.json'), 'utf8'));
   const sourceExports = {};
