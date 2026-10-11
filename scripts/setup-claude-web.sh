@@ -685,7 +685,9 @@ main "$@"
 #   *.npmjs.org                     step 6: registry.npmjs.org (pnpm install)
 #   cdn.playwright.dev              step 9: Playwright's browser downloads, which
 #   storage.googleapis.com                  redirect to these two (Chromium builds,
-#   playwright.download.prss.microsoft.com  then ffmpeg)
+#   playwright.download.prss.microsoft.com  then ffmpeg). Exact hosts, NOT
+#                                           wildcarded: `*.cdn.playwright.dev`
+#                                           does not match cdn.playwright.dev
 #   *.debian.org  *.ubuntu.com      step 2 (+ others): OS package mirrors -
 #                                                       include whichever set
 #                                                       matches the base image
