@@ -93,6 +93,8 @@ const APP_LIST = [
   // Turbopack has no plugin API; next build requires a separate CLI process.
   // Next is not a workspace dependency; this supplies build coverage (packages/devtools/src/runtypes/next/AGENTS.md).
   {name: 'smoke-next', adapter: 'next'},
+  // The same Turbopack lane over the typed .ts cache modules emitMode 'ts' writes (its tsconfig asks for it).
+  {name: 'smoke-next-ts', adapter: 'next', typeEdit: false},
   // The mion half of the Next story: the app HOSTS the API through an App Router catch-all
   // handler, so one build produces the front end and the API from one program. smoke-next
   // covers the transform under Turbopack; this covers the framework on top of it, including a
@@ -242,6 +244,7 @@ async function buildNext(app) {
   const run = () =>
     execFileSync(process.execPath, [nextBin, 'build'], {cwd: appDir, stdio: 'inherit', env: {...process.env, NODE_ENV: 'production'}});
   run();
+  if (app.typeEdit === false) return;
 
   // Second build, after editing a type the page reflects through an ERASED
   // import (apps/smoke-next/typeDep.ts — `import type`, so Turbopack has no edge

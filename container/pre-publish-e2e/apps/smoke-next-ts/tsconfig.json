@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {"jsx": "react-jsx", "plugins": [{"name": "mion", "genDir": ".rt", "emitMode": "ts"}]},
+  "include": ["app", "../shared/src"]
+}
