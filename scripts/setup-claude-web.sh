@@ -6,10 +6,8 @@ set -uo pipefail
 
 NODE_MAJOR_MIN=26
 PODMAN_MIN=4.0
-# GO_MIN is derived from ts-go-runtypes/go.mod after REPO_DIR is resolved (below),
-# so a go.mod bump auto-propagates here with no drift risk. GO_INSTALL_VERSION
-# must be an actual published patch (bump when the Go directive bumps).
-GO_INSTALL_VERSION=1.26.0 # installed when Go is absent OR older than GO_MIN
+# GO_MIN (ts-go-runtypes/go.mod) and GO_INSTALL_VERSION (ts-go-runtypes/.go-version,
+# the CI pin) are read after REPO_DIR is resolved (below), so a bump never drifts here.
 
 CHECK_ONLY=0
 for arg in "$@"; do
@@ -85,6 +83,11 @@ fi
 # pnpm version the repo pins via package.json "packageManager" (fallback if unparsable)
 PNPM_PIN="$(sed -n 's/.*"packageManager": *"pnpm@\([0-9.]*\)".*/\1/p' "$REPO_DIR/package.json" 2>/dev/null | head -1)"
 [ -n "$PNPM_PIN" ] || PNPM_PIN="11.8.0"
+
+# The Go CI builds with: installed when Go is absent OR older than it, so the
+# resolver binary built here matches CI's.
+GO_INSTALL_VERSION="$(tr -d '[:space:]' < "$REPO_DIR/ts-go-runtypes/.go-version" 2>/dev/null)"
+[ -n "$GO_INSTALL_VERSION" ] || { err "ts-go-runtypes/.go-version missing or empty"; exit 1; }
 
 # Minimum Go version, derived from ts-go-runtypes/go.mod's `go X.Y[.Z]` directive.
 # Fallback matches GO_INSTALL_VERSION so a malformed / missing go.mod does not
@@ -295,19 +298,19 @@ ensure_go() {
   bold "Go (compiles the resolver binary)"
   if command -v go >/dev/null 2>&1; then
     local cur; cur="$(go version 2>/dev/null | awk '{print $3}' | sed 's/^go//')"
-    if version_ge "${cur:-0}" "$GO_MIN"; then
-      ok "go ${cur:-?} (>= $GO_MIN)"
+    if version_ge "${cur:-0}" "$GO_INSTALL_VERSION"; then
+      ok "go ${cur:-?} (>= $GO_INSTALL_VERSION, the CI pin)"
       # Even when the resolved go is already fine, wire /usr/local/go if it
       # exists - a re-run on a container with a half-set-up state repairs itself.
       [ -x /usr/local/go/bin/go ] && wire_local_go
       return 0
     fi
-    warn "go ${cur:-?} present but repo needs >= $GO_MIN - upgrading to $GO_INSTALL_VERSION"
+    warn "go ${cur:-?} present but CI pins $GO_INSTALL_VERSION - upgrading"
     [ "$CHECK_ONLY" = 1 ] && { warn "go too old - re-run without --check to upgrade"; return 0; }
     if install_go_tarball; then verify_go_on_path; return; fi
     # go.dev tarball 403 (some managed envs block go.dev/dl but allow
     # proxy.golang.org). Fall back to Go's own GOTOOLCHAIN download - it fetches
-    # the same 1.26.0 through the proxy, and wire_local_go points $HOME/.local/bin
+    # the same pinned Go through the proxy, and wire_local_go points $HOME/.local/bin
     # at the toolchain's GOROOT so `go version` on the harness PATH reports 1.26.
     warn "go.dev tarball blocked - falling back to proxy.golang.org via GOTOOLCHAIN=go$GO_INSTALL_VERSION"
     if install_go_via_proxy; then verify_go_on_path; return; fi
@@ -623,8 +626,8 @@ main "$@"
 #      /etc/profile.d) by symlinking node26 bins into $HOME/.local/bin. pnpm
 #      comes from corepack, pinned to the repo's packageManager.
 #   2. podman   - via apt; confirm the engine is reachable.
-#   3. Go 1.26  - upgraded in place (tarball -> /usr/local/go) when the image's
-#      preinstalled Go is older than the repo's required 1.26.
+#   3. Go       - upgraded in place (tarball -> /usr/local/go) when the image's
+#      preinstalled Go is older than the CI pin (ts-go-runtypes/.go-version).
 #   4. submodules tsgolint + typescript-go, SKIPPING the 620MB nested
 #      microsoft/TypeScript corpus (only typescript-go's own conformance test
 #      runner needs it, never our `go build`; its checker libs are committed +

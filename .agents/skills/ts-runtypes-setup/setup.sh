@@ -12,7 +12,8 @@ PODMAN_MIN=4.0
 NODE_MIN=26
 PNPM_MIN=11
 GO_MIN=1.26
-GO_INSTALL_VERSION=1.26.0 # used only when Go is absent on Linux and tarball is fetched
+# The CI pin; used only when Go is absent on Linux and the tarball is fetched.
+GO_INSTALL_VERSION="$(tr -d '[:space:]' < "$REPO_DIR/ts-go-runtypes/.go-version")"
 
 CHECK_ONLY=0
 [ "${1:-}" = "--check" ] && CHECK_ONLY=1
