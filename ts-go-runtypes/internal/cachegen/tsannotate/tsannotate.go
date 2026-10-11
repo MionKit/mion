@@ -41,6 +41,9 @@ func Function(code string) string {
 			if variableNeedsAny(node) {
 				insertions = append(insertions, insertion{at: node.Name().End(), text: ": any"})
 			}
+			if unusedLoopVariable(node) {
+				insertions = append(insertions, insertion{at: scanner.SkipTrivia(wrapped, node.Name().Pos()), text: "_"})
+			}
 		}
 		node.ForEachChild(visit)
 		return false
@@ -66,8 +69,14 @@ func parameterInsertions(text string, node *ast.Node) []insertion {
 	name := param.Name()
 	start := scanner.SkipTrivia(text, name.Pos())
 	var out []insertion
-	if name.Kind == ast.KindIdentifier && !usedIn(text, node.Parent, name.Text()) {
+	if name.Kind == ast.KindIdentifier && !strings.HasPrefix(name.Text(), "_") && !usedIn(text, node.Parent, name.Text()) {
 		out = append(out, insertion{at: start, text: "_"})
+		// A `name is T` return type names the parameter too, and must follow the rename.
+		if returnType := node.Parent.Type(); returnType != nil && returnType.Kind == ast.KindTypePredicate {
+			if predicateName := returnType.AsTypePredicateNode().ParameterName; predicateName != nil && predicateName.Text() == name.Text() {
+				out = append(out, insertion{at: scanner.SkipTrivia(text, predicateName.Pos()), text: "_"})
+			}
+		}
 	}
 	if param.Type != nil {
 		return out
@@ -82,12 +91,32 @@ func parameterInsertions(text string, node *ast.Node) []insertion {
 	return append(out, insertion{at: name.End(), text: annotation})
 }
 
+// unusedLoopVariable reports a for-in / for-of variable its loop body never reads, which `_` exempts from
+// noUnusedLocals (a plain `const` gets no such exemption, so emitters must not leave one unread).
+func unusedLoopVariable(node *ast.Node) bool {
+	name := node.Name()
+	list := node.Parent
+	if name.Kind != ast.KindIdentifier || strings.HasPrefix(name.Text(), "_") || list == nil || list.Parent == nil {
+		return false
+	}
+	loop := list.Parent
+	if loop.Kind != ast.KindForInStatement && loop.Kind != ast.KindForOfStatement {
+		return false
+	}
+	return !reads(loop.AsForInOrOfStatement().Statement, name.Text())
+}
+
 // usedIn reports name read anywhere in fn's body, as an identifier that is not a property name.
 func usedIn(text string, fn *ast.Node, name string) bool {
 	body := fn.Body()
 	if body == nil {
 		return true
 	}
+	return reads(body, name)
+}
+
+// reads reports name as an identifier anywhere under node, property names aside.
+func reads(body *ast.Node, name string) bool {
 	used := false
 	var visit ast.Visitor
 	visit = func(node *ast.Node) bool {
