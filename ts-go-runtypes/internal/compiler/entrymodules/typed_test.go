@@ -68,3 +68,17 @@ func TestRenderGrouped_AmbientDeclarations(t *testing.T) {
 		}
 	}
 }
+
+// TestTypeImports_NeverCascadeNorStub: a type import names no runtime dep, so a type module the graph lacks neither
+// drops the entry naming it nor gets a missing-entry stub.
+func TestTypeImports_NeverCascadeNorStub(t *testing.T) {
+	graph := Graph{}
+	graph.Add(&Entry{Key: "abcd_tree", Kind: KindTypeFn, FamilyTag: "val", TypeImports: []string{"gone"}, ArgsText: "'abcd_tree','Tree'"})
+	if dropped := graph.Cascade(); len(dropped) != 0 {
+		t.Errorf("a type import cascaded: %v", dropped)
+	}
+	graph.AddMissingStubs(nil)
+	if len(graph) != 1 {
+		t.Errorf("a type import got a stub: %v", graph)
+	}
+}
