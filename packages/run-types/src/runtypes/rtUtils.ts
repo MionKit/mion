@@ -10,6 +10,7 @@
 // only looks at its arguments) belongs inline in the generated code, or under `pure-fns/` reached through
 // `getPureFn`. Anything added here bloats the surface every generated module closes over.
 import type {
+  AnyFn,
   CompiledTypeFn,
   TypesFunctionsCache,
   PureFunctionsCache,
@@ -62,11 +63,12 @@ const rtUtils = {
     (rtFnsCache[comp.rtFnHash] as any) = undefined;
     findRTForTypeMemo.clear();
   },
-  getRT(rtFnHash: string): InitializedTypeFn | undefined {
+  // Fn types the entry for typed callers (emitMode ts factories); the cache itself is untyped.
+  getRT<Fn extends AnyFn = AnyFn>(rtFnHash: string): InitializedTypeFn<Fn> | undefined {
     const entry = rtFnsCache[rtFnHash];
     if (!entry) return undefined;
     materializeRTFn(entry);
-    return entry;
+    return entry as InitializedTypeFn<Fn>;
   },
   // Find a family's compiled entry for a TYPE id without knowing the family's opaque fnHash prefix (cache keys
   // are `<fnHash>_<typeId>`, and the hash folds the binary version, so the runtime can never hardcode it). Cold
@@ -119,11 +121,11 @@ const rtUtils = {
     return compiled.fn;
   },
   // CompTimeArgs ensures dependencies are tracked inside pure functions
-  getPureFn(key: CompTimeArgs<PureFnId>): PureFunction | undefined {
+  getPureFn<Fn extends PureFunction = PureFunction>(key: CompTimeArgs<PureFnId>): Fn | undefined {
     const compiled = pureFnsCache[key];
     if (!compiled) return;
     initPureFunction(compiled);
-    return compiled.fn;
+    return compiled.fn as Fn | undefined;
   },
   // CompTimeArgs ensures dependencies are tracked inside pure functions
   getCompiledPureFn(key: CompTimeArgs<PureFnId>): CompiledPureFunction | undefined {

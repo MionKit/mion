@@ -131,7 +131,7 @@ export interface RunTypeBundleRecord {
   ini: RunTypeIni | undefined;
   key: string;
   rows: readonly RunTypeRow[];
-  rels: readonly RunTypeRelRow[];
+  rels: readonly (RunTypeRelRow | undefined)[];
 }
 
 /** A per-reflection-root facade module (`rtmod:/<rootId>.js`): registers nothing, it carries the root id in the
@@ -194,8 +194,16 @@ export const RUN_TYPE_TUPLE_KEYS = [...ENTRY_HEAD_KEYS, ...RUN_TYPE_FIELD_KEYS] 
 export const RUN_TYPE_BUNDLE_TUPLE_KEYS = [...ENTRY_HEAD_KEYS, 'key', 'rows', 'rels'] as const;
 export const RUN_TYPE_FACADE_TUPLE_KEYS = [...ENTRY_HEAD_KEYS, 'key'] as const;
 
-const FN_TYPE_REQUIRED_KEYS = ['familyTag', 'deps', 'ini', 'rtFnHash', 'typeName', 'code'] as const;
-const FN_TYPE_TRIMMED_KEYS = ['isNoop', 'rtDependencies', 'pureFnDependencies', 'createRTFn', 'alwaysThrowMessage'] as const;
+// `code` sits in the trimmed half: a noop or functions-mode tuple holes it, which an optional element types as absent.
+const FN_TYPE_REQUIRED_KEYS = ['familyTag', 'deps', 'ini', 'rtFnHash', 'typeName'] as const;
+const FN_TYPE_TRIMMED_KEYS = [
+  'code',
+  'isNoop',
+  'rtDependencies',
+  'pureFnDependencies',
+  'createRTFn',
+  'alwaysThrowMessage',
+] as const;
 export const FN_TYPE_TUPLE_KEYS = [...FN_TYPE_REQUIRED_KEYS, ...FN_TYPE_TRIMMED_KEYS] as const;
 
 const PURE_FN_REQUIRED_KEYS = [...ENTRY_HEAD_KEYS, 'key', 'paramNames', 'code', 'pureFnDependencies'] as const;
