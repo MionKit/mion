@@ -6,6 +6,7 @@ import {
   generatedCache,
   mock,
   mockInvalid,
+  OPERATIONS,
   run,
   setResolver,
   transformedSource,
@@ -40,6 +41,13 @@ describe('surrounding-code templating', () => {
   it('factoryImport renders the mion import line', () => {
     expect(factoryImport('createValidateFn')).toBe("import { createValidateFn } from '@mionjs/run-types';");
     expect(factoryImport('createJsonEncoderFn')).toBe("import { createJsonEncoderFn } from '@mionjs/run-types';");
+  });
+
+  // Mock generation is on its own subpath: importing it from the root resolves no call site.
+  it('factoryImport takes each factory from the entry that exports it', () => {
+    expect(factoryImport('createMockDataFn')).toBe("import { createMockDataFn } from '@mionjs/run-types/mocking';");
+    for (const {factory} of OPERATIONS) expect(() => factoryImport(factory)).not.toThrow();
+    expect(() => factoryImport('createNothingFn')).toThrow(/not exported/);
   });
 
   it('factoryCall renders the type-first call, appending the injected arg when given', () => {

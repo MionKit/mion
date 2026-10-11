@@ -8,6 +8,7 @@
 // time, here driven live from a single resolver dispatch.
 
 import * as RT from '@mionjs/run-types';
+import * as RTMocking from '@mionjs/run-types/mocking';
 // Side effect: register the format pure fns (rtFormats::isUUID, …), regex
 // patterns and format mock fns the generated validators / mock walker call at
 // runtime. Without it a format like UUID / IP throws `pf_isUUID is not a function`.
@@ -24,7 +25,21 @@ export {ROOT_TYPE} from './markerDts.ts';
 
 const FILE = 'playground.ts';
 
-const factories = RT as unknown as Record<string, (...args: unknown[]) => (...callArgs: unknown[]) => unknown>;
+type Factory = (...args: unknown[]) => (...callArgs: unknown[]) => unknown;
+
+// Every public entry a factory can come from: mock generation lives on its own subpath, off the main one.
+const ENTRIES = [
+  {specifier: '@mionjs/run-types', exports: RT as unknown as Record<string, unknown>},
+  {specifier: '@mionjs/run-types/mocking', exports: RTMocking as unknown as Record<string, unknown>},
+];
+
+// factoryEntry finds the entry that exports `factory`, so the snippet imports it from where it really lives.
+function factoryEntry(factory: string): {specifier: string; fn: Factory} {
+  for (const {specifier, exports} of ENTRIES) {
+    if (typeof exports[factory] === 'function') return {specifier, fn: exports[factory] as Factory};
+  }
+  throw new Error(`${factory} is not exported by any @mionjs/run-types entry the playground loads.`);
+}
 
 export type Diagnostic = Record<string, unknown>;
 
@@ -125,11 +140,11 @@ function linkRootTuple(entryModules: Record<string, string>, binding: string): u
 export type Mode = 'type' | 'builder';
 
 // factoryImport renders the import line the playground shows around a snippet,
-// the same `import { <factory> } from '@mionjs/run-types'` the engine prepends before
+// the same `import { <factory> } from '<entry>'` the engine prepends before
 // resolving (see `scan` below), surfaced verbatim so the type column can display
 // the real surrounding code the user would write.
 export function factoryImport(factory: string): string {
-  return `import { ${factory} } from '@mionjs/run-types';`;
+  return `import { ${factory} } from '${factoryEntry(factory).specifier}';`;
 }
 
 // factoryCall renders the call line: `const <varName> = <factory><MyType>()` in
@@ -186,7 +201,7 @@ function scan(
   const args = mode !== 'type' ? [ROOT_TYPE] : [];
   if (options) args.push(mode !== 'type' ? options : `undefined, ${options}`);
   const call = mode !== 'type' ? `${factory}(${args.join(', ')});` : `${factory}<${ROOT_TYPE}>(${args.join(', ')});`;
-  const source = [`import { ${factory} } from '@mionjs/run-types';`, userCode, call, ''].join('\n');
+  const source = [factoryImport(factory), userCode, call, ''].join('\n');
   dispatch({op: 'setSources', sources: {...runtypesPackageSources(), [FILE]: source}});
   const result = dispatch({op: 'scanFiles', files: [FILE], includeRunTypes: true, includeEntryModules: true});
   const sites = (result.sites as ScanResult['site'][]) ?? [];
@@ -258,7 +273,7 @@ function materialize(
   options?: string
 ): Materialized {
   const {tuple, diagnostics} = linkEntry(dispatch, factory, userCode, mode, options);
-  const fn = factories[factory](undefined, undefined, tuple) as Materialized['fn'];
+  const fn = factoryEntry(factory).fn(undefined, undefined, tuple) as Materialized['fn'];
   return {fn, diagnostics};
 }
 

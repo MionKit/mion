@@ -39,8 +39,9 @@ const VENDOR_DIR = join(WEBSITE_DIR, 'app/playground/.vendor/ts-runtypes-dist');
 const WASM_PKG = './cmd/mion-wasm';
 // The Go inputs the wasm links live in scripts/website/playground-wasm-inputs.mjs,
 // shared with the test loader so both gates agree on what an input is.
-// The source overlay tracks only the marker package's src.
+// The overlay reads the marker package's src AND its package.json exports; its own builder counts too.
 const SOURCES_INPUT = 'packages/run-types/src';
+const OVERLAY_INPUTS = [SOURCES_INPUT, 'packages/run-types/package.json', 'scripts/website/playground-overlay.mjs'];
 
 const mtime = (p) => statSync(p).mtimeMs;
 // True if any file at/under the given repo-relative inputs is newer than `anchorMs`.
@@ -156,10 +157,10 @@ function ensureWasmDerived() {
   return changed;
 }
 
-// ── Source overlay: staleness gate on packages/run-types/src ────────────────
+// ── Source overlay: staleness gate on OVERLAY_INPUTS ────────────────────────
 
 function buildSourcesIfStale() {
-  if (existsSync(SOURCES_JSON) && !anyNewer([SOURCES_INPUT], mtime(SOURCES_JSON))) {
+  if (existsSync(SOURCES_JSON) && !anyNewer(OVERLAY_INPUTS, mtime(SOURCES_JSON))) {
     note('mion source overlay up to date');
     return false;
   }

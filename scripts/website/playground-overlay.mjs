@@ -18,23 +18,15 @@
 // allowImportingTsExtensions finds them without a `source` custom condition.
 
 import {readdirSync, readFileSync, statSync, writeFileSync} from 'node:fs';
-import {join, relative, sep} from 'node:path';
+import {dirname, join, relative, sep} from 'node:path';
 
-// The virtual package.json — exports map points straight at the .ts sources.
-const VIRTUAL_PACKAGE_JSON = JSON.stringify(
-  {
-    name: '@mionjs/run-types',
-    version: '0.0.0',
-    exports: {
-      '.': './src/index.ts',
-      './builders': './src/builders/index.ts',
-      './formats': './src/formats/index.ts',
-      './formats/temporal': './src/formats/datetime/temporalFormats.ts',
-    },
-  },
-  null,
-  2
-);
+// The virtual package.json: the real package's `source` export conditions, so a new subpath can never be missing here.
+function virtualPackageJson(packageDir) {
+  const {name, exports} = JSON.parse(readFileSync(join(packageDir, 'package.json'), 'utf8'));
+  const sourceExports = {};
+  for (const [subpath, target] of Object.entries(exports)) if (target.source) sourceExports[subpath] = target.source;
+  return JSON.stringify({name, version: '0.0.0', exports: sourceExports}, null, 2);
+}
 
 function walkTsFiles(dir) {
   const out = [];
@@ -59,7 +51,7 @@ export function buildRuntypesOverlay(srcDir) {
     const rel = relative(srcDir, abs).split(sep).join('/');
     out[`node_modules/@mionjs/run-types/src/${rel}`] = readFileSync(abs, 'utf8');
   }
-  out['node_modules/@mionjs/run-types/package.json'] = VIRTUAL_PACKAGE_JSON;
+  out['node_modules/@mionjs/run-types/package.json'] = virtualPackageJson(dirname(srcDir));
   return out;
 }
 
