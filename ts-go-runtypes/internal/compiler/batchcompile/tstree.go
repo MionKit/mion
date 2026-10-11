@@ -16,21 +16,31 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
-// writeTypeScriptTree is the emitMode ts output: the program's own sources, call sites rewritten, laid out under
-// outDir as TypeScript, importing the typed cache modules. A TypeScript-to-native compiler has no plugin hook, so
-// the rewrite has to land on disk before it runs; nothing is emitted as JavaScript.
-func writeTypeScriptTree(result *Result, p1 *program.Program, cwd, genDir string, rewrittenByAbs map[string]string,
-	mode constants.EmitMode, pureFnArtifact map[string]string) (*Result, error) {
+// typeScriptTreeDirs resolves where emitMode ts writes (the tsconfig outDir) and the root it mirrors there. It refuses
+// before anything is generated when there is no outDir, or when outDir is that root: each source would overwrite itself.
+func typeScriptTreeDirs(p1 *program.Program, cwd string) (outDir, srcDir string, err error) {
 	options := p1.TS.Options()
 	if options.OutDir == "" {
-		return nil, fmt.Errorf("compile: emitMode ts writes the rewritten TypeScript to the tsconfig outDir, and none is set")
+		return "", "", fmt.Errorf("compile: emitMode ts writes the rewritten TypeScript to the tsconfig outDir, and none is set")
 	}
-	outDir := tspath.ResolvePath(cwd, options.OutDir)
+	outDir = tspath.ResolvePath(cwd, options.OutDir)
 	var fileNames []string
 	if commandLine := p1.TS.CommandLine(); commandLine != nil {
 		fileNames = commandLine.FileNames()
 	}
-	srcDir := program.InferSrcDir(cwd, options.RootDir, options.BaseUrl, fileNames)
+	srcDir = program.InferSrcDir(cwd, options.RootDir, options.BaseUrl, fileNames)
+	if filepath.Clean(outDir) == filepath.Clean(srcDir) {
+		return "", "", fmt.Errorf("compile: emitMode ts writes TypeScript to the tsconfig outDir, and %s is the source root itself: "+
+			"the rewritten sources would overwrite yours", outDir)
+	}
+	return outDir, srcDir, nil
+}
+
+// writeTypeScriptTree is the emitMode ts output: the program's own sources, call sites rewritten, laid out under
+// outDir as TypeScript, importing the typed cache modules. A TypeScript-to-native compiler has no plugin hook, so
+// the rewrite has to land on disk before it runs; nothing is emitted as JavaScript.
+func writeTypeScriptTree(result *Result, p1 *program.Program, cwd, genDir, outDir, srcDir string, rewrittenByAbs map[string]string,
+	mode constants.EmitMode, pureFnArtifact map[string]string) (*Result, error) {
 	written := make([]string, 0)
 	for _, sourceFile := range p1.TS.SourceFiles() {
 		if sourceFile == nil || !isProjectSource(p1.TS, sourceFile, genDir) {

@@ -71,3 +71,26 @@ func TestCompile_TsModeNeedsAnOutDir(t *testing.T) {
 		t.Error("a source was overwritten")
 	}
 }
+
+// TestCompile_TsModeRefusesAnOutDirThatIsTheSourceRoot: found by review, outDir == rootDir overwrote each source with
+// its rewritten text (a `files` list escapes tsc's outDir exclude). The refusal comes before generate, so a refused run writes no cache either.
+func TestCompile_TsModeRefusesAnOutDirThatIsTheSourceRoot(t *testing.T) {
+	tmp := t.TempDir()
+	writeFile(t, filepath.Join(tmp, "tsconfig.json"), strings.NewReplacer(`"outDir": "dist",`, `"outDir": "src",`,
+		`"include": ["src"]`, `"files": ["src/runtypes.d.ts", "src/foo.ts"]`).Replace(tsconfigJSON))
+	writeFile(t, filepath.Join(tmp, "src", "runtypes.d.ts"), runtypesDTS)
+	writeFile(t, filepath.Join(tmp, "src", "foo.ts"), fooTS)
+	genDir := filepath.Join(tmp, ".mion")
+	_, err := Run(Options{Cwd: tmp, TsconfigPath: "tsconfig.json", GenDir: genDir,
+		ResolverOpts: resolver.Options{Cwd: tmp, EmitMode: constants.EmitTS, ModuleMode: constants.ModuleModeDefault,
+			InlineMode: constants.InlineModeDefault}})
+	if err == nil || !strings.Contains(err.Error(), "source root") {
+		t.Errorf("err = %v, want the outDir-is-the-source-root refusal", err)
+	}
+	if source, _ := os.ReadFile(filepath.Join(tmp, "src", "foo.ts")); string(source) != fooTS {
+		t.Error("a source was overwritten")
+	}
+	if _, statErr := os.Stat(genDir); !os.IsNotExist(statErr) {
+		t.Errorf("a refused run generated %s", genDir)
+	}
+}
