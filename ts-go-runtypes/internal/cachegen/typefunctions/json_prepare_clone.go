@@ -701,7 +701,17 @@ func emitUnionPrepareForJsonCloneLayout(rt *reflection.RunType, ctx *EmitContext
 		clauses = append(clauses, "if ("+arm.Guard+") return "+exprByIndex[arm.Member.OriginalIndex]+";")
 	}
 
-	if len(layout.ObjectMembers) > 0 {
+	if len(layout.ObjectMembers) > 0 && layout.PositionalMerged {
+		objLit, ok := emitMergedObjectPositional(layout, v, ctx)
+		if !ok {
+			return RTCode{Code: "", Type: CodeNS}
+		}
+		result := objLit
+		if layout.AtomicNeedsTuple {
+			result = "[-1, " + objLit + "]"
+		}
+		clauses = append(clauses, "if ("+objectGuard(v, "")+") return "+result+";")
+	} else if len(layout.ObjectMembers) > 0 {
 		discAccessor := layout.discAccessor(v)
 		var props []safePropEmit
 		for _, mp := range layout.MergedProps {
@@ -835,6 +845,10 @@ func emitMergedPropPrepareSafe(mp FlatMergedProp, accessor, discAccessor string,
 	}
 	if len(arms) == 0 {
 		return accessor, true
+	}
+	// A positional slot cannot drop its key, so no candidate matching writes the placeholder.
+	if mp.Placeholder != "" {
+		arms = append(arms, "return "+mp.Placeholder+";")
 	}
 	// Dispatch arms hoist into a context fn; no candidate matching falls through to undefined.
 	params := ctx.CtxFnParams(accessor)

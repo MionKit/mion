@@ -9,7 +9,9 @@
 //                       compiled encoder; see `stringifyWire`)
 //   - JS-MAX-ENCODER:   the compiled JSON encoder's output in UTF-8 bytes (what
 //                       the router / client really put on the wire)
-// Both must be <= jsonMaxBytes. Two generator presets run: the serialisable
+//   - JS-MAX-COMPACT:   the compiled compact encoder's output, whose positional
+//                       union array can outgrow every keyed member
+// All must be <= jsonMaxBytes. Two generator presets run: the serialisable
 // one, and the DataOnly one (functions / symbols / Promise members), so the
 // walk's "a dropped member costs at most `null`" rule is checked against the
 // encoder that drops them.
@@ -35,7 +37,7 @@ import {type CrashRecord} from '../core/crashGuard.ts';
 
 export {hasBinary, BIN};
 
-export type JsonSizeOracleId = 'JS-MAX-STRINGIFY' | 'JS-MAX-ENCODER';
+export type JsonSizeOracleId = 'JS-MAX-STRINGIFY' | 'JS-MAX-ENCODER' | 'JS-MAX-COMPACT';
 
 export interface JsonSizeViolation {
   oracle: JsonSizeOracleId;
@@ -180,15 +182,20 @@ function measure(compiled: CompiledType, bound: number, value: unknown, seed: nu
       value: wire.slice(0, 300),
     });
   }
-  const encoded = compiled.wired.jsonEncode?.(value);
-  if (typeof encoded === 'string') {
+  const encoders = [
+    ['JS-MAX-ENCODER', 'JSON', compiled.wired.jsonEncode],
+    ['JS-MAX-COMPACT', 'compact JSON', compiled.wired.compactEncode],
+  ] as const;
+  for (const [oracle, label, encode] of encoders) {
+    const encoded = encode?.(value);
+    if (typeof encoded !== 'string') continue;
     const encodedBytes = utf8Bytes(encoded);
     if (encodedBytes > bound) {
       out.push({
-        oracle: 'JS-MAX-ENCODER',
+        oracle,
         type: compiled.title,
         seed,
-        message: `the compiled JSON encoder emits ${encodedBytes} bytes, over the type's jsonMaxBytes ${bound}`,
+        message: `the compiled ${label} encoder emits ${encodedBytes} bytes, over the type's jsonMaxBytes ${bound}`,
         value: encoded.slice(0, 300),
       });
     }

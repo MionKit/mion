@@ -37,6 +37,9 @@ type FlatLayout struct {
 	// object inside the array is never compiled and its undeclared keys ride straight through.
 	// A conjunct rather than a verdict, because buildCompactFlatLayout mutates AtomicNeedsTuple afterwards.
 	AtomicsExtraProof bool
+	// PositionalMerged is set only by buildCompactFlatLayout: the merged object travels as ONE array over
+	// MergedProps, a missing prop holding its slot's Placeholder.
+	PositionalMerged bool
 }
 
 // discAccessor renders the JS accessor for the union discriminant on `v`, empty when there is no usable discriminant.
@@ -79,12 +82,16 @@ type FlatMergedProp struct {
 	// Always implies !Required (the stripped member never marks the prop present).
 	HasStrippedCandidate bool
 	Candidates           []FlatPropCandidate
+	// Placeholder is the positional slot's absent marker (mergedSlotPlaceholder), empty when Required or keyed.
+	Placeholder string
 }
 
 type FlatPropCandidate struct {
 	ChildRef *reflection.RunType
 	Resolved *reflection.RunType
 	Optional bool
+	// RequiredSomewhere is true iff some member declaring this candidate declared it non-optional.
+	RequiredSomewhere bool
 	// DiscValues lists the discriminant JS literals of the object members that declared THIS candidate for the prop.
 	// Populated only with a usable discriminant; a candidate shared by two members carries both their values.
 	// The encoders dispatch to this candidate on a discriminant match instead of re-validating.
@@ -121,31 +128,12 @@ func buildFlatLayout(rt *reflection.RunType, ctx *EmitContext) FlatLayout {
 		if resolved == nil {
 			continue
 		}
-		// Dynamic keys can't be expressed in the merged property set, so an indexed member keeps per-member dispatch.
-		if isObjectLikeKind(resolved.Kind) && objectHasIndexSignatureChild(resolved, ctx) {
-			layout.AtomicMembers = append(layout.AtomicMembers, FlatAtomic{Ref: ref, Resolved: resolved, OriginalIndex: i})
-			continue
-		}
-		// Other object-like kinds (Array, Tuple, Date, Map, Set …) expose no stable per-name property
-		// surface, so only ObjectLiteral / Class with SubKindNone participate in the merge.
-		if resolved.Kind == reflection.KindObjectLiteral || resolved.Kind == reflection.KindClass {
-			if resolved.Kind == reflection.KindClass && resolved.SubKind != reflection.SubKindNone {
-				layout.AtomicMembers = append(layout.AtomicMembers, FlatAtomic{Ref: ref, Resolved: resolved, OriginalIndex: i})
-				continue
-			}
-			// A named plain user class routes through the atomic bucket, NOT the merge: it compiles via
-			// CompileChild into the KindClass arms, so decode reconstructs the instance and the member
-			// index says which class. An anonymous class (never registrable) or an object literal stays in the merge.
-			if resolved.Kind == reflection.KindClass {
-				if name := userClassName(resolved); name != "" {
-					layout.AtomicMembers = append(layout.AtomicMembers, FlatAtomic{Ref: ref, Resolved: resolved, OriginalIndex: i, ClassName: name})
-					continue
-				}
-			}
+		isObject, className := classifyFlatMember(resolved, ctx)
+		if isObject {
 			layout.ObjectMembers = append(layout.ObjectMembers, FlatObject{Ref: ref, Resolved: resolved})
 			continue
 		}
-		layout.AtomicMembers = append(layout.AtomicMembers, FlatAtomic{Ref: ref, Resolved: resolved, OriginalIndex: i})
+		layout.AtomicMembers = append(layout.AtomicMembers, FlatAtomic{Ref: ref, Resolved: resolved, OriginalIndex: i, ClassName: className})
 	}
 
 	layout.AtomicsExtraProof = true
@@ -193,6 +181,33 @@ func buildFlatLayout(rt *reflection.RunType, ctx *EmitContext) FlatLayout {
 	}
 
 	return layout
+}
+
+// classifyFlatMember buckets one surviving member: isObject for the merge, else an atomic carrying className when it
+// is a named plain user class. Diagnostic-free, so the predicates can share it with buildFlatLayout.
+func classifyFlatMember(resolved *reflection.RunType, ctx *EmitContext) (isObject bool, className string) {
+	// Dynamic keys can't be expressed in the merged property set, so an indexed member keeps per-member dispatch.
+	if isObjectLikeKind(resolved.Kind) && objectHasIndexSignatureChild(resolved, ctx) {
+		return false, ""
+	}
+	// Other object-like kinds (Array, Tuple, Date, Map, Set …) expose no stable per-name property
+	// surface, so only ObjectLiteral / Class with SubKindNone participate in the merge.
+	switch resolved.Kind {
+	case reflection.KindObjectLiteral:
+		return true, ""
+	case reflection.KindClass:
+		if resolved.SubKind != reflection.SubKindNone {
+			return false, ""
+		}
+		// A named plain user class routes through the atomic bucket, NOT the merge: it compiles via
+		// CompileChild into the KindClass arms, so decode reconstructs the instance and the member
+		// index says which class. An anonymous class (never registrable) stays in the merge.
+		if name := userClassName(resolved); name != "" {
+			return false, name
+		}
+		return true, ""
+	}
+	return false, ""
 }
 
 // hasClassAtomic reports whether any atomic member is a named plain user class (FlatAtomic.ClassName set).
@@ -399,7 +414,7 @@ func buildMergedProps(objectMembers []FlatObject, ctx *EmitContext, discValueByM
 				strippedByName[prop.Name] = true
 				continue
 			}
-			candidate := FlatPropCandidate{ChildRef: prop.Child, Resolved: childResolved, Optional: prop.Optional}
+			candidate := FlatPropCandidate{ChildRef: prop.Child, Resolved: childResolved, Optional: prop.Optional, RequiredSomewhere: !prop.Optional}
 			if discValue != "" {
 				candidate.DiscValues = []string{discValue}
 			}
@@ -423,6 +438,7 @@ func buildMergedProps(objectMembers []FlatObject, ctx *EmitContext, discValueByM
 			skip := false
 			for k, existing := range candidates {
 				if existing.ChildRef != nil && candidate.ChildRef != nil && existing.ChildRef.ID == candidate.ChildRef.ID {
+					candidates[k].RequiredSomewhere = existing.RequiredSomewhere || candidate.RequiredSomewhere
 					if discValue != "" {
 						candidates[k].DiscValues = append(candidates[k].DiscValues, discValue)
 					}

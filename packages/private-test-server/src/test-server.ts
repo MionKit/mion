@@ -139,6 +139,11 @@ export type CompactEvent = {
   attendees: SimpleUser[];
 };
 
+export type CompactPayment =
+  | {type: 'credit_card'; lastFourDigits: string; expiryMonth: number; expiryYear: number; brand: string}
+  | {type: 'bank_account'; bankName: string; accountLastFour: string; routingNumber: string}
+  | {type: 'paypal'; email: string};
+
 export const compactTestRoutes = {
   // a spread of shapes on the compact wire
   echo: route((_ctx, message: string): string => message, {parser: 'compact'}),
@@ -183,7 +188,7 @@ export const compactTestRoutes = {
     },
     {parser: 'compact'}
   ),
-  // an absent optional rides a null placeholder on the compact wire and comes back undefined
+  // an absent optional rides its slot's placeholder on the compact wire and comes back undefined
   describeEvent: route(
     (_ctx, event: CompactEvent, note?: string): CompactEvent => ({
       ...event,
@@ -191,6 +196,8 @@ export const compactTestRoutes = {
     }),
     {parser: 'compact'}
   ),
+  // a union of objects rides ONE positional array over every member's props
+  echoPayments: route((_ctx, payments: CompactPayment[]): CompactPayment[] => payments, {parser: 'compact'}),
   mixed: route((_ctx, user: SimpleUser): SimpleUser => ({...user, age: user.age + 1}), {
     parser: {params: 'compact', return: 'mutate'},
   }),

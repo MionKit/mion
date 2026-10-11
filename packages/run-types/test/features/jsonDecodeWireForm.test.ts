@@ -83,6 +83,31 @@ describe('JSON restore arms rebuild only from the wire form', () => {
     }
   });
 
+  // A missing compact slot holds the first of `0` / `null` / `false` its type cannot be; it maps to absent BEFORE any
+  // constructor runs, and a foreign marker is left for validate to refuse.
+  it('the compact decoder maps only its own placeholder to absent', () => {
+    const optionalDate = createJsonDecoderFn<{when?: Date}>(undefined, {strategy: 'compact'});
+    const validateOptionalDate = createValidateFn<{when?: Date}>();
+    expect(optionalDate('[0]')).toEqual({});
+    let value: unknown = {when: new Date(0)};
+    try {
+      value = optionalDate('[null]');
+    } catch {
+      value = undefined;
+    }
+    if (value !== undefined) expect(validateOptionalDate(value)).toBe(false);
+
+    const requiredString = createJsonDecoderFn<{s: string}>(undefined, {strategy: 'compact'});
+    expect(createValidateFn<{s: string}>()(requiredString('[0]'))).toBe(false);
+
+    type Merged = {k: 'a'; when?: Date} | {k: 'b'; n: number};
+    const merged = createJsonDecoderFn<Merged>(undefined, {strategy: 'compact'});
+    const validateMerged = createValidateFn<Merged>();
+    expect(merged('["a",0,null]')).toEqual({k: 'a'});
+    expect(validateMerged(merged('["a",null,null]'))).toBe(false);
+    expect(validateMerged(merged('["a",1704067200000,null]'))).toBe(false);
+  });
+
   it('the wire form still restores', () => {
     const value = decoders[1](JSON.stringify(valid));
     expect(value.when).toBeInstanceOf(Date);

@@ -59,6 +59,9 @@ func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.RunT
 	unionObjNest := &reflection.RunType{ID: "uObjNest", Kind: reflection.KindUnion, Children: []*reflection.RunType{makeRef("objCompat"), makeRef("objNest")}}
 	unionArrObjStr := &reflection.RunType{ID: "uArrObjStr", Kind: reflection.KindUnion, Children: []*reflection.RunType{makeRef("arrCO"), makeRef("str")}}
 	unionRecObj := &reflection.RunType{ID: "uRecObj", Kind: reflection.KindUnion, Children: []*reflection.RunType{makeRef("recA"), makeRef("objCompat")}}
+	// Compact writes a merged object positionally even beside a bare scalar member: `{…} | null` decodes an array.
+	nullType := &reflection.RunType{ID: "nul", Kind: reflection.KindNull}
+	unionObjNull := &reflection.RunType{ID: "uObjNull", Kind: reflection.KindUnion, Children: []*reflection.RunType{makeRef("objCompat"), makeRef("nul")}}
 
 	// The user-reported shape: circular JSON-compatible object —
 	// `{a: string; d?: Self[]}` reached through an optional array prop.
@@ -109,7 +112,7 @@ func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.RunT
 		arrCompatObj, arrStr, arrDate,
 		namedClass, anonClass,
 		unionAtomic, unionDate, unionObjects,
-		propInner, objNest, unionObjNest, unionArrObjStr, unionRecObj,
+		propInner, objNest, unionObjNest, unionArrObjStr, unionRecObj, nullType, unionObjNull,
 		circArr, circProp, circ,
 		circDArr, circDProp, circDat,
 		anyT, unkT, lit, nev, propNever, objNever,
@@ -427,6 +430,7 @@ func TestNoopType_CompactFromJson(t *testing.T) {
 		// arm's key loop, rather than the identity.
 		{"uRecObj", false},
 		{"uObj", false},
+		{"uObjNull", false},  // the merged object is a positional array on the wire
 		{"recA", false},      // the key loop with the prototype-name refusal always ships
 		{"objCompat", false}, // rj says true — the delegation trap
 		{"arrCO", false},     // array of objects — positional elements

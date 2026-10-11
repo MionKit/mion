@@ -13,7 +13,8 @@ import (
 // properties, each encoded when its key is defined. The merge avoids the per-object `validate` walk on
 // encode for a discriminated bag of N large classes; the `-1` sentinel skips dispatch on decode. When two
 // object members declare the same name with different child type IDs, that prop branches through a nested
-// `[subIdx, value]` inline-union.
+// `[subIdx, value]` inline-union. The compact strategy writes the merged object as a positional array instead
+// (union_flat_positional.go).
 
 // flatUnionEncodeErrorVar registers the canonical encode-error context item once per emit pass, shared
 // across all three emit families so the renderer collapses to a single declaration.
@@ -306,6 +307,10 @@ func emitEnvelopedUnionRestore(ctx *EmitContext, v string, layout FlatLayout, ob
 		body, ok := objectArm(ctx, v, layout)
 		if !ok {
 			return RTCode{Code: "", Type: CodeNS}
+		}
+		// A positional merged object must arrive as an array; anything else is left for validation.
+		if layout.PositionalMerged {
+			body = "if (Array.isArray(" + v + ")) {" + body + "}"
 		}
 		arms = append(arms, "if ("+decVar+" === -1) {"+body+"}")
 	}

@@ -8,7 +8,7 @@
 import {describe, it, expect, beforeEach, afterEach} from 'vitest';
 import {initClient} from './fetchingClient.ts';
 import {HeadersSubset} from '@mionjs/core';
-import type {TestServerApi} from '@mionjs/test-server';
+import type {CompactPayment, TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../../globalSetup.ts';
 
 // End to end over the test server's compact routes: the client takes each route's strategy from the
@@ -91,6 +91,17 @@ describe('Compact encoder E2E', () => {
     expect(notedError).toBeUndefined();
     expect(noted?.title).toBe('Launch (vip)');
     expect(noted?.place?.city).toBe('c');
+  });
+
+  it('a union of objects round-trips both directions on the positional wire', async () => {
+    const payments: CompactPayment[] = [
+      {type: 'credit_card', lastFourDigits: '4242', expiryMonth: 12, expiryYear: 2025, brand: 'visa'},
+      {type: 'bank_account', bankName: 'Chase', accountLastFour: '1234', routingNumber: '021000021'},
+      {type: 'paypal', email: 'john.paypal@example.com'},
+    ];
+    const [echoed, error] = await routes.compact.echoPayments(payments).call();
+    expect(error).toBeUndefined();
+    expect(echoed).toEqual(payments);
   });
 
   it('a route mixing compact params with a direct return works', async () => {

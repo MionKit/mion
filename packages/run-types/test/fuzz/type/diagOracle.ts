@@ -80,7 +80,7 @@ export function checkDropNoted(
 }
 
 /** Paths `input` holds and `output` lacks; `undefined` is absent on the wire by design, and so is `null` under
- *  `nullMayVanish` (compact writes an absent optional as `null`). **/
+ *  `nullMayVanish` (compact writes an absent `any` / `unknown`-like optional as `null`). **/
 export function droppedPaths(input: unknown, output: unknown, nullMayVanish = false, path = '$'): string[] {
   if (input === null || typeof input !== 'object' || output === null || typeof output !== 'object') return [];
   if (input instanceof Map && output instanceof Map) {

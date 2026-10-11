@@ -8,8 +8,9 @@
 // value: the two part ways wherever DataOnly drops a member. So every arm is a worst case: 6 bytes
 // per UTF-16 unit for a string (the `\uXXXX` escape form), 24 for a number (the longest
 // `JSON.stringify` double), every optional member present, the largest union member. The `compact`
-// encoder strategy tuples objects into positional arrays, never larger than the keyed form, so the
-// keyed maximum covers it too.
+// encoder strategy tuples a plain object into a positional array, never larger than the keyed form,
+// but a union's objects merge into ONE array holding a slot for every member's props, which can be:
+// unionBytes takes the larger of the two.
 package jsonsize
 
 import (
@@ -437,7 +438,47 @@ func (w *walker) unionBytes(rt *reflection.RunType, path string, depth int) Resu
 		}
 		largest = max(largest, size)
 	}
-	return bounded(largest + unionEnvelopeBytes(len(rt.Children)))
+	positional := w.positionalMergedBytes(rt, path, depth)
+	return bounded(max(largest, positional) + unionEnvelopeBytes(len(rt.Children)))
+}
+
+// positionalMergedBytes bounds the compact merged object: `[` `]` plus, per prop name across the object
+// members, the larger of its widest value and the widest placeholder (`false`), plus a comma. A name two
+// members declare may ride the `[<candidateIndex>,value]` sub-envelope. Called once every member is bounded,
+// so each value walk is a memoized hit.
+func (w *walker) positionalMergedBytes(rt *reflection.RunType, path string, depth int) int {
+	widest := map[string]int{}
+	declarers := map[string]int{}
+	for i, child := range rt.Children {
+		member := w.deref(child)
+		if member == nil || member.Kind != reflection.KindObjectLiteral {
+			continue
+		}
+		memberPath := path + "|" + strconv.Itoa(i)
+		for _, propRef := range member.Children {
+			prop := w.deref(propRef)
+			if prop == nil || prop.IsStatic || prop.Child == nil {
+				continue
+			}
+			if prop.Kind != reflection.KindProperty && prop.Kind != reflection.KindPropertySignature {
+				continue
+			}
+			value := w.walk(propRef, memberPath+"."+prop.Name, depth+1)
+			widest[prop.Name] = max(widest[prop.Name], value.Bytes)
+			declarers[prop.Name]++
+		}
+	}
+	if len(widest) == 0 {
+		return 0
+	}
+	total := 2
+	for name, size := range widest {
+		if declarers[name] > 1 {
+			size += subEnvelopeBytes(declarers[name])
+		}
+		total += max(size, boolBytes) + 1
+	}
+	return total
 }
 
 // mergeableMembers counts the members the flat layout merges into one object
