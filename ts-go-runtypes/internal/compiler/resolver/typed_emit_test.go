@@ -35,6 +35,7 @@ export const prepareShape = createPrepareForJsonFn<Shape>();
 export const restoreShape = createRestoreFromJsonFn<Shape>();
 export const formatTree = createFormatTransformFn<TreeNode>();
 export const userId = getRunTypeId<User>();
+export const treeStaticId = getRunTypeId<TreeNode>();
 const sample: TreeNode = {value: 'a', children: []};
 export const treeId = getRunTypeId(sample);
 `
