@@ -71,24 +71,19 @@ func compactUnionMemberTransforms(resolved *reflection.RunType, ctx *EmitContext
 }
 
 // buildCompactFlatLayout is buildFlatLayout plus the compact rules, so both compact emitters read the same layout.
-// A union with object members goes positional (PositionalMerged) and wraps only when a non-object member can be
-// an array on the wire. A union keeping the keyed merged object (an index-signature member, or a slot with no
-// usable placeholder) or having no object member at all follows the envelope rule above.
+// A union with object members goes positional (PositionalMerged): the merged object travels as ONE array over
+// MergedProps, a missing prop holding its slot's Placeholder, so no member is picked on encode. It wraps only when
+// a non-object member is not always a plain JSON scalar. A union keeping the keyed merged object (an
+// index-signature member, or a slot with no usable placeholder) or having no object member at all follows the
+// envelope rule above.
 func buildCompactFlatLayout(rt *reflection.RunType, ctx *EmitContext) FlatLayout {
 	layout := buildFlatLayout(rt, ctx)
 	layout.PositionalMerged = len(layout.ObjectMembers) > 0 && !layout.hasIndexSignatureMember(ctx)
-	if layout.PositionalMerged {
-		for i := range layout.MergedProps {
-			placeholder, ok := mergedSlotPlaceholder(layout.MergedProps[i], ctx)
-			if !ok {
-				layout.PositionalMerged = false
-				break
-			}
-			layout.MergedProps[i].Placeholder = placeholder
-		}
+	for i := 0; layout.PositionalMerged && i < len(layout.MergedProps); i++ {
+		layout.MergedProps[i].Placeholder, layout.PositionalMerged = mergedSlotPlaceholder(layout.MergedProps[i], ctx)
 	}
 	if layout.PositionalMerged {
-		layout.AtomicNeedsTuple = compactPositionalNeedsEnvelope(layout, ctx)
+		layout.AtomicNeedsTuple = compactPositionalNeedsEnvelope(layout)
 		return layout
 	}
 	for i := range layout.MergedProps {
@@ -103,34 +98,20 @@ func buildCompactFlatLayout(rt *reflection.RunType, ctx *EmitContext) FlatLayout
 // compactPositionalNeedsEnvelope reports whether a positional union must wrap. The merged object is an array on the
 // wire, so a bare value is unambiguous only when every atomic member is always a plain JSON scalar: those are
 // JSON-identity, never arrays, and their encode guards read the same on the wire. Anything else (an array member, a
-// class, bigint, `undefined`, `any`) wraps, or `{a: string} | string[]` would decode `["x"]` as a `string[]`.
-func compactPositionalNeedsEnvelope(layout FlatLayout, ctx *EmitContext) bool {
-	for _, m := range layout.AtomicMembers {
-		if !compactAlwaysScalar(m.Resolved) || overrideHashForTag(m.Resolved, "cj") != "" {
+// class, bigint, `undefined`, `any`) wraps, or `{a: string} | string[]` would decode
+// `["x"]` as a `string[]`.
+func compactPositionalNeedsEnvelope(layout FlatLayout) bool {
+	for _, member := range layout.AtomicMembers {
+		switch member.Resolved.Kind {
+		case reflection.KindNull, reflection.KindString, reflection.KindNumber, reflection.KindBoolean,
+			reflection.KindEnum, reflection.KindTemplateLiteral:
+		case reflection.KindLiteral:
+			if literalFlavour(member.Resolved) != litPrimitive {
+				return true
+			}
+		default:
 			return true
 		}
 	}
 	return false
-}
-
-// compactAlwaysScalar reports whether every value of rt is a JSON string, number, boolean or null, written as is.
-func compactAlwaysScalar(rt *reflection.RunType) bool {
-	switch rt.Kind {
-	case reflection.KindNull, reflection.KindString, reflection.KindNumber, reflection.KindBoolean,
-		reflection.KindEnum, reflection.KindTemplateLiteral:
-		return true
-	case reflection.KindLiteral:
-		return literalFlavour(rt) == litPrimitive
-	}
-	return false
-}
-
-// compactUnionHasMergedMember reports whether a surviving member lands in the merged object, which compact always
-// rebuilds from positions. Uses classifyFlatMember, not buildFlatLayout, whose drop diagnostics a predicate must not
-// duplicate.
-func compactUnionHasMergedMember(rt *reflection.RunType, ctx *EmitContext) bool {
-	return anyUnionMember(rt, ctx, func(resolved *reflection.RunType, ctx *EmitContext) bool {
-		isObject, _ := classifyFlatMember(resolved, ctx)
-		return isObject
-	})
 }

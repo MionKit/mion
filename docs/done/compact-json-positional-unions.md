@@ -80,67 +80,66 @@ Paths under `ts-go-runtypes/internal/cachegen/typefunctions/` unless stated. Lin
 **Wire classes, one visitor** (new `compact_placeholder.go`)
 - `compactWireClasses(rt, ctx, visited)` → bitset `{number, null, boolean}` of what a slot's encoded
   value can be. One arm per `ReflectionKind` (visitor rule, `ts-go-runtypes/AGENTS.md`):
-  Number/numeric literal/numeric or mixed enum → number (an enum with no values → all three); Null/Undefined/Void → null; Boolean/boolean
-  literal → boolean; `any`/`unknown`/`object`/`{}`/Intersection/TypeParameter/Infer/Parameter/EnumMember
-  → all three (conservative); String/TemplateLiteral/BigInt/string+bigint literals/Array/Tuple/
-  ObjectLiteral/IndexSignature → none; Class → none except a named user class with a serializer (all
-  three); Union → OR of surviving members; Property/PropertySignature/TupleMember/Rest → recurse `.Child`;
-  non-data kinds → none. A node with a user `compactForJson` override (`overrideHashForTag(rt, "cj")`) →
-  all three. Cycle revisit → none (least fixpoint).
-- `compactSlotPlaceholder(childRef)` and `mergedSlotPlaceholder(mp)` pick `0` / `null` / `false`
-  per Design §3. A sub-wrapped merged slot (`NeedsSubWrap`, >1 candidate) is an array on the wire → `0`.
+  Number/numeric literal/numeric or mixed enum → number (an enum with no values → all three);
+  Null/Undefined/Void → null; Boolean/boolean literal → boolean;
+  `any`/`unknown`/`object`/`{}`/Intersection/TypeParameter/Infer/Parameter/EnumMember → all three
+  (conservative); String/TemplateLiteral/BigInt/string+bigint literals/Array/Tuple/ObjectLiteral/
+  IndexSignature → none; Class → none except a named user class, which may carry a runtime serializer
+  (all three); Union → OR of surviving members (`anyUnionMember`); Property/PropertySignature/
+  TupleMember/Rest → recurse `.Child`. Non-data (`isStrippedUnionMember`) → none, checked once before
+  the switch. An object literal reads its members through `objectMembers`. Cycle revisit → none (least
+  fixpoint). No user override can change a compact slot: `overrideJsonEncoder` replaces the whole
+  composite, a nested overridden type still encodes structurally.
+- `firstFreePlaceholder(classes)` picks `0` / `null` / `false` per Design §3, answering `null` with
+  ok=false when none is free (the plain-object collapse). `mergedSlotPlaceholder(mp, ctx)` adds the
+  union rules: a sub-wrapped merged slot (`NeedsSubWrap`, >1 candidate) is an array on the wire → `0`.
 
 **Layout** (`union_flat_layout.go`)
 - `FlatLayout` (14-40): add `PositionalMerged bool`, set only by `buildCompactFlatLayout`.
 - `FlatMergedProp` (66-82): add `Placeholder string` (empty when `Required`).
-- `FlatPropCandidate` (84-92): add `RequiredSomewhere bool`; set `!prop.Optional` at :402, OR it in the
-  dedup branch at :425-431 (dedup keeps the first member's `Optional`).
-- Extract the bucketing at :124-148 into `classifyFlatMember(resolved, ctx)`, diagnostic-free, so the
-  layout and the predicates share one classifier.
+- `FlatPropCandidate.Optional` (84-92), read nowhere before: the dedup branch at :425-431 now ANDs it
+  across the members sharing the candidate, so `!Optional` means "some declarer requires it".
 - A union that falls back to the keyed form clears every `Placeholder`, so the keyed emit never reads one.
 
 **Compact layout + wrapper rule** (`union_flat_compact.go:76-82`, `buildCompactFlatLayout`)
 
     layout := buildFlatLayout(rt, ctx)
     layout.PositionalMerged = len(layout.ObjectMembers) > 0 && !layout.hasIndexSignatureMember(ctx)
-    if layout.PositionalMerged {
-        for i := range layout.MergedProps {
-            ph, ok := mergedSlotPlaceholder(layout.MergedProps[i], ctx)
-            if !ok { layout.PositionalMerged = false; break }
-            layout.MergedProps[i].Placeholder = ph
-        }
+    for i := 0; layout.PositionalMerged && i < len(layout.MergedProps); i++ {
+        layout.MergedProps[i].Placeholder, layout.PositionalMerged = mergedSlotPlaceholder(layout.MergedProps[i], ctx)
     }
     if layout.PositionalMerged {
-        layout.AtomicNeedsTuple = compactPositionalNeedsEnvelope(layout, ctx) // Design §2
+        layout.AtomicNeedsTuple = compactPositionalNeedsEnvelope(layout) // Design §2
     } else if !layout.AtomicNeedsTuple && compactUnionEnvelope(rt, ctx) {
         layout.AtomicNeedsTuple = true // today's rule
     }
 
 **Plain compact objects**
 - `json_compact.go`: `compactDeclaredSlot` (:151-158) gains `placeholder`, filled at :207-213; replace
-  `null` at :241 and :244 with it. Doc comments :15-16, :218-219.
+  `null` at :241 and :244 with it. A guarded (`nonEnumerable`) slot also writes it for an own-enumerable
+  `undefined`, which JSON would otherwise write as a present `null`. Doc comments :15-16, :218-219.
 - `json_compact_restore.go:191`: `if (v[i] === <placeholder>) {v[i] = undefined}`; the following
   `else if (!== undefined) {child}` is unchanged, so no constructor ever sees a placeholder. Doc :15.
 
-**Union encode** (`json_prepare_clone.go:704-753`, new helper `emitMergedObjectPositional` in new
-`union_flat_positional.go`): when `PositionalMerged`, build the object literal as an array, per prop:
+**Union encode** (`json_prepare_clone.go:704-753`, inline in the merged-prop loop): when
+`PositionalMerged`, build the object literal as an array, per prop:
 
-    case mp.Required:             slot = expr
-    case mp.HasStrippedCandidate: slot = "((" + present + " && (" + survivingGuard + ")) ? " + expr + " : " + mp.Placeholder + ")"
-    default:                      slot = "(" + present + " ? " + expr + " : " + mp.Placeholder + ")"
+    required: slot = expr
+    optional: slot = "(" + present + " ? " + expr + " : " + mp.Placeholder + ")"
 
-(`expr` from `emitMergedPropPrepareSafe`, keeps `[subIdx, v]`; `present` = `namedPropertyPresenceTest`.)
-Wrap at :748-751 unchanged. A sub-wrapped slot whose value matches no candidate cannot drop its key, so
-`emitMergedPropPrepareSafe` ends its dispatch arms with `return <Placeholder>` when the prop has one
-(empty on the keyed form, which keeps falling through to `undefined`).
+(`expr` from `emitMergedPropPrepareSafe`, keeps `[subIdx, v]`; `present` = `v.p !== undefined`, ANDed
+with own-enumerability for `constructor` and with the surviving-candidate guard for a stripped
+candidate.) Wrap at :748-751 unchanged and shared with the keyed branch. A sub-wrapped slot whose value
+matches no candidate cannot drop its key, so `emitMergedPropPrepareSafe` ends its dispatch arms with
+`return <Placeholder>` when the prop has one (empty on the keyed form, which keeps falling through to
+`undefined`).
 
 **Union decode**
-- `json_restore_clone.go:264-267`: `if layout.PositionalMerged { objectArm = emitMergedPropsPositionalRebuild }`.
 - `json_restore_clone.go:296` (bare path): guard `Array.isArray(v)` instead of `unknownKeysObjectGuard(v)`.
 - `union_flat.go:305-311` (wrapped path): `if (dec === -1) { if (Array.isArray(v)) {body} }`; anything
   else is left for validation.
-- New `emitMergedPropsPositionalRebuild` (`union_flat_positional.go`), mirroring `emitMergedPropsRebuild`
-  (`json_restore_clone.go:310-328`) by position:
+- `emitMergedPropsRebuild` (`json_restore_clone.go:310-328`) reads by position under `PositionalMerged`
+  (a mode flag inside the loop, not a second function):
 
       const r0 = {}; r0.type = v[0];
       if (v[1] !== undefined && v[1] !== 0) {<restore v[1]>; r0.lastFourDigits = v[1];}
@@ -148,20 +147,19 @@ Wrap at :748-751 unchanged. A sub-wrapped slot whose value matches no candidate 
       v = r0;
 
 **Noop predicates**
-- `noop_types.go:678-683` (`compactFromJsonNoopRecursive`): add `!compactUnionHasMergedMember(rt, ctx)`
-  as the first conjunct (already implied by `unionMemberHidesKey`; makes it explicit). The new helper
-  (`union_flat_compact.go`) asks `classifyFlatMember` of every surviving member through `anyUnionMember`.
+- `noop_types.go:678-683` (`compactFromJsonNoopRecursive`): unchanged. An object member already makes
+  `unionMemberHidesKey` true (`extraProofRecursive` has no object arm), so a union with a merged object
+  is never noop.
 - `compactUnionNeedsEnvelope` (`union_flat_compact.go:20-35`): unchanged, document that it only decides
-  unions with no positional branch. `compactPositionalNeedsEnvelope` also wraps when an always-scalar
-  member carries a user `compactForJson` override (it owns its wire shape). Encode predicate `isNoopForPrepareJsonSafe` (`noop_types.go:399-425`)
+  unions with no positional branch. Encode predicate `isNoopForPrepareJsonSafe` (`noop_types.go:399-425`)
   is false for every union: no change.
 
 **Size bound** (`ts-go-runtypes/internal/cachegen/jsonsize/jsonsize.go`)
-- The doc at :10-12 ("never larger than the keyed form") stops being true for unions. In `unionBytes`
-  (:423-441) take `max(largest, positionalBound)`, `positionalBound = 2 + Σ over merged props of
-  (max(valueBytes + subWrapBytes, placeholderBytes) + 1)`, shipped as `positionalMergedBytes`: the
-  sub-envelope is charged only to a name two or more object members declare, the placeholder is
-  `false` (5 bytes). Counterexample to pin:
+- The doc at :10-12 ("never larger than the keyed form") stops being true for unions. `unionBytes`
+  (:423-441) takes `max(largest, positionalBound)`, `positionalBound = 2 + Σ over merged props of
+  (max(valueBytes + subWrapBytes, placeholderBytes) + 1)`. Its member loop gathers each prop name's
+  widest value and declarer count; `positionalMergedBytes` sums them, charging the sub-envelope only to
+  a name two or more object members declare, the placeholder being `false` (5 bytes). Counterexample to pin:
   `{a: string(≤1000)} | {b1..b50: boolean}`. Plain objects stay safe (a slot ≤ 6 bytes ≤ `"k":v,`).
 
 **Untouched, confirmed**: `json_schema_doc.go:45`, `remove_unknown_keys.go:458/606`,
@@ -184,13 +182,14 @@ through `validateUnionKeys`. Run the `add-diagnostic` checklist (emit arms chang
 **Go** (`go -C ts-go-runtypes test ./internal/... ./cmd/...`)
 - New `compact_placeholder_test.go`: `TestCompactWireClasses_EveryKindHasARow` (copy
   `TestNonDataAgreement_EveryKindHasARow`, `nondata_agreement_test.go:107`; break a row, watch it fail),
-  plus rows: override, named class, numeric/mixed enum, `0` literal, bigint literal, union, `number|null`.
-- New `union_flat_positional_test.go`: PaymentMethod encode string; stripped candidate writes the
-  placeholder; sub-wrapped slot; `constructor` prop; index-signature union stays keyed.
-- `union_flat_compact_test.go`: :91-133 becomes `…NestedObjectUnionGoesPositional`; :248-273 asserts
-  `buildCompactFlatLayout(...).AtomicNeedsTuple` + `.PositionalMerged`; rows for objects-only, `{a}|null`
-  (no wrapper), `{a}|string[]` (wrapper), record carve-out, required `any` slot fallback. Keep :135-163,
-  :275-314.
+  plus rows: named class, numeric/mixed enum, `0` literal, bigint literal, union, `number|null`.
+- `union_flat_compact_test.go`: :91-133 becomes `…NestedObjectUnionGoesPositional`; :248-273 also
+  asserts `buildCompactFlatLayout(...).AtomicNeedsTuple` + `.PositionalMerged`. Keep :135-163, :275-314.
+  New in the same file: PaymentMethod encode + decode strings; stripped candidate writes the placeholder;
+  sub-wrapped slot; `constructor` prop; `{a}|string[]` wrapped decode; and
+  `TestBuildCompactFlatLayout_PositionalAndWrapper` rows for objects-only, `{a}|null` (no wrapper),
+  `{a}|string[]` and `{a}|undefined` (wrapper), record carve-out (stays keyed), required `unknown` slot
+  fallback.
 - `noop_types_test.go`, `internal/compiler/resolver/noop_predicate_test.go` (`noopCorpusSource`): the
   new union shapes. `jsonsize/jsonsize_test.go`: the counterexample bound.
 
@@ -227,7 +226,7 @@ through the fuzzy-testing skill, no new fuzzer:
   "Compact in Practice": replace the `null` bullet (a missing optional travels as the first of `0`,
   `null`, `false` its type cannot hold, so a present `null` survives; only `any`/`unknown`-like optionals
   still collapse) and add one bullet (unions of objects go positional too, one array covering every
-  member's props; a wrapper only when a member can be an array).
+  member's props; a wrapper only when another member is not a plain string, number, boolean or null).
 - `container/website/content/02.runtypes/02.guide/04.json-round-trip.md`, existing section
   "JSON Strategies": the same two facts in its compact bullets (:58-59).
 
@@ -251,7 +250,8 @@ compiled functions. Note "compact wire changed" in the release notes.
 
 - Compact writes a union's merged object as one positional array; `PaymentMethod[]` above is exactly
   the 164-byte string, and round-trips.
-- Wrapper only when a non-object member can be an array; `{a}|string[]` still decodes correctly.
+- Wrapper only when a non-object member is not always a plain JSON scalar (array, bigint, `undefined`,
+  any class, `any`/`unknown`); `{a}|string[]` still decodes correctly.
 - Every compact slot uses the first free placeholder of `0` / `null` / `false`; `s?: string | null`
   round-trips a present `null`.
 - The JSON size bound holds for compact unions (pinned counterexample).

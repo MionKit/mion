@@ -348,7 +348,7 @@ function walkRisk(shape: TypeShape, decls: Map<string, Decl>, seen: Set<string>)
     case 'tuple':
       return shape.elems.some((s) => walkRisk(s, decls, seen));
     case 'union':
-      return mergedSlotsRisk(shape.members, decls, seen) || shape.members.some((s) => walkRisk(s, decls, seen));
+      return mergedSlotsRisk(shape.members, decls, seen) || shape.members.some((member) => walkRisk(member, decls, seen));
     case 'intersection':
       return shape.members.some((s) => walkRisk(s, decls, seen));
     case 'object':
@@ -389,8 +389,11 @@ function mergedSlotsRisk(members: TypeShape[], decls: Map<string, Decl>, seen: S
   );
 }
 
+// TS flattens a nested union and the resolver an intersection, so their object members share the slots too.
 function objectProps(shape: TypeShape, decls: Map<string, Decl>, seen: Set<string>): PropShape[] {
   if (shape.kind === 'object') return shape.props;
+  if (shape.kind === 'union' || shape.kind === 'intersection')
+    return shape.members.flatMap((member) => objectProps(member, decls, seen));
   if (shape.kind !== 'ref' || seen.has(shape.name)) return [];
   const decl = decls.get(shape.name);
   if (!decl) return [];
@@ -418,7 +421,7 @@ function wireClasses(shape: TypeShape, decls: Map<string, Decl>, seen: Set<strin
     case 'intersection':
       return WIRE_ALL;
     case 'object':
-      return shape.props.length === 0 && !shape.index ? WIRE_ALL : 0; // `{}` admits any non-nullish value
+      return dataless(shape.props) && !shape.index ? WIRE_ALL : 0; // `{}` admits any non-nullish value
     case 'union':
       return shape.members.reduce((classes, member) => classes | wireClasses(member, decls, seen), 0);
     case 'ref': {
@@ -428,11 +431,16 @@ function wireClasses(shape: TypeShape, decls: Map<string, Decl>, seen: Set<strin
       if (decl.kind === 'type') return wireClasses(decl.shape, decls, new Set(seen).add(shape.name));
       if (decl.kind === 'class') return WIRE_ALL; // a registered class serializer may write anything
       if (decl.kind === 'enum') return WIRE_NUMBER;
-      return 0; // interface: a positional array
+      return dataless(decl.props) ? WIRE_ALL : 0; // interface: a positional array
     }
     default:
       return 0; // strings, bigint, Date / URL, arrays, tuples, records, Map / Set, non-data leaves
   }
+}
+
+// A shape with no data prop (none, or methods only) reads as `{}`.
+function dataless(props: PropShape[]): boolean {
+  return props.every((prop) => prop.method || prop.shape.kind === 'function');
 }
 
 // True when a value of `shape` can be exactly `null`.

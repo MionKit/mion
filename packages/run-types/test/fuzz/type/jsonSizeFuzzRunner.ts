@@ -256,7 +256,8 @@ async function runFloor(seed: number): Promise<StepResult> {
         lastError = compiled.resolverError;
         continue;
       }
-      if (compiled.evalError || compiled.errorDiagnostics.length || !compiled.wired.mock || !compiled.wired.jsonEncode) {
+      const {mock, jsonEncode, compactEncode} = compiled.wired;
+      if (compiled.evalError || compiled.errorDiagnostics.length || !mock || !jsonEncode || !compactEncode) {
         throw new Error(
           `json size fuzz floor did not compile cleanly (errs=${compiled.errorDiagnostics.length}, evalError=${compiled.evalError ?? 'none'})`
         );
@@ -271,7 +272,8 @@ async function runFloor(seed: number): Promise<StepResult> {
       out.checked = 1;
       out.valuesChecked = 1;
       // the negative control: the comparison must fire on a value over the bound
-      if (measure(compiled, bound, FLOOR_INFLATED, seed).length === 0) {
+      const fired = new Set(measure(compiled, bound, FLOOR_INFLATED, seed).map((violation) => violation.oracle));
+      if (!fired.has('JS-MAX-ENCODER') || !fired.has('JS-MAX-COMPACT')) {
         throw new Error(
           `json size fuzz floor: the inflated value (${utf8Bytes(JSON.stringify(FLOOR_INFLATED))} bytes) did not pass the bound ${bound}, the comparison lost its teeth`
         );

@@ -7,13 +7,8 @@ import (
 )
 
 // wireClassesOfRoot runs compactWireClasses over the last node of a fixture, the rest serving as its ref table.
-func wireClassesOfRoot(nodes []*reflection.RunType) wireClasses {
-	refTable := make(map[string]*reflection.RunType, len(nodes))
-	for _, node := range nodes {
-		refTable[node.ID] = node
-	}
-	ctx := &EmitContext{walker: &Walker{RefTable: refTable}}
-	return compactWireClasses(nodes[len(nodes)-1], ctx, make(map[string]struct{}))
+func wireClassesOfRoot(t *testing.T, nodes []*reflection.RunType) wireClasses {
+	return compactWireClasses(nodes[len(nodes)-1], layoutCtx(t, nodes), make(map[string]struct{}))
 }
 
 // wireNode builds a one-node fixture of kind, its Child (if any) pointing at a number.
@@ -110,16 +105,13 @@ func TestCompactWireClasses_EveryKindHasARow(t *testing.T) {
 			t.Errorf("kind %d has no row in wireClassByKind: say what its compact wire value can be", kind)
 			continue
 		}
-		if got := wireClassesOfRoot(row.build()); got != row.want {
+		if got := wireClassesOfRoot(t, row.build()); got != row.want {
 			t.Errorf("kind %d: compactWireClasses = %03b, want %03b", kind, got, row.want)
 		}
 	}
 }
 
 func TestCompactWireClasses_Rows(t *testing.T) {
-	overridden := func() []*reflection.RunType {
-		return []*reflection.RunType{{ID: "root", Kind: reflection.KindString, Overrides: map[string]string{"compactForJson": "h"}}}
-	}
 	emptyObject := func() []*reflection.RunType {
 		return []*reflection.RunType{{ID: "root", Kind: reflection.KindObjectLiteral}}
 	}
@@ -138,7 +130,6 @@ func TestCompactWireClasses_Rows(t *testing.T) {
 		return []*reflection.RunType{boolean, fn, {ID: "root", Kind: reflection.KindUnion, Children: members, SafeUnionChildren: members}}
 	}
 	rows := map[string]wireClassRow{
-		"user compactForJson override":   {overridden, wireAll},
 		"named user class (serializer)":  {classFixture(reflection.SubKindNone, "User"), wireAll},
 		"anonymous class (an array)":     {classFixture(reflection.SubKindNone, ""), 0},
 		"Map (an array of pairs)":        {classFixture(reflection.SubKindMap, ""), 0},
@@ -155,7 +146,7 @@ func TestCompactWireClasses_Rows(t *testing.T) {
 		"stripped union member is unset": {strippedMember, wireBoolean},
 	}
 	for name, row := range rows {
-		if got := wireClassesOfRoot(row.build()); got != row.want {
+		if got := wireClassesOfRoot(t, row.build()); got != row.want {
 			t.Errorf("%s: compactWireClasses = %03b, want %03b", name, got, row.want)
 		}
 	}
@@ -172,7 +163,7 @@ func TestFirstFreePlaceholder(t *testing.T) {
 		{wireNumber, "null", true},
 		{wireNumber | wireBoolean, "null", true},
 		{wireNumber | wireNull, "false", true},
-		{wireAll, "", false},
+		{wireAll, "null", false},
 	}
 	for _, row := range rows {
 		got, ok := firstFreePlaceholder(row.classes)
@@ -190,7 +181,7 @@ func TestMergedSlotPlaceholder(t *testing.T) {
 	}
 	ctx := &EmitContext{walker: &Walker{RefTable: refTable}}
 	cand := func(id string, requiredSomewhere bool) FlatPropCandidate {
-		return FlatPropCandidate{ChildRef: makeRef(id), Resolved: refTable[id], RequiredSomewhere: requiredSomewhere}
+		return FlatPropCandidate{ChildRef: makeRef(id), Resolved: refTable[id], Optional: !requiredSomewhere}
 	}
 	rows := map[string]struct {
 		mp   FlatMergedProp

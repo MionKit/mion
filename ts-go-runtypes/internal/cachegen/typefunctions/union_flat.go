@@ -14,7 +14,7 @@ import (
 // encode for a discriminated bag of N large classes; the `-1` sentinel skips dispatch on decode. When two
 // object members declare the same name with different child type IDs, that prop branches through a nested
 // `[subIdx, value]` inline-union. The compact strategy writes the merged object as a positional array instead
-// (union_flat_positional.go).
+// (buildCompactFlatLayout).
 
 // flatUnionEncodeErrorVar registers the canonical encode-error context item once per emit pass, shared
 // across all three emit families so the renderer collapses to a single declaration.

@@ -27,15 +27,15 @@ func compactWireClasses(rt *reflection.RunType, ctx *EmitContext, visited map[st
 	if rt == nil {
 		return 0
 	}
+	// Not data: never written.
+	if isStrippedUnionMember(rt, ctx) {
+		return 0
+	}
 	if rt.ID != "" {
 		if _, seen := visited[rt.ID]; seen {
 			return 0
 		}
 		visited[rt.ID] = struct{}{}
-	}
-	// A user compactForJson override owns the wire shape.
-	if overrideHashForTag(rt, "cj") != "" {
-		return wireAll
 	}
 	switch rt.Kind {
 	case reflection.KindNumber:
@@ -63,10 +63,6 @@ func compactWireClasses(rt *reflection.RunType, ctx *EmitContext, visited map[st
 		return wireClassesOfUnion(rt, ctx, visited)
 	case reflection.KindProperty, reflection.KindPropertySignature, reflection.KindTupleMember, reflection.KindRest:
 		return compactWireClasses(rt.Child, ctx, visited)
-	case reflection.KindNever, reflection.KindSymbol, reflection.KindRegexp, reflection.KindPromise,
-		reflection.KindFunction, reflection.KindMethod, reflection.KindMethodSignature, reflection.KindCallSignature:
-		// Not data: never written.
-		return 0
 	}
 	return wireAll
 }
@@ -103,7 +99,7 @@ func wireClassesOfEnum(rt *reflection.RunType) wireClasses {
 // wireClassesOfObjectLiteral: a declared shape travels as an array or a keyed object. `{}` admits any non-nullish
 // value, so it answers all three.
 func wireClassesOfObjectLiteral(rt *reflection.RunType, ctx *EmitContext) wireClasses {
-	for _, child := range rt.Children {
+	for _, child := range objectMembers(rt) {
 		if member := ctx.ResolveRef(child); member != nil && !member.IsStatic && !isMethodMember(member.Kind) {
 			return 0
 		}
@@ -120,24 +116,18 @@ func wireClassesOfClass(rt *reflection.RunType) wireClasses {
 	return 0
 }
 
-// wireClassesOfUnion ORs the surviving members: a member stripped by DataOnly is never written.
+// wireClassesOfUnion ORs the surviving members.
 func wireClassesOfUnion(rt *reflection.RunType, ctx *EmitContext, visited map[string]struct{}) wireClasses {
-	children := rt.SafeUnionChildren
-	if len(children) == 0 {
-		children = rt.Children
-	}
 	var classes wireClasses
-	for _, ref := range children {
-		resolved := ctx.ResolveRef(ref)
-		if resolved == nil || isStrippedUnionMember(resolved, ctx) {
-			continue
-		}
-		classes |= compactWireClasses(resolved, ctx, visited)
-	}
+	anyUnionMember(rt, ctx, func(member *reflection.RunType, ctx *EmitContext) bool {
+		classes |= compactWireClasses(member, ctx, visited)
+		return false
+	})
 	return classes
 }
 
-// firstFreePlaceholder picks the first of `0`, `null`, `false` outside classes.
+// firstFreePlaceholder picks the first of `0`, `null`, `false` outside classes. With none free it answers `null`
+// and ok=false: a present `null` then reads as absent, the documented collapse of an `any` / `unknown` optional.
 func firstFreePlaceholder(classes wireClasses) (string, bool) {
 	switch {
 	case classes&wireNumber == 0:
@@ -147,16 +137,7 @@ func firstFreePlaceholder(classes wireClasses) (string, bool) {
 	case classes&wireBoolean == 0:
 		return "false", true
 	}
-	return "", false
-}
-
-// compactSlotPlaceholder is a plain compact object slot's placeholder. With no free value it falls back to `null`:
-// a present `null` then reads as absent, the documented collapse of an `any` / `unknown` optional.
-func compactSlotPlaceholder(childRef *reflection.RunType, ctx *EmitContext) string {
-	if placeholder, ok := firstFreePlaceholder(compactWireClasses(childRef, ctx, make(map[string]struct{}))); ok {
-		return placeholder
-	}
-	return "null"
+	return "null", false
 }
 
 // mergedSlotPlaceholder is a positional merged union slot's placeholder, empty for a Required slot.
@@ -174,13 +155,14 @@ func mergedSlotPlaceholder(mp FlatMergedProp, ctx *EmitContext) (string, bool) {
 	for _, cand := range mp.Candidates {
 		classes |= compactWireClasses(cand.ChildRef, ctx, make(map[string]struct{}))
 	}
-	if placeholder, ok := firstFreePlaceholder(classes); ok {
+	placeholder, ok := firstFreePlaceholder(classes)
+	if ok {
 		return placeholder, true
 	}
 	for _, cand := range mp.Candidates {
-		if cand.RequiredSomewhere && compactWireClasses(cand.ChildRef, ctx, make(map[string]struct{}))&wireNull != 0 {
+		if !cand.Optional && compactWireClasses(cand.ChildRef, ctx, make(map[string]struct{}))&wireNull != 0 {
 			return "", false
 		}
 	}
-	return "null", true
+	return placeholder, true
 }

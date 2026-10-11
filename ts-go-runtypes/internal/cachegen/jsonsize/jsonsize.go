@@ -427,34 +427,24 @@ func (w *walker) unionBytes(rt *reflection.RunType, path string, depth int) Resu
 	}
 	mergeable := w.mergeableMembers(rt)
 	largest := 0
-	for i, member := range rt.Children {
-		result := w.walk(member, path+"|"+strconv.Itoa(i), depth+1)
-		if !result.Bounded {
-			return result
-		}
-		size := result.Bytes
-		if mergeable > 1 {
-			size += w.mergedPropCount(w.deref(member)) * subEnvelopeBytes(mergeable)
-		}
-		largest = max(largest, size)
-	}
-	positional := w.positionalMergedBytes(rt, path, depth)
-	return bounded(max(largest, positional) + unionEnvelopeBytes(len(rt.Children)))
-}
-
-// positionalMergedBytes bounds the compact merged object: `[` `]` plus, per prop name across the object
-// members, the larger of its widest value and the widest placeholder (`false`), plus a comma. A name two
-// members declare may ride the `[<candidateIndex>,value]` sub-envelope. Called once every member is bounded,
-// so each value walk is a memoized hit.
-func (w *walker) positionalMergedBytes(rt *reflection.RunType, path string, depth int) int {
+	// The compact merged object: per prop name across the object members, its widest value and how many declare it.
 	widest := map[string]int{}
 	declarers := map[string]int{}
 	for i, child := range rt.Children {
+		memberPath := path + "|" + strconv.Itoa(i)
+		result := w.walk(child, memberPath, depth+1)
+		if !result.Bounded {
+			return result
+		}
 		member := w.deref(child)
-		if member == nil || member.Kind != reflection.KindObjectLiteral {
+		size := result.Bytes
+		if mergeable > 1 {
+			size += w.mergedPropCount(member) * subEnvelopeBytes(mergeable)
+		}
+		largest = max(largest, size)
+		if member == nil || !isMergeableKind(member.Kind) {
 			continue
 		}
-		memberPath := path + "|" + strconv.Itoa(i)
 		for _, propRef := range member.Children {
 			prop := w.deref(propRef)
 			if prop == nil || prop.IsStatic || prop.Child == nil {
@@ -463,11 +453,19 @@ func (w *walker) positionalMergedBytes(rt *reflection.RunType, path string, dept
 			if prop.Kind != reflection.KindProperty && prop.Kind != reflection.KindPropertySignature {
 				continue
 			}
+			// a memoized hit: the member walk above sized it
 			value := w.walk(propRef, memberPath+"."+prop.Name, depth+1)
 			widest[prop.Name] = max(widest[prop.Name], value.Bytes)
 			declarers[prop.Name]++
 		}
 	}
+	return bounded(max(largest, positionalMergedBytes(widest, declarers)) + unionEnvelopeBytes(len(rt.Children)))
+}
+
+// positionalMergedBytes bounds the compact merged object: `[` `]` plus, per prop name, the larger of its widest
+// value and the widest placeholder (`false`), plus a comma. A name two members declare may ride the
+// `[<candidateIndex>,value]` sub-envelope.
+func positionalMergedBytes(widest, declarers map[string]int) int {
 	if len(widest) == 0 {
 		return 0
 	}

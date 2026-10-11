@@ -577,8 +577,8 @@ func isNoopForValidationErrors(rt *reflection.RunType, ctx *EmitContext) bool {
 /** isNoopForCompactFromJson reports whether the cjr entry for rt is the
  *  identity. **/
 // Mirrors CompactFromJsonEmitter.Emit, which reuses restoreFromJsonMutate's arms EXCEPT at object positions,
-// where the positional-to-keyed rebuild is real work for every object shape rj would let round-trip raw. A union
-// with a merged object member rebuilds it from positions; any other union delegates to the shared restore-side rule.
+// where the positional-to-keyed rebuild is real work for every object shape rj would let round-trip raw. The
+// union arm IS emitUnionRestoreFromJsonFlat, so its noop condition delegates to the shared restore-side rule.
 func isNoopForCompactFromJson(rt *reflection.RunType, ctx *EmitContext) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
@@ -676,11 +676,11 @@ func compactFromJsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 		return compactFromJsonNoopRecursive(rt.Child, ctx, visited)
 
 	case reflection.KindUnion:
-		// The compact union arm is the SAFE restore over the compact layout: no merged object (always a positional
-		// rebuild), the shared flat-union rule
+		// The compact union arm is the SAFE restore over the compact layout: the shared flat-union rule
 		// (roundTripsRaw ⇒ identity), no member positionalizes (union_flat_compact.go), AND no member can hide
-		// an undeclared key, the safe restore rebuilding each object from its declared shape.
-		return !compactUnionHasMergedMember(rt, ctx) && unionJsonNoop(rt, ctx) && !compactUnionNeedsEnvelope(rt, ctx, visited) &&
+		// an undeclared key, the safe restore rebuilding each object from its declared shape (an object member, which
+		// compact always rebuilds from positions, hides one).
+		return unionJsonNoop(rt, ctx) && !compactUnionNeedsEnvelope(rt, ctx, visited) &&
 			!anyUnionMember(rt, ctx, unionMemberHidesKey)
 	}
 	// undefined / void (force-rebind), bigint / symbol / regexp (value transforms), never / promise / function

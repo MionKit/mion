@@ -89,13 +89,7 @@ describe('JSON restore arms rebuild only from the wire form', () => {
     const optionalDate = createJsonDecoderFn<{when?: Date}>(undefined, {strategy: 'compact'});
     const validateOptionalDate = createValidateFn<{when?: Date}>();
     expect(optionalDate('[0]')).toEqual({});
-    let value: unknown = {when: new Date(0)};
-    try {
-      value = optionalDate('[null]');
-    } catch {
-      value = undefined;
-    }
-    if (value !== undefined) expect(validateOptionalDate(value)).toBe(false);
+    expect(validateOptionalDate(optionalDate('[null]'))).toBe(false);
 
     const requiredString = createJsonDecoderFn<{s: string}>(undefined, {strategy: 'compact'});
     expect(createValidateFn<{s: string}>()(requiredString('[0]'))).toBe(false);
