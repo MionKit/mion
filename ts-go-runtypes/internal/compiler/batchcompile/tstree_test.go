@@ -72,8 +72,8 @@ func TestCompile_TsModeNeedsAnOutDir(t *testing.T) {
 	}
 }
 
-// TestCompile_TsModeRefusesAnOutDirThatIsTheSourceRoot: found by review, outDir == rootDir overwrote each source with
-// its rewritten text (a `files` list escapes tsc's outDir exclude). The refusal comes before generate, so a refused run writes no cache either.
+// TestCompile_TsModeRefusesAnOutDirThatIsTheSourceRoot: found by review, outDir == rootDir overwrote each source
+// (a `files` list escapes tsc's outDir exclude). The refusal comes before generate, so a refused run writes no cache.
 func TestCompile_TsModeRefusesAnOutDirThatIsTheSourceRoot(t *testing.T) {
 	tmp := t.TempDir()
 	writeFile(t, filepath.Join(tmp, "tsconfig.json"), strings.NewReplacer(`"outDir": "dist",`, `"outDir": "src",`,

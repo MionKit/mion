@@ -61,8 +61,7 @@ func Function(code string) string {
 	return text[1 : len(text)-1]
 }
 
-// annotate is the one switch over binding kinds: a parameter or variable gets its type and `_` prefix, every other
-// declaration needs nothing (a binding element shares its pattern's annotation, a named function or class is typed).
+// annotate skips other kinds: a binding element shares its pattern's annotation, a named function or class is typed.
 func annotate(text string, node *ast.Node) []insertion {
 	switch node.Kind {
 	case ast.KindParameter:
@@ -80,8 +79,7 @@ func annotate(text string, node *ast.Node) []insertion {
 	return nil
 }
 
-// parameterInsertions types an unannotated parameter `any` and prefixes an unused one with `_`. The JS no longer says
-// which parameters were optional, so one without a default, rest or binding pattern turns optional.
+// parameterInsertions makes a plain parameter optional: the JS no longer says which parameters were.
 func parameterInsertions(text string, node *ast.Node) []insertion {
 	param := node.AsParameterDeclaration()
 	name := param.Name()
@@ -124,8 +122,7 @@ func unusedLoopVariable(node *ast.Node) bool {
 	return !reads(loop.AsForInOrOfStatement().Statement, name.Text())
 }
 
-// usedIn reports name read in fn's body or in another parameter's default (`(a, b = a) => b` reads a), as an
-// identifier that is not a property name.
+// usedIn reports name read in fn's body or in another parameter's default: `(a, b = a) => b` reads a.
 func usedIn(text string, fn *ast.Node, name string) bool {
 	body := fn.Body()
 	if body == nil {

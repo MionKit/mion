@@ -779,8 +779,7 @@ func renderTypeDecl(entry *Entry) string {
 	return body.String()
 }
 
-// headHole is an absent tuple-head slot: a JS array hole, or `undefined` in emitMode ts, where a hole before a
-// required tuple element widens every later element by `| undefined` under exactOptionalPropertyTypes.
+// headHole: a hole before a required element widens later ones by `| undefined` under exactOptionalPropertyTypes.
 func headHole(typed bool) string {
 	if typed {
 		return "undefined"
@@ -796,7 +795,6 @@ func headSlot(text string, typed bool) string {
 	return text
 }
 
-// ambientLines declares each name `unknown` once, sorted.
 func ambientLines(names []string) []string {
 	sorted := slices.Clone(names)
 	sort.Strings(sorted)

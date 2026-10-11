@@ -7,9 +7,8 @@ const HERE = fileURLToPath(new URL('.', import.meta.url));
 const PACKAGE_ROOT = resolve(HERE);
 const REPO_ROOT = resolve(HERE, '../..');
 
-// The feature suite again, with every cache module written as typed `.ts` (emitMode 'ts') and compiled by Vite, so
-// a typed factory that diverges from what the `runtypes` project runs fails the same assertion. Its own genDir:
-// the two projects run side by side and each prunes the other's modules.
+// The feature suite over typed `.ts` modules, so a typed factory diverging from the `runtypes` project fails there too.
+// Own genDir: the two projects run side by side and each prunes the other's modules.
 export default defineConfig({
   resolve: {conditions: ['source']},
   ssr: {resolve: {conditions: ['source']}},

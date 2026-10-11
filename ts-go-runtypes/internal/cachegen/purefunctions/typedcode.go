@@ -5,8 +5,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 )
 
-// createPureFnTS is createPureFnJS for emitMode ts. It types the shipped JS rather than keeping the author's
-// annotations, which name the author's own types and would need imports from user modules.
+// createPureFnTS types the shipped JS: the author's annotations name their own types, which need user-module imports.
 func createPureFnTS(code string, paramNames []string) string {
 	return tsannotate.Function(createPureFnJS(code, paramNames))
 }

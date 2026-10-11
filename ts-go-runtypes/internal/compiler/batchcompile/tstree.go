@@ -16,8 +16,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
-// typeScriptTreeDirs resolves where emitMode ts writes (the tsconfig outDir) and the root it mirrors there. It refuses
-// before anything is generated when there is no outDir, or when outDir is that root: each source would overwrite itself.
+// typeScriptTreeDirs resolves emitMode ts's outDir and the root it mirrors, refusing before anything is generated.
 func typeScriptTreeDirs(p1 *program.Program, cwd string) (outDir, srcDir string, err error) {
 	options := p1.TS.Options()
 	if options.OutDir == "" {
@@ -36,9 +35,7 @@ func typeScriptTreeDirs(p1 *program.Program, cwd string) (outDir, srcDir string,
 	return outDir, srcDir, nil
 }
 
-// writeTypeScriptTree is the emitMode ts output: the program's own sources, call sites rewritten, laid out under
-// outDir as TypeScript, importing the typed cache modules. A TypeScript-to-native compiler has no plugin hook, so
-// the rewrite has to land on disk before it runs; nothing is emitted as JavaScript.
+// writeTypeScriptTree lands the rewritten sources on disk as TypeScript: a TS-to-native compiler has no plugin hook.
 func writeTypeScriptTree(result *Result, p1 *program.Program, cwd, genDir, outDir, srcDir string, rewrittenByAbs map[string]string,
 	mode constants.EmitMode, pureFnArtifact map[string]string) (*Result, error) {
 	written := make([]string, 0)

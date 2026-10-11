@@ -159,8 +159,7 @@ func innerResult(tag, typeID string) string {
 	return withType(sig.result, typeID)
 }
 
-// closureTypes is the factory's typed `utl` parameter, return type and inner-fn cast for family tag over typeID, every
-// part a tsMark span and all empty unless typed.
+// closureTypes is the factory's typed `utl` parameter, return type and inner-fn cast for family tag over typeID.
 func closureTypes(typed bool, tag, typeID string) ClosureTypes {
 	types := ClosureTypes{Utl: tsAnnIf(typed, ": RTUtils")}
 	if fnType := FnType(tag, typeID); fnType != "" {

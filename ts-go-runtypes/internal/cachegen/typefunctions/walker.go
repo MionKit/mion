@@ -66,9 +66,7 @@ func (o *orderedItems) ordered() []string {
 	return out
 }
 
-// liveIn keeps, in insertion order, the declarations body reaches, directly or through another kept one. An emitter
-// may register a lookup or helper its final body never reads (a branch the type made constant); shipping it would
-// cost bytes and fail noUnusedLocals in emitMode ts. A declaration naming nothing it binds is always kept.
+// liveIn keeps only declarations body reaches, directly or via a kept one: the rest cost bytes and fail noUnusedLocals.
 func (o *orderedItems) liveIn(body string) []string {
 	items := o.ordered()
 	live := make([]bool, len(items))
