@@ -745,14 +745,18 @@ h2[data-slot='title'],
   }
 }
 
-/* Home "Formats baked into your types": three columns: the pitch (card with a
-   Temporal tile pinned to its bottom), the type-first example, the builder
-   example. Equal height; code panels flex-fill. */
+/* Home "Formats baked into your types": the pitch (card with a Temporal tile at
+   its bottom) full width, then the type-first and builder examples side by side.
+   The two examples share a height; code panels flex-fill. */
 .rt-formats-cols {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 1rem;
   align-items: stretch;
+}
+
+.rt-formats-cols > .rt-feature-card {
+  grid-column: 1 / -1;
 }
 
 .rt-formats-cols > * {
