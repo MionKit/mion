@@ -13,32 +13,29 @@ import {PAGE_WIDTH, keptCards, resolveCardPath} from './card.ts';
 import {closeRenderer, renderFragment} from './render.ts';
 import {createCardServer} from './server.ts';
 
-export const SHOT_USAGE = 'usage: miondevx card shot <name|path…> | --all  [--out <dir>] [--browser <path>]';
+export const SHOT_USAGE = 'usage: miondevx card shot <name|path…> | --all  [--out <dir>]';
 export const ZOOM = 2;
 
-export type ShotArgs = {all: boolean; out?: string; browser?: string; cards: string[]};
+export type ShotArgs = {all: boolean; out?: string; cards: string[]};
 export type ShotTarget = {url: string; outPath: string};
 
 export function parseShotArgs(argv: string[]): ShotArgs {
   const {values, positionals} = parseArgs({
     args: argv,
     allowPositionals: true,
-    options: {all: {type: 'boolean'}, out: {type: 'string'}, browser: {type: 'string'}},
+    options: {all: {type: 'boolean'}, out: {type: 'string'}},
   });
   if (values.all && positionals.length) throw new Error(`pass card names or --all, not both. ${SHOT_USAGE}`);
   if (!values.all && !positionals.length) throw new Error(SHOT_USAGE);
-  return {all: Boolean(values.all), out: values.out, browser: values.browser ?? defaultBrowser(), cards: positionals};
+  return {all: Boolean(values.all), out: values.out, cards: positionals};
 }
 
-/** MION_CARD_BROWSER, for hosts where Playwright's own Chromium is not installed. */
-export const defaultBrowser = () => process.env.MION_CARD_BROWSER || undefined;
-
 // The sandbox is off because the pages are our own cards and some hosts (containers, CI) cannot run it.
-export function cliConfig(browser?: string) {
+export function cliConfig() {
   return {
     browser: {
       browserName: 'chromium',
-      launchOptions: {headless: true, chromiumSandbox: false, ...(browser ? {executablePath: browser} : {})},
+      launchOptions: {headless: true, chromiumSandbox: false},
       contextOptions: {viewport: {width: PAGE_WIDTH * ZOOM, height: 800 * ZOOM}},
     },
   };
@@ -72,10 +69,10 @@ function runCli(session: string, cwd: string, args: string[]): Promise<{status: 
 type Cli = (...args: string[]) => Promise<string>;
 
 /** The CLI reports some failures only in its output, not in its exit code. */
-export async function withBrowser<T>(url: string, browser: string | undefined, work: (cli: Cli) => Promise<T>): Promise<T> {
+export async function withBrowser<T>(url: string, work: (cli: Cli) => Promise<T>): Promise<T> {
   const workDir = mkdtempSync(join(tmpdir(), 'code-card-'));
   const configPath = join(workDir, 'cli.config.json');
-  writeFileSync(configPath, JSON.stringify(cliConfig(browser)));
+  writeFileSync(configPath, JSON.stringify(cliConfig()));
   const session = `code-card-${process.pid}-${++sessionCount}`;
   const cli: Cli = async (...args) => {
     const {status, output} = await runCli(session, workDir, args);
@@ -85,7 +82,7 @@ export async function withBrowser<T>(url: string, browser: string | undefined, w
   try {
     await cli('open', url, '--config', configPath).catch((err: Error) => {
       throw new Error(
-        `${err.message}\nfix: pass --browser <path to chrome>, or run \`pnpm exec playwright-cli install-browser chromium\``
+        `${err.message}\nfix: run \`node scripts/lib/playwright-chromium.mjs\` (the setup step that installs Playwright's Chromium)`
       );
     });
     return await work(cli);
@@ -102,8 +99,8 @@ export const evalJson = async (cli: Cli, func: string): Promise<unknown> => {
   return typeof value === 'string' ? JSON.parse(value) : value;
 };
 
-export async function shootUrls(targets: ShotTarget[], {browser}: {browser?: string} = {}): Promise<void> {
-  await withBrowser(targets[0].url, browser, async (cli) => {
+export async function shootUrls(targets: ShotTarget[]): Promise<void> {
+  await withBrowser(targets[0].url, async (cli) => {
     for (const [i, target] of targets.entries()) {
       if (i > 0) await cli('goto', target.url);
       mkdirSync(dirname(target.outPath), {recursive: true});
@@ -134,7 +131,7 @@ export async function main(argv: string[]): Promise<void> {
       url: `${base}/card/card-${i}?zoom=${ZOOM}&shot`,
       outPath: join(options.out ? resolve(options.out) : dirname(path), `${basename(path, '.vue')}.png`),
     }));
-    await shootUrls(targets, {browser: options.browser});
+    await shootUrls(targets);
     for (const target of targets) console.log(target.outPath);
   } finally {
     await new Promise<void>((done) => server.close(() => done()));

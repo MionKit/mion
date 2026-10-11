@@ -31,8 +31,5 @@ browser starts, naming the component.
 
 ## If Chromium will not start
 
-The error says what is missing. Either:
-
-- Install Playwright's browser once: `pnpm exec playwright-cli install-browser chromium`.
-- Or point at an existing Chromium: `--browser <path>`, or `MION_CARD_BROWSER=<path>` for every command and the
-  tests (Claude cloud session: `/opt/pw-browsers/chromium`).
+Both setups install Playwright's Chromium. Missing on this host (the startup check says MISSING) → install it:
+`node scripts/lib/playwright-chromium.mjs`.

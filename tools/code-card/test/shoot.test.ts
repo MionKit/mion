@@ -1,28 +1,17 @@
-import {afterEach, describe, expect, it, vi} from 'vitest';
+import {describe, expect, it} from 'vitest';
 import {existsSync} from 'node:fs';
 import {ZOOM, cliConfig, cliFailure, cliScript, parseShotArgs} from '../src/shoot.ts';
 
 describe('code card: shot', () => {
-  afterEach(() => vi.unstubAllEnvs());
-
-  it('names or --all, plus --out and --browser', () => {
-    vi.stubEnv('MION_CARD_BROWSER', '');
-    expect(parseShotArgs(['a', 'b', '--out', 'dir', '--browser=/bin/chrome'])).toEqual({
-      all: false,
-      out: 'dir',
-      browser: '/bin/chrome',
-      cards: ['a', 'b'],
-    });
+  it('names or --all, plus --out', () => {
+    expect(parseShotArgs(['a', 'b', '--out', 'dir'])).toEqual({all: false, out: 'dir', cards: ['a', 'b']});
     expect(parseShotArgs(['--all'])).toMatchObject({all: true, cards: []});
     expect(() => parseShotArgs([])).toThrow('usage: miondevx card shot');
     expect(() => parseShotArgs(['a', '--all'])).toThrow('not both');
     expect(() => parseShotArgs(['a', '--nope'])).toThrow(/Unknown option/);
-    vi.stubEnv('MION_CARD_BROWSER', '/opt/chrome');
-    expect(parseShotArgs(['a']).browser).toBe('/opt/chrome');
-    expect(parseShotArgs(['a', '--browser', '/bin/chrome']).browser).toBe('/bin/chrome');
   });
 
-  it('asks playwright-cli for a sandbox-free chromium with a 2x viewport, and the given browser', () => {
+  it('asks playwright-cli for a sandbox-free chromium with a 2x viewport', () => {
     expect(ZOOM).toBe(2);
     expect(cliConfig()).toEqual({
       browser: {
@@ -30,11 +19,6 @@ describe('code card: shot', () => {
         launchOptions: {headless: true, chromiumSandbox: false},
         contextOptions: {viewport: {width: 2400, height: 1600}},
       },
-    });
-    expect(cliConfig('/bin/chrome').browser.launchOptions).toEqual({
-      headless: true,
-      chromiumSandbox: false,
-      executablePath: '/bin/chrome',
     });
   });
 

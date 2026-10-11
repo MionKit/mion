@@ -1,4 +1,4 @@
-// In Chromium (Playwright's or MION_CARD_BROWSER): layout checks fail a bad card; the animation ends on the PNG layout.
+// In Playwright's Chromium: layout checks fail a bad card; the animation ends on the PNG layout.
 import {existsSync, mkdirSync, rmSync, writeFileSync} from 'node:fs';
 import type {AddressInfo} from 'node:net';
 import {join} from 'node:path';
@@ -6,7 +6,7 @@ import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import {CARDS_DIR, TMP_DIR} from '../src/card.ts';
 import {closeRenderer} from '../src/render.ts';
 import {createCardServer} from '../src/server.ts';
-import {defaultBrowser, evalJson, main as shot, withBrowser} from '../src/shoot.ts';
+import {evalJson, main as shot, withBrowser} from '../src/shoot.ts';
 
 const DIR = join(TMP_DIR, 'browser-test');
 const card = (name: string, title: string, body: string) =>
@@ -36,7 +36,7 @@ afterAll(async () => {
   rmSync(DIR, {recursive: true, force: true});
 });
 
-const checksOf = (name: string) => withBrowser(`${base}/card/${name}?shot`, defaultBrowser(), (cli) => evalJson(cli, '() => window.cardChecks'));
+const checksOf = (name: string) => withBrowser(`${base}/card/${name}?shot`, (cli) => evalJson(cli, '() => window.cardChecks'));
 
 describe('code card in Chromium', {timeout: 60_000}, () => {
   it('both real cards pass their layout checks and become PNGs', async () => {
@@ -58,7 +58,7 @@ describe('code card in Chromium', {timeout: 60_000}, () => {
 
   it('armed, the bars wait at zero; played, the card ends on its final layout', async () => {
     const widths = `() => [...document.querySelectorAll('.cc-track .cc-after')].map((bar) => Math.round(bar.getBoundingClientRect().width))`;
-    const result = await withBrowser(`${base}/card/drizzle?shot`, defaultBrowser(), (cli) =>
+    const result = await withBrowser(`${base}/card/drizzle?shot`, (cli) =>
       evalJson(
         cli,
         `async () => {

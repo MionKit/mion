@@ -55,3 +55,17 @@ this change touched, review its report against the code, and commit it as its ow
 - `MION_CARD_BROWSER` leaves no trace (grep is empty outside git history and `docs/done/`).
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file,
   each committed on its own.
+
+## Plan: install everywhere (approved 2026-10-11)
+
+- One zero-dep helper `scripts/lib/playwright-chromium.mjs`: asks the repo's own `playwright-cli install-browser
+  chromium --dry-run` where the browsers go (honors `PLAYWRIGHT_BROWSERS_PATH` as-is), checks each dir for
+  Playwright's `INSTALLATION_COMPLETE` marker. `--check` reports OK / MISSING; no flag installs only when missing,
+  with `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD` dropped for that one child. A failed download fails the setup.
+- Called by `scripts/setup-claude-web.sh` (new step, egress list gains `cdn.playwright.dev` and
+  `playwright.download.prss.microsoft.com`, `SETUP_DATE` bumped) and by the local mion-setup skill (also the
+  Codex cloud setup), so every host matches.
+- Both startup hooks (Claude web, Codex) list Playwright Chromium.
+- `MION_CARD_BROWSER` and the `--browser` flag of `card shot` / `card serve` are removed: every tool uses
+  Playwright's own Chromium.
+- No new test file: the user checks the install by hand on Claude web. Card tests drop the removed cases.

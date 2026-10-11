@@ -1,4 +1,4 @@
-# lib/project.sh: workspace install, git hooks, Go binary + devtools builds. Sourced by setup.sh, never executed.
+# lib/project.sh: workspace install, git hooks, Go binary + devtools builds, Playwright Chromium. Sourced by setup.sh, never executed.
 
 install_workspace_deps() {
   command -v pnpm >/dev/null 2>&1 || { warn "pnpm missing - cannot install deps"; return 0; }
@@ -68,4 +68,15 @@ build_vite_plugin() {
   ( cd "$REPO_DIR" && pnpm --filter @mionjs/devtools run build ) \
     || { err "@mionjs/devtools build failed"; FAILED=1; return 1; }
   ok "@mionjs/devtools dist built"
+}
+
+# The Chromium the root @playwright/cli pin wants: card shots, card tests and playwright-cli need it.
+install_playwright_chromium() {
+  command -v node >/dev/null 2>&1 || { warn "node missing - skipping Playwright Chromium"; return 0; }
+  if [ "$CHECK_ONLY" = 1 ]; then
+    ( cd "$REPO_DIR" && node scripts/lib/playwright-chromium.mjs --check ) || warn "re-run without --check to install"
+    return 0
+  fi
+  ( cd "$REPO_DIR" && node scripts/lib/playwright-chromium.mjs ) \
+    || { err "Playwright Chromium install failed"; FAILED=1; return 1; }
 }
