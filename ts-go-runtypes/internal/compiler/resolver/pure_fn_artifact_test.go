@@ -264,3 +264,27 @@ func TestGenerate_TypesDirShipsUnderNpmPack(t *testing.T) {
 		}
 	}
 }
+
+// TestPureFnArtifact_TsModeShipsTheBothArtifact: found by review, emitMode ts wrote typed pure-fn text into the
+// artifact's `.js` files. The artifact is JS in every mode, so ts ships exactly what both ships.
+func TestPureFnArtifact_TsModeShipsTheBothArtifact(t *testing.T) {
+	artifact := func(mode constants.EmitMode) map[string]string {
+		sources := map[string]string{"package.json": `{"name":"@acme/app"}`, "src/text.ts": artifactSources}
+		r := setupInlineWith(t, sources, func(programOpts *program.Options, resolverOpts *resolver.Options) {
+			programOpts.SingleThreaded = true
+			resolverOpts.SingleThreaded = true
+			resolverOpts.GenDir = t.TempDir()
+			resolverOpts.TransformRelative = true
+			resolverOpts.EmitMode = mode
+		})
+		gen := r.Dispatch(protocol.Request{Op: protocol.OpGenerate})
+		if gen.Error != "" {
+			t.Fatalf("generate (%s): %s", mode, gen.Error)
+		}
+		return gen.PureFnArtifact
+	}
+	both, typed := artifact(constants.EmitBoth), artifact(constants.EmitTS)
+	if len(both) < 3 || !reflect.DeepEqual(typed, both) {
+		t.Errorf("emitMode ts artifact differs from both:\n ts:   %q\n both: %q", typed, both)
+	}
+}

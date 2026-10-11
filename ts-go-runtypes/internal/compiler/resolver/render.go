@@ -331,6 +331,15 @@ func (sess *Session) renderPureFnArtifact(graph entrymodules.Graph, metrics *pro
 			slice.Add(entry)
 		}
 	}
+	// The artifact is JS whatever the session writes: in emitMode ts it ships the `both` twin of each typed module.
+	if sess.opts.EmitMode.EmitsTypes() {
+		js := purefunctions.CollectEntries(append(entries, sess.overrideEntries...), constants.EmitBoth)
+		for key, entry := range slice {
+			if twin := js[key]; entry.Kind == entrymodules.KindPureFn && twin != nil {
+				slice[key] = twin
+			}
+		}
+	}
 	modules, err := entrymodules.RenderGrouped(slice, nil, false)
 	if err != nil {
 		return nil, err

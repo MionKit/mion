@@ -7,7 +7,7 @@ import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {hasBinary} from './helpers/inline.ts';
 import {runCli} from './helpers/cliCrash.ts';
-import {stripParityViolation, strictestTypeCheck, typeModuleViolation} from './helpers/typedEmit.ts';
+import {stripParityViolation, stripTypeScript, strictestTypeCheck, typeModuleViolation} from './helpers/typedEmit.ts';
 
 const register = hasBinary() ? it : it.skip;
 
@@ -159,6 +159,13 @@ describe('mion compile --emit-mode ts', () => {
         // A TypeScript tree, no JavaScript beside the pure-fn artifact other builds read as data.
         expect(filesUnder(path.join(project, 'dist'), '.js').filter((name) => !name.startsWith('mion-pure-fns/'))).toEqual([]);
         expect(filesUnder(path.join(project, 'dist'), '.ts')).toEqual(['main.ts', 'models.ts']);
+        // The pure-fn artifact other builds read stays plain JS: stripping types changes nothing.
+        const pureFnFiles = filesUnder(path.join(project, 'dist', 'mion-pure-fns'), '.js');
+        expect(pureFnFiles.length).toBeGreaterThan(0);
+        for (const name of pureFnFiles) {
+          const text = fs.readFileSync(path.join(project, 'dist', 'mion-pure-fns', name), 'utf8');
+          expect(stripTypeScript(text), name).toBe(text);
+        }
         const typesDir = path.join(project, '.mion', 'types');
         expect(filesUnder(typesDir, '.js')).toEqual([]);
         expect(filesUnder(typesDir, '.ts').some((name) => name.startsWith('t/'))).toBe(true);
