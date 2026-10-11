@@ -44,6 +44,7 @@ on:
           - nondata
           - roundtrip
           - jsonsize
+          - typedemit
           - cloning
           - elision
           - secjson

@@ -151,11 +151,21 @@ export interface CompiledType {
   siteLines: Partial<Record<keyof WiredFns, number>>;
   /** The reflection ids of `getRunTypeId<T>()` and `getRunTypeId<DataOnly<T>>()`. **/
   reflectionIds: {type?: string; dataOnly?: string};
+  /** The generated modules by name, as the resolver served them. **/
+  entryModules: Record<string, string>;
+  /** Each wired function's cache key, which names its module. **/
+  fnCacheKeys: Partial<Record<keyof WiredFns, string>>;
 }
 
-export function openClient(): ResolverClient {
+export function openClient(emitMode: 'both' | 'ts' = 'both'): ResolverClient {
   if (!hasBinary()) throw new Error(`mion binary not built: ${BIN}`);
-  return new ResolverClient(BIN, REPO_ROOT, '', {serverMode: true, emitMode: 'both'});
+  return new ResolverClient(BIN, REPO_ROOT, '', {serverMode: true, emitMode});
+}
+
+/** The generated modules for a fixture, without evaluating or wiring them. **/
+export async function generateModules(client: ResolverClient, source: string): Promise<Record<string, string>> {
+  await client.setSources({...SRC_OVERLAY, ...MARKER_PACKAGE_OVERLAY, [FIXTURE]: source});
+  return (await client.scanFiles([FIXTURE], {includeEntryModules: true})).entryModules ?? {};
 }
 
 /** One call site per family, then the T and DataOnly<T> reflection sites: compileType tells them apart by order. **/
@@ -216,6 +226,8 @@ export async function compileType(
     wireErrors: {},
     siteLines: {},
     reflectionIds: {},
+    entryModules: {},
+    fnCacheKeys: {},
   };
 
   let resp;
@@ -243,6 +255,7 @@ export async function compileType(
     fnSiteCount: fnSites.length,
     reflectionSiteCount: reflectionSites.length,
     entryModuleCount: Object.keys(entryModules).length,
+    entryModules,
   };
 
   // Evaluating catches invalid-JS emit, instantiateRunTypes catches dangling refs; either throwing is a finding.
@@ -271,6 +284,9 @@ export async function compileType(
     wire(wired, wireErrors, key, () => factory(undefined, undefined, byKey[key]?.tuple as never) as never);
   }
   const reflectionIds = {type: reflectionSites[0]?.id, dataOnly: reflectionSites[1]?.id};
+  const fnCacheKeys: CompiledType['fnCacheKeys'] = {};
+  for (const [key, {tuple}] of Object.entries(byKey) as [FnKey, {tuple: readonly unknown[]}][])
+    fnCacheKeys[key] = tuple[3] as string;
 
   // Pass the reflection entry tuple as the plugin does: the function factories' caches never link the reflection graph.
   // nonDataTypes:true makes the value carry the stripped members, so the encoders exercise their drop / fail paths.
@@ -287,7 +303,7 @@ export async function compileType(
     });
   }
 
-  return {...partial, wired, wireErrors, siteLines, reflectionIds};
+  return {...partial, wired, wireErrors, siteLines, reflectionIds, fnCacheKeys};
 }
 
 function wire<K extends keyof WiredFns>(
