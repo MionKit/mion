@@ -20,12 +20,21 @@ type insertion struct {
 	text string
 }
 
-// Function annotates one function expression or declaration, returning it unchanged when it does not parse.
-func Function(code string) string {
+// parseWrapped parses code as one parenthesised expression, returning the text it parsed; nil when it does not parse.
+func parseWrapped(code string) (*ast.SourceFile, string) {
 	wrapped := "(" + code + ")"
 	const path = "/generated.ts"
 	sourceFile := parser.ParseSourceFile(ast.SourceFileParseOptions{FileName: path, Path: tspath.Path(path)}, wrapped, core.ScriptKindTS)
 	if sourceFile == nil || len(sourceFile.Diagnostics()) > 0 {
+		return nil, wrapped
+	}
+	return sourceFile, wrapped
+}
+
+// Function annotates one function expression or declaration, returning it unchanged when it does not parse.
+func Function(code string) string {
+	sourceFile, wrapped := parseWrapped(code)
+	if sourceFile == nil {
 		return code
 	}
 	var insertions []insertion
@@ -34,17 +43,7 @@ func Function(code string) string {
 		if node == nil {
 			return false
 		}
-		switch node.Kind {
-		case ast.KindParameter:
-			insertions = append(insertions, parameterInsertions(wrapped, node)...)
-		case ast.KindVariableDeclaration:
-			if variableNeedsAny(node) {
-				insertions = append(insertions, insertion{at: node.Name().End(), text: ": any"})
-			}
-			if unusedLoopVariable(node) {
-				insertions = append(insertions, insertion{at: scanner.SkipTrivia(wrapped, node.Name().Pos()), text: "_"})
-			}
-		}
+		insertions = append(insertions, annotate(wrapped, node)...)
 		node.ForEachChild(visit)
 		return false
 	}
@@ -60,6 +59,25 @@ func Function(code string) string {
 	out.WriteString(wrapped[cursor:])
 	text := out.String()
 	return text[1 : len(text)-1]
+}
+
+// annotate is the one switch over binding kinds: a parameter or variable gets its type and `_` prefix, every other
+// declaration needs nothing (a binding element shares its pattern's annotation, a named function or class is typed).
+func annotate(text string, node *ast.Node) []insertion {
+	switch node.Kind {
+	case ast.KindParameter:
+		return parameterInsertions(text, node)
+	case ast.KindVariableDeclaration:
+		var out []insertion
+		if variableNeedsAny(node) {
+			out = append(out, insertion{at: node.Name().End(), text: ": any"})
+		}
+		if unusedLoopVariable(node) {
+			out = append(out, insertion{at: scanner.SkipTrivia(text, node.Name().Pos()), text: "_"})
+		}
+		return out
+	}
+	return nil
 }
 
 // parameterInsertions types an unannotated parameter `any` and prefixes an unused one with `_`. The JS no longer says
@@ -106,11 +124,17 @@ func unusedLoopVariable(node *ast.Node) bool {
 	return !reads(loop.AsForInOrOfStatement().Statement, name.Text())
 }
 
-// usedIn reports name read anywhere in fn's body, as an identifier that is not a property name.
+// usedIn reports name read in fn's body or in another parameter's default (`(a, b = a) => b` reads a), as an
+// identifier that is not a property name.
 func usedIn(text string, fn *ast.Node, name string) bool {
 	body := fn.Body()
 	if body == nil {
 		return true
+	}
+	for _, param := range fn.Parameters() {
+		if initializer := param.Initializer(); initializer != nil && reads(initializer, name) {
+			return true
+		}
 	}
 	return reads(body, name)
 }
@@ -184,9 +208,7 @@ func variableNeedsAny(node *ast.Node) bool {
 // TypeofOnlyNames lists the free names code reads only as `typeof X` operands, the runtime-detection idiom: TypeScript
 // rejects one with no declaration in scope, so the module declares each `unknown`, which emits nothing.
 func TypeofOnlyNames(code string) []string {
-	wrapped := "(" + code + ")"
-	const path = "/generated.ts"
-	sourceFile := parser.ParseSourceFile(ast.SourceFileParseOptions{FileName: path, Path: tspath.Path(path)}, wrapped, core.ScriptKindTS)
+	sourceFile, _ := parseWrapped(code)
 	if sourceFile == nil {
 		return nil
 	}
