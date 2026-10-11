@@ -171,7 +171,8 @@ func collectJsonCompositeEntry(runType *reflection.RunType, tag string, composit
 
 	typed := opts.EmitMode.EmitsTypes()
 	contextLines, innerFn := jsonCompositeBody(composite, runType.ID, entryKey, isLive, wrapRoot, skeletonJS, tag, typed)
-	closureTypes := ClosureTypes{Utl: tsAnnIf(typed, ": RTUtils"), Result: tsAnnIf(typed, ": "+FnType(tag, runType.ID))}
+	closureTypes := ClosureTypes{Utl: tsAnnIf(typed, ": RTUtils"), Result: tsAnnIf(typed, ": "+FnType(tag, runType.ID)),
+		ReturnCast: tsAnnIf(typed, returnCast(tag, runType.ID))}
 	factoryDecl, factoryBody := WrapClosure("g_"+entryKey, entryKey, innerFn, contextLines, closureTypes)
 	codeArg, createRTFnArg := fnSlots(opts.EmitMode, factoryBody, factoryDecl)
 	args := holeifyArgs([]string{
@@ -236,7 +237,7 @@ func jsonCompositeBody(composite constants.JsonComposite, id string, entryKey st
 	var ctx []string
 	resolve := func(name, primOp string) {
 		key := operations.PlainHash(primOp) + "_" + id
-		ctx = append(ctx, "const "+name+" = utl.getRT"+tsAnnIf(typed, "<"+KeyFnType(key)+">")+"("+quoteJS(key)+")"+tsAnnIf(typed, "!")+".fn")
+		ctx = append(ctx, "const "+name+" = utl.getRT"+tsAnnIf(typed, "<"+KeyLookupType(key)+">")+"("+quoteJS(key)+")"+tsAnnIf(typed, "!")+".fn")
 	}
 	// wrap passes expr through untouched (no binding, no import, no call) when the primitive is the family identity.
 	wrap := func(name, primOp, expr string) string {

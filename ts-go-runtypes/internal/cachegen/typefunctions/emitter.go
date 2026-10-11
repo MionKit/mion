@@ -252,7 +252,7 @@ func (ctx *EmitContext) GetContextItem(key string) (string, bool) {
 // inner factory resolves the child RT via the rtUtils singleton. Idempotent via the ordered context set.
 func (ctx *EmitContext) registerRTLookup(childID string) {
 	if !ctx.HasContextItem(childID) {
-		ctx.SetContextItem(childID, "const "+childID+" = utl.getRT"+ctx.typeArgs(KeyFnType(childID))+"("+quoteJS(childID)+")"+ctx.TsAnn("!"))
+		ctx.SetContextItem(childID, "const "+childID+" = utl.getRT"+ctx.typeArgs(KeyLookupType(childID))+"("+quoteJS(childID)+")"+ctx.TsAnn("!"))
 	}
 	// A lookup is cross-family when childID's tag prefix differs from this
 	// walker's own InnerPrefix, as when a serializer body resolves a validator
