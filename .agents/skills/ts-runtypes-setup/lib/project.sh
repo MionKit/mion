@@ -1,4 +1,5 @@
-# lib/project.sh: workspace install, git hooks, Go binary + devtools builds, Playwright Chromium. Sourced by setup.sh, never executed.
+# lib/project.sh: workspace install, git hooks, Go binary + devtools builds, Playwright Chromium.
+# Sourced by setup.sh, never executed.
 
 install_workspace_deps() {
   command -v pnpm >/dev/null 2>&1 || { warn "pnpm missing - cannot install deps"; return 0; }
