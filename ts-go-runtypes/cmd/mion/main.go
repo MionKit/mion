@@ -633,6 +633,10 @@ the tsconfig then writes nothing.
 
 --no-emit runs the type check, the scan and the RunType-family diagnostics
 only and writes nothing (tsc --noEmit-style).
+
+--emit-mode ts writes TypeScript instead: every source under the project root,
+call sites rewritten, to the outDir, importing typed .ts cache modules, for a
+TypeScript-to-native compiler to build.
 `
 
 // runCompile is the tsc-like batch build: it runs the two-pass transform, tsgo emit and map composition itself.

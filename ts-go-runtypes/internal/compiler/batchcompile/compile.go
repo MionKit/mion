@@ -65,7 +65,7 @@ type Options struct {
 
 // Result reports what a compile run produced.
 type Result struct {
-	EmittedFiles []string // absolute paths of the .js files written
+	EmittedFiles []string // absolute paths of the .js files written (the .ts sources in emitMode ts)
 	Caches       []string // generated cache-module basenames
 	Diagnostics  []diagnostics.Diagnostic
 	// TypeDiagnostics are TypeScript's own diagnostics, already rendered as tsc prints them.
@@ -197,6 +197,10 @@ func Run(opts Options) (*Result, error) {
 				mapAByAbs[abs] = res.Map
 			}
 		}
+	}
+
+	if resolverOpts.EmitMode.EmitsTypes() {
+		return writeTypeScriptTree(result, p1, cwd, genDir, rewrittenByAbs, resolverOpts.EmitMode, gen.PureFnArtifact)
 	}
 
 	// ── Pass 2: overlaid program, emit, relativize + compose ──────────────────
