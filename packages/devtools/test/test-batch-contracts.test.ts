@@ -87,6 +87,7 @@ const HEAVY_TIMEOUT_FLOOR = 30_000;
 /** Projects whose tests or hooks compile, build or spawn the resolver. **/
 const HEAVY_PROJECTS = [
   'runtypes',
+  'runtypes-ts',
   'playground',
   'type-budget',
   'drizzle-example-app',
