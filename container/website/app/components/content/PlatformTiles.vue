@@ -1,6 +1,5 @@
 <script setup lang="ts">
-// The platforms mion runs on, one linked logo each. A logo drawn in black ink ships a
-// light-ink twin (`dark`) that swaps in on the dark theme.
+// A black-ink logo ships a light-ink twin (`dark`) that swaps in on the dark theme.
 type Platform = {name: string; to: string; logo: string; dark?: string};
 
 const PLATFORMS: Platform[] = [

@@ -2,8 +2,7 @@
 import {computed, ref} from 'vue';
 import {REPLACED_LIBRARIES} from '~/utils/replacedLibraries';
 
-// Libraries on one side, the mion logo on the other: hovering, focusing or tapping a
-// library shows, over the logo, what mion does in its place.
+// Picking a library shows, over the mion logo, what mion does in its place.
 const activeName = ref<string | null>(null);
 const active = computed(() => REPLACED_LIBRARIES.find((library) => library.name === activeName.value));
 </script>

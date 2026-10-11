@@ -1,5 +1,4 @@
-// The libraries mion replaces, for the RPC home page's vertical integration section.
-// Icons are 24x24 paths from simple-icons (CC0); TypeBox has none and shows a text badge.
+// Icons are 24x24 simple-icons paths (CC0); TypeBox has none, so VerticalIntegration shows a text badge.
 export type ReplacedLibrary = {name: string; role: string; icon: string; text: string};
 
 export const REPLACED_LIBRARIES: ReplacedLibrary[] = [
