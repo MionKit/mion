@@ -157,6 +157,9 @@ type Walker struct {
 	// DiagCodeForLeaf turns into the per-family alwaysThrow code. First encounter
 	// wins, and AbsorbUnsupported clears the slot so a sibling can latch its own.
 	UnsupportedLeaf *reflection.RunType
+	// Typed renders TS annotations as tsMark spans (emitMode ts); FamilyTag picks the signature they spell.
+	Typed     bool
+	FamilyTag string
 
 	// DiagSink receives what EmitDiagnostic records. Nil when the caller wants no
 	// diagnostics, as in unit tests with no provenance threading. The renderer sets
@@ -444,7 +447,7 @@ func (w *Walker) Compile() (innerFnDecl string, isNoop bool, isUnsupported bool)
 		w.emitCircularGuard()
 		noop = false
 	}
-	innerFnDecl = fmt.Sprintf("function %s(%s){%s}", w.FnName, w.argsList(true), w.Code)
+	innerFnDecl = fmt.Sprintf("function %s(%s)%s{%s}", w.FnName, w.argsList(true), w.innerResultAnn(), w.Code)
 	return innerFnDecl, noop, false
 }
 
@@ -668,14 +671,46 @@ func (w *Walker) getStackVλl() string {
 func (w *Walker) argsList(includeDefaults bool) string {
 	args := w.Emitter.Args()
 	parts := make([]string, 0, len(args))
-	for _, arg := range args {
+	for index, arg := range args {
+		name := arg.Name + w.tsAnn(": "+innerArgType(w.FamilyTag, index))
+		if innerArgType(w.FamilyTag, index) == "" {
+			name = arg.Name
+		}
 		if includeDefaults && arg.Default != "" {
-			parts = append(parts, arg.Name+"="+arg.Default)
+			parts = append(parts, name+"="+arg.Default)
 		} else {
-			parts = append(parts, arg.Name)
+			parts = append(parts, name)
 		}
 	}
 	return strings.Join(parts, ",")
+}
+
+// innerResultAnn is the inner declaration's return-type annotation, empty unless typed.
+func (w *Walker) innerResultAnn() string {
+	if w.RootType == nil {
+		return ""
+	}
+	result := innerResult(w.FamilyTag, w.RootType.ID)
+	if result == "" {
+		return ""
+	}
+	return w.tsAnn(": " + result)
+}
+
+// ClosureTypes is the factory's typed parameter and return annotations, empty unless typed.
+func (w *Walker) ClosureTypes() ClosureTypes {
+	if w.RootType == nil {
+		return ClosureTypes{}
+	}
+	return w.closureTypesFor(FnType(w.FamilyTag, w.RootType.ID))
+}
+
+func (w *Walker) closureTypesFor(fnType string) ClosureTypes {
+	types := ClosureTypes{Utl: w.tsAnn(": RTUtils")}
+	if fnType != "" {
+		types.Result = w.tsAnn(": " + fnType)
+	}
+	return types
 }
 
 // handleCodeInterpolation reconciles a child emitter's CodeType with the parent's expected one, over the
@@ -780,7 +815,14 @@ func (w *Walker) createFnInContext(body string, codeType CodeType, params, args 
 	if codeType != CodeRB {
 		prefix = "return "
 	}
-	w.ContextItems.set(name, "const "+name+" = function("+strings.Join(params, ",")+"){"+prefix+body+"}")
+	typedParams := params
+	if w.Typed {
+		typedParams = make([]string, len(params))
+		for i, param := range params {
+			typedParams[i] = param + w.tsAnn(": any")
+		}
+	}
+	w.ContextItems.set(name, "const "+name+" = function("+strings.Join(typedParams, ",")+"){"+prefix+body+"}")
 	return name + "(" + strings.Join(args, ",") + ")"
 }
 

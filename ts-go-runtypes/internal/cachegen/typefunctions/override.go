@@ -57,15 +57,16 @@ func overrideHashForTag(runType *reflection.RunType, tag string) string {
 // identity. Mirrors collectJsonCompositeEntry's arg assembly; the redirect is never disk-cached, being
 // trivial to re-derive under a content-addressed cfn key.
 func buildRedirectEntry(entryKey string, tag string, runType *reflection.RunType, cfnKey string, opts RenderOpts) *entrymodules.Entry {
-	factoryBody := "return utl.usePureFn(" + quoteJS(cfnKey) + ")"
-	codeArg := "undefined"
-	if opts.EmitMode.EmitsCode() {
-		codeArg = quoteJS(factoryBody)
+	typed := opts.EmitMode.EmitsTypes()
+	fnType := FnType(tag, runType.ID)
+	cast := ""
+	if fnType != "" {
+		cast = tsAnnIf(typed, " as unknown as "+fnType)
 	}
-	createRTFnArg := "u"
-	if opts.EmitMode.EmitsFactory() {
-		createRTFnArg = "function g_" + entryKey + "(utl){" + factoryBody + "}"
-	}
+	factoryBody := "return utl.usePureFn(" + quoteJS(cfnKey) + ")" + cast
+	closureTypes := ClosureTypes{Utl: tsAnnIf(typed, ": RTUtils"), Result: tsAnnIf(typed && fnType != "", ": "+fnType)}
+	factoryDecl := "function g_" + entryKey + "(utl" + closureTypes.Utl + ")" + closureTypes.Result + "{" + factoryBody + "}"
+	codeArg, createRTFnArg := fnSlots(opts.EmitMode, factoryBody, factoryDecl)
 	args := holeifyArgs([]string{
 		quoteJS(entryKey),
 		quoteJS(rtTypeName(runType)),

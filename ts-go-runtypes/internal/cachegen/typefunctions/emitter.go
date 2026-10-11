@@ -252,7 +252,7 @@ func (ctx *EmitContext) GetContextItem(key string) (string, bool) {
 // inner factory resolves the child RT via the rtUtils singleton. Idempotent via the ordered context set.
 func (ctx *EmitContext) registerRTLookup(childID string) {
 	if !ctx.HasContextItem(childID) {
-		ctx.SetContextItem(childID, "const "+childID+" = utl.getRT("+quoteJS(childID)+")")
+		ctx.SetContextItem(childID, "const "+childID+" = utl.getRT"+ctx.typeArgs(KeyFnType(childID))+"("+quoteJS(childID)+")"+ctx.TsAnn("!"))
 	}
 	// A lookup is cross-family when childID's tag prefix differs from this
 	// walker's own InnerPrefix, as when a serializer body resolves a validator
@@ -261,6 +261,14 @@ func (ctx *EmitContext) registerRTLookup(childID string) {
 	if ctx.walker != nil {
 		ctx.walker.recordCrossFamilyDep(childID)
 	}
+}
+
+// typeArgs spells `<fnType>` as a TS-only type argument list, empty for an unknown type.
+func (ctx *EmitContext) typeArgs(fnType string) string {
+	if fnType == "" {
+		return ""
+	}
+	return ctx.TsAnn("<" + fnType + ">")
 }
 
 // emitDepCall builds the JS expression that invokes child childID's precompiled factory with argsExpr. A
@@ -326,7 +334,7 @@ func (ctx *EmitContext) UsePureFn(id string) string {
 	ctx.AddPureFnDependency(id)
 	alias := pureFnAliasFor(id)
 	if !ctx.HasContextItem(alias) {
-		ctx.SetContextItem(alias, "const "+alias+" = utl.getPureFn('"+id+"')")
+		ctx.SetContextItem(alias, "const "+alias+" = utl.getPureFn('"+id+"')"+ctx.TsAnn("!"))
 	}
 	return alias
 }
