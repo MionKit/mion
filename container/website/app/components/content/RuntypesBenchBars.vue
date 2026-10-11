@@ -299,7 +299,7 @@ onMounted(async () => {
   color: var(--ui-primary);
 }
 
-/* The JSON round trip page has two cards (speed and bytes): side by side, stacked on a narrow screen. */
+/* The JSON round trip page has two cards (speed and bytes): side by side only when both fit three readable columns. */
 .runtypes-bench-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(24rem, 1fr));
