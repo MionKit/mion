@@ -46,6 +46,10 @@ web-specific setup entry point for Codex. For local setup, use the same shared
 setup skill or the manual instructions below. Keep credentials and per-user
 settings outside committed project configuration.
 
+For Claude Code on the web, the environment setup script is
+[scripts/setup-claude-web.sh](scripts/setup-claude-web.sh). Both setups also
+install the Chromium build the repo's Playwright expects.
+
 To check discovery, start a fresh session at the root and in `packages/devtools/`.
 Confirm the governing `AGENTS.md` files, all 14 project skills, and the three
 independent roles. Codex hosts without custom role selection can use the

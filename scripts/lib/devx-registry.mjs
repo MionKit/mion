@@ -406,16 +406,12 @@ export const AREAS = {
         flags: [
           ['--all', 'every card in cards/'],
           ['--out <dir>', 'write the PNGs there'],
-          ['--browser <path>', "the Chromium binary (default: Playwright's own)"],
         ],
       },
       {
         name: 'serve',
         summary: 'preview service: a card list, live pages with play / pause / replay, PNG downloads',
-        flags: [
-          ['--port <n>', 'port (default 4400)'],
-          ['--browser <path>', "the Chromium binary (default: Playwright's own)"],
-        ],
+        flags: [['--port <n>', 'port (default 4400)']],
       },
       {
         name: 'export',

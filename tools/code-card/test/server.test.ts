@@ -1,18 +1,15 @@
 // The PNG route needs a browser, so it is covered by hand with `miondevx card serve`.
 import type {AddressInfo} from 'node:net';
 import {join} from 'node:path';
-import {afterAll, afterEach, beforeAll, describe, expect, it, vi} from 'vitest';
+import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import {CARDS_DIR} from '../src/card.ts';
 import {closeRenderer} from '../src/render.ts';
 import {DEFAULT_PORT, createCardServer, parseServeArgs} from '../src/server.ts';
 
 describe('code card: serve flags', () => {
-  afterEach(() => vi.unstubAllEnvs());
-
-  it('--port and --browser', () => {
-    vi.stubEnv('MION_CARD_BROWSER', '');
-    expect(parseServeArgs([])).toEqual({port: DEFAULT_PORT, browser: undefined});
-    expect(parseServeArgs(['--port', '5000', '--browser', '/bin/chrome'])).toEqual({port: 5000, browser: '/bin/chrome'});
+  it('--port', () => {
+    expect(parseServeArgs([])).toEqual({port: DEFAULT_PORT});
+    expect(parseServeArgs(['--port', '5000'])).toEqual({port: 5000});
     expect(() => parseServeArgs(['--port', 'x'])).toThrow('--port must be a number');
     expect(() => parseServeArgs(['extra'])).toThrow(/positional/);
   });

@@ -25,7 +25,9 @@ Order of `main`. Each step skips when already satisfied.
 7. husky hooks: `pnpm exec husky` (`ignoreScripts: true` blocks auto-wiring). Failure non-fatal: CI still gates.
 8. Go resolver binary → `mion-bin/mion`. Skips if newer than every file under `cmd/` + `internal/`.
 9. `packages/devtools/dist`: marker package typecheck consumes it. Needed for `pnpm test` + both smokes.
-10. `.env` from `.env.sample` if missing, then `pnpm run check:env` prints env-var status.
+10. Playwright's Chromium (`scripts/lib/playwright-chromium.mjs`): the build the root `@playwright/cli` pin wants,
+    for card shots, card tests and `playwright-cli`. Skips when installed. Same helper as the Claude web setup.
+11. `.env` from `.env.sample` if missing, then `pnpm run check:env` prints env-var status.
     - `.env` DEV-ONLY: git-ignored, never loaded in CI. CI secrets (`NPM_TOKEN`, `CLOUDFLARE_*`) live in GitHub.
     - Basic dev needs no env vars. `GHCR_PAT`: pushing the shared images, pulling private ones (`tsrt-e2e`).
 

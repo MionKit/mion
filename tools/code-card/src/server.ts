@@ -9,20 +9,20 @@ import {pathToFileURL} from 'node:url';
 import {parseArgs} from 'node:util';
 import {CARD_NAME, CARDS_DIR, TMP_DIR, escapeHtml, resolveCardPath} from './card.ts';
 import {closeRenderer, renderPage} from './render.ts';
-import {ZOOM, defaultBrowser, shootUrls} from './shoot.ts';
+import {ZOOM, shootUrls} from './shoot.ts';
 
 export const DEFAULT_PORT = 4400;
 const MAX_ZOOM = 4;
 
-export type ServeArgs = {port: number; browser?: string};
-export type CardServerOptions = {browser?: string; cardPaths?: Record<string, string>};
+export type ServeArgs = {port: number};
+export type CardServerOptions = {cardPaths?: Record<string, string>};
 
 export function parseServeArgs(argv: string[]): ServeArgs {
-  const {values} = parseArgs({args: argv, options: {port: {type: 'string'}, browser: {type: 'string'}}});
+  const {values} = parseArgs({args: argv, options: {port: {type: 'string'}}});
   const port = values.port === undefined ? DEFAULT_PORT : Number(values.port);
   if (!Number.isInteger(port) || port < 1 || port > 65535)
     throw new Error(`--port must be a number from 1 to 65535, got "${values.port}"`);
-  return {port, browser: values.browser ?? defaultBrowser()};
+  return {port};
 }
 
 const listCards = (dir: string) =>
@@ -51,7 +51,7 @@ function parseZoom(value: string | null): number {
   return zoom;
 }
 
-export function createCardServer({browser, cardPaths = {}}: CardServerOptions = {}): Server {
+export function createCardServer({cardPaths = {}}: CardServerOptions = {}): Server {
   const cardPath = (name: string) => cardPaths[name] ?? resolveCardPath(name);
   const server = createServer(async (req, res) => {
     const send = (status: number, type: string, body: string | Buffer, headers: Record<string, string> = {}) => {
@@ -74,7 +74,7 @@ export function createCardServer({browser, cardPaths = {}}: CardServerOptions = 
       try {
         const outPath = join(workDir, `${name}.png`);
         const self = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-        await shootUrls([{url: `${self}/card/${name}?zoom=${ZOOM}&shot`, outPath}], {browser});
+        await shootUrls([{url: `${self}/card/${name}?zoom=${ZOOM}&shot`, outPath}]);
         send(200, 'image/png', readFileSync(outPath), {'content-disposition': `attachment; filename="${name}.png"`});
       } finally {
         rmSync(workDir, {recursive: true, force: true});
@@ -87,8 +87,8 @@ export function createCardServer({browser, cardPaths = {}}: CardServerOptions = 
 }
 
 export function main(argv: string[]): void {
-  const {port, browser} = parseServeArgs(argv);
-  const server = createCardServer({browser});
+  const {port} = parseServeArgs(argv);
+  const server = createCardServer();
   server.listen(port, () => console.log(`code cards on http://localhost:${port}/ (cards from tools/code-card/)`));
   const stop = () => server.close(() => closeRenderer().then(() => process.exit(0)));
   process.on('SIGINT', stop);

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # --- BUMP THIS DATE to force a fresh setup run (YYYY-MM-DD) -------------------
-SETUP_DATE="2026-07-24"
+SETUP_DATE="2026-10-11"
 # ----------------------------------------------------------------------------
 set -uo pipefail
 
@@ -474,6 +474,31 @@ fetch_uws_binary() {
 }
 
 # -----------------------------------------------------------------------------
+# 9c. Playwright's Chromium for card shots, card tests and playwright-cli. The image's
+#    /opt/pw-browsers copy is an older build than the pinned @playwright/cli wants, and
+#    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD (kept for pnpm install) blocks the normal fetch.
+#    Installs only when missing; a failed download fails the setup.
+# -----------------------------------------------------------------------------
+# 0 when every dir the install fills has Playwright's INSTALLATION_COMPLETE marker.
+playwright_chromium_installed() {
+  local dirs dir
+  dirs="$(cd "$REPO_DIR" && pnpm exec playwright-cli install-browser chromium --dry-run 2>/dev/null \
+    | sed -n 's/^ *Install location: *//p' | sort -u)"
+  [ -n "$dirs" ] || return 1
+  while IFS= read -r dir; do [ -f "$dir/INSTALLATION_COMPLETE" ] || return 1; done <<< "$dirs"
+}
+
+install_playwright_chromium() {
+  bold "Playwright Chromium"
+  command -v pnpm >/dev/null 2>&1 || { err "pnpm missing"; FAILED=1; return 1; }
+  if playwright_chromium_installed; then ok "Playwright Chromium present"; return 0; fi
+  [ "$CHECK_ONLY" = 1 ] && { warn "Playwright Chromium missing - re-run without --check"; return 0; }
+  ( cd "$REPO_DIR" && env -u PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD pnpm exec playwright-cli install-browser chromium ) \
+    && playwright_chromium_installed && ok "Playwright Chromium installed" \
+    || { err "Playwright Chromium install failed (see the Playwright hosts in EGRESS WHITELIST)"; FAILED=1; }
+}
+
+# -----------------------------------------------------------------------------
 # 10. Keep the placeholder .env from shadowing real environment secrets.
 #    A dev .env (created by the interactive skill, or a stray checkout) has empty
 #    secret rows (GHCR_PAT= etc.). lib-env.sh sources .env with `set -a`, so an
@@ -553,6 +578,7 @@ main() {
   build_go_binary
   build_devtools
   fetch_uws_binary
+  install_playwright_chromium
   neutralize_placeholder_env
   ghcr_login
 
@@ -609,7 +635,8 @@ main "$@"
 #   7. husky git hooks (commit-msg -> commitlint, pre-commit -> lint-staged);
 #      ignoreScripts blocks husky's `prepare`, so wire core.hooksPath explicitly.
 #   8. Go resolver binary -> mion-bin/mion.
-#   9. @mionjs/devtools dist.
+#   9. @mionjs/devtools dist, the uWebSockets.js binary, and Playwright's
+#      Chromium (the build the pinned @playwright/cli wants).
 #  10. .env de-clobber - the dev .env's empty secret rows would shadow the
 #      GHCR_PAT the web env injects (lib-env.sh sources .env with `set -a`).
 #  11. GHCR login - the tsrt-website image is PRIVATE. NOTE: actually PULLING it
@@ -653,6 +680,9 @@ main "$@"
 #   ghcr.io                         step 11: GHCR auth + manifest (apex domain,
 #                                            NOT wildcarded)
 #   *.npmjs.org                     step 6: registry.npmjs.org (pnpm install)
+#   cdn.playwright.dev              step 9: Playwright's browser downloads, which
+#   storage.googleapis.com                  redirect to these two (Chromium builds,
+#   playwright.download.prss.microsoft.com  then ffmpeg)
 #   *.debian.org  *.ubuntu.com      step 2 (+ others): OS package mirrors -
 #                                                       include whichever set
 #                                                       matches the base image
