@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: guidelines
-status: ready
+status: maybe
 created: 2026-10-11
 ---
 
