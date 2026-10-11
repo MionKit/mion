@@ -766,16 +766,15 @@ func emitMapValidate(rt *reflection.RunType, ctx *EmitContext, v string) RTCode 
 	body.WriteString(".entries()) {\n")
 	if keyType != nil {
 		keyVar := ctx.NextLocalVar("k")
-		body.WriteString("const ")
-		body.WriteString(keyVar)
-		body.WriteString(" = ")
-		body.WriteString(entryVar)
-		body.WriteString("[0];\n")
 		ctx.SetChildAccessor(keyVar)
 		keyRT := ctx.CompileChild(keyType, CodeE)
 		ctx.SetChildAccessor("")
 		if keyRT.Type == CodeNS {
 			return RTCode{Code: "", Type: CodeNS}
+		}
+		// A check that never reads the key (a `never` key is a constant `false`) leaves no dead binding.
+		if spellsIdentifier(keyRT.Code, keyVar) {
+			body.WriteString("const " + keyVar + " = " + entryVar + "[0];\n")
 		}
 		if keyRT.Code != "" {
 			resVar := ctx.NextLocalVar("rk")
@@ -790,16 +789,14 @@ func emitMapValidate(rt *reflection.RunType, ctx *EmitContext, v string) RTCode 
 	}
 	if valueType != nil {
 		valVar := ctx.NextLocalVar("val")
-		body.WriteString("const ")
-		body.WriteString(valVar)
-		body.WriteString(" = ")
-		body.WriteString(entryVar)
-		body.WriteString("[1];\n")
 		ctx.SetChildAccessor(valVar)
 		valRT := ctx.CompileChild(valueType, CodeE)
 		ctx.SetChildAccessor("")
 		if valRT.Type == CodeNS {
 			return RTCode{Code: "", Type: CodeNS}
+		}
+		if spellsIdentifier(valRT.Code, valVar) {
+			body.WriteString("const " + valVar + " = " + entryVar + "[1];\n")
 		}
 		if valRT.Code != "" {
 			resVar := ctx.NextLocalVar("rv")

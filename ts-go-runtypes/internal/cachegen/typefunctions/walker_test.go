@@ -121,6 +121,7 @@ func TestCreateFnInContext_CodeSPrependsReturn(t *testing.T) {
 	if call != "ctxFn0(v)" {
 		t.Fatalf("call expression mismatch: %q", call)
 	}
+	w.Code = "return " + call
 	want := "const ctxFn0 = function(v){return doThing(v)}"
 	if got := w.ContextLines(); !strings.Contains(got, want) {
 		t.Fatalf("context line mismatch:\n got: %q\nwant substring: %q", got, want)
@@ -134,6 +135,7 @@ func TestCreateFnInContext_CodeRBVerbatim(t *testing.T) {
 	if call != "ctxFn0(v)" {
 		t.Fatalf("call expression mismatch: %q", call)
 	}
+	w.Code = "return " + call
 	want := "const ctxFn0 = function(v){" + body + "}"
 	if got := w.ContextLines(); !strings.Contains(got, want) {
 		t.Fatalf("CodeRB body must move verbatim (no return prefix):\n got: %q\nwant substring: %q", got, want)
@@ -150,6 +152,7 @@ func TestCreateFnInContext_NamesIncrementAndDeclareInOrder(t *testing.T) {
 	if first != "ctxFn0(v)" || second != "ctxFn1(v)" {
 		t.Fatalf("expected ctxFn0/ctxFn1, got %q / %q", first, second)
 	}
+	w.Code = "return " + second
 	lines := w.ContextLines()
 	inner := strings.Index(lines, "const ctxFn0 = ")
 	outer := strings.Index(lines, "const ctxFn1 = ")
@@ -169,6 +172,7 @@ func TestWrapAsCtxFn_PassesAllocatedAccessorCounters(t *testing.T) {
 	if out.Code != "ctxFn0(v,i0)" {
 		t.Fatalf("call must pass the family arg + the allocated counter: %q", out.Code)
 	}
+	w.Code = "return " + out.Code
 	if !strings.Contains(w.ContextLines(), "const ctxFn0 = function(v,i0){for (const k0 in v[i0])") {
 		t.Fatalf("ctxFn params must mirror the call args by name:\n%s", w.ContextLines())
 	}
@@ -199,5 +203,20 @@ func TestWrapAsCtxFn_EmptyBodyStaysEmpty(t *testing.T) {
 	}
 	if strings.Contains(w.ContextLines(), "ctxFn") {
 		t.Fatalf("no ctxFn may be registered for an empty block: %q", w.ContextLines())
+	}
+}
+
+// TestContextLines_DropsWhatTheBodyNeverReaches: a lookup or helper no kept code reads never ships (found by the
+// typed-emit fuzz lane as noUnusedLocals failures), while one only another kept declaration reads stays.
+func TestContextLines_DropsWhatTheBodyNeverReaches(t *testing.T) {
+	w := newTestWalker()
+	w.ContextItems.set("a", "const a = utl.getRT('a')")
+	w.ContextItems.set("b", "const b = utl.getRT('b')")
+	w.ContextItems.set("helper", "const helper = function(v){return b.fn(v)}")
+	w.ContextItems.set("cs", "let cs_x, cs_x_ep = -1")
+	w.ContextItems.set("raw", "'use strict'")
+	w.Code = "return helper(v) && cs_x_ep"
+	if got, want := w.ContextLines(), "const b = utl.getRT('b');\nconst helper = function(v){return b.fn(v)};\nlet cs_x, cs_x_ep = -1;\n'use strict'"; got != want {
+		t.Errorf("ContextLines =\n%s\nwant\n%s", got, want)
 	}
 }
