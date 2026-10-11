@@ -17,3 +17,12 @@ export {
 } from '../runtypes/classSerializerRegistry.ts';
 export {typeFormats, type FormatName, type TypeFormatMeta} from '../go-generated/typeFormats.generated.ts';
 export {getRTFunction, type RTFunctionByKey, type RTFunctionKey} from '../createRTFunctions.ts';
+// The tuple types emitMode ts annotates each generated module's export with.
+export type {
+  FnTypeTuple,
+  PureFnTuple,
+  MissingTuple,
+  RunTypeTuple,
+  RunTypeBundleTuple,
+  RunTypeFacadeTuple,
+} from '../runtypes/entryTuple.ts';
