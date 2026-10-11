@@ -44,3 +44,5 @@ Load-bearing pipeline rules. Read before touching markers, rewrites, caches, val
   adapter). `platform-*` adapters wrap the router per runtime.
 - `@mionjs/client` calls routes with the same compiled functions serialized into the client bundle
   → `@mionjs/devtools` rejects `emitMode: 'functions'`.
+- `emitMode: 'ts'` = `both` plus TS-only spans. Stripping its types gives the `both` module byte for byte, code
+  string included. Gate: the `typedemit` fuzz lane (TE1 strip parity) + `compile-cli-ts.test.ts`.
