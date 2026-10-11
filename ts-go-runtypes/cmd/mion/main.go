@@ -62,7 +62,7 @@ Shared options (same meaning under every command):
     --client-routes MODE  route metadata in a client build: bundle (default) | fetch
     --cwd PATH          working directory (default: $PWD)
     --hash-length N     short-id length for type hashes (default 7)
-    --emit-mode MODE    fn-entry code/factory slots: code (default) | functions | both
+    --emit-mode MODE    fn-entry code/factory slots: code (default) | functions | both | ts
     --inline-mode MODE  child-inlining: default | allInternal
     --module-mode MODE  virtual-module grouping: default | allSingle | allModules
     --number-mode MODE  validate numberMode default: isFinite (default) | typeof | notNaN
@@ -164,7 +164,7 @@ func registerSharedFlags(fs *flag.FlagSet) *sharedFlags {
 	fs.BoolVar(&s.noParallelScan, "no-parallel-scan", false, "disable the parallel marker scan (parallel is the default)")
 	fs.BoolVar(&s.noParallelRender, "no-parallel-render", false, "disable the parallel cache renders (parallel is the default)")
 	fs.StringVar(&s.emitMode, "emit-mode", string(constants.EmitCode),
-		"what each cache entry ships in its code/factory slots: code (default) | functions | both")
+		"what each cache entry ships in its code/factory slots: code (default) | functions | both | ts (both, as typed .ts modules)")
 	fs.StringVar(&s.inlineMode, "inline-mode", string(constants.InlineModeDefault),
 		"child-inlining policy: default (unnamed compounds inline, named external) | allInternal")
 	fs.StringVar(&s.moduleMode, "module-mode", constants.ModuleModeDefault,
@@ -315,7 +315,7 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 			merged.moduleMode, constants.ModuleModeDefault, constants.ModuleModeAllSingle, constants.ModuleModeAllModules)
 	}
 	if !constants.EmitMode(merged.emitMode).Valid() {
-		fmt.Fprintf(os.Stderr, "mion: invalid emit-mode %q (want code | functions | both)\n", merged.emitMode)
+		fmt.Fprintf(os.Stderr, "mion: invalid emit-mode %q (want code | functions | both | ts)\n", merged.emitMode)
 		os.Exit(2)
 	}
 	if !constants.InlineMode(merged.inlineMode).Valid() {

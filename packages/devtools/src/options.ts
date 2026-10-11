@@ -21,7 +21,7 @@ export interface MionRunTypesOptions {
   /** RunTypes generated-output root: gitignored modules under `<genDir>/types/`, committed enrichment under
    *  `<genDir>/enriched/`. */
   genDir?: string;
-  /** What generated fn entries ship: 'code' (default) | 'both'.
+  /** What generated fn entries ship: 'code' (default) | 'both' | 'ts' ('both' as typed `.ts` modules).
    *
    *  ⚠️ EDGE TARGETS MUST USE 'both'. 'code' ships only the compiled fn's source string, which
    *  @mionjs/run-types turns into a function with `new Function` on first use; workerd, Vercel Edge and any CSP
@@ -33,7 +33,7 @@ export interface MionRunTypesOptions {
    *  RunTypes' third mode, 'functions', omits `code` and throws here at config time: mion's client story is
    *  serializing compiled fns to the browser as strings, so an entry with no body cannot cross the wire.
    *  Guaranteeing `code` is what lets `MionTypeFn` type it as required (packages/core/src/types/general.types.ts). */
-  emitMode?: 'code' | 'both';
+  emitMode?: 'code' | 'both' | 'ts';
   /** Cache-module grouping, see the runtypes core docs; 'allSingle' throws: one module would carry both sides. */
   moduleMode?: Exclude<TsRuntypesPluginOptions['moduleMode'], typeof MODULE_MODE_ALL_SINGLE>;
   inlineMode?: TsRuntypesPluginOptions['inlineMode'];
@@ -101,7 +101,7 @@ export interface MionPresetOptions {
  *  invalidation, and the Next lane needs no equivalent (the broker declares typeDeps plus a stamp instead). */
 export function toRunTypesOptions(options: MionPresetOptions = {}): TsRuntypesPluginOptions {
   const rt = options.runTypes ?? {};
-  // The type says 'code' | 'both', but configs are plain JS/JSON often written by hand.
+  // The type says 'code' | 'both' | 'ts', but configs are plain JS/JSON often written by hand.
   if ((rt.emitMode as string) === 'functions') {
     throw new Error(
       `[mion] emitMode: 'functions' is not supported. mion serializes compiled fns to the client as ` +

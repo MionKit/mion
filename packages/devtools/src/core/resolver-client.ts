@@ -34,8 +34,9 @@ export interface ResolverClientOptions {
   //     inline / server test modes, which carry no tsconfig).
   cacheDir?: string;
   // Forwarded as --emit-mode: what each RT entry ships in its code/factory slots. 'code' (default) is the body
-  // string alone, with the factory rebuilt via `new Function`; 'functions' the live factory alone; 'both' is both.
-  emitMode?: 'code' | 'functions' | 'both';
+  // string alone, with the factory rebuilt via `new Function`; 'functions' the live factory alone; 'both' is both;
+  // 'ts' is 'both' written as typed `.ts` modules.
+  emitMode?: 'code' | 'functions' | 'both' | 'ts';
   // Forwarded as --number-mode: the project-wide default for validate's `numberMode`, 'isFinite' (default) /
   // 'typeof' / 'notNaN'. A per-call-site numberMode overrides it.
   numberMode?: string;

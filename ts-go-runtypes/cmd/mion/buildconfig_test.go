@@ -285,6 +285,14 @@ func TestResolveBuildPlugin(t *testing.T) {
 	}
 }
 
+// TestMergeBuildOptions_TsEmitModeFromTsconfig: the tsconfig `emitMode: "ts"` reaches the build options unflagged.
+func TestMergeBuildOptions_TsEmitModeFromTsconfig(t *testing.T) {
+	got := mergeBuildOptions(baseFlags(), tsRuntypesPlugin{EmitMode: "ts"}, "/proj")
+	if got.emitMode != "ts" {
+		t.Errorf("emitMode = %q, want ts", got.emitMode)
+	}
+}
+
 // TestUnknownPluginKeys: recognised keys are silent; a typo'd key is reported
 // sorted; a project with no plugin entry or no tsconfig never warns.
 func TestUnknownPluginKeys(t *testing.T) {
