@@ -727,9 +727,9 @@ func (w *Walker) argsList(includeDefaults bool) string {
 	args := w.Emitter.Args()
 	parts := make([]string, 0, len(args))
 	for index, arg := range args {
-		name := arg.Name + w.tsAnn(": "+innerArgType(w.FamilyTag, index))
-		if innerArgType(w.FamilyTag, index) == "" {
-			name = arg.Name
+		name := arg.Name
+		if argType := innerArgType(w.FamilyTag, index); argType != "" {
+			name += w.tsAnn(": " + argType)
 		}
 		if includeDefaults && arg.Default != "" {
 			parts = append(parts, name+"="+arg.Default)
@@ -757,16 +757,7 @@ func (w *Walker) ClosureTypes() ClosureTypes {
 	if w.RootType == nil {
 		return ClosureTypes{}
 	}
-	return w.closureTypesFor(FnType(w.FamilyTag, w.RootType.ID))
-}
-
-func (w *Walker) closureTypesFor(fnType string) ClosureTypes {
-	types := ClosureTypes{Utl: w.tsAnn(": RTUtils")}
-	if fnType != "" {
-		types.Result = w.tsAnn(": " + fnType)
-		types.ReturnCast = w.tsAnn(returnCast(w.FamilyTag, w.RootType.ID))
-	}
-	return types
+	return closureTypes(w.Typed, w.FamilyTag, w.RootType.ID)
 }
 
 // handleCodeInterpolation reconciles a child emitter's CodeType with the parent's expected one, over the

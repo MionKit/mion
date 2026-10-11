@@ -62,17 +62,17 @@ func TestTsMarks_QuotedLiteralNeverHoldsAMark(t *testing.T) {
 	}
 }
 
-func TestKeyFnType(t *testing.T) {
+func TestKeyLookupType(t *testing.T) {
 	validate := operations.PlainHash("validate") + "_abc1234"
-	if got := KeyFnType(validate); got != "(v: unknown) => v is T_abc1234" {
-		t.Errorf("KeyFnType(validate) = %q", got)
+	if got := KeyLookupType(validate); got != "(v: any, ...rest: any[]) => v is T_abc1234" {
+		t.Errorf("KeyLookupType(validate) = %q", got)
 	}
 	encoder, _ := operations.ByName("jsonEncoder")
 	clone := operations.FnHashFor(encoder, nil, "clone", false) + "_abc1234"
-	if got := KeyFnType(clone); got != "(v: T_abc1234) => string | undefined" {
-		t.Errorf("KeyFnType(jeCL) = %q", got)
+	if got := KeyLookupType(clone); got != "(v: any, ...rest: any[]) => string | undefined" {
+		t.Errorf("KeyLookupType(jeCL) = %q", got)
 	}
-	if got := KeyFnType("@acme/app#pf_x"); got != "" {
+	if got := KeyLookupType("@acme/app#pf_x"); got != "" {
 		t.Errorf("a pure-fn key typed as %q", got)
 	}
 }

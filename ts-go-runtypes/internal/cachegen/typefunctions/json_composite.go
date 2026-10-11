@@ -171,9 +171,7 @@ func collectJsonCompositeEntry(runType *reflection.RunType, tag string, composit
 
 	typed := opts.EmitMode.EmitsTypes()
 	contextLines, innerFn := jsonCompositeBody(composite, runType.ID, entryKey, isLive, wrapRoot, skeletonJS, tag, typed)
-	closureTypes := ClosureTypes{Utl: tsAnnIf(typed, ": RTUtils"), Result: tsAnnIf(typed, ": "+FnType(tag, runType.ID)),
-		ReturnCast: tsAnnIf(typed, returnCast(tag, runType.ID))}
-	factoryDecl, factoryBody := WrapClosure("g_"+entryKey, entryKey, innerFn, contextLines, closureTypes)
+	factoryDecl, factoryBody := WrapClosure("g_"+entryKey, entryKey, innerFn, contextLines, closureTypes(typed, tag, runType.ID))
 	codeArg, createRTFnArg := fnSlots(opts.EmitMode, factoryBody, factoryDecl)
 	args := holeifyArgs([]string{
 		quoteJS(entryKey),

@@ -25,11 +25,6 @@ func tsAnnIf(typed bool, text string) string {
 	return tsMark + text + tsMark
 }
 
-// TsAnn is the EmitContext face of Walker.tsAnn, for emitter-declared locals TypeScript cannot infer.
-func (ctx *EmitContext) TsAnn(text string) string {
-	return ctx.walker.tsAnn(text)
-}
-
 // JsText drops every marked span, giving back the plain JS the code slot ships.
 func JsText(text string) string {
 	if !strings.Contains(text, tsMark) {
@@ -96,36 +91,24 @@ type tsSignature struct {
 	loose bool
 }
 
-const (
-	sigValidate   = "validate"
-	sigErrors     = "errors"
-	sigSameType   = "sameType"
-	sigToJson     = "toJson"
-	sigFromJson   = "fromJson"
-	sigEncoder    = "encoder"
-	sigDecoder    = "decoder"
-	sigJsonSchema = "jsonSchema"
-	sigClassName  = "className"
-)
-
-var tsSignatures = map[string]tsSignature{
-	sigValidate: {params: "(v: unknown)", innerArgs: []string{"any"}, result: "v is %T"},
-	sigErrors: {
+var (
+	sigValidate = tsSignature{params: "(v: unknown)", innerArgs: []string{"any"}, result: "v is %T"}
+	sigErrors   = tsSignature{
 		params:    "(v: unknown, pth?: RTValidationErrorPathSegment[], er?: RTValidationError[])",
 		innerArgs: []string{"any", "RTValidationErrorPathSegment[]", "RTValidationError[]"},
 		result:    "RTValidationError[]",
-	},
-	sigSameType:   {params: "(v: %T)", innerArgs: []string{"any"}, result: "%T", loose: true},
-	sigToJson:     {params: "(v: %T)", innerArgs: []string{"any"}, result: "unknown"},
-	sigFromJson:   {params: "(v: unknown)", innerArgs: []string{"any"}, result: "%T", loose: true},
-	sigEncoder:    {params: "(v: %T)", innerArgs: []string{"any"}, result: "string | undefined"},
-	sigDecoder:    {params: "(s: string)", innerArgs: []string{"string"}, result: "%T", loose: true},
-	sigJsonSchema: {params: "(v?: unknown)", innerArgs: []string{"any"}, result: "unknown"},
-	sigClassName:  {params: "(v?: unknown)", innerArgs: []string{"any"}, result: "string | null"},
-}
+	}
+	sigSameType   = tsSignature{params: "(v: %T)", innerArgs: []string{"any"}, result: "%T", loose: true}
+	sigToJson     = tsSignature{params: "(v: %T)", innerArgs: []string{"any"}, result: "unknown"}
+	sigFromJson   = tsSignature{params: "(v: unknown)", innerArgs: []string{"any"}, result: "%T", loose: true}
+	sigEncoder    = tsSignature{params: "(v: %T)", innerArgs: []string{"any"}, result: "string | undefined"}
+	sigDecoder    = tsSignature{params: "(s: string)", innerArgs: []string{"string"}, result: "%T", loose: true}
+	sigJsonSchema = tsSignature{params: "(v?: unknown)", innerArgs: []string{"any"}, result: "unknown"}
+	sigClassName  = tsSignature{params: "(v?: unknown)", innerArgs: []string{"any"}, result: "string | null"}
+)
 
 // familySignatures maps every emitted family tag to its signature; TestTsSignature_EveryFamilyHasARow pins the coverage.
-var familySignatures = map[string]string{
+var familySignatures = map[string]tsSignature{
 	"val": sigValidate, "vst": sigValidate, "vuk": sigValidate,
 	"verr": sigErrors, "vest": sigErrors, "veuk": sigErrors,
 	"ruk": sigSameType, "ruks": sigSameType, "rukr": sigSameType, "fmt": sigSameType,
@@ -138,11 +121,8 @@ var familySignatures = map[string]string{
 }
 
 func signatureFor(tag string) (tsSignature, bool) {
-	name, ok := familySignatures[tag]
-	if !ok {
-		return tsSignature{}, false
-	}
-	return tsSignatures[name], true
+	sig, ok := familySignatures[tag]
+	return sig, ok
 }
 
 func withType(text, typeID string) string {
@@ -179,6 +159,17 @@ func innerResult(tag, typeID string) string {
 	return withType(sig.result, typeID)
 }
 
+// closureTypes is the factory's typed `utl` parameter, return type and inner-fn cast for family tag over typeID, every
+// part a tsMark span and all empty unless typed.
+func closureTypes(typed bool, tag, typeID string) ClosureTypes {
+	types := ClosureTypes{Utl: tsAnnIf(typed, ": RTUtils")}
+	if fnType := FnType(tag, typeID); fnType != "" {
+		types.Result = tsAnnIf(typed, ": "+fnType)
+		types.ReturnCast = tsAnnIf(typed, returnCast(tag, typeID))
+	}
+	return types
+}
+
 // returnCast is the TS-only cast a loose family's factory applies to the inner fn it returns, empty otherwise.
 func returnCast(tag, typeID string) string {
 	if sig, ok := signatureFor(tag); ok && sig.loose {
@@ -204,12 +195,6 @@ func keyFamily(key string) (tag, typeID string) {
 		return "", ""
 	}
 	return tag, key[operations.FnHashLen+1:]
-}
-
-// KeyFnType is the outer fn type of the family a cache key names, empty when the key names none.
-func KeyFnType(key string) string {
-	tag, typeID := keyFamily(key)
-	return FnType(tag, typeID)
 }
 
 // KeyLookupType types a dependency lookup: the family's result over `any` inputs, the only values a generated body holds,
