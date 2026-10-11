@@ -273,13 +273,25 @@ this change touched, review its report against the code, and commit it as its ow
 - Dead declarations: `Walker.ContextLines` keeps only the context items the body reaches (every mode). Map checks
   bind a key / value local only when the child code reads it; string length errors bind `codePointLength` lazily.
 - A void root restore returns `undefined` instead of assigning to the parameter.
-- Runtime type fixes the strict lane found: `code` optional in `FnTypeTuple`, `classType` as
-  `abstract new (...args: any[]) => unknown`, `rels` rows may be `undefined`.
-- The `mion-pure-fns/` artifact stays JS (other builds read it as data). `mion compile` in `ts` needs an `outDir`.
+- Runtime type fixes the strict lane found: `code` optional in `FnTypeTuple`, `classType?: object` (a constructor
+  type cost every builder call site 4 instantiations over its budget), `rels` rows may be `undefined`.
+- Annotation is one parser pass, not per-emitter marks: `tsannotate.Function` runs over every typed factory
+  (`typefunctions/module.go` `fnSlots`) as well as pure fns. Marks stay for the boundaries (signatures, lookups,
+  casts). A coverage test (`TestAnnotate_EveryBindingKindHasARow`) gives every declaration kind a row.
+- Strip parity (`packages/devtools/test/helpers/typedEmit.ts`) normalizes the by-design differences: `.ts`
+  specifiers, `undefined` head slots, `_` prefixes and parenthesized lone arrow params, then whitespace. Factory
+  parity is proven there (e2e + fuzz TE1), not by a Go `JsText` test: tsannotate's insertions are not marks.
+  `TestTypedEmit_CodeSlotMatchesBoth` covers the code slot over one rich source instead of F1..F17.
+- The e2e project has no `enum`: a user enum fails `erasableSyntaxOnly` and Node type stripping. Enums are
+  covered by the type printer test (`TestTypeModulePrinter_DataOnly`, a literal union).
+- `TestPrintersCoverRunType` needed no new row: the two flags add no RunType field.
+- The `mion-pure-fns/` artifact ships the `both` twin in `ts` mode. `mion compile` in `ts` refuses, before
+  generating, a missing outDir and an outDir that is the source root (each source would overwrite itself).
+- Next: `container/pre-publish-e2e/apps/smoke-next-ts` builds the shared self check under Turbopack in `ts` mode.
 - The strictest tsconfig needs `lib: ['ES2023', 'DOM']` (generated code reads `URL` and friends).
 - Fuzz: the `typedemit` lane (`test/fuzz/type/typedEmitFuzz.ts`), rules TE1 strip parity, TE2 same verdict as
   `both`, TE3 one strictest tsc program per run. It found the dead-declaration, loose-family, lookup-input,
-  predicate-rename and loop-variable fixes, each with its own Go test.
+  predicate-rename and loop-variable fixes, each with its own Go test. Soak: `MION_FUZZ_TYPEDEMIT_SOAK_MS`.
 - Docs that could go stale: the configuration page's Typed Output section, the vite and cli devtools pages,
   `.agents/docs/architecture.md`.
 
