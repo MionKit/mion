@@ -31,7 +31,7 @@ func TestRenderGrouped_TypeModules(t *testing.T) {
 	for _, want := range []string{
 		"import type {FnTypeTuple, RTUtils} from '@mionjs/run-types/runtime';",
 		"import type {T_tree} from 'rtmod:/t/tree.js';",
-		"export const __rt_abcd_tree: FnTypeTuple=['val',undefined,undefined,'abcd_tree'",
+		"export const __rt_abcd_tree: any=['val',undefined,undefined,'abcd_tree'",
 	} {
 		if !strings.Contains(fn, want) {
 			t.Errorf("the typed fn module lacks %q:\n%s", want, fn)

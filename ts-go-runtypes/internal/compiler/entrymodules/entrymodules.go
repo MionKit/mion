@@ -502,7 +502,7 @@ func renderModule(graph Graph, entry *Entry, order levels, groupOf map[string]st
 	// A missing stub carries just the key; its deps / ini head slots are JS array holes.
 	if entry.Kind == KindMissing {
 		body.WriteString("export const " + ExportName(entry) + tupleAnnotation(entry, typed) + "=[" +
-			strconv.Itoa(int(KindMissing)) + "," + headHole(typed) + "," + headHole(typed) + "," + jsquote.Single(entry.Key) + "];\n")
+			strconv.Itoa(int(KindMissing)) + "," + headHole(typed) + "," + headHole(typed) + "," + jsquote.Single(entry.Key) + "]" + tupleCheck(entry, typed) + ";\n")
 		return withTypedHeader(body.String(), nil, typed), nil
 	}
 	ambient := ambientLines(entry.Ambient)
@@ -551,7 +551,7 @@ func renderModule(graph Graph, entry *Entry, order levels, groupOf map[string]st
 		body.WriteByte(',')
 		body.WriteString(entry.ArgsText)
 	}
-	body.WriteString("];\n")
+	body.WriteString("]" + tupleCheck(entry, typed) + ";\n")
 	return withTypedHeader(body.String(), ambient, typed), nil
 }
 
@@ -597,7 +597,7 @@ func renderBundle(graph Graph, name string, memberKeys []string, order levels, g
 		ambient = append(ambient, entry.Ambient...)
 		if entry.Kind == KindMissing {
 			body.WriteString("export const " + exportName + tupleAnnotation(entry, typed) + "=[" +
-				strconv.Itoa(int(KindMissing)) + "," + headHole(typed) + "," + headHole(typed) + "," + jsquote.Single(entry.Key) + "];\n")
+				strconv.Itoa(int(KindMissing)) + "," + headHole(typed) + "," + headHole(typed) + "," + jsquote.Single(entry.Key) + "]" + tupleCheck(entry, typed) + ";\n")
 			continue
 		}
 		deps, err := directDeps(graph, entry, order)
@@ -641,7 +641,7 @@ func renderBundle(graph Graph, name string, memberKeys []string, order levels, g
 			body.WriteByte(',')
 			body.WriteString(entry.ArgsText)
 		}
-		body.WriteString("];\n")
+		body.WriteString("]" + tupleCheck(entry, typed) + ";\n")
 	}
 	return withTypedHeader(imports.String()+typeImportLines(graph, typeImports, typed)+body.String(), ambientLines(ambient), typed), nil
 }
@@ -684,12 +684,21 @@ var tupleTypes = map[Kind]string{
 	KindRunTypeFacade: "RunTypeFacadeTuple",
 }
 
-// tupleAnnotation types an exported tuple in emitMode ts, which isolatedDeclarations requires.
+// tupleAnnotation types an exported tuple `any` in emitMode ts, which isolatedDeclarations requires: a rewritten call
+// site passes it where the factory declares the compile-time marker type, which no tuple type is assignable to.
 func tupleAnnotation(entry *Entry, typed bool) string {
 	if !typed {
 		return ""
 	}
-	return ": " + tupleTypes[entry.Kind]
+	return ": any"
+}
+
+// tupleCheck checks the tuple literal against its runtime tuple type all the same, erased like the annotation.
+func tupleCheck(entry *Entry, typed bool) string {
+	if !typed {
+		return ""
+	}
+	return " satisfies " + tupleTypes[entry.Kind]
 }
 
 // typeImportLines imports each named type id's module type-only, deduped and sorted.

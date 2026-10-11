@@ -54,7 +54,10 @@ func typedEmitModules(t *testing.T, mode constants.EmitMode) map[string]string {
 }
 
 // tupleAnnotation is an export's tuple type, which only emitMode ts writes.
-var tupleAnnotation = regexp.MustCompile(`(export const [A-Za-z0-9_$]+): [A-Za-z]+Tuple=`)
+var tupleAnnotation = regexp.MustCompile(`(export const [A-Za-z0-9_$]+): any=`)
+
+// tupleCheck is the `satisfies` check emitMode ts appends to an exported tuple.
+var tupleCheck = regexp.MustCompile(` satisfies [A-Za-z]+Tuple;`)
 
 // tupleHead is a tuple's kind, deps and ini slots; emitMode ts spells an absent one `undefined` where the JS modes hole it.
 var tupleHead = regexp.MustCompile(`=\[([^,]+),(undefined|\(\)=>\[[^\]]*\]|rtL|),(undefined|ini\d*|),`)
@@ -75,6 +78,7 @@ func moduleHead(module string) string {
 	text := tupleAnnotation.ReplaceAllString(strings.Join(lines, ""), "$1=")
 	text = strings.ReplaceAll(text, "(rtu: RTUtils){const c=(id: string)=>", "(rtu){const c=(id)=>")
 	text = tupleHead.ReplaceAllStringFunc(text, holeHead)
+	text = tupleCheck.ReplaceAllString(text, ";")
 	quoted := false
 	for i := 0; i < len(text); i++ {
 		switch {
