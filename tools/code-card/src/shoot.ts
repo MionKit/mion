@@ -30,7 +30,7 @@ export function parseShotArgs(argv: string[]): ShotArgs {
   return {all: Boolean(values.all), out: values.out, cards: positionals};
 }
 
-// The sandbox is off because the pages are our own cards and some hosts (containers, CI) cannot run it.
+// Sandbox off: the pages are our own cards and some hosts (containers, CI) cannot run it.
 export const CLI_CONFIG = {
   browser: {
     browserName: 'chromium',

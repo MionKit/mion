@@ -1,6 +1,5 @@
 // Installs the Chromium the root @playwright/cli pin expects, where every Playwright tool looks for it
 // (PLAYWRIGHT_BROWSERS_PATH, else Playwright's own cache). Run by both setups; `--check` by both startup hooks.
-// Usage: node scripts/lib/playwright-chromium.mjs [--check]   Exit: 0 installed, 1 missing or install failed.
 
 import {spawnSync} from 'node:child_process';
 import {existsSync} from 'node:fs';
@@ -38,7 +37,7 @@ function report({ok, label}) {
 
 function main(argv) {
   const before = chromiumStatus();
-  // Skip the install when present: it would still take Playwright's lock and prune other browsers.
+  // Installing when present would still take Playwright's lock and prune other browsers.
   if (before.ok || before.label === NO_CLI || argv.includes('--check')) return report(before);
   // pnpm install keeps skipping browser downloads; only this one command may fetch.
   const {PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: _skip, ...env} = process.env;
