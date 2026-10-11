@@ -12,7 +12,7 @@ import (
 // keyed object, each property's restore applied by position. Every other arm is reused from the restoreFromJsonMutate
 // helpers, and recursion routes back through THIS emitter via ctx.CompileChild.
 // The object arm REBINDS its accessor to the rebuilt object (`v = _r`), so it works inlined and as a dependency call.
-// An optional slot maps the `null` placeholder back to absent.
+// An optional slot maps its placeholder (compactSlotPlaceholder) back to absent.
 type CompactFromJsonEmitter struct{}
 
 func (CompactFromJsonEmitter) Args() []ArgSpec {
@@ -124,10 +124,8 @@ func (CompactFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindUnion:
-		// The SAFE restore over the same compact-widened layout the compact encode writes with (union_flat_compact.go), so
-		// both sides agree on whether the envelope is on the wire.
-		// The merged object stays KEYED even under compact, so it has room for an undeclared key and the positional
-		// argument for skipping the rebuild does not apply.
+		// The SAFE restore over the same compact layout the compact encode writes with (union_flat_compact.go), so both
+		// sides agree on the envelope and on whether the merged object is positional.
 		return emitUnionRestoreFromJsonCloneLayout(rt, ctx, v, buildCompactFlatLayout(rt, ctx))
 
 	case reflection.KindIntersection:
@@ -186,9 +184,8 @@ func emitObjectCompactFromJson(rt *reflection.RunType, ctx *EmitContext, v strin
 			return RTCode{Code: "", Type: CodeNS}
 		}
 		if slot.optional {
-			// The null placeholder maps back to absent, then the child transform runs only on a present value, as in
-			// emitTupleMemberRestoreFromJson.
-			restore.WriteString("if (" + accessor + " === null) {" + accessor + " = undefined}")
+			// The placeholder maps back to absent BEFORE any child transform, so no constructor ever sees it.
+			restore.WriteString("if (" + accessor + " === " + slot.placeholder + ") {" + accessor + " = undefined}")
 			if childRT.Code != "" {
 				restore.WriteString(" else if (" + accessor + " !== undefined) {" + childRT.Code + "}")
 			}

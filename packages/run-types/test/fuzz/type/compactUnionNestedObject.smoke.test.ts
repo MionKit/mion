@@ -1,11 +1,10 @@
 // Regression (roundtrip soak, seed 0xd179ff0b / per-type seed 2792797093): a
 // union of JSON-compatible object members round-trips raw on the keyed JSON
-// strategies (no envelope, identity decode). The compact strategy reused that
-// rule while positionalizing every NESTED object, so
+// strategies (no envelope, identity decode). The compact strategy once reused
+// that rule while positionalizing every NESTED object, so
 // `{kind: 't1', f0: [{"with\"quote": true}]}` came back as `{kind: 't1', f0: [[true]]}`
-// on the compact lane only. The quote is incidental: any nested object inside a
-// member of such a union broke the same way. Compact now keeps the union
-// envelope whenever a member positionalizes something, so all five lanes agree.
+// on the compact lane only. Compact now writes a union's object members as ONE
+// positional array, so every lane here must agree, positional or keyed fallback.
 import {describe, it, expect} from 'vitest';
 import {compileCodecs, openClient, hasBinary, ALL_LANES} from '../roundtrip/roundtripHarness.ts';
 import {typecheckGeneratedType} from './tsValidate.ts';
@@ -21,9 +20,53 @@ function obj(...props: PropShape[]): TypeShape {
   return {kind: 'object', props};
 }
 const bool: TypeShape = {kind: 'boolean'};
+const str: TypeShape = {kind: 'string'};
+const num: TypeShape = {kind: 'number'};
+function optional(name: string, shape: TypeShape): PropShape {
+  return {...prop(name, shape), optional: true};
+}
 const tagged = (tag: string, ...props: PropShape[]): TypeShape => obj(prop('kind', lit(tag)), ...props);
 
 const cases: {title: string; root: TypeShape; values: unknown[]}[] = [
+  {
+    title: 'PaymentMethod: one positional array over every member',
+    root: {
+      kind: 'union',
+      members: [
+        obj(
+          prop('type', lit('credit_card')),
+          prop('lastFourDigits', str),
+          prop('expiryMonth', num),
+          prop('expiryYear', num),
+          prop('brand', str)
+        ),
+        obj(prop('type', lit('bank_account')), prop('bankName', str), prop('accountLastFour', str), prop('routingNumber', str)),
+        obj(prop('type', lit('paypal')), prop('email', str)),
+      ],
+    },
+    values: [
+      {type: 'credit_card', lastFourDigits: '4242', expiryMonth: 12, expiryYear: 2025, brand: 'visa'},
+      {type: 'bank_account', bankName: 'Chase', accountLastFour: '1234', routingNumber: '021000021'},
+      {type: 'paypal', email: 'john.paypal@example.com'},
+    ],
+  },
+  {
+    title: 'nullable object, with a present null in an optional slot',
+    root: {
+      kind: 'union',
+      members: [obj(prop('tag', str), optional('note', {kind: 'union', members: [str, {kind: 'null'}]})), {kind: 'null'}],
+    },
+    values: [{tag: 'x', note: null}, {tag: 'x'}, null],
+  },
+  {
+    title: 'keyed fallback: a required unknown slot',
+    root: {kind: 'union', members: [tagged('t0', prop('u', {kind: 'unknown'})), tagged('t1', prop('s', str))]},
+    values: [
+      {kind: 't0', u: null},
+      {kind: 't0', u: 1},
+      {kind: 't1', s: 'x'},
+    ],
+  },
   {
     title: 'the soak shape: tuple of a quoted-key object inside a tagged union',
     root: {

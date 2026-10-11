@@ -12,8 +12,9 @@ import (
 // no key names on the wire. Every other arm is reused from the prepareForJsonClone helpers, and recursion routes back
 // through THIS emitter via ctx.CompileChild, so a nested object inside an array, tuple or union member goes positional
 // too. Pairs with CompactFromJsonEmitter, which rebuilds the keyed object from positions.
-// Wire shape of `{a, b?, c}` in canonical order: `[v.a, (v.b === undefined ? null : v.b), v.c]`, the same `null`
-// placeholder TS tuple optionals already use (emitTuplePrepareForJsonClone); the decoder maps `null` back to absent.
+// Wire shape of `{a, b?: string, c}` in canonical order: `[v.a, (v.b === undefined ? 0 : v.b), v.c]`. A missing slot
+// holds the first of `0` / `null` / `false` its value can never be (compactSlotPlaceholder); the decoder maps it back
+// to absent.
 type CompactForJsonEmitter struct{}
 
 func (CompactForJsonEmitter) Args() []ArgSpec {
@@ -120,11 +121,8 @@ func (CompactForJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Co
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindUnion:
-		// Reuse the keyed flat-union encode (atomics ride `[memberIndex, value]`, objects merge into `[-1, keyedObject]`):
-		// the merged object stays keyed, a union having no single positional shape, while
-		// nested objects inside members still go positional via CompileChild.
-		// The layout is compact-widened so a union the keyed strategies pass through raw keeps its envelope once a member
-		// positionalizes; without it the identity decoder would hand those nested arrays back as-is (union_flat_compact.go).
+		// The flat-union encode over the compact layout (union_flat_compact.go): the merged object goes positional, one
+		// array over every member's props, and nested objects inside members go positional via CompileChild.
 		return emitUnionPrepareForJsonCloneLayout(rt, ctx, v, buildCompactFlatLayout(rt, ctx))
 
 	case reflection.KindIntersection:
@@ -153,8 +151,9 @@ type compactDeclaredSlot struct {
 	name          string
 	isSafeName    bool
 	optional      bool
-	nonEnumerable bool                // guarded: null-placeholder driven by own-enumerability
+	nonEnumerable bool                // guarded: placeholder driven by own-enumerability
 	childRef      *reflection.RunType // the property's value-type ref (.Child)
+	placeholder   string              // the absent marker, see compactSlotPlaceholder
 }
 
 // objectHasIndexSignature reports whether the object carries any index signature, in which case it stays KEYED: a record
@@ -210,13 +209,14 @@ func collectCompactDeclaredSlots(rt *reflection.RunType, ctx *EmitContext) []com
 			optional:      resolved.Optional,
 			nonEnumerable: isEnumerabilityGuarded(resolved),
 			childRef:      resolved.Child,
+			placeholder:   compactSlotPlaceholder(resolved.Child, ctx),
 		})
 	}
 	return slots
 }
 
 // emitObjectCompactForJson is the positional-array object encode: declared properties take positions 0..N-1 in canonical
-// order and an absent optional holds the `null` placeholder, so later positions stay aligned.
+// order and an absent optional holds its slot's placeholder, so later positions stay aligned.
 func emitObjectCompactForJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if isCallableValue(rt, ctx) {
 		return RTCode{Code: "", Type: CodeNS}
@@ -237,11 +237,11 @@ func emitObjectCompactForJson(rt *reflection.RunType, ctx *EmitContext, v string
 		}
 		if slot.nonEnumerable {
 			// A guarded (lib-global-inherited / `@nonEnumerable`) property holds its value only when it is own-enumerable on
-			// v (`JSON.stringify` semantics), else the null placeholder the decoder maps back to absent.
-			expr = "(!" + propertyIsEnumerableGuard(v, slot.name) + " ? null : " + expr + ")"
+			// v (`JSON.stringify` semantics), else the placeholder the decoder maps back to absent.
+			expr = "(!" + propertyIsEnumerableGuard(v, slot.name) + " ? " + slot.placeholder + " : " + expr + ")"
 		} else if slot.optional {
-			// Absent optional takes the null placeholder compactFromJson maps back to absent, keeping positions aligned.
-			expr = "(" + accessor + " === undefined ? null : " + expr + ")"
+			// Absent optional takes the placeholder compactFromJson maps back to absent, keeping positions aligned.
+			expr = "(" + accessor + " === undefined ? " + slot.placeholder + " : " + expr + ")"
 		}
 		parts = append(parts, expr)
 	}

@@ -262,7 +262,9 @@ func emitUnionRestoreFromJsonCloneLayout(rt *reflection.RunType, ctx *EmitContex
 		return RTCode{Code: "", Type: CodeS}
 	}
 	objectArm := emitMergedPropsRebuild
-	if layout.hasIndexSignatureMember(ctx) {
+	if layout.PositionalMerged {
+		objectArm = emitMergedPropsPositionalRebuild
+	} else if layout.hasIndexSignatureMember(ctx) {
 		objectArm = emitMergedPropsInPlace
 	}
 	if layout.AtomicNeedsTuple {
@@ -293,7 +295,12 @@ func emitBareUnionRestoreSafe(ctx *EmitContext, v string, layout FlatLayout, obj
 			return RTCode{Code: "", Type: CodeNS}
 		}
 		if body != "" {
-			clauses = append(clauses, "if ("+unknownKeysObjectGuard(v)+") {"+body+"}")
+			// A positional merged object is an array on the wire, a keyed one is a non-array object.
+			guard := unknownKeysObjectGuard(v)
+			if layout.PositionalMerged {
+				guard = "Array.isArray(" + v + ")"
+			}
+			clauses = append(clauses, "if ("+guard+") {"+body+"}")
 		}
 	}
 

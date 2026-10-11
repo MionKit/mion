@@ -88,42 +88,44 @@ func buildArrayOfObjectsOrStringFixture() []*reflection.RunType {
 	return []*reflection.RunType{str, propC, inner, arr, union}
 }
 
-// TestCompactForJsonModule_NestedObjectUnionKeepsEnvelope — the compact encode
-// of `{a: string} | {b: {c: string}}` wraps the merged object in `[-1, …]` and
-// positionalizes the nested member (`[v.b.c]`), while the keyed clone encode
-// of the SAME fixture emits no envelope (the raw round-trip it is entitled to).
-func TestCompactForJsonModule_NestedObjectUnionKeepsEnvelope(t *testing.T) {
+// TestCompactForJsonModule_NestedObjectUnionGoesPositional: compact writes `{a: string} | {b: {c: string}}` as ONE
+// positional array over both members' props, no `[-1, …]` envelope, a missing string slot holding `0`, while the
+// keyed clone encode of the SAME fixture keeps the keyed merged object.
+func TestCompactForJsonModule_NestedObjectUnionGoesPositional(t *testing.T) {
 	dump := protocol.Dump{RunTypes: buildNestedObjectUnionFixture()}
 
-	compact := renderModule(t, dump, "compactForJson")
-	if !strings.Contains(compact, "[-1, ") {
-		t.Errorf("compact encode must keep the `[-1, …]` envelope when a member positionalizes; got:\n%s", compact)
+	compact := unionEntry(t, renderModuleDefault(t, dump, "compactForJson"), "compactForJson")
+	if !strings.Contains(compact, "return [(v.a !== undefined ? v.a : 0),(v.b !== undefined ? [v.b.c] : 0)];") {
+		t.Errorf("compact encode must write the merged object positionally; got:\n%s", compact)
 	}
-	if !strings.Contains(compact, "[v.b.c]") {
-		t.Errorf("compact encode must positionalize the nested object `[v.b.c]`; got:\n%s", compact)
+	if strings.Contains(compact, "[-1, ") {
+		t.Errorf("an objects-only union needs no envelope; got:\n%s", compact)
 	}
 
 	clone := renderModule(t, dump, "prepareForJsonClone")
-	if strings.Contains(clone, "[-1, ") {
-		t.Errorf("clone encode of a JSON-compatible object union must stay envelope-free; got:\n%s", clone)
+	if strings.Contains(clone, "[-1, ") || strings.Contains(clone, "v.a : 0") {
+		t.Errorf("clone encode keeps the bare keyed merged object; got:\n%s", clone)
 	}
 }
 
-// TestCompactFromJsonModule_NestedObjectUnionUnwraps — the compact decode of
-// the same fixture unwraps the envelope and rebuilds the nested object, while
-// restoreFromJsonMutate stays identity (`return v`).
-func TestCompactFromJsonModule_NestedObjectUnionUnwraps(t *testing.T) {
+// TestCompactFromJsonModule_NestedObjectUnionRebuildsPositions: the compact decode of the same fixture rebuilds the
+// keyed object from positions, mapping the `0` placeholder to absent before the nested rebuild runs, while
+// restoreFromJsonMutate stays identity.
+func TestCompactFromJsonModule_NestedObjectUnionRebuildsPositions(t *testing.T) {
 	dump := protocol.Dump{RunTypes: buildNestedObjectUnionFixture()}
 
-	compact := renderModuleDefault(t, dump, "compactFromJson")
-	if !strings.Contains(compact, "= v[0]") {
-		t.Errorf("compact decode must unwrap the envelope (`const dec = v[0]`); got:\n%s", compact)
+	compact := unionEntry(t, renderModuleDefault(t, dump, "compactFromJson"), "compactFromJson")
+	for _, want := range []string{
+		"if (Array.isArray(v)) {const r0 = {};",
+		"if (v[0] !== undefined && v[0] !== 0) {r0.a = v[0];}",
+		"if (v[1] !== undefined && v[1] !== 0) {if (Array.isArray(v[1])) {const r1 = {};r1.c = v[1][0];v[1] = r1;}r0.b = v[1];}",
+	} {
+		if !strings.Contains(compact, want) {
+			t.Errorf("compact decode must contain %q; got:\n%s", want, compact)
+		}
 	}
-	if !strings.Contains(compact, "=== -1") {
-		t.Errorf("compact decode must dispatch the merged-object arm (`=== -1`); got:\n%s", compact)
-	}
-	if !strings.Contains(compact, "v.b = ") {
-		t.Errorf("compact decode must rebuild the nested object into `v.b`; got:\n%s", compact)
+	if strings.Contains(compact, "const dec") {
+		t.Errorf("an objects-only union has no envelope to unwrap; got:\n%s", compact)
 	}
 
 	restore := renderModuleDefault(t, dump, "restoreFromJsonMutate")
@@ -245,18 +247,21 @@ func TestPureAtomicUnion_StaysCompiledAway(t *testing.T) {
 	}
 }
 
-// TestCompactUnionNeedsEnvelope pins the helper the emitters and the cjr
-// predicate share, over the three fixtures above.
+// TestCompactUnionNeedsEnvelope pins the keyed-form envelope helper the emitters and the cjr predicate share,
+// beside the layout buildCompactFlatLayout hands both compact emitters: a union with object members goes
+// positional and drops the helper's verdict.
 func TestCompactUnionNeedsEnvelope(t *testing.T) {
 	cases := []struct {
-		name  string
-		types []*reflection.RunType
-		want  bool
+		name           string
+		types          []*reflection.RunType
+		want           bool
+		wantPositional bool
+		wantWrapper    bool
 	}{
-		{"nested object member", buildNestedObjectUnionFixture(), true},
-		{"record of numbers | object", buildRecordNumberUnionFixture(), false},
-		{"array of objects | string", buildArrayOfObjectsOrStringFixture(), true},
-		{"bigint/Date members (transforms the keyed rule already envelopes)", buildBigIntDateUnionFixture(), true},
+		{"nested object member", buildNestedObjectUnionFixture(), true, true, false},
+		{"record of numbers | object", buildRecordNumberUnionFixture(), false, false, false},
+		{"array of objects | string", buildArrayOfObjectsOrStringFixture(), true, false, true},
+		{"bigint/Date members (transforms the keyed rule already envelopes)", buildBigIntDateUnionFixture(), true, true, false},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -267,6 +272,11 @@ func TestCompactUnionNeedsEnvelope(t *testing.T) {
 			ctx := &EmitContext{walker: &Walker{RefTable: refTable}}
 			if got := compactUnionEnvelope(refTable["uni"], ctx); got != c.want {
 				t.Errorf("compactUnionEnvelope = %v, want %v", got, c.want)
+			}
+			layout := buildCompactFlatLayout(refTable["uni"], ctx)
+			if layout.PositionalMerged != c.wantPositional || layout.AtomicNeedsTuple != c.wantWrapper {
+				t.Errorf("layout PositionalMerged = %v, AtomicNeedsTuple = %v; want %v, %v",
+					layout.PositionalMerged, layout.AtomicNeedsTuple, c.wantPositional, c.wantWrapper)
 			}
 		})
 	}

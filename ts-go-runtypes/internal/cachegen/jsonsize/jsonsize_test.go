@@ -1,6 +1,7 @@
 package jsonsize
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
@@ -195,6 +196,27 @@ func TestMaxBytes_UnionMergedProps(t *testing.T) {
 	setRT := &reflection.RunType{Kind: reflection.KindClass, SubKind: reflection.SubKindSet, Arguments: []*reflection.RunType{reflection.NewRef("u")},
 		FormatAnnotation: &reflection.FormatAnnotation{Name: "formattedSet", Params: map[string]any{"maxItems": 1.0}}}
 	expectBounded(t, "set of merged union", MaxBytes(setRT, map[string]*reflection.RunType{"u": item}), 2+41+2*sub+unionEnvelopeBytes(2))
+}
+
+// TestMaxBytes_UnionPositionalBound: compact writes a union's objects as ONE array holding a slot for every
+// member's props, so `{a: string(<=1000)} | {b1..b50: boolean}` writes the big string beside 50 placeholders,
+// larger than either member keyed.
+func TestMaxBytes_UnionPositionalBound(t *testing.T) {
+	bigString := object(prop("a", stringFmt(map[string]any{"maxLength": 1000.0}), true))
+	var flags []*reflection.RunType
+	for i := 1; i <= 50; i++ {
+		flags = append(flags, prop("b"+strconv.Itoa(i), boolean, true))
+	}
+	manyFlags := object(flags...)
+	union := &reflection.RunType{Kind: reflection.KindUnion, Children: []*reflection.RunType{bigString, manyFlags}}
+	// positional: `[` `]` + (6002 + `,`) + 50 × (`false` + `,`), the widest wire the encoder can write
+	positional := 2 + (1000*stringUnitBytes + 2 + 1) + 50*(boolBytes+1)
+	got := MaxBytes(union, noRefs)
+	expectBounded(t, "positional merged object", got, positional+unionEnvelopeBytes(2))
+	keyedLargest := max(MaxBytes(bigString, noRefs).Bytes, MaxBytes(manyFlags, noRefs).Bytes)
+	if got.Bytes <= keyedLargest+unionEnvelopeBytes(2) {
+		t.Errorf("the bound %d must exceed the largest keyed member %d", got.Bytes, keyedLargest)
+	}
 }
 
 func TestMaxBytes_MapAndSet(t *testing.T) {

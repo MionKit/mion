@@ -4,16 +4,16 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// The compact strategy's union envelope rule. The keyed JSON strategies drop the envelope on a union that
-// round-trips raw (FlatLayout.roundTripsRaw), but compact positionalizes every nested object literal /
-// plain class, a transform isJsonCompatible cannot see: under the shared rule
-// `{kind: 'a'} | {kind: 'b'; f: {x: number}}` encoded `f` as `[1]` and the identity decoder handed back an
-// array. So compact keeps the envelope whenever a surviving member carries a compact-only transform.
+// The compact strategy's union layout. A union with object members writes them as ONE positional array
+// (buildCompactFlatLayout). A union keeping the keyed merged object, or with no object member, follows the
+// keyed strategies' envelope rule widened for compact: they drop the envelope on a union that round-trips raw
+// (FlatLayout.roundTripsRaw), but compact positionalizes every nested object literal / plain class, a transform
+// isJsonCompatible cannot see, so compact keeps the envelope whenever a surviving member carries one.
 // Read by BOTH compact emitters and by the cjr noop predicate (compactFromJsonNoopRecursive), so the three
 // cannot drift.
 
 // compactUnionNeedsEnvelope reports whether the compact pair must keep the flat-union envelope on rt
-// because a member positionalizes something. Mirrors unionJsonNoop's member walk rather than calling
+// because a member positionalizes something. Decides only unions with no positional merged object. Mirrors unionJsonNoop's member walk rather than calling
 // buildFlatLayout, which emits drop diagnostics the predicate must not duplicate.
 // visited threads the caller's cycle set: a self-referential member re-enters as identity (greatest
 // fixpoint, the isJsonCompatible rule).
@@ -44,9 +44,9 @@ func compactUnionEnvelope(rt *reflection.RunType, ctx *EmitContext) bool {
 	return compactUnionNeedsEnvelope(rt, ctx, visited)
 }
 
-// compactUnionMemberTransforms is one member's verdict. An object literal or anonymous plain class stays
-// KEYED on the union wire whichever bucket it lands in (the merged branch has no single positional shape,
-// and an index-signature shape routes to the keyed clone in emitObjectCompactForJson), so only its member
+// compactUnionMemberTransforms is one member's verdict. In a union this rule decides, an object literal or
+// anonymous plain class stays KEYED on the wire whichever bucket it lands in (the merged object of a keyed
+// union, or an index-signature shape routed to the keyed clone in emitObjectCompactForJson), so only its member
 // VALUES can positionalize and the walk asks each property / index signature.
 // Every other member compiles whole through the compact arms, so its own cjr verdict decides.
 func compactUnionMemberTransforms(resolved *reflection.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
@@ -70,13 +70,67 @@ func compactUnionMemberTransforms(resolved *reflection.RunType, ctx *EmitContext
 	return false
 }
 
-// buildCompactFlatLayout is buildFlatLayout plus the compact envelope rule: a union the keyed strategies
-// pass through raw still wraps when a member positionalizes.
-// Both compact emitters build their layout here so encode and decode read the same AtomicNeedsTuple.
+// buildCompactFlatLayout is buildFlatLayout plus the compact rules, so both compact emitters read the same layout.
+// A union with object members goes positional (PositionalMerged) and wraps only when a non-object member can be
+// an array on the wire. A union keeping the keyed merged object (an index-signature member, or a slot with no
+// usable placeholder) or having no object member at all follows the envelope rule above.
 func buildCompactFlatLayout(rt *reflection.RunType, ctx *EmitContext) FlatLayout {
 	layout := buildFlatLayout(rt, ctx)
+	layout.PositionalMerged = len(layout.ObjectMembers) > 0 && !layout.hasIndexSignatureMember(ctx)
+	if layout.PositionalMerged {
+		for i := range layout.MergedProps {
+			placeholder, ok := mergedSlotPlaceholder(layout.MergedProps[i], ctx)
+			if !ok {
+				layout.PositionalMerged = false
+				break
+			}
+			layout.MergedProps[i].Placeholder = placeholder
+		}
+	}
+	if layout.PositionalMerged {
+		layout.AtomicNeedsTuple = compactPositionalNeedsEnvelope(layout, ctx)
+		return layout
+	}
+	for i := range layout.MergedProps {
+		layout.MergedProps[i].Placeholder = ""
+	}
 	if !layout.AtomicNeedsTuple && compactUnionEnvelope(rt, ctx) {
 		layout.AtomicNeedsTuple = true
 	}
 	return layout
+}
+
+// compactPositionalNeedsEnvelope reports whether a positional union must wrap. The merged object is an array on the
+// wire, so a bare value is unambiguous only when every atomic member is always a plain JSON scalar: those are
+// JSON-identity, never arrays, and their encode guards read the same on the wire. Anything else (an array member, a
+// class, bigint, `undefined`, `any`) wraps, or `{a: string} | string[]` would decode `["x"]` as a `string[]`.
+func compactPositionalNeedsEnvelope(layout FlatLayout, ctx *EmitContext) bool {
+	for _, m := range layout.AtomicMembers {
+		if !compactAlwaysScalar(m.Resolved) || overrideHashForTag(m.Resolved, "cj") != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// compactAlwaysScalar reports whether every value of rt is a JSON string, number, boolean or null, written as is.
+func compactAlwaysScalar(rt *reflection.RunType) bool {
+	switch rt.Kind {
+	case reflection.KindNull, reflection.KindString, reflection.KindNumber, reflection.KindBoolean,
+		reflection.KindEnum, reflection.KindTemplateLiteral:
+		return true
+	case reflection.KindLiteral:
+		return literalFlavour(rt) == litPrimitive
+	}
+	return false
+}
+
+// compactUnionHasMergedMember reports whether a surviving member lands in the merged object, which compact always
+// rebuilds from positions. Uses classifyFlatMember, not buildFlatLayout, whose drop diagnostics a predicate must not
+// duplicate.
+func compactUnionHasMergedMember(rt *reflection.RunType, ctx *EmitContext) bool {
+	return anyUnionMember(rt, ctx, func(resolved *reflection.RunType, ctx *EmitContext) bool {
+		isObject, _ := classifyFlatMember(resolved, ctx)
+		return isObject
+	})
 }

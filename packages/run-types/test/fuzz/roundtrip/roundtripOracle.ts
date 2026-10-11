@@ -7,7 +7,7 @@
 //   RT-FAILAGREE  a type one lane refuses, every lane refuses.
 //   RT-NATIVE     native JSON.parse reads the keyed encoders' output back to the same JSON-safe value.
 //   RT-THROW      no lane throws an uncontrolled error on a valid value.
-// compact collapses a present `null` optional to absent (skipped via compactNullRisk); mutate works in place, so every
+// compact collapses a present `null` optional with no free placeholder to absent (skipped via compactNullRisk); mutate works in place, so every
 // lane encodes a fresh clone; RT-NATIVE runs only on JSON-safe values (jsonRoundTripSafe).
 
 import {normalizeForComparison, deepCloneForRoundTrip} from '../../util/equalsHelpers.ts';
@@ -68,7 +68,7 @@ export function checkRoundtrip(compiled: CompiledCodecs, value: unknown, seed: n
   if (inputValid.threw) record(out, 'RT-THROW', 'all', ctx, `validate threw on the generated value: ${inputValid.threw}`, value);
   else if (!inputValid.ok) record(out, 'RT-VALIDATE', 'all', ctx, 'validate rejected the generated value', value);
 
-  // Lanes to exercise: every wired lane, minus compact when an optional field
+  // Lanes to exercise: every wired lane, minus compact when an optional field with no free placeholder
   // could carry a present `null` (the compact wire can't distinguish it).
   const compactExcluded = compactNullRisk(compiled.gen);
   const lanes = ALL_LANES.filter((id) => compiled.codecs[id] && !(id === 'compact' && compactExcluded));
@@ -314,13 +314,20 @@ function safe(value: unknown, seen: Set<object>): boolean {
 }
 
 // =============================================================================
-// compactNullRisk — STATIC over-approximation: true when the type has any
-// optional property whose declared type can be `null`. Sound (no false
-// positives in the oracle): compact's absent-placeholder is `null`, so a present
-// `null` in an optional position decodes to undefined. Over-excludes types that
-// merely COULD carry such a null even when this value doesn't, which only costs
-// the compact lane on those types.
+// compactNullRisk — STATIC over-approximation: true when the type has an
+// optional property that can be `null` and whose compact slot has NO free
+// placeholder. Compact writes a missing slot as the first of `0`, `null`,
+// `false` the slot's wire value can never be; only a slot that can be all three
+// (`any`, `unknown`, `number | null | boolean`) falls back to `null`, so a
+// present `null` there decodes to undefined. A union's object members share one
+// slot per prop name, so their wire values are ORed. Over-excludes types that
+// merely COULD carry such a null, which only costs the compact lane on those types.
 // =============================================================================
+
+const WIRE_NUMBER = 1;
+const WIRE_NULL = 2;
+const WIRE_BOOLEAN = 4;
+const WIRE_ALL = WIRE_NUMBER | WIRE_NULL | WIRE_BOOLEAN;
 
 export function compactNullRisk(gen: GeneratedType): boolean {
   const decls = new Map<string, Decl>();
@@ -328,7 +335,7 @@ export function compactNullRisk(gen: GeneratedType): boolean {
   return walkRisk(gen.root, decls, new Set());
 }
 
-// True when some optional property reachable from `shape` admits a null value.
+// True when some optional property reachable from `shape` loses a present null.
 function walkRisk(shape: TypeShape, decls: Map<string, Decl>, seen: Set<string>): boolean {
   switch (shape.kind) {
     case 'array':
@@ -341,6 +348,7 @@ function walkRisk(shape: TypeShape, decls: Map<string, Decl>, seen: Set<string>)
     case 'tuple':
       return shape.elems.some((s) => walkRisk(s, decls, seen));
     case 'union':
+      return mergedSlotsRisk(shape.members, decls, seen) || shape.members.some((s) => walkRisk(s, decls, seen));
     case 'intersection':
       return shape.members.some((s) => walkRisk(s, decls, seen));
     case 'object':
@@ -362,10 +370,69 @@ function walkRisk(shape: TypeShape, decls: Map<string, Decl>, seen: Set<string>)
 
 function propsRisk(props: PropShape[], decls: Map<string, Decl>, seen: Set<string>): boolean {
   for (const prop of props) {
-    if (prop.optional && shapeCanBeNull(prop.shape, decls, seen)) return true;
+    if (prop.optional && shapeCanBeNull(prop.shape, decls, seen) && wireClasses(prop.shape, decls, seen) === WIRE_ALL)
+      return true;
     if (walkRisk(prop.shape, decls, seen)) return true; // nested optionals
   }
   return false;
+}
+
+// A union's object members merge into one slot per prop name: the slot's wire value is any member's.
+function mergedSlotsRisk(members: TypeShape[], decls: Map<string, Decl>, seen: Set<string>): boolean {
+  const props = members.flatMap((member) => objectProps(member, decls, seen));
+  const classesByName = new Map<string, number>();
+  for (const prop of props) {
+    classesByName.set(prop.name, (classesByName.get(prop.name) ?? 0) | wireClasses(prop.shape, decls, seen));
+  }
+  return props.some(
+    (prop) => prop.optional && shapeCanBeNull(prop.shape, decls, seen) && classesByName.get(prop.name) === WIRE_ALL
+  );
+}
+
+function objectProps(shape: TypeShape, decls: Map<string, Decl>, seen: Set<string>): PropShape[] {
+  if (shape.kind === 'object') return shape.props;
+  if (shape.kind !== 'ref' || seen.has(shape.name)) return [];
+  const decl = decls.get(shape.name);
+  if (!decl) return [];
+  if (decl.kind === 'interface' || decl.kind === 'class') return decl.props;
+  if (decl.kind === 'type') return objectProps(decl.shape, decls, new Set(seen).add(shape.name));
+  return [];
+}
+
+// Which of number / null / boolean a compact slot's wire value can be; unsure answers all three.
+function wireClasses(shape: TypeShape, decls: Map<string, Decl>, seen: Set<string>): number {
+  switch (shape.kind) {
+    case 'number':
+    case 'format': // a numeric format is a number, every other a string
+      return WIRE_NUMBER;
+    case 'boolean':
+      return WIRE_BOOLEAN;
+    case 'null':
+    case 'undefined':
+    case 'void':
+      return WIRE_NULL;
+    case 'literal':
+      return typeof shape.value === 'number' ? WIRE_NUMBER : typeof shape.value === 'boolean' ? WIRE_BOOLEAN : 0;
+    case 'any':
+    case 'unknown':
+    case 'intersection':
+      return WIRE_ALL;
+    case 'object':
+      return shape.props.length === 0 && !shape.index ? WIRE_ALL : 0; // `{}` admits any non-nullish value
+    case 'union':
+      return shape.members.reduce((classes, member) => classes | wireClasses(member, decls, seen), 0);
+    case 'ref': {
+      if (seen.has(shape.name)) return 0;
+      const decl = decls.get(shape.name);
+      if (!decl) return WIRE_ALL;
+      if (decl.kind === 'type') return wireClasses(decl.shape, decls, new Set(seen).add(shape.name));
+      if (decl.kind === 'class') return WIRE_ALL; // a registered class serializer may write anything
+      if (decl.kind === 'enum') return WIRE_NUMBER;
+      return 0; // interface: a positional array
+    }
+    default:
+      return 0; // strings, bigint, Date / URL, arrays, tuples, records, Map / Set, non-data leaves
+  }
 }
 
 // True when a value of `shape` can be exactly `null`.

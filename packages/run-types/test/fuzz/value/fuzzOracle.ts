@@ -774,7 +774,8 @@ export function checkJsonStable(target: FuzzTarget, value: unknown, ctx: CheckCt
 }
 
 /** O12 — jsonEncode(compactDecode(compactEncode v)) must equal jsonEncode(v), structurally, so key order is free.
- *  The caller skips types whose optional can hold a present `null`: compact collapses it to absent by design. **/
+ *  The caller skips types whose optional can hold a present `null` with no free compact placeholder: compact
+ *  collapses that `null` to absent by design. **/
 export function checkCrossWire(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
   if (!target.jsonEncode || !target.compactEncode || !target.compactDecode) return null;
   let jsonWire: string | undefined;

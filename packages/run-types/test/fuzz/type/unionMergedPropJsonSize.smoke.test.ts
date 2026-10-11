@@ -50,7 +50,38 @@ const union4 = (tag: string): TypeShape => ({
 /** The widest arm: three properties, two of them sub-wrapped, one a Date. **/
 const widestArm = (tag: string) => ({kind: `t2-${tag}`, f0: null, f1: new Date('2018-03-26T05:49:26.862Z')});
 
+/** Compact writes ONE positional array carrying every member's slots: the strings of one member beside the
+ *  boolean placeholders of the other. **/
+const stringsOrFlags = (tag: string): TypeShape => ({
+  kind: 'union',
+  members: [
+    {
+      kind: 'object',
+      props: [
+        prop('kind', {kind: 'literal', value: `strings-${tag}`}),
+        ...Array.from({length: 10}, (_, i) => prop(`a${i}`, {kind: 'format', name: 'maxLen8'})),
+      ],
+    },
+    {
+      kind: 'object',
+      props: [
+        prop('kind', {kind: 'literal', value: `flags-${tag}`}),
+        ...Array.from({length: 10}, (_, i) => prop(`b${i}`, {kind: 'boolean'})),
+      ],
+    },
+  ],
+});
+const widestStrings = (tag: string) => ({
+  kind: `strings-${tag}`,
+  ...Object.fromEntries(Array.from({length: 10}, (_, i) => [`a${i}`, '\u2028'.repeat(8)])),
+});
+
 const cases: {title: string; root: TypeShape; values: () => unknown[]}[] = [
+  {
+    title: 'compact: one positional array over two disjoint members',
+    root: stringsOrFlags('bare'),
+    values: () => [widestStrings('bare')],
+  },
   {
     title: 'Set<union of objects> (the reported shape)',
     root: {kind: 'set', elem: union4('set'), structural: {maxItems: 1}},
@@ -78,7 +109,7 @@ const cases: {title: string; root: TypeShape; values: () => unknown[]}[] = [
   },
 ];
 
-describe('jsonMaxBytes covers the flat-union merged-property envelope', () => {
+describe('jsonMaxBytes covers the flat-union merged-property envelope and the compact positional array', () => {
   for (const {title, root, values} of cases) {
     (hasBinary() ? it : it.skip)(`the encoder never passes the bound: ${title}`, () => {
       const gen: GeneratedType = {decls: [], root};
@@ -93,10 +124,12 @@ describe('jsonMaxBytes covers the flat-union merged-property envelope', () => {
           const bound = getRunType(undefined, reflectionId as never).jsonMaxBytes;
           expect(bound, 'the type must be fully bounded').toBeTypeOf('number');
           for (const value of values()) {
-            const encoded = compiled.wired.jsonEncode!(value);
-            expect(typeof encoded).toBe('string');
-            const emitted = Buffer.byteLength(encoded as string, 'utf8');
-            expect(emitted, `${encoded} is ${emitted} bytes, over the bound ${bound}`).toBeLessThanOrEqual(bound!);
+            for (const encode of [compiled.wired.jsonEncode!, compiled.wired.compactEncode!]) {
+              const encoded = encode(value);
+              expect(typeof encoded).toBe('string');
+              const emitted = Buffer.byteLength(encoded as string, 'utf8');
+              expect(emitted, `${encoded} is ${emitted} bytes, over the bound ${bound}`).toBeLessThanOrEqual(bound!);
+            }
           }
         })
         .finally(() => client.close());

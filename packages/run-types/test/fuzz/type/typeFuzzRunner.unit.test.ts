@@ -61,17 +61,33 @@ function objectWithProp(optional: boolean, shape: TypeShape): GeneratedType {
 }
 
 const nullOrNumber: TypeShape = {kind: 'union', members: [{kind: 'null'}, {kind: 'number'}]};
+const nullNumberOrBoolean: TypeShape = {kind: 'union', members: [{kind: 'null'}, {kind: 'number'}, {kind: 'boolean'}]};
 
 describe('compactNullRisk', () => {
-  it('is true for `{p?: null | number}`', () => {
-    expect(compactNullRisk(objectWithProp(true, nullOrNumber))).toBe(true);
+  it('is false for `{p?: null | number}`: `false` marks absent', () => {
+    expect(compactNullRisk(objectWithProp(true, nullOrNumber))).toBe(false);
   });
 
-  it('is true when the nullable optional sits behind a named alias', () => {
+  it('is false for `{p?: null | string}`: `0` marks absent', () => {
+    expect(compactNullRisk(objectWithProp(true, {kind: 'union', members: [{kind: 'null'}, {kind: 'string'}]}))).toBe(false);
+  });
+
+  it('is true for `{p?: null | number | boolean}` and `{p?: unknown}`: no free placeholder', () => {
+    expect(compactNullRisk(objectWithProp(true, nullNumberOrBoolean))).toBe(true);
+    expect(compactNullRisk(objectWithProp(true, {kind: 'unknown'}))).toBe(true);
+  });
+
+  it('is true when the at-risk optional sits behind a named alias', () => {
     const gen: GeneratedType = {
-      decls: [{kind: 'type', name: 'N', shape: nullOrNumber}],
+      decls: [{kind: 'type', name: 'N', shape: nullNumberOrBoolean}],
       root: {kind: 'array', elem: objectWithProp(true, {kind: 'ref', name: 'N'}).root},
     };
+    expect(compactNullRisk(gen)).toBe(true);
+  });
+
+  it('is true when union members share a slot whose wire values cover all three', () => {
+    const member = (shape: TypeShape) => objectWithProp(true, shape).root;
+    const gen: GeneratedType = {decls: [], root: {kind: 'union', members: [member(nullOrNumber), member({kind: 'boolean'})]}};
     expect(compactNullRisk(gen)).toBe(true);
   });
 
@@ -79,7 +95,7 @@ describe('compactNullRisk', () => {
     expect(compactNullRisk(objectWithProp(true, {kind: 'number'}))).toBe(false);
   });
 
-  it('is false for a required `{p: null | number}`', () => {
-    expect(compactNullRisk(objectWithProp(false, nullOrNumber))).toBe(false);
+  it('is false for a required `{p: unknown}`', () => {
+    expect(compactNullRisk(objectWithProp(false, {kind: 'unknown'}))).toBe(false);
   });
 });
