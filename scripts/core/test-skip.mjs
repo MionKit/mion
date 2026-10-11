@@ -63,6 +63,8 @@ export const DECLARED = {
   'packages/platform-node/src/mionHttp.ts': [],
   // Overlays the built run-types declarations and the Temporal fixture into temp projects it writes itself.
   'packages/devtools/test/helpers/inline.ts': [GO_BINS, 'packages/run-types/dist', 'ts-go-runtypes/internal/testfixtures/temporal.d.ts'],
+  // tsc (from the lockfile) over typed modules that import run-types through a symlink to the package.
+  'packages/devtools/test/helpers/typedEmit.ts': [...RUN_TYPES_PROGRAM, 'packages/run-types/dist'],
 };
 
 const sha = (...parts) => {
