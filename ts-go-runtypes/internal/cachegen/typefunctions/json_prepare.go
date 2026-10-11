@@ -75,7 +75,7 @@ func (PrepareForJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Co
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindVoid:
-		return RTCode{Code: v + " = undefined", Type: CodeE}
+		return RTCode{Code: undefinedAssign(v, ctx), Type: CodeE}
 
 	case reflection.KindClass:
 		// Date needs no transform (it has its own toJSON()); Map / Set materialise their iterable
@@ -553,4 +553,13 @@ func (PrepareForJsonEmitter) Finalize(raw string) (string, bool) {
 		return "return v", true
 	}
 	return code, false
+}
+
+// undefinedAssign clears accessor in place; at the root the value is the returned parameter itself, so a bare
+// `undefined` returns the same thing without a write-only parameter.
+func undefinedAssign(accessor string, ctx *EmitContext) string {
+	if ctx.IsRoot() {
+		return "undefined"
+	}
+	return accessor + " = undefined"
 }

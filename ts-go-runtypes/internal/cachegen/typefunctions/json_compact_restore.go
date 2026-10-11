@@ -67,10 +67,10 @@ func (CompactFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindUndefined:
-		return RTCode{Code: v + " = undefined", Type: CodeE}
+		return RTCode{Code: undefinedAssign(v, ctx), Type: CodeE}
 
 	case reflection.KindVoid:
-		return RTCode{Code: v + " = undefined", Type: CodeE}
+		return RTCode{Code: undefinedAssign(v, ctx), Type: CodeE}
 
 	case reflection.KindBigInt:
 		return RTCode{Code: bigintRestoreCode(v, ctx), Type: CodeE}

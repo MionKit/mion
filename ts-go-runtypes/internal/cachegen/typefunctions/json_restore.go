@@ -60,10 +60,10 @@ func (RestoreFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 
 	case reflection.KindUndefined:
 		// JSON has no undefined, so the parsed input may be null or missing; force-rebind (ref: nodes/atomic/undefined.ts).
-		return RTCode{Code: v + " = undefined", Type: CodeE}
+		return RTCode{Code: undefinedAssign(v, ctx), Type: CodeE}
 
 	case reflection.KindVoid:
-		return RTCode{Code: v + " = undefined", Type: CodeE}
+		return RTCode{Code: undefinedAssign(v, ctx), Type: CodeE}
 
 	case reflection.KindBigInt:
 		return RTCode{Code: bigintRestoreCode(v, ctx), Type: CodeE}
