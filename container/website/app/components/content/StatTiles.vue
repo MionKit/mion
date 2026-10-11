@@ -35,7 +35,14 @@ interface Tile {
   action?: {label: string, to: string}
 }
 
-const props = withDefaults(defineProps<{tiles?: Tile[]}>(), {tiles: () => []})
+const props = withDefaults(
+  defineProps<{
+    tiles?: Tile[]
+    /** Word titles instead of numbers: smaller, in the plain heading colour, no gradient. */
+    plain?: boolean
+  }>(),
+  {tiles: () => [], plain: false}
+)
 
 // An unknown `source` falls back to `value` rather than rendering "undefined", so
 // a renamed count degrades to the literal instead of breaking the page.
@@ -54,7 +61,7 @@ const gradient = (hue?: number) => {
 </script>
 
 <template>
-  <div class="stat-tiles">
+  <div class="stat-tiles" :class="{'stat-tiles--plain': plain}">
     <component
       :is="tile.to || tile.action ? NuxtLink : 'div'"
       v-for="tile in tiles"
@@ -65,7 +72,7 @@ const gradient = (hue?: number) => {
       class="stat-tile"
       :class="{'stat-tile--wide': tile.wide, 'stat-tile--link': tile.to || tile.action}"
     >
-      <span class="stat-tile-value" :style="{backgroundImage: gradient(tile.hue)}">{{ display(tile) }}</span>
+      <span class="stat-tile-value" :style="plain ? undefined : {backgroundImage: gradient(tile.hue)}">{{ display(tile) }}</span>
       <span class="stat-tile-text">
         <span class="stat-tile-label" :style="tile.wide ? {backgroundImage: gradient(tile.hue)} : undefined">{{ tile.label }}</span>
         <span v-if="tile.sub" class="stat-tile-sub">{{ tile.sub }}</span>
@@ -123,6 +130,14 @@ const gradient = (hue?: number) => {
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+.stat-tiles--plain .stat-tile-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: normal;
+  -webkit-text-fill-color: currentColor;
+  color: var(--ui-text-highlighted);
 }
 
 .stat-tile--wide .stat-tile-value {
