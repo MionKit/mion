@@ -75,6 +75,10 @@ const (
 	flagsNonEnumerableTag
 	// flagsSortMembers prints members sorted by name, since merged declarations bind in file order.
 	flagsSortMembers
+	// flagsReferenceChildren prints every reference-worthy node below the root as a `t:<id>` placeholder.
+	flagsReferenceChildren
+	// flagsDataOnly prints the DataOnly<T> projection: no methods, symbols, never, non-public members or opaque values.
+	flagsDataOnly
 )
 
 // enter marks a node as on-path and returns the unmark func; the second result is false when the
@@ -849,6 +853,9 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 			// Only a declared class has statics, and the id leaves them out.
 			continue
 		}
+		if ctx.flags&flagsDataOnly != 0 && ctx.isNonDataMember(member) {
+			continue
+		}
 		if member.Kind == reflection.KindIndexSignature {
 			indexKey := ctx.deref(member.Index)
 			indexValue := ctx.deref(member.Child)
@@ -861,7 +868,7 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 			indexes = append(indexes, indexSignature{key: indexKey, value: indexValue, readonly: member.Readonly})
 			continue
 		}
-		if member.NonEnumerable && ctx.flags&flagsNonEnumerableTag == 0 {
+		if member.NonEnumerable && ctx.flags&(flagsNonEnumerableTag|flagsDataOnly) == 0 {
 			// The @nonEnumerable JSDoc marker folds into the id but has no printed spelling, and
 			// dropping it would move the id, so the declaration refuses.
 			return nil, nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
@@ -896,12 +903,14 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 		if child == nil {
 			return nil, nil, unsupportedDiag(node, ctx.decl)
 		}
+		dataOnly := ctx.flags&flagsDataOnly != 0
 		members = append(members, &objectMember{
-			name:          member.Name,
-			key:           key,
-			optional:      member.Optional,
+			name: member.Name,
+			key:  key,
+			// The wire may omit a guarded member, so its data projection is optional.
+			optional:      member.Optional || (dataOnly && member.NonEnumerable),
 			readonly:      member.Readonly,
-			nonEnumerable: member.NonEnumerable,
+			nonEnumerable: member.NonEnumerable && !dataOnly,
 			child:         child,
 			modifiers:     classModifiers(member),
 			accessor:      hasFlag(member, reflection.FlagAccessor),
@@ -981,4 +990,23 @@ func hasFlag(node *reflection.RunType, flag string) bool {
 func unsupportedDiag(node *reflection.RunType, decl *declaration) *Diagnostic {
 	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(decl),
 		Message: fmt.Sprintf("%s is not convertible yet (see https://mion.pages.dev/runtypes/tooling/source-conversion)", kindLabel(node.Kind))}
+}
+
+// isNonDataMember reports a member DataOnly<T> drops: a method or call signature, a symbol key, a non-public member, or a
+// value with no data form.
+func (ctx *printContext) isNonDataMember(member *reflection.RunType) bool {
+	switch member.Kind {
+	case reflection.KindCallSignature, reflection.KindMethodSignature, reflection.KindMethod:
+		return true
+	}
+	if reflection.IsSymbolKeyedName(member.Name) || member.Name == "__proto__" {
+		return true
+	}
+	if member.Visibility != nil && *member.Visibility != reflection.VisibilityPublic {
+		return true
+	}
+	if member.Kind == reflection.KindIndexSignature {
+		return false
+	}
+	return reflection.NonDataOf(ctx.deref(member.Child), ctx.deref) != reflection.Data
 }
