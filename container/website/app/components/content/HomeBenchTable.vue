@@ -116,10 +116,15 @@ onMounted(async () => {
     <template v-else>
       <table v-if="serverRows.length" class="home-bench-table">
         <caption>{{ serversCaption }}</caption>
+        <colgroup>
+          <col class="home-bench-col-name" />
+          <col />
+          <col class="home-bench-col-num" />
+        </colgroup>
         <tbody>
-          <tr v-for="row in serverRows" :key="row.name" :class="{'is-mion': row.mion}">
+          <tr v-for="(row, i) in serverRows" :key="row.name" :class="{'is-mion': row.mion}">
             <th scope="row">{{ row.name }}</th>
-            <td class="home-bench-bar"><span :style="{width: width(serverRows, row.value)}" /></td>
+            <td><BenchBar :width="width(serverRows, row.value)" :highlight="row.mion" :order="i" /></td>
             <td class="home-bench-num">{{ format(row.value) }}</td>
           </tr>
         </tbody>
@@ -127,10 +132,15 @@ onMounted(async () => {
 
       <table v-if="validationRows.length" class="home-bench-table">
         <caption>RunTypes validation, is-valid check, operations per second</caption>
+        <colgroup>
+          <col class="home-bench-col-name" />
+          <col />
+          <col class="home-bench-col-num" />
+        </colgroup>
         <tbody>
-          <tr v-for="row in validationRows" :key="row.name" :class="{'is-mion': row.mion, 'is-via-errors': row.viaErrors}">
+          <tr v-for="(row, i) in validationRows" :key="row.name" :class="{'is-mion': row.mion, 'is-via-errors': row.viaErrors}">
             <th scope="row">{{ row.name }}<sup v-if="row.viaErrors">*</sup></th>
-            <td class="home-bench-bar"><span :style="{width: width(validationRows, row.value)}" /></td>
+            <td><BenchBar :width="width(validationRows, row.value)" :highlight="row.mion" :order="i" /></td>
             <td class="home-bench-num">{{ format(row.value) }}</td>
           </tr>
         </tbody>
@@ -164,6 +174,7 @@ onMounted(async () => {
 
 .home-bench-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.85rem;
 }
@@ -179,14 +190,21 @@ onMounted(async () => {
 
 .home-bench-table th,
 .home-bench-table td {
-  padding: 0.22rem 0;
+  padding: 0.3rem 0;
   border: 0;
   vertical-align: middle;
 }
 
-.home-bench-table th {
+.home-bench-col-name {
   width: 7rem;
-  padding-right: 0.6rem;
+}
+
+.home-bench-col-num {
+  width: 4rem;
+}
+
+.home-bench-table th {
+  padding-right: 0.75rem;
   text-align: left;
   font-weight: 500;
   white-space: nowrap;
@@ -195,16 +213,8 @@ onMounted(async () => {
   color: var(--ui-text-muted);
 }
 
-.home-bench-bar span {
-  display: block;
-  height: 0.55rem;
-  border-radius: 0.3rem;
-  background: color-mix(in srgb, var(--ui-text-muted) 45%, transparent);
-}
-
 .home-bench-num {
-  width: 3.5rem;
-  padding-left: 0.6rem;
+  padding-left: 0.75rem;
   text-align: right;
   font-variant-numeric: tabular-nums;
   color: var(--ui-text-muted);
@@ -217,17 +227,13 @@ onMounted(async () => {
   font-weight: 700;
 }
 
-.home-bench-table tr.is-mion .home-bench-bar span {
-  background: var(--ui-primary);
-}
-
 /* measured on a different basis: drawn quieter, like the benchmarks landing does */
 .home-bench-table tr.is-via-errors th,
 .home-bench-table tr.is-via-errors td {
   color: var(--ui-text-dimmed);
 }
 
-.home-bench-table tr.is-via-errors .home-bench-bar span {
+.home-bench-table tr.is-via-errors :deep(.bench-bar-fill) {
   background: color-mix(in srgb, var(--ui-text-muted) 30%, transparent);
 }
 
