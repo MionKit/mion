@@ -764,6 +764,7 @@ func (w *Walker) closureTypesFor(fnType string) ClosureTypes {
 	types := ClosureTypes{Utl: w.tsAnn(": RTUtils")}
 	if fnType != "" {
 		types.Result = w.tsAnn(": " + fnType)
+		types.ReturnCast = w.tsAnn(returnCast(w.FamilyTag, w.RootType.ID))
 	}
 	return types
 }

@@ -137,7 +137,7 @@ func TestTypedEmit_FactoryCarriesFamilySignatures(t *testing.T) {
 		"(v: any,pth: RTValidationErrorPathSegment[]=[],er: RTValidationError[]=[]): RTValidationError[]",
 		"(utl: RTUtils): (v: T_",
 		"(utl: RTUtils): (s: string) => T_",
-		"utl.getRT<(v: unknown) => v is T_",
+		"utl.getRT<(v: any, ...rest: any[]) => v is T_",
 		"')!",
 	} {
 		if !strings.Contains(all, want) {
@@ -175,5 +175,34 @@ func TestTypedEmit_OneTypeModulePerID(t *testing.T) {
 	}
 	if strings.Contains(user, "greet") || strings.Contains(user, "street") || !strings.Contains(user, "address: T_") {
 		t.Errorf("User should drop its method and reference Address:\n%s", user)
+	}
+}
+
+// TestTypedEmit_NoDeadBindingsAndLooseCast: found by the typed-emit fuzz lane. A Map check that never reads its key
+// (a `never` key) binds no key local, and a transform family casts its any-typed inner fn to the precise fn type.
+func TestTypedEmit_NoDeadBindingsAndLooseCast(t *testing.T) {
+	const source = `import {createValidateFn, createGetValidationErrorsFn, createRemoveUnknownKeysFn} from '@mionjs/run-types';
+export const isNeverMap = createValidateFn<Map<never, string>>();
+export const neverMapErrors = createGetValidationErrorsFn<Map<never, string>>();
+export const strip = createRemoveUnknownKeysFn<{a: number}>();
+`
+	session := setupInlineWith(t, map[string]string{"a.ts": source}, func(programOpts *program.Options, resolverOpts *resolver.Options) {
+		programOpts.SingleThreaded = true
+		resolverOpts.SingleThreaded = true
+		resolverOpts.EmitMode = constants.EmitTS
+	})
+	resp := session.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"a.ts"}, IncludeEntryModules: true})
+	if resp.Error != "" {
+		t.Fatalf("scan: %s", resp.Error)
+	}
+	all := strings.Join(sortedModuleBodies(resp.EntryModules), "\n")
+	if regexp.MustCompile(`const k\d+ = `).MatchString(all) {
+		t.Errorf("a never key must bind no key local:\n%s", all)
+	}
+	if !regexp.MustCompile(`const val\d+ = `).MatchString(all) {
+		t.Errorf("the string value is read, so its local stays:\n%s", all)
+	}
+	if !strings.Contains(all, " as unknown as (v: T_") {
+		t.Errorf("no loose family factory casts its inner fn:\n%s", all)
 	}
 }

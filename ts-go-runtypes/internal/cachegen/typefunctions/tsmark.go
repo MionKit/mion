@@ -89,8 +89,11 @@ type tsSignature struct {
 	params string
 	// innerArgs types the inner declaration's parameters by position, matching the emitter's Args.
 	innerArgs []string
-	// result is the return type, shared by the inner declaration and the outer fn type.
+	// result is the outer fn type's return type.
 	result string
+	// loose marks a transform family: its any-typed body cannot meet a precise result (a `never` one rejects even
+	// `any`), so the inner declaration returns `any` and the factory casts it to the outer fn type.
+	loose bool
 }
 
 const (
@@ -112,11 +115,11 @@ var tsSignatures = map[string]tsSignature{
 		innerArgs: []string{"any", "RTValidationErrorPathSegment[]", "RTValidationError[]"},
 		result:    "RTValidationError[]",
 	},
-	sigSameType:   {params: "(v: %T)", innerArgs: []string{"any"}, result: "%T"},
+	sigSameType:   {params: "(v: %T)", innerArgs: []string{"any"}, result: "%T", loose: true},
 	sigToJson:     {params: "(v: %T)", innerArgs: []string{"any"}, result: "unknown"},
-	sigFromJson:   {params: "(v: unknown)", innerArgs: []string{"any"}, result: "%T"},
+	sigFromJson:   {params: "(v: unknown)", innerArgs: []string{"any"}, result: "%T", loose: true},
 	sigEncoder:    {params: "(v: %T)", innerArgs: []string{"any"}, result: "string | undefined"},
-	sigDecoder:    {params: "(s: string)", innerArgs: []string{"string"}, result: "%T"},
+	sigDecoder:    {params: "(s: string)", innerArgs: []string{"string"}, result: "%T", loose: true},
 	sigJsonSchema: {params: "(v?: unknown)", innerArgs: []string{"any"}, result: "unknown"},
 	sigClassName:  {params: "(v?: unknown)", innerArgs: []string{"any"}, result: "string | null"},
 }
@@ -170,29 +173,58 @@ func innerResult(tag, typeID string) string {
 	if !ok {
 		return ""
 	}
+	if sig.loose {
+		return "any"
+	}
 	return withType(sig.result, typeID)
 }
 
-// KeyFnType reads a `<fnHash>_<typeId>` cache key back to its family's outer fn type, empty when the hash is unknown.
-func KeyFnType(key string) string {
+// returnCast is the TS-only cast a loose family's factory applies to the inner fn it returns, empty otherwise.
+func returnCast(tag, typeID string) string {
+	if sig, ok := signatureFor(tag); ok && sig.loose {
+		return " as unknown as " + FnType(tag, typeID)
+	}
+	return ""
+}
+
+// keyFamily reads a `<fnHash>_<typeId>` cache key back to its family tag and type id, empty for any other key.
+func keyFamily(key string) (tag, typeID string) {
 	if len(key) <= operations.FnHashLen+1 || key[operations.FnHashLen] != '_' {
-		return ""
+		return "", ""
 	}
 	variant, ok := operations.VariantForFnHash(key[:operations.FnHashLen])
 	if !ok {
-		return ""
+		return "", ""
 	}
-	tag := variant.Op.FamilyTag
+	tag = variant.Op.FamilyTag
 	if tag == "" {
 		tag, _ = constants.JsonCompositeTag(variant.Op.Name, variant.Strategy)
 	}
-	return FnType(tag, key[operations.FnHashLen+1:])
+	if _, known := signatureFor(tag); !known {
+		return "", ""
+	}
+	return tag, key[operations.FnHashLen+1:]
+}
+
+// KeyFnType is the outer fn type of the family a cache key names, empty when the key names none.
+func KeyFnType(key string) string {
+	tag, typeID := keyFamily(key)
+	return FnType(tag, typeID)
+}
+
+// KeyLookupType types a dependency lookup: the family's result over `any` inputs, the only values a generated body holds,
+// which a `never` input type would refuse.
+func KeyLookupType(key string) string {
+	tag, typeID := keyFamily(key)
+	sig, ok := signatureFor(tag)
+	if !ok {
+		return ""
+	}
+	return "(v: any, ...rest: any[]) => " + withType(sig.result, typeID)
 }
 
 // KeyTypeID is the runtype id a `<fnHash>_<typeId>` cache key names, empty for any other key.
 func KeyTypeID(key string) string {
-	if KeyFnType(key) == "" {
-		return ""
-	}
-	return key[operations.FnHashLen+1:]
+	_, typeID := keyFamily(key)
+	return typeID
 }

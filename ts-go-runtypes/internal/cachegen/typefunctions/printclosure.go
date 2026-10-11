@@ -21,6 +21,7 @@ func WrapClosure(factoryName string, innerFnName string, innerFnDeclaration stri
 	b.WriteString(innerFnDeclaration)
 	b.WriteString("return ")
 	b.WriteString(innerFnName)
+	b.WriteString(types.ReturnCast)
 	body = b.String()
 	decl = "function " + factoryName + "(utl" + types.Utl + ")" + types.Result + "{" + body + "}"
 	return decl, body
@@ -28,6 +29,7 @@ func WrapClosure(factoryName string, innerFnName string, innerFnDeclaration stri
 
 // ClosureTypes are the factory's TS-only annotations, tsMark spans: the `utl` parameter type and the returned fn type.
 type ClosureTypes struct {
-	Utl    string
-	Result string
+	Utl        string
+	Result     string
+	ReturnCast string
 }
