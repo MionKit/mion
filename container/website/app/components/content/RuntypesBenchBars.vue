@@ -218,13 +218,18 @@ onMounted(async () => {
           <div v-for="metric in metrics" :key="metric.key" class="runtypes-bench-card">
             <table class="runtypes-bench-chart">
               <caption>{{ chartCaption(metric) }}</caption>
+              <colgroup>
+                <col class="runtypes-bench-col-name" />
+                <col />
+                <col class="runtypes-bench-col-num" />
+              </colgroup>
               <tbody>
-                <tr v-for="bar in bars(metric, row.key)" :key="bar.name" :class="{'is-mion': bar.mion, 'is-na': bar.value === null}">
+                <tr v-for="(bar, i) in bars(metric, row.key)" :key="bar.name" :class="{'is-mion': bar.mion, 'is-na': bar.value === null}">
                   <th scope="row">
                     <span class="runtypes-bench-name">{{ bar.label }}</span>
                     <span v-if="bar.detail" class="runtypes-bench-detail">{{ bar.detail }}</span>
                   </th>
-                  <td class="runtypes-bench-bar"><span :style="{width: bar.width}" /></td>
+                  <td><BenchBar :width="bar.width" :highlight="bar.mion" :order="i" /></td>
                   <td class="runtypes-bench-num">{{ bar.text }}</td>
                 </tr>
               </tbody>
@@ -297,7 +302,7 @@ onMounted(async () => {
 /* The JSON round trip page has two cards (speed and bytes): side by side, stacked on a narrow screen. */
 .runtypes-bench-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(24rem, 1fr));
   gap: 1rem;
   align-items: start;
 }
@@ -311,6 +316,7 @@ onMounted(async () => {
 
 .runtypes-bench-chart {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.85rem;
 }
@@ -326,14 +332,21 @@ onMounted(async () => {
 
 .runtypes-bench-chart th,
 .runtypes-bench-chart td {
-  padding: 0.3rem 0;
+  padding: 0.35rem 0;
   border: 0;
   vertical-align: middle;
 }
 
-.runtypes-bench-chart th {
+.runtypes-bench-col-name {
   width: 8rem;
-  padding-right: 0.75rem;
+}
+
+.runtypes-bench-col-num {
+  width: 7rem;
+}
+
+.runtypes-bench-chart th {
+  padding-right: 1rem;
   text-align: left;
   font-weight: 500;
 }
@@ -356,16 +369,8 @@ onMounted(async () => {
   text-overflow: ellipsis;
 }
 
-.runtypes-bench-bar span {
-  display: block;
-  height: 0.6rem;
-  border-radius: 0.3rem;
-  background: color-mix(in srgb, var(--ui-text-muted) 45%, transparent);
-}
-
 .runtypes-bench-num {
-  width: 7rem;
-  padding-left: 0.75rem;
+  padding-left: 1rem;
   text-align: right;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -379,17 +384,17 @@ onMounted(async () => {
   font-weight: 700;
 }
 
-.runtypes-bench-chart tr.is-mion .runtypes-bench-bar span {
-  background: var(--ui-primary);
-}
-
 .runtypes-bench-chart tr.is-na .runtypes-bench-num {
   color: var(--ui-text-dimmed);
 }
 
 @media (max-width: 640px) {
-  .runtypes-bench-chart th {
+  .runtypes-bench-col-name {
     width: 6.5rem;
+  }
+
+  .runtypes-bench-col-num {
+    width: 5.5rem;
   }
 }
 </style>
