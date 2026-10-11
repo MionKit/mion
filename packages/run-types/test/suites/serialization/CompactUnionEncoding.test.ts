@@ -1,6 +1,3 @@
-// The compact strategy writes a union's object members as ONE positional array over every member's props, a
-// missing prop holding the first of `0` / `null` / `false` its slot can never be. A wrapper (`[-1, …]` /
-// `[idx, value]`) is added only when a non-object member can be an array on the wire.
 // Regression (roundtrip fuzz soak, seed 0xd179ff0b): `{kind: 't1', f0: [{"with\"quote": true}]}` once came back as
 // `{kind: 't1', f0: [[true]]}`, a nested positional array the identity decoder handed back.
 import {describe, expect, it} from 'vitest';
@@ -136,9 +133,7 @@ describe('serialization / compact union encoding', () => {
     expect(numbersDec(numbers({x: 1})!)).toEqual({x: 1});
   });
 
-  // Marker coverage rule: the value-first factory shape `createJsonEncoderFn(value, …)` infers T from the value and
-  // must land on the same compact codec as the static `createJsonEncoderFn<T>(undefined, …)` shape; both
-  // getRunTypeId shapes must resolve the union to ONE id.
+  // Marker coverage rule: both getRunTypeId call shapes must resolve the union to ONE id and ONE compact codec.
   it('value-first and static shapes produce the same compact wire (reflect + static)', () => {
     const value: NestedObject = {kind: 'b', f: {x: 1}};
     const reflectEnc = createJsonEncoderFn(value, compact);

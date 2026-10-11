@@ -198,9 +198,7 @@ func TestMaxBytes_UnionMergedProps(t *testing.T) {
 	expectBounded(t, "set of merged union", MaxBytes(setRT, map[string]*reflection.RunType{"u": item}), 2+41+2*sub+unionEnvelopeBytes(2))
 }
 
-// TestMaxBytes_UnionPositionalBound: compact writes a union's objects as ONE array holding a slot for every
-// member's props, so `{a: string(<=1000)} | {b1..b50: boolean}` writes the big string beside 50 placeholders,
-// larger than either member keyed.
+// TestMaxBytes_UnionPositionalBound: the compact merged array outgrows both members' keyed forms.
 func TestMaxBytes_UnionPositionalBound(t *testing.T) {
 	bigString := object(prop("a", stringFmt(map[string]any{"maxLength": 1000.0}), true))
 	var flags []*reflection.RunType

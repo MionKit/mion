@@ -4,19 +4,14 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// The compact strategy's union layout. A union with object members writes them as ONE positional array
-// (buildCompactFlatLayout). A union keeping the keyed merged object, or with no object member, follows the
-// keyed strategies' envelope rule widened for compact: they drop the envelope on a union that round-trips raw
-// (FlatLayout.roundTripsRaw), but compact positionalizes every nested object literal / plain class, a transform
-// isJsonCompatible cannot see, so compact keeps the envelope whenever a surviving member carries one.
-// Read by BOTH compact emitters and by the cjr noop predicate (compactFromJsonNoopRecursive), so the three
-// cannot drift.
+// The compact strategy's union layout, read by BOTH compact emitters and the cjr noop predicate
+// (compactFromJsonNoopRecursive) so the three cannot drift. A union with no positional merged object keeps the
+// envelope whenever a member positionalizes a nested object, a transform isJsonCompatible (FlatLayout.roundTripsRaw)
+// cannot see.
 
-// compactUnionNeedsEnvelope reports whether the compact pair must keep the flat-union envelope on rt
-// because a member positionalizes something. Decides only unions with no positional merged object. Mirrors unionJsonNoop's member walk rather than calling
-// buildFlatLayout, which emits drop diagnostics the predicate must not duplicate.
-// visited threads the caller's cycle set: a self-referential member re-enters as identity (greatest
-// fixpoint, the isJsonCompatible rule).
+// compactUnionNeedsEnvelope decides only unions with no positional merged object, by the rule above.
+// It mirrors unionJsonNoop's member walk: buildFlatLayout would emit drop diagnostics the predicate must not duplicate.
+// visited is the caller's cycle set: a self-referential member re-enters as identity (greatest fixpoint).
 func compactUnionNeedsEnvelope(rt *reflection.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
 	children := rt.SafeUnionChildren
 	if len(children) == 0 {
@@ -44,10 +39,8 @@ func compactUnionEnvelope(rt *reflection.RunType, ctx *EmitContext) bool {
 	return compactUnionNeedsEnvelope(rt, ctx, visited)
 }
 
-// compactUnionMemberTransforms is one member's verdict. In a union this rule decides, an object literal or
-// anonymous plain class stays KEYED on the wire whichever bucket it lands in (the merged object of a keyed
-// union, or an index-signature shape routed to the keyed clone in emitObjectCompactForJson), so only its member
-// VALUES can positionalize and the walk asks each property / index signature.
+// compactUnionMemberTransforms: in a union this rule decides, an object literal or anonymous plain class stays KEYED
+// (keyed merged object, or emitObjectCompactForJson's index-signature clone), so only its VALUES can positionalize.
 // Every other member compiles whole through the compact arms, so its own cjr verdict decides.
 func compactUnionMemberTransforms(resolved *reflection.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
 	keyed := resolved.Kind == reflection.KindObjectLiteral ||
@@ -71,11 +64,7 @@ func compactUnionMemberTransforms(resolved *reflection.RunType, ctx *EmitContext
 }
 
 // buildCompactFlatLayout is buildFlatLayout plus the compact rules, so both compact emitters read the same layout.
-// A union with object members goes positional (PositionalMerged): the merged object travels as ONE array over
-// MergedProps, a missing prop holding its slot's Placeholder, so no member is picked on encode. It wraps only when
-// a non-object member is not always a plain JSON scalar. A union keeping the keyed merged object (an
-// index-signature member, or a slot with no usable placeholder) or having no object member at all follows the
-// envelope rule above.
+// The positional merged array spans every member's props, so encode never picks a member.
 func buildCompactFlatLayout(rt *reflection.RunType, ctx *EmitContext) FlatLayout {
 	layout := buildFlatLayout(rt, ctx)
 	layout.PositionalMerged = len(layout.ObjectMembers) > 0 && !layout.hasIndexSignatureMember(ctx)
@@ -95,11 +84,9 @@ func buildCompactFlatLayout(rt *reflection.RunType, ctx *EmitContext) FlatLayout
 	return layout
 }
 
-// compactPositionalNeedsEnvelope reports whether a positional union must wrap. The merged object is an array on the
-// wire, so a bare value is unambiguous only when every atomic member is always a plain JSON scalar: those are
-// JSON-identity, never arrays, and their encode guards read the same on the wire. Anything else (an array member, a
-// class, bigint, `undefined`, `any`) wraps, or `{a: string} | string[]` would decode
-// `["x"]` as a `string[]`.
+// compactPositionalNeedsEnvelope: beside the merged array, a bare value is unambiguous only when every atomic member
+// is a plain JSON scalar, JSON-identity and never an array, whose encode guard reads the same on the wire.
+// Anything else wraps, or `{a: string} | string[]` would decode `["x"]` as a `string[]`.
 func compactPositionalNeedsEnvelope(layout FlatLayout) bool {
 	for _, member := range layout.AtomicMembers {
 		switch member.Resolved.Kind {

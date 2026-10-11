@@ -83,8 +83,7 @@ describe('JSON restore arms rebuild only from the wire form', () => {
     }
   });
 
-  // A missing compact slot holds the first of `0` / `null` / `false` its type cannot be; it maps to absent BEFORE any
-  // constructor runs, and a foreign marker is left for validate to refuse.
+  // The placeholder maps to absent BEFORE any constructor runs; a foreign marker is left for validate to refuse.
   it('the compact decoder maps only its own placeholder to absent', () => {
     const optionalDate = createJsonDecoderFn<{when?: Date}>(undefined, {strategy: 'compact'});
     const validateOptionalDate = createValidateFn<{when?: Date}>();

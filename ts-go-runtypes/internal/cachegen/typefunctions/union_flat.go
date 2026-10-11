@@ -13,8 +13,7 @@ import (
 // properties, each encoded when its key is defined. The merge avoids the per-object `validate` walk on
 // encode for a discriminated bag of N large classes; the `-1` sentinel skips dispatch on decode. When two
 // object members declare the same name with different child type IDs, that prop branches through a nested
-// `[subIdx, value]` inline-union. The compact strategy writes the merged object as a positional array instead
-// (buildCompactFlatLayout).
+// `[subIdx, value]` inline-union. Compact writes the merged object positionally (buildCompactFlatLayout).
 
 // flatUnionEncodeErrorVar registers the canonical encode-error context item once per emit pass, shared
 // across all three emit families so the renderer collapses to a single declaration.

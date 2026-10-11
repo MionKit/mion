@@ -50,8 +50,7 @@ const union4 = (tag: string): TypeShape => ({
 /** The widest arm: three properties, two of them sub-wrapped, one a Date. **/
 const widestArm = (tag: string) => ({kind: `t2-${tag}`, f0: null, f1: new Date('2018-03-26T05:49:26.862Z')});
 
-/** Compact writes ONE positional array carrying every member's slots: the strings of one member beside the
- *  boolean placeholders of the other. **/
+/** Compact writes ONE array over both members: one member's strings beside the other's boolean-slot placeholders. **/
 const stringsOrFlags = (tag: string): TypeShape => ({
   kind: 'union',
   members: [

@@ -124,8 +124,7 @@ func (CompactFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindUnion:
-		// The SAFE restore over the same compact layout the compact encode writes with (union_flat_compact.go), so both
-		// sides agree on the envelope and on whether the merged object is positional.
+		// Same compact layout as the encode (union_flat_compact.go), so both sides agree on envelope and positional merge.
 		return emitUnionRestoreFromJsonCloneLayout(rt, ctx, v, buildCompactFlatLayout(rt, ctx))
 
 	case reflection.KindIntersection:

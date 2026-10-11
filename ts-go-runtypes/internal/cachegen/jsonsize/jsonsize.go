@@ -8,9 +8,8 @@
 // value: the two part ways wherever DataOnly drops a member. So every arm is a worst case: 6 bytes
 // per UTF-16 unit for a string (the `\uXXXX` escape form), 24 for a number (the longest
 // `JSON.stringify` double), every optional member present, the largest union member. The `compact`
-// encoder strategy tuples a plain object into a positional array, never larger than the keyed form,
-// but a union's objects merge into ONE array holding a slot for every member's props, which can be:
-// unionBytes takes the larger of the two.
+// strategy's positional array is never larger than the keyed form, except a union's merged array with a slot
+// for every member's props: unionBytes takes the larger of the two.
 package jsonsize
 
 import (
@@ -462,9 +461,7 @@ func (w *walker) unionBytes(rt *reflection.RunType, path string, depth int) Resu
 	return bounded(max(largest, positionalMergedBytes(widest, declarers)) + unionEnvelopeBytes(len(rt.Children)))
 }
 
-// positionalMergedBytes bounds the compact merged object: `[` `]` plus, per prop name, the larger of its widest
-// value and the widest placeholder (`false`), plus a comma. A name two members declare may ride the
-// `[<candidateIndex>,value]` sub-envelope.
+// positionalMergedBytes bounds the merged array: `false` is the widest placeholder, a shared name may be sub-wrapped.
 func positionalMergedBytes(widest, declarers map[string]int) int {
 	if len(widest) == 0 {
 		return 0

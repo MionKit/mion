@@ -88,9 +88,7 @@ func buildArrayOfObjectsOrStringFixture() []*reflection.RunType {
 	return []*reflection.RunType{str, propC, inner, arr, union}
 }
 
-// TestCompactForJsonModule_NestedObjectUnionGoesPositional: compact writes `{a: string} | {b: {c: string}}` as ONE
-// positional array over both members' props, no `[-1, …]` envelope, a missing string slot holding `0`, while the
-// keyed clone encode of the SAME fixture keeps the keyed merged object.
+// TestCompactForJsonModule_NestedObjectUnionGoesPositional: compact writes ONE array, the keyed clone a keyed object.
 func TestCompactForJsonModule_NestedObjectUnionGoesPositional(t *testing.T) {
 	dump := protocol.Dump{RunTypes: buildNestedObjectUnionFixture()}
 
@@ -108,9 +106,7 @@ func TestCompactForJsonModule_NestedObjectUnionGoesPositional(t *testing.T) {
 	}
 }
 
-// TestCompactFromJsonModule_NestedObjectUnionRebuildsPositions: the compact decode of the same fixture rebuilds the
-// keyed object from positions, mapping the `0` placeholder to absent before the nested rebuild runs, while
-// restoreFromJsonMutate stays identity.
+// TestCompactFromJsonModule_NestedObjectUnionRebuildsPositions: `0` maps to absent before the nested rebuild runs.
 func TestCompactFromJsonModule_NestedObjectUnionRebuildsPositions(t *testing.T) {
 	dump := protocol.Dump{RunTypes: buildNestedObjectUnionFixture()}
 
@@ -247,9 +243,8 @@ func TestPureAtomicUnion_StaysCompiledAway(t *testing.T) {
 	}
 }
 
-// TestCompactUnionNeedsEnvelope pins the keyed-form envelope helper the emitters and the cjr predicate share,
-// beside the layout buildCompactFlatLayout hands both compact emitters: a union with object members goes
-// positional and drops the helper's verdict.
+// TestCompactUnionNeedsEnvelope pins the keyed-form envelope helper beside buildCompactFlatLayout's layout:
+// a union with object members goes positional and drops the helper's verdict.
 func TestCompactUnionNeedsEnvelope(t *testing.T) {
 	cases := []struct {
 		name           string
@@ -412,8 +407,7 @@ func TestCompactPositional_PaymentMethodDecode(t *testing.T) {
 	}
 }
 
-// A function-typed `f` on one member is DataOnly-stripped: that member's value still carries the key, so the slot
-// writes the placeholder unless the value matches the surviving Date candidate.
+// A DataOnly-stripped `f` still rides its member's value, so the slot writes the placeholder unless it is the Date.
 func TestCompactPositional_StrippedCandidateWritesPlaceholder(t *testing.T) {
 	fixture := &unionFixture{}
 	date := fixture.add(&reflection.RunType{ID: "dat", Kind: reflection.KindClass, SubKind: reflection.SubKindDate})
@@ -426,8 +420,7 @@ func TestCompactPositional_StrippedCandidateWritesPlaceholder(t *testing.T) {
 	}
 }
 
-// `f` is a Date on one member and a number on the other: the slot rides `[subIdx, value]`, an array, so its
-// placeholder is `0`, and a value matching no candidate writes it too.
+// `f` is Date or number, so it rides `[subIdx, value]`, an array: placeholder `0`, also for a value matching neither.
 func TestCompactPositional_SubWrappedSlot(t *testing.T) {
 	fixture := &unionFixture{}
 	date := fixture.add(&reflection.RunType{ID: "dat", Kind: reflection.KindClass, SubKind: reflection.SubKindDate})
@@ -513,8 +506,7 @@ func TestBuildCompactFlatLayout_PositionalAndWrapper(t *testing.T) {
 	}
 }
 
-// `{a} | string[]` keeps the all-or-nothing wrapper: the merged object rides `[-1, positional]` and the decode only
-// rebuilds an array under `-1`.
+// `{a} | string[]` keeps the all-or-nothing wrapper.
 func TestCompactPositional_WrappedArrayMember(t *testing.T) {
 	fixture := &unionFixture{}
 	str := fixture.leaf("str", reflection.KindString)

@@ -24,7 +24,7 @@ type wireClassRow struct {
 	want  wireClasses
 }
 
-// wireClassByKind is compactWireClasses' arm per kind, read against the real code below.
+// wireClassByKind is compactWireClasses' expected answer per kind.
 var wireClassByKind = map[reflection.ReflectionKind]wireClassRow{
 	reflection.KindNever:             {wireNode(reflection.KindNever), 0},
 	reflection.KindAny:               {wireNode(reflection.KindAny), wireAll},
