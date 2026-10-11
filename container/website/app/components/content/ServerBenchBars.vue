@@ -4,8 +4,8 @@ import {computed, onMounted, ref} from 'vue';
 // One metric of a mion server benchmark as HTML bars: one row per server, best first,
 // read from /bench-data/<bench>/index.json (the same generated file the home summary
 // reads). Replaces the chart library and the results table the rpc benchmark pages
-// carried: the table's other facts (version, runtime, description) sit under each
-// server's name, and the run metadata (machine, node, date, load) renders once per
+// carried: version and runtime sit under each server's name, its description in a
+// tooltip on the name, and the run metadata (machine, node, date, load) renders once per
 // page, on the bars that ask for it (`show-meta`). A section (the payload sweep)
 // carries its own metadata, since its concurrency differs per size.
 
@@ -66,17 +66,10 @@ const rows = computed<Row[]>(() => {
 const max = computed(() => Math.max(...rows.value.map((row) => row[props.metric]), 0));
 const width = (row: Row): string => `${max.value > 0 ? Math.min(100, (row[props.metric] / max.value) * 100).toFixed(1) : 0}%`;
 const value = (row: Row): string => row[props.metric].toLocaleString('en-US', {minimumFractionDigits: metric.value.digits, maximumFractionDigits: metric.value.digits});
-// everything the results table used to say about a lane, on one line under its name
 const detail = (row: Row): string =>
-  [
-    row.version ? `v${row.version}` : null,
-    row.runtime && row.runtimeVersion ? `${row.runtime} ${row.runtimeVersion}` : row.runtime,
-    row.router ? null : 'no router',
-    row.validation ? null : 'no validation',
-    row.description,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  [row.version ? `v${row.version}` : null, row.runtime && row.runtimeVersion ? `${row.runtime} ${row.runtimeVersion}` : row.runtime].filter(Boolean).join(' · ');
+// the long part, too wide for the name column: shown on hover
+const about = (row: Row): string => [row.router ? null : 'No router.', row.validation ? null : 'No validation.', row.description].filter(Boolean).join(' ');
 
 // A section carries its own meta (the payload sweep caps concurrency on the big sizes).
 const meta = computed(() => section.value?.meta ?? index.value?.meta);
@@ -117,13 +110,20 @@ onMounted(async () => {
 
       <table class="server-bench-bars-table">
         <caption>{{ caption }}</caption>
+        <colgroup>
+          <col class="server-bench-bars-col-name" />
+          <col />
+          <col class="server-bench-bars-col-num" />
+        </colgroup>
         <tbody>
-          <tr v-for="row in rows" :key="row.app" :class="{'is-mion': row.family === 'mion'}">
+          <tr v-for="(row, i) in rows" :key="row.app" :class="{'is-mion': row.family === 'mion'}">
             <th scope="row">
-              <span class="server-bench-bars-name">{{ row.label }}</span>
+              <UTooltip :text="about(row)" :disabled="!about(row)" :content="{side: 'top', align: 'start'}">
+                <span class="server-bench-bars-name" :class="{'has-about': about(row)}" :tabindex="about(row) ? 0 : undefined">{{ row.label }}</span>
+              </UTooltip>
               <span class="server-bench-bars-detail">{{ detail(row) }}</span>
             </th>
-            <td class="server-bench-bars-bar"><span :style="{width: width(row)}" /></td>
+            <td><BenchBar :width="width(row)" :highlight="row.family === 'mion'" :order="i" /></td>
             <td class="server-bench-bars-num">{{ value(row) }}</td>
           </tr>
         </tbody>
@@ -157,6 +157,7 @@ onMounted(async () => {
 
 .server-bench-bars-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.85rem;
 }
@@ -172,20 +173,28 @@ onMounted(async () => {
 
 .server-bench-bars-table th,
 .server-bench-bars-table td {
-  padding: 0.3rem 0;
+  padding: 0.35rem 0;
   border: 0;
   vertical-align: middle;
 }
 
+.server-bench-bars-col-name {
+  width: 9.5rem;
+}
+
+.server-bench-bars-col-num {
+  width: 6rem;
+}
+
 .server-bench-bars-table th {
-  width: 15rem;
-  padding-right: 0.75rem;
+  padding-right: 1rem;
   text-align: left;
   font-weight: 500;
 }
 
 .server-bench-bars-name {
   display: block;
+  max-width: fit-content;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -202,16 +211,14 @@ onMounted(async () => {
   text-overflow: ellipsis;
 }
 
-.server-bench-bars-bar span {
-  display: block;
-  height: 0.6rem;
-  border-radius: 0.3rem;
-  background: color-mix(in srgb, var(--ui-text-muted) 45%, transparent);
+.server-bench-bars-name.has-about {
+  cursor: help;
+  text-decoration: underline dotted color-mix(in srgb, var(--ui-text-muted) 50%, transparent);
+  text-underline-offset: 0.2em;
 }
 
 .server-bench-bars-num {
-  width: 5.5rem;
-  padding-left: 0.75rem;
+  padding-left: 1rem;
   text-align: right;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -225,13 +232,13 @@ onMounted(async () => {
   font-weight: 700;
 }
 
-.server-bench-bars-table tr.is-mion .server-bench-bars-bar span {
-  background: var(--ui-primary);
-}
-
 @media (max-width: 640px) {
-  .server-bench-bars-table th {
-    width: 9rem;
+  .server-bench-bars-col-name {
+    width: 7.5rem;
+  }
+
+  .server-bench-bars-col-num {
+    width: 4.5rem;
   }
 }
 </style>
