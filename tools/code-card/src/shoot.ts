@@ -31,15 +31,13 @@ export function parseShotArgs(argv: string[]): ShotArgs {
 }
 
 // The sandbox is off because the pages are our own cards and some hosts (containers, CI) cannot run it.
-export function cliConfig() {
-  return {
-    browser: {
-      browserName: 'chromium',
-      launchOptions: {headless: true, chromiumSandbox: false},
-      contextOptions: {viewport: {width: PAGE_WIDTH * ZOOM, height: 800 * ZOOM}},
-    },
-  };
-}
+export const CLI_CONFIG = {
+  browser: {
+    browserName: 'chromium',
+    launchOptions: {headless: true, chromiumSandbox: false},
+    contextOptions: {viewport: {width: PAGE_WIDTH * ZOOM, height: 800 * ZOOM}},
+  },
+};
 
 // The root package.json's @playwright/cli, shared with the website-browser skill.
 export const cliScript = () => createRequire(import.meta.url).resolve('@playwright/cli/playwright-cli.js');
@@ -72,7 +70,7 @@ type Cli = (...args: string[]) => Promise<string>;
 export async function withBrowser<T>(url: string, work: (cli: Cli) => Promise<T>): Promise<T> {
   const workDir = mkdtempSync(join(tmpdir(), 'code-card-'));
   const configPath = join(workDir, 'cli.config.json');
-  writeFileSync(configPath, JSON.stringify(cliConfig()));
+  writeFileSync(configPath, JSON.stringify(CLI_CONFIG));
   const session = `code-card-${process.pid}-${++sessionCount}`;
   const cli: Cli = async (...args) => {
     const {status, output} = await runCli(session, workDir, args);
@@ -82,7 +80,7 @@ export async function withBrowser<T>(url: string, work: (cli: Cli) => Promise<T>
   try {
     await cli('open', url, '--config', configPath).catch((err: Error) => {
       throw new Error(
-        `${err.message}\nfix: run \`node scripts/lib/playwright-chromium.mjs\` (the setup step that installs Playwright's Chromium)`
+        `${err.message}\nfix: run \`pnpm miondevx card install-browser\``
       );
     });
     return await work(cli);

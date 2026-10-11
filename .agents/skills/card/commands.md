@@ -10,6 +10,7 @@ All from the repo root. No website or container needed.
 - `pnpm miondevx card export <name…> | --all`: the card's HTML, stylesheet, fonts and player into
   `container/website/`, plus the manifest.
 - `pnpm miondevx card test`: type check + tests of `tools/code-card` (no CI lane runs them).
+- `pnpm miondevx card install-browser`: installs Playwright's Chromium if missing (both setups run it).
 
 ## Layout checks
 
@@ -32,4 +33,4 @@ browser starts, naming the component.
 ## If Chromium will not start
 
 Both setups install Playwright's Chromium. Missing on this host (the startup check says MISSING) → install it:
-`node scripts/lib/playwright-chromium.mjs`.
+`pnpm miondevx card install-browser`.

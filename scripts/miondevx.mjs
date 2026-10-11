@@ -525,6 +525,7 @@ function runCard(args) {
   if (sub === 'serve') return proxy('node', ['tools/code-card/src/server.ts', ...rest]);
   if (sub === 'export') return proxy('node', ['tools/code-card/src/export.ts', ...rest]);
   if (sub === 'test') return proxy('pnpm', ['--filter', '@mionjs/code-card', 'run', 'test']);
+  if (sub === 'install-browser') return proxy('node', ['scripts/lib/playwright-chromium.mjs', ...rest]);
   die(usage('card'), 2);
 }
 

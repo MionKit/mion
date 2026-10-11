@@ -70,7 +70,8 @@ this change touched, review its report against the code, and commit it as its ow
   EXACT hosts: a `*.cdn.playwright.dev` wildcard does not match `cdn.playwright.dev` (the first Claude web run
   failed on that).
 - Zero-dep helper `scripts/lib/playwright-chromium.mjs` (same check + install, `--check` reports OK / MISSING):
-  used by the local mion-setup skill (also the Codex cloud setup) and both startup hooks (Claude web, Codex).
+  used by the local mion-setup skill (also the Codex cloud setup), both startup hooks (Claude web, Codex) and
+  `pnpm miondevx card install-browser`, which the card error message points at.
 - `MION_CARD_BROWSER` and the `--browser` flag of `card shot` / `card serve` removed: every tool uses
   Playwright's own Chromium.
 - Found on the way, fixed in its own commit: the Claude web script installed Go 1.26.0 while CI pins 1.26.8.
