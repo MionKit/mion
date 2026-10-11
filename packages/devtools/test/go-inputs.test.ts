@@ -139,6 +139,15 @@ describe('go-inputs — the CI cache key for the prebuilt binaries', () => {
     expect(action).toContain('rt-wasm-${{ steps.tsgolint.outputs.sha }}-');
   });
 
+  // A setup that installs its own Go version builds a resolver that differs from CI's.
+  it('both setups install the Go version CI pins', () => {
+    for (const script of ['scripts/setup-claude-web.sh', '.agents/skills/ts-runtypes-setup/setup.sh']) {
+      const source = readFileSync(join(REPO_ROOT, script), 'utf8');
+      expect(source, script).toContain('ts-go-runtypes/.go-version');
+      expect(source, script).not.toMatch(/GO_INSTALL_VERSION=\d/);
+    }
+  });
+
   // constants.Version is folded into typeIDs, so a version bump must never restore an old binary.
   it('carries the root package.json version and a fixed-length tsgo sha in the ldflags the key hashes', () => {
     const version = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')).version;
