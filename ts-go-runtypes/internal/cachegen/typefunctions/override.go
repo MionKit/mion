@@ -64,8 +64,8 @@ func buildRedirectEntry(entryKey string, tag string, runType *reflection.RunType
 		cast = tsAnnIf(typed, " as unknown as "+fnType)
 	}
 	factoryBody := "return utl.usePureFn(" + quoteJS(cfnKey) + tsAnnIf(typed, " as PureFnId") + ")" + cast
-	closureTypes := ClosureTypes{Utl: tsAnnIf(typed, ": RTUtils"), Result: tsAnnIf(typed && fnType != "", ": "+fnType)}
-	factoryDecl := "function g_" + entryKey + "(utl" + closureTypes.Utl + ")" + closureTypes.Result + "{" + factoryBody + "}"
+	types := closureTypes(typed, tag, runType.ID)
+	factoryDecl := "function g_" + entryKey + "(utl" + types.Utl + ")" + types.Result + "{" + factoryBody + "}"
 	codeArg, createRTFnArg := fnSlots(opts.EmitMode, factoryBody, factoryDecl)
 	args := holeifyArgs([]string{
 		quoteJS(entryKey),

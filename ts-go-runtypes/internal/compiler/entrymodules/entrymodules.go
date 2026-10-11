@@ -501,7 +501,7 @@ func renderModule(graph Graph, entry *Entry, order levels, groupOf map[string]st
 
 	// A missing stub carries just the key; its deps / ini head slots are JS array holes.
 	if entry.Kind == KindMissing {
-		body.WriteString("export const " + ExportName(entry) + tupleAnnotation(entry, typed) + "=[" +
+		body.WriteString("export const " + ExportName(entry) + tupleAnnotation(typed) + "=[" +
 			strconv.Itoa(int(KindMissing)) + "," + headHole(typed) + "," + headHole(typed) + "," + jsquote.Single(entry.Key) + "]" + tupleCheck(entry, typed) + ";\n")
 		return withTypedHeader(body.String(), nil, typed), nil
 	}
@@ -546,7 +546,7 @@ func renderModule(graph Graph, entry *Entry, order levels, groupOf map[string]st
 	if err != nil {
 		return "", err
 	}
-	body.WriteString("export const " + ExportName(entry) + tupleAnnotation(entry, typed) + "=[" + slot0 + "," + headSlot(depsSlot, typed) + "," + headSlot(iniSlot, typed))
+	body.WriteString("export const " + ExportName(entry) + tupleAnnotation(typed) + "=[" + slot0 + "," + headSlot(depsSlot, typed) + "," + headSlot(iniSlot, typed))
 	if entry.ArgsText != "" {
 		body.WriteByte(',')
 		body.WriteString(entry.ArgsText)
@@ -596,7 +596,7 @@ func renderBundle(graph Graph, name string, memberKeys []string, order levels, g
 		typeImports = append(typeImports, entry.TypeImports...)
 		ambient = append(ambient, entry.Ambient...)
 		if entry.Kind == KindMissing {
-			body.WriteString("export const " + exportName + tupleAnnotation(entry, typed) + "=[" +
+			body.WriteString("export const " + exportName + tupleAnnotation(typed) + "=[" +
 				strconv.Itoa(int(KindMissing)) + "," + headHole(typed) + "," + headHole(typed) + "," + jsquote.Single(entry.Key) + "]" + tupleCheck(entry, typed) + ";\n")
 			continue
 		}
@@ -636,7 +636,7 @@ func renderBundle(graph Graph, name string, memberKeys []string, order levels, g
 			}
 			depsSlot = facadeThunkLocal
 		}
-		body.WriteString("export const " + exportName + tupleAnnotation(entry, typed) + "=[" + slot0 + "," + headSlot(depsSlot, typed) + "," + headSlot(iniSlot, typed))
+		body.WriteString("export const " + exportName + tupleAnnotation(typed) + "=[" + slot0 + "," + headSlot(depsSlot, typed) + "," + headSlot(iniSlot, typed))
 		if entry.ArgsText != "" {
 			body.WriteByte(',')
 			body.WriteString(entry.ArgsText)
@@ -686,7 +686,7 @@ var tupleTypes = map[Kind]string{
 
 // tupleAnnotation types an exported tuple `any` in emitMode ts, which isolatedDeclarations requires: a rewritten call
 // site passes it where the factory declares the compile-time marker type, which no tuple type is assignable to.
-func tupleAnnotation(entry *Entry, typed bool) string {
+func tupleAnnotation(typed bool) string {
 	if !typed {
 		return ""
 	}
