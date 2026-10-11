@@ -44,7 +44,7 @@ const inView = useInView(track);
 }
 
 .bench-bar-fill.is-highlight {
-  background: linear-gradient(90deg, color-mix(in srgb, var(--ui-primary) 45%, var(--ui-bg)), var(--ui-primary));
+  background: linear-gradient(90deg, var(--color-brand-200), var(--ui-primary));
 }
 
 @media (prefers-reduced-motion: reduce) {
