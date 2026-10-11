@@ -1,3 +1,4 @@
+// Pins the compact wire text a round-trip cannot see; round-trips of these shapes live in suites/serialization.
 // Regression (roundtrip fuzz soak, seed 0xd179ff0b): `{kind: 't1', f0: [{"with\"quote": true}]}` once came back as
 // `{kind: 't1', f0: [[true]]}`, a nested positional array the identity decoder handed back.
 import {describe, expect, it} from 'vitest';
@@ -18,31 +19,33 @@ type Contact = {email: string} | {email: string; phone?: string};
 type ObjectOrStrings = {a: string} | string[];
 type TagOrNull = {tag: string} | null;
 type ObjectOrUndefined = {a: string} | undefined;
-type SubWrapped = {k: 'a'; f?: Date} | {k: 'b'; f?: number} | {k: 'c'};
+type SharedSlot = {k: 'a'; f?: Date} | {k: 'b'; f?: number} | {k: 'c'};
+type NestedDoc =
+  | {
+      kind: 'text';
+      body: string;
+      style?: {type: 'plain'} | {type: 'rich'; marks: ({mark: 'bold'} | {mark: 'link'; href: string; at?: Date})[]};
+    }
+  | {kind: 'image'; src: string; caption?: {lang: string; text: string} | null}
+  | {kind: 'group'; items: ({kind: 'ref'; id: number} | {kind: 'inline'; note: string | null})[]};
 
-describe('serialization / compact union encoding', () => {
-  it('the soak shape: tuple of a quoted-key object inside a tagged union round-trips', () => {
+describe('compact wire / unions', () => {
+  it('the soak shape writes one positional array per member', () => {
     const enc = createJsonEncoderFn<Tagged>(undefined, compact);
     const dec = createJsonDecoderFn<Tagged>(undefined, compact);
-    const value: Tagged = {kind: 't1', f0: [{'with"quote': true}]};
-    expect(enc(value)).toBe('["t1",[[true]]]');
-    expect(dec(enc(value)!)).toEqual(value);
+    expect(enc({kind: 't1', f0: [{'with"quote': true}]})).toBe('["t1",[[true]]]');
     expect(enc({kind: 't0'})).toBe('["t0",0]');
-    expect(dec(enc({kind: 't0'})!)).toEqual({kind: 't0'});
+    expect(dec('["t1",[[true]]]')).toEqual({kind: 't1', f0: [{'with"quote': true}]});
   });
 
-  it('nested object member: one positional array, a missing nested object holding `0`', () => {
+  it('a missing nested object holds `0`', () => {
     const enc = createJsonEncoderFn<NestedObject>(undefined, compact);
-    const dec = createJsonDecoderFn<NestedObject>(undefined, compact);
     expect(enc({kind: 'b', f: {x: 1}})).toBe('["b",[1]]');
     expect(enc({kind: 'a'})).toBe('["a",0]');
-    expect(dec(enc({kind: 'b', f: {x: 1}})!)).toEqual({kind: 'b', f: {x: 1}});
-    expect(dec(enc({kind: 'a'})!)).toEqual({kind: 'a'});
   });
 
-  it('PaymentMethod[] is the 164-byte positional wire and round-trips', () => {
+  it('PaymentMethod[] is the 164-byte positional wire', () => {
     const enc = createJsonEncoderFn<PaymentMethod[]>(undefined, compact);
-    const dec = createJsonDecoderFn<PaymentMethod[]>(undefined, compact);
     const value: PaymentMethod[] = [
       {type: 'credit_card', lastFourDigits: '4242', expiryMonth: 12, expiryYear: 2025, brand: 'visa'},
       {type: 'bank_account', bankName: 'Chase', accountLastFour: '1234', routingNumber: '021000021'},
@@ -56,33 +59,22 @@ describe('serialization / compact union encoding', () => {
     );
     expect(wire.length).toBe(164);
     expect(JSON.stringify(value).length).toBe(246);
-    expect(dec(wire)).toEqual(value);
   });
 
-  it('no member is picked on encode, so an optional only one member declares survives', () => {
-    const enc = createJsonEncoderFn<Contact>(undefined, compact);
-    const dec = createJsonDecoderFn<Contact>(undefined, compact);
-    expect(enc({email: 'a@b.c', phone: '123'})).toBe('["a@b.c","123"]');
-    expect(dec(enc({email: 'a@b.c', phone: '123'})!)).toEqual({email: 'a@b.c', phone: '123'});
-    expect(dec(enc({email: 'a@b.c'})!)).toEqual({email: 'a@b.c'});
+  it('no member is picked on encode: one slot per prop across members', () => {
+    expect(createJsonEncoderFn<Contact>(undefined, compact)({email: 'a@b.c', phone: '123'})).toBe('["a@b.c","123"]');
   });
 
   it('a member that can be an array keeps the wrapper', () => {
     const enc = createJsonEncoderFn<ObjectOrStrings>(undefined, compact);
-    const dec = createJsonDecoderFn<ObjectOrStrings>(undefined, compact);
     expect(enc({a: 'x'})).toBe('[-1,["x"]]');
     expect(enc(['x'])).toBe('[0,["x"]]');
-    expect(dec(enc({a: 'x'})!)).toEqual({a: 'x'});
-    expect(dec(enc(['x'])!)).toEqual(['x']);
   });
 
   it('a member that is always a plain scalar needs no wrapper', () => {
     const enc = createJsonEncoderFn<TagOrNull>(undefined, compact);
-    const dec = createJsonDecoderFn<TagOrNull>(undefined, compact);
     expect(enc({tag: 'x'})).toBe('["x"]');
     expect(enc(null)).toBe('null');
-    expect(dec('["x"]')).toEqual({tag: 'x'});
-    expect(dec('null')).toBe(null);
   });
 
   it('`undefined` is not a plain scalar on the wire, so it keeps the wrapper', () => {
@@ -94,43 +86,50 @@ describe('serialization / compact union encoding', () => {
   });
 
   it('a value matching no candidate of a shared slot writes the placeholder', () => {
-    const enc = createJsonEncoderFn<SubWrapped>(undefined, compact);
-    const dec = createJsonDecoderFn<SubWrapped>(undefined, compact);
-    const when = new Date('2024-01-01T00:00:00.000Z');
-    expect(dec(enc({k: 'a', f: when})!)).toEqual({k: 'a', f: when});
-    expect(dec(enc({k: 'b', f: 1})!)).toEqual({k: 'b', f: 1});
+    const enc = createJsonEncoderFn<SharedSlot>(undefined, compact);
+    const dec = createJsonDecoderFn<SharedSlot>(undefined, compact);
     // `f` is undeclared on `c`: the slot holds `0` and decodes absent.
-    const stray = {k: 'c', f: 1} as SubWrapped;
+    const stray = {k: 'c', f: 1} as SharedSlot;
     expect(enc(stray)).toBe('["c",0]');
     expect(dec(enc(stray)!)).toEqual({k: 'c'});
   });
 
-  it('keyed strategies still round-trip the same union raw, without an envelope', () => {
-    const clone = createJsonEncoderFn<NestedObject>();
-    const dec = createJsonDecoderFn<NestedObject>();
-    expect(clone({kind: 'b', f: {x: 1}})).toBe('{"kind":"b","f":{"x":1}}');
-    expect(dec(clone({kind: 'b', f: {x: 1}})!)).toEqual({kind: 'b', f: {x: 1}});
+  it('nested object unions go positional at every level', () => {
+    const enc = createJsonEncoderFn<NestedDoc>(undefined, compact);
+    const dec = createJsonDecoderFn<NestedDoc>(undefined, compact);
+    const rich: NestedDoc = {
+      kind: 'text',
+      body: 'hi',
+      style: {type: 'rich', marks: [{mark: 'bold'}, {mark: 'link', href: '/b', at: new Date('2024-01-01T00:00:00.000Z')}]},
+    };
+    // Outer slots: kind, body, style, src, caption, items; each inner union has its own.
+    expect(enc(rich)).toBe('["text","hi",["rich",[["bold",0,0],["link","/b","2024-01-01T00:00:00.000Z"]]],0,0,0]');
+    expect(enc({kind: 'image', src: 'a.png', caption: null})).toBe('["image",0,0,"a.png",null,0]');
+    expect(enc({kind: 'image', src: 'a.png'})).toBe('["image",0,0,"a.png",0,0]');
+    // Absent `id` (number) is `null`, absent `note` (string | null) is `0`: `["inline",null,null]` is no id, null note.
+    const group: NestedDoc = {
+      kind: 'group',
+      items: [
+        {kind: 'ref', id: 1},
+        {kind: 'inline', note: null},
+      ],
+    };
+    expect(enc(group)).toBe('["group",0,0,0,0,[["ref",1,0],["inline",null,null]]]');
+    expect(dec(enc(group)!)).toEqual(group);
+    expect(dec(enc(rich)!)).toEqual(rich);
+  });
+
+  it('keyed strategies still write the same union raw, without an envelope', () => {
+    expect(createJsonEncoderFn<NestedObject>()({kind: 'b', f: {x: 1}})).toBe('{"kind":"b","f":{"x":1}}');
   });
 
   it('atomic-only union whose array arm holds objects wraps its arms', () => {
-    const enc = createJsonEncoderFn<ArrayOrString>(undefined, compact);
-    const dec = createJsonDecoderFn<ArrayOrString>(undefined, compact);
-    expect(enc([{a: 1}])).toBe('[1,[[1]]]');
-    expect(dec(enc([{a: 1}])!)).toEqual([{a: 1}]);
-    expect(dec(enc('hi')!)).toBe('hi');
+    expect(createJsonEncoderFn<ArrayOrString>(undefined, compact)([{a: 1}])).toBe('[1,[[1]]]');
   });
 
   it('a record member keeps the keyed form: object values wrap, atomic values stay bare', () => {
-    const objects = createJsonEncoderFn<RecordOfObjects>(undefined, compact);
-    const objectsDec = createJsonDecoderFn<RecordOfObjects>(undefined, compact);
-    expect(objects({x: {a: 1}})).toBe('[1,{"x":[1]}]');
-    expect(objectsDec(objects({x: {a: 1}})!)).toEqual({x: {a: 1}});
-    expect(objectsDec(objects({kind: 'x'})!)).toEqual({kind: 'x'});
-
-    const numbers = createJsonEncoderFn<RecordOfNumbers>(undefined, compact);
-    const numbersDec = createJsonDecoderFn<RecordOfNumbers>(undefined, compact);
-    expect(numbers({x: 1})).toBe('{"x":1}');
-    expect(numbersDec(numbers({x: 1})!)).toEqual({x: 1});
+    expect(createJsonEncoderFn<RecordOfObjects>(undefined, compact)({x: {a: 1}})).toBe('[1,{"x":[1]}]');
+    expect(createJsonEncoderFn<RecordOfNumbers>(undefined, compact)({x: 1})).toBe('{"x":1}');
   });
 
   // Marker coverage rule: both getRunTypeId call shapes must resolve the union to ONE id and ONE compact codec.
@@ -147,26 +146,24 @@ describe('serialization / compact union encoding', () => {
   });
 });
 
-describe('serialization / compact placeholder per slot type', () => {
-  it('`s?: string | null` keeps a present null: `0` marks absent', () => {
+describe('compact wire / placeholder per slot type', () => {
+  it('`s?: string | null` marks absent with `0`', () => {
     const enc = createJsonEncoderFn<{s?: string | null}>(undefined, compact);
     const dec = createJsonDecoderFn<{s?: string | null}>(undefined, compact);
     expect(enc({})).toBe('[0]');
     expect(enc({s: null})).toBe('[null]');
-    expect(dec('[null]')).toEqual({s: null});
     expect(dec('[0]')).toEqual({});
   });
 
-  it('`n?: number | null` uses `false`', () => {
+  it('`n?: number | null` marks absent with `false`', () => {
     const enc = createJsonEncoderFn<{n?: number | null}>(undefined, compact);
     const dec = createJsonDecoderFn<{n?: number | null}>(undefined, compact);
     expect(enc({})).toBe('[false]');
     expect(dec('[false]')).toEqual({});
-    expect(dec('[null]')).toEqual({n: null});
     expect(dec('[0]')).toEqual({n: 0});
   });
 
-  it('`n?: number` uses `null`', () => {
+  it('`n?: number` marks absent with `null`', () => {
     const enc = createJsonEncoderFn<{n?: number}>(undefined, compact);
     expect(enc({})).toBe('[null]');
     expect(enc({n: 0})).toBe('[0]');

@@ -278,13 +278,23 @@ describe('Map keys and Set members are values, never property names', () => {
   });
 
   it('round-trip through JSON with the three names as Map keys and Set members', () => {
-    const bagEncoders = {
-      clone: createJsonEncoderFn<Bags>(undefined, {strategy: 'clone'}),
-      mutate: createJsonEncoderFn<Bags>(undefined, {strategy: 'mutate'}),
-    };
-    const decode = createJsonDecoderFn<Bags>(undefined, {strategy: 'mutate'});
-    for (const strategy of ['clone', 'mutate'] as const) {
-      const out = decode(bagEncoders[strategy](value()) as string);
+    // Each encoder with a decoder that reads its wire; the strategy is read at build time, so each is spelled out.
+    const pairs = {
+      clone: [
+        createJsonEncoderFn<Bags>(undefined, {strategy: 'clone'}),
+        createJsonDecoderFn<Bags>(undefined, {strategy: 'mutate'}),
+      ],
+      mutate: [
+        createJsonEncoderFn<Bags>(undefined, {strategy: 'mutate'}),
+        createJsonDecoderFn<Bags>(undefined, {strategy: 'mutate'}),
+      ],
+      compact: [
+        createJsonEncoderFn<Bags>(undefined, {strategy: 'compact'}),
+        createJsonDecoderFn<Bags>(undefined, {strategy: 'compact'}),
+      ],
+    } as const;
+    for (const [strategy, [encode, decode]] of Object.entries(pairs)) {
+      const out = decode(encode(value()) as string);
       expect(out, strategy).toEqual(value());
       expect(Object.getPrototypeOf(out)).toBe(Object.prototype);
       expect(createValidateFn<Bags>()(out)).toBe(true);

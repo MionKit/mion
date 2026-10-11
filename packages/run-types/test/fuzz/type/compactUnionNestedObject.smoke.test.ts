@@ -4,6 +4,7 @@
 import {describe, it, expect} from 'vitest';
 import {compileCodecs, openClient, hasBinary, ALL_LANES} from '../roundtrip/roundtripHarness.ts';
 import {typecheckGeneratedType} from './tsValidate.ts';
+import {deepCloneForRoundTrip} from '../../util/equalsHelpers.ts';
 import type {GeneratedType, TypeShape, PropShape} from '../core/typeGen.ts';
 
 function lit(value: string): TypeShape {
@@ -53,6 +54,39 @@ const cases: {title: string; root: TypeShape; values: unknown[]}[] = [
       members: [obj(prop('tag', str), optional('note', {kind: 'union', members: [str, {kind: 'null'}]})), {kind: 'null'}],
     },
     values: [{tag: 'x', note: null}, {tag: 'x'}, null],
+  },
+  {
+    title: 'a union member holding another object union, holding a third',
+    root: {
+      kind: 'union',
+      members: [
+        tagged(
+          't0',
+          optional('inner', {
+            kind: 'union',
+            members: [
+              tagged('i0', prop('d', {kind: 'date'})),
+              tagged('i1', prop('deep', {kind: 'union', members: [obj(prop('x', num)), obj(prop('y', str)), {kind: 'null'}]})),
+            ],
+          })
+        ),
+        tagged(
+          't1',
+          prop('list', {
+            kind: 'array',
+            elem: {kind: 'union', members: [tagged('a', optional('n', num)), tagged('b', prop('s', str))]},
+          })
+        ),
+      ],
+    },
+    values: [
+      {kind: 't0'},
+      {kind: 't0', inner: {kind: 'i0', d: new Date('2024-01-01T00:00:00.000Z')}},
+      {kind: 't0', inner: {kind: 'i1', deep: {x: 1}}},
+      {kind: 't0', inner: {kind: 'i1', deep: {y: 'z'}}},
+      {kind: 't0', inner: {kind: 'i1', deep: null}},
+      {kind: 't1', list: [{kind: 'a'}, {kind: 'a', n: 2}, {kind: 'b', s: 'q'}]},
+    ],
   },
   {
     title: 'keyed fallback: a required unknown slot',
@@ -129,11 +163,12 @@ describe('compact strategy: union members holding nested objects', () => {
         expect(compiled.evalError, compiled.evalError).toBeUndefined();
         expect(compiled.errorDiagnostics).toEqual([]);
         for (const value of values) {
-          const cloneWire = compiled.codecs.clone!.encode(value);
+          const cloneWire = compiled.codecs.clone!.encode(deepCloneForRoundTrip(value));
           for (const lane of ALL_LANES) {
             const codec = compiled.codecs[lane];
             expect(codec, `${lane} codec wired`).toBeDefined();
-            const back = codec!.decode(codec!.encode(value) as string);
+            // mutate encodes in place, so every lane gets a fresh copy
+            const back = codec!.decode(codec!.encode(deepCloneForRoundTrip(value)) as string);
             expect(back, `${lane} round-trip`).toEqual(value);
             expect(compiled.validate!(back), `${lane} decoded value validates`).toBe(true);
             expect(compiled.codecs.clone!.encode(back), `${lane} agrees with clone`).toBe(cloneWire);

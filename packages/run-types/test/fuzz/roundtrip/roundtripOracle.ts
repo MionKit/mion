@@ -1,8 +1,7 @@
 // The all-strategy round-trip oracle: one conforming data-only value per random type, run through every lane.
 //   RT-VALIDATE   validate(value) and validate(roundtrip) are both true.
-//   RT-AGREE      each lane's decoded value re-encodes through CLONE and MUTATE to the original's wire on that lane;
-//                 a wire compare, as JSON normalisation (dropped undefined, -0 → 0) is not deep-equal. MUTATE too
-//                 because a lossy clone encoder agrees with itself, and mutate writes a native through its own toJSON.
+//   RT-AGREE      each lane's decoded value re-encodes through CLONE, MUTATE and COMPACT to that encoder's wire of the
+//                 original; a wire compare, as JSON normalisation (dropped undefined, -0 → 0) is not deep-equal.
 //   RT-STABLE     encode(decode(encode v)) == encode(v) on the lane's own wire.
 //   RT-FAILAGREE  a type one lane refuses, every lane refuses.
 //   RT-NATIVE     native JSON.parse reads the keyed encoders' output back to the same JSON-safe value.
@@ -56,6 +55,9 @@ function record(
   out.push({oracle, lane, target: ctx.target, seed: ctx.seed, message, value: snapshot(value)});
 }
 
+// RT-AGREE: clone misses its own loss, mutate writes natives via toJSON, compact rebuilds objects from positions.
+const REFERENCE_LANES: readonly LaneId[] = ['clone', 'mutate', 'compact'];
+
 /** Check one (type, value) across every wired lane. `value` must be a value the
  *  shape generator produced for `compiled.gen` (data-only, conforming). **/
 export function checkRoundtrip(compiled: CompiledCodecs, value: unknown, seed: number, out: RoundtripViolation[]): void {
@@ -107,13 +109,12 @@ export function checkRoundtrip(compiled: CompiledCodecs, value: unknown, seed: n
   }
   if (refusedCount === attempted) return; // all lanes refuse — nothing to round-trip
 
-  // RT-AGREE's reference wire; when the clone lane refused or had an undefined root, RT-AGREE no-ops.
-  const cloneRun = runs.find((r) => r.id === 'clone' && !r.refused && !r.undefinedRoot);
-  const cloneCodec = compiled.codecs.clone;
-  const refWire = cloneRun?.wire;
-  const mutateRun = runs.find((r) => r.id === 'mutate' && !r.refused && !r.undefinedRoot);
-  const mutateCodec = compiled.codecs.mutate;
-  const mutateRefWire = mutateRun?.wire;
+  // RT-AGREE's reference wires: each reference lane's own encoding of the original value.
+  const references = runs.flatMap((run) =>
+    REFERENCE_LANES.includes(run.id) && !run.refused && !run.undefinedRoot && run.wire !== undefined
+      ? [{id: run.id, codec: run.codec, wire: run.wire}]
+      : []
+  );
 
   // Native ground truth for RT-NATIVE (JSON-safe values only).
   const nativeSafe = jsonRoundTripSafe(value);
@@ -143,62 +144,30 @@ export function checkRoundtrip(compiled: CompiledCodecs, value: unknown, seed: n
     if (outValid.threw) record(out, 'RT-THROW', id, ctx, `validate threw on the ${id} round-trip: ${outValid.threw}`, decoded);
     else if (!outValid.ok) record(out, 'RT-VALIDATE', id, ctx, `validate rejected the ${id} round-trip`, decoded);
 
-    // Round-trip identity (todo invariant 1) is expressed as WIRE agreement +
-    // stability, NOT a raw deep-equal of the decoded value against the generated
-    // value. JSON normalises representation in ways that are correct but not
-    // structurally identical — `undefined` inside an object / Map value / Set
-    // element is dropped, optional keys vanish, -0 collapses to 0 — and those
-    // are consistent across every lane, so a ground-truth compare would false-
-    // positive on them. RT-AGREE (below) ties each lane's round-trip to the
-    // canonical clone encoding of the ORIGINAL value, and RT-NATIVE pins true
-    // value identity on the JSON-safe subset where it IS sound. This mirrors the
-    // existing serialization oracles (O5/O12), which are all wire-based.
+    // Identity = wire agreement + stability, not deep-equal: JSON drops undefined and turns -0 into 0 on every lane.
+    // Wire-based like O5/O12 in fuzz/value/fuzzOracle.ts; RT-NATIVE checks value identity on the JSON-safe subset.
 
-    // RT-AGREE: re-encode through the clone reference and compare wires — every
-    // lane must land on the same DataOnly value (and the clone wire encodes the
-    // ORIGINAL value, so this also catches a lane that drops or reshapes data).
-    if (cloneCodec && refWire !== undefined) {
+    // RT-AGREE: each reference wire encodes the ORIGINAL value, so a lane that drops or reshapes data shows too.
+    for (const ref of references) {
       try {
-        const viaClone = cloneCodec.encode(deepCloneForRoundTrip(decoded));
+        const viaRef = ref.codec.encode(deepCloneForRoundTrip(decoded));
         // Compare parsed wires, not strings: object key order legitimately differs between lanes.
-        if (viaClone === undefined || !cloneWiresAgree(viaClone, refWire)) {
+        if (viaRef === undefined || !cloneWiresAgree(viaRef, ref.wire)) {
           record(
             out,
             'RT-AGREE',
             id,
             ctx,
-            `${id} disagrees with clone on the decoded value:\n  clone =${cut(refWire)}\n  ${id} =${cut(String(viaClone))}`,
+            `${id} disagrees with ${ref.id} on the decoded value:\n  ${ref.id} =${cut(ref.wire)}\n  ${id} =${cut(String(viaRef))}`,
             decoded
           );
         }
       } catch (err) {
-        record(out, 'RT-THROW', id, ctx, `clone re-encode of the ${id} round-trip threw: ${errMsg(err)}`, decoded);
+        record(out, 'RT-THROW', id, ctx, `${ref.id} re-encode of the ${id} round-trip threw: ${errMsg(err)}`, decoded);
       }
     }
 
-    if (mutateCodec && mutateRefWire !== undefined) {
-      try {
-        const viaMutate = mutateCodec.encode(deepCloneForRoundTrip(decoded));
-        if (viaMutate === undefined || !cloneWiresAgree(viaMutate, mutateRefWire)) {
-          record(
-            out,
-            'RT-AGREE',
-            id,
-            ctx,
-            `${id} disagrees with mutate on the decoded value:\n  mutate =${cut(mutateRefWire)}\n  ${id} =${cut(String(viaMutate))}`,
-            decoded
-          );
-        }
-      } catch (err) {
-        record(out, 'RT-THROW', id, ctx, `mutate re-encode of the ${id} round-trip threw: ${errMsg(err)}`, decoded);
-      }
-    }
-
-    // RT-NATIVE: for a JSON-safe value, every lane must decode to the same value
-    // that plain native JSON.stringify/parse yields (the trusted source). Note
-    // our JSON WIRE is a shape-coupled tagged envelope (unions / ambiguous scalar
-    // unions ride `[tag, …]`), NOT plain JSON — so we compare the DECODED value
-    // to the native projection, never the wire itself.
+    // RT-NATIVE compares the decoded value, never the wire: our wire is a shape-coupled envelope, not plain JSON.
     if (nativeSafe && !deepEqualNormalized(decoded, nativeRT)) {
       record(out, 'RT-NATIVE', id, ctx, `${id} decoded value disagrees with the native JSON projection`, decoded);
     }

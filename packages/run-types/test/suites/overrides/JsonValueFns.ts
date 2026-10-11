@@ -27,7 +27,7 @@ export function registerJsonValueFnsCase(): void {
     expect(createJsonDecoderFn<JsonValueTarget>()('OVR7').id).toBe(7n);
   });
 
-  it('JsonValueFns — prepare / restore round-trip the overridden type, clone and mutate', () => {
+  it('JsonValueFns — prepare / restore round-trip the overridden type, clone, mutate and compact', () => {
     const prepared = createPrepareForJsonFn<JsonValueTarget>()(target()) as unknown as {id: unknown};
     expect(prepared.id).toBe('7');
     const cloneRestore = createRestoreFromJsonFn<JsonValueTarget>();
@@ -35,6 +35,9 @@ export function registerJsonValueFnsCase(): void {
     const mutatePrepare = createPrepareForJsonFn<JsonValueTarget>(undefined, {strategy: 'mutate'});
     const mutateRestore = createRestoreFromJsonFn<JsonValueTarget>(undefined, {strategy: 'mutate'});
     expect(roundTrip(mutatePrepare, mutateRestore, target())).toEqual(target());
+    const compactPrepare = createPrepareForJsonFn<JsonValueTarget>(undefined, {strategy: 'compact'});
+    const compactRestore = createRestoreFromJsonFn<JsonValueTarget>(undefined, {strategy: 'compact'});
+    expect(roundTrip(compactPrepare, compactRestore, target())).toEqual(target());
   });
 
   it('JsonValueFns — the value-first call shape compiles the same functions', () => {
@@ -49,6 +52,9 @@ export function registerJsonValueFnsCase(): void {
     const mutatePrepare = createPrepareForJsonFn<JsonValueParent>(undefined, {strategy: 'mutate'});
     const mutateRestore = createRestoreFromJsonFn<JsonValueParent>(undefined, {strategy: 'mutate'});
     expect(roundTrip(mutatePrepare, mutateRestore, {inner: target()})).toEqual(value);
+    const compactPrepare = createPrepareForJsonFn<JsonValueParent>(undefined, {strategy: 'compact'});
+    const compactRestore = createRestoreFromJsonFn<JsonValueParent>(undefined, {strategy: 'compact'});
+    expect(roundTrip(compactPrepare, compactRestore, {inner: target()})).toEqual(value);
   });
 
   it('JsonValueFns — the default decoder drops undeclared keys around the overridden type', () => {

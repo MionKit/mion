@@ -194,12 +194,15 @@ through `validateUnionKeys`. Run the `add-diagnostic` checklist (emit arms chang
   new union shapes. `jsonsize/jsonsize_test.go`: the counterexample bound.
 
 **JS** (`pnpm test`, after `pnpm run check:builds`)
-- `packages/run-types/test/suites/serialization/CompactUnionEncoding.test.ts`: :34 → `'["b",[1]]'`,
-  `{kind:'a'}` → `'["a",0]'`, :25 no wrapper, header :1-7. Add: PaymentMethod[] exact string +
-  `length === 164` + round-trip; `{email}|{email; phone?}` keeps `phone`; `{a}|string[]` → `[-1,["x"]]`;
-  `{tag}|null` → `["x"]`/`null`; `{n?: string|null}` `[null]`→`{n:null}`, `[0]`→`{}`;
-  `{n?: number|null}` `[false]`→`{}`, `[null]`→`{n:null}`; `{n?: unknown}` keeps the `null` collapse;
-  value-first vs static marker parity (exists at :70-81).
+- Round-trips go through the shared serialization suite, which runs every case on mutate, clone and
+  compact: new `Unions.ts` cases (PaymentMethod, members sharing a prop, object or null, object or
+  string array, same prop with different types, three-level nested object unions) and an `Objects.ts`
+  case (`{s?: string | null; n?: number | null}`).
+- `test/features/compactWireForm.test.ts` (was `suites/serialization/CompactUnionEncoding.test.ts`)
+  pins only the exact compact text a round-trip cannot see: PaymentMethod[] exact string +
+  `length === 164`; nested unions at every level; `{a}|string[]` → `[-1,["x"]]`; `{tag}|null` →
+  `["x"]`/`null`; `{a}|undefined` wraps; a stray shared-slot value writes `0`; the placeholder per
+  slot type (`0` / `false` / `null`, `unknown` keeps the collapse); value-first vs static marker parity.
 - `test/features/jsonDecodeWireForm.test.ts:62`: attacker cases: `{when?: Date}` `[0]`→`{}`, `[null]`
   refused; `{s: string}` `[0]` refused; a merged slot with `0`.
 - Must pass unchanged: `unknownKeyFamiliesAgree.test.ts`, `nonEnumerableGuard.test.ts`,
@@ -212,7 +215,10 @@ through `validateUnionKeys`. Run the `add-diagnostic` checklist (emit arms chang
 Existing lanes already hold the oracles (round-trip, compare-to-reference, size bound); extend them
 through the fuzzy-testing skill, no new fuzzer:
 - `fuzz/roundtrip/roundtripOracle.ts:317-391` (`compactNullRisk`): only an optional whose slot has no
-  free placeholder. Comments :10, :71-74.
+  free placeholder. Comments :10, :71-74. RT-AGREE also re-encodes every lane's decoded value through
+  compact (beside clone and mutate), pinned by `roundtripOracle.unit.test.ts`.
+- Compact added to the multi-strategy feature tests that lacked it: `indexSigNamedSibling`,
+  `prototypeKeys` (Map / Set names), `overrides/JsonValueFns`.
 - `fuzz/type/typeFuzzRunner.unit.test.ts:65-84`: `{p?: null | string}` → not at risk.
 - `fuzz/type/compactUnionNestedObject.smoke.test.ts`: PaymentMethod, nullable object, keyed fallback.
 - `fuzz/type/jsonSizeFuzzRunner.ts:183`, `unionMergedPropJsonSize.smoke.test.ts`: measure compact
