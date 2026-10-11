@@ -52,20 +52,30 @@ for (const app of SMOKES) {
 // This is the only lane where RunTypes reaches the bundler without a plugin at
 // all — Turbopack has none — so it is the one that would break first if the
 // broker or the loader regressed.
-test('smoke-next: the shared subset passes after the Turbopack build', () => {
-  const html = path.join(APPS, 'smoke-next', '.next/server/app/index.html');
-  assert.ok(existsSync(html), 'smoke-next: prerendered index.html is missing — did build-all.mjs run for it?');
-  const rendered = readFileSync(html, 'utf8');
-  const results = JSON.parse(decodeEntities(rendered.match(/id="rt-results">(.*?)<\/div>/s)?.[1] ?? '[]'));
-  const detail = results
-    .filter((result) => !result.ok)
-    .map((result) => `${result.name}${result.detail ? ` — ${result.detail}` : ''}`)
-    .join('\n');
-  assert.ok(results.length >= 5, `smoke-next: expected the lean subset, got ${results.length} checks`);
-  assert.ok(
-    results.every((result) => result.ok),
-    `smoke-next selfCheck failed:\n${detail}`
-  );
+for (const app of ['smoke-next', 'smoke-next-ts']) {
+  test(`${app}: the shared subset passes after the Turbopack build`, () => {
+    const html = path.join(APPS, app, '.next/server/app/index.html');
+    assert.ok(existsSync(html), `${app}: prerendered index.html is missing — did build-all.mjs run for it?`);
+    const rendered = readFileSync(html, 'utf8');
+    const results = JSON.parse(decodeEntities(rendered.match(/id="rt-results">(.*?)<\/div>/s)?.[1] ?? '[]'));
+    const detail = results
+      .filter((result) => !result.ok)
+      .map((result) => `${result.name}${result.detail ? ` — ${result.detail}` : ''}`)
+      .join('\n');
+    assert.ok(results.length >= 5, `${app}: expected the lean subset, got ${results.length} checks`);
+    assert.ok(
+      results.every((result) => result.ok),
+      `${app} selfCheck failed:\n${detail}`
+    );
+  });
+}
+
+// emitMode 'ts' writes typed .ts cache modules and no .js twins, so the passing page above ran the typed ones.
+test('smoke-next-ts: the cache holds typed .ts modules only', () => {
+  const types = path.join(APPS, 'smoke-next-ts', '.rt/types');
+  const names = readdirSync(types, {recursive: true}).map(String);
+  assert.ok(names.some((name) => name.endsWith('.ts')), `smoke-next-ts: no .ts module under ${types}`);
+  assert.deepEqual(names.filter((name) => name.endsWith('.js')), [], 'smoke-next-ts: emitMode ts wrote .js modules');
 });
 
 // The genDir comes from the app's tsconfig, so Next reads the same folder the enrich CLI writes.
