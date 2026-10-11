@@ -9,7 +9,7 @@ import (
 
 func renderOne(t *testing.T, graph Graph, key string) string {
 	t.Helper()
-	out, err := RenderGrouped(graph, nil)
+	out, err := RenderGrouped(graph, nil, false)
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}
@@ -153,7 +153,7 @@ func TestRender_PureFnModuleNameEncoding(t *testing.T) {
 	graph := Graph{}
 	graph.Add(&Entry{Key: core, Kind: KindPureFn, ArgsText: "'" + core + "','h1'"})
 	graph.Add(&Entry{Key: weirdKey, Kind: KindPureFn, ArgsText: "'" + weirdKey + "','h2'", Deps: []string{core}})
-	out, err := RenderGrouped(graph, nil)
+	out, err := RenderGrouped(graph, nil, false)
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}
@@ -199,7 +199,7 @@ func TestAddMissingStubs_CoversUnresolvedDeps(t *testing.T) {
 	if entry := graph["rt::elsewhere"]; entry == nil || entry.Kind != KindMissing {
 		t.Fatalf("unresolved pure-fn dep should be stubbed")
 	}
-	if _, err := RenderGrouped(graph, nil); err != nil {
+	if _, err := RenderGrouped(graph, nil, false); err != nil {
 		t.Fatalf("Render after stub pass: %v", err)
 	}
 }
@@ -212,12 +212,12 @@ func TestRender_Deterministic(t *testing.T) {
 		graph.Add(&Entry{Key: "r3", Kind: KindRunType, ArgsText: "'r3',5"})
 		return graph
 	}
-	first, err := RenderGrouped(build(), nil)
+	first, err := RenderGrouped(build(), nil, false)
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}
 	for i := 0; i < 5; i++ {
-		again, err := RenderGrouped(build(), nil)
+		again, err := RenderGrouped(build(), nil, false)
 		if err != nil {
 			t.Fatalf("Render: %v", err)
 		}

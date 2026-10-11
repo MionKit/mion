@@ -18,9 +18,19 @@ import (
 // the sibling `enriched/` dir the enrich path handles.
 const typesSubdir = "types"
 
-// moduleFileExt turns a module basename (the cache key) into <typesDir>/<basename>.js; a slashed
-// basename nests into subdirs.
-const moduleFileExt = ".js"
+// jsModuleExt / tsModuleExt are a generated module's file extension, `.ts` in emitMode ts (moduleExt picks it).
+const (
+	jsModuleExt = ".js"
+	tsModuleExt = ".ts"
+)
+
+// moduleExt is the extension every module mode writes, and every import between them names.
+func moduleExt(mode constants.EmitMode) string {
+	if mode.EmitsTypes() {
+		return tsModuleExt
+	}
+	return jsModuleExt
+}
 
 // outputDirAllowedMembers are the mion-owned top-level entries an output root may contain for us to
 // treat it as ours. Their CONTENTS are never inspected, only the output root's own top level.
@@ -112,7 +122,7 @@ func ensureOutDirAvailable(outDir string) error {
 
 // generateToDisk is the filesystem analogue of shipping Response.EntryModules over the wire: it writes
 // every entry module under <outDir>/types/, prunes what left the set, and returns the sorted manifest.
-func generateToDisk(outDir string, modules map[string]string) ([]string, error) {
+func generateToDisk(outDir string, modules map[string]string, ext string) ([]string, error) {
 	if err := ensureOutDirAvailable(outDir); err != nil {
 		return nil, err
 	}
@@ -126,12 +136,12 @@ func generateToDisk(outDir string, modules map[string]string) ([]string, error) 
 	// The on-disk files must resolve natively in any bundler; the wire sources keep the virtual specifiers.
 	onDisk := make(map[string]string, len(modules))
 	for basename, source := range modules {
-		onDisk[basename] = relativizeModuleImports(basename, source)
+		onDisk[basename] = relativizeModuleImports(basename, source, ext)
 	}
-	if _, err := materializeModules(typesDir, onDisk); err != nil {
+	if _, err := materializeModules(typesDir, onDisk, ext); err != nil {
 		return nil, unwritableOutDirError(typesDir, err)
 	}
-	if err := pruneStaleModules(typesDir, onDisk); err != nil {
+	if err := pruneStaleModules(typesDir, onDisk, ext); err != nil {
 		return nil, unwritableOutDirError(typesDir, err)
 	}
 	manifest := make([]string, 0, len(onDisk))
@@ -355,13 +365,13 @@ func (sess *Session) inferSrcDir() string {
 	return program.InferSrcDir(cwd, rootDir, baseUrl, fileNames)
 }
 
-// materializeModules writes each entry module to typesDir/<basename>.js, creating parent dirs for a
+// materializeModules writes each entry module to typesDir/<basename><ext>, creating parent dirs for a
 // slashed basename. Write-only-on-change, so a dev file-watcher is not retriggered for a module whose
 // content-addressed bytes did not change; it returns the basenames it actually rewrote, sorted.
-func materializeModules(typesDir string, modules map[string]string) ([]string, error) {
+func materializeModules(typesDir string, modules map[string]string, ext string) ([]string, error) {
 	written := make([]string, 0)
 	for basename, source := range modules {
-		path := filepath.Join(typesDir, filepath.FromSlash(basename)+moduleFileExt)
+		path := filepath.Join(typesDir, filepath.FromSlash(basename)+ext)
 		if existing, err := os.ReadFile(path); err == nil && string(existing) == source {
 			continue
 		}
@@ -377,9 +387,9 @@ func materializeModules(typesDir string, modules map[string]string) ([]string, e
 	return written, nil
 }
 
-// pruneStaleModules deletes any *.js whose basename left the live set: the GC that keeps the generated
-// tree equal to the current build's output when a type and its call sites go away.
-func pruneStaleModules(typesDir string, live map[string]string) error {
+// pruneStaleModules deletes any module whose basename left the live set, or written under the other extension by a
+// build in the other emit mode: the GC that keeps the generated tree equal to the current build's output.
+func pruneStaleModules(typesDir string, live map[string]string, ext string) error {
 	if _, err := os.Stat(typesDir); os.IsNotExist(err) {
 		return nil
 	}
@@ -387,15 +397,16 @@ func pruneStaleModules(typesDir string, live map[string]string) error {
 		if walkErr != nil {
 			return walkErr
 		}
-		if entry.IsDir() || !strings.HasSuffix(path, moduleFileExt) {
+		fileExt := filepath.Ext(path)
+		if entry.IsDir() || (fileExt != jsModuleExt && fileExt != tsModuleExt) {
 			return nil
 		}
 		rel, relErr := filepath.Rel(typesDir, path)
 		if relErr != nil {
 			return relErr
 		}
-		basename := filepath.ToSlash(strings.TrimSuffix(rel, moduleFileExt))
-		if _, ok := live[basename]; ok {
+		basename := filepath.ToSlash(strings.TrimSuffix(rel, fileExt))
+		if _, ok := live[basename]; ok && fileExt == ext {
 			return nil
 		}
 		return os.Remove(path)

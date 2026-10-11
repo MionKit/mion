@@ -46,7 +46,7 @@ func emitModulesWith(t *testing.T, roots []string, runTypes []*reflection.RunTyp
 		sites = append(sites, protocol.Site{ID: root})
 	}
 	graph := CollectEntries(protocol.Dump{RunTypes: runTypes, Sites: sites}, jsonMaxBytes, nil, nil)
-	modules, err := entrymodules.RenderGrouped(graph, nil)
+	modules, err := entrymodules.RenderGrouped(graph, nil, false)
 	if err != nil {
 		t.Fatalf("entrymodules.Render: %v", err)
 	}
@@ -291,7 +291,7 @@ func TestCollectEntries_KeyCoversImports(t *testing.T) {
 func emitFileModulesSites(t *testing.T, sites []protocol.Site, runTypes []*reflection.RunType, jsonMaxBytes bool) map[string]string {
 	t.Helper()
 	graph := CollectEntries(protocol.Dump{RunTypes: runTypes, Sites: sites}, jsonMaxBytes, func(site protocol.Site) string { return "rt/" + site.File }, nil)
-	modules, err := entrymodules.RenderGrouped(graph, nil)
+	modules, err := entrymodules.RenderGrouped(graph, nil, false)
 	if err != nil {
 		t.Fatalf("render: %v", err)
 	}
@@ -363,7 +363,7 @@ func TestCollectEntries_SameRootInTwoFiles(t *testing.T) {
 		RunTypes: []*reflection.RunType{{ID: "root1", Kind: reflection.KindString}},
 		Sites:    []protocol.Site{{ID: "root1", File: "a"}, {ID: "root1", File: "b"}},
 	}, false, func(site protocol.Site) string { return "rt/" + site.File }, nil)
-	modules, err := entrymodules.RenderGrouped(graph, nil)
+	modules, err := entrymodules.RenderGrouped(graph, nil, false)
 	if err != nil {
 		t.Fatalf("render: %v", err)
 	}

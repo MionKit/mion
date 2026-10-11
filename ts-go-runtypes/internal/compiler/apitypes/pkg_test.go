@@ -124,7 +124,7 @@ func packageArtifactOf(t *testing.T, packageName string, overrides []purefnindex
 	files := map[string]string{constants.PureFnArtifactIndexFile: string(purefnindex.RenderArtifactIndex(packageName, "/srv", entries, overrides))}
 	graph := purefunctions.CollectEntries(entries, constants.EmitCode)
 	graph.AddMissingStubs(nil)
-	modules, err := entrymodules.RenderGrouped(graph, nil)
+	modules, err := entrymodules.RenderGrouped(graph, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}

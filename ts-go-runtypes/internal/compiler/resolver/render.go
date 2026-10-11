@@ -331,14 +331,14 @@ func (sess *Session) renderPureFnArtifact(graph entrymodules.Graph, metrics *pro
 			slice.Add(entry)
 		}
 	}
-	modules, err := entrymodules.RenderGrouped(slice, nil)
+	modules, err := entrymodules.RenderGrouped(slice, nil, false)
 	if err != nil {
 		return nil, err
 	}
 	files := map[string]string{constants.PureFnArtifactIndexFile: string(purefnindex.RenderArtifactIndex(ownPackage, ownRoot, own, overrides))}
 	for _, entry := range own {
 		basename := entrymodules.ModuleName(entry.Key(), entrymodules.KindPureFn)
-		files[purefnindex.ModulePath(entry.Key())] = relativizeModuleImports(basename, modules[basename])
+		files[purefnindex.ModulePath(entry.Key())] = relativizeModuleImports(basename, modules[basename], jsModuleExt)
 	}
 	return files, nil
 }

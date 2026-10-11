@@ -17,11 +17,14 @@ package entrymodules
 
 import (
 	"fmt"
+	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/diskcache"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
 )
@@ -46,6 +49,8 @@ const (
 	// KindRunTypeFacade — a per-root alias registering nothing, so the rewrite's binding-only injection works.
 	// It holds the root id in the key slot and the module's data entry in the deps thunk (tuple slot 0 = 5).
 	KindRunTypeFacade Kind = 5
+	// KindTypeDecl — a type-only module (emitMode ts) exporting one type id's printed type; no tuple, nothing at runtime.
+	KindTypeDecl Kind = 6
 )
 
 // Entry is one compiled cache entry awaiting module assembly.
@@ -84,6 +89,19 @@ type Entry struct {
 	Module string
 	// Export, when set, is the export name's basename in place of the Key's.
 	Export string
+	// TypeImports are the type ids whose type modules this entry's typed text names, imported type-only.
+	TypeImports []string
+	// Ambient are free names the typed text only reads under `typeof`, declared `unknown` at module top (emitMode ts).
+	Ambient []string
+	// TypeText, TypeDoc and FormatImports are a KindTypeDecl's printed type, its doc line and the format brand imports.
+	TypeText      string
+	TypeDoc       string
+	FormatImports []string
+}
+
+// TypeDeclKey is the key, and module basename, of typeID's type module.
+func TypeDeclKey(typeID string) string {
+	return constants.TypeModuleDir + "/" + typeID
 }
 
 // allDeps iterates entry's hard + soft deps (callers dedup via sortedDeps).
@@ -247,6 +265,9 @@ type Grouping func(*Entry) string
 // ExportName is BindingName over the entry's per-entry basename, so the identifier the rewrite splices at
 // call sites IS the export name and bundle imports never rename.
 func ExportName(entry *Entry) string {
+	if entry.Kind == KindTypeDecl {
+		return constants.TypeRefPrefix + strings.TrimPrefix(entry.Key, constants.TypeModuleDir+"/")
+	}
 	if entry.Export != "" {
 		return BindingName(entry.Export)
 	}
@@ -256,7 +277,7 @@ func ExportName(entry *Entry) string {
 // RenderGrouped renders entries sharing a bundle basename into ONE module, each a named export, and the
 // rest per-entry. A bundle member references a same-bundle dep as a direct const and any other dep as a
 // named import of its export name, the same clause shape for a per-entry module and for another bundle.
-func RenderGrouped(graph Graph, grouping Grouping) (map[string]string, error) {
+func RenderGrouped(graph Graph, grouping Grouping, typed bool) (map[string]string, error) {
 	keys := make([]string, 0, len(graph))
 	for key := range graph {
 		keys = append(keys, key)
@@ -285,7 +306,7 @@ func RenderGrouped(graph Graph, grouping Grouping) (map[string]string, error) {
 			continue
 		}
 		entry := graph[key]
-		source, err := renderModule(graph, entry, order, groupOf)
+		source, err := renderModule(graph, entry, order, groupOf, typed)
 		if err != nil {
 			return nil, err
 		}
@@ -297,7 +318,7 @@ func RenderGrouped(graph Graph, grouping Grouping) (map[string]string, error) {
 	}
 	sort.Strings(bundleNames)
 	for _, name := range bundleNames {
-		source, err := renderBundle(graph, name, bundles[name], order, groupOf)
+		source, err := renderBundle(graph, name, bundles[name], order, groupOf, typed)
 		if err != nil {
 			return nil, err
 		}
@@ -472,15 +493,19 @@ func depBinding(graph Graph, depKey string, selfBundle string, groupOf map[strin
 }
 
 // renderModule emits one entry's module source.
-func renderModule(graph Graph, entry *Entry, order levels, groupOf map[string]string) (string, error) {
+func renderModule(graph Graph, entry *Entry, order levels, groupOf map[string]string, typed bool) (string, error) {
 	var body strings.Builder
+	if entry.Kind == KindTypeDecl {
+		return renderTypeDecl(entry), nil
+	}
 
 	// A missing stub carries just the key; its deps / ini head slots are JS array holes.
 	if entry.Kind == KindMissing {
-		body.WriteString("export const " + ExportName(entry) + "=[" +
-			strconv.Itoa(int(KindMissing)) + ",,," + jsquote.Single(entry.Key) + "];\n")
-		return body.String(), nil
+		body.WriteString("export const " + ExportName(entry) + tupleAnnotation(entry, typed) + "=[" +
+			strconv.Itoa(int(KindMissing)) + "," + headHole(typed) + "," + headHole(typed) + "," + jsquote.Single(entry.Key) + "];\n")
+		return withTypedHeader(body.String(), nil, typed), nil
 	}
+	ambient := ambientLines(entry.Ambient)
 
 	deps, err := directDeps(graph, entry, order)
 	if err != nil {
@@ -495,6 +520,7 @@ func renderModule(graph Graph, entry *Entry, order levels, groupOf map[string]st
 		bindings[i] = depBinding(graph, key, "", groupOf, &imports, imported)
 	}
 	body.WriteString(imports.String())
+	body.WriteString(typeImportLines(graph, entry.TypeImports, typed))
 
 	// The deps thunk never includes self, every consumer of the tuple already holding it; a dep-less entry
 	// leaves the slot a JS array hole.
@@ -507,7 +533,7 @@ func renderModule(graph Graph, entry *Entry, order levels, groupOf map[string]st
 	// tuples; imported bindings are touched only inside deps().
 	iniSlot := ""
 	if entry.InitBody != "" {
-		body.WriteString("function ini(rtu){const c=(id)=>rtu.useRunType(id);\n")
+		body.WriteString("function ini" + iniParams(typed) + "\n")
 		body.WriteString(entry.InitBody)
 		if !strings.HasSuffix(entry.InitBody, "\n") {
 			body.WriteByte('\n')
@@ -520,13 +546,13 @@ func renderModule(graph Graph, entry *Entry, order levels, groupOf map[string]st
 	if err != nil {
 		return "", err
 	}
-	body.WriteString("export const " + ExportName(entry) + "=[" + slot0 + "," + depsSlot + "," + iniSlot)
+	body.WriteString("export const " + ExportName(entry) + tupleAnnotation(entry, typed) + "=[" + slot0 + "," + headSlot(depsSlot, typed) + "," + headSlot(iniSlot, typed))
 	if entry.ArgsText != "" {
 		body.WriteByte(',')
 		body.WriteString(entry.ArgsText)
 	}
 	body.WriteString("];\n")
-	return body.String(), nil
+	return withTypedHeader(body.String(), ambient, typed), nil
 }
 
 // facadeHoistMin is where hoisting the facades' identical deps thunk into one shared local starts paying
@@ -540,7 +566,7 @@ const facadeThunkLocal = "rtL"
 // shared `deps` identifier can collide, same-bundle deps are direct const references and ini fns are
 // index-suffixed. Members render leaves-first only for readability; thunks are lazy and inis run
 // post-registration, so correctness does not depend on it.
-func renderBundle(graph Graph, name string, memberKeys []string, order levels, groupOf map[string]string) (string, error) {
+func renderBundle(graph Graph, name string, memberKeys []string, order levels, groupOf map[string]string, typed bool) (string, error) {
 	members := append([]string(nil), memberKeys...)
 	sort.SliceStable(members, func(i, j int) bool {
 		if order[members[i]] != order[members[j]] {
@@ -563,12 +589,15 @@ func renderBundle(graph Graph, name string, memberKeys []string, order levels, g
 	var imports strings.Builder
 	var body strings.Builder
 	imported := make(map[string]bool)
+	var typeImports, ambient []string
 	for memberIndex, key := range members {
 		entry := graph[key]
 		exportName := ExportName(entry)
+		typeImports = append(typeImports, entry.TypeImports...)
+		ambient = append(ambient, entry.Ambient...)
 		if entry.Kind == KindMissing {
-			body.WriteString("export const " + exportName + "=[" +
-				strconv.Itoa(int(KindMissing)) + ",,," + jsquote.Single(entry.Key) + "];\n")
+			body.WriteString("export const " + exportName + tupleAnnotation(entry, typed) + "=[" +
+				strconv.Itoa(int(KindMissing)) + "," + headHole(typed) + "," + headHole(typed) + "," + jsquote.Single(entry.Key) + "];\n")
 			continue
 		}
 		deps, err := directDeps(graph, entry, order)
@@ -582,7 +611,7 @@ func renderBundle(graph Graph, name string, memberKeys []string, order levels, g
 		iniSlot := ""
 		if entry.InitBody != "" {
 			iniName := "ini" + strconv.Itoa(memberIndex)
-			body.WriteString("function " + iniName + "(rtu){const c=(id)=>rtu.useRunType(id);\n")
+			body.WriteString("function " + iniName + iniParams(typed) + "\n")
 			body.WriteString(entry.InitBody)
 			if !strings.HasSuffix(entry.InitBody, "\n") {
 				body.WriteByte('\n')
@@ -607,14 +636,14 @@ func renderBundle(graph Graph, name string, memberKeys []string, order levels, g
 			}
 			depsSlot = facadeThunkLocal
 		}
-		body.WriteString("export const " + exportName + "=[" + slot0 + "," + depsSlot + "," + iniSlot)
+		body.WriteString("export const " + exportName + tupleAnnotation(entry, typed) + "=[" + slot0 + "," + headSlot(depsSlot, typed) + "," + headSlot(iniSlot, typed))
 		if entry.ArgsText != "" {
 			body.WriteByte(',')
 			body.WriteString(entry.ArgsText)
 		}
 		body.WriteString("];\n")
 	}
-	return imports.String() + body.String(), nil
+	return withTypedHeader(imports.String()+typeImportLines(graph, typeImports, typed)+body.String(), ambientLines(ambient), typed), nil
 }
 
 // kindSlot renders tuple slot 0: the numeric kind, or the quoted family tag for a type-fn entry.
@@ -635,4 +664,136 @@ func kindSlot(entry *Entry) (string, error) {
 		return jsquote.Single(entry.FamilyTag), nil
 	}
 	return "", fmt.Errorf("entrymod: entry %q has unsupported kind %d", entry.Key, entry.Kind)
+}
+
+// iniParams opens a runtype footer fn: its parameter list and the `c` lookup shorthand, typed in emitMode ts.
+func iniParams(typed bool) string {
+	if typed {
+		return "(rtu: RTUtils){const c=(id: string)=>rtu.useRunType(id);"
+	}
+	return "(rtu){const c=(id)=>rtu.useRunType(id);"
+}
+
+// tupleTypes names the runtime tuple type each kind's export satisfies.
+var tupleTypes = map[Kind]string{
+	KindRunType:       "RunTypeTuple",
+	KindTypeFn:        "FnTypeTuple",
+	KindPureFn:        "PureFnTuple",
+	KindMissing:       "MissingTuple",
+	KindRunTypeBundle: "RunTypeBundleTuple",
+	KindRunTypeFacade: "RunTypeFacadeTuple",
+}
+
+// tupleAnnotation types an exported tuple in emitMode ts, which isolatedDeclarations requires.
+func tupleAnnotation(entry *Entry, typed bool) string {
+	if !typed {
+		return ""
+	}
+	return ": " + tupleTypes[entry.Kind]
+}
+
+// typeImportLines imports each named type id's module type-only, deduped and sorted.
+func typeImportLines(graph Graph, typeIDs []string, typed bool) string {
+	if !typed || len(typeIDs) == 0 {
+		return ""
+	}
+	sorted := slices.Clone(typeIDs)
+	sort.Strings(sorted)
+	var lines strings.Builder
+	for _, typeID := range slices.Compact(sorted) {
+		key := TypeDeclKey(typeID)
+		if graph[key] == nil {
+			continue
+		}
+		lines.WriteString("import type {" + ExportName(graph[key]) + "} from " + jsquote.Single(ImportSpecifier(key)) + ";\n")
+	}
+	return lines.String()
+}
+
+// runtimeTypeModules lists, per module, the run-types types generated text may name.
+var runtimeTypeModules = []struct {
+	module string
+	names  []string
+}{
+	{marker.DefaultModule, []string{"RTValidationError", "RTValidationErrorPathSegment"}},
+	{marker.DefaultModule + "/runtime", []string{"FnTypeTuple", "MissingTuple", "PureFnId", "PureFnTuple", "RTUtils", "RunTypeBundleTuple",
+		"RunTypeFacadeTuple", "RunTypeTuple"}},
+}
+
+var identifierRE = regexp.MustCompile(`[A-Za-z_$][A-Za-z0-9_$]*`)
+
+// withTypedHeader prepends the type-only imports of the run-types types source names, plus extra lines, in emitMode ts.
+func withTypedHeader(source string, extra []string, typed bool) string {
+	if !typed {
+		return source
+	}
+	used := map[string]bool{}
+	for _, name := range identifierRE.FindAllString(source, -1) {
+		used[name] = true
+	}
+	var header strings.Builder
+	for _, module := range runtimeTypeModules {
+		var names []string
+		for _, name := range module.names {
+			if used[name] {
+				names = append(names, name)
+			}
+		}
+		if len(names) > 0 {
+			header.WriteString("import type {" + strings.Join(names, ", ") + "} from " + jsquote.Single(module.module) + ";\n")
+		}
+	}
+	for _, line := range extra {
+		header.WriteString(line + "\n")
+	}
+	return header.String() + source
+}
+
+// renderTypeDecl renders a type module: its type-only imports, a doc line naming the source type, and the export.
+func renderTypeDecl(entry *Entry) string {
+	var body strings.Builder
+	selfName := ExportName(entry)
+	for _, typeID := range entry.TypeImports {
+		name := constants.TypeRefPrefix + typeID
+		if name == selfName {
+			continue
+		}
+		body.WriteString("import type {" + name + "} from " + jsquote.Single(ImportSpecifier(TypeDeclKey(typeID))) + ";\n")
+	}
+	for _, line := range entry.FormatImports {
+		body.WriteString(line + "\n")
+	}
+	if entry.TypeDoc != "" {
+		body.WriteString("/** " + strings.ReplaceAll(entry.TypeDoc, "*/", "*\\/") + " */\n")
+	}
+	body.WriteString("export type " + selfName + " = " + entry.TypeText + ";\n")
+	return body.String()
+}
+
+// headHole is an absent tuple-head slot: a JS array hole, or `undefined` in emitMode ts, where a hole before a
+// required tuple element widens every later element by `| undefined` under exactOptionalPropertyTypes.
+func headHole(typed bool) string {
+	if typed {
+		return "undefined"
+	}
+	return ""
+}
+
+// headSlot is a tuple-head slot's text, headHole when empty.
+func headSlot(text string, typed bool) string {
+	if text == "" {
+		return headHole(typed)
+	}
+	return text
+}
+
+// ambientLines declares each name `unknown` once, sorted.
+func ambientLines(names []string) []string {
+	sorted := slices.Clone(names)
+	sort.Strings(sorted)
+	var lines []string
+	for _, name := range slices.Compact(sorted) {
+		lines = append(lines, "declare const "+name+": unknown;")
+	}
+	return lines
 }

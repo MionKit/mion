@@ -238,7 +238,7 @@ func Run(opts Options) (*Result, error) {
 		case strings.HasSuffix(outPath, ".js"):
 			// The rtmod: specifiers survived emit unresolved. Same-line string edits on the import block,
 			// which maps to nothing, so the composed map stays valid.
-			final[outPath] = resolver.RelativizeUserImports(outPath, genDir, text)
+			final[outPath] = resolver.RelativizeUserImports(outPath, genDir, text, resolverOpts.EmitMode)
 		default:
 			final[outPath] = text
 		}

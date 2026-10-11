@@ -334,7 +334,7 @@ func (ctx *EmitContext) UsePureFn(id string) string {
 	ctx.AddPureFnDependency(id)
 	alias := pureFnAliasFor(id)
 	if !ctx.HasContextItem(alias) {
-		ctx.SetContextItem(alias, "const "+alias+" = utl.getPureFn('"+id+"')"+ctx.TsAnn("!"))
+		ctx.SetContextItem(alias, "const "+alias+" = utl.getPureFn('"+id+"'"+ctx.TsAnn(" as PureFnId")+")"+ctx.TsAnn("!"))
 	}
 	return alias
 }

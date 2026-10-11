@@ -345,6 +345,10 @@ const (
 	// rewrite injects into user files; the leading double-underscore keeps collisions with user identifiers
 	// implausible.
 	EntryBindingPrefix = "__rt_"
+	// TypeRefPrefix names a type module's export, `T_<typeId>` (emitMode ts).
+	TypeRefPrefix = "T_"
+	// TypeModuleDir is the subdirectory of the type modules, one per type id (emitMode ts).
+	TypeModuleDir = "t"
 	// PureFnModuleDir is the basename directory prefix for pure-fn entry modules (`pf/<ns>/<fn>`), keeping them
 	// distinct from the hash-keyed runtype / type-fn modules.
 	PureFnModuleDir = "pf"

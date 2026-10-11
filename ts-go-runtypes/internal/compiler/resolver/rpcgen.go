@@ -26,7 +26,7 @@ import (
 )
 
 // batchesModuleBasename is the table module's basename under rpc/; the materializer appends the extension.
-var batchesModuleBasename = strings.TrimSuffix(constants.BatchesModuleFile, moduleFileExt)
+var batchesModuleBasename = strings.TrimSuffix(constants.BatchesModuleFile, jsModuleExt)
 
 // rpcCollection is what one read of the program's batches yields.
 type rpcCollection struct {
@@ -141,25 +141,25 @@ func generateRpc(outDir string, collection rpcCollection, emitMode constants.Emi
 		}
 	}
 	graph.AddMissingStubs(missing)
-	rendered, err := entrymodules.RenderGrouped(graph, nil)
+	rendered, err := entrymodules.RenderGrouped(graph, nil, emitMode.EmitsTypes())
 	if err != nil {
 		return "", fmt.Errorf("batch transport: %w", err)
 	}
 	files := make(map[string]string, len(rendered)+1)
 	for basename, source := range rendered {
-		files[basename] = relativizeModuleImports(basename, source)
+		files[basename] = relativizeModuleImports(basename, source, moduleExt(emitMode))
 	}
-	files[batchesModuleBasename] = renderBatchesModule(collection.sites, collection.entries)
+	files[batchesModuleBasename] = renderBatchesModule(collection.sites, collection.entries, moduleExt(emitMode))
 	if err := os.MkdirAll(rpcDir, 0o755); err != nil {
 		return "", unwritableOutDirError(rpcDir, err)
 	}
-	if _, err := materializeModules(rpcDir, files); err != nil {
+	if _, err := materializeModules(rpcDir, files, moduleExt(emitMode)); err != nil {
 		return "", unwritableOutDirError(rpcDir, err)
 	}
-	if err := pruneStaleModules(rpcDir, files); err != nil {
+	if err := pruneStaleModules(rpcDir, files, moduleExt(emitMode)); err != nil {
 		return "", unwritableOutDirError(rpcDir, err)
 	}
-	return filepath.Join(rpcDir, constants.BatchesModuleFile), nil
+	return filepath.Join(rpcDir, batchesModuleBasename+moduleExt(emitMode)), nil
 }
 
 // batchTableEntry / batchTableMapping mirror @mionjs/router's BatchDefinition,
@@ -179,7 +179,7 @@ type batchTableMapping struct {
 // renderBatchesModule renders the table module: the imports of the mappers a mapping names, whose own
 // deps sit inside the mapper modules, one registerInputMapperTuple each, then replaceBatches with the
 // whole table. Deterministic: mappers by key, batches by id, mappings as extracted.
-func renderBatchesModule(sites []requestbatch.Site, entries []purefunctions.Entry) string {
+func renderBatchesModule(sites []requestbatch.Site, entries []purefunctions.Entry, ext string) string {
 	defined := make(map[string]bool, len(entries))
 	for _, entry := range entries {
 		defined[entry.Key()] = true
@@ -195,7 +195,7 @@ func renderBatchesModule(sites []requestbatch.Site, entries []purefunctions.Entr
 		}
 		mapperKeys = append(mapperKeys, key)
 		basename := entrymodules.ModuleName(key, entrymodules.KindPureFn)
-		out.WriteString("import {" + entrymodules.BindingName(basename) + "} from '" + ensureDotPrefix(basename) + moduleFileExt + "';\n")
+		out.WriteString("import {" + entrymodules.BindingName(basename) + "} from '" + ensureDotPrefix(basename) + ext + "';\n")
 	}
 	for _, key := range mapperKeys {
 		basename := entrymodules.ModuleName(key, entrymodules.KindPureFn)
@@ -307,9 +307,10 @@ func (sess *Session) routerInitReplacements(files []string) []protocol.Replaceme
 	}
 	out := make([]protocol.Replacement, 0, len(sites))
 	for _, site := range sites {
-		specifier := constants.RpcModulePrefix + constants.BatchesModuleFile
+		batchesFile := batchesModuleBasename + moduleExt(sess.opts.EmitMode)
+		specifier := constants.RpcModulePrefix + batchesFile
 		if outDir != "" {
-			if rel := relUserToRpc(site.FilePath, outDir, constants.BatchesModuleFile); rel != "" {
+			if rel := relUserToRpc(site.FilePath, outDir, batchesFile); rel != "" {
 				specifier = rel
 			}
 		}

@@ -177,10 +177,13 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
   // `rpc/` is listed because a Next app hosting the mion API gets the batch table's import appended to its route
   // handler, which appears or vanishes on a client's first or last batch with no import edge to follow.
   // The mapper modules under `rpc/pf/` are content-addressed like `types/`, hence the recursive listing.
+  // `.ts` under emitMode 'ts', `.js` otherwise.
+  const isModuleFile = (name: string): boolean => name.endsWith('.js') || name.endsWith('.ts');
+
   function countGenerated(): number {
     try {
       const names = fs.readdirSync(path.join(genDirAbs, 'types'), {recursive: true}) as string[];
-      return names.filter((name) => name.endsWith('.js')).length;
+      return names.filter(isModuleFile).length;
     } catch {
       return -1;
     }
@@ -200,7 +203,7 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
       for (const name of names) {
         // Recursive readdir joins with the OS separator; the prefix test and the stamp want '/'.
         const entry = `${half}/${name.split(path.sep).join('/')}`;
-        listing.push(entry.startsWith(FILE_MODULE_PREFIX) && entry.endsWith('.js') ? `${entry}#${contentHash(entry)}` : entry);
+        listing.push(entry.startsWith(FILE_MODULE_PREFIX) && isModuleFile(entry) ? `${entry}#${contentHash(entry)}` : entry);
       }
     }
     return listing.sort();

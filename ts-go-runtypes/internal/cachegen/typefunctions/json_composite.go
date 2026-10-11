@@ -272,7 +272,7 @@ func jsonCompositeBody(composite constants.JsonComposite, id string, entryKey st
 		// into the factory closure.
 		if circularSkeletonJS != "" {
 			ctx = append(ctx,
-				"const "+circularGuardFnAlias+" = utl.getPureFn('"+purefnids.FindCycle+"')"+tsAnnIf(typed, "!"),
+				"const "+circularGuardFnAlias+" = utl.getPureFn('"+purefnids.FindCycle+"'"+tsAnnIf(typed, " as PureFnId")+")"+tsAnnIf(typed, "!"),
 				"const "+circularGuardContextKey+" = "+circularSkeletonJS)
 			body = "const cyR=" + circularGuardFnAlias + "(v," + circularGuardContextKey + ");if(cyR)throw utl.circularError(cyR);" + body
 		}

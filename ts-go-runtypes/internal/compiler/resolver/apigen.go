@@ -364,10 +364,10 @@ func (sess *Session) generateApiBundle(outDir string, sites []apimeta.Site) ([]d
 	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		return diags, unwritableOutDirError(apiDir, err)
 	}
-	if _, err := materializeModules(apiDir, files); err != nil {
+	if _, err := materializeModules(apiDir, files, jsModuleExt); err != nil {
 		return diags, unwritableOutDirError(apiDir, err)
 	}
-	if err := pruneStaleModules(apiDir, files); err != nil {
+	if err := pruneStaleModules(apiDir, files, jsModuleExt); err != nil {
 		return diags, unwritableOutDirError(apiDir, err)
 	}
 	// Each build version is the value this program's own calls carry, so a report names what shipped.
@@ -436,7 +436,7 @@ func (sess *Session) renderApiBundle(bundle *apiBundle, files map[string]string)
 		return renderDiags, fmt.Errorf("bundled routes: %w", err)
 	}
 	for basename, source := range typeModules {
-		files[typesSubdir+"/"+basename] = relativizeModuleImports(basename, source)
+		files[typesSubdir+"/"+basename] = relativizeModuleImports(basename, source, jsModuleExt)
 	}
 	for _, id := range bundle.order {
 		basename := apimeta.MethodModuleBasename(id)
@@ -805,7 +805,7 @@ func renderApiSiteModule(basename string, ids []string) string {
 		methodBasename := apimeta.MethodModuleBasename(id)
 		binding := apimeta.MethodBinding(id)
 		bindings = append(bindings, binding)
-		out.WriteString("import {" + binding + "} from '" + ensureDotPrefix(relPosix(path.Dir(basename), methodBasename)) + moduleFileExt + "';\n")
+		out.WriteString("import {" + binding + "} from '" + ensureDotPrefix(relPosix(path.Dir(basename), methodBasename)) + jsModuleExt + "';\n")
 	}
 	out.WriteString("export const " + apiSiteBinding(basename) + " = {methods: [" + strings.Join(bindings, ", ") + "]};\n")
 	return out.String()
@@ -818,7 +818,7 @@ func apiSiteBinding(basename string) string {
 
 // relApiToTypes is the specifier from an `api/<basename>` module to the mirror entry `api/types/<dep>`.
 func relApiToTypes(fromBasename, depBasename string) string {
-	return ensureDotPrefix(relPosix(path.Dir(fromBasename), typesSubdir+"/"+depBasename)) + moduleFileExt
+	return ensureDotPrefix(relPosix(path.Dir(fromBasename), typesSubdir+"/"+depBasename)) + jsModuleExt
 }
 
 func encodeJSON(value any) string {

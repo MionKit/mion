@@ -35,27 +35,27 @@ var apiSideEffectImportRE = regexp.MustCompile(
 // relativizeModuleImports rewrites a generated module's rtmod: imports relative to that module, applied when
 // modules are materialized to disk so they resolve natively in any bundler. Both modules live under
 // <outDir>/types, so this is pure basename arithmetic, no outDir or filesystem access needed.
-func relativizeModuleImports(moduleBasename, source string) string {
+func relativizeModuleImports(moduleBasename, source, ext string) string {
 	return virtualImportRE.ReplaceAllStringFunc(source, func(match string) string {
 		dep := virtualImportRE.FindStringSubmatch(match)[1]
-		return "from '" + relWithinTypes(moduleBasename, dep) + "'"
+		return "from '" + relWithinTypes(moduleBasename, dep, ext) + "'"
 	})
 }
 
 // RelativizeUserImports is exported for the compile CLI ([internal/compiler/batchcompile]), which relativizes
 // the EMITTED .js against its OUTPUT location, not the source location the plugin uses; rtmod: specifiers
 // survive tsgo emit unresolved, so one pass fixes them.
-func RelativizeUserImports(filePath, outDir, code string) string {
-	return relativizeUserImports(filePath, outDir, code)
+func RelativizeUserImports(filePath, outDir, code string, mode constants.EmitMode) string {
+	return relativizeUserImports(filePath, outDir, code, moduleExt(mode))
 }
 
 // relativizeUserImports rewrites a transformed USER file's injected import block relative to that file. The
 // block is a single physical line, so rewriting only the specifier text (never adding newlines) keeps the
 // transform's source map valid. A specifier whose bases can't be related (mismatched abs/rel) is left alone.
-func relativizeUserImports(filePath, outDir, code string) string {
+func relativizeUserImports(filePath, outDir, code, ext string) string {
 	code = virtualImportRE.ReplaceAllStringFunc(code, func(match string) string {
 		dep := virtualImportRE.FindStringSubmatch(match)[1]
-		rel := relUserToType(filePath, outDir, dep)
+		rel := relUserToType(filePath, outDir, dep, ext)
 		if rel == "" {
 			return match
 		}
@@ -94,7 +94,7 @@ func relUserToApi(filePath, outDir, basename string) string {
 	if err != nil {
 		return ""
 	}
-	return ensureDotPrefix(filepath.ToSlash(rel)) + moduleFileExt
+	return ensureDotPrefix(filepath.ToSlash(rel)) + jsModuleExt
 }
 
 // relUserToRpc is the batch-transport twin of relUserToType, empty when the two paths cannot be related.
@@ -108,19 +108,19 @@ func relUserToRpc(filePath, outDir, file string) string {
 }
 
 // relWithinTypes is the specifier from one module to a sibling dep under the same types/ root.
-func relWithinTypes(fromBasename, depBasename string) string {
-	return ensureDotPrefix(relPosix(path.Dir(fromBasename), depBasename)) + moduleFileExt
+func relWithinTypes(fromBasename, depBasename, ext string) string {
+	return ensureDotPrefix(relPosix(path.Dir(fromBasename), depBasename)) + ext
 }
 
 // relUserToType is the specifier from a user file to <outDir>/types/<dep>.js, empty when filepath.Rel can't
 // relate the two (mismatched abs/rel bases) and the caller then keeps the original specifier.
-func relUserToType(filePath, outDir, depBasename string) string {
+func relUserToType(filePath, outDir, depBasename, ext string) string {
 	target := filepath.Join(outDir, typesSubdir, filepath.FromSlash(depBasename))
 	rel, err := filepath.Rel(filepath.Dir(filePath), target)
 	if err != nil {
 		return ""
 	}
-	return ensureDotPrefix(filepath.ToSlash(rel)) + moduleFileExt
+	return ensureDotPrefix(filepath.ToSlash(rel)) + ext
 }
 
 // relPosix returns target relative to baseDir, both slash-separated POSIX paths.
