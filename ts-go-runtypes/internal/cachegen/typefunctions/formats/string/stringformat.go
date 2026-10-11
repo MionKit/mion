@@ -208,24 +208,25 @@ func lengthErrorStatements(ctx formats.EmitContext, params map[string]any, vλl,
 			"if (!"+formats.PureFnAlias(ctx, purefnids.IsEcmaRegex)+"("+vλl+")) "+
 				formatErrAs(expected, pathExpr, errorsArr, fmtName, "isRegex", "true", errorTypeExpr))
 	}
-	codePointLength := formats.PureFnAlias(ctx, purefnids.CodePointLength) + "(" + vλl + ")"
+	// Lazy, like the validate twin: registering the alias for a bound that never reads it leaves an unused lookup.
+	codePointLength := func() string { return formats.PureFnAlias(ctx, purefnids.CodePointLength) + "(" + vλl + ")" }
 	if value, ok := formats.ReadNumberParam(params, "maxLength"); ok {
 		bound := formats.FormatNumber(value)
 		doubled := formats.FormatNumber(2 * value)
 		statements = append(statements,
-			"if ("+vλl+".length > "+bound+" && ("+vλl+".length > "+doubled+" || "+codePointLength+" > "+bound+")) "+formatErrAs(expected, pathExpr, errorsArr, fmtName, "maxLength", bound, errorTypeExpr))
+			"if ("+vλl+".length > "+bound+" && ("+vλl+".length > "+doubled+" || "+codePointLength()+" > "+bound+")) "+formatErrAs(expected, pathExpr, errorsArr, fmtName, "maxLength", bound, errorTypeExpr))
 	}
 	if value, ok := formats.ReadNumberParam(params, "minLength"); ok {
 		bound := formats.FormatNumber(value)
 		doubled := formats.FormatNumber(2 * value)
 		statements = append(statements,
-			"if ("+vλl+".length < "+bound+" || ("+vλl+".length < "+doubled+" && "+codePointLength+" < "+bound+")) "+formatErrAs(expected, pathExpr, errorsArr, fmtName, "minLength", bound, errorTypeExpr))
+			"if ("+vλl+".length < "+bound+" || ("+vλl+".length < "+doubled+" && "+codePointLength()+" < "+bound+")) "+formatErrAs(expected, pathExpr, errorsArr, fmtName, "minLength", bound, errorTypeExpr))
 	}
 	if value, ok := formats.ReadNumberParam(params, "length"); ok {
 		bound := formats.FormatNumber(value)
 		doubled := formats.FormatNumber(2 * value)
 		statements = append(statements,
-			"if ("+vλl+".length < "+bound+" || "+vλl+".length > "+doubled+" || "+codePointLength+" !== "+bound+") "+formatErrAs(expected, pathExpr, errorsArr, fmtName, "length", bound, errorTypeExpr))
+			"if ("+vλl+".length < "+bound+" || "+vλl+".length > "+doubled+" || "+codePointLength()+" !== "+bound+") "+formatErrAs(expected, pathExpr, errorsArr, fmtName, "length", bound, errorTypeExpr))
 	}
 	return statements
 }

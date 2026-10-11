@@ -67,15 +67,16 @@ func TypeRefsIn(key string, deps []string, text string) []string {
 	return ids
 }
 
-// spellsIdentifier reports name standing alone in text, not as part of a longer identifier.
+// spellsIdentifier reports name standing alone in text, not as part of a longer identifier on either side.
 func spellsIdentifier(text, name string) bool {
 	for offset := 0; ; {
 		index := strings.Index(text[offset:], name)
 		if index < 0 {
 			return false
 		}
-		end := offset + index + len(name)
-		if end == len(text) || !isIdentPart(text[end]) {
+		start := offset + index
+		end := start + len(name)
+		if (start == 0 || !isIdentPart(text[start-1])) && (end == len(text) || !isIdentPart(text[end])) {
 			return true
 		}
 		offset = end

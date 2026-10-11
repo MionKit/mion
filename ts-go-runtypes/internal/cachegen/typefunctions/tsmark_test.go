@@ -76,3 +76,16 @@ func TestKeyFnType(t *testing.T) {
 		t.Errorf("a pure-fn key typed as %q", got)
 	}
 }
+
+// TestTypeRefsIn_IgnoresARefInsideACacheKey: found by the typed-emit fuzz lane, a noop encoder `tx9T_<id>` spells
+// `T_<id>` inside its own key and imported a type it never used (noUnusedLocals).
+func TestTypeRefsIn_IgnoresARefInsideACacheKey(t *testing.T) {
+	encoder, _ := operations.ByName("jsonEncoder")
+	key := operations.FnHashFor(encoder, nil, "clone", false) + "_abc1234"
+	if got := TypeRefsIn(key, nil, "'"+key+"','literal',,true"); len(got) != 0 {
+		t.Errorf("TypeRefsIn = %v, want none", got)
+	}
+	if got := TypeRefsIn(key, nil, "(v: T_abc1234) => string"); len(got) != 1 {
+		t.Errorf("TypeRefsIn = %v, want the root", got)
+	}
+}

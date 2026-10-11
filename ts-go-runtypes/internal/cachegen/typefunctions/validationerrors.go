@@ -776,11 +776,6 @@ func emitMapValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string)
 	inner.WriteString(".entries()) {")
 	if keyType != nil {
 		keyVar := ctx.NextLocalVar("k")
-		inner.WriteString("const ")
-		inner.WriteString(keyVar)
-		inner.WriteString(" = ")
-		inner.WriteString(entryVar)
-		inner.WriteString("[0];")
 		ctx.SetChildAccessor(keyVar)
 		ctx.SetChildPathLiteral("{key:" + idxVar + ",failed:'mapKey'}")
 		keyRT := ctx.CompileChild(keyType, CodeS)
@@ -788,6 +783,10 @@ func emitMapValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string)
 		ctx.SetChildPathLiteral("")
 		if keyRT.Type == CodeNS {
 			return RTCode{Code: "", Type: CodeNS}
+		}
+		// A check that never reads the key (a `never` key reports without looking) leaves no dead binding.
+		if spellsIdentifier(keyRT.Code, keyVar) {
+			inner.WriteString("const " + keyVar + " = " + entryVar + "[0];")
 		}
 		if keyRT.Code != "" {
 			inner.WriteString(keyRT.Code)
@@ -800,11 +799,6 @@ func emitMapValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string)
 	}
 	if valueType != nil {
 		valVar := ctx.NextLocalVar("val")
-		inner.WriteString("const ")
-		inner.WriteString(valVar)
-		inner.WriteString(" = ")
-		inner.WriteString(entryVar)
-		inner.WriteString("[1];")
 		ctx.SetChildAccessor(valVar)
 		ctx.SetChildPathLiteral("{key:" + idxVar + ",failed:'mapValue'}")
 		valRT := ctx.CompileChild(valueType, CodeS)
@@ -812,6 +806,9 @@ func emitMapValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string)
 		ctx.SetChildPathLiteral("")
 		if valRT.Type == CodeNS {
 			return RTCode{Code: "", Type: CodeNS}
+		}
+		if spellsIdentifier(valRT.Code, valVar) {
+			inner.WriteString("const " + valVar + " = " + entryVar + "[1];")
 		}
 		if valRT.Code != "" {
 			inner.WriteString(valRT.Code)

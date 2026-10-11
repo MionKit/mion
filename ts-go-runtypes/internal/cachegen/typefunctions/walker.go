@@ -66,6 +66,61 @@ func (o *orderedItems) ordered() []string {
 	return out
 }
 
+// liveIn keeps, in insertion order, the declarations body reaches, directly or through another kept one. An emitter
+// may register a lookup or helper its final body never reads (a branch the type made constant); shipping it would
+// cost bytes and fail noUnusedLocals in emitMode ts. A declaration naming nothing it binds is always kept.
+func (o *orderedItems) liveIn(body string) []string {
+	items := o.ordered()
+	live := make([]bool, len(items))
+	reached := body
+	for changed := true; changed; {
+		changed = false
+		for i, item := range items {
+			if live[i] {
+				continue
+			}
+			names := declaredNames(item)
+			if len(names) == 0 || slices.ContainsFunc(names, func(name string) bool { return spellsIdentifier(reached, name) }) {
+				live[i] = true
+				reached += "\n" + item
+				changed = true
+			}
+		}
+	}
+	out := make([]string, 0, len(items))
+	for i, item := range items {
+		if live[i] {
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
+// declaredNames reads the bindings a `const a = …` / `let a, b = …` declaration introduces.
+func declaredNames(declaration string) []string {
+	rest, ok := strings.CutPrefix(declaration, "const ")
+	if !ok {
+		if rest, ok = strings.CutPrefix(declaration, "let "); !ok {
+			return nil
+		}
+	}
+	var names []string
+	for _, part := range strings.Split(rest, ",") {
+		name := strings.TrimSpace(part)
+		if end := strings.IndexAny(name, " =\x02:"); end >= 0 {
+			name = name[:end]
+		}
+		if name == "" || !isIdentStart(name[0]) {
+			break
+		}
+		names = append(names, name)
+		if strings.Contains(part, "=") {
+			break
+		}
+	}
+	return names
+}
+
 // Walker walks a RunType graph, dispatches each node through the supplied Emitter, reconciles child code
 // types with parent expectations, and assembles the final closure body. One Walker per emitted rt function.
 //
@@ -477,7 +532,7 @@ func (w *Walker) emitCircularGuard() {
 // ContextLines joins the `const xyz = …` declarations in insertion order with `;\n`, so WrapClosure's
 // prologue can embed them verbatim. Empty when no emitter registered a context item.
 func (w *Walker) ContextLines() string {
-	return strings.Join(w.ContextItems.ordered(), ";\n")
+	return strings.Join(w.ContextItems.liveIn(w.Code), ";\n")
 }
 
 // compileNode is the recursive entry point: push the frame, dispatch through the Emitter, reconcile the
