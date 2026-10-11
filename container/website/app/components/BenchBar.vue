@@ -2,8 +2,7 @@
 import {ref} from 'vue';
 import {useInView} from '~/composables/useInView';
 
-// One bar of a benchmark chart: a full-width track with the measured fill on top.
-// The fill grows from zero the first time the bar scrolls into view, `order` staggers the rows.
+// The fill grows from zero the first time the bar scrolls into view; `order` staggers the rows.
 withDefaults(
   defineProps<{
     /** CSS width of the fill, e.g. "42.0%". */

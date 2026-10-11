@@ -1,13 +1,8 @@
 <script setup lang="ts">
 import {computed, onMounted, ref} from 'vue';
 
-// One metric of a mion server benchmark as HTML bars: one row per server, best first,
-// read from /bench-data/<bench>/index.json (the same generated file the home summary
-// reads). Replaces the chart library and the results table the rpc benchmark pages
-// carried: version and runtime sit under each server's name, its description in a
-// tooltip on the name, and the run metadata (machine, node, date, load) renders once per
-// page, on the bars that ask for it (`show-meta`). A section (the payload sweep)
-// carries its own metadata, since its concurrency differs per size.
+// One server benchmark metric as bars, read from /bench-data/<bench>/index.json (the file the home summary reads).
+// Run metadata renders once per page, on the bars that ask for it (`show-meta`).
 
 type MetricKey = 'requests' | 'throughput' | 'latency' | 'maxMem' | 'maxCpu';
 
@@ -68,7 +63,7 @@ const width = (row: Row): string => `${max.value > 0 ? Math.min(100, (row[props.
 const value = (row: Row): string => row[props.metric].toLocaleString('en-US', {minimumFractionDigits: metric.value.digits, maximumFractionDigits: metric.value.digits});
 const detail = (row: Row): string =>
   [row.version ? `v${row.version}` : null, row.runtime && row.runtimeVersion ? `${row.runtime} ${row.runtimeVersion}` : row.runtime].filter(Boolean).join(' · ');
-// the long part, too wide for the name column: shown on hover
+// Too wide for the name column: shown in a tooltip on the name.
 const about = (row: Row): string => [row.router ? null : 'No router.', row.validation ? null : 'No validation.', row.description].filter(Boolean).join(' ');
 
 // A section carries its own meta (the payload sweep caps concurrency on the big sizes).
