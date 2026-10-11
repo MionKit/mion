@@ -17,11 +17,12 @@ const ROOT_CONFIG = 'vitest.config.ts';
 // vitest.config.ts and each project must appear exactly once, which is what
 // `--check` enforces.
 //
-// The runtypes side runs first and gets three batches of its own: `runtypes` (220
+// The runtypes side runs first and gets four batches of its own: `runtypes` (220
 // test files) and `devtools-core` (87, and it spawns the binary) are the two
-// heaviest projects in the repo, which is the whole reason batching exists. The
-// three small runtypes projects share the third. The four mion batches below are
-// the original grouping, unchanged.
+// heaviest projects in the repo, which is the whole reason batching exists, and
+// `runtypes-ts` reruns the feature suite over typed modules. The three small
+// runtypes projects share the fourth. The four mion batches below are the
+// original grouping, unchanged.
 //
 // `devtools-core` and `devtools` are two vitest projects in ONE package
 // (packages/devtools) since the two devtools packages merged: the `devtools`
@@ -30,6 +31,7 @@ const ROOT_CONFIG = 'vitest.config.ts';
 // different batches for the same reason they always were, weight.
 export const BATCHES = [
   {name: 'runtypes', projects: ['runtypes']},
+  {name: 'runtypes-ts', projects: ['runtypes-ts']},
   {name: 'runtypes-devtools', projects: ['devtools-core']},
   {name: 'runtypes-satellites', projects: ['playground', '@mionjs/go-be-sidecar', 'mock-format-isolation']},
   {name: 'mion-core', projects: ['core', 'router', 'test-router-fuzz']},
