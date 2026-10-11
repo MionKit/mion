@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: done
 created: 2026-10-10
 ---
 
@@ -56,16 +56,23 @@ this change touched, review its report against the code, and commit it as its ow
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file,
   each committed on its own.
 
-## Plan: install everywhere (approved 2026-10-11)
+## Plan: install everywhere (approved 2026-10-11, as shipped)
 
-- One zero-dep helper `scripts/lib/playwright-chromium.mjs`: asks the repo's own `playwright-cli install-browser
-  chromium --dry-run` where the browsers go (honors `PLAYWRIGHT_BROWSERS_PATH` as-is), checks each dir for
-  Playwright's `INSTALLATION_COMPLETE` marker. `--check` reports OK / MISSING; no flag installs only when missing,
-  with `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD` dropped for that one child. A failed download fails the setup.
-- Called by `scripts/setup-claude-web.sh` (new step, egress list gains `cdn.playwright.dev` and
-  `playwright.download.prss.microsoft.com`, `SETUP_DATE` bumped) and by the local mion-setup skill (also the
-  Codex cloud setup), so every host matches.
-- Both startup hooks (Claude web, Codex) list Playwright Chromium.
-- `MION_CARD_BROWSER` and the `--browser` flag of `card shot` / `card serve` are removed: every tool uses
+- Root `@playwright/cli` bumped 0.1.13 → 0.1.19 (Chromium build 1243). 0.1.13 bundles a Playwright that hangs
+  forever unzipping the browser on Node 26 (microsoft/playwright#41000, fixed upstream 2026-05-26). 0.1.19 is the
+  newest pin past the workspace's 30-day `minimumReleaseAge`.
+- `scripts/setup-claude-web.sh` installs it inline (it stays self-contained, no repo helper): `pnpm exec
+  playwright-cli install-browser chromium --dry-run` lists where the browsers go (honors
+  `PLAYWRIGHT_BROWSERS_PATH` as-is), each dir must hold Playwright's `INSTALLATION_COMPLETE` marker. Missing →
+  `install-browser chromium` with `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD` unset for that one command. A failed download
+  fails the setup. `SETUP_DATE` bumped.
+- Egress list gains `cdn.playwright.dev`, `storage.googleapis.com`, `playwright.download.prss.microsoft.com`, as
+  EXACT hosts: a `*.cdn.playwright.dev` wildcard does not match `cdn.playwright.dev` (the first Claude web run
+  failed on that).
+- Zero-dep helper `scripts/lib/playwright-chromium.mjs` (same check + install, `--check` reports OK / MISSING):
+  used by the local mion-setup skill (also the Codex cloud setup) and both startup hooks (Claude web, Codex).
+- `MION_CARD_BROWSER` and the `--browser` flag of `card shot` / `card serve` removed: every tool uses
   Playwright's own Chromium.
-- No new test file: the user checks the install by hand on Claude web. Card tests drop the removed cases.
+- Found on the way, fixed in its own commit: the Claude web script installed Go 1.26.0 while CI pins 1.26.8.
+  Both setups now read `ts-go-runtypes/.go-version`; the web script upgrades any Go older than that pin.
+- No new test file (user's call): the install is checked by hand on Claude web. Card tests drop the removed cases.
