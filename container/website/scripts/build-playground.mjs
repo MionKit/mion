@@ -22,6 +22,7 @@ import {GO_ROOT, loadEnv, REPO_ROOT} from '../../../scripts/lib/env.mjs';
 import {capture, die, note, reportCliError, run, warn, which} from '../../../scripts/lib/proc.mjs';
 import {PLAYGROUND_ASSETS} from '../../../scripts/website/playground-assets.mjs';
 import {readWasmStamp, wasmInputsDigest} from '../../../scripts/website/playground-wasm-inputs.mjs';
+import {OVERLAY_INPUTS} from '../../../scripts/website/playground-overlay.mjs';
 
 const WEBSITE_DIR = join(REPO_ROOT, 'container/website');
 const CACHE_DIR = join(REPO_ROOT, '.cache/rt-wasm');
@@ -39,9 +40,7 @@ const VENDOR_DIR = join(WEBSITE_DIR, 'app/playground/.vendor/ts-runtypes-dist');
 const WASM_PKG = './cmd/mion-wasm';
 // The Go inputs the wasm links live in scripts/website/playground-wasm-inputs.mjs,
 // shared with the test loader so both gates agree on what an input is.
-// The overlay reads the marker package's src AND its package.json exports; its own builder counts too.
 const SOURCES_INPUT = 'packages/run-types/src';
-const OVERLAY_INPUTS = [SOURCES_INPUT, 'packages/run-types/package.json', 'scripts/website/playground-overlay.mjs'];
 
 const mtime = (p) => statSync(p).mtimeMs;
 // True if any file at/under the given repo-relative inputs is newer than `anchorMs`.

@@ -20,13 +20,8 @@
 import {readdirSync, readFileSync, statSync, writeFileSync} from 'node:fs';
 import {dirname, join, relative, sep} from 'node:path';
 
-// Copies the real `source` export conditions, so a new subpath can never be missing here.
-function virtualPackageJson(packageDir) {
-  const {name, exports} = JSON.parse(readFileSync(join(packageDir, 'package.json'), 'utf8'));
-  const sourceExports = {};
-  for (const [subpath, target] of Object.entries(exports)) if (target.source) sourceExports[subpath] = target.source;
-  return JSON.stringify({name, version: '0.0.0', exports: sourceExports}, null, 2);
-}
+// What the overlay is built from, repo-relative: build-playground.mjs rebuilds it when any of these changes.
+export const OVERLAY_INPUTS = ['packages/run-types/src', 'packages/run-types/package.json', 'scripts/website/playground-overlay.mjs'];
 
 function walkTsFiles(dir) {
   const out = [];
@@ -51,7 +46,10 @@ export function buildRuntypesOverlay(srcDir) {
     const rel = relative(srcDir, abs).split(sep).join('/');
     out[`node_modules/@mionjs/run-types/src/${rel}`] = readFileSync(abs, 'utf8');
   }
-  out['node_modules/@mionjs/run-types/package.json'] = virtualPackageJson(dirname(srcDir));
+  // The real `source` export conditions: a subpath without one drops out, which packageOverlay.test.ts catches.
+  const {name, exports} = JSON.parse(readFileSync(join(dirname(srcDir), 'package.json'), 'utf8'));
+  const sourceExports = Object.fromEntries(Object.entries(exports).map(([subpath, target]) => [subpath, target.source]));
+  out['node_modules/@mionjs/run-types/package.json'] = JSON.stringify({name, version: '0.0.0', exports: sourceExports}, null, 2);
   return out;
 }
 
