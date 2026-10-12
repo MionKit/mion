@@ -31,7 +31,7 @@ describe('playground source overlay', () => {
     }
   });
 
-  // build-playground.mjs only rebuilds the overlay when one of these changed, so each file it reads must be listed.
+  // build-playground.mjs rebuilds the overlay only when one of its listed inputs changed.
   it('lists every file it reads as a rebuild input', () => {
     const reads = [
       new URL('src', PACKAGE_DIR),
