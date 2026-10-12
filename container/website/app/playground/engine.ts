@@ -29,8 +29,8 @@ type Factory = (...args: unknown[]) => (...callArgs: unknown[]) => unknown;
 
 // Mock generation lives on its own subpath, off the root entry.
 const ENTRIES = [
-  {specifier: '@mionjs/run-types', exports: RT as unknown as Record<string, unknown>},
-  {specifier: '@mionjs/run-types/mocking', exports: RTMocking as unknown as Record<string, unknown>},
+  {specifier: '@mionjs/run-types', exports: RT as Record<string, unknown>},
+  {specifier: '@mionjs/run-types/mocking', exports: RTMocking as Record<string, unknown>},
 ];
 
 // The snippet must import each factory from the entry that exports it, or the resolver finds no call site.
@@ -263,7 +263,7 @@ function materialize(
   options?: string
 ): Materialized {
   const {tuple, diagnostics} = linkEntry(dispatch, factory, userCode, mode, options);
-  const fn = factoryEntry(factory).fn(undefined, undefined, tuple) as Materialized['fn'];
+  const fn = factoryEntry(factory).fn(undefined, undefined, tuple);
   return {fn, diagnostics};
 }
 
