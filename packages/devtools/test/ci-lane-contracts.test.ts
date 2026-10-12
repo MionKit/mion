@@ -191,6 +191,8 @@ describe('the lane table', () => {
     expect(feeds('smoke', 'container/website/content/index.md')).toEqual([]);
     // `bench smoke` builds the mion competitor with our packages, so a package edit re-runs it too.
     expect(feeds('smoke', 'packages/core/src/errors.ts')).toEqual(['website', 'bench']);
+    // `website check` builds the playground assets with these scripts.
+    expect(feeds('smoke', 'scripts/website/playground-overlay.mjs')).toEqual(['website']);
   });
 
   it('keeps page text and CSS out of the website lanes, and every other website file in', () => {

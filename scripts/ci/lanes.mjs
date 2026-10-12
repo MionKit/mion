@@ -108,7 +108,7 @@ export const LANES = {
     gate: DEFAULTS,
     paths: [WEBSITE_CODE, 'container/benchmarks/', ...PACKED],
     items: {
-      website: {paths: [WEBSITE_CODE, 'packages/', 'version.json', GO_BUILD]},
+      website: {paths: [WEBSITE_CODE, 'packages/', 'scripts/website/', 'version.json', GO_BUILD]},
       bench: {paths: ['container/benchmarks/', 'packages/', 'version.json', GO_BUILD]},
     },
   },
