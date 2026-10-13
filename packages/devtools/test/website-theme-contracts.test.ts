@@ -14,9 +14,8 @@
 //     files and the landing pages.
 //   - The animated title gradient sits on the section h2 titles, never on the card
 //     h3 titles inside them (the inversion this scheme landed with).
-//   - No raw colour in app/ outside the token layer: custom properties declared in
-//     mion.css's :root, :root.dark and :root.light blocks. Everything else reads a token,
-//     so one file shows (and changes) every colour the shared tree paints.
+//   - No raw colour in app/ outside the token layer (custom properties in mion.css's :root,
+//     :root.dark, :root.light blocks), so one file shows every colour the shared tree paints.
 
 import {describe, it, expect} from 'vitest';
 import {existsSync, readdirSync, readFileSync, statSync} from 'node:fs';
@@ -54,7 +53,7 @@ function walk(dir: string, keep: (name: string) => boolean, skipDirs: string[] =
 
 const hex = (value: string): boolean => /^#[0-9a-f]{6}$/i.test(value);
 
-// Raw colour scan: a colour value in app/ lives only in mion.css's root token blocks.
+// Raw colour scan.
 const NAMED_COLOURS = `aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue blueviolet brown
   burlywood cadetblue chartreuse chocolate coral cornflowerblue cornsilk crimson cyan darkblue darkcyan darkgoldenrod darkgray
   darkgreen darkgrey darkkhaki darkmagenta darkolivegreen darkorange darkorchid darkred darksalmon darkseagreen darkslateblue
@@ -96,13 +95,13 @@ function callArgs(text: string, open: number): string {
   return text.slice(open + 1);
 }
 
-// Hex colours and colour functions none of whose channels reads a var(): hsl(var(--site-hue) 50% 50%) is a token hue.
+// A colour function reading any var() is no literal: hsl(var(--site-hue) 50% 50%) is a token hue.
 const literalOffsets = (text: string): number[] => [
   ...[...text.matchAll(HEX_COLOUR)].map((m) => m.index),
   ...[...text.matchAll(COLOUR_FN)].filter((m) => !callArgs(text, m.index + m[0].length - 1).includes('var(')).map((m) => m.index),
 ];
 
-// Named colours in a CSS value; one inside a string (a data: URI mask, `content`) is not a colour value.
+// A name inside a string (a data: URI mask, `content`) is not a colour value.
 const namedOffsets = (value: string): number[] =>
   [...value.replace(/(['"])[\s\S]*?\1/g, blank).matchAll(NAMED_COLOUR)].map((m) => m.index);
 

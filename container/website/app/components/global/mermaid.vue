@@ -18,10 +18,7 @@ onMounted(async () => {
 
   const mermaid = await import('mermaid');
 
-  // Mermaid wants literal colours, both here and in a diagram's own `style X color:…`
-  // lines, so every colour is read from the theme tokens (the site's accent from
-  // sites/<site>/theme.css, the rest from mion.css) and `var(--name)` in the slot
-  // text is substituted with the computed value before rendering.
+  // Mermaid takes only literal colours, here and in a diagram's `style X color:…` lines: resolve every var() first.
   const cssVar = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   const accent = cssVar('--site-accent');
 
