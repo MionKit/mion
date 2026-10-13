@@ -30,7 +30,7 @@ type Meta = {generatedAt?: string | null; os?: string | null; cpu?: string | nul
 type ServersIndex = {label?: string; meta?: Meta; rows?: ServerRow[]};
 type ValidationIndex = {competitors?: string[]; meta?: Meta; sections?: {key: string; cases: AggregateCase[]}[]};
 
-type Row = {name: string; value: number; mion: boolean; viaErrors?: boolean};
+type Row = {name: string; value: number; mion: boolean};
 
 const serversIndex = ref<ServersIndex | undefined>();
 const validationIndex = ref<ValidationIndex | undefined>();
@@ -46,12 +46,8 @@ const serverRows = computed<Row[]>(() =>
 );
 
 /** The fastest validators: geometric mean of the is-valid check on valid input over
- *  the cases every listed library supports. A library that declines the is-valid
- *  metric on every case (zod validates by producing errors) is measured on the
- *  error-reporting check over the same cases instead, and marked as such, so the
- *  comparison still names every library the benchmark pages compare. The deploy gate
- *  refuses a dataset that lists a library twice; the Set keeps a stale local index
- *  from doubling a row. */
+ *  the cases every listed library supports. The deploy gate refuses a dataset that
+ *  lists a library twice; the Set keeps a stale local index from doubling a row. */
 const validationRows = computed<Row[]>(() => {
   const index = validationIndex.value;
   if (!index?.sections?.length) return [];
@@ -63,16 +59,11 @@ const validationRows = computed<Row[]>(() => {
     value: geomeanOver(common, 'validate', comp, 'valid') ?? 0,
     mion: /mion|ts-runtypes/.test(comp),
   }));
-  for (const comp of competitors.filter((entry) => !participants.includes(entry))) {
-    const value = geomeanOver(common, 'validationErrors', comp, 'valid');
-    if (value) rows.push({name: comp, value, mion: false, viaErrors: true});
-  }
   return rows
     .filter((row) => row.value > 0)
     .sort((a, b) => b.value - a.value)
     .slice(0, props.rows);
 });
-const hasViaErrors = computed(() => validationRows.value.some((row) => row.viaErrors));
 
 // the suite's own label ("Hello World", "Heavy Validation"), so the caption never lies about the dataset
 const serversCaption = computed(() => `RPC servers, ${(serversIndex.value?.label ?? 'hello world').toLowerCase()}, requests per second`);
@@ -139,15 +130,13 @@ onMounted(async () => {
           <col class="home-bench-col-num" />
         </colgroup>
         <tbody>
-          <tr v-for="(row, i) in validationRows" :key="row.name" :class="{'is-mion': row.mion, 'is-via-errors': row.viaErrors}">
-            <th scope="row">{{ row.name }}<sup v-if="row.viaErrors">*</sup></th>
+          <tr v-for="(row, i) in validationRows" :key="row.name" :class="{'is-mion': row.mion}">
+            <th scope="row">{{ row.name }}</th>
             <td><BenchBar :width="width(validationRows, row.value)" :highlight="row.mion" :order="i" /></td>
             <td class="home-bench-num">{{ format(row.value) }}</td>
           </tr>
         </tbody>
       </table>
-
-      <p v-if="hasViaErrors" class="home-bench-meta"><sup>*</sup> No fast is-valid check: this library validates by producing errors, so its number is the error-reporting check.</p>
 
       <p v-if="meta" class="home-bench-meta">
         Measured on {{ machine }}<template v-if="meta.node">, Node {{ meta.node.replace(/^v/, '') }}</template><template v-if="runDate">, {{ runDate }}</template>.
@@ -226,16 +215,6 @@ onMounted(async () => {
 .home-bench-table tr.is-mion td {
   color: var(--ui-text-highlighted);
   font-weight: 700;
-}
-
-/* measured on a different basis: drawn quieter, like the benchmarks landing does */
-.home-bench-table tr.is-via-errors th,
-.home-bench-table tr.is-via-errors td {
-  color: var(--ui-text-dimmed);
-}
-
-.home-bench-table tr.is-via-errors :deep(.bench-bar-fill) {
-  background: color-mix(in srgb, var(--ui-text-muted) 30%, transparent);
 }
 
 .home-bench-meta {

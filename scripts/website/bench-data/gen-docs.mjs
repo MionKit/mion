@@ -8,10 +8,9 @@
 //   <case>.json             — { competitors: [{ name, source }] }   (lazy hover)
 //
 // Two benches:
-//   validation — runtime throughput from container/benchmarks/results/<competitor>.json
-//                (the validationErrors·accept path: the metric EVERY competitor
-//                implements, so it's the apples-to-apples column; zod has no cheap
-//                boolean validate). unit = ops/sec, higher is better.
+//   validation — runtime throughput from container/benchmarks/results/<competitor>.json,
+//                both metrics (is valid, validation errors); each page picks one.
+//                unit = ops/sec, higher is better.
 //   typecost   — TypeScript type-instantiation count per form from
 //                container/benchmarks/results/<form>.typecost.json. unit = count, LOWER is
 //                better.
@@ -511,14 +510,13 @@ function buildTypecostBench() {
       const inst = byForm.get(form.id).get(key);
       // Single metric, single path — typecost has no valid/invalid split.
       if (inst !== undefined) results[form.label] = {typecost: {valid: inst, status: 'ok'}};
-      // typecost is single-metric: show the type/schema form (validate body), or the
-      // error form for libraries with no cheap validator (zod). Only for a form
+      // typecost is single-metric: show the validate body. Only for a form
       // that actually produced a number: the source files are read per FORM, not
       // per measured cell, so a form whose authoring file happens to mention the
       // case would otherwise show a hover body under a cell reading n-a.
       if (inst === undefined) continue;
       const caseSources = sources.get(form.id)?.get(key);
-      const source = caseSources?.validate ?? caseSources?.validationErrors;
+      const source = caseSources?.validate;
       if (source) detailComps.push({name: form.label, source});
     }
     sectionMap.get(group).cases.push({key: safeKey(key), title: name, results});

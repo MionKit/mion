@@ -40,7 +40,7 @@ pnpm miondevx bench audit
 ```
 
 Host-only, the three transform-free competitors (fast iteration). Requires `tsx`
-plus zod / @sinclair/typebox / ajv / ajv-formats resolvable from
+plus zod / typebox / ajv / ajv-formats resolvable from
 `competitors/<name>/` (for example a `container/benchmarks/node_modules`):
 
 ```bash

@@ -8,8 +8,7 @@
 // A case entry may be a bare builder (`() => Validator`, = validate only), the
 // object form `{build?, buildErrors?, samples?}`, or NOT_SUPPORTED (both metrics
 // unsupported). Omitting a builder (or NOT_SUPPORTED on it) marks THAT metric
-// not-supported — e.g. zod has no cheap boolean validator, so its entries supply
-// `buildErrors` only and `validate` is not-supported. A `samples` override
+// not-supported. A `samples` override
 // REPLACES the shared samples for that path (correctness AND timing).
 
 import {iterateCases} from '../cases/index.ts';
