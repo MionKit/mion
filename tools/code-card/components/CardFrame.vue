@@ -7,8 +7,7 @@ const props = withDefaults(
     subtitle?: string;
     footer?: string;
     badge?: string;
-    /** `stats` = larger type, read as a phone-sized thumbnail. `mini` = a plain panel for a ~350px slot: title and
-     *  content only, no CardWindow, footer or badge. */
+    /** `stats` = larger type, read as a phone-sized thumbnail. `mini` = a plain ~350px panel, no CardWindow. */
     kind?: 'code' | 'stats' | 'mini';
     /** Gap between two elements entering, as a CSS time. */
     step?: string;

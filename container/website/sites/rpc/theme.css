@@ -34,8 +34,7 @@
   --site-hue-good: 130;
 }
 
-/* Light mode: the pastel title tones vanish on a light ground, so the gradient
-   takes deeper tones of the same hues. */
+/* Light mode: pastel title tones vanish on a light ground, so the gradient takes deeper tones of the same hues. */
 [data-site='rpc'].light,
 .light [data-site='rpc'] {
   --site-accent: #79af43;

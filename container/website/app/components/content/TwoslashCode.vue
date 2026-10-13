@@ -56,11 +56,9 @@ const props = defineProps({
   },
 })
 
-// Get app config for icons and the code block styles
 const appConfig = useAppConfig()
 
-// The prose/pre theme extended with app.config's `ui.prose.pre` overrides, the way
-// Nuxt UI's own ProsePre builds it, so this block looks like every other code block.
+// Built the way Nuxt UI's own ProsePre builds it, so this block looks like every other code block.
 const ui = computed(() => tv({ extend: tv(theme), ...(appConfig.ui?.prose?.pre || {}) })() as ProsePreSlots)
 
 // Copy functionality using VueUse
@@ -201,7 +199,7 @@ const handleCopy = () => {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 0.875rem;
   line-height: 1.5rem;
-  /* Nuxt UI's error colour, the same in both modes: it flips shade per mode itself */
+  /* no dark-mode override: --ui-error flips shade per mode itself */
   border: 1px solid color-mix(in srgb, var(--ui-error) 50%, transparent);
   background-color: color-mix(in srgb, var(--ui-error) 10%, var(--mion-panel-bg));
   border-radius: var(--mion-panel-radius);
@@ -218,7 +216,7 @@ const handleCopy = () => {
   font-size: 0.875rem;
   line-height: 1.5rem;
   border: 1px solid var(--ui-border);
-  /* the shared panel surface, over the background Shiki writes inline on the pre */
+  /* !important beats the background Shiki writes inline on the pre */
   background-color: var(--mion-panel-bg) !important;
   border-radius: var(--mion-panel-radius);
   padding: 0.75rem 1rem;
@@ -244,9 +242,7 @@ const handleCopy = () => {
   display: block;
 }
 
-/* Tag lines (@log, @warn, @error, @annotate) look like the prose alerts (app.config
-   `ui.prose.callout`): a wash of the type's colour, a thick left border and the icon in
-   it, neutral text. Selectors outrank twoslash's own per-type rules. */
+/* Tag lines mirror the prose alerts (app.config `ui.prose.callout`); selectors outrank twoslash's per-type rules. */
 .rt-two-slash-code .shiki code .twoslash-tag-line {
   --mion-tag-color: var(--ui-info);
   background-color: color-mix(in srgb, var(--mion-tag-color) 12%, var(--mion-panel-bg));
@@ -263,8 +259,7 @@ const handleCopy = () => {
 .rt-two-slash-code .shiki code .twoslash-tag-annotate-line {
   --mion-tag-color: var(--ui-success);
 }
-/* deeper on light, lighter on dark, like the prose alert icons; beats the dark-mode
-   `.shiki span` colour rule below */
+/* deeper on light, lighter on dark, like the prose alert icons; beats the dark `.shiki span` rule below */
 :root .rt-two-slash-code .shiki .twoslash-tag-line .twoslash-tag-icon {
   color: color-mix(in oklab, var(--mion-tag-color) 75%, var(--ui-text-highlighted)) !important;
 }
@@ -310,7 +305,6 @@ const handleCopy = () => {
   box-shadow: 0 0 8px 0 color-mix(in srgb, var(--color-brand-400) 50%, transparent);
 }
 
-/* Popups sit on the same panel surface as the code */
 .rt-two-slash-code .twoslash-popup-arrow {
   background: var(--mion-panel-bg);
 }

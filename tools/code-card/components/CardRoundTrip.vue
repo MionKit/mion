@@ -1,6 +1,5 @@
 <script setup lang="ts">
-// One value's JSON round trip, top to bottom: the server's type, its wire form, the same type on the client, then
-// what plain JSON gives instead. Inside a CardLoop the beats play in turn.
+// One value's JSON round trip, server to wire to client, then what plain JSON gives instead.
 const props = withDefaults(
   defineProps<{
     /** Code, one line: shown on the server and again on the client. */

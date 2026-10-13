@@ -29,7 +29,7 @@
 :root {
   width: 100%;
   overflow-x: hidden;
-  /* every Nuxt UI radius (buttons, code blocks, tabs, cards) scales from this one value */
+  /* every Nuxt UI radius scales from this one value */
   --ui-radius: 0.375rem;
   /* code blocks (Nuxt UI rounded-md) and benchmark cards share this corner */
   --mion-panel-radius: calc(var(--ui-radius) * 1.5);
@@ -87,13 +87,11 @@
 
 :root.dark {
   --elements-text-secondary-color-static: var(--color-gray-300);
-  /* One surface for code blocks and benchmark cards (both with a var(--ui-border)
-     border and --mion-panel-radius corners): a faint lift off the page. */
+  /* the one surface of code blocks and benchmark cards: a faint lift off the page */
   --mion-panel-bg: color-mix(in srgb, var(--ui-text-muted) 5%, var(--ui-bg));
   /* code block header band (file name, tab labels): a shade off the panel surface */
   --mion-panel-head-bg: color-mix(in srgb, var(--ui-text-muted) 6%, var(--mion-panel-bg));
-  /* saturation + lightness of the decorative hsl() gradients (stat tiles, step
-     numbers, the Temporal heading): soft pastels on the dark ground */
+  /* hsl() gradient saturation + lightness (stat tiles, step numbers, Temporal heading): pastels on dark */
   --mion-pastel-s: 62%;
   --mion-pastel-l: 78%;
 }
@@ -172,8 +170,7 @@ h2[data-slot='title'],
   -webkit-text-fill-color: transparent;
   background-size: 200% 100%;
   animation: gradient-flow 12s linear infinite;
-  /* the gradient paints letters only inside the box: room above and below so tall
-     letters and descenders (l, g, y) are never cut */
+  /* text-clipped gradient paints only inside the box: room so ascenders and descenders are not cut */
   padding-block: 0.2em;
 }
 
@@ -185,14 +182,12 @@ h2[data-slot='title'],
   color: inherit;
 }
 
-/* Two-tone titles: the part written as `[words]{.title-tone}` takes a solid pale tint
-   of the subsite's pastel, and the rest of the title keeps the flowing gradient. */
+/* Two-tone titles: `[words]{.title-tone}` gets a solid tint, the rest keeps the flowing gradient. */
 .title-tone {
   -webkit-text-fill-color: color-mix(in srgb, var(--site-gradient-to) 20%, var(--ui-text-highlighted));
 }
 
-/* Home page sections (UPageSection, used only on the home pages) sit closer together
-   than Nuxt UI's default, and their title sits closer to the body. */
+/* Only home pages use UPageSection: their sections sit tighter than Nuxt UI's default. */
 section[data-slot='root'] > [data-slot='container'] {
   padding-block: 3rem;
   row-gap: 2rem;
@@ -426,8 +421,7 @@ section[data-slot='root'] > [data-slot='container'] {
   }
 }
 
-/* Home feature row: a text block (h3 + blurb) beside a code block, in either
-   order, both stretched to equal height. Used by "Reflection" (code | text). */
+/* Home feature row: text beside code, either order, equal height. Used by "Reflection". */
 .rt-feature-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -567,8 +561,7 @@ section[data-slot='root'] > [data-slot='container'] {
   }
 }
 
-/* Home "Built for compiled TypeScript" and "One type, many functions": a two-column
-   split, pitch text beside more text or a code block. */
+/* Home "Built for compiled TypeScript" and "One type, many functions": pitch beside text or code. */
 .rt-standard-split {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -594,9 +587,7 @@ section[data-slot='root'] > [data-slot='container'] {
   margin: 0;
 }
 
-/* pitch column: reuse the gradient heading + text, but top-align it (override
-   rt-feature-text's vertical centering) so the heading lines up with the code
-   on the left and the blurb stays compact. */
+/* pitch column overrides .rt-feature-text's centering, so its heading lines up with the code beside it */
 .rt-standard-prose {
   margin: 0;
   justify-content: flex-start;
@@ -621,10 +612,7 @@ section[data-slot='root'] > [data-slot='container'] {
   }
 }
 
-/* Home "Compile time code generation": two rows: the pitch spans the full
-   width on top, then three code panels below (source, transformed, generated
-   module), one per column. Equal height; code panels flex-fill like the other
-   home grids. */
+/* Home "Compile time code generation": the pitch on top, then source, transformed and generated module. */
 .rt-treeshake-cols {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -632,8 +620,7 @@ section[data-slot='root'] > [data-slot='container'] {
   align-items: stretch;
 }
 
-/* Card leads as a full-width first row; the three code panels flow into row 2.
-   As a full-width lead-in its copy reads better centered. */
+/* As a full-width lead-in the pitch reads better centered. */
 .rt-treeshake-cols > .rt-feature-text {
   grid-column: 1 / -1;
   text-align: center;
@@ -672,7 +659,6 @@ section[data-slot='root'] > [data-slot='container'] {
   justify-content: flex-start;
 }
 
-/* Footer link: sits under the block's content with a little air. */
 .rt-feature-footer {
   padding-top: 0.85rem;
 }
@@ -777,9 +763,7 @@ section[data-slot='root'] > [data-slot='container'] {
   }
 }
 
-/* Home "Formats baked into your types": the pitch (text with a Temporal note at
-   its bottom) full width, then the type-first and builder examples side by side.
-   The two examples share a height; code panels flex-fill. */
+/* Home "Formats baked into your types": the pitch full width, then type-first and builder examples. */
 .rt-formats-cols {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1007,14 +991,9 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
 
 
 /* ── Root landing: one block per subsite ─────────────────────────────────────
-   content/index.md wraps each subsite's UPageSection in a `.home-subsite` block
-   carrying that subsite's `data-site`, so the buttons and title gradient come from
-   that subsite's tokens. No card chrome: the text sits on the page background.
-   Inside: `.home-intro` (centered text + buttons, the rpc block), then a
-   `.home-split` row (two equal columns: text + buttons beside code, or two code
-   panels with `--code`). */
-/* no side padding of its own: the section inside carries the same padding as the
-   header, so the text lines up with the logo */
+   content/index.md wraps each subsite section in `.home-subsite` with its `data-site`,
+   so its buttons and title gradient take that subsite's tokens. */
+/* no side padding: the inner section's padding matches the header's, so the text lines up with the logo */
 .home-subsite {
   max-width: var(--ui-container);
   margin-inline: auto;
@@ -1087,8 +1066,7 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
 }
 
 .home-features .home-pitch h2 {
-  /* trims the font's space above the capitals, so the letters line up with the code box top;
-     the negative margins give back the gradient's 0.2em painting room */
+  /* cap trim lines the letters up with the code box top; -0.2em gives back the gradient's padding-block */
   text-box: trim-start cap alphabetic;
   margin: -0.2em 0 calc(1rem - 0.2em);
   text-align: left;
@@ -1136,8 +1114,7 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
   }
 }
 
-/* Parallax, in CSS alone: each block rises into place as it enters the viewport.
-   Off without scroll-driven animations or under reduced motion. */
+/* Parallax, in CSS alone: each block rises into place as it enters the viewport. */
 .home-subsite {
   position: relative;
 }
@@ -1151,8 +1128,7 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
       animation-range: entry 0% entry 70%;
     }
 
-    /* every subsite home section rises the same way; they can be very tall, so the
-       rise completes within a fixed scroll distance rather than a share of the height */
+    /* subsite home sections can be very tall: the rise ends after a fixed 60vh, not a share of the height */
     section[data-slot='root']:not(.home-subsite-block) {
       animation: home-subsite-rise linear both;
       animation-timeline: view();
@@ -1174,9 +1150,7 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
 
 
 
-/* The twoslash panels keep their code unclipped on purpose (the hover popups hang
-   outside the pre), so a long line spills past a half-width column instead of
-   scrolling. Inside the home split rows the lines wrap, like the annotation lines already do. */
+/* Twoslash code stays unclipped for its hover popups, so in home split rows long lines wrap instead of spilling. */
 .home-split .rt-two-slash-code .shiki .line {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -1238,9 +1212,8 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
   white-space: pre-wrap;
 }
 
-/* `::tabs` squeezes every direct child of a tab to a 6px margin. The middleware pages
-   wrap each tab's content in one `.tab-body` div, so the headings, tables and code keep
-   their normal page spacing; only the first one sits close under the tab bar. */
+/* `::tabs` squeezes each direct child of a tab to a 6px margin, so the middleware pages
+   wrap each tab's content in one `.tab-body` div; its first child gets a smaller top margin. */
 .tab-body > :first-child {
   margin-top: 1.5rem;
 }

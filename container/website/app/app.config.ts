@@ -77,9 +77,7 @@ export default defineAppConfig({
   },
   ui: {
     prose: {
-      // Inline code sits in the line like a word: inline (not inline-block, which
-      // makes the line taller), a font size relative to the text around it, a tight
-      // padding, and a faint wash of the subsite's colour so it still reads as code.
+      // `inline`, not inline-block: inline-block makes the line taller.
       code: {
         base: 'px-[0.3em] py-0 text-[0.86em] leading-none font-mono font-normal rounded-[0.35em] inline',
         variants: {
@@ -88,15 +86,7 @@ export default defineAppConfig({
           },
         },
       },
-      // Code blocks: one rounded panel with the benchmark cards' look (--mion-panel-bg
-      // surface, the default border, mion.css).
-      // A file name or tab label is plain small text at the top of the panel: no tab
-      // box, no icon, no line between it and the code. TwoslashCode.vue reads this
-      // same `pre` config, so every code block looks alike.
-      // Alerts (::note info, ::tip success, ::warning, ::caution error): the panel
-      // surface washed with the type's colour, one thick left border and the icon in
-      // it; text, links and inline code stay neutral so they read on every wash.
-      // Class lists are literal per colour: Tailwind only builds classes it can read.
+      // Class lists are literal per colour: Tailwind only builds classes it can read. Text stays neutral for every wash.
       callout: {
         variants: {
           color: {
@@ -119,6 +109,7 @@ export default defineAppConfig({
           },
         },
       },
+      // TwoslashCode.vue reads this same `pre` config, so every code block looks alike.
       pre: {
         slots: {
           header: 'border-default bg-(--mion-panel-head-bg) px-4 py-2',
