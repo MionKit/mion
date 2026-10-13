@@ -44,14 +44,14 @@ export const toRow = (result) => ({
   router: result.router,
   validation: result.validation,
   description: result.description,
-  // Set on a lane that is a variant of another (mion.compact of mion): the pages draw it only beside its base.
+  // The pages draw a twin lane (mion.compact of mion) only beside its base.
   twinOf: result.twinOf ?? null,
   requests: Math.round(result.requests.mean * 10) / 10,
   latency: Math.round(result.latency.mean * 100) / 100,
   throughput: Math.round((result.throughput.mean / 1e6) * 8 * 100) / 100,
   maxMem: Math.round(result.maxMem),
   maxCpu: Math.round(result.maxCpu),
-  // Body bytes of one call, sent plus received, as the harness measured them.
+  // Body bytes of one call, headers excluded.
   bytes: result.bytes ? result.bytes.sent + result.bytes.received : null,
   memSeries: result.memSeries ?? [],
 });

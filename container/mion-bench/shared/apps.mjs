@@ -13,9 +13,8 @@
 // the app rather than in the website content - a lane that changes what it does
 // updates its own row.
 //
-// `wire: 'compact'` makes the harness write and read that lane's bodies with the compact codec.
-// `twinOf` names the lane it is a variant of: the pages hide a twin everywhere except the charts
-// that ask for it (`twins="<app>"`), so one extra lane never crowds the framework comparison.
+// `wire: 'compact'` lanes are written and read with the compact codec. A `twinOf` lane is drawn only
+// on charts that ask for its base (`twins="<app>"`), so it never crowds the framework comparison.
 
 export const APPS = [
   {

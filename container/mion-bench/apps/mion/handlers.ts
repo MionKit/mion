@@ -5,9 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The route handlers, shared by the plain JSON router (routes.ts) and the compact one (routes-compact.ts),
-// so the two lanes differ only in the wire they speak.
-//
+// Shared by routes.ts and routes-compact.ts, so the plain JSON and compact lanes differ only in their wire.
 // Regular imports only - `import type` would erase User before the resolver sees it.
 import type {CallContext} from '@mionjs/router';
 import {SimpleUser, User} from '../../shared/models.ts';

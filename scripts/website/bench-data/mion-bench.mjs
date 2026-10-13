@@ -197,8 +197,7 @@ function runInContainer(cfg, app, cmd, extraEnv) {
   return run(cfg.engine, ['run', '--rm', '--init', ...common], {stdio: ['ignore', 'inherit', 'inherit']});
 }
 
-// Build the mion app's server bundles and the compact lane's wire codec. Runs the real mion vite plugin, so this
-// is also the check that the workspace's build pipeline still compiles a server.
+// Runs the real mion vite plugin, so this doubles as the check that the workspace build still compiles a server.
 function buildMionApp(cfg) {
   note('building the mion server bundles (vite + @mionjs/devtools, in-container)');
   if (runInContainer(cfg, findApp('mion'), ['sh', '-c', 'cd apps/mion && pnpm run build']) !== 0) {

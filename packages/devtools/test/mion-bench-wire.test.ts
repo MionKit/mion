@@ -1,9 +1,6 @@
-// The pure parts of the mion server benchmark's compact lane, testable without the image: how a body
-// is cut around its id on both wires, how the sweep pads, what each result row carries, and which rows
-// a chart draws.
+// The pure parts of the mion server benchmark's compact lane, tested on the host without the image.
 import {describe, expect, it} from 'vitest';
-// Plain ESM dev scripts, no types: one directive per import line, so the formatter can never
-// wrap the import away from the line the error lands on.
+// Untyped dev scripts: one directive per import line, so the formatter cannot wrap an import away from its error.
 // @ts-expect-error untyped .mjs
 import {bodyTemplate, invalidBody} from '../../../container/mion-bench/harness/wire.mjs';
 // @ts-expect-error untyped .mjs

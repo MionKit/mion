@@ -1605,7 +1605,7 @@ describe('mion server benchmarks stay wired end to end', () => {
     for (const bench of referenced)
       expect(generator, `gen-servers-docs.mjs has no SUITE_META for ${bench}`).toContain(`'${bench.replace('servers-', '')}':`);
 
-    // A chart asking for the twins of a lane that has none draws the base alone and says nothing.
+    // Asking for twins of a lane with none silently draws the base alone.
     const {APPS} = await loadApps();
     const bases = new Set(APPS.map((app) => app.twinOf).filter(Boolean));
     expect(twinsAsked.length, 'no page draws the compact lane').toBeGreaterThan(0);
@@ -1613,7 +1613,7 @@ describe('mion server benchmarks stay wired end to end', () => {
   });
 
   it('every reader of a server dataset hides the twin lanes unless asked', () => {
-    // The twins sit in the same datasets as every lane, so a reader that skips the filter puts them on every chart.
+    // Twins share the datasets, so a reader that skips the filter puts them on every chart.
     const component = (name: string) =>
       readFileSync(join(REPO_ROOT, `container/website/app/components/content/${name}.vue`), 'utf8');
     for (const name of ['ServerBenchBars', 'HomeBenchTable'])

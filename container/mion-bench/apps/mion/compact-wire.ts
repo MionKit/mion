@@ -5,22 +5,20 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The compact wire for harness/run.mjs, which is plain node with no codec of its own: the request
-// bodies and response readers of routes-compact.ts, compiled by the same build from the same types.
-// A hand-written positional body would be a second copy of the wire, free to drift from the real one.
+// Compact body writers and readers for harness/run.mjs, compiled from the same types as routes-compact.ts:
+// a hand-written positional body would be a second copy of the wire, free to drift.
 import {createJsonEncoderFn, createRestoreFromJsonFn} from '@mionjs/run-types';
 import {SimpleUser, User} from '../../shared/models.ts';
 
-// shared/payloads.mjs writes plain JSON values (dates as text), the shape every other lane sends;
-// restoring them first gives the compact encoder the typed values a mion client would hold.
+// payloads.mjs writes plain JSON (dates as text); the compact encoder needs the typed values a mion client holds.
 const restoreUser = createRestoreFromJsonFn<[User]>();
 const restoreSimpleUser = createRestoreFromJsonFn<[SimpleUser]>();
 const encodeUser = createJsonEncoderFn<[User]>(undefined, {strategy: 'compact'});
 const encodeSimpleUser = createJsonEncoderFn<[SimpleUser]>(undefined, {strategy: 'compact'});
 
-/** Per route id: the params tuple, as plain JSON values, written as a compact request body; a parsed response value read back as keyed data. */
+/** Per route id: plain JSON params written as a compact body, and a compact response read back as keyed data. */
 export const COMPACT_WIRE = {
-  // a GET with no body: only its answer is read
+  // a GET: no body to encode
   hello: {
     decodeReturn: createRestoreFromJsonFn<{hello: string}>(undefined, {strategy: 'compact'}),
   },
