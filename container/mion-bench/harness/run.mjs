@@ -397,7 +397,7 @@ async function main() {
       description: app.description,
       twinOf: app.twinOf,
       suite: isSweep ? 'payload-sizes' : args.suite,
-      size: size ? {key: size.key, label: size.label, bytes: size.bytes, actualBytes: Buffer.byteLength(sample.body ?? '')} : undefined,
+      size: size ? {key: size.key, label: size.label, bytes: size.bytes} : undefined,
       // Body bytes of one call, headers left out, so two lanes compare on what their wire writes.
       bytes: {sent: Buffer.byteLength(sample.body ?? ''), received},
       requests: {mean: result.requests.mean, stddev: result.requests.stddev},

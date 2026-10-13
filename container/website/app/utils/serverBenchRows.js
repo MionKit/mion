@@ -41,5 +41,5 @@ export function changeVsBase(row, rows, metric) {
  */
 export function formatChange(percent) {
   const rounded = Math.round(percent)
-  return `${rounded > 0 ? '+' : rounded < 0 ? '-' : ''}${Math.abs(rounded)}%`
+  return `${rounded > 0 ? '+' : ''}${rounded}%`
 }

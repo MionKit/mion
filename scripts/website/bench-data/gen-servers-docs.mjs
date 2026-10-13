@@ -125,11 +125,13 @@ export function main() {
         .filter((size) => size.isDirectory())
         .map((size) => {
           const results = readRows(join(dir, size.name));
+          // A twin sends a different body, so the section's size is read off a plain lane.
+          const plain = results.find((result) => !result.twinOf) ?? results[0];
           return {
             key: size.name,
-            label: results[0]?.size?.label ?? size.name,
-            bytes: results[0]?.size?.bytes ?? 0,
-            actualBytes: results[0]?.size?.actualBytes ?? 0,
+            label: plain?.size?.label ?? size.name,
+            bytes: plain?.size?.bytes ?? 0,
+            actualBytes: plain?.bytes?.sent ?? 0,
             // Per section, because the sweep caps concurrency on the big sizes: one
             // dataset-level "wrk -c N" line would misdescribe every section
             // whose payload forced a smaller N.

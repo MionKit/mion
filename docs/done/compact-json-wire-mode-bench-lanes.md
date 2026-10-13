@@ -81,7 +81,8 @@ The implementer plans the details.
 ## Plan: compact lane + bytes chart (approved 2026-10-13)
 
 Shipped as planned, with the two adjustments noted in steps 3 and 11. The local container run used a locally
-built `mion-bench` image (`MION_BENCH_USE_LOCAL=1`): the registry refused the stored credentials.
+built `mion-bench` image (`MION_BENCH_USE_LOCAL=1`): `pnpm miondevx container login` was refused by ghcr.io
+(`DENIED` for the stored `GHCR_PAT`), reported to the maintainer. No image push is owed: no `_deps` or Containerfile changed.
 
 ### Changes
 
@@ -100,8 +101,9 @@ built `mion-bench` image (`MION_BENCH_USE_LOCAL=1`): the registry refused the st
    (credit card, bank account, paypal); `tags` keeps its default. Comment states the padding is a declared union so
    every lane's schema validates it unchanged, and that the sweep now validates one union member per ~80 bytes
    (more work per byte than a string list, so sweep numbers move for every lane). `buildUser()` for the heavy suite unchanged.
-5. `shared/suites.mjs`: each suite's builder returns `{value, id}`-style sample; `bodyFor` takes an optional codec so
-   a compact app gets `codec.encodeParams([value])`, mion JSON gets `mionBody`, others `plainBody`. Zero third-party imports kept.
+5. `shared/suites.mjs`: each suite's `build(size)` returns the plain value; `harness/run.mjs` makes the `{body, id}`
+   sample. `bodyFor` takes an optional codec so a compact app gets `codec.encodeParams([value])`, mion JSON gets
+   `mionBody`, others `plainBody`. Zero third-party imports kept.
 6. New pure module `harness/wire.mjs` (unit-tested, mounted by the driver):
    - `bodyTemplate(body, id)`: split on the id's own digits (bounded by non-digits), throw if absent or present twice.
      One path for JSON and positional bodies; replaces the `"id":<digits>` regex.
