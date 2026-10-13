@@ -79,8 +79,9 @@ Check every added or changed section. In this order, first match wins:
   Nothing errors, only the nav breaks. URL strips the prefix, so padding is free.
   Pinned by `website-content-prefixes` in `packages/devtools/test/repo-contracts.test.ts`.
 - No `index.md` outside the root: any `<dir>/index.md` is a landing page ([app/AGENTS.md](app/AGENTS.md#subsites)).
-- `03.middlewares/`: one page per shipped middleware, export name minus `mion` (`fetch-metadata`). Client half = next
-  page (`fetch-metadata-client`) with `navigation.class: nav-subpage` (indented under the server page).
+- `03.middlewares/`: one page per middleware, export name minus `mion` (`fetch-metadata`): intro, then `::tabs`,
+  `Server` + `Client` `:::tabs-item`, each one `::::div{class="tab-body"}` (else spacing squeezed). A link into a
+  hidden tab opens it (`app/plugins/tab-anchors.client.ts`).
 - Root-relative links carry the subsite prefix (`/rpc/server/routes`). `website-links.test.ts` fails on a dead one.
 - `parked/` (outside `content/`, unseen by collections, link tests, post-build check): pages off the site, kept whole,
   top comment says why + how to republish.

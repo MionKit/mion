@@ -270,14 +270,14 @@ describe('website-subsites', () => {
     expect(logo).not.toContain('useSubsite');
   });
 
-  it('renders the root landing as one card per subsite, no hero, with the live benchmark summary', () => {
+  it('renders the root landing as one block per subsite, no hero, with the live benchmark summary', () => {
     const home = readFileSync(join(CONTENT_DIR, 'index.md'), 'utf8');
     expect(home).not.toContain('u-page-hero');
     for (const id of SUBSITE_IDS) expect(home).toContain(`::div{data-site="${id}" class="home-subsite"}`);
-    // One card per subsite, plus the testing block (2026-09), which borrows the
+    // One block per subsite, plus the testing block (2026-09), which borrows the
     // runtypes palette because every number on it is a runtypes number today.
-    expect(home.match(/class: home-features home-subsite-card/g)?.length).toBe(SUBSITE_IDS.length + 1);
-    expect(home, 'the testing block').toContain('Tested to the highest standard');
+    expect(home.match(/class: home-features home-subsite-block/g)?.length).toBe(SUBSITE_IDS.length + 1);
+    expect(home, 'the testing block').toContain('to the highest standard');
     expect(home, 'its tiles').toContain(':home-test-tiles');
     // the summary names both datasets, which is what check-static gates for it
     expect(home).toMatch(/:home-bench-table\{servers="[^"]+" validation="[^"]+"\}/);

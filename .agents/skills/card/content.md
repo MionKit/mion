@@ -12,11 +12,12 @@ Write down, before any code:
 - **The visual**: what shows it best. Before / after bars? Big numbers? Two windows side by side? A timeline?
   An arrow from problem to fix? Pick the clearest, not the one that happens to exist.
 - **The motion** (website only): what should appear first, what after. The order tells the story.
+  A small card in a narrow slot can loop instead: `CardFrame kind="mini"` + `CardLoop`, one example per turn.
 
 ## 2. Reuse
 
 Read [components.md](components.md). Compose the existing components when they show the chosen visual well.
-`CardFrame` + `CardWindow` always frame the card: they keep every card recognisable.
+`CardFrame` + `CardWindow` always frame the card: they keep every card recognisable. A mini card: `CardFrame` alone.
 
 ## 3. Build
 
@@ -26,9 +27,11 @@ so the next card can reuse it. A new component:
 - `Card<Name>.vue`, registered by file name. `<script setup lang="ts">`, props validated (a validator or a `throw`
   in setup for anything a card can get wrong).
 - Classes prefixed `cc-`, styles in `tools/code-card/card.css` under `.code-card`, sizes in px for a 1200px card
-  (they scale), colours only from the tokens at the top of `card.css`, never a new olive hex.
+  (350px in a mini card; they scale), colours only from the tokens in `card.css` (`--mini-*` in a mini card),
+  never a new olive hex.
 - Its entrance animation: `data-cc="rise | grow | fade | line"` and `:style="nextStep()"` (from `shared.ts`) on
   each element that enters. A new kind of motion = a new `@keyframes` + `data-cc` value in `card.css`.
+- Inside a `CardLoop` item, time a beat with `data-cc-at` + `--cc-at` instead (see [components.md](components.md)).
 - Without the `cc-armed` class the card must show its final state: that is the PNG and the reduced-motion view.
 - One test in `tools/code-card/test/components.test.ts`, one entry in [components.md](components.md).
 

@@ -44,6 +44,11 @@ onBeforeUnmount(() => observer?.disconnect())
   border-radius: 12px;
   overflow: hidden;
 }
+/* a mini card draws its own border and corners: the clip follows them, and two in a row sit close */
+.code-card-embed:has(> .cc-kind-mini) {
+  margin: 1rem 0;
+  border-radius: var(--mion-panel-radius);
+}
 .code-card-missing {
   padding: 1rem;
   border: 1px solid var(--ui-error);

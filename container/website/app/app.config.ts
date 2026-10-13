@@ -76,16 +76,71 @@ export default defineAppConfig({
     }
   },
   ui: {
-    // Map the "Type Definition" / "Type Builder" code-group tab labels (the runtypes
-    // pages) to file-type icons. The code is TypeScript in both: the JS icon on
-    // "Type Builder" is just a visual cue for the builder/runtime form, without
-    // the misleading `.js` text. CodeIcon.vue keys this map by the LOWERCASED
-    // TAB LABEL, so renaming a tab means renaming the key here in the same
-    // change or the icon silently drops.
     prose: {
-      codeIcon: {
-        'type definition': 'i-vscode-icons:file-type-typescript',
-        'type builder': 'i-vscode-icons:file-type-js',
+      // Inline code sits in the line like a word: inline (not inline-block, which
+      // makes the line taller), a font size relative to the text around it, a tight
+      // padding, and a faint wash of the subsite's colour so it still reads as code.
+      code: {
+        base: 'px-[0.3em] py-0 text-[0.86em] leading-none font-mono font-normal rounded-[0.35em] inline',
+        variants: {
+          color: {
+            neutral: 'border border-primary/20 bg-primary/10 text-brand-700 dark:text-brand-200',
+          },
+        },
+      },
+      // Code blocks: one rounded panel with the benchmark cards' look (--mion-panel-bg
+      // surface, the default border, mion.css).
+      // A file name or tab label is plain small text at the top of the panel: no tab
+      // box, no icon, no line between it and the code. TwoslashCode.vue reads this
+      // same `pre` config, so every code block looks alike.
+      // Alerts (::note info, ::tip success, ::warning, ::caution error): the panel
+      // surface washed with the type's colour, one thick left border and the icon in
+      // it; text, links and inline code stay neutral so they read on every wash.
+      // Class lists are literal per colour: Tailwind only builds classes it can read.
+      callout: {
+        variants: {
+          color: {
+            info: {
+              base: 'border-0 border-s-4 border-info bg-[color-mix(in_srgb,var(--ui-info)_12%,var(--mion-panel-bg))] text-default dark:text-default [&_a]:text-brand-800 dark:[&_a]:text-primary [&_a]:hover:border-primary [&_a]:focus-visible:outline-primary [&_code]:text-highlighted dark:[&_code]:text-highlighted [&_code]:border-info/25',
+              icon: 'text-info-700 dark:text-info',
+            },
+            success: {
+              base: 'border-0 border-s-4 border-success bg-[color-mix(in_srgb,var(--ui-success)_12%,var(--mion-panel-bg))] text-default dark:text-default [&_a]:text-brand-800 dark:[&_a]:text-primary [&_a]:hover:border-primary [&_a]:focus-visible:outline-primary [&_code]:text-highlighted dark:[&_code]:text-highlighted [&_code]:border-success/25',
+              icon: 'text-success-700 dark:text-success',
+            },
+            warning: {
+              base: 'border-0 border-s-4 border-warning bg-[color-mix(in_srgb,var(--ui-warning)_12%,var(--mion-panel-bg))] text-default dark:text-default [&_a]:text-brand-800 dark:[&_a]:text-primary [&_a]:hover:border-primary [&_a]:focus-visible:outline-primary [&_code]:text-highlighted dark:[&_code]:text-highlighted [&_code]:border-warning/25',
+              icon: 'text-warning-700 dark:text-warning',
+            },
+            error: {
+              base: 'border-0 border-s-4 border-error bg-[color-mix(in_srgb,var(--ui-error)_12%,var(--mion-panel-bg))] text-default dark:text-default [&_a]:text-brand-800 dark:[&_a]:text-primary [&_a]:hover:border-primary [&_a]:focus-visible:outline-primary [&_code]:text-highlighted dark:[&_code]:text-highlighted [&_code]:border-error/25',
+              icon: 'text-error-700 dark:text-error',
+            },
+          },
+        },
+      },
+      pre: {
+        slots: {
+          header: 'border-default bg-(--mion-panel-head-bg) px-4 py-2',
+          filename: 'text-muted text-xs/5 font-mono',
+          icon: 'hidden',
+          base: 'border-default bg-(--mion-panel-bg)',
+        },
+        variants: {
+          filename: {
+            true: {
+              root: '[&>pre]:border-t-0',
+            },
+          },
+        },
+      },
+      codeGroup: {
+        slots: {
+          list: 'border-default bg-(--mion-panel-head-bg) gap-3 px-4 py-2',
+          indicator: 'hidden',
+          trigger: 'px-0 py-0 text-xs/5 font-mono text-dimmed data-[state=active]:text-muted hover:bg-transparent hover:text-muted',
+          triggerIcon: 'hidden',
+        },
       },
     },
     colors: {

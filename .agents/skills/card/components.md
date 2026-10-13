@@ -7,6 +7,8 @@ props, its limits, how it enters. Add a component → add its entry ([content.md
   - Props: `#title` slot (`<em>` = accent words), `subtitle`, `footer`, `badge`,
     `kind` (`code` / `stats`: larger type, read as a phone thumbnail), `step`, `speed` (CSS times).
   - Limit: title on one line. Enters: title, then subtitle rise.
+  - `kind="mini"`: a plain panel for a ~350px slot (a narrow page column, a phone), drawn at that size, never
+    larger. Site panel colours, no `CardWindow`, no footer or badge (refused). Its PNG is 350px wide.
 - **`CardWindow`**: editor window, three dots, file name. Props: `file`. Never animates: the empty frame shows first.
 - **`CardCode`**: Shiki code with highlighted lines.
   - Props: `code`, `lang` (default `ts`), `highlight` (`3`, `11-12` or `3,7-8`, 1-based).
@@ -29,6 +31,26 @@ props, its limits, how it enters. Add a component → add its entry ([content.md
   - Limits: 1 to 3 steps per lane. Enters: wall, then per lane its name, steps pop, a packet runs to the wall,
     passes (olive) or bounces (red ✕, lane shakes and greys out), then the result pops.
   - `step` ≈ `0.8s` leaves time to read.
+
+- **`CardLoop`**: shows its items one at a time, in place, looping forever (a mini card's content).
+  - Props: `items` (each handed to the default slot as `item`), `hold` (CSS time per item, default `4s`),
+    `still` (the item the PNG and reduced motion show, default 0).
+  - Limits: 2 to 8 items, all laid out at once, so every item must pass the layout checks.
+  - Enters one step after the title, then loops. Items cross-fade. Inside an item, an element with `data-cc-at` and
+    `--cc-at` (0 to 1) appears at that fraction of its turn; `data-cc-at="grow"` scales 0 → 1 from `--cc-at` to
+    `--cc-until` instead.
+- **`CardRoundTrip`**: one value's JSON round trip, top to bottom: server type, wire form, the same type on the
+  client (✓), then what plain JSON gives (✕).
+  - Props: `type`, `wire` (one line of code each), `lost` (optional), `plain` (its label, default `plain JSON`).
+  - Inside a `CardLoop`: the server chip, a track growing down to the wire chip, then the client chip, then the
+    plain-JSON line.
+
+- **`CardValidationCall`**: one route call, top to bottom: the call, the client's check, the server's check, then
+  the typed result. A stopped call fails the client check (✕) and its server row stays empty.
+  - Props: `call`, `client` (code, one line each), `server` (a few words), `stopped`, `result` (code, optional,
+    never on a stopped call).
+  - Inside a `CardLoop`: the call chip, a track growing down (to the client row only when stopped), the client
+    check, the server check, then the result line.
 
 Entrance order = render order. `CardFrame`'s `step` is the gap between two elements, `speed` one entrance.
 Bars: say in the subtitle what before and after are, or name them in `CardBars`.

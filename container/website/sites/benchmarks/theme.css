@@ -20,11 +20,11 @@
   /* the punchier accent: hero title, header word */
   --site-accent: #df8224;
   /* the animated section-title gradient: from (0/100%) and to (50%) stops, plus the
-     partner colour color-mix()ed into the 25/75% stops. Amber -> rose-amber -> gold
-     -> rose-amber -> amber, so the flow reads on a warm base. */
-  --site-gradient-from: #cc8b55;
-  --site-gradient-to: #f5c542;
-  --site-gradient-mix: #f43f5e;
+     partner colour color-mix()ed into the 25/75% stops. Pastel peach -> rose -> butter,
+     so the flow reads on a warm base. */
+  --site-gradient-from: #f2c39b;
+  --site-gradient-to: #f8e3a6;
+  --site-gradient-mix: #f5aebd;
   /* HSL hue for the decorative hsl() gradients (stat tiles, AI step numbers) */
   --site-hue: 27;
   /* HSL hue of the "best" end of the bad -> good rank ramps (bench tables, perf bars);
@@ -37,6 +37,7 @@
 [data-site='benchmarks'].light,
 .light [data-site='benchmarks'] {
   --site-accent: #b8641a;
-  --site-gradient-from: #aa7445;
-  --site-gradient-to: #c99a1e;
+  --site-gradient-from: #a8622a;
+  --site-gradient-to: #b0821a;
+  --site-gradient-mix: #c4486a;
 }

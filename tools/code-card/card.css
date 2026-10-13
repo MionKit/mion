@@ -596,6 +596,298 @@
   opacity: 0.55;
 }
 
+/* mini: a plain panel for a ~350px slot. Sized at 350px wide (never larger), in the site's panel colours when it has them */
+.code-card.cc-kind-mini {
+  --mini-bg: var(--mion-panel-bg, var(--code-bg));
+  --mini-line: var(--ui-border, #ffffff1c);
+  --mini-text: var(--ui-text-highlighted, var(--title));
+  --mini-muted: var(--ui-text-muted, var(--text-muted));
+  --mini-accent: var(--ui-primary, var(--accent-light));
+}
+/* Outranks the phone rule's --u. rem never scales: 0.0625rem = 1px. */
+.code-card.cc-kind-mini .stage {
+  --u: min(calc(100cqw / 350), 0.0625rem);
+  padding: 16px 18px 18px;
+  background: var(--mini-bg);
+  border: 1px solid var(--mini-line);
+  border-radius: var(--mion-panel-radius, 0.5625rem);
+}
+.code-card.cc-kind-mini .cc-title {
+  color: var(--mini-text);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+.code-card.cc-kind-mini .cc-title em {
+  background: none;
+  color: var(--mini-accent);
+}
+.code-card.cc-kind-mini .cc-sub {
+  color: var(--mini-muted);
+  font-size: 13px;
+  margin-top: 4px;
+}
+.code-card.cc-kind-mini .cc-loop {
+  margin-top: 14px;
+}
+
+/* loop: items stacked in one cell; --cc-loop-t runs 0 -> 1 over all turns, each item reads its own 0 -> 1 turn */
+@property --cc-loop-t {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+.code-card .cc-loop {
+  display: grid;
+}
+.code-card .cc-loop-item {
+  grid-area: 1 / 1;
+  --cc-loop-local: calc(var(--cc-loop-t) * var(--cc-loop-n) - var(--cc-loop-i));
+  opacity: clamp(0, min(calc(var(--cc-loop-local) * 14), calc((1 - var(--cc-loop-local)) * 14)), 1);
+}
+/* A beat inside an item: in at --cc-at of its turn; `grow` scales 0 -> 1 from --cc-at to --cc-until. */
+.code-card .cc-loop [data-cc-at] {
+  --cc-on: clamp(0, calc((var(--cc-loop-local) - var(--cc-at)) * 12), 1);
+  opacity: var(--cc-on);
+  transform: translateY(calc((1 - var(--cc-on)) * 4px));
+}
+.code-card .cc-loop [data-cc-at='grow'] {
+  --cc-grow: clamp(0, calc((var(--cc-loop-local) - var(--cc-at)) / (var(--cc-until) - var(--cc-at))), 1);
+  opacity: 1;
+  transform: scaleX(var(--cc-grow));
+  transform-origin: left center;
+}
+.code-card.cc-armed .cc-loop {
+  animation-name: cc-loop;
+  animation-duration: calc(var(--cc-loop-n) * var(--cc-loop-hold));
+  animation-timing-function: linear;
+  animation-delay: calc(var(--cc-i, 0) * var(--cc-step));
+  animation-iteration-count: infinite;
+  animation-fill-mode: both;
+  animation-play-state: paused;
+}
+.code-card.cc-armed.cc-play .cc-loop {
+  animation-play-state: running;
+}
+.code-card.cc-armed.cc-play.cc-paused .cc-loop {
+  animation-play-state: paused;
+}
+@keyframes cc-loop {
+  from {
+    --cc-loop-t: 0;
+  }
+  to {
+    --cc-loop-t: 1;
+  }
+}
+
+/* round trip: server, wire, client down one track, then what plain JSON gives */
+.code-card .cc-rt {
+  position: relative;
+  display: grid;
+  grid-template-columns: 44px 14px 1fr;
+  align-items: center;
+  gap: 12px 8px;
+}
+.code-card .cc-rt-label {
+  grid-column: 1;
+  color: var(--mini-muted, var(--text-muted));
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+/* Absolute, so it spans the three rows without taking a grid cell from the dots. */
+.code-card .cc-rt-track {
+  position: absolute;
+  inset: 0;
+  grid-column: 2 / 3;
+  grid-row: 1 / 4;
+}
+.code-card .cc-rt-track i {
+  position: absolute;
+  left: 50%;
+  top: 13px;
+  bottom: 13px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--mini-accent, var(--accent-light)) 45%, transparent);
+}
+.code-card .cc-loop .cc-rt-track [data-cc-at='grow'] {
+  transform: scaleY(var(--cc-grow));
+  transform-origin: top center;
+}
+.code-card .cc-rt-dot {
+  grid-column: 2;
+  justify-self: center;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--mini-bg, var(--code-bg));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--mini-muted, var(--text-muted)) 60%, transparent);
+}
+.code-card .cc-rt-dot.cc-rt-ok {
+  background: var(--mini-accent, var(--accent-light));
+  box-shadow: none;
+}
+.code-card .cc-rt-chip {
+  grid-column: 3;
+  justify-self: start;
+  display: flex;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: var(--mini-text, var(--title));
+  font: 500 12px/1.4 'Card Mono', monospace;
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--mini-muted, var(--text-muted)) 10%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--mini-muted, var(--text-muted)) 22%, transparent);
+}
+.code-card .cc-rt-wire {
+  color: var(--mini-muted, var(--text-muted));
+  background: none;
+  box-shadow: none;
+  outline: 1px dashed color-mix(in srgb, var(--mini-muted, var(--text-muted)) 35%, transparent);
+  outline-offset: -1px;
+}
+.code-card .cc-rt-chip.cc-rt-ok {
+  background: color-mix(in srgb, var(--mini-accent, var(--accent-light)) 12%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--mini-accent, var(--accent-light)) 40%, transparent);
+}
+.code-card .cc-rt-ok b {
+  color: var(--mini-accent, var(--accent-light));
+  font-weight: 700;
+}
+.code-card .cc-rt-lost {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  color: var(--mini-muted, var(--text-muted));
+  font-size: 12px;
+  white-space: nowrap;
+}
+.code-card .cc-rt-lost b {
+  color: color-mix(in srgb, var(--bad) 55%, var(--mini-muted, var(--text-muted)));
+  font-weight: 700;
+}
+
+/* validation call: call, client check, server check down one track, then the typed result */
+.code-card .cc-vc {
+  position: relative;
+  display: grid;
+  grid-template-columns: 44px 14px 1fr;
+  align-items: center;
+  gap: 12px 8px;
+}
+.code-card .cc-vc-label {
+  grid-column: 1;
+  color: var(--mini-muted, var(--text-muted));
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+/* Absolute, so it spans the three rows without taking a grid cell from the dots. */
+.code-card .cc-vc-track {
+  position: absolute;
+  inset: 0;
+  grid-column: 2 / 3;
+  grid-row: 1 / 4;
+}
+.code-card .cc-vc-track i {
+  position: absolute;
+  left: 50%;
+  top: 13px;
+  bottom: 13px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--mini-accent, var(--accent-light)) 45%, transparent);
+}
+/* Stopped: the track ends at the client row. */
+.code-card .cc-vc-stopped .cc-vc-track i {
+  bottom: calc(50% - 1px);
+  background: color-mix(in srgb, var(--mini-muted, var(--text-muted)) 40%, transparent);
+}
+.code-card .cc-loop .cc-vc-track [data-cc-at='grow'] {
+  transform: scaleY(var(--cc-grow));
+  transform-origin: top center;
+}
+.code-card .cc-vc-dot {
+  grid-column: 2;
+  justify-self: center;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--mini-bg, var(--code-bg));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--mini-muted, var(--text-muted)) 60%, transparent);
+}
+.code-card .cc-vc-dot.cc-vc-ok {
+  background: var(--mini-accent, var(--accent-light));
+  box-shadow: none;
+}
+.code-card .cc-vc-dot.cc-vc-bad {
+  background: color-mix(in srgb, var(--bad) 55%, var(--mini-muted, var(--text-muted)));
+  box-shadow: none;
+}
+.code-card .cc-vc-chip {
+  grid-column: 3;
+  justify-self: start;
+  display: flex;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: var(--mini-text, var(--title));
+  font: 500 12px/1.4 'Card Mono', monospace;
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--mini-muted, var(--text-muted)) 10%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--mini-muted, var(--text-muted)) 22%, transparent);
+}
+.code-card .cc-vc-say {
+  font: 500 12px/1.4 'Card Inter', sans-serif;
+}
+.code-card .cc-vc-chip.cc-vc-ok {
+  background: color-mix(in srgb, var(--mini-accent, var(--accent-light)) 12%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--mini-accent, var(--accent-light)) 40%, transparent);
+}
+.code-card .cc-vc-chip.cc-vc-bad {
+  background: color-mix(in srgb, var(--bad) 10%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bad) 35%, transparent);
+}
+.code-card .cc-vc-none {
+  color: var(--mini-muted, var(--text-muted));
+  background: none;
+  box-shadow: none;
+  outline: 1px dashed color-mix(in srgb, var(--mini-muted, var(--text-muted)) 35%, transparent);
+  outline-offset: -1px;
+}
+.code-card .cc-vc-ok b,
+.code-card .cc-vc-result b {
+  color: var(--mini-accent, var(--accent-light));
+  font-weight: 700;
+}
+.code-card .cc-vc-bad b {
+  color: color-mix(in srgb, var(--bad) 55%, var(--mini-muted, var(--text-muted)));
+  font-weight: 700;
+}
+.code-card .cc-vc-result {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  color: var(--mini-muted, var(--text-muted));
+  font-size: 12px;
+  white-space: nowrap;
+}
+.code-card .cc-vc-result code {
+  margin-left: 4px;
+  color: var(--mini-text, var(--title));
+  font: 500 12px 'Card Mono', monospace;
+}
+/* The mono ✓, as in the code chips. */
+.code-card .cc-vc-say b,
+.code-card .cc-vc-result b {
+  font-family: 'Card Mono', monospace;
+}
+
 /* Phones: half the scale rate, rows stacked. A rem breakpoint, as px would scale; the PNG never gets this narrow. */
 @container (max-width: 40rem) {
   .code-card .stage {
@@ -824,7 +1116,8 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .code-card [data-cc] {
+  .code-card [data-cc],
+  .code-card .cc-loop {
     animation: none !important;
   }
 }

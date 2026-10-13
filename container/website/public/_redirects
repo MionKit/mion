@@ -61,3 +61,6 @@
 /runtypes/guide/json-schema-generation    /runtypes/guide/json-schemas         301
 /runtypes/guide/linting                   /runtypes/tooling/linting            301
 /runtypes/guide/source-conversion         /runtypes/tooling/source-conversion  301
+# Each middleware's client page merged into its page, as a Client tab (2026-10).
+/rpc/middlewares/fetch-metadata-client  /rpc/middlewares/fetch-metadata  301
+/rpc/middlewares/sync-routes-client     /rpc/middlewares/sync-routes     301

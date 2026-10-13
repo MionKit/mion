@@ -7,8 +7,9 @@ const props = withDefaults(
     subtitle?: string;
     footer?: string;
     badge?: string;
-    /** `stats` = larger type, read as a phone-sized thumbnail. */
-    kind?: 'code' | 'stats';
+    /** `stats` = larger type, read as a phone-sized thumbnail. `mini` = a plain panel for a ~350px slot: title and
+     *  content only, no CardWindow, footer or badge. */
+    kind?: 'code' | 'stats' | 'mini';
     /** Gap between two elements entering, as a CSS time. */
     step?: string;
     /** Duration of one element's entrance, as a CSS time. */
@@ -17,6 +18,7 @@ const props = withDefaults(
   {subtitle: '', footer: '', badge: '', kind: 'code'}
 );
 defineSlots<{title(): unknown; default(): unknown}>();
+if (props.kind === 'mini' && (props.footer || props.badge)) throw new Error('CardFrame: a mini card has no footer or badge');
 
 const nextStep = provideSequence();
 const titleStep = nextStep();

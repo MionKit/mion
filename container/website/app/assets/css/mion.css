@@ -29,7 +29,10 @@
 :root {
   width: 100%;
   overflow-x: hidden;
-  --ui-radius: 0;
+  /* every Nuxt UI radius (buttons, code blocks, tabs, cards) scales from this one value */
+  --ui-radius: 0.375rem;
+  /* code blocks (Nuxt UI rounded-md) and benchmark cards share this corner */
+  --mion-panel-radius: calc(var(--ui-radius) * 1.5);
   /* The mion logo mark keeps its own colour on every subsite: it is the brand, not a
      subsite token, so it is the one colour literal the shared tree carries on purpose
      (website-theme-contracts.test.ts exempts this declaration and nothing else). */
@@ -84,6 +87,15 @@
 
 :root.dark {
   --elements-text-secondary-color-static: var(--color-gray-300);
+  /* One surface for code blocks and benchmark cards (both with a var(--ui-border)
+     border and --mion-panel-radius corners): a faint lift off the page. */
+  --mion-panel-bg: color-mix(in srgb, var(--ui-text-muted) 5%, var(--ui-bg));
+  /* code block header band (file name, tab labels): a shade off the panel surface */
+  --mion-panel-head-bg: color-mix(in srgb, var(--ui-text-muted) 6%, var(--mion-panel-bg));
+  /* saturation + lightness of the decorative hsl() gradients (stat tiles, step
+     numbers, the Temporal heading): soft pastels on the dark ground */
+  --mion-pastel-s: 62%;
+  --mion-pastel-l: 78%;
 }
 
 /* Home Page header */
@@ -104,6 +116,12 @@
 :root.light {
   --elements-text-secondary-color-static: var(--color-gray-600);
   --ui-bg: #f0f0f0;
+  /* light panels: halfway between white and the faint lift dark mode uses */
+  --mion-panel-bg: color-mix(in srgb, var(--color-white) 50%, color-mix(in srgb, var(--ui-text-muted) 5%, var(--ui-bg)));
+  --mion-panel-head-bg: color-mix(in srgb, var(--ui-text-muted) 7%, var(--mion-panel-bg));
+  /* deeper, still muted tones: a pastel vanishes on the light ground */
+  --mion-pastel-s: 42%;
+  --mion-pastel-l: 48%;
 }
 
 body h1 {
@@ -154,6 +172,9 @@ h2[data-slot='title'],
   -webkit-text-fill-color: transparent;
   background-size: 200% 100%;
   animation: gradient-flow 12s linear infinite;
+  /* the gradient paints letters only inside the box: room above and below so tall
+     letters and descenders (l, g, y) are never cut */
+  padding-block: 0.2em;
 }
 
 .home-features h2 {
@@ -164,13 +185,33 @@ h2[data-slot='title'],
   color: inherit;
 }
 
+/* Two-tone titles: the part written as `[words]{.title-tone}` takes a solid pale tint
+   of the subsite's pastel, and the rest of the title keeps the flowing gradient. */
+.title-tone {
+  -webkit-text-fill-color: color-mix(in srgb, var(--site-gradient-to) 20%, var(--ui-text-highlighted));
+}
+
+/* Home page sections (UPageSection, used only on the home pages) sit closer together
+   than Nuxt UI's default, and their title sits closer to the body. */
+section[data-slot='root'] > [data-slot='container'] {
+  padding-block: 3rem;
+  row-gap: 2rem;
+}
+
+@media (min-width: 1024px) {
+  section[data-slot='root'] > [data-slot='container'] {
+    padding-block: 4rem;
+    row-gap: 2.5rem;
+  }
+}
+
 /* Card titles inside a section: plain highlighted text at full opacity, no
    gradient. Only a title that is a real link (not the heading's own `#anchor`)
    gets an underline, in the primary colour; a whole-card link (`::card` with a
    `to:`, rendered as a.group) underlines its title the same way. */
 .home-features h3,
 .ai-steps-head h3,
-.rt-feature-card h3,
+.rt-feature-text h3,
 .rt-object-fns h3,
 .home-toolbelt .group > p,
 .ai-artifacts .group > p {
@@ -180,7 +221,7 @@ h2[data-slot='title'],
 
 .home-features h3 a,
 .ai-steps-head h3 a,
-.rt-feature-card h3 a,
+.rt-feature-text h3 a,
 .rt-object-fns h3 a {
   color: inherit;
   text-decoration: none;
@@ -188,7 +229,7 @@ h2[data-slot='title'],
 
 .home-features h3 a[href]:not([href^='#']),
 .ai-steps-head h3 a[href]:not([href^='#']),
-.rt-feature-card h3 a[href]:not([href^='#']),
+.rt-feature-text h3 a[href]:not([href^='#']),
 .rt-object-fns h3 a[href]:not([href^='#']),
 .home-toolbelt a.group > p,
 .ai-artifacts a.group > p {
@@ -313,13 +354,13 @@ h2[data-slot='title'],
 
 /* per-tile hues, mirroring the StatTiles site-hue / blue / purple sweep */
 .ai-step:nth-child(1) .ai-step-num {
-  background-image: linear-gradient(120deg, hsl(var(--site-hue) 70% 52%), hsl(calc(var(--site-hue) + 38) 66% 56%));
+  background-image: linear-gradient(120deg, hsl(var(--site-hue) var(--mion-pastel-s) var(--mion-pastel-l)), hsl(calc(var(--site-hue) + 38) var(--mion-pastel-s) var(--mion-pastel-l)));
 }
 .ai-step:nth-child(2) .ai-step-num {
-  background-image: linear-gradient(120deg, hsl(198 70% 52%), hsl(236 66% 56%));
+  background-image: linear-gradient(120deg, hsl(198 var(--mion-pastel-s) var(--mion-pastel-l)), hsl(236 var(--mion-pastel-s) var(--mion-pastel-l)));
 }
 .ai-step:nth-child(3) .ai-step-num {
-  background-image: linear-gradient(120deg, hsl(280 70% 52%), hsl(318 66% 56%));
+  background-image: linear-gradient(120deg, hsl(280 var(--mion-pastel-s) var(--mion-pastel-l)), hsl(318 var(--mion-pastel-s) var(--mion-pastel-l)));
 }
 
 .ai-step-title {
@@ -385,9 +426,8 @@ h2[data-slot='title'],
   }
 }
 
-/* Home feature row: a card (gradient h3 + blurb) beside a code block, in either
-   order, both stretched to equal height. Reused by "One object" (card | code) and
-   "Reflection" (code | card). "One object" adds a 4-up snippet grid below it. */
+/* Home feature row: a text block (h3 + blurb) beside a code block, in either
+   order, both stretched to equal height. Used by "Reflection" (code | text). */
 .rt-feature-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -403,22 +443,22 @@ h2[data-slot='title'],
   flex-direction: column;
 }
 
-/* the bare type block fills its column so it bottoms out level with the card */
+/* the bare type block fills its column so it bottoms out level with the text */
 .rt-feature-row > * > pre {
   flex: 1;
   margin: 0;
 }
 
 /* text reads as a centered blurb beside the taller type block */
-.rt-feature-card {
+.rt-feature-text {
   display: flex;
   flex-direction: column;
   justify-content: center;
   margin: 0;
 }
 
-/* mion-style animated gradient heading inside the card (mirrors .home-features h3) */
-.rt-feature-card h3 {
+/* the block's heading (mirrors .home-features h3) */
+.rt-feature-text h3 {
   margin-top: 0;
   margin-bottom: 0.75rem;
   font-size: 1.75rem;
@@ -430,11 +470,6 @@ h2[data-slot='title'],
   grid-template-columns: repeat(2, 1fr);
   gap: 0.75rem 1rem;
   align-items: stretch;
-  /* sit the four snippets inside a card, matching the site's card chrome */
-  border: 1px solid var(--ui-border);
-  border-radius: 0.6rem;
-  background: color-mix(in srgb, var(--ui-text-muted) 4%, transparent);
-  padding: 1rem 1.15rem;
 }
 
 /* equal-height columns: a gradient title over a bare code block; the block
@@ -454,7 +489,7 @@ h2[data-slot='title'],
 }
 
 /* Section-level titles inside an enclosed row read at the same size as the
-   feature-card h3 ("The whole toolbelt, in one box"). The per-column code
+   feature-text h3 ("The whole toolbelt, in one box"). The per-column code
    labels of the JSON row keep the small size, so the row still has a
    hierarchy. */
 .rt-object-fns > .rt-row-intro h3,
@@ -500,10 +535,9 @@ h2[data-slot='title'],
   line-height: 1.55;
 }
 
-/* two enclosed rows back to back need an explicit gap (the boxes themselves
-   carry no vertical margin) */
-.rt-object-fns + .rt-object-fns {
-  margin-top: 1rem;
+/* each row is its own topic (Validation, JSON round trip, Mocking): clear air above it */
+.rt-object-fns {
+  margin-top: 2.5rem;
 }
 
 /* full-width intro cell inside the enclosed row (title + prose spanning both
@@ -533,10 +567,8 @@ h2[data-slot='title'],
   }
 }
 
-/* Home "One object, Every function": the split cards (the toolbelt card and
-   the Standard Schema card). Each is one ::card wrapping a code | pitch split.
-   The cards keep their natural vertical margin so the gap is consistent between
-   every block in the section (card -> four-snippet grid -> card). */
+/* Home "Built for compiled TypeScript" and "One type, many functions": a two-column
+   split, pitch text beside more text or a code block. */
 .rt-standard-split {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -544,7 +576,7 @@ h2[data-slot='title'],
   align-items: stretch;
 }
 
-/* both columns flex so the code panel can fill the full card height */
+/* both columns flex so the code panel can fill the full row height */
 .rt-standard-split > * {
   min-width: 0;
   margin-block: 0;
@@ -552,7 +584,7 @@ h2[data-slot='title'],
   flex-direction: column;
 }
 
-/* the code block fills its column top-to-bottom (full card height) */
+/* the code block fills its column top-to-bottom (full row height) */
 .rt-standard-split > * > pre {
   flex: 1;
   margin: 0;
@@ -563,8 +595,8 @@ h2[data-slot='title'],
 }
 
 /* pitch column: reuse the gradient heading + text, but top-align it (override
-   rt-feature-card's vertical centering) so the heading lines up with the code
-   on the left and the blurb stays compact. The outer card provides the chrome. */
+   rt-feature-text's vertical centering) so the heading lines up with the code
+   on the left and the blurb stays compact. */
 .rt-standard-prose {
   margin: 0;
   justify-content: flex-start;
@@ -589,7 +621,7 @@ h2[data-slot='title'],
   }
 }
 
-/* Home "Tree-shaken to the bone": two rows: the pitch (card) spans the full
+/* Home "Compile time code generation": two rows: the pitch spans the full
    width on top, then three code panels below (source, transformed, generated
    module), one per column. Equal height; code panels flex-fill like the other
    home grids. */
@@ -602,7 +634,7 @@ h2[data-slot='title'],
 
 /* Card leads as a full-width first row; the three code panels flow into row 2.
    As a full-width lead-in its copy reads better centered. */
-.rt-treeshake-cols > .rt-feature-card {
+.rt-treeshake-cols > .rt-feature-text {
   grid-column: 1 / -1;
   text-align: center;
 }
@@ -636,16 +668,16 @@ h2[data-slot='title'],
 
 /* Multi-column rows where every column carries its own heading read better
    top-aligned than centered, so the headings line up across the columns. */
-.rt-treeshake-cols .rt-feature-card {
+.rt-treeshake-cols .rt-feature-text {
   justify-content: flex-start;
 }
 
-/* Card footer link: sits under the card's content with a little air. */
-.rt-card-footer {
+/* Footer link: sits under the block's content with a little air. */
+.rt-feature-footer {
   padding-top: 0.85rem;
 }
 
-.rt-card-footer p {
+.rt-feature-footer p {
   margin: 0;
 }
 
@@ -745,7 +777,7 @@ h2[data-slot='title'],
   }
 }
 
-/* Home "Formats baked into your types": the pitch (card with a Temporal tile at
+/* Home "Formats baked into your types": the pitch (text with a Temporal note at
    its bottom) full width, then the type-first and builder examples side by side.
    The two examples share a height; code panels flex-fill. */
 .rt-formats-cols {
@@ -755,20 +787,13 @@ h2[data-slot='title'],
   align-items: stretch;
 }
 
-.rt-formats-cols > .rt-feature-card {
+.rt-formats-cols > .rt-feature-text {
   grid-column: 1 / -1;
 }
 
 .rt-formats-cols > * {
   min-width: 0;
   margin-block: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-/* the intro card's body fills so the Temporal tile can pin to the bottom */
-.rt-formats-cols .rt-feature-card > * {
-  flex: 1;
   display: flex;
   flex-direction: column;
 }
@@ -789,13 +814,9 @@ h2[data-slot='title'],
   line-height: 1.55;
 }
 
-/* the "Temporal Support" callout, pinned to the bottom of the intro column */
+/* the "Temporal Support" note under the formats pitch */
 .rt-formats-tile {
-  margin-top: auto;
-  padding: 0.8rem 0.95rem;
-  border: 1px solid var(--ui-border);
-  border-radius: 0.55rem;
-  background: color-mix(in srgb, var(--ui-text-muted) 6%, transparent);
+  margin-top: 0.5rem;
 }
 
 .rt-formats-tile h4 {
@@ -803,7 +824,7 @@ h2[data-slot='title'],
   font-size: 1.05rem;
   font-weight: 700;
   line-height: 1.2;
-  background: linear-gradient(120deg, hsl(200 72% 56%), hsl(238 66% 62%));
+  background: linear-gradient(120deg, hsl(200 var(--mion-pastel-s) var(--mion-pastel-l)), hsl(238 var(--mion-pastel-s) var(--mion-pastel-l)));
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -985,39 +1006,22 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
 }
 
 
-/* ── Root landing: one card per subsite ──────────────────────────────────────
+/* ── Root landing: one block per subsite ─────────────────────────────────────
    content/index.md wraps each subsite's UPageSection in a `.home-subsite` block
-   carrying that subsite's `data-site`, so the card border, wash, buttons and title
-   gradient all come from that subsite's tokens. The section keeps its centered
-   title; its container padding is trimmed so it reads as a card, not a full-height
-   section. Inside: `.home-intro` (centered text + buttons, the rpc card), then a
+   carrying that subsite's `data-site`, so the buttons and title gradient come from
+   that subsite's tokens. No card chrome: the text sits on the page background.
+   Inside: `.home-intro` (centered text + buttons, the rpc block), then a
    `.home-split` row (two equal columns: text + buttons beside code, or two code
    panels with `--code`). */
+/* no side padding of its own: the section inside carries the same padding as the
+   header, so the text lines up with the logo */
 .home-subsite {
   max-width: var(--ui-container);
-  margin: 2.5rem auto;
-  padding-inline: 1rem;
+  margin-inline: auto;
 }
 
-.home-subsite:first-of-type {
-  margin-top: 1.5rem;
-}
-
-.home-subsite-card {
+.home-subsite-block {
   position: relative;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--color-brand-500) 35%, var(--ui-border));
-  border-radius: 1.25rem;
-  background: color-mix(in srgb, var(--color-brand-500) 4%, var(--ui-bg));
-}
-
-.home-subsite-card > [data-slot='container'] {
-  padding-block: 2.75rem;
-  gap: 0;
-}
-
-.home-subsite-card [data-slot='body'] {
-  margin-top: 1.75rem;
 }
 
 .home-intro {
@@ -1073,8 +1077,20 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
   justify-content: flex-start;
 }
 
+.home-pitch > p + p {
+  margin-top: 1rem;
+}
+
+/* rpc home feature rows: long code lines get the wider column */
+.home-split--code-wide {
+  grid-template-columns: 2fr 3fr;
+}
+
 .home-features .home-pitch h2 {
-  margin: 0 0 1rem;
+  /* trims the font's space above the capitals, so the letters line up with the code box top;
+     the negative margins give back the gradient's 0.2em painting room */
+  text-box: trim-start cap alphabetic;
+  margin: -0.2em 0 calc(1rem - 0.2em);
   text-align: left;
   font-size: 2.25rem;
   line-height: 1.15;
@@ -1086,7 +1102,7 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
   }
 }
 
-/* two twoslash panels side by side bottom out level: the card, its rendered code
+/* two twoslash panels side by side bottom out level: the panel, its rendered code
    wrapper and the pre inside all flex-fill, so the shorter client panel grows to the
    server panel's height */
 .home-split--code {
@@ -1118,64 +1134,29 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
   .home-split {
     grid-template-columns: 1fr;
   }
-
-  .home-subsite-card > [data-slot='container'] {
-    padding-block: 2rem;
-  }
 }
 
-/* Parallax, in CSS alone: each card rises into place as it enters the viewport and its
-   content lags a little. Off without scroll-driven animations or under reduced motion. */
+/* Parallax, in CSS alone: each block rises into place as it enters the viewport.
+   Off without scroll-driven animations or under reduced motion. */
 .home-subsite {
   position: relative;
 }
 
-/* The same treatment on the about pages: every page section (UPageSection) outside the root
-   landing's cards rises the same way, over its own soft halo. Their sections can be
-   very tall, so the rise completes within a fixed scroll distance rather than a share
-   of the section's height.
-   The halos spill past their section and blur hard on purpose: a tighter, stronger blob
-   reads as a shape sitting behind the text rather than as light on the page. */
-section[data-slot='root']:not(.home-subsite-card)::before {
-  content: '';
-  position: absolute;
-  inset: -8% -6%;
-  z-index: -1;
-  pointer-events: none;
-  border-radius: 3rem;
-  filter: blur(120px);
-  background:
-    radial-gradient(45% 45% at 15% 25%, color-mix(in srgb, var(--color-brand-500) 16%, transparent), transparent 70%),
-    radial-gradient(40% 40% at 85% 80%, color-mix(in srgb, var(--site-gradient-mix) 10%, transparent), transparent 70%);
-}
-
 @supports (animation-timeline: view()) {
   @media (prefers-reduced-motion: no-preference) {
-    /* the card rises in over a longer stretch of the scroll, from further down */
+    /* the block rises in over a longer stretch of the scroll, from further down */
     .home-subsite {
       animation: home-subsite-rise linear both;
       animation-timeline: view();
       animation-range: entry 0% entry 70%;
     }
 
-
-    /* the content lags the card, so the two move at two speeds */
-    .home-subsite-card > [data-slot='container'] {
-      animation: home-subsite-inner linear both;
-      animation-timeline: view();
-      animation-range: entry 0% exit 100%;
-    }
-
-    section[data-slot='root']:not(.home-subsite-card) {
+    /* every subsite home section rises the same way; they can be very tall, so the
+       rise completes within a fixed scroll distance rather than a share of the height */
+    section[data-slot='root']:not(.home-subsite-block) {
       animation: home-subsite-rise linear both;
       animation-timeline: view();
       animation-range: entry 0% entry 60vh;
-    }
-
-    section[data-slot='root']:not(.home-subsite-card)::before {
-      animation: home-subsite-drift linear both;
-      animation-timeline: view();
-      animation-range: entry 0% exit 100%;
     }
   }
 }
@@ -1191,27 +1172,11 @@ section[data-slot='root']:not(.home-subsite-card)::before {
   }
 }
 
-@keyframes home-subsite-drift {
-  from {
-    transform: translateY(-34%) scale(1.1);
-  }
-  to {
-    transform: translateY(34%) scale(0.92);
-  }
-}
 
-@keyframes home-subsite-inner {
-  from {
-    transform: translateY(2rem);
-  }
-  to {
-    transform: translateY(-2rem);
-  }
-}
 
 /* The twoslash panels keep their code unclipped on purpose (the hover popups hang
    outside the pre), so a long line spills past a half-width column instead of
-   scrolling. Inside the home cards the lines wrap, like the annotation lines already do. */
+   scrolling. Inside the home split rows the lines wrap, like the annotation lines already do. */
 .home-split .rt-two-slash-code .shiki .line {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -1266,14 +1231,16 @@ section[data-slot='root']:not(.home-subsite-card)::before {
   border-style: dashed;
 }
 
-/* Frontmatter `navigation.class: nav-subpage` indents a page under the one before it, no folder needed. */
-.nav-subpage {
-  padding-inline-start: 1.75rem;
-}
-
 /* All Compiled Functions page: each call fills its cell like a code block. */
 .fn-catalog td:first-child code {
   display: block;
   width: 100%;
   white-space: pre-wrap;
+}
+
+/* `::tabs` squeezes every direct child of a tab to a 6px margin. The middleware pages
+   wrap each tab's content in one `.tab-body` div, so the headings, tables and code keep
+   their normal page spacing; only the first one sits close under the tab bar. */
+.tab-body > :first-child {
+  margin-top: 1.5rem;
 }

@@ -52,7 +52,8 @@ const NuxtLink = resolveComponent('NuxtLink')
 const gradient = (hue?: number) => {
   const from = hue === undefined ? 'var(--site-hue)' : String(hue)
   const to = hue === undefined ? 'calc(var(--site-hue) + 38)' : String(hue + 38)
-  return `linear-gradient(120deg, hsl(${from} 70% 52%), hsl(${to} 66% 56%))`
+  // pastel saturation + lightness per colour mode (--mion-pastel-s / -l in mion.css)
+  return `linear-gradient(120deg, hsl(${from} var(--mion-pastel-s) var(--mion-pastel-l)), hsl(${to} var(--mion-pastel-s) var(--mion-pastel-l)))`
 }
 </script>
 
@@ -96,8 +97,8 @@ const gradient = (hue?: number) => {
   align-items: flex-start;
   padding: 0.85rem 1rem;
   border: 1px solid var(--ui-border);
-  border-radius: 0.6rem;
-  background: color-mix(in srgb, var(--ui-text-muted) 6%, transparent);
+  border-radius: var(--mion-panel-radius);
+  background: var(--mion-panel-bg);
 }
 
 .stat-tile--link {
@@ -107,7 +108,6 @@ const gradient = (hue?: number) => {
 
 .stat-tile--link:hover {
   border-color: var(--ui-primary);
-  background: color-mix(in srgb, var(--ui-text-muted) 10%, transparent);
 }
 
 .stat-tile--wide {
@@ -118,7 +118,7 @@ const gradient = (hue?: number) => {
 }
 
 .stat-tile-value {
-  font-size: 2.5rem;
+  font-size: 1.75rem;
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.02em;
@@ -137,7 +137,7 @@ const gradient = (hue?: number) => {
 }
 
 .stat-tile--wide .stat-tile-value {
-  font-size: 2.9rem;
+  font-size: 2.1rem;
 }
 
 .stat-tile-text {
@@ -158,7 +158,7 @@ const gradient = (hue?: number) => {
 
 /* wide tile: the label is a big gradient heading (same hue as the icon) */
 .stat-tile--wide .stat-tile-label {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: -0.01em;
   line-height: 1.1;

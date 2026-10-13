@@ -15,6 +15,10 @@
       .cc-page {
         width: {{pageWidth}}px;
       }
+      /* the slot a mini card is made for */
+      .cc-page:has(> .cc-kind-mini) {
+        width: 350px;
+      }
       .cc-preview {
         display: flex;
         gap: 8px;
