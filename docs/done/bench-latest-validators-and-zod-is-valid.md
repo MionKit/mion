@@ -179,3 +179,32 @@ None: no new runtime behavior in mion, only benchmark lanes and pages. The share
 - Bench correctness gate, audit, typecheck, `pnpm run lint`, website link tests and static check pass.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source
   file, each committed on its own.
+
+## As built (2026-10-13)
+
+Shipped to the plan above, with these differences:
+
+- **Pins.** zod `4.6.3`, `typebox` `1.3.30`, typia `14.0.6` with ttsc + `@ttsc/unplugin` `0.30.1`, ajv `8.20.0`,
+  ajv-formats `3.0.1`: the newest releases past the 30-day gate on 2026-10-13. Only the validator libraries were
+  pinned exact; the build tooling devDependencies (vite, typescript, `@types/node`) keep their existing ranges.
+- **zod.** All 232 supported cases pass on both metrics through `z.compile`. `z.compile` hands the 13 circular
+  cases (schemas with a reference cycle) back uncompiled; one header note says so instead of a comment per case.
+- **typebox 1.x.** `Type.Recursive` became `Type.Cyclic` with `Type.Ref`, the cross-referenced case one `Cyclic`
+  holding three `$defs` (1.x cannot nest one cyclic type in another). `Type.Date` is gone in 1.x: a Date is
+  `Type.Refine(Type.Unsafe<Date>({}), instanceof + valid time)`. `.Errors` now returns an array. Two cases needed
+  fixes: `UNION.circular_union` refines its record arm to plain objects (a 1.x Record accepts an Invalid Date),
+  and `STRING_FORMAT.ipv6_port` escapes its literal brackets (1.x compiles patterns with the `u` flag). Six cases
+  1.x now handles moved off NOT_SUPPORTED: `TUPLE.tuple_rest` and `OBJECT.call_signature_params_with_rest`
+  (`additionalItems`), `BIGINT_FORMAT.bigint_multipleOf` and `bigint_combined`, `JSON_SCHEMA.property_names`,
+  `TEMPLATE_LITERAL.template_literal_index_key`. 205 cases pass (was 199). `typecost.mjs`, `capture-env.mjs` and
+  the `_audit` notes follow the package rename.
+- **typia 14.** No case changed. The contract test's export list gained `shallow` / `createShallow`.
+- **Remarks.** `gen-docs.mjs` lost its typecost fallback to the errors source and `HomeBenchTable.vue` its
+  "measured via errors" asterisk: no library needs either any more. The benchmark README's stale numbers table
+  was cut, not refreshed (a quick run is not a publishable number).
+- **Not done: `TYPE-COST.md` re-measure.** Its zod column names the version it measured (4.4.3), and the zod
+  snippets behind it are not recorded, so a re-measure would compare different code. Left as a dated record.
+- **Tests.** New contract tests in `bench-lane-contracts.test.ts`: every supported zod case builds both a compiled
+  `validate` and a compiled `safeParse`; the typebox map imports only `typebox` / `typebox/compile`.
+- **Image.** Built locally: the session's GHCR token was refused (`403` on login), so the image could not be pulled
+  or pushed from here.
