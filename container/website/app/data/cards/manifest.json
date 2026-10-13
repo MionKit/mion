@@ -1,6 +1,6 @@
 {
   "drizzle-type-cost": {
-    "hash": "d1bb03c6dd6831d3d826a015f0b9fa77f8b1b6f3b47e051d0146eeee5d208898",
+    "hash": "cbf9a266c4113f102a615b9f82e3e120c371532696c61612c8c5d38b0d3df62a",
     "sources": [
       "tools/code-card/card.css",
       "tools/code-card/cards/drizzle-type-cost.vue",
@@ -13,8 +13,11 @@
       "tools/code-card/components/CardFrame.vue",
       "tools/code-card/components/CardLane.vue",
       "tools/code-card/components/CardLanes.vue",
+      "tools/code-card/components/CardLoop.vue",
+      "tools/code-card/components/CardRoundTrip.vue",
       "tools/code-card/components/CardTile.vue",
       "tools/code-card/components/CardTiles.vue",
+      "tools/code-card/components/CardValidationCall.vue",
       "tools/code-card/components/CardWindow.vue",
       "tools/code-card/components/shared.ts",
       "tools/code-card/fonts/OFL-Inter.txt",
@@ -26,7 +29,7 @@
       "tools/code-card/src/render.ts"
     ],
     "outputs": {
-      "container/website/app/assets/css/code-card.css": "34a96fd8c8c477fc5523ccd1bd4b0a1aa0333aa8e49bede61a05035045c9d967",
+      "container/website/app/assets/css/code-card.css": "f2182d24510225bcebacca3c227f35fc1db359c0b68a32e8cea05d899556249d",
       "container/website/app/data/cards/drizzle-type-cost.html": "1d900f330e18eba895fdac51dc6187cd155083baba756ba652c3bf6d0a229423",
       "container/website/app/utils/codeCardPlayer.ts": "db3f82fc47d3baad9f33dc386a742ab27ba22fb23d561275851df9d1612430d3",
       "container/website/public/fonts/code-card/OFL-Inter.txt": "338c094fbd0de0c0817e6ed12bdca4ed8e1dbc7f4ee19102cda181c0648eff93",
@@ -37,7 +40,7 @@
     }
   },
   "jit-wall": {
-    "hash": "db6b24ceca766d644525622bcb13b95cb44e9f7fd4c6a8556abf67aa350e8c3f",
+    "hash": "bd5e45b8aadab9b44dfba26a9e32dd30da724f9d6cbdaeb8c63c15d13f2434b5",
     "sources": [
       "tools/code-card/card.css",
       "tools/code-card/cards/jit-wall.vue",
@@ -50,8 +53,11 @@
       "tools/code-card/components/CardFrame.vue",
       "tools/code-card/components/CardLane.vue",
       "tools/code-card/components/CardLanes.vue",
+      "tools/code-card/components/CardLoop.vue",
+      "tools/code-card/components/CardRoundTrip.vue",
       "tools/code-card/components/CardTile.vue",
       "tools/code-card/components/CardTiles.vue",
+      "tools/code-card/components/CardValidationCall.vue",
       "tools/code-card/components/CardWindow.vue",
       "tools/code-card/components/shared.ts",
       "tools/code-card/fonts/OFL-Inter.txt",
@@ -63,8 +69,88 @@
       "tools/code-card/src/render.ts"
     ],
     "outputs": {
-      "container/website/app/assets/css/code-card.css": "34a96fd8c8c477fc5523ccd1bd4b0a1aa0333aa8e49bede61a05035045c9d967",
+      "container/website/app/assets/css/code-card.css": "f2182d24510225bcebacca3c227f35fc1db359c0b68a32e8cea05d899556249d",
       "container/website/app/data/cards/jit-wall.html": "5d5f8f8d53adb384603bf4e7191cb5ddb77bbf008956e4c7cd4b29114d9851c1",
+      "container/website/app/utils/codeCardPlayer.ts": "db3f82fc47d3baad9f33dc386a742ab27ba22fb23d561275851df9d1612430d3",
+      "container/website/public/fonts/code-card/OFL-Inter.txt": "338c094fbd0de0c0817e6ed12bdca4ed8e1dbc7f4ee19102cda181c0648eff93",
+      "container/website/public/fonts/code-card/OFL-JetBrainsMono.txt": "247d10ed1c1c0039ddc98533e948967135e7175eec6d410dd9ab2b73a15077f7",
+      "container/website/public/fonts/code-card/inter.woff2": "ed9c26a1b7e0647c9976a883f26238301f01b1e516a174c2b5dfd9d40ba04f9b",
+      "container/website/public/fonts/code-card/jetbrains-mono-italic.woff2": "e107e9a065e82aa3f38fe4bb50753b97ddbebfad94c4b060e9b06f9d4bb93d3a",
+      "container/website/public/fonts/code-card/jetbrains-mono.woff2": "6c30cbafe5f844f66cd6ee70e9f7e85c5d7b5b5b8408d0c9253a6513df0ef064"
+    }
+  },
+  "rpc-client-validation": {
+    "hash": "8aff9d96f2f74f3a523a8387b774e2b3f1398b7828914446c3fbc3ccc45baf73",
+    "sources": [
+      "tools/code-card/card.css",
+      "tools/code-card/cards/rpc-client-validation.vue",
+      "tools/code-card/components/CardBar.vue",
+      "tools/code-card/components/CardBars.vue",
+      "tools/code-card/components/CardCode.vue",
+      "tools/code-card/components/CardDiff.vue",
+      "tools/code-card/components/CardFact.vue",
+      "tools/code-card/components/CardFacts.vue",
+      "tools/code-card/components/CardFrame.vue",
+      "tools/code-card/components/CardLane.vue",
+      "tools/code-card/components/CardLanes.vue",
+      "tools/code-card/components/CardLoop.vue",
+      "tools/code-card/components/CardRoundTrip.vue",
+      "tools/code-card/components/CardTile.vue",
+      "tools/code-card/components/CardTiles.vue",
+      "tools/code-card/components/CardValidationCall.vue",
+      "tools/code-card/components/CardWindow.vue",
+      "tools/code-card/components/shared.ts",
+      "tools/code-card/fonts/OFL-Inter.txt",
+      "tools/code-card/fonts/OFL-JetBrainsMono.txt",
+      "tools/code-card/fonts/inter.woff2",
+      "tools/code-card/fonts/jetbrains-mono-italic.woff2",
+      "tools/code-card/fonts/jetbrains-mono.woff2",
+      "tools/code-card/player.ts",
+      "tools/code-card/src/render.ts"
+    ],
+    "outputs": {
+      "container/website/app/assets/css/code-card.css": "f2182d24510225bcebacca3c227f35fc1db359c0b68a32e8cea05d899556249d",
+      "container/website/app/data/cards/rpc-client-validation.html": "38806a54dd6ae87f53a06a00aef991c7c8e36e7c06e599ebf99d73adaae8b5ee",
+      "container/website/app/utils/codeCardPlayer.ts": "db3f82fc47d3baad9f33dc386a742ab27ba22fb23d561275851df9d1612430d3",
+      "container/website/public/fonts/code-card/OFL-Inter.txt": "338c094fbd0de0c0817e6ed12bdca4ed8e1dbc7f4ee19102cda181c0648eff93",
+      "container/website/public/fonts/code-card/OFL-JetBrainsMono.txt": "247d10ed1c1c0039ddc98533e948967135e7175eec6d410dd9ab2b73a15077f7",
+      "container/website/public/fonts/code-card/inter.woff2": "ed9c26a1b7e0647c9976a883f26238301f01b1e516a174c2b5dfd9d40ba04f9b",
+      "container/website/public/fonts/code-card/jetbrains-mono-italic.woff2": "e107e9a065e82aa3f38fe4bb50753b97ddbebfad94c4b060e9b06f9d4bb93d3a",
+      "container/website/public/fonts/code-card/jetbrains-mono.woff2": "6c30cbafe5f844f66cd6ee70e9f7e85c5d7b5b5b8408d0c9253a6513df0ef064"
+    }
+  },
+  "rpc-json-round-trip": {
+    "hash": "f62b6fc7cab162da23d78b1153d8526232b16aae5b506fffa60748fdbddbd08b",
+    "sources": [
+      "tools/code-card/card.css",
+      "tools/code-card/cards/rpc-json-round-trip.vue",
+      "tools/code-card/components/CardBar.vue",
+      "tools/code-card/components/CardBars.vue",
+      "tools/code-card/components/CardCode.vue",
+      "tools/code-card/components/CardDiff.vue",
+      "tools/code-card/components/CardFact.vue",
+      "tools/code-card/components/CardFacts.vue",
+      "tools/code-card/components/CardFrame.vue",
+      "tools/code-card/components/CardLane.vue",
+      "tools/code-card/components/CardLanes.vue",
+      "tools/code-card/components/CardLoop.vue",
+      "tools/code-card/components/CardRoundTrip.vue",
+      "tools/code-card/components/CardTile.vue",
+      "tools/code-card/components/CardTiles.vue",
+      "tools/code-card/components/CardValidationCall.vue",
+      "tools/code-card/components/CardWindow.vue",
+      "tools/code-card/components/shared.ts",
+      "tools/code-card/fonts/OFL-Inter.txt",
+      "tools/code-card/fonts/OFL-JetBrainsMono.txt",
+      "tools/code-card/fonts/inter.woff2",
+      "tools/code-card/fonts/jetbrains-mono-italic.woff2",
+      "tools/code-card/fonts/jetbrains-mono.woff2",
+      "tools/code-card/player.ts",
+      "tools/code-card/src/render.ts"
+    ],
+    "outputs": {
+      "container/website/app/assets/css/code-card.css": "f2182d24510225bcebacca3c227f35fc1db359c0b68a32e8cea05d899556249d",
+      "container/website/app/data/cards/rpc-json-round-trip.html": "735dd7e62e6cb97cebd4238e72824441a2b6decb9c47801b560956fc16f3c5bf",
       "container/website/app/utils/codeCardPlayer.ts": "db3f82fc47d3baad9f33dc386a742ab27ba22fb23d561275851df9d1612430d3",
       "container/website/public/fonts/code-card/OFL-Inter.txt": "338c094fbd0de0c0817e6ed12bdca4ed8e1dbc7f4ee19102cda181c0648eff93",
       "container/website/public/fonts/code-card/OFL-JetBrainsMono.txt": "247d10ed1c1c0039ddc98533e948967135e7175eec6d410dd9ab2b73a15077f7",

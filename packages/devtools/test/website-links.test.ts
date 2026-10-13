@@ -174,13 +174,15 @@ const ANCHOR_LINK = /(?:\]\(|to="|href=")((?!https?:)[^\s)"']*#[^\s)"']+)/g;
 const HEADING = /^\s*#{1,6}\s+(.*)$/;
 
 /**
- * The id Nuxt Content gives a heading: its rendered text, lowercased, with everything
+ * The id Nuxt Content gives a heading: its rendered text (link and `[words]{.class}`
+ * span markup dropped), lowercased, with everything
  * that is not a letter, a digit or a space dropped and the spaces turned into dashes.
  */
 function headingSlug(text: string): string {
   return text
     .replace(/`/g, '')
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\[([^\]]*)\]\{[^}]*\}/g, '$1')
     .replace(/\*\*|\*|__|_/g, '')
     .replace(/<[^>]*>/g, '')
     .trim()
@@ -245,7 +247,7 @@ describe('website-anchor-links', () => {
 
   it('finds the headings and anchor links it claims to check', () => {
     expect(headings.get('/rpc/server/routes')?.has('request-size')).toBe(true);
-    // A heading nested inside an MDC card still publishes an id.
+    // A heading nested inside an MDC component, its words in an MDC span, still publishes its plain-text id.
     expect(headings.get('/rpc/introduction/about-mion-rpc')?.has('rpc-like')).toBe(true);
     expect(links.length).toBeGreaterThan(20);
     expect(links.some(({target}) => target.startsWith('#'))).toBe(true);

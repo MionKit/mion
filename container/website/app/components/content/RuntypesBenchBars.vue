@@ -251,8 +251,8 @@ onMounted(async () => {
 .runtypes-bench-note {
   padding: 1rem 1.25rem;
   border: 1px solid var(--ui-border);
-  border-radius: 0.75rem;
-  background: color-mix(in srgb, var(--ui-text-muted) 5%, transparent);
+  border-radius: var(--mion-panel-radius);
+  background: var(--mion-panel-bg);
   font-family: var(--font-mono, monospace);
   font-size: 0.85rem;
   color: var(--ui-text-muted);
@@ -310,8 +310,8 @@ onMounted(async () => {
 .runtypes-bench-card {
   padding: 1rem 1.25rem;
   border: 1px solid var(--ui-border);
-  border-radius: 0.75rem;
-  background: color-mix(in srgb, var(--ui-text-muted) 5%, transparent);
+  border-radius: var(--mion-panel-radius);
+  background: var(--mion-panel-bg);
 }
 
 .runtypes-bench-chart {

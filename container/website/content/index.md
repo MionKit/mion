@@ -6,21 +6,13 @@ seo:
 pageClass: home-page
 ---
 
-::gradient-bg
----
-angle: 70
-opacity: 0.2
-blur: 150px
----
-::
-
 ::div{data-site="rpc" class="home-subsite"}
   :::u-page-section
   ---
-  class: home-features home-subsite-card
+  class: home-features home-subsite-block
   ---
   #title
-  RPC framework<br>Full stack APIs at the speed of light
+  [RPC framework]{.title-tone}<br>Full stack APIs at the speed of light
 
   #body
     ::::div{class="home-intro"}
@@ -60,12 +52,12 @@ blur: 150px
 ::div{data-site="runtypes" class="home-subsite"}
   :::u-page-section
   ---
-  class: home-features home-subsite-card
+  class: home-features home-subsite-block
   ---
   #body
     ::::div{class="home-split home-split--top"}
       :::::div{class="home-pitch"}
-      ## RunTypes<br>Bringing TypeScript to runtime
+      ## [RunTypes]{.title-tone}<br>Bringing TypeScript to runtime
 
       Everything is generated at compile time, derived from your types:
 
@@ -97,12 +89,12 @@ blur: 150px
 ::div{data-site="benchmarks" class="home-subsite"}
   :::u-page-section
   ---
-  class: home-features home-subsite-card
+  class: home-features home-subsite-block
   ---
   #body
     ::::div{class="home-split home-split--top"}
       :::::div{class="home-pitch"}
-      ## Performance from the ground up!
+      ## [Performance]{.title-tone} from the ground up!
 
       Speed and memory efficiency are a design goal, measured from the first commit. Validation and the JSON round trip are compiled at build time, so your app imports no runtime library for them: smaller bundles, faster cold starts and less memory, which makes mion a natural fit for edge and serverless runtimes. The RPC server is benchmarked against express, fastify, hono and friends, and RunTypes against the fastest validators. Every number is generated on deploy from the code in this repository.
 
@@ -127,12 +119,12 @@ blur: 150px
 ::div{data-site="runtypes" class="home-subsite"}
   :::u-page-section
   ---
-  class: home-features home-subsite-card
+  class: home-features home-subsite-block
   ---
   #body
     ::::div{class="home-split home-split--top"}
       :::::div{class="home-pitch"}
-      ## Tested to the highest standard
+      ## [Tested]{.title-tone} to the highest standard
 
       Every function mion generates for you is tested, and so is the build step that writes them. The suite covers validation, JSON round trip, mock data and reflection, on every type shape we could think of.
       :::::

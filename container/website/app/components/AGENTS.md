@@ -23,7 +23,7 @@ Vue components the docs pages and layouts use. Read before adding or editing a c
     Library list + icons: `app/utils/replacedLibraries.ts`.
   - `PlatformTiles` (rpc home): linked platform logos from `public/platforms/`, a `dark` twin for black-ink logos.
   - Also: `StatTiles`, `DiagnosticCatalog`, `DetailPanel`, `RealWorldScenario`, `RuntypesPlayground`, `SlidedTitle`,
-    `TypeSafeAnimation`, `StylishList`, `HoverList`, `MionType`, `GradientBg`, `Spacer`,
+    `TypeSafeAnimation`, `StylishList`, `HoverList`, `MionType`, `Spacer`,
     `AppHeaderLogo`, `MionLogo`.
 - Docus overrides live beside Docus' own paths: `app/components/app/`, `app/components/docs/`.
 - `app/components/global/`: the `mermaid` component.

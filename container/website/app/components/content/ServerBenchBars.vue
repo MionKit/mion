@@ -132,8 +132,8 @@ onMounted(async () => {
   margin: 0.75rem 0 1.5rem;
   padding: 1rem 1.25rem;
   border: 1px solid var(--ui-border);
-  border-radius: 0.75rem;
-  background: color-mix(in srgb, var(--ui-text-muted) 5%, transparent);
+  border-radius: var(--mion-panel-radius);
+  background: var(--mion-panel-bg);
 }
 
 .server-bench-bars-note {

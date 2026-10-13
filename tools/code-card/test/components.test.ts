@@ -111,4 +111,46 @@ describe('code card components', () => {
     await expect(renderCard(() => lane({}))).rejects.toThrow('inside a CardLanes');
     await expect(renderCard(() => h(component('CardLanes'), {gate: ' '}))).rejects.toThrow('needs a name');
   });
+
+  it('CardFrame kind mini: a plain panel, refusing a footer or badge', async () => {
+    expect(await renderCard(() => frame(() => null, {kind: 'mini'}))).toMatch(/^<div class="code-card cc-kind-mini"/);
+    await expect(renderCard(() => frame(() => null, {kind: 'mini', footer: 'Foot'}))).rejects.toThrow('no footer or badge');
+  });
+
+  it('CardLoop + CardRoundTrip: items stacked with their index, the still frame in the still item, beats timed by --cc-at', async () => {
+    const values = [
+      {type: 'Set<string>', wire: '["a"]', lost: 'empty {}'},
+      {type: 'Date', wire: '"2024-02-02T02:02:02.000Z"'},
+    ];
+    const loop = (props: Record<string, unknown>) =>
+      renderCard(() => frame(() => h(component('CardLoop'), props, {default: ({item}: {item: object}) => h(component('CardRoundTrip'), item)})));
+    const html = await loop({items: values, hold: '3s', still: 1});
+    // the loop takes one entrance step after the title
+    expect(sequence(html)).toEqual([0, 1]);
+    expect(html).toContain('--cc-loop-n:2;--cc-loop-hold:3s;--cc-loop-t:0.95;');
+    expect([...html.matchAll(/--cc-loop-i:(\d+)/g)].map((match) => Number(match[1]))).toEqual([0, 1]);
+    expect(html).toContain('<b>✓</b>Set&lt;string&gt;');
+    // the second value has no `lost`, so no plain-JSON line
+    expect([...html.matchAll(/class="cc-rt-lost"/g)]).toHaveLength(1);
+    expect(html).toContain('data-cc-at="grow" style="--cc-at:0.04;--cc-until:0.4;"');
+    await expect(loop({items: values.slice(0, 1)})).rejects.toThrow('2 to 8 items, got 1');
+    await expect(loop({items: values, still: 2})).rejects.toThrow('still 2 is not an item index');
+    await expect(renderCard(() => h(component('CardRoundTrip'), {type: 'Date', wire: ' '}))).rejects.toThrow('needs a wire');
+  });
+
+  it('CardValidationCall: call, client check, server check, typed result; a stopped call ends the track at the client', async () => {
+    const call = (props: Record<string, unknown>) =>
+      renderCard(() => h(component('CardValidationCall'), {call: 'getUser(1)', client: 'valid', server: 'route runs', ...props}));
+    const passed = await call({result: 'User'});
+    expect(passed).toContain('<b>✓</b>valid');
+    expect(passed).toContain('data-cc-at="grow" style="--cc-at:0.04;--cc-until:0.4;"');
+    expect(passed).toContain('class="cc-vc-result"');
+    const stopped = await call({stopped: true, client: 'validation-error', server: 'no request sent'});
+    expect(stopped).toContain('cc-vc-stopped');
+    expect(stopped).toContain('<b>✕</b>validation-error');
+    expect(stopped).toContain('--cc-at:0.04;--cc-until:0.22;');
+    expect(stopped).not.toContain('cc-vc-result');
+    await expect(call({stopped: true, result: 'User'})).rejects.toThrow('has no result');
+    await expect(call({server: ' '})).rejects.toThrow('needs a server');
+  });
 });
