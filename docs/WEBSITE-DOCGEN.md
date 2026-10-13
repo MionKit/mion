@@ -35,19 +35,19 @@ refuses to ship a page whose benchmark would render empty.
 - **The root landing's summary** — [HomeBenchTable.vue](../container/website/app/components/content/HomeBenchTable.vue)
   (`:home-bench-table{servers="servers-hello-world" validation="validation"}`) reads the
   hello-world server rows and the validation index, and shows the fastest few of each
-  (the validation number is the same geometric mean as the validation page's "Overall"
+  (the validation number is the same geometric mean as the is-valid page's "Overall"
   row, from [benchAggregate.ts](../container/website/app/utils/benchAggregate.ts)).
   `check-static.mjs` gates both datasets for it like it does for the pages.
 
 | Page                                | `bench=` slug           | Produced by                                    |
 | ----------------------------------- | ----------------------- | ---------------------------------------------- |
-| Validation                          | `validation`            | `gen-docs.mjs` (from `pnpm miondevx bench`)          |
-| Validation Formats                  | `validation-formats`    | `gen-docs.mjs`                                  |
-| Validation Errors (+ Formats)       | `validation` / `validation-formats`, `metric="validationErrors"` | `gen-docs.mjs` |
+| Is Valid                            | `validation`            | `gen-docs.mjs` (from `pnpm miondevx bench`)          |
+| Is Valid Formats                    | `validation-formats`    | `gen-docs.mjs`                                  |
+| Get Errors (+ Formats)              | `validation` / `validation-formats`, `metric="validationErrors"` | `gen-docs.mjs` |
 | Serialization                       | `serialization`         | `gen-serialization.mjs`                         |
 | Type Checking                       | `typecost`              | `gen-docs.mjs` (from `pnpm miondevx bench typecost`) |
 
-Two pages can share one dataset: the validation and validation-errors pages read the same
+Two pages can share one dataset: the is-valid and get-errors pages read the same
 `validation` index and pin a different `metric`.
 
 Two datasets are still generated but no page renders them (2026-09): `compiletime` (the
@@ -112,7 +112,7 @@ Keep these stable — they are the boundary between the generators and the UI.
   "hasSamples": true,            // per-case detail carries a shared `samplesCode` block
   "showStrategy": false,         // hide the comptime/jit/interpreted column tags
   "hideAggregate": true,         // hide the geometric-mean summary table
-  "metrics": [{"key": "validate", "label": "Is-valid", "metricLabel": "…", "cellHint": "…", "lowerBetter": false}],
+  "metrics": [{"key": "validate", "label": "Is valid", "metricLabel": "…", "cellHint": "…", "lowerBetter": false}],
   "competitors": ["mion", "zod", "typebox", "ajv"],
   "versions": {"zod": "4.6.3"},
   "meta": {"generatedAt": "…", "os": "…", "cpu": "…", "cores": 4, "node": "…", "typescript": "…"},

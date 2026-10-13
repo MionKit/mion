@@ -115,7 +115,7 @@ describe('website-internal-links', () => {
       '/rpc/server/routes',
       '/runtypes/guide/validation',
       '/benchmarks/rpc/hello-world',
-      '/benchmarks/runtypes/validation',
+      '/benchmarks/runtypes/is-valid',
     ]) {
       expect(routes.has(route), route).toBe(true);
     }

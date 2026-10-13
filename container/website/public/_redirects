@@ -49,9 +49,9 @@
 /benchmarks/payload-sizes     /benchmarks/rpc/payload-sizes     301
 # The compile-time page kept only its type-checking half and was renamed for it, and
 # the correctness page is parked (container/website/parked/) until its audit lane runs
-# on deploy again; its nearest live page is the validation one.
+# on deploy again; its nearest live page is the is-valid one.
 /benchmarks/runtypes/compiletime   /benchmarks/runtypes/type-checking  301
-/benchmarks/runtypes/correctness   /benchmarks/runtypes/validation     301
+/benchmarks/runtypes/correctness   /benchmarks/runtypes/is-valid       301
 # middleFns were renamed to middleware (2026-09).
 /rpc/server/middle-fns  /rpc/server/middleware  301
 # The RunTypes guide split into sections (2026-09): Type Formats became its own
