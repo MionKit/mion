@@ -1,6 +1,5 @@
 <script setup lang="ts">
-// One route call, top to bottom: the call, the client's check, the server's check, then what comes back.
-// A failed client check stops it: the server row stays empty. Inside a CardLoop the beats play in turn.
+// One route call: call, client check, server check, result; a failed client check leaves the server row empty.
 const props = withDefaults(
   defineProps<{
     /** Code, one line: the call as written in the client. */

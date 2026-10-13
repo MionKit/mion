@@ -600,7 +600,7 @@
   opacity: 0.55;
 }
 
-/* mini: a plain panel for a ~350px slot. Sized at 350px wide (never larger), in the site's panel colours when it has them */
+/* mini: a plain panel for a ~350px slot, in the site's panel colours when it has them */
 .code-card.cc-kind-mini {
   --mini-bg: var(--mion-panel-bg, var(--code-bg));
   --mini-line: var(--ui-border, #ffffff1c);

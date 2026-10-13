@@ -173,11 +173,7 @@ const ANCHOR_LINK = /(?:\]\(|to="|href=")((?!https?:)[^\s)"']*#[^\s)"']+)/g;
 // markdown is indented by its nesting, and those headings still get an id.
 const HEADING = /^\s*#{1,6}\s+(.*)$/;
 
-/**
- * The id Nuxt Content gives a heading: its rendered text (link and `[words]{.class}`
- * span markup dropped), lowercased, with everything
- * that is not a letter, a digit or a space dropped and the spaces turned into dashes.
- */
+/** The id Nuxt Content gives a heading, slugged from its rendered text. */
 function headingSlug(text: string): string {
   return text
     .replace(/`/g, '')

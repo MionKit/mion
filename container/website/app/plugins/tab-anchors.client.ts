@@ -1,6 +1,4 @@
-// A link to a heading inside a hidden `::tabs` panel (the Server / Client tabs of a
-// middleware page) opens that panel's tab, then scrolls to the heading. Without it the
-// browser lands on a hidden element and stays at the top of the page.
+// A link to a heading in a hidden `::tabs` panel opens its tab first, or the browser stays at the page top.
 export default defineNuxtPlugin((nuxtApp) => {
   const reveal = (hash: string): void => {
     if (!hash) return;
