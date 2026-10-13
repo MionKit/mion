@@ -59,8 +59,8 @@ How the Nuxt app wires the three subsites and how colour works.
   brand + Nuxt UI vars on that element (the `:root` ones Tailwind declares already resolved there).
 - Shared `app/` tree carries NO site colour. Use `var(--ui-primary)`, `var(--color-brand-N)`, `var(--site-accent)`,
   `color-mix(in srgb, var(--color-brand-500) N%, transparent)` (washes), `hsl(var(--site-hue) …)` (hues).
-- Banned in `app/`: hex, `rgba(138, 168, 94, …)`, hue constants, `var(--x, #fallback)` (a fallback = hidden site
-  colour). `packages/devtools/test/website-theme-contracts.test.ts` fails on these + on a theme.css missing a token.
+- Raw colour in `app/` (hex, literal `rgb()` / `hsl()`, named) ONLY as a custom property in a `mion.css` `:root`,
+  `:root.dark` or `:root.light` block, never `var(--x, #fallback)`. Enforced by `website-theme-contracts.test.ts`.
 - New ramp: keep the mion palette's OKLCH lightness + chroma per shade, change only hue (equal light/dark contrast).
   Take the rpc ramp's `oklch(L C H)` per shade, swap the hue, convert to sRGB hex (lower C if out of gamut).
   `--site-accent` = accent row at the new hue; `--site-gradient-from` / `-to` = pastel tints near new 300 / 100;
@@ -76,8 +76,8 @@ How the Nuxt app wires the three subsites and how colour works.
   Off under `prefers-reduced-motion` or without browser support.
 - Every page template wraps content in a `.site-page` with `data-site`: a page paints in its subsite colours from its
   own markup (no script-set class).
-- Mermaid reads `--site-accent` at mount. A diagram's `style X color:var(--site-accent)` lines get the computed value
-  substituted before render (mermaid wants literal colours).
+- Mermaid reads `--site-accent` + `--mion-diagram-*` at mount. A diagram's `style X color:var(--site-accent)` lines
+  get the computed value substituted before render (mermaid wants literal colours).
 - Home page titles: every section `h2` (UPageSection title slot, prose `## …` in `.home-features`) runs the animated
   `--site-title-gradient`. Two-tone: `[lead words]{.title-tone}` paints that part a solid pale tint.
   `h3` titles: plain `--ui-text-highlighted`.

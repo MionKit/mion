@@ -14,6 +14,9 @@
 //     files and the landing pages.
 //   - The animated title gradient sits on the section h2 titles, never on the card
 //     h3 titles inside them (the inversion this scheme landed with).
+//   - No raw colour in app/ outside the token layer: custom properties declared in
+//     mion.css's :root, :root.dark and :root.light blocks. Everything else reads a token,
+//     so one file shows (and changes) every colour the shared tree paints.
 
 import {describe, it, expect} from 'vitest';
 import {existsSync, readdirSync, readFileSync, statSync} from 'node:fs';
@@ -50,6 +53,87 @@ function walk(dir: string, keep: (name: string) => boolean, skipDirs: string[] =
 }
 
 const hex = (value: string): boolean => /^#[0-9a-f]{6}$/i.test(value);
+
+// Raw colour scan: a colour value in app/ lives only in mion.css's root token blocks.
+const NAMED_COLOURS = `aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue blueviolet brown
+  burlywood cadetblue chartreuse chocolate coral cornflowerblue cornsilk crimson cyan darkblue darkcyan darkgoldenrod darkgray
+  darkgreen darkgrey darkkhaki darkmagenta darkolivegreen darkorange darkorchid darkred darksalmon darkseagreen darkslateblue
+  darkslategray darkslategrey darkturquoise darkviolet deeppink deepskyblue dimgray dimgrey dodgerblue firebrick floralwhite
+  forestgreen fuchsia gainsboro ghostwhite gold goldenrod gray green greenyellow grey honeydew hotpink indianred indigo ivory
+  khaki lavender lavenderblush lawngreen lemonchiffon lightblue lightcoral lightcyan lightgoldenrodyellow lightgray lightgreen
+  lightgrey lightpink lightsalmon lightseagreen lightskyblue lightslategray lightslategrey lightsteelblue lightyellow lime
+  limegreen linen magenta maroon mediumaquamarine mediumblue mediumorchid mediumpurple mediumseagreen mediumslateblue
+  mediumspringgreen mediumturquoise mediumvioletred midnightblue mintcream mistyrose moccasin navajowhite navy oldlace olive
+  olivedrab orange orangered orchid palegoldenrod palegreen paleturquoise palevioletred papayawhip peru pink plum powderblue
+  purple rebeccapurple red rosybrown royalblue saddlebrown salmon sandybrown seagreen seashell sienna silver skyblue slateblue
+  slategray slategrey snow springgreen steelblue tan teal thistle tomato turquoise violet wheat white whitesmoke yellow
+  yellowgreen`.split(/\s+/);
+const HEX_COLOUR = /(?<![&\w])#(?:[0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{3,4})(?![\w-])/gi;
+const COLOUR_FN = /\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\(/gi;
+const NAMED_COLOUR = new RegExp(`(?<![\\w.#@$-])(?:${NAMED_COLOURS.join('|')})(?![\\w-])`, 'gi');
+// `prop: value` up to `;` or `}`: a selector's `a:hover {` ends at `{` and never matches.
+const DECLARATION = /(?<=[{;]\s*)-{0,2}[a-z][\w-]*\s*:(?!:)([^;{}]*)(?=[;}])/gi;
+const TOKEN_BLOCK = /^:root(?:\.dark|\.light)? \{[^{}]*\}/gm;
+const VAR_FALLBACK = /var\(\s*--[\w-]+\s*,/g;
+
+// Same length, newlines kept, so offsets and line numbers survive.
+const blank = (text: string): string => text.replace(/[^\n]/g, ' ');
+
+const stripComments = (source: string): string =>
+  source
+    .replace(/\/\*[\s\S]*?\*\//g, blank)
+    .replace(/<!--[\s\S]*?-->/g, blank)
+    .replace(/(^|[^:\w'"`])(\/\/.*)$/gm, (_, lead: string, comment: string) => lead + blank(comment));
+
+// The text inside the parens opening at `open`, up to the matching one or the end of the line.
+function callArgs(text: string, open: number): string {
+  let depth = 0;
+  for (let i = open; i < text.length; i++) {
+    if (text[i] === '\n') return text.slice(open + 1, i);
+    if (text[i] === '(') depth++;
+    else if (text[i] === ')' && --depth === 0) return text.slice(open + 1, i);
+  }
+  return text.slice(open + 1);
+}
+
+// Hex colours and colour functions none of whose channels reads a var(): hsl(var(--site-hue) 50% 50%) is a token hue.
+const literalOffsets = (text: string): number[] => [
+  ...[...text.matchAll(HEX_COLOUR)].map((m) => m.index),
+  ...[...text.matchAll(COLOUR_FN)].filter((m) => !callArgs(text, m.index + m[0].length - 1).includes('var(')).map((m) => m.index),
+];
+
+// Named colours in a CSS value; one inside a string (a data: URI mask, `content`) is not a colour value.
+const namedOffsets = (value: string): number[] =>
+  [...value.replace(/(['"])[\s\S]*?\1/g, blank).matchAll(NAMED_COLOUR)].map((m) => m.index);
+
+// 1-based lines of `source` holding a raw colour outside the token layer, or a var() fallback to one anywhere.
+function rawColourLines(source: string, kind: 'css' | 'vue' | 'ts', tokenLayer = false): number[] {
+  const code = stripComments(source);
+  let css = kind === 'css' ? code : blank(code);
+  if (kind === 'vue')
+    for (const m of code.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)) {
+      const start = m.index + m[0].length - '</style>'.length - m[1].length;
+      css = css.slice(0, start) + m[1] + css.slice(start + m[1].length);
+    }
+  const tokenBlocks = tokenLayer ? [...code.matchAll(TOKEN_BLOCK)].map((m) => [m.index, m.index + m[0].length]) : [];
+  const lineOf = (offset: number): number => code.slice(0, offset).split('\n').length;
+  const lineText = (offset: number): string => code.slice(code.lastIndexOf('\n', offset) + 1).split('\n')[0];
+  const isToken = (offset: number): boolean =>
+    tokenBlocks.some(([start, end]) => offset > start && offset < end) && /^\s*--[\w-]+\s*:/.test(lineText(offset));
+  const raw = literalOffsets(code);
+  for (const m of css.matchAll(DECLARATION)) {
+    const valueStart = m.index + m[0].length - m[1].length;
+    raw.push(...namedOffsets(m[1]).map((offset) => valueStart + offset));
+  }
+  const fallbacks = [...code.matchAll(VAR_FALLBACK)]
+    .filter((m) => {
+      const fallback = callArgs(code, m.index + 3).replace(/^[^,]*,/, '');
+      return literalOffsets(fallback).length + namedOffsets(fallback).length > 0;
+    })
+    .map((m) => m.index);
+  const lines = [...raw.filter((offset) => !isToken(offset)), ...fallbacks].map(lineOf);
+  return [...new Set(lines)].sort((a, b) => a - b);
+}
 
 describe('website-no-site-colour', () => {
   // The olive green in every form it was ever written, plus the Nuxt green mermaid
@@ -122,6 +206,77 @@ describe('website-no-site-colour', () => {
     const animated = rules.filter(([, , body]) => /animation:\s*gradient-flow/.test(body)).map(([, selector]) => selector.trim());
     expect(animated.some((selector) => selector.startsWith("h2[data-slot='title']"))).toBe(true);
     expect(animated.filter((selector) => /\bh3\b/.test(selector))).toEqual([]);
+  });
+});
+
+describe('website-colour-tokens', () => {
+  const MION_CSS_REL = 'container/website/app/assets/css/mion.css';
+  const FILES = walk(join(WEBSITE, 'app'), (name) => /\.(css|vue|ts)$/.test(name), ['data', 'go-generated', '.vendor']);
+  // `pnpm miondevx card export` writes these, stamped on their first line
+  const generated = (rel: string): boolean =>
+    /never edit by hand/.test(readFileSync(join(REPO_ROOT, rel), 'utf8').split('\n')[0]!);
+  const SCANNED = FILES.filter((rel) => !generated(rel));
+  const flagged = (source: string, kind: 'css' | 'vue' | 'ts' = 'css', tokenLayer = false): boolean =>
+    rawColourLines(source, kind, tokenLayer).length > 0;
+
+  it('scans every hand-written app file, skipping only the generated card exports', () => {
+    expect(FILES.filter(generated).sort()).toEqual([
+      'container/website/app/assets/css/code-card.css',
+      'container/website/app/utils/codeCardPlayer.ts',
+    ]);
+    for (const rel of [
+      MION_CSS_REL,
+      'container/website/app/components/content/BenchTable.vue',
+      'container/website/app/components/global/mermaid.vue',
+      'container/website/app/components/playground/PlaygroundStage.client.vue',
+      'container/website/app/playground/engine.ts',
+    ])
+      expect(SCANNED).toContain(rel);
+  });
+
+  it('keeps every raw colour in the mion.css token layer', () => {
+    const offenders = SCANNED.flatMap((rel) => {
+      const source = readFileSync(join(REPO_ROOT, rel), 'utf8');
+      const lines = source.split('\n');
+      const kind = rel.endsWith('.css') ? 'css' : rel.endsWith('.vue') ? 'vue' : 'ts';
+      return rawColourLines(source, kind, rel === MION_CSS_REL).map((n) => `${rel}:${n}: ${lines[n - 1]!.trim().slice(0, 100)}`);
+    });
+    expect(offenders, "declare the colour as a token in mion.css's :root / :root.dark / :root.light, read it with var()").toEqual(
+      []
+    );
+  });
+
+  it('flags raw colours and literal fallbacks, never token reads', () => {
+    for (const source of [
+      'a { color: #fff; }',
+      'a { box-shadow: 0 0 2px rgba(0, 0, 0, 0.5); }',
+      'a { color: hsl(0deg 70% 45%); }',
+      'a {\n  color: white;\n}',
+      'a { background: linear-gradient(red, var(--x)); }',
+      'a { color: var(--ui-text, #fff); }',
+    ])
+      expect(flagged(source), source).toBe(true);
+    expect(flagged("const bg = '#1e1e1e';", 'ts')).toBe(true);
+    expect(flagged('<template><path fill="#007acc" /></template>', 'vue')).toBe(true);
+    expect(flagged('<style>\na { color: black; }\n</style>', 'vue')).toBe(true);
+    // the token layer: a custom property in a root block, never a plain property, another selector or a fallback
+    expect(flagged(':root.dark {\n  --x: #fff;\n}', 'css', true)).toBe(false);
+    expect(flagged(':root.dark {\n  --x: #fff;\n}')).toBe(true);
+    expect(flagged(':root.dark {\n  color: #fff;\n}', 'css', true)).toBe(true);
+    expect(flagged(':root.dark header {\n  --x: #fff;\n}', 'css', true)).toBe(true);
+    expect(flagged(':root {\n  --x: var(--y, #fff);\n}', 'css', true)).toBe(true);
+    for (const source of [
+      'a { color: var(--ui-primary); }',
+      'a { background: color-mix(in srgb, var(--color-brand-500) 12%, transparent); }',
+      'a { color: hsl(var(--site-hue) var(--mion-pastel-s) var(--mion-pastel-l)); }',
+      'a { color: hsl(198 var(--mion-pastel-s) var(--mion-pastel-l)); }',
+      'a { white-space: nowrap; color: var(--color-red-500); }',
+      '/* #fff on white */ a { color: currentColor; }',
+      `a { mask-image: url("data:image/svg+xml,<svg stroke='black'/>"); }`,
+    ])
+      expect(flagged(source), source).toBe(false);
+    expect(flagged('<template><p>green = fastest</p></template>', 'vue')).toBe(false);
+    expect(flagged("const html = '&#8594;'; // was #fff", 'ts')).toBe(false);
   });
 });
 
