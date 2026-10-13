@@ -829,11 +829,11 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 .bench-metric {
   margin: 0 0 0.3rem;
   font-size: 0.78rem;
-  color: var(--ui-text-muted, #9aa0a6);
+  color: var(--ui-text-muted);
 }
 
 .bench-metric-name {
-  color: var(--ui-text-highlighted, #e8eaed);
+  color: var(--ui-text-highlighted);
   font-size: 0.92rem;
 }
 
@@ -841,7 +841,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 .bench-metric-hint {
   margin: 0 0 0.9rem;
   font-size: 0.72rem;
-  color: var(--ui-text-muted, #9aa0a6);
+  color: var(--ui-text-muted);
 }
 
 .bench-metric-sub {
@@ -858,7 +858,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
   font-size: 0.74rem;
   border: 1px solid var(--ui-border);
   border-radius: 0.4rem;
-  background: var(--rt-surface, rgba(20, 20, 20, 0.4));
+  background: var(--rt-surface);
 }
 
 .bench-legend-row {
@@ -882,12 +882,12 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 }
 
 .bench-legend-note {
-  color: var(--ui-text-muted, #9aa0a6);
+  color: var(--ui-text-muted);
   line-height: 1.4;
 }
 
 .bench-legend code {
-  color: var(--ui-text-highlighted, #e8eaed);
+  color: var(--ui-text-highlighted);
 }
 
 /* Build-strategy tag (comptime / jit / interpreted), in column headers + legend. */
@@ -906,11 +906,11 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 }
 
 .bench-tag--jit {
-  color: var(--rt-note, #c8b072);
+  color: var(--rt-note);
 }
 
 .bench-tag--interpreted {
-  color: var(--ui-text-dimmed, var(--ui-text-muted, #9aa0a6));
+  color: var(--ui-text-dimmed);
 }
 
 /* Strategy key: three equal columns (comptime / jit / interpreted), left-aligned,
@@ -935,7 +935,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 
 /* Second line: the performance note, a touch dimmer than the mechanism text. */
 .bench-strat-perf {
-  color: var(--ui-text-dimmed, var(--ui-text-muted, #9aa0a6));
+  color: var(--ui-text-dimmed);
 }
 
 /* Metric-explanation row: let the description text expand to fill the row. */
@@ -949,7 +949,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
   padding: 0.1rem 0.5rem;
   font-family: inherit;
   font-size: 0.7rem;
-  color: var(--ui-text-muted, #9aa0a6);
+  color: var(--ui-text-muted);
   cursor: pointer;
   background: transparent;
   border: 1px solid var(--ui-border);
@@ -957,7 +957,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 }
 
 .bench-color-btn--on {
-  color: var(--ui-text-highlighted, #e8eaed);
+  color: var(--ui-text-highlighted);
   border-color: var(--ui-primary);
   background: color-mix(in srgb, var(--color-brand-500) 12%, transparent);
 }
@@ -967,7 +967,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
   width: 84px;
   height: 0.5rem;
   border-radius: 0.25rem;
-  background: linear-gradient(90deg, hsl(0 55% 50%), hsl(calc(var(--site-hue-good) / 2) 55% 50%), hsl(var(--site-hue-good) 55% 50%));
+  background: linear-gradient(90deg, var(--rt-rank-worst), hsl(calc(var(--site-hue-good) / 2) 55% 50%), hsl(var(--site-hue-good) 55% 50%));
 }
 
 .bench-legend-valid {
@@ -975,7 +975,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 }
 
 .bench-legend-invalid {
-  color: var(--ui-text-dimmed, var(--ui-text-muted, #9aa0a6));
+  color: var(--ui-text-dimmed);
 }
 
 .bench-note {
@@ -984,7 +984,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
   font-size: 0.85rem;
   border: 1px solid var(--ui-border);
   border-radius: 0.4rem;
-  background: var(--rt-surface, rgba(20, 20, 20, 0.55));
+  background: var(--rt-surface);
 }
 
 .bench-note code {
@@ -992,7 +992,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 }
 
 .bench-note--muted {
-  color: var(--ui-text-muted, #9aa0a6);
+  color: var(--ui-text-muted);
   border-style: dashed;
 }
 
@@ -1019,7 +1019,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
   overflow-x: auto;
   border: 1px solid var(--ui-border);
   border-radius: 0 0 0.4rem 0.4rem;
-  background: var(--rt-surface, rgba(20, 20, 20, 0.55));
+  background: var(--rt-surface);
 }
 
 .bench-agg-hint {
@@ -1028,7 +1028,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
   font-weight: 400;
   text-transform: lowercase;
   letter-spacing: 0.02em;
-  color: var(--ui-text-muted, #9aa0a6);
+  color: var(--ui-text-muted);
 }
 
 /* Aggregated rows are a read-only summary: no hover detail panel. */
@@ -1042,7 +1042,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 }
 
 .bench-row--overall .bench-cell {
-  color: var(--ui-text-highlighted, #e8eaed);
+  color: var(--ui-text-highlighted);
 }
 
 .bench-grid {
@@ -1066,7 +1066,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
   font-weight: 600;
   text-align: right;
   letter-spacing: 0.04em;
-  color: var(--ui-text-muted, #9aa0a6);
+  color: var(--ui-text-muted);
   border-bottom: 1px solid color-mix(in srgb, var(--color-brand-500) 25%, transparent);
   overflow-wrap: anywhere;
 }
@@ -1074,7 +1074,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 /* Competitor column header: centered + bright, same look as the type-cost table. */
 .bench-th--comp {
   text-align: center;
-  color: var(--ui-text-highlighted, #e8eaed);
+  color: var(--ui-text-highlighted);
   border-left: 1px solid color-mix(in srgb, var(--color-brand-500) 18%, transparent);
 }
 
@@ -1088,7 +1088,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
   margin-top: 0.1rem;
   font-size: 0.72em;
   font-weight: 400;
-  color: var(--ui-text-dimmed, #9aa0a6);
+  color: var(--ui-text-dimmed);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1115,7 +1115,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 .bench-runinfo {
   margin: 0 0 0.85rem;
   font-size: 0.7rem;
-  color: var(--ui-text-muted, #b3b8bd);
+  color: var(--ui-text-muted);
 }
 .bench-runinfo .bench-prompt {
   margin-right: 0.4rem;
@@ -1164,7 +1164,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 
 .bench-cell--case {
   text-align: left;
-  color: var(--ui-text-highlighted, #e8eaed);
+  color: var(--ui-text-highlighted);
   white-space: normal;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -1182,12 +1182,12 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 }
 
 .bench-val--fail {
-  color: #e0533d;
+  color: var(--rt-fail);
 }
 
 .bench-val--na,
 .bench-val--none {
-  color: var(--ui-text-muted, #9aa0a6);
+  color: var(--ui-text-muted);
 }
 
 /* Row heatmap: --rank (0 = worst in the row → 1 = best) drives one hsl ramp
@@ -1200,19 +1200,15 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 /* Correctness "misaligned" flag (tintMisalign mode): any cell whose value is > 0 (   a divergence from mion)gets a flat red tint + reddened number. Not a rank
    ramp; a binary "this library disagreed here". */
 .bench-val--misaligned {
-  background: hsl(0deg 60% 50% / 0.18);
+  background: var(--rt-misaligned-bg);
 }
 
 .bench-val--misaligned .bench-val-primary {
-  color: hsl(0deg 75% 72%);
-}
-
-:root.light .bench-val--misaligned .bench-val-primary {
-  color: hsl(0deg 70% 45%);
+  color: var(--rt-misaligned-text);
 }
 
 .bench-color-tint .bench-val--ranked .bench-val-primary {
-  color: var(--ui-text-highlighted, #e8eaed);
+  color: var(--ui-text-highlighted);
 }
 
 .bench-color-text .bench-val--ranked .bench-val-primary {
@@ -1245,7 +1241,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
   line-height: 1;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
-  color: var(--ui-text-dimmed, var(--ui-text-muted, #9aa0a6));
+  color: var(--ui-text-dimmed);
 }
 
 /* ── Serialization "verdict" layout ──────────────────────────────────────────
@@ -1261,14 +1257,14 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
   gap: 0.55rem 0.75rem;
   margin: 0 0 0.85rem;
   padding: 0.45rem 0.7rem;
-  background: var(--rt-surface, rgba(20, 20, 20, 0.7));
+  background: var(--rt-surface);
   border: 1px solid color-mix(in srgb, var(--color-brand-500) 18%, transparent);
   border-radius: 0.5rem;
   backdrop-filter: blur(8px);
 }
 .bench-bw-label {
   font-size: 0.82rem;
-  color: var(--ui-text-muted, #b3b8bd);
+  color: var(--ui-text-muted);
 }
 /* Inline SVG rather than an icon font: the site ships no webfont, so the Tabler
    class this used to carry drew nothing at all. */
@@ -1290,7 +1286,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
   font: inherit;
   font-size: 0.82rem;
   font-variant-numeric: tabular-nums;
-  color: var(--ui-text-muted, #b3b8bd);
+  color: var(--ui-text-muted);
   cursor: pointer;
 }
 .bench-bw-btn:last-child {
@@ -1298,12 +1294,12 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 }
 .bench-bw-btn--on {
   background: color-mix(in srgb, var(--color-brand-500) 22%, transparent);
-  color: var(--ui-text-highlighted, #e8eaed);
+  color: var(--ui-text-highlighted);
   font-weight: 600;
 }
 .bench-bw-hint {
   font-size: 0.72rem;
-  color: var(--ui-text-dimmed, #9aa0a6);
+  color: var(--ui-text-dimmed);
 }
 
 /* Stacked verdict cell: round-trip headline (heatmap-tinted) over dim encode/decode
@@ -1324,12 +1320,12 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
   font-size: 0.62rem;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
-  color: var(--ui-text-dimmed, #9aa0a6);
+  color: var(--ui-text-dimmed);
 }
 .bench-val-pl {
   font-size: 0.62rem;
   font-variant-numeric: tabular-nums;
-  color: var(--ui-text-muted, #b3b8bd);
+  color: var(--ui-text-muted);
 }
 /* lower-better "fewest bytes" cue: text (not a cell background), so it never reads
    as a second heatmap signal next to the round-trip tint. */

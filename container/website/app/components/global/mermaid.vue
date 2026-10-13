@@ -18,23 +18,23 @@ onMounted(async () => {
 
   const mermaid = await import('mermaid');
 
-  // The site's accent, read from the theme tokens (sites/<site>/theme.css) so the
-  // diagrams follow the site's colour scheme. Mermaid wants literal colours, both
-  // here and in a diagram's own `style X color:…` lines, so `var(--name)` in the
-  // slot text is substituted with the computed value before rendering.
+  // Mermaid wants literal colours, both here and in a diagram's own `style X color:…`
+  // lines, so every colour is read from the theme tokens (the site's accent from
+  // sites/<site>/theme.css, the rest from mion.css) and `var(--name)` in the slot
+  // text is substituted with the computed value before rendering.
   const cssVar = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  const accent = cssVar('--site-accent') || '#888888';
+  const accent = cssVar('--site-accent');
 
   mermaid.default.initialize({
     startOnLoad: false,
     theme: 'dark',
     themeVariables: {
       primaryColor: accent,
-      primaryTextColor: '#fff',
+      primaryTextColor: cssVar('--mion-diagram-text'),
       primaryBorderColor: accent,
-      lineColor: '#a1a1aa',
-      secondaryColor: '#27272a',
-      tertiaryColor: '#18181b',
+      lineColor: cssVar('--mion-diagram-line'),
+      secondaryColor: cssVar('--mion-diagram-secondary'),
+      tertiaryColor: cssVar('--mion-diagram-tertiary'),
     },
   });
 

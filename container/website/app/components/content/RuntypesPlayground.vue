@@ -48,7 +48,7 @@ withDefaults(
   min-height: var(--rt-pg-min-height);
   margin: 0;
   padding: 10px 16px;
-  color: var(--ui-text-muted, #8b949e);
+  color: var(--ui-text-muted);
   font-size: 13px;
   text-align: center;
 }

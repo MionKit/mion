@@ -87,10 +87,10 @@ defineEmits<{close: []; panelenter: []; panelleave: []}>();
   width: 400px;
   overflow: hidden;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  background: var(--rt-panel, rgba(12, 12, 14, 0.97));
+  background: var(--rt-panel);
   border: 1px solid var(--ui-primary);
   border-radius: 0.5rem;
-  box-shadow: 0 12px 44px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 12px 44px var(--rt-panel-shadow);
   backdrop-filter: blur(4px);
 }
 
@@ -113,7 +113,7 @@ defineEmits<{close: []; panelenter: []; panelleave: []}>();
   overflow: hidden;
   font-size: 0.8rem;
   font-weight: 600;
-  color: var(--ui-text-highlighted, #e8eaed);
+  color: var(--ui-text-highlighted);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -122,7 +122,7 @@ defineEmits<{close: []; panelenter: []; panelleave: []}>();
   flex: 1;
   min-width: 0;
   font-size: 0.66rem;
-  color: var(--ui-text-muted, #9aa0a6);
+  color: var(--ui-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -133,7 +133,7 @@ defineEmits<{close: []; panelenter: []; panelleave: []}>();
   padding: 0.15rem 0.45rem;
   font-size: 0.8rem;
   line-height: 1;
-  color: var(--ui-text-muted, #9aa0a6);
+  color: var(--ui-text-muted);
   cursor: pointer;
   background: transparent;
   border: 1px solid color-mix(in srgb, var(--color-brand-500) 25%, transparent);
@@ -141,14 +141,14 @@ defineEmits<{close: []; panelenter: []; panelleave: []}>();
 }
 
 .detail-panel-close:hover {
-  color: var(--ui-text-highlighted, #e8eaed);
+  color: var(--ui-text-highlighted);
   border-color: var(--ui-primary);
 }
 
 .detail-panel-msg {
   padding: 1rem;
   font-size: 0.82rem;
-  color: var(--ui-text-muted, #9aa0a6);
+  color: var(--ui-text-muted);
 }
 
 /* Sections stacked top-to-bottom; the whole stack scrolls vertically. `contain`
@@ -202,17 +202,17 @@ defineEmits<{close: []; panelenter: []; panelleave: []}>();
 }
 
 .detail-panel-metric--fail {
-  color: #e0533d;
+  color: var(--rt-fail);
 }
 
 .detail-panel-metric--na {
-  color: var(--ui-text-muted, #9aa0a6);
+  color: var(--ui-text-muted);
 }
 
 .detail-panel-metric-sub {
   margin-left: 0.3rem;
   font-size: 0.62rem;
-  color: var(--ui-text-dimmed, var(--ui-text-muted, #9aa0a6));
+  color: var(--ui-text-dimmed);
 }
 
 /* Each section flows at its natural height (the stack scrolls); long code lines
@@ -236,8 +236,8 @@ defineEmits<{close: []; panelenter: []; panelleave: []}>();
 
 .detail-panel-code--plain {
   padding: 0.55rem 0.7rem;
-  color: var(--ui-text, #d6d8db);
-  background: var(--rt-code-bg, rgba(0, 0, 0, 0.45));
+  color: var(--ui-text);
+  background: var(--rt-code-bg);
 }
 
 .detail-panel-code--plain code {
@@ -251,7 +251,7 @@ defineEmits<{close: []; panelenter: []; panelleave: []}>();
   list-style: none;
   font-size: 0.74rem;
   line-height: 1.5;
-  color: var(--rt-note, #c8b072);
+  color: var(--rt-note);
 }
 
 .detail-panel-note + .detail-panel-note {
@@ -277,11 +277,7 @@ defineEmits<{close: []; panelenter: []; panelleave: []}>();
    the colour stays seamless across the whole scroll range. Scoped off the plain
    fallback, which paints its own background directly on the scroll element. */
 .detail-panel-code:not(.detail-panel-code--plain) {
-  background: #24292e;
-}
-
-:root.light .detail-panel-code:not(.detail-panel-code--plain) {
-  background: #fff;
+  background: var(--rt-shiki-bg);
 }
 
 :root.light .detail-panel-code :deep(pre.shiki) {
