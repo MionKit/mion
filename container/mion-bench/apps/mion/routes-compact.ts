@@ -18,6 +18,4 @@ const routes = {
   updateSimpleUser: mion.route(updateSimpleUser),
 } satisfies Routes;
 
-export type BenchCompactApi = typeof routes;
-
 mion.initRoutes(routes);

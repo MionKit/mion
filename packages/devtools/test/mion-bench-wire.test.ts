@@ -89,10 +89,6 @@ describe('bodyFor writes each app in its own wire', () => {
     const codec = {encodeParams: (args: unknown[]) => `compact:${JSON.stringify(args)}`};
     expect(bodyFor(app('mion.compact'), user, codec)).toBe(`compact:${mionBody(user)}`);
   });
-
-  it('registers mion.compact as the compact twin of mion', () => {
-    expect(app('mion.compact')).toMatchObject({family: 'mion', dir: 'mion', runtime: 'node', wire: 'compact', twinOf: 'mion'});
-  });
 });
 
 describe('gen-servers-docs rows carry the bytes and the twin', () => {

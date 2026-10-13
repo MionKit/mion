@@ -1462,6 +1462,7 @@ describe('core keeps test helpers off the barrel', () => {
 describe('mion server benchmarks stay wired end to end', () => {
   const BENCH_DIR = join(REPO_ROOT, 'container/mion-bench');
   const CONTAINERFILE = readFileSync(join(BENCH_DIR, 'Containerfile'), 'utf8');
+  const MION_VITE_CONFIG = readFileSync(join(BENCH_DIR, 'apps/mion/vite.config.ts'), 'utf8');
   const MION_CONTENT = join(REPO_ROOT, 'container/website/content');
 
   async function loadApps() {
@@ -1502,11 +1503,10 @@ describe('mion server benchmarks stay wired end to end', () => {
   it('every mion lane runs a bundle the mion build emits', async () => {
     // The mion entries are dist artifacts, so the check above cannot see one with no vite input.
     const {APPS} = await loadApps();
-    const viteConfig = readFileSync(join(BENCH_DIR, 'apps/mion/vite.config.ts'), 'utf8');
     for (const app of APPS.filter((entry) => entry.family === 'mion')) {
       const name = /^dist\/(.+)\.mjs$/.exec(app.entry)?.[1];
       expect(name, `${app.name}: entry ${app.entry} is not a dist bundle`).toBeTruthy();
-      expect(viteConfig, `${app.name}: apps/mion/vite.config.ts has no '${name}' input`).toContain(`'${name}': resolve(`);
+      expect(MION_VITE_CONFIG, `${app.name}: apps/mion/vite.config.ts has no '${name}' input`).toContain(`'${name}': resolve(`);
     }
   });
 
@@ -1514,8 +1514,9 @@ describe('mion server benchmarks stay wired end to end', () => {
     const {APPS} = await loadApps();
     const compact = APPS.filter((app) => app.wire === 'compact');
     expect(compact.map((app) => app.name)).toEqual(['mion.compact']);
-    const viteConfig = readFileSync(join(BENCH_DIR, 'apps/mion/vite.config.ts'), 'utf8');
-    expect(viteConfig, 'the harness imports dist/compact-wire.mjs, which nothing builds').toContain("'compact-wire': resolve(");
+    expect(MION_VITE_CONFIG, 'the harness imports dist/compact-wire.mjs, which nothing builds').toContain(
+      "'compact-wire': resolve("
+    );
     expect(readFileSync(join(BENCH_DIR, 'harness/run.mjs'), 'utf8')).toContain('dist/compact-wire.mjs');
     for (const app of APPS.filter((entry) => entry.twinOf)) {
       expect(
@@ -1569,6 +1570,7 @@ describe('mion server benchmarks stay wired end to end', () => {
 
     // What the content tree fetches, from every component that reads a server dataset.
     const referenced = new Set<string>();
+    const twinsAsked: string[] = [];
     const walk = (dir: string) => {
       for (const entry of readdirSync(dir, {withFileTypes: true})) {
         const full = join(dir, entry.name);
@@ -1581,6 +1583,8 @@ describe('mion server benchmarks stay wired end to end', () => {
         for (const match of markdown.matchAll(/:server-bench-bars\{([^}]*)\}/g)) {
           const bench = /bench=['"]([^'"]+)['"]/.exec(match[1])?.[1];
           if (bench) referenced.add(bench);
+          const twins = /twins=['"]([^'"]+)['"]/.exec(match[1])?.[1];
+          if (twins) twinsAsked.push(twins);
         }
         // The root landing's summary names its server dataset as `servers="…"`.
         for (const match of markdown.matchAll(/:home-bench-table\{([^}]*)\}/g)) {
@@ -1600,26 +1604,24 @@ describe('mion server benchmarks stay wired end to end', () => {
     // heading named after a raw key.
     for (const bench of referenced)
       expect(generator, `gen-servers-docs.mjs has no SUITE_META for ${bench}`).toContain(`'${bench.replace('servers-', '')}':`);
-  });
 
-  it('every twins= on a page names a lane that has a twin', async () => {
-    // A chart asking for twins of a lane with none draws the base alone and says nothing.
+    // A chart asking for the twins of a lane that has none draws the base alone and says nothing.
     const {APPS} = await loadApps();
     const bases = new Set(APPS.map((app) => app.twinOf).filter(Boolean));
-    const asked: string[] = [];
-    const walk = (dir: string) => {
-      for (const entry of readdirSync(dir, {withFileTypes: true})) {
-        const full = join(dir, entry.name);
-        if (entry.isDirectory()) walk(full);
-        else if (entry.name.endsWith('.md')) {
-          for (const match of readFileSync(full, 'utf8').matchAll(/:server-bench-bars\{[^}]*twins=['"]([^'"]+)['"]/g))
-            asked.push(match[1]);
-        }
-      }
-    };
-    walk(MION_CONTENT);
-    expect(asked.length, 'no page draws the compact lane').toBeGreaterThan(0);
-    expect(asked.filter((base) => !bases.has(base))).toEqual([]);
+    expect(twinsAsked.length, 'no page draws the compact lane').toBeGreaterThan(0);
+    expect(twinsAsked.filter((base) => !bases.has(base))).toEqual([]);
+  });
+
+  it('every reader of a server dataset hides the twin lanes unless asked', () => {
+    // The twins sit in the same datasets as every lane, so a reader that skips the filter puts them on every chart.
+    const component = (name: string) =>
+      readFileSync(join(REPO_ROOT, `container/website/app/components/content/${name}.vue`), 'utf8');
+    for (const name of ['ServerBenchBars', 'HomeBenchTable'])
+      expect(component(name), `${name} reads server rows without visibleRows`).toMatch(
+        /import \{[^}]*visibleRows[^}]*\} from '~\/utils\/serverBenchRows'/
+      );
+    expect(component('ServerBenchBars')).toContain('visibleRows(source, props.twins)');
+    expect(component('HomeBenchTable')).toContain('visibleRows(serversIndex.value?.rows ?? [])');
   });
 
   it('the benchmark geometric means are computed in one place, for the pages and the home summary', () => {
