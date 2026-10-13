@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {computed, onMounted, ref} from 'vue';
 import {commonBasis, geomeanOver, type AggregateCase} from '~/utils/benchAggregate';
+import {visibleRows} from '~/utils/serverBenchRows';
 
 // The small results table on the root landing's benchmarks card, and the bars on the
 // about and benchmarks pages (either family alone): one headline number per family,
@@ -24,7 +25,7 @@ const props = withDefaults(
   {servers: '', validation: '', rows: 5}
 );
 
-type ServerRow = {app: string; label: string; family: string; requests: number};
+type ServerRow = {app: string; label: string; family: string; requests: number; twinOf?: string | null};
 type Meta = {generatedAt?: string | null; os?: string | null; cpu?: string | null; cores?: number | null; node?: string | null};
 type ServersIndex = {label?: string; meta?: Meta; rows?: ServerRow[]};
 type ValidationIndex = {competitors?: string[]; meta?: Meta; sections?: {key: string; cases: AggregateCase[]}[]};
@@ -37,7 +38,7 @@ const state = ref<'loading' | 'missing' | 'ready'>('loading');
 
 /** The fastest servers by requests per second. */
 const serverRows = computed<Row[]>(() =>
-  [...(serversIndex.value?.rows ?? [])]
+  visibleRows(serversIndex.value?.rows ?? [])
     .filter((row) => row.requests > 0)
     .sort((a, b) => b.requests - a.requests)
     .slice(0, props.rows)

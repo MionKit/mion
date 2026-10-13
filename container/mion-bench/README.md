@@ -4,6 +4,7 @@ Measures a **mion** HTTP server against the frameworks the docs site compares it
 with: express, fastify, hapi, hono (node and bun), elysia (bun), and a bare node
 `http` server as the theoretical ceiling. mion runs on all three of its platform
 adapters, so the table shows `mion`, `mion.uws` and `mion.bun` as separate rows.
+A fourth mion lane, `mion.compact`, is the node server over [compact JSON](#the-compact-lane).
 
 Ported from the `MionKit/Benchmarks` repository, which is where these benchmarks
 lived until they moved in here. The methodology (a warm-up round then a measured one,
@@ -52,13 +53,33 @@ So the numbers describe the current workspace, not a published release.
 | `hello-world` | Routing and framework overhead only. No body, no validation. |
 | `light-validation` | A ~100 byte user: four fields, one of them a date. |
 | `heavy-validation` | A ~1 KB user: nested objects, a discriminated union, three dates. |
-| `payload-sizes` | The heavy route at ~1 KB / ~50 KB / ~500 KB / ~4 MB, every app. |
+| `payload-sizes` | The heavy route at ~1 KB / ~50 KB / ~500 KB / ~4 MB, every app, padded by repeating its payment methods. |
 
 The sizes in the sweep straddle **512 KiB** on purpose: a body larger than that
 cannot arrive in one socket read, which is the point where `@mionjs/platform-uws`
 switches to its zero-copy path. The apps raise `maxBodySize` to 10 MB because the
 adapters default to 256 KB, *below* that threshold — with the default, every large
 request would be rejected and the branch would never run.
+
+The padding is repeated payment methods, members of a discriminated union every
+competitor's schema already declares. Objects rather than a list of strings, because
+the compact lane drops key names and a list of strings has none to drop.
+
+## The compact lane
+
+`mion.compact` is the `mion` node server with `parser: 'compact'` on the router
+(`apps/mion/routes-compact.ts`): every object travels as an array of its values. It
+runs every suite like every other lane, so the correctness gate proves the compact wire
+round-trips all three models, but the pages draw it only on the payload sizes page,
+beside `mion` (`twinOf: 'mion'` in `shared/apps.mjs`, `twins="mion"` on the chart).
+
+The harness is plain node with no codec, and a hand-written positional body would be a
+second copy of the wire. So the mion build also emits `dist/compact-wire.mjs`, the
+compiled compact encoders and decoders of the same types, and the harness imports it to
+write that lane's request bodies and read its answers.
+
+Every result records `bytes: {sent, received}`, the request and response body of one
+call without headers, which is what the bytes chart draws.
 
 ## Correctness comes before speed
 
@@ -84,7 +105,7 @@ pnpm miondevx bench servers                 # every app, every suite, then the s
 pnpm miondevx bench servers --quick         # short windows for a dev loop (noisy, never publish)
 pnpm miondevx bench servers one mion.uws    # a single app across the three suites
 pnpm miondevx bench servers suite hello-world  # a single suite across every app
-pnpm miondevx bench servers sweep           # the payload-size sweep (mion adapters only)
+pnpm miondevx bench servers sweep           # the payload-size sweep, every app
 pnpm miondevx bench servers repeat mion.bun # run one lane 3 times and check the spread
 pnpm miondevx bench servers gcprobe         # measure this build on MEMORY (see below)
 pnpm miondevx bench servers build           # just build the mion server bundles
@@ -124,9 +145,11 @@ Two details worth knowing:
   default (capped at 8), because the server under test needs cores too. A lane whose
   payload capped the connection count never gets more threads than it has sockets.
 - **Every request carries a different id.** wrk builds its requests in Lua, so
-  `run.mjs` splits one body built by `shared/payloads.mjs` around its `id` and hands the
-  Lua script the two halves, which stamps a fresh id between them. The payloads are still
-  written in exactly one place, and no framework is ever measured serving its own cache.
+  `run.mjs` splits one body built by `shared/payloads.mjs` around its id and hands the
+  Lua script the two halves, which stamps a fresh id between them. The split is on the
+  id's own digits (`harness/wire.mjs`), not on an `"id":` key, so a compact body with no
+  keys takes the same path. The payloads are still written in exactly one place, and no
+  framework is ever measured serving its own cache.
 
 ## Repeatability
 

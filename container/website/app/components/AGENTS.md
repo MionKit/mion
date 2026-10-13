@@ -9,6 +9,7 @@ Vue components the docs pages and layouts use. Read before adding or editing a c
   - `RuntypesBenchBars` (runtypes bench pages): one titled card per group with its geometric mean as HTML bars,
     one bar per competitor, one card per metric, linking that group's cases on GitHub.
   - `ServerBenchBars` (rpc bench pages): one metric as HTML bars, one row per server, no chart library.
+    Twin lanes (`twinOf` in the bench app registry) show only where `twins="<base app>"` asks, with their change vs the base.
   - `HomeBenchTable` (root landing summary): fastest servers + validators, from the bench pages' generated datasets.
   - All three draw each bar with `app/components/BenchBar.vue`: full-width track, fill grows on first scroll into view.
   - The three geometric-mean ones read `app/utils/benchAggregate.ts`. The two bench-page ones format numbers via

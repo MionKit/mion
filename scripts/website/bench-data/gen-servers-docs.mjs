@@ -34,7 +34,7 @@ function readRows(dir) {
 }
 
 /** One row as the site renders it: bytes/sec becomes megabits/sec, the table's unit. */
-const toRow = (result) => ({
+export const toRow = (result) => ({
   app: result.app,
   label: result.label,
   family: result.family,
@@ -44,11 +44,15 @@ const toRow = (result) => ({
   router: result.router,
   validation: result.validation,
   description: result.description,
+  // Set on a lane that is a variant of another (mion.compact of mion): the pages draw it only beside its base.
+  twinOf: result.twinOf ?? null,
   requests: Math.round(result.requests.mean * 10) / 10,
   latency: Math.round(result.latency.mean * 100) / 100,
   throughput: Math.round((result.throughput.mean / 1e6) * 8 * 100) / 100,
   maxMem: Math.round(result.maxMem),
   maxCpu: Math.round(result.maxCpu),
+  // Body bytes of one call, sent plus received, as the harness measured them.
+  bytes: result.bytes ? result.bytes.sent + result.bytes.received : null,
   memSeries: result.memSeries ?? [],
 });
 

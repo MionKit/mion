@@ -77,3 +77,81 @@ The implementer plans the details.
 - The payload benchmarks page shows the same mion server over plain JSON and over compact
   JSON, in requests per second and in bytes on the wire, under each size.
 - The measured saving is reported, not restated from the runtypes serialization figures.
+
+## Plan: compact lane + bytes chart (approved 2026-10-13)
+
+### Changes
+
+### Bench lane (`container/mion-bench/`)
+1. `shared/apps.mjs`: new entry `mion.compact` (family `mion`, dir `mion`, entry `dist/server-node-compact.mjs`,
+   runtime node, `versionOf: '@mionjs/router'`) with `wire: 'compact'` and `twinOf: 'mion'`.
+2. `apps/mion/`: move the three handlers into a shared module, keep `routes.ts` as is in behavior, add
+   `routes-compact.ts` (`createMionRouter({parser: 'compact'})`, same handlers) and `server-node-compact.ts`.
+   If passing handler references breaks the build-time type read, fall back to repeating the three tiny handlers.
+3. `apps/mion/compact-wire.ts` + vite input: the real compiled compact encoders/decoders, keyed by route id
+   (`hello`, `updateUser`, `updateSimpleUser`): `encodeParams(args) -> string`, `decodeReturn(value) -> value`.
+   The harness imports the built `dist/compact-wire.mjs` (harness is plain node, has no codec).
+4. `shared/payloads.mjs`: `buildUserOfSize` pads `paymentMethods` by cycling the three union members
+   (credit card, bank account, paypal); `tags` keeps its default. Comment states the padding is a declared union so
+   every lane's schema validates it unchanged, and that the sweep now validates one union member per ~80 bytes
+   (more work per byte than a string list, so sweep numbers move for every lane). `buildUser()` for the heavy suite unchanged.
+5. `shared/suites.mjs`: each suite's builder returns `{value, id}`-style sample; `bodyFor` takes an optional codec so
+   a compact app gets `codec.encodeParams([value])`, mion JSON gets `mionBody`, others `plainBody`. Zero third-party imports kept.
+6. New pure module `harness/wire.mjs` (unit-tested, mounted by the driver):
+   - `bodyTemplate(body, id)`: split on the id's own digits (bounded by non-digits), throw if absent or present twice.
+     One path for JSON and positional bodies; replaces the `"id":<digits>` regex.
+   - `invalidBody(template)`: prefix + `"not-a-number"` + suffix, so the reject check works on both wires.
+7. `harness/run.mjs`:
+   - load the codec for a `wire: 'compact'` app; `verify` decodes the positional response with it before reading `id`
+     (hello checks `hello === 'world'` after decode);
+   - `verifyRejects` sends `invalidBody`;
+   - record `bytes: {sent, received}` (request + response BODY bytes of the verified sample, headers not counted) on every result.
+8. `scripts/website/bench-data/mion-bench.mjs`: mount `harness/wire.mjs`. Nothing else: the lane runs every suite
+   like every app, and the sweep loops over `APPS`. `GCPROBE_LANES` untouched.
+9. `container/mion-bench/README.md`: lane list, the sweep padding, how the id is split, the compact codec.
+
+### Data + site
+10. `scripts/website/bench-data/gen-servers-docs.mjs`: export `toRow`; rows carry `bytes` (sent + received per call)
+    and `twinOf`. Compact rows stay inside the existing datasets (no new dataset name).
+11. New `container/website/app/utils/serverBenchRows.ts` (pure, unit-tested): `visibleRows(rows, twins)` hides any
+    row with `twinOf` unless `twins` names its base, and then shows only the base + its twins;
+    `changeVsBase(row, rows, metric)` gives the measured percent change for a twin row.
+12. `ServerBenchBars.vue`: `bytes` metric (lower is better, formatted by `benchFormat.formatValue(..., 'bytes')`),
+    new `twins` prop, twin rows print the measured change beside the value (e.g. `1.2KB (−38%)`).
+    `HomeBenchTable.vue`: skip `twinOf` rows. So hello world, light, heavy pages and the home summary are unchanged.
+13. Page `container/website/content/03.benchmarks/02.rpc/04.payload-sizes.md`: under each size, after the all-servers
+    chart, a "JSON vs compact JSON" pair: `metric="requests" twins="mion"` and `metric="bytes" twins="mion"`.
+    Test Setup: padding is repeated payment methods (a declared union), plus one short line on what the compact
+    lane is, linking `/rpc/server/json-round-trip#compact-payloads`. Sentence + link back from that "Compact Payloads"
+    section to the measured page.
+
+### Tests (Vitest, `packages/devtools/test/`)
+- New `mion-bench-wire.test.ts`: `bodyTemplate` on a plain object body, a mion array body and a positional body;
+  throws on missing / repeated id; `invalidBody` puts a string in the id slot; `buildUserOfSize` reaches each sweep
+  size within a few %, grows only `paymentMethods`, cycles all three members; `toRow` carries `bytes` + `twinOf`;
+  `visibleRows` / `changeVsBase` (default hides twins, `twins="mion"` shows exactly mion + mion.compact, percent math).
+- `repo-contracts.test.ts`: every mion-family app's `entry` is a vite input; a `wire: 'compact'` app has a `twinOf`
+  naming a real app and the codec entry exists; the driver mounts `harness/wire.mjs`; any `twins=` on a page names a real app.
+- No marker-API change, so the two-call-shape rule does not apply.
+- Real proof in the container (podman works here): `pnpm miondevx bench servers one mion.compact --quick`, then
+  `sweep --quick` over every app (proves both gate halves for the compact lane and that every competitor validates
+  the new padding). Quote the measured byte saving in the PR, marked as a quick (noisy) run for req/s.
+
+### Docs
+Payload sizes page (above) + one link line in `01.rpc/02.server/07.json-round-trip.md` "Compact Payloads".
+mion-bench README. Component list line in `container/website/app/components/AGENTS.md` (ServerBenchBars `twins`).
+
+### Fuzzing
+Not a candidate: bench infrastructure, the container correctness gate is the oracle.
+
+### Finish
+`pnpm run lint`, `pnpm run format`, targeted vitest + `pnpm miondevx core test-pr`, website check if available
+(`pnpm miondevx website check` / check-static). Reconcile the spec with what shipped, `git mv` it to `docs/done/`.
+Then review (pr-reviewer), docs + comments simplifiers in parallel, PR, CI green.
+
+### Done when (from the todo)
+- `mion.compact` runs in the container and passes both gate halves (echo id, reject invalid) before measuring.
+- Sweep pads with repeated objects.
+- Every result records bytes sent and received; pages read that, no transcribed number.
+- Payload page shows mion over JSON vs compact, req/s and bytes, under each size.
+- The saving shown is the measured one (computed from the rows), not quoted from serialization figures.

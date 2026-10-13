@@ -136,6 +136,7 @@ function mountArgs(cfg, app) {
   args.push('-v', `${join(BENCH_DIR, 'shared')}:/mion-bench/shared:ro${mo}`);
   args.push('-v', `${join(BENCH_DIR, 'harness/run.mjs')}:/mion-bench/harness/run.mjs:ro${mo}`);
   args.push('-v', `${join(BENCH_DIR, 'harness/gc-trace.mjs')}:/mion-bench/harness/gc-trace.mjs:ro${mo}`);
+  args.push('-v', `${join(BENCH_DIR, 'harness/wire.mjs')}:/mion-bench/harness/wire.mjs:ro${mo}`);
   // The load generator's request script. The image bakes only dependencies, so a script
   // that is not mounted is simply not there when wrk goes looking for it.
   args.push('-v', `${join(BENCH_DIR, 'harness/wrk.lua')}:/mion-bench/harness/wrk.lua:ro${mo}`);
@@ -196,7 +197,7 @@ function runInContainer(cfg, app, cmd, extraEnv) {
   return run(cfg.engine, ['run', '--rm', '--init', ...common], {stdio: ['ignore', 'inherit', 'inherit']});
 }
 
-// Build the mion app's three server bundles. Runs the real mion vite plugin, so this
+// Build the mion app's server bundles and the compact lane's wire codec. Runs the real mion vite plugin, so this
 // is also the check that the workspace's build pipeline still compiles a server.
 function buildMionApp(cfg) {
   note('building the mion server bundles (vite + @mionjs/devtools, in-container)');

@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import {computed, onMounted, ref} from 'vue';
+import {formatValue} from '~/utils/benchFormat';
+import {changeVsBase, formatChange, visibleRows} from '~/utils/serverBenchRows';
 
 // One server benchmark metric as bars, read from /bench-data/<bench>/index.json (the file the home summary reads).
 // Run metadata renders once per page, on the bars that ask for it (`show-meta`).
+// Twin lanes (mion.compact) are left out unless `twins` names their base, which then draws only the two.
 
-type MetricKey = 'requests' | 'throughput' | 'latency' | 'maxMem' | 'maxCpu';
+type MetricKey = 'requests' | 'throughput' | 'latency' | 'maxMem' | 'maxCpu' | 'bytes';
 
 const props = withDefaults(
   defineProps<{
@@ -16,8 +19,10 @@ const props = withDefaults(
     section?: string;
     /** Print the machine / method block above the bars (a page shows it once). */
     showMeta?: boolean;
+    /** Draw only this lane and its twins, each twin with its change against it, e.g. "mion". */
+    twins?: string;
   }>(),
-  {metric: 'requests', section: '', showMeta: false}
+  {metric: 'requests', section: '', showMeta: false, twins: ''}
 );
 
 const METRICS: Record<MetricKey, {label: string; unit: string; lowerBetter: boolean; digits: number}> = {
@@ -26,6 +31,7 @@ const METRICS: Record<MetricKey, {label: string; unit: string; lowerBetter: bool
   latency: {label: 'Latency', unit: 'ms', lowerBetter: true, digits: 2},
   maxMem: {label: 'Max memory', unit: 'MB', lowerBetter: true, digits: 0},
   maxCpu: {label: 'Max CPU', unit: '%', lowerBetter: true, digits: 0},
+  bytes: {label: 'Body bytes per call, sent + received', unit: 'bytes', lowerBetter: true, digits: 0},
 };
 
 type Row = {
@@ -38,11 +44,13 @@ type Row = {
   router: boolean;
   validation: boolean;
   description: string;
+  twinOf?: string | null;
   requests: number;
   latency: number;
   throughput: number;
   maxMem: number;
   maxCpu: number;
+  bytes?: number | null;
 };
 type Meta = {generatedAt?: string | null; os?: string | null; cpu?: string | null; cores?: number | null; node?: string | null; method?: string; tolerance?: number | null};
 type BenchIndex = {label?: string; meta?: Meta; rows?: Row[]; sections?: {key: string; label: string; meta?: Meta; rows: Row[]}[]};
@@ -56,11 +64,21 @@ const section = computed(() => (props.section ? index.value?.sections?.find((ent
 const rows = computed<Row[]>(() => {
   const source = props.section ? (section.value?.rows ?? []) : (index.value?.rows ?? []);
   const key = props.metric;
-  return [...source].filter((row) => typeof row[key] === 'number').sort((a, b) => (metric.value.lowerBetter ? a[key] - b[key] : b[key] - a[key]));
+  return visibleRows(source, props.twins)
+    .filter((row) => typeof row[key] === 'number')
+    .sort((a, b) => (metric.value.lowerBetter ? measure(a) - measure(b) : measure(b) - measure(a)));
 });
-const max = computed(() => Math.max(...rows.value.map((row) => row[props.metric]), 0));
-const width = (row: Row): string => `${max.value > 0 ? Math.min(100, (row[props.metric] / max.value) * 100).toFixed(1) : 0}%`;
-const value = (row: Row): string => row[props.metric].toLocaleString('en-US', {minimumFractionDigits: metric.value.digits, maximumFractionDigits: metric.value.digits});
+const measure = (row: Row): number => row[props.metric] ?? 0;
+const max = computed(() => Math.max(...rows.value.map(measure), 0));
+const width = (row: Row): string => `${max.value > 0 ? Math.min(100, (measure(row) / max.value) * 100).toFixed(1) : 0}%`;
+const value = (row: Row): string => {
+  const text =
+    metric.value.unit === 'bytes'
+      ? formatValue(measure(row), 'bytes')
+      : measure(row).toLocaleString('en-US', {minimumFractionDigits: metric.value.digits, maximumFractionDigits: metric.value.digits});
+  const change = changeVsBase(row, rows.value, props.metric);
+  return change === null ? text : `${text} (${formatChange(change)})`;
+};
 const detail = (row: Row): string =>
   [row.version ? `v${row.version}` : null, row.runtime && row.runtimeVersion ? `${row.runtime} ${row.runtimeVersion}` : row.runtime].filter(Boolean).join(' · ');
 // Too wide for the name column: shown in a tooltip on the name.
@@ -103,7 +121,7 @@ onMounted(async () => {
         <li v-if="meta.tolerance"><strong>Repeatability:</strong> running the same server twice lands within {{ meta.tolerance }}%</li>
       </ul>
 
-      <table class="server-bench-bars-table">
+      <table class="server-bench-bars-table" :class="{'has-change': twins}">
         <caption>{{ caption }}</caption>
         <colgroup>
           <col class="server-bench-bars-col-name" />
@@ -181,6 +199,11 @@ onMounted(async () => {
   width: 6rem;
 }
 
+/* a twin's value carries its change against the base, e.g. `1.2KB (-38%)` */
+.server-bench-bars-table.has-change .server-bench-bars-col-num {
+  width: 9rem;
+}
+
 .server-bench-bars-table th {
   padding-right: 1rem;
   text-align: left;
@@ -234,6 +257,10 @@ onMounted(async () => {
 
   .server-bench-bars-col-num {
     width: 4.5rem;
+  }
+
+  .server-bench-bars-table.has-change .server-bench-bars-col-num {
+    width: 7.5rem;
   }
 }
 </style>
