@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: guidelines
-status: ready
+status: done (2026-10-13)
 created: 2026-09-03
 ---
 
@@ -80,6 +80,9 @@ The implementer plans the details.
 
 ## Plan: compact lane + bytes chart (approved 2026-10-13)
 
+Shipped as planned, with the two adjustments noted in steps 3 and 11. The local container run used a locally
+built `mion-bench` image (`MION_BENCH_USE_LOCAL=1`): the registry refused the stored credentials.
+
 ### Changes
 
 ### Bench lane (`container/mion-bench/`)
@@ -89,8 +92,10 @@ The implementer plans the details.
    `routes-compact.ts` (`createMionRouter({parser: 'compact'})`, same handlers) and `server-node-compact.ts`.
    If passing handler references breaks the build-time type read, fall back to repeating the three tiny handlers.
 3. `apps/mion/compact-wire.ts` + vite input: the real compiled compact encoders/decoders, keyed by route id
-   (`hello`, `updateUser`, `updateSimpleUser`): `encodeParams(args) -> string`, `decodeReturn(value) -> value`.
-   The harness imports the built `dist/compact-wire.mjs` (harness is plain node, has no codec).
+   (`hello` decode only, `updateUser`, `updateSimpleUser`): `encodeParams(args) -> string`, `decodeReturn(value) -> value`.
+   The harness imports the built `dist/compact-wire.mjs` (harness is plain node, has no codec) rather than
+   spawning it to print bodies. `encodeParams` first restores the plain JSON values the payload builders write
+   (dates as text) into typed values with the default restore, since the compact encoder expects real `Date`s.
 4. `shared/payloads.mjs`: `buildUserOfSize` pads `paymentMethods` by cycling the three union members
    (credit card, bank account, paypal); `tags` keeps its default. Comment states the padding is a declared union so
    every lane's schema validates it unchanged, and that the sweep now validates one union member per ~80 bytes
@@ -113,7 +118,8 @@ The implementer plans the details.
 ### Data + site
 10. `scripts/website/bench-data/gen-servers-docs.mjs`: export `toRow`; rows carry `bytes` (sent + received per call)
     and `twinOf`. Compact rows stay inside the existing datasets (no new dataset name).
-11. New `container/website/app/utils/serverBenchRows.ts` (pure, unit-tested): `visibleRows(rows, twins)` hides any
+11. New `container/website/app/utils/serverBenchRows.js` (pure, unit-tested; plain JS typed in JSDoc because the
+    site's tsconfig extends `.nuxt/tsconfig.json`, which only exists in its image, so the host tests cannot load a `.ts` there): `visibleRows(rows, twins)` hides any
     row with `twinOf` unless `twins` names its base, and then shows only the base + its twins;
     `changeVsBase(row, rows, metric)` gives the measured percent change for a twin row.
 12. `ServerBenchBars.vue`: `bytes` metric (lower is better, formatted by `benchFormat.formatValue(..., 'bytes')`),
