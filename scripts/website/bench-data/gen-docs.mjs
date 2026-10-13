@@ -9,7 +9,7 @@
 //
 // Two benches:
 //   validation — runtime throughput from container/benchmarks/results/<competitor>.json,
-//                both metrics (is valid, validation errors); each page picks one.
+//                both metrics (is valid, get errors); each page picks one.
 //                unit = ops/sec, higher is better.
 //   typecost   — TypeScript type-instantiation count per form from
 //                container/benchmarks/results/<form>.typecost.json. unit = count, LOWER is
@@ -381,7 +381,7 @@ function buildValidationBench() {
 }
 
 // Emit one validation bench (index.json + per-case source JSON) for a filtered set of
-// rows. Both the is-valid and validation-errors metrics ship; the page picks one.
+// rows. Both the is-valid and get-errors metrics ship; the page picks one.
 function emitValidationBench(outName, label, rows, competitors, byComp, sources) {
   const sectionMap = new Map(); // group → {key,label,cases[]}
   const outDir = path.join(OUT_ROOT, outName);
@@ -424,12 +424,8 @@ function emitValidationBench(outName, label, rows, competitors, byComp, sources)
     showInvalid: true,
     hasSamples: true,
     metrics: [
-      {key: 'validate', label: 'Is-valid', metricLabel: 'createValidateFn — boolean is-valid check (ops/sec, higher is better)'},
-      {
-        key: 'validationErrors',
-        label: 'Validation errors',
-        metricLabel: 'getValidationErrors — full error report (ops/sec, higher is better)',
-      },
+      {key: 'validate', label: 'Is valid', metricLabel: 'Is valid: a true/false check (ops/sec, higher is better)'},
+      {key: 'validationErrors', label: 'Get errors', metricLabel: 'Get errors: the full list of errors (ops/sec, higher is better)'},
     ],
     competitors,
     versions: ENV?.versions,

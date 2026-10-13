@@ -123,7 +123,7 @@ onMounted(async () => {
       </table>
 
       <table v-if="validationRows.length" class="home-bench-table">
-        <caption>RunTypes validation, is-valid check, operations per second</caption>
+        <caption>RunTypes, is valid check, operations per second</caption>
         <colgroup>
           <col class="home-bench-col-name" />
           <col />
