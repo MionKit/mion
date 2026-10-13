@@ -230,7 +230,7 @@ const panelState = computed<'loading' | 'ready' | 'error'>(() => activeDetail.va
 
 /** The source to show for a competitor on THIS page: the metric-specific builder
  *  body (validation bench), or the single source (typecost). Absent → the
- *  competitor doesn't support this metric (e.g. zod has no boolean validate). */
+ *  competitor doesn't support this metric. */
 function metricSource(competitor: BenchCompetitorSource): string | undefined {
   if (props.metric) return competitor.sources?.[props.metric as 'validate' | 'validationErrors'];
   // No metric prop: the single typecost source, else (correctness) the is-valid builder.

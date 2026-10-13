@@ -24,7 +24,7 @@ design, and both hide real divergences:
 
 The audit looks behind both. For each competitor it runs the real validator
 (`createValidateFn` for RunTypes, `.Check` for TypeBox, the compiled `validate`
-for ajv, `safeParse` for zod, the generated check for typia) against the SHARED
+for ajv, the compiled `validate` and `safeParse` for zod, the generated check for typia) against the SHARED
 samples, never the competitor's own override, and records every individual sample
 where the answer differs from the shared truth. Each record is one row:
 

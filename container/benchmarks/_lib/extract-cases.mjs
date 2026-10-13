@@ -138,8 +138,7 @@ export function makeExtractors(ts) {
 
   /** zod / typebox cases.ts → {preamble, entries:{key:{locals, exprText}}}.
    *  Each supported entry is a `{build?, buildErrors?}` object whose thunk builds
-   *  `const schema = EXPR` (zod ships only `buildErrors`; typebox both — either
-   *  carries the same schema). Unsupported entries are the bare NOT_SUPPORTED
+   *  `const schema = EXPR` (both thunks carry the same schema). Unsupported entries are the bare NOT_SUPPORTED
    *  identifier (skipped). */
   function extractSchemaCompetitor(file, mapName) {
     const source = sf(file);

@@ -43,7 +43,7 @@
 // directory so Node-style `node_modules` resolution + each package's `exports`
 // map resolve the bare imports naturally — `mion`(+/schema,
 // /formats, /formats/temporal) from competitors/mion/node_modules
-// (bind-mounted at run time), `zod` / `@sinclair/typebox` from their own image
+// (bind-mounted at run time), `zod` / `typebox` from their own image
 // node_modules, and the realworld interfaces via the verbatim relative import.
 // `paths` (see OPTIONS) additionally pins the marker subpaths to the mounted
 // dist as a deterministic safety net.
@@ -140,7 +140,7 @@ const {extractTsGo, extractSchemaCompetitor, extractTypeForm} = makeExtractors(t
 // ── probe assembly ──────────────────────────────────────────────────────────
 
 const INFERTYPE_IMPORT = `import {type InferType} from '@mionjs/run-types';`;
-const TB_STATIC_IMPORT = `import {type Static as __TBStatic} from '@sinclair/typebox';`;
+const TB_STATIC_IMPORT = `import {type Static as __TBStatic} from 'typebox';`;
 
 // Force TypeScript to fully RESOLVE + structurally check the recovered type by
 // assigning a real value (the case's first valid sample). A bare `let x!: T`

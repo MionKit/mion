@@ -2,7 +2,7 @@
 
 Compares **RunTypes** validators against **zod**, **typebox**, **ajv**
 and **typia**, over the **full** `validation` + `format-validation` + `realworld`
-suites (263 cases — the exact cases the package tests itself with, plus a
+suites (the exact cases the package tests itself with, plus a
 real-world DTO group). All heavy tooling (the validator libraries, vite, typia's
 tsgo transform) lives **only inside a podman image** — the host never installs it.
 
@@ -17,7 +17,7 @@ joins those per-competitor results by case key into one comparison table.
 
 ```
 competitors/<name>/  cases.ts ── (the validators) ─┐
-shared/cases/    ────  the 263 cases (samples + metadata, ZERO library deps)
+shared/cases/    ────  the shared cases (samples + metadata, ZERO library deps)
 shared/harness/  ────  runCompetitor() + writeResult()  ──> results/<name>.json
                                                              aggregate.mjs ──> table
 ```
@@ -64,22 +64,6 @@ validator, then checks correctness against the case's valid/invalid samples and
 measures throughput. A builder that **throws** is a hard `errored` (a broken
 plugin rewrite for ts-go, a broken schema for the rest) — surfaced loudly, never
 hidden as not-supported.
-
-Typical coverage (validations/sec; the gap widens on complex objects):
-
-```
-case                  mion       zod    typebox      ajv      typia
-simple_interface              107M/s     646k/s     93M/s        —          —
-nested_object                  78M/s     481k/s     69M/s        —          —
-user (realworld)               63M/s     337k/s     50M/s     24M/s      68M/s
-
-Coverage (of 263):
-  mion   ok=260   not-supported=3
-  zod               ok=118   not-supported=145
-  typebox           ok=96    not-supported=167
-  ajv               ok=67    not-supported=196
-  typia             ok=40    not-supported=223
-```
 
 Why the competitors are not-supported on so many: JSON Schema (ajv) has no
 `bigint`, can't reject `NaN`/`Infinity`, can't validate `Date`/`Map`/`Set`/`Temporal`;
@@ -133,7 +117,7 @@ invalidated only when a dependency manifest changes.
 
 | Inside the image (deps only)                           | Bind-mounted from the repo at run time                     |
 | ------------------------------------------------------ | ---------------------------------------------------------- |
-| zod · @sinclair/typebox · ajv · typia · vite · esbuild | every competitor's source files + `shared/` + `typecost/` source |
+| zod · typebox · ajv · typia · vite · esbuild | every competitor's source files + `shared/` + `typecost/` source |
 | each competitor's `node_modules` + `package.json`      | `mion-bin/mion` + `packages/*` (ts-go competitor only) |
 | typia's compiled ttsc plugin (`node_modules/.cache/ttsc`, warmed at image build) | writable `results/` (so each `<name>.json` survives `--rm`) |
 
@@ -334,7 +318,7 @@ with the `typecost` type-checking table).
 
 ```
 shared/
-  cases/{validation,format-validation,realworld}/  the 263 cases (samples + metadata, no library deps)
+  cases/{validation,format-validation,realworld}/  the shared cases (samples + metadata, no library deps)
   cases/index.ts                                    the CaseKey union (drives totality) + iterateCases()
   harness/{types,measure,runner,result}.ts          the generic, competitor-agnostic run loop
 competitors/<name>/        (source only on the host — bind-mounted at run time)

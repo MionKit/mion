@@ -84,9 +84,7 @@ const byMetric = computed<Record<string, Record<string, AggregateRow>>>(() => {
 });
 
 /** The competitors worth a bar for this metric: one that declines it on EVERY case is
- *  dropped rather than drawn as a column of `n-a`. zod has no fast is-valid check (it
- *  validates by producing errors), so it is absent from those two pages and the prose
- *  there says why, instead of a row of dashes the reader has to interpret. */
+ *  dropped rather than drawn as a column of `n-a`. */
 function competitorsFor(metricKey: string): string[] {
   const idx = index.value;
   if (!idx) return [];

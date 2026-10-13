@@ -51,7 +51,7 @@ describe('the typecost artifact fixture tracks the real writer', () => {
 });
 
 describe('typia competitor map calls real typia exports', () => {
-  // typia 13.2.0 (the version pinned in
+  // typia 14.0.6 (the version pinned in
   // container/benchmarks/_deps/competitors/typia/package.json), read off its own
   // lib/module.d.ts. `createValidateFn` is NOT among them: it is a RunTypes name
   // that leaked in through one of our own createX -> createXFn renames.
@@ -67,11 +67,13 @@ describe('typia competitor map calls real typia exports', () => {
     'createEquals',
     'createIs',
     'createRandom',
+    'createShallow',
     'createValidate',
     'createValidateEquals',
     'equals',
     'is',
     'random',
+    'shallow',
     'validate',
     'validateEquals',
   ]);
@@ -95,6 +97,36 @@ describe('typia competitor map calls real typia exports', () => {
     const errorPathBuilders = [...source.matchAll(/const val = typia\.([A-Za-z]+)/g)].map((match) => match[1]);
     expect(errorPathBuilders.length).toBeGreaterThan(100);
     expect([...new Set(errorPathBuilders)].filter((name) => !name.startsWith('createValidate'))).toEqual([]);
+  });
+});
+
+describe('zod competitor map measures both metrics on its compiled path', () => {
+  const source = read('container/benchmarks/competitors/zod/cases.ts');
+  // One chunk per map entry: each starts at a 2-space-indented 'GROUP.case' key.
+  const entries = source.split(/\n {2}'(?=[A-Z_]+\.[^']+':)/).slice(1);
+  const supported = entries.filter((entry) => !/^[^']+': NOT_SUPPORTED/.test(entry));
+
+  it('reads every entry of the map', () => {
+    expect(supported.length).toBeGreaterThan(200);
+  });
+
+  it('gives every supported case a validate builder and an errors builder', () => {
+    const key = (entry: string) => entry.slice(0, entry.indexOf("'"));
+    expect(supported.filter((entry) => !entry.includes('compiled.validate(value)')).map(key)).toEqual([]);
+    expect(supported.filter((entry) => !entry.includes('compiled.safeParse(value).success')).map(key)).toEqual([]);
+    expect(supported.filter((entry) => (entry.match(/z\.compile\(schema\)/g) ?? []).length !== 2).map(key)).toEqual([]);
+  });
+});
+
+describe('typebox competitor map uses the typebox package', () => {
+  it('imports only typebox and typebox/compile', () => {
+    const source = read('container/benchmarks/competitors/typebox/cases.ts');
+    const imports = [...source.matchAll(/from '([^.][^']*)'/g)].map((match) => match[1]);
+    expect([...new Set(imports)].sort()).toEqual(['typebox', 'typebox/compile']);
+  });
+
+  it('records the version of the package it imports', () => {
+    expect(read('container/benchmarks/capture-env.mjs')).toContain("typebox: 'typebox',");
   });
 });
 

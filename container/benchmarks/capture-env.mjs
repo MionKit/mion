@@ -15,7 +15,7 @@ const RESULTS = process.env.MION_VALIDATION_BENCH_RESULTS_DIR ?? path.join(HERE,
 const LIBS = {
   'mion': '@mionjs/run-types',
   zod: 'zod',
-  typebox: '@sinclair/typebox',
+  typebox: 'typebox',
   ajv: 'ajv',
   typia: 'typia',
 };
