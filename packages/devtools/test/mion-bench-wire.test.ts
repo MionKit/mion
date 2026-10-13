@@ -126,11 +126,11 @@ describe('which server rows a chart draws', () => {
   ];
 
   it('leaves twins out of every chart that does not ask for them', () => {
-    expect(visibleRows(rows).map((row) => row.app)).toEqual(['fastify', 'mion']);
+    expect(visibleRows(rows).map((row: {app: string}) => row.app)).toEqual(['fastify', 'mion']);
   });
 
   it('draws only the base and its twins when asked', () => {
-    expect(visibleRows(rows, 'mion').map((row) => row.app)).toEqual(['mion', 'mion.compact']);
+    expect(visibleRows(rows, 'mion').map((row: {app: string}) => row.app)).toEqual(['mion', 'mion.compact']);
   });
 
   it('measures a twin against its base, and nothing for the base itself', () => {

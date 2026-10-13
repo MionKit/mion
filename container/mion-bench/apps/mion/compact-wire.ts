@@ -11,18 +11,25 @@
 import {createJsonEncoderFn, createRestoreFromJsonFn} from '@mionjs/run-types';
 import {SimpleUser, User} from '../../shared/models.ts';
 
-/** Per route id: the params tuple as a request body, and a parsed response value back as keyed data. */
+// shared/payloads.mjs writes plain JSON values (dates as text), the shape every other lane sends;
+// restoring them first gives the compact encoder the typed values a mion client would hold.
+const restoreUser = createRestoreFromJsonFn<[User]>();
+const restoreSimpleUser = createRestoreFromJsonFn<[SimpleUser]>();
+const encodeUser = createJsonEncoderFn<[User]>(undefined, {strategy: 'compact'});
+const encodeSimpleUser = createJsonEncoderFn<[SimpleUser]>(undefined, {strategy: 'compact'});
+
+/** Per route id: the params tuple, as plain JSON values, written as a compact request body; a parsed response value read back as keyed data. */
 export const COMPACT_WIRE = {
   // a GET with no body: only its answer is read
   hello: {
     decodeReturn: createRestoreFromJsonFn<{hello: string}>(undefined, {strategy: 'compact'}),
   },
   updateUser: {
-    encodeParams: createJsonEncoderFn<[User]>(undefined, {strategy: 'compact'}),
+    encodeParams: (params: unknown[]) => encodeUser(restoreUser(params)),
     decodeReturn: createRestoreFromJsonFn<User>(undefined, {strategy: 'compact'}),
   },
   updateSimpleUser: {
-    encodeParams: createJsonEncoderFn<[SimpleUser]>(undefined, {strategy: 'compact'}),
+    encodeParams: (params: unknown[]) => encodeSimpleUser(restoreSimpleUser(params)),
     decodeReturn: createRestoreFromJsonFn<SimpleUser>(undefined, {strategy: 'compact'}),
   },
 };
