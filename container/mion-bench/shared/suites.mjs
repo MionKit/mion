@@ -12,11 +12,7 @@
 
 import {buildSimpleUser, buildUser, buildUserOfSize, mionBody, plainBody, SWEEP_SIZES} from './payloads.mjs';
 
-/**
- * The request body for one app: mion takes a bare array of route arguments, every other
- * framework the plain object. `codec` is the compact lane's compiled wire (apps/mion/compact-wire.ts),
- * passed in because this tree imports nothing third-party.
- */
+/** `codec` (apps/mion/compact-wire.ts) is passed in because this tree imports nothing third-party. */
 export function bodyFor(app, value, codec) {
   if (app.family !== 'mion') return plainBody(value);
   return codec ? codec.encodeParams([value]) : mionBody(value);

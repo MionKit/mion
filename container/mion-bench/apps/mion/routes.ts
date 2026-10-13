@@ -5,16 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The routes every plain JSON mion lane serves. The handler signatures ARE the schema: the
-// build-time resolver reads `user: User` and compiles the validator, deserializer and
-// serializer from it. Nothing here declares a schema, which is the difference the
-// benchmark is measuring.
+// Routes for every plain JSON mion lane. No schema is declared: the resolver compiles one from the
+// handler types, which is the difference the benchmark measures.
 import {Routes, createMionRouter} from '@mionjs/router';
 import {hello, updateSimpleUser, updateUser} from './handlers.ts';
 
-// One router per process, created and initialized HERE: the server entries
-// import this file and then listen. The route params here (a User with plain strings) have no
-// maximum, so every route takes the adapter's maxBodySize, which each server entry sets.
+// One router per process: each server entry imports this file, then listens with its own maxBodySize.
+// Every route takes that maxBodySize, since a User (plain strings) declares no maximum.
 const mion = createMionRouter();
 
 const routes = {

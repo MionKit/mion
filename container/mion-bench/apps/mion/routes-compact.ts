@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The same routes as routes.ts on the compact wire: every object travels as an array of its
-// values, no key names. The mion.compact lane serves these, so JSON vs compact is one router option.
+// routes.ts on the compact wire (objects travel as arrays of values, no key names), served by the mion.compact lane.
 import {Routes, createMionRouter} from '@mionjs/router';
 import {hello, updateSimpleUser, updateUser} from './handlers.ts';
 

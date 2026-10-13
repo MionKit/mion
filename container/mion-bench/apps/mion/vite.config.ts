@@ -1,9 +1,7 @@
 /* ########
  * 2026 mion · License: MIT
  * ######## */
-// Builds the mion server entries and the compact lane's wire codec. The plugin drives the Go resolver over the
-// route handlers and emits the validators / serializers their types imply, which is
-// exactly the work a real mion app does at build time.
+// Builds the mion server entries and the compact lane's wire codec, running the resolver as a real mion app's build does.
 import {resolve} from 'node:path';
 import {defineConfig} from 'vite';
 import {mionVitePlugin} from '@mionjs/devtools/vite';

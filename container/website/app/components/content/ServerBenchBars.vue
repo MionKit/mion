@@ -5,7 +5,6 @@ import {changeVsBase, formatChange, visibleRows} from '~/utils/serverBenchRows';
 
 // One server benchmark metric as bars, read from /bench-data/<bench>/index.json (the file the home summary reads).
 // Run metadata renders once per page, on the bars that ask for it (`show-meta`).
-// Twin lanes (mion.compact) are left out unless `twins` names their base, which then draws only the two.
 
 type MetricKey = 'requests' | 'throughput' | 'latency' | 'maxMem' | 'maxCpu' | 'bytes';
 

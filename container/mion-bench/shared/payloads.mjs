@@ -72,17 +72,12 @@ export const SWEEP_SIZES = [
 ];
 
 /**
- * A User padded to approximately `bytes` of JSON by repeating its payment methods, cycling
- * through every member of the declared union, so every competitor's existing schema validates
- * the padding unchanged and nobody skips a stray field.
- *
- * Objects rather than strings, because the payload is what the compact lane is measured on: it
- * drops key names, so a list of strings would show no difference at all. The cost is that every
- * lane validates one union member per ~80 bytes, more work per byte than a list of strings.
+ * Pads with valid payment methods, cycling the union, so every schema validates the padding and none skips a stray field.
+ * Objects, not strings, so compact's dropped key names show; the cost is one union member validated per ~80 bytes.
  */
 export function buildUserOfSize(bytes) {
   const base = JSON.stringify(buildUser([])).length;
-  // Each repeat costs its own JSON plus the comma before it.
+  // +1 for the comma before each repeat.
   const perCycle = PAYMENT_METHODS.reduce((sum, method) => sum + JSON.stringify(method).length + 1, 0);
   const count = Math.max(0, Math.round(((bytes - base) / perCycle) * PAYMENT_METHODS.length));
   return buildUser(Array.from({length: count}, (_, i) => PAYMENT_METHODS[i % PAYMENT_METHODS.length]));

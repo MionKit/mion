@@ -1,7 +1,5 @@
-// Which rows a server benchmark chart draws, and how a twin lane reads against its base.
-// A twin is a variant of one lane (mion.compact of mion), measured in the same dataset but drawn
-// only on the charts that ask for it, so it never crowds the framework comparison.
-// Plain JS, typed in comments: the host test suite loads it, and the site's generated tsconfig only exists in its image.
+// A twin (mion.compact of mion) shares its base's dataset but is drawn only on charts that ask, so it never crowds them.
+// Plain JS typed in JSDoc: host tests load it, and the site's generated tsconfig only exists in its image.
 
 /** @typedef {{app: string, twinOf?: string | null}} TwinRow */
 
