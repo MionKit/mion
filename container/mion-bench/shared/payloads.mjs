@@ -22,8 +22,15 @@ export function buildSimpleUser() {
   };
 }
 
+// One of each PaymentMethod member, the discriminated union in ./models.ts.
+const PAYMENT_METHODS = [
+  {type: 'credit_card', lastFourDigits: '4242', expiryMonth: 12, expiryYear: 2025, brand: 'visa'},
+  {type: 'bank_account', bankName: 'Chase', accountLastFour: '1234', routingNumber: '021000021'},
+  {type: 'paypal', email: 'john.paypal@example.com'},
+];
+
 /** A ~1 KB user, matching User in ./models.ts (nested objects + a discriminated union). */
-export function buildUser(tags = ['premium', 'early-adopter', 'verified']) {
+export function buildUser(paymentMethods = [PAYMENT_METHODS[0], PAYMENT_METHODS[2]]) {
   return {
     id: Math.floor(Math.random() * Number.MAX_SAFE_INTEGER),
     username: 'john_smith',
@@ -39,10 +46,7 @@ export function buildUser(tags = ['premium', 'early-adopter', 'verified']) {
     role: 'user',
     status: 'active',
     address: {street: '123 Main Street', city: 'San Francisco', state: 'CA', zipCode: '94102', country: 'USA'},
-    paymentMethods: [
-      {type: 'credit_card', lastFourDigits: '4242', expiryMonth: 12, expiryYear: 2025, brand: 'visa'},
-      {type: 'paypal', email: 'john.paypal@example.com'},
-    ],
+    paymentMethods,
     preferences: {
       theme: 'dark',
       language: 'en-US',
@@ -52,7 +56,7 @@ export function buildUser(tags = ['premium', 'early-adopter', 'verified']) {
     createdAt: '2020-01-15T10:30:00.000Z',
     updatedAt: '2024-12-17T02:24:00.000Z',
     lastLoginAt: '2024-12-16T18:45:00.000Z',
-    tags,
+    tags: ['premium', 'early-adopter', 'verified'],
   };
 }
 
@@ -68,18 +72,20 @@ export const SWEEP_SIZES = [
 ];
 
 /**
- * A User padded to approximately `bytes` of JSON by growing its `tags` array - the
- * one unbounded string[] in the model, so the padding stays VALID against the type
- * and every competitor validates the whole payload rather than skipping a stray field.
+ * A User padded to approximately `bytes` of JSON by repeating its payment methods, cycling
+ * through every member of the declared union, so every competitor's existing schema validates
+ * the padding unchanged and nobody skips a stray field.
+ *
+ * Objects rather than strings, because the payload is what the compact lane is measured on: it
+ * drops key names, so a list of strings would show no difference at all. The cost is that every
+ * lane validates one union member per ~80 bytes, more work per byte than a list of strings.
  */
 export function buildUserOfSize(bytes) {
   const base = JSON.stringify(buildUser([])).length;
-  const tagLength = 64;
-  // Each padded tag costs its own length plus the quotes and the comma around it.
-  const perTag = tagLength + 3;
-  const count = Math.max(0, Math.ceil((bytes - base) / perTag));
-  const tags = Array.from({length: count}, (_, i) => String(i).padStart(8, '0').padEnd(tagLength, 'x'));
-  return buildUser(tags);
+  // Each repeat costs its own JSON plus the comma before it.
+  const perCycle = PAYMENT_METHODS.reduce((sum, method) => sum + JSON.stringify(method).length + 1, 0);
+  const count = Math.max(0, Math.round(((bytes - base) / perCycle) * PAYMENT_METHODS.length));
+  return buildUser(Array.from({length: count}, (_, i) => PAYMENT_METHODS[i % PAYMENT_METHODS.length]));
 }
 
 /** mion's wire shape: a bare array of the route's arguments (the router reconstructs it). */

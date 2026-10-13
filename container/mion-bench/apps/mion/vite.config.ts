@@ -1,7 +1,7 @@
 /* ########
  * 2026 mion · License: MIT
  * ######## */
-// Builds the three mion server entries. The plugin drives the Go resolver over the
+// Builds the mion server entries and the compact lane's wire codec. The plugin drives the Go resolver over the
 // route handlers and emits the validators / serializers their types imply, which is
 // exactly the work a real mion app does at build time.
 import {resolve} from 'node:path';
@@ -39,6 +39,9 @@ export default defineConfig({
         'server-node': resolve(import.meta.dirname, 'server-node.ts'),
         'server-uws': resolve(import.meta.dirname, 'server-uws.ts'),
         'server-bun': resolve(import.meta.dirname, 'server-bun.ts'),
+        'server-node-compact': resolve(import.meta.dirname, 'server-node-compact.ts'),
+        // Not a server: the harness imports it to write and read the compact lane's bodies.
+        'compact-wire': resolve(import.meta.dirname, 'compact-wire.ts'),
       },
       output: {format: 'es', entryFileNames: '[name].mjs', chunkFileNames: '[name]-[hash].mjs'},
       // Everything first-party is INLINED (that is the point - the bundle is the app

@@ -8,12 +8,19 @@
 // What each benchmark measures, and how a request for it is built. One entry per
 // page on the docs site, plus the payload-size sweep.
 //
-// `body(app)` gets the app descriptor so mion can be handed its own wire shape (a
-// bare array of route arguments) while every other framework gets the plain object.
+// `build(size)` returns the value a request carries; `bodyFor` writes it in each app's wire shape.
 
 import {buildSimpleUser, buildUser, buildUserOfSize, mionBody, plainBody, SWEEP_SIZES} from './payloads.mjs';
 
-const bodyFor = (app, value) => (app.family === 'mion' ? mionBody(value) : plainBody(value));
+/**
+ * The request body for one app: mion takes a bare array of route arguments, every other
+ * framework the plain object. `codec` is the compact lane's compiled wire (apps/mion/compact-wire.ts),
+ * passed in because this tree imports nothing third-party.
+ */
+export function bodyFor(app, value, codec) {
+  if (app.family !== 'mion') return plainBody(value);
+  return codec ? codec.encodeParams([value]) : mionBody(value);
+}
 
 export const SUITES = {
   'hello-world': {
@@ -23,21 +30,21 @@ export const SUITES = {
     description: 'Routing only, no validation.',
     method: 'GET',
     path: '/hello',
-    body: () => undefined,
+    build: () => undefined,
   },
   'light-validation': {
     label: 'Light Validation',
     description: 'A ~100 byte user: four fields, one of them a date.',
     method: 'POST',
     path: '/updateSimpleUser',
-    body: (app) => bodyFor(app, buildSimpleUser()),
+    build: () => buildSimpleUser(),
   },
   'heavy-validation': {
     label: 'Heavy Validation',
     description: 'A ~1 KB user: nested objects, a discriminated union and three dates.',
     method: 'POST',
     path: '/updateUser',
-    body: (app) => bodyFor(app, buildUser()),
+    build: () => buildUser(),
   },
 };
 
@@ -51,7 +58,7 @@ export const SWEEP_SUITE = {
   method: 'POST',
   path: '/updateUser',
   sizes: SWEEP_SIZES,
-  body: (app, size) => bodyFor(app, buildUserOfSize(size.bytes)),
+  build: (size) => buildUserOfSize(size.bytes),
 };
 
 export const SUITE_KEYS = Object.keys(SUITES);

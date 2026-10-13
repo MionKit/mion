@@ -1474,6 +1474,8 @@ describe('mion server benchmarks stay wired end to end', () => {
     runtime: string;
     family: string;
     versionOf: string;
+    wire?: string;
+    twinOf?: string;
   }
 
   it('every app has its source entry, its own _deps manifest and an image install layer', async () => {
@@ -1494,6 +1496,32 @@ describe('mion server benchmarks stay wired end to end', () => {
       expect(CONTAINERFILE, `${app.name}: Containerfile has no install layer for _deps/${app.dir}`).toContain(
         `_deps/${app.dir}/package.json`
       );
+    }
+  });
+
+  it('every mion lane runs a bundle the mion build emits', async () => {
+    // The mion entries are dist artifacts, so the check above cannot see one with no vite input.
+    const {APPS} = await loadApps();
+    const viteConfig = readFileSync(join(BENCH_DIR, 'apps/mion/vite.config.ts'), 'utf8');
+    for (const app of APPS.filter((entry) => entry.family === 'mion')) {
+      const name = /^dist\/(.+)\.mjs$/.exec(app.entry)?.[1];
+      expect(name, `${app.name}: entry ${app.entry} is not a dist bundle`).toBeTruthy();
+      expect(viteConfig, `${app.name}: apps/mion/vite.config.ts has no '${name}' input`).toContain(`'${name}': resolve(`);
+    }
+  });
+
+  it('a compact lane has its codec built and a real lane to be compared against', async () => {
+    const {APPS} = await loadApps();
+    const compact = APPS.filter((app) => app.wire === 'compact');
+    expect(compact.map((app) => app.name)).toEqual(['mion.compact']);
+    const viteConfig = readFileSync(join(BENCH_DIR, 'apps/mion/vite.config.ts'), 'utf8');
+    expect(viteConfig, 'the harness imports dist/compact-wire.mjs, which nothing builds').toContain("'compact-wire': resolve(");
+    expect(readFileSync(join(BENCH_DIR, 'harness/run.mjs'), 'utf8')).toContain('dist/compact-wire.mjs');
+    for (const app of APPS.filter((entry) => entry.twinOf)) {
+      expect(
+        APPS.some((entry) => entry.name === app.twinOf && !entry.twinOf),
+        `${app.name}: twinOf '${app.twinOf}' is not a lane`
+      ).toBe(true);
     }
   });
 
@@ -1518,6 +1546,7 @@ describe('mion server benchmarks stay wired end to end', () => {
     const driver = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/mion-bench.mjs'), 'utf8');
     // The image is deps-only: a script that is not mounted simply is not there at run time.
     expect(driver, 'harness/wrk.lua is never bind-mounted').toContain('harness/wrk.lua');
+    expect(driver, 'harness/wire.mjs is never bind-mounted').toContain('harness/wire.mjs');
   });
 
   it('every request carries a fresh id', () => {
@@ -1525,7 +1554,7 @@ describe('mion server benchmarks stay wired end to end', () => {
     // wrk builds requests in Lua, so run.mjs splits one body around its id and the script
     // stamps a new one between the halves.
     const harness = readFileSync(join(BENCH_DIR, 'harness/run.mjs'), 'utf8');
-    expect(harness, 'run.mjs no longer splits the body around its id').toContain('bodyTemplate');
+    expect(harness, 'run.mjs no longer splits the body around its id').toContain('bodyTemplate(body, id)');
     const lua = readFileSync(join(BENCH_DIR, 'harness/wrk.lua'), 'utf8');
     expect(lua).toContain('randomId');
     expect(lua, 'the body prefix/suffix halves are not read from the job dir').toContain('body.prefix');
@@ -1571,6 +1600,26 @@ describe('mion server benchmarks stay wired end to end', () => {
     // heading named after a raw key.
     for (const bench of referenced)
       expect(generator, `gen-servers-docs.mjs has no SUITE_META for ${bench}`).toContain(`'${bench.replace('servers-', '')}':`);
+  });
+
+  it('every twins= on a page names a lane that has a twin', async () => {
+    // A chart asking for twins of a lane with none draws the base alone and says nothing.
+    const {APPS} = await loadApps();
+    const bases = new Set(APPS.map((app) => app.twinOf).filter(Boolean));
+    const asked: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, {withFileTypes: true})) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (entry.name.endsWith('.md')) {
+          for (const match of readFileSync(full, 'utf8').matchAll(/:server-bench-bars\{[^}]*twins=['"]([^'"]+)['"]/g))
+            asked.push(match[1]);
+        }
+      }
+    };
+    walk(MION_CONTENT);
+    expect(asked.length, 'no page draws the compact lane').toBeGreaterThan(0);
+    expect(asked.filter((base) => !bases.has(base))).toEqual([]);
   });
 
   it('the benchmark geometric means are computed in one place, for the pages and the home summary', () => {

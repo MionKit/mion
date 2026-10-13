@@ -7,11 +7,15 @@
 
 // Every server under test. `dir` is its isolated pnpm project under apps/, `entry`
 // the file to run, `runtime` which binary runs it. The mion lanes share ONE project
-// (one build, three entry points) because they differ only in platform adapter.
+// (one build, one entry point per lane) because they differ only in platform adapter or wire.
 //
 // `description` and `validation` are what the docs table prints, so they live beside
 // the app rather than in the website content - a lane that changes what it does
 // updates its own row.
+//
+// `wire: 'compact'` makes the harness write and read that lane's bodies with the compact codec.
+// `twinOf` names the lane it is a variant of: the pages hide a twin everywhere except the charts
+// that ask for it (`twins="<app>"`), so one extra lane never crowds the framework comparison.
 
 export const APPS = [
   {
@@ -49,6 +53,20 @@ export const APPS = [
     validation: true,
     versionOf: '@mionjs/platform-bun',
     description: 'mion using bun, automatic validation and serialization',
+  },
+  {
+    name: 'mion.compact',
+    label: 'mion.compact',
+    family: 'mion',
+    dir: 'mion',
+    entry: 'dist/server-node-compact.mjs',
+    runtime: 'node',
+    router: true,
+    validation: true,
+    versionOf: '@mionjs/router',
+    description: 'mion on node over compact JSON: objects travel as arrays, no key names',
+    wire: 'compact',
+    twinOf: 'mion',
   },
   {
     name: 'http-node',
