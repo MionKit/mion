@@ -54,7 +54,7 @@ export function lowerBetterFor(metrics: BenchMetric[], datasetUnit: BenchUnit, m
 export function strategyOf(competitor: string): 'comptime' | 'jit' | 'interpreted' {
   const name = competitor.toLowerCase()
   if (name.includes('typia') || name.includes('ts-go') || name.includes('mion')) return 'comptime'
-  if (name.includes('ajv') || name.includes('typebox')) return 'jit'
+  if (name.includes('ajv') || name.includes('typebox') || name.includes('zod')) return 'jit'
   return 'interpreted'
 }
 
