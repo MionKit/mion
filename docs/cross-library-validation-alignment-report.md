@@ -76,7 +76,7 @@ pnpm miondevx bench audit
 
 ## Summary
 
-Live per-sample divergences against the shared truth (114 distinct findings, every
+Live per-sample divergences against the shared truth (111 distinct findings, every
 one a reject-path acceptance, meaning the competitor accepts a value RunTypes
 rejects):
 
@@ -84,32 +84,32 @@ rejects):
 | ----------- | ---------------- | ---------------- | --------------------------- |
 | zod         | 0                | none             | fully aligned               |
 | TypeBox     | 8                | accepts (looser) | LIBRARY_SEMANTIC_DIFFERENCE |
-| ajv         | 36               | accepts (looser) | LIBRARY_SEMANTIC_DIFFERENCE |
-| typia       | 70               | accepts (looser) | LIBRARY_SEMANTIC_DIFFERENCE |
+| ajv         | 35               | accepts (looser) | LIBRARY_SEMANTIC_DIFFERENCE |
+| typia       | 68               | accepts (looser) | LIBRARY_SEMANTIC_DIFFERENCE |
 | RunTypes | 0 (reference)    | n/a              | n/a                         |
 
 By root cause:
 
 | root cause                                  | TypeBox | ajv | typia |
 | ------------------------------------------- | ------- | --- | ----- |
-| non-finite number (NaN / Infinity)          | 0       | 36  | 46    |
+| non-finite number (NaN / Infinity)          | 0       | 35  | 44    |
 | Invalid Date (instanceof only)              | 0       | 0   | 22    |
 | plain-object guard (class instance / array) | 8       | 0   | 0     |
 | collection element validation (Map / Set)   | 0       | 0   | 1     |
 | format regex difference (email)             | 0       | 0   | 1     |
 
 (Counts above are distinct case-and-sample findings. Each is measured on both the
-`validate` and `validationErrors` paths, so the raw record total is double: 228.)
+`validate` and `validationErrors` paths, so the raw record total is double: 222.)
 
 Declared divergences each competitor already carries in its case file:
 
 | competitor  | NOT_SUPPORTED cases | SampleOverride cases |
 | ----------- | ------------------- | -------------------- |
-| RunTypes | 3                   | 0                    |
-| zod         | 37                  | 0                    |
-| TypeBox     | 77                  | 3                    |
-| ajv         | 116                 | 27                   |
-| typia       | 71                  | 50                   |
+| RunTypes | 9                   | 0                    |
+| zod         | 40                  | 0                    |
+| TypeBox     | 67                  | 3                    |
+| ajv         | 109                 | 27                   |
+| typia       | 73                  | 49                   |
 
 Three observations set up the rest of the report:
 
@@ -125,12 +125,12 @@ Three observations set up the rest of the report:
 
 ## The divergence clusters
 
-All 114 live findings collapse into five root causes: three main ones and two with
+All 111 live findings collapse into five root causes: three main ones and two with
 a single finding each.
 
 ### 1. Non-finite numbers (NaN, Infinity, -Infinity)
 
-The largest cluster (36 ajv findings, 46 typia findings). Both accept `NaN`,
+The largest cluster (35 ajv findings, 44 typia findings). Both accept `NaN`,
 `Infinity`, and `-Infinity` wherever a number is expected, across atomics, arrays,
 tuples, object properties, index signatures, unions, and utility-type projections.
 RunTypes gates every number on `Number.isFinite`, so non-finite values are
@@ -227,7 +227,7 @@ so the catalog is complete.
 
 ### ajv
 
-ajv carries 116 NOT_SUPPORTED cases and 27 overrides. The NOT_SUPPORTED reasons
+ajv carries 109 NOT_SUPPORTED cases and 27 overrides. The NOT_SUPPORTED reasons
 group as:
 
 - About 55 builtin-class cases. JSON Schema has no `Date`, `RegExp`, `Map`, or
@@ -242,7 +242,7 @@ The 27 overrides are all the non-finite-number cluster from above.
 
 ### typia
 
-typia carries 71 NOT_SUPPORTED cases and 50 overrides. The 50 overrides are the
+typia carries 73 NOT_SUPPORTED cases and 49 overrides. The 49 overrides are the
 non-finite-number, Invalid-Date, collection-element, and format clusters, and the
 live typia run reproduced every one of them. The NOT_SUPPORTED reasons are more
 interesting because several of them are places where typia is STRICTER or simply
@@ -265,7 +265,7 @@ structural, not a single edge sample.
 
 ### TypeBox
 
-TypeBox carries 77 NOT_SUPPORTED cases and 3 overrides. The 3 overrides are the
+TypeBox (the `typebox` 1.x package) carries 67 NOT_SUPPORTED cases and 3 overrides. The 3 overrides are the
 all-optional plain-object cases from cluster 3. They are the only overrides in the
 suite with no inline reason. The live audit explains all three (class instances
 and arrays accepted by a structural object schema), so the catalog is complete,
@@ -274,7 +274,8 @@ line with how ajv and typia annotate theirs.
 
 ### zod
 
-zod carries 37 NOT_SUPPORTED cases and 0 overrides, and 0 live divergences. Where
+zod carries 40 NOT_SUPPORTED cases and 0 overrides, and 0 live divergences on
+either metric. Where
 the shared truth needs a guard the schema language does not provide (the
 plain-object guard, symbol identity by description, and similar), zod authored a
 `z.custom` predicate that matches RunTypes exactly. It is the most closely
