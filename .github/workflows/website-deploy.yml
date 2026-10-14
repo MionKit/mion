@@ -1,30 +1,8 @@
 name: prod · deploy website
 
-# Manually-triggered docs-site deploy to Cloudflare Pages. ONE Nuxt install
-# (container/website/) builds ONE static site with three subsites (/rpc, /runtypes,
-# /benchmarks), deployed to mion.pages.dev (repo variable CLOUDFLARE_PAGES_PROJECT,
-# default 'mion'). Split out of publish.yml
-# because staged publishing means the publish run ends at "packages staged", not
-# "live" — so the deploy can no longer hang off `needs: publish-npm`, and npm fires
-# no usable publish webhook for this account to trigger it automatically.
-#
-# Run this from the Actions UI AFTER the staged packages are approved (2FA,
-# leaves-first via `pnpm miondevx release stage-approve`). The docs site builds from the
-# repo, not from an installed npm version, so the optional `version` input is for
-# the run log only. See SETUP.md → Publishing.
-#
-# Dispatch it against EITHER `main` or `prod` — both ship the same live site. The
-# deploy pins `--branch=prod` (the Pages production branch), so the git ref decides
-# only WHICH TREE is built, never whether the result is production. Without that pin
-# wrangler infers the branch from git, and a dispatch from anything but `prod` went
-# green while only publishing a PREVIEW at a branch-alias URL — the live site
-# untouched. `main` is the ref to use for a docs-only fix that must not wait for a
-# release; `prod` for the deploy that follows one.
-#
-# A pre-build guard (`miondevx release verify-live`) refuses to deploy unless the checked-out
-# tree matches the LIVE npm release (all @mionjs/* packages, in lockstep) — so a
-# dispatch from a `main` carrying an unreleased bump, or from `prod` before
-# stage-approval, aborts instead of shipping docs for a version nobody can install.
+# Manual docs-site deploy, split out of publish.yml: a staged publish ends at "packages staged", not live,
+# and npm fires no usable webhook to trigger it. Run it AFTER `pnpm miondevx release stage-approve`,
+# from `prod` after a release or from `main` for a docs-only fix; both ship the live site. See SETUP.md.
 on:
   workflow_dispatch:
     inputs:

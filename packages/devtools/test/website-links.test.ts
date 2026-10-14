@@ -1,17 +1,6 @@
-// Docs-website link contracts. The site became ONE site with three subsites (/rpc,
-// /runtypes, /benchmarks) by moving two content trees under prefixes, which turned
-// every root-relative link into a candidate 404. The website is containerized, so
-// nothing in this repo's CI renders it; this test resolves every in-site link against
-// the content tree instead:
-//
-//   - every root-relative link in content/**/*.md and .navigation.yml lands on a
-//     content page, a subsite root, the playground, or a public asset;
-//   - no in-site link goes through a domain (an absolute mion.pages.dev link would
-//     silently skip the client router);
-//   - every in-site redirect target in public/_redirects resolves the same way;
-//   - every '#anchor' link lands on a heading that exists on the page it targets.
-//     Nothing renders the site here either, so a link to a section that was renamed
-//     or removed leaves the reader where they stood, with no error anywhere.
+// Nothing in CI renders the containerized site, so this resolves every in-site link against the
+// content tree: a broken link or '#anchor' fails silently in the browser, and an absolute
+// mion.pages.dev link skips the client router.
 
 import {describe, it, expect} from 'vitest';
 import {existsSync, globSync, readdirSync, readFileSync, statSync} from 'node:fs';
