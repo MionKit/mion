@@ -67,10 +67,6 @@ end. The points specific to this FIRST cut:
   `platform-uws`, the four drizzle packages, every `native-*` payload):
   `pnpm miondevx release manual-publish` creates them live first (it publishes everything
   not already live, leaves first).
-- Cloudflare Pages project `mion` (mion.pages.dev, the only deploy target; repo variable
-  `CLOUDFLARE_PAGES_PROJECT`, default `mion`): set its production branch to `prod` and
-  turn automatic Git deployments off. `website-deploy.yml` uploads with `--branch=prod`, so
-  any other production branch (it was `mion-run-types`) turns every deploy into a preview.
 - Archive `MionKit/ts-run-types` (README pointer: development moved to `MionKit/mion`,
   history preserved there under the `pre-merge-ts-run-types` tag) and `MionKit/Benchmarks`
   (its harness lives in `container/mion-bench/`).
