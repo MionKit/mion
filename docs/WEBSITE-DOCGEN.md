@@ -114,7 +114,7 @@ Keep these stable — they are the boundary between the generators and the UI.
   "hideAggregate": true,         // hide the geometric-mean summary table
   "metrics": [{"key": "validate", "label": "Is valid", "metricLabel": "…", "cellHint": "…", "lowerBetter": false}],
   "competitors": ["mion", "zod", "typebox", "ajv"],
-  "versions": {"zod": "4.6.3"},
+  "versions": {"zod": "4.6.5"},
   "meta": {"generatedAt": "…", "os": "…", "cpu": "…", "cores": 4, "node": "…", "typescript": "…"},
   "sections": [
     {
