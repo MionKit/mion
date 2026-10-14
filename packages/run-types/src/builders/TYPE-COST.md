@@ -194,7 +194,7 @@ next: passing a params bag costs `object` +140 marginal over the bare call.
 ## How this compares to zod
 
 Measured locally against zod 4.4.3 with the same harness (net instantiations, import
-scaffold already subtracted). Not the website benchmark, which subtracts a per-library
+scaffold already subtracted). zod 4.6.5 gives the same counts. Not the website benchmark, which subtracts a per-library
 baseline and may rank differently.
 
 | case                                               | here | zod 4 |

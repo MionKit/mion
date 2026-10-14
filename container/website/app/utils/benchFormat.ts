@@ -60,7 +60,7 @@ export function strategyOf(competitor: string): 'comptime' | 'jit' | 'interprete
 
 /** major.minor, the axis releases actually move on. Exception: for a 0.x package the
  *  patch IS that axis (semver reads 0.minor.patch as breaking.feature), so a non-zero
- *  patch is kept, e.g. typebox 0.34.49. */
+ *  patch is kept, e.g. 0.34.49. */
 export function shortVersion(version: string | undefined): string {
   if (!version) return ''
   const parts = version.split('.')
