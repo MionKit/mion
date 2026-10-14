@@ -736,12 +736,16 @@ export const cases: CompetitorCases = {
   },
   'OBJECT.call_signature_params_with_rest': {
     build: () => {
-      const schema = Type.Tuple([Type.Number(), Type.Boolean()], {additionalItems: Type.Refine(Type.Unsafe<Date>({}), (value) => value instanceof Date && !Number.isNaN(value.getTime()))});
+      const schema = Type.Unsafe<[number, boolean, ...Date[]]>(
+        Type.Tuple([Type.Number(), Type.Boolean()], {additionalItems: Type.Refine(Type.Unsafe<Date>({}), (value) => value instanceof Date && !Number.isNaN(value.getTime()))})
+      );
       const check = Compile(schema);
       return (value: unknown) => check.Check(value);
     },
     buildErrors: () => {
-      const schema = Type.Tuple([Type.Number(), Type.Boolean()], {additionalItems: Type.Refine(Type.Unsafe<Date>({}), (value) => value instanceof Date && !Number.isNaN(value.getTime()))});
+      const schema = Type.Unsafe<[number, boolean, ...Date[]]>(
+        Type.Tuple([Type.Number(), Type.Boolean()], {additionalItems: Type.Refine(Type.Unsafe<Date>({}), (value) => value instanceof Date && !Number.isNaN(value.getTime()))})
+      );
       const check = Compile(schema);
       return (value: unknown) => check.Errors(value).length === 0;
     },
@@ -914,12 +918,12 @@ export const cases: CompetitorCases = {
   },
   'TUPLE.tuple_rest': {
     build: () => {
-      const schema = Type.Tuple([Type.Number()], {additionalItems: Type.String()});
+      const schema = Type.Unsafe<[number, ...string[]]>(Type.Tuple([Type.Number()], {additionalItems: Type.String()}));
       const check = Compile(schema);
       return (value: unknown) => check.Check(value);
     },
     buildErrors: () => {
-      const schema = Type.Tuple([Type.Number()], {additionalItems: Type.String()});
+      const schema = Type.Unsafe<[number, ...string[]]>(Type.Tuple([Type.Number()], {additionalItems: Type.String()}));
       const check = Compile(schema);
       return (value: unknown) => check.Errors(value).length === 0;
     },
