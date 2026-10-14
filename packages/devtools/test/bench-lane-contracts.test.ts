@@ -107,7 +107,9 @@ describe('zod competitor map measures both metrics on its compiled path', () => 
   const supported = entries.filter((entry) => !/^[^']+': NOT_SUPPORTED/.test(entry));
 
   it('reads every entry of the map', () => {
-    expect(supported.length).toBeGreaterThan(200);
+    const mionKeys = read('container/benchmarks/competitors/mion/cases.ts').match(/^ {2}'[A-Z_]+\.[^']+':/gm) ?? [];
+    expect(mionKeys.length).toBeGreaterThan(200);
+    expect(entries).toHaveLength(mionKeys.length);
   });
 
   it('gives every supported case a validate builder and an errors builder', () => {
@@ -119,14 +121,31 @@ describe('zod competitor map measures both metrics on its compiled path', () => 
 });
 
 describe('typebox competitor map uses the typebox package', () => {
+  const source = read('container/benchmarks/competitors/typebox/cases.ts');
+
   it('imports only typebox and typebox/compile', () => {
-    const source = read('container/benchmarks/competitors/typebox/cases.ts');
     const imports = [...source.matchAll(/from '([^.][^']*)'/g)].map((match) => match[1]);
     expect([...new Set(imports)].sort()).toEqual(['typebox', 'typebox/compile']);
   });
 
   it('records the version of the package it imports', () => {
     expect(read('container/benchmarks/capture-env.mjs')).toContain("typebox: 'typebox',");
+  });
+
+  it('types the typecost probe with the same package', () => {
+    expect(read('container/benchmarks/typecost/typecost.mjs')).toContain("import {type Static as __TBStatic} from 'typebox';");
+  });
+
+  it('keeps the cases typebox 1.x can express supported', () => {
+    const cases = [
+      'TUPLE.tuple_rest',
+      'OBJECT.call_signature_params_with_rest',
+      'BIGINT_FORMAT.bigint_multipleOf',
+      'BIGINT_FORMAT.bigint_combined',
+      'JSON_SCHEMA.property_names',
+      'TEMPLATE_LITERAL.template_literal_index_key',
+    ];
+    expect(cases.filter((key) => !source.includes(`'${key}': {`))).toEqual([]);
   });
 });
 
