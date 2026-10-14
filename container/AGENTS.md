@@ -60,7 +60,7 @@ MION_WEBSITE_BASE_IMAGE=mirror.gcr.io/library/node:26-trixie MION_WEBSITE_BUILD_
 - Run: `pnpm miondevx website …`, `pnpm miondevx bench …`. Site rules: [website/AGENTS.md](website/AGENTS.md).
 - Nuxt/Docus docs at `/app`. Per-competitor validation benchmark deps at `/bench`,
   each competitor its own isolated pnpm project under `_deps/`.
-- `website-deploy.yml` deploys it to mion.pages.dev, plus a redirect-only upload to the old runtypes.pages.dev project.
+- `website-deploy.yml` deploys it to mion.pages.dev.
 
 ## `tsrt-e2e` ← [pre-publish-e2e/](pre-publish-e2e/)
 
