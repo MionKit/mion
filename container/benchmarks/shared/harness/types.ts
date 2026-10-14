@@ -24,21 +24,12 @@ export interface SampleOverride {
   invalid?: unknown[];
 }
 
-/** Every case is measured on up to TWO functions, each independently
- *  supported/overridable:
- *   - `build`        → the CHEAP boolean validator (ts-go `createValidateFn`,
- *                      typebox `.Check`, ajv default `validate`, typia `createIs`,
- *                      zod `.validate`).
- *   - `buildErrors`  → the VALIDATION-ERRORS function (ts-go `createGetValidationErrorsFn`,
- *                      typebox `.Errors`, ajv `allErrors:true`, typia `createValidate`,
- *                      zod `safeParse`), wrapped to a boolean (true = no errors) so the
- *                      runner can check correctness + time it identically. This path is
- *                      meant to run only after `validate` fails, so it is much heavier.
- *  Omit (or set NOT_SUPPORTED on) either function to mark THAT metric not-supported
- *  for the case — independently. A builder that THROWS is recorded as a hard
- *  `errored` for that metric. */
+/** Omitting (or NOT_SUPPORTED on) a builder marks only THAT metric not-supported; a THROWING one is a hard `errored`. */
 export interface CaseBuilder {
+  // CHEAP boolean check: ts-go `createValidateFn`, typebox `.Check`, ajv `validate`, typia `createIs`, zod `.validate`.
   build?: (() => Validator) | NotSupported;
+  // Error list, boolean-wrapped (true = no errors) to check + time like `build`; meant for after `validate` fails.
+  // ts-go `createGetValidationErrorsFn`, typebox `.Errors`, ajv `allErrors:true`, typia `createValidate`, zod `safeParse`.
   buildErrors?: (() => Validator) | NotSupported;
   samples?: SampleOverride;
 }

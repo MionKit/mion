@@ -15,11 +15,8 @@
 // against the shared truth by construction, since the samples encode its semantics
 // and it carries no overrides); the in-container audit runs it for real.
 //
-// Requirements: a node_modules resolvable from competitors/<name>/ that provides
-// the competitor libraries (zod / typebox / ajv / ajv-formats, and for
-// typia: typia / ttsc / @ttsc/unplugin / typescript / esbuild),
-// plus a `tsx` runner. Point at tsx with MION_AUDIT_TSX; the deps must be installed
-// somewhere node's upward node_modules walk finds (e.g. container/benchmarks/node_modules).
+// Requirements: zod / typebox / ajv / ajv-formats (typia: typia / ttsc / @ttsc/unplugin / typescript / esbuild)
+// resolvable from competitors/<name>/, e.g. in container/benchmarks/node_modules; tsx via MION_AUDIT_TSX.
 //
 // Usage (from container/benchmarks/):
 //   MION_AUDIT_TSX=/path/to/tsx node _audit/host-collect.mjs [zod typebox ajv typia]

@@ -83,8 +83,7 @@ const byMetric = computed<Record<string, Record<string, AggregateRow>>>(() => {
   );
 });
 
-/** The competitors worth a bar for this metric: one that declines it on EVERY case is
- *  dropped rather than drawn as a column of `n-a`. */
+/** A competitor declining this metric on EVERY case is dropped, not drawn as a column of `n-a`. */
 function competitorsFor(metricKey: string): string[] {
   const idx = index.value;
   if (!idx) return [];
