@@ -51,10 +51,8 @@ describe('the typecost artifact fixture tracks the real writer', () => {
 });
 
 describe('typia competitor map calls real typia exports', () => {
-  // typia 14.0.6 (the version pinned in
-  // container/benchmarks/_deps/competitors/typia/package.json), read off its own
-  // lib/module.d.ts. `createValidateFn` is NOT among them: it is a RunTypes name
-  // that leaked in through one of our own createX -> createXFn renames.
+  // typia 14.0.6 exports (pinned in container/benchmarks/_deps/competitors/typia/package.json), from lib/module.d.ts.
+  // `createValidateFn` is NOT one: a RunTypes name that leaked in through a createX -> createXFn rename.
   const TYPIA_EXPORTS = new Set([
     'assert',
     'assertEquals',

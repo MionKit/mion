@@ -58,9 +58,7 @@ export function strategyOf(competitor: string): 'comptime' | 'jit' | 'interprete
   return 'interpreted'
 }
 
-/** major.minor, the axis releases actually move on. Exception: for a 0.x package the
- *  patch IS that axis (semver reads 0.minor.patch as breaking.feature), so a non-zero
- *  patch is kept, e.g. 0.34.49. */
+/** major.minor, where releases move; 0.x keeps a non-zero patch, as semver reads 0.minor.patch as breaking.feature. */
 export function shortVersion(version: string | undefined): string {
   if (!version) return ''
   const parts = version.split('.')

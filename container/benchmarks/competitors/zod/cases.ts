@@ -12,17 +12,10 @@ import {NOT_SUPPORTED, type CompetitorCases} from '../../shared/harness/types.ts
 const plainObject = <Output, Input>(schema: z.ZodType<Output, Input>) =>
   z.custom<Input>((value) => Object.prototype.toString.call(value) === '[object Object]').pipe(schema);
 
-// Every supported case builds its zod schema inside each thunk, self-contained and
-// copy-paste runnable, with any shared sub-schema inlined. Both thunks run zod's
-// compiled fast path (`z.compile`): `build` is the boolean `validate`, `buildErrors`
-// is `safeParse`, which builds the full ZodError on a rejection. `z.compile` hands
-// a schema with a reference cycle (the circular cases) back uncompiled, so those
-// run zod's regular parser.
+// Each thunk is self-contained and copy-paste runnable (shared sub-schemas inlined).
+// `z.compile` returns a schema with a reference cycle (the circular cases) uncompiled: those run zod's regular parser.
 
 // One entry per shared case key, in authoritative order.
-// Supported  → {build: () => { const schema = z....; const compiled = z.compile(schema); return (v) => compiled.validate(v); },
-//               buildErrors: the same thunk returning (v) => compiled.safeParse(v).success}
-// Unsupported → NOT_SUPPORTED
 export const cases: CompetitorCases = {
   // ── ATOMIC ──
   'ATOMIC.any': {
@@ -1773,7 +1766,6 @@ export const cases: CompetitorCases = {
                 if (typeof value !== 'object' || value === null) return false;
                 const obj = value as Record<string, unknown>;
                 if ('deep4' in obj) {
-                  // if deep4 is present it must be a valid T
                   return schema.safeParse(obj.deep4).success;
                 }
                 return true; // empty object (no deep4)
@@ -1795,7 +1787,6 @@ export const cases: CompetitorCases = {
                 if (typeof value !== 'object' || value === null) return false;
                 const obj = value as Record<string, unknown>;
                 if ('deep4' in obj) {
-                  // if deep4 is present it must be a valid T
                   return schema.safeParse(obj.deep4).success;
                 }
                 return true; // empty object (no deep4)
@@ -3637,7 +3628,7 @@ export const cases: CompetitorCases = {
   },
 
   // ── STRICT ──
-  // z.strictObject is zod's closedness; nested objects are strict too.
+  // Nested objects are strict too.
   'STRICT.flat_required': {
     build: () => {
       const schema = z.strictObject({id: z.number(), name: z.string(), active: z.boolean()});

@@ -45,9 +45,7 @@ const serverRows = computed<Row[]>(() =>
     .map((row) => ({name: row.label, value: row.requests, mion: row.family === 'mion'}))
 );
 
-/** The fastest validators: geometric mean of the is-valid check on valid input over
- *  the cases every listed library supports. The deploy gate refuses a dataset that
- *  lists a library twice; the Set keeps a stale local index from doubling a row. */
+/** The deploy gate refuses a library listed twice; the Set keeps a stale local index from doubling a row. */
 const validationRows = computed<Row[]>(() => {
   const index = validationIndex.value;
   if (!index?.sections?.length) return [];

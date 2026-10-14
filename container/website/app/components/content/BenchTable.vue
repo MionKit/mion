@@ -228,9 +228,7 @@ const {active, pinned, close, preview, leave, pin, panelEnter, panelLeave} = use
 const activeDetail = computed<DetailEntry | undefined>(() => (active.value ? details[active.value.key] : undefined));
 const panelState = computed<'loading' | 'ready' | 'error'>(() => activeDetail.value?.state ?? 'loading');
 
-/** The source to show for a competitor on THIS page: the metric-specific builder
- *  body (validation bench), or the single source (typecost). Absent → the
- *  competitor doesn't support this metric. */
+/** Absent → the competitor doesn't support this page's metric. */
 function metricSource(competitor: BenchCompetitorSource): string | undefined {
   if (props.metric) return competitor.sources?.[props.metric as 'validate' | 'validationErrors'];
   // No metric prop: the single typecost source, else (correctness) the is-valid builder.

@@ -1,18 +1,12 @@
-// TypeBox validators keyed by suite case key ("GROUP.case"). TOTAL map over every
-// shared case key: supported cases compile a TypeBox schema; the rest opt out with
-// NOT_SUPPORTED. TypeBox can't express bigint literals, int64 bounds (they lose
-// float precision), RegExp instance, Map/Set/Promise, Temporal, symbols,
-// calendar-aware date/time string formats, or allOptional plain-object guard.
-// TypeBox 1.x has no Date type: a Date is `Type.Refine` over an instanceof check.
+// TOTAL map over every shared case key. TypeBox can't express bigint literals, int64 bounds (they lose float
+// precision), RegExp instances, Map/Set/Promise, Temporal, symbols, calendar-aware date/time formats or the
+// all-optional plain-object guard. TypeBox 1.x has no Date type: a Date is `Type.Refine` over an instanceof check.
 
 import {Type} from 'typebox';
 import {Compile} from 'typebox/compile';
 import {NOT_SUPPORTED, type CompetitorCases} from '../../shared/harness/types.ts';
 
-// Each supported case builds its TypeBox schema and compiles it inside its own
-// builder thunk — self-contained and copy-paste runnable, with any shared
-// sub-schema inlined. `validate` uses the compiled Check; `validationErrors`
-// collects Errors. Compile happens in the builder (one-time setup, not timed).
+// Each thunk is self-contained and copy-paste runnable (shared sub-schemas inlined); compiling there is not timed.
 
 export const cases: CompetitorCases = {
   // ── ATOMIC ──
@@ -1178,8 +1172,7 @@ export const cases: CompetitorCases = {
       return (value: unknown) => check.Errors(value).length === 0;
     },
   },
-  // A TypeBox 1.x Record accepts any non-array object, an Invalid Date included, so
-  // the record arm is refined to plain objects.
+  // A TypeBox 1.x Record accepts any non-array object, Invalid Date included: hence the plain-object refine.
   'UNION.circular_union': {
     build: () => {
       const schema = Type.Cyclic({Self: Type.Union([Type.Refine(Type.Unsafe<Date>({}), (value) => value instanceof Date && !Number.isNaN(value.getTime())), Type.Number(), Type.String(), Type.Refine(Type.Record(Type.String(), Type.Ref('Self')), (value) => Object.prototype.toString.call(value) === '[object Object]'), Type.Array(Type.Ref('Self'))])}, 'Self');
@@ -3091,8 +3084,7 @@ export const cases: CompetitorCases = {
   },
 
   // ── JSON_SCHEMA ──
-  // TypeBox schemas ARE JSON Schema, so these entries state each constraint with
-  // TypeBox's own builders, which emit the same document.
+  // TypeBox schemas ARE JSON Schema: its own builders emit the same document as each constraint.
   'JSON_SCHEMA.property_names': {
     build: () => {
       const schema = Type.Record(Type.String(), Type.Number(), {propertyNames: {pattern: '^[a-z]+$'}});

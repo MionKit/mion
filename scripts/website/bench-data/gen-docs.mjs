@@ -8,9 +8,8 @@
 //   <case>.json             — { competitors: [{ name, source }] }   (lazy hover)
 //
 // Two benches:
-//   validation — runtime throughput from container/benchmarks/results/<competitor>.json,
-//                both metrics (is valid, get errors); each page picks one.
-//                unit = ops/sec, higher is better.
+//   validation — runtime throughput from container/benchmarks/results/<competitor>.json, both
+//                metrics (each page picks one). unit = ops/sec, higher is better.
 //   typecost   — TypeScript type-instantiation count per form from
 //                container/benchmarks/results/<form>.typecost.json. unit = count, LOWER is
 //                better.
@@ -380,8 +379,7 @@ function buildValidationBench() {
   return core + formats;
 }
 
-// Emit one validation bench (index.json + per-case source JSON) for a filtered set of
-// rows. Both the is-valid and get-errors metrics ship; the page picks one.
+// Both the is-valid and get-errors metrics ship in every bench; the page picks one.
 function emitValidationBench(outName, label, rows, competitors, byComp, sources) {
   const sectionMap = new Map(); // group → {key,label,cases[]}
   const outDir = path.join(OUT_ROOT, outName);
@@ -389,15 +387,13 @@ function emitValidationBench(outName, label, rows, competitors, byComp, sources)
   fs.mkdirSync(outDir, {recursive: true});
 
   for (const row of rows) {
-    // Split the mixed DATETIME group into a Date section (JS Date / date-string
-    // formats) and a Temporal section (Temporal.* types — instant, plainDate, etc.).
+    // DATETIME mixes JS Date / date-string cases (date, date_*) with Temporal ones: one section each.
     let group = row.group;
     if (group === 'DATETIME') {
       const casePart = row.key.slice(row.group.length + 1);
       group = /^date($|_)/.test(casePart) ? 'DATE' : 'TEMPORAL';
     }
-    // The section links its cases on GitHub, so it records where they are authored.
-    // DATE and TEMPORAL both point at the one DATETIME file they were split out of.
+    // row.group, not group: DATE and TEMPORAL both link the one DATETIME file they were split out of.
     if (!sectionMap.has(group))
       sectionMap.set(group, {key: group, label: sectionLabel(group), source: caseSource(row.suite, row.group), cases: []});
     const resultsForCase = {};
@@ -484,11 +480,7 @@ function buildTypecostBench() {
     return 0;
   }
 
-  // Every declared form is a column, always. A form whose results are missing or
-  // empty (failed non-fatal typia install, dep not in the image yet, partial
-  // re-run over a stale .docdata) renders as n/a cells instead of vanishing — a
-  // silently disappearing column reads as "removed on purpose" when it is really
-  // "no data this run".
+  // Every declared form stays a column, data or not: a vanished column reads as removed on purpose, not "no data".
   const forms = TYPECOST_FORMS;
   const sources = new Map(forms.map((f) => [f.id, extractCaseSources(path.join(COMPETITORS_DIR, f.srcFile), f.srcVar)]));
 
@@ -506,10 +498,7 @@ function buildTypecostBench() {
       const inst = byForm.get(form.id).get(key);
       // Single metric, single path — typecost has no valid/invalid split.
       if (inst !== undefined) results[form.label] = {typecost: {valid: inst, status: 'ok'}};
-      // typecost is single-metric: show the validate body. Only for a form
-      // that actually produced a number: the source files are read per FORM, not
-      // per measured cell, so a form whose authoring file happens to mention the
-      // case would otherwise show a hover body under a cell reading n-a.
+      // Sources are read per FORM, not per cell, so an unmeasured form could otherwise show a hover body under n-a.
       if (inst === undefined) continue;
       const caseSources = sources.get(form.id)?.get(key);
       const source = caseSources?.validate;
@@ -519,7 +508,6 @@ function buildTypecostBench() {
     fs.writeFileSync(path.join(outDir, `${safeKey(key)}.json`), JSON.stringify({competitors: detailComps}));
   }
 
-  // Each typecost form maps to the library whose installed version it measures.
   const FORM_LIB = {
     'mion-type': 'mion',
     'mion-schema': 'mion',

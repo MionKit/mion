@@ -1,15 +1,6 @@
-// Generic per-competitor run loop. For EVERY shared case it measures up to TWO
-// functions independently — the cheap boolean `validate` (entry.build) and the
-// heavier `validationErrors` fn (entry.buildErrors, boolean-wrapped) — each on
-// BOTH the accept (valid samples) and reject (invalid samples) paths, which
-// exercise different code and have very different throughput. No competitor is
-// special-cased; a thrown builder is a hard `errored` for that one metric.
-//
-// A case entry may be a bare builder (`() => Validator`, = validate only), the
-// object form `{build?, buildErrors?, samples?}`, or NOT_SUPPORTED (both metrics
-// unsupported). Omitting a builder (or NOT_SUPPORTED on it) marks THAT metric
-// not-supported. A `samples` override
-// REPLACES the shared samples for that path (correctness AND timing).
+// Per-competitor run loop, no competitor special-cased. Each case's `validate` and `validationErrors` fns are measured
+// independently on both accept and reject paths, which run different code at very different speeds.
+// A `samples` override REPLACES the shared samples for its path, for correctness AND timing.
 
 import {iterateCases} from '../cases/index.ts';
 import {NOT_SUPPORTED, type CaseEntry, type NotSupported, type SampleOverride, type CompetitorModule, type Validator} from './types.ts';

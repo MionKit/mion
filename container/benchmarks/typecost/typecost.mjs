@@ -39,14 +39,10 @@
 // thunk. Each extractor unwraps its wrapper, preserving the local declarations so
 // `<T>`/`EXPR` resolves where written.
 //
-// Module resolution: each form's probe is emitted INTO the relevant competitor
-// directory so Node-style `node_modules` resolution + each package's `exports`
-// map resolve the bare imports naturally — `mion`(+/schema,
-// /formats, /formats/temporal) from competitors/mion/node_modules
-// (bind-mounted at run time), `zod` / `typebox` from their own image
-// node_modules, and the realworld interfaces via the verbatim relative import.
-// `paths` (see OPTIONS) additionally pins the marker subpaths to the mounted
-// dist as a deterministic safety net.
+// Module resolution: each probe is emitted INTO its competitor directory so node_modules + `exports` resolve
+// its imports: mion from the bind-mounted competitors/mion/node_modules, zod / typebox from their image's
+// node_modules, realworld interfaces via the verbatim relative import. `paths` (see OPTIONS) also pins the
+// marker subpaths to the mounted dist as a safety net.
 
 import ts from 'typescript';
 import fs from 'node:fs';
