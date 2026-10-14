@@ -71,9 +71,6 @@ end. The points specific to this FIRST cut:
   `CLOUDFLARE_PAGES_PROJECT`, default `mion`): set its production branch to `prod` and
   turn automatic Git deployments off. `website-deploy.yml` uploads with `--branch=prod`, so
   any other production branch (it was `mion-run-types`) turns every deploy into a preview.
-- Create the `linux-arm64` GitHub-hosted larger runner in the MionKit org (Linux ARM64,
-  4 cores / 16 GB, runner group open to `mion`). `website-deploy.yml` runs on it, and a job
-  asking for it today waits with no machine.
 - Archive `MionKit/ts-run-types` (README pointer: development moved to `MionKit/mion`,
   history preserved there under the `pre-merge-ts-run-types` tag) and `MionKit/Benchmarks`
   (its harness lives in `container/mion-bench/`).
