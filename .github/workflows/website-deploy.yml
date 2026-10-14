@@ -2,10 +2,8 @@ name: prod · deploy website
 
 # Manually-triggered docs-site deploy to Cloudflare Pages. ONE Nuxt install
 # (container/website/) builds ONE static site with three subsites (/rpc, /runtypes,
-# /benchmarks), deployed to mion.pages.dev (CLOUDFLARE_PAGES_PROJECT_MION, default
-# 'mion'). The old runtypes.pages.dev project (CLOUDFLARE_PAGES_PROJECT, default
-# 'runtypes') receives a redirect-only upload (container/website/legacy-runtypes/)
-# so every old RunTypes link keeps resolving. Split out of publish.yml
+# /benchmarks), deployed to mion.pages.dev (repo variable CLOUDFLARE_PAGES_PROJECT,
+# default 'mion'). Split out of publish.yml
 # because staged publishing means the publish run ends at "packages staged", not
 # "live" — so the deploy can no longer hang off `needs: publish-npm`, and npm fires
 # no usable publish webhook for this account to trigger it automatically.
@@ -62,12 +60,8 @@ jobs:
       contents: read
       packages: read
     env:
-      # The site's Pages project, and the legacy runtypes project that now only
-      # redirects, both from repo secrets where set. The names keep their historical
-      # meaning on purpose: CLOUDFLARE_PAGES_PROJECT has always named the runtypes
-      # project, so a secret set to 'runtypes' keeps pointing at it.
-      CLOUDFLARE_PAGES_PROJECT_MION: ${{ secrets.CLOUDFLARE_PAGES_PROJECT_MION || 'mion' }}
-      CLOUDFLARE_PAGES_PROJECT: ${{ secrets.CLOUDFLARE_PAGES_PROJECT || 'runtypes' }}
+      # The project name is not a secret, so it is a repo variable.
+      CLOUDFLARE_PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT || 'mion' }}
     steps:
       # FIRST, and free: the deploy below pins --branch=prod, so whatever ref this runs
       # from goes LIVE. Only `main` and `prod` are ever meant to; a dispatch from a
@@ -153,15 +147,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy container/website/.output/public --project-name=${{ env.CLOUDFLARE_PAGES_PROJECT_MION }} --branch=prod
-      # runtypes.pages.dev is redirect-only now: the upload is the _redirects file
-      # (plus a one-line index.html) that sends every old URL to mion.pages.dev/runtypes.
-      - name: Deploy the redirects to Cloudflare Pages (runtypes.pages.dev)
-        uses: cloudflare/wrangler-action@v4
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy container/website/legacy-runtypes --project-name=${{ env.CLOUDFLARE_PAGES_PROJECT }} --branch=prod
+          command: pages deploy container/website/.output/public --project-name=${{ env.CLOUDFLARE_PAGES_PROJECT }} --branch=prod
       # AFTER the deploy, on purpose. This runner has real capacity (linux-arm64, not a
       # shared GitHub runner), so it is the one place a throughput regression in the
       # per-engine key counter is worth failing a job over. Failing here still ships the

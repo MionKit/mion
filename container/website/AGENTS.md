@@ -7,7 +7,7 @@ Deps live ONLY in the podman image, never in the monorepo lockfile.
   `sites/<id>/theme.css`, `/<id>` redirects to its home:
   - `rpc` (framework): `/rpc/introduction/about-mion-rpc`. `runtypes`: `/runtypes/introduction/about-mion-runtypes`.
   - `benchmarks`: `/benchmarks/introduction/mion-benchmarks`.
-- Build output: `.output/public`. `legacy-runtypes/` = redirect-only upload for the old runtypes.pages.dev project.
+- Build output: `.output/public`.
 - Prose voice + what a style pass may touch: [website-writing.md](../../.agents/docs/website-writing.md).
 - Subsite wiring + styling: [app/AGENTS.md](app/AGENTS.md). Read before editing `app/`, `sites/`, `content.config.ts`.
 - Code import, examples, twoslash, API: [server/AGENTS.md](server/AGENTS.md). Read before an example or `server/` edit.

@@ -6,10 +6,9 @@
 //
 //   - every root-relative link in content/**/*.md and .navigation.yml lands on a
 //     content page, a subsite root, the playground, or a public asset;
-//   - no in-site link goes through a domain (runtypes.pages.dev is redirect-only now,
-//     and an absolute mion.pages.dev link would silently skip the client router);
-//   - every in-site redirect target in public/_redirects resolves the same way, and
-//     the legacy runtypes.pages.dev redirects all point at mion.pages.dev;
+//   - no in-site link goes through a domain (an absolute mion.pages.dev link would
+//     silently skip the client router);
+//   - every in-site redirect target in public/_redirects resolves the same way;
 //   - every '#anchor' link lands on a heading that exists on the page it targets.
 //     Nothing renders the site here either, so a link to a section that was renamed
 //     or removed leaves the reader where they stood, with no error anywhere.
@@ -287,17 +286,6 @@ describe('website-redirects', () => {
       const root = to.replace(/\/:splat$/, '');
       expect(routes.has(root), `${to}: '${root}' is not a section of the site`).toBe(true);
     }
-  });
-
-  it('sends every old runtypes.pages.dev path to mion.pages.dev/runtypes or /benchmarks/runtypes', () => {
-    const legacy = rules(join(WEBSITE, 'legacy-runtypes/_redirects'));
-    expect(legacy.length).toBeGreaterThan(3);
-    for (const {from, to, status} of legacy) {
-      expect(to, from).toMatch(/^https:\/\/mion\.pages\.dev\/(runtypes|benchmarks\/runtypes)(\/|$)/);
-      expect(status, from).toBe('301');
-    }
-    expect(legacy[legacy.length - 1]!.from, 'the catch-all comes last').toBe('/*');
-    expect(existsSync(join(WEBSITE, 'legacy-runtypes/index.html'))).toBe(true);
   });
 });
 
