@@ -38,8 +38,9 @@ end. The points specific to this FIRST cut:
    verified-identical. The plan prints the derived leaves-first order
    (`scripts/lib/publish-order.mjs`): payloads, then `@mionjs/bin-compiler` and `@mionjs/bin-uws`,
    then `@mionjs/run-types`, then each package after everything it depends on.
-4. **Fast-forward `prod` to `main`** at the release commit (the branch exists already but
-   was never published from), open the `release/v0.13.0` merge PR into it.
+4. **Open the `release/v0.13.0` merge PR into `prod`.** Never push `prod` directly: a
+   plain push is what failed both earlier `publish.yml` runs at `merge-shape`. `prod` is
+   already an ancestor of `main`, so the merge commit lands clean.
    `pre-publish.yml` (`version-fresh`, `main-ancestor`, `merge-shape`) then
    `publish.yml` stage every package; `pnpm miondevx release stage-approve` promotes them in
    that same order with one 2FA prompt.
@@ -59,12 +60,20 @@ end. The points specific to this FIRST cut:
 - Set the `prod` branch protections (the branch itself exists): merge-commit-only
   promotion, the `pre-publish.yml` checks required (`version-fresh`, `main-ancestor`),
   rebase-merge on `main`.
-- Make sure the `NPM_TOKEN` automation token covers EVERY `@mionjs/*` package, the seven
-  `@mionjs/native-compiler-*` and seven `@mionjs/native-uws-*` payloads included. A brand-new name cannot
-  be staged; if any of them has never been published, `pnpm miondevx release manual-publish`
-  creates it live first (it publishes everything not already live, leaves first).
-- The Cloudflare Pages project for mion.pages.dev, so `website-deploy.yml` can deploy the
-  site (the old runtypes project only receives redirects now).
+- Replace the `NPM_TOKEN` secret: the current one answers `401 Unauthorized` (checked
+  2026-10-14). The new granular token must cover EVERY `@mionjs/*` package, the seven
+  `@mionjs/native-compiler-*` and five `@mionjs/native-uws-*` payloads included. A brand-new
+  name cannot be staged, and 19 have never been published (`bin-compiler`, `bin-uws`,
+  `platform-uws`, the four drizzle packages, every `native-*` payload):
+  `pnpm miondevx release manual-publish` creates them live first (it publishes everything
+  not already live, leaves first).
+- Cloudflare Pages project `mion` (mion.pages.dev, the only deploy target; repo variable
+  `CLOUDFLARE_PAGES_PROJECT`, default `mion`): set its production branch to `prod` and
+  turn automatic Git deployments off. `website-deploy.yml` uploads with `--branch=prod`, so
+  any other production branch (it was `mion-run-types`) turns every deploy into a preview.
+- Create the `linux-arm64` GitHub-hosted larger runner in the MionKit org (Linux ARM64,
+  4 cores / 16 GB, runner group open to `mion`). `website-deploy.yml` runs on it, and a job
+  asking for it today waits with no machine.
 - Archive `MionKit/ts-run-types` (README pointer: development moved to `MionKit/mion`,
   history preserved there under the `pre-merge-ts-run-types` tag) and `MionKit/Benchmarks`
   (its harness lives in `container/mion-bench/`).
@@ -89,5 +98,5 @@ as the last standalone release.
 
 - `v0.13.0` is live on npm for every lockstep package, the drizzle packages at their tree
   versions, `post-publish.yml` green including the mion consumer lanes.
-- `prod` exists with its protections and `website-deploy.yml` deployed both sites.
+- `prod` exists with its protections and `website-deploy.yml` deployed mion.pages.dev.
 - The two old repositories are archived.
