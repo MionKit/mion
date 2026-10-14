@@ -139,12 +139,12 @@ export const cases: CompetitorCases = {
   // literal_symbol: match any symbol whose description === 'hello'
   'ATOMIC.literal_symbol': {
     build: () => {
-      const schema = z.custom((v) => typeof v === 'symbol' && v.description === 'hello');
+      const schema = z.custom((value) => typeof value === 'symbol' && value.description === 'hello');
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.custom((v) => typeof v === 'symbol' && v.description === 'hello');
+      const schema = z.custom((value) => typeof value === 'symbol' && value.description === 'hello');
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -188,12 +188,12 @@ export const cases: CompetitorCases = {
   // object: any non-null non-primitive (arrays, Date, regex all pass; null rejected)
   'ATOMIC.object': {
     build: () => {
-      const schema = z.custom((v) => typeof v === 'object' && v !== null);
+      const schema = z.custom((value) => typeof value === 'object' && value !== null);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.custom((v) => typeof v === 'object' && v !== null);
+      const schema = z.custom((value) => typeof value === 'object' && value !== null);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -755,12 +755,12 @@ export const cases: CompetitorCases = {
   // function_top_level: any function (class counts too); z.function() only validates arity; use custom
   'OBJECT.function_top_level': {
     build: () => {
-      const schema = z.custom((v) => typeof v === 'function');
+      const schema = z.custom((value) => typeof value === 'function');
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.custom((v) => typeof v === 'function');
+      const schema = z.custom((value) => typeof value === 'function');
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -768,12 +768,12 @@ export const cases: CompetitorCases = {
   // interface_callable: function with extra prop — typeof function AND extra prop is string
   'OBJECT.interface_callable': {
     build: () => {
-      const schema = z.custom((v) => typeof v === 'function' && typeof (v as {extra?: unknown}).extra === 'string');
+      const schema = z.custom((value) => typeof value === 'function' && typeof (value as {extra?: unknown}).extra === 'string');
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.custom((v) => typeof v === 'function' && typeof (v as {extra?: unknown}).extra === 'string');
+      const schema = z.custom((value) => typeof value === 'function' && typeof (value as {extra?: unknown}).extra === 'string');
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -1339,7 +1339,7 @@ export const cases: CompetitorCases = {
       const schema = z.union([
         z.object({a: z.string(), aa: z.boolean()}),
         z.object({b: z.number()}),
-        z.record(z.string(), z.bigint()).refine((o) => Object.keys(o).length > 0),
+        z.record(z.string(), z.bigint()).refine((record) => Object.keys(record).length > 0),
       ]);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
@@ -1348,7 +1348,7 @@ export const cases: CompetitorCases = {
       const schema = z.union([
         z.object({a: z.string(), aa: z.boolean()}),
         z.object({b: z.number()}),
-        z.record(z.string(), z.bigint()).refine((o) => Object.keys(o).length > 0),
+        z.record(z.string(), z.bigint()).refine((record) => Object.keys(record).length > 0),
       ]);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
@@ -1419,7 +1419,7 @@ export const cases: CompetitorCases = {
         z.array(z.string()),
         z.object({a: z.string(), aa: z.boolean()}),
         z.object({b: z.number()}),
-        z.record(z.string(), z.bigint()).refine((o) => Object.keys(o).length > 0),
+        z.record(z.string(), z.bigint()).refine((record) => Object.keys(record).length > 0),
       ]);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
@@ -1429,7 +1429,7 @@ export const cases: CompetitorCases = {
         z.array(z.string()),
         z.object({a: z.string(), aa: z.boolean()}),
         z.object({b: z.number()}),
-        z.record(z.string(), z.bigint()).refine((o) => Object.keys(o).length > 0),
+        z.record(z.string(), z.bigint()).refine((record) => Object.keys(record).length > 0),
       ]);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
@@ -1642,12 +1642,12 @@ export const cases: CompetitorCases = {
   // promise_string: thenable check — any object with typeof .then === 'function'
   'NATIVE.promise_string': {
     build: () => {
-      const schema = z.custom((v) => typeof v === 'object' && v !== null && typeof (v as {then?: unknown}).then === 'function');
+      const schema = z.custom((value) => typeof value === 'object' && value !== null && typeof (value as {then?: unknown}).then === 'function');
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.custom((v) => typeof v === 'object' && v !== null && typeof (v as {then?: unknown}).then === 'function');
+      const schema = z.custom((value) => typeof value === 'object' && value !== null && typeof (value as {then?: unknown}).then === 'function');
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -1769,9 +1769,9 @@ export const cases: CompetitorCases = {
         const schema: z.ZodType = z.object({
           deep1: z.object({
             deep2: z.object({
-              deep3: z.custom((v) => {
-                if (typeof v !== 'object' || v === null) return false;
-                const obj = v as Record<string, unknown>;
+              deep3: z.custom((value) => {
+                if (typeof value !== 'object' || value === null) return false;
+                const obj = value as Record<string, unknown>;
                 if ('deep4' in obj) {
                   // if deep4 is present it must be a valid T
                   return schema.safeParse(obj.deep4).success;
@@ -1791,9 +1791,9 @@ export const cases: CompetitorCases = {
         const schema: z.ZodType = z.object({
           deep1: z.object({
             deep2: z.object({
-              deep3: z.custom((v) => {
-                if (typeof v !== 'object' || v === null) return false;
-                const obj = v as Record<string, unknown>;
+              deep3: z.custom((value) => {
+                if (typeof value !== 'object' || value === null) return false;
+                const obj = value as Record<string, unknown>;
                 if ('deep4' in obj) {
                   // if deep4 is present it must be a valid T
                   return schema.safeParse(obj.deep4).success;
@@ -2397,12 +2397,12 @@ export const cases: CompetitorCases = {
   },
   'STRING_FORMAT.string_disallowedValues': {
     build: () => {
-      const schema = z.string().refine((s) => !['admin', 'root'].includes(s));
+      const schema = z.string().refine((text) => !['admin', 'root'].includes(text));
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.string().refine((s) => !['admin', 'root'].includes(s));
+      const schema = z.string().refine((text) => !['admin', 'root'].includes(text));
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -2530,10 +2530,10 @@ export const cases: CompetitorCases = {
       const schema = z
         .string()
         .regex(/^\d{2}-\d{2}-\d{4}$/)
-        .refine((s) => {
-          const [dd, mm, yyyy] = s.split('-');
-          const d = new Date(`${yyyy}-${mm}-${dd}T00:00:00Z`);
-          return !isNaN(d.getTime()) && d.getUTCDate() === +dd && d.getUTCMonth() + 1 === +mm;
+        .refine((text) => {
+          const [dd, mm, yyyy] = text.split('-');
+          const date = new Date(`${yyyy}-${mm}-${dd}T00:00:00Z`);
+          return !isNaN(date.getTime()) && date.getUTCDate() === +dd && date.getUTCMonth() + 1 === +mm;
         });
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
@@ -2542,10 +2542,10 @@ export const cases: CompetitorCases = {
       const schema = z
         .string()
         .regex(/^\d{2}-\d{2}-\d{4}$/)
-        .refine((s) => {
-          const [dd, mm, yyyy] = s.split('-');
-          const d = new Date(`${yyyy}-${mm}-${dd}T00:00:00Z`);
-          return !isNaN(d.getTime()) && d.getUTCDate() === +dd && d.getUTCMonth() + 1 === +mm;
+        .refine((text) => {
+          const [dd, mm, yyyy] = text.split('-');
+          const date = new Date(`${yyyy}-${mm}-${dd}T00:00:00Z`);
+          return !isNaN(date.getTime()) && date.getUTCDate() === +dd && date.getUTCMonth() + 1 === +mm;
         });
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
@@ -2583,7 +2583,7 @@ export const cases: CompetitorCases = {
       const schema = z
         .string()
         .regex(/^\d{4}-\d{2}-\d{2}$/)
-        .refine((s) => s >= '2020-01-01' && s <= '2020-12-31');
+        .refine((text) => text >= '2020-01-01' && text <= '2020-12-31');
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
@@ -2591,7 +2591,7 @@ export const cases: CompetitorCases = {
       const schema = z
         .string()
         .regex(/^\d{4}-\d{2}-\d{2}$/)
-        .refine((s) => s >= '2020-01-01' && s <= '2020-12-31');
+        .refine((text) => text >= '2020-01-01' && text <= '2020-12-31');
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -2641,7 +2641,7 @@ export const cases: CompetitorCases = {
       const schema = z
         .string()
         .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
-        .refine((s) => s >= '09:00' && s <= '17:00');
+        .refine((text) => text >= '09:00' && text <= '17:00');
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
@@ -2649,7 +2649,7 @@ export const cases: CompetitorCases = {
       const schema = z
         .string()
         .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
-        .refine((s) => s >= '09:00' && s <= '17:00');
+        .refine((text) => text >= '09:00' && text <= '17:00');
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -2674,11 +2674,11 @@ export const cases: CompetitorCases = {
       const schema = z
         .string()
         .regex(/^\d{2}-\d{2}-\d{4} ([01]\d|2[0-3]):[0-5]\d$/)
-        .refine((s) => {
-          const [date] = s.split(' ');
+        .refine((text) => {
+          const [date] = text.split(' ');
           const [dd, mm, yyyy] = date.split('-');
-          const d = new Date(`${yyyy}-${mm}-${dd}T00:00:00Z`);
-          return !isNaN(d.getTime()) && d.getUTCDate() === +dd && d.getUTCMonth() + 1 === +mm;
+          const parsed = new Date(`${yyyy}-${mm}-${dd}T00:00:00Z`);
+          return !isNaN(parsed.getTime()) && parsed.getUTCDate() === +dd && parsed.getUTCMonth() + 1 === +mm;
         });
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
@@ -2687,11 +2687,11 @@ export const cases: CompetitorCases = {
       const schema = z
         .string()
         .regex(/^\d{2}-\d{2}-\d{4} ([01]\d|2[0-3]):[0-5]\d$/)
-        .refine((s) => {
-          const [date] = s.split(' ');
+        .refine((text) => {
+          const [date] = text.split(' ');
           const [dd, mm, yyyy] = date.split('-');
-          const d = new Date(`${yyyy}-${mm}-${dd}T00:00:00Z`);
-          return !isNaN(d.getTime()) && d.getUTCDate() === +dd && d.getUTCMonth() + 1 === +mm;
+          const parsed = new Date(`${yyyy}-${mm}-${dd}T00:00:00Z`);
+          return !isNaN(parsed.getTime()) && parsed.getUTCDate() === +dd && parsed.getUTCMonth() + 1 === +mm;
         });
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
@@ -2703,7 +2703,7 @@ export const cases: CompetitorCases = {
       const schema = z
         .string()
         .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/)
-        .refine((s) => s >= '2020-01-01T00:00:00' && s <= '2020-12-31T23:59:59');
+        .refine((text) => text >= '2020-01-01T00:00:00' && text <= '2020-12-31T23:59:59');
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
@@ -2711,7 +2711,7 @@ export const cases: CompetitorCases = {
       const schema = z
         .string()
         .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/)
-        .refine((s) => s >= '2020-01-01T00:00:00' && s <= '2020-12-31T23:59:59');
+        .refine((text) => text >= '2020-01-01T00:00:00' && text <= '2020-12-31T23:59:59');
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -2761,11 +2761,11 @@ export const cases: CompetitorCases = {
       const schema = z
         .string()
         .regex(/^(\d{1,3}\.){3}\d{1,3}:\d+$/)
-        .refine((s) => {
-          const [ip, portStr] = s.split(':');
+        .refine((text) => {
+          const [ip, portStr] = text.split(':');
           const port = +portStr;
           if (port < 0 || port > 65535) return false;
-          return ip.split('.').every((o) => +o >= 0 && +o <= 255);
+          return ip.split('.').every((octet) => +octet >= 0 && +octet <= 255);
         });
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
@@ -2774,11 +2774,11 @@ export const cases: CompetitorCases = {
       const schema = z
         .string()
         .regex(/^(\d{1,3}\.){3}\d{1,3}:\d+$/)
-        .refine((s) => {
-          const [ip, portStr] = s.split(':');
+        .refine((text) => {
+          const [ip, portStr] = text.split(':');
           const port = +portStr;
           if (port < 0 || port > 65535) return false;
-          return ip.split('.').every((o) => +o >= 0 && +o <= 255);
+          return ip.split('.').every((octet) => +octet >= 0 && +octet <= 255);
         });
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
@@ -2790,9 +2790,9 @@ export const cases: CompetitorCases = {
       const schema = z
         .string()
         .regex(/^\[.+\]:\d+$/)
-        .refine((s) => {
-          const lastColon = s.lastIndexOf(':');
-          const port = +s.slice(lastColon + 1);
+        .refine((text) => {
+          const lastColon = text.lastIndexOf(':');
+          const port = +text.slice(lastColon + 1);
           return port >= 0 && port <= 65535;
         });
       const compiled = z.compile(schema);
@@ -2802,9 +2802,9 @@ export const cases: CompetitorCases = {
       const schema = z
         .string()
         .regex(/^\[.+\]:\d+$/)
-        .refine((s) => {
-          const lastColon = s.lastIndexOf(':');
-          const port = +s.slice(lastColon + 1);
+        .refine((text) => {
+          const lastColon = text.lastIndexOf(':');
+          const port = +text.slice(lastColon + 1);
           return port >= 0 && port <= 65535;
         });
       const compiled = z.compile(schema);
@@ -2827,8 +2827,8 @@ export const cases: CompetitorCases = {
   // domainParts: 2-6 labels, no hyphen-edge label, no digit-only TLD
   'STRING_FORMAT.domainParts': {
     build: () => {
-      const schema = z.string().refine((s) => {
-        const parts = s.split('.');
+      const schema = z.string().refine((text) => {
+        const parts = text.split('.');
         if (parts.length < 2 || parts.length > 6) return false;
         const tld = parts[parts.length - 1];
         if (/^\d+$/.test(tld)) return false; // TLD must not be all digits
@@ -2842,8 +2842,8 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.string().refine((s) => {
-        const parts = s.split('.');
+      const schema = z.string().refine((text) => {
+        const parts = text.split('.');
         if (parts.length < 2 || parts.length > 6) return false;
         const tld = parts[parts.length - 1];
         if (/^\d+$/.test(tld)) return false; // TLD must not be all digits
@@ -2878,8 +2878,8 @@ export const cases: CompetitorCases = {
       const schema = z
         .string()
         .regex(/^[^@\s]+@[^@\s]+\.[^@\s]+$/)
-        .refine((s) => {
-          const [, domain] = s.split('@');
+        .refine((text) => {
+          const [, domain] = text.split('@');
           return !!domain && domain.includes('.');
         });
       const compiled = z.compile(schema);
@@ -2889,8 +2889,8 @@ export const cases: CompetitorCases = {
       const schema = z
         .string()
         .regex(/^[^@\s]+@[^@\s]+\.[^@\s]+$/)
-        .refine((s) => {
-          const [, domain] = s.split('@');
+        .refine((text) => {
+          const [, domain] = text.split('@');
           return !!domain && domain.includes('.');
         });
       const compiled = z.compile(schema);
@@ -3214,14 +3214,14 @@ export const cases: CompetitorCases = {
     build: () => {
       const schema = z
         .date()
-        .refine((d) => d > new Date(Date.UTC(2020, 0, 1, 0, 0, 0)) && d < new Date(Date.UTC(2020, 11, 31, 23, 59, 59)));
+        .refine((date) => date > new Date(Date.UTC(2020, 0, 1, 0, 0, 0)) && date < new Date(Date.UTC(2020, 11, 31, 23, 59, 59)));
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
       const schema = z
         .date()
-        .refine((d) => d > new Date(Date.UTC(2020, 0, 1, 0, 0, 0)) && d < new Date(Date.UTC(2020, 11, 31, 23, 59, 59)));
+        .refine((date) => date > new Date(Date.UTC(2020, 0, 1, 0, 0, 0)) && date < new Date(Date.UTC(2020, 11, 31, 23, 59, 59)));
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -3232,7 +3232,7 @@ export const cases: CompetitorCases = {
       const schema = z
         .date()
         .min(new Date(Date.UTC(2020, 0, 1, 0, 0, 0)))
-        .refine((d) => d < new Date(Date.UTC(2020, 11, 31, 23, 59, 59)));
+        .refine((date) => date < new Date(Date.UTC(2020, 11, 31, 23, 59, 59)));
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
@@ -3240,7 +3240,7 @@ export const cases: CompetitorCases = {
       const schema = z
         .date()
         .min(new Date(Date.UTC(2020, 0, 1, 0, 0, 0)))
-        .refine((d) => d < new Date(Date.UTC(2020, 11, 31, 23, 59, 59)));
+        .refine((date) => date < new Date(Date.UTC(2020, 11, 31, 23, 59, 59)));
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
