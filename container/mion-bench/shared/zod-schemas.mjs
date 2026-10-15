@@ -92,8 +92,7 @@ export function makeSchemas(z) {
     })
     .strict();
 
-  // zod's compiled fast path, as a user tuning for speed would ship it. strict: a schema the
-  // compiler cannot model throws at startup instead of silently running the slower parser.
+  // Compiled as a speed-tuned app ships it; strict throws at startup rather than silently fall back to the slow parser.
   return {UserSchema: z.compile(UserSchema, {strict: true}), SimpleUserSchema: z.compile(SimpleUserSchema, {strict: true})};
 }
 
