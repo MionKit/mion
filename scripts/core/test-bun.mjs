@@ -42,8 +42,7 @@ export function swallowedFiles(expected, perFile) {
   return expected.filter((file) => !(perFile.get(file) > 0));
 }
 
-// `source`: framework imports load their source, never a built .dist that may be missing or stale.
-// bun 1.3 reached source through the root tsconfig `paths` anyway; bun 1.4 honors platform-bun's empty `paths`.
+// `source` skips a missing or stale .dist; needed since bun 1.4 honors platform-bun's empty tsconfig `paths`.
 export function bunTestArgs(argv, report) {
   return ['--conditions=source', '--cwd', PACKAGE_DIR, 'test', ...argv, '--reporter=junit', `--reporter-outfile=${report}`];
 }

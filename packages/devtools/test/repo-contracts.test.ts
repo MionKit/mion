@@ -2154,8 +2154,7 @@ describe('every package keeps its tests under test/', () => {
   });
 });
 
-// CI's pinned bun 1.3 finds source through the root tsconfig `paths` even without the flag, so the bun suite's own
-// resolution test only fails on a newer bun. This pins the flag on every bun entry point instead.
+// CI's bun 1.3 reaches source via root tsconfig `paths` without the flag, so the bun suite cannot catch a dropped flag.
 describe('the bun lane loads framework source, never a built dist', () => {
   it('test:bun passes the source condition', () => {
     expect(bunTestArgs([], 'r.xml')[0]).toBe('--conditions=source');
