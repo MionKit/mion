@@ -89,9 +89,10 @@ of the bench app (`bun --cpu-prof-md`, before): the async wrappers `bunRequestHa
   the old async loop. Otherwise it runs the chain with no await, and at the first step that is `isAsync`, or turns
   out to return a promise (the existing safety net), the rest of the chain goes to the async loop. Both loops share
   the per-step code (`applyResult`, `isUncheckedPromise`); `dispatchWithContext` is unchanged.
-- Router: a sync-typed method that returns a promise now also turns `alwaysAwait` on for the router
-  (`markAsyncMethodFound`), as the option's docs say ("only honoured when the router has something async in it").
-  Before, the flag was settled at startup and stayed off.
+- Router (decided with the maintainer after review): `alwaysAwait` is now the option as written. `true` (the
+  default) awaits every step on any router, so the event loop keeps turning; the old rule that ignored it for a
+  router with no async method is gone, and so is the `hasAsyncMethods` flag behind it. The sync path only runs
+  with `alwaysAwait: false`, which the mion bench lanes now set (their handlers are all sync).
 - Bun adapter: `bunRequestHandler` is no longer `async` (return type `Response | Promise<Response>`, marked
   breaking). A request with no body skips the body read; both paths then go through `dispatchMaybeSync`, which
   answers with a `Response` when the chain is all sync and with a promise otherwise.
