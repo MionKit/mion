@@ -351,7 +351,6 @@ describe('bun: a refused body runs the alwaysRun middlewares', () => {
   });
 });
 
-// `alwaysAwait` is on by default, so every request keeps its promise.
 describe('bun: a router with the default alwaysAwait', () => {
   const asyncPort = 8086;
   let server: Server<any>;
