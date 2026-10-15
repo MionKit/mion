@@ -7,6 +7,7 @@
 
 import {
   dispatchWithContext,
+  dispatchMaybeSync,
   dispatchPlatformError,
   resolveExecutionChain,
   createContextFromChain,
@@ -22,6 +23,7 @@ import {
   BodyReadStrategy,
   handOverToHost,
 } from '@mionjs/router';
+import type {MethodsExecutionChain} from '@mionjs/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants.ts';
 import type {BunHttpOptions} from './types.ts';
 import {getENV, SerializerModes} from '@mionjs/core';
@@ -48,8 +50,9 @@ export function setBunHttpOpts(options?: Partial<BunHttpOptions>) {
   return httpOptions;
 }
 
-/** Exported so a host that owns the socket can mount it: your own `Bun.serve({fetch})`, or vite in middleware mode. */
-export async function bunRequestHandler(req: Request): Promise<Response> {
+/** Exported so a host that owns the socket can mount it: your own `Bun.serve({fetch})`, or vite in middleware mode.
+ *  NOT async: a request with no body on an all-sync route answers with a `Response`, never a promise. */
+export function bunRequestHandler(req: Request): Response | Promise<Response> {
   const reqUrl = req.url;
   const pathStart = reqUrl.indexOf('/', 8);
   const queryStart = reqUrl.indexOf('?', pathStart);
@@ -57,29 +60,53 @@ export async function bunRequestHandler(req: Request): Promise<Response> {
   const urlQuery = queryStart === -1 ? undefined : reqUrl.slice(queryStart + 1);
   const responseHeaders = new Headers(getResponseDefaults(httpOptions.defaultResponseHeaders, SERVER_HEADER));
 
-  // read as TEXT: `req.json()` would throw a raw SyntaxError outside any mion envelope, and the limit needs the size first
   try {
     // route resolved BEFORE the body: the chain gives the limit bun's native read stops at, and a late context stays GC-cheap
     const chain = resolveExecutionChain(path, urlQuery, req);
+    // a not-found chain (an unknown path or batch id) has no route to feed: its body is never read
+    if (chain.readsBody && req.body) return readBodyAndDispatch(req, chain, path, urlQuery, responseHeaders);
     let rawBody: any;
     let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
-    // a not-found chain (an unknown path or batch id) has no route to feed: its body is never read
-    if (chain.readsBody) {
-      try {
-        rawBody = await readRequestBody(req, chain.maxBodySize, BodyReadStrategy.buffered);
-      } catch (err) {
-        const refusal = toRpcError(err);
-        // unread chunks stay on the socket: close it, or they are parsed as the next request of a kept-alive connection
-        if (refusal.type === 'request-payload-too-large') responseHeaders.set('connection', 'close');
-        // the route resolved, so the refusal still runs the chain's alwaysRun members
-        const refused = await dispatchPlatformError(chain, path, urlQuery, refusal, req.headers, responseHeaders, req, undefined);
-        return reply(refused, responseHeaders);
-      }
-      const queryBody = decodeQueryBody(urlQuery, rawBody);
-      if (queryBody) {
-        rawBody = queryBody.rawBody;
-        reqBodyType = queryBody.bodyType;
-      }
+    const queryBody = chain.readsBody ? decodeQueryBody(urlQuery, undefined) : undefined;
+    if (queryBody) {
+      rawBody = queryBody.rawBody;
+      reqBodyType = queryBody.bodyType;
+    }
+    const context = createContextFromChain(chain, path, urlQuery, req.headers, responseHeaders, rawBody, reqBodyType);
+    const platformResp = dispatchMaybeSync(context, req, undefined);
+    if (!(platformResp instanceof Promise)) return reply(platformResp, responseHeaders);
+    return platformResp.then((resp) => reply(resp, responseHeaders)).catch((err) => fatalFail(toRpcError(err), responseHeaders));
+  } catch (err) {
+    return fatalFail(toRpcError(err), responseHeaders);
+  }
+}
+
+/** The request carries a body: read it against the route's limit, then dispatch. */
+async function readBodyAndDispatch(
+  req: Request,
+  chain: MethodsExecutionChain,
+  path: string,
+  urlQuery: string | undefined,
+  responseHeaders: Headers
+): Promise<Response> {
+  // read as TEXT: `req.json()` would throw a raw SyntaxError outside any mion envelope, and the limit needs the size first
+  try {
+    let rawBody: any;
+    let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
+    try {
+      rawBody = await readRequestBody(req, chain.maxBodySize, BodyReadStrategy.buffered);
+    } catch (err) {
+      const refusal = toRpcError(err);
+      // unread chunks stay on the socket: close it, or they are parsed as the next request of a kept-alive connection
+      if (refusal.type === 'request-payload-too-large') responseHeaders.set('connection', 'close');
+      // the route resolved, so the refusal still runs the chain's alwaysRun members
+      const refused = await dispatchPlatformError(chain, path, urlQuery, refusal, req.headers, responseHeaders, req, undefined);
+      return reply(refused, responseHeaders);
+    }
+    const queryBody = decodeQueryBody(urlQuery, rawBody);
+    if (queryBody) {
+      rawBody = queryBody.rawBody;
+      reqBodyType = queryBody.bodyType;
     }
     const context = createContextFromChain(chain, path, urlQuery, req.headers, responseHeaders, rawBody, reqBodyType);
     const platformResp = await dispatchWithContext(context, req, undefined);

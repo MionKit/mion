@@ -6,7 +6,7 @@
  * ######## */
 import {expect, test, beforeAll, afterAll, describe, setDefaultTimeout} from 'bun:test';
 import {createMionRouter, resetRouter, addStartMiddlewares, addEndMiddlewares} from '@mionjs/router';
-import {setBunHttpOpts, resetBunHttpOpts, startBunServer} from '../src/bunHttp.ts';
+import {setBunHttpOpts, resetBunHttpOpts, startBunServer, bunRequestHandler} from '../src/bunHttp.ts';
 import {CallContext} from '@mionjs/router';
 import {MION_ROUTES, PublicRpcError, StatusCodes} from '@mionjs/core';
 import {Server} from 'bun';
@@ -123,6 +123,22 @@ describe('bun router should', () => {
     expect(headers['content-length']).toEqual('2');
     expect(headers['server']).toEqual('my-server');
     expect(headers['x-something']).toEqual('true');
+  });
+
+  test('a request with no body on an all-sync router answers with a Response, not a promise', async () => {
+    const response = bunRequestHandler(new Request(`http://127.0.0.1:${port}/api/getDate`)) as Response;
+    expect(response).toBeInstanceOf(Response);
+    const reply = await response.json();
+    expect(reply).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
+    expect(response.headers.get('content-type')).toEqual('application/json; charset=utf-8');
+    expect(response.headers.get('server')).toEqual('@mionjs');
+  });
+
+  test('a GET with the body in the query still reaches the route', async () => {
+    const data = Buffer.from(JSON.stringify({getDate: [{date: '2022-04-10T02:13:00.000Z'}]})).toString('base64url');
+    const response = await fetch(`http://127.0.0.1:${port}/api/getDate?data=${data}`);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
   });
 
   test('a body over maxBodySize is a 413, natively or from the router, and the server keeps serving', async () => {
@@ -332,5 +348,46 @@ describe('bun: a refused body runs the alwaysRun middlewares', () => {
     });
     expect(response.status).toBe(200);
     expect(seen).toEqual(['start:/api/echo', 'log:200']);
+  });
+});
+
+// With an async method in the router `alwaysAwait` is in effect, so every request keeps its promise.
+describe('bun: a router with an async route', () => {
+  const asyncPort = 8086;
+  let server: Server<any>;
+
+  beforeAll(async () => {
+    resetRouter();
+    resetBunHttpOpts();
+    const mion = createMionRouter({basePath: 'api/'});
+    const slow = mion.route(async (): Promise<string> => 'slow');
+    const fast = mion.route((): string => 'fast');
+    const failing = mion.route(async (): Promise<string> => {
+      throw new Error('boom');
+    });
+    mion.initRoutes({slow, fast, failing});
+    setBunHttpOpts({port: asyncPort});
+    server = await startBunServer();
+  });
+
+  afterAll(() => void server.stop());
+
+  test('answer an async route with a promise', async () => {
+    const response = bunRequestHandler(new Request(`http://127.0.0.1:${asyncPort}/api/slow`));
+    expect(response).toBeInstanceOf(Promise);
+    expect(await (await response).json()).toEqual({slow: 'slow'});
+  });
+
+  test('keep the promise for a sync route too', async () => {
+    const response = bunRequestHandler(new Request(`http://127.0.0.1:${asyncPort}/api/fast`));
+    expect(response).toBeInstanceOf(Promise);
+    expect(await (await response).json()).toEqual({fast: 'fast'});
+  });
+
+  test('answer an async route that throws with the error envelope', async () => {
+    const response = await fetch(`http://127.0.0.1:${asyncPort}/api/failing`);
+    expect(response.status).toBe(StatusCodes.UNEXPECTED_ERROR);
+    const errors = ((await response.json()) as RpcBody)[MION_ROUTES.thrownErrors];
+    expect(errors.failing).toBeDefined();
   });
 });
