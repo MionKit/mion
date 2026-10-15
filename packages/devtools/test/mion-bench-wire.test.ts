@@ -163,7 +163,7 @@ describe('the zod server apps run the zod the validation benchmarks run, compile
   });
 
   it('hands every app strict-compiled schemas', () => {
-    // A stand-in z (the host has no zod 4): every builder call chains, compile returns what it got.
+    // Stand-in z: the host has no zod 4.
     const z: object = new Proxy(() => {}, {
       apply: () => z,
       get: (_, key) => (key === 'compile' ? (schema: unknown, options: unknown) => ({schema, options}) : z),
