@@ -103,18 +103,19 @@ of the bench app (`bun --cpu-prof-md`, before): the async wrappers `bunRequestHa
 - Docs: the "Awaiting Every Step" section of the routes page now says when mion awaits and when it answers
   without a promise.
 
-Results on a 4-core cloud box (slower than the M2 Pro in the intent table). Host A/B with wrk, old and new bundles
-alternating, 3 rounds of 8 s each (Bun heavy 6 rounds), average req/s:
+Results on a 4-core cloud box (slower than the M2 Pro in the intent table). Host A/B with wrk on the final code,
+old and new bundles alternating, 3 rounds of 8 s each (Bun heavy 9 rounds), average req/s with the round range:
 
 | Lane | hello-world | light-validation | heavy-validation |
 | --- | --- | --- | --- |
-| mion.bun | 50.4k → 59.6k | 39.7k → 39.4k | 26.4k → 28.2k |
-| mion.uws | 62.1k → 64.4k | 42.4k → 42.9k | 22.9k → 24.8k |
-| mion (node) | 37.1k → 36.5k | 23.8k → 24.5k | 16.5k → 17.2k |
+| mion.bun | 53.0k (49.8-56.3) → 64.9k (60.9-67.4) | 40.2k (39.2-41.8) → 41.3k (39.4-43.6) | 28.7k (25.8-32.3) → 29.0k (27.5-31.0) |
+| mion.uws | 62.1k (59.0-65.0) → 68.0k (66.9-69.4) | 44.8k (43.0-48.1) → 47.8k (45.7-49.3) | 26.2k (25.2-27.5) → 26.2k (25.4-26.7) |
+| mion (node) | 36.3k (34.4-38.3) → 36.3k (35.2-37.7) | 25.1k (24.5-25.4) → 25.5k (24.3-26.7) | 17.5k (17.0-18.3) → 17.4k (16.5-17.9) |
 
-Container bench (`bench servers suite hello-world`), one run each: mion.bun 47.1k → 55.5k, hono.bun 56.5k → 56.1k,
-elysia.bun 85.5k → 88.0k. `repeat mion.bun hello-world`: 46.0k-47.1k → 49.9k-51.8k. `repeat mion.uws hello-world`:
-57.2k-59.2k (old) against 59.9k-64.3k and 65.0k-68.4k (new). mion.bun now matches hono.bun on hello-world.
+Container bench before the review fixes (`bench servers suite hello-world`), one run each: mion.bun 47.1k → 55.5k,
+hono.bun 56.5k → 56.1k, elysia.bun 85.5k → 88.0k. `repeat mion.bun hello-world`: 46.0k-47.1k → 49.9k-51.8k.
+`repeat mion.uws hello-world`: 57.2k-59.2k (old) against 59.9k-64.3k and 65.0k-68.4k (new). mion.bun now matches
+hono.bun on hello-world.
 
 What still separates mion.bun from elysia.bun is mion's own per-request work (a context object, the chain, a
 `Headers` object, the route-keyed response body) and Bun's reply cost, none of it promise overhead. The website's
