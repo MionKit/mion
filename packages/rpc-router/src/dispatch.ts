@@ -52,8 +52,22 @@ export async function dispatchWithContext<Req, Resp>(
     request.bodyType = reqBodyType ?? getRequestBodyType(reqRawBody);
   }
   // No catch: runExecutionChain handles every exception itself, so one that only re-rejects changes nothing.
-  await runExecutionChain(context, rawRequest, rawResponse, getRouterOptions());
+  await runExecutionChain(context, rawRequest, rawResponse, getRouterOptions(), 0);
   return context.response;
+}
+
+/** `dispatchWithContext` for a context built with its body, minus the promise when no step needs one: with
+ *  `alwaysAwait` not in effect and no async method in the chain, the response comes back directly, so an
+ *  adapter can answer without a promise (Bun takes a `Response` or a promise from `fetch`). Otherwise a promise. */
+export function dispatchMaybeSync<Req, Resp>(
+  context: CallContext,
+  rawRequest: Req,
+  rawResponse?: Resp
+): MionResponse | Promise<MionResponse> {
+  const opts = getRouterOptions();
+  if (getAlwaysAwait() || hasAsyncMethod(context.executionChain.methods))
+    return runExecutionChain(context, rawRequest, rawResponse, opts, 0);
+  return runSyncExecutionChain(context, rawRequest, rawResponse, opts);
 }
 
 /** Dispatches a request the platform adapter refused after its route resolved: a body past the limit.
@@ -84,14 +98,15 @@ async function runExecutionChain(
   context: CallContext,
   rawRequest: unknown,
   rawResponse: unknown,
-  opts: RouterOptions
+  opts: RouterOptions,
+  startIndex: number
 ): Promise<MionResponse> {
   const {response, request, executionChain} = context;
   // False for an all-sync router or `alwaysAwait: false`: awaiting a sync step only costs a promise frame
   const alwaysAwait = getAlwaysAwait();
   const executionList = executionChain.methods;
   const executionCount = executionList.length;
-  for (let i = 0; i < executionCount; i++) {
+  for (let i = startIndex; i < executionCount; i++) {
     const executable = executionList[i];
     if (response.hasErrors && !executable.alwaysRun) continue;
 
@@ -104,52 +119,110 @@ async function runExecutionChain(
         result = await executable.methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
       } else {
         result = executable.methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
-        // Backstop for a wrong or missing declared type, else the promise is serialized as the answer
-        if (executable.asyncChecked !== true) {
-          executable.asyncChecked = true;
-          if (result !== null && typeof result === 'object' && typeof result.then === 'function') {
-            (executable as Mutable<RemoteMethod>).isAsync = true;
-            result = await result;
-          }
-        }
+        if (isUncheckedPromise(executable, result)) result = await result;
       }
-
-      if (result === undefined) continue;
-      // One brand read serves every branch below: it is an own property on every mion error, wire copies too
-      // `null` is a valid answer and reading a property off it throws, so it is excluded first
-      const isMionError = result !== null && result['mion@isΣrrθr'] === true;
-      if (!executable.hasReturnData) {
-        // a raw middleware declares no return, so a returned error is undeclared and halts like a thrown one
-        if (isMionError || isNativeError(result)) recordUndeclaredError(context, executable.id, result);
-        continue;
-      }
-      if (isMionError) {
-        // a returned FatalError is declared: it ends the chain but keeps its slot; a plain RpcError lets the chain run on
-        if (result.isFatal === true) markResponseFailed(context, result, StatusCodes.APPLICATION_ERROR);
-      }
-      // A brandless Error is a bug with no typed slot; in the body it would be served as a SUCCESSFUL answer
-      else if (isNativeError(result)) {
-        recordUndeclaredError(context, executable.id, result);
-        continue; // like a thrown one: it belongs in @thrownErrors, never in the body
-      }
-      if (executable.headersReturn && result instanceof HeadersSubset) {
-        // own keys only: a HeadersSubset built over a parsed body must not turn inherited keys into headers
-        const headersMap = result.headers;
-        for (const name of Object.keys(headersMap)) {
-          const value = headersMap[name];
-          if (value !== undefined && value !== null) {
-            response.headers.set(name, value);
-          }
-        }
-        continue;
-      }
-      (response.body as Mutable<AnyObject>)[executable.id] = result;
+      applyResult(context, executable, result);
     } catch (err: any) {
       // All thrown errors are undeclared and fatal
       recordUndeclaredError(context, executable.id, err);
     }
   }
   return context.response;
+}
+
+/** The same loop with no await, for a chain `dispatchMaybeSync` found all sync. A step that still answers with a
+ *  promise hands the rest of the chain to `runExecutionChain`, so the result is the one the async loop gives. */
+function runSyncExecutionChain(
+  context: CallContext,
+  rawRequest: unknown,
+  rawResponse: unknown,
+  opts: RouterOptions
+): MionResponse | Promise<MionResponse> {
+  const {response, request, executionChain} = context;
+  const executionList = executionChain.methods;
+  const executionCount = executionList.length;
+  for (let i = 0; i < executionCount; i++) {
+    const executable = executionList[i];
+    if (response.hasErrors && !executable.alwaysRun) continue;
+
+    try {
+      const result = executable.methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
+      if (isUncheckedPromise(executable, result))
+        return resumeAfterPromise(context, executable, result, i, rawRequest, rawResponse, opts);
+      applyResult(context, executable, result);
+    } catch (err: any) {
+      // All thrown errors are undeclared and fatal
+      recordUndeclaredError(context, executable.id, err);
+    }
+  }
+  return response;
+}
+
+async function resumeAfterPromise(
+  context: CallContext,
+  executable: RemoteMethod,
+  pending: Promise<unknown>,
+  index: number,
+  rawRequest: unknown,
+  rawResponse: unknown,
+  opts: RouterOptions
+): Promise<MionResponse> {
+  try {
+    applyResult(context, executable, await pending);
+  } catch (err: any) {
+    recordUndeclaredError(context, executable.id, err);
+  }
+  return runExecutionChain(context, rawRequest, rawResponse, opts, index + 1);
+}
+
+function hasAsyncMethod(methods: RemoteMethod[]): boolean {
+  for (let i = 0; i < methods.length; i++) if (methods[i].isAsync) return true;
+  return false;
+}
+
+/** Backstop for a wrong or missing declared type, else the promise is serialized as the answer.
+ *  Checked on a method's first answer only: one that is a promise marks the method async for good. */
+function isUncheckedPromise(executable: RemoteMethod, result: any): result is Promise<unknown> {
+  if (executable.asyncChecked === true) return false;
+  executable.asyncChecked = true;
+  if (result === null || typeof result !== 'object' || typeof result.then !== 'function') return false;
+  (executable as Mutable<RemoteMethod>).isAsync = true;
+  return true;
+}
+
+/** Writes one step's answer into the response; a throw here is the caller's to record, like the step's own. */
+function applyResult(context: CallContext, executable: RemoteMethod, result: any): void {
+  if (result === undefined) return;
+  const response = context.response;
+  // One brand read serves every branch below: it is an own property on every mion error, wire copies too
+  // `null` is a valid answer and reading a property off it throws, so it is excluded first
+  const isMionError = result !== null && result['mion@isΣrrθr'] === true;
+  if (!executable.hasReturnData) {
+    // a raw middleware declares no return, so a returned error is undeclared and halts like a thrown one
+    if (isMionError || isNativeError(result)) recordUndeclaredError(context, executable.id, result);
+    return;
+  }
+  if (isMionError) {
+    // a returned FatalError is declared: it ends the chain but keeps its slot; a plain RpcError lets the chain run on
+    if (result.isFatal === true) markResponseFailed(context, result, StatusCodes.APPLICATION_ERROR);
+  }
+  // A brandless Error is a bug with no typed slot; in the body it would be served as a SUCCESSFUL answer
+  else if (isNativeError(result)) {
+    recordUndeclaredError(context, executable.id, result);
+    return; // like a thrown one: it belongs in @thrownErrors, never in the body
+  }
+  if (executable.headersReturn && result instanceof HeadersSubset) {
+    // own keys only: a HeadersSubset built over a parsed body must not turn inherited keys into headers
+    const headersMap = result.headers;
+    for (const name of Object.keys(headersMap)) {
+      const value = headersMap[name];
+      if (value !== undefined && value !== null) {
+        response.headers.set(name, value);
+      }
+    }
+    return;
+  }
+  (response.body as Mutable<AnyObject>)[executable.id] = result;
 }
 
 // The three callers below are NOT async: awaiting the handler only to return its value adds a promise
