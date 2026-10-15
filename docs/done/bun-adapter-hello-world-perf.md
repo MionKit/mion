@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-10-14
 ---
 
@@ -76,3 +76,41 @@ this change touched, review its report against the code, and commit it as its ow
   would let a broken JSON body succeed where it errors today.
 - Node + uWS adapters adopt the sync dispatch only if it measurably helps without a regression.
 - Bun native `routes` only if routing is still a real share of the cost after the above.
+
+## What shipped
+
+Cause: on `GET /hello` the Bun lane spent most of its JS time in promise machinery, not in mion's work. CPU profile
+of the bench app (`bun --cpu-prof-md`, before): the async wrappers `bunRequestHandler` ~36%,
+`dispatchWithContext` ~21%, `readRequestBody` with no body to read ~5%, `runExecutionChain` ~4%; Bun's native
+`Response.json` 17%, `new Headers` 8%; context + route lookup + handler + serialize ~5%. The lanes do the same work
+(same method, path, body and header count), so the gap was not a test difference.
+
+- Router: `dispatchMaybeSync` (new export, `packages/rpc-router/src/dispatch.ts`). Sync loop only when
+  `getAlwaysAwait()` is false and no chain member `isAsync`; a member that still returns a promise hands the rest
+  of the chain to the async loop (same safety net). `dispatchWithContext` unchanged; both loops share the
+  per-step code (`applyResult`, `isUncheckedPromise`).
+- Bun adapter: `bunRequestHandler` is no longer `async`; a request with no body goes straight through
+  `dispatchMaybeSync` and returns a `Response`. A request with a body takes the old async path (`readBodyAndDispatch`).
+- uWS adapter: an all-sync chain replies inside the uWS callback, no promise.
+- Node adapter: tried, no measurable gain (host A/B 37.1k vs 36.5k req/s), so left on `dispatchWithContext`.
+- Measured and dropped: Bun native `routes` (within noise of the in-JS lookup on a bare Bun server); a plain
+  object instead of `Headers` for the reply (within noise, and it would change `Set-Cookie` and bad-value handling).
+- Docs: the "Awaiting Every Step" section of the routes page now says when mion awaits and when it answers
+  without a promise.
+
+Results on a 4-core cloud box (slower than the M2 Pro in the intent table). Host A/B with wrk, old and new bundles
+alternating, 3 rounds of 8 s each (Bun heavy 6 rounds), average req/s:
+
+| Lane | hello-world | light-validation | heavy-validation |
+| --- | --- | --- | --- |
+| mion.bun | 50.4k → 59.6k | 39.7k → 39.4k | 26.4k → 28.2k |
+| mion.uws | 62.1k → 64.4k | 42.4k → 42.9k | 22.9k → 24.8k |
+| mion (node) | 37.1k → 36.5k | 23.8k → 24.5k | 16.5k → 17.2k |
+
+Container bench (`bench servers suite hello-world`), one run each: mion.bun 47.1k → 55.5k, hono.bun 56.5k → 56.1k,
+elysia.bun 85.5k → 88.0k. `repeat mion.bun hello-world`: 46.0k-47.1k → 49.9k-51.8k. `repeat mion.uws hello-world`:
+57.2k-59.2k (old) against 59.9k-64.3k and 65.0k-68.4k (new). mion.bun now matches hono.bun on hello-world.
+
+What still separates mion.bun from elysia.bun is mion's own per-request work (a context object, the chain, a
+`Headers` object, the route-keyed response body) and Bun's reply cost, none of it promise overhead. The website's
+benchmark data regenerates on deploy; nothing is committed for it.
