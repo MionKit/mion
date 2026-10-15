@@ -12,7 +12,7 @@
 // method async for good if it turns out to be a promise. These pin that it works, and that it costs
 // nothing after the first call.
 
-import {describe, it, expect} from 'vitest';
+import {describe, it, expect, beforeEach} from 'vitest';
 import {createMionRouter, resetRouter, getRouteExecutable} from '../src/router.ts';
 import {dispatchRoute} from '../src/dispatch.ts';
 import {headersFromRecord} from '../src/lib/headers.ts';
@@ -29,12 +29,15 @@ const routes = {
   liar: mion.route((): string => liar()),
 } satisfies Routes;
 
-resetRouter();
-mion.initRoutes(routes);
-
 const call = (path: string) => dispatchRoute(path, '{}', headersFromRecord({}), headersFromRecord({}), {}, {});
 
 describe('the un-awaited promise guard should', () => {
+  // a fresh router per test: finding the liar marks it async and turns alwaysAwait on for the whole router
+  beforeEach(() => {
+    resetRouter();
+    mion.initRoutes(routes);
+  });
+
   it('resolve a lying handler on the very first request, not just later ones', async () => {
     const response = await call('/liar');
     expect(response.hasErrors).toBe(false);
