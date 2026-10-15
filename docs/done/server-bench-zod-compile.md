@@ -74,4 +74,6 @@ this change touched, review its report against the code, and commit it as its ow
 - http-node note on the light validation page rewritten. Its old claims (http-node tops the page, Bun servers stuck
   at ~92-98% CPU) came from no recorded run (`website-deploy.yml` has not completed one yet) and the new run refutes
   them: mion and the Bun servers lead, every lane sits at ~102-103% CPU. It now explains only what this run shows:
-  http-node beats Express, Fastify, Hapi and Hono on Node.js.
+  http-node beats Express, Fastify, Hapi and Hono on Node.js. Its "synchronous handler" line went too: the handler is
+  `async` and awaits the body.
+- `bench servers sweep` regenerated the payload sizes page too; all four pages render with the new numbers.
