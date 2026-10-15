@@ -42,9 +42,8 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
   getPublicRoutesData: boolean;
   /** generate a uuid as the id of every error */
   autoGenerateErrorId: boolean;
-  /** Await every step of the chain, even one that returned a plain value: the await is what makes a long
-   *  chain yield the event loop. Turning it off raises throughput on short sync chains (an all-sync route then
-   *  answers without a promise) and can cost tail latency under load.
+  /** Awaiting even sync steps is what makes a long chain yield the event loop. Off: an all-sync route answers
+   *  without a promise, more throughput on short chains, maybe worse tail latency under load.
    *  @default true */
   alwaysAwait: boolean;
   /** Multiplier applied to a request limit DERIVED from the types, covering whitespace and formatting a

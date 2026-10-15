@@ -5,10 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// With `alwaysAwait` off the chain skips the await for steps the build proved synchronous.
-// These pin what would break if the proof were wrong: a promise-returning handler
-// that is not an AsyncFunction must still resolve, and a returned object that merely has a `then`
-// property must be written to the body untouched rather than treated as a promise.
+// With `alwaysAwait` off, steps the build proved sync skip the await. Pins a wrong proof: a promise from a
+// non-AsyncFunction must still resolve, and an object with a `then` key goes to the body untouched.
 
 import {describe, it, expect, beforeEach} from 'vitest';
 import {createMionRouter, resetRouter} from '../src/router.ts';
