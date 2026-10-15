@@ -69,6 +69,9 @@ this change touched, review its report against the code, and commit it as its ow
   both amd64 and arm64.
 - `pnpm miondevx bench servers` on the 4-core cloud host: every lane, the four zod apps and hono.bun included,
   answered correctly and rejected an invalid payload before being measured; the three server suites regenerated.
-- http-node note on the light validation page kept as is. On this host http-node ranks 7th and every lane sits at
-  ~102-103% CPU, so the host cannot confirm or refute the published run's figures; a faster zod only makes
-  http-node faster, so the note's direction holds. The next deploy run (dedicated VM) is what the page shows.
+- `z.coerce.date()` is the one part zod 4.6.5 does not generate code for: inside the compiled parse it hands each
+  date field to its runtime parser (an "island"), so `strict` does not throw and every other node stays on the fast path.
+- http-node note on the light validation page rewritten. Its old claims (http-node tops the page, Bun servers stuck
+  at ~92-98% CPU) came from no recorded run (`website-deploy.yml` has not completed one yet) and the new run refutes
+  them: mion and the Bun servers lead, every lane sits at ~102-103% CPU. It now explains only what this run shows:
+  http-node beats Express, Fastify, Hapi and Hono on Node.js.
