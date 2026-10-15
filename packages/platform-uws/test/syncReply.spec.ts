@@ -31,10 +31,10 @@ function stubResponse() {
   return {res: res as unknown as HttpResponse, sent};
 }
 
-describe('uws: an all-sync router should', () => {
+describe('uws: an all-sync router with alwaysAwait off should', () => {
   beforeEach(() => {
     resetRouter();
-    const mion = createMionRouter({});
+    const mion = createMionRouter({alwaysAwait: false});
     mion.initRoutes({hello: mion.route((): string => 'hello')});
   });
 
@@ -46,14 +46,11 @@ describe('uws: an all-sync router should', () => {
   });
 });
 
-describe('uws: a router with an async route should', () => {
+describe('uws: a router with the default alwaysAwait should', () => {
   beforeEach(() => {
     resetRouter();
     const mion = createMionRouter({});
-    mion.initRoutes({
-      hello: mion.route((): string => 'hello'),
-      slow: mion.route(async (): Promise<string> => 'slow'),
-    });
+    mion.initRoutes({hello: mion.route((): string => 'hello')});
   });
 
   it('reply to a sync route only after the await', async () => {

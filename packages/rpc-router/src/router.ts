@@ -114,10 +114,6 @@ const defaultStartMiddlewares = {
 const defaultEndMiddlewares = {
   mionSerializeResponse: serializerMiddlewares.mionSerializeResponse,
 };
-/** True once any registered method answers with a promise. */
-let hasAsyncMethods = false;
-/** Resolved once registration ends (options frozen, no more methods), not per request; `markAsyncMethodFound` redoes it. */
-let alwaysAwait = false;
 let startMiddlewaresDef: MiddlewaresCollection = {...defaultStartMiddlewares};
 let endMiddlewaresDef: MiddlewaresCollection = {...defaultEndMiddlewares};
 export let startMiddlewares: RemoteMethod[] = [];
@@ -134,15 +130,7 @@ export const getRouteExecutable = (id: string) => routesById.get(id);
 export const getMiddlewareExecutable = (id: string) => middlewaresById.get(id);
 export const getMiddlewaresSize = () => middlewaresById.size;
 export const getComplexity = () => complexity;
-/** False means the whole router is synchronous, so the dispatcher can skip its awaits. */
-export const getHasAsyncMethods = () => hasAsyncMethods;
-/** The `alwaysAwait` option asks for it, and it is only honoured when there is something async to wait for. */
-export const getAlwaysAwait = () => alwaysAwait;
-/** Called when a method typed sync answers with a promise. */
-export function markAsyncMethodFound(): void {
-  hasAsyncMethods = true;
-  alwaysAwait = routerOptions.alwaysAwait;
-}
+export const getAlwaysAwait = () => routerOptions.alwaysAwait;
 export const getRouterOptions = <Opts extends RouterOptions>(): Readonly<Opts> => routerOptions as Opts;
 /** The headers every response starts with. Adapters read it through getResponseDefaults. */
 export const getGlobalResponseHeaders = (): Readonly<Record<string, string>> => globalResponseHeaders;
@@ -215,8 +203,6 @@ export const resetRouter = () => {
   endMiddlewaresDef = {...defaultEndMiddlewares};
   startMiddlewares = [];
   endMiddlewares = [];
-  hasAsyncMethods = false;
-  alwaysAwait = false;
   isRouterInitialized = false;
   isRouterCreated = false;
   allExecutablesIds = undefined;
@@ -286,9 +272,6 @@ function registerRoutes<R extends Routes>(routes: R): PublicApi<R> {
   endMiddlewares = getExecutablesFromMiddlewaresCollection(endMiddlewaresDef);
   recursiveFlatRoutes(routes, [], [], [], 0);
   buildNotFoundChains();
-  // every method this call could register is registered and the options are frozen, so the await rule is
-  // settled here instead of on every request
-  alwaysAwait = routerOptions.alwaysAwait && hasAsyncMethods;
   allExecutablesIds = undefined; // the memoized id list must see the routes registered by this call
   if (shouldFullGenerateSpec()) {
     return getPublicApi(routes);
@@ -572,7 +555,6 @@ export function getExecutableFromMiddleware(
     if (middleware.options?.maxBodySize !== undefined) executable.options.maxBodySize = middleware.options.maxBodySize;
   }
 
-  if (executable.isAsync) hasAsyncMethods = true;
   middlewaresById.set(middlewareId, executable as any);
   routesCache.setMethodJitFns(middlewareId, executable as any);
   return executable as any;
@@ -608,7 +590,6 @@ export function getExecutableFromRawMiddleware(
       description: middleware.options?.description,
     },
   };
-  if (executable.isAsync) hasAsyncMethods = true;
   rawMiddlewaresById.set(middlewareId, executable);
   routesCache.setMethodJitFns(middlewareId, executable as any);
   return executable;
@@ -645,7 +626,6 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
     // the route option as written; the chain resolution overwrites it with the resolved number
     if (route.options?.maxBodySize !== undefined) executable.options.maxBodySize = route.options.maxBodySize;
   }
-  if (executable.isAsync) hasAsyncMethods = true;
   routesById.set(routeId, executable);
   routesCache.setMethodJitFns(routeId, executable as any);
   return executable;

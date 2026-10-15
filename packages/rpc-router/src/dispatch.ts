@@ -9,7 +9,7 @@ import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody
 import {type RouterOptions} from './types/general.ts';
 import {HeadersMethod, RemoteMethod, RawMethod} from './types/remoteMethods.ts';
 import type {MethodsExecutionChain} from './types/remoteMethods.ts';
-import {getRouterOptions, getAlwaysAwait, markAsyncMethodFound} from './router.ts';
+import {getRouterOptions, getAlwaysAwait} from './router.ts';
 import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerCode, MION_ROUTES, trustedHeadersSubset} from '@mionjs/core';
 import {RpcError, FatalError, HandlerType, ValidationError, isNativeError} from '@mionjs/core';
 import {UNSAFE_PROPERTY_NAME_MESSAGE} from '@mionjs/run-types';
@@ -100,7 +100,7 @@ async function runExecutionChain(
   startIndex: number
 ): Promise<MionResponse> {
   const {response, request, executionChain} = context;
-  // False for an all-sync router or `alwaysAwait: false`: awaiting a sync step only costs a promise frame
+  // `alwaysAwait: false` skips the await on sync steps: awaiting one only costs a promise frame
   const alwaysAwait = getAlwaysAwait();
   const executionList = executionChain.methods;
   const executionCount = executionList.length;
@@ -166,7 +166,6 @@ function isUncheckedPromise(executable: RemoteMethod, result: any): result is Pr
   executable.asyncChecked = true;
   if (result === null || typeof result !== 'object' || typeof result.then !== 'function') return false;
   (executable as Mutable<RemoteMethod>).isAsync = true;
-  markAsyncMethodFound();
   return true;
 }
 
