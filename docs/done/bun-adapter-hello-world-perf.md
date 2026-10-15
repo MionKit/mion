@@ -85,14 +85,19 @@ of the bench app (`bun --cpu-prof-md`, before): the async wrappers `bunRequestHa
 `Response.json` 17%, `new Headers` 8%; context + route lookup + handler + serialize ~5%. The lanes do the same work
 (same method, path, body and header count), so the gap was not a test difference.
 
-- Router: `dispatchMaybeSync` (new export, `packages/rpc-router/src/dispatch.ts`). Sync loop only when
-  `getAlwaysAwait()` is false and no chain member `isAsync`; a member that still returns a promise hands the rest
-  of the chain to the async loop (same safety net). `dispatchWithContext` unchanged; both loops share the
-  per-step code (`applyResult`, `isUncheckedPromise`).
-- Bun adapter: `bunRequestHandler` is no longer `async`; a request with no body goes straight through
-  `dispatchMaybeSync` and returns a `Response`. A request with a body takes the old async path (`readBodyAndDispatch`).
+- Router: `dispatchMaybeSync` (new export, `packages/rpc-router/src/dispatch.ts`). With `getAlwaysAwait()` true it is
+  the old async loop. Otherwise it runs the chain with no await, and at the first step that is `isAsync`, or turns
+  out to return a promise (the existing safety net), the rest of the chain goes to the async loop. Both loops share
+  the per-step code (`applyResult`, `isUncheckedPromise`); `dispatchWithContext` is unchanged.
+- Router: a sync-typed method that returns a promise now also turns `alwaysAwait` on for the router
+  (`markAsyncMethodFound`), as the option's docs say ("only honoured when the router has something async in it").
+  Before, the flag was settled at startup and stayed off.
+- Bun adapter: `bunRequestHandler` is no longer `async` (return type `Response | Promise<Response>`, marked
+  breaking). A request with no body skips the body read; both paths then go through `dispatchMaybeSync`, which
+  answers with a `Response` when the chain is all sync and with a promise otherwise.
 - uWS adapter: an all-sync chain replies inside the uWS callback, no promise.
-- Node adapter: tried, no measurable gain (host A/B 37.1k vs 36.5k req/s), so left on `dispatchWithContext`.
+- Node adapter: tried, no measurable gain (host A/B with the trial build: 37.1k vs 36.5k req/s on hello-world), so
+  it stays on `dispatchWithContext`. Its only change is the shared router loop.
 - Measured and dropped: Bun native `routes` (within noise of the in-JS lookup on a bare Bun server); a plain
   object instead of `Headers` for the reply (within noise, and it would change `Set-Cookie` and bad-value handling).
 - Docs: the "Awaiting Every Step" section of the routes page now says when mion awaits and when it answers
