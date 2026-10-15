@@ -12,6 +12,8 @@ import {die, red, note, run, success, reportCliError} from '../lib/proc.mjs';
 const PACKAGE_DIR = join(REPO_ROOT, 'packages/platform-bun');
 const SKIP_DIRS = new Set(['node_modules', '.dist', '.mion', '.mion-build', '.coverage']);
 const TEST_FILE = /\.(test|spec)\.ts$/;
+// Framework imports load their source, never a built .dist that may be missing or stale.
+export const BUN_CONDITIONS = '--conditions=source';
 
 // Posix paths: that is how the junit report names the files.
 function discoverTestFiles(dir = PACKAGE_DIR) {
@@ -49,7 +51,7 @@ export function main(argv = []) {
   const outDir = mkdtempSync(join(tmpdir(), 'mion-test-bun-'));
   const report = join(outDir, 'bun-junit.xml');
   try {
-    const code = run('bun', ['--cwd', PACKAGE_DIR, 'test', ...argv, '--reporter=junit', `--reporter-outfile=${report}`]);
+    const code = run('bun', [BUN_CONDITIONS, '--cwd', PACKAGE_DIR, 'test', ...argv, '--reporter=junit', `--reporter-outfile=${report}`]);
 
     let xml;
     try {
