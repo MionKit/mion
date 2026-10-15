@@ -32,7 +32,7 @@ const routes = {
 const call = (path: string) => dispatchRoute(path, '{}', headersFromRecord({}), headersFromRecord({}), {}, {});
 
 describe('the un-awaited promise guard should', () => {
-  // a fresh router per test: finding the liar marks it async and turns alwaysAwait on for the whole router
+  // finding the liar marks it async and turns alwaysAwait on router-wide
   beforeEach(() => {
     resetRouter();
     mion.initRoutes(routes);

@@ -50,7 +50,7 @@ export function setBunHttpOpts(options?: Partial<BunHttpOptions>) {
 }
 
 /** Exported so a host that owns the socket can mount it: your own `Bun.serve({fetch})`, or vite in middleware mode.
- *  NOT async: a request with no body on an all-sync route answers with a `Response`, never a promise. */
+ *  NOT async: a body-less request on an all-sync route gets a `Response`, never a promise. */
 export function bunRequestHandler(req: Request): Response | Promise<Response> {
   const reqUrl = req.url;
   const pathStart = reqUrl.indexOf('/', 8);
@@ -70,7 +70,6 @@ export function bunRequestHandler(req: Request): Response | Promise<Response> {
   }
 }
 
-/** The request carries a body: read it against the route's limit, then dispatch. */
 async function readBodyAndDispatch(
   req: Request,
   chain: MethodsExecutionChain,
@@ -97,7 +96,7 @@ async function readBodyAndDispatch(
   }
 }
 
-/** Shared by both paths: an all-sync chain answers with a `Response`, anything else with a promise of one. */
+/** An all-sync chain answers with a `Response`, anything else with a promise of one. */
 function dispatchBody(
   req: Request,
   chain: MethodsExecutionChain,

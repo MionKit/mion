@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// dispatchMaybeSync answers without a promise only when nothing in the chain is awaited, and must give the
-// same response dispatchWithContext gives. These pin when it is sync and that the answers match.
+// dispatchMaybeSync must answer exactly as dispatchWithContext does, minus the promise when nothing is awaited.
 
 import {describe, it, expect, beforeEach} from 'vitest';
 import {createMionRouter, resetRouter, getAlwaysAwait, getRouteExecutable} from '../src/router.ts';
@@ -29,7 +28,7 @@ const summary = (response: MionResponse) => ({
 });
 
 describe('dispatchMaybeSync on an all-sync router should', () => {
-  // a fresh router per test: finding a liar marks it async and turns alwaysAwait on for the whole router
+  // finding a liar marks it async and turns alwaysAwait on router-wide
   beforeEach(() => {
     resetRouter();
     calls.length = 0;

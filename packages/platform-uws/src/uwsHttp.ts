@@ -197,7 +197,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
     try {
       reply(res, state, mionResponse);
     } catch {
-      // the response is already marked as answered, so a failed write has nothing left to answer with
+      // already marked replied: a failed write has nothing left to answer with
     }
   };
 

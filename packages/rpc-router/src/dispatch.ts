@@ -56,9 +56,8 @@ export async function dispatchWithContext<Req, Resp>(
   return context.response;
 }
 
-/** `dispatchWithContext` for a context built with its body, minus the promise when no step needs one: with
- *  `alwaysAwait` not in effect, a chain that meets no async method answers directly, so an adapter can reply
- *  without a promise (Bun takes a `Response` or a promise from `fetch`). Otherwise a promise. */
+/** `dispatchWithContext` for a context built with its body, minus the promise when no step needs one,
+ *  so an adapter can reply without a promise (Bun's `fetch` takes a `Response` or a promise). */
 export function dispatchMaybeSync<Req, Resp>(
   context: CallContext,
   rawRequest: Req,
@@ -129,8 +128,7 @@ async function runExecutionChain(
   return context.response;
 }
 
-/** The same loop with no await. At the first step that is or turns out async, the rest of the chain goes to
- *  `runExecutionChain`, so the result is the one the async loop gives. */
+/** `runExecutionChain` without awaits: from the first async step on it hands over, so both give the same result. */
 function runSyncExecutionChain(
   context: CallContext,
   rawRequest: unknown,
@@ -162,8 +160,7 @@ function runSyncExecutionChain(
   return response;
 }
 
-/** Backstop for a wrong or missing declared type, else the promise is serialized as the answer.
- *  Checked on a method's first answer only: one that is a promise marks the method async for good. */
+/** Backstop for a wrong or missing declared type, else the promise is serialized as the answer. */
 function isUncheckedPromise(executable: RemoteMethod, result: any): result is PromiseLike<unknown> {
   if (executable.asyncChecked === true) return false;
   executable.asyncChecked = true;
@@ -173,7 +170,7 @@ function isUncheckedPromise(executable: RemoteMethod, result: any): result is Pr
   return true;
 }
 
-/** Writes one step's answer into the response; a throw here is the caller's to record, like the step's own. */
+/** A throw here is the caller's to record, like the step's own. */
 function applyResult(context: CallContext, executable: RemoteMethod, result: any): void {
   if (result === undefined) return;
   const response = context.response;
