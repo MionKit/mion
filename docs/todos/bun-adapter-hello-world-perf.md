@@ -61,3 +61,18 @@ this change touched, review its report against the code, and commit it as its ow
 - Server benchmark data regenerated.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched
   source file, each committed on its own.
+
+## Plan: sync dispatch for sync routes (approved 2026-10-15)
+
+- Elysia check (1.4.22 `dist/compose.mjs`): a route with no body and only sync handler + hooks compiles to a
+  plain function that hands Bun a `Response` directly (`${maybeAsync ? "async " : ""}function handle(c)`).
+  mion does the same, but only where its own rules already allow it.
+- The existing `alwaysAwait` option keeps control. The router honours it only with an async handler
+  (`alwaysAwait = routerOptions.alwaysAwait && hasAsyncMethods`). When it is in effect, nothing changes.
+- Sync path only when `getAlwaysAwait()` is false and no member of the chain is `isAsync`. A member that still
+  returns a promise switches to the async loop from that member on (the existing safety net).
+- Bun adapter: no `async` wrapper; a request with no body never awaits the body read. With a body: unchanged.
+- Not done: `readsBody: false` for no-params routes, or dropping the deserialize step from their chain. Either
+  would let a broken JSON body succeed where it errors today.
+- Node + uWS adapters adopt the sync dispatch only if it measurably helps without a regression.
+- Bun native `routes` only if routing is still a real share of the cost after the above.
