@@ -6,7 +6,6 @@
  * ######## */
 
 import {
-  dispatchWithContext,
   dispatchMaybeSync,
   dispatchPlatformError,
   resolveExecutionChain,
@@ -65,17 +64,7 @@ export function bunRequestHandler(req: Request): Response | Promise<Response> {
     const chain = resolveExecutionChain(path, urlQuery, req);
     // a not-found chain (an unknown path or batch id) has no route to feed: its body is never read
     if (chain.readsBody && req.body) return readBodyAndDispatch(req, chain, path, urlQuery, responseHeaders);
-    let rawBody: any;
-    let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
-    const queryBody = chain.readsBody ? decodeQueryBody(urlQuery, undefined) : undefined;
-    if (queryBody) {
-      rawBody = queryBody.rawBody;
-      reqBodyType = queryBody.bodyType;
-    }
-    const context = createContextFromChain(chain, path, urlQuery, req.headers, responseHeaders, rawBody, reqBodyType);
-    const platformResp = dispatchMaybeSync(context, req, undefined);
-    if (!(platformResp instanceof Promise)) return reply(platformResp, responseHeaders);
-    return platformResp.then((resp) => reply(resp, responseHeaders)).catch((err) => fatalFail(toRpcError(err), responseHeaders));
+    return dispatchBody(req, chain, path, urlQuery, responseHeaders, undefined);
   } catch (err) {
     return fatalFail(toRpcError(err), responseHeaders);
   }
@@ -91,8 +80,7 @@ async function readBodyAndDispatch(
 ): Promise<Response> {
   // read as TEXT: `req.json()` would throw a raw SyntaxError outside any mion envelope, and the limit needs the size first
   try {
-    let rawBody: any;
-    let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
+    let rawBody: string | undefined;
     try {
       rawBody = await readRequestBody(req, chain.maxBodySize, BodyReadStrategy.buffered);
     } catch (err) {
@@ -103,17 +91,32 @@ async function readBodyAndDispatch(
       const refused = await dispatchPlatformError(chain, path, urlQuery, refusal, req.headers, responseHeaders, req, undefined);
       return reply(refused, responseHeaders);
     }
-    const queryBody = decodeQueryBody(urlQuery, rawBody);
-    if (queryBody) {
-      rawBody = queryBody.rawBody;
-      reqBodyType = queryBody.bodyType;
-    }
-    const context = createContextFromChain(chain, path, urlQuery, req.headers, responseHeaders, rawBody, reqBodyType);
-    const platformResp = await dispatchWithContext(context, req, undefined);
-    return reply(platformResp, responseHeaders);
+    return dispatchBody(req, chain, path, urlQuery, responseHeaders, rawBody);
   } catch (err) {
     return fatalFail(toRpcError(err), responseHeaders);
   }
+}
+
+/** Shared by both paths: an all-sync chain answers with a `Response`, anything else with a promise of one. */
+function dispatchBody(
+  req: Request,
+  chain: MethodsExecutionChain,
+  path: string,
+  urlQuery: string | undefined,
+  responseHeaders: Headers,
+  rawBody: string | undefined
+): Response | Promise<Response> {
+  let reqRawBody: any = rawBody;
+  let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
+  const queryBody = chain.readsBody ? decodeQueryBody(urlQuery, rawBody) : undefined;
+  if (queryBody) {
+    reqRawBody = queryBody.rawBody;
+    reqBodyType = queryBody.bodyType;
+  }
+  const context = createContextFromChain(chain, path, urlQuery, req.headers, responseHeaders, reqRawBody, reqBodyType);
+  const platformResp = dispatchMaybeSync(context, req, undefined);
+  if (!(platformResp instanceof Promise)) return reply(platformResp, responseHeaders);
+  return platformResp.then((resp) => reply(resp, responseHeaders)).catch((err) => fatalFail(toRpcError(err), responseHeaders));
 }
 
 /** Bun's connection-level error hook (never a route error — those are handled in the dispatch). */
