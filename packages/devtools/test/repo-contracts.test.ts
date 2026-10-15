@@ -30,7 +30,7 @@ import {CARD_MANIFEST, CARDS_EXPORT_DIR, hashSources, staleCards} from '../../..
 // @ts-expect-error — a plain .mjs repo script, no types.
 import {stripSourceCondition} from '../../../scripts/lib/publish-manifest.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
-import {testsPerFile, swallowedFiles} from '../../../scripts/core/test-bun.mjs';
+import {testsPerFile, swallowedFiles, bunTestArgs} from '../../../scripts/core/test-bun.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
 import * as coverage from '../../../scripts/core/typecheck-coverage.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
@@ -2151,6 +2151,20 @@ describe('every package keeps its tests under test/', () => {
     const tracked = spawnSync('git', ['ls-files', 'packages'], {cwd: REPO_ROOT, encoding: 'utf8'}).stdout.split('\n');
     const offenders = tracked.filter((file) => TEST_FILE.test(file) && !/^packages\/[^/]+\/test\//.test(file));
     expect(offenders).toEqual([]);
+  });
+});
+
+// CI's pinned bun 1.3 finds source through the root tsconfig `paths` even without the flag, so the bun suite's own
+// resolution test only fails on a newer bun. This pins the flag on every bun entry point instead.
+describe('the bun lane loads framework source, never a built dist', () => {
+  it('test:bun passes the source condition', () => {
+    expect(bunTestArgs([], 'r.xml')[0]).toBe('--conditions=source');
+  });
+
+  it("platform-bun's own test scripts pass it too", () => {
+    const {scripts} = JSON.parse(readFileSync(join(REPO_ROOT, 'packages/platform-bun/package.json'), 'utf8'));
+    expect(scripts.test).toBe('bun --conditions=source test');
+    expect(scripts['dev:test']).toBe('bun --conditions=source test --watch');
   });
 });
 

@@ -59,4 +59,9 @@ None, because only the dev test command changes. If `SETUP.md` or `.agents/docs/
   devtools' dist (that export has no `source` entry), which `check:builds` keeps fresh.
 - Test: `packages/platform-bun/test/sourceResolution.test.ts` asserts `@mionjs/router` and `@mionjs/core`
   resolve to source, not a `.dist`, so a run without the flag fails instead of passing on old code.
+  It only fails on bun 1.4+: CI's pinned 1.3.11 reaches source through `paths` anyway. So a contract test in
+  `packages/devtools/test/repo-contracts.test.ts` pins the flag on `test-bun.mjs` (`bunTestArgs`) and both
+  package scripts, on any bun.
+- CI stays on bun 1.3.11: the bench, website and pre-publish-e2e images pin it in lockstep so published
+  benchmark numbers never move with no code change. Bumping it is a separate call.
 - Docs: the `test:bun` line in `.agents/docs/testing.md`.

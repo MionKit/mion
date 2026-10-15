@@ -12,8 +12,6 @@ import {die, red, note, run, success, reportCliError} from '../lib/proc.mjs';
 const PACKAGE_DIR = join(REPO_ROOT, 'packages/platform-bun');
 const SKIP_DIRS = new Set(['node_modules', '.dist', '.mion', '.mion-build', '.coverage']);
 const TEST_FILE = /\.(test|spec)\.ts$/;
-// Framework imports load their source, never a built .dist that may be missing or stale.
-export const BUN_CONDITIONS = '--conditions=source';
 
 // Posix paths: that is how the junit report names the files.
 function discoverTestFiles(dir = PACKAGE_DIR) {
@@ -44,6 +42,12 @@ export function swallowedFiles(expected, perFile) {
   return expected.filter((file) => !(perFile.get(file) > 0));
 }
 
+// `source`: framework imports load their source, never a built .dist that may be missing or stale.
+// bun 1.3 reached source through the root tsconfig `paths` anyway; bun 1.4 honors platform-bun's empty `paths`.
+export function bunTestArgs(argv, report) {
+  return ['--conditions=source', '--cwd', PACKAGE_DIR, 'test', ...argv, '--reporter=junit', `--reporter-outfile=${report}`];
+}
+
 export function main(argv = []) {
   const expected = discoverTestFiles();
   if (!expected.length) die('core test-bun: no bun test files found under packages/platform-bun');
@@ -51,7 +55,7 @@ export function main(argv = []) {
   const outDir = mkdtempSync(join(tmpdir(), 'mion-test-bun-'));
   const report = join(outDir, 'bun-junit.xml');
   try {
-    const code = run('bun', [BUN_CONDITIONS, '--cwd', PACKAGE_DIR, 'test', ...argv, '--reporter=junit', `--reporter-outfile=${report}`]);
+    const code = run('bun', bunTestArgs(argv, report));
 
     let xml;
     try {
