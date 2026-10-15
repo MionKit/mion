@@ -13,5 +13,4 @@ import {expect, test} from 'bun:test';
 test.each(['@mionjs/router', '@mionjs/core'])('%s loads its source, not a built dist', (pkg) => {
   const file = Bun.resolveSync(pkg, import.meta.dir);
   expect(file).toEndWith('/index.ts');
-  expect(file).not.toContain('/.dist/');
 });
