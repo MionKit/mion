@@ -6,7 +6,7 @@
  * ######## */
 
 import {
-  dispatchWithContext,
+  dispatchMaybeSync,
   dispatchPlatformError,
   resolveExecutionChain,
   createContextFromChain,
@@ -179,21 +179,36 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
     }
 
     const context = createContextFromChain(chain, path, urlQuery, reqHeaders, respHeaders, reqRawBody, reqBodyType);
-    answerWith(dispatchWithContext(context, rawRequest, res));
+    let dispatched: MionResponse | Promise<MionResponse>;
+    try {
+      dispatched = dispatchMaybeSync(context, rawRequest, res);
+    } catch (err) {
+      failWith(err);
+      return;
+    }
+    // an all-sync chain answers inside uWS' own callback, with no promise in between
+    if (dispatched instanceof Promise) answerWith(dispatched);
+    else answer(dispatched);
+  };
+
+  const answer = (mionResponse: MionResponse) => {
+    if (state.replied) return;
+    state.replied = true;
+    try {
+      reply(res, state, mionResponse);
+    } catch {
+      // the response is already marked as answered, so a failed write has nothing left to answer with
+    }
+  };
+
+  const failWith = (err: unknown) => {
+    if (state.replied) return;
+    state.replied = true;
+    fatalFail(res, state, respHeaders, toRpcError(err));
   };
 
   const answerWith = (dispatched: Promise<MionResponse>) => {
-    dispatched
-      .then((mionResponse) => {
-        if (state.replied) return;
-        state.replied = true;
-        reply(res, state, mionResponse);
-      })
-      .catch((err) => {
-        if (state.replied) return;
-        state.replied = true;
-        fatalFail(res, state, respHeaders, toRpcError(err));
-      });
+    dispatched.then(answer).catch(failWith);
   };
 
   // collectBody assembles the body natively (uWS' onDataV2 preallocates) and calls back ONCE, with null past maxSize,
