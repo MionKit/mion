@@ -9,7 +9,8 @@
 import {Routes, createMionRouter} from '@mionjs/router';
 import {hello, updateSimpleUser, updateUser} from './handlers.ts';
 
-const mion = createMionRouter({parser: 'compact'});
+// `alwaysAwait: false` for the same reason as routes.ts: every handler here is sync.
+const mion = createMionRouter({parser: 'compact', alwaysAwait: false});
 
 const routes = {
   hello: mion.route(hello),
