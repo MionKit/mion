@@ -12,7 +12,6 @@ import {hello, updateSimpleUser, updateUser} from './handlers.ts';
 
 // One router per process: each server entry imports this file, then listens with its own maxBodySize.
 // Every route takes that maxBodySize, since a User (plain strings) declares no maximum.
-// `alwaysAwait: false`: every handler here is sync, so no step is awaited and a route answers without a promise.
 const mion = createMionRouter({alwaysAwait: false});
 
 const routes = {
