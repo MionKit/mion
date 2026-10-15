@@ -13,8 +13,7 @@
 
 import {describe, it, expect, beforeEach} from 'vitest';
 import {createMionRouter, resetRouter} from '../src/router.ts';
-import {dispatchRoute, dispatchMaybeSync} from '../src/dispatch.ts';
-import {createCallContext} from '../src/callContext.ts';
+import {dispatchRoute} from '../src/dispatch.ts';
 import {headersFromRecord} from '../src/lib/headers.ts';
 import {Routes} from '../src/types/general.ts';
 
@@ -86,32 +85,5 @@ describe('with alwaysAwait off the chain should', () => {
   it('answer a plain sync route', async () => {
     const response = await call('/syncRoute');
     expect(response.body.syncRoute).toBe('sync');
-  });
-});
-
-const newContext = (path: string) => createCallContext(path, undefined, {}, headersFromRecord({}), headersFromRecord({}), '{}');
-
-describe('with alwaysAwait off dispatchMaybeSync should', () => {
-  beforeEach(() => {
-    calls.length = 0;
-  });
-
-  it('keep the promise for a sync route wrapped by an async middleware', async () => {
-    // the level middlewares in `chain` wrap every route here, `secondAsync` included
-    const response = dispatchMaybeSync(newContext('/syncRoute'), {});
-    expect(response).toBeInstanceOf(Promise);
-    expect((await response).body.syncRoute).toBe('sync');
-  });
-
-  it('answer an async route with a promise', async () => {
-    const response = dispatchMaybeSync(newContext('/asyncRoute'), {});
-    expect(response).toBeInstanceOf(Promise);
-    expect((await response).body.asyncRoute).toBe('async');
-  });
-
-  it('run a mixed sync and async chain in declaration order', async () => {
-    const response = await dispatchMaybeSync(newContext('/order'), {});
-    expect(response.hasErrors).toBe(false);
-    expect(calls).toEqual(['first', 'second', 'third']);
   });
 });

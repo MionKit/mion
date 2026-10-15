@@ -116,8 +116,8 @@ const defaultEndMiddlewares = {
 };
 /** True once any registered method answers with a promise. */
 let hasAsyncMethods = false;
-/** What the dispatcher reads per request: both inputs are fixed once registration is done (the options
- *  are frozen, no further method can register), so it is resolved there rather than on every call. */
+/** What the dispatcher reads per request: resolved once registration is done (the options are frozen, no
+ *  further method can register), and again if a method typed sync turns out async (`markAsyncMethodFound`). */
 let alwaysAwait = false;
 let startMiddlewaresDef: MiddlewaresCollection = {...defaultStartMiddlewares};
 let endMiddlewaresDef: MiddlewaresCollection = {...defaultEndMiddlewares};
@@ -139,6 +139,11 @@ export const getComplexity = () => complexity;
 export const getHasAsyncMethods = () => hasAsyncMethods;
 /** The `alwaysAwait` option asks for it, and it is only honoured when there is something async to wait for. */
 export const getAlwaysAwait = () => alwaysAwait;
+/** A method typed sync answered with a promise: the router has something async after all, so `alwaysAwait` applies. */
+export function markAsyncMethodFound(): void {
+  hasAsyncMethods = true;
+  alwaysAwait = routerOptions.alwaysAwait;
+}
 export const getRouterOptions = <Opts extends RouterOptions>(): Readonly<Opts> => routerOptions as Opts;
 /** The headers every response starts with. Adapters read it through getResponseDefaults. */
 export const getGlobalResponseHeaders = (): Readonly<Record<string, string>> => globalResponseHeaders;

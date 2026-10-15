@@ -8,38 +8,18 @@
 // dispatchMaybeSync answers without a promise only when nothing in the chain is awaited, and must give the
 // same response dispatchWithContext gives. These pin when it is sync and that the answers match.
 
-import {describe, it, expect, beforeEach, beforeAll, afterAll} from 'vitest';
+import {describe, it, expect, beforeEach} from 'vitest';
 import {createMionRouter, resetRouter, getAlwaysAwait, getRouteExecutable} from '../src/router.ts';
 import {dispatchMaybeSync, dispatchWithContext} from '../src/dispatch.ts';
 import {createCallContext} from '../src/callContext.ts';
 import {headersFromRecord} from '../src/lib/headers.ts';
-import {Routes} from '../src/types/general.ts';
 import type {MionResponse} from '../src/types/context.ts';
-
-const mion = createMionRouter({});
 
 // declared sync, answers with a promise anyway
 const liar = () => Promise.resolve('answered late') as unknown as string;
+const lateFailure = () => Promise.reject(new Error('late boom')) as unknown as string;
 
 const calls: string[] = [];
-const syncOnly = {
-  hello: mion.route((): string => 'hello'),
-  thrower: mion.route((): string => {
-    throw new Error('boom');
-  }),
-  liar: mion.route((): string => liar()),
-  chain: {
-    first: mion.middleware((): void => {
-      calls.push('first');
-    }),
-    order: mion.route((): string[] => calls),
-  },
-} satisfies Routes;
-
-const withAsyncRoute = {
-  hello: syncOnly.hello,
-  slow: mion.route(async (): Promise<string> => 'slow'),
-} satisfies Routes;
 
 const newContext = (path: string) => createCallContext(path, undefined, {}, headersFromRecord({}), headersFromRecord({}), '{}');
 const summary = (response: MionResponse) => ({
@@ -49,10 +29,39 @@ const summary = (response: MionResponse) => ({
 });
 
 describe('dispatchMaybeSync on an all-sync router should', () => {
+  // a fresh router per test: finding a liar marks it async and turns alwaysAwait on for the whole router
   beforeEach(() => {
     resetRouter();
-    mion.initRoutes(syncOnly);
     calls.length = 0;
+    const mion = createMionRouter({});
+    mion.initRoutes({
+      hello: mion.route((): string => 'hello'),
+      thrower: mion.route((): string => {
+        throw new Error('boom');
+      }),
+      liar: mion.route((): string => liar()),
+      fallback: {
+        before: mion.middleware((): void => {
+          calls.push('before');
+        }),
+        liar: mion.route((): string => {
+          calls.push('liar');
+          return liar();
+        }),
+        after: mion.middleware((): void => {
+          calls.push('after');
+        }),
+      },
+      rejecting: {
+        failing: mion.route((): string => lateFailure()),
+        log: mion.middleware(
+          (): void => {
+            calls.push('log');
+          },
+          {alwaysRun: true}
+        ),
+      },
+    });
   });
 
   it('answer without a promise', () => {
@@ -76,12 +85,6 @@ describe('dispatchMaybeSync on an all-sync router should', () => {
     expect(summary(sync)).toEqual(summary(async));
   });
 
-  it('run a middleware chain in order without a promise', () => {
-    const response = dispatchMaybeSync(newContext('/chain/order'), {}) as MionResponse;
-    expect(response).not.toBeInstanceOf(Promise);
-    expect(calls).toEqual(['first']);
-  });
-
   it('wait for a sync-typed handler that answers with a promise, then stay async for it', async () => {
     const first = dispatchMaybeSync(newContext('/liar'), {});
     expect(first).toBeInstanceOf(Promise);
@@ -95,12 +98,35 @@ describe('dispatchMaybeSync on an all-sync router should', () => {
     expect(second).toBeInstanceOf(Promise);
     expect((await second).body.liar).toBe('answered late');
   });
+
+  it('run the rest of the chain once after a sync-typed handler answers with a promise', async () => {
+    const response = await dispatchMaybeSync(newContext('/fallback/liar'), {});
+    expect(response.hasErrors).toBe(false);
+    expect(response.body['fallback/liar']).toBe('answered late');
+    expect(calls).toEqual(['before', 'liar', 'after']);
+  });
+
+  it('record a late rejection and still run the alwaysRun steps after it', async () => {
+    const response = await dispatchMaybeSync(newContext('/rejecting/failing'), {});
+    expect(response.hasErrors).toBe(true);
+    expect(calls).toEqual(['log']);
+  });
+
+  it('turn alwaysAwait on once a sync-typed handler turns out async', async () => {
+    await dispatchMaybeSync(newContext('/liar'), {});
+    expect(getAlwaysAwait()).toBe(true);
+    expect(dispatchMaybeSync(newContext('/hello'), {})).toBeInstanceOf(Promise);
+  });
 });
 
 describe('dispatchMaybeSync with alwaysAwait in effect should', () => {
   beforeEach(() => {
     resetRouter();
-    mion.initRoutes(withAsyncRoute);
+    const mion = createMionRouter({});
+    mion.initRoutes({
+      hello: mion.route((): string => 'hello'),
+      slow: mion.route(async (): Promise<string> => 'slow'),
+    });
   });
 
   it('keep the promise even for a sync route', async () => {
@@ -117,16 +143,19 @@ describe('dispatchMaybeSync with alwaysAwait in effect should', () => {
 });
 
 describe('dispatchMaybeSync with alwaysAwait off should', () => {
-  beforeAll(() => {
+  beforeEach(() => {
     resetRouter();
-    const lean = createMionRouter({alwaysAwait: false});
-    lean.initRoutes({
-      hello: lean.route((): string => 'hello'),
-      slow: lean.route(async (): Promise<string> => 'slow'),
+    const mion = createMionRouter({alwaysAwait: false});
+    mion.initRoutes({
+      hello: mion.route((): string => 'hello'),
+      liar: mion.route((): string => liar()),
+      slow: mion.route(async (): Promise<string> => 'slow'),
+      wrapped: {
+        gate: mion.middleware(async (): Promise<void> => undefined),
+        inner: mion.route((): string => 'inner'),
+      },
     });
   });
-
-  afterAll(() => resetRouter());
 
   it('answer a sync route without a promise, even in a router with async routes', () => {
     expect(getAlwaysAwait()).toBe(false);
@@ -139,5 +168,16 @@ describe('dispatchMaybeSync with alwaysAwait off should', () => {
     const response = dispatchMaybeSync(newContext('/slow'), {});
     expect(response).toBeInstanceOf(Promise);
     expect((await response).body.slow).toBe('slow');
+  });
+
+  it('keep the promise for a sync route wrapped by an async middleware', async () => {
+    const response = dispatchMaybeSync(newContext('/wrapped/inner'), {});
+    expect(response).toBeInstanceOf(Promise);
+    expect((await response).body['wrapped/inner']).toBe('inner');
+  });
+
+  it('leave alwaysAwait off after a sync-typed handler turns out async', async () => {
+    await dispatchMaybeSync(newContext('/liar'), {});
+    expect(getAlwaysAwait()).toBe(false);
   });
 });

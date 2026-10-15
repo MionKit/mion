@@ -9,7 +9,7 @@ import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody
 import {type RouterOptions} from './types/general.ts';
 import {HeadersMethod, RemoteMethod, RawMethod} from './types/remoteMethods.ts';
 import type {MethodsExecutionChain} from './types/remoteMethods.ts';
-import {getRouterOptions, getAlwaysAwait} from './router.ts';
+import {getRouterOptions, getAlwaysAwait, markAsyncMethodFound} from './router.ts';
 import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerCode, MION_ROUTES, trustedHeadersSubset} from '@mionjs/core';
 import {RpcError, FatalError, HandlerType, ValidationError, isNativeError} from '@mionjs/core';
 import {UNSAFE_PROPERTY_NAME_MESSAGE} from '@mionjs/run-types';
@@ -57,16 +57,15 @@ export async function dispatchWithContext<Req, Resp>(
 }
 
 /** `dispatchWithContext` for a context built with its body, minus the promise when no step needs one: with
- *  `alwaysAwait` not in effect and no async method in the chain, the response comes back directly, so an
- *  adapter can answer without a promise (Bun takes a `Response` or a promise from `fetch`). Otherwise a promise. */
+ *  `alwaysAwait` not in effect, a chain that meets no async method answers directly, so an adapter can reply
+ *  without a promise (Bun takes a `Response` or a promise from `fetch`). Otherwise a promise. */
 export function dispatchMaybeSync<Req, Resp>(
   context: CallContext,
   rawRequest: Req,
   rawResponse?: Resp
 ): MionResponse | Promise<MionResponse> {
   const opts = getRouterOptions();
-  if (getAlwaysAwait() || hasAsyncMethod(context.executionChain.methods))
-    return runExecutionChain(context, rawRequest, rawResponse, opts, 0);
+  if (getAlwaysAwait()) return runExecutionChain(context, rawRequest, rawResponse, opts, 0);
   return runSyncExecutionChain(context, rawRequest, rawResponse, opts);
 }
 
@@ -130,8 +129,8 @@ async function runExecutionChain(
   return context.response;
 }
 
-/** The same loop with no await, for a chain `dispatchMaybeSync` found all sync. A step that still answers with a
- *  promise hands the rest of the chain to `runExecutionChain`, so the result is the one the async loop gives. */
+/** The same loop with no await. At the first step that is or turns out async, the rest of the chain goes to
+ *  `runExecutionChain`, so the result is the one the async loop gives. */
 function runSyncExecutionChain(
   context: CallContext,
   rawRequest: unknown,
@@ -144,11 +143,16 @@ function runSyncExecutionChain(
   for (let i = 0; i < executionCount; i++) {
     const executable = executionList[i];
     if (response.hasErrors && !executable.alwaysRun) continue;
+    if (executable.isAsync) return runExecutionChain(context, rawRequest, rawResponse, opts, i);
 
     try {
       const result = executable.methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
-      if (isUncheckedPromise(executable, result))
-        return resumeAfterPromise(context, executable, result, i, rawRequest, rawResponse, opts);
+      if (isUncheckedPromise(executable, result)) {
+        return Promise.resolve(result)
+          .then((resolved) => applyResult(context, executable, resolved))
+          .catch((err) => recordUndeclaredError(context, executable.id, err))
+          .then(() => runExecutionChain(context, rawRequest, rawResponse, opts, i + 1));
+      }
       applyResult(context, executable, result);
     } catch (err: any) {
       // All thrown errors are undeclared and fatal
@@ -158,35 +162,14 @@ function runSyncExecutionChain(
   return response;
 }
 
-async function resumeAfterPromise(
-  context: CallContext,
-  executable: RemoteMethod,
-  pending: Promise<unknown>,
-  index: number,
-  rawRequest: unknown,
-  rawResponse: unknown,
-  opts: RouterOptions
-): Promise<MionResponse> {
-  try {
-    applyResult(context, executable, await pending);
-  } catch (err: any) {
-    recordUndeclaredError(context, executable.id, err);
-  }
-  return runExecutionChain(context, rawRequest, rawResponse, opts, index + 1);
-}
-
-function hasAsyncMethod(methods: RemoteMethod[]): boolean {
-  for (let i = 0; i < methods.length; i++) if (methods[i].isAsync) return true;
-  return false;
-}
-
 /** Backstop for a wrong or missing declared type, else the promise is serialized as the answer.
  *  Checked on a method's first answer only: one that is a promise marks the method async for good. */
-function isUncheckedPromise(executable: RemoteMethod, result: any): result is Promise<unknown> {
+function isUncheckedPromise(executable: RemoteMethod, result: any): result is PromiseLike<unknown> {
   if (executable.asyncChecked === true) return false;
   executable.asyncChecked = true;
   if (result === null || typeof result !== 'object' || typeof result.then !== 'function') return false;
   (executable as Mutable<RemoteMethod>).isAsync = true;
+  markAsyncMethodFound();
   return true;
 }
 
