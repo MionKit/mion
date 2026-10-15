@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Without the `source` condition bun takes the `default` export, a built .dist: missing on a fresh host,
-// stale after a bench run, so the suite would test old router code and still pass.
+// Without `source` bun loads the built .dist: missing on a fresh host, or stale so the suite passes on old router code.
 
 import {expect, test} from 'bun:test';
 
