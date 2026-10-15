@@ -164,11 +164,11 @@ describe('the zod server apps run the zod the validation benchmarks run, compile
 
   it('hands every app strict-compiled schemas', () => {
     // A stand-in z (the host has no zod 4): every builder call chains, compile returns what it got.
-    const builder: object = new Proxy(() => {}, {get: () => builder, apply: () => builder});
-    const z = new Proxy(
-      {},
-      {get: (_, key) => (key === 'compile' ? (schema: unknown, options: unknown) => ({schema, options}) : builder)}
-    );
-    for (const schema of Object.values(makeSchemas(z))) expect(schema).toEqual({schema: builder, options: {strict: true}});
+    const z: object = new Proxy(() => {}, {
+      apply: () => z,
+      get: (_, key) => (key === 'compile' ? (schema: unknown, options: unknown) => ({schema, options}) : z),
+    });
+    const compiled = {schema: z, options: {strict: true}};
+    expect(makeSchemas(z)).toEqual({UserSchema: compiled, SimpleUserSchema: compiled});
   });
 });
