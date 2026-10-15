@@ -18,13 +18,13 @@ import {dispatchRoute} from '../src/dispatch.ts';
 import {headersFromRecord} from '../src/lib/headers.ts';
 import {Routes} from '../src/types/general.ts';
 
-const mion = createMionRouter({});
+// `alwaysAwait` off: only then are sync-declared steps run without an await, so the guard is load-bearing
+const mion = createMionRouter({alwaysAwait: false});
 
 // declared sync, answers with a promise anyway: exactly what the guard exists for
 const liar = () => Promise.resolve('answered late') as unknown as string;
 
 const routes = {
-  // every method here is declared sync, so the router drops its awaits and the guard is load-bearing
   honest: mion.route((): string => 'answered now'),
   liar: mion.route((): string => liar()),
 } satisfies Routes;
@@ -32,7 +32,7 @@ const routes = {
 const call = (path: string) => dispatchRoute(path, '{}', headersFromRecord({}), headersFromRecord({}), {}, {});
 
 describe('the un-awaited promise guard should', () => {
-  // finding the liar marks it async and turns alwaysAwait on router-wide
+  // a fresh router per test: finding the liar marks it async for good
   beforeEach(() => {
     resetRouter();
     mion.initRoutes(routes);

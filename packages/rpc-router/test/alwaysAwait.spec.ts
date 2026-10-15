@@ -5,9 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The chain skips the await for steps the build proved synchronous in two cases: when the whole
-// router is synchronous (nothing to await, so it cannot change a result) and when `alwaysAwait` is
-// explicitly off. These pin what would break if the proof were wrong: a promise-returning handler
+// With `alwaysAwait` off the chain skips the await for steps the build proved synchronous.
+// These pin what would break if the proof were wrong: a promise-returning handler
 // that is not an AsyncFunction must still resolve, and a returned object that merely has a `then`
 // property must be written to the body untouched rather than treated as a promise.
 

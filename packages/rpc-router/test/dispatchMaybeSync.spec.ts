@@ -27,12 +27,12 @@ const summary = (response: MionResponse) => ({
   body: response.body,
 });
 
-describe('dispatchMaybeSync on an all-sync router should', () => {
-  // finding a liar marks it async and turns alwaysAwait on router-wide
+describe('dispatchMaybeSync with alwaysAwait off on an all-sync router should', () => {
+  // a fresh router per test: finding a liar marks it async for good
   beforeEach(() => {
     resetRouter();
     calls.length = 0;
-    const mion = createMionRouter({});
+    const mion = createMionRouter({alwaysAwait: false});
     mion.initRoutes({
       hello: mion.route((): string => 'hello'),
       thrower: mion.route((): string => {
@@ -110,15 +110,9 @@ describe('dispatchMaybeSync on an all-sync router should', () => {
     expect(response.hasErrors).toBe(true);
     expect(calls).toEqual(['log']);
   });
-
-  it('turn alwaysAwait on once a sync-typed handler turns out async', async () => {
-    await dispatchMaybeSync(newContext('/liar'), {});
-    expect(getAlwaysAwait()).toBe(true);
-    expect(dispatchMaybeSync(newContext('/hello'), {})).toBeInstanceOf(Promise);
-  });
 });
 
-describe('dispatchMaybeSync with alwaysAwait in effect should', () => {
+describe('dispatchMaybeSync with alwaysAwait on (the default) should', () => {
   beforeEach(() => {
     resetRouter();
     const mion = createMionRouter({});
@@ -128,7 +122,7 @@ describe('dispatchMaybeSync with alwaysAwait in effect should', () => {
     });
   });
 
-  it('keep the promise even for a sync route', async () => {
+  it('keep the promise for a sync route', async () => {
     expect(getAlwaysAwait()).toBe(true);
     const response = dispatchMaybeSync(newContext('/hello'), {});
     expect(response).toBeInstanceOf(Promise);
@@ -141,13 +135,27 @@ describe('dispatchMaybeSync with alwaysAwait in effect should', () => {
   });
 });
 
+describe('dispatchMaybeSync with alwaysAwait on and only sync routes should', () => {
+  beforeEach(() => {
+    resetRouter();
+    const mion = createMionRouter({});
+    mion.initRoutes({hello: mion.route((): string => 'hello')});
+  });
+
+  it('still keep the promise: the option applies whether or not the router has async methods', async () => {
+    expect(getAlwaysAwait()).toBe(true);
+    const response = dispatchMaybeSync(newContext('/hello'), {});
+    expect(response).toBeInstanceOf(Promise);
+    expect((await response).body.hello).toBe('hello');
+  });
+});
+
 describe('dispatchMaybeSync with alwaysAwait off should', () => {
   beforeEach(() => {
     resetRouter();
     const mion = createMionRouter({alwaysAwait: false});
     mion.initRoutes({
       hello: mion.route((): string => 'hello'),
-      liar: mion.route((): string => liar()),
       slow: mion.route(async (): Promise<string> => 'slow'),
       wrapped: {
         gate: mion.middleware(async (): Promise<void> => undefined),
@@ -173,10 +181,5 @@ describe('dispatchMaybeSync with alwaysAwait off should', () => {
     const response = dispatchMaybeSync(newContext('/wrapped/inner'), {});
     expect(response).toBeInstanceOf(Promise);
     expect((await response).body['wrapped/inner']).toBe('inner');
-  });
-
-  it('leave alwaysAwait off after a sync-typed handler turns out async', async () => {
-    await dispatchMaybeSync(newContext('/liar'), {});
-    expect(getAlwaysAwait()).toBe(false);
   });
 });

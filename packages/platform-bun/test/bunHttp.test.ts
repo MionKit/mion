@@ -37,7 +37,7 @@ describe('bun router should', () => {
   // A router built in the body sets the once-guard the other test file then hits, skipping that whole file.
   const buildApp = () => {
     resetBunHttpOpts();
-    const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+    const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', alwaysAwait: false});
 
     const changeUserName = mion.route((context: Context, user: SimpleUser): SimpleUser => {
       return myApp.db.changeUserName(user);
@@ -125,7 +125,7 @@ describe('bun router should', () => {
     expect(headers['x-something']).toEqual('true');
   });
 
-  test('a request with no body on an all-sync router answers with a Response, not a promise', async () => {
+  test('with alwaysAwait off, a request with no body on an all-sync route answers with a Response, not a promise', async () => {
     const response = bunRequestHandler(new Request(`http://127.0.0.1:${port}/api/getDate`)) as Response;
     expect(response).toBeInstanceOf(Response);
     const reply = await response.json();
@@ -351,8 +351,8 @@ describe('bun: a refused body runs the alwaysRun middlewares', () => {
   });
 });
 
-// An async method puts `alwaysAwait` in effect, so every request keeps its promise.
-describe('bun: a router with an async route', () => {
+// `alwaysAwait` is on by default, so every request keeps its promise.
+describe('bun: a router with the default alwaysAwait', () => {
   const asyncPort = 8086;
   let server: Server<any>;
 
