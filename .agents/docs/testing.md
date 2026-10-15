@@ -37,6 +37,7 @@ How to run and add JS + Go checks. Read before adding, running or reporting test
   declares. `pnpm run check:test-batches` (CI gate + the run's preflight) fails on a project in no batch or two.
   Adding a project → add it to a batch.
 - `test:bun` runs platform-bun's bun:test suites (vitest cannot host them), all in ONE process.
+  Runs bun with `--conditions=source`: `@mionjs/*` imports load source, never a framework `.dist`.
   Build the router in a hook or test, NEVER in a describe body (else whole file skipped, run still says `0 fail`).
   Detail: [rpc-router/AGENTS.md](../../packages/rpc-router/AGENTS.md).
 - [test-bun.mjs](../../scripts/core/test-bun.mjs) is what `test:bun` runs. Fails when a test file reported no tests.

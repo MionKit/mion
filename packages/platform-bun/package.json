@@ -47,9 +47,9 @@
     },
     "scripts": {
         "typecheck:test": "tsc -p tsconfig.json --noEmit",
-        "test": "bun test",
+        "test": "bun --conditions=source test",
         "dev": "vite build --watch",
-        "dev:test": "bun test --watch",
+        "dev:test": "bun --conditions=source test --watch",
         "lint": "eslint src",
         "format": "prettier --write src/**/*.ts",
         "build": "vite build",
