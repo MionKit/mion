@@ -5,6 +5,6 @@
   "dependencies": {
     "hono": "^4.11.7",
     "@hono/node-server": "^1.19.9",
-    "zod": "^4.3.6"
+    "zod": "4.6.5"
   }
 }

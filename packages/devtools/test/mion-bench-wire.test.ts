@@ -1,10 +1,13 @@
 // The pure parts of the mion server benchmark's compact lane, tested on the host without the image.
 import {describe, expect, it} from 'vitest';
+import {readdirSync, readFileSync} from 'node:fs';
 // Untyped dev scripts: one directive per import line, so the formatter cannot wrap an import away from its error.
 // @ts-expect-error untyped .mjs
 import {bodyTemplate, invalidBody} from '../../../container/mion-bench/harness/wire.mjs';
 // @ts-expect-error untyped .mjs
 import {buildUser, buildUserOfSize, mionBody, plainBody, SWEEP_SIZES} from '../../../container/mion-bench/shared/payloads.mjs';
+// @ts-expect-error untyped .mjs
+import {makeSchemas} from '../../../container/mion-bench/shared/zod-schemas.mjs';
 // @ts-expect-error untyped .mjs
 import {bodyFor} from '../../../container/mion-bench/shared/suites.mjs';
 // @ts-expect-error untyped .mjs
@@ -141,5 +144,31 @@ describe('which server rows a chart draws', () => {
     expect(formatChange(-38.4)).toBe('-38%');
     expect(formatChange(9.6)).toBe('+10%');
     expect(formatChange(0.2)).toBe('0%');
+  });
+});
+
+describe('the zod server apps run the zod the validation benchmarks run, compiled', () => {
+  const containerDir = new URL('../../../container/', import.meta.url);
+  const zodOf = (manifest: URL): string | undefined => JSON.parse(readFileSync(manifest, 'utf8')).dependencies?.zod;
+  const benchZod = zodOf(new URL('benchmarks/_deps/competitors/zod/package.json', containerDir));
+  const appDeps = new URL('mion-bench/_deps/', containerDir);
+  const zodApps = readdirSync(appDeps, {withFileTypes: true})
+    .filter((entry) => entry.isDirectory() && zodOf(new URL(`${entry.name}/package.json`, appDeps)))
+    .map((entry) => entry.name);
+
+  it('pins every zod app to the exact version the validation benchmarks run', () => {
+    expect(benchZod).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(zodApps.sort()).toEqual(['express', 'hapi', 'hono', 'http-node']);
+    for (const app of zodApps) expect(zodOf(new URL(`${app}/package.json`, appDeps)), app).toBe(benchZod);
+  });
+
+  it('hands every app strict-compiled schemas', () => {
+    // A stand-in z (the host has no zod 4): every builder call chains, compile returns what it got.
+    const builder: object = new Proxy(() => {}, {get: () => builder, apply: () => builder});
+    const z = new Proxy(
+      {},
+      {get: (_, key) => (key === 'compile' ? (schema: unknown, options: unknown) => ({schema, options}) : builder)}
+    );
+    for (const schema of Object.values(makeSchemas(z))) expect(schema).toEqual({schema: builder, options: {strict: true}});
   });
 });
