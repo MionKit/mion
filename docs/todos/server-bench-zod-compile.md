@@ -48,3 +48,17 @@ this change touched, review its report against the code, and commit it as its ow
 - The `mion-bench` image is rebuilt, verified and pushed; server data regenerated; pages render.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched
   source file, each committed on its own.
+
+## Plan: zod 4.6.5 + strict compile (approved 2026-10-15)
+
+- Pin `zod` to exactly `4.6.5` in the express, hapi, hono and http-node `_deps` manifests: the validation
+  benchmark's version, 32 days old, so it passes the 30-day `minimumReleaseAge` (4.6.6 / 4.6.7 are too new).
+- `makeSchemas(z)` returns `z.compile(schema, {strict: true})` for both schemas. Checked on a scratch zod 4.6.5:
+  both compile, `z.coerce.date()` and the discriminated union included; the fast path accepts the bench payloads,
+  rejects a bad field and an extra key, returns real `Date`s, and runs ~1.2x to 2.2x faster than the plain parser.
+  `strict` makes a schema the compiler cannot model throw at app startup, so a lane fails loud.
+- Host contract tests in `packages/devtools/test/mion-bench-wire.test.ts`: the four manifests pin the validation
+  benchmark's zod version; `makeSchemas` with a stub `z` returns strict-compiled schemas.
+- Rebuild + push the `mion-bench` image (both arches), re-run `pnpm miondevx bench servers`, check the pages render.
+- Docs: the "Other frameworks" examples on the light and heavy validation pages show `z.compile` and name the zod
+  apps (Fastify uses ajv); re-check the http-node note against the new numbers.
