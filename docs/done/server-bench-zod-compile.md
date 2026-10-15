@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: done
 created: 2026-10-14
 ---
 
@@ -62,3 +62,13 @@ this change touched, review its report against the code, and commit it as its ow
 - Rebuild + push the `mion-bench` image (both arches), re-run `pnpm miondevx bench servers`, check the pages render.
 - Docs: the "Other frameworks" examples on the light and heavy validation pages show `z.compile` and name the zod
   apps (Fastify uses ajv); re-check the http-node note against the new numbers.
+
+## Shipped
+
+- As planned. The rebuilt `mion-bench` image (deps hash `058515f39d94fc7b`) carries zod 4.6.5 in all four apps on
+  both amd64 and arm64.
+- `pnpm miondevx bench servers` on the 4-core cloud host: every lane, the four zod apps and hono.bun included,
+  answered correctly and rejected an invalid payload before being measured; the three server suites regenerated.
+- http-node note on the light validation page kept as is. On this host http-node ranks 7th and every lane sits at
+  ~102-103% CPU, so the host cannot confirm or refute the published run's figures; a faster zod only makes
+  http-node faster, so the note's direction holds. The next deploy run (dedicated VM) is what the page shows.
