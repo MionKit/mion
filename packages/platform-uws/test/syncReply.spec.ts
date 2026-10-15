@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// An all-sync chain replies inside the uWS callback, with no promise in between; with an async method in the
-// router `alwaysAwait` is in effect and the reply comes after the await. Stubs show when `end` was called.
+// Stub responses record `end`, so a test can tell a reply inside the uWS callback from one after an await.
 
 import {describe, it, expect, beforeEach} from 'vitest';
 import {createMionRouter, resetRouter} from '@mionjs/router';

@@ -351,7 +351,7 @@ describe('bun: a refused body runs the alwaysRun middlewares', () => {
   });
 });
 
-// With an async method in the router `alwaysAwait` is in effect, so every request keeps its promise.
+// An async method puts `alwaysAwait` in effect, so every request keeps its promise.
 describe('bun: a router with an async route', () => {
   const asyncPort = 8086;
   let server: Server<any>;
