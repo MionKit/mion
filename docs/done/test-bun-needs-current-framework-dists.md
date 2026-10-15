@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-10-15
 ---
 
@@ -47,3 +47,16 @@ None, because only the dev test command changes. If `SETUP.md` or `.agents/docs/
   silently) with a stale one.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source
   file, each committed on its own.
+
+## Plan: run bun on framework source (approved 2026-10-15, automatic mode)
+
+- How CI passed: CI pins bun 1.3.11, which mapped `@mionjs/*` to source through the root tsconfig `paths`
+  (`"@mionjs/*": ["./packages/*"]`), ignoring platform-bun's `"paths": {}`. bun 1.4 honors the empty `paths`,
+  so it falls back to the `default` export, the `.dist`. Same tree, green on CI, red on a newer host bun.
+- Fix: run bun with `--conditions=source` in `scripts/core/test-bun.mjs` and platform-bun's `test` / `dev:test`
+  scripts. bunfig.toml has no key for it (tried: ignored). Framework imports then load source on every bun
+  version, so no dist can be missing or stale. The loader still reads `@mionjs/devtools/runtypes/bun` from
+  devtools' dist (that export has no `source` entry), which `check:builds` keeps fresh.
+- Test: `packages/platform-bun/test/sourceResolution.test.ts` asserts `@mionjs/router` and `@mionjs/core`
+  resolve to source, not a `.dist`, so a run without the flag fails instead of passing on old code.
+- Docs: the `test:bun` line in `.agents/docs/testing.md`.
