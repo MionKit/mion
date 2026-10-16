@@ -35,7 +35,7 @@ The implementer measures first and plans the details.
 ## Docs
 
 `container/website/content/01.rpc/02.server/04.headers.md`, existing section "Headers on Every Response":
-the new option, one sentence or a table row.
+table row 4 (`server: mionjs` on every adapter) and one sentence that `content-type` is always JSON.
 
 Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagent) over every page and example
 this change touched, review its report against the code, and commit it as its own commit.
@@ -81,8 +81,10 @@ Build:
 
 - `packages/rpc-router/src/lib/responseHeaders.ts`: `LazyResponseHeaders`, the `ctx.response.headers` every
   adapter but node / gcloud hands the context. It holds the merged defaults and builds the adapter's store on the
-  first `set` / `append` / `delete` only. `fetchResponseHeaders` + `fetchReplyHeaders` serve bun, cloudflare and
-  vercel: an untouched reply with no defaults reuses one `Headers` instance (`Response` copies it), built once.
+  first `set` / `append` / `delete`. Before that, reads see `server` plus the defaults, as the store would.
+  `fetchResponseHeaders` + `fetchReplyHeaders` serve bun, cloudflare and vercel: an untouched reply with no
+  defaults reuses one `Headers` instance (`Response` copies it), built once. Any default header still builds the
+  store at reply on those three.
 - `MionResponse.contentType`, set by the serializer and the fatal-error path; every adapter writes it last.
 - `server: mionjs` (was `@mionjs`) written by each adapter, first, so a default or handler `server` replaces it.
   uws used to set it after the defaults, so it could not be replaced there.
@@ -97,6 +99,9 @@ Measured on a Claude cloud host (noisy):
   building `Headers` from a record was about 22% of the handler's profile. A frozen record passed to
   `Response.json` instead of a `Headers` gained nothing, which is why the earlier plain-object try was noise.
 - `pnpm miondevx bench servers repeat <lane> hello-world`, before / after interleaved: mion, mion.uws,
-  mion.compact and mion.bun level within noise with today's defaults. mion.bun with `apiVersionCheck: false` (no
-  default header): 31.0k-31.6k → 34.6k-36.0k req/s, +12%. Every app gets that once `x-build-version` leaves the
-  default headers, the fix this one waits on.
+  mion.compact and mion.bun level within noise. No gain on today's default mion.bun lane: the build's
+  `x-build-version` is a default header, so every reply still builds headers. With `apiVersionCheck: false` (no
+  default header) mion.bun goes 31.0k-31.6k → 34.6k-36.0k req/s, +12%. Every app gets that once
+  `x-build-version` leaves the default headers: that fix has its own PR and merges before this one.
+- Not tested on workerd: its test fixture always carries a default header, so it never reaches the shared
+  `Headers` path. The Fetch spec has `Response` copy its init headers; Node and Bun tests pin it.
