@@ -335,7 +335,7 @@ const routes = {
     processUser: route((ctx, user: User): string => `Processed: ${user.name} ${user.surname}`),
   },
 
-  // a void middleware whose only param is optional: public, so the client type must keep it
+  // an optional-only param is still public, so the client type must keep it
   optionalTag: {
     tag: middleware((_ctx, tag?: string): void => undefined),
   },
