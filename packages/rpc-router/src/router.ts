@@ -130,7 +130,6 @@ export const getRouteExecutable = (id: string) => routesById.get(id);
 export const getMiddlewareExecutable = (id: string) => middlewaresById.get(id);
 export const getMiddlewaresSize = () => middlewaresById.size;
 export const getComplexity = () => complexity;
-export const getAlwaysAwait = () => routerOptions.alwaysAwait;
 export const getRouterOptions = <Opts extends RouterOptions>(): Readonly<Opts> => routerOptions as Opts;
 /** The headers every response starts with. Adapters read it through getResponseDefaults. */
 export const getGlobalResponseHeaders = (): Readonly<Record<string, string>> => globalResponseHeaders;
