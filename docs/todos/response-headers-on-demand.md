@@ -47,3 +47,32 @@ this change touched, review its report against the code, and commit it as its ow
 - All header writes still reach the response, proven by tests.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched
   source file, each committed on its own.
+
+## Plan: lazy headers bridge (approved 2026-10-16)
+
+Decided with the user while planning:
+
+- `server` becomes `mionjs` (was `@mionjs`), hardcoded and written by each platform at reply time, never part of
+  the default headers. A `server` default or a handler-written `server` replaces it. No on/off option: the
+  opt-out in the Direction above was dropped.
+- `content-type` stays the serializer's call, like `statusCode`: the serializer and the fatal-error path set a
+  new `response.contentType` field instead of writing a header, and each platform's reply writes it natively,
+  last, so nothing overrides it.
+- `x-build-version` moves out of the router's default headers in its own fix, merged before this one.
+- No new caches: the existing `getResponseDefaults` cache stays.
+- Bun first: prototype and measure hello-world there, then the other adapters. No fuzz test.
+
+Build:
+
+1. `getResponseDefaults` (`packages/rpc-router/src/router.ts`): no `base` param, names lowercased on merge (a
+   `X-App` global plus an `x-app` adapter default is appended into `"a, b"` by `new Headers()` today).
+2. A lazy `MionHeaders` bridge in `packages/rpc-router/src/lib/`: holds the frozen defaults record and nothing
+   else, reads look at it, the first write creates the platform's store seeded with the defaults.
+3. Per platform reply: untouched with no defaults = no headers object. bun / cloudflare / vercel pass the store or
+   a module constant to `Response.json`; uws writes `server`, the store and `content-type` natively (its `server`
+   is set after the defaults today, so it cannot be replaced); aws builds one result record; node / gcloud stay
+   eager on `ServerResponse`, `content-type` written at reply.
+4. Tests: the bridge alone; per adapter, every write source reaches the wire (handler `set`, returned
+   `HeadersSubset`, `x-rpc-error`, Bun's `connection: close`), nothing leaks between requests, `server` can be
+   replaced, `content-type` cannot, two `Set-Cookie` lines survive on fetch adapters.
+5. Docs: "Headers on Every Response" table row 4.
