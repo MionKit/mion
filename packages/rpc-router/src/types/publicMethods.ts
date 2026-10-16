@@ -40,8 +40,7 @@ export interface PrivateMiddlewareDef extends MiddlewareDef {
 
 export type PrivateDef = PrivateMiddlewareDef | RawMiddlewareDef;
 
-/** Matches `isPublicExecutable`: private = raw, or no data returned and no fixed param after the context (a bare
- *  rest param counts as none, as at runtime). Reads the params tuple: assignability lets an optional param through. */
+/** Mirrors `isPublicExecutable`, a bare rest param counting as none; the tuple check catches optional params. */
 // prettier-ignore
 type IsPrivateDef<Definition> =
     Definition extends RawMiddlewareDef ? true

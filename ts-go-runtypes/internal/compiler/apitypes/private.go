@@ -155,9 +155,7 @@ func (trimmer *trimmer) isPublicApiReference(node *ast.Node) bool {
 	return symbol != nil && len(symbol.Declarations) > 0 && marker.DeclaringModuleOfNode(symbol.Declarations[0], nil) == apimeta.RouterModule
 }
 
-// isPrivateDefinition mirrors the router's IsPrivateDef: a raw middleware, or a middleware that fits PrivateDef with no
-// fixed param after the context; never one that fits a public method. A public middleware typed with a no-params, void
-// handler fits too.
+// isPrivateDefinition mirrors the router's IsPrivateDef; a public middleware with a no-params, void handler fits too.
 func (trimmer *trimmer) isPrivateDefinition(property *ast.Node, probe probedTypes) bool {
 	symbol := trimmer.checker.GetSymbolAtLocation(property.Name())
 	if symbol == nil {
@@ -173,8 +171,8 @@ func (trimmer *trimmer) isPrivateDefinition(property *ast.Node, probe probedType
 	return trimmer.checker.IsTypeAssignableTo(propertyType, probe.rawDef) || !trimmer.handlerTakesParams(propertyType)
 }
 
-// handlerTakesParams mirrors HandlerParams: a fixed param after a required context (a bare rest param counts as none,
-// as at runtime; a tuple rest param counts its elements). Assignability alone lets an optional one through.
+// handlerTakesParams mirrors HandlerParams, a bare rest param counting as none as at runtime.
+// Assignability to PrivateDef alone lets an optional param through.
 func (trimmer *trimmer) handlerTakesParams(definition *checker.Type) bool {
 	handler := checker.Checker_getPropertyOfType(trimmer.checker, definition, "handler")
 	if handler == nil {
@@ -206,12 +204,11 @@ func isOptionalParameter(parameter *ast.Symbol) bool {
 		(ast.HasQuestionToken(declaration) || declaration.AsParameterDeclaration().Initializer != nil)
 }
 
-// probedTypes are the router's types the probe file declares.
 type probedTypes struct {
 	privateDef, rawDef, publicMethod *checker.Type
 }
 
-// probeTypes reads the probe file's declared types; all nil when the router does not resolve.
+// probeTypes answers all nil when the router does not resolve.
 func (trimmer *trimmer) probeTypes() probedTypes {
 	var probe probedTypes
 	file := trimmer.program.SourceFile(filepath.Join(trimmer.declarationDir, probeFile))
