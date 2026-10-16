@@ -54,11 +54,12 @@ type Output struct {
 	cutMembers []string
 }
 
-// probeFile asks the checker for the router's private-definition and public-method types.
+// probeFile asks the checker for the router's private, raw and public-method types.
 const probeFile = "__mion_api_types_probe.d.ts"
 
-const probeText = `import type {PrivateDef, PublicRoute, PublicMiddleware, PublicHeadersMiddleware} from '@mionjs/router';
+const probeText = `import type {PrivateDef, RawMiddlewareDef, PublicRoute, PublicMiddleware, PublicHeadersMiddleware} from '@mionjs/router';
 export declare const privateDef: PrivateDef;
+export declare const rawDef: RawMiddlewareDef;
 export declare const publicMethod: PublicRoute<any, any, any> | PublicMiddleware<any, any, any> | PublicHeadersMiddleware<any, any, any>;
 `
 

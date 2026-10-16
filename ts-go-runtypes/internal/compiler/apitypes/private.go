@@ -20,8 +20,8 @@ type routesContainer struct {
 // cutPrivateMembers cuts private and raw middlewares from the routes a `PublicApi<…>` names, which maps those keys
 // away, so the API type is unchanged. Members anywhere else stay, so no other kept type can change.
 func (trimmer *trimmer) cutPrivateMembers() []routesContainer {
-	privateDef, publicMethod := trimmer.probeTypes()
-	if privateDef == nil || publicMethod == nil {
+	probe := trimmer.probeTypes()
+	if probe.privateDef == nil || probe.rawDef == nil || probe.publicMethod == nil {
 		return nil // no router to ask: a program without @mionjs/router declares no middleware
 	}
 	var containers []routesContainer
@@ -35,12 +35,12 @@ func (trimmer *trimmer) cutPrivateMembers() []routesContainer {
 			}
 			for _, argument := range node.TypeArguments() {
 				file.publicApiArgs = append(file.publicApiArgs, textRange{start: argument.Pos(), end: argument.End()})
-				trimmer.cutIn(file, argument, nil, privateDef, publicMethod, cut)
+				trimmer.cutIn(file, argument, nil, probe, cut)
 				name := containerName(argument)
 				for _, declaration := range file.locals[name] {
 					if declaration.kind == itemDeclaration {
 						containers = append(containers, routesContainer{declaration: declaration, name: name})
-						trimmer.cutIn(file, declaration.statement, []string{name}, privateDef, publicMethod, cut)
+						trimmer.cutIn(file, declaration.statement, []string{name}, probe, cut)
 					}
 				}
 			}
@@ -67,10 +67,10 @@ func containerName(argument *ast.Node) string {
 }
 
 // cutIn cuts the private and raw middleware members under node, nested groups included.
-func (trimmer *trimmer) cutIn(file *fileInfo, node *ast.Node, path []string, privateDef, publicMethod *checker.Type, cut map[*ast.Node]bool) {
+func (trimmer *trimmer) cutIn(file *fileInfo, node *ast.Node, path []string, probe probedTypes, cut map[*ast.Node]bool) {
 	if node.Kind == ast.KindPropertySignature || node.Kind == ast.KindPropertyDeclaration {
 		name := propertyName(node)
-		if trimmer.isPrivateDefinition(node, privateDef, publicMethod) {
+		if trimmer.isPrivateDefinition(node, probe) {
 			if !cut[node] {
 				cut[node] = true
 				file.holes = append(file.holes, textRange{start: node.Pos(), end: memberEnd(file, node)})
@@ -81,7 +81,7 @@ func (trimmer *trimmer) cutIn(file *fileInfo, node *ast.Node, path []string, pri
 		path = append(append([]string(nil), path...), name)
 	}
 	node.ForEachChild(func(child *ast.Node) bool {
-		trimmer.cutIn(file, child, path, privateDef, publicMethod, cut)
+		trimmer.cutIn(file, child, path, probe, cut)
 		return false
 	})
 }
@@ -155,9 +155,10 @@ func (trimmer *trimmer) isPublicApiReference(node *ast.Node) bool {
 	return symbol != nil && len(symbol.Declarations) > 0 && marker.DeclaringModuleOfNode(symbol.Declarations[0], nil) == apimeta.RouterModule
 }
 
-// isPrivateDefinition: the property fits PrivateDef and fits no public method; a public middleware typed with a
-// no-params, void handler fits PrivateDef too.
-func (trimmer *trimmer) isPrivateDefinition(property *ast.Node, privateDef, publicMethod *checker.Type) bool {
+// isPrivateDefinition mirrors the router's IsPrivateDef: a raw middleware, or a middleware that fits PrivateDef with no
+// fixed param after the context; never one that fits a public method. A public middleware typed with a no-params, void
+// handler fits too.
+func (trimmer *trimmer) isPrivateDefinition(property *ast.Node, probe probedTypes) bool {
 	symbol := trimmer.checker.GetSymbolAtLocation(property.Name())
 	if symbol == nil {
 		return false
@@ -166,16 +167,45 @@ func (trimmer *trimmer) isPrivateDefinition(property *ast.Node, privateDef, publ
 	if propertyType == nil || checker.Type_flags(propertyType)&(checker.TypeFlagsAny|checker.TypeFlagsUnknown|checker.TypeFlagsNever) != 0 {
 		return false
 	}
-	return trimmer.checker.IsTypeAssignableTo(propertyType, privateDef) && !trimmer.checker.IsTypeAssignableTo(propertyType, publicMethod)
+	if !trimmer.checker.IsTypeAssignableTo(propertyType, probe.privateDef) || trimmer.checker.IsTypeAssignableTo(propertyType, probe.publicMethod) {
+		return false
+	}
+	return trimmer.checker.IsTypeAssignableTo(propertyType, probe.rawDef) || !trimmer.handlerTakesParams(propertyType)
 }
 
-// probeTypes reads the probe file's two declared types; nil when the router does not resolve.
-func (trimmer *trimmer) probeTypes() (privateDef, publicMethod *checker.Type) {
-	probe := trimmer.program.SourceFile(filepath.Join(trimmer.declarationDir, probeFile))
-	if probe == nil {
-		return nil, nil
+// handlerTakesParams: the handler declares a fixed param after the context (a bare rest param counts as none, as at
+// runtime). Assignability alone lets an optional one through.
+func (trimmer *trimmer) handlerTakesParams(definition *checker.Type) bool {
+	handler := checker.Checker_getPropertyOfType(trimmer.checker, definition, "handler")
+	if handler == nil {
+		return false
 	}
-	for _, statement := range probe.Statements.Nodes {
+	signatures := trimmer.checker.GetSignaturesOfType(trimmer.checker.GetTypeOfSymbol(handler), checker.SignatureKindCall)
+	if len(signatures) == 0 {
+		return false
+	}
+	// Parameters<H> reads the last overload
+	signature := signatures[len(signatures)-1]
+	fixed := len(signature.Parameters())
+	if signature.HasRestParameter() {
+		fixed--
+	}
+	return fixed > 1
+}
+
+// probedTypes are the router's types the probe file declares.
+type probedTypes struct {
+	privateDef, rawDef, publicMethod *checker.Type
+}
+
+// probeTypes reads the probe file's declared types; all nil when the router does not resolve.
+func (trimmer *trimmer) probeTypes() probedTypes {
+	var probe probedTypes
+	file := trimmer.program.SourceFile(filepath.Join(trimmer.declarationDir, probeFile))
+	if file == nil {
+		return probe
+	}
+	for _, statement := range file.Statements.Nodes {
 		if statement.Kind != ast.KindVariableStatement {
 			continue
 		}
@@ -186,17 +216,19 @@ func (trimmer *trimmer) probeTypes() (privateDef, publicMethod *checker.Type) {
 			}
 			declared := trimmer.checker.GetTypeOfSymbol(symbol)
 			if declared == nil || checker.Type_flags(declared)&(checker.TypeFlagsAny|checker.TypeFlagsUnknown) != 0 {
-				return nil, nil
+				return probedTypes{}
 			}
 			switch variable.Name().Text() {
 			case "privateDef":
-				privateDef = declared
+				probe.privateDef = declared
+			case "rawDef":
+				probe.rawDef = declared
 			case "publicMethod":
-				publicMethod = declared
+				probe.publicMethod = declared
 			}
 		}
 	}
-	return privateDef, publicMethod
+	return probe
 }
 
 func propertyName(node *ast.Node) string {

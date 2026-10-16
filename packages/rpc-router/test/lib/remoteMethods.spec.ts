@@ -5,12 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {describe, it, expect, beforeEach} from 'vitest';
+import {describe, it, expect, expectTypeOf, beforeEach} from 'vitest';
 import {getPublicApi, serializeMethodDeps} from '../../src/lib/remoteMethods.ts';
 import {createMionRouter, resetRouter} from '../../src/router.ts';
 import {CallContext} from '../../src/types/context.ts';
 import {Routes} from '../../src/types/general.ts';
 import {MiddlewareMethod, RouteMethod} from '../../src/types/remoteMethods.ts';
+import type {PublicApi} from '../../src/types/publicMethods.ts';
 import {getJitFnHashes, HandlerType, HeadersSubset} from '@mionjs/core';
 import type {CompiledFnData, PureFnsDataCache, MethodWithOptions} from '@mionjs/core';
 import {getRTUtils} from '@mionjs/run-types/runtime';
@@ -94,6 +95,18 @@ describe('Public Methods should', () => {
     const api = mion.initRoutes({optional, plain: route1});
     expect(api.optional.paramNames).toEqual(['token']);
     expect(JSON.parse(JSON.stringify(api.optional)).paramNames).toEqual(['token']);
+  });
+
+  it('keep a void middleware taking only optional params public, in the API type as at runtime', async () => {
+    const optional = mion.middleware((ctx, tag?: string): void => undefined);
+    const rest = mion.middleware((ctx, ...tags: string[]): void => undefined);
+    const defs = {optional, rest, priv: privateMiddleware, plain: route1};
+    const api = mion.initRoutes(defs);
+    expectTypeOf<keyof PublicApi<typeof defs>>().toEqualTypeOf<'optional' | 'plain'>();
+    expect(api.optional).toEqual(expect.objectContaining({id: 'optional', paramsCount: 1}));
+    // a bare rest param is no fixed param: private on both sides
+    const unchecked = api as Record<string, unknown>;
+    expect([unchecked.rest, unchecked.priv]).toEqual([null, null]);
   });
 
   it('name an unlabelled parameter with an empty string, never a null on the wire', async () => {
