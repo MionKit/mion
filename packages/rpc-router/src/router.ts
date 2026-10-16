@@ -16,6 +16,7 @@ import type {
 } from './types/remoteMethods.ts';
 import type {PublicApi, PrivateDef, MiddlewaresCollection} from './types/publicMethods.ts';
 import type {HeadersMiddlewareDef, MiddlewareDef, RawMiddlewareDef} from './types/definitions.ts';
+import type {ResponseDefaults} from './types/context.ts';
 import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants.ts';
 import {
   isRawMiddlewareDef,
@@ -141,7 +142,7 @@ export const getGlobalResponseHeaders = (): Readonly<Record<string, string>> => 
 export const getBuildVersion = (): string | undefined => buildVersion;
 
 /** Merged once per `own`, so no request rebuilds it; `own` (the adapter's) wins over the router's global headers. */
-export function getResponseDefaults(own: Record<string, string>): Readonly<Record<string, string>> {
+export function getResponseDefaults(own: Record<string, string>): ResponseDefaults {
   let merged = mergedResponseHeaders.get(own);
   if (!merged) {
     // lowercased: `new Headers()` appends a repeated name in another case instead of letting the later one win.

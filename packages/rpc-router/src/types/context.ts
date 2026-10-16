@@ -64,6 +64,9 @@ export interface MionResponse {
 }
 // end-call-context-type
 
+/** The merged default response headers, lowercased and frozen, from getResponseDefaults. */
+export type ResponseDefaults = Readonly<Record<string, string>>;
+
 /** Header names must be case insensitive.
  *  @see https://developer.mozilla.org/en-US/docs/Web/API/Headers */
 export interface MionHeaders {
