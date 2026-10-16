@@ -69,7 +69,7 @@ export function forEachHeader(headers: MionHeaders, visit: (name: string, value:
   if (headers instanceof LazyResponseHeaders) {
     const written = headers.written;
     if (written instanceof BufferedHeadersImpl) return forEachHeader(written, visit);
-    // nothing written: the store would hold exactly `server` and the defaults, so they are walked without building it
+    // the store would hold exactly `server` and the defaults, so walk them without building it
     const defaults = headers.defaults;
     if (defaults.server === undefined) visit('server', SERVER_HEADER_VALUE);
     for (const name in defaults) visit(name, defaults[name]);
