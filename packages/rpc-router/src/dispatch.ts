@@ -9,7 +9,7 @@ import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody
 import {type RouterOptions} from './types/general.ts';
 import {HeadersMethod, RemoteMethod, RawMethod} from './types/remoteMethods.ts';
 import type {MethodsExecutionChain} from './types/remoteMethods.ts';
-import {getRouterOptions, getAlwaysAwait} from './router.ts';
+import {getRouterOptions} from './router.ts';
 import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerCode, MION_ROUTES, trustedHeadersSubset} from '@mionjs/core';
 import {RpcError, FatalError, HandlerType, ValidationError, isNativeError} from '@mionjs/core';
 import {UNSAFE_PROPERTY_NAME_MESSAGE} from '@mionjs/run-types';
@@ -64,7 +64,7 @@ export function dispatchMaybeSync<Req, Resp>(
   rawResponse?: Resp
 ): MionResponse | Promise<MionResponse> {
   const opts = getRouterOptions();
-  if (getAlwaysAwait()) return runExecutionChain(context, rawRequest, rawResponse, opts, 0);
+  if (opts.alwaysAwait) return runExecutionChain(context, rawRequest, rawResponse, opts, 0);
   return runSyncExecutionChain(context, rawRequest, rawResponse, opts);
 }
 
@@ -101,7 +101,7 @@ async function runExecutionChain(
 ): Promise<MionResponse> {
   const {response, request, executionChain} = context;
   // `alwaysAwait: false` skips the await on sync steps: awaiting one only costs a promise frame
-  const alwaysAwait = getAlwaysAwait();
+  const alwaysAwait = opts.alwaysAwait;
   const executionList = executionChain.methods;
   const executionCount = executionList.length;
   for (let i = startIndex; i < executionCount; i++) {

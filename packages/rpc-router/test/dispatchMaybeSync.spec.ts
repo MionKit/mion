@@ -8,7 +8,7 @@
 // dispatchMaybeSync must answer exactly as dispatchWithContext does, minus the promise when nothing is awaited.
 
 import {describe, it, expect, beforeEach} from 'vitest';
-import {createMionRouter, resetRouter, getAlwaysAwait, getRouteExecutable} from '../src/router.ts';
+import {createMionRouter, resetRouter, getRouterOptions, getRouteExecutable} from '../src/router.ts';
 import {dispatchMaybeSync, dispatchWithContext} from '../src/dispatch.ts';
 import {createCallContext} from '../src/callContext.ts';
 import {headersFromRecord} from '../src/lib/headers.ts';
@@ -64,7 +64,7 @@ describe('dispatchMaybeSync with alwaysAwait off on an all-sync router should', 
   });
 
   it('answer without a promise', () => {
-    expect(getAlwaysAwait()).toBe(false);
+    expect(getRouterOptions().alwaysAwait).toBe(false);
     const response = dispatchMaybeSync(newContext('/hello'), {});
     expect(response).not.toBeInstanceOf(Promise);
     expect((response as MionResponse).body.hello).toBe('hello');
@@ -123,7 +123,7 @@ describe('dispatchMaybeSync with alwaysAwait on (the default) should', () => {
   });
 
   it('keep the promise for a sync route', async () => {
-    expect(getAlwaysAwait()).toBe(true);
+    expect(getRouterOptions().alwaysAwait).toBe(true);
     const response = dispatchMaybeSync(newContext('/hello'), {});
     expect(response).toBeInstanceOf(Promise);
     expect((await response).body.hello).toBe('hello');
@@ -143,7 +143,7 @@ describe('dispatchMaybeSync with alwaysAwait on and only sync routes should', ()
   });
 
   it('still keep the promise: the option applies whether or not the router has async methods', async () => {
-    expect(getAlwaysAwait()).toBe(true);
+    expect(getRouterOptions().alwaysAwait).toBe(true);
     const response = dispatchMaybeSync(newContext('/hello'), {});
     expect(response).toBeInstanceOf(Promise);
     expect((await response).body.hello).toBe('hello');
@@ -165,7 +165,7 @@ describe('dispatchMaybeSync with alwaysAwait off should', () => {
   });
 
   it('answer a sync route without a promise, even in a router with async routes', () => {
-    expect(getAlwaysAwait()).toBe(false);
+    expect(getRouterOptions().alwaysAwait).toBe(false);
     const response = dispatchMaybeSync(newContext('/hello'), {});
     expect(response).not.toBeInstanceOf(Promise);
     expect((response as MionResponse).body.hello).toBe('hello');
