@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: guidelines
-status: ready
+status: done
 created: 2026-10-16
 ---
 
@@ -76,3 +76,27 @@ Build:
    `HeadersSubset`, `x-rpc-error`, Bun's `connection: close`), nothing leaks between requests, `server` can be
    replaced, `content-type` cannot, two `Set-Cookie` lines survive on fetch adapters.
 5. Docs: "Headers on Every Response" table row 4.
+
+## What shipped
+
+- `packages/rpc-router/src/lib/responseHeaders.ts`: `LazyResponseHeaders`, the `ctx.response.headers` every
+  adapter but node / gcloud hands the context. It holds the merged defaults and builds the adapter's store on the
+  first `set` / `append` / `delete` only. `fetchResponseHeaders` + `fetchReplyHeaders` serve bun, cloudflare and
+  vercel: an untouched reply with no defaults reuses one `Headers` instance (`Response` copies it), built once.
+- `MionResponse.contentType`, set by the serializer and the fatal-error path; every adapter writes it last.
+- `server: mionjs` (was `@mionjs`) written by each adapter, first, so a default or handler `server` replaces it.
+  uws used to set it after the defaults, so it could not be replaced there.
+- `getResponseDefaults(own)` lost its `base` param and lowercases names on merge, into a PLAIN object: a
+  null-prototype one stays in V8 dictionary mode, about 7x slower to walk (it cost node and uws 4 to 7% at first).
+- Node and gcloud stay eager on `ServerResponse`: raw middlewares write it directly.
+
+Measured on a Claude cloud host (noisy):
+
+- `bunRequestHandler` with no socket (`packages/platform-bun/src/bunHttp.bench.ts`), best of runs: no header
+  written and no defaults 2.6 µs → 1.85 µs per request; a handler writing a header 2.7 µs → 2.5 µs. Before,
+  building `Headers` from a record was about 22% of the handler's profile. A frozen record passed to
+  `Response.json` instead of a `Headers` gained nothing, which is why the earlier plain-object try was noise.
+- `pnpm miondevx bench servers repeat <lane> hello-world`, before / after interleaved: mion, mion.uws,
+  mion.compact and mion.bun level within noise with today's defaults. mion.bun with `apiVersionCheck: false` (no
+  default header): 31.0k-31.6k → 34.6k-36.0k req/s, +12%. Every app gets that once `x-build-version` leaves the
+  default headers, the fix this one waits on.
