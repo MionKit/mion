@@ -6,7 +6,7 @@
  * ######## */
 
 import {
-  dispatchWithContext,
+  dispatchMaybeSync,
   dispatchPlatformError,
   resolveExecutionChain,
   createContextFromChain,
@@ -169,7 +169,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
     }
   }
 
-  async function dispatch(reqRawBody: any, reqBodyType: SerializerCode, readQueryBody: boolean) {
+  function dispatch(reqRawBody: any, reqBodyType: SerializerCode, readQueryBody: boolean) {
     // runs from a listener: an unhandled rejection here takes the whole process down under node's default
     try {
       const queryBody = readQueryBody ? decodeQueryBody(urlQuery, reqRawBody || undefined) : undefined;
@@ -178,15 +178,25 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
         reqBodyType = queryBody.bodyType;
       }
       const context = createContextFromChain(chain, path, urlQuery, reqHeaders, respHeaders, reqRawBody, reqBodyType);
-      const mionResponse = await dispatchWithContext(context, httpReq, httpResponse);
-      if (replied || httpResponse.writableEnded) return;
-      replied = true;
-      reply(httpResponse, mionResponse);
+      const dispatched = dispatchMaybeSync(context, httpReq, httpResponse);
+      // an all-sync chain answers inside the listener, with no promise in between
+      if (dispatched instanceof Promise) dispatched.then(answer).catch(failWith);
+      else answer(dispatched);
     } catch (err) {
-      if (replied) return;
-      replied = true;
-      fatalFail(httpResponse, respHeaders, toRpcError(err));
+      failWith(err);
     }
+  }
+
+  function answer(mionResponse: MionResponse) {
+    if (replied || httpResponse.writableEnded) return;
+    replied = true;
+    reply(httpResponse, mionResponse);
+  }
+
+  function failWith(err: unknown) {
+    if (replied) return;
+    replied = true;
+    fatalFail(httpResponse, respHeaders, toRpcError(err));
   }
 
   httpResponse.on('error', (err) => {
@@ -203,7 +213,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   // a not-found chain (an unknown path or batch id) has no route to feed: no body, no data listener.
   // Node discards whatever the client still sends once the response ends, so a kept-alive connection stays usable.
   if (!chain.readsBody) {
-    void dispatch('', SerializerModes.stringifyJson, false);
+    dispatch('', SerializerModes.stringifyJson, false);
     return;
   }
 
@@ -231,7 +241,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
 
   httpReq.on('end', () => {
     if (replied) return;
-    void dispatch(decodeBody(bodyChunks, size), SerializerModes.stringifyJson, true);
+    dispatch(decodeBody(bodyChunks, size), SerializerModes.stringifyJson, true);
   });
 }
 
