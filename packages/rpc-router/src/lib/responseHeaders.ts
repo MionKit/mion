@@ -8,9 +8,7 @@
 import type {MionHeaders, ResponseDefaults} from '../types/context.ts';
 import {JSON_CONTENT_TYPE, SERVER_HEADER_VALUE} from '../constants.ts';
 
-/** The response headers a handler sees: nothing is built until the first write, which creates the adapter's own
- *  store seeded with `server` and then `defaults` (lowercased, from getResponseDefaults). Until then reads see
- *  that same content. The adapter's reply reads `written`. */
+/** The adapter's store is built on the first write only; until then reads see what that store would hold. */
 export class LazyResponseHeaders<Store extends MionHeaders> implements MionHeaders {
   private store: Store | undefined = undefined;
 
@@ -70,7 +68,7 @@ function untouchedHeaders(defaults: ResponseDefaults): ResponseDefaults {
   return defaults.server === undefined ? {server: SERVER_HEADER_VALUE, ...defaults} : defaults;
 }
 
-/** True when the defaults record holds no header, so an untouched reply needs nothing from it. */
+/** An untouched reply with no defaults needs no store. */
 function hasNoHeaders(defaults: ResponseDefaults): boolean {
   for (const _name in defaults) return false;
   return true;
@@ -93,7 +91,7 @@ export function fetchResponseHeaders(defaults: ResponseDefaults): LazyResponseHe
 /** Built once on first use: `Response` copies the headers it is given, so one instance serves every untouched reply. */
 let jsonReplyHeaders: Headers | undefined;
 
-/** The `headers` of the reply, `contentType` written last so nothing overrides it. */
+/** `contentType` is written last so nothing overrides it. */
 export function fetchReplyHeaders(headers: LazyResponseHeaders<Headers>, contentType: string): Headers {
   const store = headers.written ?? (hasNoHeaders(headers.defaults) ? undefined : headers.toStore());
   if (!store) {
