@@ -101,7 +101,8 @@ Measured on a Claude cloud host (noisy):
 - `pnpm miondevx bench servers repeat <lane> hello-world`, before / after interleaved: mion, mion.uws,
   mion.compact and mion.bun level within noise. No gain on today's default mion.bun lane: the build's
   `x-build-version` is a default header, so every reply still builds headers. With `apiVersionCheck: false` (no
-  default header) mion.bun goes 31.0k-31.6k → 34.6k-36.0k req/s, +12%. Every app gets that once
-  `x-build-version` leaves the default headers: that fix has its own PR and merges before this one.
+  default header) mion.bun goes 31.0k-31.6k → 34.6k-36.0k req/s, +12%. That fix has its own PR and
+  merges before this one: it moves `x-build-version` into `mionFetchMetadata`, so every app without that
+  middleware gets the gain, and an app using it still writes the header on every call.
 - Not tested on workerd: its test fixture always carries a default header, so it never reaches the shared
   `Headers` path. The Fetch spec has `Response` copy its init headers; Node and Bun tests pin it.
