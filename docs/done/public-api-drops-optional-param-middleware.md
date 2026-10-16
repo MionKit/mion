@@ -32,8 +32,8 @@ test lists `g/tag` on the server only.
 ## Direction
 
 - Make the type rule match the runtime one: a middleware is private only when it declares no fixed param after
-  `ctx` (read the handler's params tuple, not function assignability; a bare rest param counts as none, as at
-  runtime) and returns no data.
+  `ctx` (read the handler's params tuple, not function assignability; an optional or rest param counts) and
+  returns no data.
 - Keep the one accepted type-level false positive documented in the done spec for the types-only API package,
   if it still applies after the change.
 - Tests: a type test that an optional-param void middleware stays in `PublicApi`, and a test-server member of
@@ -59,11 +59,17 @@ test lists `g/tag` on the server only.
 As planned, plus what the review found:
 
 - `IsPrivateDef` stays unexported: `PublicApi` is its only user.
-- A bare rest param (`(ctx, ...tags: string[])`) counts as no param on every side, as the runtime counts it
-  (`paramsCount` 0). The type uses `Required<HandlerParams<H>> extends [any, ...any[]]`.
-- The Go trimmer reads the params like `HandlerParams`: a tuple rest param counts its elements, and an optional
-  context gives no params. Its stub and real-router tests add `tagged`, `tuple` (kept) and `rest`, `optionalCtx` (cut).
-- The test-server group `optionalTag` holds only the middleware: the parity test reads its id off `TestServerApi`.
+- Any param after the context makes a middleware public, optional or rest. The type is
+  `HandlerParams<H> extends [] ? private : public`.
+- The runtime counted a bare rest param (`(ctx, ...ids: number[])`) as no param: its params type is an array, not
+  a tuple, so `getParamsFromRunType` (`packages/core/src/runtypes/mionAdapter.ts`) returned `[]`. A rest-param
+  middleware was private, a rest-param route got the 64-byte empty-body limit (413 on a real call), and the client
+  sent and validated nothing. It now reads the array as one unlabelled slot (`paramsCount` 1, `paramNames` `['']`).
+- The Go trimmer reads the params like `HandlerParams`: a rest param counts, a tuple rest param counts its
+  elements (`...args: []` adds none), and an optional context gives no params. Its stub and real-router tests keep
+  `tagged`, `tuple`, `rest` and cut `emptyTuple`, `optionalCtx`.
+- The test-server group `optionalTag` holds an optional-param and a rest-param middleware plus a rest-param route:
+  the parity test reads their ids off `TestServerApi`, and a client test proves the rest args reach the server.
 - The accepted false positive in the types-only API trimmer still applies: a `PublicMiddleware` typed with a
   no-params, void handler fits `PrivateDef`, and the public-method check keeps it.
 - Type cost: the client chain in `private-type-budget` grew by 34 instantiations, inside its budget.

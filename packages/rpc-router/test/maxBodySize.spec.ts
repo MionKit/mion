@@ -113,6 +113,15 @@ describe('per-route request limits', () => {
     expect(refused.statusCode).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
   });
 
+  it('a bare rest param counts as params: the route takes the platform number, never the empty-body floor', async () => {
+    mion.initRoutes({restIds: mion.route((ctx, ...ids: number[]): number => ids.length)});
+    expect(getRouteExecutable('restIds')!.paramsCount).toBe(1);
+    expect(getRouteExecutionChain('/restIds')!.maxBodySize).toBe(DEFAULT_MAX_BODY_SIZE);
+    const ids = Array.from({length: 100}, (_, index) => index);
+    const passed = await dispatch('/restIds', JSON.stringify({restIds: ids}));
+    expect(passed.body.restIds).toBe(100);
+  });
+
   it("the route option wins over the derived number and over the platform adapter's number", () => {
     mion.initRoutes({
       overridden,

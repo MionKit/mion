@@ -97,16 +97,16 @@ describe('Public Methods should', () => {
     expect(JSON.parse(JSON.stringify(api.optional)).paramNames).toEqual(['token']);
   });
 
-  it('keep a void middleware taking only optional params public, in the API type as at runtime', async () => {
+  it('keep a void middleware taking only optional or rest params public, in the API type as at runtime', async () => {
     const optional = mion.middleware((ctx, tag?: string): void => undefined);
     const rest = mion.middleware((ctx, ...tags: string[]): void => undefined);
     const defs = {optional, rest, priv: privateMiddleware, plain: route1};
     const api = mion.initRoutes(defs);
-    expectTypeOf<keyof PublicApi<typeof defs>>().toEqualTypeOf<'optional' | 'plain'>();
+    expectTypeOf<keyof PublicApi<typeof defs>>().toEqualTypeOf<'optional' | 'rest' | 'plain'>();
     expect(api.optional).toEqual(expect.objectContaining({id: 'optional', paramsCount: 1}));
-    // a bare rest param is no fixed param: private on both sides
-    const unchecked = api as Record<string, unknown>;
-    expect([unchecked.rest, unchecked.priv]).toEqual([null, null]);
+    // a bare rest param is one unlabelled slot
+    expect(api.rest).toEqual(expect.objectContaining({id: 'rest', paramsCount: 1, paramNames: ['']}));
+    expect((api as Record<string, unknown>).priv).toBeNull();
   });
 
   it('name an unlabelled parameter with an empty string, never a null on the wire', async () => {

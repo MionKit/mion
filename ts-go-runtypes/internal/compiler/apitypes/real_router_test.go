@@ -43,6 +43,7 @@ declare const routes: {
     tuple: MiddlewareDef<(ctx: Ctx, ...args: [tag?: string]) => void>;
     optionalCtx: MiddlewareDef<(ctx?: Ctx, tag?: string) => void>;
     rest: MiddlewareDef<(ctx: Ctx, ...tags: string[]) => void>;
+    emptyTuple: MiddlewareDef<(ctx: Ctx, ...args: []) => void>;
     group: {
         priv: MiddlewareDef<(ctx: Ctx) => undefined>;
         get: RouteDef<(ctx: Ctx, id: string) => string>;
@@ -56,11 +57,11 @@ export declare const api: PublicApi<typeof routes> & ApiBuildVersion<"v1">;
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Join(output.cutMembers, ",") != "index.d.ts#routes.audit,index.d.ts#routes.group.priv,index.d.ts#routes.optionalCtx,index.d.ts#routes.raw,index.d.ts#routes.rest" {
+	if strings.Join(output.cutMembers, ",") != "index.d.ts#routes.audit,index.d.ts#routes.emptyTuple,index.d.ts#routes.group.priv,index.d.ts#routes.optionalCtx,index.d.ts#routes.raw" {
 		t.Errorf("the router's private and raw middlewares must be cut, got %v", output.cutMembers)
 	}
 	index := output.Files["index.d.ts"]
-	assertContains(t, index, "check: MiddlewareDef", "tagged: MiddlewareDef", "tuple: MiddlewareDef", "get: RouteDef")
+	assertContains(t, index, "check: MiddlewareDef", "tagged: MiddlewareDef", "tuple: MiddlewareDef", "rest: MiddlewareDef", "get: RouteDef")
 	assertLacks(t, index, "IncomingMessage", "Audit", "RawMiddlewareDef")
 	if _, kept := output.Files["audit.d.ts"]; kept || strings.Join(output.Externals, ",") != "@mionjs/router" {
 		t.Errorf("audit.d.ts and node:http only served cut members: files %v, externals %v", output.Files, output.Externals)

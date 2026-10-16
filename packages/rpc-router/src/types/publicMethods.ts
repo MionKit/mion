@@ -40,11 +40,11 @@ export interface PrivateMiddlewareDef extends MiddlewareDef {
 
 export type PrivateDef = PrivateMiddlewareDef | RawMiddlewareDef;
 
-/** Mirrors `isPublicExecutable`, a bare rest param counting as none; the tuple check catches optional params. */
+/** Mirrors `isPublicExecutable`: any param after the context, optional or rest, makes it public. */
 // prettier-ignore
 type IsPrivateDef<Definition> =
     Definition extends RawMiddlewareDef ? true
-    : Definition extends PrivateMiddlewareDef ? (Required<HandlerParams<Definition['handler']>> extends [any, ...any[]] ? false : true)
+    : Definition extends PrivateMiddlewareDef ? (HandlerParams<Definition['handler']> extends [] ? true : false)
     : false;
 
 // ####### Remote Methods Metadata #######

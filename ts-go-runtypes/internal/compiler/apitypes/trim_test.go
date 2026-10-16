@@ -17,7 +17,7 @@ export interface MiddlewareDef<H = any> { type: 2; handler: H; options?: {} }
 export interface RawMiddlewareDef<H = any> { type: 4; handler: H; options?: {} }
 export interface PrivateMiddlewareDef extends MiddlewareDef { handler: (ctx?: any) => void | never | undefined }
 export type PrivateDef = PrivateMiddlewareDef | RawMiddlewareDef;
-type IsPrivateDef<Definition> = Definition extends RawMiddlewareDef ? true : Definition extends PrivateMiddlewareDef ? (Parameters<Definition['handler']> extends [any, ...infer Params] ? Required<Params> extends [any, ...any[]] ? false : true : true) : false;
+type IsPrivateDef<Definition> = Definition extends RawMiddlewareDef ? true : Definition extends PrivateMiddlewareDef ? (Parameters<Definition['handler']> extends [any, ...infer Params] ? Params extends [] ? true : false : true) : false;
 interface MethodMetadata { id: string }
 export interface PublicRoute<H = any, O = any, T = any> extends MethodMetadata { type: 1; handler: H; options: O; middlewareIds: string[] }
 export interface PublicMiddleware<H = any, O = any, T = any> extends MethodMetadata { type: 2; handler: H; options: O }
@@ -301,6 +301,7 @@ export declare const routes: {
     tuple: MiddlewareDef<(ctx: Ctx, ...args: [tag?: string]) => void>;
     optionalCtx: MiddlewareDef<(ctx?: Ctx, tag?: string) => void>;
     rest: MiddlewareDef<(ctx: Ctx, ...tags: string[]) => void>;
+    emptyTuple: MiddlewareDef<(ctx: Ctx, ...args: []) => void>;
     get: RouteDef<(ctx: Ctx, s: Shared) => Shared>;
     nested: {
         priv: MiddlewareDef<(ctx?: { raw: IncomingMessage }) => undefined>;
@@ -312,12 +313,12 @@ export declare const api: PublicApi<typeof routes> & ApiBuildVersion<"v1">;
 		"db.d.ts": "export declare class Db {\n    protected conn: number;\n}\n",
 	}, "")
 	index := output.Files["index.d.ts"]
-	assertContains(t, index, "check: MiddlewareDef", "tagged: MiddlewareDef", "tuple: MiddlewareDef", "get: RouteDef", "ok: RouteDef", "type Shared", "type Ctx")
+	assertContains(t, index, "check: MiddlewareDef", "tagged: MiddlewareDef", "tuple: MiddlewareDef", "rest: MiddlewareDef", "get: RouteDef", "ok: RouteDef", "type Shared", "type Ctx")
 	assertLacks(t, index, "raw:", "log:", "priv:", "IncomingMessage", "Db", "RawMiddlewareDef")
 	if _, kept := output.Files["db.d.ts"]; kept {
 		t.Errorf("db.d.ts served only a private middleware")
 	}
-	if strings.Join(output.cutMembers, ",") != "index.d.ts#routes.log,index.d.ts#routes.nested.priv,index.d.ts#routes.optionalCtx,index.d.ts#routes.raw,index.d.ts#routes.rest" {
+	if strings.Join(output.cutMembers, ",") != "index.d.ts#routes.emptyTuple,index.d.ts#routes.log,index.d.ts#routes.nested.priv,index.d.ts#routes.optionalCtx,index.d.ts#routes.raw" {
 		t.Errorf("cut members %v", output.cutMembers)
 	}
 	if strings.Join(output.Externals, ",") != "@mionjs/router" {

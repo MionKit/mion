@@ -112,6 +112,7 @@ export async function expectEveryMethodMatchesTheServer(baseURL: string): Promis
     middlewares.audit,
     middlewares.utils.scopeTag,
     middlewares.optionalTag.tag,
+    middlewares.optionalTag.restTags,
     middlewares.compact.stamp,
     middlewares.compact.plainStamp,
     middlewares.wrongAnswers.wrongMiddleware,

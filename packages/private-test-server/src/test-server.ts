@@ -338,6 +338,8 @@ const routes = {
   // an optional-only param is still public, so the client type must keep it
   optionalTag: {
     tag: middleware((_ctx, tag?: string): void => undefined),
+    restTags: middleware((_ctx, ...tags: string[]): void => undefined),
+    countIds: route((_ctx, ...ids: number[]): number => ids.length),
   },
 
   // no params: the client gets these answers and declared errors with no onRequest hook

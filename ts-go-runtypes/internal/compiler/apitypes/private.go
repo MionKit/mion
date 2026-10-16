@@ -171,7 +171,7 @@ func (trimmer *trimmer) isPrivateDefinition(property *ast.Node, probe probedType
 	return trimmer.checker.IsTypeAssignableTo(propertyType, probe.rawDef) || !trimmer.handlerTakesParams(propertyType)
 }
 
-// handlerTakesParams mirrors HandlerParams, a bare rest param counting as none as at runtime.
+// handlerTakesParams mirrors HandlerParams: any param after the context, optional or rest, counts.
 // Assignability to PrivateDef alone lets an optional param through.
 func (trimmer *trimmer) handlerTakesParams(definition *checker.Type) bool {
 	handler := checker.Checker_getPropertyOfType(trimmer.checker, definition, "handler")
@@ -188,14 +188,18 @@ func (trimmer *trimmer) handlerTakesParams(definition *checker.Type) bool {
 	if len(parameters) > 0 && isOptionalParameter(parameters[0]) {
 		return false // HandlerParams reads [] when the context is optional
 	}
-	fixed := len(parameters)
-	if signature.HasRestParameter() {
-		fixed--
-		if rest := trimmer.checker.GetTypeOfSymbol(parameters[fixed]); rest != nil && rest.IsTupleType() {
-			fixed += rest.TargetTupleType().FixedLength()
+	count := len(parameters)
+	// a tuple rest param counts its elements, so `...args: []` adds none
+	if rest := len(parameters) - 1; signature.HasRestParameter() && rest >= 0 {
+		if restType := trimmer.checker.GetTypeOfSymbol(parameters[rest]); restType != nil && restType.IsTupleType() {
+			tuple := restType.TargetTupleType()
+			count += tuple.FixedLength() - 1
+			if checker.TupleType_combinedFlags(tuple)&checker.ElementFlagsVariable != 0 {
+				count++
+			}
 		}
 	}
-	return fixed > 1
+	return count > 1
 }
 
 func isOptionalParameter(parameter *ast.Symbol) bool {
