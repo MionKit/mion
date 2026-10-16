@@ -14,6 +14,7 @@ import type {
   RouteHelper,
   RouterOptionsInput,
 } from '../types/mionRouter.ts';
+import type {CallContext} from '../types/context.ts';
 
 // ############# Route & Middlewares initialization (INTERNAL) #############
 // These bodies initialize the definition objects AND are the mion injection points: the trailing marker
@@ -96,16 +97,22 @@ export const rawMiddleware: RawMiddlewareHelper<RouterOptionsInput> = (handler, 
   options: opts,
 });
 
-const onDemandMiddlewares = new WeakSet<object>();
+/** Each on-demand middleware, with what it does on every call even without its slot. */
+const onDemandMiddlewares = new WeakMap<object, OnEveryCall | undefined>();
+type OnEveryCall = (ctx: CallContext) => void;
 
 /** Internal: the middleware runs only when the request body carries its slot, so an absent slot costs nothing */
-export function markOnDemand<Def extends object>(def: Def): Def {
-  onDemandMiddlewares.add(def);
+export function markOnDemand<Def extends object>(def: Def, onEveryCall?: OnEveryCall): Def {
+  onDemandMiddlewares.set(def, onEveryCall);
   return def;
 }
 
 export function isOnDemandMiddleware(def: object): boolean {
   return onDemandMiddlewares.has(def);
+}
+
+export function getOnEveryCall(def: object): OnEveryCall | undefined {
+  return onDemandMiddlewares.get(def);
 }
 
 /** mion's own ids, never exposed to clients */

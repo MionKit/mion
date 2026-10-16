@@ -47,7 +47,7 @@ describe('aws global response headers', () => {
     };
     const headers = (await awsLambdaHandler(event, context)).headers || {};
     expect(headers['x-team']).toEqual('mion');
-    expect(headers['x-build-version']).toEqual('abc123');
+    expect(headers['x-build-version']).toBeUndefined();
     expect(headers['x-app-name']).toEqual('TheAdapter');
   });
 });

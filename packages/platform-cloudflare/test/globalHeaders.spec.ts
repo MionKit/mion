@@ -37,7 +37,8 @@ describe('cloudflare global response headers', () => {
     });
     const response = await handler.fetch(req, {} as any, {} as any);
     expect(response.headers.get('x-team')).toEqual('mion');
-    expect(response.headers.get('x-build-version')).toEqual('abc123');
+    // no mionFetchMetadata in these routes, so no build version
+    expect(response.headers.get('x-build-version')).toBeNull();
     expect(response.headers.get('x-app-name')).toEqual('TheAdapter');
   });
 });

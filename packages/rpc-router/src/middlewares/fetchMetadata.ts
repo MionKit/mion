@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {FatalError, RpcError, SerializableMethodsData, StatusCodes} from '@mionjs/core';
+import {BUILD_VERSION_HEADER, FatalError, RpcError, SerializableMethodsData, StatusCodes} from '@mionjs/core';
 import type {FetchMetadataHandler, FetchMetadataMode, FetchMetadataOnlyData} from '@mionjs/core/middlewares';
 import {
   getMiddlewareExecutable,
@@ -14,6 +14,7 @@ import {
   getTotalExecutables,
   getAllExecutablesIds,
   getAnyExecutable,
+  getBuildVersion,
 } from '../router.ts';
 import {markOnDemand, middleware, mionInternalRouteIds} from '../lib/handlers.ts';
 import {isPublicExecutable} from '../types/guards.ts';
@@ -84,6 +85,13 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethod
   serializeMethodDeps(method, deps, purFnDeps);
 }
 
+/** Every call through this middleware tells the client which API build answered, so a stale client can recover.
+ *  Set, not returned: the middleware's answer stays the rows. */
+function setBuildVersionHeader(ctx: CallContext): void {
+  const version = getBuildVersion();
+  if (version) ctx.response.headers.set(BUILD_VERSION_HEADER, version);
+}
+
 // Place it at the root, before any route: its `only` and `all` modes must stop the chain before the route.
 // Pins the built-in parser: a client asks before it knows any strategy.
 // In every chain with an unbounded `string[]`, so maxBodySize is a fixed share of each limit: room for a first call's ids.
@@ -92,5 +100,6 @@ export const mionFetchMetadata = markOnDemand(
     alwaysRun: true,
     parser: {params: 'clone', return: 'clone'},
     maxBodySize: 4096,
-  })
+  }),
+  setBuildVersionHeader
 );

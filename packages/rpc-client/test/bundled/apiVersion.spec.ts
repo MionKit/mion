@@ -29,6 +29,7 @@ describe('the api version a bundled client compares', () => {
   });
 
   // The client and the test server are built separately, so this passing means two builds of one API hash alike.
+  // The test server places mionFetchMetadata at its root: that middleware is what sends the header.
   it('is the one the server was built from', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
     useAuth(middlewares);
@@ -60,6 +61,7 @@ describe('the api version a bundled client compares', () => {
     expect(loadedMetadataFromServer()).toBeUndefined();
   });
 
+  // a server without mionFetchMetadata, or with apiVersionCheck off, sends no version
   it('changes nothing when the server sends no version', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
     useAuth(middlewares);
@@ -75,6 +77,22 @@ describe('the api version a bundled client compares', () => {
       watch.restore();
     }
     expect(isBundledMethod('sayHello')).toBe(true);
+  });
+
+  it('reports nothing when neither the server nor the client uses the metadata middleware', async () => {
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL});
+    useAuth(middlewares);
+    const watch = serveVersion(null);
+    try {
+      const [first, , firstResponse] = await routes.sayHello(user).call();
+      expect(first).toBe('Hello John Doe');
+      expect(firstResponse['@thrownErrors']).toBeUndefined();
+      const [, , secondResponse] = await routes.sayHello(user).call();
+      expect(secondResponse['@thrownErrors']).toBeUndefined();
+      expect(watch.calls()).toBe(2);
+    } finally {
+      watch.restore();
+    }
   });
 
   it('resends a failed call once after a mismatch, never in a loop', async () => {

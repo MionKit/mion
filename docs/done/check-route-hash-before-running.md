@@ -32,10 +32,8 @@ compares them before anything runs.
   (`rowsAgree`) both look at `syncId` only. A changed middleware is answered by its own validation. The type ids
   fold in the mion version, so a different mion version blocks too, on purpose (different compiled functions).
 - **One middleware does it all**: `mion@syncRoutes` (`packages/router/src/routes/syncRoutes.routes.ts`), a typed
-  start middleware right after `mionDeserializeRequest`, `alwaysRun`, pinned `clone` parser. It sets
-  `x-build-version` on the response when `apiVersionCheck` is on (the header left `globalResponseHeaders`, so the
-  adapters no longer carry it; set rather than returned, so the answer is never an object-and-error union), and
-  under `syncRoutes` returns:
+  middleware the app places first in its routes, pinned `clone` parser. It sets no header (`mionFetchMetadata` sets
+  `x-build-version`, which the client reads). It returns:
   - missing ids: `FatalError 'route-sync-required'` carrying the rows of the call's routes and chains;
   - a different id: `FatalError 'route-types-mismatch'` naming the routes.
   One error type for both (`RouteSyncError`): the encoder cannot tell two `FatalError`s apart in one union. Its

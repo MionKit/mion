@@ -21,12 +21,17 @@ import {
   RemoteMethodOpts,
   CoreRouterOptions,
   DEFAULT_MAX_BODY_SIZE,
+  BUILD_VERSION_HEADER,
+  MION_BATCH_PATH,
 } from '@mionjs/core';
 import {Routes} from '../../src/types/general.ts';
 import type {RouterOptionsInput} from '../../src/types/mionRouter.ts';
 import {mionFetchMetadata} from '../../middlewares.ts';
 import {headersFromRecord} from '../../src/lib/headers.ts';
-import {dispatchRoute} from '../../src/dispatch.ts';
+import {dispatchRoute, dispatchPlatformError} from '../../src/dispatch.ts';
+import {resolveExecutionChain} from '../../src/callContext.ts';
+import {requestPayloadTooLarge} from '../../src/lib/bodyReader.ts';
+import {registerBatches} from '../../src/batches.ts';
 import {createValidateFn, createGetValidationErrorsFn, createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 import {getSerializableMethod} from '../../src/lib/remoteMethods.ts';
 
@@ -658,6 +663,91 @@ describe('metadata is generated for everything the client can call', () => {
     const result = unwrap(response.body[methodsId]) as RpcError<string>;
     expect(result.type).toBe('rpc-metadata-not-found');
     expect(result.errorData).toEqual({raw: 'Remote Method raw not found'});
+  });
+});
+
+describe('the mionFetchMetadata middleware sends the build version header', () => {
+  afterEach(() => resetRouter());
+
+  function initApp(opts: RouterOptionsInput, version?: string) {
+    const router = createMionRouter(opts);
+    router.initRoutes(
+      {
+        mionFetchMetadata,
+        ping: router.route((ctx): string => 'pong'),
+        fails: router.route((ctx): string => {
+          throw new Error('boom');
+        }),
+      },
+      version
+    );
+  }
+
+  async function call(path: string, body: string, urlQuery?: string) {
+    const respHeaders = headersFromRecord({});
+    await dispatchRoute(path, body, headersFromRecord({}), respHeaders, {body} as any, {}, undefined, urlQuery);
+    return respHeaders.get(BUILD_VERSION_HEADER);
+  }
+
+  it('on a call that never asks it for rows', async () => {
+    initApp({}, 'abc123');
+    expect(await call('/ping', '{}')).toBe('abc123');
+  });
+
+  it('on a call that asks it for rows', async () => {
+    initApp({}, 'abc123');
+    expect(await call('/ping', JSON.stringify({[methodsId]: [['ping']]}))).toBe('abc123');
+  });
+
+  it('on a call whose route fails', async () => {
+    initApp({}, 'abc123');
+    expect(await call('/fails', '{}')).toBe('abc123');
+  });
+
+  it('on a call whose body failed to parse, before the middleware read it', async () => {
+    initApp({}, 'abc123');
+    expect(await call('/ping', '{not json')).toBe('abc123');
+  });
+
+  it('on a call the adapter refused after its route resolved', async () => {
+    initApp({}, 'abc123');
+    const rawRequest = {headers: headersFromRecord({})};
+    const respHeaders = headersFromRecord({});
+    const chain = resolveExecutionChain('/ping', undefined, rawRequest);
+    await dispatchPlatformError(chain, '/ping', undefined, requestPayloadTooLarge(), rawRequest.headers, respHeaders, rawRequest);
+    expect(respHeaders.get(BUILD_VERSION_HEADER)).toBe('abc123');
+  });
+
+  it('on a batch call', async () => {
+    initApp({}, 'abc123');
+    registerBatches({pings: {routes: ['ping']}});
+    expect(await call(MION_BATCH_PATH, JSON.stringify({ping: []}), 'id=pings')).toBe('abc123');
+  });
+
+  it('never without a build version', async () => {
+    initApp({}, '');
+    expect(await call('/ping', '{}')).toBeUndefined();
+  });
+
+  it('never over a version the app pinned in globalResponseHeaders', async () => {
+    initApp({globalResponseHeaders: {[BUILD_VERSION_HEADER]: 'mine'}}, 'abc123');
+    expect(await call('/ping', '{}')).toBeUndefined();
+  });
+
+  it('never with apiVersionCheck off', async () => {
+    initApp({apiVersionCheck: false}, 'abc123');
+    expect(await call('/ping', '{}')).toBeUndefined();
+  });
+
+  it('never on a route outside the middleware', async () => {
+    const router = createMionRouter();
+    router.initRoutes({ping: router.route((ctx): string => 'pong')}, 'abc123');
+    expect(await call('/ping', '{}')).toBeUndefined();
+  });
+
+  it("never on the router's own not-found answer", async () => {
+    initApp({}, 'abc123');
+    expect(await call('/missing', '{}')).toBeUndefined();
   });
 });
 
