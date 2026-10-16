@@ -43,9 +43,9 @@ export type PrivateDef = PrivateMiddlewareDef | RawMiddlewareDef;
 /** Matches `isPublicExecutable`: private = raw, or no data returned and no fixed param after the context (a bare
  *  rest param counts as none, as at runtime). Reads the params tuple: assignability lets an optional param through. */
 // prettier-ignore
-export type IsPrivateDef<T> =
-    T extends RawMiddlewareDef ? true
-    : T extends PrivateMiddlewareDef ? (Required<HandlerParams<T['handler']>> extends [any, ...any[]] ? false : true)
+type IsPrivateDef<Definition> =
+    Definition extends RawMiddlewareDef ? true
+    : Definition extends PrivateMiddlewareDef ? (Required<HandlerParams<Definition['handler']>> extends [any, ...any[]] ? false : true)
     : false;
 
 // ####### Remote Methods Metadata #######
