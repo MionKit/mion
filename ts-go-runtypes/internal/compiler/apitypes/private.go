@@ -190,8 +190,8 @@ func (trimmer *trimmer) handlerTakesParams(definition *checker.Type) bool {
 	}
 	count := len(parameters)
 	// a tuple rest param counts its elements, so `...args: []` adds none
-	if rest := len(parameters) - 1; signature.HasRestParameter() && rest >= 0 {
-		if restType := trimmer.checker.GetTypeOfSymbol(parameters[rest]); restType != nil && restType.IsTupleType() {
+	if signature.HasRestParameter() {
+		if restType := trimmer.checker.GetTypeOfSymbol(parameters[len(parameters)-1]); restType != nil && restType.IsTupleType() {
 			tuple := restType.TargetTupleType()
 			count += tuple.FixedLength() - 1
 			if checker.TupleType_combinedFlags(tuple)&checker.ElementFlagsVariable != 0 {

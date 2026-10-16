@@ -64,12 +64,17 @@ As planned, plus what the review found:
 - The runtime counted a bare rest param (`(ctx, ...ids: number[])`) as no param: its params type is an array, not
   a tuple, so `getParamsFromRunType` (`packages/core/src/runtypes/mionAdapter.ts`) returned `[]`. A rest-param
   middleware was private, a rest-param route got the 64-byte empty-body limit (413 on a real call), and the client
-  sent and validated nothing. It now reads the array as one unlabelled slot (`paramsCount` 1, `paramNames` `['']`).
+  sent and validated nothing. A non-tuple params type (that array, or a union of tuples) is now one unlabelled
+  optional slot (`paramsCount` 1, `paramNames` `['']`).
+- A rest param also sets `paramsRest` on the reflection, so a batch input mapping may target any position from it
+  on (`batches.ts` bounds `paramIndex` by `paramsCount` otherwise). It was refused before, for a mixed
+  `(ctx, first, ...ids)` route too, while the build accepted it.
 - The Go trimmer reads the params like `HandlerParams`: a rest param counts, a tuple rest param counts its
   elements (`...args: []` adds none), and an optional context gives no params. Its stub and real-router tests keep
   `tagged`, `tuple`, `rest` and cut `emptyTuple`, `optionalCtx`.
 - The test-server group `optionalTag` holds an optional-param and a rest-param middleware plus a rest-param route:
-  the parity test reads their ids off `TestServerApi`, and a client test proves the rest args reach the server.
+  the parity test reads their ids off `TestServerApi`, and client tests prove the rest args reach the server and
+  are validated locally first.
 - The accepted false positive in the types-only API trimmer still applies: a `PublicMiddleware` typed with a
   no-params, void handler fits `PrivateDef`, and the public-method check keeps it.
 - Type cost: the client chain in `private-type-budget` grew by 34 instantiations, inside its budget.

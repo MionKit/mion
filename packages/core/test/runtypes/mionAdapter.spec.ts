@@ -183,8 +183,8 @@ describe('mionAdapter: reflection from injected markers', () => {
     expect(labelled.map((param) => param.name)).toEqual(['pet', 'notes']);
     // optionality rides along, so a consumer can tell required from optional without the handler
     expect(labelled.map((param) => param.optional)).toEqual([undefined, true]);
-    // a non-tuple runtype yields no params rather than throwing
-    expect(getParamsFromRunType(resolveInjectedRunType(savePet.rtFns.returnId))).toEqual([]);
+    // a non-tuple params runtype (a bare rest param, a union of tuples) is one optional rest slot
+    expect(getParamsFromRunType(resolveInjectedRunType(savePet.rtFns.returnId))).toEqual([{optional: true, rest: true}]);
   });
 
   it('resolves full jit entries (code/hash) from the mion cache via mion jit hashes', () => {

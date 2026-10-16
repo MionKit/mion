@@ -94,6 +94,8 @@ export interface RtMethodReflection {
   /** Parameter names from reflection, '' for an unlabelled tuple member. Rides the client
    *  methods-metadata payload so a client can name the parameter that failed. */
   paramNames: string[];
+  /** the last param is a rest param: it takes any number of values from its position on */
+  paramsRest?: boolean;
   paramsJitFns: JitCompiledFunctions;
   returnJitFns: JitCompiledFunctions;
   paramsJitHash: string;
@@ -268,16 +270,20 @@ export function getParamCountFromRunType(paramsRunType: RunType<unknown>): numbe
 /** Handler parameters read from the params tuple runtype: member LABELS survive into the run-type graph, so
  *  names never come from parsing handler.toString(), which is unreliable under minified bundles.
  *  `name` is undefined for an unlabelled member (`[string, number]` rather than `[pet: Pet, notes?: string]`). */
-export function getParamsFromRunType(paramsRunType: RunType<unknown>): {name?: string; optional?: boolean}[] {
+export function getParamsFromRunType(paramsRunType: RunType<unknown>): {name?: string; optional?: boolean; rest?: boolean}[] {
   const root = paramsRunType as RtNodeLike;
-  // a bare rest param `(ctx, ...ids: number[])` is an array, not a tuple: one slot, which may be empty
-  if (root.kind === RunTypeKind.array) return [{optional: true}];
-  if (root.kind !== RunTypeKind.tuple) return [];
+  // not a tuple: a bare rest param `(ctx, ...ids: number[])` (an array) or a union of tuples, one slot that may be empty
+  if (root.kind !== RunTypeKind.tuple) return [{optional: true, rest: true}];
   return (root.children ?? []).map((child) => {
-    const member = child as {name?: unknown; optional?: unknown};
+    const member = child as {kind?: unknown; name?: unknown; optional?: unknown; flags?: unknown; child?: {kind?: unknown}};
+    const isRest =
+      member.kind === RunTypeKind.rest ||
+      member.child?.kind === RunTypeKind.rest ||
+      (Array.isArray(member.flags) && member.flags.includes('rest'));
     return {
       name: typeof member.name === 'string' ? member.name : undefined,
       optional: member.optional === true ? true : undefined,
+      rest: isRest ? true : undefined,
     };
   });
 }
@@ -336,6 +342,7 @@ export function getReflectionFromMarkers(
     hasReturnData: runTypeHasData(returnRunType),
     isAsync: resolveIsAsync(rtFns.isAsyncId, handler),
   };
+  if (params.at(-1)?.rest) reflection.paramsRest = true;
   if (rtFns.syncId !== undefined) reflection.syncId = resolveInjectedTypeId(rtFns.syncId, `${methodId}#sync`);
   // the size maxima sit on the reflection ROOT rows the markers already inject: one property read, no walk
   if (typeof paramsRunType?.jsonMaxBytes === 'number') reflection.paramsJsonMaxBytes = paramsRunType.jsonMaxBytes;
