@@ -53,6 +53,14 @@ describe('cloudflare response headers', () => {
         ctx.response.headers.delete('x-team');
         return 'ok';
       }),
+      dropServer: mion.route((ctx: CallContext): string => {
+        ctx.response.headers.delete('server');
+        return 'ok';
+      }),
+      readServer: mion.route((ctx: CallContext): string => {
+        ctx.response.headers.set('x-had-server', String(ctx.response.headers.has('server')));
+        return 'ok';
+      }),
     });
     handler = createCloudflareHandler({basePath: ''});
   });
@@ -77,6 +85,11 @@ describe('cloudflare response headers', () => {
       const response = await call('fails');
       expect(response.headers.get('x-rpc-error')).toBeTruthy();
       expect(response.headers.get('content-type')).toEqual('application/json; charset=utf-8');
+    });
+
+    it('a handler sees server before any write, and deleting it sends none', async () => {
+      expect((await call('readServer')).headers.get('x-had-server')).toEqual('true');
+      expect((await call('dropServer')).headers.get('server')).toBeNull();
     });
 
     it('a handler can replace server but never content-type', async () => {

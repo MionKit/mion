@@ -24,7 +24,11 @@ describe('LazyResponseHeaders', () => {
     const headers = new LazyResponseHeaders(DEFAULTS, createStore);
     expect(headers.get('X-Team')).toBe('mion');
     expect(headers.has('x-team')).toBe(true);
-    expect([...headers.entries()]).toEqual([['x-team', 'mion']]);
+    expect([...headers.entries()]).toEqual([
+      ['server', 'mionjs'],
+      ['x-team', 'mion'],
+    ]);
+    expect(headers.get('Server')).toBe('mionjs');
     expect(headers.written).toBeUndefined();
     expect(createStore).not.toHaveBeenCalled();
   });
@@ -45,6 +49,12 @@ describe('LazyResponseHeaders', () => {
     expect(second.get('x-team')).toBe('mion');
     expect(second.get('x-custom')).toBeUndefined();
     expect(DEFAULTS).toEqual({'x-team': 'mion'});
+  });
+
+  it('builds the store to delete server, which every store starts with', () => {
+    const headers = fetchResponseHeaders(Object.freeze({}));
+    headers.delete('server');
+    expect(fetchReplyHeaders(headers, JSON_CONTENT_TYPE).has('server')).toBe(false);
   });
 
   it('builds nothing to delete a name the defaults do not hold', () => {
