@@ -52,6 +52,8 @@ export interface MionRequest {
 /** Router's own response object, do not confuse with the underlying raw response */
 export interface MionResponse {
   readonly statusCode: number;
+  /** Set by the body serializer and written by the adapter at reply time, after every header, so no handler overrides it */
+  readonly contentType: string;
   readonly headers: Readonly<MionHeaders>;
   /** The router response data, never to be modified by hand */
   readonly body: Readonly<ResponseBody>;

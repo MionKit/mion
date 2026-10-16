@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {MionHeaders, headersFromRecord} from '@mionjs/router';
+import {MionHeaders, headersFromRecord, LazyResponseHeaders, SERVER_HEADER_VALUE} from '@mionjs/router';
 import type {HttpRequest} from '@mionjs/bin-uws';
 
 /** uWS headers are readable only synchronously inside the handler, so snapshot them; uWS already lower-cases the names. */
@@ -51,15 +51,29 @@ class BufferedHeadersImpl implements MionHeaders {
   }
 }
 
-export function bufferedResponseHeaders(initialHeaders: Record<string, string> | null): MionHeaders {
+/** `server` first so a default of that name replaces it. */
+function newBufferedHeaders(defaults: Readonly<Record<string, string>>): BufferedHeadersImpl {
   const headers = new BufferedHeadersImpl();
-  // `for...in` keeps the write order, which matters because `server` is set AFTER the defaults and must stay unoverridable
-  if (initialHeaders) for (const name in initialHeaders) headers.set(name, initialHeaders[name]);
+  headers.record.server = SERVER_HEADER_VALUE;
+  for (const name in defaults) headers.record[name] = defaults[name];
   return headers;
+}
+
+export function bufferedResponseHeaders(defaults: Readonly<Record<string, string>>): LazyResponseHeaders<MionHeaders> {
+  return new LazyResponseHeaders(defaults, newBufferedHeaders);
 }
 
 /** Walks headers with no pair array per header, for the corked reply; falls back to `entries()` for any other MionHeaders. */
 export function forEachHeader(headers: MionHeaders, visit: (name: string, value: string) => void): void {
+  if (headers instanceof LazyResponseHeaders) {
+    const written = headers.written;
+    if (written instanceof BufferedHeadersImpl) return forEachHeader(written, visit);
+    // nothing written: the store would hold exactly `server` and the defaults, so they are walked without building it
+    const defaults = headers.defaults;
+    if (defaults.server === undefined) visit('server', SERVER_HEADER_VALUE);
+    for (const name in defaults) visit(name, defaults[name]);
+    return;
+  }
   if (headers instanceof BufferedHeadersImpl) {
     const record = headers.record;
     for (const name in record) visit(name, record[name]);

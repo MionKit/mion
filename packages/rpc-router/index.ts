@@ -20,6 +20,7 @@ export * from './src/callContext.ts';
 export * from './src/batches.ts';
 export * from './src/lib/dispatchError.ts';
 export * from './src/lib/headers.ts';
+export * from './src/lib/responseHeaders.ts';
 export * from './src/lib/remoteMethods.ts';
 export * from './src/types/mionRouter.ts';
 export * from './src/lib/queryBody.ts';

@@ -16,6 +16,8 @@ import {
   decodeQueryBody,
   setPlatformConfig,
   getResponseDefaults,
+  LazyResponseHeaders,
+  SERVER_HEADER_VALUE,
 } from '@mionjs/router';
 import type {MionResponse, MionHeaders} from '@mionjs/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
@@ -50,11 +52,7 @@ export function createAwsLambdaHandler(options?: Partial<AwsLambdaOptions>) {
 export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> {
   let rawBody: any = decodeEventBody(rawRequest);
   const reqHeaders = headersFromRecord(rawRequest.headers as Record<string, string>);
-  const rawRespHeaders: Record<string, string> = {
-    server: '@mionjs',
-    ...getResponseDefaults(lambdaOptions.defaultResponseHeaders),
-  };
-  const respHeaders = headersFromRecord(rawRespHeaders, true);
+  const respHeaders = new LazyResponseHeaders(getResponseDefaults(lambdaOptions.defaultResponseHeaders), newRecordHeaders);
   // AWS Lambda always receives body as string (JSON)
   let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
   const urlQuery = buildQueryString(rawRequest.queryStringParameters);
@@ -103,9 +101,14 @@ function buildQueryString(params: APIGatewayEvent['queryStringParameters']): str
   return query;
 }
 
+/** `server` first so a default of that name replaces it. */
+function newRecordHeaders(defaults: Readonly<Record<string, string>>): MionHeaders {
+  return headersFromRecord({server: SERVER_HEADER_VALUE, ...defaults}, true);
+}
+
 function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayProxyResult {
-  // AWS sets content-length itself, unlike node
-  const singleHeaders: Record<string, string> = {};
+  // AWS sets content-length itself, unlike node; with nothing written, `entries()` walks the defaults alone
+  const singleHeaders: Record<string, string> = {server: SERVER_HEADER_VALUE};
   const multiHeaders: Record<string, string[]> = {};
   let multiHeaderCount = 0;
   // not Array.from: it would copy the Map into a second array
@@ -119,7 +122,7 @@ function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayPro
   }
 
   const responseBody = JSON.stringify(routeResponse.body);
-  singleHeaders['content-type'] = 'application/json; charset=utf-8';
+  singleHeaders['content-type'] = routeResponse.contentType;
 
   // the body is always text, so `isBase64Encoded` keeps its default (false)
   const resp: APIGatewayProxyResult = {

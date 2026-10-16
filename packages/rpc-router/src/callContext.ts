@@ -12,6 +12,7 @@ import type {MethodsExecutionChain} from './types/remoteMethods.ts';
 import {StatusCodes, SerializerModes, SerializerCode, FatalError, MION_ROUTES, MION_BATCH_PATH} from '@mionjs/core';
 import type {AnyObject} from '@mionjs/core';
 import {getBatchExecutionChain} from './batches.ts';
+import {JSON_CONTENT_TYPE} from './constants.ts';
 
 // ############# CONTEXT CREATION #############
 
@@ -48,6 +49,7 @@ export function createContextFromChain(
   } as MionRequest;
   const response: MionResponse = {
     statusCode: StatusCodes.OK,
+    contentType: JSON_CONTENT_TYPE,
     hasErrors: false,
     fatalError: undefined,
     headers: respHeaders,

@@ -25,3 +25,7 @@ export const DEFAULT_ROUTE_OPTIONS = {
 } as Readonly<RouterOptions>;
 
 export const MAX_ROUTE_NESTING = 10;
+
+/** Written by every platform adapter at reply time, never one of the default headers: a `server` default or a handler's own replaces it. */
+export const SERVER_HEADER_VALUE = 'mionjs';
+export const JSON_CONTENT_TYPE = 'application/json; charset=utf-8';

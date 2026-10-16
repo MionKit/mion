@@ -76,7 +76,7 @@ describe('uws http router', () => {
       expect(reply).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
       expect(headers['content-length']).toEqual('47');
-      expect(headers['server']).toEqual('@mionjs');
+      expect(headers['server']).toEqual('mionjs');
     });
 
     it('get an error when sending invalid parameters', async () => {
@@ -97,7 +97,7 @@ describe('uws http router', () => {
       };
       expect(reply).toEqual({'@thrownErrors': {getDate: expectedError}});
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-      expect(headers['server']).toEqual('@mionjs');
+      expect(headers['server']).toEqual('mionjs');
     });
 
     it('set response headers from route response', async () => {
@@ -150,7 +150,7 @@ describe('uws http router', () => {
       expect(headers['x-instance-id']).toEqual('3089');
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
       expect(headers['content-length']).toEqual('152');
-      expect(headers['server']).toEqual('@mionjs');
+      expect(headers['server']).toEqual('mionjs');
 
       smallServer.close();
 
@@ -262,7 +262,7 @@ describe('uws http router', () => {
       expect(reply).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
       expect(headers['content-length']).toEqual('47');
-      expect(headers['server']).toEqual('@mionjs');
+      expect(headers['server']).toEqual('mionjs');
     });
 
     it('get an ok response from a route with complex objects (body type O)', async () => {
@@ -276,7 +276,7 @@ describe('uws http router', () => {
 
       expect(reply).toEqual({changeUserName: {name: 'NewName', surname: 'Doe'}});
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-      expect(headers['server']).toEqual('@mionjs');
+      expect(headers['server']).toEqual('mionjs');
     });
   });
 
