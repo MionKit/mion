@@ -39,13 +39,13 @@ export class LazyResponseHeaders<Store extends MionHeaders> implements MionHeade
   }
   delete(name: string): void {
     // deleting a name nothing holds builds nothing
-    if (this.store || this.defaults[name.toLowerCase()] !== undefined) this.toStore().delete(name);
+    if (this.store || readDefault(this.defaults, name) !== undefined) this.toStore().delete(name);
   }
   get(name: string): string | undefined | null {
-    return this.store ? this.store.get(name) : this.defaults[name.toLowerCase()];
+    return this.store ? this.store.get(name) : readDefault(this.defaults, name);
   }
   has(name: string): boolean {
-    return this.store ? this.store.has(name) : this.defaults[name.toLowerCase()] !== undefined;
+    return this.store ? this.store.has(name) : readDefault(this.defaults, name) !== undefined;
   }
   entries(): IterableIterator<[string, string]> {
     return this.store ? this.store.entries() : Object.entries(this.defaults).values();
@@ -56,6 +56,12 @@ export class LazyResponseHeaders<Store extends MionHeaders> implements MionHeade
   values(): IterableIterator<string> {
     return this.store ? this.store.values() : Object.values(this.defaults).values();
   }
+}
+
+/** A string check, not undefined: a `constructor` name would otherwise find Object.prototype's function. */
+function readDefault(defaults: Defaults, name: string): string | undefined {
+  const value = defaults[name.toLowerCase()] as unknown;
+  return typeof value === 'string' ? value : undefined;
 }
 
 /** True when the defaults record holds no header, so an untouched reply needs nothing from it. */
