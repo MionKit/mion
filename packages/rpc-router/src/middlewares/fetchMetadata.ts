@@ -85,8 +85,7 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethod
   serializeMethodDeps(method, deps, purFnDeps);
 }
 
-/** Every call through this middleware tells the client which API build answered, so a stale client can recover.
- *  Set, not returned: the middleware's answer stays the rows. */
+/** Sent on every call so a stale client can recover; set, not returned, so the middleware's answer stays the rows. */
 function setBuildVersionHeader(ctx: CallContext): void {
   const version = getBuildVersion();
   if (version) ctx.response.headers.set(BUILD_VERSION_HEADER, version);
