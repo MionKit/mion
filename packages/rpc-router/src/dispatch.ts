@@ -56,8 +56,7 @@ export async function dispatchWithContext<Req, Resp>(
   return context.response;
 }
 
-/** `dispatchWithContext` for a context built with its body, minus the promise when no step needs one,
- *  so an adapter can reply without a promise (Bun's `fetch` takes a `Response` or a promise). */
+/** `dispatchWithContext` for a context built with its body, minus the promise when no step needs one. */
 export function dispatchMaybeSync<Req, Resp>(
   context: CallContext,
   rawRequest: Req,

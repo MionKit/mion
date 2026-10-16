@@ -170,7 +170,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   }
 
   function dispatch(reqRawBody: any, reqBodyType: SerializerCode, readQueryBody: boolean) {
-    // runs from a listener: an unhandled rejection here takes the whole process down under node's default
+    // runs from a listener: an unhandled error here takes the whole process down under node's default
     try {
       const queryBody = readQueryBody ? decodeQueryBody(urlQuery, reqRawBody || undefined) : undefined;
       if (queryBody) {
