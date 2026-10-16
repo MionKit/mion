@@ -55,6 +55,12 @@ describe('LazyResponseHeaders', () => {
     expect(headers.has('x-team')).toBe(false);
   });
 
+  it('never reads a prototype member as a default', () => {
+    const headers = new LazyResponseHeaders(DEFAULTS, recordHeaders);
+    expect(headers.get('constructor')).toBeUndefined();
+    expect(headers.has('toString')).toBe(false);
+  });
+
   it('appends after a default', () => {
     const headers = new LazyResponseHeaders(DEFAULTS, recordHeaders);
     headers.append('x-team', 'router');
@@ -111,6 +117,15 @@ describe('getResponseDefaults', () => {
     const mion = createMionRouter({globalResponseHeaders: {'X-App': 'router', 'X-Team': 'mion'}, apiVersionCheck: false});
     mion.initRoutes({ping: mion.route((): string => 'pong')} satisfies Routes);
     expect({...getResponseDefaults({'x-app': 'adapter'})}).toEqual({'x-app': 'adapter', 'x-team': 'mion'});
+  });
+
+  it('is a plain object, never swapping its prototype for a __proto__ name', () => {
+    const mion = createMionRouter({apiVersionCheck: false});
+    mion.initRoutes({ping: mion.route((): string => 'pong')} satisfies Routes);
+    const own = JSON.parse('{"__proto__": "x", "x-a": "1"}');
+    const defaults = getResponseDefaults(own);
+    expect(Object.getPrototypeOf(defaults)).toBe(Object.prototype);
+    expect({...defaults}).toEqual({'x-a': '1'});
   });
 
   it('holds no server header: each adapter writes it at reply time', () => {
