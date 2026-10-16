@@ -11,7 +11,7 @@ import {expect, test, beforeAll, afterAll, describe, setDefaultTimeout} from 'bu
 import {createMionRouter, resetRouter} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
 import {HeadersSubset} from '@mionjs/core';
-import {setBunHttpOpts, resetBunHttpOpts, startBunServer} from '../src/bunHttp.ts';
+import {setBunHttpOpts, resetBunHttpOpts, startBunServer, bunRequestHandler} from '../src/bunHttp.ts';
 import {Server} from 'bun';
 
 setDefaultTimeout(30_000);
@@ -57,6 +57,14 @@ describe('bun response headers', () => {
         ctx.response.headers.delete('x-team');
         return 'ok';
       }),
+      dropServer: mion.route((ctx: CallContext): string => {
+        ctx.response.headers.delete('server');
+        return 'ok';
+      }),
+      readServer: mion.route((ctx: CallContext): string => {
+        ctx.response.headers.set('x-had-server', String(ctx.response.headers.has('server')));
+        return 'ok';
+      }),
     });
     setBunHttpOpts({port});
     server = (await startBunServer()) as Server<any>;
@@ -88,6 +96,19 @@ describe('bun response headers', () => {
       const response = await call('fails');
       expect(response.headers.get('x-rpc-error')).toBeTruthy();
       expect(response.headers.get('content-type')).toEqual('application/json; charset=utf-8');
+    });
+
+    test('a handler sees server before any write, and deleting it sends none', async () => {
+      expect((await call('readServer')).headers.get('x-had-server')).toEqual('true');
+      expect((await call('dropServer')).headers.get('server')).toBeNull();
+    });
+
+    test('a write on one untouched reply never reaches the next one', async () => {
+      const first = (await bunRequestHandler(new Request(`http://localhost/ping`))) as Response;
+      first.headers.set('x-leak', 'yes');
+      const second = (await bunRequestHandler(new Request(`http://localhost/ping`))) as Response;
+      expect(second.headers.get('x-leak')).toBeNull();
+      expect(second.headers.get('server')).toEqual('mionjs');
     });
 
     test('a handler can replace server but never content-type', async () => {
