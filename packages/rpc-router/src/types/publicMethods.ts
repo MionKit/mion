@@ -40,6 +40,14 @@ export interface PrivateMiddlewareDef extends MiddlewareDef {
 
 export type PrivateDef = PrivateMiddlewareDef | RawMiddlewareDef;
 
+/** Matches `isPublicExecutable`: private = raw, or no data returned and no fixed param after the context (a bare
+ *  rest param counts as none, as at runtime). Reads the params tuple: assignability lets an optional param through. */
+// prettier-ignore
+export type IsPrivateDef<T> =
+    T extends RawMiddlewareDef ? true
+    : T extends PrivateMiddlewareDef ? (Required<HandlerParams<T['handler']>> extends [any, ...any[]] ? false : true)
+    : false;
+
 // ####### Remote Methods Metadata #######
 
 /** Public routes & middleware; private and raw middleware are dropped.
@@ -47,7 +55,7 @@ export type PrivateDef = PrivateMiddlewareDef | RawMiddlewareDef;
  *  `initRoutes` returns at runtime and a client build reads off this type. */
 // prettier-ignore
 export type PublicApi<Type extends Routes> = Prettify<{
-    [Property in keyof Type as Type[Property] extends PrivateDef ? never : Property]
+    [Property in keyof Type as IsPrivateDef<Type[Property]> extends false ? Property : never]
     : Type[Property] extends {type: typeof HandlerType.route; handler: infer H extends Handler; options?: infer RO; routerOptions?: infer O}
     ? PublicRoute<PublicHandler<H>, ResolvedRouteOptions<RO, O>, HandlerMethodTypes<H, RO, O>>
     : Type[Property] extends {type: typeof HandlerType.headersMiddleware; handler: infer H extends HeaderHandler; options?: infer RO; routerOptions?: infer O}

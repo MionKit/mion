@@ -335,6 +335,12 @@ const routes = {
     processUser: route((ctx, user: User): string => `Processed: ${user.name} ${user.surname}`),
   },
 
+  // a void middleware whose only param is optional: public, so the client type must keep it
+  optionalTag: {
+    tag: middleware((_ctx, tag?: string): void => undefined),
+    echo: route((_ctx, message: string): string => message),
+  },
+
   // no params: the client gets these answers and declared errors with no onRequest hook
   paramless: {
     gate: middleware((ctx): void | FatalError<'gate-closed'> => {
