@@ -16,10 +16,13 @@ import {
   decodeQueryBody,
   setPlatformConfig,
   getResponseDefaults,
+  fetchResponseHeaders,
+  fetchReplyHeaders,
   MionResponse,
   readRequestBody,
   BodyReadStrategy,
 } from '@mionjs/router';
+import type {LazyResponseHeaders} from '@mionjs/router';
 import {DEFAULT_CLOUDFLARE_OPTIONS} from './constants.ts';
 import type {CloudflareHandlerOptions, CloudflareExecutionContext, CloudflarePlatformContext} from './types.ts';
 import {SerializerModes} from '@mionjs/core';
@@ -29,8 +32,6 @@ import {RpcError} from '@mionjs/core';
 // ############# PRIVATE STATE #############
 
 let cloudflareOptions: Readonly<CloudflareHandlerOptions> = {...DEFAULT_CLOUDFLARE_OPTIONS};
-/** A record, not a list of pairs: `new Headers()` APPENDS a repeated name instead of letting the later one win. */
-const SERVER_HEADER = {server: '@mionjs'};
 
 export function resetCloudflareHandlerOpts() {
   cloudflareOptions = {...DEFAULT_CLOUDFLARE_OPTIONS};
@@ -54,7 +55,7 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
     path = path.slice(cloudflareOptions.basePath.length) || '/';
   }
   const urlQuery = urlObj.search ? urlObj.search.slice(1) : undefined;
-  const responseHeaders = new Headers(getResponseDefaults(cloudflareOptions.defaultResponseHeaders, SERVER_HEADER));
+  const responseHeaders = fetchResponseHeaders(getResponseDefaults(cloudflareOptions.defaultResponseHeaders));
 
   const platformContext: CloudflarePlatformContext<Env> | undefined =
     env !== undefined || ctx !== undefined ? {env: env as Env, ctx: ctx as CloudflareExecutionContext} : undefined;
@@ -104,11 +105,12 @@ export function createCloudflareHandler<Env = unknown>(options?: Partial<Cloudfl
   };
 }
 
-function fatalFail(err: RpcError<string>, responseHeaders: any): Response {
+function fatalFail(err: RpcError<string>, responseHeaders: LazyResponseHeaders<Headers>): Response {
   const routeResponse = getRouterFatalErrorResponse(err, responseHeaders);
   return reply(routeResponse, responseHeaders);
 }
 
-function reply(mionResp: MionResponse, responseHeaders: any): Response {
-  return Response.json(mionResp.body, {status: mionResp.statusCode, headers: responseHeaders});
+function reply(mionResp: MionResponse, responseHeaders: LazyResponseHeaders<Headers>): Response {
+  const headers = fetchReplyHeaders(responseHeaders, mionResp.contentType);
+  return Response.json(mionResp.body, {status: mionResp.statusCode, headers});
 }

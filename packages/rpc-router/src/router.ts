@@ -140,14 +140,15 @@ export const getGlobalResponseHeaders = (): Readonly<Record<string, string>> => 
 /** The version mionFetchMetadata sends in `x-build-version`. */
 export const getBuildVersion = (): string | undefined => buildVersion;
 
-/** Merged once per `own`, so no request rebuilds it; `base` names are the adapter's own, a global may replace them. */
-export function getResponseDefaults(
-  own: Record<string, string>,
-  base?: Record<string, string>
-): Readonly<Record<string, string>> {
+/** Merged once per `own`, so no request rebuilds it; `own` (the adapter's) wins over the router's global headers. */
+export function getResponseDefaults(own: Record<string, string>): Readonly<Record<string, string>> {
   let merged = mergedResponseHeaders.get(own);
   if (!merged) {
-    merged = Object.freeze({...base, ...globalResponseHeaders, ...own});
+    // lowercased: `new Headers()` appends a repeated name in another case instead of letting the later one win
+    const record: Record<string, string> = Object.create(null);
+    for (const name in globalResponseHeaders) record[name.toLowerCase()] = globalResponseHeaders[name];
+    for (const name in own) record[name.toLowerCase()] = own[name];
+    merged = Object.freeze(record);
     mergedResponseHeaders.set(own, merged);
   }
   return merged;

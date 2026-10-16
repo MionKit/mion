@@ -5,10 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {MionHeaders, headersFromRecord} from '@mionjs/router';
+import {MionHeaders, headersFromRecord, LazyResponseHeaders, SERVER_HEADER_VALUE} from '@mionjs/router';
 import type {HttpRequest} from '@mionjs/bin-uws';
-
-const SET_COOKIE = 'set-cookie';
 
 /** uWS headers are readable only synchronously inside the handler, so snapshot them; uWS already lower-cases the names. */
 export function headersFromUwsRequest(req: HttpRequest): MionHeaders {
@@ -21,25 +19,20 @@ export function headersFromUwsRequest(req: HttpRequest): MionHeaders {
   return headersFromRecord(record, true);
 }
 
-/** uWS headers are write-only and must precede the body, so they are buffered and flushed in the corked reply. */
+/** uWS headers are write-only and must precede the body, so they are buffered lowercase-keyed and flushed in the corked reply. */
 class BufferedHeadersImpl implements MionHeaders {
-  /** Outside the class only `forEachHeader` reads it; null-prototype so `constructor` misses Object.prototype.
-   *  An array only for set-cookie: RFC 6265 forbids folding it. */
-  readonly record: Record<string, string | string[]> = Object.create(null);
+  /** Readable by `forEachHeader` below, which is the only thing in the module allowed to touch it. */
+  readonly record: Record<string, string> = {};
 
   append(name: string, value: string): void {
     const key = name.toLowerCase();
-    const current = this.record[key];
-    // an empty value counts as absent, as in the router's headers
-    if (!current) this.record[key] = value;
-    else if (Array.isArray(current)) current.push(value);
-    else this.record[key] = key === SET_COOKIE ? [current, value] : `${current}, ${value}`;
+    this.record[key] = this.record[key] === undefined ? value : `${this.record[key]}, ${value}`;
   }
   delete(name: string): void {
     delete this.record[name.toLowerCase()];
   }
   get(name: string): string | undefined | null {
-    return joined(this.record[name.toLowerCase()]);
+    return this.record[name.toLowerCase()];
   }
   has(name: string): boolean {
     return this.record[name.toLowerCase()] !== undefined;
@@ -48,39 +41,43 @@ class BufferedHeadersImpl implements MionHeaders {
     this.record[name.toLowerCase()] = value;
   }
   entries(): IterableIterator<[string, string]> {
-    return Object.entries(this.record)
-      .map(([name, value]): [string, string] => [name, joined(value) as string])
-      .values();
+    return Object.entries(this.record).values();
   }
   keys(): IterableIterator<string> {
     return Object.keys(this.record).values();
   }
   values(): IterableIterator<string> {
-    return Object.values(this.record)
-      .map((value) => joined(value) as string)
-      .values();
+    return Object.values(this.record).values();
   }
 }
 
-function joined(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value.join(', ') : value;
-}
-
-export function bufferedResponseHeaders(initialHeaders: Record<string, string> | null): MionHeaders {
+/** `server` first so a default of that name replaces it. */
+function newBufferedHeaders(defaults: Readonly<Record<string, string>>): BufferedHeadersImpl {
   const headers = new BufferedHeadersImpl();
-  // `for...in` keeps the write order, which matters because `server` is set AFTER the defaults and must stay unoverridable
-  if (initialHeaders) for (const name in initialHeaders) headers.set(name, initialHeaders[name]);
+  headers.record.server = SERVER_HEADER_VALUE;
+  for (const name in defaults) headers.record[name] = defaults[name];
   return headers;
 }
 
-/** No pair array per header, for the corked reply. `headers` is always the buffer `bufferedResponseHeaders` built:
- *  `entries()` would fold the cookies again. */
+export function bufferedResponseHeaders(defaults: Readonly<Record<string, string>>): LazyResponseHeaders<MionHeaders> {
+  return new LazyResponseHeaders(defaults, newBufferedHeaders);
+}
+
+/** Walks headers with no pair array per header, for the corked reply; falls back to `entries()` for any other MionHeaders. */
 export function forEachHeader(headers: MionHeaders, visit: (name: string, value: string) => void): void {
-  const record = (headers as BufferedHeadersImpl).record;
-  for (const name in record) {
-    const value = record[name];
-    // uWS writes a repeated name as its own line, so each cookie reaches the wire apart
-    if (typeof value === 'string') visit(name, value);
-    else for (let i = 0; i < value.length; i++) visit(name, value[i]);
+  if (headers instanceof LazyResponseHeaders) {
+    const written = headers.written;
+    if (written instanceof BufferedHeadersImpl) return forEachHeader(written, visit);
+    // nothing written: the store would hold exactly `server` and the defaults, so they are walked without building it
+    const defaults = headers.defaults;
+    if (defaults.server === undefined) visit('server', SERVER_HEADER_VALUE);
+    for (const name in defaults) visit(name, defaults[name]);
+    return;
   }
+  if (headers instanceof BufferedHeadersImpl) {
+    const record = headers.record;
+    for (const name in record) visit(name, record[name]);
+    return;
+  }
+  for (const [name, value] of headers.entries()) visit(name, value);
 }

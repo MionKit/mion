@@ -110,7 +110,7 @@ describe('vercel dev server (node) - stringifyJson', () => {
 
     expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
     expect(response.headers.get('content-type')).toEqual('application/json; charset=utf-8');
-    expect(response.headers.get('server')).toEqual('@mionjs');
+    expect(response.headers.get('server')).toEqual('mionjs');
   });
 
   it('should get an error when sending invalid parameters', async () => {
@@ -131,7 +131,7 @@ describe('vercel dev server (node) - stringifyJson', () => {
     };
     expect(parsedResponse[MION_ROUTES.thrownErrors]).toEqual({getDate: expectedError});
     expect(response.headers.get('content-type')).toEqual('application/json; charset=utf-8');
-    expect(response.headers.get('server')).toEqual('@mionjs');
+    expect(response.headers.get('server')).toEqual('mionjs');
   });
 
   it('should set response headers from route response', async () => {
@@ -177,7 +177,7 @@ describe('vercel dev server (node) - default encoder', () => {
 
     expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
     expect(response.headers.get('content-type')).toContain('application/json');
-    expect(response.headers.get('server')).toEqual('@mionjs');
+    expect(response.headers.get('server')).toEqual('mionjs');
   });
 
   it('should get an ok response from a route with complex objects', async () => {
@@ -191,6 +191,6 @@ describe('vercel dev server (node) - default encoder', () => {
 
     expect(parsedResponse).toEqual({changeUserName: {name: 'NewName', surname: 'Doe'}});
     expect(response.headers.get('content-type')).toContain('application/json');
-    expect(response.headers.get('server')).toEqual('@mionjs');
+    expect(response.headers.get('server')).toEqual('mionjs');
   });
 });
