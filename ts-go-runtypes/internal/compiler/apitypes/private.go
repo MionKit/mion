@@ -173,8 +173,8 @@ func (trimmer *trimmer) isPrivateDefinition(property *ast.Node, probe probedType
 	return trimmer.checker.IsTypeAssignableTo(propertyType, probe.rawDef) || !trimmer.handlerTakesParams(propertyType)
 }
 
-// handlerTakesParams: the handler declares a fixed param after the context (a bare rest param counts as none, as at
-// runtime). Assignability alone lets an optional one through.
+// handlerTakesParams mirrors HandlerParams: a fixed param after a required context (a bare rest param counts as none,
+// as at runtime; a tuple rest param counts its elements). Assignability alone lets an optional one through.
 func (trimmer *trimmer) handlerTakesParams(definition *checker.Type) bool {
 	handler := checker.Checker_getPropertyOfType(trimmer.checker, definition, "handler")
 	if handler == nil {
@@ -186,11 +186,24 @@ func (trimmer *trimmer) handlerTakesParams(definition *checker.Type) bool {
 	}
 	// Parameters<H> reads the last overload
 	signature := signatures[len(signatures)-1]
-	fixed := len(signature.Parameters())
+	parameters := signature.Parameters()
+	if len(parameters) > 0 && isOptionalParameter(parameters[0]) {
+		return false // HandlerParams reads [] when the context is optional
+	}
+	fixed := len(parameters)
 	if signature.HasRestParameter() {
 		fixed--
+		if rest := trimmer.checker.GetTypeOfSymbol(parameters[fixed]); rest != nil && rest.IsTupleType() {
+			fixed += rest.TargetTupleType().FixedLength()
+		}
 	}
 	return fixed > 1
+}
+
+func isOptionalParameter(parameter *ast.Symbol) bool {
+	declaration := parameter.ValueDeclaration
+	return declaration != nil && declaration.Kind == ast.KindParameter &&
+		(ast.HasQuestionToken(declaration) || declaration.AsParameterDeclaration().Initializer != nil)
 }
 
 // probedTypes are the router's types the probe file declares.
