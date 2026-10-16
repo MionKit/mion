@@ -16,10 +16,13 @@ import {
   decodeQueryBody,
   setPlatformConfig,
   getResponseDefaults,
+  fetchResponseHeaders,
+  fetchReplyHeaders,
   MionResponse,
   readRequestBody,
   BodyReadStrategy,
 } from '@mionjs/router';
+import type {LazyResponseHeaders} from '@mionjs/router';
 import {DEFAULT_VERCEL_OPTIONS} from './constants.ts';
 import type {VercelHandlerOptions} from './types.ts';
 import {SerializerModes} from '@mionjs/core';
@@ -29,8 +32,6 @@ import {RpcError} from '@mionjs/core';
 // ############# PRIVATE STATE #############
 
 let vercelOptions: Readonly<VercelHandlerOptions> = {...DEFAULT_VERCEL_OPTIONS};
-/** A record, not a list of pairs: `new Headers()` APPENDS a repeated name instead of letting the later one win. */
-const SERVER_HEADER = {server: '@mionjs'};
 
 export function resetVercelHandlerOpts() {
   vercelOptions = {...DEFAULT_VERCEL_OPTIONS};
@@ -51,7 +52,7 @@ async function handleRequest(req: Request): Promise<Response> {
   const urlObj = new URL(reqUrl);
   const path = urlObj.pathname;
   const urlQuery = urlObj.search ? urlObj.search.slice(1) : undefined;
-  const responseHeaders = new Headers(getResponseDefaults(vercelOptions.defaultResponseHeaders, SERVER_HEADER));
+  const responseHeaders = fetchResponseHeaders(getResponseDefaults(vercelOptions.defaultResponseHeaders));
 
   // read as TEXT: `req.json()` would throw a raw SyntaxError outside any mion envelope, and the limit needs the size first
   try {
@@ -103,11 +104,12 @@ export function createVercelHandler(options?: Partial<VercelHandlerOptions>) {
   };
 }
 
-function fatalFail(err: RpcError<string>, responseHeaders: any): Response {
+function fatalFail(err: RpcError<string>, responseHeaders: LazyResponseHeaders<Headers>): Response {
   const routeResponse = getRouterFatalErrorResponse(err, responseHeaders);
   return reply(routeResponse, responseHeaders);
 }
 
-function reply(mionResp: MionResponse, responseHeaders: any): Response {
-  return Response.json(mionResp.body, {status: mionResp.statusCode, headers: responseHeaders});
+function reply(mionResp: MionResponse, responseHeaders: LazyResponseHeaders<Headers>): Response {
+  const headers = fetchReplyHeaders(responseHeaders, mionResp.contentType);
+  return Response.json(mionResp.body, {status: mionResp.statusCode, headers});
 }

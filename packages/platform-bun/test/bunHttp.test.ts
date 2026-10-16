@@ -84,7 +84,7 @@ describe('bun router should', () => {
     expect(reply).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
     expect(headers['content-type']).toEqual('application/json; charset=utf-8');
     expect(headers['content-length']).toEqual('47');
-    expect(headers['server']).toEqual('@mionjs');
+    expect(headers['server']).toEqual('mionjs');
   });
 
   test('get an error when sending invalid parameters', async () => {
@@ -107,7 +107,7 @@ describe('bun router should', () => {
     expect(reply[MION_ROUTES.thrownErrors]).toEqual({getDate: expectedError});
     expect(headers['content-type']).toEqual('application/json; charset=utf-8');
     expect(headers['content-length']).toEqual(expect.any(String));
-    expect(headers['server']).toEqual('@mionjs');
+    expect(headers['server']).toEqual('mionjs');
   });
 
   test('set response headers from route response', async () => {
@@ -131,7 +131,7 @@ describe('bun router should', () => {
     const reply = await response.json();
     expect(reply).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
     expect(response.headers.get('content-type')).toEqual('application/json; charset=utf-8');
-    expect(response.headers.get('server')).toEqual('@mionjs');
+    expect(response.headers.get('server')).toEqual('mionjs');
   });
 
   test('a GET with the body in the query still reaches the route', async () => {
@@ -248,7 +248,7 @@ describe('bun router should', () => {
 
     expect(reply).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
     expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-    expect(headers['server']).toEqual('@mionjs');
+    expect(headers['server']).toEqual('mionjs');
 
     void testServer.stop(true);
 
@@ -279,7 +279,7 @@ describe('bun router should', () => {
 
     expect(reply).toEqual({changeUserName: {name: 'NewName', surname: 'Doe'}});
     expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-    expect(headers['server']).toEqual('@mionjs');
+    expect(headers['server']).toEqual('mionjs');
 
     void testServer.stop(true);
 

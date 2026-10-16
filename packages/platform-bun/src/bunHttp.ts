@@ -21,8 +21,10 @@ import {
   readRequestBody,
   BodyReadStrategy,
   handOverToHost,
+  fetchResponseHeaders,
+  fetchReplyHeaders,
 } from '@mionjs/router';
-import type {MethodsExecutionChain} from '@mionjs/router';
+import type {MethodsExecutionChain, LazyResponseHeaders} from '@mionjs/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants.ts';
 import type {BunHttpOptions} from './types.ts';
 import {getENV, SerializerModes} from '@mionjs/core';
@@ -33,8 +35,6 @@ import {Server} from 'bun';
 // ############# PRIVATE STATE #############
 
 let httpOptions: Readonly<BunHttpOptions> = {...DEFAULT_BUN_HTTP_OPTIONS};
-/** A record, not a list of pairs: `new Headers()` APPENDS a repeated name instead of letting the later one win. */
-const SERVER_HEADER = {server: '@mionjs'};
 
 export function resetBunHttpOpts() {
   httpOptions = {...DEFAULT_BUN_HTTP_OPTIONS};
@@ -57,7 +57,7 @@ export function bunRequestHandler(req: Request): Response | Promise<Response> {
   const queryStart = reqUrl.indexOf('?', pathStart);
   const path = queryStart === -1 ? reqUrl.slice(pathStart) : reqUrl.slice(pathStart, queryStart);
   const urlQuery = queryStart === -1 ? undefined : reqUrl.slice(queryStart + 1);
-  const responseHeaders = new Headers(getResponseDefaults(httpOptions.defaultResponseHeaders, SERVER_HEADER));
+  const responseHeaders = fetchResponseHeaders(getResponseDefaults(httpOptions.defaultResponseHeaders));
 
   try {
     // route resolved BEFORE the body: the chain gives the limit bun's native read stops at, and a late context stays GC-cheap
@@ -75,7 +75,7 @@ async function readBodyAndDispatch(
   chain: MethodsExecutionChain,
   path: string,
   urlQuery: string | undefined,
-  responseHeaders: Headers
+  responseHeaders: LazyResponseHeaders<Headers>
 ): Promise<Response> {
   // read as TEXT: `req.json()` would throw a raw SyntaxError outside any mion envelope, and the limit needs the size first
   try {
@@ -102,7 +102,7 @@ function dispatchBody(
   chain: MethodsExecutionChain,
   path: string,
   urlQuery: string | undefined,
-  responseHeaders: Headers,
+  responseHeaders: LazyResponseHeaders<Headers>,
   rawBody: string | undefined
 ): Response | Promise<Response> {
   let reqRawBody: string | undefined = rawBody;
@@ -120,7 +120,7 @@ function dispatchBody(
 
 /** Bun's connection-level error hook (never a route error — those are handled in the dispatch). */
 function bunErrorHandler(errReq: Error): Response {
-  const responseHeaders = new Headers(getResponseDefaults(httpOptions.defaultResponseHeaders, SERVER_HEADER));
+  const responseHeaders = fetchResponseHeaders(getResponseDefaults(httpOptions.defaultResponseHeaders));
   const error =
     errReq instanceof RpcError
       ? errReq
@@ -186,15 +186,12 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
 }
 
 // only called when there is an http error or weird unhandled route errors
-function fatalFail(err: RpcError<string>, responseHeaders: any): Response {
+function fatalFail(err: RpcError<string>, responseHeaders: LazyResponseHeaders<Headers>): Response {
   const routeResponse = getRouterFatalErrorResponse(err, responseHeaders);
   return reply(routeResponse, responseHeaders);
 }
 
-function reply(
-  mionResp: MionResponse,
-  // any: Bun's native Headers type clashes with Node's
-  responseHeaders: any
-): Response {
-  return Response.json(mionResp.body, {status: mionResp.statusCode, headers: responseHeaders});
+function reply(mionResp: MionResponse, responseHeaders: LazyResponseHeaders<Headers>): Response {
+  const headers = fetchReplyHeaders(responseHeaders, mionResp.contentType);
+  return Response.json(mionResp.body, {status: mionResp.statusCode, headers});
 }

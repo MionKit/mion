@@ -16,8 +16,10 @@ import {
   decodeQueryBody,
   setPlatformConfig,
   getResponseDefaults,
+  LazyResponseHeaders,
+  SERVER_HEADER_VALUE,
 } from '@mionjs/router';
-import type {MionResponse} from '@mionjs/router';
+import type {MionResponse, MionHeaders} from '@mionjs/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 import {DEFAULT_AWS_LAMBDA_OPTIONS} from './constants.ts';
 import {AwsLambdaOptions} from '../index.ts';
@@ -25,8 +27,6 @@ import {AwsLambdaOptions} from '../index.ts';
 // ############# STATE #############
 
 let lambdaOptions: Readonly<AwsLambdaOptions> = {...DEFAULT_AWS_LAMBDA_OPTIONS};
-/** A record, not pairs: `new Headers()` appends a repeated name instead of letting the later one win. */
-const SERVER_HEADER = {server: '@mionjs'};
 
 // ############# PUBLIC METHODS #############
 
@@ -52,8 +52,7 @@ export function createAwsLambdaHandler(options?: Partial<AwsLambdaOptions>) {
 export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> {
   let rawBody: any = decodeEventBody(rawRequest);
   const reqHeaders = headersFromRecord(rawRequest.headers as Record<string, string>);
-  // Node's own Headers, like bun: it keeps each set-cookie apart for multiValueHeaders
-  const respHeaders = new Headers(getResponseDefaults(lambdaOptions.defaultResponseHeaders, SERVER_HEADER));
+  const respHeaders = new LazyResponseHeaders(getResponseDefaults(lambdaOptions.defaultResponseHeaders), newRecordHeaders);
   // AWS Lambda always receives body as string (JSON)
   let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
   const urlQuery = buildQueryString(rawRequest.queryStringParameters);
@@ -102,14 +101,28 @@ function buildQueryString(params: APIGatewayEvent['queryStringParameters']): str
   return query;
 }
 
-function reply(routeResponse: MionResponse, headers: Headers): APIGatewayProxyResult {
-  // AWS sets content-length itself, unlike node
-  const singleHeaders: Record<string, string> = {};
-  // RFC 6265 forbids folding set-cookie: it goes out through multiValueHeaders below
-  for (const [name, value] of headers) if (name !== 'set-cookie') singleHeaders[name] = value;
+/** `server` first so a default of that name replaces it. */
+function newRecordHeaders(defaults: Readonly<Record<string, string>>): MionHeaders {
+  return headersFromRecord({server: SERVER_HEADER_VALUE, ...defaults}, true);
+}
+
+function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayProxyResult {
+  // AWS sets content-length itself, unlike node; with nothing written, `entries()` walks the defaults alone
+  const singleHeaders: Record<string, string> = {server: SERVER_HEADER_VALUE};
+  const multiHeaders: Record<string, string[]> = {};
+  let multiHeaderCount = 0;
+  // not Array.from: it would copy the Map into a second array
+  for (const [name, value] of headers.entries()) {
+    if (Array.isArray(value)) {
+      multiHeaders[name] = value;
+      multiHeaderCount++;
+      continue;
+    }
+    singleHeaders[name] = value;
+  }
 
   const responseBody = JSON.stringify(routeResponse.body);
-  singleHeaders['content-type'] = 'application/json; charset=utf-8';
+  singleHeaders['content-type'] = routeResponse.contentType;
 
   // the body is always text, so `isBase64Encoded` keeps its default (false)
   const resp: APIGatewayProxyResult = {
@@ -117,7 +130,6 @@ function reply(routeResponse: MionResponse, headers: Headers): APIGatewayProxyRe
     headers: singleHeaders,
     body: responseBody,
   };
-  const cookies = headers.getSetCookie();
-  if (cookies.length) resp.multiValueHeaders = {'set-cookie': cookies};
+  if (multiHeaderCount) resp.multiValueHeaders = multiHeaders;
   return resp;
 }

@@ -100,7 +100,7 @@ describe('serverless router', () => {
       expect(headers['connection']).toEqual('keep-alive');
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
       expect(headers['content-length']).toEqual('47');
-      expect(headers['server']).toEqual('@mionjs');
+      expect(headers['server']).toEqual('mionjs');
     });
 
     it('keeps the whole query string, including a second ? inside it', async () => {
@@ -149,7 +149,7 @@ describe('serverless router', () => {
       expect(headers['connection']).toEqual('keep-alive');
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
       expect(headers['content-length']).toEqual('47');
-      expect(headers['server']).toEqual('@mionjs');
+      expect(headers['server']).toEqual('mionjs');
     });
 
     it('get an error when sending invalid parameters', async () => {
@@ -172,7 +172,7 @@ describe('serverless router', () => {
       expect(headers['connection']).toEqual('keep-alive');
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
       expect(headers['content-length']).toEqual(expect.any(String));
-      expect(headers['server']).toEqual('@mionjs');
+      expect(headers['server']).toEqual('mionjs');
     });
 
     it('set response headers from route response', async () => {
@@ -223,7 +223,7 @@ describe('serverless router', () => {
         expect(headers['connection']).toEqual('keep-alive');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
         expect(headers['content-length']).toEqual('47');
-        expect(headers['server']).toEqual('@mionjs');
+        expect(headers['server']).toEqual('mionjs');
       } catch (e) {
         err = e;
       }
@@ -274,7 +274,7 @@ describe('serverless router', () => {
       expect(headers['connection']).toEqual('keep-alive');
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
       expect(headers['content-length']).toEqual('47');
-      expect(headers['server']).toEqual('@mionjs');
+      expect(headers['server']).toEqual('mionjs');
     });
 
     it('get an ok response from a route with complex objects (body type O)', async () => {
@@ -290,7 +290,7 @@ describe('serverless router', () => {
       expect(reply).toEqual({changeUserName: {name: 'NewName', surname: 'Doe'}});
       expect(headers['connection']).toEqual('keep-alive');
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-      expect(headers['server']).toEqual('@mionjs');
+      expect(headers['server']).toEqual('mionjs');
     });
   });
 

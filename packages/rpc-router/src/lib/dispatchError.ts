@@ -1,4 +1,5 @@
 import {RpcError, FatalError, MION_ROUTES, Mutable, StatusCodes, markFatal} from '@mionjs/core';
+import {JSON_CONTENT_TYPE} from '../constants.ts';
 import type {CallContext, MionHeaders, MionRequest, MionResponse, ResponseBody} from '../types/context.ts';
 
 /** The response for an error raised outside the router by any adapter; it goes in `@thrownErrors` like a route error. */
@@ -9,10 +10,10 @@ export function getRouterFatalErrorResponse(returnErr: RpcError<string>, respHea
   const body: ResponseBody = {
     '@thrownErrors': {[MION_ROUTES.platformError]: returnErr},
   };
-  respHeaders.set('content-type', 'application/json; charset=utf-8');
   respHeaders.set('x-rpc-error', errorHeaderValue(returnErr.type));
   const response: Mutable<MionResponse> = {
     statusCode: returnErr.statusCode || StatusCodes.SERVER_ERROR, // Global errors are always unexpected
+    contentType: JSON_CONTENT_TYPE,
     hasErrors: true,
     fatalError: returnErr,
     headers: respHeaders,
