@@ -19,7 +19,7 @@ import {
   LazyResponseHeaders,
   SERVER_HEADER_VALUE,
 } from '@mionjs/router';
-import type {MionResponse, MionHeaders} from '@mionjs/router';
+import type {MionResponse, MionHeaders, ResponseDefaults} from '@mionjs/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 import {DEFAULT_AWS_LAMBDA_OPTIONS} from './constants.ts';
 import {AwsLambdaOptions} from '../index.ts';
@@ -102,13 +102,13 @@ function buildQueryString(params: APIGatewayEvent['queryStringParameters']): str
 }
 
 /** `server` first so a default of that name replaces it. */
-function newRecordHeaders(defaults: Readonly<Record<string, string>>): MionHeaders {
+function newRecordHeaders(defaults: ResponseDefaults): MionHeaders {
   return headersFromRecord({server: SERVER_HEADER_VALUE, ...defaults}, true);
 }
 
 function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayProxyResult {
-  // AWS sets content-length itself, unlike node; with nothing written, `entries()` walks the defaults alone
-  const singleHeaders: Record<string, string> = {server: SERVER_HEADER_VALUE};
+  // AWS sets content-length itself, unlike node; `entries()` holds `server` too, unless a handler deleted it
+  const singleHeaders: Record<string, string> = {};
   const multiHeaders: Record<string, string[]> = {};
   let multiHeaderCount = 0;
   // not Array.from: it would copy the Map into a second array

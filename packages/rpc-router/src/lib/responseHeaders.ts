@@ -5,20 +5,19 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {MionHeaders} from '../types/context.ts';
+import type {MionHeaders, ResponseDefaults} from '../types/context.ts';
 import {JSON_CONTENT_TYPE, SERVER_HEADER_VALUE} from '../constants.ts';
 
-type Defaults = Readonly<Record<string, string>>;
-
 /** The response headers a handler sees: nothing is built until the first write, which creates the adapter's own
- *  store seeded with `defaults` (lowercased, from getResponseDefaults). The adapter's reply reads `written`. */
+ *  store seeded with `server` and then `defaults` (lowercased, from getResponseDefaults). Until then reads see
+ *  that same content. The adapter's reply reads `written`. */
 export class LazyResponseHeaders<Store extends MionHeaders> implements MionHeaders {
   private store: Store | undefined = undefined;
 
   constructor(
-    readonly defaults: Defaults,
+    readonly defaults: ResponseDefaults,
     // a module-level function, never a closure per request
-    private readonly createStore: (defaults: Defaults) => Store
+    private readonly createStore: (defaults: ResponseDefaults) => Store
   ) {}
 
   /** The store once anything was written; undefined means the reply sends `defaults` alone. */
@@ -48,24 +47,31 @@ export class LazyResponseHeaders<Store extends MionHeaders> implements MionHeade
     return this.store ? this.store.has(name) : readDefault(this.defaults, name) !== undefined;
   }
   entries(): IterableIterator<[string, string]> {
-    return this.store ? this.store.entries() : Object.entries(this.defaults).values();
+    return this.store ? this.store.entries() : Object.entries(untouchedHeaders(this.defaults)).values();
   }
   keys(): IterableIterator<string> {
-    return this.store ? this.store.keys() : Object.keys(this.defaults).values();
+    return this.store ? this.store.keys() : Object.keys(untouchedHeaders(this.defaults)).values();
   }
   values(): IterableIterator<string> {
-    return this.store ? this.store.values() : Object.values(this.defaults).values();
+    return this.store ? this.store.values() : Object.values(untouchedHeaders(this.defaults)).values();
   }
 }
 
 /** A string check, not undefined: a `constructor` name would otherwise find Object.prototype's function. */
-function readDefault(defaults: Defaults, name: string): string | undefined {
-  const value = defaults[name.toLowerCase()] as unknown;
-  return typeof value === 'string' ? value : undefined;
+function readDefault(defaults: ResponseDefaults, name: string): string | undefined {
+  const lowerName = name.toLowerCase();
+  const value = defaults[lowerName] as unknown;
+  if (typeof value === 'string') return value;
+  return lowerName === 'server' ? SERVER_HEADER_VALUE : undefined;
+}
+
+/** What a store would hold before any write: `server`, unless a default replaces it, then the defaults. */
+function untouchedHeaders(defaults: ResponseDefaults): ResponseDefaults {
+  return defaults.server === undefined ? {server: SERVER_HEADER_VALUE, ...defaults} : defaults;
 }
 
 /** True when the defaults record holds no header, so an untouched reply needs nothing from it. */
-export function hasNoHeaders(defaults: Defaults): boolean {
+function hasNoHeaders(defaults: ResponseDefaults): boolean {
   for (const _name in defaults) return false;
   return true;
 }
@@ -73,14 +79,14 @@ export function hasNoHeaders(defaults: Defaults): boolean {
 // ############# FETCH ADAPTERS (bun, cloudflare, vercel) #############
 
 /** `server` first so a default of that name replaces it; `new Headers()` plus sets beats building from a record. */
-function newFetchHeaders(defaults: Defaults): Headers {
+function newFetchHeaders(defaults: ResponseDefaults): Headers {
   const headers = new Headers();
   headers.set('server', SERVER_HEADER_VALUE);
   for (const name in defaults) headers.set(name, defaults[name]);
   return headers;
 }
 
-export function fetchResponseHeaders(defaults: Defaults): LazyResponseHeaders<Headers> {
+export function fetchResponseHeaders(defaults: ResponseDefaults): LazyResponseHeaders<Headers> {
   return new LazyResponseHeaders(defaults, newFetchHeaders);
 }
 
