@@ -35,11 +35,11 @@
             {
               "step": 5,
               "label": "initClient",
-              "delta": 3093,
+              "delta": 3127,
               "budget": 3179
             }
           ],
-          "total": 6108
+          "total": 6142
         },
         {
           "name": "type-only",
@@ -71,11 +71,11 @@
             {
               "step": 5,
               "label": "initClient",
-              "delta": 2999,
+              "delta": 3033,
               "budget": 3106
             }
           ],
-          "total": 4186
+          "total": 4220
         },
         {
           "name": "builder",
@@ -107,11 +107,11 @@
             {
               "step": 5,
               "label": "initClient",
-              "delta": 3243,
+              "delta": 3277,
               "budget": 3346
             }
           ],
-          "total": 4931
+          "total": 4965
         }
       ]
     },
@@ -148,11 +148,11 @@
             {
               "step": 5,
               "label": "initClient",
-              "delta": 3093,
+              "delta": 3127,
               "budget": 3179
             }
           ],
-          "total": 6124
+          "total": 6158
         },
         {
           "name": "type-only",
@@ -184,11 +184,11 @@
             {
               "step": 5,
               "label": "initClient",
-              "delta": 2999,
+              "delta": 3033,
               "budget": 3106
             }
           ],
-          "total": 4186
+          "total": 4220
         },
         {
           "name": "builder",
@@ -220,11 +220,11 @@
             {
               "step": 5,
               "label": "initClient",
-              "delta": 3243,
+              "delta": 3277,
               "budget": 3346
             }
           ],
-          "total": 4931
+          "total": 4965
         }
       ]
     },
@@ -261,11 +261,11 @@
             {
               "step": 5,
               "label": "initClient",
-              "delta": 3093,
+              "delta": 3127,
               "budget": 3179
             }
           ],
-          "total": 6123
+          "total": 6157
         },
         {
           "name": "type-only",
@@ -297,11 +297,11 @@
             {
               "step": 5,
               "label": "initClient",
-              "delta": 2999,
+              "delta": 3033,
               "budget": 3106
             }
           ],
-          "total": 4181
+          "total": 4215
         },
         {
           "name": "builder",
@@ -333,11 +333,11 @@
             {
               "step": 5,
               "label": "initClient",
-              "delta": 3243,
+              "delta": 3277,
               "budget": 3346
             }
           ],
-          "total": 4922
+          "total": 4956
         }
       ]
     }
