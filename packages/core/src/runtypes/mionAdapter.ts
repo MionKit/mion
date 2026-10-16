@@ -259,7 +259,7 @@ export function resolveInjectedRunType(idHandle: unknown): RunType<unknown> {
 
 // ############# param arity (from the params tuple runtype) #############
 
-/** Arity comes from the params tuple runtype (HandlerParams<H> / HeaderHandlerParams<H> are always tuples),
+/** Arity comes from the params tuple runtype (HandlerParams<H> / HeaderHandlerParams<H> are tuples, an array for a bare rest param),
  *  which is build-time-known and transpile-stable. The client gates pre-validation and param serialization on arity > 0. */
 export function getParamCountFromRunType(paramsRunType: RunType<unknown>): number {
   return getParamsFromRunType(paramsRunType).length;
@@ -270,6 +270,8 @@ export function getParamCountFromRunType(paramsRunType: RunType<unknown>): numbe
  *  `name` is undefined for an unlabelled member (`[string, number]` rather than `[pet: Pet, notes?: string]`). */
 export function getParamsFromRunType(paramsRunType: RunType<unknown>): {name?: string; optional?: boolean}[] {
   const root = paramsRunType as RtNodeLike;
+  // a bare rest param `(ctx, ...ids: number[])` is an array, not a tuple: one slot, which may be empty
+  if (root.kind === RunTypeKind.array) return [{optional: true}];
   if (root.kind !== RunTypeKind.tuple) return [];
   return (root.children ?? []).map((child) => {
     const member = child as {name?: unknown; optional?: unknown};

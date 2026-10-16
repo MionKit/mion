@@ -998,6 +998,21 @@ describe('client', () => {
       expect((scopedCalls[0].init.headers as Record<string, string>).Authorization).toBe('XWYZ-TOKEN');
     });
 
+    it('sends the args of a bare rest param, for a route and for a middleware', async () => {
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
+      middlewares.auth.onRequest((auth) => auth(createAuthHeaders('XWYZ-TOKEN')));
+      middlewares.optionalTag.restTags.onRequest((restTags) => restTags('a', 'b'));
+      const calls = await spyOnFetch(async () => {
+        const [count, error, clientResponse] = await routes.optionalTag.countIds(1, 2, 3).call();
+        expect(error).toBeUndefined();
+        expect(clientResponse['@thrownErrors']).toBeUndefined();
+        expect(count).toBe(3);
+      });
+      const sent = calls.at(-1)!.body;
+      expect(sent['optionalTag/countIds']).toEqual([1, 2, 3]);
+      expect(sent['optionalTag/restTags']).toEqual(['a', 'b']);
+    });
+
     it('isMiddlewareInScope: a middleware covers its own group and the groups nested in it', () => {
       expect(isMiddlewareInScope(['auth'], ['sayHello'])).toBe(true);
       expect(isMiddlewareInScope(['auth'], ['utils', 'sumTwo'])).toBe(true);
