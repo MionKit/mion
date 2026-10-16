@@ -6,6 +6,7 @@
  * ######## */
 
 import {MionHeaders, headersFromRecord, LazyResponseHeaders, SERVER_HEADER_VALUE} from '@mionjs/router';
+import type {ResponseDefaults} from '@mionjs/router';
 import type {HttpRequest} from '@mionjs/bin-uws';
 
 /** uWS headers are readable only synchronously inside the handler, so snapshot them; uWS already lower-cases the names. */
@@ -52,14 +53,14 @@ class BufferedHeadersImpl implements MionHeaders {
 }
 
 /** `server` first so a default of that name replaces it. */
-function newBufferedHeaders(defaults: Readonly<Record<string, string>>): BufferedHeadersImpl {
+function newBufferedHeaders(defaults: ResponseDefaults): BufferedHeadersImpl {
   const headers = new BufferedHeadersImpl();
   headers.record.server = SERVER_HEADER_VALUE;
   for (const name in defaults) headers.record[name] = defaults[name];
   return headers;
 }
 
-export function bufferedResponseHeaders(defaults: Readonly<Record<string, string>>): LazyResponseHeaders<MionHeaders> {
+export function bufferedResponseHeaders(defaults: ResponseDefaults): LazyResponseHeaders<MionHeaders> {
   return new LazyResponseHeaders(defaults, newBufferedHeaders);
 }
 
