@@ -29,7 +29,7 @@ describe('the api version a bundled client compares', () => {
   });
 
   // The client and the test server are built separately, so this passing means two builds of one API hash alike.
-  // The test server places mionFetchMetadata at its root: that middleware is what sends the header.
+  // The header comes from mionFetchMetadata at the test server's root.
   it('is the one the server was built from', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
     useAuth(middlewares);

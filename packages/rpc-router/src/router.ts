@@ -106,7 +106,7 @@ let platformConfig: Record<string, unknown> | undefined;
 let globalResponseHeaders: Readonly<Record<string, string>> = Object.freeze({});
 /** One merge per adapter defaults object, emptied whenever globalResponseHeaders is replaced. */
 let mergedResponseHeaders = new WeakMap<object, Readonly<Record<string, string>>>();
-/** Sent by mionFetchMetadata; undefined when `apiVersionCheck` is off or the build gave no version. */
+/** Sent by mionFetchMetadata; unset with `apiVersionCheck` off, a pinned header or no build version. */
 let buildVersion: string | undefined;
 /** The adapter's `maxBodySize` under its `maxBodySizeCap`, settled by setPlatformConfig (the default with no adapter). */
 let platformMaxBodySize = DEFAULT_MAX_BODY_SIZE;
@@ -137,7 +137,7 @@ export const getComplexity = () => complexity;
 export const getRouterOptions = <Opts extends RouterOptions>(): Readonly<Opts> => routerOptions as Opts;
 /** The headers every response starts with. Adapters read it through getResponseDefaults. */
 export const getGlobalResponseHeaders = (): Readonly<Record<string, string>> => globalResponseHeaders;
-/** The API version the `x-build-version` header carries, unset when `apiVersionCheck` is off. */
+/** The version mionFetchMetadata sends in `x-build-version`. */
 export const getBuildVersion = (): string | undefined => buildVersion;
 
 /** Merged once per `own`, so no request rebuilds it; `base` names are the adapter's own, a global may replace them. */
@@ -261,7 +261,7 @@ export function createMionRouter<const O extends RouterOptionsInput = RouterOpti
 function initRouter(opts: RouterOptionsInput, version?: string): void {
   if (isRouterInitialized) throw new Error('Router has already been initialized');
   routerOptions = {...routerOptions, ...opts};
-  // a version pinned in globalResponseHeaders already rides every response, so the middleware leaves it alone
+  // a pinned version already rides every response, so the middleware adds none
   const isPinned = Object.keys(routerOptions.globalResponseHeaders).some((name) => name.toLowerCase() === BUILD_VERSION_HEADER);
   buildVersion = (routerOptions.apiVersionCheck && !isPinned && version) || undefined;
   globalResponseHeaders = Object.freeze({...routerOptions.globalResponseHeaders});
