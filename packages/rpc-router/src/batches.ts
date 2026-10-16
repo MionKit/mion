@@ -290,9 +290,10 @@ function insertMappingMethods(entry: BatchEntry, middleMethods: RemoteMethod[]):
     }
 
     // paramIndex is a non-negative integer (registerBatches); the UPPER bound needs the target's
-    // arity, only known here. A mapping can never write past the params the route declares.
-    const targetParamsCount = middleMethods[toIndex].paramsCount ?? 0;
-    if (mapping.paramIndex >= targetParamsCount) {
+    // arity, only known here. A mapping can never write past the params the route declares, unless a rest param takes them.
+    const target = middleMethods[toIndex];
+    const targetParamsCount = target.paramsCount ?? 0;
+    if (mapping.paramIndex >= targetParamsCount && !target.paramsRest) {
       throw new FatalError({
         statusCode: StatusCodes.UNEXPECTED_ERROR,
         type: 'batch-mapping-invalid-param-index',

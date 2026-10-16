@@ -933,6 +933,34 @@ describe('batches', () => {
       });
     });
 
+    it('a rest param takes a mapping at any position from its own on', async () => {
+      resetRouter();
+      const restMion = createMionRouter();
+      restMion.initRoutes({
+        source,
+        restIds: restMion.route((ctx, ...ids: number[]): number[] => ids),
+        firstAndRest: restMion.route((ctx, first: number, ...ids: number[]): number[] => [first, ...ids]),
+      });
+      registerMapper(`${MAPPER}toRestId`, 'return (value) => value.id;');
+      registerBatches({
+        bareRest: {
+          routes: ['source', 'restIds'],
+          mappings: [{fromId: 'source', toId: 'restIds', mapperKey: `${MAPPER}toRestId`, paramIndex: 1}],
+        },
+        tupleRest: {
+          routes: ['source', 'firstAndRest'],
+          mappings: [{fromId: 'source', toId: 'firstAndRest', mapperKey: `${MAPPER}toRestId`, paramIndex: 2}],
+        },
+      });
+
+      const bare = await dispatchBatch(getDefaultRequest({source: [], restIds: [1]}), 'id=bareRest');
+      expect(bare.hasErrors).toBe(false);
+      expect(bare.body.restIds).toEqual([1, 7]);
+      const tuple = await dispatchBatch(getDefaultRequest({source: [], firstAndRest: [1, 2]}), 'id=tupleRest');
+      expect(tuple.hasErrors).toBe(false);
+      expect(tuple.body.firstAndRest).toEqual([1, 2, 7]);
+    });
+
     // A mapping may name a route of the batch (registration checks that) which the server maps
     // away from the merged chain, e.g. a pathTransform that folds two routes into one: the
     // mapping source or target is then missing from the chain and the batch is refused.

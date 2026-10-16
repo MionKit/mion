@@ -100,12 +100,15 @@ describe('Public Methods should', () => {
   it('keep a void middleware taking only optional or rest params public, in the API type as at runtime', async () => {
     const optional = mion.middleware((ctx, tag?: string): void => undefined);
     const rest = mion.middleware((ctx, ...tags: string[]): void => undefined);
-    const defs = {optional, rest, priv: privateMiddleware, plain: route1};
+    const either = mion.middleware((ctx, ...args: [tag: string] | [count: number]): void => undefined);
+    const defs = {optional, rest, either, priv: privateMiddleware, plain: route1};
     const api = mion.initRoutes(defs);
-    expectTypeOf<keyof PublicApi<typeof defs>>().toEqualTypeOf<'optional' | 'rest' | 'plain'>();
+    expectTypeOf<keyof PublicApi<typeof defs>>().toEqualTypeOf<'optional' | 'rest' | 'either' | 'plain'>();
     expect(api.optional).toEqual(expect.objectContaining({id: 'optional', paramsCount: 1}));
     // a bare rest param is one unlabelled slot
     expect(api.rest).toEqual(expect.objectContaining({id: 'rest', paramsCount: 1, paramNames: ['']}));
+    // a union of tuples is no single tuple: one slot too
+    expect(api.either).toEqual(expect.objectContaining({id: 'either', paramsCount: 1}));
     expect((api as Record<string, unknown>).priv).toBeNull();
   });
 

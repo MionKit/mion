@@ -25,6 +25,8 @@ export interface MethodMetadata {
    *  reflection, never from parsing handler.toString(), so they survive minification. Rides the client
    *  methods-metadata payload so a client can name the parameter that failed. */
   paramNames?: string[];
+  /** the last param is a rest param: it takes any number of values from its position on */
+  paramsRest?: boolean;
   /** JIT hash of the method parameters */
   paramsJitHash: string;
   /**  JIT  hash of the method return value */
