@@ -37,7 +37,8 @@ describe('vercel global response headers', () => {
     });
     const response = await handler.POST(req);
     expect(response.headers.get('x-team')).toEqual('mion');
-    expect(response.headers.get('x-build-version')).toEqual('abc123');
+    // no mionFetchMetadata in these routes, so no build version
+    expect(response.headers.get('x-build-version')).toBeNull();
     expect(response.headers.get('x-app-name')).toEqual('TheAdapter');
   });
 });

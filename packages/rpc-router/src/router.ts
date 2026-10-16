@@ -56,6 +56,7 @@ import {capBatchBodySizes, clearBatches, getMaxBatchBodySize, refreshBatchChainB
 import {
   headersMiddleware,
   isOnDemandMiddleware,
+  getOnEveryCall,
   middleware,
   mionInternalRouteIds,
   mutation,
@@ -63,6 +64,7 @@ import {
   rawMiddleware,
   route,
 } from './lib/handlers.ts';
+import type {CallContext} from './types/context.ts';
 import type {
   HeadersMiddlewareHelper,
   MiddlewareHelper,
@@ -104,6 +106,8 @@ let platformConfig: Record<string, unknown> | undefined;
 let globalResponseHeaders: Readonly<Record<string, string>> = Object.freeze({});
 /** One merge per adapter defaults object, emptied whenever globalResponseHeaders is replaced. */
 let mergedResponseHeaders = new WeakMap<object, Readonly<Record<string, string>>>();
+/** Sent by mionFetchMetadata; undefined when `apiVersionCheck` is off or the build gave no version. */
+let buildVersion: string | undefined;
 /** The adapter's `maxBodySize` under its `maxBodySizeCap`, settled by setPlatformConfig (the default with no adapter). */
 let platformMaxBodySize = DEFAULT_MAX_BODY_SIZE;
 
@@ -133,6 +137,8 @@ export const getComplexity = () => complexity;
 export const getRouterOptions = <Opts extends RouterOptions>(): Readonly<Opts> => routerOptions as Opts;
 /** The headers every response starts with. Adapters read it through getResponseDefaults. */
 export const getGlobalResponseHeaders = (): Readonly<Record<string, string>> => globalResponseHeaders;
+/** The API version the `x-build-version` header carries, unset when `apiVersionCheck` is off. */
+export const getBuildVersion = (): string | undefined => buildVersion;
 
 /** Merged once per `own`, so no request rebuilds it; `base` names are the adapter's own, a global may replace them. */
 export function getResponseDefaults(
@@ -208,6 +214,7 @@ export const resetRouter = () => {
   platformConfig = undefined;
   globalResponseHeaders = Object.freeze({});
   mergedResponseHeaders = new WeakMap();
+  buildVersion = undefined;
   platformMaxBodySize = DEFAULT_MAX_BODY_SIZE;
   resetRemoteMethodsMetadata();
   resetRoutesCache();
@@ -251,11 +258,13 @@ export function createMionRouter<const O extends RouterOptionsInput = RouterOpti
 }
 
 /** Once per app; `resetRouter()` clears it. */
-function initRouter(opts: RouterOptionsInput, buildVersion?: string): void {
+function initRouter(opts: RouterOptionsInput, version?: string): void {
   if (isRouterInitialized) throw new Error('Router has already been initialized');
   routerOptions = {...routerOptions, ...opts};
-  const versionHeader = routerOptions.apiVersionCheck && buildVersion ? {[BUILD_VERSION_HEADER]: buildVersion} : undefined;
-  globalResponseHeaders = Object.freeze({...versionHeader, ...routerOptions.globalResponseHeaders});
+  // a version pinned in globalResponseHeaders already rides every response, so the middleware leaves it alone
+  const isPinned = Object.keys(routerOptions.globalResponseHeaders).some((name) => name.toLowerCase() === BUILD_VERSION_HEADER);
+  buildVersion = (routerOptions.apiVersionCheck && !isPinned && version) || undefined;
+  globalResponseHeaders = Object.freeze({...routerOptions.globalResponseHeaders});
   mergedResponseHeaders = new WeakMap();
   validateSharedDataFactory(routerOptions);
   Object.freeze(routerOptions);
@@ -537,7 +546,7 @@ export function getExecutableFromMiddleware(
       pointer: middlewarePointer,
       // resolved here so the dispatch loop reads a field instead of deriving them per request
       methodCaller: isOnDemandMiddleware(middleware)
-        ? onDemandCaller(callerForType(middlewareType))
+        ? onDemandCaller(callerForType(middlewareType), getOnEveryCall(middleware))
         : callerForType(middlewareType),
       alwaysRun: !!middleware.options?.alwaysRun,
       quotedId: JSON.stringify(middlewareId),
@@ -560,9 +569,14 @@ export function getExecutableFromMiddleware(
 }
 
 /** An absent slot skips the params pipeline; the answer is the same only because such a middleware's params are optional. */
-function onDemandCaller(caller: RemoteMethod['methodCaller']): RemoteMethod['methodCaller'] {
-  return (context: unknown, executable: RemoteMethod, request: {body: Record<string, unknown>}, ...rest: unknown[]) =>
-    request.body[executable.id] === undefined ? undefined : caller(context, executable, request, ...rest);
+function onDemandCaller(
+  caller: RemoteMethod['methodCaller'],
+  onEveryCall?: ReturnType<typeof getOnEveryCall>
+): RemoteMethod['methodCaller'] {
+  return (context: CallContext, executable: RemoteMethod, request: {body: Record<string, unknown>}, ...rest: unknown[]) => {
+    onEveryCall?.(context);
+    return request.body[executable.id] === undefined ? undefined : caller(context, executable, request, ...rest);
+  };
 }
 
 export function getExecutableFromRawMiddleware(

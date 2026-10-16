@@ -38,7 +38,8 @@ describe('uws global response headers', () => {
     const response = await fetch(`http://127.0.0.1:${port}/ping`, {method: 'POST', body: JSON.stringify({ping: []})});
     await response.text();
     expect(response.headers.get('x-team')).toEqual('mion');
-    expect(response.headers.get('x-build-version')).toEqual('abc123');
+    // no mionFetchMetadata in these routes, so no build version
+    expect(response.headers.get('x-build-version')).toBeNull();
     expect(response.headers.get('x-app-name')).toEqual('TheAdapter');
   });
 });

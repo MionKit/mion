@@ -279,7 +279,7 @@ describe('node http router', () => {
       });
       const headers = Object.fromEntries(response.headers.entries());
       expect(headers['x-team']).toEqual('mion');
-      expect(headers['x-build-version']).toEqual('abc123');
+      expect(headers['x-build-version']).toBeUndefined();
       expect(headers['x-app-name']).toEqual('TheAdapter');
     });
 
@@ -288,7 +288,7 @@ describe('node http router', () => {
       const headers = Object.fromEntries(response.headers.entries());
       expect(response.status).toEqual(404);
       expect(headers['x-team']).toEqual('mion');
-      expect(headers['x-build-version']).toEqual('abc123');
+      expect(headers['x-build-version']).toBeUndefined();
     });
   });
 });

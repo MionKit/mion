@@ -60,9 +60,9 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
    *  `defaultResponseHeaders` wins on a clash.
    *  @default {} */
   globalResponseHeaders: Record<string, string>;
-  /** Answer with the `x-build-version` header, the version of the API this server was built from, so a
-   *  client with build-compiled routes can tell its own are stale. Off sends no header, which also turns
-   *  the client's check off.
+  /** `mionFetchMetadata` answers with the `x-build-version` header, the version of the API this server was
+   *  built from, so a client with build-compiled routes can tell its own are stale. Off sends no header,
+   *  which also turns the client's check off. Routes outside that middleware never send it.
    *  @default true */
   apiVersionCheck: boolean;
   /** Most methods `mionFetchMetadata` lists when a client asks for all; past it, only the ids sent.
