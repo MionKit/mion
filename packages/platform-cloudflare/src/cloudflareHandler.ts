@@ -15,8 +15,8 @@ import {
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
-  FetchHeadersPool,
-  MionResponse,
+  getDefaultFetchHeaders,
+  replyFetch,
   readRequestBody,
   BodyReadStrategy,
 } from '@mionjs/router';
@@ -30,7 +30,6 @@ import {RpcError} from '@mionjs/core';
 // ############# PRIVATE STATE #############
 
 let cloudflareOptions: Readonly<CloudflareHandlerOptions> = {...DEFAULT_CLOUDFLARE_OPTIONS};
-const headersPool = new FetchHeadersPool();
 
 export function resetCloudflareHandlerOpts() {
   cloudflareOptions = {...DEFAULT_CLOUDFLARE_OPTIONS};
@@ -54,7 +53,7 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
     path = path.slice(cloudflareOptions.basePath.length) || '/';
   }
   const urlQuery = urlObj.search ? urlObj.search.slice(1) : undefined;
-  const responseHeaders = headersPool.take();
+  const responseHeaders = getDefaultFetchHeaders();
 
   const platformContext: CloudflarePlatformContext<Env> | undefined =
     env !== undefined || ctx !== undefined ? {env: env as Env, ctx: ctx as CloudflareExecutionContext} : undefined;
@@ -81,7 +80,7 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
           req,
           platformContext
         );
-        return reply(refused, responseHeaders);
+        return replyFetch(refused, responseHeaders);
       }
       const queryBody = decodeQueryBody(urlQuery, rawBody);
       if (queryBody) {
@@ -91,7 +90,7 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
     }
     const context = createContextFromChain(chain, path, urlQuery, req.headers, responseHeaders, rawBody, reqBodyType);
     const platformResp = await dispatchWithContext(context, req, platformContext);
-    return reply(platformResp, responseHeaders);
+    return replyFetch(platformResp, responseHeaders);
   } catch (err) {
     return fatalFail(toRpcError(err), responseHeaders);
   }
@@ -106,9 +105,5 @@ export function createCloudflareHandler<Env = unknown>(options?: Partial<Cloudfl
 
 function fatalFail(err: RpcError<string>, responseHeaders: FetchResponseHeaders): Response {
   const routeResponse = getRouterFatalErrorResponse(err, responseHeaders);
-  return reply(routeResponse, responseHeaders);
-}
-
-function reply(mionResp: MionResponse, headers: FetchResponseHeaders): Response {
-  return headersPool.reply(mionResp, headers);
+  return replyFetch(routeResponse, responseHeaders);
 }

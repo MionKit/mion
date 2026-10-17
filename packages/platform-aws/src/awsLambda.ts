@@ -15,10 +15,10 @@ import {
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
-  UnusedHeadersPool,
-  recordResponseHeaders,
+  getDefaultHeaders,
+  releaseHeaders,
 } from '@mionjs/router';
-import type {MionResponse, PooledHeaders} from '@mionjs/router';
+import type {MionResponse, RecordResponseHeaders} from '@mionjs/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 import {DEFAULT_AWS_LAMBDA_OPTIONS} from './constants.ts';
 import {AwsLambdaOptions} from '../index.ts';
@@ -26,7 +26,6 @@ import {AwsLambdaOptions} from '../index.ts';
 // ############# STATE #############
 
 let lambdaOptions: Readonly<AwsLambdaOptions> = {...DEFAULT_AWS_LAMBDA_OPTIONS};
-const headersPool = new UnusedHeadersPool(recordResponseHeaders);
 
 // ############# PUBLIC METHODS #############
 
@@ -52,7 +51,7 @@ export function createAwsLambdaHandler(options?: Partial<AwsLambdaOptions>) {
 export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> {
   let rawBody: any = decodeEventBody(rawRequest);
   const reqHeaders = headersFromRecord(rawRequest.headers as Record<string, string>);
-  const respHeaders = headersPool.take();
+  const respHeaders = getDefaultHeaders();
   // AWS Lambda always receives body as string (JSON)
   let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
   const urlQuery = buildQueryString(rawRequest.queryStringParameters);
@@ -101,7 +100,7 @@ function buildQueryString(params: APIGatewayEvent['queryStringParameters']): str
   return query;
 }
 
-function reply(routeResponse: MionResponse, headers: PooledHeaders): APIGatewayProxyResult {
+function reply(routeResponse: MionResponse, headers: RecordResponseHeaders): APIGatewayProxyResult {
   // AWS sets content-length itself, unlike node
   const singleHeaders: Record<string, string> = {};
   const multiHeaders: Record<string, string[]> = {};
@@ -126,6 +125,6 @@ function reply(routeResponse: MionResponse, headers: PooledHeaders): APIGatewayP
     body: responseBody,
   };
   if (multiHeaderCount) resp.multiValueHeaders = multiHeaders;
-  headersPool.giveBack(headers);
+  releaseHeaders(headers);
   return resp;
 }
