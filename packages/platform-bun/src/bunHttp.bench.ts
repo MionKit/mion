@@ -6,13 +6,12 @@
  * ######## */
 
 // The per-request cost of bunRequestHandler with no socket, so a header change shows without the load generator.
-// Run from packages/platform-bun: bun --conditions=source src/bunHttp.bench.ts [--no-version-header]
+// Run from packages/platform-bun: bun --conditions=source src/bunHttp.bench.ts
 
 import {createMionRouter, CallContext} from '@mionjs/router';
 import {bunRequestHandler, setBunHttpOpts} from './bunHttp.ts';
 
-// --no-version-header: no default header at all, the path an app without x-build-version takes
-const mion = createMionRouter({alwaysAwait: false, apiVersionCheck: !process.argv.includes('--no-version-header')});
+const mion = createMionRouter({alwaysAwait: false});
 const hello = mion.route((): {hello: string} => ({hello: 'world'}));
 const withHeader = mion.route((ctx: CallContext): {hello: string} => {
   ctx.response.headers.set('x-custom', 'yes');
@@ -34,7 +33,7 @@ function measure(label: string, makeRequest: () => Request, handle: boolean): vo
     }
     times.push((Bun.nanoseconds() - start) / ITERATIONS);
   }
-  times.sort((a, b) => a - b);
+  times.sort((left, right) => left - right);
   console.log(`${label.padEnd(28)} median ${times[ROUNDS >> 1].toFixed(0)} ns/op  min ${times[0].toFixed(0)}`);
 }
 
