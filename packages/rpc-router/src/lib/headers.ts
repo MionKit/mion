@@ -18,9 +18,8 @@ const SET_COOKIE = 'set-cookie';
 /** Case-insensitive HTTP headers, like the fetch Headers API but optimized for performance.
  *  https://developer.mozilla.org/en-US/docs/Web/API/Headers */
 class MionHeadersImpl implements MionHeaders {
-  // The record may be a plain object handed over by the platform (node's IncomingMessage.headers is one),
-  // where `constructor` or `toString` would be "found" on the prototype chain. A prototype hit is never a
-  // string, so a read checks the VALUE's type: cheaper than an own-key check per read (14 vs 23 ns).
+  // A platform's plain-object record has prototype hits, never strings: reads type-check the value,
+  // cheaper than an own-key check (14 vs 23 ns).
   // `__proto__` is never written: on a plain object that assignment swaps the prototype.
   constructor(private headers: HeadersRecord) {}
 
@@ -78,9 +77,7 @@ class MionHeadersImpl implements MionHeaders {
   }
 }
 
-/** A fetch-like (not identical) Headers object over a header record, for an incoming request carrying its
- *  headers as an object: IncomingMessage.headers, ApiGatewayEvent.headers.
- *  https://developer.mozilla.org/en-US/docs/Web/API/Headers */
+/** Fetch-like (not identical) Headers over a record such as IncomingMessage.headers or ApiGatewayEvent.headers. */
 export function headersFromRecord(headersObj: HeadersRecord, skipToLower = false): MionHeaders {
   const headers = parseHeaders(headersObj, skipToLower);
   return new MionHeadersImpl(headers);

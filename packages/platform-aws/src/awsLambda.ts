@@ -55,11 +55,11 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
     ...getResponseDefaults(lambdaOptions.defaultResponseHeaders),
   };
   const respHeaders = headersFromRecord(rawRespHeaders, true);
-  // AWS Lambda always receives body as string (JSON)
+  // the event body is always a JSON string
   let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
   const urlQuery = buildQueryString(rawRequest.queryStringParameters);
   try {
-    // the body arrives whole with the event, so there is nothing to read: the router checks its size before parsing
+    // the body comes whole with the event: nothing to read, the router checks its size before parsing
     const queryBody = decodeQueryBody(urlQuery, rawBody || undefined);
     if (queryBody) {
       rawBody = queryBody.rawBody;
@@ -103,7 +103,7 @@ function buildQueryString(params: APIGatewayEvent['queryStringParameters']): str
   return query;
 }
 
-/** Reads the record behind the response headers, not `entries()`: only the record keeps set-cookie as an array. */
+/** Not `entries()`: only the raw record keeps set-cookie as an array. */
 function reply(routeResponse: MionResponse, headers: Record<string, string | string[]>): APIGatewayProxyResult {
   // AWS sets content-length itself, unlike node
   const singleHeaders: Record<string, string> = {};

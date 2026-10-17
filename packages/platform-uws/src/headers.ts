@@ -21,11 +21,10 @@ export function headersFromUwsRequest(req: HttpRequest): MionHeaders {
   return headersFromRecord(record, true);
 }
 
-/** uWS headers are write-only and must precede the body, so they are buffered lowercase-keyed and flushed in the corked reply. */
+/** uWS headers are write-only and must precede the body, so they are buffered and flushed in the corked reply. */
 class BufferedHeadersImpl implements MionHeaders {
-  /** Readable by `forEachHeader` below, which is the only thing in the module allowed to touch it.
-   *  null-prototype: a `constructor` header must not find Object.prototype's function.
-   *  An array only for set-cookie, which RFC 6265 forbids folding into one line. */
+  /** Outside the class only `forEachHeader` reads it; null-prototype so `constructor` misses Object.prototype.
+   *  An array only for set-cookie: RFC 6265 forbids folding it. */
   readonly record: Record<string, string | string[]> = Object.create(null);
 
   append(name: string, value: string): void {
@@ -73,7 +72,7 @@ export function bufferedResponseHeaders(initialHeaders: Record<string, string> |
   return headers;
 }
 
-/** Walks headers with no pair array per header, for the corked reply; falls back to `entries()` for any other MionHeaders. */
+/** No pair array per header, for the corked reply. */
 export function forEachHeader(headers: MionHeaders, visit: (name: string, value: string) => void): void {
   if (headers instanceof BufferedHeadersImpl) {
     const record = headers.record;
