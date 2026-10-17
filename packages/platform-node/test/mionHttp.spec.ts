@@ -172,7 +172,15 @@ describe('node http router', () => {
       resetNodeHttpOpts();
       resetRouter();
       setNodeHttpOpts(httpOpts);
-      mion.initRoutes({changeUserName, getDate, updateHeaders});
+      createMionRouter({
+        contextDataFactory: getSharedData,
+        basePath: 'api/',
+        responseHeaders: {'x-app-name': 'MyApp'},
+      }).initRoutes({
+        changeUserName,
+        getDate,
+        updateHeaders,
+      });
       const smallServer = await startNodeServer({port: smallPort});
       expect(smallServer.listening).toBe(true);
 
@@ -194,6 +202,7 @@ describe('node http router', () => {
       };
       expect(response.status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
       expect(headers['x-rpc-error']).toBe('request-payload-too-large');
+      expect(headers['x-app-name']).toEqual('MyApp');
       expect(reply).toEqual({'@thrownErrors': {'mion@platformError': expectedError}});
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
       expect(headers['content-length']).toEqual('152');
