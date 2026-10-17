@@ -165,3 +165,41 @@ describe('dispatch chain', () => {
     await dispatch('/fatalRoute', bodies.fatalRoute);
   });
 });
+
+/** Dispatch plus the adapter's JSON.stringify, so the whole answer path is measured. */
+async function dispatchAndSend(path: string, body: string) {
+  const response = await dispatch(path, body);
+  return JSON.stringify(response.body);
+}
+
+const bareBodies = {
+  syncNoParams: '[]',
+  syncObjectParam: JSON.stringify([item]),
+  largePayload: JSON.stringify([manyItems]),
+};
+
+describe('request shape, answer sent', () => {
+  bench('keyed body, no params', async () => {
+    await dispatchAndSend('/syncNoParams', bodies.syncNoParams);
+  });
+
+  bench('bare array, no params', async () => {
+    await dispatchAndSend('/syncNoParams', bareBodies.syncNoParams);
+  });
+
+  bench('keyed body, object param', async () => {
+    await dispatchAndSend('/syncObjectParam', bodies.syncObjectParam);
+  });
+
+  bench('bare array, object param', async () => {
+    await dispatchAndSend('/syncObjectParam', bareBodies.syncObjectParam);
+  });
+
+  bench('keyed body, large payload', async () => {
+    await dispatchAndSend('/largePayload', bodies.largePayload);
+  });
+
+  bench('bare array, large payload', async () => {
+    await dispatchAndSend('/largePayload', bareBodies.largePayload);
+  });
+});
