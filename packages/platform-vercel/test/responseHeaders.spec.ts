@@ -11,17 +11,13 @@ import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {createMionRouter, resetRouter} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
 import {HeadersSubset} from '@mionjs/core';
-import {createVercelHandler, resetVercelHandlerOpts, setVercelHandlerOpts} from '../src/vercelHandler.ts';
+import {createVercelHandler, resetVercelHandlerOpts} from '../src/vercelHandler.ts';
 
 describe('vercel response headers', () => {
-  let handler: ReturnType<typeof createVercelHandler>;
-  const call = (route: string) =>
-    handler.POST(new Request(`http://localhost/${route}`, {method: 'POST', body: JSON.stringify({[route]: []})}));
-
-  beforeAll(() => {
-    resetVercelHandlerOpts();
+  // the router starts again for each set of response headers; a running server keeps serving it
+  const initApp = (responseHeaders: Record<string, string>) => {
     resetRouter();
-    const mion = createMionRouter({apiVersionCheck: false});
+    const mion = createMionRouter({apiVersionCheck: false, responseHeaders});
     mion.initRoutes({
       ping: mion.route((): string => 'pong'),
       setHeader: mion.route((ctx: CallContext): string => {
@@ -58,6 +54,16 @@ describe('vercel response headers', () => {
         return 'ok';
       }),
     });
+  };
+
+  let handler: ReturnType<typeof createVercelHandler>;
+  const call = (route: string) =>
+    handler.POST(new Request(`http://localhost/${route}`, {method: 'POST', body: JSON.stringify({[route]: []})}));
+
+  beforeAll(() => {
+    resetVercelHandlerOpts();
+    resetRouter();
+    initApp({});
     handler = createVercelHandler();
   });
 
@@ -98,11 +104,11 @@ describe('vercel response headers', () => {
     });
   });
 
-  describe('with default headers', () => {
-    beforeAll(() => setVercelHandlerOpts({defaultResponseHeaders: {'X-Team': 'mion', server: 'mine'}}));
-    afterAll(() => setVercelHandlerOpts({defaultResponseHeaders: {}}));
+  describe('with the responseHeaders option', () => {
+    beforeAll(() => initApp({'X-Team': 'mion', server: 'mine'}));
+    afterAll(() => initApp({}));
 
-    it('an untouched reply carries the defaults, and a server default replaces mionjs', async () => {
+    it('an untouched reply carries them, and a server header replaces mionjs', async () => {
       const response = await call('ping');
       expect(response.headers.get('x-team')).toEqual('mion');
       expect(response.headers.get('server')).toEqual('mine');

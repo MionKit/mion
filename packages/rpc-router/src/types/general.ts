@@ -56,10 +56,9 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
    *  reads `ctx.request.rawBody` after the route ran; with it on, that reads an empty string.
    *  @default true */
   releaseRawBody: boolean;
-  /** Headers added to every response, merged once when the router starts. The adapter's own
-   *  `defaultResponseHeaders` wins on a clash.
+  /** Headers added to every response, on every adapter. They replace `server: mionjs`, never `content-type`.
    *  @default {} */
-  globalResponseHeaders: Record<string, string>;
+  responseHeaders: Record<string, string>;
   /** Lets `mionFetchMetadata` send `x-build-version`, the API version this server was built from, so a client
    *  with build-compiled routes can tell its own are stale. Off also turns the client's check off.
    *  @default true */

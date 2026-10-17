@@ -11,20 +11,13 @@ import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {createMionRouter, resetRouter} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
 import {HeadersSubset} from '@mionjs/core';
-import {awsLambdaHandler, resetAwsLambdaOpts, setAwsLambdaOpts} from '../src/awsLambda.ts';
+import {awsLambdaHandler, resetAwsLambdaOpts} from '../src/awsLambda.ts';
 
 describe('aws response headers', () => {
-  // the result's header record read through Headers, so every adapter's test reads the same way
-  const call = async (route: string) => {
-    const event = {body: JSON.stringify({[route]: []}), headers: {}, path: `/${route}`, httpMethod: 'POST'} as any;
-    const result = await awsLambdaHandler(event, {} as any);
-    return {headers: new Headers(result.headers as Record<string, string>)};
-  };
-
-  beforeAll(() => {
-    resetAwsLambdaOpts();
+  // the router starts again for each set of response headers; a running server keeps serving it
+  const initApp = (responseHeaders: Record<string, string>) => {
     resetRouter();
-    const mion = createMionRouter({apiVersionCheck: false});
+    const mion = createMionRouter({apiVersionCheck: false, responseHeaders});
     mion.initRoutes({
       ping: mion.route((): string => 'pong'),
       setHeader: mion.route((ctx: CallContext): string => {
@@ -61,6 +54,19 @@ describe('aws response headers', () => {
         return 'ok';
       }),
     });
+  };
+
+  // the result's header record read through Headers, so every adapter's test reads the same way
+  const call = async (route: string) => {
+    const event = {body: JSON.stringify({[route]: []}), headers: {}, path: `/${route}`, httpMethod: 'POST'} as any;
+    const result = await awsLambdaHandler(event, {} as any);
+    return {headers: new Headers(result.headers as Record<string, string>)};
+  };
+
+  beforeAll(() => {
+    resetAwsLambdaOpts();
+    resetRouter();
+    initApp({});
   });
 
   describe('with no default headers', () => {
@@ -96,11 +102,11 @@ describe('aws response headers', () => {
     });
   });
 
-  describe('with default headers', () => {
-    beforeAll(() => setAwsLambdaOpts({defaultResponseHeaders: {'X-Team': 'mion', server: 'mine'}}));
-    afterAll(() => setAwsLambdaOpts({defaultResponseHeaders: {}}));
+  describe('with the responseHeaders option', () => {
+    beforeAll(() => initApp({'X-Team': 'mion', server: 'mine'}));
+    afterAll(() => initApp({}));
 
-    it('an untouched reply carries the defaults, and a server default replaces mionjs', async () => {
+    it('an untouched reply carries them, and a server header replaces mionjs', async () => {
       const response = await call('ping');
       expect(response.headers.get('x-team')).toEqual('mion');
       expect(response.headers.get('server')).toEqual('mine');

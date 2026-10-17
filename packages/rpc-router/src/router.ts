@@ -17,7 +17,7 @@ import type {
 import type {PublicApi, PrivateDef, MiddlewaresCollection} from './types/publicMethods.ts';
 import type {HeadersMiddlewareDef, MiddlewareDef, RawMiddlewareDef} from './types/definitions.ts';
 import type {ResponseDefaults} from './types/context.ts';
-import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants.ts';
+import {DEFAULT_ROUTE_OPTIONS, JSON_CONTENT_TYPE, MAX_ROUTE_NESTING, SERVER_HEADER_VALUE} from './constants.ts';
 import {
   isRawMiddlewareDef,
   isHeadersMiddlewareDef,
@@ -103,10 +103,8 @@ let isRouterInitialized = false;
 let isRouterCreated = false;
 let allExecutablesIds: string[] | undefined;
 let platformConfig: Record<string, unknown> | undefined;
-/** Merged once by initRouter and then only read, so no request rebuilds it. */
-let globalResponseHeaders: Readonly<Record<string, string>> = Object.freeze({});
-/** One merge per adapter defaults object, emptied whenever globalResponseHeaders is replaced. */
-let mergedResponseHeaders = new WeakMap<object, Readonly<Record<string, string>>>();
+/** `server`, the `responseHeaders` option lowercased, then `content-type`: merged by initRouter, read per request. */
+let responseDefaults: ResponseDefaults = baseResponseDefaults();
 /** Sent by mionFetchMetadata; unset with `apiVersionCheck` off, a pinned header or no build version. */
 let buildVersion: string | undefined;
 /** The adapter's `maxBodySize` under its `maxBodySizeCap`, settled by setPlatformConfig (the default with no adapter). */
@@ -136,30 +134,10 @@ export const getMiddlewareExecutable = (id: string) => middlewaresById.get(id);
 export const getMiddlewaresSize = () => middlewaresById.size;
 export const getComplexity = () => complexity;
 export const getRouterOptions = <Opts extends RouterOptions>(): Readonly<Opts> => routerOptions as Opts;
-/** The headers every response starts with. Adapters read it through getResponseDefaults. */
-export const getGlobalResponseHeaders = (): Readonly<Record<string, string>> => globalResponseHeaders;
 /** The version mionFetchMetadata sends in `x-build-version`. */
 export const getBuildVersion = (): string | undefined => buildVersion;
-
-/** Merged once per `own`, so no request rebuilds it; `own` (the adapter's) wins over the router's global headers. */
-export function getResponseDefaults(own: Record<string, string>): ResponseDefaults {
-  let merged = mergedResponseHeaders.get(own);
-  if (!merged) {
-    // lowercased: `new Headers()` appends a repeated name in another case instead of letting the later one win.
-    // A plain object, not a null-prototype one: V8 keeps those in dictionary mode, 7x slower to walk per reply.
-    const record: Record<string, string> = {};
-    for (const name in globalResponseHeaders) setDefault(record, name, globalResponseHeaders[name]);
-    for (const name in own) setDefault(record, name, own[name]);
-    merged = Object.freeze(record);
-    mergedResponseHeaders.set(own, merged);
-  }
-  return merged;
-}
-/** `__proto__` is never written: on a plain object that assignment swaps the prototype. */
-function setDefault(record: Record<string, string>, name: string, value: string): void {
-  const lowerName = name.toLowerCase();
-  if (lowerName !== '__proto__') record[lowerName] = value;
-}
+/** The headers every response starts with: every adapter reads it per request. */
+export const getResponseDefaults = (): ResponseDefaults => responseDefaults;
 
 export const getAnyExecutable = (id: string) => routesById.get(id) || middlewaresById.get(id) || rawMiddlewaresById.get(id);
 
@@ -221,8 +199,7 @@ export const resetRouter = () => {
   isRouterCreated = false;
   allExecutablesIds = undefined;
   platformConfig = undefined;
-  globalResponseHeaders = Object.freeze({});
-  mergedResponseHeaders = new WeakMap();
+  responseDefaults = baseResponseDefaults();
   buildVersion = undefined;
   platformMaxBodySize = DEFAULT_MAX_BODY_SIZE;
   resetRemoteMethodsMetadata();
@@ -271,10 +248,9 @@ function initRouter(opts: RouterOptionsInput, version?: string): void {
   if (isRouterInitialized) throw new Error('Router has already been initialized');
   routerOptions = {...routerOptions, ...opts};
   // a pinned version already rides every response, so the middleware adds none
-  const isPinned = Object.keys(routerOptions.globalResponseHeaders).some((name) => name.toLowerCase() === BUILD_VERSION_HEADER);
+  responseDefaults = mergeResponseDefaults(routerOptions.responseHeaders);
+  const isPinned = responseDefaults[BUILD_VERSION_HEADER] !== undefined;
   buildVersion = (routerOptions.apiVersionCheck && !isPinned && version) || undefined;
-  globalResponseHeaders = Object.freeze({...routerOptions.globalResponseHeaders});
-  mergedResponseHeaders = new WeakMap();
   validateSharedDataFactory(routerOptions);
   Object.freeze(routerOptions);
   setErrorOptions(routerOptions);
@@ -768,4 +744,17 @@ function refreshChainBodyLimits(): void {
   for (const chain of flatRouter.values()) chain.maxBodySize = chain.declaredBodySize ?? platformMaxBodySize;
   for (const chain of notFoundChains.values()) chain.maxBodySize = chain.declaredBodySize ?? platformMaxBodySize;
   refreshBatchChainBodyLimits(platformMaxBodySize);
+}
+
+function baseResponseDefaults(): ResponseDefaults {
+  return {server: SERVER_HEADER_VALUE, 'content-type': JSON_CONTENT_TYPE};
+}
+
+/** `server` first so the option can replace it, `content-type` last so it cannot; lowercased, or `Headers` would
+ *  append a name repeated in another case. */
+function mergeResponseDefaults(responseHeaders: Record<string, string>): ResponseDefaults {
+  const merged: Record<string, string> = {server: SERVER_HEADER_VALUE};
+  for (const name in responseHeaders) merged[name.toLowerCase()] = responseHeaders[name];
+  merged['content-type'] = JSON_CONTENT_TYPE;
+  return merged;
 }

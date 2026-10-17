@@ -16,7 +16,6 @@ import {
   decodeQueryBody,
   setPlatformConfig,
   getResponseDefaults,
-  SERVER_HEADER_VALUE,
   requestPayloadTooLarge,
   handOverToHost,
 } from '@mionjs/router';
@@ -122,9 +121,8 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   let size = 0;
   const bodyChunks: Buffer[] = [];
 
-  httpResponse.setHeader('server', SERVER_HEADER_VALUE);
   const reqHeaders = headersFromIncomingMessage(httpReq);
-  const respHeaders = headersFromServerResponse(httpResponse, getResponseDefaults(httpOptions.defaultResponseHeaders));
+  const respHeaders = headersFromServerResponse(httpResponse, getResponseDefaults());
 
   // route resolved BEFORE the body: the read below stops at the chain's limit, and a late context stays GC-cheap.
   // A throw here (a throwing pathTransform) has no chain to run, so it is answered bare with the stream destroyed.
@@ -258,6 +256,7 @@ function reply(httpResp: ServerResponse, mionResp: MionResponse) {
   const jsonString = JSON.stringify(mionResp.body);
   // byteLength measures without copying the response into a Buffer
   httpResp.setHeader('content-length', Buffer.byteLength(jsonString, 'utf8'));
-  httpResp.setHeader('content-type', mionResp.contentType);
+  // the defaults already wrote it: only a handler's own, or another serializer's, needs replacing
+  if (httpResp.getHeader('content-type') !== mionResp.contentType) httpResp.setHeader('content-type', mionResp.contentType);
   httpResp.end(jsonString, 'utf8');
 }

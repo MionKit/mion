@@ -12,8 +12,8 @@ created: 2026-09-22
 mion has no CORS surface at all. `Access-Control-Expose-Headers` appears nowhere in the repo, and the
 middleware page lists CORS as work for your own middleware
 (`container/website/content/01.rpc/02.server/02.middleware.md`, intro). The only examples that set any CORS
-header do it through the generic `defaultResponseHeaders` knob
-(`packages/private-examples/src/vercel/vercel-config.ts:5`).
+header did it through a generic default-headers option on the adapter; the one left is the router's
+`responseHeaders`.
 
 That already breaks a shipped feature. A route returning a `HeadersSubset` is read back by name on
 the client:

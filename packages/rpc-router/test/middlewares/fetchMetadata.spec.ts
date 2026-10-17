@@ -729,8 +729,8 @@ describe('the mionFetchMetadata middleware sends the build version header', () =
     expect(await call('/ping', '{}')).toBeUndefined();
   });
 
-  it('never over a version the app pinned in globalResponseHeaders', async () => {
-    initApp({globalResponseHeaders: {[BUILD_VERSION_HEADER]: 'mine'}}, 'abc123');
+  it('never over a version the app pinned in responseHeaders', async () => {
+    initApp({responseHeaders: {[BUILD_VERSION_HEADER]: 'mine'}}, 'abc123');
     expect(await call('/ping', '{}')).toBeUndefined();
   });
 

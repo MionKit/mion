@@ -163,12 +163,11 @@ describe('node http router', () => {
       expect(headers['x-something']).toEqual('true');
     });
 
-    it('get an error when body size is too large, get default headers', async () => {
+    it('get an error when body size is too large', async () => {
       const smallPort = port + 100;
       const httpOpts = {
         port: smallPort,
         maxBodySize: 1,
-        defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'},
       };
       resetNodeHttpOpts();
       resetRouter();
@@ -196,8 +195,6 @@ describe('node http router', () => {
       expect(response.status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
       expect(headers['x-rpc-error']).toBe('request-payload-too-large');
       expect(reply).toEqual({'@thrownErrors': {'mion@platformError': expectedError}});
-      expect(headers['x-app-name']).toEqual('MyApp');
-      expect(headers['x-instance-id']).toEqual('3089');
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
       expect(headers['content-length']).toEqual('152');
       expect(headers['server']).toEqual('mionjs');
@@ -247,48 +244,6 @@ describe('node http router', () => {
       expect(reply).toEqual({changeUserName: {name: 'NewName', surname: 'Doe'}});
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
       expect(headers['server']).toEqual('mionjs');
-    });
-  });
-
-  // The router's globals reach the wire through the adapter's own default headers, with no middleware writing them.
-  describe('with router global response headers', () => {
-    const globalsPort = port + 200;
-    let globalsServer: any;
-
-    beforeAll(async () => {
-      resetNodeHttpOpts();
-      resetRouter();
-      setNodeHttpOpts({port: globalsPort, defaultResponseHeaders: {'x-app-name': 'TheAdapter'}});
-      const globalsRouter = createMionRouter({
-        contextDataFactory: getSharedData,
-        basePath: 'api/',
-        globalResponseHeaders: {'x-team': 'mion', 'x-app-name': 'TheRouter'},
-      });
-      globalsRouter.initRoutes({changeUserName}, 'abc123');
-      globalsServer = await startNodeServer({port: globalsPort});
-    });
-
-    afterAll(async () => {
-      if (globalsServer) await closeServer(globalsServer);
-    });
-
-    it('rides every response, and the adapter still wins its own name', async () => {
-      const response = await fetch(`http://127.0.0.1:${globalsPort}/api/changeUserName`, {
-        method: 'POST',
-        body: JSON.stringify({changeUserName: [{name: 'John', surname: 'Doe'}]}),
-      });
-      const headers = Object.fromEntries(response.headers.entries());
-      expect(headers['x-team']).toEqual('mion');
-      expect(headers['x-build-version']).toBeUndefined();
-      expect(headers['x-app-name']).toEqual('TheAdapter');
-    });
-
-    it('rides a not-found response too', async () => {
-      const response = await fetch(`http://127.0.0.1:${globalsPort}/api/nope`, {method: 'POST', body: '{}'});
-      const headers = Object.fromEntries(response.headers.entries());
-      expect(response.status).toEqual(404);
-      expect(headers['x-team']).toEqual('mion');
-      expect(headers['x-build-version']).toBeUndefined();
     });
   });
 });

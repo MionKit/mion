@@ -146,7 +146,6 @@ describe('bun router should', () => {
     const bunOpts = {
       port: smallPort,
       maxBodySize: 10,
-      defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'},
     };
     resetBunHttpOpts();
     setBunHttpOpts(bunOpts);

@@ -25,7 +25,7 @@ interface WorkerResponse {
 interface CloudflareSetupOptions {
   basePath?: string;
   parser?: 'mutate' | 'clone';
-  defaultResponseHeaders?: Record<string, string>;
+  responseHeaders?: Record<string, string>;
 }
 
 /** A hand written literal inside the worker script is never type checked; this object is. */
@@ -131,7 +131,7 @@ describe('cloudflare handler (workerd runtime)', () => {
     let mf: Miniflare;
 
     beforeAll(async () => {
-      mf = await startMiniflare(setupOptions({defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'}}));
+      mf = await startMiniflare(setupOptions({responseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'}}));
     });
 
     afterAll(async () => {

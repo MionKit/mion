@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {MionHeaders, headersFromRecord, LazyResponseHeaders, SERVER_HEADER_VALUE} from '@mionjs/router';
-import type {ResponseDefaults} from '@mionjs/router';
+import {MionHeaders, headersFromRecord} from '@mionjs/router';
+import type {PooledHeaders, ResponseDefaults} from '@mionjs/router';
 import type {HttpRequest} from '@mionjs/bin-uws';
 
 /** uWS headers are readable only synchronously inside the handler, so snapshot them; uWS already lower-cases the names. */
@@ -21,15 +21,22 @@ export function headersFromUwsRequest(req: HttpRequest): MionHeaders {
 }
 
 /** uWS headers are write-only and must precede the body, so they are buffered lowercase-keyed and flushed in the corked reply. */
-class BufferedHeadersImpl implements MionHeaders {
+class BufferedHeadersImpl implements PooledHeaders {
   /** Readable by `forEachHeader` below, which is the only thing in the module allowed to touch it. */
-  readonly record: Record<string, string> = {};
+  readonly record: Record<string, string>;
+  unused = true;
+
+  constructor(defaults: ResponseDefaults) {
+    this.record = {...defaults};
+  }
 
   append(name: string, value: string): void {
+    this.unused = false;
     const key = name.toLowerCase();
     this.record[key] = this.record[key] === undefined ? value : `${this.record[key]}, ${value}`;
   }
   delete(name: string): void {
+    this.unused = false;
     delete this.record[name.toLowerCase()];
   }
   get(name: string): string | undefined | null {
@@ -39,6 +46,7 @@ class BufferedHeadersImpl implements MionHeaders {
     return this.record[name.toLowerCase()] !== undefined;
   }
   set(name: string, value: string): void {
+    this.unused = false;
     this.record[name.toLowerCase()] = value;
   }
   entries(): IterableIterator<[string, string]> {
@@ -52,29 +60,10 @@ class BufferedHeadersImpl implements MionHeaders {
   }
 }
 
-/** `server` first so a default of that name replaces it. */
-function newBufferedHeaders(defaults: ResponseDefaults): BufferedHeadersImpl {
-  const headers = new BufferedHeadersImpl();
-  headers.record.server = SERVER_HEADER_VALUE;
-  for (const name in defaults) headers.record[name] = defaults[name];
-  return headers;
-}
-
-export function bufferedResponseHeaders(defaults: ResponseDefaults): LazyResponseHeaders<MionHeaders> {
-  return new LazyResponseHeaders(defaults, newBufferedHeaders);
-}
+export const newBufferedHeaders = (defaults: ResponseDefaults): PooledHeaders => new BufferedHeadersImpl(defaults);
 
 /** Walks headers with no pair array per header, for the corked reply; falls back to `entries()` for any other MionHeaders. */
 export function forEachHeader(headers: MionHeaders, visit: (name: string, value: string) => void): void {
-  if (headers instanceof LazyResponseHeaders) {
-    const written = headers.written;
-    if (written instanceof BufferedHeadersImpl) return forEachHeader(written, visit);
-    // the store would hold exactly `server` and the defaults, so walk them without building it
-    const defaults = headers.defaults;
-    if (defaults.server === undefined) visit('server', SERVER_HEADER_VALUE);
-    for (const name in defaults) visit(name, defaults[name]);
-    return;
-  }
   if (headers instanceof BufferedHeadersImpl) {
     const record = headers.record;
     for (const name in record) visit(name, record[name]);

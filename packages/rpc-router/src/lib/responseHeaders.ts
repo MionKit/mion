@@ -5,100 +5,79 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {MionHeaders, ResponseDefaults} from '../types/context.ts';
-import {JSON_CONTENT_TYPE, SERVER_HEADER_VALUE} from '../constants.ts';
+import type {PooledHeaders, ResponseDefaults} from '../types/context.ts';
+import {JSON_CONTENT_TYPE} from '../constants.ts';
+import {getResponseDefaults} from '../router.ts';
 
-/** The adapter's store is built on the first write only; until then reads see what that store would hold. */
-export class LazyResponseHeaders<Store extends MionHeaders> implements MionHeaders {
-  private store: Store | undefined = undefined;
+/** Holds only headers no request wrote to: one leaves for exactly one request and comes back only if still unused. */
+export class UnusedHeadersPool<Pooled extends PooledHeaders> {
+  private free: Pooled[] = [];
+  private defaults: ResponseDefaults = getResponseDefaults();
 
   constructor(
-    readonly defaults: ResponseDefaults,
-    // a module-level function, never a closure per request
-    private readonly createStore: (defaults: ResponseDefaults) => Store
+    private readonly create: (defaults: ResponseDefaults) => Pooled,
+    private readonly max = 256
   ) {}
 
-  /** The store once anything was written; undefined means the reply sends `defaults` alone. */
-  get written(): Store | undefined {
-    return this.store;
+  take(): Pooled {
+    const current = getResponseDefaults();
+    // the router started again with other headers: what the pool holds is stale
+    if (current !== this.defaults) {
+      this.free.length = 0;
+      this.defaults = current;
+    }
+    return this.free.pop() ?? this.create(current);
   }
 
-  /** The store, created now if nothing was written: for a reply that must send the defaults. */
-  toStore(): Store {
-    return (this.store ??= this.createStore(this.defaults));
+  giveBack(headers: Pooled): void {
+    if (headers.unused && this.free.length < this.max) this.free.push(headers);
+  }
+}
+
+/** The response headers of the fetch adapters (bun, cloudflare, vercel): a native `Headers` plus whether anything wrote to it. */
+export class FetchResponseHeaders implements PooledHeaders {
+  /** What the reply hands to `Response`, which copies it. */
+  readonly native = new Headers();
+  unused: boolean;
+
+  constructor(defaults: ResponseDefaults) {
+    // one set per name beats building from a record
+    for (const name in defaults) this.native.set(name, defaults[name]);
+    this.unused = true;
   }
 
-  append(name: string, value: string): void {
-    this.toStore().append(name, value);
-  }
   set(name: string, value: string): void {
-    this.toStore().set(name, value);
+    this.unused = false;
+    this.native.set(name, value);
+  }
+  append(name: string, value: string): void {
+    this.unused = false;
+    this.native.append(name, value);
   }
   delete(name: string): void {
-    // deleting a name nothing holds builds nothing
-    if (this.store || readDefault(this.defaults, name) !== undefined) this.toStore().delete(name);
+    this.unused = false;
+    this.native.delete(name);
   }
-  get(name: string): string | undefined | null {
-    return this.store ? this.store.get(name) : readDefault(this.defaults, name);
+  get(name: string): string | null {
+    return this.native.get(name);
   }
   has(name: string): boolean {
-    return this.store ? this.store.has(name) : readDefault(this.defaults, name) !== undefined;
+    return this.native.has(name);
   }
   entries(): IterableIterator<[string, string]> {
-    return this.store ? this.store.entries() : Object.entries(untouchedHeaders(this.defaults)).values();
+    return this.native.entries();
   }
   keys(): IterableIterator<string> {
-    return this.store ? this.store.keys() : Object.keys(untouchedHeaders(this.defaults)).values();
+    return this.native.keys();
   }
   values(): IterableIterator<string> {
-    return this.store ? this.store.values() : Object.values(untouchedHeaders(this.defaults)).values();
+    return this.native.values();
+  }
+
+  /** Last before the reply, so a handler never replaces it; unused headers already hold the JSON one. */
+  setContentType(contentType: string): void {
+    if (!this.unused || contentType !== JSON_CONTENT_TYPE) this.set('content-type', contentType);
   }
 }
 
-/** A string check, not undefined: a `constructor` name would otherwise find Object.prototype's function. */
-function readDefault(defaults: ResponseDefaults, name: string): string | undefined {
-  const lowerName = name.toLowerCase();
-  const value = defaults[lowerName] as unknown;
-  if (typeof value === 'string') return value;
-  return lowerName === 'server' ? SERVER_HEADER_VALUE : undefined;
-}
-
-/** What a store would hold before any write: `server`, unless a default replaces it, then the defaults. */
-function untouchedHeaders(defaults: ResponseDefaults): ResponseDefaults {
-  return defaults.server === undefined ? {server: SERVER_HEADER_VALUE, ...defaults} : defaults;
-}
-
-/** An untouched reply with no defaults needs no store. */
-function hasNoHeaders(defaults: ResponseDefaults): boolean {
-  for (const _name in defaults) return false;
-  return true;
-}
-
-// ############# FETCH ADAPTERS (bun, cloudflare, vercel) #############
-
-/** `server` first so a default of that name replaces it; `new Headers()` plus sets beats building from a record. */
-function newFetchHeaders(defaults: ResponseDefaults): Headers {
-  const headers = new Headers();
-  headers.set('server', SERVER_HEADER_VALUE);
-  for (const name in defaults) headers.set(name, defaults[name]);
-  return headers;
-}
-
-export function fetchResponseHeaders(defaults: ResponseDefaults): LazyResponseHeaders<Headers> {
-  return new LazyResponseHeaders(defaults, newFetchHeaders);
-}
-
-/** Built once on first use: `Response` copies the headers it is given, so one instance serves every untouched reply. */
-let jsonReplyHeaders: Headers | undefined;
-
-/** `contentType` is written last so nothing overrides it. */
-export function fetchReplyHeaders(headers: LazyResponseHeaders<Headers>, contentType: string): Headers {
-  const store = headers.written ?? (hasNoHeaders(headers.defaults) ? undefined : headers.toStore());
-  if (!store) {
-    if (contentType === JSON_CONTENT_TYPE)
-      return (jsonReplyHeaders ??= new Headers({server: SERVER_HEADER_VALUE, 'content-type': JSON_CONTENT_TYPE}));
-    return new Headers({server: SERVER_HEADER_VALUE, 'content-type': contentType});
-  }
-  store.set('content-type', contentType);
-  return store;
-}
+export const newFetchResponseHeaders = (defaults: ResponseDefaults): FetchResponseHeaders => new FetchResponseHeaders(defaults);

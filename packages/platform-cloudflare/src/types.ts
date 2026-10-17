@@ -6,8 +6,6 @@
  * ######## */
 
 export interface CloudflareHandlerOptions {
-  /** Set of default response headers to add to every response */
-  defaultResponseHeaders: Record<string, string>;
   /** Path prefix to strip from incoming URL (e.g., '/api/mion') */
   basePath: string;
   /** Bytes a route takes when its own `maxBodySize` and its types say nothing (128 KB); the platform ceiling applies on top. */
