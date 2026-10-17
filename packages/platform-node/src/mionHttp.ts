@@ -256,7 +256,6 @@ function reply(httpResp: ServerResponse, mionResp: MionResponse) {
   const jsonString = JSON.stringify(mionResp.body);
   // byteLength measures without copying the response into a Buffer
   httpResp.setHeader('content-length', Buffer.byteLength(jsonString, 'utf8'));
-  // the defaults already wrote it: only a handler's own, or another serializer's, needs replacing
-  if (httpResp.getHeader('content-type') !== mionResp.contentType) httpResp.setHeader('content-type', mionResp.contentType);
+  httpResp.setHeader('content-type', mionResp.contentType);
   httpResp.end(jsonString, 'utf8');
 }
