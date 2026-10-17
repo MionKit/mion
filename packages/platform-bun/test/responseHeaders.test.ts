@@ -7,8 +7,8 @@
 
 // Response headers are built only on the first write: every write source must still reach the wire, and none may leak.
 
-import {expect, test, beforeAll, afterAll, describe, setDefaultTimeout} from 'bun:test';
-import {createMionRouter, resetRouter} from '@mionjs/router';
+import {expect, test, beforeAll, afterAll, describe, setDefaultTimeout, spyOn} from 'bun:test';
+import {createMionRouter, resetRouter, UnusedHeadersPool} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
 import {HeadersSubset} from '@mionjs/core';
 import {setBunHttpOpts, resetBunHttpOpts, startBunServer, bunRequestHandler} from '../src/bunHttp.ts';
@@ -124,6 +124,18 @@ describe('bun response headers', () => {
     test('two appended set-cookie values stay two lines', async () => {
       expect((await call('cookies')).headers.getSetCookie()).toEqual(['a=1', 'b=2']);
     });
+
+    test('gives unused headers back to the pool, never written ones', async () => {
+      // the flag is read when given back: the next request takes the same object and may write to it
+      const given: boolean[] = [];
+      const giveBack = spyOn(UnusedHeadersPool.prototype, 'giveBack').mockImplementation(
+        (headers) => void given.push(headers.unused)
+      );
+      await call('ping');
+      await call('setHeader');
+      expect(given).toEqual([true, false]);
+      giveBack.mockRestore();
+    });
   });
 
   describe('with the responseHeaders option', () => {
@@ -145,6 +157,13 @@ describe('bun response headers', () => {
       const response = await call('setHeader');
       expect(response.headers.get('x-custom')).toEqual('yes');
       expect(response.headers.get('x-team')).toEqual('mion');
+    });
+
+    test('an error reply and a not-found reply carry them too', async () => {
+      expect((await call('fails')).headers.get('x-team')).toEqual('mion');
+      const notFound = await call('nope');
+      expect(notFound.status).toEqual(404);
+      expect(notFound.headers.get('x-team')).toEqual('mion');
     });
   });
 });

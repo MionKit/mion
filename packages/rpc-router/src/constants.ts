@@ -26,6 +26,4 @@ export const DEFAULT_ROUTE_OPTIONS = {
 
 export const MAX_ROUTE_NESTING = 10;
 
-/** First in every response's headers, so the `responseHeaders` option or a handler replaces it. */
-export const SERVER_HEADER_VALUE = 'mionjs';
 export const JSON_CONTENT_TYPE = 'application/json; charset=utf-8';

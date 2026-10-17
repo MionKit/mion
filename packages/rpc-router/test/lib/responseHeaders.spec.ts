@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect, beforeEach} from 'vitest';
-import {FetchResponseHeaders, UnusedHeadersPool, newFetchResponseHeaders} from '../../src/lib/responseHeaders.ts';
+import {FetchHeadersPool, FetchResponseHeaders, UnusedHeadersPool} from '../../src/lib/responseHeaders.ts';
 import {recordResponseHeaders} from '../../src/lib/headers.ts';
 import {createMionRouter, getResponseDefaults, resetRouter} from '../../src/router.ts';
 import {JSON_CONTENT_TYPE} from '../../src/constants.ts';
@@ -42,21 +42,32 @@ describe('the unused flag', () => {
   });
 });
 
-describe('FetchResponseHeaders', () => {
-  it('writes content-type only when written to or when it is not the JSON one', () => {
-    const unused = new FetchResponseHeaders(DEFAULTS);
-    unused.setContentType(JSON_CONTENT_TYPE);
+describe('FetchHeadersPool', () => {
+  beforeEach(() => resetRouter());
+  const reply = (contentType = JSON_CONTENT_TYPE) => ({statusCode: 200, contentType, body: {}}) as any;
+
+  it('writes content-type only when the headers were written to, or when it is not the JSON one', () => {
+    const pool = new FetchHeadersPool();
+    const unused = pool.take();
+    pool.reply(reply(), unused);
     expect(unused.unused).toBe(true);
 
-    const written = new FetchResponseHeaders(DEFAULTS);
+    const written = pool.take();
     written.set('content-type', 'text/html');
-    written.setContentType(JSON_CONTENT_TYPE);
-    expect(written.get('content-type')).toBe(JSON_CONTENT_TYPE);
+    expect(pool.reply(reply(), written).headers.get('content-type')).toBe(JSON_CONTENT_TYPE);
 
-    const other = new FetchResponseHeaders(DEFAULTS);
-    other.setContentType('text/plain');
-    expect(other.get('content-type')).toBe('text/plain');
+    const other = pool.take();
+    expect(pool.reply(reply('text/plain'), other).headers.get('content-type')).toBe('text/plain');
     expect(other.unused).toBe(false);
+  });
+
+  it('gives the next request clean headers: Response copies the ones it is given', () => {
+    const pool = new FetchHeadersPool();
+    const first = pool.take();
+    pool.reply(reply(), first).headers.set('x-leak', 'yes');
+    const second = pool.take();
+    expect(second).toBe(first);
+    expect(second.has('x-leak')).toBe(false);
   });
 
   it('keeps two appended set-cookie values apart, and throws on a CR or LF like Headers', () => {
@@ -72,7 +83,7 @@ describe('UnusedHeadersPool', () => {
   beforeEach(() => resetRouter());
 
   it('gives an unused one back to the next request, and never a used one', () => {
-    const pool = new UnusedHeadersPool(newFetchResponseHeaders);
+    const pool = new FetchHeadersPool();
     const first = pool.take();
     pool.giveBack(first);
     expect(pool.take()).toBe(first);
@@ -83,7 +94,7 @@ describe('UnusedHeadersPool', () => {
   });
 
   it('keeps no more than its cap', () => {
-    const pool = new UnusedHeadersPool(newFetchResponseHeaders, 2);
+    const pool = new UnusedHeadersPool((defaults) => new FetchResponseHeaders(defaults), 2);
     const taken = [pool.take(), pool.take(), pool.take()];
     taken.forEach((headers) => pool.giveBack(headers));
     expect(pool.take()).toBe(taken[1]);
@@ -91,8 +102,20 @@ describe('UnusedHeadersPool', () => {
     expect(taken).not.toContain(pool.take());
   });
 
+  it('refuses headers taken before the router started with other headers', () => {
+    const pool = new FetchHeadersPool();
+    const stale = pool.take();
+    const mion = createMionRouter({apiVersionCheck: false, responseHeaders: {'x-team': 'mion'}});
+    mion.initRoutes({ping: mion.route((): string => 'pong')} satisfies Routes);
+    const fresh = pool.take();
+    pool.giveBack(stale);
+    pool.giveBack(fresh);
+    expect(pool.take()).toBe(fresh);
+    expect(pool.take()).not.toBe(stale);
+  });
+
   it('drops what it holds once the router starts with other headers', () => {
-    const pool = new UnusedHeadersPool(newFetchResponseHeaders);
+    const pool = new FetchHeadersPool();
     const old = pool.take();
     pool.giveBack(old);
     const mion = createMionRouter({apiVersionCheck: false, responseHeaders: {'x-team': 'mion'}});

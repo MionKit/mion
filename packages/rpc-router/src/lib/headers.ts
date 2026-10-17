@@ -72,9 +72,13 @@ class MionHeadersImpl implements MionHeaders {
 }
 
 /** Response headers over a copy of the defaults, for an adapter that answers with a header record (aws). */
-export function recordResponseHeaders(defaults: ResponseDefaults): PooledHeaders {
-  return new MionHeadersImpl({...defaults});
+class RecordResponseHeaders extends MionHeadersImpl implements PooledHeaders {
+  constructor(readonly defaults: ResponseDefaults) {
+    super({...defaults});
+  }
 }
+
+export const recordResponseHeaders = (defaults: ResponseDefaults): PooledHeaders => new RecordResponseHeaders(defaults);
 
 /** A fetch-like (not identical) Headers object over a header record, for an incoming request carrying its
  *  headers as an object: IncomingMessage.headers, ApiGatewayEvent.headers.

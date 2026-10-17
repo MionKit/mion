@@ -7,8 +7,8 @@
 
 // Response headers are built only on the first write: every write source must still reach the wire, and none may leak.
 
-import {describe, it, expect, beforeAll, afterAll} from 'vitest';
-import {createMionRouter, resetRouter} from '@mionjs/router';
+import {describe, it, expect, beforeAll, afterAll, vi} from 'vitest';
+import {createMionRouter, resetRouter, UnusedHeadersPool} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
 import {HeadersSubset} from '@mionjs/core';
 import {awsLambdaHandler, resetAwsLambdaOpts} from '../src/awsLambda.ts';
@@ -60,12 +60,11 @@ describe('aws response headers', () => {
   const call = async (route: string) => {
     const event = {body: JSON.stringify({[route]: []}), headers: {}, path: `/${route}`, httpMethod: 'POST'} as any;
     const result = await awsLambdaHandler(event, {} as any);
-    return {headers: new Headers(result.headers as Record<string, string>)};
+    return {status: result.statusCode, headers: new Headers(result.headers as Record<string, string>)};
   };
 
   beforeAll(() => {
     resetAwsLambdaOpts();
-    resetRouter();
     initApp({});
   });
 
@@ -100,6 +99,18 @@ describe('aws response headers', () => {
       expect((await call('setServer')).headers.get('server')).toEqual('my-server');
       expect((await call('setContentType')).headers.get('content-type')).toEqual('application/json; charset=utf-8');
     });
+
+    it('gives unused headers back to the pool, never written ones', async () => {
+      // the flag is read when given back: the next request takes the same object and may write to it
+      const given: boolean[] = [];
+      const giveBack = vi
+        .spyOn(UnusedHeadersPool.prototype, 'giveBack')
+        .mockImplementation((headers) => void given.push(headers.unused));
+      await call('ping');
+      await call('setHeader');
+      expect(given).toEqual([true, false]);
+      giveBack.mockRestore();
+    });
   });
 
   describe('with the responseHeaders option', () => {
@@ -115,6 +126,13 @@ describe('aws response headers', () => {
     it('a handler deleting a default drops it from that reply only', async () => {
       expect((await call('dropTeam')).headers.get('x-team')).toBeNull();
       expect((await call('ping')).headers.get('x-team')).toEqual('mion');
+    });
+
+    it('an error reply and a not-found reply carry them too', async () => {
+      expect((await call('fails')).headers.get('x-team')).toEqual('mion');
+      const notFound = await call('nope');
+      expect(notFound.status).toEqual(404);
+      expect(notFound.headers.get('x-team')).toEqual('mion');
     });
 
     it('a write keeps the defaults beside it', async () => {

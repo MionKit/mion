@@ -15,8 +15,7 @@ import {
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
-  UnusedHeadersPool,
-  newFetchResponseHeaders,
+  FetchHeadersPool,
   MionResponse,
   readRequestBody,
   BodyReadStrategy,
@@ -31,7 +30,7 @@ import {RpcError} from '@mionjs/core';
 // ############# PRIVATE STATE #############
 
 let cloudflareOptions: Readonly<CloudflareHandlerOptions> = {...DEFAULT_CLOUDFLARE_OPTIONS};
-const headersPool = new UnusedHeadersPool(newFetchResponseHeaders);
+const headersPool = new FetchHeadersPool();
 
 export function resetCloudflareHandlerOpts() {
   cloudflareOptions = {...DEFAULT_CLOUDFLARE_OPTIONS};
@@ -111,9 +110,5 @@ function fatalFail(err: RpcError<string>, responseHeaders: FetchResponseHeaders)
 }
 
 function reply(mionResp: MionResponse, headers: FetchResponseHeaders): Response {
-  headers.setContentType(mionResp.contentType);
-  // Response copies its headers, so unused ones serve the next request
-  const response = Response.json(mionResp.body, {status: mionResp.statusCode, headers: headers.native});
-  headersPool.giveBack(headers);
-  return response;
+  return headersPool.reply(mionResp, headers);
 }

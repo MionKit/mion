@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {PooledHeaders, ResponseDefaults} from '../types/context.ts';
+import type {MionResponse, PooledHeaders, ResponseDefaults} from '../types/context.ts';
 import {JSON_CONTENT_TYPE} from '../constants.ts';
 import {getResponseDefaults} from '../router.ts';
 
@@ -21,7 +21,7 @@ export class UnusedHeadersPool<Pooled extends PooledHeaders> {
 
   take(): Pooled {
     const current = getResponseDefaults();
-    // the router started again with other headers: what the pool holds is stale
+    // the router started again: what the pool holds carries the old defaults
     if (current !== this.defaults) {
       this.free.length = 0;
       this.defaults = current;
@@ -30,7 +30,8 @@ export class UnusedHeadersPool<Pooled extends PooledHeaders> {
   }
 
   giveBack(headers: Pooled): void {
-    if (headers.unused && this.free.length < this.max) this.free.push(headers);
+    // a request in flight across a router restart gives back headers filled with the old defaults
+    if (headers.unused && headers.defaults === this.defaults && this.free.length < this.max) this.free.push(headers);
   }
 }
 
@@ -38,12 +39,11 @@ export class UnusedHeadersPool<Pooled extends PooledHeaders> {
 export class FetchResponseHeaders implements PooledHeaders {
   /** What the reply hands to `Response`, which copies it. */
   readonly native = new Headers();
-  unused: boolean;
+  unused = true;
 
-  constructor(defaults: ResponseDefaults) {
+  constructor(readonly defaults: ResponseDefaults) {
     // one set per name beats building from a record
     for (const name in defaults) this.native.set(name, defaults[name]);
-    this.unused = true;
   }
 
   set(name: string, value: string): void {
@@ -73,11 +73,20 @@ export class FetchResponseHeaders implements PooledHeaders {
   values(): IterableIterator<string> {
     return this.native.values();
   }
-
-  /** Last before the reply, so a handler never replaces it; unused headers already hold the JSON one. */
-  setContentType(contentType: string): void {
-    if (!this.unused || contentType !== JSON_CONTENT_TYPE) this.set('content-type', contentType);
-  }
 }
 
-export const newFetchResponseHeaders = (defaults: ResponseDefaults): FetchResponseHeaders => new FetchResponseHeaders(defaults);
+/** The pool of the fetch adapters, which also builds their reply. */
+export class FetchHeadersPool extends UnusedHeadersPool<FetchResponseHeaders> {
+  constructor() {
+    super((defaults) => new FetchResponseHeaders(defaults));
+  }
+
+  reply(mionResp: MionResponse, headers: FetchResponseHeaders): Response {
+    // last, so a handler never replaces it; unused headers already hold the JSON one
+    if (!headers.unused || mionResp.contentType !== JSON_CONTENT_TYPE) headers.set('content-type', mionResp.contentType);
+    // Response copies its headers, so unused ones serve the next request
+    const response = Response.json(mionResp.body, {status: mionResp.statusCode, headers: headers.native});
+    this.giveBack(headers);
+    return response;
+  }
+}

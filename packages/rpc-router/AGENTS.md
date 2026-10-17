@@ -22,8 +22,8 @@
 - `ctx.shared` is typed from `contextDataFactory`.
 - Router-wide `parser` reaches what the build compiles for a route naming none.
 - Runtime still the module singleton.
-- Request data lives on its context: no WeakMap, no object shared across requests. Pools hold only unused objects.
   `mion.initRoutes(routes)` runs private `initRouter` + `registerRoutes` in `src/router.ts`.
+- Request data lives on its context: no WeakMap, no object shared across requests. Pools hold only unused objects.
 - Helper bodies in [src/lib/handlers.ts](src/lib/handlers.ts) are internal, NOT exported from `index.ts`.
   (mion's own middlewares and its error / serializer routes use them directly.)
 - Never re-add bare `route()` exports or a second init entry point.
