@@ -6,6 +6,7 @@
  * ######## */
 
 import {Routes, createMionRouter, resetRouter} from '@mionjs/router';
+import type {RouterOptions} from '@mionjs/router';
 import {CallContext, Route} from '@mionjs/router';
 import {createVercelHandler, resetVercelHandlerOpts} from '@mionjs/platform-vercel';
 import {assertKnownSetupOptions} from './setupOptions.ts';
@@ -64,7 +65,7 @@ const mutateRoutes = {
 export interface EdgeSetupOptions {
   /** Default is `clone`; `mutate` answers with the in-place parser. */
   parser?: 'mutate' | 'clone';
-  responseHeaders?: Record<string, string>;
+  responseHeaders?: RouterOptions['responseHeaders'];
 }
 
 const EDGE_SETUP_KEYS = ['parser', 'responseHeaders'] as const satisfies readonly (keyof EdgeSetupOptions)[];

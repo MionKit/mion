@@ -24,12 +24,11 @@ import {loadUws} from '@mionjs/bin-uws';
 import type {HttpRequest, HttpResponse, TemplatedApp, us_listen_socket} from '@mionjs/bin-uws';
 import {DEFAULT_UWS_HTTP_OPTIONS} from './constants.ts';
 import type {UwsHttpOptions} from './types.ts';
-import type {MethodsExecutionChain, MionHeaders, MionResponse} from '@mionjs/router';
+import type {MethodsExecutionChain, MionHeaders, MionResponse, PooledHeaders} from '@mionjs/router';
 import {getENV, SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {RpcError, FatalError} from '@mionjs/core';
 import {newBufferedHeaders, headersFromUwsRequest, forEachHeader} from './headers.ts';
-import type {PooledHeaders} from '@mionjs/router';
 
 // ############# PRIVATE STATE #############
 

@@ -67,7 +67,6 @@ describe('node response headers', () => {
 
   beforeAll(async () => {
     resetNodeHttpOpts();
-    resetRouter();
     initApp({});
     server = (await startNodeServer({port})) as Server;
   });
@@ -124,6 +123,13 @@ describe('node response headers', () => {
     it('a handler deleting a default drops it from that reply only', async () => {
       expect((await call('dropTeam')).headers.get('x-team')).toBeNull();
       expect((await call('ping')).headers.get('x-team')).toEqual('mion');
+    });
+
+    it('an error reply and a not-found reply carry them too', async () => {
+      expect((await call('fails')).headers.get('x-team')).toEqual('mion');
+      const notFound = await call('nope');
+      expect(notFound.status).toEqual(404);
+      expect(notFound.headers.get('x-team')).toEqual('mion');
     });
 
     it('a write keeps the defaults beside it', async () => {
