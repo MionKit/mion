@@ -48,6 +48,13 @@ describe('serverless router', () => {
     context.response.headers.set('server', 'my-server');
   });
 
+  const setCookies: Route = mion.route((context: Context): void => {
+    context.response.headers.append('set-cookie', 'a=1');
+    context.response.headers.append('set-cookie', 'b=2');
+    context.response.headers.append('x-list', '1');
+    context.response.headers.append('x-list', '2');
+  });
+
   const getDefaultGatewayEvent = (
     body: string,
     path: string,
@@ -78,7 +85,7 @@ describe('serverless router', () => {
     beforeAll(async () => {
       resetAwsLambdaOpts();
       resetRouter();
-      mion.initRoutes({changeUserName, getDate, updateHeaders});
+      mion.initRoutes({changeUserName, getDate, updateHeaders, setCookies});
     });
 
     it('should get an ok response from a route', async () => {
@@ -129,6 +136,16 @@ describe('serverless router', () => {
       // expect(headers['content-length']).toEqual('2'); // AWS manages content-length automatically
       expect(headers['server']).toEqual('my-server');
       expect(headers['x-something']).toEqual('true');
+    });
+
+    it('sends appended cookies as separate multiValueHeaders values, other names stay comma joined', async () => {
+      const {event, context} = getDefaultGatewayEvent('{}', '/api/setCookies');
+
+      const awsResponse = await awsLambdaHandler(event, context);
+
+      expect(awsResponse.multiValueHeaders?.['set-cookie']).toEqual(['a=1', 'b=2']);
+      expect(awsResponse.headers?.['set-cookie']).toBeUndefined();
+      expect(awsResponse.headers?.['x-list']).toEqual('1, 2');
     });
 
     it('get default headers', async () => {
