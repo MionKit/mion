@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Response headers are built only on the first write: every write source must still reach the wire, and none may leak.
+// Response headers are pooled while unused: every write source must reach the wire, and none may leak.
 
 import {describe, it, expect, beforeAll, afterAll, vi} from 'vitest';
 import {createMionRouter, resetRouter, UnusedHeadersPool} from '@mionjs/router';
