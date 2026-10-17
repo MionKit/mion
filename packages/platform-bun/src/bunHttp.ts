@@ -15,12 +15,12 @@ import {
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
-  MionResponse,
   getMaxRouteBodySize,
   readRequestBody,
   BodyReadStrategy,
   handOverToHost,
-  FetchHeadersPool,
+  getDefaultFetchHeaders,
+  replyFetch,
 } from '@mionjs/router';
 import type {MethodsExecutionChain, FetchResponseHeaders} from '@mionjs/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants.ts';
@@ -33,7 +33,6 @@ import {Server} from 'bun';
 // ############# PRIVATE STATE #############
 
 let httpOptions: Readonly<BunHttpOptions> = {...DEFAULT_BUN_HTTP_OPTIONS};
-const headersPool = new FetchHeadersPool();
 
 export function resetBunHttpOpts() {
   httpOptions = {...DEFAULT_BUN_HTTP_OPTIONS};
@@ -56,7 +55,7 @@ export function bunRequestHandler(req: Request): Response | Promise<Response> {
   const queryStart = reqUrl.indexOf('?', pathStart);
   const path = queryStart === -1 ? reqUrl.slice(pathStart) : reqUrl.slice(pathStart, queryStart);
   const urlQuery = queryStart === -1 ? undefined : reqUrl.slice(queryStart + 1);
-  const responseHeaders = headersPool.take();
+  const responseHeaders = getDefaultFetchHeaders();
 
   try {
     // route resolved BEFORE the body: the chain gives the limit bun's native read stops at, and a late context stays GC-cheap
@@ -87,7 +86,7 @@ async function readBodyAndDispatch(
       if (refusal.type === 'request-payload-too-large') responseHeaders.set('connection', 'close');
       // the route resolved, so the refusal still runs the chain's alwaysRun members
       const refused = await dispatchPlatformError(chain, path, urlQuery, refusal, req.headers, responseHeaders, req, undefined);
-      return reply(refused, responseHeaders);
+      return replyFetch(refused, responseHeaders);
     }
     return dispatchBody(req, chain, path, urlQuery, responseHeaders, rawBody);
   } catch (err) {
@@ -113,13 +112,15 @@ function dispatchBody(
   }
   const context = createContextFromChain(chain, path, urlQuery, req.headers, responseHeaders, reqRawBody, reqBodyType);
   const platformResp = dispatchMaybeSync(context, req, undefined);
-  if (!(platformResp instanceof Promise)) return reply(platformResp, responseHeaders);
-  return platformResp.then((resp) => reply(resp, responseHeaders)).catch((err) => fatalFail(toRpcError(err), responseHeaders));
+  if (!(platformResp instanceof Promise)) return replyFetch(platformResp, responseHeaders);
+  return platformResp
+    .then((resp) => replyFetch(resp, responseHeaders))
+    .catch((err) => fatalFail(toRpcError(err), responseHeaders));
 }
 
 /** Bun's connection-level error hook (never a route error — those are handled in the dispatch). */
 function bunErrorHandler(errReq: Error): Response {
-  const responseHeaders = headersPool.take();
+  const responseHeaders = getDefaultFetchHeaders();
   const error =
     errReq instanceof RpcError
       ? errReq
@@ -187,9 +188,5 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
 // only called when there is an http error or weird unhandled route errors
 function fatalFail(err: RpcError<string>, responseHeaders: FetchResponseHeaders): Response {
   const routeResponse = getRouterFatalErrorResponse(err, responseHeaders);
-  return reply(routeResponse, responseHeaders);
-}
-
-function reply(mionResp: MionResponse, headers: FetchResponseHeaders): Response {
-  return headersPool.reply(mionResp, headers);
+  return replyFetch(routeResponse, responseHeaders);
 }

@@ -7,13 +7,15 @@
 
 // Response headers are pooled while unused: every write source must reach the wire, and none may leak.
 
-import {describe, it, expect, beforeAll, afterAll, vi} from 'vitest';
-import {createMionRouter, resetRouter, UnusedHeadersPool} from '@mionjs/router';
+import {describe, it, expect, beforeAll, afterAll} from 'vitest';
+import {createMionRouter, resetRouter} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
 import {HeadersSubset} from '@mionjs/core';
 import {createCloudflareHandler, resetCloudflareHandlerOpts} from '../src/cloudflareHandler.ts';
 
 describe('cloudflare response headers', () => {
+  // the response headers object each request got, to tell a pooled one from a new one
+  const seen: unknown[] = [];
   // the router starts again for each set of response headers; a running server keeps serving it
   const initApp = (responseHeaders: Record<string, string>) => {
     resetRouter();
@@ -35,6 +37,15 @@ describe('cloudflare response headers', () => {
       cookies: mion.route((ctx: CallContext): string => {
         ctx.response.headers.append('set-cookie', 'a=1');
         ctx.response.headers.append('set-cookie', 'b=2');
+        return 'ok';
+      }),
+      capture: mion.route((ctx: CallContext): string => {
+        seen.push(ctx.response.headers);
+        return 'ok';
+      }),
+      captureWrite: mion.route((ctx: CallContext): string => {
+        seen.push(ctx.response.headers);
+        ctx.response.headers.set('x-custom', 'yes');
         return 'ok';
       }),
       tagged: mion.route((): HeadersSubset<'x-tag'> => new HeadersSubset({'x-tag': 'one'})),
@@ -106,16 +117,15 @@ describe('cloudflare response headers', () => {
       expect((await call('cookies')).headers.getSetCookie()).toEqual(['a=1', 'b=2']);
     });
 
-    it('gives unused headers back to the pool, never written ones', async () => {
-      // the flag is read when given back: the next request takes the same object and may write to it
-      const given: boolean[] = [];
-      const giveBack = vi
-        .spyOn(UnusedHeadersPool.prototype, 'giveBack')
-        .mockImplementation((headers) => void given.push(headers.unused));
-      await call('ping');
-      await call('setHeader');
-      expect(given).toEqual([true, false]);
-      giveBack.mockRestore();
+    it('serves the next request with unused headers, never with written ones', async () => {
+      seen.length = 0;
+      await call('capture');
+      await call('capture');
+      await call('captureWrite');
+      await call('capture');
+      expect(seen[1]).toBe(seen[0]);
+      expect(seen[2]).toBe(seen[0]);
+      expect(seen[3]).not.toBe(seen[2]);
     });
 
     it('a write on one reply never reaches the next one', async () => {

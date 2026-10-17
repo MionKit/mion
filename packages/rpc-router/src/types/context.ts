@@ -70,7 +70,7 @@ export type ResponseDefaults = Readonly<Record<string, string>>;
 /** Response headers an adapter pools: `unused` stays true from creation until the first write. */
 export interface PooledHeaders extends MionHeaders {
   readonly unused: boolean;
-  /** The defaults it was filled with: the pool refuses it back once the router started with others. */
+  /** The defaults it was filled with: the pool drops it once the router started with others. */
   readonly defaults: ResponseDefaults;
 }
 
