@@ -3,5 +3,5 @@ import './cloudflare-routes.ts';
 
 export default createCloudflareHandler({
   basePath: '/api',
-  defaultResponseHeaders: {'access-control-allow-origin': 'my.app.com'},
+  maxBodySize: 512 * 1024,
 });
