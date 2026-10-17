@@ -88,7 +88,7 @@ describe('node http router', () => {
       expect(reply).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
       expect(headers['content-length']).toEqual('47');
-      expect(headers['server']).toEqual('@mionjs');
+      expect(headers['server']).toEqual('mionjs');
     });
 
     it('answers a HEAD request with the headers only, and keeps serving on the same connection', async () => {
@@ -145,7 +145,7 @@ describe('node http router', () => {
       expect(reply).toEqual({'@thrownErrors': {getDate: expectedError}});
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
       expect(headers['content-length']).toEqual(expect.any(String));
-      expect(headers['server']).toEqual('@mionjs');
+      expect(headers['server']).toEqual('mionjs');
     });
 
     it('set response headers from route response', async () => {
@@ -163,17 +163,24 @@ describe('node http router', () => {
       expect(headers['x-something']).toEqual('true');
     });
 
-    it('get an error when body size is too large, get default headers', async () => {
+    it('get an error when body size is too large', async () => {
       const smallPort = port + 100;
       const httpOpts = {
         port: smallPort,
         maxBodySize: 1,
-        defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'},
       };
       resetNodeHttpOpts();
       resetRouter();
       setNodeHttpOpts(httpOpts);
-      mion.initRoutes({changeUserName, getDate, updateHeaders});
+      createMionRouter({
+        contextDataFactory: getSharedData,
+        basePath: 'api/',
+        responseHeaders: {'x-app-name': 'MyApp'},
+      }).initRoutes({
+        changeUserName,
+        getDate,
+        updateHeaders,
+      });
       const smallServer = await startNodeServer({port: smallPort});
       expect(smallServer.listening).toBe(true);
 
@@ -195,12 +202,11 @@ describe('node http router', () => {
       };
       expect(response.status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
       expect(headers['x-rpc-error']).toBe('request-payload-too-large');
-      expect(reply).toEqual({'@thrownErrors': {'mion@platformError': expectedError}});
       expect(headers['x-app-name']).toEqual('MyApp');
-      expect(headers['x-instance-id']).toEqual('3089');
+      expect(reply).toEqual({'@thrownErrors': {'mion@platformError': expectedError}});
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
       expect(headers['content-length']).toEqual('152');
-      expect(headers['server']).toEqual('@mionjs');
+      expect(headers['server']).toEqual('mionjs');
 
       await closeServer(smallServer);
 
@@ -232,7 +238,7 @@ describe('node http router', () => {
       expect(reply).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
       expect(headers['content-length']).toEqual('47');
-      expect(headers['server']).toEqual('@mionjs');
+      expect(headers['server']).toEqual('mionjs');
     });
 
     it('get an ok response from a route with complex objects (body type O)', async () => {
@@ -246,49 +252,7 @@ describe('node http router', () => {
 
       expect(reply).toEqual({changeUserName: {name: 'NewName', surname: 'Doe'}});
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-      expect(headers['server']).toEqual('@mionjs');
-    });
-  });
-
-  // The router's globals reach the wire through the adapter's own default headers, with no middleware writing them.
-  describe('with router global response headers', () => {
-    const globalsPort = port + 200;
-    let globalsServer: any;
-
-    beforeAll(async () => {
-      resetNodeHttpOpts();
-      resetRouter();
-      setNodeHttpOpts({port: globalsPort, defaultResponseHeaders: {'x-app-name': 'TheAdapter'}});
-      const globalsRouter = createMionRouter({
-        contextDataFactory: getSharedData,
-        basePath: 'api/',
-        globalResponseHeaders: {'x-team': 'mion', 'x-app-name': 'TheRouter'},
-      });
-      globalsRouter.initRoutes({changeUserName}, 'abc123');
-      globalsServer = await startNodeServer({port: globalsPort});
-    });
-
-    afterAll(async () => {
-      if (globalsServer) await closeServer(globalsServer);
-    });
-
-    it('rides every response, and the adapter still wins its own name', async () => {
-      const response = await fetch(`http://127.0.0.1:${globalsPort}/api/changeUserName`, {
-        method: 'POST',
-        body: JSON.stringify({changeUserName: [{name: 'John', surname: 'Doe'}]}),
-      });
-      const headers = Object.fromEntries(response.headers.entries());
-      expect(headers['x-team']).toEqual('mion');
-      expect(headers['x-build-version']).toBeUndefined();
-      expect(headers['x-app-name']).toEqual('TheAdapter');
-    });
-
-    it('rides a not-found response too', async () => {
-      const response = await fetch(`http://127.0.0.1:${globalsPort}/api/nope`, {method: 'POST', body: '{}'});
-      const headers = Object.fromEntries(response.headers.entries());
-      expect(response.status).toEqual(404);
-      expect(headers['x-team']).toEqual('mion');
-      expect(headers['x-build-version']).toBeUndefined();
+      expect(headers['server']).toEqual('mionjs');
     });
   });
 });

@@ -10,6 +10,7 @@ import {RouterOptions} from '../types/general.ts';
 import {MiddlewaresCollection, MayReturnError} from '../types/publicMethods.ts';
 import {AnyObject, Mutable, MION_ROUTES, StatusCodes, SerializerModes} from '@mionjs/core';
 import {rawMiddleware} from '../lib/handlers.ts';
+import {JSON_CONTENT_TYPE} from '../constants.ts';
 import {getRouteExecutable, getRouterOptions} from '../router.ts';
 import {FatalError, isRpcError} from '@mionjs/core';
 import {RemoteMethod} from '../types/remoteMethods.ts';
@@ -90,7 +91,7 @@ export function serializeResponseBody(context: CallContext, opts: RouterOptions)
   const response = context.response as Mutable<MionResponse>;
   const respBody: AnyObject = response.body;
   // prepareBodyForJson mutates in place; the adapter stringifies the body
-  response.headers.set('content-type', 'application/json; charset=utf-8');
+  response.contentType = JSON_CONTENT_TYPE;
   prepareBodyForJson(context, context.executionChain.methods, respBody);
 }
 

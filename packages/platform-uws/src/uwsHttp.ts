@@ -15,7 +15,8 @@ import {
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
-  getResponseDefaults,
+  getDefaultHeaders,
+  releaseHeaders,
   requestPayloadTooLarge,
   hostOwnsSocket,
 } from '@mionjs/router';
@@ -24,11 +25,11 @@ import {loadUws} from '@mionjs/bin-uws';
 import type {HttpRequest, HttpResponse, TemplatedApp, us_listen_socket} from '@mionjs/bin-uws';
 import {DEFAULT_UWS_HTTP_OPTIONS} from './constants.ts';
 import type {UwsHttpOptions} from './types.ts';
-import type {MethodsExecutionChain, MionHeaders, MionResponse} from '@mionjs/router';
+import type {MethodsExecutionChain, MionHeaders, MionResponse, RecordResponseHeaders} from '@mionjs/router';
 import {getENV, SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {RpcError, FatalError} from '@mionjs/core';
-import {bufferedResponseHeaders, headersFromUwsRequest, forEachHeader} from './headers.ts';
+import {headersFromUwsRequest} from './headers.ts';
 
 // ############# PRIVATE STATE #############
 
@@ -141,8 +142,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   const urlQuery = query === '' ? undefined : query;
   const reqHeaders = headersFromUwsRequest(req);
 
-  const respHeaders = bufferedResponseHeaders(getResponseDefaults(httpOptions.defaultResponseHeaders));
-  respHeaders.set('server', '@mionjs');
+  const respHeaders = getDefaultHeaders();
 
   // must be registered before any async work: after a disconnect uWS frees the response, and touching it would crash
   res.onAborted(() => {
@@ -301,6 +301,7 @@ function statusLine(statusCode: number): string {
 function reply(res: HttpResponse, state: {aborted: boolean}, mionResp: MionResponse) {
   // uWS freed the response when the client left; touching it would crash
   if (state.aborted) return;
+  const headers = mionResp.headers as RecordResponseHeaders;
 
   // serialized BEFORE the cork: uWS warns a cork buffer must not be held across event loop iterations
   const payload = JSON.stringify(mionResp.body);
@@ -310,10 +311,14 @@ function reply(res: HttpResponse, state: {aborted: boolean}, mionResp: MionRespo
   res.cork(() => {
     res.writeStatus(statusLine(mionResp.statusCode));
     // uWS writes headers unchecked, so an echoed CR or LF would be header injection: dropped
-    forEachHeader(mionResp.headers, (name, value) => {
-      if (name !== 'content-length' && isHeaderSafe(name) && isHeaderSafe(value)) res.writeHeader(name, value);
+    headers.forEach((name, value) => {
+      if (name !== 'content-length' && name !== 'content-type' && isHeaderSafe(name) && isHeaderSafe(value))
+        res.writeHeader(name, value);
     });
+    // last, and the store's own skipped above: uWS appends a repeated name instead of replacing it
+    res.writeHeader('content-type', mionResp.contentType);
 
     res.end(payload);
   });
+  releaseHeaders(headers);
 }

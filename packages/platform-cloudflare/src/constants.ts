@@ -12,7 +12,6 @@ import {CloudflareHandlerOptions} from './types.ts';
 export const CLOUDFLARE_MAX_BODY_SIZE_CAP = 100_000_000;
 
 export const DEFAULT_CLOUDFLARE_OPTIONS: CloudflareHandlerOptions = {
-  defaultResponseHeaders: {},
   basePath: '',
   maxBodySize: DEFAULT_MAX_BODY_SIZE,
   maxBodySizeCap: CLOUDFLARE_MAX_BODY_SIZE_CAP,

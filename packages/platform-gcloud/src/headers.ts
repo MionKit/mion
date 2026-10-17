@@ -52,8 +52,9 @@ class ServerResponseHeadersImpl implements MionHeaders {
 }
 
 export function headersFromServerResponse(resp: ServerResponse, initialHeaders: Record<string, string> | null): MionHeaders {
-  // for...in, so the common empty-defaults case allocates no entries array and no closure
-  if (initialHeaders) for (const name in initialHeaders) resp.setHeader(name, initialHeaders[name]);
+  // for...in allocates no entries array and no closure
+  // content-type is the reply's: a raw middleware that ends the response itself must not send the JSON one
+  if (initialHeaders) for (const name in initialHeaders) if (name !== 'content-type') resp.setHeader(name, initialHeaders[name]);
   return new ServerResponseHeadersImpl(resp);
 }
 

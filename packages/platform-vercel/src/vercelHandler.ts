@@ -15,11 +15,12 @@ import {
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
-  getResponseDefaults,
-  MionResponse,
+  getDefaultFetchHeaders,
+  replyFetch,
   readRequestBody,
   BodyReadStrategy,
 } from '@mionjs/router';
+import type {FetchResponseHeaders} from '@mionjs/router';
 import {DEFAULT_VERCEL_OPTIONS} from './constants.ts';
 import type {VercelHandlerOptions} from './types.ts';
 import {SerializerModes} from '@mionjs/core';
@@ -29,8 +30,6 @@ import {RpcError} from '@mionjs/core';
 // ############# PRIVATE STATE #############
 
 let vercelOptions: Readonly<VercelHandlerOptions> = {...DEFAULT_VERCEL_OPTIONS};
-/** A record, not a list of pairs: `new Headers()` APPENDS a repeated name instead of letting the later one win. */
-const SERVER_HEADER = {server: '@mionjs'};
 
 export function resetVercelHandlerOpts() {
   vercelOptions = {...DEFAULT_VERCEL_OPTIONS};
@@ -51,7 +50,7 @@ async function handleRequest(req: Request): Promise<Response> {
   const urlObj = new URL(reqUrl);
   const path = urlObj.pathname;
   const urlQuery = urlObj.search ? urlObj.search.slice(1) : undefined;
-  const responseHeaders = new Headers(getResponseDefaults(vercelOptions.defaultResponseHeaders, SERVER_HEADER));
+  const responseHeaders = getDefaultFetchHeaders();
 
   // read as TEXT: `req.json()` would throw a raw SyntaxError outside any mion envelope, and the limit needs the size first
   try {
@@ -75,7 +74,7 @@ async function handleRequest(req: Request): Promise<Response> {
           req,
           undefined
         );
-        return reply(refused, responseHeaders);
+        return replyFetch(refused, responseHeaders);
       }
       const queryBody = decodeQueryBody(urlQuery, rawBody);
       if (queryBody) {
@@ -85,7 +84,7 @@ async function handleRequest(req: Request): Promise<Response> {
     }
     const context = createContextFromChain(chain, path, urlQuery, req.headers, responseHeaders, rawBody, reqBodyType);
     const platformResp = await dispatchWithContext(context, req, undefined);
-    return reply(platformResp, responseHeaders);
+    return replyFetch(platformResp, responseHeaders);
   } catch (err) {
     return fatalFail(toRpcError(err), responseHeaders);
   }
@@ -103,11 +102,7 @@ export function createVercelHandler(options?: Partial<VercelHandlerOptions>) {
   };
 }
 
-function fatalFail(err: RpcError<string>, responseHeaders: any): Response {
+function fatalFail(err: RpcError<string>, responseHeaders: FetchResponseHeaders): Response {
   const routeResponse = getRouterFatalErrorResponse(err, responseHeaders);
-  return reply(routeResponse, responseHeaders);
-}
-
-function reply(mionResp: MionResponse, responseHeaders: any): Response {
-  return Response.json(mionResp.body, {status: mionResp.statusCode, headers: responseHeaders});
+  return replyFetch(routeResponse, responseHeaders);
 }

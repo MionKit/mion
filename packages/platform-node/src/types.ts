@@ -12,8 +12,6 @@ export interface NodeHttpOptions {
   port: number;
   /** Native node's ServerOptions. By default maxHeaderSize defaults to 8KB, same as in latest node versions */
   options: ServerOptions;
-  /** Set of default response header to add to every response*/
-  defaultResponseHeaders: Record<string, string>;
   /** Bytes a route takes when its own `maxBodySize` and its types say nothing (128 KB). */
   maxBodySize: number;
   /** The platform's request ceiling in bytes that no option can raise; unset here, this platform has none. */

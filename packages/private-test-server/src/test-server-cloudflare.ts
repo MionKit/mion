@@ -6,6 +6,7 @@
  * ######## */
 
 import {Routes, createMionRouter, resetRouter} from '@mionjs/router';
+import type {RouterOptions} from '@mionjs/router';
 import {CallContext, Route} from '@mionjs/router';
 import {createCloudflareHandler, resetCloudflareHandlerOpts} from '@mionjs/platform-cloudflare';
 import {assertKnownSetupOptions} from './setupOptions.ts';
@@ -65,13 +66,13 @@ export interface CloudflareSetupOptions {
   basePath?: string;
   /** Default is `clone`; `mutate` answers with the in-place parser. */
   parser?: 'mutate' | 'clone';
-  defaultResponseHeaders?: Record<string, string>;
+  responseHeaders?: RouterOptions['responseHeaders'];
 }
 
 const CLOUDFLARE_SETUP_KEYS = [
   'basePath',
   'parser',
-  'defaultResponseHeaders',
+  'responseHeaders',
 ] as const satisfies readonly (keyof CloudflareSetupOptions)[];
 
 /** Sets up the cloudflare handler inside the workerd runtime. */
@@ -82,11 +83,11 @@ export async function setup(options?: CloudflareSetupOptions) {
   const router = createMionRouter({
     contextDataFactory: getSharedData,
     basePath: 'api/',
+    responseHeaders: options?.responseHeaders ?? {},
   });
   router.initRoutes(options?.parser === 'mutate' ? mutateRoutes : cloudflareRoutes);
   const handler = createCloudflareHandler({
     basePath: options?.basePath ?? '',
-    defaultResponseHeaders: options?.defaultResponseHeaders ?? {},
   });
   // the service worker fetch listener reaches it through the global
   (globalThis as any).handler = handler;

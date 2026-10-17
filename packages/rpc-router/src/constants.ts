@@ -19,9 +19,11 @@ export const DEFAULT_ROUTE_OPTIONS = {
   /** A type-derived request limit is the JSON maximum times this factor */
   maxBodySizeFactor: 2,
   releaseRawBody: true,
-  globalResponseHeaders: {},
+  responseHeaders: {},
   apiVersionCheck: true,
   getAllRemoteMethodsMaxNumber: 100,
 } as Readonly<RouterOptions>;
 
 export const MAX_ROUTE_NESTING = 10;
+
+export const JSON_CONTENT_TYPE = 'application/json; charset=utf-8';

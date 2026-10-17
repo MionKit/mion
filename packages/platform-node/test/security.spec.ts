@@ -163,7 +163,7 @@ describe('node adapter hardening', () => {
   it('response headers can be listed from a handler', async () => {
     const response = await fetch(`http://127.0.0.1:${port}/api/listHeaders`, {method: 'POST', body: '{"listHeaders":[]}'});
     const body = (await response.json()) as RpcBody;
-    expect(body.listHeaders).toEqual(expect.arrayContaining(['x-one=1', 'server=@mionjs']));
+    expect(body.listHeaders).toEqual(expect.arrayContaining(['x-one=1', 'server=mionjs']));
   });
 });
 

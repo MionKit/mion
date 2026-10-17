@@ -73,7 +73,7 @@ describe('vercel handler', () => {
 
       expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
       expect(response.headers.get('content-type')).toEqual('application/json; charset=utf-8');
-      expect(response.headers.get('server')).toEqual('@mionjs');
+      expect(response.headers.get('server')).toEqual('mionjs');
     });
 
     it('should get an error when sending invalid parameters', async () => {
@@ -92,7 +92,7 @@ describe('vercel handler', () => {
       };
       expect(parsedResponse[MION_ROUTES.thrownErrors]).toEqual({getDate: expectedError});
       expect(response.headers.get('content-type')).toEqual('application/json; charset=utf-8');
-      expect(response.headers.get('server')).toEqual('@mionjs');
+      expect(response.headers.get('server')).toEqual('mionjs');
     });
 
     it('should set response headers from route response', async () => {
@@ -106,36 +106,6 @@ describe('vercel handler', () => {
       expect(response.headers.get('content-type')).toEqual('application/json; charset=utf-8');
       expect(response.headers.get('server')).toEqual('my-server');
       expect(response.headers.get('x-something')).toEqual('true');
-    });
-
-    it('should include default headers', async () => {
-      resetVercelHandlerOpts();
-      mion.initRoutes({changeUserName, getDate, updateHeaders});
-      setVercelHandlerOpts({
-        defaultResponseHeaders: {
-          'x-app-name': 'MyApp',
-          'x-instance-id': '3089',
-        },
-      });
-      handler = createVercelHandler();
-
-      const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
-      const req = createRequest(JSON.stringify(requestData), '/api/getDate');
-
-      const response = await handler.POST(req);
-      const parsedResponse = (await response.json()) as RpcBody;
-
-      expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
-      expect(response.headers.get('x-app-name')).toEqual('MyApp');
-      expect(response.headers.get('x-instance-id')).toEqual('3089');
-      expect(response.headers.get('content-type')).toEqual('application/json; charset=utf-8');
-      expect(response.headers.get('server')).toEqual('@mionjs');
-
-      // Restore state
-      resetVercelHandlerOpts();
-      setVercelHandlerOpts();
-      mion.initRoutes({changeUserName, getDate, updateHeaders});
-      handler = createVercelHandler();
     });
   });
 
@@ -158,9 +128,8 @@ describe('vercel handler', () => {
       const parsedResponse = (await response.json()) as RpcBody;
 
       expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
-      // Response.json() adds charset=utf-8 automatically
       expect(response.headers.get('content-type')).toContain('application/json');
-      expect(response.headers.get('server')).toEqual('@mionjs');
+      expect(response.headers.get('server')).toEqual('mionjs');
     });
 
     it('should get an ok response from a route with complex objects', async () => {
@@ -172,7 +141,7 @@ describe('vercel handler', () => {
 
       expect(parsedResponse).toEqual({changeUserName: {name: 'NewName', surname: 'Doe'}});
       expect(response.headers.get('content-type')).toContain('application/json');
-      expect(response.headers.get('server')).toEqual('@mionjs');
+      expect(response.headers.get('server')).toEqual('mionjs');
     });
   });
 });

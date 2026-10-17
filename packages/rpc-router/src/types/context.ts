@@ -52,6 +52,8 @@ export interface MionRequest {
 /** Router's own response object, do not confuse with the underlying raw response */
 export interface MionResponse {
   readonly statusCode: number;
+  /** Set by the body serializer; the adapter writes it after every header, so no handler overrides it */
+  readonly contentType: string;
   readonly headers: Readonly<MionHeaders>;
   /** The router response data, never to be modified by hand */
   readonly body: Readonly<ResponseBody>;
@@ -61,6 +63,16 @@ export interface MionResponse {
   readonly fatalError?: RpcError<string>;
 }
 // end-call-context-type
+
+/** The headers every response starts with, lowercased, from getResponseDefaults. */
+export type ResponseDefaults = Readonly<Record<string, string>>;
+
+/** Response headers an adapter pools: `unused` stays true from creation until the first write. */
+export interface PooledHeaders extends MionHeaders {
+  readonly unused: boolean;
+  /** The defaults it was filled with: the pool drops it once the router started with others. */
+  readonly defaults: ResponseDefaults;
+}
 
 /** Header names must be case insensitive.
  *  @see https://developer.mozilla.org/en-US/docs/Web/API/Headers */

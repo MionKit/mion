@@ -92,7 +92,7 @@ describe('serverless router', () => {
       expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
       // expect(headers['content-length']).toEqual('47'); // AWS manages content-length automatically
-      expect(headers['server']).toEqual('@mionjs');
+      expect(headers['server']).toEqual('mionjs');
     });
 
     it('should get an error when sending invalid parameters', async () => {
@@ -113,7 +113,7 @@ describe('serverless router', () => {
       expect(parsedResponse[MION_ROUTES.thrownErrors]).toEqual({getDate: expectedError});
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
       // expect(headers['content-length']).toEqual('180'); // AWS manages content-length automatically
-      expect(headers['server']).toEqual('@mionjs');
+      expect(headers['server']).toEqual('mionjs');
     });
 
     it('should set response headers from route response', async () => {
@@ -129,37 +129,6 @@ describe('serverless router', () => {
       // expect(headers['content-length']).toEqual('2'); // AWS manages content-length automatically
       expect(headers['server']).toEqual('my-server');
       expect(headers['x-something']).toEqual('true');
-    });
-
-    it('get default headers', async () => {
-      const awsOpts = {
-        defaultResponseHeaders: {
-          'x-app-name': 'MyApp',
-          'x-instance-id': '3089',
-        },
-      };
-      resetAwsLambdaOpts();
-      resetRouter();
-      setAwsLambdaOpts(awsOpts);
-      mion.initRoutes({changeUserName, getDate, updateHeaders});
-      const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
-      const {event, context} = getDefaultGatewayEvent(JSON.stringify(requestData), '/api/getDate');
-
-      const awsResponse = await awsLambdaHandler(event, context);
-      const parsedResponse = JSON.parse(awsResponse.body);
-      const headers = awsResponse.headers || {};
-
-      expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
-      expect(headers['x-app-name']).toEqual('MyApp');
-      expect(headers['x-instance-id']).toEqual('3089');
-      expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-      // expect(headers['content-length']).toEqual('47'); // AWS manages content-length automatically
-      expect(headers['server']).toEqual('@mionjs');
-
-      // Restore router state for subsequent tests
-      resetAwsLambdaOpts();
-      resetRouter();
-      mion.initRoutes({changeUserName, getDate, updateHeaders});
     });
   });
 
@@ -268,7 +237,7 @@ describe('serverless router', () => {
 
       expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-      expect(headers['server']).toEqual('@mionjs');
+      expect(headers['server']).toEqual('mionjs');
     });
 
     it('should get an ok response from a route with complex objects (body type O)', async () => {
@@ -281,7 +250,7 @@ describe('serverless router', () => {
 
       expect(parsedResponse).toEqual({changeUserName: {name: 'NewName', surname: 'Doe'}});
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-      expect(headers['server']).toEqual('@mionjs');
+      expect(headers['server']).toEqual('mionjs');
     });
   });
 

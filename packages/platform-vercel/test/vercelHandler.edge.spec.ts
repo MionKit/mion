@@ -24,7 +24,7 @@ interface EdgeResponse {
 /** Mirrors EdgeSetupOptions in the fixture, which rejects an unknown key, so drift fails the setup. */
 interface EdgeSetupOptions {
   parser?: 'mutate' | 'clone';
-  defaultResponseHeaders?: Record<string, string>;
+  responseHeaders?: Record<string, string>;
 }
 
 /** A hand written literal inside the evaluated string is never type checked; this object is. */
@@ -84,7 +84,7 @@ describe('vercel handler (edge runtime)', () => {
 
       expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
       expect(result.headers['content-type']).toEqual('application/json; charset=utf-8');
-      expect(result.headers['server']).toEqual('@mionjs');
+      expect(result.headers['server']).toEqual('mionjs');
     });
 
     it('should get an error when sending invalid parameters', async () => {
@@ -101,7 +101,7 @@ describe('vercel handler (edge runtime)', () => {
       };
       expect(parsedResponse[MION_ROUTES.thrownErrors]).toEqual({getDate: expectedError});
       expect(result.headers['content-type']).toEqual('application/json; charset=utf-8');
-      expect(result.headers['server']).toEqual('@mionjs');
+      expect(result.headers['server']).toEqual('mionjs');
     });
 
     it('should set response headers from route response', async () => {
@@ -117,7 +117,7 @@ describe('vercel handler (edge runtime)', () => {
 
     it('should include default headers', async () => {
       vm = createEdgeVM();
-      await vm.evaluate(setupCall({defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'}}));
+      await vm.evaluate(setupCall({responseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'}}));
 
       const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
       const result = await callHandler(vm, '/api/getDate', JSON.stringify(requestData));
@@ -127,7 +127,7 @@ describe('vercel handler (edge runtime)', () => {
       expect(result.headers['x-app-name']).toEqual('MyApp');
       expect(result.headers['x-instance-id']).toEqual('3089');
       expect(result.headers['content-type']).toEqual('application/json; charset=utf-8');
-      expect(result.headers['server']).toEqual('@mionjs');
+      expect(result.headers['server']).toEqual('mionjs');
     });
   });
 
@@ -154,7 +154,7 @@ describe('vercel handler (edge runtime)', () => {
 
       expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
       expect(result.headers['content-type']).toContain('application/json');
-      expect(result.headers['server']).toEqual('@mionjs');
+      expect(result.headers['server']).toEqual('mionjs');
     });
 
     it('should get an ok response from a route with complex objects', async () => {
@@ -164,7 +164,7 @@ describe('vercel handler (edge runtime)', () => {
 
       expect(parsedResponse).toEqual({changeUserName: {name: 'NewName', surname: 'Doe'}});
       expect(result.headers['content-type']).toContain('application/json');
-      expect(result.headers['server']).toEqual('@mionjs');
+      expect(result.headers['server']).toEqual('mionjs');
     });
   });
 

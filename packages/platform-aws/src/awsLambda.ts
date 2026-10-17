@@ -15,9 +15,10 @@ import {
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
-  getResponseDefaults,
+  getDefaultHeaders,
+  releaseHeaders,
 } from '@mionjs/router';
-import type {MionResponse, MionHeaders} from '@mionjs/router';
+import type {MionResponse, RecordResponseHeaders} from '@mionjs/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 import {DEFAULT_AWS_LAMBDA_OPTIONS} from './constants.ts';
 import {AwsLambdaOptions} from '../index.ts';
@@ -50,11 +51,7 @@ export function createAwsLambdaHandler(options?: Partial<AwsLambdaOptions>) {
 export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> {
   let rawBody: any = decodeEventBody(rawRequest);
   const reqHeaders = headersFromRecord(rawRequest.headers as Record<string, string>);
-  const rawRespHeaders: Record<string, string> = {
-    server: '@mionjs',
-    ...getResponseDefaults(lambdaOptions.defaultResponseHeaders),
-  };
-  const respHeaders = headersFromRecord(rawRespHeaders, true);
+  const respHeaders = getDefaultHeaders();
   // AWS Lambda always receives body as string (JSON)
   let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
   const urlQuery = buildQueryString(rawRequest.queryStringParameters);
@@ -103,7 +100,7 @@ function buildQueryString(params: APIGatewayEvent['queryStringParameters']): str
   return query;
 }
 
-function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayProxyResult {
+function reply(routeResponse: MionResponse, headers: RecordResponseHeaders): APIGatewayProxyResult {
   // AWS sets content-length itself, unlike node
   const singleHeaders: Record<string, string> = {};
   const multiHeaders: Record<string, string[]> = {};
@@ -119,7 +116,7 @@ function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayPro
   }
 
   const responseBody = JSON.stringify(routeResponse.body);
-  singleHeaders['content-type'] = 'application/json; charset=utf-8';
+  singleHeaders['content-type'] = routeResponse.contentType;
 
   // the body is always text, so `isBase64Encoded` keeps its default (false)
   const resp: APIGatewayProxyResult = {
@@ -128,5 +125,6 @@ function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayPro
     body: responseBody,
   };
   if (multiHeaderCount) resp.multiValueHeaders = multiHeaders;
+  releaseHeaders(headers);
   return resp;
 }

@@ -8,8 +8,17 @@
 import {describe, it, expect, beforeEach} from 'vitest';
 import {createMionRouter, resetRouter} from '../../src/router.ts';
 import {dispatchRoute} from '../../src/dispatch.ts';
-import {headersFromRecord} from '../../src/lib/headers.ts';
-import {MionHeaders} from '../../src/types/context.ts';
+import {
+  headersFromRecord,
+  FetchResponseHeaders,
+  RecordResponseHeaders,
+  getDefaultHeaders,
+  getDefaultFetchHeaders,
+  releaseHeaders,
+  replyFetch,
+} from '../../src/lib/headers.ts';
+import {JSON_CONTENT_TYPE} from '../../src/constants.ts';
+import type {MionHeaders, MionResponse} from '../../src/types/context.ts';
 import {HeadersSubset, RpcError, StatusCodes} from '@mionjs/core';
 import {createValidateFn, createGetValidationErrorsFn} from '@mionjs/run-types';
 
@@ -587,5 +596,90 @@ describe('security: header records are own-key only', () => {
     expect(Object.getPrototypeOf(record)).toBe(Object.prototype);
     expect(headers.get('__proto__')).toBeUndefined();
     expect(({} as any).x).toBeUndefined();
+  });
+});
+
+describe('response headers', () => {
+  const DEFAULTS = {server: 'mionjs', 'x-team': 'mion', 'content-type': JSON_CONTENT_TYPE};
+  const reply = (contentType = JSON_CONTENT_TYPE) => ({statusCode: 200, contentType, body: {}}) as MionResponse;
+  beforeEach(() => resetRouter());
+
+  it('stay unused after the defaults are filled in, and any write turns that off', () => {
+    for (const write of ['set', 'append', 'delete'] as const) {
+      for (const headers of [new FetchResponseHeaders(DEFAULTS), new RecordResponseHeaders(DEFAULTS)]) {
+        expect(headers.unused).toBe(true);
+        expect(headers.get('x-team')).toBe('mion');
+        if (write === 'delete') headers.delete('x-team');
+        else headers[write]('x-custom', 'yes');
+        expect(headers.unused).toBe(false);
+      }
+    }
+  });
+
+  it('stay unused after reads, and never write into the defaults', () => {
+    const defaults = {...DEFAULTS};
+    const headers = new RecordResponseHeaders(defaults);
+    headers.get('server');
+    headers.has('x-team');
+    expect([...headers.entries()].length).toBe(3);
+    expect(headers.unused).toBe(true);
+    headers.set('x-team', 'other');
+    expect(defaults['x-team']).toBe('mion');
+  });
+
+  it('go back to the pool for the next request only while unused', () => {
+    const first = getDefaultHeaders();
+    releaseHeaders(first);
+    expect(getDefaultHeaders()).toBe(first);
+    first.set('x-custom', 'yes');
+    releaseHeaders(first);
+    expect(getDefaultHeaders()).not.toBe(first);
+  });
+
+  it('keep no more than 256 in the pool', () => {
+    const taken = Array.from({length: 257}, getDefaultHeaders);
+    taken.forEach(releaseHeaders);
+    const again = Array.from({length: 257}, getDefaultHeaders);
+    expect(again.filter((headers) => taken.includes(headers)).length).toBe(256);
+  });
+
+  it('are dropped from the pool once the router starts with other headers', () => {
+    const old = getDefaultHeaders();
+    releaseHeaders(old);
+    const mion = createMionRouter({apiVersionCheck: false, responseHeaders: {'x-team': 'mion'}});
+    mion.initRoutes({ping: mion.route((): string => 'pong')});
+    const fresh = getDefaultHeaders();
+    expect(fresh).not.toBe(old);
+    expect(fresh.get('x-team')).toBe('mion');
+  });
+
+  it('get content-type in the fetch reply only once written to, or when it is not the JSON one', () => {
+    const unused = getDefaultFetchHeaders();
+    replyFetch(reply(), unused);
+    expect(unused.unused).toBe(true);
+
+    const written = getDefaultFetchHeaders();
+    written.set('content-type', 'text/html');
+    expect(replyFetch(reply(), written).headers.get('content-type')).toBe(JSON_CONTENT_TYPE);
+
+    const other = getDefaultFetchHeaders();
+    expect(replyFetch(reply('text/plain'), other).headers.get('content-type')).toBe('text/plain');
+    expect(other.unused).toBe(false);
+  });
+
+  it('serve the next fetch request clean: Response copies the ones it is given', () => {
+    const first = getDefaultFetchHeaders();
+    replyFetch(reply(), first).headers.set('x-leak', 'yes');
+    const second = getDefaultFetchHeaders();
+    expect(second).toBe(first);
+    expect(second.has('x-leak')).toBe(false);
+  });
+
+  it('keep two appended set-cookie values apart on fetch, and throw on a CR or LF like Headers', () => {
+    const headers = new FetchResponseHeaders(DEFAULTS);
+    headers.append('set-cookie', 'a=1');
+    headers.append('set-cookie', 'b=2');
+    expect(headers.native.getSetCookie()).toEqual(['a=1', 'b=2']);
+    expect(() => headers.set('x-bad', 'one\r\ntwo')).toThrow(TypeError);
   });
 });

@@ -15,11 +15,12 @@ import {
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
-  getResponseDefaults,
-  MionResponse,
+  getDefaultFetchHeaders,
+  replyFetch,
   readRequestBody,
   BodyReadStrategy,
 } from '@mionjs/router';
+import type {FetchResponseHeaders} from '@mionjs/router';
 import {DEFAULT_CLOUDFLARE_OPTIONS} from './constants.ts';
 import type {CloudflareHandlerOptions, CloudflareExecutionContext, CloudflarePlatformContext} from './types.ts';
 import {SerializerModes} from '@mionjs/core';
@@ -29,8 +30,6 @@ import {RpcError} from '@mionjs/core';
 // ############# PRIVATE STATE #############
 
 let cloudflareOptions: Readonly<CloudflareHandlerOptions> = {...DEFAULT_CLOUDFLARE_OPTIONS};
-/** A record, not a list of pairs: `new Headers()` APPENDS a repeated name instead of letting the later one win. */
-const SERVER_HEADER = {server: '@mionjs'};
 
 export function resetCloudflareHandlerOpts() {
   cloudflareOptions = {...DEFAULT_CLOUDFLARE_OPTIONS};
@@ -54,7 +53,7 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
     path = path.slice(cloudflareOptions.basePath.length) || '/';
   }
   const urlQuery = urlObj.search ? urlObj.search.slice(1) : undefined;
-  const responseHeaders = new Headers(getResponseDefaults(cloudflareOptions.defaultResponseHeaders, SERVER_HEADER));
+  const responseHeaders = getDefaultFetchHeaders();
 
   const platformContext: CloudflarePlatformContext<Env> | undefined =
     env !== undefined || ctx !== undefined ? {env: env as Env, ctx: ctx as CloudflareExecutionContext} : undefined;
@@ -81,7 +80,7 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
           req,
           platformContext
         );
-        return reply(refused, responseHeaders);
+        return replyFetch(refused, responseHeaders);
       }
       const queryBody = decodeQueryBody(urlQuery, rawBody);
       if (queryBody) {
@@ -91,7 +90,7 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
     }
     const context = createContextFromChain(chain, path, urlQuery, req.headers, responseHeaders, rawBody, reqBodyType);
     const platformResp = await dispatchWithContext(context, req, platformContext);
-    return reply(platformResp, responseHeaders);
+    return replyFetch(platformResp, responseHeaders);
   } catch (err) {
     return fatalFail(toRpcError(err), responseHeaders);
   }
@@ -104,11 +103,7 @@ export function createCloudflareHandler<Env = unknown>(options?: Partial<Cloudfl
   };
 }
 
-function fatalFail(err: RpcError<string>, responseHeaders: any): Response {
+function fatalFail(err: RpcError<string>, responseHeaders: FetchResponseHeaders): Response {
   const routeResponse = getRouterFatalErrorResponse(err, responseHeaders);
-  return reply(routeResponse, responseHeaders);
-}
-
-function reply(mionResp: MionResponse, responseHeaders: any): Response {
-  return Response.json(mionResp.body, {status: mionResp.statusCode, headers: responseHeaders});
+  return replyFetch(routeResponse, responseHeaders);
 }

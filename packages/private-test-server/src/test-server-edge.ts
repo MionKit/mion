@@ -6,6 +6,7 @@
  * ######## */
 
 import {Routes, createMionRouter, resetRouter} from '@mionjs/router';
+import type {RouterOptions} from '@mionjs/router';
 import {CallContext, Route} from '@mionjs/router';
 import {createVercelHandler, resetVercelHandlerOpts} from '@mionjs/platform-vercel';
 import {assertKnownSetupOptions} from './setupOptions.ts';
@@ -64,10 +65,10 @@ const mutateRoutes = {
 export interface EdgeSetupOptions {
   /** Default is `clone`; `mutate` answers with the in-place parser. */
   parser?: 'mutate' | 'clone';
-  defaultResponseHeaders?: Record<string, string>;
+  responseHeaders?: RouterOptions['responseHeaders'];
 }
 
-const EDGE_SETUP_KEYS = ['parser', 'defaultResponseHeaders'] as const satisfies readonly (keyof EdgeSetupOptions)[];
+const EDGE_SETUP_KEYS = ['parser', 'responseHeaders'] as const satisfies readonly (keyof EdgeSetupOptions)[];
 
 /** Sets up the vercel handler inside the edge runtime. */
 export async function setup(options?: EdgeSetupOptions) {
@@ -77,11 +78,10 @@ export async function setup(options?: EdgeSetupOptions) {
   const router = createMionRouter({
     contextDataFactory: getSharedData,
     basePath: 'api/',
+    responseHeaders: options?.responseHeaders ?? {},
   });
   router.initRoutes(options?.parser === 'mutate' ? mutateRoutes : edgeRoutes);
-  const handler = createVercelHandler({
-    defaultResponseHeaders: options?.defaultResponseHeaders ?? {},
-  });
+  const handler = createVercelHandler();
   // EdgeVM evaluate() calls reach it through the global
   (globalThis as any).handler = handler;
   return handler;
