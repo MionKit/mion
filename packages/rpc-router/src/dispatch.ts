@@ -51,9 +51,8 @@ export async function dispatchWithContext<Req, Resp>(
     request.rawBody = reqRawBody;
     request.bodyType = reqBodyType ?? getRequestBodyType(reqRawBody);
   }
-  // No catch: runExecutionChain handles every exception itself, so one that only re-rejects changes nothing.
-  await runExecutionChain(context, rawRequest, rawResponse, getRouterOptions(), 0);
-  return context.response;
+  // No catch: the chain runners handle every exception themselves, so one that only re-rejects changes nothing.
+  return dispatchMaybeSync(context, rawRequest, rawResponse);
 }
 
 /** `dispatchWithContext` for a context built with its body, minus the promise when no step needs one. */
