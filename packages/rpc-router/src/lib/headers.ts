@@ -20,7 +20,7 @@ class MionHeadersImpl implements MionHeaders {
   // where `constructor` or `toString` would be "found" on the prototype chain. A prototype hit is never a
   // string, so a read checks the VALUE's type: cheaper than an own-key check per read (14 vs 23 ns).
   // `__proto__` is never written: on a plain object that assignment swaps the prototype.
-  /** True from creation until the first write: read by the response headers pool, unused on request headers. */
+  /** Read by the response headers pool only; request headers ignore it. */
   unused = true;
 
   constructor(private headers: HeadersRecord) {}

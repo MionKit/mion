@@ -103,7 +103,7 @@ let isRouterInitialized = false;
 let isRouterCreated = false;
 let allExecutablesIds: string[] | undefined;
 let platformConfig: Record<string, unknown> | undefined;
-/** `server`, the `responseHeaders` option lowercased, then `content-type`: merged by initRouter, read per request. */
+/** Merged by initRouter, read per request. */
 let responseDefaults: ResponseDefaults = mergeResponseDefaults({});
 /** Sent by mionFetchMetadata; unset with `apiVersionCheck` off, a pinned header or no build version. */
 let buildVersion: string | undefined;
