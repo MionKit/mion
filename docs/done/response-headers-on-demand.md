@@ -87,6 +87,9 @@ The first build (a lazy holder over the defaults, a WeakMap merge per adapter op
   once `x-build-version` left them.
 - Request data lives on the context: no WeakMap, no object shared by several in-flight requests. A pool is the
   one exception, and it holds unused headers only.
+- `server` and `content-type` sit in that one defaults object after all (`server` first so the option replaces
+  it, `content-type` last so it does not): the pool fills each headers object once, so writing them per reply
+  saved nothing.
 
 ## What shipped
 
@@ -97,10 +100,12 @@ The first build (a lazy holder over the defaults, a WeakMap merge per adapter op
   `FetchResponseHeaders` (bun, cloudflare, vercel) wraps a native `Headers`; uws' `BufferedHeadersImpl` and the
   record-backed `MionHeadersImpl` (aws) carry the same flag.
 - `UnusedHeadersPool` (`packages/rpc-router/src/lib/responseHeaders.ts`): a request takes headers filled with the
-  defaults; after the reply they go back only if still unused (capped at 256). When the router starts again with
-  other headers the pool drops what it holds.
+  defaults; after the reply they go back only if still unused (capped at 256). Each one remembers the defaults it
+  was filled with: when the router starts again with others the pool drops what it holds and refuses old ones
+  coming back from requests still in flight. `FetchHeadersPool` adds the fetch reply (`Response.json`).
 - Node and gcloud take no pool: their headers object wraps that request's `ServerResponse`. Defaults are written
-  with `setHeader`, and `content-type` again only if a handler changed it.
+  with `setHeader`, except `content-type`, which the reply writes (a raw middleware ending the response itself
+  must not send the JSON one).
 - `MionResponse.contentType`, set by the serializer and the fatal-error path; every adapter writes it last.
 - `server: mionjs` (was `@mionjs`). uws used to set it after the defaults, so it could not be replaced there.
 - A `Headers` subclass carrying the flag was tried: its typings forbid overriding the methods, and `Response`

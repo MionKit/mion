@@ -7,8 +7,8 @@
 
 // Response headers are built only on the first write: every write source must still reach the wire, and none may leak.
 
-import {describe, it, expect, beforeAll, afterAll} from 'vitest';
-import {createMionRouter, resetRouter} from '@mionjs/router';
+import {describe, it, expect, beforeAll, afterAll, vi} from 'vitest';
+import {createMionRouter, resetRouter, UnusedHeadersPool} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
 import {HeadersSubset} from '@mionjs/core';
 import {createVercelHandler, resetVercelHandlerOpts} from '../src/vercelHandler.ts';
@@ -62,7 +62,6 @@ describe('vercel response headers', () => {
 
   beforeAll(() => {
     resetVercelHandlerOpts();
-    resetRouter();
     initApp({});
     handler = createVercelHandler();
   });
@@ -102,6 +101,23 @@ describe('vercel response headers', () => {
     it('two appended set-cookie values stay two lines', async () => {
       expect((await call('cookies')).headers.getSetCookie()).toEqual(['a=1', 'b=2']);
     });
+
+    it('gives unused headers back to the pool, never written ones', async () => {
+      // the flag is read when given back: the next request takes the same object and may write to it
+      const given: boolean[] = [];
+      const giveBack = vi
+        .spyOn(UnusedHeadersPool.prototype, 'giveBack')
+        .mockImplementation((headers) => void given.push(headers.unused));
+      await call('ping');
+      await call('setHeader');
+      expect(given).toEqual([true, false]);
+      giveBack.mockRestore();
+    });
+
+    it('a write on one reply never reaches the next one', async () => {
+      (await call('ping')).headers.set('x-leak', 'yes');
+      expect((await call('ping')).headers.get('x-leak')).toBeNull();
+    });
   });
 
   describe('with the responseHeaders option', () => {
@@ -117,6 +133,13 @@ describe('vercel response headers', () => {
     it('a handler deleting a default drops it from that reply only', async () => {
       expect((await call('dropTeam')).headers.get('x-team')).toBeNull();
       expect((await call('ping')).headers.get('x-team')).toEqual('mion');
+    });
+
+    it('an error reply and a not-found reply carry them too', async () => {
+      expect((await call('fails')).headers.get('x-team')).toEqual('mion');
+      const notFound = await call('nope');
+      expect(notFound.status).toEqual(404);
+      expect(notFound.headers.get('x-team')).toEqual('mion');
     });
 
     it('a write keeps the defaults beside it', async () => {

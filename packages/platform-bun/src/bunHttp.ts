@@ -20,8 +20,7 @@ import {
   readRequestBody,
   BodyReadStrategy,
   handOverToHost,
-  UnusedHeadersPool,
-  newFetchResponseHeaders,
+  FetchHeadersPool,
 } from '@mionjs/router';
 import type {MethodsExecutionChain, FetchResponseHeaders} from '@mionjs/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants.ts';
@@ -34,7 +33,7 @@ import {Server} from 'bun';
 // ############# PRIVATE STATE #############
 
 let httpOptions: Readonly<BunHttpOptions> = {...DEFAULT_BUN_HTTP_OPTIONS};
-const headersPool = new UnusedHeadersPool(newFetchResponseHeaders);
+const headersPool = new FetchHeadersPool();
 
 export function resetBunHttpOpts() {
   httpOptions = {...DEFAULT_BUN_HTTP_OPTIONS};
@@ -192,9 +191,5 @@ function fatalFail(err: RpcError<string>, responseHeaders: FetchResponseHeaders)
 }
 
 function reply(mionResp: MionResponse, headers: FetchResponseHeaders): Response {
-  headers.setContentType(mionResp.contentType);
-  // Response copies its headers, so unused ones serve the next request
-  const response = Response.json(mionResp.body, {status: mionResp.statusCode, headers: headers.native});
-  headersPool.giveBack(headers);
-  return response;
+  return headersPool.reply(mionResp, headers);
 }

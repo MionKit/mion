@@ -17,7 +17,7 @@ import type {
 import type {PublicApi, PrivateDef, MiddlewaresCollection} from './types/publicMethods.ts';
 import type {HeadersMiddlewareDef, MiddlewareDef, RawMiddlewareDef} from './types/definitions.ts';
 import type {ResponseDefaults} from './types/context.ts';
-import {DEFAULT_ROUTE_OPTIONS, JSON_CONTENT_TYPE, MAX_ROUTE_NESTING, SERVER_HEADER_VALUE} from './constants.ts';
+import {DEFAULT_ROUTE_OPTIONS, JSON_CONTENT_TYPE, MAX_ROUTE_NESTING} from './constants.ts';
 import {
   isRawMiddlewareDef,
   isHeadersMiddlewareDef,
@@ -104,7 +104,7 @@ let isRouterCreated = false;
 let allExecutablesIds: string[] | undefined;
 let platformConfig: Record<string, unknown> | undefined;
 /** `server`, the `responseHeaders` option lowercased, then `content-type`: merged by initRouter, read per request. */
-let responseDefaults: ResponseDefaults = baseResponseDefaults();
+let responseDefaults: ResponseDefaults = mergeResponseDefaults({});
 /** Sent by mionFetchMetadata; unset with `apiVersionCheck` off, a pinned header or no build version. */
 let buildVersion: string | undefined;
 /** The adapter's `maxBodySize` under its `maxBodySizeCap`, settled by setPlatformConfig (the default with no adapter). */
@@ -199,7 +199,7 @@ export const resetRouter = () => {
   isRouterCreated = false;
   allExecutablesIds = undefined;
   platformConfig = undefined;
-  responseDefaults = baseResponseDefaults();
+  responseDefaults = mergeResponseDefaults({});
   buildVersion = undefined;
   platformMaxBodySize = DEFAULT_MAX_BODY_SIZE;
   resetRemoteMethodsMetadata();
@@ -746,14 +746,10 @@ function refreshChainBodyLimits(): void {
   refreshBatchChainBodyLimits(platformMaxBodySize);
 }
 
-function baseResponseDefaults(): ResponseDefaults {
-  return {server: SERVER_HEADER_VALUE, 'content-type': JSON_CONTENT_TYPE};
-}
-
 /** `server` first so the option can replace it, `content-type` last so it cannot; lowercased, or `Headers` would
  *  append a name repeated in another case. */
 function mergeResponseDefaults(responseHeaders: Record<string, string>): ResponseDefaults {
-  const merged: Record<string, string> = {server: SERVER_HEADER_VALUE};
+  const merged: Record<string, string> = {server: 'mionjs'};
   for (const name in responseHeaders) merged[name.toLowerCase()] = responseHeaders[name];
   merged['content-type'] = JSON_CONTENT_TYPE;
   return merged;

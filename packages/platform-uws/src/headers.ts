@@ -26,7 +26,7 @@ class BufferedHeadersImpl implements PooledHeaders {
   readonly record: Record<string, string>;
   unused = true;
 
-  constructor(defaults: ResponseDefaults) {
+  constructor(readonly defaults: ResponseDefaults) {
     this.record = {...defaults};
   }
 
@@ -62,12 +62,8 @@ class BufferedHeadersImpl implements PooledHeaders {
 
 export const newBufferedHeaders = (defaults: ResponseDefaults): PooledHeaders => new BufferedHeadersImpl(defaults);
 
-/** Walks headers with no pair array per header, for the corked reply; falls back to `entries()` for any other MionHeaders. */
+/** Walks the response headers with no pair array per header, for the corked reply. */
 export function forEachHeader(headers: MionHeaders, visit: (name: string, value: string) => void): void {
-  if (headers instanceof BufferedHeadersImpl) {
-    const record = headers.record;
-    for (const name in record) visit(name, record[name]);
-    return;
-  }
-  for (const [name, value] of headers.entries()) visit(name, value);
+  const record = (headers as BufferedHeadersImpl).record;
+  for (const name in record) visit(name, record[name]);
 }

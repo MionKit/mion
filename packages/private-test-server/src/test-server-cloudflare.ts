@@ -6,6 +6,7 @@
  * ######## */
 
 import {Routes, createMionRouter, resetRouter} from '@mionjs/router';
+import type {RouterOptions} from '@mionjs/router';
 import {CallContext, Route} from '@mionjs/router';
 import {createCloudflareHandler, resetCloudflareHandlerOpts} from '@mionjs/platform-cloudflare';
 import {assertKnownSetupOptions} from './setupOptions.ts';
@@ -65,7 +66,7 @@ export interface CloudflareSetupOptions {
   basePath?: string;
   /** Default is `clone`; `mutate` answers with the in-place parser. */
   parser?: 'mutate' | 'clone';
-  responseHeaders?: Record<string, string>;
+  responseHeaders?: RouterOptions['responseHeaders'];
 }
 
 const CLOUDFLARE_SETUP_KEYS = [
