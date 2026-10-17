@@ -36,9 +36,7 @@ export async function dispatchRoute<Req, Resp>(
   return dispatchWithContext(context, rawRequest, rawResponse);
 }
 
-/** Dispatches a request whose context already exists. A streaming adapter built it BEFORE reading
- *  the body (to read against `context.maxBodySize`) and passes the body here; it is attached to
- *  `context.request` on the way in. A context built with its body passes nothing more. */
+/** A streaming adapter builds the context before reading the body, to check `context.maxBodySize`, then passes it. */
 export async function dispatchWithContext<Req, Resp>(
   context: CallContext,
   rawRequest: Req,
