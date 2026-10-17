@@ -35,7 +35,7 @@ export class UnusedHeadersPool<Pooled extends PooledHeaders> {
   }
 }
 
-/** The response headers of the fetch adapters (bun, cloudflare, vercel): a native `Headers` plus whether anything wrote to it. */
+/** Response headers of the fetch adapters (bun, cloudflare, vercel). */
 export class FetchResponseHeaders implements PooledHeaders {
   /** What the reply hands to `Response`, which copies it. */
   readonly native = new Headers();
@@ -75,7 +75,6 @@ export class FetchResponseHeaders implements PooledHeaders {
   }
 }
 
-/** The pool of the fetch adapters, which also builds their reply. */
 export class FetchHeadersPool extends UnusedHeadersPool<FetchResponseHeaders> {
   constructor() {
     super((defaults) => new FetchResponseHeaders(defaults));
