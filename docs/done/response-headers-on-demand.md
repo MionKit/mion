@@ -90,19 +90,21 @@ The first build (a lazy holder over the defaults, a WeakMap merge per adapter op
 - `server` and `content-type` sit in that one defaults object after all (`server` first so the option replaces
   it, `content-type` last so it does not): the pool fills each headers object once, so writing them per reply
   saved nothing.
+- Second review: the pools became module functions, like the rest of the router's state, and uws uses the
+  router's record headers instead of its own copy of the class.
 
 ## What shipped
 
 - `getResponseDefaults()` (`packages/rpc-router/src/router.ts`): one plain object merged by `initRouter`:
   `server: mionjs` first (the option can replace it), the `responseHeaders` option lowercased, then
   `content-type` last (it cannot). `resetRouter` puts back `server` and `content-type`. No WeakMap, no freeze.
-- Each headers class carries an `unused` flag: true after creation, any `set` / `append` / `delete` turns it off.
-  `FetchResponseHeaders` (bun, cloudflare, vercel) wraps a native `Headers`; uws' `BufferedHeadersImpl` and the
-  record-backed `MionHeadersImpl` (aws) carry the same flag.
-- `UnusedHeadersPool` (`packages/rpc-router/src/lib/responseHeaders.ts`): a request takes headers filled with the
-  defaults; after the reply they go back only if still unused (capped at 256). Each one remembers the defaults it
-  was filled with: when the router starts again with others the pool drops what it holds and refuses old ones
-  coming back from requests still in flight. `FetchHeadersPool` adds the fetch reply (`Response.json`).
+- Each pooled headers class carries an `unused` flag: true after creation, any `set` / `append` / `delete`
+  turns it off. `FetchResponseHeaders` (bun, cloudflare, vercel) wraps a native `Headers`;
+  `RecordResponseHeaders` (uws, aws) is the record-backed `MionHeadersImpl` over a copy of the defaults.
+- Two pools of unused headers in `packages/rpc-router/src/lib/headers.ts`: `getDefaultHeaders` /
+  `releaseHeaders` for uws and aws, `getDefaultFetchHeaders` / `replyFetch` for the fetch adapters. Headers go
+  back only if still unused (capped at 256). Each one remembers the defaults it was filled with: once the router
+  starts again with others, the next take empties the pool.
 - Node and gcloud take no pool: their headers object wraps that request's `ServerResponse`. Defaults are written
   with `setHeader`, except `content-type`, which the reply writes (a raw middleware ending the response itself
   must not send the JSON one).
@@ -121,3 +123,6 @@ Measured on a Claude cloud host (noisy):
   mion.uws 56.4k-66.3k → 55.7k-64.9k, level within noise.
 - Same bench after the review fixes: mion.bun 46.4k-58.7k → 57.1k-63.9k; mion (node) 33.8k-37.8k →
   35.3k-38.4k and mion.compact 36.4k-40.0k → 34.8k-39.7k, level within noise.
+- After the second review, rebased on a newer main, on a slower host: mion.bun 19.1k-22.5k → 21.1k-25.5k;
+  mion.uws 33.2k-36.4k → 36.9k-38.9k; mion (node) 12.8k-15.2k → 13.9k-15.1k, level. `bunRequestHandler` with
+  no socket, three rounds: no header written 3.8-4.3 µs → 2.8-3.2 µs; a header written 4.7-5.0 µs → 4.3-4.6 µs.
