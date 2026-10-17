@@ -15,7 +15,7 @@ import {
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
-  getResponseDefaults,
+  UnusedHeadersPool,
   requestPayloadTooLarge,
   hostOwnsSocket,
 } from '@mionjs/router';
@@ -28,11 +28,13 @@ import type {MethodsExecutionChain, MionHeaders, MionResponse} from '@mionjs/rou
 import {getENV, SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {RpcError, FatalError} from '@mionjs/core';
-import {bufferedResponseHeaders, headersFromUwsRequest, forEachHeader} from './headers.ts';
+import {newBufferedHeaders, headersFromUwsRequest, forEachHeader} from './headers.ts';
+import type {PooledHeaders} from '@mionjs/router';
 
 // ############# PRIVATE STATE #############
 
 let httpOptions: Readonly<UwsHttpOptions> = {...DEFAULT_UWS_HTTP_OPTIONS};
+const headersPool = new UnusedHeadersPool(newBufferedHeaders);
 
 // The most bytes one uWS socket read can deliver: uSockets' LIBUS_RECV_BUFFER_LENGTH (512 KiB) at the tag pinned in
 // packages/bin-uws. A LARGER body cannot be single-read, which is what makes the zero-copy branch below safe (a
@@ -141,7 +143,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   const urlQuery = query === '' ? undefined : query;
   const reqHeaders = headersFromUwsRequest(req);
 
-  const respHeaders = bufferedResponseHeaders(getResponseDefaults(httpOptions.defaultResponseHeaders));
+  const respHeaders = headersPool.take();
 
   // must be registered before any async work: after a disconnect uWS frees the response, and touching it would crash
   res.onAborted(() => {
@@ -318,4 +320,5 @@ function reply(res: HttpResponse, state: {aborted: boolean}, mionResp: MionRespo
 
     res.end(payload);
   });
+  headersPool.giveBack(mionResp.headers as PooledHeaders);
 }

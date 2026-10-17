@@ -19,7 +19,6 @@ import {
   decodeQueryBody,
   setPlatformConfig,
   getResponseDefaults,
-  SERVER_HEADER_VALUE,
 } from '@mionjs/router';
 import type {MionResponse} from '@mionjs/router';
 import {Request, Response} from 'express';
@@ -57,9 +56,8 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
   // express may hand the body over already parsed, so both a string and an object body are accepted
 
   // TODO use its own express headers wrapper instead headers from record
-  rawResponse.setHeader('server', SERVER_HEADER_VALUE);
   const reqHeaders = headersFromIncomingMessage(rawRequest);
-  const respHeaders = headersFromServerResponse(rawResponse, getResponseDefaults(googleCFOptions.defaultResponseHeaders));
+  const respHeaders = headersFromServerResponse(rawResponse, getResponseDefaults());
   let rawBody = rawRequest.body;
   let reqBodyType: SerializerCode = typeof rawBody === 'string' ? SerializerModes.stringifyJson : SerializerModes.json;
   // everything after the FIRST `?`: a second one is legal inside a query, so splitting on it would drop parameters
@@ -128,7 +126,8 @@ function rejectOversizedRequest(rawRequest: Request, rawBody: unknown, maxBodySi
 function reply(mionResp: MionResponse, resp: Response): void {
   resp.status(mionResp.statusCode);
   const jsonString = JSON.stringify(mionResp.body);
-  resp.set('content-type', mionResp.contentType);
+  // the defaults already wrote it: only a handler's own, or another serializer's, needs replacing
+  if (resp.getHeader('content-type') !== mionResp.contentType) resp.set('content-type', mionResp.contentType);
   // byteLength measures without copying the response into a Buffer
   resp.set('content-length', `${Buffer.byteLength(jsonString, 'utf8')}`);
   resp.end(jsonString, 'utf8');

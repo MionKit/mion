@@ -24,7 +24,7 @@ interface EdgeResponse {
 /** Mirrors EdgeSetupOptions in the fixture, which rejects an unknown key, so drift fails the setup. */
 interface EdgeSetupOptions {
   parser?: 'mutate' | 'clone';
-  defaultResponseHeaders?: Record<string, string>;
+  responseHeaders?: Record<string, string>;
 }
 
 /** A hand written literal inside the evaluated string is never type checked; this object is. */
@@ -117,7 +117,7 @@ describe('vercel handler (edge runtime)', () => {
 
     it('should include default headers', async () => {
       vm = createEdgeVM();
-      await vm.evaluate(setupCall({defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'}}));
+      await vm.evaluate(setupCall({responseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'}}));
 
       const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
       const result = await callHandler(vm, '/api/getDate', JSON.stringify(requestData));

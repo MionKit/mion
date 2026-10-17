@@ -65,13 +65,13 @@ export interface CloudflareSetupOptions {
   basePath?: string;
   /** Default is `clone`; `mutate` answers with the in-place parser. */
   parser?: 'mutate' | 'clone';
-  defaultResponseHeaders?: Record<string, string>;
+  responseHeaders?: Record<string, string>;
 }
 
 const CLOUDFLARE_SETUP_KEYS = [
   'basePath',
   'parser',
-  'defaultResponseHeaders',
+  'responseHeaders',
 ] as const satisfies readonly (keyof CloudflareSetupOptions)[];
 
 /** Sets up the cloudflare handler inside the workerd runtime. */
@@ -82,11 +82,11 @@ export async function setup(options?: CloudflareSetupOptions) {
   const router = createMionRouter({
     contextDataFactory: getSharedData,
     basePath: 'api/',
+    responseHeaders: options?.responseHeaders ?? {},
   });
   router.initRoutes(options?.parser === 'mutate' ? mutateRoutes : cloudflareRoutes);
   const handler = createCloudflareHandler({
     basePath: options?.basePath ?? '',
-    defaultResponseHeaders: options?.defaultResponseHeaders ?? {},
   });
   // the service worker fetch listener reaches it through the global
   (globalThis as any).handler = handler;

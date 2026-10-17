@@ -111,7 +111,7 @@ async function ensureHandler(): Promise<ReturnType<typeof createCloudflareHandle
   resetCloudflareHandlerOpts();
   resetRouter();
   mion.initRoutes(storageRoutes);
-  handler = createCloudflareHandler({basePath: '', defaultResponseHeaders: {}});
+  handler = createCloudflareHandler({basePath: ''});
   return handler;
 }
 

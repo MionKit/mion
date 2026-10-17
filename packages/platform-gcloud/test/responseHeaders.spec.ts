@@ -14,21 +14,13 @@ import {HeadersSubset} from '@mionjs/core';
 import {Server} from 'http';
 import {getTestServer} from '@google-cloud/functions-framework/testing';
 import * as functions from '@google-cloud/functions-framework';
-import {googleCFHandler, resetGoogleCFOpts, setGoogleCFOpts} from '../src/googleCF.ts';
+import {googleCFHandler, resetGoogleCFOpts} from '../src/googleCF.ts';
 
 describe('google cloud response headers', () => {
-  const port = 8105;
-  let server: Server;
-  const call = async (route: string) => {
-    const response = await fetch(`http://127.0.0.1:${port}/${route}`, {method: 'POST', body: JSON.stringify({[route]: []})});
-    await response.text();
-    return response;
-  };
-
-  beforeAll(async () => {
-    resetGoogleCFOpts();
+  // the router starts again for each set of response headers; a running server keeps serving it
+  const initApp = (responseHeaders: Record<string, string>) => {
     resetRouter();
-    const mion = createMionRouter({apiVersionCheck: false});
+    const mion = createMionRouter({apiVersionCheck: false, responseHeaders});
     mion.initRoutes({
       ping: mion.route((): string => 'pong'),
       setHeader: mion.route((ctx: CallContext): string => {
@@ -65,6 +57,20 @@ describe('google cloud response headers', () => {
         return 'ok';
       }),
     });
+  };
+
+  const port = 8105;
+  let server: Server;
+  const call = async (route: string) => {
+    const response = await fetch(`http://127.0.0.1:${port}/${route}`, {method: 'POST', body: JSON.stringify({[route]: []})});
+    await response.text();
+    return response;
+  };
+
+  beforeAll(async () => {
+    resetGoogleCFOpts();
+    resetRouter();
+    initApp({});
     functions.http('ResponseHeadersTests', googleCFHandler);
     server = getTestServer('ResponseHeadersTests');
     await new Promise<void>((done) => server.listen(port, () => done()));
@@ -109,11 +115,11 @@ describe('google cloud response headers', () => {
     });
   });
 
-  describe('with default headers', () => {
-    beforeAll(() => setGoogleCFOpts({defaultResponseHeaders: {'X-Team': 'mion', server: 'mine'}}));
-    afterAll(() => setGoogleCFOpts({defaultResponseHeaders: {}}));
+  describe('with the responseHeaders option', () => {
+    beforeAll(() => initApp({'X-Team': 'mion', server: 'mine'}));
+    afterAll(() => initApp({}));
 
-    it('an untouched reply carries the defaults, and a server default replaces mionjs', async () => {
+    it('an untouched reply carries them, and a server header replaces mionjs', async () => {
       const response = await call('ping');
       expect(response.headers.get('x-team')).toEqual('mion');
       expect(response.headers.get('server')).toEqual('mine');

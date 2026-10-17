@@ -12,21 +12,13 @@ import {createMionRouter, resetRouter} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
 import {HeadersSubset} from '@mionjs/core';
 import type {Server} from 'http';
-import {resetNodeHttpOpts, setNodeHttpOpts, startNodeServer} from '../src/mionHttp.ts';
+import {resetNodeHttpOpts, startNodeServer} from '../src/mionHttp.ts';
 
 describe('node response headers', () => {
-  const port = 8103;
-  let server: Server;
-  const call = async (route: string) => {
-    const response = await fetch(`http://127.0.0.1:${port}/${route}`, {method: 'POST', body: JSON.stringify({[route]: []})});
-    await response.text();
-    return response;
-  };
-
-  beforeAll(async () => {
-    resetNodeHttpOpts();
+  // the router starts again for each set of response headers; a running server keeps serving it
+  const initApp = (responseHeaders: Record<string, string>) => {
     resetRouter();
-    const mion = createMionRouter({apiVersionCheck: false});
+    const mion = createMionRouter({apiVersionCheck: false, responseHeaders});
     mion.initRoutes({
       ping: mion.route((): string => 'pong'),
       setHeader: mion.route((ctx: CallContext): string => {
@@ -63,6 +55,20 @@ describe('node response headers', () => {
         return 'ok';
       }),
     });
+  };
+
+  const port = 8103;
+  let server: Server;
+  const call = async (route: string) => {
+    const response = await fetch(`http://127.0.0.1:${port}/${route}`, {method: 'POST', body: JSON.stringify({[route]: []})});
+    await response.text();
+    return response;
+  };
+
+  beforeAll(async () => {
+    resetNodeHttpOpts();
+    resetRouter();
+    initApp({});
     server = (await startNodeServer({port})) as Server;
   });
 
@@ -105,11 +111,11 @@ describe('node response headers', () => {
     });
   });
 
-  describe('with default headers', () => {
-    beforeAll(() => setNodeHttpOpts({defaultResponseHeaders: {'X-Team': 'mion', server: 'mine'}}));
-    afterAll(() => setNodeHttpOpts({defaultResponseHeaders: {}}));
+  describe('with the responseHeaders option', () => {
+    beforeAll(() => initApp({'X-Team': 'mion', server: 'mine'}));
+    afterAll(() => initApp({}));
 
-    it('an untouched reply carries the defaults, and a server default replaces mionjs', async () => {
+    it('an untouched reply carries them, and a server header replaces mionjs', async () => {
       const response = await call('ping');
       expect(response.headers.get('x-team')).toEqual('mion');
       expect(response.headers.get('server')).toEqual('mine');

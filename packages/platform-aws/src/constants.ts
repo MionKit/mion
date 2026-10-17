@@ -12,7 +12,6 @@ import {AwsLambdaOptions} from './types.ts';
 export const AWS_LAMBDA_MAX_BODY_SIZE_CAP = 6_000_000;
 
 export const DEFAULT_AWS_LAMBDA_OPTIONS: AwsLambdaOptions = {
-  defaultResponseHeaders: {},
   maxBodySize: DEFAULT_MAX_BODY_SIZE,
   maxBodySizeCap: AWS_LAMBDA_MAX_BODY_SIZE_CAP,
 };

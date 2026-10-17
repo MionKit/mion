@@ -12,7 +12,6 @@ import {VercelHandlerOptions} from './types.ts';
 export const VERCEL_MAX_BODY_SIZE_CAP = 4_500_000;
 
 export const DEFAULT_VERCEL_OPTIONS: VercelHandlerOptions = {
-  defaultResponseHeaders: {},
   maxBodySize: DEFAULT_MAX_BODY_SIZE,
   maxBodySizeCap: VERCEL_MAX_BODY_SIZE_CAP,
 };

@@ -15,14 +15,13 @@ import {
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
-  getResponseDefaults,
-  fetchResponseHeaders,
-  fetchReplyHeaders,
+  UnusedHeadersPool,
+  newFetchResponseHeaders,
   MionResponse,
   readRequestBody,
   BodyReadStrategy,
 } from '@mionjs/router';
-import type {LazyResponseHeaders} from '@mionjs/router';
+import type {FetchResponseHeaders} from '@mionjs/router';
 import {DEFAULT_CLOUDFLARE_OPTIONS} from './constants.ts';
 import type {CloudflareHandlerOptions, CloudflareExecutionContext, CloudflarePlatformContext} from './types.ts';
 import {SerializerModes} from '@mionjs/core';
@@ -32,6 +31,7 @@ import {RpcError} from '@mionjs/core';
 // ############# PRIVATE STATE #############
 
 let cloudflareOptions: Readonly<CloudflareHandlerOptions> = {...DEFAULT_CLOUDFLARE_OPTIONS};
+const headersPool = new UnusedHeadersPool(newFetchResponseHeaders);
 
 export function resetCloudflareHandlerOpts() {
   cloudflareOptions = {...DEFAULT_CLOUDFLARE_OPTIONS};
@@ -55,7 +55,7 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
     path = path.slice(cloudflareOptions.basePath.length) || '/';
   }
   const urlQuery = urlObj.search ? urlObj.search.slice(1) : undefined;
-  const responseHeaders = fetchResponseHeaders(getResponseDefaults(cloudflareOptions.defaultResponseHeaders));
+  const responseHeaders = headersPool.take();
 
   const platformContext: CloudflarePlatformContext<Env> | undefined =
     env !== undefined || ctx !== undefined ? {env: env as Env, ctx: ctx as CloudflareExecutionContext} : undefined;
@@ -105,12 +105,15 @@ export function createCloudflareHandler<Env = unknown>(options?: Partial<Cloudfl
   };
 }
 
-function fatalFail(err: RpcError<string>, responseHeaders: LazyResponseHeaders<Headers>): Response {
+function fatalFail(err: RpcError<string>, responseHeaders: FetchResponseHeaders): Response {
   const routeResponse = getRouterFatalErrorResponse(err, responseHeaders);
   return reply(routeResponse, responseHeaders);
 }
 
-function reply(mionResp: MionResponse, responseHeaders: LazyResponseHeaders<Headers>): Response {
-  const headers = fetchReplyHeaders(responseHeaders, mionResp.contentType);
-  return Response.json(mionResp.body, {status: mionResp.statusCode, headers});
+function reply(mionResp: MionResponse, headers: FetchResponseHeaders): Response {
+  headers.setContentType(mionResp.contentType);
+  // Response copies its headers, so unused ones serve the next request
+  const response = Response.json(mionResp.body, {status: mionResp.statusCode, headers: headers.native});
+  headersPool.giveBack(headers);
+  return response;
 }

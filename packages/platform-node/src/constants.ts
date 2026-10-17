@@ -15,7 +15,6 @@ export const DEFAULT_HTTP_OPTIONS: NodeHttpOptions = {
     /** @default 8KB same as default value in new node versions */
     maxHeaderSize: 8192,
   },
-  defaultResponseHeaders: {},
   /** What a route takes when its own `maxBodySize` and its types say nothing: the shared 128 KB default */
   maxBodySize: DEFAULT_MAX_BODY_SIZE,
   asMiddleware: false,

@@ -189,54 +189,6 @@ describe('serverless router', () => {
       expect(headers['server']).toEqual('my-server');
       expect(headers['x-something']).toEqual('true');
     });
-
-    it('get default headers', async () => {
-      const smallPort = port + 1;
-      const httpOpts = {
-        abcd: 'hello',
-        defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'},
-      };
-      resetGoogleCFOpts();
-      resetRouter();
-      setGoogleCFOpts(httpOpts);
-      mion.initRoutes({changeUserName, getDate, updateHeaders});
-      const smallServer = await initServer(smallPort);
-      const closeSmallServer = () => {
-        return new Promise<void>((resolve, reject) => {
-          smallServer.close((err) => {
-            if (err) reject();
-            else resolve();
-          });
-        });
-      };
-      let err;
-      try {
-        const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
-        const response = await fetch(`http://127.0.0.1:${smallPort}/api/getDate`, {
-          method: 'POST',
-          body: JSON.stringify(requestData),
-        });
-        const headers = Object.fromEntries(response.headers.entries());
-
-        expect(headers['x-app-name']).toEqual('MyApp');
-        expect(headers['x-instance-id']).toEqual('3089');
-        expect(headers['connection']).toEqual('keep-alive');
-        expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual('47');
-        expect(headers['server']).toEqual('mionjs');
-      } catch (e) {
-        err = e;
-      }
-
-      await closeSmallServer();
-
-      // Restore router state for the main server
-      resetGoogleCFOpts();
-      resetRouter();
-      mion.initRoutes({changeUserName, getDate, updateHeaders});
-
-      if (err) throw err;
-    });
   });
 
   describe('with a router created in the block (default encoder)', () => {
