@@ -77,31 +77,40 @@ Build:
    replaced, `content-type` cannot, two `Set-Cookie` lines survive on fetch adapters.
 5. Docs: "Headers on Every Response" table row 4.
 
+## Plan revised in review (2026-10-17)
+
+The first build (a lazy holder over the defaults, a WeakMap merge per adapter options object, one shared reply
+`Headers`) was replaced after the user's review:
+
+- One user option, the router's `responseHeaders` (was `globalResponseHeaders`). Every adapter's
+  `defaultResponseHeaders` is removed: two places for the same headers, with a precedence rule, served nothing
+  once `x-build-version` left them.
+- Request data lives on the context: no WeakMap, no object shared by several in-flight requests. A pool is the
+  one exception, and it holds unused headers only.
+
 ## What shipped
 
-- `packages/rpc-router/src/lib/responseHeaders.ts`: `LazyResponseHeaders`, the `ctx.response.headers` every
-  adapter but node / gcloud hands the context. It holds the merged defaults and builds the adapter's store on the
-  first `set` / `append` / `delete`. Before that, reads see `server` plus the defaults, as the store would.
-  `fetchResponseHeaders` + `fetchReplyHeaders` serve bun, cloudflare and vercel: an untouched reply with no
-  defaults reuses one `Headers` instance (`Response` copies it), built once. Any default header still builds the
-  store at reply on those three.
+- `getResponseDefaults()` (`packages/rpc-router/src/router.ts`): one plain object merged by `initRouter`:
+  `server: mionjs` first (the option can replace it), the `responseHeaders` option lowercased, then
+  `content-type` last (it cannot). `resetRouter` puts back `server` and `content-type`. No WeakMap, no freeze.
+- Each headers class carries an `unused` flag: true after creation, any `set` / `append` / `delete` turns it off.
+  `FetchResponseHeaders` (bun, cloudflare, vercel) wraps a native `Headers`; uws' `BufferedHeadersImpl` and the
+  record-backed `MionHeadersImpl` (aws) carry the same flag.
+- `UnusedHeadersPool` (`packages/rpc-router/src/lib/responseHeaders.ts`): a request takes headers filled with the
+  defaults; after the reply they go back only if still unused (capped at 256). When the router starts again with
+  other headers the pool drops what it holds.
+- Node and gcloud take no pool: their headers object wraps that request's `ServerResponse`. Defaults are written
+  with `setHeader`, and `content-type` again only if a handler changed it.
 - `MionResponse.contentType`, set by the serializer and the fatal-error path; every adapter writes it last.
-- `server: mionjs` (was `@mionjs`) written by each adapter, first, so a default or handler `server` replaces it.
-  uws used to set it after the defaults, so it could not be replaced there.
-- `getResponseDefaults(own)` lost its `base` param and lowercases names on merge, into a PLAIN object: a
-  null-prototype one stays in V8 dictionary mode, about 7x slower to walk (it cost node and uws 4 to 7% at first).
-- Node and gcloud stay eager on `ServerResponse`: raw middlewares write it directly.
+- `server: mionjs` (was `@mionjs`). uws used to set it after the defaults, so it could not be replaced there.
+- A `Headers` subclass carrying the flag was tried: its typings forbid overriding the methods, and `Response`
+  is slower with one (720 vs 676 ns), so the flag sits on a small class wrapping a native `Headers`.
 
 Measured on a Claude cloud host (noisy):
 
-- `bunRequestHandler` with no socket (`packages/platform-bun/src/bunHttp.bench.ts`), best of runs: no header
-  written and no defaults 2.6 µs → 1.85 µs per request; a handler writing a header 2.7 µs → 2.5 µs. Before,
-  building `Headers` from a record was about 22% of the handler's profile. A frozen record passed to
-  `Response.json` instead of a `Headers` gained nothing, which is why the earlier plain-object try was noise.
-- `pnpm miondevx bench servers repeat <lane> hello-world`, before / after interleaved, on a main that still
-  sent `x-build-version` as a default header: mion, mion.uws, mion.compact and mion.bun level within noise.
-- After the fix that moved `x-build-version` into `mionFetchMetadata` merged (the bench app does not use that
-  middleware), interleaved on the same main: mion.bun 31.5k-32.2k → 35.0k-37.5k req/s, about +12%. An app using
-  `mionFetchMetadata` still writes that header on every call, so it builds headers as before.
-- Not tested on workerd: its test fixture always carries a default header, so it never reaches the shared
-  `Headers` path. The Fetch spec has `Response` copy its init headers; Node and Bun tests pin it.
+- `bunRequestHandler` with no socket (`packages/platform-bun/src/bunHttp.bench.ts`), best of runs against main:
+  no header written 2.6 µs → 1.4 µs per request; a handler writing a header 2.7 µs → 2.15 µs. Before, building
+  `Headers` from a record was about 22% of the handler's profile.
+- `pnpm miondevx bench servers repeat <lane> hello-world`, main vs this branch interleaved, two rounds of two
+  runs: mion.bun 50.8k-58.3k → 58.4k-68.5k req/s (about +15%); mion (node) 33.6k-38.2k → 34.7k-37.5k and
+  mion.uws 56.4k-66.3k → 55.7k-64.9k, level within noise.
