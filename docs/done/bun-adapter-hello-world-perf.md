@@ -97,8 +97,8 @@ of the bench app (`bun --cpu-prof-md`, before): the async wrappers `bunRequestHa
   breaking). A request with no body skips the body read; both paths then go through `dispatchMaybeSync`, which
   answers with a `Response` when the chain is all sync and with a promise otherwise.
 - uWS adapter: an all-sync chain replies inside the uWS callback, no promise.
-- Node adapter: tried, no measurable gain (host A/B with the trial build: 37.1k vs 36.5k req/s on hello-world), so
-  it stays on `dispatchWithContext`. Its only change is the shared router loop.
+- Node adapter: tried, no measurable gain at the time (host A/B with the trial build: 37.1k vs 36.5k req/s on
+  hello-world). A later change moved it to `dispatchMaybeSync` too; `dispatchWithContext` now goes through it as well.
 - Measured and dropped: Bun native `routes` (within noise of the in-JS lookup on a bare Bun server); a plain
   object instead of `Headers` for the reply (within noise, and it would change `Set-Cookie` and bad-value handling).
 - Docs: the "Awaiting Every Step" section of the routes page now says when mion awaits and when it answers
@@ -119,5 +119,6 @@ hono.bun 56.5k → 56.1k, elysia.bun 85.5k → 88.0k. `repeat mion.bun hello-wor
 hono.bun on hello-world.
 
 What still separates mion.bun from elysia.bun is mion's own per-request work (a context object, the chain, a
-`Headers` object, the route-keyed response body) and Bun's reply cost, none of it promise overhead. The website's
+`Headers` object, the route-keyed response body) and Bun's reply cost, none of it promise overhead. Shipped in
+part: building the reply headers only when needed is left to its own todo. The website's
 benchmark data regenerates on deploy; nothing is committed for it.
