@@ -166,7 +166,7 @@ describe('dispatch chain', () => {
   });
 });
 
-/** Dispatch plus the adapter's JSON.stringify, so the whole answer path is measured. */
+/** Adds the adapter's JSON.stringify so the whole answer path is measured. */
 async function dispatchAndSend(path: string, body: string) {
   const response = await dispatch(path, body);
   return JSON.stringify(response.body);

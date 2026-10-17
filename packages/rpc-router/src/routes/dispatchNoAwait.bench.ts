@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// `alwaysAwait: false` (what the Bun and uWS bench lanes run): an all-sync chain answers with no promise,
-// and a chain with async steps hands over to the awaiting loop. Its own file: the router option is global.
+// `alwaysAwait: false`, as the Bun and uWS bench lanes run. Its own file: the router option is global.
 //   pnpm exec vitest bench --project router dispatchNoAwait
 
 import {bench, describe} from 'vitest';
