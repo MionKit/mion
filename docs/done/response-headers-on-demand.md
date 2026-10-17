@@ -119,3 +119,5 @@ Measured on a Claude cloud host (noisy):
 - `pnpm miondevx bench servers repeat <lane> hello-world`, main vs this branch interleaved, two rounds of two
   runs: mion.bun 50.8k-58.3k → 58.4k-68.5k req/s (about +15%); mion (node) 33.6k-38.2k → 34.7k-37.5k and
   mion.uws 56.4k-66.3k → 55.7k-64.9k, level within noise.
+- Same bench after the review fixes: mion.bun 46.4k-58.7k → 57.1k-63.9k; mion (node) 33.8k-37.8k →
+  35.3k-38.4k and mion.compact 36.4k-40.0k → 34.8k-39.7k, level within noise.
