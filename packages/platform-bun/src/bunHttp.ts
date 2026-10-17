@@ -105,7 +105,7 @@ function dispatchBody(
   responseHeaders: Headers,
   rawBody: string | undefined
 ): Response | Promise<Response> {
-  let reqRawBody: any = rawBody;
+  let reqRawBody: string | undefined = rawBody;
   let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
   const queryBody = chain.readsBody ? decodeQueryBody(urlQuery, rawBody) : undefined;
   if (queryBody) {
