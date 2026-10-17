@@ -1,4 +1,4 @@
 import {createMionRouter} from '@mionjs/router';
 
-// sent on every response, errors included, whatever the platform
+// also sent on error responses
 createMionRouter({responseHeaders: {'x-api': 'store'}});
