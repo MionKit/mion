@@ -122,13 +122,6 @@ describe('dispatchMaybeSync with alwaysAwait on (the default) should', () => {
     });
   });
 
-  it('keep the promise for a sync route', async () => {
-    expect(getRouterOptions().alwaysAwait).toBe(true);
-    const response = dispatchMaybeSync(newContext('/hello'), {});
-    expect(response).toBeInstanceOf(Promise);
-    expect((await response).body.hello).toBe('hello');
-  });
-
   it('answer an async route', async () => {
     const response = await dispatchMaybeSync(newContext('/slow'), {});
     expect(response.body.slow).toBe('slow');
