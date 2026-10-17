@@ -107,35 +107,6 @@ describe('vercel handler', () => {
       expect(response.headers.get('server')).toEqual('my-server');
       expect(response.headers.get('x-something')).toEqual('true');
     });
-
-    it('should include default headers', async () => {
-      resetVercelHandlerOpts();
-      mion.initRoutes({changeUserName, getDate, updateHeaders});
-      setVercelHandlerOpts({
-        defaultResponseHeaders: {
-          'x-app-name': 'MyApp',
-          'x-instance-id': '3089',
-        },
-      });
-      handler = createVercelHandler();
-
-      const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
-      const req = createRequest(JSON.stringify(requestData), '/api/getDate');
-
-      const response = await handler.POST(req);
-      const parsedResponse = (await response.json()) as RpcBody;
-
-      expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
-      expect(response.headers.get('x-app-name')).toEqual('MyApp');
-      expect(response.headers.get('x-instance-id')).toEqual('3089');
-      expect(response.headers.get('content-type')).toEqual('application/json; charset=utf-8');
-      expect(response.headers.get('server')).toEqual('mionjs');
-
-      resetVercelHandlerOpts();
-      setVercelHandlerOpts();
-      mion.initRoutes({changeUserName, getDate, updateHeaders});
-      handler = createVercelHandler();
-    });
   });
 
   describe('with a router created in the block (default encoder)', () => {

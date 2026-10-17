@@ -15,11 +15,10 @@ import {
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
-  getResponseDefaults,
-  LazyResponseHeaders,
-  SERVER_HEADER_VALUE,
+  UnusedHeadersPool,
+  recordResponseHeaders,
 } from '@mionjs/router';
-import type {MionResponse, MionHeaders, ResponseDefaults} from '@mionjs/router';
+import type {MionResponse, PooledHeaders} from '@mionjs/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 import {DEFAULT_AWS_LAMBDA_OPTIONS} from './constants.ts';
 import {AwsLambdaOptions} from '../index.ts';
@@ -27,6 +26,7 @@ import {AwsLambdaOptions} from '../index.ts';
 // ############# STATE #############
 
 let lambdaOptions: Readonly<AwsLambdaOptions> = {...DEFAULT_AWS_LAMBDA_OPTIONS};
+const headersPool = new UnusedHeadersPool(recordResponseHeaders);
 
 // ############# PUBLIC METHODS #############
 
@@ -52,7 +52,7 @@ export function createAwsLambdaHandler(options?: Partial<AwsLambdaOptions>) {
 export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> {
   let rawBody: any = decodeEventBody(rawRequest);
   const reqHeaders = headersFromRecord(rawRequest.headers as Record<string, string>);
-  const respHeaders = new LazyResponseHeaders(getResponseDefaults(lambdaOptions.defaultResponseHeaders), newRecordHeaders);
+  const respHeaders = headersPool.take();
   // AWS Lambda always receives body as string (JSON)
   let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
   const urlQuery = buildQueryString(rawRequest.queryStringParameters);
@@ -101,13 +101,8 @@ function buildQueryString(params: APIGatewayEvent['queryStringParameters']): str
   return query;
 }
 
-/** `server` first so a default of that name replaces it. */
-function newRecordHeaders(defaults: ResponseDefaults): MionHeaders {
-  return headersFromRecord({server: SERVER_HEADER_VALUE, ...defaults}, true);
-}
-
-function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayProxyResult {
-  // AWS sets content-length itself, unlike node; `entries()` holds `server` too, unless a handler deleted it
+function reply(routeResponse: MionResponse, headers: PooledHeaders): APIGatewayProxyResult {
+  // AWS sets content-length itself, unlike node
   const singleHeaders: Record<string, string> = {};
   const multiHeaders: Record<string, string[]> = {};
   let multiHeaderCount = 0;
@@ -131,5 +126,6 @@ function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayPro
     body: responseBody,
   };
   if (multiHeaderCount) resp.multiValueHeaders = multiHeaders;
+  headersPool.giveBack(headers);
   return resp;
 }

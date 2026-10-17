@@ -19,13 +19,13 @@ export const DEFAULT_ROUTE_OPTIONS = {
   /** A type-derived request limit is the JSON maximum times this factor */
   maxBodySizeFactor: 2,
   releaseRawBody: true,
-  globalResponseHeaders: {},
+  responseHeaders: {},
   apiVersionCheck: true,
   getAllRemoteMethodsMaxNumber: 100,
 } as Readonly<RouterOptions>;
 
 export const MAX_ROUTE_NESTING = 10;
 
-/** Every adapter writes it, outside the defaults: a `server` default or a handler's own replaces it. */
+/** First in every response's headers, so the `responseHeaders` option or a handler replaces it. */
 export const SERVER_HEADER_VALUE = 'mionjs';
 export const JSON_CONTENT_TYPE = 'application/json; charset=utf-8';

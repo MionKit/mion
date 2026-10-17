@@ -64,8 +64,13 @@ export interface MionResponse {
 }
 // end-call-context-type
 
-/** The merged default response headers, lowercased and frozen, from getResponseDefaults. */
+/** The headers every response starts with, lowercased, from getResponseDefaults. */
 export type ResponseDefaults = Readonly<Record<string, string>>;
+
+/** Response headers an adapter pools: `unused` stays true from creation until the first write. */
+export interface PooledHeaders extends MionHeaders {
+  readonly unused: boolean;
+}
 
 /** Header names must be case insensitive.
  *  @see https://developer.mozilla.org/en-US/docs/Web/API/Headers */

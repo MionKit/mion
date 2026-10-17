@@ -126,12 +126,11 @@ describe('uws http router', () => {
       expect(response.headers.getSetCookie()).toEqual(['a=1', 'b=2']);
     });
 
-    it('get an error when body size is too large, get default headers', async () => {
+    it('get an error when body size is too large', async () => {
       const smallPort = port + 100;
       const httpOpts = {
         port: smallPort,
         maxBodySize: 1,
-        defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'},
       };
       resetUwsHttpOpts();
       resetRouter();
@@ -158,8 +157,6 @@ describe('uws http router', () => {
       expect(response.status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
       expect(headers['x-rpc-error']).toBe('request-payload-too-large');
       expect(reply).toEqual({'@thrownErrors': {'mion@platformError': expectedError}});
-      expect(headers['x-app-name']).toEqual('MyApp');
-      expect(headers['x-instance-id']).toEqual('3089');
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
       expect(headers['content-length']).toEqual('152');
       expect(headers['server']).toEqual('mionjs');

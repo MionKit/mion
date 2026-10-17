@@ -12,7 +12,6 @@ import {GoogleCFOptions} from './types.ts';
 export const GOOGLE_CF_MAX_BODY_SIZE_CAP = 10_000_000;
 
 export const DEFAULT_GOOGLE_CF_OPTIONS: GoogleCFOptions = {
-  defaultResponseHeaders: {},
   maxBodySize: DEFAULT_MAX_BODY_SIZE,
   maxBodySizeCap: GOOGLE_CF_MAX_BODY_SIZE_CAP,
 };

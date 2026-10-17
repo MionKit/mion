@@ -25,11 +25,10 @@ describe('bun response headers', () => {
     return response;
   };
 
-  // Router built here, not in the describe body: bun evaluates every body before any hook, in one process.
-  beforeAll(async () => {
-    resetBunHttpOpts();
+  // the router starts again for each set of response headers; a running server keeps serving it
+  const initApp = (responseHeaders: Record<string, string>) => {
     resetRouter();
-    const mion = createMionRouter({apiVersionCheck: false});
+    const mion = createMionRouter({apiVersionCheck: false, responseHeaders});
     mion.initRoutes({
       ping: mion.route((): string => 'pong'),
       setHeader: mion.route((ctx: CallContext): string => {
@@ -66,6 +65,12 @@ describe('bun response headers', () => {
         return 'ok';
       }),
     });
+  };
+
+  // Router built here, not in the describe body: bun evaluates every body before any hook, in one process.
+  beforeAll(async () => {
+    resetBunHttpOpts();
+    initApp({});
     setBunHttpOpts({port});
     server = (await startBunServer()) as Server<any>;
   });
@@ -121,11 +126,11 @@ describe('bun response headers', () => {
     });
   });
 
-  describe('with default headers', () => {
-    beforeAll(() => setBunHttpOpts({defaultResponseHeaders: {'X-Team': 'mion', server: 'mine'}}));
-    afterAll(() => setBunHttpOpts({defaultResponseHeaders: {}}));
+  describe('with the responseHeaders option', () => {
+    beforeAll(() => initApp({'X-Team': 'mion', server: 'mine'}));
+    afterAll(() => initApp({}));
 
-    test('an untouched reply carries the defaults, and a server default replaces mionjs', async () => {
+    test('an untouched reply carries them, and a server header replaces mionjs', async () => {
       const response = await call('ping');
       expect(response.headers.get('x-team')).toEqual('mion');
       expect(response.headers.get('server')).toEqual('mine');

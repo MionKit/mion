@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {MionHeaders} from '../types/context.ts';
+import type {MionHeaders, PooledHeaders, ResponseDefaults} from '../types/context.ts';
 
 // ############# PUBLIC METHODS #############
 
@@ -20,9 +20,13 @@ class MionHeadersImpl implements MionHeaders {
   // where `constructor` or `toString` would be "found" on the prototype chain. A prototype hit is never a
   // string, so a read checks the VALUE's type: cheaper than an own-key check per read (14 vs 23 ns).
   // `__proto__` is never written: on a plain object that assignment swaps the prototype.
+  /** True from creation until the first write: read by the response headers pool, unused on request headers. */
+  unused = true;
+
   constructor(private headers: HeadersRecord) {}
 
   append(name: string, value: string): void {
+    this.unused = false;
     const nl = name.toLowerCase();
     if (nl === PROTO_KEY) return;
     const existing = readHeader(this.headers, nl);
@@ -35,6 +39,7 @@ class MionHeadersImpl implements MionHeaders {
   }
 
   delete(name: string): void {
+    this.unused = false;
     delete this.headers[name.toLowerCase()];
   }
 
@@ -43,6 +48,7 @@ class MionHeadersImpl implements MionHeaders {
   }
 
   set(name: string, value: string): void {
+    this.unused = false;
     const ln = name.toLowerCase();
     if (ln === PROTO_KEY) return;
     this.headers[ln] = value as string;
@@ -63,6 +69,11 @@ class MionHeadersImpl implements MionHeaders {
   values(): IterableIterator<string> {
     return new Map(Object.entries(this.headers)).values();
   }
+}
+
+/** Response headers over a copy of the defaults, for an adapter that answers with a header record (aws). */
+export function recordResponseHeaders(defaults: ResponseDefaults): PooledHeaders {
+  return new MionHeadersImpl({...defaults});
 }
 
 /** A fetch-like (not identical) Headers object over a header record, for an incoming request carrying its

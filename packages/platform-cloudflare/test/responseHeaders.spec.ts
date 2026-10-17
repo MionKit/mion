@@ -11,21 +11,13 @@ import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {createMionRouter, resetRouter} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
 import {HeadersSubset} from '@mionjs/core';
-import {createCloudflareHandler, resetCloudflareHandlerOpts, setCloudflareHandlerOpts} from '../src/cloudflareHandler.ts';
+import {createCloudflareHandler, resetCloudflareHandlerOpts} from '../src/cloudflareHandler.ts';
 
 describe('cloudflare response headers', () => {
-  let handler: ReturnType<typeof createCloudflareHandler>;
-  const call = (route: string) =>
-    handler.fetch(
-      new Request(`http://localhost/${route}`, {method: 'POST', body: JSON.stringify({[route]: []})}),
-      {} as any,
-      {} as any
-    );
-
-  beforeAll(() => {
-    resetCloudflareHandlerOpts();
+  // the router starts again for each set of response headers; a running server keeps serving it
+  const initApp = (responseHeaders: Record<string, string>) => {
     resetRouter();
-    const mion = createMionRouter({apiVersionCheck: false});
+    const mion = createMionRouter({apiVersionCheck: false, responseHeaders});
     mion.initRoutes({
       ping: mion.route((): string => 'pong'),
       setHeader: mion.route((ctx: CallContext): string => {
@@ -62,6 +54,20 @@ describe('cloudflare response headers', () => {
         return 'ok';
       }),
     });
+  };
+
+  let handler: ReturnType<typeof createCloudflareHandler>;
+  const call = (route: string) =>
+    handler.fetch(
+      new Request(`http://localhost/${route}`, {method: 'POST', body: JSON.stringify({[route]: []})}),
+      {} as any,
+      {} as any
+    );
+
+  beforeAll(() => {
+    resetCloudflareHandlerOpts();
+    resetRouter();
+    initApp({});
     handler = createCloudflareHandler({basePath: ''});
   });
 
@@ -102,11 +108,11 @@ describe('cloudflare response headers', () => {
     });
   });
 
-  describe('with default headers', () => {
-    beforeAll(() => setCloudflareHandlerOpts({defaultResponseHeaders: {'X-Team': 'mion', server: 'mine'}}));
-    afterAll(() => setCloudflareHandlerOpts({defaultResponseHeaders: {}}));
+  describe('with the responseHeaders option', () => {
+    beforeAll(() => initApp({'X-Team': 'mion', server: 'mine'}));
+    afterAll(() => initApp({}));
 
-    it('an untouched reply carries the defaults, and a server default replaces mionjs', async () => {
+    it('an untouched reply carries them, and a server header replaces mionjs', async () => {
       const response = await call('ping');
       expect(response.headers.get('x-team')).toEqual('mion');
       expect(response.headers.get('server')).toEqual('mine');
