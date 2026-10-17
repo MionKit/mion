@@ -125,7 +125,7 @@ export class FetchResponseHeaders implements PooledHeaders {
   }
 }
 
-// Pools of response headers no request wrote to: one leaves for exactly one request and comes back only if still unused.
+// Pools of unwritten response headers: one serves exactly one request and comes back only if still unused.
 const MAX_UNUSED_HEADERS = 256;
 const unusedRecordHeaders: RecordResponseHeaders[] = [];
 const unusedFetchHeaders: FetchResponseHeaders[] = [];
@@ -145,7 +145,7 @@ function takeUnused<Pooled extends PooledHeaders>(pool: Pooled[], create: (defau
   const defaults = getResponseDefaults();
   const headers = pool.pop();
   if (headers?.defaults === defaults) return headers;
-  // the router started again: what the pool holds carries the old defaults
+  // the router restarted: pooled headers carry the old defaults
   pool.length = 0;
   return create(defaults);
 }
@@ -154,7 +154,6 @@ function giveBackUnused<Pooled extends PooledHeaders>(pool: Pooled[], headers: P
   if (headers.unused && pool.length < MAX_UNUSED_HEADERS) pool.push(headers);
 }
 
-/** The reply of the fetch adapters. */
 export function replyFetch(mionResp: MionResponse, headers: FetchResponseHeaders): Response {
   // last, so a handler never replaces it; unused headers already hold the JSON one
   if (!headers.unused || mionResp.contentType !== JSON_CONTENT_TYPE) headers.set('content-type', mionResp.contentType);
