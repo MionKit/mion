@@ -98,11 +98,10 @@ Measured on a Claude cloud host (noisy):
   written and no defaults 2.6 µs → 1.85 µs per request; a handler writing a header 2.7 µs → 2.5 µs. Before,
   building `Headers` from a record was about 22% of the handler's profile. A frozen record passed to
   `Response.json` instead of a `Headers` gained nothing, which is why the earlier plain-object try was noise.
-- `pnpm miondevx bench servers repeat <lane> hello-world`, before / after interleaved: mion, mion.uws,
-  mion.compact and mion.bun level within noise. No gain on today's default mion.bun lane: the build's
-  `x-build-version` is a default header, so every reply still builds headers. With `apiVersionCheck: false` (no
-  default header) mion.bun goes 31.0k-31.6k → 34.6k-36.0k req/s, +12%. That fix has its own PR and
-  merges before this one: it moves `x-build-version` into `mionFetchMetadata`, so every app without that
-  middleware gets the gain, and an app using it still writes the header on every call.
+- `pnpm miondevx bench servers repeat <lane> hello-world`, before / after interleaved, on a main that still
+  sent `x-build-version` as a default header: mion, mion.uws, mion.compact and mion.bun level within noise.
+- After the fix that moved `x-build-version` into `mionFetchMetadata` merged (the bench app does not use that
+  middleware), interleaved on the same main: mion.bun 31.5k-32.2k → 35.0k-37.5k req/s, about +12%. An app using
+  `mionFetchMetadata` still writes that header on every call, so it builds headers as before.
 - Not tested on workerd: its test fixture always carries a default header, so it never reaches the shared
   `Headers` path. The Fetch spec has `Response` copy its init headers; Node and Bun tests pin it.
