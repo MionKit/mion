@@ -25,7 +25,7 @@ describe('bun response headers', () => {
     return response;
   };
 
-  // the response headers object each request got, to tell a pooled one from a new one
+  // to tell a pooled headers object from a new one
   const seen: unknown[] = [];
   // the router starts again for each set of response headers; a running server keeps serving it
   const initApp = (responseHeaders: Record<string, string>) => {
