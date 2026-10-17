@@ -9,9 +9,11 @@ import type {MionHeaders} from '../types/context.ts';
 
 // ############# PUBLIC METHODS #############
 
-type HeadersRecord = Record<string, string>;
+// an array only for set-cookie (or a platform record's repeated header)
+type HeadersRecord = Record<string, string | string[]>;
 
 const PROTO_KEY = '__proto__';
+const SET_COOKIE = 'set-cookie';
 
 /** Case-insensitive HTTP headers, like the fetch Headers API but optimized for performance.
  *  https://developer.mozilla.org/en-US/docs/Web/API/Headers */
@@ -25,8 +27,15 @@ class MionHeadersImpl implements MionHeaders {
   append(name: string, value: string): void {
     const nl = name.toLowerCase();
     if (nl === PROTO_KEY) return;
-    const existing = readHeader(this.headers, nl);
     const headerValue = toSingleHeader(value);
+    // RFC 6265 forbids folding set-cookie: values stay apart, aws sends an array as multiValueHeaders
+    const current = nl === SET_COOKIE ? (this.headers[nl] as unknown) : undefined;
+    if ((typeof current === 'string' && current) || Array.isArray(current)) {
+      // a new array: the old one may belong to the platform record
+      this.headers[nl] = [current, headerValue].flat();
+      return;
+    }
+    const existing = readHeader(this.headers, nl);
     if (existing) {
       this.headers[nl] = `${existing}, ${headerValue}`;
     } else {
@@ -53,7 +62,9 @@ class MionHeadersImpl implements MionHeaders {
   }
 
   entries(): IterableIterator<[string, string]> {
-    return new Map(Object.entries(this.headers)).entries();
+    return Object.keys(this.headers)
+      .map((name): [string, string] => [name, readHeader(this.headers, name) as string])
+      .values();
   }
 
   keys(): IterableIterator<string> {
@@ -61,14 +72,16 @@ class MionHeadersImpl implements MionHeaders {
   }
 
   values(): IterableIterator<string> {
-    return new Map(Object.entries(this.headers)).values();
+    return Object.keys(this.headers)
+      .map((name) => readHeader(this.headers, name) as string)
+      .values();
   }
 }
 
 /** A fetch-like (not identical) Headers object over a header record, for an incoming request carrying its
  *  headers as an object: IncomingMessage.headers, ApiGatewayEvent.headers.
  *  https://developer.mozilla.org/en-US/docs/Web/API/Headers */
-export function headersFromRecord(headersObj: Record<string, string>, skipToLower = false): MionHeaders {
+export function headersFromRecord(headersObj: HeadersRecord, skipToLower = false): MionHeaders {
   const headers = parseHeaders(headersObj, skipToLower);
   return new MionHeadersImpl(headers);
 }
@@ -81,12 +94,12 @@ function readHeader(headers: HeadersRecord, lowerName: string): string | undefin
   return Array.isArray(value) ? value.join(', ') : undefined;
 }
 
-function toSingleHeader(value: string | number): string {
+function toSingleHeader(value: string | string[] | number): string {
   if (Array.isArray(value)) return value.join(', ');
   return value as string;
 }
 
-function parseHeaders(headersObj: Record<string, string>, skipToLower = false): HeadersRecord {
+function parseHeaders(headersObj: HeadersRecord, skipToLower = false): HeadersRecord {
   if (skipToLower) return headersObj;
   const entries = Object.entries(headersObj);
   // null-prototype: header names come off the wire

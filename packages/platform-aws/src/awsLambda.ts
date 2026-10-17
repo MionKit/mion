@@ -17,7 +17,7 @@ import {
   setPlatformConfig,
   getResponseDefaults,
 } from '@mionjs/router';
-import type {MionResponse, MionHeaders} from '@mionjs/router';
+import type {MionResponse} from '@mionjs/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 import {DEFAULT_AWS_LAMBDA_OPTIONS} from './constants.ts';
 import {AwsLambdaOptions} from '../index.ts';
@@ -50,7 +50,7 @@ export function createAwsLambdaHandler(options?: Partial<AwsLambdaOptions>) {
 export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> {
   let rawBody: any = decodeEventBody(rawRequest);
   const reqHeaders = headersFromRecord(rawRequest.headers as Record<string, string>);
-  const rawRespHeaders: Record<string, string> = {
+  const rawRespHeaders: Record<string, string | string[]> = {
     server: '@mionjs',
     ...getResponseDefaults(lambdaOptions.defaultResponseHeaders),
   };
@@ -67,7 +67,7 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
     }
     const context = createCallContext(rawRequest.path, urlQuery, rawRequest, reqHeaders, respHeaders, rawBody, reqBodyType);
     const routeResponse = await dispatchWithContext(context, rawRequest, awsContext);
-    return reply(routeResponse, respHeaders);
+    return reply(routeResponse, rawRespHeaders);
   } catch (err) {
     const error =
       err instanceof RpcError
@@ -77,7 +77,7 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
             originalError: err as Error,
             type: 'unknown-error',
           });
-    return reply(getRouterFatalErrorResponse(error, respHeaders), respHeaders);
+    return reply(getRouterFatalErrorResponse(error, respHeaders), rawRespHeaders);
   }
 }
 
@@ -103,13 +103,14 @@ function buildQueryString(params: APIGatewayEvent['queryStringParameters']): str
   return query;
 }
 
-function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayProxyResult {
+/** Reads the record behind the response headers, not `entries()`: only the record keeps set-cookie as an array. */
+function reply(routeResponse: MionResponse, headers: Record<string, string | string[]>): APIGatewayProxyResult {
   // AWS sets content-length itself, unlike node
   const singleHeaders: Record<string, string> = {};
   const multiHeaders: Record<string, string[]> = {};
   let multiHeaderCount = 0;
-  // not Array.from: it would copy the Map into a second array
-  for (const [name, value] of headers.entries()) {
+  for (const name in headers) {
+    const value = headers[name];
     if (Array.isArray(value)) {
       multiHeaders[name] = value;
       multiHeaderCount++;

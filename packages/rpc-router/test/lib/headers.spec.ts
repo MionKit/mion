@@ -588,4 +588,34 @@ describe('security: header records are own-key only', () => {
     expect(headers.get('__proto__')).toBeUndefined();
     expect(({} as any).x).toBeUndefined();
   });
+
+  describe('set-cookie is never folded into one value', () => {
+    it('keeps each appended cookie apart in the record, reads them joined', () => {
+      const record: Record<string, string | string[]> = {};
+      const headers = headersFromRecord(record, true);
+      headers.set('set-cookie', 'a=1');
+      headers.append('Set-Cookie', 'b=2');
+      headers.append('set-cookie', 'c=3');
+      expect(record['set-cookie']).toEqual(['a=1', 'b=2', 'c=3']);
+      expect(headers.get('set-cookie')).toBe('a=1, b=2, c=3');
+      expect([...headers.entries()]).toEqual([['set-cookie', 'a=1, b=2, c=3']]);
+      expect([...headers.values()]).toEqual(['a=1, b=2, c=3']);
+    });
+
+    it('never mutates an array the platform record owns', () => {
+      const platformCookies = ['a=1'];
+      const headers = headersFromRecord({'set-cookie': platformCookies}, true);
+      headers.append('set-cookie', 'b=2');
+      expect(platformCookies).toEqual(['a=1']);
+      expect(headers.get('set-cookie')).toBe('a=1, b=2');
+    });
+
+    it('an empty value counts as absent, like any other name', () => {
+      const record: Record<string, string | string[]> = {};
+      const headers = headersFromRecord(record, true);
+      headers.set('set-cookie', '');
+      headers.append('set-cookie', 'a=1');
+      expect(record['set-cookie']).toBe('a=1');
+    });
+  });
 });
