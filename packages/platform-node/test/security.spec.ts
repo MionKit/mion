@@ -316,9 +316,8 @@ describe('node adapter: a refused body runs the alwaysRun middlewares', () => {
   });
 });
 
-// RFC 9112: an HTTP/1 request with neither content-length nor transfer-encoding has no body, so the adapter answers
-// it without waiting for the stream's 'end'. Everything the chain does must stay the same. All-sync router: the
-// case where an answer could beat node's own 400 for bytes sent past the head.
+// HTTP/1 requests with no body headers skip the 'end' wait (RFC 9112); the chain must behave the same.
+// All-sync router: the case where our answer could beat node's own 400 for bytes sent past the head.
 describe('node adapter: a request with no body headers', () => {
   const noBodyPort = 8283;
   let server: Server;
@@ -346,7 +345,6 @@ describe('node adapter: a request with no body headers', () => {
 
   afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
-  /** Writes `raw` in one go and splits everything the server sends until it closes into responses. */
   function exchange(raw: string): Promise<{status: number; body: string}[]> {
     return new Promise((resolve, reject) => {
       const socket = createConnection({host: '127.0.0.1', port: noBodyPort}, () => socket.write(raw));
@@ -373,7 +371,7 @@ describe('node adapter: a request with no body headers', () => {
   }
 
   const userBody = '{"echo":[{"name":"a","surname":"b"}]}';
-  /** Node's own answer to bytes it cannot parse as a request, before mion sees anything */
+  /** Sent by node's parser before mion sees the bytes */
   const NODE_BAD_REQUEST = 400;
 
   it('answers a GET and runs every global middleware', async () => {

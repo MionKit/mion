@@ -6,7 +6,7 @@
  * ######## */
 
 // The stub response records `end`, so a test can tell a reply inside the 'end' listener from one after an await.
-// A stub declares an empty body by default: without content-length or transfer-encoding the adapter skips the read.
+// Stubs default to content-length 0: with no body header the adapter never listens for 'end'.
 
 import {describe, it, expect, beforeEach} from 'vitest';
 import {createMionRouter, resetRouter} from '@mionjs/router';
