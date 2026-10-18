@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-10-18
 ---
 
@@ -87,3 +87,48 @@ The implementer investigates and plans.
 - The `mion` lane is level with main within noise over repeated interleaved rounds, with mion.compact, mion.bun
   and mion.uws unchanged; or the cause is shown to be outside this code, with the measurements that show it.
 - A fix in code ships with its before/after numbers.
+
+## Plan: no body headers, no wait for the body stream (approved 2026-10-18)
+
+Investigation first. Six interleaved rounds on one host, the pre-rework `e08163d` bench bundle (A) against the
+current one (B), `hello-world`, req/s mean:
+
+| Lane | A (pre-rework) | B (current) |
+| --- | --- | --- |
+| mion (node) | 38,406 | 39,638 |
+| mion.compact (node) | 37,784 | 38,791 |
+
+B wins 5 of 6 rounds on `mion`: the reported gap does not reproduce, the old numbers were host noise. The built
+bundles differ only by the rework's own lines (no deopt-prone code).
+
+A real node gain showed up in the profile instead: fastify answers 41,872 against mion's 38,864 on the same stack.
+mion attaches `data` / `end` listeners to every request that reaches a route and waits for node to resume the stream
+and emit `end`, even when the request has no body. RFC 9112 §6.3: no `content-length` and no `transfer-encoding`
+= no body, and node's parser follows it. A prototype on the built bundle went 38,183 → 42,853 (+12%, six rounds).
+
+- `platform-node/src/mionHttp.ts` `httpRequestHandler`: the request `error` listener stays; a request with neither
+  header then dispatches at once with `''`, the body `decodeBody` returns for an empty read. `readQueryBody` stays
+  on, so `?data=` GETs keep working. Any request carrying either header keeps the current read and limits.
+- No router code, no other platform.
+- Tests: a real server over raw sockets (no-body GET, pipelined GET + POST, `?data=` GET, GET with a body, global
+  middlewares on the fast path, stray bytes after a body-less request answered 400 by node), plus the sync-reply
+  stubs.
+- No website change: answers and headers are the same.
+
+## What shipped
+
+Built as planned. The new check sits after the request `error` listener, so a broken connection is still reported.
+One test finding: bytes sent after a body-less request's head make node answer its own 400 and close the socket,
+which can come before mion's answer. The test pins that the client gets the 400 and never a 200 built from those
+bytes.
+
+Six interleaved rounds on one host, the main bench bundle (B) against the fix (D), req/s mean:
+
+| Lane | B (main) | D (fix) |
+| --- | --- | --- |
+| mion (node), hello-world | 38,823 | 42,492 |
+| mion.compact (node), hello-world | 38,932 | 42,653 |
+| mion (node), light-validation (POST, four rounds) | 26,933 | 28,204 |
+
+D wins every hello-world round (+9-10%), the POST lane carrying a body is no slower. The bun and uws bundles of B
+and D are byte-identical: only the node adapter's chunk changed.
