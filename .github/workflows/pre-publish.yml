@@ -44,8 +44,8 @@ jobs:
   # fails here; every fix lands on main first, then the branch is re-cut forward.
   # A head that is literally main (the legacy flow, and publish.yml's merge-shape
   # recovery empty-merge) is trivially its own ancestor and still passes. Uses git
-  # objects only — no secrets — so fork PRs run it too. Add this check to the prod
-  # ruleset's required status checks (see .agents/skills/release-to-prod/SKILL.md).
+  # objects only — no secrets — so fork PRs run it too. Never a REQUIRED check on
+  # prod: a forced-tree reunification keeps it red (.agents/skills/release-to-prod/SKILL.md).
   main-ancestor:
     name: release head is an ancestor of main
     runs-on: ubuntu-latest
