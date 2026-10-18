@@ -54,6 +54,11 @@ describe('website-deploy dry run', () => {
     }
   });
 
+  it('queues a dry run apart, so it never cancels a real deploy waiting in the live queue', () => {
+    expect(workflow).toContain("group: website-deploy-${{ inputs.dry_run && 'dry-run' || 'prod' }}");
+    expect(workflow).toContain('cancel-in-progress: false');
+  });
+
   it('keeps the ref guard on a dry run, so the production secrets stay on main and prod', () => {
     expect(step('Refuse to deploy from a ref that is not main or prod')).toContain(
       "if: github.ref_name != 'main' && github.ref_name != 'prod'"

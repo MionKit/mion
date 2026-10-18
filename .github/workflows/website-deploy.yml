@@ -24,7 +24,8 @@ permissions:
 # same live site, so the group must NOT be per-ref. A newer manual run supersedes an
 # in-flight one (never cancels one mid-deploy).
 concurrency:
-  group: website-deploy-prod
+  # A dry run ships nothing, so it queues apart and never cancels a real deploy waiting its turn.
+  group: website-deploy-${{ inputs.dry_run && 'dry-run' || 'prod' }}
   cancel-in-progress: false
 
 jobs:
