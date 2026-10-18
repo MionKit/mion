@@ -3,6 +3,7 @@ name: prod · deploy website
 # Manual docs-site deploy, split out of publish.yml: a staged publish ends at "packages staged", not live,
 # and npm fires no usable webhook to trigger it. Run it AFTER `pnpm miondevx release stage-approve`,
 # from `prod` after a release or from `main` for a docs-only fix; both ship the live site. See SETUP.md.
+# `dry_run` runs the whole build on either ref before anything is live and ships nothing.
 on:
   workflow_dispatch:
     inputs:
@@ -10,6 +11,11 @@ on:
         description: 'Released version being deployed (log only; the site builds from the repo)'
         required: false
         type: string
+      dry_run:
+        description: 'Rehearse: build + check the site and test the Cloudflare credentials, publish nothing'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -65,7 +71,9 @@ jobs:
         with:
           node-version: 26
           package-manager-cache: false
+      # A dry run rehearses BEFORE a release, when nothing is live yet; it never deploys.
       - name: Verify the deploy target is the live npm release (abort otherwise)
+        if: ${{ !inputs.dry_run }}
         run: node scripts/miondevx.mjs release verify-live
       # Reclaim preinstalled cruft before the image pull + Go build-cache restore.
       - uses: ./.github/actions/free-disk
@@ -121,11 +129,21 @@ jobs:
       # production branch decouples that from the git ref (the step above keeps the ref
       # list honest). Keep this in sync if the Pages project's production branch moves.
       - name: Deploy the site to Cloudflare Pages (mion.pages.dev)
+        if: ${{ !inputs.dry_run }}
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy container/website/.output/public --project-name=${{ env.CLOUDFLARE_PAGES_PROJECT }} --branch=prod
+      # Read-only stand-in for the deploy: listing the project's deployments fails
+      # unless the token, the account id and the project name all line up.
+      - name: Check the Cloudflare credentials reach the Pages project (dry run)
+        if: ${{ inputs.dry_run }}
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deployment list --project-name=${{ env.CLOUDFLARE_PAGES_PROJECT }}
       # AFTER the deploy, on purpose. This runner has real capacity (linux-arm64, not a
       # shared GitHub runner), so it is the one place a throughput regression in the
       # per-engine key counter is worth failing a job over. Failing here still ships the
