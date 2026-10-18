@@ -39,6 +39,11 @@ describe('uws http router', () => {
     context.response.headers.set('server', 'my-server');
   });
 
+  const setCookies: Route = mion.route((context: Context): void => {
+    context.response.headers.append('set-cookie', 'a=1');
+    context.response.headers.append('set-cookie', 'b=2');
+  });
+
   const slowDate: Route = mion.route(async (context: Context): Promise<DataPoint> => {
     await new Promise((resolve) => setTimeout(resolve, 100));
     return {date: new Date('2022-04-22T00:17:00.000Z')};
@@ -61,7 +66,7 @@ describe('uws http router', () => {
   describe('with the default encoder', () => {
     beforeAll(async () => {
       resetRouter();
-      mion.initRoutes({changeUserName, getDate, updateHeaders, slowDate});
+      mion.initRoutes({changeUserName, getDate, updateHeaders, slowDate, setCookies});
     });
 
     it('get an ok response from a route', async () => {
@@ -112,6 +117,13 @@ describe('uws http router', () => {
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
       expect(headers['server']).toEqual('my-server');
       expect(headers['x-something']).toEqual('true');
+    });
+
+    it('sends each appended cookie on its own set-cookie line', async () => {
+      const response = await fetch(`http://127.0.0.1:${port}/api/setCookies`, {method: 'POST', body: '{}'});
+      await response.json();
+
+      expect(response.headers.getSetCookie()).toEqual(['a=1', 'b=2']);
     });
 
     it('get an error when body size is too large, get default headers', async () => {
