@@ -47,9 +47,6 @@ jobs:
     env:
       # The project name is not a secret, so it is a repo variable.
       CLOUDFLARE_PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT || 'mion' }}
-      # wrangler-action installs wrangler with `pnpm add`, which pnpm refuses at a workspace root, so both
-      # Cloudflare steps run this pinned wrangler through `pnpm dlx` (a temp dir, never the workspace).
-      WRANGLER: wrangler@4.134.0
     steps:
       # FIRST, and free: the deploy below pins --branch=prod, so whatever ref this runs
       # from goes LIVE. Only `main` and `prod` are ever meant to; a dispatch from a
@@ -132,12 +129,14 @@ jobs:
       # nobody visits, leaving the live site on the previous build. Pinning the Pages
       # production branch decouples that from the git ref (the step above keeps the ref
       # list honest). Keep this in sync if the Pages project's production branch moves.
+      # wrangler-action installs wrangler with `pnpm add`, which pnpm refuses at a workspace root, so both
+      # Cloudflare steps run a pinned wrangler through `pnpm dlx` (a temp dir, never the workspace).
       - name: Deploy the site to Cloudflare Pages (mion.pages.dev)
         if: ${{ !inputs.dry_run }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: pnpm dlx "$WRANGLER" pages deploy container/website/.output/public --project-name="$CLOUDFLARE_PAGES_PROJECT" --branch=prod
+        run: pnpm dlx wrangler@4.134.0 pages deploy container/website/.output/public --project-name="$CLOUDFLARE_PAGES_PROJECT" --branch=prod
       # Read-only stand-in for the deploy: listing the project's deployments fails
       # unless the token, the account id and the project name all line up.
       - name: Check the Cloudflare credentials reach the Pages project (dry run)
@@ -145,7 +144,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: pnpm dlx "$WRANGLER" pages deployment list --project-name="$CLOUDFLARE_PAGES_PROJECT"
+        run: pnpm dlx wrangler@4.134.0 pages deployment list --project-name="$CLOUDFLARE_PAGES_PROJECT"
       # AFTER the deploy, on purpose. This runner has real capacity (linux-arm64, not a
       # shared GitHub runner), so it is the one place a throughput regression in the
       # per-engine key counter is worth failing a job over. Failing here still ships the
