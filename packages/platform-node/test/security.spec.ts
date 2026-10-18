@@ -11,10 +11,12 @@
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {createConnection} from 'net';
 import type {Server} from 'http';
+import {createServer as createHttp2Server, connect as connectHttp2} from 'http2';
+import type {IncomingMessage, ServerResponse} from 'http';
 import {createMionRouter, resetRouter, addStartMiddlewares, addEndMiddlewares} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
 import {HeadersSubset, MION_ROUTES, StatusCodes, toBase64Url, type PublicRpcError} from '@mionjs/core';
-import {resetNodeHttpOpts, setNodeHttpOpts, startNodeServer} from '../src/mionHttp.ts';
+import {httpRequestHandler, resetNodeHttpOpts, setNodeHttpOpts, startNodeServer} from '../src/mionHttp.ts';
 
 const mion = createMionRouter({contextDataFactory: () => ({user: null}), basePath: 'api/'});
 
@@ -408,5 +410,28 @@ describe('node adapter: a request with no body headers', () => {
     // node answers the unparsable bytes and closes the socket, which can come before mion's own answer
     expect(responses.at(-1)?.status).toBe(NODE_BAD_REQUEST);
     expect(responses.some((response) => response.status === 200)).toBe(false);
+  });
+
+  it('still reads an HTTP/2 body sent with no content-length', async () => {
+    const h2Port = noBodyPort + 1;
+    const h2Server = createHttp2Server((req, res) =>
+      httpRequestHandler(req as unknown as IncomingMessage, res as unknown as ServerResponse)
+    );
+    await new Promise<void>((resolve) => h2Server.listen(h2Port, '127.0.0.1', resolve));
+    const client = connectHttp2(`http://127.0.0.1:${h2Port}`);
+    try {
+      const stream = client.request({':method': 'POST', ':path': '/api/echo', host: 'x'});
+      stream.setEncoding('utf8');
+      let body = '';
+      stream.on('data', (chunk) => (body += chunk));
+      const response = new Promise<number>((resolve) => stream.on('response', (headers) => resolve(Number(headers[':status']))));
+      stream.end(userBody);
+      const status = await response;
+      await new Promise((resolve) => stream.on('end', resolve));
+      expect({status, body}).toEqual({status: 200, body: '{"echo":{"name":"a","surname":"b"}}'});
+    } finally {
+      client.close();
+      await new Promise((resolve) => h2Server.close(resolve));
+    }
   });
 });

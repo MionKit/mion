@@ -18,6 +18,7 @@ function stubExchange(path: string, headers: IncomingMessage['headers'] = {'cont
   const req = new IncomingMessage(new Socket());
   req.url = path;
   req.method = 'GET';
+  req.httpVersionMajor = 1;
   req.headers = headers;
   const res = new ServerResponse(req);
   const sent: {body?: string} = {};
