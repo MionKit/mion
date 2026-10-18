@@ -25,7 +25,7 @@ import {AwsLambdaOptions} from '../index.ts';
 // ############# STATE #############
 
 let lambdaOptions: Readonly<AwsLambdaOptions> = {...DEFAULT_AWS_LAMBDA_OPTIONS};
-/** A record, not a list of pairs: `new Headers()` APPENDS a repeated name instead of letting the later one win. */
+/** A record, not pairs: `new Headers()` appends a repeated name instead of letting the later one win. */
 const SERVER_HEADER = {server: '@mionjs'};
 
 // ############# PUBLIC METHODS #############
@@ -105,7 +105,7 @@ function buildQueryString(params: APIGatewayEvent['queryStringParameters']): str
 function reply(routeResponse: MionResponse, headers: Headers): APIGatewayProxyResult {
   // AWS sets content-length itself, unlike node
   const singleHeaders: Record<string, string> = {};
-  // RFC 6265 forbids folding set-cookie: each cookie goes out apart through multiValueHeaders
+  // RFC 6265 forbids folding set-cookie: it goes out through multiValueHeaders below
   for (const [name, value] of headers) if (name !== 'set-cookie') singleHeaders[name] = value;
 
   const responseBody = JSON.stringify(routeResponse.body);
