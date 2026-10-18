@@ -48,6 +48,13 @@ git push --force-with-lease origin release/vX.Y.Z
 - **No cherry-picking onto the branch**: a copied commit lands clean but puts a non-`main` SHA into prod's ancestry.
   Re-cutting keeps the branch a literal prefix of `main` (and `main-ancestor` green).
 
+### Website dry run
+
+- Gate green → rehearse the site deploy before merging:
+  `gh workflow run website-deploy.yml --ref main -f dry_run=true`.
+- Builds + checks the whole site and tests the Cloudflare credentials, ships nothing.
+- Red counts like a red gate job: fix forward on `main`, re-cut.
+
 ### Merge or hand over
 
 Apply the clean/red rule from [Roles](SKILL.md#when-you-merge-and-when-you-ask):
