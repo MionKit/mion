@@ -1,8 +1,5 @@
-// Contract tests for the dry run of .github/workflows/website-deploy.yml.
-//
-// A dry run must never reach the live site, and must still exercise everything a
-// real deploy needs short of the upload. The two steps it skips and the one it adds
-// are pinned here, so a new deploy step cannot slip in ungated.
+// A website-deploy.yml dry run must never reach the live site yet run everything short of the upload;
+// the steps it skips and adds are pinned so a new deploy step cannot slip in ungated.
 import {describe, it, expect} from 'vitest';
 import {readFileSync} from 'node:fs';
 import path from 'node:path';
@@ -11,7 +8,6 @@ import {fileURLToPath} from 'node:url';
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const workflow = readFileSync(path.join(REPO_ROOT, '.github/workflows/website-deploy.yml'), 'utf8');
 
-// Each `- name:` step with its body, keyed by name.
 const steps = new Map(
   workflow
     .split(/\n(?=\s+- (?:name|uses):)/)

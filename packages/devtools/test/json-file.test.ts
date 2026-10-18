@@ -1,8 +1,5 @@
-// The version bump rewrites every workspace package.json. Some use four-space
-// indent, so a fixed two-space writer turned a one-line bump into whole-file diffs.
-//
-// Lives in this package for the same reason as drizzle-version-line.test.ts:
-// scripts/ has no vitest project of its own.
+// Some workspace package.json files use four-space indent, so a fixed two-space writer turned a version bump
+// into whole-file diffs. Lives here because scripts/ has no vitest project of its own.
 import {mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
