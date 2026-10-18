@@ -151,7 +151,7 @@ describe('serverless router', () => {
     it('get default headers', async () => {
       const awsOpts = {
         defaultResponseHeaders: {
-          // the name goes out lower-cased, like on every other adapter
+          // the name goes out lower-cased, as on bun, cloudflare and vercel
           'X-App-Name': 'MyApp',
           'x-instance-id': '3089',
         },
