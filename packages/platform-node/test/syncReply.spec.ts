@@ -6,6 +6,7 @@
  * ######## */
 
 // The stub response records `end`, so a test can tell a reply inside the 'end' listener from one after an await.
+// A stub declares an empty body by default: without content-length or transfer-encoding the adapter skips the read.
 
 import {describe, it, expect, beforeEach} from 'vitest';
 import {createMionRouter, resetRouter} from '@mionjs/router';
@@ -13,10 +14,11 @@ import {IncomingMessage, ServerResponse} from 'http';
 import {Socket} from 'net';
 import {httpRequestHandler} from '../src/mionHttp.ts';
 
-function stubExchange(path: string) {
+function stubExchange(path: string, headers: IncomingMessage['headers'] = {'content-length': '0'}) {
   const req = new IncomingMessage(new Socket());
   req.url = path;
   req.method = 'GET';
+  req.headers = headers;
   const res = new ServerResponse(req);
   const sent: {body?: string} = {};
   res.end = ((body: string) => {
@@ -43,6 +45,13 @@ describe('node: an all-sync router with alwaysAwait off should', () => {
     httpRequestHandler(req, res);
     req.emit('end');
     expect(res.statusCode).toBe(200);
+    expect(JSON.parse(sent.body!)).toEqual({hello: 'hello'});
+  });
+
+  it('reply to a request with no body headers inside the handler, with no end event', () => {
+    const {req, res, sent} = stubExchange('/hello', {});
+    httpRequestHandler(req, res);
+    expect(req.listenerCount('end')).toBe(0);
     expect(JSON.parse(sent.body!)).toEqual({hello: 'hello'});
   });
 

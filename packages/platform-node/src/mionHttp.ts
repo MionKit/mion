@@ -216,17 +216,6 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
     return;
   }
 
-  httpReq.on('data', (data) => {
-    if (replied) return;
-    size += data.length;
-    if (size > maxBodySize) {
-      replied = true;
-      void dispatchRefusal();
-      return;
-    }
-    bodyChunks.push(data);
-  });
-
   httpReq.on('error', (err) => {
     if (replied) return;
     replied = true;
@@ -236,6 +225,24 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
       originalError: err,
     });
     fatalFail(httpResponse, respHeaders, error);
+  });
+
+  // RFC 9112: no content-length and no transfer-encoding means no body, so waiting for 'end' only costs ticks.
+  // Bytes the client sends anyway are parsed by node as the next request, never read as this one's body.
+  if (httpReq.headers['content-length'] === undefined && httpReq.headers['transfer-encoding'] === undefined) {
+    dispatch('', SerializerModes.stringifyJson, true);
+    return;
+  }
+
+  httpReq.on('data', (data) => {
+    if (replied) return;
+    size += data.length;
+    if (size > maxBodySize) {
+      replied = true;
+      void dispatchRefusal();
+      return;
+    }
+    bodyChunks.push(data);
   });
 
   httpReq.on('end', () => {
