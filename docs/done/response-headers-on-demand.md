@@ -92,6 +92,10 @@ The first build (a lazy holder over the defaults, a WeakMap merge per adapter op
   saved nothing.
 - Second review: the pools became module functions, like the rest of the router's state, and uws uses the
   router's record headers instead of its own copy of the class.
+- After the set-cookie fix merged: the router ships two generic response headers classes (record, fetch) and
+  knows no platform rule. The record one keeps a name appended twice as a list; uws writes each `set-cookie`
+  on its own line and aws sends them as `multiValueHeaders`. A platform that needs more implements
+  `MionHeaders` itself, as node and gcloud do.
 
 ## What shipped
 
