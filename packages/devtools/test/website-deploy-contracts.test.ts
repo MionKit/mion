@@ -33,15 +33,22 @@ describe('website-deploy dry run', () => {
   it('checks the Cloudflare credentials read-only instead, against the same project', () => {
     const check = step('Check the Cloudflare credentials reach the Pages project (dry run)');
     expect(check).toContain('if: ${{ inputs.dry_run }}');
-    expect(check).toContain('command: pages deployment list --project-name=${{ env.CLOUDFLARE_PAGES_PROJECT }}');
-    expect(check).toContain('apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}');
-    expect(check).toContain('accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}');
+    expect(check).toContain('run: pnpm dlx "$WRANGLER" pages deployment list --project-name="$CLOUDFLARE_PAGES_PROJECT"');
+    expect(check).toContain('CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}');
+    expect(check).toContain('CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}');
   });
 
   it('runs every wrangler deploy only on a real run', () => {
-    const deploys = [...steps.values()].filter((body) => /command: pages deploy\b/.test(body));
+    const deploys = [...steps.values()].filter((body) => /pages deploy\b/.test(body));
     expect(deploys.length).toBe(1);
     for (const body of deploys) expect(body).toContain('if: ${{ !inputs.dry_run }}');
+  });
+
+  // wrangler-action installs wrangler with `pnpm add`, which pnpm refuses at a workspace root (ERR_PNPM_ADDING_TO_ROOT).
+  it('runs one pinned wrangler through pnpm dlx, never wrangler-action', () => {
+    expect(workflow).not.toContain('cloudflare/wrangler-action');
+    expect(workflow).toMatch(/^\s+WRANGLER: wrangler@\d+\.\d+\.\d+$/m);
+    expect(workflow.match(/run: pnpm dlx "\$WRANGLER" pages /g)?.length).toBe(2);
   });
 
   it('still builds and checks the site on a dry run', () => {
