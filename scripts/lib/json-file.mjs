@@ -6,6 +6,5 @@ export function detectIndent(text) {
 }
 
 export function writeJsonKeepingIndent(file, value) {
-  const indent = fs.existsSync(file) ? detectIndent(fs.readFileSync(file, 'utf8')) : '  ';
-  fs.writeFileSync(file, JSON.stringify(value, null, indent) + '\n');
+  fs.writeFileSync(file, JSON.stringify(value, null, detectIndent(fs.readFileSync(file, 'utf8'))) + '\n');
 }

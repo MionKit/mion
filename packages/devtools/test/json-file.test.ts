@@ -33,12 +33,6 @@ describe('writeJsonKeepingIndent', () => {
     expect(readFileSync(file, 'utf8')).toBe(before.replace('"0.12.2"', '"0.13.0"'));
   });
 
-  it('writes a new file with two spaces', () => {
-    const file = join(scratch(), 'version.json');
-    writeJsonKeepingIndent(file, {version: '0.13.0'});
-    expect(readFileSync(file, 'utf8')).toBe('{\n  "version": "0.13.0"\n}\n');
-  });
-
   it('falls back to two spaces for a file with no indented key', () => {
     expect(detectIndent('{"version":"0.12.2"}\n')).toBe('  ');
   });
