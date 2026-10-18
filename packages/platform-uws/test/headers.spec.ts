@@ -7,7 +7,7 @@
 
 import {describe, it, expect} from 'vitest';
 import type {HttpRequest} from '@mionjs/bin-uws';
-import {headersFromUwsRequest} from '../src/headers.ts';
+import {bufferedResponseHeaders, headersFromUwsRequest} from '../src/headers.ts';
 
 const fakeRequest = (pairs: [string, string][]): HttpRequest =>
   ({forEach: (visit: (name: string, value: string) => void) => pairs.forEach(([name, value]) => visit(name, value))}) as any;
@@ -29,5 +29,14 @@ describe('headersFromUwsRequest', () => {
     );
     expect(headers.get('constructor')).toBe('a, b');
     expect(headers.get('x-a')).toBe('1, 2');
+  });
+});
+
+describe('bufferedResponseHeaders', () => {
+  it('appends to a header named like an Object.prototype member as if it were new', () => {
+    const headers = bufferedResponseHeaders(null);
+    expect(headers.has('constructor')).toBe(false);
+    headers.append('constructor', 'a');
+    expect(headers.get('constructor')).toBe('a');
   });
 });
