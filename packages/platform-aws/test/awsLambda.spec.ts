@@ -147,7 +147,6 @@ describe('serverless router', () => {
       expect(awsResponse.headers?.['set-cookie']).toBeUndefined();
       expect(awsResponse.headers?.['x-list']).toEqual('1, 2');
     });
-
   });
 
   describe('with a base64 encoded body (isBase64Encoded: true)', () => {
