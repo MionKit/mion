@@ -21,8 +21,9 @@ export function headersFromUwsRequest(req: HttpRequest): MionHeaders {
 
 /** uWS headers are write-only and must precede the body, so they are buffered lowercase-keyed and flushed in the corked reply. */
 class BufferedHeadersImpl implements MionHeaders {
-  /** Readable by `forEachHeader` below, which is the only thing in the module allowed to touch it. */
-  readonly record: Record<string, string> = {};
+  /** Readable by `forEachHeader` below, which is the only thing in the module allowed to touch it.
+   *  null-prototype: a `constructor` header must not find Object.prototype's function. */
+  readonly record: Record<string, string> = Object.create(null);
 
   append(name: string, value: string): void {
     const key = name.toLowerCase();
