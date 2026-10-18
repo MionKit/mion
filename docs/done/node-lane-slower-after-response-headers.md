@@ -5,7 +5,7 @@ status: done
 created: 2026-10-18
 ---
 
-# mion on node answers hello-world about 7% slower after the response headers rework
+# mion on node: the 7% gap after the response headers rework was noise; body-less requests answer sooner
 
 ## Intent
 
@@ -117,18 +117,32 @@ and emit `end`, even when the request has no body. RFC 9112 §6.3: no `content-l
 
 ## What shipped
 
-Built as planned. The new check sits after the request `error` listener, so a broken connection is still reported.
-One test finding: bytes sent after a body-less request's head make node answer its own 400 and close the socket,
-which can come before mion's answer. The test pins that the client gets the 400 and never a 200 built from those
-bytes.
+The check sits after the request `error` listener, so a connection dropped while an async chain runs is still
+answered once. The review changed two things, each with its own test:
 
-Six interleaved rounds on one host, the main bench bundle (B) against the fix (D), req/s mean:
+- **HTTP/1 only.** HTTP/2 can stream a body with neither header, so an HTTP/2 compat request handed to
+  `httpRequestHandler` keeps the read path (tested with a real `http2` client).
+- **A microtask later.** With an all-sync chain (`alwaysAwait: false`) and a route that takes no params, a reply
+  inside the handler went out before node's parser reached bytes sent past the head: the client got a 200 and node
+  sent no 400. Dispatching a microtask later lets node's 400 go first, as the old `end` wait did.
 
-| Lane | B (main) | D (fix) |
+No router code and no other platform changed. The bun and uws bench bundles are byte-identical before and after.
+
+First version (sync dispatch, no HTTP/1 check), six interleaved rounds against main, req/s mean:
+
+| Lane | main | first version |
 | --- | --- | --- |
 | mion (node), hello-world | 38,823 | 42,492 |
 | mion.compact (node), hello-world | 38,932 | 42,653 |
 | mion (node), light-validation (POST, four rounds) | 26,933 | 28,204 |
 
-D wins every hello-world round (+9-10%), the POST lane carrying a body is no slower. The bun and uws bundles of B
-and D are byte-identical: only the node adapter's chunk changed.
+Shipped version, six clean interleaved rounds with fastify in the same rounds, hello-world, req/s mean:
+
+| Lane | main | first version | shipped |
+| --- | --- | --- | --- |
+| mion (node) | 39,557 | 42,012 | 41,749 |
+| fastify (same rounds) | 42,470 | 43,224 | 43,326 |
+
+The shipped version beats main in 5 of 6 rounds (+5.5%) and closes most of the gap to fastify: from about 7% behind
+to about 4%. The microtask costs little against the first version (within noise). The gain is smaller than the
+first measurement (+9%): the host varies run to run, which is also what made the original 7% report.
