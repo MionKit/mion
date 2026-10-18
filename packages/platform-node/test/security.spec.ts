@@ -316,8 +316,9 @@ describe('node adapter: a refused body runs the alwaysRun middlewares', () => {
   });
 });
 
-// RFC 9112: a request with neither content-length nor transfer-encoding has no body, so the adapter answers it
-// without waiting for the stream's 'end'. Everything the chain does must stay the same.
+// RFC 9112: an HTTP/1 request with neither content-length nor transfer-encoding has no body, so the adapter answers
+// it without waiting for the stream's 'end'. Everything the chain does must stay the same. All-sync router: the
+// case where an answer could beat node's own 400 for bytes sent past the head.
 describe('node adapter: a request with no body headers', () => {
   const noBodyPort = 8283;
   let server: Server;
@@ -326,15 +327,19 @@ describe('node adapter: a request with no body headers', () => {
   beforeAll(async () => {
     resetNodeHttpOpts();
     resetRouter();
+    const syncMion = createMionRouter({alwaysAwait: false, basePath: 'api/'});
     addStartMiddlewares({
-      startLog: mion.rawMiddleware((ctx: CallContext) => {
+      startLog: syncMion.rawMiddleware((ctx: CallContext) => {
         seen.push(`start:${ctx.path}`);
       }),
-      hostCheck: mion.headersMiddleware((ctx: CallContext, headers: HeadersSubset<'host'>): void => {
+      hostCheck: syncMion.headersMiddleware((ctx: CallContext, headers: HeadersSubset<'host'>): void => {
         seen.push(`host:${headers.headers.host}`);
       }),
     });
-    mion.initRoutes({echo, hello: mion.route((): string => 'world')});
+    syncMion.initRoutes({
+      echo: syncMion.route((ctx: CallContext, user: SimpleUser): SimpleUser => user),
+      hello: syncMion.route((): string => 'world'),
+    });
     setNodeHttpOpts({port: noBodyPort, maxBodySize: MAX_BODY});
     server = await startNodeServer();
   });
@@ -405,11 +410,9 @@ describe('node adapter: a request with no body headers', () => {
     expect(response).toEqual({status: 200, body: '{"echo":{"name":"a","surname":"b"}}'});
   });
 
-  it('never reads bytes sent after the head as a body: node parses them as the next request and refuses it', async () => {
-    const responses = await exchange(`GET /api/echo HTTP/1.1\r\nHost: x\r\n\r\n${userBody}`);
-    // node answers the unparsable bytes and closes the socket, which can come before mion's own answer
-    expect(responses.at(-1)?.status).toBe(NODE_BAD_REQUEST);
-    expect(responses.some((response) => response.status === 200)).toBe(false);
+  it('never answers 200 to bytes sent after the head: node parses them as the next request and refuses it', async () => {
+    const responses = await exchange(`GET /api/hello HTTP/1.1\r\nHost: x\r\n\r\n${userBody}`);
+    expect(responses.map((response) => response.status)).toEqual([NODE_BAD_REQUEST]);
   });
 
   it('still reads an HTTP/2 body sent with no content-length', async () => {

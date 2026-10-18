@@ -49,10 +49,12 @@ describe('node: an all-sync router with alwaysAwait off should', () => {
     expect(JSON.parse(sent.body!)).toEqual({hello: 'hello'});
   });
 
-  it('reply to a request with no body headers inside the handler, with no end event', () => {
+  it('reply to a request with no body headers a microtask later, with no end event', async () => {
     const {req, res, sent} = stubExchange('/hello', {});
     httpRequestHandler(req, res);
     expect(req.listenerCount('end')).toBe(0);
+    expect(sent.body).toBeUndefined();
+    await Promise.resolve();
     expect(JSON.parse(sent.body!)).toEqual({hello: 'hello'});
   });
 
