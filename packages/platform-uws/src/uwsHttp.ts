@@ -308,12 +308,18 @@ function reply(res: HttpResponse, state: {aborted: boolean}, mionResp: MionRespo
 
   // cork makes one syscall; uWS headers are write-only and must all precede end().
   // content-length is skipped: uWS writes its own, and a duplicate corrupts the response.
+  // uWS writes headers unchecked, so an echoed CR or LF would be header injection: dropped
+  const write = (name: string, value: string) => {
+    if (isHeaderSafe(value)) res.writeHeader(name, value);
+  };
   res.cork(() => {
     res.writeStatus(statusLine(mionResp.statusCode));
-    // uWS writes headers unchecked, so an echoed CR or LF would be header injection: dropped
     headers.forEach((name, value) => {
-      if (name !== 'content-length' && name !== 'content-type' && isHeaderSafe(name) && isHeaderSafe(value))
-        res.writeHeader(name, value);
+      if (name === 'content-length' || name === 'content-type' || !isHeaderSafe(name)) return;
+      if (typeof value === 'string') write(name, value);
+      // RFC 6265 forbids folding set-cookie; uWS writes a repeated name as its own line
+      else if (name === 'set-cookie') for (const cookie of value) write(name, cookie);
+      else write(name, value.join(', '));
     });
     // last, and the store's own skipped above: uWS appends a repeated name instead of replacing it
     res.writeHeader('content-type', mionResp.contentType);

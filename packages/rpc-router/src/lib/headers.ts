@@ -11,7 +11,8 @@ import {getResponseDefaults} from '../router.ts';
 
 // ############# PUBLIC METHODS #############
 
-type HeadersRecord = Record<string, string>;
+// an array for a name appended twice on response headers (node's request record may hold one too)
+type HeadersRecord = Record<string, string | string[]>;
 
 const PROTO_KEY = '__proto__';
 
@@ -61,7 +62,9 @@ class MionHeadersImpl implements MionHeaders {
   }
 
   entries(): IterableIterator<[string, string]> {
-    return new Map(Object.entries(this.headers)).entries();
+    return Object.entries(this.headers)
+      .map(([name, value]): [string, string] => [name, joined(value)])
+      .values();
   }
 
   keys(): IterableIterator<string> {
@@ -69,7 +72,7 @@ class MionHeadersImpl implements MionHeaders {
   }
 
   values(): IterableIterator<string> {
-    return new Map(Object.entries(this.headers)).values();
+    return Object.values(this.headers).map(joined).values();
   }
 }
 
@@ -79,8 +82,20 @@ export class RecordResponseHeaders extends MionHeadersImpl implements PooledHead
     super({...defaults});
   }
 
-  /** Walks the headers with no pair array per header. */
-  forEach(visit: (name: string, value: string) => void): void {
+  /** Keeps a repeated name's values apart, never joined: the adapter writes them its own way. */
+  append(name: string, value: string): void {
+    this.unused = false;
+    const key = name.toLowerCase();
+    if (key === PROTO_KEY) return;
+    const current = this.headers[key] as unknown;
+    // an empty earlier value counts as absent, and so does a prototype hit such as `constructor`
+    if (Array.isArray(current)) current.push(value);
+    else if (typeof current === 'string' && current) this.headers[key] = [current, value];
+    else this.headers[key] = value;
+  }
+
+  /** Walks the headers with no pair array per header; a repeated name gives its values apart. */
+  forEach(visit: (name: string, value: string | string[]) => void): void {
     for (const name in this.headers) visit(name, this.headers[name]);
   }
 }
@@ -177,6 +192,10 @@ function readHeader(headers: HeadersRecord, lowerName: string): string | undefin
   const value = headers[lowerName] as unknown;
   if (typeof value === 'string') return value;
   return Array.isArray(value) ? value.join(', ') : undefined;
+}
+
+function joined(value: string | string[]): string {
+  return Array.isArray(value) ? value.join(', ') : value;
 }
 
 function toSingleHeader(value: string | number): string {

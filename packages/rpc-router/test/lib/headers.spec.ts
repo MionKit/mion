@@ -675,6 +675,43 @@ describe('response headers', () => {
     expect(second.has('x-leak')).toBe(false);
   });
 
+  const written = (headers: RecordResponseHeaders) => {
+    const lines: [string, string | string[]][] = [];
+    headers.forEach((name, value) => lines.push([name, value]));
+    return lines;
+  };
+
+  it('keep the values of a name appended twice apart on a record, and read them joined', () => {
+    const headers = new RecordResponseHeaders({});
+    headers.append('Set-Cookie', 'a=1');
+    headers.append('set-cookie', 'b=2');
+    headers.append('set-cookie', 'c=3');
+    headers.append('x-a', '1');
+    expect(written(headers)).toEqual([
+      ['set-cookie', ['a=1', 'b=2', 'c=3']],
+      ['x-a', '1'],
+    ]);
+    expect(headers.get('set-cookie')).toBe('a=1, b=2, c=3');
+    expect([...headers.entries()]).toEqual([
+      ['set-cookie', 'a=1, b=2, c=3'],
+      ['x-a', '1'],
+    ]);
+    expect([...headers.values()]).toEqual(['a=1, b=2, c=3', '1']);
+  });
+
+  it('take an empty earlier value on a record as absent', () => {
+    const headers = new RecordResponseHeaders({'x-a': ''});
+    headers.append('x-a', '1');
+    expect(written(headers)).toEqual([['x-a', '1']]);
+  });
+
+  it('append to a name like an Object.prototype member as if it were new', () => {
+    const headers = new RecordResponseHeaders({});
+    expect(headers.has('constructor')).toBe(false);
+    headers.append('constructor', 'a');
+    expect(headers.get('constructor')).toBe('a');
+  });
+
   it('keep two appended set-cookie values apart on fetch, and throw on a CR or LF like Headers', () => {
     const headers = new FetchResponseHeaders(DEFAULTS);
     headers.append('set-cookie', 'a=1');

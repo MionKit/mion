@@ -103,17 +103,13 @@ function buildQueryString(params: APIGatewayEvent['queryStringParameters']): str
 function reply(routeResponse: MionResponse, headers: RecordResponseHeaders): APIGatewayProxyResult {
   // AWS sets content-length itself, unlike node
   const singleHeaders: Record<string, string> = {};
-  const multiHeaders: Record<string, string[]> = {};
-  let multiHeaderCount = 0;
-  // not Array.from: it would copy the Map into a second array
-  for (const [name, value] of headers.entries()) {
-    if (Array.isArray(value)) {
-      multiHeaders[name] = value;
-      multiHeaderCount++;
-      continue;
-    }
-    singleHeaders[name] = value;
-  }
+  let cookies: string[] | undefined;
+  headers.forEach((name, value) => {
+    if (typeof value === 'string') singleHeaders[name] = value;
+    // RFC 6265 forbids folding set-cookie: it goes out through multiValueHeaders below
+    else if (name === 'set-cookie') cookies = value;
+    else singleHeaders[name] = value.join(', ');
+  });
 
   const responseBody = JSON.stringify(routeResponse.body);
   singleHeaders['content-type'] = routeResponse.contentType;
@@ -124,7 +120,7 @@ function reply(routeResponse: MionResponse, headers: RecordResponseHeaders): API
     headers: singleHeaders,
     body: responseBody,
   };
-  if (multiHeaderCount) resp.multiValueHeaders = multiHeaders;
+  if (cookies) resp.multiValueHeaders = {'set-cookie': cookies};
   releaseHeaders(headers);
   return resp;
 }
