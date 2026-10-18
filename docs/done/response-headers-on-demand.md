@@ -130,3 +130,6 @@ Measured on a Claude cloud host (noisy):
 - After the second review, rebased on a newer main, on a slower host: mion.bun 19.1k-22.5k → 21.1k-25.5k;
   mion.uws 33.2k-36.4k → 36.9k-38.9k; mion (node) 12.8k-15.2k → 13.9k-15.1k, level. `bunRequestHandler` with
   no socket, three rounds: no header written 3.8-4.3 µs → 2.8-3.2 µs; a header written 4.7-5.0 µs → 4.3-4.6 µs.
+- Final run after the set-cookie fix merged (2026-10-18, fast host, competitors in the same session): mion.bun
+  56.3k-61.0k → 68.3k-70.5k; mion.uws 64.4k-68.2k → 71.6k-72.2k; mion.compact level (38.4k-39.8k → 37.7k-40.5k);
+  mion (node) 40.3k-40.8k → 36.9k-38.5k, about 7% lower with no cause found in the code, investigated on its own.
