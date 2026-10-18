@@ -32,6 +32,9 @@ export default defineConfig({
     globalSetup: ['./globalSetup.ts', '../../scripts/lib/vitest-clean-gendir.ts'],
     // Run tests sequentially to avoid conflicts with shared server
     maxWorkers: 1,
+    // The first fetched call imports the metadata lane, whose run-types sources the plugin compiles on the spot
+    // (about 1.5s each, ~5s in all on a slow host); later calls hit the cache.
+    testTimeout: 30000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
