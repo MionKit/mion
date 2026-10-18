@@ -44,7 +44,7 @@ describe('website-deploy dry run', () => {
     for (const body of deploys) expect(body).toContain('if: ${{ !inputs.dry_run }}');
   });
 
-  // wrangler-action installs wrangler with `pnpm add`, which pnpm refuses at a workspace root (ERR_PNPM_ADDING_TO_ROOT).
+  // wrangler-action runs `pnpm add`, which pnpm refuses at a workspace root (ERR_PNPM_ADDING_TO_ROOT).
   it('runs one pinned wrangler through pnpm dlx, never wrangler-action', () => {
     expect(workflow).not.toContain('cloudflare/wrangler-action');
     expect(workflow).toMatch(/^\s+WRANGLER: wrangler@\d+\.\d+\.\d+$/m);
