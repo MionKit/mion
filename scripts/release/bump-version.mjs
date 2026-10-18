@@ -20,12 +20,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {installedDrizzleVersion, peerRangeFor, plannedVersion, readDialectPackages, unreleasedChanges} from '../lib/drizzle-line.mjs';
+import {writeJsonKeepingIndent as writeJson} from '../lib/json-file.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const VERSION_FILE = path.join(REPO_ROOT, 'version.json');
 
 const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
-const writeJson = (file, value) => fs.writeFileSync(file, JSON.stringify(value, null, 2) + '\n');
 
 function nextVersion(current, bump) {
   if (/^\d+\.\d+\.\d+$/.test(bump)) return bump; // explicit X.Y.Z
