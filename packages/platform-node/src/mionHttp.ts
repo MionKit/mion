@@ -227,9 +227,10 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
     fatalFail(httpResponse, respHeaders, error);
   });
 
-  // RFC 9112: no content-length and no transfer-encoding means no body, so waiting for 'end' only costs ticks.
-  // Bytes the client sends anyway are parsed by node as the next request, never read as this one's body.
-  if (httpReq.headers['content-length'] === undefined && httpReq.headers['transfer-encoding'] === undefined) {
+  // RFC 9112: an HTTP/1 request with no content-length and no transfer-encoding has no body, so waiting for 'end'
+  // only costs ticks. HTTP/2 can stream a body without either header. Bytes sent anyway are node's next request.
+  const {headers} = httpReq;
+  if (httpReq.httpVersionMajor === 1 && headers['content-length'] === undefined && headers['transfer-encoding'] === undefined) {
     dispatch('', SerializerModes.stringifyJson, true);
     return;
   }
