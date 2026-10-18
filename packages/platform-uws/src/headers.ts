@@ -8,6 +8,8 @@
 import {MionHeaders, headersFromRecord} from '@mionjs/router';
 import type {HttpRequest} from '@mionjs/bin-uws';
 
+const SET_COOKIE = 'set-cookie';
+
 /** uWS headers are readable only synchronously inside the handler, so snapshot them; uWS already lower-cases the names. */
 export function headersFromUwsRequest(req: HttpRequest): MionHeaders {
   const record: Record<string, string> = {};
@@ -19,21 +21,25 @@ export function headersFromUwsRequest(req: HttpRequest): MionHeaders {
   return headersFromRecord(record, true);
 }
 
-/** uWS headers are write-only and must precede the body, so they are buffered lowercase-keyed and flushed in the corked reply. */
+/** uWS headers are write-only and must precede the body, so they are buffered and flushed in the corked reply. */
 class BufferedHeadersImpl implements MionHeaders {
-  /** Readable by `forEachHeader` below, which is the only thing in the module allowed to touch it.
-   *  null-prototype: a `constructor` header must not find Object.prototype's function. */
-  readonly record: Record<string, string> = Object.create(null);
+  /** Outside the class only `forEachHeader` reads it; null-prototype so `constructor` misses Object.prototype.
+   *  An array only for set-cookie: RFC 6265 forbids folding it. */
+  readonly record: Record<string, string | string[]> = Object.create(null);
 
   append(name: string, value: string): void {
     const key = name.toLowerCase();
-    this.record[key] = this.record[key] === undefined ? value : `${this.record[key]}, ${value}`;
+    const current = this.record[key];
+    // an empty value counts as absent, as in the router's headers
+    if (!current) this.record[key] = value;
+    else if (Array.isArray(current)) current.push(value);
+    else this.record[key] = key === SET_COOKIE ? [current, value] : `${current}, ${value}`;
   }
   delete(name: string): void {
     delete this.record[name.toLowerCase()];
   }
   get(name: string): string | undefined | null {
-    return this.record[name.toLowerCase()];
+    return joined(this.record[name.toLowerCase()]);
   }
   has(name: string): boolean {
     return this.record[name.toLowerCase()] !== undefined;
@@ -42,14 +48,22 @@ class BufferedHeadersImpl implements MionHeaders {
     this.record[name.toLowerCase()] = value;
   }
   entries(): IterableIterator<[string, string]> {
-    return Object.entries(this.record).values();
+    return Object.entries(this.record)
+      .map(([name, value]): [string, string] => [name, joined(value) as string])
+      .values();
   }
   keys(): IterableIterator<string> {
     return Object.keys(this.record).values();
   }
   values(): IterableIterator<string> {
-    return Object.values(this.record).values();
+    return Object.values(this.record)
+      .map((value) => joined(value) as string)
+      .values();
   }
+}
+
+function joined(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value.join(', ') : value;
 }
 
 export function bufferedResponseHeaders(initialHeaders: Record<string, string> | null): MionHeaders {
@@ -59,12 +73,14 @@ export function bufferedResponseHeaders(initialHeaders: Record<string, string> |
   return headers;
 }
 
-/** Walks headers with no pair array per header, for the corked reply; falls back to `entries()` for any other MionHeaders. */
+/** No pair array per header, for the corked reply. `headers` is always the buffer `bufferedResponseHeaders` built:
+ *  `entries()` would fold the cookies again. */
 export function forEachHeader(headers: MionHeaders, visit: (name: string, value: string) => void): void {
-  if (headers instanceof BufferedHeadersImpl) {
-    const record = headers.record;
-    for (const name in record) visit(name, record[name]);
-    return;
+  const record = (headers as BufferedHeadersImpl).record;
+  for (const name in record) {
+    const value = record[name];
+    // uWS writes a repeated name as its own line, so each cookie reaches the wire apart
+    if (typeof value === 'string') visit(name, value);
+    else for (let i = 0; i < value.length; i++) visit(name, value[i]);
   }
-  for (const [name, value] of headers.entries()) visit(name, value);
 }
