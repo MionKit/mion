@@ -1,6 +1,6 @@
 {
     "name": "@mionjs/drizzle-orm",
-    "version": "0.45.0",
+    "version": "0.45.1",
     "versionLine": "drizzle-orm",
     "type": "module",
     "description": "Dialect-agnostic core of the mion drizzle-orm packages: slim column/table recorders, flat model types and refinement",
@@ -60,7 +60,7 @@
         "@mionjs/run-types": "workspace:*"
     },
     "peerDependencies": {
-        "@mionjs/run-types": ">=0.12.0 <0.13.0",
+        "@mionjs/run-types": ">=0.13.0 <0.14.0",
         "drizzle-orm": ">=0.45.0 <0.46.0"
     },
     "peerDependenciesMeta": {

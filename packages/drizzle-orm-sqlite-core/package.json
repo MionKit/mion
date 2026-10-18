@@ -1,6 +1,6 @@
 {
     "name": "@mionjs/drizzle-orm-sqlite-core",
-    "version": "0.45.0",
+    "version": "0.45.1",
     "versionLine": "drizzle-orm",
     "type": "module",
     "description": "drizzle-orm/sqlite-core authoring surface with slim runtype-format types: record tables drizzle-style, derive flat models, materialize with toDrizzle",
@@ -66,7 +66,7 @@
         "@mionjs/drizzle-orm": "workspace:*"
     },
     "peerDependencies": {
-        "@mionjs/run-types": ">=0.12.0 <0.13.0",
+        "@mionjs/run-types": ">=0.13.0 <0.14.0",
         "drizzle-orm": ">=0.45.0 <0.46.0",
         "@mionjs/drizzle-orm": ">=0.45.0 <0.46.0"
     },
