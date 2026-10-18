@@ -13,7 +13,7 @@ import {createConnection} from 'net';
 import type {Server} from 'http';
 import {createMionRouter, resetRouter, addStartMiddlewares, addEndMiddlewares} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
-import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
+import {HeadersSubset, MION_ROUTES, StatusCodes, toBase64Url, type PublicRpcError} from '@mionjs/core';
 import {resetNodeHttpOpts, setNodeHttpOpts, startNodeServer} from '../src/mionHttp.ts';
 
 const mion = createMionRouter({contextDataFactory: () => ({user: null}), basePath: 'api/'});
@@ -311,5 +311,102 @@ describe('node adapter: a refused body runs the alwaysRun middlewares', () => {
     expect(alive.status).toBe(200);
     expect(await alive.json()).toEqual({echo: {name: 'a', surname: 'b'}});
     expect(seen).toEqual(['start:/api/echo', 'log:200']);
+  });
+});
+
+// RFC 9112: a request with neither content-length nor transfer-encoding has no body, so the adapter answers it
+// without waiting for the stream's 'end'. Everything the chain does must stay the same.
+describe('node adapter: a request with no body headers', () => {
+  const noBodyPort = 8283;
+  let server: Server;
+  let seen: string[] = [];
+
+  beforeAll(async () => {
+    resetNodeHttpOpts();
+    resetRouter();
+    addStartMiddlewares({
+      startLog: mion.rawMiddleware((ctx: CallContext) => {
+        seen.push(`start:${ctx.path}`);
+      }),
+      hostCheck: mion.headersMiddleware((ctx: CallContext, headers: HeadersSubset<'host'>): void => {
+        seen.push(`host:${headers.headers.host}`);
+      }),
+    });
+    mion.initRoutes({echo, hello: mion.route((): string => 'world')});
+    setNodeHttpOpts({port: noBodyPort, maxBodySize: MAX_BODY});
+    server = await startNodeServer();
+  });
+
+  afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  /** Writes `raw` in one go and splits everything the server sends until it closes into responses. */
+  function exchange(raw: string): Promise<{status: number; body: string}[]> {
+    return new Promise((resolve, reject) => {
+      const socket = createConnection({host: '127.0.0.1', port: noBodyPort}, () => socket.write(raw));
+      let data = '';
+      socket.setEncoding('utf8');
+      socket.on('data', (chunk) => (data += chunk));
+      socket.on('error', reject);
+      socket.on('close', () => {
+        const responses: {status: number; body: string}[] = [];
+        while (data) {
+          const headerEnd = data.indexOf('\r\n\r\n');
+          if (headerEnd < 0) break;
+          const length = Number(/content-length: (\d+)/i.exec(data.slice(0, headerEnd))?.[1] ?? 0);
+          responses.push({
+            status: Number(/^HTTP\/1\.1 (\d{3})/.exec(data)?.[1] ?? 0),
+            body: data.slice(headerEnd + 4, headerEnd + 4 + length),
+          });
+          data = data.slice(headerEnd + 4 + length);
+        }
+        resolve(responses);
+      });
+      setTimeout(() => socket.destroy(), 2000);
+    });
+  }
+
+  const userBody = '{"echo":[{"name":"a","surname":"b"}]}';
+  /** Node's own answer to bytes it cannot parse as a request, before mion sees anything */
+  const NODE_BAD_REQUEST = 400;
+
+  it('answers a GET and runs every global middleware', async () => {
+    seen = [];
+    const [response] = await exchange(`GET /api/hello HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n`);
+    expect(response).toEqual({status: 200, body: '{"hello":"world"}'});
+    expect(seen).toEqual(['start:/api/hello', 'host:x']);
+  });
+
+  it('answers pipelined requests on one connection, a body-less one before and after a POST with a body', async () => {
+    const responses = await exchange(
+      `GET /api/hello HTTP/1.1\r\nHost: x\r\n\r\n` +
+        `POST /api/echo HTTP/1.1\r\nHost: x\r\nContent-Length: ${userBody.length}\r\n\r\n${userBody}` +
+        `GET /api/hello HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n`
+    );
+    expect(responses).toEqual([
+      {status: 200, body: '{"hello":"world"}'},
+      {status: 200, body: '{"echo":{"name":"a","surname":"b"}}'},
+      {status: 200, body: '{"hello":"world"}'},
+    ]);
+  });
+
+  it('still decodes the params of a ?data= query', async () => {
+    const [response] = await exchange(
+      `GET /api/echo?data=${toBase64Url(userBody)} HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n`
+    );
+    expect(response).toEqual({status: 200, body: '{"echo":{"name":"a","surname":"b"}}'});
+  });
+
+  it('still reads the body of a GET that declares one', async () => {
+    const [response] = await exchange(
+      `GET /api/echo HTTP/1.1\r\nHost: x\r\nContent-Length: ${userBody.length}\r\nConnection: close\r\n\r\n${userBody}`
+    );
+    expect(response).toEqual({status: 200, body: '{"echo":{"name":"a","surname":"b"}}'});
+  });
+
+  it('never reads bytes sent after the head as a body: node parses them as the next request and refuses it', async () => {
+    const responses = await exchange(`GET /api/echo HTTP/1.1\r\nHost: x\r\n\r\n${userBody}`);
+    // node answers the unparsable bytes and closes the socket, which can come before mion's own answer
+    expect(responses.at(-1)?.status).toBe(NODE_BAD_REQUEST);
+    expect(responses.some((response) => response.status === 200)).toBe(false);
   });
 });
