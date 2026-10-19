@@ -37,6 +37,8 @@ describe('typed-emit lane rules', () => {
     const both = pool(['ek459ah4d1@ix501a.dngfw', 'a\\"b@c.de']);
     expect(stripParityViolation('rt/x', pool(['nftjo@4la.fyqmeghtzeu']), both)).toBeNull();
     expect(stripParityViolation('rt/x', both.replace(/"mockSamples":\[[^\]]*\],/, ''), both)).toMatch(/differs/);
+    // The blank stops at the pool's end: a changed source after it still fires.
+    expect(stripParityViolation('rt/x', pool(['a@b.cd']).replace('{2,}', '{3,}'), both)).toMatch(/differs/);
   });
 
   it('TE1 holds on a type module and fires on one that would run code', () => {

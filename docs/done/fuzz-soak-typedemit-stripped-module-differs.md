@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-10-19
 ---
 
@@ -23,14 +23,14 @@ rt/xiLnu9rqMz: stripped typed module differs from emitMode both at 367
 ## Intent
 
 TE1 says the `emitMode: 'ts'` module, with its types stripped, must equal the `both` output byte for byte.
-Here they diverge inside what looks like generated email sample data (pattern samples or mock seeds),
-so one emit path draws different sample values than the other. Find why the two emits are not
-deterministic with respect to each other (seeding, iteration order, a shared sampler's state) and fix the root cause.
+They diverged inside a generated email `mockSamples` pool. Shipped finding: the emitters are fine. A pattern with
+no declared samples draws its pool under a per-build random key on purpose, and TE1 compares two separate builds.
+So the oracle, not the product, was wrong: it now ignores pool content and still checks the pool is present.
 
 ## Done when
 
 - The failing seed replays green with the command above.
-- A regression test pins the shape that diverged.
+- A regression test pins the shape that diverged (unit test on the helper, binary-backed smoke test).
 
 ## Plan: oracle fix (approved 2026-10-19, automatic mode)
 
