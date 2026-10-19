@@ -133,8 +133,7 @@ export function memberMismatches(
   return [];
 }
 
-/** The sample as `DataOnly<T>` sees it: a member T declares but DataOnly<T> drops is removed, as the serializer removes it.
- *  Left in, it is an undeclared key, which an index signature claims and checks against its value type. **/
+/** Removes members DataOnly<T> drops, as the serializer does; left in, an index signature checks them as undeclared keys. **/
 export function dataOnlyView(value: unknown, type: RunType, dataOnly: RunType, resolve: Resolve): unknown {
   const copy = copyTree(value);
   stripDropped(copy, type, dataOnly, resolve, 0);

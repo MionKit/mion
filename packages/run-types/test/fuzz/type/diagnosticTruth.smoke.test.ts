@@ -24,7 +24,7 @@ const withSymbol: GeneratedType = {
   },
 };
 
-// Shrunk 982099663: `{p2?: RegExp; [k: number]: "la" | "lb"}`. DataOnly drops p2, and an index signature claims every key.
+// Shrunk 982099663: `{p2?: RegExp; [k: number]: "la" | "lb"}`. DataOnly drops p2; the index signature claims every key.
 const droppedBesideIndex: GeneratedType = {
   decls: [],
   root: {
