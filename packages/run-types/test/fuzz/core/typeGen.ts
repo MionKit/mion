@@ -1132,7 +1132,10 @@ function genMembers(
     }
     if (used.has(name)) continue;
     used.add(name);
-    const optional = chance(0.35);
+    // An optional member's type gains `undefined`, so a forced member is optional
+    // only when the index value type admits it (else TS2411). The draw comes first
+    // so the forced branch keeps the random stream aligned.
+    const optional = chance(0.35) && (!forcedShape || admitsUndefined(forcedShape));
     const method = !forcedShape && allowMethods && ctx.opts.nonDataTypes && chance(0.15);
     let shape: TypeShape;
     if (forcedShape) {
@@ -1162,6 +1165,12 @@ function genMembers(
     });
   }
   return props;
+}
+
+/** True when `undefined` is assignable to the shape; a ref reads false (the safe side). **/
+export function admitsUndefined(shape: TypeShape): boolean {
+  if (shape.kind === 'union') return shape.members.some(admitsUndefined);
+  return shape.kind === 'undefined' || shape.kind === 'any' || shape.kind === 'unknown' || shape.kind === 'void';
 }
 
 function genParams(ctx: Ctx, depth: number): TypeShape[] {
@@ -1350,7 +1359,7 @@ function genObject(ctx: Ctx, depth: number): TypeShape {
   // props reuse the index value shape so the object stays valid, otherwise
   // string-named props are unconstrained and get free types. Any residual
   // invalid combo (e.g. a numeric weird-key prop under a number-only key) is
-  // dropped by the runner's TS-validity gate.
+  // dropped by each runner's TS-validity gate (`isValidTypeScript`).
   let index: TypeShape | undefined;
   let indexKey: IndexKeyKind[] | undefined;
   if (chance(0.15)) {
