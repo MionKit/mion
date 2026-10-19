@@ -86,8 +86,7 @@ describe('O12 cross-wire — key order is not a value difference', () => {
   });
 });
 
-// Seed 3065189181 (nondata soak): the copy taken before compactEncode flattened a DataView to `{}`, which a sibling
-// union member's object codec then kept on the compact wire.
+// Nondata soak seed 3065189181: the copy for compactEncode flattened a DataView to `{}`, kept by a sibling's codec.
 describe('O12 cross-wire — the compact side gets a faithful copy of binary natives', () => {
   const BYTES = [1, 2, 3, 4, 5, 6, 7, 8];
   const filled = <Buffer extends ArrayBufferLike>(buffer: Buffer): Buffer => (new Uint8Array(buffer).set(BYTES), buffer);
