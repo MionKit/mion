@@ -19,7 +19,8 @@
 // The file carries NO timestamp on purpose — a regenerate that finds the same
 // counts must leave the file byte-identical, or every build dirties the tree.
 
-import {mkdirSync, readFileSync, writeFileSync} from 'node:fs';
+import {mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {capture, die, note, reportCliError, warn, which} from '../lib/proc.mjs';
@@ -27,15 +28,21 @@ import {capture, die, note, reportCliError, warn, which} from '../lib/proc.mjs';
 const OUT_DIR = join(REPO_ROOT, 'container/website/app/data');
 const OUT_FILE = join(OUT_DIR, 'test-counts.json');
 
-// `vitest list` prints the collected tests as JSON on stdout; the plugin's
-// build-time diagnostics go to stderr, so only stdout is parsed.
+// `vitest list` writes the collected tests as JSON to a file, not stdout: a project's
+// globalSetup runs in the same process and logs there (the client tests' server prints
+// its port), which would corrupt a stdout parse.
 function countFrontEndTests() {
-  // maxBuffer MUST be raised: the listing is ~2.7MB of JSON, well past spawnSync's
-  // 1MB default, and an over-budget capture is TRUNCATED (the parse then fails on
-  // a half-written object rather than reporting the real cause).
-  const listed = capture('pnpm', ['exec', 'vitest', 'list', '--json'], {maxBuffer: 64 * 1024 * 1024});
-  if (listed.status !== 0) throw new Error(`vitest list failed (exit ${listed.status})`);
-  const tests = JSON.parse(listed.stdout);
+  const dir = mkdtempSync(join(tmpdir(), 'mion-test-counts-'));
+  const file = join(dir, 'tests.json');
+  let tests;
+  try {
+    // maxBuffer raised so the logs stdout still carries never truncate the capture.
+    const listed = capture('pnpm', ['exec', 'vitest', 'list', `--json=${file}`], {maxBuffer: 64 * 1024 * 1024});
+    if (listed.status !== 0) throw new Error(`vitest list failed (exit ${listed.status})`);
+    tests = JSON.parse(readFileSync(file, 'utf8'));
+  } finally {
+    rmSync(dir, {recursive: true, force: true});
+  }
   if (!Array.isArray(tests) || tests.length === 0) throw new Error('vitest list returned no tests');
   const projects = {};
   for (const test of tests) projects[test.projectName] = (projects[test.projectName] ?? 0) + 1;
