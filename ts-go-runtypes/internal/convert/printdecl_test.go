@@ -148,6 +148,13 @@ export type Holder = {id: UserId; bag: Bag};
 	}
 }
 
+func TestDeclPrinter_UniqueSymbolTypesPrintAsTypeofTheirKey(t *testing.T) {
+	printed := assertDeclIDs(t, `declare const tag: unique symbol;
+export type Keys = {k: keyof string; own: typeof tag; it: typeof Symbol.iterator};
+`, "Keys")
+	assertContainsAll(t, printed, "typeof Symbol.iterator", "declare const tag: unique symbol;", "typeof tag")
+}
+
 func TestDeclPrinter_RecursiveShapesPrintAsNamedAliases(t *testing.T) {
 	assertDeclIDs(t, `export interface TreeNode { value: string; children: TreeNode[]; parent?: TreeNode }
 export type Json = string | number | boolean | null | Json[] | {[key: string]: Json};

@@ -152,6 +152,18 @@ export declare class Owner { name: string }
 	assertLacks(t, output.Files["_outside/geo.d.ts"], "declare class Owner")
 }
 
+// Fuzz seed 39249346902: `keyof Role` reaches `typeof Symbol.iterator` (a string's keys) inside the printed `Page<…>`.
+func TestOutside_AnOutsideGenericOverAKeyofThroughANamespaceFunctionMemberPrints(t *testing.T) {
+	output, input := trimWithGeo(t, `import type { Page, Role, UserId } from 'geo';
+export interface Owner { role: keyof Role; id: keyof UserId }
+export declare namespace Shop {
+    interface Inner { list: (input: Page<Owner>) => Page<Owner>; }
+}
+`+apiOf(`get: import("@mionjs/router").PublicRoute<(s: Shop.Inner) => Promise<void>>;`), nil)
+	assertSelfContained(t, output, input)
+	assertContains(t, output.Files["_outside/geo.d.ts"], "typeof Symbol.iterator", "declare const brand: unique symbol;", "typeof brand")
+}
+
 func TestOutside_ATypeParameterKeepsTheImportWithAWarning(t *testing.T) {
 	output, input := trimWithGeo(t, `import type { Page } from 'geo';
 export type Paged<T> = Page<T>;
