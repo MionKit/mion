@@ -55,7 +55,7 @@ export function stripTypeScript(code: string): string {
 
 // Differences the two modes have by design, none of them logic: emitMode ts names `.ts` files, spells an absent
 // tuple-head slot `undefined`, prefixes an unused parameter `_` and parenthesizes a lone arrow parameter to type it.
-// Not a mode difference but a build one: a sample-less pattern's generated mockSamples pool re-rolls every build.
+// Plus one build difference: a sample-less pattern's generated mockSamples pool re-rolls every build.
 function normalize(code: string): string {
   // The `_` prefix goes before whitespace does, while a space still separates `const _x` into two tokens.
   return code

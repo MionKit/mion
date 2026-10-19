@@ -94,9 +94,9 @@ export interface PluginOptions {
   // Length of the short structural-hash ids in generated names (--hash-length; undefined = the binary
   // default, 7). Canonical home is the tsconfig `hashLength` knob; set here it overrides one build.
   hashLength?: number;
-  // How many mockSamples the build auto-generates for a format pattern that declares none
-  // (--pattern-sample-count; undefined = 100; 0 makes a sample-less pattern a build error). The pool
-  // changes every build unless a literal mock seed pins it. Canonical home is the tsconfig `patternSampleCount` knob.
+  // mockSamples generated for a format pattern that declares none (--pattern-sample-count; undefined = 100;
+  // 0 makes a sample-less pattern a build error). The pool re-rolls every build unless a literal mock seed pins it.
+  // Canonical home is the tsconfig `patternSampleCount` knob.
   patternSampleCount?: number;
   // Per-sample draw multiplier (--pattern-sample-retries; undefined = 10): the budget is
   // patternSampleCount × patternSampleRetries draws before a pattern is declared ungeneratable.
