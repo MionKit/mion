@@ -30,6 +30,15 @@ describe('typed-emit lane rules', () => {
     ).toMatch(/differs/);
   });
 
+  it('TE1 ignores the per-build pool of a sample-less pattern but still fires when the pool is dropped', () => {
+    // The shape release gate run 39249346902 diverged on: each build draws its own email pool.
+    const pool = (samples: string[]) =>
+      `function ini(rtu){c('yZr').formatAnnotation = {"name":"stringFormat","params":{"pattern":{"flags":"u","mockSamples":${JSON.stringify(samples)},"source":"^[a-z0-9.]+@[a-z0-9-]+[.][a-z]{2,}$"}}};}\n`;
+    const both = pool(['ek459ah4d1@ix501a.dngfw', 'a\\"b@c.de']);
+    expect(stripParityViolation('rt/x', pool(['nftjo@4la.fyqmeghtzeu']), both)).toBeNull();
+    expect(stripParityViolation('rt/x', both.replace(/"mockSamples":\[[^\]]*\],/, ''), both)).toMatch(/differs/);
+  });
+
   it('TE1 holds on a type module and fires on one that would run code', () => {
     expect(typeModuleViolation('t/a', "import type {T_b} from './b.ts';\n/** A */\nexport type T_a = {b: T_b};\n")).toBeNull();
     expect(typeModuleViolation('t/a', 'export type T_a = string;\nexport const leaked = 1;\n')).toMatch(/runtime code/);
