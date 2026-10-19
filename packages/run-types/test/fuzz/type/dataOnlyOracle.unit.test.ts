@@ -100,6 +100,21 @@ describe('dataOnlyOracle', () => {
     expect(value.re).toEqual(/a/);
   });
 
+  it('view: walks tuple slots and every index signature of a multi-key index', () => {
+    const str = node(RunTypeKind.string);
+    const regexp = node(RunTypeKind.class, {subKind: RunTypeSubKind.nonSerializable, notSupported: true});
+    const tuple = (child: RunType) => node(RunTypeKind.tuple, {children: [node(RunTypeKind.tupleMember, {child})]});
+    const withRe = object(prop('x', str), prop('re', regexp, {optional: true}));
+    expect(dataOnlyView([{x: 'a', re: /a/}], tuple(withRe), tuple(object(prop('x', str))), noRefs)).toEqual([{x: 'a'}]);
+    const index = (key: number, child: RunType) => node(RunTypeKind.indexSignature, {index: node(key), child});
+    const type = object(index(RunTypeKind.string, withRe), index(RunTypeKind.number, withRe));
+    const dataOnly = object(index(RunTypeKind.string, object(prop('x', str))), index(RunTypeKind.number, object(prop('x', str))));
+    expect(dataOnlyView({a: {x: 'a', re: /a/}, 0: {x: 'b', re: /b/}}, type, dataOnly, noRefs)).toEqual({
+      a: {x: 'a'},
+      0: {x: 'b'},
+    });
+  });
+
   it('mutates by removing and mistyping each member down a few levels', () => {
     const labels = mutationsOf({a: 1, nested: {b: 'x'}}).map((mutation) => mutation.label);
     expect(labels).toEqual([

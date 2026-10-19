@@ -643,8 +643,9 @@ export function dataOnlyViolations(compiled: CompiledType, seed: number, drawn =
     checkDataOnlyAnswers(
       samples,
       (sample) => runVerdict(validate, sample),
-      (sample) => runVerdict(validateDataOnly, dataOnlyView(sample, typeRoot, dataOnlyRoot, resolve)),
-      ctx
+      (sample) => runVerdict(validateDataOnly, sample),
+      ctx,
+      (sample) => dataOnlyView(sample, typeRoot, dataOnlyRoot, resolve)
     )
   );
   push(out, checkDataOnlyMembers(typeRoot, dataOnlyRoot, resolve, ctx));
