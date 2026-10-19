@@ -496,8 +496,9 @@ and the client apart.
   client that reads the API from that package alone passes A2 and A3 too.
 
 The negative controls are fixed tests beside the sweep: a client manifest, or a client of a types
-package, from before a server-side type edit fails api-check on `paramsId`. Runner:
-`apiIdsFuzz.ts`; replay with `MION_FUZZ_SEED`, widen with `MION_FUZZ_ITER`.
+package, from before a server-side type edit fails api-check on `paramsId`. A failure on a
+generated type that is not valid TypeScript is dropped by the `tsValidate.ts` gate, capped at
+`SUPPRESSION_CEILING`. Runner: `apiIdsFuzz.ts`; replay with `MION_FUZZ_SEED`, widen with `MION_FUZZ_ITER`.
 
 ### `apitypes` — the types-only package ships what the API reaches, nothing else
 
