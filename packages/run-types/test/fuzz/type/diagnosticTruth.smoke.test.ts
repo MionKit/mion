@@ -1,14 +1,15 @@
 // Replays seeds the diagnostics lane (D1–D4) failed on: a symbol-keyed index signature dropped unnoted (1680075118),
 // call sites read a line off (a non-ASCII name; 3063578975, a U+2028 in a key), a foreign throw of another kind left
 // unreported (2357953336), and DataOnly keeping an optional non-data member (2649564061, 3811392738) or a whole
-// all-optional type (360858409).
+// all-optional type (360858409). Also the nondata soak's O12 false positive, a DataView flattened by the oracle's
+// value copy (3065189181).
 
 import {describe, expect, it} from 'vitest';
 import {openClient, compileType, hasBinary} from './typeFuzzHarness.ts';
 import {dataOnlyViolations, replayTypeFuzzSeeds} from './typeFuzzRunner.ts';
 import {NONDATA_GEN_OPTIONS, type GeneratedType} from '../core/typeGen.ts';
 
-const PINNED_SEEDS = [1680075118, 3063578975, 1528970412, 4181522326, 2357953336, 360858409, 2649564061, 3811392738];
+const PINNED_SEEDS = [1680075118, 3063578975, 1528970412, 4181522326, 2357953336, 360858409, 2649564061, 3811392738, 3065189181];
 
 const withSymbol: GeneratedType = {
   decls: [],
