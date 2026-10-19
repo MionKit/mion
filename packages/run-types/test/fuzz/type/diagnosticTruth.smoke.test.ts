@@ -53,7 +53,7 @@ describe('fuzz / diagnostics lane regressions', () => {
         expect(validate!(value)).toBe(true);
         expect(validateDataOnly!(value)).toBe(false);
         expect(validateDataOnly!(jsonDecode!(jsonEncode!(value)!))).toBe(true);
-        expect(dataOnlyViolations(compiled, 1)).toEqual([]);
+        expect(dataOnlyViolations(compiled, 1, {value, hasValue: true})).toEqual([]);
       } finally {
         client.close();
       }

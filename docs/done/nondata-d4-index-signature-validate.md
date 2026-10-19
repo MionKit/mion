@@ -41,15 +41,17 @@ expectation) and fix the real cause, with a regression test for the shrunk type.
 
 Shrunk type: `{p2?: RegExp; [k: number]: "la" | "lb"}` (also any other member `DataOnly` drops, like `ArrayBuffer`).
 
-- **Validators are right.** An index signature claims every undeclared key, as documented ("a member with an
-  index signature declares every property"), so `validate<{[k: number]: "la"}>({p2: /a/})` is `false` on purpose.
+- **Validators are right.** An index signature claims every undeclared key, a choice pinned by the
+  `index_signature_number_key` validation suite ("The validator accepts any own enumerable key whose value
+  satisfies T"), so `validate<{[k: number]: "la"}>({p2: /a/})` is `false` on purpose.
   `validate<T>` skips `p2` only because `T` declares it. `DataOnly<T>` drops `p2`, so the raw mock's `p2` is an
   undeclared key there and fails the index value check.
 - **The oracle was wrong.** It fed `validate<DataOnly<T>>` the raw mock, which still carries the dropped non-data
   members. `DataOnly<T>` is the shape the serializer produces, so the oracle now compares against the sample with
-  the members `DataOnly<T>` drops removed (`dataOnlyView` in `dataOnlyOracle.ts`), walking kept members, index
-  values, arrays and tuples. Unions, Maps and Sets keep their values as drawn (members cannot be paired).
+  the members `DataOnly<T>` drops removed (`dataOnlyView` in `dataOnlyOracle.ts`), walking kept members, the values
+  under every index signature (paired by key kind), arrays and tuples. A D4 report also prints the sample as
+  `DataOnly<T>` saw it. Unions, Maps and Sets keep their values as drawn (members cannot be paired).
 - **Tests:** seed `982099663` pinned in `diagnosticTruth.smoke.test.ts`, plus a shrunk-type test there proving the
   serializer output of a value with `p2` passes `validate<DataOnly<T>>` while the raw value does not; a
-  `dataOnlyView` unit test in `dataOnlyOracle.unit.test.ts`.
+  `dataOnlyView` unit tests in `dataOnlyOracle.unit.test.ts` (members, arrays, tuples, multi-key indexes).
 - **Docs:** none, no user-visible behavior changed. **Fuzzing:** this is a fuzz oracle fix, no new lane.

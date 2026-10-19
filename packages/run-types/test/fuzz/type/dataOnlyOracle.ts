@@ -34,19 +34,22 @@ export function checkDataOnlyRoot(
   return violation("DataOnly<T> is never, but T's validator builds and runs without throwing", ctx);
 }
 
-/** Answers: the two validators agree on every sample. **/
+/** Answers: the two validators agree on every sample, DataOnly's side reading it through `view`. **/
 export function checkDataOnlyAnswers(
   samples: readonly {label: string; value: unknown}[],
   validate: (value: unknown) => Verdict,
   validateDataOnly: (value: unknown) => Verdict,
-  ctx: DiagContext
+  ctx: DiagContext,
+  view: (value: unknown) => unknown = (value) => value
 ): Violation | null {
   for (const {label, value} of samples) {
     const typeVerdict = validate(value);
-    const dataOnlyVerdict = validateDataOnly(value);
+    const seen = view(value);
+    const dataOnlyVerdict = validateDataOnly(seen);
     if (typeVerdict !== dataOnlyVerdict)
       return violation(
-        `validate<T> says ${typeVerdict} but validate<DataOnly<T>> says ${dataOnlyVerdict} on the ${label}`,
+        `validate<T> says ${typeVerdict} but validate<DataOnly<T>> says ${dataOnlyVerdict} on the ${label}` +
+          (seen === value ? '' : `, which DataOnly<T> saw as ${snapshot(seen)}`),
         ctx,
         value
       );
@@ -168,9 +171,13 @@ function stripDropped(value: unknown, type: RunType | undefined, dataOnly: RunTy
     if (other) recurse(record[name], member.child, other.child);
     else delete record[name];
   }
-  if (declared.indexes.length !== 1 || kept.indexes.length !== 1) return;
-  for (const key of Object.keys(record))
-    if (!declared.named.has(key)) recurse(record[key], declared.indexes[0].child, kept.indexes[0].child);
+  // The validator checks every undeclared key against each index signature, so each pair walks them all.
+  for (const index of declared.indexes) {
+    const keyKind = deref(index.index, resolve)?.kind;
+    const other = kept.indexes.find((candidate) => deref(candidate.index, resolve)?.kind === keyKind);
+    if (!other) continue;
+    for (const key of Object.keys(record)) if (!declared.named.has(key)) recurse(record[key], index.child, other.child);
+  }
 }
 
 /** A native class both sides keep whole, told apart by its SubKind. **/
