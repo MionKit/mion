@@ -1,8 +1,7 @@
 // Replays seeds the diagnostics lane (D1–D4) failed on: a symbol-keyed index signature dropped unnoted (1680075118),
 // call sites read a line off (a non-ASCII name; 3063578975, a U+2028 in a key), a foreign throw of another kind left
 // unreported (2357953336), and DataOnly keeping an optional non-data member (2649564061, 3811392738) or a whole
-// all-optional type (360858409). Also the nondata soak's O12 false positive, a DataView flattened by the oracle's
-// value copy (3065189181).
+// all-optional type (360858409). Also an O12 false positive: the oracle's value copy flattened a DataView (3065189181).
 
 import {describe, expect, it} from 'vitest';
 import {openClient, compileType, hasBinary} from './typeFuzzHarness.ts';

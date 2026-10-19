@@ -41,8 +41,7 @@ const g3: GeneratedType = {
   },
 };
 
-// O12 (nondata soak seed 3065189181): a stripped DataView `f1` beside an object `f1`. The oracle's value copy used to
-// flatten the DataView to `{}`, which the object codec then kept on the compact wire.
+// Nondata soak seed 3065189181: the oracle's value copy flattened the DataView to `{}`, kept by the object `f1` codec.
 const o12: GeneratedType = {
   decls: [],
   root: {

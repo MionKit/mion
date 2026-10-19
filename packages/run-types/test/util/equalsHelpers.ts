@@ -171,23 +171,14 @@ function stableKey(value: any): string {
   });
 }
 
-/** Deep clone for round-trip test inputs. The serializer mutates `v`
- *  in place; without a fresh copy the comparison-side reference would
- *  see the post-mutation shape, masking real correctness issues.
- *
- *  Handles Date, RegExp, Map, Set, binary natives, primitives, and arrays/objects
- *  recursively. Symbols pass through (immutable, no risk of
- *  cross-mutation). Functions and Promises pass through unchanged —
- *  those aren't meaningfully cloneable and round-trip tests for them
- *  are gated by `getRoundTripValid` overrides anyway. **/
+/** The serializer mutates `v` in place; without a fresh copy the comparison side sees the mutated shape.
+ *  Functions and Promises pass through uncloned: their round-trip tests are gated by `getRoundTripValid` overrides. **/
 export function deepCloneForRoundTrip(value: any): any {
   if (value === null || value === undefined) return value;
   const t = typeof value;
   if (t === 'symbol' || t === 'function') return value;
   if (t !== 'object') return value;
-  // Temporal instances are immutable (no enumerable own keys); the generic
-  // object clone at the bottom would flatten them to `{}` and lose the value
-  // before the encoder sees them. Pass through unchanged, like symbols above.
+  // Temporal instances are immutable with no enumerable own keys: the generic clone below would flatten them to `{}`.
   if (isTemporalInstance(value)) return value;
   if (value instanceof Date) return new Date(value.getTime());
   if (value instanceof URL) return new URL(value.href);
