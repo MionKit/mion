@@ -1276,25 +1276,39 @@ describe('website-test-counts', () => {
 
   // The client tests' globalSetup starts a server in the listing process and logs its port on stdout,
   // so a stdout parse failed and the generator silently kept a count thousands of tests stale.
-  it('reads the vitest listing from a file, never from stdout', () => {
+  it('reads the declared-test listing from a file, never from stdout', () => {
     const generator = readFileSync(join(REPO_ROOT, 'scripts/website/gen-test-counts.mjs'), 'utf8');
-    expect(generator).toContain("'vitest', 'list', `--json=${file}`]");
+    expect(generator).toContain("'scripts/website/list-declared-tests.mjs'), file]");
     expect(generator).not.toMatch(/JSON\.parse\(listed\.stdout\)/);
   });
 
-  // `vitest list` drops skipped tests, and the playground suites skip without a current wasm, so a host
-  // without one counted 30 fewer tests and the release gate's --check failed on a correct file.
-  it('refuses to count without a playground wasm built from this tree', () => {
-    const generator = readFileSync(join(REPO_ROOT, 'scripts/website/gen-test-counts.mjs'), 'utf8');
-    expect(generator).toMatch(/if \(wasm !== 'ready'\) throw new Error/);
+  // `vitest list` drops skipped tests, and suites skip on the host (no binary, no playground wasm, a soak
+  // or race env var unset), so the release gate counted fewer tests than a dev machine and failed --check.
+  it('counts skipped tests too, so the number never moves with the host', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'declared-tests-'));
+    try {
+      writeFileSync(join(dir, 'vitest.config.mjs'), "export default {test: {globals: true, include: ['*.test.mjs']}};\n");
+      writeFileSync(
+        join(dir, 'a.test.mjs'),
+        "it('runs', () => {});\nit.skip('skipped', () => {});\nit.skipIf(true)('host-gated', () => {});\ndescribe.skip('off', () => { it('inner', () => {}); });\n"
+      );
+      const out = join(dir, 'tests.json');
+      const listed = spawnSync(process.execPath, [join(REPO_ROOT, 'scripts/website/list-declared-tests.mjs'), out], {
+        cwd: dir,
+        encoding: 'utf8',
+      });
+      expect(listed.status, listed.stderr).toBe(0);
+      expect(JSON.parse(readFileSync(out, 'utf8'))).toHaveLength(4);
+    } finally {
+      rmSync(dir, {recursive: true, force: true});
+    }
   });
 
-  it('the release gate builds the playground wasm before the suite and the count check', () => {
+  it('the release gate builds the playground wasm before the suite, so it runs the engine tests', () => {
     const gate = readFileSync(join(REPO_ROOT, '.github/workflows/release-gate.yml'), 'utf8');
     const build = gate.indexOf('run: node container/website/scripts/build-playground.mjs');
     expect(build).toBeGreaterThan(-1);
     expect(build).toBeLessThan(gate.indexOf('run: pnpm test'));
-    expect(build).toBeLessThan(gate.indexOf('pnpm miondevx website test-counts --check'));
   });
 
   it('ships a committed count the component can import', () => {

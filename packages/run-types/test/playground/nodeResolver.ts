@@ -15,14 +15,20 @@ import {existsSync, readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import vm from 'node:vm';
 import {buildRuntypesOverlay} from '../../../../scripts/website/playground-overlay.mjs';
-import {wasmAssetState as sharedWasmAssetState} from '../../../../scripts/website/playground-wasm-inputs.mjs';
+import {readWasmStamp, wasmInputsDigest} from '../../../../scripts/website/playground-wasm-inputs.mjs';
 import {setRuntypesPackageSources, type Resolver} from '../../../../container/website/app/playground/index.ts';
 
 // Host-built WASM assets live in the repo cache dir (build-playground.mjs output).
 const CACHE = fileURLToPath(new URL('../../../../.cache/rt-wasm/', import.meta.url));
 const REPO_ROOT = fileURLToPath(new URL('../../../../', import.meta.url));
-export const WASM_PATH = `${CACHE}mion.wasm`;
-export const WASM_EXEC_PATH = `${CACHE}wasm_exec.js`;
+// Named once: wasmAssetState() resolves them against an arbitrary dir so the
+// three states can be tested against a fixture, and must not restate them.
+const WASM_FILE = 'mion.wasm';
+const WASM_EXEC_FILE = 'wasm_exec.js';
+const WASM_STAMP_FILE = '.wasm-stamp';
+export const WASM_PATH = `${CACHE}${WASM_FILE}`;
+export const WASM_EXEC_PATH = `${CACHE}${WASM_EXEC_FILE}`;
+export const WASM_STAMP_PATH = `${CACHE}${WASM_STAMP_FILE}`;
 // Falls back to the vite build output, so a host that never ran build-playground still exercises the hook.
 export const SIDECAR_HOOK_PATHS = [
   `${CACHE}sidecar-hook.js`,
@@ -32,11 +38,18 @@ export const SIDECAR_HOOK_PATHS = [
 // The mion package source tree the overlay is built from.
 const RUNTYPES_SRC = fileURLToPath(new URL('../../src/', import.meta.url));
 
-// See scripts/website/playground-wasm-inputs.mjs: `stale` behaves like `missing`.
+// Three states, not two. Existence alone used to mean "run": a cache left over
+// from before a Go change (or carried into a `git worktree add`) loaded fine and
+// then failed every assertion about code it predates, which reads as a handful of
+// unrelated broken tests rather than a stale artifact. `stale` is that case, and
+// it has to behave like `missing` — skip, and say why.
 export type WasmAssetState = 'ready' | 'missing' | 'stale';
 
+// cacheDir is a parameter so the states can be tested against a fixture dir.
 export function wasmAssetState(cacheDir: string = CACHE, repoRoot: string = REPO_ROOT): WasmAssetState {
-  return sharedWasmAssetState(cacheDir, repoRoot) as WasmAssetState;
+  if (!existsSync(`${cacheDir}${WASM_FILE}`) || !existsSync(`${cacheDir}${WASM_EXEC_FILE}`)) return 'missing';
+  const stamped = readWasmStamp(`${cacheDir}${WASM_STAMP_FILE}`);
+  return stamped && stamped === wasmInputsDigest(repoRoot) ? 'ready' : 'stale';
 }
 
 let staleReported = false;

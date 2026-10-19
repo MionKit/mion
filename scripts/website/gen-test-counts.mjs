@@ -2,12 +2,11 @@
 // can read them, so the homepage's "Tested to the highest standard" tiles stop
 // being hand-typed numbers that drift.
 //
-// Both counts come from the test runners' own LIST modes, so nothing is executed:
-// `vitest list --json` collects every test the config would run, and `go test
-// -list` prints the test function names a package declares. Collection still
-// compiles the sources, so this needs the resolver binary + the marker/plugin
-// dists, the playground wasm (the website build runs it right after the stage that
-// builds them) and a Go toolchain.
+// Both counts come from collection, so nothing is executed: vitest's collector
+// gathers every test the config declares, and `go test -list` prints the test
+// function names a package declares. Collection still compiles the sources, so
+// this needs the resolver binary + the marker/plugin dists on the host (the website
+// build runs it right after the stage that builds them) and a Go toolchain.
 //
 // Output: container/website/app/data/test-counts.json — COMMITTED, and imported
 // by app/components/content/StatTiles.vue at build time rather than fetched at
@@ -24,31 +23,26 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {capture, die, note, reportCliError, warn, which} from '../lib/proc.mjs';
-import {wasmAssetState} from './playground-wasm-inputs.mjs';
 
 const OUT_DIR = join(REPO_ROOT, 'container/website/app/data');
 const OUT_FILE = join(OUT_DIR, 'test-counts.json');
 
-// `vitest list` writes the collected tests as JSON to a file, not stdout: a project's
-// globalSetup runs in the same process and logs there (the client tests' server prints
-// its port), which would corrupt a stdout parse.
+// Counts every DECLARED test, skipped ones included: `vitest list` leaves skipped tests
+// out, so its count moved with the host's binaries and env vars (see list-declared-tests.mjs).
+// The listing goes through a file, not stdout: a project's globalSetup logs there.
 function countFrontEndTests() {
-  // The playground suites skip without a wasm built from this Go tree, and `vitest list` leaves skipped
-  // tests out, so counting then would drop every engine test and depend on the host.
-  const wasm = wasmAssetState(join(REPO_ROOT, '.cache/rt-wasm/'), REPO_ROOT);
-  if (wasm !== 'ready') throw new Error(`the playground wasm is ${wasm} - build it first: node container/website/scripts/build-playground.mjs`);
   const dir = mkdtempSync(join(tmpdir(), 'mion-test-counts-'));
   const file = join(dir, 'tests.json');
   let tests;
   try {
     // maxBuffer raised so the logs stdout still carries never truncate the capture.
-    const listed = capture('pnpm', ['exec', 'vitest', 'list', `--json=${file}`], {maxBuffer: 64 * 1024 * 1024});
-    if (listed.status !== 0) throw new Error(`vitest list failed (exit ${listed.status})`);
+    const listed = capture('node', [join(REPO_ROOT, 'scripts/website/list-declared-tests.mjs'), file], {maxBuffer: 64 * 1024 * 1024});
+    if (listed.status !== 0) throw new Error(`listing the declared tests failed (exit ${listed.status}): ${listed.stderr.trim().split('\n').pop()}`);
     tests = JSON.parse(readFileSync(file, 'utf8'));
   } finally {
     rmSync(dir, {recursive: true, force: true});
   }
-  if (!Array.isArray(tests) || tests.length === 0) throw new Error('vitest list returned no tests');
+  if (!Array.isArray(tests) || tests.length === 0) throw new Error('the vitest listing returned no tests');
   const projects = {};
   for (const test of tests) projects[test.projectName] = (projects[test.projectName] ?? 0) + 1;
   return {
