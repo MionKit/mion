@@ -1274,6 +1274,14 @@ describe('website-test-counts', () => {
   // frontmatter list collapses to its first key, silently.
   const HOME = join(REPO_ROOT, 'container/website/app/components/content/HomeTestTiles.vue');
 
+  // The client tests' globalSetup starts a server in the listing process and logs its port on stdout,
+  // so a stdout parse failed and the generator silently kept a count thousands of tests stale.
+  it('reads the vitest listing from a file, never from stdout', () => {
+    const generator = readFileSync(join(REPO_ROOT, 'scripts/website/gen-test-counts.mjs'), 'utf8');
+    expect(generator).toContain("'vitest', 'list', `--json=${file}`]");
+    expect(generator).not.toMatch(/JSON\.parse\(listed\.stdout\)/);
+  });
+
   it('ships a committed count the component can import', () => {
     expect(existsSync(COUNTS_FILE)).toBe(true);
     const counts = JSON.parse(readFileSync(COUNTS_FILE, 'utf8'));
