@@ -28,7 +28,7 @@ describe('bundled API ids fuzz (CLI end to end)', () => {
       iterations: iterations(5),
     });
     expect(report.failures, report.failures.join('\n\n')).toEqual([]);
-    // The TS-validity gate must never swallow the lane: a generator emitting mostly-invalid TypeScript would pass silently.
+    // Cap the gate's drops: a generator emitting mostly-invalid TypeScript would otherwise pass silently.
     expect(
       report.skippedInvalidTypes,
       `the TS-validity gate dropped ${report.skippedInvalidTypes}/${report.iterations} iterations`

@@ -107,9 +107,7 @@ describe('typeGen — well-formedness', () => {
   });
 });
 
-// An optional member's type gains `undefined`, which a `string` index value type
-// need not allow (TS2411): the apiids soak (run 39249346902) drew
-// `{readonly p0?: false; p1: false; p2: false; [k: string | symbol]: false}`.
+// Optional members gain `undefined`, which a string index value type may reject (TS2411): apiids soak run 39249346902.
 describe('typeGen — string index members', () => {
   it('draws an optional named member under a string-keyed index only when the index admits undefined', () => {
     let indexed = 0;

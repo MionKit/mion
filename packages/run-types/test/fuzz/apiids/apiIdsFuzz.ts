@@ -312,7 +312,7 @@ export function checkApiCheckPasses(project: ApiProject, clientGen = project.cli
 export interface ApiIdsFuzzReport {
   iterations: number;
   failures: string[];
-  /** Failures dropped because the generated type itself is not valid TypeScript. **/
+  /** Failures dropped because the generated type is not valid TypeScript. **/
   skippedInvalidTypes: number;
 }
 
@@ -362,8 +362,7 @@ export async function runApiIdsFuzz(options: ApiIdsFuzzOptions): Promise<ApiIdsF
   return report;
 }
 
-/** TS-validity gate (mirrors typeFuzzRunner): a failure on a type that does not compile is the generator's,
- *  not mion's, so it is counted, not reported. A throwing check keeps the failure. **/
+/** TS-validity gate, mirrors typeFuzzRunner: a type that does not compile is the generator's bug, not mion's. **/
 export function recordIterationFailure(
   report: ApiIdsFuzzReport,
   iteration: number,
