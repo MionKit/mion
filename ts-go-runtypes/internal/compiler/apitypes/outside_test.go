@@ -152,7 +152,7 @@ export declare class Owner { name: string }
 	assertLacks(t, output.Files["_outside/geo.d.ts"], "declare class Owner")
 }
 
-// Fuzz seed 39249346902: `keyof Role` reaches `typeof Symbol.iterator` (a string's keys) inside the printed `Page<…>`.
+// Fuzz seed 39249346902: `keyof Role` (a string enum) holds `typeof Symbol.iterator`.
 func TestOutside_AnOutsideGenericOverAKeyofThroughANamespaceFunctionMemberPrints(t *testing.T) {
 	output, input := trimWithGeo(t, `import type { Page, Role, UserId } from 'geo';
 export interface Owner { role: keyof Role; id: keyof UserId }
