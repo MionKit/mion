@@ -213,6 +213,9 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 	case reflection.KindNever:
 		return "never", nil
 	case reflection.KindLiteral:
+		if ctx.flags&flagsDeclareUniqueSymbols != 0 && hasFlag(node, "symbol") {
+			return ctx.uniqueSymbolText(node)
+		}
 		literalText, ok := literalValueText(node)
 		if !ok {
 			return "", unsupportedDiag(node, ctx.decl)

@@ -389,6 +389,17 @@ func (printer *DeclPrinter) uniqueSymbolKey(memberName string) (string, bool) {
 	return DeclRef(key), true
 }
 
+// uniqueSymbolText spells a unique symbol type (`keyof string` holds `typeof Symbol.iterator`) as `typeof` its key.
+// A declaration file's symbol has no `Symbol(…)` call, so its reflected description is its declared name.
+func (ctx *printContext) uniqueSymbolText(node *reflection.RunType) (string, *Diagnostic) {
+	literal, _ := node.Literal.(map[string]any)
+	name, _ := literal["symbol"].(string)
+	if spelled, ok := ctx.declarations.uniqueSymbolKey(name); ok {
+		return "typeof " + spelled, nil
+	}
+	return "", unsupportedDiag(node, ctx.decl)
+}
+
 // classBody mirrors TypeScript's typeElementsToClassElements; as in the id, inherited members flatten in, statics drop.
 func (ctx *printContext) classBody(node *reflection.RunType) (string, *Diagnostic) {
 	var parts []string
