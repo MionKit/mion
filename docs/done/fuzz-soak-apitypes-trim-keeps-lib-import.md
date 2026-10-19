@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-10-19
 ---
 
@@ -58,3 +58,9 @@ the oracle.
   package + id parity). Both fail without the fix.
 - Docs: none. The api-types page already promises this; the source-conversion table is about the other printer mode.
 - Fuzzing: existing apitypes soak lane is the oracle; replay of seed 39249346902 must pass.
+
+## Shipped
+
+As planned. Seed 39249346902 replays green (`--soak`, exit 0). Review found that a user unique symbol named like a
+well-known one (`iterator`) now prints as `Symbol.iterator` in type positions too, as member keys already did; ids
+do not see it. Filed as its own fix spec, since telling the two apart needs a marker the reflected literal lacks.
