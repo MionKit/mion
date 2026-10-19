@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
-import {entrySeed, parseSeed} from '../core/fuzzPolicy.ts';
+import {entrySeed, parseSeed, SUPPRESSION_CEILING} from '../core/fuzzPolicy.ts';
 import {
   apiCheck,
   apiTypes,
@@ -28,6 +28,11 @@ describe('bundled API ids fuzz (CLI end to end)', () => {
       iterations: iterations(5),
     });
     expect(report.failures, report.failures.join('\n\n')).toEqual([]);
+    // The TS-validity gate must never swallow the lane: a generator emitting mostly-invalid TypeScript would pass silently.
+    expect(
+      report.skippedInvalidTypes,
+      `the TS-validity gate dropped ${report.skippedInvalidTypes}/${report.iterations} iterations`
+    ).toBeLessThanOrEqual(Math.ceil(report.iterations * SUPPRESSION_CEILING));
   });
 
   // Proves the oracle can fire.

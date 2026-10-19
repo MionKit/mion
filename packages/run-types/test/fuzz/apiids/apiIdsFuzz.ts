@@ -19,6 +19,7 @@ import {
 } from '../core/typeGen.ts';
 import {withSeededRandom, mixSeed} from '../core/seededRng.ts';
 import {hasBinary, BIN} from '../type/typeFuzzHarness.ts';
+import {isValidTypeScript} from '../type/tsValidate.ts';
 import {writeMarkerPackage} from '../../../../devtools/test/helpers/inline.ts';
 
 export {hasBinary};
@@ -311,6 +312,8 @@ export function checkApiCheckPasses(project: ApiProject, clientGen = project.cli
 export interface ApiIdsFuzzReport {
   iterations: number;
   failures: string[];
+  /** Failures dropped because the generated type itself is not valid TypeScript. **/
+  skippedInvalidTypes: number;
 }
 
 export interface ApiIdsFuzzOptions {
@@ -341,7 +344,7 @@ export function runApiIdsIteration(project: ApiProject, gen: GeneratedType): voi
 }
 
 export async function runApiIdsFuzz(options: ApiIdsFuzzOptions): Promise<ApiIdsFuzzReport> {
-  const report: ApiIdsFuzzReport = {iterations: 0, failures: []};
+  const report: ApiIdsFuzzReport = {iterations: 0, failures: [], skippedInvalidTypes: 0};
   const project = createApiProject();
   try {
     for (let iteration = 0; iteration < options.iterations; iteration++) {
@@ -350,12 +353,34 @@ export async function runApiIdsFuzz(options: ApiIdsFuzzOptions): Promise<ApiIdsF
       try {
         runApiIdsIteration(project, gen);
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        report.failures.push(`iteration ${iteration} (seed ${options.seed}, ${describeType(gen)}): ${message}`);
+        recordIterationFailure(report, iteration, options.seed, gen, err);
       }
     }
   } finally {
     destroyApiProject(project);
   }
   return report;
+}
+
+/** TS-validity gate (mirrors typeFuzzRunner): a failure on a type that does not compile is the generator's,
+ *  not mion's, so it is counted, not reported. A throwing check keeps the failure. **/
+export function recordIterationFailure(
+  report: ApiIdsFuzzReport,
+  iteration: number,
+  seed: number,
+  gen: GeneratedType,
+  err: unknown
+): void {
+  let valid = true;
+  try {
+    valid = isValidTypeScript(gen);
+  } catch {
+    valid = true;
+  }
+  if (!valid) {
+    report.skippedInvalidTypes++;
+    return;
+  }
+  const message = err instanceof Error ? err.message : String(err);
+  report.failures.push(`iteration ${iteration} (seed ${seed}, ${describeType(gen)}): ${message}`);
 }
