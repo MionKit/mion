@@ -1132,9 +1132,8 @@ function genMembers(
     }
     if (used.has(name)) continue;
     used.add(name);
-    // An optional member's type gains `undefined`, so a forced member is optional
-    // only when the index value type admits it (else TS2411). The draw comes first
-    // so the forced branch keeps the random stream aligned.
+    // An optional member gains `undefined`, which the forced index value type must admit (TS2411).
+    // Draw first so the forced branch keeps the random stream aligned.
     const optional = chance(0.35) && (!forcedShape || admitsUndefined(forcedShape));
     const method = !forcedShape && allowMethods && ctx.opts.nonDataTypes && chance(0.15);
     let shape: TypeShape;
@@ -1167,7 +1166,7 @@ function genMembers(
   return props;
 }
 
-/** True when `undefined` is assignable to the shape; a ref reads false (the safe side). **/
+/** A ref reads false: unresolved, so its member stays required. **/
 export function admitsUndefined(shape: TypeShape): boolean {
   if (shape.kind === 'union') return shape.members.some(admitsUndefined);
   return shape.kind === 'undefined' || shape.kind === 'any' || shape.kind === 'unknown' || shape.kind === 'void';
