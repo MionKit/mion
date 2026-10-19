@@ -5,6 +5,7 @@
 import {describe, it, expect} from 'vitest';
 import {openClient, compileType, hasBinary} from './typeFuzzHarness.ts';
 import {typecheckGeneratedType} from './tsValidate.ts';
+import {checkCrossWire, type FuzzTarget} from '../value/fuzzOracle.ts';
 import type {GeneratedType, TypeShape, PropShape} from '../core/typeGen.ts';
 
 function prop(name: string, shape: TypeShape, optional = false): PropShape {
@@ -37,6 +38,22 @@ const g3: GeneratedType = {
       obj([prop('kind', lit('t1')), prop('f0', {kind: 'promise', value: {kind: 'string'}})]),
       obj([prop('kind', lit('t2')), prop('f0', {kind: 'set', elem: {kind: 'number'}})]),
     ],
+  },
+};
+
+// O12 (nondata soak seed 3065189181): a stripped DataView `f1` beside an object `f1`. The oracle's value copy used to
+// flatten the DataView to `{}`, which the object codec then kept on the compact wire.
+const o12: GeneratedType = {
+  decls: [],
+  root: {
+    kind: 'array',
+    elem: {
+      kind: 'union',
+      members: [
+        obj([prop('kind', lit('t0')), prop('f1', {kind: 'dataview'})]),
+        obj([prop('kind', lit('t2')), prop('f1', obj([prop('p0', {kind: 'literal', value: false}, true)]))]),
+      ],
+    },
   },
 };
 
@@ -73,6 +90,26 @@ describe('flat-union merged prop with a DataOnly-stripped sibling', () => {
         expect(jsonDecode!(jsonEncode!(t1)!)).toEqual({kind: 't1'});
         const t2 = {kind: 't2', f0: new Set([1, 2, 3])};
         expect(jsonDecode!(jsonEncode!(t2)!)).toEqual({kind: 't2', f0: new Set([1, 2, 3])});
+      })
+      .finally(() => client.close());
+  });
+
+  (hasBinary() ? it : it.skip)('O12: both wires drop a DataView sibling of an object member', () => {
+    expect(typecheckGeneratedType(o12), 'o12 must be valid TypeScript').toEqual([]);
+    const client = openClient();
+    return compileType(client, o12)
+      .then((compiled) => {
+        expect(compiled.resolverError, compiled.resolverError).toBeUndefined();
+        expect(compiled.evalError, compiled.evalError).toBeUndefined();
+        const {jsonEncode, jsonDecode, compactEncode, compactDecode} = compiled.wired;
+        const value = [
+          {kind: 't0', f1: new DataView(new ArrayBuffer(8))},
+          {kind: 't2', f1: {p0: false}},
+        ];
+        const dropped = [{kind: 't0'}, {kind: 't2', f1: {p0: false}}];
+        expect(jsonDecode!(jsonEncode!(value)!)).toEqual(dropped);
+        expect(compactDecode!(compactEncode!(value)!)).toEqual(dropped);
+        expect(checkCrossWire(compiled.wired as FuzzTarget, value, {seed: 3065189181, phase: 'valid'})).toBeNull();
       })
       .finally(() => client.close());
   });

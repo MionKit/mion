@@ -85,3 +85,51 @@ describe('O12 cross-wire — key order is not a value difference', () => {
     expect(checkCrossWire(target, {}, ctx)?.oracle).toBe('O12');
   });
 });
+
+// Seed 3065189181 (nondata soak): the copy taken before compactEncode flattened a DataView to `{}`, which a sibling
+// union member's object codec then kept on the compact wire.
+describe('O12 cross-wire — the compact side gets a faithful copy of binary natives', () => {
+  const BYTES = [1, 2, 3, 4, 5, 6, 7, 8];
+  const filled = <Buffer extends ArrayBufferLike>(buffer: Buffer): Buffer => (new Uint8Array(buffer).set(BYTES), buffer);
+  const bytesOf = (binary: ArrayBufferLike | ArrayBufferView): number[] =>
+    ArrayBuffer.isView(binary)
+      ? [...new Uint8Array(binary.buffer, binary.byteOffset, binary.byteLength)]
+      : [...new Uint8Array(binary)];
+  const binaries: Record<string, () => ArrayBufferLike | ArrayBufferView> = {
+    ArrayBuffer: () => filled(new ArrayBuffer(8)),
+    SharedArrayBuffer: () => filled(new SharedArrayBuffer(8)),
+    DataView: () => new DataView(filled(new ArrayBuffer(8)), 2, 4),
+    Uint8Array: () => new Uint8Array(BYTES),
+    Float64Array: () => new Float64Array(filled(new ArrayBuffer(8))),
+    BigInt64Array: () => new BigInt64Array(filled(new ArrayBuffer(8))),
+  };
+
+  function copyHandedToCompact(original: unknown): unknown {
+    let seen: unknown;
+    const target = {...targetWith('{}', '{}'), compactEncode: (value: unknown) => ((seen = value), '{}')};
+    expect(checkCrossWire(target, {f1: original}, ctx)).toBeNull();
+    return (seen as {f1: unknown}).f1;
+  }
+
+  for (const [name, make] of Object.entries(binaries)) {
+    it(`hands compactEncode a ${name} with the same bytes in its own memory`, () => {
+      const original = make();
+      const copy = copyHandedToCompact(original) as typeof original;
+      expect(Object.prototype.toString.call(copy)).toBe(Object.prototype.toString.call(original));
+      expect(bytesOf(copy)).toEqual(bytesOf(original));
+      if (ArrayBuffer.isView(original))
+        expect([(copy as ArrayBufferView).byteOffset, (copy as ArrayBufferView).byteLength]).toEqual([
+          original.byteOffset,
+          original.byteLength,
+        ]);
+      const before = bytesOf(copy);
+      new Uint8Array(ArrayBuffer.isView(original) ? original.buffer : original).fill(0);
+      expect(bytesOf(copy)).toEqual(before);
+    });
+  }
+
+  it('hands compactEncode the same Promise', () => {
+    const promise = Promise.resolve(1);
+    expect(copyHandedToCompact(promise)).toBe(promise);
+  });
+});

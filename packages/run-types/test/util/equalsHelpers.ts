@@ -175,7 +175,7 @@ function stableKey(value: any): string {
  *  in place; without a fresh copy the comparison-side reference would
  *  see the post-mutation shape, masking real correctness issues.
  *
- *  Handles Date, RegExp, Map, Set, primitives, and arrays/objects
+ *  Handles Date, RegExp, Map, Set, binary natives, primitives, and arrays/objects
  *  recursively. Symbols pass through (immutable, no risk of
  *  cross-mutation). Functions and Promises pass through unchanged —
  *  those aren't meaningfully cloneable and round-trip tests for them
@@ -192,6 +192,11 @@ export function deepCloneForRoundTrip(value: any): any {
   if (value instanceof Date) return new Date(value.getTime());
   if (value instanceof URL) return new URL(value.href);
   if (value instanceof RegExp) return new RegExp(value.source, value.flags);
+  if (value instanceof Promise) return value;
+  // Binary natives have no enumerable own keys, so the generic clone below would flatten them to `{}`.
+  if (value instanceof ArrayBuffer || value instanceof SharedArrayBuffer) return value.slice(0);
+  if (value instanceof DataView) return new DataView(value.buffer.slice(0), value.byteOffset, value.byteLength);
+  if (ArrayBuffer.isView(value)) return (value as Uint8Array).slice();
   if (value instanceof Map) {
     const out = new Map();
     for (const [k, v] of value.entries()) out.set(deepCloneForRoundTrip(k), deepCloneForRoundTrip(v));
