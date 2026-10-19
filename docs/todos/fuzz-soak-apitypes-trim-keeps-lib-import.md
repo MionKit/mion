@@ -36,3 +36,25 @@ a function-typed member inside a namespace is not printed like the other outside
 
 - The failing seed replays green with the command above.
 - A regression test pins the shape (generic outside type used through a function member in a namespace).
+
+## Plan: print unique symbol types (approved 2026-10-19, automatic mode, delegated)
+
+Root cause, found by replaying the case seed alone: not the namespace or the function member. `LibPage<KEEP_1_>`
+prints `KEEP_1_` structurally, which reaches `lib0: keyof LibRole`. `keyof` a string enum is a string's keys, which
+hold `typeof Symbol.iterator`, a unique symbol type. The declaration printer refused that literal ("a literal is not
+convertible yet"), so the whole use stayed an import. Smallest repro: `Page<{ k: keyof string }>` from an outside
+package.
+
+The trim's contract (api-types page) says only a use over a type parameter stays an import, so the trim is wrong, not
+the oracle.
+
+- Fix: the declaration printer (`flagsDeclareUniqueSymbols`) prints a unique symbol type as `typeof` its key, through
+  the same `uniqueSymbolKey` symbol-keyed members use: `typeof Symbol.iterator` for a well-known symbol, else a
+  `declare const name: unique symbol;` the file declares (`ts-go-runtypes/internal/convert/printtype.go`,
+  `printdecl.go`). The type id keeps only the symbol's name, so ids hold.
+- Tests: `TestDeclPrinter_UniqueSymbolTypesPrintAsTypeofTheirKey` (convert, ids checked) and
+  `TestOutside_AnOutsideGenericOverAKeyofThroughANamespaceFunctionMemberPrints` (apitypes, the fuzz shape: a generic
+  outside type over a project type reaching `keyof`, used through a function member in a namespace, self-contained
+  package + id parity). Both fail without the fix.
+- Docs: none. The api-types page already promises this; the source-conversion table is about the other printer mode.
+- Fuzzing: existing apitypes soak lane is the oracle; replay of seed 39249346902 must pass.
