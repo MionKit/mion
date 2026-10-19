@@ -504,7 +504,7 @@ func (mode InlineMode) Valid() bool {
 }
 
 // Pattern mockSample auto-generation defaults. A format pattern with no declared mockSamples gets them generated
-// at build time by the JS engine, deterministic per pattern; both knobs are overridable by a CLI flag / plugin
+// at build time by the JS engine, a fresh pool each build unless a literal mock.seed pins it; both knobs are overridable by a CLI flag / plugin
 // option and fold into the disk fingerprint.
 const (
 	// DefaultPatternSampleCount is how many samples generation aims for per pattern (0 disables it entirely).

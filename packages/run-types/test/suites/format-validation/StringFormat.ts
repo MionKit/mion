@@ -3240,7 +3240,7 @@ export const STRING_FORMAT = {
   pattern_generated: {
     title: 'Generated pattern samples',
     description:
-      'stringFormat with a sample-less inline `pattern`: the build auto-generates its mockSamples from the regex (deterministic per pattern), so mocking works with nothing declared.',
+      'stringFormat with a sample-less inline `pattern`: the build auto-generates its mockSamples from the regex (a fresh pool each build unless a literal mock seed pins it), so mocking works with nothing declared.',
     validateNotes: [
       'Matching ticket codes pass (`ab-12`, `cd-09`); a wrong letter range (`zz-12`), a short number (`ab-1`), capitals (`AB-12`), and the empty string fail with `val` `Invalid pattern`.',
       'No mockSamples are declared anywhere: the mock lanes only work because the build generated the pool.',

@@ -117,8 +117,8 @@ const (
 	// CodeFMTSampleConflict: two sites resolve to ONE cache entry (sample pools are not id-relevant)
 	// but declare different mockSamples pools. The entry carries whichever interned first, so
 	// reordering unrelated code can silently change the winner, and the build reports it rather than
-	// pick. Declared-vs-absent is NOT a conflict (the declared pool is adopted) and generated pools
-	// are deterministic per pattern. Args: [format name, the pool in use, the conflicting pool, the
+	// pick. Declared-vs-absent is NOT a conflict (the declared pool is adopted) and a generated pool
+	// is drawn once per entry. Args: [format name, the pool in use, the conflicting pool, the
 	// site that interned first].
 	CodeFMTSampleConflict = "format-sample-conflict"
 
