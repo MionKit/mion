@@ -4,16 +4,14 @@
 // disagree about what "the wasm is out of date" means:
 //   - container/website/scripts/build-playground.mjs stamps the digest beside
 //     the wasm it just built, and rebuilds when the digest no longer matches.
-//   - wasmAssetState() below re-computes it to decide whether the cached wasm
-//     still matches the tree: the playground test loader skips its suites when
-//     it does not, and the homepage test counter refuses to count them.
+//   - packages/run-types/test/playground/nodeResolver.ts re-computes it to
+//     decide whether the cached wasm still matches the tree under test.
 //
 // The digest itself is scripts/lib/go-inputs.mjs, the same content digest the
 // resolver binary's stamp uses (content, not mtimes: a copied cache reorders
 // mtimes freely, a content digest cannot lie). This module only fixes the
 // playground's input list; its bytes are unchanged by the move.
 
-import {existsSync} from 'node:fs';
 import {goInputsDigest, isGoInput, readStamp} from '../lib/go-inputs.mjs';
 import {tsgolintCommit} from '../lib/tsgolint.mjs';
 
@@ -29,15 +27,3 @@ export const isWasmInput = isGoInput;
 export const wasmInputsDigest = (repoRoot) => goInputsDigest(repoRoot, WASM_INPUTS, [tsgolintCommit()]);
 
 export const readWasmStamp = readStamp;
-
-// Three states, not two. Existence alone used to mean "run": a cache left over
-// from before a Go change (or carried into a `git worktree add`) loaded fine and
-// then failed every assertion about code it predates, which reads as a handful of
-// unrelated broken tests rather than a stale artifact. `stale` is that case, and
-// it has to behave like `missing`: skip, and say why.
-// cacheDir ends with a separator; it is a parameter so the states can be tested against a fixture dir.
-export function wasmAssetState(cacheDir, repoRoot) {
-  if (!existsSync(`${cacheDir}mion.wasm`) || !existsSync(`${cacheDir}wasm_exec.js`)) return 'missing';
-  const stamped = readStamp(`${cacheDir}.wasm-stamp`);
-  return stamped && stamped === wasmInputsDigest(repoRoot) ? 'ready' : 'stale';
-}
