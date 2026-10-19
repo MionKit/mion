@@ -1282,6 +1282,21 @@ describe('website-test-counts', () => {
     expect(generator).not.toMatch(/JSON\.parse\(listed\.stdout\)/);
   });
 
+  // `vitest list` drops skipped tests, and the playground suites skip without a current wasm, so a host
+  // without one counted 30 fewer tests and the release gate's --check failed on a correct file.
+  it('refuses to count without a playground wasm built from this tree', () => {
+    const generator = readFileSync(join(REPO_ROOT, 'scripts/website/gen-test-counts.mjs'), 'utf8');
+    expect(generator).toMatch(/if \(wasm !== 'ready'\) throw new Error/);
+  });
+
+  it('the release gate builds the playground wasm before the suite and the count check', () => {
+    const gate = readFileSync(join(REPO_ROOT, '.github/workflows/release-gate.yml'), 'utf8');
+    const build = gate.indexOf('run: node container/website/scripts/build-playground.mjs');
+    expect(build).toBeGreaterThan(-1);
+    expect(build).toBeLessThan(gate.indexOf('run: pnpm test'));
+    expect(build).toBeLessThan(gate.indexOf('pnpm miondevx website test-counts --check'));
+  });
+
   it('ships a committed count the component can import', () => {
     expect(existsSync(COUNTS_FILE)).toBe(true);
     const counts = JSON.parse(readFileSync(COUNTS_FILE, 'utf8'));

@@ -97,6 +97,12 @@ jobs:
       # manifest drizzleOrm fields must all match the installed drizzle-orm.
       - name: Drizzle version-line guard
         run: pnpm miondevx release check-drizzle-versions
+      # Without a wasm built from this tree the playground suites skip themselves, so the
+      # suite below would never run the engine tests and the test counts below refuse to run.
+      - name: Cache the playground wasm
+        uses: ./.github/actions/cache-playground-wasm
+      - name: Build the playground wasm
+        run: node container/website/scripts/build-playground.mjs
       - name: Full JS suite (builds the resolver + dists via pretest; runs fuzz)
         run: pnpm test
       # A spawned resolver that PANICS writes its full stdout+stderr here (the

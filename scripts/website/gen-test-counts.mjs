@@ -6,8 +6,8 @@
 // `vitest list --json` collects every test the config would run, and `go test
 // -list` prints the test function names a package declares. Collection still
 // compiles the sources, so this needs the resolver binary + the marker/plugin
-// dists on the host (the website build runs it right after the stage that builds
-// them) and a Go toolchain.
+// dists, the playground wasm (the website build runs it right after the stage that
+// builds them) and a Go toolchain.
 //
 // Output: container/website/app/data/test-counts.json — COMMITTED, and imported
 // by app/components/content/StatTiles.vue at build time rather than fetched at
@@ -24,6 +24,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {capture, die, note, reportCliError, warn, which} from '../lib/proc.mjs';
+import {wasmAssetState} from './playground-wasm-inputs.mjs';
 
 const OUT_DIR = join(REPO_ROOT, 'container/website/app/data');
 const OUT_FILE = join(OUT_DIR, 'test-counts.json');
@@ -32,6 +33,10 @@ const OUT_FILE = join(OUT_DIR, 'test-counts.json');
 // globalSetup runs in the same process and logs there (the client tests' server prints
 // its port), which would corrupt a stdout parse.
 function countFrontEndTests() {
+  // The playground suites skip without a wasm built from this Go tree, and `vitest list` leaves skipped
+  // tests out, so counting then would drop every engine test and depend on the host.
+  const wasm = wasmAssetState(join(REPO_ROOT, '.cache/rt-wasm/'), REPO_ROOT);
+  if (wasm !== 'ready') throw new Error(`the playground wasm is ${wasm} - build it first: node container/website/scripts/build-playground.mjs`);
   const dir = mkdtempSync(join(tmpdir(), 'mion-test-counts-'));
   const file = join(dir, 'tests.json');
   let tests;
