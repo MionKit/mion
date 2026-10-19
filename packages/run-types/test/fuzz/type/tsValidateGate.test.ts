@@ -5,16 +5,22 @@
 // the lane only reports real bugs on valid TypeScript.
 import {describe, it, expect} from 'vitest';
 import {isValidTypeScript, typecheckGeneratedType} from './tsValidate.ts';
-import type {GeneratedType, TypeShape} from '../core/typeGen.ts';
+import type {GeneratedType, IndexKeyKind, TypeShape} from '../core/typeGen.ts';
 
-function mixedObject(propName: string, propShape: TypeShape, indexValue: TypeShape): GeneratedType {
+function mixedObject(
+  propName: string,
+  propShape: TypeShape,
+  indexValue: TypeShape,
+  indexKey: IndexKeyKind[] = ['number'],
+  optional = false
+): GeneratedType {
   return {
     decls: [],
     root: {
       kind: 'object',
-      props: [{name: propName, optional: false, readonly: false, method: false, shape: propShape}],
+      props: [{name: propName, optional, readonly: false, method: false, shape: propShape}],
       index: indexValue,
-      indexKey: ['number'],
+      indexKey,
     },
   };
 }
@@ -36,6 +42,13 @@ describe('TS-validity gate on generated types', () => {
     const errors = typecheckGeneratedType(gen);
     expect(errors.length, errors.join(' ')).toBeGreaterThan(0);
     expect(errors.join(' ')).toContain('2411');
+    expect(isValidTypeScript(gen)).toBe(false);
+  });
+
+  it('flags an optional member under a string index of its own type', () => {
+    // Renders `{p0?: false; [k: string]: false}`: the optional member reads `false | undefined` (TS2411).
+    const gen = mixedObject('p0', {kind: 'literal', value: false}, {kind: 'literal', value: false}, ['string'], true);
+    expect(typecheckGeneratedType(gen).join(' ')).toContain('2411');
     expect(isValidTypeScript(gen)).toBe(false);
   });
 });

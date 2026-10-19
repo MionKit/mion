@@ -15,6 +15,7 @@ import {
   isRecursive,
   hasStructuralParams,
   genHasStructuralParams,
+  admitsUndefined,
   usesFormatLeaves,
   DATA_GEN_OPTIONS,
   type Decl,
@@ -103,6 +104,37 @@ describe('typeGen — well-formedness', () => {
         }
       });
     }
+  });
+});
+
+// An optional member's type gains `undefined`, which a `string` index value type
+// need not allow (TS2411): the apiids soak (run 39249346902) drew
+// `{readonly p0?: false; p1: false; p2: false; [k: string | symbol]: false}`.
+describe('typeGen — string index members', () => {
+  it('draws an optional named member under a string-keyed index only when the index admits undefined', () => {
+    let indexed = 0;
+    let optionalKept = 0;
+    for (let i = 0; i < 4000; i++) {
+      const gen = withSeededRandom(mixSeed(0x1d5, 'strIndex', i), () => genType(DATA_GEN_OPTIONS));
+      eachShapeIn(gen, (shape) => {
+        if (shape.kind !== 'object' || !shape.index || !shape.indexKey?.includes('string')) return;
+        indexed++;
+        for (const prop of shape.props) {
+          if (prop.optional) optionalKept++;
+          expect(prop.optional && !admitsUndefined(shape.index), `seed ${i}: optional ${prop.name}`).toBe(false);
+        }
+      });
+    }
+    expect(indexed).toBeGreaterThan(20);
+    expect(optionalKept, 'the valid optional-under-index shape is still drawn').toBeGreaterThan(0);
+  });
+
+  it('admitsUndefined reads undefined, any, unknown, void and unions holding one', () => {
+    expect(admitsUndefined({kind: 'undefined'})).toBe(true);
+    expect(admitsUndefined({kind: 'unknown'})).toBe(true);
+    expect(admitsUndefined({kind: 'union', members: [{kind: 'string'}, {kind: 'void'}]})).toBe(true);
+    expect(admitsUndefined({kind: 'literal', value: false})).toBe(false);
+    expect(admitsUndefined({kind: 'ref', name: 'T0'})).toBe(false);
   });
 });
 
