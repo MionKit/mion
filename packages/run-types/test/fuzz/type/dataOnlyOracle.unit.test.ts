@@ -3,7 +3,14 @@
 import {describe, expect, it} from 'vitest';
 import type {RunType} from '../../../src/runtypes/types.ts';
 import {RunTypeKind, RunTypeSubKind} from '../../../src/go-generated/runTypeKind.generated.ts';
-import {checkDataOnlyAnswers, checkDataOnlyMembers, checkDataOnlyRoot, memberMismatches, mutationsOf} from './dataOnlyOracle.ts';
+import {
+  checkDataOnlyAnswers,
+  checkDataOnlyMembers,
+  checkDataOnlyRoot,
+  dataOnlyView,
+  memberMismatches,
+  mutationsOf,
+} from './dataOnlyOracle.ts';
 
 const ctx = {target: 'T', seed: 1, source: 'type T = …'};
 const noRefs = () => undefined;
@@ -75,6 +82,22 @@ describe('dataOnlyOracle', () => {
     ).toEqual(['$.link: the native URL in T is kind objectLiteral in DataOnly<T>']);
     const date = node(RunTypeKind.class, {subKind: RunTypeSubKind.date, typeName: 'Date'});
     expect(memberMismatches(date, url(), noRefs)).toEqual(['$: the native Date in T is kind class in DataOnly<T>']);
+  });
+
+  it('view: removes the members DataOnly<T> drops, down kept members, index values and arrays', () => {
+    const str = node(RunTypeKind.string);
+    const regexp = node(RunTypeKind.class, {subKind: RunTypeSubKind.nonSerializable, notSupported: true});
+    const index = (child: RunType) => node(RunTypeKind.indexSignature, {index: node(RunTypeKind.number), child});
+    const inner = object(prop('x', str), prop('re', regexp, {optional: true}));
+    const type = object(
+      prop('re', regexp, {optional: true}),
+      prop('list', node(RunTypeKind.array, {child: inner})),
+      index(object(prop('re', regexp)))
+    );
+    const dataOnly = object(prop('list', node(RunTypeKind.array, {child: object(prop('x', str))})), index(object()));
+    const value = {re: /a/, list: [{x: 'a', re: /b/}], 0: {re: /c/}};
+    expect(dataOnlyView(value, type, dataOnly, noRefs)).toEqual({list: [{x: 'a'}], 0: {}});
+    expect(value.re).toEqual(/a/);
   });
 
   it('mutates by removing and mistyping each member down a few levels', () => {

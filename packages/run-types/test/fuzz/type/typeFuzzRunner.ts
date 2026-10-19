@@ -28,7 +28,15 @@ import {genType, describeType, isRecursive, DEFAULT_GEN_OPTIONS, type GeneratedT
 import {genValidValue, validValue, corruptValue, valueOracleSafe} from '../value/shapeValue.ts';
 import {getRunType} from '@mionjs/run-types';
 import {getRTUtils} from '../../../src/runtypes/rtUtils.ts';
-import {checkDataOnlyAnswers, checkDataOnlyMembers, checkDataOnlyRoot, deref, mutationsOf, runVerdict} from './dataOnlyOracle.ts';
+import {
+  checkDataOnlyAnswers,
+  checkDataOnlyMembers,
+  checkDataOnlyRoot,
+  dataOnlyView,
+  deref,
+  mutationsOf,
+  runVerdict,
+} from './dataOnlyOracle.ts';
 import {compileType, openClient, renderFixture, FN_KEYS, type CompiledType, type WiredFns} from './typeFuzzHarness.ts';
 import {isValidTypeScript} from './tsValidate.ts';
 import {randomJunk} from '../value/fuzzRunner.ts';
@@ -635,7 +643,7 @@ export function dataOnlyViolations(compiled: CompiledType, seed: number, drawn =
     checkDataOnlyAnswers(
       samples,
       (sample) => runVerdict(validate, sample),
-      (sample) => runVerdict(validateDataOnly, sample),
+      (sample) => runVerdict(validateDataOnly, dataOnlyView(sample, typeRoot, dataOnlyRoot, resolve)),
       ctx
     )
   );

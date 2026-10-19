@@ -130,6 +130,49 @@ export function memberMismatches(
   return [];
 }
 
+/** The sample as `DataOnly<T>` sees it: a member T declares but DataOnly<T> drops is removed, as the serializer removes it.
+ *  Left in, it is an undeclared key, which an index signature claims and checks against its value type. **/
+export function dataOnlyView(value: unknown, type: RunType, dataOnly: RunType, resolve: Resolve): unknown {
+  const copy = copyTree(value);
+  stripDropped(copy, type, dataOnly, resolve, 0);
+  return copy;
+}
+
+function stripDropped(value: unknown, type: RunType | undefined, dataOnly: RunType | undefined, resolve: Resolve, depth: number) {
+  const typeNode = deref(type, resolve);
+  const dataOnlyNode = deref(dataOnly, resolve);
+  if (!typeNode || !dataOnlyNode || depth >= DATA_ONLY_DEPTH || value === null || typeof value !== 'object') return;
+  const recurse = (child: unknown, typeChild: RunType | undefined, dataOnlyChild: RunType | undefined) =>
+    stripDropped(child, typeChild, dataOnlyChild, resolve, depth + 1);
+  if (Array.isArray(value)) {
+    if (typeNode.kind === RunTypeKind.array && dataOnlyNode.kind === RunTypeKind.array)
+      for (const item of value) recurse(item, typeNode.child, dataOnlyNode.child);
+    if (typeNode.kind === RunTypeKind.tuple && dataOnlyNode.kind === RunTypeKind.tuple)
+      value.forEach((item, position) =>
+        recurse(
+          item,
+          deref(typeNode.children?.[position], resolve)?.child,
+          deref(dataOnlyNode.children?.[position], resolve)?.child
+        )
+      );
+    return;
+  }
+  // Unions, Maps and Sets cannot pair their members, so their values are left as drawn.
+  if (!isObjectShape(typeNode) || !isObjectShape(dataOnlyNode)) return;
+  const record = value as Record<string, unknown>;
+  const declared = keptMembers(typeNode, resolve, false);
+  const kept = keptMembers(dataOnlyNode, resolve, false);
+  for (const [name, member] of declared.named) {
+    if (!Object.hasOwn(record, name)) continue;
+    const other = kept.named.get(name);
+    if (other) recurse(record[name], member.child, other.child);
+    else delete record[name];
+  }
+  if (declared.indexes.length !== 1 || kept.indexes.length !== 1) return;
+  for (const key of Object.keys(record))
+    if (!declared.named.has(key)) recurse(record[key], declared.indexes[0].child, kept.indexes[0].child);
+}
+
 /** A native class both sides keep whole, told apart by its SubKind. **/
 function isKeptNative(node: RunType): boolean {
   return (
