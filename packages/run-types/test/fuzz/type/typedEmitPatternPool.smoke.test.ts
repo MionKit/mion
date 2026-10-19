@@ -1,5 +1,5 @@
-// TE1 regression (release gate run 39249346902): a sample-less pattern draws its mockSamples pool under a random key
-// each build, so the emitMode 'ts' and 'both' compiles carry different pools. Strip parity must hold anyway.
+// TE1 regression (release gate run 39249346902): a sample-less pattern re-rolls its mockSamples pool every build,
+// so the emitMode 'ts' and 'both' compiles carry different pools and strip parity must hold anyway.
 import {describe, expect, it} from 'vitest';
 import {compileType, generateModules, hasBinary, openClient, renderFixture} from './typeFuzzHarness.ts';
 import type {GeneratedType} from '../core/typeGen.ts';
