@@ -172,7 +172,7 @@ function stripDropped(value: unknown, type: RunType | undefined, dataOnly: RunTy
     if (other) recurse(record[name], member.child, other.child);
     else delete record[name];
   }
-  // A function-typed property reflects as a method: T declares the key, DataOnly drops it, the serializer omits it.
+  // A function-typed property reflects as a method, which the serializer omits.
   for (const name of declared.methods) delete record[name];
   // The validator checks every undeclared key against each index signature, so each pair walks them all.
   for (const index of declared.indexes) {
