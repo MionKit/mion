@@ -104,10 +104,10 @@ getRunTypeId<N1>();
 `})
 	ids := scanSiteIDs(t, r)
 	structural := structuralByID(t, r, ids[0])
-	// Canonical emission: 30{32:kids2:25:0:$30_2,32:p1?:25:0:$30_2} — members
+	// Canonical emission: 30{32:"kids2":25:0:$30_2,32:"p1"?:25:0:$30_2} — members
 	// sort by name, so kids2's token is followed by `,` and p1's by `}`.
 	arrayOfBackRef := kindDigits(reflection.KindArray) + ":0:"
-	for member, delimiter := range map[string]string{"kids2:": ",", "p1?:": "}"} {
+	for member, delimiter := range map[string]string{`"kids2":`: ",", `"p1"?:`: "}"} {
 		want := member + arrayOfBackRef + cycleToken(reflection.KindObjectLiteral, 2, delimiter)
 		if !strings.Contains(structural, want) {
 			t.Fatalf("member %q must wrap a depth-2 back-edge (%q): %q", member, want, structural)

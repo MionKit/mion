@@ -190,6 +190,60 @@ getRunTypeId<`+pair.str+`>();
 	}
 }
 
+// delimiterTextPairs are type pairs whose user text (literal, property, enum member, template piece) once
+// spelled the other's id delimiters, so both built one id and shared one cached validator.
+var delimiterTextPairs = []struct{ name, decls, first, second string }{
+	{"union member text", ``, `'a,13:b' | 'c'`, `'a' | 'b' | 'c'`},
+	{"unique symbol name", `declare const K: unique symbol;`, `typeof K`, `'sym:K'`},
+	{"template piece", ``, "`a${number}b|`", "`a|b${number}`"},
+	{"property name", ``, `{a: string; b: string}`, `{'a:5,32:b': string}`},
+	{"enum member name", `enum E {a = 1, b = 2, c = 3}
+namespace N { export enum E {'a=1,b' = 2, c = 3} }`, `E`, `N.E`},
+}
+
+// TestStructural_DelimiterTextNotDeduplicated — static shape: each pair keeps two ids.
+func TestStructural_DelimiterTextNotDeduplicated(t *testing.T) {
+	for _, pair := range delimiterTextPairs {
+		_, firstNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
+`+pair.decls+`
+getRunTypeId<`+pair.first+`>();
+`)
+		_, secondNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
+`+pair.decls+`
+getRunTypeId<`+pair.second+`>();
+`)
+		if firstNode.ID == secondNode.ID {
+			t.Errorf("%s: %s and %s must not share an id, both got %q", pair.name, pair.first, pair.second, firstNode.ID)
+		}
+	}
+}
+
+// TestStructural_DelimiterTextNotDeduplicated_ValueFirst — T inferred from a declared value of each type.
+func TestStructural_DelimiterTextNotDeduplicated_ValueFirst(t *testing.T) {
+	for _, pair := range delimiterTextPairs {
+		_, firstNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
+`+pair.decls+`
+declare const value: `+pair.first+`;
+getRunTypeId(value);
+`)
+		_, secondNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
+`+pair.decls+`
+declare const value: `+pair.second+`;
+getRunTypeId(value);
+`)
+		if firstNode.ID == secondNode.ID {
+			t.Errorf("%s: %s and %s must not share an id, both got %q", pair.name, pair.first, pair.second, firstNode.ID)
+		}
+		_, staticNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
+`+pair.decls+`
+getRunTypeId<`+pair.first+`>();
+`)
+		if firstNode.ID != staticNode.ID {
+			t.Errorf("%s: value-first id %q must equal static id %q", pair.name, firstNode.ID, staticNode.ID)
+		}
+	}
+}
+
 // TestStructural_ObjectPropertyOrderIndependent — two object types with the SAME
 // properties declared in a DIFFERENT order must produce the SAME structural id.
 // Object members are sorted by name before hashing (memberIDs → sort.Strings in
