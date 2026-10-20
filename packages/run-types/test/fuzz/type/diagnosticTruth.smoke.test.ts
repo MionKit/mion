@@ -56,34 +56,32 @@ const functionBesideIndex: GeneratedType = {
   },
 };
 
-describe('fuzz / diagnostics lane regressions', () => {
-  (hasBinary() ? it : it.skip)(
-    'DataOnly<T> accepts what the serializer makes of a value carrying a dropped member',
-    async () => {
-      const client = openClient();
-      try {
-        const compiled = await compileType(client, droppedBesideIndex);
-        const {validate, validateDataOnly, jsonEncode, jsonDecode} = compiled.wired;
-        const value = {p2: /a/, 0: 'la', 1: 'lb'};
-        expect(validate!(value)).toBe(true);
-        expect(validateDataOnly!(value)).toBe(false);
-        expect(validateDataOnly!(jsonDecode!(jsonEncode!(value)!))).toBe(true);
-        expect(dataOnlyViolations(compiled, 1, {value, hasValue: true})).toEqual([]);
-      } finally {
-        client.close();
-      }
-    },
-    60_000
-  );
+// Shrunk 4151093482: `{p1: () => symbol; p2: bigint; [k: number | symbol]: string}`.
+const functionBesideSymbolIndex: GeneratedType = {
+  decls: [],
+  root: {
+    kind: 'object',
+    props: [
+      {name: 'p1', optional: false, readonly: false, method: false, shape: {kind: 'function', params: [], ret: {kind: 'symbol'}}},
+      {name: 'p2', optional: false, readonly: false, method: false, shape: {kind: 'bigint'}},
+    ],
+    index: {kind: 'string'},
+    indexKey: ['number', 'symbol'],
+  },
+};
 
-  (hasBinary() ? it : it.skip)(
-    'DataOnly<T> accepts what the serializer makes of a value carrying a function-typed member',
-    async () => {
+describe('fuzz / diagnostics lane regressions', () => {
+  (hasBinary() ? it : it.skip).each([
+    ['a dropped member', droppedBesideIndex, {p2: /a/, 0: 'la', 1: 'lb'}],
+    ['a function-typed member', functionBesideIndex, {p0: () => new Date(), 0: null, 1: null}],
+    ['a function-typed member and a symbol key', functionBesideSymbolIndex, {p1: () => Symbol(), p2: 1n, 0: 'a'}],
+  ])(
+    'DataOnly<T> accepts what the serializer makes of a value carrying %s',
+    async (_label, gen, value) => {
       const client = openClient();
       try {
-        const compiled = await compileType(client, functionBesideIndex);
+        const compiled = await compileType(client, gen);
         const {validate, validateDataOnly, jsonEncode, jsonDecode} = compiled.wired;
-        const value = {p0: () => new Date(), 0: null, 1: null};
         expect(validate!(value)).toBe(true);
         expect(validateDataOnly!(value)).toBe(false);
         expect(validateDataOnly!(jsonDecode!(jsonEncode!(value)!))).toBe(true);

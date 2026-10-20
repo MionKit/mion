@@ -139,7 +139,9 @@ const MAX_SNAPSHOT = 500;
 export function snapshot(value: unknown): string {
   let text: string;
   try {
-    text = JSON.stringify(value, (_key, v) => (typeof v === 'bigint' ? `${v}n` : typeof v === 'symbol' ? v.toString() : v));
+    text = JSON.stringify(value, (_key, v) =>
+      typeof v === 'bigint' ? `${v}n` : typeof v === 'symbol' ? v.toString() : typeof v === 'function' ? '[function]' : v
+    );
   } catch {
     text = String(value);
   }

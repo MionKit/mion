@@ -20,8 +20,9 @@ Release PR #507 (`release/v0.13.1`, commit `0c2212ce9`), lane `gate / fuzz soak 
 soak finished: 3524 types, 2 violation(s)
 ```
 
-Both types are objects with named props plus an index signature (`{N+idx}`). The value DataOnly saw
-carries only numeric keys: the named props are gone, so either `dataOnlyView` (the oracle's model of
+Both types are objects with named props plus an index signature (`{N+idx}`). The printed value shows only
+numeric keys, but the snapshot hid the function-valued key and cut off the rest: the view still carried
+the function member. Either `dataOnlyView` (the oracle's model of
 what the serializer keeps, `packages/run-types/test/fuzz/type/dataOnlyOracle.ts`) or the generated
 `validate<DataOnly<T>>` is wrong. An earlier round fixed the same oracle for a number index next to a
 dropped prop (`docs/done/nondata-d4-index-signature-validate.md`); these two are new shapes.
