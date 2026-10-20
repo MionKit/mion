@@ -1,6 +1,6 @@
 {
     "name": "@mionjs/router",
-    "version": "0.13.0",
+    "version": "0.13.1",
     "type": "module",
     "description": "Typescript RPC Like router with automatic Validation and Serialization",
     "keywords": [

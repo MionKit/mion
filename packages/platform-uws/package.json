@@ -1,6 +1,6 @@
 {
   "name": "@mionjs/platform-uws",
-  "version": "0.13.0",
+  "version": "0.13.1",
   "type": "module",
   "description": "mion HTTP Server on uWebSockets.js for maximum performance.",
   "keywords": [
