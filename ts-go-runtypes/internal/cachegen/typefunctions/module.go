@@ -329,13 +329,11 @@ func ReportReachedFindings(graph entrymodules.Graph, opts RenderOpts) {
 		if len(sites) == 0 {
 			continue
 		}
+		// Every reached throw, another family's too: whichever entry materializes first decides the runtime code.
 		throwing, adopted := reachableFindings(graph, key)
+		findings := append(throwing, adopted...)
 		for _, site := range sites {
-			// Every reached throw, another family's too: whichever entry materializes first decides the runtime code.
-			for _, entry := range throwing {
-				report(*entry.Throw, site)
-			}
-			for _, finding := range adopted {
+			for _, finding := range findings {
 				report(finding, site)
 			}
 		}
@@ -355,7 +353,7 @@ func entryProvenanceKey(entry *entrymodules.Entry) string {
 }
 
 // reachableFindings returns, in walk order, the throws and own- or adopted-family findings reachable from an entry.
-func reachableFindings(graph entrymodules.Graph, entryID string) (throwing []*entrymodules.Entry, adoptedFindings []diskcache.CachedDiagnostic) {
+func reachableFindings(graph entrymodules.Graph, entryID string) (throwing, adoptedFindings []diskcache.CachedDiagnostic) {
 	adopted := adoptsFindingsOf[graph[entryID].FamilyTag]
 	visited := map[string]bool{entryID: true}
 	stack := []string{entryID}
@@ -376,7 +374,7 @@ func reachableFindings(graph entrymodules.Graph, entryID string) (throwing []*en
 				continue
 			}
 			if depEntry.Throw != nil {
-				throwing = append(throwing, depEntry)
+				throwing = append(throwing, *depEntry.Throw)
 				continue
 			}
 			if depEntry.FamilyTag == graph[entryID].FamilyTag || (adopted != "" && depEntry.FamilyTag == adopted) {
