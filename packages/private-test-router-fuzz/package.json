@@ -1,6 +1,6 @@
 {
   "name": "@mionjs/test-router-fuzz",
-  "version": "0.13.0",
+  "version": "0.13.1",
   "private": true,
   "type": "module",
   "description": "Hostile-HTTP fuzz suite for the mion router and the node adapter (never published)",

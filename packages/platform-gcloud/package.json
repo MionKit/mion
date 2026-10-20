@@ -1,6 +1,6 @@
 {
   "name": "@mionjs/platform-gcloud",
-  "version": "0.13.0",
+  "version": "0.13.1",
   "type": "module",
   "description": "Google Cloud functions wrapper for mion router.",
   "keywords": [
