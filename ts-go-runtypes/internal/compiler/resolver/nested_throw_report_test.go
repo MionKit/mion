@@ -324,8 +324,7 @@ func TestAdoptedFinding_RemoveUnknownKeysDoesNotAdopt(t *testing.T) {
 	}
 }
 
-// A JSON union picks its member via validate before its own member entry runs, so validate's throw fires first:
-// the site reports it next to its own, even when both name the same kind.
+// A JSON union runs validate to pick its member, so validate's throw fires first: report it even beside a same-kind own one.
 const nativeUnionSite = `type NativeUnion = ArrayBuffer | SharedArrayBuffer;
 interface HasNativeUnion { x: NativeUnion; y: number }
 `
@@ -343,8 +342,7 @@ export const encode = createJsonEncoderFn(value);`))
 	expectReportedOnceAtSite(t, response, diagnostics.CodeVLNonSerializableRoot)
 }
 
-// Nondata fuzz seed 0x30b95e85: the errors union asks validate, whose Set<SharedArrayBuffer> member throws
-// validate-non-data-root first, while the site's own throw is the same kind at the unrelated Map property.
+// Nondata fuzz iteration seed 3823141169: validate throws first at the union's Set member; the own same-kind throw is at the Map.
 const sameKindElsewhereSite = `type Members = {k: 'a'; s: Set<SharedArrayBuffer>} | {k: 'b'};
 interface SameKindElsewhere { u: Members; m?: Map<string, SharedArrayBuffer> }
 `
