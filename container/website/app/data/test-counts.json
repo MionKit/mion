@@ -1,6 +1,6 @@
 {
   "frontEnd": {
-    "tests": 14595,
+    "tests": 14601,
     "files": 584,
     "projects": {
       "@mionjs/go-be-sidecar": 31,
@@ -24,7 +24,7 @@
       "platform-vercel": 40,
       "playground": 50,
       "router": 538,
-      "runtypes": 8911,
+      "runtypes": 8917,
       "runtypes-ts": 1713,
       "test-router-fuzz": 5,
       "type-budget": 160
