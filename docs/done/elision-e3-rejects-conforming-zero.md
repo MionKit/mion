@@ -49,5 +49,10 @@ the `0` schema reused it.
 - Tests: Go `TestStructural_StringLiteralNotDeduplicatedWithSameText` + its `_ValueFirst` pair
   (`structural_test.go`), JS `packages/run-types/test/features/sameTextLiterals.test.ts` with the
   shrunk enum / builder case next to a compiled `'0'`. All fail on the old binary.
+- Review found the same bug in three more spots: template literal pieces, property names and enum member
+  names went into the id unquoted, so text holding id delimiters matched another type
+  (`{a: string; b: string}` vs `{'a:5,32:b': string}`). All three are now quoted too, pinned by
+  `TestStructural_DelimiterTextNotDeduplicated` + its `_ValueFirst` pair. Four resolver tests that matched
+  the old unquoted id text were updated, and one with an order-dependent lookup was made order-free.
 - Docs: none, no documented behavior changes (ids are internal; a stale on-disk cache just recompiles).
 - Fuzzing: existing elision lane; seed `0x2f70c658` passes after the fix.
