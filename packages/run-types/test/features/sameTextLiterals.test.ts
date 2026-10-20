@@ -1,5 +1,4 @@
-// A string literal and the number / boolean / bigint literal spelled the same way are different types.
-// They once shared one type id, so the project-wide cache gave both the validator compiled first.
+// `'0'` and `0` once shared a type id, so the project-wide cache gave both the validator compiled first.
 
 import {describe, test, expect} from 'vitest';
 import {createValidateFn, type InferType} from '@mionjs/run-types';

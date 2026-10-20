@@ -143,7 +143,6 @@ getRunTypeId<[number, string]>();
 	}
 }
 
-// sameTextLiterals pairs a string literal with the number / boolean / bigint literal spelled the same way.
 var sameTextLiterals = []struct{ str, other string }{
 	{`'0'`, `0`},
 	{`'1.5'`, `1.5`},
@@ -151,8 +150,7 @@ var sameTextLiterals = []struct{ str, other string }{
 	{`'1n'`, `1n`},
 }
 
-// TestStructural_StringLiteralNotDeduplicatedWithSameText — `'0'` and `0` once shared an id, so the
-// project-global cache handed whichever compiled first to both (validate(0) ran `v === '0'`).
+// TestStructural_StringLiteralNotDeduplicatedWithSameText — a shared id gave both the validator compiled first.
 func TestStructural_StringLiteralNotDeduplicatedWithSameText(t *testing.T) {
 	for _, pair := range sameTextLiterals {
 		_, strNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
@@ -190,8 +188,7 @@ getRunTypeId<`+pair.str+`>();
 	}
 }
 
-// delimiterTextPairs are type pairs whose user text (literal, property, enum member, template piece) once
-// spelled the other's id delimiters, so both built one id and shared one cached validator.
+// delimiterTextPairs: each pair's user text once spelled the other's id delimiters, so both built one id.
 var delimiterTextPairs = []struct{ name, decls, first, second string }{
 	{"union member text", ``, `'a,13:b' | 'c'`, `'a' | 'b' | 'c'`},
 	{"unique symbol name", `declare const K: unique symbol;`, `typeof K`, `'sym:K'`},
