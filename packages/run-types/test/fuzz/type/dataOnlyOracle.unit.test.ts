@@ -106,6 +106,14 @@ describe('dataOnlyOracle', () => {
     const type = object(fn, prop('url', node(RunTypeKind.string), {optional: true}), index);
     const dataOnly = object(prop('url', node(RunTypeKind.string), {optional: true}), index);
     expect(dataOnlyView({fn: () => 1, url: 'u', 0: null}, type, dataOnly, noRefs)).toEqual({url: 'u', 0: null});
+    const field = node(RunTypeKind.method, {name: 'fn', notSupported: true});
+    const klass = (...children: RunType[]) => node(RunTypeKind.class, {subKind: RunTypeSubKind.none, children});
+    expect(dataOnlyView({fn: () => 1, 0: null}, klass(field, index), klass(index), noRefs)).toEqual({0: null});
+  });
+
+  it('members: fires when DataOnly<T> keeps a method', () => {
+    const fn = node(RunTypeKind.methodSignature, {name: 'fn'});
+    expect(memberMismatches(object(fn), object(fn), noRefs)).toEqual(['$.fn is a method DataOnly<T> keeps']);
   });
 
   it('view: walks tuple slots and every index signature of a multi-key index', () => {

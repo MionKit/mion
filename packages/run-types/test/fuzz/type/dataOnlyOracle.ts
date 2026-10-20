@@ -100,6 +100,8 @@ export function memberMismatches(
       if (!dataOnlyMembers.named.has(name)) out.push(`${path}.${name} is kept in T but dropped by DataOnly<T>`);
     for (const name of dataOnlyMembers.named.keys())
       if (!typeMembers.named.has(name)) out.push(`${path}.${name} is kept by DataOnly<T> but dropped in T`);
+    // Validators skip method slots, so the answers check never sees a method DataOnly kept.
+    for (const name of dataOnlyMembers.methods) out.push(`${path}.${name} is a method DataOnly<T> keeps`);
     if (typeMembers.indexes.length !== dataOnlyMembers.indexes.length)
       out.push(
         `${path} keeps ${typeMembers.indexes.length} index signature(s) in T, ${dataOnlyMembers.indexes.length} in DataOnly<T>`
@@ -171,7 +173,7 @@ function stripDropped(value: unknown, type: RunType | undefined, dataOnly: RunTy
     else delete record[name];
   }
   // A function-typed property reflects as a method: T declares the key, DataOnly drops it, the serializer omits it.
-  for (const name of declared.methods) if (!kept.named.has(name)) delete record[name];
+  for (const name of declared.methods) delete record[name];
   // The validator checks every undeclared key against each index signature, so each pair walks them all.
   for (const index of declared.indexes) {
     const keyKind = deref(index.index, resolve)?.kind;
