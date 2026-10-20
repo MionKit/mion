@@ -100,6 +100,14 @@ describe('dataOnlyOracle', () => {
     expect(value.re).toEqual(/a/);
   });
 
+  it('view: removes a function-typed member, which reflects as a method, beside an index signature', () => {
+    const fn = node(RunTypeKind.methodSignature, {name: 'fn', notSupported: true});
+    const index = node(RunTypeKind.indexSignature, {index: node(RunTypeKind.number), child: node(RunTypeKind.null)});
+    const type = object(fn, prop('url', node(RunTypeKind.string), {optional: true}), index);
+    const dataOnly = object(prop('url', node(RunTypeKind.string), {optional: true}), index);
+    expect(dataOnlyView({fn: () => 1, url: 'u', 0: null}, type, dataOnly, noRefs)).toEqual({url: 'u', 0: null});
+  });
+
   it('view: walks tuple slots and every index signature of a multi-key index', () => {
     const str = node(RunTypeKind.string);
     const regexp = node(RunTypeKind.class, {subKind: RunTypeSubKind.nonSerializable, notSupported: true});

@@ -170,6 +170,8 @@ function stripDropped(value: unknown, type: RunType | undefined, dataOnly: RunTy
     if (other) recurse(record[name], member.child, other.child);
     else delete record[name];
   }
+  // A function-typed property reflects as a method: T declares the key, DataOnly drops it, the serializer omits it.
+  for (const name of declared.methods) if (!kept.named.has(name)) delete record[name];
   // The validator checks every undeclared key against each index signature, so each pair walks them all.
   for (const index of declared.indexes) {
     const keyKind = deref(index.index, resolve)?.kind;
@@ -199,9 +201,10 @@ function keptMembers(
   node: RunType,
   resolve: Resolve,
   goDropsNonData: boolean
-): {named: Map<string, RunType>; indexes: RunType[]} {
+): {named: Map<string, RunType>; indexes: RunType[]; methods: Set<string>} {
   const named = new Map<string, RunType>();
   const indexes: RunType[] = [];
+  const methods = new Set<string>();
   for (const childRef of node.children ?? []) {
     const member = deref(childRef, resolve);
     if (!member || member.isStatic) continue;
@@ -211,12 +214,14 @@ function keptMembers(
       if (deref(member.index, resolve)?.kind !== RunTypeKind.symbol) indexes.push(member);
       continue;
     }
-    if (member.kind !== RunTypeKind.property && member.kind !== RunTypeKind.propertySignature) continue;
+    const isMethod = member.kind === RunTypeKind.method || member.kind === RunTypeKind.methodSignature;
+    if (!isMethod && member.kind !== RunTypeKind.property && member.kind !== RunTypeKind.propertySignature) continue;
     const name = String(member.name ?? '');
     if (name === '' || name === '__proto__' || isSymbolKeyedName(name)) continue;
-    named.set(name, member);
+    if (isMethod) methods.add(name);
+    else named.set(name, member);
   }
-  return {named, indexes};
+  return {named, indexes, methods};
 }
 
 /** The Go side's spelling of a symbol-keyed member name (reflection.IsSymbolKeyedName). **/
