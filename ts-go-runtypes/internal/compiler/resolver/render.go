@@ -69,10 +69,8 @@ type demandedSite struct {
 	families []string
 }
 
-// buildProvenanceSites converts the resolver's protocol.Site list into the ProvenanceKey → sites maps the
-// typefns walker fans per-call-site diagnostics out with, both keyed by (type id + family tag): rooted
-// holds only the sites that NAMED each id, reaching adds every site the id is reachable from. Findings go to
-// the rooted sites; reaching names a throw's site.
+// buildProvenanceSites keys sites by ProvenanceKey (type id + family tag): rooted holds only the sites that NAMED
+// each id, for findings; reaching adds every site the id is reachable from, for naming a throw's site.
 func (sess *Session) buildProvenanceSites() (rooted, reaching map[string][]diagnostics.Site) {
 	if sess == nil || sess.Program == nil {
 		return nil, nil
