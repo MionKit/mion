@@ -324,27 +324,42 @@ func TestAdoptedFinding_RemoveUnknownKeysDoesNotAdopt(t *testing.T) {
 	}
 }
 
-// A JSON union picks its member via validate; when its own union throws too, validate's code would name the failure twice.
+// A JSON union picks its member via validate before its own member entry runs, so validate's throw fires first:
+// the site reports it next to its own, even when both name the same kind.
 const nativeUnionSite = `type NativeUnion = ArrayBuffer | SharedArrayBuffer;
 interface HasNativeUnion { x: NativeUnion; y: number }
 `
 
-func expectOwnThrowOnly(t *testing.T, site, own, foreign string) {
-	t.Helper()
-	response := wholeProgram(t, nestedThrowSources(nativeUnionSite+site))
-	expectReportedOnceAtSite(t, response, own)
-	if sites := diagSitesFor(response, foreign); len(sites) != 0 {
-		t.Errorf("%s names the same failure as %s, got it at %v", foreign, own, sites)
-	}
+func TestNestedThrow_ForeignThrowOfSameKindIsReported_Static(t *testing.T) {
+	response := wholeProgram(t, nestedThrowSources(nativeUnionSite+`export const encode = createJsonEncoderFn<HasNativeUnion>();`))
+	expectReportedOnceAtSite(t, response, diagnostics.CodePJSNonSerializableRoot)
+	expectReportedOnceAtSite(t, response, diagnostics.CodeVLNonSerializableRoot)
 }
 
-func TestNestedThrow_OwnFamilyThrowWins_Static(t *testing.T) {
-	expectOwnThrowOnly(t, `export const encode = createJsonEncoderFn<HasNativeUnion>();`, diagnostics.CodePJSNonSerializableRoot, diagnostics.CodeVLNonSerializableRoot)
+func TestNestedThrow_ForeignThrowOfSameKindIsReported_Value(t *testing.T) {
+	response := wholeProgram(t, nestedThrowSources(nativeUnionSite+`declare const value: HasNativeUnion;
+export const encode = createJsonEncoderFn(value);`))
+	expectReportedOnceAtSite(t, response, diagnostics.CodePJSNonSerializableRoot)
+	expectReportedOnceAtSite(t, response, diagnostics.CodeVLNonSerializableRoot)
 }
 
-func TestNestedThrow_OwnFamilyThrowWins_Value(t *testing.T) {
-	expectOwnThrowOnly(t, `declare const value: HasNativeUnion;
-export const encode = createJsonEncoderFn(value);`, diagnostics.CodePJSNonSerializableRoot, diagnostics.CodeVLNonSerializableRoot)
+// Nondata fuzz seed 0x30b95e85: the errors union asks validate, whose Set<SharedArrayBuffer> member throws
+// validate-non-data-root first, while the site's own throw is the same kind at the unrelated Map property.
+const sameKindElsewhereSite = `type Members = {k: 'a'; s: Set<SharedArrayBuffer>} | {k: 'b'};
+interface SameKindElsewhere { u: Members; m?: Map<string, SharedArrayBuffer> }
+`
+
+func TestNestedThrow_ForeignThrowOfSameKindElsewhereIsReported_Static(t *testing.T) {
+	response := wholeProgram(t, nestedThrowSources(sameKindElsewhereSite+`export const errors = createGetValidationErrorsFn<SameKindElsewhere>();`))
+	expectReportedOnceAtSite(t, response, diagnostics.CodeVENonSerializableRoot)
+	expectReportedOnceAtSite(t, response, diagnostics.CodeVLNonSerializableRoot)
+}
+
+func TestNestedThrow_ForeignThrowOfSameKindElsewhereIsReported_Value(t *testing.T) {
+	response := wholeProgram(t, nestedThrowSources(sameKindElsewhereSite+`declare const value: SameKindElsewhere;
+export const errors = createGetValidationErrorsFn(value);`))
+	expectReportedOnceAtSite(t, response, diagnostics.CodeVENonSerializableRoot)
+	expectReportedOnceAtSite(t, response, diagnostics.CodeVLNonSerializableRoot)
 }
 
 // The in-place encoder proves `Tagged` needs no work and leaves it out of the body, yet its dropped symbol key is still news.

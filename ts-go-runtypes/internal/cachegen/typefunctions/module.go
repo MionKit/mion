@@ -331,22 +331,11 @@ func ReportReachedFindings(graph entrymodules.Graph, opts RenderOpts) {
 		}
 		throwing, adopted := reachableFindings(graph, key)
 		for _, site := range sites {
-			// Skip a foreign throw (the validate entry a JSON union picks its member with) whose kind an own throw names.
-			var own, foreign []diskcache.CachedDiagnostic
+			// Every reached throw, another family's too: whichever entry materializes first decides the runtime code.
 			for _, entry := range throwing {
-				if slices.Contains(opts.ProvenanceSites[entryProvenanceKey(entry)], site) {
-					own = append(own, *entry.Throw)
-				} else {
-					foreign = append(foreign, *entry.Throw)
-				}
+				report(*entry.Throw, site)
 			}
-			toReport := slices.Clone(own)
-			for _, throw := range foreign {
-				if !slices.ContainsFunc(own, func(ownThrow diskcache.CachedDiagnostic) bool { return slices.Equal(ownThrow.Args, throw.Args) }) {
-					toReport = append(toReport, throw)
-				}
-			}
-			for _, finding := range append(toReport, adopted...) {
+			for _, finding := range adopted {
 				report(finding, site)
 			}
 		}
