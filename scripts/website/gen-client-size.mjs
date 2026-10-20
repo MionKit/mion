@@ -46,6 +46,14 @@ function measureClient() {
   return {minified, gzipped};
 }
 
+// The label ClientSize.vue renders. The page shows one decimal, so a few bytes of build noise
+// (chunk hashes, a version-dependent id) never change what it claims.
+export const sizeLabel = (bytes) => `${(bytes / 1024).toFixed(1)} kB`;
+const shown = (client) => `${sizeLabel(client.gzipped)} gzipped, ${sizeLabel(client.minified)} minified`;
+
+// --check passes while the page would show the same numbers; the exact bytes are only a record.
+export const showsSameSize = (measured, committed) => committed != null && shown(measured) === shown(committed);
+
 const readExisting = () => {
   try {
     return JSON.parse(readFileSync(OUT_FILE, 'utf8'));
@@ -73,11 +81,12 @@ export function main(args = []) {
 
   const next = JSON.stringify({client}, null, 2) + '\n';
   const current = existing === null ? '' : JSON.stringify(existing, null, 2) + '\n';
-  const human = `${(client.gzipped / 1024).toFixed(1)} kB gzipped, ${(client.minified / 1024).toFixed(1)} kB minified`;
+  const human = shown(client);
 
   if (check) {
-    if (next === current) return note(`client size up to date (${human})`);
-    die(`gen-client-size: ${OUT_FILE} is stale - run 'pnpm miondevx website client-size' and commit the result`);
+    if (showsSameSize(client, existing?.client)) return note(`client size up to date (${human})`);
+    const was = existing?.client ? shown(existing.client) : 'nothing';
+    die(`gen-client-size: ${OUT_FILE} is stale (the page shows ${was}, the client measures ${human}) - run 'pnpm miondevx website client-size' and commit the result`);
   }
 
   if (next === current) return note(`client size unchanged (${human})`);
