@@ -379,7 +379,7 @@ func (computer *Computer) dispatch(tsType *checker.Type) string {
 				if i > 0 {
 					b.WriteByte('|')
 				}
-				b.WriteString(computer.lit(text))
+				b.WriteString(computer.lit(strconv.Quote(text)))
 			}
 			b.WriteByte('#')
 			for i, id := range spanIDs {
@@ -614,7 +614,7 @@ func (computer *Computer) memberIDs(tsType *checker.Type, asClass bool) []string
 
 func (computer *Computer) memberID(symbol *ast.Symbol, asClass bool) string {
 	propertyType := computer.typeChecker.GetTypeOfSymbol(symbol)
-	memberName := computer.lit(stableMemberName(symbol.Name))
+	memberName := computer.lit(strconv.Quote(stableMemberName(symbol.Name)))
 	// A non-enumerable-guarded member (lib-global-inherited or `@nonEnumerable`) is treated as optional in the
 	// projected shape — the wire may omit it — so its `optional` id bit folds the guard in, matching
 	// serialize.go's appendProperty. The separate `#ne` bit keeps a guarded-optional member distinct from a
@@ -1300,7 +1300,7 @@ func enumDiscriminator(tsType *checker.Type, typeChecker *checker.Checker) strin
 					value = typeChecker.TypeToString(memberType)
 				}
 			}
-			members = append(members, memberName+"="+value)
+			members = append(members, strconv.Quote(memberName)+"="+value)
 		}
 		sort.Strings(members)
 		parts = append(parts, members...)

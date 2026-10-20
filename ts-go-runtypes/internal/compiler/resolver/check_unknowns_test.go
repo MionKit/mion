@@ -476,6 +476,16 @@ func entryMentionsKeyCheck(t *testing.T, modules map[string]string, prefix strin
 	return false
 }
 
+// findOtherEntryWith is findEntryWith skipping one entry name.
+func findOtherEntryWith(modules map[string]string, needle string, skip string) (string, bool) {
+	for _, name := range sortedEntryNames(modules) {
+		if name != skip && strings.Contains(modules[name], needle) {
+			return name, true
+		}
+	}
+	return "", false
+}
+
 // An ARRAY node emits no key check of its own — a JSON array cannot carry
 // undeclared object properties, so there is nothing to ask. All it emits is the
 // traversal, and only when an element has something worth checking. An array of
@@ -487,20 +497,16 @@ interface Item {a: string}
 export const isItems = createValidateFn<Item[]>(undefined, {checkUnknowns: true});
 `)
 		prefix := familyPrefix(t, "validateStrict")
-		root, ok := findEntryForType(modules, prefix, "Item[]")
-		if !ok {
-			// The array root may be keyed by its own printed name; fall back to the
-			// entry that is not the element type.
-			root, ok = findEntryWith(modules, prefix)
-		}
-		if !ok {
-			t.Fatalf("no validateStrict entry emitted\nmodules: %v", keys(modules))
-		}
 		element, ok := findEntryForType(modules, prefix, "Item")
 		if !ok {
 			t.Fatalf("no validateStrict entry for the element type\nmodules: %v", keys(modules))
 		}
-		if root == element {
+		root, ok := findEntryForType(modules, prefix, "Item[]")
+		if !ok {
+			// The array root may be keyed by its own printed name; fall back to the entry that is not the element type.
+			root, ok = findOtherEntryWith(modules, prefix, element)
+		}
+		if !ok {
 			t.Fatalf("expected separate entries for the array and its element type\nmodules: %v", keys(modules))
 		}
 		// The element carries the check; the array itself only reaches it.
