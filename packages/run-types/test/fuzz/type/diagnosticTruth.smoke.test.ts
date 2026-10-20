@@ -3,7 +3,7 @@
 // of another kind (2357953336) or the same kind as an own throw (3823141169), and DataOnly keeping an optional
 // non-data member (2649564061, 3811392738) or a whole all-optional type (360858409). An O12 false positive: the
 // oracle's value copy flattened a DataView (3065189181), and a D4 one: a dropped member left in the mock faced
-// DataOnly<T>'s number index signature (982099663).
+// DataOnly<T>'s number index signature (982099663), and the same with a function-typed member (4151093482, 2456381542).
 
 import {describe, expect, it} from 'vitest';
 import {openClient, compileType, hasBinary} from './typeFuzzHarness.ts';
@@ -12,7 +12,7 @@ import {NONDATA_GEN_OPTIONS, type GeneratedType} from '../core/typeGen.ts';
 
 const PINNED_SEEDS = [
   1680075118, 3063578975, 1528970412, 4181522326, 2357953336, 360858409, 2649564061, 3811392738, 3065189181, 982099663,
-  3823141169,
+  3823141169, 4151093482, 2456381542,
 ];
 
 const withSymbol: GeneratedType = {
@@ -43,6 +43,19 @@ const droppedBesideIndex: GeneratedType = {
   },
 };
 
+// Shrunk 2456381542: `{p0: (() => Date); [k: number]: null}`. p0 reflects as a method, DataOnly drops it.
+const functionBesideIndex: GeneratedType = {
+  decls: [],
+  root: {
+    kind: 'object',
+    props: [
+      {name: 'p0', optional: false, readonly: false, method: false, shape: {kind: 'function', params: [], ret: {kind: 'date'}}},
+    ],
+    index: {kind: 'null'},
+    indexKey: ['number'],
+  },
+};
+
 describe('fuzz / diagnostics lane regressions', () => {
   (hasBinary() ? it : it.skip)(
     'DataOnly<T> accepts what the serializer makes of a value carrying a dropped member',
@@ -52,6 +65,25 @@ describe('fuzz / diagnostics lane regressions', () => {
         const compiled = await compileType(client, droppedBesideIndex);
         const {validate, validateDataOnly, jsonEncode, jsonDecode} = compiled.wired;
         const value = {p2: /a/, 0: 'la', 1: 'lb'};
+        expect(validate!(value)).toBe(true);
+        expect(validateDataOnly!(value)).toBe(false);
+        expect(validateDataOnly!(jsonDecode!(jsonEncode!(value)!))).toBe(true);
+        expect(dataOnlyViolations(compiled, 1, {value, hasValue: true})).toEqual([]);
+      } finally {
+        client.close();
+      }
+    },
+    60_000
+  );
+
+  (hasBinary() ? it : it.skip)(
+    'DataOnly<T> accepts what the serializer makes of a value carrying a function-typed member',
+    async () => {
+      const client = openClient();
+      try {
+        const compiled = await compileType(client, functionBesideIndex);
+        const {validate, validateDataOnly, jsonEncode, jsonDecode} = compiled.wired;
+        const value = {p0: () => new Date(), 0: null, 1: null};
         expect(validate!(value)).toBe(true);
         expect(validateDataOnly!(value)).toBe(false);
         expect(validateDataOnly!(jsonDecode!(jsonEncode!(value)!))).toBe(true);
