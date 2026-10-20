@@ -1329,9 +1329,10 @@ func literalString(tsType *checker.Type, typeChecker *checker.Checker) string {
 	if flags&checker.TypeFlagsBooleanLiteral != 0 {
 		return typeChecker.TypeToString(tsType)
 	}
+	// Quoted so `'0'` / `'true'` / `'1n'` never share an id with the number, boolean or bigint of the same text.
 	if flags&checker.TypeFlagsStringLiteral != 0 {
 		if value, ok := tsType.AsLiteralType().Value().(string); ok {
-			return value
+			return strconv.Quote(value)
 		}
 	}
 	// A numeric / bigint ENUM member's TypeToString is the member NAME ("Color.Red"), not its value — read the
