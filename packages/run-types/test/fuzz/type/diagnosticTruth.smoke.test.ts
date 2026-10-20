@@ -71,16 +71,17 @@ const functionBesideSymbolIndex: GeneratedType = {
   },
 };
 
+const functionInMapValue: GeneratedType = {
+  decls: [],
+  root: {kind: 'map', key: {kind: 'string'}, value: functionBesideIndex.root},
+};
+
 describe('fuzz / diagnostics lane regressions', () => {
   (hasBinary() ? it : it.skip).each([
     ['a dropped member', droppedBesideIndex, {p2: /a/, 0: 'la', 1: 'lb'}],
     ['a function-typed member', functionBesideIndex, {p0: () => new Date(), 0: null, 1: null}],
     ['a function-typed member and a symbol key', functionBesideSymbolIndex, {p1: () => Symbol(), p2: 1n, 0: 'a'}],
-    [
-      'a function-typed member in a Map value',
-      {decls: [], root: {kind: 'map', key: {kind: 'string'}, value: functionBesideIndex.root}},
-      new Map([['k', {p0: () => new Date(), 0: null}]]),
-    ],
+    ['a function-typed member in a Map value', functionInMapValue, new Map([['k', {p0: () => new Date(), 0: null}]])],
   ])(
     'DataOnly<T> accepts what the serializer makes of a value carrying %s',
     async (_label, gen, value) => {
