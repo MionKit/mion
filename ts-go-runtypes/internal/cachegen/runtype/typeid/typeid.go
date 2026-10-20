@@ -365,8 +365,7 @@ func (computer *Computer) dispatch(tsType *checker.Type) string {
 		return strconv.Itoa(int(reflection.KindEnum)) + ":" + computer.lit(enumDiscriminator(tsType, computer.typeChecker))
 	}
 
-	// Template literal — the literal text segments plus the placeholder span ids, so two distinct patterns
-	// (`` `api/${number}` `` vs `` `(${number})` ``) don't collide.
+	// Template literal — text pieces are quoted, so a piece spelling `|` cannot merge two patterns into one id.
 	if flags&checker.TypeFlagsTemplateLiteral != 0 {
 		tpl := tsType.AsTemplateLiteralType()
 		if tpl != nil {
@@ -621,11 +620,8 @@ func (computer *Computer) memberID(symbol *ast.Symbol, asClass bool) string {
 	// plain declared-optional one (enumerability check vs `!== undefined`).
 	guarded := IsNonEnumerable(symbol)
 	optional := symbol.Flags&ast.SymbolFlagsOptional != 0 || guarded || IsTypelessPrivateSymbol(symbol)
-	// Readonly must be part of the structural id — `{a: string}` and `{readonly a: string}` are different
-	// shapes and must not share a cache slot. Mirrors the resolution rule in
-	// internal/cachegen/runtype/modifiers.go:applyMemberModifiers — trust CheckFlagsReadonly for
-	// mapped/synthetic symbols (the AST declaration would lie), otherwise honor CheckFlags AND the AST
-	// modifier together.
+	// Readonly splits the id: `{a: string}` and `{readonly a: string}` must not share a cache slot.
+	// Mirrors internal/cachegen/runtype/modifiers.go:applyMemberModifiers; on mapped / synthetic symbols the AST lies.
 	const checkFlagsSynthOrMapped = ast.CheckFlagsMapped | ast.CheckFlagsSyntheticProperty | ast.CheckFlagsSyntheticMethod
 	var readonly bool
 	if symbol.CheckFlags&checkFlagsSynthOrMapped != 0 {
@@ -647,8 +643,7 @@ func (computer *Computer) memberID(symbol *ast.Symbol, asClass bool) string {
 		}
 	}
 
-	// A property whose type is a single-call-signature function with no other members maps to the reflection
-	// `method` form.
+	// A single-call-signature function type with no other members maps to the reflection `method` form.
 	if propertyType != nil {
 		signatures := computer.typeChecker.GetSignaturesOfType(propertyType, checker.SignatureKindCall)
 		if len(signatures) > 0 && len(computer.typeChecker.GetPropertiesOfType(propertyType)) == 0 {
@@ -664,14 +659,9 @@ func (computer *Computer) memberID(symbol *ast.Symbol, asClass bool) string {
 	if asClass {
 		kind = reflection.KindProperty
 	}
-	// Optional properties carry `T | undefined` at the symbol-type layer and the `optional` bit IS the
-	// "undefined-permitted" signal, so resolve the child WITHOUT undefined: a RECURSIVE optional
-	// self/cross-reference then closes on the inner type instead of a wrapping union node, matching the
-	// serializer (which projects optional members through the same typeid.ResolveOptionalChild). Otherwise the
-	// structural id and the projected node disagree on the optional child's shape, and a recursive optional
-	// property's back-edge binds inconsistently between the type-first and value-first paths. The if/else
-	// matters: an unconditional walk of the raw wrapper polluted the pointer cache with back-edge depths
-	// inflated by the discarded union frame.
+	// The `optional` bit says undefined: resolve the child without it, as serializer's ResolveOptionalChild does,
+	// or a recursive optional property's back-edge differs between the type-first and value-first paths.
+	// Keep the if/else: walking the raw wrapper too pollutes the pointer cache with depths inflated by the union frame.
 	var child string
 	if optional {
 		child = computer.optionalChildID(propertyType)
@@ -1277,9 +1267,8 @@ func optBit(optional bool) string {
 	return ""
 }
 
-// enumDiscriminator returns "<typeName>:<member1=value1>,…" (members sorted by name) so two enums with
-// different shapes get different structural ids. Literal values are read directly because TypeToString
-// collapses both a numeric `0` and a string `"red"` to the alias name `Color.Red`.
+// enumDiscriminator spells the name + sorted members so differently shaped enums get different ids.
+// Values are read directly: TypeToString prints both a `0` and a `"red"` member as `Color.Red`.
 func enumDiscriminator(tsType *checker.Type, typeChecker *checker.Checker) string {
 	name := ""
 	if symbol := tsType.Symbol(); symbol != nil {
@@ -1335,10 +1324,8 @@ func literalString(tsType *checker.Type, typeChecker *checker.Checker) string {
 			return strconv.Quote(value)
 		}
 	}
-	// A numeric / bigint ENUM member's TypeToString is the member NAME ("Color.Red"), not its value — read the
-	// underlying value so it shares the structural id of the equivalent plain literal (both validate the same
-	// number) and the value-first `RT.enum(MyEnum)` and `RT.enum({record})` forms converge. (String enum
-	// members already returned above; the serialize-side projector strips the name the same way.)
+	// A numeric / bigint enum member prints as its name (`Color.Red`): read the value so it shares the plain literal's id.
+	// Also converges `RT.enum(MyEnum)` with `RT.enum({record})`; the serialize projector strips the name the same way.
 	if flags&checker.TypeFlagsEnumLiteral != 0 {
 		if value := tsType.AsLiteralType().Value(); value != nil {
 			return fmt.Sprintf("%v", value)

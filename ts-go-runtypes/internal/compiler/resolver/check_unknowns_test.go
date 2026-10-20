@@ -486,10 +486,7 @@ func findOtherEntryWith(modules map[string]string, needle string, skip string) (
 	return "", false
 }
 
-// An ARRAY node emits no key check of its own — a JSON array cannot carry
-// undeclared object properties, so there is nothing to ask. All it emits is the
-// traversal, and only when an element has something worth checking. An array of
-// primitives emits nothing at all.
+// An array emits no key check of its own (a JSON array has no undeclared properties), only element traversal.
 func TestCheckUnknowns_ArrayNodeOnlyTraverses(t *testing.T) {
 	t.Run("elements worth checking", func(t *testing.T) {
 		modules := scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';
