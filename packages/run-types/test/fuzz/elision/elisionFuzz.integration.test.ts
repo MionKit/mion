@@ -35,12 +35,13 @@ describe('fuzz / elision — the two schema spellings stay equivalent', () => {
   register(
     'finds no oracle violations across a batch of generated schemas',
     async () => {
-      const report = await runElisionFuzz({seed: entrySeed('elision'), iterations: 10});
+      const report = await runElisionFuzz({seed: entrySeed('elision'), iterations: 100});
       if (hasFindings(report)) throw new Error(renderFindings(report));
-      expect(report.runs).toBe(10);
+      expect(report.runs).toBe(100);
       // Anti-vacuity: `runs` only proves the loop turned; require that a real
       // share reached the E3 validator probes (the strong tier) so a tiering
-      // regression cannot hollow the lane silently.
+      // regression cannot hollow the lane silently. 100 runs, like the other
+      // lanes: about 30% reach E3, so at 10 runs ~3% of seeds drew none.
       expect(
         report.strongRuns,
         `only ${report.strongRuns}/${report.runs} schemas reached the E3 probes — the lane is close to vacuous`
