@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-10-20
 ---
 
@@ -42,3 +42,18 @@ D4 holds: a value `validate<T>` accepts, once reduced to what `DataOnly<T>` keep
 `validate<DataOnly<T>>`. Decide per finding whether the validator, `DataOnly`, or the oracle is wrong
 (the docs and validation suites define intended behavior, e.g. a number index checks every key),
 fix the real cause, and pin both iteration seeds as regression tests.
+
+## Plan: fix the oracle again (approved 2026-10-20, automatic mode)
+
+Shrunk types: `{p1: () => symbol; p2: bigint; [k: number | symbol]: string}` (4151093482) and
+`{p0: () => Date; [k: number]: null}` (2456381542).
+
+- **Validators and `DataOnly` are right.** A function-typed property reflects as a method signature. `validate<T>`
+  skips it as a declared key, `DataOnly<T>` drops it, and the serializer omits it, so the JSON round trip of the
+  mock passes `validate<DataOnly<T>>`.
+- **The oracle was wrong.** `dataOnlyView` removed dropped members only among properties, so a method member stayed
+  in the view and faced the number index signature as an undeclared key. It now removes the methods T declares
+  that `DataOnly<T>` does not keep.
+- **Tests:** both seeds pinned in `diagnosticTruth.smoke.test.ts`, plus a shrunk-type test there (serializer
+  output passes, raw value does not); a `dataOnlyView` unit test with a method member next to an index signature.
+- **Docs:** none, no shipped behavior changed. **Fuzzing:** oracle fix, no new lane.
