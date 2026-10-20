@@ -143,6 +143,53 @@ getRunTypeId<[number, string]>();
 	}
 }
 
+// sameTextLiterals pairs a string literal with the number / boolean / bigint literal spelled the same way.
+var sameTextLiterals = []struct{ str, other string }{
+	{`'0'`, `0`},
+	{`'1.5'`, `1.5`},
+	{`'true'`, `true`},
+	{`'1n'`, `1n`},
+}
+
+// TestStructural_StringLiteralNotDeduplicatedWithSameText — `'0'` and `0` once shared an id, so the
+// project-global cache handed whichever compiled first to both (validate(0) ran `v === '0'`).
+func TestStructural_StringLiteralNotDeduplicatedWithSameText(t *testing.T) {
+	for _, pair := range sameTextLiterals {
+		_, strNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
+getRunTypeId<`+pair.str+`>();
+`)
+		_, otherNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
+getRunTypeId<`+pair.other+`>();
+`)
+		if strNode.ID == otherNode.ID {
+			t.Errorf("%s and %s must not share an id, both got %q", pair.str, pair.other, strNode.ID)
+		}
+	}
+}
+
+// TestStructural_StringLiteralNotDeduplicatedWithSameText_ValueFirst — same pairs, T inferred from a const.
+func TestStructural_StringLiteralNotDeduplicatedWithSameText_ValueFirst(t *testing.T) {
+	for _, pair := range sameTextLiterals {
+		_, strNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
+const value = `+pair.str+` as const;
+getRunTypeId(value);
+`)
+		_, otherNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
+const value = `+pair.other+` as const;
+getRunTypeId(value);
+`)
+		if strNode.ID == otherNode.ID {
+			t.Errorf("%s and %s must not share an id, both got %q", pair.str, pair.other, strNode.ID)
+		}
+		_, staticNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
+getRunTypeId<`+pair.str+`>();
+`)
+		if strNode.ID != staticNode.ID {
+			t.Errorf("%s: value-first id %q must equal static id %q", pair.str, strNode.ID, staticNode.ID)
+		}
+	}
+}
+
 // TestStructural_ObjectPropertyOrderIndependent — two object types with the SAME
 // properties declared in a DIFFERENT order must produce the SAME structural id.
 // Object members are sorted by name before hashing (memberIDs → sort.Strings in
