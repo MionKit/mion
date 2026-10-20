@@ -43,7 +43,7 @@ const droppedBesideIndex: GeneratedType = {
   },
 };
 
-// Shrunk 2456381542: `{p0: (() => Date); [k: number]: null}`. p0 reflects as a method, DataOnly drops it.
+// Shrunk 2456381542: the function-typed p0 reflects as a method, so DataOnly drops it.
 const functionBesideIndex: GeneratedType = {
   decls: [],
   root: {
