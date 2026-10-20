@@ -3,7 +3,8 @@
 // of another kind (2357953336) or the same kind as an own throw (3823141169), and DataOnly keeping an optional
 // non-data member (2649564061, 3811392738) or a whole all-optional type (360858409). An O12 false positive: the
 // oracle's value copy flattened a DataView (3065189181), and a D4 one: a dropped member left in the mock faced
-// DataOnly<T>'s number index signature (982099663), and the same with a function-typed member (4151093482, 2456381542).
+// DataOnly<T>'s number index signature (982099663), the same with a function-typed member (4151093482, 2456381542)
+// and inside a Map value (339162220, 16959456).
 
 import {describe, expect, it} from 'vitest';
 import {openClient, compileType, hasBinary} from './typeFuzzHarness.ts';
@@ -12,7 +13,7 @@ import {NONDATA_GEN_OPTIONS, type GeneratedType} from '../core/typeGen.ts';
 
 const PINNED_SEEDS = [
   1680075118, 3063578975, 1528970412, 4181522326, 2357953336, 360858409, 2649564061, 3811392738, 3065189181, 982099663,
-  3823141169, 4151093482, 2456381542,
+  3823141169, 4151093482, 2456381542, 339162220, 16959456,
 ];
 
 const withSymbol: GeneratedType = {
@@ -75,6 +76,11 @@ describe('fuzz / diagnostics lane regressions', () => {
     ['a dropped member', droppedBesideIndex, {p2: /a/, 0: 'la', 1: 'lb'}],
     ['a function-typed member', functionBesideIndex, {p0: () => new Date(), 0: null, 1: null}],
     ['a function-typed member and a symbol key', functionBesideSymbolIndex, {p1: () => Symbol(), p2: 1n, 0: 'a'}],
+    [
+      'a function-typed member in a Map value',
+      {decls: [], root: {kind: 'map', key: {kind: 'string'}, value: functionBesideIndex.root}},
+      new Map([['k', {p0: () => new Date(), 0: null}]]),
+    ],
   ])(
     'DataOnly<T> accepts what the serializer makes of a value carrying %s',
     async (_label, gen, value) => {

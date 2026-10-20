@@ -58,3 +58,13 @@ Shrunk types: `{p1: () => symbol; p2: bigint; [k: number | symbol]: string}` (41
 - **Tests:** both seeds pinned in `diagnosticTruth.smoke.test.ts`, plus a shrunk-type test there (serializer
   output passes, raw value does not); a `dataOnlyView` unit test with a method member next to an index signature.
 - **Docs:** none, no shipped behavior changed. **Fuzzing:** oracle fix, no new lane.
+
+### Added during the build: Map and Set values
+
+Soaks on seeds `0x5eed0a17` and `0x7c3d9e21` hit the same D4 report one level down:
+`Map<string, {p0: () => [string]; p1: Map<number, "la" | "lb">; p2: (a0: "la" | "lb") => bigint; [k: number]: boolean}>`
+(339162220) and `Map<string, N1>` with a method and dropped members under N1's index signature (16959456).
+`dataOnlyView` left Map and Set contents as drawn. It now walks Map keys and values and Set items through their
+`arguments` types. Both seeds pinned, plus a Map case in the shrunk-type test and a Map/Set unit test.
+The review also made the view strip every method, made the members check flag a method `DataOnly<T>` keeps, and made
+report snapshots print function values (`JSON.stringify` hid the key behind this finding).

@@ -111,6 +111,35 @@ describe('dataOnlyOracle', () => {
     expect(dataOnlyView({fn: () => 1, 0: null}, klass(field, index), klass(index), noRefs)).toEqual({0: null});
   });
 
+  it('view: walks Map keys and values and Set items', () => {
+    const str = node(RunTypeKind.string);
+    const regexp = node(RunTypeKind.class, {subKind: RunTypeSubKind.nonSerializable, notSupported: true});
+    const arg = (child: RunType) => node(RunTypeKind.parameter, {child});
+    const collection = (subKind: number, ...args: RunType[]) => node(RunTypeKind.class, {subKind, arguments: args.map(arg)});
+    const withRe = object(prop('x', str), prop('re', regexp, {optional: true}));
+    const kept = object(prop('x', str));
+    const map = new Map([
+      [
+        {x: 'k', re: /k/},
+        {x: 'v', re: /v/},
+      ],
+    ]);
+    const mapView = dataOnlyView(
+      map,
+      collection(RunTypeSubKind.map, withRe, withRe),
+      collection(RunTypeSubKind.map, kept, kept),
+      noRefs
+    );
+    expect([...(mapView as Map<unknown, unknown>)]).toEqual([[{x: 'k'}, {x: 'v'}]]);
+    const setView = dataOnlyView(
+      new Set([{x: 'a', re: /a/}]),
+      collection(RunTypeSubKind.set, withRe),
+      collection(RunTypeSubKind.set, kept),
+      noRefs
+    );
+    expect([...(setView as Set<unknown>)]).toEqual([{x: 'a'}]);
+  });
+
   it('members: fires when DataOnly<T> keeps a method', () => {
     const fn = node(RunTypeKind.methodSignature, {name: 'fn'});
     expect(memberMismatches(object(fn), object(fn), noRefs)).toEqual(['$.fn is a method DataOnly<T> keeps']);
