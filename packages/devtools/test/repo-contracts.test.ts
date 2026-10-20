@@ -40,6 +40,8 @@ import {unusedExamples, UNUSED_EXCEPTIONS} from '../../../scripts/check-code-imp
 // @ts-expect-error — a plain .mjs repo script, no types.
 import {directiveFiles, failingDiagnostics} from '../../../scripts/core/lint-directives.mjs';
 import {ALL_RULE_NAMES} from '../src/lint/diagnosticRouting.ts';
+// @ts-expect-error — a plain .mjs repo script, no types.
+import {showsSameSize, sizeLabel} from '../../../scripts/website/gen-client-size.mjs';
 
 interface RegistryEntry {
   name: string;
@@ -1369,6 +1371,21 @@ describe('website-client-size', () => {
     // Sanity, not exactness: a zero means the generator fell back to nothing and the page claims the client is free.
     expect(size.client.gzipped).toBeGreaterThan(1000);
     expect(size.client.minified).toBeGreaterThan(size.client.gzipped);
+  });
+
+  // A version bump moved the gzipped size by 4 bytes without changing the shown 19.9 kB, and the
+  // exact-bytes check failed a release gate over it.
+  it('the release check passes while the page would show the same size', () => {
+    const committed = {minified: 61190, gzipped: 20408};
+    expect(showsSameSize({minified: 61190, gzipped: 20412}, committed)).toBe(true);
+    expect(showsSameSize({minified: 61190, gzipped: 20500}, committed)).toBe(false);
+    expect(showsSameSize({minified: 61400, gzipped: 20408}, committed)).toBe(false);
+    expect(showsSameSize(committed, null)).toBe(false);
+  });
+
+  it('the check and the component format the size the same way', () => {
+    expect(sizeLabel(20412)).toBe('19.9 kB');
+    expect(readFileSync(COMPONENT, 'utf8')).toContain('`${(bytes.value / 1024).toFixed(1)} kB`');
   });
 
   it('the component reads the generated file rather than a literal', () => {
