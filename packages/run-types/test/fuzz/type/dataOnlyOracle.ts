@@ -161,7 +161,19 @@ function stripDropped(value: unknown, type: RunType | undefined, dataOnly: RunTy
       );
     return;
   }
-  // Unions, Maps and Sets cannot pair their members, so their values are left as drawn.
+  if (value instanceof Map || value instanceof Set) {
+    if (typeNode.kind !== RunTypeKind.class || dataOnlyNode.subKind !== typeNode.subKind) return;
+    // `arguments` holds the key and value types of a Map, the item type of a Set.
+    const arg = (node: RunType, position: number) => deref(node.arguments?.[position], resolve)?.child;
+    if (value instanceof Set) for (const item of value) recurse(item, arg(typeNode, 0), arg(dataOnlyNode, 0));
+    else
+      for (const [key, item] of value) {
+        recurse(key, arg(typeNode, 0), arg(dataOnlyNode, 0));
+        recurse(item, arg(typeNode, 1), arg(dataOnlyNode, 1));
+      }
+    return;
+  }
+  // Unions cannot pair their members, so their values are left as drawn.
   if (!isObjectShape(typeNode) || !isObjectShape(dataOnlyNode)) return;
   const record = value as Record<string, unknown>;
   const declared = keptMembers(typeNode, resolve, false);
