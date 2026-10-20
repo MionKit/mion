@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-10-20
 ---
 
@@ -44,10 +44,9 @@ pnpm run check:builds   # rebuild the resolver first: a stale binary gives false
 MION_FUZZ_SEED=0x30b95e85 pnpm miondevx core fuzz nondata --soak
 ```
 
-Never re-roll the seed. The iteration seed `3823141169` should rebuild the single type faster if
-the lane supports a per-iteration replay. Check whether it predates the literal type id change
-(#509, `049c08e2e`/`e267491a7`): a cache entry shared between the validate and validation-errors
-families would explain a `validate-*` code surfacing from `getValidationErrors`.
+Never re-roll the seed. The soak is time-bound, so a rerun may stop before this type; the iteration seed
+`3823141169` rebuilds it alone (now pinned in `diagnosticTruth.smoke.test.ts`). The suspected cache entry shared
+between families was not the cause: see the plan below.
 
 ## Intent
 
@@ -64,7 +63,8 @@ Map value). At runtime a throwing entry throws when its parent materializes it, 
 decides the code: here the union's validate lookup. The `ArrayBuffer | SharedArrayBuffer` encoder case the
 filter was written for throws `validate-non-data-root` too, so the filter was wrong there as well.
 
-- `typefunctions/module.go`: report every throw a site reaches, own family or not. Drop the own/foreign filter.
+- `typefunctions/module.go`: report every throw a site reaches, own family or not. Drop the own/foreign filter;
+  `reachableFindings` returns the throws as diagnostics, since no caller needs the entries any more.
 - Go tests, both call shapes: flip `TestNestedThrow_OwnFamilyThrowWins_*` to require both codes; add a pair for the
   shrunk fuzz shape (validation-errors union with a `Set<SharedArrayBuffer>` member + a Map of the same kind).
 - Pin iteration seed `3823141169` in `diagnosticTruth.smoke.test.ts` (fails on the old binary with the soak's D1).
