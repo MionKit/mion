@@ -163,7 +163,6 @@ function stripDropped(value: unknown, type: RunType | undefined, dataOnly: RunTy
   }
   if (value instanceof Map || value instanceof Set) {
     if (typeNode.kind !== RunTypeKind.class || dataOnlyNode.subKind !== typeNode.subKind) return;
-    // `arguments` holds the key and value types of a Map, the item type of a Set.
     const arg = (node: RunType, position: number) => deref(node.arguments?.[position], resolve)?.child;
     if (value instanceof Set) for (const item of value) recurse(item, arg(typeNode, 0), arg(dataOnlyNode, 0));
     else
