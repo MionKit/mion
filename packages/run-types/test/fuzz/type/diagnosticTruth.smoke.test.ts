@@ -57,7 +57,7 @@ const functionBesideIndex: GeneratedType = {
   },
 };
 
-// Shrunk 4151093482: `{p1: () => symbol; p2: bigint; [k: number | symbol]: string}`.
+// Shrunk 4151093482.
 const functionBesideSymbolIndex: GeneratedType = {
   decls: [],
   root: {

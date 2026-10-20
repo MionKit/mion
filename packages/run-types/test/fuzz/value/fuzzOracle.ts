@@ -135,7 +135,7 @@ export interface Violation {
 
 const MAX_SNAPSHOT = 500;
 
-/** Render any value to a short, bigint/symbol-safe string for the report. **/
+/** Render any value to a short string for the report. **/
 export function snapshot(value: unknown): string {
   let text: string;
   try {
