@@ -21,15 +21,23 @@ our types and step list decide WHAT changed, drizzle-kit's code interface writes
 ```ts
 // builder form: alterTable() returns the AlterTable type, as pgTable() returns PgTable
 const users = pgTable('users', {name: text({notNull: true}), age: text(), bio: text()});
-const usersV2 = alterTable(users, {age: integer({notNull: true, default: [0]})}, {drop: ['bio']});
+const usersV2 = alterTable(users, {age: integer({notNull: true, default: [0]})}, {
+  drop: ['bio'],
+  // how existing rows get their new value: a sql expression, or a typed function over the old row
+  migrate: {age: sql`"age"::integer`},
+});
 
 // type form: the same type, written by hand; drop, then add or override by key
 type Users = PgTable<'users', {name: Text<{notNull: true}>; age: Text; bio: Text}>;
-type UsersV2 = AlterTable<Users, {age: Integer<{notNull: true; default: [0]}>}, {drop: ['bio']}>;
+type UsersV2 = AlterTable<
+  Users,
+  {age: Integer<{notNull: true; default: [0]}>},
+  {drop: ['bio']; migrate: {age: Sql<'"age"::integer'>}}
+>;
 
 export const history = migrations([
   step('0001_init', [Users, Posts]),
-  step('0002_age_int', [UsersV2], {using: {users: {age: '"age"::integer'}}}),
+  step('0002_age_int', [UsersV2]),
 ]);
 ```
 
@@ -66,8 +74,30 @@ The implementer plans the details. What was checked:
     `ALTER TABLE ... RENAME COLUMN` itself. An undeclared drop plus add in one table must be refused.
   - A type change plus a new default in the same step loses `SET DEFAULT` (the snapshot carries it; looks like a
     drizzle-kit bug). Needs a fix-up pass or a test that pins it.
-  - text to integer gets no `USING` cast, which postgres refuses. The step's `using` option supplies it.
-  - Data changes (backfill before a new not-null column) need a custom SQL step.
+  - text to integer gets no `USING` cast, which postgres refuses. The `migrate` option below supplies it.
+- **Column migrations ride on `alterTable()`.** A `migrate` option says how existing rows get each added or
+  changed column's value, so the change and its data move live in one place. Three kinds:
+  - a sql expression per column (`sql\`"age"::integer\``): becomes the `USING` cast or an `UPDATE ... SET`,
+    stays inside the generated SQL file, so drizzle's own `migrate()` still applies it;
+  - free custom sql statements before or after the schema change (backfills, data fixes);
+  - a typed function over the old row, `(row: InferSelectModel<Users>) => number`: type-checked against both
+    versions, but it can't live in a SQL file, so it needs our own runner (read and write in batches).
+  The type form can only spell the sql kinds (`Sql<'...'>`, literal text, the limit `Sql` already has). A
+  function has no type spelling: it rides the builder, or `tableFromType`'s `options.runtime`, as `$defaultFn`
+  does today. Open design question: `AlterTable` resolves to a plain table, which would drop the `migrate`
+  part on reflection, so that part has to survive somewhere the step list can read it.
+- **Phased changes (expand, then contract).** Changing a busy column safely usually takes several deploys: add the
+  new column next to the old one, keep both filled while existing rows are copied over, switch the app to the new
+  one, and only then drop the old one. drizzle-kit has no notion of this: it only compares two schema states, so
+  each phase is a separate hand-made migration, the backfill a `generate --custom` file or a script, and nothing
+  links the phases or stops the final drop from running before the copy is done. Direction for ours:
+  - a helper that turns one change into its two table versions, an `expand` table holding both columns and a
+    `contract` table holding only the new one, each placed in its own step;
+  - while expanded, both columns are kept in sync (a generated trigger, or the app writing both through the
+    `expand` type);
+  - the backfill runs in batches outside the migration transaction, its progress recorded in the runner's own
+    table, so it can resume, and shows how far along it is;
+  - the `contract` step refuses to run until the backfill finished and a check query finds no rows left to copy.
 - **Known limits of the type form.** Enum and custom columns are refused by the type walker (they need a runtime
   handle), so pg enums need a type spelling before they can be migrated this way.
 - **Output stays drizzle-compatible.** A `mion` command (generate + a `--check` that fails when the latest table
@@ -81,7 +111,7 @@ The implementer plans the details. What was checked:
 ## Docs
 
 `container/website/content/01.rpc/05.drizzle-orm/`: a new page for migrations from table versions (it has
-3+ sections of its own: versions, steps, generate and check). `06.schema-file.md` (existing section
+3+ sections of its own: versions, column migrations, phased changes, steps, generate and check). `06.schema-file.md` (existing section
 "Importing Types in Your App") gets a one-line pointer to it.
 
 Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagent) over every page and example
@@ -92,7 +122,9 @@ this change touched, review its report against the code, and commit it as its ow
 - `alterTable()` and `AlterTable` (all three dialects) give one plain table type from both forms, with type tests,
   equality tests and a measured type cost.
 - A step list over table versions generates the same SQL as drizzle-kit for the cases it gets right, plus
-  declared renames, `using` casts and custom SQL steps, with no terminal prompt anywhere.
+  declared renames, `migrate` expressions and custom SQL, with no terminal prompt anywhere.
+- A phased change runs expand, resumable batched backfill and contract, and contract is refused while rows are
+  still left to copy.
 - `--check` fails in CI when the latest table types and the last step disagree.
 - The generated files apply with drizzle's own `migrate()` against a real postgres in the drizzle e2e lane.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file,
