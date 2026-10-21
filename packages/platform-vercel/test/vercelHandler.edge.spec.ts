@@ -1,0 +1,179 @@
+/* ########
+ * 2025 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+import {describe, it, expect, beforeAll} from 'vitest';
+import {EdgeVM} from '@edge-runtime/vm';
+import {readFileSync} from 'fs';
+import {resolve} from 'path';
+import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
+
+/** All deps inlined + AOT caches. */
+const EDGE_BUNDLE_PATH = resolve(__dirname, '../../private-test-server/build/test-server-edge.js');
+
+/** Serialized response from inside the EdgeVM (avoids cross-context issues) */
+interface EdgeResponse {
+  status: number;
+  body: string;
+  headers: Record<string, string>;
+}
+
+/** Mirrors EdgeSetupOptions in the fixture, which rejects an unknown key, so drift fails the setup. */
+interface EdgeSetupOptions {
+  parser?: 'mutate' | 'clone';
+  responseHeaders?: Record<string, string>;
+}
+
+/** A hand written literal inside the evaluated string is never type checked; this object is. */
+function setupCall(options: EdgeSetupOptions = {}): string {
+  return `EdgeTestServer.setup(${JSON.stringify(options)})`;
+}
+
+/** Creates an EdgeVM with the test server bundle loaded */
+function createEdgeVM(): EdgeVM {
+  const bundleCode = readFileSync(EDGE_BUNDLE_PATH, 'utf-8');
+  return new EdgeVM({
+    initialCode: bundleCode,
+    // Vercel edge functions have access to process.env
+    extend: (context) => {
+      context.process = {env: {}};
+      return context;
+    },
+  });
+}
+
+/**
+ * Calls the handler inside the EdgeVM and returns serialized response data.
+ * Everything (Request construction, handler execution, Response reading)
+ * runs inside the edge runtime sandbox.
+ */
+async function callHandler(vm: EdgeVM, path: string, body: string, method = 'POST'): Promise<EdgeResponse> {
+  return vm.evaluate(`
+        (async () => {
+            const req = new Request('http://localhost${path}', {
+                method: '${method}',
+                body: ${JSON.stringify(body)},
+                headers: {'content-type': 'application/json'}
+            });
+            const res = await globalThis.handler.POST(req);
+            return {
+                status: res.status,
+                body: await res.text(),
+                headers: Object.fromEntries(res.headers.entries())
+            };
+        })()
+    `);
+}
+
+describe('vercel handler (edge runtime)', () => {
+  let vm: EdgeVM;
+
+  describe('with the default clone parser', () => {
+    beforeAll(async () => {
+      vm = createEdgeVM();
+      await vm.evaluate(setupCall());
+    });
+
+    it('should get an ok response from a route', async () => {
+      const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
+      const result = await callHandler(vm, '/api/getDate', JSON.stringify(requestData));
+      const parsedResponse = JSON.parse(result.body);
+
+      expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
+      expect(result.headers['content-type']).toEqual('application/json; charset=utf-8');
+      expect(result.headers['server']).toEqual('mionjs');
+    });
+
+    it('should get an error when sending invalid parameters', async () => {
+      const requestData = {getDate: ['NOT A DATE POINT']};
+      const result = await callHandler(vm, '/api/getDate', JSON.stringify(requestData));
+      const parsedResponse = JSON.parse(result.body);
+
+      const expectedError: PublicRpcError<'validation-error'> = {
+        'mion@isΣrrθr': true,
+        publicMessage: `Invalid params in 'getDate', validation failed.`,
+        type: 'validation-error',
+        errorData: {typeErrors: [{path: [0], expected: 'objectLiteral'}]},
+        statusCode: StatusCodes.UNEXPECTED_ERROR,
+      };
+      expect(parsedResponse[MION_ROUTES.thrownErrors]).toEqual({getDate: expectedError});
+      expect(result.headers['content-type']).toEqual('application/json; charset=utf-8');
+      expect(result.headers['server']).toEqual('mionjs');
+    });
+
+    it('should set response headers from route response', async () => {
+      const requestData = {};
+      const result = await callHandler(vm, '/api/updateHeaders', JSON.stringify(requestData));
+      const parsedResponse = JSON.parse(result.body);
+
+      expect(parsedResponse).toEqual({});
+      expect(result.headers['content-type']).toEqual('application/json; charset=utf-8');
+      expect(result.headers['server']).toEqual('my-server');
+      expect(result.headers['x-something']).toEqual('true');
+    });
+
+    it('should include default headers', async () => {
+      vm = createEdgeVM();
+      await vm.evaluate(setupCall({responseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'}}));
+
+      const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
+      const result = await callHandler(vm, '/api/getDate', JSON.stringify(requestData));
+      const parsedResponse = JSON.parse(result.body);
+
+      expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
+      expect(result.headers['x-app-name']).toEqual('MyApp');
+      expect(result.headers['x-instance-id']).toEqual('3089');
+      expect(result.headers['content-type']).toEqual('application/json; charset=utf-8');
+      expect(result.headers['server']).toEqual('mionjs');
+    });
+  });
+
+  describe('with the mutate parser', () => {
+    beforeAll(async () => {
+      vm = createEdgeVM();
+      await vm.evaluate(setupCall({parser: 'mutate'}));
+    });
+
+    // Only `mutate` keeps a key the type does not declare; every other strategy rebuilds the declared shape.
+    // `getDate` hands its own argument back, so the extra key reaching the wire proves the option applied.
+    it('should keep an undeclared key the clone parser would drop', async () => {
+      const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z'), extra: 'kept'}]};
+      const result = await callHandler(vm, '/api/getDate', JSON.stringify(requestData));
+      const parsedResponse = JSON.parse(result.body);
+
+      expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z', extra: 'kept'}});
+    });
+
+    it('should get an ok response from a route with Date objects', async () => {
+      const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
+      const result = await callHandler(vm, '/api/getDate', JSON.stringify(requestData));
+      const parsedResponse = JSON.parse(result.body);
+
+      expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
+      expect(result.headers['content-type']).toContain('application/json');
+      expect(result.headers['server']).toEqual('mionjs');
+    });
+
+    it('should get an ok response from a route with complex objects', async () => {
+      const requestData = {changeUserName: [{name: 'John', surname: 'Doe'}]};
+      const result = await callHandler(vm, '/api/changeUserName', JSON.stringify(requestData));
+      const parsedResponse = JSON.parse(result.body);
+
+      expect(parsedResponse).toEqual({changeUserName: {name: 'NewName', surname: 'Doe'}});
+      expect(result.headers['content-type']).toContain('application/json');
+      expect(result.headers['server']).toEqual('mionjs');
+    });
+  });
+
+  describe('setup options', () => {
+    it('should reject an option the fixture does not declare', async () => {
+      const vmWithBadSetup = createEdgeVM();
+      await expect(vmWithBadSetup.evaluate("EdgeTestServer.setup({encoder: 'direct'})")).rejects.toThrow(
+        /unknown setup option\(s\) encoder/
+      );
+    });
+  });
+});

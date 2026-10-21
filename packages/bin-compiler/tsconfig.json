@@ -1,0 +1,17 @@
+{
+  // Ships JavaScript behind a hand-written lib/index.d.ts, so checkJs is what checks it against its declarations.
+  // Not composite, so it stays out of the root tsconfig's references.
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "incremental": false,
+    "rootDir": "."
+  },
+  "include": ["bin", "lib"],
+  "exclude": ["node_modules"]
+}

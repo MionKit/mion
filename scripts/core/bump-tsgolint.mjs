@@ -5,14 +5,14 @@
 // WRITE the pin, and run the full Go + JS test gate. It never commits, tags, or
 // pushes — you review the moved pointer + pin and land (or revert) it yourself.
 //
-//   pnpm rtx core bump-tsgolint               # -> latest tsgolint release tag
-//   pnpm rtx core bump-tsgolint origin/main   # bleeding edge (unreleased main HEAD)
-//   pnpm rtx core bump-tsgolint v0.24.0       # a specific tag / branch / sha
-//   pnpm rtx core bump-tsgolint --skip-tests  # build only, skip the go + js suites
+//   pnpm miondevx core bump-tsgolint               # -> latest tsgolint release tag
+//   pnpm miondevx core bump-tsgolint origin/main   # bleeding edge (unreleased main HEAD)
+//   pnpm miondevx core bump-tsgolint v0.24.0       # a specific tag / branch / sha
+//   pnpm miondevx core bump-tsgolint --skip-tests  # build only, skip the go + js suites
 //
 // The submodule gitlink, ts-go-runtypes/tsgolint.pin.json (source of truth), and the
 // launcher's `tsgo` metadata all move together. Setup re-derives the working tree
-// from the pin via `pnpm rtx core ensure-tsgolint`.
+// from the pin via `pnpm miondevx core ensure-tsgolint`.
 //
 // The only step that can genuinely fail is patch re-application; the patches ride
 // inside the tsgolint repo and travel with the pinned rev, so they normally match
@@ -26,7 +26,7 @@ import {die, dim, green, info, note, red, reportCliError, run, success, warn, wh
 import {main as coreBuild} from './build.mjs';
 import {checkout, describe, ensurePatches, fetchTsgolint, headCommit, latestReleaseTag, PIN_FILE, readPin, rel, resolveCommit, shortCommit, submoduleInitialised, TSGO, writePin} from '../lib/tsgolint.mjs';
 
-const LAUNCHER_PKG = join(REPO_ROOT, 'packages/bin/package.json');
+const LAUNCHER_PKG = join(REPO_ROOT, 'packages/bin-compiler/package.json');
 
 const parseArgs = (argv) => ({rev: argv.find((arg) => !arg.startsWith('-')), skipTests: argv.includes('--skip-tests')});
 
@@ -42,7 +42,7 @@ function syncLauncherMetadata(sha) {
 
 function revertHint(beforeSha) {
   console.log(dim('  # revert (restore the previous pin, its patches, and the binary):'));
-  console.log(`  pnpm rtx core bump-tsgolint ${beforeSha}`);
+  console.log(`  pnpm miondevx core bump-tsgolint ${beforeSha}`);
 }
 
 function printSummary(state) {
@@ -61,7 +61,7 @@ function printSummary(state) {
   if (failed) console.log(red('One or more suites FAILED — do NOT commit. Investigate, or revert below.'));
   else console.log('Review the moved submodule pointer + pin, then land it:');
   console.log(dim('  # land'));
-  console.log('  git add ts-go-runtypes/third_party/tsgolint ts-go-runtypes/tsgolint.pin.json packages/bin/package.json');
+  console.log('  git add ts-go-runtypes/third_party/tsgolint ts-go-runtypes/tsgolint.pin.json packages/bin-compiler/package.json');
   console.log(`  git commit -m "chore: bump tsgolint to ${state.target}"`);
   revertHint(state.beforeSha);
   console.log('');
@@ -106,7 +106,7 @@ export function main(argv) {
     success(`Wrote pin ${rel(PIN_FILE)} -> ${describe()} (${shortCommit()}).`);
     syncLauncherMetadata(shortCommit());
 
-    info('Rebuilding bin/mion against the new typescript-go...');
+    info('Rebuilding mion-bin/mion against the new typescript-go...');
     coreBuild(['go']);
   } catch (err) {
     console.error(red('bump-tsgolint: the move failed against the new typescript-go (patch/API drift?).'));
@@ -119,8 +119,8 @@ export function main(argv) {
   if (skipTests) {
     warn('--skip-tests: skipping the Go + JS suites. Run them before you commit.');
   } else {
-    info('Running the Go suite (go test ./internal/...)...');
-    goOk = run('go', ['test', './internal/...'], {cwd: join(REPO_ROOT, 'ts-go-runtypes')}) === 0;
+    info('Running the Go suite (go test ./internal/... ./cmd/...)...');
+    goOk = run('go', ['test', './internal/...', './cmd/...'], {cwd: join(REPO_ROOT, 'ts-go-runtypes')}) === 0;
     info('Running the JS suite (pnpm test)...');
     jsOk = run('pnpm', ['test']) === 0;
   }

@@ -12,11 +12,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {afterEach, describe, expect, it} from 'vitest';
-import {getExePath} from '@mionjs/bin';
+import {getExePath} from '@mionjs/bin-compiler';
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
-const DEV_EXE = path.join(REPO_ROOT, 'bin', process.platform === 'win32' ? 'mion.exe' : 'mion');
-const CLI_PATH = path.join(REPO_ROOT, 'packages/bin/bin/cli.js');
+const DEV_EXE = path.join(REPO_ROOT, 'mion-bin', process.platform === 'win32' ? 'mion.exe' : 'mion');
+const CLI_PATH = path.join(REPO_ROOT, 'packages/bin-compiler/bin/cli.js');
 
 // The suite mutates process.env for the module under test (it reads the var on
 // every call, so no module reset is needed) — restore it after each case.
@@ -104,49 +104,5 @@ describe('mion CLI — MION_BIN reaches the exec', () => {
     });
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain('MION_BIN=');
-  });
-});
-
-// RT_BIN is the pre-rename spelling. It stays readable so an existing shell
-// profile / CI job / .env keeps working, but it warns: a path someone
-// deliberately set must never be silently dropped, because dropping it runs a
-// DIFFERENT binary than they asked for, whose version folds into every typeId.
-describe('getExePath — the deprecated RT_BIN still works, loudly', () => {
-  const originalLegacy = process.env['RT_BIN'];
-
-  function setLegacyBin(value: string | undefined): void {
-    if (value === undefined) delete process.env['RT_BIN'];
-    else process.env['RT_BIN'] = value;
-  }
-
-  afterEach(() => setLegacyBin(originalLegacy));
-
-  it('honours RT_BIN when MION_BIN is unset', () => {
-    setRtBin(undefined);
-    setLegacyBin(DEV_EXE);
-    expect(getExePath()).toBe(DEV_EXE);
-  });
-
-  it('lets MION_BIN win when both are set', () => {
-    const wrong = path.join(makeTempDir(), 'no-such-binary');
-    setRtBin(DEV_EXE);
-    setLegacyBin(wrong);
-    expect(getExePath()).toBe(DEV_EXE);
-  });
-
-  it('still validates the legacy path, so a typo fails loudly', () => {
-    setRtBin(undefined);
-    setLegacyBin(path.join(makeTempDir(), 'no-such-binary'));
-    expect(() => getExePath()).toThrow(/MION_BIN=.*does not exist/);
-  });
-
-  it('warns through the CLI, naming both the old and the new spelling', () => {
-    const result = spawnSync(process.execPath, [CLI_PATH, '--version'], {
-      encoding: 'utf8',
-      env: {...process.env, RT_BIN: DEV_EXE, MION_BIN: ''},
-    });
-    expect(result.status).toBe(0);
-    expect(result.stderr).toContain('RT_BIN');
-    expect(result.stderr).toContain('MION_BIN');
   });
 });

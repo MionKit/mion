@@ -17,8 +17,7 @@ import (
 // The merge collapses `f2` to its single surviving candidate (Date), but a
 // value belonging to the t2 member still carries `f2` (a symbol at runtime).
 // Without a guard the surviving Date codec is mis-applied to that foreign
-// value (`f2.toISOString()` crashes — G4); the binary side sets the bitmap
-// bit while writing nothing, desyncing the decoder (G3). The emit must guard
+// value (`f2.toISOString()` crashes — G4). The emit must guard
 // the surviving codec and DROP the key for a non-matching value.
 func buildStrippedMergedPropUnionFixture(strippedKind reflection.ReflectionKind) []*reflection.RunType {
 	date := &reflection.RunType{ID: "dat", Kind: reflection.KindClass, SubKind: reflection.SubKindDate}
@@ -47,7 +46,7 @@ func buildStrippedMergedPropUnionFixture(strippedKind reflection.ReflectionKind)
 // when the value does not match (it belongs to the stripped member). (G4)
 func TestPrepareForJsonModule_StrippedMergedPropDropsForeignValue(t *testing.T) {
 	dump := protocol.Dump{RunTypes: buildStrippedMergedPropUnionFixture(reflection.KindSymbol)}
-	out := renderModule(t, dump, "prepareForJson")
+	out := renderModule(t, dump, "prepareForJsonMutate")
 
 	if !strings.Contains(out, "else { delete v.f2 }") {
 		t.Errorf("expected guarded `else { delete v.f2 }` drop for a value from the stripped member; got:\n%s", out)
@@ -63,41 +62,15 @@ func TestPrepareForJsonModule_StrippedMergedPropDropsForeignValue(t *testing.T) 
 	}
 }
 
-// TestPrepareForJsonSafeModule_StrippedMergedPropGuardsPresence — the clone
+// TestPrepareForJsonCloneModule_StrippedMergedPropGuardsPresence — the clone
 // (default) encoder MUST fold a value check into the `f2 !== undefined`
 // presence test so the surviving codec runs only for a matching value. (G4)
-func TestPrepareForJsonSafeModule_StrippedMergedPropGuardsPresence(t *testing.T) {
+func TestPrepareForJsonCloneModule_StrippedMergedPropGuardsPresence(t *testing.T) {
 	dump := protocol.Dump{RunTypes: buildStrippedMergedPropUnionFixture(reflection.KindSymbol)}
-	out := renderModule(t, dump, "prepareForJsonSafe")
+	out := renderModule(t, dump, "prepareForJsonClone")
 
 	if !strings.Contains(out, "v.f2 !== undefined && (") {
 		t.Errorf("expected `v.f2 !== undefined && (` presence guard for the stripped sibling; got:\n%s", out)
-	}
-}
-
-// TestStringifyJsonModule_StrippedMergedPropDropsForeignValue — the direct
-// (single-pass) encoder MUST extend the drop condition so a foreign-typed
-// value emits no fragment for the merged prop. (G4)
-func TestStringifyJsonModule_StrippedMergedPropDropsForeignValue(t *testing.T) {
-	dump := protocol.Dump{RunTypes: buildStrippedMergedPropUnionFixture(reflection.KindSymbol)}
-	out := renderModule(t, dump, "stringifyJson")
-
-	if !strings.Contains(out, "|| !(") {
-		t.Errorf("expected `|| !(` drop guard on the stripped-sibling merged prop; got:\n%s", out)
-	}
-}
-
-// TestToBinaryModule_StrippedMergedPropDropsForeignValue — the binary
-// encoder MUST guard the optional-prop bit so a value from the stripped
-// member leaves the bit UNSET (decode skips it), instead of setting the bit
-// while the codec writes nothing and desyncs the decoder. (G3) Binary lane
-// gates on the binary build; the emit is rendered unconditionally here.
-func TestToBinaryModule_StrippedMergedPropDropsForeignValue(t *testing.T) {
-	dump := protocol.Dump{RunTypes: buildStrippedMergedPropUnionFixture(reflection.KindPromise)}
-	out := renderModule(t, dump, "toBinary")
-
-	if !strings.Contains(out, "v.f2 !== undefined && (") {
-		t.Errorf("expected `v.f2 !== undefined && (` guard on the binary optional-prop bit; got:\n%s", out)
 	}
 }
 
@@ -122,7 +95,7 @@ func TestMergedProp_CleanSiblingHasNoDrop(t *testing.T) {
 		SafeUnionChildren: []*reflection.RunType{makeRef("ob1"), makeRef("ob2")},
 	}
 	dump := protocol.Dump{RunTypes: []*reflection.RunType{date, number, litT1, litT2, kindT1, kindT2, f2Date, f2Num, obj1, obj2, union}}
-	out := renderModule(t, dump, "prepareForJson")
+	out := renderModule(t, dump, "prepareForJsonMutate")
 
 	if strings.Contains(out, "delete v.f2") {
 		t.Errorf("a clean (no stripped sibling) union must NOT emit a `delete v.f2` drop; got:\n%s", out)

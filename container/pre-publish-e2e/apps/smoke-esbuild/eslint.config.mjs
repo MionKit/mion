@@ -1,20 +1,8 @@
-// ESLint v9+ flat config wiring the RunTypes lint transport (the SAME module that
-// serves oxlint, here as an ESLint plugin). The transport, not the diagnostic
-// catalog, is under test: linting the caveat must surface an RT diagnostic.
-//
-// No `files` restriction so the config applies to whatever file eslint is told to
-// lint (the lint-transport test targets src/caveat.ts explicitly).
-//
-// settings.runtypes.tsconfig points the resolver at THIS app's tsconfig: the
-// linters run from the e2e root, so without it the resolver would search upward
-// from there and adopt some other project's config (or none). `tsconfig` and
-// `timeoutMs` are the only settings the plugin reads — the binary and the working
-// directory are resolved transparently, so passing them here would be a silent
-// no-op. In-container the binary comes from the published @mionjs/bin
-// launcher (exactly what the e2e proves); for host runs the spawner forwards
-// MION_E2E_BINARY to the launcher's MION_BIN env var (see ../../lint-all.mjs).
+// Tests the lint TRANSPORT, not the catalog. settings.mion.tsconfig is needed because the linters run from the e2e
+// root, where the resolver would adopt another project's config (or none). `mion/info` shows the caveat's skipped
+// member, an Info hidden by default. Host runs forward MION_E2E_BINARY to MION_BIN (see ../../lint-all.mjs).
 import {fileURLToPath} from 'node:url';
-import runtypes from '@mionjs/devtools/eslint';
+import mion from '@mionjs/devtools/eslint';
 import tsParser from '@typescript-eslint/parser';
 
 const appTsconfig = fileURLToPath(new URL('tsconfig.json', import.meta.url));
@@ -26,17 +14,13 @@ export default [
     // ESLint-on-TypeScript requirement (espree can't parse `interface`).
     files: ['**/*.ts'],
     languageOptions: {parser: tsParser},
-    plugins: {runtypes},
+    plugins: {mion},
     settings: {
-      runtypes: {
+      mion: {
         tsconfig: appTsconfig,
       },
     },
-    // The plugin's own recommended set, runtypes/* only (mion's @mionjs/* rules
-    // ride the mion consumer lane). Real rule names matter: ESLint reports an
-    // unknown rule as "Definition for rule 'runtypes/x' was not found", which
-    // contains the word the transport test greps for, so a stale name would
-    // pass the lane without ever loading the plugin. The test refuses that text.
-    rules: Object.fromEntries(Object.entries(runtypes.configs.recommended.rules).filter(([name]) => name.startsWith('runtypes/'))),
+    // Real rule names matter: an unknown one prints "Definition for rule 'mion/x' was not found", which says "mion".
+    rules: {...mion.configs.recommended.rules, 'mion/info': 'warn'},
   },
 ];

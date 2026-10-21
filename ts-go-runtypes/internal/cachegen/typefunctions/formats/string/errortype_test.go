@@ -38,7 +38,7 @@ func mustNotContain(t *testing.T, lane, got string, unwanted string) {
 func TestEmailRfc_ValidateComparesTheModeAgainstEmpty(t *testing.T) {
 	ctx := newCardStubCtx()
 	got := emailEmitter{}.EmitValidateCheck(annotationOf("email", map[string]any{"emailRfc": "ascii"}), "v", ctx)
-	mustContain(t, "validate", got, "pf_isEmailAddress(v,{idn:false})===''")
+	mustContain(t, "validate", got, "isEmailAddress(v,{idn:false})===''")
 }
 
 func TestEmailRfc_ErrorsLaneReportsThePart(t *testing.T) {
@@ -46,7 +46,7 @@ func TestEmailRfc_ErrorsLaneReportsThePart(t *testing.T) {
 	got := emailEmitter{}.EmitValidationErrorsCheck(annotationOf("email", map[string]any{"emailRfc": "unicode"}), "v", "pth", "er", ctx)
 	// One local holds the mode; the error carries it and keeps formatPath.
 	mustContain(t, "errors", got,
-		"const emMode0=pf_isEmailAddress(v,{idn:true})",
+		"const emMode0=isEmailAddress(v,{idn:true})",
 		"if (emMode0!=='')",
 		"formatPath:['emailRfc']",
 		"errorType:emMode0")
@@ -57,12 +57,12 @@ func TestEmailRfc_ErrorsLaneReportsThePart(t *testing.T) {
 func TestEmailRfc_LengthBoundFoldsInAsLength(t *testing.T) {
 	ctx := newCardStubCtx()
 	got := emailEmitter{}.EmitValidationErrorsCheck(annotationOf("email", map[string]any{"emailRfc": "ascii", "maxLength": 254.0}), "v", "pth", "er", ctx)
-	mustContain(t, "errors", got, "? pf_isEmailAddress(v,{idn:false}) : 'length'", "errorType:emMode0")
+	mustContain(t, "errors", got, "? isEmailAddress(v,{idn:false}) : 'length'", "errorType:emMode0")
 }
 
 // ── email, decomposition path ────────────────────────────────────────
 
-func TestEmailStrict_EachHalfNamesItself(t *testing.T) {
+func TestEmailParts_EachHalfNamesItself(t *testing.T) {
 	ctx := newCardStubCtx()
 	params := map[string]any{
 		"localPart": map[string]any{"maxLength": 64.0},
@@ -90,7 +90,7 @@ func TestEmailPattern_LeavesErrorTypeOff(t *testing.T) {
 func TestDomainIdna_ValidateComparesTheModeAgainstEmpty(t *testing.T) {
 	ctx := newCardStubCtx()
 	got := domainEmitter{}.EmitValidateCheck(annotationOf("domain", map[string]any{"idna": "ascii"}), "v", ctx)
-	mustContain(t, "validate", got, "pf_isIdnHostname(v,{idn:false})===''")
+	mustContain(t, "validate", got, "isIdnHostname(v,{idn:false})===''")
 }
 
 func TestDomainIdna_ErrorsLaneReportsTheRule(t *testing.T) {
@@ -98,14 +98,14 @@ func TestDomainIdna_ErrorsLaneReportsTheRule(t *testing.T) {
 	got := domainEmitter{}.EmitValidationErrorsCheck(annotationOf("domain", map[string]any{"idna": "unicode", "maxLength": 253.0}), "v", "pth", "er", ctx)
 	mustContain(t, "errors", got,
 		"const dnMode0=(",
-		"? pf_isIdnHostname(v,{idn:true}) : 'length'",
+		"? isIdnHostname(v,{idn:true}) : 'length'",
 		"if (dnMode0!=='')",
 		"formatPath:['idna'],val:true,errorType:dnMode0")
 }
 
 // ── domain, decomposition path ───────────────────────────────────────
 
-func TestDomainStrict_LabelsAndTldNameThemselves(t *testing.T) {
+func TestDomainParts_LabelsAndTldNameThemselves(t *testing.T) {
 	ctx := newCardStubCtx()
 	params := map[string]any{
 		"names":    map[string]any{"maxLength": 63.0},
@@ -117,13 +117,12 @@ func TestDomainStrict_LabelsAndTldNameThemselves(t *testing.T) {
 		`formatPath:['hyphen'],val:'name',errorType:"label"`,
 		`formatPath:['maxLength'],val:63,errorType:"label"`,
 		`formatPath:['minLength'],val:2,errorType:"tld"`)
-	// A whole-name bound names itself through formatPath and carries no part.
+	// A whole-name bound sets no errorType.
 	mustContain(t, "errors", got, "formatPath:['maxParts'],val:4}")
 }
 
-// Inside an email, the domain half's errors carry the `domain` format name;
-// its label / tld checks name themselves and its whole-domain bound stays bare.
-func TestEmailStrict_NestedDomainKeepsLabelAndTld(t *testing.T) {
+// The nested domain half keeps its label/tld errorType; its whole-domain bound stays bare.
+func TestEmailParts_NestedDomainKeepsLabelAndTld(t *testing.T) {
 	ctx := newCardStubCtx()
 	params := map[string]any{
 		"localPart": map[string]any{"minLength": 1.0},
@@ -145,7 +144,7 @@ func TestEmailStrict_NestedDomainKeepsLabelAndTld(t *testing.T) {
 func TestIp_ValidateComparesTheModeAgainstEmpty(t *testing.T) {
 	ctx := newCardStubCtx()
 	got := ipEmitter{}.EmitValidateCheck(annotationOf("ip", map[string]any{"version": "any"}), "v", ctx)
-	mustContain(t, "validate", got, "pf_isIPV4(v,", "==='' || pf_isIPV6(v,", "==='')")
+	mustContain(t, "validate", got, "isIPV4(v,", "==='' || isIPV6(v,", "==='')")
 }
 
 // Without allowPort there is exactly one way to fail: no errorType, no local.
@@ -153,14 +152,14 @@ func TestIp_NoPortLeavesErrorTypeOff(t *testing.T) {
 	ctx := newCardStubCtx()
 	got := ipEmitter{}.EmitValidationErrorsCheck(annotationOf("ip", map[string]any{"version": 4.0}), "v", "pth", "er", ctx)
 	mustNotContain(t, "errors", got, "errorType")
-	mustContain(t, "errors", got, "if (!(pf_isIPV4(v,", "formatPath:['version'],val:4}")
+	mustContain(t, "errors", got, "if (!(isIPV4(v,", "formatPath:['version'],val:4}")
 }
 
 func TestIpWithPort_PinnedVersionReportsTheMode(t *testing.T) {
 	ctx := newCardStubCtx()
 	got := ipEmitter{}.EmitValidationErrorsCheck(annotationOf("ip", map[string]any{"version": 6.0, "allowPort": true}), "v", "pth", "er", ctx)
 	mustContain(t, "errors", got,
-		"const ipMode0=pf_isIPV6(v,",
+		"const ipMode0=isIPV6(v,",
 		"if (ipMode0!=='')",
 		"formatPath:['version'],val:6,errorType:ipMode0")
 }
@@ -170,8 +169,8 @@ func TestIpWithPort_AnyVersionLetsPortWin(t *testing.T) {
 	ctx := newCardStubCtx()
 	got := ipEmitter{}.EmitValidationErrorsCheck(annotationOf("ip", map[string]any{"version": "any", "allowPort": true}), "v", "pth", "er", ctx)
 	mustContain(t, "errors", got,
-		"const ipMode40=pf_isIPV4(v,",
-		"const ipMode60=ipMode40==='' ? '' : pf_isIPV6(v,",
+		"const ipMode40=isIPV4(v,",
+		"const ipMode60=ipMode40==='' ? '' : isIPV6(v,",
 		"ipMode40==='port' || ipMode60==='port' ? 'port' : 'address'",
 		"formatPath:['version'],val:'any',errorType:ipMode0")
 }

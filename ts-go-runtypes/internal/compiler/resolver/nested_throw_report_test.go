@@ -1,0 +1,469 @@
+package resolver_test
+
+import (
+	"encoding/json"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/diskcache"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
+)
+
+// A site calling an always-throw entry reports its root code, though it never named the failing type.
+// Paired static / value tests per the Marker test coverage rule.
+
+const nestedThrowShared = `export interface Inner { s: symbol[] }
+export class Counter { #count = 0; label = ''; }
+const tag = Symbol('tag');
+export interface Tagged { id: string; [tag]: string }
+export interface Button { label: string; onClick: () => void }
+`
+
+const nestedThrowImports = `import {createValidateFn, createGetValidationErrorsFn, createJsonEncoderFn, createJsonDecoderFn, createRemoveUnknownKeysFn} from '@mionjs/run-types';
+import type {Inner, Tagged, Button} from './shared.ts';
+import {Counter} from './shared.ts';
+`
+
+func nestedThrowSources(site string) map[string]string {
+	return map[string]string{"shared.ts": nestedThrowShared, "site.ts": nestedThrowImports + site + "\n"}
+}
+
+func expectReportedOnceAtSite(t *testing.T, response protocol.Response, code string) {
+	t.Helper()
+	sites := diagSitesFor(response, code)
+	if len(sites) != 1 || sites[0] != "site.ts" {
+		t.Errorf("%s must report once at the outer site, got %v; codes=%v", code, sites, codesOf(response))
+	}
+}
+
+func assertNestedThrow(t *testing.T, code, site string) {
+	t.Helper()
+	expectReportedOnceAtSite(t, wholeProgram(t, nestedThrowSources(site)), code)
+}
+
+func TestNestedThrow_Validate_Static(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeVLSymbolRoot, `export const check = createValidateFn<{inner: Inner}>();`)
+}
+
+func TestNestedThrow_Validate_Value(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeVLSymbolRoot, `declare const value: {inner: Inner};
+export const check = createValidateFn(value);`)
+}
+
+func TestNestedThrow_ValidationErrors_Static(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeVESymbolRoot, `export const errors = createGetValidationErrorsFn<{inner: Inner}>();`)
+}
+
+func TestNestedThrow_ValidationErrors_Value(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeVESymbolRoot, `declare const value: {inner: Inner};
+export const errors = createGetValidationErrorsFn(value);`)
+}
+
+func TestNestedThrow_EncoderClone_Static(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodePJSSymbolRoot, `export const encode = createJsonEncoderFn<{inner: Inner}>();`)
+}
+
+func TestNestedThrow_EncoderClone_Value(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodePJSSymbolRoot, `declare const value: {inner: Inner};
+export const encode = createJsonEncoderFn(value);`)
+}
+
+func TestNestedThrow_EncoderMutate_Static(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodePJSymbolRoot, `export const encode = createJsonEncoderFn<{inner: Inner}>(undefined, {strategy: 'mutate'});`)
+}
+
+func TestNestedThrow_EncoderMutate_Value(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodePJSymbolRoot, `declare const value: {inner: Inner};
+export const encode = createJsonEncoderFn(value, {strategy: 'mutate'});`)
+}
+
+func TestNestedThrow_Decoder_Static(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeRJSymbolRoot, `export const decode = createJsonDecoderFn<{inner: Inner}>();`)
+}
+
+func TestNestedThrow_Decoder_Value(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeRJSymbolRoot, `declare const value: {inner: Inner};
+export const decode = createJsonDecoderFn(value);`)
+}
+
+func TestNestedThrow_RemoveUnknownKeysPrivateFields_Static(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeRUKPrivateFields, `export const strip = createRemoveUnknownKeysFn<{counter: Counter}>();`)
+}
+
+func TestNestedThrow_RemoveUnknownKeysPrivateFields_Value(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeRUKPrivateFields, `declare const value: {counter: Counter};
+export const strip = createRemoveUnknownKeysFn(value);`)
+}
+
+func TestNestedThrow_RemoveUnknownKeysTwoDeep_Static(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeRUKPrivateFields, `interface Holder { counter: Counter }
+export const strip = createRemoveUnknownKeysFn<{holder: Holder}>();`)
+}
+
+func TestNestedThrow_RemoveUnknownKeysTwoDeep_Value(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeRUKPrivateFields, `interface Holder { counter: Counter }
+declare const value: {holder: Holder};
+export const strip = createRemoveUnknownKeysFn(value);`)
+}
+
+func TestNestedThrow_RemoveUnknownKeysSymbolKey_Static(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeRUKSymbolKeyedMember, `export const strip = createRemoveUnknownKeysFn<{tagged: Tagged}>();`)
+}
+
+func TestNestedThrow_RemoveUnknownKeysSymbolKey_Value(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeRUKSymbolKeyedMember, `declare const value: {tagged: Tagged};
+export const strip = createRemoveUnknownKeysFn(value);`)
+}
+
+func TestNestedThrow_RemoveUnknownKeysShareMode_Static(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeRUKPrivateFields, `export const strip = createRemoveUnknownKeysFn<{counter: Counter}>(undefined, {sharedValues: 'share'});`)
+}
+
+func TestNestedThrow_RemoveUnknownKeysShareMode_Value(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeRUKPrivateFields, `declare const value: {counter: Counter};
+export const strip = createRemoveUnknownKeysFn(value, {sharedValues: 'share'});`)
+}
+
+func TestNestedThrow_RemoveUnknownKeysRefused_Static(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeRUKSharedRefused, `export const strip = createRemoveUnknownKeysFn<{button: Button}>(undefined, {sharedValues: 'refuse'});`)
+}
+
+func TestNestedThrow_RemoveUnknownKeysRefused_Value(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeRUKSharedRefused, `declare const value: {button: Button};
+export const strip = createRemoveUnknownKeysFn(value, {sharedValues: 'refuse'});`)
+}
+
+// A site that reaches the failing type through a family that does not call it stays quiet.
+func TestNestedThrow_OtherFamilySiteStaysQuiet(t *testing.T) {
+	response := wholeProgram(t, nestedThrowSources(`export const check = createValidateFn<{counter: Counter}>();`))
+	if sites := diagSitesFor(response, diagnostics.CodeRUKPrivateFields); len(sites) != 0 {
+		t.Errorf("a validator must not report the copy's refusal, got %v", sites)
+	}
+}
+
+// generateTwice builds cold, then again with every entry read from the first build's disk cache.
+func generateTwice(t *testing.T, sources map[string]string) (cold, warm protocol.Response) {
+	t.Helper()
+	cacheDir := t.TempDir()
+	withCache := func(_ *program.Options, resolverOpts *resolver.Options) {
+		resolverOpts.CacheDir = cacheDir
+	}
+	generate := func() protocol.Response {
+		response := setupInlineWith(t, sources, withCache).Dispatch(protocol.Request{Op: protocol.OpGenerate})
+		if response.Error != "" {
+			t.Fatalf("generate: %s", response.Error)
+		}
+		return response
+	}
+	cold = generate()
+	if cachedEntryCount(t, cacheDir) == 0 {
+		t.Fatalf("the cold build persisted no entry, so the warm build would not read from disk")
+	}
+	written := cacheFiles(t, cacheDir)
+	warm = generate()
+	// A miss renders again and rewrites its file through a rename, so a new inode means the warm build walked it.
+	for path, before := range written {
+		if after, err := os.Stat(path); err != nil || !os.SameFile(before, after) {
+			t.Fatalf("the warm build missed the cache for %s", path)
+		}
+	}
+	return cold, warm
+}
+
+func cacheFiles(t *testing.T, root string) map[string]fs.FileInfo {
+	t.Helper()
+	files := map[string]fs.FileInfo{}
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil || entry.IsDir() {
+			return err
+		}
+		info, err := os.Stat(path)
+		files[path] = info
+		return err
+	})
+	if err != nil {
+		t.Fatalf("walking %s: %v", root, err)
+	}
+	return files
+}
+
+func warmNestedThrow(t *testing.T, code, site string) {
+	t.Helper()
+	cold, warm := generateTwice(t, nestedThrowSources(site))
+	expectReportedOnceAtSite(t, cold, code)
+	expectReportedOnceAtSite(t, warm, code)
+}
+
+func cachedEntryCount(t *testing.T, root string) int {
+	t.Helper()
+	count := 0
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil || entry.IsDir() || !strings.HasSuffix(path, ".json") {
+			return err
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		var cached diskcache.RTEntry
+		if json.Unmarshal(raw, &cached) == nil && cached.ArgsText != "" {
+			count++
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walking %s: %v", root, err)
+	}
+	return count
+}
+
+// The throwing entry is never persisted, so a warm build must still reach it from the cached outer entry.
+func TestNestedThrow_WarmDiskCache_Static(t *testing.T) {
+	warmNestedThrow(t, diagnostics.CodeRUKPrivateFields, `export const strip = createRemoveUnknownKeysFn<{counter: Counter}>();`)
+}
+
+func TestNestedThrow_WarmDiskCache_Value(t *testing.T) {
+	warmNestedThrow(t, diagnostics.CodeRUKPrivateFields, `declare const value: {counter: Counter};
+export const strip = createRemoveUnknownKeysFn(value);`)
+}
+
+func TestNestedThrow_WarmDiskCacheValidate_Static(t *testing.T) {
+	warmNestedThrow(t, diagnostics.CodeVLSymbolRoot, `export const check = createValidateFn<{inner: Inner}>();`)
+}
+
+func TestNestedThrow_WarmDiskCacheValidate_Value(t *testing.T) {
+	warmNestedThrow(t, diagnostics.CodeVLSymbolRoot, `declare const value: {inner: Inner};
+export const check = createValidateFn(value);`)
+}
+
+// A union arm that delegates to the validate entry of its union throws through that entry, a family the site never named.
+func TestNestedThrow_ValidationErrorsUnionThroughValidate_Static(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeVLSymbolRoot, `export const errors = createGetValidationErrorsFn<{u: symbol[] | string}>();`)
+}
+
+func TestNestedThrow_ValidationErrorsUnionThroughValidate_Value(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeVLSymbolRoot, `declare const value: {u: symbol[] | string};
+export const errors = createGetValidationErrorsFn(value);`)
+}
+
+func TestNestedThrow_StrictValidationErrorsUnionThroughValidate_Static(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeVLSymbolRoot, `export const errors = createGetValidationErrorsFn<{u: symbol[] | string}>(undefined, {checkUnknowns: true});`)
+}
+
+func TestNestedThrow_StrictValidationErrorsUnionThroughValidate_Value(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeVLSymbolRoot, `declare const value: {u: symbol[] | string};
+export const errors = createGetValidationErrorsFn(value, {checkUnknowns: true});`)
+}
+
+func TestNestedThrow_UnionKeysValidationErrorsUnionThroughValidate_Static(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeVLSymbolRoot, `export const errors = createGetValidationErrorsFn<{u: symbol[] | string}>(undefined, {checkUnionUnknowns: true});`)
+}
+
+func TestNestedThrow_UnionKeysValidationErrorsUnionThroughValidate_Value(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeVLSymbolRoot, `declare const value: {u: symbol[] | string};
+export const errors = createGetValidationErrorsFn(value, {checkUnionUnknowns: true});`)
+}
+
+func TestNestedThrow_RemoveUnknownKeysUnionThroughValidate_Static(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeVLSymbolRoot, `export const strip = createRemoveUnknownKeysFn<{u: symbol[] | string}>();`)
+}
+
+func TestNestedThrow_RemoveUnknownKeysUnionThroughValidate_Value(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeVLSymbolRoot, `declare const value: {u: symbol[] | string};
+export const strip = createRemoveUnknownKeysFn(value);`)
+}
+
+func TestNestedThrow_WarmDiskCacheCrossFamily_Static(t *testing.T) {
+	warmNestedThrow(t, diagnostics.CodeVLSymbolRoot, `export const errors = createGetValidationErrorsFn<{u: symbol[] | string}>();`)
+}
+
+func TestNestedThrow_WarmDiskCacheCrossFamily_Value(t *testing.T) {
+	warmNestedThrow(t, diagnostics.CodeVLSymbolRoot, `declare const value: {u: symbol[] | string};
+export const errors = createGetValidationErrorsFn(value);`)
+}
+
+// A validationErrors union takes its verdict from the validate entry of the union, so that entry's drops are the site's.
+func TestAdoptedFinding_ValidationErrorsUnionMemberDropped_Static(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeVLUnionMemberDropped, `export const errors = createGetValidationErrorsFn<{u: symbol | string}>();`)
+}
+
+func TestAdoptedFinding_ValidationErrorsUnionMemberDropped_Value(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeVLUnionMemberDropped, `declare const value: {u: symbol | string};
+export const errors = createGetValidationErrorsFn(value);`)
+}
+
+func TestAdoptedFinding_StrictValidationErrorsSymbolKeyInUnion_Static(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeVLSymbolKeyedDropped, `export const errors = createGetValidationErrorsFn<{u: Tagged | string}>(undefined, {checkUnknowns: true});`)
+}
+
+func TestAdoptedFinding_StrictValidationErrorsSymbolKeyInUnion_Value(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodeVLSymbolKeyedDropped, `declare const value: {u: Tagged | string};
+export const errors = createGetValidationErrorsFn(value, {checkUnknowns: true});`)
+}
+
+func TestAdoptedFinding_WarmDiskCache_Static(t *testing.T) {
+	warmNestedThrow(t, diagnostics.CodeVLUnionMemberDropped, `export const errors = createGetValidationErrorsFn<{u: symbol | string}>();`)
+}
+
+func TestAdoptedFinding_WarmDiskCache_Value(t *testing.T) {
+	warmNestedThrow(t, diagnostics.CodeVLUnionMemberDropped, `declare const value: {u: symbol | string};
+export const errors = createGetValidationErrorsFn(value);`)
+}
+
+// A removeUnknownKeys union also calls the validate entry, but only to pick a member: validate's drops are not its own.
+func TestAdoptedFinding_RemoveUnknownKeysDoesNotAdopt(t *testing.T) {
+	response := wholeProgram(t, nestedThrowSources(`export const strip = createRemoveUnknownKeysFn<{u: Tagged | string}>();`))
+	if sites := diagSitesFor(response, diagnostics.CodeVLSymbolKeyedDropped); len(sites) != 0 {
+		t.Errorf("removeUnknownKeys must not report validate's drop, got %v", sites)
+	}
+}
+
+// A JSON union runs validate to pick its member, so validate's throw fires first: report it even beside a same-kind own one.
+const nativeUnionSite = `type NativeUnion = ArrayBuffer | SharedArrayBuffer;
+interface HasNativeUnion { x: NativeUnion; y: number }
+`
+
+func TestNestedThrow_ForeignThrowOfSameKindIsReported_Static(t *testing.T) {
+	response := wholeProgram(t, nestedThrowSources(nativeUnionSite+`export const encode = createJsonEncoderFn<HasNativeUnion>();`))
+	expectReportedOnceAtSite(t, response, diagnostics.CodePJSNonSerializableRoot)
+	expectReportedOnceAtSite(t, response, diagnostics.CodeVLNonSerializableRoot)
+}
+
+func TestNestedThrow_ForeignThrowOfSameKindIsReported_Value(t *testing.T) {
+	response := wholeProgram(t, nestedThrowSources(nativeUnionSite+`declare const value: HasNativeUnion;
+export const encode = createJsonEncoderFn(value);`))
+	expectReportedOnceAtSite(t, response, diagnostics.CodePJSNonSerializableRoot)
+	expectReportedOnceAtSite(t, response, diagnostics.CodeVLNonSerializableRoot)
+}
+
+// Nondata fuzz iteration seed 3823141169: validate throws first at the union's Set member; the own same-kind throw is at the Map.
+const sameKindElsewhereSite = `type Members = {k: 'a'; s: Set<SharedArrayBuffer>} | {k: 'b'};
+interface SameKindElsewhere { u: Members; m?: Map<string, SharedArrayBuffer> }
+`
+
+func TestNestedThrow_ForeignThrowOfSameKindElsewhereIsReported_Static(t *testing.T) {
+	response := wholeProgram(t, nestedThrowSources(sameKindElsewhereSite+`export const errors = createGetValidationErrorsFn<SameKindElsewhere>();`))
+	expectReportedOnceAtSite(t, response, diagnostics.CodeVENonSerializableRoot)
+	expectReportedOnceAtSite(t, response, diagnostics.CodeVLNonSerializableRoot)
+}
+
+func TestNestedThrow_ForeignThrowOfSameKindElsewhereIsReported_Value(t *testing.T) {
+	response := wholeProgram(t, nestedThrowSources(sameKindElsewhereSite+`declare const value: SameKindElsewhere;
+export const errors = createGetValidationErrorsFn(value);`))
+	expectReportedOnceAtSite(t, response, diagnostics.CodeVENonSerializableRoot)
+	expectReportedOnceAtSite(t, response, diagnostics.CodeVLNonSerializableRoot)
+}
+
+// The in-place encoder proves `Tagged` needs no work and leaves it out of the body, yet its dropped symbol key is still news.
+func TestElidedChildFinding_MutateEncoder_Static(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodePJSymbolKeyedDropped, `export const encode = createJsonEncoderFn<{tags: Tagged[]}>(undefined, {strategy: 'mutate'});`)
+}
+
+func TestElidedChildFinding_MutateEncoder_Value(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodePJSymbolKeyedDropped, `declare const value: {tags: Tagged[]};
+export const encode = createJsonEncoderFn(value, {strategy: 'mutate'});`)
+}
+
+func TestElidedChildFinding_WarmDiskCache_Static(t *testing.T) {
+	warmNestedThrow(t, diagnostics.CodePJSymbolKeyedDropped, `export const encode = createJsonEncoderFn<{tags: Tagged[]}>(undefined, {strategy: 'mutate'});`)
+}
+
+func TestElidedChildFinding_WarmDiskCache_Value(t *testing.T) {
+	warmNestedThrow(t, diagnostics.CodePJSymbolKeyedDropped, `declare const value: {tags: Tagged[]};
+export const encode = createJsonEncoderFn(value, {strategy: 'mutate'});`)
+}
+
+// A site hears what its function reaches, not its type: `Tagged` rendered for another file stays silent at the union site.
+func leakSources(other, site string) map[string]string {
+	sources := nestedThrowSources(site)
+	sources["other.ts"] = nestedThrowImports + other + "\n"
+	return sources
+}
+
+func expectNotLeaked(t *testing.T, response protocol.Response, leaked string) {
+	t.Helper()
+	for _, file := range diagSitesFor(response, leaked) {
+		if file == "site.ts" {
+			t.Errorf("%s reached site.ts through an entry its function never calls; codes=%v", leaked, codesOf(response))
+		}
+	}
+}
+
+func assertNotLeaked(t *testing.T, other, site, leaked string) {
+	t.Helper()
+	expectNotLeaked(t, wholeProgram(t, leakSources(other, site)), leaked)
+}
+
+// A cache hit replays its findings too, so it must replay them at the same sites.
+func assertNotLeakedWarm(t *testing.T, other, site, leaked string) {
+	t.Helper()
+	cold, warm := generateTwice(t, leakSources(other, site))
+	expectNotLeaked(t, cold, leaked)
+	expectNotLeaked(t, warm, leaked)
+	if len(diagSitesFor(warm, leaked)) == 0 {
+		t.Errorf("%s must still reach other.ts on a warm build; codes=%v", leaked, codesOf(warm))
+	}
+}
+
+const (
+	leakOtherValidationErrors = `export const direct = createGetValidationErrorsFn<{t: Tagged}>();`
+	leakSiteValidationErrors  = `export const errors = createGetValidationErrorsFn<{u: Tagged | string}>();`
+	leakValueValidationErrors = `declare const value: {u: Tagged | string};
+export const errors = createGetValidationErrorsFn(value);`
+	leakOtherRemoveUnknownKeys = `export const direct = createRemoveUnknownKeysFn<{t: Tagged}>();`
+	leakSiteRemoveUnknownKeys  = `export const strip = createRemoveUnknownKeysFn<{u: Tagged | string}>();`
+	leakValueRemoveUnknownKeys = `declare const value: {u: Tagged | string};
+export const strip = createRemoveUnknownKeysFn(value);`
+)
+
+func TestUncalledEntryFinding_ValidationErrorsUnion_Static(t *testing.T) {
+	assertNotLeaked(t, leakOtherValidationErrors, leakSiteValidationErrors, diagnostics.CodeVESymbolKeyedDropped)
+}
+
+func TestUncalledEntryFinding_ValidationErrorsUnion_Value(t *testing.T) {
+	assertNotLeaked(t, leakOtherValidationErrors, leakValueValidationErrors, diagnostics.CodeVESymbolKeyedDropped)
+}
+
+func TestUncalledEntryFinding_RemoveUnknownKeysUnion_Static(t *testing.T) {
+	assertNotLeaked(t, leakOtherRemoveUnknownKeys, leakSiteRemoveUnknownKeys, diagnostics.CodeRUKSymbolKeyedMember)
+}
+
+func TestUncalledEntryFinding_RemoveUnknownKeysUnion_Value(t *testing.T) {
+	assertNotLeaked(t, leakOtherRemoveUnknownKeys, leakValueRemoveUnknownKeys, diagnostics.CodeRUKSymbolKeyedMember)
+}
+
+func TestUncalledEntryFinding_WarmDiskCache_Static(t *testing.T) {
+	assertNotLeakedWarm(t, leakOtherValidationErrors, leakSiteValidationErrors, diagnostics.CodeVESymbolKeyedDropped)
+}
+
+func TestUncalledEntryFinding_WarmDiskCache_Value(t *testing.T) {
+	assertNotLeakedWarm(t, leakOtherValidationErrors, leakValueValidationErrors, diagnostics.CodeVESymbolKeyedDropped)
+}
+
+// A union's object member drops its methods with the same note a standalone object gives.
+func TestUnionMemberMethodDropped_Static(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodePJSMethodDropped, `export const encode = createJsonEncoderFn<{u: {m(): void; a: string} | string}>();`)
+}
+
+func TestUnionMemberMethodDropped_Value(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodePJSMethodDropped, `declare const value: {u: {m(): void; a: string} | string};
+export const encode = createJsonEncoderFn(value);`)
+}
+
+// A named class is its own union arm; only an unnamed one is merged, which is where its statics drop.
+func TestUnionMemberStaticDropped_Static(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodePJSStaticDropped, `const Anon = class { static s = 1; a = ''; };
+export const encode = createJsonEncoderFn<{u: InstanceType<typeof Anon> | string}>();`)
+}
+
+func TestUnionMemberStaticDropped_Value(t *testing.T) {
+	assertNestedThrow(t, diagnostics.CodePJSStaticDropped, `const Anon = class { static s = 1; a = ''; };
+declare const value: {u: InstanceType<typeof Anon> | string};
+export const encode = createJsonEncoderFn(value);`)
+}

@@ -1,38 +1,37 @@
-// Type-level regression guard for the InjectTypeFnArgs fn-key arity.
-//
-// markers.ts widened the marker from a fixed three keys to `F1`…`F12` (a TS type
-// alias cannot be variadic, so this generous fixed arity stands in for "any
-// list"). Every devtools / resolver / third-party test resolves an INDEPENDENT
-// overlay copy of the marker, so none of them would catch a narrowing of the
-// real `@mionjs/run-types` type. This file does: it resolves the marker from the
-// package's own `src/index.ts` via the `source` exports condition (the marker
-// package's `tsconfig.test.json` sets `customConditions: ["source"]`), so
-// narrowing `markers.ts` below the arity below fails `pnpm --filter
-// @mionjs/run-types typecheck:test` — which `pnpm run typecheck` and CI run.
+// Type-level guard for the InjectTypeFnArgs fn-key arity: markers.ts stands `F1`…`F12` in for "any list"
+// because a TS alias cannot be variadic. Every other test resolves an INDEPENDENT overlay copy of the marker,
+// so only this file catches a narrowing of the real `@mionjs/run-types` type: it reaches src/index.ts through
+// the `source` condition the package tsconfig declares, so a narrowing fails `typecheck:test` and CI.
 import {describe, expect, it} from 'vitest';
 import type {InjectTypeFnArgs} from '@mionjs/run-types';
 
-// SIX distinct families — comfortably past the retired three-key cap. If
-// markers.ts is narrowed below six type parameters, this alias reports
-// "Expected N type arguments, but got 7" and the typecheck fails.
-type SixFamilyMarker = InjectTypeFnArgs<{id: number}, 'verr', 'jsonDecoder', 'jsonEncoder', 'huk', 'suk', 'uke'>;
+// Six families: if markers.ts takes fewer, this reports "Expected N type arguments, but got 7".
+type SixFamilyMarker = InjectTypeFnArgs<
+  {id: number},
+  'validationErrors',
+  'jsonDecoder',
+  'jsonEncoder',
+  'validateStrict',
+  'removeUnknownKeys',
+  'validationErrorsStrict'
+>;
 
 // A twelve-family alias pins the current F12 cap boundary (all distinct). It is
 // well beyond any realistic marker but proves the full declared arity resolves.
 type TwelveFamilyMarker = InjectTypeFnArgs<
   {id: number},
-  'val',
-  'verr',
+  'validate',
+  'validationErrors',
   'jsonDecoder',
   'jsonEncoder',
-  'huk',
-  'suk',
-  'uke',
-  'uku',
-  'fmt',
-  'tb',
-  'fb',
-  'pj'
+  'validateStrict',
+  'removeUnknownKeys',
+  'validationErrorsStrict',
+  'restoreFromJsonClone',
+  'formatTransform',
+  'compactForJson',
+  'compactFromJson',
+  'prepareForJsonMutate'
 >;
 
 // Instantiate the aliases so the arity is actually checked (a bare unused type

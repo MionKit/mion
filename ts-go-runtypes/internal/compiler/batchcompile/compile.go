@@ -1,28 +1,15 @@
-// Package batchcompile is the tsc-style compile CLI: it reads a project's files,
-// applies the mion call-site rewrite, runs tsgo's Emit to produce real
-// JavaScript, composes the two source maps so breakpoints land on the ORIGINAL
-// TypeScript, and writes the generated cache modules to disk. One command that
-// behaves like a compile pass — no bundler, no IPC.
-//
-// Two passes over two Programs:
-//
-//  1. The ORIGINAL program (from tsconfig) is scanned for markers; OpTransform
-//     with an empty OutDir yields, per marker file, the rewritten source (still
-//     carrying `rtmod:/…` specifiers) and map A (rewritten → original).
-//     OpGenerate writes the cache modules.
-//  2. A SECOND program is built with the rewritten sources OVERLAID at the same
-//     paths (so tsgo's real tsconfig compiler options — target/module/outDir/
-//     sourceMap — still apply), then Emit()'d. Each emitted .js has its
-//     `rtmod:/…` imports relativized to the cache dir, and each emitted
-//     .js.map (map B: js → rewritten) is composed with map A into js → original.
-//
-// Emit has no custom-transformer hook, hence the two-pass + compose approach.
+// Package batchcompile is the tsc-style compile CLI, no bundler and no IPC: it applies the mion call-site
+// rewrite, runs tsgo's Emit for real JavaScript, and composes the two source maps so breakpoints land on the
+// ORIGINAL TypeScript. Emit has no custom-transformer hook, hence two passes: pass 1 scans the tsconfig
+// program, transforms it keeping the `rtmod:/…` specifiers (map A: rewritten → original) and generates the
+// cache modules; pass 2 builds a second program with those sources OVERLAID at the same paths (so the real
+// tsconfig options still apply), emits it, relativizes the specifiers and composes map B (js → rewritten)
+// with map A.
 package batchcompile
 
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -30,20 +17,21 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/compiler"
+	"github.com/microsoft/typescript-go/shim/core"
+	"github.com/microsoft/typescript-go/shim/scanner"
+	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/sourcerewrite"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// emitCapture collects the files tsgo emits. Emit runs its per-file work in a
-// PARALLEL work group, so WriteFile is invoked from several goroutines at once
-// and the map MUST be guarded: an unsynchronized write here is not a benign
-// race but a fatal "concurrent map writes" runtime error that kills the whole
-// compile, which is how it surfaced (an intermittent `convert-cli` panic under
-// full-suite load).
+// emitCapture collects the files tsgo emits. Emit runs its per-file work in a PARALLEL group, so the map
+// MUST be guarded: an unsynchronized write is a fatal "concurrent map writes" crash of the whole compile.
 type emitCapture struct {
 	mu    sync.Mutex
 	files map[string]string
@@ -59,27 +47,38 @@ func (capture *emitCapture) add(fileName, text string) {
 	capture.files[fileName] = text
 }
 
-// Options configures a compile run. Cwd + TsconfigPath locate the project;
-// GenDir is where the generated cache modules land (the emitted .js import
-// them by a relative path). ResolverOpts carries the compiler knobs (emitMode,
-// moduleMode, hashLength, …) exactly as the plugin/CLI merge them.
+// Options configures a compile run; GenDir is where the cache modules land (the emitted .js import them by
+// a relative path) and ResolverOpts carries the compiler knobs exactly as the plugin / CLI merge them.
 type Options struct {
 	Cwd          string
 	TsconfigPath string
 	GenDir       string
 	ResolverOpts resolver.Options
-	// NoEmit runs a diagnostics-only pass (compile --no-emit): the Pass-1 OpDump
-	// scan computes the RunType-family diagnostics in memory, then Run returns them
-	// WITHOUT OpTransform / OpGenerate / Pass 2 — nothing is written. Mirrors tsc
-	// --noEmit.
+	// NoEmit stops after the pass-1 scan and returns its diagnostics; nothing is written. Mirrors tsc --noEmit.
 	NoEmit bool
+	// DeclarationsOnly returns the .d.ts in Result.Declarations and writes no output file.
+	// The gen dir is still written, so a caller wanting no trace passes a temp GenDir.
+	DeclarationsOnly bool
+	// DeclarationDir is where DeclarationsOnly lays the .d.ts out: absolute, required, never written.
+	DeclarationDir string
 }
 
 // Result reports what a compile run produced.
 type Result struct {
-	EmittedFiles []string // absolute paths of the .js files written
+	EmittedFiles []string // absolute paths of the .js files written (the .ts sources in emitMode ts)
 	Caches       []string // generated cache-module basenames
 	Diagnostics  []diagnostics.Diagnostic
+	// TypeDiagnostics are TypeScript's own diagnostics, already rendered as tsc prints them.
+	TypeDiagnostics []string
+	// TypeEntries are the same diagnostics for the grouped log, in the same order.
+	TypeEntries    []diagnostics.GroupedEntry
+	TypeErrorCount int
+	CheckedFiles   int // non-declaration source files the scan read
+	// Declarations (DeclarationsOnly) holds each emitted .d.ts by absolute path under DeclarationDir.
+	Declarations map[string]string
+	// PureFnArtifact is the package's `mion-pure-fns/` content, path inside the directory to text.
+	PureFnArtifact map[string]string
+	GenDir         string
 }
 
 // Run executes the compile. See the package doc for the two-pass model.
@@ -90,7 +89,7 @@ func Run(opts Options) (*Result, error) {
 	}
 	genDir := opts.GenDir
 	if genDir == "" {
-		genDir = filepath.Join(cwd, "__runtypes")
+		genDir = filepath.Join(cwd, ".mion")
 	}
 	genDir, err = filepath.Abs(genDir)
 	if err != nil {
@@ -98,14 +97,22 @@ func Run(opts Options) (*Result, error) {
 	}
 
 	// ── Pass 1: original program, scan, rewrite, generate caches ──────────────
-	// The output root is session config now: set it BEFORE resolver.New so
-	// OpGenerate's resolveOutDir lands on the same dir the emit step uses.
-	// TransformRelative stays false — pass 1 keeps the virtual rtmod:
-	// specifiers and the EMITTED .js is relativized later (see below).
+	// The output root is session config, so set it BEFORE resolver.New: OpGenerate's resolveOutDir must land on
+	// the dir the emit step uses. TransformRelative stays false so pass 1 keeps the virtual rtmod: specifiers.
 	resolverOpts := opts.ResolverOpts
 	resolverOpts.GenDir = genDir
 
-	p1, err := program.New(program.Options{Cwd: cwd, TsconfigPath: opts.TsconfigPath})
+	var overrides *core.CompilerOptions
+	if opts.DeclarationsOnly {
+		if opts.DeclarationDir == "" {
+			return nil, fmt.Errorf("compile: DeclarationsOnly needs a DeclarationDir")
+		}
+		overrides = &core.CompilerOptions{
+			Declaration: core.TSTrue, EmitDeclarationOnly: core.TSTrue, DeclarationMap: core.TSFalse,
+			NoEmit: core.TSFalse, DeclarationDir: opts.DeclarationDir,
+		}
+	}
+	p1, err := program.New(program.Options{Cwd: cwd, TsconfigPath: opts.TsconfigPath, Overrides: overrides})
 	if err != nil {
 		return nil, fmt.Errorf("compile: program: %w", err)
 	}
@@ -117,29 +124,73 @@ func Run(opts Options) (*Result, error) {
 
 	result := &Result{}
 
-	// Whole-program dump scans every file and returns one site per rewrite point;
-	// the unique files are exactly those that need the overlay.
+	// The unique files of a whole-program dump are exactly those that need the overlay.
 	dump := r1.Dispatch(protocol.Request{Op: protocol.OpDump})
 	if dump.Error != "" {
 		return nil, fmt.Errorf("compile: dump: %s", dump.Error)
 	}
 	result.Diagnostics = append(result.Diagnostics, dump.Diagnostics...)
+	for _, sourceFile := range p1.TS.SourceFiles() {
+		if sourceFile != nil && !sourceFile.IsDeclarationFile {
+			result.CheckedFiles++
+		}
+	}
 
-	// compile --no-emit: the OpDump above already ran the full scan +
-	// collectEntryModules + RunType-family diagnostics in memory. Return them and
-	// skip OpTransform / OpGenerate / Pass 2 — nothing is written to disk.
+	// The ORIGINAL program, never the overlaid one: its rewritten imports point at rtmod: modules TypeScript cannot resolve.
+	result.TypeDiagnostics, result.TypeEntries, result.TypeErrorCount = typeDiagnostics(p1.TS, cwd)
+
+	// The OpDump above already ran the full scan and its diagnostics in memory, so nothing more is needed.
 	if opts.NoEmit {
+		return result, nil
+	}
+	// Same as tsc, and the cache modules are skipped too.
+	if result.TypeErrorCount > 0 && p1.TS.Options().NoEmitOnError.IsTrue() {
+		return result, nil
+	}
+
+	var tsOutDir, tsSrcDir string
+	if resolverOpts.EmitMode.EmitsTypes() {
+		if tsOutDir, tsSrcDir, err = typeScriptTreeDirs(p1, cwd); err != nil {
+			return nil, err
+		}
+	}
+
+	// Generate BEFORE the transform: generate's SiteFiles is the COMPLETE rewrite set where the dump lists
+	// marker sites alone, so a file whose only rewrite is a batch id would otherwise be emitted untouched.
+	gen := r1.Dispatch(protocol.Request{Op: protocol.OpGenerate})
+	if gen.Error != "" {
+		return nil, fmt.Errorf("compile: generate: %s", gen.Error)
+	}
+	result.Caches = gen.Generated
+	result.Diagnostics = append(result.Diagnostics, gen.Diagnostics...)
+	if gen.OutDir != "" {
+		genDir = gen.OutDir
+	}
+	result.GenDir, result.PureFnArtifact = genDir, gen.PureFnArtifact
+	// The value splices and the private-to-protected pass apply as in a full emit.
+	if opts.DeclarationsOnly {
+		capture := newEmitCapture()
+		writeDeclaration := func(fileName, text string, _ *compiler.WriteFileData) error {
+			if strings.HasSuffix(fileName, ".d.ts") {
+				capture.add(filepath.Clean(fileName), text)
+			}
+			return nil
+		}
+		if _, err := emitDeclarationFiles(cwd, opts.TsconfigPath, p1, overrides, r1.DeclarationReplacements(), writeDeclaration); err != nil {
+			return nil, err
+		}
+		result.Declarations = capture.files
 		return result, nil
 	}
 
 	markerFiles := uniqueFiles(dump.Sites, dump.Replacements)
+	markerFiles = unionFiles(markerFiles, gen.SiteFiles)
 
 	rewrittenByAbs := make(map[string]string, len(markerFiles))
 	mapAByAbs := make(map[string]*protocol.SourceMap, len(markerFiles))
 	if len(markerFiles) > 0 {
-		// TransformRelative is off for this session, so the rtmod: specifiers
-		// survive — we relativize the EMITTED .js later, against its output
-		// location, not the source.
+		// TransformRelative is off, so the rtmod: specifiers survive; the EMITTED .js is relativized later,
+		// against its output location rather than the source.
 		tr := r1.Dispatch(protocol.Request{Op: protocol.OpTransform, Files: markerFiles})
 		if tr.Error != "" {
 			return nil, fmt.Errorf("compile: transform: %s", tr.Error)
@@ -155,15 +206,8 @@ func Run(opts Options) (*Result, error) {
 		}
 	}
 
-	// Generate the cache modules to <genDir>/types.
-	gen := r1.Dispatch(protocol.Request{Op: protocol.OpGenerate})
-	if gen.Error != "" {
-		return nil, fmt.Errorf("compile: generate: %s", gen.Error)
-	}
-	result.Caches = gen.Generated
-	result.Diagnostics = append(result.Diagnostics, gen.Diagnostics...)
-	if gen.OutDir != "" {
-		genDir = gen.OutDir
+	if resolverOpts.EmitMode.EmitsTypes() {
+		return writeTypeScriptTree(result, p1, cwd, genDir, tsOutDir, tsSrcDir, rewrittenByAbs, resolverOpts.EmitMode, gen.PureFnArtifact)
 	}
 
 	// ── Pass 2: overlaid program, emit, relativize + compose ──────────────────
@@ -172,37 +216,64 @@ func Run(opts Options) (*Result, error) {
 		return nil, fmt.Errorf("compile: overlay program: %w", err)
 	}
 
-	// Capture every emitted file; tsgo calls WriteFile INSTEAD of writing to
-	// disk, so we transform the bytes before writing them ourselves.
+	// tsgo calls WriteFile INSTEAD of writing to disk, so the bytes are transformed before we write them.
 	capture := newEmitCapture()
-	emitResult := p2.TS.Emit(context.Background(), compiler.EmitOptions{
-		WriteFile: func(fileName, text string, _ *compiler.WriteFileData) error {
-			capture.add(fileName, text)
-			return nil
-		},
-	})
-	if emitResult != nil && emitResult.EmitSkipped {
-		return nil, errors.New("compile: tsgo emit was skipped")
+	writeFile := func(fileName, text string, _ *compiler.WriteFileData) error {
+		capture.add(fileName, text)
+		return nil
+	}
+	emitDeclarations := p2.TS.Options().GetEmitDeclarations()
+	emitOnly := compiler.EmitAll
+	if emitDeclarations {
+		emitOnly = compiler.EmitOnlyJs
+	}
+	emitResult := p2.TS.Emit(context.Background(), compiler.EmitOptions{EmitOnly: emitOnly, WriteFile: writeFile})
+	if err := emitSkipped("emit", emitResult, cwd); err != nil {
+		return nil, err
+	}
+	declarationMapByAbs := map[string]*protocol.SourceMap{}
+	if emitDeclarations {
+		if declarationMapByAbs, err = emitDeclarationFiles(cwd, opts.TsconfigPath, p1, nil, r1.DeclarationReplacements(), writeFile); err != nil {
+			return nil, err
+		}
 	}
 
-	// Process outputs into a new map so we never mutate while ranging.
+	// A new map, so nothing is mutated while ranging.
 	final := make(map[string]string, len(capture.files))
 	for outPath, text := range capture.files {
 		switch {
 		case strings.HasSuffix(outPath, ".js.map"):
 			final[outPath] = composeEmittedMap(text, outPath, mapAByAbs)
+		case strings.HasSuffix(outPath, ".d.ts.map"):
+			final[outPath] = composeEmittedMap(text, outPath, declarationMapByAbs)
 		case strings.HasSuffix(outPath, ".js"):
-			// The rtmod: specifiers survived emit unresolved; relativize them
-			// against THIS output file's location to the cache dir. Same-line
-			// string edits on the import block (which maps to nothing), so the
-			// composed map stays valid.
-			final[outPath] = resolver.RelativizeUserImports(outPath, genDir, text)
+			// The rtmod: specifiers survived emit unresolved. Same-line string edits on the import block,
+			// which maps to nothing, so the composed map stays valid.
+			final[outPath] = resolver.RelativizeUserImports(outPath, genDir, text, resolverOpts.EmitMode)
 		default:
 			final[outPath] = text
 		}
 	}
 
-	// Write everything.
+	// Inside outDir only. A program can reach files outside its rootDir, and tsgo puts their emit beside their
+	// own sources, littering another project with .js files. tsc refuses such a program (TS6059) and so does
+	// this lane: an error per output and nothing written for it, never a warning, since the importer that IS
+	// written would point at a file that never lands.
+	outDir := ""
+	if configured := p2.TS.Options().OutDir; configured != "" {
+		outDir = tspath.ResolvePath(cwd, configured)
+	}
+	outsideOutDir := make([]string, 0)
+	for outPath := range final {
+		if outDir != "" && !isWithinDir(outDir, outPath) {
+			outsideOutDir = append(outsideOutDir, outPath)
+		}
+	}
+	sort.Strings(outsideOutDir)
+	for _, outPath := range outsideOutDir {
+		delete(final, outPath)
+		result.Diagnostics = append(result.Diagnostics, diagnostics.New(diagnostics.CodeEmitOutsideRootDir, diagnostics.Site{FilePath: outPath}, outPath, outDir))
+	}
 	for outPath, text := range final {
 		if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
 			return nil, fmt.Errorf("compile: mkdir %s: %w", outPath, err)
@@ -215,14 +286,107 @@ func Run(opts Options) (*Result, error) {
 		}
 	}
 	sort.Strings(result.EmittedFiles)
+	// Next to the emit, where `files: ["dist"]` publishes it.
+	if outDir != "" {
+		if err := resolver.SyncArtifactDir(filepath.Join(outDir, constants.PureFnArtifactDir), gen.PureFnArtifact); err != nil {
+			return nil, fmt.Errorf("compile: %w", err)
+		}
+	}
 	return result, nil
 }
 
-// composeEmittedMap composes an emitted .js.map (map B: js → rewritten) with the
-// corresponding map A (rewritten → original) so the final map points at the
-// user's original source. If the map's source file has no rewrite (a non-marker
-// file), or can't be parsed/correlated, the emitted map is returned unchanged
-// (it is already js → original for un-rewritten files).
+// typeDiagnostics renders each diagnostic tsc reports the way tsc prints it without --pretty.
+func typeDiagnostics(tsProgram *compiler.Program, cwd string) ([]string, []diagnostics.GroupedEntry, int) {
+	ctx := context.Background()
+	found := compiler.GetDiagnosticsOfAnyProgram(ctx, tsProgram, nil, false, tsProgram.GetBindDiagnostics, tsProgram.GetSemanticDiagnostics)
+	return renderDiagnostics(found, cwd)
+}
+
+// emitSkipped names why tsgo skipped an emit, or nil when it did not.
+func emitSkipped(stage string, result *compiler.EmitResult, cwd string) error {
+	return emitSkippedAt(stage, result, cwd, nil)
+}
+
+// emitSkippedAt is emitSkipped with locate moving each position from an overlay back to the source as written.
+func emitSkippedAt(stage string, result *compiler.EmitResult, cwd string, locate diagnosticLocator) error {
+	if result == nil || !result.EmitSkipped {
+		return nil
+	}
+	lines, _, _ := renderDiagnosticsAt(result.Diagnostics, cwd, locate)
+	if len(lines) == 0 {
+		return fmt.Errorf("compile: tsgo %s was skipped", stage)
+	}
+	return fmt.Errorf("compile: tsgo %s was skipped:\n%s", stage, strings.Join(lines, "\n"))
+}
+
+// renderDiagnostics formats diagnostics as tsc prints them without --pretty.
+func renderDiagnostics(found []*ast.Diagnostic, cwd string) ([]string, []diagnostics.GroupedEntry, int) {
+	return renderDiagnosticsAt(found, cwd, nil)
+}
+
+// diagnosticLocator moves a position in an overlaid file to the file and position the user wrote.
+type diagnosticLocator func(file *ast.SourceFile, pos int) (*ast.SourceFile, int)
+
+func renderDiagnosticsAt(found []*ast.Diagnostic, cwd string, locate diagnosticLocator) ([]string, []diagnostics.GroupedEntry, int) {
+	found = compiler.SortAndDeduplicateDiagnostics(found)
+	lines := make([]string, 0, len(found))
+	entries := make([]diagnostics.GroupedEntry, 0, len(found))
+	errorCount := 0
+	for _, diagnostic := range found {
+		category := diagnostic.Category().Name()
+		entry := diagnostics.GroupedEntry{Severity: diagnostics.SeverityInfo, Name: fmt.Sprintf("TS%d", diagnostic.Code())}
+		switch category {
+		case "error":
+			errorCount++
+			entry.Severity = diagnostics.SeverityError
+		case "warning":
+			entry.Severity = diagnostics.SeverityWarning
+		}
+		var builder strings.Builder
+		if file := diagnostic.File(); file != nil {
+			pos := diagnostic.Pos()
+			if locate != nil {
+				file, pos = locate(file, pos)
+			}
+			line, character := scanner.GetECMALineAndUTF16CharacterOfPosition(file, pos)
+			fileName := file.FileName()
+			if rel, err := filepath.Rel(cwd, fileName); err == nil && !strings.HasPrefix(rel, "..") {
+				fileName = filepath.ToSlash(rel)
+			}
+			fmt.Fprintf(&builder, "%s(%d,%d): ", fileName, line+1, int(character)+1)
+			entry.Site = diagnostics.Site{FilePath: fileName, StartLine: line + 1, StartCol: int(character) + 1}
+		}
+		fmt.Fprintf(&builder, "%s TS%d: ", category, diagnostic.Code())
+		messageStart := builder.Len()
+		builder.WriteString(diagnostic.String())
+		writeMessageChain(&builder, diagnostic.MessageChain(), 1)
+		entry.Template = builder.String()[messageStart:]
+		lines = append(lines, builder.String())
+		entries = append(entries, entry)
+	}
+	return lines, entries, errorCount
+}
+
+// writeMessageChain appends the nested detail lines, indented as tsc indents them.
+func writeMessageChain(builder *strings.Builder, chain []*ast.Diagnostic, level int) {
+	for _, link := range chain {
+		builder.WriteString("\n" + strings.Repeat("  ", level) + link.String())
+		writeMessageChain(builder, link.MessageChain(), level+1)
+	}
+}
+
+// isWithinDir reports whether target sits under dir, or is dir itself, on cleaned absolute paths.
+func isWithinDir(dir, target string) bool {
+	rel, err := filepath.Rel(filepath.Clean(dir), filepath.Clean(target))
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
+}
+
+// composeEmittedMap composes map B (js → rewritten) with map A (rewritten → original) so the final map
+// points at the user's source. An un-rewritten or uncorrelatable map is returned unchanged, being js →
+// original already.
 func composeEmittedMap(text, mapPath string, mapAByAbs map[string]*protocol.SourceMap) string {
 	var mapB protocol.SourceMap
 	if err := json.Unmarshal([]byte(text), &mapB); err != nil || len(mapB.Sources) == 0 {
@@ -234,8 +398,8 @@ func composeEmittedMap(text, mapPath string, mapAByAbs map[string]*protocol.Sour
 		return text // un-rewritten file: js → original already
 	}
 	composed := sourcerewrite.ComposeMaps(mapA, &mapB)
-	// Map A carried the ABSOLUTE source path; tsc convention is a path relative
-	// to the .map file (portable when the output dir moves). Match it.
+	// Map A carried the ABSOLUTE source path; tsc's convention is relative to the .map file, so it moves with
+	// the output dir.
 	if len(composed.Sources) == 1 && filepath.IsAbs(composed.Sources[0]) {
 		if rel, relErr := filepath.Rel(filepath.Dir(mapPath), composed.Sources[0]); relErr == nil {
 			composed.Sources[0] = filepath.ToSlash(rel)
@@ -248,9 +412,7 @@ func composeEmittedMap(text, mapPath string, mapAByAbs map[string]*protocol.Sour
 	return string(encoded)
 }
 
-// resolveMapSource resolves a source-map `sources[0]` entry (relative to the map
-// file's directory) to an absolute, cleaned path so it can be matched against
-// the rewrite table (keyed by absolute source path).
+// resolveMapSource makes a `sources[0]` entry absolute and cleaned, the key the rewrite table uses.
 func resolveMapSource(source, mapPath string) string {
 	if filepath.IsAbs(source) {
 		return filepath.Clean(source)
@@ -258,8 +420,7 @@ func resolveMapSource(source, mapPath string) string {
 	return filepath.Clean(filepath.Join(filepath.Dir(mapPath), filepath.FromSlash(source)))
 }
 
-// uniqueFiles collects the distinct source files touched by sites + pure-fn
-// replacements, resolved to absolute paths (they need the overlay).
+// uniqueFiles collects the distinct source files sites and replacements touch: the ones needing the overlay.
 func uniqueFiles(sites []protocol.Site, replacements []protocol.Replacement) []string {
 	seen := make(map[string]bool)
 	var files []string
@@ -278,6 +439,21 @@ func uniqueFiles(sites []protocol.Site, replacements []protocol.Replacement) []s
 	}
 	sort.Strings(files)
 	return files
+}
+
+// unionFiles merges two sorted-unique file lists into one, sorted.
+func unionFiles(a, b []string) []string {
+	seen := make(map[string]bool, len(a)+len(b))
+	out := make([]string, 0, len(a)+len(b))
+	for _, file := range append(append([]string(nil), a...), b...) {
+		if file == "" || seen[file] {
+			continue
+		}
+		seen[file] = true
+		out = append(out, file)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // absOf resolves a possibly-relative file path against cwd.

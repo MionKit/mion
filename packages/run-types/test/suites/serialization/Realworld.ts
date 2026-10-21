@@ -1,5 +1,5 @@
 import * as TF from '@mionjs/run-types/formats';
-import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
+import {createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
 import * as RT from '@mionjs/run-types/builders';
 import type {SerializationCase} from './types.ts';
 
@@ -8,7 +8,7 @@ import type {SerializationCase} from './types.ts';
 // suite table lines up case-for-case with the benchmark. The module interfaces are the
 // single source of truth; each case's `cloneEncoder` (the strategy the docs render)
 // redeclares its type INLINE so the doc-gen extracts a real, self-contained snippet,
-// while the rest reference the module interfaces. Every shape is fully JSON / binary
+// while the rest reference the module interfaces. Every shape is fully JSON
 // serializable, so round-trips are symmetric (no `deserializedValues`).
 
 interface User {
@@ -182,7 +182,6 @@ export const REALWORLD = {
       return createJsonEncoderFn<User>(undefined, {strategy: 'clone'});
     },
     mutateEncoder: () => createJsonEncoderFn<User>(undefined, {strategy: 'mutate'}),
-    directEncoder: () => createJsonEncoderFn<User>(undefined, {strategy: 'direct'}),
     compactEncoder: () => {
       interface User {
         id: number;
@@ -195,15 +194,11 @@ export const REALWORLD = {
       }
       return createJsonEncoderFn<User>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => createJsonDecoderFn<User>(),
-    preserveDecoder: () => createJsonDecoderFn<User>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<User>(),
+    mutateDecoder: () => createJsonDecoderFn<User>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<User>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<User>(),
-    binaryDecoder: () => createBinaryDecoderFn<User>(),
     schemaEncoder: () => createJsonEncoderFn(userSchema()),
     schemaDecoder: () => createJsonDecoderFn(userSchema()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(userSchema()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(userSchema()),
     getTestData: () => ({values: [sampleUser(), sampleUser({age: 30, roles: ['admin', 'editor']})]}),
   },
 
@@ -237,7 +232,6 @@ export const REALWORLD = {
       return createJsonEncoderFn<Order>(undefined, {strategy: 'clone'});
     },
     mutateEncoder: () => createJsonEncoderFn<Order>(undefined, {strategy: 'mutate'}),
-    directEncoder: () => createJsonEncoderFn<Order>(undefined, {strategy: 'direct'}),
     compactEncoder: () => {
       interface OrderItem {
         sku: string;
@@ -263,15 +257,11 @@ export const REALWORLD = {
       }
       return createJsonEncoderFn<Order>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => createJsonDecoderFn<Order>(),
-    preserveDecoder: () => createJsonDecoderFn<Order>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<Order>(),
+    mutateDecoder: () => createJsonDecoderFn<Order>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<Order>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<Order>(),
-    binaryDecoder: () => createBinaryDecoderFn<Order>(),
     schemaEncoder: () => createJsonEncoderFn(orderSchema()),
     schemaDecoder: () => createJsonDecoderFn(orderSchema()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(orderSchema()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(orderSchema()),
     getTestData: () => {
       const ok = makeOrder();
       return {values: [ok, {...ok, note: 'gift', status: 'shipped' as const}]};
@@ -297,7 +287,6 @@ export const REALWORLD = {
       return createJsonEncoderFn<BlogPost>(undefined, {strategy: 'clone'});
     },
     mutateEncoder: () => createJsonEncoderFn<BlogPost>(undefined, {strategy: 'mutate'}),
-    directEncoder: () => createJsonEncoderFn<BlogPost>(undefined, {strategy: 'direct'}),
     compactEncoder: () => {
       interface BlogPost {
         id: number;
@@ -312,15 +301,11 @@ export const REALWORLD = {
       }
       return createJsonEncoderFn<BlogPost>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => createJsonDecoderFn<BlogPost>(),
-    preserveDecoder: () => createJsonDecoderFn<BlogPost>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<BlogPost>(),
+    mutateDecoder: () => createJsonDecoderFn<BlogPost>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<BlogPost>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<BlogPost>(),
-    binaryDecoder: () => createBinaryDecoderFn<BlogPost>(),
     schemaEncoder: () => createJsonEncoderFn(blogPostSchema()),
     schemaDecoder: () => createJsonDecoderFn(blogPostSchema()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(blogPostSchema()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(blogPostSchema()),
     getTestData: () => {
       const ok = makeBlogPost();
       return {values: [ok, {...ok, publishedAt: '2024-01-02'}]};
@@ -345,7 +330,6 @@ export const REALWORLD = {
       return createJsonEncoderFn<Product>(undefined, {strategy: 'clone'});
     },
     mutateEncoder: () => createJsonEncoderFn<Product>(undefined, {strategy: 'mutate'}),
-    directEncoder: () => createJsonEncoderFn<Product>(undefined, {strategy: 'direct'}),
     compactEncoder: () => {
       interface Product {
         id: string;
@@ -359,15 +343,11 @@ export const REALWORLD = {
       }
       return createJsonEncoderFn<Product>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => createJsonDecoderFn<Product>(),
-    preserveDecoder: () => createJsonDecoderFn<Product>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<Product>(),
+    mutateDecoder: () => createJsonDecoderFn<Product>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<Product>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<Product>(),
-    binaryDecoder: () => createBinaryDecoderFn<Product>(),
     schemaEncoder: () => createJsonEncoderFn(productModel()),
     schemaDecoder: () => createJsonDecoderFn(productModel()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(productModel()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(productModel()),
     getTestData: () => {
       const ok = makeProduct();
       return {values: [ok, {...ok, dimensions: {width: 1, height: 2, depth: 3}}]};
@@ -398,7 +378,6 @@ export const REALWORLD = {
       return createJsonEncoderFn<ProductPage>(undefined, {strategy: 'clone'});
     },
     mutateEncoder: () => createJsonEncoderFn<ProductPage>(undefined, {strategy: 'mutate'}),
-    directEncoder: () => createJsonEncoderFn<ProductPage>(undefined, {strategy: 'direct'}),
     compactEncoder: () => {
       interface Product {
         id: string;
@@ -419,15 +398,11 @@ export const REALWORLD = {
       }
       return createJsonEncoderFn<ProductPage>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => createJsonDecoderFn<ProductPage>(),
-    preserveDecoder: () => createJsonDecoderFn<ProductPage>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<ProductPage>(),
+    mutateDecoder: () => createJsonDecoderFn<ProductPage>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<ProductPage>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<ProductPage>(),
-    binaryDecoder: () => createBinaryDecoderFn<ProductPage>(),
     schemaEncoder: () => createJsonEncoderFn(productPageSchema()),
     schemaDecoder: () => createJsonDecoderFn(productPageSchema()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(productPageSchema()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(productPageSchema()),
     getTestData: () => {
       const ok: ProductPage = {data: [makeProduct()], page: 1, pageSize: 20, total: 1, hasMore: false};
       return {values: [ok, {data: [], page: 2, pageSize: 20, total: 0, hasMore: false}]};
@@ -448,7 +423,6 @@ export const REALWORLD = {
       return createJsonEncoderFn<RegistrationForm>(undefined, {strategy: 'clone'});
     },
     mutateEncoder: () => createJsonEncoderFn<RegistrationForm>(undefined, {strategy: 'mutate'}),
-    directEncoder: () => createJsonEncoderFn<RegistrationForm>(undefined, {strategy: 'direct'}),
     compactEncoder: () => {
       interface RegistrationForm {
         email: string;
@@ -458,15 +432,11 @@ export const REALWORLD = {
       }
       return createJsonEncoderFn<RegistrationForm>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => createJsonDecoderFn<RegistrationForm>(),
-    preserveDecoder: () => createJsonDecoderFn<RegistrationForm>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<RegistrationForm>(),
+    mutateDecoder: () => createJsonDecoderFn<RegistrationForm>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<RegistrationForm>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<RegistrationForm>(),
-    binaryDecoder: () => createBinaryDecoderFn<RegistrationForm>(),
     schemaEncoder: () => createJsonEncoderFn(registrationFormSchema()),
     schemaDecoder: () => createJsonDecoderFn(registrationFormSchema()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(registrationFormSchema()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(registrationFormSchema()),
     getTestData: () => {
       const ok = makeRegistrationForm();
       return {values: [ok, {...ok, profile: {...ok.profile, age: 30}}]};
@@ -490,7 +460,6 @@ export const REALWORLD = {
       return createJsonEncoderFn<ToBeChecked>(undefined, {strategy: 'clone'});
     },
     mutateEncoder: () => createJsonEncoderFn<ToBeChecked>(undefined, {strategy: 'mutate'}),
-    directEncoder: () => createJsonEncoderFn<ToBeChecked>(undefined, {strategy: 'direct'}),
     compactEncoder: () => {
       interface ToBeChecked {
         number: number;
@@ -503,15 +472,11 @@ export const REALWORLD = {
       }
       return createJsonEncoderFn<ToBeChecked>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => createJsonDecoderFn<ToBeChecked>(),
-    preserveDecoder: () => createJsonDecoderFn<ToBeChecked>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<ToBeChecked>(),
+    mutateDecoder: () => createJsonDecoderFn<ToBeChecked>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<ToBeChecked>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<ToBeChecked>(),
-    binaryDecoder: () => createBinaryDecoderFn<ToBeChecked>(),
     schemaEncoder: () => createJsonEncoderFn(toBeCheckedSchema()),
     schemaDecoder: () => createJsonDecoderFn(toBeCheckedSchema()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(toBeCheckedSchema()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(toBeCheckedSchema()),
     getTestData: () => {
       const ok = makeToBeChecked();
       return {values: [ok, {...ok, number: 0, boolean: false, deeplyNested: {foo: '', num: -0.5, bool: true}}]};

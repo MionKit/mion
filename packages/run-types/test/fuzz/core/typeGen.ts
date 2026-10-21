@@ -37,6 +37,7 @@ export type TypeShape =
   | {kind: 'null'}
   | {kind: 'undefined'}
   | {kind: 'date'}
+  | {kind: 'url'}
   | {kind: 'regexp'}
   | {kind: 'literal'; value: string | number | boolean}
   | {kind: 'any'}
@@ -44,7 +45,7 @@ export type TypeShape =
   | {kind: 'never'}
   | {kind: 'void'}
   | {kind: 'symbol'}
-  | {kind: 'array'; elem: TypeShape; structural?: ArrayStructural}
+  | {kind: 'array'; elem: TypeShape; structural?: CollectionStructural}
   // `labels` names every slot (parallel to elems, all-or-nothing — the TS
   // grammar) and renders `[k0: A, k1: B]`; the schema side renders the
   // tsLabels dialect keyword. Generated only under `GenOptions.tupleLabels`.
@@ -53,8 +54,10 @@ export type TypeShape =
   | {kind: 'record'; value: TypeShape; structural?: ObjectStructural}
   | {kind: 'union'; members: TypeShape[]}
   | {kind: 'intersection'; members: TypeShape[]}
-  | {kind: 'map'; key: TypeShape; value: TypeShape}
-  | {kind: 'set'; elem: TypeShape}
+  // A Set takes the ARRAY structural bag (it is an array on the wire), a Map
+  // the two count keys of it; both generated only under `structuralFormats`.
+  | {kind: 'map'; key: TypeShape; value: TypeShape; structural?: CollectionStructural}
+  | {kind: 'set'; elem: TypeShape; structural?: CollectionStructural}
   | {kind: 'promise'; value: TypeShape}
   | {kind: 'function'; params: TypeShape[]; ret: TypeShape}
   // Non-serialisable native binary kinds (DataOnly strips them to `never`).
@@ -81,7 +84,7 @@ export type TypeShape =
  *  automatically and the id oracles fail LOUDLY at the exact leaf — the
  *  opposite of the retired hand-copied aliases, which drifted silently until
  *  they surfaced as mystery id mismatches hundreds of types into a soak
- *  (docs/done/fuzz-followups.md, the `email` incident).
+ *  (the `email` incident).
  *
  *  `valid` values satisfy the format; `counter` values satisfy the BASE kind
  *  but fail the format; `test` is a reference predicate for the OFFLINE
@@ -135,18 +138,24 @@ export const SCRATCH_FORMAT_LEAVES: readonly FormatLeafName[] = [
   'min0max100',
 ];
 
-/** Structural constraint params the generator can attach to an array /
- *  record shape. Rendered through the SHIPPED `TF.FormattedArray` /
- *  `TF.FormattedObject` wrappers; generated ONLY under
- *  `GenOptions.structuralFormats` so the value / binary / roundtrip lanes
- *  never see them (their value generators don't enforce the constraints —
- *  id convergence is the only oracle here). **/
-export interface ArrayStructural {
+/** Structural constraint params the generator can attach to an array / Set /
+ *  Map / record shape. Rendered through the SHIPPED `TF.FormattedArray` /
+ *  `TF.FormattedSet` / `TF.FormattedMap` / `TF.FormattedObject` wrappers;
+ *  generated ONLY under `GenOptions.structuralFormats` so the value /
+ *  roundtrip lanes never see them (their value generators don't enforce the
+ *  constraints — id convergence is the only oracle here).
+ *
+ *  One bag for the three collection families, matching the shipped
+ *  `FormattedCollectionParams`. **/
+export interface CollectionStructural {
   uniqueItems?: true;
+  minItems?: number;
   maxItems?: number;
-  /** `contains` with the PINNED plain-number child (`{type: 'number'}` ↔
-   *  `rt$child: number`); min 1 spells NO minContains on the schema side
-   *  (the Contains default). Rendered as the raw __rtContains sentinel. **/
+  /** `contains` with a PINNED child: the plain number for an array or Set
+   *  (`{type: 'number'}` ↔ `rt$child: number`), the tuple `[unknown, number]`
+   *  for a Map, whose entry is its `[key, value]` pair. min 1 spells NO
+   *  minContains on the schema side (the Contains default). Rendered as the raw
+   *  __rtContains sentinel. **/
   contains?: {min: number; max?: number};
 }
 export interface ObjectStructural {
@@ -447,6 +456,13 @@ export const FORMAT_LEAF_NAMES = Object.keys(FORMAT_LEAVES) as readonly FormatLe
  *  file at the package
  *  root, so both resolve these relative imports to the same shipped
  *  sources. **/
+/** The format leaves whose values have a JSON maximum: every number leaf (a
+ *  number always spells at most 24 bytes) and the one bounded string leaf. The
+ *  json-size lane's `formatLeafPool`. **/
+export const BOUNDED_FORMAT_LEAVES: readonly FormatLeafName[] = (Object.keys(FORMAT_LEAVES) as FormatLeafName[]).filter(
+  (name) => FORMAT_LEAVES[name].family === 'number' || name === 'maxLen8'
+);
+
 export const FUZZ_FORMAT_PREAMBLE = "import type * as TF from './src/formats/index.ts';";
 
 /** The PACKAGE-import twin, for lanes whose fixtures live in a real on-disk
@@ -475,18 +491,31 @@ export const FUZZ_FORMAT_SCRATCH_PREAMBLE = [
   '}',
 ].join('\n');
 
-/** True when any shape in the generated type renders a `TF.*` spelling —
- *  format leaves or structural array/record decorations — i.e. exactly when
- *  the renderers must prepend a format preamble. **/
-export function usesFormatLeaves(gen: GeneratedType): boolean {
+/** Does this shape carry a structural params bag? The kinds that CAN are the
+ *  four the generator decorates, and this is the ONE place that list lives.
+ *  A copy of it drifted once (the elision lane's E3 gate listed only array and
+ *  record), which silently let bounded Sets and Maps into an oracle whose value
+ *  generator does not model the constraints, so a conforming-by-construction
+ *  value could be honestly invalid. Every reader goes through here. **/
+export function hasStructuralParams(shape: TypeShape): boolean {
+  switch (shape.kind) {
+    case 'array':
+    case 'record':
+    case 'set':
+    case 'map':
+      return shape.structural !== undefined;
+    default:
+      return false;
+  }
+}
+
+// Walk every shape a generated type reaches (declaration members and the root),
+// stopping at the first hit. Shared by the two whole-type predicates below.
+function anyShape(gen: GeneratedType, predicate: (shape: TypeShape) => boolean): boolean {
   let found = false;
   const walk = (shape: TypeShape): void => {
     if (found) return;
-    if (
-      shape.kind === 'format' ||
-      (shape.kind === 'array' && shape.structural !== undefined) ||
-      (shape.kind === 'record' && shape.structural !== undefined)
-    ) {
+    if (predicate(shape)) {
       found = true;
       return;
     }
@@ -498,6 +527,20 @@ export function usesFormatLeaves(gen: GeneratedType): boolean {
   }
   walk(gen.root);
   return found;
+}
+
+/** True when any shape in the generated type renders a `TF.*` spelling —
+ *  format leaves or structural array/record/set/map decorations — i.e.
+ *  exactly when the renderers must prepend a format preamble. **/
+export function usesFormatLeaves(gen: GeneratedType): boolean {
+  return anyShape(gen, (shape) => shape.kind === 'format' || hasStructuralParams(shape));
+}
+
+/** True when any shape in the generated type carries a structural params bag.
+ *  A lane whose VALUE generator does not model the collection keywords must gate
+ *  its conformance oracles on this. **/
+export function genHasStructuralParams(gen: GeneratedType): boolean {
+  return anyShape(gen, hasStructuralParams);
 }
 
 /** Every direct child shape of a node (shared by the small walkers here and
@@ -561,12 +604,24 @@ export interface PropShape {
   shape: TypeShape;
 }
 
+// HERITAGE — `extends` on an interface or a class.
+//
+// `props` always holds the FLATTENED member list (inherited first, then own,
+// an overridden member replaced in place). That is deliberately the same view
+// the resolver hands the emitters: the TS checker merges inherited members
+// into the reflected `children`, and `extendsArguments` / `extends` are
+// metadata no emitter reads. Every consumer of `decl.props` is therefore
+// already correct for a derived decl with no change of its own.
+//
+// `ownProps` is the RENDERED subset (what this declaration itself spells), and
+// it shares its PropShape objects with `props` so an in-place edit stays
+// coherent. Set only when `extends` is.
 export type Decl =
   // `calls` (when present) makes this a CALLABLE interface — function-like, so
   // DataOnly strips a ref to it the same way it strips a bare function.
-  | {kind: 'interface'; name: string; props: PropShape[]; calls?: CallSigShape[]}
+  | {kind: 'interface'; name: string; props: PropShape[]; calls?: CallSigShape[]; extends?: string[]; ownProps?: PropShape[]}
   | {kind: 'type'; name: string; shape: TypeShape}
-  | {kind: 'class'; name: string; props: PropShape[]}
+  | {kind: 'class'; name: string; props: PropShape[]; extends?: string[]; ownProps?: PropShape[]}
   | {kind: 'enum'; name: string; members: EnumMember[]};
 
 export interface EnumMember {
@@ -605,6 +660,13 @@ export interface GenOptions {
    *  the value lanes' generators don't enforce the constraints, so a
    *  valid-value draw could violate them. **/
   structuralFormats?: boolean;
+  /** Emit only types whose JSON size has a maximum: every string leaf is a
+   *  bounded format, every array carries `maxItems`, every Map / Set a
+   *  `maxSize`, and the open-ended kinds (records, bigint) are never drawn.
+   *  The json-size lane sets it so most generated types carry a
+   *  `jsonMaxBytes` to check the serializer against; pair it with a
+   *  `formatLeafPool` of bounded leaves (BOUNDED_FORMAT_LEAVES). **/
+  boundedSizes?: boolean;
   /** The format leaves this lane may draw (default: all of FORMAT_LEAF_NAMES).
    *  The scratch-dir lanes pass SCRATCH_FORMAT_LEAVES — the only leaves their
    *  import-free preamble can spell. **/
@@ -614,6 +676,17 @@ export interface GenOptions {
    *  lane may generate them. The value lanes are unaffected (validation is
    *  positional). **/
   tupleLabels?: boolean;
+  /** Emit `declare class` decls and refs to them. Decoupled from
+   *  `nonDataTypes` on purpose: a plain user class carrying only data
+   *  properties IS data — validation matches it structurally, and the
+   *  emitters treat it exactly like an object literal. Methods on it still
+   *  ride `nonDataTypes` like any other method. **/
+  classes?: boolean;
+  /** Emit heritage clauses — `declare class B extends A`, `interface D
+   *  extends B, C` — including a narrowing property override. Off by default
+   *  because a lane that MUTATES `decl.props` in place (the type-modification
+   *  fuzzer) would rename an inherited member on the wrong declaration. **/
+  heritage?: boolean;
 }
 
 export const WILD_GEN_OPTIONS: GenOptions = {
@@ -624,11 +697,14 @@ export const WILD_GEN_OPTIONS: GenOptions = {
   weirdKeys: true,
   named: true,
   tupleLabels: true,
+  classes: true,
+  heritage: true,
 };
 
 /** Serialisable-only preset — the strong value oracles (O1/O2/O5/O6) need clean
- *  round-trippable types. Still includes recursive interfaces, Map/Set/RegExp,
- *  records, intersections — everything that round-trips. **/
+ *  round-trippable types. Still includes recursive interfaces, Map/Set,
+ *  records, intersections — everything that round-trips (a RegExp is not
+ *  data, so it rides with the non-data kinds). **/
 export const DATA_GEN_OPTIONS: GenOptions = {
   maxDepth: 4,
   maxBreadth: 4,
@@ -637,6 +713,8 @@ export const DATA_GEN_OPTIONS: GenOptions = {
   weirdKeys: true,
   named: true,
   tupleLabels: true,
+  classes: true,
+  heritage: true,
 };
 
 /** DataOnly-contract preset — clean serialisable base PLUS the stripped kinds
@@ -651,6 +729,8 @@ export const NONDATA_GEN_OPTIONS: GenOptions = {
   weirdKeys: true,
   named: true,
   tupleLabels: true,
+  classes: true,
+  heritage: true,
 };
 
 // keep DEFAULT pointed at the wild space — the headline behaviour.
@@ -671,7 +751,26 @@ function chance(p: number): boolean {
   return rnd() < p;
 }
 
-const WEIRD_KEYS = ['a-b', '1x', 'has space', 'class', '__proto__like', 'k.dot', '9', 'with"quote'];
+// Names shaped to break an emitted string literal (quotes, a backslash, a
+// newline, a Unicode line terminator, unicode, a `$`) plus the generated-code
+// scan's marker: any of them escaping its quotes is a finding there.
+const WEIRD_KEYS = [
+  'a-b',
+  '1x',
+  'has space',
+  'class',
+  '__proto__like',
+  'k.dot',
+  '9',
+  'with"quote',
+  "it's",
+  'back\\slash',
+  'line\nbreak',
+  'ls\u2028sep',
+  'caf\u00e9',
+  '$dollar',
+  "'); rt_injected_marker(); ('",
+];
 
 // Generation context — collects named decls and bounds recursion. `refs` holds
 // the decls that are in scope as `ref` targets (interfaces/classes/enums).
@@ -700,7 +799,43 @@ export function genType(opts: GenOptions = DEFAULT_GEN_OPTIONS): GeneratedType {
     for (let i = 0; i < declCount; i++) genDecl(ctx);
   }
   const root = genShape(ctx, 0);
+  flattenHeritage(ctx.decls);
   return pruneUnreachableDecls({decls: ctx.decls, root});
+}
+
+/** Recompute every derived declaration's FLATTENED member list, once, after
+ *  all declarations exist.
+ *
+ *  It cannot be done eagerly at declaration time: the mutual-knot pass adds a
+ *  member to an EARLIER interface after a later one has already extended it,
+ *  so an eagerly-copied list goes stale and the model ends up claiming fewer
+ *  members than the source actually declares — which makes the generated value
+ *  miss a required property. Declarations are in declaration order (a base
+ *  always precedes what extends it), so one forward pass propagates through a
+ *  chain and a diamond alike.
+ *
+ *  `onDerived` runs on each derived declaration just BEFORE its flattened view
+ *  is rebuilt, with the inherited members it is about to merge and free to
+ *  replace `ownProps`. The type-modification fuzzer uses it to re-derive a
+ *  narrowing override against a base its own edits may have just retyped: the
+ *  hook has to ride the SAME forward pass, or a middle link in a chain would be
+ *  repaired against a base view that is still stale. **/
+export function flattenHeritage(
+  decls: Decl[],
+  onDerived?: (decl: Extract<Decl, {props: PropShape[]}>, inherited: PropShape[]) => void
+): void {
+  const byName = new Map(decls.map((decl) => [decl.name, decl] as const));
+  for (const decl of decls) {
+    if (decl.kind !== 'interface' && decl.kind !== 'class') continue;
+    if (!decl.extends?.length) continue;
+    const bases = decl.extends.map((name) => byName.get(name)).filter((base): base is Decl => base !== undefined);
+    const inherited = inheritedProps(bases);
+    onDerived?.(decl, inherited);
+    const own = decl.ownProps ?? [];
+    const ownNames = new Set(own.map((prop) => prop.name));
+    // An overridden member is supplied by `own`, so drop the base's version.
+    decl.props = [...inherited.filter((prop) => !ownNames.has(prop.name)), ...own];
+  }
 }
 
 /** Drop every declared type the root cannot reach (transitively, through
@@ -723,10 +858,161 @@ function pruneUnreachableDecls(gen: GeneratedType): GeneratedType {
   return {decls: gen.decls.filter((decl) => reached.has(decl.name)), root: gen.root};
 }
 
+/** Which kind of declaration to generate.
+ *
+ *  Heritage needs an earlier decl of the SAME kind to extend, and the decl
+ *  count is only 0-2, so left alone a derived decl is vanishingly rare. Raising
+ *  the count is the wrong lever: more named decls means `genShape` returns a
+ *  ref far more often, which starves the leaf generators and measurably cost
+ *  the security lane its injection-marker coverage. Biasing the KIND of a
+ *  later decl toward one already present costs nothing in the shape
+ *  distribution and is all heritage needs. **/
+function pickDeclKind(ctx: Ctx, withClasses: boolean): 'interface' | 'class' | 'enum' {
+  const pool = withClasses
+    ? (['interface', 'interface', 'class', 'enum'] as const)
+    : (['interface', 'interface', 'enum'] as const);
+  if (ctx.opts.heritage && ctx.decls.length > 0 && chance(0.6)) {
+    const extendable = ctx.decls.filter((decl) => decl.kind === 'interface' || (withClasses && decl.kind === 'class'));
+    if (extendable.length) return pick(extendable).kind as 'interface' | 'class';
+  }
+  return pick(pool);
+}
+
+/** Pick 1 (class) or 1-2 (interface) already-declared decls of `kind` to
+ *  extend. Bases come from EARLIER decls only, so the rendered block always
+ *  declares a base ahead of its derived type, and a heritage cycle is
+ *  impossible. **/
+function pickBases(ctx: Ctx, kind: 'interface' | 'class', max: number): Decl[] {
+  if (!ctx.opts.heritage) return [];
+  const candidates = ctx.decls.filter((decl) => decl.kind === kind);
+  if (candidates.length === 0 || !chance(0.6)) return [];
+  const first = pick(candidates);
+  if (max < 2 || candidates.length < 2) return [first];
+  // Compatible second parents are rare (see compatibleParents — in practice
+  // they are the DIAMOND cases), so take one whenever it exists rather than
+  // rolling again on top of an already-narrow pool.
+  const compatible = candidates.filter((decl) => decl.name !== first.name && compatibleParents(first, decl));
+  if (compatible.length === 0 || !chance(0.7)) return [first];
+  return [first, pick(compatible)];
+}
+
+/** Two parents may be extended together only when every name they share
+ *  carries the SAME member. TypeScript rejects `interface D extends B, C` when
+ *  B and C declare one name with different types ("Named property 'p0' of
+ *  types 'B' and 'C' are not identical").
+ *
+ *  Object identity is the right test, and it is what makes a DIAMOND work: a
+ *  shared ancestor's members are inherited by reference through
+ *  `inheritedProps`, so both parents hold the very same PropShape and the
+ *  declaration is legal. Two unrelated parents that merely happen to reuse a
+ *  name hold different objects and are refused. **/
+function compatibleParents(first: Decl, second: Decl): boolean {
+  if (first.kind !== 'interface' && first.kind !== 'class') return false;
+  if (second.kind !== 'interface' && second.kind !== 'class') return false;
+  const firstByName = new Map(first.props.map((prop) => [prop.name, prop] as const));
+  return second.props.every((prop) => {
+    const mine = firstByName.get(prop.name);
+    return mine === undefined || mine === prop;
+  });
+}
+
+/** Merge the bases' flattened members into one inherited list, deduped by name
+ *  (a diamond inherits its shared ancestor's member ONCE, which is what the
+ *  checker does). First declaration wins, so the merge is order-stable. **/
+export function inheritedProps(bases: Decl[]): PropShape[] {
+  const out: PropShape[] = [];
+  const seen = new Set<string>();
+  for (const base of bases) {
+    if (base.kind !== 'interface' && base.kind !== 'class') continue;
+    for (const prop of base.props) {
+      if (seen.has(prop.name)) continue;
+      seen.add(prop.name);
+      out.push(prop);
+    }
+  }
+  return out;
+}
+
+/** The literal kinds a narrowing override may use, keyed by the base member's
+ *  own kind. Narrowing to a literal of the SAME primitive is always assignable,
+ *  which is what keeps the emitted override valid TypeScript. **/
+function narrowedOverride(prop: PropShape): PropShape | null {
+  const value =
+    prop.shape.kind === 'string'
+      ? pick(['fixed', 'other'])
+      : prop.shape.kind === 'number'
+        ? int(4)
+        : prop.shape.kind === 'boolean'
+          ? true
+          : undefined;
+  if (value === undefined) return null;
+  // optional / readonly are copied verbatim: changing either makes the
+  // override unassignable and the whole fixture stops compiling.
+  return {name: prop.name, optional: prop.optional, readonly: prop.readonly, method: false, shape: {kind: 'literal', value}};
+}
+
+/** Assemble a derived declaration's two member lists. `props` is the flattened
+ *  view (inherited, overrides applied in place, then own); `ownProps` is what
+ *  the declaration itself spells. Own members whose name collides with an
+ *  inherited one are dropped rather than redeclared — an incompatible
+ *  redeclaration is a TS error, and the deliberate override below is the one
+ *  sanctioned way to restate a name. **/
+function deriveProps(bases: Decl[], own: PropShape[]): {props: PropShape[]; ownProps: PropShape[]} {
+  const inherited = inheritedProps(bases);
+  const inheritedNames = new Set(inherited.map((prop) => prop.name));
+  const ownKept = own.filter((prop) => !inheritedNames.has(prop.name));
+  const ownProps = [...ownKept];
+  let flattened = [...inherited];
+  // Sometimes narrow ONE inherited primitive member to a literal.
+  const overridable = inherited.filter((prop) => !prop.method && narrowedOverride(prop) !== null);
+  if (overridable.length && chance(0.3)) {
+    const target = pick(overridable);
+    const override = narrowedOverride(target)!;
+    ownProps.unshift(override);
+    flattened = flattened.map((prop) => (prop.name === override.name ? override : prop));
+  }
+  return {props: [...flattened, ...ownKept], ownProps};
+}
+
+/** A minimal declaration to inherit FROM: leaf-typed members only, no heritage
+ *  of its own, no nested refs.
+ *
+ *  Heritage lives on a 0-2 decl budget, and multi-parent / diamond need THREE
+ *  declarations, so left alone they never appear. Seeding a base here adds a
+ *  decl only on the heritage path (a few percent of draws) instead of raising
+ *  the global count, which perturbs every lane's shape distribution — the
+ *  security lane measurably loses its injection-marker coverage that way. **/
+function seedBaseDecl(ctx: Ctx, kind: 'interface' | 'class'): Extract<Decl, {props: PropShape[]}> {
+  const name = freshName(ctx, kind === 'class' ? 'C' : 'N');
+  ctx.refs.push({name, kind});
+  const props: PropShape[] = [];
+  const count = 1 + int(2);
+  for (let i = 0; i < count; i++) {
+    props.push({name: `p${i}`, optional: chance(0.3), readonly: chance(0.2), method: false, shape: genLeaf(ctx)});
+  }
+  const decl: Extract<Decl, {props: PropShape[]}> =
+    kind === 'class' ? {kind: 'class', name, props} : {kind: 'interface', name, props, calls: undefined};
+  ctx.decls.push(decl);
+  return decl;
+}
+
 function genDecl(ctx: Ctx): void {
-  const choice = ctx.opts.nonDataTypes
-    ? pick(['interface', 'interface', 'class', 'enum'] as const)
-    : pick(['interface', 'interface', 'enum'] as const);
+  const withClasses = ctx.opts.classes ?? ctx.opts.nonDataTypes;
+  const choice = pickDeclKind(ctx, withClasses);
+  // Give an interface a second parent to reach for, so multi-parent and the
+  // diamond (two parents sharing an ancestor) are reachable at all.
+  if (ctx.opts.heritage && choice === 'interface' && chance(0.25)) {
+    const base = seedBaseDecl(ctx, 'interface');
+    if (chance(0.5)) {
+      // A middle link: the derived decl below can then extend BOTH this and
+      // its base, which is the diamond.
+      const own = genMembers(ctx, 1, undefined, false, undefined, base.props.length);
+      const middle = freshName(ctx, 'N');
+      ctx.refs.push({name: middle, kind: 'interface'});
+      const {props, ownProps} = deriveProps([base], own);
+      ctx.decls.push({kind: 'interface', name: middle, props, ownProps, calls: undefined, extends: [base.name]});
+    }
+  }
   if (choice === 'enum') {
     const name = freshName(ctx, 'E');
     const count = 1 + int(4);
@@ -745,14 +1031,26 @@ function genDecl(ctx: Ctx): void {
     const name = freshName(ctx, 'C');
     // Register before generating members so a member can reference the class.
     ctx.refs.push({name, kind: 'class'});
-    const props = genMembers(ctx, 1, name, true);
-    ctx.decls.push({kind: 'class', name, props});
+    // ES6 single inheritance: at most one base.
+    const bases = pickBases(ctx, 'class', 1);
+    const own = genMembers(ctx, 1, name, true, undefined, inheritedProps(bases).length);
+    if (bases.length === 0) {
+      ctx.decls.push({kind: 'class', name, props: own});
+      return;
+    }
+    const {props, ownProps} = deriveProps(bases, own);
+    ctx.decls.push({kind: 'class', name, props, ownProps, extends: bases.map((base) => base.name)});
     return;
   }
   // interface — register the name first so props can self-reference (recursive).
   const name = freshName(ctx, 'N');
   ctx.refs.push({name, kind: 'interface'});
-  const props = genMembers(ctx, 1, name, ctx.opts.nonDataTypes);
+  // An interface may extend several parents; two is enough to reach the
+  // multi-parent and diamond shapes (two parents sharing an ancestor).
+  const bases = pickBases(ctx, 'interface', 2);
+  const own = genMembers(ctx, 1, name, ctx.opts.nonDataTypes, undefined, inheritedProps(bases).length);
+  const derived = bases.length ? deriveProps(bases, own) : null;
+  const props = derived ? derived.props : own;
   // Callable-interface GENERATION stays disabled. The F2 product inconsistency is
   // fixed (validate and the serializers now agree: a callable interface is
   // function-like everywhere — typeof-function at the root, dropped at a
@@ -760,10 +1058,16 @@ function genDecl(ctx: Ctx): void {
   // generation, however, surfaces a SEPARATE emit-pipeline bug: a complex
   // callable interface (a call signature whose params/returns pull in `any` /
   // methods / non-serializable intersections) wires its now-alwaysThrow factory
-  // with an UNCONTROLLED error (`reading 'fn'`) and leaves a binary site
+  // with an UNCONTROLLED error (`reading 'fn'`) and leaves a site
   // unresolved. That dependency-linking bug is tracked as a follow-up; the
   // `calls` plumbing stays so it can be re-enabled once it lands.
-  ctx.decls.push({kind: 'interface', name, props, calls: undefined});
+  ctx.decls.push({
+    kind: 'interface',
+    name,
+    props,
+    calls: undefined,
+    ...(derived ? {ownProps: derived.ownProps, extends: bases.map((base) => base.name)} : {}),
+  });
   // Mutual declaration cycle: occasionally tie a knot with an EARLIER
   // interface. Both legs sit in inhabitable positions (an optional prop, an
   // array element) so values stay finite, exactly like self-recursion;
@@ -774,14 +1078,15 @@ function genDecl(ctx: Ctx): void {
   );
   if (partners.length && chance(0.25)) {
     const partner = pick(partners);
-    props.push({
+    const self = ctx.decls[ctx.decls.length - 1];
+    addOwnProp(self, {
       name: `knot${props.length}`,
       optional: true,
       readonly: false,
       method: false,
       shape: {kind: 'ref', name: partner.name},
     });
-    partner.props.push({
+    addOwnProp(partner, {
       name: `knot${partner.props.length}`,
       optional: false,
       readonly: false,
@@ -789,6 +1094,16 @@ function genDecl(ctx: Ctx): void {
       shape: {kind: 'array', elem: {kind: 'ref', name}},
     });
   }
+}
+
+/** Add a member the declaration itself spells. On a DERIVED decl it has to
+ *  land in both lists: `props` is the flattened view every consumer reads, and
+ *  `ownProps` is what gets rendered — a member in only one of them is a model
+ *  that disagrees with its own source. **/
+function addOwnProp(decl: Decl, prop: PropShape): void {
+  if (decl.kind !== 'interface' && decl.kind !== 'class') return;
+  decl.props.push(prop);
+  if (decl.ownProps) decl.ownProps.push(prop);
 }
 
 // Generate object/interface/class members. `selfName`, when set, is in scope as
@@ -799,20 +1114,27 @@ function genMembers(
   depth: number,
   selfName: string | undefined,
   allowMethods: boolean,
-  forcedShape?: TypeShape
+  forcedShape?: TypeShape,
+  /** First index for the generated `pN` names. A DERIVED declaration passes
+   *  its inherited member count, so its own members cannot collide with an
+   *  inherited `pK` (every inherited index is below that count) — without it
+   *  every own member collides and the subclass renders empty. **/
+  nameOffset = 0
 ): PropShape[] {
   const count = 1 + int(ctx.opts.maxBreadth);
   const props: PropShape[] = [];
   const used = new Set<string>();
   for (let i = 0; i < count; i++) {
-    let name = `p${i}`;
+    let name = `p${nameOffset + i}`;
     if (ctx.opts.weirdKeys && chance(0.12)) {
       const weird = pick(WEIRD_KEYS);
       if (!used.has(weird)) name = weird;
     }
     if (used.has(name)) continue;
     used.add(name);
-    const optional = chance(0.35);
+    // An optional member gains `undefined`, which the forced index value type must admit (TS2411).
+    // Draw first so the forced branch keeps the random stream aligned.
+    const optional = chance(0.35) && (!forcedShape || admitsUndefined(forcedShape));
     const method = !forcedShape && allowMethods && ctx.opts.nonDataTypes && chance(0.15);
     let shape: TypeShape;
     if (forcedShape) {
@@ -844,6 +1166,12 @@ function genMembers(
   return props;
 }
 
+/** A ref reads false: unresolved, so its member stays required. **/
+export function admitsUndefined(shape: TypeShape): boolean {
+  if (shape.kind === 'union') return shape.members.some(admitsUndefined);
+  return shape.kind === 'undefined' || shape.kind === 'any' || shape.kind === 'unknown' || shape.kind === 'void';
+}
+
 function genParams(ctx: Ctx, depth: number): TypeShape[] {
   const count = int(3);
   const params: TypeShape[] = [];
@@ -854,30 +1182,39 @@ function genParams(ctx: Ctx, depth: number): TypeShape[] {
 /** Generate a shape at `depth`, branching into compounds until maxDepth. **/
 export function genShape(ctx: Ctx, depth: number): TypeShape {
   if (depth >= ctx.opts.maxDepth || chance(0.4)) return genLeaf(ctx);
+  const bounded = ctx.opts.boundedSizes === true;
   const builders: Array<() => TypeShape> = [
     () => withArrayStructural(ctx, {kind: 'array', elem: genShape(ctx, depth + 1)}),
     () => genTuple(ctx, depth),
     () => genObject(ctx, depth),
     () => genUnion(ctx, depth),
-    () => withRecordStructural(ctx, {kind: 'record', value: genShape(ctx, depth + 1)}),
   ];
+  // an index signature has no key bound, so a record never has a JSON maximum
+  if (!bounded) builders.push(() => withRecordStructural(ctx, {kind: 'record', value: genShape(ctx, depth + 1)}));
   // Intersections + Map/Set round-trip, so every preset can emit them (the
-  // primitive-brand arm inside genIntersection stays gated on `wild`).
+  // primitive-brand arm inside genIntersection stays gated on `wild`). A Map
+  // key is a plain string or number; the bounded lane keys by number, or by a
+  // bounded string leaf, so the key has a maximum too.
+  const mapKey = (): TypeShape =>
+    bounded
+      ? pick<TypeShape>([{kind: 'number'}, {kind: 'format', name: 'maxLen8'}])
+      : pick<TypeShape>([{kind: 'string'}, {kind: 'number'}]);
   builders.push(
     () => genIntersection(ctx, depth),
-    () => ({kind: 'map', key: pick<TypeShape>([{kind: 'string'}, {kind: 'number'}]), value: genShape(ctx, depth + 1)}),
-    () => ({kind: 'set', elem: genShape(ctx, depth + 1)})
+    () => withMapStructural(ctx, {kind: 'map', key: mapKey(), value: genShape(ctx, depth + 1)}),
+    () => withSetStructural(ctx, {kind: 'set', elem: genShape(ctx, depth + 1)})
   );
-  // Promise + function are DataOnly-stripped — gated on nonDataTypes.
+  // Promise + function + RegExp are DataOnly-stripped — gated on nonDataTypes.
   if (ctx.opts.nonDataTypes) {
     builders.push(
+      () => ({kind: 'regexp'}),
       () => ({kind: 'promise', value: genShape(ctx, depth + 1)}),
       () => ({kind: 'function', params: genParams(ctx, depth), ret: genShape(ctx, depth + 1)})
     );
   }
   // sometimes reference a declared type instead of generating inline (class refs
   // only exist when nonDataTypes generated a `declare class`).
-  const usableRefs = ctx.refs.filter((r) => (ctx.opts.nonDataTypes ? true : r.kind !== 'class'));
+  const usableRefs = ctx.refs.filter((r) => ((ctx.opts.classes ?? ctx.opts.nonDataTypes) ? true : r.kind !== 'class'));
   if (usableRefs.length && chance(0.3)) {
     const ref = pick(usableRefs);
     return {kind: 'ref', name: ref.name};
@@ -886,19 +1223,25 @@ export function genShape(ctx: Ctx, depth: number): TypeShape {
 }
 
 function genLeaf(ctx: Ctx): TypeShape {
+  const bounded = ctx.opts.boundedSizes === true;
+  // a plain string and a bigint have no JSON maximum: the bounded lane draws
+  // the bounded format leaves instead (its formatLeafPool). Every other lane
+  // keeps the exact list order below: the draw is by index, so a reordering
+  // would move every seed-pinned type.
   const serial: Array<() => TypeShape> = [
     () => ({kind: 'number'}),
-    () => ({kind: 'string'}),
+    ...(bounded ? [] : [(): TypeShape => ({kind: 'string'})]),
     () => ({kind: 'boolean'}),
     () => ({kind: 'null'}),
-    () => ({kind: 'bigint'}),
+    ...(bounded ? [] : [(): TypeShape => ({kind: 'bigint'})]),
     () => ({kind: 'date'}),
-    () => ({kind: 'regexp'}),
     () => ({kind: 'undefined'}),
     () => genLiteral(),
     // Format brands — serialisable (JSON codecs see the base kind) and
     // validate-relevant.
     () => ({kind: 'format', name: pick(ctx.opts.formatLeafPool ?? FORMAT_LEAF_NAMES)}),
+    // Appended so the leaves above keep their draw index; a URL's href has no maximum, so the bounded lane skips it.
+    ...(bounded ? [] : [(): TypeShape => ({kind: 'url'})]),
   ];
   // Broad / edge kinds — adversarial but not "non-data" per se (any/unknown are
   // passthrough; never/void have their own arms). Gated on `wild`.
@@ -919,7 +1262,7 @@ function genLeaf(ctx: Ctx): TypeShape {
   ];
   // refs to enums/classes are leaf-ish (class refs only when nonDataTypes).
   const refLeaves = ctx.refs
-    .filter((r) => r.kind === 'enum' || (ctx.opts.nonDataTypes && r.kind === 'class'))
+    .filter((r) => r.kind === 'enum' || ((ctx.opts.classes ?? ctx.opts.nonDataTypes) && r.kind === 'class'))
     .map((r) => () => ({kind: 'ref', name: r.name}) as TypeShape);
   const pool = [...serial, ...(ctx.opts.wild ? broad : []), ...(ctx.opts.nonDataTypes ? nonData : []), ...refLeaves];
   return pick(pool)();
@@ -927,7 +1270,13 @@ function genLeaf(ctx: Ctx): TypeShape {
 
 function genLiteral(): TypeShape {
   const flavour = int(3);
-  if (flavour === 0) return {kind: 'literal', value: pick(['on', 'off', 'red', 'green', 'A', 'B'])};
+  // A few literals shaped to break an emitted string literal (the generated-code
+  // scan's marker included); JSON and the codecs carry them like any string.
+  if (flavour === 0)
+    return {
+      kind: 'literal',
+      value: pick(['on', 'off', 'red', 'green', 'A', 'B', "it's", 'back\\slash', "'); rt_injected_marker(); ('"]),
+    };
   if (flavour === 1) return {kind: 'literal', value: pick([0, 1, 7, 42, -3])};
   return {kind: 'literal', value: chance(0.5)};
 }
@@ -936,8 +1285,10 @@ function genLiteral(): TypeShape {
  *  (structuralFormats lanes only). Small bounds; the convergence oracle
  *  never draws values. **/
 function withArrayStructural(ctx: Ctx, shape: TypeShape & {kind: 'array'}): TypeShape {
+  // the bounded lane draws values, so only the bound the product mock honours
+  if (ctx.opts.boundedSizes) return {...shape, structural: {maxItems: 1 + int(4)}};
   if (!ctx.opts.structuralFormats || !chance(0.3)) return shape;
-  const structural: ArrayStructural = {};
+  const structural: CollectionStructural = {};
   if (chance(0.6)) structural.uniqueItems = true;
   if (chance(0.6)) structural.maxItems = 1 + int(4);
   // Child-schema slot: the id fold is satisfiability-blind, so contains may
@@ -946,6 +1297,34 @@ function withArrayStructural(ctx: Ctx, shape: TypeShape & {kind: 'array'}): Type
   if (structural.uniqueItems === undefined && structural.maxItems === undefined && structural.contains === undefined) {
     structural.uniqueItems = true;
   }
+  return {...shape, structural};
+}
+/** A Set and a Map draw the same bag an array does: the shipped
+ *  `FormattedSet` / `FormattedMap` both take `FormattedCollectionParams`
+ *  verbatim. **/
+function withSetStructural(ctx: Ctx, shape: TypeShape & {kind: 'set'}): TypeShape {
+  // the bounded lane draws values, so only the bound the product mock honours
+  if (ctx.opts.boundedSizes) return {...shape, structural: {maxItems: 1 + int(4)}};
+  if (!ctx.opts.structuralFormats || !chance(0.3)) return shape;
+  const structural: CollectionStructural = {};
+  if (chance(0.5)) structural.uniqueItems = true;
+  if (chance(0.6)) structural.maxItems = 1 + int(4);
+  if (chance(0.4)) structural.contains = {min: 1 + int(2), ...(chance(0.4) ? {max: 4 + int(3)} : {})};
+  if (structural.uniqueItems === undefined && structural.maxItems === undefined && structural.contains === undefined) {
+    structural.maxItems = 3;
+  }
+  return {...shape, structural};
+}
+function withMapStructural(ctx: Ctx, shape: TypeShape & {kind: 'map'}): TypeShape {
+  // the bounded lane draws values, so only the bound the product mock honours
+  if (ctx.opts.boundedSizes) return {...shape, structural: {maxItems: 1 + int(4)}};
+  if (!ctx.opts.structuralFormats || !chance(0.3)) return shape;
+  const structural: CollectionStructural = {};
+  if (chance(0.4)) structural.uniqueItems = true;
+  if (chance(0.5)) structural.minItems = int(3);
+  if (chance(0.7)) structural.maxItems = 3 + int(4);
+  if (chance(0.4)) structural.contains = {min: 1 + int(2), ...(chance(0.4) ? {max: 4 + int(3)} : {})};
+  if (Object.keys(structural).length === 0) structural.maxItems = 3;
   return {...shape, structural};
 }
 function withRecordStructural(ctx: Ctx, shape: TypeShape & {kind: 'record'}): TypeShape {
@@ -979,7 +1358,7 @@ function genObject(ctx: Ctx, depth: number): TypeShape {
   // props reuse the index value shape so the object stays valid, otherwise
   // string-named props are unconstrained and get free types. Any residual
   // invalid combo (e.g. a numeric weird-key prop under a number-only key) is
-  // dropped by the runner's TS-validity gate.
+  // dropped by each runner's TS-validity gate (`isValidTypeScript`).
   let index: TypeShape | undefined;
   let indexKey: IndexKeyKind[] | undefined;
   if (chance(0.15)) {
@@ -1081,14 +1460,16 @@ function renderKey(name: string): string {
 // bag below is the keyword vocabulary under test, not a restated encoding;
 // the wrappers own the sentinel lowering, so it can never drift from the
 // door's. Key order is fixed so a seed replays byte-identically.
-function arrayStructuralParams(structural: ArrayStructural): string {
+function collectionStructuralParams(structural: CollectionStructural, containsChild = 'number'): string {
   const parts: string[] = [];
   if (structural.uniqueItems) parts.push('uniqueItems: true');
+  if (structural.minItems !== undefined) parts.push(`minItems: ${structural.minItems}`);
   if (structural.maxItems !== undefined) parts.push(`maxItems: ${structural.maxItems}`);
   if (structural.contains) {
-    // The pinned plain-number child; min 1 spells NO minContains (the
-    // Contains default on both sides).
-    parts.push('contains: number');
+    // The pinned child (a plain number, or the `[unknown, number]` pair a Map
+    // entry is); min 1 spells NO minContains (the Contains default on both
+    // sides).
+    parts.push(`contains: ${containsChild}`);
     if (structural.contains.min > 1) parts.push(`minContains: ${structural.contains.min}`);
     if (structural.contains.max !== undefined) parts.push(`maxContains: ${structural.contains.max}`);
   }
@@ -1123,6 +1504,8 @@ export function renderType(shape: TypeShape): string {
       return 'undefined';
     case 'date':
       return 'Date';
+    case 'url':
+      return 'URL';
     case 'regexp':
       return 'RegExp';
     case 'literal':
@@ -1130,7 +1513,7 @@ export function renderType(shape: TypeShape): string {
     case 'array': {
       const text = `Array<${renderType(shape.elem)}>`;
       if (!shape.structural) return text;
-      return `TF.FormattedArray<${text}, ${arrayStructuralParams(shape.structural)}>`;
+      return `TF.FormattedArray<${text}, ${collectionStructuralParams(shape.structural)}>`;
     }
     case 'tuple': {
       if (!shape.labels) return `[${shape.elems.map(renderType).join(', ')}]`;
@@ -1142,10 +1525,16 @@ export function renderType(shape: TypeShape): string {
       if (!shape.structural) return text;
       return `TF.FormattedObject<${text}, ${recordStructuralParams(shape.structural)}>`;
     }
-    case 'map':
-      return `Map<${renderType(shape.key)}, ${renderType(shape.value)}>`;
-    case 'set':
-      return `Set<${renderType(shape.elem)}>`;
+    case 'map': {
+      const text = `Map<${renderType(shape.key)}, ${renderType(shape.value)}>`;
+      if (!shape.structural) return text;
+      return `TF.FormattedMap<${text}, ${collectionStructuralParams(shape.structural, '[unknown, number]')}>`;
+    }
+    case 'set': {
+      const text = `Set<${renderType(shape.elem)}>`;
+      if (!shape.structural) return text;
+      return `TF.FormattedSet<${text}, ${collectionStructuralParams(shape.structural)}>`;
+    }
     case 'promise':
       return `Promise<${renderType(shape.value)}>`;
     case 'function':
@@ -1191,20 +1580,26 @@ function renderProp(prop: PropShape): string {
   return `${ro}${renderKey(prop.name)}${opt}: ${renderType(prop.shape)}`;
 }
 
+/** ` extends A` / ` extends B, C`, or nothing. **/
+function heritageClause(decl: Decl): string {
+  if (decl.kind !== 'interface' && decl.kind !== 'class') return '';
+  return decl.extends?.length ? ` extends ${decl.extends.join(', ')}` : '';
+}
+
 export function renderDecl(decl: Decl): string {
   switch (decl.kind) {
     case 'interface': {
       const callSigs = (decl.calls ?? []).map(
         (sig) => `(${sig.params.map((p, i) => `a${i}: ${renderType(p)}`).join(', ')}): ${renderType(sig.ret)}`
       );
-      const parts = [...callSigs, ...decl.props.map(renderProp)];
-      return `interface ${decl.name} {${parts.join('; ')}}`;
+      const parts = [...callSigs, ...(decl.ownProps ?? decl.props).map(renderProp)];
+      return `interface ${decl.name}${heritageClause(decl)} {${parts.join('; ')}}`;
     }
     case 'type':
       return `type ${decl.name} = ${renderType(decl.shape)};`;
     case 'class':
       // `declare class` — type-only, no method bodies needed for the scan.
-      return `declare class ${decl.name} {${decl.props.map(renderProp).join('; ')}}`;
+      return `declare class ${decl.name}${heritageClause(decl)} {${(decl.ownProps ?? decl.props).map(renderProp).join('; ')}}`;
     case 'enum':
       return `enum ${decl.name} {${decl.members
         .map((m) =>
@@ -1244,9 +1639,9 @@ export function describeShape(shape: TypeShape, depth = 0): string {
     case 'record':
       return `Rec<${describeShape(shape.value, depth + 1)}>`;
     case 'map':
-      return `Map<${describeShape(shape.key, depth + 1)},${describeShape(shape.value, depth + 1)}>`;
+      return `Map<${describeShape(shape.key, depth + 1)},${describeShape(shape.value, depth + 1)}>${shape.structural?.maxItems === undefined ? '' : `≤${shape.structural.maxItems}`}`;
     case 'set':
-      return `Set<${describeShape(shape.elem, depth + 1)}>`;
+      return `Set<${describeShape(shape.elem, depth + 1)}>${shape.structural?.maxItems === undefined ? '' : `≤${shape.structural.maxItems}`}`;
     case 'promise':
       return `Promise<${describeShape(shape.value, depth + 1)}>`;
     case 'function':
@@ -1304,6 +1699,10 @@ function collectRefs(shape: TypeShape, out: Set<string>): void {
 function declRefs(decl: Decl): Set<string> {
   const out = new Set<string>();
   if (decl.kind === 'interface' || decl.kind === 'class') {
+    // A base is a real dependency: without this edge pruneUnreachableDecls
+    // drops a base reached ONLY through `extends`, and the rendered source
+    // names a type that was never declared.
+    decl.extends?.forEach((base) => out.add(base));
     decl.props.forEach((p) => collectRefs(p.shape, out));
     if (decl.kind === 'interface' && decl.calls) {
       for (const sig of decl.calls) {

@@ -1,0 +1,10 @@
+{
+  "name": "@acme/geo",
+  "version": "0.0.0",
+  "private": false,
+  "description": "Outside-package e2e fixture: types the API reaches that the types-only package prints instead of importing. No registry holds it, so a client that installs only @acme/api-types proves it needs none.",
+  "types": "./index.d.ts",
+  "files": [
+    "index.d.ts"
+  ]
+}

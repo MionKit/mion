@@ -1,0 +1,34 @@
+{
+  "name": "@mionjs/type-budget",
+  "version": "0.13.1",
+  "private": true,
+  "type": "module",
+  "description": "Type-instantiation cost budgets for the mion model pipeline (never published)",
+  "author": "ma jerez",
+  "homepage": "https://mion.io/",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MionKit/mion.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MionKit/mion/issues"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck:test": "tsc -p tsconfig.json --noEmit",
+    "clean": "rimraf .coverage",
+    "fresh-start": "pnpm run clean && rimraf node_modules"
+  },
+  "dependencies": {
+    "@mionjs/client": "workspace:*",
+    "@mionjs/core": "workspace:*",
+    "@mionjs/drizzle-orm": "workspace:*",
+    "@mionjs/drizzle-orm-mysql-core": "workspace:*",
+    "@mionjs/drizzle-orm-pg-core": "workspace:*",
+    "@mionjs/drizzle-orm-sqlite-core": "workspace:*",
+    "@mionjs/router": "workspace:*",
+    "@mionjs/run-types": "workspace:*",
+    "drizzle-orm": "0.45.2"
+  }
+}

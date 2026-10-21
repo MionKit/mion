@@ -57,11 +57,7 @@ func scanSiteIDs(t *testing.T, r *resolver.Session) []string {
 
 func unionWrap() string { return strconv.Itoa(int(reflection.KindUnion)) + "{" }
 
-// TestOptionalPropertyID_ChildClosesOnBareType — a non-recursive optional
-// property's child id must be the BARE inner type's id, not a `Inner | undefined`
-// union wrapper. The holder's structural id must contain `:a?:` immediately
-// followed by Inner's full structural id; remove the strip and the child becomes
-// `:a?:<KindUnion>{…` and this substring vanishes.
+// TestOptionalPropertyID_ChildClosesOnBareType — an optional child is the bare inner id, not an `| undefined` union.
 func TestOptionalPropertyID_ChildClosesOnBareType(t *testing.T) {
 	r := setupInline(t, map[string]string{"test.ts": `import {getRunTypeId} from '@mionjs/run-types';
 type Inner = {v: number};
@@ -76,21 +72,16 @@ getRunTypeId<Holder>();
 	innerStructural := structuralByID(t, r, ids[0])
 	holderStructural := structuralByID(t, r, ids[1])
 
-	want := ":a?:" + innerStructural
+	want := `:"a"?:` + innerStructural
 	if !strings.Contains(holderStructural, want) {
 		t.Fatalf("optional child must close on the bare inner type, not a `Inner | undefined` union.\n  holder structural: %q\n  inner structural:  %q\n  expected substring: %q", holderStructural, innerStructural, want)
 	}
-	// It must NOT be union-wrapped.
-	if strings.Contains(holderStructural, ":a?:"+unionWrap()) {
+	if strings.Contains(holderStructural, `:"a"?:`+unionWrap()) {
 		t.Fatalf("optional child is union-wrapped (stripUndefined regressed): %q", holderStructural)
 	}
 }
 
-// TestOptionalPropertyID_RequiredUnionKeepsWrapper — negative control: the strip
-// is gated on the optional bit, NOT a blanket `| undefined` removal. A REQUIRED
-// property typed `Inner | undefined` is a genuine union and must keep its union
-// child. (Unaffected by the strip either way — this pins that the strip doesn't
-// over-reach into required unions.)
+// TestOptionalPropertyID_RequiredUnionKeepsWrapper — control: the strip keys on the optional bit, not any `| undefined`.
 func TestOptionalPropertyID_RequiredUnionKeepsWrapper(t *testing.T) {
 	r := setupInline(t, map[string]string{"test.ts": `import {getRunTypeId} from '@mionjs/run-types';
 type Inner = {v: number};
@@ -100,19 +91,15 @@ getRunTypeId<Req>();
 	ids := scanSiteIDs(t, r)
 	reqStructural := structuralByID(t, r, ids[0])
 
-	if strings.Contains(reqStructural, ":a?:") {
+	if strings.Contains(reqStructural, `:"a"?:`) {
 		t.Fatalf("required property must not carry the optional bit: %q", reqStructural)
 	}
-	if !strings.Contains(reqStructural, ":a:"+unionWrap()) {
+	if !strings.Contains(reqStructural, `:"a":`+unionWrap()) {
 		t.Fatalf("required `a: Inner | undefined` must keep its union child: %q", reqStructural)
 	}
 }
 
-// TestOptionalPropertyID_RecursiveSelfRefNotUnionWrapped — the motivating case.
-// A recursive optional self-reference (`next?: Node`) must close on a bare cycle
-// back-edge token (`$<kind>_<depth>:…`, which starts with `$`), NOT a
-// `Node | undefined` union. The optional member therefore reads `:next?:$…`; a
-// union-wrapped child would read `:next?:<KindUnion>{…`.
+// TestOptionalPropertyID_RecursiveSelfRefNotUnionWrapped — the motivating case; cycle back-edge tokens start with `$`.
 func TestOptionalPropertyID_RecursiveSelfRefNotUnionWrapped(t *testing.T) {
 	r := setupInline(t, map[string]string{"test.ts": `import {getRunTypeId} from '@mionjs/run-types';
 type Node = {next?: Node};
@@ -121,10 +108,10 @@ getRunTypeId<Node>();
 	ids := scanSiteIDs(t, r)
 	nodeStructural := structuralByID(t, r, ids[0])
 
-	if !strings.Contains(nodeStructural, ":next?:$") {
-		t.Fatalf("recursive optional self-ref must be a bare cycle token (`:next?:$…`), got: %q", nodeStructural)
+	if !strings.Contains(nodeStructural, `:"next"?:$`) {
+		t.Fatalf("recursive optional self-ref must be a bare cycle token (`:\"next\"?:$…`), got: %q", nodeStructural)
 	}
-	if strings.Contains(nodeStructural, ":next?:"+unionWrap()) {
+	if strings.Contains(nodeStructural, `:"next"?:`+unionWrap()) {
 		t.Fatalf("recursive optional self-ref is union-wrapped (stripUndefined regressed): %q", nodeStructural)
 	}
 }

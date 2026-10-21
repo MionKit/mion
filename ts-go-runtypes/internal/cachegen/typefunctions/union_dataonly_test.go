@@ -1,6 +1,7 @@
 package typefunctions
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -44,9 +45,8 @@ func unionEntryWorks(rendered string) bool {
 	return strings.Contains(rendered, "_uni(v){")
 }
 
-// jsonFamilies are the flat-union families that share buildFlatLayout; binary
-// (toBinary/fromBinary) shares it too and is covered by the same change.
-var jsonFamilies = []string{"validate", "prepareForJson", "prepareForJsonSafe", "stringifyJson", "restoreFromJson"}
+// jsonFamilies are the flat-union families that share buildFlatLayout.
+var jsonFamilies = []string{"validate", "prepareForJsonMutate", "prepareForJsonClone", "restoreFromJsonMutate"}
 
 func TestDataOnlyUnion_DropsStrippedMember(t *testing.T) {
 	dump := unionDump(mkDate(), mkSym())
@@ -75,13 +75,13 @@ func TestDataOnlyUnion_AllStrippedStillThrows(t *testing.T) {
 // Date | string | symbol must keep two members and reindex them gap-free
 // (Date=0, string=1); the dropped symbol must NOT leave a [2,…] arm.
 func TestDataOnlyUnion_ReindexesGapFree(t *testing.T) {
-	out := renderModule(t, unionDump(mkDate(), mkStr(), mkSym()), "stringifyJson")
-	for _, want := range []string{"'[0,'", "'[1,'"} {
+	out := renderModule(t, unionDump(mkDate(), mkStr(), mkSym()), "prepareForJsonMutate")
+	for _, want := range []string{"[0, v]", "[1, v]"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("expected wire index fragment %s in reindexed union; got:\n%s", want, out)
 		}
 	}
-	if strings.Contains(out, "'[2,'") {
+	if strings.Contains(out, "[2, v]") {
 		t.Errorf("dropped symbol (original index 2) must not leave a [2,…] arm; got:\n%s", out)
 	}
 }
@@ -93,25 +93,31 @@ func TestDataOnlyUnion_ReindexesGapFree(t *testing.T) {
 func renderWithDiag(t *testing.T, dump protocol.Dump, familyKey, rootID string) (string, []diagnostics.Diagnostic) {
 	t.Helper()
 	var sink []diagnostics.Diagnostic
+	family := FamilyByKey(familyKey)
+	// Provenance is keyed per rendered entry (type id + family tag), and a root
+	// code reads the rooted map while a child-position one reads the reaching
+	// map — here one call site named rootID and demanded this family, so both
+	// hold it.
+	site := map[string][]diagnostics.Site{
+		ProvenanceKey(rootID, family.Settings.Tag): {{FilePath: "/x.ts", StartLine: 1, StartCol: 1}},
+	}
 	opts := RenderOpts{
 		EmitMode:        "both",
 		DiagSink:        &sink,
-		ProvenanceSites: map[string][]diagnostics.Site{rootID: {{FilePath: "/x.ts", StartLine: 1, StartCol: 1}}},
+		ProvenanceSites: site,
+		RootedSites:     site,
 	}
-	return joinEntries(t, FamilyByKey(familyKey).Collect(dump, opts, nil)), sink
+	return joinEntries(t, family.Collect(dump, opts, nil)), sink
 }
 
 // dropWarnFamilies maps each family that walks union members itself to its
 // DataOnly union-member-drop code. validationErrors is absent: its union arm
-// delegates to validate, so the user sees VL014 from the validate render.
+// delegates to validate, so the user sees validate-union-member-dropped from the validate render.
 var dropWarnFamilies = map[string]string{
-	"validate":           diagnostics.CodeVLUnionMemberDropped,
-	"prepareForJson":     diagnostics.CodePJUnionMemberDropped,
-	"prepareForJsonSafe": diagnostics.CodePJSUnionMemberDropped,
-	"stringifyJson":      diagnostics.CodeSJUnionMemberDropped,
-	"restoreFromJson":    diagnostics.CodeRJUnionMemberDropped,
-	"toBinary":           diagnostics.CodeTBUnionMemberDropped,
-	"fromBinary":         diagnostics.CodeFBUnionMemberDropped,
+	"validate":              diagnostics.CodeVLUnionMemberDropped,
+	"prepareForJsonMutate":  diagnostics.CodePJUnionMemberDropped,
+	"prepareForJsonClone":   diagnostics.CodePJSUnionMemberDropped,
+	"restoreFromJsonMutate": diagnostics.CodeRJUnionMemberDropped,
 }
 
 func findCode(sink []diagnostics.Diagnostic, code string) (diagnostics.Diagnostic, bool) {
@@ -125,8 +131,8 @@ func findCode(sink []diagnostics.Diagnostic, code string) (diagnostics.Diagnosti
 
 // A genuine drop (Date | symbol — one member survives) raises a per-family
 // build-time Warning naming the dropped member, mirroring the property-drop
-// warnings (VL010 etc.).
-func TestDataOnlyUnion_DropEmitsWarning(t *testing.T) {
+// warnings (validate-function-property-dropped etc.).
+func TestDataOnlyUnion_DropEmitsInfo(t *testing.T) {
 	dump := unionDump(mkDate(), mkSym())
 	for fam, wantCode := range dropWarnFamilies {
 		_, sink := renderWithDiag(t, dump, fam, "uni")
@@ -135,8 +141,8 @@ func TestDataOnlyUnion_DropEmitsWarning(t *testing.T) {
 			t.Errorf("[%s] expected union-member-drop warning %s; sink=%+v", fam, wantCode, sink)
 			continue
 		}
-		if got.Severity != diagnostics.SeverityWarning {
-			t.Errorf("[%s] %s severity = %v, want Warning", fam, wantCode, got.Severity)
+		if got.Severity != diagnostics.SeverityInfo {
+			t.Errorf("[%s] %s severity = %v, want Info", fam, wantCode, got.Severity)
 		}
 		if len(got.Args) == 0 || !strings.Contains(got.Args[0], "symbol") {
 			t.Errorf("[%s] %s args = %v, want a label naming the dropped \"symbol\" member", fam, wantCode, got.Args)
@@ -182,38 +188,83 @@ func TestDataOnlyUnion_NestedInArray(t *testing.T) {
 	arr := &reflection.RunType{ID: "arr", Kind: reflection.KindArray, Child: makeRef("uni")}
 	dump := protocol.Dump{RunTypes: []*reflection.RunType{date, sym, union, arr}}
 
-	out := renderModule(t, dump, "stringifyJson")
+	out := renderModule(t, dump, "prepareForJsonMutate")
 	// The array entry must be a real factory (arr inner fn), not alwaysThrow.
 	if !strings.Contains(out, "_arr(v){") {
 		t.Errorf("(Date|symbol)[] should encode (element union drops symbol); got:\n%s", out)
 	}
 }
 
-// K2 regression: a union whose object member carries a DataOnly-stripped
-// property (`Date | {b: symbol}`) must DROP that property and serialize the
-// member as `{}`, NOT alwaysThrow the whole union. A standalone `{b: symbol}`
-// already drops to `{}`; the union merged-prop builder used to filter only
-// function-like props, so the symbol survived, emitted CodeNS, and failed the
-// union. Covers every flat-union family (the merged-prop list is shared).
+// K2: `Date | {b: symbol}` drops the prop instead of alwaysThrowing, at the root and one object deeper.
+// Only the value kind's drop code is reported (`-function-property-dropped` or `-non-data-property-dropped`).
+// removeUnknownKeys refuses the union itself but still reports the drop.
 func TestDataOnlyUnion_ObjectMemberStrippedProp(t *testing.T) {
-	date := mkDate()
-	sym := mkSym()
-	propB := &reflection.RunType{ID: "pb", Kind: reflection.KindPropertySignature, Name: "b", Child: makeRef("sym")}
-	obj := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pb")}}
+	type familyCodes struct{ want, notWant string }
+	cases := []struct {
+		name  string
+		value *reflection.RunType
+		codes map[string]familyCodes
+	}{
+		{"symbol", mkSym(), map[string]familyCodes{
+			"validate":              {diagnostics.CodeVLNonSerializablePropDrop, diagnostics.CodeVLFunctionPropDropped},
+			"prepareForJsonMutate":  {diagnostics.CodePJNonSerializablePropDrop, diagnostics.CodePJFunctionPropDropped},
+			"prepareForJsonClone":   {diagnostics.CodePJSNonSerializablePropDrop, diagnostics.CodePJSFunctionPropDropped},
+			"restoreFromJsonMutate": {diagnostics.CodeRJNonSerializablePropDrop, diagnostics.CodeRJFunctionPropDropped},
+			"removeUnknownKeys":     {diagnostics.CodeRUKNonSerializablePropDrop, diagnostics.CodeRUKFunctionPropDropped},
+		}},
+		{"function", mkFn(), map[string]familyCodes{
+			"validate":              {diagnostics.CodeVLFunctionPropDropped, diagnostics.CodeVLNonSerializablePropDrop},
+			"prepareForJsonMutate":  {diagnostics.CodePJFunctionPropDropped, diagnostics.CodePJNonSerializablePropDrop},
+			"prepareForJsonClone":   {diagnostics.CodePJSFunctionPropDropped, diagnostics.CodePJSNonSerializablePropDrop},
+			"restoreFromJsonMutate": {diagnostics.CodeRJFunctionPropDropped, diagnostics.CodeRJNonSerializablePropDrop},
+			"removeUnknownKeys":     {diagnostics.CodeRUKFunctionPropDropped, diagnostics.CodeRUKNonSerializablePropDrop},
+		}},
+	}
+	for _, testCase := range cases {
+		propB := &reflection.RunType{ID: "pb", Kind: reflection.KindPropertySignature, Name: "b", Child: makeRef(testCase.value.ID)}
+		obj := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pb")}}
+		union := &reflection.RunType{
+			ID: "uni", Kind: reflection.KindUnion,
+			Children:          []*reflection.RunType{makeRef("dat"), makeRef("obj")},
+			SafeUnionChildren: []*reflection.RunType{makeRef("dat"), makeRef("obj")},
+		}
+		propU := &reflection.RunType{ID: "pu", Kind: reflection.KindPropertySignature, Name: "u", Child: makeRef("uni")}
+		outer := &reflection.RunType{ID: "outer", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pu")}}
+		dump := protocol.Dump{RunTypes: []*reflection.RunType{mkDate(), testCase.value, propB, obj, union, propU, outer}}
+		for _, rootID := range []string{"uni", "outer"} {
+			for familyKey, codes := range testCase.codes {
+				out, sink := renderWithDiag(t, dump, familyKey, rootID)
+				label := fmt.Sprintf("[%s %s root=%s]", familyKey, testCase.name, rootID)
+				if familyKey != "removeUnknownKeys" && !strings.Contains(out, "_uni(") {
+					t.Errorf("%s the union should drop the property and serialize, not alwaysThrow; got:\n%s", label, out)
+				}
+				if _, ok := findCode(sink, codes.want); !ok {
+					t.Errorf("%s want %s; sink=%+v", label, codes.want, sink)
+				}
+				if _, ok := findCode(sink, codes.notWant); ok {
+					t.Errorf("%s must not report %s; sink=%+v", label, codes.notWant, sink)
+				}
+			}
+		}
+	}
+}
+
+func TestDataOnlyUnion_ObjectMemberUnsafeNameDropped(t *testing.T) {
+	protoProp := &reflection.RunType{ID: "pp", Kind: reflection.KindPropertySignature, Name: "__proto__", Child: makeRef("str")}
+	obj := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pp")}}
 	union := &reflection.RunType{
 		ID: "uni", Kind: reflection.KindUnion,
 		Children:          []*reflection.RunType{makeRef("dat"), makeRef("obj")},
 		SafeUnionChildren: []*reflection.RunType{makeRef("dat"), makeRef("obj")},
 	}
-	dump := protocol.Dump{RunTypes: []*reflection.RunType{date, sym, propB, obj, union}}
-
-	for _, fam := range []string{"validate", "prepareForJson", "prepareForJsonSafe", "stringifyJson", "restoreFromJson", "toBinary", "fromBinary"} {
-		out := renderModule(t, dump, fam)
-		// A real union factory (`<hash>_uni(…){`) — family-agnostic, since binary
-		// encode/decode bodies take `(v,Ser)` / `(ret,Des)` not just `(v)`. An
-		// alwaysThrow union has no `_uni(` function definition at all.
-		if !strings.Contains(out, "_uni(") {
-			t.Errorf("[%s] `Date | {b: symbol}` should drop the symbol prop and serialize, not alwaysThrow; got:\n%s", fam, out)
+	dump := protocol.Dump{RunTypes: []*reflection.RunType{mkDate(), mkStr(), protoProp, obj, union}}
+	for _, familyKey := range []string{"validate", "prepareForJsonMutate", "prepareForJsonClone", "restoreFromJsonMutate", "removeUnknownKeys"} {
+		out, sink := renderWithDiag(t, dump, familyKey, "uni")
+		if _, ok := findCode(sink, diagnostics.CodeUnsafePropertyName); !ok {
+			t.Errorf("[%s] want %s for `__proto__` in a union member; sink=%+v", familyKey, diagnostics.CodeUnsafePropertyName, sink)
+		}
+		if strings.Contains(out, "__proto__") {
+			t.Errorf("[%s] generated code still reads `__proto__`:\n%s", familyKey, out)
 		}
 	}
 }

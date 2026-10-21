@@ -6,37 +6,14 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 )
 
-// This file implements the unused-builder-const elision analysis: a value-first
-// builder call whose RESULT is provably unused in its own file needs no
-// reflection graph — the scanner drops the site, so the transformer injects
-// nothing and `builderResult(undefined, carrier)` returns the harmless carrier
-// nobody reads. Always on (no flag): the analysis is per-file with a name
-// prefilter, so its cost is one bounded walk of the declaring file per builder
-// const.
-//
-// The verdict is deliberately DEFAULT-DENY — only positively recognized
-// type-only positions count as non-uses:
-//
-//   - `typeof myRT` in TYPE position (a TypeQuery node — what
-//     `InferType<typeof myRT>` produces) is a type-only use.
-//   - EVERYTHING else keeps the graph: any argument position (including
-//     `createXFn(myRT)` and builder composition), property access, `let`/`var`
-//     bindings, destructuring, exports (modifier, `export {myRT}` specifier,
-//     `export default`), and any position the classifier does not recognize.
-//
-// Exported consts are ALWAYS kept: the analysis is per-file so verdicts stay
-// file-local (an edited file re-scans and its own verdict moves with it); a
-// cross-file use index would need dev-server invalidation of OTHER files'
-// transforms. The documented pattern for cross-file reuse is exporting the
-// TYPE (`export type X = InferType<typeof myRT>`), which keeps the const
-// file-local and elidable.
+// The unused-builder-const elision analysis: a builder call whose result is provably unused in its own file
+// needs no reflection graph, so the scanner drops the site and `builderResult(undefined, carrier)` returns
+// the carrier nobody reads. The verdict is DEFAULT-DENY, only a `typeof myRT` in TYPE position counts as a
+// non-use. An exported const is ALWAYS kept: the analysis is per-file, and a cross-file use index would need
+// dev-server invalidation of OTHER files' transforms.
 
-// IsValueBuilderCall reports whether call is a value-first builder call — a
-// call whose resolved return type is the marker module's `RunType<…>` —
-// EXCLUDING `getRunType`, which returns a RunType like a builder but does not
-// BUILD one: it looks the injected id up and THROWS without it, so its sites
-// are never elidable (see IsIdLookupCall). Builders tolerate a missing id by
-// construction (they fall back to their carrier).
+// IsValueBuilderCall excludes `getRunType`, which returns a RunType but THROWS without its injected id, so
+// its sites are never elidable; a builder falls back to its carrier instead.
 func IsValueBuilderCall(typeChecker *checker.Checker, call *ast.Node, markerOpts marker.Options) bool {
 	if typeChecker == nil || call == nil || call.Kind != ast.KindCallExpression {
 		return false
@@ -51,11 +28,8 @@ func IsValueBuilderCall(typeChecker *checker.Checker, call *ast.Node, markerOpts
 	return IsRunType(checker.Checker_getReturnTypeOfSignature(typeChecker, signature), markerOpts)
 }
 
-// UnusedBuilderConst reports whether the builder call's result is provably
-// unused in its own file: either the result is discarded outright (a bare
-// expression statement), or it is bound to a non-exported `const` whose only
-// references are type-only (`typeof` in type position). Callers gate on
-// IsValueBuilderCall first.
+// UnusedBuilderConst reports a result discarded outright, or bound to a non-exported `const` whose only
+// references are type-only. Callers gate on IsValueBuilderCall first.
 func UnusedBuilderConst(typeChecker *checker.Checker, call *ast.Node) bool {
 	if typeChecker == nil || call == nil {
 		return false
@@ -67,8 +41,7 @@ func UnusedBuilderConst(typeChecker *checker.Checker, call *ast.Node) bool {
 	if consumer.Kind == ast.KindExpressionStatement {
 		return true
 	}
-	// The const-binding lane: plain identifier, `const` list, no export
-	// modifier (GetCombinedModifierFlags walks up to the VariableStatement).
+	// The const-binding lane; GetCombinedModifierFlags walks up to the VariableStatement for the export modifier.
 	nameNode := consumer.Name()
 	if nameNode == nil || !ast.IsIdentifier(nameNode) {
 		return false
@@ -91,12 +64,8 @@ func UnusedBuilderConst(typeChecker *checker.Checker, call *ast.Node) bool {
 	return !symbolValueUsed(typeChecker, symbol, nameNode, sourceFile.AsNode())
 }
 
-// resultConsumer climbs from the call through wrappers that pass the value
-// along unchanged (parentheses / `as` / `satisfies` / non-null) and returns
-// the node that CONSUMES the result: an ExpressionStatement (discarded) or the
-// VariableDeclaration whose initializer the call is. Nil for every other
-// consumer — argument positions, property values, returns, and anything
-// unrecognized all mean "used" to the caller.
+// resultConsumer climbs through wrappers that pass the value along unchanged to the node that CONSUMES the
+// result. Nil for every other consumer, which means "used" to the caller.
 func resultConsumer(call *ast.Node) *ast.Node {
 	node := call
 	for {
@@ -121,11 +90,8 @@ func resultConsumer(call *ast.Node) *ast.Node {
 	}
 }
 
-// symbolValueUsed walks the source file for identifiers resolving (through
-// aliases) to `symbol` — skipping the declaration's own name node — and
-// reports whether any sits in a VALUE position. Mirrors the reference walk of
-// convert's constUseIndex (internal/convert/set.go): a cheap text prefilter,
-// then symbol resolution only on name matches.
+// symbolValueUsed reports whether any identifier resolving to `symbol`, the declaration's own name aside,
+// sits in a VALUE position. Mirrors the reference walk of convert's constUseIndex (internal/convert/set.go).
 func symbolValueUsed(typeChecker *checker.Checker, symbol *ast.Symbol, declNameNode *ast.Node, root *ast.Node) bool {
 	name := declNameNode.Text()
 	used := false
@@ -152,12 +118,9 @@ func symbolValueUsed(typeChecker *checker.Checker, symbol *ast.Symbol, declNameN
 	return used
 }
 
-// typeOnlyReference reports whether the identifier sits inside a TypeQuery —
-// `typeof myRT` in TYPE position, the only way a const's value symbol appears
-// in a type (`InferType<typeof myRT>`). A TypeQuery holds just an entity-name
-// chain, never value expressions, so any TypeQuery ancestor means type-only.
-// Everything else — export specifiers included (an export makes the const
-// externally reachable) — reads as a value use.
+// typeOnlyReference looks for a TypeQuery ancestor, `typeof myRT` in TYPE position, the only way a const's
+// value symbol appears in a type; a TypeQuery holds an entity-name chain, never value expressions.
+// Everything else reads as a value use, an export specifier included.
 func typeOnlyReference(identifier *ast.Node) bool {
 	for node := identifier.Parent; node != nil; node = node.Parent {
 		if node.Kind == ast.KindTypeQuery {

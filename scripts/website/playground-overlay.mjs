@@ -18,26 +18,10 @@
 // allowImportingTsExtensions finds them without a `source` custom condition.
 
 import {readdirSync, readFileSync, statSync, writeFileSync} from 'node:fs';
-import {join, relative, sep} from 'node:path';
+import {dirname, join, relative, sep} from 'node:path';
 
-// The virtual package.json — exports map points straight at the .ts sources.
-const VIRTUAL_PACKAGE_JSON = JSON.stringify(
-  {
-    name: '@mionjs/run-types',
-    version: '0.0.0',
-    exports: {
-      '.': './src/index.ts',
-      './builders': './src/builders/index.ts',
-      // Deprecated alias, same module — mirrors the real package's exports so a
-      // playground snippet on the old subpath still resolves until 1.0.
-      './schema': './src/builders/index.ts',
-      './formats': './src/formats/index.ts',
-      './formats/temporal': './src/formats/datetime/temporalFormats.ts',
-    },
-  },
-  null,
-  2
-);
+// Repo-relative; build-playground.mjs rebuilds the overlay when any of these changes.
+export const OVERLAY_INPUTS = ['packages/run-types/src', 'packages/run-types/package.json', 'scripts/website/playground-overlay.mjs'];
 
 function walkTsFiles(dir) {
   const out = [];
@@ -52,17 +36,17 @@ function walkTsFiles(dir) {
   return out;
 }
 
-// buildRuntypesOverlay maps every non-test .ts under `srcDir`
-// (packages/run-types/src) to node_modules/@mionjs/run-types/src/<rel> and adds
-// the virtual package.json. Paths are POSIX-slashed so the overlay is identical on
-// every OS.
+// Paths are POSIX-slashed so the overlay is identical on every OS.
 export function buildRuntypesOverlay(srcDir) {
   const out = {};
   for (const abs of walkTsFiles(srcDir)) {
     const rel = relative(srcDir, abs).split(sep).join('/');
     out[`node_modules/@mionjs/run-types/src/${rel}`] = readFileSync(abs, 'utf8');
   }
-  out['node_modules/@mionjs/run-types/package.json'] = VIRTUAL_PACKAGE_JSON;
+  // A subpath with no `source` condition drops out of the JSON; packageOverlay.test.ts catches it.
+  const {name, exports} = JSON.parse(readFileSync(join(dirname(srcDir), 'package.json'), 'utf8'));
+  const sourceExports = Object.fromEntries(Object.entries(exports).map(([subpath, target]) => [subpath, target.source]));
+  out['node_modules/@mionjs/run-types/package.json'] = JSON.stringify({name, version: '0.0.0', exports: sourceExports}, null, 2);
   return out;
 }
 

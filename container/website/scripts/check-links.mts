@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * Script to detect broken code-import links in website content.
- * Scans every markdown file in BOTH sites' content trees
- * (container/website/sites/<site>/content) for <code-import> tags and verifies
+ * Scans every markdown file in the content tree (container/website/content)
+ * for <code-import> tags and verifies
  * that the referenced files exist.
  *
  * Usage: node container/website/scripts/check-links.mts
@@ -11,12 +11,8 @@
 import {readdirSync, readFileSync, existsSync, statSync} from 'fs';
 import {join, resolve} from 'path';
 
-const SITES_DIR = resolve(import.meta.dirname, '../sites');
-// Discovered, not listed: adding a site cannot silently leave its pages unchecked.
-const CONTENT_DIRS = readdirSync(SITES_DIR, {withFileTypes: true})
-  .filter((entry) => entry.isDirectory())
-  .map((entry) => join(SITES_DIR, entry.name, 'content'))
-  .filter((dir) => existsSync(dir));
+// The one content tree; every subsite lives under it (content/<NN>.<id>/).
+const CONTENT_DIRS = [resolve(import.meta.dirname, '../content')].filter((dir) => existsSync(dir));
 // Same convention as server/utils/repo-root.ts: MION_REPO_ROOT is the mounted
 // repo context inside the container; the fallback covers host runs.
 const MONOREPO_ROOT = process.env.MION_REPO_ROOT

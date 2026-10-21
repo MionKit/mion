@@ -5,10 +5,6 @@ export const ARRAY = {
     title: 'Array of strings',
     getSamples: () => ({
       valid: [[], ['hello', 'world']],
-      // The mixed-types invalid `['hello', 'world', {hello: 'world'}]`
-      // is the carry-over from the "simple array hasUnknownKeys on
-      // array with non objects" block — the object element fails the
-      // string check, so the whole array fails validate.
       invalid: ['hello', ['hello', 2], ['hello', 'world', {hello: 'world'}], null, undefined, [42], [null]],
     }),
   },
@@ -98,19 +94,6 @@ export const ARRAY = {
     getSamples: () => ({
       valid: [[], [[[]]], [[['a', 'b'], ['c']]]],
       invalid: [[[['a', 2]]], [['a']], ['a'], null, undefined, [[[null]]], [[[42]]]],
-    }),
-  },
-  string_array_noIsArrayCheck: {
-    title: 'Array with noIsArrayCheck (Array.isArray guard stripped)',
-    description:
-      'noIsArrayCheck strips the Array.isArray guard; hashes distinctly from plain string_array — same samples, different validator',
-    getSamples: () => ({
-      valid: [[], ['hello']],
-      // Without the guard, non-array inputs may not be rejected by
-      // the validator (the documented trade-off — the caller has
-      // pre-verified arrayness). Only sample inputs that the loop
-      // itself catches.
-      invalid: [[42]],
     }),
   },
   object_array: {

@@ -1,0 +1,223 @@
+package resolver
+
+import (
+	"strings"
+
+	"github.com/microsoft/typescript-go/shim/ast"
+
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/srcscan"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
+)
+
+// expecterror.go finds the directive comments and hands them to diagnostics.ApplyDirectives,
+// which owns what they mean; this half answers only where each real comment is, which line or
+// file it covers, and which word it is. It runs at the Dispatch choke point so a directive acts
+// for every consumer at once (build, `mion compile`, editor lint), unlike `downgradeErrors`,
+// which is build policy applied by the consumer that decides whether to halt.
+
+// settleDiagnostics is the last thing every op's diagnostics pass through: repeats collapse, then the
+// directive comments take effect, both here rather than in a handler because the lanes assemble their
+// diagnostics on different branches of dispatch. APPLYING a directive runs on every op, a directive
+// being a fact about the source whichever question was asked; REPORTING a wrong one (the comment-*
+// codes) runs only where the answer is real, which is what directiveScope works out. Cost when no
+// directive exists is one substring scan per source file.
+func (sess *Session) settleDiagnostics(list []diagnostics.Diagnostic, request protocol.Request) []diagnostics.Diagnostic {
+	list = diagnostics.Dedupe(list)
+	if request.Op == protocol.OpGenerate || request.Op == protocol.OpDump {
+		list = sess.dropRefusedApiTypeDiags(list)
+	}
+	scope := sess.directiveScope(request)
+	if len(list) == 0 && !scope.Reports {
+		return list
+	}
+	directives := sess.programDirectives()
+	if len(directives) == 0 {
+		return list
+	}
+	return diagnostics.ApplyDirectives(list, directives, sess.absPath, scope)
+}
+
+// directiveScope judges stale directives only for families and files checked by generate or scan.
+func (sess *Session) directiveScope(request protocol.Request) diagnostics.PassScope {
+	families := map[diagnostics.Family]bool{
+		diagnostics.FamilyPureFn:  true,
+		diagnostics.FamilyMarker:  true,
+		diagnostics.FamilyDrizzle: true,
+	}
+	switch request.Op {
+	case protocol.OpGenerate:
+		// Generate renders every entry.
+		families[diagnostics.FamilyRunType] = true
+		return diagnostics.PassScope{Reports: true, Families: families}
+	case protocol.OpScanFiles:
+		// A plain rewrite scan raises no RunType diagnostics.
+		if request.IncludeEntryModules || request.IncludeRtDiagnostics {
+			families[diagnostics.FamilyRunType] = true
+		}
+		if request.CheckEnrich {
+			families[diagnostics.FamilyEnrich] = true
+		}
+		if request.CheckRouterRules {
+			families[diagnostics.FamilyMionRoute] = true
+		}
+		files := make(map[string]bool, len(request.Files))
+		for _, file := range request.Files {
+			files[sess.absPath(file)] = true
+		}
+		lacks := diagnostics.RaisedWholeProgram
+		if !sess.apiLaneOn() {
+			lacks |= diagnostics.RaisedBundledRoutes
+		}
+		return diagnostics.PassScope{Reports: true, Files: files, Families: families, Lacks: lacks}
+	}
+	return diagnostics.PassScope{}
+}
+
+// programDirectives collects every directive in the program's non-declaration source, files with NO
+// diagnostics included: an unused directive is exactly the case comment-expect-error-unused exists to report, and that file
+// has nothing else to report.
+func (sess *Session) programDirectives() []diagnostics.Directive {
+	if sess.Program == nil || sess.Program.TS == nil {
+		return nil
+	}
+	var directives []diagnostics.Directive
+	for _, sourceFile := range sess.Program.TS.SourceFiles() {
+		if sourceFile == nil || sourceFile.IsDeclarationFile {
+			continue
+		}
+		if !carriesDirective(sourceFile.Text()) {
+			continue
+		}
+		directives = append(directives, fileDirectives(sourceFile.FileName(), sourceFile)...)
+	}
+	return directives
+}
+
+// carriesDirective is the cheap per-file prefilter: only a file spelling a marker pays for a comment lex.
+func carriesDirective(text string) bool {
+	return strings.Contains(text, diagnostics.DirectiveMarker) ||
+		strings.Contains(text, diagnostics.DowngradeDirectiveMarker)
+}
+
+// fileDirectives parses one file's directives. Comments come from srcscan, so a
+// directive written inside a string or a regex is not one, and a directive
+// inside a template interpolation is.
+func fileDirectives(filePath string, sourceFile *ast.SourceFile) []diagnostics.Directive {
+	text := sourceFile.Text()
+	spans := srcscan.Comments(text, srcscan.LiteralTokenRanges(sourceFile))
+	codeStart := firstCodeOffset(text, spans)
+	var directives []diagnostics.Directive
+	for _, span := range spans {
+		kind, body, isBlock, isDirective := directiveBody(text, span)
+		if !isDirective {
+			continue
+		}
+		startLine, startCol := textpos.LineCol(sourceFile, span.Start)
+		endLine, endCol := textpos.LineCol(sourceFile, span.End)
+		scope := diagnostics.DirectiveScopeLine
+		// Same shape rule as ESLint's `/* eslint-disable */`: only a block comment before any code covers the file.
+		if isBlock && span.End <= codeStart {
+			scope = diagnostics.DirectiveScopeFile
+		}
+		directives = append(directives, diagnostics.Directive{
+			Kind:  kind,
+			Scope: scope,
+			// endLine, not startLine: a multi-line block comment still points at the code under it.
+			AppliesToLine: endLine + 1,
+			Codes:         directiveCodes(body),
+			Site: diagnostics.Site{
+				FilePath:  filePath,
+				StartLine: startLine,
+				StartCol:  startCol,
+				EndLine:   endLine,
+				EndCol:    endCol,
+			},
+		})
+	}
+	return directives
+}
+
+// firstCodeOffset is the first byte outside whitespace and comments; a comments-only file answers its length.
+func firstCodeOffset(text string, spans []srcscan.Span) int {
+	offset := 0
+	for _, span := range spans {
+		for offset < span.Start && isSpace(text[offset]) {
+			offset++
+		}
+		if offset < span.Start {
+			return offset
+		}
+		offset = span.End
+	}
+	for offset < len(text) && isSpace(text[offset]) {
+		offset++
+	}
+	return offset
+}
+
+func isSpace(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '\v' || b == '\f'
+}
+
+// directiveBody returns the kind, the text after the marker, and whether the comment is a block comment.
+// A trailing comment after code is not a directive (as with `@ts-expect-error`): its target line would be ambiguous.
+func directiveBody(text string, span srcscan.Span) (diagnostics.DirectiveKind, string, bool, bool) {
+	if !ownLine(text, span.Start) {
+		return 0, "", false, false
+	}
+	raw := text[span.Start:span.End]
+	isBlock := strings.HasPrefix(raw, "/*")
+	inner := strings.TrimSpace(strings.Trim(strings.TrimPrefix(strings.TrimPrefix(raw, "//"), "/*"), "*/"))
+	// Tolerate a leading `*` so the directive also works inside a JSDoc block.
+	inner = strings.TrimSpace(strings.TrimPrefix(inner, "*"))
+	for _, kind := range []diagnostics.DirectiveKind{diagnostics.DirectiveExpect, diagnostics.DirectiveDowngrade} {
+		marker := kind.Marker()
+		if !strings.HasPrefix(inner, marker) {
+			continue
+		}
+		rest := inner[len(marker):]
+		// `@mion-expect-errorFOO` is a different word, not a bare directive.
+		if rest != "" && !isSeparator(rest[0]) {
+			return 0, "", false, false
+		}
+		return kind, rest, isBlock, true
+	}
+	return 0, "", false, false
+}
+
+// ownLine reports whether only whitespace precedes offset on its line.
+func ownLine(text string, offset int) bool {
+	for i := offset - 1; i >= 0; i-- {
+		switch text[i] {
+		case '\n', '\r':
+			return true
+		case ' ', '\t':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// directiveCodes splits the text after the marker into codes; space and comma both separate, and no code
+// at all is the bare form.
+func directiveCodes(rest string) []string {
+	fields := strings.FieldsFunc(rest, func(r rune) bool { return r == ',' || r == ' ' || r == '\t' || r == '\n' || r == '\r' })
+	codes := make([]string, 0, len(fields))
+	for _, field := range fields {
+		if field != "" {
+			codes = append(codes, field)
+		}
+	}
+	if len(codes) == 0 {
+		return nil
+	}
+	return codes
+}
+
+// isSeparator reports whether b separates the marker from its code list.
+func isSeparator(b byte) bool {
+	return b == ' ' || b == '\t' || b == ',' || b == '\n' || b == '\r'
+}

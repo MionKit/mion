@@ -1,6 +1,7 @@
 package resolver_test
 
 import (
+	"path/filepath"
 	"sort"
 	"testing"
 
@@ -83,7 +84,10 @@ func setupInlineWith(t testing.TB, sources map[string]string, mutate func(*progr
 	}
 	for rel, code := range sources {
 		overlay[tspath.ResolvePath(cwd, rel)] = code
-		relNames = append(relNames, rel)
+		// A package.json names the fixture's package and is read through the FS, never as a program root.
+		if filepath.Base(rel) != "package.json" {
+			relNames = append(relNames, rel)
+		}
 	}
 	sort.Strings(relNames)
 	fileNames := make([]string, 0, len(relNames))

@@ -20,8 +20,8 @@
 // intersection (structural format params, contains / patternProperties /
 // propertyNames slots, tuple labels) used to be
 // dropped or folded into its base, so a value-first `circular` resolved a
-// different structural id than its type-first twin — the bug this pays for
-// (docs/done/circular-brand-substitution.md). Two costs bought it: a
+// different structural id than its type-first twin — the bug this pays for.
+// Two costs bought it: a
 // `ContainsSelf` pre-walk, which returns a non-recursing subtree VERBATIM
 // (that is what preserves the carriers, and it makes the no-Self branch
 // CHEAPER — it now passes well under its old budget), and a `keyof` sentinel
@@ -47,9 +47,8 @@
 // it saves), and `Date | RegExp` stay named purely as a shortcut for the two
 // builtins schemas carry most.
 //
-// The residual risk is the depth cap, and it is the reverse of the old one: a
-// `Self` nested deeper than 24 would be left alone rather than substituted.
-// Walk battery below pins both directions.
+// The residual risk is the reverse of the old one: a `Self` 24 or more levels under a probed node is left alone.
+// Answering the cap `true` was measured: every class-carrying node reaches the rebuild and the resolver dies past 10 GB.
 
 import {describe, it, expect} from 'vitest';
 import {measureSubstituteSelf} from './substituteSelfHarness.ts';
@@ -64,6 +63,20 @@ function check(snippet: string, budget: number): number {
     `net instantiations (${r.netInstantiations}) exceeded budget (${budget}) — possible SubstituteSelf cost regression`
   ).toBeLessThanOrEqual(budget);
   return r.netInstantiations;
+}
+
+/** `{a0: {a1: … {a<levels-1>: leaf}}}` — one object per level, so nesting depth and the walk's depth counter match. **/
+function nest(levels: number, leaf: string): string {
+  let out = leaf;
+  for (let i = levels - 1; i >= 0; i--) out = `{a${i}: ${out}}`;
+  return out;
+}
+
+/** The index chain that reads `nest(levels, …)` back down to its leaf. **/
+function pathTo(levels: number): string {
+  let out = '';
+  for (let i = 0; i < levels; i++) out += `['a${i}']`;
+  return out;
 }
 
 /** Battery variant: asserts the snippet type-checks, with NO budget. Walking a
@@ -96,6 +109,20 @@ describe('SubstituteSelf / Recursive — recursive-schema correctness + budget',
       type _02 = Expect<Equal<Tree['children'], Tree[]>>;
       `,
       1993
+    );
+  });
+
+  it('recursion through a readonly array and a readonly tuple keeps readonly', () => {
+    check(
+      `
+      type Tree = Recursive<{children: readonly Self[]}>;
+      type _01 = Expect<Equal<Tree['children'], readonly Tree[]>>;
+      type Pair = Recursive<{next: readonly [number, Self?]}>;
+      type _02 = Expect<Equal<Pair['next'], readonly [number, Pair?]>>;
+      type Mutable = Recursive<{children: Self[]}>;
+      type _03 = Expect<Equal<Mutable['children'], Mutable[]>>;
+      `,
+      5420
     );
   });
 
@@ -207,6 +234,57 @@ describe('SubstituteSelf / Recursive — recursive-schema correctness + budget',
       // Deeper than the OLD cap of 12 and still found — the cap is 24 now.
       type _10 = Expect<Equal<ContainsSelf<{a:{b:{c:{d:{e:{f:{g:{h:{i:{j:{k:{l:{m: Self}}}}}}}}}}}}}>, true>>;
       `
+    );
+  });
+
+  // ── The depth-cap battery: where the walk stops, and what that costs ──
+  //
+  // 24 levels without bottoming out means "not a schema body": a body is a finite tree, a class's members loop forever.
+  // The cost is a plain object nest that does hold a `Self` past the cap, pinned rather than fixed: answering `true`
+  // grows the resolver past 10 GB, and raising 24 only moves these two cases, it removes neither.
+
+  it('the cap falls at exactly 24 levels', () => {
+    checkTypesOnly(
+      `
+      type _01 = Expect<Equal<ContainsSelf<${nest(23, 'Self')}>, true>>;
+      type _02 = Expect<Equal<ContainsSelf<${nest(24, 'Self')}>, false>>;
+      `
+    );
+  });
+
+  it("a Self past the cap is left un-substituted (the cap's price)", () => {
+    check(
+      `
+      type Body = ${nest(24, 'Self')};
+      type Out = Recursive<Body>;
+      type _01 = Expect<Equal<Out, Body>>;              // returned verbatim
+      type _02 = Expect<Equal<Out${pathTo(24)}, Self>>; // the Self is still there
+      `,
+      1933
+    );
+  });
+
+  // The same nest costs 7x (1933 → 14441) once the walk finds the `Self` and rebuilds all 23 levels.
+  it('one level shallower still ties the knot', () => {
+    check(
+      `
+      type Out = Recursive<${nest(23, 'Self')}>;
+      type _01 = Expect<Equal<Out${pathTo(23)}, Out>>;
+      `,
+      14441
+    );
+  });
+
+  it('a circular schema nested inside another one is left intact', () => {
+    check(
+      `
+      type Inner = Recursive<{v: string; next?: Self}>;
+      type Outer = Recursive<{child: Inner; next?: Self}>;
+      type _01 = Expect<Equal<Outer['child'], Inner>>;
+      type _02 = Expect<Equal<Outer['next'], Outer | undefined>>;
+      type _03 = Expect<Equal<NonNullable<Outer['child']['next']>['v'], string>>;
+      `,
+      2969
     );
   });
 });

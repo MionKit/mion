@@ -1,16 +1,14 @@
 package string
 
 import (
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// ipEmitter implements the format named "ip" — FormatIP / FormatIPv4 /
-// FormatIPv6 / *WithPort in `@mionjs/run-types/formats`. Dispatches
-// to pf_isIPV4 / pf_isIPV6 based on the `version` param (4, 6, or
-// 'any' → OR of both), passing the whole params object so the pure fn
-// can honour allowLocalHost / allowPort. Mirrors the IPRunTypeFormat
-// (ref: packages/type-formats/src/string/ip.runtype.ts).
+// ipEmitter implements the format named "ip": FormatIP / FormatIPv4 / FormatIPv6 / *WithPort.
+// It dispatches to isIPV4 / isIPV6 on the `version` param, passing the whole params object so the pure fn can
+// honour allowLocalHost / allowPort.
 type ipEmitter struct{}
 
 func init() {
@@ -20,9 +18,7 @@ func init() {
 func (ipEmitter) Name() string                    { return "ip" }
 func (ipEmitter) Kind() reflection.ReflectionKind { return reflection.KindString }
 
-// ipVersion reads the `version` param. Accepts 4 / 6 (numeric) and
-// 'any' (string). Defaults to "any" when absent — matches the
-// DEFAULT_IP_PARAMS.
+// ipVersion reads the `version` param, defaulting to "any" as DEFAULT_IP_PARAMS does.
 func ipVersion(params map[string]any) string {
 	raw, ok := params["version"]
 	if !ok {
@@ -42,23 +38,21 @@ func ipVersion(params map[string]any) string {
 	return "any"
 }
 
-// ipCall renders one parser call. The pure fns return the failure MODE, so
-// "valid" is the empty string and validate compares against it.
-func ipCall(ctx formats.EmitContext, fnName, vλl, literal string) string {
-	return pureFnAlias(ctx, fnName) + "(" + vλl + "," + literal + ")"
+// ipCall renders one parser call; the pure fns return the failure MODE, so "valid" is the empty string.
+func ipCall(ctx formats.EmitContext, fnID, vλl, literal string) string {
+	return formats.PureFnAlias(ctx, fnID) + "(" + vλl + "," + literal + ")"
 }
 
-// ipCheckExpr builds the boolean validate expression for the resolved
-// version. v4/v6 emit a single call; 'any' ORs both.
+// ipCheckExpr builds the boolean validate expression: one call for v4/v6, both ORed for 'any'.
 func ipCheckExpr(params map[string]any, vλl string, ctx formats.EmitContext) string {
 	literal := jsParamsLiteral(params)
 	switch ipVersion(params) {
 	case "4":
-		return ipCall(ctx, "isIPV4", vλl, literal) + "===''"
+		return ipCall(ctx, purefnids.IsIPV4, vλl, literal) + "===''"
 	case "6":
-		return ipCall(ctx, "isIPV6", vλl, literal) + "===''"
+		return ipCall(ctx, purefnids.IsIPV6, vλl, literal) + "===''"
 	default:
-		return "(" + ipCall(ctx, "isIPV4", vλl, literal) + "==='' || " + ipCall(ctx, "isIPV6", vλl, literal) + "==='')"
+		return "(" + ipCall(ctx, purefnids.IsIPV4, vλl, literal) + "==='' || " + ipCall(ctx, purefnids.IsIPV6, vλl, literal) + "==='')"
 	}
 }
 
@@ -69,15 +63,10 @@ func (ipEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl
 	return ipCheckExpr(annotation.Params, vλl, ctx)
 }
 
-// EmitValidationErrorsCheck — with `allowPort` an address has TWO ways to
-// fail, and the error names which in its `errorType`: 'address' (not an
-// address of the accepted version) or 'port' (a good address, bad port).
-// Without `allowPort` there is only one way to fail, so the field stays off —
-// a filler value would be worse than nothing.
-//
-// Under `version: 'any'` both parsers get a say and a 'port' from either wins:
-// the address half then parsed under at least one version, so the port is the
-// one thing wrong.
+// EmitValidationErrorsCheck: with `allowPort` an address has TWO ways to fail and the error names which in its
+// `errorType`, 'address' or 'port'. Without it there is one way to fail, so the field stays off.
+// Under `version: 'any'` a 'port' from either parser wins: the address half parsed under at least one version,
+// so the port is the one thing wrong.
 func (ipEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
 	if annotation == nil {
 		return ""
@@ -98,22 +87,21 @@ func (ipEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotati
 		formats.FormatErrorTypeProp(mode))
 	switch version {
 	case "4":
-		return "{const " + mode + "=" + ipCall(ctx, "isIPV4", vλl, literal) + ";if (" + mode + "!=='') " + errCall + ";}"
+		return "{const " + mode + "=" + ipCall(ctx, purefnids.IsIPV4, vλl, literal) + ";if (" + mode + "!=='') " + errCall + ";}"
 	case "6":
-		return "{const " + mode + "=" + ipCall(ctx, "isIPV6", vλl, literal) + ";if (" + mode + "!=='') " + errCall + ";}"
+		return "{const " + mode + "=" + ipCall(ctx, purefnids.IsIPV6, vλl, literal) + ";if (" + mode + "!=='') " + errCall + ";}"
 	default:
 		mode4 := ctx.NextLocalVar("ipMode4")
 		mode6 := ctx.NextLocalVar("ipMode6")
-		return "{const " + mode4 + "=" + ipCall(ctx, "isIPV4", vλl, literal) + ";" +
-			"const " + mode6 + "=" + mode4 + "==='' ? '' : " + ipCall(ctx, "isIPV6", vλl, literal) + ";" +
+		return "{const " + mode4 + "=" + ipCall(ctx, purefnids.IsIPV4, vλl, literal) + ";" +
+			"const " + mode6 + "=" + mode4 + "==='' ? '' : " + ipCall(ctx, purefnids.IsIPV6, vλl, literal) + ";" +
 			"const " + mode + "=" + mode4 + "==='' || " + mode6 + "==='' ? '' : " +
 			mode4 + "==='port' || " + mode6 + "==='port' ? 'port' : 'address';" +
 			"if (" + mode + "!=='') " + errCall + ";}"
 	}
 }
 
-// EmitFormatTransform applies the rewrite declared under `transform`
-// (`{lowercase: true}` canonicalises IPv6 hex digits), identity otherwise.
+// EmitFormatTransform applies the declared `transform`; `{lowercase: true}` canonicalises IPv6 hex digits.
 func (ipEmitter) EmitFormatTransform(annotation *reflection.FormatAnnotation, vλl string, _ formats.EmitContext) string {
 	if annotation == nil {
 		return ""
@@ -121,8 +109,7 @@ func (ipEmitter) EmitFormatTransform(annotation *reflection.FormatAnnotation, v�
 	return formats.EmitStringTransform(annotation.Params, vλl)
 }
 
-// ValidateParams checks the `version` param is 4, 6, or 'any' when present,
-// and the shape of the `transform` block.
+// ValidateParams checks `version` is 4, 6 or 'any' when present, plus the shape of the `transform` block.
 func (ipEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil

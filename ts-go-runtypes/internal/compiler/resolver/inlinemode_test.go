@@ -110,8 +110,8 @@ func TestInlineMode_AllInternal_NamedArrayInlines(t *testing.T) {
 // Those edges must keep riding SoftDeps so resolveCrossFamilyEdges renders
 // the member validate entries even though no site demands them directly.
 func TestInlineMode_Default_InlinedUnionKeepsCrossFamilyValMembers(t *testing.T) {
-	source := `import {createBinaryEncoderFn} from '@mionjs/run-types';
-export const enc = createBinaryEncoderFn<{u: {a: {n: number}} | {a: {s: string}}}>();
+	source := `import {createJsonEncoderFn} from '@mionjs/run-types';
+export const enc = createJsonEncoderFn<{u: {a: {n: bigint}} | {a: {s: string}}}>();
 `
 	r := setupInline(t, map[string]string{"a.ts": source})
 	resp := scanWithModules(t, r, []string{"a.ts"})
@@ -119,30 +119,30 @@ export const enc = createBinaryEncoderFn<{u: {a: {n: number}} | {a: {s: string}}
 	if len(valKeys) < 2 {
 		t.Fatalf("inlined union's member val_ entries must render via the cross-family fixpoint, got %v (modules: %v)", valKeys, moduleNames(resp))
 	}
-	// The tb parent's body must resolve those members through getRT —
+	// The pjs parent's body must resolve those members through getRT —
 	// the cross-family guard survives inlining.
-	var tbParent string
-	tbPrefix := operations.PlainHash("toBinary") + "_"
+	var pjsParent string
+	pjsPrefix := operations.PlainHash("prepareForJsonClone") + "_"
 	for name, source := range resp.EntryModules {
-		if strings.HasPrefix(name, tbPrefix) {
-			tbParent = source
+		if strings.HasPrefix(name, pjsPrefix) {
+			pjsParent = source
 			break
 		}
 	}
-	if tbParent == "" {
-		t.Fatalf("missing toBinary parent entry; modules: %v", moduleNames(resp))
+	if pjsParent == "" {
+		t.Fatalf("missing prepareForJsonClone parent entry; modules: %v", moduleNames(resp))
 	}
 	// The body rides inside a single-quoted JS string, so the getRT quotes
 	// are escaped (`getRT(\'nPZ_x\')`) in the module source.
 	sawMemberLookup := false
 	for _, key := range valKeys {
-		if strings.Contains(tbParent, `utl.getRT(\'`+key+`\')`) {
+		if strings.Contains(pjsParent, `utl.getRT(\'`+key+`\')`) {
 			sawMemberLookup = true
 			break
 		}
 	}
 	if !sawMemberLookup {
-		t.Errorf("tb parent should resolve val_<member> via getRT for union discrimination:\n%s", tbParent)
+		t.Errorf("pjs parent should resolve val_<member> via getRT for union discrimination:\n%s", pjsParent)
 	}
 }
 

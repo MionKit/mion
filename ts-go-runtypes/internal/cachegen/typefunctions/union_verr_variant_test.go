@@ -45,9 +45,8 @@ func TestUnionValidationErrors_ResolvesVariantValidate(t *testing.T) {
 		options []string
 	}{
 		{"plain", nil},
-		{"noLiterals", []string{"noLiterals"}},
 		{"numberTypeof", []string{"numberTypeof"}},
-		{"noLiterals+numberNotNaN", []string{"noLiterals", "numberNotNaN"}},
+		{"numberNotNaN", []string{"numberNotNaN"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			suffix := constants.ValidateVariantSuffix(tc.options)
@@ -77,7 +76,7 @@ func TestUnionValidationErrors_ResolvesVariantValidate(t *testing.T) {
 // validate variant itself, so the cross-family edge is what pulls it in.
 func TestUnionValidationErrors_VariantValidateEntryIsRendered(t *testing.T) {
 	runTypes, rootID := buildLiteralUnionFixture()
-	options := []string{"noLiterals"}
+	options := []string{"numberTypeof"}
 	dump := protocol.Dump{
 		RunTypes: runTypes,
 		Sites: []protocol.Site{{

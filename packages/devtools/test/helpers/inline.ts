@@ -21,7 +21,7 @@ import {ResolverClient} from '../../src/core/resolver-client.ts';
 import {type Replacement, type Site, type RunType, type SourceMap} from '../../src/core/protocol.ts';
 
 const ROOT = path.resolve(__dirname, '../../../..');
-export const BIN = path.resolve(ROOT, 'bin/mion');
+export const BIN = path.resolve(ROOT, 'mion-bin/mion');
 export const hasBinary = (): boolean => fs.existsSync(BIN);
 
 // BARE_CWD is the working directory for bare (config-less) server spawns. The
@@ -33,23 +33,43 @@ export const BARE_CWD = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-bare-'));
 
 export type InlineSources = Record<string, string>;
 
-// The REAL `@mionjs/run-types` package — its package.json plus the built
-// dist/**/*.d.ts declaration tree (esm AND dist/cjs/, since a node16-style
-// CommonJS importer resolves the `require` export condition) — keyed as
-// virtual node_modules paths for setSources. `withInlineSources` always
-// injects it, so test snippets resolve the marker module exactly the way a
-// consumer install does; there is no hand-written module stand-in to drift
-// ("Real types, never copies" in packages/run-types/test/fuzz/README.md). Read once
-// per worker; the dist is guaranteed fresh by `pretest` → `check:builds`.
-const MARKER_PKG_DIR = path.resolve(ROOT, 'packages/run-types');
+// The REAL `@mionjs/run-types` as a CONSUMER INSTALL, keyed as virtual node_modules paths: the
+// published package.json (no `source` condition, what pack.mjs strips), the dist .d.ts tree
+// (dist/cjs/ too, a node16 CommonJS importer resolves `require`) and the `mion-pure-fns/`
+// artifact, the only place the built-in pure-fn bodies live once the dist is hollowed.
+// No sources, because the tarball carries none. No hand-written stand-in to drift ("Real types,
+// never copies" in packages/run-types/test/fuzz/README.md). Read once per worker; the dist is
+// kept fresh by `pretest` → `check:builds`.
+// A relative literal on purpose: `core test-pr` reads it as the edge that reruns these tests when run-types changes.
+const MARKER_PKG_DIR = path.resolve(__dirname, '../../../run-types');
+const ARTIFACT_SEGMENT = `${path.sep}mion-pure-fns${path.sep}`;
+
+// The TS twin of scripts/lib/publish-manifest.mjs: every `source` key dropped, at any depth.
+const withoutSource = (node: unknown): unknown => {
+  if (Array.isArray(node)) return node.map(withoutSource);
+  if (!node || typeof node !== 'object') return node;
+  return Object.fromEntries(
+    Object.entries(node as Record<string, unknown>)
+      .filter(([key]) => key !== 'source')
+      .map(([key, value]) => [key, withoutSource(value)])
+  );
+};
+
 export const MARKER_PACKAGE_OVERLAY: Readonly<InlineSources> = (() => {
+  if (!fs.existsSync(path.join(MARKER_PKG_DIR, 'dist'))) {
+    throw new Error(
+      'packages/run-types/dist is missing: devtools tests read the built marker package, run `pnpm run check:builds` first'
+    );
+  }
   const files: InlineSources = {};
-  files['node_modules/@mionjs/run-types/package.json'] = fs.readFileSync(path.join(MARKER_PKG_DIR, 'package.json'), 'utf8');
+  const manifest = JSON.parse(fs.readFileSync(path.join(MARKER_PKG_DIR, 'package.json'), 'utf8')) as Record<string, unknown>;
+  files['node_modules/@mionjs/run-types/package.json'] = JSON.stringify({...manifest, exports: withoutSource(manifest.exports)});
   const walk = (dir: string, rel: string): void => {
     for (const entry of fs.readdirSync(dir, {withFileTypes: true})) {
-      if (entry.isDirectory()) walk(path.join(dir, entry.name), `${rel}${entry.name}/`);
-      else if (entry.name.endsWith('.d.ts')) {
-        files[`node_modules/@mionjs/run-types/dist/${rel}${entry.name}`] = fs.readFileSync(path.join(dir, entry.name), 'utf8');
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full, `${rel}${entry.name}/`);
+      else if (entry.name.endsWith('.d.ts') || full.includes(ARTIFACT_SEGMENT)) {
+        files[`node_modules/@mionjs/run-types/dist/${rel}${entry.name}`] = fs.readFileSync(full, 'utf8');
       }
     }
   };
@@ -74,6 +94,20 @@ export function writeMarkerPackage(dir: string): void {
     fs.mkdirSync(path.dirname(abs), {recursive: true});
     fs.writeFileSync(abs, content);
   }
+}
+
+const MARKER_PROJECT_TSCONFIG = JSON.stringify({
+  compilerOptions: {target: 'ES2022', module: 'ESNext', moduleResolution: 'bundler', strict: true, skipLibCheck: true, types: []},
+  include: ['**/*.ts'],
+  exclude: ['node_modules'],
+});
+
+/** A fresh temp project with a tsconfig and the marker package installed, for suites that build on disk. **/
+export function createMarkerProject(prefix: string): string {
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), prefix)));
+  fs.writeFileSync(path.join(dir, 'tsconfig.json'), MARKER_PROJECT_TSCONFIG);
+  writeMarkerPackage(dir);
+  return dir;
 }
 
 // Shape of the daemon-response capture attached to `task.meta.mionRunTypes`.
@@ -248,172 +282,12 @@ export async function evalCacheFor(sources: InlineSources, opts: WithInlineOpts 
   );
 }
 
-// One evaluated entry-module tuple, indexed positionally — slot 0 the kind /
-// family tag, slot 1 the deps thunk (undefined when dep-less; never self),
-// slot 2 the ini fn, slot 3 the cache key, slot 4+ the legacy positional
-// args. Mirrors the layout contract in
-// packages/run-types/src/runtypes/entryTuple.ts.
-export type EntryTuple = readonly unknown[];
-
-const IMPORT_LINE = /^import \{(__rt_[A-Za-z0-9_$]+)\} from 'rtmod:\/(.+)\.js';\n/gm;
-const EXPORT_LINE = /^export const (__rt_[A-Za-z0-9_$]+)=/m;
-
-// evalEntryModules evaluates every per-entry virtual module source into its
-// exported tuple, keyed by basename. Imports between entry modules are
-// emulated with LIVE bindings: each module body runs inside a `with` scope
-// whose proxy resolves the imported binding identifiers (`__rt_<dep>`) lazily
-// at access time — by the time any deps() thunk dereferences them, every
-// module has evaluated, so recursive type graphs behave exactly as real ESM
-// cycles do. The module's own export (also `__rt_`-named) shadows the proxy
-// as a local, and the factory `code` strings are never touched (no
-// identifier rewriting).
-export function evalEntryModules(modules: Record<string, string>): Record<string, EntryTuple> {
-  const tuples: Record<string, EntryTuple> = {};
-  for (const [basename, source] of Object.entries(modules)) {
-    const importsByBinding = new Map<string, string>();
-    const stripped = source.replace(IMPORT_LINE, (_whole, binding: string, dep: string) => {
-      importsByBinding.set(binding, dep);
-      return '';
-    });
-    const exportName = stripped.match(EXPORT_LINE)?.[1];
-    if (!exportName) throw new Error(`evalEntryModules: no entry export in ${basename}:\n${source}`);
-    const body = stripped.replace(EXPORT_LINE, `const ${exportName}=`);
-    const scope = new Proxy(
-      {},
-      {
-        has: (_target, prop) => typeof prop === 'string' && importsByBinding.has(prop),
-        get: (_target, prop) => tuples[importsByBinding.get(prop as string)!],
-      }
-    );
-    // Sloppy-mode `new Function` body so `with` is legal; entry modules are
-    // emitted without a 'use strict' prologue on purpose.
-    const factory = new Function('__scope', `with(__scope){${body}\nreturn ${exportName};}`);
-    tuples[basename] = factory(scope) as EntryTuple;
-  }
-  return tuples;
-}
-
-// instantiateRunTypes builds the RunType records from every row of the
-// runtype data-bundle tuple (slot 0 === 4; headless rows in slot 4), wires each
-// node's ref slots from the parallel `rels` array (slot 5, by row index), and
-// runs any residual footer initializer (slot 2 — the rare expression-specials)
-// against a stub registry — the same two-phase shape the marker package's
-// initFromTuple performs against the real rtUtils. Facade tuples (slot 0 === 5)
-// carry no data and are skipped. Returns the flat {[id]: RunType} table.
-export function instantiateRunTypes(tuples: Record<string, EntryTuple>): Record<string, RunType> {
-  const registered: Record<string, RunType> = {};
-  const stub = {
-    useRunType(id: string): RunType {
-      const entry = registered[id];
-      if (!entry) throw new Error(`stub useRunType: no entry for ${id}`);
-      return entry;
-    },
-  };
-  const bundles: EntryTuple[] = [];
-  for (const tuple of Object.values(tuples)) {
-    if (!Array.isArray(tuple) || tuple[0] !== 4) continue;
-    for (const row of (tuple[4] ?? []) as readonly (readonly unknown[])[]) {
-      registered[row[0] as string] = buildRunTypeFromRow(row);
-    }
-    bundles.push(tuple);
-  }
-  for (const tuple of bundles) {
-    wireBundleRels(tuple, registered);
-    if (typeof tuple[2] === 'function') (tuple[2] as (rtu: typeof stub) => void)(stub);
-  }
-  return registered;
-}
-
-// Relation-slot order + single/array split — duplicated from
-// RUN_TYPE_REL_KEYS / RUN_TYPE_REL_IS_ARRAY in
-// packages/run-types/src/runtypes/entryTuple.ts (kept local so this test
-// helper doesn't drag the whole mion type graph into the devtools
-// typecheck). Mirrors Go's runtype.renderRelations; the tests that walk the
-// reflected graph catch any drift.
-const REL_KEYS = [
-  'child',
-  'children',
-  'index',
-  'return',
-  'indexType',
-  'parameters',
-  'safeUnionChildren',
-  'unionDiscriminators',
-  'typeMeta',
-  'typeArguments',
-  'arguments',
-  'extendsArguments',
-  'implements',
-  'extends',
-] as const;
-const REL_IS_ARRAY = [false, true, false, false, false, true, true, true, true, true, true, true, true, true] as const;
-
-// wireBundleRels mirrors entryTuple.ts's wireBundleRelations: patch each node's
-// ref slots from the parallel `rels` array (slot 5) by ROW INDEX. A number is a
-// row index, a string a foreign id (registry lookup), anything else an inline
-// non-ref RunType. Runs after every row is registered, so cycles resolve.
-function wireBundleRels(tuple: EntryTuple, registered: Record<string, RunType>): void {
-  const rows = (tuple[4] ?? []) as readonly (readonly unknown[])[];
-  const rels = (tuple[5] ?? []) as readonly (readonly unknown[] | undefined)[];
-  const byIndex = rows.map((row) => registered[row[0] as string]);
-  const resolve = (rel: unknown): unknown =>
-    typeof rel === 'number' ? byIndex[rel] : typeof rel === 'string' ? registered[rel] : rel;
-  for (let i = 0; i < rels.length; i++) {
-    const relRow = rels[i];
-    if (!relRow) continue;
-    const target = byIndex[i] as unknown as Record<string, unknown>;
-    if (!target) continue;
-    for (let slot = 0; slot < REL_KEYS.length; slot++) {
-      const value = relRow[slot];
-      if (value === undefined) continue;
-      target[REL_KEYS[slot]] = REL_IS_ARRAY[slot] ? (value as readonly unknown[]).map(resolve) : resolve(value);
-    }
-  }
-}
-
-// buildRunTypeFromRow mirrors the 20-slot row construction in
-// packages/run-types/src/runtypes/entryTuple.ts (registerRunTypeBundle):
-// every ref-bearing slot starts undefined and is patched by the ini pass.
-function buildRunTypeFromRow(row: readonly unknown[]): RunType {
-  const arg = (offset: number) => row[offset];
-  return {
-    id: arg(0),
-    kind: arg(1),
-    subKind: arg(2),
-    typeName: arg(3),
-    name: arg(4),
-    literal: arg(5),
-    optional: arg(6),
-    readonly: arg(7),
-    isAbstract: arg(8),
-    isStatic: arg(9),
-    visibility: arg(10),
-    isSafeName: arg(11),
-    position: arg(12),
-    isCircular: arg(13),
-    flags: arg(14),
-    description: arg(15),
-    defaultVal: arg(16),
-    enumVal: arg(17),
-    values: arg(18),
-    notSupported: arg(19),
-    child: undefined,
-    index: undefined,
-    return: undefined,
-    indexType: undefined,
-    parameters: undefined,
-    children: undefined,
-    safeUnionChildren: undefined,
-    unionDiscriminators: undefined,
-    typeMeta: undefined,
-    typeArguments: undefined,
-    arguments: undefined,
-    extendsArguments: undefined,
-    implements: undefined,
-    extends: undefined,
-    classType: undefined,
-  } as unknown as RunType;
-}
+// The entry-module evaluator + RunType instantiation live in entryModules.ts,
+// a dependency-free module (plain TypeScript, no vitest / resolver imports) so
+// the run-types security fuzz worker thread can load it through Node's native
+// type stripping. Re-exported here so every existing importer keeps working.
+import {evalEntryModules, instantiateRunTypes, type EntryTuple} from './entryModules.ts';
+export {evalEntryModules, instantiateRunTypes, type EntryTuple};
 
 // Look up the resolved RunType for a given source file in an evaluated cache.
 // Throws if no site was recorded or the id is missing — both indicate the
@@ -456,4 +330,18 @@ export function runFiles(title: string, files: FilePaths, fn: (sources: InlineSo
     (task.meta as Record<string, unknown>).mionRunTypes = meta;
     await metaStore.run(meta, () => Promise.resolve(fn(resolved)));
   });
+}
+
+export type Hook = ((...args: unknown[]) => unknown) | {handler: (...args: unknown[]) => unknown};
+export const callHook = (hook: Hook, thisArg: unknown, ...args: unknown[]): unknown =>
+  typeof hook === 'function' ? hook.apply(thisArg, args) : hook.handler.apply(thisArg, args);
+
+// A dev server reports asynchronously.
+export async function waitFor(check: () => boolean | Promise<boolean>, what: string, timeoutMs = 20000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await check()) return;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`timed out waiting for ${what}`);
 }

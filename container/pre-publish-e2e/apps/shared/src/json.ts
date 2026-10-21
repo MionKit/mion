@@ -1,6 +1,4 @@
-// Family 4 — JSON codec. Mirrors guide/json-basics.ts + json-strategies.ts +
-// json-dataonly.ts. Round-trip through Date + Map, the three encoder
-// strategies, and the DataOnly decode projection.
+// Family 4, JSON codec. Mirrors guide/json-round-trip-overview.ts + json-strategies.ts + json-round-trip-data-only.ts.
 import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 import {type CheckResult, ok} from './check';
 
@@ -18,11 +16,11 @@ interface Profile {
 export const encodeSession = createJsonEncoderFn<Session>();
 export const decodeSession = createJsonDecoderFn<Session>();
 
-// The three strategies: clone (default, strips undeclared), mutate (keeps
-// extras), direct (single pass, strips).
+// clone (default) drops undeclared keys, mutate keeps them, on both sides.
 export const encodeClone = createJsonEncoderFn<Profile>(undefined, {strategy: 'clone'});
 export const encodeMutate = createJsonEncoderFn<Profile>(undefined, {strategy: 'mutate'});
-export const encodeDirect = createJsonEncoderFn<Profile>(undefined, {strategy: 'direct'});
+export const decodeClone = createJsonDecoderFn<Profile>(undefined, {strategy: 'clone'});
+export const decodeMutate = createJsonDecoderFn<Profile>(undefined, {strategy: 'mutate'});
 
 export function checkJson(): CheckResult[] {
   const session: Session = {
@@ -42,6 +40,7 @@ export function checkJson(): CheckResult[] {
     ok('json: clone strategy strips undeclared keys', !encodeClone(messy)!.includes('secret')),
     // mutate keeps it on the wire.
     ok('json: mutate strategy keeps undeclared keys', encodeMutate({...messy})!.includes('secret')),
-    ok('json: direct strategy strips undeclared keys', !encodeDirect(messy)!.includes('secret')),
+    ok('json: clone decoder drops undeclared keys', !('secret' in decodeClone(JSON.stringify(messy)))),
+    ok('json: mutate decoder keeps undeclared keys', 'secret' in decodeMutate(JSON.stringify(messy))),
   ];
 }

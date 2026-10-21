@@ -1,13 +1,13 @@
 // build-playground.mjs: host-side prebuild of the static assets the docs site's
 // <RuntypesPlayground> Vue component fetches from /playground-app/:
 //
-//   public/playground-app/ts-runtypes.wasm.gz   the resolver compiled to wasm (gz)
+//   public/playground-app/mion.wasm.gz          the resolver compiled to wasm (gz)
 //   public/playground-app/wasm_exec.js          Go's wasm runtime shim
 //   public/playground-app/runtypes-sources.json the mion source overlay the
 //                                               resolver type-checks snippets against
 //
 // Run this on the HOST (needs the Go toolchain + bootstrapped submodule, see
-// ../../../SETUP.md) before `pnpm rtx website dev`. public/ is bind-mounted into the
+// ../../../SETUP.md) before `pnpm miondevx website dev`. public/ is bind-mounted into the
 // container, so the staged files ride in. Port of the former build-playground.sh.
 //
 // The WASM build is STALENESS-GATED so repeated dev/build starts do NOT recompile
@@ -20,7 +20,9 @@ import {cpSync, copyFileSync, existsSync, globSync, mkdirSync, readdirSync, read
 import {join} from 'node:path';
 import {GO_ROOT, loadEnv, REPO_ROOT} from '../../../scripts/lib/env.mjs';
 import {capture, die, note, reportCliError, run, warn, which} from '../../../scripts/lib/proc.mjs';
+import {PLAYGROUND_ASSETS} from '../../../scripts/website/playground-assets.mjs';
 import {readWasmStamp, wasmInputsDigest} from '../../../scripts/website/playground-wasm-inputs.mjs';
+import {OVERLAY_INPUTS} from '../../../scripts/website/playground-overlay.mjs';
 
 const WEBSITE_DIR = join(REPO_ROOT, 'container/website');
 const CACHE_DIR = join(REPO_ROOT, '.cache/rt-wasm');
@@ -38,7 +40,6 @@ const VENDOR_DIR = join(WEBSITE_DIR, 'app/playground/.vendor/ts-runtypes-dist');
 const WASM_PKG = './cmd/mion-wasm';
 // The Go inputs the wasm links live in scripts/website/playground-wasm-inputs.mjs,
 // shared with the test loader so both gates agree on what an input is.
-// The source overlay tracks only the marker package's src.
 const SOURCES_INPUT = 'packages/run-types/src';
 
 const mtime = (p) => statSync(p).mtimeMs;
@@ -155,10 +156,10 @@ function ensureWasmDerived() {
   return changed;
 }
 
-// ── Source overlay: staleness gate on packages/run-types/src ────────────────
+// ── Source overlay: staleness gate on OVERLAY_INPUTS ────────────────────────
 
 function buildSourcesIfStale() {
-  if (existsSync(SOURCES_JSON) && !anyNewer([SOURCES_INPUT], mtime(SOURCES_JSON))) {
+  if (existsSync(SOURCES_JSON) && !anyNewer(OVERLAY_INPUTS, mtime(SOURCES_JSON))) {
     note('mion source overlay up to date');
     return false;
   }
@@ -170,13 +171,9 @@ function buildSourcesIfStale() {
 
 // ── Sidecar hook: the playground's JS engine for pattern generation ──────────
 
-// The resolver WASM routes pattern validation + mockSample generation through
-// the __tsRunTypesJsEngine host hook when it is installed (jsengine/wasm.go).
-// The hook is the sidecar package's IIFE build (dist/sidecar-hook.js); loaded
-// as a classic script before the WASM instantiates, the playground generates
-// the SAME deterministic samples a native build does. Missing hook = the page
-// still works, generation degrades to the declare-mockSamples diagnostic.
-const SIDECAR_PKG_DIR = 'packages/go-be-sidecar';
+// The sidecar IIFE is the WASM's __tsRunTypesJsEngine hook (jsengine/wasm.go); loaded first, samples match native.
+// Without it the page still works, but generation degrades to the declare-mockSamples diagnostic.
+const SIDECAR_PKG_DIR = 'packages/private-go-be-sidecar';
 const SIDECAR_HOOK_BUILT = join(REPO_ROOT, SIDECAR_PKG_DIR, 'dist/sidecar-hook.js');
 
 function buildSidecarHookIfStale() {
@@ -242,17 +239,28 @@ function anyNewerAbs(dir, anchorMs) {
 
 // ── Stage into public/playground-app/ ─────────────────────────────────────────
 
+// Where each staged asset comes from in the cache. Keyed by the manifest's own
+// file names so a rename there cannot silently keep staging the old spelling.
+const CACHED = {
+  'mion.wasm.gz': RAW_GZ,
+  'wasm_exec.js': WASM_EXEC,
+  'runtypes-sources.json': SOURCES_JSON,
+  'sidecar-hook.js': SIDECAR_HOOK,
+};
+
+// Staging only WARNS on a missing source: a host with no Go toolchain must still be
+// able to build the site. The hard gate is scripts/website/check-static.mjs, which
+// fetches every required asset out of the built artifact before it can be deployed.
 function stage() {
-  for (const [src, dst] of [
-    [RAW_GZ, join(OUT_DIR, 'mion.wasm.gz')],
-    [WASM_EXEC, join(OUT_DIR, 'wasm_exec.js')],
-    [SOURCES_JSON, join(OUT_DIR, 'runtypes-sources.json')],
-    [SIDECAR_HOOK, join(OUT_DIR, 'sidecar-hook.js')],
-  ]) {
+  for (const {file, required, what} of PLAYGROUND_ASSETS) {
+    const src = CACHED[file];
+    if (!src) die(`==> ERROR: no cache source for staged playground asset '${file}' (add it to CACHED).`);
     if (!existsSync(src)) {
-      warn(`missing ${src} - the /playground page will not load until it is built`);
+      const tail = required ? 'the /runtypes/playground page will not load until it is built' : `optional: ${what}`;
+      warn(`missing ${src} - ${tail}`);
       continue;
     }
+    const dst = join(OUT_DIR, file);
     if (!existsSync(dst) || mtime(src) > mtime(dst)) copyFileSync(src, dst);
   }
 }

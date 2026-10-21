@@ -14,8 +14,8 @@ website source *and* its Nuxt/TS/ESLint config — is bind-mounted at run time.
 
 | Lives **inside the image** (deps only)                       | Lives **on the host** (bind-mounted at run time)                 |
 | ------------------------------------------------------------ | ---------------------------------------------------------------- |
-| `_deps/package.json`, `_deps/pnpm-lock.yaml`                 | `app/`, `sites/`, `public/`, `server/`, `scripts/`, `tests/`     |
-| `_deps/pnpm-workspace.yaml`, `_deps/.npmrc`                  | `nuxt.config.ts`, `content.config.ts`, `site.config.ts`, `tsconfig.json`, `eslint.config.mjs` |
+| `_deps/package.json`, `_deps/pnpm-lock.yaml`                 | `app/`, `sites/`, `content/`, `public/`, `server/`, `scripts/`, `tests/` |
+| `_deps/pnpm-workspace.yaml`, `_deps/.npmrc`                  | `nuxt.config.ts`, `content.config.ts`, `tsconfig.json`, `eslint.config.mjs` |
 | **`node_modules/`** (installed in the image only)            | (config + source are the source-of-truth on the host)            |
 
 - The package-manager files live in **`container/website/_deps/`**, not at the website
@@ -37,26 +37,26 @@ website source *and* its Nuxt/TS/ESLint config — is bind-mounted at run time.
 ## Usage
 
 All commands run from the **repo root**. Running the site is
-[`scripts/website/site.mjs`](../scripts/website/site.mjs); the image lifecycle is
-[`scripts/container/image.mjs`](../scripts/container/image.mjs):
+[`scripts/website/site.mjs`](../../scripts/website/site.mjs); the image lifecycle is
+[`scripts/container/image.mjs`](../../scripts/container/image.mjs):
 
 ```bash
 # --- run the site (site.mjs) ---
-pnpm rtx website dev            # dev server with hot reload -> http://localhost:3000
-pnpm rtx website dev --agent    # agent server, self-stops when idle -> http://localhost:3100
-pnpm rtx website build          # production build + static prerender -> container/website/.output
-pnpm rtx website preview        # serve the prerendered site locally (regenerates first)
-pnpm rtx website check          # verify the RunTypes repo context (packages/) is built
-pnpm rtx website check --docs   # check code-import + twoslash render (curl/grep)
-pnpm rtx website check --static # serve the BUILT site + assert every benchmark page renders
-pnpm rtx website shell          # debug shell inside the container
+pnpm miondevx website dev            # dev server with hot reload -> http://localhost:3000
+pnpm miondevx website dev --agent    # agent server, self-stops when idle -> http://localhost:3100
+pnpm miondevx website build          # production build + static prerender -> container/website/.output
+pnpm miondevx website preview        # serve the prerendered site locally (regenerates first)
+pnpm miondevx website check          # verify the RunTypes repo context (packages/) is built
+pnpm miondevx website check --docs   # check code-import + twoslash render (curl/grep)
+pnpm miondevx website check --static # serve the BUILT site + assert every benchmark page renders
+pnpm miondevx website shell          # debug shell inside the container
 # --- image lifecycle (image.mjs) ---
-pnpm rtx container build-image   # build the image locally (maintainer)
-pnpm rtx container lock          # regenerate _deps/pnpm-lock.yaml in-container (after a dep bump)
-pnpm rtx container login         # log in to GHCR (needs a PAT; see SETUP.md)
-pnpm rtx container push          # build + push the multi-arch image to GHCR
-pnpm rtx container pull          # pull the published image and tag it locally
-pnpm rtx container clean         # remove the image + cache volumes
+pnpm miondevx container build-image   # build the image locally (maintainer)
+pnpm miondevx container lock          # regenerate _deps/pnpm-lock.yaml in-container (after a dep bump)
+pnpm miondevx container login         # log in to GHCR (needs a PAT; see SETUP.md)
+pnpm miondevx container push          # build + push the multi-arch image to GHCR
+pnpm miondevx container pull          # pull the published image and tag it locally
+pnpm miondevx container clean         # remove the image + cache volumes
 ```
 
 The images are published to GHCR, so **`website:dev` (and the other run commands)
@@ -69,9 +69,8 @@ image (offline, or to test a dep bump before pushing).
 
 | Variable             | Default          | Purpose                                              |
 | -------------------- | ---------------- | ---------------------------------------------------- |
-| `MION_SITE`               | `runtypes`       | Which of the two sites to serve/build (`runtypes` or `mion`). Forwarded into the container. |
 | `MION_WEBSITE_PORT`       | `3000`           | Host port for the dev server.                        |
-| `MION_WEBSITE_POLL=1`     | off              | Filesystem polling for watchers (macOS / VM mounts). |
+| `MION_WEBSITE_POLL=1`     | on macOS, else off | Filesystem polling for watchers (macOS / VM mounts). |
 | `MION_WEBSITE_ENGINE`     | `podman`         | Container engine.                                    |
 | `MION_WEBSITE_IMAGE`      | `tsrt-website:dev` | Image tag.                                          |
 | `MION_WEBSITE_MOUNT_OPTS` | empty            | Extra bind-mount opts, e.g. `:z` on SELinux hosts.   |
@@ -90,14 +89,14 @@ time — never the whole `node_modules`. `site.mjs` mounts the checkout that con
 default, so the indirection stays merge-agnostic (a sibling checkout still works
 via `MION_WEBSITE_REPO_CONTEXT`). Only `packages/` is exposed, and every
 `path=` read is confined to `packages/` (`server/utils/repo-root.ts`). Run
-`pnpm rtx website check` to confirm the context is built and `pnpm rtx website check --docs`
+`pnpm miondevx website check` to confirm the context is built and `pnpm miondevx website check --docs`
 to check both mechanisms render.
 
 On **macOS** (podman runs in a Linux VM), inotify events don't always cross the
-VM mount boundary — run with polling:
+VM mount boundary, so polling is on by default there. Force it on any other host:
 
 ```bash
-MION_WEBSITE_POLL=1 pnpm rtx website dev
+MION_WEBSITE_POLL=1 pnpm miondevx website dev
 ```
 
 ## Behind a corporate / MITM egress proxy
@@ -111,9 +110,9 @@ use host networking:
 # MION_WEBSITE_CA_CERT may be a single .crt file or a directory of .crt files.
 MION_WEBSITE_CA_CERT=/usr/local/share/ca-certificates \
 MION_WEBSITE_BUILD_NETWORK=host \
-  pnpm rtx container build-image
+  pnpm miondevx container build-image
 
-MION_WEBSITE_RUN_NETWORK=host pnpm rtx website dev
+MION_WEBSITE_RUN_NETWORK=host pnpm miondevx website dev
 ```
 
 The certs are copied into `container/website/.cacerts/` (git-ignored) and trusted via
@@ -137,8 +136,8 @@ extra framework to install.
 - This is the **single shared image**: it also bakes the benchmark dependencies
   under `/bench` (`/bench/competitors/<name>` + `/bench/typecost`), which
   `scripts/website/bench-data/bench.mjs` runs against. So one image builds the whole site,
-  benchmark data included. See [SETUP.md](../SETUP.md) and
+  benchmark data included. See [SETUP.md](../../SETUP.md) and
   [container/benchmarks/README.md](../benchmarks/README.md).
 - Nuxt's generated caches (`.nuxt`, `.data`, `node_modules/.cache`) live in
   named podman volumes, so the host source tree is never written to and restarts
-  stay fast.
+  stay fast. `pnpm miondevx container clean` drops all of them.

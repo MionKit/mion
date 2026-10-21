@@ -11,14 +11,15 @@
 // without the image: the API names the competitor maps call, the exit-code
 // meaning each lane reports, the tolerance both results readers (aggregate.mjs and
 // the website's gen-docs.mjs) have for the non-competitor artifacts that share
-// `results/`, and the rtx -> bench.mjs verb wiring.
+// `results/`, and the miondevx -> bench.mjs verb wiring.
 
-import {describe, it, expect} from 'vitest';
+import {describe, it, expect, beforeAll} from 'vitest';
 import {spawnSync} from 'node:child_process';
 import {readFileSync, readdirSync, existsSync, mkdtempSync, writeFileSync} from 'node:fs';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {resolve, dirname, join} from 'node:path';
 import {tmpdir} from 'node:os';
+import {TYPESCRIPT_FLOOR_MAJOR} from '../src/core/typescript-floor.ts';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const BENCH_DIR = join(REPO_ROOT, 'container/benchmarks');
@@ -50,10 +51,8 @@ describe('the typecost artifact fixture tracks the real writer', () => {
 });
 
 describe('typia competitor map calls real typia exports', () => {
-  // typia 13.2.0 (the version pinned in
-  // container/benchmarks/_deps/competitors/typia/package.json), read off its own
-  // lib/module.d.ts. `createValidateFn` is NOT among them: it is a RunTypes name
-  // that leaked in through one of our own createX -> createXFn renames.
+  // typia 14.0.6 exports (pinned in container/benchmarks/_deps/competitors/typia/package.json), from lib/module.d.ts.
+  // `createValidateFn` is NOT one: a RunTypes name that leaked in through a createX -> createXFn rename.
   const TYPIA_EXPORTS = new Set([
     'assert',
     'assertEquals',
@@ -66,11 +65,13 @@ describe('typia competitor map calls real typia exports', () => {
     'createEquals',
     'createIs',
     'createRandom',
+    'createShallow',
     'createValidate',
     'createValidateEquals',
     'equals',
     'is',
     'random',
+    'shallow',
     'validate',
     'validateEquals',
   ]);
@@ -97,19 +98,66 @@ describe('typia competitor map calls real typia exports', () => {
   });
 });
 
-describe('the shared cases never assert a presentation-only format tag as failable', () => {
-  // How a permanent fake correctness failure shipped: the shared `number_float` case
-  // titled FormatFloat "non-integer only" and listed [1, 0, -2] as invalid, but `float`
-  // is a generation/presentation tag that NEVER fails (a float legally holds 2.0), so
-  // RunTypes accepted all three and the lane reported a divergence against itself on
-  // every run. No unit test could catch it: the shared cases are data, the packages/
-  // suites keep their own copy, and a wrong label fails nothing until two libraries
-  // disagree. This pins the whole class instead of that one case.
-  //
-  // The non-failable tags are DERIVED from the format sources rather than listed here,
-  // so a newly added presentation-only param is covered the day it lands.
-  const FORMATS_DIR = join(REPO_ROOT, 'packages/run-types/src/formats');
-  const NON_FAILABLE_DOC = /NEVER a failable constraint|PURE PRESENTATION METADATA/;
+describe('zod competitor map measures both metrics on its compiled path', () => {
+  const source = read('container/benchmarks/competitors/zod/cases.ts');
+  // One chunk per map entry: each starts at a 2-space-indented 'GROUP.case' key.
+  const entries = source.split(/\n {2}'(?=[A-Z_]+\.[^']+':)/).slice(1);
+  const supported = entries.filter((entry) => !/^[^']+': NOT_SUPPORTED/.test(entry));
+
+  it('reads every entry of the map', () => {
+    const mionKeys = read('container/benchmarks/competitors/mion/cases.ts').match(/^ {2}'[A-Z_]+\.[^']+':/gm) ?? [];
+    expect(mionKeys.length).toBeGreaterThan(200);
+    expect(entries).toHaveLength(mionKeys.length);
+  });
+
+  it('gives every supported case a validate builder and an errors builder', () => {
+    const key = (entry: string) => entry.slice(0, entry.indexOf("'"));
+    expect(supported.filter((entry) => !entry.includes('compiled.validate(value)')).map(key)).toEqual([]);
+    expect(supported.filter((entry) => !entry.includes('compiled.safeParse(value).success')).map(key)).toEqual([]);
+    expect(supported.filter((entry) => (entry.match(/z\.compile\(schema\)/g) ?? []).length !== 2).map(key)).toEqual([]);
+  });
+});
+
+describe('typebox competitor map uses the typebox package', () => {
+  const source = read('container/benchmarks/competitors/typebox/cases.ts');
+
+  it('imports only typebox and typebox/compile', () => {
+    const imports = [...source.matchAll(/from '([^.][^']*)'/g)].map((match) => match[1]);
+    expect([...new Set(imports)].sort()).toEqual(['typebox', 'typebox/compile']);
+  });
+
+  it('records the version of the package it imports', () => {
+    expect(read('container/benchmarks/capture-env.mjs')).toContain("typebox: 'typebox',");
+  });
+
+  it('types the typecost probe with the same package', () => {
+    expect(read('container/benchmarks/typecost/typecost.mjs')).toContain("import {type Static as __TBStatic} from 'typebox';");
+  });
+
+  it('keeps the cases typebox 1.x can express supported', () => {
+    const cases = [
+      'TUPLE.tuple_rest',
+      'OBJECT.call_signature_params_with_rest',
+      'BIGINT_FORMAT.bigint_multipleOf',
+      'BIGINT_FORMAT.bigint_combined',
+      'JSON_SCHEMA.property_names',
+      'TEMPLATE_LITERAL.template_literal_index_key',
+    ];
+    expect(cases.filter((key) => !source.includes(`'${key}': {`))).toEqual([]);
+  });
+});
+
+describe('the shared cases only assert error keys a format can produce', () => {
+  // The shared cases are data no unit test runs: a never-failing `float` error once made the lane diverge every run.
+  // Loaded by path at runtime: devtools must never depend on @mionjs/run-types.
+  const ERROR_KEYS_SRC = join(REPO_ROOT, 'packages/run-types/src/go-generated/formatErrorKeys.generated.ts');
+  let errorKeys = new Set<string>();
+  beforeAll(async () => {
+    const {FORMAT_ERROR_KEYS} = (await import(pathToFileURL(ERROR_KEYS_SRC).href)) as {
+      FORMAT_ERROR_KEYS: Record<string, readonly string[]>;
+    };
+    errorKeys = new Set(Object.values(FORMAT_ERROR_KEYS).flat());
+  });
 
   function tsFiles(dir: string): string[] {
     return readdirSync(dir, {withFileTypes: true}).flatMap((entry) => {
@@ -119,25 +167,16 @@ describe('the shared cases never assert a presentation-only format tag as failab
     });
   }
 
-  // Every param whose own JSDoc block declares it non-failable: take the identifier that
-  // opens the declaration right after the block's `*/`.
-  const nonFailableTags = new Set(
-    tsFiles(FORMATS_DIR).flatMap((file) =>
-      [...readFileSync(file, 'utf8').matchAll(/\/\*\*([\s\S]*?)\*\/\s*([A-Za-z_$][\w$]*)\??\s*:/g)]
-        .filter((match) => NON_FAILABLE_DOC.test(match[1]))
-        .map((match) => match[2])
-    )
-  );
-
-  it('finds the documented non-failable tags, so the derivation cannot go quietly empty', () => {
-    expect([...nonFailableTags].sort()).toEqual(['float', 'isCurrency']);
+  it('loads the generated keys, so the check cannot go quietly empty', () => {
+    expect([...errorKeys]).toEqual(expect.arrayContaining(['max', 'pattern', 'integer']));
+    expect(errorKeys.has('float')).toBe(false);
   });
 
-  it('declares no expectedFormatErrors on any of them', () => {
+  it('declares expectedFormatErrors only on real error keys', () => {
     const offenders: string[] = [];
     for (const file of tsFiles(join(BENCH_DIR, 'shared/cases'))) {
       for (const match of readFileSync(file, 'utf8').matchAll(/formatPathTail:\s*'([^']+)'/g)) {
-        if (nonFailableTags.has(match[1])) offenders.push(`${file.slice(REPO_ROOT.length + 1)}: ${match[1]}`);
+        if (!errorKeys.has(match[1])) offenders.push(`${file.slice(REPO_ROOT.length + 1)}: ${match[1]}`);
       }
     }
     expect(offenders).toEqual([]);
@@ -167,6 +206,36 @@ describe('a competitor lane exits non-zero only when it did not really run', () 
     // — so accept either the plain RESULTS_DIR or that resolver, but still require
     // the existence check itself.
     expect(source).toMatch(/existsSync\(join\((?:RESULTS_DIR|runtimeResultsDir\(runtime\)), `\$\{competitor}\.json`\)\)/);
+  });
+});
+
+describe('the default bench run is a correctness gate', () => {
+  // Regression: aggregate used to print a divergence and the run ignored it.
+  it('fails when aggregate reports a fail or errored case', () => {
+    const source = read('scripts/website/bench-data/bench.mjs');
+    const cmdBench = source.slice(source.indexOf('function cmdBench('), source.indexOf('function cmdBenchOne('));
+    expect(cmdBench).toContain("const aggregate = runInContainer(cfg, ['node', 'aggregate.mjs']);");
+    expect(cmdBench).toMatch(/if \(aggregate !== 0\) die\(/);
+  });
+
+  it('refuses --only with no competitor list instead of running them all', () => {
+    for (const args of [['--only'], ['--only', '--quick']]) {
+      const run = spawnSync(process.execPath, [join(REPO_ROOT, 'scripts/miondevx.mjs'), 'bench', ...args], {
+        cwd: REPO_ROOT,
+        encoding: 'utf8',
+      });
+      expect(run.status, run.stderr).toBe(2);
+      expect(run.stderr).toContain('bench: --only needs a comma list of competitors');
+    }
+  }, 120_000);
+
+  // `--only` is how CI runs just the competitors not yet proven green.
+  it('runs only the competitors --only names, and refuses an unknown one', async () => {
+    // @ts-expect-error plain ESM dev script, no types
+    const bench = await import('../../../scripts/website/bench-data/bench.mjs');
+    bench.setOnlyCompetitors('zod,ajv');
+    expect(bench.competitorList()).toEqual(['zod', 'ajv']);
+    expect(() => bench.setOnlyCompetitors('zod,nope')).toThrow(/--only takes a comma list/);
   });
 });
 
@@ -231,6 +300,16 @@ describe('aggregate.mjs survives the other artifacts that share results/', () =>
     expect(run.stdout).toContain('zod');
   });
 
+  // The half of the correctness gate aggregate owns: `bench` fails the run on this exit code.
+  it('exits non-zero when a competitor accepted invalid data or rejected valid data', () => {
+    const failing = JSON.parse(competitorResult('zod'));
+    failing.summary.fail = 1;
+    failing.cases[0].validate = {...failing.cases[0].validate, status: 'fail', detail: 'invalid[0] accepted'};
+    const run = runAggregate({'zod.json': JSON.stringify(failing)});
+    expect(run.status).toBe(1);
+    expect(run.stdout).toContain('zod / ATOMIC.string [validate]: fail');
+  });
+
   it('names what it skipped, so a malformed competitor file is not dropped in silence', () => {
     const run = runAggregate({'zod.json': competitorResult('zod'), 'ajv.json': '{ not json'});
     expect(run.status).toBe(0);
@@ -242,7 +321,7 @@ describe('aggregate.mjs survives the other artifacts that share results/', () =>
 describe('gen-docs.mjs reads results/ the same way everywhere', () => {
   // Same class of bug as the aggregate one above, one directory up: the strict lane's
   // reader carried its OWN filename blocklist, that copy never learned about the audit
-  // lane's <competitor>.alignment.json, and `pnpm rtx website build` (which runs the
+  // lane's <competitor>.alignment.json, and `pnpm miondevx website build` (which runs the
   // audit right before gen-docs) died with "Cannot read properties of undefined
   // (reading 'map')" — a red website deploy with the site already built.
   //
@@ -369,14 +448,14 @@ describe('the strict suite is a section of the validation bench, not its own pag
   });
 
   it('has no strict page left in the content tree', () => {
-    expect(existsSync(join(REPO_ROOT, 'container/website/sites/runtypes/content/07.benchmarks/09.strict.md'))).toBe(false);
+    expect(existsSync(join(REPO_ROOT, 'container/website/content/03.benchmarks/02.runtypes/09.strict.md'))).toBe(false);
   });
 
   it('keeps the per-engine counter pinned by the bench lane instead', () => {
     // Dropping the published column must not drop the invariant it used to show.
     const bench = read('scripts/website/bench-data/bench.mjs');
     expect(bench).toContain('function checkEngineBranch');
-    expect(bench).toContain('rt::countEnumKeys');
+    expect(bench).toContain('countEnumKeys');
   });
 });
 
@@ -435,12 +514,12 @@ describe('the STRICT case set', () => {
   });
 });
 
-describe('rtx bench sub-verbs reach bench.mjs', () => {
-  // rtx dies with "unknown bench target" before bench.mjs is ever imported when a
+describe('miondevx bench sub-verbs reach bench.mjs', () => {
+  // miondevx dies with "unknown bench target" before bench.mjs is ever imported when a
   // verb is missing from BENCH_SUB, so the two lists have to agree.
-  const rtx = read('scripts/rt.mjs');
+  const miondevx = read('scripts/miondevx.mjs');
   const bench = read('scripts/website/bench-data/bench.mjs');
-  const exposed = [...(/const BENCH_SUB = new Set\(\[([^\]]*)]/.exec(rtx)?.[1] ?? '').matchAll(/'([^']+)'/g)].map(
+  const exposed = [...(/const BENCH_SUB = new Set\(\[([^\]]*)]/.exec(miondevx)?.[1] ?? '').matchAll(/'([^']+)'/g)].map(
     (match) => match[1]
   );
   const dispatched = new Set([...bench.matchAll(/case '([^']+)':/g)].map((match) => match[1]));
@@ -455,7 +534,7 @@ describe('rtx bench sub-verbs reach bench.mjs', () => {
   });
 
   it('CI runs the competitor-map typecheck gate', () => {
-    expect(read('.github/workflows/ci.yml')).toContain('pnpm rtx bench typecheck');
+    expect(read('.github/workflows/ci.yml')).toContain('pnpm miondevx bench typecheck');
   });
 
   it('every competitor project lists its own first-party sources, so the gate covers them', () => {
@@ -503,6 +582,22 @@ describe('the typia lane pins a toolchain that agrees with itself', () => {
   });
 });
 
+describe('every bench lane that loads the devtools plugin runs a supported TypeScript', () => {
+  // A lane below the floor still builds but warns, and its numbers come from an unsupported setup.
+  it.each(['container/benchmarks/_deps/competitors/mion/package.json', 'container/mion-bench/_deps/mion/package.json'])(
+    '%s',
+    (manifestPath) => {
+      const manifest = JSON.parse(read(manifestPath)) as {
+        dependencies?: Record<string, string>;
+        devDependencies?: Record<string, string>;
+      };
+      const typescript = manifest.devDependencies?.typescript ?? manifest.dependencies?.typescript ?? '';
+      expect(typescript).toMatch(/^\d+\.\d+\.\d+$/);
+      expect(Number(typescript.split('.')[0])).toBeGreaterThanOrEqual(TYPESCRIPT_FLOOR_MAJOR);
+    }
+  );
+});
+
 describe('the image bakes the compiled typia plugin, or fails to build', () => {
   const containerfile = read('container/website/Containerfile');
 
@@ -512,23 +607,13 @@ describe('the image bakes the compiled typia plugin, or fails to build', () => {
   });
 
   it('proves the compiled plugin sits under node_modules/.cache/ttsc before the layer ends', () => {
-    // ttsc >= 0.19 caches plugins under <workspace>/node_modules/.cache/ttsc/plugins/<key>/plugin;
-    // the old `.ttsc` dir is never created, so a `test -d node_modules/.ttsc` proved nothing.
+    // ttsc >= 0.19 caches plugins under <workspace>/node_modules/.cache/ttsc/plugins/<key>/plugin.
     expect(containerfile).toContain('find node_modules/.cache/ttsc/plugins -type f -name plugin');
-    expect(containerfile).not.toContain('node_modules/.ttsc');
     expect(containerfile).not.toContain('ttsc warm skipped');
   });
 
   it('drops the Go build cache the warm leaves behind, in the same layer', () => {
     expect(containerfile).toContain('rm -rf node_modules/.cache/ttsc/go-build');
-  });
-
-  it('lets every CI lane run typia now that the plugin is baked', () => {
-    for (const workflow of ['.github/workflows/ci.yml', '.github/workflows/pr-heavy.yml']) {
-      expect(read(workflow), workflow).not.toContain("MION_VALIDATION_BENCH_NO_TYPIA: '1'");
-    }
-    // --quick used to skip typia by default ("its native build dominates"); it no longer does.
-    expect(read('scripts/website/bench-data/bench.mjs')).not.toContain("setIfUnset('MION_VALIDATION_BENCH_NO_TYPIA'");
   });
 });
 

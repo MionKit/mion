@@ -12,34 +12,26 @@ import * as TF from '@mionjs/run-types/formats';
 import {describe, it, expect} from 'vitest';
 import * as RT from '@mionjs/run-types/builders';
 import {
-  getRTFunction,
   type InjectTypeFnArgs,
-  createMockDataFn,
   createValidateFn,
-  createParseFn,
-  createHasUnknownKeysFn,
+  createRemoveUnknownKeysFn,
   createGetValidationErrorsFn,
   createJsonEncoderFn,
   createJsonDecoderFn,
-  createBinaryEncoderFn,
-  createBinaryDecoderFn,
 } from '@mionjs/run-types';
+import {getRTFunction, registerClassSerializer} from '@mionjs/run-types/runtime';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import {runFuzz, runFuzzForDuration} from './fuzzRunner.ts';
 import {entrySeed} from '../core/fuzzPolicy.ts';
 import {soakTestTimeout, pathologyReport} from '../core/soakBudget.ts';
 import {renderCrashes} from '../core/crashGuard.ts';
-import type {FuzzTarget} from './fuzzOracle.ts';
+import {unreachedKeyedTargets, type FuzzTarget} from './fuzzOracle.ts';
 import type {RunType} from '../../../src/runtypes/types.ts';
 
-// restoreFromJson has no createX factory — it is reached by declaring its fnKey
-// in a trailing InjectTypeFnArgs marker, the same wrapper shape a framework
-// writes. Schema-first like every factory below, so the plugin resolves T from
-// the concretely-typed `const schema` rather than injecting `unknown`.
-//
-// It is the reference half of O19: parse fuses this restore with validate, so
-// the two together are what parse must agree with.
-function recoverRestore<T>(_schema: RunType<T>, id?: InjectTypeFnArgs<T, 'rj'>) {
-  return getRTFunction<'rj'>(id);
+// The STRIPPING restore (mion's `clone` decoder) has no createX factory; a trailing InjectTypeFnArgs marker reaches it.
+// Schema-first, so T resolves from `const schema`, not `unknown`. O26: it must DELETE an undeclared key, not blank it.
+function recoverRestoreSafe<T>(_schema: RunType<T>, id?: InjectTypeFnArgs<T, 'restoreFromJsonClone'>) {
+  return getRTFunction<'restoreFromJsonClone'>(id);
 }
 
 const targets: FuzzTarget[] = [];
@@ -57,17 +49,14 @@ const targets: FuzzTarget[] = [];
   targets.push({
     title: 'UnionOfObjects',
     schema,
-    // The fused validator follows the branch that matched; the merged allowlist
-    // cannot. O18 checks the half that must still hold. See fuzzOracle.ts.
+    // The fused validator follows the matched branch; O18 checks only that it is never looser.
     divergesFromComposition: true,
     mock: createMockDataFn(schema),
     validate: createValidateFn(schema),
     getValidationErrors: createGetValidationErrorsFn(schema),
     validateStrict: createValidateFn(schema, {checkUnknowns: true}),
     errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
-    hasUnknownKeys: createHasUnknownKeysFn(schema, {runsAfterValidation: true}),
-    parse: createParseFn(schema),
-    restoreFromJson: recoverRestore(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
   });
@@ -84,13 +73,10 @@ const targets: FuzzTarget[] = [];
     getValidationErrors: createGetValidationErrorsFn(schema),
     validateStrict: createValidateFn(schema, {checkUnknowns: true}),
     errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
-    hasUnknownKeys: createHasUnknownKeysFn(schema, {runsAfterValidation: true}),
-    parse: createParseFn(schema),
-    restoreFromJson: recoverRestore(schema),
+    clone: createRemoveUnknownKeysFn(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
-    binaryEncode: createBinaryEncoderFn(schema),
-    binaryDecode: createBinaryDecoderFn(schema),
   });
 }
 
@@ -105,13 +91,10 @@ const targets: FuzzTarget[] = [];
     getValidationErrors: createGetValidationErrorsFn(schema),
     validateStrict: createValidateFn(schema, {checkUnknowns: true}),
     errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
-    hasUnknownKeys: createHasUnknownKeysFn(schema, {runsAfterValidation: true}),
-    parse: createParseFn(schema),
-    restoreFromJson: recoverRestore(schema),
+    clone: createRemoveUnknownKeysFn(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
-    binaryEncode: createBinaryEncoderFn(schema),
-    binaryDecode: createBinaryDecoderFn(schema),
   });
 }
 
@@ -126,13 +109,10 @@ const targets: FuzzTarget[] = [];
     getValidationErrors: createGetValidationErrorsFn(schema),
     validateStrict: createValidateFn(schema, {checkUnknowns: true}),
     errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
-    hasUnknownKeys: createHasUnknownKeysFn(schema, {runsAfterValidation: true}),
-    parse: createParseFn(schema),
-    restoreFromJson: recoverRestore(schema),
+    clone: createRemoveUnknownKeysFn(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
-    binaryEncode: createBinaryEncoderFn(schema),
-    binaryDecode: createBinaryDecoderFn(schema),
   });
 }
 
@@ -147,13 +127,10 @@ const targets: FuzzTarget[] = [];
     getValidationErrors: createGetValidationErrorsFn(schema),
     validateStrict: createValidateFn(schema, {checkUnknowns: true}),
     errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
-    hasUnknownKeys: createHasUnknownKeysFn(schema, {runsAfterValidation: true}),
-    parse: createParseFn(schema),
-    restoreFromJson: recoverRestore(schema),
+    clone: createRemoveUnknownKeysFn(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
-    binaryEncode: createBinaryEncoderFn(schema),
-    binaryDecode: createBinaryDecoderFn(schema),
   });
 }
 
@@ -168,13 +145,10 @@ const targets: FuzzTarget[] = [];
     getValidationErrors: createGetValidationErrorsFn(schema),
     validateStrict: createValidateFn(schema, {checkUnknowns: true}),
     errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
-    hasUnknownKeys: createHasUnknownKeysFn(schema, {runsAfterValidation: true}),
-    parse: createParseFn(schema),
-    restoreFromJson: recoverRestore(schema),
+    clone: createRemoveUnknownKeysFn(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
-    binaryEncode: createBinaryEncoderFn(schema),
-    binaryDecode: createBinaryDecoderFn(schema),
   });
 }
 
@@ -189,13 +163,47 @@ const targets: FuzzTarget[] = [];
     getValidationErrors: createGetValidationErrorsFn(schema),
     validateStrict: createValidateFn(schema, {checkUnknowns: true}),
     errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
-    hasUnknownKeys: createHasUnknownKeysFn(schema, {runsAfterValidation: true}),
-    parse: createParseFn(schema),
-    restoreFromJson: recoverRestore(schema),
+    clone: createRemoveUnknownKeysFn(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
-    binaryEncode: createBinaryEncoderFn(schema),
-    binaryDecode: createBinaryDecoderFn(schema),
+  });
+}
+
+// --- target: an object hiding inside an ATOMIC member ---
+// Arrays and tuples are atomic in the flat union layout, so a gate keyed on object members misses the object inside.
+// The tuple target also covers unknown-key walks that no-op at a tuple node.
+{
+  const schema = RT.union([RT.array(RT.object({a: TF.string()})), TF.number()]);
+  targets.push({
+    title: 'AtomicOnlyUnion',
+    schema,
+    mock: createMockDataFn(schema),
+    validate: createValidateFn(schema),
+    getValidationErrors: createGetValidationErrorsFn(schema),
+    validateStrict: createValidateFn(schema, {checkUnknowns: true}),
+    errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
+    jsonEncode: createJsonEncoderFn(schema),
+    jsonDecode: createJsonDecoderFn(schema),
+  });
+}
+
+{
+  const schema = RT.tuple({required: [RT.object({a: TF.string()}), TF.number()]});
+  targets.push({
+    title: 'ObjectInTupleSlot',
+    schema,
+    mock: createMockDataFn(schema),
+    validate: createValidateFn(schema),
+    getValidationErrors: createGetValidationErrorsFn(schema),
+    validateStrict: createValidateFn(schema, {checkUnknowns: true}),
+    errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
+    jsonEncode: createJsonEncoderFn(schema),
+    jsonDecode: createJsonDecoderFn(schema),
   });
 }
 
@@ -213,9 +221,8 @@ const targets: FuzzTarget[] = [];
     getValidationErrors: createGetValidationErrorsFn(schema),
     validateStrict: createValidateFn(schema, {checkUnknowns: true}),
     errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
-    hasUnknownKeys: createHasUnknownKeysFn(schema, {runsAfterValidation: true}),
-    parse: createParseFn(schema),
-    restoreFromJson: recoverRestore(schema),
+    clone: createRemoveUnknownKeysFn(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
   });
@@ -237,7 +244,213 @@ const targets: FuzzTarget[] = [];
     getValidationErrors: createGetValidationErrorsFn(schema),
     validateStrict: createValidateFn(schema, {checkUnknowns: true}),
     errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
-    hasUnknownKeys: createHasUnknownKeysFn(schema, {runsAfterValidation: true}),
+    clone: createRemoveUnknownKeysFn(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
+    jsonEncode: createJsonEncoderFn(schema),
+    jsonDecode: createJsonDecoderFn(schema),
+  });
+}
+
+// --- targets: a named class inside a union ---
+// The shape that drifted last, and the one no generator reaches on its own: a
+// class member rides its own wire arm, so the merged-object strip and the
+// merged allowlist each have to be taught about it separately. Registered and
+// unregistered are different code paths (the class arm is skipped when the
+// registry has no entry), and a SUBCLASS instance takes the structural road
+// rather than the exact-constructor one.
+class BaseErr {
+  constructor(public type: string) {}
+}
+class AuthErr extends BaseErr {
+  constructor(
+    type: string,
+    public scope: string
+  ) {
+    super(type);
+  }
+}
+class Loose {
+  constructor(public tag: string) {}
+}
+registerClassSerializer(BaseErr, {deserialize: (d) => new BaseErr(d.type)});
+registerClassSerializer(AuthErr, {deserialize: (d) => new AuthErr(d.type, d.scope)});
+// Loose is deliberately NOT registered.
+
+{
+  const schema = RT.union([TF.string(), RT.classType(BaseErr)]);
+  targets.push({
+    title: 'ClassUnionRegistered',
+    schema,
+    divergesFromComposition: true,
+    mock: () => new BaseErr('boom'),
+    validate: createValidateFn(schema),
+    getValidationErrors: createGetValidationErrorsFn(schema),
+    validateStrict: createValidateFn(schema, {checkUnknowns: true}),
+    errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
+    jsonEncode: createJsonEncoderFn(schema),
+    jsonDecode: createJsonDecoderFn(schema),
+  });
+}
+
+{
+  const schema = RT.union([TF.string(), RT.classType(Loose)]);
+  targets.push({
+    title: 'ClassUnionUnregistered',
+    schema,
+    divergesFromComposition: true,
+    mock: () => new Loose('t'),
+    validate: createValidateFn(schema),
+    getValidationErrors: createGetValidationErrorsFn(schema),
+    validateStrict: createValidateFn(schema, {checkUnknowns: true}),
+    errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
+    jsonEncode: createJsonEncoderFn(schema),
+    jsonDecode: createJsonDecoderFn(schema),
+  });
+}
+
+{
+  const schema = RT.union([TF.string(), RT.classType(BaseErr)]);
+  targets.push({
+    title: 'ClassUnionSubclassInstance',
+    schema,
+    divergesFromComposition: true,
+    // a subclass instance under its declared base: the exact-constructor arm
+    // does not match, so it takes the structural road and its extra field is
+    // the unknown-keys machinery's business
+    mock: () => new AuthErr('not-authorized', 'admin'),
+    validate: createValidateFn(schema),
+    getValidationErrors: createGetValidationErrorsFn(schema),
+    validateStrict: createValidateFn(schema, {checkUnknowns: true}),
+    errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
+  });
+}
+
+// --- target: a nested class, not in a union ---
+// The other half of the class comparison: the same class reached as a plain
+// property must answer the way the union member above does.
+{
+  const schema = RT.object({err: RT.classType(BaseErr), note: TF.string()});
+  targets.push({
+    title: 'ClassProperty',
+    schema,
+    mock: () => ({err: new BaseErr('boom'), note: 'n'}),
+    validate: createValidateFn(schema),
+    getValidationErrors: createGetValidationErrorsFn(schema),
+    validateStrict: createValidateFn(schema, {checkUnknowns: true}),
+    errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
+    jsonEncode: createJsonEncoderFn(schema),
+    jsonDecode: createJsonDecoderFn(schema),
+  });
+}
+
+// --- target: objects at every container position ---
+// An array item, a fixed tuple slot and a Set member each have their own arm
+// in every unknown-keys emitter, and nothing in the corpus put a keyed shape
+// in one before.
+{
+  const schema = RT.object({
+    rows: RT.array(RT.object({n: TF.number()})),
+    pair: RT.tuple({required: [RT.object({a: TF.string()}), TF.number()]}),
+    seen: RT.set(RT.object({id: TF.string()})),
+  });
+  targets.push({
+    title: 'ObjectsInContainers',
+    schema,
+    mock: createMockDataFn(schema),
+    validate: createValidateFn(schema),
+    getValidationErrors: createGetValidationErrorsFn(schema),
+    validateStrict: createValidateFn(schema, {checkUnknowns: true}),
+    errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn(schema),
+  });
+}
+
+// --- target: an index signature next to named properties ---
+// The carve-out with siblings: the named half still takes the key check, the
+// indexed half must not, and every family has to draw that line in the same
+// place. The wire oracles plant into both halves here and judge the survivors:
+// the named half must come back stripped, the indexed half must keep its key.
+{
+  const schema = RT.object({name: TF.string(), bag: RT.record(TF.number())});
+  targets.push({
+    title: 'IndexSigWithNamedProps',
+    schema,
+    mock: createMockDataFn(schema),
+    validate: createValidateFn(schema),
+    getValidationErrors: createGetValidationErrorsFn(schema),
+    validateStrict: createValidateFn(schema, {checkUnknowns: true}),
+    errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
+    jsonEncode: createJsonEncoderFn(schema),
+    jsonDecode: createJsonDecoderFn(schema),
+  });
+}
+
+// --- targets: a carve-out INSIDE an atomic member of a union ---
+// An index-signature object one level down an array or tuple member is not the
+// whole-union carve-out (only a member that IS one is): the emitters sweep the
+// member object by object, so the record slot keeps every key while the object
+// slot beside it is stripped. The walker labels both, and the wire oracles
+// plant into both and judge each survivor against the type. The blind plant
+// writes a string into the record of numbers too, which the member's own guard
+// refuses, so the slot-0 strip on the wire is pinned by the reference test
+// below rather than reached by the fuzz.
+{
+  const schema = RT.union([RT.array(RT.record(TF.number())), TF.number()]);
+  targets.push({
+    title: 'RecordInArrayUnion',
+    schema,
+    mock: createMockDataFn(schema),
+    validate: createValidateFn(schema),
+    getValidationErrors: createGetValidationErrorsFn(schema),
+    validateStrict: createValidateFn(schema, {checkUnknowns: true}),
+    errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
+    jsonEncode: createJsonEncoderFn(schema),
+    jsonDecode: createJsonDecoderFn(schema),
+  });
+}
+
+{
+  const schema = RT.union([RT.tuple({required: [RT.object({a: TF.string()}), RT.record(TF.number())]}), TF.number()]);
+  targets.push({
+    title: 'TupleWithRecordSlot',
+    schema,
+    mock: createMockDataFn(schema),
+    validate: createValidateFn(schema),
+    getValidationErrors: createGetValidationErrorsFn(schema),
+    validateStrict: createValidateFn(schema, {checkUnknowns: true}),
+    errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
+    jsonEncode: createJsonEncoderFn(schema),
+    jsonDecode: createJsonDecoderFn(schema),
+  });
+}
+
+// --- target: a discriminated union whose arms share a key ---
+// Every arm declares `kind` and `id`, so the merged allowlist and the matched
+// branch agree on those; only a name no arm declares is undeclared.
+{
+  const schema = RT.union([
+    RT.object({kind: RT.literal('a'), id: TF.string(), only_a: TF.number()}),
+    RT.object({kind: RT.literal('b'), id: TF.string(), only_b: RT.boolean()}),
+  ]);
+  targets.push({
+    title: 'SharedDiscriminant',
+    schema,
+    divergesFromComposition: true,
+    mock: createMockDataFn(schema),
+    validate: createValidateFn(schema),
+    getValidationErrors: createGetValidationErrorsFn(schema),
+    validateStrict: createValidateFn(schema, {checkUnknowns: true}),
+    errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
+    jsonEncode: createJsonEncoderFn(schema),
+    jsonDecode: createJsonDecoderFn(schema),
   });
 }
 
@@ -256,20 +469,40 @@ describe('fuzz / integration — oracle sweep over compiled functions', () => {
       );
     }
     expect(report.runs).toBe(targets.length * 100);
+    // Anti-vacuity for O22–O25: a green run must have actually planted keys at
+    // both kinds of position and decoded a planted wire, or it proved nothing.
+    expect(report.unknownKeys.flagged, 'no key was planted at a flagged position').toBeGreaterThan(0);
+    expect(report.unknownKeys.carveOut, 'no key was planted at an index-signature carve-out').toBeGreaterThan(0);
+    expect(report.unknownKeys.wire, 'no encoded wire was planted on').toBeGreaterThan(0);
+    // O27: a target whose TYPE carries a keyed shape anywhere must have been planted in at least
+    // once. Zero means the walker cannot reach it, and every oracle above then passed on nothing.
+    expect(unreachedKeyedTargets(targets, report.unknownKeys.positionsByTarget)).toEqual([]);
   });
 
-  // O19's reference half is recovered through a marker wrapper, and
-  // getRTFunction DEGRADES TO IDENTITY when a tuple does not resolve. An
-  // identity restore would make the oracle compare parse against itself and pass
-  // on everything, so the fuzz run above would go quietly vacuous. Pin that the
-  // recovered fn really restores: the DateBigint target is the one whose leaves
-  // change shape between the wire and the runtime value.
-  it('O19 reference: the recovered restoreFromJson is the compiled one, not identity', () => {
-    const schema = RT.object({created: TF.date(), id: TF.bigInt()});
-    const restore = recoverRestore(schema);
-    const restored = restore({created: '2020-01-02T03:04:05.000Z', id: '42'}) as {created: Date; id: bigint};
-    expect(restored.created).toBeInstanceOf(Date);
-    expect(typeof restored.id).toBe('bigint');
+  // O25's anti-vacuity half: a decoder returning nothing would also pass O25, so pin that the plant reaches the wire.
+  it('O25 reference: a planted wire key is kept by mutate and dropped by clone', () => {
+    const schema = RT.object({id: TF.number(), meta: RT.object({count: TF.number()})});
+    const clone = createJsonDecoderFn(schema, {strategy: 'clone'});
+    const mutate = createJsonDecoderFn(schema, {strategy: 'mutate'});
+    const wire = '{"id":1,"meta":{"count":2,"__fz_uk_wire":"fz"},"__fz_uk_wire":"fz"}';
+    const kept = mutate(wire) as Record<string, unknown>;
+    expect(kept.__fz_uk_wire).toBe('fz');
+    expect((kept.meta as Record<string, unknown>).__fz_uk_wire).toBe('fz');
+    expect(clone(wire)).toStrictEqual({id: 1, meta: {count: 2}});
+  });
+
+  // The blind plant always invalidates TupleWithRecordSlot (a string in a record of numbers), so the judge admits every
+  // union survivor there; this wire stays valid apart from the planted keys.
+  it('O25/O26 reference: the object slot beside a record slot is stripped, the record slot is kept', () => {
+    const schema = RT.union([RT.tuple({required: [RT.object({a: TF.string()}), RT.record(TF.number())]}), TF.number()]);
+    const wire = '[{"a":"x","__fz_uk_wire":"fz"},{"k":1,"__fz_uk_wire":2}]';
+    const decoded = createJsonDecoderFn(schema, {strategy: 'clone'})(wire) as Record<string, unknown>[];
+    expect(decoded[0]).toStrictEqual({a: 'x'});
+    expect(decoded[1]).toStrictEqual({k: 1, __fz_uk_wire: 2});
+    const restored = recoverRestoreSafe(schema)(JSON.parse(wire)) as Record<string, unknown>[];
+    expect(Object.hasOwn(restored[0], '__fz_uk_wire')).toBe(false);
+    expect(restored[0].a).toBe('x');
+    expect(restored[1]).toStrictEqual({k: 1, __fz_uk_wire: 2});
   });
 
   // Autonomous soak: opt-in via `MION_FUZZ_SOAK_MS=<ms>`. Runs continuously for the

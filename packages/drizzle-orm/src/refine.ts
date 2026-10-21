@@ -5,64 +5,36 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Type-level table refinement over slim tables: tighten a column's captured
-// format params for the API without touching the database column. Identity at
-// runtime; the merge is the standard MergeFormat/RefinableParamsOf machinery
-// from @mionjs/run-types, applied to the flat column brand instead of drizzle
-// column configs (which is what turned the old implementation's 4365 net
-// instantiations into ~380).
+// A refined column keeps its fn, props and base, so every derived flag survives; only its format params change.
 
 import type {MergeFormat, RefinableParamsOf} from '@mionjs/run-types/formats';
-import type {ColBrandOf, ColDataOf, RtColumnBrand} from './recorder.ts';
-import type {AnyRtTable, ColsOf} from './table.ts';
+import type {AnyTable, ColBaseFlag, ColSpecOf, Column, Merge, ValueOf} from './types.ts';
 
-/** Per-column refinement params accepted for table T: only format-carrying
- *  columns are refinable (a passthrough boolean/json/enum column refines to
- *  `never`, so ANY refinement on it is a compile error — never a silent
- *  bypass). */
-export type TableRefinements<T extends AnyRtTable> = {
-  [K in keyof ColsOf<T>]?: RefinableParamsOf<ColDataOf<ColsOf<T>[K]>>;
+/** Only format-carrying columns are refinable; any other refines to `never`, so a refinement on it fails. */
+export type TableRefinements<T extends AnyTable> = {
+  [K in keyof T['columns']]?: ColSpecOf<T['columns'][K]> extends {config: infer P; data: infer D}
+    ? RefinableParamsOf<ValueOf<P, D>>
+    : never;
 };
 
-/** Post-refine column: the brand alone. The table object is already built, so
- *  nothing chains after refineTableType and the modifier methods are not
- *  carried over. */
-export type RtRefinedColumn<
-  Data,
-  NotNull extends boolean,
-  HasDefault extends boolean,
-  InsertExcluded extends boolean,
-> = RtColumnBrand<Data, NotNull, HasDefault, InsertExcluded>;
-
-// RtColumnBrand spelled directly (not the RtRefinedColumn alias): one fewer
-// alias instantiation per refined column, type-budget sensitive. The three
-// flags come off ONE payload read rather than one probe each.
-type RefinedBrand<Brand, Params> = Brand extends {
-  data: infer Data;
-  notNull: infer NotNull extends boolean;
-  hasDefault: infer HasDefault extends boolean;
-  insertExcluded: infer InsertExcluded extends boolean;
-}
-  ? RtColumnBrand<MergeFormat<Data, Params>, NotNull, HasDefault, InsertExcluded>
-  : never;
-
+// A `$type` override is what holds the value, so the refinement merges into it.
+type RefinedColumn<C, Params> =
+  ColSpecOf<C> extends {fn: infer Fn extends string; config: infer P; data: infer D; base: infer B extends string}
+    ? P extends {$type: [infer Override]}
+      ? Column<Fn, Merge<P, {$type: [MergeFormat<Override, Params>]}>, D, B & ColBaseFlag>
+      : Column<Fn, P, MergeFormat<D, Params>, B & ColBaseFlag>
+    : never;
 type RefineCols<Cols, R> = {
-  [K in keyof Cols]: K extends keyof R ? (R[K] extends object ? RefinedBrand<ColBrandOf<Cols[K]>, R[K]> : Cols[K]) : Cols[K];
-};
-/** The same table retyped: refined columns carry the merged format params.
- *  This is the type road's refine — `type ApiUsersTable =
- *  RefinedTable<UsersTable, {name: {maxLength: 50}}>` — with R constrained so
- *  a typo'd column or an unrefinable param is a compile error. */
-export type RefinedTable<T extends AnyRtTable, R extends TableRefinements<T>> = Omit<T, 'columns'> & {
-  columns: RefineCols<ColsOf<T>, R>;
+  [K in keyof Cols]: K extends keyof R ? (R[K] extends object ? RefinedColumn<Cols[K], R[K]> : Cols[K]) : Cols[K];
 };
 
-/** Tighten a table's column types for the API (stricter than the database):
- *  plain per-column format params, merged into the captured ones (refinement
- *  wins on a shared key; base and value type can never change). Identity at
- *  runtime — returns the SAME table object retyped, so the materialized
- *  drizzle table is shared too. */
-export function refineTableType<T extends AnyRtTable, const R extends TableRefinements<T>>(
+/** The same table retyped: `RefinedTable<UsersTable, {name: {maxLength: 50}}>`. */
+export type RefinedTable<T extends AnyTable, R extends TableRefinements<T>> = Omit<T, 'columns'> & {
+  columns: RefineCols<T['columns'], R>;
+};
+
+/** Tighten a table's column types for the API; identity at run time, so the materialized table is shared. */
+export function refineTableType<T extends AnyTable, const R extends TableRefinements<T>>(
   table: T,
   refinements: R
 ): RefinedTable<T, R> {

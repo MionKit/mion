@@ -1,5 +1,5 @@
 // TypeDeps: the per-file set of source files that DECLARE the types a call
-// site reflects. See docs/todos/unified-type-dependency-invalidation.md — a
+// site reflects. A
 // host declares these to its bundler so editing a type in ANOTHER file re-runs
 // the file that reflects it, which no bundler can work out on its own (the
 // import is erased, or never existed).
@@ -153,11 +153,7 @@ export const id = getRunTypeId<Customer>();
 	assertDep(t, deps, "inner.ts")
 }
 
-// TestTypeDeps_FormEquivalence is the marker test coverage rule (CLAUDE.md):
-// both call shapes of getRunTypeId, in their natural spelling, must resolve to
-// the same cache entry — and therefore report the same type dependencies.
-// Static form: the caller supplies T. Reflection form: T is inferred from a
-// value. The hash equivalence is asserted through the injected id.
+// TestTypeDeps_FormEquivalence requires equal ids and dependencies for both marker forms (AGENTS.md).
 func TestTypeDeps_FormEquivalence(t *testing.T) {
 	const models = `export interface Signup { email: string; age: number }`
 

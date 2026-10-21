@@ -41,11 +41,9 @@ func TestParallelRender_EquivalentToSerial(t *testing.T) {
 	serialResponse := serial.Dispatch(scanAllRequest(files))
 	parallelResponse := parallel.Dispatch(scanAllRequest(files))
 
-	// Sanity: the validate family and at least one other demanded family must
-	// have produced entries (the fixture demands createValidateFn +
-	// createJsonDecoderFn, whose strip strategy seeds restoreFromJson).
-	if !hasFamilyEntry(parallelResponse, "validate") || !hasFamilyEntry(parallelResponse, "restoreFromJson") {
-		t.Fatalf("expected validate + restoreFromJson entries to render")
+	// The fixture demands createJsonDecoderFn, whose default clone strategy seeds restoreFromJsonClone.
+	if !hasFamilyEntry(parallelResponse, "validate") || !hasFamilyEntry(parallelResponse, "restoreFromJsonClone") {
+		t.Fatalf("expected validate + restoreFromJsonClone entries to render")
 	}
 
 	serialJSON := responseJSON(t, serialResponse)
@@ -104,6 +102,9 @@ func TestParallelRender_MetricsPerFamily(t *testing.T) {
 	}
 	if got, want := renderMsKeys(parallelResponse.Metrics), renderMsKeys(serialResponse.Metrics); got != want {
 		t.Fatalf("RenderMs key sets diverged: parallel %s, serial %s", got, want)
+	}
+	if _, ok := serialResponse.Metrics.RenderMs["reachedFindings"]; !ok {
+		t.Errorf("RenderMs must time the reach walk under reachedFindings, got %s", renderMsKeys(serialResponse.Metrics))
 	}
 }
 

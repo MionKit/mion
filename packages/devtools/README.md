@@ -8,7 +8,7 @@ CI.
 
 The runtime half is
 [`@mionjs/run-types`](https://www.npmjs.com/package/@mionjs/run-types); the compiler
-binary rides along in [`@mionjs/bin`](https://www.npmjs.com/package/@mionjs/bin).
+binary rides along in [`@mionjs/bin-compiler`](https://www.npmjs.com/package/@mionjs/bin-compiler).
 
 Entry points: `/vite`, `/rollup`, `/rolldown`, `/webpack`, `/rspack`, `/esbuild`,
 `/unplugin` for any other tool, `/oxlint` and `/eslint` for linting, and the package
@@ -17,11 +17,11 @@ root for the shared types and helpers.
 ## Documentation
 
 Install, wiring, the full option list, and the linting setup live at
-**[runtypes.pages.dev](https://runtypes.pages.dev/)**.
+**[mion.pages.dev/runtypes](https://mion.pages.dev/runtypes)**.
 
-- [Quick start](https://runtypes.pages.dev/introduction/quick-start)
-- [Configuration](https://runtypes.pages.dev/introduction/configuration)
-- [Linting](https://runtypes.pages.dev/guide/linting)
+- [Quick start](https://mion.pages.dev/runtypes/introduction/quick-start)
+- [Configuration](https://mion.pages.dev/runtypes/introduction/configuration)
+- [Linting](https://mion.pages.dev/runtypes/tooling/linting)
 - [Source and issues](https://github.com/MionKit/mion)
 
 ## Status

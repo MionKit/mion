@@ -119,7 +119,7 @@ func TestBuildersToType_Atoms(t *testing.T) {
 func TestBuildersToType_MarkerUseConvertsAwayWithTheConst(t *testing.T) {
 	// A MARKER use of the const is itself a conversion site (callsites.go), so
 	// rewriting it removes the last reference and the const converts away with
-	// it — where this used to refuse with CNV003, the file now converts whole.
+	// it — where this used to refuse with convert-const-still-used, the file now converts whole.
 	source := buildersHeader +
 		"import {getRunTypeId} from '@mionjs/run-types';\n" +
 		"export const userIdRT = TF.string();\n" +
@@ -137,7 +137,7 @@ func TestBuildersToType_MarkerUseConvertsAwayWithTheConst(t *testing.T) {
 
 func TestBuildersToType_KeepsUsedConst(t *testing.T) {
 	// A use the converter cannot rewrite — a plain function taking the RunType —
-	// still pins the const, and CNV003 still says so.
+	// still pins the const, and convert-const-still-used still says so.
 	source := buildersHeader +
 		"declare function describe(runType: unknown): string;\n" +
 		"export const userIdRT = TF.string();\n" +
@@ -145,7 +145,7 @@ func TestBuildersToType_KeepsUsedConst(t *testing.T) {
 		"export const described = describe(userIdRT);\n"
 	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetType})
 	if len(diags) != 1 || diags[0].Code != convert.CodeConstStillUsed {
-		t.Fatalf("expected one CNV003, got %+v", diags)
+		t.Fatalf("expected one convert-const-still-used, got %+v", diags)
 	}
 	if !strings.Contains(output, "export const userIdRT = TF.string();") {
 		t.Errorf("used const must stay untouched:\n%s", output)

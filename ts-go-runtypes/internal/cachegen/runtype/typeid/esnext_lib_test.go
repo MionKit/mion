@@ -15,7 +15,7 @@ import (
 
 // libArrayJSON renders one lib name as the tsconfig `lib` array. The EMPTY name
 // means `lib: []` — a selection that loads no standard library at all, which is
-// its own case (CFG002) and cannot be spelled as a name.
+// its own case (config-lib-missing-base) and cannot be spelled as a name.
 func libArrayJSON(lib string) string {
 	if lib == "" {
 		return "[]"
@@ -37,15 +37,20 @@ func scanUnderLib(t *testing.T, lib string, code string) (*resolver.Session, pro
 // called `lib.*.d.ts` to prove a consumer's own file is not mistaken for ours.
 func scanUnderLibWith(t *testing.T, lib string, code string, extra map[string]string) (*resolver.Session, protocol.Response) {
 	t.Helper()
-	return scanUnderLibIn(t, tspath.NormalizePath(t.TempDir()), lib, code, extra)
+	return scanUnderLibIn(t, tspath.NormalizePath(t.TempDir()), lib, "", code, extra)
 }
+
+const importedOnly = "imported:"
 
 // scanUnderLibIn takes the cwd from the caller, for the one test that must know
 // the fixture directory in advance (it stages that directory as the standard
 // library).
-func scanUnderLibIn(t *testing.T, cwd string, lib string, code string, extra map[string]string) (*resolver.Session, protocol.Response) {
+func scanUnderLibIn(t *testing.T, cwd string, lib string, options string, code string, extra map[string]string) (*resolver.Session, protocol.Response) {
 	t.Helper()
-	tsconfig := `{"compilerOptions":{"target":"esnext","module":"esnext","moduleResolution":"bundler","strict":true,"lib":` + libArrayJSON(lib) + `}}`
+	if options != "" {
+		options = "," + options
+	}
+	tsconfig := `{"compilerOptions":{"target":"esnext","module":"esnext","moduleResolution":"bundler","strict":true,"lib":` + libArrayJSON(lib) + options + `}}`
 	if err := os.WriteFile(tspath.ResolvePath(cwd, "tsconfig.json"), []byte(tsconfig), 0o644); err != nil {
 		t.Fatalf("write tsconfig: %v", err)
 	}
@@ -58,9 +63,13 @@ func scanUnderLibIn(t *testing.T, cwd string, lib string, code string, extra map
 	overlay := map[string]string{dtsPath: runtypesDTS, testPath: code}
 	roots := []string{dtsPath, testPath}
 	for name, content := range extra {
-		path := tspath.ResolvePath(cwd, name)
+		// An `imported:` file is not a root, so only an import reaches it, as with a dependency.
+		imported := strings.HasPrefix(name, importedOnly)
+		path := tspath.ResolvePath(cwd, strings.TrimPrefix(name, importedOnly))
 		overlay[path] = content
-		roots = append(roots, path)
+		if !imported {
+			roots = append(roots, path)
+		}
 	}
 	prog, err := program.NewInferred(program.Options{
 		Cwd:            cwd,
@@ -108,7 +117,14 @@ func structuralUnderLib(t *testing.T, lib string, code string) string {
 // projected node behind the first site.
 func rootUnderLib(t *testing.T, lib string, code string) *reflection.RunType {
 	t.Helper()
-	res, response := scanUnderLib(t, lib, code)
+	root, _ := dumpUnderLib(t, lib, "", code, nil)
+	return root
+}
+
+// dumpUnderLib is rootUnderLib with tsconfig options and overlay files, plus every node by id to follow a ref.
+func dumpUnderLib(t *testing.T, lib string, options string, code string, extra map[string]string) (*reflection.RunType, map[string]*reflection.RunType) {
+	t.Helper()
+	res, response := scanUnderLibIn(t, tspath.NormalizePath(t.TempDir()), lib, options, code, extra)
 	if len(response.Sites) == 0 {
 		codes := make([]string, 0, len(response.Diagnostics))
 		for _, diagnostic := range response.Diagnostics {
@@ -116,13 +132,15 @@ func rootUnderLib(t *testing.T, lib string, code string) *reflection.RunType {
 		}
 		t.Fatalf("lib %s: no sites, diagnostics %v", lib, codes)
 	}
+	nodes := map[string]*reflection.RunType{}
 	for _, node := range res.Dispatch(protocol.Request{Op: protocol.OpDump}).RunTypes {
-		if node.ID == response.Sites[0].ID {
-			return node
-		}
+		nodes[node.ID] = node
 	}
-	t.Fatalf("lib %s: root id %q not in dump", lib, response.Sites[0].ID)
-	return nil
+	root := nodes[response.Sites[0].ID]
+	if root == nil {
+		t.Fatalf("lib %s: root id %q not in dump", lib, response.Sites[0].ID)
+	}
+	return root, nodes
 }
 
 // nodeDTS declares the Node `Buffer` global the way @types/node does — an
@@ -136,7 +154,7 @@ const nodeBufferDTS = `interface Buffer extends Uint8Array<ArrayBuffer> {
 `
 
 // TestESNextLib_BufferFieldReflects — a field typed `Buffer` used to halt the
-// build on lib.esnext with MKR009 naming `IteratorObject`: `Buffer` is not a
+// build on lib.esnext with marker-self-instantiating-generic naming `IteratorObject`: `Buffer` is not a
 // lib global, so the walk descended into the `Uint8Array` members it inherits,
 // and on ESNext those return `IteratorObject`, a self-instantiating generic
 // whose structural id never resolves. ES2023 was fine only because its
@@ -195,7 +213,7 @@ export const id = getRunTypeId<Buffer>();
 
 // TestESNextLib_IteratorObjectsResolve — Buffer is one door into the ESNext
 // iterator helpers; these are the others. A subclass of a typed array and an
-// explicit iterator field both used to fail with MKR009 on lib.esnext.
+// explicit iterator field both used to fail with marker-self-instantiating-generic on lib.esnext.
 //
 // They resolve now with no name anywhere: `ArrayIterator`, `MapIterator` and
 // `IteratorObject` are declared in the standard library, so the projection

@@ -1,16 +1,4 @@
-// Wrapping tests — every scenario lives in its own runTest with a
-// self-contained inline source. Each direct-marker scenario has paired
-// _static (getRunTypeId<T>()) and _reflect (getRunTypeId(v)) tests per
-// the marker test coverage rule (CLAUDE.md). User-defined wrappers and
-// passthrough scenarios are also covered for both wrapper-arity shapes.
-//
-// Coverage matrix:
-//   17a–17d  direct calls + user-defined wrappers (positive — site emitted)
-//   17e–17f  free-T body / wrong-module collision (negative — skipped)
-//   passthrough  wrappers that forward `id` to inner calls — outer site
-//                only; inner free-T calls stay untouched
-//   explicit-id  caller already filled the trailing slot — scanner must
-//                NOT emit a site (no override of caller-supplied ids)
+// AGENTS.md requires paired marker forms; wrappers must leave free-T inner calls and explicit caller ids untouched.
 
 import {describe, expect} from 'vitest';
 import {rewrite, runTest, withInlineSources} from './helpers/inline.ts';
@@ -160,6 +148,67 @@ const d = nameOf({kind: 'node', value: 42});
     }
   );
 
+  // ---- 17g: marker wrapped in a user alias -------------------------------
+  // `type Slot<T> = InjectRunTypeId<T>` hides the marker's alias name; the slot must still inject T, not `unknown`.
+
+  runTest(
+    '17g static: marker wrapped in a user alias injects the id of T',
+    {
+      '17g_static.ts': `import {getRunTypeId, type InjectRunTypeId} from '@mionjs/run-types';
+type Slot<T> = InjectRunTypeId<T>;
+function wrap<T>(_val?: T, id?: Slot<T>): string {
+  return getRunTypeId<T>(undefined, id);
+}
+const direct = getRunTypeId<{a: number}>();
+const wrapped = wrap<{a: number}>();
+const other = wrap<{b: string}>();
+`,
+    },
+    async (sources) => {
+      await withInlineSources(
+        sources,
+        async ({client}) => {
+          const {sites} = await rewrite('17g_static.ts', sources['17g_static.ts'], client);
+          const [direct, wrapped, other] = [...sites].sort((left, right) => left.pos - right.pos);
+          expect(sites.length).toBe(3);
+          expect(wrapped.id).toBe(direct.id);
+          expect(other.id).not.toBe(wrapped.id);
+        },
+        {reset: true}
+      );
+    }
+  );
+
+  runTest(
+    '17g reflect: marker wrapped in a user alias injects the id of the value type',
+    {
+      '17g_reflect.ts': `import {getRunTypeId, type InjectRunTypeId} from '@mionjs/run-types';
+type Slot<T> = InjectRunTypeId<T>;
+function wrap<T>(_val?: T, id?: Slot<T>): string {
+  return getRunTypeId<T>(undefined, id);
+}
+const first = {a: 1} as {a: number};
+const second = {b: 'x'} as {b: string};
+const direct = getRunTypeId(first);
+const wrapped = wrap(first);
+const other = wrap(second);
+`,
+    },
+    async (sources) => {
+      await withInlineSources(
+        sources,
+        async ({client}) => {
+          const {sites} = await rewrite('17g_reflect.ts', sources['17g_reflect.ts'], client);
+          const [direct, wrapped, other] = [...sites].sort((left, right) => left.pos - right.pos);
+          expect(sites.length).toBe(3);
+          expect(wrapped.id).toBe(direct.id);
+          expect(other.id).not.toBe(wrapped.id);
+        },
+        {reset: true}
+      );
+    }
+  );
+
   // ---- 17e–17f: negative cases — paired for both forms -------------------
 
   runTest(
@@ -229,16 +278,11 @@ maskedWrapper('noop');
     }
   );
 
-  // ---- 17g: nested-builder skip (value-first object/field pattern) -------
-  //
-  // A marker call nested inside another marker call's argument (the value-first
-  // `object({field: leaf()})` shape) is reflected by the enclosing marker, so
-  // the nested call's own id is redundant. The scanner skips it — only the
-  // outer marker emits a site. The walk is transparent through the object
-  // literal between them.
+  // ---- 17g: nested marker calls (value-first object/field pattern) ------
+  // A nested marker-package builder is reflected by its enclosing marker; a nested user marker's runtime may need its id.
 
   runTest(
-    '17g: field markers nested inside an enclosing model marker are skipped — outer site only',
+    '17g: user field markers nested inside an enclosing model marker keep their own sites',
     {
       '17g.ts': `import {type InjectRunTypeId} from '@mionjs/run-types';
 function model<T>(v: T, id?: InjectRunTypeId<T>): T { void id; return v; }
@@ -252,8 +296,27 @@ export {m};
         sources,
         async ({client}) => {
           const {sites} = await rewrite('17g.ts', sources['17g.ts'], client);
-          // model(...) is the only top-level marker; the two nested field(...)
-          // calls are enclosed by it and skipped.
+          expect(sites.length).toBe(3);
+        },
+        {reset: true}
+      );
+    }
+  );
+
+  runTest(
+    '17g builders: marker-package builders nested inside an enclosing builder are skipped, outer site only',
+    {
+      '17g_builders.ts': `import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
+const m = RT.object({name: TF.string(), age: TF.number()});
+export {m};
+`,
+    },
+    async (sources) => {
+      await withInlineSources(
+        sources,
+        async ({client}) => {
+          const {sites} = await rewrite('17g_builders.ts', sources['17g_builders.ts'], client);
           expect(sites.length).toBe(1);
         },
         {reset: true}

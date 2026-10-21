@@ -1,30 +1,23 @@
-// canonical.go — the C6 no-info-loss oracle's projection: a declaration's
-// resolved reflection graph rendered as canonical JSON, so two conversion
-// legs can be compared for INFORMATION equality beyond the structural id
-// (which ignores fields like Description and DefaultVal by design).
-//
-// The projection keeps every information-carrying field and drops exactly the
-// authoring-trail / derived ones:
-//
-//   - TypeName / TypeArguments — the authoring alias trail (an inline shape
-//     and its named twin are the same type);
-//   - Extends / ExtendsArguments / Implements — declaration heritage; the
-//     checker already merged the members into Children, and the type target
-//     prints aliases, not interfaces;
-//   - Family / NotSupported / IsSafeName / IsCircular — populated by derived
-//     passes from the fields that ARE compared;
-//   - SafeUnionChildren / UnionDiscriminators — serialize-time derivations of
-//     Children;
-//   - Position — the parent slice order carries it;
-//   - ID — replaced by first-visit ordinals so interning ids never leak in
-//     (C2 already pins id equality);
-//   - UNION member order (Children on a union node) — the id folds
-//     unions order-insensitively and the checker reorders members between
-//     sessions, so canonical children sort by their own canonical text.
-//
-// A field added to reflection.RunType must be classified here — the
-// TestCanonicalCoversRunType tripwire fails until it is.
 package convert
+
+// canonical.go is the C6 no-info-loss oracle's projection: a declaration's resolved reflection graph
+// as canonical JSON, so two conversion legs can be compared for INFORMATION equality beyond the
+// structural id, which ignores fields like Description and DefaultVal by design. It keeps every
+// information-carrying field and drops exactly the authoring-trail and derived ones:
+//
+//   - TypeName / TypeArguments: the authoring alias trail (an inline shape and its named twin are
+//     the same type);
+//   - Extends / ExtendsArguments / Implements: declaration heritage, already merged into Children by
+//     the checker, and the type target prints aliases, not interfaces;
+//   - Family / NotSupported / IsSafeName / IsCircular: derived from the fields that ARE compared;
+//   - SafeUnionChildren / UnionDiscriminators: serialize-time derivations of Children;
+//   - Position: the parent slice order carries it;
+//   - ID: replaced by first-visit ordinals so interning ids never leak in (C2 pins id equality);
+//   - UNION member order: the id folds unions order-insensitively and the checker reorders members
+//     between sessions, so canonical children sort by their own canonical text.
+//
+// A field added to reflection.RunType must be classified here; TestCanonicalCoversRunType fails
+// until it is.
 
 import (
 	"encoding/json"
@@ -54,12 +47,10 @@ type canonicalBuilder struct {
 	resolve  func(id string) *reflection.RunType
 	ordinals map[string]string
 	counter  int
-	// sorting guards the union-children sort: a slot's sort key is computed
-	// by re-canonicalizing the slot with a fresh builder, and a cycle back
-	// through the union being sorted would recurse forever. The set is
-	// SHARED into every nested key builder; a union found in it keeps graph
-	// order inside that key computation (the stable key prefix decides the
-	// order before the potentially unstable tail matters).
+	// sorting guards the union-children sort, whose keys re-canonicalize each slot with a fresh
+	// builder: a cycle back through the union being sorted would recurse forever. SHARED into every
+	// nested key builder, and a union found in it keeps graph order inside that key computation,
+	// where the stable key prefix already decides the order.
 	sorting map[string]bool
 }
 
@@ -131,8 +122,7 @@ func (builder *canonicalBuilder) walk(node *reflection.RunType) *reflection.RunT
 	return out
 }
 
-// finiteValue swaps the non-finite floats encoding/json refuses (the
-// Infinity literal type, a NaN payload) for stable string tokens.
+// finiteValue swaps the non-finite floats encoding/json refuses for stable string tokens.
 func finiteValue(value any) any {
 	if number, ok := value.(float64); ok {
 		switch {
@@ -157,12 +147,10 @@ func (builder *canonicalBuilder) walkSlice(slots []*reflection.RunType) []*refle
 	return out
 }
 
-// sortSlots orders slots by each slot's OWN canonical text (computed with a
-// fresh builder so sibling order cannot leak into the key through the
-// ordinal counter). Sorting must happen BEFORE the real walk assigns
-// ordinals, or the pre-sort visit order would still leak. ownerID is the
-// union being sorted — key builders inherit it through `sorting` so a cycle
-// back through it cannot recurse.
+// sortSlots orders slots by each slot's OWN canonical text, keyed with a fresh builder so sibling
+// order cannot leak in through the ordinal counter. It must run BEFORE the real walk assigns
+// ordinals, or the pre-sort visit order leaks anyway. ownerID is the union being sorted, inherited
+// by key builders through `sorting` so a cycle back through it cannot recurse.
 func (builder *canonicalBuilder) sortSlots(ownerID string, slots []*reflection.RunType) []*reflection.RunType {
 	if len(slots) < 2 {
 		return slots
@@ -195,8 +183,8 @@ func (builder *canonicalBuilder) sortSlots(ownerID string, slots []*reflection.R
 	return out
 }
 
-// DeclarationGraphs is the C6 oracle's read side: every recognized
-// (non-generic) declaration's canonical graph, keyed like DeclarationIDs.
+// DeclarationGraphs is the C6 oracle's read side: every recognized non-generic declaration's
+// canonical graph, keyed like DeclarationIDs.
 func DeclarationGraphs(prog *program.Program, typeChecker *checker.Checker, cache *runtype.Cache, markerOpts marker.Options, absPath string) (map[string]string, error) {
 	sourceFile := prog.SourceFile(absPath)
 	if sourceFile == nil {
@@ -204,8 +192,8 @@ func DeclarationGraphs(prog *program.Program, typeChecker *checker.Checker, cach
 	}
 	graphs := map[string]string{}
 	for _, decl := range recognizeFile(sourceFile, typeChecker, markerOpts) {
-		// Drizzle tables are exempt like in DeclarationIDs: the table type's
-		// graph moves with the authoring road by design.
+		// Drizzle tables are exempt as in DeclarationIDs: the table type's graph moves with the
+		// authoring road by design.
 		if decl.Generic || decl.Drizzle {
 			continue
 		}

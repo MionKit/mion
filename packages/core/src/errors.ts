@@ -5,35 +5,19 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {
-  CoreRouterOptions,
-  AnyErrorParams,
-  TypedErrorParams,
-  RpcErrorParams,
-  RunTypeError,
-  StrNumber,
-} from './types/general.types.ts';
+import type {CoreRouterOptions, AnyErrorParams, TypedErrorParams, RpcErrorParams, RunTypeError} from './types/general.types.ts';
 import {DEFAULT_CORE_OPTIONS} from './constants.ts';
 import {randomUUID_V7} from './utils.ts';
-import {registerClassSerializer} from '@mionjs/run-types';
+import {registerClassSerializer} from '@mionjs/run-types/runtime';
 import type {DataOnly} from '@mionjs/run-types';
 
 // ############# Validation Error Types #############
 
-/**
- * Error data structure for validation errors.
- * Contains the list of type errors from parameter validation.
- */
 export interface ValidationErrorData {
-  /** List of type validation errors with paths and expected types */
   typeErrors: RunTypeError[];
 }
 
-/**
- * Strongly typed validation error.
- * Thrown when route or middleFn parameters fail type validation.
- * This type is included in the client error unions so validation errors can be properly typed.
- */
+/** Raised when route or middleware parameters fail validation; included in the client error unions so it stays typed. */
 export type ValidationError = RpcError<'validation-error', ValidationErrorData>;
 
 let options: CoreRouterOptions = {...DEFAULT_CORE_OPTIONS};
@@ -42,29 +26,20 @@ export function setErrorOptions(opts: CoreRouterOptions) {
   options = opts;
 }
 
-// `Error` re-typed so `message`/`name` are NOT inherited as required members. They are
-// re-added below as OPTIONAL + @nonEnumerable so the resolver emits a runtime enumerability
-// guard for them; the constructor defines them non-enumerable, so they are skipped when
-// serializing (mion keeps the internal message off the wire and exposes `publicMessage`),
-// while `DataOnly<T>` stays consistent (they are optional in the projected shape). Runtime
-// is still `Error`, so `instanceof Error` holds. `stack`/`cause` stay inherited (optional).
+// `Error` re-typed so `message`/`name` are NOT inherited as required members: re-added below as optional
+// + @nonEnumerable, so the resolver emits an enumerability guard and the internal message stays off the wire
+// (`publicMessage` is what travels) while `DataOnly<T>` stays consistent. Runtime is still `Error`, so
+// `instanceof Error` holds.
 const ErrorBase = Error as unknown as {new (message?: string): Omit<Error, 'message' | 'name'>};
 
-/**
- * Generic strongly typed error class that can be used outside RPC context.
- * Contains the core error properties: mion@isΣrrθr, type, and message.
- */
+/** Generic strongly typed error, usable outside an RPC context. */
 export class TypedError<ErrType extends string> extends ErrorBase {
-  /**
-   * Unique error identifier,
-   * Ideally this should be a symbol but we need to be able to serialize it so a namespaced prop is used instead
-   */
+  /** The error brand. Ideally a symbol, but it must serialize, so a namespaced prop is used instead. */
   // eslint-disable-next-line @typescript-eslint/prefer-as-const
   public readonly 'mion@isΣrrθr': true = true;
   /** Error type, can be used as discriminator in union types*/
   public readonly type: ErrType;
-  // Re-added as optional + @nonEnumerable (see the ErrorBase note above); the constructor
-  // defines them non-enumerable, so they are dropped from the serialized envelope.
+  // Optional + @nonEnumerable (see the ErrorBase note); the constructor makes them non-enumerable, so they never serialize.
   /** @nonEnumerable */
   declare message?: string;
   /** @nonEnumerable */
@@ -75,7 +50,7 @@ export class TypedError<ErrType extends string> extends ErrorBase {
     super(errorMessage);
     this.type = type;
 
-    // Set message and name as non-enumerable to exclude from JSON.stringify
+    // non-enumerable so JSON.stringify skips them
     Object.defineProperty(this, 'message', {
       value: errorMessage,
       writable: true,
@@ -93,7 +68,6 @@ export class TypedError<ErrType extends string> extends ErrorBase {
       try {
         this.stack = originalError.stack;
       } catch {
-        // Fallback to defineProperty if direct assignment fails
         try {
           Object.defineProperty(this, 'stack', {
             value: originalError.stack,
@@ -101,27 +75,22 @@ export class TypedError<ErrType extends string> extends ErrorBase {
             configurable: true,
           });
         } catch {
-          // If both methods fail, the error will use its own generated stack
+          // both failed: the error keeps its own generated stack
         }
       }
     }
 
-    Object.setPrototypeOf(this, TypedError.prototype);
+    // `new.target` keeps a subclass's own prototype, so `instanceof Subclass` holds down the chain
+    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 
-// type-rpc-error-start
 export class RpcError<ErrType extends string, ErrData = any>
   extends TypedError<ErrType>
   implements RpcErrorParams<ErrType, ErrData>
 {
-  // `name`/`message` are inherited from TypedError as OPTIONAL + @nonEnumerable
-  // (see there), so they stay off the wire here too; the constructor just overrides
-  // `name`'s value to 'RpcError' (still non-enumerable).
-  /**
-   * id of the error, ideally each error should unique identifiable
-   * * if RouterOptions.autoGenerateErrorId is set to true and id with timestamp+uuid will be generated
-   * */
+  // `name`/`message` stay optional + @nonEnumerable as inherited from TypedError, so they stay off the wire here too.
+  /** id of the error; generated as timestamp+uuid when RouterOptions.autoGenerateErrorId is true. */
   public readonly id?: number | string;
   /** the message that will be returned in the response */
   public readonly publicMessage: string;
@@ -129,11 +98,14 @@ export class RpcError<ErrType extends string, ErrData = any>
   public readonly errorData?: Readonly<ErrData>;
   /** optional http status code */
   statusCode?: number;
+  // The halting brand: true when this error ended the request (a `FatalError`, or one the router stamped).
+  // Non-enumerable, so the client never sees it.
+  /** @nonEnumerable */
+  declare isFatal?: true;
 
   constructor({message, publicMessage, originalError, errorData, type, id, statusCode}: AnyErrorParams<ErrType, ErrData>) {
     const originalMessage = message || originalError?.message || publicMessage || '';
 
-    // Call parent TypedError constructor
     super({
       message: originalMessage,
       originalError,
@@ -146,7 +118,6 @@ export class RpcError<ErrType extends string, ErrData = any>
     this.errorData = errorData;
     this.statusCode = statusCode;
 
-    // Override name to be non-enumerable
     Object.defineProperty(this, 'name', {
       value: 'RpcError',
       writable: true,
@@ -154,80 +125,88 @@ export class RpcError<ErrType extends string, ErrData = any>
       configurable: true,
     });
 
-    Object.setPrototypeOf(this, RpcError.prototype);
+    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
-// type-rpc-error-end
+
+/** A returned error that ENDS the request: the rest of the chain is skipped (only `alwaysRun` middlewares still run)
+ *  and the error stays in the handler's own typed slot, so the client receives it strongly typed. Use it for gates
+ *  such as auth. Same wire shape as `RpcError` (the brand never travels), so it decodes by its declared type. */
+export class FatalError<ErrType extends string, ErrData = any> extends RpcError<ErrType, ErrData> {
+  /** @nonEnumerable */
+  declare readonly isFatal?: true;
+
+  constructor(params: AnyErrorParams<ErrType, ErrData>) {
+    super(params);
+    markFatal(this);
+    Object.defineProperty(this, 'name', {
+      value: 'FatalError',
+      writable: true,
+      enumerable: false,
+      configurable: true,
+    });
+  }
+}
+
+/** Stamps the halting brand on an error (non-enumerable, never serialized). Returns the same instance. */
+export function markFatal<Err extends RpcError<string>>(error: Err): Err {
+  Object.defineProperty(error, 'isFatal', {
+    value: true,
+    writable: true,
+    enumerable: false,
+    configurable: true,
+  });
+  return error;
+}
 
 // #######  Error Type Guards #######
 
-function hasUnknownKeys(obj: Record<StrNumber, any>, keys: StrNumber[]): boolean {
-  for (const prop in obj) {
-    // iterates over the object keys and if not found prop adds to unknownKeys
-    let found = false;
-    for (let j = 0; j < keys.length; j++) {
-      if (keys[j] === prop) {
-        found = true;
-        break;
-      }
-    }
-    if (!found) return true;
-  }
-  return false;
-}
-
-/** Returns true if the error is a TypedError or has the same structure. */
-export function isTypedError(error: any): error is TypedError<any> {
-  if (!error) return false;
-  if (error instanceof TypedError) return true;
-  // name/stack are Error base props: serialized error shapes may carry them
-  return (
-    error &&
-    error['mion@isΣrrθr'] === true &&
-    (typeof error.type === 'string' || typeof error.type === 'number') &&
-    !hasUnknownKeys(error, ['mion@isΣrrθr', 'type', 'message', 'name', 'stack'])
-  );
-}
-
-/** Returns true if the error is a RpcError or has the same structure. */
+/** True for an RpcError, a subclass of one, or the same shape off the wire (TypedError included, never
+ *  structurally distinguishable). The namespaced BRAND is the whole test: checking anything else only added
+ *  false negatives on user subclasses carrying their own fields, and through `isFatalError` below that meant
+ *  a FatalError that did not halt the request. */
 export function isRpcError(error: any): error is RpcError<string> {
   if (!error) return false;
-  if (error instanceof RpcError) return true;
-  // name/stack are Error base props: serialized error shapes may carry them
-  return (
-    error &&
-    error['mion@isΣrrθr'] === true &&
-    (typeof error.type === 'string' || typeof error.type === 'number') &&
-    (error.id === undefined || typeof error.id === 'string' || typeof error.id === 'number') &&
-    !hasUnknownKeys(error, ['mion@isΣrrθr', 'id', 'message', 'publicMessage', 'errorData', 'type', 'statusCode', 'name', 'stack'])
-  );
+  return error['mion@isΣrrθr'] === true;
 }
 
-/**
- * Returns true if the error is a TypedError, RpcError, or any other Javascript Error.
- * if available uses Error.isError() or 'mion@isΣrrθr' prop from TypedError
- * Does not do strict type checking. This function is intended to quickly identify errors.
- * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/isError
- */
+/** Returns true if the error carries the halting brand: a `FatalError`, or any error the router
+ *  caught after it was thrown. Reads the brand, never `instanceof`, so a stamped plain RpcError counts. */
+export function isFatalError(error: any): error is RpcError<string> & {isFatal: true} {
+  return isRpcError(error) && error.isFatal === true;
+}
+
+/** A quick, non-strict check for any error: the mion brand or a Javascript Error.
+ *  @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/isError */
 export function isAnyError(error: any): error is TypedError<any> | RpcError<string> | Error {
   if (!error) return false;
   const tErr = error as TypedError<string>;
   if (tErr['mion@isΣrrθr'] === true) return true;
-  if (typeof (Error as any).isError === 'function') return (Error as any).isError(error);
-  return error instanceof Error;
+  return isNativeError(error);
 }
 
+/** `Error.isError` when the engine has it, `instanceof Error` otherwise. Resolved ONCE: dispatch asks this
+ *  of every value a handler returns and the capability never changes. `Error.isError` costs more and is kept
+ *  anyway, as the only one that sees an error from another realm; missing one serializes it as a success. */
+export const isNativeError: (value: unknown) => boolean =
+  typeof (Error as {isError?: (value: unknown) => boolean}).isError === 'function'
+    ? (Error as unknown as {isError: (value: unknown) => boolean}).isError
+    : (value: unknown) => value instanceof Error;
+
 // ############# mion error classes -> mion class serializers #############
-// Registered here, alongside the class definitions, so JSON/binary decoders rebuild real
-// instances (`instanceof RpcError` holds after a round trip). Loading @mionjs/core (which
-// re-exports this module) fires the registration before any decode runs.
-//
-// ⚠️ mion keys the registry by the class-NAME lane (since 0.9.2), so ONE registration
-// per class covers EVERY generic instantiation the program uses, not just the <string> projection.
+// Registered alongside the class definitions so decoders rebuild real instances; loading @mionjs/core
+// re-exports this module, which fires the registration before any decode runs.
+// ⚠️ The registry is keyed by class NAME, so ONE registration per class covers EVERY generic instantiation.
 registerClassSerializer<TypedError<string>>(TypedError, {
   deserialize: (data: DataOnly<TypedError<string>>) => new TypedError(data),
 });
 
 registerClassSerializer<RpcError<string>>(RpcError, {
   deserialize: (data: DataOnly<RpcError<string>>) => new RpcError(data),
+});
+
+// Own registration because the class name is part of a class type id: a handler declared `FatalError<'x'>`
+// decodes back to a real FatalError, one declared `RpcError<'x'>` to an RpcError. Same wire shape either way.
+registerClassSerializer<FatalError<string>>(FatalError, {
+  deserialize: (data: DataOnly<FatalError<string>>) => new FatalError(data),
 });

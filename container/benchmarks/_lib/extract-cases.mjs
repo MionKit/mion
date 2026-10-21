@@ -11,6 +11,9 @@
 
 import fs from 'node:fs';
 
+// typia's lane installs TypeScript 7, which ships no JavaScript parser API.
+export const hasParserApi = (tsModule) => typeof (tsModule?.default ?? tsModule)?.createSourceFile === 'function';
+
 export function makeExtractors(ts) {
   const read = (f) => fs.readFileSync(f, 'utf8');
   const sf = (f) => ts.createSourceFile(f, read(f), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
@@ -133,11 +136,7 @@ export function makeExtractors(ts) {
     return null;
   }
 
-  /** zod / typebox cases.ts → {preamble, entries:{key:{locals, exprText}}}.
-   *  Each supported entry is a `{build?, buildErrors?}` object whose thunk builds
-   *  `const schema = EXPR` (zod ships only `buildErrors`; typebox both — either
-   *  carries the same schema). Unsupported entries are the bare NOT_SUPPORTED
-   *  identifier (skipped). */
+  /** zod / typebox cases.ts → {preamble, entries:{key:{locals, exprText}}}; both thunks build the same `schema`. */
   function extractSchemaCompetitor(file, mapName) {
     const source = sf(file);
     const obj = findMapObject(source, mapName);

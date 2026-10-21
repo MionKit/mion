@@ -39,6 +39,8 @@ type Stamped = {at: Date; name: string};
 type WithBig = {n: bigint};
 type WithMap = {m: Map<string, number>};
 type WithSet = {s: Set<string>};
+type MapOfObj = Map<string, Compat>;
+type SetOfObj = Set<Compat>;
 type WithFn = {name: string; onClick: () => void};
 type WithTmpl = {route: ` + "`/api/${string}`" + `};
 type Tup = [string, number, boolean?];
@@ -67,10 +69,20 @@ type UObjNested = {kind: 'a'} | {kind: 'b'; f: Compat};
 type UArrObj = Compat[] | string;
 type URecObj = {[key: string]: Compat} | {kind: 'x'};
 type URecAtomic = {[key: string]: number} | {kind: 'x'};
+type URecDate = {[key: string]: number} | {a: Date};
+type UObjNull = {tag: string} | null;
+type UObjStrArr = {a: string} | string[];
+type UReqUnknown = {a: unknown} | {b: string};
+type OptNullable = {s?: string | null; n?: number | null; u?: unknown};
+getRunTypeId<UObjNull>();
+getRunTypeId<UObjStrArr>();
+getRunTypeId<UReqUnknown>();
+getRunTypeId<OptNullable>();
 getRunTypeId<UObjNested>();
 getRunTypeId<UArrObj>();
 getRunTypeId<URecObj>();
 getRunTypeId<URecAtomic>();
+getRunTypeId<URecDate>();
 getRunTypeId<WithNonEnum>();
 getRunTypeId<ErrSub>();
 getRunTypeId<WithLeakNative>();
@@ -92,6 +104,8 @@ getRunTypeId<Stamped>();
 getRunTypeId<WithBig>();
 getRunTypeId<WithMap>();
 getRunTypeId<WithSet>();
+getRunTypeId<MapOfObj>();
+getRunTypeId<SetOfObj>();
 getRunTypeId<WithFn>();
 getRunTypeId<WithTmpl>();
 getRunTypeId<Tup>();
@@ -166,23 +180,10 @@ func TestNoopPredicate_SoundAgainstEmitters(t *testing.T) {
 			refTable[rt.ID] = rt
 		}
 	}
-	emitters := map[string]typefunctions.Emitter{
-		"prepareForJson":             typefunctions.PrepareForJsonEmitter{},
-		"restoreFromJson":            typefunctions.RestoreFromJsonEmitter{},
-		"prepareForJsonSafe":         typefunctions.PrepareForJsonSafeEmitter{},
-		"formatTransform":            typefunctions.FormatTransformEmitter{},
-		"validate":                   typefunctions.ValidateEmitter{},
-		"validationErrors":           typefunctions.ValidationErrorsEmitter{},
-		"stringifyJson":              typefunctions.StringifyJsonEmitter{},
-		"compactForJson":             typefunctions.CompactForJsonEmitter{},
-		"compactFromJson":            typefunctions.CompactFromJsonEmitter{},
-		"toBinary":                   typefunctions.ToBinaryEmitter{},
-		"fromBinary":                 typefunctions.FromBinaryEmitter{},
-		"hasUnknownKeys":             typefunctions.HasUnknownKeysEmitter{},
-		"cloneExactShape":            typefunctions.CloneExactShapeEmitter{},
-		"unknownKeyErrors":           typefunctions.UnknownKeyErrorsEmitter{},
-		"unknownKeysToUndefined":     typefunctions.UnknownKeysToUndefinedEmitter{},
-		"unknownKeysToUndefinedWire": typefunctions.UnknownKeysToUndefinedWireEmitter{},
+	// A newly wired predicate joins the corpus with no list to update.
+	emitters := make(map[string]typefunctions.Emitter, len(typefunctions.Families))
+	for _, spec := range typefunctions.Families {
+		emitters[spec.Key] = spec.Emitter
 	}
 	facts := typefunctions.NewFactsTable()
 	checked, skippedCyclic, conservativeMisses := 0, 0, 0

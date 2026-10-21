@@ -45,7 +45,7 @@ export default defineConfig({
           preserveModulesRoot: '.',
         },
       ],
-      external: ['@mionjs/core', '@mionjs/router', '@mionjs/uws', /^[^./]/],
+      external: ['@mionjs/core', '@mionjs/router', '@mionjs/bin-uws', /^[^./]/],
     },
   },
 });

@@ -12,17 +12,7 @@ import {describe, expect, it} from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs';
 import runtypesRollup from '../src/runtypes/rollup.ts';
-import {BIN, hasBinary} from './helpers/inline.ts';
-
-// Lives under the marker package's test/ tree so tsconfig.test.json puts the
-// fixture in the Go resolver's Program (the plugin scans real program files).
-const PACKAGE_ROOT = path.resolve(__dirname, '../../run-types');
-const FIXTURE_DIR = path.join(PACKAGE_ROOT, 'test', 'tmp-build-rollup');
-const ENTRY = path.join(FIXTURE_DIR, 'entry.ts');
-// Isolated output root so this build never shares (and prunes) the marker
-// package's own vitest `__runtypes/types` dir — the two programs differ, so a
-// shared dir would race-delete this fixture's modules. Cleaned with FIXTURE_DIR.
-const OUT_DIR = path.join(FIXTURE_DIR, '__runtypes');
+import {BIN, callHook, createMarkerProject, hasBinary} from './helpers/inline.ts';
 
 const FIXTURE = `import {createValidateFn} from '@mionjs/run-types';
 interface RollupThing {
@@ -33,9 +23,6 @@ export const isThing = createValidateFn<RollupThing>();
 
 // unplugin emits each Rollup hook as either a plain function or a { handler }
 // object; invoke either form with a Rollup-like plugin context.
-type Hook = ((...args: unknown[]) => unknown) | {handler: (...args: unknown[]) => unknown};
-const callHook = (hook: Hook, thisArg: unknown, ...args: unknown[]): unknown =>
-  typeof hook === 'function' ? hook.apply(thisArg, args) : hook.handler.apply(thisArg, args);
 
 describe('rollup build / @mionjs/devtools/runtypes/rollup entry', () => {
   const register = hasBinary() ? it : it.skip;
@@ -43,22 +30,13 @@ describe('rollup build / @mionjs/devtools/runtypes/rollup entry', () => {
   register(
     'produces a Rollup plugin whose hooks rewrite markers into real on-disk module imports',
     async () => {
-      const plugin = runtypesRollup({
-        binary: BIN,
-        cwd: PACKAGE_ROOT,
-        // tsconfig.test.json is incremental:false → RT disk cache off.
-        tsconfig: 'tsconfig.test.json',
-        genDir: OUT_DIR,
-        // The marker package's test program deliberately contains
-        // Error-severity types (alwaysThrow suites) — same opt-out as its own
-        // vitest config; see fail-on-error.test.ts for the strict default.
-        failOnError: false,
-      }) as any;
-      expect(plugin.name).toBe('@mionjs/devtools');
-
-      fs.rmSync(FIXTURE_DIR, {recursive: true, force: true});
-      fs.mkdirSync(FIXTURE_DIR, {recursive: true});
+      const FIXTURE_DIR = createMarkerProject('rt-build-rollup-');
+      const ENTRY = path.join(FIXTURE_DIR, 'entry.ts');
+      const OUT_DIR = path.join(FIXTURE_DIR, '.mion');
       fs.writeFileSync(ENTRY, FIXTURE);
+
+      const plugin = runtypesRollup({binary: BIN, cwd: FIXTURE_DIR, tsconfig: 'tsconfig.json', genDir: OUT_DIR}) as any;
+      expect(plugin.name).toBe('@mionjs/devtools');
       const ctx = {
         error(message: string): never {
           throw new Error(message);

@@ -16,26 +16,25 @@ import (
 // plugin can actually reach (rewrite-injected bindings + their transitive
 // import closure) leave the resolver.
 
-// TestPrune_ElidedPrimitivesNotEmitted — a plain JSON-compatible DTO through
-// createJsonDecoderFn (default strip): rj is identity, the jdST composite
-// elides it, and the rj module must disappear from the payload while the live
-// ukuw half stays imported.
+// TestPrune_ElidedPrimitivesNotEmitted: the default clone decoder composes only rjs, live over a plain DTO, so rjs and
+// jdCL stay emitted and the undemanded rj never appears.
 func TestPrune_ElidedPrimitivesNotEmitted(t *testing.T) {
 	resp := scopeScan(t, `import {createJsonDecoderFn} from '@mionjs/run-types';
 type PlainDTO = {a: string; b?: number};
 export const dec = createJsonDecoderFn<PlainDTO>();
 `)
-	if hasFamilyEntry(resp, "restoreFromJson") {
-		t.Errorf("noop rj entry must be pruned once the composite elides it, got %v", familyEntryKeys(resp, "restoreFromJson"))
+	if hasFamilyEntry(resp, "restoreFromJsonMutate") {
+		t.Errorf("the clone decoder never demands rj, got %v", familyEntryKeys(resp, "restoreFromJsonMutate"))
 	}
-	if !hasFamilyEntry(resp, "unknownKeysToUndefinedWire") {
-		t.Error("ukuw does real work for an object DTO — its module must survive the prune")
+	if !hasFamilyEntry(resp, "restoreFromJsonClone") {
+		t.Error("rjs does real work for an object DTO — its module must survive the prune")
 	}
 	if !hasFamilyEntry(resp, "jsonDecoder") {
-		t.Error("the jdST composite is the injected binding — it must always be emitted")
+		t.Error("the jdCL composite is the injected binding — it must always be emitted")
 	}
-	if all := allEntrySources(resp); strings.Contains(all, "rjFn") {
-		t.Errorf("no emitted module may still bind rjFn:\n%s", all)
+	all := allEntrySources(resp)
+	if strings.Contains(all, "rjFn") || !strings.Contains(all, "rjsFn") {
+		t.Errorf("the jdCL composite must bind rjsFn and nothing may bind rjFn:\n%s", all)
 	}
 }
 
@@ -60,25 +59,21 @@ func compositeEntryKeys(t *testing.T, resp protocol.Response, opName, strategy s
 	return keys
 }
 
-// TestPrune_CollapsedCompositeShortFormEmitted — when EVERY primitive of a
-// composite elides, the composite itself is the noop short-form: the mutate
-// encoder and preserve decoder of a plain JSON-compatible DTO ship one tiny
-// tuple each (`'<TypeName>',,true` tail, no factory, no imports), the runtime
-// substitutes native JSON.stringify / JSON.parse, and the orphaned pj / rj
-// primitives are pruned.
+// TestPrune_CollapsedCompositeShortFormEmitted: when every primitive elides, the mutate encoder / decoder of a plain
+// DTO ship the noop short-form tuple (no factory, no imports) and the orphaned pj / rj primitives are pruned.
 func TestPrune_CollapsedCompositeShortFormEmitted(t *testing.T) {
 	resp := scopeScan(t, `import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 type PlainDTO = {a: string; b?: number};
 export const enc = createJsonEncoderFn<PlainDTO>(undefined, {strategy: 'mutate'});
-export const dec = createJsonDecoderFn<PlainDTO>(undefined, {strategy: 'preserve'});
+export const dec = createJsonDecoderFn<PlainDTO>(undefined, {strategy: 'mutate'});
 `)
-	if hasFamilyEntry(resp, "prepareForJson") {
-		t.Errorf("noop pj entry must be pruned once the composite collapses, got %v", familyEntryKeys(resp, "prepareForJson"))
+	if hasFamilyEntry(resp, "prepareForJsonMutate") {
+		t.Errorf("noop pj entry must be pruned once the composite collapses, got %v", familyEntryKeys(resp, "prepareForJsonMutate"))
 	}
-	if hasFamilyEntry(resp, "restoreFromJson") {
-		t.Errorf("noop rj entry must be pruned once the composite collapses, got %v", familyEntryKeys(resp, "restoreFromJson"))
+	if hasFamilyEntry(resp, "restoreFromJsonMutate") {
+		t.Errorf("noop rj entry must be pruned once the composite collapses, got %v", familyEntryKeys(resp, "restoreFromJsonMutate"))
 	}
-	for opName, strategy := range map[string]string{"jsonEncoder": "mutate", "jsonDecoder": "preserve"} {
+	for opName, strategy := range map[string]string{"jsonEncoder": "mutate", "jsonDecoder": "mutate"} {
 		keys := compositeEntryKeys(t, resp, opName, strategy)
 		if len(keys) != 1 {
 			t.Fatalf("expected exactly one %s/%s composite entry, got %v", opName, strategy, keys)
@@ -96,52 +91,19 @@ export const dec = createJsonDecoderFn<PlainDTO>(undefined, {strategy: 'preserve
 	}
 }
 
-// TestPrune_DirectStrategyTwoLayerCollapse — jeDI over an atomic root used to
-// ship two dead modules (an sj entry whose body was `return JSON.stringify(v)`
-// plus the composite `return sjFn(v)` binding it). The sj Finalize byte-match
-// marks the primitive noop, the composite collapses to the short form, and the
-// orphaned sj module is pruned. The object-root control keeps both halves live
-// (sj really strips extras + fixes member order there).
-func TestPrune_DirectStrategyTwoLayerCollapse(t *testing.T) {
-	resp := scopeScan(t, `import {createJsonEncoderFn} from '@mionjs/run-types';
-export const encStr = createJsonEncoderFn<string>(undefined, {strategy: 'direct'});
-`)
-	if hasFamilyEntry(resp, "stringifyJson") {
-		t.Errorf("noop sj entry must be pruned once the composite collapses, got %v", familyEntryKeys(resp, "stringifyJson"))
-	}
-	keys := compositeEntryKeys(t, resp, "jsonEncoder", "direct")
-	if len(keys) != 1 {
-		t.Fatalf("expected exactly one jeDI composite entry, got %v", keys)
-	}
-	if module := entryModule(resp, keys[0]); !strings.Contains(module, ",true]") {
-		t.Errorf("the collapsed jeDI composite must be the noop short-form:\n%s", module)
-	}
-
-	control := scopeScan(t, `import {createJsonEncoderFn} from '@mionjs/run-types';
-type PlainDTO = {a: string; b?: number};
-export const encObj = createJsonEncoderFn<PlainDTO>(undefined, {strategy: 'direct'});
-`)
-	if !hasFamilyEntry(control, "stringifyJson") {
-		t.Error("sj does real work for an object root — its module must survive the prune")
-	}
-	if all := allEntrySources(control); !strings.Contains(all, "sjFn") {
-		t.Error("the jeDI composite must keep its sjFn binding for an object root")
-	}
-}
-
 // TestPrune_LivePrimitivesStayEmitted is the control: a Date-bearing DTO
 // keeps its rj entry (real `new Date(v)` rebuild) referenced by the composite
 // and therefore emitted.
 func TestPrune_LivePrimitivesStayEmitted(t *testing.T) {
 	resp := scopeScan(t, `import {createJsonDecoderFn} from '@mionjs/run-types';
 type Stamped = {a: string; at: Date};
-export const dec = createJsonDecoderFn<Stamped>();
+export const dec = createJsonDecoderFn<Stamped>(undefined, {strategy: 'mutate'});
 `)
-	if !hasFamilyEntry(resp, "restoreFromJson") {
+	if !hasFamilyEntry(resp, "restoreFromJsonMutate") {
 		t.Error("rj must stay emitted when the decoder needs the Date rebuild")
 	}
 	if all := allEntrySources(resp); !strings.Contains(all, "rjFn") {
-		t.Error("the jdST composite must keep its rjFn binding for a Date-bearing DTO")
+		t.Error("the jdMU composite must keep its rjFn binding for a Date-bearing DTO")
 	}
 }
 
@@ -172,10 +134,10 @@ func TestPrune_ReflectionAndPureFnModulesUntouched(t *testing.T) {
 	resp := scopeScan(t, `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<{a: string}>();
 `)
-	if entryModule(resp, "runtypes") == "" {
+	if !hasRunTypeData(resp) {
 		t.Error("the runtype data bundle must never be pruned")
 	}
-	if resp.Sites[0].ID == "" || entryModule(resp, resp.Sites[0].ID) == "" {
+	if resp.Sites[0].ID == "" || reflectionModule(resp, resp.Sites[0].ID) == "" {
 		t.Error("the reflection facade for the demanded root must never be pruned")
 	}
 }
@@ -183,17 +145,17 @@ export const id = getRunTypeId<{a: string}>();
 // TestPrune_AlwaysThrowPrimitiveSurvives — an unsupported root (symbol) makes
 // rj an alwaysThrow entry, which is live, not noop: the composite keeps its
 // binding and the module must stay emitted so createJsonDecoderFn<symbol>()
-// throws with the RJ code at factory-creation time instead of silently
+// throws with the json-restore-* code at factory-creation time instead of silently
 // decoding garbage.
 func TestPrune_AlwaysThrowPrimitiveSurvives(t *testing.T) {
 	resp := scopeScan(t, `import {createJsonDecoderFn} from '@mionjs/run-types';
-export const dec = createJsonDecoderFn<symbol>();
+export const dec = createJsonDecoderFn<symbol>(undefined, {strategy: 'mutate'});
 `)
-	if !hasFamilyEntry(resp, "restoreFromJson") {
+	if !hasFamilyEntry(resp, "restoreFromJsonMutate") {
 		t.Error("the alwaysThrow rj entry must survive the prune — it is live, not noop")
 	}
 	if all := allEntrySources(resp); !strings.Contains(all, "rjFn") {
-		t.Error("the jdST composite must keep its rjFn binding to the alwaysThrow entry")
+		t.Error("the jdMU composite must keep its rjFn binding to the alwaysThrow entry")
 	}
 }
 
@@ -205,10 +167,10 @@ func TestPrune_MixedSitesDoNotCrossContaminate(t *testing.T) {
 	resp := scopeScan(t, `import {createJsonDecoderFn} from '@mionjs/run-types';
 type PlainDTO = {a: string; b?: number};
 type Stamped = {a: string; at: Date};
-export const decPlain = createJsonDecoderFn<PlainDTO>();
-export const decStamped = createJsonDecoderFn<Stamped>();
+export const decPlain = createJsonDecoderFn<PlainDTO>(undefined, {strategy: 'mutate'});
+export const decStamped = createJsonDecoderFn<Stamped>(undefined, {strategy: 'mutate'});
 `)
-	keys := familyEntryKeys(resp, "restoreFromJson")
+	keys := familyEntryKeys(resp, "restoreFromJsonMutate")
 	if len(keys) != 1 {
 		t.Fatalf("expected exactly the Date-bearing rj entry to survive, got %v", keys)
 	}
@@ -221,7 +183,7 @@ export const decStamped = createJsonDecoderFn<Stamped>();
 	if stampedID == "" {
 		t.Fatal("Stamped runtype missing from the response")
 	}
-	if want := operations.PlainHash("restoreFromJson") + "_" + stampedID; keys[0] != want {
+	if want := operations.PlainHash("restoreFromJsonMutate") + "_" + stampedID; keys[0] != want {
 		t.Errorf("surviving rj key %q must belong to the Date-bearing type (%q)", keys[0], want)
 	}
 }

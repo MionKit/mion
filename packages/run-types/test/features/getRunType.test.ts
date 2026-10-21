@@ -6,7 +6,9 @@
 // least one asserts the two forms converge on the same entry.)
 
 import {describe, it, expect} from 'vitest';
-import {getRunType, getRunTypeId, getRTUtils, RunTypeKind, type InjectRunTypeId, type RunType} from '@mionjs/run-types';
+import {getRunTypeId, RunTypeKind, type InjectRunTypeId, type RunType} from '@mionjs/run-types';
+import {getRTUtils} from '@mionjs/run-types/runtime';
+import {getRunType} from '@mionjs/run-types';
 import * as RT from '@mionjs/run-types/builders';
 import * as TF from '@mionjs/run-types/formats';
 
@@ -115,7 +117,7 @@ describe('getRunType — reflected RunType node accessor', () => {
 // `id?: InjectRunTypeId<T>`; the build injects an opaque handle at each concrete
 // call site; the body resolves it by FORWARDING it to a public resolver as the
 // trailing argument (`getRunType<T>(undefined, id)`). The forwarded call is a
-// pass-through the build leaves untouched (no MKR003), and it resolves to the
+// pass-through the build leaves untouched (no marker-in-generic-function), and it resolves to the
 // exact same registered node/id as direct reflection. The raw handle is NOT a
 // string, so the old `getRTUtils().getRunType(id)` path missed — that is why
 // forwarding is required.

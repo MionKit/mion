@@ -6,10 +6,10 @@
 // the marker package would make the plugin choke on files not in its program).
 //
 // Drive: `node build-all.mjs [appName…]` (default: all). In-container the RT
-// plugin resolves the host binary via the published @mionjs/bin launcher
+// plugin resolves the host binary via the published @mionjs/bin-compiler launcher
 // (no binary option); set MION_E2E_BINARY=<abs path> for host iteration.
-import {execFileSync} from 'node:child_process';
-import {existsSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {execFileSync, spawn} from 'node:child_process';
+import {existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -20,15 +20,15 @@ const CORE_EXTERNAL = /^@mionjs\/run-types(\/.*)?$/;
 // Enrichment preflight — AUTOGENERATE the shared app's FriendlyText/MockData
 // mirrors via the PUBLISHED `mion` CLI before any app that imports them
 // builds. In a real project these mirrors are committed; this fixture regenerates
-// them each run (they're gitignored — see the CLI-created src/__runtypes tree)
+// them each run (they're gitignored — see the CLI-created src/.mion tree)
 // so the e2e exercises the generator + its `enrich --no-emit` validator against the
-// published package. Uses the launcher (@mionjs/bin's `mion` command);
+// published package. Uses the launcher (@mionjs/bin-compiler's `mion` command);
 // MION_E2E_BINARY overrides it for host iteration.
 function ensureEnrichment() {
   const sharedDir = path.join(APPS, 'shared');
   const rtCli = process.env.MION_E2E_BINARY || path.join(HERE, 'node_modules/.bin/mion');
   const model = 'src/models/enriched-user.ts';
-  const genDir = path.join(sharedDir, 'src/__runtypes/enriched');
+  const genDir = path.join(sharedDir, 'src/.mion/enriched');
   for (const sub of ['friendly', 'mock', 'i18n']) rmSync(path.join(genDir, sub), {recursive: true, force: true});
   const cli = (args) => execFileSync(rtCli, args, {cwd: sharedDir, stdio: 'inherit'});
   console.log('enrichment: `mion enrich` (autogenerate FriendlyText + MockData mirrors)');
@@ -36,6 +36,23 @@ function ensureEnrichment() {
   cli(['enrich', '--i18n', 'es', model]);
   console.log('enrichment: `mion enrich --no-emit` (validate the generated mirrors)');
   cli(['enrich', '--no-emit']);
+}
+
+// Packed first, so the apps resolve exactly what @acme/src-types's `files` list ships.
+// Unpacked by hand: `npm install` could prune the matrix root's BAKED toolchain manifest.
+function ensureSrcTypesFixture() {
+  const libDir = path.join(APPS, 'libs/src-types');
+  const packDir = path.join(HERE, '.fixtures');
+  const target = path.join(HERE, 'node_modules/@acme/src-types');
+  rmSync(packDir, {recursive: true, force: true});
+  rmSync(target, {recursive: true, force: true});
+  mkdirSync(packDir, {recursive: true});
+  mkdirSync(target, {recursive: true});
+  console.log('fixture: pack @acme/src-types (type definitions under src/)');
+  execFileSync('npm', ['pack', '--pack-destination', packDir], {cwd: libDir, stdio: 'inherit'});
+  const tarball = readdirSync(packDir).find((entry) => entry.endsWith('.tgz'));
+  if (!tarball) throw new Error(`build-all: npm pack produced no tarball for @acme/src-types in ${packDir}`);
+  execFileSync('tar', ['-xzf', path.join(packDir, tarball), '--strip-components=1', '-C', target], {stdio: 'inherit'});
 }
 
 // Common RT plugin options for an app dir.
@@ -50,11 +67,10 @@ function rtOptions(appDir) {
 
 const isCore = (request) => CORE_EXTERNAL.test(request);
 
-// ── the apps: eight bundler adapters over ten builds ────────────────────────
-// build-vite carries the FULL feature matrix (imports the shared index); every
-// light smoke imports apps/shared/src/minimal.ts. smoke-source is the seventh
-// build but not a seventh bundler — it reuses the esbuild adapter to cover a
-// different resolution mode.
+// ── the apps: eight bundler adapters over eleven builds ─────────────────────
+// build-vite carries the FULL feature matrix; every light smoke imports
+// apps/shared/src/minimal.ts. smoke-source and smoke-types-in-src reuse the
+// esbuild adapter, so they are builds without being bundlers.
 const APP_LIST = [
   {name: 'build-vite', adapter: 'vite'},
   {name: 'smoke-esbuild', adapter: 'esbuild'},
@@ -62,25 +78,30 @@ const APP_LIST = [
   {name: 'smoke-rolldown', adapter: 'rolldown'},
   {name: 'smoke-webpack', adapter: 'webpack'},
   {name: 'smoke-rspack', adapter: 'rspack'},
-  // Source-first consumer: customConditions:["source"] makes @mionjs/run-types
-  // resolve to its published src/, so the plugin's scan walks the library's own
-  // internals. Guards the first-party diagnostic scoping — without it the build
-  // halts on the library's own CTA001/CTA003.
+  // Source-first: @acme/src-types resolves to its TypeScript, so the plugin scans a
+  // dependency's own internals. Guards the first-party diagnostic scoping (else marker-comptime-arg-*).
   {name: 'smoke-source', adapter: 'esbuild'},
+  // The same fixture with NO custom conditions, found through plain `types`. Together the two
+  // prove the resolver follows a dependency's manifest, which is what lets @mionjs/* ship no src.
+  {name: 'smoke-types-in-src', adapter: 'esbuild'},
   // Bun has TWO plugin hosts and they are different code paths, so each gets an
   // app: `Bun.build` (bundler, produces a dist like every other adapter) and the
   // `Bun.plugin` RUNTIME loader (no bundle step, transforms on import). Both run
   // under bun, which build-all.mjs cannot call in-process — see buildBun.
   {name: 'smoke-bun', adapter: 'bun'},
   {name: 'smoke-bun-preload', adapter: 'bunPreload'},
-  // Next.js is the odd one out: Turbopack has no plugin API, so this app is
-  // driven by `withRunTypes` in next.config (one broker) plus a loader in
-  // turbopack.rules, not by a bundler plugin. It also cannot be built in-process
-  // — `next build` is a CLI — so it runs out-of-process like the bun apps.
-  // It is also the repo's ONLY `next build` coverage (next is ~202MB and not a
-  // workspace dep, so a vitest equivalent would never run) — see
-  // packages/devtools/src/runtypes/next/CLAUDE.md.
+  // Turbopack has no plugin API; next build requires a separate CLI process.
+  // Next is not a workspace dependency; this supplies build coverage (packages/devtools/src/runtypes/next/AGENTS.md).
   {name: 'smoke-next', adapter: 'next'},
+  // The same Turbopack lane over the typed .ts cache modules emitMode 'ts' writes (its tsconfig asks for it).
+  // No type-edit rebuild: smoke-next already proves it, and the mode changes nothing in it.
+  {name: 'smoke-next-ts', adapter: 'next', typeEdit: false},
+  // The mion half of the Next story: the app HOSTS the API through an App Router catch-all
+  // handler, so one build produces the front end and the API from one program. smoke-next
+  // covers the transform under Turbopack; this covers the framework on top of it, including a
+  // batch, which only works when the client's call site and the server's table come from the
+  // same build.
+  {name: 'mion-next', adapter: 'mionNext'},
 ];
 
 async function buildVite(app) {
@@ -224,6 +245,7 @@ async function buildNext(app) {
   const run = () =>
     execFileSync(process.execPath, [nextBin, 'build'], {cwd: appDir, stdio: 'inherit', env: {...process.env, NODE_ENV: 'production'}});
   run();
+  if (app.typeEdit === false) return;
 
   // Second build, after editing a type the page reflects through an ERASED
   // import (apps/smoke-next/typeDep.ts — `import type`, so Turbopack has no edge
@@ -261,7 +283,60 @@ async function buildNext(app) {
   }
 }
 
-const BUILDERS = {vite: buildVite, esbuild: buildEsbuild, rollup: buildRollup, rolldown: buildRolldown, webpack: buildWebpack, rspack: buildRspack, bun: buildBun, bunPreload: buildBunPreload, next: buildNext};
+// Fixed, like every other port in this container (the node consumer's 8086, the bun one's 8087):
+// the lanes run one at a time inside an image nothing else listens in, so a port is just a name.
+const MION_NEXT_PORT = 8088;
+
+async function waitForOk(url, child, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (child.exitCode !== null) throw new Error(`mion-next: \`next start\` exited with ${child.exitCode} before serving ${url}`);
+    try {
+      const res = await fetch(url);
+      if (res.ok) return res;
+    } catch {
+      // not listening yet
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error(`mion-next: ${url} did not answer within ${timeoutMs}ms`);
+}
+
+// SERVED with a real `next start`, because the API only exists at request time. The app's own /selftest
+// route does the calling (its batch has to be in the app's program); this driver only saves the report.
+async function buildMionNext(app) {
+  const appDir = path.join(APPS, app.name);
+  const nextBin = path.join(HERE, 'node_modules/next/dist/bin/next');
+  execFileSync(process.execPath, [nextBin, 'build'], {cwd: appDir, stdio: 'inherit', env: {...process.env, NODE_ENV: 'production'}});
+
+  const child = spawn(process.execPath, [nextBin, 'start', '--port', String(MION_NEXT_PORT)], {
+    cwd: appDir,
+    stdio: 'inherit',
+    env: {...process.env, NODE_ENV: 'production'},
+  });
+  try {
+    const base = `http://127.0.0.1:${MION_NEXT_PORT}`;
+    await waitForOk(`${base}/`, child, 90_000);
+    const res = await waitForOk(`${base}/selftest`, child, 30_000);
+    const report = await res.json();
+    // Fail here as well as in the assertions: a broken lane should not need `node --test` to say so.
+    const failures = [report.json.error, report.compact.error, report.batch.error].filter(Boolean);
+    if (failures.length) throw new Error(`mion-next: the app reported errors: ${failures.join(' | ')}`);
+    writeFileSync(path.join(appDir, 'selftest.json'), `${JSON.stringify(report, null, 2)}\n`);
+  } finally {
+    child.kill('SIGTERM');
+  }
+
+  // Second build, on the bundled lane. Not served: what it proves is what is IN the output, and
+  // Turbopack drops the fetched lane through a resolveAlias, which only a real build can confirm.
+  execFileSync(process.execPath, [nextBin, 'build'], {
+    cwd: appDir,
+    stdio: 'inherit',
+    env: {...process.env, NODE_ENV: 'production', MION_E2E_CLIENT_ROUTES: 'bundle'},
+  });
+}
+
+const BUILDERS = {vite: buildVite, esbuild: buildEsbuild, rollup: buildRollup, rolldown: buildRolldown, webpack: buildWebpack, rspack: buildRspack, bun: buildBun, bunPreload: buildBunPreload, next: buildNext, mionNext: buildMionNext};
 
 async function main() {
   const requested = process.argv.slice(2);
@@ -273,6 +348,7 @@ async function main() {
   // build-vite is the only app that imports the enrichment mirrors; regenerate
   // them first (the smokes use the lean subset and don't need them).
   if (apps.some((app) => app.name === 'build-vite')) ensureEnrichment();
+  if (apps.some((app) => app.name === 'smoke-source' || app.name === 'smoke-types-in-src')) ensureSrcTypesFixture();
   let failed = 0;
   for (const app of apps) {
     const started = process.hrtime.bigint();

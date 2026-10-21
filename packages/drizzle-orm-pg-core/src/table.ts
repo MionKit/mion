@@ -5,67 +5,41 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The pg table factories: drizzle-identical call shapes (columns as an object
-// or a callback receiving the column helpers; extraConfig callback returning
-// an array of entries), slim recorder returns. Nothing here imports drizzle:
-// each table stores a buildTable closure that receives the injected context at
-// materialization (toDrizzle, in ./drizzle.ts).
+// drizzle's table call shapes, slim recorder returns. Shared nameless columns plus a names map make a pgTable()
+// result and a hand-written `PgTable<'users', {...}>` one type. No drizzle import: ./drizzle.ts injects the context.
 
 import type {
-  AnyRtColumn,
   DrizzleContext,
+  EntryColRefs,
+  LiftCols,
+  NameOf,
+  NoNames,
   ReflectedNode,
   RtExtraColumn,
   RtTableBrand,
+  RtTableInfer,
   RtTableMeta,
+  TableEntry,
   TableFromTypeOptions,
-  TypedCols,
+  rtNamedColumnKey,
 } from '@mionjs/drizzle-orm';
-import type {EntryColRefs, TableEntry} from '@mionjs/drizzle-orm';
-import {
-  buildRtTableFromGraph,
-  createRtTable,
-  RtColumnRecorder,
-  RtValueRecorder,
-  RtViewBuilder,
-  rtValueKey,
-} from '@mionjs/drizzle-orm';
+import {createRtTable, rtTableFromRunType, RtValueRecorder, RtViewBuilder, rtValueKey} from '@mionjs/drizzle-orm';
 import type {InjectRunTypeId} from '@mionjs/run-types';
 import {getRunType} from '@mionjs/run-types';
 import {pgColumnHelpers, type PgColumnHelpers} from './columns.ts';
-import {requireColumns} from './views.ts';
-import type {} from './helpers.ts';
+import {makeEnumFactory, type pgEnum} from './helpers.ts';
+import {requireColumns, type pgMaterializedView, type pgView} from './views.ts';
+import type {AnyPgTable} from './types.ts';
 
-/** A pg table: the metadata and nothing wrapped around it.
- *
- *  ONE type for both roads. `pgTable('users', {...})` returns it with columns
- *  the builders already branded, and `PgTable<'users', {id: Uuid<'id'>}>`
- *  declares the same thing from the column TYPES; TypedCols passes an
- *  already-branded record straight through, so the two land on one type.
- *
- *  It used to be two (PgTable normalizing, PgBuilderTable pre-normalized) to
- *  save the builder road a TypedCols pass. That is worth about 5 instantiations
- *  a table and it is not worth two shapes: every table in the codebase reads
- *  the same way, and nothing has to know which road declared it. */
-export interface PgTable<TName extends string, Cols extends object, Extras extends readonly object[] = []>
-  extends RtTableMeta<TName, TypedCols<Cols>, Extras>, RtTableBrand<'pg'> {
-  enableRLS(): PgTableWithRLS<TName, Cols, Extras>;
+/** A pg table: ONE type for a pgTable() result and a hand-written `PgTable<'users', {...}>`. */
+export interface PgTable<Name extends string, Cols, Extras extends readonly object[] = [], Names = NoNames>
+  extends RtTableMeta<Name, Cols, Extras, Names>, RtTableBrand<'pg'>, RtTableInfer<Cols> {
+  enableRLS(): PgTableWithRLS<Name, Cols, Extras, Names>;
 }
-
-/** A pg table with row level security on: the same table minus enableRLS, so it
- *  cannot be enabled twice. Mirrors drizzle's own `Omit<..., 'enableRLS'>`. */
-export interface PgTableWithRLS<TName extends string, Cols extends object, Extras extends readonly object[] = []>
-  extends RtTableMeta<TName, TypedCols<Cols>, Extras>, RtTableBrand<'pg'> {}
-
-/** Any pg table, whatever its name and columns. What this package's toDrizzle
- *  and tableFromType take, so another dialect's table is a compile error rather
- *  than a `dzPg.mysqlTable is not a function` at run time. */
-export type AnyPgTable = PgTableWithRLS<string, Record<string, AnyRtColumn>, readonly object[]>;
-/** Any pg view, the twin of AnyPgTable. */
-export type AnyPgView = import('./views.ts').PgSlimView<string, Record<string, AnyRtColumn>>;
-
-// The friendly per-helper entry aliases: each expands to the TableEntry
-// carrier the runtime bridge and the convert program read mechanically.
+/** A pg table with row level security on: the same table minus enableRLS, as drizzle's own `Omit<..., 'enableRLS'>`. */
+export interface PgTableWithRLS<Name extends string, Cols, Extras extends readonly object[] = [], Names = NoNames>
+  extends RtTableMeta<Name, Cols, Extras, Names>, RtTableBrand<'pg'>, RtTableInfer<Cols> {}
+// Friendly aliases over the TableEntry carrier the runtime bridge and the convert program read.
 /** `index(name).on(...columns by record key)`. */
 export type IndexEntry<Name extends string, On extends readonly string[]> = TableEntry<'index', [Name], {on: EntryColRefs<On>}>;
 /** `uniqueIndex(name).on(...)`. */
@@ -76,11 +50,9 @@ export type UniqueIndexEntry<Name extends string, On extends readonly string[]> 
 >;
 /** `unique(name).on(...)`. */
 export type UniqueEntry<Name extends string, On extends readonly string[]> = TableEntry<'unique', [Name], {on: EntryColRefs<On>}>;
-/** `check(name, sql\`...\`)` — literal sql only. */
+/** `check(name, sql\`...\`)`, literal sql only. */
 export type CheckEntry<Name extends string, SqlValue> = TableEntry<'check', [Name, SqlValue]>;
-/** `foreignKey({name, columns, foreignColumns})`: this table's columns by
- *  record key, the foreign ones by table DB name + key (resolved through
- *  tableFromType deps). */
+/** `foreignKey(...)`: own columns by record key, foreign ones by table db name + key, resolved through options.tables. */
 export type ForeignKeyEntry<
   Name extends string,
   Columns extends readonly string[],
@@ -90,72 +62,30 @@ export type ForeignKeyEntry<
   'foreignKey',
   [{name: Name; columns: EntryColRefs<Columns>; foreignColumns: ForeignTableRefs<ForeignTable, ForeignColumns>}]
 >;
-/** `primaryKey({name?, columns})` — the composite form. */
+/** `primaryKey({name?, columns})`, the composite form. */
 export type PrimaryKeyEntry<Name extends string, Columns extends readonly string[]> = TableEntry<
   'primaryKey',
   [{name: Name; columns: EntryColRefs<Columns>}]
 >;
 type ForeignTableRefs<Table extends string, Keys extends readonly string[]> = {[I in keyof Keys]: {table: Table; col: Keys[I]}};
 
-// Rebuilt slim tables, one per reflected table id, so repeated calls share one
-// slim table and therefore one materialized drizzle table.
-const fromTypeTables = new Map<string, object>();
-
-/** Runtime twin of a TYPE-defined table: rebuild the slim table from the
- *  reflected graph, typed as the table type itself — so toDrizzle, the models
- *  and refineTableType treat it exactly like a pgTable() result. The type
- *  argument is resolved by the build (@mionjs/devtools must be active);
- *  dynamic callers holding a resolved RunType graph use the lower-level
- *  buildRtTableFromGraph from @mionjs/drizzle-orm instead. A table whose
- *  columns use References needs the referenced tables in options.tables;
- *  runtime-callback markers take theirs from options.runtime. The no-options
- *  form is memoized, one slim table per type id, so repeated calls share one
- *  materialized drizzle table. A call WITH options builds a fresh one, the way
- *  a builder call does: two tables of the same type can carry different
- *  callbacks or different referenced tables, and sharing would silently hand
- *  the second one the first one's. */
-export function tableFromType<T extends AnyPgTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): T {
-  const runType = getRunType<T>(undefined, id);
-  if (options !== undefined) return buildRtTableFromGraph(runType as ReflectedNode, pgBuildTable, options, 'pg') as T;
-  let slimTable = fromTypeTables.get(runType.id);
-  if (slimTable === undefined) {
-    slimTable = buildRtTableFromGraph(runType as ReflectedNode, pgBuildTable, undefined, 'pg');
-    fromTypeTables.set(runType.id, slimTable);
-  }
-  return slimTable as T;
-}
-
-/** The extraConfig view of the table's columns: the columns themselves plus
- *  the index-position decorators (asc/desc/nullsFirst/nullsLast/op). */
+/** The extraConfig view of the table's columns: plus the index-position decorators (asc/desc/op). */
 export type PgExtraConfigColumns<Cols> = {[K in keyof Cols]: Cols[K] & RtExtraColumn};
-
-/** ONE entry in a table's extraConfig: an index, a constraint or a policy from
- *  this package; a REAL drizzle entry passed straight through (what a provider
- *  helper returns — crudPolicy, the supabase roles); or a GROUP of either, which
- *  drizzle flattens one level at build time.
- *
- *  `object`, not a union with PgEntryBrand: that brand's only member is optional,
- *  which makes it a WEAK type, and TypeScript rejects an object with nothing in
- *  common with a weak type — so a real drizzle entry could never be passed
- *  without a cast. This module never imports drizzle, so there is no name to
- *  give one. The recorder passes anything it does not recognise straight to
- *  drizzle, so the type says exactly what the runtime does. */
+// `object`, not a union with PgEntryBrand: that brand is a weak type and would reject a real drizzle entry.
+/** ONE extraConfig entry: ours, a REAL drizzle one (crudPolicy, supabase roles), or a group flattened one level. */
 export type PgExtraConfigEntry = object;
-
-/** drizzle accepts BOTH shapes from an extraConfig callback: the array form and
- *  its older keyed-object one. Its own suites still write both, so both are
- *  recorded and replayed unchanged. */
+/** drizzle accepts both the array form and its older keyed-object one; both are recorded and replayed unchanged. */
 export type PgExtraConfigFn<Cols> = (
   self: PgExtraConfigColumns<Cols>
 ) => readonly PgExtraConfigEntry[] | Record<string, PgExtraConfigEntry>;
 
 type ColumnsArg<Cols> = Cols | ((helpers: PgColumnHelpers) => Cols);
 
-function resolveColumns<Cols>(columns: ColumnsArg<Cols>): Cols {
-  return typeof columns === 'function' ? (columns as (helpers: PgColumnHelpers) => Cols)(pgColumnHelpers) : columns;
+function resolveColumns(columns: ColumnsArg<Record<string, unknown>>): Record<string, unknown> {
+  return typeof columns === 'function' ? columns(pgColumnHelpers) : columns;
 }
 
-/** The pg buildTable closure (also used by tableFromType in ./drizzle.ts). */
+/** The pg buildTable closure (also used by tableFromType). */
 export function pgBuildTable(
   context: DrizzleContext,
   name: string,
@@ -167,43 +97,40 @@ export function pgBuildTable(
     : context.ns.pgTable(name as never, builders as never);
 }
 
-/** Records the table; returns the slim table typed as PgTable (one public
- *  name for both roads), NOT drizzle's own table. The real drizzle table is
- *  built on demand by toDrizzle() from the ./drizzle subpath. */
-export function pgTable<TName extends string, Cols extends Record<string, AnyRtColumn>>(
-  name: TName,
+// Maps are inline, never an alias: the resolver serializes an alias's type arguments, the builders' results.
+/** Records the table and returns the SLIM table, not drizzle's own: toDrizzle() from the ./drizzle subpath builds that. */
+export function pgTable<Name extends string, Cols extends Record<string, object>>(
+  name: Name,
   columns: Cols,
-  extraConfig?: PgExtraConfigFn<Cols>
-): PgTable<TName, Cols>;
-export function pgTable<TName extends string, Cols extends Record<string, AnyRtColumn>>(
-  name: TName,
+  extraConfig?: PgExtraConfigFn<LiftCols<Cols>>
+): PgTable<
+  Name,
+  {[K in keyof Cols]: Cols[K] extends {readonly [rtNamedColumnKey]: infer C} ? C : Cols[K]},
+  [],
+  {[K in keyof Cols as NameOf<Cols[K]> extends string ? (NameOf<Cols[K]> extends K ? never : K) : never]: NameOf<Cols[K]>}
+>;
+export function pgTable<Name extends string, Cols extends Record<string, object>>(
+  name: Name,
   columns: (helpers: PgColumnHelpers) => Cols,
-  extraConfig?: PgExtraConfigFn<Cols>
-): PgTable<TName, Cols>;
+  extraConfig?: PgExtraConfigFn<LiftCols<Cols>>
+): PgTable<
+  Name,
+  {[K in keyof Cols]: Cols[K] extends {readonly [rtNamedColumnKey]: infer C} ? C : Cols[K]},
+  [],
+  {[K in keyof Cols as NameOf<Cols[K]> extends string ? (NameOf<Cols[K]> extends K ? never : K) : never]: NameOf<Cols[K]>}
+>;
 export function pgTable(name: string, columns: ColumnsArg<Record<string, unknown>>, extraConfig?: unknown) {
   return createRtTable(name, resolveColumns(columns), extraConfig as never, pgBuildTable);
 }
 
 /** Drizzle's pgTableCreator: a pgTable with a table-name mapper, recorded. */
-export function pgTableCreator(customizeTableName: (name: string) => string) {
+export function pgTableCreator(customizeTableName: (name: string) => string): typeof pgTable {
   const creator = new RtValueRecorder('pgTableCreator', [customizeTableName]);
-  function createTable<TName extends string, Cols extends Record<string, AnyRtColumn>>(
-    name: TName,
-    columns: Cols,
-    extraConfig?: PgExtraConfigFn<Cols>
-  ): PgTable<TName, Cols>;
-  function createTable<TName extends string, Cols extends Record<string, AnyRtColumn>>(
-    name: TName,
-    columns: (helpers: PgColumnHelpers) => Cols,
-    extraConfig?: PgExtraConfigFn<Cols>
-  ): PgTable<TName, Cols>;
-  function createTable(name: string, columns: ColumnsArg<Record<string, unknown>>, extraConfig?: unknown) {
-    return createRtTable(name, resolveColumns(columns), extraConfig as never, (context, tableName, builders, extraReplay) => {
-      const drizzleCreator = creator.toDrizzleValue(context) as (...a: unknown[]) => unknown;
+  return ((name: string, columns: ColumnsArg<Record<string, unknown>>, extraConfig?: unknown) =>
+    createRtTable(name, resolveColumns(columns), extraConfig as never, (context, tableName, builders, extraReplay) => {
+      const drizzleCreator = creator.toDrizzleValue(context) as (...args: unknown[]) => unknown;
       return extraReplay ? drizzleCreator(tableName, builders, extraReplay) : drizzleCreator(tableName, builders);
-    });
-  }
-  return createTable;
+    })) as typeof pgTable;
 }
 
 // ── pgSchema ─────────────────────────────────────────────────────────────────
@@ -221,46 +148,43 @@ export interface PgSequence {
   readonly seqName: string | undefined;
 }
 
-export interface PgSchema<TSchemaName extends string = string> {
-  readonly schemaName: TSchemaName;
+export interface PgSchema<SchemaName extends string = string> {
+  readonly schemaName: SchemaName;
   table: typeof pgTable;
-  enum: typeof import('./helpers.ts').pgEnum;
+  view: typeof pgView;
+  materializedView: typeof pgMaterializedView;
+  enum: typeof pgEnum;
   sequence(name: string, options?: PgSequenceOptions): PgSequence;
-  view: typeof import('./views.ts').pgView;
-  materializedView: typeof import('./views.ts').pgMaterializedView;
 }
 
-export function pgSchema<TSchemaName extends string>(schemaName: TSchemaName): PgSchema<TSchemaName> {
+export function pgSchema<SchemaName extends string>(schemaName: SchemaName): PgSchema<SchemaName> {
   const schema = new RtValueRecorder('pgSchema', [schemaName]);
+  const drizzleSchema = (context: DrizzleContext) =>
+    schema.toDrizzleValue(context) as Record<string, (...args: unknown[]) => unknown>;
 
   function schemaTable(name: string, columns: ColumnsArg<Record<string, unknown>>, extraConfig?: unknown) {
-    return createRtTable(name, resolveColumns(columns), extraConfig as never, (context, tableName, builders, extraReplay) => {
-      const drizzleSchema = schema.toDrizzleValue(context) as {table: (...a: unknown[]) => unknown};
-      return extraReplay ? drizzleSchema.table(tableName, builders, extraReplay) : drizzleSchema.table(tableName, builders);
-    });
+    return createRtTable(name, resolveColumns(columns), extraConfig as never, (context, tableName, builders, extraReplay) =>
+      extraReplay
+        ? drizzleSchema(context).table(tableName, builders, extraReplay)
+        : drizzleSchema(context).table(tableName, builders)
+    );
   }
-
-  function schemaEnum(enumName: string, values: readonly string[]) {
+  function schemaEnum(enumName: string, values: readonly string[] | Record<string, string>) {
     return makeEnumFactory(new RtValueRecorder('enum', [enumName, values], schema), enumName, values);
   }
-
-  // A schema-scoped view replays as schema.view(...) / schema.materializedView(...)
-  // instead of the namespace function, the same way schemaTable does.
+  // A schema-scoped view replays as schema.view(...), not the namespace function, as schemaTable does.
   function schemaView(name: string, columns?: Record<string, unknown>) {
     return new RtViewBuilder(name, requireColumns('pgSchema(...).view', name, columns), (context, viewName, builders) =>
-      (schema.toDrizzleValue(context) as {view: (...a: unknown[]) => unknown}).view(viewName, builders)
+      drizzleSchema(context).view(viewName, builders)
     ) as never;
   }
-
   function schemaMaterializedView(name: string, columns?: Record<string, unknown>) {
     return new RtViewBuilder(
       name,
       requireColumns('pgSchema(...).materializedView', name, columns),
-      (context, viewName, builders) =>
-        (schema.toDrizzleValue(context) as {materializedView: (...a: unknown[]) => unknown}).materializedView(viewName, builders)
+      (context, viewName, builders) => drizzleSchema(context).materializedView(viewName, builders)
     ) as never;
   }
-
   function schemaSequence(name: string, options?: PgSequenceOptions): PgSequence {
     const sequence = new RtValueRecorder('sequence', options === undefined ? [name] : [name, options], schema);
     return {seqName: name, [rtValueKey]: sequence} as PgSequence;
@@ -269,25 +193,16 @@ export function pgSchema<TSchemaName extends string>(schemaName: TSchemaName): P
   return {
     schemaName,
     table: schemaTable as typeof pgTable,
-    enum: schemaEnum as PgSchema<TSchemaName>['enum'],
+    enum: schemaEnum as unknown as PgSchema<SchemaName>['enum'],
     sequence: schemaSequence,
-    view: schemaView as PgSchema<TSchemaName>['view'],
-    materializedView: schemaMaterializedView as PgSchema<TSchemaName>['materializedView'],
+    view: schemaView as PgSchema<SchemaName>['view'],
+    materializedView: schemaMaterializedView as PgSchema<SchemaName>['materializedView'],
     [rtValueKey]: schema,
-  } as PgSchema<TSchemaName>;
+  } as PgSchema<SchemaName>;
 }
 
-/** Shared by pgEnum and pgSchema(...).enum: a factory handle producing slim
- *  enum columns whose materializer calls the real (memoized) drizzle enum. */
-export function makeEnumFactory(recorder: RtValueRecorder, enumName: string, values: readonly string[]) {
-  const enumFactory = Object.assign(
-    (...columnArgs: unknown[]) =>
-      new RtColumnRecorder((context) => {
-        const drizzleEnum = recorder.toDrizzleValue(context) as (...a: unknown[]) => unknown;
-        return drizzleEnum(...columnArgs);
-      }) as never,
-    {enumName, enumValues: values as never}
-  );
-  (enumFactory as unknown as Record<symbol, unknown>)[rtValueKey] = recorder;
-  return enumFactory;
+// Needs @mionjs/devtools; references read options.tables, runtime-callback markers options.runtime.
+/** Runtime twin of a hand-written table type; a call WITH options is not memoized, its callbacks or tables may differ. */
+export function tableFromType<T extends AnyPgTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): T {
+  return rtTableFromRunType(getRunType<T>(undefined, id) as ReflectedNode, pgBuildTable, 'pg', options) as T;
 }

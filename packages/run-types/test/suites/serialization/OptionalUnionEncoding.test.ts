@@ -13,10 +13,9 @@ const ENVELOPE = /:\[\d/;
 describe('serialization / optional-union JSON encoding (regression)', () => {
   it('optional boolean → plain boolean, never [index, value]', () => {
     const clone = createJsonEncoderFn<{active?: boolean}>();
-    const direct = createJsonEncoderFn<{active?: boolean}>(undefined, {strategy: 'direct'});
     const mutate = createJsonEncoderFn<{active?: boolean}>(undefined, {strategy: 'mutate'});
 
-    for (const enc of [clone, direct, mutate]) {
+    for (const enc of [clone, mutate]) {
       expect(enc({active: false})).toBe('{"active":false}');
       expect(enc({active: true})).toBe('{"active":true}');
       expect(enc({})).toBe('{}');
@@ -26,12 +25,12 @@ describe('serialization / optional-union JSON encoding (regression)', () => {
 
   it('required literal-string union → plain string, no dispatch envelope', () => {
     const clone = createJsonEncoderFn<{x: 'a' | 'b' | 'c'}>();
-    const direct = createJsonEncoderFn<{x: 'a' | 'b' | 'c'}>(undefined, {strategy: 'direct'});
+    const mutate = createJsonEncoderFn<{x: 'a' | 'b' | 'c'}>(undefined, {strategy: 'mutate'});
 
     expect(clone({x: 'b'})).toBe('{"x":"b"}');
-    expect(direct({x: 'c'})).toBe('{"x":"c"}');
+    expect(mutate({x: 'c'})).toBe('{"x":"c"}');
     expect(clone({x: 'a'})).not.toMatch(ENVELOPE);
-    expect(direct({x: 'a'})).not.toMatch(ENVELOPE);
+    expect(mutate({x: 'a'})).not.toMatch(ENVELOPE);
   });
 
   it('optional string | number union → plain value, no envelope', () => {

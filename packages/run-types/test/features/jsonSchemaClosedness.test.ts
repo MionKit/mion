@@ -1,12 +1,5 @@
-// The closedness stamp: `libraryOptions.encoderStrategy` derives
-// `additionalProperties` from the paired JSON encoder's wire policy
-// (docs/done/schema-doc-additionalproperties-from-strategy.md). A `clone` /
-// `direct` pairing never emits undeclared keys, so every KEYED object node in
-// the document closes with `additionalProperties: false`; `mutate` preserves
-// extras and leaves the document open; `compact` writes positional arrays the
-// keyed document does not describe, so it refuses. There is deliberately NO
-// independent additionalProperties param — the strategy is the single source
-// of the key policy, so the document can never contradict the codec.
+// `libraryOptions.encoderStrategy` sets `additionalProperties`: `clone` closes every keyed object node, `mutate` leaves
+// it open, `compact` refuses (positional arrays). No separate option exists, so the document cannot contradict the codec.
 
 import {describe, expect, it} from 'vitest';
 import {createJsonSchemaFn, createStandardSchema} from '@mionjs/run-types';
@@ -41,11 +34,6 @@ describe('jsonSchema closedness — additionalProperties derives from the encode
     expect(doc.additionalProperties).toBe(false);
     const address = (doc.properties as Record<string, Record<string, unknown>>).address;
     expect(address.additionalProperties).toBe(false);
-  });
-
-  it("a 'direct' pairing closes the same way (its walk also strips undeclared keys)", () => {
-    const doc = createJsonSchemaFn<Person>()({libraryOptions: {encoderStrategy: 'direct'}});
-    expect(doc.additionalProperties).toBe(false);
   });
 
   it("a 'mutate' pairing leaves the document open (extras ride its wire)", () => {
@@ -84,7 +72,9 @@ describe('jsonSchema closedness — additionalProperties derives from the encode
   });
 
   it('an unknown strategy value is a RangeError, never a silent open document', () => {
-    expect(() => createJsonSchemaFn<Person>()({libraryOptions: {encoderStrategy: 'strip'}})).toThrow(RangeError);
+    expect(() => createJsonSchemaFn<Person>()({libraryOptions: {encoderStrategy: 'bogus'}})).toThrow(
+      new RangeError("unknown encoderStrategy 'bogus' (expected 'clone' | 'mutate')")
+    );
   });
 
   it('both converter sides of createStandardSchema honor the declaration', () => {

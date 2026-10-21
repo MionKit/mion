@@ -18,6 +18,8 @@ const OPTIONS: ts.CompilerOptions = {
   noEmit: true,
   target: ts.ScriptTarget.ES2022,
   lib: ['lib.es2022.d.ts'],
+  // The resolver program sees @types/node, so a generated `URL` must resolve here too, or every URL type reads as invalid TS.
+  types: ['node'],
   // The fixtures import the shipped `src/**` sources with explicit `.ts`
   // specifiers, exactly as the resolver-lane fixtures do.
   module: ts.ModuleKind.ESNext,

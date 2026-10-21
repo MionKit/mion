@@ -46,8 +46,12 @@ Usage:
 Each table keeps its original name bound to the REAL drizzle table, so every
 query, operator and config reader still works untouched:
 
-    const users$table = pgTable('users', {id: uuid().primaryKey()});
+    const users$table = pgTable('users', {id: uuid({primaryKey: true})});
     const users = toDrizzle(users$table);
+
+Each column chain folds into the slim builders' one props object:
+uuid().primaryKey() becomes uuid({primaryKey: true}), and a reference to another
+table's column becomes tableRef(table$table, 'column').
 
 The recorder half takes a suffixed name (users$table, myView$view, …) and only
 references inside a recorder call use it. Imports split by what the slim

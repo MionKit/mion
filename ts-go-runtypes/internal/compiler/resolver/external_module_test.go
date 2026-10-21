@@ -11,8 +11,8 @@ import (
 // External-module marker matrix. Each row defines a type / schema / preset /
 // pure-fn in one module and uses the marker
 // in another, asserting the cross-module result converges with the inline twin —
-// and that the new hardening diagnostics (CTA004 widened const, PFN002 external
-// pure-fn handle) fire where intended.
+// and that the new hardening diagnostics (marker-comptime-arg-widened-const, purefn-imported-or-exported)
+// fire where intended.
 
 // scanExternal scans `call.ts` (the consumer) against the real marker package
 // (injected by setupInline), following its imports into the other source
@@ -31,13 +31,11 @@ func scanExternal(t *testing.T, files map[string]string) protocol.Response {
 	return resp
 }
 
-// gateCodes returns the hard marker GATES (CTA0xx / PFNxxx) raised, ignoring the
-// advisory MKR no-op warnings (`noLiterals`/`noIsArrayCheck` are no-ops on some
-// types and fire MKR004/MKR005 independently of what these tests assert).
+// gateCodes returns the hard marker GATES raised, not the advisory warnings.
 func gateCodes(resp protocol.Response) []string {
 	var codes []string
 	for _, d := range resp.Diagnostics {
-		if d.Family == diagnostics.FamilyMarker && (strings.HasPrefix(d.Code, "CTA") || strings.HasPrefix(d.Code, "PFN")) {
+		if d.Family == diagnostics.FamilyMarker && (strings.HasPrefix(d.Code, "marker-comptime-arg-") || strings.HasPrefix(d.Code, "purefn-")) {
 			codes = append(codes, d.Code)
 		}
 	}
@@ -86,7 +84,7 @@ export const inlineJson = createJsonEncoderFn<{name: string; age: number}>();
 `
 	resp := scanExternal(t, map[string]string{"types.ts": types, "call.ts": code})
 	if codes := gateCodes(resp); len(codes) != 0 {
-		t.Fatalf("expected no CTA/PFN gate diagnostics, got %v", codes)
+		t.Fatalf("expected no marker-comptime-arg-*/purefn-* gate diagnostics, got %v", codes)
 	}
 	if len(resp.Sites) != 4 {
 		t.Fatalf("expected 4 createX sites, got %d", len(resp.Sites))
@@ -103,17 +101,17 @@ export const inlineJson = createJsonEncoderFn<{name: string; age: number}>();
 // imported `const` preset (declared `as const`) selects the same fn variant as
 // the inlined and the spread-merged equivalents.
 func TestExternalModule_WholeConstOptionBag(t *testing.T) {
-	const opts = `export const strict = {noLiterals: true, noIsArrayCheck: true} as const;`
+	const opts = `export const strict = {numberMode: 'typeof', rejectCircularRefs: true} as const;`
 	const code = `import {createValidateFn} from '@mionjs/run-types';
 import {strict} from './opts';
-export const whole = createValidateFn<string>(undefined, strict);
-export const spread = createValidateFn<string>(undefined, {...strict});
-export const inline = createValidateFn<string>(undefined, {noLiterals: true, noIsArrayCheck: true});
-export const none = createValidateFn<string>();
+export const whole = createValidateFn<number>(undefined, strict);
+export const spread = createValidateFn<number>(undefined, {...strict});
+export const inline = createValidateFn<number>(undefined, {numberMode: 'typeof', rejectCircularRefs: true});
+export const none = createValidateFn<number>();
 `
 	resp := scanExternal(t, map[string]string{"opts.ts": opts, "call.ts": code})
 	if codes := gateCodes(resp); len(codes) != 0 {
-		t.Fatalf("expected no CTA/PFN gate diagnostics for an `as const` whole-const preset, got %v", codes)
+		t.Fatalf("expected no marker-comptime-arg-*/purefn-* gate diagnostics for an `as const` whole-const preset, got %v", codes)
 	}
 	if len(resp.Sites) != 4 {
 		t.Fatalf("expected 4 sites, got %d", len(resp.Sites))
@@ -132,15 +130,15 @@ export const none = createValidateFn<string>();
 
 // TestExternalModule_WidenedConstRejected — the `as const` hardening at the call
 // site: a non-`as const` preset (same-module or imported) is widened, so it is
-// rejected with CTA004 instead of silently selecting a possibly-wrong variant.
+// rejected with marker-comptime-arg-widened-const instead of silently selecting a possibly-wrong variant.
 func TestExternalModule_WidenedConstRejected(t *testing.T) {
 	cases := map[string]map[string]string{
 		"same-module": {"call.ts": `import {createValidateFn} from '@mionjs/run-types';
-const loose = {noLiterals: true};
+const loose = {rejectCircularRefs: true};
 export const bad = createValidateFn<string>(undefined, loose);
 `},
 		"cross-module": {
-			"opts.ts": `export const loose = {noLiterals: true};`,
+			"opts.ts": `export const loose = {rejectCircularRefs: true};`,
 			"call.ts": `import {createValidateFn} from '@mionjs/run-types';
 import {loose} from './opts';
 export const bad = createValidateFn<string>(undefined, loose);
@@ -151,14 +149,14 @@ export const bad = createValidateFn<string>(undefined, loose);
 			resp := scanExternal(t, files)
 			codes := gateCodes(resp)
 			if len(codes) != 1 || codes[0] != diagnostics.CodeCompTimeArgsWidenedConst {
-				t.Fatalf("expected exactly one CTA004 gate, got %v", codes)
+				t.Fatalf("expected exactly one marker-comptime-arg-widened-const gate, got %v", codes)
 			}
 		})
 	}
 }
 
 // TestExternalModule_PureFnExternalHandleRejected — Part 2: a PureFunction literal
-// reachable as a value (imported OR exported) is rejected with PFN002, so the
+// reachable as a value (imported OR exported) is rejected with purefn-imported-or-exported, so the
 // AOT-compiled copy is the only thing that can run.
 func TestExternalModule_PureFnExternalHandleRejected(t *testing.T) {
 	cases := map[string]map[string]string{
@@ -191,14 +189,14 @@ withValidator<string>(isString);
 			resp := scanExternal(t, files)
 			codes := gateCodes(resp)
 			if len(codes) != 1 || codes[0] != diagnostics.CodePureFunctionExternalHandle {
-				t.Fatalf("expected exactly one PFN002, got %v", codes)
+				t.Fatalf("expected exactly one purefn-imported-or-exported, got %v", codes)
 			}
 		})
 	}
 }
 
 // TestExternalModule_PureFnInlineAccepted is the negative control: an inline
-// pure-fn literal still passes (no PFN gate).
+// pure-fn literal still passes (no purefn-* gate).
 func TestExternalModule_PureFnInlineAccepted(t *testing.T) {
 	cases := map[string]string{
 		"inline-arrow":    `withValidator<string>((v) => typeof v === 'string');`,
@@ -209,14 +207,14 @@ func TestExternalModule_PureFnInlineAccepted(t *testing.T) {
 			code := "import {withValidator} from '@mionjs/run-types';\n" + body + "\n"
 			resp := scanExternal(t, map[string]string{"runtypes.d.ts": pureFunctionDts, "call.ts": code})
 			if codes := gateCodes(resp); len(codes) != 0 {
-				t.Fatalf("expected no PFN/CTA gate for an inline pure-fn, got %v", codes)
+				t.Fatalf("expected no purefn-*/marker-comptime-arg-* gate for an inline pure-fn, got %v", codes)
 			}
 		})
 	}
 }
 
 // TestExternalModule_PureFnNamedLocalRejected: under literal-only even a
-// module-private named const / function reference is rejected (PFN001) — the
+// module-private named const / function reference is rejected (purefn-not-inline) — the
 // function must be inlined so it has no handle anything else could reach.
 func TestExternalModule_PureFnNamedLocalRejected(t *testing.T) {
 	cases := map[string]string{
@@ -229,7 +227,7 @@ func TestExternalModule_PureFnNamedLocalRejected(t *testing.T) {
 			resp := scanExternal(t, map[string]string{"runtypes.d.ts": pureFunctionDts, "call.ts": code})
 			codes := gateCodes(resp)
 			if len(codes) != 1 || codes[0] != diagnostics.CodePureFunctionNotLiteral {
-				t.Fatalf("expected exactly one PFN001, got %v", codes)
+				t.Fatalf("expected exactly one purefn-not-inline, got %v", codes)
 			}
 		})
 	}

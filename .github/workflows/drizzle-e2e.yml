@@ -14,6 +14,14 @@ name: drizzle · translated suites against real databases
 #   2. any PR carrying the `drizzle-e2e` label, so whoever touches those packages
 #      can ask for it on demand
 #
+# Either trigger is then gated on CONTENT by the `lanes` job: the lane hashes the
+# paths that feed it (scripts/ci/lanes.mjs) and runs only when that hash has not
+# already passed. Before that, a label meant five database lanes on every commit
+# for the life of the pull request, docs commits included.
+#
+# A new commit cancels only what it changed: an older run whose dialects all
+# hash the same is kept, and `drizzle-wait` waits for its markers (scripts/ci/supersede.mjs).
+#
 # It cannot live inside release-gate.yml: that gate is also called by the publish
 # path, and a job there cannot be depended on from here.
 on:
@@ -21,26 +29,56 @@ on:
   # `synchronize` re-runs it on every new commit while the label is still on, so
   # a labelled PR keeps being checked. Deliberately NOT pull_request_target: that
   # would hand secrets and write permissions to fork code.
+  # The `lanes` job reads labels live: an `opened` run that cancels its `labeled` twin has none in its payload.
   pull_request:
     types: [opened, synchronize, reopened, labeled]
 
 permissions:
   contents: read
 
+# Per run: the gate cancels the stale older runs itself (scripts/ci/supersede.mjs).
+# A fork's read-only token cannot cancel, so forks keep GitHub's per-ref cancel.
 concurrency:
-  group: drizzle-e2e-${{ github.ref }}
+  group: drizzle-e2e-${{ github.ref }}-${{ github.event.pull_request.head.repo.fork && 'fork' || github.run_id }}
   cancel-in-progress: true
 
 jobs:
+  # The content gate, shared with ci.yml and pr-heavy.yml. It answers "have these
+  # exact inputs already passed", which is a different question from `decide`'s
+  # "is this pull request about drizzle at all"; both must say yes.
+  lanes:
+    name: decide lanes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # the markers, the older runs' decisions, and cancelling the stale ones
+      actions: write
+      # reading the live labels
+      pull-requests: read
+    outputs:
+      lanes: ${{ steps.decide.outputs.lanes }}
+      labels: ${{ steps.decide.outputs.labels }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
+      - id: decide
+        uses: ./.github/actions/ci-lanes
+        with:
+          lanes: drizzle
+
   # ── decide: is this run worth its cost? ─────────────────────────────────────
   # A prod PR runs it only when the drizzle packages changed since their release
   # point; a labelled PR always runs. `unreleasedChanges()` returning {known:
   # false} means "cannot tell", which MUST run the lane — never skip on doubt.
   decide:
     name: should the lane run
+    needs: lanes
     runs-on: ubuntu-latest
     outputs:
       run: ${{ steps.check.outputs.run }}
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v5
         with:
@@ -49,42 +87,74 @@ jobs:
       - id: check
         shell: bash
         env:
-          LABELLED: ${{ contains(github.event.pull_request.labels.*.name, 'drizzle-e2e') }}
+          LABELLED: ${{ contains(fromJSON(needs.lanes.outputs.labels), 'drizzle-e2e') }}
           BASE_REF: ${{ github.base_ref }}
         # The decision lives in the front door, not in yaml, so it can be read and
         # run locally: `node scripts/release/drizzle-e2e.mjs --should-run`.
         run: node scripts/release/drizzle-e2e.mjs --should-run >> "$GITHUB_OUTPUT"
 
+  # Lets the build and dialects wait for an older run's markers instead of redoing them (scripts/ci/supersede.mjs).
+  drizzle-wait:
+    name: drizzle · wait for an older run
+    needs: lanes
+    if: fromJSON(needs.lanes.outputs.lanes).drizzle.deferredTo
+    permissions:
+      contents: read
+      # reading the markers and the older run's jobs
+      actions: read
+    uses: ./.github/workflows/lane-wait.yml
+    with:
+      lanes: drizzle
+      jobs: build + pack|pg|mysql|sqlite|d1|durable
+      decision: ${{ needs.lanes.outputs.lanes }}
+      minutes: 130
+
   # ── build: once, not once per dialect ───────────────────────────────────────
-  # The three lanes install the SAME tarballs, and cross-compiling seven platform
-  # binaries takes ~17 minutes, so doing it per dialect burned three times the
-  # runner for one artifact. Same shape as release-gate.yml's build job.
+  # The five lanes install the SAME tarballs, so the build runs once and the lanes
+  # download it. Same shape as release-gate.yml's build job, with ONE difference:
+  # the binaries are built for the host platform only (`--host-only`). Every lane
+  # runs on an ubuntu runner inside a linux/amd64 container, so only
+  # @mionjs/native-compiler-linux-x64 is ever installed here; cross-compiling the other six
+  # took ~18 of the job's ~23 minutes for nothing. The release gate keeps building
+  # all seven (it publishes and exec-tests them), and publish-tarballs.mjs refuses
+  # a host-only set, so this shortcut can never reach npm.
   build:
     name: build + pack
-    needs: decide
-    if: needs.decide.outputs.run == 'true'
+    needs: [lanes, drizzle-wait, decide]
+    if: ${{ !cancelled() && needs.lanes.result == 'success' && needs.decide.outputs.run == 'true' && fromJSON(needs.drizzle-wait.outputs.lanes || needs.lanes.outputs.lanes).drizzle.run }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      # `submodules: recursive` + bootstrap, the repo's ONE setup: the Go
-      # resolver only builds once tsgolint's patches are applied to its vendored
-      # typescript-go, and bootstrap is what applies them.
       - uses: actions/checkout@v5
-        with:
-          submodules: recursive
       - uses: ./.github/actions/free-disk
       - uses: ./.github/actions/bootstrap
-      # bin/mion FIRST: the @mionjs/* vite builds run the devtools plugin,
+      # Before the resolver: with the release binary cached, this job never needs Go.
+      - id: release-key
+        run: echo "key=$(node scripts/release/build-binaries.mjs --cache-key --host-only)" >> "$GITHUB_OUTPUT"
+      - id: release-bins
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache/release-bin
+          key: ${{ steps.release-key.outputs.key }}
+      - uses: ./.github/actions/resolver
+        with:
+          toolchain: ${{ steps.release-bins.outputs.cache-hit != 'true' }}
+      # mion-bin/mion FIRST: the @mionjs/* vite builds run the devtools plugin,
       # which spawns it. Without this the dist build dies on @mionjs/core.
       - name: Build the resolver + dists
         run: pnpm run check:builds
       - name: Build FE dists (canonical, for packing)
         run: pnpm run build
-      - name: Cross-compile the platform binary packages
-        run: pnpm rtx release binaries
+      - name: Build the host platform binary package
+        run: pnpm miondevx release binaries --host-only
+      - if: steps.release-bins.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .cache/release-bin
+          key: ${{ steps.release-key.outputs.key }}
       - name: Pack every package into tarballs/
-        run: pnpm rtx release pack
+        run: pnpm miondevx release pack
       - uses: actions/upload-artifact@v5
         with:
           name: drizzle-e2e-tarballs
@@ -93,18 +163,16 @@ jobs:
 
   drizzle-e2e:
     name: ${{ matrix.dialect }}
-    needs: build
+    needs: [lanes, drizzle-wait, build]
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
     strategy:
       fail-fast: false
       matrix:
-        dialect: [pg, mysql, sqlite, d1, durable]
-        # d1 and durable are the two Cloudflare storage DRIVERS, not dialects, so
-        # they share one image. Everything else about the lane is the same.
-        include:
-          - dialect: d1
-            image: cloudflare
-          - dialect: durable
-            image: cloudflare
+        # The unproven lanes.mjs items. No `include:`: an entry matching no listed dialect is ADDED as a new job.
+        dialect: ${{ fromJSON(needs.drizzle-wait.outputs.lanes || needs.lanes.outputs.lanes).drizzle.runItems }}
+    # d1 and durable are Cloudflare storage DRIVERS, not dialects, so they share one image.
+    env:
+      MION_DRIZZLE_IMAGE: ${{ (matrix.dialect == 'd1' || matrix.dialect == 'durable') && 'cloudflare' || matrix.dialect }}
     runs-on: ubuntu-latest
     # packages:read lets the job pull the prebuilt per-dialect image.
     permissions:
@@ -125,20 +193,20 @@ jobs:
           name: drizzle-e2e-tarballs
           path: tarballs
       # CI never builds these images; they are pushed from local
-      # (`pnpm rtx container push drizzle-<dialect>`). A missing or stale image is
+      # (`pnpm miondevx container push drizzle-<dialect>`). A missing or stale image is
       # a clear signal to republish rather than a silent slow rebuild.
       - name: Pull the prebuilt image
         uses: ./.github/actions/pull-shared-image
         with:
-          remote: ghcr.io/mionkit/mion-drizzle-${{ matrix.image || matrix.dialect }}:latest
-          local-tag: mion-drizzle-${{ matrix.image || matrix.dialect }}:dev
+          remote: ghcr.io/mionkit/mion-drizzle-${{ env.MION_DRIZZLE_IMAGE }}:latest
+          local-tag: mion-drizzle-${{ env.MION_DRIZZLE_IMAGE }}:dev
           # The images are PRIVATE, like tsrt-e2e: the repo GITHUB_TOKEN is denied
           # them, the PAT (read:packages) is not.
           password: ${{ secrets.GHCR_PAT }}
       # The ONE front door, the same script that runs locally, so they cannot
       # drift.
       - name: Translate drizzle's suites and run them
-        run: pnpm rtx release drizzle-e2e --dialect ${{ matrix.dialect }}
+        run: pnpm miondevx release drizzle-e2e --dialect ${{ matrix.dialect }}
       - name: Upload the translation report and logs
         if: always()
         uses: actions/upload-artifact@v5
@@ -146,3 +214,25 @@ jobs:
           name: drizzle-e2e-${{ matrix.dialect }}
           path: logs/drizzle-e2e/
           if-no-files-found: ignore
+      # Claims only this dialect, never its siblings.
+      - name: Record this dialect as green
+        uses: ./.github/actions/save-lane-green
+        with:
+          lane: drizzle.${{ matrix.dialect }}
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes).drizzle.items[matrix.dialect].hash }}
+
+  # The lane marker claims all five, so a later run skips the lane on one lookup.
+  # It waits on every dialect that ran; the rest were proven by their own item markers.
+  record-green:
+    name: record drizzle as green
+    needs: [lanes, drizzle-e2e]
+    if: ${{ !cancelled() && needs.drizzle-e2e.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/save-lane-green
+        with:
+          lane: drizzle
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes).drizzle.hash }}

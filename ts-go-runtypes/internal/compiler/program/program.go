@@ -1,13 +1,13 @@
-// Package program wraps the tsgolint shim-exposed typescript-go compiler in a
-// minimal, reusable bootstrap. It creates a Program from a tsconfig.json (or
-// from an inferred project for a set of loose files), binds the source files,
-// and exposes the Program plus a checker pool for downstream type queries.
+// Package program wraps the tsgolint shim-exposed typescript-go compiler: it builds a Program from a
+// tsconfig.json (or an inferred project for loose files), binds the source files, and exposes the Program
+// plus a checker pool for downstream type queries.
 package program
 
 import (
 	"errors"
 	"fmt"
 	"slices"
+	"sync"
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/bundled"
@@ -24,28 +24,34 @@ type Options struct {
 	Cwd            string
 	TsconfigPath   string
 	SingleThreaded bool
-	// Overlay lets callers inject virtual file contents (absolute path → source)
-	// on top of the on-disk VFS. Used by tests and by the in-memory daemon path.
+	// Overlay injects virtual file contents (absolute path → source) on top of the on-disk VFS.
 	Overlay map[string]string
-	// Conditions are extra package.json export/import resolution conditions
-	// (CustomConditions). The enrichment CLI passes ["source"] so `mion`
-	// resolves to its in-tree `src` — where the TypeFormat brands live — so a
-	// `TF.String<{minLength}>` projects with its FormatAnnotation rather than as a
-	// bare `string`. Consumed ONLY by the no-config fallback literal: when Config
-	// is set, extras were already folded into it at parse time (pass the same
-	// extras to ParseInferredConfig). Empty leaves resolution unchanged. NewInferred only.
+	// Conditions are extra package.json resolution conditions; the enrichment CLI passes ["source"] so `mion`
+	// resolves to its in-tree `src`, where the TypeFormat brands live. Consumed ONLY by the no-config fallback
+	// literal: with Config set, extras were folded in at parse time (pass the same to ParseInferredConfig).
 	Conditions []string
-	// Config carries the project tsconfig's frozen, fully parsed CompilerOptions
-	// for NewInferred to adopt WHOLESALE, so daemon/enrich Programs behave exactly
-	// like the build lane under the same config. Produced by ParseInferredConfig;
-	// nil (the default) means no config anywhere — the fixed inferred defaults
-	// apply (tsc's loose-file posture). NewInferred only.
+	// Config carries the project tsconfig's frozen CompilerOptions for NewInferred to adopt WHOLESALE, so
+	// daemon / enrich Programs behave like the build lane. nil means no config anywhere, and the fixed
+	// inferred defaults (tsc's loose-file posture) apply. NewInferred only.
 	Config *InferredConfig
+	// Overrides are compiler options laid over the tsconfig's, the way tsc's command-line flags are. New only.
+	Overrides *core.CompilerOptions
+	// FS replaces the on-disk VFS plus Overlay: a side program built next to an existing one must see the
+	// same overlay, so it borrows that program's FS. NewInferred only.
+	FS vfs.FS
 }
 
 type Program struct {
 	TS *compiler.Program
 	FS vfs.FS
+	// Cwd is what a path is reported relative to when a file belongs to no named package, so nothing
+	// machine-specific reaches an id or a module name.
+	Cwd string
+	// Overlay is kept so a SECOND program built off this one sees the same in-memory files, not just disk.
+	Overlay map[string]string
+
+	environmentOnce sync.Once
+	environment     map[tspath.Path]bool
 }
 
 // New builds a ts-go Program using the supplied tsconfig.
@@ -61,9 +67,8 @@ func New(opts Options) (*Program, error) {
 		fileSystem = newOverlayFS(baseFS, opts.Overlay)
 	}
 
-	// Callers resolve the config FIRST (explicit --tsconfig, else
-	// DiscoverTsconfig's tsc-style upward walk) — New never invents a default,
-	// so every lane shares one resolution seam.
+	// Callers resolve the config FIRST (explicit --tsconfig, else DiscoverTsconfig): New never invents a
+	// default, so every lane shares one resolution seam.
 	if opts.TsconfigPath == "" {
 		return nil, errors.New("program.New: TsconfigPath is required — resolve it first (explicit flag, else DiscoverTsconfig)")
 	}
@@ -74,32 +79,27 @@ func New(opts Options) (*Program, error) {
 
 	host := compiler.NewCompilerHost(cwd, fileSystem, bundled.LibPath(), nil, nil)
 
-	parsedConfig, diagnostics := tsoptions.GetParsedCommandLineOfConfigFile(
-		configPath, &core.CompilerOptions{}, nil, host, nil,
-	)
+	parsedConfig, diagnostics := tsoptions.GetParsedCommandLineOfConfigFile(configPath, opts.Overrides, nil, host, nil)
 	if len(diagnostics) > 0 {
 		return nil, fmt.Errorf("tsconfig parse failed: %s", ast.Diagnostic_Localize(diagnostics[0], ast.DefaultLocale()))
 	}
-	// Content errors (malformed JSON, invalid option values) ride the parsed
-	// result, not the second return — without this check a garbage tsconfig
-	// silently built a default-options Program. Strict like tsc, TS18003
-	// included: this lane consumes the config's own file list.
+	// Content errors ride the parsed result, not the second return; without this check a garbage tsconfig
+	// silently built a default-options Program. Strict like tsc, TS18003 included.
 	if contentDiagnostic := firstConfigContentError(parsedConfig, false); contentDiagnostic != nil {
 		return nil, fmt.Errorf("tsconfig parse failed: %s", ast.Diagnostic_Localize(contentDiagnostic, ast.DefaultLocale()))
 	}
 
-	// Project references are a build-orchestration concept (tsc --build); the
-	// resolver's job is scanning the SOURCES the bundler will execute, and
-	// bundlers (vite/esbuild/rollup) never honor reference redirects. Honoring
-	// them here redirected imports that land in a referenced project to that
-	// project's declaration OUTPUTS — which typically don't exist in a dev
-	// loop — silently resolving every marker to nothing and yielding a
-	// zero-site scan with no diagnostics (docs/done/
-	// project-references-unbuilt-outputs-silent-zero-sites.md, found by the
-	// mion migration). Dropping them keeps normal module resolution (paths,
-	// node_modules, custom conditions) pointed at real sources.
+	// Project references are a build-orchestration concept and bundlers never honor reference redirects.
+	// Honoring them here redirected an import into a referenced project to that project's declaration OUTPUTS,
+	// which a dev loop has not built, so every marker resolved to nothing and the scan found zero sites with no
+	// diagnostic. Dropping them keeps normal module resolution pointed at real sources.
 	if parsedConfig.ParsedConfig != nil {
 		parsedConfig.ParsedConfig.ProjectReferences = nil
+	}
+	// A solution-style tsconfig (`files: []` plus `references`) passes tsc yet leaves this program empty, so the
+	// scan would find nothing and say nothing. Client and server code must sit in this one program.
+	if len(parsedConfig.FileNames()) == 0 {
+		return nil, fmt.Errorf("tsconfig %s includes no source files (only project references?): mion reads your client and server code as one program, so point it at the tsconfig that includes both", configPath)
 	}
 
 	programOpts := compiler.ProgramOptions{
@@ -116,33 +116,29 @@ func New(opts Options) (*Program, error) {
 		return nil, errors.New("compiler.NewProgram returned nil")
 	}
 	tsProgram.BindSourceFiles()
-	return &Program{TS: tsProgram, FS: fileSystem}, nil
+	return &Program{TS: tsProgram, FS: fileSystem, Cwd: cwd, Overlay: opts.Overlay}, nil
 }
 
-// NewInferred builds a Program from explicit file roots instead of a config
-// file's include set (a daemon serving overlay buffers, the enrich CLI). The
-// project tsconfig still governs it: opts.Config carries the frozen parsed
-// options, adopted wholesale; only with no config anywhere do the fixed
-// inferred defaults apply.
+// NewInferred builds a Program from explicit file roots instead of a config's include set. The project
+// tsconfig still governs it through opts.Config; only with no config anywhere do the inferred defaults apply.
 func NewInferred(opts Options, fileNames []string) (*Program, error) {
 	cwd := tspath.NormalizePath(opts.Cwd)
 
-	baseFS := bundled.WrapFS(cachedvfs.From(osvfs.FS()))
-	var fileSystem vfs.FS = baseFS
-	if len(opts.Overlay) > 0 {
-		fileSystem = newOverlayFS(baseFS, opts.Overlay)
+	fileSystem := opts.FS
+	if fileSystem == nil {
+		baseFS := bundled.WrapFS(cachedvfs.From(osvfs.FS()))
+		fileSystem = baseFS
+		if len(opts.Overlay) > 0 {
+			fileSystem = newOverlayFS(baseFS, opts.Overlay)
+		}
 	}
 
 	host := compiler.NewCompilerHost(cwd, fileSystem, bundled.LibPath(), nil, nil)
 
-	// One tsconfig, one behavior: with a parsed project config, adopt its frozen
-	// CompilerOptions WHOLESALE — zero curation, tsgo enforces every flag — so a
-	// daemon rebuild, the inline one-shot, and the enrich CLI type-check exactly
-	// like the build lane (and the tsgo CLI) under the same config. The pointer is
-	// shared across sequential Programs (tsgo's own LSP pattern; nothing mutates
-	// CompilerOptions after parse). The hardcoded bundler-style literal below is
-	// ONLY the no-config fallback — tsc's loose-file posture — for the WASM
-	// playground, bare test spawns, and gen-builtin-purefns.
+	// One tsconfig, one behavior: adopt the parsed config's CompilerOptions WHOLESALE, zero curation, so a
+	// daemon rebuild, the inline one-shot and the enrich CLI type-check like the build lane. The pointer is
+	// shared across sequential Programs (tsgo's own LSP pattern; nothing mutates it after parse). The literal
+	// below is ONLY the no-config fallback, for the WASM playground, bare test spawns and gen-builtin-purefns.
 	var compilerOptions *core.CompilerOptions
 	if cfg := opts.Config; cfg != nil && cfg.options != nil {
 		compilerOptions = cfg.options
@@ -162,10 +158,8 @@ func NewInferred(opts Options, fileNames []string) (*Program, error) {
 	}
 
 	programOpts := compiler.ProgramOptions{
-		// NewParsedCommandLine (vs a hand-built struct literal) also populates the
-		// wrapper's comparePathsOptions; ProjectReferences stays nil by
-		// construction — the roots are exactly the caller-supplied fileNames,
-		// never the tsconfig's own include set.
+		// NewParsedCommandLine, not a struct literal, also populates the wrapper's comparePathsOptions;
+		// ProjectReferences stays nil by construction and the roots are exactly the caller's fileNames.
 		Config: tsoptions.NewParsedCommandLine(compilerOptions, fileNames, tspath.ComparePathsOptions{
 			UseCaseSensitiveFileNames: fileSystem.UseCaseSensitiveFileNames(),
 			CurrentDirectory:          cwd,
@@ -182,12 +176,11 @@ func NewInferred(opts Options, fileNames []string) (*Program, error) {
 		return nil, errors.New("compiler.NewProgram returned nil")
 	}
 	tsProgram.BindSourceFiles()
-	return &Program{TS: tsProgram, FS: fileSystem}, nil
+	return &Program{TS: tsProgram, FS: fileSystem, Cwd: cwd, Overlay: opts.Overlay}, nil
 }
 
-// mergeConditions unions extra onto base, order-preserving and deduped, so
-// ParseInferredConfig's extraConditions and a tsconfig's customConditions
-// coexist on the cloned effective options.
+// mergeConditions unions extra onto base, order-preserving and deduped, so ParseInferredConfig's
+// extraConditions and a tsconfig's customConditions coexist on the cloned effective options.
 func mergeConditions(base, extra []string) []string {
 	out := append([]string(nil), base...)
 	for _, condition := range extra {
@@ -198,19 +191,13 @@ func mergeConditions(base, extra []string) []string {
 	return out
 }
 
-// SourceFile returns the parsed source file for the given absolute path, or nil
-// if the file is not part of the program.
+// SourceFile returns the parsed source file for an absolute path, nil when it is not part of the program.
 func (program *Program) SourceFile(absPath string) *ast.SourceFile {
 	return program.TS.GetSourceFile(absPath)
 }
 
-// IsIncremental reports whether the loaded project enables TypeScript's
-// incremental or composite compilation — tsc's own switch for persisting build
-// state between runs. The RT disk cache follows it: on when the project is
-// incremental/composite, off otherwise. The value comes from the fully parsed
-// config, so an `incremental`/`composite` inherited through `extends` counts.
-// Nil-safe (returns false when there is no program, e.g. the inline-server
-// path before its first setSources).
+// IsIncremental reports whether the project enables `incremental` / `composite`, the switch the RT disk
+// cache follows. Read from the fully parsed config, so one inherited through `extends` counts. Nil-safe.
 func (program *Program) IsIncremental() bool {
 	if program == nil || program.TS == nil {
 		return false

@@ -36,11 +36,7 @@
 import {describe, it, expect} from 'vitest';
 import {measureDataOnly} from './dataonlyHarness.ts';
 
-/** Compile `snippet`, assert it type-checks AND its net instantiation count is
- *  within `budget`. Returns the net count (handy when tuning). Budgets were
- *  last ratcheted for the sentinel-kept guard (M8: DataOnly keeps
- *  format-branded / slotted containers verbatim — one Extract per object-ish
- *  node, shape probes on records only; ~3-5% net across the profiles). **/
+/** Asserts `snippet` type-checks within `budget` net instantiations; returns the count for tuning budgets. **/
 function check(snippet: string, budget: number): number {
   const r = measureDataOnly(snippet);
   expect(r.errors, `snippet should type-check cleanly:\n${snippet}\n→ ${r.errors.join('\n  ')}`).toEqual([]);
@@ -72,27 +68,32 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       type _13 = Expect<Equal<DataOnly<object>, object>>;
       type _14 = Expect<Equal<DataOnly<symbol>, never>>;
       `,
-      551
+      549
     );
   });
 
-  it('built-ins kept verbatim by identity (Date / RegExp)', () => {
+  it('Date is kept verbatim by identity; RegExp is not data and strips', () => {
     check(
       `
       type _01 = Expect<Equal<DataOnly<Date>, Date>>;
-      type _02 = Expect<Equal<DataOnly<RegExp>, RegExp>>;
+      type _02 = Expect<Equal<DataOnly<RegExp>, never>>;
       `,
-      101
+      98
     );
   });
 
-  // ArrayBuffer / SharedArrayBuffer / DataView + every typed array are
-  // SubKindNonSerializable in the emitter (unsupported for validate/getValidationErrors
-  // and every serializer) → DataOnly strips them to `never`. (The DOM classes
-  // URL/Blob/File/FileList/FormData/URLSearchParams are NOT here: the emitter
-  // validates them STRUCTURALLY as plain classes, so DataOnly projects them via
-  // the object branch — same path as the `objects` case below. They aren't
-  // asserted here because they require lib.dom, which the harness omits.)
+  it('URL kept verbatim by identity (the built-in DataOnlyNativeExtra row)', () => {
+    check(
+      `
+      type _01 = Expect<Equal<DataOnly<URL>, URL>>;
+      type _02 = Expect<Equal<DataOnly<{link: URL; name: string}>, {link: URL; name: string}>>;
+      `,
+      233
+    );
+  });
+
+  // Buffers, DataView and typed arrays are SubKindNonSerializable in the emitter, so DataOnly strips them to `never`.
+  // Blob/File/FormData/URLSearchParams are not asserted: DataOnly keeps their object shape, and the harness omits lib.dom.
   it('non-serialisable built-ins stripped to never (buffers + typed arrays)', () => {
     check(
       `
@@ -128,7 +129,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       type _01 = Expect<Equal<DataOnly<Buffer>, never>>;
       type _02 = Expect<Equal<DataOnly<{id: number; blob: Buffer}>, {id: number}>>;
       `,
-      252
+      271
     );
   });
 
@@ -141,7 +142,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       type _04 = Expect<Equal<DataOnly<Temporal.Duration>, Temporal.Duration>>;
       type _05 = Expect<Equal<DataOnly<{at: Temporal.Instant; name: string}>, {at: Temporal.Instant; name: string}>>;
       `,
-      346
+      347
     );
   });
 
@@ -182,7 +183,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       // a function-typed value collapses the value type to never:
       type _07 = Expect<Equal<DataOnly<Map<string, () => void>>, Map<string, never>>>;
       `,
-      1865
+      1873
     );
   });
 
@@ -201,7 +202,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       // PROOF the method key is gone from the projected child — it cannot be accessed:
       type _06 = Expect<Equal<'greet' extends keyof DataOnly<WithMethod> ? true : false, false>>;
       `,
-      2904
+      2934
     );
   });
 
@@ -214,7 +215,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       type _04 = Expect<Equal<DataOnly<(() => void)[]>, never[]>>;
       type _05 = Expect<Equal<DataOnly<{a: string; fn: () => void}[]>, {a: string}[]>>;
       `,
-      958
+      977
     );
   });
 
@@ -229,7 +230,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       type _06 = Expect<Equal<DataOnly<[]>, []>>;
       type _07 = Expect<Equal<DataOnly<Parameters<(a: string, b: number) => void>>, [a: string, b: number]>>;
       `,
-      2952
+      2948
     );
   });
 
@@ -243,8 +244,16 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       type _05 = Expect<Equal<DataOnly<{readonly a: string; b?: number}>, {readonly a: string; b?: number}>>;
       type _06 = Expect<Equal<DataOnly<{outer: {inner: string; fn: () => void}}>, {outer: {inner: string}}>>;
       type _07 = Expect<Equal<DataOnly<{p: Promise<string>; a: number}>, {a: number}>>;
+      type _08 = Expect<Equal<DataOnly<{a: string; cb?: () => void; m?(): void}>, {a: string}>>;
+      type _09 = Expect<Equal<DataOnly<{a: string; p?: Promise<1>; s?: symbol}>, {a: string}>>;
+      type _10 = Expect<Equal<DataOnly<{a: string; u?: undefined}>, {a: string; u?: undefined}>>;
+      type _11 = Expect<Equal<DataOnly<{a: string; s: symbol | undefined}>, {a: string; s: undefined}>>;
+      type _12 = Expect<Equal<DataOnly<{cb?: () => void; name?: string}>, {name?: string}>>;
+      type _13 = Expect<Equal<DataOnly<{a: any; p?: any; u?: unknown; f?: () => void}>, {a: any; p?: any; u?: unknown}>>;
+      type _14 = Expect<Equal<DataOnly<{[k: string]: Promise<1> | undefined}>, {[k: string]: undefined}>>;
+      type _15 = Expect<Equal<DataOnly<{[k: \`x-\${string}\`]: Promise<1> | undefined}>, {[k: \`x-\${string}\`]: undefined}>>;
       `,
-      1137
+      3070
     );
   });
 
@@ -257,7 +266,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       type _04 = Expect<Equal<DataOnly<string | number>, string | number>>;
       type _05 = Expect<Equal<DataOnly<{a: string} | {b: number}>, {a: string} | {b: number}>>;
       `,
-      392
+      395
     );
   });
 
@@ -267,7 +276,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       type _01 = Expect<Equal<DataOnly<{a: string} & {b: number}>, {a: string; b: number}>>;
       type _02 = Expect<Equal<DataOnly<{a: string} & {fn: () => void}>, {a: string}>>;
       `,
-      368
+      389
     );
   });
 
@@ -279,7 +288,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       type _02 = Expect<Assignable<LinkedList, DataOnly<LinkedList>>>;
       type _03 = Expect<Equal<DataOnly<LinkedList>['value'], number>>;
       `,
-      658
+      673
     );
   });
 
@@ -292,7 +301,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       type _02 = Expect<Equal<DataOnly<NodeB>['y'], number>>;
       type _03 = Expect<Assignable<DataOnly<NodeA>, NodeA>>;
       `,
-      1218
+      1249
     );
   });
 
@@ -303,7 +312,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       type _01 = Expect<Equal<keyof DataOnly<Tree>, 'name' | 'children'>>;
       type _02 = Expect<Equal<DataOnly<Tree>['children'], DataOnly<Tree>[]>>;
       `,
-      658
+      719
     );
   });
 
@@ -314,7 +323,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       type _01 = Expect<Equal<DataOnly<TupleCircular>[0], number>>;
       type _02 = Expect<Assignable<DataOnly<TupleCircular>, readonly unknown[]>>;
       `,
-      587
+      583
     );
   });
 
@@ -325,7 +334,32 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       type _01 = Expect<Assignable<DataOnly<Json>, Json>>;
       type _02 = Expect<Assignable<Json, DataOnly<Json>>>;
       `,
-      1152
+      676
+    );
+  });
+
+  it('Map / Set — a FormattedSet / FormattedMap brand and contains slot survive the projection', () => {
+    check(
+      `
+      type SetBrand<P> = {readonly [__rtFormatName]?: 'formattedSet'; readonly [__rtFormatParams]?: P};
+      type MapBrand<P> = {readonly [__rtFormatName]?: 'formattedMap'; readonly [__rtFormatParams]?: P};
+      type Contains<C> = {readonly [__rtContains]?: {readonly rt$child: C; readonly rt$min: 1}};
+      type Tags = Set<string> & SetBrand<{maxItems: 3; uniqueItems: true}>;
+      type _01 = Expect<Equal<DataOnly<Tags>, Tags>>;
+      type Lookup = Map<string, number> & MapBrand<{minItems: 1}>;
+      type _02 = Expect<Equal<DataOnly<Lookup>, Lookup>>;
+      // A branded collection is kept WHOLE, like a branded array: the brand marks
+      // the exact shape the validator was compiled for, so the projection stops
+      // at it (the members are not projected).
+      type People = Set<{id: string; greet(): void}> & SetBrand<{maxItems: 2}>;
+      type _03 = Expect<Equal<DataOnly<People>, People>>;
+      // A contains slot rides beside the brand, or alone.
+      type Mixed = Set<unknown> & SetBrand<{maxItems: 4}> & Contains<number>;
+      type _04 = Expect<Equal<DataOnly<Mixed>, Mixed>>;
+      type Somewhere = Set<unknown> & Contains<number>;
+      type _05 = Expect<Equal<DataOnly<Somewhere>, Somewhere>>;
+      `,
+      395
     );
   });
 
@@ -348,7 +382,7 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
       // (Map values recurse), so assert the Map shape, not the raw value type.
       type _04 = Expect<DataOnly<Deep>['bag']['index'] extends Map<string, any> ? true : false>;
       `,
-      2516
+      2707
     );
   });
 });

@@ -23,6 +23,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"strings"
+	"sync"
 
 	"github.com/microsoft/typescript-go/shim/tspath"
 
@@ -36,7 +37,6 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/envcompat"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/jsengine"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
@@ -52,31 +52,33 @@ Commands:
     enrich      scaffold / reconcile / check the enrichment mirror files (--no-emit: diagnostics only)
     convert     rewrite type declarations between the three authoring forms
     drizzle-migrate  move a drizzle schema onto the slim @mionjs/drizzle-orm-* packages
+    api-check   compare a client build's bundled API manifest against the server build's (a prerelease gate)
+    api-types   build a types-only package for an API's clients: trimmed .d.ts, manifest, marker, package.json
 
 Run  mion <command> -h  for a command's own options.
 
 Shared options (same meaning under every command):
     --tsconfig PATH     tsconfig.json to load (default: discover upward from --cwd)
+    --client-routes MODE  route metadata in a client build: bundle (default) | fetch
     --cwd PATH          working directory (default: $PWD)
     --hash-length N     short-id length for type hashes (default 7)
-    --emit-mode MODE    fn-entry code/factory slots: code (default) | functions | both
+    --emit-mode MODE    fn-entry code/factory slots: code (default) | functions | both | ts
     --inline-mode MODE  child-inlining: default | allInternal
     --module-mode MODE  virtual-module grouping: default | allSingle | allModules
     --number-mode MODE  validate numberMode default: isFinite (default) | typeof | notNaN
-    --parse-strategy S  parse strategy default: preserve (default) | strip | fail
     --single-threaded / --no-single-threaded
     --no-parallel-scan / --no-parallel-render
-    --binary-sizing-bias / --binary-sizing-items / --binary-sizing-string-bytes / --binary-sizing-max-bytes
     --js-runtime PATH   JS runtime the pattern checks run on (default: MION_JS_RUNTIME, then node, then bun from PATH)
     --pattern-sample-count N    generated mockSamples per sample-less pattern (default 100; 0 disables)
     --pattern-sample-retries N  per-sample draw multiplier for pattern generation (default 10)
     --pure-fn-report-wire / --pure-fn-report-file
+    --json-max-bytes=false      emit no compact-JSON maximum on reflection roots (per-route size limits off; default on)
     --pprof-cpu PATH / --pprof-heap PATH
     -h, --help          show help
     --version           print version (binary + pinned tsgo revision) and exit
 
 The on-disk RT artifact cache (per-(typeID, fnTag) files under
-<cwd>/node_modules/.cache/ts-runtypes/<optsFingerprint>/...) follows TypeScript's
+<cwd>/node_modules/.cache/mion/<optsFingerprint>/...) follows TypeScript's
 own incremental switch: it is enabled when the loaded tsconfig sets
 "incremental" or "composite", and disabled otherwise. The internal MION_CACHE_DIR
 environment variable overrides this for tests and direct-binary use: set it to a
@@ -94,6 +96,8 @@ var commands = map[string]func(args []string){
 	"enrich":          runEnrich,
 	"convert":         runConvert,
 	"drizzle-migrate": runDrizzleMigrate,
+	"api-check":       runApiCheck,
+	"api-types":       runApiTypes,
 }
 
 func main() {
@@ -123,36 +127,35 @@ func main() {
 // registered on each subcommand's own FlagSet by registerSharedFlags so a knob
 // spells and means the same thing wherever it appears.
 type sharedFlags struct {
-	tsconfig                string
-	cwd                     string
-	hashLength              int
-	singleThreaded          bool
-	noSingleThreaded        bool
-	noParallelScan          bool
-	noParallelRender        bool
-	emitMode                string
-	inlineMode              string
-	moduleMode              string
-	jsRuntime               string
-	pureFnReportWire        bool
-	pureFnReportFile        bool
-	binarySizingBias        float64
-	binarySizingItems       int
-	binarySizingStringBytes int
-	binarySizingMaxBytes    int
-	numberMode              string
-	parseStrategy           string
-	patternSampleCount      int
-	patternSampleRetries    int
-	markerPackages          string
-	noMarkerPackageCheck    bool
-	pprofCPU                string
-	pprofHeap               string
+	tsconfig             string
+	clientRoutes         string
+	cwd                  string
+	hashLength           int
+	singleThreaded       bool
+	noSingleThreaded     bool
+	noParallelScan       bool
+	noParallelRender     bool
+	emitMode             string
+	inlineMode           string
+	moduleMode           string
+	jsRuntime            string
+	pureFnReportWire     bool
+	pureFnReportFile     bool
+	jsonMaxBytes         bool
+	numberMode           string
+	patternSampleCount   int
+	patternSampleRetries int
+	markerPackages       string
+	noMarkerPackageCheck bool
+	pprofCPU             string
+	pprofHeap            string
 }
 
 func registerSharedFlags(fs *flag.FlagSet) *sharedFlags {
 	s := &sharedFlags{}
 	fs.StringVar(&s.tsconfig, "tsconfig", "", "tsconfig.json path (default: discover upward from --cwd, tsc-style)")
+	fs.StringVar(&s.clientRoutes, "client-routes", "",
+		"how this client gets the metadata + compiled functions of the routes it calls: bundle (a route the build cannot see is fetched only when the client sets up useFetchMetadata) | fetch (every route fetched) (default: the tsconfig clientRoutes plugin key, else bundle)")
 	fs.StringVar(&s.cwd, "cwd", "", "working directory (default: $PWD)")
 	fs.IntVar(&s.hashLength, "hash-length", 0, "short-id length for type hashes (0 = default 7)")
 	fs.BoolVar(&s.singleThreaded, "single-threaded", false, "single-threaded mode (also disables the parallel scan + renders)")
@@ -161,7 +164,7 @@ func registerSharedFlags(fs *flag.FlagSet) *sharedFlags {
 	fs.BoolVar(&s.noParallelScan, "no-parallel-scan", false, "disable the parallel marker scan (parallel is the default)")
 	fs.BoolVar(&s.noParallelRender, "no-parallel-render", false, "disable the parallel cache renders (parallel is the default)")
 	fs.StringVar(&s.emitMode, "emit-mode", string(constants.EmitCode),
-		"what each cache entry ships in its code/factory slots: code (default) | functions | both")
+		"what each cache entry ships in its code/factory slots: code (default) | functions | both | ts (both, as typed .ts modules)")
 	fs.StringVar(&s.inlineMode, "inline-mode", string(constants.InlineModeDefault),
 		"child-inlining policy: default (unnamed compounds inline, named external) | allInternal")
 	fs.StringVar(&s.moduleMode, "module-mode", constants.ModuleModeDefault,
@@ -169,21 +172,13 @@ func registerSharedFlags(fs *flag.FlagSet) *sharedFlags {
 	fs.StringVar(&s.jsRuntime, "js-runtime", "",
 		"JS runtime path the format-pattern checks run on (default: MION_JS_RUNTIME, then node, then bun from PATH; any node-compatible runtime works)")
 	fs.BoolVar(&s.pureFnReportWire, "pure-fn-report-wire", false,
-		"emit the structured pure-fn build report ON THE WIRE (Response.pureFnSites) on generate/scan")
+		"emit the structured build report (pure fns + request batches) ON THE WIRE (Response.pureFnSites / Response.batchSites) on generate/scan")
 	fs.BoolVar(&s.pureFnReportFile, "pure-fn-report-file", false,
-		"also write the whole-program pure-fn report as JSON to <genDir>/types/pure-fns-report.json")
-	fs.Float64Var(&s.binarySizingBias, "binary-sizing-bias", constants.DefaultSizeBias,
-		"binary `dynamic` cold-start size bias in [0,1]: 0 = tightest, 1 = most generous (default 0.8)")
-	fs.IntVar(&s.binarySizingItems, "binary-sizing-items", constants.DefaultSizeItems,
-		"assumed element count for an unbounded collection in the binary cold-start estimate (default 100)")
-	fs.IntVar(&s.binarySizingStringBytes, "binary-sizing-string-bytes", constants.DefaultSizeStringBytes,
-		"assumed UTF-8 byte length of an unbounded string in the binary cold-start estimate (default 32)")
-	fs.IntVar(&s.binarySizingMaxBytes, "binary-sizing-max-bytes", constants.DefaultSizeMaxBytes,
-		"per-type cap on the binary cold-start estimate (default 65536)")
+		"also write the whole-program reports as JSON to <genDir>/types/pure-fns-report.json and <genDir>/types/batches-report.json")
+	fs.BoolVar(&s.jsonMaxBytes, "json-max-bytes", true,
+		"emit on every fully bounded reflection root the largest compact-JSON size a valid value can have (per-route size limits); --json-max-bytes=false emits none")
 	fs.StringVar(&s.numberMode, "number-mode", "",
 		"project-wide default for the validate numberMode option: isFinite (default) | typeof | notNaN")
-	fs.StringVar(&s.parseStrategy, "parse-strategy", "",
-		"project-wide default for the createParseFn strategy option: preserve (default) | strip | fail")
 	fs.IntVar(&s.patternSampleCount, "pattern-sample-count", constants.DefaultPatternSampleCount,
 		"generated mockSamples per sample-less format pattern (default 100; 0 disables generation)")
 	fs.IntVar(&s.patternSampleRetries, "pattern-sample-retries", constants.DefaultPatternSampleRetries,
@@ -195,6 +190,16 @@ func registerSharedFlags(fs *flag.FlagSet) *sharedFlags {
 	fs.StringVar(&s.pprofCPU, "pprof-cpu", "", "write a CPU profile to PATH (whole run)")
 	fs.StringVar(&s.pprofHeap, "pprof-heap", "", "write a heap profile to PATH at exit")
 	return s
+}
+
+// stopProfiling flushes the profiles startProfiling began. os.Exit skips deferred calls, so exitAfterProfiling
+// runs it first: a compile that reports errors still writes its profile.
+var stopProfiling = func() {}
+
+// exitAfterProfiling flushes any running profile, then exits with code.
+func exitAfterProfiling(code int) {
+	stopProfiling()
+	os.Exit(code)
 }
 
 // startProfiling honors --pprof-cpu / --pprof-heap and returns a stop function
@@ -226,11 +231,15 @@ func startProfiling(s *sharedFlags) func() {
 			}
 		})
 	}
-	return func() {
-		for i := len(stops) - 1; i >= 0; i-- {
-			stops[i]()
-		}
+	var once sync.Once
+	stopProfiling = func() {
+		once.Do(func() {
+			for i := len(stops) - 1; i >= 0; i-- {
+				stops[i]()
+			}
+		})
 	}
+	return stopProfiling
 }
 
 // sessionConfig is the resolved config + options a Program-building subcommand
@@ -259,57 +268,46 @@ func resolveCwd(cwdFlag string) string {
 	return absCwd
 }
 
-// resolveSharedConfig runs the ONE config+options pipeline for a Program-building
-// subcommand: resolve cwd, resolve the ONE tsconfig (resolveConfigPath — the
-// single policy), read the build plugin when readBuildPlugin, merge flags over
-// the plugin over the binary defaults (tsc precedence), validate, and build
-// resolver.Options. genDirFlag is compile's --gen-dir (serve passes ""), and
-// readBuildPlugin is the old hasTsconfig gate: the overlay serve modes
-// (--sources stdin|ops) do not merge the tsconfig plugin block.
+// resolveSharedConfig is the ONE config pipeline of every Program-building subcommand (flag > plugin > default).
+// readBuildPlugin is false for the overlay serve modes (--sources stdin|ops), which skip the tsconfig plugin block.
 func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, readBuildPlugin bool) sessionConfig {
 	absCwd := resolveCwd(s.cwd)
 	tsconfigPath := resolveConfigPath(absCwd, s.tsconfig)
 
-	// Which flags the user actually passed, so the merge can tell an explicit
-	// value from an absent flag (tsc precedence — the plugin fills only gaps).
+	// Which flags were passed, so the plugin fills only the gaps.
 	setFlags := map[string]bool{}
 	fs.Visit(func(f *flag.Flag) { setFlags[f.Name] = true })
 
 	var plugin tsRuntypesPlugin
 	if readBuildPlugin {
 		plugin, _ = resolveBuildPlugin(absCwd, tsconfigPath)
-		// A misspelt key is otherwise silently ignored; warn on stderr.
+		// A misspelt key is otherwise silently ignored.
 		if unknown := unknownPluginKeys(absCwd, tsconfigPath); len(unknown) > 0 {
 			fmt.Fprintf(os.Stderr, "mion: ignoring unknown mion plugin key(s) in tsconfig: %v\n", unknown)
 		}
 	}
 	merged := mergeBuildOptions(buildFlags{
-		set:                     setFlags,
-		hashLength:              s.hashLength,
-		singleThreaded:          s.singleThreaded,
-		noSingleThreaded:        s.noSingleThreaded,
-		noParallelScan:          s.noParallelScan,
-		noParallelRender:        s.noParallelRender,
-		genDir:                  genDirFlag,
-		emitMode:                s.emitMode,
-		inlineMode:              s.inlineMode,
-		moduleMode:              s.moduleMode,
-		pureFnReportWire:        s.pureFnReportWire,
-		pureFnReportFile:        s.pureFnReportFile,
-		binarySizingBias:        s.binarySizingBias,
-		binarySizingItems:       s.binarySizingItems,
-		binarySizingStringBytes: s.binarySizingStringBytes,
-		binarySizingMaxBytes:    s.binarySizingMaxBytes,
-		numberMode:              s.numberMode,
-		parseStrategy:           s.parseStrategy,
-		patternSampleCount:      s.patternSampleCount,
-		patternSampleRetries:    s.patternSampleRetries,
-		markerPackages:          s.markerPackages,
-		noMarkerPackageCheck:    s.noMarkerPackageCheck,
+		set:                  setFlags,
+		hashLength:           s.hashLength,
+		singleThreaded:       s.singleThreaded,
+		noSingleThreaded:     s.noSingleThreaded,
+		noParallelScan:       s.noParallelScan,
+		noParallelRender:     s.noParallelRender,
+		genDir:               genDirFlag,
+		emitMode:             s.emitMode,
+		inlineMode:           s.inlineMode,
+		moduleMode:           s.moduleMode,
+		pureFnReportWire:     s.pureFnReportWire,
+		pureFnReportFile:     s.pureFnReportFile,
+		jsonMaxBytes:         s.jsonMaxBytes,
+		numberMode:           s.numberMode,
+		patternSampleCount:   s.patternSampleCount,
+		patternSampleRetries: s.patternSampleRetries,
+		markerPackages:       s.markerPackages,
+		noMarkerPackageCheck: s.noMarkerPackageCheck,
 	}, plugin, absCwd)
 
-	// Validate the MERGED values: a bad mode can arrive from tsconfig as
-	// readily as from a flag, so the check sits after the merge.
+	// Checked after the merge: a bad mode can come from tsconfig as readily as from a flag.
 	switch merged.moduleMode {
 	case constants.ModuleModeDefault, constants.ModuleModeAllSingle, constants.ModuleModeAllModules:
 	default:
@@ -317,7 +315,7 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 			merged.moduleMode, constants.ModuleModeDefault, constants.ModuleModeAllSingle, constants.ModuleModeAllModules)
 	}
 	if !constants.EmitMode(merged.emitMode).Valid() {
-		fmt.Fprintf(os.Stderr, "mion: invalid emit-mode %q (want code | functions | both)\n", merged.emitMode)
+		fmt.Fprintf(os.Stderr, "mion: invalid emit-mode %q (want code | functions | both | ts)\n", merged.emitMode)
 		os.Exit(2)
 	}
 	if !constants.InlineMode(merged.inlineMode).Valid() {
@@ -330,12 +328,6 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		fmt.Fprintf(os.Stderr, "mion: invalid number-mode %q (want isFinite | typeof | notNaN)\n", merged.numberMode)
 		os.Exit(2)
 	}
-	switch merged.parseStrategy {
-	case "", constants.ParseStrategyPreserve, constants.ParseStrategyStrip, constants.ParseStrategyFail:
-	default:
-		fmt.Fprintf(os.Stderr, "mion: invalid parse-strategy %q (want preserve | strip | fail)\n", merged.parseStrategy)
-		os.Exit(2)
-	}
 	if merged.patternSampleCount < 0 {
 		fmt.Fprintf(os.Stderr, "mion: invalid pattern-sample-count %d (want >= 0; 0 disables generation)\n", merged.patternSampleCount)
 		os.Exit(2)
@@ -345,17 +337,20 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		os.Exit(2)
 	}
 
-	// RT disk cache: the internal MION_CACHE_DIR env var is the only control.
-	// Unset → the cache follows the project's incremental/composite setting; set
-	// to a path → force on there; set to "" → force off.
-	cacheDirOverride, cacheDirSet := envcompat.LookupEnv("MION_CACHE_DIR")
+	// MION_CACHE_DIR is the only cache control: unset follows incremental/composite, a path forces on, "" forces off.
+	cacheDirOverride, cacheDirSet := os.LookupEnv("MION_CACHE_DIR")
 
-	// tsconfig `genDir` (raw, pre-default) rides into the resolver so the build
-	// lane's resolveOutDir agrees with the CLI lanes; when unset the resolver
-	// keeps its <srcDir>/__runtypes inference.
+	// The raw tsconfig genDir keeps the build lane's resolveOutDir in step with the CLI lanes; unset keeps <srcDir>/.mion.
 	tsconfigGenDir := strings.TrimSpace(plugin.GenDir)
 	if tsconfigGenDir != "" && !filepath.IsAbs(tsconfigGenDir) {
 		tsconfigGenDir = filepath.Join(absCwd, tsconfigGenDir)
+	}
+
+	// Validated after the merge, like the other modes.
+	clientRoutes, ok := resolveClientRoutes(s.clientRoutes, plugin.ClientRoutes)
+	if !ok {
+		fmt.Fprintf(os.Stderr, "mion: invalid client-routes %q (want bundle | fetch)\n", string(clientRoutes))
+		os.Exit(2)
 	}
 
 	opts := resolver.Options{
@@ -367,7 +362,10 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		Cwd:                     absCwd,
 		TsconfigPath:            tsconfigPath,
 		TsconfigGenDir:          tsconfigGenDir,
-		TsconfigFailOnError:     plugin.FailOnError,
+		ClientRoutes:            clientRoutes,
+		TsconfigDowngradeErrors: plugin.DowngradeErrors,
+		TsconfigLevels:          plugin.Levels,
+		TsconfigLogStyle:        plugin.LogStyle,
 		EnrichSourceLocale:      pluginI18nSourceLocale(plugin),
 		EnrichLocales:           pluginI18nLocales(plugin),
 		SingleThreaded:          merged.singleThreaded,
@@ -378,18 +376,12 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		EmitMode:                constants.EmitMode(merged.emitMode),
 		InlineMode:              constants.InlineMode(merged.inlineMode),
 		ModuleMode:              merged.moduleMode,
-		// The JS engine pattern checks run on: --js-runtime, else
-		// MION_JS_RUNTIME, else node/bun from PATH — resolved lazily on first
-		// use, so pattern-free projects never need a runtime.
+		// --js-runtime, else MION_JS_RUNTIME, else node/bun from PATH; lazy, so pattern-free projects need none.
 		JSEngine:             jsengine.NewSidecar(s.jsRuntime),
 		PureFnReportWire:     merged.pureFnReportWire,
 		PureFnReportFile:     merged.pureFnReportFile,
-		SizeBias:             merged.binarySizingBias,
-		SizeItems:            merged.binarySizingItems,
-		SizeStringBytes:      merged.binarySizingStringBytes,
-		SizeMaxBytes:         merged.binarySizingMaxBytes,
+		JSONMaxBytes:         merged.jsonMaxBytes,
 		ValidateDefaults:     resolver.ValidateDefaults{NumberMode: merged.numberMode},
-		ParseDefaults:        resolver.ParseDefaults{Strategy: merged.parseStrategy},
 		PatternSampleCount:   merged.patternSampleCount,
 		PatternSampleRetries: merged.patternSampleRetries,
 	}
@@ -458,7 +450,7 @@ func runServe(args []string) {
 	// --enrich-* flags configure OpEnrich: the families to maintain, and the
 	// per-locale translation-mirror sync whose locales/sourceLocale default from
 	// the tsconfig plugin i18n block (project mode) unless overridden here.
-	genDirFlag := fs.String("gen-dir", "", "RunTypes output root override (precedence: this flag > tsconfig genDir > inferred <srcDir>/__runtypes)")
+	genDirFlag := fs.String("gen-dir", "", "RunTypes output root override (precedence: this flag > tsconfig genDir > inferred <srcDir>/.mion)")
 	transformRelative := fs.Bool("transform-relative", false,
 		"transform rewrites injected rtmod: specifiers to paths relative to the output root (files mode); off keeps the virtual specifiers")
 	omitSourcesContent := fs.Bool("omit-sources-content", false,
@@ -482,6 +474,12 @@ func runServe(args []string) {
 	// Only the on-disk project mode merges the tsconfig plugin block; the
 	// overlay modes (stdin/ops) have no on-disk build options to honor.
 	cfg := resolveSharedConfig(fs, s, "", *sources == "project")
+	// The linter's ops mode takes `downgradeErrors`, so the editor lowers the same codes the build does.
+	if *sources == "ops" {
+		if plugin, found := resolveBuildPlugin(cfg.absCwd, cfg.tsconfigPath); found {
+			cfg.opts.TsconfigDowngradeErrors = plugin.DowngradeErrors
+		}
+	}
 
 	// Apply the serve-local session config onto the resolved Options: the
 	// explicit flags win over the tsconfig-seeded defaults resolveSharedConfig
@@ -630,19 +628,26 @@ Transforms every marker file, emits .js via tsgo with source maps composed back
 to the ORIGINAL source, and writes the generated cache modules to disk. Emits to
 the tsconfig outDir; requires a tsconfig; no stdio protocol.
 
---no-emit runs the scan + RunType-family diagnostics only and writes nothing
-(tsc --noEmit-style).
+Reports TypeScript's own errors like tsc and exits 1 on any; noEmitOnError in
+the tsconfig then writes nothing.
+
+--no-emit runs the type check, the scan and the RunType-family diagnostics
+only and writes nothing (tsc --noEmit-style).
+
+--emit-mode ts writes TypeScript instead: every source under the project root,
+call sites rewritten, to the outDir, importing typed .ts cache modules, for a
+TypeScript-to-native compiler to build.
 `
 
-// runCompile is the tsc-like batch build: it drives the two-pass transform +
-// tsgo emit + map composition itself and returns. Requires a tsconfig.
+// runCompile is the tsc-like batch build: it runs the two-pass transform, tsgo emit and map composition itself.
 func runCompile(args []string) {
 	fs := flag.NewFlagSet("compile", flag.ExitOnError)
 	s := registerSharedFlags(fs)
 	genDir := fs.String("gen-dir", "",
-		"where compile writes the generated cache modules (default <cwd>/__runtypes; also the tsconfig \"genDir\" plugin key, flag overrides it)")
+		"where compile writes the generated cache modules (default <cwd>/.mion; also the tsconfig \"genDir\" plugin key, flag overrides it)")
 	noEmit := fs.Bool("no-emit", false,
 		"report the RunType-family diagnostics without writing (tsc --noEmit-style): scan only, emit no .js and no cache modules")
+	logStyle := registerLogStyleFlag(fs)
 	fs.Usage = func() { printUsage(fs, compileUsage) }
 	_ = fs.Parse(args)
 
@@ -652,12 +657,12 @@ func runCompile(args []string) {
 	if cfg.tsconfigPath == "" {
 		fatal("compile: no tsconfig.json found searching upward from %s (tsc-style discovery) — pass --tsconfig", cfg.absCwd)
 	}
+	grouped := resolveLogStyle("compile", *logStyle, cfg)
 
 	compileResult, compileErr := batchcompile.Run(batchcompile.Options{
 		Cwd:          cfg.absCwd,
 		TsconfigPath: cfg.tsconfigPath,
-		// cfg.genDir layers the flag over the tsconfig `genDir` entry over the
-		// <cwd>/__runtypes default.
+		// The flag wins over the tsconfig `genDir`, which wins over <cwd>/.mion.
 		GenDir:       cfg.genDir,
 		ResolverOpts: cfg.opts,
 		NoEmit:       *noEmit,
@@ -665,22 +670,77 @@ func runCompile(args []string) {
 	if compileErr != nil {
 		fatal("compile: %v", compileErr)
 	}
-	errorCount := 0
-	for _, d := range compileResult.Diagnostics {
-		fmt.Fprintln(os.Stderr, diagnostics.FormatDebug(d))
-		if d.Severity == diagnostics.SeverityError {
-			errorCount++
-		}
-	}
+	errorCount := printBuildDiagnostics("compile", cfg, compileResult, grouped)
 	if *noEmit {
-		fmt.Fprintf(os.Stderr, "mion: checked %d file(s), wrote nothing (--no-emit)\n", len(compileResult.Diagnostics))
+		fmt.Fprintf(os.Stderr, "mion: checked %d file(s), wrote nothing (--no-emit)\n", compileResult.CheckedFiles)
 	} else {
 		fmt.Fprintf(os.Stderr, "mion: compiled %d file(s), %d cache module(s)\n",
 			len(compileResult.EmittedFiles), len(compileResult.Caches))
 	}
 	if errorCount > 0 {
-		os.Exit(1)
+		exitAfterProfiling(1)
 	}
+}
+
+func registerLogStyleFlag(fs *flag.FlagSet) *string {
+	return fs.String("log-style", "",
+		"how diagnostics print: \"grouped\" (default) groups them by name, \"lines\" prints one line each (also the tsconfig \"logStyle\" plugin key, flag overrides it)")
+}
+
+// resolveLogStyle picks the flag over the tsconfig `logStyle` and stops the run on an unknown value.
+func resolveLogStyle(command, flagValue string, cfg sessionConfig) bool {
+	value := cfg.opts.TsconfigLogStyle
+	if flagValue != "" {
+		value = flagValue
+	}
+	grouped, err := diagnostics.ResolveLogStyle(value)
+	if err != nil {
+		fatal(command+": %v", err)
+	}
+	return grouped
+}
+
+// printBuildDiagnostics prints a compile run's diagnostics the way a bundler build does and returns the error count.
+func printBuildDiagnostics(command string, cfg sessionConfig, compileResult *batchcompile.Result, grouped bool) int {
+	// Same tsconfig `downgradeErrors` as a bundler build, so the CLI grows no flag of its own.
+	downgrade, downgradeErr := diagnostics.ResolveDowngrade(cfg.opts.TsconfigDowngradeErrors)
+	if downgradeErr != nil {
+		fatal(command+": %v", downgradeErr)
+	}
+	showInfo, levelsErr := diagnostics.ResolveLevels(cfg.opts.TsconfigLevels)
+	if levelsErr != nil {
+		fatal(command+": %v", levelsErr)
+	}
+	var entries []diagnostics.GroupedEntry
+	// TypeScript errors fail the build as in tsc; downgradeErrors and levels never apply to them.
+	if grouped {
+		entries = append(entries, compileResult.TypeEntries...)
+	} else {
+		for _, line := range compileResult.TypeDiagnostics {
+			fmt.Fprintln(os.Stderr, line)
+		}
+	}
+	errorCount := compileResult.TypeErrorCount
+	// Each whole-program op runs the `@mion-expect-error` unused check, so without Dedupe it reports once per pass.
+	for _, d := range diagnostics.Dedupe(compileResult.Diagnostics) {
+		if !diagnostics.Shown(d, showInfo) {
+			continue
+		}
+		// The note keeps a downgraded error from reading as a plain warning; d.Downgraded is the `@mion-downgrade-error` comment.
+		downgraded := d.Downgraded || downgrade.Downgraded(d)
+		if grouped {
+			entries = append(entries, diagnostics.EntryOf(d, downgraded))
+		} else {
+			fmt.Fprintln(os.Stderr, diagnostics.Format(d, downgraded))
+		}
+		if !downgraded && d.Severity == diagnostics.SeverityError {
+			errorCount++
+		}
+	}
+	if len(entries) > 0 {
+		fmt.Fprintln(os.Stderr, diagnostics.FormatGrouped(entries, cfg.absCwd))
+	}
+	return errorCount
 }
 
 // serveRequests drains the request stream, dispatching each and encoding the
@@ -722,5 +782,5 @@ func writeFile(path string, fn func(io.Writer) error) error {
 
 func fatal(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, format+"\n", args...)
-	os.Exit(1)
+	exitAfterProfiling(1)
 }

@@ -10,15 +10,16 @@
 // '@mionjs/run-types', so only the resolver's site-file set can bring it into
 // transform scope (mion adoption, Feature 2).
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
+import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
 import runtypesRollup from '../src/runtypes/rollup.ts';
-import {BIN, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
+import {BIN, callHook, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
 
-const FIXTURE_DIR = path.resolve(__dirname, 'tmp-wrapper-multi-fn');
+const FIXTURE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-wrapper-multi-fn-'));
 const WRAPPER = path.join(FIXTURE_DIR, 'wrapper.ts');
 const CONSUMER = path.join(FIXTURE_DIR, 'consumer.ts');
-const OUT_DIR = path.join(FIXTURE_DIR, '__runtypes');
+const OUT_DIR = path.join(FIXTURE_DIR, '.mion');
 
 const TSCONFIG_SRC = JSON.stringify({
   compilerOptions: {
@@ -43,7 +44,7 @@ type AnyHandler = (ctx: unknown, ...rest: any[]) => unknown;
 
 export function route<H extends AnyHandler>(
   handler: H,
-  fns?: InjectTypeFnArgs<Parameters<H>, 'verr', 'jsonDecoder', 'jsonEncoder'>,
+  fns?: InjectTypeFnArgs<Parameters<H>, 'validationErrors', 'jsonDecoder', 'jsonEncoder'>,
 ) {
   const getErrors = createGetValidationErrorsFn(undefined, undefined, fns?.[0] as never);
   const decode = createJsonDecoderFn(undefined, undefined, fns?.[1] as never);
@@ -64,9 +65,6 @@ const ctx = {
   },
   warn(): void {},
 };
-
-const callHook = (hook: any, thisArg: unknown, ...args: unknown[]): unknown =>
-  typeof hook === 'function' ? hook.apply(thisArg, args) : hook.handler.apply(thisArg, args);
 
 function makePlugin() {
   return runtypesRollup({

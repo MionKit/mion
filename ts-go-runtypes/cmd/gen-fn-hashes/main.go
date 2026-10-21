@@ -13,26 +13,28 @@
 // The values MUST match operations.FnHashFor exactly (the plugin injects the
 // SAME hashes at each createX call site), so gen_test.go asserts the committed
 // file carries every fnKey/fnHash this generator produces (a format-agnostic
-// containment check); `pnpm rtx core codegen fnhashes --check` (CI) is the exact
+// containment check); `pnpm miondevx core codegen fnhashes --check` (CI) is the exact
 // byte-for-byte guard after formatting.
 //
 // Run:
 //
-//	go run ./cmd/gen-fn-hashes > packages/run-types/src/go-generated/fnHashes.generated.ts
+//	go run ./cmd/gen-fn-hashes      # writes both files
 //
-// Or via rtx (regenerates + formats + drift-checks):
+// Or via miondevx (regenerates + formats + drift-checks):
 //
-//	pnpm rtx core codegen fnhashes [--check]
+//	pnpm miondevx core codegen fnhashes [--check]
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 )
 
 func main() {
-	if _, err := fmt.Fprint(os.Stdout, Generate()); err != nil {
-		log.Fatalf("gen-fn-hashes: write stdout: %v", err)
+	if err := os.WriteFile(fnHashesOutputPath(), []byte(Generate()), 0o644); err != nil {
+		log.Fatalf("gen-fn-hashes: write %s: %v", fnHashesOutputPath(), err)
+	}
+	if err := os.WriteFile(jitFnIdsOutputPath(), []byte(GenerateJitFnIds()), 0o644); err != nil {
+		log.Fatalf("gen-fn-hashes: write %s: %v", jitFnIdsOutputPath(), err)
 	}
 }

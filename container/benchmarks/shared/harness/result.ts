@@ -59,7 +59,7 @@ export interface CompetitorResult {
   /** Which JavaScript runtime produced these numbers. The SAME built bundle runs
    *  under both, so this is the only thing separating two result files. */
   runtime: Runtime;
-  /** Which per-engine counter rt::countEnumKeys selected, for the competitors that
+  /** Which per-engine counter countEnumKeys selected, for the competitors that
    *  have one (mion). Absent for every other competitor — they have no
    *  engine-specialised code, so there is nothing to record. A MISSING value on the
    *  mion result is itself a failure (see checkEngineBranch in bench.mjs). */

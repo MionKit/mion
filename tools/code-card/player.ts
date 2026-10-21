@@ -1,0 +1,33 @@
+// Only toggles classes on `.code-card`; card.css does the motion. Copied verbatim to the website.
+
+const ARMED = 'cc-armed';
+const PLAYING = 'cc-play';
+const PAUSED = 'cc-paused';
+
+const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/** Ready to play. Does nothing under reduced motion, so the card stays drawn in full. */
+export function arm(card: Element): boolean {
+  if (reducedMotion()) return false;
+  card.classList.add(ARMED);
+  return true;
+}
+
+export function play(card: Element): void {
+  if (!card.classList.contains(ARMED)) return;
+  card.classList.remove(PAUSED);
+  card.classList.add(PLAYING);
+}
+
+export function pause(card: Element): void {
+  if (card.classList.contains(PLAYING)) card.classList.add(PAUSED);
+}
+
+/** Back to the first frame, ready to play again. */
+export function reset(card: Element): void {
+  if (!card.classList.contains(ARMED)) return;
+  card.classList.remove(ARMED, PLAYING, PAUSED);
+  // a reflow restarts the keyframes instead of resuming them
+  void (card as HTMLElement).offsetWidth;
+  card.classList.add(ARMED);
+}

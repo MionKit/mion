@@ -257,3 +257,29 @@ func TestEmitFriendlyCyclic(t *testing.T) {
 		t.Fatalf("expected a bounded non-empty emit for a cyclic type, got %d bytes", len(got))
 	}
 }
+
+// TestFriendlySkeleton_KeysFromErrorCode: keys come from the format's own error code, not its params.
+func TestFriendlySkeleton_KeysFromErrorCode(t *testing.T) {
+	fixture := &reflection.RunType{
+		ID: "pay", Kind: reflection.KindObjectLiteral,
+		Children: []*reflection.RunType{
+			prop("card", fmtLeaf(reflection.KindString, "creditCard", map[string]any{"separators": " -"})),
+			prop("amount", fmtLeaf(reflection.KindNumber, "numberFormat", map[string]any{"gt": 0.0, "float": true, "isCurrency": true})),
+			prop("host", fmtLeaf(reflection.KindString, "domain", map[string]any{"idna": "ascii", "maxLength": 253.0})),
+			prop("ip", fmtLeaf(reflection.KindString, "ip", map[string]any{"allowPort": true})),
+			prop("email", fmtLeaf(reflection.KindString, "email", map[string]any{"localPart": map[string]any{"maxLength": 64.0}, "domain": map[string]any{"maxLength": 253.0}})),
+		},
+	}
+	got := FriendlySkeleton(fixture, nil)
+	for _, want := range []string{
+		"card: {rt$label: '', rt$errors: {type: '', creditCard: ''}}",
+		"amount: {rt$label: '', rt$errors: {type: '', gt: {one: '', other: ''}}}",
+		"host: {rt$label: '', rt$errors: {type: '', idna: ''}}",
+		"ip: {rt$label: '', rt$errors: {type: '', version: ''}}",
+		"'@': ''",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("FriendlySkeleton missing %q:\n%s", want, got)
+		}
+	}
+}

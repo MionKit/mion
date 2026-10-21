@@ -9,7 +9,7 @@
 // `--to-types` converts the translated tree again, onto the pure-type road, and
 // typechecks that against the same control. Both translations, no container.
 //
-// `pnpm rtx release drizzle-e2e` is the full lane: same translations, then the
+// `pnpm miondevx release drizzle-e2e` is the full lane: same translations, then the
 // packages installed from verdaccio and the suites run against a real database.
 //
 // The tree is generated under .cache/drizzle-suites/<tag>-translated/, which is
@@ -22,7 +22,7 @@ import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {info, note, noteErr, reportCliError, success} from '../lib/proc.mjs';
 import {diffTypeErrors, errorLines} from '../../container/drizzle-e2e/shared/baseline.mjs';
 
-const BINARY = path.join(REPO_ROOT, 'bin/mion');
+const BINARY = path.join(REPO_ROOT, 'mion-bin/mion');
 
 // The mion packages resolve through the workspace SOURCES here, not the packed
 // tarballs the container installs. That is the point of the host lane: it checks
@@ -80,8 +80,10 @@ function typecheck(dir) {
 }
 
 export async function main(args) {
+  // Reached through the miondevx gate, which builds the engine first; this only
+  // catches a direct `node scripts/core/drizzle-translate.mjs` on a cold tree.
   if (!existsSync(BINARY)) {
-    noteErr('drizzle-translate: bin/mion is missing — run `pnpm run check:builds` first.');
+    noteErr('drizzle-translate: mion-bin/mion is missing — run `pnpm miondevx core build` first.');
     process.exitCode = 1;
     return;
   }
@@ -120,13 +122,15 @@ export async function main(args) {
   info('typechecking the translated tree against the untranslated control');
   const errors = typecheck(workDir);
   const controlErrors = typecheck(controlDir);
-  const {added, removed} = diffTypeErrors({
+  const {added, assertions, removed} = diffTypeErrors({
     translated: errors,
     control: controlErrors,
     // tsc prints paths relative to its cwd, so strip both spellings of each root.
     roots: [`${workDir}/`, `${controlDir}/`, `${path.relative(REPO_ROOT, workDir)}/`, `${path.relative(REPO_ROOT, controlDir)}/`],
+    cwd: REPO_ROOT,
   });
   note(`type errors: ${controlErrors.length} before the translation, ${errors.length} after`);
+  note(`exact-type assertions that now see the column formats: ${assertions.length}`);
   if (added.length > 0) {
     noteErr(`drizzle-translate: the translation ADDED ${added.length} type error(s) the untranslated tree does not have:`);
     noteErr(added.slice(0, 40).join('\n'));
@@ -159,16 +163,16 @@ export async function main(args) {
     const report = JSON.parse(readFileSync(convertReport, 'utf8'));
     const convertedCount = (report.files ?? []).reduce((total, file) => total + (file.converted?.length ?? 0), 0);
     note(`converted ${convertedCount} table(s); ${(report.refusals ?? []).length} refusal(s), each with a reason`);
-    // A refusal costs COVERAGE, never correctness: the refused declaration stays
-    // valid builders code and its test still runs. What must not change is the
-    // program, so the bar is the control's, exactly as above.
+    // A refusal costs coverage, not correctness: the refused declaration stays builders code and its test still runs.
     const typeErrors = typecheck(typesDir);
     const typeDiff = diffTypeErrors({
       translated: typeErrors,
       control: controlErrors,
       roots: [`${typesDir}/`, `${controlDir}/`, `${path.relative(REPO_ROOT, typesDir)}/`, `${path.relative(REPO_ROOT, controlDir)}/`],
+      cwd: REPO_ROOT,
     });
     note(`type errors on the type road: ${controlErrors.length} before, ${typeErrors.length} after`);
+    note(`exact-type assertions on the type road that now see the column formats: ${typeDiff.assertions.length}`);
     if (typeDiff.added.length > 0) {
       noteErr(`drizzle-translate: the type-road conversion ADDED ${typeDiff.added.length} type error(s) the untranslated tree does not have:`);
       noteErr(typeDiff.added.slice(0, 40).join('\n'));

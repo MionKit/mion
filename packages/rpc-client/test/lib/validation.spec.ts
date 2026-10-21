@@ -1,0 +1,96 @@
+/* ########
+ * 2026 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+import {describe, it, expect, afterEach} from 'vitest';
+import {initClient} from './fetchingClient.ts';
+import type {TestServerApi} from '@mionjs/test-server';
+import {TEST_SERVER_BASE_URL} from '../../globalSetup.ts';
+import {HeadersSubset, trustedHeadersSubset, type MethodWithOptsAndJitFns} from '@mionjs/core';
+import {getResponseError} from '../../src/lib/validation.ts';
+import {resetBundledMethods, setBundledMethod} from '../../src/lib/methods.ts';
+
+// R17 — the client's local pre-validation on a `mutateStrict` route: the strategy rides the methods metadata, so the
+// client rebuilds the SAME validator the server compiled. `clone` and `compact` would rebuild the params from the
+// declared type instead, dropping the extra key before anything could report it.
+
+describe('client local pre-validation on a mutateStrict route (R17)', () => {
+  const baseURL = TEST_SERVER_BASE_URL;
+  type MyApi = TestServerApi;
+  const validUser = {name: 'John', surname: 'Doe'};
+
+  it('accepts a payload with exactly the declared keys (no local errors)', async () => {
+    const {routes} = initClient<MyApi>({baseURL});
+    const errors = await routes.createUserStrict(validUser).typeErrors();
+    expect(Array.isArray(errors)).toBe(true);
+    expect(errors.length).toBe(0);
+  });
+
+  it('rejects a payload carrying an unknown/extra property locally (before the request goes out)', async () => {
+    const {routes} = initClient<MyApi>({baseURL});
+    const withExtra = {...validUser, injected: 'nope'} as unknown as typeof validUser;
+    const errors = await routes.createUserStrict(withExtra).typeErrors();
+    expect(Array.isArray(errors)).toBe(true);
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('still catches plain type errors on strict routes', async () => {
+    const {routes} = initClient<MyApi>({baseURL});
+    const wrongType = {name: 123, surname: 'Doe'} as unknown as typeof validUser;
+    const errors = await routes.createUserStrict(wrongType).typeErrors();
+    expect(errors.length).toBeGreaterThan(0);
+  });
+});
+
+describe('getResponseError', () => {
+  afterEach(() => resetBundledMethods());
+
+  it('reports a validator that throws instead of raising it', () => {
+    const throwing = {
+      isNoop: false,
+      fn: () => {
+        throw new RangeError('Maximum call stack size exceeded');
+      },
+    };
+    const method = {id: 'deep', hasReturnData: true, returnJitFns: {isType: throwing, typeErrors: throwing}};
+    setBundledMethod('deep', method as unknown as MethodWithOptsAndJitFns);
+    const error = getResponseError('deep', {});
+    expect(error?.type).toBe('response-validation-error');
+    expect(error?.publicMessage).toBe(
+      `Could not validate response from Route or Middleware 'deep': Maximum call stack size exceeded`
+    );
+  });
+
+  describe('returned headers', () => {
+    const isTag = (subset: HeadersSubset<'X-Tag'>) => typeof subset.headers['X-Tag'] === 'string';
+    const jitFns = {
+      isType: {isNoop: false, fn: isTag},
+      typeErrors: {isNoop: false, fn: () => [{path: ['X-Tag'], expected: 'string'}]},
+    };
+    const setHeadersMethod = () => {
+      const method = {id: 'tagged', hasReturnData: true, headersReturn: {headerNames: ['X-Tag'], jitHash: '', jitFns}};
+      setBundledMethod('tagged', method as unknown as MethodWithOptsAndJitFns);
+    };
+
+    it('passes headers that match their type', () => {
+      setHeadersMethod();
+      expect(getResponseError('tagged', new HeadersSubset({'X-Tag': 'a'}))).toBeUndefined();
+    });
+
+    it('reports headers that do not match their type', () => {
+      setHeadersMethod();
+      const error = getResponseError('tagged', trustedHeadersSubset({} as {'X-Tag': string}));
+      expect(error?.type).toBe('response-validation-error');
+      expect(error?.publicMessage).toBe(`Invalid headers from Route or Middleware 'tagged', validation failed.`);
+      expect(error?.errorData?.typeErrors).toEqual([{path: ['X-Tag'], expected: 'string'}]);
+    });
+
+    it('skips the check when no header came back, since a void return is valid', () => {
+      setHeadersMethod();
+      expect(getResponseError('tagged', undefined)).toBeUndefined();
+    });
+  });
+});

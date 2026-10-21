@@ -6,14 +6,11 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/enrichgen"
 )
 
-// checkEnrichFiles is the Request.CheckEnrich pass of OpScanFiles: the
-// enrichment-health diagnostics (FamilyEnrich) for every requested file that
-// looks like an enrichment mirror. It delegates to the shared enrichgen.CheckFile
-// — the ONE implementation the CLI `enrich <file> --no-emit` lane uses too, so the
-// editor lint surface and the command can never disagree — resolving each
-// requested path against the Program's current directory for the breadcrumb-drift
-// source link. Sites echo the REQUESTED path, matching the marker scanner's
-// convention, so the consumer can key diagnostics back to the file it asked about.
+// checkEnrichFiles is the Request.CheckEnrich pass of OpScanFiles (FamilyEnrich), over every requested
+// file that looks like an enrichment mirror. It delegates to enrichgen.CheckFile, the ONE implementation
+// the CLI `enrich <file> --no-emit` lane uses too, so editor lint and the command can never disagree;
+// the resolved absolute path is what the breadcrumb-drift source link needs. Sites echo the REQUESTED
+// path, as the marker scanner does, so the consumer can key each diagnostic back to the file it asked about.
 func (sess *Session) checkEnrichFiles(files []string) []diagnostics.Diagnostic {
 	var out []diagnostics.Diagnostic
 	if sess.Program == nil {

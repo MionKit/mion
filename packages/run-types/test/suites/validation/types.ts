@@ -1,4 +1,5 @@
-import type {GetValidationErrorsFn, RTValidationError, MockTypeFn, StandardSchemaV1, RTValidationIssue} from '@mionjs/run-types';
+import type {GetValidationErrorsFn, RTValidationError, StandardSchemaV1, RTValidationIssue} from '@mionjs/run-types';
+import type {MockTypeFn} from '@mionjs/run-types/mocking';
 
 /** Thunk that returns the variant's function, OR the `'not-supported'`
  *  sentinel marking the variant as deliberately unsupported on this case
@@ -61,12 +62,7 @@ export interface ValidationCase {
   /** Plugin-rewritten thunk returning the validate validator — STATIC
    *  form. Caller supplies `T` explicitly via the type argument. */
   validate: ValidateThunk;
-  /** Plugin-rewritten thunk returning the validate validator — REFLECT
-   *  form. Calls `createValidateFn(value)` with a runtime value annotated
-   *  to type T; the type checker infers T from the annotation, the
-   *  value itself is discarded at runtime. Paired with `validate` per
-   *  the CLAUDE.md "Marker test coverage rule" to verify both call
-   *  shapes produce the same validator end-to-end. **/
+  /** Runtime values are discarded; their annotations drive inference for AGENTS.md paired marker coverage. **/
   validateReflect: ValidateThunk;
   /** Plugin-rewritten thunk returning the validator rebuilt from the
    *  serialized `RTCompiledFnData.code` body via
@@ -173,13 +169,8 @@ export interface ValidationCase {
    *  flag is set — the test stops at the throw assertion. **/
   factoryThrows?: boolean;
 
-  /** Opt a case out of the id-integrity suite (`assertValidatorIdIntegrity`):
-   *  its value-first schema form and type-first form are KNOWN not to resolve the
-   *  same structural id, by design. Reserved for cases where convergence is
-   *  genuinely impossible — leave UNSET for cases that should converge so a
-   *  regression surfaces as a failure. (Note: option cases like `noLiterals` /
-   *  `noIsArrayCheck` are NOT divergent — they converge once the schema thunk
-   *  mirrors the same option, e.g. `createValidateFn(RT.literal(2), {noLiterals: true})`.) **/
+  /** Opts out of `assertValidatorIdIntegrity`: schema and type forms can never share an id, by design.
+   *  Leave UNSET wherever they should converge, so a regression fails. **/
   idDivergent?: boolean;
 
   /** Opt a case out of the DataOnly-equivalence suite

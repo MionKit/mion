@@ -7,25 +7,11 @@ const HERE = fileURLToPath(new URL('.', import.meta.url));
 const PACKAGE_ROOT = resolve(HERE);
 const REPO_ROOT = resolve(HERE, '../..');
 
-// Mirrors the run-types/vitest.config.ts shape: install the runtype
-// transformer as a Vite plugin so test source files (which import
-// `createValidateFn` and friends from `mion`) get
-// rewritten with the resolved runtype id at compile time, AND the
-// three cache modules under `caches/*.ts` get their bodies overlaid by
-// the plugin's `transform()` hook with the Go binary's rendered output.
-//
-// `resolve.conditions: ['source']` picks up the `"source"` exports
-// entry on `mion`'s package.json (pointing at
-// `src/index.ts`) — same condition `tsconfig.test.json` declares for
-// tsgo via `customConditions`. The two resolvers (vite at runtime,
-// tsgo for type-checking the marker scan) now both land on the same
-// in-tree source, with no alias plumbing required. SSR's resolver
-// honors the same conditions list.
-//
-// `cwd` is the package dir + `tsconfig.test.json` extends the build
-// config to also include `test/**`, so the Go resolver's Program
-// covers every file vitest loads. The build tsconfig stays strict
-// (src-only) so `pnpm build` doesn't compile test files into dist.
+// Installs the runtype transformer as a Vite plugin so test files get their markers rewritten and the
+// `caches/*.ts` bodies overlaid with the Go binary's output. `resolve.conditions: ['source']` (and SSR's copy)
+// picks the `"source"` exports entry, the same condition tsconfig.json declares for tsgo, so vite and tsgo both
+// land on the in-tree source with no aliases. `cwd` is the package dir and tsconfig.json includes `test/**`, so
+// the Go resolver's Program covers every file vitest loads; the build config narrows back to src.
 export default defineConfig({
   resolve: {
     conditions: ['source'],
@@ -33,33 +19,17 @@ export default defineConfig({
   ssr: {resolve: {conditions: ['source']}},
   plugins: [
     runtypesPlugin({
-      binary: resolve(REPO_ROOT, 'bin/mion'),
+      binary: resolve(REPO_ROOT, 'mion-bin/mion'),
       cwd: PACKAGE_ROOT,
-      tsconfig: 'tsconfig.test.json',
-      // Force 'both' emit for the test run so suites cover BOTH
-      // materialisation paths on every case:
-      //   - createValidateFn<T>() / createXxx<T>() → reads entry.createRTFn
-      //     (the inline closure baked in by the Go renderer)
-      //   - deserializeValidate<T>() / deserializeXxx<T>() → ignores the
-      //     inline closure and rebuilds the factory from entry.code via
-      //     `new Function('utl', code)`.
-      // The production default is 'code' (code string only) so emitted modules
-      // are smaller; runtimes without `new Function` opt into 'functions' or
-      // 'both' on the plugin themselves.
+      tsconfig: 'tsconfig.json',
+      // 'both' so the suites cover BOTH materialisation paths on every case: createXxx<T>() reads the inline
+      // entry.createRTFn, deserializeXxx<T>() rebuilds from entry.code. Production defaults to 'code' for size.
       emitMode: 'both',
-      // This test program DELIBERATELY contains Error-severity types (the
-      // alwaysThrow suites pin the runtime throw for root-position symbols,
-      // functions, …), so the strict default (failOnError: true — Error
-      // diagnostics fail every lane, vitest included) would refuse to boot
-      // the project. This opt-out is the documented escape hatch for exactly
-      // this shape of program; consumers keep the strict default.
-      failOnError: false,
-      // The on-disk RT artifact cache follows TypeScript's incremental switch,
-      // and `tsconfig.test.json` sets `incremental: false`, so these test runs
-      // are cache-off with no knob — they never pollute node_modules/.cache
-      // with thousands of artifact files. The disk-cache feature has its own
-      // dedicated end-to-end suite (devtools/test/cache-disk.test.ts,
-      // which forces the cache on at an os.tmpdir() path).
+      // NO downgradeErrors here on purpose: this program DELIBERATELY contains Error-severity types, and each of
+      // those ~200 call sites says so in its own source. A wildcard made a real finding indistinguishable from an
+      // expected one, which is how nine call sites silently compiled the default encoder strategy.
+      // The disk cache follows TypeScript's `incremental`, which tsconfig.json turns off, so these runs never
+      // write artifacts; devtools/test/cache-disk.test.ts covers that feature with the cache forced on.
     }),
   ],
   test: {
@@ -74,7 +44,7 @@ export default defineConfig({
     // must run in a process whose ONLY formats import is type-only, and inside
     // this project any sibling test file's formats value import would mask it.
     // test/converted-*/** are the generated converted-suite trees — gitignored,
-    // present only while `pnpm rtx core converted-suites` runs, and driven by
+    // present only while `pnpm miondevx core converted-suites` runs, and driven by
     // vitest.converted.config.ts. Excluding them keeps `pnpm test` from picking
     // up a half-generated tree if the lane is interrupted.
     exclude: [...configDefaults.exclude, 'test/playground/**', 'test/mock-format-isolation/**', 'test/converted-*/**'],
@@ -86,13 +56,13 @@ export default defineConfig({
     testTimeout: 30000,
     // Same contention headroom for hooks: enrichCheck's beforeAll does ~10s+
     // of real work per category and crossed the 10s default under full-suite
-    // parallel load (docs/done/enrichcheck-beforeall-hook-timeout-under-load.md).
+    // parallel load.
     hookTimeout: 30000,
     setupFiles: ['./test/support/setup.ts'],
-    // Removes the generated <PACKAGE_ROOT>/__runtypes output tree after the
+    // Removes the generated <PACKAGE_ROOT>/.mion output tree after the
     // whole suite (teardown only — the shared file derives the genDir from this
     // project's root, which is exactly the plugin's `cwd` above). The old local
-    // test/support/global-cleanup.ts resolved one directory short (test/__runtypes)
+    // test/support/global-cleanup.ts resolved one directory short (test/.mion)
     // and so never actually removed the tree.
     globalSetup: ['../../scripts/lib/vitest-clean-gendir.ts'],
     coverage: {

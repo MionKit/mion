@@ -38,11 +38,16 @@ describe('elision oracles fire on broken output (negative controls)', () => {
   });
 
   it('position normalization erases coordinates but never real drift', () => {
-    const a = normalizeSitePositions("['rj',,'X','never',,'[RJ001] boom (at g.ts:5:45)']");
-    const b = normalizeSitePositions("['rj',,'X','never',,'[RJ001] boom (at g.ts:3:27)']");
+    const a = normalizeSitePositions("['rj',,'X','never',,'[json-restore-never-root] boom (at g.ts:5:45)']");
+    const b = normalizeSitePositions("['rj',,'X','never',,'[json-restore-never-root] boom (at g.ts:3:27)']");
     expect(a).toBe(b);
-    const c = normalizeSitePositions("['rj',,'X','never',,'[RJ001] BOOM (at g.ts:3:27)']");
+    const c = normalizeSitePositions("['rj',,'X','never',,'[json-restore-never-root] BOOM (at g.ts:3:27)']");
     expect(c).not.toBe(b);
+    // The shared-site count is not a coordinate: two spellings disagreeing on it must still differ.
+    const one = normalizeSitePositions("'[json-restore-never-root] boom (at g.ts:5:45, and 1 other call site)'");
+    const two = normalizeSitePositions("'[json-restore-never-root] boom (at g.ts:3:27, and 2 other call sites)'");
+    expect(one).toBe("'[json-restore-never-root] boom (at <site>, and 1 other call site)'");
+    expect(one).not.toBe(two);
   });
 
   it('the module filter keeps fn entries and pure fns, drops the bundle and facades', () => {
@@ -50,6 +55,7 @@ describe('elision oracles fire on broken output (negative controls)', () => {
       abc_X: 'fn entry',
       'pf/rt/findCycle': 'pure fn',
       [RUNTYPES_BUNDLE_BASENAME]: 'bundle',
+      'rt/a1B2c3D4e5': 'file data module',
       Xyz123: 'facade',
     });
     expect(Object.keys(filtered).sort()).toEqual(['abc_X', 'pf/rt/findCycle']);
@@ -78,6 +84,7 @@ describe('elision oracles fire on broken output (negative controls)', () => {
 
   it('E2 strict fires on any reflection payload in a declaration-free fixture', () => {
     expect(checkStaticZeroReflection(1, 't', {[RUNTYPES_BUNDLE_BASENAME]: 'x'}, [])?.oracle).toBe('E2-static-reflection');
+    expect(checkStaticZeroReflection(1, 't', {'rt/a1B2c3D4e5': 'x'}, [])?.oracle).toBe('E2-static-reflection');
     expect(checkStaticZeroReflection(1, 't', {}, [{fnId: '', id: 'Root1'}])?.oracle).toBe('E2-static-reflection');
     expect(checkStaticZeroReflection(1, 't', {abc_X: 'fn'}, [{fnId: 'abc', id: 'X'}])).toBeUndefined();
   });

@@ -1,0 +1,17 @@
+import type * as TF from '@mionjs/run-types/formats';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
+
+type Contact = {
+  id: TF.UUIDv4;
+  email: TF.Email;
+  name: string;
+};
+
+// start-formats
+const mockContact = createMockDataFn<Contact>();
+
+const fake = mockContact();
+// {id: '3f2504e0-4f89-...', email: 'name@example.com', name: '...'}
+// end-formats
+
+export {mockContact, fake};

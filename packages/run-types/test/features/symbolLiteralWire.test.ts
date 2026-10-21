@@ -1,0 +1,71 @@
+// A symbol literal is not data: a decoder can only hand back a fresh `Symbol(...)`, never the symbol
+// the type names. Every family, the validator included, refuses it like the bare `symbol` kind
+// (dropped at a property, alwaysThrow at a root).
+
+import {describe, test, expect} from 'vitest';
+import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
+
+const sym = Symbol('hello');
+type SymLiteral = typeof sym;
+
+interface HasSymLiteral {
+  tag: SymLiteral;
+  name: string;
+}
+
+describe('symbol literal at a root', () => {
+  test('every JSON strategy refuses it', () => {
+    // @mion-downgrade-error json-prepare-clone-symbol-root
+    expect(() => createJsonEncoderFn<SymLiteral>()).toThrow();
+    // @mion-downgrade-error json-prepare-symbol-root
+    expect(() => createJsonEncoderFn<SymLiteral>(undefined, {strategy: 'mutate'})).toThrow();
+    // @mion-downgrade-error json-restore-symbol-root
+    expect(() => createJsonDecoderFn<SymLiteral>()).toThrow();
+  });
+
+  test('an array of one has no encodable element', () => {
+    // @mion-downgrade-error json-prepare-clone-symbol-root
+    expect(() => createJsonEncoderFn<SymLiteral[]>()).toThrow();
+  });
+
+  test('the validator refuses it like a bare symbol', () => {
+    // @mion-downgrade-error validate-symbol-root
+    expect(() => createValidateFn<SymLiteral>()).toThrow(/validate-symbol-root/);
+  });
+});
+
+describe('symbol literal at a property', () => {
+  test('the property is dropped and the object still encodes', () => {
+    const encode = createJsonEncoderFn<HasSymLiteral>();
+    expect(JSON.parse(encode({tag: sym, name: 'a'}) as string)).toEqual({name: 'a'});
+  });
+
+  test('every strategy drops it, never writes the description', () => {
+    const value: HasSymLiteral = {tag: sym, name: 'a'};
+    const encoded = [
+      createJsonEncoderFn<HasSymLiteral>(undefined, {strategy: 'mutate'})({...value}),
+      createJsonEncoderFn<HasSymLiteral>(undefined, {strategy: 'clone'})({...value}),
+      createJsonEncoderFn<HasSymLiteral>(undefined, {strategy: 'compact'})({...value}),
+    ];
+    for (const json of encoded) {
+      expect(json).not.toContain('Symbol');
+      expect(json).not.toContain('hello');
+    }
+  });
+
+  // DataOnly<HasSymLiteral> has no `tag`, so reading it is a compile error: type and runtime agree.
+  test('a decoded object has no tag at all', () => {
+    const decoded = createJsonDecoderFn<HasSymLiteral>()(createJsonEncoderFn<HasSymLiteral>()({tag: sym, name: 'a'}) as string);
+    expect(decoded).toEqual({name: 'a'});
+    expect('tag' in decoded).toBe(false);
+  });
+});
+
+describe('symbol literal in a union', () => {
+  test('Date | typeof sym round-trips the Date', () => {
+    const date = new Date('2020-01-01T00:00:00.000Z');
+    const encode = createJsonEncoderFn<Date | SymLiteral>();
+    const decode = createJsonDecoderFn<Date | SymLiteral>();
+    expect(decode(encode(date) as string)).toEqual(date);
+  });
+});

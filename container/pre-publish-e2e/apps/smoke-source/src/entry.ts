@@ -1,8 +1,14 @@
-// smoke-source — a SOURCE-FIRST consumer. Its tsconfig sets
-// customConditions:["source"], so the published @mionjs/run-types resolves to its
-// own src/ and the RT plugin's whole-program scan walks the library's internal
-// generic definitions. Those are not consumer call sites; the resolver's
-// first-party diagnostic scoping (program.IsSourceFileFromExternalLibrary) drops
-// their diagnostics. Without it this app's build halts with the library's own
-// CTA001/CTA003 — the exact regression this app guards.
+// smoke-source — a SOURCE-FIRST consumer: its tsconfig asks for the `source` condition, so the
+// plugin scans @acme/src-types's own TypeScript. Guards the first-party diagnostic scoping
+// (program.IsSourceFileFromExternalLibrary).
+import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
+import type {SrcTypedUser} from '@acme/src-types';
+
+export const isSrcTypedUser = createValidateFn<SrcTypedUser>();
+
+// AGENTS.md requires both marker forms.
+export const srcUserIdStatic = getRunTypeId<SrcTypedUser>();
+const sample: SrcTypedUser = {id: 1, label: 'u', since: new Date('2026-01-01T00:00:00Z')};
+export const srcUserIdFromValue = getRunTypeId(sample);
+
 export {selfCheck} from '../../shared/src/minimal';

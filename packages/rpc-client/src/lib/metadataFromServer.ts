@@ -1,0 +1,24 @@
+/* ########
+ * 2026 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+// The one door into the fetched lane: the metadata request, the cache-into-store logic, the store engines,
+// eviction and the persistence prompt. Only the loader next door reaches it, when a call needs it.
+
+// Side-effect: the format pure fns. Fns arriving over the wire do not carry the run-types-owned ones
+// (router/src/lib/remoteMethods.ts skips them), so only the fetched lane must register them locally.
+import '@mionjs/run-types/formats';
+
+export {
+  forgetFetchedMetadata,
+  hydrateMetadataCache,
+  installMethodRows,
+  purgeHydratedMetadata,
+  takeMetadataCacheError,
+  wasHydratedFromCache,
+} from './clientMethodsMetadata.ts';
+export {fetchRemoteMethodsMetadata} from './fetchRemoteMethodsMetadata.ts';
+export {unverifiedIds, verifyMethodRows} from './apiVersionRecovery.ts';

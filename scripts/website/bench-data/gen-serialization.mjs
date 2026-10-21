@@ -1,40 +1,9 @@
 #!/usr/bin/env node
-// Generates the SERIALIZATION benchmark dataset the docs website renders, under
-// container/website/public/bench-data/serialization/:
-//
-//   index.json          — { bench, label, competitors (= round-trips), metrics,
-//                           bandwidthsMbps, sections: [{ key, label,
-//                           cases: [{ key, title, jsonSafe, results }] }] }
-//   <case>.json         — { competitors: [{ name, source }] }  (lazy hover)
-//
-// Unlike the validation/typecost benches there are NO competitor libraries: the
-// "columns" are mion's own round-trips plus a native-JSON baseline, all
-// measured in-process from the SERIALIZATION test suite. So this is built like
-// the suite exporters (load the suite through Vite + the runtypes plugin, time
-// the real generated encoders/decoders), NOT like container/benchmarks/ (no podman, no
-// per-competitor isolation).
-//
-// Eight round-trips per case (the "competitors" the table shows). Each one's
-// reader-facing blurb lives on its ROUNDTRIPS entry and ships as index.columnNotes,
-// which is what hovering that column's table header reveals:
-//   clone              cloneEncoder  + preserveDecoder   (strategy 'clone', default)
-//   mutate             mutateEncoder + preserveDecoder   (strategy 'mutate')
-//   direct             directEncoder + preserveDecoder   (strategy 'direct')
-//   compact            compactEncoder + compactDecoder   (strategy 'compact', positional array)
-//   binary             binaryEncoder + binaryDecoder
-//   jsonSchema         the clone codec, authored from a JSON Schema document
-//   jsonSchema binary  the binary codec, authored from a JSON Schema document
-//   native JSON        JSON.stringify + JSON.parse       (baseline, JSON-safe cases only)
-//
-// Three metric groups (one stacked table each on the page):
-//   roundtrip  derived client-side = 1/(t_encode + t_network(bytes) + t_decode)
-//   encdec     encode ops/sec (headline) + decode ops/sec (secondary)
-//   payload    bytes on the wire (lower is better)
-//
-// Round-trip is NOT stored — the page derives it from encdec + payload at the
-// selected link speed, so the bandwidth selector needs no re-generation. We ship
-// the raw measurements (encode ops/sec, decode ops/sec, bytes); the network term
-// is bytes * 8 / (Mbps * 1e6).
+// Generates the SERIALIZATION benchmark dataset the docs site renders, under container/website/public/bench-data/.
+// The columns are mion's own round-trips (ROUNDTRIPS) plus a native-JSON baseline, timed in-process through Vite +
+// the runtypes plugin, NOT like container/benchmarks/ (no podman, no per-competitor isolation). Round-trip time is
+// not stored: the page derives it from encode/decode ops and bytes at the selected link speed (bytes * 8 / (Mbps * 1e6)),
+// so the bandwidth selector needs no re-generation.
 
 import {spawnSync} from 'node:child_process';
 import fs from 'node:fs';
@@ -42,6 +11,7 @@ import path from 'node:path';
 import url from 'node:url';
 import {performance} from 'node:perf_hooks';
 import {createServer} from 'vite';
+import {sourceFileIn} from './sources.mjs';
 
 // Load .env on the host (dev) so MION_VALIDATION_BENCH_* knobs apply when run directly. Inside
 // the benchmark container this file is mounted ALONE (no sibling loader) and gets
@@ -81,17 +51,14 @@ const SSR_NOEXTERNAL = (process.env.MION_VALIDATION_BENCH_SSR_NOEXTERNAL ?? '')
   .map((s) => s.trim())
   .filter(Boolean);
 
-// Resolver disk cache: it follows TypeScript's incremental switch, and this
-// bench loads the suite through `tsconfig.test.json` (incremental:false), so it
-// is off by default. The in-container run also passes MION_VALIDATION_BENCH_CACHE_DIR=false
-// (the marker mount is read-only, so a write must never be attempted) — forward
-// it to the binary's internal MION_CACHE_DIR control: 'false' forces the cache
-// off, a path forces it on there. The plugin's resolver child inherits the env.
+// The resolver disk cache follows TypeScript's incremental switch, off here because tsconfig.json sets incremental:false.
+// In-container the marker mount is read-only, so nothing may write there; MION_CACHE_DIR='' forces the cache off.
+// The plugin's resolver child inherits the env.
 if (process.env.MION_VALIDATION_BENCH_CACHE_DIR === 'false') process.env.MION_CACHE_DIR = '';
 else if (process.env.MION_VALIDATION_BENCH_CACHE_DIR) process.env.MION_CACHE_DIR = process.env.MION_VALIDATION_BENCH_CACHE_DIR;
 
 // Files-mode writes the generated cache modules under <outDir>/types. The default
-// (<srcDir>/__runtypes, inferred from the tsconfig) lands under the read-only marker
+// (<srcDir>/.mion, inferred from the tsconfig) lands under the read-only marker
 // mount in-container, so MION_VALIDATION_BENCH_RT_OUTDIR points it at a writable path under the
 // vite root instead. Omitted on the host, where the inferred dir is writable.
 const OUTDIR_OPT = process.env.MION_VALIDATION_BENCH_RT_OUTDIR ? {genDir: process.env.MION_VALIDATION_BENCH_RT_OUTDIR} : {};
@@ -103,29 +70,15 @@ const pluginSpec =
   PLUGIN_ENTRY.startsWith('.') || path.isAbsolute(PLUGIN_ENTRY) ? url.pathToFileURL(path.resolve(PLUGIN_ENTRY)).href : PLUGIN_ENTRY;
 const runtypesPlugin = (await import(pluginSpec)).default;
 
-// Suite selection — `--suite serialization` (default) or `--suite format-serialization`.
-// Both use the SerializationCase shape; each maps to its own bench slug + label.
-const SUITE_CONFIGS = {
-  serialization: {dir: 'serialization', exportConst: 'SERIALIZATION_SPEC', bench: 'serialization', label: 'Serialization'},
-  'format-serialization': {
-    dir: 'format-serialization',
-    exportConst: 'FORMAT_SERIALIZATION_SUITE',
-    bench: 'serialization-formats',
-    label: 'Serialization Formats',
-  },
-};
-const suiteArgIndex = process.argv.indexOf('--suite');
-const SUITE = suiteArgIndex >= 0 ? process.argv[suiteArgIndex + 1] : 'serialization';
-const SUITE_CFG = SUITE_CONFIGS[SUITE];
-if (!SUITE_CFG) {
-  process.stderr.write(`unknown --suite '${SUITE}' (known: ${Object.keys(SUITE_CONFIGS).join(', ')})\n`);
-  process.exit(1);
-}
+const SUITE = 'serialization';
 
-const SUITE_DIR = path.join(PACKAGE_ROOT, 'test/suites', SUITE_CFG.dir);
+const SUITE_DIR = path.join(PACKAGE_ROOT, 'test/suites', SUITE);
+// Spelled out for the "cases on GitHub" link: in the benchmark image SUITE_DIR is mounted under the marker package.
+const SUITE_REPO_DIR = path.posix.join('packages/run-types/test/suites', SUITE);
+const caseSource = (group) => path.posix.join(SUITE_REPO_DIR, sourceFileIn(SUITE_DIR, group));
 const SUITE_PATH = path.join(SUITE_DIR, 'index.ts');
-const BIN = process.env.MION_VALIDATION_BENCH_BIN ?? path.join(REPO_ROOT, 'bin/mion');
-const OUT_DIR = path.join(OUT_BASE, SUITE_CFG.bench);
+const BIN = process.env.MION_VALIDATION_BENCH_BIN ?? path.join(REPO_ROOT, 'mion-bin/mion');
+const OUT_DIR = path.join(OUT_BASE, SUITE);
 
 // The round-trips shown as columns. `enc`/`dec` name the SerializationCase thunk
 // fields; `native` synthesises JSON.stringify/parse (no thunk). Order = column order.
@@ -134,23 +87,16 @@ const ROUNDTRIPS = [
   {
     key: 'clone',
     enc: 'cloneEncoder',
-    dec: 'preserveDecoder',
+    dec: 'cloneDecoder',
     kind: 'json',
     note: 'Default. Builds a fresh copy and drops any key the type does not declare.',
   },
   {
     key: 'mutate',
     enc: 'mutateEncoder',
-    dec: 'preserveDecoder',
+    dec: 'mutateDecoder',
     kind: 'json',
     note: 'Writes into the value you pass in and keeps the keys it does not declare.',
-  },
-  {
-    key: 'direct',
-    enc: 'directEncoder',
-    dec: 'preserveDecoder',
-    kind: 'json',
-    note: 'A single pass over the value, the least overhead of the JSON strategies.',
   },
   {
     key: 'compact',
@@ -159,31 +105,9 @@ const ROUNDTRIPS = [
     kind: 'json',
     note: 'Positional arrays instead of named keys, so no field names travel on the wire.',
   },
-  {
-    key: 'binary',
-    enc: 'binaryEncoder',
-    dec: 'binaryDecoder',
-    kind: 'binary',
-    note: 'Raw bytes rather than text. Best for numeric payloads.',
-  },
-  // The codec authored from a JSON Schema document instead of a TypeScript type.
-  // It converges on the same structural id as the `clone` column's type-first
-  // twin, hence the same generated codec — so this column is the evidence that
-  // the authoring form costs nothing at run time, not a different strategy.
-  {
-    key: 'jsonSchema',
-    enc: 'jsonSchemaEncoder',
-    dec: 'jsonSchemaDecoder',
-    kind: 'json',
-    note: 'The clone strategy authored from a JSON Schema document. Same codec, so the authoring form costs nothing at run time.',
-  },
-  {
-    key: 'jsonSchema binary',
-    enc: 'jsonSchemaBinaryEncoder',
-    dec: 'jsonSchemaBinaryDecoder',
-    kind: 'binary',
-    note: 'The binary strategy authored from a JSON Schema document.',
-  },
+  // No JSON-Schema-authored round-trip: the suite cases define no jsonSchema* thunks
+  // (only the builder-authored schema* ones), so the two columns that once named them
+  // shipped n-a all the way down. A column here must be a thunk every case carries.
   {
     key: 'native JSON',
     enc: null,
@@ -208,16 +132,10 @@ function columnNotes() {
 const SOURCE_FIELDS = [
   'cloneEncoder',
   'mutateEncoder',
-  'directEncoder',
   'compactEncoder',
-  'binaryEncoder',
-  'jsonSchemaEncoder',
-  'jsonSchemaBinaryEncoder',
-  'preserveDecoder',
+  'cloneDecoder',
+  'mutateDecoder',
   'compactDecoder',
-  'binaryDecoder',
-  'jsonSchemaDecoder',
-  'jsonSchemaBinaryDecoder',
 ];
 
 // Bandwidth options for the page's round-trip selector (Mbps). Default mid-tier.
@@ -228,8 +146,7 @@ const DEFAULT_BANDWIDTH_MBPS = 100;
 // far fewer cycles + iterations, so numbers are noisy but every panel still renders.
 const QUICK = process.env.MION_VALIDATION_BENCH_QUICK === '1';
 
-// Workload knobs. Modest vs the suite exporter — every case runs 5 round-trips ×
-// (encode + decode), so keep each measurement cheap but stable.
+// Kept modest: every case runs 4 round-trips × (encode + decode).
 const OPS_CYCLES = QUICK ? 2 : 8;
 const OPS_ITERS = QUICK ? 100 : 800;
 const OPS_WARMUP = QUICK ? 10 : 50;
@@ -257,37 +174,20 @@ async function loadSuiteWithPlugin() {
     ssr: {resolve: {conditions: ['source']}, ...(SSR_NOEXTERNAL.length ? {noExternal: SSR_NOEXTERNAL.map((p) => new RegExp(p))} : {})},
     optimizeDeps: {noDiscovery: true},
     logLevel: 'error',
-    // In-container this config is read from a bind-mounted marker package whose
-    // `extends` chain walks OUT of it, so bench.mjs mounts that chain too
-    // (SERIALIZATION_TSCONFIG there must name this same file).
-    //
-    // failOnError:false for the same reason packages/run-types/vitest.config.ts
-    // sets it — this is the marker package's OWN test program, and buildStart
-    // scans everything tsconfig.test.json includes, alwaysThrow suites included.
-    // Those deliberately hold Error-severity types (root-position symbols,
-    // functions, …), so the strict default refuses to boot the project and the
-    // bench dies before a single case is measured. Consumers keep the default.
-    plugins: [runtypesPlugin({binary: BIN, cwd: PACKAGE_ROOT, tsconfig: 'tsconfig.test.json', failOnError: false, ...OUTDIR_OPT})],
+    // In-container this config's `extends` chain walks OUT of the bind-mounted marker package, so bench.mjs
+    // mounts that chain too, and its SERIALIZATION_TSCONFIG must name this same file.
+    // downgradeErrors:'*' as in packages/run-types/vitest.config.ts: buildStart scans everything this config
+    // includes, and the alwaysThrow suites hold Error-severity types the strict default refuses to boot.
+    plugins: [runtypesPlugin({binary: BIN, cwd: PACKAGE_ROOT, tsconfig: 'tsconfig.json', downgradeErrors: '*', ...OUTDIR_OPT})],
   });
   try {
     const mod = await server.ssrLoadModule(SUITE_PATH);
-    return mod[SUITE_CFG.exportConst];
+    return mod.SERIALIZATION_SPEC;
   } finally {
     await server.close();
   }
 }
 
-// UPPER_SNAKE group name -> PascalCase data-file basename ('CIRCULAR_REFS' -> 'CircularRefs').
-function groupToFile(group) {
-  const pascal = group
-    .toLowerCase()
-    .split('_')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join('');
-  const wanted = `${pascal.toLowerCase()}.ts`;
-  const actual = fs.readdirSync(SUITE_DIR).find((name) => name.toLowerCase() === wanted);
-  return actual ? actual.slice(0, -3) : pascal;
-}
 
 // Extract the thunk source bodies per group via the Go object-literal walker —
 // a prebuilt binary (MION_EXTRACT_BIN, in-container) or `go run` from the repo
@@ -297,7 +197,7 @@ function runGoExtractor(groups) {
   const cmd = EXTRACT_BIN || 'go';
   const baseArgs = EXTRACT_BIN ? [] : ['run', './cmd/extract-fn-bodies'];
   for (const group of groups) {
-    const groupFile = path.join(SUITE_DIR, `${groupToFile(group)}.ts`);
+    const groupFile = path.join(SUITE_DIR, sourceFileIn(SUITE_DIR, group));
     const res = spawnSync(cmd, [...baseArgs, '--file', groupFile, '--identifier', group], {
       cwd: EXTRACT_BIN ? REPO_ROOT : GO_ROOT,
       encoding: 'utf8',
@@ -410,11 +310,7 @@ function isJsonSafe(samples) {
 
 function byteLengthOf(encoded) {
   if (encoded == null) return null;
-  if (typeof encoded === 'string') return Buffer.byteLength(encoded, 'utf8');
-  if (typeof encoded.getLength === 'function') return encoded.getLength(); // DataViewSerializer (binaryEncoder return)
-  if (encoded.byteLength != null) return encoded.byteLength; // ArrayBuffer / TypedArray / Buffer
-  if (encoded.length != null) return encoded.length;
-  return null;
+  return Buffer.byteLength(encoded, 'utf8');
 }
 
 function pickIters(sample) {
@@ -427,13 +323,9 @@ function pickIters(sample) {
   return OPS_ITERS;
 }
 
-// Fresh sample list for a case (each call rebuilds the values so encode-in-place
-// mutation never leaks across pool entries). Binary may diverge from JSON.
+// Rebuilt on every call so encode-in-place mutation never leaks across pool entries.
 function jsonValues(caseObj) {
   return (caseObj.getTestDataForStringify ?? caseObj.getTestData)().values;
-}
-function binaryValues(caseObj) {
-  return (caseObj.getBinaryTestData ?? caseObj.getTestDataForStringify ?? caseObj.getTestData)().values;
 }
 
 // Build a pool of `count` fresh values rotating through `indices` of a freshly
@@ -451,9 +343,8 @@ function buildPool(selectValues, count, indices) {
 // Measure one round-trip for one case. Returns {encOps, decOps, bytes} or null
 // when the round-trip can't run (factory throws, no sample survives, etc.).
 function measureRoundTrip(caseObj, rt) {
-  const isBinary = rt.kind === 'binary';
   const isNative = rt.kind === 'native';
-  const selectValues = isBinary ? () => binaryValues(caseObj) : () => jsonValues(caseObj);
+  const selectValues = () => jsonValues(caseObj);
 
   // Build the encode/decode pair.
   let encode;
@@ -543,7 +434,7 @@ async function main() {
 
   const t0 = performance.now();
   const suite = await loadSuiteWithPlugin();
-  process.stdout.write(`loaded ${SUITE_CFG.exportConst} via vite + runtypes plugin (${ms(t0)})\n`);
+  process.stdout.write(`loaded SERIALIZATION_SPEC via vite + runtypes plugin (${ms(t0)})\n`);
 
   const tExtract = performance.now();
   const bodies = runGoExtractor(Object.keys(suite));
@@ -611,13 +502,13 @@ async function main() {
       rows.push({key: rowKey, title: caseObj.title ?? caseKey, jsonSafe, results});
       fs.writeFileSync(path.join(OUT_DIR, `${rowKey}.json`), JSON.stringify({competitors: detailComps}));
     }
-    if (rows.length > 0) sections.push({key: group, label: sectionLabel(group), cases: rows});
+    if (rows.length > 0) sections.push({key: group, label: sectionLabel(group), source: caseSource(group), cases: rows});
   }
   progressEnd();
 
   const index = {
-    bench: SUITE_CFG.bench,
-    label: SUITE_CFG.label,
+    bench: SUITE,
+    label: 'Serialization',
     showStrategy: false,
     competitors: ROUNDTRIPS.map((rt) => rt.key),
     columnNotes: columnNotes(),
@@ -645,7 +536,7 @@ async function main() {
         metricLabel: 'bytes on the wire — lower is better',
         unit: 'bytes',
         lowerBetter: true,
-        cellHint: 'bytes on the wire (the JSON string / binary buffer)',
+        cellHint: 'bytes on the wire (the JSON string)',
       },
     ],
     sections,
@@ -653,8 +544,8 @@ async function main() {
   fs.writeFileSync(path.join(OUT_DIR, 'index.json'), JSON.stringify(index));
 
   process.stdout.write(
-    `${SUITE_CFG.bench}: ${benched} cases benched, ${skipped} skipped (factoryThrows / unsupported) → ` +
-      `container/website/public/bench-data/${SUITE_CFG.bench}/ (total ${ms(t0)})\n`
+    `${SUITE}: ${benched} cases benched, ${skipped} skipped (factoryThrows / unsupported) → ` +
+      `container/website/public/bench-data/${SUITE}/ (total ${ms(t0)})\n`
   );
 }
 

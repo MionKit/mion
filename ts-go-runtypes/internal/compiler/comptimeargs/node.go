@@ -6,29 +6,18 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 )
 
-// IsCompTimeArgsParamNode reports whether paramSymbol's declared type annotation
-// SYNTACTICALLY references the CompTimeArgs marker alias (`x: CompTimeArgs<…>`).
-//
-// CompTimeArgs is the zero-cost identity `type CompTimeArgs<T> = T` (markers.ts):
-// the old `T & {__rtCompTimeArgsBrand?: never}` cost ~700 TS instantiations when
-// T was a tuple — the `tuple` / `union` / `func` member lists. Identity
-// removes the cost, but its instantiation drops the alias from the RESOLVED
-// parameter type, so
-// marker.DetectAny (resolved-type alias name / brand-property matching) can no
-// longer see it. The written `CompTimeArgs<…>` annotation does survive in the
-// .d.ts, so detect it here off the parameter's type node — resolving the reference
-// through import aliases and confirming the marker package's symbol name +
-// declaring module, the same rigor DetectAny applies. Shared by the resolver scan
-// and the pure-fn extractor, the two places that recognise CompTimeArgs params.
+// IsCompTimeArgsParamNode reports whether paramSymbol's declared type annotation SYNTACTICALLY
+// references the CompTimeArgs marker alias. CompTimeArgs is the zero-cost identity
+// `type CompTimeArgs<T> = T` (markers.ts), which a brand property would cost ~700 TS instantiations
+// over for a tuple T; identity drops the alias from the RESOLVED type, so marker.DetectAny can no
+// longer see it. The written annotation survives in the .d.ts, so detection reads the type node,
+// with the same import-alias resolution and package gate DetectAny applies.
 func IsCompTimeArgsParamNode(typeChecker *checker.Checker, paramSymbol *ast.Symbol, opts marker.Options) bool {
 	return isMarkerAliasParamNode(typeChecker, paramSymbol, opts, marker.KindCompTimeArgs)
 }
 
-// IsCompTimeHintsParamNode is the CompTimeHints twin — the LENIENT
-// read-only marker (build reads literal values best-effort, never
-// validates; createMockDataFn's options bag today). Same identity-alias
-// story as CompTimeArgs (no brand survives resolution), so the written
-// annotation is the only signal.
+// IsCompTimeHintsParamNode is the twin for the LENIENT read-only marker. Same identity-alias story
+// as CompTimeArgs, so the written annotation is the only signal.
 func IsCompTimeHintsParamNode(typeChecker *checker.Checker, paramSymbol *ast.Symbol, opts marker.Options) bool {
 	return isMarkerAliasParamNode(typeChecker, paramSymbol, opts, marker.KindCompTimeHints)
 }
@@ -56,9 +45,7 @@ func isMarkerAliasParamNode(typeChecker *checker.Checker, paramSymbol *ast.Symbo
 		if typeName == nil || typeName.Kind != ast.KindIdentifier {
 			continue
 		}
-		// Resolve the reference to its declaration (following an `import {CompTimeArgs}`
-		// alias), then require the marker package's name + module — never a user's own
-		// same-named local type.
+		// Require the marker package's name + module, never a user's own same-named local type.
 		symbol := ResolveImportAlias(typeChecker, typeChecker.GetSymbolAtLocation(typeName))
 		if symbol == nil || symbol.Name != spec.Name {
 			continue
@@ -70,24 +57,15 @@ func isMarkerAliasParamNode(typeChecker *checker.Checker, paramSymbol *ast.Symbo
 	return false
 }
 
-// IsInjectionMarkerParamNode reports whether paramSymbol's declared type
-// annotation SYNTACTICALLY references an injection-marker alias — a trailing
-// `id?: InjectRunTypeId<…>` or `ids?: InjectTypeFnArgs<…>` slot declared in the
-// marker package.
+// IsInjectionMarkerParamNode reports whether paramSymbol's declared type annotation SYNTACTICALLY
+// references an injection-marker alias declared in the marker package.
 //
-// Unlike marker.DetectAny, which matches the RESOLVED parameter type, this
-// reads the WRITTEN annotation. The two agree for a genuine marker function
-// (which declares the annotation), but they DIVERGE for an unrelated generic
-// function whose parameter merely INFERRED the branded marker type from a
-// marker-typed argument. The load-bearing example is vitest's
-// `expect(getRunTypeId<T>()).toBe(x)`: `expect` returns `Assertion<InjectRunTypeId<T>>`,
-// so `Assertion<U>.toBe(expected: U)` instantiates `expected` to
-// `InjectRunTypeId<T>`. DetectAny (correctly, at the type level) matches that
-// inferred type — but `toBe` is not one of our functions, and only the
-// syntactic annotation (`expected: U`, not `expected: InjectRunTypeId<…>`)
-// tells them apart. enclosedByInjectionMarker gates on this so it never
-// mistakes such a passer-through for an enclosing marker (which would wrongly
-// drop the argument's OWN injection).
+// It reads the WRITTEN annotation where marker.DetectAny matches the RESOLVED type. The two agree
+// for a genuine marker function, but DIVERGE for an unrelated generic whose parameter merely
+// INFERRED the branded type: in `expect(getRunTypeId<T>()).toBe(x)`, `Assertion<U>.toBe(expected: U)`
+// instantiates `expected` to `InjectRunTypeId<T>`, which DetectAny matches at the type level even
+// though `toBe` is not ours. enclosedByInjectionMarker gates on this so it never mistakes such a
+// passer-through for an enclosing marker, which would wrongly drop the argument's OWN injection.
 func IsInjectionMarkerParamNode(typeChecker *checker.Checker, paramSymbol *ast.Symbol, opts marker.Options) bool {
 	if typeChecker == nil || paramSymbol == nil {
 		return false
@@ -105,9 +83,7 @@ func IsInjectionMarkerParamNode(typeChecker *checker.Checker, paramSymbol *ast.S
 		if typeName == nil || typeName.Kind != ast.KindIdentifier {
 			continue
 		}
-		// Resolve through any `import {InjectRunTypeId}` alias, then require the
-		// marker package's symbol name + declaring module — the same rigor
-		// IsCompTimeArgsParamNode / DetectAny apply, so a user's own same-named
+		// Require the marker package's symbol name + declaring module, so a user's own same-named
 		// local brand never triggers.
 		symbol := ResolveImportAlias(typeChecker, typeChecker.GetSymbolAtLocation(typeName))
 		if symbol == nil {

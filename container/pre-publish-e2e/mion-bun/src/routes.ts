@@ -6,27 +6,38 @@
  * ######## */
 
 import {RpcError} from '@mionjs/core';
-import {PublicApi, Routes, route} from '@mionjs/router';
+import {PublicApi, Routes, createMionRouter} from '@mionjs/router';
+import {mionFetchMetadata} from '@mionjs/router/middlewares';
 
 // NOTE: regular imports only — the resolver reads types from the program, but the
 // route VALUES are real runtime values.
 
 type SimpleUser = {name: string; age: number};
 
-export const routes = {
-    sayHello: route((_ctx, user: SimpleUser): string => `Hello ${user.name}`),
-    calculateAge: route((_ctx, birthYear: number): number => 2026 - birthYear),
-    mayFail: route((_ctx, shouldFail: boolean): string | RpcError<'intentional-error'> => {
+// The router is created and its routes initialized in this one file; the test imports
+// it and then starts the server. The contextDataFactory must return a plain object with
+// at least one property (the router validates it at init), so give it the shape a real
+// app would carry.
+const mion = createMionRouter({contextDataFactory: () => ({user: null})});
+
+const routes = {
+    // serves route metadata to a client that fetches it
+    mionFetchMetadata,
+    sayHello: mion.route((_ctx, user: SimpleUser): string => `Hello ${user.name}`),
+    calculateAge: mion.route((_ctx, birthYear: number): number => 2026 - birthYear),
+    mayFail: mion.route((_ctx, shouldFail: boolean): string | RpcError<'intentional-error'> => {
         if (shouldFail) return new RpcError({publicMessage: 'Intentional failure', type: 'intentional-error'});
         return 'Success!';
     }),
 
-    // Binary lane: proves the packed serializer travels to bun too, not just node.
-    binary: {
-        echo: route((_ctx, message: string): string => message, {serializer: 'binary'}),
-        getSimpleUser: route((_ctx, name: string, age: number): SimpleUser => ({name, age}), {serializer: 'binary'}),
+    // Compact lane: proves the packed parser travels to bun too, not just node.
+    compact: {
+        echo: mion.route((_ctx, message: string): string => message, {parser: 'compact'}),
+        getSimpleUser: mion.route((_ctx, name: string, age: number): SimpleUser => ({name, age}), {parser: 'compact'}),
     },
 } satisfies Routes;
+
+mion.initRoutes(routes);
 
 /** Exported for the client-side half of the round-trip. */
 export type BunServerApi = PublicApi<typeof routes>;

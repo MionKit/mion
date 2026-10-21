@@ -1,48 +1,46 @@
-// Package testfixtures hosts the shared TypeScript fixtures for the Go test
-// suites, plus RealMarkerPackage — the real `@mionjs/run-types` package served
-// as virtual-filesystem overlay entries so tests resolve the marker module
-// exactly the way a consumer install does (package.json exports → dist .d.ts),
-// with no hand-written stand-in to drift.
+// Package testfixtures hosts the shared TypeScript fixtures for the Go test suites, plus RealMarkerPackage: the real
+// `@mionjs/run-types` as virtual-filesystem overlay entries, so tests resolve it as a consumer install does and no stand-in can drift.
 package testfixtures
 
 import (
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"sync"
 )
 
-// TemporalDTS is the canonical minimal `Temporal` ambient namespace
-// (temporal.d.ts in this directory), for fixtures that USE Temporal types.
-// The marker package itself degrades gracefully without it (guarded
-// fallbacks in formats/datetime/temporalFormats.ts). Kept as ONE file,
-// embedded, so no test carries its own hand-written mirror.
+// TemporalDTS is the canonical minimal `Temporal` ambient namespace, for fixtures that USE Temporal types; ONE embedded file, so no test mirrors it.
+// The marker package itself degrades gracefully without it (guarded fallbacks in formats/datetime/temporalFormats.ts).
 //
 //go:embed temporal.d.ts
 var TemporalDTS string
 
-// MarkerPackagePrefix is the node_modules-relative directory every
-// RealMarkerPackage key lives under.
+// MarkerPackagePrefix is the directory every RealMarkerPackage key lives under.
 const MarkerPackagePrefix = "node_modules/@mionjs/run-types/"
 
 var (
 	markerOnce  sync.Once
 	markerFiles map[string]string
 	markerErr   error
+
+	markerSrcOnce  sync.Once
+	markerSrcFiles map[string]string
+	markerSrcErr   error
 )
 
-// RealMarkerPackage returns the real `@mionjs/run-types` package — its
-// package.json plus the built dist/**/*.d.ts declaration tree (both the esm
-// surface and dist/cjs/, since a node16-style CommonJS importer resolves the
-// `require` export condition) — keyed by node_modules-relative path under
-// MarkerPackagePrefix. Callers overlay the entries under a test cwd WITHOUT
-// adding them as program roots: module resolution pulls them in through the
-// `@mionjs/run-types` import. Read once per process; errors when the marker
-// dist is unbuilt (run `pnpm run check:builds`).
+// artifactDirSegment matches anywhere under the dist: a dual ESM/CJS build writes one artifact per output dir.
+const artifactDirSegment = string(filepath.Separator) + constants.PureFnArtifactDir + string(filepath.Separator)
+
+// RealMarkerPackage returns the real `@mionjs/run-types` as a CONSUMER INSTALL under MarkerPackagePrefix: published package.json, the
+// dist .d.ts tree (dist/cjs/ too, a node16 CommonJS importer resolves `require`) and the pure-fn artifact. No sources and no `source`
+// condition, the tarball carries neither. Overlay under a test cwd WITHOUT program roots; errors when the dist is unbuilt.
 func RealMarkerPackage() (map[string]string, error) {
 	markerOnce.Do(func() { markerFiles, markerErr = readMarkerPackage() })
 	return markerFiles, markerErr
@@ -60,13 +58,18 @@ func readMarkerPackage() (map[string]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("testfixtures: reading the marker package.json: %w", err)
 	}
-	files[MarkerPackagePrefix+"package.json"] = string(packageJSON)
+	published, stripErr := withoutSourceCondition(packageJSON)
+	if stripErr != nil {
+		return nil, fmt.Errorf("testfixtures: rewriting the marker package.json as published: %w", stripErr)
+	}
+	files[MarkerPackagePrefix+"package.json"] = published
 	distRoot := filepath.Join(pkgRoot, "dist")
 	walkErr := filepath.WalkDir(distRoot, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if entry.IsDir() || !strings.HasSuffix(path, ".d.ts") {
+		// The rest of the dist is the package's own runtime, which a consumer's build never reads.
+		if entry.IsDir() || !(strings.HasSuffix(path, ".d.ts") || strings.Contains(path, artifactDirSegment)) {
 			return nil
 		}
 		rel, relErr := filepath.Rel(distRoot, path)
@@ -85,6 +88,78 @@ func readMarkerPackage() (map[string]string, error) {
 	}
 	if len(files) < 2 {
 		return nil, fmt.Errorf("testfixtures: no .d.ts files under %s — build the marker dist with `pnpm run check:builds`", distRoot)
+	}
+	return files, nil
+}
+
+// withoutSourceCondition is scripts/lib/publish-manifest.mjs's twin: every `source` condition dropped, at any depth.
+func withoutSourceCondition(manifest []byte) (string, error) {
+	var decoded any
+	if err := json.Unmarshal(manifest, &decoded); err != nil {
+		return "", err
+	}
+	stripped, err := json.Marshal(dropSourceKeys(decoded))
+	if err != nil {
+		return "", err
+	}
+	return string(stripped), nil
+}
+
+func dropSourceKeys(node any) any {
+	switch typed := node.(type) {
+	case map[string]any:
+		out := make(map[string]any, len(typed))
+		for key, value := range typed {
+			if key == "source" {
+				continue
+			}
+			out[key] = dropSourceKeys(value)
+		}
+		return out
+	case []any:
+		for i, value := range typed {
+			typed[i] = dropSourceKeys(value)
+		}
+		return typed
+	default:
+		return node
+	}
+}
+
+// RealMarkerSources returns the marker package's own `src/**/*.ts` under MarkerPackagePrefix. Layer it OVER RealMarkerPackage for the
+// WORKSPACE shape, where a sibling resolves through the `source` condition; opt-in, because a consumer install has none of it.
+func RealMarkerSources() (map[string]string, error) {
+	markerSrcOnce.Do(func() { markerSrcFiles, markerSrcErr = readMarkerSources() })
+	return markerSrcFiles, markerSrcErr
+}
+
+func readMarkerSources() (map[string]string, error) {
+	_, self, _, ok := runtime.Caller(0)
+	if !ok {
+		return nil, fmt.Errorf("testfixtures: runtime.Caller failed to locate the package directory")
+	}
+	srcRoot := filepath.Join(filepath.Dir(self), "..", "..", "..", "packages", "run-types", "src")
+	files := map[string]string{}
+	walkErr := filepath.WalkDir(srcRoot, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() || !strings.HasSuffix(path, ".ts") || strings.HasSuffix(path, ".spec.ts") || strings.HasSuffix(path, ".test.ts") {
+			return nil
+		}
+		rel, relErr := filepath.Rel(srcRoot, path)
+		if relErr != nil {
+			return relErr
+		}
+		content, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		files[MarkerPackagePrefix+"src/"+filepath.ToSlash(rel)] = string(content)
+		return nil
+	})
+	if walkErr != nil {
+		return nil, fmt.Errorf("testfixtures: reading the marker sources under %s: %w", srcRoot, walkErr)
 	}
 	return files, nil
 }

@@ -12,10 +12,6 @@ export function headersFromIncomingMessage(rawRequest: IncomingMessage): MionHea
   return headersFromRecord(rawRequest.headers as any, true);
 }
 
-/**
- * Reusable class for managing HTTP response headers with ServerResponse integration
- * Provides a MionHeaders interface that wraps Node.js ServerResponse header methods
- */
 class ServerResponseHeadersImpl implements MionHeaders {
   constructor(private resp: ServerResponse) {}
 
@@ -37,20 +33,22 @@ class ServerResponseHeadersImpl implements MionHeaders {
   }
 
   entries(): IterableIterator<[string, string]> {
-    return getSingleHeadersObj(this.resp).entries();
+    return new Map(singleHeaderEntries(this.resp)).entries();
   }
 
   keys(): IterableIterator<string> {
-    return getSingleHeadersObj(this.resp).values();
+    return new Map(singleHeaderEntries(this.resp)).keys();
   }
 
   values(): IterableIterator<string> {
-    return getSingleHeadersObj(this.resp).values();
+    return new Map(singleHeaderEntries(this.resp)).values();
   }
 }
 
 export function headersFromServerResponse(resp: ServerResponse, initialHeaders: Record<string, string> | null): MionHeaders {
-  if (initialHeaders) Object.entries(initialHeaders).forEach(([name, value]) => resp.setHeader(name, value));
+  // for...in allocates no entries array and no closure
+  // content-type is the reply's: a raw middleware that ends the response itself must not send the JSON one
+  if (initialHeaders) for (const name in initialHeaders) if (name !== 'content-type') resp.setHeader(name, initialHeaders[name]);
   return new ServerResponseHeadersImpl(resp);
 }
 
@@ -60,7 +58,8 @@ function toSingleHeader(value: string | number | string[] | undefined): string |
   return value as string;
 }
 
-function getSingleHeadersObj(resp: ServerResponse) {
-  const entries = Object.entries(resp.getHeaders()).map(([name, value]) => [name, toSingleHeader(value)]);
-  return Object.fromEntries(entries);
+function singleHeaderEntries(resp: ServerResponse): [string, string][] {
+  return Object.entries(resp.getHeaders())
+    .map(([name, value]) => [name, toSingleHeader(value)] as [string, string | undefined])
+    .filter((entry): entry is [string, string] => entry[1] !== undefined);
 }

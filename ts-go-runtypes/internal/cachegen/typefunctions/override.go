@@ -2,59 +2,43 @@ package typefunctions
 
 import (
 	"sort"
-	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// overrideOpKeyForTag maps a simple (non-composite) family tag to the public
-// operation FnKey RunType.Overrides is keyed by ("val" → "val", "tb" → "tb",
-// …). Returns "" for tags with no public operation (the internal primitives,
-// which are never user-overridable) so the override check is skipped for them.
-// Composite JSON tags resolve their op key in json_composite.go.
+// overrideOpKeyForTag maps a simple family tag to the op NAME RunType.Overrides is keyed by ("val" → "validate").
+// The name, not the marker token, is the hash identity, so marker renames never move an overridden type.
+// "" means an internal primitive and skips the check; composite JSON tags resolve in json_composite.go.
 func overrideOpKeyForTag(tag string) string {
 	op, ok := operations.ByFamilyTag(tag)
 	if !ok || !op.Public {
 		return ""
 	}
-	return op.FnKey
-}
-
-// primitiveCompositeOpKey maps a JSON-composite PRIMITIVE family tag to the
-// composite operation op key that owns it. When a type's composite op is
-// overridden, the redirect references no primitives, so the primitive entry for
-// that type is dead — and for a type the structural emitter can't handle (the
-// escape-valve case), emitting it would alwaysThrow on the very type the user
-// overrode to avoid. Returns "" for non-primitive tags. The set is closed (the
-// operation registry's collision guard pins it): pj/pjs/sj feed the encoder,
-// rj/ukuw feed the decoder.
-func primitiveCompositeOpKey(tag string) string {
-	switch tag {
-	case "pj", "pjs", "sj":
-		return "jsonEncoder"
-	case "rj", "ukuw":
-		return "jsonDecoder"
+	if base, aliased := overrideBaseOperation[op.Name]; aliased {
+		return base
 	}
-	return ""
+	return op.Name
 }
 
-// compositeOverriddenForPrimitive reports whether the runtype's JSON composite
-// op that OWNS this primitive family is overridden — in which case the primitive
-// entry must be skipped entirely (the composite redirect names no primitives).
-func compositeOverriddenForPrimitive(runType *reflection.RunType, primitiveTag string) bool {
-	if runType == nil || len(runType.Overrides) == 0 {
-		return false
-	}
-	opKey := primitiveCompositeOpKey(primitiveTag)
-	return opKey != "" && runType.Overrides[opKey] != ""
+// overrideBaseOperation: an option-selected family runs its factory's one plain overrideX<T>() registration too.
+var overrideBaseOperation = map[string]string{
+	"validateStrict":            "validate",
+	"validateUnionKeys":         "validate",
+	"validationErrorsStrict":    "validationErrors",
+	"validationErrorsUnionKeys": "validationErrors",
+	"removeUnknownKeysShared":   "removeUnknownKeys",
+	"removeUnknownKeysRefuse":   "removeUnknownKeys",
 }
 
-// overrideHashForTag returns the cfn body hash an override registered for this
-// (family tag, type), or "" when the type carries no override for that family.
+// composedByOverride reports whether a primitive demand exists only for a JSON composite this type overrides.
+func composedByOverride(runType *reflection.RunType, composedBy string) bool {
+	return composedBy != "" && runType != nil && runType.Overrides[composedBy] != ""
+}
+
+// overrideHashForTag returns the cfn body hash an override registered for this (family tag, type).
 func overrideHashForTag(runType *reflection.RunType, tag string) string {
 	if runType == nil || len(runType.Overrides) == 0 {
 		return ""
@@ -66,27 +50,23 @@ func overrideHashForTag(runType *reflection.RunType, tag string) string {
 	return runType.Overrides[opKey]
 }
 
-// buildRedirectEntry renders the cfn-redirect entry for an overridden
-// (family, type): a KindTypeFn entry whose factory returns the user's custom
-// pure function instead of the Go-emitted structural body. The body is a
-// one-liner — `return utl.usePureFn('cfn::<hash>')` — and the cfn module rides
-// SoftDeps so initFromTuple registers it before the redirect materializes.
-// usePureFn (not getPureFn) throws on a missing module, so an emitter bug fails
-// loudly rather than silently degrading to the family identity.
-//
-// Mirrors collectJsonCompositeEntry's arg assembly; the redirect is never
-// disk-cached (it is trivial to re-derive and the cfn key is content-addressed).
-func buildRedirectEntry(entryKey string, tag string, runType *reflection.RunType, cfnHash string, opts RenderOpts) *entrymodules.Entry {
-	cfnKey := purefunctions.OverrideNamespace + "::" + cfnHash
-	factoryBody := "return utl.usePureFn(" + quoteJS(cfnKey) + ")"
-	codeArg := "undefined"
-	if opts.EmitMode.EmitsCode() {
-		codeArg = quoteJS(factoryBody)
+// buildRedirectEntry renders the cfn-redirect entry for an overridden (family, type): a KindTypeFn entry
+// whose factory returns the user's custom pure function instead of the Go-emitted structural body. That
+// module rides SoftDeps so initFromTuple registers it before the redirect materializes, and usePureFn (not
+// getPureFn) throws on a missing module, so an emitter bug fails loudly instead of degrading to the family
+// identity. Mirrors collectJsonCompositeEntry's arg assembly; the redirect is never disk-cached, being
+// trivial to re-derive under a content-addressed cfn key.
+func buildRedirectEntry(entryKey string, tag string, runType *reflection.RunType, cfnKey string, opts RenderOpts) *entrymodules.Entry {
+	typed := opts.EmitMode.EmitsTypes()
+	fnType := FnType(tag, runType.ID)
+	cast := ""
+	if fnType != "" {
+		cast = tsAnnIf(typed, " as unknown as "+fnType)
 	}
-	createRTFnArg := "u"
-	if opts.EmitMode.EmitsFactory() {
-		createRTFnArg = "function g_" + entryKey + "(utl){" + factoryBody + "}"
-	}
+	factoryBody := "return utl.usePureFn(" + quoteJS(cfnKey) + tsAnnIf(typed, " as PureFnId") + ")" + cast
+	types := closureTypes(typed, tag, runType.ID)
+	factoryDecl := "function g_" + entryKey + "(utl" + types.Utl + ")" + types.Result + "{" + factoryBody + "}"
+	codeArg, createRTFnArg := fnSlots(opts.EmitMode, factoryBody, factoryDecl)
 	args := holeifyArgs([]string{
 		quoteJS(entryKey),
 		quoteJS(rtTypeName(runType)),
@@ -106,16 +86,15 @@ func buildRedirectEntry(entryKey string, tag string, runType *reflection.RunType
 	}
 }
 
-// AssertOverrideCfn verifies the invariant every cfn redirect relies on: the
-// `cfn::<hash>` module it forwards to via `utl.usePureFn` actually rendered. A
-// miss is an emitter bug — the unguarded usePureFn would throw at runtime — so
-// it surfaces as an OVR002 Error at collect time. Mirrors AssertCompositeSoftDeps.
-// Deterministic order via sorted keys.
-func AssertOverrideCfn(graph entrymodules.Graph, diagSink *[]diagnostics.Diagnostic) {
-	if diagSink == nil {
+// AssertOverrideCfn verifies the invariant every cfn redirect relies on: the override module it forwards to
+// via `utl.usePureFn` actually rendered. A miss is an emitter bug (the unguarded usePureFn would throw at
+// runtime), so it surfaces as an override-function-not-built Error at collect time, in sorted-key order. Mirrors
+// AssertCompositeSoftDeps. An override's id looks like any other pure fn's, so membership in overrideIDs is
+// the only thing telling the two apart; there is no prefix to scan for.
+func AssertOverrideCfn(graph entrymodules.Graph, overrideIDs map[string]bool, diagSink *[]diagnostics.Diagnostic) {
+	if diagSink == nil || len(overrideIDs) == 0 {
 		return
 	}
-	cfnPrefix := purefunctions.OverrideNamespace + "::"
 	keys := make([]string, 0, len(graph))
 	for key := range graph {
 		keys = append(keys, key)
@@ -127,7 +106,7 @@ func AssertOverrideCfn(graph entrymodules.Graph, diagSink *[]diagnostics.Diagnos
 			continue
 		}
 		for _, dep := range entry.SoftDeps {
-			if !strings.HasPrefix(dep, cfnPrefix) {
+			if !overrideIDs[dep] {
 				continue
 			}
 			if target, ok := graph[dep]; ok && target != nil && target.Kind != entrymodules.KindMissing {

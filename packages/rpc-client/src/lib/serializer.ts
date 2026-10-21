@@ -1,0 +1,198 @@
+/* ########
+ * 2023 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+import type {ResponseBody} from '@mionjs/router';
+import {type MethodWithJitFns, RpcError, isRpcError, MION_ROUTES, HandlerType} from '@mionjs/core';
+import type {CallContext} from '../types.ts';
+import {useMethodFns} from './methods.ts';
+import {hasHeadersSubsetParam} from './headers.ts';
+import {ClientOptions} from '../types.ts';
+
+export type SerializedBody = string;
+
+export type ContentType = 'application/json; charset=utf-8';
+
+/** Runs on the parsed body before anything decodes, and may hand back entries to add untouched. */
+type TakeRaw = (parsedBody: Record<string, unknown>) => Record<string, unknown> | undefined;
+
+export interface SerializedRequest {
+  body: SerializedBody;
+  contentType: ContentType;
+}
+
+// ################################## SERIALIZE ##################################
+
+/** `optimistic`: the route's metadata is still being fetched, so no compiled encoders exist yet. */
+export function serializeRequestBody(context: CallContext, optimistic = false): SerializedRequest {
+  const body = optimistic ? serializeJSonBodyOptimistic(context) : serializeJsonBody(context);
+  return {body, contentType: 'application/json; charset=utf-8'};
+}
+
+function serializeJsonBody(context: CallContext): string {
+  const props: string[] = [];
+  const subRequestIds = Object.keys(context.subRequestList);
+
+  for (let i = 0; i < subRequestIds.length; i++) {
+    const id = subRequestIds[i];
+    const subRequest = context.subRequestList[id];
+    if (!subRequest) continue;
+    let params = subRequest.params;
+    const method = useMethodFns(id);
+    if (method.type === HandlerType.headersMiddleware && method.headersParam) {
+      params = getParamsWithoutHeadersSubset(params);
+    }
+    try {
+      const jsonValue = stringifyHandlerParams(method, params, context.options.validateParams);
+      if (!jsonValue) continue;
+      props.push(`${JSON.stringify(id)}:${jsonValue}`);
+    } catch (e: any) {
+      const err = new RpcError({
+        type: 'json-stringify-request-error',
+        publicMessage: `Failed to stringify params for handler ${id}`,
+        originalError: e,
+      });
+      throw err;
+    }
+  }
+
+  return `{${props.join(',')}}`;
+}
+
+/** Plain wire forms every server decoder accepts; a HeadersSubset goes out as HTTP headers, never in the body */
+function serializeJSonBodyOptimistic(context: CallContext): string {
+  const body: Record<string, any> = {};
+  const subRequestIds = Object.keys(context.subRequestList);
+  for (const id of subRequestIds) {
+    const subRequest = context.subRequestList[id];
+    if (!subRequest) continue;
+    const params = hasHeadersSubsetParam(id, subRequest.params)
+      ? getParamsWithoutHeadersSubset(subRequest.params)
+      : subRequest.params;
+    if (params?.length) body[id] = params;
+  }
+  return JSON.stringify(body, wireFormReplacer);
+}
+
+/** Writes the params with the strategy the server compiled. */
+function stringifyHandlerParams(method: MethodWithJitFns, params: any[], validated: boolean): string {
+  if (!method.paramsCount) return '';
+  const {json, isType} = method.paramsJitFns;
+  if (json.encode.isNoop) return JSON.stringify(params);
+  // with local validation off a wrong-typed value must still reach the server's validation, and the
+  // compiled encoders assume the type, so it rides the plain wire form instead
+  if (!validated && !isType.isNoop && !isType.fn(params)) return JSON.stringify(params, wireFormReplacer);
+  const write = (): string => JSON.stringify(json.encode.fn(params));
+  // the compiled encoder rejects anything but the real params (a batch mapping's `null` placeholder,
+  // a wrong-typed value), so those fall back to the plain wire forms the server decoders accept
+  try {
+    return write();
+  } catch {
+    return JSON.stringify(params, wireFormReplacer);
+  }
+}
+
+/** The wire forms the server's JSON decoders accept; Date, URL and Temporal need no arm, their own toJSON writes it.
+ *  No union `[index, value]` envelope: the index needs metadata, so the server's guarded decoder refuses and the client retries. */
+export function wireFormReplacer(this: unknown, key: string, value: unknown): unknown {
+  if (value instanceof Map) return [...value];
+  if (value instanceof Set) return [...value];
+  if (typeof value === 'bigint') return value.toString();
+  return value;
+}
+
+// ################################## DE-SERIALIZE ##################################
+
+export async function deserializeResponseBody(
+  response: Response,
+  options: ClientOptions,
+  takeRaw?: TakeRaw
+): Promise<ResponseBody> {
+  let parsedBody: any;
+  const contentType = response.headers.get('content-type')?.toLowerCase();
+  switch (true) {
+    case !!contentType?.includes('application/json'):
+      parsedBody = await deserializeJsonResponseBody(response, takeRaw);
+      break;
+    default:
+      throw new RpcError({
+        type: 'unsupported-content-type',
+        publicMessage: `Unsupported response content-type: '${contentType || 'none'}'`,
+      });
+  }
+  return parsedBody;
+}
+
+async function deserializeJsonResponseBody(response: Response, takeRaw: TakeRaw | undefined) {
+  try {
+    const parsedBody = await response.json();
+    const rawEntries = parsedBody && typeof parsedBody === 'object' ? takeRaw?.(parsedBody) : undefined;
+    // kept out of the body, so the wire's returned-vs-thrown split survives
+    const extracted = extractThrownErrors(parsedBody);
+    if (extracted.platformError) return {[MION_ROUTES.platformError]: extracted.platformError};
+    let thrownErrors = extracted.thrownErrors;
+    const deserializedBody: ResponseBody = {};
+    Object.entries(parsedBody).forEach(([methodId, returnValue]) => {
+      const method = useMethodFns(methodId);
+      try {
+        deserializedBody[methodId] = parseHandlerJsonReturnValue(method, returnValue);
+      } catch (decodeError: any) {
+        // an unreadable answer is untyped: thrown, never the method's declared value
+        (thrownErrors ??= {})[methodId] = new RpcError({
+          type: 'deserialization-error',
+          publicMessage: `Invalid response from Route or Middleware '${method.id}', can not deserialize return value: ${decodeError.message}`,
+          errorData: decodeError?.errors,
+        });
+      }
+    });
+    if (thrownErrors) deserializedBody[MION_ROUTES.thrownErrors] = thrownErrors;
+    if (rawEntries) Object.assign(deserializedBody, rawEntries);
+    return deserializedBody;
+  } catch (err: any) {
+    throw new RpcError({
+      type: 'parsing-json-response-error',
+      publicMessage: `Invalid json response body: ${err?.message || 'unknown parsing error.'}`,
+    });
+  }
+}
+
+/** Takes [MION_ROUTES.thrownErrors] out WITHOUT flattening it into the body, so the returned-vs-thrown split
+ * survives for error classification. Thrown errors are not strongly typed and deserialize as RpcError<string>. */
+function extractThrownErrors(parsedBody: any): {
+  platformError?: RpcError<string>;
+  thrownErrors?: Record<string, RpcError<string>>;
+} {
+  if (!(MION_ROUTES.thrownErrors in parsedBody)) return {};
+  const rawThrownErrors = parsedBody[MION_ROUTES.thrownErrors];
+  delete parsedBody[MION_ROUTES.thrownErrors];
+  // if platform error is present that means the router never executed (just the platform wrapper)
+  if (MION_ROUTES.platformError in rawThrownErrors) {
+    const globalErrorValue = rawThrownErrors[MION_ROUTES.platformError];
+    const platformError = isRpcError(globalErrorValue) ? new RpcError<string>(globalErrorValue) : globalErrorValue;
+    return {platformError};
+  }
+  // keyed by whatever the response says, so a `__proto__` key stays a plain entry
+  const thrownErrors: Record<string, RpcError<string>> = Object.create(null);
+  Object.entries(rawThrownErrors).forEach(([id, value]) => {
+    thrownErrors[id] = isRpcError(value) ? new RpcError<string>(value) : (value as RpcError<string>);
+  });
+  return {thrownErrors};
+}
+
+function getParamsWithoutHeadersSubset(params: any[]): any[] {
+  if (!params || params.length === 0) return [];
+  return params.slice(1);
+}
+
+function parseHandlerJsonReturnValue(method: MethodWithJitFns, returnValue: any): any {
+  if (!method.hasReturnData) return returnValue;
+  const {decode} = method.returnJitFns.json;
+  if (decode.isNoop || !returnValue) return returnValue;
+
+  if (returnValue instanceof RpcError) return returnValue;
+  if (isRpcError(returnValue)) return new RpcError(returnValue);
+  return decode.fn(returnValue);
+}

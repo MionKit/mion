@@ -14,8 +14,8 @@
 //                           reference with the input, and an object-typed
 //                           root keeps the input root's prototype
 //     O17 clone-consistency validate(clone(v)) is true, clone(clone(v))
-//                           deep-equals clone(v), and (extras stream)
-//                           hasUnknownKeys(clone(v)) is false
+//                           deep-equals clone(v), and (extras stream) the
+//                           strict validator accepts clone(v)
 //
 //   ROBUSTNESS (junk stream)
 //     clone's contract does NOT cover non-conforming input — it may return
@@ -32,21 +32,16 @@ import type {RunType} from '../../../src/runtypes/types.ts';
 import {snapshot, type Violation} from '../value/fuzzOracle.ts';
 import {referenceClone} from './referenceClone.ts';
 
-/** One target under clone fuzz: the schema drives mock/extras generation and
- *  the reference interpreter; validate gates conformance; hasUnknownKeys is
- *  the optional extras cross-check. The test file builds these so the Vite
- *  plugin can rewrite the `createX<T>()` call sites. **/
+/** validate gates conformance; the optional validateStrict (`{checkUnknowns: true}`) cross-checks the extras stream.
+ *  Built in the test file so the Vite plugin can rewrite the `createX<T>()` call sites. **/
 export interface CloneFuzzTarget {
   title: string;
   /** Runtype tree — mock/extras generation + the reference interpreter. **/
   schema: RunType;
   mock: () => unknown;
   validate: (value: unknown) => boolean;
-  hasUnknownKeys?: (value: unknown) => boolean;
-  /** The compiled `createCloneExactShapeFn<T>()` under test. `any` parameter:
-   *  `CloneExactShapeFn<T>` is T-narrowed and strictFunctionTypes rejects it
-   *  where `(value: unknown) => unknown` is expected (contravariance) — same
-   *  erasure the cloning suite's `AnyCloneFn` does. **/
+  validateStrict?: (value: unknown) => boolean;
+  /** `any`: strictFunctionTypes rejects the T-narrowed `RemoveUnknownKeysFn<T>` where `unknown` is expected. **/
   clone: (value: any) => unknown;
 }
 
@@ -171,13 +166,14 @@ export function checkCloneConsistency(
   } catch (err) {
     return violation('O17', target, ctx, `clone threw on its own output: ${errMsg(err)}`, out);
   }
-  if (options.expectNoUnknownKeys && target.hasUnknownKeys) {
+  // validate(out) passed above, so a strict rejection can only be an unknown key the clone kept.
+  if (options.expectNoUnknownKeys && target.validateStrict) {
     try {
-      if (target.hasUnknownKeys(out) !== false) {
-        return violation('O17', target, ctx, 'hasUnknownKeys still finds unknown keys on the clone of an extras value', out);
+      if (target.validateStrict(out) !== true) {
+        return violation('O17', target, ctx, 'checkUnknowns validator still rejects the clone of an extras value', out);
       }
     } catch (err) {
-      return violation('O17', target, ctx, `hasUnknownKeys threw on a clone: ${errMsg(err)}`, out);
+      return violation('O17', target, ctx, `checkUnknowns validator threw on a clone: ${errMsg(err)}`, out);
     }
   }
   return null;
@@ -227,7 +223,7 @@ function isTemporalInstance(value: object): boolean {
   return false;
 }
 
-/** Structural deep equality for clone outputs. Handles Map/Set/Date/RegExp/
+/** Structural deep equality for clone outputs. Handles Map/Set/Date/URL/RegExp/
  *  NaN and Temporal; functions, symbols and promises compare by identity
  *  (they are pass-through in the clone contract, so both sides hold the
  *  same reference). Key PRESENCE matters (`{a: undefined}` ≠ `{}`), and
@@ -239,6 +235,9 @@ export function deepEqual(a: unknown, b: unknown): boolean {
   if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
   if (a instanceof Date || b instanceof Date) {
     return a instanceof Date && b instanceof Date && Object.is(a.getTime(), b.getTime());
+  }
+  if (a instanceof URL || b instanceof URL) {
+    return a instanceof URL && b instanceof URL && a.href === b.href;
   }
   if (a instanceof RegExp || b instanceof RegExp) {
     return (
@@ -317,8 +316,9 @@ function collectMutableRefs(value: unknown, out: Set<object>, seen: Set<object>)
   if (seen.has(value)) return;
   seen.add(value);
   if (isOpaqueHandle(value)) return;
+  if (value instanceof RegExp) return; // not data — shared by reference, never a fresh copy
   out.add(value);
-  if (value instanceof Date || value instanceof RegExp) return;
+  if (value instanceof Date || value instanceof URL) return;
   if (value instanceof Map) {
     for (const [entryKey, entryValue] of value) {
       collectMutableRefs(entryKey, out, seen);

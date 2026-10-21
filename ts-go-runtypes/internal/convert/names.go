@@ -1,8 +1,8 @@
-// names.go owns identifier decisions: the local names the printers spell
-// (namespace aliases, imported helpers) and the derived declaration names
-// (`MyType` → `myTypeRT` and back), collision-checked against everything
-// already named at the file's top level.
 package convert
+
+// names.go owns identifier decisions: the local names the printers spell and the derived declaration
+// names (`MyType` → `myTypeRT` and back), collision-checked against everything already named at the
+// file's top level.
 
 import (
 	"strings"
@@ -11,11 +11,10 @@ import (
 	"github.com/microsoft/typescript-go/shim/ast"
 )
 
-// nameTable carries the local spellings the printers use plus the taken-name
-// set for collision-free derivation.
+// nameTable carries the printers' local spellings plus the taken-name set derivation claims from.
 type nameTable struct {
-	// Namespace aliases / helper locals, honoring existing imports so a file
-	// that already says `import * as B from '…/builders'` keeps its alias.
+	// Namespace aliases and helper locals honor existing imports, so a file that already says
+	// `import * as B from '…/builders'` keeps its alias.
 	RT         string
 	TF         string
 	TFT        string
@@ -25,12 +24,10 @@ type nameTable struct {
 	taken      map[string]bool
 }
 
-// newNames seeds the table from the recognized declarations, the file's
-// existing imports and EVERY other top-level name in scope (a `const RT = 5`
-// must push the builders namespace onto a suffixed alias). Helper spellings
-// resolve in order: an existing named binding, an existing namespace import
-// of the module (qualified member spelling — no import edit needed), else
-// the default name claimed against the taken set.
+// newNames seeds the table from the recognized declarations, the file's imports and EVERY other
+// top-level name in scope, so a `const RT = 5` pushes the builders namespace onto a suffixed alias.
+// A helper spelling resolves in order: an existing named binding, an existing namespace import of
+// the module (qualified member spelling, needing no import edit), else the default name claimed.
 func newNames(decls []*declaration, imports *importScan, inScope map[string]bool) *nameTable {
 	names := &nameTable{taken: map[string]bool{}}
 	for _, decl := range decls {
@@ -93,11 +90,9 @@ func newNames(decls []*declaration, imports *importScan, inScope map[string]bool
 	return names
 }
 
-// forScope returns a name table for claims made INSIDE one block: the file's
-// own names still block (a nested pair must never shadow a top-level name the
-// scope might reference), but two sibling scopes may claim the same name.
-// Without this, drizzle's twenty `const users` test bodies exhaust claim's
-// single-digit suffix budget on the ninth.
+// forScope returns a name table for claims made INSIDE one block: the file's own names still block,
+// since a nested pair must never shadow a top-level name, but two sibling scopes may claim the same
+// name. Without it, twenty sibling `const users` bodies exhaust claim's single-digit suffix budget.
 func (names *nameTable) forScope(baseTaken map[string]bool, scopeNames map[string]bool) *nameTable {
 	scoped := *names
 	scoped.taken = make(map[string]bool, len(baseTaken)+len(scopeNames))
@@ -110,18 +105,16 @@ func (names *nameTable) forScope(baseTaken map[string]bool, scopeNames map[strin
 	return &scoped
 }
 
-// deriveConstName maps a type name onto its runtype const (`MyType` →
-// `myTypeRT`), suffixing digits on collision. Returns "" when no free name
-// exists within the suffix budget. Generic runtype pairs ONLY — a drizzle
-// table const is a table, not a runtype, and derives via the Table rule.
+// deriveConstName maps a type name onto its runtype const (`MyType` → `myTypeRT`), suffixing digits
+// on collision and returning "" when the budget runs out. Generic runtype pairs ONLY: a drizzle
+// table const is a table, not a runtype, and derives through the Table rule.
 func (names *nameTable) deriveConstName(typeName string) string {
 	base := lowerFirst(typeName) + "RT"
 	return names.claim(base)
 }
 
-// deriveTypeName maps a const name back onto a type name (`myTypeRT` →
-// `MyType`) for consts that never had an InferType alias. Generic runtype
-// pairs only (see deriveConstName).
+// deriveTypeName maps a const name back onto a type name for consts that never had an InferType
+// alias. Generic runtype pairs only (see deriveConstName).
 func (names *nameTable) deriveTypeName(constName string) string {
 	base := strings.TrimSuffix(constName, "RT")
 	if base == constName || base == "" {
@@ -130,8 +123,8 @@ func (names *nameTable) deriveTypeName(constName string) string {
 	return names.claim(upperFirst(base))
 }
 
-// jsReservedWords guards the drizzle const derivation: stripping Table off a
-// type name must never produce a keyword (`NewTable` → `new`).
+// jsReservedWords guards the drizzle const derivation: stripping Table off a type name must never
+// produce a keyword (`NewTable` → `new`).
 var jsReservedWords = map[string]bool{
 	"await": true, "break": true, "case": true, "catch": true, "class": true,
 	"const": true, "continue": true, "debugger": true, "default": true,
@@ -144,11 +137,9 @@ var jsReservedWords = map[string]bool{
 	"while": true, "with": true, "yield": true,
 }
 
-// deriveDrizzleConstName maps a drizzle table type name onto its table const,
-// the inverse of deriveDrizzleTypeName: lowercase the first letter
-// (`Users$table` → `users$table`). Only reached when the type has no companion
-// const to keep, so it needs a free sensible name, not a perfect inverse of a
-// collision suffix.
+// deriveDrizzleConstName lowercases the first letter of a table type name, the inverse of
+// deriveDrizzleTypeName. Only reached when the type has no companion const to keep, so it needs a
+// free sensible name rather than a perfect inverse of a collision suffix.
 func (names *nameTable) deriveDrizzleConstName(typeName string) string {
 	short := lowerFirst(typeName)
 	if short != typeName && !names.taken[short] && !jsReservedWords[short] {
@@ -158,10 +149,9 @@ func (names *nameTable) deriveDrizzleConstName(typeName string) string {
 	return names.claim(short + "Table")
 }
 
-// deriveDrizzleTypeName maps a table const onto its table type name by
-// uppercasing the first letter (`users$table` → `Users$table`). A const that is
-// ALREADY capitalised gets a `T` instead, since uppercasing would hand the type
-// the const's own spelling; further collisions walk T1, T2, … .
+// deriveDrizzleTypeName uppercases a table const's first letter. A const that is ALREADY capitalised
+// gets a `T` instead, because uppercasing would hand the type the const's own spelling; further
+// collisions walk T1, T2, … .
 func (names *nameTable) deriveDrizzleTypeName(constName string) string {
 	stem := upperFirst(constName)
 	if stem != constName && !names.taken[stem] {
@@ -182,8 +172,7 @@ func (names *nameTable) deriveDrizzleTypeName(constName string) string {
 	return ""
 }
 
-// claim returns base or a digit-suffixed variant, registering the result;
-// "" when 1–9 are all taken.
+// claim returns base or a digit-suffixed variant and registers it; "" when 1-9 are all taken.
 func (names *nameTable) claim(base string) string {
 	if !names.taken[base] {
 		names.taken[base] = true
@@ -217,8 +206,8 @@ func upperFirst(name string) string {
 	return string(runes)
 }
 
-// lineIndentAt returns the whitespace the line containing start opens with —
-// what a replacement spliced there has to match on its continuation lines.
+// lineIndentAt returns the whitespace the line containing start opens with, which a replacement
+// spliced there has to match on its continuation lines.
 func lineIndentAt(source string, start int) string {
 	lineStart := strings.LastIndexByte(source[:start], '\n') + 1
 	indent := source[lineStart:start]
@@ -228,8 +217,8 @@ func lineIndentAt(source string, start int) string {
 	return indent
 }
 
-// indentAfterFirstLine prefixes every line but the first with indent: the first
-// line lands where the replaced statement already started.
+// indentAfterFirstLine prefixes every line but the first with indent, the first landing where the
+// replaced statement started.
 func indentAfterFirstLine(text, indent string) string {
 	if indent == "" || !strings.Contains(text, "\n") {
 		return text
@@ -243,10 +232,9 @@ func indentAfterFirstLine(text, indent string) string {
 	return strings.Join(lines, "\n")
 }
 
-// baseTakenNames are the names visible everywhere in a file: its import
-// bindings and its top-level declarations. A nested scope's claims start from
-// these, never from the whole file's, so sibling scopes do not crowd each other
-// out.
+// baseTakenNames are the names visible everywhere in a file: its import bindings and its top-level
+// declarations. A nested scope claims from these, never from the whole file's, so sibling scopes do
+// not crowd each other out.
 func baseTakenNames(imports *importScan, inScope map[string]bool) map[string]bool {
 	taken := map[string]bool{}
 	if imports != nil {
@@ -260,10 +248,9 @@ func baseTakenNames(imports *importScan, inScope map[string]bool) map[string]boo
 	return taken
 }
 
-// wholeLineSpan is the span a REMOVED statement occupies: its own text plus the
-// trailing newline, and — when nothing but whitespace precedes it on the line —
-// its leading indentation too. Leaving that indentation behind would push the
-// next line out, which is invisible at the top level and obvious inside a block.
+// wholeLineSpan is the span a REMOVED statement occupies: its text, the trailing newline, and its
+// leading indentation when only whitespace precedes it on the line. Indentation left behind would
+// push the next line out.
 func wholeLineSpan(source string, statement *ast.Node) (int, int) {
 	start := tokenStart(source, statement.Pos())
 	lineStart := strings.LastIndexByte(source[:start], '\n') + 1

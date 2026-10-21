@@ -59,16 +59,13 @@ defineProps<{
 
 .bench-info-glyph {
   display: inline-flex;
-  color: var(--ui-text-dimmed, #9aa0a6);
+  color: var(--ui-text-dimmed);
   opacity: 0.75;
   transition: color 0.12s ease, opacity 0.12s ease;
 }
 
-/* Fully opaque surface: the tip overlays heat-mapped cells, and any show-through
-   makes the text unreadable. Own token rather than --rt-surface / --rt-panel,
-   both of which are deliberately translucent. */
+/* fully opaque (--rt-tip-bg): the tip overlays heat-mapped cells; --rt-surface / --rt-panel are translucent */
 .bench-info-tip {
-  --rt-tip-bg: #14161a;
   position: absolute;
   top: calc(100% + 7px);
   z-index: 60;
@@ -85,20 +82,15 @@ defineProps<{
   text-transform: none;
   text-align: left;
   white-space: normal;
-  color: var(--ui-text-muted, #b3b8bd);
+  color: var(--ui-text-muted);
   background: var(--rt-tip-bg);
-  border: 1px solid var(--ui-border, rgba(138, 168, 94, 0.4));
+  border: 1px solid var(--ui-border);
   border-radius: 0.4rem;
-  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 6px 22px var(--rt-tip-shadow);
   opacity: 0;
   transform: translateY(-2px);
   transition: opacity 0.12s ease, transform 0.12s ease;
   pointer-events: none;
-}
-
-:root.light .bench-info-tip {
-  --rt-tip-bg: #ffffff;
-  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.18);
 }
 
 /* Anchored to the glyph, opening toward the middle of the table so a wide tip
@@ -113,11 +105,11 @@ defineProps<{
 
 .bench-info-name {
   font-weight: 600;
-  color: var(--ui-primary, #79af43);
+  color: var(--ui-primary);
 }
 
 .bench-info-detail {
   font-size: 0.66rem;
-  color: var(--ui-text-dimmed, #9aa0a6);
+  color: var(--ui-text-dimmed);
 }
 </style>

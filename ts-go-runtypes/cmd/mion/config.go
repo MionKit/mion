@@ -11,6 +11,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -18,6 +19,8 @@ import (
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/enrichgen"
 )
 
@@ -55,10 +58,12 @@ type tsRuntypesPlugin struct {
 	Name string `json:"name"`
 	// GenDir is the RunTypes output root; every location under it is
 	// convention (types/, enriched/{friendly,mock,i18n}) and NOT configurable.
-	GenDir     string `json:"genDir"`
-	ModuleMode string `json:"moduleMode"`
-	EmitMode   string `json:"emitMode"`
-	InlineMode string `json:"inlineMode"`
+	GenDir string `json:"genDir"`
+	// ClientRoutes: `bundle` (the default when absent) bundles every route this client calls, `fetch` fetches every route.
+	ClientRoutes string `json:"clientRoutes"`
+	ModuleMode   string `json:"moduleMode"`
+	EmitMode     string `json:"emitMode"`
+	InlineMode   string `json:"inlineMode"`
 
 	// I18n is the FriendlyText translation config. A pointer so an absent key
 	// (nil) keeps every i18n default dormant.
@@ -87,34 +92,27 @@ type tsRuntypesPlugin struct {
 	// every location under genDir, the report path is convention, not config.
 	// Build-lane project option — the host plugin forwards the equivalent CLI flag.
 	PureFnReport *bool `json:"pureFnReport"`
-	// FailOnError controls whether Error-severity build diagnostics fail the
-	// host build/transform. It is read Go-side and ECHOED on the generate
-	// response (protocol.Response.FailOnError); the resolver never halts on it
-	// itself, so there is no CLI flag and no buildconfig merge — the JS host
-	// applies precedence (its own option, then this echo, then the true
-	// default). A pointer so an absent key (nil) is distinct from an explicit
-	// false. The enrich lane ignores it.
-	FailOnError *bool `json:"failOnError"`
-	// BinarySizing groups the binary `dynamic` strategy's cold-start
-	// buffer-estimate knobs under one `binarySizing` object (like `i18n`). A nil
-	// object (absent key) keeps every binary default.
-	BinarySizing *binarySizingPluginConfig `json:"binarySizing"`
-	// Validate groups project-wide defaults for the per-call-site ValidateOptions
-	// bag under one `validate` object (like `binarySizing`). A nil object (absent key)
-	// keeps every validator on its built-in default. Merged per field into each
-	// validate / validationErrors call site by the scanner (site value wins per
-	// field); folds into each entry's fnHash variant, so it is NOT a disk
-	// fingerprint input.
+	// JSONMaxBytes is the type-derived size limit switch: `true` (the default
+	// when absent) emits, on every fully bounded reflection root, the largest
+	// compact-JSON size a valid value can have, which mion turns into per-route
+	// request and response limits; `false` emits nothing and a framework falls
+	// back to its own numbers. A pointer so an absent key keeps the default.
+	// Build-lane project option — the host plugin forwards `--json-max-bytes=false`.
+	JSONMaxBytes *bool `json:"jsonMaxBytes"`
+	// DowngradeErrors lists RuntimeError codes to report as Warnings, so one finding does not block the rest, or "*" for a project that cannot name them yet.
+	// A fatal Error stays fatal: the build produced no code for it, so not halting would ship a call that throws.
+	// Echoed on generate (protocol.Response.DowngradeErrors) for the JS host; `mion compile` applies it to its exit code.
+	// nil (absent) is the strict default. The enrich lane ignores it.
+	DowngradeErrors downgradeErrorsKey `json:"downgradeErrors"`
+	// Levels: absent hides LevelInfo, "all" shows it. Echoed on generate like downgradeErrors; `mion compile` reads it too.
+	Levels string `json:"levels"`
+	// LogStyle: absent or "grouped" prints findings grouped by name, "lines" one line each. Echoed on generate like levels.
+	LogStyle string `json:"logStyle"`
+	// Validate holds project-wide ValidateOptions defaults the scanner merges per field into each site (site wins).
+	// It folds into the fnHash variant, so it is NOT a disk fingerprint input; nil keeps the built-in defaults.
 	Validate *validatePluginConfig `json:"validate"`
-	// Parse groups the project-wide default for createParseFn's strategy. A
-	// per-call-site `strategy` wins over it.
-	Parse *parsePluginConfig `json:"parse"`
-	// Markers groups the marker-package gate under one `markers` object (like
-	// `binarySizing`). It answers "which packages am I willing to accept the
-	// marker types from?", so a library can declare `InjectRunTypeId` and
-	// friends itself instead of depending on mion purely for types. A nil
-	// object (absent key) keeps the built-in gate: markers count only when
-	// @mionjs/run-types declared them.
+	// Markers lists the packages allowed to declare marker types, so a library need not depend on mion just for them.
+	// Nil keeps the built-in gate: markers count only when @mionjs/run-types declared them.
 	Markers *markersPluginConfig `json:"markers"`
 }
 
@@ -134,21 +132,6 @@ type markersPluginConfig struct {
 	CheckPackage *bool    `json:"checkPackage"`
 }
 
-// binarySizingPluginConfig is the `binarySizing` object under the mion
-// plugin entry:
-//
-//	{ "bias": 0.8, "items": 100, "stringBytes": 32, "maxBytes": 65536 }
-//
-// bias (0..1) tunes how generous the first buffer is; items / stringBytes are
-// the assumed magnitudes for unbounded collections and strings; maxBytes caps
-// the estimate. Pointers so an absent key falls through to the binary default.
-type binarySizingPluginConfig struct {
-	Bias        *float64 `json:"bias"`
-	Items       *int     `json:"items"`
-	StringBytes *int     `json:"stringBytes"`
-	MaxBytes    *int     `json:"maxBytes"`
-}
-
 // validatePluginConfig is the `validate` object under the mion plugin
 // entry — project-wide defaults for the per-call-site ValidateOptions bag:
 //
@@ -160,28 +143,9 @@ type validatePluginConfig struct {
 	NumberMode string `json:"numberMode"`
 }
 
-// parsePluginConfig is the `parse` object under the mion plugin entry —
-// the project-wide default for createParseFn's per-call-site strategy:
-//
-//	{ "strategy": "strip" }
-//
-// strategy defaults ParseOptions.strategy ("preserve" | "strip" | "fail");
-// empty / absent leaves every parser on the preserve default. Set it once when
-// a project wants every payload cleaned (strip) or every undeclared key
-// rejected (fail), rather than repeating the option at each call.
-type parsePluginConfig struct {
-	Strategy string `json:"strategy"`
-}
-
-// i18nPluginConfig is the `i18n` object under the mion plugin entry:
-//
-//	{ "sourceLocale": "en", "locales": ["es", "pl"], "strict": false }
-//
-// sourceLocale names the language the source FriendlyText maps are authored in
-// (it selects the plural arms the scaffold emits). locales is the target set —
-// the source locale is NOT listed. strict turns `enrich --translate --no-emit` findings
-// into errors; the runtime is always lenient. The translation subtree location
-// is convention (<genDir>/enriched/i18n/<locale>/…), never configurable.
+// i18nPluginConfig is the plugin's `i18n` object, e.g. { "sourceLocale": "en", "locales": ["es", "pl"], "strict": false }.
+// sourceLocale picks the scaffold's plural arms and is never in locales; strict fails `enrich --i18n --no-emit` findings.
+// The runtime is always lenient, and <genDir>/enriched/i18n/<locale>/ is convention, never configurable.
 type i18nPluginConfig struct {
 	SourceLocale string   `json:"sourceLocale"`
 	Locales      []string `json:"locales"`
@@ -250,11 +214,39 @@ func resolveEnrichConfig(absTargetFile, genDirFlag, tsconfigPath string, parsed 
 		if !ok {
 			fatal("tsconfig %s: cannot parse", tsconfigPath)
 		}
-		if plugin, ok := findTsRuntypesPlugin(pluginTsconfig); ok {
+		plugin, ok, err := findTsRuntypesPlugin(pluginTsconfig)
+		if err != nil {
+			fatal("tsconfig %s: %v", tsconfigPath, err)
+		}
+		if ok {
 			pluginSettings = pluginSettingsFrom(plugin)
 		}
 	}
 	return enrichgen.ResolveConfig(absTargetFile, genDirFlag, tsconfigPath, parsed, pluginSettings)
+}
+
+// tsconfigShowInfo reads the mion plugin's `levels` key; no tsconfig or no plugin entry hides Info.
+func tsconfigShowInfo(tsconfigPath string) (bool, error) {
+	if tsconfigPath == "" {
+		return false, nil
+	}
+	pluginTsconfig, ok := parseTsconfig(tsconfigPath)
+	if !ok {
+		return false, fmt.Errorf("tsconfig %s: cannot parse", tsconfigPath)
+	}
+	plugin, ok, err := findTsRuntypesPlugin(pluginTsconfig)
+	if err != nil || !ok {
+		return false, err
+	}
+	return diagnostics.ResolveLevels(plugin.Levels)
+}
+
+func mustTsconfigShowInfo(tsconfigPath string) bool {
+	showInfo, err := tsconfigShowInfo(tsconfigPath)
+	if err != nil {
+		fatal("enrich: %v", err)
+	}
+	return showInfo
 }
 
 // pluginSettingsFrom projects the CLI's JSONC-read mion plugin entry onto
@@ -290,7 +282,7 @@ func ensureFamilyReadme(config enrichConfig, family string) {
 		familyMock: {filepath.Join(config.EnrichDir, familyMock),
 			"# MockData mirrors\n\nRealistic sample pools and ranges for your types, one mirror file per source\nfile. Scaffolded and kept in sync by `mion enrich`; the values are yours\nto edit. Commit these files.\n"},
 		defaultI18nDirName: {config.I18nDir,
-			"# Translations\n\nPer-locale translations of the FriendlyText mirrors, one folder per locale.\nManaged with `mion enrich --translate`. Commit these files.\n"},
+			"# Translations\n\nPer-locale translations of the FriendlyText mirrors, one folder per locale.\nManaged with `mion enrich --i18n <locale>`. Commit these files.\n"},
 	}
 	entry, ok := texts[family]
 	if !ok {
@@ -306,11 +298,6 @@ func ensureFamilyReadme(config enrichConfig, family string) {
 	}
 	_ = os.WriteFile(readme, []byte(text), 0o644)
 }
-
-// The mirror-path helpers (MirrorPath / LegacyMirrorPath / MirrorRel /
-// TranslationPathFor) and the forceTSExt / resolveUnder utilities now live as
-// methods on enrichgen.Config in internal/enrichment/enrichgen, shared with the
-// OpEnrich daemon op. Call them as config.MirrorPath(...) etc.
 
 // parseTsconfig reads and tolerantly parses a JSONC tsconfig.json (comments +
 // trailing commas stripped). Returns ok=false on read or parse failure so the
@@ -328,19 +315,49 @@ func parseTsconfig(tsconfigPath string) (tsconfigShape, bool) {
 	return parsed, true
 }
 
+// downgradeErrorsKey decodes the tsconfig `downgradeErrors` value, which is
+// either a list of codes or the bare wildcard string. nil means the key was
+// absent. `["*"]` and `"*"` decode the same, so the tsconfig spelling and the
+// plugin spelling agree.
+type downgradeErrorsKey []string
+
+func (key *downgradeErrorsKey) UnmarshalJSON(data []byte) error {
+	var single string
+	if err := json.Unmarshal(data, &single); err == nil {
+		*key = downgradeErrorsKey{single}
+		return nil
+	}
+	var list []string
+	if err := json.Unmarshal(data, &list); err != nil {
+		return fmt.Errorf("downgradeErrors must be a list of diagnostic codes or the string %q", diagnostics.DowngradeAll)
+	}
+	*key = list
+	return nil
+}
+
 // findTsRuntypesPlugin scans compilerOptions.plugins[] for the entry whose
-// "name" is "mion". Entries that fail to decode are skipped.
-func findTsRuntypesPlugin(parsed tsconfigShape) (tsRuntypesPlugin, bool) {
+// "name" is "mion".
+//
+// An entry that names mion but does not decode is a hard error, never a skip:
+// one mistyped value would otherwise throw away the WHOLE entry — genDir,
+// markers, every key — and fall back to defaults with nothing said. Entries
+// naming another plugin are skipped, since a language-service plugin the
+// project uses for something else is none of our business.
+func findTsRuntypesPlugin(parsed tsconfigShape) (tsRuntypesPlugin, bool, error) {
 	for _, raw := range parsed.CompilerOptions.Plugins {
-		var plugin tsRuntypesPlugin
-		if err := json.Unmarshal(raw, &plugin); err != nil {
+		var named struct {
+			Name string `json:"name"`
+		}
+		if err := json.Unmarshal(raw, &named); err != nil || named.Name != "mion" {
 			continue
 		}
-		if plugin.Name == "mion" {
-			return plugin, true
+		var plugin tsRuntypesPlugin
+		if err := json.Unmarshal(raw, &plugin); err != nil {
+			return tsRuntypesPlugin{}, false, fmt.Errorf("tsconfig mion plugin entry: %w", err)
 		}
+		return plugin, true, nil
 	}
-	return tsRuntypesPlugin{}, false
+	return tsRuntypesPlugin{}, false, nil
 }
 
 // resolveBuildPlugin reads the compilerOptions.plugins[name=mion] entry
@@ -359,7 +376,11 @@ func resolveBuildPlugin(absCwd, tsconfigFlag string) (tsRuntypesPlugin, bool) {
 	if !ok {
 		return tsRuntypesPlugin{}, false
 	}
-	return findTsRuntypesPlugin(parsed)
+	plugin, found, err := findTsRuntypesPlugin(parsed)
+	if err != nil {
+		fatal("tsconfig %s: %v", buildTsconfigPath(absCwd, tsconfigFlag), err)
+	}
+	return plugin, found
 }
 
 // buildTsconfigPath anchors main's ALREADY-RESOLVED tsconfig path (the single
@@ -509,4 +530,19 @@ func isTrailingComma(input string, pos int) bool {
 		}
 	}
 	return false
+}
+
+// resolveClientRoutes picks the flag, then the tsconfig key, then the default `bundle`; ok is false for an unknown mode.
+func resolveClientRoutes(flag, key string) (constants.ClientRoutesMode, bool) {
+	mode := constants.ClientRoutesMode(strings.TrimSpace(flag))
+	if mode == constants.ClientRoutesUnset {
+		mode = constants.ClientRoutesMode(strings.TrimSpace(key))
+	}
+	if !mode.Valid() {
+		return mode, false
+	}
+	if mode == constants.ClientRoutesUnset {
+		mode = constants.ClientRoutesBundle
+	}
+	return mode, true
 }

@@ -1,16 +1,15 @@
 #!/usr/bin/env node
 // Zero-dependency static server for a prerendered docs site
-// (container/website/.output/<site>/public; MION_SITE picks which, default runtypes).
-// Resolves clean URLs the same way Cloudflare
+// (container/website/.output/public). Resolves clean URLs the same way Cloudflare
 // Pages does (/benchmarks/validation -> benchmarks/validation.html), which a plain
 // `python3 -m http.server` does not. No deps on purpose: works offline, needs no
 // install, and keeps the repo's dependency surface minimal.
 //
-// Two ways in: `pnpm rtx website preview --no-build` serves whatever build is already
-// in .output/public; plain `pnpm rtx website preview` regenerates first, then serves.
-//   pnpm rtx website preview --no-build       # serve existing build, http://localhost:8080
-//   pnpm rtx website preview --no-build 5000  # custom port (or PORT=5000)
-//   pnpm rtx website preview                  # one-shot: build THEN serve (no benchmarks)
+// Two ways in: `pnpm miondevx website preview --no-build` serves whatever build is already
+// in .output/public; plain `pnpm miondevx website preview` regenerates first, then serves.
+//   pnpm miondevx website preview --no-build       # serve existing build, http://localhost:8080
+//   pnpm miondevx website preview --no-build 5000  # custom port (or PORT=5000)
+//   pnpm miondevx website preview                  # one-shot: build THEN serve (no benchmarks)
 //
 // check-static.mjs imports `createStaticServer` / `DEFAULT_ROOT` so its post-build
 // checks hit the artifact through the SAME clean-URL resolution a visitor gets.
@@ -21,9 +20,9 @@ import path from 'node:path';
 import url from 'node:url';
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-/** Prerendered artifact of one site: container/website/.output/<site>/public. */
-export const publicRoot = (site) => path.resolve(HERE, '..', '..', 'container/website/.output', site, 'public');
-export const DEFAULT_ROOT = publicRoot(process.env.MION_SITE || 'runtypes');
+/** The prerendered artifact: container/website/.output/public. */
+export const publicRoot = () => path.resolve(HERE, '..', '..', 'container/website/.output/public');
+export const DEFAULT_ROOT = publicRoot();
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -101,12 +100,12 @@ export const hasBuild = (root = DEFAULT_ROOT) => isFile(path.join(root, 'index.h
 if (import.meta.main) {
   const port = Number(process.argv[2] ?? process.env.PORT ?? 8080);
   if (!existsSync(DEFAULT_ROOT) || !hasBuild()) {
-    process.stderr.write(`No build found at ${DEFAULT_ROOT}\nRun \`pnpm rtx website build\` first (or \`pnpm rtx website preview\` to build + serve).\n`);
+    process.stderr.write(`No build found at ${DEFAULT_ROOT}\nRun \`pnpm miondevx website build\` first (or \`pnpm miondevx website preview\` to build + serve).\n`);
     process.exit(1);
   }
   createStaticServer().listen(port, () => {
     process.stdout.write(`\n  serving  ${path.relative(process.cwd(), DEFAULT_ROOT)}\n`);
     process.stdout.write(`  ->       http://localhost:${port}\n`);
-    process.stdout.write(`  site     ${process.env.MION_SITE || 'runtypes'}  (set MION_SITE to serve the other one)\n\n`);
+    process.stdout.write('\n');
   });
 }

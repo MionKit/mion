@@ -1,43 +1,42 @@
 package diagnostics
 
-// Custom-override codes (OVRxxx). The override pure-fn itself reuses the
-// PureFunction marker layer (PFN001 inline-shape, PFE9006-9011 purity), so the
-// only override-specific build-time error is a DUPLICATE: two overrideX<T>
-// declarations targeting the same (type, function). There can be exactly one
-// override per (type, function): a second one (regardless of body) is an
-// error, since which wins would otherwise be order-dependent.
+// Custom-override codes (override-*). An override pure-fn reuses the PureFunction marker layer (purefn-not-inline,
+// the purity codes), so the only override-specific build error is a DUPLICATE: exactly one override per
+// (type, function), because which of two wins would be order-dependent.
+//
+// Both override errors are LevelRuntimeError, each shipping real output that is wrong: override-duplicate keeps the
+// FIRST override and nulls both call sites, so one override silently does not apply, and override-function-not-built's
+// redirect body loads a module that is not in the graph and throws on the first call.
 const (
-	CodeDuplicateOverride = "OVR001"
-	// CodeOverrideMissingCfn is a build-time tripwire: a cfn redirect references
-	// a `cfn::<hash>` module that did not render in the entry graph. The redirect
-	// body is `utl.usePureFn('cfn::<hash>')`, which throws at runtime on a miss,
-	// this surfaces the emitter bug at build time instead. Should never fire in
-	// normal operation. Mirrors the JSON composite's missing-primitive assert.
-	CodeOverrideMissingCfn = "OVR002"
-	// CodeOverrideValidateCrossFamily warns that overriding `validate` for a type
-	// also changes how JSON / binary decoders narrow unions containing it,
-	// `validate` is a shared cross-family dependency, so the override reaches
-	// past createValidateFn<T>(). Informational; the build proceeds.
-	CodeOverrideValidateCrossFamily = "OVR010"
+	CodeDuplicateOverride = "override-duplicate"
+	// CodeOverrideMissingCfn is a build-time tripwire for an emitter bug: a cfn redirect references
+	// an override module that did not render in the entry graph, whose `utl.usePureFn` body would
+	// otherwise throw at runtime. Should never fire in normal operation.
+	CodeOverrideMissingCfn = "override-function-not-built"
+	// CodeOverrideValidateCrossFamily warns that overriding `validate` also changes how JSON decoders narrow unions.
+	CodeOverrideValidateCrossFamily = "override-validate-affects-json"
 )
 
 func init() {
 	register(Definition{
-		Code:     CodeDuplicateOverride,
-		Family:   FamilyMarker,
-		Severity: SeverityError,
-		Title:    "Duplicate overrideX<T>: one override per (type, function)",
+		Code:   CodeDuplicateOverride,
+		Family: FamilyMarker,
+		Level:  LevelRuntimeError,
+		Scope:  ScopeNotSource,
+		Title:  "Duplicate overrideX<T>: one override per (type, function)",
 	})
 	register(Definition{
-		Code:     CodeOverrideMissingCfn,
-		Family:   FamilyMarker,
-		Severity: SeverityError,
-		Title:    "Override redirect references a cfn module that did not render",
+		Code:   CodeOverrideMissingCfn,
+		Family: FamilyMarker,
+		Level:  LevelRuntimeError,
+		Scope:  ScopeNotSource,
+		Title:  "Override redirect references a cfn module that did not render",
 	})
 	register(Definition{
-		Code:     CodeOverrideValidateCrossFamily,
-		Family:   FamilyMarker,
-		Severity: SeverityWarning,
-		Title:    "validate override also affects JSON/binary union decoders for this type",
+		Code:   CodeOverrideValidateCrossFamily,
+		Family: FamilyMarker,
+		Level:  LevelInfo,
+		Scope:  ScopeNotSource,
+		Title:  "validate override also affects JSON union decoders for this type",
 	})
 }

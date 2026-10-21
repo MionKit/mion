@@ -1,6 +1,5 @@
-// The build functions the playground offers. `factory` is the mion
-// export; `fnKey` matches the marker overlay. `kind` selects how the engine
-// invokes it and how the result is shaped.
+// The build functions the playground offers. `factory` is the mion export;
+// `kind` selects how the engine invokes it and how the result is shaped.
 //
 // Several JSON entries share the same `createJsonEncoderFn` / `createJsonDecoderFn`
 // factory but differ by `options`: the comptime `{strategy: '…'}` literal the
@@ -8,12 +7,11 @@
 // hash (never read at runtime), so each strategy resolves to its own cache entry,
 // exactly as it does in the serialization benchmarks.
 
-export type OperationKind = 'predicate' | 'errors' | 'encode' | 'jsonRoundtrip' | 'binaryEncode' | 'binaryRoundtrip' | 'graph';
+export type OperationKind = 'predicate' | 'errors' | 'encode' | 'jsonRoundtrip' | 'graph';
 
 export interface Operation {
   key: string;
   factory: string;
-  fnKey: string | null;
   kind: OperationKind;
   // `<optgroup>` heading + `<option>` text for the picker.
   group: string;
@@ -41,7 +39,6 @@ export const OPERATIONS: readonly Operation[] = [
   {
     key: 'validate',
     factory: 'createValidateFn',
-    fnKey: 'val',
     kind: 'predicate',
     group: 'Validation',
     menuLabel: 'validate',
@@ -55,7 +52,6 @@ export const OPERATIONS: readonly Operation[] = [
   {
     key: 'errors',
     factory: 'createGetValidationErrorsFn',
-    fnKey: 'verr',
     kind: 'errors',
     group: 'Validation',
     menuLabel: 'get validation errors',
@@ -69,7 +65,6 @@ export const OPERATIONS: readonly Operation[] = [
   {
     key: 'jsonEncoderClone',
     factory: 'createJsonEncoderFn',
-    fnKey: 'jsonEncoder',
     kind: 'encode',
     group: 'JSON encode',
     menuLabel: 'json enc clone (default)',
@@ -84,37 +79,20 @@ export const OPERATIONS: readonly Operation[] = [
   {
     key: 'jsonEncoderMutate',
     factory: 'createJsonEncoderFn',
-    fnKey: 'jsonEncoder',
     kind: 'encode',
     group: 'JSON encode',
     menuLabel: 'json enc mutate',
     label: 'createJsonEncoderFn',
     blurb: 'Encode in place, keeping unknown keys.',
     detail:
-      'Transforms leaves in place with no clone allocation, so it is the fastest option — but it mutates the object you pass in and keeps undeclared keys on the wire. When no special encoding is needed, it is equivalent to a direct JSON.stringify.',
+      'Transforms leaves in place with no clone allocation, so it is the fastest option — but it mutates the object you pass in and keeps undeclared keys on the wire. When no special encoding is needed, it is equivalent to a plain JSON.stringify.',
     needsInput: true,
     varName: 'toJson',
     options: "{strategy: 'mutate'}",
   },
   {
-    key: 'jsonEncoderDirect',
-    factory: 'createJsonEncoderFn',
-    fnKey: 'jsonEncoder',
-    kind: 'encode',
-    group: 'JSON encode',
-    menuLabel: 'json enc direct',
-    label: 'createJsonEncoderFn',
-    blurb: 'Single-pass encode straight to a string.',
-    detail:
-      'Serialises in one pass with no clone and no mutation, always stripping undeclared keys. Allocation-free, a touch slower on deeply nested shapes.',
-    needsInput: true,
-    varName: 'toJson',
-    options: "{strategy: 'direct'}",
-  },
-  {
     key: 'jsonEncoderCompact',
     factory: 'createJsonEncoderFn',
-    fnKey: 'jsonEncoder',
     kind: 'encode',
     group: 'JSON encode',
     menuLabel: 'json enc compact',
@@ -127,25 +105,23 @@ export const OPERATIONS: readonly Operation[] = [
     options: "{strategy: 'compact'}",
   },
   {
-    key: 'jsonDecoderStrip',
+    key: 'jsonDecoderClone',
     factory: 'createJsonDecoderFn',
-    fnKey: 'jsonDecoder',
     kind: 'jsonRoundtrip',
     group: 'JSON decode',
     menuLabel: 'json dec remove unknown keys (default)',
     label: 'createJsonDecoderFn',
     blurb: 'Decode JSON, dropping undeclared keys.',
     detail:
-      'Parses the JSON and removes any key not declared in the type before rebuilding the value (undeclared keys become undefined). This is the default strategy. Your input is encoded first (mutate strategy, so extra keys reach the wire) and then decoded, so the full round trip is visible.',
+      'Parses the JSON and rebuilds the value from the type, so any key the type does not declare is dropped. This is the default strategy. Your input is encoded first (mutate strategy, so extra keys reach the wire) and then decoded, so the full round trip is visible.',
     needsInput: true,
     varName: 'fromJson',
-    options: "{strategy: 'strip'}",
+    options: "{strategy: 'clone'}",
     encodeOptions: "{strategy: 'mutate'}",
   },
   {
-    key: 'jsonDecoderPreserve',
+    key: 'jsonDecoderMutate',
     factory: 'createJsonDecoderFn',
-    fnKey: 'jsonDecoder',
     kind: 'jsonRoundtrip',
     group: 'JSON decode',
     menuLabel: 'json dec keep unknown keys',
@@ -155,41 +131,12 @@ export const OPERATIONS: readonly Operation[] = [
       'Parses the JSON and passes undeclared keys through untouched. Compare with the default: the same encoded wire keeps its extra keys here.',
     needsInput: true,
     varName: 'fromJson',
-    options: "{strategy: 'preserve'}",
+    options: "{strategy: 'mutate'}",
     encodeOptions: "{strategy: 'mutate'}",
-  },
-  {
-    key: 'binaryEncoder',
-    factory: 'createBinaryEncoderFn',
-    fnKey: 'tb',
-    kind: 'binaryEncode',
-    group: 'Binary',
-    menuLabel: 'binary enc',
-    label: 'createBinaryEncoderFn',
-    blurb: 'Encode to a compact binary buffer.',
-    detail:
-      'Serialises the value into a tightly packed binary buffer, shown here as hex. Much smaller than JSON for the same data.',
-    needsInput: true,
-    varName: 'toBinary',
-  },
-  {
-    key: 'binaryDecoder',
-    factory: 'createBinaryDecoderFn',
-    fnKey: 'fb',
-    kind: 'binaryRoundtrip',
-    group: 'Binary',
-    menuLabel: 'binary dec',
-    label: 'createBinaryDecoderFn',
-    blurb: 'Decode a binary buffer back to data.',
-    detail:
-      'Reads the packed binary buffer back into the data type. Your input is encoded first and then decoded, so the full round trip is visible.',
-    needsInput: true,
-    varName: 'fromBinary',
   },
   {
     key: 'graph',
     factory: 'getRunType',
-    fnKey: null,
     kind: 'graph',
     group: 'Reflection',
     menuLabel: 'getRunType',

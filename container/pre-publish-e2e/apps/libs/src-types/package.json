@@ -1,0 +1,18 @@
+{
+  "name": "@acme/src-types",
+  "version": "0.0.0",
+  "private": false,
+  "type": "module",
+  "description": "e2e fixture: a dependency whose type definitions live under src/, reachable two ways — `types` for a plain consumer, `source` for one asking for the condition. Proves the resolver follows the manifest wherever the definitions are, rather than assuming a dist.",
+  "files": [
+    "src"
+  ],
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    }
+  }
+}

@@ -5,8 +5,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
@@ -188,9 +190,9 @@ func TestValidateModule_AtomicEmitBodies(t *testing.T) {
 		{"boolean", &reflection.RunType{ID: "boo", Kind: reflection.KindBoolean}, "return typeof v === 'boolean'", false},
 		{"bigint", &reflection.RunType{ID: "big", Kind: reflection.KindBigInt}, "return typeof v === 'bigint'", false},
 		// KindSymbol is unsupported at root. Renderer emits an alwaysThrow
-		// factory whose final slot is the VL002 message, rendered here at
+		// factory whose final slot is the validate-symbol-root message, rendered here at
 		// build time (not a body-bearing validator).
-		{"symbol", &reflection.RunType{ID: "sym", Kind: reflection.KindSymbol}, "init('" + valKey("sym") + "','symbol',,,,,," + quoteJS(buildAlwaysThrowMessage("VL002", "Symbol", nil)) + ")", false},
+		{"symbol", &reflection.RunType{ID: "sym", Kind: reflection.KindSymbol}, "init('" + valKey("sym") + "','symbol',,,,,," + quoteJS(buildAlwaysThrowMessage("validate-symbol-root", "Symbol", nil)) + ")", false},
 		{"null", &reflection.RunType{ID: "nul", Kind: reflection.KindNull}, "return v === null", false},
 		{"undefined", &reflection.RunType{ID: "und", Kind: reflection.KindUndefined}, "return typeof v === 'undefined'", false},
 		{"void", &reflection.RunType{ID: "voi", Kind: reflection.KindVoid}, "return v === undefined", false},
@@ -198,7 +200,7 @@ func TestValidateModule_AtomicEmitBodies(t *testing.T) {
 		{"any", &reflection.RunType{ID: "any", Kind: reflection.KindAny}, "", true},
 		{"unknown", &reflection.RunType{ID: "unk", Kind: reflection.KindUnknown}, "", true},
 		{"object", &reflection.RunType{ID: "obj", Kind: reflection.KindObject}, "return (typeof v === 'object' && v !== null)", false},
-		{"regexp", &reflection.RunType{ID: "reg", Kind: reflection.KindRegexp}, "return (v instanceof RegExp)", false},
+		{"regexp", &reflection.RunType{ID: "reg", Kind: reflection.KindRegexp}, "init('" + valKey("reg") + "','regexp',,,,,," + quoteJS(buildAlwaysThrowMessage("validate-non-data-root", "RegExp", nil)) + ")", false},
 		{"date", &reflection.RunType{ID: "dat", Kind: reflection.KindClass, SubKind: reflection.SubKindDate}, "return (v instanceof Date && !isNaN(v.getTime()))", false},
 	}
 	for _, row := range rows {
@@ -260,7 +262,7 @@ func TestValidateModule_LiteralEmitBodies(t *testing.T) {
 		},
 		{
 			"symbol", &reflection.RunType{ID: "lsy", Kind: reflection.KindLiteral, Literal: map[string]any{"symbol": "hello"}, Flags: []string{"symbol"}},
-			"return typeof v === 'symbol' && v.description === 'hello'",
+			"init('" + valKey("lsy") + "','literal',,,,,," + quoteJS(buildAlwaysThrowMessage("validate-symbol-root", "Symbol", nil)) + ")",
 		},
 	}
 	for _, row := range rows {
@@ -379,59 +381,6 @@ func TestValidateModule_NestedArrayDependencyCall(t *testing.T) {
 	}
 }
 
-// TestValidateModule_ArrayNoIsArrayCheck — when a createValidateFn site requests the
-// `noIsArrayCheck` ValidateOptions variant for an array runtype, the
-// emitter fans out an extra `valNA_<id>` factory whose body omits the
-// leading `if (!Array.isArray(v)) return false;` guard. A plain
-// createValidateFn site still emits the guarded `val_<id>` factory. Mirrors
-// the `comp.opts.noIsArrayCheck` branch in array.ts:emitIsType. (`it` is
-// demand-scoped: the scanner attaches each site's structured Demand, so the
-// plain `it` entry and the `NA` variant ride distinct SiteDemand entries —
-// not the legacy Site.Options back-compat fan-out.)
-func TestValidateModule_ArrayNoIsArrayCheck(t *testing.T) {
-	dump := protocol.Dump{
-		RunTypes: []*reflection.RunType{
-			{
-				ID:    "an1",
-				Kind:  reflection.KindArray,
-				Child: &reflection.RunType{ID: "str", Kind: reflection.KindString},
-			},
-		},
-		Sites: []protocol.Site{
-			// Plain createValidateFn<T[]>() — demands the guarded `val_an1`.
-			{File: "call.ts", Pos: 0, ID: "an1", Demand: []protocol.SiteDemand{{FamilyTag: "val"}}},
-			// createValidateFn<T[]>(undefined, {noIsArrayCheck: true}) — demands
-			// the `valNA_an1` variant whose body omits the Array.isArray guard.
-			{File: "call.ts", Pos: 40, ID: "an1", Demand: []protocol.SiteDemand{{FamilyTag: "val", VariantSuffix: "NA", Options: []string{"noIsArrayCheck"}}}},
-		},
-	}
-	out := renderToString(t, dump)
-	plainKey := valKey("an1")
-	variantKeyNA := itVariantKey([]string{"noIsArrayCheck"}, "an1")
-	// Plain `<itHash>_an1` factory MUST keep the guard — the variant key
-	// dispatch is the only path that strips it.
-	if !strings.Contains(out, plainKey) {
-		t.Errorf("plain validate entry must be emitted, got:\n%s", out)
-	}
-	// The noIsArrayCheck-variant factory MUST exist alongside the plain one.
-	if !strings.Contains(out, variantKeyNA) {
-		t.Errorf("variant validate entry %q must be emitted, got:\n%s", variantKeyNA, out)
-	}
-	// The variant body has the for-loop but no Array.isArray guard.
-	// The plain body has both. Find the variant's `init(...)` line and
-	// assert the guard is absent from it.
-	variantLine := extractInitLine(out, variantKeyNA)
-	if variantLine == "" {
-		t.Fatalf("no init('%s', …) line found in:\n%s", variantKeyNA, out)
-	}
-	if strings.Contains(variantLine, "Array.isArray") {
-		t.Errorf("valNA variant must omit `Array.isArray(…)` guard, got:\n%s", variantLine)
-	}
-	if !strings.Contains(variantLine, "for (let i0 = 0;") {
-		t.Errorf("valNA variant must still emit element loop, got:\n%s", variantLine)
-	}
-}
-
 // extractInitLine returns the substring of `out` corresponding to the
 // `init('<key>', …);` call for the given cache key. Returns "" when
 // no such call is present.
@@ -443,7 +392,7 @@ func extractInitLine(out, key string) string {
 	}
 	// One rendered entry is one line, so take the line. (Cutting at the first
 	// `);` used to work only because no emitted body contained one; a pure-fn
-	// preamble — `utl.getPureFn('rtFormats::codePointLength');` — does, and it
+	// preamble — `utl.getPureFn('@mionjs/run-types/src/formats/string/string-formats-pure-fns#pf_codePointLength');` — does, and it
 	// truncated the entry before the assertions could see it.)
 	rest := out[start:]
 	if end := strings.IndexByte(rest, '\n'); end >= 0 {
@@ -584,13 +533,12 @@ func TestValidateModule_IndexSignatureEmitBody(t *testing.T) {
 	}
 }
 
-// TestValidateModule_FunctionTopLevelEmitBody — a free-standing function
-// runtype emits the bare `typeof === 'function'` check.
+// TestValidateModule_FunctionTopLevelEmitBody: a non-data root function renders an alwaysThrow validate-function-root factory.
 func TestValidateModule_FunctionTopLevelEmitBody(t *testing.T) {
 	dump := protocol.Dump{RunTypes: []*reflection.RunType{{ID: "fn1", Kind: reflection.KindFunction}}}
 	out := renderToString(t, dump)
-	if !strings.Contains(out, "return typeof v === 'function'") {
-		t.Errorf("expected function body in:\n%s", out)
+	if !strings.Contains(out, "init('"+valKey("fn1")+"','function',,,,,,"+quoteJS(buildAlwaysThrowMessage("validate-function-root", "Function", nil))+")") {
+		t.Errorf("expected an alwaysThrow validate-function-root factory in:\n%s", out)
 	}
 }
 
@@ -881,13 +829,14 @@ func TestValidateModule_UnsupportedKindSkipped(t *testing.T) {
 // entries in the same dump still render normally.
 func TestValidateModule_CodeNSPropagation(t *testing.T) {
 	stringRT := &reflection.RunType{ID: "str", Kind: reflection.KindString}
-	// KindIntersection is unsupported at the leaf — used here as a
-	// stand-in for "any future kind without an emit". We could equally
-	// well synthesize a brand-new ReflectionKind value; KindIntersection
-	// has the advantage of being a real cache shape today.
+	// KindIntersection stands in for a future kind with no emit: the checker resolves real intersections first.
 	unsupportedLeaf := &reflection.RunType{ID: "uns", Kind: reflection.KindIntersection}
+	// A kind with no root code still throws, under the internal internal-kind-not-compilable, instead of shipping the identity fn.
+	throwsInternal := func(out, id, kind string) bool {
+		return strings.Contains(out, "init('"+valKey(id)+"','"+kind+"',,,,,,'["+diagnostics.CodeUnsupportedLeafNoCode+"]")
+	}
 
-	t.Run("array_of_unsupported_skipped", func(t *testing.T) {
+	t.Run("array_of_unsupported_throws", func(t *testing.T) {
 		arr := &reflection.RunType{
 			ID:    "ar1",
 			Kind:  reflection.KindArray,
@@ -895,19 +844,16 @@ func TestValidateModule_CodeNSPropagation(t *testing.T) {
 		}
 		dump := protocol.Dump{RunTypes: []*reflection.RunType{arr, unsupportedLeaf, stringRT}}
 		out := renderToString(t, dump)
-		if strings.Contains(out, "init('"+valKey("ar1")+"',") {
-			t.Errorf("array with unsupported child must be skipped, got:\n%s", out)
+		if !throwsInternal(out, "ar1", "array") {
+			t.Errorf("array with unsupported child must throw with internal-kind-not-compilable, got:\n%s", out)
 		}
 		if !strings.Contains(out, "init('"+valKey("str")+"',") {
 			t.Errorf("supported sibling must still render, got:\n%s", out)
 		}
 	})
 
-	t.Run("object_with_one_unsupported_prop_renders_without_it", func(t *testing.T) {
-		// v2: property positions ABSORB unsupported children rather than
-		// propagating CodeNS to root. The object's emit drops the unsupported
-		// property from its AND chain and still renders for the supported
-		// siblings.
+	t.Run("object_with_one_unsupported_prop_throws", func(t *testing.T) {
+		// A property never drops an unsupported value silently: the object refuses instead.
 		propUns := &reflection.RunType{
 			ID:         "pU",
 			Kind:       reflection.KindPropertySignature,
@@ -932,20 +878,12 @@ func TestValidateModule_CodeNSPropagation(t *testing.T) {
 		}
 		dump := protocol.Dump{RunTypes: []*reflection.RunType{iface, propUns, propOk, unsupportedLeaf, stringRT}}
 		out := renderToString(t, dump)
-		if !strings.Contains(out, "init('"+valKey("if1")+"',") {
-			t.Errorf("object with one unsupported property must still render (absorption), got:\n%s", out)
-		}
-		// The body must NOT reference the dropped property's accessor.
-		if strings.Contains(out, "v.u") {
-			t.Errorf("rendered body should not reference dropped property 'u', got:\n%s", out)
-		}
-		// The supported sibling's accessor must be present.
-		if !strings.Contains(out, "v.o") {
-			t.Errorf("rendered body should reference surviving property 'o', got:\n%s", out)
+		if !throwsInternal(out, "if1", "objectLiteral") {
+			t.Errorf("object with an unsupported property must throw with internal-kind-not-compilable, not drop it, got:\n%s", out)
 		}
 	})
 
-	t.Run("union_with_one_unsupported_member_skipped", func(t *testing.T) {
+	t.Run("union_with_one_unsupported_member_throws", func(t *testing.T) {
 		un := &reflection.RunType{
 			ID:   "un1",
 			Kind: reflection.KindUnion,
@@ -956,16 +894,12 @@ func TestValidateModule_CodeNSPropagation(t *testing.T) {
 		}
 		dump := protocol.Dump{RunTypes: []*reflection.RunType{un, unsupportedLeaf, stringRT}}
 		out := renderToString(t, dump)
-		if strings.Contains(out, "init('"+valKey("un1")+"',") {
-			t.Errorf("union with one unsupported member must be skipped, got:\n%s", out)
+		if !throwsInternal(out, "un1", "union") {
+			t.Errorf("union with one unsupported member must throw with internal-kind-not-compilable, got:\n%s", out)
 		}
 	})
 
-	t.Run("nested_array_of_unsupported_skipped", func(t *testing.T) {
-		// Outer Array[Array[Unsupported]] — the inner array's child
-		// returns CodeNS; inner array propagates; outer array
-		// propagates. Net effect: both inner and outer factories
-		// silently absent from the rendered module.
+	t.Run("nested_array_of_unsupported_throws", func(t *testing.T) {
 		innerArr := &reflection.RunType{
 			ID:    "ai",
 			Kind:  reflection.KindArray,
@@ -978,24 +912,21 @@ func TestValidateModule_CodeNSPropagation(t *testing.T) {
 		}
 		dump := protocol.Dump{RunTypes: []*reflection.RunType{outerArr, innerArr, unsupportedLeaf}}
 		out := renderToString(t, dump)
-		if strings.Contains(out, "init('"+valKey("ao")+"',") {
-			t.Errorf("outer array of unsupported must be skipped, got:\n%s", out)
-		}
-		if strings.Contains(out, "init('"+valKey("ai")+"',") {
-			t.Errorf("inner array of unsupported must be skipped, got:\n%s", out)
+		if !throwsInternal(out, "ao", "array") || !throwsInternal(out, "ai", "array") {
+			t.Errorf("both arrays of unsupported must throw with internal-kind-not-compilable, got:\n%s", out)
 		}
 	})
 
 	t.Run("plain_user_class_with_nonserializable_subkind_throws", func(t *testing.T) {
-		// alwaysThrow init() carries the fully rendered VL001 message as its
+		// alwaysThrow init() carries the fully rendered validate-non-data-root message as its
 		// final slot (rendered here in Go at build time, not resolved
 		// JS-side).
 		ns := &reflection.RunType{ID: "ns1", Kind: reflection.KindClass, SubKind: reflection.SubKindNonSerializable}
 		dump := protocol.Dump{RunTypes: []*reflection.RunType{ns, stringRT}}
 		out := renderToString(t, dump)
-		wantThrow := quoteJS(buildAlwaysThrowMessage("VL001", "NonSerializableClass", nil))
+		wantThrow := quoteJS(buildAlwaysThrowMessage("validate-non-data-root", "NonSerializableClass", nil))
 		if !strings.Contains(out, "init('"+valKey("ns1")+"','class',,,,,,"+wantThrow+")") {
-			t.Errorf("KindClass+SubKindNonSerializable must emit an alwaysThrow init with the VL001 message, got:\n%s", out)
+			t.Errorf("KindClass+SubKindNonSerializable must emit an alwaysThrow init with the validate-non-data-root message, got:\n%s", out)
 		}
 		// The message rides as a plain string slot, not an embedded throw body.
 		if strings.Contains(out, "throw new Error(") {
@@ -1085,10 +1016,10 @@ func TestPureFnDepsJS_EmptyAndPopulated(t *testing.T) {
 	// module scope, so the legacy skeleton `k_<alias>` identifier shortcut
 	// is gone (aliases only shorten context-var NAMES inside bodies now).
 	deps := []protocol.PureFnDep{
-		{Namespace: "rt", FunctionName: "asJSONString", FilePath: "/abs/run-types-pure-fns.ts"},
-		{Namespace: "rt", FunctionName: "newRunTypeErr", FilePath: "/abs/run-types-pure-fns.ts"},
+		{ID: "@acme/app/src/pure#pf_asJSONString"},
+		{ID: purefnids.NewRunTypeErr},
 	}
-	want := "['rt::asJSONString','rt::newRunTypeErr']"
+	want := "['" + "@acme/app/src/pure#pf_asJSONString" + "','" + purefnids.NewRunTypeErr + "']"
 	if got := pureFnDepsJS(deps); got != want {
 		t.Errorf("populated → %q, want %q", got, want)
 	}
@@ -1096,9 +1027,9 @@ func TestPureFnDepsJS_EmptyAndPopulated(t *testing.T) {
 
 func TestValidateModule_PureFnDepsRendered(t *testing.T) {
 	deps := pureFnDepsJS([]protocol.PureFnDep{
-		{Namespace: "rt", FunctionName: "asJSONString", FilePath: "/some/abs/run-types-pure-fns.ts"},
+		{ID: "@acme/app/src/pure#pf_asJSONString"},
 	})
-	if deps != "['rt::asJSONString']" {
+	if deps != "['"+"@acme/app/src/pure#pf_asJSONString"+"']" {
 		t.Fatalf("projection mismatch: got %q", deps)
 	}
 	if strings.Contains(deps, "/some/abs/") || strings.Contains(deps, "filePath") {

@@ -5,54 +5,45 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// @mionjs/drizzle-orm-mysql-core — the slim mysql authoring surface: tables
-// are written exactly as drizzle tables, every function records instead of
-// running drizzle, models derive flat and the real drizzle table materializes
-// on demand via toDrizzle on the './drizzle' subpath — the one module that
-// imports drizzle-orm (an optional peer).
-// Coverage is gated by manifests/mysql.manifest.json; the mapping rules live
-// in the drizzle-slim-schemas skill.
+// Every function RECORDS the call instead of running drizzle. Coverage is gated by manifests/mysql.manifest.json;
+// the mapping rules live in the drizzle-slim-schemas skill.
 
-// The mysql column builders, their column types, and the three kind interfaces.
+// The mysql column builders and their column types.
 export * from './columns.ts';
+// The shared types.
+export * from './types.ts';
 
-// The table factories and schema handles.
 export {mysqlTable, mysqlTableCreator, mysqlSchema, tableFromType} from './table.ts';
 export type {
   CheckEntry,
   ForeignKeyEntry,
   IndexEntry,
-  MyExtraConfigColumns,
-  MyExtraConfigEntry,
-  MyExtraConfigFn,
   MySqlSchema,
-  AnyMysqlTable,
-  AnyMysqlView,
+  MysqlExtraConfigColumns,
+  MysqlExtraConfigEntry,
+  MysqlExtraConfigFn,
   MysqlTable,
   PrimaryKeyEntry,
   UniqueEntry,
   UniqueIndexEntry,
 } from './table.ts';
 
-// The pure-types road. A column type takes its modifier calls as props
-// (MySqlColMods and the per-kind bags live beside the builders in
-// ./columns.ts), so the only shared pieces left here are the literal sql
-// carrier and the table-entry carrier.
+// The pure-types road: the sql and entry carriers are shared with the core package.
 export type {ColRef, Sql, TableEntry} from '@mionjs/drizzle-orm';
 
-// Indexes, constraints and checks.
+// Enums, indexes, constraints and checks.
 export * from './helpers.ts';
 
 // Views, the manual-column form only (the query-builder form stays on drizzle).
 export {mysqlView} from './views.ts';
 export type {
   MySqlViewAlgorithm,
-  MySqlViewBuilder,
   MySqlViewCheckOption,
   MySqlViewSecurity,
+  MysqlView,
+  MysqlViewBuilder,
   ViewFromQueryBuilderNotSupported,
 } from './views.ts';
 
-// The pure-types vocabulary alias for the date column (same global-shadowing
-// convention the runtype formats use).
+// MySqlDate doubles as `Date`, the same global-shadowing convention the runtype formats use.
 export type {MySqlDate as Date} from './columns.ts';

@@ -1,0 +1,227 @@
+{
+ "red-mushroom": {
+  "crop": [
+   805,
+   490,
+   1000,
+   770
+  ],
+  "parts": "red_mushroom",
+  "trace": false,
+  "shadow": [
+   113,
+   275,
+   46
+  ]
+ },
+ "red-ball": {
+  "crop": [
+   1600,
+   1030,
+   1790,
+   1235
+  ],
+  "parts": "red_ball",
+  "trace": false,
+  "shadow": [
+   100,
+   192,
+   56
+  ]
+ },
+ "blue-helmet": {
+  "crop": [
+   455,
+   665,
+   660,
+   965
+  ],
+  "parts": "blue_helmet",
+  "trace": false,
+  "shadow": [
+   104,
+   300,
+   64
+  ]
+ },
+ "seal": {
+  "crop": [
+   1340,
+   890,
+   1540,
+   1140
+  ],
+  "parts": "seal",
+  "trace": false,
+  "shadow": [
+   118,
+   229,
+   60
+  ]
+ },
+ "plant-mion": {
+  "crop": [
+   0,
+   800,
+   220,
+   1070
+  ],
+  "parts": "plant_mion",
+  "trace": false,
+  "shadow": [
+   120,
+   257,
+   72
+  ]
+ },
+ "rock-mion": {
+  "crop": [
+   200,
+   330,
+   460,
+   530
+  ],
+  "parts": "rock_mion",
+  "trace": false,
+  "shadow": [
+   125,
+   190,
+   90
+  ]
+ },
+ "teal-hood": {
+  "crop": [
+   970,
+   1300,
+   1130,
+   1490
+  ],
+  "parts": "teal_hood",
+  "trace": false,
+  "shadow": [
+   82,
+   181,
+   46
+  ]
+ },
+ "pig": {
+  "crop": [
+   450,
+   990,
+   670,
+   1190
+  ],
+  "parts": "pig",
+  "trace": false,
+  "shadow": [
+   102,
+   180,
+   80
+  ]
+ },
+ "crawler": {
+  "crop": [
+   1230,
+   1170,
+   1500,
+   1350
+  ],
+  "parts": "crawler",
+  "trace": false,
+  "shadow": [
+   140,
+   165,
+   95
+  ]
+ },
+ "horn-blob": {
+  "crop": [
+   1272,
+   586,
+   1477,
+   798
+  ],
+  "parts": "horn_blob",
+  "trace": false,
+  "shadow": [
+   82,
+   180,
+   56
+  ]
+ },
+ "grub": {
+  "crop": [
+   1514,
+   1145,
+   1630,
+   1282
+  ],
+  "parts": "grub",
+  "trace": false,
+  "shadow": [
+   58,
+   119,
+   14
+  ]
+ },
+ "beanie": {
+  "crop": [
+   858,
+   1351,
+   974,
+   1525
+  ],
+  "parts": "beanie",
+  "trace": false,
+  "shadow": [
+   57,
+   137,
+   36
+  ]
+ },
+ "visor": {
+  "crop": [
+   1294,
+   311,
+   1510,
+   514
+  ],
+  "parts": "visor",
+  "trace": false,
+  "shadow": [
+   118,
+   171,
+   62
+  ]
+ },
+ "hat-juggler": {
+  "crop": [
+   1028,
+   330,
+   1263,
+   551
+  ],
+  "parts": "hat_juggler",
+  "trace": false,
+  "shadow": [
+   114,
+   198,
+   40
+  ]
+ },
+ "fin-fish": {
+  "crop": [
+   1679,
+   277,
+   2000,
+   593
+  ],
+  "parts": "fin_fish",
+  "trace": false,
+  "shadow": [
+   136,
+   292,
+   48
+  ]
+ }
+}

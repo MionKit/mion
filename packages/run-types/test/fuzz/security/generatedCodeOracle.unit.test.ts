@@ -1,0 +1,114 @@
+// Negative controls for the generated-code oracles: every check fires on a
+// deliberately broken body and stays quiet on a sound one, so a green corpus
+// scan means the checks looked, not that they were blind.
+
+import {describe, expect, it} from 'vitest';
+import {checkGeneratedCode, stripLiterals, INJECT_MARKER, type EmittedBody} from './generatedCodeOracle.ts';
+
+const body = (code: string, family = 'val'): EmittedBody => ({key: 'k', family, code});
+const oracles = (code: string, family?: string): string[] => checkGeneratedCode(body(code, family)).map((v) => v.oracle);
+
+describe('generated-code oracles fire on broken bodies (negative controls)', () => {
+  it('GC-PARSE fires on text that is not a program, and stops there', () => {
+    expect(oracles("function f(v){return v['unterminated}")).toEqual(['GC-PARSE']);
+  });
+
+  it('GC-TEXT fires on a raw control byte or line terminator', () => {
+    expect(oracles("function f(v){return v['a\u0000b']}")).toEqual(['GC-TEXT']);
+    expect(oracles("function f(v){return v['a\u2028b']}")).toEqual(['GC-TEXT']);
+    expect(oracles('function f(v){\n\treturn v}')).toEqual([]);
+  });
+
+  it('GC-INJECT fires when the marker escapes its quotes, not when it sits inside them', () => {
+    expect(oracles(`function f(v){return v['x']; ${INJECT_MARKER}(); return 1}`)).toEqual(['GC-INJECT']);
+    expect(oracles(`function f(v){return v['${INJECT_MARKER}'] === "${INJECT_MARKER}"}`)).toEqual([]);
+    expect(oracles(`function f(v){return /${INJECT_MARKER}/.test(v)}`)).toEqual([]);
+    expect(oracles(`const re = new RegExp("${INJECT_MARKER}"); function f(v){return re.test(v)}`)).toEqual([]);
+  });
+
+  it('GC-REBUILD fires on an unguarded key-writing loop and on Object.assign', () => {
+    expect(oracles('function f(v){const _r = {};for (const k0 in v) {_r[k0] = v[k0];}return _r}')).toEqual(['GC-REBUILD']);
+    expect(
+      oracles("function f(v){const _r = {};for (const k0 in v) {if (k0 === '__proto__') continue;_r[k0] = v[k0];}return _r}")
+    ).toEqual([]);
+    // `prototype` and `constructor` are plain own keys, so a loop that guards
+    // those and not `__proto__` leaves the one real hazard unguarded.
+    expect(
+      oracles("function f(v){const _r = {};for (const k0 in v) {if (k0 === 'constructor') continue;_r[k0] = v[k0];}return _r}")
+    ).toEqual(['GC-REBUILD']);
+    expect(oracles('function f(v){return Object.assign({}, v)}')).toEqual(['GC-REBUILD']);
+    // A read-only loop rebuilds nothing, and a write back onto the walked
+    // object only ever hits an own key.
+    expect(oracles('function f(v){for (const k0 in v) {if (!v[k0]) return false;}return true}')).toEqual([]);
+    expect(oracles('function f(v){for (const k0 in v) {v[k0] = undefined;}return v}')).toEqual([]);
+  });
+
+  it('GC-REGEXP fires when a RegExp is built from anything but a double-quoted literal', () => {
+    expect(oracles("function f(v){return new RegExp(v.source, 'g')}")).toEqual(['GC-REGEXP']);
+    expect(oracles('const re = new RegExp("^a$"); function f(v){return re.test(v)}')).toEqual([]);
+  });
+
+  it('GC-GUARD fires on a JSON decoder that converts a wire value without checking its shape', () => {
+    expect(oracles('function f(v){v = new Date(v);return v}', 'rj')).toEqual(['GC-GUARD']);
+    expect(oracles("function f(v){v = typeof v === 'string' ? new Date(v) : v;return v}", 'rj')).toEqual([]);
+    expect(oracles('function f(v){v = BigInt(v);return v}', 'cjr')).toEqual(['GC-GUARD']);
+    expect(oracles('function f(v){if (reBigWire.test(v)) v = BigInt(v);return v}', 'cjr')).toEqual([]);
+    expect(oracles('function f(v){v = new Set(v);return v}', 'jdCL')).toEqual(['GC-GUARD']);
+    expect(oracles('function f(v){v = Array.isArray(v) ? new Set(v) : v;return v}', 'jdCL')).toEqual([]);
+    expect(oracles('function f(v){const dec0 = v[0]; v = v[1];return v}', 'jdMU')).toEqual(['GC-GUARD']);
+    expect(
+      oracles('function f(v){if (Array.isArray(v) && v.length === 2) {const dec0 = v[0]; v = v[1];}return v}', 'jdMU')
+    ).toEqual([]);
+    // a tuple member read is not an unwrap
+    expect(oracles('function f(v){const v1 = v[1]; v[1] = v1;return v}', 'jdMU')).toEqual([]);
+    // the guard has to be on the SAME variable
+    expect(
+      oracles("function f(v){const v0 = v.a; v0 = typeof v === 'string' ? 1 : 2; v.a = new Date(v0);return v}", 'rj')
+    ).toEqual(['GC-GUARD']);
+    // the same text is not a JSON decoder's problem in another family
+    expect(oracles('function f(v){v = new Date(v);return v}', 'ruk')).toEqual([]);
+  });
+
+  it('GC-ACCESS fires when a property access spells a quote or a digit after the dot', () => {
+    expect(oracles('function f(v){return v.9lead}')).toEqual(['GC-PARSE']);
+    expect(oracles("function f(v){return v['9lead'] && v.ok}")).toEqual([]);
+  });
+
+  it('GC-IDENTITY fires on instanceof against a user class', () => {
+    expect(oracles('function f(v){return v instanceof MyClass}')).toEqual(['GC-IDENTITY']);
+    expect(oracles('function f(v){return v instanceof cix_bas.cls}')).toEqual(['GC-IDENTITY']);
+    // the built-ins the emitters really write, including a nested accessor on
+    // the left and a dotted Temporal constructor on the right
+    expect(oracles('function f(v){return v instanceof Date && !isNaN(v.getTime())}')).toEqual([]);
+    expect(oracles('function f(v){return v.f2 instanceof RegExp}')).toEqual([]);
+    expect(oracles('function f(v){if (!(v instanceof Map)) return false;return true}')).toEqual([]);
+    expect(oracles('function f(v){if (!(v instanceof Set)) return false;return true}')).toEqual([]);
+    expect(oracles('function f(v){return v instanceof Temporal.PlainDate}')).toEqual([]);
+    expect(oracles('function f(v){return v instanceof Temporal.ZonedDateTime}')).toEqual([]);
+  });
+
+  it('GC-IDENTITY fires on a constructor compare that is not the registry lookup', () => {
+    expect(oracles('function f(v){return v.constructor === Foo}')).toEqual(['GC-IDENTITY']);
+    expect(oracles('function f(v){return v?.constructor === cs_bas.cls}')).toEqual(['GC-IDENTITY']);
+    expect(oracles('function f(v){return v?.constructor === cix_bas}')).toEqual(['GC-IDENTITY']);
+    // the shape the union encoders emit, optional chain and all
+    expect(oracles('function f(v){return cix_bas && v?.constructor === cix_bas.cls}')).toEqual([]);
+    expect(oracles('function f(v){return cix_a1$b && v.a?.constructor === cix_a1$b.cls}')).toEqual([]);
+  });
+
+  it('GC-IDENTITY fires on constructor.name, and not on the name inside a literal', () => {
+    expect(oracles("function f(v){return v.constructor.name === 'Foo'}")).toEqual(['GC-IDENTITY']);
+    // a declared-name skip spells 'constructor' inside a string literal, and the
+    // loop still carries the `__proto__` guard so GC-REBUILD stays quiet too
+    expect(
+      oracles(
+        "function f(v){const _r = {};for (const k0 in v) {if (k0 === '__proto__' || k0 === 'prototype' || k0 === 'constructor') continue;_r[k0] = v[k0];}return _r}"
+      )
+    ).toEqual([]);
+  });
+
+  it('stripLiterals blanks strings, templates and regex literals but keeps the program text', () => {
+    const stripped = stripLiterals("const a = 'x\\'y'; const b = \"q\"; const c = /a\\/b[/]c/gi.test(d); e = f / g;");
+    expect(stripped).toContain('const a = \'    \'; const b = " "; const c = /        /gi.test(d); e = f / g;');
+  });
+});

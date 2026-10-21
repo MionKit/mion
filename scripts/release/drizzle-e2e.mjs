@@ -10,17 +10,17 @@
 // re-translates them and re-installs the packages from a throwaway verdaccio, so
 // a green run always describes the current tree.
 //
-// It is the same lane shape as `pnpm rtx core converted-suites`:
+// It is the same lane shape as `pnpm miondevx core converted-suites`:
 //
 //   converted-suites  our suites  --[mion convert]---------> tree -> vitest
 //   drizzle-e2e       drizzle's   --[mion drizzle-migrate]-> tree -> vitest + a real db
 //
 // Usage:
-//   pnpm rtx release drizzle-e2e                      # every lane
-//   pnpm rtx release drizzle-e2e --dialect pg         # one
-//   pnpm rtx release drizzle-e2e --pack               # repack the tarballs first
-//   pnpm rtx release drizzle-e2e --keep               # leave the container up to inspect
-//   pnpm rtx release drizzle-e2e --skip-types         # builders road only (local iteration)
+//   pnpm miondevx release drizzle-e2e                      # every lane
+//   pnpm miondevx release drizzle-e2e --dialect pg         # one
+//   pnpm miondevx release drizzle-e2e --pack               # repack the tarballs first
+//   pnpm miondevx release drizzle-e2e --keep               # leave the container up to inspect
+//   pnpm miondevx release drizzle-e2e --skip-types         # builders road only (local iteration)
 import {existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {ensureImage, caRunArgs, stopRegistry, waitContainerHealthy} from '../container/image.mjs';
@@ -59,7 +59,7 @@ function writeManifests(outDir) {
 // verdaccio for. The two families are on separate version lines: the launcher
 // rides the lockstep one, the drizzle packages their own drizzle-aligned one.
 function packedVersions() {
-  const launcher = JSON.parse(readFileSync(path.join(REPO_ROOT, 'packages/bin/package.json'), 'utf8')).version;
+  const launcher = JSON.parse(readFileSync(path.join(REPO_ROOT, 'packages/bin-compiler/package.json'), 'utf8')).version;
   const drizzle = JSON.parse(readFileSync(path.join(REPO_ROOT, 'packages/drizzle-orm/package.json'), 'utf8')).version;
   // drizzle-orm ITSELF, from the suites pin, so the in-container install can
   // name it and npm never sees an unresolvable peer.
@@ -80,7 +80,7 @@ function newestMtime(dir) {
 
 // Newest mtime among the sources the lane's installed packages are built from.
 // Both halves count: the JS packages, and the Go resolver that rides in as the
-// @mionjs/binary-* payload — a stale resolver is the harder one to notice,
+// @mionjs/native-compiler-* payload — a stale resolver is the harder one to notice,
 // because it fails as a translation result rather than as a build error.
 function newestSourceMtime() {
   let newest = 0;
@@ -139,7 +139,7 @@ function ensureTarballs({pack}) {
   // checks below still refuse an empty or incomplete set.
   const rebuildable = canBuildResolver();
   if (pack && !rebuildable) {
-    die('drizzle-e2e: --pack needs the submodules bootstrapped (ts-go-runtypes/third_party) to rebuild the resolver - run `pnpm rtx core build` on a bootstrapped host, or drop --pack to use the tarballs as they are');
+    die('drizzle-e2e: --pack needs the submodules bootstrapped (ts-go-runtypes/third_party) to rebuild the resolver - run `pnpm miondevx core build` on a bootstrapped host, or drop --pack to use the tarballs as they are');
   }
   if (pack || (rebuildable && (missing || tarballsAreStale() || binariesAreStale()))) {
     info(
@@ -158,14 +158,14 @@ function ensureTarballs({pack}) {
   const packed = readdirSync(TARBALLS_DIR);
   // npm flattens a scoped name into the tarball basename (@mionjs/run-types packs
   // as mionjs-run-types-<v>.tgz), so these prefixes track the npm NAME, not the
-  // directory. @mionjs/bin still rides the old scope.
-  for (const required of ['mionjs-bin-', 'mionjs-run-types-', 'mionjs-drizzle-orm-']) {
+  // directory. @mionjs/bin-compiler still rides the old scope.
+  for (const required of ['mionjs-bin-compiler-', 'mionjs-run-types-', 'mionjs-drizzle-orm-']) {
     if (!packed.some((name) => name.startsWith(required))) {
-      die(`drizzle-e2e: no ${required}*.tgz in ${path.relative(REPO_ROOT, TARBALLS_DIR)} — run \`pnpm rtx release pack\` (and \`binaries\` for the platform payloads)`);
+      die(`drizzle-e2e: no ${required}*.tgz in ${path.relative(REPO_ROOT, TARBALLS_DIR)} — run \`pnpm miondevx release pack\` (and \`binaries\` for the platform payloads)`);
     }
   }
-  if (!packed.some((name) => name.startsWith('mionjs-binary-'))) {
-    die('drizzle-e2e: no mionjs-binary-*.tgz — the lane installs @mionjs/bin, which resolves one of those as its platform binary. Run `pnpm rtx release binaries` first.');
+  if (!packed.some((name) => name.startsWith('mionjs-native-compiler-'))) {
+    die('drizzle-e2e: no mionjs-native-compiler-*.tgz — the lane installs @mionjs/bin-compiler, which resolves one of those as its platform binary. Run `pnpm miondevx release binaries` first.');
   }
 }
 

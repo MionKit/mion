@@ -8,21 +8,11 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// temporalFormatEmitter implements the FormatTemporalX<{min,max}> family —
-// min/max bound constraints over the orderable builtin Temporal types (every
-// type with a static `compare` except Duration, a length). ONE emitter is
-// registered per orderable type (init below), each carrying its
-// reflection.TemporalInfo so it knows its qualified constructor
-// (`Temporal.PlainDate`), its `Temporal.Now.*` accessor, and which duration
-// components a relative `now±P` bound may use.
-//
-// Unlike the string date/time formats — which had to invent a numeric key
-// scale because `Date` only compares via getTime() — every orderable Temporal
-// type has a uniform static `compare`, so a bound check is simply
-// `Temporal.X.compare(v, bound) >= 0` (min) / `<= 0` (max). The bound is an
-// absolute Temporal literal (`Temporal.X.from('…')`, validated at runtime by
-// from()) or a relative `now±P…` evaluated against `Temporal.Now.*` +
-// `Temporal.Duration.from`.
+// temporalFormatEmitter implements the FormatTemporalX<{min,max}> family over the orderable builtin Temporal
+// types, meaning every type with a static `compare` except Duration, which is a length. One emitter is registered
+// per type, each carrying the reflection.TemporalInfo naming its constructor, its `Temporal.Now.*` accessor and
+// the duration components a relative `now±P` bound may use.
+// The uniform static `compare` is why these need no numeric key scale, unlike the string date/time formats.
 type temporalFormatEmitter struct {
 	info reflection.TemporalInfo
 }
@@ -36,8 +26,8 @@ func init() {
 func (e temporalFormatEmitter) Name() string                    { return e.info.FormatName }
 func (e temporalFormatEmitter) Kind() reflection.ReflectionKind { return reflection.KindClass }
 
-// relBoundKind maps the registry's RelComponentKind string to the shared
-// boundKind so relative bounds reuse the string-date component restriction.
+// relBoundKind maps RelComponentKind to the shared boundKind, so relative bounds reuse the string-date
+// component restriction.
 func (e temporalFormatEmitter) relBoundKind() boundKind {
 	switch e.info.RelComponentKind {
 	case "time":
@@ -49,13 +39,10 @@ func (e temporalFormatEmitter) relBoundKind() boundKind {
 	}
 }
 
-// ValidateParams validates the relative `now±P…` bounds: grammar + the
-// per-type duration-component restriction (e.g. an Instant bound may only use
-// time components — calendar units throw in `.add()` at runtime; a PlainDate
-// bound only date components). Absolute literals are NOT parsed here —
-// Temporal's grammar is rich (tz + calendar annotations) and
-// `Temporal.X.from(...)` validates them when the cache module loads, throwing
-// loudly on a malformed literal.
+// ValidateParams validates the relative `now±P…` bounds: grammar plus the per-type component restriction, since
+// calendar units on an Instant bound would throw in `.add()` at runtime.
+// Absolute literals are NOT parsed here: Temporal's grammar is rich (tz + calendar annotations) and
+// `Temporal.X.from(...)` validates them loudly when the cache module loads.
 func (e temporalFormatEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
@@ -68,7 +55,7 @@ func (e temporalFormatEmitter) ValidateParams(annotation *reflection.FormatAnnot
 		}
 		parsed, isRelative, relErr := parseRelative(bound)
 		if !isRelative {
-			continue // absolute literal — validated at runtime by from()
+			continue // absolute literal, validated at runtime by from()
 		}
 		if relErr != "" {
 			errs = append(errs, "Format"+temporalTitle(e.info)+": `"+key+"` "+strconv.Quote(bound)+
@@ -77,8 +64,7 @@ func (e temporalFormatEmitter) ValidateParams(annotation *reflection.FormatAnnot
 		}
 		errs = append(errs, restrictComponents(parsed, key, e.relBoundKind())...)
 	}
-	// A bound edge is inclusive (`min`/`max`) OR exclusive (`gt`/`lt`),
-	// never both — same rule as the string-date + number/bigint families.
+	// Same rule as the string-date and number/bigint families: one edge is inclusive or exclusive, never both.
 	if hasBound(annotation.Params, "min") && hasBound(annotation.Params, "gt") {
 		errs = append(errs, "Format"+temporalTitle(e.info)+": cannot specify both `min` and `gt` (a lower bound is inclusive or exclusive, not both)")
 	}
@@ -88,10 +74,8 @@ func (e temporalFormatEmitter) ValidateParams(annotation *reflection.FormatAnnot
 	return errs
 }
 
-// temporalBoundOps maps each bound param to the sign the static `compare`
-// result must satisfy to PASS: min `>= 0`, max `<= 0`, gt `> 0`, lt `< 0`.
-// Surviving bounds AND together — at most one lower (min XOR gt) and one
-// upper (max XOR lt); the same edge can't be both (see ValidateParams).
+// temporalBoundOps maps each bound param to the sign the static `compare` result must satisfy to PASS.
+// Surviving bounds AND together, at most one per edge (see ValidateParams).
 var temporalBoundOps = []struct {
 	key string
 	op  string
@@ -102,14 +86,12 @@ var temporalBoundOps = []struct {
 	{"lt", "<"},
 }
 
-// temporalTitle renders the user-facing format name for diagnostics, e.g.
-// "TemporalPlainDate".
+// temporalTitle renders the user-facing format name for diagnostics, e.g. "TemporalPlainDate".
 func temporalTitle(info reflection.TemporalInfo) string {
 	return "Temporal" + info.Name
 }
 
-// temporalBoundExpr renders the JS expression a bound compares against: an
-// absolute `Temporal.X.from('lit')` or a relative
+// temporalBoundExpr renders what a bound compares against: `Temporal.X.from('lit')`, or a relative
 // `Temporal.Now.X()[.add|.subtract](Temporal.Duration.from('P…'))`.
 func (e temporalFormatEmitter) temporalBoundExpr(bound string) string {
 	if !strings.HasPrefix(bound, "now") {

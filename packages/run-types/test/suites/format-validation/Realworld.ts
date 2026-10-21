@@ -12,13 +12,8 @@
 import * as TF from '@mionjs/run-types/formats';
 import type {FormatValidationCase} from './types.ts';
 import '@mionjs/run-types/formats';
-import {
-  createValidateFn,
-  createGetValidationErrorsFn,
-  createMockDataFn,
-  createStandardSchema,
-  type DataOnly,
-} from '@mionjs/run-types';
+import {createValidateFn, createGetValidationErrorsFn, createStandardSchema, type DataOnly} from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import {deserializeValidate, deserializeGetValidationErrors} from '../../util/deserializeRTFunctions.ts';
 import * as RT from '@mionjs/run-types/builders';
 

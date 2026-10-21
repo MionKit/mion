@@ -1,7 +1,7 @@
 package resolver_test
 
 // Pins the registerClassSerializer decoupling: the site carries
-// InjectTypeFnArgs<T, 'csr'>, so it demands ONE classSerializerReg name-card
+// InjectTypeFnArgs<T, 'classSerializerReg'>, so it demands ONE classSerializerReg name-card
 // entry (its typeName slot is the build-time class name) instead of forcing
 // the class's whole reflection graph into the runtype bundle.
 
@@ -13,7 +13,7 @@ import (
 // TestClassSerializerReg_NameCardNotGraph — a registration-only file emits the
 // csr name card (carrying the source class name) and NO runtype data bundle.
 func TestClassSerializerReg_NameCardNotGraph(t *testing.T) {
-	resp := scopeScan(t, `import {registerClassSerializer} from '@mionjs/run-types';
+	resp := scopeScan(t, `import {registerClassSerializer} from '@mionjs/run-types/runtime';
 export class WireThing { a = 1; }
 registerClassSerializer(WireThing);
 `)

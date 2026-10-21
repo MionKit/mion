@@ -11,15 +11,15 @@ import (
 // in extract_test.go).
 func withFactoryBody(t *testing.T, body string) []Diagnostic {
 	t.Helper()
-	source := `import {registerPureFnFactory} from '@mionjs/run-types';
-export const _ = registerPureFnFactory('test::fn', function () {
+	source := `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
+export const fn = registerPureFnFactory(function () {
 ` + body + `
 });`
 	_, diags := extractFromOverlay(t, map[string]string{"case.ts": source})
 	return diags
 }
 
-// purityCodes returns the codes of every PFE9006-PFE9011 diagnostic in
+// purityCodes returns the codes of every purity diagnostic in
 // diags. Order is preserved (sorted alphabetically by site upstream, so
 // the slice is deterministic across runs).
 func purityCodes(diags []Diagnostic) []string {
@@ -127,7 +127,7 @@ func TestPurity_DestructuredLocal_NoDiagnostics(t *testing.T) {
 
 func TestPurity_ObjectLiteralKey_NotAReference(t *testing.T) {
 	// `eval` here is a property KEY on an object literal — not a reference
-	// to the global eval. Must not trigger PFE9010.
+	// to the global eval. Must not trigger purefn-forbidden-construct.
 	diags := withFactoryBody(t, `
   return function inner() {
     const obj = {eval: 1, fetch: 2};
@@ -153,8 +153,8 @@ func TestPurity_BinaryEncodingGlobals_Allowed(t *testing.T) {
 	// User-requested delta: binary + text-encoding constructors are in
 	// allowedGlobals so hashing / binary-codec / encoding algorithms can be
 	// ported inline into a factory body. References EVERY newly-added global,
-	// so dropping any key from the map re-introduces a PFE9011 closure (or
-	// PFE9010 forbidden) violation right here.
+	// so dropping any key from the map re-introduces a purefn-reads-outer-variable (or
+	// purefn-forbidden-construct) violation right here.
 	diags := withFactoryBody(t, `
   return function inner(input: string) {
     const bytes = new TextEncoder().encode(input);
@@ -182,11 +182,11 @@ func TestPurity_BinaryEncodingGlobals_Allowed(t *testing.T) {
 
 func TestPurity_BunEngineProbe_Allowed(t *testing.T) {
 	// `Bun` is in allowedGlobals ("Console + runtime hints"), which is what
-	// lets a factory specialise its returned closure per engine — rt::countEnumKeys
+	// lets a factory specialise its returned closure per engine — @mionjs/run-types/src/runtypes/pure-fns-utils#countEnumKeys
 	// picks a for-in counter on V8 and an Object.keys counter on JavaScriptCore.
 	// The probe MUST be `typeof Bun !== 'undefined'`: `process`, `globalThis` and
 	// `global` are all in forbiddenIdentifiers, so no other engine test is legal.
-	// Dropping "Bun" from allowedGlobals re-introduces a PFE9011 closure violation
+	// Dropping "Bun" from allowedGlobals re-introduces a purefn-reads-outer-variable violation
 	// right here.
 	diags := withFactoryBody(t, `
   if (typeof Bun !== 'undefined') {
@@ -222,7 +222,7 @@ func TestPurity_Crypto_Allowed(t *testing.T) {
 	// (randomUUID / getRandomValues) are non-deterministic — exactly like
 	// Math.random / Date.now, which are also allowed and which mock-generator
 	// pure-fns want. Non-determinism is NOT the forbidden line, so no closure
-	// (PFE9011) or forbidden (PFE9010) diagnostic.
+	// (purefn-reads-outer-variable) or purefn-forbidden-construct diagnostic.
 	diags := withFactoryBody(t, `
   return function inner() {
     const id = crypto.randomUUID();
@@ -236,7 +236,7 @@ func TestPurity_Crypto_Allowed(t *testing.T) {
 
 func TestPurity_CryptoSubtleAwait_IsAsyncViolation(t *testing.T) {
 	// crypto is allowed, but the synchronous-only rule still bites: its async
-	// subtle.* API can only be consumed with await. The failure is PFE9007
+	// subtle.* API can only be consumed with await. The failure is purefn-uses-await
 	// (await), NOT a closure / forbidden on `crypto` — that is the whole
 	// principle (the async hash simply doesn't fit; a real hash is ported
 	// inline over the typed arrays).
@@ -245,7 +245,7 @@ func TestPurity_CryptoSubtleAwait_IsAsyncViolation(t *testing.T) {
     return await crypto.subtle.digest('SHA-256', data);
   };`)
 	if _, ok := firstDiagWithCode(diags, CodePurityAwait); !ok {
-		t.Fatalf("expected PFE9007 for await on crypto.subtle, got %+v", diags)
+		t.Fatalf("expected purefn-uses-await for await on crypto.subtle, got %+v", diags)
 	}
 	for _, d := range diags {
 		if (d.Code == CodePurityClosure || d.Code == CodePurityForbidden) && len(d.Args) > 0 && d.Args[0] == "crypto" {
@@ -265,7 +265,7 @@ func TestPurity_SharedArrayBuffer_NotAllowed(t *testing.T) {
     return new SharedArrayBuffer(16);
   };`)
 	if _, ok := firstDiagWithCode(diags, CodePurityClosure); !ok {
-		t.Fatalf("SharedArrayBuffer must NOT be allowed; expected PFE9011, got %+v", diags)
+		t.Fatalf("SharedArrayBuffer must NOT be allowed; expected purefn-reads-outer-variable, got %+v", diags)
 	}
 }
 
@@ -273,89 +273,89 @@ func TestPurity_SharedArrayBuffer_NotAllowed(t *testing.T) {
 // Failing cases — purity violations.
 // ──────────────────────────────────────────────────────────────────────
 
-func TestPurity_This_PFE9006(t *testing.T) {
+func TestPurity_This_PurefnUsesThis(t *testing.T) {
 	diags := withFactoryBody(t, `
   return function inner() {
     return this;
   };`)
 	if _, ok := firstDiagWithCode(diags, CodePurityThis); !ok {
-		t.Fatalf("expected PFE9006 for `this`, got %+v", diags)
+		t.Fatalf("expected purefn-uses-this for `this`, got %+v", diags)
 	}
 }
 
-func TestPurity_Await_PFE9007(t *testing.T) {
+func TestPurity_Await_PurefnUsesAwait(t *testing.T) {
 	diags := withFactoryBody(t, `
   return async function inner() {
     return await Promise.resolve(1);
   };`)
 	if _, ok := firstDiagWithCode(diags, CodePurityAwait); !ok {
-		t.Fatalf("expected PFE9007 for await, got %+v", diags)
+		t.Fatalf("expected purefn-uses-await for await, got %+v", diags)
 	}
 }
 
-func TestPurity_Yield_PFE9008(t *testing.T) {
+func TestPurity_Yield_PurefnUsesYield(t *testing.T) {
 	diags := withFactoryBody(t, `
   return function* inner() {
     yield 1;
     yield 2;
   };`)
 	if _, ok := firstDiagWithCode(diags, CodePurityYield); !ok {
-		t.Fatalf("expected PFE9008 for yield, got %+v", diags)
+		t.Fatalf("expected purefn-uses-yield for yield, got %+v", diags)
 	}
 }
 
-func TestPurity_DynamicImport_PFE9009(t *testing.T) {
+func TestPurity_DynamicImport_PurefnUsesDynamicImport(t *testing.T) {
 	diags := withFactoryBody(t, `
   return function inner() {
     return import('./other.js');
   };`)
 	if _, ok := firstDiagWithCode(diags, CodePurityDynamicImport); !ok {
-		t.Fatalf("expected PFE9009 for dynamic import, got %+v", diags)
+		t.Fatalf("expected purefn-uses-dynamic-import for dynamic import, got %+v", diags)
 	}
 }
 
-func TestPurity_Eval_PFE9010(t *testing.T) {
+func TestPurity_Eval_PurefnForbiddenConstruct(t *testing.T) {
 	diags := withFactoryBody(t, `
   return function inner() {
     return eval('1+1');
   };`)
 	diag, ok := firstDiagWithCode(diags, CodePurityForbidden)
 	if !ok {
-		t.Fatalf("expected PFE9010 for eval, got %+v", diags)
+		t.Fatalf("expected purefn-forbidden-construct for eval, got %+v", diags)
 	}
 	if len(diag.Args) == 0 || diag.Args[0] != "eval" {
 		t.Errorf("message should reference `eval`, got %v", diag.Args)
 	}
 }
 
-func TestPurity_Fetch_PFE9010(t *testing.T) {
+func TestPurity_Fetch_PurefnForbiddenConstruct(t *testing.T) {
 	diags := withFactoryBody(t, `
   return function inner() {
     return fetch('/api');
   };`)
 	if _, ok := firstDiagWithCode(diags, CodePurityForbidden); !ok {
-		t.Fatalf("expected PFE9010 for fetch, got %+v", diags)
+		t.Fatalf("expected purefn-forbidden-construct for fetch, got %+v", diags)
 	}
 }
 
-func TestPurity_Process_PFE9010(t *testing.T) {
+func TestPurity_Process_PurefnForbiddenConstruct(t *testing.T) {
 	diags := withFactoryBody(t, `
   return function inner() {
     return process.env.HOME;
   };`)
 	if _, ok := firstDiagWithCode(diags, CodePurityForbidden); !ok {
-		t.Fatalf("expected PFE9010 for process, got %+v", diags)
+		t.Fatalf("expected purefn-forbidden-construct for process, got %+v", diags)
 	}
 }
 
-func TestPurity_SetTimeout_PFE9010(t *testing.T) {
+func TestPurity_SetTimeout_PurefnForbiddenConstruct(t *testing.T) {
 	diags := withFactoryBody(t, `
   return function inner() {
     setTimeout(() => {}, 0);
     return 1;
   };`)
 	if _, ok := firstDiagWithCode(diags, CodePurityForbidden); !ok {
-		t.Fatalf("expected PFE9010 for setTimeout, got %+v", diags)
+		t.Fatalf("expected purefn-forbidden-construct for setTimeout, got %+v", diags)
 	}
 }
 
@@ -368,27 +368,27 @@ func TestPurity_GlobalThis_Forbidden(t *testing.T) {
   };`)
 	diag, ok := firstDiagWithCode(diags, CodePurityForbidden)
 	if !ok {
-		t.Fatalf("expected PFE9010 for globalThis, got %+v", diags)
+		t.Fatalf("expected purefn-forbidden-construct for globalThis, got %+v", diags)
 	}
 	if len(diag.Args) == 0 || diag.Args[0] != "globalThis" {
 		t.Errorf("message should reference `globalThis`, got %v", diag.Args)
 	}
 }
 
-func TestPurity_ClosureVariable_PFE9011(t *testing.T) {
+func TestPurity_ClosureVariable_PurefnReadsOuterVariable(t *testing.T) {
 	// Reference an identifier that's neither in scope nor a known global.
 	// In the test fixture, `SECRET` is referenced from inside the factory
 	// without being declared. (The reference ESLint rule sees it as a closure
 	// variable from the outer module; here, since the factory's parent
 	// chain doesn't include any module-level declaration of SECRET, the
-	// scope check fails and PFE9011 fires.)
+	// scope check fails and purefn-reads-outer-variable fires.)
 	diags := withFactoryBody(t, `
   return function inner() {
     return SECRET;
   };`)
 	diag, ok := firstDiagWithCode(diags, CodePurityClosure)
 	if !ok {
-		t.Fatalf("expected PFE9011 for SECRET closure, got %+v", diags)
+		t.Fatalf("expected purefn-reads-outer-variable for SECRET closure, got %+v", diags)
 	}
 	if len(diag.Args) == 0 || diag.Args[0] != "SECRET" {
 		t.Errorf("message should reference `SECRET`, got %v", diag.Args)
@@ -402,9 +402,9 @@ func TestPurity_ModuleLevelConst_StillClosureViolation(t *testing.T) {
 	// this shape (it wraps the body directly inside the call), so this
 	// test uses extractFromOverlay to author the full source.
 	_, diags := extractFromOverlay(t, map[string]string{
-		"case.ts": `import {registerPureFnFactory} from '@mionjs/run-types';
+		"case.ts": `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 const name = 'John';
-export const sayHello = registerPureFnFactory('myNamespace::sayHello', function () {
+export const sayHello = registerPureFnFactory(function () {
   return function _greet() {
     return 'Hello ' + name;
   };
@@ -413,7 +413,7 @@ export const sayHello = registerPureFnFactory('myNamespace::sayHello', function 
 	})
 	diag, ok := firstDiagWithCode(diags, CodePurityClosure)
 	if !ok {
-		t.Fatalf("expected PFE9011 for module-level `name` closure, got %+v", diags)
+		t.Fatalf("expected purefn-reads-outer-variable for module-level `name` closure, got %+v", diags)
 	}
 	if len(diag.Args) == 0 || diag.Args[0] != "name" {
 		t.Errorf("message should reference `name`, got %v", diag.Args)
@@ -424,9 +424,9 @@ func TestPurity_ModuleLevelFunction_StillClosureViolation(t *testing.T) {
 	// A module-level helper function called from inside the factory is
 	// also a closure access — the factory should not reach for it.
 	_, diags := extractFromOverlay(t, map[string]string{
-		"case.ts": `import {registerPureFnFactory} from '@mionjs/run-types';
+		"case.ts": `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 function helper(x: number) { return x * 2; }
-export const x = registerPureFnFactory('ns::fn', function () {
+export const fn = registerPureFnFactory(function () {
   return function _f(n: number) {
     return helper(n);
   };
@@ -435,7 +435,7 @@ export const x = registerPureFnFactory('ns::fn', function () {
 	})
 	diag, ok := firstDiagWithCode(diags, CodePurityClosure)
 	if !ok {
-		t.Fatalf("expected PFE9011 for module-level `helper` closure, got %+v", diags)
+		t.Fatalf("expected purefn-reads-outer-variable for module-level `helper` closure, got %+v", diags)
 	}
 	if len(diag.Args) == 0 || diag.Args[0] != "helper" {
 		t.Errorf("message should reference `helper`, got %v", diag.Args)
@@ -446,9 +446,9 @@ func TestPurity_ImportedSymbol_StillClosureViolation(t *testing.T) {
 	// Imports are bindings in the module scope. Referencing one from
 	// inside the factory body is a closure access and must fail.
 	_, diags := extractFromOverlay(t, map[string]string{
-		"case.ts": `import {registerPureFnFactory} from '@mionjs/run-types';
+		"case.ts": `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 declare const someImportedHelper: (n: number) => number;
-export const x = registerPureFnFactory('ns::fn', function () {
+export const fn = registerPureFnFactory(function () {
   return function _f(n: number) {
     return someImportedHelper(n);
   };
@@ -457,7 +457,7 @@ export const x = registerPureFnFactory('ns::fn', function () {
 	})
 	diag, ok := firstDiagWithCode(diags, CodePurityClosure)
 	if !ok {
-		t.Fatalf("expected PFE9011 for module-level imported symbol, got %+v", diags)
+		t.Fatalf("expected purefn-reads-outer-variable for module-level imported symbol, got %+v", diags)
 	}
 	if len(diag.Args) == 0 || diag.Args[0] != "someImportedHelper" {
 		t.Errorf("message should reference `someImportedHelper`, got %v", diag.Args)
@@ -485,7 +485,7 @@ func TestPurity_MultipleViolations_AllReported(t *testing.T) {
     return fetch('/');
   };`)
 	if _, ok := firstDiagWithCode(diags, CodePurityForbidden); !ok {
-		t.Fatalf("expected at least one PFE9010, got %+v", diags)
+		t.Fatalf("expected at least one purefn-forbidden-construct, got %+v", diags)
 	}
 	// Verify both eval and fetch surface.
 	var hasEval, hasFetch bool
@@ -513,6 +513,6 @@ func TestPurity_PropertyAccess_NotAReference(t *testing.T) {
     return obj.eval;
   };`)
 	if _, ok := firstDiagWithCode(diags, CodePurityForbidden); ok {
-		t.Fatalf("property access name should not trigger PFE9010; diags=%+v", diags)
+		t.Fatalf("property access name should not trigger purefn-forbidden-construct; diags=%+v", diags)
 	}
 }

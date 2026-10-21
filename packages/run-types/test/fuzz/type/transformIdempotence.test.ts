@@ -36,7 +36,7 @@ const IDEMPOTENT = {
   stripSeparators: createFormatTransformFn<TF.CreditCard<{transform: {stripSeparators: true}}>>(),
   stripAndTrim: createFormatTransformFn<TF.Transform<TF.CreditCard, {trim: true; stripSeparators: true}>>(),
   ipv6: createFormatTransformFn<TF.IPv6<{transform: {lowercase: true}}>>(),
-  url: createFormatTransformFn<TF.Url<{transform: {trim: true; lowercase: true}}>>(),
+  url: createFormatTransformFn<TF.StringUrl<{transform: {trim: true; lowercase: true}}>>(),
 };
 const replaceFirst = createFormatTransformFn<TF.String<{transform: {replace: {searchValue: 'a'; replaceValue: 'X'}}}>>();
 const lowercaseCapitalize = createFormatTransformFn<TF.String<{transform: {lowercase: true; capitalize: true}}>>();

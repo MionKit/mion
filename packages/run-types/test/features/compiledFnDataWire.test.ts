@@ -15,7 +15,7 @@
 //      syntactically INVALID JSON that no receiver can parse.
 //
 // The call sites below register real entries across every family SHAPE
-// (value-shaped, error-shaped, and the opts / binary pairs), so the assertions
+// (value-shaped, error-shaped, and the JSON codec chains), so the assertions
 // run against what the pipeline actually produces rather than a hand-authored
 // literal.
 import {describe, it, expect} from 'vitest';
@@ -23,17 +23,16 @@ import {
   createValidateFn,
   createGetValidationErrorsFn,
   createJsonEncoderFn,
-  createBinaryEncoderFn,
-  createBinaryDecoderFn,
-  getRTFnCaches,
+  createJsonDecoderFn,
   type CompiledFnData,
 } from '@mionjs/run-types';
+import {getRTFnCaches} from '@mionjs/run-types/runtime';
 
 // Each of these registers at least one entry of a distinct family shape:
 //   validate            → value-shaped  (vλl)
 //   validationErrors    → error-shaped  (vλl, pλth, εrr)
 //   jsonEncoder         → the prepareForJson / stringify composite chain
-//   binary encode/decode → tb (vλl, sεr) and fb (vλl, dεs)
+//   jsonDecoder         → the restoreFromJson composite chain
 interface WireShape {
   id: number;
   name: string;
@@ -43,8 +42,7 @@ interface WireShape {
 createValidateFn<WireShape>();
 createGetValidationErrorsFn<WireShape>();
 createJsonEncoderFn<WireShape>();
-createBinaryEncoderFn<WireShape>();
-createBinaryDecoderFn<WireShape>();
+createJsonDecoderFn<WireShape>();
 
 // The registered entries, as CompiledFnData (CompiledTypeFn extends it).
 function registeredEntries(): CompiledFnData[] {

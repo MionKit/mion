@@ -5,32 +5,24 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The ONE module of @mionjs/drizzle-orm-pg-core that imports drizzle-orm
-// (which is why drizzle-orm can be an optional peer: a project that never
-// calls toDrizzle never loads it). toDrizzle materializes a slim table (or a
-// recorded enum/schema/sequence handle) into the real drizzle object by
-// traversing the recorded graph, and types the result by SYNTHESIZING
-// structural PgColumn configs from the slim state — drizzle's model and query
-// typing reads only data / notNull / hasDefault / generated / identity, so a
-// fixed dataType/columnType satisfies it (pinned by the type-budget slim lane
-// and its shape pins). The drizzle generics are paid here, lazily, and only in
-// the files that run queries.
+// The ONE module that imports drizzle-orm, so a project that never calls toDrizzle never loads it (an optional peer).
+// Types are synthesized PgColumn configs: drizzle's typing reads only data / notNull / hasDefault / generated / identity.
+// The ONE place a column gets its db and table names back, so only files that materialize a table pay for it.
 
 import * as dzPg from 'drizzle-orm/pg-core';
 import {sql as dzSql} from 'drizzle-orm';
-import type {PgColumn, PgTableWithColumns, PgViewWithSelection} from 'drizzle-orm/pg-core';
+import type {PgColumn as DzPgColumn, PgTableWithColumns, PgViewWithSelection} from 'drizzle-orm/pg-core';
 import type {
-  ColBrandOf,
-  PlainDataOf,
-  ColKeyFlags,
-  ColKeyFlagsOf,
-  ColsOf,
+  DbNameOf,
   DrizzleContext,
-  TableNameOf,
-  ViewColsOf,
-  ViewNameOf,
+  IsHasDefault,
+  IsInsertExcluded,
+  IsNotNull,
+  KeyFlagsOf,
+  TableFromTypeOptions,
+  ValueOf,
+  ColSpecOf,
 } from '@mionjs/drizzle-orm';
-import type {TableFromTypeOptions} from '@mionjs/drizzle-orm';
 import {
   isRtView,
   materializeRtTable,
@@ -41,80 +33,56 @@ import {
   rtValueKey,
 } from '@mionjs/drizzle-orm';
 import type {InjectRunTypeId} from '@mionjs/run-types';
-import type {PgEnum, PgEnumObject, PgRole, RtLinkedPolicy, RtPolicyEntry, RtIndexEntry} from './helpers.ts';
-import type {AnyPgTable, AnyPgView} from './table.ts';
+import type {PgEnum, PgEnumObject, PgRole, RtLinkedPolicy, RtPolicyEntry} from './helpers.ts';
 import {tableFromType, type PgSchema, type PgSequence} from './table.ts';
+import type {AnyPgTable, AnyPgView, RtIndexEntry} from './types.ts';
 
 const context: DrizzleContext = {
   ns: dzPg as unknown as DrizzleContext['ns'],
   sqlNs: dzSql as unknown as DrizzleContext['sqlNs'],
 };
 
-/** Structural PgColumn config from slim state. dataType/columnType are fixed:
- *  nothing in drizzle's model or query typing branches on them. */
-// `identity` is NOT decorative: drizzle leaves an `identity: 'always'` column
-// out of an insert and lets `.overridingSystemValue()` put it back, while a
-// `generated` one stays out either way. Reporting the identity column as
-// generated made `.overridingSystemValue()` accept nothing.
-// isPrimaryKey / isAutoincrement / hasRuntimeDefault stay fixed here: only
-// mysql's `$returningId()` reads them, and its twin synthesizes them.
-type SynthConfig<K extends string, TName extends string, Brand, Key extends ColKeyFlags> = Brand extends {
-  data: infer Data;
-  notNull: infer N extends boolean;
-  hasDefault: infer H extends boolean;
-  insertExcluded: infer X extends boolean;
-}
+/** Structural PgColumn config; dataType / columnType are fixed because drizzle's typing never branches on them. */
+type SynthConfig<Name extends string, TableName extends string, S> = S extends {config: infer P; data: infer D; base: infer B}
   ? {
-      name: K;
-      tableName: TName;
+      name: Name;
+      tableName: TableName;
       dataType: 'custom';
       columnType: 'RtColumn';
-      data: PlainDataOf<Data>;
+      data: ValueOf<P, D>;
       driverParam: unknown;
       enumValues: undefined;
-      notNull: N;
-      hasDefault: H;
+      notNull: IsNotNull<P, B>;
+      hasDefault: IsHasDefault<P, B>;
       isPrimaryKey: false;
       isAutoincrement: false;
       hasRuntimeDefault: false;
-      identity: Key['identity'];
-      generated: X extends true ? ([Key['identity']] extends [undefined] ? {type: 'always'} : undefined) : undefined;
+      identity: KeyFlagsOf<S>['identity'];
+      generated: IsInsertExcluded<P> extends true
+        ? [KeyFlagsOf<S>['identity']] extends [undefined]
+          ? {type: 'always'}
+          : undefined
+        : undefined;
     }
   : never;
 
-/** The drizzle-typed view of a slim table: what db.select/insert/update infer
- *  from. Evaluated lazily, only where toDrizzle is actually used. */
+/** The drizzle-typed view of a table, evaluated only where toDrizzle is used. */
 export type ToDrizzleTable<T extends AnyPgTable> = PgTableWithColumns<{
-  name: TableNameOf<T>;
+  name: T['name'];
   schema: undefined;
   dialect: 'pg';
-  columns: {
-    [K in keyof ColsOf<T> & string]: PgColumn<
-      SynthConfig<K, TableNameOf<T>, ColBrandOf<ColsOf<T>[K]>, ColKeyFlagsOf<ColsOf<T>[K]>>
-    >;
-  };
+  columns: {[K in keyof T['columns'] & string]: DzPgColumn<SynthConfig<DbNameOf<T, K>, T['name'], ColSpecOf<T['columns'][K]>>>};
 }>;
 
-/** The drizzle-typed view of a slim VIEW. Same synthesis as ToDrizzleTable;
- *  TExisting stays `boolean` because nothing in select typing branches on it
- *  and pinning it would cost a type parameter on every declared view. */
+/** The drizzle-typed view of a view. */
 export type ToDrizzleView<V extends AnyPgView> = PgViewWithSelection<
-  ViewNameOf<V>,
+  V['name'],
   boolean,
-  {
-    [K in keyof ViewColsOf<V> & string]: PgColumn<
-      SynthConfig<K, ViewNameOf<V>, ColBrandOf<ViewColsOf<V>[K]>, ColKeyFlagsOf<ViewColsOf<V>[K]>>
-    >;
-  }
+  {[K in keyof V['columns'] & string]: DzPgColumn<SynthConfig<DbNameOf<V, K>, V['name'], ColSpecOf<V['columns'][K]>>>}
 >;
 
-/** Materialize a slim table into the real drizzle table (memoized: every call
- *  returns the same object), or a recorded pgEnum / pgSchema / pgSequence
- *  handle into its drizzle counterpart (export those from a drizzle-kit schema
- *  file alongside the tables). The marker form `toDrizzle<UsersTable>(options?)`
- *  is the type road's happy path: it resolves the table type itself
- *  (@mionjs/devtools must be active) and shares tableFromType's per-type
- *  slim table. */
+// The marker form `toDrizzle<UsersTable>(options?)` needs @mionjs/devtools and shares tableFromType's per-type table.
+/** Materializes a table (memoized), a view, or a recorded handle a drizzle-kit schema file exports beside the tables. */
 export function toDrizzle<T extends AnyPgTable>(table: T): ToDrizzleTable<T>;
 export function toDrizzle<V extends AnyPgView>(view: V): ToDrizzleView<V>;
 export function toDrizzle<T extends readonly [string, ...string[]]>(handle: PgEnum<T>): dzPg.PgEnum<[T[0], ...string[]]>;
@@ -123,23 +91,15 @@ export function toDrizzle(handle: PgSchema): dzPg.PgSchema;
 export function toDrizzle(handle: PgSequence): dzPg.PgSequence;
 export function toDrizzle(handle: PgRole): dzPg.PgRole;
 export function toDrizzle(handle: RtLinkedPolicy): dzPg.PgPolicy;
-// An UNLINKED policy materializes on its own too: it is a standalone drizzle
-// value, and drizzle-kit reads it from wherever you export it. The runtime
-// always handled it; only the overload was missing, so `toDrizzle(pgPolicy(…))`
-// did not typecheck.
 export function toDrizzle(handle: RtPolicyEntry): dzPg.PgPolicy;
-// An INDEX declared outside any table's extraConfig. drizzle's query side takes
-// its own IndexBuilder (dzPg.IndexBuilder) for a hint, and the table's replay
-// takes the recorder, so a schema that does both declares the index once and
-// materializes it here for the query half.
+// An index declared outside any table's extraConfig: drizzle's query side wants its own IndexBuilder.
 export function toDrizzle(entry: RtIndexEntry): dzPg.IndexBuilder;
 export function toDrizzle<T extends AnyPgTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): ToDrizzleTable<T>;
 export function toDrizzle(value?: object, id?: unknown): unknown {
   if (value !== undefined) {
     const attached = (value as Record<symbol, unknown>)[rtValueKey];
     if (attached instanceof RtValueRecorder) return attached.toDrizzleValue(context);
-    // A policy linked to a table declared elsewhere: it belongs to no
-    // extraConfig, so it materializes on its own.
+    // A standalone ENTRY (a linked policy, an index) belongs to no extraConfig, so it materializes on its own.
     if (value instanceof RtEntryRecorder) return value.toDrizzleEntry(context);
     if (isRtView(value)) return materializeRtView(value, context);
     if ((value as Record<symbol, unknown>)[rtTableKey] !== undefined) return materializeRtTable(value, context);

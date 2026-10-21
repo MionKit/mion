@@ -83,16 +83,6 @@ function filterNativeHoverInfo(info: string): string {
   return processed
 }
 
-/**
- * Hover info processor for explicit mode - hides all automatic hovers.
- * Explicit twoslash annotations (// ^?, // ^|, errors) are handled separately
- * by twoslash and don't go through processHoverInfo.
- */
-function explicitModeHoverInfo(_info: string): string {
-  // Return empty string to hide all automatic hover popups
-  return ''
-}
-
 const isDev = process.env.NODE_ENV !== 'production'
 
 // Cache the highlighter instance
@@ -141,6 +131,22 @@ function findFiles(dir: string, pattern: RegExp, files: string[] = []): string[]
 }
 
 /**
+ * The built `.d.ts` a package's own package.json names as its `.` types entry, absolute.
+ * Reads the three spellings the workspace uses: a plain `exports['.'].types`, the
+ * conditional `exports['.'].import.types` (@mionjs/run-types), and a top-level `types`.
+ * Undefined when the manifest names none. Mirrored by repo-contracts.test.ts.
+ */
+function typesEntry(pkgDir: string): string | undefined {
+  const manifestPath = join(pkgDir, 'package.json')
+  if (!existsSync(manifestPath)) return undefined
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
+  const root = manifest.exports?.['.']
+  const declared: unknown = typeof root === 'string' ? root : (root?.types ?? root?.import?.types ?? manifest.types)
+  if (typeof declared !== 'string' || !declared.endsWith('.d.ts')) return undefined
+  return resolve(pkgDir, declared)
+}
+
+/**
  * Load all .d.ts files from the RunTypes packages into a virtual file system Map
  */
 function loadPackageTypes(): Map<string, string> {
@@ -169,62 +175,69 @@ function loadPackageTypes(): Map<string, string> {
 
   // Packages to load. `dir` is the directory under packages/, `name` is the npm
   // package name: the specifier examples actually import, which is what the
-  // virtual node_modules path must use. The two differ on BOTH rows (the
-  // directory kept its pre-scope name when the packages moved onto the
+  // virtual node_modules path must use. The two differ on every row (the
+  // directories kept their pre-scope names when the packages moved onto the
   // @mionjs scope), and getting `name` wrong is silent: the VFS mounts a
   // module nothing imports, every example fails to resolve, and twoslash throws.
-  // Subpath imports (@mionjs/run-types/formats, /schema) resolve via the
-  // per-directory index.d.ts under classic node resolution, and
-  // @mionjs/devtools/runtypes/vite via the sibling vite.d.ts.
+  // The mount ROOT is not written here: it is the directory holding the package's
+  // own `.` types entry (typesEntry above), read from its package.json. The dists
+  // are not laid out alike (core emits `.dist/esm/index.d.ts`, the drizzle packages
+  // `.dist/esm/src/index.d.ts`, run-types `dist/`, uws a committed `lib/`), and a
+  // hand-written root that misses the real entry mounts a tree whose bare import
+  // resolves nothing, and the card renders a compiler error instead of hovers.
+  // Subpath imports (@mionjs/run-types/formats, @mionjs/drizzle-orm-pg-core/drizzle)
+  // resolve via the sibling `<sub>.d.ts` / `<sub>/index.d.ts` under classic node
+  // resolution, which is why every dist keeps its subpaths parallel to its exports.
   // `name` MUST be the PUBLISHED npm name, not the packages/ directory name — the
   // mount path is what an example's bare import resolves against. Both sites share
   // this list; a runtypes page simply never imports an @mionjs package, and vice versa.
   // Pinned by `repo-contracts.test.ts`.
   const packageConfigs = [
-    { dir: 'run-types', name: '@mionjs/run-types', distPath: 'dist' },
-    { dir: 'devtools', name: '@mionjs/devtools', distPath: 'dist' },
-    { dir: 'core', name: '@mionjs/core', distPath: '.dist/esm' },
-    { dir: 'router', name: '@mionjs/router', distPath: '.dist/esm' },
-    { dir: 'client', name: '@mionjs/client', distPath: '.dist/esm' },
-    { dir: 'drizzle-orm', name: '@mionjs/drizzle-orm', distPath: '.dist/esm' },
-    { dir: 'drizzle-orm-mysql-core', name: '@mionjs/drizzle-orm-mysql-core', distPath: '.dist/esm' },
-    { dir: 'drizzle-orm-pg-core', name: '@mionjs/drizzle-orm-pg-core', distPath: '.dist/esm' },
-    { dir: 'drizzle-orm-sqlite-core', name: '@mionjs/drizzle-orm-sqlite-core', distPath: '.dist/esm' },
-    { dir: 'platform-aws', name: '@mionjs/platform-aws', distPath: '.dist/esm' },
-    { dir: 'platform-bun', name: '@mionjs/platform-bun', distPath: '.dist/esm' },
-    { dir: 'platform-cloudflare', name: '@mionjs/platform-cloudflare', distPath: '.dist/esm' },
-    { dir: 'platform-gcloud', name: '@mionjs/platform-gcloud', distPath: '.dist/esm' },
-    { dir: 'platform-node', name: '@mionjs/platform-node', distPath: '.dist/esm' },
-    { dir: 'platform-uws', name: '@mionjs/platform-uws', distPath: '.dist/esm' },
+    { dir: 'run-types', name: '@mionjs/run-types' },
+    { dir: 'devtools', name: '@mionjs/devtools' },
+    { dir: 'core', name: '@mionjs/core' },
+    { dir: 'rpc-router', name: '@mionjs/router' },
+    { dir: 'rpc-client', name: '@mionjs/client' },
+    { dir: 'drizzle-orm', name: '@mionjs/drizzle-orm' },
+    { dir: 'drizzle-orm-mysql-core', name: '@mionjs/drizzle-orm-mysql-core' },
+    { dir: 'drizzle-orm-pg-core', name: '@mionjs/drizzle-orm-pg-core' },
+    { dir: 'drizzle-orm-sqlite-core', name: '@mionjs/drizzle-orm-sqlite-core' },
+    { dir: 'platform-aws', name: '@mionjs/platform-aws' },
+    { dir: 'platform-bun', name: '@mionjs/platform-bun' },
+    { dir: 'platform-cloudflare', name: '@mionjs/platform-cloudflare' },
+    { dir: 'platform-gcloud', name: '@mionjs/platform-gcloud' },
+    { dir: 'platform-node', name: '@mionjs/platform-node' },
+    { dir: 'platform-uws', name: '@mionjs/platform-uws' },
     // the loader shim platform-uws depends on: its types (AppOptions etc.) are a
     // committed hand-written lib/index.d.ts, not a built dist.
-    { dir: 'uws', name: '@mionjs/uws', distPath: 'lib' },
-    { dir: 'platform-vercel', name: '@mionjs/platform-vercel', distPath: '.dist/esm' },
-    // @mionjs/devtools ships one nested build tree per entry point rather than a flat
-    // dist, and classic node resolution ignores the `exports` map, so its entries need
-    // `entries` shims (below) to be reachable as `@mionjs/devtools` / `.../vite-plugin`.
-    {
-      dir: 'devtools',
-      name: '@mionjs/devtools',
-      distPath: 'build',
-      entries: {'.': 'eslint/esm/src/eslint/index', './vite-plugin': 'vite-plugin/esm/src/vite-plugin/index'},
-    },
+    { dir: 'bin-uws', name: '@mionjs/bin-uws' },
+    { dir: 'platform-vercel', name: '@mionjs/platform-vercel' },
   ]
 
   for (const pkg of packageConfigs) {
-    const pkgDistDir = join(packagesDir, pkg.dir, pkg.distPath)
+    const pkgDir = join(packagesDir, pkg.dir)
+    const entry = typesEntry(pkgDir)
+    if (!entry) {
+      console.warn(`[twoslash] ${pkg.name}: package.json declares no types entry, not mounted`)
+      continue
+    }
+    const pkgDistDir = dirname(entry)
     // dist/cjs/ is the CommonJS twin of the same declarations, mounting it would
     // double the VFS for no added resolution, so keep only the ESM tree.
     const dtsFiles = findFiles(pkgDistDir, /\.d\.ts$/).filter(
       (file) => !relative(pkgDistDir, file).startsWith('cjs' + sep),
     )
-    if (dtsFiles.length === 0) continue
+    if (dtsFiles.length === 0) {
+      console.warn(`[twoslash] ${pkg.name}: no .d.ts under ${relative(repoRoot, pkgDistDir)} (not built?), not mounted`)
+      continue
+    }
 
-    // Synthetic package.json so TS's Node resolver finds `index.d.ts` (and subpath
+    // Synthetic package.json so TS's Node resolver finds the entry (and subpath
     // exports like `@mionjs/run-types/formats`) for bare imports in examples.
+    const entryFile = relative(pkgDistDir, entry)
     fsMap.set(
       `/node_modules/${pkg.name}/package.json`,
-      JSON.stringify({ name: pkg.name, types: 'index.d.ts', main: 'index.d.ts' }),
+      JSON.stringify({ name: pkg.name, types: entryFile, main: entryFile }),
     )
 
     for (const dtsFile of dtsFiles) {
@@ -244,16 +257,6 @@ function loadPackageTypes(): Map<string, string> {
       } catch (e) {
         console.warn(`Failed to read ${dtsFile}:`, e)
       }
-    }
-
-    // Entry-point shims for a package whose declarations are not at the paths classic
-    // node resolution looks in. `'.'` becomes index.d.ts, `'./x'` becomes x/index.d.ts,
-    // each just re-exporting the real file that IS mounted above.
-    for (const [subpath, target] of Object.entries(pkg.entries ?? {})) {
-      const virtual = subpath === '.' ? 'index.d.ts' : `${subpath.replace(/^\.\//, '')}/index.d.ts`
-      const depth = virtual.split('/').length - 1
-      const from = `${'../'.repeat(depth) || './'}${target}`
-      fsMap.set(`/node_modules/${pkg.name}/${virtual}`, `export * from '${from}';\n`)
     }
   }
 
@@ -280,15 +283,13 @@ function loadPackageTypes(): Map<string, string> {
     if (existsSync(depManifest)) fsMap.set(`/node_modules/${dep}/package.json`, readFileSync(depManifest, 'utf-8'))
   }
 
-  // Also load source files from examples package for relative imports
-  const examplesDir = join(packagesDir, 'examples', 'src')
+  // Example sources too, for relative imports between examples.
+  const examplesDir = join(packagesDir, 'private-examples', 'src')
   const exampleFiles = findFiles(examplesDir, /\.ts$/)
 
   for (const srcFile of exampleFiles) {
-    // Get relative path from examples/src directory
     const relativePath = relative(examplesDir, srcFile)
-    // Create virtual path that matches how files are imported
-    // Files like user.ts can be found via ./user.ts
+    // The VFS path mirrors the path under src/, so ./user.ts resolves.
     const virtualPath = `/${relativePath}`
 
     try {
@@ -304,17 +305,12 @@ function loadPackageTypes(): Map<string, string> {
   return fsMap
 }
 
-/**
- * Read code from a file path (only packages/examples allowed)
- * Prepends a comment with the file path and removes trailing newlines
- */
 function readCodeFromPath(path: string): string {
-  // Security: Only allow reading from packages/examples
-  if (!path.startsWith('packages/examples/')) {
-    throw new Error('Only files from packages/examples are allowed')
+  // Security: never serve files outside the examples folder.
+  if (!path.startsWith('packages/private-examples/')) {
+    throw new Error('Only files from packages/private-examples are allowed')
   }
 
-  // Resolve under the configured repo root, confined to packages/.
   const repoRoot = getRepoRoot(resolve(process.cwd(), '..'))
   const filePath = resolveInPackages(repoRoot, path)
 
@@ -327,14 +323,15 @@ function readCodeFromPath(path: string): string {
     throw new Error(`File not found: ${path}`)
   }
 
-  // Read file content, remove trailing newlines, add file path comment
   const content = readFileSync(filePath, 'utf-8').trimEnd()
   return `// ${path}\n${content}`
 }
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
-  const { code: rawCode, lang = 'ts', path = '', hoverMode = 'all' } = body
+  // 'explicit' (the default): only the annotations written in the code render; no
+  // hover on every identifier, which read as noise on the docs pages.
+  const { code: rawCode, lang = 'ts', path = '', hoverMode = 'explicit' } = body
 
   // Get code from either direct input or file path
   let code: string
@@ -389,25 +386,18 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // If we have a file path (e.g., packages/examples/src/enrich/friendly-user.ts)
-    // Set up the extra files so relative imports work
-    // The file path after examples/src becomes the virtual path
+    // The path after private-examples/src/ is the VFS path; its directory siblings go in so relative imports resolve.
     let extraFiles: Record<string, string> | undefined
-    if (filePath && filePath.includes('packages/examples/src/')) {
-      // Extract path after packages/examples/src/
-      const match = filePath.match(/packages\/examples\/src\/(.+)$/)
+    if (filePath && filePath.includes('packages/private-examples/src/')) {
+      const match = filePath.match(/packages\/private-examples\/src\/(.+)$/)
       if (match) {
         const relativePath = match[1]
-        // Get the directory of the current file
         const fileDir = relativePath.substring(0, relativePath.lastIndexOf('/'))
 
-        // Add all other files from the same directory as extra files
-        // so that relative imports like ./user.ts work
         extraFiles = {}
         const prefix = `/${fileDir}/`
         for (const [path, content] of fsMap.entries()) {
           if (path.startsWith(prefix) && !path.endsWith(relativePath)) {
-            // Convert /enrich/user.ts to ./user.ts style import
             const fileName = path.substring(prefix.length)
             extraFiles[`./${fileName}`] = content
           }
@@ -415,10 +405,10 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Choose hover info processor based on hoverMode
-    const hoverInfoProcessor = hoverMode === 'explicit'
-      ? explicitModeHoverInfo
-      : filterNativeHoverInfo
+    // One text processor for hovers and queries alike (the renderer runs it on both);
+    // explicit mode removes the hover nodes themselves (filterNode below), so the
+    // query boxes keep their type text.
+    const hoverInfoProcessor = filterNativeHoverInfo
 
     let html = highlighter.codeToHtml(code, {
       lang,
@@ -439,6 +429,11 @@ export default defineEventHandler(async (event) => {
             extraFiles,
             // Enable custom annotation tags like @log, @error, @warn, @annotate
             customTags: ['log', 'error', 'warn', 'annotate'],
+            // Explicit mode: drop the hover nodes before rendering, so nothing appears on
+            // hover. The queries (^?) still need the type text collected, so hovers are
+            // filtered out rather than never collected; completions (^|), errors and the
+            // custom tags are their own node types and pass through.
+            ...(hoverMode === 'explicit' ? { filterNode: (node: { type: string }) => node.type !== 'hover' } : {}),
           },
         }),
       ],

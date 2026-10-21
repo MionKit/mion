@@ -10,11 +10,13 @@ created: 2026-08-30
 ## Intent
 
 The projection now decides data by what IS data. A type declared in the bundled standard library
-is not on that list, so it is taken whole and dropped, whatever it is called. See
-[docs/done/consumer-lib-version-contract.md](../done/consumer-lib-version-contract.md).
+is not on that list, so it is taken whole and dropped, whatever it is called. That replaced a
+hand-written list of type NAMES to take whole, which tried to enumerate an open set and was stale
+the day it was read: a standard-library type it missed (a `URL` field, for one) compiled a
+forty-member validator over its internals with no diagnostic.
 
 That closed the silent-divergence problem, and it deliberately left the supported set exactly
-where it was: `Date`, `RegExp`, `Map`, `Set` and the Temporal types. The point of a closed
+where it was: `Date`, `Map`, `Set` and the Temporal types (`RegExp` left the set later: a pattern is code, not data). The point of a closed
 contract is that the set can now GROW deliberately, one reviewed type at a time, instead of a
 type sneaking in because nobody put its name on a blocklist.
 
@@ -51,11 +53,11 @@ Worth considering alongside them, even though they declare no `toJSON`:
   what `@mionjs/core` already does with `RpcError` / `TypedError` before adding anything, since
   the framework has its own answer here and two answers would be worse than one.
 
-Deliberately NOT in this todo: the binary family. That has its own, see
-[binary-as-opt-in-data.md](binary-as-opt-in-data.md).
+Deliberately NOT in this todo: the binary family (`Buffer`, the typed arrays, `ArrayBuffer`,
+`DataView`). Its only JSON forms, base64 or a number array, change the shape, so it stays non-data.
 
 Also worth deciding once, as policy rather than per type: whether a supported lib type needs an
-explicit opt-in like the binary one will, or whether an exact round trip is enough to make it
+explicit opt-in, or whether an exact round trip is enough to make it
 data by default. `Date` and `Map` set the precedent for "by default".
 
 The implementer plans the details: which types make the cut, in what order, how each is

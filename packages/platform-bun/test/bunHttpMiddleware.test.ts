@@ -1,0 +1,100 @@
+/* ########
+ * 2026 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+import {expect, test, beforeAll, afterAll, describe, setDefaultTimeout} from 'bun:test';
+import {createMionRouter, resetRouter, getPlatformConfig, setHostOwnsSocket, getHostRequestHandler} from '@mionjs/router';
+import {setBunHttpOpts, resetBunHttpOpts, startBunServer, bunRequestHandler} from '../src/bunHttp.ts';
+import {CallContext} from '@mionjs/router';
+import {Server} from 'bun';
+
+setDefaultTimeout(30_000);
+
+// `asMiddleware` + the exported `bunRequestHandler` are what let a HOST own the socket: your own
+// Bun.serve, or a vite dev server in middleware mode (which bridges node req/res to this handler,
+// since vite's middleware layer is connect in every runtime — see oven-sh/bun#12212).
+
+describe('bun asMiddleware should', () => {
+  type SimpleUser = {name: string; surname: string};
+  type Context = CallContext<ReturnType<typeof getSharedData>>;
+  const getSharedData = () => ({auth: {me: null as any}});
+
+  let host: Server<any> | undefined;
+
+  // Router built here, not in the describe body: bun evaluates every body before any hook, in one process.
+  // Built in the body it would hit the once-guard the other test file set, skipping this whole file.
+  beforeAll(async () => {
+    resetBunHttpOpts();
+    resetRouter();
+    const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+    const changeUserName = mion.route((context: Context, user: SimpleUser): SimpleUser => {
+      return {name: 'NewName', surname: user.surname};
+    });
+    mion.initRoutes({changeUserName});
+  });
+
+  afterAll(() => {
+    void host?.stop(true);
+    resetBunHttpOpts();
+  });
+
+  test('register everything without opening a port', async () => {
+    const server = await startBunServer({asMiddleware: true, port: 8081});
+    expect(server).toBeUndefined();
+    expect(getPlatformConfig()).toMatchObject({asMiddleware: true, port: 8081});
+    // nothing is listening on the port it was configured with
+    expect(fetch('http://127.0.0.1:8081/api/changeUserName')).rejects.toThrow();
+  });
+
+  test('register without listening when a dev host owns the socket, handing it the handler', async () => {
+    setBunHttpOpts({asMiddleware: false});
+    setHostOwnsSocket(true);
+    try {
+      const server = await startBunServer({port: 8082});
+      expect(server).toBeUndefined();
+      expect(getPlatformConfig()).toMatchObject({asMiddleware: true, port: 8082});
+      expect(getHostRequestHandler()).toEqual({fetch: bunRequestHandler});
+    } finally {
+      setHostOwnsSocket(false);
+    }
+  });
+
+  test('listen again once the host lets the socket go: the flag never sticks to the options', async () => {
+    setBunHttpOpts({asMiddleware: false});
+    setHostOwnsSocket(true);
+    try {
+      expect(await startBunServer({port: 8083})).toBeUndefined();
+    } finally {
+      setHostOwnsSocket(false);
+    }
+    const server = await startBunServer({port: 8083});
+    try {
+      expect(server.port).toBe(8083);
+      expect(getPlatformConfig()).toMatchObject({asMiddleware: false, port: 8083});
+    } finally {
+      void server.stop(true);
+    }
+  });
+
+  test('serve the same routes through bunRequestHandler mounted on the host', async () => {
+    host = Bun.serve({port: 0, fetch: bunRequestHandler});
+    const response = await fetch(`http://127.0.0.1:${host.port}/api/changeUserName`, {
+      method: 'POST',
+      body: JSON.stringify({changeUserName: [{name: 'Leo', surname: 'Tungsten'}]}),
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({changeUserName: {name: 'NewName', surname: 'Tungsten'}});
+  });
+
+  test('keep the flag when a later start passes only other options', async () => {
+    setBunHttpOpts({asMiddleware: true});
+    // the overload types this as a Server (the flag rode setBunHttpOpts, not the argument) —
+    // the runtime truth is undefined, which is exactly why the plugin discards the return value
+    const server = (await startBunServer({port: 8082})) as unknown;
+    expect(server).toBeUndefined();
+    expect(getPlatformConfig()).toMatchObject({asMiddleware: true, port: 8082});
+  });
+});

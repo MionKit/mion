@@ -1,20 +1,7 @@
-// Generate every diagnostic-catalog artifact from the Go dump.
-//
-// internal/diagnostics is the single source of truth for the whole catalog: which
-// codes exist, their severities, the user-facing wording (headline + detail
-// in internal/diagnostics/messages.go), and the docs prose (summary, fix, example
-// in internal/diagnostics/prose.go). `go run ./cmd/gen-diag-catalog` dumps it all
-// as JSON; this script fans that dump out into the two generated artifacts:
-//
-//   1. packages/devtools/src/core/go-generated/diagnosticCatalog.generated.ts, the
-//      front-end message dictionary (code → headline/detail templates) the
-//      bundler plugin, the lint plugin, and the runtime alwaysThrow factory
-//      render from. The binary ships only code + args over the wire.
-//   2. container/website/app/components/content/go-generated/diagnostics-catalog.json,
-//      the website diagnostics page data.
-//
-// Both outputs are committed so consumers build without the Go toolchain.
-// Run `pnpm rtx core codegen diag` after changing internal/diagnostics.
+// Fans the Go dump of internal/diagnostics, the one source of every message, out into the headline
+// dictionary the bundler and lint plugins render from (the wire carries only code + args) and the
+// website page JSON. Both are committed so consumers build without Go; run
+// `pnpm miondevx core codegen diag` after changing internal/diagnostics.
 
 import {execFileSync} from 'node:child_process';
 import {writeFileSync} from 'node:fs';
@@ -26,79 +13,108 @@ const goRoot = resolve(repoRoot, 'ts-go-runtypes');
 const generatedTsPath = resolve(repoRoot, 'packages/devtools/src/core/go-generated/diagnosticCatalog.generated.ts');
 const websiteJsonPath = resolve(repoRoot, 'container/website/app/components/content/go-generated/diagnostics-catalog.json');
 
-// Subsystems group the code prefixes into the sections the page renders, in
-// reading order. Descriptions are short, plain-language, and dash-free so they
-// satisfy the website voice rules when the component renders them.
+// Sections group the area prefixes, in page order; every prefix in internal/diagnostics's slugRE must sit in one.
+// Descriptions stay plain and dash-free: the website voice rules apply when the component renders them.
 const SUBSYSTEMS = [
   {
     key: 'project-config',
     label: 'Project configuration',
     description: 'Raised when the project tsconfig the tooling was pointed at cannot be loaded.',
-    prefixes: ['CFG'],
+    prefixes: ['config-'],
   },
   {
     key: 'markers',
     label: 'Markers and call sites',
     description: 'Raised at a marker call, before the build can turn your type into a function.',
-    prefixes: ['MKR', 'CTA', 'PFN', 'TMP'],
+    prefixes: ['marker-'],
+  },
+  {
+    key: 'comments',
+    label: 'Comments',
+    description: 'Raised when a @mion-expect-error or @mion-downgrade-error comment is itself wrong.',
+    prefixes: ['comment-'],
   },
   {
     key: 'validation',
     label: 'Validation',
     description: 'From createValidateFn and createGetValidationErrorsFn.',
-    prefixes: ['VL', 'VE'],
+    prefixes: ['validate-', 'validation-errors-'],
   },
   {
     key: 'serialization',
     label: 'Serialization',
-    description: 'From the JSON and binary families, plus how classes are handled.',
-    prefixes: ['PJ', 'PJS', 'RJ', 'SJ', 'TB', 'FB', 'CLS', 'JCP', 'NE'],
+    description: 'From the JSON families, plus members that can never be data.',
+    prefixes: ['json-prepare-', 'json-restore-', 'data-'],
   },
   {
     key: 'unknown-keys',
     label: 'Unknown keys',
-    description: 'From hasUnknownKeys, cloneExactShape, and the rest of that family.',
-    prefixes: ['HUK', 'CES', 'UKE', 'UKU', 'UKW'],
+    description: 'From removeUnknownKeys.',
+    prefixes: ['unknown-keys-'],
   },
   {
     key: 'formats',
     label: 'Type formats',
     description: 'From the pattern and sample checks on a TypeFormat.',
-    prefixes: ['FMT'],
+    prefixes: ['format-'],
   },
   {
     key: 'pure-functions',
     label: 'Pure functions',
-    description: 'From the purity rules for registerPureFnFactory.',
-    prefixes: ['PFE'],
+    description: 'From PureFunction arguments and the purity rules for registerPureFnFactory.',
+    prefixes: ['purefn-'],
   },
   {
     key: 'overrides',
     label: 'Overrides',
     description: 'From custom per-type function overrides.',
-    prefixes: ['OVR'],
+    prefixes: ['override-'],
+  },
+  {
+    key: 'drizzle',
+    label: 'Drizzle',
+    description: 'Slim schema isolation and public database type boundaries.',
+    prefixes: ['drizzle-'],
+  },
+  {
+    key: 'mion-routes',
+    label: 'mion routes',
+    description: 'From the rules over mion route, middleware and headersMiddleware handlers, reported as you write them.',
+    prefixes: ['rpc-handler-'],
+  },
+  {
+    key: 'batches',
+    label: 'Batches',
+    description: 'From a batch() call the build cannot read, or two batches that collide.',
+    prefixes: ['rpc-batch-'],
+  },
+  {
+    key: 'clients',
+    label: 'Clients',
+    description: 'From a client build that ships the routes it calls, or that imports the API type as a value.',
+    prefixes: ['rpc-client-'],
   },
   {
     key: 'enrichment',
     label: 'Enrichment files',
-    description: 'From mion check and the lint rules over generated FriendlyText and MockData files.',
-    prefixes: ['FT', 'MD', 'GE'],
+    description: 'From mion enrich --no-emit and the lint rules over generated FriendlyText and MockData files.',
+    prefixes: ['enrich-text-', 'enrich-mock-', 'enrich-mirror-'],
+  },
+  {
+    key: 'internal',
+    label: 'Internal errors',
+    description: 'A bug in the build itself. Please file an issue.',
+    prefixes: ['internal-'],
   },
 ];
 
-/** Map a code prefix (its leading letters) to a subsystem key. */
-const prefixToSubsystem = new Map();
-for (const subsystem of SUBSYSTEMS) {
-  for (const prefix of subsystem.prefixes) prefixToSubsystem.set(prefix, subsystem.key);
+const prefixToSubsystem = SUBSYSTEMS.flatMap((subsystem) => subsystem.prefixes.map((prefix) => [prefix, subsystem.key]));
+
+/** The section a name belongs to, from its area prefix, e.g. `validate-symbol-root` -> `validation`. */
+function subsystemOf(code) {
+  return prefixToSubsystem.find(([prefix]) => code.startsWith(prefix))?.[1];
 }
 
-/** Leading uppercase letters of a code, e.g. `PJS001` -> `PJS`, `PFE9008` -> `PFE`. */
-function codePrefix(code) {
-  const match = code.match(/^[A-Z]+/);
-  return match ? match[0] : code;
-}
-
-// The authoritative dump: codes, severities, wording, prose, all from Go.
 const goDump = execFileSync('go', ['run', './cmd/gen-diag-catalog'], {
   cwd: goRoot,
   encoding: 'utf8',
@@ -110,6 +126,12 @@ const missingHeadlines = goRecords.filter((record) => !record.headline).map((rec
 if (missingHeadlines.length) {
   // internal/diagnostics's TestEveryCodeHasHeadline pins this; fail loudly if it slips.
   throw new Error(`gen-diag-catalog: codes with no headline in internal/diagnostics/messages.go: ${missingHeadlines.join(', ')}`);
+}
+
+const missingSummaries = goRecords.filter((record) => !record.summary).map((record) => record.code);
+if (missingSummaries.length) {
+  // TestEveryCodeHasSummary pins this too; else the page shows a code with no explanation.
+  throw new Error(`gen-diag-catalog: codes with no summary in internal/diagnostics/prose.go: ${missingSummaries.join(', ')}`);
 }
 
 // ── Artifact 1: the front-end message dictionary ────────────────────────────
@@ -130,28 +152,42 @@ function tsString(value) {
 
 const entries = goRecords
   .map((record) => {
-    const lines = [`  ${record.code}: {`, `    headline: ${tsString(record.headline)},`, `    severity: ${tsString(record.severity)},`];
-    if (record.detail) lines.push(`    detail: ${tsString(record.detail)},`);
+    const lines = [
+      `  ${JSON.stringify(record.code)}: {`,
+      `    headline: ${tsString(record.headline)},`,
+      `    level: ${tsString(record.level)},`,
+      `    family: ${tsString(record.family)},`,
+    ];
+    if (record.slots?.length) lines.push(`    slots: [${record.slots.map(tsString).join(', ')}],`);
+    if (record.completeness) lines.push(`    completeness: true,`);
     lines.push('  },');
     return lines.join('\n');
   })
   .join('\n');
 
-const generatedTs = `// GENERATED FILE. DO NOT EDIT. Run \`pnpm rtx core codegen diag\` to refresh.
+const generatedTs = `// GENERATED FILE. DO NOT EDIT. Run \`pnpm miondevx core codegen diag\` to refresh.
 //
 // The message dictionary for every diagnostic code the Go binary can emit,
 // exported from the authoritative catalog in internal/diagnostics (wording lives in
 // internal/diagnostics/messages.go). The wire carries only code + args; the render
-// helpers in ./diagnosticCatalog.ts substitute \`{0}\`, \`{1}\`, … placeholders
-// against the args array to produce the final text.
+// helpers in ./diagnosticCatalog.ts fill each \`{name}\` slot with the arg at its
+// index in \`slots\`.
 
 export interface DiagnosticEntry {
   /** Single-line headline. Mandatory. */
   readonly headline: string;
-  /** Catalog severity: the default lint-rule tier this code routes to. */
-  readonly severity: 'error' | 'warning' | 'info';
-  /** Optional multi-line detail block (explanation + code-example fix). */
-  readonly detail?: string;
+  /** The headline's \`{name}\` slots in first-appearance order, the order of the wire args. */
+  readonly slots?: readonly string[];
+  /** The code's level: did the build produce the code for
+   *  this thing (\`error\`: no), and is what it produced broken when called
+   *  (\`runtimeError\`: yes). Read by the config validators, which refuse to
+   *  downgrade an \`error\`. */
+  readonly level: 'error' | 'runtimeError' | 'warning' | 'info';
+  /** Which part of the compiler raises the code. */
+  readonly family: 'purefn' | 'marker' | 'runtype' | 'enrich' | 'mionroute' | 'drizzle';
+  /** Set on the unfilled-enrichment-scaffold codes. Orthogonal to level: those
+   *  are warnings, and this bit is what the completeness gates promote. */
+  readonly completeness?: boolean;
 }
 
 export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
@@ -166,21 +202,24 @@ execFileSync('pnpm', ['exec', 'prettier', '--write', generatedTsPath], {cwd: rep
 // ── Artifact 2: the website diagnostics-page JSON ───────────────────────────
 
 const codes = goRecords.map((record) => {
-  const subsystem = prefixToSubsystem.get(codePrefix(record.code)) ?? 'other';
-  if (subsystem === 'other') console.warn(`gen-diag-catalog: no subsystem for ${record.code}`);
+  // Fatal, not a warning: an unmapped prefix would ship a code that is in the data and on no page.
+  const subsystem = subsystemOf(record.code);
+  if (!subsystem) {
+    throw new Error(
+      `gen-diag-catalog: no subsystem for ${record.code}; add its prefix to SUBSYSTEMS in ${'scripts/core/gen-diagnostics-catalog.mjs'}`
+    );
+  }
   return {
     code: record.code,
     subsystem,
-    severity: record.severity,
+    level: record.level,
+    ...(record.internal ? {internal: true} : {}),
     headline: record.headline,
-    detail: record.detail ?? null,
-    summary: record.summary ?? null,
+    summary: record.summary,
     fix: record.fix ?? null,
     example: record.example ?? null,
   };
 });
-
-const undocumented = codes.filter((code) => !code.summary).map((code) => code.code);
 
 const subsystemOrder = new Map(SUBSYSTEMS.map((subsystem, index) => [subsystem.key, index]));
 codes.sort((left, right) => {
@@ -190,7 +229,7 @@ codes.sort((left, right) => {
 
 const output = {
   $generated:
-    'by scripts/core/gen-diagnostics-catalog.mjs from internal/diagnostics. Do not edit; run `pnpm rtx core codegen diag`.',
+    'by scripts/core/gen-diagnostics-catalog.mjs from internal/diagnostics. Do not edit; run `pnpm miondevx core codegen diag`.',
   subsystems: SUBSYSTEMS.map(({key, label, description}) => ({key, label, description})),
   codes,
 };
@@ -198,12 +237,10 @@ const output = {
 writeFileSync(websiteJsonPath, JSON.stringify(output, null, 2) + '\n');
 
 // Report so the dev sees coverage at a glance.
-const bySeverity = codes.reduce((acc, code) => ({...acc, [code.severity]: (acc[code.severity] ?? 0) + 1}), {});
+const byLevel = codes.reduce((acc, code) => ({...acc, [code.level]: (acc[code.level] ?? 0) + 1}), {});
 console.log(`gen-diag-catalog: wrote ${codes.length} codes to ${generatedTsPath.replace(repoRoot + '/', '')}`);
 console.log(`gen-diag-catalog: wrote ${codes.length} codes to ${websiteJsonPath.replace(repoRoot + '/', '')}`);
-console.log(`  severities: ${JSON.stringify(bySeverity)}`);
+console.log(`  levels: ${JSON.stringify(byLevel)}`);
 console.log(`  by subsystem: ${JSON.stringify(
   codes.reduce((acc, code) => ({...acc, [code.subsystem]: (acc[code.subsystem] ?? 0) + 1}), {}),
 )}`);
-console.log(`  prose written for ${codes.length - undocumented.length}/${codes.length} codes`);
-if (undocumented.length) console.log(`  still need a hand-written summary: ${undocumented.join(', ')}`);

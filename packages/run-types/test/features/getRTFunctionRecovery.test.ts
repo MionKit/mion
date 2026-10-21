@@ -1,47 +1,30 @@
-// End-to-end acceptance test for `getRTFunction` — the generic resolver that
-// recovers the compiled fn for `T` from an injected `InjectTypeFnArgs<T, Fn>`
-// tuple. This is the surface a framework wrapper (mion) uses to pull a
-// per-strategy JSON prepare / restore for a route's params / response type
-// WITHOUT a dedicated createX factory: name the primitive's fnKey in the marker,
-// forward the injected slot to `getRTFunction`, get the callable fn back.
-//
-// The JSON value-level primitives have no `createX`, so this test is where their
-// public recoverability is pinned: `'pjs'` (clone prepare), `'rj'` (restore),
-// `'cj'` / `'cjr'` (compact encode / decode), `'sj'` (direct stringify) and
-// `'ukuw'` (strip wire pre-pass). Per the CLAUDE.md marker-coverage rule both
-// call shapes are exercised — the static `recoverX<T>()` form and the
-// value-first `recoverX(value)` reflection form — with one paired test asserting
-// the two forms resolve the SAME compiled fn (the runtime analog of the Go-side
-// TestAtomic_FormEquivalence hash check).
+// `getRTFunction` recovering pjs, rj, rjs, cj and cjr from ONE marker, the road mion takes per route.
+// Both call shapes resolve the SAME compiled fn (runtime twin of Go's TestAtomic_FormEquivalence).
 
 import {describe, test, expect} from 'vitest';
-import {getRTFunction, type InjectTypeFnArgs} from '@mionjs/run-types';
+import {type InjectTypeFnArgs} from '@mionjs/run-types';
+import {getRTFunction} from '@mionjs/run-types/runtime';
 
-// Test-only wrappers: declare the primitive's fnKey in a trailing
-// InjectTypeFnArgs marker and resolve the injected tuple through getRTFunction,
-// keyed by the SAME fnKey — exactly the wrapper shape a framework declares.
-// `_val` exists only so the reflection call shape `recoverX(value)` can infer
-// `T` from the value; it is never read at runtime.
-function recoverClonePrepare<T>(_val?: T, id?: InjectTypeFnArgs<T, 'pjs'>) {
-  return getRTFunction<'pjs'>(id);
+// Test-only wrappers, exactly the shape a framework declares: the fnKey in a trailing
+// InjectTypeFnArgs marker, resolved through getRTFunction by the SAME fnKey. `_val` exists
+// only so the reflection shape `recoverX(value)` can infer `T`; it is never read.
+function recoverClonePrepare<T>(_val?: T, id?: InjectTypeFnArgs<T, 'prepareForJsonClone'>) {
+  return getRTFunction<'prepareForJsonClone'>(id);
 }
-function recoverMutatePrepare<T>(_val?: T, id?: InjectTypeFnArgs<T, 'pj'>) {
-  return getRTFunction<'pj'>(id);
+function recoverMutatePrepare<T>(_val?: T, id?: InjectTypeFnArgs<T, 'prepareForJsonMutate'>) {
+  return getRTFunction<'prepareForJsonMutate'>(id);
 }
-function recoverRestore<T>(_val?: T, id?: InjectTypeFnArgs<T, 'rj'>) {
-  return getRTFunction<'rj'>(id);
+function recoverRestore<T>(_val?: T, id?: InjectTypeFnArgs<T, 'restoreFromJsonMutate'>) {
+  return getRTFunction<'restoreFromJsonMutate'>(id);
 }
-function recoverCompactEncode<T>(_val?: T, id?: InjectTypeFnArgs<T, 'cj'>) {
-  return getRTFunction<'cj'>(id);
+function recoverCompactEncode<T>(_val?: T, id?: InjectTypeFnArgs<T, 'compactForJson'>) {
+  return getRTFunction<'compactForJson'>(id);
 }
-function recoverCompactDecode<T>(_val?: T, id?: InjectTypeFnArgs<T, 'cjr'>) {
-  return getRTFunction<'cjr'>(id);
+function recoverCompactDecode<T>(_val?: T, id?: InjectTypeFnArgs<T, 'compactFromJson'>) {
+  return getRTFunction<'compactFromJson'>(id);
 }
-function recoverDirectStringify<T>(_val?: T, id?: InjectTypeFnArgs<T, 'sj'>) {
-  return getRTFunction<'sj'>(id);
-}
-function recoverStripWire<T>(_val?: T, id?: InjectTypeFnArgs<T, 'ukuw'>) {
-  return getRTFunction<'ukuw'>(id);
+function recoverCloneRestore<T>(_val?: T, id?: InjectTypeFnArgs<T, 'restoreFromJsonClone'>) {
+  return getRTFunction<'restoreFromJsonClone'>(id);
 }
 
 type Payload = {id: bigint; when: Date; name: string};
@@ -143,25 +126,50 @@ describe('getRTFunction — recover JSON value-level primitives via an InjectTyp
     expect(restored.name).toBe('dee');
   });
 
-  test('direct stringify (sj) recovers a value -> JSON string function', () => {
-    const stringify = recoverDirectStringify<Payload>();
-    const value: Payload = {id: 8n, when: new Date('2026-06-06T06:06:06.000Z'), name: 'fay'};
-    const wire = stringify(value);
-    expect(typeof wire).toBe('string');
-    const parsed = JSON.parse(wire as string) as {id: string; name: string};
-    // bigint rides the wire as a JSON string; the name is verbatim.
-    expect(parsed.id).toBe('8');
-    expect(parsed.name).toBe('fay');
+  test('static form recovers the clone restore (rjs), which drops undeclared keys', () => {
+    const prepare = recoverClonePrepare<Payload>();
+    const restore = recoverCloneRestore<Payload>();
+
+    const value: Payload = {id: 42n, when: new Date('2020-01-02T03:04:05.000Z'), name: 'ada'};
+    // An undeclared key put on the WIRE, the way a caller that is not mion can:
+    // the clone encoder would never write it, so it has to be the decoder that drops it.
+    const wire = {...(JSON.parse(JSON.stringify(prepare(value))) as object), extra: 'nope'};
+    const restored = restore(wire) as Payload & {extra?: string};
+
+    expect(restored.id).toBe(42n);
+    expect(restored.when instanceof Date).toBe(true);
+    expect(restored.name).toBe('ada');
+    // Gone, not blanked: the key must not survive a spread into a database insert.
+    expect('extra' in restored).toBe(false);
+    expect(Object.keys(restored).sort()).toEqual(['id', 'name', 'when']);
   });
 
-  test('the strip wire pre-pass (ukuw) is recoverable via the marker', () => {
-    // ukuw is an internal decoder helper with subtle wire semantics; the point
-    // here is only that "all functions" are reachable through getRTFunction, so
-    // assert it resolves to a callable fn (static + reflection forms alike).
-    const strip = recoverStripWire<Payload>();
-    const seed: Payload = {id: 3n, when: new Date('2027-07-07T07:07:07.000Z'), name: 'gil'};
-    const stripReflected = recoverStripWire(seed);
-    expect(typeof strip).toBe('function');
-    expect(typeof stripReflected).toBe('function');
+  test('reflection form (T inferred from a value) resolves the same strip restore', () => {
+    const seed: Payload = {id: 7n, when: new Date('2021-05-06T07:08:09.000Z'), name: 'bob'};
+    const prepare = recoverClonePrepare(seed);
+    const restore = recoverCloneRestore(seed);
+
+    const wire = {...(JSON.parse(JSON.stringify(prepare(seed))) as object), extra: 'nope'};
+    const restored = restore(wire) as Payload & {extra?: string};
+    expect(restored.id).toBe(7n);
+    expect(restored.when.getTime()).toBe(seed.when.getTime());
+    expect('extra' in restored).toBe(false);
+  });
+
+  test('both call shapes of the clone restore resolve to the SAME compiled fn', () => {
+    const seed: Payload = {id: 5n, when: new Date('2025-05-05T05:05:05.000Z'), name: 'eve'};
+    const fromStatic = recoverCloneRestore<Payload>();
+    const fromValue = recoverCloneRestore(seed);
+    expect(fromStatic).toBe(fromValue);
+  });
+
+  test('the clone restore leaves a declared key alone even when its value needs no transform', () => {
+    // The rebuild copies every declared slot, transform or not; a slot left out of
+    // the copy would be a declared key DELETED, which is the opposite of the point.
+    const restore = recoverCloneRestore<Payload>();
+    const restored = restore({id: '9', when: '2020-01-02T03:04:05.000Z', name: 'zoe', extra: 1}) as Payload;
+    expect(restored.name).toBe('zoe');
+    expect(restored.id).toBe(9n);
+    expect(Object.keys(restored).sort()).toEqual(['id', 'name', 'when']);
   });
 });

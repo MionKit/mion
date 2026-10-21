@@ -1,33 +1,13 @@
-// End-to-end clone fuzz: drives REAL compiled `createCloneExactShapeFn<T>()`
-// functions through the cloning oracle harness (O15 reference-interpreter
-// agreement, O16 isolation, O17 consistency). Runs under the package vitest
-// config (with the Vite plugin + Go binary), so the createX call sites below
-// are rewritten with the resolved runtype id at compile time.
-//
-// IMPORTANT: the plugin resolves each createX call STATICALLY from its TYPE
-// ARGUMENT, so every factory is called as `createX<T>()` against a literal /
-// locally-declared type — never a generic `T` passed through a helper (that
-// would inject the `unknown` runtype). Hence the per-target inlining.
-//
-// Corpus rules (v1):
-//   - Atomic unions run the FULL oracle set; they keep AT MOST ONE member
-//     per structural family (array/Date/RegExp/Map/Set) so the reference
-//     dispatch is unambiguous.
-//   - OBJECT-BEARING unions are THROW-TARGETS: the compiled factory is a
-//     CES001 alwaysThrow (documented contract), so they live in a separate
-//     corpus whose only oracle is the factory-creation throw — no value
-//     streams, no reference interpreter.
-//   - Circular TYPES are in, with TREE-shaped values (the mock recursion
-//     decay keeps them finite). Cyclic VALUES are outside the clone
-//     contract — no cycle detection anywhere, pinned by the RangeError test
-//     below.
-//   - The ONE exclusion: template-literal-keyed index signatures — the
-//     compiled sig arm gates keys behind the pattern regex, which the
-//     reference interpreter doesn't model yet (it throws loudly if one
-//     slips in). Documented follow-up in docs/FUZZING.md.
+// Clone fuzz over REAL compiled `createRemoveUnknownKeysFn<T>()` fns (O15-O17). Each factory is called as
+// `createX<T>()` on a concrete type, never a generic `T` through a helper, which would inject `unknown`.
+// Atomic unions keep at most one member per structural family so the reference dispatch is unambiguous; object
+// unions only assert the unknown-keys-object-union throw; cyclic VALUES are outside the clone contract (the RangeError test).
+// Template-literal-keyed index signatures are excluded: the reference interpreter does not model them yet.
 
 import {describe, it, expect} from 'vitest';
-import {createCloneExactShapeFn, createHasUnknownKeysFn, createMockDataFn, createValidateFn, getRunType} from '@mionjs/run-types';
+import {createRemoveUnknownKeysFn, createValidateFn} from '@mionjs/run-types';
+import {getRunType} from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import {runCloneFuzz, runCloneFuzzForDuration} from './cloneFuzzRunner.ts';
 import {soakTestTimeout, pathologyReport} from '../core/soakBudget.ts';
 import {entrySeed} from '../core/fuzzPolicy.ts';
@@ -64,6 +44,14 @@ interface CircPartB {
 
 const targets: CloneFuzzTarget[] = [];
 
+/** The clone keeps a non-data member the strict validator rejects as unknown, so drop that one key before checking. **/
+function strictWithout(key: string, strict: (value: unknown) => boolean): (value: unknown) => boolean {
+  return (value) => {
+    const {[key]: _dropped, ...data} = value as Record<string, unknown>;
+    return strict(data);
+  };
+}
+
 // --- target: flat object of primitives ---
 {
   interface FlatUser {
@@ -76,8 +64,8 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<FlatUser>(),
     mock: createMockDataFn<FlatUser>(),
     validate: createValidateFn<FlatUser>(),
-    hasUnknownKeys: createHasUnknownKeysFn<FlatUser>(),
-    clone: createCloneExactShapeFn<FlatUser>(),
+    validateStrict: createValidateFn<FlatUser>(undefined, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn<FlatUser>(),
   });
 }
 
@@ -92,8 +80,8 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<Nested>(),
     mock: createMockDataFn<Nested>(),
     validate: createValidateFn<Nested>(),
-    hasUnknownKeys: createHasUnknownKeysFn<Nested>(),
-    clone: createCloneExactShapeFn<Nested>(),
+    validateStrict: createValidateFn<Nested>(undefined, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn<Nested>(),
   });
 }
 
@@ -109,8 +97,8 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<OptionalProps>(),
     mock: createMockDataFn<OptionalProps>(),
     validate: createValidateFn<OptionalProps>(),
-    hasUnknownKeys: createHasUnknownKeysFn<OptionalProps>(),
-    clone: createCloneExactShapeFn<OptionalProps>(),
+    validateStrict: createValidateFn<OptionalProps>(undefined, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn<OptionalProps>(),
   });
 }
 
@@ -125,8 +113,8 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<UndefinedProp>(),
     mock: createMockDataFn<UndefinedProp>(),
     validate: createValidateFn<UndefinedProp>(),
-    hasUnknownKeys: createHasUnknownKeysFn<UndefinedProp>(),
-    clone: createCloneExactShapeFn<UndefinedProp>(),
+    validateStrict: createValidateFn<UndefinedProp>(undefined, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn<UndefinedProp>(),
   });
 }
 
@@ -141,8 +129,8 @@ const targets: CloneFuzzTarget[] = [];
     // `Object.create(Object.getPrototypeOf(v))` rebuild path is exercised.
     mock: () => Object.assign(new CloneFuzzLedger(), mockPlain()),
     validate: createValidateFn<CloneFuzzLedger>(),
-    hasUnknownKeys: createHasUnknownKeysFn<CloneFuzzLedger>(),
-    clone: createCloneExactShapeFn<CloneFuzzLedger>(),
+    validateStrict: createValidateFn<CloneFuzzLedger>(undefined, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn<CloneFuzzLedger>(),
   });
 }
 
@@ -153,8 +141,8 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<string[]>(),
     mock: createMockDataFn<string[]>(),
     validate: createValidateFn<string[]>(),
-    hasUnknownKeys: createHasUnknownKeysFn<string[]>(),
-    clone: createCloneExactShapeFn<string[]>(),
+    validateStrict: createValidateFn<string[]>(undefined, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn<string[]>(),
   });
 }
 
@@ -169,8 +157,8 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<ArrayItem[]>(),
     mock: createMockDataFn<ArrayItem[]>(),
     validate: createValidateFn<ArrayItem[]>(),
-    hasUnknownKeys: createHasUnknownKeysFn<ArrayItem[]>(),
-    clone: createCloneExactShapeFn<ArrayItem[]>(),
+    validateStrict: createValidateFn<ArrayItem[]>(undefined, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn<ArrayItem[]>(),
   });
 }
 
@@ -182,8 +170,8 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<TupleOptional>(),
     mock: createMockDataFn<TupleOptional>(),
     validate: createValidateFn<TupleOptional>(),
-    hasUnknownKeys: createHasUnknownKeysFn<TupleOptional>(),
-    clone: createCloneExactShapeFn<TupleOptional>(),
+    validateStrict: createValidateFn<TupleOptional>(undefined, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn<TupleOptional>(),
   });
 }
 
@@ -195,8 +183,8 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<TupleRest>(),
     mock: createMockDataFn<TupleRest>(),
     validate: createValidateFn<TupleRest>(),
-    hasUnknownKeys: createHasUnknownKeysFn<TupleRest>(),
-    clone: createCloneExactShapeFn<TupleRest>(),
+    validateStrict: createValidateFn<TupleRest>(undefined, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn<TupleRest>(),
   });
 }
 
@@ -208,8 +196,8 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<TupleDateObject>(),
     mock: createMockDataFn<TupleDateObject>(),
     validate: createValidateFn<TupleDateObject>(),
-    hasUnknownKeys: createHasUnknownKeysFn<TupleDateObject>(),
-    clone: createCloneExactShapeFn<TupleDateObject>(),
+    validateStrict: createValidateFn<TupleDateObject>(undefined, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn<TupleDateObject>(),
   });
 }
 
@@ -221,8 +209,8 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<MapAtomic>(),
     mock: createMockDataFn<MapAtomic>(),
     validate: createValidateFn<MapAtomic>(),
-    hasUnknownKeys: createHasUnknownKeysFn<MapAtomic>(),
-    clone: createCloneExactShapeFn<MapAtomic>(),
+    validateStrict: createValidateFn<MapAtomic>(undefined, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn<MapAtomic>(),
   });
 }
 
@@ -234,8 +222,8 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<MapObject>(),
     mock: createMockDataFn<MapObject>(),
     validate: createValidateFn<MapObject>(),
-    hasUnknownKeys: createHasUnknownKeysFn<MapObject>(),
-    clone: createCloneExactShapeFn<MapObject>(),
+    validateStrict: createValidateFn<MapObject>(undefined, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn<MapObject>(),
   });
 }
 
@@ -247,8 +235,8 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<SetAtomic>(),
     mock: createMockDataFn<SetAtomic>(),
     validate: createValidateFn<SetAtomic>(),
-    hasUnknownKeys: createHasUnknownKeysFn<SetAtomic>(),
-    clone: createCloneExactShapeFn<SetAtomic>(),
+    validateStrict: createValidateFn<SetAtomic>(undefined, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn<SetAtomic>(),
   });
 }
 
@@ -260,8 +248,8 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<SetObject>(),
     mock: createMockDataFn<SetObject>(),
     validate: createValidateFn<SetObject>(),
-    hasUnknownKeys: createHasUnknownKeysFn<SetObject>(),
-    clone: createCloneExactShapeFn<SetObject>(),
+    validateStrict: createValidateFn<SetObject>(undefined, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn<SetObject>(),
   });
 }
 
@@ -277,24 +265,42 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<DateTemporal>(),
     mock: createMockDataFn<DateTemporal>(),
     validate: createValidateFn<DateTemporal>(),
-    hasUnknownKeys: createHasUnknownKeysFn<DateTemporal>(),
-    clone: createCloneExactShapeFn<DateTemporal>(),
+    validateStrict: createValidateFn<DateTemporal>(undefined, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn<DateTemporal>(),
   });
 }
 
-// --- target: RegExp property (re-compile, lastIndex kept) ---
+// --- target: URL properties (mutable through its setters: re-wrapped, never shared) ---
+{
+  interface Links {
+    home: URL;
+    mirrors: URL[];
+    docs?: URL;
+  }
+  targets.push({
+    title: 'Links',
+    schema: getRunType<Links>(),
+    mock: createMockDataFn<Links>(),
+    validate: createValidateFn<Links>(),
+    validateStrict: createValidateFn<Links>(undefined, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn<Links>(),
+  });
+}
+
+// --- target: RegExp property (not data: shared by reference, like a function) ---
 {
   interface RegExpProp {
     pattern: RegExp;
     note: string;
   }
+  const strictRegExpProp = createValidateFn<Omit<RegExpProp, 'pattern'>>(undefined, {checkUnknowns: true});
   targets.push({
     title: 'RegExpProp',
     schema: getRunType<RegExpProp>(),
-    mock: createMockDataFn<RegExpProp>(),
+    mock: createMockDataFn<RegExpProp>(undefined, {mock: {nonDataTypes: true}}),
     validate: createValidateFn<RegExpProp>(),
-    hasUnknownKeys: createHasUnknownKeysFn<RegExpProp>(),
-    clone: createCloneExactShapeFn<RegExpProp>(),
+    validateStrict: strictWithout('pattern', strictRegExpProp),
+    clone: createRemoveUnknownKeysFn<RegExpProp>(),
   });
 }
 
@@ -306,8 +312,8 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<RecordAtomic>(),
     mock: createMockDataFn<RecordAtomic>(),
     validate: createValidateFn<RecordAtomic>(),
-    hasUnknownKeys: createHasUnknownKeysFn<RecordAtomic>(),
-    clone: createCloneExactShapeFn<RecordAtomic>(),
+    validateStrict: createValidateFn<RecordAtomic>(undefined, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn<RecordAtomic>(),
   });
 }
 
@@ -322,8 +328,8 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<RecordObject>(),
     mock: createMockDataFn<RecordObject>(),
     validate: createValidateFn<RecordObject>(),
-    hasUnknownKeys: createHasUnknownKeysFn<RecordObject>(),
-    clone: createCloneExactShapeFn<RecordObject>(),
+    validateStrict: createValidateFn<RecordObject>(undefined, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn<RecordObject>(),
   });
 }
 
@@ -338,8 +344,8 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<LiteralUnionField>(),
     mock: createMockDataFn<LiteralUnionField>(),
     validate: createValidateFn<LiteralUnionField>(),
-    hasUnknownKeys: createHasUnknownKeysFn<LiteralUnionField>(),
-    clone: createCloneExactShapeFn<LiteralUnionField>(),
+    validateStrict: createValidateFn<LiteralUnionField>(undefined, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn<LiteralUnionField>(),
   });
 }
 
@@ -354,8 +360,8 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<UnionDateNull>(),
     mock: createMockDataFn<UnionDateNull>(),
     validate: createValidateFn<UnionDateNull>(),
-    hasUnknownKeys: createHasUnknownKeysFn<UnionDateNull>(),
-    clone: createCloneExactShapeFn<UnionDateNull>(),
+    validateStrict: createValidateFn<UnionDateNull>(undefined, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn<UnionDateNull>(),
   });
 }
 
@@ -369,8 +375,8 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<UnionArrayOrNumber>(),
     mock: createMockDataFn<UnionArrayOrNumber>(),
     validate: createValidateFn<UnionArrayOrNumber>(),
-    hasUnknownKeys: createHasUnknownKeysFn<UnionArrayOrNumber>(),
-    clone: createCloneExactShapeFn<UnionArrayOrNumber>(),
+    validateStrict: createValidateFn<UnionArrayOrNumber>(undefined, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn<UnionArrayOrNumber>(),
   });
 }
 
@@ -382,8 +388,8 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<AtomicUnionRoot>(),
     mock: createMockDataFn<AtomicUnionRoot>(),
     validate: createValidateFn<AtomicUnionRoot>(),
-    hasUnknownKeys: createHasUnknownKeysFn<AtomicUnionRoot>(),
-    clone: createCloneExactShapeFn<AtomicUnionRoot>(),
+    validateStrict: createValidateFn<AtomicUnionRoot>(undefined, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn<AtomicUnionRoot>(),
   });
 }
 
@@ -398,8 +404,8 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<UnionMixedNatives>(),
     mock: createMockDataFn<UnionMixedNatives>(),
     validate: createValidateFn<UnionMixedNatives>(),
-    hasUnknownKeys: createHasUnknownKeysFn<UnionMixedNatives>(),
-    clone: createCloneExactShapeFn<UnionMixedNatives>(),
+    validateStrict: createValidateFn<UnionMixedNatives>(undefined, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn<UnionMixedNatives>(),
   });
 }
 
@@ -413,8 +419,8 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<CircTree>(),
     mock: createMockDataFn<CircTree>(),
     validate: createValidateFn<CircTree>(),
-    hasUnknownKeys: createHasUnknownKeysFn<CircTree>(),
-    clone: createCloneExactShapeFn<CircTree>(),
+    validateStrict: createValidateFn<CircTree>(undefined, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn<CircTree>(),
   });
 }
 
@@ -425,8 +431,8 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<CircPartA>(),
     mock: createMockDataFn<CircPartA>(),
     validate: createValidateFn<CircPartA>(),
-    hasUnknownKeys: createHasUnknownKeysFn<CircPartA>(),
-    clone: createCloneExactShapeFn<CircPartA>(),
+    validateStrict: createValidateFn<CircPartA>(undefined, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn<CircPartA>(),
   });
 }
 
@@ -443,8 +449,8 @@ const targets: CloneFuzzTarget[] = [];
     schema: getRunType<DeepComposite>(),
     mock: createMockDataFn<DeepComposite>(),
     validate: createValidateFn<DeepComposite>(),
-    hasUnknownKeys: createHasUnknownKeysFn<DeepComposite>(),
-    clone: createCloneExactShapeFn<DeepComposite>(),
+    validateStrict: createValidateFn<DeepComposite>(undefined, {checkUnknowns: true}),
+    clone: createRemoveUnknownKeysFn<DeepComposite>(),
   });
 }
 
@@ -454,7 +460,7 @@ const targets: CloneFuzzTarget[] = [];
     name: string;
     onClick: () => void;
   }
-  const hasUnknownKeysFn = createHasUnknownKeysFn<FnProp>();
+  const strictFnProp = createValidateFn<Omit<FnProp, 'onClick'>>(undefined, {checkUnknowns: true});
   targets.push({
     title: 'FnProp',
     schema: getRunType<FnProp>(),
@@ -462,13 +468,8 @@ const targets: CloneFuzzTarget[] = [];
     // reference contract is exercised (default mocks skip non-data members).
     mock: createMockDataFn<FnProp>(undefined, {mock: {nonDataTypes: true}}),
     validate: createValidateFn<FnProp>(),
-    // Function-valued members are NOT in hasUnknownKeys' default known-keys
-    // list (the RT skips non-data members) while the clone KEEPS them
-    // (declared members are never dropped — CES010). `checkNonRTProps`
-    // widens the key list to the full declared shape so the extras
-    // cross-check stays sound for this target.
-    hasUnknownKeys: (value) => hasUnknownKeysFn(value, {checkNonRTProps: true}),
-    clone: createCloneExactShapeFn<FnProp>(),
+    validateStrict: strictWithout('onClick', strictFnProp),
+    clone: createRemoveUnknownKeysFn<FnProp>(),
   });
 }
 
@@ -479,33 +480,32 @@ const targets: CloneFuzzTarget[] = [];
     sym: symbol;
     label: string;
   }
+  const strictBigintSymbol = createValidateFn<Omit<BigintSymbol, 'sym'>>(undefined, {checkUnknowns: true});
   targets.push({
     title: 'BigintSymbol',
     schema: getRunType<BigintSymbol>(),
     mock: createMockDataFn<BigintSymbol>(),
     validate: createValidateFn<BigintSymbol>(),
-    hasUnknownKeys: createHasUnknownKeysFn<BigintSymbol>(),
-    clone: createCloneExactShapeFn<BigintSymbol>(),
+    validateStrict: strictWithout('sym', strictBigintSymbol),
+    clone: createRemoveUnknownKeysFn<BigintSymbol>(),
   });
 }
 
-// Object-bearing unions: without runtime arm discrimination the emitter
-// cannot know WHICH declared shape to rebuild, so the factory is a CES001
-// alwaysThrow (a clone that silently kept unknown keys would be a security
-// bug). These are THROW-TARGETS: the only oracle is the factory-creation
-// throw — no value streams, no reference interpreter.
+// Object-bearing unions: the factory is an unknown-keys-object-union alwaysThrow, so that throw is the only oracle.
 const throwTargets: Array<{title: string; createClone: () => unknown}> = [
   {
     title: 'DisjointObjectUnion',
-    createClone: () => createCloneExactShapeFn<{a: string} | {b: number}>(),
+    // @mion-downgrade-error unknown-keys-object-union
+    createClone: () => createRemoveUnknownKeysFn<{a: string} | {b: number}>(),
   },
   {
     title: 'DiscriminatedUnion',
-    createClone: () => createCloneExactShapeFn<{kind: 'a'; va: string} | {kind: 'b'; vb: number}>(),
+    // @mion-downgrade-error unknown-keys-object-union
+    createClone: () => createRemoveUnknownKeysFn<{kind: 'a'; va: string} | {kind: 'b'; vb: number}>(),
   },
 ];
 
-describe('fuzz / cloning — oracle sweep over compiled createCloneExactShapeFn', () => {
+describe('fuzz / cloning — oracle sweep over compiled createRemoveUnknownKeysFn', () => {
   it('finds no oracle violations across all targets', () => {
     const report = runCloneFuzz(targets, {seed: entrySeed('cloning'), iterations: 100});
     if (report.violations.length > 0 || report.crashes.length > 0) {
@@ -522,9 +522,9 @@ describe('fuzz / cloning — oracle sweep over compiled createCloneExactShapeFn'
     expect(report.runs).toBe(targets.length * 100);
   });
 
-  it('object-bearing unions stay CES001 alwaysThrow factories', () => {
+  it('object-bearing unions stay unknown-keys-object-union alwaysThrow factories', () => {
     for (const target of throwTargets) {
-      expect(target.createClone, target.title).toThrow(/CES001/);
+      expect(target.createClone, target.title).toThrow(/unknown-keys-object-union/);
     }
   });
 
@@ -533,7 +533,7 @@ describe('fuzz / cloning — oracle sweep over compiled createCloneExactShapeFn'
     // trees) and the compiled clone deliberately carries NO cycle
     // detection — per explicit user decision the RangeError stack overflow
     // is the accepted, documented failure mode. This test pins it.
-    const clone = createCloneExactShapeFn<CircTree>();
+    const clone = createRemoveUnknownKeysFn<CircTree>();
     const node: CircTree = {name: 'loop'};
     node.children = [node];
     expect(() => clone(node)).toThrow(RangeError);

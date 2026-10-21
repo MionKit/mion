@@ -73,9 +73,6 @@ const STEP_TIPS = {
 const config = useRuntimeConfig();
 const colorMode = useColorMode();
 const monacoTheme = computed(() => (colorMode.value === 'dark' ? 'vs-dark' : 'vs'));
-// Match the type-stack background to Monaco's editor surface so the strips read as
-// one file in both themes (vs-dark editor bg vs the vs light bg).
-const editorBg = computed(() => (colorMode.value === 'dark' ? '#1e1e1e' : '#fffffe'));
 
 // ---- reactive UI state ------------------------------------------------------
 
@@ -273,7 +270,7 @@ function playgroundBase(): string {
 function resolverOptions(): ResolverOptions {
   const base = playgroundBase();
   return {
-    wasmUrl: `${base}playground-app/ts-runtypes.wasm.gz`,
+    wasmUrl: `${base}playground-app/mion.wasm.gz`,
     wasmExecUrl: `${base}playground-app/wasm_exec.js`,
     sidecarHookUrl: `${base}playground-app/sidecar-hook.js`,
   };
@@ -303,7 +300,7 @@ async function loadRuntypesSources(): Promise<Record<string, string>> {
   if (!response.ok) {
     throw new Error(
       `Could not load the resolver source overlay (${response.status}). It is staged by ` +
-        `container/website/scripts/build-playground.sh (needs the Go toolchain + bootstrapped submodule).`,
+        `container/website/scripts/build-playground.mjs (needs the Go toolchain + bootstrapped submodule).`,
     );
   }
   const overlay = (await response.json()) as Record<string, string>;
@@ -582,10 +579,6 @@ async function renderResult(result: RunResult): Promise<string> {
       return `${label('Encoded (JSON-safe)')}${await jsonBlock(result.value)}${diag}`;
     case 'jsonRoundtrip':
       return `${label('Encoded (input → encode)')}${await jsonBlock(result.encoded)}${label('Decoded')}${await block(result.decoded)}${diag}`;
-    case 'binaryEncode':
-      return `${label(`Binary (${result.byteLength} bytes)`)}<pre class="rtpg-code rtpg-hex">${escapeHtml(result.hex)}</pre>${diag}`;
-    case 'binaryRoundtrip':
-      return `${label(`Encoded (${result.byteLength} bytes)`)}<pre class="rtpg-code rtpg-hex">${escapeHtml(result.hex)}</pre>${label('Decoded')}${await block(result.decoded)}${diag}`;
     case 'graph':
       // The live graph, descending from the root: children are the actual child
       // nodes, so the output reads as the type's structure. Only a cycle shows
@@ -762,7 +755,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="rt-playground" :style="{'--rt-pg-min-height': height, '--rtpg-editor-bg': editorBg}">
+  <div class="rt-playground" :style="{'--rt-pg-min-height': height}">
     <div class="rtpg-toolbar">
       <div class="rtpg-typegroup">
         <div class="rtpg-modeswitch" role="group" aria-label="type form">
@@ -775,7 +768,7 @@ onBeforeUnmount(() => {
           >
             <svg viewBox="0 0 32 32" aria-hidden="true">
               <path
-                fill="#007acc"
+                style="fill: var(--rtpg-ts-icon)"
                 d="M23.827 8.243a4.4 4.4 0 0 1 2.223 1.281a6 6 0 0 1 .852 1.143c.011.045-1.534 1.083-2.471 1.662c-.034.023-.169-.124-.322-.35a2.01 2.01 0 0 0-1.67-1c-1.077-.074-1.771.49-1.766 1.433a1.3 1.3 0 0 0 .153.666c.237.49.677.784 2.059 1.383c2.544 1.095 3.636 1.817 4.31 2.843a5.16 5.16 0 0 1 .416 4.333a4.76 4.76 0 0 1-3.932 2.815a11 11 0 0 1-2.708-.028a6.53 6.53 0 0 1-3.616-1.884a6.3 6.3 0 0 1-.926-1.371a3 3 0 0 1 .327-.208c.158-.09.756-.434 1.32-.761l1.024-.6l.214.312a4.8 4.8 0 0 0 1.35 1.292a3.3 3.3 0 0 0 3.458-.175a1.545 1.545 0 0 0 .2-1.974c-.276-.395-.84-.727-2.443-1.422a8.8 8.8 0 0 1-3.349-2.055a4.7 4.7 0 0 1-.976-1.777a7.1 7.1 0 0 1-.062-2.268a4.33 4.33 0 0 1 3.644-3.374a9 9 0 0 1 2.691.084m-8.343 1.483l.011 1.454h-4.63v13.148H7.6V11.183H2.97V9.755a14 14 0 0 1 .04-1.466c.017-.023 2.832-.034 6.245-.028l6.211.017Z"
               />
             </svg>
@@ -790,7 +783,7 @@ onBeforeUnmount(() => {
           >
             <svg viewBox="0 0 32 32" aria-hidden="true">
               <path
-                fill="#f5de19"
+                style="fill: var(--rtpg-js-icon)"
                 d="M18.774 19.7a3.73 3.73 0 0 0 3.376 2.078c1.418 0 2.324-.709 2.324-1.688c0-1.173-.931-1.589-2.491-2.272l-.856-.367c-2.469-1.052-4.11-2.37-4.11-5.156c0-2.567 1.956-4.52 5.012-4.52A5.06 5.06 0 0 1 26.9 10.52l-2.665 1.711a2.33 2.33 0 0 0-2.2-1.467a1.49 1.49 0 0 0-1.638 1.467c0 1.027.636 1.442 2.1 2.078l.856.366c2.908 1.247 4.549 2.518 4.549 5.376c0 3.081-2.42 4.769-5.671 4.769a6.58 6.58 0 0 1-6.236-3.5ZM6.686 20c.538.954 1.027 1.76 2.2 1.76c1.124 0 1.834-.44 1.834-2.15V7.975h3.422v11.683c0 3.543-2.078 5.156-5.11 5.156A5.31 5.31 0 0 1 3.9 21.688Z"
               />
             </svg>
@@ -951,23 +944,20 @@ onBeforeUnmount(() => {
   NOT applied to v-html content - so scoped rules would not reach them. Every
   selector is nested under `.rt-playground`, which keeps the styles contained (the
   same guarantee the old web component got by prefixing every rule). Colors are
-  remapped onto the site's --ui-* design tokens so the playground follows light/dark.
+  remapped onto the site's --ui-* design tokens so the playground follows light/dark;
+  its fixed colours (--rtpg-err, --rtpg-editor-bg, ...) live in assets/css/mion.css.
 -->
 <style>
 .rt-playground {
-  --rtpg-bg: var(--ui-bg, #0e1116);
-  --rtpg-panel: var(--ui-bg-muted, #161b22);
-  --rtpg-panel-2: var(--ui-bg-elevated, #1c2230);
-  --rtpg-border: var(--ui-border, #2b3340);
-  --rtpg-text: var(--ui-text-highlighted, #d7dde6);
-  --rtpg-muted: var(--ui-text-muted, #8b96a5);
-  --rtpg-accent: var(--ui-saturated, #79af43);
-  --rtpg-accent-dim: #5d8a32;
-  --rtpg-ok: var(--ui-saturated, #79af43);
-  --rtpg-err: #e3534f;
-  --rtpg-warn: #d9a441;
-  --rtpg-on-accent: #0e1116;
-  --rtpg-editor-bg: #1e1e1e;
+  --rtpg-bg: var(--ui-bg);
+  --rtpg-panel: var(--ui-bg-muted);
+  --rtpg-panel-2: var(--ui-bg-elevated);
+  --rtpg-border: var(--ui-border);
+  --rtpg-text: var(--ui-text-highlighted);
+  --rtpg-muted: var(--ui-text-muted);
+  --rtpg-accent: var(--site-accent);
+  --rtpg-accent-dim: color-mix(in srgb, var(--site-accent) 75%, var(--mion-black));
+  --rtpg-ok: var(--site-accent);
   --rtpg-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --rtpg-sans: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   display: block;
@@ -1050,7 +1040,7 @@ onBeforeUnmount(() => {
   padding: 0;
   border: 1px solid var(--rtpg-accent-dim);
   border-radius: 50%;
-  background: rgba(121, 175, 67, 0.14);
+  background: color-mix(in srgb, var(--rtpg-accent) 14%, transparent);
   color: var(--rtpg-accent);
   font-family: var(--rtpg-sans);
   font-size: 10px;
@@ -1084,7 +1074,7 @@ onBeforeUnmount(() => {
   text-transform: none;
   text-align: left;
   white-space: normal;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 6px 20px var(--rtpg-shadow);
   opacity: 0;
   visibility: hidden;
   transform: translateY(-2px);
@@ -1141,17 +1131,17 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 .rt-playground .rtpg-ro-header {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--rtpg-hairline);
 }
 .rt-playground .rtpg-ro-footer {
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--rtpg-hairline);
 }
 .rt-playground .rtpg-ro-hatch {
   position: absolute;
   inset: 0;
   cursor: default;
   pointer-events: auto;
-  background: repeating-linear-gradient(135deg, transparent 0 5px, rgba(121, 175, 67, 0.16) 5px 6px);
+  background: repeating-linear-gradient(135deg, transparent 0 5px, color-mix(in srgb, var(--rtpg-accent) 16%, transparent) 5px 6px);
 }
 .rt-playground .rtpg-subhead {
   display: flex;
@@ -1255,7 +1245,7 @@ onBeforeUnmount(() => {
   border: 1px solid var(--rtpg-accent-dim);
   border-left-width: 3px;
   border-radius: 8px;
-  background: rgba(121, 175, 67, 0.08);
+  background: color-mix(in srgb, var(--rtpg-accent) 8%, transparent);
 }
 .rt-playground .rtpg-info-icon {
   flex: 0 0 auto;
@@ -1387,9 +1377,6 @@ onBeforeUnmount(() => {
 .rt-playground .rtpg-result > .rtpg-block-label:first-child {
   margin-top: 0;
 }
-.rt-playground .rtpg-hex {
-  word-break: break-all;
-}
 .rt-playground .rtpg-badge {
   display: inline-block;
   font-family: var(--rtpg-mono);
@@ -1399,12 +1386,12 @@ onBeforeUnmount(() => {
   margin-bottom: 12px;
 }
 .rt-playground .rtpg-badge.ok {
-  background: rgba(121, 175, 67, 0.15);
+  background: color-mix(in srgb, var(--rtpg-accent) 15%, transparent);
   color: var(--rtpg-ok);
   border: 1px solid var(--rtpg-accent-dim);
 }
 .rt-playground .rtpg-badge.bad {
-  background: rgba(227, 83, 79, 0.15);
+  background: color-mix(in srgb, var(--rtpg-err) 15%, transparent);
   color: var(--rtpg-err);
   border: 1px solid var(--rtpg-err);
 }
@@ -1558,7 +1545,7 @@ onBeforeUnmount(() => {
   font-size: 11px;
   line-height: 1.4;
   color: var(--rtpg-muted);
-  background: rgba(121, 175, 67, 0.08);
+  background: color-mix(in srgb, var(--rtpg-accent) 8%, transparent);
   border: 1px solid var(--rtpg-accent-dim);
   border-radius: 6px;
   padding: 5px 8px;

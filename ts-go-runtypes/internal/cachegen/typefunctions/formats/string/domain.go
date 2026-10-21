@@ -1,6 +1,7 @@
 package string
 
 import (
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
@@ -8,20 +9,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// domainEmitter implements the format named "domain" — FormatDomain /
-// FormatDomainStrict. Two validation paths, mirroring the
-// DomainRunTypeFormat:
-//
-//   - pattern path: the type carries the domain regex (FormatDomain) —
-//     a single baked regex test + length bounds (namedPattern*).
-//   - decomposition path: the type carries `names`/`tld` sub-formats
-//     (FormatDomainStrict) — the value is split on '.', each label is
-//     validated as a sub-StringFormat, label hyphen-edges are rejected,
-//     and the segment count is bounded by maxParts/minParts.
-//
-// validate emits the decomposition as an IIFE expression (same splice
-// shape as datetime.go) so it AND-chains after the base-kind check;
-// validationErrors emits an error-accumulating statement block.
+// domainEmitter implements "domain" over three paths: a baked pattern, the IDNA pure fn, or names/tld parts split on '.'.
+// validate emits the parts path as an IIFE so it AND-chains after the base-kind check.
 type domainEmitter struct{}
 
 func init() {
@@ -36,9 +25,9 @@ func (domainEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, 
 		return domainValidateExprFor(ctx, annotation.Params, vλl)
 	}
 	if annotation != nil && domainHasIdna(annotation.Params) {
-		return idnaCheckExpr(ctx, annotation.Params, vλl)
+		return joinConditions(idnaCheckExpr(ctx, annotation.Params, vλl), allowedValuesCondition(ctx, annotation.Params, vλl))
 	}
-	return namedPatternValidate(ctx, annotation, vλl)
+	return joinConditions(namedPatternValidate(ctx, annotation, vλl), allowedValuesCondition(ctx, annotation.Params, vλl))
 }
 
 func (domainEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
@@ -46,13 +35,44 @@ func (domainEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnno
 		return domainErrorsBlockFor(ctx, annotation.Params, vλl, pathExpr, errorsArr, "")
 	}
 	if annotation != nil && domainHasIdna(annotation.Params) {
-		return idnaErrorsBlock(ctx, annotation.Params, vλl, pathExpr, errorsArr)
+		return joinStatements(idnaErrorsBlock(ctx, annotation.Params, vλl, pathExpr, errorsArr),
+			allowedValuesErrorStatement(ctx, annotation.Params, vλl, pathExpr, errorsArr))
 	}
-	return namedPatternErrors(ctx, annotation, vλl, pathExpr, errorsArr, "domain")
+	return joinStatements(namedPatternErrors(ctx, annotation, vλl, pathExpr, errorsArr, "domain"),
+		allowedValuesErrorStatement(ctx, annotation.Params, vλl, pathExpr, errorsArr))
 }
 
-// EmitFormatTransform applies the rewrite declared under `transform`
-// (`{lowercase: true}` is the usual one for a domain), identity otherwise.
+// allowedValuesCondition serves the pattern and IDNA paths; the parts path gets allowedValues from stringConditions.
+func allowedValuesCondition(ctx formats.EmitContext, params map[string]any, vλl string) string {
+	vals, flags, ok := readValuesParam(params, "allowedValues")
+	if !ok {
+		return ""
+	}
+	return emitPatternTest(ctx, valuesSource(vals), flags, vλl)
+}
+
+func allowedValuesErrorStatement(ctx formats.EmitContext, params map[string]any, vλl, pathExpr, errorsArr string) string {
+	condition := allowedValuesCondition(ctx, params, vλl)
+	if condition == "" {
+		return ""
+	}
+	return "if (!(" + condition + ")) " + formatErrWithType(pathExpr, errorsArr, "domain", "allowedValues", messageLiteral(params, "allowedValues"), "")
+}
+
+func joinConditions(parts ...string) string { return joinNonEmpty(parts, " && ") }
+func joinStatements(parts ...string) string { return joinNonEmpty(parts, ";") }
+
+func joinNonEmpty(parts []string, sep string) string {
+	kept := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if part != "" {
+			kept = append(kept, part)
+		}
+	}
+	return strings.Join(kept, sep)
+}
+
+// EmitFormatTransform applies the declared `transform`; `{lowercase: true}` is the usual one for a domain.
 func (domainEmitter) EmitFormatTransform(annotation *reflection.FormatAnnotation, vλl string, _ formats.EmitContext) string {
 	if annotation == nil {
 		return ""
@@ -60,9 +80,6 @@ func (domainEmitter) EmitFormatTransform(annotation *reflection.FormatAnnotation
 	return formats.EmitStringTransform(annotation.Params, vλl)
 }
 
-// ValidateParams ports DomainRunTypeFormat.validateParams
-// (ref: domain.runtype.ts:235-248): names/tld travel together, are mutually
-// exclusive with pattern, and the length/part bounds stay in range.
 func (domainEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
@@ -78,6 +95,7 @@ func (domainEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []s
 	if (hasNames || hasTld) && hasPattern {
 		errs = append(errs, "FormatDomain: cannot combine `pattern` with `names`/`tld`")
 	}
+	errs = append(errs, partsBoundsWithoutNames(params, "FormatDomain")...)
 	if value, ok := formats.ReadNumberParam(params, "maxLength"); ok && value > 253 {
 		errs = append(errs, "FormatDomain: `maxLength` cannot be greater than 253")
 	}
@@ -91,9 +109,21 @@ func (domainEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []s
 	return errs
 }
 
-// domainHasNames reports whether the decomposition path applies — i.e.
-// the params carry a `names` sub-format object (names/tld come together,
-// validateParams enforces it).
+// partsBoundsWithoutNames rejects maxParts / minParts without names/tld, where nothing counts labels to check them.
+func partsBoundsWithoutNames(params map[string]any, prefix string) []string {
+	if domainHasNames(params) {
+		return nil
+	}
+	var errs []string
+	for _, key := range []string{"maxParts", "minParts"} {
+		if _, ok := params[key]; ok {
+			errs = append(errs, prefix+": `"+key+"` needs `names`/`tld` (use DomainParts)")
+		}
+	}
+	return errs
+}
+
+// domainHasNames reports whether the decomposition path applies; ValidateParams makes names/tld travel together.
 func domainHasNames(params map[string]any) bool {
 	_, ok := params["names"].(map[string]any)
 	return ok
@@ -101,13 +131,10 @@ func domainHasNames(params map[string]any) bool {
 
 // ── IDNA path ────────────────────────────────────────────────────────
 //
-// A host name is not expressible as a pattern: an `xn--` label must be DECODED
-// before its characters can be judged, re-encoded to prove the spelling is
-// canonical, and the Bidi rule reads every label at once. So the `idna` param
-// routes the whole check to the pure-fn engine
-// (rtFormats::isIdnHostname and its deps in string-formats-pure-fns.ts), with
-// the declared length bounds AND-chained in front of it exactly as the pattern
-// path does.
+// A host name is not expressible as a pattern: an `xn--` label must be DECODED before its characters can be
+// judged, re-encoded to prove the spelling is canonical, and the Bidi rule reads every label at once.
+// So `idna` routes the whole check to isIdnHostname (string-formats-pure-fns.ts), with the declared length
+// bounds AND-chained in front of it as the pattern path does.
 //
 //   idna: 'ascii'    → `format: 'hostname'`, RFC 1123 labels, A-labels decoded
 //   idna: 'unicode'  → `format: 'idn-hostname'`, U-labels accepted directly
@@ -129,10 +156,9 @@ func jsBool(value bool) string {
 	return "false"
 }
 
-// idnaCall is the pure-fn call: it returns the failure MODE, so "valid" is the
-// empty string and validate compares against it.
+// idnaCall returns the failure MODE, so "valid" is the empty string.
 func idnaCall(ctx formats.EmitContext, params map[string]any, vλl string) string {
-	return pureFnAlias(ctx, "isIdnHostname") + "(" + vλl + ",{idn:" + jsBool(idnaAllowsUnicode(params)) + "})"
+	return formats.PureFnAlias(ctx, purefnids.IsIdnHostname) + "(" + vλl + ",{idn:" + jsBool(idnaAllowsUnicode(params)) + "})"
 }
 
 func idnaCheckExpr(ctx formats.EmitContext, params map[string]any, vλl string) string {
@@ -141,11 +167,9 @@ func idnaCheckExpr(ctx formats.EmitContext, params map[string]any, vλl string) 
 	return strings.Join(conditions, " && ")
 }
 
-// idnaErrorsBlock — the IDNA path has FOUR ways to fail (see isIdnHostname:
-// 'label', 'punycode', 'bidi', 'length'), and the error names which in its
-// `errorType`. One local so the mode is computed once; a declared length bound
-// that fails folds in as 'length' rather than running the engine at all.
-// formatPath stays ['idna'], so nothing keyed off it changes.
+// idnaErrorsBlock: the IDNA path has FOUR ways to fail ('label', 'punycode', 'bidi', 'length') and the error
+// names which in its `errorType`. One local, so the mode is computed once.
+// A failing length bound folds in as 'length' rather than running the engine at all, and formatPath stays ['idna'].
 func idnaErrorsBlock(ctx formats.EmitContext, params map[string]any, vλl, pathExpr, errorsArr string) string {
 	mode := ctx.NextLocalVar("dnMode")
 	init := idnaCall(ctx, params, vλl)
@@ -157,9 +181,7 @@ func idnaErrorsBlock(ctx formats.EmitContext, params map[string]any, vλl, pathE
 	return "{const " + mode + "=" + init + ";if (" + mode + "!=='') " + errCall + ";}"
 }
 
-// hasAllowedValues reports whether a sub-param map has an allowedValues
-// param. We skip the hyphen-edge label check when names is an
-// enum (allowedValues) — the explicit value set already pins the labels.
+// hasAllowedValues drives skipping the hyphen-edge label check: an explicit value set already pins the labels.
 func hasAllowedValues(params map[string]any) bool {
 	if params == nil {
 		return false
@@ -168,13 +190,10 @@ func hasAllowedValues(params map[string]any) bool {
 	return ok
 }
 
-// domainValidateExprFor builds the decomposition validate IIFE for a domain
-// applied to valExpr (the whole value at the root, or the domain
-// substring when reached from email). Mirrors domain.runtype.ts:
-// 101-116. Returns an expression evaluating to true iff valExpr is a
-// well-formed domain under params. The bound `s` plus the loop locals
-// (count/start/pos/name/tld) are arrow-scoped, so fixed names can't
-// collide across sibling or nested domain checks.
+// domainValidateExprFor builds the decomposition validate IIFE over valExpr, the whole value at the root or the
+// domain substring when reached from email.
+// The bound `s` and the loop locals are arrow-scoped, so the fixed names cannot collide across sibling or
+// nested domain checks.
 func domainValidateExprFor(ctx formats.EmitContext, params map[string]any, valExpr string) string {
 	namesParams, _ := params["names"].(map[string]any)
 	tldParams, _ := params["tld"].(map[string]any)
@@ -214,18 +233,13 @@ func domainValidateExprFor(ctx formats.EmitContext, params map[string]any, valEx
 	return b.String()
 }
 
-// domainErrorsBlockFor builds the decomposition validationErrors statement
-// block (ref: domain.runtype.ts:145-159). Error-accumulating (no early
-// returns): every failing label / bound pushes onto errorsArr. count
-// starts at 0 and is bumped once post-loop so it equals the segment
-// count (labels + tld). Wrapped in its own `{ }` so the block locals
-// stay scoped — safe under email nesting and sibling domain fields.
-//
-// Every part error names WHICH PART failed in its `errorType`: 'label' for a
-// name label (the hyphen-edge check included), 'tld' for the last one. The
-// whole-name checks (root length bounds, maxParts / minParts) carry
-// rootErrorType, "" from every caller today — formatPath already names a
-// bound — kept as a parameter so a host can tag them.
+// domainErrorsBlockFor builds the decomposition validationErrors block, accumulating rather than returning
+// early, so every failing label or bound pushes onto errorsArr.
+// count starts at 0 and is bumped once after the loop so it equals the segment count, labels plus tld.
+// Its own `{ }` keeps the block locals scoped, which is what makes it safe under email nesting and sibling fields.
+// Every part error names WHICH PART failed in its `errorType`: 'label' for a name label, 'tld' for the last one.
+// The whole-name checks carry rootErrorType, "" from every caller today since formatPath already names a bound,
+// kept as a parameter so a host can tag them.
 func domainErrorsBlockFor(ctx formats.EmitContext, params map[string]any, valExpr, pathExpr, errorsArr, rootErrorType string) string {
 	namesParams, _ := params["names"].(map[string]any)
 	tldParams, _ := params["tld"].(map[string]any)
@@ -268,10 +282,7 @@ func domainErrorsBlockFor(ctx formats.EmitContext, params map[string]any, valExp
 	return b.String()
 }
 
-// domainSubCheckExpr returns a domain validate EXPRESSION over valExpr,
-// dispatching on whether the domain params use the names/tld
-// decomposition (IIFE) or the pattern/length path (AND of conditions).
-// Used by the email emitter to validate the domain half of an address.
+// domainSubCheckExpr returns a domain validate EXPRESSION over valExpr, for the email emitter's domain half.
 func domainSubCheckExpr(ctx formats.EmitContext, domainParams map[string]any, valExpr string) string {
 	if domainHasNames(domainParams) {
 		return domainValidateExprFor(ctx, domainParams, valExpr)
@@ -279,11 +290,8 @@ func domainSubCheckExpr(ctx formats.EmitContext, domainParams map[string]any, va
 	return strings.Join(stringConditions(ctx, domainParams, valExpr), " && ")
 }
 
-// domainSubErrorsStmts returns domain validationErrors STATEMENTS over
-// valExpr, dispatching the same way as domainSubCheckExpr. Used by the
-// email emitter; errorTypeExpr tags the whole-domain errors ("" today: the
-// `domain` format name already says which half, and the label / tld errors
-// name themselves).
+// domainSubErrorsStmts is the errors twin of domainSubCheckExpr; errorTypeExpr tags the whole-domain errors,
+// "" today because the `domain` format name already says which half.
 func domainSubErrorsStmts(ctx formats.EmitContext, domainParams map[string]any, valExpr, pathExpr, errorsArr, errorTypeExpr string) string {
 	if domainHasNames(domainParams) {
 		return domainErrorsBlockFor(ctx, domainParams, valExpr, pathExpr, errorsArr, errorTypeExpr)

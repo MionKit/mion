@@ -1,0 +1,30 @@
+import type * as TF from '@mionjs/run-types/formats';
+import {createValidateFn} from '@mionjs/run-types';
+
+type Username = TF.String<{
+  minLength: 3;
+  maxLength: 20;
+  pattern: {source: '^[a-z0-9_]+$'; mockSamples: ['ada_99', 'grace']};
+}>;
+type Percentage = TF.Number<{min: 0; max: 100}>;
+type BigPositive = TF.BigInt<{min: 0n}>;
+type Price = TF.Number<{min: 0; multipleOf: 0.01}>;
+
+type Profile = {
+  handle: Username;
+  completion: Percentage;
+  followers: BigPositive;
+};
+
+const isProfile = createValidateFn<Profile>();
+
+isProfile({handle: 'ada_99', completion: 80, followers: 1200n}); // true
+isProfile({handle: 'no', completion: 150, followers: -1n}); // false
+
+const isPrice = createValidateFn<Price>();
+
+isPrice(19.99); // true, a decimal multipleOf allows tiny float rounding errors
+isPrice(19.995); // false
+
+export {isProfile, isPrice};
+export type {Profile, Price};

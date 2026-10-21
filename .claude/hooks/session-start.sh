@@ -66,9 +66,12 @@ else
 fi
 
 # --- build artifacts the setup produces --------------------------------------
-[ -x "$REPO/bin/mion" ] && pass "bin/mion" || miss "bin/mion (Go binary not built)"
+[ -x "$REPO/mion-bin/mion" ] && pass "mion-bin/mion" || miss "mion-bin/mion (Go binary not built)"
 [ -f "$REPO/node_modules/.modules.yaml" ] && pass "node_modules" || miss "node_modules (pnpm install not run)"
 [ -f "$REPO/packages/devtools/dist/index.js" ] && pass "@mionjs/devtools dist" || miss "@mionjs/devtools dist (not built)"
+chromium="$(cd "$REPO" && node scripts/lib/playwright-chromium.mjs --check 2>/dev/null)"
+[ $? -eq 0 ] && pass "${chromium#OK }" || miss "${chromium#MISSING }"
+[ -n "$chromium" ] || lines[${#lines[@]}-1]="  MISSING Playwright Chromium (the check could not run)"
 
 # --- container image (informational; pulling needs egress for ghcr blobs) ----
 img_ref="${GHCR_REGISTRY:-ghcr.io}/${GHCR_OWNER:-mionkit}/tsrt-website:latest"

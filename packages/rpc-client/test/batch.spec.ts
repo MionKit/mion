@@ -1,0 +1,833 @@
+/* ########
+ * 2025 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+import {describe, it, expect, vi} from 'vitest';
+import {initClient} from './lib/fetchingClient.ts';
+import {batch} from '../src/batch.ts';
+import type {CallContext, RouteSubRequest} from '../src/types.ts';
+import {HeadersSubset, RpcError, getRoutePath, routesCache} from '@mionjs/core';
+import type {TestServerApi} from '@mionjs/test-server';
+import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
+// NAME-lane calls (string 2nd arg) resolve to the marker-free overload, so the vite
+// plugin never rewrites them; INLINE-mapper calls are extracted + hash-injected.
+import {inputFrom as rawInputFrom} from '../src/batch.ts';
+import {inputFrom} from '../src/batch.ts';
+
+// Helper to create auth headers for the test server's headersMiddleware
+function createAuthHeaders(token: string): HeadersSubset<'Authorization'> {
+  return new HeadersSubset({Authorization: token});
+}
+
+const someUser = {name: 'John', surname: 'Doe'};
+
+describe('batch', () => {
+  type MyApi = TestServerApi;
+
+  const baseURL = TEST_SERVER_BASE_URL;
+
+  describe('batch() function', () => {
+    it('should execute a single route in a batch', async () => {
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
+      const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+
+      const [[greeting, greetingError]] = await batch([routes.sayHello(someUser)]).call();
+
+      expect(greeting).toEqual('Hello John Doe');
+      expect(greetingError).toBeUndefined();
+    });
+
+    it('the first batch call with an auth headersMiddleware onRequest hook is one round trip (no retry)', async () => {
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
+      const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+      // the metadata cache is process-wide: forgetting the routes makes this their first call again.
+      // Both routes take a scalar, the simplest case of the optimistic path.
+      const cache = routesCache.getCache();
+      delete cache.calculateAge;
+      delete cache['utils/sumTwo'];
+
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+      try {
+        const [[age, ageError, clientResponse], [sum, sumError]] = await batch([
+          routes.calculateAge(1990),
+          routes.utils.sumTwo(5),
+        ]).call();
+        expect(clientResponse['@thrownErrors']).toBeUndefined();
+        expect(ageError).toBeUndefined();
+        expect(sumError).toBeUndefined();
+        expect(age).toEqual(new Date().getFullYear() - 1990);
+        expect(sum).toEqual(7);
+
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+        const init = fetchSpy.mock.calls[0][1] as RequestInit;
+        expect((init.headers as Record<string, string>).Authorization).toBe('XWYZ-TOKEN');
+        expect(JSON.parse(init.body as string).auth).toBeUndefined();
+      } finally {
+        fetchSpy.mockRestore();
+      }
+    });
+
+    it('should execute multiple routes in a batch', async () => {
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
+      const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+
+      const [[greeting, greetingError], [age, ageError], [sum, sumError]] = await batch([
+        routes.sayHello(someUser),
+        routes.calculateAge(1990),
+        routes.utils.sumTwo(5),
+      ]).call();
+
+      expect(greeting).toEqual('Hello John Doe');
+      expect(age).toEqual(new Date().getFullYear() - 1990);
+      expect(sum).toEqual(7);
+      expect(greetingError).toBeUndefined();
+      expect(ageError).toBeUndefined();
+      expect(sumError).toBeUndefined();
+    });
+
+    it('runs the onRequest hook with the batch as its context', async () => {
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
+      const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      const contexts: CallContext[] = [];
+      middlewares.auth.onRequest((auth, context) => {
+        contexts.push(context);
+        auth(authHeaders);
+      });
+
+      const [[greeting, greetingError, clientResponse]] = await batch([routes.sayHello(someUser)]).call();
+
+      expect(contexts.length).toBe(1);
+      expect(contexts[0].route).toBeUndefined();
+      expect(contexts[0].batchSubRequests?.map((sub) => sub.id)).toEqual(['sayHello']);
+      expect(greeting).toEqual('Hello John Doe');
+      expect(greetingError).toBeUndefined();
+      expect(clientResponse['@thrownErrors']).toBeUndefined();
+    });
+
+    it('should handle route errors in batch', async () => {
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
+      const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+
+      const [[failResult, failError]] = await batch([routes.alwaysFails(someUser)]).call();
+
+      expect(failError).toBeDefined();
+      expect(failError?.type).toBe('unknown-error');
+      expect(failResult).toBeUndefined();
+    });
+
+    it('should throw error when called with empty routes array', () => {
+      expect(() => batch([])).toThrow('batch() requires at least one route subrequest.');
+    });
+
+    it('should throw when the build did not inject a batch id', () => {
+      const {routes} = initClient<MyApi>({baseURL});
+      // an alias whose type lost the InjectBatchId brand is invisible to the build, so no id is injected
+      const untransformed = batch as unknown as (routes: RouteSubRequest<any>[]) => unknown;
+      expect(() => untransformed([routes.sayHello(someUser)])).toThrow('batch() needs the mion build plugin');
+    });
+
+    it('should throw error when subrequests have different client instances', () => {
+      const {routes: routes1} = initClient<MyApi>({baseURL});
+      const {routes: routes2} = initClient<MyApi>({baseURL});
+
+      expect(() => batch([routes1.sayHello(someUser), routes2.calculateAge(1990)])).toThrow(
+        'All subrequests in a batch must use the same client instance'
+      );
+    });
+  });
+
+  describe('serialization/deserialization in batches', () => {
+    it('should serialize and deserialize Date params and results', async () => {
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
+      const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+      const testDate = new Date('2024-06-15T12:30:00.000Z');
+
+      const [[sameDate, dateError]] = await batch([routes.getSameDate(testDate)]).call();
+
+      expect(dateError).toBeUndefined();
+      expect(sameDate).toBeInstanceOf(Date);
+      expect(sameDate?.toISOString()).toEqual('2024-06-15T12:30:00.000Z');
+    });
+
+    it('should serialize Date params and return computed Date result', async () => {
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
+      const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+      const testDate = new Date('2024-01-01T00:00:00.000Z');
+
+      const [[datePlusDays, dateError]] = await batch([routes.getDatePlusDays(testDate, 10)]).call();
+
+      expect(dateError).toBeUndefined();
+      expect(datePlusDays).toBeInstanceOf(Date);
+      expect(datePlusDays?.toISOString()).toEqual('2024-01-11T00:00:00.000Z');
+    });
+
+    it('should serialize and deserialize Map params and results', async () => {
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
+      const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+      const testMap = new Map<string, number>([
+        ['a', 1],
+        ['b', 2],
+      ]);
+
+      const [[sameMap, mapError]] = await batch([routes.getSameMap(testMap)]).call();
+
+      expect(mapError).toBeUndefined();
+      expect(sameMap).toBeInstanceOf(Map);
+      expect(sameMap?.get('a')).toEqual(1);
+      expect(sameMap?.get('b')).toEqual(2);
+    });
+
+    it('should serialize Map params and return modified Map result', async () => {
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
+      const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+      const testMap = new Map<string, number>([['x', 10]]);
+
+      const [[mergedMap, mapError]] = await batch([routes.mergeMap(testMap, 'y', 20)]).call();
+
+      expect(mapError).toBeUndefined();
+      expect(mergedMap).toBeInstanceOf(Map);
+      expect(mergedMap?.get('x')).toEqual(10);
+      expect(mergedMap?.get('y')).toEqual(20);
+    });
+
+    it('should serialize and deserialize Set params and results', async () => {
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
+      const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+      const testSet = new Set(['hello', 'world']);
+
+      const [[sameSet, setError]] = await batch([routes.getSameSet(testSet)]).call();
+
+      expect(setError).toBeUndefined();
+      expect(sameSet).toBeInstanceOf(Set);
+      expect(sameSet?.has('hello')).toBe(true);
+      expect(sameSet?.has('world')).toBe(true);
+    });
+
+    it('should serialize Set params and return modified Set result', async () => {
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
+      const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+      const testSet = new Set(['a', 'b']);
+
+      const [[modifiedSet, setError]] = await batch([routes.addToSet(testSet, 'c')]).call();
+
+      expect(setError).toBeUndefined();
+      expect(modifiedSet).toBeInstanceOf(Set);
+      expect(modifiedSet?.has('a')).toBe(true);
+      expect(modifiedSet?.has('b')).toBe(true);
+      expect(modifiedSet?.has('c')).toBe(true);
+    });
+
+    it('should handle multiple routes mixing serializable and plain types in a batch', async () => {
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
+      const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+      const testDate = new Date('2024-06-15T12:30:00.000Z');
+
+      const [[sameDate, dateError], [greeting, greetingError], [age, ageError]] = await batch([
+        routes.getSameDate(testDate),
+        routes.sayHello(someUser),
+        routes.calculateAge(1990),
+      ]).call();
+
+      expect(dateError).toBeUndefined();
+      expect(greetingError).toBeUndefined();
+      expect(ageError).toBeUndefined();
+
+      expect(sameDate).toBeInstanceOf(Date);
+      expect(sameDate?.toISOString()).toEqual('2024-06-15T12:30:00.000Z');
+
+      expect(greeting).toEqual('Hello John Doe');
+
+      expect(age).toEqual(new Date().getFullYear() - 1990);
+    });
+  });
+
+  describe('proxy returns call method', () => {
+    it('proxy should include call method on subrequests', () => {
+      const {routes} = initClient<MyApi>({baseURL});
+      const subRequest = routes.sayHello(someUser) as RouteSubRequest<any>;
+
+      expect(typeof subRequest.call).toBe('function');
+      expect(typeof subRequest.call).toBe('function');
+    });
+  });
+});
+
+describe('inputFrom()', () => {
+  const fakeSubRequest = {pointer: ['test'], id: 'test', isResolved: false, params: []} as any;
+
+  it('should return an InputFromRef carrying the mapper id the build injected', () => {
+    // The mapper is written inline; the build gives it a pure-fn id and that id
+    // IS the mapperKey the server looks the mapper up by.
+    const ref = rawInputFrom(fakeSubRequest, (customer: {preferenceId: number}) => customer.preferenceId);
+    expect(ref.mapperKey).toMatch(/#/);
+    expect(ref.fromRequestId).toBe('test');
+    expect(ref.toRequestId).toBe(''); // toRequestId is set once the ref is passed to the target subRequest
+  });
+
+  it('should give two mappers in one file two ids', () => {
+    const first = rawInputFrom(fakeSubRequest, (customer: {preferenceId: number}) => customer.preferenceId);
+    const second = rawInputFrom(fakeSubRequest, (customer: {preferenceId: number}) => customer.preferenceId + 1);
+    expect(second.mapperKey).not.toBe(first.mapperKey);
+  });
+
+  // The markers cast away: the build no longer sees these calls, which is both what
+  // an unprocessed file ships and the only way to hand inputFrom a bad argument.
+  const unprocessed = rawInputFrom as unknown as (source: unknown, mapper: unknown) => never;
+
+  it('should throw when the mapper is missing', () => {
+    expect(() => unprocessed(fakeSubRequest, undefined)).toThrow('inputFrom() requires an inline mapper function');
+  });
+
+  it('should throw when the build injected no id', () => {
+    expect(() => unprocessed(fakeSubRequest, (customer: {preferenceId: number}) => customer.preferenceId)).toThrow(
+      /requires the mion build plugin/
+    );
+  });
+
+  it('fake() should return the ref itself', () => {
+    const ref = rawInputFrom(fakeSubRequest, (customer: {preferenceId: number}) => customer.preferenceId);
+    const fakeResult = ref.asArg();
+    // fake() returns the ref cast as ReturnType<F>
+    expect(fakeResult).toBe(ref);
+  });
+});
+
+describe('inputFrom e2e in batch', () => {
+  type MyApi = TestServerApi;
+  const baseURL = TEST_SERVER_BASE_URL;
+
+  it('should map output of one route to input of another', async () => {
+    const {routes, middlewares} = initClient<MyApi>({baseURL});
+    const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+    middlewares.auth.onRequest((auth) => auth(authHeaders));
+
+    const customer = routes.getCustomerById(42);
+    const [[customerData, customerError], [prefs, prefsError]] = await batch([
+      customer,
+      routes.getPreferencesById(inputFrom(customer, (customerValue) => customerValue!.preferenceId).asArg()),
+    ]).call();
+
+    expect(customerError).toBeUndefined();
+    expect(prefsError).toBeUndefined();
+    expect(customerData).toEqual({id: 42, name: 'Test Customer', preferenceId: 142});
+    // 142 is even → 'dark', userId = prefId - 100 = 42 (original customer id)
+    expect(prefs).toEqual({id: 142, userId: 42, theme: 'dark', lang: 'en'});
+  });
+
+  it('should map with an INLINE mapper declared in client code (build-time transport)', async () => {
+    const {routes, middlewares} = initClient<MyApi>({baseURL});
+    const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+    middlewares.auth.onRequest((auth) => auth(authHeaders));
+
+    // The build extracts this client-written mapper into the generated batch module the server runs.
+    // The mapper param is `value | undefined` (it resolves server-side), hence the `!`.
+    const customer = routes.getCustomerById(7);
+    const [[customerData, customerError], [prefs, prefsError]] = await batch([
+      customer,
+      routes.getPreferencesById(inputFrom(customer, (customerValue) => customerValue!.preferenceId).asArg()),
+    ]).call();
+
+    expect(customerError).toBeUndefined();
+    expect(prefsError).toBeUndefined();
+    expect(customerData).toEqual({id: 7, name: 'Test Customer', preferenceId: 107});
+    // 107 is odd → 'light', userId = prefId - 100 = 7 (original customer id)
+    expect(prefs).toEqual({id: 107, userId: 7, theme: 'light', lang: 'en'});
+  });
+
+  // Unknown-mapper rejection lives in packages/rpc-router/test/batches.spec.ts: the build registers every inline mapper.
+});
+
+// ############# END-TO-END: every route shape the build reads #############
+//
+// The build reads each `batch([...])` call site: the ordered route ids and the inputFrom mappings.
+// Every shape below is one the build accepts (inline, const/let bound, renamed destructuring,
+// the client object, a const sub-proxy, element access), and each one must run against the test
+// server and answer the right values, which proves the injected id matched the table the server
+// was built with.
+describe('batch build shapes end to end', () => {
+  type MyApi = TestServerApi;
+  const baseURL = TEST_SERVER_BASE_URL;
+  const {routes, middlewares} = initClient<MyApi>({baseURL});
+  middlewares.auth.onRequest((auth) => auth(createAuthHeaders('XWYZ-TOKEN')));
+
+  it('inline route calls', async () => {
+    const [[user, userError, clientResponse], [org, orgError]] = await batch([
+      routes.flow.getUser(3),
+      routes.flow.getOrg(30),
+    ]).call();
+    expect(clientResponse['@thrownErrors']).toBeUndefined();
+    expect(userError).toBeUndefined();
+    expect(orgError).toBeUndefined();
+    expect(user).toEqual({id: 3, orgId: 30, tagIds: [3, 4]});
+    expect(org).toEqual({id: 30, name: 'Org 30'});
+  });
+
+  it('const-bound and let-bound elements (let with an initializer)', async () => {
+    const user = routes.flow.getUser(4);
+    // eslint-disable-next-line prefer-const
+    let org = routes.flow.getOrg(40);
+    const entries = await batch([user, org]).call();
+    const [[userValue, , clientResponse], [orgValue]] = entries;
+    expect(clientResponse['@thrownErrors']).toBeUndefined();
+    expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
+    expect(userValue).toEqual({id: 4, orgId: 40, tagIds: [4, 5]});
+    expect(orgValue).toEqual({id: 40, name: 'Org 40'});
+  });
+
+  it('renamed destructuring: const {routes: r} = initClient()', async () => {
+    const {routes: r, middlewares: m} = initClient<MyApi>({baseURL});
+    m.auth.onRequest((auth) => auth(createAuthHeaders('XWYZ-TOKEN')));
+    const entries = await batch([r.flow.getUser(5), r.utils.sumTwo(5)]).call();
+    const [[user, , clientResponse], [sum]] = entries;
+    expect(clientResponse['@thrownErrors']).toBeUndefined();
+    expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
+    expect(user).toEqual({id: 5, orgId: 50, tagIds: [5, 6]});
+    expect(sum).toBe(7);
+  });
+
+  it('client object: const client = initClient(); client.routes.x()', async () => {
+    const client = initClient<MyApi>({baseURL});
+    client.middlewares.auth.onRequest((auth) => auth(createAuthHeaders('XWYZ-TOKEN')));
+    const entries = await batch([client.routes.flow.getUser(6), client.routes.sayHello(someUser)]).call();
+    const [[user, , clientResponse], [greeting]] = entries;
+    expect(clientResponse['@thrownErrors']).toBeUndefined();
+    expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
+    expect(user).toEqual({id: 6, orgId: 60, tagIds: [6, 7]});
+    expect(greeting).toBe('Hello John Doe');
+  });
+
+  it('const sub-proxy: const flow = routes.flow, as element AND as mapping source', async () => {
+    const flow = routes.flow;
+    const user = flow.getUser(7);
+    const entries = await batch([user, flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId).asArg())]).call();
+    const [[userValue, , clientResponse], [org]] = entries;
+    expect(clientResponse['@thrownErrors']).toBeUndefined();
+    expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
+    expect(userValue).toEqual({id: 7, orgId: 70, tagIds: [7, 8]});
+    expect(org).toEqual({id: 70, name: 'Org 70'});
+  });
+
+  it("element access: routes['flow'].getUser() and routes['utils']['sumTwo']()", async () => {
+    const entries = await batch([routes['flow'].getUser(8), routes['utils']['sumTwo'](8)]).call();
+    const [[user, , clientResponse], [sum]] = entries;
+    expect(clientResponse['@thrownErrors']).toBeUndefined();
+    expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
+    expect(user).toEqual({id: 8, orgId: 80, tagIds: [8, 9]});
+    expect(sum).toBe(10);
+  });
+
+  it('a batch inside an async helper whose route ARGUMENTS come from the parameters', async () => {
+    // only the route identity is static; the values travel at runtime like any other call
+    async function loadUserWithOrg(userId: number) {
+      const user = routes.flow.getUser(userId);
+      return batch([user, routes.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId).asArg())]).call();
+    }
+    const entries9 = await loadUserWithOrg(9);
+    const entries11 = await loadUserWithOrg(11);
+    const [[user9, , response9], [org9]] = entries9;
+    const [[user11, , response11], [org11]] = entries11;
+    expect(response9['@thrownErrors']).toBeUndefined();
+    expect(response11['@thrownErrors']).toBeUndefined();
+    expect(entries9.map(([, error]) => error)).toEqual([undefined, undefined]);
+    expect(entries11.map(([, error]) => error)).toEqual([undefined, undefined]);
+    expect(user9).toEqual({id: 9, orgId: 90, tagIds: [9, 10]});
+    expect(org9).toEqual({id: 90, name: 'Org 90'});
+    expect(user11).toEqual({id: 11, orgId: 110, tagIds: [11, 12]});
+    expect(org11).toEqual({id: 110, name: 'Org 110'});
+  });
+});
+
+// ############# END-TO-END: every mapping shape the build reads #############
+describe('inputFrom mapping shapes end to end', () => {
+  type MyApi = TestServerApi;
+  const baseURL = TEST_SERVER_BASE_URL;
+  const {routes, middlewares} = initClient<MyApi>({baseURL});
+  middlewares.auth.onRequest((auth) => auth(createAuthHeaders('XWYZ-TOKEN')));
+
+  it('.asArg() with an inline mapper', async () => {
+    const user = routes.flow.getUser(12);
+    const entries = await batch([user, routes.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId).asArg())]).call();
+    const [[, , clientResponse], [org]] = entries;
+    expect(clientResponse['@thrownErrors']).toBeUndefined();
+    expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
+    expect(org).toEqual({id: 120, name: 'Org 120'});
+  });
+
+  it('a bare inputFrom ref passed straight as the argument (no .asArg())', async () => {
+    const user = routes.flow.getUser(13);
+    const entries = await batch([user, routes.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId) as never)]).call();
+    const [[, , clientResponse], [org]] = entries;
+    expect(clientResponse['@thrownErrors']).toBeUndefined();
+    expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
+    expect(org).toEqual({id: 130, name: 'Org 130'});
+  });
+
+  it('a mapping bound to a const first', async () => {
+    const user = routes.flow.getUser(14);
+    const orgId = inputFrom(user, (userValue) => userValue!.orgId).asArg();
+    const entries = await batch([user, routes.flow.getOrg(orgId)]).call();
+    const [[, , clientResponse], [org]] = entries;
+    expect(clientResponse['@thrownErrors']).toBeUndefined();
+    expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
+    expect(org).toEqual({id: 140, name: 'Org 140'});
+  });
+
+  it('two batches whose mappers differ only in body', async () => {
+    // Different mapper bodies give different mapper ids, so different batch ids for the same routes.
+    const user = routes.flow.getUser(15);
+    const entries = await batch([user, routes.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId + 0).asArg())]).call();
+    const [[, , clientResponse], [org]] = entries;
+    expect(clientResponse['@thrownErrors']).toBeUndefined();
+    expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
+    expect(org).toEqual({id: 150, name: 'Org 150'});
+
+    const other = routes.flow.getUser(16);
+    const otherEntries = await batch([
+      other,
+      routes.flow.getOrg(inputFrom(other, (userValue) => userValue!.orgId + 0 + 0).asArg()),
+    ]).call();
+    const [[, , otherResponse], [otherOrg]] = otherEntries;
+    expect(otherResponse['@thrownErrors']).toBeUndefined();
+    expect(otherEntries.map(([, error]) => error)).toEqual([undefined, undefined]);
+    expect(otherOrg).toEqual({id: 160, name: 'Org 160'});
+  });
+
+  it('a mapping at param index 1, the literal at index 0 stays as sent', async () => {
+    const order = routes.flow.getOrder(2);
+    const entries = await batch([
+      order,
+      routes.flow.getProduct(77, inputFrom(order, (orderValue) => orderValue!.currency).asArg()),
+    ]).call();
+    const [[orderValue, , clientResponse], [product]] = entries;
+    expect(clientResponse['@thrownErrors']).toBeUndefined();
+    expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
+    expect(orderValue).toEqual({id: 2, currency: 'EUR'});
+    expect(product).toEqual({orderId: 77, currency: 'EUR', sku: 'SKU-77-EUR'});
+  });
+
+  it('two mappings into one route from two different sources', async () => {
+    const user = routes.flow.getUser(17);
+    const order = routes.flow.getOrder(3);
+    const entries = await batch([
+      user,
+      order,
+      routes.flow.getProduct(
+        inputFrom(user, (userValue) => userValue!.id).asArg(),
+        inputFrom(order, (orderValue) => orderValue!.currency).asArg()
+      ),
+    ]).call();
+    const [[, , clientResponse], , [product]] = entries;
+    expect(clientResponse['@thrownErrors']).toBeUndefined();
+    expect(entries.map(([, error]) => error)).toEqual([undefined, undefined, undefined]);
+    expect(product).toEqual({orderId: 17, currency: 'USD', sku: 'SKU-17-USD'});
+  });
+
+  it('a three-route chain A -> B -> C, C fed by B which was fed by A', async () => {
+    const user = routes.flow.getUser(18);
+    const org = routes.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId).asArg());
+    const entries = await batch([
+      user,
+      org,
+      routes.flow.getOrgLabel(inputFrom(org, (orgValue) => orgValue!.name).asArg()),
+    ]).call();
+    const [[userValue, , clientResponse], [orgValue], [label]] = entries;
+    expect(clientResponse['@thrownErrors']).toBeUndefined();
+    expect(entries.map(([, error]) => error)).toEqual([undefined, undefined, undefined]);
+    expect(userValue).toEqual({id: 18, orgId: 180, tagIds: [18, 19]});
+    expect(orgValue).toEqual({id: 180, name: 'Org 180'});
+    expect(label).toBe('[Org 180]');
+  });
+
+  it('one source feeding two targets', async () => {
+    const user = routes.flow.getUser(19);
+    const entries = await batch([
+      user,
+      routes.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId).asArg()),
+      routes.flow.getTags(inputFrom(user, (userValue) => userValue!.tagIds).asArg()),
+    ]).call();
+    const [[, , clientResponse], [org], [tags]] = entries;
+    expect(clientResponse['@thrownErrors']).toBeUndefined();
+    expect(entries.map(([, error]) => error)).toEqual([undefined, undefined, undefined]);
+    expect(org).toEqual({id: 190, name: 'Org 190'});
+    expect(tags).toEqual([
+      {id: 19, label: 'tag-19'},
+      {id: 20, label: 'tag-20'},
+    ]);
+  });
+
+  // The next two tests write the SAME batch twice: both call sites hash to the same id and both must work.
+  it('the same batch written twice in the file: first site', async () => {
+    const user = routes.flow.getUser(20);
+    const entries = await batch([user, routes.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId).asArg())]).call();
+    const [[, , clientResponse], [org]] = entries;
+    expect(clientResponse['@thrownErrors']).toBeUndefined();
+    expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
+    expect(org).toEqual({id: 200, name: 'Org 200'});
+  });
+
+  it('the same batch written twice in the file: second site', async () => {
+    const user = routes.flow.getUser(21);
+    const entries = await batch([user, routes.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId).asArg())]).call();
+    const [[, , clientResponse], [org]] = entries;
+    expect(clientResponse['@thrownErrors']).toBeUndefined();
+    expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
+    expect(org).toEqual({id: 210, name: 'Org 210'});
+  });
+
+  it('the same routes with different mappings are two batches, both work', async () => {
+    const userA = routes.flow.getUser(22);
+    const byOrgId = await batch([userA, routes.flow.getOrg(inputFrom(userA, (userValue) => userValue!.orgId).asArg())]).call();
+    const userB = routes.flow.getUser(23);
+    // the second mapper picks a DIFFERENT value, so the two ids cannot be confused
+    const inline = await batch([userB, routes.flow.getOrg(inputFrom(userB, (userValue) => userValue!.id).asArg())]).call();
+    expect(byOrgId[0][2]['@thrownErrors']).toBeUndefined();
+    expect(inline[0][2]['@thrownErrors']).toBeUndefined();
+    expect(byOrgId[1][0]).toEqual({id: 220, name: 'Org 220'});
+    expect(inline[1][0]).toEqual({id: 23, name: 'Org 23'});
+  });
+
+  it('a batch with a session onRequest hook AND mappings', async () => {
+    middlewares.session.onRequest((session) => session('valid-token'));
+    try {
+      const user = routes.flow.getUser(24);
+      const entries = await batch([user, routes.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId).asArg())]).call();
+      const [[, , clientResponse], [org]] = entries;
+      expect(clientResponse['@thrownErrors']).toBeUndefined();
+      expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
+      expect(org).toEqual({id: 240, name: 'Org 240'});
+      expect(clientResponse.session).toMatchObject({userId: 'user-123', role: 'admin'});
+    } finally {
+      middlewares.session.offRequest();
+    }
+  });
+
+  it('onRequest hooks on a fresh client feed a batch with mappings', async () => {
+    const {routes: r, middlewares: m} = initClient<MyApi>({baseURL});
+    const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+    m.auth.onRequest((auth) => auth(authHeaders));
+    m.session.onRequest((session) => session('valid-token'));
+
+    const user = r.flow.getUser(25);
+    const entries = await batch([user, r.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId).asArg())]).call();
+    const [[, , clientResponse], [org]] = entries;
+    expect(clientResponse['@thrownErrors']).toBeUndefined();
+    expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
+    expect(org).toEqual({id: 250, name: 'Org 250'});
+    expect((clientResponse as Record<string, any>).session).toMatchObject({userId: 'user-123', role: 'admin'});
+  });
+
+  it('entries keep the route order', async () => {
+    const entries = await batch([
+      routes.alwaysFails(someUser),
+      routes.sayHello(someUser),
+      routes.flow.getUser(-1),
+      routes.flow.getOrg(1),
+    ]).call();
+    const [[, , clientResponse]] = entries;
+    expect(clientResponse['@thrownErrors']).toBeUndefined();
+    expect(entries.map(([value]) => value)).toEqual([undefined, 'Hello John Doe', undefined, {id: 1, name: 'Org 1'}]);
+    expect(entries.map(([, error]) => error?.type)).toEqual(['unknown-error', undefined, 'user-not-found', undefined]);
+  });
+
+  it('a Date survives through a mapped route', async () => {
+    const stamp = routes.flow.getStamp(5);
+    const entries = await batch([stamp, routes.getSameDate(inputFrom(stamp, (stampValue) => stampValue!.when).asArg())]).call();
+    const [[stampValue, , clientResponse], [sameDate]] = entries;
+    expect(clientResponse['@thrownErrors']).toBeUndefined();
+    expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
+    expect(stampValue?.when).toBeInstanceOf(Date);
+    expect(stampValue?.counts).toBeInstanceOf(Map);
+    expect(stampValue?.labels).toBeInstanceOf(Set);
+    expect(sameDate).toBeInstanceOf(Date);
+    expect(sameDate?.toISOString()).toBe('2024-01-05T00:00:00.000Z');
+  });
+
+  // A mapped Map/Set param is a `null` the compiled stringifier would iterate, so it falls back (lib/serializer.ts).
+  // The first call primes metadata so the compiled stringifier runs, not the optimistic JSON.stringify.
+  it('a Map placeholder is sent once metadata is cached, and the mapped Map arrives intact', async () => {
+    await routes.getSameMap(new Map([['x', 1]])).call();
+    const stamp = routes.flow.getStamp(5);
+    const [[, , clientResponse], [sameMap, mapError]] = await batch([
+      stamp,
+      routes.getSameMap(inputFrom(stamp, (stampValue) => stampValue!.counts).asArg()),
+    ]).call();
+    expect(clientResponse['@thrownErrors']).toBeUndefined();
+    expect(mapError).toBeUndefined();
+    expect(sameMap).toBeInstanceOf(Map);
+    expect([...(sameMap as Map<string, number>).entries()]).toEqual([['id', 5]]);
+  });
+});
+
+// ############# RUNTIME BEHAVIOUR #############
+describe('batch runtime behaviour', () => {
+  type MyApi = TestServerApi;
+  const baseURL = TEST_SERVER_BASE_URL;
+  const {routes, middlewares} = initClient<MyApi>({baseURL});
+  middlewares.auth.onRequest((auth) => auth(createAuthHeaders('XWYZ-TOKEN')));
+
+  it('returns one [value, error, response] entry per route, every entry sharing the same response object', async () => {
+    const entries = await batch([routes.sayHello(someUser), routes.alwaysFails(someUser), routes.utils.sumTwo(5)]).call();
+    expect(entries).toHaveLength(3);
+    entries.forEach((entry) => expect(entry).toHaveLength(3));
+    const [[greeting, greetingError, response], [failed, failError], [sum, sumError]] = entries;
+    expect([greeting, greetingError]).toEqual(['Hello John Doe', undefined]);
+    expect([failed, failError?.type]).toEqual([undefined, 'unknown-error']);
+    expect([sum, sumError]).toEqual([7, undefined]);
+    expect(entries[1][2]).toBe(response);
+    expect(entries[2][2]).toBe(response);
+  });
+
+  it('a source route answering a DECLARED error: pins what every slot receives, and the server keeps serving', async () => {
+    const user = routes.flow.getUser(-1);
+    const [[userValue, userError, clientResponse], [org, orgError]] = await batch([
+      user,
+      routes.flow.getOrg(inputFrom(user, (userValue) => userValue!.orgId).asArg()),
+    ]).call();
+
+    expect(userValue).toBeUndefined();
+    expect(userError?.type).toBe('user-not-found');
+    // The mapping error is not in the target's type, so it is a thrown one.
+    expect(org).toBeUndefined();
+    expect(orgError).toBeUndefined();
+    const thrown = clientResponse['@thrownErrors'];
+    expect(thrown?.map((error) => error.type)).toEqual(['batch-mapping-source-failed']);
+    expect(thrown?.[0].publicMessage).toContain("'flow/getUser'");
+    expect(thrown?.[0].publicMessage).toContain("'flow/getOrg'");
+
+    const [greeting, greetingError, greetingResponse] = await routes.sayHello(someUser).call();
+    expect(greeting).toBe('Hello John Doe');
+    expect(greetingError).toBeUndefined();
+    expect(greetingResponse['@thrownErrors']).toBeUndefined();
+  });
+
+  it('a mapper that THROWS (reading a property of null): pins the outcome, and the server keeps serving', async () => {
+    const maybe = routes.flow.getUserOrNull(0);
+    const [[maybeValue, maybeError, clientResponse], [org, orgError]] = await batch([
+      maybe,
+      routes.flow.getOrg(inputFrom(maybe, (userValue) => userValue!.orgId).asArg()),
+    ]).call();
+
+    expect(maybeValue).toBeNull();
+    expect(maybeError).toBeUndefined();
+    // the undeclared mapper throw is ONE @thrownErrors entry naming both routes, not the mapper; the target never ran
+    expect(org).toBeUndefined();
+    expect(orgError).toBeUndefined();
+    expect(clientResponse['@thrownErrors']?.[0]?.type).toBe('batch-mapper-failed');
+    expect(clientResponse['@thrownErrors']?.[0]?.statusCode).toBe(422);
+    expect(clientResponse['@thrownErrors']?.[0]?.publicMessage).not.toContain('#');
+    expect(clientResponse['@thrownErrors']?.[0]?.publicMessage).toContain("'flow/getOrg'");
+
+    const [greeting, , greetingResponse] = await routes.sayHello(someUser).call();
+    expect(greeting).toBe('Hello John Doe');
+    expect(greetingResponse['@thrownErrors']).toBeUndefined();
+  });
+
+  it('an unknown batch id (explicit id the build leaves alone) is a 404 batch-unknown-id fatal that never echoes the id', async () => {
+    const entries = await batch([routes.sayHello(someUser)], 'b_nope').call();
+    const [[, , clientResponse]] = entries;
+    expect(entries.map(([value]) => value)).toEqual([undefined]);
+    expect(entries.map(([, error]) => error)).toEqual([undefined]);
+    expect(clientResponse['@thrownErrors']?.[0]?.type).toBe('batch-unknown-id');
+    expect(clientResponse['@thrownErrors']?.[0]?.statusCode).toBe(404);
+    expect(clientResponse['@thrownErrors']?.[0]?.publicMessage).not.toContain('b_nope');
+    expect(clientResponse['@thrownErrors']?.[0]?.publicMessage).toContain('not registered');
+  });
+
+  it('batch-missing-id is typed (brand-lost alias, no id injected)', () => {
+    const untransformed = batch as unknown as (routes: RouteSubRequest<any>[]) => unknown;
+    let caught: unknown;
+    try {
+      untransformed([routes.sayHello(someUser)]);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(RpcError);
+    expect((caught as RpcError<string>).type).toBe('batch-missing-id');
+  });
+
+  it('batch-empty-routes is typed and thrown before any id is looked at', () => {
+    let caught: unknown;
+    try {
+      batch([]);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(RpcError);
+    expect((caught as RpcError<string>).type).toBe('batch-empty-routes');
+  });
+
+  it('batch-client-mismatch is typed and names the offending index', () => {
+    const other = initClient<MyApi>({baseURL});
+    let caught: unknown;
+    try {
+      batch([routes.sayHello(someUser), routes.calculateAge(1990), other.routes.utils.sumTwo(1)]);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(RpcError);
+    expect((caught as RpcError<string>).type).toBe('batch-client-mismatch');
+    expect((caught as RpcError<string>).publicMessage).toContain('index 2');
+  });
+
+  it('timeout in a batch with mappings is ONE @thrownErrors entry, per-route slots stay empty', async () => {
+    const slow = routes.sleep(3000);
+    const entries = await batch([slow, routes.flow.getOrg(inputFrom(slow, (ms) => ms!).asArg())]).call({
+      timeout: 100,
+    });
+    const [[, , clientResponse]] = entries;
+    expect(entries.map(([value]) => value)).toEqual([undefined, undefined]);
+    expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
+    expect(clientResponse['@thrownErrors']?.[0]?.type).toBe('request-timeout');
+  });
+
+  it('abort in a batch with mappings is ONE @thrownErrors entry, per-route slots stay empty', async () => {
+    const slow = routes.sleep(3000);
+    const entries = await batch([slow, routes.flow.getOrg(inputFrom(slow, (ms) => ms!).asArg())]).call({
+      signal: AbortSignal.abort(),
+    });
+    const [[, , clientResponse]] = entries;
+    expect(entries.map(([value]) => value)).toEqual([undefined, undefined]);
+    expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
+    expect(clientResponse['@thrownErrors']?.[0]?.type).toBe('request-aborted');
+  });
+
+  it("the metadata middleware's 'all' mode lists the registered batch ids", async () => {
+    // sent to any route's path: the middleware answers and stops the call before the route
+    const url = new URL(getRoutePath(['sayHello'], {basePath: '', suffix: ''} as never), baseURL);
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({mionFetchMetadata: [[], 'all']}),
+    });
+    // the middleware answers a union, which the wire encodes as [memberIndex, value]
+    const body = (await response.json()) as Record<string, unknown>;
+    const envelope = body['mionFetchMetadata'] as any;
+    const refusal = Array.isArray(envelope) ? envelope[1] : envelope;
+    expect(refusal.type).toBe('metadata-only');
+    expect(body.sayHello).toBeUndefined();
+    const metadata = refusal.errorData.metadata as {batches?: string[]; methods: Record<string, unknown>};
+    expect(metadata.methods['flow/getUser']).toBeDefined();
+    // every id the build compiled in; this file alone defines well over a dozen
+    expect(Array.isArray(metadata.batches)).toBe(true);
+    expect(metadata.batches!.length).toBeGreaterThan(12);
+    for (const id of metadata.batches!) expect(id).toMatch(/^b_[A-Za-z0-9_-]+$/);
+    // an explicitly filled id slot is a pass-through the build never registers
+    expect(metadata.batches).not.toContain('b_nope');
+  });
+});

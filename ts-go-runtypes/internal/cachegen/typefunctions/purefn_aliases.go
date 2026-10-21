@@ -1,60 +1,44 @@
 package typefunctions
 
-import "strings"
+import (
+	"strings"
 
-// pureFnAliases maps a pure-fn name to the short alias used in emitted
-// factory bodies. The alias becomes the local variable name bound to
-// utl.getPureFn('<ns>::<fnName>'); shortening it cuts bytes per occurrence
-// in both the body STRING and the createRTFn closure. The getPureFn key
-// itself is always fully quoted — factory bodies must stay self-contained
-// (they are rebuilt via `new Function('utl', code)`), and per-entry tuple
-// args evaluate in their own module scope, so there is no shared-skeleton
-// const to reference (the pre-migration `k_<alias>` scheme).
-var pureFnAliases = map[string]string{
-	"newRunTypeErr":           "nRT",
-	"getUnknownKeysFromArray": "gUKFA",
-	"hasUnknownKeysFromArray": "hUKFA",
-	"countEnumKeys":           "cntEK",
-	"findCycle":               "fc",
-}
-
-// pureFnAlias returns the emitter-side alias for a registered pure-fn
-// name, or the full name when no alias is registered (no savings, no
-// break — falls back to the longer identifier without breaking the
-// emitted code).
-func pureFnAlias(fnName string) string {
-	if alias, ok := pureFnAliases[fnName]; ok {
-		return alias
-	}
-	return fnName
-}
-
-// pureFnAliasFor returns the emitter-side local-variable alias for a
-// pure-fn reference in `namespace`. The `rtFormats` namespace keeps the
-// `pf_<fnName>` convention its format emitters have always used; every
-// other namespace (the `rt` core built-ins) uses the short-alias table.
-// UsePureFn hoists `const <alias> = utl.getPureFn('<ns>::<fnName>')` under
-// this alias, so pureFnAliasFor MUST reproduce the exact byte the
-// pre-migration sites emitted — the choke point is a refactor, never a
-// body-byte change (mode parity).
-func pureFnAliasFor(namespace, fnName string) string {
-	if namespace == formatsPureFnNamespace {
-		return "pf_" + fnName
-	}
-	return pureFnAlias(fnName)
-}
-
-// formatsPureFnNamespace / corePureFnNamespace name the two built-in
-// pure-fn namespaces the emitters reference. Mirrors the resolver-side
-// builtinPureFnNamespaces set (purefunctions/index.go).
-const (
-	corePureFnNamespace    = "rt"
-	formatsPureFnNamespace = "rtFormats"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 )
 
-// isBuiltinPureFnDep reports whether a soft-dep key names a package-owned
-// pure fn (`rt::…` / `rtFormats::…`) rather than a fn cache entry
-// (`<fnHash>_<typeId>` — no `::`). Mirrors the resolver's isBuiltinPureFnKey.
-func isBuiltinPureFnDep(dep string) bool {
-	return strings.HasPrefix(dep, corePureFnNamespace+"::") || strings.HasPrefix(dep, formatsPureFnNamespace+"::")
+// pureFnAliases maps a pure fn's id to the short alias of the local variable bound to `utl.getPureFn('<id>')`,
+// cutting bytes per occurrence in both the body STRING and the createRTFn closure. The id itself stays fully
+// quoted: a factory body is rebuilt via `new Function('utl', code)` and must be self-contained, and per-entry
+// tuple args evaluate in their own module scope. Keyed by the generated id constants rather than a spelled-out
+// name, because an id is a hash of the body and moves whenever the pure fn is edited.
+var pureFnAliases = map[string]string{
+	purefnids.NewRunTypeErr:           "nRT",
+	purefnids.GetUnknownKeysFromArray: "gUKFA",
+	purefnids.HasUnknownKeysFromArray: "hUKFA",
+	purefnids.CountEnumKeys:           "cntEK",
+	purefnids.FindCycle:               "fc",
+}
+
+// pureFnAliasFor returns the short alias when the table has one, otherwise the id's hash made safe to
+// declare. Hashes are unique per body, so two references in one body can never collapse onto one alias.
+func pureFnAliasFor(id string) string {
+	if alias, aliased := pureFnAliases[id]; aliased {
+		return alias
+	}
+	_, hash, ok := purefunctions.SplitID(id)
+	if !ok {
+		return identifierSafe(id)
+	}
+	return identifierSafe(hash)
+}
+
+// identifierSafe renders a hash as a name JavaScript accepts: a base64url hash carries `-` and can begin
+// with a digit. `$` is not in the base64url alphabet, so swapping it in keeps distinct hashes distinct.
+func identifierSafe(hash string) string {
+	safe := strings.ReplaceAll(hash, "-", "$")
+	if safe == "" || (safe[0] >= '0' && safe[0] <= '9') {
+		return "_" + safe
+	}
+	return safe
 }

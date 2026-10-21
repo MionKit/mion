@@ -1,9 +1,5 @@
-// End-to-end proof of the OXlint target: the REAL oxlint CLI loads the built
-// plugin via jsPlugins, lints a dirty fixture project, and the findings come
-// back under the runtypes/<rule> ids with error exit semantics. This is the
-// commit-gate wiring (.oxlintrc.json + lint-staged) exercised for real —
-// including the load-time resolver pre-spawn that survives oxlint's
-// multi-threaded memory ramp.
+// The REAL oxlint CLI loads the built plugin via jsPlugins: the commit-gate wiring (.oxlintrc.json + lint-staged)
+// for real, including the load-time resolver pre-spawn that survives oxlint's multi-threaded memory ramp.
 
 import {execFile} from 'node:child_process';
 import fs from 'node:fs';
@@ -39,6 +35,25 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
         "import {createValidateFn} from '@mionjs/run-types';\n\n" +
         'interface Widget {\n  label: string;\n  onClick: () => void;\n}\n\n' +
         'export const isWidget = createValidateFn<Widget>();\n',
+      // A mion route finding.
+      'routes.ts':
+        "import {createMionRouter} from '@mionjs/router';\n" +
+        'const mion = createMionRouter();\n' +
+        'export const noReturn = mion.route((ctx, name: string) => name);\n',
+      // The API type handed to initClient, imported without `type`: rpc-client-imports-server-value, a RuntimeError.
+      'api.ts':
+        "import {createMionRouter} from '@mionjs/router';\nexport const api = createMionRouter();\nexport type MyApi = typeof api;\n",
+      'client.ts':
+        "import {initClient} from '@mionjs/client';\n" +
+        "import {MyApi} from './api';\n" +
+        "export const {routes} = initClient<MyApi>({baseURL: ''});\n",
+      // A RuntimeError: the build stops on it, so the lint run fails.
+      'symbol.ts': "import {createValidateFn} from '@mionjs/run-types';\n\nexport const isSymbol = createValidateFn<symbol>();\n",
+      // A lowered error: the build prints it as a warning, and so must the linter.
+      'lowered.ts':
+        "import {createValidateFn} from '@mionjs/run-types';\n\n" +
+        '// @mion-downgrade-error validate-symbol-root\n' +
+        'export const isSymbol = createValidateFn<symbol>();\n',
     });
     project.write(
       '.oxlintrc.json',
@@ -46,19 +61,10 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
         {
           categories: {correctness: 'off'},
           jsPlugins: [PLUGIN_DIST],
-          // `cwd` is the transparency case: it is NOT a lint setting (the plugin
-          // runs in oxlint's own cwd), so it must be ignored — loudly on stderr,
-          // but without changing the findings asserted below. `binary` IS honoured
-          // now and gets its own cases further down.
-          settings: {runtypes: {cwd: '/nonexistent/not-a-project'}},
-          rules: {
-            'runtypes/validate-non-serializable': 'error',
-            'runtypes/validate-skipped-member': 'warn',
-            'runtypes/no-enrichment-todo': 'error',
-            'runtypes/no-orphan-carcass': 'error',
-            'runtypes/enrichment-field': 'error',
-            'runtypes/enrichment-broken-source': 'error',
-          },
+          // `cwd` is NOT a lint setting (the plugin runs in oxlint's cwd): it warns on stderr and changes no finding.
+          // `mion/info` shows the Info validate-method-dropped these cases use as proof the engine ran.
+          settings: {mion: {cwd: '/nonexistent/not-a-project'}},
+          rules: {'mion/error': 'error', 'mion/runtime-error': 'error', 'mion/warning': 'warn', 'mion/info': 'warn'},
           ignorePatterns: ['node_modules/**'],
         },
         null,
@@ -67,11 +73,41 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
     );
   });
 
+  it('reports public Drizzle types as a warning without failing the host', {timeout: 120000}, async () => {
+    project.write('node_modules/drizzle-orm/package.json', JSON.stringify({name: 'drizzle-orm', types: 'index.d.ts'}));
+    project.write('node_modules/drizzle-orm/index.d.ts', 'export interface Row {id:number}');
+    project.write(
+      'drizzle-public.ts',
+      `import {createMionRouter} from '@mionjs/router';import type {Row} from 'drizzle-orm';
+    export const read=createMionRouter().route((_ctx):Row=>({id:1}));`
+    );
+    const result = await execFileAsync(OXLINT, ['-c', '.oxlintrc.json', 'drizzle-public.ts'], {cwd: project.dir});
+    expect(result.stdout).toContain('[drizzle-type-not-allowed]');
+    expect(result.stdout).toContain('mion(warning)');
+  });
+
+  it('skips Node-only JavaScript files outside the TypeScript program', {timeout: 120000}, async () => {
+    project.write('node-only.mjs', "import {writeFileSync} from 'node:fs'; export const size = 1000;");
+    project.write('node_modules/drizzle-orm/package.json', JSON.stringify({name: 'drizzle-orm', types: 'index.d.ts'}));
+    project.write('node_modules/drizzle-orm/index.d.ts', 'export interface Row {id:number}');
+    project.write(
+      'builtin-public.ts',
+      `import {createMionRouter} from '@mionjs/router';import type {Row} from 'drizzle-orm';
+       export const read=createMionRouter().route((_ctx):Row=>({id:1}));`
+    );
+    const result = await execFileAsync(OXLINT, ['-c', '.oxlintrc.json', 'node-only.mjs', 'builtin-public.ts'], {
+      cwd: project.dir,
+    });
+    expect(result.stdout).toContain('[drizzle-type-not-allowed]');
+    expect(result.stdout).not.toContain('resolver did not answer');
+    expect(result.stdout).not.toContain('source file not in program');
+  });
+
   afterAll(() => {
     project.cleanup();
   });
 
-  it('reports every family under runtypes/<rule> ids and fails the run on errors', {timeout: 120_000}, async () => {
+  it('reports every level under mion/<level> ids and fails the run on errors', {timeout: 120_000}, async () => {
     let stdout = '';
     let exitCode = 0;
     try {
@@ -83,16 +119,18 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
       exitCode = failed.code ?? 1;
     }
 
-    // Error-severity findings must fail the commit gate.
+    // Error findings must fail the commit gate.
     expect(exitCode).toBe(1);
-    expect(stdout).toContain('runtypes(no-enrichment-todo)');
-    expect(stdout).toContain('[FT020]');
-    expect(stdout).toContain('runtypes(enrichment-field)');
-    expect(stdout).toContain('[FT002]');
-    // Family A rides the same run: the VL011 method-drop warning from the widget
-    // file lands under the validate family's skipped-member rule.
-    expect(stdout).toContain('runtypes(validate-skipped-member)');
-    expect(stdout).toContain('[VL011]');
+    expect(stdout).toContain('mion(runtime-error)');
+    expect(stdout).toContain('[validate-symbol-root]');
+    expect(stdout).toContain('[rpc-handler-missing-return-type]');
+    expect(stdout).toMatch(/mion\(runtime-error\)[^\n]*\[rpc-client-imports-server-value\]/);
+    expect(stdout).toContain('mion(warning)');
+    expect(stdout).toContain('[enrich-text-todo-left]');
+    expect(stdout).toContain('[enrich-text-unknown-field]');
+    // validate-method-dropped is Info, shown only because the config above turns mion/info on.
+    expect(stdout).toContain('mion(info)');
+    expect(stdout).toContain('[validate-method-dropped]');
     // The engine itself must not have failed.
     expect(stdout).not.toContain('resolver failed');
     expect(stdout).not.toContain('resolver unavailable');
@@ -117,7 +155,7 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
 
     // Pointed at the real binary the run behaves exactly like the baseline above.
     const honoured = await runOxlint(BIN);
-    expect(honoured.stdout).toContain('[VL011]');
+    expect(honoured.stdout).toContain('[validate-method-dropped]');
     expect(honoured.stdout).not.toContain('resolver failed');
 
     // Pointed at a path that isn't there, the launcher's own error reaches the
@@ -128,11 +166,9 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
     expect(bogus.stdout).toContain('does not exist');
   });
 
-  // settings.runtypes.binary is the config-file twin of MION_BIN, and it WINS over
-  // the env var — matching the bundler lane, where an explicit `binary` option
-  // beats the launcher. Proving the precedence needs both set at once, which only
-  // a real run can show: the unit test sees the option, not who spawned what.
-  it('honours settings.runtypes.binary, and it beats MION_BIN', {timeout: 120_000}, async () => {
+  // settings.mion.binary beats MION_BIN, as an explicit `binary` option does in the bundler. Only a real run
+  // can prove it: the unit test sees the option, not who spawned what.
+  it('honours settings.mion.binary, and it beats MION_BIN', {timeout: 120_000}, async () => {
     const runWithSettings = async (binary: string, rtBin?: string): Promise<{stdout: string; exitCode: number}> => {
       const config = '.oxlintrc.binary.json';
       project.write(
@@ -140,8 +176,8 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
         JSON.stringify({
           categories: {correctness: 'off'},
           jsPlugins: [PLUGIN_DIST],
-          settings: {runtypes: {binary}},
-          rules: {'runtypes/validate-skipped-member': 'warn', 'runtypes/broken-tsconfig': 'error'},
+          settings: {mion: {binary}},
+          rules: {'mion/info': 'warn', 'mion/error': 'error'},
           ignorePatterns: ['node_modules/**'],
         })
       );
@@ -157,71 +193,113 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
 
     // The real binary from the config alone: findings, no engine failure.
     const configured = await runWithSettings(BIN);
-    expect(configured.stdout).toContain('[VL011]');
+    expect(configured.stdout).toContain('[validate-method-dropped]');
     expect(configured.stdout).not.toContain('resolver failed');
 
     // Config wins over the env var: a bogus MION_BIN alongside a good setting must
     // NOT break the run (if MION_BIN won, the launcher would throw).
     const configBeatsEnv = await runWithSettings(BIN, '/nonexistent/rt-bin-loser');
-    expect(configBeatsEnv.stdout).toContain('[VL011]');
+    expect(configBeatsEnv.stdout).toContain('[validate-method-dropped]');
     expect(configBeatsEnv.stdout).not.toContain('rt-bin-loser');
 
     // And a bad configured path fails loudly, naming the setting rather than
     // silently falling back to the installed binary.
     const bogus = await runWithSettings('/nonexistent/settings-binary');
     expect(bogus.exitCode).toBe(1);
-    expect(bogus.stdout).toContain('settings.runtypes.binary=/nonexistent/settings-binary');
+    expect(bogus.stdout).toContain('settings.mion.binary=/nonexistent/settings-binary');
   });
 
-  it('the shipped oxlint-recommended.json works as a one-line extends from node_modules', {timeout: 120_000}, async () => {
-    // The documented consumer layout: the package installed under
-    // node_modules/@mionjs/devtools (symlinked to this repo's package), the
-    // user config a single `extends` of the shipped preset. The preset's own
-    // jsPlugins path ("./dist/lint/index.js") must resolve relative to the
-    // preset file, and every rule rides at its RULE_SPECS default.
-    fs.mkdirSync(path.join(project.dir, 'node_modules', '@mionjs'), {recursive: true});
-    fs.symlinkSync(path.resolve(__dirname, '../..'), path.join(project.dir, 'node_modules', '@mionjs', 'devtools'));
+  // The documented consumer layout: a symlinked node_modules/@mionjs/devtools and a config that only `extends` the preset.
+  // The preset's jsPlugins path must resolve relative to the preset file, and every rule runs at its RULE_SPECS default.
+  // JSON output: oxlint prints GitHub annotations on CI, so plain text differs there.
+  interface OxlintDiagnostic {
+    message: string;
+    code: string;
+    severity: string;
+    filename: string;
+    labels: {span: {line: number}}[];
+  }
+  const runPreset = async (
+    config: string,
+    settings?: Record<string, unknown>,
+    rules?: Record<string, string>
+  ): Promise<{diagnostics: OxlintDiagnostic[]; stdout: string; exitCode: number}> => {
+    const link = path.join(project.dir, 'node_modules', '@mionjs', 'devtools');
+    if (!fs.existsSync(link)) {
+      fs.mkdirSync(path.dirname(link), {recursive: true});
+      fs.symlinkSync(path.resolve(__dirname, '../..'), link);
+    }
     project.write(
-      '.oxlintrc.extends.json',
+      config,
       JSON.stringify(
         {
           categories: {correctness: 'off'},
           extends: ['./node_modules/@mionjs/devtools/oxlint-recommended.json'],
+          ...(settings ? {settings} : {}),
+          ...(rules ? {rules} : {}),
           ignorePatterns: ['node_modules/**'],
         },
         null,
         2
       )
     );
-
     let stdout = '';
     let exitCode = 0;
     try {
-      const result = await execFileAsync(OXLINT, ['-c', '.oxlintrc.extends.json', '.'], {cwd: project.dir});
-      stdout = result.stdout;
+      stdout = (await execFileAsync(OXLINT, ['-c', config, '-f', 'json', '.'], {cwd: project.dir})).stdout;
     } catch (error) {
       const failed = error as {stdout?: string; code?: number};
       stdout = failed.stdout ?? '';
       exitCode = failed.code ?? 1;
     }
+    const diagnostics = (JSON.parse(stdout) as {diagnostics: OxlintDiagnostic[]}).diagnostics;
+    return {diagnostics, stdout, exitCode};
+  };
 
-    // Same findings as the hand-written config: error-severity gates fail the
-    // run, the validate advisory rides at its default warn level.
+  it('the shipped oxlint-recommended.json works as a one-line extends from node_modules', {timeout: 120_000}, async () => {
+    const {diagnostics, stdout, exitCode} = await runPreset('.oxlintrc.extends.json');
+    // Error findings fail the run; the engine ran.
     expect(exitCode).toBe(1);
-    expect(stdout).toContain('runtypes(no-enrichment-todo)');
-    expect(stdout).toContain('runtypes(validate-skipped-member)');
-    expect(stdout).toContain('[VL011]');
+    expect(
+      diagnostics.some(
+        (diagnostic) => diagnostic.code === 'mion(runtime-error)' && diagnostic.message.includes('[validate-symbol-root]')
+      )
+    ).toBe(true);
+    expect(
+      diagnostics.some(
+        (diagnostic) => diagnostic.code === 'mion(warning)' && diagnostic.message.includes('[enrich-text-todo-left]')
+      )
+    ).toBe(true);
+    expect(stdout).not.toContain('resolver failed');
+    // The Info-level method drop is hidden by default.
+    expect(diagnostics.some((diagnostic) => diagnostic.message.includes('[validate-method-dropped]'))).toBe(false);
+    // A `@mion-downgrade-error` line reports as a WARNING under mion/warning, like the build prints it.
+    expect(diagnostics.filter((diagnostic) => diagnostic.filename === 'lowered.ts')).toEqual([
+      expect.objectContaining({
+        code: 'mion(warning)',
+        severity: 'warning',
+        labels: [expect.objectContaining({span: expect.objectContaining({line: 4})})],
+        message: expect.stringMatching(/^\[validate-symbol-root\] .*\(downgraded\)$/),
+      }),
+    ]);
+  });
+
+  it('the preset plus mion/info turned on shows Info findings at warn', {timeout: 120_000}, async () => {
+    const {diagnostics, stdout} = await runPreset('.oxlintrc.extends-all.json', undefined, {'mion/info': 'warn'});
+    expect(diagnostics.filter((diagnostic) => diagnostic.filename === 'widget.ts')).toEqual([
+      expect.objectContaining({
+        code: 'mion(info)',
+        severity: 'warning',
+        message: expect.stringContaining('[validate-method-dropped]'),
+      }),
+    ]);
     expect(stdout).not.toContain('resolver failed');
   });
 });
 
-// A real consumer config drives the tsconfig setting end to end: oxlint reads
-// `settings.runtypes.tsconfig` from the .oxlintrc.json, the plugin forwards it to
-// the resolver as --tsconfig, and a cross-package type behind a `source` export
-// condition resolves — no false MKR007. The runRule-based suite injects settings
-// through a mock context; only this run proves they flow from an ACTUAL config
-// through the real engine to the resolver spawn.
-describe.runIf(ready)('oxlint tsconfig resolution end to end (settings.runtypes.tsconfig)', () => {
+// Only this run proves `settings.mion.tsconfig` flows from an ACTUAL .oxlintrc.json to the resolver's --tsconfig,
+// so a cross-package type behind a `source` export condition resolves with no false marker-any-from-unresolved-import.
+describe.runIf(ready)('oxlint tsconfig resolution end to end (settings.mion.tsconfig)', () => {
   let project: FixtureProject;
 
   // both getRunTypeId shapes + createValidateFn over a cross-package type — the
@@ -254,7 +332,7 @@ describe.runIf(ready)('oxlint tsconfig resolution end to end (settings.runtypes.
         categories: {correctness: 'off'},
         jsPlugins: [PLUGIN_DIST],
         settings,
-        rules: {'runtypes/invalid-marker': 'error'},
+        rules: {'mion/error': 'error', 'mion/runtime-error': 'error'},
         ignorePatterns: ['node_modules/**'],
       },
       null,
@@ -273,8 +351,8 @@ describe.runIf(ready)('oxlint tsconfig resolution end to end (settings.runtypes.
       'tsconfig.json': tsconfig(),
       'tsconfig.source.json': tsconfig(['source']),
       'consumer.ts': CONSUMER_SRC,
-      '.oxlintrc.source.json': oxlintrc({runtypes: {tsconfig: 'tsconfig.source.json'}}),
-      '.oxlintrc.default.json': oxlintrc({runtypes: {}}),
+      '.oxlintrc.source.json': oxlintrc({mion: {tsconfig: 'tsconfig.source.json'}}),
+      '.oxlintrc.default.json': oxlintrc({mion: {}}),
     });
   });
 
@@ -290,23 +368,126 @@ describe.runIf(ready)('oxlint tsconfig resolution end to end (settings.runtypes.
     }
   };
 
-  it('settings.runtypes.tsconfig resolves a source-condition cross-package marker (no MKR007)', {timeout: 120_000}, async () => {
-    const {stdout, exitCode} = await runOxlint('.oxlintrc.source.json');
-    expect(stdout).not.toContain('resolver failed');
-    expect(stdout).not.toContain('resolver unavailable');
-    expect(stdout).not.toContain('invalid-marker');
-    expect(stdout).not.toContain('MKR007');
-    expect(exitCode).toBe(0);
-  });
+  it(
+    'settings.mion.tsconfig resolves a source-condition cross-package marker (no marker-any-from-unresolved-import)',
+    {timeout: 120_000},
+    async () => {
+      const {stdout, exitCode} = await runOxlint('.oxlintrc.source.json');
+      expect(stdout).not.toContain('resolver failed');
+      expect(stdout).not.toContain('resolver unavailable');
+      expect(stdout).not.toContain('mion(runtime-error)');
+      expect(stdout).not.toContain('marker-any-from-unresolved-import');
+      expect(exitCode).toBe(0);
+    }
+  );
 
   it(
-    'without the source condition the same fixture still flags MKR007 (proves the setting is the mechanism)',
+    'without the source condition the same fixture still flags marker-any-from-unresolved-import (proves the setting is the mechanism)',
     {timeout: 120_000},
     async () => {
       const {stdout, exitCode} = await runOxlint('.oxlintrc.default.json');
       expect(exitCode).toBe(1);
-      expect(stdout).toContain('runtypes(invalid-marker)');
-      expect(stdout).toContain('[MKR007]');
+      expect(stdout).toContain('mion(runtime-error)');
+      expect(stdout).toContain('[marker-any-from-unresolved-import]');
     }
   );
+});
+
+// The tsconfig `downgradeErrors` reaches the linter, so a code lowered for the build is a warning in the editor too.
+describe.runIf(ready)('oxlint end to end with the tsconfig downgradeErrors key', () => {
+  let project: FixtureProject;
+
+  beforeAll(() => {
+    project = makeFixtureProject({
+      'tsconfig.json': JSON.stringify({
+        compilerOptions: {strict: true, plugins: [{name: 'mion', downgradeErrors: ['validate-symbol-root']}]},
+      }),
+      'symbol.ts':
+        "import {createValidateFn, getRunTypeId} from '@mionjs/run-types';\n\n" +
+        'export const isSymbol = createValidateFn<symbol>();\n' +
+        'export const idStatic = getRunTypeId<{name: string}>();\n' +
+        "const sample = {name: 'Ada'};\n" +
+        'export const idReflected = getRunTypeId(sample);\n',
+      '.oxlintrc.json': JSON.stringify({
+        categories: {correctness: 'off'},
+        jsPlugins: [PLUGIN_DIST],
+        rules: {'mion/error': 'error', 'mion/runtime-error': 'error', 'mion/warning': 'warn'},
+        ignorePatterns: ['node_modules/**'],
+      }),
+    });
+  });
+
+  afterAll(() => project.cleanup());
+
+  it('reports a tsconfig-lowered validate-symbol-root as a downgraded warning, like the build', {timeout: 120_000}, async () => {
+    const {stdout, exitCode} = await execFileAsync(OXLINT, ['-c', '.oxlintrc.json', '.'], {cwd: project.dir}).then(
+      ({stdout}) => ({stdout, exitCode: 0}),
+      (error: {stdout?: string; code?: number}) => ({stdout: error.stdout ?? '', exitCode: error.code ?? 1})
+    );
+    expect(stdout).toContain('mion(warning)');
+    expect(stdout).toMatch(/\[validate-symbol-root\].*\(downgraded\)/);
+    expect(stdout).not.toContain('mion(runtime-error)');
+    expect(exitCode).toBe(0);
+  });
+
+  it('warns once on a code it does not know, and lowers nothing', {timeout: 120_000}, async () => {
+    const bad = makeFixtureProject({
+      'tsconfig.json': JSON.stringify({compilerOptions: {strict: true, plugins: [{name: 'mion', downgradeErrors: ['NOPE1']}]}}),
+      'symbol.ts': fs.readFileSync(path.join(project.dir, 'symbol.ts'), 'utf8'),
+      'other.ts': fs.readFileSync(path.join(project.dir, 'symbol.ts'), 'utf8'),
+      '.oxlintrc.json': fs.readFileSync(path.join(project.dir, '.oxlintrc.json'), 'utf8'),
+    });
+    try {
+      const {stdout, stderr} = await execFileAsync(OXLINT, ['-c', '.oxlintrc.json', '.'], {cwd: bad.dir}).then(
+        ({stdout, stderr}) => ({stdout, stderr}),
+        (error: {stdout?: string; stderr?: string}) => ({stdout: error.stdout ?? '', stderr: error.stderr ?? ''})
+      );
+      expect(stderr.split('NOPE1').length - 1).toBe(1);
+      expect(stdout).toContain('mion(runtime-error)');
+      expect(stdout).not.toContain('(downgraded)');
+    } finally {
+      bad.cleanup();
+    }
+  });
+});
+
+// A lint report carries no file: a lint of c.ts must not report the a.ts / b.ts override pair at c.ts positions.
+describe.runIf(ready)('oxlint reports only the linted file findings', () => {
+  let project: FixtureProject;
+
+  beforeAll(() => {
+    project = makeFixtureProject({
+      'a.ts': "import {overrideValidate} from '@mionjs/run-types';\n\noverrideValidate<string>((v) => typeof v === 'string');\n",
+      'b.ts':
+        "import {overrideValidate} from '@mionjs/run-types';\nimport './a';\n\noverrideValidate<string>((v) => v !== null);\n",
+      'c.ts':
+        "import {getRunTypeId} from '@mionjs/run-types';\nimport './b';\n\n" +
+        'export const idStatic = getRunTypeId<{name: string}>();\n' +
+        "const sample = {name: 'Ada'};\n" +
+        'export const idReflected = getRunTypeId(sample);\n',
+      '.oxlintrc.json': JSON.stringify({
+        categories: {correctness: 'off'},
+        jsPlugins: [PLUGIN_DIST],
+        rules: {'mion/error': 'error', 'mion/runtime-error': 'error', 'mion/warning': 'warn', 'mion/info': 'warn'},
+        ignorePatterns: ['node_modules/**'],
+      }),
+    });
+  });
+
+  afterAll(() => project.cleanup());
+
+  const lintCodes = async (file: string) => {
+    const stdout = await execFileAsync(OXLINT, ['-c', '.oxlintrc.json', '-f', 'json', file], {cwd: project.dir}).then(
+      ({stdout}) => stdout,
+      (error: {stdout?: string}) => error.stdout ?? ''
+    );
+    return (JSON.parse(stdout) as {diagnostics: {message: string}[]}).diagnostics.map((diagnostic) =>
+      diagnostic.message.slice(0, diagnostic.message.indexOf(']') + 1)
+    );
+  };
+
+  it('keeps the override pair out of a lint of c.ts, and reports it when b.ts is linted', {timeout: 120_000}, async () => {
+    expect((await lintCodes('c.ts')).filter((code) => code.startsWith('[override-'))).toEqual([]);
+    expect(await lintCodes('b.ts')).toContain('[override-duplicate]');
+  });
 });

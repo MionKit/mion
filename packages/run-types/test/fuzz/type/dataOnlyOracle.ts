@@ -1,0 +1,290 @@
+// D4: `DataOnly<T>` (TypeScript) and `reflection.NonDataOf` (Go) make one decision twice, so they must agree on a
+// random T. `URL` is drawn (both sides keep it). Other platform classes (`Error`, `Blob`, `EventEmitter`) are the one
+// known gap, so the generator never draws one: the Go side skips them, DataOnly cannot see where a class was declared.
+
+import type {RunType} from '../../../src/runtypes/types.ts';
+import {RunTypeKind, RunTypeSubKind} from '../../../src/go-generated/runTypeKind.generated.ts';
+import type {Violation} from '../value/fuzzOracle.ts';
+import {snapshot} from '../value/fuzzOracle.ts';
+import {copyTree, type DiagContext} from './diagOracle.ts';
+
+/** `DataOnly` stops projecting past this many levels and keeps the rest as is. **/
+const DATA_ONLY_DEPTH = 8;
+const MAX_MUTATIONS = 16;
+const MUTATION_DEPTH = 3;
+
+type Resolve = (node: RunType) => RunType | undefined;
+
+/** A validator's verdict, or the code-less marker for a throw. **/
+type Verdict = boolean | 'throws';
+
+function violation(message: string, ctx: DiagContext, value: unknown = ctx.source): Violation {
+  return {oracle: 'D4', target: ctx.target, seed: ctx.seed, phase: 'valid', message, value: snapshot(value)};
+}
+
+/** Root: a `DataOnly<T>` of `never` means T has no data at all, so T's validator must throw. **/
+export function checkDataOnlyRoot(
+  typeKind: number,
+  dataOnlyKind: number,
+  typeValidateThrows: boolean,
+  ctx: DiagContext
+): Violation | null {
+  // A written `never` compiles to a check that always fails, on both sides.
+  if (dataOnlyKind !== RunTypeKind.never || typeKind === RunTypeKind.never || typeValidateThrows) return null;
+  return violation("DataOnly<T> is never, but T's validator builds and runs without throwing", ctx);
+}
+
+/** Answers: the two validators agree on every sample, DataOnly's side reading it through `view`. **/
+export function checkDataOnlyAnswers(
+  samples: readonly {label: string; value: unknown}[],
+  validate: (value: unknown) => Verdict,
+  validateDataOnly: (value: unknown) => Verdict,
+  ctx: DiagContext,
+  view: (value: unknown) => unknown = (value) => value
+): Violation | null {
+  for (const {label, value} of samples) {
+    const typeVerdict = validate(value);
+    const seen = view(value);
+    const dataOnlyVerdict = validateDataOnly(seen);
+    if (typeVerdict !== dataOnlyVerdict)
+      return violation(
+        `validate<T> says ${typeVerdict} but validate<DataOnly<T>> says ${dataOnlyVerdict} on the ${label}` +
+          (seen === value ? '' : `, which DataOnly<T> saw as ${snapshot(seen)}`),
+        ctx,
+        value
+      );
+  }
+  return null;
+}
+
+/** Members: every object keeps the same member names, in step down both reflections. **/
+export function checkDataOnlyMembers(type: RunType, dataOnly: RunType, resolve: Resolve, ctx: DiagContext): Violation | null {
+  const mismatches = memberMismatches(type, dataOnly, resolve);
+  if (mismatches.length === 0) return null;
+  return violation(`T and DataOnly<T> keep different members: ${mismatches.slice(0, 4).join('; ')}`, ctx);
+}
+
+export function runVerdict(fn: ((value: unknown) => unknown) | undefined, value: unknown): Verdict {
+  if (!fn) return 'throws';
+  try {
+    return fn(copyTree(value)) === true;
+  } catch {
+    return 'throws';
+  }
+}
+
+export function memberMismatches(
+  type: RunType,
+  dataOnly: RunType,
+  resolve: Resolve,
+  path = '$',
+  depth = 0,
+  seen = new Set<string>()
+): string[] {
+  const typeNode = deref(type, resolve);
+  const dataOnlyNode = deref(dataOnly, resolve);
+  if (!typeNode || !dataOnlyNode || depth >= DATA_ONLY_DEPTH) return [];
+  const pairKey = `${typeNode.id}|${dataOnlyNode.id}`;
+  if (seen.has(pairKey)) return [];
+  seen.add(pairKey);
+  const recurse = (typeChild: RunType | undefined, dataOnlyChild: RunType | undefined, childPath: string) =>
+    typeChild && dataOnlyChild ? memberMismatches(typeChild, dataOnlyChild, resolve, childPath, depth + 1, seen) : [];
+
+  if (isObjectShape(typeNode)) {
+    // DataOnly projects a class to a plain object, so only the side's object-ness is compared.
+    if (!isObjectShape(dataOnlyNode)) return [`${path}: an object in T is kind ${kindName(dataOnlyNode)} in DataOnly<T>`];
+    const typeMembers = keptMembers(typeNode, resolve, true);
+    const dataOnlyMembers = keptMembers(dataOnlyNode, resolve, false);
+    const out: string[] = [];
+    for (const name of typeMembers.named.keys())
+      if (!dataOnlyMembers.named.has(name)) out.push(`${path}.${name} is kept in T but dropped by DataOnly<T>`);
+    for (const name of dataOnlyMembers.named.keys())
+      if (!typeMembers.named.has(name)) out.push(`${path}.${name} is kept by DataOnly<T> but dropped in T`);
+    // Validators skip method slots, so the answers check never sees a method DataOnly kept.
+    for (const name of dataOnlyMembers.methods) out.push(`${path}.${name} is a method DataOnly<T> keeps`);
+    if (typeMembers.indexes.length !== dataOnlyMembers.indexes.length)
+      out.push(
+        `${path} keeps ${typeMembers.indexes.length} index signature(s) in T, ${dataOnlyMembers.indexes.length} in DataOnly<T>`
+      );
+    for (const [name, member] of typeMembers.named) {
+      const other = dataOnlyMembers.named.get(name);
+      if (!other) continue;
+      if (Boolean(member.optional) !== Boolean(other.optional))
+        out.push(
+          `${path}.${name} is ${member.optional ? '' : 'not '}optional in T but ${other.optional ? '' : 'not '}in DataOnly<T>`
+        );
+      out.push(...recurse(member.child, other.child, `${path}.${name}`));
+    }
+    typeMembers.indexes.forEach((index, position) =>
+      out.push(...recurse(index.child, dataOnlyMembers.indexes[position]?.child, `${path}[key]`))
+    );
+    return out;
+  }
+  // A projected native validates the same instances through prototype getters, so the answers check alone misses it.
+  if (isKeptNative(typeNode) && (dataOnlyNode.kind !== typeNode.kind || dataOnlyNode.subKind !== typeNode.subKind))
+    return [
+      `${path}: the native ${String(typeNode.typeName ?? typeNode.subKind)} in T is kind ${kindName(dataOnlyNode)} in DataOnly<T>`,
+    ];
+  if (typeNode.kind === RunTypeKind.array && dataOnlyNode.kind === RunTypeKind.array)
+    return recurse(typeNode.child, dataOnlyNode.child, `${path}[]`);
+  if (typeNode.kind === RunTypeKind.tuple && dataOnlyNode.kind === RunTypeKind.tuple)
+    return (typeNode.children ?? []).flatMap((member, position) =>
+      recurse(deref(member, resolve)?.child, deref(dataOnlyNode.children?.[position], resolve)?.child, `${path}[${position}]`)
+    );
+  // Unions, Maps and Sets: TypeScript may reorder or merge members after the projection, so the answers check covers them.
+  return [];
+}
+
+/** Removes members DataOnly<T> drops, as the serializer does; left in, an index signature checks them as undeclared keys. **/
+export function dataOnlyView(value: unknown, type: RunType, dataOnly: RunType, resolve: Resolve): unknown {
+  const copy = copyTree(value);
+  stripDropped(copy, type, dataOnly, resolve, 0);
+  return copy;
+}
+
+function stripDropped(value: unknown, type: RunType | undefined, dataOnly: RunType | undefined, resolve: Resolve, depth: number) {
+  const typeNode = deref(type, resolve);
+  const dataOnlyNode = deref(dataOnly, resolve);
+  if (!typeNode || !dataOnlyNode || depth >= DATA_ONLY_DEPTH || value === null || typeof value !== 'object') return;
+  const recurse = (child: unknown, typeChild: RunType | undefined, dataOnlyChild: RunType | undefined) =>
+    stripDropped(child, typeChild, dataOnlyChild, resolve, depth + 1);
+  if (Array.isArray(value)) {
+    if (typeNode.kind === RunTypeKind.array && dataOnlyNode.kind === RunTypeKind.array)
+      for (const item of value) recurse(item, typeNode.child, dataOnlyNode.child);
+    if (typeNode.kind === RunTypeKind.tuple && dataOnlyNode.kind === RunTypeKind.tuple)
+      value.forEach((item, position) =>
+        recurse(
+          item,
+          deref(typeNode.children?.[position], resolve)?.child,
+          deref(dataOnlyNode.children?.[position], resolve)?.child
+        )
+      );
+    return;
+  }
+  if (value instanceof Map || value instanceof Set) {
+    if (typeNode.kind !== RunTypeKind.class || dataOnlyNode.subKind !== typeNode.subKind) return;
+    const arg = (node: RunType, position: number) => deref(node.arguments?.[position], resolve)?.child;
+    if (value instanceof Set) for (const item of value) recurse(item, arg(typeNode, 0), arg(dataOnlyNode, 0));
+    else
+      for (const [key, item] of value) {
+        recurse(key, arg(typeNode, 0), arg(dataOnlyNode, 0));
+        recurse(item, arg(typeNode, 1), arg(dataOnlyNode, 1));
+      }
+    return;
+  }
+  // Unions cannot pair their members, so their values are left as drawn.
+  if (!isObjectShape(typeNode) || !isObjectShape(dataOnlyNode)) return;
+  const record = value as Record<string, unknown>;
+  const declared = keptMembers(typeNode, resolve, false);
+  const kept = keptMembers(dataOnlyNode, resolve, false);
+  for (const [name, member] of declared.named) {
+    if (!Object.hasOwn(record, name)) continue;
+    const other = kept.named.get(name);
+    if (other) recurse(record[name], member.child, other.child);
+    else delete record[name];
+  }
+  // A function-typed property reflects as a method, which the serializer omits.
+  for (const name of declared.methods) delete record[name];
+  // The validator checks every undeclared key against each index signature, so each pair walks them all.
+  for (const index of declared.indexes) {
+    const keyKind = deref(index.index, resolve)?.kind;
+    const other = kept.indexes.find((candidate) => deref(candidate.index, resolve)?.kind === keyKind);
+    if (!other) continue;
+    for (const key of Object.keys(record)) if (!declared.named.has(key)) recurse(record[key], index.child, other.child);
+  }
+}
+
+/** A native class both sides keep whole, told apart by its SubKind. **/
+function isKeptNative(node: RunType): boolean {
+  return (
+    node.kind === RunTypeKind.class &&
+    node.subKind !== undefined &&
+    node.subKind !== RunTypeSubKind.none &&
+    node.subKind !== RunTypeSubKind.nonSerializable
+  );
+}
+
+/** Plain objects and user classes; Date / URL / Map / Set / Temporal ride a SubKind and are not member lists. **/
+function isObjectShape(node: RunType): boolean {
+  return node.kind === RunTypeKind.objectLiteral || (node.kind === RunTypeKind.class && node.subKind === RunTypeSubKind.none);
+}
+
+/** Only T's side reads the Go `notSupported` flags; DataOnly's side keeps what it reflects. **/
+function keptMembers(
+  node: RunType,
+  resolve: Resolve,
+  goDropsNonData: boolean
+): {named: Map<string, RunType>; indexes: RunType[]; methods: Set<string>} {
+  const named = new Map<string, RunType>();
+  const indexes: RunType[] = [];
+  const methods = new Set<string>();
+  for (const childRef of node.children ?? []) {
+    const member = deref(childRef, resolve);
+    if (!member || member.isStatic) continue;
+    if (goDropsNonData && (member.notSupported || deref(member.child, resolve)?.notSupported)) continue;
+    if (member.kind === RunTypeKind.indexSignature) {
+      // A symbol key is never enumerated, so neither side keeps it as data.
+      if (deref(member.index, resolve)?.kind !== RunTypeKind.symbol) indexes.push(member);
+      continue;
+    }
+    const isMethod = member.kind === RunTypeKind.method || member.kind === RunTypeKind.methodSignature;
+    if (!isMethod && member.kind !== RunTypeKind.property && member.kind !== RunTypeKind.propertySignature) continue;
+    const name = String(member.name ?? '');
+    if (name === '' || name === '__proto__' || isSymbolKeyedName(name)) continue;
+    if (isMethod) methods.add(name);
+    else named.set(name, member);
+  }
+  return {named, indexes, methods};
+}
+
+/** The Go side's spelling of a symbol-keyed member name (reflection.IsSymbolKeyedName). **/
+function isSymbolKeyedName(name: string): boolean {
+  return name.startsWith('@@') || ((name.charCodeAt(0) === 0xfe || name.charCodeAt(0) === 0xfffd) && name[1] === '@');
+}
+
+export function deref(node: RunType | undefined, resolve: Resolve): RunType | undefined {
+  let current = node;
+  for (let hops = 0; current && current.kind === RunTypeKind.ref && hops < 16; hops++) current = resolve(current);
+  return current;
+}
+
+function kindName(node: RunType): string {
+  return Object.entries(RunTypeKind).find(([, value]) => value === node.kind)?.[0] ?? String(node.kind);
+}
+
+/** Copies of `value` with one member removed or set to a wrong-typed value, down to a few levels. **/
+export function mutationsOf(value: unknown): {label: string; value: unknown}[] {
+  const out: {label: string; value: unknown}[] = [];
+  const visit = (node: unknown, path: (string | number)[]) => {
+    if (out.length >= MAX_MUTATIONS || path.length >= MUTATION_DEPTH || node === null || typeof node !== 'object') return;
+    if (Array.isArray(node)) {
+      if (node.length > 0) visit(node[0], [...path, 0]);
+      return;
+    }
+    if (Object.getPrototypeOf(node) !== Object.prototype) return;
+    for (const key of Object.keys(node)) {
+      if (out.length >= MAX_MUTATIONS) return;
+      const original = (node as Record<string, unknown>)[key];
+      const label = [...path, key].join('.');
+      out.push({label: `mock with ${label} removed`, value: mutateAt(value, [...path, key], undefined, true)});
+      out.push({label: `mock with ${label} wrong-typed`, value: mutateAt(value, [...path, key], wrongTyped(original), false)});
+      visit(original, [...path, key]);
+    }
+  };
+  visit(value, []);
+  return out;
+}
+
+function wrongTyped(original: unknown): unknown {
+  return typeof original === 'number' ? 'not a number' : 404.5;
+}
+
+function mutateAt(root: unknown, path: (string | number)[], replacement: unknown, remove: boolean): unknown {
+  const copy = copyTree(root);
+  let parent = copy as Record<string | number, unknown>;
+  for (const step of path.slice(0, -1)) parent = parent[step] as Record<string | number, unknown>;
+  const last = path[path.length - 1];
+  if (remove) delete parent[last];
+  else parent[last] = replacement;
+  return copy;
+}

@@ -1,5 +1,5 @@
 // CLI surface contract test — the regression guard for the binary's args[0]
-// command set. Four groups over the built bin/mion:
+// command set. Four groups over the built mion-bin/mion:
 //
 //   - Help golden: snapshot the top-level usage + each command's full --help.
 //     printUsage renders every flag via fs.VisitAll, so the golden captures the
@@ -22,6 +22,7 @@ import {
   writeFileSync,
   rmSync,
   existsSync,
+  globSync,
   readFileSync,
   readdirSync,
   statSync,
@@ -32,7 +33,7 @@ import {runCli, type CliResult} from './helpers/cliCrash.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, '../../..');
-const BIN = resolve(REPO_ROOT, 'bin/mion');
+const BIN = resolve(REPO_ROOT, 'mion-bin/mion');
 const hasBinary = existsSync(BIN);
 
 type RunResult = CliResult;
@@ -90,12 +91,6 @@ describe.skipIf(!hasBinary)('CLI surface — routing + exit codes', () => {
     expect(stderr).toContain('unknown command');
   });
 
-  it('the removed gen/check verbs are gone', () => {
-    expect(run(['gen']).status).toBe(2);
-    expect(run(['check']).status).toBe(2);
-    expect(run(['gen']).stderr).toContain('unknown command');
-  });
-
   it('-h / --help -> exit 0 usage on stdout', () => {
     for (const flag of ['-h', '--help']) {
       const {status, stdout} = run([flag]);
@@ -142,14 +137,14 @@ describe.skipIf(!hasBinary)('CLI surface — parameter-effect matrix', () => {
     }
   });
 
-  it('scaffold emits the freshly-scaffolded @todo worklist (FT020/MD020) in one pass', () => {
+  it('scaffold emits the freshly-scaffolded @todo worklist (enrich-text-todo-left/enrich-mock-todo-left) in one pass', () => {
     const dir = makeFixture();
     try {
       const {stderr, status} = run(['enrich', 'models.ts', 'User', '--gen-dir', 'gen'], dir);
       // A successful scaffold exits 0 (the @todo placeholders are the expected state).
       expect(status).toBe(0);
-      expect(stderr).toContain('FT020');
-      expect(stderr).toContain('MD020');
+      expect(stderr).toContain('enrich-text-todo-left');
+      expect(stderr).toContain('enrich-mock-todo-left');
     } finally {
       rmSync(dir, {recursive: true, force: true});
     }
@@ -171,7 +166,7 @@ describe.skipIf(!hasBinary)('CLI surface — parameter-effect matrix', () => {
       const requireComplete = run(['enrich', 'models.ts', 'User', '--require-complete', '--gen-dir', 'gen'], dir);
       expect(snapshot(join(dir, 'gen'))).toEqual(before);
       expect(requireComplete.status).toBe(1);
-      expect(requireComplete.stdout + requireComplete.stderr).toMatch(/FT020|MD020/);
+      expect(requireComplete.stdout + requireComplete.stderr).toMatch(/enrich-text-todo-left|enrich-mock-todo-left/);
     } finally {
       rmSync(dir, {recursive: true, force: true});
     }
@@ -282,18 +277,8 @@ describe.skipIf(!hasBinary || !symlinksAvailable)('CLI surface — symlinked pro
   }, 60_000);
 });
 
-// The pre-publish e2e fixture drives this CLI (container/pre-publish-e2e/build-all.mjs
-// scaffolds the shared app's enrichment mirrors before any app builds), but nothing
-// on the host runs that script: no vitest project covers container/, so the fixture
-// is only exercised inside the release-gate container. When `gen` was merged into
-// `enrich`, the rename reached the packages, the docs and the skills — and left the
-// fixture calling a verb that no longer existed. The binary answers an unknown verb
-// with usage and exit 2, so the matrix died before the builds, the assertions and the
-// lint transport: the gate was red on main and nothing said so until release time.
-//
-// This is the cheap host-side guard for that class: read the argv the fixture ACTUALLY
-// passes and check every verb and long flag against the live binary's own help. It
-// needs no project, no container and no network — one --help per verb.
+// container/pre-publish-e2e/build-all.mjs drives this CLI, but only inside the release container, never on the host.
+// An unknown verb exits 2 there and kills the whole matrix, so check the fixture's verbs against this binary's help.
 describe.skipIf(!hasBinary)('CLI surface — the e2e fixture only uses verbs this binary has', () => {
   const E2E_DIR = resolve(REPO_ROOT, 'container/pre-publish-e2e');
 

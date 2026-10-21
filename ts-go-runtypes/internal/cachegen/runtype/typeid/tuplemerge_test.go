@@ -7,7 +7,7 @@ import (
 )
 
 // TestTupleMerge_IntersectionConvergesWithHandWrittenTuple — the collapse-level
-// pin for docs/done/allof-tuple-intersection-collapse-gap.md: a tuple ∩ tuple
+// pin for the allOf tuple-intersection collapse gap: a tuple ∩ tuple
 // intersection merges slot-wise (unknown sides defer, equal sides collapse,
 // the length window intersects) and the resulting node is INDISTINGUISHABLE —
 // same id, same kind — from the equivalent hand-written tuple. Historically
@@ -205,5 +205,40 @@ getRunTypeId<[string, number?]>();
 `)
 	if capped.ID != plain.ID {
 		t.Errorf("closed cap: merged %s != hand-written %s", capped.ID, plain.ID)
+	}
+}
+
+// A merged tuple is readonly only when every member is, as in TypeScript.
+func TestTupleMerge_ReadonlyOnlyWhenEveryMemberIs(t *testing.T) {
+	for _, testCase := range []struct{ merged, written string }{
+		{"readonly [string, ...unknown[]] & readonly [unknown?, number?, ...unknown[]]", "readonly [string, number?, ...unknown[]]"},
+		{"readonly [string, ...unknown[]] & [unknown?, number?, ...unknown[]]", "[string, number?, ...unknown[]]"},
+	} {
+		_, written := rootFor(t, "import {getRunTypeId} from '@mionjs/run-types';\ngetRunTypeId<"+testCase.written+">();\n")
+		_, static := rootFor(t, "import {getRunTypeId} from '@mionjs/run-types';\ngetRunTypeId<"+testCase.merged+">();\n")
+		_, reflected := rootFor(t, "import {getRunTypeId} from '@mionjs/run-types';\ndeclare const value: "+testCase.merged+";\ngetRunTypeId(value);\n")
+		for _, node := range []*reflection.RunType{static, reflected} {
+			if node.ID != written.ID || node.Readonly != written.Readonly {
+				t.Errorf("%s must match %s: %q vs %q", testCase.merged, testCase.written, node.ID, written.ID)
+			}
+		}
+	}
+}
+
+// Slots differing only in readonly merge to the mutable twin (`readonly T[] & T[]` has push), never to never.
+func TestTupleMerge_ReadonlyTwinSlotsMergeToMutable(t *testing.T) {
+	for _, testCase := range []struct{ merged, written string }{
+		{"[readonly string[]] & [string[]]", "[string[]]"},
+		{"[string[]] & [readonly string[]]", "[string[]]"},
+		{"[readonly [number]] & [[number]]", "[[number]]"},
+	} {
+		_, written := rootFor(t, "import {getRunTypeId} from '@mionjs/run-types';\ngetRunTypeId<"+testCase.written+">();\n")
+		_, static := rootFor(t, "import {getRunTypeId} from '@mionjs/run-types';\ngetRunTypeId<"+testCase.merged+">();\n")
+		_, reflected := rootFor(t, "import {getRunTypeId} from '@mionjs/run-types';\ndeclare const value: "+testCase.merged+";\ngetRunTypeId(value);\n")
+		for _, node := range []*reflection.RunType{static, reflected} {
+			if node.Kind != reflection.KindTuple || node.ID != written.ID {
+				t.Errorf("%s must merge to %s: kind %d, %q vs %q", testCase.merged, testCase.written, node.Kind, node.ID, written.ID)
+			}
+		}
 	}
 }

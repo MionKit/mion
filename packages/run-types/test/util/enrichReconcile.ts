@@ -1,10 +1,5 @@
-// Reconcile lane for the AI-enrichment suite: drives the `gen --update` /
-// `gen --prune` CLI over a throwaway temp project (tsconfig + a source file +
-// the enrich dir) and returns the resulting mirror-file text. Unlike the gen
-// lane (which compares stdout skeletons), this exercises the FULL reconcile path
-// on disk — property merge, rename, orphan, restore, prune — so the tests assert
-// authored-value preservation + marker behaviour end-to-end. See
-// docs/AI_ENRICHMENT.md → gen semantics.
+// Drives `enrich --update` / `--prune` over a temp project. Unlike the batch lane's stdout skeletons, this runs the
+// full reconcile on disk, so tests assert authored values and markers survive. See docs/AI_ENRICHMENT.md.
 
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
@@ -13,7 +8,7 @@ import {mkdirSync, writeFileSync, readFileSync, rmSync, existsSync} from 'node:f
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, '../../../..');
-const BIN = resolve(REPO_ROOT, 'bin/mion');
+const BIN = resolve(REPO_ROOT, 'mion-bin/mion');
 const LANE_ROOT = resolve(HERE, '../suites/enrich/.tmp/reconcile');
 
 // Fixtures THIS module instance created. Cleanup removes only these, never the shared
@@ -52,7 +47,7 @@ const TSCONFIG = JSON.stringify(
 
 // makeFixture lays down a temp project with one source module at src/<name>.ts
 // carrying `source`. Each family's mirror path mirrors src/ under its family
-// segment of the conventional <genDir>/enriched/ (genDir defaults to src/__runtypes).
+// segment of the conventional <genDir>/enriched/ (genDir defaults to src/.mion).
 export function makeFixture(name: string, source: string): ReconcileFixture {
   const dir = resolve(LANE_ROOT, name);
   createdFixtures.add(dir);
@@ -61,7 +56,7 @@ export function makeFixture(name: string, source: string): ReconcileFixture {
   writeFileSync(resolve(dir, 'tsconfig.json'), TSCONFIG);
   const sourcePath = resolve(dir, 'src', 'models.ts');
   writeFileSync(sourcePath, source);
-  const enrichDir = resolve(dir, 'src', '__runtypes', 'enriched');
+  const enrichDir = resolve(dir, 'src', '.mion', 'enriched');
   const friendlyPath = resolve(enrichDir, 'friendly', 'models.ts');
   const mockPath = resolve(enrichDir, 'mock', 'models.ts');
   return {dir, sourcePath, enrichDir, friendlyPath, mockPath};
@@ -97,21 +92,18 @@ export function readMirrors(fixture: ReconcileFixture): string {
   return read(fixture.friendlyPath) + '\n<<<mock>>>\n' + read(fixture.mockPath);
 }
 
-// runGen runs `gen <source> <Type> [extraArgs…]` from the fixture's project
-// root. Throws on a non-zero exit.
-export function runGen(fixture: ReconcileFixture, typeName: string, extraArgs: string[] = []): void {
+export function runEnrich(fixture: ReconcileFixture, typeName: string, extraArgs: string[] = []): void {
   const args = ['enrich', 'src/models.ts', typeName, ...extraArgs];
   const result = spawnSync(BIN, args, {cwd: fixture.dir, encoding: 'utf8'});
-  if (result.error) throw new Error(`gen failed to launch: ${result.error.message}`);
-  if (result.status !== 0) throw new Error(`gen ${args.join(' ')} exited ${result.status}: ${result.stderr}\n${result.stdout}`);
+  if (result.error) throw new Error(`enrich failed to launch: ${result.error.message}`);
+  if (result.status !== 0) throw new Error(`mion ${args.join(' ')} exited ${result.status}: ${result.stderr}\n${result.stdout}`);
 }
 
-// runPrune runs `gen --prune <enrichDir>` from the fixture's project root —
-// the whole mirror root, so carcasses in BOTH family files are swept.
+// The whole mirror root, so carcasses in BOTH family files are swept.
 export function runPrune(fixture: ReconcileFixture): void {
   const result = spawnSync(BIN, ['enrich', '--prune', fixture.enrichDir], {cwd: fixture.dir, encoding: 'utf8'});
   if (result.error) throw new Error(`prune failed to launch: ${result.error.message}`);
-  if (result.status !== 0) throw new Error(`gen --prune exited ${result.status}: ${result.stderr}\n${result.stdout}`);
+  if (result.status !== 0) throw new Error(`enrich --prune exited ${result.status}: ${result.stderr}\n${result.stdout}`);
 }
 
 // cleanupReconcileLane removes only the fixtures THIS module instance created (never the

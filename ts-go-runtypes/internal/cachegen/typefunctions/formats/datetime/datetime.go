@@ -8,11 +8,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// dateTimeEmitter implements the format named "dateTime" —
-// FormatStringDateTime<P>. Composes the date + time validators (split on
-// `splitChar`, default 'T') and adds optional top-level min/max bounds
-// (a dateTime bound may use both date and time duration components).
-// Moved here from the string package.
+// dateTimeEmitter implements the format named "dateTime", FormatStringDateTime<P>: it composes the date + time
+// validators around `splitChar` (default 'T') and adds top-level bounds, which may use both component groups.
 type dateTimeEmitter struct{}
 
 func init() {
@@ -22,17 +19,42 @@ func init() {
 func (dateTimeEmitter) Name() string                    { return "dateTime" }
 func (dateTimeEmitter) Kind() reflection.ReflectionKind { return reflection.KindString }
 
-// splitSearch locates the date/time separator. A LETTER separator is matched
-// case-insensitively: RFC 3339 allows `1963-06-19t08:30:06z` as readily as the
-// upper-case spelling, and a plain indexOf would miss it. Anything else keeps
-// the exact single-character search.
+// foldedSeparator folds the two spellings of a letter separator: RFC 3339 allows `1963-06-19t08:30:06z` too.
+func foldedSeparator(splitChar string) (upper, lower string, folded bool) {
+	upper = strings.ToUpper(splitChar)
+	lower = strings.ToLower(splitChar)
+	return upper, lower, upper != lower
+}
+
+// splitSearch emits the separator search every lane must use, or a lowercase separator passes one lane and fails another.
 func splitSearch(vλl, splitChar string) string {
-	lower := strings.ToLower(splitChar)
-	upper := strings.ToUpper(splitChar)
-	if lower == upper {
+	upper, lower, folded := foldedSeparator(splitChar)
+	if !folded {
 		return vλl + ".indexOf(" + strconv.Quote(splitChar) + ")"
 	}
 	return vλl + ".search(/[" + upper + lower + "]/)"
+}
+
+// splitIndex is splitSearch's build-time twin, so a static bound literal splits where the emitted code does.
+func splitIndex(value, splitChar string) (index, width int) {
+	upper, lower, folded := foldedSeparator(splitChar)
+	if !folded {
+		at := strings.Index(value, splitChar)
+		if at < 0 {
+			return -1, 0
+		}
+		return at, len(splitChar)
+	}
+	upperAt := strings.Index(value, upper)
+	lowerAt := strings.Index(value, lower)
+	switch {
+	case upperAt < 0 && lowerAt < 0:
+		return -1, 0
+	case lowerAt < 0 || (upperAt >= 0 && upperAt < lowerAt):
+		return upperAt, len(upper)
+	default:
+		return lowerAt, len(lower)
+	}
 }
 
 // dateTimeParts resolves the date pure-fn, time pure-fn, and split char.
@@ -73,10 +95,8 @@ func nestedFormat(params map[string]any, key, fallback string) string {
 	return fallback
 }
 
-// ValidateParams checks the nested date/time layouts resolve and
-// validates the optional top-level min/max bounds (dateTimeKind: both
-// component groups allowed). The splitChar is the layout key for the
-// best-effort static bound parse.
+// ValidateParams checks the nested date/time layouts resolve and validates the top-level bounds.
+// The splitChar is the layout key for the best-effort static bound parse.
 func (dateTimeEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
@@ -98,8 +118,7 @@ func (dateTimeEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation
 	}
 	dateAlias := pureFnAlias(ctx, dateFn)
 	timeAlias := pureFnAlias(ctx, timeFn)
-	// IIFE: bind the split position once, bail on -1, then AND the two
-	// sub-validators over the substrings.
+	// IIFE so the split position is computed once for both substring validators.
 	structural := "((dtp) => dtp !== -1 && " +
 		dateAlias + "(" + vλl + ".substring(0,dtp)) && " +
 		timeAlias + "(" + vλl + ".substring(dtp+1)))(" + splitSearch(vλl, splitChar) + ")"
@@ -123,7 +142,7 @@ func (dateTimeEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAn
 	errFor := func(paramName string) string {
 		return formats.FormatErrCall(pathExpr, errorsArr, "string", "dateTime", paramName, split)
 	}
-	stmt := "const dtSplit=" + vλl + ".indexOf(" + split + ");" +
+	stmt := "const dtSplit=" + splitSearch(vλl, splitChar) + ";" +
 		"if (dtSplit===-1) " + errFor("splitChar") + ";" +
 		"else {" +
 		"if (!(" + dateAlias + "(" + vλl + ".substring(0,dtSplit)))) " + errFor("date") + ";" +

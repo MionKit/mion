@@ -19,8 +19,8 @@
 //
 // The verdict for both roads is the same comparison against the same control.
 //
-// Step 1 is what makes this an e2e rather than a unit test: `@mionjs/bin`
-// resolves its linux `@mionjs/binary-<arch>` optional dependency, so the
+// Step 1 is what makes this an e2e rather than a unit test: `@mionjs/bin-compiler`
+// resolves its linux `@mionjs/native-compiler-<arch>` optional dependency, so the
 // translator that runs here is the one that ships.
 //
 // Nothing here is bind-mounted read-write. The translated tree lives in /work,
@@ -29,6 +29,7 @@ import {execFileSync, spawnSync} from 'node:child_process';
 import {cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {diffTypeErrors, errorLines} from '/drizzle-src/baseline.mjs';
+import {annotateFixtureDiagnostics} from '/drizzle-src/fixture-diagnostics.mjs';
 
 const DIALECT = process.env.MION_DRIZZLE_DIALECT ?? '';
 const VERSION = process.env.MION_DRIZZLE_VERSION ?? '';
@@ -129,7 +130,7 @@ run('npm', [
   '--legacy-peer-deps',
   '--registry',
   REGISTRY,
-  `@mionjs/bin@${VERSION}`,
+  `@mionjs/bin-compiler@${VERSION}`,
   // The type road's `tableFromType<T>()` is a MARKER call: nothing resolves it
   // without the build transform, so the lane installs the devtools plugin and
   // the core runtime it forwards the injected id to. This is the first lane
@@ -141,14 +142,14 @@ run('npm', [
   `drizzle-orm@${drizzleVersion}`,
 ]);
 // The LAUNCHER, not the platform binary: the `mion` command resolves whichever
-// @mionjs/binary-<os>-<arch> npm installed as an optional dependency. Going
+// @mionjs/native-compiler-<os>-<arch> npm installed as an optional dependency. Going
 // through it is the point — it is the resolution a consumer gets.
 //
-// `mion` is the bin NAME @mionjs/bin declares; it was `ts-runtypes-bin` before the
+// `mion` is the bin NAME @mionjs/bin-compiler declares; it was `ts-runtypes-bin` before the
 // launcher was renamed. A bin name is not the package name and not a file path,
 // which is exactly why a scope rename does not carry it.
 const binary = path.join(HOME, 'node_modules', '.bin', 'mion');
-if (!existsSync(binary)) throw new Error(`run-suite: ${binary} is missing after the install — @mionjs/bin did not install its launcher`);
+if (!existsSync(binary)) throw new Error(`run-suite: ${binary} is missing after the install — @mionjs/bin-compiler did not install its launcher`);
 
 // ── 2. stage the pinned suites ──────────────────────────────────────────────
 step('staging the pinned drizzle suites');
@@ -243,10 +244,17 @@ if (TYPE_PASS) {
   if (!existsSync(convertReportFile)) throw new Error('run-suite: the converter wrote no report');
   convertReport = JSON.parse(readFileSync(convertReportFile, 'utf8'));
   convertedCount = (convertReport.files ?? []).reduce((total, file) => total + (file.converted?.length ?? 0), 0);
-  // A refusal costs COVERAGE, never correctness: the refused declaration stays
-  // valid builders code and its test still runs. The coverage gate below is
-  // what decides whether the refusals cost us anything.
+  // Refused declarations stay valid; refusals only cost coverage at the gate below.
   console.log(`-> converted ${convertedCount} table(s) with ${(convertReport.refusals ?? []).length} refusal(s)`);
+  const {ResolverClient} = await import(path.join(HOME, 'node_modules', '@mionjs', 'devtools', 'dist', 'core', 'resolver-client.js'));
+  const resolver = new ResolverClient(binary, TYPES, path.join(TYPES, 'tsconfig.json'));
+  try {
+    const result = await resolver.generate();
+    const count = annotateFixtureDiagnostics(TYPES, result.diagnostics ?? []);
+    console.log(`-> marked ${count} expected schema-isolation lines in generated comparison fixtures`);
+  } finally {
+    resolver.close();
+  }
 }
 
 // ── 6. the database, then the tests ─────────────────────────────────────────
@@ -524,22 +532,17 @@ function waitFor(ready, what, logFile) {
   throw new Error(`run-suite: ${what} did not become ready within 180s`);
 }
 
-// The typecheck is a gate, not a warning: a translated tree that does not
-// typecheck means a consumer following the same migration would not compile.
-// And the bar is the same one the suite run uses — the translated tree must
-// typecheck exactly as the untranslated CONTROL does, so nothing has to judge
-// which of drizzle's own errors are excusable.
+// A gate, not a warning: a consumer following the same migration would not compile.
+// The bar is the CONTROL's errors, so nothing has to judge which of drizzle's own errors are excusable.
 function typecheckAgainstControl(tree, control, label, logName) {
   const translated = runTsc(tree);
   writeFileSync(path.join(OUT, logName), `${translated.join('\n')}\n`);
-  // BOTH forms of each tree's root, the same list the host lane builds. tsc prints
-  // a file path relative to its cwd (`work/tests/...`) but spells an absolute one
-  // inside a message body (TS7016 names the .js it could not type), so stripping
-  // only the absolute form leaves the leading `work/` vs `control/` in place and
-  // every error reads as both ADDED and REMOVED.
+  // Same list as the host lane: tsc prints file paths relative to its cwd, but absolute ones in messages (TS7016).
+  // Strip only one form and every error reads as both ADDED and REMOVED.
   const roots = [`${tree}/`, `${CONTROL}/`, `${path.relative(HOME, tree)}/`, `${path.relative(HOME, CONTROL)}/`];
-  const {added, removed} = diffTypeErrors({translated, control, roots});
+  const {added, assertions, removed} = diffTypeErrors({translated, control, roots, cwd: HOME});
   console.log(`-> type errors on the ${label}: ${control.length} before, ${translated.length} after`);
+  console.log(`-> exact-type assertions on the ${label} that now see the column formats: ${assertions.length}`);
   if (added.length === 0 && removed.length === 0) return false;
   if (added.length > 0) {
     console.error(`run-suite: the ${label} ADDED ${added.length} type error(s) the untranslated tree does not have:`);

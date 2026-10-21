@@ -9,7 +9,7 @@
 // (the same seed reproduces the same value even across separate factories).
 
 import {describe, it, expect} from 'vitest';
-import {createMockDataFn} from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import type {RunType} from '@mionjs/run-types';
 import * as RT from '@mionjs/run-types/builders';
 import * as TF from '@mionjs/run-types/formats';

@@ -39,11 +39,11 @@ import {fileURLToPath} from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const APPS = path.join(HERE, '..', 'apps');
-const ALL = ['build-vite', 'smoke-esbuild', 'smoke-rollup', 'smoke-rolldown', 'smoke-webpack', 'smoke-rspack', 'smoke-source', 'smoke-bun'];
+const ALL = ['build-vite', 'smoke-esbuild', 'smoke-rollup', 'smoke-rolldown', 'smoke-webpack', 'smoke-rspack', 'smoke-source', 'smoke-types-in-src', 'smoke-bun'];
 
 // An un-rewritten generic marker call still carries its `<…>` type argument.
 // After a successful transform + TS strip, no `markerName<` pattern remains.
-const RESIDUAL = /\b(?:createValidateFn|getRunTypeId|getRunType|createJsonEncoderFn|createJsonDecoderFn|createBinaryEncoderFn)\s*</;
+const RESIDUAL = /\b(?:createValidateFn|getRunTypeId|getRunType|createJsonEncoderFn|createJsonDecoderFn)\s*</;
 
 // The subpath specifiers, in either module syntax an adapter may emit for an
 // external (`from "…"` / `require("…")`), quoted either way.

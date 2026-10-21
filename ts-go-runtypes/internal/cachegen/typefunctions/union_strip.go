@@ -6,62 +6,51 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// union_strip.go projects a union's member list to its DataOnly view for the
-// emit layer. Members whose kind DataOnly strips to `never` (symbol /
-// function-like / Promise / non-serializable built-in / never) are dropped so a
-// union like `Date | symbol` serializes and validates as `Date`, matching
-// `DataOnly<Date | symbol>` = `Date`.
-//
-// The drop is emit-time only: the union RunType (and reflection via
-// getRunType) keeps every member, so the side-channel still describes the real
-// source type.
-//
-// When EVERY member is stripped the union's DataOnly projection is `never`, an
-// uninhabitable type. In that case dataOnlyUnionMembers returns the ORIGINAL
-// member list unchanged, so the emitter still reaches an unsupported (CodeNS)
-// leaf and renders the existing alwaysThrow factory. That single fallback keeps
-// the "all stripped => throw" contract with no per-emitter change.
+// union_strip.go projects a union's member list to its DataOnly view for the emit layer, so `Date | symbol`
+// serializes and validates as `Date`. The drop is emit-time only: the union RunType, and reflection via
+// getRunType, keeps every member, so the side-channel still describes the real source type. When EVERY
+// member is stripped the projection is `never`, and dataOnlyUnionMembers returns the ORIGINAL list so the
+// emitter still reaches a CodeNS leaf and renders the alwaysThrow factory: one fallback, no per-emitter change.
 
-// isStrippedUnionMember reports whether a resolved union member is one DataOnly
-// projects to `never` (so the serializer / validator cannot represent it as
-// data). Mirrors the DataOnlyStripped set in
-// packages/run-types/src/runtypes/dataOnly.ts.
-func isStrippedUnionMember(resolved *reflection.RunType) bool {
-	if resolved == nil {
-		return false
+// nonDataOf is reflection.NonDataOf with the walk's own ref resolution.
+func nonDataOf(resolved *reflection.RunType, ctx *EmitContext) reflection.NonData {
+	if ctx == nil {
+		return reflection.NonDataOf(resolved, nil)
 	}
-	if isFunctionLikeKind(resolved.Kind) {
-		return true
-	}
-	switch resolved.Kind {
-	case reflection.KindSymbol, reflection.KindNever, reflection.KindPromise:
-		return true
-	case reflection.KindClass:
-		return resolved.SubKind == reflection.SubKindNonSerializable
-	}
-	return false
+	return reflection.NonDataOf(resolved, ctx.ResolveRef)
 }
 
-// strippedPropertyDrop reports whether a property whose resolved VALUE is
-// directly DataOnly-stripped (symbol / function-like / Promise / never /
-// non-serializable native) must be dropped at a property position, emitting the
-// matching per-family child-position Warning. Function-valued props keep the
-// existing SlotFunctionPropDropped (…010) code; the other directly-stripped
-// kinds use SlotNonSerializablePropDropped (…015). Mirrors the DataOnly object
-// rule: a property whose value projects to `never` is removed and the
-// surrounding object still serializes (`DataOnly<{a: symbol}>` = `{}`).
-//
-// Returns false for a value that is NOT directly stripped — including one that
-// is only STRUCTURALLY unserializable (symbol[], Map<string, symbol>, a tuple
-// with a stripped slot). DataOnly KEEPS those (`{a: symbol[]}` projects to
-// `{a: never[]}`), so the caller must compile the value, observe the CodeNS it
-// returns from the propagating slot, and propagate that failure — the object
-// then alwaysThrows, which is the "can't be safely dropped" contract.
+// isStrippedUnionMember reports whether a resolved member is one DataOnly projects to `never`.
+func isStrippedUnionMember(resolved *reflection.RunType, ctx *EmitContext) bool {
+	return nonDataOf(resolved, ctx) != reflection.Data
+}
+
+// isCallableValue reports a value DataOnly strips as a function, an interface with a call signature included.
+func isCallableValue(resolved *reflection.RunType, ctx *EmitContext) bool {
+	return nonDataOf(resolved, ctx) == reflection.NonDataFunction
+}
+
+// strippedPropertyDrop reports whether a property drops with a Warning while the object serializes (`{a: symbol}` -> `{}`).
+// False for a value DataOnly keeps (`{a: symbol[]}`): the caller compiles it and the CodeNS makes the object alwaysThrow.
 func strippedPropertyDrop(resolved *reflection.RunType, name string, ctx *EmitContext) bool {
-	if !isStrippedUnionMember(resolved) {
+	// A name that can never be a property drops whatever its value is (reflection.UnsafePropertyNames).
+	if reflection.IsUnsafePropertyName(name) {
+		ctx.EmitDiagnosticSlot(SlotUnsafeNamePropDropped, name)
+		return true
+	}
+	if reflection.IsSymbolKeyedName(name) {
+		ctx.EmitDiagnosticSlot(SlotSymbolKeyedDropped, reflection.SymbolKeyLabel(name))
+		return true
+	}
+	return strippedValueDrop(resolved, name, ctx)
+}
+
+// strippedValueDrop is strippedPropertyDrop's VALUE half, for the union merge path, which checks names itself.
+func strippedValueDrop(resolved *reflection.RunType, name string, ctx *EmitContext) bool {
+	if !isStrippedUnionMember(resolved, ctx) {
 		return false
 	}
-	if isFunctionLikeKind(resolved.Kind) {
+	if isCallableValue(resolved, ctx) {
 		ctx.EmitDiagnosticSlot(SlotFunctionPropDropped, name)
 	} else {
 		ctx.EmitDiagnosticSlot(SlotNonSerializablePropDropped, name)
@@ -69,49 +58,53 @@ func strippedPropertyDrop(resolved *reflection.RunType, name string, ctx *EmitCo
 	return true
 }
 
-// propertyChildFailed resolves what a property does when its compiled VALUE
-// returned CodeNS and the value was NOT directly stripped (the directly-stripped
-// case is handled by strippedPropertyDrop before the compile). The decision keys
-// on the leaf that produced the CodeNS:
-//
-//   - A DataOnly-stripped leaf reached through a propagating slot (symbol[],
-//     Map<string,symbol>, a tuple with a stripped slot) means DataOnly KEEPS the
-//     property as an unrepresentable type (`{a: symbol[]}` projects to
-//     `{a: never[]}`), so the failure PROPAGATES and the object alwaysThrows —
-//     the oracle's "can't be safely dropped" case. Returns true; the caller
-//     returns CodeNS.
-//   - Any OTHER unsupported leaf (a future kind with no emit — never produced by
-//     a real scan today, since tsgo collapses intersections etc.) is ABSORBED:
-//     the walker latch is cleared and the property drops with no diagnostic, the
-//     rest of the object still renders — the pre-DataOnly "property absorbs
-//     unsupported" contract. Returns false.
-func propertyChildFailed(ctx *EmitContext) (propagate bool) {
-	if isStrippedUnionMember(ctx.walker.UnsupportedLeaf) {
-		return true
+// indexSignatureValueDrop reports whether an index signature's value is a function, dropped with the family's `-function-property-dropped` note.
+func indexSignatureValueDrop(signature, resolved *reflection.RunType, ctx *EmitContext) bool {
+	if !isCallableValue(resolved, ctx) {
+		return false
 	}
-	ctx.walker.AbsorbUnsupported()
-	return false
+	ctx.EmitDiagnosticSlot(SlotFunctionPropDropped, indexSignatureLabel(signature, ctx))
+	return true
 }
 
-// strippedMemberLabel returns a short, user-facing label for a dropped union
-// member — the value the build-time Warning substitutes for {0}. Uses the
-// user's own type vocabulary (the class name for a built-in, the lowercase
-// kind otherwise), never compiler-internal jargon.
-func strippedMemberLabel(resolved *reflection.RunType) string {
-	if resolved == nil {
-		return "value"
+// symbolKeyedIndexSignatureDrop reports a `[key: symbol]` signature, dropped with the family's symbol-key note.
+func symbolKeyedIndexSignatureDrop(signature *reflection.RunType, ctx *EmitContext) bool {
+	if !isSymbolKeyedIndexSig(signature, ctx) {
+		return false
 	}
-	if isFunctionLikeKind(resolved.Kind) {
+	ctx.EmitDiagnosticSlot(SlotSymbolKeyedDropped, "[key: symbol]")
+	return true
+}
+
+// indexSignatureLabel names an index signature the way the user wrote it, `[key: string]`.
+func indexSignatureLabel(signature *reflection.RunType, ctx *EmitContext) string {
+	if index := ctx.ResolveRef(signature.Index); index != nil {
+		switch index.Kind {
+		case reflection.KindString:
+			return "[key: string]"
+		case reflection.KindNumber:
+			return "[key: number]"
+		}
+	}
+	return "[key]"
+}
+
+// strippedMemberLabel names a dropped union member for its Warning's {0}, in the user's type vocabulary.
+func strippedMemberLabel(resolved *reflection.RunType, ctx *EmitContext) string {
+	switch nonDataOf(resolved, ctx) {
+	case reflection.NonDataFunction:
 		return "function"
-	}
-	switch resolved.Kind {
-	case reflection.KindSymbol:
+	case reflection.NonDataSymbol:
 		return "symbol"
-	case reflection.KindNever:
+	case reflection.NonDataNever:
 		return "never"
-	case reflection.KindPromise:
-		return "Promise"
-	case reflection.KindClass:
+	case reflection.NonDataOpaque:
+		switch resolved.Kind {
+		case reflection.KindPromise:
+			return "Promise"
+		case reflection.KindRegexp:
+			return "RegExp"
+		}
 		if resolved.Name != "" {
 			return resolved.Name
 		}
@@ -120,20 +113,13 @@ func strippedMemberLabel(resolved *reflection.RunType) string {
 	return "value"
 }
 
-// dataOnlyUnionMembers returns the union's member refs with DataOnly-stripped
-// members removed. Refs are kept as-is (the caller resolves them lazily, as
-// before), so the surviving slice keeps a gap-free order that doubles as the
-// `[idx, value]` wire index on both encode and decode.
-//
-// When the filter would remove every member the projection is `never`, so the
-// ORIGINAL list is returned unchanged to preserve the alwaysThrow path (see the
-// file header).
-//
-// A genuine drop (some, not all, stripped) raises a build-time Warning via the
-// active emitter's SlotUnionMemberDropped code — mirroring the property-drop
-// warnings (VL010 etc.) so the silent projection is visible. Dedup-by-code in
-// the walker collapses it to one diagnostic per family per walk; unknown-keys
-// emitters register no code, so the slot is a no-op there.
+// dataOnlyUnionMembers returns the union's member refs with DataOnly-stripped members removed.
+// Refs are kept as-is, so the surviving slice keeps a gap-free order that doubles as the `[idx, value]`
+// wire index on both encode and decode. Removing every member means the projection is `never`, so the
+// ORIGINAL list is returned to preserve the alwaysThrow path (see the file header).
+// A genuine drop raises a build-time Warning via SlotUnionMemberDropped, mirroring the property-drop
+// warnings (validate-function-property-dropped etc.) so the silent projection is visible. The walker's dedup-by-code collapses it to
+// one diagnostic per family per walk; unknown-keys emitters register no code, so the slot is a no-op there.
 func dataOnlyUnionMembers(rt *reflection.RunType, ctx *EmitContext) []*reflection.RunType {
 	children := rt.SafeUnionChildren
 	if len(children) == 0 {
@@ -141,15 +127,13 @@ func dataOnlyUnionMembers(rt *reflection.RunType, ctx *EmitContext) []*reflectio
 	}
 	strippedCount := 0
 	for _, ref := range children {
-		if isStrippedUnionMember(ctx.ResolveRef(ref)) {
+		if isStrippedUnionMember(ctx.ResolveRef(ref), ctx) {
 			strippedCount++
 		}
 	}
-	// Fast path: nothing stripped — return the ORIGINAL slice untouched so
-	// callers see byte-identical behavior to the pre-DataOnly code (the common
-	// case). All members stripped (DataOnly = never) — also return the original
-	// so the emitter still reaches a CodeNS leaf and renders the alwaysThrow
-	// factory.
+	// Nothing stripped: return the ORIGINAL slice, byte-identical to the pre-DataOnly behaviour.
+	// All stripped (DataOnly = never): also the original, so the emitter reaches a CodeNS leaf and
+	// renders the alwaysThrow factory.
 	if strippedCount == 0 || strippedCount == len(children) {
 		return children
 	}
@@ -157,8 +141,8 @@ func dataOnlyUnionMembers(rt *reflection.RunType, ctx *EmitContext) []*reflectio
 	droppedLabels := make([]string, 0, strippedCount)
 	for _, ref := range children {
 		resolved := ctx.ResolveRef(ref)
-		if isStrippedUnionMember(resolved) {
-			droppedLabels = append(droppedLabels, strippedMemberLabel(resolved))
+		if isStrippedUnionMember(resolved, ctx) {
+			droppedLabels = append(droppedLabels, strippedMemberLabel(resolved, ctx))
 			continue
 		}
 		survivors = append(survivors, ref)

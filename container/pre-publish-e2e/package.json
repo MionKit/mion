@@ -2,7 +2,7 @@
   "name": "mion-pre-publish-e2e",
   "private": true,
   "type": "module",
-  "description": "Consumer end-to-end feature matrix. Drives the PUBLISHED @mionjs/* packages (installed from a local verdaccio) through EVERY shipped bundler adapter: the shared feature library (apps/shared, all 13 families) is transformed as SOURCE by each bundler's RunTypes plugin — build-vite (Vite-on-Rolldown + oxlint) runs the full matrix, the smoke-* apps prove each other adapter loads + transforms + runs. Tests assert runtime behavior, rewrite evidence, and lint transport over the build output. Toolchains are baked into the shared image (_deps); each run installs only the changing @mionjs/*.",
+  "description": "Consumer end-to-end feature matrix. Drives the PUBLISHED @mionjs/* packages (installed from a local verdaccio) through EVERY shipped bundler adapter: the shared feature library (apps/shared, all 13 families) is transformed as SOURCE by each bundler's RunTypes plugin — build-vite (Vite-on-Rolldown + oxlint) runs the full matrix, the smoke-* apps prove each other adapter loads + transforms + runs. Tests assert runtime behavior, rewrite evidence, and lint transport over the build output. The pure-fns/ lane then builds two libraries with the published packages, packs and installs them as npm tarballs, and proves a consumer's builds (Vite adapter and mion compile) serve their pure functions from dist/mion-pure-fns/. Toolchains are baked into the shared image (_deps); each run installs only the changing @mionjs/*.",
   "scripts": {
     "build:all": "node build-all.mjs",
     "test": "node --test test/*.test.mjs",

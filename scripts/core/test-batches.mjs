@@ -1,19 +1,8 @@
-// test-batches.mjs — `pnpm run test:ci`: the whole vitest suite, run in batches,
-// plus the drift gate that keeps those batches covering every project.
+// test-batches.mjs: `pnpm run test:ci`, the vitest suite in batches, since a resolver process is ~200 MB and one
+// `vitest run` over every project OOMs on a small host. BATCHES only GROUPS vitest.config.ts's `test.projects`, or a
+// batch list drifts and skips projects while staying green: a project missing or unknown fails `--check` and the run.
 //
-// Why batches at all: a resolver process is ~200 MB, so one `vitest run` over all
-// 21 projects OOMs on a small host. Splitting the run into groups that each start
-// and tear down on their own keeps the peak down.
-//
-// Why a gate: the batch list used to be hand-written into package.json with no tie
-// to vitest.config.ts, and it drifted — it named the 16 mion projects and NONE of
-// the 5 runtypes ones, so `test:ci` came back green having skipped 309 of the 397
-// test files, including every test that drives the Go resolver through the plugin.
-// Now vitest.config.ts's `test.projects` list is the single source of truth: BATCHES
-// only GROUPS those names, and any project missing from (or unknown to) the grouping
-// fails `--check` in CI and fails the run itself before a single test boots.
-//
-// Usage (via `pnpm rtx core test-batches …`, or `node scripts/core/test-batches.mjs …`):
+// Usage (via `pnpm miondevx core test-batches …`, or `node scripts/core/test-batches.mjs …`):
 //   test-batches                run every batch in order (extra args pass to vitest)
 //   test-batches --check        drift only: batches must cover the config exactly
 //   test-batches --list         print the batches and their projects
@@ -28,11 +17,9 @@ const ROOT_CONFIG = 'vitest.config.ts';
 // vitest.config.ts and each project must appear exactly once, which is what
 // `--check` enforces.
 //
-// The runtypes side runs first and gets three batches of its own: `runtypes` (220
-// test files) and `devtools-core` (87, and it spawns the binary) are the two
-// heaviest projects in the repo, which is the whole reason batching exists. The
-// three small runtypes projects share the third. The four mion batches below are
-// the original grouping, unchanged.
+// The runtypes side runs first: `runtypes` (220 test files) and `devtools-core`
+// (87, and it spawns the binary) are the heaviest projects, the reason batching
+// exists; `runtypes-ts` reruns the feature suite over typed modules.
 //
 // `devtools-core` and `devtools` are two vitest projects in ONE package
 // (packages/devtools) since the two devtools packages merged: the `devtools`
@@ -41,15 +28,16 @@ const ROOT_CONFIG = 'vitest.config.ts';
 // different batches for the same reason they always were, weight.
 export const BATCHES = [
   {name: 'runtypes', projects: ['runtypes']},
+  {name: 'runtypes-ts', projects: ['runtypes-ts']},
   {name: 'runtypes-devtools', projects: ['devtools-core']},
   {name: 'runtypes-satellites', projects: ['playground', '@mionjs/go-be-sidecar', 'mock-format-isolation']},
-  {name: 'mion-core', projects: ['core', 'router']},
+  {name: 'mion-core', projects: ['core', 'router', 'test-router-fuzz']},
   {
     name: 'mion-drizzle',
     projects: ['drizzle-root', 'drizzle-pg', 'drizzle-mysql', 'drizzle-sqlite', 'devtools', 'platform-aws', 'platform-gcloud'],
   },
-  {name: 'mion-platforms', projects: ['platform-node', 'platform-vercel', 'platform-cloudflare', 'platform-uws', 'uws']},
-  {name: 'mion-rest', projects: ['client', 'type-budget']},
+  {name: 'mion-platforms', projects: ['platform-node', 'platform-vercel', 'platform-cloudflare', 'platform-uws', 'bin-uws']},
+  {name: 'mion-rest', projects: ['client', 'client-bundled', 'type-budget', 'drizzle-example-app']},
 ];
 
 // The project config paths listed under `test.projects` in the root vitest config.
@@ -71,15 +59,18 @@ export function projectName(text) {
   return name ? name[1] : undefined;
 }
 
-// Every project name the root config pulls in, in declaration order.
-export function readProjectNames(repoRoot = REPO_ROOT) {
+// Every project the root config pulls in, in declaration order.
+export function readProjects(repoRoot = REPO_ROOT) {
   const paths = projectConfigPaths(readFileSync(join(repoRoot, ROOT_CONFIG), 'utf8'));
-  return paths.map((path) => {
-    const name = projectName(readFileSync(join(repoRoot, path), 'utf8'));
-    if (!name) die(`core test-batches: ${path} declares no vitest project \`name\` — batches address projects by name`);
-    return name;
+  return paths.map((configPath) => {
+    const name = projectName(readFileSync(join(repoRoot, configPath), 'utf8'));
+    if (!name) die(`core test-batches: ${configPath} declares no vitest project \`name\` — batches address projects by name`);
+    return {name, configPath};
   });
 }
+
+// Every project name the root config pulls in, in declaration order.
+export const readProjectNames = (repoRoot = REPO_ROOT) => readProjects(repoRoot).map((project) => project.name);
 
 // The config-to-batches contract, as three disjoint drift lists. Pure (takes the
 // project names) so the test can drive it without touching the real config.

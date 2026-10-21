@@ -1,17 +1,4 @@
-// End-to-end coverage for the lint plugin honoring the project tsconfig's
-// resolution options. Before the fix the ESLint inline-server spawn passed no
-// --tsconfig, so a cross-package type behind a `source` export condition (the
-// source-resolved monorepo dev setup, dist unbuilt) collapsed to `any` at lint
-// time — 59 false MKR007 in mion, while the build resolved it fine.
-//
-// Two layers: a pure unit check that buildResolverArgs now forwards --tsconfig
-// in server mode (the exact guard that caused the bug), and an integration run
-// of the real rules through bin/mion over an on-disk monorepo whose only
-// resolvable cross-package entry is behind `source`.
-//
-// Marker coverage rule (CLAUDE.md): the consumer fixture uses BOTH getRunTypeId
-// shapes — static `getRunTypeId<T>()` and value-first `getRunTypeId(value)` —
-// plus a createValidateFn<CrossPkgType>() site (the mion repro shape).
+// Lint must use the build tsconfig to resolve source-only workspace exports; see AGENTS.md marker coverage.
 
 import {afterAll, beforeAll, beforeEach, describe, expect, it} from 'vitest';
 import {rules} from '../../src/lint/index.ts';
@@ -51,7 +38,7 @@ getRunTypeId<CrossPkgUser>();
 declare const sample: CrossPkgUser;
 getRunTypeId(sample);
 
-// createValidateFn<CrossPkgType>() — the site that produced 59 MKR007 in mion
+// createValidateFn<CrossPkgType>() — the site that produced 59 marker-any-from-unresolved-import in mion
 export const validateUser = createValidateFn<CrossPkgUser>();
 `;
 
@@ -80,7 +67,7 @@ const TSCONFIG_NO_CONDITIONS = JSON.stringify({
   },
 });
 
-describe.runIf(hasBinary())('eslint tsconfig resolution (integration through bin/mion)', () => {
+describe.runIf(hasBinary())('eslint tsconfig resolution (integration through mion-bin/mion)', () => {
   let project: FixtureProject;
   let consumerAbs: string;
   let originalCwd: string;
@@ -112,20 +99,21 @@ describe.runIf(hasBinary())('eslint tsconfig resolution (integration through bin
   // tsconfig on the first request).
   beforeEach(() => resetSharedSession());
 
-  it('resolves a source-condition cross-package marker — no invalid-marker (MKR007)', () => {
+  it('resolves a source-condition cross-package marker: no marker-any-from-unresolved-import', () => {
     // settings: {} → tsconfig defaults to 'tsconfig.json' (customConditions:["source"]).
-    expect(runRule(rules['invalid-marker'], consumerAbs, CONSUMER_SRC, {})).toEqual([]);
+    expect(runRule(rules['runtime-error'], consumerAbs, CONSUMER_SRC, {})).toEqual([]);
   });
 
   it('reports no skipped members for the resolved data type', () => {
-    expect(runRule(rules['validate-skipped-member'], consumerAbs, CONSUMER_SRC, {})).toEqual([]);
+    // Info included, or a skipped member could hide there and this could never fail.
+    for (const level of ['warning', 'info'] as const) expect(runRule(rules[level], consumerAbs, CONSUMER_SRC, {})).toEqual([]);
   });
 
-  it('honors settings.runtypes.tsconfig — a config without customConditions still flags the unresolved marker', () => {
-    const reports = runRule(rules['invalid-marker'], consumerAbs, CONSUMER_SRC, {
-      runtypes: {tsconfig: 'tsconfig.noconditions.json'},
+  it('honors settings.mion.tsconfig — a config without customConditions still flags the unresolved marker', () => {
+    const reports = runRule(rules['runtime-error'], consumerAbs, CONSUMER_SRC, {
+      mion: {tsconfig: 'tsconfig.noconditions.json'},
     });
     expect(reports.length).toBeGreaterThan(0);
-    expect(reports.some((report) => report.message.includes('MKR007'))).toBe(true);
+    expect(reports.some((report) => report.message.includes('marker-any-from-unresolved-import'))).toBe(true);
   });
 });

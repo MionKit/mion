@@ -1,10 +1,22 @@
-<!-- Docus picks this component up by name for the header wordmark. The actual
-     mark is per site: `#site` is aliased in nuxt.config.ts to sites/<MION_SITE>,
-     so only the selected site's logo is bundled. -->
-<script setup>
-import SiteLogo from '#site/Logo.vue';
-</script>
-
+<!-- Docus picks this component up by name for the header wordmark: one mion logo on
+     every page, in its own fixed colour. The current subsite is named by the subsite
+     menu button beside the search box (SubsiteMenu.vue), so nothing else sits here. -->
 <template>
-  <SiteLogo />
+  <span class="site-brand">
+    <MionLogo class="site-brand-logo" />
+  </span>
 </template>
+
+<style scoped>
+.site-brand {
+  display: inline-flex;
+  align-items: flex-end;
+  /* a touch taller than the h-6 Docus hands the wordmark */
+  height: 1.7rem;
+}
+
+.site-brand-logo {
+  height: 100%;
+  width: auto;
+}
+</style>

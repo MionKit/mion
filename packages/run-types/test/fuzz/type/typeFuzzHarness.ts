@@ -24,14 +24,12 @@ import {
   createGetValidationErrorsFn,
   createJsonEncoderFn,
   createJsonDecoderFn,
-  createBinaryEncoderFn,
-  createBinaryDecoderFn,
-  createBinarySizerFn,
-  createMockDataFn,
+  createRemoveUnknownKeysFn,
+  createFormatTransformFn,
+  type RemoveUnknownKeysFn,
 } from '@mionjs/run-types';
-import {binarySizeEstimateFromTuple} from '../../../src/runtypes/entryTuple.ts';
-import type {BinarySizingOptions} from '../../../src/mocking/mockTypes.ts';
-import {ResolverClient, type ResolverClientOptions} from '../../../../devtools/src/core/resolver-client.ts';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
+import {ResolverClient} from '../../../../devtools/src/core/resolver-client.ts';
 import {
   MARKER_PACKAGE_OVERLAY,
   evalEntryModules,
@@ -42,6 +40,7 @@ import {
 import {Severity, type Diagnostic, type Site} from '../../../../devtools/src/core/protocol.ts';
 import {readFileSync, readdirSync} from 'node:fs';
 import {renderGenerated, describeType, type GeneratedType} from '../core/typeGen.ts';
+import type {FuzzTarget} from '../value/fuzzOracle.ts';
 
 export {hasBinary, BIN};
 
@@ -77,21 +76,57 @@ export const SRC_OVERLAY: Readonly<Record<string, string>> = (() => {
   return overlay;
 })();
 
-const ENCODER_TAGS = new Set(['jeCL', 'jeMU', 'jeDI']);
-const DECODER_TAGS = new Set(['jdST', 'jdPR']);
+/** `mock` is the REAL product mock (nonDataTypes on), the behaviour tier's value source, so it is not in FN_KEYS. **/
+export type WiredFns = Partial<
+  Pick<
+    FuzzTarget,
+    'validate' | 'getValidationErrors' | 'jsonEncode' | 'jsonDecode' | 'compactEncode' | 'compactDecode' | 'mock'
+  > & {
+    mutateEncode: FuzzTarget['jsonEncode'];
+    mutateDecode: FuzzTarget['jsonDecode'];
+    removeUnknownKeys: RemoveUnknownKeysFn;
+    validateStrict: FuzzTarget['validate'];
+    validateUnionKeys: FuzzTarget['validate'];
+    removeUnknownKeysShared: RemoveUnknownKeysFn;
+    removeUnknownKeysRefuse: RemoveUnknownKeysFn;
+    formatTransform: (value: unknown) => unknown;
+    /** The mock with every optional member drawn, so D3 sees the members a plain mock may leave out. **/
+    mockFull: FuzzTarget['mock'];
+    /** `createValidateFn<DataOnly<T>>()`, which D4 holds against `validate`. **/
+    validateDataOnly: FuzzTarget['validate'];
+  }
+>;
 
-export type WiredFns = {
-  validate?: (v: unknown) => boolean;
-  getValidationErrors?: (v: unknown) => unknown[];
-  jsonEncode?: (v: unknown) => string | undefined;
-  jsonDecode?: (s: string) => unknown;
-  binaryEncode?: (v: unknown) => Uint8Array;
-  binaryDecode?: (b: Uint8Array) => unknown;
-  /** The REAL product mock for this type, with nonDataTypes on so a value
-   *  carries the stripped members. Not part of FN_KEYS — it's the value source
-   *  for the behaviour tier, not a serialization factory the oracles police. **/
-  mock?: () => unknown;
+type FnKey = Exclude<keyof WiredFns, 'mock' | 'mockFull'>;
+type FnFactory = (value: undefined, options: undefined, tuple: never) => unknown;
+
+/** Entry-tuple tag to the function it builds and its factory. **/
+const WIRED_BY_TAG: Partial<Record<string, [FnKey, FnFactory]>> = {
+  val: ['validate', createValidateFn as FnFactory],
+  verr: ['getValidationErrors', createGetValidationErrorsFn as FnFactory],
+  jeCL: ['jsonEncode', createJsonEncoderFn as FnFactory],
+  jdCL: ['jsonDecode', createJsonDecoderFn as FnFactory],
+  jeCO: ['compactEncode', createJsonEncoderFn as FnFactory],
+  jdCO: ['compactDecode', createJsonDecoderFn as FnFactory],
+  jeMU: ['mutateEncode', createJsonEncoderFn as FnFactory],
+  jdMU: ['mutateDecode', createJsonDecoderFn as FnFactory],
+  ruk: ['removeUnknownKeys', createRemoveUnknownKeysFn as FnFactory],
+  vst: ['validateStrict', createValidateFn as FnFactory],
+  vuk: ['validateUnionKeys', createValidateFn as FnFactory],
+  ruks: ['removeUnknownKeysShared', createRemoveUnknownKeysFn as FnFactory],
+  rukr: ['removeUnknownKeysRefuse', createRemoveUnknownKeysFn as FnFactory],
+  // The option-less families take the tuple second.
+  fmt: ['formatTransform', ((_value, _options, tuple) => createFormatTransformFn(undefined, tuple)) as FnFactory],
 };
+
+/** The compiled functions every fixture has a call site for; the second `val` site is the DataOnly one. **/
+const WIRED: [FnKey, FnFactory][] = [
+  ...(Object.values(WIRED_BY_TAG) as [FnKey, FnFactory][]),
+  ['validateDataOnly', createValidateFn as FnFactory],
+];
+export const FN_KEYS: FnKey[] = WIRED.map(([key]) => key);
+
+type FnSites = Partial<Record<FnKey, {site: Site; tuple: readonly unknown[]}>>;
 
 export interface CompiledType {
   gen: GeneratedType;
@@ -112,61 +147,69 @@ export interface CompiledType {
   wired: WiredFns;
   /** Per-family controlled wire failures (alwaysThrow factories may throw). **/
   wireErrors: Partial<Record<keyof WiredFns, string>>;
-  // --- binary size-estimate surface (used by the binary/ size lane) ---
-  /** The cold-start buffer estimate baked into the `tb` entry, or undefined when
-   *  the type produced no estimate slot. **/
-  seed?: number;
-  /** The exact-wire-size sizer (`createBinarySizerFn`), reusing the `tb` entry. **/
-  binarySizer?: (value: unknown) => number;
-  /** The reflection entry tuple — the size lane drives its own `createMockDataFn`
-   *  off it (e.g. with `respectBinarySize`). **/
-  reflectionTuple?: readonly unknown[];
+  /** The line of each function's call site in `source`, where its diagnostics are reported. **/
+  siteLines: Partial<Record<keyof WiredFns, number>>;
+  /** The reflection ids of `getRunTypeId<T>()` and `getRunTypeId<DataOnly<T>>()`. **/
+  reflectionIds: {type?: string; dataOnly?: string};
+  /** The generated modules by name, as the resolver served them. **/
+  entryModules: Record<string, string>;
+  /** Each wired function's cache key, which names its module. **/
+  fnCacheKeys: Partial<Record<keyof WiredFns, string>>;
 }
 
-/** Open a resolver client. `sizing` forwards the `--binary-sizing-*` estimator
- *  config so the baked cold-start estimate matches a size-lane run's value
- *  bounds. Takes the RUNTIME `BinarySizingOptions` shape (the same object the
- *  size lane hands createMockDataFn) and maps it onto the build-side flag
- *  names, so one config literal still drives both ends of the oracle. **/
-export function openClient(sizing?: BinarySizingOptions): ResolverClient {
+export function openClient(emitMode: 'both' | 'ts' = 'both'): ResolverClient {
   if (!hasBinary()) throw new Error(`mion binary not built: ${BIN}`);
-  const sizingArgs: Partial<ResolverClientOptions> = {};
-  if (sizing?.sizeBias !== undefined) sizingArgs.binarySizingBias = sizing.sizeBias;
-  if (sizing?.sizeItems !== undefined) sizingArgs.binarySizingItems = sizing.sizeItems;
-  if (sizing?.sizeStringBytes !== undefined) sizingArgs.binarySizingStringBytes = sizing.sizeStringBytes;
-  if (sizing?.sizeMaxBytes !== undefined) sizingArgs.binarySizingMaxBytes = sizing.sizeMaxBytes;
-  return new ResolverClient(BIN, REPO_ROOT, '', {serverMode: true, emitMode: 'both', ...sizingArgs});
+  return new ResolverClient(BIN, REPO_ROOT, '', {serverMode: true, emitMode});
 }
 
-/** Render the full fixture: import block, named decls, `type T = root`, and one
- *  call site per family + the getRunTypeId reflection site. **/
-export function renderFixture(gen: GeneratedType): string {
+/** The generated modules for a fixture, without evaluating or wiring them. **/
+export async function generateModules(client: ResolverClient, source: string): Promise<Record<string, string>> {
+  await client.setSources({...SRC_OVERLAY, ...MARKER_PACKAGE_OVERLAY, [FIXTURE]: source});
+  return (await client.scanFiles([FIXTURE], {includeEntryModules: true})).entryModules ?? {};
+}
+
+/** One call site per family, then the T and DataOnly<T> reflection sites: compileType tells them apart by order. **/
+export function renderFixture(gen: GeneratedType, dataOnly: {name: string; decl?: string} = {name: 'DataOnly'}): string {
   const {decls, rootExpr} = renderGenerated(gen);
   return `import {
   createValidateFn,
   createGetValidationErrorsFn,
   createJsonEncoderFn,
   createJsonDecoderFn,
-  createBinaryEncoderFn,
-  createBinaryDecoderFn,
+  createRemoveUnknownKeysFn,
+  createFormatTransformFn,
   getRunTypeId,
+  type DataOnly,
 } from '@mionjs/run-types';
-${decls}
+${decls}${dataOnly.decl ? `\n${dataOnly.decl}` : ''}
 type T = ${rootExpr};
 createValidateFn<T>();
 createGetValidationErrorsFn<T>();
 createJsonEncoderFn<T>();
 createJsonDecoderFn<T>();
-createBinaryEncoderFn<T>();
-createBinaryDecoderFn<T>();
+createJsonEncoderFn<T>(undefined, {strategy: 'compact'});
+createJsonDecoderFn<T>(undefined, {strategy: 'compact'});
+createJsonEncoderFn<T>(undefined, {strategy: 'mutate'});
+createJsonDecoderFn<T>(undefined, {strategy: 'mutate'});
+createRemoveUnknownKeysFn<T>();
+createValidateFn<T>(undefined, {checkUnknowns: true});
+createValidateFn<T>(undefined, {checkUnionUnknowns: true});
+createRemoveUnknownKeysFn<T>(undefined, {sharedValues: 'share'});
+createRemoveUnknownKeysFn<T>(undefined, {sharedValues: 'refuse'});
+createFormatTransformFn<T>();
 getRunTypeId<T>();
+createValidateFn<${dataOnly.name}<T>>();
+getRunTypeId<${dataOnly.name}<T>>();
 `;
 }
 
-/** Drive the full pipeline for one generated type. Never throws — every failure
- *  mode is captured on the result. **/
-export async function compileType(client: ResolverClient, gen: GeneratedType): Promise<CompiledType> {
-  const source = renderFixture(gen);
+/** Never throws: every failure mode is captured on the result. **/
+export async function compileType(
+  client: ResolverClient,
+  gen: GeneratedType,
+  dataOnly: {name: string; decl?: string} = {name: 'DataOnly'}
+): Promise<CompiledType> {
+  const source = renderFixture(gen, dataOnly);
   const title = describeType(gen);
   const base: CompiledType = {
     gen,
@@ -181,13 +224,15 @@ export async function compileType(client: ResolverClient, gen: GeneratedType): P
     entryModuleCount: 0,
     wired: {},
     wireErrors: {},
+    siteLines: {},
+    reflectionIds: {},
+    entryModules: {},
+    fnCacheKeys: {},
   };
 
   let resp;
   try {
-    // The whole src/ tree rides along so the fixture preamble's `./src/...`
-    // imports (the SHIPPED format brands) resolve inside the resolver's
-    // virtual filesystem — no hand-written brand stand-ins (SRC_OVERLAY above).
+    // src/ goes along so the preamble's `./src/...` imports resolve to the SHIPPED format brands, no stand-ins.
     await client.setSources({...SRC_OVERLAY, ...MARKER_PACKAGE_OVERLAY, [FIXTURE]: source});
     resp = await client.scanFiles([FIXTURE], {includeEntryModules: true});
   } catch (err) {
@@ -196,23 +241,24 @@ export async function compileType(client: ResolverClient, gen: GeneratedType): P
 
   const diagnostics = resp.diagnostics ?? [];
   const sites = resp.sites ?? [];
-  const fnSites = sites.filter((s) => s.fnId);
-  const reflectionSites = sites.filter((s) => !s.fnId);
+  // Source order tells the two `val` sites and the two reflection sites apart.
+  const fnSites = sites.filter((site) => site.fnId).sort((left, right) => left.pos - right.pos);
+  const reflectionSites = sites.filter((site) => !site.fnId).sort((left, right) => left.pos - right.pos);
   const entryModules = resp.entryModules ?? {};
   const partial: CompiledType = {
     ...base,
     diagnostics,
     errorDiagnostics: diagnostics.filter((d) => d.severity === Severity.Error),
-    warningDiagnostics: diagnostics.filter((d) => d.severity === Severity.Warning),
+    // A dropped member is Info, and the oracles only care that something was dropped.
+    warningDiagnostics: diagnostics.filter((d) => d.severity === Severity.Warning || d.severity === Severity.Info),
     sites,
     fnSiteCount: fnSites.length,
     reflectionSiteCount: reflectionSites.length,
     entryModuleCount: Object.keys(entryModules).length,
+    entryModules,
   };
 
-  // Evaluating the emitted modules executes the generated factory code (catches
-  // invalid-JS emit); instantiateRunTypes knots the reflection graph (catches
-  // dangling refs). Either throwing is a finding.
+  // Evaluating catches invalid-JS emit, instantiateRunTypes catches dangling refs; either throwing is a finding.
   let tuples: Record<string, readonly unknown[]>;
   try {
     tuples = evalEntryModules(entryModules);
@@ -221,57 +267,29 @@ export async function compileType(client: ResolverClient, gen: GeneratedType): P
     return {...partial, evalError: errMsg(err)};
   }
 
-  // Wire each factory independently. A non-serialisable type degrades to an
-  // alwaysThrow factory that may throw a CONTROLLED error here — captured per
-  // family rather than aborting (the runner decides if that's expected).
-  const byFamily = classifyFnSites(fnSites, tuples);
+  // An alwaysThrow factory may throw a controlled error here: record it per family, the runner decides if it is expected.
+  const byKey = classifyFnSites(fnSites, tuples);
   const wired: WiredFns = {};
   const wireErrors: CompiledType['wireErrors'] = {};
-  wire(
-    wired,
-    wireErrors,
-    'validate',
-    () => createValidateFn(undefined, undefined, byFamily.val as never) as WiredFns['validate']
-  );
-  wire(
-    wired,
-    wireErrors,
-    'getValidationErrors',
-    () => createGetValidationErrorsFn(undefined, undefined, byFamily.verr as never) as WiredFns['getValidationErrors']
-  );
-  wire(
-    wired,
-    wireErrors,
-    'jsonEncode',
-    () => createJsonEncoderFn(undefined, undefined, byFamily.jenc as never) as WiredFns['jsonEncode']
-  );
-  wire(
-    wired,
-    wireErrors,
-    'jsonDecode',
-    () => createJsonDecoderFn(undefined, undefined, byFamily.jdec as never) as WiredFns['jsonDecode']
-  );
-  wire(
-    wired,
-    wireErrors,
-    'binaryEncode',
-    () => createBinaryEncoderFn(undefined, undefined, byFamily.tb as never) as WiredFns['binaryEncode']
-  );
-  wire(
-    wired,
-    wireErrors,
-    'binaryDecode',
-    () => createBinaryDecoderFn(undefined, undefined, byFamily.fb as never) as WiredFns['binaryDecode']
-  );
+  const siteLines: CompiledType['siteLines'] = {};
+  // Site positions are UTF-8 byte offsets; lines break where TypeScript's do.
+  const sourceBytes = Buffer.from(source, 'utf8');
+  for (const [key, {site}] of Object.entries(byKey) as [FnKey, {site: Site}][]) {
+    siteLines[key] = sourceBytes
+      .subarray(0, site.pos)
+      .toString('utf8')
+      .split(/\r\n|[\n\r\u2028\u2029]/).length;
+  }
+  for (const [key, factory] of WIRED) {
+    wire(wired, wireErrors, key, () => factory(undefined, undefined, byKey[key]?.tuple as never) as never);
+  }
+  const reflectionIds = {type: reflectionSites[0]?.id, dataOnly: reflectionSites[1]?.id};
+  const fnCacheKeys: CompiledType['fnCacheKeys'] = {};
+  for (const [key, {tuple}] of Object.entries(byKey) as [FnKey, {tuple: readonly unknown[]}][])
+    fnCacheKeys[key] = tuple[3] as string;
 
-  // Mock value source — the REAL createMockDataFn driven off the reflection ENTRY
-  // TUPLE (the per-root facade, basename === the reflection site id). Passing
-  // the tuple mirrors what the plugin injects in production: createMockDataFn runs
-  // initFromTuple itself, linking the reflection runtype graph into the live
-  // rtUtils, then resolves the root by id. (The six function factories register
-  // their own demand-driven caches, not the reflection bundle, so the id alone
-  // isn't enough.) nonDataTypes:true makes the value carry the stripped members
-  // so the encoders exercise their drop / fail paths.
+  // Pass the reflection entry tuple as the plugin does: the function factories' caches never link the reflection graph.
+  // nonDataTypes:true makes the value carry the stripped members, so the encoders exercise their drop / fail paths.
   const reflectionId = reflectionSites[0]?.id;
   const reflectionTuple = reflectionId !== undefined ? tuples[reflectionId] : undefined;
   if (reflectionTuple !== undefined) {
@@ -279,23 +297,13 @@ export async function compileType(client: ResolverClient, gen: GeneratedType): P
       const mockFn = createMockDataFn(undefined, {mock: {nonDataTypes: true}}, reflectionTuple as never);
       return (() => mockFn()) as WiredFns['mock'];
     });
+    wire(wired, wireErrors, 'mockFull', () => {
+      const mockFn = createMockDataFn(undefined, {mock: {nonDataTypes: true, optionalProbability: 1}}, reflectionTuple as never);
+      return (() => mockFn()) as WiredFns['mockFull'];
+    });
   }
 
-  // Binary size-estimate surface: the cold-start seed baked into the `tb` entry
-  // and the exact-size sizer (which reuses that same entry). Undefined when the
-  // type produced no `tb` entry (non-serialisable root). The reflection tuple is
-  // exposed so a size-lane run can drive its own `respectBinarySize` mocks.
-  const seed = byFamily.tb ? binarySizeEstimateFromTuple(byFamily.tb) : undefined;
-  let binarySizer: CompiledType['binarySizer'];
-  if (byFamily.tb) {
-    try {
-      binarySizer = createBinarySizerFn(undefined, byFamily.tb as never) as CompiledType['binarySizer'];
-    } catch {
-      binarySizer = undefined;
-    }
-  }
-
-  return {...partial, wired, wireErrors, seed, binarySizer, reflectionTuple};
+  return {...partial, wired, wireErrors, siteLines, reflectionIds, fnCacheKeys};
 }
 
 function wire<K extends keyof WiredFns>(
@@ -311,27 +319,13 @@ function wire<K extends keyof WiredFns>(
   }
 }
 
-interface FamilyTuples {
-  val?: readonly unknown[];
-  verr?: readonly unknown[];
-  jenc?: readonly unknown[];
-  jdec?: readonly unknown[];
-  tb?: readonly unknown[];
-  fb?: readonly unknown[];
-}
-
-function classifyFnSites(fnSites: Site[], tuples: Record<string, readonly unknown[]>): FamilyTuples {
-  const out: FamilyTuples = {};
+function classifyFnSites(fnSites: Site[], tuples: Record<string, readonly unknown[]>): FnSites {
+  const out: FnSites = {};
   for (const site of fnSites) {
     const tuple = tuples[`${site.fnId}_${site.id}`];
-    if (!tuple) continue;
-    const tag = tuple[0];
-    if (tag === 'val') out.val = tuple;
-    else if (tag === 'verr') out.verr = tuple;
-    else if (tag === 'tb') out.tb = tuple;
-    else if (tag === 'fb') out.fb = tuple;
-    else if (typeof tag === 'string' && ENCODER_TAGS.has(tag)) out.jenc = tuple;
-    else if (typeof tag === 'string' && DECODER_TAGS.has(tag)) out.jdec = tuple;
+    const tagged = tuple && typeof tuple[0] === 'string' ? WIRED_BY_TAG[tuple[0]]?.[0] : undefined;
+    const key = tagged === 'validate' && out.validate ? 'validateDataOnly' : tagged;
+    if (key) out[key] = {site, tuple};
   }
   return out;
 }

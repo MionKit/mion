@@ -8,6 +8,7 @@
 // time, here driven live from a single resolver dispatch.
 
 import * as RT from '@mionjs/run-types';
+import * as RTMocking from '@mionjs/run-types/mocking';
 // Side effect: register the format pure fns (rtFormats::isUUID, …), regex
 // patterns and format mock fns the generated validators / mock walker call at
 // runtime. Without it a format like UUID / IP throws `pf_isUUID is not a function`.
@@ -24,7 +25,21 @@ export {ROOT_TYPE} from './markerDts.ts';
 
 const FILE = 'playground.ts';
 
-const factories = RT as unknown as Record<string, (...args: unknown[]) => (...callArgs: unknown[]) => unknown>;
+type Factory = (...args: unknown[]) => (...callArgs: unknown[]) => unknown;
+
+// Mock generation lives on its own subpath, off the root entry.
+const ENTRIES = [
+  {specifier: '@mionjs/run-types', exports: RT as Record<string, unknown>},
+  {specifier: '@mionjs/run-types/mocking', exports: RTMocking as Record<string, unknown>},
+];
+
+// The snippet must import each factory from the entry that exports it, or the resolver finds no call site.
+function factoryEntry(factory: string): {specifier: string; fn: Factory} {
+  for (const {specifier, exports} of ENTRIES) {
+    if (typeof exports[factory] === 'function') return {specifier, fn: exports[factory] as Factory};
+  }
+  throw new Error(`${factory} is not exported by any @mionjs/run-types entry the playground loads.`);
+}
 
 export type Diagnostic = Record<string, unknown>;
 
@@ -56,8 +71,6 @@ export type RunResult =
   | {op: Operation; kind: 'errors'; value: unknown[]; diagnostics: Diagnostic[]}
   | {op: Operation; kind: 'encode'; value: unknown; diagnostics: Diagnostic[]}
   | {op: Operation; kind: 'jsonRoundtrip'; encoded: unknown; decoded: unknown; diagnostics: Diagnostic[]}
-  | {op: Operation; kind: 'binaryEncode'; byteLength: number; hex: string; diagnostics: Diagnostic[]}
-  | {op: Operation; kind: 'binaryRoundtrip'; byteLength: number; hex: string; decoded: unknown; diagnostics: Diagnostic[]}
   | {
       op: Operation;
       kind: 'graph';
@@ -126,12 +139,9 @@ function linkRootTuple(entryModules: Record<string, string>, binding: string): u
 // engine, and is covered by test/playground/engine.test.ts.
 export type Mode = 'type' | 'builder';
 
-// factoryImport renders the import line the playground shows around a snippet,
-// the same `import { <factory> } from '@mionjs/run-types'` the engine prepends before
-// resolving (see `scan` below), surfaced verbatim so the type column can display
-// the real surrounding code the user would write.
+// The same import `scan` prepends before resolving, shown so the type column displays the code the user would write.
 export function factoryImport(factory: string): string {
-  return `import { ${factory} } from '@mionjs/run-types';`;
+  return `import { ${factory} } from '${factoryEntry(factory).specifier}';`;
 }
 
 // factoryCall renders the call line: `const <varName> = <factory><MyType>()` in
@@ -180,24 +190,17 @@ function scan(
   mode: Mode = 'type',
   options?: string
 ): ScanResult {
-  // Only the factory import is injected; the user snippet writes its own
-  // `import * as RT from '@mionjs/run-types/builders'` / `import type { … } from
-  // '@mionjs/run-types/formats'`, so the imports read like real code (and aren't
-  // duplicated). `options` (a JSON strategy literal) rides the options slot so
-  // its comptime value is folded into the injected fn hash, see factoryCall.
+  // Only the factory import is injected: the snippet writes its own imports, so it reads like real code.
+  // `options` rides the options slot so its comptime value is folded into the injected fn hash.
   const args = mode !== 'type' ? [ROOT_TYPE] : [];
   if (options) args.push(mode !== 'type' ? options : `undefined, ${options}`);
   const call = mode !== 'type' ? `${factory}(${args.join(', ')});` : `${factory}<${ROOT_TYPE}>(${args.join(', ')});`;
-  const source = [`import { ${factory} } from '@mionjs/run-types';`, userCode, call, ''].join('\n');
+  const source = [factoryImport(factory), userCode, call, ''].join('\n');
   dispatch({op: 'setSources', sources: {...runtypesPackageSources(), [FILE]: source}});
   const result = dispatch({op: 'scanFiles', files: [FILE], includeRunTypes: true, includeEntryModules: true});
   const sites = (result.sites as ScanResult['site'][]) ?? [];
   return {
-    // The factory call is appended LAST, so its site has the highest source
-    // position. Pick it, not sites[0]: in builder mode a builder snippet's
-    // own `const MyType = RT.object(...)` carries its OWN reflection marker
-    // (the builder's InjectRunTypeId `id` param) and emits an earlier site, the
-    // one we must NOT link against (it's the runtype facade, not the factory).
+    // Not sites[0]: a builder snippet's own `RT.object(...)` emits an earlier reflection site, the runtype facade.
     site: pickFactorySite(sites),
     entryModules: (result.entryModules as Record<string, string>) ?? {},
     runTypes: (result.runTypes as RunTypeNode[]) ?? [],
@@ -260,7 +263,7 @@ function materialize(
   options?: string
 ): Materialized {
   const {tuple, diagnostics} = linkEntry(dispatch, factory, userCode, mode, options);
-  const fn = factories[factory](undefined, undefined, tuple) as Materialized['fn'];
+  const fn = factoryEntry(factory).fn(undefined, undefined, tuple);
   return {fn, diagnostics};
 }
 
@@ -314,17 +317,12 @@ export async function transformedSource(
 // A single generated cache module: the virtual-module specifier the transformed
 // file (or a sibling cache) imports, plus its `export const __rt_… = […]` source.
 export interface CacheModule {
-  name: string; // e.g. `rtmod:/fns/jdST.js`
+  name: string; // e.g. `rtmod:/fns/jdCL.js`
   code: string;
 }
 
-// generatedCache returns the generated cache modules for this factory + type,
-// one entry per family module the resolver emits (ModuleMode allSingle = one per
-// family tag). A single-function type is one module; a JSON/binary codec is a few
-// (the composite + the primitives it looks up at runtime), which import each
-// other: the UI labels each with its module name and keeps the imports so the
-// cross-module structure is visible. For reflection (getRunType) it is the single
-// runtype data bundle.
+// One module per family tag (allSingle); a JSON codec spans several, and their imports stay so the UI shows the links.
+// For reflection (getRunType) it is the single runtype data bundle.
 export async function generatedCache(
   factory: string,
   userCode: string,
@@ -437,15 +435,6 @@ function projectValue(value: unknown, path: Set<unknown>, budget: {left: number}
   return value;
 }
 
-function toHex(bytes: Uint8Array): string {
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-function asBytes(value: unknown): Uint8Array {
-  if (value instanceof Uint8Array) return value; // createBinaryEncoderFn returns a Uint8Array view
-  return new Uint8Array(value as ArrayBuffer);
-}
-
 // run executes the chosen operation. `input` is the parsed JS value (may be
 // undefined for ops that take no input). `mode` selects the TS-type vs builder form.
 export async function run(
@@ -503,18 +492,6 @@ export async function run(
       const encoded = enc.fn(input);
       const decoded = dec.fn(encoded);
       return {op, kind: 'jsonRoundtrip', encoded, decoded, diagnostics: dec.diagnostics};
-    }
-    case 'binaryEncode': {
-      const {fn, diagnostics} = materialize(dispatch, op.factory, userCode, mode);
-      const bytes = asBytes(fn(input));
-      return {op, kind: 'binaryEncode', byteLength: bytes.length, hex: toHex(bytes), diagnostics};
-    }
-    case 'binaryRoundtrip': {
-      const enc = materialize(dispatch, 'createBinaryEncoderFn', userCode, mode);
-      const dec = materialize(dispatch, 'createBinaryDecoderFn', userCode, mode);
-      const bytes = asBytes(enc.fn(input));
-      const decoded = dec.fn(bytes);
-      return {op, kind: 'binaryRoundtrip', byteLength: bytes.length, hex: toHex(bytes), decoded, diagnostics: dec.diagnostics};
     }
     default:
       throw new Error(`unknown operation kind: ${String(op.kind)}`);

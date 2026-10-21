@@ -91,7 +91,7 @@ type TaggedPair = {a: string; b: symbol};
 type Loose = {a: any};
 type Thing = {a: object};
 type Mail = TF.Email;
-type MailBoundedLocal = TF.Email<{localPart: {maxLength: 64}}>;
+type MailParts = TF.EmailParts;
 type Short = TF.String<{minLength: 3}>;
 type Code = TF.String<{pattern: {source: '^ab+c$'; flags: ''}}>;
 type CodeInsensitive = TF.String<{pattern: {source: '^ab+c$'; flags: 'i'}}>;
@@ -157,6 +157,18 @@ describe('json-schema-2020-12-javascript — the dialect spec', () => {
     expect(createJsonSchemaFn<Stamp>()()).toEqual(DATE_DOC);
   });
 
+  rule('JS-URL', 'a URL travels as its href, a uri string', () => {
+    expect(createJsonSchemaFn<URL>()()).toEqual({type: 'string', format: 'uri', jsType: 'URL'});
+    // A Url object names its family instead, its length params on the standard keywords and in rtFormatParams.
+    expect(createJsonSchemaFn<TF.Url<{maxLength: 200}>>()()).toEqual({
+      type: 'string',
+      format: 'uri',
+      maxLength: 200,
+      rtFormat: 'nativeUrl',
+      rtFormatParams: {maxLength: 200},
+    });
+  });
+
   rule('JS-BIGINT-LITERAL', 'a bigint literal pins the wire value under const', () => {
     const doc = createJsonSchemaFn<Build>()();
     expect(doc).toEqual({type: 'string', const: '4096', jsType: 'bigint'});
@@ -164,8 +176,8 @@ describe('json-schema-2020-12-javascript — the dialect spec', () => {
     expectAbsent(doc, ['jsBigint']);
   });
 
-  rule('JS-REGEXP', 'a RegExp travels as its String(re) form', () => {
-    expect(createJsonSchemaFn<Matcher>()()).toEqual({type: 'string', jsType: 'RegExp'});
+  rule('JS-REGEXP', 'a RegExp is not data and renders as the empty schema (it never reaches the wire)', () => {
+    expect(createJsonSchemaFn<Matcher>()()).toEqual({});
   });
 
   // ── jsType: Temporal ─────────────────────────────────────────────────────
@@ -288,11 +300,10 @@ describe('json-schema-2020-12-javascript — the dialect spec', () => {
   });
 
   rule('RT-FORMAT-PARAMS', 'rtFormatParams carries ALL the family params, localPart included', () => {
-    // `localPart` has no standard keyword; every param folds into the
-    // identity, so carrying only the leftovers would change what the type is.
-    expect(createJsonSchemaFn<MailBoundedLocal>()()).toMatchObject({
+    // Every param folds into the identity, so carrying only those without a standard keyword would change it.
+    expect(createJsonSchemaFn<MailParts>()()).toMatchObject({
       rtFormat: 'email',
-      rtFormatParams: {localPart: {maxLength: 64}, maxLength: 254, minLength: 7},
+      rtFormatParams: {localPart: {maxLength: 64, minLength: 1}, maxLength: 254, domain: {maxParts: 6}},
     });
   });
 

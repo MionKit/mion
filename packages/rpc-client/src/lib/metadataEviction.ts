@@ -1,0 +1,78 @@
+/* ########
+ * 2026 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+import {DEFAULT_PARSER, EMPTY_HASH, getJitFnHashes} from '@mionjs/core';
+import type {CompiledFnData, MethodWithOptions, PureFunctionData} from '@mionjs/core';
+import type {MetadataRecordKey} from './storage.ts';
+
+/** The stored cache as one graph: methods point at compiled functions by hash, and those point at
+ *  each other. Everything already parsed by the hydrator, so the sweep costs no extra reads. */
+export interface CacheGraph {
+  /** by methodId */
+  methods: Record<string, MethodWithOptions>;
+  /** by compiled function hash */
+  deps: Record<string, CompiledFnData>;
+  /** by `${namespace}::${fnName}` */
+  pureFns: Record<string, PureFunctionData>;
+}
+
+/** Every compiled function hash the method itself names, across both wires and both header sets. */
+function methodRootHashes(metadata: MethodWithOptions): string[] {
+  const parser = metadata.options?.parser ?? DEFAULT_PARSER;
+  const roots: string[] = [];
+  // a root is anything the method COULD reach; a hash it never uses is simply absent from the store
+  const addSet = (jitHash: string, strategy: Parameters<typeof getJitFnHashes>[1]) => {
+    if (!jitHash || jitHash === EMPTY_HASH) return;
+    // the optional hashes are absent on the returned shape, so only the real strings become roots
+    for (const hash of Object.values(getJitFnHashes(jitHash, strategy)) as (string | undefined)[]) {
+      if (typeof hash === 'string') roots.push(hash);
+    }
+  };
+  addSet(metadata.paramsJitHash, parser.params);
+  addSet(metadata.returnJitHash, parser.return);
+  if (metadata.headersParam) addSet(metadata.headersParam.jitHash, 'mutate');
+  if (metadata.headersReturn) addSet(metadata.headersReturn.jitHash, 'mutate');
+  return roots;
+}
+
+/** The compiled functions no stored method can reach any more. Hashes are content addresses, so an entry is
+ *  never stale, only unreachable: a deploy rewrites a method's row and leaves the old hashes behind. */
+export function findOrphans(graph: CacheGraph): MetadataRecordKey[] {
+  const reachedDeps = new Set<string>();
+  const reachedPureFns = new Set<string>();
+  const pending: string[] = [];
+
+  for (const metadata of Object.values(graph.methods)) {
+    for (const hash of methodRootHashes(metadata)) {
+      if (graph.deps[hash] && !reachedDeps.has(hash)) {
+        reachedDeps.add(hash);
+        pending.push(hash);
+      }
+    }
+  }
+
+  const reachPureFn = (key: string) => {
+    if (reachedPureFns.has(key)) return;
+    reachedPureFns.add(key);
+    for (const nested of graph.pureFns[key]?.pureFnDependencies ?? []) reachPureFn(nested);
+  };
+
+  while (pending.length) {
+    const entry = graph.deps[pending.pop() as string];
+    for (const hash of entry?.rtDependencies ?? []) {
+      if (!graph.deps[hash] || reachedDeps.has(hash)) continue;
+      reachedDeps.add(hash);
+      pending.push(hash);
+    }
+    for (const key of entry?.pureFnDependencies ?? []) reachPureFn(key);
+  }
+
+  const orphans: MetadataRecordKey[] = [];
+  for (const hash of Object.keys(graph.deps)) if (!reachedDeps.has(hash)) orphans.push(['j', hash]);
+  for (const key of Object.keys(graph.pureFns)) if (!reachedPureFns.has(key)) orphans.push(['p', key]);
+  return orphans;
+}

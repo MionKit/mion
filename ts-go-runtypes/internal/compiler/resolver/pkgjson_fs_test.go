@@ -20,7 +20,7 @@ import (
 func TestMarkerGate_ReadsOverlayPackageJson(t *testing.T) {
 	const idx = `
 export type InjectTypeFnArgs<T, F1 extends string, F2 extends string = never, F3 extends string = never> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFns?: [F1, F2, F3]};
-export declare function createValidateFn<T>(val?: T, id?: InjectTypeFnArgs<T, 'val'>): (v: unknown) => boolean;
+export declare function createValidateFn<T>(val?: T, id?: InjectTypeFnArgs<T, 'validate'>): (v: unknown) => boolean;
 `
 	const callCode = `import {createValidateFn} from '@mionjs/run-types';
 createValidateFn<{a: string}>();
@@ -83,8 +83,8 @@ func TestMarkerGate_IsRunTypeReadsOverlayForAnnotatedSchemaConst(t *testing.T) {
 	const idx = `
 export type InjectTypeFnArgs<T, F1 extends string, F2 extends string = never, F3 extends string = never> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFns?: [F1, F2, F3]};
 export interface RunType<T = unknown> { id: string; kind: unknown; readonly __rtType?: {t: T}; [k: string]: unknown }
-export function createValidateFn<T>(schema: RunType<T>, id?: InjectTypeFnArgs<T, 'val'>): (v: unknown) => boolean;
-export function createValidateFn<T>(val?: T, id?: InjectTypeFnArgs<T, 'val'>): (v: unknown) => boolean;
+export function createValidateFn<T>(schema: RunType<T>, id?: InjectTypeFnArgs<T, 'validate'>): (v: unknown) => boolean;
+export function createValidateFn<T>(val?: T, id?: InjectTypeFnArgs<T, 'validate'>): (v: unknown) => boolean;
 `
 	const callCode = `import {createValidateFn, type RunType} from '@mionjs/run-types';
 const s: RunType<{a: string}> = null as unknown as RunType<{a: string}>;

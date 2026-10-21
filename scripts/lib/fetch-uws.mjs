@@ -3,17 +3,17 @@
 //
 // uWebSockets.js is deliberately NOT on npm; upstream commits the prebuilt
 // .node addons into each git tag. This script fetches them file-by-file from
-// raw.githubusercontent.com at the tag pinned in packages/uws/package.json
+// raw.githubusercontent.com at the tag pinned in packages/bin-uws/package.json
 // (`uwsTag`) and verifies every download's sha256 against
-// packages/uws/uws-checksums.json BEFORE it is used, so neither dev machines
+// packages/bin-uws/uws-checksums.json BEFORE it is used, so neither dev machines
 // nor CI ever trust the network (same posture as the workspace's
 // verifyStoreIntegrity / frozenLockfile).
 //
 // Modes:
 //   (default)   dev — fetch ONLY the host's binary (~13 MB) into the gitignored
-//               dev cache packages/uws/.uws-cache/<tag>/. Idempotent: a cached
+//               dev cache packages/bin-uws/.uws-cache/<tag>/. Idempotent: a cached
 //               file that hashes clean is not re-downloaded. This is what
-//               `pnpm rtx core build uws` (and so the root pretest) runs.
+//               `pnpm miondevx core build uws` (and so the root pretest) runs.
 //   --file <n>  fetch exactly this binary (repeatable), for a platform/ABI that is
 //               not the host's — the mion-bench container's linux Node 26 one
 //   --all       fetch ALL binaries in the manifest + LICENSE into the same
@@ -24,7 +24,7 @@
 //               Run this ONLY when bumping `uwsTag`, on a trusted network, and
 //               eyeball the diff — after this one moment every later fetch is
 //               pinned. Also refresh the supported-matrix tables in
-//               packages/uws/lib/index.js and this file's PLATFORMS/ABIS if
+//               packages/bin-uws/lib/index.js and this file's PLATFORMS/ABIS if
 //               upstream changed them between tags.
 //
 // A fetch failure names the URL, the cache path, and the MION_UWS_BINARY_DIR
@@ -35,21 +35,28 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {loadEnv, REPO_ROOT} from './env.mjs';
 import {info, reportCliError, success} from './proc.mjs';
+import {UWS_PLATFORMS} from './binary-platforms.mjs';
 
-export const UWS_PKG_DIR = path.join(REPO_ROOT, 'packages', 'uws');
+export const UWS_PKG_DIR = path.join(REPO_ROOT, 'packages', 'bin-uws');
 const CHECKSUMS_FILE = path.join(UWS_PKG_DIR, 'uws-checksums.json');
 export const UWS_CACHE_DIR = path.join(UWS_PKG_DIR, '.uws-cache');
 
-// Platform-arch pairs and Node ABIs the pinned tag ships. Keep in lockstep with
-// SUPPORTED_PLATFORMS / ABI_TO_NODE_MAJOR in packages/uws/lib/index.js.
-const PLATFORMS = ['linux_x64', 'linux_arm64', 'darwin_x64', 'darwin_arm64', 'win32_x64'];
+// Platform-arch pairs (the shared UWS_PLATFORMS list, in upstream's file-name
+// spelling) and the Node ABIs the pinned tag ships. Keep the ABIs in lockstep
+// with ABI_TO_NODE_MAJOR in packages/bin-uws/lib/index.js.
+const PLATFORMS = UWS_PLATFORMS.map((platform) => `${platform.os}_${platform.cpu}`);
 const ABIS = ['127', '137', '147'];
 export const UWS_LICENSE_FILE = 'LICENSE';
 
 export function readUwsTag() {
   const manifest = JSON.parse(fs.readFileSync(path.join(UWS_PKG_DIR, 'package.json'), 'utf8'));
-  if (!manifest.uwsTag) throw new Error('packages/uws/package.json has no uwsTag pin.');
+  if (!manifest.uwsTag) throw new Error('packages/bin-uws/package.json has no uwsTag pin.');
   return manifest.uwsTag;
+}
+
+// The binaries of ONE platform (every Node ABI), what a host-only staging fetches.
+export function uwsFilesFor(platform) {
+  return ABIS.map((abi) => `uws_${platform.os}_${platform.cpu}_${abi}.node`);
 }
 
 // Every file the mirror needs: 15 binaries + the upstream Apache-2.0 LICENSE.

@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.compile.json",
+  "compilerOptions": {
+    "outDir": "dist-cli-fetch"
+  },
+  // The fetch lane: the server plus a client that gets every route from the server, compiled with
+  // --client-routes fetch. The bundling client stays out, since this build bundles nothing for it.
+  "exclude": ["node_modules", "dist", "dist-cli", "dist-cli-fetch", "src/tests", "src/client/batchFlow.ts"]
+}

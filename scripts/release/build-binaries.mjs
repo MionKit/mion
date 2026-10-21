@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Cross-compiles the mion resolver binary for every supported platform
 // and assembles the npm packages that distribute them:
-//   - @mionjs/binary-<os>-<arch>  one per platform (os/cpu-gated payload)
-//   - @mionjs/bin                 the launcher, with optionalDependencies filled
+//   - @mionjs/native-compiler-<os>-<arch>  one per platform (os/cpu-gated payload)
+//   - @mionjs/bin-compiler                 the launcher, with optionalDependencies filled
 //
 // Output is staged under dist-binaries/ (gitignored). This script does NOT
 // publish — scripts/release/publish.mjs runs it, then publishes the platform packages
@@ -12,11 +12,26 @@
 //
 // Pure Go (CGO_ENABLED=0, no `import "C"`), so all targets cross-compile from
 // any host with the Go toolchain — no per-platform C toolchain required.
+//
+// Flags:
+//   --host-only   build ONLY this machine's platform package. For a lane that
+//                 installs the packed tarballs on the platform that built them
+//                 (the drizzle-e2e workflow: ubuntu runners, linux/amd64
+//                 containers), the other six cross-builds are ~15 minutes of
+//                 wasted runner; the uws mirror (build-uws-binaries.mjs) follows
+//                 the same switch. The launcher's / shim's optionalDependencies
+//                 and publish-order.json list only what was staged, so pack.mjs
+//                 still produces a consistent set. NEVER a release:
+//                 publish-tarballs.mjs refuses a tarball set missing a platform.
 
 import {execFileSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {resolverDigest} from '../core/build.mjs';
+import {platformPackageName, selectPlatforms} from '../lib/binary-platforms.mjs';
+import {tsgolintCommit} from '../lib/tsgolint.mjs';
 import {main as stageUwsPackages} from './build-uws-binaries.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -24,20 +39,10 @@ const GO_ROOT = path.join(REPO_ROOT, 'ts-go-runtypes');
 const GO_MODULE = 'github.com/mionkit/mion/ts-go-runtypes';
 const GO_PKG = './cmd/mion';
 const STAGING_DIR = path.join(REPO_ROOT, 'dist-binaries');
-const LAUNCHER_SRC = path.join(REPO_ROOT, 'packages', 'bin');
+const LAUNCHER_SRC = path.join(REPO_ROOT, 'packages', 'bin-compiler');
 const LICENSE_SRC = path.join(REPO_ROOT, 'LICENSE');
-
-// node os / cpu (the package.json os/cpu fields and process.platform/arch keys)
-// → Go GOOS / GOARCH. Keep in lockstep with getExePath()'s platform key.
-const PLATFORMS = [
-  {os: 'linux', cpu: 'x64', goos: 'linux', goarch: 'amd64'},
-  {os: 'linux', cpu: 'arm64', goos: 'linux', goarch: 'arm64'},
-  {os: 'linux', cpu: 'arm', goos: 'linux', goarch: 'arm', goarm: '6'},
-  {os: 'darwin', cpu: 'x64', goos: 'darwin', goarch: 'amd64'},
-  {os: 'darwin', cpu: 'arm64', goos: 'darwin', goarch: 'arm64'},
-  {os: 'win32', cpu: 'x64', goos: 'windows', goarch: 'amd64'},
-  {os: 'win32', cpu: 'arm64', goos: 'windows', goarch: 'arm64'},
-];
+// Keyed by inputs; CI caches this dir so an unchanged tree skips `go build`.
+const BIN_CACHE_DIR = path.join(REPO_ROOT, '.cache/release-bin');
 
 function readVersion() {
   const manifest = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'version.json'), 'utf8'));
@@ -47,18 +52,40 @@ function readVersion() {
   return manifest.version;
 }
 
-function readTsgoRevision() {
-  try {
-    return execFileSync('git', ['-C', path.join(GO_ROOT, 'third_party', 'tsgolint'), 'rev-parse', '--short', 'HEAD'], {
-      encoding: 'utf8',
-    }).trim();
-  } catch {
-    return 'unknown';
-  }
+// Fixed length, so the ldflags and the cache digest never vary between clones.
+const readTsgoRevision = () => tsgolintCommit().slice(0, 7) || 'unknown';
+
+export function releaseLdflags(version, tsgo) {
+  return ['-s', '-w', `-X ${GO_MODULE}/internal/constants.Version=${version}`, `-X ${GO_MODULE}/internal/constants.TsgoVersion=${tsgo}`].join(' ');
 }
 
-function platformPackageName(platform) {
-  return `@mionjs/binary-${platform.os}-${platform.cpu}`;
+// The cache digest hashes exactly this command and env, so the two cannot drift.
+export function goBuild(platform, ldflags, outFile) {
+  const env = {CGO_ENABLED: '0', GOOS: platform.goos, GOARCH: platform.goarch, ...(platform.goarm ? {GOARM: platform.goarm} : {})};
+  return {args: ['build', '-trimpath', `-ldflags=${ldflags}`, '-o', outFile, GO_PKG], env};
+}
+
+export function cachedBinPath(platform, ldflags) {
+  const {args, env} = goBuild(platform, ldflags, '');
+  const digest = resolverDigest(JSON.stringify({args, env})).slice(0, 32);
+  return path.join(BIN_CACHE_DIR, `${platformPackageName(platform).replace('/', '_')}-${digest}`, exeName(platform));
+}
+
+const runGoBuild = ({args, env}) => execFileSync('go', args, {cwd: GO_ROOT, env: {...process.env, ...env}, stdio: 'inherit'});
+
+// `build` is injectable for the tests.
+export function stageBinary(platform, ldflags, outFile, build = runGoBuild) {
+  const cached = cachedBinPath(platform, ldflags);
+  if (fs.existsSync(cached)) {
+    console.log(`    reused ${path.relative(REPO_ROOT, cached)}`);
+    fs.copyFileSync(cached, outFile);
+    fs.chmodSync(outFile, 0o755);
+    return 'reused';
+  }
+  build(goBuild(platform, ldflags, outFile));
+  fs.mkdirSync(path.dirname(cached), {recursive: true});
+  fs.copyFileSync(outFile, cached);
+  return 'built';
 }
 
 function exeName(platform) {
@@ -71,13 +98,13 @@ function platformReadme(name, platform) {
 Prebuilt **RunTypes** compiler binary for ${platform.os}-${platform.cpu}.
 
 You never install this package directly. It rides as a per-platform optional
-dependency of [\`@mionjs/bin\`](https://www.npmjs.com/package/@mionjs/bin),
+dependency of [\`@mionjs/bin-compiler\`](https://www.npmjs.com/package/@mionjs/bin-compiler),
 which resolves the one matching your machine, and that launcher is itself pulled in
 by [\`@mionjs/devtools\`](https://www.npmjs.com/package/@mionjs/devtools).
 
 ## Documentation
 
-Full guides live at **[runtypes.pages.dev](https://runtypes.pages.dev/)**.
+Full guides live at **[mion.pages.dev/runtypes](https://mion.pages.dev/runtypes)**.
 [Source and issues](https://github.com/MionKit/mion).
 
 ## License
@@ -93,24 +120,12 @@ function buildPlatform(platform, version, tsgo, launcherPkg) {
   const libDir = path.join(pkgDir, 'lib');
   fs.mkdirSync(libDir, {recursive: true});
 
-  const ldflags = [
-    '-s',
-    '-w',
-    `-X ${GO_MODULE}/internal/constants.Version=${version}`,
-    `-X ${GO_MODULE}/internal/constants.TsgoVersion=${tsgo}`,
-  ].join(' ');
-
-  const env = {...process.env, CGO_ENABLED: '0', GOOS: platform.goos, GOARCH: platform.goarch};
-  if (platform.goarm) env.GOARM = platform.goarm;
+  const ldflags = releaseLdflags(version, tsgo);
 
   const goarm = platform.goarm ? ` GOARM=${platform.goarm}` : '';
   console.log(`  - ${name}  (GOOS=${platform.goos} GOARCH=${platform.goarch}${goarm})`);
   const outFile = path.join(libDir, exeName(platform));
-  execFileSync('go', ['build', '-trimpath', `-ldflags=${ldflags}`, '-o', outFile, GO_PKG], {
-    cwd: GO_ROOT,
-    env,
-    stdio: 'inherit',
-  });
+  stageBinary(platform, ldflags, outFile);
 
   const packageJson = {
     name,
@@ -138,7 +153,7 @@ function buildPlatform(platform, version, tsgo, launcherPkg) {
 }
 
 function stageLauncher(version, tsgo, platformNames) {
-  const destDir = path.join(STAGING_DIR, '@mionjs/bin');
+  const destDir = path.join(STAGING_DIR, '@mionjs/bin-compiler');
   // Copy only the publishable files (never node_modules or stray cruft).
   fs.cpSync(LAUNCHER_SRC, destDir, {
     recursive: true,
@@ -160,33 +175,51 @@ function stageLauncher(version, tsgo, platformNames) {
   fs.copyFileSync(LICENSE_SRC, path.join(destDir, 'LICENSE'));
 }
 
-async function main() {
+function parseArgs(args) {
+  const unknown = args.find((arg) => arg !== '--host-only' && arg !== '--cache-key');
+  if (unknown) throw new Error(`build-binaries: unknown argument '${unknown}' (flags: --host-only, --cache-key).`);
+  return {hostOnly: args.includes('--host-only'), cacheKey: args.includes('--cache-key')};
+}
+
+// The actions/cache key for BIN_CACHE_DIR; needs no Go.
+export function binCacheKey(platforms, version, tsgo) {
+  const ldflags = releaseLdflags(version, tsgo);
+  const paths = platforms.map((platform) => cachedBinPath(platform, ldflags)).join('\n');
+  return `mion-release-bins-${createHash('sha256').update(paths).digest('hex').slice(0, 32)}`;
+}
+
+async function main(args) {
+  const {hostOnly, cacheKey} = parseArgs(args);
+  const platforms = selectPlatforms({hostOnly});
   const version = readVersion();
   const tsgo = readTsgoRevision();
+  if (cacheKey) return console.log(binCacheKey(platforms, version, tsgo));
   console.log(`Staging mion binary packages — version ${version}, tsgo ${tsgo}\n`);
-  console.log('Building plain go binaries (go build -trimpath, CGO_ENABLED=0)\n');
+  console.log(`Building plain go binaries (go build -trimpath, CGO_ENABLED=0)${hostOnly ? ' for the HOST platform only (--host-only: not a release set)' : ''}\n`);
 
   fs.rmSync(STAGING_DIR, {recursive: true, force: true});
   fs.mkdirSync(STAGING_DIR, {recursive: true});
 
   const launcherPkg = JSON.parse(fs.readFileSync(path.join(LAUNCHER_SRC, 'package.json'), 'utf8'));
-  const platformNames = PLATFORMS.map((platform) => buildPlatform(platform, version, tsgo, launcherPkg));
+  const platformNames = platforms.map((platform) => buildPlatform(platform, version, tsgo, launcherPkg));
   stageLauncher(version, tsgo, platformNames);
 
   // Platform packages first, launcher last.
-  const publishOrder = [...platformNames, '@mionjs/bin'];
+  const publishOrder = [...platformNames, '@mionjs/bin-compiler'];
   fs.writeFileSync(path.join(STAGING_DIR, 'publish-order.json'), JSON.stringify(publishOrder, null, 2) + '\n');
 
   console.log(`\nStaged ${platformNames.length} platform packages + launcher under ${path.relative(REPO_ROOT, STAGING_DIR)}/`);
   console.log(`Publish order: ${publishOrder.join(' -> ')}`);
 
   // The uWebSockets.js mirror rides the same staging area: payload packages +
-  // the @mionjs/uws shim, appended to publish-order.json payloads-first, packed
-  // and published with everything else.
-  await stageUwsPackages();
+  // the @mionjs/bin-uws shim, appended to publish-order.json payloads-first, packed
+  // and published with everything else. Host-only applies to it too.
+  await stageUwsPackages({hostOnly});
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (import.meta.main) {
+  main(process.argv.slice(2)).catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

@@ -1,37 +1,37 @@
 import {
   createGetValidationErrorsFn,
-  createHasUnknownKeysFn,
-  createUnknownKeyErrorsFn,
   createValidateFn,
   type GetValidationErrorsFn,
+  type RTValidationError,
 } from '@mionjs/run-types';
 
-// STRICT VALIDATION — the `{checkUnknowns: true}` path: a value is accepted only
-// if it validates AND carries no keys the type does not declare.
-//
-// The shapes mirror container/benchmarks/shared/cases/strict/index.ts case for
-// case, so the suite table and the benchmark table line up and neither can drift
-// into testing something the other does not measure. The benchmark tree is
-// marker-free by design (competitors consume it), so the thunks live here.
-//
-// Each case carries BOTH the fused function and the two-call composition it
-// replaces. That pairing is the point: the composition is the reference
-// implementation users are migrating off, so every assertion below is a
-// comparison rather than a hand-written expectation, and the two cannot drift
-// apart silently.
-//
-// COVERAGE THAT MUST NOT BE LOST — the two emit paths:
-//   - flat_required / nested_required / moltar_dto are all-required with no index
-//     signature, which is exactly what countFastPathN demands before it emits the
-//     O(1) `cntEK(v) === N` compare. Making any of them optional moves the case to
-//     the other path and leaves the count check uncovered here.
-//   - realworld_order carries an optional key, so it drops to the key-array scan.
-//     That is the realistic shape and the path most real DTOs get.
+// `{checkUnknowns: true}` cases mirroring container/benchmarks/shared/cases/strict/index.ts case for case; the thunks
+// live here because that tree stays marker-free for competitors. Each case carries an independent reference: the plain
+// report plus `undeclaredKeyErrors` over its declared keys. flat_required / nested_required / moltar_dto must stay
+// all-required with no index signature, or countFastPathN's `cntEK(v) === N` compare loses coverage; realworld_order's
+// optional key covers the key-array scan.
 
-/** One strict case: the samples, plus the fused functions and the composition
- *  they replace. Deliberately NOT the heavyweight ValidationCase contract — a
- *  compile-time flag has no mock / schema / value-first variants to cover, and
- *  requiring those thunks here would be noise rather than coverage. */
+/** `null` is a leaf; a one-element array declares its element. **/
+export type DeclaredKeys = {readonly [key: string]: DeclaredKeys | null} | readonly [DeclaredKeys];
+
+/** One `{expected: 'never'}` per undeclared key at any depth; a shape mismatch is the plain report's business. **/
+export function undeclaredKeyErrors(value: unknown, declared: DeclaredKeys, path: (string | number)[] = []): RTValidationError[] {
+  if (Array.isArray(declared)) {
+    if (!Array.isArray(value)) return [];
+    return value.flatMap((item, index) => undeclaredKeyErrors(item, declared[0], [...path, index]));
+  }
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return [];
+  const props = declared as {readonly [key: string]: DeclaredKeys | null};
+  const errors: RTValidationError[] = [];
+  for (const key of Object.keys(value)) {
+    if (!Object.hasOwn(props, key)) errors.push({path: [...path, key], expected: 'never'});
+    else if (props[key] !== null)
+      errors.push(...undeclaredKeyErrors((value as Record<string, unknown>)[key], props[key], [...path, key]));
+  }
+  return errors;
+}
+
+/** Not the heavyweight ValidationCase: a compile-time flag has no mock / schema / value-first variants to cover. */
 export interface StrictCase {
   title: string;
   description: string;
@@ -44,24 +44,14 @@ export interface StrictCase {
   validateStrict: () => (value: unknown) => boolean;
   /** `createGetValidationErrorsFn<T>(undefined, {checkUnknowns: true})`. */
   errorsStrict: () => GetValidationErrorsFn;
-  /** The composition the fused pair replaces, for the parity oracle. The
-   *  predicate is the `runsAfterValidation` variant because that is the one
-   *  being replaced: both it and the fused form assume validation already ran,
-   *  so neither emits a shape guard. The blind variant does, which makes it
-   *  answer differently for a value that validates without being a plain object.
-   *  The oracle short-circuits on `validate(v) &&`, which is the variant's
-   *  precondition. */
+  /** The plain validators: the type half of the reference. */
   validate: () => (value: unknown) => boolean;
-  hasUnknownKeys: () => (value: unknown) => boolean;
   errors: () => GetValidationErrorsFn;
-  unknownKeyErrors: () => GetValidationErrorsFn;
-  /** Set where the fused answer deliberately differs from the two-call
-   *  composition, so the parity oracles are replaced by an explicit divergence
-   *  assertion rather than silently relaxed. Unions are the only such shape:
-   *  `hasUnknownKeys` never validates, so it cannot tell which member a value
-   *  matched and pools every member's keys into one allowlist; the fused
-   *  validator inherits validate's OR chain and answers per branch. */
-  divergesFromComposition?: true;
+  /** The undeclared-key half of the reference; for a union, every key ANY member declares. */
+  declaredKeys: DeclaredKeys;
+  /** Unions only: the fused validator answers per branch, which the merged allowlist cannot.
+   *  Swaps the parity assertions for an explicit divergence check rather than relaxing them. */
+  divergesFromReference?: true;
 }
 
 export interface StrictFlat {
@@ -159,9 +149,8 @@ export const STRICT = {
     validateStrict: () => createValidateFn<StrictFlat>(undefined, {checkUnknowns: true}),
     errorsStrict: () => createGetValidationErrorsFn<StrictFlat>(undefined, {checkUnknowns: true}),
     validate: () => createValidateFn<StrictFlat>(),
-    hasUnknownKeys: () => createHasUnknownKeysFn<StrictFlat>(undefined, {runsAfterValidation: true}),
     errors: () => createGetValidationErrorsFn<StrictFlat>(),
-    unknownKeyErrors: () => createUnknownKeyErrorsFn<StrictFlat>(),
+    declaredKeys: {id: null, name: null, active: null},
   },
 
   nested_required: {
@@ -179,9 +168,8 @@ export const STRICT = {
     validateStrict: () => createValidateFn<StrictNested>(undefined, {checkUnknowns: true}),
     errorsStrict: () => createGetValidationErrorsFn<StrictNested>(undefined, {checkUnknowns: true}),
     validate: () => createValidateFn<StrictNested>(),
-    hasUnknownKeys: () => createHasUnknownKeysFn<StrictNested>(undefined, {runsAfterValidation: true}),
     errors: () => createGetValidationErrorsFn<StrictNested>(),
-    unknownKeyErrors: () => createUnknownKeyErrorsFn<StrictNested>(),
+    declaredKeys: {name: null, inner: {x: null, y: null}},
   },
 
   moltar_dto: {
@@ -200,9 +188,16 @@ export const STRICT = {
     validateStrict: () => createValidateFn<StrictMoltarDto>(undefined, {checkUnknowns: true}),
     errorsStrict: () => createGetValidationErrorsFn<StrictMoltarDto>(undefined, {checkUnknowns: true}),
     validate: () => createValidateFn<StrictMoltarDto>(),
-    hasUnknownKeys: () => createHasUnknownKeysFn<StrictMoltarDto>(undefined, {runsAfterValidation: true}),
     errors: () => createGetValidationErrorsFn<StrictMoltarDto>(),
-    unknownKeyErrors: () => createUnknownKeyErrorsFn<StrictMoltarDto>(),
+    declaredKeys: {
+      number: null,
+      negNumber: null,
+      maxNumber: null,
+      string: null,
+      longString: null,
+      boolean: null,
+      deeplyNested: {foo: null, num: null, bool: null},
+    },
   },
 
   realworld_order: {
@@ -233,9 +228,16 @@ export const STRICT = {
     validateStrict: () => createValidateFn<StrictOrder>(undefined, {checkUnknowns: true}),
     errorsStrict: () => createGetValidationErrorsFn<StrictOrder>(undefined, {checkUnknowns: true}),
     validate: () => createValidateFn<StrictOrder>(),
-    hasUnknownKeys: () => createHasUnknownKeysFn<StrictOrder>(undefined, {runsAfterValidation: true}),
     errors: () => createGetValidationErrorsFn<StrictOrder>(),
-    unknownKeyErrors: () => createUnknownKeyErrorsFn<StrictOrder>(),
+    declaredKeys: {
+      id: null,
+      customer: {id: null, email: null},
+      items: [{sku: null, name: null, qty: null, price: null}],
+      shipping: {street: null, city: null, state: null, zip: null, country: null},
+      status: null,
+      total: null,
+      note: null,
+    },
   },
 
   union_discriminated: {
@@ -256,13 +258,12 @@ export const STRICT = {
       null,
       'not-an-object',
     ],
-    divergesFromComposition: true,
+    divergesFromReference: true,
     validateStrict: () => createValidateFn<StrictShape>(undefined, {checkUnknowns: true}),
     errorsStrict: () => createGetValidationErrorsFn<StrictShape>(undefined, {checkUnknowns: true}),
     validate: () => createValidateFn<StrictShape>(),
-    hasUnknownKeys: () => createHasUnknownKeysFn<StrictShape>(undefined, {runsAfterValidation: true}),
     errors: () => createGetValidationErrorsFn<StrictShape>(),
-    unknownKeyErrors: () => createUnknownKeyErrorsFn<StrictShape>(),
+    declaredKeys: {kind: null, radius: null, side: null},
   },
 
   union_open: {
@@ -278,12 +279,11 @@ export const STRICT = {
       null,
       'not-an-object',
     ],
-    divergesFromComposition: true,
+    divergesFromReference: true,
     validateStrict: () => createValidateFn<StrictEither>(undefined, {checkUnknowns: true}),
     errorsStrict: () => createGetValidationErrorsFn<StrictEither>(undefined, {checkUnknowns: true}),
     validate: () => createValidateFn<StrictEither>(),
-    hasUnknownKeys: () => createHasUnknownKeysFn<StrictEither>(undefined, {runsAfterValidation: true}),
     errors: () => createGetValidationErrorsFn<StrictEither>(),
-    unknownKeyErrors: () => createUnknownKeyErrorsFn<StrictEither>(),
+    declaredKeys: {a: null, b: null},
   },
 } as const satisfies Record<string, StrictCase>;

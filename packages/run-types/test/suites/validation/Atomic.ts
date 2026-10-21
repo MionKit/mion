@@ -1,12 +1,7 @@
 import * as TF from '@mionjs/run-types/formats';
 import type {ValidationCase} from './types.ts';
-import {
-  createValidateFn,
-  createGetValidationErrorsFn,
-  createMockDataFn,
-  createStandardSchema,
-  type DataOnly,
-} from '@mionjs/run-types';
+import {createValidateFn, createGetValidationErrorsFn, createStandardSchema, type DataOnly} from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import * as RT from '@mionjs/run-types/builders';
 import {deserializeValidate, deserializeGetValidationErrors} from '../../util/deserializeRTFunctions.ts';
 
@@ -552,20 +547,18 @@ export const ATOMIC = {
 
   literal_symbol: {
     title: 'Symbol literal',
-    // DataOnly<unique symbol> collapses to `never` (symbols are non-data), so
-    // createValidateFn<DataOnly<T>>() can't reproduce the symbol validator.
-    dataOnlyDivergent: true,
-    description:
-      'A symbol literal is matched by its `description` rather than unique-symbol identity, per the reference semantics.',
+    description: 'A symbol literal (`typeof sym`) is still a symbol, which is not data, so the factory throws on first call.',
     validateNotes: [
-      'TS DIVERGENCE: Symbol literal types are matched by `description`, not by unique-symbol identity. A different `Symbol("hello")` instance with the same description WILL satisfy the type. Strict TS treats each `typeof sym` as a unique-symbol referring to that exact value.',
+      'DataOnly strips every symbol, a named one included. The Go pipeline renders an alwaysThrow factory (validate-symbol-root / validation-errors-symbol-root), like the bare `symbol` case.',
     ],
     validate: () => {
       const sym = Symbol('hello');
+      // @mion-downgrade-error validate-symbol-root
       return createValidateFn<typeof sym>();
     },
     standardSchema: () => {
       const sym = Symbol('hello');
+      // @mion-downgrade-error validation-errors-symbol-root validate-symbol-root
       return createStandardSchema<typeof sym>();
     },
     validateDataOnly: () => {
@@ -577,20 +570,24 @@ export const ATOMIC = {
     validateSchema: 'not-supported',
     deserializeValidate: () => {
       const sym = Symbol('hello');
+      // @mion-downgrade-error validate-symbol-root
       return deserializeValidate<typeof sym>();
     },
     validateReflect: () => {
       const sym = Symbol('hello');
       const v: typeof sym = sym;
+      // @mion-downgrade-error validate-symbol-root
       return createValidateFn(v);
     },
     deserializeValidateReflect: () => {
       const sym = Symbol('hello');
       const v: typeof sym = sym;
+      // @mion-downgrade-error validate-symbol-root
       return deserializeValidate(v);
     },
     getValidationErrors: () => {
       const sym = Symbol('hello');
+      // @mion-downgrade-error validation-errors-symbol-root
       return createGetValidationErrorsFn<typeof sym>();
     },
     getValidationErrorsDataOnly: () => {
@@ -600,16 +597,19 @@ export const ATOMIC = {
     getValidationErrorsSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       const sym = Symbol('hello');
+      // @mion-downgrade-error validation-errors-symbol-root
       return deserializeGetValidationErrors<typeof sym>();
     },
     getValidationErrorsReflect: () => {
       const sym = Symbol('hello');
       const v: typeof sym = sym;
+      // @mion-downgrade-error validation-errors-symbol-root
       return createGetValidationErrorsFn(v);
     },
     deserializeGetValidationErrorsReflect: () => {
       const sym = Symbol('hello');
       const v: typeof sym = sym;
+      // @mion-downgrade-error validation-errors-symbol-root
       return deserializeGetValidationErrors(v);
     },
     mockType: () => {
@@ -621,21 +621,8 @@ export const ATOMIC = {
       const v: typeof sym = sym;
       return createMockDataFn(v);
     },
-    getSamples: () => {
-      const sym = Symbol('hello');
-      return {
-        // identity by description per the reference semantics:
-        // emit is `typeof === 'symbol' && v.description === 'hello'`
-        valid: [sym, Symbol('hello')],
-        invalid: [Symbol('nice'), 'hello', null, undefined],
-      };
-    },
-    getExpectedErrors: () => [
-      [{path: [], expected: 'literal'}],
-      [{path: [], expected: 'literal'}],
-      [{path: [], expected: 'literal'}],
-      [{path: [], expected: 'literal'}],
-    ],
+    factoryThrows: true,
+    getSamples: () => ({valid: [], invalid: []}),
   },
 
   never: {
@@ -857,47 +844,48 @@ export const ATOMIC = {
 
   regexp: {
     title: 'RegExp',
-    description: 'The `RegExp` builtin uses an `instanceof RegExp` check.',
+    description: 'A `RegExp` is not data, so the factory throws on first call.',
     validateNotes: [
-      'Must be an actual RegExp instance (`instanceof RegExp`). A string like `"/abc/"` does NOT satisfy.',
-      'The getValidationErrors and mockType REFLECT forms are not supported: a reflect value `const v: RegExp = /abc/` narrows to the literal-regex type `/abc/`, dispatching to the regexp-literal arm — getValidationErrors would then report `expected: "literal"` instead of `"regexp"`, and mockType would resolve a regexp-literal runtype. The validate reflect forms survive because the validator body coincides on the samples; only the kindname-reporting paths diverge.',
+      'DataOnly strips RegExp: a pattern is code, not data. The Go pipeline renders an alwaysThrow factory (validate-non-data-root / validation-errors-non-data-root). The only regex a validator runs is a `pattern` format.',
+      'The getValidationErrors and mockType REFLECT forms stay opted out: a reflect value `const v: RegExp = /abc/` narrows to the literal-regex type `/abc/`.',
     ],
+    // @mion-downgrade-error validate-non-data-root
     validate: () => createValidateFn<RegExp>(),
+    // @mion-downgrade-error validation-errors-non-data-root validate-non-data-root
     standardSchema: () => createStandardSchema<RegExp>(),
     validateDataOnly: () => createValidateFn<DataOnly<RegExp>>(),
+    // @mion-downgrade-error validate-non-data-root
     validateSchema: () => createValidateFn(RT.regexp()),
+    // @mion-downgrade-error validate-non-data-root
     deserializeValidate: () => deserializeValidate<RegExp>(),
     validateReflect: () => {
       const v: RegExp = /abc/;
+      // @mion-downgrade-error validate-non-data-root
       return createValidateFn(v);
     },
     deserializeValidateReflect: () => {
       const v: RegExp = /abc/;
+      // @mion-downgrade-error validate-non-data-root
       return deserializeValidate(v);
     },
+    // @mion-downgrade-error validation-errors-non-data-root
     getValidationErrors: () => createGetValidationErrorsFn<RegExp>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<RegExp>>(),
+    // @mion-downgrade-error validation-errors-non-data-root
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.regexp()),
+    // @mion-downgrade-error validation-errors-non-data-root
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<RegExp>(),
     // Reflect forms for the kindname-reporting paths are deliberately opted out
     // (see validateNotes): `const v: RegExp = /abc/` narrows to the literal-regex
     // type and dispatches to the regexp-literal arm, diverging from the static form.
     getValidationErrorsReflect: 'not-supported',
     deserializeGetValidationErrorsReflect: 'not-supported',
+    // A RegExp is not data: a plain mock leaves it out (undefined), like a function.
     mockType: () => createMockDataFn<RegExp>(),
+    mockTypeExpect: 'skip',
     mockTypeReflect: 'not-supported',
-    getSamples: () => ({
-      valid: [/abc/, new RegExp('abc')],
-      invalid: [undefined, 42, 'hello', null, '/abc/', {}],
-    }),
-    getExpectedErrors: () => [
-      [{path: [], expected: 'regexp'}],
-      [{path: [], expected: 'regexp'}],
-      [{path: [], expected: 'regexp'}],
-      [{path: [], expected: 'regexp'}],
-      [{path: [], expected: 'regexp'}],
-      [{path: [], expected: 'regexp'}],
-    ],
+    factoryThrows: true,
+    getSamples: () => ({valid: [], invalid: []}),
   },
 
   string: {
@@ -950,33 +938,44 @@ export const ATOMIC = {
     title: 'Symbol',
     description: 'The bare `symbol` primitive is unsupported at root, so the factory throws on first call.',
     validateNotes: [
-      'Symbol at root is unsupported — identity does not survive across realms or round-trips, so a `typeof === "symbol"` check would give false confidence. The Go pipeline renders the factory as alwaysThrow (codes VL002 / VE002 / IS002), and the very first `createXxx<symbol>()` call throws.',
+      'Symbol at root is unsupported — identity does not survive across realms or round-trips, so a `typeof === "symbol"` check would give false confidence. The Go pipeline renders the factory as alwaysThrow (codes validate-symbol-root / validation-errors-symbol-root), and the very first `createXxx<symbol>()` call throws.',
     ],
+    // @mion-downgrade-error validate-symbol-root
     validate: () => createValidateFn<symbol>(),
+    // @mion-downgrade-error validation-errors-symbol-root validate-symbol-root
     standardSchema: () => createStandardSchema<symbol>(),
     validateDataOnly: () => createValidateFn<DataOnly<symbol>>(),
     // Bare symbol is unsupported at root — the value-first `RT.symbol()` resolves
     // the same alwaysThrow factory, so this thunk throws like the type-first form.
+    // @mion-downgrade-error validate-symbol-root
     validateSchema: () => createValidateFn(RT.symbol()),
+    // @mion-downgrade-error validate-symbol-root
     deserializeValidate: () => deserializeValidate<symbol>(),
     validateReflect: () => {
       const v: symbol = Symbol();
+      // @mion-downgrade-error validate-symbol-root
       return createValidateFn(v);
     },
     deserializeValidateReflect: () => {
       const v: symbol = Symbol();
+      // @mion-downgrade-error validate-symbol-root
       return deserializeValidate(v);
     },
+    // @mion-downgrade-error validation-errors-symbol-root
     getValidationErrors: () => createGetValidationErrorsFn<symbol>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<symbol>>(),
+    // @mion-downgrade-error validation-errors-symbol-root
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.symbol()),
+    // @mion-downgrade-error validation-errors-symbol-root
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<symbol>(),
     getValidationErrorsReflect: () => {
       const v: symbol = Symbol();
+      // @mion-downgrade-error validation-errors-symbol-root
       return createGetValidationErrorsFn(v);
     },
     deserializeGetValidationErrorsReflect: () => {
       const v: symbol = Symbol();
+      // @mion-downgrade-error validation-errors-symbol-root
       return deserializeGetValidationErrors(v);
     },
     mockType: () => createMockDataFn<symbol>(),
@@ -1082,345 +1081,6 @@ export const ATOMIC = {
       };
     },
     getExpectedErrors: () => [[{path: [], expected: 'void'}], [{path: [], expected: 'void'}], [{path: [], expected: 'void'}]],
-  },
-
-  // noLiterals variants — mirror the `noLiterals: true` block in
-  // literal.spec.ts. Each literal degrades to its base-type
-  // check: the validator accepts any value of the base type instead
-  // of only the exact literal. The Go-side resolver swaps the
-  // literal type for its base via Checker_getBaseTypeOfLiteralType
-  // before assigning the hash (see internal/compiler/resolver/scan.go), so
-  // these cases reuse the existing base-kind emit code.
-
-  literal_2_noLiterals: {
-    title: 'Numeric literal noLiterals',
-    description: 'With `{noLiterals: true}` the numeric literal degrades to `number`, using a `Number.isFinite` check.',
-    validateNotes:
-      'With `{noLiterals: true}` the literal degrades to its base type (`number`). The exact-literal check is replaced by `Number.isFinite` — same rules as the atomic `number` validator (NaN / Infinity / -Infinity rejected).',
-    validate: () => createValidateFn<2>(undefined, {noLiterals: true}),
-    standardSchema: () => createStandardSchema<2>(undefined, {noLiterals: true}),
-    validateDataOnly: () => createValidateFn<DataOnly<2>>(undefined, {noLiterals: true}),
-    // Value-first mirror of the type-first form: the SAME literal id carrying the
-    // SAME {noLiterals} option — both resolve the `itNL_<literal-2 id>` variant.
-    // (noLiterals keeps the literal's structural id and folds into the variant
-    // key; it does NOT degrade to `number`'s id before hashing.)
-    validateSchema: () => createValidateFn(RT.literal(2), {noLiterals: true}),
-    deserializeValidate: () => deserializeValidate<2>(undefined, {noLiterals: true}),
-    validateReflect: () => {
-      const v = 2 as const;
-      return createValidateFn(v, {noLiterals: true});
-    },
-    deserializeValidateReflect: () => {
-      const v = 2 as const;
-      return deserializeValidate(v, {noLiterals: true});
-    },
-    getValidationErrors: () => createGetValidationErrorsFn<2>(undefined, {noLiterals: true}),
-    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<2>>(undefined, {noLiterals: true}),
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.literal(2), {noLiterals: true}),
-    deserializeGetValidationErrors: () => deserializeGetValidationErrors<2>(undefined, {noLiterals: true}),
-    getValidationErrorsReflect: () => {
-      const v = 2 as const;
-      return createGetValidationErrorsFn(v, {noLiterals: true});
-    },
-    deserializeGetValidationErrorsReflect: () => {
-      const v = 2 as const;
-      return deserializeGetValidationErrors(v, {noLiterals: true});
-    },
-    mockType: () => createMockDataFn<2>(undefined, undefined),
-    mockTypeReflect: () => {
-      const v = 2 as const;
-      return createMockDataFn(v);
-    },
-    getSamples: () => ({valid: [4, 0, -1], invalid: ['4', Infinity, NaN, null]}),
-    getExpectedErrors: () => [
-      [{path: [], expected: 'number'}],
-      [{path: [], expected: 'number'}],
-      [{path: [], expected: 'number'}],
-      [{path: [], expected: 'number'}],
-    ],
-  },
-
-  literal_a_noLiterals: {
-    title: 'String literal noLiterals',
-    description: 'With `{noLiterals: true}` the string literal degrades to `string`, using a typeof check.',
-    validateNotes:
-      '`{noLiterals: true}` degrades the literal to its base type `string`. Any string passes, including the empty string.',
-    validate: () => createValidateFn<'a'>(undefined, {noLiterals: true}),
-    standardSchema: () => createStandardSchema<'a'>(undefined, {noLiterals: true}),
-    validateDataOnly: () => createValidateFn<DataOnly<'a'>>(undefined, {noLiterals: true}),
-    validateSchema: () => createValidateFn(RT.literal('a'), {noLiterals: true}),
-    deserializeValidate: () => deserializeValidate<'a'>(undefined, {noLiterals: true}),
-    validateReflect: () => {
-      const v = 'a' as const;
-      return createValidateFn(v, {noLiterals: true});
-    },
-    deserializeValidateReflect: () => {
-      const v = 'a' as const;
-      return deserializeValidate(v, {noLiterals: true});
-    },
-    getValidationErrors: () => createGetValidationErrorsFn<'a'>(undefined, {noLiterals: true}),
-    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<'a'>>(undefined, {noLiterals: true}),
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.literal('a'), {noLiterals: true}),
-    deserializeGetValidationErrors: () => deserializeGetValidationErrors<'a'>(undefined, {noLiterals: true}),
-    getValidationErrorsReflect: () => {
-      const v = 'a' as const;
-      return createGetValidationErrorsFn(v, {noLiterals: true});
-    },
-    deserializeGetValidationErrorsReflect: () => {
-      const v = 'a' as const;
-      return deserializeGetValidationErrors(v, {noLiterals: true});
-    },
-    mockType: () => createMockDataFn<'a'>(undefined, undefined),
-    mockTypeReflect: () => {
-      const v = 'a' as const;
-      return createMockDataFn(v);
-    },
-    getSamples: () => ({valid: ['c', ''], invalid: [1, null, undefined, true]}),
-    getExpectedErrors: () => [
-      [{path: [], expected: 'string'}],
-      [{path: [], expected: 'string'}],
-      [{path: [], expected: 'string'}],
-      [{path: [], expected: 'string'}],
-    ],
-  },
-
-  literal_regexp_noLiterals: {
-    title: 'RegExp literal noLiterals',
-    description: 'With `{noLiterals: true}` the RegExp literal degrades to `RegExp`, using an instanceof check.',
-    validateNotes: [
-      '`{noLiterals: true}` degrades the literal to its base type `RegExp`. Any RegExp instance passes (constructor form `new RegExp(...)` included); source + flags are no longer matched.',
-    ],
-    validate: () => {
-      const reg = /abc/i;
-      return createValidateFn<typeof reg>(undefined, {noLiterals: true});
-    },
-    standardSchema: () => {
-      const reg = /abc/i;
-      return createStandardSchema<typeof reg>(undefined, {noLiterals: true});
-    },
-    validateDataOnly: () => {
-      const reg = /abc/i;
-      return createValidateFn<DataOnly<typeof reg>>(undefined, {noLiterals: true});
-    },
-    // Value-first mirror: RegExp base kind + the SAME {noLiterals} option, so both
-    // resolve the `itNL_<regexp id>` variant. (No RegExp-literal kind exists since
-    // PR #76, so `typeof /abc/i` is plain `RegExp` — `RT.regexp()` is the match.)
-    validateSchema: () => createValidateFn(RT.regexp(), {noLiterals: true}),
-    deserializeValidate: () => {
-      const reg = /abc/i;
-      return deserializeValidate<typeof reg>(undefined, {noLiterals: true});
-    },
-    validateReflect: () => {
-      const reg = /abc/i;
-      const v: typeof reg = reg;
-      return createValidateFn(v, {noLiterals: true});
-    },
-    deserializeValidateReflect: () => {
-      const reg = /abc/i;
-      const v: typeof reg = reg;
-      return deserializeValidate(v, {noLiterals: true});
-    },
-    getValidationErrors: () => {
-      const reg = /abc/i;
-      return createGetValidationErrorsFn<typeof reg>(undefined, {noLiterals: true});
-    },
-    getValidationErrorsDataOnly: () => {
-      const reg = /abc/i;
-      return createGetValidationErrorsFn<DataOnly<typeof reg>>(undefined, {noLiterals: true});
-    },
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.regexp(), {noLiterals: true}),
-    deserializeGetValidationErrors: () => {
-      const reg = /abc/i;
-      return deserializeGetValidationErrors<typeof reg>(undefined, {noLiterals: true});
-    },
-    getValidationErrorsReflect: () => {
-      const reg = /abc/i;
-      const v: typeof reg = reg;
-      return createGetValidationErrorsFn(v, {noLiterals: true});
-    },
-    deserializeGetValidationErrorsReflect: () => {
-      const reg = /abc/i;
-      const v: typeof reg = reg;
-      return deserializeGetValidationErrors(v, {noLiterals: true});
-    },
-    mockType: () => {
-      const reg = /abc/i;
-      return createMockDataFn<typeof reg>(undefined, undefined);
-    },
-    mockTypeReflect: () => {
-      const reg = /abc/i;
-      const v: typeof reg = reg;
-      return createMockDataFn(v);
-    },
-    getSamples: () => ({valid: [/otherReg/, new RegExp('foo')], invalid: ['otherReg', null, undefined, {}]}),
-    getExpectedErrors: () => [
-      [{path: [], expected: 'regexp'}],
-      [{path: [], expected: 'regexp'}],
-      [{path: [], expected: 'regexp'}],
-      [{path: [], expected: 'regexp'}],
-    ],
-  },
-
-  literal_true_noLiterals: {
-    title: 'Boolean literal noLiterals',
-    description: 'With `{noLiterals: true}` the boolean literal degrades to `boolean`, using a typeof check.',
-    validateNotes:
-      '`{noLiterals: true}` degrades the literal to its base type `boolean`. Either `true` or `false` passes; truthy values like 1 are still rejected.',
-    validate: () => createValidateFn<true>(undefined, {noLiterals: true}),
-    standardSchema: () => createStandardSchema<true>(undefined, {noLiterals: true}),
-    validateDataOnly: () => createValidateFn<DataOnly<true>>(undefined, {noLiterals: true}),
-    validateSchema: () => createValidateFn(RT.literal(true), {noLiterals: true}),
-    deserializeValidate: () => deserializeValidate<true>(undefined, {noLiterals: true}),
-    validateReflect: () => {
-      const v = true as const;
-      return createValidateFn(v, {noLiterals: true});
-    },
-    deserializeValidateReflect: () => {
-      const v = true as const;
-      return deserializeValidate(v, {noLiterals: true});
-    },
-    getValidationErrors: () => createGetValidationErrorsFn<true>(undefined, {noLiterals: true}),
-    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<true>>(undefined, {noLiterals: true}),
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.literal(true), {noLiterals: true}),
-    deserializeGetValidationErrors: () => deserializeGetValidationErrors<true>(undefined, {noLiterals: true}),
-    getValidationErrorsReflect: () => {
-      const v = true as const;
-      return createGetValidationErrorsFn(v, {noLiterals: true});
-    },
-    deserializeGetValidationErrorsReflect: () => {
-      const v = true as const;
-      return deserializeGetValidationErrors(v, {noLiterals: true});
-    },
-    mockType: () => createMockDataFn<true>(undefined, undefined),
-    mockTypeReflect: () => {
-      const v = true as const;
-      return createMockDataFn(v);
-    },
-    getSamples: () => ({valid: [false, true], invalid: [1, 0, 'true', null, undefined]}),
-    getExpectedErrors: () => [
-      [{path: [], expected: 'boolean'}],
-      [{path: [], expected: 'boolean'}],
-      [{path: [], expected: 'boolean'}],
-      [{path: [], expected: 'boolean'}],
-      [{path: [], expected: 'boolean'}],
-    ],
-  },
-
-  literal_1n_noLiterals: {
-    title: 'BigInt literal noLiterals',
-    description: 'With `{noLiterals: true}` the bigint literal degrades to `bigint`, using a typeof check.',
-    validateNotes: [
-      '`{noLiterals: true}` degrades the literal to its base type `bigint`. Any bigint passes; the number `1` does NOT.',
-    ],
-    validate: () => createValidateFn<1n>(undefined, {noLiterals: true}),
-    standardSchema: () => createStandardSchema<1n>(undefined, {noLiterals: true}),
-    validateDataOnly: () => createValidateFn<DataOnly<1n>>(undefined, {noLiterals: true}),
-    validateSchema: () => createValidateFn(RT.literal(1n), {noLiterals: true}),
-    deserializeValidate: () => deserializeValidate<1n>(undefined, {noLiterals: true}),
-    validateReflect: () => {
-      const v = 1n as const;
-      return createValidateFn(v, {noLiterals: true});
-    },
-    deserializeValidateReflect: () => {
-      const v = 1n as const;
-      return deserializeValidate(v, {noLiterals: true});
-    },
-    getValidationErrors: () => createGetValidationErrorsFn<1n>(undefined, {noLiterals: true}),
-    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<1n>>(undefined, {noLiterals: true}),
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.literal(1n), {noLiterals: true}),
-    deserializeGetValidationErrors: () => deserializeGetValidationErrors<1n>(undefined, {noLiterals: true}),
-    getValidationErrorsReflect: () => {
-      const v = 1n as const;
-      return createGetValidationErrorsFn(v, {noLiterals: true});
-    },
-    deserializeGetValidationErrorsReflect: () => {
-      const v = 1n as const;
-      return deserializeGetValidationErrors(v, {noLiterals: true});
-    },
-    mockType: () => createMockDataFn<1n>(undefined, undefined),
-    mockTypeReflect: () => {
-      const v = 1n as const;
-      return createMockDataFn(v);
-    },
-    getSamples: () => ({valid: [3n, 0n, 1n], invalid: [3, null, undefined, 1, '1n']}),
-    getExpectedErrors: () => [
-      [{path: [], expected: 'bigint'}],
-      [{path: [], expected: 'bigint'}],
-      [{path: [], expected: 'bigint'}],
-      [{path: [], expected: 'bigint'}],
-      [{path: [], expected: 'bigint'}],
-    ],
-  },
-
-  literal_symbol_noLiterals: {
-    title: 'Symbol literal noLiterals',
-    description: 'With `{noLiterals: true}` the symbol literal degrades to bare symbol, which is unsupported at root.',
-    validateNotes: [
-      '`{noLiterals: true}` degrades the literal to its base type `symbol`, which is unsupported at root (see the `symbol` case above). The factory is rendered as alwaysThrow; the first `createXxx<typeof sym>()` call throws.',
-    ],
-    validate: () => {
-      const sym = Symbol('hello');
-      return createValidateFn<typeof sym>(undefined, {noLiterals: true});
-    },
-    standardSchema: () => {
-      const sym = Symbol('hello');
-      return createStandardSchema<typeof sym>(undefined, {noLiterals: true});
-    },
-    validateDataOnly: () => {
-      const sym = Symbol('hello');
-      return createValidateFn<DataOnly<typeof sym>>(undefined, {noLiterals: true});
-    },
-    // Degrades to bare symbol (unsupported at root) — `RT.symbol()` resolves the
-    // same alwaysThrow factory, so the schema thunk throws like the type-first form.
-    validateSchema: () => createValidateFn(RT.symbol(), {noLiterals: true}),
-    deserializeValidate: () => {
-      const sym = Symbol('hello');
-      return deserializeValidate<typeof sym>(undefined, {noLiterals: true});
-    },
-    validateReflect: () => {
-      const sym = Symbol('hello');
-      const v: typeof sym = sym;
-      return createValidateFn(v, {noLiterals: true});
-    },
-    deserializeValidateReflect: () => {
-      const sym = Symbol('hello');
-      const v: typeof sym = sym;
-      return deserializeValidate(v, {noLiterals: true});
-    },
-    getValidationErrors: () => {
-      const sym = Symbol('hello');
-      return createGetValidationErrorsFn<typeof sym>(undefined, {noLiterals: true});
-    },
-    getValidationErrorsDataOnly: () => {
-      const sym = Symbol('hello');
-      return createGetValidationErrorsFn<DataOnly<typeof sym>>(undefined, {noLiterals: true});
-    },
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.symbol(), {noLiterals: true}),
-    deserializeGetValidationErrors: () => {
-      const sym = Symbol('hello');
-      return deserializeGetValidationErrors<typeof sym>(undefined, {noLiterals: true});
-    },
-    getValidationErrorsReflect: () => {
-      const sym = Symbol('hello');
-      const v: typeof sym = sym;
-      return createGetValidationErrorsFn(v, {noLiterals: true});
-    },
-    deserializeGetValidationErrorsReflect: () => {
-      const sym = Symbol('hello');
-      const v: typeof sym = sym;
-      return deserializeGetValidationErrors(v, {noLiterals: true});
-    },
-    mockType: () => {
-      const sym = Symbol('hello');
-      return createMockDataFn<typeof sym>(undefined, undefined);
-    },
-    mockTypeReflect: () => {
-      const sym = Symbol('hello');
-      const v: typeof sym = sym;
-      return createMockDataFn(v);
-    },
-    factoryThrows: true,
-    getSamples: () => ({valid: [], invalid: []}),
   },
 
   // `unknown` — like `any`, every value passes. The unknown kind

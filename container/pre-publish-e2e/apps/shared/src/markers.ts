@@ -1,4 +1,4 @@
-// Family 9 — Markers. A user-defined helper carrying InjectRunTypeId<T> is
+// Family 8 — Markers. A user-defined helper carrying InjectRunTypeId<T> is
 // rewritten so the build injects a reflection handle for T at every call site.
 // Inside the helper the handle is resolved by FORWARDING it to a public resolver
 // (getRunType / getRunTypeId) as the trailing argument — the documented wrapper
@@ -9,7 +9,8 @@
 // (Fixed: the injected handle is an opaque entry tuple, so the old
 // getRTUtils().getRunType(id) path returned undefined; forwarding to
 // getRunType / getRunTypeId resolves it.)
-import {getRunType, getRunTypeId, RunTypeKind, type InjectRunTypeId, type RunType} from '@mionjs/run-types';
+import {getRunTypeId, RunTypeKind, type InjectRunTypeId, type RunType} from '@mionjs/run-types';
+import {getRunType} from '@mionjs/run-types';
 import {type CheckResult, ok, eq} from './check';
 
 interface User {

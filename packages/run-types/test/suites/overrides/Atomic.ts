@@ -7,10 +7,6 @@ import {
   overrideJsonEncoder,
   createJsonDecoderFn,
   overrideJsonDecoder,
-  createBinaryEncoderFn,
-  overrideBinaryEncoder,
-  createBinaryDecoderFn,
-  overrideBinaryDecoder,
 } from '@mionjs/run-types';
 import type {OverrideCase} from './types.ts';
 
@@ -25,11 +21,6 @@ overrideGetValidationErrors<AtomicTarget>((value, path, errors) => {
 });
 overrideJsonEncoder<AtomicTarget>((v) => 'OVR' + JSON.stringify(v));
 overrideJsonDecoder<AtomicTarget>((serialized) => JSON.parse((serialized as string).slice(3)) as never);
-overrideBinaryEncoder<AtomicTarget>((value, Ser) => {
-  Ser.serString(JSON.stringify(value));
-  return Ser;
-});
-overrideBinaryDecoder<AtomicTarget>((ret, Des) => JSON.parse(Des.desString()) as never);
 
 export const ATOMIC_OVERRIDE: OverrideCase = {
   title: 'Atomic',
@@ -41,7 +32,4 @@ export const ATOMIC_OVERRIDE: OverrideCase = {
   jsonDecoder: () => createJsonDecoderFn<AtomicTarget>(),
   jsonValue: 5,
   jsonString: 'OVR5',
-  binaryEncoder: () => createBinaryEncoderFn<AtomicTarget>(),
-  binaryDecoder: () => createBinaryDecoderFn<AtomicTarget>(),
-  binaryValue: 3.5,
 };

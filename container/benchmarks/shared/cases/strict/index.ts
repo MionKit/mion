@@ -1,46 +1,10 @@
-// STRICT — the full strict path: a value is accepted only if it validates AND
-// carries no keys the type does not declare.
-//
-// Why this group exists as its own suite rather than a flag on the others: it is
-// the ONLY group that reaches the `runsAfterValidation` key-count fast path, and
-// therefore the only one that exercises `rt::countEnumKeys` — the pure fn that
-// picks a different counter per JavaScript engine (`for-in` on V8, a
-// prototype-guarded `Object.keys` on JavaScriptCore). Without these cases the
-// benchmark suite never calls that code at all, so running the suite under Bun
-// would prove nothing about the branch. See docs/done/bun-benchmark-lane.md.
-//
-// The group is deliberately cross-library, not a RunTypes vanity group: closedness
-// is expressible by every competitor here (TypeBox `additionalProperties: false`,
-// zod `strictObject`, ajv `additionalProperties: false`, typia `createEquals`), so
-// the numbers compare like for like.
-//
-// The shapes here are mirrored case-for-case by the test suite at
-// packages/run-types/test/suites/strict-validation/, which drives them through
-// the real factories (this tree stays marker-free so competitors can consume it).
-// Keep the two in step: a case added on one side belongs on the other.
-//
-// ONE deliberate exception, so nobody "fixes" it later. The test suite also
-// carries union_discriminated, union_open and array_shaped. Those three do NOT
-// belong here, because the libraries do not answer the same thing about them:
-// closedness over a union is per-branch in zod and TypeBox but a merged
-// allowlist in the composition this group measures, and the libraries disagree
-// again on whether an array satisfies an object shape. Benchmarking a case the
-// lanes answer differently would compare unlike things and hide a wrong answer
-// behind a fast number. They are correctness cases, not comparison cases.
-//
-// STRICT MEANS NO UNDECLARED KEYS. It does NOT mean all-required. Every case here
-// composes `validate(v) && !hasUnknownKeys(v)`, which is what a cross-library
-// comparison needs — the competitors express closedness that way too. RunTypes
-// now also has a single-function form (`{checkUnknowns: true}`), measured
-// separately rather than here, so this group keeps comparing like for like.
-// What an optional property DOES change is which code path runs, and this group
-// covers both on purpose:
-//   - flat_required / nested_required / moltar_dto are all-required with no index
-//     signature, the exact eligibility `countFastPathN` demands before it emits the
-//     `cntEK(v) !== N` count check. Keep them that way or the per-engine counter loses
-//     its only coverage.
-//   - realworld_order carries an optional key, so it drops to the key-array scan. That
-//     is the point: it is the realistic shape, and the scan is what most real DTOs get.
+// STRICT: accepted only if the value validates AND carries no undeclared keys, which is not all-required.
+// Its own group because it alone reaches the `checkUnknowns` key-count fast path, the only coverage the Bun lane gets of
+// `countEnumKeys`'s per-engine counters. Every competitor here can express closedness, so it compares like for like.
+// Mirrors packages/run-types/test/suites/strict-validation/ case for case (this tree stays marker-free for competitors),
+// except union_discriminated, union_open and array_shaped: the libraries answer those differently, so they stay tests.
+// flat_required / nested_required / moltar_dto must stay all-required with no index signature (`countFastPathN`
+// eligibility); realworld_order's optional key covers the key-array scan most real DTOs get.
 
 import type {SharedCase} from '../types.ts';
 

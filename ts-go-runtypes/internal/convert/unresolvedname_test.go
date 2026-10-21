@@ -7,8 +7,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/convert"
 )
 
-// CNV008 — the unresolved-type-name refusal (set.go writtenTypeRefDiags), the
-// convert twin of the resolver's MKR013 guard: a written type reference that
+// convert-unresolved-type-name — the unresolved-type-name refusal (set.go writtenTypeRefDiags), the
+// convert twin of the resolver's marker-any-from-unresolved-name guard: a written type reference that
 // resolved to the checker's ERROR type (`any` the author never wrote) refuses
 // the declaration instead of cementing `any` / `RT.any()` into the rewritten
 // source. A deliberate `any` is the true `any` intrinsic and converts freely.
@@ -36,15 +36,15 @@ func TestUnresolvedNameGuard_AllTargets(t *testing.T) {
 			if diagnostic.Code == convert.CodeUnresolvedTypeName {
 				foundGuard = true
 				if diagnostic.Severity != convert.SeverityError {
-					t.Errorf("--to %s: CNV008 must be an error", testCase.target)
+					t.Errorf("--to %s: convert-unresolved-type-name must be an error", testCase.target)
 				}
 				if !strings.Contains(diagnostic.Message, "Missing") {
-					t.Errorf("--to %s: CNV008 should name the written reference; got %q", testCase.target, diagnostic.Message)
+					t.Errorf("--to %s: convert-unresolved-type-name should name the written reference; got %q", testCase.target, diagnostic.Message)
 				}
 			}
 		}
 		if !foundGuard {
-			t.Fatalf("--to %s: expected CNV008 for the unresolved name, got %+v", testCase.target, diags)
+			t.Fatalf("--to %s: expected convert-unresolved-type-name for the unresolved name, got %+v", testCase.target, diags)
 		}
 		if !strings.Contains(output, testCase.keeping) {
 			t.Errorf("--to %s: the guarded declaration must stay untouched:\n%s", testCase.target, output)
@@ -69,16 +69,49 @@ func TestUnresolvedNameGuard_AmbientResolvesFaithfully(t *testing.T) {
 }
 
 // A deliberately written `any` keeps converting: it is the real `any`
-// intrinsic, not the error type, so CNV008 must stay silent and the builder
+// intrinsic, not the error type, so convert-unresolved-type-name must stay silent and the builder
 // form legitimately prints RT.any().
 func TestUnresolvedNameGuard_DeliberateAnyStaysLegal(t *testing.T) {
 	output, diags := convertOne(t, "export type Loose = {value: any};\n", convert.Options{Target: convert.TargetBuilders})
 	for _, diagnostic := range diags {
 		if diagnostic.Code == convert.CodeUnresolvedTypeName {
-			t.Fatalf("written `any` must not trip CNV008: %+v", diagnostic)
+			t.Fatalf("written `any` must not trip convert-unresolved-type-name: %+v", diagnostic)
 		}
 	}
 	if !strings.Contains(output, "RT.any()") {
 		t.Errorf("deliberate any should convert to RT.any():\n%s", output)
+	}
+}
+
+// The same refusal one declaration deeper: `Payload` writes only healthy
+// names, but the `User` it references carries the unresolved `Rol`, so
+// converting `Payload` would cement the same `any` through the reference.
+// Both declarations refuse; the message names the chain.
+func TestUnresolvedNameGuard_OneDeclarationDeeper(t *testing.T) {
+	source := "export interface User {role: Rol}\nexport interface Payload {id: string; user: User}\nexport type Plain = {a: string};\n"
+	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
+	refused := map[string]string{}
+	for _, diagnostic := range diags {
+		if diagnostic.Code == convert.CodeUnresolvedTypeName {
+			refused[diagnostic.Decl] = diagnostic.Message
+		}
+	}
+	if _, ok := refused["User"]; !ok {
+		t.Errorf("User must refuse (its own written name is unresolved), got %+v", diags)
+	}
+	message, ok := refused["Payload"]
+	if !ok {
+		t.Fatalf("Payload must refuse through its reference to User, got %+v", diags)
+	}
+	if !strings.Contains(message, "Rol") || !strings.Contains(message, "via 'User'") {
+		t.Errorf("Payload's refusal must name the unresolved reference and the declaration it was reached through, got %q", message)
+	}
+	for _, keeping := range []string{"export interface User {role: Rol}", "export interface Payload {id: string; user: User}"} {
+		if !strings.Contains(output, keeping) {
+			t.Errorf("a refused declaration must stay untouched:\n%s", output)
+		}
+	}
+	if strings.Contains(output, "export type Plain = {a: string};") {
+		t.Errorf("the healthy sibling must still convert:\n%s", output)
 	}
 }

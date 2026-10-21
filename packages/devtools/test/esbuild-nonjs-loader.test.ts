@@ -17,16 +17,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import * as esbuild from 'esbuild';
 import runtypesEsbuild from '../src/runtypes/esbuild.ts';
-import {BIN, hasBinary} from './helpers/inline.ts';
-
-// Under the marker package's test tree so tsconfig.test.json puts the fixture in
-// the Go resolver's Program, exactly as build-rollup.test.ts does.
-const PACKAGE_ROOT = path.resolve(__dirname, '../../run-types');
-const FIXTURE_DIR = path.join(PACKAGE_ROOT, 'test', 'tmp-esbuild-nonjs');
-const ENTRY = path.join(FIXTURE_DIR, 'entry.ts');
-const MIGRATION = path.join(FIXTURE_DIR, 'migration.sql');
-const OUT_FILE = path.join(FIXTURE_DIR, 'bundle.mjs');
-const OUT_DIR = path.join(FIXTURE_DIR, '__runtypes');
+import {BIN, createMarkerProject, hasBinary} from './helpers/inline.ts';
 
 // A real SQL statement: the point is that it is not parseable as JavaScript.
 const MIGRATION_SQL = 'CREATE TABLE `notes` (\n\t`id` integer PRIMARY KEY NOT NULL\n);\n';
@@ -46,8 +37,11 @@ describe('esbuild build / @mionjs/devtools/runtypes/esbuild entry', () => {
   register(
     'leaves a non-JS file to its own loader and still rewrites the marker',
     async () => {
-      fs.rmSync(FIXTURE_DIR, {recursive: true, force: true});
-      fs.mkdirSync(FIXTURE_DIR, {recursive: true});
+      const FIXTURE_DIR = createMarkerProject('rt-esbuild-nonjs-');
+      const ENTRY = path.join(FIXTURE_DIR, 'entry.ts');
+      const MIGRATION = path.join(FIXTURE_DIR, 'migration.sql');
+      const OUT_FILE = path.join(FIXTURE_DIR, 'bundle.mjs');
+      const OUT_DIR = path.join(FIXTURE_DIR, '.mion');
       fs.writeFileSync(ENTRY, FIXTURE);
       fs.writeFileSync(MIGRATION, MIGRATION_SQL);
       try {
@@ -59,33 +53,22 @@ describe('esbuild build / @mionjs/devtools/runtypes/esbuild entry', () => {
           platform: 'neutral',
           loader: {'.sql': 'text'},
           logLevel: 'silent',
-          plugins: [
-            runtypesEsbuild({
-              binary: BIN,
-              // tsconfig.test.json is incremental:false → RT disk cache off.
-              cwd: PACKAGE_ROOT,
-              tsconfig: 'tsconfig.test.json',
-              genDir: OUT_DIR,
-              // Same opt-out as build-rollup.test.ts: the marker package's test
-              // program deliberately contains Error-severity types.
-              failOnError: false,
-            }),
-          ],
+          // The marker package is installed as types only; its runtime is never bundled here.
+          external: ['@mionjs/run-types'],
+          plugins: [runtypesEsbuild({binary: BIN, cwd: FIXTURE_DIR, tsconfig: 'tsconfig.json', genDir: OUT_DIR})],
         });
 
         const bundle = fs.readFileSync(OUT_FILE, 'utf8');
         // The .sql went through the text loader, so its contents are in the bundle
         // as a string rather than having been parsed as code.
         expect(bundle).toContain('CREATE TABLE');
-        // And the marker was still injected: an un-rewritten createValidateFn
-        // carries no id, so the id is the only proof the transform ran.
-        expect(bundle).toMatch(/createValidateFn\s*\(/);
+        // An un-rewritten createValidateFn carries no id, so the id is the only proof the transform ran.
+        expect(bundle).toMatch(/createValidateFn\([^)]*__rt_\w+\)/);
         expect(fs.existsSync(path.join(OUT_DIR, 'types'))).toBe(true);
       } finally {
         fs.rmSync(FIXTURE_DIR, {recursive: true, force: true});
       }
-      // The plugin spawns the resolver and scans the whole marker-package program
-      // on buildStart, which is well past vitest's 5s default.
+      // Spawning the resolver on buildStart can pass vitest's 5s default.
     },
     120_000
   );

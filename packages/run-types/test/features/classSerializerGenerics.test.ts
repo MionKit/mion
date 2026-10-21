@@ -1,23 +1,9 @@
-// Generic classes in the class-serializer registry. Generics are ERASED at
-// runtime — every instantiation of `WireError<…>` is the SAME class object —
-// so ONE `registerClassSerializer(WireError, …)` must reconstruct EVERY
-// instantiation the program uses. Each instantiation hashes to a different
-// structural type id; what they share is the class name, which the emitter
-// bakes into the lookup (`utl.getClassSerializer('<id>', '<className>')`) and
-// the registry indexes as its fallback lane.
-//
-// Pairing rule (CLAUDE.md): getRunTypeId is exercised in BOTH call shapes and
-// asserted to converge for equivalent T.
+// Generic instantiations share one runtime constructor but different ids; the class-name fallback must serve them all.
+// AGENTS.md requires both marker forms with equal ids.
 
 import {afterEach, describe, expect, it, vi} from 'vitest';
-import {
-  createJsonEncoderFn,
-  createJsonDecoderFn,
-  createBinaryEncoderFn,
-  createBinaryDecoderFn,
-  registerClassSerializer,
-  getRunTypeId,
-} from '@mionjs/run-types';
+import {createJsonEncoderFn, createJsonDecoderFn, getRunTypeId} from '@mionjs/run-types';
+import {registerClassSerializer} from '@mionjs/run-types/runtime';
 import {
   clearClassSerializers,
   unregisterClassSerializer,
@@ -91,17 +77,6 @@ describe('classSerializer / generic classes — one registration covers every in
     const decoded = decode(encode(new WireError('nf', 'missing', {id: 7})) as string) as WireError<'nf', {id: number}>;
     expect(decoded).toBeInstanceOf(WireError);
     expect(decoded.data).toEqual({id: 7});
-  });
-
-  it('a NON-registered instantiation reconstructs through BINARY', () => {
-    registerWireError();
-    const encode = createBinaryEncoderFn<WireError<'bin', {bytes: number}>>();
-    const decode = createBinaryDecoderFn<WireError<'bin', {bytes: number}>>();
-
-    const decoded = decode(encode(new WireError('bin', 'wire', {bytes: 3}))) as WireError<'bin', {bytes: number}>;
-    expect(decoded).toBeInstanceOf(WireError);
-    expect(decoded.code).toBe('bin');
-    expect(decoded.data).toEqual({bytes: 3});
   });
 
   it('a union containing a non-registered instantiation discriminates AND reconstructs', () => {

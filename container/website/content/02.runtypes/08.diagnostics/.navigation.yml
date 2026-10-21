@@ -1,0 +1,4 @@
+title: Diagnostics
+navigation:
+  icon: i-lucide-triangle-alert
+  redirect: /runtypes/diagnostics/error-levels

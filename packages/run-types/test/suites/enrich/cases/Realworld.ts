@@ -57,7 +57,7 @@ export const REALWORLD = {
         username: TF.String<{minLength: 3; maxLength: 20}>;
         email: TF.Email;
         age: TF.Number<{min: 18; max: 120}>;
-        website: TF.Url;
+        website: TF.StringUrl;
       }
       type Target = RegistrationForm;
       // ##### friendly #####

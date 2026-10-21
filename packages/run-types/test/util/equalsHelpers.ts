@@ -1,6 +1,6 @@
 // Ported verbatim from the reference
 // packages/run-types/src/rtCompilers/equalsHelpers.ts. Used by the
-// prepareForJson + restoreFromJson adapter tests to normalise both sides
+// prepareForJson + restoreFromJsonMutate adapter tests to normalise both sides
 // of a round-trip comparison before invoking `expect(...).toEqual(...)`.
 //
 // Two cases motivate this helper:
@@ -39,7 +39,7 @@
 export function normalizeForComparison(actual: any, expected: any): {actual: any; expected: any} {
   // Handle symbols — different Symbol instances with the same description
   // are NOT equal under Vitest's toEqual. Round-tripping a symbol through
-  // prepareForJson/JSON.parse/restoreFromJson produces a brand-new
+  // prepareForJson/JSON.parse/restoreFromJsonMutate produces a brand-new
   // symbol; compare by description instead.
   if (typeof actual === 'symbol' || typeof expected === 'symbol') {
     return {
@@ -55,6 +55,13 @@ export function normalizeForComparison(actual: any, expected: any): {actual: any
     return {
       actual: isTemporalInstance(actual) ? {__temporal: actual.toString()} : actual,
       expected: isTemporalInstance(expected) ? {__temporal: expected.toString()} : expected,
+    };
+  }
+  // A URL has no enumerable own keys either: compare by href.
+  if (actual instanceof URL || expected instanceof URL) {
+    return {
+      actual: actual instanceof URL ? {__url: actual.href} : actual,
+      expected: expected instanceof URL ? {__url: expected.href} : expected,
     };
   }
   // Map / Set instances have zero enumerable own keys (contents live in
@@ -164,26 +171,23 @@ function stableKey(value: any): string {
   });
 }
 
-/** Deep clone for round-trip test inputs. The serializer mutates `v`
- *  in place; without a fresh copy the comparison-side reference would
- *  see the post-mutation shape, masking real correctness issues.
- *
- *  Handles Date, RegExp, Map, Set, primitives, and arrays/objects
- *  recursively. Symbols pass through (immutable, no risk of
- *  cross-mutation). Functions and Promises pass through unchanged —
- *  those aren't meaningfully cloneable and round-trip tests for them
- *  are gated by `getRoundTripValid` overrides anyway. **/
+/** The serializer mutates `v` in place; without a fresh copy the comparison side sees the mutated shape.
+ *  Functions and Promises pass through uncloned: their round-trip tests are gated by `getRoundTripValid` overrides. **/
 export function deepCloneForRoundTrip(value: any): any {
   if (value === null || value === undefined) return value;
   const t = typeof value;
   if (t === 'symbol' || t === 'function') return value;
   if (t !== 'object') return value;
-  // Temporal instances are immutable (no enumerable own keys); the generic
-  // object clone at the bottom would flatten them to `{}` and lose the value
-  // before the encoder sees them. Pass through unchanged, like symbols above.
+  // Temporal instances are immutable with no enumerable own keys: the generic clone below would flatten them to `{}`.
   if (isTemporalInstance(value)) return value;
   if (value instanceof Date) return new Date(value.getTime());
+  if (value instanceof URL) return new URL(value.href);
   if (value instanceof RegExp) return new RegExp(value.source, value.flags);
+  if (value instanceof Promise) return value;
+  // Binary natives have no enumerable own keys, so the generic clone below would flatten them to `{}`.
+  if (value instanceof ArrayBuffer || value instanceof SharedArrayBuffer) return value.slice(0);
+  if (value instanceof DataView) return new DataView(value.buffer.slice(0), value.byteOffset, value.byteLength);
+  if (ArrayBuffer.isView(value)) return (value as Uint8Array).slice();
   if (value instanceof Map) {
     const out = new Map();
     for (const [k, v] of value.entries()) out.set(deepCloneForRoundTrip(k), deepCloneForRoundTrip(v));

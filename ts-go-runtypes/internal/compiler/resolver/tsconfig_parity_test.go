@@ -51,7 +51,7 @@ export const validateUser = createValidateFn<ParityUser>();
 
 // parityTemporalSrc is the lib-sensitive row: Temporal only exists when the
 // config's lib loads ESNext.Temporal — a lane that ignored lib degraded it to
-// any (false TMP001).
+// any (false marker-temporal-lib-missing).
 const parityTemporalSrc = `import {getRunTypeId, createValidateFn} from '@mionjs/run-types';
 
 // static getRunTypeId<T>()
@@ -238,9 +238,7 @@ func TestTsconfigParity_BuildLaneEqualsDaemonLane(t *testing.T) {
 			extraFiles: map[string]string{"models.ts": parityModelsSrc},
 		},
 		{
-			// Production's single-root shape over the import fixture: the daemon
-			// is handed ONLY the consumer; models.ts resolves from disk through
-			// the import, so parity held here even before the config-roots union.
+			// Production's single-root shape: models.ts resolves through the import, so parity held before the config-roots union.
 			name: "single-root imports",
 			tsconfig: `{"compilerOptions": {"module": "ESNext", "moduleResolution": "bundler",
 				"target": "ES2022", "strict": true, "skipLibCheck": true, "noEmit": true, "types": []}}`,
@@ -249,11 +247,7 @@ func TestTsconfigParity_BuildLaneEqualsDaemonLane(t *testing.T) {
 			daemonOnly: []string{"consumer.ts"},
 		},
 		{
-			// THE regression pin for docs/done/program-roots-lose-ambient-
-			// declarations.md: an ambient declaration in the include set that
-			// nothing imports, daemon handed only the consumer. Without the
-			// config's declaration files on the inferred roots the daemon checks
-			// ParityAmbient as `any` and the lanes' ids diverge.
+			// Regression pin: an unimported ambient declaration; without the config's .d.ts roots the daemon sees `any`.
 			name: "single-root ambient declaration",
 			tsconfig: `{"compilerOptions": {"module": "ESNext", "moduleResolution": "bundler",
 				"target": "ES2022", "strict": true, "skipLibCheck": true, "noEmit": true, "types": []}}`,
@@ -271,7 +265,7 @@ func TestTsconfigParity_BuildLaneEqualsDaemonLane(t *testing.T) {
 }
 
 // TestSetSources_TsconfigErrors pins the daemon error semantics: a NAMED config
-// that is broken or missing fails the op loudly (CFG001-tagged), nothing named
+// that is broken or missing fails the op loudly (tagged config-tsconfig-not-loaded), nothing named
 // falls back, and a fixed config heals on the next setSources without a
 // respawn (the parse error is never cached).
 func TestSetSources_TsconfigErrors(t *testing.T) {

@@ -1,24 +1,10 @@
-// Value-first SCALAR LEAF builders — the generic parameterised leaves
-// `string` / `number` / `bigInt` / `date`, plus the `brand(name)` nominal tag.
-// Moved here from `schema/atomic.ts` + `schema/datetime.ts` so a format's TYPE
-// (the aliases in the sibling `*Formats.ts` files) and its value-first BUILDER
-// live under one surface (`@mionjs/run-types/formats`, namespaced `TF`). Each builder
-// returns the generic `RunType<…>` node and converges on the same structural id as
-// the matching type-first surface; the Go binary, not the type system, is the
-// validation engine.
-//
-// Each parameterised scalar leaf builder is THREE overloads:
-//   1. no-params       `string()`                 → PLAIN base `RunType<string>`
-//   2. params-only     `string({maxLength: 5})`   → transparent `RunType<String<P>>`
-//   3. params + brand  `string({…}, brand('Id'))` → nominal `RunType<String<P, 'Id'>>`
-// The no-params call converges on the SAME structural id as the type-first plain
-// type and a marker-form `createValidateFn<string>()`. A single impl resolves the
-// injected entry tuple as the TRAILING arg (`lastInjectedId`): it lands at slot 0
-// (no-params), slot 1 (params), or slot 2 (params + brand), and the Go scanner
-// derives the slot from the resolved overload's signature (trailing param). The
-// brand rides slot 1 as a `BrandArg` OBJECT, so it never collides with the id
-// string. The `const` type parameters keep `{maxLength: 50}` as `50` (not `number`)
-// and the brand `'Id'` as a string literal, so both survive into the reflected type.
+// Value-first SCALAR LEAF builders, living beside the format TYPE aliases they converge with: a
+// no-params call lands on the SAME structural id as the type-first plain type and a marker-form
+// `createValidateFn<string>()`. One impl resolves the injected entry tuple as the TRAILING arg
+// (`lastInjectedId`) at slot 0, 1 or 2, and the Go scanner derives the slot from the resolved
+// overload's signature. The brand rides slot 1 as a `BrandArg` OBJECT so it never collides with the
+// id string, and the `const` type parameters keep `{maxLength: 50}` as `50` and the brand `'Id'` as a
+// string literal, so both survive into the reflected type.
 
 import {builderResult, lastInjectedId, brand} from '../runtypes/builderCore.ts';
 import type {RunType} from '../runtypes/types.ts';
@@ -29,18 +15,13 @@ import type {NumberParams, Currency} from './numberFormats.ts';
 import type {BigIntParams} from './bigintFormats.ts';
 import type {NativeDateParams} from './datetime/dateFormats.ts';
 
-// `brand(name)` is the nominal-brand tag for the scalar / date leaf builders
-// (`TF.string({…}, TF.brand('UserId'))` → `String<P, 'UserId'>`). Re-exported from
-// the shared builder core so it sits beside the builders it tags.
+// Re-exported from the shared builder core so the nominal-brand tag sits beside the builders it tags.
 export {brand};
 
-/** A string field builder. `string()` → `RunType<string>` (plain, converges with
- *  type-first `string`); `string({maxLength: 5})` → transparent `RunType<String<P>>`;
- *  `string({maxLength: 5}, brand('UserId'))` → nominal `RunType<String<P, 'UserId'>>`.
- *  Params are `StringParamsValueFirst`: like `StringParams` but `pattern` is the
- *  inline `{source, flags?, mockSamples, …}` literal ONLY — not the opaque
- *  `FormatPattern` value (whose source/flags erase to `string`), so the reflected
- *  `T` keeps the pattern literals and the value-first id stays faithful. **/
+/** A string field builder. Params are `StringParamsValueFirst`: `pattern` is the inline
+ *  `{source, flags?, mockSamples, …}` literal ONLY, never the opaque `FormatPattern` value (whose
+ *  source/flags erase to `string`), so the reflected `T` keeps the pattern literals and the
+ *  value-first id stays faithful. **/
 export function string(id?: InjectRunTypeId<string>): RunType<string>;
 export function string<const P extends StringParamsValueFirst>(
   formatParams: CompTimeArgs<ExactParams<P, StringParamsValueFirst>>,
@@ -60,9 +41,7 @@ export function string(
   return builderResult(lastInjectedId(formatParamsOrId, brandOrId, id), {type: 'string', formatParams});
 }
 
-/** A number field builder. `number()` → `RunType<number>`; `number({min: 0})` →
- *  transparent `RunType<Number<P>>`; `number({min: 0}, brand('Age'))` →
- *  nominal `RunType<Number<P, 'Age'>>`. **/
+/** A number field builder. **/
 export function number(id?: InjectRunTypeId<number>): RunType<number>;
 export function number<const P extends NumberParams>(
   formatParams: CompTimeArgs<ExactParams<P, NumberParams>>,
@@ -82,12 +61,9 @@ export function number(
   return builderResult(lastInjectedId(formatParamsOrId, brandOrId, id), {type: 'number', formatParams});
 }
 
-/** A currency (monetary amount) field builder — the value-first spelling of
- *  the `Currency` param preset: `currency()` ≡ `number({isCurrency: true})`,
- *  `currency({min: 0})` merges `isCurrency: true` into the params. Unlike
- *  `number()`, the no-params call still carries the mark (that IS the point).
- *  The currency UNIT is never a param — pass it to the renderer
- *  (`createFriendlyTextI18n`'s `currency` option) instead. **/
+/** A currency (monetary amount) field builder: `currency()` ≡ `number({isCurrency: true})`, so unlike
+ *  `number()` the no-params call still carries the mark. The currency UNIT is never a param, pass it
+ *  to the renderer (`createFriendlyTextI18n`'s `currency` option) instead. **/
 export function currency(id?: InjectRunTypeId<Currency>): RunType<Currency>;
 export function currency<const P extends NumberParams>(
   formatParams: CompTimeArgs<ExactParams<P, NumberParams>>,
@@ -107,9 +83,7 @@ export function currency(
   return builderResult(lastInjectedId(formatParamsOrId, brandOrId, id), {type: 'number', formatParams});
 }
 
-/** A bigint field builder. `bigInt()` → `RunType<bigint>`; `bigInt({min: 0n})` →
- *  transparent `RunType<BigInt<P>>`; `bigInt({min: 0n}, brand('Balance'))` →
- *  nominal `RunType<BigInt<P, 'Balance'>>`. **/
+/** A bigint field builder. **/
 export function bigInt(id?: InjectRunTypeId<bigint>): RunType<bigint>;
 export function bigInt<const P extends BigIntParams>(
   formatParams: CompTimeArgs<ExactParams<P, BigIntParams>>,
@@ -129,9 +103,7 @@ export function bigInt(
   return builderResult(lastInjectedId(formatParamsOrId, brandOrId, id), {type: 'bigint', formatParams});
 }
 
-/** A native-`Date` field builder. `date()` → `RunType<Date>`; `date({max: 'now'})`
- *  → transparent `RunType<Date<P>>`; `date({max: 'now'}, brand('CreatedAt'))`
- *  → nominal `RunType<Date<P, 'CreatedAt'>>`. **/
+/** A native-`Date` field builder. **/
 export function date(id?: InjectRunTypeId<Date>): RunType<Date>;
 export function date<const P extends NativeDateParams>(
   formatParams: CompTimeArgs<ExactParams<P, NativeDateParams>>,

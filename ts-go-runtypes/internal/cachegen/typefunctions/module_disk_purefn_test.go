@@ -7,13 +7,14 @@ import (
 	"testing"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/diskcache"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
 // buildStringPropObjectFixture builds `{a: string}` — a validationErrors body
-// over it reaches rt::newRunTypeErr (the only pure-fn edge), with no same-family
+// over it reaches @mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr (the only pure-fn edge), with no same-family
 // child deps (the string prop inlines), so PureFnRefs is the sole persisted edge.
 func buildStringPropObjectFixture() ([]*reflection.RunType, string) {
 	stringRT := &reflection.RunType{ID: "str", Kind: reflection.KindString}
@@ -23,7 +24,7 @@ func buildStringPropObjectFixture() ([]*reflection.RunType, string) {
 }
 
 // TestRenderFnModule_DiskCache_PureFnRefsRoundTrip — the pure-fn twin of the
-// cross-family round-trip. A validationErrors entry reaches rt::newRunTypeErr;
+// cross-family round-trip. A validationErrors entry reaches purefnids.NewRunTypeErr;
 // rendering once with a wired Store persists it as PureFnRefs, and a second
 // render must HIT the disk cache (walker never runs) yet return the SAME
 // pureFnDeps. Without the persistence a warm entry rebuilds empty SoftDeps and
@@ -44,8 +45,8 @@ func TestRenderFnModule_DiskCache_PureFnRefsRoundTrip(t *testing.T) {
 	if first.argsText == "" {
 		t.Fatal("first render produced empty args")
 	}
-	if !containsStr(first.pureFnDeps, "rt::newRunTypeErr") {
-		t.Fatalf("fresh render missing pure-fn edge rt::newRunTypeErr (got %v)", first.pureFnDeps)
+	if !containsStr(first.pureFnDeps, purefnids.NewRunTypeErr) {
+		t.Fatalf("fresh render missing pure-fn edge "+purefnids.NewRunTypeErr+" (got %v)", first.pureFnDeps)
 	}
 
 	// The on-disk entry must persist the pure-fn edges as PureFnRefs, under v15.
@@ -61,8 +62,8 @@ func TestRenderFnModule_DiskCache_PureFnRefsRoundTrip(t *testing.T) {
 	if entry.Format != diskcache.FormatVersion {
 		t.Errorf("cache Format: got %d want %d", entry.Format, diskcache.FormatVersion)
 	}
-	if !equalStrSlices(entry.PureFnRefs, []string{"rt::newRunTypeErr"}) {
-		t.Fatalf("persisted PureFnRefs: got %v want [rt::newRunTypeErr]", entry.PureFnRefs)
+	if !equalStrSlices(entry.PureFnRefs, []string{purefnids.NewRunTypeErr}) {
+		t.Fatalf("persisted PureFnRefs: got %v want ["+purefnids.NewRunTypeErr+"]", entry.PureFnRefs)
 	}
 
 	// Second render: must HIT the disk cache and return the SAME pureFnDeps.
@@ -76,8 +77,8 @@ func TestRenderFnModule_DiskCache_PureFnRefsRoundTrip(t *testing.T) {
 	if second.argsText != entry.ArgsText {
 		t.Fatalf("second render did not hit the disk cache (args=%q)", second.argsText)
 	}
-	if !equalStrSlices(second.pureFnDeps, []string{"rt::newRunTypeErr"}) {
-		t.Errorf("cache hit lost pure-fn edges: got %v want [rt::newRunTypeErr]", second.pureFnDeps)
+	if !equalStrSlices(second.pureFnDeps, []string{purefnids.NewRunTypeErr}) {
+		t.Errorf("cache hit lost pure-fn edges: got %v want ["+purefnids.NewRunTypeErr+"]", second.pureFnDeps)
 	}
 }
 
@@ -104,7 +105,7 @@ func TestRenderFnModule_DiskCache_PureFnRefsSurfaceOnSoftDeps(t *testing.T) {
 	if coldEntry == nil {
 		t.Fatalf("cold collect missing the root entry %q", rootKey)
 	}
-	if !containsStr(coldEntry.SoftDeps, "rt::newRunTypeErr") {
+	if !containsStr(coldEntry.SoftDeps, purefnids.NewRunTypeErr) {
 		t.Fatalf("cold SoftDeps missing pure-fn edge (got %v)", coldEntry.SoftDeps)
 	}
 
@@ -120,4 +121,65 @@ func TestRenderFnModule_DiskCache_PureFnRefsSurfaceOnSoftDeps(t *testing.T) {
 
 func valErrKey(id string) string {
 	return innerPrefix(constants.CacheModules["validationErrors"]) + id
+}
+
+// TestRenderFnModule_DiskCache_PureFnRefsDriftMisses — a pure fn's id is the
+// hash of its body, so an id the binary no longer knows means that body was
+// edited since this entry was written. Nothing else catches it: the TYPE did not
+// change, so the entry's structural id and every ChildRef still agree, and the
+// hit would hand back an ArgsText baking `utl.getPureFn('<retired id>')`.
+// Delivery then finds no such built-in, AddMissingStubs inserts a KindMissing
+// stub, and the validator silently degrades — on every build, until someone
+// wipes node_modules/.cache by hand.
+func TestRenderFnModule_DiskCache_PureFnRefsDriftMisses(t *testing.T) {
+	root := t.TempDir()
+	store := diskcache.New(root, "fp1")
+	lookup := newFakeLookup()
+	lookup.set("obj1", "o:obj")
+
+	runTypes, rootID := buildStringPropObjectFixture()
+	refTable := buildRefTable(runTypes)
+	settings := constants.CacheModules["validationErrors"]
+	prefix := innerPrefix(settings)
+	opts := RenderOpts{Store: store, Lookup: lookup, RefTable: refTable}
+
+	first := renderEntryWithDeps(refTable[rootID], settings, ValidationErrorsEmitter{}, prefix, refTable, opts, "", nil, false)
+	if first.argsText == "" {
+		t.Fatal("first render produced empty args")
+	}
+
+	cachePath := filepath.Join(root, "fp1", rootID, settings.Tag+".json")
+	raw, err := os.ReadFile(cachePath)
+	if err != nil {
+		t.Fatalf("expected cache file at %s: %v", cachePath, err)
+	}
+	var entry diskcache.RTEntry
+	if err := json.Unmarshal(raw, &entry); err != nil {
+		t.Fatalf("cache file is not valid JSON: %v", err)
+	}
+
+	// Stand in for newRunTypeErr's body being edited: same package, a hash this
+	// binary was never compiled against. The sentinel proves whether the reader
+	// served the file or re-walked.
+	staleID := purefnids.IDPrefix + "0000000000000f"
+	if purefnids.Has(staleID) {
+		t.Fatalf("fixture id %q is a real built-in, pick another", staleID)
+	}
+	entry.PureFnRefs = []string{staleID}
+	entry.ArgsText = "'ve_obj1','CACHE_SENTINEL',undefined,true"
+	mutated, _ := json.Marshal(entry)
+	if err := os.WriteFile(cachePath, mutated, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	second := renderEntryWithDeps(refTable[rootID], settings, ValidationErrorsEmitter{}, prefix, refTable, opts, "", nil, false)
+	if second.argsText == entry.ArgsText {
+		t.Fatal("entry with a retired pure-fn id was served from disk; it must miss")
+	}
+	if !containsStr(second.pureFnDeps, purefnids.NewRunTypeErr) {
+		t.Errorf("re-walk lost the live pure-fn edge: got %v", second.pureFnDeps)
+	}
+	if containsStr(second.pureFnDeps, staleID) {
+		t.Errorf("re-walk carried the retired id %q forward", staleID)
+	}
 }

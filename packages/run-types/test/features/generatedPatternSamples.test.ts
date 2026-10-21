@@ -6,7 +6,7 @@
 // createMockDataFn call site pins them (the CompTimeHints lane). The Go
 // matrix (internal/compiler/resolver/format_sample_validation_test.go)
 // proves the build-time enrichment, the seeded/unseeded pool semantics
-// across builds, and the FMT005 failure lanes; this spec proves the
+// across builds, and the format-sample-generation-failed failure lanes; this spec proves the
 // EMITTED artifacts behave within a build: mocks match the regex, validate
 // accepts every mock, and both marker call shapes ride the same cache
 // entry.
@@ -14,7 +14,8 @@
 import type * as TF from '@mionjs/run-types/formats';
 import * as TFV from '@mionjs/run-types/formats';
 import {describe, expect, it} from 'vitest';
-import {createMockDataFn, createValidateFn, getRunTypeId} from '@mionjs/run-types';
+import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import '@mionjs/run-types/formats';
 
 // Sample-less inline pattern — no mockSamples anywhere in the program.

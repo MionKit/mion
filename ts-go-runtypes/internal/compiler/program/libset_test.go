@@ -58,7 +58,7 @@ func TestLibSet_ReadsWhatTheProgramActuallyLoaded(t *testing.T) {
 }
 
 // TestLibSet_NoBaseEditionIsRecognised — the unsound selections, and the whole
-// reason CFG002 exists. Without a base ECMAScript edition TypeScript never
+// reason config-lib-missing-base exists. Without a base ECMAScript edition TypeScript never
 // declares `Array`, so `number[]` checks as an empty object and the generated
 // validator accepts anything, with no diagnostic anywhere. A by-feature lib
 // ADDS to a base edition; it cannot replace one.
@@ -76,7 +76,7 @@ func TestLibSet_NoBaseEditionIsRecognised(t *testing.T) {
 	}
 }
 
-// TestLibSet_EmptyReadsAsNone — `lib: []` loads nothing, and the CFG002 message
+// TestLibSet_EmptyReadsAsNone — `lib: []` loads nothing, and the config-lib-missing-base message
 // has to say so in words rather than printing an empty list.
 func TestLibSet_EmptyReadsAsNone(t *testing.T) {
 	set := libSetFor(t, `,"lib":[]`)

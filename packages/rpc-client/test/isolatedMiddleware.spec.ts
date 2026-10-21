@@ -1,0 +1,308 @@
+/* ########
+ * 2026 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+import {describe, it, expect, afterEach, beforeEach} from 'vitest';
+import {HeadersSubset, RpcError} from '@mionjs/core';
+import type {TestServerApi} from '@mionjs/test-server';
+import {initClient} from './lib/fetchingClient.ts';
+import {batch} from '../src/batch.ts';
+import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
+import {useCsrf} from './lib/csrf.client.ts';
+
+const baseURL = TEST_SERVER_BASE_URL;
+const authHeaders = new HeadersSubset({Authorization: 'XWYZ-TOKEN'});
+
+describe('isolated reusable middleware', () => {
+  let destroy: (() => void) | undefined;
+  afterEach(() => destroy?.());
+
+  function newClient() {
+    const initialized = initClient<TestServerApi>({baseURL});
+    destroy = () => initialized.client.destroy();
+    initialized.middlewares.auth.onRequest((auth) => auth(authHeaders));
+    return initialized;
+  }
+
+  async function serverToken(routes: ReturnType<typeof newClient>['routes']): Promise<string> {
+    const [token] = await routes.csrfToken().call();
+    return token as string;
+  }
+
+  async function runs(routes: ReturnType<typeof newClient>['routes']) {
+    const [noteRuns] = await routes.noteRuns().call();
+    return noteRuns!;
+  }
+
+  /** A client holding a stale csrf token that refreshes it from the server, counting what it sends */
+  function installCsrf(client: ReturnType<typeof newClient>, placement: 'notes' | 'admin' = 'notes') {
+    const sent: string[] = [];
+    let token = 'stale';
+    const options = {
+      getToken: () => {
+        sent.push(token);
+        return token;
+      },
+      refreshToken: async () => {
+        token = await serverToken(client.routes);
+      },
+    };
+    useCsrf(placement === 'notes' ? client.middlewares.notes.csrf : client.middlewares.notes.admin.csrf, options);
+    return {sent, useFreshToken: async () => (token = await serverToken(client.routes))};
+  }
+
+  let client: ReturnType<typeof newClient>;
+  beforeEach(async () => {
+    client = newClient();
+    await client.routes.resetNoteRuns().call();
+  });
+
+  describe('installer', () => {
+    it('refreshes a stale token and retries, asking onRequest again for the new one', async () => {
+      const csrfState = installCsrf(client);
+      const [result, , response] = await client.routes.notes.saveNote('hi').call();
+      expect(response['@thrownErrors']).toBeUndefined();
+      // the retry starts a fresh response, so the first attempt's csrf error is gone
+      expect(response.notes?.csrf).toBeUndefined();
+      expect(result).toBe('saved hi (1)');
+      expect(csrfState.sent).toEqual(['stale', await serverToken(client.routes)]);
+      // the route was skipped on the first attempt, so the mutation ran once
+      expect((await runs(client.routes)).saveNote).toBe(1);
+    });
+
+    it('works with the middleware placed one group deeper', async () => {
+      installCsrf(client, 'admin');
+      // the notes-level csrf also runs for admin routes, so it needs its own hook
+      client.middlewares.notes.csrf.onRequest(async (call) => call(await serverToken(client.routes)));
+      const [result, , response] = await client.routes.notes.admin.getNote('a').call();
+      expect(response['@thrownErrors']).toBeUndefined();
+      expect(result).toBe('admin note a (1)');
+    });
+
+    it('retries at most once per middleware per call', async () => {
+      const retries: boolean[] = [];
+      client.middlewares.notes.csrf
+        .onRequest((call) => call('always-stale'))
+        .onError('csrf-expired', (_error, context) => {
+          retries.push(context.retry());
+        });
+      const [result, , response] = await client.routes.notes.saveNote('hi').call();
+      expect(retries).toEqual([true, false]);
+      expect(result).toBeUndefined();
+      expect((response.notes?.csrf as RpcError<string> | undefined)?.type).toBe('csrf-expired');
+      expect((await runs(client.routes)).saveNote).toBe(0);
+    });
+
+    it("an app's own handler for the same error runs next to the installer's, which still retries", async () => {
+      const csrfState = installCsrf(client);
+      const seen: string[] = [];
+      client.middlewares.notes.csrf.onError('csrf-expired', (error) => {
+        seen.push(error.type);
+      });
+      const [result, , response] = await client.routes.notes.saveNote('hi').call();
+      expect(response['@thrownErrors']).toBeUndefined();
+      expect(result).toBe('saved hi (1)');
+      expect(seen).toEqual(['csrf-expired']);
+      expect(csrfState.sent).toHaveLength(2);
+    });
+
+    it('two handlers asking a retry for the same failure resend once', async () => {
+      const order: string[] = [];
+      const retries: boolean[] = [];
+      client.middlewares.notes.csrf
+        .onRequest((call) => call('always-stale'))
+        .onError('csrf-expired', (_error, context) => {
+          order.push('first');
+          retries.push(context.retry());
+        })
+        .onError('csrf-expired', (_error, context) => {
+          order.push('second');
+          retries.push(context.retry());
+        });
+      await client.routes.notes.saveNote('hi').call();
+      // the second attempt gets no resend
+      expect(order).toEqual(['first', 'second', 'first', 'second']);
+      expect(retries).toEqual([true, true, false, false]);
+      expect((await runs(client.routes)).saveNote).toBe(0);
+    });
+
+    it('offError removes only the handler it is given', async () => {
+      const csrfState = installCsrf(client);
+      const own = () => {};
+      const csrf = client.middlewares.notes.csrf.onError('csrf-expired', own).offError('csrf-expired', own);
+      expect(csrf.hasErrorHandler('csrf-expired')).toBe(true);
+      const [result] = await client.routes.notes.saveNote('hi').call();
+      expect(result).toBe('saved hi (1)');
+      expect(csrfState.sent).toHaveLength(2);
+    });
+  });
+
+  describe('retry rule: a succeeded mutation or plain route is never sent twice', () => {
+    let retries: boolean[];
+    beforeEach(async () => {
+      retries = [];
+      const token = await serverToken(client.routes);
+      client.middlewares.notes.csrf.onRequest((call) => call(token));
+      // a declared error AFTER the route: the route already ran when the hook decides
+      client.middlewares.notes.audit
+        .onRequest((call) => call(true))
+        .onError('audit-flagged', (_error, context) => {
+          retries.push(context.retry());
+        });
+    });
+
+    it('a query that answered a value retries', async () => {
+      await client.routes.notes.getNote('a').call();
+      expect(retries).toEqual([true, false]);
+      expect((await runs(client.routes)).getNote).toBe(2);
+    });
+
+    it('a mutation that answered a value is refused', async () => {
+      const [result] = await client.routes.notes.saveNote('a').call();
+      expect(retries).toEqual([false]);
+      expect(result).toBe('saved a (1)');
+      expect((await runs(client.routes)).saveNote).toBe(1);
+    });
+
+    it('a plain route that answered a value is refused', async () => {
+      await client.routes.notes.touchNote('a').call();
+      expect(retries).toEqual([false]);
+      expect((await runs(client.routes)).touchNote).toBe(1);
+    });
+
+    it('a mutation that answered an error retries', async () => {
+      const [, routeError] = await client.routes.notes.failNote('a').call();
+      expect(retries).toEqual([true, false]);
+      expect(routeError?.type).toBe('note-failed');
+      expect((await runs(client.routes)).failNote).toBe(2);
+    });
+
+    // A void route leaves no value, so any error in the response counts it as failed.
+    it('a void mutation in a response carrying an error retries', async () => {
+      await client.routes.notes.clearNote('a').call();
+      expect(retries).toEqual([true, false]);
+      expect((await runs(client.routes)).clearNote).toBe(2);
+    });
+
+    it('a batch is refused when any mutation in it answered a value', async () => {
+      const {routes, middlewares, client: batchClient} = initClient<TestServerApi>({baseURL});
+      const batchRetries: boolean[] = [];
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+      const token = await serverToken(routes);
+      middlewares.notes.csrf.onRequest((call) => call(token));
+      middlewares.notes.audit
+        .onRequest((call) => call(true))
+        .onError('audit-flagged', (_error, context) => {
+          batchRetries.push(context.retry());
+        });
+      await batch([routes.notes.getNote('a'), routes.notes.saveNote('b')]).call();
+      batchClient.destroy();
+      expect(batchRetries).toEqual([false]);
+      const noteRuns = await runs(client.routes);
+      expect(noteRuns.getNote).toBe(1);
+      expect(noteRuns.saveNote).toBe(1);
+    });
+
+    // The server ran the mutation, so a retry would run it twice.
+    it('a mutation whose answer the client refused is refused', async () => {
+      const {routes, middlewares, client: checkingClient} = initClient<TestServerApi>({baseURL, validateServerResponses: true});
+      const checkedRetries: boolean[] = [];
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+      const token = await serverToken(routes);
+      middlewares.notes.csrf.onRequest((call) => call(token));
+      middlewares.notes.audit
+        .onRequest((call) => call(true))
+        .onError('audit-flagged', (_error, context) => {
+          checkedRetries.push(context.retry());
+        });
+      const [result, , response] = await routes.notes.wrongNote('a').call();
+      checkingClient.destroy();
+      expect(result).toBeUndefined();
+      expect(response['@thrownErrors']?.[0]?.type).toBe('response-validation-error');
+      expect(checkedRetries).toEqual([false]);
+      expect((await runs(client.routes)).wrongNote).toBe(1);
+    });
+  });
+
+  describe('middleware handler failures', () => {
+    beforeEach(async () => {
+      const token = await serverToken(client.routes);
+      client.middlewares.notes.csrf.onRequest((call) => call(token));
+      client.middlewares.notes.audit.onRequest((call) => call(true));
+    });
+
+    it('a throwing onError hook lands in @thrownErrors and never retries', async () => {
+      client.middlewares.notes.audit.onError('audit-flagged', (_error, context) => {
+        context.retry();
+        throw new Error('boom');
+      });
+      const [, , response] = await client.routes.notes.getNote('a').call();
+      expect(response['@thrownErrors']?.[0]?.type).toBe('middleware-on-error-failed');
+      expect(response['@thrownErrors']?.[0]?.publicMessage).toContain("onError for middleware 'notes/audit' failed: boom");
+      expect((await runs(client.routes)).getNote).toBe(1);
+    });
+
+    it('a throwing onError hook does not stop the next one, and the first failure is reported', async () => {
+      const ran: string[] = [];
+      client.middlewares.notes.audit
+        .onError('audit-flagged', () => {
+          ran.push('first');
+          throw new Error('first boom');
+        })
+        .onError('audit-flagged', async () => {
+          ran.push('second');
+          throw new Error('second boom');
+        })
+        .onError('audit-flagged', () => {
+          ran.push('third');
+        });
+      const [, , response] = await client.routes.notes.getNote('a').call();
+      expect(ran).toEqual(['first', 'second', 'third']);
+      expect(response['@thrownErrors']?.[0]?.publicMessage).toContain('first boom');
+    });
+
+    it('every onResponse hook runs, in order, and offResponse removes only its own', async () => {
+      const ran: string[] = [];
+      const first = () => {
+        ran.push('first');
+      };
+      client.middlewares.notes.audit.offRequest().onRequest(() => undefined);
+      client.middlewares.session
+        .onRequest((call) => call('valid'))
+        .onResponse(first)
+        .onResponse(() => {
+          ran.push('second');
+        });
+      await client.routes.notes.getNote('a').call();
+      client.middlewares.session.offResponse(first);
+      await client.routes.notes.getNote('a').call();
+      expect(ran).toEqual(['first', 'second', 'second']);
+    });
+
+    it('a rejecting onResponse hook lands in @thrownErrors', async () => {
+      client.middlewares.notes.audit.offRequest().onRequest(() => undefined);
+      client.middlewares.session
+        .onRequest((call) => call('valid'))
+        .onResponse(async () => {
+          throw new Error('late boom');
+        });
+      const [result, , response] = await client.routes.notes.getNote('a').call();
+      expect(result).toBe('note a (1)');
+      expect(response['@thrownErrors']?.[0]?.type).toBe('middleware-on-response-failed');
+      expect(response['@thrownErrors']?.[0]?.publicMessage).toContain("onResponse for middleware 'session' failed: late boom");
+    });
+
+    it('a retry asked after an async hook finished is ignored', async () => {
+      let late: (() => boolean) | undefined;
+      client.middlewares.notes.audit.onError('audit-flagged', (_error, context) => {
+        late = () => context.retry();
+      });
+      await client.routes.notes.getNote('a').call();
+      expect(late?.()).toBe(false);
+      expect((await runs(client.routes)).getNote).toBe(1);
+    });
+  });
+});

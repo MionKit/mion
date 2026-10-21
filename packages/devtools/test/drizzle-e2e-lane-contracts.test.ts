@@ -1,9 +1,8 @@
 // Contract tests for the drizzle-e2e lanes.
 //
-// The lane list lives in THREE places that cannot import each other — the run
-// script inside the container, the release front door on the host, and the CI
-// matrix — so a new lane is easy to half-add: it runs locally and never runs in
-// CI, or CI asks for an image nothing builds. These pin the three to each other.
+// The lane list lives in THREE places that cannot import each other (the container run script, the host
+// release front door, the CI lane items in scripts/ci/lanes.mjs), so a new lane is easy to half-add: it
+// runs locally but never in CI, or CI asks for an image nothing builds. These pin the three to each other.
 //
 // The typecheck-normalization test is a REGRESSION, not a precaution. The lane
 // compares tsc over the translated tree against tsc over the control, and the
@@ -14,10 +13,13 @@
 // (drizzle's durable-objects worker): all three then read as both ADDED and
 // REMOVED, and the lane failed while the two trees were in fact identical.
 import {describe, it, expect} from 'vitest';
-import {readFileSync} from 'node:fs';
+import {mkdtempSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
+import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {diffTypeErrors, errorLines} from '../../../container/drizzle-e2e/shared/baseline.mjs';
+import {diffTypeErrors, errorLines, isExactTypeAssertion} from '../../../container/drizzle-e2e/shared/baseline.mjs';
+// @ts-expect-error plain ESM dev script, no types
+import {LANES} from '../../../scripts/ci/lanes.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const read = (rel: string): string => readFileSync(path.join(REPO_ROOT, rel), 'utf8');
@@ -37,6 +39,11 @@ describe('drizzle-e2e lane wiring', () => {
 
   const lanes = laneKeys(runSuite, 'const DIALECTS = {');
 
+  it.each(['vitest.types.config.ts', 'runners/durable-worker.mjs'])('%s keeps build-wide diagnostics enabled', (file) => {
+    const config = read(`container/drizzle-e2e/shared/${file}`);
+    expect(config).not.toContain('downgradeErrors:');
+  });
+
   it('every lane the container knows is offered by the release script and by CI', () => {
     expect(lanes).toContain('durable'); // the shape most likely to be dropped: not a dialect
 
@@ -44,9 +51,11 @@ describe('drizzle-e2e lane wiring', () => {
     const fromFrontDoor = [...offered.matchAll(/'([a-z0-9]+)'/g)].map((match) => match[1]);
     expect(fromFrontDoor.sort()).toEqual([...lanes].sort());
 
-    const matrix = /dialect: \[([^\]]*)\]/.exec(workflow)?.[1] ?? '';
-    const fromCi = matrix.split(',').map((name) => name.trim());
-    expect(fromCi.sort()).toEqual([...lanes].sort());
+    // CI runs the unproven items of the drizzle lane, so the items ARE the CI list.
+    expect(workflow).toContain(
+      'dialect: ${{ fromJSON(needs.drizzle-wait.outputs.lanes || needs.lanes.outputs.lanes).drizzle.runItems }}'
+    );
+    expect(Object.keys(LANES.drizzle.items).sort()).toEqual([...lanes].sort());
   });
 
   it('every lane resolves to an image the container script can build', () => {
@@ -111,5 +120,51 @@ describe('drizzle-e2e typecheck normalization', () => {
     const runSuite = read('container/drizzle-e2e/shared/run-suite.mjs');
     expect(runSuite).toContain('path.relative(HOME, tree)');
     expect(runSuite).toContain('path.relative(HOME, CONTROL)');
+  });
+});
+
+// toDrizzle preserves column formats, breaking Drizzle’s exact-type assertions.
+describe('an added error on an exact-type assertion is set apart, any other still fails', () => {
+  const source = [
+    'const result = await db.select().from(users);',
+    'expectTypeOf(result).toEqualTypeOf<{id: number}[]>();',
+    'Expect<',
+    '  Equal<{id: number}[], typeof result>',
+    '>;',
+    'const wrong: number = result[0].name;',
+  ].join('\n');
+  const HOME = mkdtempSync(path.join(tmpdir(), 'drizzle-baseline-'));
+  mkdirSync(path.join(HOME, 'work/tests'), {recursive: true});
+  writeFileSync(path.join(HOME, 'work/tests/pg-common.ts'), source);
+  const roots = [`${HOME}/work/`, `${HOME}/control/`, 'work/', 'control/'];
+  const translated = [
+    'work/tests/pg-common.ts(2,22): error TS2554: Expected 1 arguments, but got 0.',
+    "work/tests/pg-common.ts(4,3): error TS2344: Type 'false' does not satisfy the constraint 'true'.",
+    "work/tests/pg-common.ts(6,7): error TS2322: Type 'string' is not assignable to type 'number'.",
+  ];
+
+  it('knows the two assertion shapes', () => {
+    const lines = source.split('\n');
+    expect([1, 2, 3, 4, 5, 6].map((lineNo) => isExactTypeAssertion(lines, lineNo))).toEqual([
+      false,
+      true,
+      false,
+      true,
+      false,
+      false,
+    ]);
+  });
+
+  it('moves the assertions out of `added`, keeps the real error in it', () => {
+    const {added, assertions} = diffTypeErrors({translated, control: [], roots, cwd: HOME});
+    expect(assertions).toHaveLength(2);
+    expect(added).toHaveLength(1);
+    expect(added[0]).toContain('TS2322');
+  });
+
+  it('without `cwd` every added error still counts', () => {
+    const {added, assertions} = diffTypeErrors({translated, control: [], roots});
+    expect(added).toHaveLength(3);
+    expect(assertions).toEqual([]);
   });
 });

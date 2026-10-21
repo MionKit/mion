@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
+	// Registers the format emitters the format-backed noop cases below resolve through.
+	_ "github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats/all"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
@@ -22,6 +24,7 @@ func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.RunT
 	voidT := &reflection.RunType{ID: "vd", Kind: reflection.KindVoid}
 	bigint := &reflection.RunType{ID: "big", Kind: reflection.KindBigInt}
 	date := &reflection.RunType{ID: "dat", Kind: reflection.KindClass, SubKind: reflection.SubKindDate}
+	url := &reflection.RunType{ID: "url", Kind: reflection.KindClass, SubKind: reflection.SubKindUrl}
 	mapT := &reflection.RunType{ID: "mp", Kind: reflection.KindClass, SubKind: reflection.SubKindMap}
 	fn := &reflection.RunType{ID: "fn", Kind: reflection.KindFunction}
 
@@ -56,6 +59,9 @@ func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.RunT
 	unionObjNest := &reflection.RunType{ID: "uObjNest", Kind: reflection.KindUnion, Children: []*reflection.RunType{makeRef("objCompat"), makeRef("objNest")}}
 	unionArrObjStr := &reflection.RunType{ID: "uArrObjStr", Kind: reflection.KindUnion, Children: []*reflection.RunType{makeRef("arrCO"), makeRef("str")}}
 	unionRecObj := &reflection.RunType{ID: "uRecObj", Kind: reflection.KindUnion, Children: []*reflection.RunType{makeRef("recA"), makeRef("objCompat")}}
+	// Compact writes a merged object positionally even beside a bare scalar member: `{…} | null` decodes an array.
+	nullType := &reflection.RunType{ID: "nul", Kind: reflection.KindNull}
+	unionObjNull := &reflection.RunType{ID: "uObjNull", Kind: reflection.KindUnion, Children: []*reflection.RunType{makeRef("objCompat"), makeRef("nul")}}
 
 	// The user-reported shape: circular JSON-compatible object —
 	// `{a: string; d?: Self[]}` reached through an optional array prop.
@@ -69,12 +75,8 @@ func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.RunT
 	circDProp := &reflection.RunType{ID: "circDD", Kind: reflection.KindProperty, Name: "d", IsSafeName: true, Optional: true, Child: makeRef("circDArr")}
 	circDat := &reflection.RunType{ID: "circDat", Kind: reflection.KindObjectLiteral, TypeName: "CircWithDate", IsCircular: true, Children: []*reflection.RunType{makeRef("pdat"), makeRef("circDD")}}
 
-	// Arms for the universal-predicate tables: any/unknown (validate /
-	// validationErrors), a primitive literal (stringifyJson / toBinary), a
-	// never-valued property (the DataOnly dropped-slot rule), an atomic-value
-	// record (unknown-keys index arm), a literal-only object + tuple
-	// (toBinary's write-nothing compositions), and an object-carrying tuple
-	// (the uku/ukuw tuple-noop divergence).
+	// Universal-predicate arms: any/unknown (validate / validationErrors), a never-valued prop (DataOnly dropped slot),
+	// an atomic record (unknown-keys index arm), and an object-carrying tuple (unknown-keys families recurse into slots).
 	anyT := &reflection.RunType{ID: "anyT", Kind: reflection.KindAny}
 	unkT := &reflection.RunType{ID: "unkT", Kind: reflection.KindUnknown}
 	lit := &reflection.RunType{ID: "lit", Kind: reflection.KindLiteral}
@@ -83,38 +85,40 @@ func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.RunT
 	objNever := &reflection.RunType{ID: "objNever", Kind: reflection.KindObjectLiteral, TypeName: "WithNever", Children: []*reflection.RunType{makeRef("pa"), makeRef("pnev")}}
 	idxAtomic := &reflection.RunType{ID: "idxA", Kind: reflection.KindIndexSignature, Child: makeRef("num"), Index: makeRef("str")}
 	recAtomic := &reflection.RunType{ID: "recA", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("idxA")}}
-	propLit := &reflection.RunType{ID: "plit", Kind: reflection.KindProperty, Name: "k", IsSafeName: true, Child: makeRef("lit")}
-	objLitOnly := &reflection.RunType{ID: "objLit", Kind: reflection.KindObjectLiteral, TypeName: "LitObj", Children: []*reflection.RunType{makeRef("plit")}}
+	patternKey := templateKeyIndex("idxP", "d_", "num")
+	recPattern := &reflection.RunType{ID: "recP", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("idxP")}}
 	pos0 := 0
-	tmLit := &reflection.RunType{ID: "tmLit", Kind: reflection.KindTupleMember, Position: &pos0, Child: makeRef("lit")}
-	tupLit := &reflection.RunType{ID: "tupLit", Kind: reflection.KindTuple, Children: []*reflection.RunType{makeRef("tmLit")}}
 	tmObj := &reflection.RunType{ID: "tmObj", Kind: reflection.KindTupleMember, Position: &pos0, Child: makeRef("objCompat")}
 	tupObj := &reflection.RunType{ID: "tupObj", Kind: reflection.KindTuple, Children: []*reflection.RunType{makeRef("tmObj")}}
 
-	// Named-class registry-branch rule (the tb tripwire repro): a NAMED plain
-	// user class always compiles wrapToBinaryWithClassSerializer's runtime
-	// registry branch, so it can never claim identity — even when every
-	// member is a dropped (`p0: never`) or write-nothing (literal) slot.
-	// Anonymous classes and interface twins stay structural/noop.
-	clsNever := &reflection.RunType{ID: "clsNever", Kind: reflection.KindClass, SubKind: reflection.SubKindNone, TypeName: "C0", Children: []*reflection.RunType{makeRef("pnev")}}
-	aclsNever := &reflection.RunType{ID: "aclsNever", Kind: reflection.KindClass, SubKind: reflection.SubKindNone, Children: []*reflection.RunType{makeRef("pnev")}}
-	objNeverOnly := &reflection.RunType{ID: "objNeverOnly", Kind: reflection.KindObjectLiteral, TypeName: "I0", Children: []*reflection.RunType{makeRef("pnev")}}
-	clsLit := &reflection.RunType{ID: "clsLit", Kind: reflection.KindClass, SubKind: reflection.SubKindNone, TypeName: "C1", Children: []*reflection.RunType{makeRef("plit")}}
+	// Native iterables: a Map value or Set member holding a keyed object is swept like any other slot.
+	iterParam := func(id string, sub reflection.ReflectionSubKind, child string) *reflection.RunType {
+		return &reflection.RunType{ID: id, Kind: reflection.KindParameter, SubKind: sub, Child: makeRef(child)}
+	}
+	mapKeyStr := iterParam("mkStr", reflection.SubKindMapKey, "str")
+	mapValObj := iterParam("mvObj", reflection.SubKindMapValue, "objCompat")
+	mapValStr := iterParam("mvStr", reflection.SubKindMapValue, "str")
+	setItemObj := iterParam("siObj", reflection.SubKindSetItem, "objCompat")
+	setItemStr := iterParam("siStr", reflection.SubKindSetItem, "str")
+	mapObj := &reflection.RunType{ID: "mpObj", Kind: reflection.KindClass, SubKind: reflection.SubKindMap, Arguments: []*reflection.RunType{makeRef("mkStr"), makeRef("mvObj")}}
+	mapStr := &reflection.RunType{ID: "mpStr", Kind: reflection.KindClass, SubKind: reflection.SubKindMap, Arguments: []*reflection.RunType{makeRef("mkStr"), makeRef("mvStr")}}
+	setObj := &reflection.RunType{ID: "stObj", Kind: reflection.KindClass, SubKind: reflection.SubKindSet, Arguments: []*reflection.RunType{makeRef("siObj")}}
+	setStr := &reflection.RunType{ID: "stStr", Kind: reflection.KindClass, SubKind: reflection.SubKindSet, Arguments: []*reflection.RunType{makeRef("siStr")}}
 
 	all := []*reflection.RunType{
-		str, num, undef, voidT, bigint, date, mapT, fn,
+		str, num, undef, voidT, bigint, date, url, mapT, fn,
 		propA, propBig, propDate, propFn,
 		objCompat, objBig, objDate, objFnOnly,
 		arrCompatObj, arrStr, arrDate,
 		namedClass, anonClass,
 		unionAtomic, unionDate, unionObjects,
-		propInner, objNest, unionObjNest, unionArrObjStr, unionRecObj,
+		propInner, objNest, unionObjNest, unionArrObjStr, unionRecObj, nullType, unionObjNull,
 		circArr, circProp, circ,
 		circDArr, circDProp, circDat,
 		anyT, unkT, lit, nev, propNever, objNever,
-		idxAtomic, recAtomic, propLit, objLitOnly,
-		tmLit, tupLit, tmObj, tupObj,
-		clsNever, aclsNever, objNeverOnly, clsLit,
+		idxAtomic, recAtomic, patternKey[0], patternKey[1], recPattern,
+		tmObj, tupObj,
+		mapKeyStr, mapValObj, mapValStr, setItemObj, setItemStr, mapObj, mapStr, setObj, setStr,
 	}
 	refTable := make(map[string]*reflection.RunType, len(all))
 	byID := make(map[string]*reflection.RunType, len(all))
@@ -143,6 +147,7 @@ func TestNoopType_PrepareVsRestore(t *testing.T) {
 		{"vd", false, false},  // both halves rebind
 		{"big", false, false}, // toString / BigInt()
 		{"dat", true, false},  // encode rides toJSON; decode rebuilds new Date(v)
+		{"url", true, false},  // encode rides toJSON (href); decode rebuilds new URL(v)
 		{"mp", false, false},
 		{"objCompat", true, true},
 		{"objBig", false, false},
@@ -158,6 +163,10 @@ func TestNoopType_PrepareVsRestore(t *testing.T) {
 		{"uObj", false, false}, // bigint member forces the [-1, merged] envelope
 		{"circ", true, true},   // the user-reported shape — cycle is identity
 		{"circDat", true, false},
+		// A string-keyed index signature decodes through the key loop that
+		// refuses a prototype-named wire key, whatever the value type: rj is
+		// never the identity there, while pj rebuilds nothing.
+		{"recA", true, false},
 	}
 	for _, c := range cases {
 		t.Run(c.id, func(t *testing.T) {
@@ -188,6 +197,7 @@ func TestNoopType_PrepareJsonSafe(t *testing.T) {
 		{"ncls", false},
 		{"uAt", false},
 		{"dat", false}, // pjs eagerly emits toISOString()
+		{"url", false}, // pjs eagerly emits .href
 	}
 	for _, c := range cases {
 		t.Run(c.id, func(t *testing.T) {
@@ -217,7 +227,7 @@ func dumpFor(types map[string]*reflection.RunType) protocol.Dump {
 func TestDispatchGate_CircularIdentityCollapses(t *testing.T) {
 	_, types := noopPredicateTypes(t)
 	dump := dumpFor(types)
-	for _, familyKey := range []string{"prepareForJson", "restoreFromJson"} {
+	for _, familyKey := range []string{"prepareForJsonMutate", "restoreFromJsonMutate"} {
 		graph := FamilyByKey(familyKey).Collect(dump, RenderOpts{EmitMode: constants.EmitBoth}, nil)
 		key := operations.PlainHash(familyKey) + "_circ"
 		entry := graph[key]
@@ -239,8 +249,8 @@ func TestDispatchGate_CircularIdentityCollapses(t *testing.T) {
 func TestDispatchGate_KeepsRealTransformDepCalls(t *testing.T) {
 	_, types := noopPredicateTypes(t)
 	dump := dumpFor(types)
-	graph := FamilyByKey("restoreFromJson").Collect(dump, RenderOpts{EmitMode: constants.EmitBoth}, nil)
-	key := operations.PlainHash("restoreFromJson") + "_circDat"
+	graph := FamilyByKey("restoreFromJsonMutate").Collect(dump, RenderOpts{EmitMode: constants.EmitBoth}, nil)
+	key := operations.PlainHash("restoreFromJsonMutate") + "_circDat"
 	entry := graph[key]
 	if entry == nil {
 		t.Fatal("no rj entry for circDat")
@@ -268,8 +278,8 @@ func TestDispatchGate_ElidesNoopExternalChild(t *testing.T) {
 	types["pnc"] = propNamed
 	types["parent"] = parent
 	dump := dumpFor(types)
-	graph := FamilyByKey("restoreFromJson").Collect(dump, RenderOpts{EmitMode: constants.EmitBoth}, nil)
-	key := operations.PlainHash("restoreFromJson") + "_parent"
+	graph := FamilyByKey("restoreFromJsonMutate").Collect(dump, RenderOpts{EmitMode: constants.EmitBoth}, nil)
+	key := operations.PlainHash("restoreFromJsonMutate") + "_parent"
 	entry := graph[key]
 	if entry == nil {
 		t.Fatal("no rj entry for parent")
@@ -289,9 +299,9 @@ func TestDispatchGate_ElidesNoopExternalChild(t *testing.T) {
 // the runtime registers the composite's native-JSON noop instead (entryTuple's
 // noopStringify for je*, noopParse for jd*).
 func TestJsonComposite_ElidesNoopPrimitives(t *testing.T) {
-	rjKey := operations.PlainHash("restoreFromJson") + "_obj1"
-	ukuwKey := operations.PlainHash("unknownKeysToUndefinedWire") + "_obj1"
-	pjKey := operations.PlainHash("prepareForJson") + "_obj1"
+	rjKey := operations.PlainHash("restoreFromJsonMutate") + "_obj1"
+	rjsKey := operations.PlainHash("restoreFromJsonClone") + "_obj1"
+	pjKey := operations.PlainHash("prepareForJsonMutate") + "_obj1"
 	runType := &reflection.RunType{ID: "obj1", Kind: reflection.KindObjectLiteral}
 
 	render := func(tag string, rendered entrymodules.Graph) *entrymodules.Entry {
@@ -308,35 +318,32 @@ func TestJsonComposite_ElidesNoopPrimitives(t *testing.T) {
 	}
 	noopGraph := entrymodules.Graph{}
 	noopGraph.Add(&entrymodules.Entry{Key: rjKey, Kind: entrymodules.KindTypeFn, FamilyTag: "rj", ArgsText: "'" + rjKey + "'", IsNoop: true})
+	noopGraph.Add(&entrymodules.Entry{Key: rjsKey, Kind: entrymodules.KindTypeFn, FamilyTag: "rjs", ArgsText: "'" + rjsKey + "'", IsNoop: true})
 	noopGraph.Add(&entrymodules.Entry{Key: pjKey, Kind: entrymodules.KindTypeFn, FamilyTag: "pj", ArgsText: "'" + pjKey + "'", IsNoop: true})
-	noopGraph.Add(&entrymodules.Entry{Key: ukuwKey, Kind: entrymodules.KindTypeFn, FamilyTag: "ukuw", ArgsText: "'" + ukuwKey + "'"})
 
-	jdPRKey := operations.FnHashFor(mustOp(t, "jsonDecoder"), nil, "preserve", false) + "_obj1"
+	jdMUKey := operations.FnHashFor(mustOp(t, "jsonDecoder"), nil, "mutate", false) + "_obj1"
+	jdCLKey := operations.FnHashFor(mustOp(t, "jsonDecoder"), nil, "clone", false) + "_obj1"
 	jeMUKey := operations.FnHashFor(mustOp(t, "jsonEncoder"), nil, "mutate", false) + "_obj1"
 
-	// jdPR: rj noop → every binding elided → the noop short form; no body,
-	// no factory, no deps. The bare JSON.parse moved into the runtime noop.
-	entry := render("jdPR", noopGraph)
-	if entry.ArgsText != "'"+jdPRKey+"','objectLiteral',,true" {
-		t.Errorf("jdPR with noop rj must collapse to the noop short form:\n%s", entry.ArgsText)
+	// jdMU: an rj noop elides every binding, so the entry is the noop short form backed by the runtime's JSON.parse.
+	entry := render("jdMU", noopGraph)
+	if entry.ArgsText != "'"+jdMUKey+"','objectLiteral',,true" {
+		t.Errorf("jdMU with noop rj must collapse to the noop short form:\n%s", entry.ArgsText)
 	}
 	if !entry.IsNoop {
-		t.Error("jdPR with noop rj must flag Entry.IsNoop")
+		t.Error("jdMU with noop rj must flag Entry.IsNoop")
 	}
 	if len(entry.SoftDeps) != 0 {
-		t.Errorf("jdPR with noop rj must carry no primitive deps, got %v", entry.SoftDeps)
+		t.Errorf("jdMU with noop rj must carry no primitive deps, got %v", entry.SoftDeps)
 	}
 
-	// jdST: rj noop + ukuw live → a real body keeping only the ukuw binding.
-	entry = render("jdST", noopGraph)
-	if !strings.Contains(entry.ArgsText, "return ukuwFn(JSON.parse(s));") || strings.Contains(entry.ArgsText, "rjFn") {
-		t.Errorf("jdST with noop rj must keep only the ukuw wrap:\n%s", entry.ArgsText)
+	// jdCL: rjs noop → the same noop short form.
+	entry = render("jdCL", noopGraph)
+	if entry.ArgsText != "'"+jdCLKey+"','objectLiteral',,true" {
+		t.Errorf("jdCL with noop rjs must collapse to the noop short form:\n%s", entry.ArgsText)
 	}
-	if entry.IsNoop {
-		t.Error("jdST with a live ukuw must not flag Entry.IsNoop")
-	}
-	if len(entry.SoftDeps) != 1 || entry.SoftDeps[0] != ukuwKey {
-		t.Errorf("jdST deps must name only the live ukuw primitive, got %v", entry.SoftDeps)
+	if !entry.IsNoop {
+		t.Error("jdCL with noop rjs must flag Entry.IsNoop")
 	}
 
 	// jeMU: pj noop → the noop short form (runtime noop is JSON.stringify).
@@ -351,15 +358,15 @@ func TestJsonComposite_ElidesNoopPrimitives(t *testing.T) {
 	// Control: a live (non-noop) rj keeps today's binding shape.
 	liveGraph := entrymodules.Graph{}
 	liveGraph.Add(&entrymodules.Entry{Key: rjKey, Kind: entrymodules.KindTypeFn, FamilyTag: "rj", ArgsText: "'" + rjKey + "'"})
-	entry = render("jdPR", liveGraph)
+	entry = render("jdMU", liveGraph)
 	if !strings.Contains(entry.ArgsText, "return rjFn(JSON.parse(s));") {
-		t.Errorf("jdPR with live rj must keep the binding:\n%s", entry.ArgsText)
+		t.Errorf("jdMU with live rj must keep the binding:\n%s", entry.ArgsText)
 	}
 	if entry.IsNoop {
-		t.Error("jdPR with a live rj must not flag Entry.IsNoop")
+		t.Error("jdMU with a live rj must not flag Entry.IsNoop")
 	}
 	if len(entry.SoftDeps) != 1 || entry.SoftDeps[0] != rjKey {
-		t.Errorf("jdPR deps must name the live rj primitive, got %v", entry.SoftDeps)
+		t.Errorf("jdMU deps must name the live rj primitive, got %v", entry.SoftDeps)
 	}
 }
 
@@ -399,35 +406,12 @@ func TestNoopType_ValidateAndValidationErrors(t *testing.T) {
 	}
 }
 
-// TestNoopType_StringifyJsonRoot pins the sj root-only arm: native-delegation
-// roots only; String(v)-shaped and compound roots stay live.
-func TestNoopType_StringifyJsonRoot(t *testing.T) {
-	ctx, types := noopPredicateTypes(t)
-	cases := []struct {
-		id   string
-		want bool
-	}{
-		{"str", true},
-		{"anyT", true},
-		{"unkT", true},
-		{"lit", true},  // primitive literal — JSON.stringify delegation
-		{"num", false}, // String(v): NaN/Infinity diverge from native JSON
-		{"big", false}, // manual quoting
-		{"objCompat", false},
-		{"arrStr", false},
-	}
-	for _, c := range cases {
-		t.Run(c.id, func(t *testing.T) {
-			if got := isNoopForStringifyJson(types[c.id], ctx); got != c.want {
-				t.Errorf("isNoopForStringifyJson(%s) = %v, want %v", c.id, got, c.want)
-			}
-		})
-	}
-}
-
-// TestNoopType_CompactFromJson pins the cjr arm — restoreFromJson's rules with
+// TestNoopType_CompactFromJson pins the cjr arm — restoreFromJsonMutate's rules with
 // every object arm forced false (the positional→keyed rebuild). objCompat is
-// THE divergence pin: rj lets it round-trip raw, cjr must not.
+// THE divergence pin: rj lets it round-trip raw, cjr must not. Unions are the
+// same story one level up: compact ENCODE goes through the stripping encoder, so
+// its decode does too, and neither may claim identity for a union carrying an
+// object.
 func TestNoopType_CompactFromJson(t *testing.T) {
 	ctx, types := noopPredicateTypes(t)
 	cases := []struct {
@@ -439,10 +423,19 @@ func TestNoopType_CompactFromJson(t *testing.T) {
 		{"uAt", true},         // raw-round-trip union (shared restore rule)
 		{"uObjNest", false},   // rj says true — a merged member positionalizes its nested object
 		{"uArrObjStr", false}, // rj says true — the array arm positionalizes its elements
-		{"uRecObj", true},     // numeric record | flat object: nothing positionalizes, stays raw
-		{"objCompat", false},  // rj says true — the delegation trap
-		{"arrCO", false},      // array of objects — positional elements
+		// A union with an object member is never noop for cjr: the compact arm is the SAFE restore,
+		// which rebuilds each object from its declared shape instead of riding the value through.
+		// uRecObj KEEPS every key at runtime (the index-signature carve-out declares them all, so
+		// its object branch restores in place); the entry is still a real function, the record
+		// arm's key loop, rather than the identity.
+		{"uRecObj", false},
+		{"uObj", false},
+		{"uObjNull", false},  // the merged object is a positional array on the wire
+		{"recA", false},      // the key loop with the prototype-name refusal always ships
+		{"objCompat", false}, // rj says true — the delegation trap
+		{"arrCO", false},     // array of objects — positional elements
 		{"dat", false},
+		{"url", false},
 		{"und", false},
 		{"lit", true},
 	}
@@ -462,57 +455,60 @@ func TestNoopType_CompactFromJson(t *testing.T) {
 	}
 }
 
-// TestNoopType_ToBinary pins the tb arm: literal-only graphs write nothing;
-// everything else writes bytes (even undefined writes its sentinel).
-func TestNoopType_ToBinary(t *testing.T) {
+// TestNoopType_RestoreFromJsonClone pins the rjs arm — restoreFromJsonMutate's rules with every arm that
+// REBUILDS forced false. The union rows are the ones that matter: rjs must answer false wherever an
+// undeclared key can hide, including inside an ATOMIC member, because an array member means the
+// layout carries no ObjectMembers at all and the union would otherwise short-circuit to identity.
+//
+// A wrong `true` here is not a missed optimisation, it is data corruption: this emitter sits on the
+// walker's dispatch gate, so a false positive replaces the child call with empty code and the
+// rebuild never runs at any nested position.
+func TestNoopType_RestoreFromJsonClone(t *testing.T) {
 	ctx, types := noopPredicateTypes(t)
 	cases := []struct {
 		id   string
 		want bool
 	}{
+		{"str", true},
+		{"arrStr", true},
+		{"uAt", true},         // every member an atomic that carries no keys
+		{"uObjNest", false},   // rj says true — a merged member holds a nested object
+		{"uArrObjStr", false}, // rj says true — the object hides inside the ARRAY member
+		{"uRecObj", false},    // rj says true; the carve-out keeps every key, but the record arm's key loop ships
+		{"recA", false},       // the key loop with the prototype-name refusal always ships
+		{"objCompat", false},  // every object rebuilds, that is what strips
+		{"arrCO", false},      // array of objects — each element rebuilds
+		{"dat", false},
+		{"url", false},
+		{"und", false},
 		{"lit", true},
-		{"objLit", true}, // {k: 'a'} — required literal props write nothing
-		{"tupLit", true}, // ['x'] — required literal slots write nothing
-		{"str", false},
-		{"und", false}, // 1-byte sentinel
-		{"objCompat", false},
-		{"arrStr", false}, // varint length prefix
-		{"uAt", false},    // discriminant byte
-		// Named-class registry-branch rule: the emitted body always carries
-		// the class-serializer registry check, so a named class never claims
-		// identity — the tb tripwire repro (`declare class C0 {p0: never}`).
-		{"clsNever", false},
-		{"clsLit", false},
-		// Anonymous class + interface twins skip the wrapper and stay
-		// structural: all-dropped / write-nothing members = identity.
-		{"aclsNever", true},
-		{"objNeverOnly", true},
 	}
 	for _, c := range cases {
 		t.Run(c.id, func(t *testing.T) {
-			if got := isNoopForToBinary(types[c.id], ctx); got != c.want {
-				t.Errorf("isNoopForToBinary(%s) = %v, want %v", c.id, got, c.want)
+			if got := isNoopForRestoreJsonSafe(types[c.id], ctx); got != c.want {
+				t.Errorf("isNoopForRestoreJsonSafe(%s) = %v, want %v", c.id, got, c.want)
 			}
 		})
 	}
-	if isNoopForFromBinary := (FromBinaryEmitter{}).IsNoopType(types["lit"], ctx); isNoopForFromBinary {
-		t.Error("fromBinary must never claim noop — even literal roots assign ret")
+	// The divergence pin: the preserving decoder round-trips these unions raw, and the stripping one
+	// must not. Delete this and the two predicates can drift back together unnoticed.
+	for _, id := range []string{"uObjNest", "uArrObjStr", "uRecObj"} {
+		if !isNoopForRestoreJson(types[id], ctx) {
+			t.Errorf("isNoopForRestoreJson(%s) = false, want true (the preserving decoder round-trips it raw)", id)
+		}
 	}
 }
 
-// TestNoopType_CloneExactShape pins the family's dedicated isolation-aware
-// predicate: identity only for fully immutable/opaque subtrees. Any mutable
-// position — object, class, Date, RegExp, array, tuple, Map/Set, index
-// signature — forces a live clone body (sharing it would leak mutable state
-// between input and "clone").
-func TestNoopType_CloneExactShape(t *testing.T) {
+// TestNoopType_RemoveUnknownKeys: any mutable position forces a live clone body, or input and clone share state.
+func TestNoopType_RemoveUnknownKeys(t *testing.T) {
 	ctx, types := noopPredicateTypes(t)
 	rows := map[string]bool{
 		"str":       true,  // immutable primitive
 		"big":       true,  // immutable primitive
-		"fn":        true,  // opaque — passthrough, overrideCloneExactShape is the escape hatch
+		"fn":        false, // shared or refused per sharedValues: the entry must compile to warn or throw
 		"uAt":       true,  // string | number — every member immutable
 		"dat":       false, // Date is mutable (setTime) — re-wrapped
+		"url":       false, // URL is mutable (component setters) — re-wrapped
 		"mp":        false, // Map is a mutable container — always fresh
 		"arrStr":    false, // arrays are mutable containers — fresh via slice
 		"arrDat":    false,
@@ -520,57 +516,24 @@ func TestNoopType_CloneExactShape(t *testing.T) {
 		"objFn":     false, // declared shape {} — clone is a fresh {}
 		"recA":      false, // index-signature object — fresh copy walk
 		"uDat":      false, // string | Date — Date member needs a dispatch arm
-		"uObj":      false, // object-bearing union — CES001 alwaysThrow, never identity
+		"uObj":      false, // object-bearing union — unknown-keys-object-union alwaysThrow, never identity
 		"ncls":      false, // class instances rebuild (prototype-preserving)
 		"tupObj":    false,
 	}
 	for id, want := range rows {
 		t.Run(id, func(t *testing.T) {
-			if got := isNoopForCloneExactShape(types[id], ctx); got != want {
-				t.Errorf("isNoopForCloneExactShape(%s) = %v, want %v", id, got, want)
+			if got := isNoopForRemoveUnknownKeys(types[id], ctx); got != want {
+				t.Errorf("isNoopForRemoveUnknownKeys(%s) = %v, want %v", id, got, want)
 			}
 		})
 	}
 }
 
-// TestNoopType_UnknownKeys pins the shared five-family arm table plus the two
-// per-family divergences: uku/ukuw no-op at tuples by design, and ukuw keeps
-// the Map/Set arm noop on the wire side.
-func TestNoopType_UnknownKeys(t *testing.T) {
-	ctx, types := noopPredicateTypes(t)
-	specs := map[string]unknownKeysNoopSpec{
-		"huk":  hasUnknownKeysNoopSpec,
-		"uke":  unknownKeyErrorsNoopSpec,
-		"uku":  unknownKeysToUndefinedNoopSpec,
-		"ukuw": unknownKeysToUndefinedWireSpec,
-	}
-	type row struct {
-		id   string
-		want map[string]bool
-	}
-	same := func(want bool) map[string]bool {
-		return map[string]bool{"huk": want, "uke": want, "uku": want, "ukuw": want}
-	}
-	rows := []row{
-		{"str", same(true)},
-		{"objCompat", same(false)}, // named props → the parent allowlist probe
-		{"objFn", same(false)},     // function-typed props still count as declared names
-		{"recA", same(true)},       // index sig over atomic values — every key is "known"
-		{"arrStr", same(true)},
-		{"arrCO", same(false)}, // array of keyed objects
-		{"uAt", same(true)},    // atomic-only union — nothing to sweep
-		{"uObj", same(false)},  // merged allowlist over the object members
-		// The tuple divergence: has/errors recurse into slots; uku and
-		// ukuw no-op at tuples by design (emitTupleUnknownKeysToUndefined).
-		{"tupObj", map[string]bool{"huk": false, "uke": false, "uku": true, "ukuw": true}},
-	}
-	for _, r := range rows {
-		for familyTag, spec := range specs {
-			t.Run(r.id+"/"+familyTag, func(t *testing.T) {
-				if got := isNoopForUnknownKeys(types[r.id], ctx, spec); got != r.want[familyTag] {
-					t.Errorf("isNoopForUnknownKeys(%s, %s) = %v, want %v", r.id, familyTag, got, r.want[familyTag])
-				}
-			})
+// TestNoopType_EveryFamilyHasPredicate: without IsNoopType a family silently never elides its noop children.
+func TestNoopType_EveryFamilyHasPredicate(t *testing.T) {
+	for _, spec := range Families {
+		if _, ok := spec.Emitter.(NoopTypePredicate); !ok {
+			t.Errorf("family %s: emitter %T does not implement NoopTypePredicate", spec.Key, spec.Emitter)
 		}
 	}
 }
@@ -620,8 +583,7 @@ func TestNoopVerdict_TripwireDemotesLyingPredicate(t *testing.T) {
 
 // formatPredicateTypes extends the shared corpus with format-carrying and
 // fmt-overridden shapes for the fmt predicate table. Formats registry is
-// populated by the package-wide formats/all blank import
-// (binary_size_estimate_test.go).
+// populated by the formats/all blank import at the top of this file.
 func formatPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.RunType) {
 	t.Helper()
 	ctx, types := noopPredicateTypes(t)
@@ -634,7 +596,7 @@ func formatPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.Ru
 	register(&reflection.RunType{ID: "strLenOnly", Kind: reflection.KindString,
 		FormatAnnotation: &reflection.FormatAnnotation{Name: "stringFormat", Params: map[string]any{"maxLength": float64(8)}}})
 	register(&reflection.RunType{ID: "strOverride", Kind: reflection.KindString,
-		Overrides: map[string]string{"fmt": "cfnabc"}})
+		Overrides: map[string]string{"formatTransform": "cfnabc"}})
 	register(&reflection.RunType{ID: "pTrim", Kind: reflection.KindProperty, Name: "name", IsSafeName: true, Child: makeRef("strTrim")})
 	register(&reflection.RunType{ID: "pOvr", Kind: reflection.KindProperty, Name: "s", IsSafeName: true, Child: makeRef("strOverride")})
 	register(&reflection.RunType{ID: "objTrim", Kind: reflection.KindObjectLiteral, TypeName: "FmtUser", Children: []*reflection.RunType{makeRef("pTrim")}})
@@ -673,6 +635,7 @@ func TestNoopType_FormatTransform(t *testing.T) {
 		{"arrStr", true},
 		{"uTrim", true}, // MVP: unions are identity even with formatted members
 		{"dat", true},
+		{"url", true},
 		{"mp", true},
 		{"ncls", true}, // user class with a plain string prop
 		{"fn", true},
@@ -721,87 +684,11 @@ func TestDispatchGate_FormatIdentityChainCollapses(t *testing.T) {
 	}
 }
 
-// TestStringifyJson_NativeRootCollapses pins the sj Finalize byte-match:
-// roots whose whole body is `return JSON.stringify(v)` (string / any-like
-// delegation arms) flag isNoop and emit the short form — the runtime noop IS
-// native JSON.stringify — while String(v)-shaped roots (number: NaN/Infinity
-// diverge under native stringify) and real compound bodies stay live.
-func TestStringifyJson_NativeRootCollapses(t *testing.T) {
-	_, types := noopPredicateTypes(t)
-	dump := dumpFor(types)
-	graph := FamilyByKey("stringifyJson").Collect(dump, RenderOpts{EmitMode: constants.EmitBoth}, nil)
-
-	strEntry := graph[operations.PlainHash("stringifyJson")+"_str"]
-	if strEntry == nil {
-		t.Fatal("no sj entry for str")
-	}
-	if !strEntry.IsNoop {
-		t.Errorf("sj string root must collapse to the native-stringify noop, got:\n%s", strEntry.ArgsText)
-	}
-
-	numEntry := graph[operations.PlainHash("stringifyJson")+"_num"]
-	if numEntry == nil {
-		t.Fatal("no sj entry for num")
-	}
-	if numEntry.IsNoop {
-		t.Error("sj number root (String(v) — diverges on NaN/Infinity) must stay live")
-	}
-	if !strings.Contains(numEntry.ArgsText, "return String(v)") {
-		t.Errorf("sj number root must keep the String(v) body:\n%s", numEntry.ArgsText)
-	}
-
-	objEntry := graph[operations.PlainHash("stringifyJson")+"_objCompat"]
-	if objEntry == nil {
-		t.Fatal("no sj entry for objCompat")
-	}
-	if objEntry.IsNoop {
-		t.Error("sj object root (declared-member concat, extras stripped) must stay live")
-	}
-}
-
-// TestJsonComposite_DirectStrategyTwoLayerCollapse: pre-change, jeDI over an
-// atomic string shipped TWO dead modules — an sj entry whose body was
-// `return JSON.stringify(v)` and the composite `return sjFn(v)` binding it.
-// The sj Finalize byte-match marks the primitive noop, the composite elides
-// the binding, and the whole thing collapses to one short-form tuple. The
-// object-root control keeps the delegation (sj really strips extras there).
-func TestJsonComposite_DirectStrategyTwoLayerCollapse(t *testing.T) {
-	_, types := noopPredicateTypes(t)
-	dump := dumpFor(types)
-	rendered := FamilyByKey("stringifyJson").Collect(dump, RenderOpts{EmitMode: constants.EmitBoth}, nil)
-	composite, ok := constants.JsonCompositeByTag("jeDI")
-	if !ok {
-		t.Fatal("unknown composite tag jeDI")
-	}
-
-	entry := collectJsonCompositeEntry(types["str"], "jeDI", composite, RenderOpts{EmitMode: constants.EmitBoth}, rendered, nil, false)
-	if entry == nil {
-		t.Fatal("no jeDI entry for str")
-	}
-	if !entry.IsNoop {
-		t.Errorf("jeDI over an atomic string must collapse to the noop short form, got:\n%s", entry.ArgsText)
-	}
-	if len(entry.SoftDeps) != 0 {
-		t.Errorf("collapsed jeDI must carry no primitive deps, got %v", entry.SoftDeps)
-	}
-
-	objEntry := collectJsonCompositeEntry(types["objCompat"], "jeDI", composite, RenderOpts{EmitMode: constants.EmitBoth}, rendered, nil, false)
-	if objEntry == nil {
-		t.Fatal("no jeDI entry for objCompat")
-	}
-	if objEntry.IsNoop {
-		t.Error("jeDI over an object must keep the live sj delegation")
-	}
-	if !strings.Contains(objEntry.ArgsText, "return sjFn(v);") {
-		t.Errorf("jeDI object body must bind the live sj primitive:\n%s", objEntry.ArgsText)
-	}
-}
-
 // TestJsonComposite_WrapRootNeverNoop: an undefined/void root keeps the full
 // body even when its primitive elided — the `[v]` JSON envelope is real work
 // (rootNeedsDataOnlyWrap), and the runtime noop would drop it.
 func TestJsonComposite_WrapRootNeverNoop(t *testing.T) {
-	pjKey := operations.PlainHash("prepareForJson") + "_und1"
+	pjKey := operations.PlainHash("prepareForJsonMutate") + "_und1"
 	runType := &reflection.RunType{ID: "und1", Kind: reflection.KindUndefined}
 	composite, ok := constants.JsonCompositeByTag("jeMU")
 	if !ok {

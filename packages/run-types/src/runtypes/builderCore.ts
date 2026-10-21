@@ -1,10 +1,6 @@
-// The shared value-first BUILDER primitives — the runtime helpers every builder
-// (the scalar/format builders under `formats/` AND the composer/utility builders
-// under `schema/`) is constructed from. It lives in the neutral `runtypes/` layer
-// so neither authoring surface depends on the other: moving these out of
-// `schema/atomic.ts` removed the old `formats`-builder → `schema/atomic.ts` value
-// edge, making `formats/` self-contained. Runtime deps are only the registry
-// (`rtUtils.ts`) + the entry-tuple decoder (`entryTuple.ts`).
+// The shared value-first BUILDER primitives every builder under `formats/` and `schema/` is constructed from.
+// They live in the neutral `runtypes/` layer so neither authoring surface depends on the other and `formats/` stays self-contained.
+// Runtime deps are only the registry (`rtUtils.ts`) and the entry-tuple decoder (`entryTuple.ts`).
 
 import {getRTUtils} from './rtUtils.ts';
 import {entryTupleKey, initFromTuple, isEntryTuple} from './entryTuple.ts';
@@ -14,23 +10,13 @@ import type {BrandArg} from './builderTypes.ts';
 
 // ───────────────────────────── builderResult ────────────────────────
 //
-// Each builder is an INJECTABLE MARKER (Tier 2): the trailing
-// `id?: InjectRunTypeId<…>` is filled by @mionjs/devtools with the resolved
-// structural id, and the body returns the LIVE RunType node for it
-// (`getRunType(id)`) — the exact node the type compiler produces for the
-// equivalent written type. A builder nested inside a composer is skipped by the
-// scanner (the enclosing marker reflects the whole shape), so it has no id and
-// returns the carrier the composer discards.
+// Each builder is an INJECTABLE MARKER (Tier 2): @mionjs/devtools fills the trailing `id?: InjectRunTypeId<…>` with the resolved structural id.
 
-/** Resolves the live RunType node for an injected marker id — the exact node
- *  the type compiler produces for the builder's return type. With no id (the
- *  builder is nested inside a composer, so the scanner skipped it) or before the
- *  cache module has loaded, it returns the `carrier` the enclosing composer
- *  discards. **/
+/** Resolves the live RunType node for an injected id: the exact node the type compiler produces for the builder's return type. **/
+// With no id (nested inside a composer, which the scanner reflects whole) or before the cache module has loaded, the `carrier` is returned instead.
 export function builderResult<T>(id: InjectRunTypeId<T> | undefined, carrier: unknown): RunType<T> {
-  // The plugin injects the runtype's ENTRY-MODULE TUPLE — register the type
-  // graph (children included) and recover the id string. A bare string id
-  // keeps working for callers that pre-resolved it.
+  // The plugin injects the runtype's ENTRY-MODULE TUPLE: registering it brings in the type graph, children included, and yields the id string.
+  // A bare string id keeps working for callers that pre-resolved it.
   let resolvedId: string | undefined = typeof id === 'string' ? id : undefined;
   if (isEntryTuple(id)) {
     initFromTuple(id);
@@ -43,29 +29,21 @@ export function builderResult<T>(id: InjectRunTypeId<T> | undefined, carrier: un
   return carrier as RunType<T>;
 }
 
-/** Brand tag for the value-first leaf builders — `string({…}, brand('UserId'))`
- *  opts the leaf INTO a nominal `Format*<P, 'UserId'>` (matching the type-first
- *  `String<P, 'UserId'>`). The tag is TS-only: the Go scanner reads the
- *  brand off the reflected `LeafType<…, B>`, NOT off this object, so at runtime
- *  the builder discards it and resolves the injected id as usual. It rides BEFORE
- *  the trailing id slot — an object, never confused with the id string. **/
+/** `string({…}, brand('UserId'))` opts the leaf INTO a nominal `Format*<P, 'UserId'>`, matching the type-first `String<P, 'UserId'>`. **/
+// TS-only: the Go scanner reads the brand off the reflected `LeafType<…, B>`, NOT off this object, so the builder discards it at runtime.
+// It rides BEFORE the trailing id slot — an object, never confused with the id string.
 export function brand<const B extends string>(name: B): BrandArg<B> {
   return {__rtBrandName: name};
 }
 
-/** Recovers the plugin-injected id from a leaf builder's args. The plugin appends
- *  the resolved id as the TRAILING argument; the optional params (object) and
- *  brand (object) slots before it are never strings, so the id is simply the last
- *  string argument. Before injection (no id arg) there is no string → `undefined`,
- *  and the builder falls back to the carrier. **/
+/** The plugin appends the resolved id as the TRAILING argument, and the params and brand slots before it are never strings, so the id is the last string. **/
+// Before injection there is no string argument, so the builder falls back to the carrier.
 export function lastInjectedId(...args: unknown[]): string | undefined {
   for (let i = args.length - 1; i >= 0; i--) {
     const arg = args[i];
     if (typeof arg === 'string') return arg;
     if (isEntryTuple(arg)) {
-      // Entry-module tuple: register the type graph and hand back its id —
-      // the params (plain object) and brand (plain object) slots before it
-      // are never arrays, so tuple detection is unambiguous.
+      // The params and brand slots before it are plain objects, never arrays, so tuple detection is unambiguous.
       initFromTuple(arg);
       return entryTupleKey(arg);
     }
@@ -73,12 +51,9 @@ export function lastInjectedId(...args: unknown[]): string | undefined {
   return undefined;
 }
 
-/** Builds a no-param preset builder for a FIXED named format `T` (e.g.
- *  `Email`, `Int8`). The returned function's only param is the injected
- *  `InjectRunTypeId<T>` brand, so the scanner reflects `T` and the value-first id
- *  matches the type-first alias. Used by the predefined-format builder files
- *  (stringFormats.ts / numberFormats.ts / bigintFormats.ts); `tag` is the Go
- *  format name, carried only on the fallback carrier. **/
+/** A no-param builder for a FIXED named format `T` (`Email`, `Int8`), used by stringFormats.ts / numberFormats.ts / bigintFormats.ts. **/
+// The only param is the injected `InjectRunTypeId<T>` brand, so the scanner reflects `T` and the value-first id matches the type-first alias.
+// `tag` is the Go format name, carried only on the fallback carrier.
 export function presetBuilder<T>(tag: string): (id?: InjectRunTypeId<T>) => RunType<T> {
   return (id?: InjectRunTypeId<T>) => builderResult(id, {type: tag, formatParams: {}});
 }

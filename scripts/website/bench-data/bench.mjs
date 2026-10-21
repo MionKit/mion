@@ -12,9 +12,10 @@
 //
 // Commands: prep | build-image | bench | bench-one <name> | fullbench | serialization
 // | website-bench | build [<name>] | typecheck | smoke | audit | typecost |
-// compiletime | transform-wire | capture-env | shell | login | push | pull | clean.
+// compiletime | transform-wire | capture-env | shell | login | push | pull.
 // A `--quick` flag anywhere maps onto every stage's native fast lever.
 
+import {COMPETITORS} from './columns.mjs';
 import {accessSync, constants, copyFileSync, existsSync, globSync, mkdirSync, readFileSync, readdirSync, rmSync} from 'node:fs';
 import {cpus} from 'node:os';
 import {join} from 'node:path';
@@ -22,7 +23,7 @@ import {main as coreBuild} from '../../core/build.mjs';
 import * as image from '../../container/image.mjs';
 import {ghcrConfig} from '../../lib/engine.mjs';
 import {loadEnv, REPO_ROOT} from '../../lib/env.mjs';
-import {capture, die, hostGoArch, note, reportCliError, run, which} from '../../lib/proc.mjs';
+import {die, hostGoArch, note, reportCliError, run, which} from '../../lib/proc.mjs';
 import {main as mionBenchMain} from './mion-bench.mjs';
 
 // Env-independent paths.
@@ -30,10 +31,10 @@ const BENCH_DIR = join(REPO_ROOT, 'container/benchmarks');
 const RESULTS_DIR = join(BENCH_DIR, 'results');
 const MARKER_PKG = join(REPO_ROOT, 'packages/run-types');
 const PLUGIN_PKG = join(REPO_ROOT, 'packages/devtools');
-const BIN_PKG = join(REPO_ROOT, 'packages/bin');
+const BIN_PKG = join(REPO_ROOT, 'packages/bin-compiler');
 const GOARCH = hostGoArch();
-const LINUX_BIN = join(REPO_ROOT, `bin/mion-linux-${GOARCH}`);
-const LINUX_EXTRACT_BIN = join(REPO_ROOT, `bin/extract-fn-bodies-linux-${GOARCH}`);
+const LINUX_BIN = join(REPO_ROOT, `mion-bin/mion-linux-${GOARCH}`);
+const LINUX_EXTRACT_BIN = join(REPO_ROOT, `mion-bin/extract-fn-bodies-linux-${GOARCH}`);
 const SCRIPT_DIR = join(REPO_ROOT, 'scripts/website/bench-data');
 
 function config(env = process.env) {
@@ -47,17 +48,20 @@ function config(env = process.env) {
     runNetwork: env.MION_VALIDATION_BENCH_RUN_NETWORK || '',
     docdataDir: env.MION_VALIDATION_BENCH_DOCDATA || join(REPO_ROOT, '.docdata'),
     remoteImage: env.MION_VALIDATION_BENCH_REMOTE_IMAGE || `${registry}/${owner}/tsrt-website:latest`,
-    // typia's LEGACY plugin volume, from before the image baked the compiled plugin:
-    // only ever removed (`clean`), never mounted.
-    volTtsc: `${containerBase}-typia-ttsc`,
   };
 }
 
-// Competitors run in this order; typia is included by default (MION_VALIDATION_BENCH_NO_TYPIA skips).
-function competitorList() {
-  const list = ['mion', 'zod', 'typebox', 'ajv'];
-  if (!process.env.MION_VALIDATION_BENCH_NO_TYPIA) list.push('typia');
-  return list;
+// Order comes from columns.mjs, the list the generator and the gate hold the datasets to.
+// `--only a,b` exists so CI runs just the competitors not yet proven green.
+let onlyCompetitors = null;
+export function competitorList() {
+  return COMPETITORS.filter((competitor) => competitor !== 'typia' || !process.env.MION_VALIDATION_BENCH_NO_TYPIA).filter((competitor) => !onlyCompetitors || onlyCompetitors.includes(competitor));
+}
+export function setOnlyCompetitors(list) {
+  const names = list.split(',').filter(Boolean);
+  const unknown = names.filter((name) => !COMPETITORS.includes(name));
+  if (unknown.length > 0 || names.length === 0) die(`bench: --only takes a comma list of ${COMPETITORS.join(', ')}; got '${list}'`, 2);
+  onlyCompetitors = names;
 }
 
 const requireEngine = (cfg) => {
@@ -73,7 +77,9 @@ const isExec = (p) => {
 };
 
 // Stale-build checks delegated to core/build.mjs (the same the JS tests use).
-const ensureArtifacts = (...targets) => coreBuild(targets);
+// trustStamp: the miondevx gate already verified `all` on the way in; the extra
+// Linux targets keep their own build-id compare.
+const ensureArtifacts = (...targets) => coreBuild(targets, {trustStamp: true});
 
 // Map the MION_VALIDATION_BENCH_* knobs onto image.mjs's MION_WEBSITE_* env (the old run_manager
 // subshell), so the shared image has one owner.
@@ -98,9 +104,9 @@ function ensurePrereqs(cfg) {
 // The bind-mount `-v …` args. The image is deps-only, so ALL first-party benchmark
 // source is mounted from the host under /bench.
 function mountArgs(cfg) {
-  if (!isExec(LINUX_BIN)) die(`bench: missing ${LINUX_BIN} - run 'pnpm rtx bench prep' first.`);
-  if (!existsSync(join(MARKER_PKG, 'dist/index.js'))) die("bench: missing marker dist - run 'pnpm rtx bench prep' first.");
-  if (!existsSync(join(PLUGIN_PKG, 'dist/index.js'))) die("bench: missing plugin dist - run 'pnpm rtx bench prep' first.");
+  if (!isExec(LINUX_BIN)) die(`bench: missing ${LINUX_BIN} - run 'pnpm miondevx bench prep' first.`);
+  if (!existsSync(join(MARKER_PKG, 'dist/index.js'))) die("bench: missing marker dist - run 'pnpm miondevx bench prep' first.");
+  if (!existsSync(join(PLUGIN_PKG, 'dist/index.js'))) die("bench: missing plugin dist - run 'pnpm miondevx bench prep' first.");
   mkdirSync(RESULTS_DIR, {recursive: true});
   const mo = cfg.mountOpts;
   const args = [];
@@ -150,7 +156,7 @@ function mountArgs(cfg) {
   args.push('-v', `${LINUX_BIN}:${tsgo}/bin/mion:ro${mo}`);
   args.push('-v', `${MARKER_PKG}:${tsgo}/node_modules/@mionjs/run-types:ro${mo}`);
   args.push('-v', `${PLUGIN_PKG}:${tsgo}/node_modules/@mionjs/devtools:ro${mo}`);
-  if (existsSync(join(BIN_PKG, 'lib/index.js'))) args.push('-v', `${BIN_PKG}:${tsgo}/node_modules/@mionjs/bin:ro${mo}`);
+  if (existsSync(join(BIN_PKG, 'lib/index.js'))) args.push('-v', `${BIN_PKG}:${tsgo}/node_modules/@mionjs/bin-compiler:ro${mo}`);
 
   // typia's native ttsc plugin is BAKED into the image (node_modules/.cache/ttsc);
   // do NOT mount a volume there (an empty named volume would shadow it and force a
@@ -250,7 +256,7 @@ function buildAndRunOne(cfg, competitor, withBun = benchBun()) {
   return allRan;
 }
 
-// The engine-branch tripwire. rt::countEnumKeys picks a different counter per JS
+// The engine-branch tripwire. countEnumKeys picks a different counter per JS
 // engine, and both counters are pinned to answer identically, so a WRONG pick costs
 // throughput and never correctness - which is exactly why it can rot unnoticed. Each
 // mion result records which counter was live; this asserts the recorded value
@@ -269,13 +275,13 @@ function checkEngineBranch(withBun = benchBun()) {
     if (result.engineBranch !== branch) {
       die(
         `bench: ${file} reports engineBranch '${result.engineBranch}' but ${runtime} must select '${branch}'. ` +
-          `The rt::countEnumKeys per-engine branch is not doing its job (packages/run-types/src/runtypes/pure-fns-utils.ts).`
+          `The countEnumKeys per-engine branch is not doing its job (packages/run-types/src/runtypes/pure-fns-utils.ts).`
       );
     }
     if (result.skippedGroups?.length) {
       note(`${runtime} lane skipped group(s): ${result.skippedGroups.join(', ')} - runtime capability gap, recorded in the result`);
     }
-    note(`${runtime} lane OK - rt::countEnumKeys selected the '${branch}' counter`);
+    note(`${runtime} lane OK - countEnumKeys selected the '${branch}' counter`);
   }
 }
 
@@ -321,15 +327,20 @@ function cmdBench(cfg) {
   ensurePrereqs(cfg);
   // MION_VALIDATION_BENCH_CASE inspection run: leave the canonical results JSON untouched.
   if (!process.env.MION_VALIDATION_BENCH_CASE) clearResults((f) => f !== 'env.json');
-  const broken = competitorList().filter((competitor) => !buildAndRunOne(cfg, competitor));
+  const competitors = competitorList();
+  const broken = competitors.filter((competitor) => !buildAndRunOne(cfg, competitor));
   if (process.env.MION_VALIDATION_BENCH_CASE) return note(`MION_VALIDATION_BENCH_CASE='${process.env.MION_VALIDATION_BENCH_CASE}': per-case console output above; results JSON, aggregate and docdata left untouched.`);
-  console.log('-------- engine branch --------');
-  checkEngineBranch();
+  // The tripwire reads mion's own results.
+  if (competitors.includes('mion')) {
+    console.log('-------- engine branch --------');
+    checkEngineBranch();
+  }
   console.log('-------- aggregate --------');
-  runInContainer(cfg, ['node', 'aggregate.mjs']);
+  const aggregate = runInContainer(cfg, ['node', 'aggregate.mjs']);
   publishDocdata(cfg);
   // Aggregate + docdata first: the lanes that DID run still publish their results.
   if (broken.length > 0) die(brokenLanesMessage(broken));
+  if (aggregate !== 0) die('bench: a competitor accepted invalid data, rejected valid data or errored - see the list above aggregate exit');
 }
 
 function cmdBenchOne(cfg, name) {
@@ -347,7 +358,7 @@ function cmdBenchOne(cfg, name) {
   // loop, and gen-docs legitimately has nothing to transform on a results dir
   // that only ever held one lane.
   note('gen-bench-docs (host transform -> container/website/public/bench-data)');
-  if (run('node', [join(SCRIPT_DIR, 'gen-docs.mjs')]) !== 0) note('gen-docs failed - .docdata/ is up to date, the site data is not; re-run `pnpm rtx bench --website` before building the site');
+  if (run('node', [join(SCRIPT_DIR, 'gen-docs.mjs')]) !== 0) note('gen-docs failed - .docdata/ is up to date, the site data is not; re-run `pnpm miondevx bench --website` before building the site');
   if (!ok) die(brokenLanesMessage([name]));
 }
 
@@ -372,12 +383,10 @@ function cmdFullbench(cfg) {
 }
 
 // The in-container serialization run (native Temporal). Stays `sh -c`.
-const SERIALIZATION_SCRIPT = 'node gen-serialization.mjs --suite serialization && node gen-serialization.mjs --suite format-serialization';
+const SERIALIZATION_SCRIPT = 'node gen-serialization.mjs';
 
-// The marker-package tsconfig the serialization run points the resolver at.
-// gen-serialization.mjs hands this exact name to the plugin; pinned by
-// repo-contracts.test.ts so the two can't drift.
-export const SERIALIZATION_TSCONFIG = 'tsconfig.test.json';
+// gen-serialization.mjs hands this exact name to the plugin; pinned by repo-contracts.test.ts.
+export const SERIALIZATION_TSCONFIG = 'tsconfig.json';
 
 // The whole `run …` argv for the serialization stage. Pure and exported so
 // repo-contracts.test.ts can assert the mount set without a container engine.
@@ -386,7 +395,7 @@ export function serializationRunArgs(cfg, out) {
   const markerMount = `${tsgo}/node_modules/@mionjs/run-types`;
   const mo = cfg.mountOpts;
   const extraMounts = [];
-  if (existsSync(join(BIN_PKG, 'lib/index.js'))) extraMounts.push('-v', `${BIN_PKG}:${tsgo}/node_modules/@mionjs/bin:ro${mo}`);
+  if (existsSync(join(BIN_PKG, 'lib/index.js'))) extraMounts.push('-v', `${BIN_PKG}:${tsgo}/node_modules/@mionjs/bin-compiler:ro${mo}`);
   return [
     'run', '--rm', '--init', ...netArgs(cfg), ...extraMounts,
     '-v', `${LINUX_BIN}:${tsgo}/bin/mion:ro${mo}`,
@@ -406,6 +415,10 @@ export function serializationRunArgs(cfg, out) {
     '-v', `${join(REPO_ROOT, 'tsconfig.json')}:${tsgo}/node_modules/tsconfig.json:ro${mo}`,
     '-v', `${PLUGIN_PKG}:${tsgo}/node_modules/@mionjs/devtools:ro${mo}`,
     '-v', `${join(SCRIPT_DIR, 'gen-serialization.mjs')}:${tsgo}/gen-serialization.mjs:ro${mo}`,
+    // Its one sibling import: the resolver that names each group's case file for the
+    // chart's GitHub link. Unlike the env loader (a soft, try/caught import) a missing
+    // module here is a hard ERR_MODULE_NOT_FOUND, so the stage would not start at all.
+    '-v', `${join(SCRIPT_DIR, 'sources.mjs')}:${tsgo}/sources.mjs:ro${mo}`,
     '-v', `${out}:/bench/bench-out${mo}`,
     '-e', `MION_VALIDATION_BENCH_REPO_ROOT=${tsgo}`,
     '-e', `MION_VALIDATION_BENCH_VITE_ROOT=${tsgo}`,
@@ -424,9 +437,9 @@ export function serializationRunArgs(cfg, out) {
 
 function cmdSerialization(cfg) {
   ensurePrereqs(cfg);
-  if (!isExec(LINUX_EXTRACT_BIN)) die(`bench: missing ${LINUX_EXTRACT_BIN} - run 'pnpm rtx bench prep' first.`);
-  if (!existsSync(join(MARKER_PKG, 'dist/index.js'))) die("bench: missing marker dist - run 'pnpm rtx bench prep' first.");
-  if (!existsSync(join(PLUGIN_PKG, 'dist/index.js'))) die("bench: missing plugin dist - run 'pnpm rtx bench prep' first.");
+  if (!isExec(LINUX_EXTRACT_BIN)) die(`bench: missing ${LINUX_EXTRACT_BIN} - run 'pnpm miondevx bench prep' first.`);
+  if (!existsSync(join(MARKER_PKG, 'dist/index.js'))) die("bench: missing marker dist - run 'pnpm miondevx bench prep' first.");
+  if (!existsSync(join(PLUGIN_PKG, 'dist/index.js'))) die("bench: missing plugin dist - run 'pnpm miondevx bench prep' first.");
   const out = process.env.MION_VALIDATION_BENCH_SERIALIZATION_OUT || join(REPO_ROOT, 'container/website/public/bench-data');
   mkdirSync(out, {recursive: true});
   note(`serialization bench (in-container, native Temporal) -> ${out}`);
@@ -441,8 +454,11 @@ function cmdSerialization(cfg) {
 function cmdWebsiteBench(cfg) {
   const broken = cmdFullbench(cfg);
   cmdSerialization(cfg);
-  cmdCompiletime(cfg);
-  cmdAudit(cfg); // correctness/alignment data for the "Correctness" page
+  // The compile-time and audit stages are NOT run here (2026-09): no page renders
+  // their datasets any more, and both are slow (the compile-time one needs typia's
+  // native ttsc plugin). Both stay one command away - `pnpm miondevx bench compiletime`
+  // and `bench audit` - and gen-docs still builds their datasets from whatever results
+  // it finds, so re-publishing either page is putting its call back on this line.
   note('gen-bench-docs (host transform -> container/website/public/bench-data)');
   if (run('node', [join(SCRIPT_DIR, 'gen-docs.mjs')]) !== 0) die('bench: gen-docs failed');
   // The OTHER family: the mion HTTP server benchmarks, in their own mion-bench image.
@@ -576,11 +592,6 @@ function cmdShell(cfg) {
   runInContainer(cfg, ['bash']);
 }
 
-function cmdClean(cfg) {
-  note("removing typia's legacy .ttsc volume, if any (the plugin is baked into the shared image now, which 'pnpm rtx container clean' manages)");
-  capture(cfg.engine, ['volume', 'rm', '-f', cfg.volTtsc]);
-}
-
 // Map the single MION_VALIDATION_BENCH_QUICK knob onto each stage's native lever. Only fill a
 // lever that is UNSET (`${VAR+set}` test), so an explicit value wins.
 function applyQuick() {
@@ -619,18 +630,16 @@ function dispatch(cfg, args) {
     case 'login': return image.cmdLogin({env: benchImageEnv(cfg)});
     case 'push': return image.cmdPush({env: benchImageEnv(cfg)});
     case 'pull': return image.cmdPull({env: benchImageEnv(cfg)});
-    case 'clean': return (requireEngine(cfg), cmdClean(cfg));
-    default: die(`bench: unknown command '${cmd}'. Try: prep | build-image | bench | bench-one <name> | fullbench | serialization | website-bench | build [<name>] | typecheck | smoke | audit | engine-check | typecost | compiletime | transform-wire | capture-env | shell | login | push | pull | clean`);
+    default: die(`bench: unknown command '${cmd}'. Try: prep | build-image | bench | bench-one <name> | fullbench | serialization | website-bench | build [<name>] | typecheck | smoke | audit | engine-check | typecost | compiletime | transform-wire | capture-env | shell | login | push | pull`);
   }
 }
 
 export function main(rawArgs) {
-  // Pull --quick out of the args from any position (sets MION_VALIDATION_BENCH_QUICK); everything
-  // else is forwarded unchanged.
   const args = [];
-  for (const arg of rawArgs) {
-    if (arg === '--quick') process.env.MION_VALIDATION_BENCH_QUICK = '1';
-    else args.push(arg);
+  for (let i = 0; i < rawArgs.length; i++) {
+    if (rawArgs[i] === '--quick') process.env.MION_VALIDATION_BENCH_QUICK = '1';
+    else if (rawArgs[i] === '--only') setOnlyCompetitors(rawArgs[++i] ?? '');
+    else args.push(rawArgs[i]);
   }
   applyQuick();
   dispatch(config(), args);

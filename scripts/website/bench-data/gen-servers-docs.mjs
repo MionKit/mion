@@ -34,7 +34,7 @@ function readRows(dir) {
 }
 
 /** One row as the site renders it: bytes/sec becomes megabits/sec, the table's unit. */
-const toRow = (result) => ({
+export const toRow = (result) => ({
   app: result.app,
   label: result.label,
   family: result.family,
@@ -44,11 +44,15 @@ const toRow = (result) => ({
   router: result.router,
   validation: result.validation,
   description: result.description,
+  // The pages draw a twin lane (mion.compact of mion) only beside its base.
+  twinOf: result.twinOf ?? null,
   requests: Math.round(result.requests.mean * 10) / 10,
   latency: Math.round(result.latency.mean * 100) / 100,
   throughput: Math.round((result.throughput.mean / 1e6) * 8 * 100) / 100,
   maxMem: Math.round(result.maxMem),
   maxCpu: Math.round(result.maxCpu),
+  // Body bytes of one call, headers excluded.
+  bytes: result.bytes ? result.bytes.sent + result.bytes.received : null,
   memSeries: result.memSeries ?? [],
 });
 
@@ -66,10 +70,30 @@ function metaFrom(rows) {
     cores: first.env?.cores ?? null,
     node: first.env?.node ?? null,
     connections: first.connections,
+    threads: first.threads ?? null,
     pipelining: first.pipelining,
     duration: first.duration,
-    // The line the pages used to hardcode, assembled from what actually ran.
-    method: `autocannon -c ${first.connections} -d ${first.duration} -p ${first.pipelining} localhost:3000`,
+    // What two runs of a lane are expected to agree within, so a reader can tell a real
+    // gap between two servers from noise. The harness records it; nobody types it.
+    tolerance: first.tolerance ?? null,
+    // The line the pages used to hardcode, assembled from what actually ran. It names
+    // wrk because wrk is what ran: the upstream benchmarks repo kept printing
+    // `autocannon ...` after it switched, which is how a method line stops being true.
+    // Pipelining is not a wrk flag (the request script batches), so it is only mentioned
+    // when it is actually more than one.
+    // The thread count is dropped rather than printed as `-tundefined` when a result
+    // predates wrk: a half-regenerated dataset should say less, never say nonsense.
+    method: [
+      'wrk',
+      first.threads ? `-t${first.threads}` : null,
+      `-c${first.connections}`,
+      `-d${first.duration}s`,
+      `--timeout ${first.timeout}s`,
+      'localhost:3000',
+      first.pipelining > 1 ? `(${first.pipelining} requests pipelined per connection)` : null,
+    ]
+      .filter(Boolean)
+      .join(' '),
   };
 }
 
@@ -101,13 +125,15 @@ export function main() {
         .filter((size) => size.isDirectory())
         .map((size) => {
           const results = readRows(join(dir, size.name));
+          // A twin sends a different body, so the section's size is read off a plain lane.
+          const plain = results.find((result) => !result.twinOf) ?? results[0];
           return {
             key: size.name,
-            label: results[0]?.size?.label ?? size.name,
-            bytes: results[0]?.size?.bytes ?? 0,
-            actualBytes: results[0]?.size?.actualBytes ?? 0,
+            label: plain?.size?.label ?? size.name,
+            bytes: plain?.size?.bytes ?? 0,
+            actualBytes: plain?.bytes?.sent ?? 0,
             // Per section, because the sweep caps concurrency on the big sizes: one
-            // dataset-level "autocannon -c N" line would misdescribe every section
+            // dataset-level "wrk -c N" line would misdescribe every section
             // whose payload forced a smaller N.
             meta: metaFrom(results),
             rows: results.map(toRow),

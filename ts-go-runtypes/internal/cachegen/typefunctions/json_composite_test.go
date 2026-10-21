@@ -33,32 +33,19 @@ func compositeBodyFor(t *testing.T, tag string) string {
 // identity/stringify fallback. Noop primitives register with the family
 // noop fn pre-set runtime-side (entryTuple.ts familyMeta) and getRT
 // materializes before returning, so the read is always live.
-func TestJsonComposite_DirectFnBind_DecoderStrip(t *testing.T) {
-	body := compositeBodyFor(t, "jdST")
-	rjKey := operations.PlainHash("restoreFromJson") + "_obj1"
-	ukuwKey := operations.PlainHash("unknownKeysToUndefinedWire") + "_obj1"
+func TestJsonComposite_DirectFnBind_DecoderClone(t *testing.T) {
+	body := compositeBodyFor(t, "jdCL")
+	rjsKey := operations.PlainHash("restoreFromJsonClone") + "_obj1"
 	for _, want := range []string{
-		"const rjFn = utl.getRT('" + rjKey + "').fn",
-		"const ukuwFn = utl.getRT('" + ukuwKey + "').fn",
-		"return rjFn(ukuwFn(JSON.parse(s)));",
+		"const rjsFn = utl.getRT('" + rjsKey + "').fn",
+		"return rjsFn(JSON.parse(s));",
 	} {
 		if !strings.Contains(body, want) {
-			t.Errorf("jdST body missing %q:\n%s", want, body)
+			t.Errorf("jdCL body missing %q:\n%s", want, body)
 		}
 	}
 	if strings.Contains(body, "e ? e.fn") || strings.Contains(body, "(function(") {
-		t.Errorf("jdST body must carry no guarded resolver IIFE or inline fallback:\n%s", body)
-	}
-}
-
-func TestJsonComposite_DirectFnBind_EncoderDirect(t *testing.T) {
-	body := compositeBodyFor(t, "jeDI")
-	sjKey := operations.PlainHash("stringifyJson") + "_obj1"
-	if !strings.Contains(body, "const sjFn = utl.getRT('"+sjKey+"').fn") {
-		t.Errorf("jeDI body missing direct sjFn bind:\n%s", body)
-	}
-	if strings.Contains(body, "JSON.stringify(x)") {
-		t.Errorf("the inline stringify fallback must be gone (sj noop registers fn = JSON.stringify runtime-side):\n%s", body)
+		t.Errorf("jdCL body must carry no guarded resolver IIFE or inline fallback:\n%s", body)
 	}
 }
 
@@ -93,12 +80,12 @@ func TestJsonComposite_DirectFnBind_CompactDecoder(t *testing.T) {
 
 // AssertCompositeSoftDeps — the build-time belt for the demand invariant:
 // a composite whose primitive never rendered surfaces as an Error diag
-// (JCP001) instead of a runtime `undefined.fn` TypeError.
+// (internal-json-primitive-missing) instead of a runtime `undefined.fn` TypeError.
 func TestAssertCompositeSoftDeps_MissingPrimitiveFails(t *testing.T) {
-	rjKey := operations.PlainHash("restoreFromJson") + "_obj1"
+	rjKey := operations.PlainHash("restoreFromJsonMutate") + "_obj1"
 	graph := entrymodules.Graph{}
 	graph.Add(&entrymodules.Entry{
-		Key: "jd1_obj1", Kind: entrymodules.KindTypeFn, FamilyTag: "jdPR",
+		Key: "jd1_obj1", Kind: entrymodules.KindTypeFn, FamilyTag: "jdMU",
 		ArgsText: "'jd1_obj1'", SoftDeps: []string{rjKey},
 	})
 	var sink []diagnostics.Diagnostic
@@ -121,7 +108,7 @@ func TestAssertCompositeSoftDeps_MissingPrimitiveFails(t *testing.T) {
 	// With provenance, the breach fans out one diagnostic per demanding call
 	// site — anchored at the user's createJsonDecoderFn so it's reproducible.
 	provenance := map[string][]diagnostics.Site{
-		"obj1": {
+		ProvenanceKey("obj1", "jdMU"): {
 			{FilePath: "a.ts", StartLine: 3, StartCol: 11},
 			{FilePath: "b.ts", StartLine: 7, StartCol: 5},
 		},
@@ -148,7 +135,7 @@ func TestAssertCompositeSoftDeps_MissingPrimitiveFails(t *testing.T) {
 	// A KindMissing stub registers NOTHING at runtime — still a breach.
 	graph2 := entrymodules.Graph{}
 	graph2.Add(&entrymodules.Entry{
-		Key: "jd1_obj2", Kind: entrymodules.KindTypeFn, FamilyTag: "jdPR",
+		Key: "jd1_obj2", Kind: entrymodules.KindTypeFn, FamilyTag: "jdMU",
 		ArgsText: "'jd1_obj2'", SoftDeps: []string{"stub1"},
 	})
 	graph2.Add(&entrymodules.Entry{Key: "stub1", Kind: entrymodules.KindMissing})

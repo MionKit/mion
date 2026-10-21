@@ -5,17 +5,20 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, SerializerModes} from '@mionjs/core';
+import {RpcError, FatalError, SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {
-  dispatchRoute,
+  dispatchWithContext,
+  createCallContext,
   getRouterFatalErrorResponse,
   headersFromRecord,
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
+  getDefaultHeaders,
+  releaseHeaders,
 } from '@mionjs/router';
-import type {MionResponse, MionHeaders} from '@mionjs/router';
+import type {MionResponse, RecordResponseHeaders} from '@mionjs/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 import {DEFAULT_AWS_LAMBDA_OPTIONS} from './constants.ts';
 import {AwsLambdaOptions} from '../index.ts';
@@ -40,52 +43,33 @@ export function setAwsLambdaOpts(routerOptions?: Partial<AwsLambdaOptions>) {
   return lambdaOptions;
 }
 
-/** Creates an AWS Lambda handler with optional platform config */
 export function createAwsLambdaHandler(options?: Partial<AwsLambdaOptions>) {
   setAwsLambdaOpts(options);
   return awsLambdaHandler;
 }
 
 export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> {
-  let rawBody: any = rawRequest.body || '';
+  let rawBody: any = decodeEventBody(rawRequest);
   const reqHeaders = headersFromRecord(rawRequest.headers as Record<string, string>);
-  const rawRespHeaders: Record<string, string> = {
-    server: '@mionjs',
-    ...lambdaOptions.defaultResponseHeaders,
-  };
-  const respHeaders = headersFromRecord(rawRespHeaders, true);
+  const respHeaders = getDefaultHeaders();
   // AWS Lambda always receives body as string (JSON)
   let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
-  // Reconstruct query string from AWS parsed query parameters
-  const urlQuery = rawRequest.queryStringParameters
-    ? Object.entries(rawRequest.queryStringParameters)
-        .filter(([, v]) => v !== undefined)
-        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v!)}`)
-        .join('&')
-    : undefined;
-  const queryBody = decodeQueryBody(urlQuery, rawBody || undefined);
-  if (queryBody) {
-    rawBody = queryBody.rawBody;
-    reqBodyType = queryBody.bodyType;
-  }
-
+  const urlQuery = buildQueryString(rawRequest.queryStringParameters);
   try {
-    const routeResponse = await dispatchRoute(
-      rawRequest.path,
-      rawBody,
-      reqHeaders,
-      respHeaders,
-      rawRequest,
-      awsContext,
-      reqBodyType,
-      urlQuery
-    );
+    // the body arrives whole with the event, so there is nothing to read: the router checks its size before parsing
+    const queryBody = decodeQueryBody(urlQuery, rawBody || undefined);
+    if (queryBody) {
+      rawBody = queryBody.rawBody;
+      reqBodyType = queryBody.bodyType;
+    }
+    const context = createCallContext(rawRequest.path, urlQuery, rawRequest, reqHeaders, respHeaders, rawBody, reqBodyType);
+    const routeResponse = await dispatchWithContext(context, rawRequest, awsContext);
     return reply(routeResponse, respHeaders);
   } catch (err) {
     const error =
       err instanceof RpcError
         ? err
-        : new RpcError({
+        : new FatalError({
             publicMessage: 'Internal Error',
             originalError: err as Error,
             type: 'unknown-error',
@@ -96,43 +80,47 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
 
 // ############# PRIVATE METHODS #############
 
-function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayProxyResult {
-  // AWS manages content-length automatically, so no need to set header unlike node
+/** Decoded here so `maxBodySize` measures the text, not the base64 wire form; a non-base64 body just fails the JSON parse. */
+function decodeEventBody(rawRequest: APIGatewayEvent): string {
+  const body = rawRequest.body || '';
+  if (!body || !rawRequest.isBase64Encoded) return body;
+  return Buffer.from(body, 'base64').toString();
+}
+
+/** One pass into one string: the filter/map/join it replaced built three arrays and two closures per call. */
+function buildQueryString(params: APIGatewayEvent['queryStringParameters']): string | undefined {
+  if (!params) return undefined;
+  let query = '';
+  for (const name in params) {
+    const value = params[name];
+    if (value === undefined) continue;
+    if (query) query += '&';
+    query += `${encodeURIComponent(name)}=${encodeURIComponent(value)}`;
+  }
+  return query;
+}
+
+function reply(routeResponse: MionResponse, headers: RecordResponseHeaders): APIGatewayProxyResult {
+  // AWS sets content-length itself, unlike node
   const singleHeaders: Record<string, string> = {};
-  const multiHeaders: Record<string, string[]> = {};
-  let multiHeaderCount = 0;
-  Array.from(headers.entries()).forEach(([name, value]) => {
-    if (Array.isArray(value)) {
-      multiHeaders[name] = value;
-      multiHeaderCount++;
-      return;
-    }
-    singleHeaders[name] = value;
+  let cookies: string[] | undefined;
+  headers.forEach((name, value) => {
+    if (typeof value === 'string') singleHeaders[name] = value;
+    // RFC 6265 forbids folding set-cookie: it goes out through multiValueHeaders below
+    else if (name === 'set-cookie') cookies = value;
+    else singleHeaders[name] = value.join(', ');
   });
 
-  const bodyType = routeResponse.serializer;
-  let responseBody: string;
+  const responseBody = JSON.stringify(routeResponse.body);
+  singleHeaders['content-type'] = routeResponse.contentType;
 
-  switch (bodyType) {
-    case SerializerModes.stringifyJson:
-      responseBody = routeResponse.rawBody as string;
-      break;
-    case SerializerModes.json:
-      // Platform adapter stringifies the prepared body object
-      responseBody = JSON.stringify(routeResponse.body);
-      singleHeaders['content-type'] = 'application/json; charset=utf-8';
-      break;
-    case SerializerModes.binary:
-      throw new Error('Binary responses are not yet supported on AWS Lambda');
-    default:
-      throw new Error(`Unknown body type: ${bodyType}`);
-  }
-
+  // the body is always text, so `isBase64Encoded` keeps its default (false)
   const resp: APIGatewayProxyResult = {
     statusCode: routeResponse.statusCode,
     headers: singleHeaders,
     body: responseBody,
   };
-  if (multiHeaderCount) resp.multiValueHeaders = multiHeaders;
+  if (cookies) resp.multiValueHeaders = {'set-cookie': cookies};
+  releaseHeaders(headers);
   return resp;
 }

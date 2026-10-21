@@ -1,0 +1,99 @@
+package typefunctions
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
+)
+
+// A symbol literal is no more data than the bare kind: a decoder can only build a fresh Symbol(), never
+// the symbol the type names. Every family refuses it like `symbol` (dropped at a property with a Warning,
+// alwaysThrow at a root); validate_nondata_root_test.go covers the validators.
+
+// mkSymLit is the resolver's shape for `typeof sym` (serialize.go's UniqueESSymbol arm).
+func mkSymLit() *reflection.RunType {
+	return &reflection.RunType{
+		ID:      "lsym",
+		Kind:    reflection.KindLiteral,
+		Literal: map[string]any{"symbol": "hello"},
+		Flags:   []string{"symbol"},
+	}
+}
+
+var symLitSerdeFamilies = []string{
+	"prepareForJsonMutate", "prepareForJsonClone",
+	"restoreFromJsonMutate", "restoreFromJsonClone",
+}
+
+func TestSymbolLiteral_RootFailsEverySerializationFamily(t *testing.T) {
+	for _, fam := range symLitSerdeFamilies {
+		dump := protocol.Dump{RunTypes: []*reflection.RunType{mkSymLit()}}
+		out, sink := renderWithDiag(t, dump, fam, "lsym")
+		if !strings.Contains(out, "_lsym','literal',,,,,,'") {
+			t.Errorf("[%s] a root symbol literal must render an alwaysThrow factory; got:\n%s", fam, out)
+		}
+		got, ok := findCode(sink, symbolRootCodes[fam])
+		if !ok {
+			t.Errorf("[%s] expected root error %s; sink=%+v", fam, symbolRootCodes[fam], sink)
+			continue
+		}
+		if got.Severity != diagnostics.SeverityError {
+			t.Errorf("[%s] %s severity = %v, want Error", fam, symbolRootCodes[fam], got.Severity)
+		}
+		// leafKindLabel must name Symbol, not the generic Unsupported.
+		if len(got.Args) == 0 || got.Args[0] != "Symbol" {
+			t.Errorf("[%s] the diagnostic must name the kind `Symbol`; args=%v", fam, got.Args)
+		}
+	}
+}
+
+// The old `'Symbol:' + description` encoding and its `Symbol(v.substring(7))` rebuild are both gone.
+func TestSymbolLiteral_NoWireFormIsEmitted(t *testing.T) {
+	for _, fam := range symLitSerdeFamilies {
+		dump := objWithProp(mkSymLit(), false)
+		out, _ := renderWithDiag(t, dump, fam, "obj")
+		for _, banned := range []string{"Symbol:", "Symbol(", ".description"} {
+			if strings.Contains(out, banned) {
+				t.Errorf("[%s] %q must not appear in a factory that carries a symbol literal; got:\n%s", fam, banned, out)
+			}
+		}
+	}
+}
+
+func TestSymbolLiteral_PropertyDropsWithTheInfo(t *testing.T) {
+	for _, fam := range allSerdeFamilies {
+		dump := objWithProp(mkSymLit(), false)
+		out, sink := renderWithDiag(t, dump, fam, "obj")
+		if objFactoryIsAlwaysThrow(out) {
+			t.Errorf("[%s] a symbol-literal property must drop (object serializes), not alwaysThrow; got:\n%s", fam, out)
+		}
+		got, ok := findCode(sink, nonSerPropDropCodes[fam])
+		if !ok {
+			t.Errorf("[%s] expected drop warning %s; sink=%+v", fam, nonSerPropDropCodes[fam], sink)
+			continue
+		}
+		if got.Severity != diagnostics.SeverityInfo {
+			t.Errorf("[%s] %s severity = %v, want Info", fam, nonSerPropDropCodes[fam], got.Severity)
+		}
+	}
+}
+
+// `Date | typeof sym` projects to `Date`, the same as `Date | symbol`.
+func TestSymbolLiteral_UnionMemberDrops(t *testing.T) {
+	union := &reflection.RunType{ID: "uni", Kind: reflection.KindUnion, Children: []*reflection.RunType{makeRef("dat"), makeRef("lsym")}}
+	dump := protocol.Dump{RunTypes: []*reflection.RunType{mkDate(), mkSymLit(), union}}
+	for fam, code := range map[string]string{
+		"prepareForJsonMutate": diagnostics.CodePJUnionMemberDropped,
+	} {
+		out, sink := renderWithDiag(t, dump, fam, "uni")
+		if strings.Contains(out, "_uni','union',,,,,,'") {
+			t.Errorf("[%s] `Date | typeof sym` must serialize as Date, not alwaysThrow; got:\n%s", fam, out)
+		}
+		if _, ok := findCode(sink, code); !ok {
+			t.Errorf("[%s] expected union-member drop warning %s; sink=%+v", fam, code, sink)
+		}
+	}
+}

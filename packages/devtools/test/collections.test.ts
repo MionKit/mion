@@ -1,10 +1,4 @@
-// End-to-end collection-type round-trip tests. Mirrors members.test.ts's
-// `evalCacheFor` + `getTypeFor` setup. Each scenario has paired static
-// (getRunTypeId<T>()) and reflect (getRunTypeId(v)) tests per the
-// marker test coverage rule (CLAUDE.md). Exercises the modifier and
-// position fields the Go serializer populates: optional/readonly/
-// visibility/abstract/static, isSafeName on properties/methods, and
-// position on tuple members.
+// Mirrors members.test.ts's evalCacheFor/getTypeFor setup; AGENTS.md requires paired marker forms.
 
 import {describe, expect} from 'vitest';
 import {ReflectionKind, type RunType} from '../src/core/protocol.ts';
@@ -219,5 +213,103 @@ getRunTypeId(value);
     expect(idx!.readonly).toBe(true);
     expect((idx!.index as RunType).kind).toBe(ReflectionKind.string);
     expect((idx!.child as RunType).kind).toBe(ReflectionKind.number);
+  }
+  // ---- readonly tuple / array: the flag rides the collection node ---------
+
+  runTest(
+    'readonly tuple and array static',
+    {
+      'ro.ts': `import {getRunTypeId} from '@mionjs/run-types';
+getRunTypeId<{pair: readonly [number, string]; list: readonly string[]; generic: ReadonlyArray<number>}>();
+`,
+    },
+    async (sources) => {
+      const cache = await evalCacheFor(sources);
+      assertReadonlyCollections(cache);
+    }
+  );
+
+  runTest(
+    'readonly tuple and array reflect',
+    {
+      'ro.ts': `import {getRunTypeId} from '@mionjs/run-types';
+declare const value: {pair: readonly [number, string]; list: readonly string[]; generic: ReadonlyArray<number>};
+getRunTypeId(value);
+`,
+    },
+    async (sources) => {
+      const cache = await evalCacheFor(sources);
+      assertReadonlyCollections(cache);
+    }
+  );
+
+  function assertReadonlyCollections(cache: Parameters<typeof getTypeFor>[0]) {
+    const root = getTypeFor(cache, 'ro.ts');
+    const childOf = (name: string) => root.children?.find((member) => member.name === name)?.child as RunType;
+    expect(childOf('pair').kind).toBe(ReflectionKind.tuple);
+    expect(childOf('pair').readonly).toBe(true);
+    expect(childOf('list').kind).toBe(ReflectionKind.array);
+    expect(childOf('list').readonly).toBe(true);
+    expect(childOf('generic').readonly).toBe(true);
+  }
+
+  // One cache holding both twins: a shared entry would hand one of them the other's flag.
+  runTest(
+    'readonly and mutable tuple twins keep their own flag',
+    {
+      'ro.ts': `import {getRunTypeId} from '@mionjs/run-types';
+getRunTypeId<readonly [number, string]>();
+`,
+      'rw.ts': `import {getRunTypeId} from '@mionjs/run-types';
+const pair: [number, string] = [1, 'a'];
+getRunTypeId(pair);
+`,
+    },
+    async (sources) => {
+      const cache = await evalCacheFor(sources);
+      expect(getTypeFor(cache, 'ro.ts').readonly).toBe(true);
+      expect(getTypeFor(cache, 'rw.ts').readonly).toBeUndefined();
+    }
+  );
+  // A merged tuple is readonly only when every intersected tuple is.
+  runTest(
+    'merged tuple intersection readonly static',
+    {
+      'all.ts': `import {getRunTypeId} from '@mionjs/run-types';
+getRunTypeId<readonly [string, ...unknown[]] & readonly [unknown?, number?, ...unknown[]]>();
+`,
+      'mixed.ts': `import {getRunTypeId} from '@mionjs/run-types';
+getRunTypeId<readonly [string, ...unknown[]] & [unknown?, number?, ...unknown[]]>();
+`,
+    },
+    async (sources) => {
+      const cache = await evalCacheFor(sources);
+      assertMergedReadonly(cache);
+    }
+  );
+
+  runTest(
+    'merged tuple intersection readonly reflect',
+    {
+      'all.ts': `import {getRunTypeId} from '@mionjs/run-types';
+declare const value: readonly [string, ...unknown[]] & readonly [unknown?, number?, ...unknown[]];
+getRunTypeId(value);
+`,
+      'mixed.ts': `import {getRunTypeId} from '@mionjs/run-types';
+declare const value: readonly [string, ...unknown[]] & [unknown?, number?, ...unknown[]];
+getRunTypeId(value);
+`,
+    },
+    async (sources) => {
+      const cache = await evalCacheFor(sources);
+      assertMergedReadonly(cache);
+    }
+  );
+
+  function assertMergedReadonly(cache: Parameters<typeof getTypeFor>[0]) {
+    expect(getTypeFor(cache, 'all.ts').kind).toBe(ReflectionKind.tuple);
+    expect(getTypeFor(cache, 'all.ts').readonly).toBe(true);
+    expect(getTypeFor(cache, 'mixed.ts').kind).toBe(ReflectionKind.tuple);
+    expect(getTypeFor(cache, 'mixed.ts').readonly).toBeUndefined();
   }
 });

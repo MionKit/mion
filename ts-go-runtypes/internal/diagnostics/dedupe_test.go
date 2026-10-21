@@ -11,16 +11,16 @@ func diag(code string, where Site, args ...string) Diagnostic {
 }
 
 // The bug this exists for: several cache families walk the same type, each
-// emits against every provenance site, so one class touched by two families
+// emits against every provenance site, so one type touched by two families
 // reports twice at both of its call sites.
 func TestDedupe_CollapsesPerFamilyRepeats(t *testing.T) {
-	encoderSite := site("cls.ts", 3, 45)
-	decoderSite := site("cls.ts", 4, 45)
+	encoderSite := site("fmt.ts", 3, 45)
+	decoderSite := site("fmt.ts", 4, 45)
 	list := []Diagnostic{
-		diag(CodeCLSStructuralFallback, encoderSite, "Pet"),
-		diag(CodeCLSStructuralFallback, decoderSite, "Pet"),
-		diag(CodeCLSStructuralFallback, encoderSite, "Pet"),
-		diag(CodeCLSStructuralFallback, decoderSite, "Pet"),
+		diag(CodeFMTSampleMismatch, encoderSite, "Pet"),
+		diag(CodeFMTSampleMismatch, decoderSite, "Pet"),
+		diag(CodeFMTSampleMismatch, encoderSite, "Pet"),
+		diag(CodeFMTSampleMismatch, decoderSite, "Pet"),
 	}
 	got := Dedupe(list)
 	if len(got) != 2 {
@@ -37,8 +37,8 @@ func TestDedupe_CollapsesPerFamilyRepeats(t *testing.T) {
 func TestDedupe_KeepsSameSiteDifferentArgs(t *testing.T) {
 	where := site("members.ts", 10, 4)
 	list := []Diagnostic{
-		diag(CodeCLSStructuralFallback, where, "Pet"),
-		diag(CodeCLSStructuralFallback, where, "Owner"),
+		diag(CodeFMTSampleMismatch, where, "Pet"),
+		diag(CodeFMTSampleMismatch, where, "Owner"),
 	}
 	if got := Dedupe(list); len(got) != 2 {
 		t.Fatalf("expected both arg variants to survive, got %d: %+v", len(got), got)
@@ -49,7 +49,7 @@ func TestDedupe_KeepsSameSiteDifferentArgs(t *testing.T) {
 func TestDedupe_KeepsDistinctIdentities(t *testing.T) {
 	where := site("x.ts", 1, 1)
 	related := Related{Site: site("first.ts", 2, 2), Message: "first registered here"}
-	base := diag(CodeCLSStructuralFallback, where, "Pet")
+	base := diag(CodeFMTSampleMismatch, where, "Pet")
 
 	otherCode := base
 	otherCode.Code = CodeFMTInvalidParams
@@ -72,7 +72,7 @@ func TestDedupe_ShortInputUntouched(t *testing.T) {
 	if got := Dedupe(nil); got != nil {
 		t.Fatalf("expected nil to pass through, got %+v", got)
 	}
-	one := []Diagnostic{diag(CodeCLSStructuralFallback, site("a.ts", 1, 1), "Pet")}
+	one := []Diagnostic{diag(CodeFMTSampleMismatch, site("a.ts", 1, 1), "Pet")}
 	if got := Dedupe(one); len(got) != 1 {
 		t.Fatalf("expected the single entry to pass through, got %+v", got)
 	}
@@ -82,8 +82,8 @@ func TestDedupe_ShortInputUntouched(t *testing.T) {
 // line/col swap is the shape a naive concatenation would fold together.
 func TestDedupe_KeepsTransposedPositions(t *testing.T) {
 	list := []Diagnostic{
-		diag(CodeCLSStructuralFallback, site("a.ts", 1, 23), "Pet"),
-		diag(CodeCLSStructuralFallback, site("a.ts", 23, 1), "Pet"),
+		diag(CodeFMTSampleMismatch, site("a.ts", 1, 23), "Pet"),
+		diag(CodeFMTSampleMismatch, site("a.ts", 23, 1), "Pet"),
 	}
 	if got := Dedupe(list); len(got) != 2 {
 		t.Fatalf("expected transposed line/col to stay distinct, got %d: %+v", len(got), got)

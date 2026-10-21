@@ -5,6 +5,7 @@
 // generated-output diff — is the right assertion for it.
 import {describe, expect, it} from 'vitest';
 import {buildResolverArgs} from '../src/core/resolver-client.ts';
+import {LINT_RESOLVER_OPTIONS} from '../src/lint/session-protocol.ts';
 
 describe('buildResolverArgs — bundler-lane project knobs', () => {
   it('forwards hashLength as `--hash-length <n>`', () => {
@@ -30,6 +31,12 @@ describe('buildResolverArgs — bundler-lane project knobs', () => {
     const idx = args.indexOf('--pattern-sample-count');
     expect(idx).toBeGreaterThanOrEqual(0);
     expect(args[idx + 1]).toBe('0');
+  });
+
+  it('forwards jsonMaxBytes only when false, as `--json-max-bytes=false`', () => {
+    expect(buildResolverArgs('/proj', 'tsconfig.json', {jsonMaxBytes: false})).toContain('--json-max-bytes=false');
+    expect(buildResolverArgs('/proj', 'tsconfig.json', {jsonMaxBytes: true}).join(' ')).not.toContain('json-max-bytes');
+    expect(buildResolverArgs('/proj', 'tsconfig.json', {}).join(' ')).not.toContain('json-max-bytes');
   });
 
   it('forwards patternSampleRetries as `--pattern-sample-retries <n>`', () => {
@@ -143,11 +150,10 @@ describe('buildResolverArgs — session config the wire does not carry (enrich +
 });
 
 describe('buildResolverArgs — serve subcommand + --sources', () => {
-  it('uses the `serve` subcommand as args[0] and forwards --cwd (no legacy --one-shot)', () => {
+  it('uses the `serve` subcommand as args[0] and forwards --cwd', () => {
     const args = buildResolverArgs('/proj', '', {});
     expect(args[0]).toBe('serve');
     expect(args).toContain('--cwd');
-    expect(args).not.toContain('--one-shot');
   });
 
   it('maps serverMode to `--sources ops`', () => {
@@ -193,5 +199,14 @@ describe('buildResolverArgs — marker package gate', () => {
     // default — sending a flag for either would be noise.
     expect(buildResolverArgs('/proj', 'tsconfig.json', {markerPackageCheck: true})).not.toContain('--no-marker-package-check');
     expect(buildResolverArgs('/proj', 'tsconfig.json', {})).not.toContain('--no-marker-package-check');
+  });
+});
+
+describe('buildResolverArgs — the lint lane', () => {
+  it('turns bundling off: the bundled-API and fetching checks read the whole program, lint scans one file', () => {
+    const args = buildResolverArgs('/proj', '', LINT_RESOLVER_OPTIONS);
+    const idx = args.indexOf('--client-routes');
+    expect(idx).toBeGreaterThanOrEqual(0);
+    expect(args[idx + 1]).toBe('fetch');
   });
 });

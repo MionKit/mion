@@ -1,0 +1,60 @@
+/* ########
+ * 2023 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+import {HeadersSubset} from '@mionjs/core';
+import {CallContext} from './context.ts';
+import {RouterOptions} from './general.ts';
+import {MayReturnError} from './publicMethods.ts';
+
+// #######  Route Handlers #######
+
+/** Route or Middleware Handler  */
+export type Handler<Context extends CallContext = any, Params extends any[] = any[], Ret = any> = (
+  context: Context,
+  ...parameters: Params
+) => Ret | Promise<Ret>;
+
+/** Headers Middleware Handler, for params sent in the header */
+export type HeaderHandler<
+  Context extends CallContext = any,
+  ExpectedHeaders extends HeadersSubset<any> = any,
+  Params extends any[] = any[],
+  Ret = any,
+> = (context: Context, headers: ExpectedHeaders, ...parameters: Params) => Ret | Promise<Ret>;
+
+/** Raw middleware handler: gets the raw request and response */
+export type RawMiddlewareHandler<
+  Context extends CallContext = any,
+  RawReq = any,
+  RawResp = any,
+  Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>,
+> = (ctx: Context, request: RawReq, response: RawResp, opts: Opts) => MayReturnError;
+
+// Handler technically covers any of the other handlers
+export type AnyHandler<Context extends CallContext = any, Params extends any[] = any, Ret = any> = Handler<Context, Params, Ret>;
+
+// #######  Type-level extraction for mion markers #######
+// Instantiated by the type checker AT EACH route()/middleware() CALL SITE; the resolver compiles validation and the JSON round trip for the result.
+
+/** The handler's public params tuple: everything after the leading CallContext param. Keeps tuple labels (= param names). */
+export type HandlerParams<H extends AnyHandler> = Parameters<H> extends [any, ...infer P] ? P : [];
+
+export type HandlerReturn<H extends AnyHandler> = Awaited<ReturnType<H>>;
+
+/** Whether the handler answers with a promise, decided by the type checker: `HandlerReturn` awaits the
+ *  return type, so no runtime check can tell an async handler from a sync one returning a promise.
+ *  Injected as its own runtype id, which resolves to one of two literal types, so it interns nothing per route. */
+export type HandlerIsAsync<H extends AnyHandler> = true extends IsPromiseArm<ReturnType<H>> ? true : false;
+
+/** Distributes over a union, so ONE promise arm is enough. Written over a naked type parameter on
+ *  purpose: `ReturnType<H> extends PromiseLike<any>` does not distribute, and answered `false` for
+ *  `string | Promise<string>`, which would let dispatch skip an await it needed. */
+type IsPromiseArm<T> = T extends PromiseLike<any> ? true : false;
+
+export type HeaderHandlerHeaders<H extends HeaderHandler> = Parameters<H> extends [any, infer HS, ...any[]] ? HS : never;
+
+export type HeaderHandlerParams<H extends HeaderHandler> = Parameters<H> extends [any, any, ...infer P] ? P : [];

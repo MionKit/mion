@@ -1,6 +1,7 @@
 package typefunctions
 
 import (
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"sort"
 	"strconv"
 	"strings"
@@ -9,71 +10,35 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// unknownKeysPureFnFilePath is the source path the resolver reports as the
-// pf_getUnknownKeysFromArray / pf_hasUnknownKeysFromArray registrations'
-// expected home (the `{3}` arg in the PFE9012 message). Same file as the
-// validationErrors pure-fns (pure-fns-utils.ts). Repo-relative hint only — the
-// whole-program PFE9012 check matches by key, not by this path.
-const unknownKeysPureFnFilePath = "packages/run-types/src/runtypes/pure-fns-utils.ts"
-
-// objectKeysContext captures the data needed to emit the
-// callCheckUnknownProperties call for an object/interface — the
-// known-key arrays (RT children and ALL children) and the variable
-// names used to refer to them in the closure prologue.
-//
-// Mirrors addObjectPropsToContext output (interface.ts:232-269).
+// objectKeysContext holds an object's known-key array (RT children) and its closure variable name.
 type objectKeysContext struct {
 	keysName         string   // variable name in closure scope for the RT-children key array
-	allKeysName      string   // variable name in closure scope for the ALL-children key array
 	rtChildrenNames  []string // sorted unique RT-children property names
 	allChildrenNames []string // sorted unique ALL-children property names
-	hasNonRTChildren bool     // true when RT children is a strict subset of ALL children
 }
 
-// addObjectPropsToContext computes (and registers in the closure
-// prologue) the known-key arrays for an interface/object. The arrays
-// are emitted once per unique RunType per closure via context items —
-// the reference does the same so the same hash → same key-array literal.
-//
-// Mirrors addObjectPropsToContext (interface.ts:243-269).
+// addObjectPropsToContext registers an object's known-key array in the closure prologue, once per unique RunType.
 func addObjectPropsToContext(rt *reflection.RunType, ctx *EmitContext) objectKeysContext {
 	rtNames, allNames := collectObjectChildNames(rt, ctx)
 
 	rtChildrenNames := dedupSortStrings(rtNames)
 	allChildrenNames := dedupSortStrings(allNames)
 
-	hasNonRTChildren := !sameStringSet(rtChildrenNames, allChildrenNames)
-
-	// Variable names mirror the `k_<hash>` / `kA_<hash>` scheme. We
-	// use the RunType ID as the hash so the same canonical object
-	// reuses the same context-item key across emit calls.
+	// The RunType ID is the hash, so the same canonical object reuses one context-item key across emit calls.
 	keysName := "k_" + rt.ID
-	allKeysName := "kA_" + rt.ID
-
 	if !ctx.HasContextItem(keysName) {
 		ctx.SetContextItem(keysName, "const "+keysName+" = "+arrayToJSLiteral(rtChildrenNames))
-	}
-	if hasNonRTChildren && !ctx.HasContextItem(allKeysName) {
-		ctx.SetContextItem(allKeysName, "const "+allKeysName+" = "+arrayToJSLiteral(allChildrenNames))
 	}
 
 	return objectKeysContext{
 		keysName:         keysName,
-		allKeysName:      allKeysName,
 		rtChildrenNames:  rtChildrenNames,
 		allChildrenNames: allChildrenNames,
-		hasNonRTChildren: hasNonRTChildren,
 	}
 }
 
-// collectObjectChildNames returns two slices of named property names —
-// the RT-included subset, and the FULL set (including children dropped
-// by RT for being function-typed, static, or otherwise not part of the
-// serialised shape). Both lists exclude index-signature children (those
-// don't have property names) AND children with empty names.
-//
-// Mirrors getRTChildren + getChildRunTypes filter+name pluck
-// in addObjectPropsToContext.
+// collectObjectChildNames returns the RT-included property names and the FULL set, which keeps the children RT drops.
+// Both lists exclude index-signature children (they have no property name) and children with empty names.
 func collectObjectChildNames(rt *reflection.RunType, ctx *EmitContext) (rtNames []string, allNames []string) {
 	for _, child := range rt.Children {
 		resolved := ctx.ResolveRef(child)
@@ -83,24 +48,25 @@ func collectObjectChildNames(rt *reflection.RunType, ctx *EmitContext) (rtNames 
 		if resolved.Kind == reflection.KindIndexSignature {
 			continue
 		}
-		if resolved.Name == "" {
+		// A symbol key is never a string key: counting it would make a strict check reject every valid value.
+		if resolved.Name == "" || reflection.IsSymbolKeyedName(resolved.Name) {
 			continue
 		}
 		allNames = append(allNames, resolved.Name)
-		// RT child filter: drop static + function-like (PropertySignature
-		// wrapping a function, KindMethod, KindMethodSignature) entries
-		// the RT skips. Match emitObjectPrepareForJson's filter.
+		// The RT skips static and function-like entries; the prepare-for-JSON filter drops the same ones.
 		if resolved.IsStatic {
 			continue
 		}
-		if isFunctionLikeKind(resolved.Kind) {
+		if reflection.IsUnsafePropertyName(resolved.Name) {
 			continue
 		}
-		// PropertySignature / Property wrapping a function-typed child:
-		// the parent's RT chain drops them too.
+		if isMethodMember(resolved.Kind) {
+			continue
+		}
+		// A property whose value strippedPropertyDrop drops is no key of the data shape either.
 		if (resolved.Kind == reflection.KindProperty || resolved.Kind == reflection.KindPropertySignature) && resolved.Child != nil {
 			grandchild := ctx.ResolveRef(resolved.Child)
-			if grandchild != nil && isFunctionLikeKind(grandchild.Kind) {
+			if grandchild != nil && isStrippedUnionMember(grandchild, ctx) {
 				continue
 			}
 		}
@@ -109,11 +75,7 @@ func collectObjectChildNames(rt *reflection.RunType, ctx *EmitContext) (rtNames 
 	return rtNames, allNames
 }
 
-// dedupSortStrings deduplicates + sorts a string slice. Sorting keeps
-// the emitted array literal deterministic across runs (Go's `for k :=
-// range map` iteration order is random); the JS Set + Array.from
-// preserves insertion order, but our Go side has to be deterministic
-// for byte-stable cache outputs.
+// dedupSortStrings dedups and sorts; sorting is what keeps the emitted array literal byte-stable across runs.
 func dedupSortStrings(in []string) []string {
 	if len(in) == 0 {
 		return nil
@@ -131,8 +93,7 @@ func dedupSortStrings(in []string) []string {
 	return out
 }
 
-// sameStringSet reports whether two slices (both already deduped) contain
-// the same string set.
+// sameStringSet reports whether two already-deduped, sorted slices hold the same strings.
 func sameStringSet(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
@@ -145,9 +106,7 @@ func sameStringSet(a, b []string) bool {
 	return true
 }
 
-// arrayToJSLiteral renders a string slice as a JS array literal — each
-// element quoted as a single-quoted string with backslash + single-quote
-// escapes applied. Mirrors the arrayToLiteral helper.
+// arrayToJSLiteral renders a string slice as a JS array literal of single-quoted strings.
 func arrayToJSLiteral(items []string) string {
 	if len(items) == 0 {
 		return "[]"
@@ -159,12 +118,9 @@ func arrayToJSLiteral(items []string) string {
 	return "[" + strings.Join(parts, ",") + "]"
 }
 
-// objectHasIndexSignatureChild reports whether the object has an
-// index-signature child that the RT didn't filter out. Index sigs
-// flip the "any unknown key is unknown" semantic: when present, every
-// key matching the index pattern is considered "known".
+// objectHasIndexSignatureChild reports an index-signature child, which makes every key matching the pattern "known".
 func objectHasIndexSignatureChild(rt *reflection.RunType, ctx *EmitContext) bool {
-	for _, child := range rt.Children {
+	for _, child := range objectMembers(rt) {
 		resolved := ctx.ResolveRef(child)
 		if resolved == nil {
 			continue
@@ -176,68 +132,25 @@ func objectHasIndexSignatureChild(rt *reflection.RunType, ctx *EmitContext) bool
 	return false
 }
 
-// callCheckUnknownPropertiesForHas mirrors
-// callCheckUnknownProperties (interface.ts:272-300) for the
-// hasUnknownKeys family. Emits a JS expression that's `true` when
-// the value has at least one key outside the known-keys array.
-//
-// When returnKeys=true the expression returns the array of unknown
-// keys instead of a boolean — used by strip/error/undefined emitters.
-//
-// keepObjectCheck controls whether the boolean (has) form is wrapped in a
-// `typeof v === 'object' && v !== null && …` guard. Plain-mode emits keep it
-// (standalone hasUnknownKeys may receive garbage); the `runsAfterValidation`
-// variant drops it — validation already proved every object position. The
-// returnKeys form never guards (parity with the reference emit).
-func callCheckUnknownPropertiesForHas(rt *reflection.RunType, ctx *EmitContext, returnKeys bool, keepObjectCheck bool) string {
+// callCheckUnknownPropertiesForHas emits the expression that is `true` when the value has a key outside the known-keys array.
+// returnKeys=true returns the array of unknown keys instead, for the strip / error / undefined emitters.
+// It never guards: every caller already runs under an object guard.
+func callCheckUnknownPropertiesForHas(rt *reflection.RunType, ctx *EmitContext, returnKeys bool) string {
 	keysCtx := addObjectPropsToContext(rt, ctx)
 	if len(keysCtx.rtChildrenNames) == 0 && len(keysCtx.allChildrenNames) == 0 {
 		return ""
 	}
-	v := ctx.Vλl
-	conditional := keysCtx.keysName
-	if keysCtx.hasNonRTChildren {
-		// Honor the `checkNonRTProps` runtime option — when truthy, fold
-		// every declared key (including non-RT) into "known" set.
-		optsArg := ctx.ArgName("θpts")
-		if optsArg != "" {
-			conditional = optsArg + ".checkNonRTProps ? " + keysCtx.allKeysName + " : " + keysCtx.keysName
-		}
-	}
 	if returnKeys {
-		fnVar := ctx.UsePureFn(corePureFnNamespace, "getUnknownKeysFromArray", unknownKeysPureFnFilePath)
-		return fnVar + "(" + v + ", " + conditional + ")"
+		fnVar := ctx.UsePureFn(purefnids.GetUnknownKeysFromArray)
+		return fnVar + "(" + ctx.Vλl + ", " + keysCtx.keysName + ")"
 	}
-	fnVar := ctx.UsePureFn(corePureFnNamespace, "hasUnknownKeysFromArray", unknownKeysPureFnFilePath)
-	call := fnVar + "(" + v + ", " + conditional + ")"
-	if !keepObjectCheck {
-		// runsAfterValidation: validation already proved this position is a
-		// non-null object; the guard is dead weight. (A for-in over
-		// undefined/null iterates zero times anyway, so even the optional-
-		// property descent stays safe.)
-		return call
-	}
-	// Object guard around the pure-fn call: the emit prepends
-	// `typeof v === 'object' && v !== null` so non-object inputs don't
-	// reach the pure-fn (which expects an object). Match that.
-	return objectGuard(v, call)
+	fnVar := ctx.UsePureFn(purefnids.HasUnknownKeysFromArray)
+	return fnVar + "(" + ctx.Vλl + ", " + keysCtx.keysName + ")"
 }
 
-// countFastPathN reports whether an object node is eligible for the
-// `runsAfterValidation` key-count fast path, and the declared prop count N
-// to compare against. Eligible iff:
-//
-//   - every RT child property is REQUIRED (validation then proves all N are
-//     present, so `countEnumKeys(v) !== N` exactly separates clean from
-//     dirty — see the spec's swap/missing-prop counterexamples), and
-//   - there is no index-signature child (the caller suppresses the parent
-//     check entirely for those), and
-//   - the RT children equal ALL children (non-RT props — function-typed,
-//     static — aren't validated, so their presence is unpredictable and the
-//     count is meaningless; those shapes fall back to the key-array scan).
-//
-// Unlike addObjectPropsToContext this registers NOTHING in the closure
-// prologue — the fast path needs no key arrays.
+// countFastPathN returns N and whether the fused validators' `countEnumKeys(v) === N` fast path is sound here: every RT
+// child REQUIRED (validation proved all N present), no index-signature child, and RT children equal ALL children
+// (non-RT props are never validated). It registers nothing in the closure prologue.
 func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 	rtNames, allNames := collectObjectChildNames(rt, ctx)
 	rtChildren := dedupSortStrings(rtNames)
@@ -256,7 +169,10 @@ func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 		if resolved.Kind == reflection.KindIndexSignature {
 			return 0, false
 		}
-		if resolved.IsStatic || isFunctionLikeKind(resolved.Kind) {
+		if reflection.IsUnsafePropertyName(resolved.Name) {
+			continue
+		}
+		if resolved.IsStatic || isMethodMember(resolved.Kind) {
 			continue
 		}
 		if resolved.Optional {
@@ -266,72 +182,14 @@ func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 	return len(rtChildren), true
 }
 
-// emitCountKeys emits the key-count fast-path expression `cntEK(v) === N` (or
-// `!==`) and registers the rt::countEnumKeys pure-fn dependency + closure alias.
-//
-// Which counter `cntEK` actually is depends on the runtime, and the emitter
-// deliberately does NOT care: rt::countEnumKeys is a factory that picks a
-// for-in counter on V8 and an Object.keys counter on JavaScriptCore (Bun),
-// once at materialisation, because the two engines invert on which is faster.
-// Both forms are pinned to answer identically for every input (see
-// pf_countEnumKeys in packages/run-types/src/runtypes/pure-fns-utils.ts), so
-// the emitted expression is unchanged and keeps the enumeration semantics
-// hUKFA had.
-// `match` picks the direction. hasUnknownKeys wants the NEGATIVE
-// (`cntEK(v) !== N`, "something extra is here"); the fused validators
-// AND-chain the POSITIVE assertion into a boolean expression
-// (`cntEK(v) === N`, "exactly the declared keys"), so emitting it directly
-// keeps the body readable and saves a negation at runtime.
-func emitCountKeys(ctx *EmitContext, v string, n int, match bool) string {
-	fnVar := ctx.UsePureFn(corePureFnNamespace, "countEnumKeys", unknownKeysPureFnFilePath)
-	comparison := " !== "
-	if match {
-		comparison = " === "
-	}
-	return fnVar + "(" + v + ")" + comparison + strconv.Itoa(n)
+// emitCountKeys emits `cntEK(v) === N`; countEnumKeys picks its counter per engine, both pinned to answer identically
+// (packages/run-types/src/runtypes/pure-fns-utils.ts).
+func emitCountKeys(ctx *EmitContext, v string, n int) string {
+	fnVar := ctx.UsePureFn(purefnids.CountEnumKeys)
+	return fnVar + "(" + v + ") === " + strconv.Itoa(n)
 }
 
-// collectObjectHasUnknownKeysChildren is a helper that returns the
-// per-child hasUnknownKeys expressions for an object's children, plus a
-// flag indicating whether the object has an index-signature child.
-// Mirrors super.emitHasUnknownKeys (the CollectionRunType default) but
-// inlined here so the interface emit can stitch parent+children
-// together with `||`.
-func collectObjectHasUnknownKeysChildren(rt *reflection.RunType, ctx *EmitContext) ([]string, bool) {
-	var parts []string
-	hasIndex := false
-	for _, child := range rt.Children {
-		resolved := ctx.ResolveRef(child)
-		if resolved == nil {
-			continue
-		}
-		if resolved.Kind == reflection.KindIndexSignature {
-			hasIndex = true
-		}
-		if resolved.IsStatic {
-			continue
-		}
-		if isFunctionLikeKind(resolved.Kind) {
-			continue
-		}
-		childRT := ctx.CompileChild(child, CodeE)
-		if childRT.Type == CodeNS {
-			// Children with NS propagate upward — but for unknown-keys
-			// emit we tolerate them as "no contribution" (the parent
-			// renderer drops the factory if needed). Skip the child.
-			continue
-		}
-		if childRT.Code == "" {
-			continue
-		}
-		parts = append(parts, childRT.Code)
-	}
-	return parts, hasIndex
-}
-
-// joinSemicolons joins non-empty strings with `;`. Empty entries are
-// dropped. Shared by the unknown-keys statement-shaped family emitters
-// (unknownKeyErrors, unknownKeysToUndefined).
+// joinSemicolons joins non-empty strings with `;`, dropping the empty ones.
 func joinSemicolons(parts ...string) string {
 	var nonEmpty []string
 	for _, part := range parts {
@@ -342,87 +200,33 @@ func joinSemicolons(parts ...string) string {
 	return strings.Join(nonEmpty, ";")
 }
 
-// joinOr joins JS expressions with ` || `. Wraps in parens when there's
-// more than one to keep precedence stable when the result is nested.
-func joinOr(parts []string) string {
-	if len(parts) == 0 {
-		return ""
-	}
-	if len(parts) == 1 {
-		return parts[0]
-	}
-	return "(" + strings.Join(parts, " || ") + ")"
-}
-
-// unknownKeysObjectGuard is the shape precondition every OBJECT-node
-// unknown-keys emit runs under. A key scan only means "declared vs
-// undeclared" when the value actually is a plain object: on anything else
-// the descent either throws (`v.address` against null/undefined) or invents
-// keys, because `for (const k in v)` walks a string's character indices and
-// an array's element indices. Guarded out, the node contributes nothing and
-// the family reports its neutral answer — no errors for unknownKeyErrors,
-// false for hasUnknownKeys. Reporting the SHAPE is validationErrors' job,
-// which is what keeps the documented `[...verr(v), ...uke(v)]` report free
-// of duplicate shape errors. Same predicate the merged-union emit already
-// gates on (emitUnionUnknownKeysMerged).
+// unknownKeysObjectGuard is the precondition of every OBJECT-node unknown-keys emit: elsewhere a key scan throws
+// (`v.address` on null) or invents keys (`for in` over a string or array). Guarded out, the node does nothing: the
+// shape is validationErrors' job.
 func unknownKeysObjectGuard(v string) string {
 	return "typeof " + v + " === 'object' && " + v + " !== null && !Array.isArray(" + v + ")"
 }
 
-// unknownKeysArrayGuard is the same precondition for an ARRAY / TUPLE node,
-// whose descent reads `v.length` and `v[i]`.
-func unknownKeysArrayGuard(v string) string {
-	return "Array.isArray(" + v + ")"
-}
-
-// guardStatement wraps a statement-shaped body in a shape guard.
 func guardStatement(guard, body string) string {
 	return "if (" + guard + ") {" + body + "}"
 }
 
-// trimWhitespace removes leading + trailing whitespace and the trailing
-// semicolon. Used inside Finalize-detection helpers to recognise
-// "essentially empty" bodies.
-func trimWhitespace(code string) string {
-	out := strings.TrimSpace(code)
-	for strings.HasSuffix(out, ";") {
-		out = strings.TrimSpace(out[:len(out)-1])
-	}
-	return out
-}
-
-// siblingNamedKeysCtxKey returns the context-item key under which a
-// parent object's sibling-named-prop set is stored for `idxSig` (the
-// child index-signature RunType). The key is derived from the index
-// sig's own RunType ID — the only canonical handle the index-sig emit
-// has on itself, since we can't store parent-relative data on a shared
-// canonical node (see CLAUDE.md "Never store parent-relative data on a
-// canonical node").
+// siblingNamedKeysCtxKey names the context item holding the parent object's sibling-named-prop set for `idxSig`.
+// Keyed by the index sig's own RunType ID, the only canonical handle it has: parent-relative data must never live on a
+// shared canonical node.
 func siblingNamedKeysCtxKey(idxSig *reflection.RunType) string {
 	return "siblingNamed_" + idxSig.ID
 }
 
-// publishSiblingNamedKeysForIndexSig walks `rt`'s children; for each
-// IndexSignature child, registers a closure-prologue
-// `const siblingNamed_<idxSigID> = new Set(['name1', 'name2'])` so the
-// index-sig emit can guard `if (siblingNamed_X.has(prop)) continue;`
-// at the top of its for-in loop. Mirrors
-// IndexSignatureRunType.getSkipCode + InterfaceRunType.getNamedChildren
-// (ref: packages/run-types/src/nodes/member/indexProperty.ts:166-173,
-// nodes/collection/interface.ts:getNamedChildren).
-//
-// Called from every per-family object emit (validate, validationErrors,
-// hasUnknownKeys, stripUnknownKeys, unknownKeyErrors,
-// unknownKeysToUndefined) when the object mixes named props with an
-// index signature. Each family compiles into its own walker with its
-// own context items, so the same key can be re-published per family
-// without collision.
+// publishSiblingNamedKeysForIndexSig registers `const siblingNamed_<idxSigID> = new Set([...])` per index-signature child,
+// so the index-sig emit can skip those keys at the top of its for-in loop.
+// Each family compiles into its own walker with its own context items, so one key is re-published per family without collision.
 func publishSiblingNamedKeysForIndexSig(rt *reflection.RunType, ctx *EmitContext) {
 	siblingNames := indexSigExemptKeys(rt, ctx)
 	if len(siblingNames) == 0 {
 		return
 	}
-	for _, child := range rt.Children {
+	for _, child := range objectMembers(rt) {
 		resolved := ctx.ResolveRef(child)
 		if resolved == nil || resolved.Kind != reflection.KindIndexSignature {
 			continue
@@ -435,19 +239,11 @@ func publishSiblingNamedKeysForIndexSig(rt *reflection.RunType, ctx *EmitContext
 	}
 }
 
-// indexSigExemptKeys is the key set an index signature's sweep may SKIP.
-//
-// By default that is every declared sibling (collectSiblingNamedKeys): TypeScript
-// rejects a declared member incompatible with its own index signature, so within
-// ONE declaration skipping them cannot lose a check. An INTERSECTION breaks that
-// argument — a member contributed by one constituent faces another's index
-// signature — which is exactly what JSON Schema's `additionalProperties` means
-// when an `allOf` member declares a property.
-//
-// So when the node carries the `additionalOwn` param (the schema's OWN
-// `properties` keys, written by the door for a schema-valued
-// `additionalProperties`), that list wins: keys from anywhere else stay in the
-// sweep and face the value check. Types without the param are unaffected.
+// indexSigExemptKeys is the key set an index signature's sweep may SKIP, by default every declared sibling.
+// TypeScript rejects a declared member incompatible with its own index signature, so within ONE declaration skipping
+// them cannot lose a check; an INTERSECTION breaks that argument, which is what JSON Schema's `additionalProperties`
+// means when an `allOf` member declares a property. So the `additionalOwn` param (the schema's OWN `properties` keys)
+// wins when present: keys from anywhere else stay in the sweep and face the value check.
 func indexSigExemptKeys(rt *reflection.RunType, ctx *EmitContext) []string {
 	if rt.FormatAnnotation != nil && rt.FormatAnnotation.Name == "formattedObject" {
 		if own, ok := rt.FormatAnnotation.Params["additionalOwn"]; ok {
@@ -457,9 +253,7 @@ func indexSigExemptKeys(rt *reflection.RunType, ctx *EmitContext) []string {
 	return collectSiblingNamedKeys(rt, ctx)
 }
 
-// stringListParam reads a `readonly string[]` param off a format annotation.
-// The wire carries it as []any of strings (the literal tuple walk), so the
-// conversion is a filter rather than a cast.
+// stringListParam reads a `readonly string[]` format param; the wire carries it as []any, so this filters rather than casts.
 func stringListParam(raw any) []string {
 	entries, ok := raw.([]any)
 	if !ok {
@@ -477,21 +271,10 @@ func stringListParam(raw any) []string {
 	return dedupSortStrings(out)
 }
 
-// collectSiblingNamedKeys returns the deduped, sorted names of every declared
-// property that must be SKIPPED by an index-signature for-in loop: every named
-// non-static child. Crucially it keys on the NAME, independent of whether the
-// per-family emit keeps or DROPS the property — a property whose value is
-// DataOnly-stripped (`p0: ArrayBuffer`) is dropped from the projection but its
-// key must still be skipped so the index loop doesn't copy it back in (G6).
-// FUNCTION-LIKE children are stripped the same way and so are covered by that
-// same rule: excluding them here left their key in the sweep, and the index
-// signature's own value encoder then ran over a function
-// (`{p0: () => number; [k: number]: RegExp}` reached serString(undefined) — an
-// uncontrolled TypeError in binary, a function silently serialized as its
-// source text in JSON). Statics stay out: they are not own enumerable keys, so
-// no for-in ever reaches them.
-// Shared by publishSiblingNamedKeysForIndexSig (binary + the JSON mutate /
-// stringify walks) and the clone path's buildSafeIndexSignatureObject.
+// collectSiblingNamedKeys lists the named non-static children an index-signature for-in must SKIP, by name alone.
+// A DataOnly-stripped prop (`p0: ArrayBuffer`) is in, or the index loop copies it back (G6).
+// Function-like children are in too, or the index encoder writes a function's source text into JSON.
+// Statics stay out: no for-in reaches them.
 func collectSiblingNamedKeys(rt *reflection.RunType, ctx *EmitContext) []string {
 	var siblingNames []string
 	for _, child := range rt.Children {
@@ -512,16 +295,7 @@ func collectSiblingNamedKeys(rt *reflection.RunType, ctx *EmitContext) []string 
 	return dedupSortStrings(siblingNames)
 }
 
-// siblingNamedSkipCode returns the JS prologue to inject at the top
-// of an index-signature for-in loop body so iterations matching a
-// sibling named property are skipped. Returns "" when the parent
-// object emit didn't publish a sibling-names set for this idxSig
-// (objects without named props alongside the index sig). Mirrors
-// the getSkipCode return shape (indexProperty.ts:172) —
-// `if (sib === prop) continue;`. Multi-sibling form uses the published
-// Set for O(1) membership; the reference emits `if (a===prop || b===prop) continue;`
-// but Set.has(prop) reads the same at runtime and we already build the
-// set for the unknownKeysToUndefined consumer.
+// siblingNamedSkipCode returns the for-in line that skips a sibling named prop, or "" when the parent published no set.
 func siblingNamedSkipCode(idxSig *reflection.RunType, ctx *EmitContext, prop string) string {
 	if idxSig == nil {
 		return ""
@@ -533,10 +307,8 @@ func siblingNamedSkipCode(idxSig *reflection.RunType, ctx *EmitContext, prop str
 	return "if (" + ctxKey + ".has(" + prop + ")) continue;"
 }
 
-// siblingPatternsCtxKey / siblingPatternRegexCtxKey name the closure-prologue
-// items the patternProperties EXEMPTION rides. Keyed by the index signature's
-// canonical id for the same reason siblingNamedKeysCtxKey is (never
-// parent-relative data on a canonical node).
+// siblingPatternsCtxKey / siblingPatternRegexCtxKey name the closure-prologue items the patternProperties EXEMPTION rides.
+// Keyed by the index signature's canonical id for the same reason siblingNamedKeysCtxKey is.
 func siblingPatternsCtxKey(idxSig *reflection.RunType) string {
 	return "ppSkip_" + idxSig.ID
 }
@@ -544,18 +316,12 @@ func siblingPatternRegexCtxKey(idxSig *reflection.RunType, position int) string 
 	return "rePPSkip_" + idxSig.ID + "_" + strconv.Itoa(position)
 }
 
-// publishSiblingPatternsForIndexSig is the patternProperties twin of
-// publishSiblingNamedKeysForIndexSig. Per 2020-12 a key matched by a sibling
-// `patternProperties` entry is NOT "additional", so it must be exempt from the
-// index signature a schema-valued `additionalProperties` lowers to — exactly as
-// a sibling NAMED property is. Without the exemption
-// `{properties: …, patternProperties: {'f.o': …}, additionalProperties: {type:
-// 'integer'}}` rejects `{fxo: [1, 2]}`, which the pattern entry accepts.
-//
-// Registers one hoisted RegExp per source plus a single prologue predicate
-// (`const ppSkip_X = (k) => reA.test(k) || reB.test(k)`) so the loop pays one
-// call per key and allocates nothing. No-op for objects with no patternProps or
-// no index signature — i.e. every non-schema-authored type.
+// publishSiblingPatternsForIndexSig is the patternProperties twin of publishSiblingNamedKeysForIndexSig.
+// Per 2020-12 a key matched by a sibling `patternProperties` entry is NOT "additional", so it must be exempt from the index
+// signature a schema-valued `additionalProperties` lowers to, exactly as a sibling NAMED property is.
+// Without it `{patternProperties: {'f.o': …}, additionalProperties: {type: 'integer'}}` rejects `{fxo: [1, 2]}`, which
+// the pattern entry accepts.
+// One hoisted RegExp per source plus a single prologue predicate, so the loop pays one call per key and allocates nothing.
 func publishSiblingPatternsForIndexSig(rt *reflection.RunType, ctx *EmitContext) {
 	if len(rt.PatternProps) == 0 {
 		return
@@ -591,9 +357,8 @@ func publishSiblingPatternsForIndexSig(rt *reflection.RunType, ctx *EmitContext)
 	}
 }
 
-// siblingPatternSkipCode is the patternProperties twin of siblingNamedSkipCode:
-// the `if (…) continue;` line the index-signature for-in loop opens with so a
-// pattern-matched key never also faces the additionalProperties value check.
+// siblingPatternSkipCode is the patternProperties twin of siblingNamedSkipCode, so a pattern-matched key never faces the
+// additionalProperties value check.
 // Returns "" when the parent emit published no predicate for this index sig.
 func siblingPatternSkipCode(idxSig *reflection.RunType, ctx *EmitContext, prop string) string {
 	if idxSig == nil {
@@ -606,41 +371,8 @@ func siblingPatternSkipCode(idxSig *reflection.RunType, ctx *EmitContext, prop s
 	return "if (" + predicateKey + "(" + prop + ")) continue;"
 }
 
-// unknownKeysChildrenCode collects each non-static, non-function child's
-// emitted code (CodeS) and joins with `;`. Shared by the object emit of the
-// strip / unknownKeyErrors / unknownKeysToUndefined families — the
-// child-filtering + compile loop is identical across all three.
-func unknownKeysChildrenCode(rt *reflection.RunType, ctx *EmitContext) string {
-	var parts []string
-	for _, child := range rt.Children {
-		resolved := ctx.ResolveRef(child)
-		if resolved == nil {
-			continue
-		}
-		if resolved.IsStatic {
-			continue
-		}
-		if isFunctionLikeKind(resolved.Kind) {
-			continue
-		}
-		childRT := ctx.CompileChild(child, CodeS)
-		if childRT.Type == CodeNS {
-			continue
-		}
-		if childRT.Code != "" {
-			parts = append(parts, childRT.Code)
-		}
-	}
-	return strings.Join(parts, ";")
-}
-
-// unknownKeysSupports gates the renderer's top-level loop for EVERY
-// unknown-keys family emitter (has / strip / errors / toUndefined /
-// toUndefinedWire) — the families differ in what they emit per kind,
-// never in which kinds they accept. Same set as the prepareForJson /
-// validationErrors emitters in Phase 0 (every kind a real codegen pass
-// will need to either handle or transparently no-op). Atomic kinds emit
-// an empty body and each family's Finalize folds that to its noop shape.
+// unknownKeysSupports gates removeUnknownKeys, the same set as pj / validationErrors; atomic kinds emit an empty
+// body that Finalize folds to the noop shape.
 func unknownKeysSupports(rt *reflection.RunType) bool {
 	if rt == nil {
 		return false
@@ -659,7 +391,7 @@ func unknownKeysSupports(rt *reflection.RunType) bool {
 		return true
 	case reflection.KindClass:
 		switch rt.SubKind {
-		case reflection.SubKindDate, reflection.SubKindNone,
+		case reflection.SubKindDate, reflection.SubKindUrl, reflection.SubKindNone,
 			reflection.SubKindMap, reflection.SubKindSet,
 			reflection.SubKindNonSerializable:
 			return true
@@ -680,39 +412,27 @@ func unknownKeysSupports(rt *reflection.RunType) bool {
 	case reflection.KindIntersection:
 		return true
 	case reflection.KindPromise:
-		// Promise wraps don't track unknown keys (the value is a
-		// then-able, not a plain object). Same noop stance as atomic.
+		// A promise value is a then-able, not a plain object: noop, like an atomic.
 		return true
 	case reflection.KindFunction, reflection.KindMethod,
 		reflection.KindMethodSignature, reflection.KindCallSignature:
-		// Function values aren't objects with enumerable own keys to
-		// check; the function emit is a noop. Same here.
+		// Function values have no enumerable own keys to check, so the emit is a noop.
 		return true
 	}
 	return false
 }
 
-// emitTupleUnknownKeysRecurse is the shared tuple arm for the errors and
-// strip families: recurse into every slot and join the surviving child
-// statements. (toUndefined deliberately no-ops at tuples instead — see
-// emitTupleUnknownKeysToUndefined.)
-func emitTupleUnknownKeysRecurse(rt *reflection.RunType, ctx *EmitContext) RTCode {
-	if len(rt.Children) == 0 {
-		return RTCode{Code: "", Type: CodeS}
-	}
-	var parts []string
+// objectCallSignatureChild returns the node's call-signature child, or nil; a shape that has one is a Function with
+// properties bolted on, which the object guard, the brand guard and the unknown-key check all key off.
+func objectCallSignatureChild(rt *reflection.RunType, ctx *EmitContext) *reflection.RunType {
 	for _, child := range rt.Children {
-		childRT := ctx.CompileChild(child, CodeS)
-		if childRT.Type == CodeNS {
+		resolved := ctx.ResolveRef(child)
+		if resolved == nil {
 			continue
 		}
-		if childRT.Code != "" {
-			parts = append(parts, childRT.Code)
+		if resolved.Kind == reflection.KindCallSignature {
+			return child
 		}
 	}
-	if len(parts) == 0 {
-		return RTCode{Code: "", Type: CodeS}
-	}
-	body := guardStatement(unknownKeysArrayGuard(ctx.Vλl), strings.Join(parts, ";"))
-	return RTCode{Code: body, Type: CodeS}
+	return nil
 }

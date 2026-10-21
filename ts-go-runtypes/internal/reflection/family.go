@@ -1,57 +1,30 @@
 package reflection
 
-// Family classifies a RunType into one of four buckets: Atomic (A),
-// Collection (C), Member (M), or Function (F). Mirrors the
-// `RunTypeFamily` (ref: packages/run-types/src/types.ts:41) and the per-class
-// `getFamily()` overrides in BaseRunType / AtomicRunType /
-// CollectionRunType / MemberRunType / FunctionRunType.
+// Family classifies a RunType into one of four buckets: Atomic (A), Collection (C), Member (M) or Function (F).
+// The single-character values are the wire form, so JS-side consumers compare without translation.
 //
-// Used by the RT compiler's inline-vs-dependent predicate
-// (BaseRunType.isRTInlined treats named Collections as dependencies
-// so their factories can be reused across reference sites — see
-// ref: packages/run-types/src/lib/baseRunTypes.ts:52).
-//
-// Single-character string values match the wire form so JS-side
-// consumers can compare without translation.
+// Drives the inline-vs-dependent predicate: a NAMED Collection is emitted as a dependency rather than inlined
+// (cachegen/typefunctions/inlining.go), so its factory is reused across reference sites.
 type Family string
 
 const (
-	// FamilyUnknown is the zero value — emitted as the empty string,
-	// which `omitempty` strips from the JSON envelope. Refs
-	// (KindRef sentinel) and reserved kinds (TypeParameter / Infer)
-	// have no family classification.
+	// FamilyUnknown is the zero value, stripped from the JSON envelope by omitempty: refs (the KindRef
+	// sentinel) and the reserved kinds (TypeParameter / Infer) have no family classification.
 	FamilyUnknown Family = ""
-	// FamilyAtomic is 'A'. Single-shape values that have no
-	// children (string, number, null, literal, …) and inline cheaply.
+	// FamilyAtomic is 'A': single-shape values with no children (string, number, null, literal, …) that inline cheaply.
 	FamilyAtomic Family = "A"
-	// FamilyCollection is 'C'. Has children that compose into
-	// the parent's emitted code (objectLiteral, class, union,
-	// intersection, tuple, templateLiteral).
+	// FamilyCollection is 'C': its children compose into the parent's emitted code.
 	FamilyCollection Family = "C"
-	// FamilyMember is 'M'. Wraps a single child with a parent-
-	// relative accessor (property, parameter, array, rest,
-	// indexSignature, tupleMember, promise).
+	// FamilyMember is 'M': wraps a single child with a parent-relative accessor.
 	FamilyMember Family = "M"
-	// FamilyFunction is 'F'. Functions / methods /
-	// call-signatures — anything with parameters + a return type.
+	// FamilyFunction is 'F': anything with parameters plus a return type.
 	FamilyFunction Family = "F"
 )
 
-// FamilyOf returns the Family classification for a ReflectionKind.
-// Single source of truth for the Kind→Family mapping; both the RT
-// compiler's inlining predicate and the wire-field populator route
-// through here.
-//
-// Kinds with no family classification (KindRef, KindTypeParameter,
-// KindInfer) return FamilyUnknown so the wire field stays empty and
-// `omitempty` strips them.
-//
-// Stays in lockstep with the family-per-class declarations in
-// packages/run-types/src/nodes/*/*.ts — see the spec files for which
-// node class each ReflectionKind maps to.
+// FamilyOf returns the Family classification for a ReflectionKind, the single source of truth for the
+// Kind→Family mapping. KindRef, KindTypeParameter and KindInfer answer FamilyUnknown, which omitempty strips.
 func FamilyOf(kind ReflectionKind) Family {
 	switch kind {
-	// Atomic — packages/run-types/src/nodes/atomic/*.ts.
 	case KindAny, KindUnknown, KindNever, KindVoid,
 		KindNull, KindUndefined,
 		KindString, KindNumber, KindBoolean, KindBigInt, KindSymbol,
@@ -59,70 +32,32 @@ func FamilyOf(kind ReflectionKind) Family {
 		KindEnum, KindEnumMember:
 		return FamilyAtomic
 
-	// Collection — packages/run-types/src/nodes/collection/*.ts. Note:
-	// templateLiteral lives under collection/ despite
-	// "atomic" connotations — its emitted code composes a regex from
-	// child segments, so it's a Collection family-wise.
+	// templateLiteral is a Collection despite its atomic look: its emitted code composes a regex from child segments.
 	case KindObjectLiteral, KindClass,
 		KindUnion, KindIntersection,
 		KindTuple, KindTemplateLiteral:
 		return FamilyCollection
 
-	// Member — packages/run-types/src/nodes/member/*.ts + native/promise.ts.
-	// Each wraps a single child accessor. KindArray is a Member
-	// (member/array.ts) even though we name it "Array" — the
-	// node wraps one element-type child via `Child`.
+	// KindArray is a Member despite the name: the node wraps one element-type child via `Child`.
 	case KindProperty, KindPropertySignature, KindParameter,
 		KindArray, KindRest,
 		KindIndexSignature, KindTupleMember,
 		KindPromise:
 		return FamilyMember
 
-	// Function — packages/run-types/src/nodes/function/function.ts +
-	// member/method.ts + member/methodSignature.ts +
-	// member/callSignature.ts. Despite living under member/ in
-	// the directory layout, method / methodSignature /
-	// callSignature all extend FunctionRunType and getFamily()
-	// returns 'F'.
 	case KindFunction, KindMethod, KindMethodSignature, KindCallSignature:
 		return FamilyFunction
 	}
 	return FamilyUnknown
 }
 
-// IsNotSupportedKind reports whether a node's Kind (+ SubKind) is one the
-// type-function emitters cannot faithfully validate or serialise — the
-// "non-data" set: functions, methods, method-signatures and call-signatures
-// (no value form), symbols
-// (identity doesn't round-trip), never (no inhabitants), and non-
-// serialisable classes (WeakMap, typed arrays, …). KindPromise is
-// deliberately absent: it is validation-supported (a real thenable runtime
-// value), so it counts as data.
-func IsNotSupportedKind(kind ReflectionKind, subKind ReflectionSubKind) bool {
-	switch kind {
-	case KindNever, KindSymbol,
-		KindFunction, KindMethod, KindMethodSignature, KindCallSignature:
-		return true
-	case KindClass:
-		return subKind == SubKindNonSerializable
-	}
-	return false
-}
-
-// PopulateFamily recursively walks a RunType and sets `Family` AND
-// `NotSupported` on every concrete node it visits. Called at cache-exit
-// time (Cache.Dump and friends) so every wire-bound node carries both
-// Kind-derived classifications before the JSON envelope is built.
-//
-// Idempotent — re-running on an already-populated tree is a no-op
-// modulo the function-call overhead. Refs (KindRef) terminate the
-// recursion because they're just pointers; their canonical node is
-// populated separately when the same walk reaches it via cache.nodes.
-func PopulateFamily(runType *RunType) {
+// PopulateFamily stamps Family and NotSupported (NonDataOf) on runType and every node its ref slots reach. Idempotent.
+// resolve follows a ref (an interface's call signature is one); a ref sentinel has no slots, so it ends the recursion.
+func PopulateFamily(runType *RunType, resolve func(*RunType) *RunType) {
 	if runType == nil {
 		return
 	}
 	runType.Family = FamilyOf(runType.Kind)
-	runType.NotSupported = IsNotSupportedKind(runType.Kind, runType.SubKind)
-	runType.EachRefSlot(PopulateFamily)
+	runType.NotSupported = NonDataOf(runType, resolve) != Data
+	runType.EachRefSlot(func(child *RunType) { PopulateFamily(child, resolve) })
 }

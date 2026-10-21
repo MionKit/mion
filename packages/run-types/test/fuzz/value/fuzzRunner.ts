@@ -1,9 +1,14 @@
 // Autonomous fuzz driver. Feeds three streams of data into every target's
 // validation/serialization functions and collects oracle violations:
 //
-//   valid    createMockDataFn<T>()        → O1, O3, O4, O5, O6, O7, O18, O19, O20
-//   invalid  mutateToInvalid(valid)     → O2, O3, O4, O18, O19
-//   junk     randomJunk() (type-blind)  → O3, O4, O18, O19
+//   valid    createMockDataFn<T>()        → O1, O3, O4, O5, O7, O18
+//   invalid  mutateToInvalid(valid)     → O2, O3, O4, O18
+//   extras   mutateWithExtras(valid)    → O18, O21
+//   unknown  plantUnknownKey(valid)     → O22, O23, O24, O25, O26
+//   junk     randomJunk() (type-blind)  → O3, O4, O18
+//
+// O27 is run-level rather than per value: the report tallies the walker's positions per target and
+// the sweep asserts once, at the end, that every keyed target offered at least one.
 //
 // Every iteration runs under a seeded `Math.random` (withSeededRandom), so a
 // reported violation replays exactly from its `seed`. `runFuzz` is pure data
@@ -15,17 +20,20 @@ import {type CrashRecord} from '../core/crashGuard.ts';
 import {runFuzzLoopSync} from '../core/runLoop.ts';
 import {mutateToInvalid} from './invalidValue.ts';
 import {mutateWithExtras, deepCopyValue} from '../cloning/extrasValue.ts';
+import {collectUnknownKeyPositions, plantUnknownKey} from './unknownKeyPositions.ts';
 import {
-  checkBinaryStable,
   checkErrorsAgree,
   checkFusedAgree,
   checkStrictSelfAgree,
-  checkParseAgree,
-  checkParseRoundTrip,
   checkInvalidRejected,
   checkJsonStable,
   checkValidAccepted,
   checkValidateTotal,
+  checkUnknownKeysSelfAgree,
+  checkUnknownKeysPlanted,
+  checkUnknownKeysStripAgree,
+  checkWireStripBlind,
+  checkWireStripDeletes,
   type FuzzTarget,
   type Violation,
 } from './fuzzOracle.ts';
@@ -35,6 +43,25 @@ export interface FuzzOptions {
   seed?: number;
   /** Iterations per target. **/
   iterations?: number;
+}
+
+/** Anti-vacuity counters for the unknown-key oracles (O22–O26). A lane that
+ *  never planted a key, never reached an index-signature carve-out or never
+ *  got a wire to plant on would run green while proving nothing, so the test
+ *  asserts each of these is non-zero. O27 reads `positionsByTarget` once at
+ *  the end of the run. **/
+export interface UnknownKeyCoverage {
+  /** Keys planted where every family owes a report. **/
+  flagged: number;
+  /** Keys planted into an index-signature object, where every family owes silence. **/
+  carveOut: number;
+  /** Values handed to the wire oracles (O25, O26), which plant into every plain object of the
+   *  encoded wire and judge each surviving key against the type. **/
+  wire: number;
+  /** Positions the walker offered, per target title. O27 reads it: a target whose TYPE carries a
+   *  keyed shape anywhere and never offered a position is a walker hole, and a hole makes every
+   *  other unknown-key oracle pass while checking nothing. **/
+  positionsByTarget: Map<string, number>;
 }
 
 export interface FuzzReport {
@@ -49,6 +76,7 @@ export interface FuzzReport {
    *  for the soak pathology tripwire (SOAK_ITERATION_CEILING_MS). **/
   slowestIterationMs?: number;
   slowestIterationRound?: number;
+  unknownKeys: UnknownKeyCoverage;
 }
 
 const DEFAULT_ITERATIONS = 200;
@@ -57,16 +85,19 @@ const DEFAULT_ITERATIONS = 200;
 export function runFuzz(targets: FuzzTarget[], options: FuzzOptions = {}): FuzzReport {
   const iterations = options.iterations ?? DEFAULT_ITERATIONS;
   const violations: Violation[] = [];
+  const unknownKeys: UnknownKeyCoverage = {flagged: 0, carveOut: 0, wire: 0, positionsByTarget: new Map()};
   // One round per TARGET, `iterations` guarded steps inside it — target-major,
   // so violations still arrive grouped by target. The step label is the target
   // title, which is what makes two targets draw disjoint sequences.
   const loop = runFuzzLoopSync<Violation>({seed: options.seed, defaultSeed: 0x1234abcd, rounds: targets.length}, (round) => {
     const target = targets[round.round];
     for (let i = 0; i < iterations; i++) {
-      round.run(target.title, i, (iterSeed) => withSeededRandom(iterSeed, () => fuzzOneIteration(target, iterSeed, violations)));
+      round.run(target.title, i, (iterSeed) =>
+        withSeededRandom(iterSeed, () => fuzzOneIteration(target, iterSeed, violations, unknownKeys))
+      );
     }
   });
-  return {runs: loop.runs, iterations, seed: loop.seed, violations, crashes: loop.crashes};
+  return {runs: loop.runs, iterations, seed: loop.seed, violations, crashes: loop.crashes, unknownKeys};
 }
 
 /** Soak mode: keep fuzzing until `durationMs` elapses, logging violations as
@@ -79,13 +110,14 @@ export function runFuzzForDuration(
   onViolation?: (v: Violation) => void
 ): FuzzReport {
   const violations: Violation[] = [];
+  const unknownKeys: UnknownKeyCoverage = {flagged: 0, carveOut: 0, wire: 0, positionsByTarget: new Map()};
   // One ROUND is a full pass over every target — the budget refuses to start a
   // round the remaining time cannot pay for, so the soak lands inside its wall
   // clock instead of overshooting by a whole round.
   const loop = runFuzzLoopSync<Violation>({seed: options.seed, durationMs, violations, onViolation}, (round) => {
     for (const target of targets) {
       round.run(target.title, round.round, (iterSeed) =>
-        withSeededRandom(iterSeed, () => fuzzOneIteration(target, iterSeed, violations))
+        withSeededRandom(iterSeed, () => fuzzOneIteration(target, iterSeed, violations, unknownKeys))
       );
     }
   });
@@ -97,12 +129,13 @@ export function runFuzzForDuration(
     violations,
     slowestIterationMs: loop.slowestIterationMs,
     slowestIterationRound: loop.slowestIterationRound,
+    unknownKeys,
   };
 }
 
 /** One target × one seed: valid, invalid, and junk passes. Runs INSIDE a
  *  `withSeededRandom` scope (mock + mutation + junk all draw seeded entropy). **/
-function fuzzOneIteration(target: FuzzTarget, seed: number, out: Violation[]): void {
+function fuzzOneIteration(target: FuzzTarget, seed: number, out: Violation[], unknownKeys: UnknownKeyCoverage): void {
   // --- valid pass ---
   let valid: unknown;
   try {
@@ -125,10 +158,7 @@ function fuzzOneIteration(target: FuzzTarget, seed: number, out: Violation[]): v
   push(out, checkErrorsAgree(target, valid, validCtx));
   push(out, checkFusedAgree(target, valid, validCtx));
   push(out, checkStrictSelfAgree(target, valid, validCtx));
-  push(out, checkParseAgree(target, valid, validCtx));
-  push(out, checkParseRoundTrip(target, valid, validCtx));
   push(out, checkJsonStable(target, valid, validCtx));
-  push(out, checkBinaryStable(target, valid, validCtx));
 
   // --- invalid pass (metamorphic corruption of the valid mock) ---
   const mutated = mutateToInvalid(target.schema, valid, Math.random);
@@ -139,14 +169,10 @@ function fuzzOneIteration(target: FuzzTarget, seed: number, out: Violation[]): v
     push(out, checkErrorsAgree(target, mutated.value, invalidCtx));
     push(out, checkFusedAgree(target, mutated.value, invalidCtx));
     push(out, checkStrictSelfAgree(target, mutated.value, invalidCtx));
-    push(out, checkParseAgree(target, mutated.value, invalidCtx));
   }
 
   // --- extras pass (valid mock + undeclared keys) ---
-  // Without this the unknown-keys oracles never see an undeclared key, so they
-  // ran green on every input while proving nothing about their own subject. A
-  // value here is still `validate === true` by construction and
-  // `validateStrict === false`, which is exactly the gap between the two.
+  // Without this the unknown-keys oracles never see an undeclared key; these pass validate and fail validateStrict.
   const extras = mutateWithExtras(target.schema, valid, Math.random)?.value ?? injectRootExtra(valid);
   if (extras !== null) {
     const extrasCtx = {seed, phase: 'extras' as const};
@@ -154,14 +180,34 @@ function fuzzOneIteration(target: FuzzTarget, seed: number, out: Violation[]): v
     push(out, checkStrictSelfAgree(target, extras, extrasCtx));
   }
 
+  // --- unknown-keys pass (one undeclared key at a walked position) ---
+  // Holds the unknown-key families against each other; one key at a time, so a disagreement names the position.
+  const positions = collectUnknownKeyPositions(target.schema, valid);
+  const unknownCtx = {seed, phase: 'unknownkeys' as const};
+  // O27: the oracles below are silent with nowhere to plant, so unreachedKeyedTargets fails that at the end.
+  unknownKeys.positionsByTarget.set(target.title, (unknownKeys.positionsByTarget.get(target.title) ?? 0) + positions.length);
+  push(out, checkUnknownKeysSelfAgree(target, valid, unknownCtx));
+  push(out, checkUnknownKeysStripAgree(target, valid, unknownCtx));
+  // The wire oracles plant blindly, so take no positions: O25 wants the value unchanged, O26 the key gone.
+  if (target.jsonEncode && target.jsonDecode) unknownKeys.wire++;
+  push(out, checkWireStripBlind(target, valid, unknownCtx));
+  push(out, checkWireStripDeletes(target, valid, unknownCtx));
+  const planted = plantUnknownKey(target.schema, valid, Math.random);
+  if (planted) {
+    unknownKeys[planted.kind]++;
+    push(out, checkUnknownKeysPlanted(target, planted, valid, unknownCtx));
+    push(out, checkUnknownKeysSelfAgree(target, planted.value, unknownCtx));
+    push(out, checkUnknownKeysStripAgree(target, planted.value, unknownCtx));
+  }
+
   // --- junk pass (type-blind random data; only robustness oracles apply) ---
   const junk = randomJunk(0);
   const junkCtx = {seed, phase: 'junk' as const};
   push(out, checkValidateTotal(target, junk, junkCtx));
   push(out, checkErrorsAgree(target, junk, junkCtx));
+  push(out, checkUnknownKeysSelfAgree(target, junk, junkCtx));
   push(out, checkFusedAgree(target, junk, junkCtx));
   push(out, checkStrictSelfAgree(target, junk, junkCtx));
-  push(out, checkParseAgree(target, junk, junkCtx));
 }
 
 /** Injects one undeclared key at the ROOT of a plain object.

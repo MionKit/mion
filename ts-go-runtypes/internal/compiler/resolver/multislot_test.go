@@ -16,11 +16,11 @@ const multiSlotDTS = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   // Two fn markers on one call: a params side (verr + jsonDecoder) and a
   // response side (jsonEncoder). Both must inject at their own slot.
-  export function twoSlot(handler: unknown, paramsFns?: InjectTypeFnArgs<string, 'verr', 'jsonDecoder'>, responseFns?: InjectTypeFnArgs<number, 'jsonEncoder'>): unknown;
+  export function twoSlot(handler: unknown, paramsFns?: InjectTypeFnArgs<string, 'validationErrors', 'jsonDecoder'>, responseFns?: InjectTypeFnArgs<number, 'jsonEncoder'>): unknown;
   // A fn marker plus a SEPARATE reflection marker — the A5.3 workaround shape.
-  export function fnAndMeta(handler: unknown, fns?: InjectTypeFnArgs<string, 'verr'>, meta?: InjectRunTypeId<number>): unknown;
+  export function fnAndMeta(handler: unknown, fns?: InjectTypeFnArgs<string, 'validationErrors'>, meta?: InjectRunTypeId<number>): unknown;
   // A non-marker optional parameter (opts) sits between the args and the markers.
-  export function withGap(handler: unknown, opts?: {readonly x?: number}, a?: InjectTypeFnArgs<string, 'verr'>, b?: InjectTypeFnArgs<number, 'jsonEncoder'>): unknown;
+  export function withGap(handler: unknown, opts?: {readonly x?: number}, a?: InjectTypeFnArgs<string, 'validationErrors'>, b?: InjectTypeFnArgs<number, 'jsonEncoder'>): unknown;
 }
 `
 
@@ -59,7 +59,7 @@ twoSlot(() => {});
 	if len(params.FnIds) != 2 {
 		t.Errorf("params fnIds = %v, want 2 (verr, jsonDecoder)", params.FnIds)
 	}
-	if want := leafFnHash(t, "verr"); params.FnId != want {
+	if want := leafFnHash(t, "validationErrors"); params.FnId != want {
 		t.Errorf("params scalar FnId = %q, want verr %q", params.FnId, want)
 	}
 	// Response side names one family → scalar FnId, no fnIds array.
@@ -98,8 +98,8 @@ fnAndMeta(() => {});
 	}
 }
 
-// TestMultiSlot_FreeTypeParamPerSlot pins per-slot MKR003: inside a generic
-// wrapper body, a marker slot whose T is still free emits MKR003 for that slot
+// TestMultiSlot_FreeTypeParamPerSlot pins per-slot marker-in-generic-function: inside a generic
+// wrapper body, a marker slot whose T is still free emits marker-in-generic-function for that slot
 // while a concrete-T slot on the same call still injects.
 func TestMultiSlot_NonMarkerGap(t *testing.T) {
 	sites := scanOneCall(t, multiSlotDTS, `import {withGap} from '@mionjs/run-types';
@@ -114,12 +114,12 @@ withGap(() => {});
 	}
 }
 
-// TestMultiSlot_DuplicateKeyPerSlot pins that the duplicate-family rule (MKR006)
+// TestMultiSlot_DuplicateKeyPerSlot pins that the duplicate-family rule (marker-duplicate-function-family)
 // still fires per slot in a multi-marker call.
 func TestMultiSlot_DuplicateKeyPerSlot(t *testing.T) {
 	const dts = `declare module '@mionjs/run-types' {
   export type InjectTypeFnArgs<T, F1 extends string, F2 extends string = never, F3 extends string = never, F4 extends string = never> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFns?: [F1, F2, F3, F4]};
-  export function dup(handler: unknown, a?: InjectTypeFnArgs<string, 'verr'>, b?: InjectTypeFnArgs<number, 'jsonEncoder', 'jsonEncoder'>): unknown;
+  export function dup(handler: unknown, a?: InjectTypeFnArgs<string, 'validationErrors'>, b?: InjectTypeFnArgs<number, 'jsonEncoder', 'jsonEncoder'>): unknown;
 }
 `
 	r := setupInline(t, map[string]string{"runtypes.d.ts": dts, "call.ts": `import {dup} from '@mionjs/run-types';
@@ -129,14 +129,14 @@ dup(() => {});
 	if resp.Error != "" {
 		t.Fatalf("scanFiles: %s", resp.Error)
 	}
-	var mkr006 int
+	var markerDuplicateFunctionFamily int
 	for _, d := range resp.Diagnostics {
 		if d.Code == diagnostics.CodeMarkerDuplicateFnKey {
-			mkr006++
+			markerDuplicateFunctionFamily++
 		}
 	}
-	if mkr006 != 1 {
-		t.Errorf("expected 1 MKR006 (b repeats jsonEncoder), got %d", mkr006)
+	if markerDuplicateFunctionFamily != 1 {
+		t.Errorf("expected 1 marker-duplicate-function-family (b repeats jsonEncoder), got %d", markerDuplicateFunctionFamily)
 	}
 	// Both markers still produce sites; b's fn ids are deduped to one.
 	if len(resp.Sites) != 2 {

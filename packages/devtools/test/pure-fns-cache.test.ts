@@ -1,22 +1,23 @@
 // End-to-end acceptance test for the pure-fn entry modules. Drives the
 // Go binary over inline sources, then verifies:
 //
-//   1. response.entryModules carries one `pf/<ns>/<fn>` module per
-//      extracted pure fn, with structurally-valid tuple entries
-//      including the inline `createPureFn` literal.
-//   2. response.replacements swaps each factory argument for the entry
-//      module's import binding (importFrom names the module).
-//   3. response.diagnostics (filtered to PureFn family) surfaces PFE9xxx
-//      diagnostics for bad-shape calls (non-literal args, body-hash
-//      collisions, etc.).
-//   4. The diagnostic wire format renders via formatTscDiagnostic into
-//      VS Code's `$tsc` problem-matcher line shape.
+//   1. response.entryModules carries one `pf/<id>` module per extracted pure
+//      fn, with structurally-valid tuple entries including the inline
+//      `createPureFn` literal.
+//   2. response.replacements swaps each fn argument for the entry module's
+//      import binding (importFrom names the module) AND splices the computed id
+//      into the empty trailing slot.
+//   3. one pure fn reaches another by IMPORTING its id: the dependency is
+//      recorded and the reference is lowered to a quoted literal in the body.
+//   4. response.diagnostics (filtered to PureFn family) surfaces purefn-*
+//      diagnostics for bad-shape calls (unresolvable dependency, an explicit id
+//      that disagrees with the computed one, collisions, impure bodies).
+//   5. The diagnostic wire format renders via formatTscDiagnostic into
+//      `file(line,col): severity CODE: headline` line shape.
 
-import path from 'node:path';
-import {fileURLToPath} from 'node:url';
 import {describe, expect, it} from 'vitest';
 import {formatTscDiagnostic} from '../src/index.ts';
-import {Family, Severity, type Diagnostic} from '../src/core/protocol.ts';
+import {Family, Level, Severity, type Diagnostic} from '../src/core/protocol.ts';
 import {ResolverClient} from '../src/core/resolver-client.ts';
 import {BARE_CWD, BIN, hasBinary, withInlineSources, evalEntryModules, MARKER_PACKAGE_OVERLAY} from './helpers/inline.ts';
 
@@ -25,9 +26,7 @@ function pureFnDiagsOf(response: {diagnostics?: Diagnostic[]}): Diagnostic[] {
 }
 
 interface PureFnEntry {
-  namespace: string;
-  fnName: string;
-  bodyHash: string;
+  id: string;
   paramNames: string[];
   code: string;
   pureFnDependencies: string[];
@@ -35,29 +34,58 @@ interface PureFnEntry {
   fn: unknown;
 }
 
+// An id is the package that owns the pure fn (empty for these fixtures, which
+// declare no package name) plus a hash of the body that ships.
+const ID_RE = /^[^#]*#pf_[A-Za-z0-9_-]{14}$/;
+
+interface Replacement {
+  start: number;
+  end: number;
+  text: string;
+  importFrom?: string;
+}
+
 // evalPureFnEntries evaluates every entry module, picks the pure-fn-kind
-// tuples (slot 0 === 2), and builds the flat cache the pre-migration
-// `initCache` consumer produced (`{ 'ns::name': CompiledPureFunction-ish }`).
-// Tuple tail (slot 3+): key, bodyHash, paramNames, code, pureFnDependencies,
-// createPureFn — mirrors registerPureFnTuple in the marker package.
+// tuples (slot 0 === 2), and keys them by the id the tuple registers under.
+// Tuple tail (slot 3+): id, paramNames, code, pureFnDependencies, createPureFn
+// — mirrors the pure-fn tuple in the marker package.
 function evalPureFnEntries(entryModules: Record<string, string>): Record<string, PureFnEntry> {
   const registered: Record<string, PureFnEntry> = {};
   for (const tuple of Object.values(evalEntryModules(entryModules))) {
     if (!Array.isArray(tuple) || tuple[0] !== 2) continue;
-    const key = tuple[3] as string;
-    const sep = key.indexOf('::');
-    registered[key] = {
-      namespace: sep >= 0 ? key.slice(0, sep) : '',
-      fnName: sep >= 0 ? key.slice(sep + 2) : key,
-      bodyHash: tuple[4] as string,
-      paramNames: tuple[5] as string[],
-      code: tuple[6] as string,
-      pureFnDependencies: tuple[7] as string[],
-      createPureFn: tuple[8],
+    registered[tuple[3] as string] = {
+      id: tuple[3] as string,
+      paramNames: tuple[4] as string[],
+      code: tuple[5] as string,
+      pureFnDependencies: tuple[6] as string[],
+      createPureFn: tuple[7],
       fn: undefined,
     };
   }
   return registered;
+}
+
+// applyReplacements applies every byte-range replacement to the source. Sorted
+// by descending start so a higher-offset edit never shifts a lower-offset one
+// (all offsets index the ORIGINAL bytes).
+function applyReplacements(source: string, reps: Replacement[]): string {
+  let buf = Buffer.from(source, 'utf8');
+  for (const rep of [...reps].sort((a, b) => b.start - a.start)) {
+    buf = Buffer.concat([buf.subarray(0, rep.start), Buffer.from(rep.text, 'utf8'), buf.subarray(rep.end)]);
+  }
+  return buf.toString('utf8');
+}
+
+// fnAndIdReplacements splits a response's replacements into the fn-argument
+// rewrite (importFrom set) and the id splice (a point insertion, no importFrom).
+function fnAndIdReplacements(reps: Replacement[]): {fn?: Replacement; id?: Replacement} {
+  let fn: Replacement | undefined;
+  let id: Replacement | undefined;
+  for (const rep of reps) {
+    if (rep.importFrom) fn = rep;
+    else if (rep.start === rep.end) id = rep;
+  }
+  return {fn, id};
 }
 
 describe('@mionjs/devtools / pure-fns virtual module', () => {
@@ -65,13 +93,13 @@ describe('@mionjs/devtools / pure-fns virtual module', () => {
 
   register('emits pureFns entries with structurally-valid metadata', async () => {
     const sources = {
-      'pure.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
-export const a = registerPureFnFactory('rt::asJSONString', function () {
+      'pure.ts': `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
+export const asJSONString = registerPureFnFactory(function () {
   return function _stringify(s: string): string {
     return JSON.stringify(s);
   };
 });
-export const b = registerPureFnFactory('rt::safeKey', function () {
+export const safeKey = registerPureFnFactory(function () {
   return function _safe(value: any): any {
     return value;
   };
@@ -84,12 +112,13 @@ export const b = registerPureFnFactory('rt::safeKey', function () {
       expect(pureFnDiagsOf(response)).toEqual([]);
 
       const pureFns = evalPureFnEntries(response.entryModules!);
-      expect(Object.keys(pureFns).sort()).toEqual(['rt::asJSONString', 'rt::safeKey']);
+      // The id is the package that owns the pure fn (empty above these inline
+      // sources, which declare none) plus a hash of the body that ships.
+      const ids = Object.keys(pureFns).sort();
+      expect(ids.length).toBe(2);
+      for (const id of ids) expect(id).toMatch(ID_RE);
 
-      const asJSON = pureFns['rt::asJSONString'];
-      expect(asJSON.namespace).toBe('rt');
-      expect(asJSON.fnName).toBe('asJSONString');
-      expect(asJSON.bodyHash).toMatch(/^[A-Za-z0-9_-]{14}$/);
+      const asJSON = pureFns[ids.find((id) => (pureFns[id].code ?? '').includes('JSON.stringify'))!];
       expect(asJSON.paramNames).toEqual([]);
       // Body must be JS-stripped — no `: string` annotation should remain.
       expect(asJSON.code).not.toContain(': string');
@@ -106,158 +135,203 @@ export const b = registerPureFnFactory('rt::safeKey', function () {
     });
   });
 
-  register('emits Replacement entries that swap each factory argument for the entry binding', async () => {
+  register('swaps the fn argument for the entry binding and splices the computed id', async () => {
     const sources = {
-      'src.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
-export const _ = registerPureFnFactory('rt::foo', function () {
+      'src.ts': `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
+export const foo = registerPureFnFactory(function () {
   return function _f(x: number) { return x + 1; };
 });
 `,
     };
     await withInlineSources(sources, async ({client}) => {
-      const response = await client.scanFiles(Object.keys(sources));
-      const reps = response.replacements ?? [];
-      expect(reps.length).toBe(1);
-      expect(reps[0].text).toBe('__rt_pf$2Frt$2Ffoo');
-      expect(reps[0].importFrom).toBe('rtmod:/pf/rt/foo.js');
-      expect(reps[0].end).toBeGreaterThan(reps[0].start);
-      // Verify the rewrite produces a syntactically clean binding-swapped
-      // call form when applied to the source.
-      const buf = Buffer.from(sources['src.ts'], 'utf8');
-      const after = Buffer.concat([
-        buf.subarray(0, reps[0].start),
-        Buffer.from(reps[0].text, 'utf8'),
-        buf.subarray(reps[0].end),
-      ]).toString('utf8');
-      expect(after).toContain("registerPureFnFactory('rt::foo',__rt_pf$2Frt$2Ffoo)");
+      const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
+      const reps = (response.replacements ?? []) as Replacement[];
+      const {fn, id} = fnAndIdReplacements(reps);
+      expect(fn, 'fn-arg rewrite').toBeTruthy();
+      // The module is named after the id, which is a hash.
+      expect(fn!.text).toMatch(/^__rt_pf\$2F[A-Za-z0-9_$]+$/);
+      expect(fn!.importFrom).toMatch(/^rtmod:\/pf\/[A-Za-z0-9_$-]+\.js$/);
+      expect(fn!.end).toBeGreaterThan(fn!.start);
+      expect(id, 'id splice').toBeTruthy();
+      // The injected id is EXACTLY the id the entry registers under.
+      const entryIds = Object.keys(evalPureFnEntries(response.entryModules!));
+      expect(entryIds.length).toBe(1);
+      expect(entryIds[0]).toMatch(ID_RE);
+      expect(id!.text).toBe(", '" + entryIds[0] + "'");
+      // Applying both replacements yields the fully-injected call.
+      expect(applyReplacements(sources['src.ts'], reps)).toContain(`registerPureFnFactory(${fn!.text}, '${entryIds[0]}')`);
     });
   });
 
-  register('extracts pureFnDependencies statically from utl.getPureFn calls', async () => {
+  register('registrations bound to no name get a body-hash id, and equal bodies collapse', async () => {
     const sources = {
-      'deps.ts': `import {registerPureFnFactory, type RTUtils} from '@mionjs/run-types';
-export const _ = registerPureFnFactory('rt::consumer', function (utl: RTUtils) {
-  return function _f(x: any) {
-    return utl.getPureFn('rt::dep')(x);
-  };
+      'anon.ts': `import {registerPureFn} from '@mionjs/run-types/runtime';
+export const pair = [
+  registerPureFn(function _id(n: number): number { return n; }),
+  registerPureFn(function _id(n: number): number { return n; }),
+];
+`,
+    };
+    await withInlineSources(sources, async ({client}) => {
+      const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
+      expect(pureFnDiagsOf(response)).toEqual([]);
+      const ids = Object.keys(evalPureFnEntries(response.entryModules!));
+      // Equal bodies → ONE entry, named by the body hash.
+      expect(ids.length).toBe(1);
+      expect(ids[0]).toMatch(ID_RE);
+      // Both call sites are still rewritten, each with its own id splice.
+      const idSplices = ((response.replacements ?? []) as Replacement[]).filter(
+        (rep) => !rep.importFrom && rep.start === rep.end
+      );
+      expect(idSplices.length).toBe(2);
+      expect(idSplices[0].text).toBe(idSplices[1].text);
+    });
+  });
+
+  register('records a dependency from an IMPORTED id and lowers it to a literal', async () => {
+    const sources = {
+      'dep.ts': `import {registerPureFn} from '@mionjs/run-types/runtime';
+export const trim = registerPureFn((s: string): string => s.trim());
+`,
+      'consumer.ts': `import {registerPureFnFactory, type RTUtils} from '@mionjs/run-types/runtime';
+import {trim} from './dep.ts';
+export const trimTwice = registerPureFnFactory(function (utl: RTUtils) {
+  const once = utl.getPureFn(trim);
+  return function _f(s: string) { return once(once(s)); };
 });
 `,
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
+      expect(pureFnDiagsOf(response)).toEqual([]);
       const pureFns = evalPureFnEntries(response.entryModules!);
-      expect(pureFns['rt::consumer'].pureFnDependencies).toEqual(['rt::dep']);
+      const trimId = Object.keys(pureFns).find((id) => pureFns[id].code.includes('trim()'))!;
+      const consumer = pureFns[Object.keys(pureFns).find((id) => id !== trimId)!];
+      expect(consumer, `no consumer entry in ${Object.keys(pureFns).join(', ')}`).toBeDefined();
+      expect(consumer.pureFnDependencies).toEqual([trimId]);
+      // The imported binding is LOWERED: the shipped body holds the literal, so
+      // it closes over nothing.
+      expect(consumer.code).toContain(`getPureFn('${trimId}')`);
+      expect(consumer.code).not.toContain('getPureFn(trim)');
     });
   });
 
-  register('emits CTA001 for non-literal id (was PFE9001 pre-marker-migration)', async () => {
+  register('emits purefn-dependency-not-id for a lookup argument that names no pure fn', async () => {
     const sources = {
-      'bad-ns.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
-declare function getId(): string;
-export const x = registerPureFnFactory(getId(), function () { return function() {}; });
+      'bad-dep.ts': `import {registerPureFnFactory, type RTUtils} from '@mionjs/run-types/runtime';
+export const x = registerPureFnFactory(function (utl: RTUtils) {
+  return function _f(key: any, value: any) { return utl.getPureFn(key)(value); };
+});
 `,
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
-      // CompTimeArgs<string> brand on the id param fires a CTA0xx
-      // diagnostic from the marker layer (resolver.scanCall) — the exact
-      // sub-code depends on the failure mode (CTA001 non-literal, CTA003
-      // function-call construct). The walker silently skips extraction.
-      const ctaSeen = (response.diagnostics ?? [])
-        .filter((d) => d.family === Family.Marker)
-        .some((d) => d.code.startsWith('CTA'));
-      expect(ctaSeen).toBe(true);
-      // No purefn-family shape diagnostic — PFE9001 was retired.
-      expect(pureFnDiagsOf(response).map((d) => d.code)).not.toContain('PFE9001');
+      expect(pureFnDiagsOf(response).map((d) => d.code)).toContain('purefn-dependency-not-id');
     });
   });
 
-  register('emits PFN001 for non-inline factory reference (was PFE9003 pre-marker-migration)', async () => {
+  register('emits purefn-id-mismatch when a written id disagrees with the computed one', async () => {
     const sources = {
-      'bad-fn.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
+      'wrong-id.ts': `import {registerPureFn} from '@mionjs/run-types/runtime';
+export const halve = registerPureFn((n: number): number => n / 2, 'wrong-id#pf_somethingElse');
+`,
+    };
+    await withInlineSources(sources, async ({client}) => {
+      const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
+      const mismatch = pureFnDiagsOf(response).find((d) => d.code === 'purefn-id-mismatch');
+      expect(mismatch, `expected purefn-id-mismatch in ${JSON.stringify(pureFnDiagsOf(response))}`).toBeDefined();
+      expect(mismatch!.args?.[0]).toBe('wrong-id#pf_somethingElse');
+      expect(mismatch!.args?.[1]).toMatch(ID_RE);
+      // No entry: registering one body under two ids is what the code prevents.
+      expect(Object.keys(evalPureFnEntries(response.entryModules ?? {}))).toEqual([]);
+    });
+  });
+
+  register('emits purefn-not-inline for non-inline factory reference', async () => {
+    const sources = {
+      'bad-fn.ts': `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 declare const externalFn: (utl: unknown) => () => void;
-export const x = registerPureFnFactory('rt::fn', externalFn);
+export const x = registerPureFnFactory(externalFn);
 `,
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
-      // PureFunction<F> brand on the factory param emits PFN001 from
+      // PureFunctionFactory<F> brand on the factory param emits purefn-not-inline from
       // the marker layer when the arg isn't an inline arrow/function
       // expression (or const-bound binding to one).
       const markerCodes = (response.diagnostics ?? []).filter((d) => d.family === Family.Marker).map((d) => d.code);
-      expect(markerCodes).toContain('PFN001');
-      // No purefn-family shape diagnostic — PFE9003 was retired.
-      expect(pureFnDiagsOf(response).map((d) => d.code)).not.toContain('PFE9003');
+      expect(markerCodes).toContain('purefn-not-inline');
     });
   });
 
-  register('emits PFN002 for an EXPORTED pure-fn factory (external handle)', async () => {
+  register('emits purefn-imported-or-exported for an EXPORTED pure-fn factory (external handle)', async () => {
     // A pure-fn literal must have no external handle — the build AOT-compiles it,
     // so the original must not be reachable as a value. An exported factory is.
     const sources = {
-      'exp.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
+      'exp.ts': `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const factory = () => function v(x: number) { return x; };
-export const cpf = registerPureFnFactory('rt::exportedFn', factory);
+export const cpf = registerPureFnFactory(factory);
 `,
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
       const markerCodes = (response.diagnostics ?? []).filter((d) => d.family === Family.Marker).map((d) => d.code);
-      expect(markerCodes).toContain('PFN002');
-      expect(markerCodes).not.toContain('PFN001');
+      expect(markerCodes).toContain('purefn-imported-or-exported');
+      expect(markerCodes).not.toContain('purefn-not-inline');
     });
   });
 
-  register('emits PFN002 for an IMPORTED pure-fn factory (external handle)', async () => {
+  register('emits purefn-imported-or-exported for an IMPORTED pure-fn factory (external handle)', async () => {
     const sources = {
       'lib.ts': `export const factory = () => function v(x: number) { return x; };`,
-      'use.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
+      'use.ts': `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 import {factory} from './lib';
-export const cpf = registerPureFnFactory('rt::importedFn', factory);
+export const cpf = registerPureFnFactory(factory);
 `,
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(['use.ts'], {includeEntryModules: true});
       const markerCodes = (response.diagnostics ?? []).filter((d) => d.family === Family.Marker).map((d) => d.code);
-      expect(markerCodes).toContain('PFN002');
+      expect(markerCodes).toContain('purefn-imported-or-exported');
     });
   });
 
-  register('emits PFE9004 collision diagnostic for mismatched bodies', async () => {
+  register('two same-named registrations with different bodies get two ids', async () => {
+    // Two block scopes, one file, one binding name. A name is not an identity:
+    // each is hashed by the body it ships, so both survive with nothing to
+    // report and neither resolves the other's body.
     const sources = {
-      'a.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
-export const a = registerPureFnFactory('rt::collideFn', function () {
-  return function v1() { return 1; };
-});
-`,
-      'b.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
-export const b = registerPureFnFactory('rt::collideFn', function () {
-  return function v2() { return 2; };
-});
+      'collide.ts': `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
+{
+  const collideFn = registerPureFnFactory(function () {
+    return function v1() { return 1; };
+  });
+  void collideFn;
+}
+{
+  const collideFn = registerPureFnFactory(function () {
+    return function v2() { return 2; };
+  });
+  void collideFn;
+}
 `,
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
-      const collisions = pureFnDiagsOf(response).filter((d) => d.code === 'PFE9004');
-      expect(collisions.length).toBe(1);
+      expect(pureFnDiagsOf(response)).toEqual([]);
 
-      const collision = collisions[0];
-      expect(collision.related?.length).toBe(1);
-      expect(collision.related?.[0].filePath).not.toBe(collision.site.filePath);
-      // Args carry the colliding key — the catalog template substitutes
-      // it into the headline ("Duplicate registerPureFnFactory for `X`…").
-      expect(collision.args).toEqual(['rt::collideFn']);
-
-      // Entry module still loads, with the first-occurrence winner.
       const pureFns = evalPureFnEntries(response.entryModules!);
-      expect(pureFns['rt::collideFn']).toBeDefined();
+      const ids = Object.keys(pureFns);
+      expect(ids.length).toBe(2);
+      for (const id of ids) expect(id).toMatch(ID_RE);
+      expect(pureFns[ids[0]].code).not.toBe(pureFns[ids[1]].code);
     });
   });
 
-  register('emits PFE9010 (forbidden identifier) for eval inside a factory body', async () => {
+  register('emits purefn-forbidden-construct (forbidden identifier) for eval inside a factory body', async () => {
     const sources = {
-      'impure.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
-export const x = registerPureFnFactory('rt::evilFn', function () {
+      'impure.ts': `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
+export const evilFn = registerPureFnFactory(function () {
   return function _evil() {
     return eval('1+1');
   };
@@ -267,23 +341,22 @@ export const x = registerPureFnFactory('rt::evilFn', function () {
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
       const diags = pureFnDiagsOf(response);
-      const evalDiag = diags.find((d) => d.code === 'PFE9010' && d.args?.[0] === 'eval');
+      const evalDiag = diags.find((d) => d.code === 'purefn-forbidden-construct' && d.args?.[0] === 'eval');
       expect(evalDiag).toBeDefined();
-      // Ensure the formatted line matches the $tsc problem-matcher regex
-      // — VS Code parses build-task output through that pattern.
+      // The printed line shape: file(line,col): severity CODE: headline
       const line = formatTscDiagnostic(evalDiag!);
-      expect(line).toMatch(/^[^(]+\(\d+,\d+\):\s+error\s+PFE9010:/);
+      expect(line).toMatch(/^[^(]+\(\d+,\d+\):\s+error\s+purefn-forbidden-construct:/);
     });
   });
 
-  register('emits PFE9011 (closure variable) for module-level const captured by factory', async () => {
+  register('emits purefn-reads-outer-variable (closure variable) for module-level const captured by factory', async () => {
     // The whole point of the source-rewrite-to-null design: closure
     // captures must blow up at scan time, since the cached fn body
     // can't see anything outside its own scope.
     const sources = {
-      'closure.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
+      'closure.ts': `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 const PRECISION = 0.001;
-export const x = registerPureFnFactory('rt::rounder', function () {
+export const rounder = registerPureFnFactory(function () {
   return function _round(n: number) {
     return Math.round(n / PRECISION) * PRECISION;
   };
@@ -293,17 +366,18 @@ export const x = registerPureFnFactory('rt::rounder', function () {
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
       const diags = pureFnDiagsOf(response);
-      const closureDiag = diags.find((d) => d.code === 'PFE9011' && d.args?.[0] === 'PRECISION');
+      const closureDiag = diags.find((d) => d.code === 'purefn-reads-outer-variable' && d.args?.[0] === 'PRECISION');
       expect(closureDiag).toBeDefined();
     });
   });
 
-  register('formatTscDiagnostic renders the canonical $tsc problem-matcher line', () => {
+  register('formatTscDiagnostic renders the file(line,col): severity CODE: headline line', () => {
     const line = formatTscDiagnostic({
-      code: 'PFE9004',
+      code: 'purefn-not-registered',
       family: Family.PureFn,
       severity: Severity.Error,
-      args: ['rt::collideFn'],
+      level: Level.RuntimeError,
+      args: ['@acme/text#pf_9Zt1bRm4cVaPqL'],
       site: {
         filePath: '/abs/path/x.ts',
         startLine: 12,
@@ -315,10 +389,9 @@ export const x = registerPureFnFactory('rt::rounder', function () {
     // Headline text comes from the JS catalog; we don't pin the exact
     // copy here (catalog wording can evolve). Just confirm the line
     // shape: <path>(<line>,<col>): <severity> <code>: <headline-with-arg>
-    expect(line).toMatch(/^\/abs\/path\/x\.ts\(12,5\): error PFE9004: /);
-    expect(line).toContain('rt::collideFn');
-    // VS Code's built-in $tsc problem matcher regex:
-    expect(line).toMatch(/^[^(]+\(\d+,\d+\):\s+(error|warning)\s+[A-Z]+\d+:\s+.+$/);
+    expect(line).toMatch(/^\/abs\/path\/x\.ts\(12,5\): error purefn-not-registered: /);
+    expect(line).toContain('@acme/text#pf_9Zt1bRm4cVaPqL');
+    expect(line).toMatch(/^[^(]+\(\d+,\d+\):\s+(error|warning)\s+[a-z][a-z0-9]*(?:-[a-z0-9]+)+:\s+.+$/);
   });
 
   // --- emitMode gating of pure-fn tuples (code | functions | both) ----------
@@ -327,7 +400,7 @@ export const x = registerPureFnFactory('rt::rounder', function () {
   // clients per mode to prove purefunctions.CollectEntries gates the pure-fn
   // tuple's `code` and `createPureFn` slots end to end through the real binary
   // — for BOTH a user pure fn (registerPureFnFactory) and a table-served
-  // built-in (rt::findCycle, demanded by a circular createValidateFn).
+  // built-in (findCycle, demanded by a circular createValidateFn).
   async function withEmitMode<T>(
     emitMode: 'code' | 'functions' | 'both',
     sources: Record<string, string>,
@@ -343,14 +416,14 @@ export const x = registerPureFnFactory('rt::rounder', function () {
   }
 
   const USER_PURE_FN = {
-    'pf.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
-export const a = registerPureFnFactory('app::answer', function () {
+    'pf.ts': `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
+export const answer = registerPureFnFactory(function () {
   return function _answer(): number { return 42; };
 });
 `,
   };
   // An ARMED (`{rejectCircularRefs: true}`) validator over a self-referential
-  // type demands the built-in circular walker rt::findCycle by body reference
+  // type demands the built-in circular walker findCycle by body reference
   // (the inline guard calls it), served from the built-in table — the same
   // CollectEntries gating path as a user pure fn. A plain (unarmed) cyclable
   // validate ships no walker at all (the compile-time-option model).
@@ -360,17 +433,28 @@ interface Node { next?: Node; val: number; }
 export const isNode = createValidateFn<Node>(undefined, {rejectCircularRefs: true});
 `,
   };
+  // Read from the installed package's pure-fn index, the same place a consumer's compiler looks.
+  const FIND_CYCLE_ID = (
+    JSON.parse(MARKER_PACKAGE_OVERLAY['node_modules/@mionjs/run-types/dist/mion-pure-fns/index.json']) as {
+      pureFns: {id: string; bindingName: string}[];
+    }
+  ).pureFns.find((entry) => entry.bindingName === 'findCycle')!.id;
 
-  async function pureFnEntry(client: ResolverClient, file: string, key: string): Promise<PureFnEntry> {
+  /** Returns the ONE pure-fn entry a single-registration fixture produced, or
+   *  the entry under `id` when the caller names one. Ids are body hashes, so a
+   *  fixture's own pure fn is found by being the only user-owned entry. */
+  async function pureFnEntry(client: ResolverClient, file: string, id?: string): Promise<PureFnEntry> {
     const response = await client.scanFiles([file], {includeEntryModules: true});
-    const entry = evalPureFnEntries(response.entryModules!)[key];
-    if (!entry) throw new Error(`no pure-fn entry ${key} in ${Object.keys(response.entryModules ?? {}).join(', ')}`);
+    const entries = evalPureFnEntries(response.entryModules!);
+    const key = id ?? Object.keys(entries).find((each) => !each.startsWith('@mionjs/run-types#pf_'));
+    const entry = key ? entries[key] : undefined;
+    if (!entry) throw new Error(`no pure-fn entry ${id ?? "(the fixture's own)"} in ${Object.keys(entries).join(', ')}`);
     return entry;
   }
 
   register('code mode: user pure fn ships the code string, drops createPureFn, and reconstructs a working fn', async () => {
     await withEmitMode('code', USER_PURE_FN, async (client) => {
-      const entry = await pureFnEntry(client, 'pf.ts', 'app::answer');
+      const entry = await pureFnEntry(client, 'pf.ts');
       expect(typeof entry.code).toBe('string');
       expect(entry.code).toContain('return 42');
       expect(entry.createPureFn).toBeUndefined(); // trailing hole trimmed
@@ -382,7 +466,7 @@ export const isNode = createValidateFn<Node>(undefined, {rejectCircularRefs: tru
 
   register('functions mode: user pure fn ships the live closure, drops the code string', async () => {
     await withEmitMode('functions', USER_PURE_FN, async (client) => {
-      const entry = await pureFnEntry(client, 'pf.ts', 'app::answer');
+      const entry = await pureFnEntry(client, 'pf.ts');
       expect(entry.code).toBeUndefined(); // code holed out in place
       expect(typeof entry.createPureFn).toBe('function');
       const inner = (entry.createPureFn as (utl: unknown) => () => number)({});
@@ -392,23 +476,23 @@ export const isNode = createValidateFn<Node>(undefined, {rejectCircularRefs: tru
 
   register('both mode: user pure fn ships BOTH the code string and the live closure', async () => {
     await withEmitMode('both', USER_PURE_FN, async (client) => {
-      const entry = await pureFnEntry(client, 'pf.ts', 'app::answer');
+      const entry = await pureFnEntry(client, 'pf.ts');
       expect(typeof entry.code).toBe('string');
       expect(typeof entry.createPureFn).toBe('function');
     });
   });
 
-  register('table-served built-in rt::findCycle honors code mode (string, no live closure)', async () => {
+  register('table-served built-in findCycle honors code mode (string, no live closure)', async () => {
     await withEmitMode('code', CIRCULAR_VALIDATE, async (client) => {
-      const entry = await pureFnEntry(client, 'circ.ts', 'rt::findCycle');
+      const entry = await pureFnEntry(client, 'circ.ts', FIND_CYCLE_ID);
       expect(typeof entry.code).toBe('string');
       expect(entry.createPureFn).toBeUndefined();
     });
   });
 
-  register('table-served built-in rt::findCycle honors functions mode (live closure, no string)', async () => {
+  register('table-served built-in findCycle honors functions mode (live closure, no string)', async () => {
     await withEmitMode('functions', CIRCULAR_VALIDATE, async (client) => {
-      const entry = await pureFnEntry(client, 'circ.ts', 'rt::findCycle');
+      const entry = await pureFnEntry(client, 'circ.ts', FIND_CYCLE_ID);
       expect(entry.code).toBeUndefined();
       expect(typeof entry.createPureFn).toBe('function');
     });
@@ -416,10 +500,11 @@ export const isNode = createValidateFn<Node>(undefined, {rejectCircularRefs: tru
 
   register('formatTscDiagnostic includes Related sites on continuation lines', () => {
     const line = formatTscDiagnostic({
-      code: 'PFE9004',
+      code: 'purefn-not-registered',
       family: Family.PureFn,
       severity: Severity.Error,
-      args: ['rt::fn'],
+      level: Level.RuntimeError,
+      args: ['app/src/fns#pf_fn'],
       site: {
         filePath: '/abs/b.ts',
         startLine: 5,
@@ -434,11 +519,11 @@ export const isNode = createValidateFn<Node>(undefined, {rejectCircularRefs: tru
           startCol: 1,
           endLine: 3,
           endCol: 30,
-          message: 'First registered here with bodyHash=abc1234567890_',
+          message: 'First registered here',
         },
       ],
     });
-    expect(line).toContain('/abs/b.ts(5,1): error PFE9004:');
-    expect(line).toContain('Related: /abs/a.ts(3,1): First registered here with bodyHash=abc1234567890_');
+    expect(line).toContain('/abs/b.ts(5,1): error purefn-not-registered:');
+    expect(line).toContain('Related: /abs/a.ts(3,1): First registered here');
   });
 });

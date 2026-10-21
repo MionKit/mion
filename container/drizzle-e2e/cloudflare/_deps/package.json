@@ -2,7 +2,7 @@
   "name": "drizzle-e2e-cloudflare",
   "private": true,
   "type": "module",
-  "description": "Baked dependency set for the Cloudflare drizzle-e2e lanes (d1 and durable). The packages UNDER TEST (@mionjs/drizzle-orm*, @mionjs/bin) are NOT here: each run installs them from the in-container verdaccio. miniflare brings its own workerd, so this lane needs no database server and no docker.",
+  "description": "Baked dependency set for the Cloudflare drizzle-e2e lanes (d1 and durable). The packages UNDER TEST (@mionjs/drizzle-orm*, @mionjs/bin-compiler) are NOT here: each run installs them from the in-container verdaccio. miniflare brings its own workerd, so this lane needs no database server and no docker.",
   "devDependencies": {
     "@cloudflare/workers-types": "4.20250712.0",
     "@types/node": "26.1.2",

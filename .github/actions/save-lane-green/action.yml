@@ -1,0 +1,27 @@
+name: Record a lane as green
+description: >
+  Write the marker that lets a later run skip this lane. The key IS the claim
+  ("these exact inputs passed"); the payload is a throwaway file, never read back.
+
+  Call this right after the last step the lane gates (a job holding several lanes
+  saves each one as soon as its own steps pass, so a later cancel keeps it), and
+  leave the default `if: success()` in place: a marker written after a failed or
+  cancelled step would skip a lane that never proved anything.
+
+inputs:
+  lane:
+    description: Lane name, as passed to ./.github/actions/ci-lanes, or `<lane>.<item>` for one item of it
+    required: true
+  hash:
+    description: That lane's (or item's) hash from the ci-lanes output
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: echo "${{ inputs.lane }} ${{ inputs.hash }} passed in run ${{ github.run_id }}" > lane-green-marker.txt
+    - uses: actions/cache/save@v4
+      with:
+        path: lane-green-marker.txt
+        key: mion-lane-green-${{ inputs.lane }}-${{ inputs.hash }}

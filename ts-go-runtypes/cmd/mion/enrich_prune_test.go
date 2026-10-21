@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// TestCollectPruneTargets_FileUsedAsIs is the regression for `gen --prune <file>`:
+// TestCollectPruneTargets_FileUsedAsIs is the regression for `enrich --prune <file>`:
 // an explicit mirror-file argument must be pruned directly, never redirected
 // through mirrorPath — so a mirror living in a NON-default enrich dir (resolved
 // without --gen-dir) still resolves to itself, not to a non-existent

@@ -1,15 +1,13 @@
 #!/usr/bin/env bash
 # --- BUMP THIS DATE to force a fresh setup run (YYYY-MM-DD) -------------------
-SETUP_DATE="2026-07-24"
+SETUP_DATE="2026-10-11"
 # ----------------------------------------------------------------------------
 set -uo pipefail
 
 NODE_MAJOR_MIN=26
 PODMAN_MIN=4.0
-# GO_MIN is derived from ts-go-runtypes/go.mod after REPO_DIR is resolved (below),
-# so a go.mod bump auto-propagates here with no drift risk. GO_INSTALL_VERSION
-# must be an actual published patch (bump when the Go directive bumps).
-GO_INSTALL_VERSION=1.26.0 # installed when Go is absent OR older than GO_MIN
+# GO_MIN (ts-go-runtypes/go.mod) and GO_INSTALL_VERSION (ts-go-runtypes/.go-version,
+# the CI pin) are read after REPO_DIR is resolved (below), so a bump never drifts here.
 
 CHECK_ONLY=0
 for arg in "$@"; do
@@ -85,6 +83,11 @@ fi
 # pnpm version the repo pins via package.json "packageManager" (fallback if unparsable)
 PNPM_PIN="$(sed -n 's/.*"packageManager": *"pnpm@\([0-9.]*\)".*/\1/p' "$REPO_DIR/package.json" 2>/dev/null | head -1)"
 [ -n "$PNPM_PIN" ] || PNPM_PIN="11.8.0"
+
+# The Go CI builds with: installed when Go is absent OR older than it, so the
+# resolver binary built here matches CI's.
+GO_INSTALL_VERSION="$(tr -d '[:space:]' < "$REPO_DIR/ts-go-runtypes/.go-version" 2>/dev/null)"
+[ -n "$GO_INSTALL_VERSION" ] || { err "ts-go-runtypes/.go-version missing or empty"; exit 1; }
 
 # Minimum Go version, derived from ts-go-runtypes/go.mod's `go X.Y[.Z]` directive.
 # Fallback matches GO_INSTALL_VERSION so a malformed / missing go.mod does not
@@ -295,23 +298,29 @@ ensure_go() {
   bold "Go (compiles the resolver binary)"
   if command -v go >/dev/null 2>&1; then
     local cur; cur="$(go version 2>/dev/null | awk '{print $3}' | sed 's/^go//')"
-    if version_ge "${cur:-0}" "$GO_MIN"; then
-      ok "go ${cur:-?} (>= $GO_MIN)"
+    if version_ge "${cur:-0}" "$GO_INSTALL_VERSION"; then
+      ok "go ${cur:-?} (>= $GO_INSTALL_VERSION, the CI pin)"
       # Even when the resolved go is already fine, wire /usr/local/go if it
       # exists - a re-run on a container with a half-set-up state repairs itself.
       [ -x /usr/local/go/bin/go ] && wire_local_go
       return 0
     fi
-    warn "go ${cur:-?} present but repo needs >= $GO_MIN - upgrading to $GO_INSTALL_VERSION"
+    warn "go ${cur:-?} present but CI pins $GO_INSTALL_VERSION - upgrading"
     [ "$CHECK_ONLY" = 1 ] && { warn "go too old - re-run without --check to upgrade"; return 0; }
     if install_go_tarball; then verify_go_on_path; return; fi
     # go.dev tarball 403 (some managed envs block go.dev/dl but allow
     # proxy.golang.org). Fall back to Go's own GOTOOLCHAIN download - it fetches
-    # the same 1.26.0 through the proxy, and wire_local_go points $HOME/.local/bin
+    # the same pinned Go through the proxy, and wire_local_go points $HOME/.local/bin
     # at the toolchain's GOROOT so `go version` on the harness PATH reports 1.26.
     warn "go.dev tarball blocked - falling back to proxy.golang.org via GOTOOLCHAIN=go$GO_INSTALL_VERSION"
     if install_go_via_proxy; then verify_go_on_path; return; fi
-    # Both paths failed. GOTOOLCHAIN=auto could still let step 8's `go build`
+    # Both paths failed. A Go that still meets go.mod builds the resolver, only
+    # not with CI's exact toolchain: warn and go on.
+    if version_ge "${cur:-0}" "$GO_MIN"; then
+      warn "both go.dev and proxy.golang.org failed; keeping go ${cur:-?} (>= $GO_MIN, but CI pins $GO_INSTALL_VERSION)"
+      return 0
+    fi
+    # Below go.mod: GOTOOLCHAIN=auto could still let step 8's `go build`
     # succeed, but `go version` on PATH would keep reporting the old toolchain -
     # which is why agents report "go is not updated" even after this script ran.
     # Fail hard so the operator sees it, instead of pretending everything is fine.
@@ -431,12 +440,12 @@ wire_husky() {
 }
 
 # -----------------------------------------------------------------------------
-# 8. Build the Go resolver binary at bin/mion (skips when up-to-date).
+# 8. Build the Go resolver binary at mion-bin/mion (skips when up-to-date).
 # -----------------------------------------------------------------------------
 build_go_binary() {
-  bold "Go resolver binary -> bin/mion"
+  bold "Go resolver binary -> mion-bin/mion"
   command -v go >/dev/null 2>&1 || { err "go missing - cannot build the binary"; FAILED=1; return 1; }
-  local bin="$REPO_DIR/bin/mion"
+  local bin="$REPO_DIR/mion-bin/mion"
   if [ -x "$bin" ] && [ -z "$(find "$REPO_DIR/ts-go-runtypes/cmd" "$REPO_DIR/ts-go-runtypes/internal" -type f -newer "$bin" -print -quit 2>/dev/null)" ]; then
     ok "binary up-to-date"; return 0
   fi
@@ -463,14 +472,39 @@ build_devtools() {
 }
 
 # -----------------------------------------------------------------------------
-# 9b. Prefetch the uWebSockets.js host binary (@mionjs/uws dev cache).
+# 9b. Prefetch the uWebSockets.js host binary (@mionjs/bin-uws dev cache).
 #    fetch-uws.mjs is idempotent and sha256-verifies against the committed
-#    packages/uws/uws-checksums.json; warm here so `pnpm test` needs no network.
+#    packages/bin-uws/uws-checksums.json; warm here so `pnpm test` needs no network.
 # -----------------------------------------------------------------------------
 fetch_uws_binary() {
-  bold "uWebSockets.js host binary -> packages/uws/.uws-cache"
+  bold "uWebSockets.js host binary -> packages/bin-uws/.uws-cache"
   [ "$CHECK_ONLY" = 1 ] && { ok "skipped in check mode"; return 0; }
   ( cd "$REPO_DIR" && node scripts/lib/fetch-uws.mjs ) && ok "uws binary ready" || { err "uws binary fetch failed"; FAILED=1; }
+}
+
+# -----------------------------------------------------------------------------
+# 9c. Playwright's Chromium for card shots, card tests and playwright-cli. The image's
+#    /opt/pw-browsers copy is an older build than the pinned @playwright/cli wants, and
+#    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD (kept for pnpm install) blocks the normal fetch.
+#    Installs only when missing; a failed download fails the setup.
+# -----------------------------------------------------------------------------
+# 0 when every dir the install fills has Playwright's INSTALLATION_COMPLETE marker.
+playwright_chromium_installed() {
+  local dirs dir
+  dirs="$(cd "$REPO_DIR" && pnpm exec playwright-cli install-browser chromium --dry-run 2>/dev/null \
+    | sed -n 's/^ *Install location: *//p' | sort -u)"
+  [ -n "$dirs" ] || return 1
+  while IFS= read -r dir; do [ -f "$dir/INSTALLATION_COMPLETE" ] || return 1; done <<< "$dirs"
+}
+
+install_playwright_chromium() {
+  bold "Playwright Chromium"
+  command -v pnpm >/dev/null 2>&1 || { err "pnpm missing"; FAILED=1; return 1; }
+  if playwright_chromium_installed; then ok "Playwright Chromium present"; return 0; fi
+  [ "$CHECK_ONLY" = 1 ] && { warn "Playwright Chromium missing - re-run without --check"; return 0; }
+  ( cd "$REPO_DIR" && env -u PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD pnpm exec playwright-cli install-browser chromium ) \
+    && playwright_chromium_installed && ok "Playwright Chromium installed" \
+    || { err "Playwright Chromium install failed (see the Playwright hosts in EGRESS WHITELIST)"; FAILED=1; }
 }
 
 # -----------------------------------------------------------------------------
@@ -497,7 +531,7 @@ neutralize_placeholder_env() {
 }
 
 # -----------------------------------------------------------------------------
-# 11. GHCR login so a later `pnpm rtx website dev` / `pnpm run bench` can PULL the
+# 11. GHCR login so a later `pnpm miondevx website dev` / `pnpm run bench` can PULL the
 #     private tsrt-website image instead of rebuilding it. Login is auth only - it
 #     pulls nothing, so it stays within the setup time budget.
 # -----------------------------------------------------------------------------
@@ -553,13 +587,14 @@ main() {
   build_go_binary
   build_devtools
   fetch_uws_binary
+  install_playwright_chromium
   neutralize_placeholder_env
   ghcr_login
 
   bold "Ready. Verify / work from the repo root (this setup ran no tests):"
-  echo "  pnpm rtx --help         # the internal dev/website/bench/publish CLI"
+  echo "  pnpm miondevx --help         # the internal dev/website/bench/publish CLI"
   echo "  pnpm test              # full JS suite (spawns the Go binary)"
-  echo "  pnpm rtx website dev   # docs site -> http://localhost:3000"
+  echo "  pnpm miondevx website dev   # docs site -> http://localhost:3000"
   echo "  pnpm run bench         # full validation benchmark"
 
   if [ "$FAILED" = 0 ]; then bold "Setup OK."; else bold "Setup incomplete - see ERR above."; exit 1; fi
@@ -585,7 +620,7 @@ main "$@"
 # | than share it.                                                          |
 # |                                                                         |
 # | The interactive, cross-platform, user-assist setup lives separately in  |
-# | .claude/skills/ts-runtypes-setup/ - that one is for humans on their own |
+# | .agents/skills/ts-runtypes-setup/ - that one is for humans on their own |
 # | machines (macOS + Linux, brew/apt/dnf/...). THIS one is the autonomous  |
 # | web installer. They are intentionally NOT shared and evolve separately. |
 # +-------------------------------------------------------------------------+
@@ -597,8 +632,8 @@ main "$@"
 #      /etc/profile.d) by symlinking node26 bins into $HOME/.local/bin. pnpm
 #      comes from corepack, pinned to the repo's packageManager.
 #   2. podman   - via apt; confirm the engine is reachable.
-#   3. Go 1.26  - upgraded in place (tarball -> /usr/local/go) when the image's
-#      preinstalled Go is older than the repo's required 1.26.
+#   3. Go       - upgraded in place (tarball -> /usr/local/go) when the image's
+#      preinstalled Go is older than the CI pin (ts-go-runtypes/.go-version).
 #   4. submodules tsgolint + typescript-go, SKIPPING the 620MB nested
 #      microsoft/TypeScript corpus (only typescript-go's own conformance test
 #      runner needs it, never our `go build`; its checker libs are committed +
@@ -608,8 +643,9 @@ main "$@"
 #   6. pnpm install --frozen-lockfile.
 #   7. husky git hooks (commit-msg -> commitlint, pre-commit -> lint-staged);
 #      ignoreScripts blocks husky's `prepare`, so wire core.hooksPath explicitly.
-#   8. Go resolver binary -> bin/mion.
-#   9. @mionjs/devtools dist.
+#   8. Go resolver binary -> mion-bin/mion.
+#   9. @mionjs/devtools dist, the uWebSockets.js binary, and Playwright's
+#      Chromium (the build the pinned @playwright/cli wants).
 #  10. .env de-clobber - the dev .env's empty secret rows would shadow the
 #      GHCR_PAT the web env injects (lib-env.sh sources .env with `set -a`).
 #  11. GHCR login - the tsrt-website image is PRIVATE. NOTE: actually PULLING it
@@ -653,6 +689,11 @@ main "$@"
 #   ghcr.io                         step 11: GHCR auth + manifest (apex domain,
 #                                            NOT wildcarded)
 #   *.npmjs.org                     step 6: registry.npmjs.org (pnpm install)
+#   cdn.playwright.dev              step 9: Playwright's browser downloads, which
+#   storage.googleapis.com                  redirect to these two (Chromium builds,
+#   playwright.download.prss.microsoft.com  then ffmpeg). Exact hosts, NOT
+#                                           wildcarded: `*.cdn.playwright.dev`
+#                                           does not match cdn.playwright.dev
 #   *.debian.org  *.ubuntu.com      step 2 (+ others): OS package mirrors -
 #                                                       include whichever set
 #                                                       matches the base image

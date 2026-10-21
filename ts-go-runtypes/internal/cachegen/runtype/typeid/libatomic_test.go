@@ -19,14 +19,14 @@ import (
 // because each used to be WALKED and each was a different kind of wrong.
 // `Intl.DateTimeFormat` had four distinct structural ids across the libs, so one
 // model's id depended on the consumer's tsconfig. `Object` walked into the
-// prototype surface. `URL` produced a forty-member validator that checked
-// `href`, `searchParams` and friends as if they were the payload.
+// prototype surface. `URLSearchParams` walked its methods and iterator surface
+// as if they were the payload. (`URL` itself is a supported native, see nativeurl_test.go.)
 var libDeclared = []struct {
 	label   string
 	spelled string
 	builtin string
 }{
-	{"URL", "URL", "URL"},
+	{"URLSearchParams", "URLSearchParams", "URLSearchParams"},
 	{"Intl.DateTimeFormat", "Intl.DateTimeFormat", "DateTimeFormat"},
 	{"Object", "Object", "Object"},
 }
@@ -52,14 +52,14 @@ export const id = getRunTypeId<`+subject.spelled+`>();
 // the same lib type reached through a VALUE lands on the static form's entry.
 func TestLibAtomic_FormEquivalence(t *testing.T) {
 	static := rootUnderLib(t, "esnext,dom", `import {getRunTypeId} from '@mionjs/run-types';
-export const id = getRunTypeId<{link: URL}>();
+export const id = getRunTypeId<{link: URLSearchParams}>();
 `)
 	reflected := rootUnderLib(t, "esnext,dom", `import {getRunTypeId} from '@mionjs/run-types';
-declare const row: {link: URL};
+declare const row: {link: URLSearchParams};
 export const id = getRunTypeId(row);
 `)
 	if static.ID != reflected.ID {
-		t.Fatalf("getRunTypeId<{link: URL}>() and getRunTypeId(value) must share an id: %q vs %q", static.ID, reflected.ID)
+		t.Fatalf("getRunTypeId<{link: URLSearchParams}>() and getRunTypeId(value) must share an id: %q vs %q", static.ID, reflected.ID)
 	}
 }
 
@@ -119,15 +119,9 @@ export const id = getRunTypeId<Readonly<Address>>();
 	}
 }
 
-// TestLibAtomic_AugmentedLibInterfaceIsTheAuthorsAgain — declaration merging.
-// Once a consumer adds a member to a lib interface, one of its declarations
-// lives in their own file, and the rule reports "not standard library" for the
-// whole symbol. That is deliberate: they wrote part of this type, so the
-// projection treats it as theirs and walks it, added member included.
-//
-// The cost is a large projection for a type that is mostly lib surface, which is
-// the honest trade. Silently dropping a member the author just declared would be
-// the worse one.
+// Adding a member the platform lacks to a lib interface makes the whole symbol the author's, so it is walked.
+// A merge that adds nothing leaves it the platform's (platform_declared_test.go).
+// The projection gets large, but dropping a member the author just declared would be worse.
 func TestLibAtomic_AugmentedLibInterfaceIsTheAuthorsAgain(t *testing.T) {
 	structural := structuralUnderLib(t, "esnext,dom", `import {getRunTypeId} from '@mionjs/run-types';
 declare global {
@@ -135,7 +129,7 @@ declare global {
 }
 export const id = getRunTypeId<{link: URL}>();
 `)
-	if strings.Contains(structural, "32:link:2004#URL}") {
+	if strings.Contains(structural, "32:link:2004#URL}") || strings.Contains(structural, "32:link:2005}") {
 		t.Fatalf("an augmented URL is partly the author's own declaration, so it must be walked: %s", structural)
 	}
 	if !strings.Contains(structural, "mine") {

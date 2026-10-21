@@ -59,7 +59,7 @@ const ROUTER_DTS = `import type {InjectTypeFnArgs} from '@mionjs/run-types';
 export type AnyHandler = (ctx: unknown, ...rest: any[]) => unknown;
 export declare function route<H extends AnyHandler>(
   handler: H,
-  fns?: InjectTypeFnArgs<Parameters<H>, 'verr', 'jsonDecoder', 'jsonEncoder'>,
+  fns?: InjectTypeFnArgs<Parameters<H>, 'validationErrors', 'jsonDecoder', 'jsonEncoder'>,
 ): {handler: H; fns?: unknown};
 `;
 

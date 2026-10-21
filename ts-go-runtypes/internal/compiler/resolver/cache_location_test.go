@@ -9,7 +9,7 @@ import (
 // follows TypeScript's incremental switch instead of a cacheDir knob:
 //   - an explicit CacheDir override always wins (the internal MION_CACHE_DIR path);
 //   - otherwise the cache is on only when the project is incremental AND
-//     CacheFollowsIncremental is set, at <Cwd>/node_modules/.cache/ts-runtypes;
+//     CacheFollowsIncremental is set, at <Cwd>/node_modules/.cache/mion;
 //   - everything else is off (empty result).
 func TestCacheLocation(t *testing.T) {
 	nodeModules := filepath.Join("/proj", "node_modules", ".cache", "mion")

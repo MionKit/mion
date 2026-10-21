@@ -18,9 +18,9 @@ import (
 // @mionjs/devtools plugin surfaces). It runs under the `enrich <file>
 // --no-emit` grammar: tag hygiene (unfilled @todo scaffolds, stale @rtOrphan
 // carcasses), FriendlyText / MockData content validity, and breadcrumb drift
-// (GE002/GE003, gated on the generated-mirror marker). A DIRECTORY / no target
-// runs the mirror-tree drift walk (runGenCheck); `--translate` runs the i18n
-// completeness gate (runCheckTranslate) — both routed from runEnrich.
+// (gated on the generated-mirror marker). A DIRECTORY / no target
+// runs the mirror-tree drift walk (runMirrorDriftCheck); `--i18n` runs the i18n
+// completeness gate (runI18nCheck) — both routed from runEnrich.
 
 // runSingleFileCheck is the `enrich <file> --no-emit` lane: build a Program over
 // the mirror file and run the shared enrichgen.CheckFile, reporting its
@@ -30,7 +30,8 @@ func runSingleFileCheck(fileArg, tsconfigFlag string, asJSON, requireComplete bo
 	absPath := tspath.NormalizePath(mustAbs(fileArg))
 	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
 	config := resolveEnrichConfig(absPath, "", tsconfigPath, parsed)
-	os.Exit(reportEnrichDiagnostics(checkMirrorFilesDiagnostics([]string{absPath}, parsed, config.HashLength), asJSON, requireComplete))
+	diags := checkMirrorFilesDiagnostics([]string{absPath}, parsed, config.HashLength)
+	os.Exit(reportEnrichDiagnostics(diags, asJSON, requireComplete, mustTsconfigShowInfo(tsconfigPath)))
 }
 
 // checkMirrorFilesDiagnostics builds ONE inferred Program over the given mirror
@@ -79,7 +80,7 @@ func checkMirrorFilesDiagnostics(paths []string, parsed *program.InferredConfig,
 // the completeness gate rejects them.
 // An empty JSON report marshals to `null` (a nil slice), matching the health
 // harness's `JSON.parse(stdout || 'null')`.
-func reportEnrichDiagnostics(diags []diagnostics.Diagnostic, asJSON, requireComplete bool) int {
+func reportEnrichDiagnostics(diags []diagnostics.Diagnostic, asJSON, requireComplete, showInfo bool) int {
 	sort.SliceStable(diags, func(left, right int) bool {
 		leftSite, rightSite := diags[left].Site, diags[right].Site
 		if leftSite.FilePath != rightSite.FilePath {
@@ -96,17 +97,12 @@ func reportEnrichDiagnostics(diags []diagnostics.Diagnostic, asJSON, requireComp
 
 	hasError := false
 	for _, diag := range diags {
-		if diag.Severity != diagnostics.SeverityError {
-			continue
+		if enrichFindingFails(diag.Code, requireComplete) {
+			hasError = true
 		}
-		// Completeness findings (unfilled @todo) only fail under --require-complete;
-		// the default health check reports them but exits 0.
-		if !requireComplete && diagnostics.IsCompleteness(diag.Code) {
-			continue
-		}
-		hasError = true
 	}
 
+	reported := len(diags)
 	if asJSON {
 		encoded, err := json.MarshalIndent(diags, "", "  ")
 		if err != nil {
@@ -114,12 +110,17 @@ func reportEnrichDiagnostics(diags []diagnostics.Diagnostic, asJSON, requireComp
 		}
 		fmt.Println(string(encoded))
 	} else {
+		// The text report hides Info like every other host; the JSON report is data and keeps it.
+		reported = 0
 		for _, diag := range diags {
-			fmt.Println(diagnostics.FormatDebug(diag))
+			if diagnostics.Shown(diag, showInfo) {
+				reported++
+				fmt.Println(diagnostics.FormatDebug(diag))
+			}
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "enrich --no-emit: %d finding(s)\n", len(diags))
+	fmt.Fprintf(os.Stderr, "enrich --no-emit: %d finding(s)\n", reported)
 	if hasError {
 		return 1
 	}
@@ -139,7 +140,7 @@ func isDirArg(path string) bool {
 // enrichgen.HygieneDiagnostics — the family of each mirror is known from its spec,
 // so no second Program is built (and no dependency on resolving the mirror's
 // imports). A combined --out spec (both families in one file) reports under the
-// friendly codes; the exact FT02x/MD02x code is cosmetic for the worklist.
+// friendly codes; the exact enrich-text-* / enrich-mock-* code is cosmetic for the worklist.
 func scaffoldWorklist(specs []mirror.Spec) []diagnostics.Diagnostic {
 	var out []diagnostics.Diagnostic
 	for _, spec := range specs {
@@ -153,10 +154,30 @@ func scaffoldWorklist(specs []mirror.Spec) []diagnostics.Diagnostic {
 	return out
 }
 
+// enrichFindingFails is the ONE exit-code policy behind both check lanes. Every
+// finding the enrichment checkers raise is one of two things: INCOMPLETE (an
+// unfilled @todo scaffold or a blank value, the catalog's Completeness bit) or
+// WRONG (a malformed map, a stale @rtOrphan carcass, breadcrumb drift). An
+// incomplete finding fails only the completeness gate (`--require-complete`); a
+// wrong one fails both lanes. The decision is NOT the finding's level: the
+// content codes are LevelWarning (degraded text still runs, so a BUILD does not
+// halt on them), and a gate keyed on the level would let a stale or malformed
+// mirror pass the check whose whole job is to catch it.
+func enrichFindingFails(code string, requireComplete bool) bool {
+	// An Info (a plural arm that can never fire) is advice.
+	if diagnostics.LevelOf(code) == diagnostics.LevelInfo {
+		return false
+	}
+	if diagnostics.IsCompleteness(code) {
+		return requireComplete
+	}
+	return true
+}
+
 // printEnrichWorklist surfaces the write lane's freshly-scaffolded diagnostics on
-// stderr — informational, so the scaffold still exits 0. The check gate that FAILS
-// on unfilled @todos (they are Error severity in the catalog) is the diagnostics-
-// only `enrich <file> --no-emit`.
+// stderr — informational, so the scaffold still exits 0. The check gate that
+// FAILS on unfilled @todos (under --require-complete, via their Completeness bit)
+// is the diagnostics-only `enrich <file> --no-emit`.
 func printEnrichWorklist(diags []diagnostics.Diagnostic) {
 	for _, diag := range diags {
 		fmt.Fprintln(os.Stderr, diagnostics.FormatDebug(diag))

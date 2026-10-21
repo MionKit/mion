@@ -11,9 +11,8 @@ import (
 // half of the shared-recursive-container family: the id of a cyclic type must
 // be a function of its bisimulation class alone, independent of which node a
 // walk enters the cycle through, how the checker interned container nodes,
-// and the checker's declaration-position-tiebroken union member order. See
-// docs/done/typeid-scc-entry-point-anchoring.md for the class boundary and
-// the seeded fuzz repros that motivated it.
+// and the checker's declaration-position-tiebroken union member order. The
+// cases below are the shapes seeded fuzz runs surfaced when that was not so.
 
 // TestCanonicalID_EntryThroughContainer — the motivating class. Both roots
 // denote Record<string, {v: <recursive>}> over bisimilar recursive types; TA
@@ -196,7 +195,7 @@ export const holder = createValidateFn<{n: Node1}>();
 		t.Fatalf("overridden recursive id must carry the |cfn: fold: %q", structuralByID(t, r, siteIDs[0]))
 	}
 	validateSources := familyEntrySources(resp, "validate")
-	if !strings.Contains(validateSources, "usePureFn(") || !strings.Contains(validateSources, "cfn::") {
+	if !overrideRedirectRE.MatchString(validateSources) {
 		t.Fatalf("overridden recursive type did not fold a cfn redirect:\n%s", validateSources)
 	}
 	// The holder embeds Node1's overridden id — its structural must contain

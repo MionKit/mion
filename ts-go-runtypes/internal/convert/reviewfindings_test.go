@@ -12,32 +12,6 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/convert"
 )
 
-// expectSingleRefusal asserts the conversion produced exactly one Error diag
-// with the given code and message fragment, and left the source byte-identical.
-func expectSingleRefusal(t *testing.T, source string, target convert.Target, code, says string) {
-	t.Helper()
-	output, diags := convertOne(t, source, convert.Options{Target: target})
-	errors := 0
-	for _, diagnostic := range diags {
-		if diagnostic.Severity != convert.SeverityError {
-			continue
-		}
-		errors++
-		if diagnostic.Code != code {
-			t.Errorf("--to %s: expected %s, got %s: %s", target, code, diagnostic.Code, diagnostic.Message)
-		}
-		if !strings.Contains(diagnostic.Message, says) {
-			t.Errorf("--to %s: message %q does not mention %q", target, diagnostic.Message, says)
-		}
-	}
-	if errors != 1 {
-		t.Errorf("--to %s: expected exactly one refusal, got %d: %+v", target, errors, diags)
-	}
-	if output != source {
-		t.Errorf("--to %s: a refused declaration must stay byte-identical:\n%s", target, output)
-	}
-}
-
 func TestTemplateLiteral_CarriageReturnEscapes(t *testing.T) {
 	source := "export type Weird = `a\\r${string}b`;\n"
 	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
@@ -58,7 +32,7 @@ func TestInfinityLiteral_PrintsOverflowSpelling(t *testing.T) {
 
 func TestConstAway_KeepsConstUsedBySkippedDecl(t *testing.T) {
 	// Wrapper is ALREADY type-form, so its span is never rewritten and its
-	// `typeof userRT` keeps the const alive (CNV003), fixpoint included.
+	// `typeof userRT` keeps the const alive (convert-const-still-used), fixpoint included.
 	source := buildersHeader +
 		"export const userRT = TF.string();\n" +
 		"export type User = InferType<typeof userRT>;\n" +
@@ -71,7 +45,7 @@ func TestConstAway_KeepsConstUsedBySkippedDecl(t *testing.T) {
 		}
 	}
 	if !foundStillUsed {
-		t.Fatalf("expected CNV003 for the const referenced by the skipped declaration, got %+v", diags)
+		t.Fatalf("expected convert-const-still-used for the const referenced by the skipped declaration, got %+v", diags)
 	}
 	if !strings.Contains(output, "export const userRT = TF.string();") {
 		t.Errorf("the const must stay while a kept span references it:\n%s", output)
@@ -139,7 +113,7 @@ func TestCrossFile_UnexportedAliasInlines(t *testing.T) {
 	// `Leaf` is not exported, so `branch.ts` cannot import the NAME — but a name
 	// it cannot spell is not a conversion failure. The structure inlines
 	// instead, which says the same thing and keeps the same id. (This used to
-	// refuse with CNV004, which stopped whole files converting over a lost
+	// refuse with convert-outside-set, which stopped whole files converting over a lost
 	// name.)
 	sources := map[string]string{
 		"leaf.ts": "import {type InferType} from '@mionjs/run-types';\nimport * as RT from '@mionjs/run-types/builders';\nimport * as TF from '@mionjs/run-types/formats';\n" +
@@ -224,7 +198,7 @@ func TestOutsideSet_NamespaceMemberReferenceErrors(t *testing.T) {
 		t.Fatalf("ConvertFile: %v", convertErr)
 	}
 	if len(result.Diags) == 0 || result.Diags[0].Code != convert.CodeOutsideSet {
-		t.Fatalf("expected CNV004 for the namespace member reference, got %+v", result.Diags)
+		t.Fatalf("expected convert-outside-set for the namespace member reference, got %+v", result.Diags)
 	}
 }
 
@@ -253,6 +227,6 @@ func TestOutsideSet_BuilderPropertyReferenceErrors(t *testing.T) {
 		}
 	}
 	if !foundOutside {
-		t.Fatalf("expected CNV004 for the builder property-position reference, got %+v", result.Diags)
+		t.Fatalf("expected convert-outside-set for the builder property-position reference, got %+v", result.Diags)
 	}
 }

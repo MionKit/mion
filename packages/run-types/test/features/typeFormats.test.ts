@@ -10,7 +10,9 @@
 // they converge on the same registered node.
 
 import {describe, it, expect} from 'vitest';
-import {getRunType, typeFormats, RunTypeKind, type FormatName, type TypeFormatMeta, type RunType} from '@mionjs/run-types';
+import {RunTypeKind, type RunType} from '@mionjs/run-types';
+import {typeFormats, type FormatName, type TypeFormatMeta} from '@mionjs/run-types/runtime';
+import {getRunType} from '@mionjs/run-types';
 import type {UUIDv4, Email} from '@mionjs/run-types/formats';
 
 // The value node of property `propName` on a reflected object node — the node

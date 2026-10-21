@@ -24,10 +24,10 @@ func mustParse(t *testing.T, mirrorPath, src string) *Index {
 // @rtIds child map) and falls back to the var name when no marker is present.
 func TestParseMirror_IndexConsts(t *testing.T) {
 	src := "import type { User } from '../../models/user';\n" +
-		"import type { FriendlyType, MockData } from '@mionjs/run-types';\n" +
+		"import type { FriendlyText, MockData } from '@mionjs/run-types';\n" +
 		"\n" +
 		"/** @rtType User#abc1234 @rtIds {name: string#n1, age: number#a2} */\n" +
-		"export const friendlyUser: FriendlyType<User> = {\n" +
+		"export const friendlyUser: FriendlyText<User> = {\n" +
 		"  rt$label: 'User',\n" +
 		"  name: { rt$label: 'Name' },\n" +
 		"  age: { rt$label: 'Age' },\n" +
@@ -85,9 +85,9 @@ func TestParseMirror_IndexConsts(t *testing.T) {
 // name. This is the C5 guard.
 func TestParseMirror_DuplicateTypeIDKeepsFirst(t *testing.T) {
 	src := "/** @rtType User#dupID */\n" +
-		"export const friendlyUserA: FriendlyType<User> = { rt$label: 'A' };\n" +
+		"export const friendlyUserA: FriendlyText<User> = { rt$label: 'A' };\n" +
 		"/** @rtType User#dupID */\n" +
-		"export const friendlyUserB: FriendlyType<User> = { rt$label: 'B' };\n"
+		"export const friendlyUserB: FriendlyText<User> = { rt$label: 'B' };\n"
 
 	index := mustParse(t, "/rt/gen/user.ts", src)
 	entry, ok := index.byTypeForm[typeFormKey("dupID", true)]
@@ -107,9 +107,9 @@ func TestParseMirror_DuplicateTypeIDKeepsFirst(t *testing.T) {
 // and cross-file value imports, with the breadcrumb clause byte range.
 func TestParseMirror_IndexImports(t *testing.T) {
 	src := "import type { User, Post } from '../../models/user';\n" +
-		"import type { FriendlyType, MockData } from '@mionjs/run-types';\n" +
+		"import type { FriendlyText, MockData } from '@mionjs/run-types';\n" +
 		"import { friendlyAddress, mockAddress } from './address';\n" +
-		"export const friendlyUser: FriendlyType<User> = { rt$label: '' };\n"
+		"export const friendlyUser: FriendlyText<User> = { rt$label: '' };\n"
 
 	index := mustParse(t, "/rt/gen/models/user.ts", src)
 
@@ -183,16 +183,6 @@ func TestMarkerComment(t *testing.T) {
 	// No childIDs → @rtType only.
 	if MarkerComment(enrichment.NamedConst{TypeName: "User", TypeID: "abc"}) != "/** @rtType User#abc */\n" {
 		t.Errorf("marker without childIDs = %q", MarkerComment(enrichment.NamedConst{TypeName: "User", TypeID: "abc"}))
-	}
-
-	// PARSING TOLERANCE: a legacy marker carrying the retired `@rtI18n <locale>
-	// from '<spec>'` clause (written by the pre-src-derived translate driver)
-	// still parses its @rtType/@rtIds — a reconcile over an old translation file
-	// simply rewrites the marker without the clause.
-	legacyI18n := "/** @rtType User#9f3a @rtIds {name: a1} @rtI18n pl from '../../friendly/models/user' */\n"
-	typeID, childIDs = parseConstMarkers(legacyI18n)
-	if typeID != "9f3a" || !reflect.DeepEqual(childIDs, map[string]string{"name": "a1"}) {
-		t.Errorf("legacy @rtI18n marker round-trip = %q / %v", typeID, childIDs)
 	}
 }
 

@@ -23,19 +23,19 @@ code in one file. For example the hand-written render helpers in
 ## Regenerate
 
 ```bash
-pnpm rtx core codegen constants   # runtypes-constants.generated.ts
-pnpm rtx core codegen kind        # reflectionKind.generated.ts (+ the core RunTypeKind mirror)
-pnpm rtx core codegen diag        # diagnosticCatalog.generated.ts (+ the website JSON)
-pnpm rtx core codegen pluginkeys  # tsconfig-plugin-keys.generated.ts (bundler-option parity)
-pnpm rtx core codegen all         # every Go→TS mirror in the repo
+pnpm miondevx core codegen constants   # runtypes-constants.generated.ts
+pnpm miondevx core codegen kind        # reflectionKind.generated.ts (+ the core RunTypeKind mirror)
+pnpm miondevx core codegen diag        # diagnosticCatalog.generated.ts (+ the website JSON)
+pnpm miondevx core codegen pluginkeys  # tsconfig-plugin-keys.generated.ts (bundler-option parity)
+pnpm miondevx core codegen all         # every Go→TS mirror in the repo
 ```
 
 The generator list lives in one place — the `CODEGEN` map in
-[`scripts/rt.mjs`](../../../../scripts/rt.mjs).
+[`scripts/miondevx.mjs`](../../../../scripts/miondevx.mjs).
 
 ## How they stay in sync with Go
 
-- **Drift gate on every PR:** `pnpm rtx core codegen all --check` regenerates, formats,
+- **Drift gate on every PR:** `pnpm miondevx core codegen all --check` regenerates, formats,
   and `git diff`s the outputs — a stale mirror fails CI
   ([`.github/workflows/ci.yml`](../../../../.github/workflows/ci.yml) and
   [`release-gate.yml`](../../../../.github/workflows/release-gate.yml)).

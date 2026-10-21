@@ -9,12 +9,12 @@
 //
 // To update: change the Go source, then run:
 //
-//     pnpm rtx core codegen kind
+//     pnpm miondevx core codegen kind
 //
 // which regenerates this file AND the devtools-package mirror
 // (packages/devtools/src/core/go-generated/reflectionKind.generated.ts) from the same
 // protocol consts. The TestRunTypeKindFileInSync Go test and
-// `pnpm rtx core codegen kind --check` (CI) both fail on any drift.
+// `pnpm miondevx core codegen kind --check` (CI) both fail on any drift.
 //
 // Numeric discriminators that JS-side consumers use to dispatch on the
 // shape of a RunType node in the runTypesCache. Values must match the
@@ -74,6 +74,7 @@ export const RunTypeSubKind = {
   map: 2002,
   set: 2003,
   nonSerializable: 2004,
+  url: 2005,
   temporalInstant: 2101,
   temporalZonedDateTime: 2102,
   temporalPlainDate: 2103,

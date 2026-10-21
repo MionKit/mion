@@ -35,12 +35,18 @@ func emit(t *testing.T, runTypes []*reflection.RunType) string {
 // site per root) and renders the resulting graph.
 func emitModules(t *testing.T, roots []string, runTypes []*reflection.RunType) map[string]string {
 	t.Helper()
+	return emitModulesWith(t, roots, runTypes, true)
+}
+
+// emitModulesWith is emitModules with the project's jsonMaxBytes switch explicit.
+func emitModulesWith(t *testing.T, roots []string, runTypes []*reflection.RunType, jsonMaxBytes bool) map[string]string {
+	t.Helper()
 	sites := make([]protocol.Site, 0, len(roots))
 	for _, root := range roots {
 		sites = append(sites, protocol.Site{ID: root})
 	}
-	graph := CollectEntries(protocol.Dump{RunTypes: runTypes, Sites: sites})
-	modules, err := entrymodules.RenderGrouped(graph, nil)
+	graph := CollectEntries(protocol.Dump{RunTypes: runTypes, Sites: sites}, jsonMaxBytes, nil, nil)
+	modules, err := entrymodules.RenderGrouped(graph, nil, false)
 	if err != nil {
 		t.Fatalf("entrymodules.Render: %v", err)
 	}
@@ -76,11 +82,8 @@ func keysOfModules(modules map[string]string) []string {
 
 func intPtr(n int) *int { return &n }
 
-// TestBundleShape — all nodes land as rows of ONE bundle module
-// (`rtmod:/runtypes.js`) with tuple head [4,<hole>,<ini|hole>,'rts_<hash>',
-// [rows…],[rels…]] (the bundle is dep-less — rows are inline; an atomic node
-// has no relations, so `rels` is empty), and each root gets a facade module
-// [5,()=>[__rt_runtypes],<hole>,'<rootId>'] whose single dep imports the bundle.
+// TestBundleShape — a module holds the data tuple [4,<hole>,<ini|hole>,'rts_<hash>',[rows…],[rels…]].
+// Each root's facade export, [5,()=>[__rt_runtypes],<hole>,'<rootId>'], references that tuple directly.
 func TestBundleShape(t *testing.T) {
 	modules := emitModules(t, []string{"x1"}, []*reflection.RunType{{ID: "x1", Kind: reflection.KindString}})
 	bundle := bundleOf(t, modules)
@@ -91,19 +94,320 @@ func TestBundleShape(t *testing.T) {
 		t.Errorf("expected single row [['x1',5]] + empty rels, got:\n%s", bundle)
 	}
 	if strings.Contains(bundle, "import ") {
-		t.Errorf("bundle must have no imports, got:\n%s", bundle)
+		t.Errorf("a module's facades reference its data tuple directly, so it imports nothing:\n%s", bundle)
 	}
+	if !strings.Contains(bundle, "export const __rt_x1=[5,()=>[__rt_runtypes],,'x1'];") {
+		t.Errorf("facade tuple mismatch, got:\n%s", bundle)
+	}
+	if len(modules) != 1 {
+		t.Errorf("the facades fold into the module, got %v", keysOfModules(modules))
+	}
+}
 
-	facade, ok := modules["x1"]
-	if !ok {
-		t.Fatalf("expected facade module x1, got %v", keysOfModules(modules))
+// emitFileModules renders one dump whose reflection sites sit in the files named by siteFiles (root → file).
+func emitFileModules(t *testing.T, siteFiles map[string]string, runTypes []*reflection.RunType, jsonMaxBytes bool) map[string]string {
+	t.Helper()
+	sites := make([]protocol.Site, 0, len(siteFiles))
+	for root, file := range siteFiles {
+		sites = append(sites, protocol.Site{ID: root, File: file})
 	}
-	wantImport := "import {__rt_runtypes} from 'rtmod:/" + constants.RunTypesBundleBasename + ".js';\n"
-	if !strings.HasPrefix(facade, wantImport) {
-		t.Errorf("facade must import the bundle:\n got: %q\nwant prefix: %q", facade, wantImport)
+	return emitFileModulesSites(t, sites, runTypes, jsonMaxBytes)
+}
+
+// TestCollectEntries_PerFileGroups — each file's module holds only its own roots' closure, never another file's rows.
+func TestCollectEntries_PerFileGroups(t *testing.T) {
+	modules := emitFileModules(t, map[string]string{"clientRoot": "client", "serverRoot": "server"}, []*reflection.RunType{
+		{ID: "clientRoot", Kind: reflection.KindProperty, Name: "c", Child: reflection.NewRef("clientChild")},
+		{ID: "clientChild", Kind: reflection.KindString},
+		{ID: "serverRoot", Kind: reflection.KindProperty, Name: "s", Child: reflection.NewRef("serverChild")},
+		{ID: "serverChild", Kind: reflection.KindNumber},
+	}, false)
+	client, server := modules["rt/client"], modules["rt/server"]
+	if !strings.Contains(client, "'clientChild'") || strings.Contains(client, "server") {
+		t.Errorf("the client module carries only its own closure:\n%s", client)
 	}
-	if !strings.Contains(facade, "export const __rt_x1=[5,()=>[__rt_runtypes],,'x1'];") {
-		t.Errorf("facade tuple mismatch, got:\n%s", facade)
+	if !strings.Contains(server, "'serverChild'") || strings.Contains(server, "client") {
+		t.Errorf("the server module carries only its own closure:\n%s", server)
+	}
+}
+
+// wide pads a property name so its row group outweighs a shared module and gets one.
+func wide(name string) string { return name + strings.Repeat("_", 200) }
+
+// rowModules lists the modules whose data rows carry the row id.
+func rowModules(modules map[string]string, id string) []string {
+	var out []string
+	for name, source := range modules {
+		if strings.Contains(source, "['"+id+"',") {
+			out = append(out, name)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// importedModules follows a module's imports to every module it loads, itself included.
+func importedModules(modules map[string]string, start string) map[string]bool {
+	seen := map[string]bool{}
+	stack := []string{start}
+	for len(stack) > 0 {
+		name := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if seen[name] {
+			continue
+		}
+		seen[name] = true
+		for _, line := range strings.Split(modules[name], "\n") {
+			if from := strings.Index(line, "'rtmod:/"); strings.HasPrefix(line, "import ") && from >= 0 {
+				stack = append(stack, strings.TrimSuffix(line[from+len("'rtmod:/"):], ".js';"))
+			}
+		}
+	}
+	return seen
+}
+
+// TestCollectEntries_SharedRowWrittenOnce — a row two files reach is written once, in a shared module both import.
+func TestCollectEntries_SharedRowWrittenOnce(t *testing.T) {
+	modules := emitFileModules(t, map[string]string{"aRoot": "a", "bRoot": "b"}, []*reflection.RunType{
+		{ID: "aRoot", Kind: reflection.KindProperty, Name: "a", Child: reflection.NewRef("shared")},
+		{ID: "bRoot", Kind: reflection.KindProperty, Name: "b", Child: reflection.NewRef("shared")},
+		{ID: "shared", Kind: reflection.KindProperty, Name: wide("shared"), Child: reflection.NewRef("str")},
+		{ID: "str", Kind: reflection.KindString},
+	}, false)
+	homes := rowModules(modules, "shared")
+	if len(homes) != 1 || !strings.HasPrefix(homes[0], "rt/shared/") {
+		t.Fatalf("the shared row must be written once, in rt/shared/, got %v", homes)
+	}
+	for _, module := range []string{"rt/a", "rt/b"} {
+		if !importedModules(modules, module)[homes[0]] {
+			t.Errorf("%s must import %s:\n%s", module, homes[0], modules[module])
+		}
+	}
+	if got := rowModules(modules, "aRoot"); len(got) != 1 || got[0] != "rt/a" {
+		t.Errorf("a row only one file reaches stays in that file, got %v", got)
+	}
+}
+
+// TestCollectEntries_NoRowLeaksAcrossFiles — a client loads only rows its own roots reach, through every import.
+func TestCollectEntries_NoRowLeaksAcrossFiles(t *testing.T) {
+	modules := emitFileModules(t, map[string]string{"clientRoot": "client", "serverRoot": "server"}, []*reflection.RunType{
+		{ID: "clientRoot", Kind: reflection.KindProperty, Name: "c", Child: reflection.NewRef("sharedObj")},
+		{ID: "serverRoot", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{reflection.NewRef("serverProp"), reflection.NewRef("serverObj")}},
+		{ID: "serverObj", Kind: reflection.KindProperty, Name: "o", Child: reflection.NewRef("sharedObj")},
+		{ID: "serverProp", Kind: reflection.KindProperty, Name: "serverSecret", Child: reflection.NewRef("str")},
+		{ID: "sharedObj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{reflection.NewRef("sharedProp")}},
+		{ID: "sharedProp", Kind: reflection.KindProperty, Name: wide("both"), Child: reflection.NewRef("str")},
+		{ID: "str", Kind: reflection.KindString},
+	}, false)
+	var loaded strings.Builder
+	for name := range importedModules(modules, "rt/client") {
+		loaded.WriteString(modules[name])
+	}
+	if strings.Contains(loaded.String(), "serverSecret") || strings.Contains(loaded.String(), "'serverObj'") {
+		t.Errorf("the client must load no server-only row, got:\n%s", loaded.String())
+	}
+	for _, id := range []string{"clientRoot", "serverRoot", "serverObj", "serverProp", "sharedObj", "sharedProp", "str"} {
+		if got := rowModules(modules, id); len(got) != 1 {
+			t.Errorf("row %s must be written exactly once, got %v", id, got)
+		}
+	}
+}
+
+// TestCollectEntries_SharedModulesNest — rows three files reach and rows two reach land in two modules, the smaller
+// set importing the larger, so shared modules never form a cycle.
+func TestCollectEntries_SharedModulesNest(t *testing.T) {
+	modules := emitFileModules(t, map[string]string{"aRoot": "a", "bRoot": "b", "cRoot": "c"}, []*reflection.RunType{
+		{ID: "aRoot", Kind: reflection.KindProperty, Name: "a", Child: reflection.NewRef("pair")},
+		{ID: "bRoot", Kind: reflection.KindProperty, Name: "b", Child: reflection.NewRef("pair")},
+		{ID: "cRoot", Kind: reflection.KindProperty, Name: "c", Child: reflection.NewRef("leaf")},
+		{ID: "pair", Kind: reflection.KindProperty, Name: wide("p"), Child: reflection.NewRef("leaf")},
+		{ID: "leaf", Kind: reflection.KindProperty, Name: wide("l"), Child: reflection.NewRef("str")},
+		{ID: "str", Kind: reflection.KindString},
+	}, false)
+	pairHome, leafHome := rowModules(modules, "pair"), rowModules(modules, "leaf")
+	if len(pairHome) != 1 || len(leafHome) != 1 || pairHome[0] == leafHome[0] {
+		t.Fatalf("pair and leaf must each be written once, apart, got %v and %v", pairHome, leafHome)
+	}
+	if !importedModules(modules, pairHome[0])[leafHome[0]] || importedModules(modules, leafHome[0])[pairHome[0]] {
+		t.Errorf("the {a,b} module imports the {a,b,c} one, never the reverse:\n%s\n%s", modules[pairHome[0]], modules[leafHome[0]])
+	}
+	// a reaches leaf only through pair, so it imports pair alone and loads leaf through it.
+	if strings.Contains(modules["rt/a"], "'rtmod:/"+leafHome[0]+".js'") {
+		t.Errorf("rt/a must import only the shared module its own rows point into:\n%s", modules["rt/a"])
+	}
+}
+
+// TestCollectEntries_SharedRootKeepsSizeLimit — a root another file reaches nested is written once, with its limit.
+func TestCollectEntries_SharedRootKeepsSizeLimit(t *testing.T) {
+	flagRow := func(jsonMaxBytes bool) (string, []string) {
+		// The holder's file sorts first and writes the shared module, so the limit must come from the whole program.
+		modules := emitFileModules(t, map[string]string{"flag": "b", "holder": "a"}, []*reflection.RunType{
+			{ID: "flag", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{reflection.NewRef("flagProp")}},
+			{ID: "flagProp", Kind: reflection.KindProperty, Name: wide("on"), Child: reflection.NewRef("bool")},
+			{ID: "bool", Kind: reflection.KindBoolean},
+			{ID: "holder", Kind: reflection.KindProperty, Name: "h", Child: reflection.NewRef("flag")},
+		}, jsonMaxBytes)
+		homes := rowModules(modules, "flag")
+		if len(homes) != 1 {
+			t.Fatalf("the shared root must be written once, got %v", homes)
+		}
+		for _, line := range strings.Split(modules[homes[0]], "\n") {
+			if start := strings.Index(line, "['flag',"); start >= 0 {
+				return line[start:], homes
+			}
+		}
+		return "", homes
+	}
+	limited, homes := flagRow(true)
+	plain, _ := flagRow(false)
+	if !strings.HasPrefix(homes[0], "rt/shared/") || limited == plain {
+		t.Errorf("the shared root row in %v must carry its size limit:\nwith: %s\nwithout: %s", homes, limited, plain)
+	}
+}
+
+// TestCollectEntries_KeyCoversImports — two files owning no rows of their own still get distinct tuple keys when
+// they load different shared modules, since the runtime skips a key it has already seen.
+func TestCollectEntries_KeyCoversImports(t *testing.T) {
+	// c and d reflect the same roots as a and b, so a and b own no rows and import one shared module each.
+	modules := emitFileModulesSites(t, []protocol.Site{{ID: "x1", File: "a"}, {ID: "x1", File: "c"}, {ID: "y1", File: "b"}, {ID: "y1", File: "d"}}, []*reflection.RunType{
+		{ID: "x1", Kind: reflection.KindProperty, Name: wide("x"), Child: reflection.NewRef("str")},
+		{ID: "y1", Kind: reflection.KindProperty, Name: wide("y"), Child: reflection.NewRef("num")},
+		{ID: "str", Kind: reflection.KindString},
+		{ID: "num", Kind: reflection.KindNumber},
+	}, false)
+	keyOf := func(module string) string {
+		start := strings.Index(modules[module], "'rts_")
+		if start < 0 {
+			t.Fatalf("%s has no data tuple:\n%s", module, modules[module])
+		}
+		return modules[module][start : start+16]
+	}
+	if keyOf("rt/a") == keyOf("rt/b") {
+		t.Errorf("files loading different shared modules must not share a tuple key, both %s:\n%s\n%s", keyOf("rt/a"), modules["rt/a"], modules["rt/b"])
+	}
+}
+
+// emitFileModulesSites renders a dump from explicit sites, for a root several files reflect.
+func emitFileModulesSites(t *testing.T, sites []protocol.Site, runTypes []*reflection.RunType, jsonMaxBytes bool) map[string]string {
+	t.Helper()
+	graph := CollectEntries(protocol.Dump{RunTypes: runTypes, Sites: sites}, jsonMaxBytes, func(site protocol.Site) string { return "rt/" + site.File }, nil)
+	modules, err := entrymodules.RenderGrouped(graph, nil, false)
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	return modules
+}
+
+// TestCollectEntries_TinySharedGroupCopied — a group smaller than a module plus its import lines is copied into
+// each module using it, and no shared module is written for it.
+func TestCollectEntries_TinySharedGroupCopied(t *testing.T) {
+	modules := emitFileModules(t, map[string]string{"aRoot": "a", "bRoot": "b"}, []*reflection.RunType{
+		{ID: "aRoot", Kind: reflection.KindProperty, Name: "a", Child: reflection.NewRef("str")},
+		{ID: "bRoot", Kind: reflection.KindProperty, Name: "b", Child: reflection.NewRef("str")},
+		{ID: "str", Kind: reflection.KindString},
+	}, false)
+	if got := rowModules(modules, "str"); len(got) != 2 || got[0] != "rt/a" || got[1] != "rt/b" {
+		t.Errorf("the tiny row must be copied into both files, got %v", got)
+	}
+	for name, source := range modules {
+		if strings.HasPrefix(name, "rt/shared/") || strings.Contains(source, "import ") {
+			t.Errorf("no shared module and no import for a tiny group, got %s:\n%s", name, source)
+		}
+	}
+}
+
+// TestCollectEntries_CopiesReachEachOther — a copied row reached only through another copied row is copied too.
+func TestCollectEntries_CopiesReachEachOther(t *testing.T) {
+	modules := emitFileModules(t, map[string]string{"aRoot": "a", "bRoot": "b"}, []*reflection.RunType{
+		{ID: "aRoot", Kind: reflection.KindProperty, Name: "a", Child: reflection.NewRef("tiny")},
+		{ID: "bRoot", Kind: reflection.KindProperty, Name: "b", Child: reflection.NewRef("tiny")},
+		{ID: "tiny", Kind: reflection.KindProperty, Name: "t", Child: reflection.NewRef("str")},
+		{ID: "str", Kind: reflection.KindString},
+	}, false)
+	for _, id := range []string{"tiny", "str"} {
+		if got := rowModules(modules, id); len(got) != 2 || got[0] != "rt/a" || got[1] != "rt/b" {
+			t.Errorf("%s must be copied into both files, got %v", id, got)
+		}
+	}
+}
+
+// TestCollectEntries_Deterministic — the same dump renders the same modules, shared names included.
+func TestCollectEntries_Deterministic(t *testing.T) {
+	render := func() map[string]string {
+		return emitFileModules(t, map[string]string{"aRoot": "a", "bRoot": "b", "cRoot": "c"}, []*reflection.RunType{
+			{ID: "aRoot", Kind: reflection.KindProperty, Name: "a", Child: reflection.NewRef("shared")},
+			{ID: "bRoot", Kind: reflection.KindProperty, Name: "b", Child: reflection.NewRef("shared")},
+			{ID: "cRoot", Kind: reflection.KindProperty, Name: "c", Child: reflection.NewRef("other")},
+			{ID: "shared", Kind: reflection.KindProperty, Name: wide("shared"), Child: reflection.NewRef("str")},
+			{ID: "other", Kind: reflection.KindProperty, Name: wide("other"), Child: reflection.NewRef("str")},
+			{ID: "str", Kind: reflection.KindString},
+		}, false)
+	}
+	first, second := render(), render()
+	if len(rowModules(first, "shared")) != 1 || !strings.HasPrefix(rowModules(first, "shared")[0], "rt/shared/") {
+		t.Fatalf("the fixture must produce a shared module, got %v", keysOfModules(first))
+	}
+	if len(first) != len(second) {
+		t.Fatalf("module sets differ: %v vs %v", keysOfModules(first), keysOfModules(second))
+	}
+	for name, source := range first {
+		if second[name] != source {
+			t.Errorf("%s differs between runs", name)
+		}
+	}
+}
+
+// TestCollectEntries_SameRootInTwoFiles — one root reflected in two files gets a facade in each module.
+func TestCollectEntries_SameRootInTwoFiles(t *testing.T) {
+	graph := CollectEntries(protocol.Dump{
+		RunTypes: []*reflection.RunType{{ID: "root1", Kind: reflection.KindString}},
+		Sites:    []protocol.Site{{ID: "root1", File: "a"}, {ID: "root1", File: "b"}},
+	}, false, func(site protocol.Site) string { return "rt/" + site.File }, nil)
+	modules, err := entrymodules.RenderGrouped(graph, nil, false)
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	for _, module := range []string{"rt/a", "rt/b"} {
+		if !strings.Contains(modules[module], "export const __rt_root1=[5,") {
+			t.Errorf("%s must export the root's facade:\n%s", module, modules[module])
+		}
+	}
+}
+
+// TestCollectEntries_KeyCoversJSONMax — a moved root size limit changes the tuple key, so HMR re-registers the module.
+func TestCollectEntries_KeyCoversJSONMax(t *testing.T) {
+	key := func(jsonMaxBytes bool) string {
+		module := emitFileModules(t, map[string]string{"x1": "a"}, []*reflection.RunType{{ID: "x1", Kind: reflection.KindBoolean}}, jsonMaxBytes)["rt/a"]
+		start := strings.Index(module, "'rts_")
+		return module[start : start+16]
+	}
+	if key(true) == key(false) {
+		t.Errorf("a size limit change must move the tuple key, both %s", key(true))
+	}
+}
+
+// TestCollectEntries_SoftDepsScopedToFile — a mock-data demand rides only the facade of the file that made it.
+func TestCollectEntries_SoftDepsScopedToFile(t *testing.T) {
+	graph := CollectEntries(protocol.Dump{
+		RunTypes: []*reflection.RunType{{ID: "root1", Kind: reflection.KindString}},
+		Sites: []protocol.Site{
+			{ID: "root1", File: "mocks", Demand: []protocol.SiteDemand{{FnHash: "fmtx"}}},
+			{ID: "root1", File: "plain"},
+		},
+	}, false, func(site protocol.Site) string { return "rt/" + site.File }, nil)
+	if deps := graph["rt/mocks#root1"].SoftDeps; len(deps) != 1 {
+		t.Errorf("the mocking file's facade carries its demand, got %v", deps)
+	}
+	if deps := graph["rt/plain#root1"].SoftDeps; len(deps) != 0 {
+		t.Errorf("the plain file's facade carries nothing, got %v", deps)
+	}
+}
+
+// TestCollectEntries_EmptyClosureExportsOnly — a root missing from the dump gets its facade but no empty data tuple.
+func TestCollectEntries_EmptyClosureExportsOnly(t *testing.T) {
+	module := emitFileModules(t, map[string]string{"gone1": "a"}, nil, false)["rt/a"]
+	if !strings.Contains(module, "export const __rt_gone1=[5,,,'gone1'];") || strings.Contains(module, "[4,") {
+		t.Errorf("expected a dep-less facade and no data tuple, got:\n%s", module)
 	}
 }
 
@@ -132,7 +436,7 @@ func TestNoReflectionRoots(t *testing.T) {
 	graph := CollectEntries(protocol.Dump{
 		RunTypes: []*reflection.RunType{{ID: "x1", Kind: reflection.KindString}},
 		Sites:    []protocol.Site{{ID: "x1", FnId: "Qm3p"}}, // createX site, not reflection
-	})
+	}, true, nil, nil)
 	if len(graph) != 0 {
 		t.Fatalf("expected empty graph for fn-only sites, got %d entries", len(graph))
 	}
@@ -368,7 +672,9 @@ func TestKnownFieldsCovered(t *testing.T) {
 		Values:       []any{"v"},
 		NotSupported: true,
 	}})
-	expected := `['FULL',20,2004,'TN','NM','L',!0,!0,!0,!0,2,!0,7,!0,['f1'],'D','DEF',{'k':1},['v'],!0]`
+	// slot 20 (nonEnumerable) is false, a hole; slot 21 is the jsonMaxBytes of a
+	// non-serializable class root, which serializes as `null` (4 bytes)
+	expected := `['FULL',20,2004,'TN','NM','L',!0,!0,!0,!0,2,!0,7,!0,['f1'],'D','DEF',{'k':1},['v'],!0,,4]`
 	if !strings.Contains(out, expected) {
 		t.Errorf("expected fully-populated row:\n  %s\ngot:\n%s", expected, out)
 	}
@@ -389,15 +695,43 @@ func TestSubKindRendered(t *testing.T) {
 	}
 }
 
-// TestNoLegacyTopLevelExports — the previous emitters used
-// `export const t_<hash> = …` / `rt(…)` skeleton calls. Make sure neither
-// pattern survives in the bundle / facade modules.
-func TestNoLegacyTopLevelExports(t *testing.T) {
-	out := emit(t, []*reflection.RunType{{ID: "x", Kind: reflection.KindString}})
-	if strings.Contains(out, "export const t_") {
-		t.Errorf("legacy `export const t_…` lines must not appear in:\n%s", out)
+// TestJSONMaxBytesSlot — slot 21 carries the compact-JSON maximum of a
+// reflection ROOT whose type is fully bounded; a nested row never carries it
+// and an unbounded root renders the slot as a hole (trimmed away).
+func TestJSONMaxBytesSlot(t *testing.T) {
+	boundedString := &reflection.RunType{ID: "s36", Kind: reflection.KindString,
+		FormatAnnotation: &reflection.FormatAnnotation{Name: "stringFormat", Params: map[string]any{"maxLength": 36.0}}}
+	member := &reflection.RunType{ID: "m0", Kind: reflection.KindTupleMember, Child: reflection.NewRef("s36")}
+	tuple := &reflection.RunType{ID: "tup", Kind: reflection.KindTuple, Children: []*reflection.RunType{reflection.NewRef("m0")}}
+	plain := &reflection.RunType{ID: "plain", Kind: reflection.KindString}
+	nodes := []*reflection.RunType{tuple, member, boundedString, plain}
+	modules := emitModules(t, []string{"tup", "plain"}, nodes)
+	bundle := modules[constants.RunTypesBundleBasename]
+	// root: `[` + (2 + 6*36) + `]` = 220 at slot 21, after 17 holes
+	if !strings.Contains(bundle, "['tup',26,,,,,,,,,,,,,,,,,,,,220]") {
+		t.Errorf("expected the bounded root row to carry jsonMaxBytes 220, got:\n%s", bundle)
 	}
-	if strings.Contains(out, "rt(") {
-		t.Errorf("legacy `rt(…)` skeleton calls must not appear in:\n%s", out)
+	if !strings.Contains(bundle, "['s36',5]") {
+		t.Errorf("expected the nested row without the slot, got:\n%s", bundle)
+	}
+	if !strings.Contains(bundle, "['plain',5]") {
+		t.Errorf("expected the unbounded root row without the slot, got:\n%s", bundle)
+	}
+	// allModules mode: the per-node module of the root carries the same number
+	perNode := CollectEntriesPerNode(protocol.Dump{RunTypes: nodes, Sites: []protocol.Site{{ID: "tup"}, {ID: "plain"}}}, true)
+	if got := perNode["tup"].ArgsText; !strings.HasSuffix(got, ",220") {
+		t.Errorf("per-node root args should end with the jsonMaxBytes slot, got: %s", got)
+	}
+	if got := perNode["s36"].ArgsText; got != "'s36',5" {
+		t.Errorf("per-node nested args should carry no slot, got: %s", got)
+	}
+	// the project switch off: no root carries the slot, in either module mode
+	bundleOff := bundleOf(t, emitModulesWith(t, []string{"tup", "plain"}, nodes, false))
+	if !strings.Contains(bundleOff, "['tup',26]") || strings.Contains(bundleOff, "220") {
+		t.Errorf("jsonMaxBytes off: expected the root row without the slot, got:\n%s", bundleOff)
+	}
+	perNodeOff := CollectEntriesPerNode(protocol.Dump{RunTypes: nodes, Sites: []protocol.Site{{ID: "tup"}, {ID: "plain"}}}, false)
+	if got := perNodeOff["tup"].ArgsText; got != "'tup',26" {
+		t.Errorf("jsonMaxBytes off: per-node root args should carry no slot, got: %s", got)
 	}
 }

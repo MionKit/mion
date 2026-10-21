@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
@@ -13,17 +14,19 @@ func arrAnnotation(params map[string]any) *reflection.FormatAnnotation {
 
 // TestFormattedArray_UniqueItemsGoesThroughThePureFn — the canonicalisation
 // closure used to be rebuilt inside the emitted body on EVERY validator call.
-// It now lives in `rt::uniqueItems`, constructed once per module.
+// It now lives in `rt::canonicalJson`, constructed once per module and reached
+// as a DEPENDENCY of the family's own predicate — an array names
+// `@mionjs/run-types/src/runtypes/pure-fns-utils#pf_uniqueArrayItems`, never a shared one with a runtime kind test.
 func TestFormattedArray_UniqueItemsGoesThroughThePureFn(t *testing.T) {
 	ctx := newStubCtx()
 	emitter := formattedArrayEmitter{kind: reflection.KindArray}
 	got := emitter.EmitValidateCheck(arrAnnotation(map[string]any{"uniqueItems": true}), "v", ctx)
 
-	if got != "uniqueItems(v)" {
+	if got != purefnids.NameOf(purefnids.UniqueArrayItems)+"(v)" {
 		t.Fatalf("check = %q, want a call to the pure-fn alias", got)
 	}
-	if len(ctx.pureFns) != 1 || ctx.pureFns[0] != "rt::uniqueItems" {
-		t.Fatalf("pure fns = %v, want exactly [rt::uniqueItems]", ctx.pureFns)
+	if len(ctx.pureFns) != 1 || ctx.pureFns[0] != purefnids.UniqueArrayItems {
+		t.Fatalf("pure fns = %v, want exactly ["+purefnids.UniqueArrayItems+"]", ctx.pureFns)
 	}
 	for _, banned := range []string{"const canon", "JSON.stringify", "new Set("} {
 		if strings.Contains(got, banned) {
@@ -32,16 +35,24 @@ func TestFormattedArray_UniqueItemsGoesThroughThePureFn(t *testing.T) {
 	}
 }
 
-// TestFormattedArray_UniqueItemsPureFnIsCoreNamespace — `rt::`, not `rtFormats::`.
-// The rtFormats modules only register when `@mionjs/run-types/formats` is imported,
-// which a schema-door-only program never does; pure-fns-utils.ts is
-// side-effect imported from the package entry, so it is always registered.
-func TestFormattedArray_UniqueItemsPureFnIsCoreNamespace(t *testing.T) {
-	if corePureFnNamespace != "rt" {
-		t.Fatalf("namespace = %q, want rt", corePureFnNamespace)
+// TestFormattedArray_UniqueItemsPureFnsAreDistinct — the three uniqueItems walks
+// live in pure-fns-utils, which the package entry side-effect imports, so they are
+// registered even for a program that never imports `@mionjs/run-types/formats`.
+func TestFormattedArray_UniqueItemsPureFnsAreDistinct(t *testing.T) {
+	for _, id := range []string{purefnids.UniqueArrayItems, purefnids.UniqueSetMembers, purefnids.UniqueMapEntries} {
+		if !purefnids.Has(id) {
+			t.Errorf("id = %q, want a package-owned pure fn the entry side-effect registers", id)
+		}
 	}
-	if !strings.HasSuffix(uniqueItemsPureFnPath, "src/runtypes/pure-fns-utils.ts") {
-		t.Errorf("path = %q, want the always-registered core module", uniqueItemsPureFnPath)
+	// One pure fn per family, and no two the same: sharing one would put a
+	// runtime kind test back in the hot path and make every type import all
+	// three walks.
+	seen := map[string]bool{}
+	for _, id := range []string{purefnids.UniqueArrayItems, purefnids.UniqueSetMembers, purefnids.UniqueMapEntries} {
+		if seen[id] {
+			t.Errorf("two families share the uniqueItems pure fn %q", id)
+		}
+		seen[id] = true
 	}
 }
 
@@ -53,7 +64,7 @@ func TestFormattedArray_BothLanesShareOnePureFnAlias(t *testing.T) {
 	emitter := formattedArrayEmitter{kind: reflection.KindArray}
 	got := emitter.EmitValidationErrorsCheck(arrAnnotation(map[string]any{"uniqueItems": true}), "v", "pth", "er", ctx)
 
-	if !strings.Contains(got, "uniqueItems(v)") {
+	if !strings.Contains(got, "uniqueArrayItems(v)") {
 		t.Errorf("errors lane must use the pure fn; got %q", got)
 	}
 	if !strings.Contains(got, "'uniqueItems'") {

@@ -2,18 +2,13 @@ import * as TF from '@mionjs/run-types/formats';
 import type {SerializationCase} from './types.ts';
 import * as RT from '@mionjs/run-types/builders';
 import '@mionjs/run-types/formats';
-import {
-  createBinaryDecoderFn,
-  createBinaryEncoderFn,
-  createJsonDecoderFn,
-  createJsonEncoderFn,
-  registerClassSerializer,
-} from '@mionjs/run-types';
+import {createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
+import {registerClassSerializer} from '@mionjs/run-types/runtime';
 
 // Real-world DTOs whose fields carry type-formats, taken to the wire. A format brand
 // (uuid / email) constrains validation only — on the wire it is the plain underlying
-// string — so the JSON and binary round-trips are symmetric. The order adds a `Date`
-// (placedAt) that survives the JSON trip and packs into binary. Every thunk is
+// string — so the JSON round-trip is symmetric. The order adds a `Date`
+// (placedAt) that survives the JSON trip. Every thunk is
 // SELF-DECLARING: the `interface` (with its branded format fields) is written inside
 // the thunk body, so the doc-gen extracts a real, self-contained snippet.
 
@@ -39,14 +34,6 @@ export const REALWORLD = {
       }
       return createJsonEncoderFn<User>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      interface User {
-        id: TF.UUIDv4;
-        name: string;
-        email: TF.Email;
-      }
-      return createJsonEncoderFn<User>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       interface User {
         id: TF.UUIDv4;
@@ -55,7 +42,7 @@ export const REALWORLD = {
       }
       return createJsonEncoderFn<User>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       interface User {
         id: TF.UUIDv4;
         name: string;
@@ -63,13 +50,13 @@ export const REALWORLD = {
       }
       return createJsonDecoderFn<User>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       interface User {
         id: TF.UUIDv4;
         name: string;
         email: TF.Email;
       }
-      return createJsonDecoderFn<User>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<User>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       interface User {
@@ -79,26 +66,8 @@ export const REALWORLD = {
       }
       return createJsonDecoderFn<User>(undefined, {strategy: 'compact'});
     },
-    binaryEncoder: () => {
-      interface User {
-        id: TF.UUIDv4;
-        name: string;
-        email: TF.Email;
-      }
-      return createBinaryEncoderFn<User>();
-    },
-    binaryDecoder: () => {
-      interface User {
-        id: TF.UUIDv4;
-        name: string;
-        email: TF.Email;
-      }
-      return createBinaryDecoderFn<User>();
-    },
     schemaEncoder: () => createJsonEncoderFn(RT.object({id: TF.uuidv4(), name: TF.string(), email: TF.email()})),
     schemaDecoder: () => createJsonDecoderFn(RT.object({id: TF.uuidv4(), name: TF.string(), email: TF.email()})),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.object({id: TF.uuidv4(), name: TF.string(), email: TF.email()})),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.object({id: TF.uuidv4(), name: TF.string(), email: TF.email()})),
     getTestData: () => ({
       values: [
         {id: '0d8f2b1c-1e2a-4d3b-9f4c-5a6b7c8d9e0f', name: 'Ada Lovelace', email: 'ada@example.com'},
@@ -113,7 +82,7 @@ export const REALWORLD = {
       'A DTO mixing two formats, a `TF.UUIDv4` id and a `TF.Email` contact, with a numeric total, a `Date` placedAt and a string-literal status union.',
     serializeNotes: [
       '`placedAt` serialises to an ISO string and restores to a real `Date`.',
-      'The uuid / email brands round-trip as plain strings through both JSON and binary.',
+      'The uuid / email brands round-trip as plain strings through JSON.',
     ],
     mutateEncoder: () => {
       interface Order {
@@ -135,16 +104,6 @@ export const REALWORLD = {
       }
       return createJsonEncoderFn<Order>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      interface Order {
-        id: TF.UUIDv4;
-        email: TF.Email;
-        total: number;
-        placedAt: Date;
-        status: 'pending' | 'paid' | 'shipped' | 'cancelled';
-      }
-      return createJsonEncoderFn<Order>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       interface Order {
         id: TF.UUIDv4;
@@ -155,7 +114,7 @@ export const REALWORLD = {
       }
       return createJsonEncoderFn<Order>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       interface Order {
         id: TF.UUIDv4;
         email: TF.Email;
@@ -165,7 +124,7 @@ export const REALWORLD = {
       }
       return createJsonDecoderFn<Order>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       interface Order {
         id: TF.UUIDv4;
         email: TF.Email;
@@ -173,7 +132,7 @@ export const REALWORLD = {
         placedAt: Date;
         status: 'pending' | 'paid' | 'shipped' | 'cancelled';
       }
-      return createJsonDecoderFn<Order>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<Order>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       interface Order {
@@ -184,26 +143,6 @@ export const REALWORLD = {
         status: 'pending' | 'paid' | 'shipped' | 'cancelled';
       }
       return createJsonDecoderFn<Order>(undefined, {strategy: 'compact'});
-    },
-    binaryEncoder: () => {
-      interface Order {
-        id: TF.UUIDv4;
-        email: TF.Email;
-        total: number;
-        placedAt: Date;
-        status: 'pending' | 'paid' | 'shipped' | 'cancelled';
-      }
-      return createBinaryEncoderFn<Order>();
-    },
-    binaryDecoder: () => {
-      interface Order {
-        id: TF.UUIDv4;
-        email: TF.Email;
-        total: number;
-        placedAt: Date;
-        status: 'pending' | 'paid' | 'shipped' | 'cancelled';
-      }
-      return createBinaryDecoderFn<Order>();
     },
     schemaEncoder: () =>
       createJsonEncoderFn(
@@ -217,26 +156,6 @@ export const REALWORLD = {
       ),
     schemaDecoder: () =>
       createJsonDecoderFn(
-        RT.object({
-          id: TF.uuidv4(),
-          email: TF.email(),
-          total: TF.number(),
-          placedAt: TF.date(),
-          status: RT.union([RT.literal('pending'), RT.literal('paid'), RT.literal('shipped'), RT.literal('cancelled')]),
-        })
-      ),
-    schemaBinaryEncoder: () =>
-      createBinaryEncoderFn(
-        RT.object({
-          id: TF.uuidv4(),
-          email: TF.email(),
-          total: TF.number(),
-          placedAt: TF.date(),
-          status: RT.union([RT.literal('pending'), RT.literal('paid'), RT.literal('shipped'), RT.literal('cancelled')]),
-        })
-      ),
-    schemaBinaryDecoder: () =>
-      createBinaryDecoderFn(
         RT.object({
           id: TF.uuidv4(),
           email: TF.email(),
@@ -264,19 +183,13 @@ export const REALWORLD = {
       ],
     }),
   },
-  // A registered user class whose fields carry type-formats — proving the class
-  // serializer path composes with the format families (the currency field's uint16
-  // bounds still pick the 2-byte binary width INSIDE the class body; the Date rides
-  // its ISO arm) and reconstructs a real instance. Each thunk defines the class +
-  // registerClassSerializer INLINE (self-declaring); value-first schema is
-  // 'not-supported' (a class is not an `RT.*` model), so id-integrity skips it.
+  // Each thunk defines the class + registerClassSerializer INLINE (self-declaring).
+  // Value-first schema is 'not-supported' (a class is not an `RT.*` model), so id-integrity skips it.
   invoice_currency_and_date: {
     title: 'Class with a currency-format field + Date',
     description:
-      'A registered `Invoice` class carrying a `TF.Currency<{integer,min:0,max:65535}>` field and a Date. Reconstruction composes with the format families: the uint16 currency bounds pick the 2-byte binary width inside the class encode, the Date rides its ISO-string arm, and decode rebuilds a real Invoice.',
-    serializeNotes: [
-      'Class serializer keyed by type id; the currency format still packs to 2 bytes on the binary wire inside the class body. Value-first schema is not-supported (a class is not an `RT.*` model).',
-    ],
+      'A registered `Invoice` class carrying a `TF.Currency<{integer,min:0,max:65535}>` field and a Date. Reconstruction composes with the format families: the currency field is a plain number on the wire, the Date rides its ISO-string arm, and decode rebuilds a real Invoice.',
+    serializeNotes: ['Class serializer keyed by type id. Value-first schema is not-supported (a class is not an `RT.*` model).'],
     mutateEncoder: () => {
       class Invoice {
         constructor(
@@ -305,20 +218,6 @@ export const REALWORLD = {
       registerClassSerializer(Invoice, {deserialize: (d) => new Invoice(d.ref, d.cents, d.issued)});
       return createJsonEncoderFn<Invoice>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      class Invoice {
-        constructor(
-          public ref: string,
-          public cents: TF.Currency<{integer: true; min: 0; max: 65535}>,
-          public issued: Date
-        ) {}
-        total(): number {
-          return this.cents / 100;
-        }
-      }
-      registerClassSerializer(Invoice, {deserialize: (d) => new Invoice(d.ref, d.cents, d.issued)});
-      return createJsonEncoderFn<Invoice>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       class Invoice {
         constructor(
@@ -333,7 +232,7 @@ export const REALWORLD = {
       registerClassSerializer(Invoice, {deserialize: (d) => new Invoice(d.ref, d.cents, d.issued)});
       return createJsonEncoderFn<Invoice>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       class Invoice {
         constructor(
           public ref: string,
@@ -347,7 +246,7 @@ export const REALWORLD = {
       registerClassSerializer(Invoice, {deserialize: (d) => new Invoice(d.ref, d.cents, d.issued)});
       return createJsonDecoderFn<Invoice>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       class Invoice {
         constructor(
           public ref: string,
@@ -359,7 +258,7 @@ export const REALWORLD = {
         }
       }
       registerClassSerializer(Invoice, {deserialize: (d) => new Invoice(d.ref, d.cents, d.issued)});
-      return createJsonDecoderFn<Invoice>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<Invoice>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       class Invoice {
@@ -375,38 +274,8 @@ export const REALWORLD = {
       registerClassSerializer(Invoice, {deserialize: (d) => new Invoice(d.ref, d.cents, d.issued)});
       return createJsonDecoderFn<Invoice>(undefined, {strategy: 'compact'});
     },
-    binaryEncoder: () => {
-      class Invoice {
-        constructor(
-          public ref: string,
-          public cents: TF.Currency<{integer: true; min: 0; max: 65535}>,
-          public issued: Date
-        ) {}
-        total(): number {
-          return this.cents / 100;
-        }
-      }
-      registerClassSerializer(Invoice, {deserialize: (d) => new Invoice(d.ref, d.cents, d.issued)});
-      return createBinaryEncoderFn<Invoice>();
-    },
-    binaryDecoder: () => {
-      class Invoice {
-        constructor(
-          public ref: string,
-          public cents: TF.Currency<{integer: true; min: 0; max: 65535}>,
-          public issued: Date
-        ) {}
-        total(): number {
-          return this.cents / 100;
-        }
-      }
-      registerClassSerializer(Invoice, {deserialize: (d) => new Invoice(d.ref, d.cents, d.issued)});
-      return createBinaryDecoderFn<Invoice>();
-    },
     schemaEncoder: 'not-supported',
     schemaDecoder: 'not-supported',
-    schemaBinaryEncoder: 'not-supported',
-    schemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       class Invoice {
         constructor(

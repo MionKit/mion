@@ -15,6 +15,11 @@ import type {RunTypeMockOptions} from '../../../src/mocking/mockTypes.ts';
 import type {RunType} from '../../../src/runtypes/types.ts';
 import {RunTypeKind} from '../../../src/go-generated/runTypeKind.generated.ts';
 import {getRTUtils} from '../../../src/runtypes/rtUtils.ts';
+import {
+  cardNetworkRules as cardNetworkRulesId,
+  isCreditCard as isCreditCardId,
+  matchesCardNetwork as matchesCardNetworkId,
+} from '../../../src/formats/string/credit-card-pure-fns.ts';
 import '../../../src/formats/index.ts';
 
 const ITERATIONS = 300;
@@ -27,8 +32,8 @@ interface CardParams {
 // plain boolean.
 type CardModeFn = (value: string, params: CardParams) => string;
 type CardFn = (value: string, params: CardParams) => boolean;
-const isCreditCard = getRTUtils().getPureFn('rtFormats::isCreditCard') as CardModeFn;
-const matchesCardNetwork = getRTUtils().getPureFn('rtFormats::matchesCardNetwork') as CardFn;
+const isCreditCard = getRTUtils().getPureFn(isCreditCardId) as CardModeFn;
+const matchesCardNetwork = getRTUtils().getPureFn(matchesCardNetworkId) as CardFn;
 
 // A card-branded string node, the shape the plugin feeds the walker.
 function cardNode(params: CardParams = {}): RunType {
@@ -49,8 +54,8 @@ describe('credit card mock — one shared network table', () => {
     // fiddly (prefix ranges per network, the lengths each issues) and two
     // copies could drift into a mock that generates cards its own format
     // rejects. Identity, not deep-equality: there is exactly one object.
-    const first = (getRTUtils().getPureFn('rtFormats::cardNetworkRules') as () => object)();
-    const second = (getRTUtils().getPureFn('rtFormats::cardNetworkRules') as () => object)();
+    const first = (getRTUtils().getPureFn(cardNetworkRulesId) as () => object)();
+    const second = (getRTUtils().getPureFn(cardNetworkRulesId) as () => object)();
     expect(first).toBe(second);
     expect(Object.isFrozen(first)).toBe(true);
     // Every network the mock can pick has a rule, so a generated number always

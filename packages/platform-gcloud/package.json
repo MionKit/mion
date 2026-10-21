@@ -1,6 +1,6 @@
 {
   "name": "@mionjs/platform-gcloud",
-  "version": "0.12.2",
+  "version": "0.13.1",
   "type": "module",
   "description": "Google Cloud functions wrapper for mion router.",
   "keywords": [
@@ -32,10 +32,7 @@
   "files": [
     ".dist",
     "!.dist/**/*.tsbuildinfo",
-    "index.ts",
-    "src",
-    "!src/**/*.spec.ts",
-    "!src/**/*.test.ts"
+    "!.dist/**/*.d.ts.map"
   ],
   "repository": {
     "type": "git",
@@ -45,13 +42,14 @@
     "access": "public"
   },
   "scripts": {
+    "typecheck:test": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "dev": "vite build --watch",
     "dev:test": "vitest watch",
     "lint": "eslint src",
     "format": "prettier --write src/**/*.ts",
     "build": "vite build",
-    "clean": "rimraf .dist .coverage __runtypes",
+    "clean": "rimraf .dist .coverage .mion",
     "fresh-start": "pnpm run clean && rimraf node_modules"
   },
   "bugs": {

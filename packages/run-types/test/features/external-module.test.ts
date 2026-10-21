@@ -8,14 +8,7 @@
 // (reflection `getRunTypeId(value)` first, then static `getRunTypeId<T>()`) and
 // asserts hash equivalence between them for an imported type.
 import {describe, expect, test} from 'vitest';
-import {
-  createValidateFn,
-  createJsonEncoderFn,
-  createBinaryEncoderFn,
-  createBinaryDecoderFn,
-  getRunTypeId,
-  type InferType,
-} from '@mionjs/run-types';
+import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn, getRunTypeId, type InferType} from '@mionjs/run-types';
 import {UserSchema, mutatePreset, type User, type WithBigint} from '../support/external-module-library.ts';
 
 describe('external-module markers', () => {
@@ -59,10 +52,10 @@ describe('external-module markers', () => {
     expect(typeof untouched.n).toBe('bigint');
   });
 
-  test('binary encoder/decoder round-trips over an imported type', () => {
-    const enc = createBinaryEncoderFn<User>();
-    const dec = createBinaryDecoderFn<User>();
+  test('JSON encoder/decoder round-trips over an imported type', () => {
+    const enc = createJsonEncoderFn<User>();
+    const dec = createJsonDecoderFn<User>();
     const user: User = {id: 7, name: 'Ada'};
-    expect(dec(enc(user))).toEqual(user);
+    expect(dec(enc(user) as string)).toEqual(user);
   });
 });

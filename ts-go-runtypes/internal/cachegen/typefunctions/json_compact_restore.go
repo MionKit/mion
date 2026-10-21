@@ -7,28 +7,19 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// CompactFromJsonEmitter — the decode walk of the `compact` JSON strategy, the
-// inverse of CompactForJsonEmitter. Structurally a sibling of
-// RestoreFromJsonEmitter, differing in ONE arm: an object literal / plain class
-// instance arrives as a POSITIONAL ARRAY (declared props by position, no key
-// names) and is rebuilt into a keyed object, applying each property's restore
-// transform by position. Every other arm (atomics, arrays, TS tuples, Map/Set,
-// unions, pure index signatures) is reused verbatim from the restoreFromJson
-// helpers — recursion routes back through THIS emitter via ctx.CompileChild.
-//
-// The object arm REBINDS its value accessor to the rebuilt object (`v = _r`),
-// so it works both inlined (the parent reads the rebound accessor) and as a
-// dependency call (the child fn returns the rebuilt object, the parent assigns
-// `accessor = fn(accessor)`). Optional slots map the `null` placeholder back to
-// absent; a trailing slot (when the type carries an index signature) holds the
-// undeclared keys and is merged back into the rebuilt object.
+// CompactFromJsonEmitter is the decode walk of the `compact` JSON strategy, the inverse of CompactForJsonEmitter and a
+// sibling of RestoreFromJsonEmitter differing in ONE arm: an object arrives as a POSITIONAL ARRAY and is rebuilt into a
+// keyed object, each property's restore applied by position. Every other arm is reused from the restoreFromJsonMutate
+// helpers, and recursion routes back through THIS emitter via ctx.CompileChild.
+// The object arm REBINDS its accessor to the rebuilt object (`v = _r`), so it works inlined and as a dependency call.
+// An optional slot maps its placeholder (firstFreePlaceholder) back to absent.
 type CompactFromJsonEmitter struct{}
 
 func (CompactFromJsonEmitter) Args() []ArgSpec {
 	return []ArgSpec{{Key: "vλl", Name: "v", Default: ""}}
 }
 
-// Supports mirrors the restoreFromJson supported surface.
+// Supports mirrors the restoreFromJsonMutate supported surface.
 func (CompactFromJsonEmitter) Supports(rt *reflection.RunType) bool {
 	return jsonWireSupports(rt)
 }
@@ -37,8 +28,7 @@ func (CompactFromJsonEmitter) IsRTInlined(ctx *InlineContext) bool {
 	return DefaultIsRTInlined(ctx)
 }
 
-// EmitDependencyCall captures the child's return into the accessor (`v = <hash>.fn(v)`)
-// so a rebound object propagates — same as restoreFromJson.
+// EmitDependencyCall captures the child's return into the accessor so a rebound object propagates.
 func (CompactFromJsonEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
 	return ctx.emitDepCall(childID, ctx.Vλl, ctx.Vλl)
 }
@@ -53,21 +43,13 @@ func (CompactFromJsonEmitter) Finalize(raw string) (string, bool) {
 
 func (CompactFromJsonEmitter) ReturnName() string { return "v" }
 
-// IsNoopType — restoreFromJson's arms with the object arms forced false (the
-// positional rebuild is real work where rj would round-trip raw); see
-// isNoopForCompactFromJson. Delegating rj's predicate wholesale would be
-// UNSOUND — the gate would skip the rebuild and decoded objects would stay
-// positional arrays.
+// IsNoopType is restoreFromJsonMutate's arms with the object arms forced false: delegating rj's predicate wholesale
+// would skip the rebuild and decoded objects would stay positional arrays.
 func (CompactFromJsonEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool {
 	return isNoopForCompactFromJson(rt, ctx)
 }
 
-// NoopChildComposesAround — an identity child slot passes through unchanged
-// (same composition rule as restoreFromJson); empty code composes correctly.
-func (CompactFromJsonEmitter) NoopChildComposesAround() {}
-
-// Emit mirrors RestoreFromJsonEmitter.Emit; only the object-literal and
-// plain-class (SubKindNone) arms diverge to the positional rebuild.
+// Emit mirrors RestoreFromJsonEmitter.Emit; only the object-literal and plain-class arms do the positional rebuild.
 func (CompactFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType) RTCode {
 	if rt == nil {
 		return RTCode{Code: "", Type: CodeS}
@@ -85,31 +67,30 @@ func (CompactFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindUndefined:
-		return RTCode{Code: v + " = undefined", Type: CodeE}
+		return RTCode{Code: undefinedAssign(v, ctx), Type: CodeE}
 
 	case reflection.KindVoid:
-		return RTCode{Code: v + " = undefined", Type: CodeE}
+		return RTCode{Code: undefinedAssign(v, ctx), Type: CodeE}
 
 	case reflection.KindBigInt:
-		return RTCode{Code: v + " = BigInt(" + v + ")", Type: CodeE}
+		return RTCode{Code: bigintRestoreCode(v, ctx), Type: CodeE}
 
 	case reflection.KindSymbol:
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindRegexp:
-		params := ctx.CtxFnParams(v)
-		call := ctx.CreateFnInContext(
-			"const parts = "+v+".match(/\\/(.*)\\/(.*)?/);return new RegExp(parts[1], parts[2] || '');",
-			CodeRB, params, params)
-		return RTCode{Code: v + " = " + call, Type: CodeE}
+		// Unsupported: a RegExp is a pattern the receiver would run, not data, so it is dropped like a function.
+		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindClass:
 		if info, ok := reflection.TemporalInfoBySubKind(rt.SubKind); ok {
-			return RTCode{Code: v + " = " + info.Builtin + ".from(" + v + ")", Type: CodeE}
+			return RTCode{Code: v + " = typeof " + v + " === 'string' ? " + info.Builtin + ".from(" + v + ") : " + v, Type: CodeE}
 		}
 		switch rt.SubKind {
 		case reflection.SubKindDate:
-			return RTCode{Code: v + " = new Date(" + v + ")", Type: CodeE}
+			return RTCode{Code: v + " = typeof " + v + " === 'string' ? new Date(" + v + ") : " + v, Type: CodeE}
+		case reflection.SubKindUrl:
+			return RTCode{Code: restoreUrl(v), Type: CodeE}
 		case reflection.SubKindNone:
 			structural := emitObjectCompactFromJson(rt, ctx, v)
 			return wrapRestoreWithClassSerializer(rt, ctx, v, structural)
@@ -143,12 +124,8 @@ func (CompactFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindUnion:
-		// Reuse the keyed flat-union decode — symmetric with the compact encode,
-		// which reuses the keyed flat-union encode (object members merge into a
-		// keyed `[-1, object]` envelope; only nested objects go positional). Same
-		// compact-widened layout as the encode, so both sides agree on whether
-		// the envelope is on the wire (union_flat_compact.go).
-		return emitUnionRestoreFromJsonFlatLayout(rt, ctx, v, buildCompactFlatLayout(rt, ctx))
+		// Same compact layout as the encode (union_flat_compact.go), so both sides agree on envelope and positional merge.
+		return emitUnionRestoreFromJsonCloneLayout(rt, ctx, v, buildCompactFlatLayout(rt, ctx))
 
 	case reflection.KindIntersection:
 		return RTCode{Code: "", Type: CodeS}
@@ -157,7 +134,7 @@ func (CompactFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 		return RTCode{Code: "", Type: CodeS}
 
 	case reflection.KindLiteral:
-		return emitLiteralRestoreFromJson(rt, v)
+		return emitLiteralRestoreFromJson(rt, ctx, v)
 
 	case reflection.KindArray:
 		if rt.Child == nil {
@@ -168,19 +145,15 @@ func (CompactFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 	return RTCode{Code: "", Type: CodeNS}
 }
 
-// emitObjectCompactFromJson — the positional-array object decode. Restores each
-// declared property's value by position (the SAME canonical order the encoder
-// used, via the shared collectCompactDeclaredSlots), then rebuilds the keyed
-// object and REBINDS the value accessor to it. An object carrying an index
-// signature arrived keyed (the encode kept it keyed), so it restores in place
-// via the shared keyed restore walk — symmetric with emitObjectCompactForJson.
+// emitObjectCompactFromJson is the positional-array object decode: it restores each declared property by position, in
+// the SAME canonical order the encoder used (shared collectCompactDeclaredSlots), then rebuilds the keyed object and
+// REBINDS the accessor to it. An object carrying an index signature arrived keyed, so it restores in place instead.
 func emitObjectCompactFromJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
-	if objectHasCallSignature(rt, ctx) {
+	if isCallableValue(rt, ctx) {
 		return RTCode{Code: "", Type: CodeNS}
 	}
 
-	// Index signature present → keyed object on the wire, keyed restore in place
-	// (mirrors emitObjectCompactForJson's keyed encode for these shapes).
+	// Keyed on the wire, so restore in place, mirroring emitObjectCompactForJson's keyed encode for these shapes.
 	if objectHasIndexSignature(rt, ctx) {
 		return emitObjectJsonChildren(rt, ctx)
 	}
@@ -188,10 +161,11 @@ func emitObjectCompactFromJson(rt *reflection.RunType, ctx *EmitContext, v strin
 	slots := collectCompactDeclaredSlots(rt, ctx)
 	rVar := ctx.NextLocalVar("r")
 	var restore strings.Builder
-	restore.WriteString("{")
+	// The positional wire of an object is an array; anything else is left untouched for validate to refuse, since
+	// rebuilding from `v[0]` of a number or boolean would launder junk into an empty object an all-optional type accepts.
+	restore.WriteString("if (Array.isArray(" + v + ")) {")
 
-	// writeSlot records a kept property's position + key so the rebuild reads the
-	// restored slot back into the keyed object.
+	// writeSlot records a kept property's position and key so the rebuild reads the restored slot into the keyed object.
 	type writeSlot struct {
 		pos        int
 		name       string
@@ -206,18 +180,11 @@ func emitObjectCompactFromJson(rt *reflection.RunType, ctx *EmitContext, v strin
 		childRT := ctx.CompileChild(slot.childRef, CodeS)
 		ctx.SetChildAccessor("")
 		if childRT.Type == CodeNS {
-			if propertyChildFailed(ctx) {
-				return RTCode{Code: "", Type: CodeNS}
-			}
-			// Absorbed (a future kind with no emit) — no position, identical to
-			// the encode side, so the remaining positions stay in lockstep.
-			continue
+			return RTCode{Code: "", Type: CodeNS}
 		}
 		if slot.optional {
-			// Map the null placeholder back to absent, then run the child
-			// transform only on a present (non-undefined) value. Mirrors
-			// emitTupleMemberRestoreFromJson.
-			restore.WriteString("if (" + accessor + " === null) {" + accessor + " = undefined}")
+			// The placeholder maps back to absent BEFORE any child transform, so no constructor ever sees it.
+			restore.WriteString("if (" + accessor + " === " + slot.placeholder + ") {" + accessor + " = undefined}")
 			if childRT.Code != "" {
 				restore.WriteString(" else if (" + accessor + " !== undefined) {" + childRT.Code + "}")
 			}
@@ -231,7 +198,6 @@ func emitObjectCompactFromJson(rt *reflection.RunType, ctx *EmitContext, v strin
 		pos++
 	}
 
-	// Rebuild the keyed object from the restored positions.
 	restore.WriteString("const " + rVar + " = {};")
 	for _, w := range writes {
 		accessor := v + "[" + strconv.Itoa(w.pos) + "]"

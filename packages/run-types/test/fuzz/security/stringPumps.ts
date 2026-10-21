@@ -1,0 +1,93 @@
+// Pump strings for the format lane: inputs shaped to make a backtracking
+// pattern or a hand-written scanner do super-linear work. Every pump is
+// derived from one seed so a slow case replays.
+
+export interface Pump {
+  id: string;
+  input: string;
+}
+
+const SIZES = [64, 1024, 8192, 65536];
+const FLOOD_UNITS = [
+  'a',
+  '9',
+  '@',
+  '.',
+  '-',
+  '_',
+  '[',
+  '(',
+  '\\',
+  ' ',
+  ':',
+  '/',
+  'a.',
+  'a-',
+  'xn--',
+  '0.',
+  '::',
+  '%20',
+  '́',
+  'א',
+  'ا',
+  '中',
+  '‍',
+  'á',
+];
+
+/** The pumps for one round. `samples` are the format's own valid values; each
+ *  pump is a flood, a sample stretched or corrupted, or a prefix plus junk. **/
+export function pumpStrings(rng: () => number, samples: readonly string[]): Pump[] {
+  const pick = <T>(items: readonly T[]): T => items[Math.floor(rng() * items.length)];
+  const size = (): number => pick(SIZES);
+  const out: Pump[] = [];
+  for (const unit of FLOOD_UNITS) {
+    const n = size();
+    out.push({id: `flood.${escape(unit)}.${n}`, input: unit.repeat(Math.ceil(n / unit.length))});
+    out.push({id: `flood-tail.${escape(unit)}.${n}`, input: unit.repeat(Math.ceil(n / unit.length)) + '!'});
+  }
+  for (const sample of samples) {
+    const n = size();
+    out.push({id: `sample-repeat.${n}`, input: sample.repeat(Math.max(1, Math.ceil(n / Math.max(1, sample.length))))});
+    out.push({id: `sample-junk-tail.${n}`, input: sample + pick(FLOOD_UNITS).repeat(n)});
+    out.push({id: `sample-junk-head.${n}`, input: pick(FLOOD_UNITS).repeat(n) + sample});
+    out.push({id: 'sample-corrupt', input: corrupt(sample, rng)});
+    out.push({id: 'sample-surrogate', input: `${sample}\ud800`});
+    out.push({id: 'sample-nul', input: `${sample}\0`});
+    out.push({id: 'sample-bidi', input: `‮${sample}‬`});
+    out.push({id: `sample-marks.${n}`, input: sample + '́'.repeat(n)});
+  }
+  out.push({id: 'empty', input: ''});
+  out.push({id: 'alternating-at-dot', input: '@.'.repeat(size() / 2)});
+  out.push({id: 'nested-brackets', input: '['.repeat(size() / 2) + ']'.repeat(size() / 2)});
+  out.push({id: 'deep-parens', input: '('.repeat(size() / 2) + ')'.repeat(size() / 2)});
+  out.push({id: 'ipv6-colons', input: ':'.repeat(size())});
+  out.push({id: 'ipv6-groups', input: 'ffff:'.repeat(size() / 5)});
+  out.push({id: 'digits-dots', input: '1.'.repeat(size() / 2)});
+  out.push({id: 'date-like-run', input: '2024-01-01T00:00:00'.repeat(size() / 19)});
+  out.push({id: 'uri-template-braces', input: '{'.repeat(size() / 2) + '}'.repeat(size() / 2)});
+  out.push({id: 'json-pointer-slashes', input: '/~1'.repeat(size() / 3)});
+  out.push({id: 'base64-pad', input: 'A'.repeat(size()) + '=='});
+  out.push({id: 'random-ascii', input: randomText(rng, size(), 0x20, 0x7e)});
+  out.push({id: 'random-unicode', input: randomText(rng, size(), 0x80, 0xffff)});
+  return out;
+}
+
+function corrupt(sample: string, rng: () => number): string {
+  if (sample.length === 0) return '\0';
+  const at = Math.floor(rng() * sample.length);
+  const replacement = String.fromCharCode(0x20 + Math.floor(rng() * 0x5e));
+  return sample.slice(0, at) + replacement + sample.slice(at + 1);
+}
+
+function randomText(rng: () => number, length: number, from: number, to: number): string {
+  const chars: string[] = [];
+  for (let i = 0; i < length; i++) chars.push(String.fromCharCode(from + Math.floor(rng() * (to - from))));
+  return chars.join('');
+}
+
+function escape(unit: string): string {
+  return Array.from(unit, (ch) =>
+    ch.charCodeAt(0) < 0x7f && /[a-z0-9]/i.test(ch) ? ch : `u${ch.charCodeAt(0).toString(16)}`
+  ).join('');
+}

@@ -9,7 +9,9 @@ apps/
 test/
 host-smoke/
 mion-consumer/
+mion-api-types/
 mion-bun/
+pure-fns/
 build-all.mjs
 lint-all.mjs
 tsconfig.base.json
@@ -17,7 +19,7 @@ package.json
 
 # Build artifacts / caches / installed deps — must never enter the image.
 node_modules/
-**/__runtypes/
+**/.mion/
 pnpm-lock.yaml
 pnpm-workspace.yaml
 .npmrc

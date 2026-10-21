@@ -5,10 +5,12 @@ import catalog from './go-generated/diagnostics-catalog.json';
 interface CodeEntry {
   code: string;
   subsystem: string;
-  severity: 'error' | 'warning' | 'info';
+  /** The level: did the build produce the code, and does it work. */
+  level: 'error' | 'runtimeError' | 'warning' | 'info';
+  /** Only a bug in mion raises it. */
+  internal?: boolean;
   headline: string;
-  detail: string | null;
-  summary: string | null;
+  summary: string;
   example: string | null;
   fix: string | null;
 }
@@ -22,19 +24,30 @@ interface Subsystem {
 const subsystems = catalog.subsystems as Subsystem[];
 const codes = catalog.codes as CodeEntry[];
 
+type Level = CodeEntry['level'];
+
 const query = ref('');
+const level = ref<Level | 'all'>('all');
+const family = ref('all');
 const needle = computed(() => query.value.trim().toLowerCase());
 
-/** Search runs over the code, the headline, and the written summary. */
+const familyLabel = new Map(subsystems.map((subsystem) => [subsystem.key, subsystem.label]));
+
+/** Every text an entry carries, joined once, so the search matches any word of it. */
+const haystack = new Map(
+  codes.map((entry) => [
+    entry.code,
+    [entry.code, familyLabel.get(entry.subsystem), entry.headline, entry.summary, entry.example, entry.fix]
+      .filter(Boolean)
+      .join('\n')
+      .toLowerCase(),
+  ]),
+);
+
 function matches(entry: CodeEntry): boolean {
-  const term = needle.value;
-  if (!term) return true;
-  return (
-    entry.code.toLowerCase().includes(term) ||
-    entry.headline.toLowerCase().includes(term) ||
-    (entry.summary?.toLowerCase().includes(term) ?? false) ||
-    (entry.detail?.toLowerCase().includes(term) ?? false)
-  );
+  if (level.value !== 'all' && entry.level !== level.value) return false;
+  if (family.value !== 'all' && entry.subsystem !== family.value) return false;
+  return !needle.value || (haystack.get(entry.code)?.includes(needle.value) ?? false);
 }
 
 const sections = computed(() =>
@@ -47,6 +60,13 @@ const sections = computed(() =>
 );
 
 const shownCount = computed(() => codes.filter(matches).length);
+const filtered = computed(() => needle.value !== '' || level.value !== 'all' || family.value !== 'all');
+
+function clearFilters(): void {
+  query.value = '';
+  level.value = 'all';
+  family.value = 'all';
+}
 
 /** Escape HTML, then turn `backtick spans` into inline <code>. Input is our own prose. */
 function withInlineCode(text: string): string {
@@ -54,31 +74,44 @@ function withInlineCode(text: string): string {
   return escaped.replace(/`([^`]+)`/g, '<code>$1</code>');
 }
 
-const severityLabel: Record<string, string> = {error: 'Error', warning: 'Warning', info: 'Info'};
+const levelLabel: Record<Level, string> = {error: 'Error', runtimeError: 'RuntimeError', warning: 'Warning', info: 'Info'};
+
+/** Badge class suffixes have to be valid CSS identifiers, so camelCase becomes a dash. */
+const levelClass: Record<Level, string> = {error: 'error', runtimeError: 'runtime', warning: 'warning', info: 'info'};
+
+const levelOptions: Level[] = ['error', 'runtimeError', 'warning', 'info'];
 </script>
 
 <template>
   <div class="diag">
-    <div class="diag-legend">
-      <div class="diag-legend__card">
-        <span class="diag-badge diag-badge--warning">Warning</span>
-        <p>A safe, expected drop, and the build keeps going. Anything with no data form (a method, a function-valued property, a symbol key) is left out of the generated function.</p>
-      </div>
-      <div class="diag-legend__card">
-        <span class="diag-badge diag-badge--error">Error</span>
-        <p>The generated function would throw the moment you call it, so the build stops. A whole value has no data form, like a type that resolves to <code>never</code> or a bare <code>symbol</code>. Change the type.</p>
-      </div>
-    </div>
-
     <div class="diag-search">
       <input
         v-model="query"
         type="search"
         class="diag-search__input"
-        placeholder="Search a code or a message, e.g. VL010 or symbol"
+        placeholder="Search any text, e.g. validate-symbol-root, symbol or bigint"
         aria-label="Search diagnostics"
       />
-      <span class="diag-search__count">{{ shownCount }} of {{ codes.length }} codes</span>
+      <span class="diag-search__count">{{ shownCount }} of {{ codes.length }} diagnostics</span>
+    </div>
+
+    <div class="diag-filters">
+      <div class="diag-filters__levels" role="group" aria-label="Filter by level">
+        <button type="button" :class="['diag-filters__level', {'is-active': level === 'all'}]" @click="level = 'all'">All levels</button>
+        <button
+          v-for="option in levelOptions"
+          :key="option"
+          type="button"
+          :class="['diag-filters__level', {'is-active': level === option}]"
+          @click="level = level === option ? 'all' : option"
+        >
+          <span :class="['diag-badge', `diag-badge--${levelClass[option]}`]">{{ levelLabel[option] }}</span>
+        </button>
+      </div>
+      <select v-model="family" class="diag-filters__family" aria-label="Filter by feature">
+        <option value="all">All features</option>
+        <option v-for="subsystem in subsystems" :key="subsystem.key" :value="subsystem.key">{{ subsystem.label }}</option>
+      </select>
     </div>
 
     <section v-for="subsystem in sections" :key="subsystem.key" class="diag-section">
@@ -88,12 +121,13 @@ const severityLabel: Record<string, string> = {error: 'Error', warning: 'Warning
       <article v-for="entry in subsystem.entries" :id="entry.code" :key="entry.code" class="diag-entry">
         <header class="diag-entry__head">
           <a :href="`#${entry.code}`" class="diag-entry__code">{{ entry.code }}</a>
-          <span :class="['diag-badge', `diag-badge--${entry.severity}`]">{{ severityLabel[entry.severity] }}</span>
+          <span :class="['diag-badge', `diag-badge--${levelClass[entry.level]}`]">{{ levelLabel[entry.level] }}</span>
+          <span v-if="entry.internal" class="diag-badge diag-badge--internal">Internal error</span>
         </header>
 
         <pre class="diag-entry__headline"><code>{{ entry.headline }}</code></pre>
 
-        <p v-if="entry.summary" class="diag-entry__summary" v-html="withInlineCode(entry.summary)" />
+        <p class="diag-entry__summary" v-html="withInlineCode(entry.summary)" />
 
         <div v-if="entry.example" class="diag-entry__snippet">
           <span class="diag-entry__label">A type that triggers it</span>
@@ -104,56 +138,19 @@ const severityLabel: Record<string, string> = {error: 'Error', warning: 'Warning
           <span class="diag-entry__label">How to fix it</span>
           <pre class="diag-entry__fix"><code>{{ entry.fix }}</code></pre>
         </div>
-
-        <details v-if="entry.detail" class="diag-entry__more">
-          <summary>Full build message</summary>
-          <pre><code>{{ entry.detail }}</code></pre>
-        </details>
       </article>
     </section>
 
-    <p v-if="sections.length === 0" class="diag-empty">No codes match “{{ query }}”.</p>
+    <p v-if="sections.length === 0" class="diag-empty">
+      No diagnostics match.
+      <button v-if="filtered" type="button" class="diag-empty__clear" @click="clearFilters">Clear the search and filters</button>
+    </p>
   </div>
 </template>
 
 <style scoped>
 .diag {
   margin-top: 1rem;
-}
-
-.diag-legend {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.9rem;
-  margin: 1rem 0 1.5rem;
-}
-
-@media (max-width: 640px) {
-  .diag-legend {
-    grid-template-columns: 1fr;
-  }
-}
-
-.diag-legend__card {
-  padding: 0.9rem 1rem;
-  border: 1px solid var(--ui-border, #26262a);
-  border-radius: 0.6rem;
-  background: color-mix(in oklab, var(--ui-bg-elevated, #141416) 60%, transparent);
-}
-
-.diag-legend__card p {
-  margin: 0.55rem 0 0;
-  font-size: 0.9rem;
-  line-height: 1.55;
-  color: var(--ui-text-muted, #9aa0a6);
-}
-
-.diag-legend__card code {
-  font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 0.85em;
-  padding: 0.05rem 0.3rem;
-  border-radius: 0.3rem;
-  background: var(--ui-bg, #0b0b0c);
 }
 
 .diag-search {
@@ -164,28 +161,77 @@ const severityLabel: Record<string, string> = {error: 'Error', warning: 'Warning
   align-items: center;
   gap: 0.75rem;
   padding: 0.5rem 0;
-  background: var(--ui-bg, #0b0b0c);
+  background: var(--ui-bg);
 }
 
 .diag-search__input {
   flex: 1;
   padding: 0.55rem 0.85rem;
-  border: 1px solid var(--ui-border, #2a2a2e);
+  border: 1px solid var(--ui-border);
   border-radius: 0.5rem;
-  background: var(--ui-bg-elevated, #141416);
+  background: var(--ui-bg-elevated);
   color: inherit;
   font-size: 0.95rem;
 }
 
 .diag-search__input:focus {
   outline: none;
-  border-color: var(--color-green-500, #79af43);
+  border-color: var(--color-brand-500);
 }
 
 .diag-search__count {
   font-size: 0.8rem;
-  color: var(--ui-text-muted, #9aa0a6);
+  color: var(--ui-text-muted);
   white-space: nowrap;
+}
+
+.diag-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.diag-filters__levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.diag-filters__level {
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 999px;
+  background: var(--ui-bg-elevated);
+  color: var(--ui-text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.diag-filters__level:hover {
+  border-color: var(--color-brand-500);
+}
+
+.diag-filters__level.is-active {
+  border-color: var(--color-brand-500);
+  background: color-mix(in srgb, var(--color-brand-500) 15%, transparent);
+  color: inherit;
+}
+
+.diag-filters__family {
+  margin-left: auto;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 0.5rem;
+  background: var(--ui-bg-elevated);
+  color: inherit;
+  font-size: 0.85rem;
+}
+
+.diag-filters__family:focus {
+  outline: none;
+  border-color: var(--color-brand-500);
 }
 
 .diag-section {
@@ -198,15 +244,15 @@ const severityLabel: Record<string, string> = {error: 'Error', warning: 'Warning
 
 .diag-section__desc {
   margin-top: 0.25rem;
-  color: var(--ui-text-muted, #9aa0a6);
+  color: var(--ui-text-muted);
 }
 
 .diag-entry {
   margin-top: 1.25rem;
   padding: 1rem 1.1rem;
-  border: 1px solid var(--ui-border, #26262a);
+  border: 1px solid var(--ui-border);
   border-radius: 0.6rem;
-  background: color-mix(in oklab, var(--ui-bg-elevated, #141416) 60%, transparent);
+  background: color-mix(in oklab, var(--ui-bg-elevated) 60%, transparent);
   scroll-margin-top: 6rem;
 }
 
@@ -225,43 +271,20 @@ const severityLabel: Record<string, string> = {error: 'Error', warning: 'Warning
 }
 
 .diag-entry__code:hover {
-  color: var(--color-green-500, #79af43);
-}
-
-.diag-badge {
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  padding: 0.1rem 0.5rem;
-  border-radius: 999px;
-  border: 1px solid currentColor;
-}
-
-.diag-badge--error {
-  color: var(--color-red-500, #ef4444);
-}
-
-.diag-badge--warning {
-  color: var(--color-amber-500, var(--color-yellow-500, #f59e0b));
-}
-
-.diag-badge--info {
-  color: var(--color-blue-500, #3b82f6);
+  color: var(--color-brand-500);
 }
 
 .diag-entry__headline {
   margin: 0.7rem 0 0;
   padding: 0.6rem 0.8rem;
   border-radius: 0.45rem;
-  background: var(--ui-bg, #0b0b0c);
+  background: var(--ui-bg);
   overflow-x: auto;
 }
 
 .diag-entry__headline code,
 .diag-entry__fix code,
-.diag-entry__example code,
-.diag-entry__more code {
+.diag-entry__example code {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 0.85rem;
   white-space: pre-wrap;
@@ -278,7 +301,7 @@ const severityLabel: Record<string, string> = {error: 'Error', warning: 'Warning
   font-size: 0.85em;
   padding: 0.05rem 0.3rem;
   border-radius: 0.3rem;
-  background: var(--ui-bg, #0b0b0c);
+  background: var(--ui-bg);
 }
 
 .diag-entry__snippet {
@@ -292,7 +315,7 @@ const severityLabel: Record<string, string> = {error: 'Error', warning: 'Warning
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  color: var(--ui-text-muted, #9aa0a6);
+  color: var(--ui-text-muted);
 }
 
 .diag-entry__example,
@@ -300,38 +323,27 @@ const severityLabel: Record<string, string> = {error: 'Error', warning: 'Warning
   margin: 0;
   padding: 0.6rem 0.8rem;
   border-radius: 0.45rem;
-  background: var(--ui-bg, #0b0b0c);
+  background: var(--ui-bg);
   overflow-x: auto;
 }
 
 .diag-entry__example {
-  border-left: 2px solid var(--color-amber-500, var(--color-yellow-500, #f59e0b));
+  border-left: 2px solid var(--color-amber-500, var(--color-yellow-500));
 }
 
 .diag-entry__fix {
-  border-left: 2px solid var(--color-green-500, #79af43);
-}
-
-.diag-entry__more {
-  margin-top: 0.7rem;
-}
-
-.diag-entry__more summary {
-  cursor: pointer;
-  font-size: 0.85rem;
-  color: var(--ui-text-muted, #9aa0a6);
-}
-
-.diag-entry__more pre {
-  margin-top: 0.5rem;
-  padding: 0.6rem 0.8rem;
-  border-radius: 0.45rem;
-  background: var(--ui-bg, #0b0b0c);
-  overflow-x: auto;
+  border-left: 2px solid var(--color-brand-500);
 }
 
 .diag-empty {
   margin-top: 2rem;
-  color: var(--ui-text-muted, #9aa0a6);
+  color: var(--ui-text-muted);
+}
+
+.diag-empty__clear {
+  margin-left: 0.5rem;
+  color: var(--color-brand-500);
+  text-decoration: underline;
+  cursor: pointer;
 }
 </style>

@@ -1,25 +1,11 @@
-// Ports the three ad-hoc noop-marker tests from
-// `00JsonOnly.spec.ts` (ref: packages/run-types/src/rtCompilers/json/jsonSpec/).
-//
-// Verifies the renderer's treatment of trivially JSON-safe shapes, which is
-// now STRONGER than the `isNoop: true` marker: the noop verdict is decided
-// semantically over the type graph (typefns/noop_types.go), and the JSON
-// composites ELIDE identity primitives outright — no binding, no import, no
-// module load. So where the reference asserts `entry.isNoop === true`, our runtime
-// cache simply never receives the pj/rj entry for a noop shape. When EVERY
-// binding elides, the composite itself arrives as the noop SHORT-FORM tuple
-// (isNoop=true, no body) and the runtime registers native JSON.stringify /
-// JSON.parse as its fn; a partially-live composite (strip's ukuw half) keeps
-// its real body with the dead half gone. Shapes that DO need a transform keep
-// their primitive entries, registered with isNoop=false.
-//
-// The entry lookups filter on `familyTag` (the tuple's exact emitting family)
-// rather than `fnID`: composites HOST on the primitive's fnID (`jeMU` carries
-// fnID 'pj'), so an fnID scan would match the composite once the primitive
-// stops loading — the exact ambiguity that masked this contract before.
+// The JSON composites elide identity primitives (noop_types.go decides), so a noop shape never loads its pj / rj
+// entry; when every binding elides, the composite is the noop short-form tuple backed by native JSON. Lookups filter
+// on `familyTag`, not `fnID`: a composite hosts on its primitive's fnID (`jeMU` carries 'pj'), so an fnID scan would
+// match the composite once the primitive stops loading.
 
 import {describe, expect, it} from 'vitest';
-import {createJsonDecoderFn, createJsonEncoderFn, getRTFnCaches, getRunTypeId} from '@mionjs/run-types';
+import {createJsonDecoderFn, createJsonEncoderFn, getRunTypeId} from '@mionjs/run-types';
+import {getRTFnCaches} from '@mionjs/run-types/runtime';
 
 interface NoJsonENCDECRequired {
   a: number;
@@ -55,19 +41,16 @@ function rjEntry(id: string) {
   return entryByFamily('rj', id);
 }
 
-// pj / rj are demand-scoped: each `T` inspected below must also be passed to
-// the matching JSON factory at a call site the scanner can see —
-// createJsonEncoderFn(mutate) demands `pj`, createJsonDecoderFn (default strip)
-// demands `rj`. Whether the demanded primitive then LOADS at runtime depends
-// on the composite keeping its binding — that's the contract under test.
+// pj / rj are demand-scoped: each `T` below also needs a mutate encoder / decoder call the scanner can see.
+// Whether the primitive then LOADS depends on the composite keeping its binding, the contract under test.
 describe('json noop markers (00JsonOnly.spec.ts port)', () => {
   it('interface json encode/decode should be marked as noop when there are no actions required', () => {
     const noopId = getRunTypeId<NoJsonENCDECRequired>();
     const encId = getRunTypeId<SonENCDECRequired>();
     createJsonEncoderFn<NoJsonENCDECRequired>(undefined, {strategy: 'mutate'});
-    createJsonDecoderFn<NoJsonENCDECRequired>();
+    createJsonDecoderFn<NoJsonENCDECRequired>(undefined, {strategy: 'mutate'});
     createJsonEncoderFn<SonENCDECRequired>(undefined, {strategy: 'mutate'});
-    createJsonDecoderFn<SonENCDECRequired>();
+    createJsonDecoderFn<SonENCDECRequired>(undefined, {strategy: 'mutate'});
 
     // Noop shapes: the composites elided their pj/rj bindings, so the
     // primitive entries never load — stronger than the isNoop flag.
@@ -81,9 +64,9 @@ describe('json noop markers (00JsonOnly.spec.ts port)', () => {
     const noopId = getRunTypeId<TupleNoJsonENCDECRequired>();
     const encId = getRunTypeId<TupleSonENCDECRequired>();
     createJsonEncoderFn<TupleNoJsonENCDECRequired>(undefined, {strategy: 'mutate'});
-    createJsonDecoderFn<TupleNoJsonENCDECRequired>();
+    createJsonDecoderFn<TupleNoJsonENCDECRequired>(undefined, {strategy: 'mutate'});
     createJsonEncoderFn<TupleSonENCDECRequired>(undefined, {strategy: 'mutate'});
-    createJsonDecoderFn<TupleSonENCDECRequired>();
+    createJsonDecoderFn<TupleSonENCDECRequired>(undefined, {strategy: 'mutate'});
 
     expect(pjEntry(noopId)).toBeUndefined();
     expect(rjEntry(noopId)).toBeUndefined();
@@ -100,12 +83,12 @@ describe('json noop markers (00JsonOnly.spec.ts port)', () => {
     // unparsed string. The end-to-end calls below are the behavioral pin.
     const noopId = getRunTypeId<NoJsonENCDECRequired>();
     const enc = createJsonEncoderFn<NoJsonENCDECRequired>(undefined, {strategy: 'mutate'});
-    const dec = createJsonDecoderFn<NoJsonENCDECRequired>(undefined, {strategy: 'preserve'});
+    const dec = createJsonDecoderFn<NoJsonENCDECRequired>(undefined, {strategy: 'mutate'});
 
     const encoderEntry = entryByFamily('jeMU', noopId);
     expect(encoderEntry?.isNoop).toBe(true);
     expect(encoderEntry?.code).toBeUndefined();
-    const decoderEntry = entryByFamily('jdPR', noopId);
+    const decoderEntry = entryByFamily('jdMU', noopId);
     expect(decoderEntry?.isNoop).toBe(true);
     expect(decoderEntry?.code).toBeUndefined();
 
@@ -115,19 +98,19 @@ describe('json noop markers (00JsonOnly.spec.ts port)', () => {
     // Transform-carrying control: the composite keeps a real body.
     const encId = getRunTypeId<SonENCDECRequired>();
     createJsonEncoderFn<SonENCDECRequired>(undefined, {strategy: 'mutate'});
-    createJsonDecoderFn<SonENCDECRequired>(undefined, {strategy: 'preserve'});
+    createJsonDecoderFn<SonENCDECRequired>(undefined, {strategy: 'mutate'});
     expect(entryByFamily('jeMU', encId)?.isNoop).toBe(false);
-    expect(entryByFamily('jdPR', encId)?.isNoop).toBe(false);
+    expect(entryByFamily('jdMU', encId)?.isNoop).toBe(false);
   });
 
-  it('strip decoder keeps its live ukuw half for object shapes', () => {
-    // Default strip over an object is NEVER the collapsed short-form: rj
-    // elides but unknownKeysToUndefinedWire does real work, so the composite
-    // keeps `return ukuwFn(JSON.parse(s))` — and stripping still happens.
+  it('clone decoder stays live for object shapes, so undeclared keys are still dropped', () => {
+    // The default clone rebuilds the declared shape, which is real work even when no value needs a transform.
     const noopId = getRunTypeId<NoJsonENCDECRequired>();
     const dec = createJsonDecoderFn<NoJsonENCDECRequired>();
-    expect(entryByFamily('jdST', noopId)?.isNoop).toBe(false);
-    expect(dec('{"a":1,"b":"x","extra":2}')).toEqual({a: 1, b: 'x', extra: undefined});
+    expect(entryByFamily('jdCL', noopId)?.isNoop).toBe(false);
+    const back = dec('{"a":1,"b":"x","extra":2}');
+    expect(back).toStrictEqual({a: 1, b: 'x'});
+    expect('extra' in back).toBe(false);
   });
 
   it('atomic union — pj AND rj both collapse when no member needs the wrap', () => {
@@ -139,7 +122,7 @@ describe('json noop markers (00JsonOnly.spec.ts port)', () => {
     //   - prepareForJson is identity → the pj entry is elided (no dispatch, no
     //     trailing throw). (Previously it kept the validate-and-return-unchanged
     //     dispatch — the finding-B asymmetry, now removed.)
-    //   - restoreFromJson has nothing to decode → the rj side is identity → the
+    //   - restoreFromJsonMutate has nothing to decode → the rj side is identity → the
     //     decoder composite elides it and the entry never loads.
     // For `bigint | Date`, both members are non-noop on at least one half (bigint
     // pj/rj are non-noop, Date rj is non-noop), so the wrap is preserved on every
@@ -147,9 +130,9 @@ describe('json noop markers (00JsonOnly.spec.ts port)', () => {
     const noopId = getRunTypeId<AtomicNoEncRequired>();
     const encId = getRunTypeId<AtomicEncRequired>();
     createJsonEncoderFn<AtomicNoEncRequired>(undefined, {strategy: 'mutate'});
-    createJsonDecoderFn<AtomicNoEncRequired>();
+    createJsonDecoderFn<AtomicNoEncRequired>(undefined, {strategy: 'mutate'});
     createJsonEncoderFn<AtomicEncRequired>(undefined, {strategy: 'mutate'});
-    createJsonDecoderFn<AtomicEncRequired>();
+    createJsonDecoderFn<AtomicEncRequired>(undefined, {strategy: 'mutate'});
 
     expect(pjEntry(noopId)).toBeUndefined();
     expect(rjEntry(noopId)).toBeUndefined();

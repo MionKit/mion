@@ -47,7 +47,7 @@ interface FuzzLoopCommon<V> {
 
 export interface FuzzLoopOptions<V> extends FuzzLoopCommon<V> {
   /** Fixed work that must happen INSIDE the budget but OUTSIDE the crash guard:
-   *  the binary lane's deterministic floor (its loud failure is the proof the
+   *  a lane's deterministic floor (its loud failure is the proof the
    *  resolver is reachable, so it must never be swallowed) and the elision
    *  lane's client + convert project. Runs once, before the first round. **/
   setup?: (seed: number) => void | Promise<void>;

@@ -1,0 +1,362 @@
+/* ########
+ * 2026 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+import {describe, it, expect, expectTypeOf, vi, afterEach} from 'vitest';
+import {HeadersSubset, RpcError} from '@mionjs/core';
+import type {TestServerApi} from '@mionjs/test-server';
+import {initClient} from './lib/fetchingClient.ts';
+import {batch} from '../src/batch.ts';
+import type {CallContext} from '../src/types.ts';
+import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
+import {forgetMetadata} from './lib/testUtils.ts';
+
+const baseURL = TEST_SERVER_BASE_URL;
+const user = {name: 'John', surname: 'Doe'};
+const authHeaders = new HeadersSubset({Authorization: 'XWYZ-TOKEN'});
+
+async function spyOnFetch(run: () => Promise<void>): Promise<{init: RequestInit; body: any}[]> {
+  const fetchSpy = vi.spyOn(globalThis, 'fetch');
+  try {
+    await run();
+    return fetchSpy.mock.calls.map(([, init]) => ({
+      init: init as RequestInit,
+      body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
+    }));
+  } finally {
+    fetchSpy.mockRestore();
+  }
+}
+
+describe('middleware onRequest', () => {
+  let destroy: (() => void) | undefined;
+  afterEach(() => destroy?.());
+
+  function newClient() {
+    const initialized = initClient<TestServerApi>({baseURL});
+    destroy = () => initialized.client.destroy();
+    return initialized;
+  }
+
+  it('runs before every request whose chain has the middleware, with the request as context', async () => {
+    const {routes, middlewares} = newClient();
+    const contexts: CallContext[] = [];
+    middlewares.auth.onRequest((auth, context) => {
+      contexts.push(context);
+      auth(authHeaders);
+    });
+
+    for (let i = 0; i < 3; i++) {
+      const [greeting, error, response] = await routes.sayHello(user).call();
+      expect(response['@thrownErrors']).toBeUndefined();
+      expect(error).toBeUndefined();
+      expect(greeting).toBe('Hello John Doe');
+    }
+    const [age] = await routes.calculateAge(2000).call();
+    expect(age).toBeGreaterThan(20);
+
+    expect(contexts.map((context) => context.route?.id)).toEqual(['sayHello', 'sayHello', 'sayHello', 'calculateAge']);
+    expect(contexts[0].subRequestList.sayHello.params).toEqual([user]);
+  });
+
+  it('the context is plain data, with no methods and no retry state', async () => {
+    const {routes, middlewares} = newClient();
+    const contexts: CallContext[] = [];
+    middlewares.auth.onRequest((auth, context) => {
+      contexts.push(context);
+      auth(authHeaders);
+    });
+
+    const [greeting] = await routes.sayHello(user).call();
+    expect(greeting).toBe('Hello John Doe');
+    const context = contexts[0] as unknown as Record<string, unknown>;
+    expect(Object.getPrototypeOf(context)).toBe(Object.prototype);
+    expect(Object.values(context).filter((value) => typeof value === 'function')).toEqual([]);
+    const retryKeys = ['purgedStaleMetadata', 'retriedAfterMismatch', 'verifying', 'askedRequestHandlers'];
+    expect(retryKeys.filter((key) => key in context)).toEqual([]);
+  });
+
+  it('runs once per batch, and the context lists the batch routes', async () => {
+    // inline: the build reads a batch's routes only from the proxy initClient returns in this file
+    const {client, routes, middlewares} = initClient<TestServerApi>({baseURL});
+    destroy = () => client.destroy();
+    const contexts: CallContext[] = [];
+    middlewares.auth.onRequest((auth, context) => {
+      contexts.push(context);
+      auth(authHeaders);
+    });
+
+    const entries = await batch([routes.sayHello(user), routes.utils.sumTwo(1)]).call();
+    const [[, , response]] = entries;
+    expect(response['@thrownErrors']).toBeUndefined();
+    expect(entries.map(([, error]) => error)).toEqual([undefined, undefined]);
+    expect(entries.map(([value]) => value)).toEqual(['Hello John Doe', 3]);
+    expect(contexts).toHaveLength(1);
+    expect(contexts[0].route).toBeUndefined();
+    expect(contexts[0].batchSubRequests?.map((subRequest) => subRequest.id)).toEqual(['sayHello', 'utils/sumTwo']);
+  });
+
+  it('a middleware not in the chain is never asked', async () => {
+    const {routes, middlewares} = newClient();
+    middlewares.auth.onRequest((auth) => auth(authHeaders));
+    const scopeTag = vi.fn((call: (tag?: string) => void) => call('tagged'));
+    middlewares.utils.scopeTag.onRequest(scopeTag);
+
+    const [, , response] = await routes.sayHello(user).call();
+    expect(scopeTag).not.toHaveBeenCalled();
+    expect(response.utils?.scopeTag).toBeUndefined();
+
+    const [sum, , response2] = await routes.utils.sumTwo(5).call();
+    expect(sum).toBe(7);
+    expect(scopeTag).toHaveBeenCalledTimes(1);
+    expect(response2.utils?.scopeTag).toBe('tagged');
+  });
+
+  it('not calling `call` sends nothing for that middleware', async () => {
+    const {routes, middlewares} = newClient();
+    let sendAuth = true;
+    middlewares.auth.onRequest((auth) => {
+      if (sendAuth) auth(authHeaders);
+    });
+
+    const [greeting] = await routes.sayHello(user).call();
+    expect(greeting).toBe('Hello John Doe');
+
+    sendAuth = false;
+    const [result, routeError, response] = await routes.sayHello(user).call();
+    // the server's auth headers check fails: the auth middleware's own validation error
+    expect(result).toBeUndefined();
+    expect(routeError).toBeUndefined();
+    expect((response.auth as RpcError<string> | undefined)?.publicMessage).toContain('auth');
+  });
+
+  it('calling `call` twice keeps the last params', async () => {
+    const {routes, middlewares} = newClient();
+    middlewares.auth.onRequest((auth) => auth(authHeaders));
+    middlewares.session.onRequest((session) => {
+      session('expired');
+      session('valid-token');
+    });
+
+    const [, , response] = await routes.sayHello(user).call();
+    expect(response['@thrownErrors']).toBeUndefined();
+    expect(response.session).toEqual(expect.objectContaining({userId: 'user-123'}));
+  });
+
+  it('a `call` made after the handler finished belongs to no request', async () => {
+    const {routes, middlewares} = newClient();
+    let lateCall: ((h: HeadersSubset<'Authorization'>) => void) | undefined;
+    let isFirst = true;
+    middlewares.auth.onRequest((auth) => {
+      if (isFirst) auth(authHeaders);
+      else lateCall = auth;
+      isFirst = false;
+    });
+
+    await routes.sayHello(user).call();
+    const [, , response] = await routes.sayHello(user).call();
+    expect((response.auth as RpcError<string> | undefined)?.publicMessage).toContain('auth');
+    lateCall?.(authHeaders);
+    const [, , response2] = await routes.sayHello(user).call();
+    expect((response2.auth as RpcError<string> | undefined)?.publicMessage).toContain('auth');
+  });
+
+  it('awaits an async handler', async () => {
+    const {routes, middlewares} = newClient();
+    middlewares.auth.onRequest(async (auth) => {
+      const token = await new Promise<string>((resolve) => setTimeout(() => resolve('ASYNC-TOKEN'), 5));
+      auth(new HeadersSubset({Authorization: token}));
+    });
+    middlewares.session.onRequest((session) => session('valid-token'));
+
+    const calls = await spyOnFetch(async () => {
+      const [greeting, error, response] = await routes.sayHello(user).call();
+      expect(response['@thrownErrors']).toBeUndefined();
+      expect(error).toBeUndefined();
+      expect(greeting).toBe('Hello John Doe');
+      expect(response.session).toEqual(expect.objectContaining({userId: 'user-123'}));
+    });
+    expect((calls[calls.length - 1].init.headers as Record<string, string>).Authorization).toBe('ASYNC-TOKEN');
+  });
+
+  describe('a failing handler stops the request', () => {
+    const cases: [string, (auth: (h: HeadersSubset<'Authorization'>) => void) => void | Promise<void>][] = [
+      [
+        'throws',
+        () => {
+          throw new Error('no token');
+        },
+      ],
+      ['rejects', () => Promise.reject(new Error('no token'))],
+    ];
+    for (const [name, handler] of cases) {
+      it(`${name}: the error lands in @thrownErrors and nothing is sent`, async () => {
+        const {routes, middlewares} = newClient();
+        await routes.sayHello(user).typeErrors(); // learn the metadata first, so a fetch can only be the request
+        middlewares.auth.onRequest(handler).onError('not-authorized', () => expect.fail('not a declared error'));
+
+        const calls = await spyOnFetch(async () => {
+          const [result, routeError, response] = await routes.sayHello(user).call();
+          expect(result).toBeUndefined();
+          expect(routeError).toBeUndefined();
+          expect(response['@thrownErrors']?.[0]?.type).toBe('middleware-on-request-failed');
+          expect(response['@thrownErrors']?.[0]?.publicMessage).toBe("onRequest for middleware 'auth' failed: no token");
+        });
+        expect(calls).toHaveLength(0);
+      });
+    }
+
+    it('a thrown RpcError is kept as is', async () => {
+      const {routes, middlewares} = newClient();
+      const loggedOut = new RpcError({type: 'logged-out', publicMessage: 'Log in first'});
+      middlewares.auth.onRequest(() => {
+        throw loggedOut;
+      });
+      const [, , response] = await routes.sayHello(user).call();
+      expect(response['@thrownErrors']?.[0]).toBe(loggedOut);
+    });
+  });
+
+  it('onResponse and onError run with the middleware result, which is also in the result slots by id', async () => {
+    const {routes, middlewares} = newClient();
+    let token = 'valid-token';
+    const onResponse = vi.fn();
+    const onError = vi.fn();
+    middlewares.auth.onRequest((auth) => auth(authHeaders));
+    middlewares.session
+      .onRequest((session) => session(token))
+      .onResponse(onResponse)
+      .onError('session-expired', onError);
+
+    const [, , response] = await routes.sayHello(user).call();
+    expect(onResponse).toHaveBeenCalledWith(
+      expect.objectContaining({userId: 'user-123'}),
+      expect.objectContaining({retry: expect.any(Function)})
+    );
+    expect(response.session).toEqual(expect.objectContaining({userId: 'user-123'}));
+
+    token = 'expired';
+    const [, , response2] = await routes.sayHello(user).call();
+    expect(response2['@thrownErrors']).toBeUndefined();
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect((response2.session as RpcError<string> | undefined)?.type).toBe('session-expired');
+  });
+
+  it('offRequest and destroy stop the handler', async () => {
+    const {client, routes, middlewares} = newClient();
+    const handler = vi.fn((auth: (h: HeadersSubset<'Authorization'>) => void) => auth(authHeaders));
+    middlewares.auth.onRequest(handler);
+    await routes.sayHello(user).call();
+    middlewares.auth.offRequest();
+    await routes.sayHello(user).call();
+    expect(handler).toHaveBeenCalledTimes(1);
+
+    middlewares.auth.onRequest(handler);
+    client.destroy();
+    await routes.sayHello(user).call();
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it('the first optimistic call carries the onRequest params and is one round trip', async () => {
+    const {routes, middlewares} = newClient();
+    middlewares.auth.onRequest((auth) => auth(authHeaders));
+    middlewares.utils.scopeTag.onRequest((scopeTag) => scopeTag('tagged'));
+    await forgetMetadata(baseURL, 'utils/sumTwo');
+
+    const calls = await spyOnFetch(async () => {
+      const [sum, error, response] = await routes.utils.sumTwo(5).call();
+      expect(response['@thrownErrors']).toBeUndefined();
+      expect(error).toBeUndefined();
+      expect(sum).toBe(7);
+      expect(response.utils?.scopeTag).toBe('tagged');
+    });
+    expect(calls).toHaveLength(1);
+    expect(calls[0].body['utils/scopeTag']).toEqual(['tagged']);
+    expect((calls[0].init.headers as Record<string, string>).Authorization).toBe('XWYZ-TOKEN');
+  });
+
+  describe('a middleware with no params needs no onRequest', () => {
+    it('its answer reaches the tuple and onResponse', async () => {
+      const {routes, middlewares} = newClient();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+      const pageInfos: {page: number; total: number}[] = [];
+      middlewares.paramless.pageInfo.onResponse((info) => {
+        pageInfos.push(info);
+      });
+
+      const [items, error, response] = await routes.paramless.list(2).call();
+
+      expect(error).toBeUndefined();
+      expect(response['@thrownErrors']).toBeUndefined();
+      expect(items).toEqual([20, 21]);
+      expect(response.paramless?.pageInfo).toEqual({page: 2, total: 100});
+      expect(pageInfos).toEqual([{page: 2, total: 100}]);
+    });
+
+    it('works on an optimistic first call, before the client has the route metadata', async () => {
+      await forgetMetadata(baseURL, 'paramless/list', 'paramless/pageInfo', 'paramless/gate');
+      const {routes, middlewares} = newClient();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+
+      const [items, , response] = await routes.paramless.list(3).call();
+
+      expect(response['@thrownErrors']).toBeUndefined();
+      expect(items).toEqual([30, 31]);
+      expect(response.paramless?.pageInfo).toEqual({page: 3, total: 100});
+    });
+
+    it('never writes the middleware into the request body', async () => {
+      const {routes, middlewares} = newClient();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+      await routes.paramless.list(1).call();
+
+      const calls = await spyOnFetch(async () => {
+        await routes.paramless.list(4).call();
+      });
+
+      expect(calls).toHaveLength(1);
+      expect(Object.keys(calls[0].body)).toEqual(['paramless/list']);
+    });
+
+    it('answers in a batch', async () => {
+      // inline: the build reads a batch's routes only from the proxy initClient returns in this file
+      const {client, routes, middlewares} = initClient<TestServerApi>({baseURL});
+      destroy = () => client.destroy();
+      middlewares.auth.onRequest((auth) => auth(authHeaders));
+      let answers = 0;
+      middlewares.paramless.pageInfo.onResponse(() => {
+        answers++;
+      });
+
+      const [[greeting, , response], [items]] = await batch([routes.sayHello(user), routes.paramless.list(5)]).call();
+
+      expect(response['@thrownErrors']).toBeUndefined();
+      expect(greeting).toBe('Hello John Doe');
+      expect(items).toEqual([50, 51]);
+      expect(response.paramless?.pageInfo).toEqual({page: 5, total: 100});
+      expect(answers).toBe(1);
+    });
+  });
+
+  it('types: call takes the middleware params and returns void, and the middleware is hooks only', () => {
+    const {middlewares} = initClient<TestServerApi>({baseURL: 'http://localhost'});
+    middlewares.session.onRequest((session, context) => {
+      expectTypeOf(session).parameters.toEqualTypeOf<[sessionToken?: string]>();
+      expectTypeOf(session).returns.toEqualTypeOf<void>();
+      expectTypeOf(context).toEqualTypeOf<CallContext>();
+      // @ts-expect-error wrong param type
+      session(123);
+    });
+    middlewares.auth.onRequest((auth) => {
+      // @ts-expect-error a headers middleware takes a HeadersSubset
+      auth('XWYZ-TOKEN');
+    });
+    // @ts-expect-error params are set only through onRequest
+    middlewares.session('valid-token');
+    expectTypeOf(middlewares.session).toHaveProperty('onResponse');
+    expectTypeOf(middlewares.session).not.toHaveProperty('typeErrors' as never);
+  });
+});

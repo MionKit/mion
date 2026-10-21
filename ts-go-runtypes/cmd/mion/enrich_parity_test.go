@@ -104,7 +104,7 @@ func enrichParityCLI(t *testing.T, absSrc, typeName string, config enrichConfig)
 		t.Fatalf("cli build program: %v", err)
 	}
 	defer res.Close()
-	specs, _, err := enrichgen.Plan(prog, res.Checker(), res.Cache(), absSrc, typeName, "", true, true, config)
+	specs, err := enrichgen.Plan(prog, res.Checker(), res.Cache(), absSrc, typeName, "", true, true, config)
 	if err != nil {
 		t.Fatalf("cli plan: %v", err)
 	}
@@ -151,4 +151,48 @@ func enrichParityDaemon(t *testing.T, dir, tsconfigPath, genDir string, hashLeng
 		out[enrichFile.Path] = enrichFile.Content
 	}
 	return out
+}
+
+// TestEnrichParity_DefaultGenDir: with no rootDir or genDir, the CLI and the daemon infer the same <srcDir>/.mion.
+func TestEnrichParity_DefaultGenDir(t *testing.T) {
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	srcDir := filepath.Join(dir, "src")
+	writeTestFile(t, filepath.Join(dir, "tsconfig.json"), `{"compilerOptions":{"strict":true},"include":["src"]}`)
+	writeTestFile(t, filepath.Join(srcDir, "rt-overlay.d.ts"), parityMarkerOverlay)
+	writeTestFile(t, filepath.Join(srcDir, "models.ts"), "export interface User { id: number; name: string }\n")
+	writeTestFile(t, filepath.Join(srcDir, "main.ts"), parityMain)
+	absSrc := tspath.NormalizePath(filepath.Join(srcDir, "models.ts"))
+	absMain := tspath.NormalizePath(filepath.Join(srcDir, "main.ts"))
+
+	tsconfigPath := resolveConfigPath(dir, "")
+	parsed, err := program.ParseInferredConfig(dir, tsconfigPath)
+	if err != nil {
+		t.Fatalf("parse config: %v", err)
+	}
+	config := resolveEnrichConfig(absSrc, "", tsconfigPath, parsed)
+	if want := filepath.Join(srcDir, defaultGenDirName); config.GenDir() != want {
+		t.Fatalf("CLI genDir = %q, want the common source folder's %q", config.GenDir(), want)
+	}
+
+	cliFiles := enrichParityCLI(t, absSrc, "User", config)
+	daemonFiles := enrichParityDaemon(t, dir, tsconfigPath, "", config.HashLength, absSrc, absMain)
+	if len(cliFiles) == 0 || len(cliFiles) != len(daemonFiles) {
+		t.Fatalf("mirror count: CLI %d, daemon %d", len(cliFiles), len(daemonFiles))
+	}
+	for path := range cliFiles {
+		if _, ok := daemonFiles[path]; !ok {
+			t.Errorf("daemon has no mirror at the CLI path %s; daemon paths: %v", path, keysOf(daemonFiles))
+		}
+	}
+}
+
+func keysOf(files map[string]string) []string {
+	keys := make([]string, 0, len(files))
+	for key := range files {
+		keys = append(keys, key)
+	}
+	return keys
 }

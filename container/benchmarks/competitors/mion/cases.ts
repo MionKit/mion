@@ -11,7 +11,7 @@
 import * as TF from '@mionjs/run-types/formats';
 import type * as TFT from '@mionjs/run-types/formats/temporal';
 import * as RT from '@mionjs/run-types/builders';
-import {createValidateFn, createGetValidationErrorsFn, createHasUnknownKeysFn, registerFormatPattern} from '@mionjs/run-types';
+import {createValidateFn, createGetValidationErrorsFn, registerFormatPattern} from '@mionjs/run-types';
 import {NOT_SUPPORTED, type CompetitorCases} from '../../shared/harness/types.ts';
 
 // Custom string-format patterns the STRING_FORMAT.pattern_* cases reference —
@@ -105,17 +105,7 @@ export const cases: CompetitorCases = {
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
-  'ATOMIC.literal_symbol': {
-    build: () => {
-      const sym = Symbol('hello');
-      return createValidateFn<typeof sym>();
-    },
-    buildErrors: () => {
-      const sym = Symbol('hello');
-      const getErrors = createGetValidationErrorsFn<typeof sym>();
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
+  'ATOMIC.literal_symbol': NOT_SUPPORTED, // factoryThrows (validate-symbol-root): not data
   'ATOMIC.never': {
     build: () => createValidateFn<never>(),
     buildErrors: () => {
@@ -144,13 +134,7 @@ export const cases: CompetitorCases = {
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
-  'ATOMIC.regexp': {
-    build: () => createValidateFn<RegExp>(),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<RegExp>();
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
+  'ATOMIC.regexp': NOT_SUPPORTED, // factoryThrows (validate-non-data-root): not data
   'ATOMIC.string': {
     build: () => createValidateFn<string>(),
     buildErrors: () => {
@@ -173,46 +157,6 @@ export const cases: CompetitorCases = {
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
-  'ATOMIC.literal_2_noLiterals': {
-    build: () => createValidateFn<2>(undefined, {noLiterals: true}),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<2>(undefined, {noLiterals: true});
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
-  'ATOMIC.literal_a_noLiterals': {
-    build: () => createValidateFn<'a'>(undefined, {noLiterals: true}),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<'a'>(undefined, {noLiterals: true});
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
-  'ATOMIC.literal_regexp_noLiterals': {
-    build: () => {
-      const reg = /abc/i;
-      return createValidateFn<typeof reg>(undefined, {noLiterals: true});
-    },
-    buildErrors: () => {
-      const reg = /abc/i;
-      const getErrors = createGetValidationErrorsFn<typeof reg>(undefined, {noLiterals: true});
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
-  'ATOMIC.literal_true_noLiterals': {
-    build: () => createValidateFn<true>(undefined, {noLiterals: true}),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<true>(undefined, {noLiterals: true});
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
-  'ATOMIC.literal_1n_noLiterals': {
-    build: () => createValidateFn<1n>(undefined, {noLiterals: true}),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<1n>(undefined, {noLiterals: true});
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
-  'ATOMIC.literal_symbol_noLiterals': NOT_SUPPORTED, // factoryThrows
   'ATOMIC.unknown': {
     build: () => createValidateFn<unknown>(),
     buildErrors: () => {
@@ -257,13 +201,7 @@ export const cases: CompetitorCases = {
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
-  'ARRAY.regexp_array': {
-    build: () => createValidateFn<RegExp[]>(),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<RegExp[]>();
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
+  'ARRAY.regexp_array': NOT_SUPPORTED, // factoryThrows (validate-non-data-root): not data
   'ARRAY.undefined_array': {
     build: () => createValidateFn<undefined[]>(),
     buildErrors: () => {
@@ -296,13 +234,6 @@ export const cases: CompetitorCases = {
     build: () => createValidateFn<string[][][]>(),
     buildErrors: () => {
       const getErrors = createGetValidationErrorsFn<string[][][]>();
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
-  'ARRAY.string_array_noIsArrayCheck': {
-    build: () => createValidateFn<string[]>(undefined, {noIsArrayCheck: true}),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<string[]>(undefined, {noIsArrayCheck: true});
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
@@ -523,20 +454,8 @@ export const cases: CompetitorCases = {
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
-  'OBJECT.function_top_level': {
-    build: () => createValidateFn<() => void>(),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<() => void>();
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
-  'OBJECT.interface_callable': {
-    build: () => createValidateFn<{(a: number, b: boolean): string; extra: string}>(),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<{(a: number, b: boolean): string; extra: string}>();
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
+  'OBJECT.function_top_level': NOT_SUPPORTED, // factoryThrows (validate-function-root): not data
+  'OBJECT.interface_callable': NOT_SUPPORTED, // factoryThrows (validate-function-root): not data
   'OBJECT.interface_all_optional': {
     build: () => createValidateFn<{a?: string; b?: number}>(),
     buildErrors: () => {
@@ -771,13 +690,7 @@ export const cases: CompetitorCases = {
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
-  'TUPLE.tuple_with_non_serializable': {
-    build: () => createValidateFn<[number, () => any]>(),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<[number, () => any]>();
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
+  'TUPLE.tuple_with_non_serializable': NOT_SUPPORTED, // factoryThrows (validate-function-root): not data
   'TUPLE.empty_tuple': {
     build: () => createValidateFn<[]>(),
     buildErrors: () => {
@@ -1103,13 +1016,7 @@ export const cases: CompetitorCases = {
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
-  'NATIVE.promise_string': {
-    build: () => createValidateFn<Promise<string>>(),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<Promise<string>>();
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
+  'NATIVE.promise_string': NOT_SUPPORTED, // factoryThrows (validate-non-data-root): not data
   'NATIVE.awaited_promise': {
     build: () => createValidateFn<Awaited<Promise<string>>>(),
     buildErrors: () => {
@@ -2052,10 +1959,10 @@ export const cases: CompetitorCases = {
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
-  'STRING_FORMAT.domainStrict': {
-    build: () => createValidateFn<TF.DomainStrict>(),
+  'STRING_FORMAT.domainParts': {
+    build: () => createValidateFn<TF.DomainParts>(),
     buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<TF.DomainStrict>();
+      const getErrors = createGetValidationErrorsFn<TF.DomainParts>();
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
@@ -2073,31 +1980,31 @@ export const cases: CompetitorCases = {
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
-  'STRING_FORMAT.emailStrict': {
-    build: () => createValidateFn<TF.EmailStrict>(),
+  'STRING_FORMAT.emailParts': {
+    build: () => createValidateFn<TF.EmailParts>(),
     buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<TF.EmailStrict>();
+      const getErrors = createGetValidationErrorsFn<TF.EmailParts>();
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
   'STRING_FORMAT.url': {
-    build: () => createValidateFn<TF.Url>(),
+    build: () => createValidateFn<TF.StringUrl>(),
     buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<TF.Url>();
+      const getErrors = createGetValidationErrorsFn<TF.StringUrl>();
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
   'STRING_FORMAT.urlHttp': {
-    build: () => createValidateFn<TF.UrlHttp>(),
+    build: () => createValidateFn<TF.StringUrlHttp>(),
     buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<TF.UrlHttp>();
+      const getErrors = createGetValidationErrorsFn<TF.StringUrlHttp>();
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
   'STRING_FORMAT.urlFile': {
-    build: () => createValidateFn<TF.UrlFile>(),
+    build: () => createValidateFn<TF.StringUrlFile>(),
     buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn<TF.UrlFile>();
+      const getErrors = createGetValidationErrorsFn<TF.StringUrlFile>();
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
@@ -2785,11 +2692,7 @@ export const cases: CompetitorCases = {
   },
 
   // ── STRICT ──
-  // The strict path: validate THEN reject undeclared keys. `runsAfterValidation`
-  // is what makes the emitter swap the key-array scan for the `cntEK(v) !== N`
-  // count check, so these are the only cases in the suite that reach
-  // rt::countEnumKeys — the per-engine counter. The `&&` short-circuit is what
-  // makes the option sound: hasUnknownKeys only ever sees values validate accepted.
+  // The only cases reaching countEnumKeys, the per-engine counter: all-required nodes get `cntEK(v) === N`.
   'STRICT.flat_required': {
     build: () => {
       interface StrictFlat {
@@ -2797,9 +2700,7 @@ export const cases: CompetitorCases = {
         name: string;
         active: boolean;
       }
-      const validate = createValidateFn<StrictFlat>();
-      const hasUnknownKeys = createHasUnknownKeysFn<StrictFlat>(undefined, {runsAfterValidation: true});
-      return (value: unknown) => validate(value) && !hasUnknownKeys(value);
+      return createValidateFn<StrictFlat>(undefined, {checkUnknowns: true});
     },
     buildErrors: () => {
       interface StrictFlat {
@@ -2807,9 +2708,8 @@ export const cases: CompetitorCases = {
         name: string;
         active: boolean;
       }
-      const getErrors = createGetValidationErrorsFn<StrictFlat>();
-      const hasUnknownKeys = createHasUnknownKeysFn<StrictFlat>(undefined, {runsAfterValidation: true});
-      return (value: unknown) => getErrors(value).length === 0 && !hasUnknownKeys(value);
+      const getErrors = createGetValidationErrorsFn<StrictFlat>(undefined, {checkUnknowns: true});
+      return (value: unknown) => getErrors(value).length === 0;
     },
   },
   'STRICT.nested_required': {
@@ -2818,18 +2718,15 @@ export const cases: CompetitorCases = {
         name: string;
         inner: {x: number; y: string};
       }
-      const validate = createValidateFn<StrictNested>();
-      const hasUnknownKeys = createHasUnknownKeysFn<StrictNested>(undefined, {runsAfterValidation: true});
-      return (value: unknown) => validate(value) && !hasUnknownKeys(value);
+      return createValidateFn<StrictNested>(undefined, {checkUnknowns: true});
     },
     buildErrors: () => {
       interface StrictNested {
         name: string;
         inner: {x: number; y: string};
       }
-      const getErrors = createGetValidationErrorsFn<StrictNested>();
-      const hasUnknownKeys = createHasUnknownKeysFn<StrictNested>(undefined, {runsAfterValidation: true});
-      return (value: unknown) => getErrors(value).length === 0 && !hasUnknownKeys(value);
+      const getErrors = createGetValidationErrorsFn<StrictNested>(undefined, {checkUnknowns: true});
+      return (value: unknown) => getErrors(value).length === 0;
     },
   },
   'STRICT.moltar_dto': {
@@ -2843,9 +2740,7 @@ export const cases: CompetitorCases = {
         boolean: boolean;
         deeplyNested: {foo: string; num: number; bool: boolean};
       }
-      const validate = createValidateFn<StrictMoltarDto>();
-      const hasUnknownKeys = createHasUnknownKeysFn<StrictMoltarDto>(undefined, {runsAfterValidation: true});
-      return (value: unknown) => validate(value) && !hasUnknownKeys(value);
+      return createValidateFn<StrictMoltarDto>(undefined, {checkUnknowns: true});
     },
     buildErrors: () => {
       interface StrictMoltarDto {
@@ -2857,14 +2752,11 @@ export const cases: CompetitorCases = {
         boolean: boolean;
         deeplyNested: {foo: string; num: number; bool: boolean};
       }
-      const getErrors = createGetValidationErrorsFn<StrictMoltarDto>();
-      const hasUnknownKeys = createHasUnknownKeysFn<StrictMoltarDto>(undefined, {runsAfterValidation: true});
-      return (value: unknown) => getErrors(value).length === 0 && !hasUnknownKeys(value);
+      const getErrors = createGetValidationErrorsFn<StrictMoltarDto>(undefined, {checkUnknowns: true});
+      return (value: unknown) => getErrors(value).length === 0;
     },
   },
-  // The one case here carrying an OPTIONAL key. `runsAfterValidation` still applies —
-  // the all-required nodes inside (customer, the item, shipping) keep the count check,
-  // the root drops to the key-array scan. Both answer identically.
+  // The optional `note` drops the root to the key-array scan; the all-required nested nodes keep the count check.
   'STRICT.realworld_order': {
     build: () => {
       interface StrictOrder {
@@ -2876,9 +2768,7 @@ export const cases: CompetitorCases = {
         total: number;
         note?: string;
       }
-      const validate = createValidateFn<StrictOrder>();
-      const hasUnknownKeys = createHasUnknownKeysFn<StrictOrder>(undefined, {runsAfterValidation: true});
-      return (value: unknown) => validate(value) && !hasUnknownKeys(value);
+      return createValidateFn<StrictOrder>(undefined, {checkUnknowns: true});
     },
     buildErrors: () => {
       interface StrictOrder {
@@ -2890,9 +2780,8 @@ export const cases: CompetitorCases = {
         total: number;
         note?: string;
       }
-      const getErrors = createGetValidationErrorsFn<StrictOrder>();
-      const hasUnknownKeys = createHasUnknownKeysFn<StrictOrder>(undefined, {runsAfterValidation: true});
-      return (value: unknown) => getErrors(value).length === 0 && !hasUnknownKeys(value);
+      const getErrors = createGetValidationErrorsFn<StrictOrder>(undefined, {checkUnknowns: true});
+      return (value: unknown) => getErrors(value).length === 0;
     },
   },
 };

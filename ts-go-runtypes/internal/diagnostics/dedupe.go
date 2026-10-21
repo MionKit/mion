@@ -1,33 +1,21 @@
 package diagnostics
 
-import "strings"
+import (
+	"sort"
+	"strings"
+)
 
-// Dedupe drops repeats of the SAME diagnostic — identical code, family,
-// severity, args, site and related list — keeping the first occurrence and
-// preserving order otherwise.
+// Dedupe keeps the first of repeats that are identical in code, family, severity, args, site and
+// related list, and preserves order otherwise.
 //
-// # Why this is needed above the walker's own latch
+// Needed above Walker.EmitDiagnostic's own latch, which dedupes per code per WALK while a walk is
+// per-CACHE-FAMILY: a type demanded by several families is walked several times, each walk blind to
+// its siblings and emitting against EVERY provenance site, so a family-shared emit path (today the
+// format-* codes) reports four times where the user should see two.
 //
-// Walker.EmitDiagnostic already dedupes per code per WALK, but a walk is
-// per-CACHE-FAMILY: the resolver fans out one Walker (and one DiagSink shard)
-// per family, so a type demanded by several families is walked several times
-// and each walk's latch is blind to its siblings. Each walk then emits against
-// EVERY provenance site of the root type, so a class touched by the JSON
-// encoder and decoder families reports twice at BOTH call sites — four
-// diagnostics where the user should see two.
-//
-// That hits any code emitted from a family-shared emit path (CLS001, the
-// FMT00x format codes, …). The per-family-prefixed codes (PJ001 / SJ001 /
-// TB001 …) never collided only because their codes differ by family, not
-// because the pipeline deduped them.
-//
-// # Why identical-args is the right key
-//
-// Args are the positional substitution values the JS catalog renders the
-// message from, so two diagnostics agreeing on code + args + site render
-// BYTE-IDENTICAL user-facing lines. Collapsing them loses nothing. Two
-// diagnostics at one site with DIFFERENT args say different things (e.g. two
-// offending property names) and both survive.
+// Args are what the JS catalog renders the message from, so agreeing on code + args + site means
+// BYTE-IDENTICAL lines and collapsing loses nothing; different args say different things and both
+// survive.
 func Dedupe(list []Diagnostic) []Diagnostic {
 	if len(list) < 2 {
 		return list
@@ -48,10 +36,9 @@ func Dedupe(list []Diagnostic) []Diagnostic {
 	return out
 }
 
-// dedupeKey renders a Diagnostic's full identity as a string map key. Every
-// field the wire carries participates, so the key collapses only diagnostics
-// that would render identically. \x00 separates fields and \x01 separates the
-// repeated ones — neither appears in a code, a path or a message.
+// dedupeKey renders a Diagnostic's full identity as a map key: every field the wire carries
+// participates, so only diagnostics that render identically collapse. \x00 separates fields and
+// \x01 the repeated ones, neither of which appears in a code, a path or a message.
 func dedupeKey(diagnostic Diagnostic) string {
 	var key strings.Builder
 	key.WriteString(diagnostic.Code)
@@ -71,9 +58,8 @@ func dedupeKey(diagnostic Diagnostic) string {
 	return key.String()
 }
 
-// writeSite appends a Site's fields to the key being built. Line/col are
-// written as bytes of the int rather than formatted — the key is opaque, so
-// the cheapest unambiguous encoding wins.
+// writeSite appends a Site's fields to the key; line/col go in as raw int bytes because the key is
+// opaque and the cheapest unambiguous encoding wins.
 func writeSite(key *strings.Builder, site Site) {
 	key.WriteByte(0)
 	key.WriteString(site.FilePath)
@@ -89,4 +75,19 @@ func writeInt(key *strings.Builder, value int) {
 	for shift := 0; shift < 64; shift += 8 {
 		key.WriteByte(byte(unsigned >> shift))
 	}
+}
+
+// Sort orders diagnostics by file, line, column. Stable, so two findings at one position keep the
+// order the lane produced them in.
+func Sort(diags []Diagnostic) {
+	sort.SliceStable(diags, func(i, j int) bool {
+		left, right := diags[i].Site, diags[j].Site
+		if left.FilePath != right.FilePath {
+			return left.FilePath < right.FilePath
+		}
+		if left.StartLine != right.StartLine {
+			return left.StartLine < right.StartLine
+		}
+		return left.StartCol < right.StartCol
+	})
 }

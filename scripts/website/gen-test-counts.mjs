@@ -2,12 +2,11 @@
 // can read them, so the homepage's "Tested to the highest standard" tiles stop
 // being hand-typed numbers that drift.
 //
-// Both counts come from the test runners' own LIST modes, so nothing is executed:
-// `vitest list --json` collects every test the config would run, and `go test
-// -list` prints the test function names a package declares. Collection still
-// compiles the sources, so this needs the resolver binary + the marker/plugin
-// dists on the host (the website build runs it right after the stage that builds
-// them) and a Go toolchain.
+// Both counts come from collection, so nothing is executed: vitest's collector
+// gathers every test the config declares, and `go test -list` prints the test
+// function names a package declares. Collection still compiles the sources, so
+// this needs the resolver binary + the marker/plugin dists on the host (the website
+// build runs it right after the stage that builds them) and a Go toolchain.
 //
 // Output: container/website/app/data/test-counts.json — COMMITTED, and imported
 // by app/components/content/StatTiles.vue at build time rather than fetched at
@@ -19,7 +18,8 @@
 // The file carries NO timestamp on purpose — a regenerate that finds the same
 // counts must leave the file byte-identical, or every build dirties the tree.
 
-import {mkdirSync, readFileSync, writeFileSync} from 'node:fs';
+import {mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {capture, die, note, reportCliError, warn, which} from '../lib/proc.mjs';
@@ -27,16 +27,22 @@ import {capture, die, note, reportCliError, warn, which} from '../lib/proc.mjs';
 const OUT_DIR = join(REPO_ROOT, 'container/website/app/data');
 const OUT_FILE = join(OUT_DIR, 'test-counts.json');
 
-// `vitest list` prints the collected tests as JSON on stdout; the plugin's
-// build-time diagnostics go to stderr, so only stdout is parsed.
+// Counts every DECLARED test, skipped ones included: `vitest list` leaves skipped tests
+// out, so its count moved with the host's binaries and env vars (see list-declared-tests.mjs).
+// The listing goes through a file, not stdout: a project's globalSetup logs there.
 function countFrontEndTests() {
-  // maxBuffer MUST be raised: the listing is ~2.7MB of JSON, well past spawnSync's
-  // 1MB default, and an over-budget capture is TRUNCATED (the parse then fails on
-  // a half-written object rather than reporting the real cause).
-  const listed = capture('pnpm', ['exec', 'vitest', 'list', '--json'], {maxBuffer: 64 * 1024 * 1024});
-  if (listed.status !== 0) throw new Error(`vitest list failed (exit ${listed.status})`);
-  const tests = JSON.parse(listed.stdout);
-  if (!Array.isArray(tests) || tests.length === 0) throw new Error('vitest list returned no tests');
+  const dir = mkdtempSync(join(tmpdir(), 'mion-test-counts-'));
+  const file = join(dir, 'tests.json');
+  let tests;
+  try {
+    // maxBuffer raised so the logs stdout still carries never truncate the capture.
+    const listed = capture('node', [join(REPO_ROOT, 'scripts/website/list-declared-tests.mjs'), file], {maxBuffer: 64 * 1024 * 1024});
+    if (listed.status !== 0) throw new Error(`listing the declared tests failed (exit ${listed.status}): ${listed.stderr.trim().split('\n').pop()}`);
+    tests = JSON.parse(readFileSync(file, 'utf8'));
+  } finally {
+    rmSync(dir, {recursive: true, force: true});
+  }
+  if (!Array.isArray(tests) || tests.length === 0) throw new Error('the vitest listing returned no tests');
   const projects = {};
   for (const test of tests) projects[test.projectName] = (projects[test.projectName] ?? 0) + 1;
   return {
@@ -70,7 +76,8 @@ const readExisting = () => {
 // Regenerate what we can. A counter that cannot run keeps the committed value
 // rather than writing a zero — a homepage tile reading "0 tests" would be worse
 // than one reading a slightly stale number, and silently wrong either way, so it
-// warns. `--check` turns the same comparison into a gate (used by CI).
+// warns. `--check` turns the same comparison into a gate (used by CI) and refuses that fallback:
+// a kept value always matches itself, so a check that cannot count would report green on a stale file.
 export function main(args = []) {
   const check = args.includes('--check');
   for (const arg of args) if (arg !== '--check') die(`gen-test-counts: unknown arg '${arg}' (want: [--check])`, 2);
@@ -81,6 +88,7 @@ export function main(args = []) {
   try {
     counts.frontEnd = countFrontEndTests();
   } catch (err) {
+    if (check) die(`gen-test-counts: --check cannot verify the committed front-end count - ${err.message}`);
     if (!existing?.frontEnd) die(`gen-test-counts: cannot count the front-end tests and no committed count to fall back on - ${err.message}`);
     warn(`front-end count kept at ${existing.frontEnd.tests} (could not recount: ${err.message})`);
     counts.frontEnd = existing.frontEnd;
@@ -89,6 +97,7 @@ export function main(args = []) {
   try {
     counts.go = countGoTests();
   } catch (err) {
+    if (check) die(`gen-test-counts: --check cannot verify the committed Go count - ${err.message}`);
     if (!existing?.go) die(`gen-test-counts: cannot count the Go tests and no committed count to fall back on - ${err.message}`);
     warn(`Go count kept at ${existing.go.tests} (could not recount: ${err.message})`);
     counts.go = existing.go;
@@ -99,7 +108,7 @@ export function main(args = []) {
 
   if (check) {
     if (next === current) return note(`test counts up to date (${counts.frontEnd.tests} front-end, ${counts.go.tests} Go)`);
-    die(`gen-test-counts: ${OUT_FILE} is stale - run 'pnpm rtx website test-counts' and commit the result`);
+    die(`gen-test-counts: ${OUT_FILE} is stale - run 'pnpm miondevx website test-counts' and commit the result`);
   }
 
   if (next === current) return note(`test counts unchanged (${counts.frontEnd.tests} front-end, ${counts.go.tests} Go)`);

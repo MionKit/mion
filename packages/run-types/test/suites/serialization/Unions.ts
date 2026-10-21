@@ -1,11 +1,5 @@
 import * as TF from '@mionjs/run-types/formats';
-import {
-  createBinaryDecoderFn,
-  createBinaryEncoderFn,
-  createJsonDecoderFn,
-  createJsonEncoderFn,
-  type AnyOf,
-} from '@mionjs/run-types';
+import {createJsonDecoderFn, createJsonEncoderFn, type AnyOf} from '@mionjs/run-types';
 import * as RT from '@mionjs/run-types/builders';
 import type {SerializationCase} from './types.ts';
 
@@ -18,19 +12,12 @@ export const UNIONS = {
       'Date and bigint members carry per-kind wire transforms (Date↔ISO string, bigint↔decimal string); the decoder restores each from its scalar form.',
     mutateEncoder: () => createJsonEncoderFn<Date | number | string | null | bigint>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Date | number | string | null | bigint>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<Date | number | string | null | bigint>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<Date | number | string | null | bigint>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<Date | number | string | null | bigint>(),
-    preserveDecoder: () => createJsonDecoderFn<Date | number | string | null | bigint>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<Date | number | string | null | bigint>(),
+    mutateDecoder: () => createJsonDecoderFn<Date | number | string | null | bigint>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<Date | number | string | null | bigint>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<Date | number | string | null | bigint>(),
-    binaryDecoder: () => createBinaryDecoderFn<Date | number | string | null | bigint>(),
     schemaEncoder: () => createJsonEncoderFn(RT.union([TF.date(), TF.number(), TF.string(), RT.literal(null), TF.bigInt()])),
     schemaDecoder: () => createJsonDecoderFn(RT.union([TF.date(), TF.number(), TF.string(), RT.literal(null), TF.bigInt()])),
-    schemaBinaryEncoder: () =>
-      createBinaryEncoderFn(RT.union([TF.date(), TF.number(), TF.string(), RT.literal(null), TF.bigInt()])),
-    schemaBinaryDecoder: () =>
-      createBinaryDecoderFn(RT.union([TF.date(), TF.number(), TF.string(), RT.literal(null), TF.bigInt()])),
     getTestData: () => ({values: [new Date('2000-08-06T02:13:00.000Z'), 123, 'hello', null, 3n]}),
   },
   union_array: {
@@ -41,25 +28,14 @@ export const UNIONS = {
       'Empty array sample matches all four arms structurally — the round-trip stays an empty array regardless of which member resolves.',
     mutateEncoder: () => createJsonEncoderFn<string[] | number[] | boolean[] | Date[]>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<string[] | number[] | boolean[] | Date[]>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<string[] | number[] | boolean[] | Date[]>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<string[] | number[] | boolean[] | Date[]>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<string[] | number[] | boolean[] | Date[]>(),
-    preserveDecoder: () => createJsonDecoderFn<string[] | number[] | boolean[] | Date[]>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<string[] | number[] | boolean[] | Date[]>(),
+    mutateDecoder: () => createJsonDecoderFn<string[] | number[] | boolean[] | Date[]>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<string[] | number[] | boolean[] | Date[]>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<string[] | number[] | boolean[] | Date[]>(),
-    binaryDecoder: () => createBinaryDecoderFn<string[] | number[] | boolean[] | Date[]>(),
     schemaEncoder: () =>
       createJsonEncoderFn(RT.union([RT.array(TF.string()), RT.array(TF.number()), RT.array(RT.boolean()), RT.array(TF.date())])),
     schemaDecoder: () =>
       createJsonDecoderFn(RT.union([RT.array(TF.string()), RT.array(TF.number()), RT.array(RT.boolean()), RT.array(TF.date())])),
-    schemaBinaryEncoder: () =>
-      createBinaryEncoderFn(
-        RT.union([RT.array(TF.string()), RT.array(TF.number()), RT.array(RT.boolean()), RT.array(TF.date())])
-      ),
-    schemaBinaryDecoder: () =>
-      createBinaryDecoderFn(
-        RT.union([RT.array(TF.string()), RT.array(TF.number()), RT.array(RT.boolean()), RT.array(TF.date())])
-      ),
     getTestData: () => ({
       values: [
         ['a', 'b', 'c'],
@@ -78,17 +54,12 @@ export const UNIONS = {
       'Member selection is per-element, not per-array — a single array can hold elements that resolve to different union arms (bigint↔string, Date↔ISO, raw string/boolean).',
     mutateEncoder: () => createJsonEncoderFn<(string | bigint | boolean | Date)[]>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<(string | bigint | boolean | Date)[]>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<(string | bigint | boolean | Date)[]>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<(string | bigint | boolean | Date)[]>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<(string | bigint | boolean | Date)[]>(),
-    preserveDecoder: () => createJsonDecoderFn<(string | bigint | boolean | Date)[]>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<(string | bigint | boolean | Date)[]>(),
+    mutateDecoder: () => createJsonDecoderFn<(string | bigint | boolean | Date)[]>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<(string | bigint | boolean | Date)[]>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<(string | bigint | boolean | Date)[]>(),
-    binaryDecoder: () => createBinaryDecoderFn<(string | bigint | boolean | Date)[]>(),
     schemaEncoder: () => createJsonEncoderFn(RT.array(RT.union([TF.string(), TF.bigInt(), RT.boolean(), TF.date()]))),
     schemaDecoder: () => createJsonDecoderFn(RT.array(RT.union([TF.string(), TF.bigInt(), RT.boolean(), TF.date()]))),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.array(RT.union([TF.string(), TF.bigInt(), RT.boolean(), TF.date()]))),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.array(RT.union([TF.string(), TF.bigInt(), RT.boolean(), TF.date()]))),
     getTestData: () => {
       const date = new Date('2000-08-06T02:13:00.000Z');
       return {
@@ -111,17 +82,13 @@ export const UNIONS = {
       createJsonEncoderFn<{a: string; aa: boolean} | {b: number} | {c: bigint} | {d?: string}>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () =>
       createJsonEncoderFn<{a: string; aa: boolean} | {b: number} | {c: bigint} | {d?: string}>(undefined, {strategy: 'clone'}),
-    directEncoder: () =>
-      createJsonEncoderFn<{a: string; aa: boolean} | {b: number} | {c: bigint} | {d?: string}>(undefined, {strategy: 'direct'}),
     compactEncoder: () =>
       createJsonEncoderFn<{a: string; aa: boolean} | {b: number} | {c: bigint} | {d?: string}>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<{a: string; aa: boolean} | {b: number} | {c: bigint} | {d?: string}>(),
-    preserveDecoder: () =>
-      createJsonDecoderFn<{a: string; aa: boolean} | {b: number} | {c: bigint} | {d?: string}>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<{a: string; aa: boolean} | {b: number} | {c: bigint} | {d?: string}>(),
+    mutateDecoder: () =>
+      createJsonDecoderFn<{a: string; aa: boolean} | {b: number} | {c: bigint} | {d?: string}>(undefined, {strategy: 'mutate'}),
     compactDecoder: () =>
       createJsonDecoderFn<{a: string; aa: boolean} | {b: number} | {c: bigint} | {d?: string}>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<{a: string; aa: boolean} | {b: number} | {c: bigint} | {d?: string}>(),
-    binaryDecoder: () => createBinaryDecoderFn<{a: string; aa: boolean} | {b: number} | {c: bigint} | {d?: string}>(),
     schemaEncoder: () =>
       createJsonEncoderFn(
         RT.union([
@@ -133,24 +100,6 @@ export const UNIONS = {
       ),
     schemaDecoder: () =>
       createJsonDecoderFn(
-        RT.union([
-          RT.object({a: TF.string(), aa: RT.boolean()}),
-          RT.object({b: TF.number()}),
-          RT.object({c: TF.bigInt()}),
-          RT.object({d: RT.optional(TF.string())}),
-        ])
-      ),
-    schemaBinaryEncoder: () =>
-      createBinaryEncoderFn(
-        RT.union([
-          RT.object({a: TF.string(), aa: RT.boolean()}),
-          RT.object({b: TF.number()}),
-          RT.object({c: TF.bigInt()}),
-          RT.object({d: RT.optional(TF.string())}),
-        ])
-      ),
-    schemaBinaryDecoder: () =>
-      createBinaryDecoderFn(
         RT.union([
           RT.object({a: TF.string(), aa: RT.boolean()}),
           RT.object({b: TF.number()}),
@@ -174,25 +123,19 @@ export const UNIONS = {
       createJsonEncoderFn<{kind: 't0'} | {kind: 't1'; f0: [{'with"quote': boolean}]} | {kind: 't2'}>(undefined, {
         strategy: 'clone',
       }),
-    directEncoder: () =>
-      createJsonEncoderFn<{kind: 't0'} | {kind: 't1'; f0: [{'with"quote': boolean}]} | {kind: 't2'}>(undefined, {
-        strategy: 'direct',
-      }),
     compactEncoder: () =>
       createJsonEncoderFn<{kind: 't0'} | {kind: 't1'; f0: [{'with"quote': boolean}]} | {kind: 't2'}>(undefined, {
         strategy: 'compact',
       }),
-    stripDecoder: () => createJsonDecoderFn<{kind: 't0'} | {kind: 't1'; f0: [{'with"quote': boolean}]} | {kind: 't2'}>(),
-    preserveDecoder: () =>
+    cloneDecoder: () => createJsonDecoderFn<{kind: 't0'} | {kind: 't1'; f0: [{'with"quote': boolean}]} | {kind: 't2'}>(),
+    mutateDecoder: () =>
       createJsonDecoderFn<{kind: 't0'} | {kind: 't1'; f0: [{'with"quote': boolean}]} | {kind: 't2'}>(undefined, {
-        strategy: 'preserve',
+        strategy: 'mutate',
       }),
     compactDecoder: () =>
       createJsonDecoderFn<{kind: 't0'} | {kind: 't1'; f0: [{'with"quote': boolean}]} | {kind: 't2'}>(undefined, {
         strategy: 'compact',
       }),
-    binaryEncoder: () => createBinaryEncoderFn<{kind: 't0'} | {kind: 't1'; f0: [{'with"quote': boolean}]} | {kind: 't2'}>(),
-    binaryDecoder: () => createBinaryDecoderFn<{kind: 't0'} | {kind: 't1'; f0: [{'with"quote': boolean}]} | {kind: 't2'}>(),
     schemaEncoder: () =>
       createJsonEncoderFn(
         RT.union([
@@ -203,22 +146,6 @@ export const UNIONS = {
       ),
     schemaDecoder: () =>
       createJsonDecoderFn(
-        RT.union([
-          RT.object({kind: RT.literal('t0')}),
-          RT.object({kind: RT.literal('t1'), f0: RT.tuple({required: [RT.object({'with"quote': RT.boolean()})]})}),
-          RT.object({kind: RT.literal('t2')}),
-        ])
-      ),
-    schemaBinaryEncoder: () =>
-      createBinaryEncoderFn(
-        RT.union([
-          RT.object({kind: RT.literal('t0')}),
-          RT.object({kind: RT.literal('t1'), f0: RT.tuple({required: [RT.object({'with"quote': RT.boolean()})]})}),
-          RT.object({kind: RT.literal('t2')}),
-        ])
-      ),
-    schemaBinaryDecoder: () =>
-      createBinaryDecoderFn(
         RT.union([
           RT.object({kind: RT.literal('t0')}),
           RT.object({kind: RT.literal('t1'), f0: RT.tuple({required: [RT.object({'with"quote': RT.boolean()})]})}),
@@ -251,13 +178,6 @@ export const UNIONS = {
         | {type: 'c'; otherProp: string; time: Date}
         | {type: boolean; otherProp: string}
       >(undefined, {strategy: 'clone'}),
-    directEncoder: () =>
-      createJsonEncoderFn<
-        | {type: 'a'; otherProp: boolean}
-        | {type: 'b'; otherProp: number}
-        | {type: 'c'; otherProp: string; time: Date}
-        | {type: boolean; otherProp: string}
-      >(undefined, {strategy: 'direct'}),
     compactEncoder: () =>
       createJsonEncoderFn<
         | {type: 'a'; otherProp: boolean}
@@ -265,20 +185,20 @@ export const UNIONS = {
         | {type: 'c'; otherProp: string; time: Date}
         | {type: boolean; otherProp: string}
       >(undefined, {strategy: 'compact'}),
-    stripDecoder: () =>
+    cloneDecoder: () =>
       createJsonDecoderFn<
         | {type: 'a'; otherProp: boolean}
         | {type: 'b'; otherProp: number}
         | {type: 'c'; otherProp: string; time: Date}
         | {type: boolean; otherProp: string}
       >(),
-    preserveDecoder: () =>
+    mutateDecoder: () =>
       createJsonDecoderFn<
         | {type: 'a'; otherProp: boolean}
         | {type: 'b'; otherProp: number}
         | {type: 'c'; otherProp: string; time: Date}
         | {type: boolean; otherProp: string}
-      >(undefined, {strategy: 'preserve'}),
+      >(undefined, {strategy: 'mutate'}),
     compactDecoder: () =>
       createJsonDecoderFn<
         | {type: 'a'; otherProp: boolean}
@@ -286,20 +206,6 @@ export const UNIONS = {
         | {type: 'c'; otherProp: string; time: Date}
         | {type: boolean; otherProp: string}
       >(undefined, {strategy: 'compact'}),
-    binaryEncoder: () =>
-      createBinaryEncoderFn<
-        | {type: 'a'; otherProp: boolean}
-        | {type: 'b'; otherProp: number}
-        | {type: 'c'; otherProp: string; time: Date}
-        | {type: boolean; otherProp: string}
-      >(),
-    binaryDecoder: () =>
-      createBinaryDecoderFn<
-        | {type: 'a'; otherProp: boolean}
-        | {type: 'b'; otherProp: number}
-        | {type: 'c'; otherProp: string; time: Date}
-        | {type: boolean; otherProp: string}
-      >(),
     schemaEncoder: () =>
       createJsonEncoderFn(
         RT.union([
@@ -311,24 +217,6 @@ export const UNIONS = {
       ),
     schemaDecoder: () =>
       createJsonDecoderFn(
-        RT.union([
-          RT.object({type: RT.literal('a'), otherProp: RT.boolean()}),
-          RT.object({type: RT.literal('b'), otherProp: TF.number()}),
-          RT.object({type: RT.literal('c'), otherProp: TF.string(), time: TF.date()}),
-          RT.object({type: RT.boolean(), otherProp: TF.string()}),
-        ])
-      ),
-    schemaBinaryEncoder: () =>
-      createBinaryEncoderFn(
-        RT.union([
-          RT.object({type: RT.literal('a'), otherProp: RT.boolean()}),
-          RT.object({type: RT.literal('b'), otherProp: TF.number()}),
-          RT.object({type: RT.literal('c'), otherProp: TF.string(), time: TF.date()}),
-          RT.object({type: RT.boolean(), otherProp: TF.string()}),
-        ])
-      ),
-    schemaBinaryDecoder: () =>
-      createBinaryDecoderFn(
         RT.union([
           RT.object({type: RT.literal('a'), otherProp: RT.boolean()}),
           RT.object({type: RT.literal('b'), otherProp: TF.number()}),
@@ -361,36 +249,23 @@ export const UNIONS = {
         undefined,
         {strategy: 'clone'}
       ),
-    directEncoder: () =>
-      createJsonEncoderFn<string[] | number[] | boolean[] | {a: string; aa: boolean} | {b: number} | {c: bigint; aa: 'string'}>(
-        undefined,
-        {strategy: 'direct'}
-      ),
     compactEncoder: () =>
       createJsonEncoderFn<string[] | number[] | boolean[] | {a: string; aa: boolean} | {b: number} | {c: bigint; aa: 'string'}>(
         undefined,
         {strategy: 'compact'}
       ),
-    stripDecoder: () =>
+    cloneDecoder: () =>
       createJsonDecoderFn<string[] | number[] | boolean[] | {a: string; aa: boolean} | {b: number} | {c: bigint; aa: 'string'}>(),
-    preserveDecoder: () =>
+    mutateDecoder: () =>
       createJsonDecoderFn<string[] | number[] | boolean[] | {a: string; aa: boolean} | {b: number} | {c: bigint; aa: 'string'}>(
         undefined,
-        {strategy: 'preserve'}
+        {strategy: 'mutate'}
       ),
     compactDecoder: () =>
       createJsonDecoderFn<string[] | number[] | boolean[] | {a: string; aa: boolean} | {b: number} | {c: bigint; aa: 'string'}>(
         undefined,
         {strategy: 'compact'}
       ),
-    binaryEncoder: () =>
-      createBinaryEncoderFn<
-        string[] | number[] | boolean[] | {a: string; aa: boolean} | {b: number} | {c: bigint; aa: 'string'}
-      >(),
-    binaryDecoder: () =>
-      createBinaryDecoderFn<
-        string[] | number[] | boolean[] | {a: string; aa: boolean} | {b: number} | {c: bigint; aa: 'string'}
-      >(),
     schemaEncoder: () =>
       createJsonEncoderFn(
         RT.union([
@@ -404,28 +279,6 @@ export const UNIONS = {
       ),
     schemaDecoder: () =>
       createJsonDecoderFn(
-        RT.union([
-          RT.array(TF.string()),
-          RT.array(TF.number()),
-          RT.array(RT.boolean()),
-          RT.object({a: TF.string(), aa: RT.boolean()}),
-          RT.object({b: TF.number()}),
-          RT.object({c: TF.bigInt(), aa: RT.literal('string')}),
-        ])
-      ),
-    schemaBinaryEncoder: () =>
-      createBinaryEncoderFn(
-        RT.union([
-          RT.array(TF.string()),
-          RT.array(TF.number()),
-          RT.array(RT.boolean()),
-          RT.object({a: TF.string(), aa: RT.boolean()}),
-          RT.object({b: TF.number()}),
-          RT.object({c: TF.bigInt(), aa: RT.literal('string')}),
-        ])
-      ),
-    schemaBinaryDecoder: () =>
-      createBinaryDecoderFn(
         RT.union([
           RT.array(TF.string()),
           RT.array(TF.number()),
@@ -468,14 +321,6 @@ export const UNIONS = {
         | {a: string; [key: string]: string}
         | {[key: string]: bigint; b: bigint}
       >(undefined, {strategy: 'clone'}),
-    directEncoder: () =>
-      createJsonEncoderFn<
-        | string[]
-        | {a: string; aa: boolean}
-        | {b: number}
-        | {a: string; [key: string]: string}
-        | {[key: string]: bigint; b: bigint}
-      >(undefined, {strategy: 'direct'}),
     compactEncoder: () =>
       createJsonEncoderFn<
         | string[]
@@ -484,7 +329,7 @@ export const UNIONS = {
         | {a: string; [key: string]: string}
         | {[key: string]: bigint; b: bigint}
       >(undefined, {strategy: 'compact'}),
-    stripDecoder: () =>
+    cloneDecoder: () =>
       createJsonDecoderFn<
         | string[]
         | {a: string; aa: boolean}
@@ -492,14 +337,14 @@ export const UNIONS = {
         | {a: string; [key: string]: string}
         | {[key: string]: bigint; b: bigint}
       >(),
-    preserveDecoder: () =>
+    mutateDecoder: () =>
       createJsonDecoderFn<
         | string[]
         | {a: string; aa: boolean}
         | {b: number}
         | {a: string; [key: string]: string}
         | {[key: string]: bigint; b: bigint}
-      >(undefined, {strategy: 'preserve'}),
+      >(undefined, {strategy: 'mutate'}),
     compactDecoder: () =>
       createJsonDecoderFn<
         | string[]
@@ -508,22 +353,6 @@ export const UNIONS = {
         | {a: string; [key: string]: string}
         | {[key: string]: bigint; b: bigint}
       >(undefined, {strategy: 'compact'}),
-    binaryEncoder: () =>
-      createBinaryEncoderFn<
-        | string[]
-        | {a: string; aa: boolean}
-        | {b: number}
-        | {a: string; [key: string]: string}
-        | {[key: string]: bigint; b: bigint}
-      >(),
-    binaryDecoder: () =>
-      createBinaryDecoderFn<
-        | string[]
-        | {a: string; aa: boolean}
-        | {b: number}
-        | {a: string; [key: string]: string}
-        | {[key: string]: bigint; b: bigint}
-      >(),
     schemaEncoder: () =>
       createJsonEncoderFn(
         RT.union([
@@ -536,26 +365,6 @@ export const UNIONS = {
       ),
     schemaDecoder: () =>
       createJsonDecoderFn(
-        RT.union([
-          RT.array(TF.string()),
-          RT.object({a: TF.string(), aa: RT.boolean()}),
-          RT.object({b: TF.number()}),
-          RT.intersection(RT.record(TF.string()), RT.object({a: TF.string()})),
-          RT.intersection(RT.record(TF.bigInt()), RT.object({b: TF.bigInt()})),
-        ])
-      ),
-    schemaBinaryEncoder: () =>
-      createBinaryEncoderFn(
-        RT.union([
-          RT.array(TF.string()),
-          RT.object({a: TF.string(), aa: RT.boolean()}),
-          RT.object({b: TF.number()}),
-          RT.intersection(RT.record(TF.string()), RT.object({a: TF.string()})),
-          RT.intersection(RT.record(TF.bigInt()), RT.object({b: TF.bigInt()})),
-        ])
-      ),
-    schemaBinaryDecoder: () =>
-      createBinaryDecoderFn(
         RT.union([
           RT.array(TF.string()),
           RT.object({a: TF.string(), aa: RT.boolean()}),
@@ -582,33 +391,21 @@ export const UNIONS = {
       type UnionC = Date | number | string | {a?: UnionC; b?: string} | UnionC[];
       return createJsonEncoderFn<UnionC>(undefined, {strategy: 'clone'});
     },
-    directEncoder: () => {
-      type UnionC = Date | number | string | {a?: UnionC; b?: string} | UnionC[];
-      return createJsonEncoderFn<UnionC>(undefined, {strategy: 'direct'});
-    },
     compactEncoder: () => {
       type UnionC = Date | number | string | {a?: UnionC; b?: string} | UnionC[];
       return createJsonEncoderFn<UnionC>(undefined, {strategy: 'compact'});
     },
-    stripDecoder: () => {
+    cloneDecoder: () => {
       type UnionC = Date | number | string | {a?: UnionC; b?: string} | UnionC[];
       return createJsonDecoderFn<UnionC>();
     },
-    preserveDecoder: () => {
+    mutateDecoder: () => {
       type UnionC = Date | number | string | {a?: UnionC; b?: string} | UnionC[];
-      return createJsonDecoderFn<UnionC>(undefined, {strategy: 'preserve'});
+      return createJsonDecoderFn<UnionC>(undefined, {strategy: 'mutate'});
     },
     compactDecoder: () => {
       type UnionC = Date | number | string | {a?: UnionC; b?: string} | UnionC[];
       return createJsonDecoderFn<UnionC>(undefined, {strategy: 'compact'});
-    },
-    binaryEncoder: () => {
-      type UnionC = Date | number | string | {a?: UnionC; b?: string} | UnionC[];
-      return createBinaryEncoderFn<UnionC>();
-    },
-    binaryDecoder: () => {
-      type UnionC = Date | number | string | {a?: UnionC; b?: string} | UnionC[];
-      return createBinaryDecoderFn<UnionC>();
     },
     schemaEncoder: () => {
       const uc = RT.circular(
@@ -633,30 +430,6 @@ export const UNIONS = {
         ])
       );
       return createJsonDecoderFn(uc);
-    },
-    schemaBinaryEncoder: () => {
-      const uc = RT.circular(
-        RT.union([
-          TF.date(),
-          TF.number(),
-          TF.string(),
-          RT.object({a: RT.optional(RT.self()), b: RT.optional(TF.string())}),
-          RT.array(RT.self()),
-        ])
-      );
-      return createBinaryEncoderFn(uc);
-    },
-    schemaBinaryDecoder: () => {
-      const uc = RT.circular(
-        RT.union([
-          TF.date(),
-          TF.number(),
-          TF.string(),
-          RT.object({a: RT.optional(RT.self()), b: RT.optional(TF.string())}),
-          RT.array(RT.self()),
-        ])
-      );
-      return createBinaryDecoderFn(uc);
     },
     getTestData: () => {
       const date = new Date('2000-08-06T02:13:00.000Z');
@@ -690,34 +463,22 @@ export const UNIONS = {
       createJsonEncoderFn<
         {name: string; getName(): string} | {age: number; getAge(): number} | {active: boolean; isActive(): boolean}
       >(undefined, {strategy: 'clone'}),
-    directEncoder: () =>
-      createJsonEncoderFn<
-        {name: string; getName(): string} | {age: number; getAge(): number} | {active: boolean; isActive(): boolean}
-      >(undefined, {strategy: 'direct'}),
     compactEncoder: () =>
       createJsonEncoderFn<
         {name: string; getName(): string} | {age: number; getAge(): number} | {active: boolean; isActive(): boolean}
       >(undefined, {strategy: 'compact'}),
-    stripDecoder: () =>
+    cloneDecoder: () =>
       createJsonDecoderFn<
         {name: string; getName(): string} | {age: number; getAge(): number} | {active: boolean; isActive(): boolean}
       >(),
-    preserveDecoder: () =>
+    mutateDecoder: () =>
       createJsonDecoderFn<
         {name: string; getName(): string} | {age: number; getAge(): number} | {active: boolean; isActive(): boolean}
-      >(undefined, {strategy: 'preserve'}),
+      >(undefined, {strategy: 'mutate'}),
     compactDecoder: () =>
       createJsonDecoderFn<
         {name: string; getName(): string} | {age: number; getAge(): number} | {active: boolean; isActive(): boolean}
       >(undefined, {strategy: 'compact'}),
-    binaryEncoder: () =>
-      createBinaryEncoderFn<
-        {name: string; getName(): string} | {age: number; getAge(): number} | {active: boolean; isActive(): boolean}
-      >(),
-    binaryDecoder: () =>
-      createBinaryDecoderFn<
-        {name: string; getName(): string} | {age: number; getAge(): number} | {active: boolean; isActive(): boolean}
-      >(),
     schemaEncoder: () =>
       createJsonEncoderFn(
         RT.union([
@@ -728,22 +489,6 @@ export const UNIONS = {
       ),
     schemaDecoder: () =>
       createJsonDecoderFn(
-        RT.union([
-          RT.object({name: TF.string(), getName: RT.func({ret: TF.string()})}),
-          RT.object({age: TF.number(), getAge: RT.func({ret: TF.number()})}),
-          RT.object({active: RT.boolean(), isActive: RT.func({ret: RT.boolean()})}),
-        ])
-      ),
-    schemaBinaryEncoder: () =>
-      createBinaryEncoderFn(
-        RT.union([
-          RT.object({name: TF.string(), getName: RT.func({ret: TF.string()})}),
-          RT.object({age: TF.number(), getAge: RT.func({ret: TF.number()})}),
-          RT.object({active: RT.boolean(), isActive: RT.func({ret: RT.boolean()})}),
-        ])
-      ),
-    schemaBinaryDecoder: () =>
-      createBinaryDecoderFn(
         RT.union([
           RT.object({name: TF.string(), getName: RT.func({ret: TF.string()})}),
           RT.object({age: TF.number(), getAge: RT.func({ret: TF.number()})}),
@@ -785,19 +530,14 @@ export const UNIONS = {
     ],
     mutateEncoder: () => createJsonEncoderFn<number | {name: string} | any>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<number | {name: string} | any>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<number | {name: string} | any>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<number | {name: string} | any>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<number | {name: string} | any>(),
-    preserveDecoder: () => createJsonDecoderFn<number | {name: string} | any>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<number | {name: string} | any>(),
+    mutateDecoder: () => createJsonDecoderFn<number | {name: string} | any>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<number | {name: string} | any>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<number | {name: string} | any>(),
-    binaryDecoder: () => createBinaryDecoderFn<number | {name: string} | any>(),
     // `T | any` collapses to `any` at the type-checker layer — the value-first
     // equivalent is the bare `any` builder.
     schemaEncoder: () => createJsonEncoderFn(RT.any()),
     schemaDecoder: () => createJsonDecoderFn(RT.any()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.any()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.any()),
     roundTripBestEffort: true,
     getTestData: () => ({values: [42, {name: 'test'}, 'fallback to any', true, null]}),
   },
@@ -809,19 +549,14 @@ export const UNIONS = {
       'The function arm is non-serializable, so DataOnly drops it from the union and the emitter serializes/validates the surviving Date | number | string members (Date round-trips to a Date, number and string identically). The schema thunks resolve the same dropped-arm factory via the value-first path.',
     mutateEncoder: () => createJsonEncoderFn<Date | number | string | (() => any)>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Date | number | string | (() => any)>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<Date | number | string | (() => any)>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<Date | number | string | (() => any)>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<Date | number | string | (() => any)>(),
-    preserveDecoder: () => createJsonDecoderFn<Date | number | string | (() => any)>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<Date | number | string | (() => any)>(),
+    mutateDecoder: () => createJsonDecoderFn<Date | number | string | (() => any)>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<Date | number | string | (() => any)>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<Date | number | string | (() => any)>(),
-    binaryDecoder: () => createBinaryDecoderFn<Date | number | string | (() => any)>(),
     // The function arm is dropped the same way via the value-first path, so each
     // schema thunk resolves the same Date | number | string serializer.
     schemaEncoder: () => createJsonEncoderFn(RT.union([TF.date(), TF.number(), TF.string(), RT.func({ret: RT.any()})])),
     schemaDecoder: () => createJsonDecoderFn(RT.union([TF.date(), TF.number(), TF.string(), RT.func({ret: RT.any()})])),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.union([TF.date(), TF.number(), TF.string(), RT.func({ret: RT.any()})])),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.union([TF.date(), TF.number(), TF.string(), RT.func({ret: RT.any()})])),
     getTestData: () => ({values: [new Date('2000-08-06T02:13:00.000Z'), 123, 'hello']}),
   },
 
@@ -844,25 +579,18 @@ export const UNIONS = {
     description:
       'Input `{b: 123, c: 123n}` matches the `{b: number}` arm and we preserve the structural extra `c: 123n` with no implicit strip, so JSON.stringify throws on the bigint — extras pass through unchanged unless pre-stripped when they may carry non-serializable values.',
     serializeNotes:
-      'jsonStringifyThrows applies to the unsafe (mutate/preserve) path only — the matched member transforms its declared `b`, the bigint extra survives into JSON.stringify and throws. The safe (clone/direct) path strips the extra pre-serialise, so getTestDataForStringify expects a clean declared-only {b: 123} round-trip.',
+      'jsonStringifyThrows applies to the unsafe (mutate) path only — the matched member transforms its declared `b`, the bigint extra survives into JSON.stringify and throws. The safe (clone) path strips the extra pre-serialise, so getTestDataForStringify expects a clean declared-only {b: 123} round-trip.',
     mutateEncoder: () => createJsonEncoderFn<{a: string} | {b: number}>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<{a: string} | {b: number}>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<{a: string} | {b: number}>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<{a: string} | {b: number}>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<{a: string} | {b: number}>(),
-    preserveDecoder: () => createJsonDecoderFn<{a: string} | {b: number}>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<{a: string} | {b: number}>(),
+    mutateDecoder: () => createJsonDecoderFn<{a: string} | {b: number}>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<{a: string} | {b: number}>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<{a: string} | {b: number}>(),
-    binaryDecoder: () => createBinaryDecoderFn<{a: string} | {b: number}>(),
     schemaEncoder: () => createJsonEncoderFn(RT.union([RT.object({a: TF.string()}), RT.object({b: TF.number()})])),
     schemaDecoder: () => createJsonDecoderFn(RT.union([RT.object({a: TF.string()}), RT.object({b: TF.number()})])),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.union([RT.object({a: TF.string()}), RT.object({b: TF.number()})])),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.union([RT.object({a: TF.string()}), RT.object({b: TF.number()})])),
     jsonStringifyThrows: true,
     getTestData: () => ({values: [{b: 123, c: 123n}]}),
-    // Safe-path adapter: stringifyJson strips the extra `c: 123n` in
-    // the emit, so the round-trip succeeds with a declared-only
-    // result. Captured here as a stringify-specific expectation.
+    // Clone drops the extra `c: 123n` before stringify, so the round-trip succeeds declared-only.
     getTestDataForStringify: () => ({values: [{b: 123, c: 123n}], deserializedValues: [{b: 123}]}),
   },
 
@@ -874,17 +602,12 @@ export const UNIONS = {
       'No throw flag — symbol-valued extras are dropped by JSON.stringify per ECMAScript spec, so both paths converge on declared-only output. The lossy round-trip is captured via deserializedValues ({b: 123}) rather than jsonStringifyThrows.',
     mutateEncoder: () => createJsonEncoderFn<{a: string} | {b: number}>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<{a: string} | {b: number}>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<{a: string} | {b: number}>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<{a: string} | {b: number}>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<{a: string} | {b: number}>(),
-    preserveDecoder: () => createJsonDecoderFn<{a: string} | {b: number}>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<{a: string} | {b: number}>(),
+    mutateDecoder: () => createJsonDecoderFn<{a: string} | {b: number}>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<{a: string} | {b: number}>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<{a: string} | {b: number}>(),
-    binaryDecoder: () => createBinaryDecoderFn<{a: string} | {b: number}>(),
     schemaEncoder: () => createJsonEncoderFn(RT.union([RT.object({a: TF.string()}), RT.object({b: TF.number()})])),
     schemaDecoder: () => createJsonDecoderFn(RT.union([RT.object({a: TF.string()}), RT.object({b: TF.number()})])),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.union([RT.object({a: TF.string()}), RT.object({b: TF.number()})])),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.union([RT.object({a: TF.string()}), RT.object({b: TF.number()})])),
     // Symbol-valued props are silently dropped by JSON.stringify
     // (per ECMAScript spec) — no throw, no round-trip mismatch
     // because the symbol was never reachable post-stringify
@@ -920,28 +643,20 @@ export const UNIONS = {
       createJsonEncoderFn<{kind: 'created'; at: Date; by: string} | {kind: 'updated'; at: Date; reviewers: string[]}>(undefined, {
         strategy: 'clone',
       }),
-    directEncoder: () =>
-      createJsonEncoderFn<{kind: 'created'; at: Date; by: string} | {kind: 'updated'; at: Date; reviewers: string[]}>(undefined, {
-        strategy: 'direct',
-      }),
     compactEncoder: () =>
       createJsonEncoderFn<{kind: 'created'; at: Date; by: string} | {kind: 'updated'; at: Date; reviewers: string[]}>(undefined, {
         strategy: 'compact',
       }),
-    stripDecoder: () =>
+    cloneDecoder: () =>
       createJsonDecoderFn<{kind: 'created'; at: Date; by: string} | {kind: 'updated'; at: Date; reviewers: string[]}>(),
-    preserveDecoder: () =>
+    mutateDecoder: () =>
       createJsonDecoderFn<{kind: 'created'; at: Date; by: string} | {kind: 'updated'; at: Date; reviewers: string[]}>(undefined, {
-        strategy: 'preserve',
+        strategy: 'mutate',
       }),
     compactDecoder: () =>
       createJsonDecoderFn<{kind: 'created'; at: Date; by: string} | {kind: 'updated'; at: Date; reviewers: string[]}>(undefined, {
         strategy: 'compact',
       }),
-    binaryEncoder: () =>
-      createBinaryEncoderFn<{kind: 'created'; at: Date; by: string} | {kind: 'updated'; at: Date; reviewers: string[]}>(),
-    binaryDecoder: () =>
-      createBinaryDecoderFn<{kind: 'created'; at: Date; by: string} | {kind: 'updated'; at: Date; reviewers: string[]}>(),
     schemaEncoder: () =>
       createJsonEncoderFn(
         RT.union([
@@ -951,20 +666,6 @@ export const UNIONS = {
       ),
     schemaDecoder: () =>
       createJsonDecoderFn(
-        RT.union([
-          RT.object({kind: RT.literal('created'), at: TF.date(), by: TF.string()}),
-          RT.object({kind: RT.literal('updated'), at: TF.date(), reviewers: RT.array(TF.string())}),
-        ])
-      ),
-    schemaBinaryEncoder: () =>
-      createBinaryEncoderFn(
-        RT.union([
-          RT.object({kind: RT.literal('created'), at: TF.date(), by: TF.string()}),
-          RT.object({kind: RT.literal('updated'), at: TF.date(), reviewers: RT.array(TF.string())}),
-        ])
-      ),
-    schemaBinaryDecoder: () =>
-      createBinaryDecoderFn(
         RT.union([
           RT.object({kind: RT.literal('created'), at: TF.date(), by: TF.string()}),
           RT.object({kind: RT.literal('updated'), at: TF.date(), reviewers: RT.array(TF.string())}),
@@ -992,28 +693,20 @@ export const UNIONS = {
       createJsonEncoderFn<{kind: 'event'; when: Date; label: string} | {kind: 'note'; when: string; label: string}>(undefined, {
         strategy: 'clone',
       }),
-    directEncoder: () =>
-      createJsonEncoderFn<{kind: 'event'; when: Date; label: string} | {kind: 'note'; when: string; label: string}>(undefined, {
-        strategy: 'direct',
-      }),
     compactEncoder: () =>
       createJsonEncoderFn<{kind: 'event'; when: Date; label: string} | {kind: 'note'; when: string; label: string}>(undefined, {
         strategy: 'compact',
       }),
-    stripDecoder: () =>
+    cloneDecoder: () =>
       createJsonDecoderFn<{kind: 'event'; when: Date; label: string} | {kind: 'note'; when: string; label: string}>(),
-    preserveDecoder: () =>
+    mutateDecoder: () =>
       createJsonDecoderFn<{kind: 'event'; when: Date; label: string} | {kind: 'note'; when: string; label: string}>(undefined, {
-        strategy: 'preserve',
+        strategy: 'mutate',
       }),
     compactDecoder: () =>
       createJsonDecoderFn<{kind: 'event'; when: Date; label: string} | {kind: 'note'; when: string; label: string}>(undefined, {
         strategy: 'compact',
       }),
-    binaryEncoder: () =>
-      createBinaryEncoderFn<{kind: 'event'; when: Date; label: string} | {kind: 'note'; when: string; label: string}>(),
-    binaryDecoder: () =>
-      createBinaryDecoderFn<{kind: 'event'; when: Date; label: string} | {kind: 'note'; when: string; label: string}>(),
     schemaEncoder: () =>
       createJsonEncoderFn(
         RT.union([
@@ -1023,20 +716,6 @@ export const UNIONS = {
       ),
     schemaDecoder: () =>
       createJsonDecoderFn(
-        RT.union([
-          RT.object({kind: RT.literal('event'), when: TF.date(), label: TF.string()}),
-          RT.object({kind: RT.literal('note'), when: TF.string(), label: TF.string()}),
-        ])
-      ),
-    schemaBinaryEncoder: () =>
-      createBinaryEncoderFn(
-        RT.union([
-          RT.object({kind: RT.literal('event'), when: TF.date(), label: TF.string()}),
-          RT.object({kind: RT.literal('note'), when: TF.string(), label: TF.string()}),
-        ])
-      ),
-    schemaBinaryDecoder: () =>
-      createBinaryDecoderFn(
         RT.union([
           RT.object({kind: RT.literal('event'), when: TF.date(), label: TF.string()}),
           RT.object({kind: RT.literal('note'), when: TF.string(), label: TF.string()}),
@@ -1064,28 +743,20 @@ export const UNIONS = {
       createJsonEncoderFn<{form: 'big'; id: bigint; label: string} | {form: 'small'; id: number; label: string}>(undefined, {
         strategy: 'clone',
       }),
-    directEncoder: () =>
-      createJsonEncoderFn<{form: 'big'; id: bigint; label: string} | {form: 'small'; id: number; label: string}>(undefined, {
-        strategy: 'direct',
-      }),
     compactEncoder: () =>
       createJsonEncoderFn<{form: 'big'; id: bigint; label: string} | {form: 'small'; id: number; label: string}>(undefined, {
         strategy: 'compact',
       }),
-    stripDecoder: () =>
+    cloneDecoder: () =>
       createJsonDecoderFn<{form: 'big'; id: bigint; label: string} | {form: 'small'; id: number; label: string}>(),
-    preserveDecoder: () =>
+    mutateDecoder: () =>
       createJsonDecoderFn<{form: 'big'; id: bigint; label: string} | {form: 'small'; id: number; label: string}>(undefined, {
-        strategy: 'preserve',
+        strategy: 'mutate',
       }),
     compactDecoder: () =>
       createJsonDecoderFn<{form: 'big'; id: bigint; label: string} | {form: 'small'; id: number; label: string}>(undefined, {
         strategy: 'compact',
       }),
-    binaryEncoder: () =>
-      createBinaryEncoderFn<{form: 'big'; id: bigint; label: string} | {form: 'small'; id: number; label: string}>(),
-    binaryDecoder: () =>
-      createBinaryDecoderFn<{form: 'big'; id: bigint; label: string} | {form: 'small'; id: number; label: string}>(),
     schemaEncoder: () =>
       createJsonEncoderFn(
         RT.union([
@@ -1095,20 +766,6 @@ export const UNIONS = {
       ),
     schemaDecoder: () =>
       createJsonDecoderFn(
-        RT.union([
-          RT.object({form: RT.literal('big'), id: TF.bigInt(), label: TF.string()}),
-          RT.object({form: RT.literal('small'), id: TF.number(), label: TF.string()}),
-        ])
-      ),
-    schemaBinaryEncoder: () =>
-      createBinaryEncoderFn(
-        RT.union([
-          RT.object({form: RT.literal('big'), id: TF.bigInt(), label: TF.string()}),
-          RT.object({form: RT.literal('small'), id: TF.number(), label: TF.string()}),
-        ])
-      ),
-    schemaBinaryDecoder: () =>
-      createBinaryDecoderFn(
         RT.union([
           RT.object({form: RT.literal('big'), id: TF.bigInt(), label: TF.string()}),
           RT.object({form: RT.literal('small'), id: TF.number(), label: TF.string()}),
@@ -1130,21 +787,14 @@ export const UNIONS = {
       'Structural dispatch with no discriminator: the matched member is chosen by required-key shape, then the second arm applies Date↔ISO on `c` while the first arm carries only plain scalars.',
     mutateEncoder: () => createJsonEncoderFn<{a: string; b: number} | {a: boolean; c: Date}>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<{a: string; b: number} | {a: boolean; c: Date}>(undefined, {strategy: 'clone'}),
-    directEncoder: () => createJsonEncoderFn<{a: string; b: number} | {a: boolean; c: Date}>(undefined, {strategy: 'direct'}),
     compactEncoder: () => createJsonEncoderFn<{a: string; b: number} | {a: boolean; c: Date}>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<{a: string; b: number} | {a: boolean; c: Date}>(),
-    preserveDecoder: () => createJsonDecoderFn<{a: string; b: number} | {a: boolean; c: Date}>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<{a: string; b: number} | {a: boolean; c: Date}>(),
+    mutateDecoder: () => createJsonDecoderFn<{a: string; b: number} | {a: boolean; c: Date}>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<{a: string; b: number} | {a: boolean; c: Date}>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<{a: string; b: number} | {a: boolean; c: Date}>(),
-    binaryDecoder: () => createBinaryDecoderFn<{a: string; b: number} | {a: boolean; c: Date}>(),
     schemaEncoder: () =>
       createJsonEncoderFn(RT.union([RT.object({a: TF.string(), b: TF.number()}), RT.object({a: RT.boolean(), c: TF.date()})])),
     schemaDecoder: () =>
       createJsonDecoderFn(RT.union([RT.object({a: TF.string(), b: TF.number()}), RT.object({a: RT.boolean(), c: TF.date()})])),
-    schemaBinaryEncoder: () =>
-      createBinaryEncoderFn(RT.union([RT.object({a: TF.string(), b: TF.number()}), RT.object({a: RT.boolean(), c: TF.date()})])),
-    schemaBinaryDecoder: () =>
-      createBinaryDecoderFn(RT.union([RT.object({a: TF.string(), b: TF.number()}), RT.object({a: RT.boolean(), c: TF.date()})])),
     getTestData: () => ({
       values: [
         {a: 'hello', b: 7},
@@ -1155,23 +805,19 @@ export const UNIONS = {
   any_of_union: {
     title: 'anyOf at-least-one union',
     description:
-      'The AnyOf spelling IS the plain union: identical wire behavior, identical cached encoders, through every JSON strategy and binary.',
+      'The AnyOf spelling IS the plain union: identical wire behavior, identical cached encoders, through every JSON strategy.',
     serializeNotes: ['AnyOf<[…]> and RT.anyOf both resolve the plain union encoder.'],
     mutateEncoder: () =>
       createJsonEncoderFn<AnyOf<[{kind: 'a'; n: number}, {kind: 'b'; s: string}]>>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () =>
       createJsonEncoderFn<AnyOf<[{kind: 'a'; n: number}, {kind: 'b'; s: string}]>>(undefined, {strategy: 'clone'}),
-    directEncoder: () =>
-      createJsonEncoderFn<AnyOf<[{kind: 'a'; n: number}, {kind: 'b'; s: string}]>>(undefined, {strategy: 'direct'}),
     compactEncoder: () =>
       createJsonEncoderFn<AnyOf<[{kind: 'a'; n: number}, {kind: 'b'; s: string}]>>(undefined, {strategy: 'compact'}),
-    stripDecoder: () => createJsonDecoderFn<AnyOf<[{kind: 'a'; n: number}, {kind: 'b'; s: string}]>>(),
-    preserveDecoder: () =>
-      createJsonDecoderFn<AnyOf<[{kind: 'a'; n: number}, {kind: 'b'; s: string}]>>(undefined, {strategy: 'preserve'}),
+    cloneDecoder: () => createJsonDecoderFn<AnyOf<[{kind: 'a'; n: number}, {kind: 'b'; s: string}]>>(),
+    mutateDecoder: () =>
+      createJsonDecoderFn<AnyOf<[{kind: 'a'; n: number}, {kind: 'b'; s: string}]>>(undefined, {strategy: 'mutate'}),
     compactDecoder: () =>
       createJsonDecoderFn<AnyOf<[{kind: 'a'; n: number}, {kind: 'b'; s: string}]>>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<AnyOf<[{kind: 'a'; n: number}, {kind: 'b'; s: string}]>>(),
-    binaryDecoder: () => createBinaryDecoderFn<AnyOf<[{kind: 'a'; n: number}, {kind: 'b'; s: string}]>>(),
     schemaEncoder: () =>
       createJsonEncoderFn(
         RT.anyOf([RT.object({kind: RT.literal('a'), n: TF.number()}), RT.object({kind: RT.literal('b'), s: TF.string()})])
@@ -1180,18 +826,349 @@ export const UNIONS = {
       createJsonDecoderFn(
         RT.anyOf([RT.object({kind: RT.literal('a'), n: TF.number()}), RT.object({kind: RT.literal('b'), s: TF.string()})])
       ),
-    schemaBinaryEncoder: () =>
-      createBinaryEncoderFn(
-        RT.anyOf([RT.object({kind: RT.literal('a'), n: TF.number()}), RT.object({kind: RT.literal('b'), s: TF.string()})])
-      ),
-    schemaBinaryDecoder: () =>
-      createBinaryDecoderFn(
-        RT.anyOf([RT.object({kind: RT.literal('a'), n: TF.number()}), RT.object({kind: RT.literal('b'), s: TF.string()})])
-      ),
     getTestData: () => ({
       values: [
         {kind: 'a', n: 1},
         {kind: 'b', s: 'x'},
+      ],
+    }),
+  },
+  union_payment_method: {
+    title: 'Payment method union',
+    description:
+      "Discriminated union of three object shapes with disjoint props; compact writes one positional array over every member's props, a missing prop holding the first of 0, null, false its type cannot be.",
+    mutateEncoder: () =>
+      createJsonEncoderFn<
+        | {type: 'credit_card'; lastFourDigits: string; expiryMonth: number; expiryYear: number; brand: string}
+        | {type: 'bank_account'; bankName: string; accountLastFour: string; routingNumber: string}
+        | {type: 'paypal'; email: string}
+      >(undefined, {strategy: 'mutate'}),
+    cloneEncoder: () =>
+      createJsonEncoderFn<
+        | {type: 'credit_card'; lastFourDigits: string; expiryMonth: number; expiryYear: number; brand: string}
+        | {type: 'bank_account'; bankName: string; accountLastFour: string; routingNumber: string}
+        | {type: 'paypal'; email: string}
+      >(undefined, {strategy: 'clone'}),
+    compactEncoder: () =>
+      createJsonEncoderFn<
+        | {type: 'credit_card'; lastFourDigits: string; expiryMonth: number; expiryYear: number; brand: string}
+        | {type: 'bank_account'; bankName: string; accountLastFour: string; routingNumber: string}
+        | {type: 'paypal'; email: string}
+      >(undefined, {strategy: 'compact'}),
+    cloneDecoder: () =>
+      createJsonDecoderFn<
+        | {type: 'credit_card'; lastFourDigits: string; expiryMonth: number; expiryYear: number; brand: string}
+        | {type: 'bank_account'; bankName: string; accountLastFour: string; routingNumber: string}
+        | {type: 'paypal'; email: string}
+      >(),
+    mutateDecoder: () =>
+      createJsonDecoderFn<
+        | {type: 'credit_card'; lastFourDigits: string; expiryMonth: number; expiryYear: number; brand: string}
+        | {type: 'bank_account'; bankName: string; accountLastFour: string; routingNumber: string}
+        | {type: 'paypal'; email: string}
+      >(undefined, {strategy: 'mutate'}),
+    compactDecoder: () =>
+      createJsonDecoderFn<
+        | {type: 'credit_card'; lastFourDigits: string; expiryMonth: number; expiryYear: number; brand: string}
+        | {type: 'bank_account'; bankName: string; accountLastFour: string; routingNumber: string}
+        | {type: 'paypal'; email: string}
+      >(undefined, {strategy: 'compact'}),
+    schemaEncoder: () =>
+      createJsonEncoderFn(
+        RT.union([
+          RT.object({
+            type: RT.literal('credit_card'),
+            lastFourDigits: TF.string(),
+            expiryMonth: TF.number(),
+            expiryYear: TF.number(),
+            brand: TF.string(),
+          }),
+          RT.object({
+            type: RT.literal('bank_account'),
+            bankName: TF.string(),
+            accountLastFour: TF.string(),
+            routingNumber: TF.string(),
+          }),
+          RT.object({type: RT.literal('paypal'), email: TF.string()}),
+        ])
+      ),
+    schemaDecoder: () =>
+      createJsonDecoderFn(
+        RT.union([
+          RT.object({
+            type: RT.literal('credit_card'),
+            lastFourDigits: TF.string(),
+            expiryMonth: TF.number(),
+            expiryYear: TF.number(),
+            brand: TF.string(),
+          }),
+          RT.object({
+            type: RT.literal('bank_account'),
+            bankName: TF.string(),
+            accountLastFour: TF.string(),
+            routingNumber: TF.string(),
+          }),
+          RT.object({type: RT.literal('paypal'), email: TF.string()}),
+        ])
+      ),
+    getTestData: () => ({
+      values: [
+        {type: 'credit_card', lastFourDigits: '4242', expiryMonth: 12, expiryYear: 2025, brand: 'visa'},
+        {type: 'bank_account', bankName: 'Chase', accountLastFour: '1234', routingNumber: '021000021'},
+        {type: 'paypal', email: 'john.paypal@example.com'},
+      ],
+    }),
+  },
+  union_shared_optional: {
+    title: 'Members sharing a prop',
+    description:
+      'Union where one member adds an optional prop to the other ({email} | {email; phone?}); no member is picked on encode, so the optional survives on every strategy.',
+    mutateEncoder: () => createJsonEncoderFn<{email: string} | {email: string; phone?: string}>(undefined, {strategy: 'mutate'}),
+    cloneEncoder: () => createJsonEncoderFn<{email: string} | {email: string; phone?: string}>(undefined, {strategy: 'clone'}),
+    compactEncoder: () =>
+      createJsonEncoderFn<{email: string} | {email: string; phone?: string}>(undefined, {strategy: 'compact'}),
+    cloneDecoder: () => createJsonDecoderFn<{email: string} | {email: string; phone?: string}>(),
+    mutateDecoder: () => createJsonDecoderFn<{email: string} | {email: string; phone?: string}>(undefined, {strategy: 'mutate'}),
+    compactDecoder: () =>
+      createJsonDecoderFn<{email: string} | {email: string; phone?: string}>(undefined, {strategy: 'compact'}),
+    schemaEncoder: () =>
+      createJsonEncoderFn(
+        RT.union([RT.object({email: TF.string()}), RT.object({email: TF.string(), phone: RT.optional(TF.string())})])
+      ),
+    schemaDecoder: () =>
+      createJsonDecoderFn(
+        RT.union([RT.object({email: TF.string()}), RT.object({email: TF.string(), phone: RT.optional(TF.string())})])
+      ),
+    getTestData: () => ({values: [{email: 'a@b.c', phone: '123'}, {email: 'a@b.c'}]}),
+  },
+  union_object_or_null: {
+    title: 'Object or null',
+    description:
+      'Union of one object and null; null is a plain JSON scalar, so compact needs no member index to tell it from the object.',
+    mutateEncoder: () => createJsonEncoderFn<{tag: string} | null>(undefined, {strategy: 'mutate'}),
+    cloneEncoder: () => createJsonEncoderFn<{tag: string} | null>(undefined, {strategy: 'clone'}),
+    compactEncoder: () => createJsonEncoderFn<{tag: string} | null>(undefined, {strategy: 'compact'}),
+    cloneDecoder: () => createJsonDecoderFn<{tag: string} | null>(),
+    mutateDecoder: () => createJsonDecoderFn<{tag: string} | null>(undefined, {strategy: 'mutate'}),
+    compactDecoder: () => createJsonDecoderFn<{tag: string} | null>(undefined, {strategy: 'compact'}),
+    schemaEncoder: () => createJsonEncoderFn(RT.union([RT.object({tag: TF.string()}), RT.literal(null)])),
+    schemaDecoder: () => createJsonDecoderFn(RT.union([RT.object({tag: TF.string()}), RT.literal(null)])),
+    getTestData: () => ({values: [{tag: 'x'}, null]}),
+  },
+  union_object_or_string_array: {
+    title: 'Object or string array',
+    description:
+      'Union of an object and a string array; compact writes the object as an array too, so it keeps the member index to tell them apart.',
+    mutateEncoder: () => createJsonEncoderFn<{a: string} | string[]>(undefined, {strategy: 'mutate'}),
+    cloneEncoder: () => createJsonEncoderFn<{a: string} | string[]>(undefined, {strategy: 'clone'}),
+    compactEncoder: () => createJsonEncoderFn<{a: string} | string[]>(undefined, {strategy: 'compact'}),
+    cloneDecoder: () => createJsonDecoderFn<{a: string} | string[]>(),
+    mutateDecoder: () => createJsonDecoderFn<{a: string} | string[]>(undefined, {strategy: 'mutate'}),
+    compactDecoder: () => createJsonDecoderFn<{a: string} | string[]>(undefined, {strategy: 'compact'}),
+    schemaEncoder: () => createJsonEncoderFn(RT.union([RT.object({a: TF.string()}), RT.array(TF.string())])),
+    schemaDecoder: () => createJsonDecoderFn(RT.union([RT.object({a: TF.string()}), RT.array(TF.string())])),
+    getTestData: () => ({values: [{a: 'x'}, ['x', 'y'], []]}),
+  },
+  union_shared_slot_types: {
+    title: 'Same prop, different types',
+    description:
+      'Members declare one optional prop with different types (Date on one, number on another, absent on a third); the prop keeps its per-member codec on every strategy.',
+    mutateEncoder: () =>
+      createJsonEncoderFn<{k: 'a'; f?: Date} | {k: 'b'; f?: number} | {k: 'c'}>(undefined, {strategy: 'mutate'}),
+    cloneEncoder: () => createJsonEncoderFn<{k: 'a'; f?: Date} | {k: 'b'; f?: number} | {k: 'c'}>(undefined, {strategy: 'clone'}),
+    compactEncoder: () =>
+      createJsonEncoderFn<{k: 'a'; f?: Date} | {k: 'b'; f?: number} | {k: 'c'}>(undefined, {strategy: 'compact'}),
+    cloneDecoder: () => createJsonDecoderFn<{k: 'a'; f?: Date} | {k: 'b'; f?: number} | {k: 'c'}>(),
+    mutateDecoder: () =>
+      createJsonDecoderFn<{k: 'a'; f?: Date} | {k: 'b'; f?: number} | {k: 'c'}>(undefined, {strategy: 'mutate'}),
+    compactDecoder: () =>
+      createJsonDecoderFn<{k: 'a'; f?: Date} | {k: 'b'; f?: number} | {k: 'c'}>(undefined, {strategy: 'compact'}),
+    schemaEncoder: () =>
+      createJsonEncoderFn(
+        RT.union([
+          RT.object({k: RT.literal('a'), f: RT.optional(TF.date())}),
+          RT.object({k: RT.literal('b'), f: RT.optional(TF.number())}),
+          RT.object({k: RT.literal('c')}),
+        ])
+      ),
+    schemaDecoder: () =>
+      createJsonDecoderFn(
+        RT.union([
+          RT.object({k: RT.literal('a'), f: RT.optional(TF.date())}),
+          RT.object({k: RT.literal('b'), f: RT.optional(TF.number())}),
+          RT.object({k: RT.literal('c')}),
+        ])
+      ),
+    getTestData: () => ({
+      values: [{k: 'a', f: new Date('2024-01-01T00:00:00.000Z')}, {k: 'a'}, {k: 'b', f: 1}, {k: 'b'}, {k: 'c'}],
+    }),
+  },
+  union_nested_object_unions: {
+    title: 'Nested object unions',
+    description:
+      'Three-level nesting: a union of objects whose props hold more unions of objects (an optional style union holding an array of a mark union with an optional Date, a nullable caption object, an array of an item union with a nullable string), each level resolving its own members.',
+    mutateEncoder: () =>
+      createJsonEncoderFn<
+        | {
+            kind: 'text';
+            body: string;
+            style?: {type: 'plain'} | {type: 'rich'; marks: ({mark: 'bold'} | {mark: 'link'; href: string; at?: Date})[]};
+          }
+        | {kind: 'image'; src: string; caption?: {lang: string; text: string} | null}
+        | {kind: 'group'; items: ({kind: 'ref'; id: number} | {kind: 'inline'; note: string | null})[]}
+      >(undefined, {strategy: 'mutate'}),
+    cloneEncoder: () =>
+      createJsonEncoderFn<
+        | {
+            kind: 'text';
+            body: string;
+            style?: {type: 'plain'} | {type: 'rich'; marks: ({mark: 'bold'} | {mark: 'link'; href: string; at?: Date})[]};
+          }
+        | {kind: 'image'; src: string; caption?: {lang: string; text: string} | null}
+        | {kind: 'group'; items: ({kind: 'ref'; id: number} | {kind: 'inline'; note: string | null})[]}
+      >(undefined, {strategy: 'clone'}),
+    compactEncoder: () =>
+      createJsonEncoderFn<
+        | {
+            kind: 'text';
+            body: string;
+            style?: {type: 'plain'} | {type: 'rich'; marks: ({mark: 'bold'} | {mark: 'link'; href: string; at?: Date})[]};
+          }
+        | {kind: 'image'; src: string; caption?: {lang: string; text: string} | null}
+        | {kind: 'group'; items: ({kind: 'ref'; id: number} | {kind: 'inline'; note: string | null})[]}
+      >(undefined, {strategy: 'compact'}),
+    cloneDecoder: () =>
+      createJsonDecoderFn<
+        | {
+            kind: 'text';
+            body: string;
+            style?: {type: 'plain'} | {type: 'rich'; marks: ({mark: 'bold'} | {mark: 'link'; href: string; at?: Date})[]};
+          }
+        | {kind: 'image'; src: string; caption?: {lang: string; text: string} | null}
+        | {kind: 'group'; items: ({kind: 'ref'; id: number} | {kind: 'inline'; note: string | null})[]}
+      >(),
+    mutateDecoder: () =>
+      createJsonDecoderFn<
+        | {
+            kind: 'text';
+            body: string;
+            style?: {type: 'plain'} | {type: 'rich'; marks: ({mark: 'bold'} | {mark: 'link'; href: string; at?: Date})[]};
+          }
+        | {kind: 'image'; src: string; caption?: {lang: string; text: string} | null}
+        | {kind: 'group'; items: ({kind: 'ref'; id: number} | {kind: 'inline'; note: string | null})[]}
+      >(undefined, {strategy: 'mutate'}),
+    compactDecoder: () =>
+      createJsonDecoderFn<
+        | {
+            kind: 'text';
+            body: string;
+            style?: {type: 'plain'} | {type: 'rich'; marks: ({mark: 'bold'} | {mark: 'link'; href: string; at?: Date})[]};
+          }
+        | {kind: 'image'; src: string; caption?: {lang: string; text: string} | null}
+        | {kind: 'group'; items: ({kind: 'ref'; id: number} | {kind: 'inline'; note: string | null})[]}
+      >(undefined, {strategy: 'compact'}),
+    schemaEncoder: () =>
+      createJsonEncoderFn(
+        RT.union([
+          RT.object({
+            kind: RT.literal('text'),
+            body: TF.string(),
+            style: RT.optional(
+              RT.union([
+                RT.object({type: RT.literal('plain')}),
+                RT.object({
+                  type: RT.literal('rich'),
+                  marks: RT.array(
+                    RT.union([
+                      RT.object({mark: RT.literal('bold')}),
+                      RT.object({mark: RT.literal('link'), href: TF.string(), at: RT.optional(TF.date())}),
+                    ])
+                  ),
+                }),
+              ])
+            ),
+          }),
+          RT.object({
+            kind: RT.literal('image'),
+            src: TF.string(),
+            caption: RT.optional(RT.union([RT.object({lang: TF.string(), text: TF.string()}), RT.literal(null)])),
+          }),
+          RT.object({
+            kind: RT.literal('group'),
+            items: RT.array(
+              RT.union([
+                RT.object({kind: RT.literal('ref'), id: TF.number()}),
+                RT.object({kind: RT.literal('inline'), note: RT.union([TF.string(), RT.literal(null)])}),
+              ])
+            ),
+          }),
+        ])
+      ),
+    schemaDecoder: () =>
+      createJsonDecoderFn(
+        RT.union([
+          RT.object({
+            kind: RT.literal('text'),
+            body: TF.string(),
+            style: RT.optional(
+              RT.union([
+                RT.object({type: RT.literal('plain')}),
+                RT.object({
+                  type: RT.literal('rich'),
+                  marks: RT.array(
+                    RT.union([
+                      RT.object({mark: RT.literal('bold')}),
+                      RT.object({mark: RT.literal('link'), href: TF.string(), at: RT.optional(TF.date())}),
+                    ])
+                  ),
+                }),
+              ])
+            ),
+          }),
+          RT.object({
+            kind: RT.literal('image'),
+            src: TF.string(),
+            caption: RT.optional(RT.union([RT.object({lang: TF.string(), text: TF.string()}), RT.literal(null)])),
+          }),
+          RT.object({
+            kind: RT.literal('group'),
+            items: RT.array(
+              RT.union([
+                RT.object({kind: RT.literal('ref'), id: TF.number()}),
+                RT.object({kind: RT.literal('inline'), note: RT.union([TF.string(), RT.literal(null)])}),
+              ])
+            ),
+          }),
+        ])
+      ),
+    getTestData: () => ({
+      values: [
+        {kind: 'text', body: 'hi'},
+        {kind: 'text', body: 'hi', style: {type: 'plain'}},
+        {
+          kind: 'text',
+          body: 'hi',
+          style: {
+            type: 'rich',
+            marks: [
+              {mark: 'bold'},
+              {mark: 'link', href: '/a'},
+              {mark: 'link', href: '/b', at: new Date('2024-01-01T00:00:00.000Z')},
+            ],
+          },
+        },
+        {kind: 'image', src: 'a.png'},
+        {kind: 'image', src: 'a.png', caption: null},
+        {kind: 'image', src: 'a.png', caption: {lang: 'en', text: 'cat'}},
+        {kind: 'group', items: []},
+        {
+          kind: 'group',
+          items: [
+            {kind: 'ref', id: 1},
+            {kind: 'inline', note: null},
+            {kind: 'inline', note: 'x'},
+          ],
+        },
       ],
     }),
   },

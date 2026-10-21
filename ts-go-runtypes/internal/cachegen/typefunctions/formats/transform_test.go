@@ -41,7 +41,7 @@ func TestEmitStringTransform_OrderAndIdentity(t *testing.T) {
 	}
 }
 
-// TestValidateTransformParams — the FMT002 shape check is the only guard
+// TestValidateTransformParams — the format-invalid-params shape check is the only guard
 // against a typo inside the block, so it must reject unknown keys.
 func TestValidateTransformParams(t *testing.T) {
 	cases := []struct {

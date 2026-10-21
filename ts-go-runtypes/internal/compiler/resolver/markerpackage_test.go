@@ -206,7 +206,7 @@ func TestMarkerPackage_FormEquivalence(t *testing.T) {
 	}
 }
 
-// --- MKR012: the near miss is reported, not silently degraded ---------------
+// --- marker-untrusted-package: the near miss is reported, not silently degraded ---------------
 
 // hasUntrustedPackageDiag reports whether the scan flagged a marker-named type
 // from an untrusted package, returning its args joined for assertion (the args

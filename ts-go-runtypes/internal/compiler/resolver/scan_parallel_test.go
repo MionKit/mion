@@ -31,11 +31,8 @@ func parallelFixtureLarge() string {
 	return sb.String()
 }
 
-// parallelFixtureSources is the shared multi-file fixture set: enough
-// files to spread across the 4-checker pool, covering objects, unions
-// (discriminated + mixed), a large object, cross-file structural dedup,
-// diagnostics (MKR001/MKR003/MKR004/CTA), enums/templates/tuples,
-// reflect-form annotation honoring, and classes/builtins.
+// parallelFixtureSources spreads across the 4-checker pool: objects, unions, a large object, cross-file dedup, diagnostics
+// (marker-*), an option variant, enums/templates/tuples, reflect-form annotations, classes/builtins.
 func parallelFixtureSources() map[string]string {
 	return map[string]string{
 		"a_objects.ts": `import {createValidateFn, createGetValidationErrorsFn, getRunTypeId} from '@mionjs/run-types';
@@ -78,8 +75,8 @@ export const idReflect = getRunTypeId(a);
 export function wrap<T>() { return createValidateFn<T>(); }
 function make() { return {a: 1}; }
 export const viaCall = createValidateFn(make());
-export const noopOpt = createValidateFn<string>(undefined, {noLiterals: true});
-const opts = {noLiterals: true};
+export const optVariant = createValidateFn<number>(undefined, {numberMode: 'typeof'});
+const opts = {rejectCircularRefs: true};
 export const nonLiteral = createValidateFn<string>(undefined, opts);
 const made: {a: number} = {a: 2};
 export const reflected = getRunTypeId(made);
@@ -116,7 +113,7 @@ const acc = new Account();
 export const idReflect = getRunTypeId(acc);
 `,
 		// Non-serialisable members silently drop with per-family Warning
-		// diagnostics (VL010 / VE010 / json-family codes) — multiple
+		// diagnostics (the `-function-property-dropped` codes) — multiple
 		// families emit RT-render diagnostics for the same type, which
 		// pins the cross-family diagnostic merge order in parallel mode.
 		"i_dropped.ts": `import {createValidateFn, createGetValidationErrorsFn, createJsonEncoderFn, getRunTypeId} from '@mionjs/run-types';
@@ -127,6 +124,15 @@ export const enc = createJsonEncoderFn<WithFn>();
 const w: WithFn = {name: 'x', onClick: () => {}};
 export const idReflect = getRunTypeId(w);
 `,
+		"j_new.ts": `import {type InjectRunTypeId} from '@mionjs/run-types';
+export class Holder<T> {
+  constructor(value?: T, id?: InjectRunTypeId<T>) {}
+}
+export interface Item {sku: string; qty: number}
+export const holderStatic = new Holder<Item>();
+const item: Item = {sku: 'a', qty: 1};
+export const holderReflect = new Holder(item);
+`,
 	}
 }
 
@@ -135,7 +141,7 @@ func parallelFixtureFiles() []string {
 	return []string{
 		"a_objects.ts", "b_unions.ts", "c_large.ts", "d_shared.ts",
 		"e_diags.ts", "f_enum_literals.ts", "g_reflect.ts", "h_classes.ts",
-		"i_dropped.ts",
+		"i_dropped.ts", "j_new.ts",
 	}
 }
 
@@ -204,7 +210,7 @@ func TestParallelScan_EquivalentToSerial(t *testing.T) {
 		t.Fatalf("fixture produced no sites")
 	}
 	if len(serialResponse.Diagnostics) == 0 {
-		t.Fatalf("fixture produced no diagnostics (MKR/CTA coverage missing)")
+		t.Fatalf("fixture produced no diagnostics (marker-* coverage missing)")
 	}
 
 	serialJSON := responseJSON(t, serialResponse)
@@ -362,5 +368,19 @@ func TestParallelScan_DumpEquivalence(t *testing.T) {
 	}
 	if len(serialResponse.Sites) == 0 {
 		t.Fatalf("dump produced no sites — eager scan did not run")
+	}
+}
+
+// The parallel scan visits `new` expressions too, both marker shapes resolving to one id.
+func TestParallelScan_NewExpressions(t *testing.T) {
+	response := setupParallelResolver(t, parallelFixtureSources()).Dispatch(scanAllRequest(parallelFixtureFiles()))
+	var ids []string
+	for _, site := range response.Sites {
+		if strings.HasSuffix(site.File, "j_new.ts") {
+			ids = append(ids, site.ID)
+		}
+	}
+	if len(ids) != 2 || ids[0] != ids[1] {
+		t.Fatalf("expected two `new Holder` sites sharing one id, got %v", ids)
 	}
 }

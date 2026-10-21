@@ -7,13 +7,13 @@
 //
 // The playground fetches its host-built assets from /playground-app/ (the resolver
 // WASM + the mion source overlay), staged by
-// container/website/scripts/build-playground.sh. If they are missing, the stage
+// container/website/scripts/build-playground.mjs. If they are missing, the stage
 // component surfaces its own error state.
 withDefaults(
   defineProps<{
     // Initial TypeScript snippet (must define `MyType`). Omitted -> the stage's own seed type.
     type?: string;
-    // Initial build function: validate | errors | jsonEncoder* | jsonDecoder* | binary* | graph.
+    // Initial build function: validate | errors | jsonEncoder* | jsonDecoder* | graph.
     operation?: string;
     // Initial JS input for the chosen function.
     input?: string;
@@ -48,7 +48,7 @@ withDefaults(
   min-height: var(--rt-pg-min-height);
   margin: 0;
   padding: 10px 16px;
-  color: var(--ui-text-muted, #8b949e);
+  color: var(--ui-text-muted);
   font-size: 13px;
   text-align: center;
 }

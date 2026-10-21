@@ -1,26 +1,20 @@
 package datetime
 
 import (
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"strconv"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
 )
 
-// boundcodegen.go emits the runtime min/max comparison for a validated
-// date/time/dateTime/native-Date value. Absolute bounds are baked as a
-// precomputed number on the runtime scale (epoch ms for date/dateTime/
-// Date, ms-of-day for time); relative `now±P…` bounds emit a call to
-// pf_relativeNowKey(spec, scale) so JS owns the calendar arithmetic at
-// check time. The value side uses pf_dateStrToMs / pf_timeStrToMs to
-// convert the string to the same scale; the native-Date emitter passes
-// the Date's getTime() directly (see nativeDate.go) and so does NOT use
-// these string converters.
+// boundcodegen.go emits the runtime min/max comparison for a validated date/time/dateTime/native-Date value.
+// Absolute bounds are baked as a number on the runtime scale (epoch ms, ms-of-day for time); relative `now±P…`
+// bounds emit relativeNowKey(spec, scale) so JS owns the calendar arithmetic at check time.
 
-// scaleFor returns the relativeNowKey scale arg for a bound kind. Date
-// values are floored to UTC midnight (dateStrToMs), so a date relative
-// bound must floor `now` to midnight too ('epochDate') — otherwise a
-// value exactly "now-P1Y" (midnight) would fall below a bound that still
-// carries the current time-of-day. dateTime keeps the full instant.
+// scaleFor returns the relativeNowKey scale arg for a bound kind.
+// dateStrToMs floors a date value to UTC midnight, so a date relative bound floors `now` too ('epochDate'), or a
+// value of exactly "now-P1Y" would fall below a bound still carrying the current time-of-day.
+// dateTime keeps the full instant ('epoch').
 func scaleFor(kind boundKind) string {
 	switch kind {
 	case timeKind:
@@ -32,9 +26,7 @@ func scaleFor(kind boundKind) string {
 	}
 }
 
-// boundExpr renders the JS expression a bound compares against: a baked
-// number for an absolute literal, or pf_relativeNowKey(spec, scale) for
-// a relative spec. ok=false when the bound is absent.
+// boundExpr renders what a bound compares against: a baked number for an absolute literal, relativeNowKey(spec, scale) for a relative one.
 func boundExpr(ctx formats.EmitContext, params map[string]any, key string, kind boundKind, layout string) (string, bool) {
 	bound, present := stringParam(params, key)
 	if !present || bound == "" {
@@ -44,7 +36,7 @@ func boundExpr(ctx formats.EmitContext, params map[string]any, key string, kind 
 		if relErr != "" {
 			return "", false // already reported by ValidateParams
 		}
-		alias := pureFnAlias(ctx, "relativeNowKey")
+		alias := pureFnAlias(ctx, purefnids.RelativeNowKey)
 		return alias + "(" + strconv.Quote(bound) + "," + scaleFor(kind) + ")", true
 	}
 	keyVal, ok := comparableLiteral(bound, kind, layout)
@@ -54,36 +46,26 @@ func boundExpr(ctx formats.EmitContext, params map[string]any, key string, kind 
 	return strconv.FormatInt(int64(keyVal), 10), true
 }
 
-// valueKeyExpr renders the JS expression converting the (validated)
-// value string to the comparison scale. For time → ms-of-day; for date
-// → UTC epoch ms; for dateTime → date epoch ms + time ms-of-day, split on
-// splitChar, mirroring the Go-side dateTimeEpochMs bake (NOT Date.parse,
-// which would interpret a 'T'-joined value in local time and diverge from
-// the UTC-baked absolute bounds).
+// valueKeyExpr mirrors the Go-side dateTimeEpochMs bake, never Date.parse: that reads a 'T'-joined value as local time and would diverge from the UTC-baked bounds.
 func valueKeyExpr(ctx formats.EmitContext, vλl string, kind boundKind, layout string) string {
 	if kind == timeKind {
-		alias := pureFnAlias(ctx, "timeStrToMs")
+		alias := pureFnAlias(ctx, purefnids.TimeStrToMs)
 		return alias + "(" + vλl + "," + strconv.Quote(layout) + ")"
 	}
 	if kind == dateKind {
-		alias := pureFnAlias(ctx, "dateStrToMs")
+		alias := pureFnAlias(ctx, purefnids.DateStrToMs)
 		return alias + "(" + vλl + "," + strconv.Quote(layout) + ")"
 	}
-	// dateTime — layout here is the splitChar; nested layouts default to
-	// ISO for the comparison (the static bake uses the same default).
-	dateAlias := pureFnAlias(ctx, "dateStrToMs")
-	timeAlias := pureFnAlias(ctx, "timeStrToMs")
-	split := strconv.Quote(layout)
+	// dateTime: layout here is the splitChar, and the static bake defaults the nested layouts to ISO too.
+	dateAlias := pureFnAlias(ctx, purefnids.DateStrToMs)
+	timeAlias := pureFnAlias(ctx, purefnids.TimeStrToMs)
 	return "((dtp) => " + dateAlias + "(" + vλl + ".substring(0,dtp),'ISO') + " +
-		timeAlias + "(" + vλl + ".substring(dtp+1),'ISO'))(" + vλl + ".indexOf(" + split + "))"
+		timeAlias + "(" + vλl + ".substring(dtp+1),'ISO'))(" + splitSearch(vλl, layout) + ")"
 }
 
-// boundOps is the ordered set of bound params and the operator the value
-// must satisfy to PASS. min/max are inclusive (>= / <=); gt/lt are the
-// exclusive twins (> / <), mirroring the numeric format family. Whatever
-// bounds survive validation AND together — at most one lower (min XOR gt)
-// and one upper (max XOR lt), since the same edge can't be both (rejected
-// in ValidateParams).
+// boundOps is the ordered set of bound params and the operator the value must satisfy to PASS; gt/lt are the
+// exclusive twins of min/max, mirroring the numeric format family.
+// Surviving bounds AND together, at most one per edge: validateMinMax rejects min with gt, and max with lt.
 var boundOps = []struct {
 	key string
 	op  string
@@ -94,16 +76,13 @@ var boundOps = []struct {
 	{"lt", "<"},
 }
 
-// boundValidateChecks returns the AND-able expression for the min/max/gt/lt
-// comparisons, or "" when no bound is set. The value is converted once
-// (cheap; the JS engine can CSE identical calls).
+// boundValidateChecks returns the AND-able expression for the min/max/gt/lt comparisons, "" when no bound is set.
 func boundValidateChecks(ctx formats.EmitContext, params map[string]any, vλl string, kind boundKind, layout string) string {
 	return boundValidateChecksFromKey(ctx, params, valueKeyExpr(ctx, vλl, kind, layout), kind, layout)
 }
 
-// boundValidateChecksFromKey is boundValidateChecks with a caller-supplied
-// value key expression — used by the native Date emitter, whose value key
-// is the Date's getTime() rather than a parsed string.
+// boundValidateChecksFromKey is boundValidateChecks with a caller-supplied value key, for the native Date
+// emitter whose key is the Date's getTime() rather than a parsed string.
 func boundValidateChecksFromKey(ctx formats.EmitContext, params map[string]any, valueKey string, kind boundKind, layout string) string {
 	var checks string
 	for _, bound := range boundOps {

@@ -35,16 +35,14 @@ import {
   genType,
   renderGenerated,
   describeType,
-  childShapes,
   FUZZ_FORMAT_PREAMBLE_PACKAGE,
+  genHasStructuralParams,
   type GeneratedType,
-  type TypeShape,
 } from '../core/typeGen.ts';
 import {genValidValue, corruptValue, valueOracleSafe} from '../value/shapeValue.ts';
 import {
   CONVERT_GEN_OPTIONS,
   isConvertibleGen,
-  declShapes,
   createConvertProject,
   destroyConvertProject,
   convertLeg,
@@ -103,18 +101,18 @@ const ROOT_ALIAS = /(?:^|\n)(?:export )?type FzRoot = [A-Za-z_$][\w$]*<typeof ([
 
 /** Derive both builder spellings from a type-form fixture via the real
  *  converter. Returns null — the caller re-rolls, counting it — when the
- *  converter refuses the shape (a designed CNVxxx diagnostic: the coarse
+ *  converter refuses the shape (a designed convert-* diagnostic: the coarse
  *  isConvertibleGen pre-filter cannot model every print-path refusal, and
  *  pinning the refusal surface is the CONVERT lane's job, not this one's) or
  *  when the converted output has no parseable root alias (e.g. the root
  *  printed as a pure reference of a declaration). A non-refusal converter
- *  failure (a crash, no CNV diagnostic) still throws — that is a finding. **/
+ *  failure (a crash, no convert-* diagnostic) still throws — that is a finding. **/
 export function deriveBuilderSpellings(project: ConvertProject, typeSource: string): BuilderSpellings | null {
   let staticSource: string;
   try {
     staticSource = convertLeg(project, typeSource, 'builders');
   } catch (err) {
-    if (err instanceof Error && /\bCNV\d{3}\b/.test(err.message)) return null;
+    if (err instanceof Error && /\bconvert-[a-z0-9]+(?:-[a-z0-9]+)* (?:error|warning)\b/.test(err.message)) return null;
     throw err;
   }
   const aliasMatch = ROOT_ALIAS.exec(staticSource);
@@ -261,10 +259,13 @@ async function fuzzOne(client: ResolverClient, project: ConvertProject, seed: nu
   // E3 — behavior floor on the STATIC form (the elided spelling is the
   // feature's risk surface), on the diagnostics-clean value-generable tier.
   // Structural-format shapes (contains / uniqueItems / min-max entries) are
-  // excluded: shapeValue does not model those constraints (its home lanes
-  // never generate them), so its "conforming" values can be honestly invalid
-  // — they still get full E0-E2 coverage.
-  if (staticSide.errorDiagnostics.length > 0 || !valueOracleSafe(gen) || genHasStructuralFormat(gen)) return;
+  // excluded on EVERY collection, Sets and Maps included: shapeValue does not
+  // model those constraints (its home lanes never generate them), so its
+  // "conforming" values can be honestly invalid. The predicate lives in typeGen
+  // beside the shapes, because the copy that used to live here listed only
+  // array and record and so let bounded Sets and Maps through. They still get
+  // full E0-E2 coverage.
+  if (staticSide.errorDiagnostics.length > 0 || !valueOracleSafe(gen) || genHasStructuralParams(gen)) return;
   let tuples: Record<string, readonly unknown[]>;
   try {
     tuples = evalEntryModules(staticSide.modules);
@@ -296,17 +297,6 @@ async function fuzzOne(client: ResolverClient, project: ConvertProject, seed: nu
 
 function errMsg(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
-}
-
-// Structural formats ride `shape.structural` on array / record nodes.
-function shapeHasStructuralFormat(shape: TypeShape): boolean {
-  if ((shape.kind === 'array' || shape.kind === 'record') && shape.structural !== undefined) return true;
-  return childShapes(shape).some(shapeHasStructuralFormat);
-}
-
-function genHasStructuralFormat(gen: GeneratedType): boolean {
-  if (shapeHasStructuralFormat(gen.root)) return true;
-  return gen.decls.some((decl) => declShapes(decl).some(shapeHasStructuralFormat));
 }
 
 // Wide-space values may carry bigint / Map / Set, which JSON.stringify cannot

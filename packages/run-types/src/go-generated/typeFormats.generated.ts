@@ -8,10 +8,10 @@
 //
 // To update: add / rename a format emitter on the Go side, then run:
 //
-//     pnpm rtx core codegen typeformats
+//     pnpm miondevx core codegen typeformats
 //
 // The TestTypeFormatsFileInSync Go test and
-// `pnpm rtx core codegen typeformats --check` (CI) both fail on any drift.
+// `pnpm miondevx core codegen typeformats --check` (CI) both fail on any drift.
 //
 // The canonical format names mion stamps on a reflected prop's
 // `formatAnnotation.name`, each with the base RunTypeKind it refines. A
@@ -38,9 +38,12 @@ export const typeFormats = {
   domain: {name: 'domain', kind: RunTypeKind.string},
   email: {name: 'email', kind: RunTypeKind.string},
   formattedArray: {name: 'formattedArray', kind: RunTypeKind.array},
+  formattedMap: {name: 'formattedMap', kind: RunTypeKind.class},
   formattedObject: {name: 'formattedObject', kind: RunTypeKind.object},
+  formattedSet: {name: 'formattedSet', kind: RunTypeKind.class},
   ip: {name: 'ip', kind: RunTypeKind.string},
   nativeDate: {name: 'nativeDate', kind: RunTypeKind.class},
+  nativeUrl: {name: 'nativeUrl', kind: RunTypeKind.class},
   numberFormat: {name: 'numberFormat', kind: RunTypeKind.number},
   stringFormat: {name: 'stringFormat', kind: RunTypeKind.string},
   temporalInstant: {name: 'temporalInstant', kind: RunTypeKind.class},

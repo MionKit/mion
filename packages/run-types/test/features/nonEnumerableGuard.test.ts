@@ -1,15 +1,7 @@
-// Runtime-enumerability guard for global-inherited + `@nonEnumerable` props. A guarded
-// property's by-name write is gated on a runtime own-enumerability check
-// (`Object.prototype.propertyIsEnumerable`, JSON.stringify semantics) in the
-// families that build output by name (prepareForJsonSafe / stringifyJson /
-// compactForJson / toBinary). The guard invariant is GUARDED ⇒ OPTIONAL-in-type,
-// so DataOnly<T> is sound by construction: a member is guarded only when the
-// type already permits its absence. A `@nonEnumerable` tag therefore takes effect
-// only on an OPTIONAL property; on a required one it is a no-op (the NE lint rule
-// flags that). Guarded props are optional to validators / the decode presence
-// path.
-//
-// (Marker coverage rule: both getRunTypeId call shapes, converging + hash-equal.)
+// Families that write output by name (prepareForJsonSafe / compactForJson) gate a guarded prop
+// (global-inherited or `@nonEnumerable`) on `propertyIsEnumerable`. Guarded implies optional, so DataOnly<T> stays
+// sound: `@nonEnumerable` on a required prop is a no-op the data-non-enumerable-required lint rule flags. Both getRunTypeId call shapes are
+// covered, per the marker coverage rule.
 
 import {describe, expect, it} from 'vitest';
 import {
@@ -17,12 +9,10 @@ import {
   createGetValidationErrorsFn,
   createJsonEncoderFn,
   createJsonDecoderFn,
-  createBinaryEncoderFn,
-  createBinaryDecoderFn,
-  getRunType,
   getRunTypeId,
   type RunType,
 } from '@mionjs/run-types';
+import {getRunType} from '@mionjs/run-types';
 
 // `@nonEnumerable` on an OPTIONAL property → guarded (and DataOnly-safe: the
 // type already allows it to be absent).
@@ -39,19 +29,29 @@ function withSecret(enumerable: boolean): Doc {
 }
 
 // Encoder strategy paired with a decoder that reads its wire.
+// The strategy is read at build time, so each one is spelled at its own call site; a variable
+// resolves to no strategy and the call falls back to the default.
 const STRATEGY_PAIRS = [
-  {encode: 'clone', decode: 'strip'},
-  {encode: 'mutate', decode: 'preserve'},
-  {encode: 'direct', decode: 'strip'},
-  {encode: 'compact', decode: 'compact'},
+  {
+    name: 'clone',
+    encode: createJsonEncoderFn<Doc>(undefined, {strategy: 'clone'}),
+    decode: createJsonDecoderFn<Doc>(undefined, {strategy: 'clone'}),
+  },
+  {
+    name: 'mutate',
+    encode: createJsonEncoderFn<Doc>(undefined, {strategy: 'mutate'}),
+    decode: createJsonDecoderFn<Doc>(undefined, {strategy: 'mutate'}),
+  },
+  {
+    name: 'compact',
+    encode: createJsonEncoderFn<Doc>(undefined, {strategy: 'compact'}),
+    decode: createJsonDecoderFn<Doc>(undefined, {strategy: 'compact'}),
+  },
 ] as const;
 
 describe('@nonEnumerable guard on an optional prop — JSON strategies', () => {
-  for (const {encode: encStrategy, decode: decStrategy} of STRATEGY_PAIRS) {
+  for (const {name: encStrategy, encode, decode} of STRATEGY_PAIRS) {
     it(`[${encStrategy}] non-enumerable secret is dropped; enumerable secret is kept`, () => {
-      const encode = createJsonEncoderFn<Doc>(undefined, {strategy: encStrategy});
-      const decode = createJsonDecoderFn<Doc>(undefined, {strategy: decStrategy});
-
       const hidden = decode(encode(withSecret(false)) as string) as Record<string, unknown>;
       expect(hidden.id).toBe('d1');
       expect(hidden.secret).toBeUndefined();
@@ -59,15 +59,12 @@ describe('@nonEnumerable guard on an optional prop — JSON strategies', () => {
       const shown = decode(encode(withSecret(true)) as string) as Record<string, unknown>;
       expect(shown.id).toBe('d1');
       expect(shown.secret).toBe('shhh');
+
+      // An enumerable `undefined` is absent too, never a present null.
+      const blank = decode(encode({id: 'd1', secret: undefined}) as string) as Record<string, unknown>;
+      expect(blank).toEqual({id: 'd1'});
     });
   }
-
-  it('binary round-trip honors the guard both ways', () => {
-    const encode = createBinaryEncoderFn<Doc>();
-    const decode = createBinaryDecoderFn<Doc>();
-    expect((decode(encode(withSecret(false))) as Record<string, unknown>).secret).toBeUndefined();
-    expect((decode(encode(withSecret(true))) as Record<string, unknown>).secret).toBe('shhh');
-  });
 
   it('validators treat the guarded prop as optional; DataOnly-safe', () => {
     const isDoc = createValidateFn<Doc>();

@@ -43,6 +43,27 @@ func entryModule(resp protocol.Response, basename string) string {
 	return resp.EntryModules[basename]
 }
 
+// reflectionModule returns the source of the per-file module exporting rootID's facade, "" when none does.
+func reflectionModule(resp protocol.Response, rootID string) string {
+	needle := "export const __rt_" + rootID + "=[5,"
+	for _, source := range resp.EntryModules {
+		if strings.Contains(source, needle) {
+			return source
+		}
+	}
+	return ""
+}
+
+// hasRunTypeData reports whether any module carries a runtype data tuple.
+func hasRunTypeData(resp protocol.Response) bool {
+	for _, source := range resp.EntryModules {
+		if strings.Contains(source, "=[4,") {
+			return true
+		}
+	}
+	return false
+}
+
 // allEntrySources concatenates every entry-module source in sorted-basename
 // order — for substring assertions that don't care which module carries the
 // fragment.

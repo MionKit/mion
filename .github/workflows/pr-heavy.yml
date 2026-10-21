@@ -1,19 +1,34 @@
-name: pr · website + benchmarks (label-gated)
+name: pr · website + benchmarks + pre-publish e2e (label-gated)
 
-# The two heavy lanes nothing else runs on a PR.
+# The heavy lanes nothing else runs on a PR.
 #
 # ci.yml covers lint, typecheck, the vitest projects and the Go suite. The
-# website build and the benchmarks are containerized and slow, so they only ran
-# from website-deploy.yml, which is prod-only and DEPLOYS. That left no way to
-# prove a PR does not break either one before it lands, which is exactly what a
-# repo-wide rename needs.
+# website build, the benchmarks and the pre-publish e2e are containerized and
+# slow, so they only ran from website-deploy.yml (prod-only, and it DEPLOYS) and
+# release-gate.yml (a release, or a manual dispatch). That left no way to prove a
+# PR does not break any of them before it lands, which is exactly what a
+# repo-wide rename or a public API change needs.
 #
-# So: same shape as drizzle-e2e.yml, a label opts a PR in. Two independent
-# labels rather than one, because the website build is ~10 minutes and the
-# benchmarks are much longer; most PRs that want one do not want the other.
+# So: same shape as drizzle-e2e.yml, a label opts a PR in. Independent labels
+# rather than one, because the website build is ~10 minutes, the benchmarks and
+# the e2e are much longer, and most PRs that want one do not want the others.
 #
-#   website   build BOTH docs sites and assert every page prerenders
-#   bench     run the validation benchmarks
+#   website          build the docs site and assert it compiles
+#   bench            run the validation benchmarks
+#   pre-publish-e2e  pack the packages, publish them to a throwaway registry and
+#                    run the consumer lanes (the multi-bundler matrix and the
+#                    mion consumers) against that install, like the release gate
+#
+# A LABEL IS NOT ENOUGH on its own. These lanes used to run on every commit for the
+# life of a labelled pull request, so a docs commit re-paid a ten minute site build
+# or a two hour benchmark run. The `lanes` job now decides by CONTENT as well: each
+# lane hashes the paths that feed it (scripts/ci/lanes.mjs) and runs only when that
+# hash has not already passed. Label AND content, so `synchronize` keeps a labelled
+# pull request honest without re-running work that is already proven.
+# The website lane ignores page text (container/website/content/) and CSS; the release gate still builds them.
+#
+# A new commit cancels only what it changed: an older run whose live lanes all hash
+# the same is kept, and each `*-wait` job waits for its markers (scripts/ci/supersede.mjs).
 #
 # Deliberately NOT pull_request_target: that would hand secrets and write
 # permissions to fork code. And deliberately no deploy step — this proves the
@@ -22,31 +37,76 @@ name: pr · website + benchmarks (label-gated)
 on:
   # `labeled` fires when the label is added; `synchronize` re-runs while the
   # label is still on, so a labelled PR keeps being checked as it grows.
+  # The `lanes` job reads labels live: an `opened` run that cancels its `labeled` twin has none in its payload.
   pull_request:
     types: [opened, synchronize, reopened, labeled]
 
 permissions:
   contents: read
 
+# Per run: the gate cancels the stale older runs itself (scripts/ci/supersede.mjs).
+# A fork's read-only token cannot cancel, so forks keep GitHub's per-ref cancel.
 concurrency:
-  group: pr-heavy-${{ github.ref }}
+  group: pr-heavy-${{ github.ref }}-${{ github.event.pull_request.head.repo.fork && 'fork' || github.run_id }}
   cancel-in-progress: true
 
 jobs:
+  # The content gate, shared with ci.yml and drizzle-e2e.yml. Tiny and unlabelled:
+  # it has to answer before the labelled jobs can ask.
+  lanes:
+    name: decide lanes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # the markers, the older runs' decisions, and cancelling the stale ones
+      actions: write
+      # reading the live labels
+      pull-requests: read
+    outputs:
+      lanes: ${{ steps.decide.outputs.lanes }}
+      labels: ${{ steps.decide.outputs.labels }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
+      - id: decide
+        uses: ./.github/actions/ci-lanes
+        with:
+          lanes: website bench e2e
+
+  # Lets website wait for an older run's markers instead of repeating its work (scripts/ci/supersede.mjs).
+  website-wait:
+    name: build the docs site · wait for an older run
+    needs: lanes
+    if: fromJSON(needs.lanes.outputs.lanes).website.deferredTo
+    permissions:
+      contents: read
+      # reading the markers and the older run's jobs
+      actions: read
+    uses: ./.github/workflows/lane-wait.yml
+    with:
+      lanes: website
+      jobs: build the docs site
+      decision: ${{ needs.lanes.outputs.lanes }}
+      minutes: 70
+
   website:
-    name: build both docs sites
-    if: contains(github.event.pull_request.labels.*.name, 'website')
+    name: build the docs site
+    needs: [lanes, website-wait]
+    if: ${{ !cancelled() && needs.lanes.result == 'success' && contains(fromJSON(needs.lanes.outputs.labels), 'website') && fromJSON(needs.website-wait.outputs.lanes || needs.lanes.outputs.lanes).website.run }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      # `submodules: recursive` + bootstrap is the repo's ONE setup: the Go
-      # resolver only builds once tsgolint's patches are applied to its vendored
-      # typescript-go, and bootstrap is what applies them.
       - uses: actions/checkout@v5
-        with:
-          submodules: recursive
       - uses: ./.github/actions/free-disk
       - uses: ./.github/actions/bootstrap
+      # Before the resolver: a wasm cache hit means this job never needs Go.
+      - name: Cache the playground wasm
+        id: wasm
+        uses: ./.github/actions/cache-playground-wasm
+      - uses: ./.github/actions/resolver
+        with:
+          toolchain: ${{ steps.wasm.outputs.hit != 'true' }}
       - name: Pull the prebuilt shared image (CI never builds it)
         uses: ./.github/actions/pull-shared-image
         with:
@@ -54,35 +114,58 @@ jobs:
           # (read:packages) is not. The input is `password`, not `github-token` —
           # a wrong key here is silently ignored and the pull fails on auth.
           password: ${{ secrets.GHCR_PAT }}
-      - name: Cache the playground wasm
-        uses: ./.github/actions/cache-playground-wasm
       # The container-only prod build, NOT the full pipeline. This is the part a
-      # PR can actually prove: both sites compile, every content page and every
-      # <code-import> resolves against the current packages.
+      # PR can actually prove: the site compiles, every content page and every
+      # <code-import> resolves against the current packages. Page text and CSS alone skip it.
       #
-      # The full `website build` is deliberately not used. It regenerates the
-      # benchmark data, and the compiletime dataset needs typia, whose native
-      # .ttsc plugin is not baked into the shared image (ci.yml skips typia for
-      # the same reason). Without it that dataset is missing and the static check
-      # fails on a 404 that says nothing about the PR. Regenerating the published
-      # numbers is website-deploy.yml's job, on prod, with typia.
+      # The full `website build` is deliberately not used: it regenerates every
+      # benchmark dataset, which is a long container run this lane has no reason to
+      # pay for. Regenerating the published numbers is website-deploy.yml's job, on
+      # prod.
       #
-      # `website check --docs` is not used either: its twoslash hover assertion
-      # fails on main too, so it would report a pre-existing problem as this PR's.
-      - name: Build both docs sites
-        run: pnpm rtx website container-build
+      # `website check --docs` is not used either: it renders the landing pages' hover
+      # cards through the twoslash endpoint, which needs every @mionjs/* dist built
+      # first (a whole-workspace build this lane does not run).
+      - name: Build the docs site
+        run: pnpm miondevx website container-build
+      - name: Record the docs site build as green
+        uses: ./.github/actions/save-lane-green
+        with:
+          lane: website
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes).website.hash }}
+
+  # Lets bench wait for an older run's markers instead of repeating its work (scripts/ci/supersede.mjs).
+  bench-wait:
+    name: validation benchmarks · wait for an older run
+    needs: lanes
+    if: fromJSON(needs.lanes.outputs.lanes).bench.deferredTo
+    permissions:
+      contents: read
+      # reading the markers and the older run's jobs
+      actions: read
+    uses: ./.github/workflows/lane-wait.yml
+    with:
+      lanes: bench
+      jobs: validation benchmarks
+      decision: ${{ needs.lanes.outputs.lanes }}
+      minutes: 130
 
   bench:
-    name: validation benchmarks
-    if: contains(github.event.pull_request.labels.*.name, 'bench')
+    name: validation benchmarks · ${{ matrix.competitor }}
+    needs: [lanes, bench-wait]
+    if: ${{ !cancelled() && needs.lanes.result == 'success' && contains(fromJSON(needs.lanes.outputs.labels), 'bench') && fromJSON(needs.bench-wait.outputs.lanes || needs.lanes.outputs.lanes).bench.run }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        # The unproven lanes.mjs items: a mion change re-runs the mion lane alone.
+        competitor: ${{ fromJSON(needs.bench-wait.outputs.lanes || needs.lanes.outputs.lanes).bench.runItems }}
     steps:
       - uses: actions/checkout@v5
-        with:
-          submodules: recursive
       - uses: ./.github/actions/free-disk
       - uses: ./.github/actions/bootstrap
+      - uses: ./.github/actions/resolver
       - name: Pull the prebuilt shared image (CI never builds it)
         uses: ./.github/actions/pull-shared-image
         with:
@@ -90,11 +173,166 @@ jobs:
           # (read:packages) is not. The input is `password`, not `github-token` —
           # a wrong key here is silently ignored and the pull fails on auth.
           password: ${{ secrets.GHCR_PAT }}
-      # --quick: a PR wants "the lanes still run and answer correctly", not
-      # publishable numbers. Every lane still has to answer correctly AND reject
-      # an invalid payload before it is measured, which is the part that catches
-      # a broken competitor after a rename.
-      # typia runs here too: the prebuilt image bakes its compiled ttsc plugin, so
-      # its lane builds in seconds like the others.
+      # --quick: a PR needs correct answers, which catch a competitor broken by a rename, not publishable numbers.
+      # typia runs too: the prebuilt image bakes its ttsc plugin, so its lane builds in seconds like the others.
       - name: Run the benchmarks
-        run: pnpm rtx bench --quick
+        run: pnpm miondevx bench --quick --only ${{ matrix.competitor }}
+      # Claims only this competitor.
+      - name: Record this competitor as green
+        uses: ./.github/actions/save-lane-green
+        with:
+          lane: bench.${{ matrix.competitor }}
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes).bench.items[matrix.competitor].hash }}
+
+  # Claims every competitor, so it waits on every one that ran; the rest had their own item markers.
+  bench-green:
+    name: record the benchmarks as green
+    needs: [lanes, bench]
+    if: ${{ !cancelled() && needs.bench.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/save-lane-green
+        with:
+          lane: bench
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes).bench.hash }}
+
+  # Lets the e2e build and consumer lanes wait for an older run's markers instead of redoing them (scripts/ci/supersede.mjs).
+  e2e-wait:
+    name: pre-publish e2e · wait for an older run
+    needs: lanes
+    if: fromJSON(needs.lanes.outputs.lanes).e2e.deferredTo
+    permissions:
+      contents: read
+      # reading the markers and the older run's jobs
+      actions: read
+    uses: ./.github/workflows/lane-wait.yml
+    with:
+      lanes: e2e
+      jobs: pre-publish e2e
+      decision: ${{ needs.lanes.outputs.lanes }}
+      minutes: 160
+
+  # ── pre-publish e2e: the release gate's consumer lanes, on a PR ─────────────
+  # Two jobs like drizzle-e2e.yml: ONE build that packs the tarballs, then the e2e
+  # over them. Same shape as release-gate.yml's build + e2e (container backend),
+  # with the drizzle lane's ONE difference: the binaries are built for the host
+  # platform only (`--host-only`). The lane runs on an ubuntu runner inside a
+  # linux/amd64 container, so only @mionjs/native-compiler-linux-x64 is ever
+  # installed; the throwaway registry accepts a host-only set, and
+  # publish-tarballs.mjs refuses one everywhere else, so it can never reach npm.
+  # The mac / windows host-npx lanes are not repeated here: the consumer lanes are
+  # OS-agnostic and the release gate keeps running them.
+  pre-publish-build:
+    name: pre-publish e2e · build + pack
+    needs: [lanes, e2e-wait]
+    if: ${{ !cancelled() && needs.lanes.result == 'success' && contains(fromJSON(needs.lanes.outputs.labels), 'pre-publish-e2e') && fromJSON(needs.e2e-wait.outputs.lanes || needs.lanes.outputs.lanes).e2e.run }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/free-disk
+      - uses: ./.github/actions/bootstrap
+      # Before the resolver: with the release binary cached, this job never needs Go.
+      - id: release-key
+        run: echo "key=$(node scripts/release/build-binaries.mjs --cache-key --host-only)" >> "$GITHUB_OUTPUT"
+      - id: release-bins
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache/release-bin
+          key: ${{ steps.release-key.outputs.key }}
+      - uses: ./.github/actions/resolver
+        with:
+          toolchain: ${{ steps.release-bins.outputs.cache-hit != 'true' }}
+      # mion-bin/mion FIRST: the @mionjs/* vite builds run the devtools plugin,
+      # which spawns it. Without this the dist build dies on @mionjs/core.
+      - name: Build the resolver + dists
+        run: pnpm run check:builds
+      - name: Build FE dists (canonical, for packing)
+        run: pnpm run build
+      - name: Build the host platform binary package
+        run: pnpm miondevx release binaries --host-only
+      - if: steps.release-bins.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .cache/release-bin
+          key: ${{ steps.release-key.outputs.key }}
+      - name: Pack every package into tarballs/
+        run: pnpm miondevx release pack
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pre-publish-e2e-tarballs
+          path: tarballs/
+          retention-days: 3
+
+  pre-publish-e2e:
+    name: pre-publish e2e · consumer lanes
+    needs: [lanes, e2e-wait, pre-publish-build]
+    if: ${{ !cancelled() && needs.pre-publish-build.result == 'success' }}
+    runs-on: ubuntu-latest
+    env:
+      MION_LANES: ${{ needs.e2e-wait.outputs.lanes || needs.lanes.outputs.lanes }}
+    timeout-minutes: 90
+    # packages:read lets the job pull the prebuilt e2e image.
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/free-disk
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+      - run: pnpm install --frozen-lockfile
+      # The tarballs the build job packed. e2e.mjs skips its own build + pack when
+      # tarballs/ is already populated, exactly like the release gate's lane.
+      - uses: actions/download-artifact@v8
+        with:
+          name: pre-publish-e2e-tarballs
+          path: tarballs
+      # CI never builds the image; it pulls the prebuilt e2e image (verdaccio + the
+      # builder toolchains). e2e.mjs's own ensureImage then sees the digest already
+      # matches and skips a second pull.
+      - name: Pull the prebuilt e2e image
+        uses: ./.github/actions/pull-shared-image
+        with:
+          remote: ghcr.io/mionkit/tsrt-e2e:latest
+          local-tag: tsrt-e2e:dev
+          # tsrt-e2e is a PRIVATE package the repo's GITHUB_TOKEN can't read; the
+          # PAT (read:packages) can.
+          password: ${{ secrets.GHCR_PAT }}
+      # The ONE front door, the same script as the release gate and a local run.
+      # Runs only the halves not yet proven green.
+      - name: Pre-publish e2e (container backend)
+        run: >-
+          pnpm miondevx release e2e --backend container
+          ${{ !contains(fromJSON(env.MION_LANES).e2e.runItems, 'matrix') && '--no-matrix' || '' }}
+          ${{ !contains(fromJSON(env.MION_LANES).e2e.runItems, 'mion') && '--no-mion' || '' }}
+          ${{ !contains(fromJSON(env.MION_LANES).e2e.runItems, 'host-smoke') && '--no-host-smoke' || '' }}
+      # Markers ride the job that PROVES the lane, not the packer: one per half that ran, then the lane's (all three).
+      - name: Record the bundler matrix as green
+        if: success() && contains(fromJSON(env.MION_LANES).e2e.runItems, 'matrix')
+        uses: ./.github/actions/save-lane-green
+        with:
+          lane: e2e.matrix
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes).e2e.items.matrix.hash }}
+      - name: Record the mion consumer lanes as green
+        if: success() && contains(fromJSON(env.MION_LANES).e2e.runItems, 'mion')
+        uses: ./.github/actions/save-lane-green
+        with:
+          lane: e2e.mion
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes).e2e.items.mion.hash }}
+      - name: Record the host smoke as green
+        if: success() && contains(fromJSON(env.MION_LANES).e2e.runItems, 'host-smoke')
+        uses: ./.github/actions/save-lane-green
+        with:
+          lane: e2e.host-smoke
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes).e2e.items['host-smoke'].hash }}
+      - name: Record the pre-publish e2e as green
+        uses: ./.github/actions/save-lane-green
+        with:
+          lane: e2e
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes).e2e.hash }}

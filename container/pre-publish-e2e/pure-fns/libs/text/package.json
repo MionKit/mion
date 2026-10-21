@@ -1,0 +1,17 @@
+{
+  "name": "@acme/text",
+  "version": "0.0.0",
+  "private": false,
+  "type": "module",
+  "description": "Pure-fn e2e fixture: a library built with the Vite adapter. Ships dist only, so its pure functions reach a consumer through dist/mion-pure-fns/.",
+  "files": [
+    "dist"
+  ],
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  }
+}

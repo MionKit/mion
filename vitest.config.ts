@@ -1,6 +1,6 @@
 import {defineConfig} from 'vitest/config';
 
-// Root vitest config — the 5 runtypes projects + the 16 mion projects run from
+// Root vitest config — the 6 runtypes projects + the 19 mion-side projects run from
 // one root, and this list is the SINGLE SOURCE OF TRUTH for which projects exist:
 // `test:ci` batches them with --project filters (scripts/core/test-batches.mjs), and
 // `pnpm run check:test-batches` fails if a project added here belongs to no batch.
@@ -10,7 +10,7 @@ import {defineConfig} from 'vitest/config';
 // their plugins (notably @mionjs/devtools installed in
 // ts-runtypes/vitest.config.ts) actually apply at test time.
 //
-// The Go binary at bin/mion is built by the root `pretest`
+// The Go binary at mion-bin/mion is built by the root `pretest`
 // script (see package.json) — it MUST be in place before vitest boots,
 // because @mionjs/devtools spawns it from its `configResolved`
 // hook, which fires during project initialization (before
@@ -27,22 +27,25 @@ export default defineConfig({
     projects: [
       // ── runtypes side ──
       'packages/run-types/vitest.config.ts',
+      // The feature suite over typed `.ts` cache modules (emitMode 'ts').
+      'packages/run-types/vitest.ts-emit.config.ts',
       'packages/devtools/vitest.core.config.ts',
       // The playground engine suite (relocated from the dissolved
       // runtypes-playground package) — a standalone project co-located under
       // ts-runtypes/test/playground, excluded from the marker project above.
       'packages/run-types/test/playground/vitest.config.ts',
-      // The Go-resolver JS sidecar (private, never published) — pure unit
-      // tests, no binary involved.
-      'packages/go-be-sidecar/vitest.config.ts',
+      // Go-resolver JS sidecar: pure unit tests, no binary.
+      'packages/private-go-be-sidecar/vitest.config.ts',
       // Mock-format-registry regression: its own project so the test file's
       // runtime import graph stays free of formats value imports (the marker
       // project above excludes it — import-graph isolation is the repro).
       'packages/run-types/test/mock-format-isolation/vitest.config.ts',
       // ── mion side ──
       'packages/core/vitest.config.ts',
-      'packages/router/vitest.config.ts',
-      'packages/client/vitest.config.ts',
+      'packages/rpc-router/vitest.config.ts',
+      'packages/rpc-client/vitest.config.ts',
+      // The client's bundled lane: metadata bundled at the call sites.
+      'packages/rpc-client/vitest.bundled.config.ts',
       'packages/platform-aws/vitest.config.ts',
       'packages/platform-gcloud/vitest.config.ts',
       'packages/platform-node/vitest.config.ts',
@@ -53,13 +56,16 @@ export default defineConfig({
       'packages/drizzle-orm-sqlite-core/vitest.config.ts',
       'packages/platform-vercel/vitest.config.ts',
       'packages/platform-uws/vitest.config.ts',
-      'packages/uws/vitest.config.ts',
+      'packages/bin-uws/vitest.config.ts',
       'packages/platform-cloudflare/vitest.config.ts',
-      // Type-instantiation cost budgets for the model pipeline (private, never
-      // published) — a pure in-process compile measurement, no plugins.
-      'packages/type-budget/vitest.config.ts',
+      // Own package: sechttp needs router, node adapter and test-server, and hosting it in any one closes a cycle.
+      'packages/private-test-router-fuzz/vitest.config.ts',
+      // Model-pipeline type-instantiation budgets: in-process compile measurement, no plugins.
+      'packages/private-type-budget/vitest.config.ts',
+      // Reference app: slim drizzle tables through routes to a typed client, plus their type cost.
+      'packages/private-drizzle-example-app/vitest.config.ts',
     ],
-    // Teardown-only sweep removing every __runtypes genDir under packages/ after the
+    // Teardown-only sweep removing every .mion genDir under packages/ after the
     // run. Belt-and-braces with each project's own teardown, and the only cleanup
     // that fires on FILTERED runs (`vitest run <pattern>`): initializing a project
     // boots its runtypes resolver and writes its genDir even when none of its tests

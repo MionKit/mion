@@ -8,17 +8,12 @@
 import type {IncomingMessage, ServerResponse} from 'node:http';
 
 // ############# node <-> web request bridge (dev server only) #############
-// Vite's dev-server middleware layer is connect, i.e. node (req, res), in EVERY runtime — running
-// vite under bun works because bun implements node:http, and mounting vite's middlewares inside
-// Bun.serve is the direction that does not (oven-sh/bun#12212). So a fetch-style mion adapter
-// (platform-bun, vercel, cloudflare…) is served in dev exactly the way the ecosystem does it —
-// @hono/vite-dev-server bridges the same way through @hono/node-server's getRequestListener.
-//
-// Dev-only code: it buffers the request body rather than streaming it, which keeps the conversion
-// small and is what the equivalent runtime adapter already does
-// (packages/platform-vercel/src/devServer.ts).
+// Vite's dev-server middleware layer is connect, node (req, res), in EVERY runtime: vite runs under bun
+// because bun implements node:http, while mounting vite's middlewares inside Bun.serve is the direction that
+// does not (oven-sh/bun#12212). So a fetch-style mion adapter is bridged the way the ecosystem does it,
+// @hono/vite-dev-server through @hono/node-server's getRequestListener. Dev-only, so the request body is
+// buffered rather than streamed, as packages/platform-vercel/src/devServer.ts already does.
 
-/** Builds a web Request from node's IncomingMessage. */
 export async function nodeRequestToWeb(req: IncomingMessage, isSecure = false): Promise<Request> {
   const headers = new Headers();
   for (const [key, value] of Object.entries(req.headers)) {
@@ -34,11 +29,10 @@ export async function nodeRequestToWeb(req: IncomingMessage, isSecure = false): 
   return new Request(url, {method, headers, body});
 }
 
-/** Writes a web Response back to node's ServerResponse. */
 export async function writeWebResponseToNode(webResponse: Response, res: ServerResponse): Promise<void> {
   res.statusCode = webResponse.status;
-  // set-cookie is the one header that legitimately repeats; Headers merges it into one comma
-  // joined value, which browsers then read as a single malformed cookie.
+  // set-cookie is the one header that legitimately repeats, and Headers merges it into one comma-joined
+  // value browsers read as a single malformed cookie.
   const setCookie = webResponse.headers.getSetCookie?.() ?? [];
   if (setCookie.length) res.setHeader('set-cookie', setCookie);
   webResponse.headers.forEach((value, key) => {
@@ -52,7 +46,6 @@ export async function writeWebResponseToNode(webResponse: Response, res: ServerR
   res.end(Buffer.from(await webResponse.arrayBuffer()));
 }
 
-/** Serves one node request through a fetch-style handler. */
 export async function serveFetchHandler(
   handler: (req: Request) => Response | Promise<Response>,
   req: IncomingMessage,
@@ -63,9 +56,8 @@ export async function serveFetchHandler(
   await writeWebResponseToNode(webResponse, res);
 }
 
-/** Collects the request body (dev-only: buffered, not streamed). Copied into a Uint8Array backed by
- *  a plain ArrayBuffer: node's Buffer (and any ArrayBufferLike-backed view) is not accepted as a
- *  BodyInit under DOM lib settings, which the consuming project's tsconfig may well be on. */
+/** Copied into a Uint8Array backed by a plain ArrayBuffer: node's Buffer, and any ArrayBufferLike-backed
+ *  view, is not accepted as a BodyInit under the DOM lib settings a consuming tsconfig may well be on. */
 function readBody(req: IncomingMessage): Promise<Uint8Array<ArrayBuffer> | undefined> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];

@@ -64,7 +64,7 @@ export function makeSchemas(z) {
     dateOfBirth: z.coerce.date(),
   });
 
-  // .strict() rejects unknown keys, matching mion's strictTypes behaviour.
+  // .strict() rejects unknown keys, matching mion's mutateStrict parser strategy.
   const UserSchema = z
     .object({
       id: z.number(),
@@ -92,7 +92,8 @@ export function makeSchemas(z) {
     })
     .strict();
 
-  return {UserSchema, SimpleUserSchema};
+  // Compiled as a speed-tuned app ships it; strict throws at startup rather than silently fall back to the slow parser.
+  return {UserSchema: z.compile(UserSchema, {strict: true}), SimpleUserSchema: z.compile(SimpleUserSchema, {strict: true})};
 }
 
 // The two handlers every app implements, kept here so a competitor can never quietly

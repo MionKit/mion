@@ -1,0 +1,45 @@
+{
+  // Check-only config, shared with the editor. This package emits nothing, so there is no
+  // tsconfig.build.json: `paths` is cleared so `@mionjs/*` resolve through the `source` export
+  // condition, which needs no built dists, and gives every package one module identity.
+  // A CI gate (pull-requests.yml runs `check-types`); it must stay at 0 errors.
+  // bun-types is in `types` because resolving @mionjs/* to source pulls
+  // platform-bun source into the program, and the root tsconfig only lists `node`.
+  // The runtypes examples share this src/ tree but need bundler resolution against the built
+  // dists, so they are excluded here and type-checked by tsconfig.runtypes.json instead. The two
+  // trees share src/_homepage and src/introduction, hence the explicit file excludes.
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "incremental": false,
+    "skipLibCheck": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM"],
+    "types": ["node", "bun-types"],
+    "paths": {}
+  },
+  "include": ["src", "vite.config.ts"],
+  "exclude": [
+    "node_modules",
+    ".dist",
+    "src/enrich",
+    "src/guide",
+    "src/_homepage/define-builder.ts",
+    "src/_homepage/define-type.ts",
+    "src/_homepage/formats-builder.ts",
+    "src/_homepage/formats-type.ts",
+    "src/_homepage/json-round-trip.ts",
+    "src/_homepage/reflection-value.ts",
+    "src/_homepage/reflection.ts",
+    "src/_homepage/showcase.ts",
+    "src/introduction/quick-start-next-config.ts",
+    "src/introduction/quick-start-rollup-config.ts",
+    "src/introduction/quick-start-validate.ts",
+    "src/introduction/quick-start-vite-config.ts",
+  ]
+}

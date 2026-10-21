@@ -5,7 +5,7 @@
 // pass a smoke test and gate nothing.
 //
 // Lives in this package because scripts/ has no vitest project of its own; the
-// same reason repo-contracts.test.ts guards the rtx CLI and the env registry.
+// same reason repo-contracts.test.ts guards the miondevx CLI and the env registry.
 import {createHash} from 'node:crypto';
 import {mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -18,7 +18,7 @@ const VERSION = '9.9.9';
 const dirs: string[] = [];
 
 function makeTarballs(
-  files: Record<string, string> = {'mionjs-run-types-9.9.9.tgz': 'core-bytes', 'mionjs-bin-9.9.9.tgz': 'bin-bytes'}
+  files: Record<string, string> = {'mionjs-run-types-9.9.9.tgz': 'core-bytes', 'mionjs-bin-compiler-9.9.9.tgz': 'bin-bytes'}
 ): string {
   const dir = mkdtempSync(join(tmpdir(), 'rt-receipt-'));
   dirs.push(dir);
@@ -42,7 +42,7 @@ describe('e2e receipt — writing', () => {
     expect(receipt.version).toBe(VERSION);
     expect(receipt.backend).toBe('container');
     expect(receipt.covered).toEqual({matrix: true, hostSmoke: true});
-    expect(Object.keys(receipt.tarballs).sort()).toEqual(['mionjs-bin-9.9.9.tgz', 'mionjs-run-types-9.9.9.tgz']);
+    expect(Object.keys(receipt.tarballs).sort()).toEqual(['mionjs-bin-compiler-9.9.9.tgz', 'mionjs-run-types-9.9.9.tgz']);
     expect(receipt.tarballs['mionjs-run-types-9.9.9.tgz']).toBe(createHash('sha256').update('core-bytes').digest('hex'));
   });
 
@@ -101,7 +101,7 @@ describe('e2e receipt — verifying', () => {
   it('rejects a tarball missing since the run', () => {
     const dir = makeTarballs();
     sign(dir);
-    unlinkSync(join(dir, 'mionjs-bin-9.9.9.tgz'));
+    unlinkSync(join(dir, 'mionjs-bin-compiler-9.9.9.tgz'));
     const verdict = verifyReceipt(dir, VERSION);
     expect(verdict.ok).toBe(false);
     expect(verdict.reason).toContain('gone since the run');

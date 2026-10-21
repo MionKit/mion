@@ -1,0 +1,27 @@
+import {HeadersSubset, isRpcError} from '@mionjs/core';
+import {initClient, batch} from '@mionjs/client';
+import type {MyApi} from './hello-sum-auth.routes.ts';
+
+const {routes, middlewares} = initClient<MyApi>({
+  baseURL: 'http://localhost:3000',
+});
+
+// runs once per batch, so the whole batch shares one trace id
+middlewares.trace.onRequest((trace) =>
+  trace(new HeadersSubset({'X-Trace-Id': crypto.randomUUID()}))
+);
+
+const [[sum, sumError, response], [greeting, greetingError]] = await batch([
+  routes.utils.sum(5, 2),
+  routes.sayHello('John'),
+]).call();
+
+// one response for the whole batch
+if (isRpcError(response.auth))
+  console.log('Auth failed:', response.auth.publicMessage);
+if (response.trace) console.log('Trace:', response.trace);
+if (response['@thrownErrors'])
+  console.log('Request failed:', response['@thrownErrors'][0].publicMessage);
+
+if (!sumError) console.log('Sum:', sum);
+if (!greetingError) console.log(greeting);

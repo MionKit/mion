@@ -1,43 +1,27 @@
-// @mionjs/devtools/runtypes/next — Next.js + Turbopack support.
-//
-// Turbopack has no plugin API and does not run webpack PLUGINS, so the usual
-// unplugin entry points cannot reach it. It does run webpack-style LOADERS, and
-// that is the whole door: `next.config` (plain Node, evaluated before any
-// bundler worker exists) starts the broker, and a loader registered through
-// `turbopack.rules` asks that broker to rewrite each file.
-//
-// The pieces are exported individually, not just as one sealed wrapper, because
-// downstream tools (mion's devtools) build their own Next integration on top of
-// this one and need to compose the parts rather than nest wrappers.
-//
-// ⚠️ READ ./CLAUDE.md BEFORE CHANGING ANYTHING HERE. It records the invariants
-// that look like cleanups and are not (per-invocation socket key, accepting
-// connections before buildStart, the `default` export condition the loader
-// subpath needs), and why the real `next build` coverage lives in the e2e
-// container rather than in the vitest suite.
+// Turbopack runs loaders, not plugins; one config-process broker serves the loader workers.
+// Export the pieces for downstream composition; read ./AGENTS.md for invariants and container-only build coverage.
+import path from 'node:path';
 import {unplugin} from '../../core/unplugin.ts';
-import {startBroker, socketPathFor, ownsBroker, type BrokerHandle, type NextOptions} from './broker.ts';
+import {startBroker, socketPathFor, ownsBroker, isNextDev, type BrokerHandle, type NextOptions} from './broker.ts';
 
-export {startBroker, socketPathFor, ownsBroker};
+export {startBroker, socketPathFor, ownsBroker, isNextDev};
 export type {BrokerHandle, NextOptions};
 
 /** The loader specifier to put in `turbopack.rules`. */
 export const RUNTYPES_LOADER = '@mionjs/devtools/runtypes/next/loader';
 
-// Which TypeScript files get the rewrite. `condition: {not: 'foreign'}` keeps
-// the loader off node_modules and Next's own internals, which is both a large
-// speed-up and the documented way to scope a Turbopack rule.
+// `condition: {not: 'foreign'}` below keeps the loader off node_modules and Next's own internals: a large
+// speed-up, and the documented way to scope a Turbopack rule.
 const RULE_GLOBS = ['*.ts', '*.tsx', '*.mts', '*.cts'];
 
-// A minimal structural view of the bits of NextConfig this touches, so the
-// package does not take a dependency on `next` just to describe them.
+// A structural view of the NextConfig bits this touches, so the package needs no dependency on `next`.
 interface TurbopackRule {
   loaders: Array<string | {loader: string; options?: Record<string, unknown>}>;
   condition?: unknown;
   as?: string;
 }
 interface NextConfigLike {
-  turbopack?: {rules?: Record<string, unknown>; [key: string]: unknown};
+  turbopack?: {rules?: Record<string, unknown>; resolveAlias?: Record<string, unknown>; [key: string]: unknown};
   webpack?: (config: WebpackConfigLike, context: unknown) => WebpackConfigLike;
   [key: string]: unknown;
 }
@@ -49,17 +33,14 @@ interface WebpackConfigLike {
 /** Builds the `turbopack.rules` entries that point Turbopack at the broker. */
 export function runTypesTurbopackRules(socketPath: string): Record<string, TurbopackRule> {
   const rule: TurbopackRule = {
-    // Loader options cross into the worker as plain JSON — no functions, which
-    // is why `onPureFnReport` cannot be forwarded here (set it on the broker).
+    // Loader options cross into the worker as plain JSON, no functions, so `onPureFnReport` is set on the broker.
     loaders: [{loader: RUNTYPES_LOADER, options: {socketPath}}],
     condition: {not: 'foreign'},
   };
   return Object.fromEntries(RULE_GLOBS.map((glob) => [glob, rule]));
 }
 
-// isTurbopack reports whether this Next invocation is using Turbopack. Next 16
-// makes Turbopack the default and `--webpack` the opt-out, so the check is for
-// the opt-out, not the default.
+// Next 16 makes Turbopack the default and `--webpack` the opt-out, so the check is for the opt-out.
 export function isTurbopack(): boolean {
   if (process.env.TURBOPACK === '0') return false;
   if (process.env.TURBOPACK) return true;
@@ -81,13 +62,16 @@ export function isTurbopack(): boolean {
 export async function withRunTypes(nextConfig: NextConfigLike = {}, options: NextOptions = {}): Promise<NextConfigLike> {
   const root = options.cwd ?? process.cwd();
 
-  // The webpack lane already has a real plugin host with its own buildStart, so
-  // it needs no broker — starting one there would just spawn a second resolver.
+  // The webpack lane has a real plugin host with its own buildStart; a broker there would spawn a second resolver.
   if (!isTurbopack()) return withWebpackPlugin(nextConfig, options);
 
-  // Processes that load the config without bundling (Next's detached telemetry
-  // flush) get the rules but no resolver: nothing there will ever call a loader.
-  const socketPath = ownsBroker() ? (await startBroker(root, options)).socketPath : (options.socketPath ?? socketPathFor(root));
+  // The artifact lands in Next's output dir like any bundler's, written by the broker: Turbopack has no hook.
+  const artifactDir =
+    options.artifactDir ?? path.resolve(root, typeof nextConfig.distDir === 'string' ? nextConfig.distDir : '.next');
+  // A process that loads the config without bundling (Next's detached telemetry flush) never calls a loader.
+  const socketPath = ownsBroker()
+    ? (await startBroker(root, {...options, artifactDir})).socketPath
+    : (options.socketPath ?? socketPathFor(root));
 
   return {
     ...nextConfig,
@@ -101,8 +85,7 @@ export async function withRunTypes(nextConfig: NextConfigLike = {}, options: Nex
   };
 }
 
-// withWebpackPlugin composes onto whatever webpack function the user already
-// had, rather than replacing it.
+// withWebpackPlugin composes onto whatever webpack function the user already had, rather than replacing it.
 function withWebpackPlugin(nextConfig: NextConfigLike, options: NextOptions): NextConfigLike {
   const previous = nextConfig.webpack;
   return {
@@ -119,7 +102,8 @@ function withWebpackPlugin(nextConfig: NextConfigLike, options: NextOptions): Ne
 // socketPath is a broker-only concern; the webpack lane has no broker.
 function webpackPlugin(options: NextOptions): unknown {
   const {socketPath: _socketPath, ...pluginOptions} = options;
-  return unplugin.webpack(pluginOptions);
+  // webpack's config carries no `next dev` signal, so the lane is decided here, as the broker does for Turbopack.
+  return unplugin.webpack({...pluginOptions, devServer: pluginOptions.devServer ?? isNextDev()});
 }
 
 export default withRunTypes;

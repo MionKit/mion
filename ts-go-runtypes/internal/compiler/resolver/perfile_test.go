@@ -249,13 +249,12 @@ getRunTypeId<{a: number}>();
 	if len(dumpResp.EntryModules) == 0 {
 		t.Fatalf("dump: expected populated entryModules")
 	}
-	// The dump must contain one runtype entry module per interned id so
-	// consumers can resolve any virtual specifier against the full cache.
-	if _, ok := dumpResp.EntryModules[idA]; !ok {
-		t.Fatalf("dump entryModules missing runtype module for id %q", idA)
+	// The dump must export every reflected root so consumers can resolve any injected import against the full cache.
+	if reflectionModule(dumpResp, idA) == "" {
+		t.Fatalf("dump entryModules export no facade for id %q", idA)
 	}
-	if _, ok := dumpResp.EntryModules[idB]; !ok {
-		t.Fatalf("dump entryModules missing runtype module for id %q", idB)
+	if reflectionModule(dumpResp, idB) == "" {
+		t.Fatalf("dump entryModules export no facade for id %q", idB)
 	}
 }
 

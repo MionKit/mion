@@ -1,0 +1,6 @@
+{
+  "browser": {
+    "browserName": "chromium",
+    "launchOptions": {"chromiumSandbox": false}
+  }
+}

@@ -1,15 +1,13 @@
 /* ########
  * 2026 mion · License: MIT
  * ######## */
-// Builds the three mion server entries. The plugin drives the Go resolver over the
-// route handlers and emits the validators / serializers their types imply, which is
-// exactly the work a real mion app does at build time.
+// Builds the mion server entries and the compact lane's wire codec, running the resolver as a real mion app's build does.
 import {resolve} from 'node:path';
 import {defineConfig} from 'vite';
 import {mionVitePlugin} from '@mionjs/devtools/vite';
 
 export default defineConfig({
-  plugins: [mionVitePlugin({runTypes: {tsConfig: resolve(import.meta.dirname, 'tsconfig.json')}})],
+  plugins: [mionVitePlugin({tsConfig: resolve(import.meta.dirname, 'tsconfig.json')})],
   // Deliberately NOT resolving the packages' `source` condition. Their raw TypeScript
   // needs the plugin's type-id injection, which only happens when the plugin builds
   // that package - consuming it here would load a @mionjs/core whose class serializers
@@ -23,9 +21,9 @@ export default defineConfig({
     // bind-mounted, not installed, and more importantly the point of this app is to
     // measure the workspace code INLINED the way a real production build ships it.
     noExternal: true,
-    // The one exception: @mionjs/uws is a loader for a native .node addon it resolves
+    // The one exception: @mionjs/bin-uws is a loader for a native .node addon it resolves
     // by its own path at run time, so it must stay a real import.
-    external: ['@mionjs/uws'],
+    external: ['@mionjs/bin-uws'],
   },
   build: {
     ssr: true,
@@ -39,11 +37,14 @@ export default defineConfig({
         'server-node': resolve(import.meta.dirname, 'server-node.ts'),
         'server-uws': resolve(import.meta.dirname, 'server-uws.ts'),
         'server-bun': resolve(import.meta.dirname, 'server-bun.ts'),
+        'server-node-compact': resolve(import.meta.dirname, 'server-node-compact.ts'),
+        // Not a server: the harness imports it to write and read the compact lane's bodies.
+        'compact-wire': resolve(import.meta.dirname, 'compact-wire.ts'),
       },
       output: {format: 'es', entryFileNames: '[name].mjs', chunkFileNames: '[name]-[hash].mjs'},
       // Everything first-party is INLINED (that is the point - the bundle is the app
       // under test); only node builtins and the uws native loader stay external.
-      external: [/^node:/, '@mionjs/uws'],
+      external: [/^node:/, '@mionjs/bin-uws'],
     },
   },
 });

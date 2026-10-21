@@ -7,7 +7,7 @@
 //   // ##### result #####     — `return {friendlyTarget, mockTarget};`
 //
 // The harness extracts the body via `ts-go-runtypes/cmd/extract-fn-bodies`, splits by the
-// markers, feeds `src` to the `gen --files` CLI, and compares the generated
+// markers, feeds `src` to the `enrich --files` CLI, and compares the generated
 // object-literal skeleton against the case-authored `friendly` / `mock`
 // initializers (Prettier-normalized). `tsc` proves the expecteds are
 // well-formed `FriendlyText<Target>` / `MockData<Target>` for the given type.

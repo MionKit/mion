@@ -1,39 +1,18 @@
-// The all-strategy round-trip oracle.
-//
-// One conforming, data-only value is generated per random type and run through
-// every wired lane (clone / mutate / direct / compact / binary). The invariants:
-//
-//   RT-VALIDATE   both ends validate: validate(value) and validate(roundtrip)
-//                 are both true.
-//   RT-AGREE      round-trip identity + cross-strategy agreement: re-encoding
-//                 each lane's decoded value through the canonical CLONE encoder
-//                 reproduces the clone wire of the ORIGINAL value — every lane
-//                 round-trips to the same DataOnly value (the O12 cross-wire
-//                 pattern, generalised to all lanes). This is how round-trip
-//                 identity (todo invariant 1) is expressed: a WIRE comparison,
-//                 not a raw deep-equal of the decoded value, since JSON
-//                 representation normalisation (dropped `undefined`, vanished
-//                 optionals, -0 → 0) is correct but not structurally identical.
-//   RT-STABLE     wire stability: encode(decode(encode v)) == encode(v) on the
-//                 lane's own wire (string for JSON, bytes for binary).
-//   RT-FAILAGREE  serialize-vs-alwaysThrow agreement: a type one lane refuses,
-//                 every lane refuses.
-//   RT-NATIVE     trusted source: for a JSON-safe value the keyed encoders
-//                 (clone / mutate / direct) emit JSON that NATIVE JSON.parse
-//                 reads back to the same value — an encoder check independent of
-//                 our own decoders.
+// The all-strategy round-trip oracle: one conforming data-only value per random type, run through every lane.
+//   RT-VALIDATE   validate(value) and validate(roundtrip) are both true.
+//   RT-AGREE      each lane's decoded value re-encodes through CLONE, MUTATE and COMPACT to that encoder's wire of the
+//                 original; a wire compare, as JSON normalisation (dropped undefined, -0 → 0) is not deep-equal.
+//   RT-STABLE     encode(decode(encode v)) == encode(v) on the lane's own wire.
+//   RT-FAILAGREE  a type one lane refuses, every lane refuses.
+//   RT-NATIVE     native JSON.parse reads the keyed encoders' output back to the same JSON-safe value.
 //   RT-THROW      no lane throws an uncontrolled error on a valid value.
-//
-// Per-codec exceptions handled (see JsonEncoderStrategy docs):
-//   - compact collapses a present `null` in an OPTIONAL field to absent, so the
-//     lane is skipped for types whose optionals can be null (compactNullRisk).
-//   - mutate mutates its input in place, so every lane encodes a fresh clone.
-//   - native JSON drops bigint / Date / Map / Set / undefined / symbol, so the
-//     RT-NATIVE check only runs on JSON-safe values (jsonRoundTripSafe).
+// compact collapses some present `null` optionals to absent (skipped via compactNullRisk); mutate works in place, so
+// every lane encodes a fresh clone; RT-NATIVE runs only on JSON-safe values (jsonRoundTripSafe).
 
 import {normalizeForComparison, deepCloneForRoundTrip} from '../../util/equalsHelpers.ts';
 import type {Decl, GeneratedType, PropShape, TypeShape} from '../core/typeGen.ts';
-import {JSON_LANES, ALL_LANES, type CompiledCodecs, type LaneId, type WiredCodec} from './roundtripHarness.ts';
+import {ALL_LANES, type CompiledCodecs, type LaneId, type WiredCodec} from './roundtripHarness.ts';
+import {controlledCode} from '../type/diagOracle.ts';
 
 export type RoundtripOracleId = 'RT-VALIDATE' | 'RT-AGREE' | 'RT-STABLE' | 'RT-FAILAGREE' | 'RT-NATIVE' | 'RT-THROW';
 
@@ -60,11 +39,6 @@ export function snapshot(value: unknown): string {
   return text.length > MAX_SNAPSHOT ? text.slice(0, MAX_SNAPSHOT) + '…' : text;
 }
 
-// alwaysThrow messages are rendered by the Go binary as `[CODE] …` (internal/diagnostics).
-function isControlledThrow(message: string): boolean {
-  return /^\[[A-Z][A-Z0-9]*\]/.test(message);
-}
-
 interface Ctx {
   target: string;
   seed: number;
@@ -81,6 +55,9 @@ function record(
   out.push({oracle, lane, target: ctx.target, seed: ctx.seed, message, value: snapshot(value)});
 }
 
+// RT-AGREE: clone misses its own loss, mutate writes natives via toJSON, compact rebuilds objects from positions.
+const REFERENCE_LANES: readonly LaneId[] = ['clone', 'mutate', 'compact'];
+
 /** Check one (type, value) across every wired lane. `value` must be a value the
  *  shape generator produced for `compiled.gen` (data-only, conforming). **/
 export function checkRoundtrip(compiled: CompiledCodecs, value: unknown, seed: number, out: RoundtripViolation[]): void {
@@ -93,8 +70,7 @@ export function checkRoundtrip(compiled: CompiledCodecs, value: unknown, seed: n
   if (inputValid.threw) record(out, 'RT-THROW', 'all', ctx, `validate threw on the generated value: ${inputValid.threw}`, value);
   else if (!inputValid.ok) record(out, 'RT-VALIDATE', 'all', ctx, 'validate rejected the generated value', value);
 
-  // Lanes to exercise: every wired lane, minus compact when an optional field
-  // could carry a present `null` (the compact wire can't distinguish it).
+  // Compact can't tell a present `null` from absent where an optional has no free placeholder.
   const compactExcluded = compactNullRisk(compiled.gen);
   const lanes = ALL_LANES.filter((id) => compiled.codecs[id] && !(id === 'compact' && compactExcluded));
 
@@ -102,7 +78,7 @@ export function checkRoundtrip(compiled: CompiledCodecs, value: unknown, seed: n
   interface LaneRun {
     id: LaneId;
     codec: WiredCodec;
-    wire?: unknown;
+    wire?: string;
     refused: boolean;
     undefinedRoot: boolean;
   }
@@ -111,11 +87,11 @@ export function checkRoundtrip(compiled: CompiledCodecs, value: unknown, seed: n
     const codec = compiled.codecs[id]!;
     try {
       const wire = codec.encode(deepCloneForRoundTrip(value));
-      const undefinedRoot = isJsonLane(id) && wire === undefined;
+      const undefinedRoot = wire === undefined;
       runs.push({id, codec, wire, refused: false, undefinedRoot});
     } catch (err) {
       const message = errMsg(err);
-      if (isControlledThrow(message)) {
+      if (controlledCode(message) !== undefined) {
         runs.push({id, codec, refused: true, undefinedRoot: false});
       } else {
         record(out, 'RT-THROW', id, ctx, `${id} encode threw an uncontrolled error: ${message}`, value);
@@ -133,11 +109,12 @@ export function checkRoundtrip(compiled: CompiledCodecs, value: unknown, seed: n
   }
   if (refusedCount === attempted) return; // all lanes refuse — nothing to round-trip
 
-  // Canonical reference wire (clone) for RT-AGREE. Undefined when the clone lane
-  // refused / produced an undefined root — RT-AGREE then no-ops.
-  const cloneRun = runs.find((r) => r.id === 'clone' && !r.refused && !r.undefinedRoot);
-  const cloneCodec = compiled.codecs.clone;
-  const refWire = cloneRun?.wire as string | undefined;
+  // RT-AGREE's reference wires: each reference lane's own encoding of the original value.
+  const references = runs.flatMap((run) =>
+    REFERENCE_LANES.includes(run.id) && !run.refused && !run.undefinedRoot && run.wire !== undefined
+      ? [{id: run.id, codec: run.codec, wire: run.wire}]
+      : []
+  );
 
   // Native ground truth for RT-NATIVE (JSON-safe values only).
   const nativeSafe = jsonRoundTripSafe(value);
@@ -151,10 +128,9 @@ export function checkRoundtrip(compiled: CompiledCodecs, value: unknown, seed: n
   }
 
   for (const run of runs) {
-    if (run.refused || run.undefinedRoot) continue;
     const {id, codec, wire} = run;
+    if (run.refused || wire === undefined) continue;
 
-    // Decode the lane's wire.
     let decoded: unknown;
     try {
       decoded = codec.decode(wire);
@@ -168,48 +144,30 @@ export function checkRoundtrip(compiled: CompiledCodecs, value: unknown, seed: n
     if (outValid.threw) record(out, 'RT-THROW', id, ctx, `validate threw on the ${id} round-trip: ${outValid.threw}`, decoded);
     else if (!outValid.ok) record(out, 'RT-VALIDATE', id, ctx, `validate rejected the ${id} round-trip`, decoded);
 
-    // Round-trip identity (todo invariant 1) is expressed as WIRE agreement +
-    // stability, NOT a raw deep-equal of the decoded value against the generated
-    // value. JSON normalises representation in ways that are correct but not
-    // structurally identical — `undefined` inside an object / Map value / Set
-    // element is dropped, optional keys vanish, -0 collapses to 0 — and those
-    // are consistent across every lane, so a ground-truth compare would false-
-    // positive on them. RT-AGREE (below) ties each lane's round-trip to the
-    // canonical clone encoding of the ORIGINAL value, and RT-NATIVE pins true
-    // value identity on the JSON-safe subset where it IS sound. This mirrors the
-    // existing serialization oracles (O5/O6/O12), which are all wire-based.
+    // Identity = wire agreement + stability, not deep-equal: JSON drops undefined and turns -0 into 0 on every lane.
+    // Wire-based like O5/O12 in fuzz/value/fuzzOracle.ts; RT-NATIVE checks value identity on the JSON-safe subset.
 
-    // RT-AGREE: re-encode through the clone reference and compare wires — every
-    // lane must land on the same DataOnly value (and the clone wire encodes the
-    // ORIGINAL value, so this also catches a lane that drops or reshapes data).
-    if (cloneCodec && refWire !== undefined) {
+    // RT-AGREE: each reference wire encodes the ORIGINAL value, so a lane that drops or reshapes data shows too.
+    for (const ref of references) {
       try {
-        const viaClone = cloneCodec.encode(deepCloneForRoundTrip(decoded)) as string | undefined;
-        // Compare STRUCTURALLY, not as raw strings: the clone wire is always
-        // valid JSON, and object key order legitimately differs between lanes
-        // (binary reconstructs required-before-optional, clone keeps declaration
-        // order) — that is not a data disagreement. deepEq on the parsed wires is
-        // order-insensitive for objects and order-sensitive for arrays.
-        if (viaClone === undefined || !cloneWiresAgree(viaClone, refWire)) {
+        const viaRef = ref.codec.encode(deepCloneForRoundTrip(decoded));
+        // Compare parsed wires, not strings: object key order legitimately differs between lanes.
+        if (viaRef === undefined || !cloneWiresAgree(viaRef, ref.wire)) {
           record(
             out,
             'RT-AGREE',
             id,
             ctx,
-            `${id} disagrees with clone on the decoded value:\n  clone =${cut(refWire)}\n  ${id} =${cut(String(viaClone))}`,
+            `${id} disagrees with ${ref.id} on the decoded value:\n  ${ref.id} =${cut(ref.wire)}\n  ${id} =${cut(String(viaRef))}`,
             decoded
           );
         }
       } catch (err) {
-        record(out, 'RT-THROW', id, ctx, `clone re-encode of the ${id} round-trip threw: ${errMsg(err)}`, decoded);
+        record(out, 'RT-THROW', id, ctx, `${ref.id} re-encode of the ${id} round-trip threw: ${errMsg(err)}`, decoded);
       }
     }
 
-    // RT-NATIVE: for a JSON-safe value, every lane must decode to the same value
-    // that plain native JSON.stringify/parse yields (the trusted source). Note
-    // our JSON WIRE is a shape-coupled tagged envelope (unions / ambiguous scalar
-    // unions ride `[tag, …]`), NOT plain JSON — so we compare the DECODED value
-    // to the native projection, never the wire itself.
+    // RT-NATIVE compares the decoded value, never the wire: our wire is a shape-coupled envelope, not plain JSON.
     if (nativeSafe && !deepEqualNormalized(decoded, nativeRT)) {
       record(out, 'RT-NATIVE', id, ctx, `${id} decoded value disagrees with the native JSON projection`, decoded);
     }
@@ -217,7 +175,7 @@ export function checkRoundtrip(compiled: CompiledCodecs, value: unknown, seed: n
     // RT-STABLE: the lane's own wire is stable under re-encode of its decode.
     try {
       const wire2 = codec.encode(deepCloneForRoundTrip(decoded));
-      if (!wireEqual(id, wire2, wire)) {
+      if (wire2 !== wire) {
         record(out, 'RT-STABLE', id, ctx, `${id} round-trip wire is not stable`, decoded);
       }
     } catch (err) {
@@ -236,22 +194,6 @@ function runValidate(validate: (v: unknown) => boolean, value: unknown): Validat
   } catch (err) {
     return {ok: false, threw: errMsg(err)};
   }
-}
-
-function isJsonLane(id: LaneId): boolean {
-  return (JSON_LANES as readonly LaneId[]).includes(id);
-}
-
-// JSON lanes compare wires as strings; binary as bytes.
-function wireEqual(id: LaneId, a: unknown, b: unknown): boolean {
-  if (id === 'binary') {
-    const x = a as Uint8Array;
-    const y = b as Uint8Array;
-    if (!(x instanceof Uint8Array) || !(y instanceof Uint8Array) || x.length !== y.length) return false;
-    for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return false;
-    return true;
-  }
-  return a === b;
 }
 
 // =============================================================================
@@ -324,7 +266,9 @@ function safe(value: unknown, seen: Set<object>): boolean {
   if (t === 'string' || t === 'boolean') return true;
   if (t === 'bigint' || t === 'symbol' || t === 'function' || t === 'undefined') return false;
   if (t !== 'object') return false;
-  if (value instanceof Date || value instanceof RegExp || value instanceof Map || value instanceof Set) return false;
+  if (value instanceof Date || value instanceof URL || value instanceof RegExp || value instanceof Map || value instanceof Set) {
+    return false;
+  }
   if (seen.has(value as object)) return false; // a cycle would throw in JSON.stringify
   seen.add(value as object);
   if (Array.isArray(value)) return value.every((v) => safe(v, seen));
@@ -338,13 +282,14 @@ function safe(value: unknown, seen: Set<object>): boolean {
 }
 
 // =============================================================================
-// compactNullRisk — STATIC over-approximation: true when the type has any
-// optional property whose declared type can be `null`. Sound (no false
-// positives in the oracle): compact's absent-placeholder is `null`, so a present
-// `null` in an optional position decodes to undefined. Over-excludes types that
-// merely COULD carry such a null even when this value doesn't, which only costs
-// the compact lane on those types.
+// compactNullRisk is a STATIC over-approximation: over-excluding a type only costs it the compact lane.
+// A slot whose wire value can be a number, `null` and a boolean has no free placeholder: a present `null` reads absent.
 // =============================================================================
+
+const WIRE_NUMBER = 1;
+const WIRE_NULL = 2;
+const WIRE_BOOLEAN = 4;
+const WIRE_ALL = WIRE_NUMBER | WIRE_NULL | WIRE_BOOLEAN;
 
 export function compactNullRisk(gen: GeneratedType): boolean {
   const decls = new Map<string, Decl>();
@@ -352,7 +297,7 @@ export function compactNullRisk(gen: GeneratedType): boolean {
   return walkRisk(gen.root, decls, new Set());
 }
 
-// True when some optional property reachable from `shape` admits a null value.
+// True when some optional property reachable from `shape` loses a present null.
 function walkRisk(shape: TypeShape, decls: Map<string, Decl>, seen: Set<string>): boolean {
   switch (shape.kind) {
     case 'array':
@@ -365,6 +310,7 @@ function walkRisk(shape: TypeShape, decls: Map<string, Decl>, seen: Set<string>)
     case 'tuple':
       return shape.elems.some((s) => walkRisk(s, decls, seen));
     case 'union':
+      return mergedSlotsRisk(shape.members, decls, seen) || shape.members.some((member) => walkRisk(member, decls, seen));
     case 'intersection':
       return shape.members.some((s) => walkRisk(s, decls, seen));
     case 'object':
@@ -386,10 +332,77 @@ function walkRisk(shape: TypeShape, decls: Map<string, Decl>, seen: Set<string>)
 
 function propsRisk(props: PropShape[], decls: Map<string, Decl>, seen: Set<string>): boolean {
   for (const prop of props) {
-    if (prop.optional && shapeCanBeNull(prop.shape, decls, seen)) return true;
+    if (prop.optional && shapeCanBeNull(prop.shape, decls, seen) && wireClasses(prop.shape, decls, seen) === WIRE_ALL)
+      return true;
     if (walkRisk(prop.shape, decls, seen)) return true; // nested optionals
   }
   return false;
+}
+
+// A union's object members merge into one slot per prop name: the slot's wire value is any member's.
+function mergedSlotsRisk(members: TypeShape[], decls: Map<string, Decl>, seen: Set<string>): boolean {
+  const props = members.flatMap((member) => objectProps(member, decls, seen));
+  const classesByName = new Map<string, number>();
+  for (const prop of props) {
+    classesByName.set(prop.name, (classesByName.get(prop.name) ?? 0) | wireClasses(prop.shape, decls, seen));
+  }
+  return props.some(
+    (prop) => prop.optional && shapeCanBeNull(prop.shape, decls, seen) && classesByName.get(prop.name) === WIRE_ALL
+  );
+}
+
+// TS flattens a nested union and the resolver an intersection, so their object members share the slots too.
+function objectProps(shape: TypeShape, decls: Map<string, Decl>, seen: Set<string>): PropShape[] {
+  if (shape.kind === 'object') return shape.props;
+  if (shape.kind === 'union' || shape.kind === 'intersection')
+    return shape.members.flatMap((member) => objectProps(member, decls, seen));
+  if (shape.kind !== 'ref' || seen.has(shape.name)) return [];
+  const decl = decls.get(shape.name);
+  if (!decl) return [];
+  if (decl.kind === 'interface' || decl.kind === 'class') return decl.props;
+  if (decl.kind === 'type') return objectProps(decl.shape, decls, new Set(seen).add(shape.name));
+  return [];
+}
+
+// Which of number / null / boolean a compact slot's wire value can be; unsure answers all three.
+function wireClasses(shape: TypeShape, decls: Map<string, Decl>, seen: Set<string>): number {
+  switch (shape.kind) {
+    case 'number':
+    case 'format': // a numeric format is a number, every other a string
+      return WIRE_NUMBER;
+    case 'boolean':
+      return WIRE_BOOLEAN;
+    case 'null':
+    case 'undefined':
+    case 'void':
+      return WIRE_NULL;
+    case 'literal':
+      return typeof shape.value === 'number' ? WIRE_NUMBER : typeof shape.value === 'boolean' ? WIRE_BOOLEAN : 0;
+    case 'any':
+    case 'unknown':
+    case 'intersection':
+      return WIRE_ALL;
+    case 'object':
+      return dataless(shape.props) && !shape.index ? WIRE_ALL : 0; // `{}` admits any non-nullish value
+    case 'union':
+      return shape.members.reduce((classes, member) => classes | wireClasses(member, decls, seen), 0);
+    case 'ref': {
+      if (seen.has(shape.name)) return 0;
+      const decl = decls.get(shape.name);
+      if (!decl) return WIRE_ALL;
+      if (decl.kind === 'type') return wireClasses(decl.shape, decls, new Set(seen).add(shape.name));
+      if (decl.kind === 'class') return WIRE_ALL; // a registered class serializer may write anything
+      if (decl.kind === 'enum') return WIRE_NUMBER;
+      return dataless(decl.props) ? WIRE_ALL : 0; // interface: a positional array
+    }
+    default:
+      return 0; // strings, bigint, Date / URL, arrays, tuples, records, Map / Set, non-data leaves
+  }
+}
+
+// A shape with no data prop (none, or methods only) reads as `{}`.
+function dataless(props: PropShape[]): boolean {
+  return props.every((prop) => prop.method || prop.shape.kind === 'function');
 }
 
 // True when a value of `shape` can be exactly `null`.

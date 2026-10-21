@@ -65,7 +65,7 @@ func TestMerge_AddField(t *testing.T) {
 // property has NO trailing comma (Prettier-collapsed single-line) must inject a
 // separator comma so the result re-parses. Without it the merged body reads
 // `name: {…}\n  isActive: {…},` — two properties with no separator → syntax
-// error → the next gen --update fatals at parseMirror. This is the A1 regression.
+// error → the next enrich --update fatals at parseMirror. This is the A1 regression.
 func TestMerge_AddFieldNoTrailingComma(t *testing.T) {
 	existing := "{rt$label: '', name: {rt$label: 'Full name'}}"
 	desired := "{rt$label: '', name: {rt$label: ''}, isActive: {rt$label: ''}}"
@@ -690,7 +690,7 @@ func TestCarcassFoldStart_Detection(t *testing.T) {
 }
 
 // TestMerge_FriendlyChildTypeChanged_SameTemplateMerges: the i18n fuzz T3
-// finding (docs/done/i18n-sync-authored-leaf-lost-on-prune-update.md). A
+// finding (an authored leaf lost on a prune + update). A
 // friendly-family field whose @rtIds child id changed but whose structural
 // template did NOT (a format param dropped: pattern-string → plain string)
 // merges IN PLACE: the authored rt$label and `type` message survive verbatim,
@@ -766,4 +766,22 @@ func TestMerge_MockChildTypeChanged_StillReplaces(t *testing.T) {
 		t.Errorf("fresh mock skeleton must be inserted:\n%s", got)
 	}
 	assertReparses(t, got)
+}
+
+// TestMerge_QuotedErrorKey: email's quoted `@` key keeps its value, is added quoted, never orphaned or duplicated.
+func TestMerge_QuotedErrorKey(t *testing.T) {
+	existing := "{rt$label: '', email: {rt$label: '', rt$errors: {type: '', '@': 'needs an @'}}}"
+	desired := "{rt$label: '', email: {rt$label: '', rt$errors: {type: '', '@': '', maxLength: ''}}}"
+	got := mergeFriendly(t, existing, desired)
+	if strings.Count(got, "'@'") != 1 || !strings.Contains(got, "'@': 'needs an @'") {
+		t.Errorf("quoted key not kept once with its value:\n%s", got)
+	}
+	if !strings.Contains(got, "maxLength: ''") {
+		t.Errorf("missing key not added:\n%s", got)
+	}
+
+	added := mergeFriendly(t, "{rt$label: '', email: {rt$label: '', rt$errors: {type: ''}}}", desired)
+	if !strings.Contains(added, "'@': ''") {
+		t.Errorf("missing quoted key not added quoted:\n%s", added)
+	}
 }

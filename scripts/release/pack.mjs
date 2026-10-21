@@ -6,12 +6,15 @@
 //     That rewrite is what makes the e2e meaningful across the families: a packed
 //     @mionjs/core carries an exact @mionjs/run-types version, and verdaccio has
 //     to serve BOTH from the local publishes.
-//   - launcher + the 7 platform packages from dist-binaries/ (already assembled
-//     by build-binaries.mjs, optionalDependencies filled) via `npm pack`.
+//     Each is packed from its PUBLISHED manifest (packPublished): no `source` condition.
+//   - launcher + the platform packages from dist-binaries/ (already assembled
+//     by build-binaries.mjs, optionalDependencies filled) via `npm pack`. All
+//     seven for a release; just the host's after `release binaries --host-only`
+//     (the drizzle-e2e lane), and the launcher then names only that one.
 //
 // The workspace set is DERIVED, never hand-listed: every non-private
 // packages/*/package.json minus whatever dist-binaries/publish-order.json already
-// stages (that is where @mionjs/bin comes from). A new public package joins
+// stages (that is where @mionjs/bin-compiler comes from). A new public package joins
 // the e2e by existing, not by being remembered here.
 //
 // tarballs/ is also exactly what the release publishes from: every @mionjs/*
@@ -24,6 +27,7 @@ import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {stripSourceCondition} from '../lib/publish-manifest.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PACKAGES = path.join(REPO_ROOT, 'packages');
@@ -48,9 +52,20 @@ function workspacePackageDirs(stagedNames) {
   return dirs;
 }
 
-function pack(cmd, dir) {
-  // pnpm/npm pack both accept --pack-destination and emit <name>-<version>.tgz.
-  execFileSync(cmd, ['pack', '--pack-destination', TARBALLS], {cwd: dir, stdio: 'inherit'});
+// Strips the `source` export condition for the pack and restores it after: the repo needs the
+// condition for its own resolution, the tarball must not name a src/ it does not carry. The
+// `finally` matters — a crash mid-pack must not leave a rewritten manifest checked out.
+function packPublished(dir) {
+  const manifestFile = path.join(dir, 'package.json');
+  const original = fs.readFileSync(manifestFile, 'utf8');
+  const indent = /\n(\s+)"/.exec(original)?.[1].length ?? 2;
+  fs.writeFileSync(manifestFile, `${JSON.stringify(stripSourceCondition(JSON.parse(original)), null, indent)}\n`);
+  try {
+    // pnpm pack accepts --pack-destination and emits <name>-<version>.tgz.
+    execFileSync('pnpm', ['pack', '--pack-destination', TARBALLS], {cwd: dir, stdio: 'inherit'});
+  } finally {
+    fs.writeFileSync(manifestFile, original);
+  }
 }
 
 // npm packs a scoped package @scope/name as scope-name-<version>.tgz.
@@ -77,13 +92,13 @@ function assertReadmes(packageDirs) {
 
 function main() {
   if (!fs.existsSync(DIST_BINARIES)) {
-    throw new Error('dist-binaries/ missing — run `pnpm rtx release binaries` first.');
+    throw new Error('dist-binaries/ missing — run `pnpm miondevx release binaries` first.');
   }
   fs.rmSync(TARBALLS, {recursive: true, force: true});
   fs.mkdirSync(TARBALLS, {recursive: true});
 
   // Launcher + platform packages: assembled under dist-binaries/<scoped-name>/
-  // (nested by npm scope, e.g. @mionjs/binary-linux-x64) and enumerated in
+  // (nested by npm scope, e.g. @mionjs/native-compiler-linux-x64) and enumerated in
   // publish-order.json. No workspace deps, so plain `npm pack` of each staged dir.
   const publishOrder = JSON.parse(fs.readFileSync(path.join(DIST_BINARIES, 'publish-order.json'), 'utf8'));
   for (const name of publishOrder) {
@@ -92,9 +107,9 @@ function main() {
 
   // Workspace packages: pnpm pack rewrites the workspace:* protocol to the version.
   const workspaceDirs = workspacePackageDirs(new Set(publishOrder));
-  for (const dir of workspaceDirs) pack('pnpm', dir);
+  for (const dir of workspaceDirs) packPublished(dir);
 
-  assertReadmes([...workspaceDirs, path.join(DIST_BINARIES, '@mionjs/bin')]);
+  assertReadmes([...workspaceDirs, path.join(DIST_BINARIES, '@mionjs/bin-compiler')]);
 
   const tarballs = fs.readdirSync(TARBALLS).filter((file) => file.endsWith('.tgz')).sort();
   console.log(`\nPacked ${tarballs.length} tarballs into ${path.relative(REPO_ROOT, TARBALLS)}/:`);

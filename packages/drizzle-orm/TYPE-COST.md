@@ -4,12 +4,13 @@ Every consumer's editor pays these numbers on every keystroke, so this file reco
 has been measured, to keep the next person from re-deriving it.
 
 **The live numbers are not here.** They are measured by
-[`packages/type-budget/test/typeRoad.compile.test.ts`](../type-budget/test/typeRoad.compile.test.ts)
-and written to [`reports/type-road.md`](../type-budget/reports/type-road.md) on every run,
+[`packages/private-type-budget/test/typeRoad.compile.test.ts`](../private-type-budget/test/typeRoad.compile.test.ts)
+and written to [`reports/type-road.md`](../private-type-budget/reports/type-road.md) on every run,
 with budgets that may only ever be lowered. This file is the reasoning: which designs were
 tried, which won, and why. A figure quoted below is a snapshot for the argument it makes,
 not a current value, and the very first section says what happens when someone treats one
-as current.
+as current. Every section before "single-call columns" describes the chained column system
+as it stood when it was measured; that system is gone.
 
 ## The correction: normalization is the cost, modifiers are a small slice of it
 
@@ -73,7 +74,7 @@ The number above prices the wrong thing, and stopping there was the mistake. Pro
 worth having for what they remove from `NormalizeCol`. They are worth having because they
 let `NormalizeCol` be deleted.
 
-A type-road column is a spec CARRIER that `NormalizeCol` converts into a branded column
+A type-road column was a spec CARRIER that `NormalizeCol` converted into a branded column
 afterwards, once per column, through `TypedCols`'s mapped pass. Everything that conversion
 extracts is already a type parameter inside the column alias. Once the modifiers are a type
 parameter too, the alias can expand straight to the branded column, `TypedCols` takes its
@@ -130,10 +131,9 @@ Before anyone chases the pre-branded floor: twenty type-road columns cost 2116 w
 distinct db names and 767 when every column is nameless (both measured before the props
 change, so read the ratio, not the absolutes). The builder road's twenty columns are twenty
 references to ONE type, because the db name is a runtime argument; the type road's are
-twenty separate instantiations, because the name and config ride in the type. That is the
-price of being reflectable and it is not removable while `tableFromType` and
-`mion convert` exist. Most of the gap the suite still shows is that, not work anyone
-can delete.
+twenty separate instantiations, because the name and config ride in the type. That was the
+price of being reflectable while columns carried their db name. The single-call columns
+removed it: a column carries no name, and the names live on the table.
 
 ## Accepted: four changes to the normalization itself
 
@@ -155,13 +155,13 @@ byte-identical (it never enters `NormalizeCol`).
    is read and not before. Worth about 8 per column.
 2. **The spec and the mods are extracted once and threaded down.** `NormalizeCol` called
    `ColSpecOf<C>` and `ColModsOf<C>` five times between them, and `BaseFlag` built a mapped
-   type (`{[K in Key]: true}`) per probe. Every derivation now takes the extracted pair.
+   type (`{[K in Key]: true}`) per probe. Every derivation then took the extracted pair.
 3. **One conditional pulls both out.** `ColSpecOf` and `ColModsOf` each computed `keyof C`;
    a single `C extends {[rtColSpecKey]?: infer Spec; [rtColModsKey]?: infer Mods}` does it
    once. This is the biggest of the four on tables that carry modifiers.
 4. **The intrinsic flags became a name union.** A column type used to instantiate
    `{notNull: false; hasDefault: false; primaryKeyHasDefault: false; autoincrement: false}`
-   on every column to say it had no intrinsic flags. It now names the flags it does have
+   on every column to say it had no intrinsic flags. It then named the flags it had
    (`'notNull' | 'hasDefault'` for the serial-likes, `never` for everyone else), and the
    three probes read it with `'notNull' extends Base`. Worth about 5 per column on a wide
    table; slightly negative on a narrow one, kept because width is what scales.
@@ -187,7 +187,7 @@ It stalled on the first attempt because the pipeline suite budgets each STEP, an
 work between steps: every shape of it left the cumulative total lower while pushing at least
 two per-step deltas over budgets that are one-way downward. The fix was to convert the OTHER
 two readers as well, so the layers that were absorbing the moved work got cheaper too, and to
-give the suite a TOTAL budget (`PIPELINE_TOTAL_BUDGET`) beside its per-step ones. Per-step
+give the suite a TOTAL budget (each dialect's `total`) beside its per-step ones. Per-step
 deltas cannot see work crossing a layer boundary in either direction; the total can.
 
 One step still rises by 2 (step 6, where drizzle's own generics consume the synthesized
@@ -289,11 +289,10 @@ hitting either. Gone, with `reflectedKinds.intersection`, `RtTable`, `RtView` an
 
 ### The one thing to know before reading a table type
 
-`name`, `columns` and `extras` are plain keys on the table type now. On a table with a
+`name`, `columns`, `extras` and `names` are plain keys on the table type. On a table with a
 column called `name`, the type-level `table.name` is the table's DB name, not the column;
-`cols(table).name` is the column. Under the old shape the columns were the top-level
-members and this could not happen. `cols()` is identity at run time, because the object
-really does carry the columns as properties, and only the type stopped naming them.
+`T['columns']['name']` is the column, and `tableRef(table, 'name')` points at it. Under the
+old shape the columns were the top-level members and this could not happen.
 
 ### D1 turned out not to be a dialect
 
@@ -302,7 +301,7 @@ verbatim". There is no fourth dialect. D1 and durable-sqlite are DRIVERS: neithe
 column builder, and tables for both are declared with sqlite-core, which is what the sqlite
 package's `type-pins.stub.ts` pins.
 
-The advice still holds for a real new dialect: copy the pg/mysql/sqlite alias pair rather
+The advice still holds for a real new dialect: copy the per-dialect table interface rather
 than factoring the three into a shared base. A shared base with the dialect's own extras
 intersected on top costs +4 per table over spelling the extra member inside the same object.
 
@@ -315,12 +314,12 @@ lost.
 
 ### Flattening the columns to bags, measured against the real packages
 
-Keep today's column brand, but flatten each column to `{data, notNull, hasDefault,
+Keep the chained column brand of the time, but flatten each column to `{data, notNull, hasDefault,
 insertExcluded}` once per table and let the models read those props by indexed access
 instead of four `infer` conditionals per column. This is the only variant that could be
 measured with no prototype stand-ins on either side, so it is the one to trust.
 
-| Columns | today's `Infer*` | bag models |      |
+| Columns | chained `Infer*` | bag models |      |
 | ------: | ---------------: | ---------: | ---- |
 |       5 |              888 |        897 | +1%  |
 |      10 |             1078 |       1175 | +9%  |
@@ -339,14 +338,15 @@ pass, it reads the brand member each column already carries.)
 `Merge<P, {notNull: true}>` per builder call and per modifier. Measured against the real
 `pgTable`:
 
-| Case                       | today | ColumnFormat |
-| -------------------------- | ----: | -----------: |
-| declare a 5-column table   |   314 | 1013 (+223%) |
-| + select model             |   501 | 1233 (+146%) |
-| + select and insert models |  1067 |  1606 (+51%) |
-| 40 columns, both models    |  2213 | 4804 (+117%) |
+| Case                       | chained | ColumnFormat |
+| -------------------------- | ------: | -----------: |
+| declare a 5-column table   |     314 | 1013 (+223%) |
+| + select model             |     501 | 1233 (+146%) |
+| + select and insert models |    1067 |  1606 (+51%) |
+| 40 columns, both models    |    2213 | 4804 (+117%) |
 
-A mapped type per modifier call is far too expensive for the builder road.
+A mapped type per modifier call is far too expensive for the builder road. (The
+single-call columns below revisit this with a different shape.)
 
 ### ColumnFormat, modifiers accumulated by intersection
 
@@ -354,12 +354,12 @@ Drop `Merge`: every prop optional, absent meaning false, `.notNull()` returns
 `ColFormat<P & {notNull: true}>`, and the models probe with a single `extends` and no
 `infer`. This is the best version of the idea.
 
-| Columns | today | merge-free bag |      |
-| ------: | ----: | -------------: | ---- |
-|       5 |   903 |            552 | -39% |
-|      10 |  1093 |            818 | -25% |
-|      20 |  1463 |           1372 | -6%  |
-|      40 |  2213 |           2458 | +11% |
+| Columns | chained | merge-free bag |      |
+| ------: | ------: | -------------: | ---- |
+|       5 |     903 |            552 | -39% |
+|      10 |    1093 |            818 | -25% |
+|      20 |    1463 |           1372 | -6%  |
+|      40 |    2213 |           2458 | +11% |
 
 It wins on narrow tables and loses on wide ones, crossing over around twenty columns. And
 this is a **stripped prototype measured against the real implementation**: it has no
@@ -367,29 +367,223 @@ runtype formats, no key flags, no `$type`, no arrays, no reflection sentinels. E
 feature added moves the crossover down. The apparent win is the prototype's simplicity,
 not the design's.
 
+The single-call columns below, a full implementation, do win at every width.
+
 That is the trap in this whole area, and it is worth stating plainly: a small prototype of
 a new column design will always look good next to the real one. The bag-flattening figures
 above are the honest measurement, because both sides are real code.
 
+## SHIPPED: single-call columns, the column type IS the builder's result
+
+The chained column system is gone. Its replacement was built beside it first and measured in
+one run against it; the figures below are that run, frozen when the chained system was removed.
+
+- A column type is `Column<Fn, Props, Data, Base>`: one optional spec sentinel holding the
+  builder fn, the raw props (config keys and modifier calls in one object), the data and the
+  intrinsic flags. No methods, no db name, no owning table. The same shape in two tables is
+  ONE type and one runtype node.
+- Db names live on the table (`PgTable<Name, Cols, Extras, Names>`), listing only the columns
+  whose db name differs from the key. `toDrizzle` puts them back, so only files that run
+  queries pay for them.
+- Builders take every setting in ONE props object, spelled exactly as the hand-written type
+  spells it (`varchar('name', {length: 100, notNull: true})`), and return the column type
+  itself. A builder called with a db name wraps the column with it, and `pgTable` lifts the
+  name into the table's names map. There are no chained modifiers (see the reflection
+  constraints below).
+- Models derive every flag from the raw props when read.
+
+The live numbers are in
+[`reports/column-formats.md`](../private-type-budget/reports/column-formats.md), measured by
+[`columnFormats.compile.test.ts`](../private-type-budget/test/columnFormats.compile.test.ts).
+
+### The chained system, frozen
+
+The last run with both systems in the tree, 2026-09-27. Chained builders were
+`varchar('name', {length: 100}).notNull()`, chained types the column types that carried their
+db name. The single-call columns are the live report above; five mixed pg columns cost
+683 hand-written and 1160 as builders in that run.
+
+| Dialect | Shape                                      | chained builders | chained types |
+| ------- | ------------------------------------------ | ---------------: | ------------: |
+| pg      | 5 mixed, select                            |              570 |           971 |
+| pg      | 5 mixed, select + insert                   |             1036 |          1437 |
+| pg      | 10 plain, db name per column               |              235 |           798 |
+| pg      | 20 plain, db name per column               |              345 |          1338 |
+| pg      | 40 plain, db name per column               |              565 |          2418 |
+| pg      | 20 plain, nameless                         |              325 |           494 |
+| pg      | wide vocabulary, select                    |              676 |          1175 |
+| pg      | two tables, one reference                  |              183 |           387 |
+| pg      | refineTableType, select                    |             1341 |          1768 |
+| pg      | toDrizzle + select / insert / update query |             8643 |          9461 |
+| mysql   | 5 mixed, select                            |              608 |           971 |
+| mysql   | 5 mixed, select + insert                   |             1061 |          1424 |
+| mysql   | 10 plain, db name per column               |              312 |           834 |
+| mysql   | 20 plain, db name per column               |              452 |          1394 |
+| mysql   | 40 plain, db name per column               |              732 |          2514 |
+| mysql   | 20 plain, nameless                         |              364 |           512 |
+| mysql   | wide vocabulary, select                    |              830 |          1341 |
+| mysql   | two tables, one reference                  |              213 |           410 |
+| mysql   | refineTableType, select                    |             1380 |          1765 |
+| mysql   | toDrizzle + select / insert / update query |             8324 |          9029 |
+| sqlite  | 5 mixed, select                            |              517 |          1002 |
+| sqlite  | 5 mixed, select + insert                   |              983 |          1468 |
+| sqlite  | 10 plain, db name per column               |              321 |           868 |
+| sqlite  | 20 plain, db name per column               |              461 |          1428 |
+| sqlite  | 40 plain, db name per column               |              741 |          2548 |
+| sqlite  | 20 plain, nameless                         |              341 |           539 |
+| sqlite  | wide vocabulary, select                    |              735 |          1315 |
+| sqlite  | two tables, one reference                  |              194 |           485 |
+| sqlite  | refineTableType, select                    |             1285 |          1796 |
+| sqlite  | toDrizzle + select / insert / update query |             7471 |          7874 |
+
+Hand-written tables are cheaper than the chained types at every width, and cheaper than the
+chained builders from ten named columns up. Single-call builders cost more than chained
+builders: the models derive flags from props where chained builders carried four ready
+booleans. That raise is a reviewed exception, taken because a builder table is now the same
+type as its hand-written twin (one runtype id, one `.d.ts` spelling, no builder in a reflected
+graph). Attempt 14 below tried to buy it back and could not.
+
+mysql differs from pg in one place: `toDrizzle` reads the primary-key, autoincrement and
+runtime-default flags from the props (`KeyFlagsOf`), because `$returningId()` returns exactly
+those keys. pg and sqlite keep them `false`. In sqlite, `integer` and `int` carry the
+`primaryKeyHasDefault` base flag (the rowid), and `primaryKey: [{autoIncrement: true}]` sets
+the default on any column.
+
+References are `tableRef(teams, 'id')`, plain `{table, column}` data. Two tables with one
+reference: builders 423 (461 with the earlier `cols(teams).id`), a hand-written
+`TableRef<Teams, 'id'>` 212 against 160 for the bare object, for checking the column key.
+
+### Stray modifier keys
+
+A `const` type parameter gets no excess-property check, and a weak type only rejects an object
+sharing no key with it. So `varchar({length: 10, autoincrement: true})` and
+`Varchar<{length: 10; autoincrement: true}>` compiled, and the stray flag changed the models.
+Every builder and column type now constrains its props with `Only<P, Allowed>`, a homomorphic
+mapped type that turns each key outside `Allowed` into `never`. Budgets rose as a reviewed
+exception. Measured on pg, five mixed / 10 plain named, builders in the last column:
+
+| Variant                                                                       |     types |    builders | Verdict                                                                                      |
+| ----------------------------------------------------------------------------- | --------: | ----------: | -------------------------------------------------------------------------------------------- |
+| No check                                                                      |       539 |   971 / 364 | the stray key compiled                                                                       |
+| `Allowed & {[K in Exclude<keyof P, keyof Allowed>]: never}` on the constraint |       725 |  1242 / 703 | rejected: a name string is tried against the props overload first and `keyof string` is wide |
+| Homomorphic `Only` on the constraint                                          |       683 |  1160 / 819 | same trap on plain names                                                                     |
+| `props: C & Stray<C, Allowed>` on the argument, constraint unchanged          |       683 |  1427 / 466 | rejected: double the per-column cost                                                         |
+| Homomorphic `Only`, name overloads listed first                               |       683 |  1160 / 363 | kept                                                                                         |
+| Key remapping `as` / `Partial<Record<...>>` instead of homomorphic            | 743 / 694 | 1235 / 1206 | rejected                                                                                     |
+
+Overload order is part of the cost: a plain name must never reach the props overload.
+
+A key set to `undefined` (`{notNull: undefined}`) also passed `Only`: the models read it as set
+(NOT NULL) and the runtime threw. Measured on pg, five mixed, types / builders, from 683 / 1160:
+
+- `Exclude<Allowed[K], undefined>` per key: 767 / 1244, rejected.
+- `Required<Allowed>[K]` per key: 764 / 1241, rejected.
+- `Allowed[K] & {}` per key: 692 / 1169, rejected.
+- `Only` intersected with one index signature of defined values: 675 / 1152, kept. Its value type
+  is `NonNullable<unknown> | null`; the plain `{}` the linter bans measures 2 less.
+
+A readonly `$type` tuple read as `Data[]`. Matching `readonly [infer Override]` in `ValueOf` added
+3 to every wide vocabulary select, a second readonly branch 5, `readonly (infer Override)[]` 34.
+The column type bags declare `$type?: [unknown]` instead, so a readonly tuple is refused. Declared
+in each bag, not picked from `ColMods`: the picked key cost 3 more on sqlite.
+
+### Why the chained type road cost what it did, isolated
+
+Twenty plain integer columns on the chained type road, select model consumed:
+
+| Variant                                 | Cost |
+| --------------------------------------- | ---: |
+| chained (names in columns, eager flags) | 1319 |
+| flags fixed, names kept                 |  773 |
+| nameless, flags derived                 |  475 |
+| nameless, flags fixed                   |  317 |
+
+Both matter, names more: a column that carries its db name is its own type, so its flags are
+derived once per column. That is why the single-call columns carry no name.
+
+### Two constraints no measurement shows, both from reflection
+
+- **A column type cannot carry chain methods.** The runtype id walks method return types
+  (`typeid.go` `signatureID`), and a chain returning a column with new props per call never
+  repeats a type: marker-self-instantiating-generic at the 512-level depth cap. The chained system escaped only
+  because hand-written columns had no methods and builder tables were never reflected. Hence the
+  builder / column split, exactly drizzle's own `ColumnBuilder` / `Column`.
+- **No alias may carry the builder record as a type argument.** The resolver serializes an
+  aliased type's arguments (`serialize.go` `projectType`), so `LiftCols<Cols>` or a
+  `PgBuilderTable<Name, Cols>` alias walks the builders and hits the same cap. It showed only
+  when a builder table was reflected with no hand-written twin reflected first. `pgTable`
+  and `pgView` spell both maps inline in their return type; the `.d.ts` then prints the
+  resolved columns and no builder at all.
+- **Both point the same way: no chained modifiers.** With chains, a builder needs its own
+  type carrying the chain, plus a pointer to its column. Single-call builders have no
+  methods, so a builder's result is the column type and nothing reflected can spiral.
+
+### Attempts, in order, with numbers
+
+Five mixed / twenty plain; builder numbers named, nameless in brackets.
+
+|   # | Change                                                                                                                                    |                         types |                            builders | Verdict                                                           |
+| --: | ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------: | ----------------------------------: | ----------------------------------------------------------------- |
+|   1 | Full vocabulary, one shared chain returning its kind through a lookup, a merge per call, `pgTable` normalizing and scanning names eagerly |                     894 / 409 |                   2178 / 1716 (808) | starting point                                                    |
+|   2 | Each kind spells its chain and returns itself; builders return their kind directly                                                        |                     864 / 403 |                   1909 / 1557 (749) | kept: 47 to 19 per builder call                                   |
+|   3 | Names map as a lazy key-remapping mapped type; unname only named columns                                                                  |                     858 / 395 |                   1638 / 1221 (605) | kept: `pgTable` over 20 columns 210 to 56                         |
+|   4 | Flag tests as `[keyof P & Keys] extends [never]`, not `Extract`                                                                           |                     820 / 379 |                   1576 / 1205 (589) | kept                                                              |
+|   5 | Models infer the spec parts straight off the column, one conditional, fast path for no `$type` / `array`                                  |                     689 / 330 |                   1482 / 1161 (540) | kept                                                              |
+|   6 | Unname through a type-only member on each builder                                                                                         |                               |                          1073 / 981 | kept                                                              |
+|   7 | Intersection per chained call, flattened once in that member                                                                              |                     689 / 330 |                    1003 / 868 (502) | kept, then reshaped by 8                                          |
+|   8 | Split builders (chain) from columns (spec only), forced by reflection                                                                     |                     533 / 292 |                     904 / 726 (488) | kept                                                              |
+|   9 | One `PgBuilderTable` alias so a `.d.ts` prints the builders once                                                                          |                               |                       +12 per table | superseded by 10                                                  |
+|  10 | Inline column and names maps in `pgTable` / `pgView`, forced by reflection                                                                |                     539 / 300 |                     888 / 679 (461) | kept                                                              |
+|  D1 | The builder-to-column member required, no `NonNullable`                                                                                   |                               |                          -12 to -80 | kept (in 10)                                                      |
+|  D2 | Merge per call again, unflattened pointer                                                                                                 |                               | plain -4 to -48, chained +16 to +80 | rejected: real tables chain                                       |
+|  D3 | One `{kind, value}` lookup per column for insert and update                                                                               |                    insert +44 |                                 +44 | rejected                                                          |
+|  D4 | Insert kind inlined, primary-key default probed only on primary keys                                                                      |                    insert -15 |                                 -30 | kept                                                              |
+|  D5 | Single-call builders (every setting in one props object, no chain)                                                                        |                               |                   -7% on five mixed | rejected then, later adopted (above)                              |
+|  D6 | Empty-props fast path in the select value                                                                                                 | plain -4, modified +27 to +37 |                                     | rejected, the same trade as the chained fast path                 |
+|  D7 | Spelling (b), `Column = Data & spec brand`, the column IS its data like a `TypeFormat`                                                    |                    +14 to +74 |                          +25 to +95 | rejected                                                          |
+|  D8 | The backup: db names inside the columns                                                                                                   |           20 plain 860 vs 280 |                                     | not needed                                                        |
+|  14 | Builders precompute their flags into the base, models take a fast path when the base says ready                                           |        678 to 704, insert +61 |              1089 to 990, wide -218 | rejected: a builder column no longer equals its hand-written twin |
+
+Attempt 14 ran during the switch, on the pg type-road budgets (five mixed and the wide
+vocabulary). It also broke the shape pins and runtype ids, and the type road paid for the
+builder's gain. Declaring alone costs 647 for a five-column builder table and 189 hand-written;
+one `varchar()` call 115, one `Varchar<>` type 45. The models cost the same on both roads, so the
+builder's extra cost is the call itself.
+
+Not re-measured, and why:
+
+- **The `Pick` split** has nothing to split: the column spec holds one props object and the
+  readers split it by `colModNames`, as before.
+- **One sentinel against two**: the single-call columns carry one. A db name lives on the
+  table's names map, never on a column.
+
+### Older conclusions the new numbers contradict
+
+- **"A full ColumnFormat is far too expensive for the builder road"** (+223% to declare a
+  five-column table): true of that shape, which merged per call AND kept eager flags.
+  Declaring a single-call builder table cost 434 against 391, +11%, when measured.
+- **"Merge-free bags win narrow and lose wide, crossing near twenty columns"**: the single-call
+  hand-written tables win at every width measured, 40 columns included (480 against 2418
+  for chained types and 565 for chained builders).
+
 ## What this does not measure
 
-- `refineTableType`, still the single most expensive step in the pipeline at 1141.
+- `refineTableType`, the most expensive step before the db query.
 - The runtime half. Moving `toDrizzle` onto metadata-driven generation, the way MockData
   reads a `TypeFormat`, is a runtime architecture question and independent of everything
   above. Half of it already exists: `buildRtTableFromGraph` reconstructs a slim table from
-  the reflected `@rtTableKey` meta. Two things to settle before the builder road joins it:
-  a bag has no call ORDER, where the recorder replays modifiers in the order they were
-  written, and runtime-only values (interpolated `sql`, `$defaultFn`, cross-table
-  references) can live in a runtime bag but never in a type, which is why the type road
-  already routes them through `options.runtime`.
+  the reflected `@rtTableKey` meta. One thing to settle before the builder road joins it:
+  runtime-only values (interpolated `sql`, `$defaultFn`, cross-table references) can live
+  in a runtime bag but never in a type, which is why the type road routes them through
+  `options.runtime`.
 
 ## Reproducing
 
 Add a case to
-[`packages/type-budget/test/typeRoad.compile.test.ts`](../type-budget/test/typeRoad.compile.test.ts),
+[`packages/private-type-budget/test/typeRoad.compile.test.ts`](../private-type-budget/test/typeRoad.compile.test.ts),
 which already builds the measurer with `makeMeasurer` from
 [`packages/run-types/test/types/compileHarness.ts`](../run-types/test/types/compileHarness.ts)
-and a snippet path inside `packages/type-budget` so the workspace packages resolve. When
+and a snippet path inside `packages/private-type-budget` so the workspace packages resolve. When
 prototyping a design, put its machinery in its own PREAMBLE, so the baseline subtraction
 removes the machinery and what is left is what a user's table costs.
 

@@ -1,0 +1,35 @@
+/* ########
+ * 2026 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+import {describe, it, expect, beforeEach} from 'vitest';
+import {HeadersSubset} from '@mionjs/core';
+import type {TestServerApi} from '@mionjs/test-server';
+import {initClient} from './lib/fetchingClient.ts';
+import {resetClientCaches} from './lib/testUtils.ts';
+import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
+
+describe('a route returning a HeadersSubset', () => {
+  beforeEach(() => resetClientCaches());
+
+  it('gives the headers back on the fetched lane', async () => {
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL: TEST_SERVER_BASE_URL});
+    middlewares.auth.onRequest((auth) => auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'})));
+    const [result, error] = await routes.respondHeaders('fetched').call();
+    expect(error).toBeUndefined();
+    expect(result).toBeInstanceOf(HeadersSubset);
+    expect(result?.headers['x-mion-echo']).toBe('fetched');
+  });
+
+  it('checks the headers on the fetched lane when the client validates server responses', async () => {
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL: TEST_SERVER_BASE_URL, validateServerResponses: true});
+    middlewares.auth.onRequest((auth) => auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'})));
+    const [result, error, response] = await routes.respondHeaders('checked').call();
+    expect(error).toBeUndefined();
+    expect(response['@thrownErrors']).toBeUndefined();
+    expect(result?.headers['x-mion-echo']).toBe('checked');
+  });
+});

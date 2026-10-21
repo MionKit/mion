@@ -8,7 +8,7 @@
 // too, so the omission is faithful. `valueOracleSafe` is the STRICT gate the
 // runner uses to decide whether the strong oracles may run at all: it excludes
 // anything whose value-generation can't provably match the validator (any /
-// unknown, primitive-bearing intersections, class refs, non-droppable
+// unknown, primitive-bearing intersections, non-droppable
 // non-serialisable positions); those types are policed by the robustness oracle.
 //
 // SOUNDNESS CONTRACT (mirrors invalidValue.ts, one-directional): when
@@ -18,6 +18,7 @@
 
 import type {Decl, GeneratedType, IndexKeyKind, PropShape, TypeShape} from '../core/typeGen.ts';
 import {FORMAT_LEAVES} from '../core/typeGen.ts';
+import {deepCloneForRoundTrip} from '../../util/equalsHelpers.ts';
 
 function rnd(): number {
   return Math.random();
@@ -93,6 +94,8 @@ function valueOf(shape: TypeShape, ctx: ValueCtx): unknown {
       return undefined;
     case 'date':
       return new Date(Date.UTC(2000 + int(40), int(12), 1 + int(28), int(24), int(60), int(60)));
+    case 'url':
+      return new URL(pick(URL_SAMPLES));
     case 'regexp':
       return new RegExp(pick(['ab+c', '^x$', '[0-9]+', '.*']), pick(['', 'g', 'i', 'gi']));
     case 'literal':
@@ -144,7 +147,7 @@ function valueOf(shape: TypeShape, ctx: ValueCtx): unknown {
 
 // Kinds the validator does NOT keep as data at a property position (dropped or
 // otherwise not value-generated) — omitted from the generated value.
-const NON_DATA_KINDS = new Set(['function', 'symbol', 'promise', 'never', 'void']);
+const NON_DATA_KINDS = new Set(['function', 'symbol', 'promise', 'never', 'void', 'regexp']);
 function omitProp(prop: PropShape): boolean {
   return prop.method || NON_DATA_KINDS.has(prop.shape.kind);
 }
@@ -165,8 +168,7 @@ function objectValue(
   }
   if (index) {
     // Each index key must MATCH the declared key kind, or the value doesn't
-    // conform: a non-numeric key under a `[k: number]` index is corrupted by the
-    // binary number-index codec (it encodes numeric keys as numbers). A union
+    // conform (a non-numeric key under a `[k: number]` index). A union
     // key picks a kind per entry. Symbol keys are dropped by JSON and by the
     // serializers, so they add no round-trip coverage — skip them (a symbol-only
     // index yields no entries). createMockDataFn keys on the resolved RunType's
@@ -199,9 +201,15 @@ function refValue(name: string, ctx: ValueCtx): unknown {
     return member.value !== undefined ? member.value : index; // auto-numbered === declaration index
   }
   if (decl.kind === 'type') return valueOf(decl.shape, ctx);
-  if (decl.kind === 'class') return undefined; // class instances aren't value-generated (robustness path)
-  // interface — bounded recursion. At the floor, emit a TERMINAL object (no
-  // further ref expansion) and flag the truncation.
+  // interface OR class — the same path. A user class is matched STRUCTURALLY
+  // (data properties; methods skipped), so a plain object of the right shape
+  // is a conforming value, which is also exactly what the product's own mock
+  // walker builds for a class. Inherited members need no special case: the
+  // generator's `props` is already the flattened list, mirroring the
+  // checker-merged `children` the emitters see.
+  //
+  // bounded recursion — at the floor emit a TERMINAL object (no further ref
+  // expansion) and flag the truncation.
   if (ctx.budget <= 0) {
     ctx.floored.hit = true;
     return minimalObject(decl.props, ctx);
@@ -238,6 +246,8 @@ function floorValue(shape: TypeShape): unknown {
       return null;
     case 'date':
       return new Date(0);
+    case 'url':
+      return new URL('https://example.com/');
     case 'regexp':
       return /x/;
     case 'literal':
@@ -275,11 +285,22 @@ function floorValue(shape: TypeShape): unknown {
 // expectation. Deliberately conservative: anything ambiguous (any / unknown,
 // intersections containing a primitive — which collapse to a BRANDED primitive
 // the validator checks as that primitive — symbols, functions at value
-// positions, class refs) is excluded and policed by the robustness probe
-// instead. Object properties that the validator DROPS (methods / function-typed
+// positions) is excluded and policed by the robustness probe instead. A user
+// class is NOT ambiguous: it is matched structurally, so it rides the same
+// path as an interface. Object properties that the validator DROPS (methods / function-typed
 // props, a build-time Warning) are fine — value-gen omits them too.
 
-const SAFE_LEAF = new Set(['number', 'string', 'boolean', 'bigint', 'null', 'undefined', 'date', 'regexp', 'literal']);
+const SAFE_LEAF = new Set(['number', 'string', 'boolean', 'bigint', 'null', 'undefined', 'date', 'url', 'literal']);
+
+/** A query, a fragment, credentials, a non-ASCII host and non-http schemes: the parts an href round trip must keep. **/
+const URL_SAMPLES = [
+  'https://example.com/a?b=1#c',
+  'https://user:pass@example.com:8080/',
+  'https://münchen.de/straße',
+  'mailto:someone@example.com',
+  'file:///tmp/a.txt',
+  'urn:isbn:0451450523',
+];
 
 /** A property the validator silently drops (so omitting it in value-gen is
  *  faithful). Methods and bare function-typed props only — symbols / promises
@@ -326,11 +347,13 @@ function safe(shape: TypeShape, decls: Map<string, Decl>, seen: Set<string>): bo
     case 'ref': {
       if (seen.has(shape.name)) return false; // recursion is excluded upstream; be conservative
       const decl = decls.get(shape.name);
-      if (!decl || decl.kind === 'class') return false;
+      if (!decl) return false;
       if (decl.kind === 'enum') return true;
       const next = new Set(seen).add(shape.name);
       if (decl.kind === 'type') return safe(decl.shape, decls, next);
-      return decl.props.every((p) => isDroppableProp(p) || safe(p.shape, decls, next)); // interface
+      // interface OR class — a class validates structurally, so its generated
+      // value is as faithful as an interface's (see refValue).
+      return decl.props.every((p) => isDroppableProp(p) || safe(p.shape, decls, next));
     }
   }
   return false; // unreachable — leaf kinds returned above; keeps the switch total
@@ -377,11 +400,11 @@ function collectSites(
       return;
     case 'ref': {
       const decl = decls.get(shape.name);
-      if (!decl || decl.kind === 'class') return;
+      if (!decl) return;
       out.push({shape, set});
       if (decl.kind === 'enum') return;
       if (decl.kind === 'type') return collectSites(decl.shape, value, set, decls, out);
-      if (decl.kind === 'interface' && value && typeof value === 'object')
+      if ((decl.kind === 'interface' || decl.kind === 'class') && value && typeof value === 'object')
         collectObjectProps(decl.props, value as Record<string, unknown>, decls, out);
       return;
     }
@@ -426,7 +449,8 @@ export interface Corruption {
 /** Corrupt a valid value at exactly one provably-invalid position. Returns null
  *  when no such position exists. The input is not mutated. **/
 export function corruptValue(gen: GeneratedType, value: unknown): Corruption | null {
-  const clone = structuredClone(value);
+  // Not structuredClone: it throws on a URL.
+  const clone = deepCloneForRoundTrip(value);
   const holder = {root: clone};
   const sites: CorruptionSite[] = [];
   collectSites(gen.root, clone, (v) => (holder.root = v), declMap(gen), sites);

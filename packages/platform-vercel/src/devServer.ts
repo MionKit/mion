@@ -18,7 +18,6 @@ const DEFAULT_DEV_SERVER_OPTIONS: DevServerOptions = {
   protocol: 'http',
 };
 
-/** Converts Node's IncomingMessage to a Web standard Request */
 async function nodeIncomingToRequest(req: IncomingMessage): Promise<Request> {
   const chunks: Buffer[] = [];
   for await (const chunk of req) {
@@ -44,7 +43,6 @@ async function nodeIncomingToRequest(req: IncomingMessage): Promise<Request> {
   });
 }
 
-/** Writes a Web standard Response to Node's ServerResponse */
 async function writeWebResponseToNode(webResponse: Response, res: ServerResponse): Promise<void> {
   res.statusCode = webResponse.status;
   webResponse.headers.forEach((value, key) => {
@@ -54,11 +52,11 @@ async function writeWebResponseToNode(webResponse: Response, res: ServerResponse
   res.end(buffer);
 }
 
-/** Starts a dev server using Bun's native Request/Response support */
 function startBunDevServer(handler: ReturnType<typeof createVercelHandler>, options: DevServerOptions): any {
   const url = `${options.protocol}://localhost:${options.port}`;
   const server = (globalThis as any).Bun.serve({
     port: options.port,
+    // every verb of the handler object IS the same function, which reads the method off the Request
     fetch: handler.POST,
   });
   console.log(`mion vercel dev server (bun) running on ${url}`);
@@ -75,7 +73,6 @@ function startBunDevServer(handler: ReturnType<typeof createVercelHandler>, opti
   return server;
 }
 
-/** Starts a dev server using Node's http/https module with Request/Response adapters */
 function startNodeDevServer(
   handler: ReturnType<typeof createVercelHandler>,
   options: DevServerOptions
@@ -115,9 +112,8 @@ function startNodeDevServer(
   });
 }
 
-/** Starts a local dev server for the Vercel handler. Auto-detects Bun or Node runtime. */
-// Returns a node HttpServer/HttpsServer, or Bun's server object under Bun — the two
-// share no common type, so the return stays `any`.
+/** Starts a local dev server for the Vercel handler, under Bun or Node. */
+// node's HttpServer/HttpsServer and Bun's server object share no common type, so the return stays `any`
 export async function startVercelDevServer(options?: Partial<DevServerOptions>): Promise<any> {
   const opts: DevServerOptions = {...DEFAULT_DEV_SERVER_OPTIONS, ...options};
   const handler = createVercelHandler();

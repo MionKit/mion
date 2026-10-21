@@ -49,26 +49,22 @@ const lowercase = customType<{data: string; driverData: string}>({
   toDriver: (value) => value.toLowerCase(),
 });
 
-// The two builders-only constructs share a table of their own: an interpolated
-// sql template and a column from a local customType both have no type spelling,
-// so leaving either beside the column types below would make that whole table
-// refuse `convert --to type` and none of them would reach the type road.
+// Interpolated sql and a local customType have no type spelling, so they get their own table; beside the column
+// types below they would make that table refuse `convert --to type`.
 const checked = mysqlTable(
   'addendum_checked',
-  {id: int('id').primaryKey(), tag: lowercase('tag').notNull()},
+  {id: int('id', {primaryKey: true}), tag: lowercase('tag', {notNull: true})},
   (t) => [check('addendum_positive', rtSql`${t.id} > 0`)]
 );
 const checkedDb = toDrizzle(checked);
 
-// mysql-common declares most of these on its `all_types` table, which cannot
-// convert (mysqlEnum takes a values array, which has no type spelling), so one
-// refusal there would cost every one of them their type road coverage.
+// mysql-common declares most of these on `all_types`, which cannot convert: mysqlEnum's values have no type spelling.
 const texts = mysqlTable('addendum_texts', {
-  id: int('id').primaryKey(),
-  tiny: tinytext('tiny').notNull(),
-  medium: mediumtext('medium').notNull(),
-  long: longtext('long').notNull(),
-  label: varchar('label', {length: 20}).notNull(),
+  id: int('id', {primaryKey: true}),
+  tiny: tinytext('tiny', {notNull: true}),
+  medium: mediumtext('medium', {notNull: true}),
+  long: longtext('long', {notNull: true}),
+  label: varchar('label', {length: 20, notNull: true}),
   fixed: char('fixed', {length: 4}),
   bin: binary('bin', {length: 4}),
   varbin: varbinary('varbin', {length: 8}),

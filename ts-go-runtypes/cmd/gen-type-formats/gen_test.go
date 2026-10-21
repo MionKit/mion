@@ -16,7 +16,7 @@ import (
 // It is a CONTAINMENT check, not a raw byte compare: oxfmt reflows the emitted
 // TS in ways the generator doesn't replicate, so a literal `Generate() ==
 // committed` would false-fail on formatting. The exact byte-for-byte guard
-// (after formatting) is `pnpm rtx core codegen typeformats --check`, which CI
+// (after formatting) is `pnpm miondevx core codegen typeformats --check`, which CI
 // runs; this test is the cheap Go-level companion that needs no node/oxfmt and
 // pins the names + kinds themselves. The blank import of formats/all lives in
 // gen.go, so the registry is populated in this test binary too.
@@ -37,11 +37,11 @@ func TestTypeFormatsFileInSync(t *testing.T) {
 	}
 	for name, kinds := range kindsByName {
 		if !strings.Contains(src, name+":") {
-			t.Errorf("format %q missing its key from %s — regenerate via `pnpm rtx core codegen typeformats`",
+			t.Errorf("format %q missing its key from %s — regenerate via `pnpm miondevx core codegen typeformats`",
 				name, typeFormatsOutputPath())
 		}
 		if !strings.Contains(src, jsStr(name)) {
-			t.Errorf("format name %s missing its value from the committed table — regenerate via `pnpm rtx core codegen typeformats`",
+			t.Errorf("format name %s missing its value from the committed table — regenerate via `pnpm miondevx core codegen typeformats`",
 				jsStr(name))
 		}
 		row := name + ": {name: " + jsStr(name) + ", kind: RunTypeKind."
@@ -53,7 +53,7 @@ func TestTypeFormatsFileInSync(t *testing.T) {
 			}
 		}
 		if !anyKind {
-			t.Errorf("format %q row with any of its registered kinds %v missing from the committed table — regenerate via `pnpm rtx core codegen typeformats`",
+			t.Errorf("format %q row with any of its registered kinds %v missing from the committed table — regenerate via `pnpm miondevx core codegen typeformats`",
 				name, kinds)
 		}
 	}

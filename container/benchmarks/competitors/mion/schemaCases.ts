@@ -9,7 +9,7 @@
 
 import * as TF from '@mionjs/run-types/formats';
 import * as TFT from '@mionjs/run-types/formats/temporal';
-import {createValidateFn, createHasUnknownKeysFn} from '@mionjs/run-types';
+import {createValidateFn} from '@mionjs/run-types';
 import * as RT from '@mionjs/run-types/builders';
 import {NOT_SUPPORTED, type CompetitorCases} from '../../shared/harness/types.ts';
 
@@ -31,22 +31,16 @@ export const schemaCases: CompetitorCases = {
   'ATOMIC.literal_a': () => createValidateFn(RT.literal('a')),
   'ATOMIC.literal_true': () => createValidateFn(RT.literal(true)),
   'ATOMIC.literal_1n': () => createValidateFn(RT.literal(1n)),
-  'ATOMIC.literal_symbol': NOT_SUPPORTED, // validateSchema not-supported
+  'ATOMIC.literal_symbol': NOT_SUPPORTED, // factoryThrows (validate-symbol-root): not data
   'ATOMIC.never': () => createValidateFn(RT.never()),
   'ATOMIC.null': () => createValidateFn(RT.literal(null)),
   'ATOMIC.number': () => createValidateFn(TF.number()),
   'ATOMIC.object': NOT_SUPPORTED, // validateSchema not-supported
-  'ATOMIC.regexp': () => createValidateFn(RT.regexp()),
+  'ATOMIC.regexp': NOT_SUPPORTED, // factoryThrows (validate-non-data-root): not data
   'ATOMIC.string': () => createValidateFn(TF.string()),
   'ATOMIC.symbol': NOT_SUPPORTED, // factoryThrows
   'ATOMIC.undefined': () => createValidateFn(RT.literal(undefined)),
   'ATOMIC.void': () => createValidateFn(RT.void()),
-  'ATOMIC.literal_2_noLiterals': () => createValidateFn(RT.literal(2), {noLiterals: true}),
-  'ATOMIC.literal_a_noLiterals': () => createValidateFn(RT.literal('a'), {noLiterals: true}),
-  'ATOMIC.literal_regexp_noLiterals': () => createValidateFn(RT.regexp(), {noLiterals: true}),
-  'ATOMIC.literal_true_noLiterals': () => createValidateFn(RT.literal(true), {noLiterals: true}),
-  'ATOMIC.literal_1n_noLiterals': () => createValidateFn(RT.literal(1n), {noLiterals: true}),
-  'ATOMIC.literal_symbol_noLiterals': NOT_SUPPORTED, // factoryThrows
   'ATOMIC.unknown': () => createValidateFn(RT.unknown()),
 
   // ── ARRAY ──
@@ -55,13 +49,12 @@ export const schemaCases: CompetitorCases = {
   'ARRAY.boolean_array': () => createValidateFn(RT.array(RT.boolean())),
   'ARRAY.bigint_array': () => createValidateFn(RT.array(TF.bigInt())),
   'ARRAY.date_array': () => createValidateFn(RT.array(TF.date())),
-  'ARRAY.regexp_array': () => createValidateFn(RT.array(RT.regexp())),
+  'ARRAY.regexp_array': NOT_SUPPORTED, // factoryThrows (validate-non-data-root): not data
   'ARRAY.undefined_array': () => createValidateFn(RT.array(RT.literal(undefined))),
   'ARRAY.null_array': () => createValidateFn(RT.array(RT.literal(null))),
   'ARRAY.array_generic': () => createValidateFn(RT.array(TF.string())),
   'ARRAY.string_array_2d': () => createValidateFn(RT.array(RT.array(TF.string()))),
   'ARRAY.string_array_3d': () => createValidateFn(RT.array(RT.array(RT.array(TF.string())))),
-  'ARRAY.string_array_noIsArrayCheck': () => createValidateFn(RT.array(TF.string()), {noIsArrayCheck: true}),
   'ARRAY.object_array': () => createValidateFn(RT.array(RT.object({a: TF.string()}))),
   'ARRAY.union_array': () => createValidateFn(RT.array(RT.union([TF.string(), TF.number()]))),
   'ARRAY.tuple_array': () => createValidateFn(RT.array(RT.tuple({required: [TF.string(), TF.number()]}))),
@@ -120,9 +113,8 @@ export const schemaCases: CompetitorCases = {
   'OBJECT.index_signature_date_value': () => createValidateFn(RT.record(RT.record(TF.date()))),
   'OBJECT.index_signature_non_root': () =>
     createValidateFn(RT.object({b: TF.string(), c: RT.intersection(RT.record(TF.string()), RT.object({a: TF.string()}))})),
-  'OBJECT.function_top_level': () => createValidateFn(RT.func()),
-  'OBJECT.interface_callable': () =>
-    createValidateFn(RT.callable(RT.func({params: [TF.number(), RT.boolean()], ret: TF.string()}), RT.object({extra: TF.string()}))),
+  'OBJECT.function_top_level': NOT_SUPPORTED, // factoryThrows (validate-function-root): not data
+  'OBJECT.interface_callable': NOT_SUPPORTED, // factoryThrows (validate-function-root): not data
   'OBJECT.interface_all_optional': () => createValidateFn(RT.object({a: RT.optional(TF.string()), b: RT.optional(TF.number())})),
   'OBJECT.class_simple': () => {
     class MySerializableClass {
@@ -184,7 +176,7 @@ export const schemaCases: CompetitorCases = {
   'TUPLE.tuple_multiple_trailing_optionals': () =>
     createValidateFn(RT.tuple({required: [TF.number()], optional: [TF.bigInt(), RT.boolean(), TF.number()]})),
   'TUPLE.tuple_named_labels': () => createValidateFn(RT.tuple({required: [TF.string(), TF.number()]})),
-  'TUPLE.tuple_with_non_serializable': () => createValidateFn(RT.tuple({required: [TF.number(), RT.func({ret: RT.any()})]})),
+  'TUPLE.tuple_with_non_serializable': NOT_SUPPORTED, // factoryThrows (validate-function-root): not data
   'TUPLE.empty_tuple': () => createValidateFn(RT.tuple({})),
   'TUPLE.single_element_tuple': () => createValidateFn(RT.tuple({required: [TF.string()]})),
   'TUPLE.readonly_tuple': () => createValidateFn(RT.tuple({required: [TF.string(), TF.number()]})),
@@ -308,7 +300,7 @@ export const schemaCases: CompetitorCases = {
   // ── NATIVE ──
   'NATIVE.map_string_number': () => createValidateFn(RT.map(TF.string(), TF.number())),
   'NATIVE.set_string': () => createValidateFn(RT.set(TF.string())),
-  'NATIVE.promise_string': () => createValidateFn(RT.promise(TF.string())),
+  'NATIVE.promise_string': NOT_SUPPORTED, // factoryThrows (validate-non-data-root): not data
   'NATIVE.awaited_promise': () => createValidateFn(TF.string()),
 
   // ── CIRCULAR ──
@@ -546,13 +538,13 @@ export const schemaCases: CompetitorCases = {
   'STRING_FORMAT.ipv4_port': () => createValidateFn(TF.ipv4WithPort()),
   'STRING_FORMAT.ipv6_port': () => createValidateFn(TF.ipv6WithPort()),
   'STRING_FORMAT.domain': () => createValidateFn(TF.domain()),
-  'STRING_FORMAT.domainStrict': () => createValidateFn(TF.domainStrict()),
+  'STRING_FORMAT.domainParts': () => createValidateFn(TF.domainParts()),
   'STRING_FORMAT.email': () => createValidateFn(TF.email()),
   'STRING_FORMAT.emailPunycode': () => createValidateFn(TF.emailPunycode()),
-  'STRING_FORMAT.emailStrict': () => createValidateFn(TF.emailStrict()),
-  'STRING_FORMAT.url': () => createValidateFn(TF.url()),
-  'STRING_FORMAT.urlHttp': () => createValidateFn(TF.urlHttp()),
-  'STRING_FORMAT.urlFile': () => createValidateFn(TF.urlFile()),
+  'STRING_FORMAT.emailParts': () => createValidateFn(TF.emailParts()),
+  'STRING_FORMAT.url': () => createValidateFn(TF.stringUrl()),
+  'STRING_FORMAT.urlHttp': () => createValidateFn(TF.stringUrlHttp()),
+  'STRING_FORMAT.urlFile': () => createValidateFn(TF.stringUrlFile()),
   'STRING_FORMAT.pattern_slug': () =>
     createValidateFn(
       TF.string({
@@ -753,56 +745,25 @@ export const schemaCases: CompetitorCases = {
   'JSON_SCHEMA.multiple_of': () => createValidateFn(TF.number({multipleOf: 5})),
 
   // ── STRICT ──
-  // The builder door's strict pair. The run-type is built TWICE on purpose: each
-  // factory reads its own call site at build time, so a shared local would have
-  // nothing for the second one to read.
-  'STRICT.flat_required': () => {
-    const validate = createValidateFn(
-      RT.object({
-        id: TF.number(),
-        name: TF.string(),
-        active: RT.boolean(),
-      })
-    );
-    const hasUnknownKeys = createHasUnknownKeysFn(
+  'STRICT.flat_required': () =>
+    createValidateFn(
       RT.object({
         id: TF.number(),
         name: TF.string(),
         active: RT.boolean(),
       }),
-      {runsAfterValidation: true}
-    );
-    return (value: unknown) => validate(value) && !hasUnknownKeys(value);
-  },
-  'STRICT.nested_required': () => {
-    const validate = createValidateFn(
-      RT.object({
-        name: TF.string(),
-        inner: RT.object({x: TF.number(), y: TF.string()}),
-      })
-    );
-    const hasUnknownKeys = createHasUnknownKeysFn(
+      {checkUnknowns: true}
+    ),
+  'STRICT.nested_required': () =>
+    createValidateFn(
       RT.object({
         name: TF.string(),
         inner: RT.object({x: TF.number(), y: TF.string()}),
       }),
-      {runsAfterValidation: true}
-    );
-    return (value: unknown) => validate(value) && !hasUnknownKeys(value);
-  },
-  'STRICT.moltar_dto': () => {
-    const validate = createValidateFn(
-      RT.object({
-        number: TF.number(),
-        negNumber: TF.number(),
-        maxNumber: TF.number(),
-        string: TF.string(),
-        longString: TF.string(),
-        boolean: RT.boolean(),
-        deeplyNested: RT.object({foo: TF.string(), num: TF.number(), bool: RT.boolean()}),
-      })
-    );
-    const hasUnknownKeys = createHasUnknownKeysFn(
+      {checkUnknowns: true}
+    ),
+  'STRICT.moltar_dto': () =>
+    createValidateFn(
       RT.object({
         number: TF.number(),
         negNumber: TF.number(),
@@ -812,35 +773,10 @@ export const schemaCases: CompetitorCases = {
         boolean: RT.boolean(),
         deeplyNested: RT.object({foo: TF.string(), num: TF.number(), bool: RT.boolean()}),
       }),
-      {runsAfterValidation: true}
-    );
-    return (value: unknown) => validate(value) && !hasUnknownKeys(value);
-  },
-  'STRICT.realworld_order': () => {
-    const validate = createValidateFn(
-      RT.object({
-        id: TF.string(),
-        customer: RT.object({id: TF.number(), email: TF.string()}),
-        items: RT.array(RT.object({sku: TF.string(), name: TF.string(), qty: TF.number(), price: TF.number()})),
-        shipping: RT.object({
-          street: TF.string(),
-          city: TF.string(),
-          state: TF.string(),
-          zip: TF.string(),
-          country: TF.string(),
-        }),
-        status: RT.union([
-          RT.literal('pending'),
-          RT.literal('paid'),
-          RT.literal('shipped'),
-          RT.literal('delivered'),
-          RT.literal('cancelled'),
-        ]),
-        total: TF.number(),
-        note: RT.optional(TF.string()),
-      })
-    );
-    const hasUnknownKeys = createHasUnknownKeysFn(
+      {checkUnknowns: true}
+    ),
+  'STRICT.realworld_order': () =>
+    createValidateFn(
       RT.object({
         id: TF.string(),
         customer: RT.object({id: TF.number(), email: TF.string()}),
@@ -862,8 +798,6 @@ export const schemaCases: CompetitorCases = {
         total: TF.number(),
         note: RT.optional(TF.string()),
       }),
-      {runsAfterValidation: true}
-    );
-    return (value: unknown) => validate(value) && !hasUnknownKeys(value);
-  },
+      {checkUnknowns: true}
+    ),
 };

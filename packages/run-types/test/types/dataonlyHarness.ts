@@ -55,6 +55,14 @@ interface DataOnlyNativeExtra {
 }
 `;
 
+// The harness loads no dom or @types/node; `declare global` because each snippet is a module and the row reads `globalThis`.
+const URL_PREAMBLE = `
+declare global {
+  interface URL { href: string; readonly origin: string; pathname: string; toJSON(): string; }
+  var URL: { prototype: URL; new (url: string, base?: string | URL): URL; canParse(url: string): boolean };
+}
+`;
+
 // Type-level assertion helpers used by the snippets.
 const ASSERT_PREAMBLE = `
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
@@ -63,7 +71,7 @@ type ExpectFalse<T extends false> = T;
 type Assignable<A, B> = A extends B ? true : false;
 `;
 
-const PREAMBLE = `${SENTINEL_KEYS_PREAMBLE}\n${TEMPORAL_PREAMBLE}\n${extractDataOnlyRegion()}\n${ASSERT_PREAMBLE}\n`;
+const PREAMBLE = `${SENTINEL_KEYS_PREAMBLE}\n${TEMPORAL_PREAMBLE}\n${URL_PREAMBLE}\n${extractDataOnlyRegion()}\n${ASSERT_PREAMBLE}\n`;
 
 /** Compile `PREAMBLE + snippet` and report errors + raw/net instantiation counts. **/
 export const measureDataOnly = makeMeasurer(PREAMBLE);

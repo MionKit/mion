@@ -1,6 +1,7 @@
 package program
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -67,5 +68,19 @@ export const owner: User = {name: 'ann'};
 	// redirect to the unbuilt dist/user.d.ts, which would return nil here).
 	if prog.SourceFile("/virtual/refs/lib/src/user.ts") == nil {
 		t.Fatal("referenced project source was redirected to unbuilt outputs and dropped from the program")
+	}
+}
+
+// TestNew_SolutionStyleTsconfigFails: a tsconfig with only references builds an empty program, which must
+// fail loudly instead of scanning nothing.
+func TestNew_SolutionStyleTsconfigFails(t *testing.T) {
+	files := map[string]string{
+		"/virtual/solution/tsconfig.json":     `{"files": [], "references": [{"path": "./tsconfig.app.json"}]}`,
+		"/virtual/solution/tsconfig.app.json": `{"compilerOptions": {"composite": true}, "include": ["src"]}`,
+		"/virtual/solution/src/app.ts":        "export const a = 1;\n",
+	}
+	_, err := New(Options{Cwd: "/virtual/solution", TsconfigPath: "tsconfig.json", SingleThreaded: true, Overlay: files})
+	if err == nil || !strings.Contains(err.Error(), "includes no source files") || !strings.Contains(err.Error(), "/virtual/solution/tsconfig.json") {
+		t.Fatalf("expected an error naming the empty tsconfig, got %v", err)
 	}
 }

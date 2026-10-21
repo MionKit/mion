@@ -1,43 +1,7 @@
-// Reference interpreter for `createCloneExactShapeFn<T>()` — the executable
-// oracle the clone fuzz compares the COMPILED clone against (O15).
-//
-// A naive, obviously-correct walk of the reflected RunType graph that mirrors
-// the Go emitter's per-kind arms one-for-one
-// (ts-go-runtypes/internal/cachegen/typefunctions/clone_exact_shape.go),
-// trading all of its output-shape decisions for the dumbest possible
-// implementation. No caching, no fastpaths, no code generation — when the
-// compiled clone and this walk disagree on a conforming value, one of them is
-// wrong, and this one is short enough to eyeball.
-//
-// The contract mirrored here:
-//   - primitives / enums / literals / template literals / bigint / null /
-//     undefined / never / any / unknown / bare object, plus the OPAQUE kinds
-//     (symbol, function kinds, Promise, non-serializable natives) → returned
-//     AS-IS (pass by reference).
-//   - ObjectLiteral / Class<SubKindNone> → fresh object rebuilt from the
-//     DECLARED members only (classes keep their prototype via
-//     `Object.create(Object.getPrototypeOf(v))`). Declared members are NEVER
-//     dropped: an opaque-valued member is kept, shared by reference. Class
-//     METHODS ride the shared prototype and are not copied; object-literal
-//     method members are own props and copy by reference. Static members are
-//     skipped. Absent optionals stay absent (`v[name] === undefined` skips).
-//     Index signatures copy every non-declared key with the sig's value
-//     clone applied; everything undeclared is dropped by construction.
-//   - Array → per-element recursion. Tuple → per-slot recursion truncated to
-//     `value.length`; a rest tail recurses per element.
-//   - Map / Set → fresh instance, per-entry recursion. Date → re-wrap.
-//     RegExp → re-compile (source + flags + lastIndex). Temporal → fresh via
-//     the static `from()`.
-//   - Union: OBJECT-bearing unions are out of scope (the compiled factory is
-//     a CES001 alwaysThrow — the corpus must exclude them; this walk throws
-//     loudly if one slips in). Atomic unions dispatch structurally: an
-//     array/Date/RegExp/Map/Set value matching a member gets that member's
-//     clone, everything else passes through. The corpus keeps at most one
-//     member per structural family so this dispatch is unambiguous.
-//
-// Pure module: no vitest imports, no I/O. Runs only on values that PASSED
-// `validate<T>` (the oracle gates on it), so the walk asserts shape instead
-// of defensively guarding — a crash here is a signal, not a hazard.
+// Reference interpreter for `createRemoveUnknownKeysFn<T>()`, the oracle the clone fuzz compares against (O15).
+// A naive walk mirroring the Go emitter's arms one-for-one, short enough to eyeball:
+// ts-go-runtypes/internal/cachegen/typefunctions/remove_unknown_keys.go. Object-bearing unions throw here (the
+// factory is an unknown-keys-object-union alwaysThrow). It only sees values that passed `validate<T>`, so a crash is a signal.
 
 import type {RunType} from '../../../src/runtypes/types.ts';
 import {RunTypeKind, RunTypeSubKind} from '../../../src/go-generated/runTypeKind.generated.ts';
@@ -125,6 +89,7 @@ function cloneNode(rawNode: RunType, value: unknown, table: RefTable): unknown {
     case kind.class: {
       const subKind = (node.subKind as number | undefined) ?? sub.none;
       if (subKind === sub.date) return new Date((value as Date).getTime());
+      if (subKind === sub.url) return new URL((value as URL).href);
       if (subKind === sub.map) return cloneMap(node, value as Map<unknown, unknown>, table);
       if (subKind === sub.set) return cloneSet(node, value as Set<unknown>, table);
       const temporalName = TEMPORAL_BUILTIN[subKind];
@@ -140,7 +105,7 @@ function cloneNode(rawNode: RunType, value: unknown, table: RefTable): unknown {
     }
 
     case kind.regexp:
-      return cloneRegExp(value as RegExp);
+      return value; // not data — shared by reference like a function
 
     case kind.array: {
       if (!node.child) return (value as unknown[]).slice();
@@ -152,8 +117,7 @@ function cloneNode(rawNode: RunType, value: unknown, table: RefTable): unknown {
       return cloneTuple(node, value as unknown[], table);
 
     case kind.indexSignature:
-      // Bare index-signature root (root reach-in) — the object arm normally
-      // consumes sigs; mirror emitIndexSignatureCloneExactShape.
+      // Bare index-signature root; mirrors emitIndexSignatureRemoveUnknownKeys.
       return cloneShapedObject({...node, children: [node]} as RunType, value, false, table);
 
     case kind.union:
@@ -185,7 +149,7 @@ function isOpaqueValueType(node: RunType): boolean {
   return false;
 }
 
-/** ObjectLiteral / Class<None> rebuild (mirrors emitObjectCloneExactShape). **/
+/** Mirrors emitObjectRemoveUnknownKeys. **/
 function cloneShapedObject(node: RunType, value: unknown, asClass: boolean, table: RefTable): unknown {
   const source = value as Record<string | number, unknown>;
   interface PropPlan {
@@ -332,22 +296,16 @@ function cloneSet(node: RunType, value: Set<unknown>, table: RefTable): Set<unkn
   return out;
 }
 
-function cloneRegExp(value: RegExp): RegExp {
-  const out = new RegExp(value.source, value.flags);
-  out.lastIndex = value.lastIndex;
-  return out;
-}
-
-/** Atomic-union dispatch (mirrors emitUnionCloneExactShape): first member
- *  whose structural family matches the value gets its clone; immutable and
- *  opaque members fall through to the `return v` tail. **/
+/** Mirrors emitUnionRemoveUnknownKeys: the first member whose structural family matches clones it. **/
 function cloneUnion(node: RunType, value: unknown, table: RefTable): unknown {
   for (const child of (node.children ?? []) as RunType[]) {
     const member = resolve(child, table);
     if (member.notSupported) continue; // DataOnly-stripped member — never dispatched
     const memberKind = member.kind as number;
     if (memberKind === kind.objectLiteral || memberKind === kind.intersection) {
-      throw new Error('referenceClone: object-bearing unions are out of scope (compiled factory is a CES001 alwaysThrow)');
+      throw new Error(
+        'referenceClone: object-bearing unions are out of scope (compiled factory is a unknown-keys-object-union alwaysThrow)'
+      );
     }
     if ((memberKind === kind.array || memberKind === kind.tuple) && Array.isArray(value)) {
       return cloneNode(member, value, table);
@@ -359,6 +317,7 @@ function cloneUnion(node: RunType, value: unknown, table: RefTable): unknown {
         throw new Error('referenceClone: class-bearing unions are out of scope for the v1 corpus');
       }
       if (subKind === sub.date && value instanceof Date) return cloneNode(member, value, table);
+      if (subKind === sub.url && value instanceof URL) return cloneNode(member, value, table);
       if (subKind === sub.map && value instanceof Map) return cloneNode(member, value, table);
       if (subKind === sub.set && value instanceof Set) return cloneNode(member, value, table);
     }

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/diskcache"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
@@ -39,8 +40,8 @@ func strictDump() protocol.Dump {
 // beside val.json for the same type id, each holding its own body.
 func TestRenderFnModule_DiskCache_StrictFamiliesRoundTrip(t *testing.T) {
 	for _, family := range []struct{ key, tag, mustContain string }{
-		{"validateStrict", "vst", "countEnumKeys"},
-		{"validationErrorsStrict", "vest", "newRunTypeErr"},
+		{"validateStrict", "vst", purefnids.CountEnumKeys},
+		{"validationErrorsStrict", "vest", purefnids.NewRunTypeErr},
 	} {
 		t.Run(family.key, func(t *testing.T) {
 			root := t.TempDir()
@@ -115,10 +116,10 @@ func TestRenderFnModule_DiskCache_StrictAndPlainCoexist(t *testing.T) {
 			t.Fatalf("expected a cache file for tag %q: %v", tag, err)
 		}
 	}
-	if strings.Contains(plain, "countEnumKeys") {
+	if strings.Contains(plain, purefnids.CountEnumKeys) {
 		t.Errorf("the PLAIN validator picked up the key check:\n%s", plain)
 	}
-	if !strings.Contains(fused, "countEnumKeys") {
+	if !strings.Contains(fused, purefnids.CountEnumKeys) {
 		t.Errorf("the FUSED validator lost the key check:\n%s", fused)
 	}
 

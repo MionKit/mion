@@ -76,7 +76,7 @@ export const FORMAT = {
     title: 'URL',
     case: () => {
       // ##### src #####
-      type Target = TF.Url;
+      type Target = TF.StringUrl;
       // ##### friendly #####
       const friendlyTarget: FriendlyText<Target> = {
         rt$label: '',

@@ -7,7 +7,7 @@
 //     intentional close never respawns.
 //   - The unplugin closes the shared resolver only when the LAST plugin
 //     container tears down (vite runs one container per environment over one
-//     plugin instance), so a sibling container's buildEnd no longer kills the
+//     plugin instance), so a sibling container's buildEnd never kills the
 //     child under in-flight work.
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 import path from 'node:path';
@@ -15,7 +15,7 @@ import os from 'node:os';
 import fs from 'node:fs';
 import {ResolverClient} from '../src/core/resolver-client.ts';
 import runtypesRollup from '../src/runtypes/rollup.ts';
-import {BARE_CWD, BIN, hasBinary, MARKER_PACKAGE_OVERLAY, writeMarkerPackage} from './helpers/inline.ts';
+import {BARE_CWD, BIN, callHook, hasBinary, MARKER_PACKAGE_OVERLAY, writeMarkerPackage} from './helpers/inline.ts';
 
 const register = hasBinary() ? it : it.skip;
 
@@ -118,9 +118,6 @@ describe('resolver lifecycle: plugin refcounts containers', () => {
     warn(): void {},
   };
 
-  const callHook = (hook: any, thisArg: unknown, ...args: unknown[]): unknown =>
-    typeof hook === 'function' ? hook.apply(thisArg, args) : hook.handler.apply(thisArg, args);
-
   beforeEach(() => {
     FIXTURE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-lifecycle-'));
     fs.writeFileSync(path.join(FIXTURE_DIR, 'tsconfig.json'), TSCONFIG);
@@ -134,7 +131,7 @@ describe('resolver lifecycle: plugin refcounts containers', () => {
       binary: BIN,
       cwd: FIXTURE_DIR,
       tsconfig: 'tsconfig.json',
-      genDir: path.join(FIXTURE_DIR, '__runtypes'),
+      genDir: path.join(FIXTURE_DIR, '.mion'),
     }) as any;
 
     // Two containers start over the same plugin instance.

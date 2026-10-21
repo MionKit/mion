@@ -47,10 +47,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// asciiUnits encodes an ASCII (always, for injected text) Go string to UTF-16
-// units. The injected bindings + import block are pure ASCII, so this is a
-// straight 1:1 widen, but we go through utf16.Encode to stay correct if a
-// caller ever feeds non-ASCII replacement text.
+// asciiUnits widens injected text to UTF-16 units. It is always ASCII, so this is 1:1, but it goes
+// through utf16.Encode to stay correct if a caller ever feeds non-ASCII replacement text.
 func asciiUnits(text string) []uint16 {
 	return utf16.Encode([]rune(text))
 }
@@ -62,17 +60,15 @@ type replacement struct {
 	content []uint16
 }
 
-// editBuffer accumulates point insertions (appendLeft) and span replacements
-// (update) against an immutable original (UTF-16 units), plus an optional
-// prepended intro, then renders the patched units and a source map.
+// editBuffer accumulates point insertions and span replacements against an immutable original (in
+// UTF-16 units), plus an optional prepended intro, then renders the patched units and a source map.
 type editBuffer struct {
 	original []uint16
 	intro    []uint16
-	// leftInserts maps an original index to the text inserted immediately to
-	// its left; repeated appendLeft at one index accumulate in call order.
+	// leftInserts maps an original index to the text inserted immediately to its left; repeated
+	// appendLeft calls at one index accumulate in call order.
 	leftInserts map[int][]uint16
-	// insertOrder preserves first-seen order is irrelevant for output (keys are
-	// sorted), but we keep insertion accumulation order per index via append.
+	// Append order does not matter: eachChunk sorts a copy by start before walking it.
 	replacements []replacement
 }
 
@@ -80,8 +76,7 @@ func newEditBuffer(original []uint16) *editBuffer {
 	return &editBuffer{original: original, leftInserts: make(map[int][]uint16)}
 }
 
-// prepend stitches content onto the very front of the output (the import
-// block); the rewrite only ever calls it once.
+// prepend stitches content onto the very front of the output; the rewrite calls it once.
 func (eb *editBuffer) prepend(content string) {
 	eb.intro = append(asciiUnits(content), eb.intro...)
 }
@@ -103,8 +98,7 @@ func (eb *editBuffer) update(start, end int, content string) {
 	eb.replacements = append(eb.replacements, replacement{start: start, end: end, content: asciiUnits(content)})
 }
 
-// string renders the patched source (UTF-8): the intro, then the original
-// woven with its insertions and replacements.
+// string renders the patched source as UTF-8: the intro, then the original woven with its edits.
 func (eb *editBuffer) string() string {
 	out := make([]uint16, 0, len(eb.original)+len(eb.intro))
 	out = append(out, eb.intro...)
@@ -116,8 +110,7 @@ func (eb *editBuffer) string() string {
 	return string(utf16.Decode(out))
 }
 
-// generateMap produces a source-map v3 object relocating every generated
-// position back to the original, with boundary-granular segments.
+// generateMap produces a v3 source map back to the original, with boundary-granular segments.
 func (eb *editBuffer) generateMap(source, originalUTF8 string) *protocol.SourceMap {
 	m := newMappings(eb.original)
 	if len(eb.intro) > 0 {
@@ -138,10 +131,9 @@ func (eb *editBuffer) generateMap(source, originalUTF8 string) *protocol.SourceM
 	}
 }
 
-// eachChunk walks the document left to right, emitting verbatim copies
-// (onCopy), inserted text with no source origin (onInsert), and replaced spans
-// (onEdit). A left-insert at an index fires after the chunk ending there and
-// before any replacement starting at the same index.
+// eachChunk walks the document left to right, emitting verbatim copies (onCopy), inserted text with
+// no source origin (onInsert) and replaced spans (onEdit). A left-insert at an index fires after the
+// chunk ending there and before any replacement starting at the same index.
 func (eb *editBuffer) eachChunk(
 	onCopy func(start, end int),
 	onInsert func(text []uint16),
@@ -199,9 +191,9 @@ func (eb *editBuffer) eachChunk(
 	}
 }
 
-// assertDisjoint guards the non-overlap invariant the single-pass render relies
-// on: replacements may not overlap, and no insertion may fall strictly inside a
-// replaced span. Both are structural impossibilities in the rewrite's edit set.
+// assertDisjoint guards the invariant the single-pass render relies on: replacements may not
+// overlap and no insertion may fall strictly inside a replaced span. Both are structural
+// impossibilities in the rewrite's edit set.
 func (eb *editBuffer) assertDisjoint(reps []replacement, insertPositions []int) {
 	for i := 1; i < len(reps); i++ {
 		if reps[i].start < reps[i-1].end {
@@ -217,10 +209,9 @@ func (eb *editBuffer) assertDisjoint(reps []replacement, insertPositions []int) 
 	}
 }
 
-// mappings builds the decoded segment grid (one row per generated line, each
-// segment [generatedColumn, sourceIndex, originalLine, originalColumn]) and
-// VLQ-encodes it. advance/addUnedited/addEdited mirror magic-string so the
-// boundary segmentation and edited-chunk anchoring match its output exactly.
+// mappings builds the decoded segment grid, one row per generated line, and VLQ-encodes it.
+// advance / addUnedited / addEdited mirror magic-string, so the boundary segmentation and
+// edited-chunk anchoring match its output exactly.
 type mappings struct {
 	original      []uint16
 	lineStarts    []int
@@ -254,10 +245,8 @@ func (m *mappings) advance(text []uint16) {
 	m.generatedCol += len(lines[len(lines)-1])
 }
 
-// addUnedited maps a verbatim run [start, end), emitting a segment at each
-// word/non-word boundary while tracking the original line/column and splitting
-// generated lines on newlines. A newline gets no segment — it just opens the
-// next line — matching magic-string's addUneditedChunk.
+// addUnedited maps a verbatim run [start, end), emitting a segment at each word/non-word boundary.
+// A newline gets no segment, it just opens the next line, matching magic-string's addUneditedChunk.
 func (m *mappings) addUnedited(start, end int) {
 	line, column := m.locate(start)
 	originalLine := line
@@ -275,7 +264,7 @@ func (m *mappings) addUnedited(start, end int) {
 			continue
 		}
 		if isWordChar(char) {
-			// Start of a word run gets one segment; the rest of the run rides it.
+			// One segment for the whole word run, at its start.
 			if !inWordRun {
 				m.pushSegment(originalLine, originalColumn)
 				inWordRun = true
@@ -290,9 +279,8 @@ func (m *mappings) addUnedited(start, end int) {
 	}
 }
 
-// addEdited maps replaced content: one segment at its start pointing at the
-// original start of the replaced span, then the generated cursor advances past
-// it. The rewrite's replacement text is always single-line.
+// addEdited maps replaced content with one segment at its start, pointing at the original start of
+// the replaced span. The rewrite's replacement text is always single-line.
 func (m *mappings) addEdited(start int, content []uint16) {
 	if len(content) == 0 {
 		return
@@ -348,9 +336,8 @@ func (m *mappings) encode() string {
 
 const vlqChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
-// appendVlq base64-VLQ-encodes a single signed integer (sign in the LSB) and
-// appends it to dst. Mirrors edit-buffer.ts encodeVlq exactly, including the
-// `>>> 5` unsigned shift (vlq is non-negative here so a logical shift suffices).
+// appendVlq base64-VLQ-encodes one signed integer (sign in the LSB) onto dst. Mirrors
+// edit-buffer.ts encodeVlq, whose `>>> 5` is a logical shift over a value non-negative here.
 func appendVlq(dst []byte, value int) []byte {
 	var vlq int
 	if value < 0 {
@@ -372,8 +359,7 @@ func appendVlq(dst []byte, value int) []byte {
 	return dst
 }
 
-// isWordChar matches magic-string's boundary regex (/\w/): ASCII letters,
-// digits, and underscore. Operates on a single UTF-16 code unit.
+// isWordChar matches magic-string's boundary regex (/\w/) on one UTF-16 code unit.
 func isWordChar(char uint16) bool {
 	return (char >= 'A' && char <= 'Z') ||
 		(char >= 'a' && char <= 'z') ||
@@ -392,9 +378,8 @@ func buildLineStarts(source []uint16) []int {
 	return lineStarts
 }
 
-// locate returns the 0-based {line, column} of a UTF-16 index via binary search
-// over the precomputed line-start table (port of makeLocator). Columns are
-// UTF-16 code units.
+// locate returns the 0-based line and column of a UTF-16 index (port of makeLocator); the column is
+// in UTF-16 code units.
 func (m *mappings) locate(index int) (int, int) {
 	low := 0
 	high := len(m.lineStarts) - 1
@@ -409,9 +394,8 @@ func (m *mappings) locate(index int) (int, int) {
 	return low, index - m.lineStarts[low]
 }
 
-// splitLines splits UTF-16 units on 0x0A into sub-slices, mirroring
-// JS String.prototype.split('\n') (n+1 pieces for n newlines, empty trailing
-// piece included). Only the per-piece length is read by callers.
+// splitLines splits UTF-16 units on 0x0A, mirroring JS split('\n'): n+1 pieces for n newlines, the
+// empty trailing piece included.
 func splitLines(text []uint16) [][]uint16 {
 	lines := make([][]uint16, 0, 1)
 	start := 0

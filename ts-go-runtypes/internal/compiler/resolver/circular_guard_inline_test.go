@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
@@ -26,7 +28,7 @@ func armedValidatePrefix(t *testing.T) string {
 
 // End-to-end coverage for the inline circular-reference guard (the compile-time
 // `rejectCircularRefs` option). The armed variant of a guarded family must (a)
-// bake the guard prologue + skeleton into its body, (b) demand rt::findCycle
+// bake the guard prologue + skeleton into its body, (b) demand @mionjs/run-types/src/runtypes/circular-pure-fns#findCycle
 // by body reference (delivered like any built-in), while (c) a PLAIN cyclable type
 // carries no guard, no walker, and no RunType bundle — the pay-for-use win.
 
@@ -101,11 +103,11 @@ export const isNode = createValidateFn<Node>(undefined, {rejectCircularRefs: tru
 	}
 	// It demands the built-in by body reference (the pure-fn dep tuple slot is a
 	// real JS array literal, so its single quotes are NOT escaped).
-	if !strings.Contains(armed, "'rt::findCycle'") {
+	if !strings.Contains(armed, "'"+purefnids.FindCycle+"'") {
 		t.Errorf("armed entry does not list the findCycle pure-fn dep:\n%s", armed)
 	}
-	if _, ok := modules["pf/rt/findCycle"]; !ok {
-		t.Errorf("rt::findCycle module was not served\nmodules: %v", keys(modules))
+	if _, ok := modules[entrymodules.ModuleName(purefnids.FindCycle, entrymodules.KindPureFn)]; !ok {
+		t.Errorf(purefnids.FindCycle+" module was not served\nmodules: %v", keys(modules))
 	}
 }
 
@@ -116,7 +118,7 @@ interface Node {name: string; next?: Node}
 export const isNode = createValidateFn<Node>();
 `)
 	for name, mod := range modules {
-		if strings.Contains(mod, "findCycle") {
+		if strings.Contains(mod, purefnids.FindCycle) {
 			t.Errorf("plain cyclable type served the walker in %q — demand leaked:\n%s", name, mod)
 		}
 		// No RunType data bundle (kind-4 row bundle) for a plain createX cyclable type.
@@ -127,11 +129,9 @@ export const isNode = createValidateFn<Node>();
 }
 
 func TestInlineGuard_ArmedEncodersThrow(t *testing.T) {
-	// toBinary (tb|C) and jsonEncoder (jeCL|C) armed entries throw a
-	// CircularReferenceError via utl.circularError.
-	modules := scanEntryModules(t, `import {createBinaryEncoderFn, createJsonEncoderFn} from '@mionjs/run-types';
+	// The armed jsonEncoder (jeCL|C) entry throws a CircularReferenceError via utl.circularError.
+	modules := scanEntryModules(t, `import {createJsonEncoderFn} from '@mionjs/run-types';
 interface Node {name: string; next?: Node}
-export const tb = createBinaryEncoderFn<Node>(undefined, {rejectCircularRefs: true});
 export const je = createJsonEncoderFn<Node>(undefined, {rejectCircularRefs: true});
 `)
 	throwers := 0
@@ -140,21 +140,21 @@ export const je = createJsonEncoderFn<Node>(undefined, {rejectCircularRefs: true
 			throwers++
 		}
 	}
-	if throwers < 2 {
-		t.Errorf("expected both armed encoders (tb + je) to throw via utl.circularError, found %d\nmodules: %v", throwers, keys(modules))
+	if throwers < 1 {
+		t.Errorf("expected the armed jsonEncoder to throw via utl.circularError, found %d\nmodules: %v", throwers, keys(modules))
 	}
-	if _, ok := modules["pf/rt/findCycle"]; !ok {
-		t.Errorf("rt::findCycle not served for armed encoders\nmodules: %v", keys(modules))
+	if _, ok := modules[entrymodules.ModuleName(purefnids.FindCycle, entrymodules.KindPureFn)]; !ok {
+		t.Errorf(purefnids.FindCycle+" not served for armed encoders\nmodules: %v", keys(modules))
 	}
 }
 
-// TestInlineGuard_ArmedCompositeNeverTripsJCP001 — regression: the armed JSON
-// composite carries `rt::findCycle` in its SoftDeps (that IS the built-in's
-// demand signal), but AssertCompositeSoftDeps must not read that pure-fn edge
-// as a composite-bound primitive: the assertion runs BEFORE serveBuiltinPureFns
-// delivers the body, so treating it as a primitive fired a spurious
-// Error-severity JCP001 that failed batch builds.
-func TestInlineGuard_ArmedCompositeNeverTripsJCP001(t *testing.T) {
+// TestInlineGuard_ArmedCompositeNeverTripsInternalJsonPrimitiveMissing — regression: the armed JSON
+// composite carries the built-in findCycle id in its SoftDeps (that IS the
+// built-in's demand signal), but AssertCompositeSoftDeps must not read that
+// pure-fn edge as a composite-bound primitive: the assertion runs BEFORE
+// servePackagePureFns delivers the body, so treating it as a primitive fired a spurious
+// Error-severity internal-json-primitive-missing that failed batch builds.
+func TestInlineGuard_ArmedCompositeNeverTripsInternalJsonPrimitiveMissing(t *testing.T) {
 	r := setupInline(t, map[string]string{"a.ts": `import {createJsonEncoderFn} from '@mionjs/run-types';
 interface Node {name: string; next?: Node}
 export const je = createJsonEncoderFn<Node>(undefined, {rejectCircularRefs: true});
@@ -165,10 +165,10 @@ export const je = createJsonEncoderFn<Node>(undefined, {rejectCircularRefs: true
 	}
 	for _, d := range resp.Diagnostics {
 		if d.Code == diagnostics.CodeCompositeMissingPrimitive {
-			t.Fatalf("armed jsonEncoder tripped JCP001 on its pure-fn soft dep: args=%v", d.Args)
+			t.Fatalf("armed jsonEncoder tripped internal-json-primitive-missing on its pure-fn soft dep: args=%v", d.Args)
 		}
 	}
-	if _, ok := resp.EntryModules["pf/rt/findCycle"]; !ok {
-		t.Errorf("rt::findCycle module was not served\nmodules: %v", keys(resp.EntryModules))
+	if _, ok := resp.EntryModules[entrymodules.ModuleName(purefnids.FindCycle, entrymodules.KindPureFn)]; !ok {
+		t.Errorf(purefnids.FindCycle+" module was not served\nmodules: %v", keys(resp.EntryModules))
 	}
 }

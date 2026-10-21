@@ -3,11 +3,13 @@ package entrymodules
 import (
 	"strings"
 	"testing"
+
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 )
 
 func renderOne(t *testing.T, graph Graph, key string) string {
 	t.Helper()
-	out, err := RenderGrouped(graph, nil)
+	out, err := RenderGrouped(graph, nil, false)
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}
@@ -146,25 +148,31 @@ func TestRender_MissingStub(t *testing.T) {
 }
 
 func TestRender_PureFnModuleNameEncoding(t *testing.T) {
+	const core = purefnids.NewRunTypeErr
+	const weirdKey = "we ird/deep#pf_fn$x"
 	graph := Graph{}
-	graph.Add(&Entry{Key: "rt::newRunTypeErr", Kind: KindPureFn, ArgsText: "'rt::newRunTypeErr','h1'"})
-	graph.Add(&Entry{Key: "we ird::fn$x", Kind: KindPureFn, ArgsText: "'we ird::fn$x','h2'", Deps: []string{"rt::newRunTypeErr"}})
-	out, err := RenderGrouped(graph, nil)
+	graph.Add(&Entry{Key: core, Kind: KindPureFn, ArgsText: "'" + core + "','h1'"})
+	graph.Add(&Entry{Key: weirdKey, Kind: KindPureFn, ArgsText: "'" + weirdKey + "','h2'", Deps: []string{core}})
+	out, err := RenderGrouped(graph, nil, false)
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}
-	if _, ok := out["pf/rt/newRunTypeErr"]; !ok {
+	// An id's owner half is a package name, so it becomes a path segment: `@`
+	// kept (every scoped package name starts with one), the hash appended.
+	if _, ok := out[ModuleName(core, KindPureFn)]; !ok {
 		t.Fatalf("plain pure-fn basename missing: %v", keysOf(out))
 	}
-	weird, ok := out["pf/we$20ird/fn$24x"]
+	weird, ok := out["pf/we$20ird/deep/fn$24x"]
 	if !ok {
 		t.Fatalf("escaped pure-fn basename missing: %v", keysOf(out))
 	}
-	if !strings.Contains(weird, "import {__rt_pf$2Frt$2FnewRunTypeErr} from 'rtmod:/pf/rt/newRunTypeErr.js';") {
-		t.Fatalf("pure-fn dep import should use the encoded basename: %q", weird)
+	coreModule := ModuleName(core, KindPureFn)
+	wantImport := "import {" + BindingName(coreModule) + "} from 'rtmod:/" + coreModule + ".js';"
+	if !strings.Contains(weird, wantImport) {
+		t.Fatalf("pure-fn dep import should use the encoded basename:\n got: %q\nwant substring: %q", weird, wantImport)
 	}
-	if !strings.Contains(weird, "export const __rt_pf$2Fwe$20ird$2Ffn$24x=[2,()=>[__rt_pf$2Frt$2FnewRunTypeErr],,'we ird::fn$x','h2'];") {
-		t.Fatalf("pure-fn tuple should keep the RAW cache key: %q", weird)
+	if !strings.Contains(weird, "'"+weirdKey+"','h2'];") {
+		t.Fatalf("pure-fn tuple should keep the RAW id: %q", weird)
 	}
 }
 
@@ -191,7 +199,7 @@ func TestAddMissingStubs_CoversUnresolvedDeps(t *testing.T) {
 	if entry := graph["rt::elsewhere"]; entry == nil || entry.Kind != KindMissing {
 		t.Fatalf("unresolved pure-fn dep should be stubbed")
 	}
-	if _, err := RenderGrouped(graph, nil); err != nil {
+	if _, err := RenderGrouped(graph, nil, false); err != nil {
 		t.Fatalf("Render after stub pass: %v", err)
 	}
 }
@@ -204,12 +212,12 @@ func TestRender_Deterministic(t *testing.T) {
 		graph.Add(&Entry{Key: "r3", Kind: KindRunType, ArgsText: "'r3',5"})
 		return graph
 	}
-	first, err := RenderGrouped(build(), nil)
+	first, err := RenderGrouped(build(), nil, false)
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}
 	for i := 0; i < 5; i++ {
-		again, err := RenderGrouped(build(), nil)
+		again, err := RenderGrouped(build(), nil, false)
 		if err != nil {
 			t.Fatalf("Render: %v", err)
 		}
@@ -227,4 +235,16 @@ func keysOf(m map[string]string) []string {
 		out = append(out, k)
 	}
 	return out
+}
+
+// A missing stub for a pure-fn id is named like a pure-fn module: the id's `#`
+// would otherwise end up in an import URL as a fragment and never resolve.
+func TestModuleName_MissingStubForPureFnIdUsesPureFnLayout(t *testing.T) {
+	const id = "@acme/legacy/index#pf_padId"
+	if got, want := ModuleName(id, KindMissing), ModuleName(id, KindPureFn); got != want || strings.Contains(got, "#") {
+		t.Errorf("ModuleName(missing pure-fn id) = %q, want %q", got, want)
+	}
+	if got := ModuleName("abc123", KindMissing); got != "abc123" {
+		t.Errorf("a hash-keyed missing stub keeps its key, got %q", got)
+	}
 }

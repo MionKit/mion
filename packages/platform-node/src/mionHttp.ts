@@ -5,19 +5,33 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {dispatchRoute, getRouterFatalErrorResponse, resetRouter, decodeQueryBody, setPlatformConfig} from '@mionjs/router';
+import {
+  dispatchMaybeSync,
+  dispatchPlatformError,
+  resolveExecutionChain,
+  createContextFromChain,
+  getRouterFatalErrorResponse,
+  toRpcError,
+  resetRouter,
+  decodeQueryBody,
+  setPlatformConfig,
+  getResponseDefaults,
+  requestPayloadTooLarge,
+  handOverToHost,
+} from '@mionjs/router';
+import type {MethodsExecutionChain} from '@mionjs/router';
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants.ts';
 import type {NodeHttpOptions} from './types.ts';
-import {configureBinary, type BinaryOptionsPatch} from '@mionjs/core';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
 import type {MionHeaders, MionResponse} from '@mionjs/router';
 import {getENV, SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
-import {RpcError} from '@mionjs/core';
+import {RpcError, FatalError} from '@mionjs/core';
 import {headersFromIncomingMessage, headersFromServerResponse} from './headers.ts';
+import {decodeBody} from './bodyDecode.ts';
 
 // ############# PRIVATE STATE #############
 
@@ -39,13 +53,6 @@ export function setNodeHttpOpts(options?: Partial<NodeHttpOptions>) {
   return httpOptions;
 }
 
-/** Applies the binary options, arming the buffer pool unless the caller turned it off. Safe here
- *  because this adapter releases the buffer on the response's 'finish'/'close' events, once node is
- *  done with the view. */
-function applyBinaryOptions(binary: BinaryOptionsPatch): void {
-  configureBinary({...binary, pool: {enabled: true, ...binary.pool}});
-}
-
 /** The platform config the router publishes: everything but node's native ServerOptions. */
 function serializablePlatformConfig(): Record<string, unknown> {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -57,10 +64,12 @@ export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promi
   const isTest = getENV('NODE_ENV') === 'test';
 
   if (options) setNodeHttpOpts(options);
-  applyBinaryOptions(httpOptions.binary);
+  // Local, never written back: a later server in the same process listens once the host lets go of the socket.
+  const asMiddleware = handOverToHost({node: httpRequestHandler}) || !!httpOptions.asMiddleware;
+  const platformConfig = () => setPlatformConfig({...serializablePlatformConfig(), asMiddleware});
   const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
   const url = `${httpOptions.protocol}://localhost${port}`;
-  if (!isTest && !httpOptions.asMiddleware)
+  if (!isTest && !asMiddleware)
     console.log(`mion node server running on ${url}`, {
       port: httpOptions.port,
       httpOptions,
@@ -72,12 +81,10 @@ export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promi
         ? createHttps(httpOptions.options, httpRequestHandler)
         : createHttp(httpOptions.options, httpRequestHandler);
 
-    // The host owns the socket: no listen(), and NO shutdown handlers — theirs calls
-    // process.exit(0), which in middleware mode would kill the host (a vite dev server, an
-    // express app) on the first Ctrl-C it was already handling itself.
-    if (httpOptions.asMiddleware) {
+    // no listen() and NO shutdown handlers: ours calls process.exit(0) and would kill the host on the Ctrl-C it handles
+    if (asMiddleware) {
       if (!isTest) console.log('mion running as middleware: routes are registered, mion did NOT open a port.');
-      setPlatformConfig(serializablePlatformConfig());
+      platformConfig();
       return resolve(server);
     }
 
@@ -86,7 +93,7 @@ export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promi
     });
 
     server.listen(httpOptions.port, () => {
-      setPlatformConfig(serializablePlatformConfig());
+      platformConfig();
       resolve(server);
     });
 
@@ -104,7 +111,7 @@ export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promi
 
 // ############# PRIVATE METHODS #############
 
-// exported as can be used in some server to proxy node requests
+// exported so a host server can proxy node requests into mion
 export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerResponse): void {
   let replied = false;
   const nodeUrl = httpReq.url || '/';
@@ -112,85 +119,136 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   const path = queryIndex === -1 ? nodeUrl : nodeUrl.substring(0, queryIndex);
   const urlQuery = queryIndex === -1 ? undefined : nodeUrl.substring(queryIndex + 1);
   let size = 0;
-  const bodyChunks: any[] = [];
+  const bodyChunks: Buffer[] = [];
 
-  httpResponse.setHeader('server', '@mionjs');
   const reqHeaders = headersFromIncomingMessage(httpReq);
-  const respHeaders = headersFromServerResponse(httpResponse, httpOptions.defaultResponseHeaders);
+  const respHeaders = headersFromServerResponse(httpResponse, getResponseDefaults());
 
-  httpReq.on('data', (data) => {
-    bodyChunks.push(data);
-    const chunkLength = bodyChunks[bodyChunks.length - 1].length;
-    size += chunkLength;
-    if (size > httpOptions.maxBodySize && !replied) {
-      replied = true;
-      const error = new RpcError({
-        publicMessage: 'Payload Too Large',
-        type: 'request-payload-too-large',
-      });
-      fatalFail(httpResponse, respHeaders, error);
-    }
-  });
-
-  httpReq.on('error', (e) => {
-    if (replied) return;
+  // route resolved BEFORE the body: the read below stops at the chain's limit, and a late context stays GC-cheap.
+  // A throw here (a throwing pathTransform) has no chain to run, so it is answered bare with the stream destroyed.
+  let chain: MethodsExecutionChain;
+  try {
+    chain = resolveExecutionChain(path, urlQuery, httpReq);
+  } catch (err) {
     replied = true;
-    const error = new RpcError({
-      publicMessage: 'Connection Error',
-      type: 'request-connection-error',
-      originalError: e,
-    });
-    fatalFail(httpResponse, respHeaders, error);
-  });
+    fatalFail(httpResponse, respHeaders, toRpcError(err));
+    httpReq.destroy();
+    return;
+  }
+  // read once per request rather than per chunk
+  const maxBodySize = chain.maxBodySize;
 
-  httpReq.on('end', async () => {
-    if (replied) return;
-    const buffer = Buffer.concat(bodyChunks);
-    const contentType = httpReq.headers['content-type'] || '';
-    const isBinary = contentType.startsWith('application/octet-stream');
-    let reqRawBody: any = isBinary ? buffer : buffer.toString();
-    let reqBodyType: SerializerCode = isBinary ? SerializerModes.binary : SerializerModes.stringifyJson;
-    const queryBody = decodeQueryBody(urlQuery, reqRawBody || undefined);
-    if (queryBody) {
-      reqRawBody = queryBody.rawBody;
-      reqBodyType = queryBody.bodyType;
-    }
+  // too large is decided BEFORE a byte is buffered: on the declared content-length, then on the running size per chunk
+  const declaredLength = Number(httpReq.headers['content-length']);
+  if (declaredLength > maxBodySize) {
+    replied = true;
+    void dispatchRefusal();
+    return;
+  }
 
+  /** A refused body still runs the chain's `alwaysRun` members, then the stream is destroyed so the client cannot keep sending. */
+  async function dispatchRefusal() {
+    bodyChunks.length = 0;
     try {
-      const mionResponse = await dispatchRoute(
+      const mionResponse = await dispatchPlatformError(
+        chain,
         path,
-        reqRawBody,
+        urlQuery,
+        requestPayloadTooLarge(),
         reqHeaders,
         respHeaders,
         httpReq,
-        httpResponse,
-        reqBodyType,
-        urlQuery
+        httpResponse
       );
-      if (replied || httpResponse.writableEnded) return;
-      replied = true;
-      reply(httpResponse, mionResponse);
-    } catch (e) {
-      if (replied) return;
-      replied = true;
-      const error = new RpcError({
-        publicMessage: 'Unknown Error',
-        type: 'unknown-error',
-        originalError: e as Error,
-      });
-      fatalFail(httpResponse, respHeaders, error);
+      if (!httpResponse.writableEnded) reply(httpResponse, mionResponse);
+    } catch (err) {
+      fatalFail(httpResponse, respHeaders, toRpcError(err));
+    } finally {
+      httpReq.destroy();
     }
-  });
+  }
 
-  httpResponse.on('error', (e) => {
+  function dispatch(reqRawBody: any, reqBodyType: SerializerCode, readQueryBody: boolean) {
+    // runs from a listener: an unhandled error here takes the whole process down under node's default
+    try {
+      const queryBody = readQueryBody ? decodeQueryBody(urlQuery, reqRawBody || undefined) : undefined;
+      if (queryBody) {
+        reqRawBody = queryBody.rawBody;
+        reqBodyType = queryBody.bodyType;
+      }
+      const context = createContextFromChain(chain, path, urlQuery, reqHeaders, respHeaders, reqRawBody, reqBodyType);
+      const dispatched = dispatchMaybeSync(context, httpReq, httpResponse);
+      // an all-sync chain answers inside the listener, with no promise in between
+      if (dispatched instanceof Promise) dispatched.then(answer).catch(failWith);
+      else answer(dispatched);
+    } catch (err) {
+      failWith(err);
+    }
+  }
+
+  function answer(mionResponse: MionResponse) {
+    if (replied || httpResponse.writableEnded) return;
+    replied = true;
+    reply(httpResponse, mionResponse);
+  }
+
+  function failWith(err: unknown) {
     if (replied) return;
     replied = true;
-    const error = new RpcError({
+    fatalFail(httpResponse, respHeaders, toRpcError(err));
+  }
+
+  httpResponse.on('error', (err) => {
+    if (replied) return;
+    replied = true;
+    const error = new FatalError({
       publicMessage: 'Connection Error',
       type: 'response-connection-error',
-      originalError: e,
+      originalError: err,
     });
     fatalFail(httpResponse, respHeaders, error);
+  });
+
+  // a not-found chain (an unknown path or batch id) has no route to feed: no body, no data listener.
+  // Node discards whatever the client still sends once the response ends, so a kept-alive connection stays usable.
+  if (!chain.readsBody) {
+    dispatch('', SerializerModes.stringifyJson, false);
+    return;
+  }
+
+  httpReq.on('error', (err) => {
+    if (replied) return;
+    replied = true;
+    const error = new FatalError({
+      publicMessage: 'Connection Error',
+      type: 'request-connection-error',
+      originalError: err,
+    });
+    fatalFail(httpResponse, respHeaders, error);
+  });
+
+  // RFC 9112: an HTTP/1 request with no content-length or transfer-encoding has no body; HTTP/2 may still stream one.
+  // Bytes sent anyway parse as node's next request: the microtask lets node's 400 for them go out before our answer.
+  const {headers} = httpReq;
+  if (httpReq.httpVersionMajor === 1 && headers['content-length'] === undefined && headers['transfer-encoding'] === undefined) {
+    queueMicrotask(() => dispatch('', SerializerModes.stringifyJson, true));
+    return;
+  }
+
+  httpReq.on('data', (data) => {
+    if (replied) return;
+    size += data.length;
+    if (size > maxBodySize) {
+      replied = true;
+      void dispatchRefusal();
+      return;
+    }
+    bodyChunks.push(data);
+  });
+
+  httpReq.on('end', () => {
+    if (replied) return;
+    dispatch(decodeBody(bodyChunks, size), SerializerModes.stringifyJson, true);
   });
 }
 
@@ -203,43 +261,9 @@ function fatalFail(httpResponse: ServerResponse, respHeaders: MionHeaders, error
 
 function reply(httpResp: ServerResponse, mionResp: MionResponse) {
   httpResp.statusCode = mionResp.statusCode;
-  const bodyType = mionResp.serializer;
-  switch (bodyType) {
-    case SerializerModes.stringifyJson: {
-      const buffer = Buffer.from(mionResp.rawBody as string, 'utf8');
-      httpResp.setHeader('content-length', buffer.byteLength);
-      // content-type already set by serializer
-      httpResp.end(buffer);
-      break;
-    }
-    case SerializerModes.json: {
-      // Platform adapter stringifies the prepared body object
-      const jsonString = JSON.stringify(mionResp.body);
-      const buffer = Buffer.from(jsonString, 'utf8');
-      httpResp.setHeader('content-length', buffer.byteLength);
-      httpResp.end(buffer);
-      break;
-    }
-    case SerializerModes.binary: {
-      const serializer = mionResp.binSerializer!;
-      httpResp.setHeader('content-length', serializer.getLength());
-      // content-type already set by serializer
-      httpResp.end(serializer.getBufferView());
-      // The view aliases the (possibly pooled) buffer and node keeps it queued until the
-      // socket drains, so the buffer only goes back once the response is done. Both events
-      // fire on a normal response and 'close' alone on an abort; release is idempotent.
-      const releaseBuffer = () => mionResp.releaseBinBuffer?.();
-      httpResp.on('finish', releaseBuffer);
-      httpResp.on('close', releaseBuffer);
-      break;
-    }
-    default: {
-      const error = new RpcError({
-        publicMessage: 'unknown-mion-response-format',
-        type: 'unknown-error',
-        errorData: {bodyType},
-      });
-      fatalFail(httpResp, mionResp.headers, error);
-    }
-  }
+  const jsonString = JSON.stringify(mionResp.body);
+  // byteLength measures without copying the response into a Buffer
+  httpResp.setHeader('content-length', Buffer.byteLength(jsonString, 'utf8'));
+  httpResp.setHeader('content-type', mionResp.contentType);
+  httpResp.end(jsonString, 'utf8');
 }

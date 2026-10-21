@@ -1,0 +1,131 @@
+import * as RT from '@mionjs/run-types/builders';
+import * as TF from '@mionjs/run-types/formats';
+import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
+
+// start-array
+type Tags = TF.FormattedArray<
+  string[],
+  {minItems: 1; maxItems: 5; uniqueItems: true}
+>;
+
+const isTags = createValidateFn<Tags>();
+const isTagsBuilt = createValidateFn(
+  RT.array(TF.string(), {minItems: 1, maxItems: 5, uniqueItems: true})
+);
+
+isTags(['ada', 'grace']); // true
+isTags([]); // false, at least one entry
+isTagsBuilt(['ada', 'ada']); // false, the entries repeat
+
+// The two spellings are one generated function, not two that agree.
+getRunTypeId<Tags>() ===
+  getRunTypeId(
+    RT.array(TF.string(), {minItems: 1, maxItems: 5, uniqueItems: true})
+  ); // true
+// end-array
+
+// start-contains
+// `contains` takes a type in a type, and a run-type in a builder
+type WithAdminId = TF.FormattedArray<
+  string[],
+  {contains: TF.UUID; minContains: 2}
+>;
+
+const hasTwoIds = createValidateFn<WithAdminId>();
+const hasTwoIdsBuilt = createValidateFn(
+  RT.array(TF.string(), {contains: TF.uuid(), minContains: 2})
+);
+
+hasTwoIds([
+  'plain',
+  '9f1b8c2e-3d4a-4b5c-8d6e-1f2a3b4c5d6e',
+  '018f1b8c-2e3d-7b5c-8d6e-1f2a3b4c5d6e',
+]); // true
+hasTwoIdsBuilt(['plain', '9f1b8c2e-3d4a-4b5c-8d6e-1f2a3b4c5d6e']); // false, only one matches
+// end-contains
+
+// start-object
+// Objects work the same way: the shape is the type, and everything else about
+// the keys is an option.
+interface Settings {
+  theme: string;
+  locale?: string;
+}
+
+type BoundedSettings = TF.FormattedObject<
+  Settings,
+  {minProperties: 1; maxProperties: 2}
+>;
+
+const isSettings = createValidateFn<BoundedSettings>();
+const isSettingsBuilt = createValidateFn(
+  RT.object(
+    {theme: TF.string(), locale: RT.optional(TF.string())},
+    {minProperties: 1, maxProperties: 2}
+  )
+);
+
+isSettings({theme: 'dark'}); // true
+isSettingsBuilt({theme: 'dark', locale: 'en'}); // true
+// end-object
+
+// start-keys
+type Columns = TF.FormattedObject<
+  Record<string, unknown>,
+  {patternProperties: {'^col_': number}}
+>;
+type LowercaseKeys = TF.FormattedObject<
+  Record<string, string>,
+  {propertyNames: TF.Alpha}
+>;
+
+const isColumns = createValidateFn<Columns>();
+const isLowercaseKeys = createValidateFn<LowercaseKeys>();
+
+isColumns({col_width: 40}); // true
+isColumns({col_width: 'wide'}); // false, a col_ key must hold a number
+isLowercaseKeys({theme: 'dark'}); // true
+isLowercaseKeys({'theme-2': 'dark'}); // false, the key is not alphabetic
+// end-keys
+
+// start-collections
+// same options as an array; on a Map, `contains` and `uniqueItems` use [key, value] pairs
+type Labels = TF.FormattedSet<Set<string>, {minItems: 1; maxItems: 5}>;
+type Points = TF.FormattedSet<Set<{x: number; y: number}>, {uniqueItems: true}>;
+type Scores = TF.FormattedMap<Map<string, number>, {maxItems: 100}>;
+type WithAdmin = TF.FormattedMap<
+  Map<string, number>,
+  {contains: ['admin', unknown]}
+>;
+type Seats = TF.FormattedMap<Map<{row: number}, string>, {uniqueItems: true}>;
+
+const isLabels = createValidateFn<Labels>();
+const isPoints = createValidateFn<Points>();
+const isScores = createValidateFn<Scores>();
+const isWithAdmin = createValidateFn<WithAdmin>();
+const isSeats = createValidateFn<Seats>();
+const isScoresBuilt = createValidateFn(
+  RT.map(TF.string(), TF.number(), {maxItems: 100})
+);
+
+isLabels(new Set(['ada'])); // true
+isLabels(new Set()); // false, at least one label
+isPoints(
+  new Set([
+    {x: 1, y: 2},
+    {x: 1, y: 2},
+  ])
+); // false, two equal points
+isWithAdmin(new Map([['admin', 1]])); // true
+isWithAdmin(new Map([['guest', 1]])); // false, no admin entry
+isSeats(
+  new Map([
+    [{row: 1}, 'ada'],
+    [{row: 1}, 'ada'],
+  ])
+); // false, the same pair twice
+isScoresBuilt(new Map([['ada', 10]])); // true
+
+getRunTypeId<Scores>() ===
+  getRunTypeId(RT.map(TF.string(), TF.number(), {maxItems: 100})); // true
+// end-collections

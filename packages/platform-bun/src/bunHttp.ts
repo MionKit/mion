@@ -6,29 +6,36 @@
  * ######## */
 
 import {
-  dispatchRoute,
+  dispatchMaybeSync,
+  dispatchPlatformError,
+  resolveExecutionChain,
+  createContextFromChain,
   getRouterFatalErrorResponse,
+  toRpcError,
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
-  MionResponse,
+  getMaxRouteBodySize,
+  readRequestBody,
+  BodyReadStrategy,
+  handOverToHost,
+  getDefaultFetchHeaders,
+  replyFetch,
 } from '@mionjs/router';
+import type {MethodsExecutionChain, FetchResponseHeaders} from '@mionjs/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants.ts';
 import type {BunHttpOptions} from './types.ts';
-import {getENV, SerializerModes, configureBinary, toResponseBody} from '@mionjs/core';
-import type {BinaryOptionsPatch} from '@mionjs/core';
+import {getENV, SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
-import {RpcError} from '@mionjs/core';
+import {RpcError, FatalError} from '@mionjs/core';
 import {Server} from 'bun';
 
 // ############# PRIVATE STATE #############
 
 let httpOptions: Readonly<BunHttpOptions> = {...DEFAULT_BUN_HTTP_OPTIONS};
-let defaultHeaders: [string, string][] = [['server', '@mionjs']];
 
 export function resetBunHttpOpts() {
   httpOptions = {...DEFAULT_BUN_HTTP_OPTIONS};
-  defaultHeaders = [['server', '@mionjs']];
   resetRouter();
 }
 
@@ -37,68 +44,87 @@ export function setBunHttpOpts(options?: Partial<BunHttpOptions>) {
     ...httpOptions,
     ...options,
   };
-  // Pre-build default headers array once
-  defaultHeaders = [['server', '@mionjs'], ...Object.entries(httpOptions.defaultResponseHeaders)];
   return httpOptions;
 }
 
-/** Applies the binary options, arming the buffer pool unless the caller turned it off. Safe here
- *  because Bun copies the response bytes synchronously, so the buffer is released as soon as the
- *  Response is constructed. */
-function applyBinaryOptions(binary: BinaryOptionsPatch): void {
-  configureBinary({...binary, pool: {enabled: true, ...binary.pool}});
-}
-
-/** Dispatches one web Request through the router. Exported so the same handler mion serves can be
- *  mounted in a host that owns the socket: your own `Bun.serve({fetch: bunRequestHandler})`, or a
- *  vite dev server in middleware mode (see `asMiddleware`). */
-export async function bunRequestHandler(req: Request): Promise<Response> {
+/** Exported so a host that owns the socket can mount it: your own `Bun.serve({fetch})`, or vite in middleware mode.
+ *  NOT async: a body-less request on an all-sync route gets a `Response`, never a promise. */
+export function bunRequestHandler(req: Request): Response | Promise<Response> {
   const reqUrl = req.url;
   const pathStart = reqUrl.indexOf('/', 8);
   const queryStart = reqUrl.indexOf('?', pathStart);
   const path = queryStart === -1 ? reqUrl.slice(pathStart) : reqUrl.slice(pathStart, queryStart);
   const urlQuery = queryStart === -1 ? undefined : reqUrl.slice(queryStart + 1);
-  const contentType = req.headers.get('content-type') || '';
-  const isBinary = contentType.startsWith('application/octet-stream');
-  let rawBody: any = req.body
-    ? isBinary
-      ? await req.arrayBuffer()
-      : ((await req.json()) as Record<string, unknown>)
-    : undefined;
-  let reqBodyType: SerializerCode = isBinary ? SerializerModes.binary : SerializerModes.json;
-  const queryBody = decodeQueryBody(urlQuery, rawBody);
-  if (queryBody) {
-    rawBody = queryBody.rawBody;
-    reqBodyType = queryBody.bodyType;
-  }
-  const responseHeaders = new Headers(defaultHeaders);
+  const responseHeaders = getDefaultFetchHeaders();
 
   try {
-    const platformResp = await dispatchRoute(path, rawBody, req.headers, responseHeaders, req, undefined, reqBodyType, urlQuery);
-    return reply(platformResp, responseHeaders);
-  } catch (e) {
-    const error =
-      e instanceof RpcError
-        ? e
-        : new RpcError({
-            publicMessage: 'Unknown Error',
-            type: 'unknown-error',
-            originalError: e as Error,
-          });
-    return fatalFail(error, responseHeaders);
+    // route resolved BEFORE the body: the chain gives the limit bun's native read stops at, and a late context stays GC-cheap
+    const chain = resolveExecutionChain(path, urlQuery, req);
+    // a not-found chain (an unknown path or batch id) has no route to feed: its body is never read
+    if (chain.readsBody && req.body) return readBodyAndDispatch(req, chain, path, urlQuery, responseHeaders);
+    return dispatchBody(req, chain, path, urlQuery, responseHeaders, undefined);
+  } catch (err) {
+    return fatalFail(toRpcError(err), responseHeaders);
   }
+}
+
+async function readBodyAndDispatch(
+  req: Request,
+  chain: MethodsExecutionChain,
+  path: string,
+  urlQuery: string | undefined,
+  responseHeaders: FetchResponseHeaders
+): Promise<Response> {
+  // read as TEXT: `req.json()` would throw a raw SyntaxError outside any mion envelope, and the limit needs the size first
+  try {
+    let rawBody: string | undefined;
+    try {
+      rawBody = await readRequestBody(req, chain.maxBodySize, BodyReadStrategy.buffered);
+    } catch (err) {
+      const refusal = toRpcError(err);
+      // unread chunks stay on the socket: close it, or they are parsed as the next request of a kept-alive connection
+      if (refusal.type === 'request-payload-too-large') responseHeaders.set('connection', 'close');
+      // the route resolved, so the refusal still runs the chain's alwaysRun members
+      const refused = await dispatchPlatformError(chain, path, urlQuery, refusal, req.headers, responseHeaders, req, undefined);
+      return replyFetch(refused, responseHeaders);
+    }
+    return dispatchBody(req, chain, path, urlQuery, responseHeaders, rawBody);
+  } catch (err) {
+    return fatalFail(toRpcError(err), responseHeaders);
+  }
+}
+
+/** An all-sync chain answers with a `Response`, anything else with a promise of one. */
+function dispatchBody(
+  req: Request,
+  chain: MethodsExecutionChain,
+  path: string,
+  urlQuery: string | undefined,
+  responseHeaders: FetchResponseHeaders,
+  rawBody: string | undefined
+): Response | Promise<Response> {
+  let reqRawBody: string | undefined = rawBody;
+  let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
+  const queryBody = chain.readsBody ? decodeQueryBody(urlQuery, rawBody) : undefined;
+  if (queryBody) {
+    reqRawBody = queryBody.rawBody;
+    reqBodyType = queryBody.bodyType;
+  }
+  const context = createContextFromChain(chain, path, urlQuery, req.headers, responseHeaders, reqRawBody, reqBodyType);
+  const platformResp = dispatchMaybeSync(context, req, undefined);
+  if (!(platformResp instanceof Promise)) return replyFetch(platformResp, responseHeaders);
+  return platformResp
+    .then((resp) => replyFetch(resp, responseHeaders))
+    .catch((err) => fatalFail(toRpcError(err), responseHeaders));
 }
 
 /** Bun's connection-level error hook (never a route error — those are handled in the dispatch). */
 function bunErrorHandler(errReq: Error): Response {
-  const responseHeaders = new Headers({
-    server: '@mionjs',
-    ...httpOptions.defaultResponseHeaders,
-  });
+  const responseHeaders = getDefaultFetchHeaders();
   const error =
     errReq instanceof RpcError
       ? errReq
-      : new RpcError({
+      : new FatalError({
           publicMessage: 'Connection Error',
           type: 'response-connection-error',
           originalError: errReq,
@@ -113,33 +139,32 @@ function serializablePlatformConfig(): Record<string, unknown> {
   return serializableConfig;
 }
 
-/** Starts the bun server. With `asMiddleware` it registers everything and returns UNDEFINED instead:
- *  in that mode there is no server to hand back — the host owns the socket and mounts
- *  `bunRequestHandler` itself. Typed through overloads so the ordinary call keeps returning a
- *  `Server` (setting the flag through `setBunHttpOpts` instead of the argument is the plugin's own
- *  path, where the return value is discarded). */
+/** `asMiddleware` returns UNDEFINED, the host owns the socket; the overloads keep the ordinary call returning a `Server`. */
 export async function startBunServer(options: Partial<BunHttpOptions> & {asMiddleware: true}): Promise<undefined>;
 export async function startBunServer(options?: Partial<BunHttpOptions>): Promise<Server<any>>;
 export async function startBunServer(options?: Partial<BunHttpOptions>): Promise<Server<any> | undefined> {
   const isTest = getENV('NODE_ENV') === 'test';
 
   if (options) setBunHttpOpts(options);
-  applyBinaryOptions(httpOptions.binary);
+  // Local, never written back: a later server in the same process listens once the host lets go of the socket.
+  const asMiddleware = handOverToHost({fetch: bunRequestHandler}) || !!httpOptions.asMiddleware;
 
   const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
   const url = `http://localhost${port}`;
-  // The host owns the socket: no Bun.serve(), and NO shutdown handlers — theirs calls
-  // process.exit(0), which in middleware mode would kill the host on a signal it already handles.
-  if (httpOptions.asMiddleware) {
+  // no Bun.serve() and NO shutdown handlers: ours calls process.exit(0) and would kill the host on a signal it handles
+  if (asMiddleware) {
     if (!isTest) console.log('mion running as middleware: routes are registered, mion did NOT open a port.');
-    setPlatformConfig(serializablePlatformConfig());
+    setPlatformConfig({...serializablePlatformConfig(), asMiddleware});
     return undefined;
   }
   if (!isTest) console.log(`mion bun server running on ${url}`);
+  // published BEFORE the server is sized: the routes whose types could not say take this number
+  setPlatformConfig({...serializablePlatformConfig(), asMiddleware});
   const server = Bun.serve({
-    maxRequestBodySize: httpOptions.maxBodySize,
     port: httpOptions.port,
     ...httpOptions.options,
+    // after the user's own options so they cannot switch it off; bun's ONE native limit is sized to the largest route's
+    maxRequestBodySize: getMaxRouteBodySize(),
     fetch: bunRequestHandler,
     error: bunErrorHandler,
   });
@@ -153,65 +178,15 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
   process.on('SIGINT', shutdownHandler);
   process.on('SIGTERM', shutdownHandler);
 
-  setPlatformConfig(serializablePlatformConfig());
-
-  // Hint to Bun's GC after initialization to clean up any temporary allocations
+  // hint to Bun's GC: release the allocations initialization left behind
   if (typeof Bun !== 'undefined' && Bun.gc) {
     Bun.gc(false);
   }
   return server;
 }
 
-// only called whe there is an htt error or weird unhandled route errors
-function fatalFail(err: RpcError<string>, responseHeaders: any): Response {
+// only called when there is an http error or weird unhandled route errors
+function fatalFail(err: RpcError<string>, responseHeaders: FetchResponseHeaders): Response {
   const routeResponse = getRouterFatalErrorResponse(err, responseHeaders);
-  return reply(routeResponse, responseHeaders);
-}
-
-function reply(
-  mionResp: MionResponse,
-  // TODO: fix issue with Native Bun Headers type messing with Node Headers type
-  // responseHeaders: Headers,
-  responseHeaders: any
-): Response {
-  const bodyType = mionResp.serializer;
-  switch (bodyType) {
-    case SerializerModes.stringifyJson: {
-      // Pass string directly to Response - Bun handles encoding internally
-      // and calculates content-length automatically. This avoids TextEncoder allocation.
-      // content-type already set by serializer
-      return new Response(mionResp.rawBody as string, {
-        status: mionResp.statusCode,
-        headers: responseHeaders,
-      });
-    }
-    case SerializerModes.json: {
-      // Platform adapter uses Response.json() which handles JSON.stringify internally
-      return Response.json(mionResp.body, {
-        status: mionResp.statusCode,
-        headers: responseHeaders,
-      });
-    }
-    case SerializerModes.binary: {
-      const serializer = mionResp.binSerializer!;
-      responseHeaders.set('content-length', String(serializer.getLength()));
-      // content-type already set by serializer
-      const response = new Response(toResponseBody(serializer.getBufferView()), {
-        status: mionResp.statusCode,
-        headers: responseHeaders,
-      });
-      // Bun copies the bytes into the Response synchronously (proven by
-      // bunHttp.binary.test.ts), so the buffer can go back immediately.
-      mionResp.releaseBinBuffer?.();
-      return response;
-    }
-    default: {
-      const error = new RpcError({
-        publicMessage: 'unknown-mion-response-format',
-        type: 'unknown-error',
-        errorData: {bodyType},
-      });
-      return fatalFail(error, responseHeaders);
-    }
-  }
+  return replyFetch(routeResponse, responseHeaders);
 }

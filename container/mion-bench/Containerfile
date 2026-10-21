@@ -21,7 +21,8 @@
 #
 # ONE ISOLATED pnpm PROJECT PER APP, each with its own node_modules under
 # /mion-bench/apps/<name>, so no competitor can break another's install, and the
-# harness (autocannon + pidusage) is a project of its own under /mion-bench/harness.
+# harness (pidusage; the load generator itself is wrk, installed below) is a project
+# of its own under /mion-bench/harness.
 # A server is always spawned with cwd = its own app dir, so it resolves its own deps.
 # -----------------------------------------------------------------------------
 # Node 26 is the runtime the published packages target, and it is the ABI the
@@ -52,7 +53,7 @@ ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
 
 # Node 26 dropped the bundled corepack shim (it ships only npm), so install the
 # repo-pinned pnpm globally.
-ARG PNPM_VERSION=11.1.1
+ARG PNPM_VERSION=11.8.0
 RUN npm install -g pnpm@${PNPM_VERSION}
 
 # Bun, for the three bun lanes (mion.bun, hono.bun, elysia.bun). elysia runs ONLY on
@@ -79,6 +80,22 @@ RUN set -eux; \
     rm -rf /tmp/bun /tmp/bun.zip; \
     bun --version
 
+# wrk, the load generator (https://github.com/wg/wrk). C plus LuaJIT and
+# multi-threaded, so it costs a fraction of a CPU per request. autocannon, which this
+# replaced, is a node process: on the same box it competes with the server it is
+# measuring and tops out before a fast server does. Three of the ten lanes are bun,
+# and those were the ones hitting that ceiling - the upstream benchmarks repo dropped
+# them from the hello-world benchmark entirely rather than publish numbers autocannon
+# could not take.
+#
+# From Debian (trixie ships 4.1.0 for amd64 and arm64), not built from source: wrk's
+# own Makefile fetches LuaJIT and OpenSSL at build time, and the base image tag already
+# pins this the same way it pins everything else here.
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends wrk \
+    && rm -rf /var/lib/apt/lists/* \
+    && wrk --version 2>&1 | head -1
+
 # == Per-app dependency trees =================================================
 # Each app gets its own copy of the supply-chain policy (pnpm-workspace.yaml +
 # .npmrc) plus ONLY its own package.json, then installs in its own dir. There is no
@@ -95,7 +112,7 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
 # The mion app: no runtime dependency at all (every @mionjs/* and @mionjs/*
 # package is bind-mounted from the workspace at run time), but its BUILD needs vite
 # plus the third-party packages the two mounted plugins import — unplugin for
-# @mionjs/devtools, and @rollup/pluginutils / vite-node / vite-plugin-dts for
+# @mionjs/devtools, and @rollup/pluginutils / vite-plugin-dts for
 # @mionjs/devtools. A hoisted node_modules is what lets the mounted packages resolve
 # them by walking up from their mount point.
 COPY _deps/pnpm-workspace.yaml _deps/.npmrc /mion-bench/apps/mion/

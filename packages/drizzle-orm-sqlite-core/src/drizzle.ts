@@ -5,91 +5,82 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The ONE module of @mionjs/drizzle-orm-sqlite-core that imports drizzle-orm.
-// toDrizzle materializes a slim table by traversing the recorded graph, and
-// types the result by SYNTHESIZING structural SQLiteColumn configs from the
-// slim state (see the pg twin for the full rationale; the type-budget slim
-// lane pins the approach). The materialized table works with every sqlite
-// driver drizzle supports, D1 and durable-sqlite included.
+// The ONE module that imports drizzle-orm, so a project that never calls toDrizzle never loads it (an optional peer).
+// Types are synthesized structural column configs. The ONE place a column gets its db and table names back, so only
+// files that materialize a table pay for it.
 
 import * as dzSqlite from 'drizzle-orm/sqlite-core';
 import {sql as dzSql} from 'drizzle-orm';
-import type {SQLiteColumn, SQLiteTableWithColumns, SQLiteViewWithSelection} from 'drizzle-orm/sqlite-core';
-import type {ColBrandOf, PlainDataOf, ColsOf, DrizzleContext, TableNameOf, ViewColsOf, ViewNameOf} from '@mionjs/drizzle-orm';
-import type {TableFromTypeOptions} from '@mionjs/drizzle-orm';
+import type {IndexBuilder, SQLiteColumn, SQLiteTableWithColumns, SQLiteViewWithSelection} from 'drizzle-orm/sqlite-core';
+import type {
+  IsHasDefault,
+  IsInsertExcluded,
+  IsNotNull,
+  ValueOf,
+  ColSpecOf,
+  DbNameOf,
+  TableFromTypeOptions,
+  DrizzleContext,
+} from '@mionjs/drizzle-orm';
+import type {InjectRunTypeId} from '@mionjs/run-types';
+import {tableFromType} from './table.ts';
+import type {AnySqliteTable, AnySqliteView, RtSqliteIndexEntry} from './types.ts';
+
 import {
   isRtView,
-  RtEntryRecorder,
-  materializeRtView,
   materializeRtTable,
+  materializeRtView,
+  RtEntryRecorder,
   RtValueRecorder,
   rtTableKey,
   rtValueKey,
 } from '@mionjs/drizzle-orm';
-import type {InjectRunTypeId} from '@mionjs/run-types';
-import type {RtSqliteIndexEntry} from './helpers.ts';
-import type {AnySqliteTable, AnySqliteView} from './table.ts';
-import {tableFromType} from './table.ts';
 
 const context: DrizzleContext = {
   ns: dzSqlite as unknown as DrizzleContext['ns'],
   sqlNs: dzSql as unknown as DrizzleContext['sqlNs'],
 };
 
-type SynthConfig<K extends string, TName extends string, Brand> = Brand extends {
-  data: infer Data;
-  notNull: infer N extends boolean;
-  hasDefault: infer H extends boolean;
-  insertExcluded: infer X extends boolean;
-}
+/** Structural SQLiteColumn config; dataType / columnType are fixed because drizzle's typing never branches on them. */
+type SynthConfig<Name extends string, TableName extends string, S> = S extends {config: infer P; data: infer D; base: infer B}
   ? {
-      name: K;
-      tableName: TName;
+      name: Name;
+      tableName: TableName;
       dataType: 'custom';
       columnType: 'RtColumn';
-      data: PlainDataOf<Data>;
+      data: ValueOf<P, D>;
       driverParam: unknown;
       enumValues: undefined;
-      notNull: N;
-      hasDefault: H;
-      // Fixed, and only safe because THIS dialect reads none of the three: mysql's
-      // `$returningId()` does, so its twin synthesizes them from the slim column.
+      notNull: IsNotNull<P, B>;
+      hasDefault: IsHasDefault<P, B>;
+      // Fixed, and only safe because sqlite reads none of the three: mysql's `$returningId()` does.
       isPrimaryKey: false;
       isAutoincrement: false;
       hasRuntimeDefault: false;
       identity: undefined;
-      generated: X extends true ? {type: 'always'} : undefined;
+      generated: IsInsertExcluded<P> extends true ? {type: 'always'} : undefined;
     }
   : never;
 
-/** The drizzle-typed view of a slim table, paid lazily where queries live. */
+/** The drizzle-typed view of a table, evaluated only where toDrizzle is used. */
 export type ToDrizzleTable<T extends AnySqliteTable> = SQLiteTableWithColumns<{
-  name: TableNameOf<T>;
+  name: T['name'];
   schema: undefined;
   dialect: 'sqlite';
-  columns: {
-    [K in keyof ColsOf<T> & string]: SQLiteColumn<SynthConfig<K, TableNameOf<T>, ColBrandOf<ColsOf<T>[K]>>>;
-  };
+  columns: {[K in keyof T['columns'] & string]: SQLiteColumn<SynthConfig<DbNameOf<T, K>, T['name'], ColSpecOf<T['columns'][K]>>>};
 }>;
 
-/** The drizzle-typed view of a slim VIEW. Same synthesis as ToDrizzleTable;
- *  TExisting stays `boolean` because nothing in select typing branches on it
- *  and pinning it would cost a type parameter on every declared view. */
+/** The drizzle-typed view of a view. */
 export type ToDrizzleView<V extends AnySqliteView> = SQLiteViewWithSelection<
-  ViewNameOf<V>,
+  V['name'],
   boolean,
-  {
-    [K in keyof ViewColsOf<V> & string]: SQLiteColumn<SynthConfig<K, ViewNameOf<V>, ColBrandOf<ViewColsOf<V>[K]>>>;
-  }
+  {[K in keyof V['columns'] & string]: SQLiteColumn<SynthConfig<DbNameOf<V, K>, V['name'], ColSpecOf<V['columns'][K]>>>}
 >;
 
+/** Materializes a table, view or standalone index (memoized), or a table type by its marker. */
 export function toDrizzle<T extends AnySqliteTable>(table: T): ToDrizzleTable<T>;
 export function toDrizzle<V extends AnySqliteView>(view: V): ToDrizzleView<V>;
-// An INDEX declared outside any table's extraConfig. drizzle's query side takes
-// its own IndexBuilder (dzSqlite.IndexBuilder) for a hint, and the table's replay
-// takes the recorder, so a schema that does both declares the index once and
-// materializes it here for the query half.
-export function toDrizzle(entry: RtSqliteIndexEntry): dzSqlite.IndexBuilder;
+export function toDrizzle(entry: RtSqliteIndexEntry): IndexBuilder;
 export function toDrizzle<T extends AnySqliteTable>(
   options?: TableFromTypeOptions<T>,
   id?: InjectRunTypeId<T>
@@ -98,10 +89,7 @@ export function toDrizzle(value?: object, id?: unknown): unknown {
   if (value !== undefined) {
     const attached = (value as Record<symbol, unknown>)[rtValueKey];
     if (attached instanceof RtValueRecorder) return attached.toDrizzleValue(context);
-    // A standalone ENTRY — an index or a constraint declared outside any
-    // table's extraConfig. drizzle's query side takes one directly
-    // (`.useIndex(idx)` wants its own IndexBuilder), so the entry has to be
-    // materializable on its own, exactly as a table is.
+    // A standalone ENTRY, declared outside any table's extraConfig: `.useIndex(idx)` wants its own IndexBuilder.
     if (value instanceof RtEntryRecorder) return value.toDrizzleEntry(context);
     if (isRtView(value)) return materializeRtView(value, context);
     if ((value as Record<symbol, unknown>)[rtTableKey] !== undefined) return materializeRtTable(value, context);

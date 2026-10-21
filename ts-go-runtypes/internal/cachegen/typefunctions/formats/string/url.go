@@ -5,8 +5,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// urlEmitter implements the format named "url" — FormatUrl /
-// FormatUrlHttp / FormatUrlFile. Pure pattern format; see domain.go.
+// urlEmitter implements the format named "url": FormatUrl / FormatUrlHttp / FormatUrlFile, a pure pattern format.
 type urlEmitter struct{}
 
 func init() {
@@ -24,9 +23,8 @@ func (urlEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotat
 	return namedPatternErrors(ctx, annotation, vλl, pathExpr, errorsArr, "url")
 }
 
-// EmitFormatTransform applies the rewrite declared under `transform`, and
-// nothing otherwise: a URL path is case-sensitive, so a blanket lowercase is
-// the field's decision, not the format's.
+// EmitFormatTransform applies only the declared `transform`: a URL path is case-sensitive, so a blanket
+// lowercase is the field's decision, not the format's.
 func (urlEmitter) EmitFormatTransform(annotation *reflection.FormatAnnotation, vλl string, _ formats.EmitContext) string {
 	if annotation == nil {
 		return ""
@@ -34,8 +32,7 @@ func (urlEmitter) EmitFormatTransform(annotation *reflection.FormatAnnotation, v
 	return formats.EmitStringTransform(annotation.Params, vλl)
 }
 
-// ValidateParams: the only cross-param rule a URL carries is the shape of its
-// `transform` block.
+// ValidateParams: the only cross-param rule a URL carries is the shape of its `transform` block.
 func (urlEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil

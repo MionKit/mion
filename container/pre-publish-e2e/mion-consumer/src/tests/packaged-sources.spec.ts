@@ -14,8 +14,9 @@ import {fileURLToPath} from 'node:url';
 // so these assertions read the tarballs verdaccio actually served, unpacked.
 const consumerRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
-/** Packages whose tarballs must ship TS source alongside `.dist`, so the `source` export condition resolves for downstream consumers (e.g. mion-pro). */
+/** Packages that keep a `source` condition in the repo; each must ship the PUBLISHED manifest instead. */
 const publicPackages = [
+    '@mionjs/run-types',
     '@mionjs/core',
     '@mionjs/router',
     '@mionjs/client',
@@ -26,13 +27,14 @@ const publicPackages = [
     '@mionjs/platform-gcloud',
     '@mionjs/platform-uws',
     '@mionjs/platform-vercel',
+    '@mionjs/drizzle-orm',
     '@mionjs/drizzle-orm-mysql-core',
     '@mionjs/drizzle-orm-pg-core',
     '@mionjs/drizzle-orm-sqlite-core',
     '@mionjs/devtools',
 ];
-// NOT listed: @mionjs/uws ships plain JS (lib/) with no `source` export condition,
-// and the @mionjs/uws-<os>-<arch> payloads are binaries staged at release time.
+// NOT listed: @mionjs/bin-uws ships plain JS (lib/) and never had a `source` condition; the
+// @mionjs/native-uws-<os>-<arch> payloads are binaries staged at release time.
 
 function pkgDir(name: string): string {
     return resolve(consumerRoot, 'node_modules', name);
@@ -61,35 +63,35 @@ function collectSourcePathsFromExports(exportsField: unknown, out: string[] = []
     return out;
 }
 
-describe('published tarballs ship source + declaration maps', () => {
+describe('published tarballs ship type definitions, never sources', () => {
     for (const name of publicPackages) {
         describe(name, () => {
             const root = pkgDir(name);
             const manifest = readManifest(name);
-            const sourcePaths = collectSourcePathsFromExports(manifest.exports);
 
-            it('has at least one `source` export', () => {
-                expect(sourcePaths.length, `${name} declares no "source" export condition`).toBeGreaterThan(0);
+            // scripts/release/pack.mjs strips it: it would name a src/ the tarball does not carry,
+            // and a dangling condition fails the consumer who asks, where an absent one falls
+            // through to `types`.
+            it('declares no `source` export condition', () => {
+                const sourcePaths = collectSourcePathsFromExports(manifest.exports);
+                expect(sourcePaths, `${name} still declares "source": ${sourcePaths.join(', ')}`).toEqual([]);
             });
 
-            it('ships every file referenced by the `source` export condition', () => {
-                for (const p of sourcePaths) {
-                    const full = resolve(root, p);
-                    expect(
-                        existsSync(full),
-                        `${name}: "source" condition points at ${p} but it is missing from the published tarball`
-                    ).toBe(true);
-                }
+            it('carries no src directory', () => {
+                expect(existsSync(resolve(root, 'src')), `${name}: the tarball still ships src/`).toBe(false);
             });
 
-            it('ships declaration maps next to each .d.ts in the output dir', () => {
+            it('ships declarations in the output dir', () => {
                 // The framework packages emit `.dist`, the merged @mionjs/devtools `dist`.
                 const distRoot = ['.dist', 'dist', 'build'].map((dir) => resolve(root, dir)).find((dir) => existsSync(dir)) ?? resolve(root, '.dist');
-                const files = walk(distRoot);
-                const declarations = files.filter((f) => f.endsWith('.d.ts'));
+                const declarations = walk(distRoot).filter((file) => file.endsWith('.d.ts'));
                 expect(declarations.length, `${name}: no declaration files found under ${distRoot}`).toBeGreaterThan(0);
-                const missingMaps = declarations.filter((d) => !files.includes(`${d}.map`));
-                expect(missingMaps, `${name}: missing .d.ts.map alongside: ${missingMaps.join(', ')}`).toEqual([]);
+            });
+
+            // A .d.ts.map names ../src/*.ts and embeds none of its own, so with src gone it resolves to nothing.
+            it('ships no declaration maps, which would have nothing to point at', () => {
+                const maps = walk(root).filter((file) => file.endsWith('.d.ts.map'));
+                expect(maps, `${name}: dangling declaration maps: ${maps.join(', ')}`).toEqual([]);
             });
 
             it('does not ship spec, test or tsc build-info files', () => {

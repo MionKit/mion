@@ -3,7 +3,7 @@
 // immutable, per-entry exact-shape clones when they have shape (object
 // values, object KEYS, and nested containers all rebuild fresh).
 
-import {createCloneExactShapeFn} from '@mionjs/run-types';
+import {createRemoveUnknownKeysFn} from '@mionjs/run-types';
 import type {CloningCase} from './types.ts';
 
 interface SmallObject {
@@ -36,26 +36,26 @@ export const ITERABLES = {
   set_string: {
     title: 'Set<string>',
     description: 'Immutable string elements make the constructor copy (`new Set(v)`) a complete deep clone.',
-    clone: () => createCloneExactShapeFn<Set<string>>(),
+    clone: () => createRemoveUnknownKeysFn<Set<string>>(),
     getTestData: () => ({values: [new Set<string>(['one', 'two', 'three'])]}),
   },
   set_nullable: {
     title: 'Set<number | null>',
     description: 'The `null` element passes by value inside the fresh Set — nullable atomics need no per-element rebuild.',
-    clone: () => createCloneExactShapeFn<Set<number | null>>(),
+    clone: () => createRemoveUnknownKeysFn<Set<number | null>>(),
     getTestData: () => ({values: [new Set<number | null>([1, null, 2])]}),
   },
   set_void: {
     title: 'Set<void>',
     description: 'The `undefined` element passes by value inside the fresh Set.',
-    clone: () => createCloneExactShapeFn<Set<void>>(),
+    clone: () => createRemoveUnknownKeysFn<Set<void>>(),
     getTestData: () => ({values: [new Set<void>([undefined])]}),
   },
   set_small_object: {
     title: 'Set<SmallObject>',
     description:
       'Shaped elements rebuild per entry with fresh identities, re-wrapping each optional `Date` and passing `bigint` by value.',
-    clone: () => createCloneExactShapeFn<Set<SmallObject>>(),
+    clone: () => createRemoveUnknownKeysFn<Set<SmallObject>>(),
     getTestData: () => ({
       values: [
         new Set<SmallObject>([
@@ -70,7 +70,7 @@ export const ITERABLES = {
     title: 'Nested sets',
     description:
       'Each nested Set property rebuilds as a fresh Set of per-element object clones — no reference shared with the input.',
-    clone: () => createCloneExactShapeFn<DeepWithSet>(),
+    clone: () => createRemoveUnknownKeysFn<DeepWithSet>(),
     getTestData: () => {
       const setB = new Set([
         {s: 'a', arr: [1, 2, 3]},
@@ -86,7 +86,7 @@ export const ITERABLES = {
   map_string_number: {
     title: 'Map<string, number>',
     description: 'Immutable keys and values make the constructor copy (`new Map(v)`) a complete deep clone.',
-    clone: () => createCloneExactShapeFn<Map<string, number>>(),
+    clone: () => createRemoveUnknownKeysFn<Map<string, number>>(),
     getTestData: () => ({
       values: [
         new Map<string, number>([
@@ -101,7 +101,7 @@ export const ITERABLES = {
     title: 'Map<string, SmallObject>',
     description:
       'Shaped values rebuild per entry with fresh identities, re-wrapping each optional `Date` and passing `bigint` by value.',
-    clone: () => createCloneExactShapeFn<Map<string, SmallObject>>(),
+    clone: () => createRemoveUnknownKeysFn<Map<string, SmallObject>>(),
     getTestData: () => ({
       values: [
         new Map<string, SmallObject>([
@@ -116,7 +116,7 @@ export const ITERABLES = {
     title: 'Map<SmallObject, number>',
     description:
       'Object keys clone fresh too — each entry rebuilds its key object (optional `Date`/`bigint` fields included) inside the fresh Map.',
-    clone: () => createCloneExactShapeFn<Map<SmallObject, number>>(),
+    clone: () => createRemoveUnknownKeysFn<Map<SmallObject, number>>(),
     getTestData: () => ({
       values: [
         new Map<SmallObject, number>([
@@ -130,7 +130,7 @@ export const ITERABLES = {
   objects_with_nested_maps: {
     title: 'Nested maps',
     description: 'The nested Map property rebuilds as a fresh Map whose shaped values clone fresh at every level.',
-    clone: () => createCloneExactShapeFn<DeepWithMap>(),
+    clone: () => createRemoveUnknownKeysFn<DeepWithMap>(),
     getTestData: () => ({
       values: [
         {
@@ -146,7 +146,7 @@ export const ITERABLES = {
   map_with_bigint_keys: {
     title: 'Bigint keys',
     description: 'Primitive bigint keys and number values make the constructor copy (`new Map(v)`) a complete deep clone.',
-    clone: () => createCloneExactShapeFn<Map<bigint, number>>(),
+    clone: () => createRemoveUnknownKeysFn<Map<bigint, number>>(),
     getTestData: () => ({
       values: [
         new Map<bigint, number>([
@@ -161,7 +161,7 @@ export const ITERABLES = {
     title: 'Date values',
     description:
       'Each Date value re-wraps into a fresh instance inside the fresh Map — mutating a cloned Date never touches the input.',
-    clone: () => createCloneExactShapeFn<Map<string, Date>>(),
+    clone: () => createRemoveUnknownKeysFn<Map<string, Date>>(),
     getTestData: () => ({
       values: [
         new Map<string, Date>([
@@ -174,13 +174,13 @@ export const ITERABLES = {
   mapAtomic: {
     title: 'Map of atomics',
     description: 'Immutable entries make the constructor copy (`new Map(v)`) a complete deep clone.',
-    clone: () => createCloneExactShapeFn<Map<string, number>>(),
+    clone: () => createRemoveUnknownKeysFn<Map<string, number>>(),
     getTestData: () => ({values: [new Map([['k', 1]]), new Map()]}),
   },
   mapObjectValues: {
     title: 'Map with object values',
     description: 'Shaped values rebuild per entry with fresh identities; value extras drop.',
-    clone: () => createCloneExactShapeFn<Map<string, {a: string}>>(),
+    clone: () => createRemoveUnknownKeysFn<Map<string, {a: string}>>(),
     getTestData: () => ({
       values: [new Map([['k1', {a: 'x', extra: 'gone'} as {a: string}]])],
       expected: [new Map([['k1', {a: 'x'}]])],
@@ -189,13 +189,13 @@ export const ITERABLES = {
   setAtomic: {
     title: 'Set of atomics',
     description: 'Immutable items make the constructor copy (`new Set(v)`) a complete deep clone.',
-    clone: () => createCloneExactShapeFn<Set<string>>(),
+    clone: () => createRemoveUnknownKeysFn<Set<string>>(),
     getTestData: () => ({values: [new Set(['a', 'b'])]}),
   },
   setObjects: {
     title: 'Set of objects',
     description: 'Shaped items rebuild per element with fresh identities; item extras drop.',
-    clone: () => createCloneExactShapeFn<Set<{a: string}>>(),
+    clone: () => createRemoveUnknownKeysFn<Set<{a: string}>>(),
     getTestData: () => ({
       values: [new Set([{a: 'x', extra: 'gone'} as {a: string}])],
       expected: [new Set([{a: 'x'}])],
@@ -204,7 +204,7 @@ export const ITERABLES = {
   deepComposition: {
     title: 'Map of object arrays',
     description: 'Containers compose: the Map, each array, each row, and each row array are all fresh; row extras drop.',
-    clone: () => createCloneExactShapeFn<Map<string, Row[]>>(),
+    clone: () => createRemoveUnknownKeysFn<Map<string, Row[]>>(),
     getTestData: () => ({
       values: [new Map([['r', [{id: 1, tags: ['a'], extra: true} as unknown as Row]]])],
       expected: [new Map([['r', [{id: 1, tags: ['a']}]]])],

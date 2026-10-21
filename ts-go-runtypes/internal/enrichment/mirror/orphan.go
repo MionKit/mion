@@ -8,11 +8,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment"
 )
 
-// findCarcass returns the @rtOrphan carcass for a reappearing desired const,
-// matched by VAR NAME — the SAME named type (friendly<Name> / mock<Name>) came
-// back, so its preserved value is restored. Matching by var name (not the shared
-// structural id) keeps a DIFFERENT same-shape type from reviving this carcass's
-// old-named const, and stops two same-shape desired consts from both restoring it.
+// findCarcass returns the carcass whose preserved value a reappearing const restores, matched by VAR NAME.
+// Matching on the name rather than the shared structural id keeps a different same-shape type from reviving it.
 func findCarcass(index *Index, named enrichment.NamedConst, friendly bool) *carcassEntry {
 	varName := named.MockVar
 	if friendly {
@@ -24,33 +21,25 @@ func findCarcass(index *Index, named enrichment.NamedConst, friendly bool) *carc
 	return index.orphanCarcasses[varName]
 }
 
-// orphanConsts wraps each existing OWNED const that is no longer wanted in an
-// `/* @rtOrphan … */` block, and returns the orphaned const entries (for the
-// breadcrumb-clause recompute, which needs both their type names and byte
-// ranges). The rule is CONSERVATIVE: a const is orphaned only when it is BOTH
-// (a) absent from the desired set AND (b) its source type is no longer declared
-// by the resolved breadcrumb source. Condition (b) is what distinguishes a
-// genuinely-deleted type from one simply not in this gen invocation's closure
-// (another type in the same mirror file) — the latter is left untouched.
-// Per-locale translation files use the SAME oracle: a translation const's type
-// name comes from its @rtType/annotation exactly like a source const's, and its
-// breadcrumb import points at the src .ts.
+// orphanConsts wraps each no-longer-wanted OWNED const in an @rtOrphan block and returns those entries for the
+// breadcrumb recompute. The rule is CONSERVATIVE: absent from the desired set AND no longer declared by the breadcrumb
+// source, which is what tells a deleted type from one merely outside this invocation's closure.
+// A per-locale translation file uses the SAME oracle, its breadcrumb pointing at the source .ts.
 func orphanConsts(ops *[]spliceOp, index *Index, spec Spec, readSource func(string) (string, error), renamed map[*constEntry]bool) []*constEntry {
 	var orphaned []*constEntry
 	if spec.Out != "" {
-		// Single-file --out: every const across MANY source files lands here, but the
-		// breadcrumb resolves only ONE source — judging declaration against it would
-		// wrongly orphan a still-existing cross-file type. Skip the orphan judgement.
+		// With --out many source files land in one file whose breadcrumb resolves only ONE of them, which would
+		// wrongly orphan a still-existing cross-file type.
 		return orphaned
 	}
 
 	if index.breadcrumb == nil {
-		return orphaned // no source link → can't safely judge declaration
+		return orphaned // no source link, so declaration cannot be judged safely
 	}
 	resolvedSource := ResolveBreadcrumb(spec.MirrorPath, index.breadcrumb.specifier)
 	sourceText, err := readSource(resolvedSource)
 	if err != nil {
-		return orphaned // source unreadable → be conservative, orphan nothing
+		return orphaned // an unreadable source orphans nothing
 	}
 
 	desiredVars := desiredVarSet(spec)
@@ -60,36 +49,29 @@ func orphanConsts(ops *[]spliceOp, index *Index, spec Spec, readSource func(stri
 		}
 		typeName := entry.typeName
 		if typeName == "" {
-			continue // can't judge without a type name
+			continue // cannot judge without a type name
 		}
 		if SourceDeclaresType(sourceText, typeName) {
-			continue // the type still exists — not an orphan (just not in this closure)
+			continue // the type still exists, it is merely outside this closure
 		}
-		// Orphan it: wrap the whole const (from its marker/keyword start to End) in
-		// an @rtOrphan block, preserving the original text verbatim for restore.
+		// The original text is preserved verbatim inside the block, for a later restore.
 		*ops = append(*ops, orphanConstOp(index.raw, entry))
 		orphaned = append(orphaned, entry)
 	}
 	return orphaned
 }
 
-// orphanConstOp builds the splice that comments out a whole const as an
-// @rtOrphan carcass. The range starts at the const's leading-trivia content (its
-// first non-whitespace byte from fullStart) — so a HAND-AUTHORED leading comment
-// above the marker is folded INTO the carcass and --prune removes it cleanly
-// instead of leaving dangling cruft — and runs to the statement End (plus a
-// trailing newline). The marker + the const + any leading comment are preserved
-// verbatim for a later restore.
+// orphanConstOp builds the splice commenting a whole const out as a carcass, verbatim so it can be restored.
+// It starts at the leading-trivia content, so a HAND-AUTHORED comment above the marker folds INTO the carcass and
+// --prune removes it cleanly instead of leaving dangling cruft.
 func orphanConstOp(raw []byte, entry *constEntry) spliceOp {
-	// Default to the marker block (preserves the id) or the keyword.
+	// The marker block preserves the id, so prefer it over the keyword.
 	start := entry.tokenStart
 	if entry.markerStart != entry.markerEnd {
 		start = entry.markerStart
 	}
-	// Prefer the first non-whitespace byte from fullStart: this folds a
-	// hand-authored leading comment (which sits before the marker) into the
-	// carcass. Never advance PAST the default start (guard against a fullStart that
-	// somehow lands inside the const).
+	// The first non-whitespace byte from fullStart folds a hand-authored leading comment in, but never advance PAST
+	// the default start, guarding a fullStart that somehow lands inside the const.
 	if entry.fullStart >= 0 && entry.fullStart < start {
 		cursor := entry.fullStart
 		for cursor < start && isSpaceByte(raw[cursor]) {
@@ -108,24 +90,17 @@ func orphanConstOp(raw []byte, entry *constEntry) spliceOp {
 	return spliceOp{start: start, end: end, text: replacement}
 }
 
-// syncBreadcrumbClause recomputes the source breadcrumb's `{ … }` type-name
-// clause from the surviving consts and replaces ONLY the clause (the
-// `from '<src>'` specifier stays byte-identical). Surviving names = existing
-// const type names (minus orphaned) ∪ DESIRED const type names that are declared
-// in THIS mirror's source file (covers added AND restored consts) ∪ any CURRENT
-// breadcrumb name still textually referenced in the post-splice file outside the
-// orphaned ranges (covers a name a HAND-AUTHORED const still uses — never drop
-// it, or that const's type breaks). No-op when the recomputed clause equals the
-// current one (idempotent).
+// syncBreadcrumbClause replaces ONLY the breadcrumb's type-name clause, its `from '<src>'` specifier staying byte-identical.
+// A name survives when an un-orphaned const carries it, a desired const declared in THIS source needs it, or it is still
+// referenced outside the orphaned ranges, which is how a HAND-AUTHORED const keeps the type it annotates with.
+// No-op when the recomputed clause equals the current one.
 func syncBreadcrumbClause(ops *[]spliceOp, index *Index, spec Spec, orphanedEntries []*constEntry, renamed map[*constEntry]bool) {
 	if index.breadcrumb == nil || index.breadcrumb.clauseStart == 0 {
 		return
 	}
 
-	// A const's type name leaves the breadcrumb when the const is orphaned OR
-	// renamed (a rename's NEW name arrives via the desired set below). removedEntries
-	// also feeds the ADD-only blanking so the old name in a renamed const's
-	// not-yet-spliced annotation/marker is not mistaken for a live use.
+	// A type name leaves when its const is orphaned or renamed, the rename's NEW name arriving with the desired set.
+	// removedEntries also feeds the blanking, so an old name in a not-yet-spliced annotation is not read as a live use.
 	removedTypeNames := map[string]bool{}
 	removedEntries := append([]*constEntry{}, orphanedEntries...)
 	for _, entry := range orphanedEntries {
@@ -141,15 +116,14 @@ func syncBreadcrumbClause(ops *[]spliceOp, index *Index, spec Spec, orphanedEntr
 	}
 
 	names := map[string]bool{}
-	// Existing consts' type names, minus orphaned/renamed ones.
+	// Existing consts' type names, minus the orphaned and renamed ones.
 	for _, entry := range index.consts {
 		if entry.typeName == "" || removedTypeNames[entry.typeName] {
 			continue
 		}
 		names[entry.typeName] = true
 	}
-	// Every desired const whose type is declared in THIS source file — added,
-	// restored, renamed-to, or property-merged in place.
+	// Every desired const whose type is declared in THIS source file: added, restored, renamed-to or merged in place.
 	thisSource := tspath.NormalizePath(spec.SourceFile)
 	for _, named := range spec.Consts {
 		declFile := named.DeclFile
@@ -160,13 +134,8 @@ func syncBreadcrumbClause(ops *[]spliceOp, index *Index, spec Spec, orphanedEntr
 			names[named.TypeName] = true
 		}
 	}
-	// ADD-only safety: a current breadcrumb name still textually referenced
-	// OUTSIDE the orphaned/renamed const ranges (e.g. in a hand-authored `const x:
-	// SomeType = …` the enrichment owns no entry for) MUST stay — dropping it
-	// breaks that const's type annotation. We only ever ADD here, never remove.
-	// The breadcrumb import statement itself references every name (the `import
-	// type { … }` clause), so blank ITS range too — only USES outside the import
-	// count as live.
+	// A name still referenced outside the removed ranges MUST stay, or a hand-authored const's annotation breaks;
+	// this step only ever ADDS. The import clause names them all, so blank its range too: only USES count as live.
 	blanked := orphanRanges(removedEntries)
 	blanked = append(blanked, [2]int{index.breadcrumb.tokenStart, index.breadcrumb.end})
 	survivingText := textOutsideRanges(index.raw, blanked)
@@ -177,7 +146,7 @@ func syncBreadcrumbClause(ops *[]spliceOp, index *Index, spec Spec, orphanedEntr
 	}
 
 	if len(names) == 0 {
-		return // never empty the breadcrumb clause (would break the import)
+		return // an empty breadcrumb clause would break the import
 	}
 	sortedNames := make([]string, 0, len(names))
 	for name := range names {
@@ -193,14 +162,11 @@ func syncBreadcrumbClause(ops *[]spliceOp, index *Index, spec Spec, orphanedEntr
 	*ops = append(*ops, spliceOp{start: index.breadcrumb.clauseStart, end: index.breadcrumb.clauseEnd, text: newClause})
 }
 
-// ensureCrossFileImports adds an `import { friendly*/mock* } from '<rel>'` line
-// for each cross-file var the new const bodies reference whose home mirror file
-// differs from this one AND which is not already imported. The new lines are
-// inserted right after the existing import block (after the DSL import, or the
-// breadcrumb). Returns merged unchanged when nothing is needed.
+// ensureCrossFileImports adds an import line for each referenced var homed in another mirror and not already imported,
+// right after the existing import block; merged comes back unchanged when nothing is needed.
 func ensureCrossFileImports(merged []byte, spec Spec, index *Index, body string) []byte {
 	if spec.Out != "" {
-		return merged // single-file --out: every const lives in one file, no imports
+		return merged // with --out every const lives in one file, so no imports
 	}
 	alreadyImported := map[string]bool{}
 	for _, valueImport := range index.valueImports {
@@ -217,7 +183,7 @@ func ensureCrossFileImports(merged []byte, spec Spec, index *Index, body string)
 		}
 		declFile, ok := spec.VarDeclFile[varName]
 		if !ok || tspath.NormalizePath(declFile) == thisSource {
-			continue // intra-file or unknown — no import
+			continue // an intra-file or unknown var needs no import
 		}
 		targetMirror := spec.MirrorPathFor(declFile)
 		if importsByMirror[targetMirror] == nil {
@@ -238,9 +204,7 @@ func ensureCrossFileImports(merged []byte, spec Spec, index *Index, body string)
 	return []byte(string(merged[:insertAt]) + newLines.String() + string(merged[insertAt:]))
 }
 
-// importBlockEnd returns the byte offset just after the last import statement
-// (DSL import, breadcrumb, or value imports — whichever ends latest), where new
-// cross-file imports are inserted. Falls back to 0 when there are no imports.
+// importBlockEnd is the offset just after the last import statement, where a new cross-file import goes; 0 when there is none.
 func importBlockEnd(index *Index) int {
 	end := 0
 	for _, entry := range []*importEntry{index.breadcrumb, index.dslImport} {
@@ -260,8 +224,7 @@ func importBlockEnd(index *Index) int {
 	return end
 }
 
-// desiredVarSet collects the friendly + mock var names of the desired const set,
-// honoring the WantFriendly / WantMock flags.
+// desiredVarSet collects the desired const set's var names, honoring the family flags.
 func desiredVarSet(spec Spec) map[string]bool {
 	out := map[string]bool{}
 	for _, named := range spec.Consts {
@@ -275,9 +238,7 @@ func desiredVarSet(spec Spec) map[string]bool {
 	return out
 }
 
-// orphanRanges returns each orphaned const's orphan-op byte range — [markerStart
-// or tokenStart, end) — the span that will be commented out by the @rtOrphan
-// wrap, so references inside it no longer count as live.
+// orphanRanges returns the span each @rtOrphan wrap will comment out, so a reference inside it stops counting as live.
 func orphanRanges(orphaned []*constEntry) [][2]int {
 	ranges := make([][2]int, 0, len(orphaned))
 	for _, entry := range orphaned {
@@ -290,10 +251,8 @@ func orphanRanges(orphaned []*constEntry) [][2]int {
 	return ranges
 }
 
-// textOutsideRanges returns raw with each given byte range blanked (replaced by
-// spaces, newlines preserved). It models the POST-splice file: the blanked spans
-// (orphaned consts + the breadcrumb import itself) are content whose token
-// references must NOT count as a live use of a type name.
+// textOutsideRanges blanks each range, keeping newlines, to model the POST-splice file: a token inside a blanked span
+// must NOT count as a live use of a type name.
 func textOutsideRanges(raw []byte, ranges [][2]int) string {
 	if len(ranges) == 0 {
 		return string(raw)
@@ -310,16 +269,14 @@ func textOutsideRanges(raw []byte, ranges [][2]int) string {
 		}
 		for i := start; i < end; i++ {
 			if out[i] != '\n' {
-				out[i] = ' ' // blank the range but keep newlines for readability
+				out[i] = ' ' // keep newlines for readability
 			}
 		}
 	}
 	return string(out)
 }
 
-// referencesIdentifier reports whether text contains name as a standalone
-// identifier token (word-boundary on both sides — a letter/digit/`_`/`$`
-// neighbour disqualifies it, so `User` does not match inside `UserProfile`).
+// referencesIdentifier requires a word boundary on both sides, so `User` does not match inside `UserProfile`.
 func referencesIdentifier(text, name string) bool {
 	if name == "" {
 		return false
@@ -341,8 +298,7 @@ func referencesIdentifier(text, name string) bool {
 	}
 }
 
-// isIdentByte reports whether b is a JS identifier byte (letter, digit, `_`,
-// or `$`) — used for the word-boundary check in referencesIdentifier.
+// isIdentByte reports whether b is a JS identifier byte, for referencesIdentifier's word-boundary check.
 func isIdentByte(b byte) bool {
 	return b == '_' || b == '$' ||
 		(b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9')

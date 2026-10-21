@@ -6,8 +6,15 @@
  * ######## */
 
 import {RpcError, HeadersSubset} from '@mionjs/core';
-import {PublicApi, Routes, initMionRouter, route, headersFn, middleFn} from '@mionjs/router';
+import {PublicApi, Routes, createMionRouter} from '@mionjs/router';
+import {mionFetchMetadata} from '@mionjs/router/middlewares';
 import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
+
+// ============ Router ============
+// The options are written once here; every handler below is declared through `mion.*`
+// and `startServer` boots with `mion.initRoutes(routes)`. The factory's return type IS
+// the type of `ctx.shared` in every handler, so spell out what `auth` will store in it.
+const mion = createMionRouter({contextDataFactory: (): {user: User | null} => ({user: null})});
 
 // ============ Types ============
 // NOTE: Regular imports only! Never use `import type` for types that need reflection.
@@ -16,28 +23,30 @@ type User = {name: string; surname: string};
 type SimpleUser = {name: string; age: number};
 type SessionInfo = {userId: string; role: 'admin' | 'user'; expiresAt: number};
 
-// ============ Binary routes ============
+// ============ Compact routes ============
 
-const binaryRoutes = {
-    echo: route((_ctx, message: string): string => message, {serializer: 'binary'}),
-    addNumbers: route((_ctx, a: number, b: number): number => a + b, {serializer: 'binary'}),
-    getSimpleUser: route((_ctx, name: string, age: number): SimpleUser => ({name, age}), {serializer: 'binary'}),
-    greet: route((_ctx, name: string, greeting?: string): string => `${greeting || 'Hello'}, ${name}!`, {serializer: 'binary'}),
-    findUser: route(
+const compactRoutes = {
+    echo: mion.route((_ctx, message: string): string => message, {parser: 'compact'}),
+    addNumbers: mion.route((_ctx, a: number, b: number): number => a + b, {parser: 'compact'}),
+    getSimpleUser: mion.route((_ctx, name: string, age: number): SimpleUser => ({name, age}), {parser: 'compact'}),
+    greet: mion.route((_ctx, name: string, greeting?: string): string => `${greeting || 'Hello'}, ${name}!`, {parser: 'compact'}),
+    findUser: mion.route(
         (_ctx, id: string): SimpleUser | null => {
             if (id === 'not-found') return null;
             return {name: 'Found User', age: 30};
         },
-        {serializer: 'binary'}
+        {parser: 'compact'}
     ),
-    mayFail: route(
+    mayFail: mion.route(
         (_ctx, shouldFail: boolean): string | RpcError<'intentional-error'> => {
             if (shouldFail) return new RpcError({publicMessage: 'Intentional failure', type: 'intentional-error'});
             return 'Success!';
         },
-        {serializer: 'binary'}
+        {parser: 'compact'}
     ),
-    session: middleFn((_ctx, token?: string): {valid: boolean; userId?: string} | null => {
+    // a PLAIN middleware declaring no parser of its own: its params and its return value must ride
+    // these routes' bodies like any other chain member
+    session: mion.middleware((_ctx, token?: string): {valid: boolean; userId?: string} | null => {
         if (!token) return null;
         if (token === 'invalid') return {valid: false};
         return {valid: true, userId: 'user-123'};
@@ -47,11 +56,13 @@ const binaryRoutes = {
 // ============ All routes ============
 
 const routes = {
+    // serves route metadata to a client that fetches it; a bundled client never asks
+    mionFetchMetadata,
     // Middleware
-    auth: headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
+    auth: mion.headersMiddleware((ctx, h: HeadersSubset<'Authorization'>): void => {
         ctx.shared.user = {name: 'John', surname: 'Doe'};
     }),
-    session: middleFn((ctx, sessionToken?: string): SessionInfo | RpcError<'session-expired'> | null => {
+    session: mion.middleware((ctx, sessionToken?: string): SessionInfo | RpcError<'session-expired'> | null => {
         if (!sessionToken) return null;
         if (sessionToken === 'expired') {
             return new RpcError({publicMessage: 'Session expired', type: 'session-expired'});
@@ -60,54 +71,59 @@ const routes = {
     }),
 
     // JSON routes
-    sayHello: route((_ctx, user: User): string | RpcError<'some-error'> => `Hello ${user.name} ${user.surname}`),
-    alwaysFails: route((_ctx, user: User): User | RpcError<'unknown-error'> => {
+    sayHello: mion.route((_ctx, user: User): string | RpcError<'some-error'> => `Hello ${user.name} ${user.surname}`),
+    alwaysFails: mion.route((_ctx, user: User): User | RpcError<'unknown-error'> => {
         return new RpcError({publicMessage: 'Something fails', type: 'unknown-error'});
     }),
-    calculateAge: route((_ctx, birthYear: number): number => new Date().getFullYear() - birthYear),
+    calculateAge: mion.route((_ctx, birthYear: number): number => new Date().getFullYear() - birthYear),
 
     utils: {
-        sumTwo: route((_ctx, a: number): number => a + 2),
+        sumTwo: mion.route((_ctx, a: number): number => a + 2),
     },
 
-    // routesFlow serverMapFrom pair: the client maps this route's output into the next one's
+    // batch inputFrom pair: the client maps this route's output into the next one's
     // input, with the mapper body executing HERE (see the flow test in src/tests/json.spec.ts).
-    getCustomerById: route((_ctx, customerId: number): {id: number; name: string; preferenceId: number} => ({
+    getCustomerById: mion.route((_ctx, customerId: number): {id: number; name: string; preferenceId: number} => ({
         id: customerId,
         name: 'Test Customer',
         preferenceId: customerId + 100,
     })),
-    getPreferencesById: route((_ctx, prefId: number): {id: number; userId: number; theme: string} => ({
+    getPreferencesById: mion.route((_ctx, prefId: number): {id: number; userId: number; theme: string} => ({
         id: prefId,
         userId: prefId - 100,
         theme: prefId % 2 === 0 ? 'dark' : 'light',
     })),
 
-    // Binary routes
-    binary: binaryRoutes,
+    // Compact routes
+    compact: compactRoutes,
 } satisfies Routes;
 
 // ============ Server startup ============
 
-const port = process.env.MION_TEST_PORT
+const defaultPort = process.env.MION_TEST_PORT
     ? parseInt(process.env.MION_TEST_PORT, 10)
     : process.argv[2]
       ? parseInt(process.argv[2], 10)
       : 8086;
 
-async function startServer() {
-    try {
-        await initMionRouter(routes, {contextDataFactory: () => ({user: null}), skipClientRoutes: false});
-        setNodeHttpOpts({port});
-        await startNodeServer();
-        console.log(`Test server started on port ${port}`);
-    } catch (error) {
-        console.error('Failed to start test server:', error);
-        process.exit(1);
-    }
+/** Starts this server and hands back the listening node server so the caller can close it.
+ *  The tests call this from their globalSetup, in the SAME process: one program, nothing spawned. */
+export async function startTestServer(port: number = defaultPort) {
+    mion.initRoutes(routes);
+    setNodeHttpOpts({port});
+    const server = await startNodeServer();
+    console.log(`Test server started on port ${port}`);
+    return server;
 }
 
 /** Export the API type for client tests */
 export type TestServerApi = PublicApi<typeof routes>;
 
-if (process.env.MION_TEST_SERVER_AUTO_START !== 'false') startServer();
+// Importing this module never starts a server; the env var is the explicit opt-in, used by the
+// compiled-server lane that runs the built bundle as a program of its own.
+if (process.env.MION_TEST_SERVER_AUTO_START === 'true') {
+    void startTestServer().catch((error) => {
+        console.error('Failed to start test server:', error);
+        process.exit(1);
+    });
+}

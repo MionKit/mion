@@ -6,11 +6,9 @@ import (
 	"testing"
 )
 
-// intPtr / boolPtr / strPtr build the pointer fields of a tsRuntypesPlugin —
-// a present key vs the nil "absent" the merge must leave alone.
-func intPtr(v int) *int       { return &v }
-func boolPtr(v bool) *bool    { return &v }
-func strPtr(v string) *string { return &v }
+// intPtr / boolPtr set a present key; nil is the absent key the merge must leave alone.
+func intPtr(v int) *int    { return &v }
+func boolPtr(v bool) *bool { return &v }
 
 // baseFlags returns build flags as the binary declares them with nothing set —
 // the flag defaults that double as the binary defaults.
@@ -23,6 +21,7 @@ func baseFlags() buildFlags {
 		moduleMode:           "default",
 		patternSampleCount:   100,
 		patternSampleRetries: 10,
+		jsonMaxBytes:         true,
 	}
 }
 
@@ -33,8 +32,9 @@ func TestMergeBuildOptions_DefaultsWhenEmpty(t *testing.T) {
 	got := mergeBuildOptions(baseFlags(), tsRuntypesPlugin{}, "/proj")
 	want := buildOptions{
 		hashLength: 0, emitMode: "code", inlineMode: "default", moduleMode: "default",
-		genDir:             filepath.Join("/proj", "__runtypes"),
+		genDir:             filepath.Join("/proj", ".mion"),
 		patternSampleCount: 100, patternSampleRetries: 10,
+		jsonMaxBytes: true,
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("merge defaults = %+v, want %+v", got, want)
@@ -54,6 +54,7 @@ func TestMergeBuildOptions_TsconfigFillsGaps(t *testing.T) {
 		ParallelRender:       boolPtr(false),
 		PatternSampleCount:   intPtr(25),
 		PatternSampleRetries: intPtr(4),
+		JSONMaxBytes:         boolPtr(false),
 	}
 	got := mergeBuildOptions(baseFlags(), plugin, "/proj")
 	want := buildOptions{
@@ -61,12 +62,13 @@ func TestMergeBuildOptions_TsconfigFillsGaps(t *testing.T) {
 		singleThreaded:        true,
 		disableParallelScan:   true,
 		disableParallelRender: true,
-		genDir:                filepath.Join("/proj", "__runtypes"),
+		genDir:                filepath.Join("/proj", ".mion"),
 		emitMode:              "both",
 		inlineMode:            "allInternal",
 		moduleMode:            "allSingle",
 		patternSampleCount:    25,
 		patternSampleRetries:  4,
+		jsonMaxBytes:          false,
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("merge from tsconfig = %+v, want %+v", got, want)
@@ -101,9 +103,9 @@ func TestMergeBuildOptions_SingleThreadedOverride(t *testing.T) {
 }
 
 // TestResolveGenDir covers the three layers: flag > tsconfig > the
-// <cwd>/__runtypes default (there is no disable state — compile always emits).
+// <cwd>/.mion default (there is no disable state — compile always emits).
 func TestResolveGenDir(t *testing.T) {
-	defaultDir := filepath.Join("/proj", "__runtypes")
+	defaultDir := filepath.Join("/proj", ".mion")
 	tests := []struct {
 		name   string
 		flags  buildFlags
@@ -283,6 +285,14 @@ func TestResolveBuildPlugin(t *testing.T) {
 	}
 }
 
+// TestMergeBuildOptions_TsEmitModeFromTsconfig: the tsconfig `emitMode: "ts"` reaches the build options unflagged.
+func TestMergeBuildOptions_TsEmitModeFromTsconfig(t *testing.T) {
+	got := mergeBuildOptions(baseFlags(), tsRuntypesPlugin{EmitMode: "ts"}, "/proj")
+	if got.emitMode != "ts" {
+		t.Errorf("emitMode = %q, want ts", got.emitMode)
+	}
+}
+
 // TestUnknownPluginKeys: recognised keys are silent; a typo'd key is reported
 // sorted; a project with no plugin entry or no tsconfig never warns.
 func TestUnknownPluginKeys(t *testing.T) {
@@ -297,16 +307,6 @@ func TestUnknownPluginKeys(t *testing.T) {
   ] } }`)
 	if got := unknownPluginKeys(allKnown, "tsconfig.json"); len(got) != 0 {
 		t.Errorf("recognised keys should not warn, got %v", got)
-	}
-
-	// cacheDir is no longer a recognised key — the RT cache follows the
-	// project's incremental setting, not a plugin knob — so it warns like any
-	// other unknown key (a project still carrying it gets a nudge to remove it).
-	removedCacheDir := withConfig(t, `{ "compilerOptions": { "plugins": [
-    { "name": "mion", "cacheDir": ".cache/rt" }
-  ] } }`)
-	if got := unknownPluginKeys(removedCacheDir, "tsconfig.json"); len(got) != 1 || got[0] != "cacheDir" {
-		t.Errorf("removed cacheDir key should warn, got %v", got)
 	}
 
 	typos := withConfig(t, `{ "compilerOptions": { "plugins": [
@@ -381,5 +381,92 @@ func TestMergeBuildOptions_MarkerPackageCheckFlagWinsOverTsconfig(t *testing.T) 
 	plugin := tsRuntypesPlugin{Markers: &markersPluginConfig{CheckPackage: boolPtr(true)}}
 	if !mergeBuildOptions(flags, plugin, "/proj").skipMarkerPackageCheck {
 		t.Error("expected --no-marker-package-check to win over the tsconfig entry")
+	}
+}
+
+// TestDowngradeErrorsKey covers the tsconfig `downgradeErrors` value in both
+// shapes it accepts, and the one it does not.
+func TestDowngradeErrorsKey(t *testing.T) {
+	parse := func(t *testing.T, value string) (tsRuntypesPlugin, bool, error) {
+		t.Helper()
+		dir := t.TempDir()
+		writeTestFile(t, filepath.Join(dir, "tsconfig.json"),
+			`{ "compilerOptions": { "plugins": [ { "name": "mion", "downgradeErrors": `+value+` } ] } }`)
+		parsed, ok := parseTsconfig(filepath.Join(dir, "tsconfig.json"))
+		if !ok {
+			t.Fatal("tsconfig should parse")
+		}
+		return findTsRuntypesPlugin(parsed)
+	}
+
+	t.Run("list of codes", func(t *testing.T) {
+		plugin, ok, err := parse(t, `["validate-symbol-root", "json-prepare-never-root"]`)
+		if err != nil || !ok {
+			t.Fatalf("ok=%v err=%v", ok, err)
+		}
+		if len(plugin.DowngradeErrors) != 2 || plugin.DowngradeErrors[0] != "validate-symbol-root" {
+			t.Errorf("downgradeErrors = %v", plugin.DowngradeErrors)
+		}
+	})
+
+	// The bare wildcard and the one-element list mean the same, so the tsconfig
+	// spelling and the plugin spelling agree.
+	t.Run("wildcard either way", func(t *testing.T) {
+		for _, value := range []string{`"*"`, `["*"]`} {
+			plugin, ok, err := parse(t, value)
+			if err != nil || !ok {
+				t.Fatalf("%s: ok=%v err=%v", value, ok, err)
+			}
+			if len(plugin.DowngradeErrors) != 1 || plugin.DowngradeErrors[0] != "*" {
+				t.Errorf("%s: downgradeErrors = %v", value, plugin.DowngradeErrors)
+			}
+		}
+	})
+
+	// A bad value used to drop the WHOLE mion entry silently, taking genDir,
+	// markers and every other key with it.
+	t.Run("a bad value is loud, not silent", func(t *testing.T) {
+		_, _, err := parse(t, `42`)
+		if err == nil {
+			t.Fatal("a mion entry that does not decode must be reported")
+		}
+	})
+}
+
+// TestFindTsRuntypesPlugin_KeepsOtherPluginsOut proves the loud-decode rule is
+// scoped to our own entry: another language-service plugin's shape is none of
+// our business, so it is skipped rather than erroring the run.
+func TestFindTsRuntypesPlugin_KeepsOtherPluginsOut(t *testing.T) {
+	dir := t.TempDir()
+	writeTestFile(t, filepath.Join(dir, "tsconfig.json"), `{ "compilerOptions": { "plugins": [
+    { "name": "other", "downgradeErrors": 42 },
+    { "name": "mion", "genDir": "gen" }
+  ] } }`)
+	parsed, _ := parseTsconfig(filepath.Join(dir, "tsconfig.json"))
+	plugin, ok, err := findTsRuntypesPlugin(parsed)
+	if err != nil || !ok {
+		t.Fatalf("ok=%v err=%v", ok, err)
+	}
+	if plugin.GenDir != "gen" {
+		t.Errorf("genDir = %q", plugin.GenDir)
+	}
+}
+
+// TestMergeBuildOptions_JSONMaxBytesFlagWins: an explicit --json-max-bytes (either
+// value) wins over the tsconfig `jsonMaxBytes`; the tsconfig fills in only when
+// the flag was not passed, and an absent key keeps the binary default (on).
+func TestMergeBuildOptions_JSONMaxBytesFlagWins(t *testing.T) {
+	flags := baseFlags()
+	flags.set["json-max-bytes"] = true
+	flags.jsonMaxBytes = true
+	if got := mergeBuildOptions(flags, tsRuntypesPlugin{JSONMaxBytes: boolPtr(false)}, "/proj"); !got.jsonMaxBytes {
+		t.Errorf("--json-max-bytes must win over tsconfig jsonMaxBytes:false")
+	}
+	flags.jsonMaxBytes = false
+	if got := mergeBuildOptions(flags, tsRuntypesPlugin{JSONMaxBytes: boolPtr(true)}, "/proj"); got.jsonMaxBytes {
+		t.Errorf("--json-max-bytes=false must win over tsconfig jsonMaxBytes:true")
+	}
+	if got := mergeBuildOptions(baseFlags(), tsRuntypesPlugin{}, "/proj"); !got.jsonMaxBytes {
+		t.Errorf("an absent tsconfig key must keep the default (on)")
 	}
 }

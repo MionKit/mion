@@ -1,30 +1,8 @@
-// Package drizzlemigrate is the source-rewriting arm behind the `mion
-// drizzle-migrate` CLI verb: it moves a file authored against drizzle-orm onto
-// the slim @mionjs/drizzle-orm-* packages, leaving every query untouched.
-//
-// The shape of the rewrite, and why it is safe:
-//
-//	// before
-//	const users = pgTable('users', {id: uuid().primaryKey()});
-//	// after
-//	const users$table = pgTable('users', {id: uuid().primaryKey()});
-//	const users = toDrizzle(users$table);
-//
-// The ORIGINAL name keeps binding the real drizzle table, so `db.select().from(users)`,
-// `getTableConfig(users)`, `eq(users.id, x)` and `relations(users, …)` all still
-// work with zero edits. A fresh `$<kind>` binding holds the recorder, and only
-// references INSIDE a recorder call flip to it, because those are the ones that
-// must be recorded rather than queried.
-//
-// It REWRITES, it never re-prints. The table call's text is kept byte-for-byte,
-// which is what keeps this arm small: it never has to understand a column, a
-// modifier chain or an extraConfig entry, so a construct it does not know about
-// simply rides through. That is the opposite trade from internal/convert, which
-// has to spell a table in the other authoring form and refuses whenever it
-// cannot.
-//
-// What it refuses is listed by the DRZ codes below. A refusal leaves the file
-// valid drizzle, so the suite still runs and the skip list can name the test.
+// Package drizzlemigrate is the `mion drizzle-migrate` arm, moving a drizzle-orm file onto the slim packages. The
+// original name keeps the real drizzle table (`const users = toDrizzle(users$table)`), so queries need no edits; only
+// references inside a recorder call flip to the `$<kind>` binding. It rewrites, never re-prints: only each column
+// chain's glue changes (fold.go), so an unknown construct passes through, the opposite trade from internal/convert.
+// A drizzle-migrate-* refusal leaves the file valid drizzle, so the suite runs.
 package drizzlemigrate
 
 import (
@@ -35,11 +13,11 @@ import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/tsimports"
 )
 
-// Severity of a migration diagnostic. Errors leave the declaration untouched and
-// make the CLI exit non-zero; warnings note something worth reading.
+// Severity of a migration diagnostic: an error leaves the declaration untouched and exits the CLI non-zero.
 type Severity int
 
 const (
@@ -47,17 +25,16 @@ const (
 	SeverityWarning Severity = 2
 )
 
-// Diagnostic codes (DRZ family), alongside internal/convert's CNV ones.
+// Diagnostic codes (drizzle-migrate-* family), alongside internal/convert's convert-* ones.
 const (
-	// A view built from a query builder: `pgView('v').as(qb => qb.select()…)`.
-	// Its columns come from drizzle's select typing, the exact generic chain the
-	// slim design removes, so it stays drizzle by design
-	// (packages/drizzle-orm/CLAUDE.md records the exception).
-	CodeQueryBuilderView = "DRZ001"
+	// Query-builder views need drizzle's select generics, so stay on drizzle (packages/drizzle-orm/AGENTS.md).
+	CodeQueryBuilderView = "drizzle-migrate-query-builder-view"
 	// A declaration whose head is ours but whose shape has no clean split.
-	CodeUnsupportedHead = "DRZ002"
+	CodeUnsupportedHead = "drizzle-migrate-unsupported-head"
 	// No free name for a binding the rewrite has to add.
-	CodeNameCollision = "DRZ003"
+	CodeNameCollision = "drizzle-migrate-name-collision"
+	// A column chain with no single-call spelling (an unknown or repeated modifier, a reference to an unmigrated table).
+	CodeUnfoldableColumn = "drizzle-migrate-unfoldable-column"
 )
 
 // Diagnostic is one per-declaration finding.
@@ -79,9 +56,8 @@ type FileResult struct {
 	Output  string       `json:"-"`
 	Changed bool         `json:"changed"`
 	Diags   []Diagnostic `json:"diagnostics,omitempty"`
-	// Used lists the migrated manifest entries this file actually rewrote onto
-	// our packages, per dialect. The lane's coverage gate crosses it against the
-	// manifests, so a builder no vendored suite exercises is caught.
+	// Used lists the migrated manifest entries this file rewrote onto our packages, per dialect. The lane's
+	// coverage gate crosses it against the manifests, so a builder no vendored suite exercises is caught.
 	Used map[string][]string `json:"used,omitempty"`
 }
 
@@ -94,32 +70,28 @@ type fileRun struct {
 	importMap  *ImportMap
 	imports    *tsimports.Scan
 
-	// creators maps a local table-factory symbol to its dialect; splitBySymbol
-	// maps an already-split declaration's symbol to its pair.
+	// creators maps a table-factory symbol to its dialect, splitBySymbol an already-split symbol to its pair.
 	creators      map[*ast.Symbol]string
 	splitBySymbol map[*ast.Symbol]*splitDecl
 	splits        []*splitDecl
-	// regions are the spans where a reference must be RECORDED rather than
-	// queried: every split declaration's initializer plus every table factory's.
+	// regions are the spans where a reference is RECORDED not queried: each split initializer, each factory's.
 	regions [][2]int
-	// refs is every identifier the rewrite may touch, collected before any
-	// decision is made (a binding's fate depends on ALL its uses).
+	// refs is every identifier the rewrite may touch, decided only after collecting: a binding's fate depends on ALL uses.
 	refs []reference
-	// movedLocal is the local a migrated export arrives under, and keepDrizzle
-	// marks the ones whose drizzle binding must ALSO stay. Keyed module:local.
+	// movedLocal: the local a migrated export arrives under; keepDrizzle: its drizzle binding ALSO stays. Keyed module:local.
 	movedLocal map[string]string
-	// namespaceLocal is the alias a `import * as X` object is re-imported under
-	// from the slim package, keyed the same way.
+	// namespaceLocal is the alias an `import * as X` object is re-imported under from the slim package.
 	namespaceLocal map[string]string
 	keepDrizzle    map[string]bool
 
 	// taken guards every name the rewrite invents.
 	taken map[string]bool
-	// toDrizzleByDialect is the local toDrizzle is imported under per dialect,
-	// claimed on first use.
+	// toDrizzleByDialect is the local toDrizzle is imported under per dialect, claimed on first use.
 	toDrizzleByDialect map[string]string
-	// colsBinding is the local cols() is imported under, claimed on first use.
-	colsBinding string
+	// rootHelpers are the @mionjs/drizzle-orm helpers the folded columns spell (tableRef, $type), claimed on first use.
+	rootHelpers map[string]tsimports.Binding
+	// noHelperName lists the helpers with no free local: any one leaves the whole file drizzle.
+	noHelperName map[string]bool
 	// used records the migrated exports that actually reached a recorder.
 	used map[string]map[string]bool
 
@@ -149,8 +121,7 @@ func (file *fileRun) refuse(code string, decl *ast.Node, message string) *Diagno
 	return &Diagnostic{Code: code, Severity: SeverityError, File: file.path, Decl: name, Message: message, Line: line}
 }
 
-// claim returns base, or a digit-suffixed variant, registering the result; ""
-// when nothing is free.
+// claim returns base, or a digit-suffixed variant, registering the result; "" when nothing is free.
 func (file *fileRun) claim(base string) string {
 	if !file.taken[base] {
 		file.taken[base] = true
@@ -166,11 +137,9 @@ func (file *fileRun) claim(base string) string {
 	return ""
 }
 
-// recorderBase drops a trailing spelling of the kind from the original name
-// before the `$<kind>` marker is appended, so `usersTable` becomes `users$table`
-// rather than `usersTable$table`. Case-insensitive because both `usersTable` and
-// `userstable` are spellings people write; a name that is nothing BUT the kind
-// (`table`) keeps it, since an empty base is no name at all.
+// recorderBase drops a trailing spelling of the kind, case-insensitively, so `usersTable` becomes
+// `users$table` rather than `usersTable$table`. A name that is nothing BUT the kind keeps it: an empty
+// base is no name at all.
 func recorderBase(name, kind string) string {
 	if len(name) <= len(kind) {
 		return name
@@ -181,10 +150,8 @@ func recorderBase(name, kind string) string {
 	return name[:len(name)-len(kind)]
 }
 
-// scopedName is the recorder binding for a declaration. It is NOT claimed
-// file-wide: the pair lives in the declaration's own scope, and drizzle's suites
-// declare `const users = pgTable(…)` inside 20 different test bodies, each of
-// which wants the same `users$table` spelling. A collision is only possible
+// scopedName is the recorder binding, NOT claimed file-wide: the pair lives in the declaration's own
+// scope, and 20 test bodies each want the same `users$table` spelling. A collision is only possible
 // against a name the SOURCE already spells, which the taken set covers.
 func (file *fileRun) scopedName(base string) string {
 	if !file.taken[base] {
@@ -204,8 +171,7 @@ func (file *fileRun) noteUsed(dialect, fn string) {
 	file.used[dialect][fn] = true
 }
 
-// MigrateFile rewrites one source file onto the slim packages and returns the new
-// source. A file with nothing to migrate comes back unchanged and undiagnosed.
+// MigrateFile rewrites one file onto the slim packages; a file with nothing to migrate comes back unchanged, undiagnosed.
 func MigrateFile(prog *program.Program, typeChecker *checker.Checker, absPath string, _ Options) (*FileResult, error) {
 	sourceFile := prog.SourceFile(absPath)
 	if sourceFile == nil {
@@ -230,21 +196,27 @@ func MigrateFile(prog *program.Program, typeChecker *checker.Checker, absPath st
 		movedLocal:     map[string]string{},
 		namespaceLocal: map[string]string{},
 		keepDrizzle:    map[string]bool{},
+		rootHelpers:    map[string]tsimports.Binding{},
+		noHelperName:   map[string]bool{},
 	}
 	file.seedTakenNames()
 
-	// Nothing to do unless the file imports a module we map. Checked before the
-	// walk so a run over a whole tree costs nothing on unrelated files.
+	// Checked before the walk, so a run over a whole tree costs nothing on unrelated files.
 	if !file.importsAnyMappedModule() {
 		return &FileResult{Path: absPath, Output: source}, nil
 	}
 	file.collectSplits()
+	file.refuseUnfoldableSplits()
 	file.collectReferences()
 	file.decideBindings()
 	file.planReferenceEdits()
+	file.planColumnFolds()
 	file.planDeclarationEdits()
 	if diag := file.planImportEdits(); diag != nil {
 		file.diags = append(file.diags, *diag)
+	}
+	if len(file.noHelperName) > 0 {
+		return &FileResult{Path: absPath, Output: source, Diags: file.diags}, nil
 	}
 
 	result := &FileResult{Path: absPath, Output: source, Diags: file.diags, Used: SortUsed(file.used)}
@@ -262,15 +234,15 @@ func MigrateFile(prog *program.Program, typeChecker *checker.Checker, absPath st
 	return result, nil
 }
 
-// seedTakenNames registers every identifier the file already spells, so an
-// invented binding (`users$table`, `toDrizzle`, `rtSql`) can never shadow one.
+// seedTakenNames registers every identifier the file already spells, so an invented binding never shadows one.
+// A member name binds nothing, so `.$type()` leaves `$type` free for the import that replaces it.
 func (file *fileRun) seedTakenNames() {
 	var walk func(node *ast.Node) bool
 	walk = func(node *ast.Node) bool {
 		if node == nil {
 			return false
 		}
-		if ast.IsIdentifier(node) {
+		if ast.IsIdentifier(node) && !isPropertyName(node) {
 			file.taken[node.Text()] = true
 		}
 		node.ForEachChild(walk)
@@ -288,9 +260,7 @@ func (file *fileRun) importsAnyMappedModule() bool {
 	return false
 }
 
-// collectSplits walks the file in source order, deciding what each declaration
-// becomes. Order matters: a schema declared earlier is what makes
-// `mySchema.table(…)` recognisable later.
+// collectSplits walks in source order: an earlier schema is what makes `mySchema.table(…)` recognisable.
 func (file *fileRun) collectSplits() {
 	eachVariableDeclaration(file.sourceFile, func(decl *ast.Node) {
 		initializer := decl.Initializer()
@@ -317,26 +287,19 @@ func (file *fileRun) collectSplits() {
 			if symbol := declaredSymbol(file.checker, decl); symbol != nil {
 				file.creators[symbol] = dialect
 			}
-			// A factory's own call records too, so its initializer is a recorder
-			// region even though the declaration is never split.
+			// A factory's own call records too, so its initializer is a recorder region though it is never split.
 			file.regions = append(file.regions, [2]int{initializer.Pos(), initializer.End()})
 			return
 		}
 		if kind == "" {
-			// A migrated helper bound to a const — an index, a constraint, a
-			// bare column builder. The binding already holds a recorder, so the
-			// declaration stays as written, but its initializer IS a recorder
-			// region: mysql-common.ts declares an index AFTER the table it
-			// indexes and hands it to a lazy extraConfig, so `users.name` in
-			// there has to mean the recorder's column.
+			// A migrated helper bound to a const stays as written, but its initializer IS a recorder region.
+			// mysql-common.ts hands an index declared after its table to a lazy extraConfig: `users.name` must be ours.
 			if source == originImport {
 				file.regions = append(file.regions, [2]int{initializer.Pos(), initializer.End()})
 			}
 			return
 		}
-		// The boundary exception: a view with no explicit columns is built from
-		// a query builder, so it stays drizzle and its test goes on the skip
-		// list.
+		// The boundary exception: a view with no explicit columns stays drizzle, and its test goes on the skip list.
 		if kind == "view" && argc < 2 {
 			file.diags = append(file.diags, *file.refuse(CodeQueryBuilderView, decl,
 				"a view built from a query builder stays on drizzle: its columns come from drizzle's select typing. Declare the columns explicitly to migrate it."))
@@ -363,6 +326,14 @@ func (file *fileRun) collectSplits() {
 			nameNode: nameNode, stmt: statement,
 			initStart: initializer.Pos(), initEnd: initializer.End(),
 		}
+		if kind == "table" || kind == "view" {
+			split.columns = columnsObjectOf(initializer)
+			if split.columns != nil {
+				if declaring := split.columns.Parent; declaring != nil {
+					split.dbName = dbNameOf(declaring)
+				}
+			}
+		}
 		file.splits = append(file.splits, split)
 		file.regions = append(file.regions, [2]int{split.initStart, split.initEnd})
 		if symbol := declaredSymbol(file.checker, decl); symbol != nil {
@@ -371,18 +342,7 @@ func (file *fileRun) collectSplits() {
 	})
 }
 
-// enclosingSplit returns the split declaration whose initializer contains pos.
-func (file *fileRun) enclosingSplit(pos int) *splitDecl {
-	for _, split := range file.splits {
-		if pos >= split.initStart && pos < split.initEnd {
-			return split
-		}
-	}
-	return nil
-}
-
-// inRecorderRegion reports whether pos sits inside a span where references are
-// recorded: a split declaration's initializer, or a table factory's.
+// inRecorderRegion reports whether pos sits in a split declaration's initializer or a table factory's.
 func (file *fileRun) inRecorderRegion(pos int) bool {
 	for _, region := range file.regions {
 		if pos >= region[0] && pos < region[1] {
@@ -392,8 +352,7 @@ func (file *fileRun) inRecorderRegion(pos int) bool {
 	return false
 }
 
-// reference is one identifier the rewrite may touch, with everything the
-// decision needs: whether a recorder call reaches it, and what it resolves to.
+// reference is one identifier the rewrite may touch: whether a recorder call reaches it, and what it binds.
 type reference struct {
 	node  *ast.Node
 	inner bool
@@ -402,8 +361,7 @@ type reference struct {
 	// rule and imported are set when it binds a migrated drizzle export.
 	rule     *ModuleRule
 	imported string
-	// namespace marks `Driz.pgTable`: the node is the module OBJECT, and
-	// `imported` is the member reached through it.
+	// namespace marks `Driz.pgTable`: the node is the module OBJECT, `imported` the member reached through it.
 	namespace bool
 }
 
@@ -421,19 +379,14 @@ func namespaceMember(node *ast.Node) string {
 	return access.Name().Text()
 }
 
-// bindingKey names one BINDING, not one export: a file may import the same export
-// twice under different locals, and pg-common.ts does exactly that
-// (`uuid, …, uuid as pgUuid`). Each local is decided on its own.
+// bindingKey names one BINDING, not one export: pg-common.ts imports one export twice under different
+// locals (`uuid, …, uuid as pgUuid`), and each local is decided on its own.
 func bindingKey(module, local string) string { return module + ":" + local }
 
-// collectReferences walks every identifier and records what it resolves to and
-// whether a recorder call reaches it. Nothing is decided here: a binding's fate
-// depends on ALL of its uses, and drizzle's suites use `sql` on both sides of the
-// boundary in the same file.
-//
-// "A recorder call reaches it" stops at a barrier — a call to a drizzle function
-// that did not migrate. That is what keeps `eq(users.cityId, 1)` inside a view's
-// sql pointing at drizzle's column while `foreignKey({foreignColumns: [users.id]})`
+// collectReferences records what each identifier resolves to and whether a recorder call reaches it.
+// Nothing is decided here: a binding's fate depends on ALL its uses, and one file uses `sql` on both
+// sides. "Reaches it" stops at a barrier, a call to a drizzle function that did not migrate, which is
+// what keeps `eq(users.cityId, 1)` on drizzle's column while `foreignKey({foreignColumns: [users.id]})`
 // in the same file points at ours.
 func (file *fileRun) collectReferences() {
 	var walk func(node *ast.Node) bool
@@ -454,7 +407,7 @@ func (file *fileRun) collectReference(node *ast.Node) {
 	ref := reference{node: node, inner: file.inRecorderRegion(node.Pos()) && !file.behindBarrier(node)}
 	if symbol := file.checker.GetSymbolAtLocation(node); symbol != nil {
 		if target, ok := file.splitBySymbol[symbol]; ok {
-			// The declared name itself is renamed by its own edit, never here.
+			// The declared name is renamed by its own edit, never here.
 			if target.nameNode == node {
 				return
 			}
@@ -467,8 +420,7 @@ func (file *fileRun) collectReference(node *ast.Node) {
 	if rule == nil {
 		return
 	}
-	// A NAMESPACE object is decided by the MEMBER being reached through it, so
-	// `Driz.pgTable` is decided by `pgTable`. What gets rewritten is the object
+	// A NAMESPACE object is decided by the MEMBER reached through it; the rewrite changes the object
 	// itself, to an alias of the slim package.
 	if tsimports.IsNamespaceImport(file.checker, node) {
 		member := namespaceMember(node)
@@ -507,16 +459,10 @@ func (file *fileRun) behindBarrier(node *ast.Node) bool {
 	return false
 }
 
-// decideBindings settles, per migrated export, which side it lives on:
-//
-//	inner uses only  -> it MOVES, under its own local
-//	outer uses only  -> it STAYS on drizzle, untouched
-//	both             -> it stays AND arrives under a second local, and the inner
-//	                    references are rewritten to that one
-//
-// The both case is not a corner: drizzle's own suites write `db.execute(sql`…`)`
-// beside `.default(sql`now()`)`, and a query-builder view this arm refuses sits in
-// the same file as ones it migrates.
+// decideBindings settles, per migrated export, which side it lives on: inner uses only MOVE under
+// their own local, outer uses only STAY on drizzle, and both means it stays AND arrives under a second
+// local the inner references are rewritten to. Both is not a corner: drizzle's own suites write
+// `db.execute(sql`…`)` beside `.default(sql`now()`)` in one file.
 func (file *fileRun) decideBindings() {
 	inner := map[string]bool{}
 	outer := map[string]bool{}
@@ -528,9 +474,8 @@ func (file *fileRun) decideBindings() {
 		if ref.rule == nil {
 			continue
 		}
-		// A namespace object is ONE binding however many members go through it, so
-		// its key is the object's own local; a named import is keyed by its local
-		// too. Either way: one key, one decision.
+		// A namespace object is ONE binding however many members go through it: keyed by its own local,
+		// like a named import. One key, one decision.
 		key := bindingKey(ref.rule.From, ref.node.Text())
 		original[key] = ref.node.Text()
 		importedOf[key] = ref.imported
@@ -546,8 +491,7 @@ func (file *fileRun) decideBindings() {
 	}
 	for key := range inner {
 		rule, imported := ruleOf[key], importedOf[key]
-		// A namespace ALWAYS gets a second alias: drizzle's own object stays for
-		// the members that did not migrate, and ours carries the ones that did.
+		// A namespace ALWAYS gets a second alias: drizzle's object still serves the members that did not move.
 		if namespaceKeys[key] {
 			file.namespaceLocal[key] = file.claim("rt" + upperFirst(original[key]))
 			file.keepDrizzle[key] = true
@@ -577,12 +521,11 @@ func (file *fileRun) planReferenceEdits() {
 			continue
 		}
 		if ref.split != nil {
-			// Reading a COLUMN off a slim table goes through cols(): the table
-			// type is its metadata, so the columns are not properties of it.
-			// drizzle's suites do this for a standalone index,
-			// `index('i').on(users.name)`, which migrates to the recorder.
+			// A slim table's TYPE does not expose its columns, so a column is named with tableRef().
 			if ref.split.kind == "table" && readsColumn(ref.node) {
-				file.replaceIdentifier(ref.node, file.colsLocal()+"("+ref.split.recorder+")")
+				access := ref.node.Parent
+				text := file.helperLocal(ref.node, "tableRef", false) + "(" + ref.split.recorder + ", " + jsquote.Single(access.AsPropertyAccessExpression().Name().Text()) + ")"
+				file.edits = append(file.edits, edit{start: tsimports.TokenStart(file.source, access.Pos()), end: access.End(), text: text})
 				continue
 			}
 			file.replaceIdentifier(ref.node, ref.split.recorder)
@@ -599,8 +542,8 @@ func (file *fileRun) planReferenceEdits() {
 	}
 }
 
-// readsColumn reports whether an identifier is the OBJECT of a property access
-// reading something off it, other than the one real method a slim table carries.
+// readsColumn reports whether an identifier is read through a property access other than enableRLS,
+// the one real method a slim table carries.
 func readsColumn(node *ast.Node) bool {
 	parent := node.Parent
 	if parent == nil || !ast.IsPropertyAccessExpression(parent) {
@@ -613,17 +556,15 @@ func readsColumn(node *ast.Node) bool {
 	return access.Name().Text() != "enableRLS"
 }
 
-// replaceIdentifier swaps one identifier, starting at its first real character —
-// a node's Pos() includes the leading trivia, so replacing from there would eat
-// the space before it.
+// replaceIdentifier swaps one identifier from its first real character: Pos() includes leading trivia,
+// so replacing from there would eat the space before it.
 func (file *fileRun) replaceIdentifier(node *ast.Node, text string) {
 	file.edits = append(file.edits, edit{start: tsimports.TokenStart(file.source, node.Pos()), end: node.End(), text: text})
 }
 
-// planDeclarationEdits emits the two edits per split: rename the declared name to
-// the recorder binding, then add the drizzle half right after the statement.
-// Both sit OUTSIDE the initializer, so the table call's text is untouched and the
-// reference rewrites above compose with them.
+// planDeclarationEdits renames the declared name to the recorder binding and adds the drizzle half
+// after the statement. Both sit OUTSIDE the initializer, so the table call's text is untouched and the
+// reference rewrites compose with them.
 func (file *fileRun) planDeclarationEdits() {
 	for _, split := range file.splits {
 		toDrizzle := file.toDrizzleLocal(split.dialect)

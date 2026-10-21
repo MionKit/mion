@@ -1,14 +1,6 @@
-// Family 6 — Serialization edge. Mirrors guide/serialization-circular.ts +
-// custom-class-serializer.ts. A per-call circular guard throws, and a
-// registered class serializer rebuilds a real instance on decode.
-import {
-  createJsonEncoderFn,
-  createJsonDecoderFn,
-  createBinaryEncoderFn,
-  CircularReferenceError,
-  registerClassSerializer,
-  type DataOnly,
-} from '@mionjs/run-types';
+// Family 5, JSON round trip edge cases. Mirrors guide/json-round-trip-circular.ts + json-round-trip-class.ts.
+import {createJsonEncoderFn, createJsonDecoderFn, CircularReferenceError, type DataOnly} from '@mionjs/run-types';
+import {registerClassSerializer} from '@mionjs/run-types/runtime';
 import {type CheckResult, ok} from './check';
 
 interface Node {
@@ -35,7 +27,6 @@ interface Account {
 }
 
 export const encodeNode = createJsonEncoderFn<Node>(undefined, {rejectCircularRefs: true});
-export const encodeNodeBin = createBinaryEncoderFn<Node>(undefined, {rejectCircularRefs: true});
 export const encodeAccount = createJsonEncoderFn<Account>();
 export const decodeAccount = createJsonDecoderFn<Account>();
 
@@ -51,12 +42,6 @@ export function checkSerializationEdge(): CheckResult[] {
     jsonGuardFired = error instanceof CircularReferenceError;
     if (error instanceof CircularReferenceError) jsonPath = error.path;
   }
-  let binGuardFired = false;
-  try {
-    encodeNodeBin(cyclic as Node);
-  } catch (error) {
-    binGuardFired = error instanceof CircularReferenceError;
-  }
 
   const wire = encodeAccount({id: 'acc_1', balance: new Money(4999, 'USD')})!;
   const back = decodeAccount(wire);
@@ -64,7 +49,6 @@ export function checkSerializationEdge(): CheckResult[] {
   return [
     ok('serialization: JSON circular guard throws CircularReferenceError', jsonGuardFired),
     ok('serialization: circular error carries a path', Array.isArray(jsonPath) && jsonPath.length > 0),
-    ok('serialization: binary circular guard throws too', binGuardFired),
     ok('serialization: custom class serializer rebuilds a real instance', back.balance instanceof Money && back.balance.format() === '49.99 USD'),
   ];
 }

@@ -6,8 +6,6 @@
 // Editing the type invalidates nothing, and the host keeps serving a validator
 // for the OLD shape. It does not error; it accepts data the current type
 // rejects, which is the failure mode most likely to be blamed on something else.
-//
-// See docs/todos/unified-type-dependency-invalidation.md.
 import {describe, expect, it} from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -84,7 +82,7 @@ describe('@mionjs/devtools / type-dependency invalidation', () => {
           binary: BIN,
           cwd: root,
           tsconfig: 'tsconfig.json',
-          genDir: '__runtypes',
+          genDir: '.mion',
           detachResolver: true,
           onSiteFilesChanged: (siteFiles) => reported.push(siteFiles),
         },
@@ -147,10 +145,9 @@ describe('@mionjs/devtools / type-dependency invalidation', () => {
         const secondId = injectedId(secondUses?.code);
         expect(secondId).not.toBe(firstId);
 
-        const generated = fs
-          .readdirSync(path.join(root, '__runtypes/types'))
+        const generated = (fs.readdirSync(path.join(root, '.mion/types'), {recursive: true}) as string[])
           .filter((name) => name.endsWith('.js'))
-          .map((name) => fs.readFileSync(path.join(root, '__runtypes/types', name), 'utf8'))
+          .map((name) => fs.readFileSync(path.join(root, '.mion/types', name), 'utf8'))
           .join('\n');
         expect(generated).toContain('country');
 
@@ -185,7 +182,7 @@ export const staticId = getRunTypeId<Ambient>();
       fs.mkdirSync(scope, {recursive: true});
       fs.symlinkSync(MARKER_PKG, path.join(scope, 'run-types'), 'dir');
 
-      const raw = unplugin.raw({binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '__runtypes', detachResolver: true}, {
+      const raw = unplugin.raw({binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '.mion', detachResolver: true}, {
         framework: 'webpack',
         versions: {},
       } as UnpluginContextMeta);
@@ -234,7 +231,7 @@ export const staticId = getRunTypeId<Ambient>();
       fs.mkdirSync(scope, {recursive: true});
       fs.symlinkSync(MARKER_PKG, path.join(scope, 'run-types'), 'dir');
 
-      const raw = unplugin.raw({binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '__runtypes', detachResolver: true}, {
+      const raw = unplugin.raw({binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '.mion', detachResolver: true}, {
         framework: 'webpack',
         versions: {},
       } as UnpluginContextMeta);

@@ -112,13 +112,12 @@ describe('email — which PART of the address is wrong', () => {
   });
 
   it('names the half on the decomposition path, and the domain half by its own format name', () => {
-    const getErrors = createGetValidationErrorsFn<TF.EmailStrict>();
+    const getErrors = createGetValidationErrorsFn<TF.EmailParts>();
     expect(getErrors('joe.bloggs@example.com')).toEqual([]);
     expect(formatErrorOf(getErrors('joe'))?.errorType).toBe('format');
     const local = formatErrorOf(getErrors('jo e@example.com'));
     expect(local?.name).toBe('email');
     expect(local?.errorType).toBe('localPart');
-    // The domain half reports under `domain`, with that format's own modes.
     const label = formatErrorOf(getErrors('joe@a.com'));
     expect(label?.name).toBe('domain');
     expect(label?.errorType).toBe('label');
@@ -169,12 +168,12 @@ describe('domain — which rule the name broke', () => {
   });
 
   it('names the label or the tld on the decomposition path, and nothing for a whole-name bound', () => {
-    const getErrors = createGetValidationErrorsFn<TF.DomainStrict>();
+    const getErrors = createGetValidationErrorsFn<TF.DomainParts>();
     expect(getErrors('example.com')).toEqual([]);
     expect(formatErrorOf(getErrors('a.com'))?.errorType).toBe('label');
     expect(formatErrorOf(getErrors('-ab.com'))?.errorType).toBe('label');
     expect(formatErrorOf(getErrors('example.c'))?.errorType).toBe('tld');
-    // Too many parts: formatPath already names the bound, no part to blame.
+    // formatPath already names the bound; no part to blame.
     const parts = formatErrorOf(getErrors('aa.bb.cc.dd.ee.ff.com'));
     expect(parts?.formatPath).toEqual(['maxParts']);
     expect(parts?.errorType).toBeUndefined();
@@ -234,7 +233,7 @@ describe('ip — the address or the port', () => {
 
 describe('formats with one way to fail per param leave errorType unset', () => {
   it('url', () => {
-    expect(formatErrorOf(createGetValidationErrorsFn<TF.UrlHttp>()('not a url'))?.errorType).toBeUndefined();
+    expect(formatErrorOf(createGetValidationErrorsFn<TF.StringUrlHttp>()('not a url'))?.errorType).toBeUndefined();
   });
   it('a plain string format', () => {
     expect(formatErrorOf(createGetValidationErrorsFn<TF.String<{maxLength: 2}>>()('abc'))?.errorType).toBeUndefined();

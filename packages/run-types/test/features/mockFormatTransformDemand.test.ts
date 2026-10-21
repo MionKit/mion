@@ -19,7 +19,8 @@
 // assert, on the same format type.)
 
 import {describe, expect, it} from 'vitest';
-import {createMockDataFn, createValidateFn, getRunTypeId} from '@mionjs/run-types';
+import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 // Side-effect import: registers the per-kind format mock fns (see
 // createMockData.ts — an empty registry mocks formats as plain random values).
 import '@mionjs/run-types/formats';

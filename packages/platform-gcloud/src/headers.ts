@@ -9,13 +9,10 @@ import {MionHeaders, headersFromRecord} from '@mionjs/router';
 import {IncomingMessage, ServerResponse} from 'http';
 
 export function headersFromIncomingMessage(rawRequest: IncomingMessage): MionHeaders {
-  return headersFromRecord(rawRequest.headers as Record<string, string>);
+  // node already lower-cased these and express passes its object straight through; NOT safe on API Gateway, which keeps case
+  return headersFromRecord(rawRequest.headers as Record<string, string>, true);
 }
 
-/**
- * Reusable class for managing HTTP response headers with ServerResponse integration
- * Provides a MionHeaders interface that wraps Node.js ServerResponse header methods
- */
 class ServerResponseHeadersImpl implements MionHeaders {
   constructor(private resp: ServerResponse) {}
 
@@ -42,27 +39,27 @@ class ServerResponseHeadersImpl implements MionHeaders {
   }
 
   entries(): IterableIterator<[string, string]> {
-    return getSingleHeadersObj(this.resp).entries();
+    return new Map(singleHeaderEntries(this.resp)).entries();
   }
 
   keys(): IterableIterator<string> {
-    return new Set(this.resp.getHeaderNames()).values();
+    return new Map(singleHeaderEntries(this.resp)).keys();
   }
 
   values(): IterableIterator<string> {
-    return getSingleHeadersObj(this.resp).values();
+    return new Map(singleHeaderEntries(this.resp)).values();
   }
 }
 
 export function headersFromServerResponse(resp: ServerResponse, initialHeaders: Record<string, string> | null): MionHeaders {
-  if (initialHeaders) Object.entries(initialHeaders).forEach(([name, value]) => resp.setHeader(name, value));
+  // for...in allocates no entries array and no closure
+  // content-type is the reply's: a raw middleware that ends the response itself must not send the JSON one
+  if (initialHeaders) for (const name in initialHeaders) if (name !== 'content-type') resp.setHeader(name, initialHeaders[name]);
   return new ServerResponseHeadersImpl(resp);
 }
 
-function getSingleHeadersObj(resp: ServerResponse) {
-  const entries = Object.entries(resp.getHeaders()).map(([name, value]) => [
-    name,
-    Array.isArray(value) ? value.join(', ') : (value as string),
-  ]);
-  return Object.fromEntries(entries);
+function singleHeaderEntries(resp: ServerResponse): [string, string][] {
+  return Object.entries(resp.getHeaders())
+    .filter(([, value]) => value !== undefined)
+    .map(([name, value]) => [name, Array.isArray(value) ? value.join(', ') : String(value)]);
 }

@@ -29,7 +29,7 @@
 === When
 {type: 'string', format: 'date-time', jsType: 'Date'}
 === Pattern
-{type: 'string', jsType: 'RegExp'}
+{}
 === Instant
 {type: 'string', format: 'date-time', rtFormat: 'temporalInstant', rtFormatParams: {gt: 'string | undefined', lt: 'string | undefined', max: 'string | undefined', min: 'string | undefined'}}
 === Lookup

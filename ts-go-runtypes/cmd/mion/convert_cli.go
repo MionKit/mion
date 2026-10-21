@@ -1,6 +1,6 @@
 // convert_cli.go — the `mion convert` verb: rewrite files between the
 // two authoring forms (type-first / builders) over the shared
-// reflection graph. CLI-only by design (docs/done/format-conversion-layer.md):
+// reflection graph. CLI-only by design (a migration, not a build step):
 // a one-shot migration tool, in place by default, `--out-dir` for a converted
 // copy, `--check` for a write-nothing report.
 package main
@@ -37,9 +37,9 @@ Usage:
 
 Files convert as a set: declarations that reference each other stay name
 references, cycles close at the root, imports are managed, and a reference to
-a convertible declaration outside the run errors (CNV004) instead of inlining.
+a convertible declaration outside the run errors (convert-outside-set) instead of inlining.
 Declarations already in the target form are left byte-identical. A declaration
-the converter cannot express reports a CNV diagnostic and stays untouched;
+the converter cannot express reports a convert-* diagnostic and stays untouched;
 any error makes the exit code non-zero.
 `)
 	}

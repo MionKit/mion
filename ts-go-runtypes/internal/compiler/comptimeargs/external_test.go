@@ -104,7 +104,7 @@ func TestWholeConst_AsConstAccepted(t *testing.T) {
 
 // TestWholeConst_WidenedRejected pins the user-requested hardening: a `const`
 // object whose primitive members widened (no `as const`, or an explicit widening
-// annotation) is rejected with CTA004 — same-module and cross-module.
+// annotation) is rejected with marker-comptime-arg-widened-const — same-module and cross-module.
 func TestWholeConst_WidenedRejected(t *testing.T) {
 	cases := map[string]map[string]string{
 		"same-module-no-as-const": {"entry.ts": `const preset = {strategy: 'mutate'}; const target = preset;`},
@@ -138,7 +138,7 @@ func TestPureFn_InlineAccepted(t *testing.T) {
 }
 
 // TestPureFn_NamedLocalRejected: even a module-private `const` / `function`
-// reference is rejected (PFN001) — literal-only means the function must be
+// reference is rejected (purefn-not-inline) — literal-only means the function must be
 // inline so there is no named handle anything else could reach.
 func TestPureFn_NamedLocalRejected(t *testing.T) {
 	cases := map[string]string{
@@ -154,7 +154,7 @@ func TestPureFn_NamedLocalRejected(t *testing.T) {
 
 // TestPureFn_ExportedRejected is the new restriction: an EXPORTED pure-fn literal
 // (in any form — inline export, exported function, or a separate `export {f}`)
-// is reachable as a value, so it is rejected with PFN002.
+// is reachable as a value, so it is rejected with purefn-imported-or-exported.
 func TestPureFn_ExportedRejected(t *testing.T) {
 	cases := map[string]string{
 		"export-const-arrow": `export const f = (v: unknown) => typeof v === 'string'; const target = f;`,
@@ -169,7 +169,7 @@ func TestPureFn_ExportedRejected(t *testing.T) {
 }
 
 // TestPureFn_ImportedRejected pins the other half of the rule: an IMPORTED pure-fn
-// is rejected (PFN002) — the AOT-compiled copy must be the only callable one.
+// is rejected (purefn-imported-or-exported) — the AOT-compiled copy must be the only callable one.
 func TestPureFn_ImportedRejected(t *testing.T) {
 	files := map[string]string{
 		"lib.ts":   `export const f = (v: unknown) => typeof v === 'string';`,

@@ -11,11 +11,11 @@ import '@mionjs/run-types/formats';
 import {
   createValidateFn,
   createGetValidationErrorsFn,
-  createMockDataFn,
   createStandardSchema,
   registerFormatPattern,
   type DataOnly,
 } from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import {deserializeValidate, deserializeGetValidationErrors} from '../../util/deserializeRTFunctions.ts';
 
 // The content-keyword presets are ordinary string formats: the encodings
@@ -1862,6 +1862,7 @@ export const STRING_FORMAT = {
       'TF.StringDateTime (format `dateTime`) with the default ISO layout: ISO date, `T` split char, ISO tz-aware time.',
     validateNotes: [
       'Both halves must be individually valid and joined by `T`; `2024-02-29T12:30:45Z` passes.',
+      'A lowercase separator (`1963-06-19t08:30:06z`) passes too, per RFC 3339; both validate and getValidationErrors accept it.',
       'A space separator (`2024-02-29 12:30:45Z`) fails on the split char (formatPathTail `splitChar`).',
       'A non-leap date (`2023-02-29`), an out-of-range hour (`25:30:45`), and `not-a-datetime` are all rejected.',
     ],
@@ -1896,7 +1897,7 @@ export const STRING_FORMAT = {
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.stringDateTime()),
     mockType: () => createMockDataFn<TF.StringDateTime>(),
     getSamples: () => ({
-      valid: ['2024-02-29T12:30:45Z', '2026-05-28T00:00:00.500+02:00'],
+      valid: ['2024-02-29T12:30:45Z', '2026-05-28T00:00:00.500+02:00', '1963-06-19t08:30:06z'],
       invalid: ['2024-02-29 12:30:45Z', '2023-02-29T12:30:45Z', '2024-02-29T25:30:45Z', 'not-a-datetime'],
     }),
     expectedFormatErrors: () => [{name: 'dateTime', formatPathTail: 'splitChar'}, null, null, null],
@@ -2429,44 +2430,44 @@ export const STRING_FORMAT = {
     }),
     expectedFormatErrors: () => [{name: 'domain'}, null, null, null, null, null],
   },
-  domainStrict: {
-    title: 'Domain strict',
+  domainParts: {
+    title: 'Domain parts',
     description:
-      'TF.DomainStrict (format `domain`) stricter than TF.Domain with ≤6 labels, ≥2 parts, strict name/TLD patterns, and hyphen-edge rejection.',
+      'TF.DomainParts (format `domain`) splits the name and checks each part: ≤6 labels, ≥2 parts, name/TLD patterns, and hyphen-edge rejection.',
     validateNotes: [
       'Up to 6 labels pass (`mion.io`, `sub.example.com`, `aa.bb.cc.dd.ee.com`).',
       'Rejected: a leading-hyphen label (`-bad.com`), more than 6 labels (`aa.bb.cc.dd.ee.ff.com`), a numeric TLD (`example.123`), an underscore in a label (`ex_ample.com`), and a single-part name (`localhost`). The format error is `{name: domain}` (no `val`).',
     ],
-    validate: () => createValidateFn<TF.DomainStrict>(),
-    standardSchema: () => createStandardSchema<TF.DomainStrict>(),
+    validate: () => createValidateFn<TF.DomainParts>(),
+    standardSchema: () => createStandardSchema<TF.DomainParts>(),
     validateReflect: () => {
-      const v: TF.DomainStrict = 'mion.io';
+      const v: TF.DomainParts = 'mion.io';
       return createValidateFn(v);
     },
-    deserializeValidate: () => deserializeValidate<TF.DomainStrict>(),
+    deserializeValidate: () => deserializeValidate<TF.DomainParts>(),
     deserializeValidateReflect: () => {
-      const v: TF.DomainStrict = 'mion.io';
+      const v: TF.DomainParts = 'mion.io';
       return deserializeValidate(v);
     },
     getValidationErrorsReflect: () => {
-      const v: TF.DomainStrict = 'mion.io';
+      const v: TF.DomainParts = 'mion.io';
       return createGetValidationErrorsFn(v);
     },
-    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.DomainStrict>(),
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.DomainParts>(),
     deserializeGetValidationErrorsReflect: () => {
-      const v: TF.DomainStrict = 'mion.io';
+      const v: TF.DomainParts = 'mion.io';
       return deserializeGetValidationErrors(v);
     },
     mockTypeReflect: () => {
-      const v: TF.DomainStrict = 'mion.io';
+      const v: TF.DomainParts = 'mion.io';
       return createMockDataFn(v);
     },
-    validateDataOnly: () => createValidateFn<DataOnly<TF.DomainStrict>>(),
-    validateSchema: () => createValidateFn(TF.domainStrict()),
-    getValidationErrors: () => createGetValidationErrorsFn<TF.DomainStrict>(),
-    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.DomainStrict>>(),
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.domainStrict()),
-    mockType: () => createMockDataFn<TF.DomainStrict>(),
+    validateDataOnly: () => createValidateFn<DataOnly<TF.DomainParts>>(),
+    validateSchema: () => createValidateFn(TF.domainParts()),
+    getValidationErrors: () => createGetValidationErrorsFn<TF.DomainParts>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.DomainParts>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.domainParts()),
+    mockType: () => createMockDataFn<TF.DomainParts>(),
     getSamples: () => ({
       valid: ['mion.io', 'sub.example.com', 'aa.bb.cc.dd.ee.com'],
       invalid: ['-bad.com', 'aa.bb.cc.dd.ee.ff.com', 'example.123', 'ex_ample.com', 'localhost'],
@@ -2563,45 +2564,45 @@ export const STRING_FORMAT = {
     }),
     expectedFormatErrors: () => [{name: 'email'}, {name: 'email'}, {name: 'email'}],
   },
-  emailStrict: {
-    title: 'Email strict',
+  emailParts: {
+    title: 'Email parts',
     description:
-      'TF.EmailStrict (format `email`) that splits on the last `@` then applies a strict local-part pattern plus strict domain.',
+      'TF.EmailParts (format `email`) that splits on the last `@` then checks the local part and the domain as TF.DomainParts.',
     validateNotes: [
       'Plain addresses pass (`john@example.com`, `jane.doe@mion.io`).',
       'A disallowed local-part char (`a+b@x.com`) fails with `val` `Invalid characters in email local part`.',
       'Also rejected: a space in the local part (`a b@example.com`), a doubled `@` (`john@@example.com`), an underscore in the domain (`john@bad_domain.com`), and no `@` at all (`no-at-symbol`).',
     ],
-    validate: () => createValidateFn<TF.EmailStrict>(),
-    standardSchema: () => createStandardSchema<TF.EmailStrict>(),
+    validate: () => createValidateFn<TF.EmailParts>(),
+    standardSchema: () => createStandardSchema<TF.EmailParts>(),
     validateReflect: () => {
-      const v: TF.EmailStrict = 'john@example.com';
+      const v: TF.EmailParts = 'john@example.com';
       return createValidateFn(v);
     },
-    deserializeValidate: () => deserializeValidate<TF.EmailStrict>(),
+    deserializeValidate: () => deserializeValidate<TF.EmailParts>(),
     deserializeValidateReflect: () => {
-      const v: TF.EmailStrict = 'john@example.com';
+      const v: TF.EmailParts = 'john@example.com';
       return deserializeValidate(v);
     },
     getValidationErrorsReflect: () => {
-      const v: TF.EmailStrict = 'john@example.com';
+      const v: TF.EmailParts = 'john@example.com';
       return createGetValidationErrorsFn(v);
     },
-    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.EmailStrict>(),
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.EmailParts>(),
     deserializeGetValidationErrorsReflect: () => {
-      const v: TF.EmailStrict = 'john@example.com';
+      const v: TF.EmailParts = 'john@example.com';
       return deserializeGetValidationErrors(v);
     },
     mockTypeReflect: () => {
-      const v: TF.EmailStrict = 'john@example.com';
+      const v: TF.EmailParts = 'john@example.com';
       return createMockDataFn(v);
     },
-    validateDataOnly: () => createValidateFn<DataOnly<TF.EmailStrict>>(),
-    validateSchema: () => createValidateFn(TF.emailStrict()),
-    getValidationErrors: () => createGetValidationErrorsFn<TF.EmailStrict>(),
-    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.EmailStrict>>(),
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.emailStrict()),
-    mockType: () => createMockDataFn<TF.EmailStrict>(),
+    validateDataOnly: () => createValidateFn<DataOnly<TF.EmailParts>>(),
+    validateSchema: () => createValidateFn(TF.emailParts()),
+    getValidationErrors: () => createGetValidationErrorsFn<TF.EmailParts>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.EmailParts>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.emailParts()),
+    mockType: () => createMockDataFn<TF.EmailParts>(),
     getSamples: () => ({
       valid: ['john@example.com', 'jane.doe@mion.io'],
       invalid: ['a+b@x.com', 'a b@example.com', 'john@@example.com', 'john@bad_domain.com', 'no-at-symbol'],
@@ -2612,43 +2613,43 @@ export const STRING_FORMAT = {
   // ──────────────────────────────── URL ───────────────────────────
   url: {
     title: 'URL',
-    description: 'TF.Url (format `url`, `maxLength` 2048) accepting common schemes (http, ftp, ws/wss).',
+    description: 'TF.StringUrl (format `url`, `maxLength` 2048) accepting common schemes (http, ftp, ws/wss).',
     validateNotes: [
       'Multiple schemes pass (`https://`, `http://` with path+query, `ftp://`, `wss://`).',
       'Rejected: a scheme-less string (`not-a-url`), a bare host (`example.com`), a `mailto:` URI, and a scheme with no host (`https://`). The format error is `{name: url}` (no `val`).',
     ],
-    validate: () => createValidateFn<TF.Url>(),
-    standardSchema: () => createStandardSchema<TF.Url>(),
+    validate: () => createValidateFn<TF.StringUrl>(),
+    standardSchema: () => createStandardSchema<TF.StringUrl>(),
     validateReflect: () => {
-      const v: TF.Url = 'https://example.com';
+      const v: TF.StringUrl = 'https://example.com';
       return createValidateFn(v);
     },
-    deserializeValidate: () => deserializeValidate<TF.Url>(),
+    deserializeValidate: () => deserializeValidate<TF.StringUrl>(),
     deserializeValidateReflect: () => {
-      const v: TF.Url = 'https://example.com';
+      const v: TF.StringUrl = 'https://example.com';
       return deserializeValidate(v);
     },
     getValidationErrorsReflect: () => {
-      const v: TF.Url = 'https://example.com';
+      const v: TF.StringUrl = 'https://example.com';
       return createGetValidationErrorsFn(v);
     },
-    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.Url>(),
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.StringUrl>(),
     deserializeGetValidationErrorsReflect: () => {
-      const v: TF.Url = 'https://example.com';
+      const v: TF.StringUrl = 'https://example.com';
       return deserializeGetValidationErrors(v);
     },
     mockTypeReflect: () => {
-      const v: TF.Url = 'https://example.com';
+      const v: TF.StringUrl = 'https://example.com';
       return createMockDataFn(v);
     },
-    validateDataOnly: () => createValidateFn<DataOnly<TF.Url>>(),
-    validateSchema: () => createValidateFn(TF.url()),
-    // `format: 'uri'` now lowers to TF.Uri (RFC 3986, any scheme), not TF.Url —
+    validateDataOnly: () => createValidateFn<DataOnly<TF.StringUrl>>(),
+    validateSchema: () => createValidateFn(TF.stringUrl()),
+    // `format: 'uri'` now lowers to TF.Uri (RFC 3986, any scheme), not TF.StringUrl —
     // the narrow web-address brand has no schema spelling of its own.
-    getValidationErrors: () => createGetValidationErrorsFn<TF.Url>(),
-    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.Url>>(),
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.url()),
-    mockType: () => createMockDataFn<TF.Url>(),
+    getValidationErrors: () => createGetValidationErrorsFn<TF.StringUrl>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.StringUrl>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.stringUrl()),
+    mockType: () => createMockDataFn<TF.StringUrl>(),
     getSamples: () => ({
       valid: ['https://example.com', 'http://mion.io/path?q=1', 'ftp://files.example.org', 'wss://socket.example.com'],
       invalid: ['not-a-url', 'example.com', 'mailto:john@example.com', 'https://'],
@@ -2657,79 +2658,79 @@ export const STRING_FORMAT = {
   },
   urlHttp: {
     title: 'URL http',
-    description: 'TF.UrlHttp (format `url`) restricting the scheme to `http` / `https`.',
+    description: 'TF.StringUrlHttp (format `url`) restricting the scheme to `http` / `https`.',
     validateNotes: [
       'Both `https://example.com` and `http://example.com` pass; a non-http scheme (`ftp://example.com`) fails with `{name: url}` (no `val`).',
     ],
-    validate: () => createValidateFn<TF.UrlHttp>(),
-    standardSchema: () => createStandardSchema<TF.UrlHttp>(),
+    validate: () => createValidateFn<TF.StringUrlHttp>(),
+    standardSchema: () => createStandardSchema<TF.StringUrlHttp>(),
     validateReflect: () => {
-      const v: TF.UrlHttp = 'https://example.com';
+      const v: TF.StringUrlHttp = 'https://example.com';
       return createValidateFn(v);
     },
-    deserializeValidate: () => deserializeValidate<TF.UrlHttp>(),
+    deserializeValidate: () => deserializeValidate<TF.StringUrlHttp>(),
     deserializeValidateReflect: () => {
-      const v: TF.UrlHttp = 'https://example.com';
+      const v: TF.StringUrlHttp = 'https://example.com';
       return deserializeValidate(v);
     },
     getValidationErrorsReflect: () => {
-      const v: TF.UrlHttp = 'https://example.com';
+      const v: TF.StringUrlHttp = 'https://example.com';
       return createGetValidationErrorsFn(v);
     },
-    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.UrlHttp>(),
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.StringUrlHttp>(),
     deserializeGetValidationErrorsReflect: () => {
-      const v: TF.UrlHttp = 'https://example.com';
+      const v: TF.StringUrlHttp = 'https://example.com';
       return deserializeGetValidationErrors(v);
     },
     mockTypeReflect: () => {
-      const v: TF.UrlHttp = 'https://example.com';
+      const v: TF.StringUrlHttp = 'https://example.com';
       return createMockDataFn(v);
     },
-    validateDataOnly: () => createValidateFn<DataOnly<TF.UrlHttp>>(),
-    validateSchema: () => createValidateFn(TF.urlHttp()),
-    getValidationErrors: () => createGetValidationErrorsFn<TF.UrlHttp>(),
-    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.UrlHttp>>(),
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.urlHttp()),
-    mockType: () => createMockDataFn<TF.UrlHttp>(),
+    validateDataOnly: () => createValidateFn<DataOnly<TF.StringUrlHttp>>(),
+    validateSchema: () => createValidateFn(TF.stringUrlHttp()),
+    getValidationErrors: () => createGetValidationErrorsFn<TF.StringUrlHttp>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.StringUrlHttp>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.stringUrlHttp()),
+    mockType: () => createMockDataFn<TF.StringUrlHttp>(),
     getSamples: () => ({valid: ['https://example.com', 'http://example.com'], invalid: ['ftp://example.com']}),
     expectedFormatErrors: () => [{name: 'url'}],
   },
   urlFile: {
     title: 'URL file',
-    description: 'TF.UrlFile (format `url`) restricting the scheme to `file:`.',
+    description: 'TF.StringUrlFile (format `url`) restricting the scheme to `file:`.',
     validateNotes: [
       'A `file:///etc/hosts` URL passes; a non-file scheme (`https://example.com`) fails with `{name: url}` (no `val`).',
     ],
-    validate: () => createValidateFn<TF.UrlFile>(),
-    standardSchema: () => createStandardSchema<TF.UrlFile>(),
+    validate: () => createValidateFn<TF.StringUrlFile>(),
+    standardSchema: () => createStandardSchema<TF.StringUrlFile>(),
     validateReflect: () => {
-      const v: TF.UrlFile = 'file:///etc/hosts';
+      const v: TF.StringUrlFile = 'file:///etc/hosts';
       return createValidateFn(v);
     },
-    deserializeValidate: () => deserializeValidate<TF.UrlFile>(),
+    deserializeValidate: () => deserializeValidate<TF.StringUrlFile>(),
     deserializeValidateReflect: () => {
-      const v: TF.UrlFile = 'file:///etc/hosts';
+      const v: TF.StringUrlFile = 'file:///etc/hosts';
       return deserializeValidate(v);
     },
     getValidationErrorsReflect: () => {
-      const v: TF.UrlFile = 'file:///etc/hosts';
+      const v: TF.StringUrlFile = 'file:///etc/hosts';
       return createGetValidationErrorsFn(v);
     },
-    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.UrlFile>(),
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.StringUrlFile>(),
     deserializeGetValidationErrorsReflect: () => {
-      const v: TF.UrlFile = 'file:///etc/hosts';
+      const v: TF.StringUrlFile = 'file:///etc/hosts';
       return deserializeGetValidationErrors(v);
     },
     mockTypeReflect: () => {
-      const v: TF.UrlFile = 'file:///etc/hosts';
+      const v: TF.StringUrlFile = 'file:///etc/hosts';
       return createMockDataFn(v);
     },
-    validateDataOnly: () => createValidateFn<DataOnly<TF.UrlFile>>(),
-    validateSchema: () => createValidateFn(TF.urlFile()),
-    getValidationErrors: () => createGetValidationErrorsFn<TF.UrlFile>(),
-    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.UrlFile>>(),
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.urlFile()),
-    mockType: () => createMockDataFn<TF.UrlFile>(),
+    validateDataOnly: () => createValidateFn<DataOnly<TF.StringUrlFile>>(),
+    validateSchema: () => createValidateFn(TF.stringUrlFile()),
+    getValidationErrors: () => createGetValidationErrorsFn<TF.StringUrlFile>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.StringUrlFile>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.stringUrlFile()),
+    mockType: () => createMockDataFn<TF.StringUrlFile>(),
     getSamples: () => ({valid: ['file:///etc/hosts'], invalid: ['https://example.com']}),
     expectedFormatErrors: () => [{name: 'url'}],
   },
@@ -2935,9 +2936,9 @@ export const STRING_FORMAT = {
   },
   uri: {
     title: 'Uri',
-    description: 'TF.Uri (format `url`) — RFC 3986 URI — any scheme, not just the web ones `TF.Url` accepts.',
+    description: 'TF.Uri (format `url`) — RFC 3986 URI — any scheme, not just the web ones `TF.StringUrl` accepts.',
     validateNotes: [
-      '`mailto:`, `urn:` and `tel:` are URIs and pass here while failing `TF.Url`, which is the narrow web-address form.',
+      '`mailto:`, `urn:` and `tel:` are URIs and pass here while failing `TF.StringUrl`, which is the narrow web-address form.',
       'A scheme is required, so a relative reference like `../a` fails; use `TF.UriReference` for those.',
     ],
     validate: () => createValidateFn<TF.Uri>(),
@@ -3239,7 +3240,7 @@ export const STRING_FORMAT = {
   pattern_generated: {
     title: 'Generated pattern samples',
     description:
-      'stringFormat with a sample-less inline `pattern`: the build auto-generates its mockSamples from the regex (deterministic per pattern), so mocking works with nothing declared.',
+      'stringFormat with a sample-less inline `pattern`: the build auto-generates its mockSamples from the regex (a fresh pool each build unless a literal mock seed pins it), so mocking works with nothing declared.',
     validateNotes: [
       'Matching ticket codes pass (`ab-12`, `cd-09`); a wrong letter range (`zz-12`), a short number (`ab-1`), capitals (`AB-12`), and the empty string fail with `val` `Invalid pattern`.',
       'No mockSamples are declared anywhere: the mock lanes only work because the build generated the pool.',

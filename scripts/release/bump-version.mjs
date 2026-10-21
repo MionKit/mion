@@ -5,7 +5,7 @@
 //
 //   Usage:  node scripts/release/bump-version.mjs <patch|minor|major|X.Y.Z>
 //
-// The per-platform @mionjs/binary-* packages and @mionjs/bin's
+// The per-platform @mionjs/native-compiler-* packages and @mionjs/bin-compiler's
 // optionalDependencies are stamped from version.json at build time by
 // scripts/release/build-binaries.mjs — this script never touches them.
 //
@@ -20,12 +20,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {installedDrizzleVersion, peerRangeFor, plannedVersion, readDialectPackages, unreleasedChanges} from '../lib/drizzle-line.mjs';
+import {writeJsonKeepingIndent as writeJson} from '../lib/json-file.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const VERSION_FILE = path.join(REPO_ROOT, 'version.json');
 
 const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
-const writeJson = (file, value) => fs.writeFileSync(file, JSON.stringify(value, null, 2) + '\n');
 
 function nextVersion(current, bump) {
   if (/^\d+\.\d+\.\d+$/.test(bump)) return bump; // explicit X.Y.Z
@@ -53,10 +53,10 @@ function planDrizzleLine(newVersion) {
     const {pkg, packageFile, packageDir} = row;
     const [major, minor] = pkg.version.split('.').map(Number);
     if (major !== drizzleMajor || minor !== drizzleMinor) {
-      throw new Error(`${pkg.name} is on ${pkg.version} but drizzle-orm ${installed} is installed — realign the drizzle line first (pnpm rtx release check-drizzle-versions).`);
+      throw new Error(`${pkg.name} is on ${pkg.version} but drizzle-orm ${installed} is installed — realign the drizzle line first (pnpm miondevx release check-drizzle-versions).`);
     }
     if (pkg.peerDependencies?.['drizzle-orm'] !== peerRangeFor(installed)) {
-      throw new Error(`${pkg.name}'s drizzle-orm peer range does not match drizzle-orm ${installed} — realign it first (pnpm rtx release check-drizzle-versions).`);
+      throw new Error(`${pkg.name}'s drizzle-orm peer range does not match drizzle-orm ${installed} — realign it first (pnpm miondevx release check-drizzle-versions).`);
     }
 
     const changes = unreleasedChanges(REPO_ROOT, packageDir);
@@ -111,7 +111,7 @@ function main() {
   const edited = [path.relative(REPO_ROOT, VERSION_FILE)];
 
   // Every workspace package.json + the root, so the lockstep stays exact. The
-  // The @mionjs/bin bump is load-bearing: pnpm writes that concrete version into
+  // The @mionjs/bin-compiler bump is load-bearing: pnpm writes that concrete version into
   // @mionjs/devtools' workspace:* dependency at pack time. Packages marked
   // `"versionLine": "drizzle-orm"` ride drizzle-orm's version line instead
   // (<drizzle major.minor>.<own patch>, guarded by check-drizzle-versions.mjs)

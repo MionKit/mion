@@ -1,0 +1,28 @@
+{
+  "name": "@mionjs/code-card",
+  "version": "0.12.2",
+  "private": true,
+  "type": "module",
+  "description": "Shareable code images: a snippet in an editor window, rendered to PNG (private dev tool, never published)",
+  "author": "ma jerez",
+  "homepage": "https://mion.io/",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MionKit/mion.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MionKit/mion/issues"
+  },
+  "scripts": {
+    "test": "tsc -p tsconfig.json --noEmit && vitest run",
+    "clean": "rimraf .coverage tmp",
+    "fresh-start": "pnpm run clean && rimraf node_modules"
+  },
+  "dependencies": {
+    "@vitejs/plugin-vue": "6.0.8",
+    "shiki": "4.4.3",
+    "vite": "8.0.16",
+    "vue": "3.5.40"
+  }
+}

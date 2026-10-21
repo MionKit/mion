@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
@@ -115,10 +116,10 @@ export const isUser = createValidateFn<User>(undefined, {checkUnknowns: true});
 		t.Fatalf("no validateStrict entry emitted\nmodules: %v", keys(modules))
 	}
 	body := modules[name]
-	if strings.Contains(body, "countEnumKeys") {
+	if strings.Contains(body, purefnids.CountEnumKeys) {
 		t.Errorf("optional-prop shape wrongly used the key-count fast path:\n%s", body)
 	}
-	if !strings.Contains(body, "hasUnknownKeysFromArray") {
+	if !strings.Contains(body, purefnids.HasUnknownKeysFromArray) {
 		t.Errorf("optional-prop shape did not fall back to the key-list scan:\n%s", body)
 	}
 }
@@ -134,7 +135,7 @@ export const isRecord = createValidateFn<Record<string, number>>(undefined, {che
 		t.Fatalf("no validateStrict entry emitted\nmodules: %v", keys(modules))
 	}
 	body := modules[name]
-	for _, unwanted := range []string{"countEnumKeys", "hasUnknownKeysFromArray"} {
+	for _, unwanted := range []string{purefnids.CountEnumKeys, purefnids.HasUnknownKeysFromArray} {
 		if strings.Contains(body, unwanted) {
 			t.Errorf("index-signature shape emitted %q — every matching key IS declared:\n%s", unwanted, body)
 		}
@@ -156,21 +157,20 @@ export const errorsOf = createGetValidationErrorsFn<User>(undefined, {checkUnkno
 // what a combined call site must resolve to.
 func TestCheckUnknowns_ComposesWithValidateOptions(t *testing.T) {
 	modules := scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';
-interface User {a: 'x'}
-export const isUser = createValidateFn<User>(undefined, {checkUnknowns: true, noLiterals: true});
+interface User {a: number}
+export const isUser = createValidateFn<User>(undefined, {checkUnknowns: true, numberMode: 'typeof'});
 `)
 	op, ok := operations.ByName("validateStrict")
 	if !ok {
 		t.Fatalf("validateStrict operation missing from the registry")
 	}
-	want := operations.FnHashFor(op, []string{"noLiterals"}, "", false) + "_"
+	want := operations.FnHashFor(op, []string{"numberTypeof"}, "", false) + "_"
 	if _, found := findEntryWith(modules, want); !found {
-		t.Fatalf("no noLiterals variant of the fused family emitted\nmodules: %v", keys(modules))
+		t.Fatalf("no numberTypeof variant of the fused family emitted\nmodules: %v", keys(modules))
 	}
 }
 
-// Marker test coverage rule (ts-go-runtypes/CLAUDE.md): both getRunTypeId call
-// shapes, written as paired tests using the natural shape for each intent.
+// Paired forms follow ts-go-runtypes/AGENTS.md marker coverage.
 
 func TestCheckUnknowns_MarkerStaticForm(t *testing.T) {
 	r := setupInline(t, map[string]string{"static.ts": `import {getRunTypeId} from '@mionjs/run-types';
@@ -252,17 +252,7 @@ export const isUser = createValidateFn<User>();
 	}
 }
 
-// The fused validators run their key check INSIDE their own object guard, so
-// they must not also pull in the one the standalone unknown-keys families carry.
-//
-// Both halves already avoid it — validate passes keepObjectCheck=false to
-// callCheckUnknownPropertiesForHas, and the fused error arm calls
-// emitParentUnknownKeyErrors directly rather than emitObjectUnknownKeyErrors,
-// whose body IS guarded (that family has nothing above it asserting shape). But
-// that is a property of where the shared helper's boundary happens to fall, not
-// something the type system enforces: moving the guard down into the helper, or
-// pointing the fused arm at the family arm, would silently emit the guard twice
-// on every object node. Cheap to pin, easy to regress.
+// The fused validators check keys INSIDE their own object guard; a guard moved into the shared helpers would emit twice.
 func TestCheckUnknowns_DoesNotDoubleGuardObjects(t *testing.T) {
 	for _, row := range []struct{ label, factory, opName string }{
 		{"validate", "createValidateFn", "validateStrict"},
@@ -356,7 +346,7 @@ export const isCallable = createValidateFn<Callable>(undefined, {checkUnknowns: 
 		t.Fatalf("no validateStrict entry emitted\nmodules: %v", keys(modules))
 	}
 	body := modules[name]
-	for _, unwanted := range []string{"countEnumKeys", "hasUnknownKeysFromArray"} {
+	for _, unwanted := range []string{purefnids.CountEnumKeys, purefnids.HasUnknownKeysFromArray} {
 		if strings.Contains(body, unwanted) {
 			t.Errorf("callable shape emitted %q — a Function's own props are the call signature's business:\n%s", unwanted, body)
 		}
@@ -365,9 +355,7 @@ export const isCallable = createValidateFn<Callable>(undefined, {checkUnknowns: 
 
 // THE KEY CHECK ADDS NO SHAPE GUARD OF ITS OWN.
 //
-// The blind hasUnknownKeys carries the whole object guard — `typeof`,
-// `!== null`, `!Array.isArray` — because nothing above it has established
-// anything. The fused validator needs none of it: `typeof` / `!== null` are
+// The fused validator needs no object guard beyond its own: `typeof` / `!== null` are
 // already its leading term, and an array is already stopped by the property
 // check (an array has no `a`) or, on a shape with no required property, by the
 // `[object Object]` brand guard emitObjectValidate adds for exactly that reason.
@@ -415,37 +403,6 @@ export const tErrors = createGetValidationErrorsFn<T>(undefined, {checkUnknowns:
 	}
 }
 
-// The flag the fused families inherit for free: with runsAfterValidation the
-// standalone predicate emits NO object guard at all, because the caller promised
-// the value already passed validate. Pinned against the blind form, which must
-// keep every part of it.
-func TestCheckUnknowns_RunsAfterValidationEmitsNoObjectGuard(t *testing.T) {
-	modules := scanEntryModules(t, `import {createHasUnknownKeysFn} from '@mionjs/run-types';
-interface T {a: string; b: number}
-export const blind = createHasUnknownKeysFn<T>();
-export const fast = createHasUnknownKeysFn<T>(undefined, {runsAfterValidation: true});
-`)
-	guardParts := []string{objectGuardNeedle, "v !== null", `!Array.isArray(v)`}
-
-	// The blind predicate has nothing above it establishing anything, so it
-	// carries the whole guard.
-	blind, ok := findEntryWithAll(modules, guardParts)
-	if !ok {
-		t.Fatalf("the blind hasUnknownKeys entry lost its object guard\nmodules: %v", keys(modules))
-	}
-
-	// The variant is a separate entry keyed by its variant hash, and carries no
-	// part of the guard: the caller promised validate ran, and validate is what
-	// rejects an array for an object shape.
-	fast, ok := findEntryWithout(modules, blind, "huk", guardParts)
-	if !ok {
-		t.Fatalf("no guardless runsAfterValidation entry emitted\nmodules: %v", keys(modules))
-	}
-	if !strings.Contains(modules[fast], "countEnumKeys") {
-		t.Errorf("the runsAfterValidation entry is not the key-count fast path:\n%s", modules[fast])
-	}
-}
-
 // objectGuardNeedle is the guard as it appears INSIDE an emitted module, where
 // the body is a JS string literal and its quotes are backslash-escaped.
 const objectGuardNeedle = `typeof v === \'object\'`
@@ -458,53 +415,6 @@ func fnBodyOf(module string) string {
 		return module[at:]
 	}
 	return module
-}
-
-// findEntryWithAll returns the entry containing every one of the given
-// substrings.
-func findEntryWithAll(modules map[string]string, needles []string) (string, bool) {
-	for _, name := range sortedEntryNames(modules) {
-		if moduleHasAll(modules[name], needles) {
-			return name, true
-		}
-	}
-	return "", false
-}
-
-// findEntryWithout returns an entry of the given family tag, other than
-// `exclude`, containing NONE of the given substrings.
-func findEntryWithout(modules map[string]string, exclude string, familyTag string, needles []string) (string, bool) {
-	for _, name := range sortedEntryNames(modules) {
-		if name == exclude {
-			continue
-		}
-		module := modules[name]
-		if !strings.Contains(module, "['"+familyTag+"'") {
-			continue
-		}
-		if !moduleHasAll(module, needles) && !moduleHasAny(module, needles) {
-			return name, true
-		}
-	}
-	return "", false
-}
-
-func moduleHasAll(haystack string, needles []string) bool {
-	for _, needle := range needles {
-		if !strings.Contains(haystack, needle) {
-			return false
-		}
-	}
-	return true
-}
-
-func moduleHasAny(haystack string, needles []string) bool {
-	for _, needle := range needles {
-		if strings.Contains(haystack, needle) {
-			return true
-		}
-	}
-	return false
 }
 
 // The validator and its error twin must agree at every node about WHETHER a key
@@ -558,7 +468,7 @@ func entryMentionsKeyCheck(t *testing.T, modules map[string]string, prefix strin
 		t.Fatalf("no entry emitted for prefix %q\nmodules: %v", prefix, keys(modules))
 	}
 	body := modules[name]
-	for _, shape := range []string{"countEnumKeys", "hasUnknownKeysFromArray", "getUnknownKeysFromArray"} {
+	for _, shape := range []string{purefnids.CountEnumKeys, purefnids.HasUnknownKeysFromArray, purefnids.GetUnknownKeysFromArray} {
 		if strings.Contains(body, shape) {
 			return true
 		}
@@ -566,10 +476,17 @@ func entryMentionsKeyCheck(t *testing.T, modules map[string]string, prefix strin
 	return false
 }
 
-// An ARRAY node emits no key check of its own — a JSON array cannot carry
-// undeclared object properties, so there is nothing to ask. All it emits is the
-// traversal, and only when an element has something worth checking. An array of
-// primitives emits nothing at all.
+// findOtherEntryWith is findEntryWith skipping one entry name.
+func findOtherEntryWith(modules map[string]string, needle string, skip string) (string, bool) {
+	for _, name := range sortedEntryNames(modules) {
+		if name != skip && strings.Contains(modules[name], needle) {
+			return name, true
+		}
+	}
+	return "", false
+}
+
+// An array emits no key check of its own (a JSON array has no undeclared properties), only element traversal.
 func TestCheckUnknowns_ArrayNodeOnlyTraverses(t *testing.T) {
 	t.Run("elements worth checking", func(t *testing.T) {
 		modules := scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';
@@ -577,27 +494,23 @@ interface Item {a: string}
 export const isItems = createValidateFn<Item[]>(undefined, {checkUnknowns: true});
 `)
 		prefix := familyPrefix(t, "validateStrict")
-		root, ok := findEntryForType(modules, prefix, "Item[]")
-		if !ok {
-			// The array root may be keyed by its own printed name; fall back to the
-			// entry that is not the element type.
-			root, ok = findEntryWith(modules, prefix)
-		}
-		if !ok {
-			t.Fatalf("no validateStrict entry emitted\nmodules: %v", keys(modules))
-		}
 		element, ok := findEntryForType(modules, prefix, "Item")
 		if !ok {
 			t.Fatalf("no validateStrict entry for the element type\nmodules: %v", keys(modules))
 		}
-		if root == element {
+		root, ok := findEntryForType(modules, prefix, "Item[]")
+		if !ok {
+			// The array root may be keyed by its own printed name; fall back to the entry that is not the element type.
+			root, ok = findOtherEntryWith(modules, prefix, element)
+		}
+		if !ok {
 			t.Fatalf("expected separate entries for the array and its element type\nmodules: %v", keys(modules))
 		}
 		// The element carries the check; the array itself only reaches it.
-		if !strings.Contains(modules[element], "countEnumKeys") {
+		if !strings.Contains(modules[element], purefnids.CountEnumKeys) {
 			t.Errorf("the element type lost its key check:\n%s", modules[element])
 		}
-		for _, unwanted := range []string{"countEnumKeys", "hasUnknownKeysFromArray"} {
+		for _, unwanted := range []string{purefnids.CountEnumKeys, purefnids.HasUnknownKeysFromArray} {
 			if strings.Contains(modules[root], unwanted) {
 				t.Errorf("the array node emitted %q — an array has no undeclared properties to find:\n%s", unwanted, modules[root])
 			}
@@ -612,7 +525,7 @@ export const isNames = createValidateFn<string[]>(undefined, {checkUnknowns: tru
 		if !ok {
 			t.Fatalf("no validateStrict entry emitted\nmodules: %v", keys(modules))
 		}
-		for _, unwanted := range []string{"countEnumKeys", "hasUnknownKeysFromArray"} {
+		for _, unwanted := range []string{purefnids.CountEnumKeys, purefnids.HasUnknownKeysFromArray} {
 			if strings.Contains(modules[name], unwanted) {
 				t.Errorf("an array of primitives emitted %q:\n%s", unwanted, modules[name])
 			}

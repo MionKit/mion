@@ -55,6 +55,24 @@ describe('StripRunTypeMeta<T> — per-branch correctness + instantiation budget'
     );
   });
 
+  // The URL global is declared in the snippet (the harness loads no dom or @types/node), so only this case pays for it.
+  it('a Url object brand collapses to the bare URL; a plain URL passes through', () => {
+    check(
+      BRAND_PREAMBLE +
+        `
+      declare global {
+        interface URL {href: string; pathname: string; toJSON(): string}
+        var URL: {prototype: URL; new (url: string): URL};
+      }
+      type LinkFmt = Wide<URL, 'nativeUrl', {maxLength: 20}>;
+      type _01 = Expect<Equal<StripRunTypeMeta<LinkFmt>, URL>>;
+      type _02 = Expect<Equal<StripRunTypeMeta<URL>, URL>>;
+      type _03 = Expect<Equal<StripRunTypeMeta<{link: LinkFmt}>, {link: URL}>>;
+      `,
+      296
+    );
+  });
+
   it('wide format brands collapse to their base; nominal brands collapse too', () => {
     check(
       BRAND_PREAMBLE +
@@ -92,6 +110,21 @@ describe('StripRunTypeMeta<T> — per-branch correctness + instantiation budget'
       type _06 = Expect<Equal<StripRunTypeMeta<WithContains>, unknown[]>>;
       `,
       2042
+    );
+  });
+
+  it('branded Map / Set (FormattedMap / FormattedSet) recover the bare collection', () => {
+    check(
+      BRAND_PREAMBLE +
+        `
+      type SetBrand<P> = {readonly [__rtFormatName]?: 'formattedSet'; readonly [__rtFormatParams]?: P};
+      type MapBrand<P> = {readonly [__rtFormatName]?: 'formattedMap'; readonly [__rtFormatParams]?: P};
+      type _01 = Expect<Equal<StripRunTypeMeta<Set<string> & SetBrand<{maxItems: 3}>>, Set<string>>>;
+      type _02 = Expect<Equal<StripRunTypeMeta<Map<string, number> & MapBrand<{minItems: 1; maxItems: 2}>>, Map<string, number>>>;
+      type _03 = Expect<Equal<StripRunTypeMeta<ReadonlySet<Email> & SetBrand<{uniqueItems: true}>>, ReadonlySet<Email>>>;
+      type _04 = Expect<Equal<StripRunTypeMeta<Set<unknown> & {readonly [__rtContains]?: {readonly rt$child: number; readonly rt$min: 1}}>, Set<unknown>>>;
+      `,
+      1546
     );
   });
 

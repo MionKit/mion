@@ -1,6 +1,6 @@
 # Fuzzing & hardening
 
-Autonomous, reproducible fuzzing of the runtime validation/serialization
+Autonomous, reproducible fuzzing of the runtime validation and JSON round trip
 functions. The harness reuses the reflection graph the library already builds:
 because every `RunType` is walkable at runtime, the same giant-switch design as
 the mock walker drives both _valid_ and _invalid_ data generation, and a small
@@ -41,13 +41,11 @@ All under [`packages/run-types/test/fuzz/`](../packages/run-types/test/fuzz/):
 | `type/*.smoke.test.ts`, `type/bugReprosValidTs.test.ts` | Pinned minimal repros for findings already fixed. |
 | `convert/convertRoundtrip.ts` + `convertFuzz.integration.test.ts` | The convert roundtrip lane — the FE, real-CLI twin of the Go atom sweep, run over the FULL generated type space (`CONVERT_GEN_OPTIONS` = the wild space + `structuralFormats`). Each iteration renders a declarations file with `getRunTypeId` probes (both call shapes for the root, asserted id-equal every draw), spawns the real `mion convert` binary over a real temp project (the shipped dist package on disk), walks TWO independently randomized form chains (builders middles closed by the type form), asserts every declaration's id after EVERY leg via the resolver's serve ops, requires the two chains' final type forms to be BYTE-EQUAL, and re-converts that fixpoint once more asserting a byte no-op (C5 at the CLI level) — the canonical-fixpoint oracle that caught the path-dependent union order, dropped user import bindings, preset-vs-params id splits, and the RT.circular payload loss. Designed loud refusals reroll or count against a ceiling (`EXPECTED_REFUSALS`) so the allowlist can never swallow the lane. |
 | `roundtrip/roundtripOracle.ts` + `roundtripRunner.ts` | The all-strategy round-trip lane (`RT-*` oracles): every codec strategy for one generated serialisable type. |
-| `binary/sizeOracle.ts` + `sizeFuzzRunner.ts` | The binary size-estimate lane (`O-SIZE-*`): in-bounds values must not resize the cold buffer, oversized ones must. |
-| `binary/binaryEncoderResize.test.ts` | Pinned regression for the first finding. |
-| `cloning/referenceClone.ts` | The clone ORACLE MODEL — a naive reference interpreter of `createCloneExactShapeFn<T>` over the reflected RunType graph; what the compiled clone is compared against (O15). |
+| `cloning/referenceClone.ts` | The clone ORACLE MODEL — a naive reference interpreter of `createRemoveUnknownKeysFn<T>` over the reflected RunType graph; what the compiled clone is compared against (O15). |
 | `cloning/extrasValue.ts` | The extras mutator — injects undeclared `__fz_extra_<n>` keys at provably-sound plain-object positions (validate stays true, a correct clone must strip them). Same one-directional soundness contract as `invalidValue.ts`. |
 | `cloning/cloneOracle.ts` | The cloning oracle layer: `CloneFuzzTarget` + the O15–O17 checks, a local Temporal-aware `deepEqual`, and the shared-mutable-reference walker. |
 | `cloning/cloneFuzzRunner.ts` | The cloning driver: `runCloneFuzz` / `runCloneFuzzForDuration` — valid / extras / junk streams per seed. |
-| `cloning/cloneFuzz.integration.test.ts` | The cloning end-to-end sweep over REAL compiled `createCloneExactShapeFn` factories, plus the CES001 throw-corpus and the cyclic-value pin. |
+| `cloning/cloneFuzz.integration.test.ts` | The cloning end-to-end sweep over REAL compiled `createRemoveUnknownKeysFn` factories, plus the unknown-keys-object-union throw-corpus and the cyclic-value pin. |
 | `enrich/enrichModel.ts`, `i18nModel.ts`, `typeModFuzzRunner.ts` | The model-based enrichment lanes: random command sequences against the real CLI, checked by the `R*` / `T*` / `NL RC CB P` rule sets. |
 | `**/*.unit.test.ts` | Offline unit tests (no Go binary) over hand-built `RunType` graphs + the generator / value / budget layers. |
 
@@ -98,11 +96,10 @@ library must uphold, never from hand-written expected outputs:
 | **O3** | robustness  | `validate(anything)` returns a boolean, never throws          |
 | **O4** | consistency | `validate(x)` ⇔ `getValidationErrors(x).length === 0`         |
 | **O5** | strong      | JSON wire is stable: `encode(decode(encode v)) === encode(v)` |
-| **O6** | strong      | binary wire is byte-stable through `decode∘encode`            |
 | **O7** | robustness  | `encode(valid)` does not throw and yields a wire value        |
 | **O10** | consistency | a type whose encoders ALL `alwaysThrow` carries an Error-severity diagnostic (fail ⇒ error) |
-| **O12** | consistency | the two wires agree on the value: `jsonEncode(binaryDecode(binaryEncode v))` equals `jsonEncode(v)` |
-| **O14** | consistency | JSON and binary agree on serialize-vs-`alwaysThrow` — the rule is the same for every serialization family |
+| **O12** | consistency | the clone and compact wires agree on the value: `jsonEncode(compactDecode(compactEncode v))` equals `jsonEncode(v)` |
+| **O14** | consistency | the clone and compact encoders agree on serialize-vs-`alwaysThrow` — the rule is the same for every strategy |
 | **O15** | strong      | `clone(v)` deep-equals `referenceClone(schema, v)`           |
 | **O16** | strong      | clone never mutates its input, shares no mutable reference with it, and keeps the root prototype |
 | **O17** | consistency | `validate(clone(v))` is true, `clone∘clone` is stable, and extras-injected inputs come out `hasUnknownKeys`-clean |
@@ -112,26 +109,25 @@ O10 / O12 / O14 are the non-data lane's additions
 where values come from the REAL `createMockDataFn` and the serialize-vs-fail
 tier is read off the ACTUAL encoder behaviour.
 
-Four more lanes carry their own catalogues, on the same principle:
+Three more lanes carry their own catalogues, on the same principle:
 
 | Ids | Lane | Where |
 | --- | --- | --- |
 | **RT-VALIDATE / RT-AGREE / RT-STABLE / RT-FAILAGREE / RT-NATIVE / RT-THROW** | all-strategy round-trip: every codec strategy for one generated type agrees | [`roundtrip/roundtripOracle.ts`](../packages/run-types/test/fuzz/roundtrip/roundtripOracle.ts) |
-| **O-SIZE-ROUNDTRIP / O-SIZE-GREW** | binary size estimate: an in-bounds value must not resize the cold buffer, an oversized one must | [`binary/sizeOracle.ts`](../packages/run-types/test/fuzz/binary/sizeOracle.ts) |
 | **R1 R2 R3 R5 R6 R7a R8 R10** | enrichment sync: idempotence, preservation, convergence, orphan carcasses, prune, totality | [`enrich/enrichModel.ts`](../packages/run-types/test/fuzz/enrich/enrichModel.ts) |
 | **T1–T7, T10** / **NL RC CB P** | i18n reconcile / type-modification: never-copy, arms-owned, kind-stable, todo discipline / nothing-lost, rename-carry, content-blindness, parse-safety | [`enrich/i18nModel.ts`](../packages/run-types/test/fuzz/enrich/i18nModel.ts), [`enrich/typeModFuzzRunner.ts`](../packages/run-types/test/fuzz/enrich/typeModFuzzRunner.ts) |
 
-Those four ride a `rule:` field rather than `oracle:`, so grepping for `oracle:`
+Those three ride a `rule:` field rather than `oracle:`, so grepping for `oracle:`
 alone will not find them.
 
-O5/O6 compare the **wire image** (`encode∘decode∘encode === encode`) rather than
+O5 compares the **wire image** (`encode∘decode∘encode === encode`) rather than
 value equality, which sidesteps the optional-`undefined`-key vs dropped-key
 mismatch the mock produces. O4 is a cheap, powerful cross-check: the two
 validation functions disagreeing is almost always a bug.
 
 ### The cloning oracles — a reference interpreter as the model
 
-`createCloneExactShapeFn<T>()` has no wire to round-trip, so its strong oracle
+`createRemoveUnknownKeysFn<T>()` has no wire to round-trip, so its strong oracle
 is a **model**: [`cloning/referenceClone.ts`](../packages/run-types/test/fuzz/cloning/referenceClone.ts)
 is a naive, obviously-correct interpreter of the clone contract over the same
 reflected RunType graph the mock walker reads — declared members rebuild,
@@ -151,7 +147,7 @@ internals, or index-signature objects). O17 then checks the clone comes out
 `hasUnknownKeys`-clean.
 
 Two contract edges ride along as pinned tests rather than fuzz streams:
-object-bearing unions are a **throw-corpus** (the factory must be a CES001
+object-bearing unions are a **throw-corpus** (the factory must be a unknown-keys-object-union
 alwaysThrow — there is no sound way to pick which declared shape to rebuild),
 and a cyclic VALUE is pinned to its accepted failure mode (RangeError stack
 overflow — values are trees by contract; there is deliberately no cycle
@@ -163,15 +159,15 @@ follow-up.
 
 ## Running
 
-All suites run through the internal CLI: `pnpm rtx core fuzz <lane…>
+All suites run through the internal CLI: `pnpm miondevx core fuzz <lane…>
 [--quick|--soak]`. It builds the binary + plugin first and sets each lane's
 `MION_FUZZ_*` env for you from the `FUZZ` registry in
-[scripts/rt.mjs](../scripts/rt.mjs), which is the single source of truth for the
+[scripts/miondevx.mjs](../scripts/miondevx.mjs), which is the single source of truth for the
 lane list and every budget. Lanes: `unit | value | types | nondata | roundtrip |
-size | cloning | enrich | i18n | typemod | race | sidecar | patterngen | convert
+cloning | enrich | i18n | typemod | race | sidecar | patterngen | convert
 | convertcli | all`.
 
-Name several lanes in one invocation (`pnpm rtx core fuzz types value --quick`)
+Name several lanes in one invocation (`pnpm miondevx core fuzz types value --quick`)
 to pay vitest's startup once. See the scheduling rule below before doing that.
 
 ### Budget tiers
@@ -187,24 +183,24 @@ Every lane runs at one of three budgets:
 Giving a lane a `soak` block in the registry IS the opt-in to the release tier:
 a soak budget is a real wall-clock commitment, but once made, both soak
 workflows pick the lane up automatically (they derive their matrices from
-`pnpm rtx core fuzz-lanes`).
+`pnpm miondevx core fuzz-lanes`).
 
 ### Scheduling: time-boxed vs count-based
 
 The two budget shapes CANNOT be scheduled the same way:
 
 - **Time-boxed** lanes (`MION_FUZZ_*_SOAK_MS`: value, types, nondata, roundtrip,
-  size, cloning) fuzz until a wall clock runs out. Under CPU contention they
+  cloning, elision, jsonsize and the `sec*` lanes) fuzz until a wall clock runs out. Under CPU contention they
   silently buy LESS coverage in the same wall clock, so they must never run
   concurrently with each other.
 - **Count-based** lanes (sequences / iterations: enrich, i18n, typemod, race,
   convert, convertcli) do a fixed amount of work. Contention costs wall clock
   only, so they can share a runner.
 
-`rtx` enforces this rather than trusting you to remember it: a multi-lane
+`miondevx` enforces this rather than trusting you to remember it: a multi-lane
 invocation containing a time-boxed lane runs the files sequentially
 (`--no-file-parallelism`) and says so. The soak workflows give every lane its
-own runner, and ci.yml splits the two kinds across its two jobs for the same
+own runner, and ci.yml runs the two kinds as separate steps for the same
 reason.
 
 Note that `MION_FUZZ_ITER` drives BOTH convert lanes, so exporting it in a shell
@@ -240,14 +236,14 @@ conversion — the other two exercise the paths that skip it.
 
 Every lane also runs under the ordinary test commands — `go test
 ./internal/...` picks up the Go `convert` sweep, `vitest run test/fuzz` picks up
-the rest — at its DEFAULT budget. `rtx core fuzz` is the tier / replay front
+the rest — at its DEFAULT budget. `miondevx core fuzz` is the tier / replay front
 door over those same commands, not a gate (`race` is the one lane it gates,
 since nothing else sets `MION_FUZZ_RACE=1`).
 
 Every lane runs on EVERY PR at its quick budget, in
-[ci.yml](../.github/workflows/ci.yml): the count-based lanes ride the `go tests
-+ fuzz` job's sweep, the time-boxed ones run in one sequential batch on the `js
-tests + lint` runner, and the Go sweeps widen via `MION_FUZZ_ITER`. Seeds stay
+[ci.yml](../.github/workflows/ci.yml), all in the `go tests + fuzz` job: the
+count-based lanes ride its parallel sweep, the time-boxed ones run after it in
+one sequential batch, and the Go sweeps widen via `MION_FUZZ_ITER`. Seeds stay
 version-derived there (no `MION_FUZZ_SEED`), so a red lane belongs to that PR and
 replays locally with the command the failing step names. The point is that a
 finding lands while the change that caused it is still in review, instead of
@@ -258,7 +254,7 @@ The soak budgets run in CI in the `fuzz-soak` job of
 on release PRs, on the push to `prod`, and on demand with `gh workflow run
 release-gate.yml --ref <branch>`. Each lane is seeded from the run id and the
 seed is echoed, so a CI finding replays verbatim with `MION_FUZZ_SEED=<printed>
-pnpm rtx core fuzz <lane> --soak`. A round can also be run off the release path
+pnpm miondevx core fuzz <lane> --soak`. A round can also be run off the release path
 with [fuzz-soak.yml](../.github/workflows/fuzz-soak.yml) (`gh workflow run
 fuzz-soak.yml -f lane=<lane|all>`), so findings get drained between releases
 rather than piling up against one.
@@ -273,23 +269,23 @@ soak as a timeout failure.
 
 ```bash
 # offline unit tests — pure logic, no Go binary needed
-pnpm rtx core fuzz unit
+pnpm miondevx core fuzz unit
 
 # EVERY lane at its default budget: the whole fuzz tree, both sidecar lanes,
 # the race test and both Go sweeps (builds binary + plugin first)
-pnpm rtx core fuzz all
+pnpm miondevx core fuzz all
 
-# what CI runs per PR: the six time-boxed lanes, one sequential batch
-pnpm rtx core fuzz cloning nondata roundtrip size types value --quick
+# what CI runs per PR: the time-boxed lanes, one sequential batch
+pnpm miondevx core fuzz cloning elision jsonsize nondata roundtrip secformat secgen sechttp secjson types value --quick
 
 # autonomous soak: fuzz for 60s, log every finding (set MION_FUZZ_SEED to replay)
-pnpm rtx core fuzz value --soak
+pnpm miondevx core fuzz value --soak
 
 # Phase 2 — generate random TYPES and sweep both oracle tiers (builds binary first)
-pnpm rtx core fuzz types
+pnpm miondevx core fuzz types
 
 # Phase 2 autonomous soak (set MION_FUZZ_SEED to replay)
-pnpm rtx core fuzz types --soak
+pnpm miondevx core fuzz types --soak
 ```
 
 Reproducing a reported violation: every `Violation` carries the `seed` that
@@ -302,19 +298,11 @@ Adding a target: in `value/fuzz.integration.test.ts`, build a concretely-typed
 type**, so the schema must be a concrete `const` — never a generic `RunType`
 parameter passed through a helper (that injects the `unknown` runtype). The
 cloning corpus shows the other supported spelling: a type argument
-(`createCloneExactShapeFn<T>()` + `getRunType<T>()`), which needs no `const` at
+(`createRemoveUnknownKeysFn<T>()` + `getRunType<T>()`), which needs no `const` at
 all and is the more common form now.
 
 ## Findings
 
-- **Binary encoder buffer overflow on valid data** (fixed). `createBinaryEncoderFn`
-  owns its serializer and sizes it from adaptive history (`predictBufferSize`).
-  After many small encodes the prediction converged down toward the running
-  mean, so an above-average string overflowed the buffer and threw
-  `RangeError: buffer too small … Call resize() and retry.` instead of growing.
-  Fixed in two steps: the serializer's writers now GROW IN PLACE (no throw, no
-  re-encode) and the size predictor moved from a mean-EMA to Welford
-  mean + k·σ. Pinned by `binaryEncoderResize.test.ts`.
 - **Negated pattern-formats mocked unsoundly** (fixed). The mock walker's
   negation rejection sampling tested `url` / `domain` with a loose stand-in
   instead of their params, so `new URL()` rejected the relative references
@@ -370,7 +358,7 @@ checks, per generated type:
 | **A** | **TR2** | every type       | every `createX<T>()` resolved to a site (6 fn + 1 reflection)                                                             |
 | **A** | **TR3** | every type       | every emitted module is valid JS (evaluates) + the reflection graph knots (no dangling ref)                               |
 | **A** | **TR4** | every type       | each factory either wires OR throws a **controlled** `[CODE]` alwaysThrow (an _uncontrolled_ wire failure is the bug)     |
-| **B** | O1–O7   | serialisable     | the Phase-1 value oracles hold (valid accepted, corruption rejected, JSON/binary wire-stable, junk total)                 |
+| **B** | O1–O7   | serialisable     | the Phase-1 value oracles hold (valid accepted, corruption rejected, JSON wire-stable, junk total)                        |
 | **B** | O3/O4'  | non-serialisable | robustness probe: `validate` / `getValidationErrors` return sanely or throw an **Error** — never a non-Error, never crash |
 | **B** | O7/O10/O12/O14 | non-data lane | the DataOnly serialize-or-fail contract (see below) |
 
@@ -426,7 +414,7 @@ reported violation replays exactly.
   type registers its closure once). Per-iteration cost stays stationary now
   that `findRTForType` is memoized (it used to scan the whole registry once
   per format-annotated mock node, which turned one iteration into 300+
-  seconds — see docs/done/soak-single-iteration-pathology.md), and every soak
+  seconds), and every soak
   fails loudly with a replayable round if a future iteration exceeds
   `SOAK_ITERATION_CEILING_MS`.
 - Not yet generated: generics / conditional / mapped types, template-literal

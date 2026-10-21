@@ -14,9 +14,7 @@ export default defineConfig({
   plugins: [
     cjsPackageJsonPlugin('.dist/cjs'),
     mionVitePlugin({
-      runTypes: {
-        tsConfig: resolve(__dirname, 'tsconfig.build.json'),
-      },
+      tsConfig: resolve(__dirname, 'tsconfig.build.json'),
     }),
     dts({
       outDir: ['.dist/cjs', '.dist/esm'],

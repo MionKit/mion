@@ -1,0 +1,160 @@
+{
+  "functions": [
+    {
+      "name": "compactForJson",
+      "call": "createPrepareForJsonFn<T>(undefined, {strategy: 'compact'})",
+      "tag": "cj",
+      "doc": "Builds a value whose objects are positional arrays, so property names never reach the wire.",
+      "factory": "createPrepareForJsonFn"
+    },
+    {
+      "name": "compactFromJson",
+      "call": "createRestoreFromJsonFn<T>(undefined, {strategy: 'compact'})",
+      "tag": "cjr",
+      "doc": "Rebuilds a keyed object from the positional array the compact encoder wrote.",
+      "factory": "createRestoreFromJsonFn"
+    },
+    {
+      "name": "formatTransform",
+      "call": "createFormatTransformFn<T>()",
+      "tag": "fmt",
+      "doc": "Applies the type's format rules to a value, for example trimming a string or clamping a number.",
+      "factory": "createFormatTransformFn"
+    },
+    {
+      "name": "jsonDecoder",
+      "call": "createJsonDecoderFn<T>(undefined, {strategy: 'clone' | 'mutate' | 'compact'})",
+      "doc": "Turns a JSON string back into a typed value. The strategy decides whether undeclared properties survive.",
+      "factory": "createJsonDecoderFn",
+      "options": "strategy",
+      "variants": [
+        "clone",
+        "mutate",
+        "compact"
+      ]
+    },
+    {
+      "name": "jsonEncoder",
+      "call": "createJsonEncoderFn<T>(undefined, {strategy: 'clone' | 'mutate' | 'compact'})",
+      "doc": "Turns a value into a JSON string. The strategy picks how: build a new value, transform in place, or use the compact positional wire.",
+      "factory": "createJsonEncoderFn",
+      "options": "strategy",
+      "variants": [
+        "clone",
+        "mutate",
+        "compact"
+      ],
+      "rejectCircularRefs": true
+    },
+    {
+      "name": "jsonSchema",
+      "call": "createJsonSchemaFn<T>()",
+      "tag": "jsc",
+      "doc": "Returns the JSON Schema document describing the type.",
+      "factory": "createJsonSchemaFn"
+    },
+    {
+      "name": "prepareForJsonClone",
+      "call": "createPrepareForJsonFn<T>()",
+      "tag": "pjs",
+      "doc": "Builds a new JSON-safe value from the declared shape, so undeclared properties are dropped.",
+      "factory": "createPrepareForJsonFn"
+    },
+    {
+      "name": "prepareForJsonMutate",
+      "call": "createPrepareForJsonFn<T>(undefined, {strategy: 'mutate'})",
+      "tag": "pj",
+      "doc": "Turns a value into a JSON-safe value in place. Nothing is allocated and undeclared properties are kept.",
+      "factory": "createPrepareForJsonFn"
+    },
+    {
+      "name": "removeUnknownKeys",
+      "call": "createRemoveUnknownKeysFn<T>()",
+      "tag": "ruk",
+      "doc": "Copies a value keeping only the properties the type declares.",
+      "factory": "createRemoveUnknownKeysFn"
+    },
+    {
+      "name": "removeUnknownKeysRefuse",
+      "call": "createRemoveUnknownKeysFn<T>(undefined, {sharedValues: 'refuse'})",
+      "tag": "rukr",
+      "doc": "Copies a value keeping only the declared properties, and refuses a type holding a function or a value it cannot copy.",
+      "factory": "createRemoveUnknownKeysFn"
+    },
+    {
+      "name": "removeUnknownKeysShared",
+      "call": "createRemoveUnknownKeysFn<T>(undefined, {sharedValues: 'share'})",
+      "tag": "ruks",
+      "doc": "Copies a value keeping only the declared properties, sharing a function or a value it cannot copy with the input, as asked.",
+      "factory": "createRemoveUnknownKeysFn"
+    },
+    {
+      "name": "restoreFromJsonClone",
+      "call": "createRestoreFromJsonFn<T>()",
+      "tag": "rjs",
+      "doc": "Rebuilds the typed shape from a JSON-safe value, so undeclared properties are dropped.",
+      "factory": "createRestoreFromJsonFn"
+    },
+    {
+      "name": "restoreFromJsonMutate",
+      "call": "createRestoreFromJsonFn<T>(undefined, {strategy: 'mutate'})",
+      "tag": "rj",
+      "doc": "Turns a JSON-safe value back into the typed shape in place, keeping undeclared properties.",
+      "factory": "createRestoreFromJsonFn"
+    },
+    {
+      "name": "validate",
+      "call": "createValidateFn<T>()",
+      "tag": "val",
+      "doc": "Answers whether a value matches the type. The cheapest check, and the one every other validator builds on.",
+      "factory": "createValidateFn",
+      "options": "ValidateOptions",
+      "rejectCircularRefs": true
+    },
+    {
+      "name": "validateStrict",
+      "call": "createValidateFn<T>(undefined, {checkUnknowns: true})",
+      "tag": "vst",
+      "doc": "Answers whether a value matches the type AND carries no undeclared properties, in a single walk.",
+      "factory": "createValidateFn",
+      "options": "ValidateOptions",
+      "rejectCircularRefs": true
+    },
+    {
+      "name": "validateUnionKeys",
+      "call": "createValidateFn<T>(undefined, {checkUnionUnknowns: true})",
+      "tag": "vuk",
+      "doc": "Answers whether a value matches the type AND carries no property the matched union member leaves undeclared.",
+      "factory": "createValidateFn",
+      "options": "ValidateOptions",
+      "rejectCircularRefs": true
+    },
+    {
+      "name": "validationErrors",
+      "call": "createGetValidationErrorsFn<T>()",
+      "tag": "verr",
+      "doc": "Returns the list of reasons a value does not match the type, with the path to each one.",
+      "factory": "createGetValidationErrorsFn",
+      "options": "ValidateOptions",
+      "rejectCircularRefs": true
+    },
+    {
+      "name": "validationErrorsStrict",
+      "call": "createGetValidationErrorsFn<T>(undefined, {checkUnknowns: true})",
+      "tag": "vest",
+      "doc": "Returns the reasons a value does not match, including undeclared properties, in a single walk.",
+      "factory": "createGetValidationErrorsFn",
+      "options": "ValidateOptions",
+      "rejectCircularRefs": true
+    },
+    {
+      "name": "validationErrorsUnionKeys",
+      "call": "createGetValidationErrorsFn<T>(undefined, {checkUnionUnknowns: true})",
+      "tag": "veuk",
+      "doc": "Returns the reasons a value does not match, counting a property the matched union member leaves undeclared.",
+      "factory": "createGetValidationErrorsFn",
+      "options": "ValidateOptions",
+      "rejectCircularRefs": true
+    }
+  ]
+}

@@ -67,7 +67,7 @@ func TestChain_TemporalBranded(t *testing.T) {
 
 func TestTemporalAnyGuard_AllTargets(t *testing.T) {
 	// WITHOUT the ambient, `Temporal.Instant` resolves to `any`; a
-	// declaration that WOULD convert must refuse with CNV007 instead of
+	// declaration that WOULD convert must refuse with convert-temporal-lib-missing instead of
 	// cementing the destroyed type into the source. (A declaration already
 	// in the target form is skipped byte-identical, so nothing needs
 	// guarding there — the guard covers every declaration that rewrites.)
@@ -92,7 +92,7 @@ func TestTemporalAnyGuard_AllTargets(t *testing.T) {
 			}
 		}
 		if !foundGuard {
-			t.Fatalf("--to %s: expected CNV007 for the any-resolved Temporal type, got %+v", testCase.target, diags)
+			t.Fatalf("--to %s: expected convert-temporal-lib-missing for the any-resolved Temporal type, got %+v", testCase.target, diags)
 		}
 		if !strings.Contains(output, testCase.keeping) {
 			t.Errorf("--to %s: the guarded declaration must stay untouched:\n%s", testCase.target, output)

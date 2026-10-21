@@ -2,10 +2,10 @@
 // ensure-tsgolint.mjs — enforce ts-go-runtypes/tsgolint.pin.json: check the tsgolint
 // submodule out to the pinned commit (repairing drift) and (re-)apply the shim
 // patches. Idempotent. Setup calls this after the network-sensitive submodule clone;
-// it is also runnable standalone as `pnpm rtx core ensure-tsgolint`.
+// it is also runnable standalone as `pnpm miondevx core ensure-tsgolint`.
 //
-//   pnpm rtx core ensure-tsgolint           # ensure + repair the submodule to the pin
-//   pnpm rtx core ensure-tsgolint --check    # verify only; non-zero on drift, no mutation
+//   pnpm miondevx core ensure-tsgolint           # ensure + repair the submodule to the pin
+//   pnpm miondevx core ensure-tsgolint --check    # verify only; non-zero on drift, no mutation
 //
 // It deliberately does NOT perform the INITIAL submodule clone — that stays in the
 // setup scripts, which carry the environment-specific git-proxy bypass. It requires
@@ -37,7 +37,7 @@ export function main(argv) {
   }
 
   note(`tsgolint HEAD ${describe()} (${short(head)}) does not match pin ${pin.ref} (${short(pin.commit)}).`);
-  if (checkOnly) die('ensure-tsgolint: submodule is NOT at the pinned revision (run `pnpm rtx core ensure-tsgolint` to repair).', 1);
+  if (checkOnly) die('ensure-tsgolint: submodule is NOT at the pinned revision (run `pnpm miondevx core ensure-tsgolint` to repair).', 1);
 
   info(`Checking out pinned ${short(pin.commit)}...`);
   // The pinned commit is usually already local (gitlink == pin, fetched at init);

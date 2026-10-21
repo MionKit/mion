@@ -8,8 +8,8 @@
 // the pin always encode the same commit — a bump moves both. Zero-dep (node
 // built-ins + proc.mjs).
 
-import {readdirSync, readFileSync, writeFileSync} from 'node:fs';
-import {join} from 'node:path';
+import {readdirSync, readFileSync, realpathSync, writeFileSync} from 'node:fs';
+import {basename, join} from 'node:path';
 import {GO_ROOT, REPO_ROOT} from './env.mjs';
 import {capture, die, red, run, yellow} from './proc.mjs';
 
@@ -23,8 +23,8 @@ export const rel = (path) => (path.startsWith(REPO_ROOT) ? path.slice(REPO_ROOT.
 
 const PIN_COMMENT =
   'Single source of truth for the pinned oxc-project/tsgolint revision (its nested typescript-go is our TypeScript 7 checker). ' +
-  '`pnpm rtx core ensure-tsgolint` checks the submodule out to `commit` and re-applies the shim patches; ' +
-  '`pnpm rtx core bump-tsgolint` updates this file and the submodule gitlink together. `ref` is the `git describe` it resolved to (informational).';
+  '`pnpm miondevx core ensure-tsgolint` checks the submodule out to `commit` and re-applies the shim patches; ' +
+  '`pnpm miondevx core bump-tsgolint` updates this file and the submodule gitlink together. `ref` is the `git describe` it resolved to (informational).';
 
 export function readPin() {
   try {
@@ -39,8 +39,17 @@ export function writePin({commit, ref}) {
 }
 
 // ── submodule git state (all non-throwing) ──────────────────────────────────
-export const submoduleInitialised = () => capture('git', ['-C', TSGOLINT, 'rev-parse', '--git-dir']).status === 0;
+// An uninitialised submodule is an empty dir inside the main repo, where plain `rev-parse` answers for the main repo.
+export const isCheckedOutRepo = (dir) => {
+  const toplevel = capture('git', ['-C', dir, 'rev-parse', '--show-toplevel']);
+  return toplevel.status === 0 && realpathSync(toplevel.stdout.trim()) === realpathSync(dir);
+};
+export const submoduleInitialised = () => isCheckedOutRepo(TSGOLINT);
 export const headCommit = () => capture('git', ['-C', TSGOLINT, 'rev-parse', 'HEAD']).stdout.trim();
+// Readable with no submodule checkout.
+export const gitlinkCommit = () => capture('git', ['-C', REPO_ROOT, 'rev-parse', `HEAD:${rel(TSGOLINT)}`]).stdout.trim();
+// The commit a Go build links.
+export const tsgolintCommit = () => (submoduleInitialised() ? headCommit() : gitlinkCommit());
 export const shortCommit = (ref = 'HEAD') => capture('git', ['-C', TSGOLINT, 'rev-parse', '--short', ref]).stdout.trim();
 export const describe = (dir = TSGOLINT) => capture('git', ['-C', dir, 'describe', '--tags', '--always']).stdout.trim();
 // Resolve any ref (tag/branch/sha) to a full commit sha; '' if unknown.
@@ -81,6 +90,14 @@ export function patchFiles() {
 }
 // Applied ⇔ it reverse-applies cleanly (mirrors setup.sh's idempotent probe).
 const isApplied = (patch) => capture('git', ['-C', TSGO, 'apply', '--reverse', '--check', patch]).status === 0;
+
+// One line per patch, `<name>=applied|pending`: the part of the submodule's
+// state the build-id stamp (scripts/core/build.mjs) must see, since the pinned
+// commit alone says nothing about whether the shim is applied to the working
+// tree the binary compiles against. ~30ms for the five patches.
+export function patchState() {
+  return patchFiles().map((patch) => `${basename(patch)}=${isApplied(patch) ? 'applied' : 'pending'}`);
+}
 
 // Apply any not-yet-applied shim patches (idempotent). Returns {applied, already}.
 // Dies with the manual-recovery flow if a patch neither applies nor is applied.

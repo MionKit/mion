@@ -27,7 +27,7 @@ import path from 'node:path';
 import {createRequire} from 'node:module';
 import {pathToFileURL} from 'node:url';
 import {spawnSync} from 'node:child_process';
-import {makeExtractors} from '../_lib/extract-cases.mjs';
+import {hasParserApi, makeExtractors} from '../_lib/extract-cases.mjs';
 
 const argOf = (flag) => {
   const i = process.argv.indexOf(flag);
@@ -39,7 +39,7 @@ const intEnv = (name, dflt) => {
 };
 
 const COMPETITOR = argOf('--competitor');
-if (COMPETITOR !== 'mion's && COMPETITOR !== 'typia') {
+if (COMPETITOR !== 'mion' && COMPETITOR !== 'typia') {
   console.error('compiletime: --competitor must be mion or typia');
   process.exit(1);
 }
@@ -74,12 +74,13 @@ async function resolveTypescript() {
   for (const dir of [COMPETITOR_DIR, path.join(competitors, 'mion'), path.join(competitors, 'zod')]) {
     try {
       const r = createRequire(path.join(dir, '__rt_resolve.cjs'));
-      return await import(pathToFileURL(r.resolve('typescript')).href);
+      const mod = await import(pathToFileURL(r.resolve('typescript')).href);
+      if (hasParserApi(mod)) return mod;
     } catch {
       /* next */
     }
   }
-  throw new Error('typescript not resolvable');
+  throw new Error('no typescript with a parser API (createSourceFile) resolvable');
 }
 const tsMod = await resolveTypescript();
 const ts = tsMod.default ?? tsMod;
@@ -130,7 +131,7 @@ async function setupFull() {
   }
   const viteMod = await importFrom('vite');
   const viteBuild = viteMod.build ?? viteMod.default?.build;
-  const rtPlugin = (await importExport(path.join(COMPETITOR_DIR, 'node_modules', '@mionjs/devtools'), './vite')).default;
+  const rtPlugin = (await importExport(path.join(COMPETITOR_DIR, 'node_modules', '@mionjs/devtools'), './runtypes/vite')).default;
   fullMs = async () => {
     wipe(MION_CACHE);
     wipe(VITE_CACHE);

@@ -13,7 +13,7 @@
 
 # mion : Full Stack APIs at the speed of light 🚀
 
-mion is a lightweight TypeScript-based framework designed for building serverless APIs. It aims to provide a great developer experience and is optimized for serverless environments. With mion, you can quickly build APIs that are type-safe, with automatic validation and serialization out of the box.
+mion is a lightweight TypeScript-based framework designed for building serverless APIs. It aims to provide a great developer experience and is optimized for serverless environments. With mion, you can quickly build APIs that are type-safe, with automatic validation and JSON round trip out of the box.
 
 ## Check Out The [Website And Documentation](http://mion.io) 📚
 
@@ -21,7 +21,7 @@ mion is a lightweight TypeScript-based framework designed for building serverles
 
 ## Why Another Framework?
 
-Serverless applications have different requirements compared to conventional server apps and there are not many frameworks that offer type-safe APIs with automatic validation and serialization by default.
+Serverless applications have different requirements compared to conventional server apps and there are not many frameworks that offer type-safe APIs with automatic validation and JSON round trip by default.
 
 mion addresses these challenges by offering a lightweight and opinionated framework focused on simplicity and developer experience.
 
@@ -31,7 +31,7 @@ mion addresses these challenges by offering a lightweight and opinionated framew
 | ------ | --------------------------- | ------------------------------------------------------------- |
 | ✅     | RPC-like Router             | Provides an RPC-style router for handling API requests        |
 | ✅     | Automatic Validation        | Automatically validates data received by the API              |
-| ✅     | Automatic Serialization     | Automatically serializes data sent by the API                 |
+| ✅     | Automatic JSON Round Trip   | Data sent by the API comes back as the same values            |
 | ✅     | AWS Lambda Handler          | Seamless integration with AWS Lambda for serverless execution |
 | ✅     | HTTP Server                 | Includes an HTTP server module for handling API requests      |
 | ✅     | Automatic TypeScript Client | Fully typed client without need of compilation                |
@@ -44,44 +44,44 @@ mion is designed with a Remote Procedure Call (RPC) style and works exclusively 
 
 We have prioritized and tracked performance during the development of the framework, we even have many discarded features and experiments when there was a performance degradation compared to previous versions. Our goal is to have similar performance to fastify which we consider the gold standard in node.js frameworks!
 
-For full benchmarks and comparison against other frameworks please visit [mion.pages.dev/benchmarks](https://mion.pages.dev/benchmarks/hello-world).  
+For full benchmarks and comparison against other frameworks please visit [mion.pages.dev/benchmarks](https://mion.pages.dev/benchmarks).  
 We know! benchmarks are just benchmarks, but if you don't keep performance in mind you end up like express 😅
 
 They live in this repository ([container/mion-bench/](container/mion-bench/)) and are re-run
 on every docs deploy against the code on `main`, so the published numbers never describe an
 older release:
 
-- [Hello World](https://mion.pages.dev/benchmarks/hello-world) — routing and framework overhead
-- [Light validation](https://mion.pages.dev/benchmarks/light-validation) — a small typed payload
-- [Heavy validation](https://mion.pages.dev/benchmarks/heavy-validation) — a ~1 KB nested model
-- [Payload sizes](https://mion.pages.dev/benchmarks/payload-sizes) — the same route from ~1 KB to ~4 MB
+- [Hello World](https://mion.pages.dev/benchmarks/rpc/hello-world) — routing and framework overhead
+- [Light validation](https://mion.pages.dev/benchmarks/rpc/light-validation) — a small typed payload
+- [Heavy validation](https://mion.pages.dev/benchmarks/rpc/heavy-validation) — a ~1 KB nested model
+- [Payload sizes](https://mion.pages.dev/benchmarks/rpc/payload-sizes) — the same route from ~1 KB to ~4 MB
 
 ## Routing
 
 mion's router is lightweight and fast. Unlike traditional routers, it uses a Remote Procedure Call (RPC) style of routing. The Http method is not relevant, there are no parameters in the Url and data is sent and received in JSON format via the request body or headers. mion's router leverages a simple in-memory map for route lookup, making it extremely fast.
 
-Apis are composed of Routes and Hooks. Routes are methods that can be called remotely from the client and have an specific url, while hooks are auxiliary methods that get's executed before or after a route.
+Apis are composed of routes and middleware, declared through the helpers `createMionRouter` returns. Routes are methods that can be called remotely from the client and have a specific url, while middleware are auxiliary methods that get executed before or after a route.
 
-To learn more about the router, refer to the [Router Documentation](./packages/router/).
+To learn more about the router, refer to the [Router Documentation](./packages/rpc-router/).
 
-## Automatic Serialization & Validation
+## Automatic JSON Round Trip & Validation
 
-mion utilizes RunTypes for automatic validation and serialization. RunTypes enables type information to be available at runtime, allowing for automatic validation and serialization of data.
+mion utilizes RunTypes for automatic validation and JSON round trip. RunTypes enables type information to be available at runtime, allowing for automatic validation and JSON round trip of data.
 
-By leveraging runtime types, mion offers advanced capabilities such as request validation and response/request serialization that typically involves using multiple framework and loads of code or boilerplate to be manually written by developers.
+By leveraging runtime types, mion offers advanced capabilities such as request validation and the request/response JSON round trip that typically involves using multiple framework and loads of code or boilerplate to be manually written by developers.
 
 ## RunTypes: developed in this repo
 
-This monorepo is also the home of **RunTypes** (the `RunTypes/*` npm packages): the compile-time runtime-type resolver built on TypeScript 7 / typescript-go that powers mion's validation and serialization. It was developed for a while in a separate repository; that full history has been merged back here.
+This monorepo is also the home of **RunTypes** (the `RunTypes/*` npm packages): the compile-time runtime-type resolver built on TypeScript 7 / typescript-go that powers mion's validation and JSON round trip. It was developed for a while in a separate repository; that full history has been merged back here.
 
-RunTypes has its own documentation site: **[runtypes.pages.dev](https://runtypes.pages.dev/)**. Its code lives under [packages/run-types\*](./packages/) and [ts-go-runtypes/](./ts-go-runtypes/).
+RunTypes has its own docs section: **[mion.pages.dev/runtypes](https://mion.pages.dev/runtypes)**. Its code lives under [packages/run-types\*](./packages/) and [ts-go-runtypes/](./ts-go-runtypes/).
 
 ## Full Stack APIs
 
 ![type safes apis](https://raw.githubusercontent.com/MionKit/mion/main/assets/public/type-safe-apis.gif)
 
 Thats it 👆, thats all you need to write a Fully Type Safe Api and Client &nbsp; 🚀  
-All parameters and return values will also be automatically validated and serialized without any extra code required.
+All parameters and return values will also be automatically validated and make the JSON round trip without any extra code required.
 
 ## Contributing
 
@@ -105,7 +105,7 @@ Releases run through the repo's own release train, which bumps every package in
 lockstep, packs, verifies and publishes:
 
 ```sh
-pnpm rtx release --help
+pnpm miondevx release --help
 ```
 
 ## Powered by:

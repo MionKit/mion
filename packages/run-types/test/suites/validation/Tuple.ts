@@ -1,12 +1,7 @@
 import * as TF from '@mionjs/run-types/formats';
 import type {ValidationCase} from './types.ts';
-import {
-  createValidateFn,
-  createGetValidationErrorsFn,
-  createMockDataFn,
-  createStandardSchema,
-  type DataOnly,
-} from '@mionjs/run-types';
+import {createValidateFn, createGetValidationErrorsFn, createStandardSchema, type DataOnly} from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import * as RT from '@mionjs/run-types/builders';
 import {deserializeValidate, deserializeGetValidationErrors} from '../../util/deserializeRTFunctions.ts';
 
@@ -649,39 +644,44 @@ export const TUPLE = {
 
   tuple_with_non_serializable: {
     title: 'Function slot',
-    // The emitter keeps a function tuple slot as a `notSupported` node that
-    // validates `undefined`; DataOnly maps the slot to `never`, so the projected
-    // tuple `[string, never]` rejects the valid `[..., undefined]` samples.
-    dataOnlyDivergent: true,
-    description:
-      'A tuple whose function-typed slot emits `v[i] === undefined`, so it must be absent or explicitly undefined and any other value (a real function, a string) fails (the serialization-suite TUPLES.tuple_with_non_serializable).',
+    description: 'A function slot makes the whole tuple non-data, so the factory throws on first call.',
     validateNotes: [
-      'TS DIVERGENCE: A function-typed tuple slot must be MISSING or explicitly `undefined`. A real function FAILS the check.',
-      'This is the opposite of the object-property case (where function-typed props are skipped entirely): tuples enforce `=== undefined` because tuple position is structural.',
+      '`DataOnly<[number, () => any]>` is `never`: a non-data tuple slot refuses the whole tuple (validate-function-root / validation-errors-function-root), like an array item.',
     ],
+    // @mion-downgrade-error validate-function-root
     validate: () => createValidateFn<[number, () => any]>(),
+    // @mion-downgrade-error validation-errors-function-root validate-function-root
     standardSchema: () => createStandardSchema<[number, () => any]>(),
     validateDataOnly: () => createValidateFn<DataOnly<[number, () => any]>>(),
+    // @mion-downgrade-error validate-function-root
     validateSchema: () => createValidateFn(RT.tuple({required: [TF.number(), RT.func({ret: RT.any()})]})),
+    // @mion-downgrade-error validate-function-root
     deserializeValidate: () => deserializeValidate<[number, () => any]>(),
     validateReflect: () => {
       const v: [number, () => any] = [3, () => null];
+      // @mion-downgrade-error validate-function-root
       return createValidateFn(v);
     },
     deserializeValidateReflect: () => {
       const v: [number, () => any] = [3, () => null];
+      // @mion-downgrade-error validate-function-root
       return deserializeValidate(v);
     },
+    // @mion-downgrade-error validation-errors-function-root
     getValidationErrors: () => createGetValidationErrorsFn<[number, () => any]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<[number, () => any]>>(),
+    // @mion-downgrade-error validation-errors-function-root
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.tuple({required: [TF.number(), RT.func({ret: RT.any()})]})),
+    // @mion-downgrade-error validation-errors-function-root
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<[number, () => any]>(),
     getValidationErrorsReflect: () => {
       const v: [number, () => any] = [3, () => null];
+      // @mion-downgrade-error validation-errors-function-root
       return createGetValidationErrorsFn(v);
     },
     deserializeGetValidationErrorsReflect: () => {
       const v: [number, () => any] = [3, () => null];
+      // @mion-downgrade-error validation-errors-function-root
       return deserializeGetValidationErrors(v);
     },
     mockType: () => createMockDataFn<[number, () => any]>(),
@@ -689,31 +689,8 @@ export const TUPLE = {
       const v: [number, () => any] = [3, () => null];
       return createMockDataFn(v);
     },
-    getSamples: () => ({
-      // `[3]` is valid — v[1] is undefined which satisfies the
-      // `v[1] === undefined` check the function slot emits.
-      valid: [[3, undefined], [3]],
-      invalid: [
-        [3, () => null],
-        [3, 42],
-        ['not number'],
-        'not array',
-        null,
-        undefined,
-        [3, null], // null is NOT undefined — strict `=== undefined` check
-        [NaN, undefined],
-      ],
-    }),
-    getExpectedErrors: () => [
-      [{path: [1], expected: 'undefined'}],
-      [{path: [1], expected: 'undefined'}],
-      [{path: [0], expected: 'number'}],
-      [{path: [], expected: 'tuple'}],
-      [{path: [], expected: 'tuple'}],
-      [{path: [], expected: 'tuple'}],
-      [{path: [1], expected: 'undefined'}],
-      [{path: [0], expected: 'number'}],
-    ],
+    factoryThrows: true,
+    getSamples: () => ({valid: [], invalid: []}),
   },
 
   empty_tuple: {
@@ -830,7 +807,7 @@ export const TUPLE = {
     validate: () => createValidateFn<readonly [string, number]>(),
     standardSchema: () => createStandardSchema<readonly [string, number]>(),
     validateDataOnly: () => createValidateFn<DataOnly<readonly [string, number]>>(),
-    validateSchema: () => createValidateFn(RT.tuple({required: [TF.string(), TF.number()]})),
+    validateSchema: () => createValidateFn(RT.readonly(RT.tuple({required: [TF.string(), TF.number()]}))),
     deserializeValidate: () => deserializeValidate<readonly [string, number]>(),
     validateReflect: () => {
       const v: readonly [string, number] = ['x', 1];
@@ -842,7 +819,7 @@ export const TUPLE = {
     },
     getValidationErrors: () => createGetValidationErrorsFn<readonly [string, number]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<readonly [string, number]>>(),
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.tuple({required: [TF.string(), TF.number()]})),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.readonly(RT.tuple({required: [TF.string(), TF.number()]}))),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<readonly [string, number]>(),
     getValidationErrorsReflect: () => {
       const v: readonly [string, number] = ['x', 1];

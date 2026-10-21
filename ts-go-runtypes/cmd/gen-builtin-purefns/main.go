@@ -1,26 +1,12 @@
-// Command gen-builtin-purefns regenerates the built-in pure-fn table
-// (internal/cachegen/builtinpurefns/table.generated.go) by running the SAME
-// pure-fn extractor the resolver uses on user pure fns over the package's own
-// registration sources in packages/run-types/src. One row per built-in fn:
-// key, bodyHash, paramNames, code, and the transitive built-in deps the body
-// reaches. The resolver serves these rows as pure-fn virtual modules so a
-// published consumer (dist + .d.ts, no src to extract) still receives the
-// built-in bodies on demand.
-//
-// Run from the ts-go-runtypes module root:
-//
-//	go run ./cmd/gen-builtin-purefns
-//
-// or, wired into the codegen family with a --check drift gate:
-//
-//	pnpm rtx core codegen builtinpurefns [--check]
-//
-// The TS files stay the authored source of truth; this table is only how their
-// bodies reach consumers. Edit the src, never table.generated.go.
+// Command gen-builtin-purefns writes the ids of the package's own pure functions twice from one
+// extractor pass over packages/run-types/src, so the two sets cannot disagree: Go consts in
+// internal/cachegen/purefnids, and pure-fn-ids.generated.ts for the package's own registration
+// call sites, which the compiler never rewrites and which therefore pass their id explicitly.
+// Bodies are not generated; the package's own build writes them into its mion-pure-fns/ artifact.
+// Run `pnpm miondevx core codegen builtinpurefns [--check]`; edit the src, never the generated files.
 package main
 
 import (
-	"context"
 	"fmt"
 	"go/format"
 	"os"
@@ -33,27 +19,21 @@ import (
 	"github.com/microsoft/typescript-go/shim/core"
 	"github.com/microsoft/typescript-go/shim/parser"
 	"github.com/microsoft/typescript-go/shim/tspath"
+	"github.com/microsoft/typescript-go/shim/vfs/osvfs"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnindex"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
-// builtinSourceFiles are the package's own pure-fn registration modules, relative
-// to the marker package root. Every registerPureFnFactory('rt::…' / 'rtFormats::…')
-// call the built-in emitters reach lives in one of these. Keep in sync with the
-// side-effect imports in src/index.ts + src/formats/index.ts.
-var builtinSourceFiles = []string{
-	"src/runtypes/pure-fns-utils.ts",
-	"src/runtypes/circular-pure-fns.ts",
-	"src/formats/string/string-formats-pure-fns.ts",
-	"src/formats/string/credit-card-pure-fns.ts",
-	"src/formats/datetime/dateTime-pure-fns.ts",
-}
-
 const (
-	markerPkgRel = "../packages/run-types"
-	outputRel    = "internal/cachegen/builtinpurefns/table.generated.go"
+	// markerPackageName is the package that owns the built-ins, and the first
+	// segment of every id this generator emits.
+	markerPackageName = "@mionjs/run-types"
+	markerPkgRel      = "../packages/run-types"
+	idsOutputRel      = "internal/cachegen/purefnids/ids.generated.go"
+	idsTsOutputRel    = "../packages/run-types/src/runtypes/pure-fn-ids.generated.ts"
 )
 
 func main() {
@@ -68,35 +48,23 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	files := make([]string, len(builtinSourceFiles))
-	for i, rel := range builtinSourceFiles {
-		files[i] = filepath.Join(pkgRoot, rel)
+	pkgRoot = tspath.NormalizePath(pkgRoot)
+	scanned := purefnindex.ScanRegistrations(pkgRoot, osvfs.FS())
+	if len(scanned) == 0 {
+		return fmt.Errorf("no file under %s/src registers a pure function", pkgRoot)
 	}
-
-	prog, err := program.NewInferred(program.Options{Cwd: pkgRoot}, files)
+	// The SAME call the resolver serves bodies with, so the generated ids and the served bodies
+	// cannot come from a different resolution.
+	entries, diags, err := purefnindex.ExtractSources(pkgRoot, scanned, purefnindex.SideProgram{})
 	if err != nil {
-		return fmt.Errorf("build program: %w", err)
+		return err
 	}
-	typeChecker, release := prog.TS.GetTypeChecker(context.Background())
-	defer release()
-	markerOpts := marker.WithDefaults(marker.Options{})
-	markerOpts.FS = prog.FS
-
-	entries, diags := purefunctions.ExtractFromProgramCached(typeChecker, markerOpts, prog, files, purefunctions.NewFileCache())
 	if len(diags) > 0 {
-		for _, diag := range diags {
-			fmt.Fprintf(os.Stderr, "  extractor %s: %v\n", diag.Code, diag.Args)
-		}
-		return fmt.Errorf("extractor produced %d diagnostic(s) over the built-in sources — fix the source before regenerating", len(diags))
-	}
-	if len(entries) == 0 {
-		return fmt.Errorf("no built-in pure fns extracted from %v — program/resolution likely broke", builtinSourceFiles)
+		return fmt.Errorf("extractor rejected %s (%s %v)", diags[0].Site.FilePath, diags[0].Code, diags[0].Args)
 	}
 
 	sort.Slice(entries, func(i, j int) bool { return entries[i].Key() < entries[j].Key() })
-	// A defensive clash guard mirrored by the package's init(): the extractor
-	// already dedups, so a clash here would mean two src files register the same
-	// key with different bodies.
+	// Mirrored by the generated init(): the extractor dedups, so a clash means two src files register one key differently.
 	seen := make(map[string]bool, len(entries))
 	for _, entry := range entries {
 		if seen[entry.Key()] {
@@ -109,15 +77,154 @@ func run() error {
 		return err
 	}
 
-	source, err := render(entries)
+	ids, err := renderGoIDs(entries)
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(outputRel, source, 0o644); err != nil {
-		return fmt.Errorf("write %s: %w", outputRel, err)
+	if err := os.MkdirAll(filepath.Dir(idsOutputRel), 0o755); err != nil {
+		return fmt.Errorf("create %s: %w", filepath.Dir(idsOutputRel), err)
 	}
-	fmt.Fprintf(os.Stderr, "gen-builtin-purefns: wrote %d entries to %s\n", len(entries), outputRel)
+	if err := os.WriteFile(idsOutputRel, ids, 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", idsOutputRel, err)
+	}
+	if err := os.WriteFile(idsTsOutputRel, renderTsIDs(entries), 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", idsTsOutputRel, err)
+	}
+	fmt.Fprintf(os.Stderr, "gen-builtin-purefns: wrote %d ids to %s and %s\n", len(entries), idsOutputRel, idsTsOutputRel)
 	return nil
+}
+
+// nameOf is the identifier the registration is bound to, which is what both
+// generated constant sets are keyed by. It is NOT in the id — an id is the
+// package plus a hash of the body — so it is read off the entry, and a built-in
+// written into a call rather than bound to a const has none.
+func nameOf(entry purefunctions.Entry) (string, error) {
+	if entry.BindingName == "" {
+		return "", fmt.Errorf("built-in %q is bound to no const; a built-in must be named to get a constant", entry.Key())
+	}
+	return entry.BindingName, nil
+}
+
+// goConstName renders a built-in name as an exported Go identifier:
+// `isDateString_YMD` becomes `IsDateStringYMD`. Two names that collapse to one
+// constant fail the run rather than silently aliasing.
+func goConstName(name string) string {
+	var b strings.Builder
+	upperNext := true
+	for _, ch := range name {
+		if ch == '_' {
+			upperNext = true
+			continue
+		}
+		if upperNext {
+			b.WriteString(strings.ToUpper(string(ch)))
+			upperNext = false
+			continue
+		}
+		b.WriteRune(ch)
+	}
+	return b.String()
+}
+
+func renderGoIDs(entries []purefunctions.Entry) ([]byte, error) {
+	var b strings.Builder
+	b.WriteString("// Code generated by cmd/gen-builtin-purefns; DO NOT EDIT.\n")
+	b.WriteString("// Regenerate with `pnpm miondevx core codegen builtinpurefns` after editing the\n")
+	b.WriteString("// built-in pure-fn sources in packages/run-types/src.\n\n")
+	b.WriteString("// Package purefnids holds the ids of the pure functions @mionjs/run-types\n")
+	b.WriteString("// registers itself. An emitter that writes `utl.usePureFn(<id>)` into a\n")
+	b.WriteString("// generated body names it through a constant here, so moving or renaming a\n")
+	b.WriteString("// built-in fails this codegen instead of splitting one function across two ids.\n")
+	b.WriteString("// The package imports nothing, which is what lets both the extractor and the\n")
+	b.WriteString("// emitters depend on it.\n")
+	b.WriteString("package purefnids\n\n")
+	b.WriteString("import \"sort\"\n\n")
+	b.WriteString("// IDPrefix is what every id below starts with: the package that owns these\n")
+	b.WriteString("// pure fns. A build tells a reference to one of them apart from a reference to\n")
+	b.WriteString("// a consumer's own pure fn by this prefix, which is also how it knows a\n")
+	b.WriteString("// reference the table does not carry means a STALE table rather than a user\n")
+	b.WriteString("// pure fn it should leave alone.\n")
+	fmt.Fprintf(&b, "const IDPrefix = %s\n\n", strconv.Quote(markerPackageName+constants.PureFnHashPrefix))
+	b.WriteString("const (\n")
+	byConst := map[string]string{}
+	for _, entry := range entries {
+		name, err := nameOf(entry)
+		if err != nil {
+			return nil, err
+		}
+		if owner, _, ok := purefunctions.SplitID(entry.Key()); !ok || owner != markerPackageName {
+			return nil, fmt.Errorf("built-in %q is not under %s — the id rule or the source layout moved", entry.Key(), markerPackageName)
+		}
+		constName := goConstName(name)
+		if previous, dup := byConst[constName]; dup {
+			return nil, fmt.Errorf("built-ins %q and %q both render the Go constant %s", previous, name, constName)
+		}
+		byConst[constName] = name
+		fmt.Fprintf(&b, "\t%s = %s\n", constName, strconv.Quote(entry.Key()))
+	}
+	b.WriteString(")\n\n")
+	b.WriteString("// ids is every constant above, as a set, for Has.\n")
+	b.WriteString("var ids = map[string]bool{\n")
+	constNames := make([]string, 0, len(byConst))
+	for constName := range byConst {
+		constNames = append(constNames, constName)
+	}
+	sort.Strings(constNames)
+	for _, constName := range constNames {
+		fmt.Fprintf(&b, "\t%s: true,\n", constName)
+	}
+	b.WriteString("}\n\n")
+	b.WriteString("// names is the identifier each built-in is bound to in source. An id is a\n")
+	b.WriteString("// hash, which names nothing a reader can search for, so a diagnostic or a\n")
+	b.WriteString("// report that has to SAY which pure function it means looks it up here.\n")
+	b.WriteString("var names = map[string]string{\n")
+	for _, constName := range constNames {
+		fmt.Fprintf(&b, "\t%s: %s,\n", constName, strconv.Quote(byConst[constName]))
+	}
+	b.WriteString("}\n\n")
+	b.WriteString("// NameOf returns the identifier a built-in is bound to in source, or empty\n")
+	b.WriteString("// when id names no built-in.\n")
+	b.WriteString("func NameOf(id string) string {\n\treturn names[id]\n}\n\n")
+	b.WriteString("// Has reports whether id names one of the package's own pure functions. Only\n")
+	b.WriteString("// that package's OWN build produces their bodies, so a consumer's build drops any\n")
+	b.WriteString("// it extracted and takes the served row instead.\n")
+	b.WriteString("func Has(id string) bool {\n\treturn ids[id]\n}\n\n")
+	b.WriteString("// All returns every built-in id, sorted. An id is a hash of the body that\n")
+	b.WriteString("// ships, so a test can assert that the package's artifact still holds each one\n")
+	b.WriteString("// and catch a body edited without regenerating this file.\n")
+	b.WriteString("func All() []string {\n")
+	b.WriteString("\tout := make([]string, 0, len(ids))\n")
+	b.WriteString("\tfor id := range ids {\n\t\tout = append(out, id)\n\t}\n")
+	b.WriteString("\tsort.Strings(out)\n\treturn out\n}\n")
+	formatted, err := format.Source([]byte(b.String()))
+	if err != nil {
+		return nil, fmt.Errorf("gofmt generated ids: %w", err)
+	}
+	return formatted, nil
+}
+
+func renderTsIDs(entries []purefunctions.Entry) []byte {
+	var b strings.Builder
+	b.WriteString("// Code generated by cmd/gen-builtin-purefns; DO NOT EDIT.\n")
+	b.WriteString("// Regenerate with `pnpm miondevx core codegen builtinpurefns` after editing the\n")
+	b.WriteString("// pure-fn sources in this package.\n")
+	b.WriteString("//\n")
+	b.WriteString("// A pure function's id is its package plus a hash of its body, and the build\n")
+	b.WriteString("// normally injects it.\n")
+	b.WriteString("// This package builds with plain tsc, which injects nothing, so its own\n")
+	b.WriteString("// registrations pass their id from here. The literal types are also how a\n")
+	b.WriteString("// consumer reading only this package's .d.ts still resolves an id.\n\n")
+	b.WriteString("/** What every id of this package's own pure fns starts with: the package, then the hash prefix. A\n")
+	b.WriteString(" *  built-in is told apart from a consumer's pure fn by this prefix, never by a list. */\n")
+	fmt.Fprintf(&b, "export const RUN_TYPES_PURE_FN_ID_PREFIX = %s;\n\n", jsquote.Single(markerPackageName+constants.PureFnHashPrefix))
+	for _, entry := range entries {
+		name, err := nameOf(entry)
+		if err != nil {
+			continue
+		}
+		fmt.Fprintf(&b, "export const %sId = %s;\n", name, jsquote.Single(entry.Key()))
+	}
+	return []byte(b.String())
 }
 
 // parseCheckEntries re-parses every extracted body the way the runtime builds
@@ -157,47 +264,6 @@ func parseCheckEntries(entries []purefunctions.Entry) error {
 	if len(failures) == 0 {
 		return nil
 	}
-	return fmt.Errorf("%d extracted pure-fn body/bodies are not valid JavaScript — the type stripper left TS syntax behind.\n%s\nFix internal/cachegen/purefunctions/striptypes.go (add the missing type position), not the source or the table",
+	return fmt.Errorf("%d extracted pure-fn body/bodies are not valid JavaScript — the type stripper left TS syntax behind.\n%s\nFix internal/cachegen/purefunctions/striptypes.go (add the missing type position), not the source",
 		len(failures), strings.Join(failures, "\n"))
-}
-
-func render(entries []purefunctions.Entry) ([]byte, error) {
-	var b strings.Builder
-	b.WriteString("// Code generated by cmd/gen-builtin-purefns; DO NOT EDIT.\n")
-	b.WriteString("// Regenerate with `pnpm rtx core codegen builtinpurefns` after editing the\n")
-	b.WriteString("// built-in pure-fn sources in packages/run-types/src.\n\n")
-	b.WriteString("package builtinpurefns\n\n")
-	b.WriteString("// builtinEntries is the extracted table of package-owned pure-fn bodies, one\n")
-	b.WriteString("// row per registerPureFnFactory('rt::…' / 'rtFormats::…') call, sorted by key.\n")
-	b.WriteString("var builtinEntries = []builtinEntry{\n")
-	for _, entry := range entries {
-		b.WriteString("\t{\n")
-		fmt.Fprintf(&b, "\t\tnamespace:    %s,\n", strconv.Quote(entry.Namespace))
-		fmt.Fprintf(&b, "\t\tfunctionName: %s,\n", strconv.Quote(entry.FunctionName))
-		fmt.Fprintf(&b, "\t\tbodyHash:     %s,\n", strconv.Quote(entry.BodyHash))
-		b.WriteString("\t\tparamNames:   " + stringSliceLit(entry.ParamNames) + ",\n")
-		fmt.Fprintf(&b, "\t\tcode:         %s,\n", strconv.Quote(entry.Code))
-		b.WriteString("\t\tdeps:         " + stringSliceLit(entry.PureFnDependencies) + ",\n")
-		b.WriteString("\t},\n")
-	}
-	b.WriteString("}\n")
-	formatted, err := format.Source([]byte(b.String()))
-	if err != nil {
-		return nil, fmt.Errorf("gofmt generated table: %w", err)
-	}
-	return formatted, nil
-}
-
-// stringSliceLit renders a []string as a Go literal, `nil` when empty so the
-// generated table stays terse (a table-served entry treats nil and empty
-// identically).
-func stringSliceLit(xs []string) string {
-	if len(xs) == 0 {
-		return "nil"
-	}
-	parts := make([]string, len(xs))
-	for i, x := range xs {
-		parts[i] = strconv.Quote(x)
-	}
-	return "[]string{" + strings.Join(parts, ", ") + "}"
 }

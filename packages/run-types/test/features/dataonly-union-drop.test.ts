@@ -11,14 +11,7 @@
 // merged-prop unions in the same scan — see json_compat.go's isJsonCompatible.
 
 import {describe, test, expect} from 'vitest';
-import {
-  createValidateFn,
-  createGetValidationErrorsFn,
-  createJsonEncoderFn,
-  createJsonDecoderFn,
-  createBinaryEncoderFn,
-  createBinaryDecoderFn,
-} from '@mionjs/run-types';
+import {createValidateFn, createGetValidationErrorsFn, createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 
 // A NAMED all-stripped union — externalized as its own cache entry (the name
 // rule), so it is reached through the walker's dispatch gate rather than being
@@ -31,6 +24,9 @@ interface HasNativeUnion {
   y: number;
 }
 
+// The dropped function arm shares `f0` with a surviving `f0?: string`.
+type Reduced = {kind: 't0'; f1: string} | {kind: 't1'; f0?: string} | {kind: 't2'; f0: () => number};
+
 describe('DataOnly union-member drop', () => {
   test('Date | symbol — symbol arm dropped, validates as Date', () => {
     const isit = createValidateFn<Date | symbol>();
@@ -39,10 +35,9 @@ describe('DataOnly union-member drop', () => {
     expect(isit(123)).toBe(false);
   });
 
-  test('Date | symbol — JSON + binary round-trip the surviving Date', () => {
+  test('Date | symbol — JSON round-trips the surviving Date', () => {
     const d = new Date('2020-01-01T00:00:00.000Z');
     expect(createJsonDecoderFn<Date | symbol>()(createJsonEncoderFn<Date | symbol>()(d) as string)).toEqual(d);
-    expect(createBinaryDecoderFn<Date | symbol>()(createBinaryEncoderFn<Date | symbol>()(d))).toEqual(d);
   });
 
   test('string | bigint | symbol — drops symbol, keeps string | bigint', () => {
@@ -68,18 +63,31 @@ describe('DataOnly union-member drop', () => {
     const dec = createJsonDecoderFn<(Date | symbol)[]>();
     expect(dec(enc(arr) as string)).toEqual(arr);
   });
+
+  test('json twin drops the member symmetrically', () => {
+    const enc = createJsonEncoderFn<Reduced>();
+    const dec = createJsonDecoderFn<Reduced>();
+    const back = dec(enc({kind: 't2', f0: () => 1})!);
+    expect(back).toEqual({kind: 't2'});
+  });
 });
 
 describe('DataOnly collapse-to-never / empty still throws', () => {
   test('all members of a union stripped (DataOnly = never)', () => {
+    // @mion-downgrade-error validate-symbol-root
     expect(() => createValidateFn<symbol | (() => void)>()).toThrow();
+    // @mion-downgrade-error json-prepare-clone-symbol-root
     expect(() => createJsonEncoderFn<symbol | (() => void)>()).toThrow();
   });
 
   test('array / tuple / Map / Set whose element collapses to never', () => {
+    // @mion-downgrade-error json-prepare-clone-symbol-root
     expect(() => createJsonEncoderFn<symbol[]>()).toThrow();
+    // @mion-downgrade-error json-prepare-clone-symbol-root
     expect(() => createJsonEncoderFn<[string, symbol]>()).toThrow();
+    // @mion-downgrade-error json-prepare-clone-symbol-root
     expect(() => createJsonEncoderFn<Map<string, symbol>>()).toThrow();
+    // @mion-downgrade-error json-prepare-clone-symbol-root
     expect(() => createJsonEncoderFn<Set<symbol>>()).toThrow();
   });
 
@@ -95,19 +103,18 @@ describe('DataOnly collapse-to-never / empty still throws', () => {
   test('all-stripped union at a nested externalized property still throws (gate-elision regression)', () => {
     const buf = new ArrayBuffer(4);
     expect(() => {
+      // @mion-downgrade-error json-prepare-non-data-root validate-non-data-root
       const encode = createJsonEncoderFn<HasNativeUnion>(undefined, {strategy: 'mutate'});
       return encode({x: buf, y: 1} as HasNativeUnion);
     }).toThrow();
     expect(() => {
+      // @mion-downgrade-error json-prepare-clone-non-data-root validate-non-data-root
       const encode = createJsonEncoderFn<HasNativeUnion>(); // clone (default)
       return encode({x: buf, y: 1} as HasNativeUnion);
     }).toThrow();
     expect(() => {
-      const encode = createJsonEncoderFn<HasNativeUnion>(undefined, {strategy: 'direct'});
-      return encode({x: buf, y: 1} as HasNativeUnion);
-    }).toThrow();
-    expect(() => {
-      const encode = createBinaryEncoderFn<HasNativeUnion>();
+      // @mion-downgrade-error json-prepare-clone-non-data-root validate-non-data-root
+      const encode = createJsonEncoderFn<HasNativeUnion>(undefined, {strategy: 'compact'});
       return encode({x: buf, y: 1} as HasNativeUnion);
     }).toThrow();
   });

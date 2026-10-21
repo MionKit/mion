@@ -1,22 +1,5 @@
-// End-to-end acceptance test for the runtype RT-compiler diagnostics
-// added in Phase 2 / Phase 3 of the centralised diag catalog. Drives the
-// Go binary over inline sources and verifies:
-//
-//   1. Root-position throw sites (Never, NonSerializable, function at
-//      root, array element non-serializable) surface per-family
-//      prefixed codes (PJ001, SJ001, TB001, …) — not generic codes —
-//      so users can grep their build log by family.
-//   2. Each diagnostic carries the marker call site (file:line:col),
-//      not just the type-declaration site, so the warning is
-//      actionable for the user.
-//   3. Child-position silent-skip diagnostics (function-typed
-//      properties, methods, static fields) surface with the per-family
-//      prefix and the member name in the message.
-//   4. Multiple marker calls referencing the same RT ID get one
-//      diagnostic each (per user direction: dedup is one-per-call-site,
-//      not one-per-typeid).
-//   5. The diagnostic wire format flows through to formatTscDiagnostic
-//      in the canonical $tsc problem-matcher line shape.
+// Runtype diagnostics end to end: root throws get per-family codes so a build log greps by family,
+// and dedup is one per call site, not per type id.
 
 import {describe, expect, it} from 'vitest';
 import {formatTscDiagnostic} from '../src/index.ts';
@@ -30,7 +13,7 @@ function runtypeDiagsOf(response: {diagnostics?: Diagnostic[]}): Diagnostic[] {
 describe('@mionjs/devtools / runtype diagnostics', () => {
   const register = hasBinary() ? it : it.skip;
 
-  register('emits PJ001 for Never at root under prepareForJson', async () => {
+  register('emits json-prepare-never-root for Never at root under prepareForJson', async () => {
     // pj is demand-driven now, so seed it via createJsonEncoderFn(mutate) → [pj].
     const sources = {
       'never.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
@@ -42,7 +25,7 @@ export const _ = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
         includeEntryModules: true,
       });
       const diags = runtypeDiagsOf(response);
-      const pjNever = diags.find((d) => d.code === 'PJ001');
+      const pjNever = diags.find((d) => d.code === 'json-prepare-never-root');
       expect(pjNever, JSON.stringify(diags, null, 2)).toBeDefined();
       expect(pjNever!.severity).toBe(Severity.Error);
       expect(pjNever!.site.filePath).toContain('never.ts');
@@ -52,14 +35,12 @@ export const _ = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
     });
   });
 
-  register('emits per-family codes — SJ001 / TB001 / PJ001 — for same root throw', async () => {
-    // All three families are demand-driven: seed pj via createJsonEncoderFn(mutate),
-    // sj via createJsonEncoderFn(direct), and tb via createBinaryEncoderFn.
+  register('emits per-family codes — json-prepare-clone-never-root / json-prepare-never-root — for same root throw', async () => {
+    // Demand-driven families: mutate seeds pj, the default clone seeds pjs.
     const sources = {
-      'never-multi.ts': `import {createJsonEncoderFn, createBinaryEncoderFn} from '@mionjs/run-types';
+      'never-multi.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
 export const _ = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
-export const _s = createJsonEncoderFn<never>(undefined, {strategy: 'direct'});
-export const _b = createBinaryEncoderFn<never>();
+export const _s = createJsonEncoderFn<never>();
 `,
     };
     await withInlineSources(sources, async ({client}) => {
@@ -67,15 +48,14 @@ export const _b = createBinaryEncoderFn<never>();
         includeEntryModules: true,
       });
       const codes = new Set(runtypeDiagsOf(response).map((d) => d.code));
-      expect(codes, [...codes].join(',')).toContain('PJ001');
-      expect(codes).toContain('SJ001');
-      expect(codes).toContain('TB001');
+      expect(codes, [...codes].join(',')).toContain('json-prepare-never-root');
+      expect(codes).toContain('json-prepare-clone-never-root');
     });
   });
 
   register('emits per-call-site fan-out — three marker calls = three diagnostics', async () => {
     // pj is demand-driven; three createJsonEncoderFn(mutate) sites share one `never`
-    // id, so the single rendered pj entry fans the PJ001 diag out to all three.
+    // id, so the single rendered pj entry fans the json-prepare-never-root diag out to all three.
     const sources = {
       'fan-out.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
 export const a = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
@@ -87,14 +67,14 @@ export const c = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
       const response = await client.scanFiles(Object.keys(sources), {
         includeEntryModules: true,
       });
-      const neverDiags = runtypeDiagsOf(response).filter((d) => d.code === 'PJ001');
+      const neverDiags = runtypeDiagsOf(response).filter((d) => d.code === 'json-prepare-never-root');
       expect(neverDiags).toHaveLength(3);
       const lines = new Set(neverDiags.map((d) => d.site.startLine));
       expect(lines.size).toBe(3);
     });
   });
 
-  register('emits child-position warning for function-typed property under validate', async () => {
+  register('emits child-position info for function-typed property under validate', async () => {
     // `it` is demand-driven, so seed it via createValidateFn (a reflection-only
     // getRunTypeId would emit no val_ entry and thus no validate diagnostic).
     const sources = {
@@ -108,16 +88,19 @@ export const _ = createValidateFn<User>();
         includeEntryModules: true,
       });
       const diags = runtypeDiagsOf(response);
-      const dropped = diags.find((d) => (d.code === 'VL010' || d.code === 'VL011') && d.args?.[0] === 'onClick');
+      const dropped = diags.find(
+        (d) =>
+          (d.code === 'validate-function-property-dropped' || d.code === 'validate-method-dropped') && d.args?.[0] === 'onClick'
+      );
       expect(dropped, JSON.stringify(diags, null, 2)).toBeDefined();
-      expect(dropped!.severity).toBe(Severity.Warning);
+      expect(dropped!.severity).toBe(Severity.Info);
     });
   });
 
-  register('emits union-member-drop warning (VL014) for Date | symbol under validate', async () => {
+  register('emits union-member-drop info (validate-union-member-dropped) for Date | symbol under validate', async () => {
     // `Date | symbol` projects to `Date` (DataOnly drops the symbol arm). The
-    // drop is silent at runtime, so the build surfaces a VL014 Warning naming
-    // the dropped member — mirroring the function-prop drop (VL010) above.
+    // drop is silent at runtime, so the build surfaces a validate-union-member-dropped Info naming
+    // the dropped member — mirroring the function-prop drop above.
     const sources = {
       'union-drop.ts': `import {createValidateFn} from '@mionjs/run-types';
 export const _ = createValidateFn<Date | symbol>();
@@ -128,45 +111,43 @@ export const _ = createValidateFn<Date | symbol>();
         includeEntryModules: true,
       });
       const diags = runtypeDiagsOf(response);
-      const dropped = diags.find((d) => d.code === 'VL014');
+      const dropped = diags.find((d) => d.code === 'validate-union-member-dropped');
       expect(dropped, JSON.stringify(diags, null, 2)).toBeDefined();
-      expect(dropped!.severity).toBe(Severity.Warning);
+      expect(dropped!.severity).toBe(Severity.Info);
       // args[0] names the dropped member so the message can point at it.
       expect(dropped!.args?.[0]).toContain('symbol');
       expect(dropped!.site.filePath).toContain('union-drop.ts');
     });
   });
 
-  register('emits per-family union-drop warnings (PJS014 / SJ014 / RJ014) under JSON encode/decode', async () => {
-    // Each demand-driven family walks the union and emits its own per-family
-    // …014 prefix so users can grep the drop by family, like the root-throw
-    // codes. Seed pjs via the default clone encode, sj via the direct strategy,
-    // and rj via the decoder.
-    const sources = {
-      'union-drop-json.ts': `import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
+  register(
+    'emits per-family union-drop info (json-prepare-clone-union-member-dropped / json-restore-union-member-dropped) under JSON encode/decode',
+    async () => {
+      // Each family reports its own `-union-member-dropped` code so a build log greps the drop by family; clone seeds pjs, the decoder rj.
+      const sources = {
+        'union-drop-json.ts': `import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 export const _e = createJsonEncoderFn<Date | symbol>();
-export const _s = createJsonEncoderFn<Date | symbol>(undefined, {strategy: 'direct'});
 export const _d = createJsonDecoderFn<Date | symbol>();
 `,
-    };
-    await withInlineSources(sources, async ({client}) => {
-      const response = await client.scanFiles(Object.keys(sources), {
-        includeEntryModules: true,
+      };
+      await withInlineSources(sources, async ({client}) => {
+        const response = await client.scanFiles(Object.keys(sources), {
+          includeEntryModules: true,
+        });
+        const drops = runtypeDiagsOf(response).filter((d) => d.code.endsWith('-union-member-dropped'));
+        const codes = new Set(drops.map((d) => d.code));
+        expect(codes, [...codes].join(',')).toContain('json-prepare-clone-union-member-dropped');
+        expect(codes).toContain('json-restore-union-member-dropped');
+        // Every `-union-member-dropped` is Info, never an Error.
+        for (const d of drops) expect(d.severity).toBe(Severity.Info);
       });
-      const drops = runtypeDiagsOf(response).filter((d) => d.code.endsWith('014'));
-      const codes = new Set(drops.map((d) => d.code));
-      expect(codes, [...codes].join(',')).toContain('PJS014');
-      expect(codes).toContain('SJ014');
-      expect(codes).toContain('RJ014');
-      // Every …014 is a Warning, never an Error.
-      for (const d of drops) expect(d.severity).toBe(Severity.Warning);
-    });
-  });
+    }
+  );
 
   register('emits NO union-drop warning when every member is stripped (alwaysThrow instead)', async () => {
     // `symbol | (() => void)` projects to `never` — uninhabitable — so the
     // factory alwaysThrows and there is no surviving union to drop INTO. A
-    // …014 drop warning would be wrong here.
+    // A `-union-member-dropped` warning would be wrong here.
     const sources = {
       'union-allstripped.ts': `import {createValidateFn} from '@mionjs/run-types';
 export const _ = createValidateFn<symbol | (() => void)>();
@@ -177,7 +158,7 @@ export const _ = createValidateFn<symbol | (() => void)>();
         includeEntryModules: true,
       });
       const codes = new Set(runtypeDiagsOf(response).map((d) => d.code));
-      expect(codes, [...codes].join(',')).not.toContain('VL014');
+      expect(codes, [...codes].join(',')).not.toContain('validate-union-member-dropped');
     });
   });
 
@@ -192,14 +173,14 @@ export const _ = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
       const response = await client.scanFiles(Object.keys(sources), {
         includeEntryModules: true,
       });
-      const diagnostic = runtypeDiagsOf(response).find((d) => d.code === 'PJ001');
+      const diagnostic = runtypeDiagsOf(response).find((d) => d.code === 'json-prepare-never-root');
       expect(diagnostic).toBeDefined();
       const line = formatTscDiagnostic(diagnostic!);
-      expect(line).toMatch(/^[^(]+\(\d+,\d+\):\s+error\s+PJ001:\s+.+$/);
+      expect(line).toMatch(/^[^(]+\(\d+,\d+\):\s+error\s+json-prepare-never-root:\s+.+$/);
     });
   });
 
-  register('emits VE020 warning diagnostic for validationErrors on root any/unknown', async () => {
+  register('emits validation-errors-any-accepts-all warning diagnostic for validationErrors on root any/unknown', async () => {
     const sources = {
       'any.ts': `import {getRunTypeId} from '@mionjs/run-types';
 export const _ = getRunTypeId<any>();
@@ -210,19 +191,17 @@ export const _ = getRunTypeId<any>();
         includeEntryModules: true,
       });
       const diags = runtypeDiagsOf(response);
-      const warning = diags.find((d) => d.code === 'VE020');
-      // VE020 surfaces as Warning (not Info): root any/unknown is an
-      // intentional escape hatch but a validator that accepts every
-      // value is still a UX surprise worth flagging visibly.
+      const warning = diags.find((d) => d.code === 'validation-errors-any-accepts-all');
+      // Info: the author wrote any/unknown, so an accept-everything validator is what was asked for.
       if (warning) {
-        expect(warning.severity).toBe(Severity.Warning);
+        expect(warning.severity).toBe(Severity.Info);
       }
     });
   });
 
-  register('emits VL021 warning diagnostic for validate on root any/unknown', async () => {
+  register('emits validate-any-accepts-all info diagnostic for validate on root any/unknown', async () => {
     // `it` is demand-driven, so seed it via createValidateFn<unknown>() (a
-    // reflection-only getRunTypeId would emit no val_ entry, no VL021).
+    // reflection-only getRunTypeId would emit no val_ entry, no validate-any-accepts-all).
     const sources = {
       'any-istype.ts': `import {createValidateFn} from '@mionjs/run-types';
 export const _ = createValidateFn<unknown>();
@@ -233,31 +212,23 @@ export const _ = createValidateFn<unknown>();
         includeEntryModules: true,
       });
       const diags = runtypeDiagsOf(response);
-      const warning = diags.find((d) => d.code === 'VL021');
-      // VL021 is the validate-family parallel to VE020 — root any/unknown
+      const warning = diags.find((d) => d.code === 'validate-any-accepts-all');
+      // validate-any-accepts-all is the validate-family parallel to validation-errors-any-accepts-all — root any/unknown
       // produces a validator that returns true for every value; surface
       // a warning so the user knows the schema is no longer enforced.
       expect(warning).toBeDefined();
-      expect(warning!.severity).toBe(Severity.Warning);
+      expect(warning!.severity).toBe(Severity.Info);
     });
   });
 
-  // Tuple slots are structural — a function or symbol slot can't be
-  // silently dropped without changing the tuple's length / shape on the
-  // wire. The serialization families (prepareForJson, prepareForJsonSafe,
-  // restoreFromJson, stringifyJson, toBinary, fromBinary) propagate the
-  // CodeNS upward so the renderer emits an alwaysThrow factory keyed on
-  // the leaf's per-family code. Regression coverage for the array-style
-  // short-circuits we removed in the tuple emits.
+  // A function or symbol tuple slot cannot drop without reshaping the wire, so the tuple throws with the leaf's code.
 
   register('propagates function-typed tuple slot as alwaysThrow under prepareForJson', async () => {
-    // pj/pjs/rj/sj are demand-driven: seed pj via createJsonEncoderFn(mutate), pjs
-    // via the default clone (shape-derived strip), sj via direct, and rj via createJsonDecoderFn.
+    // Demand-driven families: mutate seeds pj, the default clone seeds pjs, the decoder seeds rj.
     const sources = {
       'fn-tuple.ts': `import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 export const _ = createJsonEncoderFn<[number, () => void]>(undefined, {strategy: 'mutate'});
 export const _s = createJsonEncoderFn<[number, () => void]>();
-export const _d = createJsonEncoderFn<[number, () => void]>(undefined, {strategy: 'direct'});
 export const _r = createJsonDecoderFn<[number, () => void]>();
 `,
     };
@@ -266,42 +237,14 @@ export const _r = createJsonDecoderFn<[number, () => void]>();
         includeEntryModules: true,
       });
       const codes = new Set(runtypeDiagsOf(response).map((d) => d.code));
-      // One per-family error code per emitter — PJ003 / PJS003 /
-      // RJ003 / SJ003 — all on the same function-root leaf.
-      expect(codes, [...codes].join(',')).toContain('PJ003');
-      expect(codes).toContain('PJS003');
-      expect(codes).toContain('RJ003');
-      expect(codes).toContain('SJ003');
-      // Entry modules must wire the tuple's prepareForJson entry as
-      // alwaysThrow so calling `createJsonEncoderFn<[number, () => void]>()`
-      // throws at the first lookup. The fully rendered throw message rides
-      // the tuple's final positional slot — verify it for the tuple entry.
+      // Each emitter reports its own code for the same function-root leaf.
+      expect(codes, [...codes].join(',')).toContain('json-prepare-function-root');
+      expect(codes).toContain('json-prepare-clone-function-root');
+      expect(codes).toContain('json-restore-function-root');
+      // The tuple entry is an alwaysThrow with its rendered message in the last positional slot.
       const allModules = Object.values(response.entryModules ?? {}).join('\n');
       expect(allModules).toMatch(
-        /'[A-Za-z0-9]+_[A-Za-z0-9]+','tuple',,,,,,'\[PJ003\] Type `Function` can never be encoded to JSON/
-      );
-    });
-  });
-
-  register('propagates function-typed tuple slot as alwaysThrow under toBinary / fromBinary', async () => {
-    // tb/fb are demand-driven, so seed each via the matching binary createX.
-    const sources = {
-      'fn-tuple-bin.ts': `import {createBinaryEncoderFn, createBinaryDecoderFn} from '@mionjs/run-types';
-export const _e = createBinaryEncoderFn<[string, () => number]>();
-export const _d = createBinaryDecoderFn<[string, () => number]>();
-`,
-    };
-    await withInlineSources(sources, async ({client}) => {
-      const response = await client.scanFiles(Object.keys(sources), {
-        includeEntryModules: true,
-      });
-      const codes = new Set(runtypeDiagsOf(response).map((d) => d.code));
-      expect(codes).toContain('TB003');
-      expect(codes).toContain('FB003');
-      // Entry key is the opaque `<fnHash>_<id>`, matched generically.
-      const allModules = Object.values(response.entryModules ?? {}).join('\n');
-      expect(allModules).toMatch(
-        /'[A-Za-z0-9]+_[A-Za-z0-9]+','tuple',,,,,,'\[TB003\] Type `Function` can never be serialised to binary/
+        /'[A-Za-z0-9]+_[A-Za-z0-9]+','tuple',,,,,,'\[json-prepare-function-root\] Type `Function` can never be encoded to JSON/
       );
     });
   });
@@ -312,9 +255,8 @@ export const _d = createBinaryDecoderFn<[string, () => number]>();
     // path even before the fix. This test pins that behavior so a future
     // optimisation can't silently regress it.
     const sources = {
-      'sym-tuple.ts': `import {createJsonEncoderFn, createBinaryEncoderFn} from '@mionjs/run-types';
+      'sym-tuple.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
 export const _ = createJsonEncoderFn<[number, symbol]>(undefined, {strategy: 'mutate'});
-export const _b = createBinaryEncoderFn<[number, symbol]>();
 `,
     };
     await withInlineSources(sources, async ({client}) => {
@@ -322,167 +264,168 @@ export const _b = createBinaryEncoderFn<[number, symbol]>();
         includeEntryModules: true,
       });
       const codes = new Set(runtypeDiagsOf(response).map((d) => d.code));
-      expect(codes).toContain('PJ005');
-      expect(codes).toContain('TB006');
+      expect(codes).toContain('json-prepare-symbol-root');
     });
   });
 
-  // JCP001 regression — the `compact` JSON strategy (encoder cj / decoder cjr)
-  // used to SILENTLY SKIP its primitive entry when a walk hit an unserialisable
-  // leaf at a propagating position, because the compact emitters implemented
-  // neither diagnostic interface. The composite then bound a never-rendered
-  // primitive (`utl.getRT(cj_<id>).fn` on a module that never registered),
-  // surfacing the internal JCP001 "never rendered — please file an issue" error.
-  // The fix delegates cj → prepareForJsonSafe (PJS*) and cjr → restoreFromJson
-  // (RJ*), so compact now alwaysThrows with the SAME per-family code as its
-  // siblings and never trips JCP001. See docs/done/jcp001-*.
-  register('compact strategy alwaysThrows (PJS003 / RJ003) with NO JCP001 for a function tuple slot', async () => {
-    const sources = {
-      'compact-fn-tuple.ts': `import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
+  // Regression: compact (cj / cjr) once skipped its primitive on an unserialisable leaf, surfacing internal-json-primitive-missing.
+  // cj now delegates to prepareForJsonSafe and cjr to restoreFromJsonMutate, so it throws their codes.
+  register(
+    'compact strategy alwaysThrows (json-prepare-clone-function-root / json-restore-function-root) with NO internal-json-primitive-missing for a function tuple slot',
+    async () => {
+      const sources = {
+        'compact-fn-tuple.ts': `import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 export const _e = createJsonEncoderFn<[number, () => void]>(undefined, {strategy: 'compact'});
 export const _d = createJsonDecoderFn<[number, () => void]>(undefined, {strategy: 'compact'});
 `,
-    };
-    await withInlineSources(sources, async ({client}) => {
-      const response = await client.scanFiles(Object.keys(sources), {
-        includeEntryModules: true,
+      };
+      await withInlineSources(sources, async ({client}) => {
+        const response = await client.scanFiles(Object.keys(sources), {
+          includeEntryModules: true,
+        });
+        const diags = response.diagnostics ?? [];
+        // The internal breach must be gone entirely.
+        expect(
+          diags.filter((d) => d.code === 'internal-json-primitive-missing'),
+          JSON.stringify(diags, null, 2)
+        ).toHaveLength(0);
+        const codes = new Set(runtypeDiagsOf(response).map((d) => d.code));
+        // Compact reuses the sibling codes: encode as clone (pjs), decode as mutate (rj).
+        expect(codes, [...codes].join(',')).toContain('json-prepare-clone-function-root');
+        expect(codes).toContain('json-restore-function-root');
+        // An alwaysThrow, so calling it throws at first lookup instead of crashing on an undefined fn.
+        const allModules = Object.values(response.entryModules ?? {}).join('\n');
+        expect(allModules).toMatch(/'\[json-prepare-clone-function-root\] Type `Function` can never be encoded to JSON/);
       });
-      const diags = response.diagnostics ?? [];
-      // The internal breach must be gone entirely.
-      expect(
-        diags.filter((d) => d.code === 'JCP001'),
-        JSON.stringify(diags, null, 2)
-      ).toHaveLength(0);
-      const codes = new Set(runtypeDiagsOf(response).map((d) => d.code));
-      // Compact encode (cj) mirrors clone (pjs); compact decode (cjr) mirrors
-      // preserve (rj) — same function-root code the sibling strategies emit.
-      expect(codes, [...codes].join(',')).toContain('PJS003');
-      expect(codes).toContain('RJ003');
-      // The compact composite entry must wire the tuple as an alwaysThrow, so
-      // calling it throws at first lookup rather than crashing on an undefined fn.
-      const allModules = Object.values(response.entryModules ?? {}).join('\n');
-      expect(allModules).toMatch(/'\[PJS003\] Type `Function` can never be encoded to JSON/);
-    });
-  });
+    }
+  );
 
-  register('compact strategy alwaysThrows (PJS005 / RJ005) with NO JCP001 for a symbol tuple slot', async () => {
-    const sources = {
-      'compact-sym-tuple.ts': `import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
+  register(
+    'compact strategy alwaysThrows (json-prepare-clone-symbol-root / json-restore-symbol-root) with NO internal-json-primitive-missing for a symbol tuple slot',
+    async () => {
+      const sources = {
+        'compact-sym-tuple.ts': `import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 export const _e = createJsonEncoderFn<[number, symbol]>(undefined, {strategy: 'compact'});
 export const _d = createJsonDecoderFn<[number, symbol]>(undefined, {strategy: 'compact'});
 `,
-    };
-    await withInlineSources(sources, async ({client}) => {
-      const response = await client.scanFiles(Object.keys(sources), {
-        includeEntryModules: true,
+      };
+      await withInlineSources(sources, async ({client}) => {
+        const response = await client.scanFiles(Object.keys(sources), {
+          includeEntryModules: true,
+        });
+        const diags = response.diagnostics ?? [];
+        expect(
+          diags.filter((d) => d.code === 'internal-json-primitive-missing'),
+          JSON.stringify(diags, null, 2)
+        ).toHaveLength(0);
+        const codes = new Set(runtypeDiagsOf(response).map((d) => d.code));
+        expect(codes, [...codes].join(',')).toContain('json-prepare-clone-symbol-root');
+        expect(codes).toContain('json-restore-symbol-root');
       });
-      const diags = response.diagnostics ?? [];
-      expect(
-        diags.filter((d) => d.code === 'JCP001'),
-        JSON.stringify(diags, null, 2)
-      ).toHaveLength(0);
-      const codes = new Set(runtypeDiagsOf(response).map((d) => d.code));
-      expect(codes, [...codes].join(',')).toContain('PJS005');
-      expect(codes).toContain('RJ005');
-    });
-  });
+    }
+  );
 
-  register('emits a …015 WARNING (not a root error) for a directly-stripped property value (F3)', async () => {
-    // `{a: symbol}` / `{a: Promise<number>}` — the property VALUE is directly
-    // non-data, so the property is DROPPED and the object still serializes:
-    // `DataOnly<{a: symbol; b: number}>` = `{b: number}`. The drop is a …015
-    // child-position Warning, NEVER a root error (the factory does not throw).
-    // Before the fix the default clone encoder (prepareForJsonSafe) FAILED these
-    // outright, and the other families emitted an Error — F3.
-    const sources = {
-      'stripped-prop.ts': `import {createValidateFn, createJsonEncoderFn} from '@mionjs/run-types';
+  register(
+    'emits a `-non-data-property-dropped` INFO (not a root error) for a directly-stripped property value (F3)',
+    async () => {
+      // A directly non-data value DROPS its property and the object still serializes: `{a: symbol; b: number}` -> `{b: number}`.
+      // The drop is a child-position `-non-data-property-dropped` Info, NEVER a root error (the factory does not throw).
+      const sources = {
+        'stripped-prop.ts': `import {createValidateFn, createJsonEncoderFn} from '@mionjs/run-types';
 interface S { a: symbol; b: number; }
 interface P { a: Promise<number>; b: number; }
 export const _v = createValidateFn<S>();
 export const _e = createJsonEncoderFn<S>();
 export const _p = createValidateFn<P>();
 `,
-    };
-    await withInlineSources(sources, async ({client}) => {
-      const response = await client.scanFiles(Object.keys(sources), {
-        includeEntryModules: true,
+      };
+      await withInlineSources(sources, async ({client}) => {
+        const response = await client.scanFiles(Object.keys(sources), {
+          includeEntryModules: true,
+        });
+        const diags = runtypeDiagsOf(response);
+        // The default clone encoder + validate drop the property with a `-non-data-property-dropped` Info.
+        const drops = diags.filter((d) => d.code.endsWith('-non-data-property-dropped'));
+        const codes = new Set(drops.map((d) => d.code));
+        expect(codes, JSON.stringify(diags, null, 2)).toContain('validate-non-data-property-dropped'); // validate
+        expect(codes).toContain('json-prepare-clone-non-data-property-dropped'); // default clone encoder
+        for (const d of drops) {
+          expect(d.severity, `${d.code} should be Info`).toBe(Severity.Info);
+          expect(d.args?.[0]).toBe('a');
+        }
+        // NO root error may fire — a dropped property serializes fine. (The `-symbol-root` /
+        // `-non-data-root` codes are the symbol / non-serialisable ROOT errors.)
+        const errors = diags.filter((d) => d.severity === Severity.Error);
+        expect(errors, JSON.stringify(errors, null, 2)).toHaveLength(0);
+        // And the object factory must NOT be an alwaysThrow tuple.
+        const allModules = Object.values(response.entryModules ?? {}).join('\n');
+        expect(allModules).not.toMatch(/'objectLiteral',,,,,,'\[(?:json-prepare-clone|validate)-/);
       });
-      const diags = runtypeDiagsOf(response);
-      // The default clone encoder + validate drop the property with a …015 Warning.
-      const drops = diags.filter((d) => d.code.endsWith('015'));
-      const codes = new Set(drops.map((d) => d.code));
-      expect(codes, JSON.stringify(diags, null, 2)).toContain('VL015'); // validate
-      expect(codes).toContain('PJS015'); // default clone encoder
-      for (const d of drops) {
-        expect(d.severity, `${d.code} should be a Warning`).toBe(Severity.Warning);
-        expect(d.args?.[0]).toBe('a');
-      }
-      // NO root error may fire — a dropped property serializes fine. (The …002 /
-      // …005 codes are the symbol / non-serialisable ROOT errors.)
-      const errors = diags.filter((d) => d.severity === Severity.Error);
-      expect(errors, JSON.stringify(errors, null, 2)).toHaveLength(0);
-      // And the object factory must NOT be an alwaysThrow tuple.
-      const allModules = Object.values(response.entryModules ?? {}).join('\n');
-      expect(allModules).not.toMatch(/'objectLiteral',,,,,,'\[(PJS|VL)/);
-    });
-  });
+    }
+  );
 
-  register('throws (root error, not a …015 drop) for a structurally-unserialisable property value (F3)', async () => {
-    // `{a: symbol[]}` — the property value is only STRUCTURALLY unserialisable
-    // (a symbol in a propagating array slot). DataOnly KEEPS it as `never[]`, so
-    // it cannot be safely dropped: the family throws at build time with a root
-    // error, and the …015 drop Warning must NOT fire.
-    const sources = {
-      'structural-prop.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
+  register(
+    'throws (root error, not a `-non-data-property-dropped` drop) for a structurally-unserialisable property value (F3)',
+    async () => {
+      // A symbol in an array slot is only STRUCTURALLY non-data: DataOnly KEEPS it as `never[]`, so it cannot be dropped.
+      // The family throws a root error at build time, and the `-non-data-property-dropped` Info must NOT fire.
+      const sources = {
+        'structural-prop.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
 interface S { a: symbol[]; b: number; }
 export const _e = createJsonEncoderFn<S>(undefined, {strategy: 'mutate'});
 `,
-    };
-    await withInlineSources(sources, async ({client}) => {
-      const response = await client.scanFiles(Object.keys(sources), {
-        includeEntryModules: true,
+      };
+      await withInlineSources(sources, async ({client}) => {
+        const response = await client.scanFiles(Object.keys(sources), {
+          includeEntryModules: true,
+        });
+        const diags = runtypeDiagsOf(response);
+        const codes = new Set(diags.map((d) => d.code));
+        expect(codes, JSON.stringify(diags, null, 2)).toContain('json-prepare-symbol-root'); // symbol root error
+        expect(
+          [...codes].some((c) => c.endsWith('-non-data-property-dropped')),
+          'no `-non-data-property-dropped` drop for a kept property'
+        ).toBe(false);
       });
-      const diags = runtypeDiagsOf(response);
-      const codes = new Set(diags.map((d) => d.code));
-      expect(codes, JSON.stringify(diags, null, 2)).toContain('PJ005'); // symbol root error
-      expect(
-        [...codes].some((c) => c.endsWith('015')),
-        'no …015 drop for a kept property'
-      ).toBe(false);
-    });
-  });
+    }
+  );
 
-  // The default emit mode (no inline createRTFn) keeps the cache
-  // Regression: one diagnostic per CALL SITE, never one per cache family.
+  // The default emit mode (no inline createRTFn) keeps the cache.
+  // Regression: never the SAME diagnostic twice. Each family gets its own
+  // Walker — so its own per-code latch, blind to its siblings — and each walk
+  // emits against every provenance site of the root type, so one shared type
+  // used to report each finding twice per site. mion saw 114 such lines per
+  // lint run, roughly half of them exact duplicates.
   //
-  // A class demanded by two families (the JSON encoder walks it, the decoder
-  // walks it) used to report CLS001 FOUR times for two call sites: each family
-  // gets its own Walker — so its own per-code latch — and each walk emits
-  // against EVERY provenance site of the root type. mion saw 114 CLS001 lines
-  // per lint run, roughly half of them exact duplicates.
-  //
-  // Nothing about this was class-serializer specific; it hit any code emitted
-  // from a family-shared path. The fix (diagnostics.Dedupe, applied once in
-  // Session.Dispatch) is keyed on the FULL identity, so the sibling assertion
-  // below — two different classes at two sites — must still report four.
-  register('reports CLS001 once per call site, not once per cache family', async () => {
+  // Two rules produce the exact lines below. diagnostics.Dedupe (applied once
+  // in Session.Dispatch) is keyed on the FULL identity, so it collapses repeats
+  // and never siblings. And provenance is keyed per rendered ENTRY, so a
+  // family's finding reaches only the sites that demanded that family: `Pet` is
+  // shared, but the json-prepare code is about the encoder and the json-restore one about the decoder, so each
+  // lands on its own call and neither is told about the other's dropped member.
+  register('reports each diagnostic once per code and site, never twice', async () => {
     const sources = {
       'cls.ts': `import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
-export class Pet { name: string = 'x'; }
-export const enc = createJsonEncoderFn<Pet>();
+export class Pet { name: string = 'x'; speak(): string { return this.name; } }
+export const enc = createJsonEncoderFn<Pet>(undefined, {strategy: 'mutate'});
 export const dec = createJsonDecoderFn<Pet>();
 `,
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
-      const cls = runtypeDiagsOf(response).filter((d) => d.code === 'CLS001');
-      expect(cls.length, `expected one CLS001 per call site, got:\n${JSON.stringify(cls, null, 2)}`).toBe(2);
-      // Both sites are represented — dedup must not collapse ACROSS sites.
-      const lines = cls.map((d) => d.site.startLine).sort((a, b) => a - b);
-      expect(lines).toEqual([3, 4]);
-      for (const diagnostic of cls) {
-        expect(diagnostic.severity).toBe(Severity.Warning);
-        expect(diagnostic.args).toEqual(['Pet']);
+      const dropped = runtypeDiagsOf(response).filter(
+        (d) => d.code === 'json-prepare-method-dropped' || d.code === 'json-restore-method-dropped'
+      );
+      const identities = dropped.map((d) => `${d.code}@${d.site.startLine}`).sort();
+      // Each family at its own site, exactly once: no repeat, nothing merged
+      // across families, and neither family's finding on the other's call.
+      expect(identities, `got:\n${JSON.stringify(dropped, null, 2)}`).toEqual([
+        'json-prepare-method-dropped@3',
+        'json-restore-method-dropped@4',
+      ]);
+      for (const diagnostic of dropped) {
+        expect(diagnostic.severity).toBe(Severity.Info);
+        expect(diagnostic.args).toEqual(['speak']);
       }
     });
   });
@@ -499,50 +442,48 @@ export const dec = createJsonDecoderFn<Pet>();
   register('warns for a class nested inside the encoded type, not just at the root', async () => {
     const sources = {
       'nested.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
-export class Pet { name: string = 'x'; }
-export class Owner { email: string = 'y'; }
-export const enc = createJsonEncoderFn<{pet: Pet; owner: Owner}>();
+export class Pet { name: string = 'x'; speak(): string { return this.name; } }
+export class Owner { email: string = 'y'; contact(): string { return this.email; } }
+export const enc = createJsonEncoderFn<{pet: Pet; owner: Owner}>(undefined, {strategy: 'mutate'});
 `,
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
-      const cls = runtypeDiagsOf(response).filter((d) => d.code === 'CLS001');
-      // BOTH nested classes, each once, attributed to the call site that pulled
-      // them in. Each is its own child entry, so the per-walk code latch (which
-      // would allow only one CLS001 per walk) does not merge them.
-      expect(cls.map((d) => d.args?.[0]).sort()).toEqual(['Owner', 'Pet']);
-      for (const diagnostic of cls) expect(diagnostic.site.startLine).toBe(4);
+      const dropped = runtypeDiagsOf(response).filter((d) => d.code === 'json-prepare-method-dropped');
+      // Each nested class once, at the call site that pulled it in: the per-walk latch keys on code AND member.
+      expect(dropped.map((d) => d.args?.[0]).sort()).toEqual(['contact', 'speak']);
+      for (const diagnostic of dropped) expect(diagnostic.site.startLine).toBe(4);
     });
   });
 
   register('warns for a class reached through a union arm', async () => {
     const sources = {
       'union.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
-export class Pet { name: string = 'x'; }
-export class Owner { email: string = 'y'; }
-export const enc = createJsonEncoderFn<Pet | Owner>();
+export class Pet { name: string = 'x'; speak(): string { return this.name; } }
+export class Owner { email: string = 'y'; contact(): string { return this.email; } }
+export const enc = createJsonEncoderFn<Pet | Owner>(undefined, {strategy: 'mutate'});
 `,
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
-      const cls = runtypeDiagsOf(response).filter((d) => d.code === 'CLS001');
-      expect(cls.map((d) => d.args?.[0]).sort()).toEqual(['Owner', 'Pet']);
+      const dropped = runtypeDiagsOf(response).filter((d) => d.code === 'json-prepare-method-dropped');
+      expect(dropped.map((d) => d.args?.[0]).sort()).toEqual(['contact', 'speak']);
     });
   });
 
   register('warns for a class buried several levels down', async () => {
     const sources = {
       'deep.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
-export class Pet { name: string = 'x'; }
-export const enc = createJsonEncoderFn<{a: {b: {c: Pet}}}>();
+export class Pet { name: string = 'x'; speak(): string { return this.name; } }
+export const enc = createJsonEncoderFn<{a: {b: {c: Pet}}}>(undefined, {strategy: 'mutate'});
 `,
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
-      const cls = runtypeDiagsOf(response).filter((d) => d.code === 'CLS001');
-      expect(cls).toHaveLength(1);
-      expect(cls[0]!.args).toEqual(['Pet']);
-      expect(cls[0]!.site.startLine).toBe(3);
+      const dropped = runtypeDiagsOf(response).filter((d) => d.code === 'json-prepare-method-dropped');
+      expect(dropped).toHaveLength(1);
+      expect(dropped[0]!.args).toEqual(['speak']);
+      expect(dropped[0]!.site.startLine).toBe(3);
     });
   });
 
@@ -551,15 +492,15 @@ export const enc = createJsonEncoderFn<{a: {b: {c: Pet}}}>();
   register('a self-referencing type warns once, without looping', async () => {
     const sources = {
       'cycle.ts': `import {createJsonEncoderFn} from '@mionjs/run-types';
-export class Node { name: string = 'x'; next?: Node; }
-export const enc = createJsonEncoderFn<{root: Node}>();
+export class Node { name: string = 'x'; next?: Node; speak(): string { return this.name; } }
+export const enc = createJsonEncoderFn<{root: Node}>(undefined, {strategy: 'mutate'});
 `,
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
-      const cls = runtypeDiagsOf(response).filter((d) => d.code === 'CLS001');
-      expect(cls).toHaveLength(1);
-      expect(cls[0]!.args).toEqual(['Node']);
+      const dropped = runtypeDiagsOf(response).filter((d) => d.code === 'json-prepare-method-dropped');
+      expect(dropped).toHaveLength(1);
+      expect(dropped[0]!.args).toEqual(['speak']);
     });
   });
 
@@ -614,7 +555,7 @@ export const _ = createValidateFn<User>();
     const {ResolverClient} = await import('../src/core/resolver-client.ts');
     const path = await import('node:path');
     const ROOT = path.resolve(__dirname, '../../..');
-    const oneShot = new ResolverClient(`${ROOT}/bin/mion`, ROOT, '', {serverMode: true});
+    const oneShot = new ResolverClient(`${ROOT}/mion-bin/mion`, ROOT, '', {serverMode: true});
     try {
       await oneShot.setSources({...MARKER_PACKAGE_OVERLAY, ...sources});
       const response = await oneShot.scanFiles(Object.keys(sources), {

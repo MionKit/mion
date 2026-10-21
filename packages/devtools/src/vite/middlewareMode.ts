@@ -13,29 +13,24 @@ import {serveFetchHandler} from './nodeWebBridge.ts';
 import type {MionServerOptions} from './mionVitePlugin.ts';
 
 // ############# in-process (middleware) server mode #############
-// Runs the mion API INSIDE the vite dev server: the entry is loaded through vite's own SSR pipeline
-// (`ssrLoadModule`, so it shares the module graph with the app) and its request handler is mounted
-// as connect middleware. This is the idiomatic "backend of a frontend" setup for Nuxt/SSR — one
-// process, one port, no child server.
-//
-// It is a restore, not an invention: the pre-migration plugin did the same thing, except the
-// "don't open a port" half rode `MION_COMPILE=middleware` + `isMionCompileMode()`, both deleted with
-// the AOT sweep. It is now an ordinary platform option (`asMiddleware`) the plugin sets on the
-// adapter before loading the entry, so an unchanged entry — `initMionRouter(); startNodeServer();` —
-// works in both run modes.
+// The entry is `ssrLoadModule`d, sharing the app's module graph, and its handler mounted as connect middleware.
+// The router's host flag, set before the entry loads, makes any adapter it starts skip listening and hand over
+// its handler, so an unchanged `initRoutes(routes); startNodeServer();` entry works as written.
 
 /** Node-style handler, as exported by @mionjs/platform-node. */
 type NodeHandler = (req: IncomingMessage, res: ServerResponse) => void;
 /** Fetch-style handler, as exported by @mionjs/platform-bun and buildable from the edge adapters. */
 type FetchHandler = (req: Request) => Response | Promise<Response>;
+type RequestHandlers = {node?: NodeHandler; fetch?: FetchHandler};
 
-/** Export names searched for a handler, entry module first, then the platform module. */
+/** Export names searched for a handler on the entry module, and on the node adapter when nothing else gave one. */
 const NODE_HANDLER_EXPORTS = ['httpRequestHandler'];
 const FETCH_HANDLER_EXPORTS = ['requestHandler', 'bunRequestHandler', 'fetch'];
+/** Serves an entry that registers routes but starts no adapter. */
+const DEFAULT_PLATFORM = '@mionjs/platform-node';
 
-/** Paths never sent to mion when the router has no basePath (mion serving at the root). Same shape
- *  as @hono/vite-dev-server's defaults: vite internals, HMR pings and static assets must reach
- *  vite's own middlewares. Override with `server.exclude`. */
+/** Paths never sent to mion when the router has no basePath, the same shape as @hono/vite-dev-server's
+ *  defaults: vite internals, HMR pings and static assets must reach vite's own middlewares. */
 export const DEFAULT_MIDDLEWARE_EXCLUDE: RegExp[] = [
   /^\/@/, // /@vite/client, /@fs/…, /@id/…
   /^\/__vite/,
@@ -46,16 +41,19 @@ export const DEFAULT_MIDDLEWARE_EXCLUDE: RegExp[] = [
   /\.(m?[jt]sx?|vue|svelte|astro|css|scss|sass|less|styl|html|map|svg|png|jpe?g|gif|webp|avif|ico|woff2?|ttf|otf|eot|wasm)($|\?)/,
 ];
 
-/** Signals handed back to the plugin so `serverReady` settles from whichever lane is active. */
+/** Signals handed back to the plugin: they drive the 503 path, nothing leaves the preset. */
 export interface MiddlewareReadySignals {
   onReady: () => void;
   onError: (err: Error) => void;
+  /** The batch table module the resolver last generated, '' when there is none: its first appearance is the
+   *  one file event the module graph cannot see, so the API is marked stale on it. */
+  batchesModuleOf?: () => string;
 }
 
-/** The vite plugin that mounts the mion API in-process (`server.runMode: 'middleware'`). */
+/** The vite plugin that mounts the mion API in-process — the one way the preset runs it. */
 export function mionMiddlewarePlugin(options: MionServerOptions, signals: MiddlewareReadySignals): Plugin {
-  const startScript = path.resolve(options.startScript);
-  const platformId = options.platform ?? '@mionjs/platform-node';
+  // A relative entry is the vite root's, settled in configResolved.
+  let entryPath = path.resolve(options.entry);
   const exclude = options.exclude ?? DEFAULT_MIDDLEWARE_EXCLUDE;
   let mounted = false;
   let initPromise: Promise<void> | undefined;
@@ -64,30 +62,41 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
   let fetchHandler: FetchHandler | undefined;
   let mountPath = '';
   let staleSince: number | undefined;
+  let routerModule: Record<string, any> | undefined;
+  let closed = false;
+  let inFlight: Promise<unknown> = Promise.resolve();
+
+  /** Remembers the latest load, so closing waits for an entry that may still start an adapter. */
+  function track(loading: Promise<void>): Promise<void> {
+    inFlight = loading.catch(() => undefined);
+    return loading;
+  }
 
   /** Loads the entry through vite's SSR pipeline and resolves its handler + mount path. */
   async function load(server: ViteDevServer): Promise<void> {
-    const platform = await server.ssrLoadModule(platformId);
-    setAsMiddleware(platform, platformId);
-    const entry = await server.ssrLoadModule(startScript);
-    // Entries that kick off `initMionRouter()` without top-level await expose it as an exported
-    // promise; awaiting those keeps the first request from racing route registration.
-    await Promise.all(Object.values(entry).filter((value): value is Promise<unknown> => value instanceof Promise));
     const router = await server.ssrLoadModule('@mionjs/router');
-    assertNotListening(router, platformId);
-    mountPath = normalizeMountPath(options.basePath ?? router.getRouterOptions?.().basePath);
-    const handlers = pickHandler(entry, platform, platformId);
+    // A warm-up load still in flight when the server closes must not leave the process-wide flag set.
+    if (closed) return;
+    routerModule = router;
+    router.setHostOwnsSocket(true);
+    const entry = await server.ssrLoadModule(entryPath);
+    // `mion.initRoutes()` is synchronous, but an entry may still export a promise of its own (a
+    // platform start it did not await); awaiting those keeps the first request from racing it.
+    await Promise.all(Object.values(entry).filter((value): value is Promise<unknown> => value instanceof Promise));
+    assertNotListening(router);
+    mountPath = normalizeMountPath(router.getRouterOptions?.().basePath);
+    const handlers = await pickHandler(server, entry, router.getHostRequestHandler?.());
     nodeHandler = handlers.node;
     fetchHandler = handlers.fetch;
   }
 
   /** Single init chain — every request awaits this one before matching. */
   function init(server: ViteDevServer): Promise<void> {
-    initPromise ??= load(server).then(
+    initPromise ??= track(load(server)).then(
       () => signals.onReady(),
       (err) => {
         initError = err instanceof Error ? err : new Error(String(err));
-        console.error(`[mion] middleware mode failed to load ${startScript}:`, initError);
+        console.error(`[mion] middleware mode failed to load ${entryPath}:`, initError);
         signals.onError(initError);
       }
     );
@@ -95,27 +104,37 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
   }
 
   /** Re-loads the entry after a source change: mion's router is global state, so it is reset
-   *  first — `initMionRouter` throws "Router has already been initialized" otherwise. */
+   *  first — `initRoutes` throws "Router has already been initialized" otherwise. */
   async function reload(server: ViteDevServer): Promise<void> {
-    // ssrLoadModule runs in the ssr environment, so the invalidation must hit THAT graph:
-    // under vite 8 the legacy mixed-graph module node no longer reaches the ssr instance,
-    // leaving the next ssrLoadModule serving the cached (stale) entry.
+    // ssrLoadModule runs in the ssr environment, so the invalidation must hit THAT graph: under vite 8 the
+    // legacy mixed-graph module node leaves the next ssrLoadModule serving the cached, stale entry.
     const ssrGraph = (server as any).environments?.ssr?.moduleGraph;
     const graph = ssrGraph ?? server.moduleGraph;
-    const entryModule = await graph.getModuleByUrl(startScript, true);
+    const entryModule = await graph.getModuleByUrl(entryPath, true);
     if (entryModule) invalidateOwnModules(server, graph, entryModule);
     const router = await server.ssrLoadModule('@mionjs/router');
     router.resetRouter?.();
-    await load(server);
+    await track(load(server));
   }
 
   return {
     name: 'mion-middleware-server',
 
+    configResolved(config) {
+      entryPath = path.resolve(config.root, options.entry);
+    },
+
+    // The flag is process-wide, so a later server started in the same process (a test runner) listens again.
+    // Cleared only once a loading entry finished: its adapter would otherwise see no host and listen.
+    async closeBundle() {
+      closed = true;
+      await inFlight;
+      routerModule?.setHostOwnsSocket(false);
+    },
+
     config() {
-      // Single-instance state matters here in a way it does not in a plain build: the API and
-      // the app share one SSR module graph, and two @mionjs/core instances mean two registries
-      // (core's own dual-load warning is the signal).
+      // The API and the app share one SSR module graph here, and two @mionjs/core instances mean two route
+      // registries (core's own dual-load warning is the signal).
       return {ssr: {noExternal: [/@mionjs\//]}};
     },
 
@@ -146,21 +165,27 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
         }
       });
 
-      // Warm up so a broken API is reported at boot rather than at the first request. Skipped
-      // under vitest: its vite server also fires configureServer, and loading the API into the
-      // test process is neither wanted nor harmless (initMionRouter is global state).
+      // Warm up so a broken API is reported at boot rather than at the first request. Skipped under vitest:
+      // its vite server fires configureServer too, and the mion router is global state in that process.
       if (!process.env.VITEST) void init(server);
 
       if (options.hotReload === false) return;
+      // The batch table module is imported by the router-init module, so a REWRITE of it is an ordinary change
+      // below. Its first APPEARANCE is not: the entry was loaded without it and nothing in the graph names it
+      // yet (the plugin re-transforms the router-init modules; this reload makes them re-run).
+      server.watcher.on('add', (file) => {
+        if (!initPromise || staleSince !== undefined) return;
+        const batchesModule = signals.batchesModuleOf?.() ?? '';
+        if (batchesModule && path.resolve(file) === batchesModule) staleSince = Date.now();
+      });
       // Lazy reload: mark on change, re-load on the next API request. Reloading eagerly would
-      // re-run initMionRouter for every unrelated frontend edit.
+      // re-run initRoutes for every unrelated frontend edit.
       server.watcher.on('change', (file) => {
         if (!initPromise || staleSince !== undefined) return;
         if (!isOwnFile(server, file)) return;
-        // vite 8 keys its module graphs by real path while watcher events can carry the
-        // symlinked spelling (macOS /var vs /private/var), so look both up; and the mixed
-        // moduleGraph proxy no longer surfaces ssr-only modules (how this plugin loads the
-        // API entry), so ask every environment graph too.
+        // vite 8 keys its module graphs by real path while watcher events can carry the symlinked spelling
+        // (macOS /var vs /private/var), so look both up; and the mixed moduleGraph proxy no longer surfaces
+        // ssr-only modules, which is how this plugin loads the API entry, so ask every environment graph too.
         let realFile = file;
         try {
           realFile = fs.realpathSync(file);
@@ -178,49 +203,45 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
   };
 }
 
-/** Tells the platform adapter the HOST owns the socket, before the entry can call it. */
-function setAsMiddleware(platform: Record<string, any>, platformId: string): void {
-  const setter = Object.keys(platform).find((key) => /^set[A-Za-z]*Opts$/.test(key) && typeof platform[key] === 'function');
-  if (!setter) {
-    throw new Error(
-      `[mionVitePlugin] ${platformId} exports no set…Opts() function, so middleware mode cannot tell it to skip ` +
-        `listen(). Point server.platform at a mion platform adapter (@mionjs/platform-node by default).`
-    );
-  }
-  platform[setter]({asMiddleware: true});
-}
-
-/** Fails loudly when the entry opened a port anyway — which means the plugin and the entry got
- *  DIFFERENT copies of the adapter module, so the flag above never reached the one that listened. */
-function assertNotListening(router: Record<string, any>, platformId: string): void {
+/** An entry that opened a port anyway got a DIFFERENT router copy than the one the host flag was set on. */
+function assertNotListening(router: Record<string, any>): void {
   const platformConfig = router.getPlatformConfig?.();
-  // No adapter was started at all (a pure initMionRouter entry): nothing to check.
+  // No adapter was started at all (a pure initRoutes entry): nothing to check.
   if (!platformConfig) return;
   if (platformConfig.asMiddleware === true) return;
   throw new Error(
-    `[mionVitePlugin] middleware mode: the server entry opened its own port — ${platformId} was loaded twice, so ` +
-      `the asMiddleware option never reached the copy the entry used. Make sure ssr.noExternal keeps @mionjs/* ` +
+    `[mionVitePlugin] middleware mode: the server entry opened its own port. @mionjs/router was loaded twice, ` +
+      `so the platform adapter never saw that vite owns the socket. Make sure ssr.noExternal keeps @mionjs/* ` +
       `in one instance (the plugin adds /@mionjs\\// for you; a custom ssr.noExternal must not drop it).`
   );
 }
 
-/** Node-style handler wins when both exist: no Request/Response is materialized for it. */
-function pickHandler(
+/** A node-style handler wins when both exist: no Request/Response is built for it. */
+async function pickHandler(
+  server: ViteDevServer,
   entry: Record<string, any>,
-  platform: Record<string, any>,
-  platformId: string
-): {node?: NodeHandler; fetch?: FetchHandler} {
-  for (const source of [entry, platform]) {
-    const node = NODE_HANDLER_EXPORTS.map((name) => source[name]).find((fn) => typeof fn === 'function');
-    if (node) return {node};
-    const fetch = FETCH_HANDLER_EXPORTS.map((name) => source[name]).find((fn) => typeof fn === 'function');
-    if (fetch) return {fetch};
-  }
+  hostHandler: RequestHandlers | undefined
+): Promise<RequestHandlers> {
+  const fromEntry = handlerExportOf(entry);
+  if (fromEntry) return fromEntry;
+  if (hostHandler?.node || hostHandler?.fetch) return hostHandler;
+  let loadError: unknown;
+  const nodeAdapter = await server.ssrLoadModule(DEFAULT_PLATFORM).catch((error: unknown) => void (loadError = error));
+  const fromAdapter = nodeAdapter && handlerExportOf(nodeAdapter);
+  if (fromAdapter) return fromAdapter;
   throw new Error(
-    `[mionVitePlugin] middleware mode found no request handler. Expected one of ` +
-      `${[...NODE_HANDLER_EXPORTS, ...FETCH_HANDLER_EXPORTS].join(', ')} exported by ${platformId} or by the ` +
-      `server entry itself (export your adapter's handler as \`requestHandler\` to use any other platform).`
+    `[mionVitePlugin] middleware mode found no request handler. Start a mion platform adapter in the server ` +
+      `entry, or export one of ${[...NODE_HANDLER_EXPORTS, ...FETCH_HANDLER_EXPORTS].join(', ')} from it.`,
+    {cause: loadError}
   );
+}
+
+function handlerExportOf(source: Record<string, any>): RequestHandlers | undefined {
+  const node = NODE_HANDLER_EXPORTS.map((name) => source[name]).find((fn) => typeof fn === 'function');
+  if (node) return {node};
+  const fetch = FETCH_HANDLER_EXPORTS.map((name) => source[name]).find((fn) => typeof fn === 'function');
+  if (fetch) return {fetch};
+  return undefined;
 }
 
 /** '', 'api/v1' and '/api/v1/' all normalize to the prefix route paths actually carry ('/api/v1'). */
@@ -253,10 +274,9 @@ function safeRealpath(p: string): string {
   }
 }
 
-/** A file the user owns — dependencies keep their module instances (and their warm caches) across a
- *  reload, which is what lets `resetRouter()` do its job instead of a whole fresh graph.
- *  Compared through realpath as well: vite 8 keys module files by real path, so a symlinked root
- *  (macOS /var vs /private/var) would otherwise disown every module. */
+/** A file the user owns: dependencies keep their module instances, and their warm caches, across a reload,
+ *  which is what lets `resetRouter()` do its job instead of a whole fresh graph. Compared through realpath
+ *  too, since vite 8 keys module files by real path and a symlinked root would disown every module. */
 function isOwnFile(server: ViteDevServer, file: string): boolean {
   if (file.includes('node_modules')) return false;
   const resolved = path.resolve(file);
@@ -264,9 +284,8 @@ function isOwnFile(server: ViteDevServer, file: string): boolean {
   return resolved.startsWith(root) || safeRealpath(resolved).startsWith(safeRealpath(root));
 }
 
-/** Invalidates the entry's own source subtree in the given graph so the next load re-evaluates it.
- *  The graph is the ssr environment's when it exists (vite 8) or the legacy mixed graph; their
- *  module nodes name the imported set differently (importedModules vs ssrImportedModules). */
+/** Invalidates the entry's own source subtree so the next load re-evaluates it. The ssr environment's graph
+ *  and the legacy mixed one name the imported set differently (ssrImportedModules vs importedModules). */
 function invalidateOwnModules(
   server: ViteDevServer,
   graph: {invalidateModule: (mod: any) => void},

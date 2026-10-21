@@ -1,12 +1,7 @@
 import * as TF from '@mionjs/run-types/formats';
 import type {ValidationCase} from './types.ts';
-import {
-  createValidateFn,
-  createGetValidationErrorsFn,
-  createMockDataFn,
-  createStandardSchema,
-  type DataOnly,
-} from '@mionjs/run-types';
+import {createValidateFn, createGetValidationErrorsFn, createStandardSchema, type DataOnly} from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import * as RT from '@mionjs/run-types/builders';
 import {deserializeValidate, deserializeGetValidationErrors} from '../../util/deserializeRTFunctions.ts';
 
@@ -165,42 +160,44 @@ export const NATIVE = {
 
   promise_string: {
     title: 'Promise',
-    // `DataOnly` STRIPS Promise (a thenable is not data — see DataOnly in
-    // runtypes/types.ts), so `DataOnly<Promise<string>>` is `never` and the
-    // DataOnly validator collapses to an always-throw, diverging from the bare
-    // form's thenable check. (The matching emitter change — make `validate` itself
-    // drop Promise like symbol/method — is tracked separately; until then the
-    // bare `validate` still thenable-validates, so this stays divergent.)
-    dataOnlyDivergent: true,
-    description:
-      "A thenable check (`typeof v === 'object' && v !== null && typeof v.then === 'function'`); the wrapped value can't be validated synchronously.",
+    description: 'A `Promise` is not data, so the factory throws on first call.',
     validateNotes: [
-      'TS DIVERGENCE: Promise validation is a "thenable" check — any object with a `then: function` PASSES, even if it is not an actual `Promise` instance.',
-      'The wrapped type T is NOT validated — the promise has not resolved yet. Use `Awaited<P>` if you have the resolved value and want to validate it.',
+      'DataOnly strips every thenable. The Go pipeline renders an alwaysThrow factory (validate-non-data-root / validation-errors-non-data-root). Validate the resolved value with `Awaited<P>` instead.',
     ],
+    // @mion-downgrade-error validate-non-data-root
     validate: () => createValidateFn<Promise<string>>(),
+    // @mion-downgrade-error validation-errors-non-data-root validate-non-data-root
     standardSchema: () => createStandardSchema<Promise<string>>(),
     validateDataOnly: () => createValidateFn<DataOnly<Promise<string>>>(),
+    // @mion-downgrade-error validate-non-data-root
     validateSchema: () => createValidateFn(RT.promise(TF.string())),
+    // @mion-downgrade-error validate-non-data-root
     deserializeValidate: () => deserializeValidate<Promise<string>>(),
     validateReflect: () => {
       const v: Promise<string> = Promise.resolve('x');
+      // @mion-downgrade-error validate-non-data-root
       return createValidateFn(v);
     },
     deserializeValidateReflect: () => {
       const v: Promise<string> = Promise.resolve('x');
+      // @mion-downgrade-error validate-non-data-root
       return deserializeValidate(v);
     },
+    // @mion-downgrade-error validation-errors-non-data-root
     getValidationErrors: () => createGetValidationErrorsFn<Promise<string>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<Promise<string>>>(),
+    // @mion-downgrade-error validation-errors-non-data-root
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.promise(TF.string())),
+    // @mion-downgrade-error validation-errors-non-data-root
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<Promise<string>>(),
     getValidationErrorsReflect: () => {
       const v: Promise<string> = Promise.resolve('x');
+      // @mion-downgrade-error validation-errors-non-data-root
       return createGetValidationErrorsFn(v);
     },
     deserializeGetValidationErrorsReflect: () => {
       const v: Promise<string> = Promise.resolve('x');
+      // @mion-downgrade-error validation-errors-non-data-root
       return deserializeGetValidationErrors(v);
     },
     mockType: () => createMockDataFn<Promise<string>>(),
@@ -208,26 +205,8 @@ export const NATIVE = {
       const v: Promise<string> = Promise.resolve('x');
       return createMockDataFn(v);
     },
-    getSamples: () => {
-      const realPromise = Promise.resolve('x');
-      const thenable = {then: () => null};
-      // {then: 'not a function'} — fails the typeof === 'function' check
-      const fakeThenable = {then: 'not a function'};
-      return {
-        valid: [realPromise, thenable],
-        invalid: [null, 'string', 42, {}, [], undefined, true, fakeThenable],
-      };
-    },
-    getExpectedErrors: () => [
-      [{path: [], expected: 'promise'}],
-      [{path: [], expected: 'promise'}],
-      [{path: [], expected: 'promise'}],
-      [{path: [], expected: 'promise'}],
-      [{path: [], expected: 'promise'}],
-      [{path: [], expected: 'promise'}],
-      [{path: [], expected: 'promise'}],
-      [{path: [], expected: 'promise'}],
-    ],
+    factoryThrows: true,
+    getSamples: () => ({valid: [], invalid: []}),
   },
 
   awaited_promise: {
@@ -280,5 +259,48 @@ export const NATIVE = {
       [{path: [], expected: 'string'}],
       [{path: [], expected: 'string'}],
     ],
+  },
+  url: {
+    title: 'URL',
+    description: 'A `URL` instance is required; its string form is not a URL.',
+    validateNotes: [
+      'Must be an actual URL instance (instanceof URL).',
+      'A string, even a valid address, is rejected: decode JSON first, the decoder rebuilds the URL from its href.',
+    ],
+    validate: () => createValidateFn<URL>(),
+    standardSchema: () => createStandardSchema<URL>(),
+    validateDataOnly: () => createValidateFn<DataOnly<URL>>(),
+    validateSchema: () => createValidateFn(TF.url()),
+    deserializeValidate: () => deserializeValidate<URL>(),
+    validateReflect: () => {
+      const v: URL = new URL('https://example.com');
+      return createValidateFn(v);
+    },
+    deserializeValidateReflect: () => {
+      const v: URL = new URL('https://example.com');
+      return deserializeValidate(v);
+    },
+    getValidationErrors: () => createGetValidationErrorsFn<URL>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<URL>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.url()),
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<URL>(),
+    getValidationErrorsReflect: () => {
+      const v: URL = new URL('https://example.com');
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrorsReflect: () => {
+      const v: URL = new URL('https://example.com');
+      return deserializeGetValidationErrors(v);
+    },
+    mockType: () => createMockDataFn<URL>(),
+    mockTypeReflect: () => {
+      const v: URL = new URL('https://example.com');
+      return createMockDataFn(v);
+    },
+    getSamples: () => ({
+      valid: [new URL('https://example.com/a?b=1#c'), new URL('mailto:someone@example.com'), new URL('file:///tmp/a.txt')],
+      invalid: ['https://example.com/', {href: 'https://example.com/'}, null],
+    }),
+    getExpectedErrors: () => [[{path: [], expected: 'URL'}], [{path: [], expected: 'URL'}], [{path: [], expected: 'URL'}]],
   },
 } as const satisfies Record<string, ValidationCase>;

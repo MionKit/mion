@@ -12,7 +12,8 @@
 
 import type * as TF from '@mionjs/run-types/formats';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
-import {createValidateFn, createMockDataFn} from '@mionjs/run-types';
+import {createValidateFn} from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import '@mionjs/run-types/formats';
 
 // Pin "now" to 2026-06-15T12:00:00Z for every test.

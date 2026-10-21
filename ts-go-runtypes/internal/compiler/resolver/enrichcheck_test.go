@@ -13,16 +13,16 @@ import (
 )
 
 // enrichFixture is the overlay project every test in this file scans: a fake
-// mion package (so the FriendlyType/MockData module gate passes), a
-// source type, and a DIRTY pre-split COMBINED mirror file — an unfilled @todo,
+// mion package (so the FriendlyText/MockData module gate passes), a
+// source type, and a DIRTY combined (--out) mirror file — an unfilled @todo,
 // an unknown field in each map form, and two orphan carcasses. Combined files
 // exercise every hygiene-attribution path at once: the @todo sits above the
-// FriendlyType const (nearest-after → FT020); the first carcass preserves its
-// const's FriendlyType annotation (carcass-interior wins over the MockData
-// const below it → FT021); the trailing carcass has no annotation and nothing
-// after it (nearest-before = the MockData const → MD021).
+// FriendlyText const (nearest-after → enrich-text-todo-left); the first carcass preserves its
+// const's FriendlyText annotation (carcass-interior wins over the MockData
+// const below it → enrich-text-orphan-type); the trailing carcass has no annotation and nothing
+// after it (nearest-before = the MockData const → enrich-mock-orphan-type).
 const enrichIdx = `
-export type FriendlyType<T> = Record<string, unknown> & {readonly __rtFriendly?: T};
+export type FriendlyText<T> = Record<string, unknown> & {readonly __rtFriendly?: T};
 export type MockData<T> = Record<string, unknown> & {readonly __rtMock?: T};
 `
 
@@ -33,16 +33,16 @@ const enrichSource = `export interface User {
 `
 
 var enrichMirror = "import type { User } from './user';\n" +
-	"import type { FriendlyType, MockData } from '@mionjs/run-types';\n" +
+	"import type { FriendlyText, MockData } from '@mionjs/run-types';\n" +
 	"\n" +
 	"/** " + mirror.RtTypeTag + " User#u1 " + mirror.RtIdsTag + " {age: a1, name: n1} */\n" +
 	mirror.TodoLine + "\n" +
-	"export const friendlyUser: FriendlyType<User> = {\n" +
+	"export const friendlyUser: FriendlyText<User> = {\n" +
 	"  name: {rt$label: 'Name'},\n" +
 	"  nope: {rt$label: 'Gone'},\n" +
 	"};\n" +
 	"\n" +
-	"/* " + mirror.OrphanTag + " export const friendlyOld: FriendlyType<User> = {}; */\n" +
+	"/* " + mirror.OrphanTag + " export const friendlyOld: FriendlyText<User> = {}; */\n" +
 	"\n" +
 	"/** " + mirror.RtTypeTag + " User#u1 */\n" +
 	"export const mockUser: MockData<User> = {\n" +
@@ -117,10 +117,10 @@ func TestCheckEnrich_SinglePassFindings(t *testing.T) {
 		}
 	}
 
-	// The dirty mirror carries exactly: one @todo above the FriendlyType const
-	// (FT020), one carcass with a preserved FriendlyType annotation (FT021),
+	// The dirty mirror carries exactly: one @todo above the FriendlyText const
+	// (enrich-text-todo-left), one carcass with a preserved FriendlyText annotation (enrich-text-orphan-type),
 	// one trailing annotation-less carcass attributed to the nearest-before
-	// MockData const (MD021), and one unknown field per family.
+	// MockData const (enrich-mock-orphan-type), and one unknown field per family.
 	for code, want := range map[string]int{
 		diagnostics.CodeFriendlyTodo:         1,
 		diagnostics.CodeFriendlyOrphanConst:  1,
@@ -137,17 +137,24 @@ func TestCheckEnrich_SinglePassFindings(t *testing.T) {
 	lineIndex := mirror.NewLineIndex(enrichMirror)
 	todoLine, todoCol := lineIndex.At(strings.Index(enrichMirror, mirror.TodoTag))
 	if got := byCode[diagnostics.CodeFriendlyTodo][0].Site; got.StartLine != todoLine || got.StartCol != todoCol {
-		t.Errorf("FT020 site = (%d,%d), want (%d,%d)", got.StartLine, got.StartCol, todoLine, todoCol)
+		t.Errorf("enrich-text-todo-left site = (%d,%d), want (%d,%d)", got.StartLine, got.StartCol, todoLine, todoCol)
 	}
 	nopeLine, nopeCol := lineIndex.At(strings.Index(enrichMirror, "nope:"))
 	if got := byCode[diagnostics.CodeFriendlyUnknownField][0].Site; got.StartLine != nopeLine || got.StartCol != nopeCol {
-		t.Errorf("FT002 site = (%d,%d), want (%d,%d) — the `nope` key node", got.StartLine, got.StartCol, nopeLine, nopeCol)
+		t.Errorf("enrich-text-unknown-field site = (%d,%d), want (%d,%d) — the `nope` key node", got.StartLine, got.StartCol, nopeLine, nopeCol)
 	}
 	if args := byCode[diagnostics.CodeFriendlyUnknownField][0].Args; len(args) != 1 || args[0] != "nope" {
-		t.Errorf("FT002 args = %v, want [nope]", args)
+		t.Errorf("enrich-text-unknown-field args = %v, want [nope]", args)
 	}
-	if severity := byCode[diagnostics.CodeFriendlyTodo][0].Severity; severity != diagnostics.SeverityError {
-		t.Errorf("FT020 severity = %v, want Error", severity)
+	// An unfilled scaffold is a blank label, not broken output, so it is a
+	// Warning. What makes `enrich --require-complete` fail on it is the
+	// Completeness bit, which is deliberately not the level.
+	todo := byCode[diagnostics.CodeFriendlyTodo][0]
+	if todo.Level != diagnostics.LevelWarning {
+		t.Errorf("enrich-text-todo-left level = %v, want LevelWarning", todo.Level)
+	}
+	if !diagnostics.IsCompleteness(todo.Code) {
+		t.Error("enrich-text-todo-left must carry the Completeness bit: it is what --require-complete reads")
 	}
 
 	// No false positives: the live keys and the @rtType/@rtIds markers never
@@ -184,32 +191,32 @@ func TestCheckEnrich_OptInAndGuards(t *testing.T) {
 	}
 }
 
-// TestCheckEnrich_BreadcrumbDrift pins GE002 through the overlay FS: a mirror
+// TestCheckEnrich_BreadcrumbDrift pins enrich-mirror-source-missing through the overlay FS: a mirror
 // whose breadcrumb source never existed reports the orphaned-mirror error.
 func TestCheckEnrich_BreadcrumbDrift(t *testing.T) {
 	deadMirror := "import type { Ghost } from './ghost';\n" +
-		"import type { FriendlyType } from '@mionjs/run-types';\n" +
+		"import type { FriendlyText } from '@mionjs/run-types';\n" +
 		"/** " + mirror.RtTypeTag + " Ghost#g1 */\n" +
-		"export const friendlyGhost: FriendlyType<{name: string}> = {};\n"
+		"export const friendlyGhost: FriendlyText<{name: string}> = {};\n"
 	res := setupEnrichFixture(t, map[string]string{"dead-mirror.ts": deadMirror})
 
 	response := res.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"dead-mirror.ts"}, CheckEnrich: true})
 	if response.Error != "" {
 		t.Fatalf("scan error: %s", response.Error)
 	}
-	var ge002 []diagnostics.Diagnostic
+	var enrichMirrorSourceMissing []diagnostics.Diagnostic
 	for _, diagnostic := range enrichDiagnostics(response) {
 		if diagnostic.Code == diagnostics.CodeGenSourceMissing {
-			ge002 = append(ge002, diagnostic)
+			enrichMirrorSourceMissing = append(enrichMirrorSourceMissing, diagnostic)
 		}
 	}
-	if len(ge002) != 1 {
-		t.Fatalf("want one GE002 for the dead breadcrumb; got %+v", enrichDiagnostics(response))
+	if len(enrichMirrorSourceMissing) != 1 {
+		t.Fatalf("want one enrich-mirror-source-missing for the dead breadcrumb; got %+v", enrichDiagnostics(response))
 	}
-	if ge002[0].Site.StartLine != 1 {
-		t.Errorf("GE002 anchors to the breadcrumb line; got line %d", ge002[0].Site.StartLine)
+	if enrichMirrorSourceMissing[0].Site.StartLine != 1 {
+		t.Errorf("enrich-mirror-source-missing anchors to the breadcrumb line; got line %d", enrichMirrorSourceMissing[0].Site.StartLine)
 	}
-	if len(ge002[0].Args) != 2 || ge002[0].Args[0] != "./ghost" {
-		t.Errorf("GE002 args = %v, want [./ghost <resolved>]", ge002[0].Args)
+	if len(enrichMirrorSourceMissing[0].Args) != 2 || enrichMirrorSourceMissing[0].Args[0] != "./ghost" {
+		t.Errorf("enrich-mirror-source-missing args = %v, want [./ghost <resolved>]", enrichMirrorSourceMissing[0].Args)
 	}
 }

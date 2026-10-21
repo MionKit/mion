@@ -1,21 +1,7 @@
-// The model + the event/oracle command set for the enrichment-sync fuzzer.
-//
-// SUT: the `mion` gen/update/prune/check pipeline over a (source type T,
-// generated mirror E) pair. We model just enough of (T, E) to state the oracles,
-// then drive RANDOM sequences of edit events and assert, after each, a rule that
-// the example suite (test/suites/enrich/enrichReconcile.test.ts) already PROVES
-// on hand-written cases — so every assertion here is sound (a failure is a real
-// regression). Rule ids match
-// .claude/skills/fuzzy-testing/framework-fuzzy-testing.md §6.4:
-//
-//   R1  idempotence      a second `--update` is byte-identical
-//   R2  metamorphic      a type edit makes a bounded, predictable change to E
-//   R3  preservation     `--update` never disturbs an unrelated authored value
-//   R5  negative-space   a malformed mirror edit is reported, never silently kept
-//   R6  convergence      after `--update` the file is a fixed point
-//   R7a orphan carcass   a removed field's value is kept as an @rtOrphanChild
-//   R8  @todo / prune     prune strips carcasses, never touches @todo
-//   R10 totality         every CLI run is controlled — never a panic/hang
+// Oracles match test/suites/enrich/enrichReconcile.test.ts and .agents/skills/fuzzy-testing/references/enrich-pipeline.md.
+// R1/R6 require fixed points; R2 bounds type-edit changes; R3 preserves unrelated authored values.
+// R5 reports malformed mirrors; R7a preserves removed values as @rtOrphanChild; R8 prunes orphans but preserves @todo.
+// R10 forbids panics and hangs.
 
 import {
   setSource,
@@ -115,7 +101,7 @@ function v(rule: RuleId, command: string, ctx: Ctx, message: string): EnrichViol
   return {rule, command, step: ctx.step, seed: ctx.seed, message};
 }
 
-/** R10 — assert a gen/update/prune run was controlled (no panic / hang). **/
+/** R10 — assert an enrich scaffold / --update / --prune run was controlled (no panic / hang). **/
 function controlledOr(result: CliResult, command: string, ctx: Ctx, out: EnrichViolation[]): boolean {
   if (isControlled(result)) return true;
   const why = result.timedOut
@@ -413,17 +399,8 @@ const pruneProbe: Command = {
   },
 };
 
-// Negative-space probes (R5): splice ONE malformed edit into a single FAMILY's
-// mirror file, run `check` against THAT file, and assert the SPECIFIC diagnostic
-// code fires (verified live: MD001 / FT002 / FT005), then REVERT so the sequence
-// continues from a valid state.
-//
-// Channel boundary (discovered by running it): the `check` CLI does NOT look
-// inside a function-form `rt$errors` (opaque to the walk) and does NOT do MD003
-// pool-type checks — those are BUILD-time (CompTimeArgs CTA001/2/3, MD003), a
-// DIFFERENT observation channel. So a "non-literal node in comptime args" probe
-// (the CTA case) belongs to a future build-driven harness, not this one — `check`
-// is the wrong instrument for it.
+// R5: break ONE family's mirror, expect the SPECIFIC code (enrich-mock-unknown-field / enrich-text-unknown-field / enrich-text-unknown-placeholder), then revert to a valid state.
+// `--no-emit` skips function-form `rt$errors` and enrich-mock-invalid-pool: those and marker-comptime-arg-* are build-time, out of this harness.
 function negativeProbe(
   name: string,
   family: MirrorFamily,
@@ -460,21 +437,26 @@ function negativeProbe(
   };
 }
 
-const unknownMockField = negativeProbe('unknownMockField', 'mock', 'MD001', 'fzUnrelated', (text) =>
+const unknownMockField = negativeProbe('unknownMockField', 'mock', 'enrich-mock-unknown-field', 'fzUnrelated', (text) =>
   text.replace(
     `export const mock${TYPE_NAME}: MockData<${TYPE_NAME}> = {`,
     `export const mock${TYPE_NAME}: MockData<${TYPE_NAME}> = {\n  fzUnrelated: {pool: []},`
   )
 );
 
-const unknownFriendlyField = negativeProbe('unknownFriendlyField', 'friendly', 'FT002', 'fzUnrelated', (text) =>
-  text.replace(
-    `export const friendly${TYPE_NAME}: FriendlyText<${TYPE_NAME}> = {`,
-    `export const friendly${TYPE_NAME}: FriendlyText<${TYPE_NAME}> = {\n  fzUnrelated: {rt$label: ''},`
-  )
+const unknownFriendlyField = negativeProbe(
+  'unknownFriendlyField',
+  'friendly',
+  'enrich-text-unknown-field',
+  'fzUnrelated',
+  (text) =>
+    text.replace(
+      `export const friendly${TYPE_NAME}: FriendlyText<${TYPE_NAME}> = {`,
+      `export const friendly${TYPE_NAME}: FriendlyText<${TYPE_NAME}> = {\n  fzUnrelated: {rt$label: ''},`
+    )
 );
 
-const badPlaceholder = negativeProbe('badPlaceholder', 'friendly', 'FT005', '$[badname]', (text) =>
+const badPlaceholder = negativeProbe('badPlaceholder', 'friendly', 'enrich-text-unknown-placeholder', '$[badname]', (text) =>
   text.replace("rt$errors: {type: ''}", "rt$errors: {type: 'x $[badname]'}")
 );
 

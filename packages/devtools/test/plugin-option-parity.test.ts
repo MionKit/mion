@@ -11,9 +11,9 @@ import {TSCONFIG_PLUGIN_KEYS} from '../src/core/go-generated/tsconfig-plugin-key
 // Options settable ONLY on the bundler plugin: host bootstrap (binary/cwd/tsconfig
 // are needed to FIND and READ the tsconfig, so they cannot come from it), internal
 // wire knobs (transformMode/sourcesContent produce identical artifacts either way,
-// never a project semantic), the JS-only in-process callbacks onPureFnReport and
-// onSiteFilesChanged (loader options cross a bundler worker boundary as plain
-// JSON, so a function can never be one),
+// never a project semantic), the JS-only in-process callbacks onPureFnReport,
+// onBatchReport and onSiteFilesChanged (loader options cross a bundler worker
+// boundary as plain JSON, so a function can never be one),
 // `enrich` — the opt-in enrichment auto-sync is a host/dev-loop behavior (drives
 // disk writes from dev/watch), so it stays off the tsconfig plugin entry — and
 // `jsRuntime`, a host-machine path like `binary` (the plugin defaults it to its
@@ -25,12 +25,17 @@ const JS_ONLY = new Set([
   'transformMode',
   'sourcesContent',
   'onPureFnReport',
+  'onBatchReport',
   'onSiteFilesChanged',
+  'onGenerate',
   'enrich',
   'jsRuntime',
   // Host bootstrap: unrefs the resolver child so Bun's runtime loader host can
   // exit. Never a project semantic.
   'detachResolver',
+  // Host lane: the dev server is the one lane a RuntimeError never halts. Vite
+  // fills it from its own config, the Next broker from `next dev`.
+  'devServer',
 ]);
 // Keys settable ONLY in the tsconfig plugin entry: `name` is the plugin identifier
 // in the tsconfig `plugins` array (not a project option), and `i18n` is
@@ -48,7 +53,7 @@ describe('PluginOptions <-> tsRuntypesPlugin project-option parity', () => {
     expect(
       missingInGo,
       `PluginOptions has project option(s) with no tsRuntypesPlugin json key: ${missingInGo.join(', ')}. ` +
-        'Add them to cmd/mion/config.go (+ `pnpm rtx core codegen pluginkeys`), or to JS_ONLY if intentionally host-only.'
+        'Add them to cmd/mion/config.go (+ `pnpm miondevx core codegen pluginkeys`), or to JS_ONLY if intentionally host-only.'
     ).toEqual([]);
   });
 

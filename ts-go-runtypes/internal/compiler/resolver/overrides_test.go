@@ -1,6 +1,7 @@
 package resolver_test
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
@@ -16,9 +17,9 @@ const overrideDTS = `declare module '@mionjs/run-types' {
   export type InjectTypeFnArgs<T, Fn extends string> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFn?: Fn};
   export type PureFunction<F> = F & {readonly __rtPureFunctionBrand?: never};
   export function getRunTypeId<T>(value?: T, id?: InjectRunTypeId<T>): InjectRunTypeId<T>;
-  export function createValidateFn<T>(val?: T, id?: InjectTypeFnArgs<T, 'val'>): (v: unknown) => boolean;
+  export function createValidateFn<T>(val?: T, id?: InjectTypeFnArgs<T, 'validate'>): (v: unknown) => boolean;
   export function createJsonEncoderFn<T>(val?: T, id?: InjectTypeFnArgs<T, 'jsonEncoder'>): (v: unknown) => string | undefined;
-  export function overrideValidate<T>(fn: PureFunction<(v: unknown) => boolean>, id?: InjectTypeFnArgs<T, 'val'>): void;
+  export function overrideValidate<T>(fn: PureFunction<(v: unknown) => boolean>, id?: InjectTypeFnArgs<T, 'validate'>): void;
   export function overrideJsonEncoder<T>(fn: PureFunction<(v: unknown) => string>, id?: InjectTypeFnArgs<T, 'jsonEncoder'>): void;
 }
 `
@@ -41,6 +42,11 @@ func idByKind(t *testing.T, files map[string]string, kind reflection.ReflectionK
 }
 
 // TestOverride_FoldsTypeIDAndPropagates is the core idempotency guarantee: an
+// overrideRedirectRE matches an override redirect body: `utl.usePureFn('<id>')`,
+// with the quotes escaped when the body rides the entry as a code STRING. The id
+// is a location, so the `#` separator is what identifies it.
+var overrideRedirectRE = regexp.MustCompile(`usePureFn\(\\?'[^']*#[^']+\\?'\)`)
+
 // overrideValidate<string> shifts string's structural id (folds the cfn body
 // hash) AND every containing type's id (propagation), so no cache key is ever
 // reused with a different body across the override / no-override builds.
@@ -66,8 +72,10 @@ getRunTypeId<{a: number; b: string}>();
 	if plainString == overriddenString {
 		t.Fatalf("override did not shift string's id: both %q", overriddenString)
 	}
-	if stringNode.Overrides["val"] == "" {
-		t.Fatalf("overridden string node missing Overrides[val]: %+v", stringNode.Overrides)
+	// Keyed by the operation NAME, never the marker token, so the public vocabulary
+	// can move without shifting an overridden type's id.
+	if stringNode.Overrides["validate"] == "" {
+		t.Fatalf("overridden string node missing Overrides[validate]: %+v", stringNode.Overrides)
 	}
 
 	plainStruct, _ := idByKind(t, without, reflection.KindObjectLiteral)
@@ -79,7 +87,7 @@ getRunTypeId<{a: number; b: string}>();
 
 // TestOverride_EmitsRedirectAndCfnModule proves the override is functional: a
 // createValidateFn over a struct whose `string` field is overridden emits a
-// validate redirect that calls the cfn (utl.usePureFn('cfn::…')) for that field,
+// validate redirect that calls the override body (utl.usePureFn('<id>')) for that field,
 // and the cfn module carries the user's body — propagation through the emitter.
 func TestOverride_EmitsRedirectAndCfnModule(t *testing.T) {
 	files := map[string]string{
@@ -95,7 +103,7 @@ export const isObj = createValidateFn<{a: number; b: string}>();
 		t.Fatalf("scanFiles: %s", resp.Error)
 	}
 	validateSources := familyEntrySources(resp, "validate")
-	if !strings.Contains(validateSources, "usePureFn(") || !strings.Contains(validateSources, "cfn::") {
+	if !overrideRedirectRE.MatchString(validateSources) {
 		t.Fatalf("validate family missing cfn redirect:\n%s", validateSources)
 	}
 	all := allEntrySources(resp)
@@ -124,7 +132,7 @@ export const enc = createJsonEncoderFn<{id: number}>();
 		t.Fatalf("scanFiles: %s", resp.Error)
 	}
 	all := allEntrySources(resp)
-	if !strings.Contains(all, "usePureFn(") || !strings.Contains(all, "cfn::") {
+	if !overrideRedirectRE.MatchString(all) {
 		t.Fatalf("json encoder composite missing cfn redirect:\n%s", all)
 	}
 	// Override body rides the cfn pure-fn module as the `code` string (default
@@ -134,17 +142,17 @@ export const enc = createJsonEncoderFn<{id: number}>();
 		t.Fatalf("cfn module missing the override body:\n%s", all)
 	}
 	// The composite redirect references no primitives, so the structural
-	// prepareForJsonSafe (clone's primitive) is pruned for the overridden type.
-	if hasFamilyEntry(resp, "prepareForJsonSafe") {
-		t.Fatalf("overridden json encoder must prune its primitives, but pjs entries were emitted:\n%s", familyEntrySources(resp, "prepareForJsonSafe"))
+	// prepareForJsonClone (clone's primitive) is pruned for the overridden type.
+	if hasFamilyEntry(resp, "prepareForJsonClone") {
+		t.Fatalf("overridden json encoder must prune its primitives, but pjs entries were emitted:\n%s", familyEntrySources(resp, "prepareForJsonClone"))
 	}
 }
 
-// TestOverride_DuplicateConflictEmitsOVR001 — there can be only one override per
+// TestOverride_DuplicateConflictEmitsOverrideDuplicate — there can be only one override per
 // (type, function): a second one is a hard error, REGARDLESS of body (different
 // OR identical). A single override does not trip it.
-func TestOverride_DuplicateConflictEmitsOVR001(t *testing.T) {
-	hasOVR001 := func(src string) bool {
+func TestOverride_DuplicateConflictEmitsOverrideDuplicate(t *testing.T) {
+	hasOverrideDuplicate := func(src string) bool {
 		r := setupInline(t, map[string]string{"runtypes.d.ts": overrideDTS, "call.ts": src})
 		resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"call.ts"}})
 		if resp.Error != "" {
@@ -159,24 +167,24 @@ func TestOverride_DuplicateConflictEmitsOVR001(t *testing.T) {
 	}
 
 	// Different bodies → error.
-	if !hasOVR001(`import {overrideValidate} from '@mionjs/run-types';
+	if !hasOverrideDuplicate(`import {overrideValidate} from '@mionjs/run-types';
 overrideValidate<string>((v) => typeof v === 'string');
 overrideValidate<string>((v) => v !== null);
 `) {
-		t.Fatalf("expected OVR001 for two different-body overrides")
+		t.Fatalf("expected override-duplicate for two different-body overrides")
 	}
 	// Identical bodies → STILL an error (strict: one override per type+function).
-	if !hasOVR001(`import {overrideValidate} from '@mionjs/run-types';
+	if !hasOverrideDuplicate(`import {overrideValidate} from '@mionjs/run-types';
 overrideValidate<string>((v) => typeof v === 'string');
 overrideValidate<string>((v) => typeof v === 'string');
 `) {
-		t.Fatalf("expected OVR001 for two same-body overrides (strict one-per-type rule)")
+		t.Fatalf("expected override-duplicate for two same-body overrides (strict one-per-type rule)")
 	}
 	// A single override → no error.
-	if hasOVR001(`import {overrideValidate} from '@mionjs/run-types';
+	if hasOverrideDuplicate(`import {overrideValidate} from '@mionjs/run-types';
 overrideValidate<string>((v) => typeof v === 'string');
 `) {
-		t.Fatalf("a single override must not emit OVR001")
+		t.Fatalf("a single override must not emit override-duplicate")
 	}
 }
 
@@ -241,15 +249,15 @@ overrideValidate<string>(null);
 	resp2 := r2.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"call.ts"}})
 	for _, d := range resp2.Diagnostics {
 		if d.Code == diagnostics.CodeOverrideValidateCrossFamily {
-			t.Fatalf("a null override arg must register no override (got OVR010)")
+			t.Fatalf("a null override arg must register no override (got override-validate-affects-json)")
 		}
 	}
 }
 
-// TestOverride_ValidateEmitsOVR010 — overriding validate warns about its
+// TestOverride_ValidateEmitsOverrideValidateAffectsJson — overriding validate warns about its
 // cross-family reach (decoders); overriding a non-shared family does not, and
-// the happy path never trips the OVR002 missing-cfn assert.
-func TestOverride_ValidateEmitsOVR010(t *testing.T) {
+// the happy path never trips the override-function-not-built missing-cfn assert.
+func TestOverride_ValidateEmitsOverrideValidateAffectsJson(t *testing.T) {
 	codes := func(files map[string]string) map[string]int {
 		r := setupInline(t, files)
 		resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"call.ts"}, IncludeEntryModules: true})
@@ -271,10 +279,10 @@ export const isString = createValidateFn<string>();
 `,
 	})
 	if valCodes[diagnostics.CodeOverrideValidateCrossFamily] == 0 {
-		t.Fatalf("expected OVR010 for a validate override, got %+v", valCodes)
+		t.Fatalf("expected override-validate-affects-json for a validate override, got %+v", valCodes)
 	}
 	if valCodes[diagnostics.CodeOverrideMissingCfn] != 0 {
-		t.Fatalf("happy path tripped OVR002: %+v", valCodes)
+		t.Fatalf("happy path tripped override-function-not-built: %+v", valCodes)
 	}
 
 	jsonCodes := codes(map[string]string{
@@ -285,10 +293,10 @@ export const enc = createJsonEncoderFn<{id: number}>();
 `,
 	})
 	if jsonCodes[diagnostics.CodeOverrideValidateCrossFamily] != 0 {
-		t.Fatalf("OVR010 should fire only for validate overrides, got %+v", jsonCodes)
+		t.Fatalf("override-validate-affects-json should fire only for validate overrides, got %+v", jsonCodes)
 	}
 	if jsonCodes[diagnostics.CodeOverrideMissingCfn] != 0 {
-		t.Fatalf("json happy path tripped OVR002: %+v", jsonCodes)
+		t.Fatalf("json happy path tripped override-function-not-built: %+v", jsonCodes)
 	}
 }
 
@@ -339,7 +347,7 @@ export const isNode = createValidateFn<Node>();
 
 // TestOverride_RecursiveTypeItselfOverride — overriding the recursive type itself
 // makes its whole entry a cfn redirect; BaseStructuralKey must resolve through the
-// cycle without looping and fold a deterministic id, with no spurious OVR002.
+// cycle without looping and fold a deterministic id, with no spurious override-function-not-built.
 func TestOverride_RecursiveTypeItselfOverride(t *testing.T) {
 	files := map[string]string{
 		"runtypes.d.ts": overrideDTS,
@@ -355,12 +363,12 @@ export const isNode = createValidateFn<Node>();
 		t.Fatalf("scanFiles: %s", resp.Error)
 	}
 	validateSources := familyEntrySources(resp, "validate")
-	if !strings.Contains(validateSources, "usePureFn(") || !strings.Contains(validateSources, "cfn::") {
+	if !overrideRedirectRE.MatchString(validateSources) {
 		t.Fatalf("recursive-type override is not a redirect:\n%s", validateSources)
 	}
 	for _, d := range resp.Diagnostics {
 		if d.Code == diagnostics.CodeOverrideMissingCfn {
-			t.Fatalf("recursive override tripped OVR002 (missing cfn): %+v", resp.Diagnostics)
+			t.Fatalf("recursive override tripped override-function-not-built (missing cfn): %+v", resp.Diagnostics)
 		}
 	}
 }
@@ -381,5 +389,76 @@ getRunTypeId<string>();
 	}
 	if len(node.Overrides) != 0 {
 		t.Fatalf("un-overridden string carries Overrides: %+v", node.Overrides)
+	}
+}
+
+// overrideJsonValueDTS adds the value-level prepare factory and the encoder strategy option to overrideDTS.
+const overrideJsonValueDTS = `declare module '@mionjs/run-types' {
+  export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
+  export type InjectTypeFnArgs<T, Fn extends string> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFn?: Fn};
+  export type PureFunction<F> = F & {readonly __rtPureFunctionBrand?: never};
+  export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
+  export type JsonEncoderOptions = {strategy?: 'clone' | 'mutate' | 'compact'};
+  export function createJsonEncoderFn<T>(val?: T, options?: CompTimeFnArgs<JsonEncoderOptions>, id?: InjectTypeFnArgs<T, 'jsonEncoder'>): (v: unknown) => string | undefined;
+  export function createPrepareForJsonFn<T>(val?: T, options?: CompTimeFnArgs<{strategy?: 'clone' | 'mutate' | 'compact'}>, id?: InjectTypeFnArgs<T, 'prepareForJsonClone'>): (v: unknown) => unknown;
+  export function overrideJsonEncoder<T>(fn: PureFunction<(v: unknown) => string>, id?: InjectTypeFnArgs<T, 'jsonEncoder'>): void;
+}
+`
+
+func scanOverrideJsonValue(t *testing.T, code string) protocol.Response {
+	t.Helper()
+	r := setupInline(t, map[string]string{"runtypes.d.ts": overrideJsonValueDTS, "call.ts": code})
+	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"call.ts"}, IncludeEntryModules: true})
+	if resp.Error != "" {
+		t.Fatalf("scanFiles: %s", resp.Error)
+	}
+	return resp
+}
+
+// An encoder override must not prune a JSON primitive a caller asks for by name, in either call shape.
+func TestOverride_JsonEncoderKeepsDirectlyDemandedPrimitive(t *testing.T) {
+	for name, call := range map[string]string{
+		"static":      "createPrepareForJsonFn<Target>()",
+		"value-first": "createPrepareForJsonFn(target)",
+	} {
+		t.Run(name, func(t *testing.T) {
+			resp := scanOverrideJsonValue(t, `import {createJsonEncoderFn, createPrepareForJsonFn, overrideJsonEncoder} from '@mionjs/run-types';
+type Target = {id: bigint};
+const target: Target = {id: 1n};
+overrideJsonEncoder<Target>((v) => 'OVR');
+export const enc = createJsonEncoderFn<Target>();
+export const prepare = `+call+`;
+`)
+			if !overrideRedirectRE.MatchString(allEntrySources(resp)) {
+				t.Fatalf("json encoder composite missing cfn redirect:\n%s", allEntrySources(resp))
+			}
+			if pjs := familyEntrySources(resp, "prepareForJsonClone"); !strings.Contains(pjs, "toString") {
+				t.Fatalf("a directly demanded pjs entry lost its body to the encoder override:\n%s", pjs)
+			}
+		})
+	}
+}
+
+// A nested overridden type still needs its structural primitive: the parent's body calls it.
+func TestOverride_JsonEncoderKeepsNestedPrimitive(t *testing.T) {
+	resp := scanOverrideJsonValue(t, `import {createJsonEncoderFn, overrideJsonEncoder} from '@mionjs/run-types';
+type Target = {id: bigint};
+overrideJsonEncoder<Target>((v) => 'OVR');
+export const enc = createJsonEncoderFn<Target>();
+export const parent = createJsonEncoderFn<{inner: Target}>();
+`)
+	if pjs := familyEntrySources(resp, "prepareForJsonClone"); !strings.Contains(pjs, "toString") {
+		t.Fatalf("the nested overridden type lost its pjs body:\n%s", pjs)
+	}
+}
+
+func TestOverride_JsonEncoderCompactPrunesPrimitive(t *testing.T) {
+	resp := scanOverrideJsonValue(t, `import {createJsonEncoderFn, overrideJsonEncoder} from '@mionjs/run-types';
+type Target = {id: bigint};
+overrideJsonEncoder<Target>((v) => 'OVR');
+export const enc = createJsonEncoderFn<Target>(undefined, {strategy: 'compact'});
+`)
+	if cj := familyEntrySources(resp, "compactForJson"); strings.Contains(cj, "toString") {
+		t.Fatalf("overridden compact encoder must prune cj, got:\n%s", cj)
 	}
 }

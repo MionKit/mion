@@ -76,10 +76,10 @@ getRunTypeId<{a: number; b: string}>();
 }
 
 // TestGenerate_InfersOutDir verifies that an empty OutDir is not an error:
-// the resolver infers <srcDir>/__runtypes from the program and echoes the
+// the resolver infers <srcDir>/.mion from the program and echoes the
 // resolved absolute path so the dependency-free plugin can adopt it. The
 // inline program's files all sit under the temp cwd, so the inferred srcDir
-// is that cwd and modules land under <cwd>/__runtypes/types.
+// is that cwd and modules land under <cwd>/.mion/types.
 func TestGenerate_InfersOutDir(t *testing.T) {
 	const src = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<{a: number}>();
@@ -92,8 +92,8 @@ getRunTypeId<{a: number}>();
 	if resp.OutDir == "" {
 		t.Fatal("OpGenerate did not echo the inferred OutDir")
 	}
-	if filepath.Base(resp.OutDir) != "__runtypes" {
-		t.Fatalf("inferred OutDir %q does not end in /__runtypes", resp.OutDir)
+	if filepath.Base(resp.OutDir) != ".mion" {
+		t.Fatalf("inferred OutDir %q does not end in /.mion", resp.OutDir)
 	}
 	// The inferred dir must actually hold the generated modules.
 	if len(resp.Generated) == 0 {
@@ -152,6 +152,33 @@ getRunTypeId<{a: number}>();
 	}
 	if resp := setupGen(t, sources, noiseDir).Dispatch(protocol.Request{Op: protocol.OpGenerate}); resp.Error != "" {
 		t.Fatalf("OS-noise files must be tolerated, got: %s", resp.Error)
+	}
+
+	// Accepted: the `rpc/` folder mion's client build writes the batch module
+	// into, in the SERVER project's `.mion/`. When the source root IS the
+	// project root the default output root resolves to that same folder, so
+	// that subdir must count as ours — everything else beside it is still
+	// foreign, the retired JSON manifest and its generated twin included.
+	sharedDotMion := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(sharedDotMion, "rpc"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sharedDotMion, "rpc", "batches.generated.js"), []byte("export {};\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if resp := setupGen(t, sources, sharedDotMion).Dispatch(protocol.Request{Op: protocol.OpGenerate}); resp.Error != "" {
+		t.Fatalf("a .mion/ holding only the rpc/ batch module must be accepted, got: %s", resp.Error)
+	}
+	for _, foreign := range []string{"batches.json", "batches.generated.js", "server-mappers.json"} {
+		if err := os.WriteFile(filepath.Join(sharedDotMion, foreign), []byte("{}\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if resp := setupGen(t, sources, sharedDotMion).Dispatch(protocol.Request{Op: protocol.OpGenerate}); resp.Error == "" {
+			t.Fatalf("expected refusal of a .mion/ holding %s (not ours, and not the rpc/ batch module), got no error", foreign)
+		}
+		if err := os.Remove(filepath.Join(sharedDotMion, foreign)); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	// Adopted: our OWN previous run — a second generate into a dir we already
@@ -233,7 +260,7 @@ func TestTransform_FilesModeInjectsRelativeImports(t *testing.T) {
 interface Thing { id: string }
 export const isThing = createValidateFn<Thing>();
 `
-	r := setupGen(t, map[string]string{"a.ts": src}, "__runtypes")
+	r := setupGen(t, map[string]string{"a.ts": src}, ".mion")
 	resp := r.Dispatch(protocol.Request{Op: protocol.OpTransform, Files: []string{"a.ts"}})
 	if resp.Error != "" {
 		t.Fatalf("transform: %s", resp.Error)
@@ -245,7 +272,7 @@ export const isThing = createValidateFn<Thing>();
 	if strings.Contains(out, "rtmod:/") {
 		t.Fatalf("files-mode transform still injects rtmod: imports:\n%s", out)
 	}
-	if !strings.Contains(out, "from './__runtypes/types/") {
-		t.Fatalf("expected a relative ./__runtypes/types/ import:\n%s", out)
+	if !strings.Contains(out, "from './.mion/types/") {
+		t.Fatalf("expected a relative ./.mion/types/ import:\n%s", out)
 	}
 }

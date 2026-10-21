@@ -1,5 +1,5 @@
 <script lang="ts">
-// Import Nuxt UI prose/pre theme for terminal window styling
+// Nuxt UI's prose/pre theme: the same classes a plain code block gets
 import theme from '#build/ui/prose/pre'
 </script>
 
@@ -46,34 +46,20 @@ const props = defineProps({
   },
   /**
    * Controls how type hovers are displayed:
-   * - 'all': Show type hovers for all identifiers (default)
-   * - 'explicit': Only show explicit twoslash annotations (// ^?, // ^|, errors, etc.)
+   * - 'explicit' (default): only the annotations written in the code (// ^?, // ^|,
+   *   errors, @annotate); nothing appears on hover.
+   * - 'all': a type hover on every identifier as well.
    */
   hoverMode: {
     type: String as () => 'all' | 'explicit',
-    default: 'all',
+    default: 'explicit',
   },
 })
 
-// Get app config for icons
 const appConfig = useAppConfig()
 
-/**
- * Compute UI classes using Nuxt UI's tv utility with the prose/pre theme.
- *
- * How Tailwind Variants (tv) works:
- * 1. `tv(config)` creates a "variant function" from a config with slots/variants
- * 2. Calling the variant function (e.g., `tv(config)()`) returns an object
- *    where each slot becomes a method that generates class strings
- * 3. Slot methods accept variant props (e.g., `{ filename: true }`) to apply conditional styles
- *
- * Why computed?
- * - `appConfig.ui?.prose?.pre` is reactive - if it changes, UI should re-render
- * - Without computed, changes to app config wouldn't trigger updates
- *
- * The `extend` option merges our base theme with any custom overrides from app config.
- */
-const ui = tv({ extend: tv(theme) })() as ProsePreSlots;
+// Built the way Nuxt UI's own ProsePre builds it, so this block looks like every other code block.
+const ui = computed(() => tv({ extend: tv(theme), ...(appConfig.ui?.prose?.pre || {}) })() as ProsePreSlots)
 
 // Copy functionality using VueUse
 const { copy, copied } = useClipboard()
@@ -159,12 +145,9 @@ const handleCopy = () => {
 
 <template>
   <div :class="[ui.root({ filename: !!title }), 'mion-two-slash']">
-    <!-- Terminal window header with title tab -->
-    <div v-if="title" :class="ui.header()" class="mion-two-slash-header">
-      <div class="mion-two-slash-tab">
-        <UIcon name="i-vscode-icons-file-type-typescript" :class="ui.icon()" />
-        <span :class="ui.filename()">{{ title }}</span>
-      </div>
+    <!-- File name, plain text at the top of the panel -->
+    <div v-if="title" :class="ui.header()">
+      <span :class="ui.filename()">{{ title }}</span>
     </div>
 
     <!-- Copy button -->
@@ -203,9 +186,9 @@ const handleCopy = () => {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 0.875rem;
   line-height: 1.5rem;
-  border: 1px solid var(--ui-border-muted);
-  background-color: var(--ui-bg-muted);
-  border-radius: calc(var(--ui-radius) * 1.5);
+  border: 1px solid var(--ui-border);
+  background-color: var(--mion-panel-bg);
+  border-radius: var(--mion-panel-radius);
   color: var(--ui-text-muted);
   box-sizing: border-box;
 }
@@ -216,35 +199,11 @@ const handleCopy = () => {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 0.875rem;
   line-height: 1.5rem;
-  border: 1px solid rgb(239 68 68 / 0.5);
-  background-color: rgb(254 242 242);
-  border-radius: calc(var(--ui-radius) * 1.5);
-  color: rgb(220 38 38);
-}
-
-:root.dark .mion-two-slash-error {
-  background-color: rgb(127 29 29 / 0.3);
-  color: rgb(248 113 113);
-}
-
-.mion-two-slash-header {
-  padding-top: 0;
-  padding-left: 1rem;
-  padding-right: 1rem;
-  padding-bottom: 0;
-}
-
-/* Tab styling for the filename header */
-.mion-two-slash-tab {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.375rem 0.75rem;
-  background-color: var(--ui-bg-muted);
-  margin-bottom: -1px;
-  position: relative;
-  border-top: 1px solid var(--ui-primary);
-  margin-top: -1px;
+  /* no dark-mode override: --ui-error flips shade per mode itself */
+  border: 1px solid color-mix(in srgb, var(--ui-error) 50%, transparent);
+  background-color: color-mix(in srgb, var(--ui-error) 10%, var(--mion-panel-bg));
+  border-radius: var(--mion-panel-radius);
+  color: var(--ui-error);
 }
 
 .copy-mion-code-btn {
@@ -256,15 +215,19 @@ const handleCopy = () => {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 0.875rem;
   line-height: 1.5rem;
-  border: none;
-  background-color: var(--ui-bg-muted);
-  border-radius: calc(var(--ui-radius) * 1.5);
+  border: 1px solid var(--ui-border);
+  /* !important beats the background Shiki writes inline on the pre */
+  background-color: var(--mion-panel-bg) !important;
+  border-radius: var(--mion-panel-radius);
   padding: 0.75rem 1rem;
-  overflow-x: visible;
+  /* long lines scroll inside the block: with hovers off nothing hangs outside it,
+     the query and completion boxes sit inside the lines they annotate */
+  overflow-x: auto;
   margin: 0;
 }
 
 .rt-two-slash-code.with-title .shiki {
+  border-top: 0;
   border-top-left-radius: 0;
   border-top-right-radius: 0;
 }
@@ -279,6 +242,28 @@ const handleCopy = () => {
   display: block;
 }
 
+/* Tag lines mirror the prose alerts (app.config `ui.prose.callout`); selectors outrank twoslash's per-type rules. */
+.rt-two-slash-code .shiki code .twoslash-tag-line {
+  --mion-tag-color: var(--ui-info);
+  background-color: color-mix(in srgb, var(--mion-tag-color) 12%, var(--mion-panel-bg));
+  border-left: 4px solid var(--mion-tag-color);
+  border-radius: var(--ui-radius);
+  color: var(--ui-text);
+}
+.rt-two-slash-code .shiki code .twoslash-tag-error-line {
+  --mion-tag-color: var(--ui-error);
+}
+.rt-two-slash-code .shiki code .twoslash-tag-warn-line {
+  --mion-tag-color: var(--ui-warning);
+}
+.rt-two-slash-code .shiki code .twoslash-tag-annotate-line {
+  --mion-tag-color: var(--ui-success);
+}
+/* deeper on light, lighter on dark, like the prose alert icons; beats the dark `.shiki span` rule below */
+:root .rt-two-slash-code .shiki .twoslash-tag-line .twoslash-tag-icon {
+  color: color-mix(in oklab, var(--mion-tag-color) 75%, var(--ui-text-highlighted)) !important;
+}
+
 /* Ensure empty lines have proper height */
 .rt-two-slash-code .shiki .line:empty::before {
   content: ' ';
@@ -289,11 +274,14 @@ const handleCopy = () => {
   max-width: 100%;
 }
 
-/* Dark mode: Use Shiki's dark theme CSS variables */
+/* Dark mode: Use Shiki's dark theme colours; tokens sit on the panel surface */
 :root.dark .rt-two-slash-code .shiki,
 :root.dark .rt-two-slash-code .shiki span {
   color: var(--shiki-dark) !important;
-  background-color: var(--shiki-dark-bg) !important;
+}
+
+:root.dark .rt-two-slash-code .shiki span {
+  background-color: transparent !important;
 }
 
 /* Twoslash hover token - ensure popups stay within bounds */
@@ -303,8 +291,8 @@ const handleCopy = () => {
 
 /* Twoslash popup styling */
 .rt-two-slash-code .twoslash-popup-code {
-  border-radius: calc(var(--ui-radius) * 1.5);
-  box-shadow: 0 0 8px 0 #99db3580;
+  border-radius: var(--mion-panel-radius);
+  box-shadow: 0 0 8px 0 color-mix(in srgb, var(--color-brand-400) 50%, transparent);
   padding: 0;
   letter-spacing: -0.01rem;
   left: 0;
@@ -313,31 +301,18 @@ const handleCopy = () => {
 }
 
 .rt-two-slash-code .twoslash-completion-cursor  .twoslash-completion-list {
-  border-radius: calc(var(--ui-radius) * 1.5);
-  box-shadow: 0 0 8px 0 #99db3580;
+  border-radius: var(--mion-panel-radius);
+  box-shadow: 0 0 8px 0 color-mix(in srgb, var(--color-brand-400) 50%, transparent);
 }
 
-/* Popup arrow styling */
-:root.dark .rt-two-slash-code .twoslash-popup-arrow {
-  background: var(--shiki-dark-bg, #1e1e1e);
+.rt-two-slash-code .twoslash-popup-arrow {
+  background: var(--mion-panel-bg);
 }
 
-:root.light .rt-two-slash-code .twoslash-popup-arrow {
-  background: var(--shiki-light-bg, #ffffff);
-}
-
-/* Dark mode popup container */
-:root.dark .rt-two-slash-code .twoslash-popup-container,
-:root.dark .rt-two-slash-code .twoslash-completion-cursor .twoslash-completion-list {
-  background: var(--shiki-dark-bg, #1e1e1e);
-  border-color: var(--color-green-700);
-}
-
-/* Light mode popup container */
-:root.light .rt-two-slash-code .twoslash-popup-container,
-:root.light .rt-two-slash-code .twoslash-completion-cursor .twoslash-completion-list {
-  background: var(--shiki-light-bg, #ffffff);
-  border-color: var(--color-green-700);
+.rt-two-slash-code .twoslash-popup-container,
+.rt-two-slash-code .twoslash-completion-cursor .twoslash-completion-list {
+  background: var(--mion-panel-bg);
+  border-color: var(--color-brand-700);
 }
 </style>
 

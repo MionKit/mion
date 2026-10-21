@@ -1,7 +1,7 @@
 package mirror
 
 // Worked-example tests for the enrich-mirror reconciler — readable, one scenario
-// each, showing the committed mirror a user edited and what `gen --update`
+// each, showing the committed mirror a user edited and what `enrich --update`
 // produces. They double as documentation of the reconciler's behaviour on the
 // common edits. (The property test next door proves the same invariants hold over
 // random edit sequences; these spell out the headline cases in plain sight.)
@@ -305,8 +305,7 @@ func TestExample_RenameEnum_ambiguousRepoint_fallsThrough(t *testing.T) {
 // The friendly family merges IN PLACE: the authored label still names the
 // field whatever its kind, so it stays LIVE (no carcass, no blank re-scaffold);
 // constraint keys reconcile individually via the rt$errors descent. This is
-// the i18n fuzz T3 preservation contract
-// (docs/done/i18n-sync-authored-leaf-lost-on-prune-update.md). A change that
+// the i18n fuzz T3 preservation contract. A change that
 // also changes the structural template still replaces
 // (TestMerge_FriendlyChildTypeChanged_TemplateChangeReplaces), and the mock
 // family keeps the whole-field carcass on any type change
@@ -504,46 +503,4 @@ func TestExample_DeletedTypeReappears_restoresByName(t *testing.T) {
 
 	requireContains(t, out, "export const friendlyB: FriendlyText<B> = {rt$label: 'Authored B'}") // restored verbatim
 	requireMissing(t, out, "@rtOrphan")                                                           // carcass un-commented
-}
-
-// Lazy annotation migration: a mirror authored before the friendly-text rename
-// still reads `FriendlyType`. `gen --update` rewrites BOTH the const annotation
-// wrapper and the `import type { FriendlyType }` DSL import to `FriendlyText` in
-// place — the file kept compiling via the deprecated alias, and this pass
-// migrates it. The authored body is untouched (content-blind), so only the
-// wrapper + import change.
-func TestExample_LegacyFriendlyTypeAnnotationMigrates(t *testing.T) {
-	existing := "import type { User } from '../src';\n" +
-		"import type { FriendlyType } from '@mionjs/run-types';\n\n" +
-		"/** @rtType User#u1 @rtIds {name: strId} */\n" +
-		"export const friendlyUser: FriendlyType<User> = {rt$label: 'Account', rt$errors: {type: ''}, name: {rt$label: 'Name', rt$errors: {type: ''}}};\n"
-
-	spec := friendlySpec(enrichment.NamedConst{
-		TypeName: "User", DeclFile: "/src.ts", FriendlyVar: "friendlyUser",
-		Friendly: "{rt$label: '', rt$errors: {type: ''}, name: {rt$label: '', rt$errors: {type: ''}}}",
-		TypeID:   "u1", ChildIDs: map[string]string{"name": "strId"},
-	})
-	out := mustReconcile(t, spec, existing, sourceDeclaring("User"))
-
-	requireContains(t, out, "export const friendlyUser: FriendlyText<User>")          // annotation wrapper migrated
-	requireContains(t, out, "import type { FriendlyText } from '@mionjs/run-types';") // DSL import migrated
-	requireContains(t, out, "rt$label: 'Account'")                                    // authored body untouched
-	requireMissing(t, out, "FriendlyType")                                            // no legacy spelling survives
-}
-
-// Orphaned consts are NOT migrated: an existing legacy `FriendlyType` const whose
-// source type is gone is commented into an @rtOrphan carcass, and the carcass
-// keeps its original text verbatim (the wrapper splice would collide with the
-// whole-statement orphan splice, and a commented-out const's name is moot).
-func TestExample_OrphanedLegacyConst_keepsVerbatimWrapper(t *testing.T) {
-	existing := "import type { User } from '../src';\n" +
-		"import type { FriendlyType } from '@mionjs/run-types';\n\n" +
-		"/** @rtType Ghost#gId */\n" +
-		"export const friendlyGhost: FriendlyType<Ghost> = {rt$label: 'Ghost'};\n"
-
-	spec := friendlySpec() // desire nothing → the orphaned const has no live match
-	out := mustReconcile(t, spec, existing, sourceDeclaring("User"))
-
-	requireContains(t, out, "@rtOrphan")                          // const carcassed
-	requireContains(t, out, "friendlyGhost: FriendlyType<Ghost>") // wrapper left verbatim in the carcass
 }

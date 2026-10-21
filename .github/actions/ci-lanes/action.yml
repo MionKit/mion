@@ -1,0 +1,176 @@
+name: Decide which CI lanes to run
+description: >
+  Hash each lane's inputs in the tree being tested, then look up whether that exact
+  content already passed. Emits ONE `lanes` output, a JSON map of
+  {lane: {run, hash, reason}}, read with fromJSON() in a job `if:`.
+
+  A lane runs unless a green marker exists under its hash, so every unknown is a
+  run: an unreadable marker list, a new unclassified path, a lane whose job failed
+  (a failed job never saves a marker). scripts/ci/lanes.mjs owns the lane table and
+  the verdict; run it locally with `pnpm miondevx core lanes`.
+
+  On a pull request the checked-out tree is the MERGE ref, so a lane's hash covers
+  the base branch too: main moving re-runs the lane, which is exactly what a "diff
+  against the last green commit" rule would have got wrong. The one diff rule kept
+  is against the base itself: a lane whose inputs equal the base's skips, since the
+  push to main owns proving the base (without it a docs-only pull request re-ran
+  every lane whenever main's own run was still going or got cancelled).
+
+  Code files hash by their code in the lanes lanes.mjs marks `tokens`, through
+  mion-bin/code-digest restored from its own cache entry, so a commit that only
+  touches comments or blank lines skips them. A cache miss hashes them raw.
+
+  Also emits `labels`, the pull request's labels read live from the API (`[]` off a
+  pull request), so a label gate never trusts the event payload: opening a PR with a
+  label fires `opened` and `labeled` together, concurrency cancels one, and the
+  `opened` payload carries no labels. The run that survives was queued after both,
+  so the live read always sees the label.
+
+  It also decides what happens to OLDER active runs of the same workflow (scripts/ci/supersede.mjs):
+  one whose live lanes all hash the same as ours is kept, and our verdict for those lanes
+  gains `deferredTo: <run id>`, which makes the job wait for that run (a waiter job, or a wait step
+  placed after the checks that read comments) instead of repeating the work. Any other older run is cancelled. The workflow's own concurrency group carries
+  the run id, so GitHub no longer cancels blindly; it still does for a fork, whose token
+  cannot cancel runs.
+
+  The gate job needs `permissions: actions: write` (markers, artifacts, cancelling) and
+  `pull-requests: read` (labels). The lane-wait workflow calls this again with
+  `supersede` off, to re-decide once the older run is done. The job that RUNS a lane must
+  save its marker on success with ./.github/actions/save-lane-green.
+
+inputs:
+  lanes:
+    description: Space-separated lane names to decide (see scripts/ci/lanes.mjs)
+    required: true
+  supersede:
+    description: "'false' reads no labels, leaves older runs alone and adds no waits (a waiter re-deciding)"
+    default: 'true'
+
+outputs:
+  lanes:
+    description: 'JSON map of {lane: {run, hash, reason, deferredTo?}}'
+    value: ${{ steps.final.outputs.lanes }}
+  labels:
+    description: "JSON array of the pull request's current label names, [] off a pull request"
+    value: ${{ steps.labels.outputs.labels || '[]' }}
+
+runs:
+  using: composite
+  steps:
+    # The gate job runs no bootstrap and no install, so it brings its own node. The
+    # runner image ships an older one and the scripts use `import.meta.main`, which
+    # needs the version the workspace targets.
+    - uses: actions/setup-node@v5
+      with:
+        node-version: 26
+        # setup-node defaults this to true, sees pnpm-lock.yaml and runs `pnpm` to
+        # locate the store, which fails the whole step here: this job installs
+        # nothing, so pnpm is not on PATH and there is no install to cache.
+        package-manager-cache: false
+
+    # The resolver action saves this entry wherever Go is set up; a miss leaves the gate hashing raw.
+    - name: Key the code-digest tool
+      id: digest-key
+      shell: bash
+      run: echo "key=$(node scripts/core/build.mjs --digest-cache-key)" >> "$GITHUB_OUTPUT"
+    - name: Restore the code-digest tool
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          mion-bin/code-digest
+          mion-bin/.code-digest.stamp
+        key: ${{ steps.digest-key.outputs.key }}
+
+    # A failed read fails the gate (red), never falls back to the payload's labels.
+    - name: Read the pull request's current labels
+      id: labels
+      # Off a pull request, or in a waiter, the outputs below fall back to [].
+      if: inputs.supersede == 'true' && github.event.pull_request.number
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        MION_PR_NUMBER: ${{ github.event.pull_request.number }}
+      run: |
+        labels=$(gh pr view "$MION_PR_NUMBER" --json labels --jq '[.labels[].name]')
+        echo "labels=$labels" >> "$GITHUB_OUTPUT"
+
+    # Dependency-free node, run BEFORE any bootstrap so a skipped lane costs a
+    # checkout, not an install.
+    #
+    # A marker is a claim about CONTENT, so one proven on any branch counts: the
+    # list is read with `gh cache list` rather than a ref-scoped cache restore,
+    # which would miss a lane another branch already proved at the same hash.
+    # Failing to read it writes an empty list, and an empty list runs everything.
+    - name: Decide the lanes from their input hashes
+      id: decide
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        LANES: ${{ inputs.lanes }}
+        MION_PR_LABELS: ${{ steps.labels.outputs.labels || '[]' }}
+      run: |
+        mkdir -p .lane-decision
+        # Exact-key lookups, so a marker is never lost off the end of a long listing.
+        # A failed lookup leaves its key out, which re-runs a lane, never skips one.
+        PR_FLAG="${{ github.event_name == 'pull_request' && '--pr' || '' }}"
+        # HEAD^1 of the merge ref is the base tip: a lane this pull request leaves untouched skips without a marker.
+        BASE_FLAG="${{ github.event_name == 'pull_request' && '--base HEAD^1' || '' }}"
+        : > lane-green-keys.txt
+        for key in $(node scripts/ci/lanes.mjs --candidates $LANES $PR_FLAG); do
+          gh cache list --key "$key" --limit 1 --json key --jq '.[].key' >> lane-green-keys.txt || :
+        done
+        # Only a pull request accepts the narrower PR markers (PR_PROOF in lanes.mjs).
+        node scripts/ci/lanes.mjs --decide $LANES --green-keys lane-green-keys.txt --github --out .lane-decision/lanes.json $PR_FLAG $BASE_FLAG
+        rm -f lane-green-keys.txt
+        jq -n --slurpfile lanes .lane-decision/lanes.json --argjson labels "$MION_PR_LABELS" --arg baseRef "$GITHUB_BASE_REF" \
+          '{lanes: $lanes[0], labels: $labels, baseRef: $baseRef}' > .lane-decision/decision.json
+
+    # Read by a newer run's comparison; uploaded before ours so a newer run finds it as early as possible.
+    - if: inputs.supersede == 'true' && !github.event.pull_request.head.repo.fork
+      uses: actions/upload-artifact@v7
+      with:
+        name: lane-decision
+        path: .lane-decision/decision.json
+        retention-days: 1
+        overwrite: true
+
+    # Older runs only, so two runs never cancel each other; the PR filter spares another PR on a same-named branch.
+    # A decision that cannot be downloaded or read counts as none, which cancels that run.
+    - name: Keep or cancel the older runs
+      id: supersede
+      if: inputs.supersede == 'true' && !github.event.pull_request.head.repo.fork
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        MION_PR_NUMBER: ${{ github.event.pull_request.number }}
+      run: |
+        workflow="${GITHUB_WORKFLOW_REF%@*}"
+        ids=$(gh api -X GET "repos/$GITHUB_REPOSITORY/actions/workflows/${workflow##*/}/runs" -f branch="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}" \
+          -f event="$GITHUB_EVENT_NAME" -F per_page=30 --jq ".workflow_runs[] | select(.status != \"completed\" and .id < $GITHUB_RUN_ID
+            and .head_repository.full_name == \"$GITHUB_REPOSITORY\" and (\"$MION_PR_NUMBER\" == \"\" or ([.pull_requests[].number | tostring] | index(\"$MION_PR_NUMBER\")))) | .id") \
+          || { echo "::warning::could not list the older runs, so none is kept or cancelled"; ids=; }
+        echo '[]' > .lane-decision/older.json
+        for id in $ids; do
+          gh run download "$id" --repo "$GITHUB_REPOSITORY" --name lane-decision --dir ".lane-decision/older/$id" 2>/dev/null || :
+          decision=$(jq -cs '[.[] | select((.lanes | type) == "object")] | first // null' ".lane-decision/older/$id/decision.json" 2>/dev/null) || decision=null
+          jq --argjson id "$id" --argjson decision "$decision" '. + [{runId: $id, decision: $decision}]' .lane-decision/older.json > .lane-decision/next.json
+          mv .lane-decision/next.json .lane-decision/older.json
+        done
+        node scripts/ci/supersede.mjs --plan --decision .lane-decision/decision.json --older .lane-decision/older.json --out .lane-decision/final.json --github
+
+    - name: Cancel the older runs this commit makes stale
+      if: steps.supersede.outputs.cancel != ''
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        for id in ${{ steps.supersede.outputs.cancel }}; do
+          gh run cancel "$id" --repo "$GITHUB_REPOSITORY" || echo "::warning::could not cancel run $id (it may have just finished)"
+        done
+
+    - name: Write the verdict
+      id: final
+      shell: bash
+      run: |
+        echo "lanes=$(cat .lane-decision/final.json 2>/dev/null || cat .lane-decision/lanes.json)" >> "$GITHUB_OUTPUT"
+        rm -rf .lane-decision

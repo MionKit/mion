@@ -8,7 +8,7 @@
 //   • no --registry (CI / release): the PUBLIC registry via `npm stage publish`.
 //     Staged publishing uploads to a stage queue and needs NO 2FA, so CI can stage
 //     unattended; a maintainer then promotes each staged version to live with a
-//     real 2FA challenge (`pnpm rtx release stage-approve`, or the npmjs.com queue).
+//     real 2FA challenge (`pnpm miondevx release stage-approve`, or the npmjs.com queue).
 //     Auth is the NPM_TOKEN secret — the publish-npm job writes it to ~/.npmrc; it
 //     must be an automation/granular token so the unattended stage isn't
 //     2FA-blocked. See SETUP.md → Publishing.
@@ -32,7 +32,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {fetchPublishedTarball, tarballSourceDiff} from '../lib/drizzle-line.mjs';
+import {missingPlatformTarballs} from '../lib/binary-platforms.mjs';
+import {fetchPublishedTarball, tarballContentDiff} from '../lib/drizzle-line.mjs';
 import {publishRank, readWorkspaceManifests} from '../lib/publish-order.mjs';
 import {describeReceipt, receiptOptOut, verifyReceipt} from './receipt.mjs';
 
@@ -54,7 +55,7 @@ if (!registry && !planOnly && !receiptOptOut(args)) {
   const verdict = verifyReceipt(TARBALLS, version);
   if (!verdict.ok) {
     console.error(`publish-tarballs: refusing to publish — ${verdict.reason}.`);
-    console.error("Run `pnpm rtx release e2e` over these tarballs, or pass --no-receipt (MION_ALLOW_UNVERIFIED_PUBLISH=1) to publish unverified.");
+    console.error("Run `pnpm miondevx release e2e` over these tarballs, or pass --no-receipt (MION_ALLOW_UNVERIFIED_PUBLISH=1) to publish unverified.");
     process.exit(1);
   }
   console.log(describeReceipt(verdict.receipt));
@@ -132,9 +133,9 @@ function drizzlePublishPlan(file) {
     try {
       const live = fetchPublishedTarball(name, version, scratch, registry);
       if (!live) return {error: `${name}@${version} is live but its tarball could not be downloaded — cannot verify the skip`};
-      const changed = tarballSourceDiff(path.join(TARBALLS, file), live);
+      const changed = tarballContentDiff(path.join(TARBALLS, file), live);
       if (changed.length > 0) {
-        return {error: `${name}@${version} is already live with DIFFERENT sources (${changed.join(', ')}) — bump its patch (pnpm rtx release bump ...) and re-pack`};
+        return {error: `${name}@${version} is already live with DIFFERENT sources (${changed.join(', ')}) — bump its patch (pnpm miondevx release bump ...) and re-pack`};
       }
       return {skip: true, reason: `${name}@${version} is already live with identical sources`};
     } finally {
@@ -160,6 +161,17 @@ function main() {
   // everywhere else (CI / release) stages into the public registry's queue for a
   // later 2FA approval.
   const staged = !registry;
+  // A release ships EVERY platform package of both families (the resolver and the
+  // uws mirror). `release binaries --host-only` (the drizzle-e2e lane) stages just
+  // the host's, and the launcher / shim name only that one, so publishing such a
+  // set would leave every other platform with no binary. The throwaway registry
+  // is exempt: a lane installs on the platform it built for.
+  const missing = staged ? missingPlatformTarballs(packed) : [];
+  if (missing.length > 0) {
+    console.error(`publish-tarballs: refusing to publish — tarballs/ has no platform package for ${missing.join(', ')}.`);
+    console.error('The set was packed from a host-only staging. Rebuild with `pnpm miondevx release binaries` (no --host-only) and re-pack.');
+    process.exit(1);
+  }
   const planProblems = [];
   if (planOnly) {
     console.log('\n--plan: publish order (no publish happens):');
@@ -211,7 +223,7 @@ function main() {
 
   if (staged) {
     console.log(`\nStaged ${published} packages to the npm stage queue (no 2FA).`);
-    console.log('Promote to live with a 2FA approval, leaves-first: pnpm rtx release stage-approve');
+    console.log('Promote to live with a 2FA approval, leaves-first: pnpm miondevx release stage-approve');
   } else {
     console.log(`\nPublished ${published} packages -> ${registry}.`);
   }

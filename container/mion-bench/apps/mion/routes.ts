@@ -5,29 +5,21 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The routes every mion lane serves. The handler signatures ARE the schema: the
-// build-time resolver reads `user: User` and compiles the validator, deserializer and
-// serializer from it. Nothing here declares a schema, which is the difference the
-// benchmark is measuring.
-//
-// Regular imports only - `import type` would erase User before the resolver sees it.
-import {Routes, route} from '@mionjs/router';
-import {SimpleUser, User} from '../../shared/models.ts';
+// Routes for every plain JSON mion lane. No schema is declared: the resolver compiles one from the
+// handler types, which is the difference the benchmark measures.
+import {Routes, createMionRouter} from '@mionjs/router';
+import {hello, updateSimpleUser, updateUser} from './handlers.ts';
 
-export const routes = {
-  hello: route((): {hello: string} => ({hello: 'world'})),
+// One router per process: each server entry imports this file, then listens with its own maxBodySize.
+// Every route takes that maxBodySize, since a User (plain strings) declares no maximum.
+const mion = createMionRouter({alwaysAwait: false});
 
-  updateUser: route((ctx, user: User): User => {
-    user.updatedAt = new Date();
-    user.lastLoginAt = new Date();
-    user.profile.displayName = `${user.profile.firstName} ${user.profile.lastName.charAt(0)}.`;
-    return user;
-  }),
-
-  updateSimpleUser: route((ctx, user: SimpleUser): SimpleUser => {
-    user.lastUpdate = new Date();
-    return user;
-  }),
+const routes = {
+  hello: mion.route(hello),
+  updateUser: mion.route(updateUser),
+  updateSimpleUser: mion.route(updateSimpleUser),
 } satisfies Routes;
 
 export type BenchApi = typeof routes;
+
+mion.initRoutes(routes);

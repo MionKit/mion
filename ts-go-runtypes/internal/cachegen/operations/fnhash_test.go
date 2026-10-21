@@ -6,25 +6,14 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 )
 
-// expectedCanonicalKeyCount is a canary. Base set = 53: 12 AxisNone ops × 1,
-// huk's 2 HasUnknownKeysOptions subsets, val+verr's 16 ValidateOptions subsets
-// each (32; 4 options — noLiterals, noIsArrayCheck, numberTypeof, numberNotNaN —
-// → 2^4), jsonEncoder's 4 + jsonDecoder's 3 strategies (7). On top, the four
-// CircularGuarded ops fork on rejectCircular, ADDING one armed key per plain
-// variant: val +16, verr +16, tb +1, jsonEncoder +4 = +37. If this trips, an
-// operation (or the circular fork) changed without updating the count (and you
-// should re-confirm the collision guard still holds).
-//
-// +64: the fused validators vst / vest (the `{checkUnknowns: true}` families).
-// Each carries the SAME shape as its plain twin — 16 ValidateOptions subsets plus
-// 16 armed rejectCircular forks — so 32 keys apiece. Adding them is what forced
-// FnHashLen 3 → 4 (see fnhash.go).
-//
-// +3: the createParseFn families — parse / parseStrip / parseFail. AxisNone
-// and not CircularGuarded (a JSON.parse output cannot hold a cycle), so one key
-// each; the undeclared-key strategy is the operation, not an axis (see the
-// registry).
-const expectedCanonicalKeyCount = 53 + 37 + 1 + 1 + 64 + 3 // +1: the jsonSchema (jsc) document operation; +1: the classSerializerReg (csr) name card
+// expectedCanonicalKeyCount is a canary: when it trips, an operation changed, so re-confirm the collision guard holds.
+// 19: 7 AxisNone ops, val + verr 3 each (3 numberModes), jsonEncoder 3 + jsonDecoder 3.
+// +9: each CircularGuarded op adds one armed key per plain variant (val 3, verr 3, jsonEncoder 3).
+// +12 each: vst / vest (`checkUnknowns`) and vuk / veuk (`checkUnionUnknowns`), 6 keys apiece like val / verr.
+// vst / vest are what forced FnHashLen 3 → 4 (see fnhash.go).
+// +1: restoreFromJsonClone (rjs), the stripping decode mirror of prepareForJsonClone.
+// +2: removeUnknownKeys under `sharedValues: 'share'` (ruks) and `'refuse'` (rukr).
+const expectedCanonicalKeyCount = 19 + 9 + 1 + 1 + 12 + 12 + 1 + 2 // +1: the jsonSchema (jsc) document operation; +1: the classSerializerReg (csr) name card
 
 func TestFnHashCollisionFree(t *testing.T) {
 	// Runs at init too, but assert here so the failure is a test, not a panic.
@@ -50,8 +39,8 @@ func TestFnHashCollisionFree(t *testing.T) {
 
 func TestFnHashDeterministic(t *testing.T) {
 	validate, _ := ByName("validate")
-	a := FnHashFor(validate, []string{"noLiterals"}, "", false)
-	b := FnHashFor(validate, []string{"noLiterals"}, "", false)
+	a := FnHashFor(validate, []string{"numberTypeof"}, "", false)
+	b := FnHashFor(validate, []string{"numberTypeof"}, "", false)
 	if a != b {
 		t.Fatalf("FnHashFor not deterministic: %q vs %q", a, b)
 	}
@@ -59,12 +48,13 @@ func TestFnHashDeterministic(t *testing.T) {
 
 func TestCanonicalOptionOrderIndependent(t *testing.T) {
 	validate, _ := ByName("validate")
-	forward := Canonical(validate, []string{"noLiterals", "noIsArrayCheck"}, "", false)
-	reverse := Canonical(validate, []string{"noIsArrayCheck", "noLiterals"}, "", false)
+	// Not a valid call-site set (both share one Group); it only checks the suffix ignores input order.
+	forward := Canonical(validate, []string{"numberTypeof", "numberNotNaN"}, "", false)
+	reverse := Canonical(validate, []string{"numberNotNaN", "numberTypeof"}, "", false)
 	if forward != reverse {
 		t.Fatalf("Canonical is option-order-dependent: %q vs %q", forward, reverse)
 	}
-	if FnHashFor(validate, []string{"noLiterals", "noIsArrayCheck"}, "", false) != FnHashFor(validate, []string{"noIsArrayCheck", "noLiterals"}, "", false) {
+	if FnHashFor(validate, []string{"numberTypeof", "numberNotNaN"}, "", false) != FnHashFor(validate, []string{"numberNotNaN", "numberTypeof"}, "", false) {
 		t.Fatal("FnHashFor is option-order-dependent")
 	}
 }
@@ -72,9 +62,10 @@ func TestCanonicalOptionOrderIndependent(t *testing.T) {
 func TestCanonicalDistinguishesOptionSets(t *testing.T) {
 	validate, _ := ByName("validate")
 	plain := FnHashFor(validate, nil, "", false)
-	noLiterals := FnHashFor(validate, []string{"noLiterals"}, "", false)
-	if plain == noLiterals {
-		t.Fatal("plain and noLiterals validate must hash differently")
+	typeofMode := FnHashFor(validate, []string{"numberTypeof"}, "", false)
+	notNaNMode := FnHashFor(validate, []string{"numberNotNaN"}, "", false)
+	if plain == typeofMode || plain == notNaNMode || typeofMode == notNaNMode {
+		t.Fatal("plain, numberTypeof and numberNotNaN validate must all hash differently")
 	}
 }
 
@@ -85,9 +76,8 @@ func TestCanonicalDistinguishesOptionSets(t *testing.T) {
 func TestRejectCircularForksHash(t *testing.T) {
 	validate, _ := ByName("validate")
 	verr, _ := ByName("validationErrors")
-	toBinary, _ := ByName("toBinary")
 	jsonEncoder, _ := ByName("jsonEncoder")
-	fromBinary, _ := ByName("fromBinary") // not CircularGuarded
+	formatTransform, _ := ByName("formatTransform") // not CircularGuarded
 
 	forks := func(name string, op Operation, options []string, strategy string) {
 		plain := FnHashFor(op, options, strategy, false)
@@ -97,15 +87,14 @@ func TestRejectCircularForksHash(t *testing.T) {
 		}
 	}
 	forks("validate", validate, nil, "")
-	forks("validate|NL", validate, []string{"noLiterals"}, "")
+	forks("validate|NT", validate, []string{"numberTypeof"}, "")
 	forks("validationErrors", verr, nil, "")
-	forks("toBinary", toBinary, nil, "")
 	forks("jsonEncoder|clone", jsonEncoder, nil, "clone")
 	forks("jsonEncoder|mutate", jsonEncoder, nil, "mutate")
 
 	// A non-guarded op ignores rejectCircular entirely.
-	if FnHashFor(fromBinary, nil, "", false) != FnHashFor(fromBinary, nil, "", true) {
-		t.Fatal("fromBinary is not CircularGuarded; rejectCircular must be a no-op")
+	if FnHashFor(formatTransform, nil, "", false) != FnHashFor(formatTransform, nil, "", true) {
+		t.Fatal("formatTransform is not CircularGuarded; rejectCircular must be a no-op")
 	}
 }
 
@@ -132,11 +121,12 @@ func TestFnHash_StableAcrossVersions(t *testing.T) {
 
 func TestByFnKey(t *testing.T) {
 	cases := map[string]string{
-		"val":         "validate",
-		"verr":        "validationErrors",
-		"jsonEncoder": "jsonEncoder",
-		"jsonDecoder": "jsonDecoder",
-		"tb":          "toBinary",
+		"validate":            "validate",
+		"validationErrors":    "validationErrors",
+		"jsonEncoder":         "jsonEncoder",
+		"jsonDecoder":         "jsonDecoder",
+		"removeUnknownKeys":   "removeUnknownKeys",
+		"prepareForJsonClone": "prepareForJsonClone",
 	}
 	for fnKey, wantName := range cases {
 		op, ok := ByFnKey(fnKey)
@@ -148,17 +138,46 @@ func TestByFnKey(t *testing.T) {
 			t.Errorf("ByFnKey(%q).Name = %q, want %q", fnKey, op.Name, wantName)
 		}
 	}
-	// A marker names an operation by its FnKey (the tag "pj"), never by its
-	// canonical Name — so the Name must not resolve as an FnKey.
-	if _, ok := ByFnKey("prepareForJson"); ok {
-		t.Error("operation name prepareForJson must not be reachable by FnKey (its FnKey is \"pj\")")
+	// Retired family tags must stay unreachable as FnKeys, so a stale `'verr'` is a build error (marker-type-id-collision), not silence.
+	for _, retired := range []string{"val", "verr", "pj", "pjs", "rjs", "huk"} {
+		if _, ok := ByFnKey(retired); ok {
+			t.Errorf("retired family tag %q must not resolve as an FnKey", retired)
+		}
+	}
+}
+
+// TestFnKeysAreReadable pins the two-vocabulary split: the marker token (FnKey)
+// is readable and the emitted family tag stays short. Letting the two namespaces
+// merge again is the failure mode this guards - a tag reused as a token would
+// make the mion adapter's tag-to-key projection silently correct for one family
+// and wrong for the rest.
+func TestFnKeysAreReadable(t *testing.T) {
+	tags := map[string]bool{}
+	for _, op := range All() {
+		if op.FamilyTag != "" {
+			tags[op.FamilyTag] = true
+		}
+	}
+	seen := map[string]string{}
+	for _, op := range All() {
+		if op.FnKey == "" {
+			t.Errorf("operation %q has no FnKey: every operation must be nameable in a marker", op.Name)
+			continue
+		}
+		if previous, taken := seen[op.FnKey]; taken {
+			t.Errorf("FnKey %q is claimed by both %q and %q", op.FnKey, previous, op.Name)
+		}
+		seen[op.FnKey] = op.Name
+		if tags[op.FnKey] {
+			t.Errorf("FnKey %q collides with an emitted family tag: marker tokens and family tags are separate vocabularies", op.FnKey)
+		}
 	}
 }
 
 func TestByFamilyTag(t *testing.T) {
 	op, ok := ByFamilyTag("pj")
-	if !ok || op.Name != "prepareForJson" {
-		t.Fatalf("ByFamilyTag(\"pj\") = %+v, %v; want prepareForJson", op, ok)
+	if !ok || op.Name != "prepareForJsonMutate" {
+		t.Fatalf("ByFamilyTag(\"pj\") = %+v, %v; want prepareForJsonMutate", op, ok)
 	}
 	// Composite operations have no family tag and must not be indexed.
 	if _, ok := ByFamilyTag(""); ok {
@@ -175,5 +194,74 @@ func TestPlainHashMatchesDefaultVariant(t *testing.T) {
 	jsonEncoder, _ := ByName("jsonEncoder")
 	if PlainHash("jsonEncoder") != FnHashFor(jsonEncoder, nil, jsonEncoder.DefaultStrategy, false) {
 		t.Fatal("PlainHash for a composite must equal its default-strategy fnHash")
+	}
+}
+
+// TestSuggestFnKey pins marker-unknown-function-family's did-you-mean: a RETIRED family tag must suggest its own family, not the closest name.
+func TestSuggestFnKey(t *testing.T) {
+	retired := map[string]string{
+		"val":  "validate",
+		"verr": "validationErrors",
+		"pjs":  "prepareForJsonClone",
+		"rjs":  "restoreFromJsonClone",
+	}
+	for tag, want := range retired {
+		if got := SuggestFnKey(tag); got != want {
+			t.Errorf("SuggestFnKey(%q) = %q, want %q", tag, got, want)
+		}
+	}
+	// A near miss on a real name still resolves.
+	if got := SuggestFnKey("validationError"); got != "validationErrors" {
+		t.Errorf("SuggestFnKey(\"validationError\") = %q, want validationErrors", got)
+	}
+	// Nothing close reports nothing rather than guessing.
+	for _, nonsense := range []string{"", "zzzzzzzzzzzz", "notAFamilyAtAll"} {
+		if got := SuggestFnKey(nonsense); got != "" {
+			t.Errorf("SuggestFnKey(%q) = %q, want no suggestion", nonsense, got)
+		}
+	}
+}
+
+// TestEveryOperationIsDocumented pins the docs catalog's input. The page is
+// generated from this registry, so an operation added without a description
+// would render as a blank row on the public site rather than fail anything.
+func TestEveryOperationIsDocumented(t *testing.T) {
+	for _, op := range All() {
+		if op.Doc == "" {
+			t.Errorf("operation %q has no Doc: every function the catalog page lists needs its one-line description", op.Name)
+			continue
+		}
+		// A description is a sentence for a reader, not a restatement of the name.
+		if len(op.Doc) < 20 {
+			t.Errorf("operation %q has a Doc too short to say anything: %q", op.Name, op.Doc)
+		}
+		if op.Doc[len(op.Doc)-1] != '.' {
+			t.Errorf("operation %q Doc should read as a sentence and end with a period: %q", op.Name, op.Doc)
+		}
+	}
+}
+
+// TestEveryPublicOperationNamesItsFactory pins the other half of the catalog row: every
+// operation a user can reach has a createX, so only non-Public plumbing leaves Factory empty.
+func TestEveryPublicOperationNamesItsFactory(t *testing.T) {
+	for _, op := range All() {
+		if op.Public && op.Factory == "" {
+			t.Errorf("public operation %q should name the createX factory that compiles it", op.Name)
+		}
+	}
+}
+
+// TestEveryPublicCallIsDistinct: operations sharing a factory need distinct CallOptions, or the catalog shows one call twice.
+func TestEveryPublicCallIsDistinct(t *testing.T) {
+	seen := map[string]string{}
+	for _, op := range All() {
+		if !op.Public || op.Axis == AxisJsonStrategy {
+			continue
+		}
+		call := op.Factory + " " + op.CallOptions
+		if other, ok := seen[call]; ok {
+			t.Errorf("operations %q and %q share the call %q: give one of them CallOptions", other, op.Name, call)
+		}
+		seen[call] = op.Name
 	}
 }

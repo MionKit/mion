@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import {reactive, ref, computed, onMounted} from 'vue';
+import {aggregateRows, type AggregateRow} from '~/utils/benchAggregate';
+import {formatValue, lowerBetterFor as lowerBetterOf, shortVersion, strategyOf, unitFor as unitOf} from '~/utils/benchFormat';
 
 type CaseStatus = 'ok' | 'fail' | 'not-supported';
 
@@ -118,12 +120,8 @@ interface DetailEntry {
   samplesHtml?: string;
 }
 
-interface AggRow {
-  key: string;
-  label: string;
-  /** values[competitor][path] -> geometric mean (or null) */
-  values: Record<string, Record<Path, number | null>>;
-}
+/** values[competitor][path] -> geometric mean (or null), plus the section it covers. */
+type AggRow = AggregateRow;
 
 const props = defineProps<{
   /** bench slug: fetched from /bench-data/<bench>/index.json */
@@ -168,16 +166,14 @@ function metricByKey(key: string): Metric | undefined {
   return index.value?.metrics.find((m) => m.key === key);
 }
 
-/** Cell unit for a metric: per-metric override, else the index-level unit. */
+/** Cell unit and heatmap direction for a metric, bound to this table's index
+ *  (benchFormat.ts owns the rules; the charts read them the same way). */
 function unitFor(metricKey: string): BenchIndex['unit'] | 'bytes' {
-  return metricByKey(metricKey)?.unit ?? index.value?.unit;
+  return unitOf(index.value?.metrics ?? [], index.value?.unit, metricKey);
 }
 
-/** Heatmap direction for a metric: explicit `lowerBetter`, else count/bytes. */
 function lowerBetterFor(metricKey: string): boolean {
-  const metric = metricByKey(metricKey);
-  if (metric?.lowerBetter != null) return metric.lowerBetter;
-  return unitFor(metricKey) === 'count';
+  return lowerBetterOf(index.value?.metrics ?? [], index.value?.unit, metricKey);
 }
 
 /** Row-extrema labels for the heatmap legend, by unit. */
@@ -232,9 +228,7 @@ const {active, pinned, close, preview, leave, pin, panelEnter, panelLeave} = use
 const activeDetail = computed<DetailEntry | undefined>(() => (active.value ? details[active.value.key] : undefined));
 const panelState = computed<'loading' | 'ready' | 'error'>(() => activeDetail.value?.state ?? 'loading');
 
-/** The source to show for a competitor on THIS page: the metric-specific builder
- *  body (validation bench), or the single source (typecost). Absent → the
- *  competitor doesn't support this metric (e.g. zod has no boolean validate). */
+/** Absent → the competitor doesn't support this page's metric. */
 function metricSource(competitor: BenchCompetitorSource): string | undefined {
   if (props.metric) return competitor.sources?.[props.metric as 'validate' | 'validationErrors'];
   // No metric prop: the single typecost source, else (correctness) the is-valid builder.
@@ -293,17 +287,6 @@ const panelColumns = computed(() => {
   return cols;
 });
 
-/** How each library produces its validator: shown as a per-column tag, explained in
- *  the legend. comptime = AOT (generated at build time: ts-go, typia); jit = compiled
- *  at runtime via codegen (ajv.compile, TypeCompiler.Compile); interpreted = the schema
- *  is walked on every call (zod). */
-function strategyOf(competitor: string): 'comptime' | 'jit' | 'interpreted' {
-  const name = competitor.toLowerCase();
-  if (name.includes('typia') || name.includes('ts-go') || name.includes('mion')) return 'comptime';
-  if (name.includes('ajv') || name.includes('typebox')) return 'jit';
-  return 'interpreted';
-}
-
 /** Build-strategy tags describe RUNTIME validator construction, so they only apply to
  *  the throughput benches: the typecost (type-instantiation count) table hides them. */
 const showStrategy = computed(() => index.value?.showStrategy !== false && index.value?.unit !== 'count');
@@ -323,21 +306,6 @@ function tipAlign(columnIndex: number): 'left' | 'right' {
 /** Installed library version for a column (competitor name, or typecost form label). */
 function versionOf(competitor: string): string | undefined {
   return index.value?.versions?.[competitor];
-}
-
-/** major.minor, dropping the patch / prerelease noise (4.4.3 → 4.4, 13.0.0-dev → 13.0).
- *  Exception: for 0.x packages the patch IS the meaningful release axis (semver treats
- *  0.minor.patch as breaking.feature), so keep a non-zero patch, e.g. typebox 0.34.49. */
-function shortVersion(version: string | undefined): string {
-  if (!version) return '';
-  const parts = version.split('.');
-  const [major, minor] = parts;
-  if (minor === undefined) return major;
-  if (major === '0') {
-    const patch = parts[2]?.match(/^\d+/)?.[0];
-    if (patch && Number(patch) !== 0) return `${major}.${minor}.${patch}`;
-  }
-  return `${major}.${minor}`;
 }
 
 /** One-line run-environment summary (date · cpu · os · runtimes) for the info header. */
@@ -444,18 +412,6 @@ async function loadDetail(item: {key: string; title: string}) {
 /** Compact value: ops/sec (1.2M/s) for runtime, or a bare count (1.2M) for the
  *  typecost bench. `bare` drops the `/s` (used for the invalid number, whose unit
  *  is already established by the valid number it sits beside). */
-function formatValue(value: number, unit: BenchIndex['unit'] | 'bytes', bare = false): string {
-  if (unit === 'bytes') {
-    if (value >= 1_048_576) return `${(value / 1_048_576).toFixed(1)}MB`;
-    if (value >= 1_024) return `${(value / 1_024).toFixed(1)}KB`;
-    return `${Math.round(value)} B`;
-  }
-  const suffix = bare || unit === 'count' ? '' : '/s';
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(value >= 10_000_000 ? 0 : 1)}M${suffix}`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(value >= 10_000 ? 0 : 1)}k${suffix}`;
-  return `${Math.round(value)}${suffix}`;
-}
-
 /** Combined cell: the valid (accept) number is the headline, the invalid (reject)
  *  number rides along smaller + dimmer. `cls` colors the whole cell (the valid
  *  number / FAIL / n-a / em-dash); `invalid` is empty when there's no reject
@@ -566,9 +522,7 @@ function buildVerdict(rtVals: (number | null)[], get: (i: number) => {enc?: numb
   if (!index.value) return [];
   const rtRanks = ranksFor(rtVals, false);
   const ingredients = index.value.competitors.map((_c, i) => get(i));
-  // 0 bytes is a REAL, valid (and best) payload, not "absent": a binary literal bakes
-  // its single possible value into the compiled fn, so nothing rides the wire. Include
-  // it so it wins the "fewest bytes" cue (>= 0, matching ranksFor's lower-better path).
+  // 0 bytes is a valid (best) payload, not "absent", so it must win the "fewest bytes" cue.
   const present = ingredients.map((g) => g.bytes).filter((v): v is number => typeof v === 'number' && v >= 0);
   const byteMin = present.length ? Math.min(...present) : NaN;
   return ingredients.map(({enc, dec, bytes}, i) => {
@@ -619,103 +573,17 @@ function verdictAggCells(row: AggRow): VerdictCell[] {
   return buildVerdict(rtVals, (i) => ({enc: tRow?.values[comps[i]]?.valid, dec: tRow?.values[comps[i]]?.invalid, bytes: pRow?.values[comps[i]]?.valid}));
 }
 
-/** Geometric mean of the positive values: outlier-resistant summary across cases. */
-function geomean(values: number[]): number | null {
-  const positive = values.filter((value) => typeof value === 'number' && value > 0);
-  if (positive.length === 0) return null;
-  return Math.exp(positive.reduce((acc, value) => acc + Math.log(value), 0) / positive.length);
-}
+// geomean / commonBasis / geomeanOver live in app/utils/benchAggregate.ts:
+// the root landing's HomeBenchTable quotes the same "Overall" numbers, so the math has
+// ONE home. A lower-is-better bench (typecost, unit "count") keeps zeros via +1 smoothing there.
+const aggregateLowerBetter = computed(() => index.value?.unit === 'count');
 
-/** A competitor "supports" a case for a metric when it ran (not fail / not-supported). */
-function caseSupported(kase: BenchCase, comp: string, metricKey: string): boolean {
-  const result = kase.results[comp]?.[metricKey];
-  return !!result && result.status !== 'fail' && result.status !== 'not-supported';
-}
-
-/** Fair comparison basis for an aggregate row: the participants (competitors that
- *  support >=1 of these cases) and the COMMON cases EVERY participant supports.
- *  Geomeans are taken over the common set so a library is never penalised in the
- *  mean for ALSO supporting harder cases the others can't express, otherwise a
- *  broad library's slow exclusive cases drag its mean below a narrow library that
- *  never attempts them. Participants are row-local, so a category one lib can't do
- *  at all doesn't blank the whole row. */
-function commonBasis(cases: BenchCase[], metricKey: string): {participants: string[]; common: BenchCase[]} {
-  const comps = index.value ? index.value.competitors : [];
-  const participants = comps.filter((comp) => cases.some((kase) => caseSupported(kase, comp, metricKey)));
-  const common = participants.length > 0 ? cases.filter((kase) => participants.every((comp) => caseSupported(kase, comp, metricKey))) : [];
-  return {participants, common};
-}
-
-/** Geometric mean of one competitor's `path` values over the given cases. For
- *  throughput (higher-is-better, ops) a 0/absent value means the case didn't run, so
- *  only positive values count. For typecost (count, lower-is-better) a value of 0 is
- *  REAL and the BEST outcome (a type that resolves with zero extra instantiations),
- *  so zeros are kept via +1 smoothing (geomean of value+1, minus 1) instead of being
- *  dropped: dropping them would compute the mean over only a library's EXPENSIVE
- *  cases and hide how often it's free (e.g. TypeBox is free on ~40% of cases, so a
- *  drop-zero geomean wrongly ranked it costlier than zod). Returns 0 when every
- *  measured value was 0, or null when there's no data (renders as n-a / —). */
-function geomeanOver(cases: BenchCase[], metricKey: string, comp: string, path: Path): number | null {
-  const lowerBetter = index.value?.unit === 'count';
-  const values: number[] = [];
-  let measured = false;
-  for (const kase of cases) {
-    const result = kase.results[comp]?.[metricKey];
-    if (result && result.status !== 'fail' && result.status !== 'not-supported' && typeof result[path] === 'number') {
-      measured = true;
-      if (lowerBetter || result[path]! > 0) values.push(result[path]!);
-    }
-  }
-  if (!measured) return null;
-  if (lowerBetter) return Math.exp(values.reduce((acc, value) => acc + Math.log(value + 1), 0) / values.length) - 1;
-  return geomean(values) ?? 0;
-}
-
-/** Per-category + Overall geometric-mean summary for one metric. */
+/** Per-category + Overall geometric-mean summary for one metric. The math lives in
+ *  benchAggregate.ts (the charts and the home summary read the same numbers); this
+ *  keeps the table's own section order, REALWORLD first. */
 function aggregateFor(metricKey: string): AggRow[] {
   if (!index.value) return [];
-  const competitors = index.value.competitors;
-  const rows: AggRow[] = [];
-  const allCases: BenchCase[] = [];
-
-  // Typecost (lower-is-better): PER-COMPETITOR basis. Each library is geomean'd over
-  // the cases IT supports: its own n-a cases drop out (geomeanOver skips them), but a
-  // case still counts for the other libraries that DO support it; a library that
-  // supports nothing here renders n-a. Throughput (higher-is-better) uses a COMMON basis:
-  // every participant over the same cases all support, so a library that skips slow
-  // cases can't look faster than one that runs them.
-  const lowerBetter = index.value?.unit === 'count';
-  const rowValues = (cases: BenchCase[]): AggRow['values'] => {
-    const values: AggRow['values'] = {};
-    if (lowerBetter) {
-      for (const comp of competitors) {
-        values[comp] = {
-          valid: geomeanOver(cases, metricKey, comp, 'valid'),
-          invalid: geomeanOver(cases, metricKey, comp, 'invalid'),
-          mixed: geomeanOver(cases, metricKey, comp, 'mixed'),
-        };
-      }
-      return values;
-    }
-    const {participants, common} = commonBasis(cases, metricKey);
-    for (const comp of competitors) {
-      values[comp] = participants.includes(comp)
-        ? {
-            valid: geomeanOver(common, metricKey, comp, 'valid'),
-            invalid: geomeanOver(common, metricKey, comp, 'invalid'),
-            mixed: geomeanOver(common, metricKey, comp, 'mixed'),
-          }
-        : {valid: null, invalid: null, mixed: null};
-    }
-    return values;
-  };
-
-  for (const section of orderedSections.value) {
-    allCases.push(...section.cases);
-    rows.push({key: section.key, label: section.label, values: rowValues(section.cases)});
-  }
-  rows.push({key: '__overall__', label: 'Overall', values: rowValues(allCases)});
-  return rows;
+  return aggregateRows(orderedSections.value, index.value.competitors, metricKey, aggregateLowerBetter.value);
 }
 
 /** Precomputed aggregates keyed by metric. */
@@ -733,7 +601,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 
     <div v-else-if="indexState === 'missing'" class="bench-note">
       <span class="bench-prompt">$</span> Benchmark data not generated yet, run
-      <code>pnpm rtx bench --website</code>.
+      <code>pnpm miondevx bench --website</code>.
     </div>
 
     <template v-else-if="index">
@@ -946,24 +814,24 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 }
 
 .bench-prompt {
-  color: var(--ui-primary, #79af43);
+  color: var(--ui-primary);
   user-select: none;
 }
 
 .bench-metric-block + .bench-metric-block {
   margin-top: 2.5rem;
   padding-top: 1.5rem;
-  border-top: 1px dashed rgba(138, 168, 94, 0.3);
+  border-top: 1px dashed color-mix(in srgb, var(--color-brand-500) 30%, transparent);
 }
 
 .bench-metric {
   margin: 0 0 0.3rem;
   font-size: 0.78rem;
-  color: var(--ui-text-muted, #9aa0a6);
+  color: var(--ui-text-muted);
 }
 
 .bench-metric-name {
-  color: var(--ui-text-highlighted, #e8eaed);
+  color: var(--ui-text-highlighted);
   font-size: 0.92rem;
 }
 
@@ -971,7 +839,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 .bench-metric-hint {
   margin: 0 0 0.9rem;
   font-size: 0.72rem;
-  color: var(--ui-text-muted, #9aa0a6);
+  color: var(--ui-text-muted);
 }
 
 .bench-metric-sub {
@@ -986,9 +854,9 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
   margin: 0 0 1.25rem;
   padding: 0.55rem 0.85rem;
   font-size: 0.74rem;
-  border: 1px solid var(--ui-border, rgba(138, 168, 94, 0.25));
+  border: 1px solid var(--ui-border);
   border-radius: 0.4rem;
-  background: var(--rt-surface, rgba(20, 20, 20, 0.4));
+  background: var(--rt-surface);
 }
 
 .bench-legend-row {
@@ -1002,7 +870,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 .bench-legend-footer {
   margin-top: 0.2rem;
   padding-top: 0.5rem;
-  border-top: 1px solid var(--ui-border, rgba(138, 168, 94, 0.18));
+  border-top: 1px solid var(--ui-border);
 }
 
 .bench-legend-sample {
@@ -1012,12 +880,12 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 }
 
 .bench-legend-note {
-  color: var(--ui-text-muted, #9aa0a6);
+  color: var(--ui-text-muted);
   line-height: 1.4;
 }
 
 .bench-legend code {
-  color: var(--ui-text-highlighted, #e8eaed);
+  color: var(--ui-text-highlighted);
 }
 
 /* Build-strategy tag (comptime / jit / interpreted), in column headers + legend. */
@@ -1032,15 +900,15 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 }
 
 .bench-tag--comptime {
-  color: var(--ui-primary, #79af43);
+  color: var(--ui-primary);
 }
 
 .bench-tag--jit {
-  color: var(--rt-note, #c8b072);
+  color: var(--rt-note);
 }
 
 .bench-tag--interpreted {
-  color: var(--ui-text-dimmed, var(--ui-text-muted, #9aa0a6));
+  color: var(--ui-text-dimmed);
 }
 
 /* Strategy key: three equal columns (comptime / jit / interpreted), left-aligned,
@@ -1052,7 +920,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
   gap: 0.3rem 1.25rem;
   margin-top: 0.2rem;
   padding-top: 0.5rem;
-  border-top: 1px solid var(--ui-border, rgba(138, 168, 94, 0.18));
+  border-top: 1px solid var(--ui-border);
 }
 
 .bench-legend-srow {
@@ -1065,7 +933,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 
 /* Second line: the performance note, a touch dimmer than the mechanism text. */
 .bench-strat-perf {
-  color: var(--ui-text-dimmed, var(--ui-text-muted, #9aa0a6));
+  color: var(--ui-text-dimmed);
 }
 
 /* Metric-explanation row: let the description text expand to fill the row. */
@@ -1079,17 +947,17 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
   padding: 0.1rem 0.5rem;
   font-family: inherit;
   font-size: 0.7rem;
-  color: var(--ui-text-muted, #9aa0a6);
+  color: var(--ui-text-muted);
   cursor: pointer;
   background: transparent;
-  border: 1px solid var(--ui-border, rgba(138, 168, 94, 0.25));
+  border: 1px solid var(--ui-border);
   border-radius: 0.3rem;
 }
 
 .bench-color-btn--on {
-  color: var(--ui-text-highlighted, #e8eaed);
-  border-color: var(--ui-primary, #79af43);
-  background: rgba(138, 168, 94, 0.12);
+  color: var(--ui-text-highlighted);
+  border-color: var(--ui-primary);
+  background: color-mix(in srgb, var(--color-brand-500) 12%, transparent);
 }
 
 .bench-grad {
@@ -1097,32 +965,32 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
   width: 84px;
   height: 0.5rem;
   border-radius: 0.25rem;
-  background: linear-gradient(90deg, hsl(0 55% 50%), hsl(65 55% 50%), hsl(130 55% 50%));
+  background: linear-gradient(90deg, var(--rt-rank-worst), hsl(calc(var(--site-hue-good) / 2) 55% 50%), hsl(var(--site-hue-good) 55% 50%));
 }
 
 .bench-legend-valid {
-  color: var(--ui-primary, #79af43);
+  color: var(--ui-primary);
 }
 
 .bench-legend-invalid {
-  color: var(--ui-text-dimmed, var(--ui-text-muted, #9aa0a6));
+  color: var(--ui-text-dimmed);
 }
 
 .bench-note {
   display: block;
   padding: 0.85rem 1rem;
   font-size: 0.85rem;
-  border: 1px solid var(--ui-border, rgba(138, 168, 94, 0.35));
+  border: 1px solid var(--ui-border);
   border-radius: 0.4rem;
-  background: var(--rt-surface, rgba(20, 20, 20, 0.55));
+  background: var(--rt-surface);
 }
 
 .bench-note code {
-  color: var(--ui-primary, #79af43);
+  color: var(--ui-primary);
 }
 
 .bench-note--muted {
-  color: var(--ui-text-muted, #9aa0a6);
+  color: var(--ui-text-muted);
   border-style: dashed;
 }
 
@@ -1138,18 +1006,18 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
   font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: var(--ui-primary, #79af43);
-  border: 1px solid var(--ui-border, rgba(138, 168, 94, 0.35));
+  color: var(--ui-primary);
+  border: 1px solid var(--ui-border);
   border-bottom: none;
   border-radius: 0.4rem 0.4rem 0 0;
-  background: rgba(138, 168, 94, 0.08);
+  background: color-mix(in srgb, var(--color-brand-500) 8%, transparent);
 }
 
 .bench-scroll {
   overflow-x: auto;
-  border: 1px solid var(--ui-border, rgba(138, 168, 94, 0.35));
+  border: 1px solid var(--ui-border);
   border-radius: 0 0 0.4rem 0.4rem;
-  background: var(--rt-surface, rgba(20, 20, 20, 0.55));
+  background: var(--rt-surface);
 }
 
 .bench-agg-hint {
@@ -1158,7 +1026,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
   font-weight: 400;
   text-transform: lowercase;
   letter-spacing: 0.02em;
-  color: var(--ui-text-muted, #9aa0a6);
+  color: var(--ui-text-muted);
 }
 
 /* Aggregated rows are a read-only summary: no hover detail panel. */
@@ -1168,11 +1036,11 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 
 .bench-row--overall {
   font-weight: 600;
-  border-top: 1px solid rgba(138, 168, 94, 0.3);
+  border-top: 1px solid color-mix(in srgb, var(--color-brand-500) 30%, transparent);
 }
 
 .bench-row--overall .bench-cell {
-  color: var(--ui-text-highlighted, #e8eaed);
+  color: var(--ui-text-highlighted);
 }
 
 .bench-grid {
@@ -1187,7 +1055,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 }
 
 .bench-head {
-  background: rgba(138, 168, 94, 0.06);
+  background: color-mix(in srgb, var(--color-brand-500) 6%, transparent);
 }
 
 .bench-th {
@@ -1196,16 +1064,16 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
   font-weight: 600;
   text-align: right;
   letter-spacing: 0.04em;
-  color: var(--ui-text-muted, #9aa0a6);
-  border-bottom: 1px solid rgba(138, 168, 94, 0.25);
+  color: var(--ui-text-muted);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-brand-500) 25%, transparent);
   overflow-wrap: anywhere;
 }
 
 /* Competitor column header: centered + bright, same look as the type-cost table. */
 .bench-th--comp {
   text-align: center;
-  color: var(--ui-text-highlighted, #e8eaed);
-  border-left: 1px solid rgba(138, 168, 94, 0.18);
+  color: var(--ui-text-highlighted);
+  border-left: 1px solid color-mix(in srgb, var(--color-brand-500) 18%, transparent);
 }
 
 .bench-th-name {
@@ -1218,7 +1086,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
   margin-top: 0.1rem;
   font-size: 0.72em;
   font-weight: 400;
-  color: var(--ui-text-dimmed, #9aa0a6);
+  color: var(--ui-text-dimmed);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1237,7 +1105,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 }
 
 .bench-th--comp:hover :deep(.bench-info-glyph) {
-  color: var(--ui-primary, #79af43);
+  color: var(--ui-primary);
   opacity: 1;
 }
 
@@ -1245,7 +1113,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 .bench-runinfo {
   margin: 0 0 0.85rem;
   font-size: 0.7rem;
-  color: var(--ui-text-muted, #b3b8bd);
+  color: var(--ui-text-muted);
 }
 .bench-runinfo .bench-prompt {
   margin-right: 0.4rem;
@@ -1269,8 +1137,8 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 .bench-row:hover,
 .bench-row:focus-visible,
 .bench-row--active {
-  background: rgba(138, 168, 94, 0.1);
-  border-left-color: var(--ui-primary, #79af43);
+  background: color-mix(in srgb, var(--color-brand-500) 10%, transparent);
+  border-left-color: var(--ui-primary);
 }
 
 /* Non-interactive rows (showCode disabled): no pointer, no hover highlight. */
@@ -1288,13 +1156,13 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
   padding: 0.5rem 0.7rem;
   font-size: 0.76rem;
   text-align: right;
-  border-bottom: 1px solid rgba(138, 168, 94, 0.12);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-brand-500) 12%, transparent);
   white-space: nowrap;
 }
 
 .bench-cell--case {
   text-align: left;
-  color: var(--ui-text-highlighted, #e8eaed);
+  color: var(--ui-text-highlighted);
   white-space: normal;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -1303,55 +1171,51 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 /* Subtle separator between competitor columns. The combined value is centered so
    the valid number sits centered and the invalid annotation hangs off its corner. */
 .bench-val {
-  border-left: 1px solid rgba(138, 168, 94, 0.12);
+  border-left: 1px solid color-mix(in srgb, var(--color-brand-500) 12%, transparent);
   text-align: center;
 }
 
 .bench-val--ok {
-  color: var(--ui-primary, #79af43);
+  color: var(--ui-primary);
 }
 
 .bench-val--fail {
-  color: #e0533d;
+  color: var(--rt-fail);
 }
 
 .bench-val--na,
 .bench-val--none {
-  color: var(--ui-text-muted, #9aa0a6);
+  color: var(--ui-text-muted);
 }
 
 /* Row heatmap: --rank (0 = worst in the row → 1 = best) drives one hsl ramp
    (red → amber → green), dampened upstream so near-ties stay neutral. Only ok cells
    are ranked; two modes chosen from the legend. */
 .bench-color-tint .bench-val--ranked {
-  background: hsl(calc(var(--rank) * 130deg) 55% 48% / 0.2);
+  background: hsl(calc(var(--rank) * var(--site-hue-good) * 1deg) 55% 48% / 0.2);
 }
 
 /* Correctness "misaligned" flag (tintMisalign mode): any cell whose value is > 0 (   a divergence from mion)gets a flat red tint + reddened number. Not a rank
    ramp; a binary "this library disagreed here". */
 .bench-val--misaligned {
-  background: hsl(0deg 60% 50% / 0.18);
+  background: var(--rt-misaligned-bg);
 }
 
 .bench-val--misaligned .bench-val-primary {
-  color: hsl(0deg 75% 72%);
-}
-
-:root.light .bench-val--misaligned .bench-val-primary {
-  color: hsl(0deg 70% 45%);
+  color: var(--rt-misaligned-text);
 }
 
 .bench-color-tint .bench-val--ranked .bench-val-primary {
-  color: var(--ui-text-highlighted, #e8eaed);
+  color: var(--ui-text-highlighted);
 }
 
 .bench-color-text .bench-val--ranked .bench-val-primary {
-  color: hsl(calc(var(--rank) * 130deg) 58% 68%);
+  color: hsl(calc(var(--rank) * var(--site-hue-good) * 1deg) 58% 68%);
 }
 
 /* Light theme: darker numbers so the ramp stays legible on the light surface. */
 :root.light .bench-color-text .bench-val--ranked .bench-val-primary {
-  color: hsl(calc(var(--rank) * 130deg) 55% 38%);
+  color: hsl(calc(var(--rank) * var(--site-hue-good) * 1deg) 55% 38%);
 }
 
 /* Combined cell: valid (accept) is the centered headline (inherits the cell's
@@ -1375,7 +1239,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
   line-height: 1;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
-  color: var(--ui-text-dimmed, var(--ui-text-muted, #9aa0a6));
+  color: var(--ui-text-dimmed);
 }
 
 /* ── Serialization "verdict" layout ──────────────────────────────────────────
@@ -1391,14 +1255,14 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
   gap: 0.55rem 0.75rem;
   margin: 0 0 0.85rem;
   padding: 0.45rem 0.7rem;
-  background: var(--rt-surface, rgba(20, 20, 20, 0.7));
-  border: 1px solid rgba(138, 168, 94, 0.18);
+  background: var(--rt-surface);
+  border: 1px solid color-mix(in srgb, var(--color-brand-500) 18%, transparent);
   border-radius: 0.5rem;
   backdrop-filter: blur(8px);
 }
 .bench-bw-label {
   font-size: 0.82rem;
-  color: var(--ui-text-muted, #b3b8bd);
+  color: var(--ui-text-muted);
 }
 /* Inline SVG rather than an icon font: the site ships no webfont, so the Tabler
    class this used to carry drew nothing at all. */
@@ -1408,32 +1272,32 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 }
 .bench-bw-seg {
   display: inline-flex;
-  border: 1px solid rgba(138, 168, 94, 0.28);
+  border: 1px solid color-mix(in srgb, var(--color-brand-500) 28%, transparent);
   border-radius: 0.4rem;
   overflow: hidden;
 }
 .bench-bw-btn {
   border: none;
-  border-right: 1px solid rgba(138, 168, 94, 0.18);
+  border-right: 1px solid color-mix(in srgb, var(--color-brand-500) 18%, transparent);
   background: transparent;
   padding: 0.22rem 0.7rem;
   font: inherit;
   font-size: 0.82rem;
   font-variant-numeric: tabular-nums;
-  color: var(--ui-text-muted, #b3b8bd);
+  color: var(--ui-text-muted);
   cursor: pointer;
 }
 .bench-bw-btn:last-child {
   border-right: none;
 }
 .bench-bw-btn--on {
-  background: rgba(138, 168, 94, 0.22);
-  color: var(--ui-text-highlighted, #e8eaed);
+  background: color-mix(in srgb, var(--color-brand-500) 22%, transparent);
+  color: var(--ui-text-highlighted);
   font-weight: 600;
 }
 .bench-bw-hint {
   font-size: 0.72rem;
-  color: var(--ui-text-dimmed, #9aa0a6);
+  color: var(--ui-text-dimmed);
 }
 
 /* Stacked verdict cell: round-trip headline (heatmap-tinted) over dim encode/decode
@@ -1454,27 +1318,27 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
   font-size: 0.62rem;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
-  color: var(--ui-text-dimmed, #9aa0a6);
+  color: var(--ui-text-dimmed);
 }
 .bench-val-pl {
   font-size: 0.62rem;
   font-variant-numeric: tabular-nums;
-  color: var(--ui-text-muted, #b3b8bd);
+  color: var(--ui-text-muted);
 }
 /* lower-better "fewest bytes" cue: text (not a cell background), so it never reads
    as a second heatmap signal next to the round-trip tint. */
 .bench-val-pl--min {
-  color: #86b94a;
+  color: var(--site-accent);
   font-weight: 600;
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
 }
 :root.light .bench-val-pl--min {
-  color: #4e7d1e;
+  color: var(--color-brand-700);
 }
 .bench-legend-pl {
-  color: #86b94a;
+  color: var(--site-accent);
 }
 
 /* ── Narrow viewports ────────────────────────────────────────────────────────

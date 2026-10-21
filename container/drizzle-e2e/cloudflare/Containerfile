@@ -41,7 +41,7 @@ ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
 
 # Node 26 dropped the bundled corepack shim (it ships only npm), so install the
 # repo-pinned pnpm globally.
-ARG PNPM_VERSION=11.1.1
+ARG PNPM_VERSION=11.8.0
 RUN npm install -g pnpm@${PNPM_VERSION}
 
 # verdaccio: the in-container registry the packed tarballs are published to, so

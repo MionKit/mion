@@ -1,0 +1,35 @@
+import * as DZ from '@mionjs/drizzle-orm-pg-core';
+import type {InferSelectModel} from '@mionjs/drizzle-orm';
+import {createValidateFn} from '@mionjs/run-types';
+
+// a recorded table, not drizzle's PgTable: toDrizzle() builds that on demand
+export const users = DZ.pgTable('users', {
+  id: DZ.uuid('id', {primaryKey: true}),
+  name: DZ.varchar('name', {length: 100, notNull: true}),
+  age: DZ.integer('age', {notNull: true}),
+  role: DZ.text('role', {enum: ['admin', 'user'], notNull: true}),
+  createdAt: DZ.timestamp('created_at', {defaultNow: true, notNull: true}),
+});
+
+// { id: UUID; name: String<{maxLength: 100}>; age: Int32; role: 'admin' | 'user'; createdAt: Date }
+export type User = InferSelectModel<typeof users>;
+
+// checks every captured param, with no extra runtime checks
+export const validateUser = createValidateFn<User>();
+
+export const checks = [
+  validateUser({
+    id: 'not-a-uuid',
+    name: 'ann',
+    age: 30,
+    role: 'admin',
+    createdAt: new Date(),
+  }), // false
+  validateUser({
+    id: '793aff46-42ac-4372-b7fa-c48ba48ed94f',
+    name: 'x'.repeat(101), // false: maxLength 100 is IN the compiled function
+    age: 30,
+    role: 'admin',
+    createdAt: new Date(),
+  }),
+];

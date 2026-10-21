@@ -1,25 +1,22 @@
 // format-validation / STRUCTURAL_FORMAT — the structural constraint
-// keywords (formattedArray / formattedObject brands, the contains /
-// patternProperties / propertyNames child-schema slots) and the anyOf
+// keywords (formattedArray / formattedObject / formattedSet / formattedMap
+// brands, the contains / patternProperties / propertyNames child-schema
+// slots) and the anyOf
 // combinator, run through the full case matrix. Every case pairs the
-// type-first spelling (TF.FormattedArray / TF.FormattedObject over the
-// shared params bag) with its value-first twin (RT.array / RT.record /
+// type-first spelling (TF.FormattedArray / TF.FormattedSet / TF.FormattedMap
+// over the ONE collection params bag, TF.FormattedObject over the object one)
+// with its value-first twin (RT.array / RT.set / RT.map / RT.record /
 // RT.anyOf — formats/structural.ts, the same sentinel encoding), so the
 // id-integrity driver pins type-first ↔ value-first convergence by
 // construction. bounded_items rides bare minItems on the brand param —
 // TF.FormattedArray<…, {minItems}> and RT.array({minItems}) share one
-// encoding and one id.
+// encoding and one id. A Map's ENTRY is its `[key, value]` pair, so its
+// `contains` child is a tuple and its `uniqueItems` compares pairs.
 import * as TF from '@mionjs/run-types/formats';
 import type {FormatValidationCase} from './types.ts';
 import '@mionjs/run-types/formats';
-import {
-  createValidateFn,
-  createGetValidationErrorsFn,
-  createMockDataFn,
-  createStandardSchema,
-  type DataOnly,
-  type AnyOf,
-} from '@mionjs/run-types';
+import {createValidateFn, createGetValidationErrorsFn, createStandardSchema, type DataOnly, type AnyOf} from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import * as RT from '@mionjs/run-types/builders';
 import {deserializeValidate, deserializeGetValidationErrors} from '../../util/deserializeRTFunctions.ts';
 
@@ -29,6 +26,13 @@ type KeyCounted = TF.FormattedObject<Record<string, unknown>, {minProperties: 1;
 type ContainsNumber = TF.FormattedArray<unknown[], {contains: number}>;
 type PatternKeyed = TF.FormattedObject<Record<string, unknown>, {patternProperties: {'^a': number}}>;
 type ShortKeys = TF.FormattedObject<Record<string, unknown>, {propertyNames: TF.String<{maxLength: 3}>}>;
+type SmallSet = TF.FormattedSet<Set<string>, {minItems: 1; maxItems: 2}>;
+type UniqueSet = TF.FormattedSet<Set<{id: number}>, {uniqueItems: true}>;
+type NumberSomewhere = TF.FormattedSet<Set<unknown>, {contains: number}>;
+type SmallMap = TF.FormattedMap<Map<string, number>, {minItems: 1; maxItems: 2}>;
+type UniqueMap = TF.FormattedMap<Map<{id: number}, string>, {uniqueItems: true}>;
+type AdminSomewhere = TF.FormattedMap<Map<string, number>, {contains: ['admin', unknown]}>;
+type OnePerfectScore = TF.FormattedMap<Map<string, number>, {contains: [unknown, 100]; maxContains: 1}>;
 interface BranchA {
   a: string;
 }
@@ -118,6 +122,384 @@ export const STRUCTURAL_FORMAT = {
     expectedFormatErrors: () => [
       {name: 'formattedArray', val: 1, formatPathTail: 'minItems'},
       {name: 'formattedArray', val: 2, formatPathTail: 'maxItems'},
+      null,
+    ],
+  },
+
+  set_bounds: {
+    title: 'FormattedSet minItems / maxItems',
+    description:
+      'The collection count bounds on a Set, read off `.size`: a Set is an array on the wire, so it takes the same bag an array does.',
+    validateNotes: ['Value-first twin: RT.set(TF.string(), {minItems: 1, maxItems: 2}).'],
+    validate: () => createValidateFn<SmallSet>(),
+    standardSchema: () => createStandardSchema<SmallSet>(),
+    validateReflect: () => {
+      const v: SmallSet = new Set(['a']) as SmallSet;
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<SmallSet>(),
+    deserializeValidateReflect: () => {
+      const v: SmallSet = new Set(['a']) as SmallSet;
+      return deserializeValidate(v);
+    },
+    getValidationErrorsReflect: () => {
+      const v: SmallSet = new Set(['a']) as SmallSet;
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<SmallSet>(),
+    deserializeGetValidationErrorsReflect: () => {
+      const v: SmallSet = new Set(['a']) as SmallSet;
+      return deserializeGetValidationErrors(v);
+    },
+    mockTypeReflect: () => {
+      const v: SmallSet = new Set(['a']) as SmallSet;
+      return createMockDataFn(v);
+    },
+    validateDataOnly: () => createValidateFn<DataOnly<SmallSet>>(),
+    validateSchema: () => createValidateFn(RT.set(TF.string(), {minItems: 1, maxItems: 2})),
+    getValidationErrors: () => createGetValidationErrorsFn<SmallSet>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<SmallSet>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.set(TF.string(), {minItems: 1, maxItems: 2})),
+    mockType: () => createMockDataFn<SmallSet>(),
+    getSamples: () => ({
+      valid: [new Set(['a']), new Set(['a', 'b'])],
+      invalid: [new Set(), new Set(['a', 'b', 'c']), ['a']],
+    }),
+    expectedFormatErrors: () => [
+      {name: 'formattedSet', val: 1, formatPathTail: 'minItems'},
+      {name: 'formattedSet', val: 2, formatPathTail: 'maxItems'},
+      null,
+    ],
+  },
+
+  set_unique: {
+    title: 'FormattedSet uniqueItems',
+    description:
+      'Deep JSON equality over the members: a Set of objects may hold two structurally equal members, the keyword rejects that.',
+    validateNotes: ['Value-first twin: RT.set(RT.object({id: TF.number()}), {uniqueItems: true}).'],
+    validate: () => createValidateFn<UniqueSet>(),
+    standardSchema: () => createStandardSchema<UniqueSet>(),
+    validateReflect: () => {
+      const v: UniqueSet = new Set([{id: 1}, {id: 2}]) as UniqueSet;
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<UniqueSet>(),
+    deserializeValidateReflect: () => {
+      const v: UniqueSet = new Set([{id: 1}, {id: 2}]) as UniqueSet;
+      return deserializeValidate(v);
+    },
+    getValidationErrorsReflect: () => {
+      const v: UniqueSet = new Set([{id: 1}, {id: 2}]) as UniqueSet;
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<UniqueSet>(),
+    deserializeGetValidationErrorsReflect: () => {
+      const v: UniqueSet = new Set([{id: 1}, {id: 2}]) as UniqueSet;
+      return deserializeGetValidationErrors(v);
+    },
+    mockTypeReflect: () => {
+      const v: UniqueSet = new Set([{id: 1}, {id: 2}]) as UniqueSet;
+      return createMockDataFn(v);
+    },
+    validateDataOnly: () => createValidateFn<DataOnly<UniqueSet>>(),
+    validateSchema: () => createValidateFn(RT.set(RT.object({id: TF.number()}), {uniqueItems: true})),
+    getValidationErrors: () => createGetValidationErrorsFn<UniqueSet>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<UniqueSet>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.set(RT.object({id: TF.number()}), {uniqueItems: true})),
+    mockType: () => createMockDataFn<UniqueSet>(),
+    getSamples: () => ({
+      valid: [new Set(), new Set([{id: 1}, {id: 2}])],
+      invalid: [new Set([{id: 1}, {id: 1}]), [{id: 1}]],
+    }),
+    expectedFormatErrors: () => [{name: 'formattedSet', val: true, formatPathTail: 'uniqueItems'}, null],
+  },
+
+  set_contains: {
+    title: 'FormattedSet contains',
+    description: 'At least one member matches the contains type; the check walks the Set with for…of.',
+    validateNotes: ['Value-first twin: RT.set(RT.unknown(), {contains: TF.number()}).'],
+    validate: () => createValidateFn<NumberSomewhere>(),
+    standardSchema: () => createStandardSchema<NumberSomewhere>(),
+    validateReflect: () => {
+      const v: NumberSomewhere = new Set(['a', 1]) as NumberSomewhere;
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<NumberSomewhere>(),
+    deserializeValidateReflect: () => {
+      const v: NumberSomewhere = new Set(['a', 1]) as NumberSomewhere;
+      return deserializeValidate(v);
+    },
+    getValidationErrorsReflect: () => {
+      const v: NumberSomewhere = new Set(['a', 1]) as NumberSomewhere;
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<NumberSomewhere>(),
+    deserializeGetValidationErrorsReflect: () => {
+      const v: NumberSomewhere = new Set(['a', 1]) as NumberSomewhere;
+      return deserializeGetValidationErrors(v);
+    },
+    mockTypeReflect: () => {
+      const v: NumberSomewhere = new Set(['a', 1]) as NumberSomewhere;
+      return createMockDataFn(v);
+    },
+    validateDataOnly: () => createValidateFn<DataOnly<NumberSomewhere>>(),
+    validateSchema: () => createValidateFn(RT.set(RT.unknown(), {contains: TF.number()})),
+    getValidationErrors: () => createGetValidationErrorsFn<NumberSomewhere>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<NumberSomewhere>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.set(RT.unknown(), {contains: TF.number()})),
+    mockType: () => createMockDataFn<NumberSomewhere>(),
+    getSamples: () => ({
+      valid: [new Set([1]), new Set(['a', 2])],
+      invalid: [new Set(), new Set(['a']), [1]],
+    }),
+    expectedFormatErrors: () => [
+      {name: 'contains', val: 1, formatPathTail: 'minContains'},
+      {name: 'contains', val: 1, formatPathTail: 'minContains'},
+      null,
+    ],
+  },
+
+  map_bounds: {
+    title: 'FormattedMap minItems / maxItems',
+    description: 'The array count bounds on a Map (an array of pairs on the wire), read off `.size`.',
+    validateNotes: ['Value-first twin: RT.map(TF.string(), TF.number(), {minItems: 1, maxItems: 2}).'],
+    validate: () => createValidateFn<SmallMap>(),
+    standardSchema: () => createStandardSchema<SmallMap>(),
+    validateReflect: () => {
+      const v: SmallMap = new Map([['a', 1]]) as SmallMap;
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<SmallMap>(),
+    deserializeValidateReflect: () => {
+      const v: SmallMap = new Map([['a', 1]]) as SmallMap;
+      return deserializeValidate(v);
+    },
+    getValidationErrorsReflect: () => {
+      const v: SmallMap = new Map([['a', 1]]) as SmallMap;
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<SmallMap>(),
+    deserializeGetValidationErrorsReflect: () => {
+      const v: SmallMap = new Map([['a', 1]]) as SmallMap;
+      return deserializeGetValidationErrors(v);
+    },
+    mockTypeReflect: () => {
+      const v: SmallMap = new Map([['a', 1]]) as SmallMap;
+      return createMockDataFn(v);
+    },
+    validateDataOnly: () => createValidateFn<DataOnly<SmallMap>>(),
+    validateSchema: () => createValidateFn(RT.map(TF.string(), TF.number(), {minItems: 1, maxItems: 2})),
+    getValidationErrors: () => createGetValidationErrorsFn<SmallMap>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<SmallMap>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.map(TF.string(), TF.number(), {minItems: 1, maxItems: 2})),
+    mockType: () => createMockDataFn<SmallMap>(),
+    getSamples: () => ({
+      valid: [
+        new Map([['a', 1]]),
+        new Map([
+          ['a', 1],
+          ['b', 2],
+        ]),
+      ],
+      invalid: [
+        new Map(),
+        new Map([
+          ['a', 1],
+          ['b', 2],
+          ['c', 3],
+        ]),
+        {a: 1},
+      ],
+    }),
+    expectedFormatErrors: () => [
+      {name: 'formattedMap', val: 1, formatPathTail: 'minItems'},
+      {name: 'formattedMap', val: 2, formatPathTail: 'maxItems'},
+      null,
+    ],
+  },
+
+  map_unique: {
+    title: 'FormattedMap uniqueItems',
+    description:
+      'Deep JSON equality over the `[key, value]` pairs: a Map dedupes keys by identity, so two object keys equal by content are two entries, and the keyword rejects that when their values match too.',
+    validateNotes: [
+      'Two content-equal keys with DIFFERENT values are two different pairs and pass.',
+      'Value-first twin: RT.map(RT.object({id: TF.number()}), TF.string(), {uniqueItems: true}).',
+    ],
+    validate: () => createValidateFn<UniqueMap>(),
+    standardSchema: () => createStandardSchema<UniqueMap>(),
+    validateReflect: () => {
+      const v: UniqueMap = new Map([[{id: 1}, 'a']]) as UniqueMap;
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<UniqueMap>(),
+    deserializeValidateReflect: () => {
+      const v: UniqueMap = new Map([[{id: 1}, 'a']]) as UniqueMap;
+      return deserializeValidate(v);
+    },
+    getValidationErrorsReflect: () => {
+      const v: UniqueMap = new Map([[{id: 1}, 'a']]) as UniqueMap;
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<UniqueMap>(),
+    deserializeGetValidationErrorsReflect: () => {
+      const v: UniqueMap = new Map([[{id: 1}, 'a']]) as UniqueMap;
+      return deserializeGetValidationErrors(v);
+    },
+    mockTypeReflect: () => {
+      const v: UniqueMap = new Map([[{id: 1}, 'a']]) as UniqueMap;
+      return createMockDataFn(v);
+    },
+    validateDataOnly: () => createValidateFn<DataOnly<UniqueMap>>(),
+    validateSchema: () => createValidateFn(RT.map(RT.object({id: TF.number()}), TF.string(), {uniqueItems: true})),
+    getValidationErrors: () => createGetValidationErrorsFn<UniqueMap>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<UniqueMap>>(),
+    getValidationErrorsSchema: () =>
+      createGetValidationErrorsFn(RT.map(RT.object({id: TF.number()}), TF.string(), {uniqueItems: true})),
+    mockType: () => createMockDataFn<UniqueMap>(),
+    getSamples: () => ({
+      valid: [
+        new Map([
+          [{id: 1}, 'a'],
+          [{id: 1}, 'b'],
+        ]),
+        new Map([
+          [{id: 1}, 'a'],
+          [{id: 2}, 'a'],
+        ]),
+      ],
+      invalid: [
+        new Map([
+          [{id: 1}, 'a'],
+          [{id: 1}, 'a'],
+        ]),
+        {a: 'b'},
+      ],
+    }),
+    expectedFormatErrors: () => [{name: 'formattedMap', val: true, formatPathTail: 'uniqueItems'}, null],
+  },
+
+  map_contains: {
+    title: 'FormattedMap contains',
+    description:
+      "At least one entry matches the contains type. A Map's entry is its `[key, value]` pair, so the contains child is a TUPLE and `unknown` in a slot skips that half.",
+    validateNotes: [
+      "Value-first twin: RT.map(TF.string(), TF.number(), {contains: RT.tuple({required: [RT.literal('admin'), RT.unknown()]})}).",
+    ],
+    validate: () => createValidateFn<AdminSomewhere>(),
+    standardSchema: () => createStandardSchema<AdminSomewhere>(),
+    validateReflect: () => {
+      const v: AdminSomewhere = new Map([['admin', 1]]) as AdminSomewhere;
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<AdminSomewhere>(),
+    deserializeValidateReflect: () => {
+      const v: AdminSomewhere = new Map([['admin', 1]]) as AdminSomewhere;
+      return deserializeValidate(v);
+    },
+    getValidationErrorsReflect: () => {
+      const v: AdminSomewhere = new Map([['admin', 1]]) as AdminSomewhere;
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<AdminSomewhere>(),
+    deserializeGetValidationErrorsReflect: () => {
+      const v: AdminSomewhere = new Map([['admin', 1]]) as AdminSomewhere;
+      return deserializeGetValidationErrors(v);
+    },
+    mockTypeReflect: () => {
+      const v: AdminSomewhere = new Map([['admin', 1]]) as AdminSomewhere;
+      return createMockDataFn(v);
+    },
+    validateDataOnly: () => createValidateFn<DataOnly<AdminSomewhere>>(),
+    validateSchema: () =>
+      createValidateFn(RT.map(TF.string(), TF.number(), {contains: RT.tuple({required: [RT.literal('admin'), RT.unknown()]})})),
+    getValidationErrors: () => createGetValidationErrorsFn<AdminSomewhere>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<AdminSomewhere>>(),
+    getValidationErrorsSchema: () =>
+      createGetValidationErrorsFn(
+        RT.map(TF.string(), TF.number(), {contains: RT.tuple({required: [RT.literal('admin'), RT.unknown()]})})
+      ),
+    mockType: () => createMockDataFn<AdminSomewhere>(),
+    getSamples: () => ({
+      valid: [
+        new Map([['admin', 1]]),
+        new Map([
+          ['user', 2],
+          ['admin', 3],
+        ]),
+      ],
+      invalid: [new Map(), new Map([['user', 1]]), {admin: 1}],
+    }),
+    expectedFormatErrors: () => [
+      {name: 'contains', val: 1, formatPathTail: 'minContains'},
+      {name: 'contains', val: 1, formatPathTail: 'minContains'},
+      null,
+    ],
+  },
+
+  map_contains_value: {
+    title: 'FormattedMap contains with maxContains',
+    description:
+      'The contains tuple can pin the VALUE half instead: `[unknown, 100]` with `maxContains: 1` asks for exactly one perfect score.',
+    validateNotes: [
+      'Value-first twin: RT.map(TF.string(), TF.number(), {contains: RT.tuple({required: [RT.unknown(), RT.literal(100)]}), maxContains: 1}).',
+    ],
+    validate: () => createValidateFn<OnePerfectScore>(),
+    standardSchema: () => createStandardSchema<OnePerfectScore>(),
+    validateReflect: () => {
+      const v: OnePerfectScore = new Map([['ada', 100]]) as OnePerfectScore;
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<OnePerfectScore>(),
+    deserializeValidateReflect: () => {
+      const v: OnePerfectScore = new Map([['ada', 100]]) as OnePerfectScore;
+      return deserializeValidate(v);
+    },
+    getValidationErrorsReflect: () => {
+      const v: OnePerfectScore = new Map([['ada', 100]]) as OnePerfectScore;
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<OnePerfectScore>(),
+    deserializeGetValidationErrorsReflect: () => {
+      const v: OnePerfectScore = new Map([['ada', 100]]) as OnePerfectScore;
+      return deserializeGetValidationErrors(v);
+    },
+    mockTypeReflect: () => {
+      const v: OnePerfectScore = new Map([['ada', 100]]) as OnePerfectScore;
+      return createMockDataFn(v);
+    },
+    validateDataOnly: () => createValidateFn<DataOnly<OnePerfectScore>>(),
+    validateSchema: () =>
+      createValidateFn(
+        RT.map(TF.string(), TF.number(), {contains: RT.tuple({required: [RT.unknown(), RT.literal(100)]}), maxContains: 1})
+      ),
+    getValidationErrors: () => createGetValidationErrorsFn<OnePerfectScore>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<OnePerfectScore>>(),
+    getValidationErrorsSchema: () =>
+      createGetValidationErrorsFn(
+        RT.map(TF.string(), TF.number(), {contains: RT.tuple({required: [RT.unknown(), RT.literal(100)]}), maxContains: 1})
+      ),
+    mockType: () => createMockDataFn<OnePerfectScore>(),
+    getSamples: () => ({
+      valid: [
+        new Map([['ada', 100]]),
+        new Map([
+          ['ada', 100],
+          ['bob', 50],
+        ]),
+      ],
+      invalid: [
+        new Map(),
+        new Map([
+          ['ada', 100],
+          ['bob', 100],
+        ]),
+        [['ada', 100]],
+      ],
+    }),
+    expectedFormatErrors: () => [
+      {name: 'contains', val: 1, formatPathTail: 'minContains'},
+      {name: 'contains', val: 1, formatPathTail: 'maxContains'},
       null,
     ],
   },

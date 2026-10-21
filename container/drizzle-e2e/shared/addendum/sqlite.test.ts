@@ -35,16 +35,16 @@ const lowercase = customType<{data: string; driverData: string}>({
 const people = sqliteTable(
   'addendum_people',
   {
-    id: integer('id').primaryKey(),
-    email: text('email').notNull(),
-    tag: lowercase('tag').notNull(),
+    id: integer('id', {primaryKey: true}),
+    email: text('email', {notNull: true}),
+    tag: lowercase('tag', {notNull: true}),
   },
   (t) => [uniqueIndex('addendum_people_email_uidx').on(t.email), check('addendum_people_positive', rtSql`${t.id} > 0`)]
 );
 const peopleDb = toDrizzle(people);
 
 // `view` is drizzle's alias of sqliteView; both are migrated, so both need a run.
-const adults = view('addendum_adults', {id: integer('id').notNull(), email: text('email').notNull()}).as(rtSql`select id, email from addendum_people`);
+const adults = view('addendum_adults', {id: integer('id', {notNull: true}), email: text('email', {notNull: true})}).as(rtSql`select id, email from addendum_people`);
 const adultsDb = toDrizzle(adults);
 
 describe('addendum — check, uniqueIndex, customType and the view alias', () => {

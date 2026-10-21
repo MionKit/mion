@@ -10,7 +10,7 @@
 // run overshoots its budget by however long the last iteration takes. The soak
 // tests then sized their vitest timeout as `soakMs + 60_000`, and a lane whose
 // iterations cost more than that headroom reported a CLEAN soak as a vitest
-// timeout failure (docs/done/fuzz-followups.md item 2). A false failure that
+// timeout failure. A false failure that
 // mimics a real finding is worse than no soak at all.
 //
 // So the budget owns both halves: `canStart()` refuses to start an iteration the
@@ -27,7 +27,7 @@
  *  decides when an iteration may begin; nothing can preempt one already running,
  *  because the work is synchronous JavaScript. A single pathological iteration
  *  therefore still blows through any headroom — one was measured at 340s among
- *  ~740 iterations averaging 35ms (docs/done/soak-single-iteration-pathology.md).
+ *  ~740 iterations averaging 35ms.
  *  Raising this number does not fix that; bounding the per-iteration cost does. **/
 export const SOAK_HEADROOM_MS = 180_000;
 
@@ -41,8 +41,8 @@ export function soakTestTimeout(soakMs: number, headroomMs: number = SOAK_HEADRO
  *  so only genuinely unbounded synchronous work trips it. When one iteration exceeds this, the soak FAILS naming the round and
  *  its cost — an actionable finding with a replayable seed — instead of
  *  blowing the vitest timeout and mimicking a harness failure
- *  (docs/done/soak-single-iteration-pathology.md is the incident that
- *  motivated it: one 340s iteration among ~740 averaging 35ms). **/
+ *  (the incident that motivated it: one 340s iteration among ~740
+ *  averaging 35ms). **/
 export const SOAK_ITERATION_CEILING_MS = 30_000;
 
 /** The soak tests' tripwire assertion, shared so the message stays uniform:
@@ -57,7 +57,7 @@ export function pathologyReport(
     `single-iteration pathology: round ${slowestIterationRound} took ${slowestIterationMs}ms ` +
     `(ceiling ${SOAK_ITERATION_CEILING_MS}ms). This is a FINDING — a state-dependent slow iteration, ` +
     `not a harness failure. Replay with this run's seed and the named round ` +
-    `(docs/done/soak-single-iteration-pathology.md has the playbook).`
+    `(rerun the lane with MION_FUZZ_SEED set to this run's seed and profile that round).`
   );
 }
 

@@ -12,7 +12,7 @@ import {fileURLToPath} from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const BIN = path.join(HERE, 'node_modules/.bin');
 
-// The lint lane resolves its binary through @mionjs/bin, which takes no
+// The lint lane resolves its binary through @mionjs/bin-compiler, which takes no
 // plugin option — MION_BIN is its override. Forward the fixture's single host knob
 // to it, resolved against the invoking cwd because the child runs in HERE.
 // Unset in-container / in CI, where the published launcher is what we prove.

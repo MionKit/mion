@@ -1,0 +1,84 @@
+import {RpcError, FatalError} from '@mionjs/core';
+import {createMionRouter, Routes} from '@mionjs/router';
+import {NewUser, myApp, getSharedData} from './full-example.app.ts';
+import {User} from './full-example.app.ts';
+
+// start-create-router
+const mion = createMionRouter({
+  contextDataFactory: getSharedData,
+  basePath: 'api/v1',
+});
+// end-create-router
+
+// ctx.shared is typed from the contextDataFactory given to createMionRouter
+const getUser = mion.route(
+  (ctx, id: number): User | RpcError<'user-not-found'> => {
+    const user = myApp.store.getUser(id);
+    if (!user)
+      return new RpcError({
+        publicMessage: 'User not found',
+        type: 'user-not-found',
+      });
+    return user;
+  }
+);
+
+const createUser = mion.route(
+  (ctx, newUser: NewUser): User => myApp.store.createUser(newUser)
+);
+
+const updateUser = mion.route(
+  (ctx, user: User): User | RpcError<'user-not-found'> => {
+    const updated = myApp.store.updateUser(user);
+    if (!updated)
+      return new RpcError({
+        publicMessage: 'User not found, can not be updated',
+        type: 'user-not-found',
+      });
+    return updated;
+  }
+);
+
+const deleteUser = mion.route(
+  (ctx, id: number): User | RpcError<'user-not-found'> => {
+    const deleted = myApp.store.deleteUser(id);
+    if (!deleted)
+      return new RpcError({
+        publicMessage: 'User not found, can not be deleted',
+        type: 'user-not-found',
+      });
+    return deleted;
+  }
+);
+
+// a gate: the returned FatalError ends the request, so no route below runs,
+// and being declared it reaches the client strongly typed
+const auth = mion.middleware((ctx): void | RpcError<'not-authorized'> => {
+  // the HttpOnly session cookie the browser sends
+  const user = myApp.auth.getSessionUser(ctx.request.headers.get('cookie'));
+  if (!user)
+    return new FatalError({
+      publicMessage: 'Not Authorized',
+      type: 'not-authorized',
+    });
+  ctx.shared.me = user;
+});
+
+const log = mion.rawMiddleware((ctx): void =>
+  console.log('rawMiddleware', ctx.path)
+);
+
+const routes = {
+  private: mion.middleware((): null => null),
+  auth,
+  users: {
+    get: getUser, // api/v1/users/get
+    create: createUser, // api/v1/users/create
+    update: updateUser, // api/v1/users/update
+    delete: deleteUser, // api/v1/users/delete
+  },
+  log,
+} satisfies Routes;
+
+export const apiSpec = mion.initRoutes(routes);
+export type ApiSpec = typeof apiSpec;

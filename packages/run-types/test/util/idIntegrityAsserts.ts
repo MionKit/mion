@@ -1,26 +1,6 @@
-// id-integrity assertions — verify that the value-first schema authoring path
-// and the type-first path resolve to the SAME runtype (hence the same structural
-// type id) for every case, reusing each case's EXISTING thunks (no new per-case
-// data). Two reuse mechanisms, one per suite family:
-//
-//  - validators (validate / getValidationErrors): `createValidateFn` returns the CACHED
-//    factory for a structural id, so reference identity (`toBe`) between the
-//    schema-form factory and the type-form factory IS a same-id assertion — the
-//    proven `.toBe` cached-factory idiom, generalised here to every case. Same
-//    id ⇒ same cached runtype.
-//  - serializers (json / binary encoders): the encoder is a fresh closure each
-//    call, so identity doesn't apply; instead assert the schema-form encoder
-//    produces byte-identical output to the type-form encoder (same default
-//    strategy) on the case's samples — identical wire output ⇒ same resolved
-//    runtype.
-//
-// Compile options (`noLiterals` / `noIsArrayCheck`) are folded into the cached
-// factory's variant key, so an option-bearing type-first form converges only with
-// a schema form that passes the SAME options — e.g. `createValidateFn<2>(…,
-// {noLiterals: true})` resolves the `itNL_<literal-2 id>` variant, matched by
-// `createValidateFn(RT.literal(2), {noLiterals: true})`, NOT by plain `RT.number()`.
-// The validation cases mirror their options on the schema thunk, so no special
-// casing is needed here.
+// Asserts the schema form and the type-first form of every case resolve the SAME runtype, reusing each case's thunks.
+// Validators compare cached factories with `toBe`; encoders are fresh closures, so they compare output on the samples.
+// Compile options (e.g. `numberMode`) fold into the variant key, so a schema form converges only with the SAME options.
 
 import {expect} from 'vitest';
 import type {Thunk, ValidationCase} from '../suites/validation/types.ts';
@@ -128,10 +108,10 @@ export function assertDataOnlyEquivalence(c: ValidationCase): void {
 }
 
 /** Serializer id-integrity: the value-first schema encoder must produce output
- *  identical to the type-first encoder (same default strategy) — json strings
- *  byte-for-byte, binary buffers byte-for-byte. Identical wire output ⇒ the two
- *  forms resolved the same runtype. Skips broad/best-effort types and
- *  factory-throwing / `'not-supported'` cases.
+ *  identical to the type-first encoder (same default strategy), json strings
+ *  byte-for-byte. Identical wire output ⇒ the two forms resolved the same
+ *  runtype. Skips broad/best-effort types and factory-throwing /
+ *  `'not-supported'` cases.
  *
  *  NOTE on the id signal strength: the encoder is a fresh closure each call, so —
  *  unlike the validator driver — we cannot compare resolved structural ids by
@@ -149,42 +129,14 @@ export function assertSerializerIdIntegrity(c: SerializationCase): void {
   // value-first builder can't reconstruct the nominal type, so wire output may
   // differ. Skip, same as the validator suite skips idDivergent.
   if (c.idDivergent) return;
-  runSerializerIdIntegrity(c, c.schemaEncoder, c.schemaBinaryEncoder, 'value-first schema');
-}
-
-/** Shared byte-identity core for the two authoring-form serializer drivers:
- *  compares one alternate-form json encoder against `cloneEncoder` (`.toBe` on
- *  the JSON string) and one alternate-form binary encoder against
- *  `binaryEncoder` (`.toEqual` on the buffer), on the case's own samples. **/
-function runSerializerIdIntegrity(
-  c: SerializationCase,
-  altJsonEncoder: SerializationCase['schemaEncoder'] | undefined,
-  altBinaryEncoder: SerializationCase['schemaBinaryEncoder'] | undefined,
-  formLabel: string
-): void {
-  const altEncoder = resolveThunk(altJsonEncoder);
-  if (altEncoder && !c.factoryThrows) {
-    const altEncode = altEncoder();
-    const typeEncode = c.cloneEncoder();
-    const {values} = (c.getTestDataForStringify ?? c.getTestData)();
-    values.forEach((reference, i) => {
-      const fromAlt = altEncode(deepCloneForRoundTrip(reference));
-      const fromType = typeEncode(deepCloneForRoundTrip(reference));
-      expect(fromAlt, `${c.title}: json — ${formLabel} encoder output must equal type-first [values[${i}]]`).toBe(fromType);
-    });
-  }
-
-  const altBinary = resolveThunk(altBinaryEncoder);
-  const typeBinaryEncoder = resolveThunk(c.binaryEncoder);
-  const binaryFactoryThrows = c.binaryFactoryThrows ?? c.factoryThrows ?? false;
-  if (altBinary && typeBinaryEncoder && !binaryFactoryThrows) {
-    const altEncode = altBinary();
-    const typeEncode = typeBinaryEncoder();
-    const {values} = (c.getBinaryTestData ?? c.getTestDataForStringify ?? c.getTestData)();
-    values.forEach((reference, i) => {
-      const fromAlt = altEncode(deepCloneForRoundTrip(reference));
-      const fromType = typeEncode(deepCloneForRoundTrip(reference));
-      expect(fromAlt, `${c.title}: binary — ${formLabel} encoder bytes must equal type-first [values[${i}]]`).toEqual(fromType);
-    });
-  }
+  const altEncoder = resolveThunk(c.schemaEncoder);
+  if (!altEncoder || c.factoryThrows) return;
+  const altEncode = altEncoder();
+  const typeEncode = c.cloneEncoder();
+  const {values} = (c.getTestDataForStringify ?? c.getTestData)();
+  values.forEach((reference, i) => {
+    const fromAlt = altEncode(deepCloneForRoundTrip(reference));
+    const fromType = typeEncode(deepCloneForRoundTrip(reference));
+    expect(fromAlt, `${c.title}: json — value-first schema encoder output must equal type-first [values[${i}]]`).toBe(fromType);
+  });
 }

@@ -1,0 +1,24 @@
+{
+  // Check-only config, shared with the editor: non-composite, no emit and no `references`, so a
+  // cross-package import resolves through the `source` export condition instead of a sibling's
+  // built declarations, which a fresh checkout has not got. tsconfig.build.json carries the emit.
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": false,
+    "noEmit": true,
+    "incremental": false,
+    "rootDir": "../..",
+    "types": [
+      "@types/node"
+    ]
+  },
+  "include": [
+    "."
+  ],
+  "exclude": [
+    "node_modules",
+    ".dist",
+    "vite.config.ts",
+    "vitest.config.ts"
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "dialect": "pg",
+  "results": [
+    {
+      "name": "empty context",
+      "client": 1916,
+      "registeredClient": 1966
+    },
+    {
+      "name": "small context",
+      "client": 1974,
+      "registeredClient": 2032
+    },
+    {
+      "name": "database context",
+      "client": 14324,
+      "registeredClient": 14382
+    },
+    {
+      "name": "unused database context",
+      "client": 14324,
+      "registeredClient": 14382
+    },
+    {
+      "name": "light handler context",
+      "client": 14316,
+      "registeredClient": 14374
+    },
+    {
+      "name": "opaque database context",
+      "client": 1956,
+      "registeredClient": 2014
+    },
+    {
+      "name": "written database context",
+      "client": 14316,
+      "registeredClient": 14374
+    }
+  ],
+  "inferredResultClient": 14334
+}

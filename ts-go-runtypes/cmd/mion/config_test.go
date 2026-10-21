@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"os/exec"
@@ -8,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
 )
 
@@ -113,6 +115,38 @@ func TestResolveEnrichConfig_FlagWins(t *testing.T) {
 	}
 }
 
+// TestResolveEnrichConfig_DefaultGenDirLocation: no genDir means <rootDir, else the files' common folder>/.mion.
+func TestResolveEnrichConfig_DefaultGenDirLocation(t *testing.T) {
+	tests := []struct {
+		name     string
+		tsconfig string
+		wantGen  string
+		wantRoot string
+	}{
+		{"no rootDir uses the common source folder", `{"include":["src"]}`, "src/.mion", "."},
+		{"explicit rootDir wins", `{"compilerOptions":{"rootDir":"."},"include":["src"]}`, ".mion", "."},
+		{"explicit genDir wins", `{"compilerOptions":{"plugins":[{"name":"mion","genDir":"gen"}]},"include":["src"]}`, "gen", "."},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			dir := canonicalTempDir(t)
+			t.Chdir(dir)
+			writeTestFile(t, filepath.Join(dir, "tsconfig.json"), test.tsconfig)
+			target := filepath.Join(dir, "src", "models", "user.ts")
+			writeTestFile(t, target, "export interface User { id: number }\n")
+			writeTestFile(t, filepath.Join(dir, "src", "main.ts"), "export const main = 1;\n")
+
+			config := resolveEnrichConfigTest(target, "")
+			if want := filepath.Join(dir, test.wantGen); config.GenDir() != want {
+				t.Errorf("GenDir = %q, want %q", config.GenDir(), want)
+			}
+			if want := filepath.Join(dir, test.wantRoot); config.RootDir != want {
+				t.Errorf("RootDir = %q, want %q", config.RootDir, want)
+			}
+		})
+	}
+}
+
 // TestResolveEnrichConfig_GarbageTsconfig: an unparseable DISCOVERED tsconfig is
 // fatal — strict like tsc, never a silent fall-back to defaults that could
 // resolve types differently. resolveEnrichConfig calls fatal() (os.Exit), so
@@ -146,10 +180,7 @@ func TestResolveEnrichConfig_GarbageTsconfig(t *testing.T) {
 	}
 }
 
-// TestMirrorPath verifies the per-family mirror path math, including the
-// family path segment, the .d.ts → .ts collapse, and the under-rootDir
-// relativization — plus the legacy (pre-split, no-family) path the migration
-// reads.
+// TestMirrorPath covers the family segment, the .d.ts → .ts collapse, rootDir relativization and the --out path.
 func TestMirrorPath(t *testing.T) {
 	config := enrichConfig{
 		ProjectRoot: "/proj",
@@ -176,8 +207,8 @@ func TestMirrorPath(t *testing.T) {
 		})
 	}
 
-	if got, want := config.LegacyMirrorPath("/proj/src/models/user.ts"), "/proj/runtypes/generated/models/user.ts"; got != want {
-		t.Errorf("legacyMirrorPath = %q, want %q", got, want)
+	if got, want := config.CombinedMirrorPath("/proj/src/models/user.ts"), "/proj/runtypes/generated/models/user.ts"; got != want {
+		t.Errorf("combinedMirrorPath = %q, want %q", got, want)
 	}
 }
 
@@ -342,20 +373,8 @@ func TestResolveEnrichConfig_I18n(t *testing.T) {
 	if want := filepath.Join(dir, defaultGenDirName, enrichedSubdir, "i18n"); dormant.I18nDir != want {
 		t.Errorf("dormant I18nDir = %q, want %q", dormant.I18nDir, want)
 	}
-
-	// The i18n location is CONVENTION: a legacy `i18n.dir` key is ignored and
-	// translations stay at <genDir>/enriched/i18n.
-	writeTestFile(t, filepath.Join(dir, "tsconfig.json"),
-		`{ "compilerOptions": { "plugins": [{ "name": "mion", "i18n": { "dir": "translations" } }] } }`)
-	custom := resolveEnrichConfigTest(target, "")
-	if want := filepath.Join(dir, defaultGenDirName, enrichedSubdir, "i18n"); custom.I18nDir != want {
-		t.Errorf("legacy i18n.dir must be ignored; I18nDir = %q, want %q", custom.I18nDir, want)
-	}
 }
 
-// TestMirrorFamilyOf reads a mirror file's family off its path segment under
-// the enrich root; a legacy combined location (or a file outside the root) has
-// no family.
 func TestMirrorFamilyOf(t *testing.T) {
 	enrichDir := "/proj/runtypes/generated"
 	tests := []struct {
@@ -366,7 +385,7 @@ func TestMirrorFamilyOf(t *testing.T) {
 	}{
 		{"friendly file", "/proj/runtypes/generated/friendly/models/user.ts", familyFriendly, true},
 		{"mock file", "/proj/runtypes/generated/mock/user.ts", familyMock, true},
-		{"legacy combined", "/proj/runtypes/generated/models/user.ts", "", false},
+		{"no family segment", "/proj/runtypes/generated/models/user.ts", "", false},
 		{"outside root", "/elsewhere/user.ts", "", false},
 		{"friendly-named leaf at root", "/proj/runtypes/generated/friendly.ts", "", false},
 	}
@@ -437,5 +456,40 @@ func mustMkdirAll(t *testing.T, dir string) {
 	t.Helper()
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("mkdir %s: %v", dir, err)
+	}
+}
+
+// TestResolveClientRoutes: the flag beats the tsconfig key, and nothing set means bundle.
+func TestResolveClientRoutes(t *testing.T) {
+	decode := func(raw string) string {
+		var plugin tsRuntypesPlugin
+		if err := json.Unmarshal([]byte(`{"clientRoutes":`+raw+`}`), &plugin); err != nil {
+			t.Fatalf("decode %s: %v", raw, err)
+		}
+		return plugin.ClientRoutes
+	}
+	for _, tc := range []struct {
+		flag string
+		key  string
+		want constants.ClientRoutesMode
+	}{
+		{"", `null`, constants.ClientRoutesBundle},
+		{"", `"bundle"`, constants.ClientRoutesBundle},
+		{"", `"fetch"`, constants.ClientRoutesFetch},
+		{"bundle", `"fetch"`, constants.ClientRoutesBundle},
+		{"fetch", `"bundle"`, constants.ClientRoutesFetch},
+	} {
+		got, ok := resolveClientRoutes(tc.flag, decode(tc.key))
+		if !ok || got != tc.want {
+			t.Errorf("flag %q, key %s: got %q (ok %v), want %q", tc.flag, tc.key, got, ok, tc.want)
+		}
+	}
+	for _, mode := range []string{"fetched", "all"} {
+		if _, ok := resolveClientRoutes(mode, ""); ok {
+			t.Errorf("flag %q: an unknown mode is refused", mode)
+		}
+		if _, ok := resolveClientRoutes("", mode); ok {
+			t.Errorf("key %q: an unknown mode is refused", mode)
+		}
 	}
 }

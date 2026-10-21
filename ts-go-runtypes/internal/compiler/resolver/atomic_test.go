@@ -89,15 +89,8 @@ func assertHashID(t *testing.T, id string) {
 	}
 }
 
-// =========================================================================
-// Primitive kinds — id is just the kind number, no payload.
-//
-// Per the marker test coverage rule (CLAUDE.md), every scenario gets two
-// paired tests: a *_Static using `getRunTypeId<T>()` and a *_Reflect using
-// `getRunTypeId(v)`. Both must resolve to the same atomic Kind; the
-// hash equivalence between the two forms is asserted by TestAtomic_String
-// (file-based) and TestAtomic_FormEquivalence below.
-// =========================================================================
+// Atomic ids have no payload; paired forms follow AGENTS.md marker coverage.
+// TestAtomic_String and TestAtomic_FormEquivalence assert equal ids.
 
 // TestAtomic_String_* are kept file-based as the regression tests that
 // exercise the on-disk tsconfig + osvfs path. Both forms share a Kind and
@@ -1080,14 +1073,14 @@ func TestResolver_EncoderOptionsShareTypeID(t *testing.T) {
   export type InjectTypeFnArgs<T, Fn extends string> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFn?: Fn};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
   export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
-  export type JsonEncoderOptions = {strategy?: 'clone' | 'mutate' | 'direct'};
+  export type JsonEncoderOptions = {strategy?: 'clone' | 'mutate' | 'compact'};
   export function createJsonEncoderFn<T>(val?: T, options?: CompTimeFnArgs<JsonEncoderOptions>, id?: InjectTypeFnArgs<T, 'jsonEncoder'>): (v: unknown) => string | undefined;
 }
 `
 	const code = `import {createJsonEncoderFn} from '@mionjs/run-types';
 createJsonEncoderFn<string>();
 createJsonEncoderFn<string>(undefined, {strategy: 'mutate'});
-createJsonEncoderFn<string>(undefined, {strategy: 'direct'});
+createJsonEncoderFn<string>(undefined, {strategy: 'compact'});
 `
 	r := setupInline(t, map[string]string{"runtypes.d.ts": dts, "call.ts": code})
 	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"call.ts"}})
@@ -1116,7 +1109,7 @@ createJsonEncoderFn<string>(undefined, {strategy: 'direct'});
 	// operations.FnHashFor (NOT a hardcoded hash) so the test stays correct
 	// across version-isolated hashes.
 	encoderOp, _ := operations.ByName("jsonEncoder")
-	for _, strategy := range []string{"clone", "mutate", "direct"} {
+	for _, strategy := range []string{"clone", "mutate", "compact"} {
 		want := operations.FnHashFor(encoderOp, nil, strategy, false)
 		if !fnIDs[want] {
 			t.Errorf("expected a site with fnId %q (jsonEncoder/%s), got %v", want, strategy, fnIDs)
@@ -1124,22 +1117,17 @@ createJsonEncoderFn<string>(undefined, {strategy: 'direct'});
 	}
 }
 
-// TestResolver_CompTimeArgs_NonLiteralDiagnostic pins the CTA001
-// diagnostic for a CompTimeArgs<T>-branded parameter filled with a
-// value the Go scanner cannot statically evaluate (a function-call
-// result here). The new marker family replaces the legacy MKR002
-// "options must be literal" check — broader, since any branded param
-// is covered, not just options-named ones.
+// TestResolver_CompTimeArgs_NonLiteralDiagnostic: marker-comptime-arg-not-literal covers any branded param, not just options-named ones.
 func TestResolver_CompTimeArgs_NonLiteralDiagnostic(t *testing.T) {
 	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
-  export interface ValidateOptions {noLiterals?: boolean; noIsArrayCheck?: boolean}
+  export interface ValidateOptions {numberMode?: 'isFinite' | 'typeof' | 'notNaN'}
   export function createValidateFn<T>(val?: T, options?: CompTimeArgs<ValidateOptions>, id?: InjectRunTypeId<T>): (v: unknown) => boolean;
 }
 `
 	const code = `import {createValidateFn} from '@mionjs/run-types';
-declare function getOptions(): {noLiterals: true};
+declare function getOptions(): {numberMode: 'typeof'};
 createValidateFn<string>(undefined, getOptions());
 `
 	r := setupInline(t, map[string]string{"runtypes.d.ts": dts, "call.ts": code})
@@ -1153,9 +1141,9 @@ createValidateFn<string>(undefined, getOptions());
 	}
 	d := markerDiags[0]
 	// A bare function call inside a CompTimeArgs slot is a forbidden
-	// construct (CTA003) — the validator sees `getOptions()` as a call
+	// construct (marker-comptime-arg-forbidden-construct) — the validator sees `getOptions()` as a call
 	// expression at the top level and rejects it, not as a "non-literal
-	// identifier-chain leaf" (CTA001).
+	// identifier-chain leaf" (marker-comptime-arg-not-literal).
 	if d.Code != diagnostics.CodeCompTimeArgsForbiddenConstruct {
 		t.Fatalf("expected code %s, got %q", diagnostics.CodeCompTimeArgsForbiddenConstruct, d.Code)
 	}
@@ -1164,24 +1152,17 @@ createValidateFn<string>(undefined, getOptions());
 	}
 }
 
-// TestResolver_CompTimeArgs_LiteralAccepted pins the positive case for
-// CompTimeArgs<T>: a direct object literal at the call site must pass
-// the CompTimeArgs gate (no CTA001/002/003 violations). Unrelated
-// marker codes (e.g. MKR004 fires when `{noLiterals: true}` lands on
-// a non-literal type — by design) are filtered out so this test stays
-// focused on its subject. The fixture uses a literal type for the
-// noLiterals call so MKR004 doesn't fire here; non-literal call sites
-// are covered by TestResolver_ValidateOptions_NoLiteralsNoop.
+// TestResolver_CompTimeArgs_LiteralAccepted pins that a direct object literal passes the CompTimeArgs gate (no marker-comptime-arg-*).
 func TestResolver_CompTimeArgs_LiteralAccepted(t *testing.T) {
 	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
-  export interface ValidateOptions {noLiterals?: boolean; noIsArrayCheck?: boolean}
+  export interface ValidateOptions {numberMode?: 'isFinite' | 'typeof' | 'notNaN'}
   export function createValidateFn<T>(val?: T, options?: CompTimeArgs<ValidateOptions>, id?: InjectRunTypeId<T>): (v: unknown) => boolean;
 }
 `
 	const code = `import {createValidateFn} from '@mionjs/run-types';
-createValidateFn<'a'>(undefined, {noLiterals: true});
+createValidateFn<number>(undefined, {numberMode: 'typeof'});
 createValidateFn<string>(undefined, {});
 `
 	r := setupInline(t, map[string]string{"runtypes.d.ts": dts, "call.ts": code})
@@ -1191,9 +1172,9 @@ createValidateFn<string>(undefined, {});
 	}
 	markerDiags := filterDiagsByFamily(resp.Diagnostics, diagnostics.FamilyMarker)
 	for _, d := range markerDiags {
-		// CTA gate only — MKR is a different subject (anti-patterns).
-		if strings.HasPrefix(d.Code, "CTA") {
-			t.Fatalf("expected no CTA diagnostics for literal options, got %+v", d)
+		// marker-comptime-arg-* gate only — marker-* is a different subject (anti-patterns).
+		if strings.HasPrefix(d.Code, "marker-comptime-arg-") {
+			t.Fatalf("expected no marker-comptime-arg-* diagnostics for literal options, got %+v", d)
 		}
 	}
 }
@@ -1207,7 +1188,7 @@ func TestResolver_CompTimeArgs_UnionBrandFallback(t *testing.T) {
 	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
-  export type JsonEncoderOptions = {strategy?: 'clone' | 'mutate'; stripExtras?: boolean} | {strategy: 'direct'};
+  export type JsonEncoderOptions = {strategy?: 'clone' | 'mutate'; stripExtras?: boolean} | {strategy: 'compact'};
   export function createJsonEncoderFn<T>(val?: T, options?: CompTimeArgs<JsonEncoderOptions>, id?: InjectRunTypeId<T>): (v: unknown) => string | undefined;
 }
 `
@@ -1222,29 +1203,24 @@ createJsonEncoderFn<string>(undefined, getOptions());
 	}
 	markerDiags := filterDiagsByFamily(resp.Diagnostics, diagnostics.FamilyMarker)
 	if len(markerDiags) != 1 {
-		t.Fatalf("expected 1 marker diagnostic (CTA003 for function call inside CompTimeArgs), got %d (%+v)", len(markerDiags), markerDiags)
+		t.Fatalf("expected 1 marker diagnostic (marker-comptime-arg-forbidden-construct for function call inside CompTimeArgs), got %d (%+v)", len(markerDiags), markerDiags)
 	}
 	if markerDiags[0].Code != diagnostics.CodeCompTimeArgsForbiddenConstruct {
 		t.Fatalf("expected code %s, got %q", diagnostics.CodeCompTimeArgsForbiddenConstruct, markerDiags[0].Code)
 	}
 }
 
-// TestResolver_CompTimeArgs_ConstChainAccepted pins the relaxation
-// from the legacy MKR002 path: a module-scope `const` whose
-// initializer is itself a literal must pass the CompTimeArgs check.
-// Under the old MKR002 rule any identifier was rejected; the new rule
-// accepts const-of-literal chains so users can DRY their option
-// objects.
+// TestResolver_CompTimeArgs_ConstChainAccepted: a module-scope const of a literal passes, so users can DRY options.
 func TestResolver_CompTimeArgs_ConstChainAccepted(t *testing.T) {
 	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
-  export interface ValidateOptions {noLiterals?: boolean; noIsArrayCheck?: boolean}
+  export interface ValidateOptions {numberMode?: 'isFinite' | 'typeof' | 'notNaN'}
   export function createValidateFn<T>(val?: T, options?: CompTimeArgs<ValidateOptions>, id?: InjectRunTypeId<T>): (v: unknown) => boolean;
 }
 `
 	const code = `import {createValidateFn} from '@mionjs/run-types';
-const opts = {noLiterals: true as const};
+const opts = {numberMode: 'typeof' as const};
 createValidateFn<string>(undefined, opts);
 `
 	r := setupInline(t, map[string]string{"runtypes.d.ts": dts, "call.ts": code})
@@ -1287,10 +1263,10 @@ withValidator<string>((v) => typeof v === 'string');
 	}
 }
 
-// TestResolver_PureFunction_NonLiteralEmitsPFN001 pins PFN001 for an
+// TestResolver_PureFunction_NonLiteralEmitsPurefnNotInline pins purefn-not-inline for an
 // imported identifier — not a literal function definition, can't be
 // inlined by the AOT compiler.
-func TestResolver_PureFunction_NonLiteralEmitsPFN001(t *testing.T) {
+func TestResolver_PureFunction_NonLiteralEmitsPurefnNotInline(t *testing.T) {
 	const code = `import {withValidator} from '@mionjs/run-types';
 declare const isString: (v: unknown) => boolean;
 withValidator<string>(isString);
@@ -1302,7 +1278,7 @@ withValidator<string>(isString);
 	}
 	markerDiags := filterDiagsByFamily(resp.Diagnostics, diagnostics.FamilyMarker)
 	if len(markerDiags) != 1 {
-		t.Fatalf("expected 1 marker diagnostic (PFN001), got %d (%+v)", len(markerDiags), markerDiags)
+		t.Fatalf("expected 1 marker diagnostic (purefn-not-inline), got %d (%+v)", len(markerDiags), markerDiags)
 	}
 	if markerDiags[0].Code != diagnostics.CodePureFunctionNotLiteral {
 		t.Fatalf("expected code %s, got %q", diagnostics.CodePureFunctionNotLiteral, markerDiags[0].Code)
@@ -1310,10 +1286,10 @@ withValidator<string>(isString);
 }
 
 // TestResolver_PureFunction_PurityViolationsPropagate pins that the
-// purity walker (PFE9006–PFE9011) fires when the inline function body
-// breaks a rule — here, `await` inside the arrow triggers PFE9007.
+// purity walker fires when the inline function body
+// breaks a rule — here, `await` inside the arrow triggers purefn-uses-await.
 // The PureFunction marker reuses the purefns.CheckPurity engine
-// unchanged, so any PFE the extractor emits should reach the resolver.
+// unchanged, so any purefn-* the extractor emits should reach the resolver.
 func TestResolver_PureFunction_PurityViolationsPropagate(t *testing.T) {
 	const code = `import {withValidator} from '@mionjs/run-types';
 withValidator<string>(async (v) => { await Promise.resolve(); return typeof v === 'string'; });
@@ -1323,23 +1299,23 @@ withValidator<string>(async (v) => { await Promise.resolve(); return typeof v ==
 	if resp.Error != "" {
 		t.Fatalf("scanFiles: %s", resp.Error)
 	}
-	// All PFE diagnostics live under FamilyPureFn — not FamilyMarker.
+	// All purefn-* diagnostics live under FamilyPureFn — not FamilyMarker.
 	pfeDiags := filterDiagsByFamily(resp.Diagnostics, diagnostics.FamilyPureFn)
 	if len(pfeDiags) == 0 {
-		t.Fatalf("expected at least one PFE diagnostic for `await`, got 0 (all: %+v)", resp.Diagnostics)
+		t.Fatalf("expected at least one purefn-* diagnostic for `await`, got 0 (all: %+v)", resp.Diagnostics)
 	}
 	awaitSeen := false
 	for _, d := range pfeDiags {
-		if d.Code == "PFE9007" {
+		if d.Code == "purefn-uses-await" {
 			awaitSeen = true
 		}
 	}
 	if !awaitSeen {
-		t.Fatalf("expected PFE9007 (`await` violation), got %+v", pfeDiags)
+		t.Fatalf("expected purefn-uses-await (`await` violation), got %+v", pfeDiags)
 	}
 }
 
-// TestResolver_PureFunction_ClosureViolation pins PFE9011 — the
+// TestResolver_PureFunction_ClosureViolation pins purefn-reads-outer-variable — the
 // inline arrow captures `outer` from the surrounding module scope.
 // The purity walker treats this as closing over an outer binding,
 // which prevents AOT inlining.
@@ -1356,12 +1332,12 @@ withValidator<number>((v) => v === outer);
 	pfeDiags := filterDiagsByFamily(resp.Diagnostics, diagnostics.FamilyPureFn)
 	closureSeen := false
 	for _, d := range pfeDiags {
-		if d.Code == "PFE9011" {
+		if d.Code == "purefn-reads-outer-variable" {
 			closureSeen = true
 		}
 	}
 	if !closureSeen {
-		t.Fatalf("expected PFE9011 (closure over outer binding) for `outer`, got %+v (all diags: %+v)", pfeDiags, resp.Diagnostics)
+		t.Fatalf("expected purefn-reads-outer-variable (closure over outer binding) for `outer`, got %+v (all diags: %+v)", pfeDiags, resp.Diagnostics)
 	}
 }
 
@@ -1395,7 +1371,7 @@ noInjectWrapper(getLabel(), 1);
 	}
 	markerDiags := filterDiagsByFamily(resp.Diagnostics, diagnostics.FamilyMarker)
 	if len(markerDiags) != 1 {
-		t.Fatalf("expected 1 CTA diagnostic for non-literal arg without injection slot, got %d (%+v)", len(markerDiags), markerDiags)
+		t.Fatalf("expected 1 marker-comptime-arg-* diagnostic for non-literal arg without injection slot, got %d (%+v)", len(markerDiags), markerDiags)
 	}
 	if markerDiags[0].Code != diagnostics.CodeCompTimeArgsForbiddenConstruct {
 		t.Fatalf("expected %s, got %q", diagnostics.CodeCompTimeArgsForbiddenConstruct, markerDiags[0].Code)
@@ -1414,7 +1390,7 @@ pureOnlyWrapper(isString);
 	}
 	markerDiags := filterDiagsByFamily(resp.Diagnostics, diagnostics.FamilyMarker)
 	if len(markerDiags) != 1 {
-		t.Fatalf("expected 1 PFN001 diagnostic for non-literal fn without injection slot, got %d (%+v)", len(markerDiags), markerDiags)
+		t.Fatalf("expected 1 purefn-not-inline diagnostic for non-literal fn without injection slot, got %d (%+v)", len(markerDiags), markerDiags)
 	}
 	if markerDiags[0].Code != diagnostics.CodePureFunctionNotLiteral {
 		t.Fatalf("expected %s, got %q", diagnostics.CodePureFunctionNotLiteral, markerDiags[0].Code)
@@ -1423,19 +1399,19 @@ pureOnlyWrapper(isString);
 
 // Phase 4 regression: when a function carries BOTH an InjectRunTypeId
 // trailing slot AND a CompTimeArgs on an earlier slot, scanCall must
-// emit both a Site (for injection) AND a CTA diagnostic (for the
+// emit both a Site (for injection) AND a marker-comptime-arg-* diagnostic (for the
 // invalid non-literal arg). The two passes were previously coupled —
-// MKR003 / argsCount early-returns dropped accumulated diagnostics.
+// marker-in-generic-function / argsCount early-returns dropped accumulated diagnostics.
 func TestResolver_TrailingInjectionStillEmitsSite(t *testing.T) {
 	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
-  export interface ValidateOptions {noLiterals?: boolean}
+  export interface ValidateOptions {numberMode?: 'isFinite' | 'typeof' | 'notNaN'}
   export function createValidateFn<T>(val?: T, options?: CompTimeArgs<ValidateOptions>, id?: InjectRunTypeId<T>): (v: unknown) => boolean;
 }
 `
 	const code = `import {createValidateFn} from '@mionjs/run-types';
-declare function getOptions(): {noLiterals: true};
+declare function getOptions(): {numberMode: 'typeof'};
 createValidateFn<string>(undefined, getOptions());
 `
 	r := setupInline(t, map[string]string{"runtypes.d.ts": dts, "call.ts": code})
@@ -1448,35 +1424,20 @@ createValidateFn<string>(undefined, getOptions());
 	}
 	markerDiags := filterDiagsByFamily(resp.Diagnostics, diagnostics.FamilyMarker)
 	if len(markerDiags) != 1 {
-		t.Fatalf("expected 1 CTA diagnostic alongside the Site, got %d (%+v)", len(markerDiags), markerDiags)
+		t.Fatalf("expected 1 marker-comptime-arg-* diagnostic alongside the Site, got %d (%+v)", len(markerDiags), markerDiags)
 	}
 	if markerDiags[0].Code != diagnostics.CodeCompTimeArgsForbiddenConstruct {
 		t.Fatalf("expected %s, got %q", diagnostics.CodeCompTimeArgsForbiddenConstruct, markerDiags[0].Code)
 	}
 }
 
-// TestResolver_ValidateOptions_DoNotChangeID is the ValidateOptions refactor
-// guard: for the same TS type T, the resolved Site.ID must be IDENTICAL
-// across every option combination. The marker scanner used to fold
-// `noLiterals` / `noIsArrayCheck` into the typeid (via type-swap for
-// literals + `SerializeArrayWithFlags` for arrays) — both paths are
-// gone now, replaced by per-call-site `Site.Options` that drive the
-// emitter's variant fan-out under the SAME structural id.
-//
-// Covers three flavours of T:
-//   - literal `'a'`   ± `noLiterals`
-//   - array  `string[]` ± `noIsArrayCheck`
-//   - composite `{tag: 'a'; list: string[]}` with both options
-//
-// Each case asserts that every call site for the same T produces the
-// same `Site.ID`. The Site.Options field carries the option tuple
-// (sorted, name-keyed) — the emitter consumes it to materialise the
-// variant factory keyed `<tag><variantSuffix>_<id>`.
+// TestResolver_ValidateOptions_DoNotChangeID pins that options never fold into the typeid: one T, one Site.ID.
+// Options ride per-site `Site.Options`, which the emitter fans out into `<variant-fnHash>_<id>` factories.
 func TestResolver_ValidateOptions_DoNotChangeID(t *testing.T) {
 	const dts = `declare module '@mionjs/run-types' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
-  export interface ValidateOptions {noLiterals?: boolean; noIsArrayCheck?: boolean}
+  export interface ValidateOptions {numberMode?: 'isFinite' | 'typeof' | 'notNaN'}
   export function createValidateFn<T>(val?: T, options?: CompTimeArgs<ValidateOptions>, id?: InjectRunTypeId<T>): (v: unknown) => boolean;
 }
 `
@@ -1485,33 +1446,33 @@ func TestResolver_ValidateOptions_DoNotChangeID(t *testing.T) {
 		code string
 	}{
 		{
-			name: "literal 'a' ± noLiterals",
+			name: "number ± numberMode typeof",
 			code: `import {createValidateFn} from '@mionjs/run-types';
-createValidateFn<'a'>();
-createValidateFn<'a'>(undefined, {noLiterals: true});
-const v: 'a' = 'a';
+createValidateFn<number>();
+createValidateFn<number>(undefined, {numberMode: 'typeof'});
+const v: number = 1;
 createValidateFn(v);
-createValidateFn(v, {noLiterals: true});
+createValidateFn(v, {numberMode: 'typeof'});
 `,
 		},
 		{
-			name: "array string[] ± noIsArrayCheck",
+			name: "array number[] ± numberMode notNaN",
 			code: `import {createValidateFn} from '@mionjs/run-types';
-createValidateFn<string[]>();
-createValidateFn<string[]>(undefined, {noIsArrayCheck: true});
-const v: string[] = [];
+createValidateFn<number[]>();
+createValidateFn<number[]>(undefined, {numberMode: 'notNaN'});
+const v: number[] = [];
 createValidateFn(v);
-createValidateFn(v, {noIsArrayCheck: true});
+createValidateFn(v, {numberMode: 'notNaN'});
 `,
 		},
 		{
-			name: "composite with nested literal AND array + both options",
+			name: "composite with nested literal AND array + both numberMode values",
 			code: `import {createValidateFn} from '@mionjs/run-types';
-type Composite = {tag: 'a'; list: string[]};
+type Composite = {tag: 'a'; list: number[]};
 createValidateFn<Composite>();
-createValidateFn<Composite>(undefined, {noLiterals: true});
-createValidateFn<Composite>(undefined, {noIsArrayCheck: true});
-createValidateFn<Composite>(undefined, {noLiterals: true, noIsArrayCheck: true});
+createValidateFn<Composite>(undefined, {numberMode: 'typeof'});
+createValidateFn<Composite>(undefined, {numberMode: 'notNaN'});
+createValidateFn<Composite>(undefined, {numberMode: 'isFinite'});
 `,
 		},
 	}
@@ -1535,53 +1496,12 @@ createValidateFn<Composite>(undefined, {noLiterals: true, noIsArrayCheck: true})
 	}
 }
 
-// TestResolver_ValidateOptions_NoLiteralsNoop pins the build-time
-// Warning emitted when an option lands on a type where it has no
-// effect (e.g. `{noLiterals: true}` on plain `string`,
-// `{noIsArrayCheck: true}` on an object literal). The variant factory
-// is still materialised (always-emit invariant — the JS side can't
-// tell whether an option is meaningful for a given T), so the
-// diagnostic is the only build-time signal.
-func TestResolver_ValidateOptions_NoLiteralsNoop(t *testing.T) {
-	const dts = `declare module '@mionjs/run-types' {
-  export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
-  export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
-  export interface ValidateOptions {noLiterals?: boolean; noIsArrayCheck?: boolean}
-  export function createValidateFn<T>(val?: T, options?: CompTimeArgs<ValidateOptions>, id?: InjectRunTypeId<T>): (v: unknown) => boolean;
-}
-`
-	const code = `import {createValidateFn} from '@mionjs/run-types';
-createValidateFn<string>(undefined, {noLiterals: true});
-createValidateFn<{a: string}>(undefined, {noIsArrayCheck: true});
-`
-	r := setupInline(t, map[string]string{"runtypes.d.ts": dts, "call.ts": code})
-	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"call.ts"}})
-	if resp.Error != "" {
-		t.Fatalf("scanFiles: %s", resp.Error)
-	}
-	var nl, na bool
-	for _, d := range resp.Diagnostics {
-		switch d.Code {
-		case diagnostics.CodeValidateOptionsNoLiteralsNoop:
-			nl = true
-		case diagnostics.CodeValidateOptionsNoArrayNoop:
-			na = true
-		}
-	}
-	if !nl {
-		t.Errorf("expected %s for {noLiterals:true} on non-literal type, got: %+v", diagnostics.CodeValidateOptionsNoLiteralsNoop, resp.Diagnostics)
-	}
-	if !na {
-		t.Errorf("expected %s for {noIsArrayCheck:true} on non-array type, got: %+v", diagnostics.CodeValidateOptionsNoArrayNoop, resp.Diagnostics)
-	}
-}
-
 // TestResolver_SchemaForm_ConvergesAndObservesOptions pins the schema-form
 // path AFTER the CompTimeRunType ref-tracing was removed: the value-first schema
 // form is now an ordinary `createValidateFn` OVERLOAD taking a `RunType<T>` first arg
 // (`createValidateFn(array(string()))`). It must resolve to the SAME structural id as
 // the marker form (`createValidateFn<string[]>()`) — `T` is inferred from the
-// schema's `RunType<T>` and reflected off the trailing `InjectTypeFnArgs<T, 'val'>`,
+// schema's `RunType<T>` and reflected off the trailing `InjectTypeFnArgs<T, 'validate'>`,
 // no `schema.id` read, no builder ref-trace — AND its options ride the call's own
 // slot, folded into the injected fnId variant suffix. The createValidateFn call IS the
 // injection marker, so the nested `array(string())` builder is skipped (enclosed);
@@ -1592,10 +1512,10 @@ func TestResolver_SchemaForm_ConvergesAndObservesOptions(t *testing.T) {
   export type InjectTypeFnArgs<T, Fn extends string> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFn?: Fn};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
   export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
-  export interface ValidateOptions {noLiterals?: boolean; noIsArrayCheck?: boolean}
+  export interface ValidateOptions {numberMode?: 'isFinite' | 'typeof' | 'notNaN'}
   export interface RunType<T = unknown> {id: string; readonly __rtType?: {t: T}}
-  export function createValidateFn<T>(schema: RunType<T>, options?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'val'>): (v: unknown) => boolean;
-  export function createValidateFn<T>(val?: T, options?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'val'>): (v: unknown) => boolean;
+  export function createValidateFn<T>(schema: RunType<T>, options?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'validate'>): (v: unknown) => boolean;
+  export function createValidateFn<T>(val?: T, options?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'validate'>): (v: unknown) => boolean;
   export function string(id?: InjectRunTypeId<string>): RunType<string>;
   export function array<T>(item: CompTimeArgs<RunType<T>>, id?: InjectRunTypeId<T[]>): RunType<T[]>;
 }
@@ -1603,7 +1523,7 @@ func TestResolver_SchemaForm_ConvergesAndObservesOptions(t *testing.T) {
 	const code = `import {createValidateFn, array, string} from '@mionjs/run-types';
 createValidateFn<string[]>();
 createValidateFn(array(string()));
-createValidateFn(array(string()), {noIsArrayCheck: true});
+createValidateFn(array(string()), {numberMode: 'typeof'});
 `
 	r := setupInline(t, map[string]string{"runtypes.d.ts": dts, "call.ts": code})
 	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"call.ts"}})
@@ -1624,45 +1544,45 @@ createValidateFn(array(string()), {noIsArrayCheck: true});
 			t.Errorf("Site[%d] has Pos 0 — every surviving Site must drive a real rewrite", i)
 		}
 	}
-	// The options bag rides the schema-overload call's own slot, folded into
-	// the injected FnId — now the opaque validate variant fnHash for the
-	// noIsArrayCheck option set (NOT the readable `valNA` token). Assert equality
-	// to operations.FnHashFor so the test stays correct across versions.
+	// Options fork the FnId to the opaque variant fnHash; FnHashFor derives it so the test survives version bumps.
 	validateOp, _ := operations.ByName("validate")
-	wantVariant := operations.FnHashFor(validateOp, []string{"noIsArrayCheck"}, "", false)
+	wantVariant := operations.FnHashFor(validateOp, []string{"numberTypeof"}, "", false)
 	variant := resp.Sites[2]
 	if variant.FnId != wantVariant {
-		t.Errorf("schema-form options not observed: Site[2].FnId = %q, want %q (validate/noIsArrayCheck)", variant.FnId, wantVariant)
+		t.Errorf("schema-form options not observed: Site[2].FnId = %q, want %q (validate/numberTypeof)", variant.FnId, wantVariant)
 	}
 }
 
-// TestResolver_ValidateOptions_AsConstExtracted pins the wrapper-unwrap
-// asymmetry fix: `{noLiterals: true} as const` passes the options slot's
-// CompTimeArgs validation (which unwraps `as`/parens/`satisfies`), so the
-// option EXTRACTION must read it too — before the fix the extractor saw
-// the AsExpression node, silently read zero options, and the MKR004 noop
-// warning below never fired.
+// TestResolver_ValidateOptions_AsConstExtracted pins that option extraction unwraps `as const`, as CompTimeArgs validation does.
 func TestResolver_ValidateOptions_AsConstExtracted(t *testing.T) {
 	const dts = `declare module '@mionjs/run-types' {
-  export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
-  export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
-  export interface ValidateOptions {noLiterals?: boolean; noIsArrayCheck?: boolean}
-  export function createValidateFn<T>(val?: T, options?: CompTimeArgs<ValidateOptions>, id?: InjectRunTypeId<T>): (v: unknown) => boolean;
+  export type InjectTypeFnArgs<T, Fn extends string> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFn?: Fn};
+  export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
+  export interface ValidateOptions {numberMode?: 'isFinite' | 'typeof' | 'notNaN'}
+  export function createValidateFn<T>(val?: T, options?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'validate'>): (v: unknown) => boolean;
 }
 `
 	const code = `import {createValidateFn} from '@mionjs/run-types';
-createValidateFn<string>(undefined, {noLiterals: true} as const);
+createValidateFn<number>(undefined, {numberMode: 'typeof'} as const);
+const n: number = 1;
+createValidateFn(n, {numberMode: 'typeof'} as const);
 `
 	r := setupInline(t, map[string]string{"runtypes.d.ts": dts, "call.ts": code})
 	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"call.ts"}})
 	if resp.Error != "" {
 		t.Fatalf("scanFiles: %s", resp.Error)
 	}
-	for _, d := range resp.Diagnostics {
-		if d.Code == diagnostics.CodeValidateOptionsNoLiteralsNoop {
-			return
+	if len(resp.Sites) != 2 {
+		t.Fatalf("expected 2 Sites, got %d: %+v", len(resp.Sites), resp.Sites)
+	}
+	validateOp, _ := operations.ByName("validate")
+	want := operations.FnHashFor(validateOp, []string{"numberTypeof"}, "", false)
+	for i, site := range resp.Sites {
+		if site.FnId != want {
+			t.Errorf("Site[%d].FnId = %q, want %q (option must be extracted through the as-const wrapper)", i, site.FnId, want)
 		}
 	}
-	t.Fatalf("expected %s for as-const {noLiterals:true} on a non-literal type (option must be extracted through the wrapper), got: %+v",
-		diagnostics.CodeValidateOptionsNoLiteralsNoop, resp.Diagnostics)
+	if resp.Sites[0].ID != resp.Sites[1].ID {
+		t.Errorf("static and reflect forms must share one id: %q vs %q", resp.Sites[0].ID, resp.Sites[1].ID)
+	}
 }

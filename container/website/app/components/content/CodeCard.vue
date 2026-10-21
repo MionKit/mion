@@ -1,0 +1,58 @@
+<script setup lang="ts">
+// Shows the HTML `pnpm miondevx card export` wrote, which brings its own look and animation. Prerendered in its
+// final state, it plays once scrolled into view (never under reduced motion).
+import {arm, play} from '../../utils/codeCardPlayer'
+import '../../assets/css/code-card.css'
+
+const props = defineProps<{name: string}>()
+
+// Lazy: a page downloads only the cards it shows; prerendering puts the HTML in the page.
+const cards = import.meta.glob<string>('../../data/cards/*.html', {query: '?raw', import: 'default'})
+const html = await cards[`../../data/cards/${props.name}.html`]?.()
+
+const root = ref<HTMLElement>()
+let observer: IntersectionObserver | undefined
+
+// Armed in the observer callback, not on mount: a card already in view plays at once, never vanishing for a frame.
+onMounted(() => {
+  const card = root.value?.querySelector('.code-card')
+  if (!card) return
+  observer = new IntersectionObserver(
+    (entries) => {
+      const visible = entries.some((entry) => entry.isIntersecting)
+      if (!card.classList.contains('cc-armed') && !arm(card)) return observer?.disconnect()
+      if (!visible) return
+      play(card)
+      observer?.disconnect()
+    },
+    // So the reader has scrolled into the card before it plays.
+    {rootMargin: '0px 0px -35% 0px'}
+  )
+  observer.observe(card)
+})
+onBeforeUnmount(() => observer?.disconnect())
+</script>
+
+<template>
+  <div v-if="html" ref="root" class="code-card-embed" v-html="html" />
+  <p v-else class="code-card-missing">No card named "{{ name }}": run <code>pnpm miondevx card export {{ name }}</code>.</p>
+</template>
+
+<style scoped>
+.code-card-embed {
+  margin: 1.5rem 0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+/* a mini card draws its own border and corners: the clip follows them, and two in a row sit close */
+.code-card-embed:has(> .cc-kind-mini) {
+  margin: 1rem 0;
+  border-radius: var(--mion-panel-radius);
+}
+.code-card-missing {
+  padding: 1rem;
+  border: 1px solid var(--ui-error);
+  color: var(--ui-error);
+  border-radius: 8px;
+}
+</style>

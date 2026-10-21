@@ -1,6 +1,6 @@
 // Entry 1 of the AI-enrichment generation suite: for every case, EXTRACT the
 // authored `src` type, GENERATE the FriendlyText / MockData skeleton via the
-// batch `gen --files` CLI, and COMPARE (Prettier-normalized) against the
+// batch `enrich --files` CLI, and COMPARE (Prettier-normalized) against the
 // case-authored `friendly` / `mock` expecteds.
 
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
@@ -8,12 +8,12 @@ import {generateCategory, cleanupTempDir, type CaseComparison} from '../../util/
 import {ENRICH_CASES, ENRICH_CATEGORIES} from './cases/index.ts';
 import type {EnrichCase} from './cases/types.ts';
 
-afterAll(() => cleanupTempDir('gen'));
+afterAll(() => cleanupTempDir('scaffold'));
 
 for (const {constName, fileBase} of ENRICH_CATEGORIES) {
   const cases = ENRICH_CASES[constName as keyof typeof ENRICH_CASES] as Record<string, EnrichCase>;
 
-  describe(`enrichment gen — ${constName}`, () => {
+  describe(`enrichment scaffold — ${constName}`, () => {
     let comparisons: Record<string, CaseComparison>;
 
     beforeAll(async () => {

@@ -141,12 +141,7 @@ export function materializeSource(fixture: ReconcileFixture, model: I18nModel): 
   writeFileSync(fixture.sourcePath, `export interface User {\n${decls.join('\n')}\n}\n`);
 }
 
-// syncFriendlyMirror regenerates the friendly mirror from src (the ordinary
-// gen reconcile) and fills EVERY blank with an `SRC_`-prefixed token, keeping
-// it a realistic fully-authored source-language map. The mirror is only a
-// DISCOVERY input for the translate verbs — T2 asserts its text never leaks
-// into T, which is precisely the "generated files never feed generation"
-// contract of the src-derived design.
+// Fills EVERY blank with an `SRC_` token; the mirror is only discovery input, and T2 asserts its text never leaks into T.
 export function syncFriendlyMirror(fixture: ReconcileFixture, model: I18nModel): CliResult {
   const args = existsSync(fixture.friendlyPath)
     ? ['enrich', 'src/models.ts', 'User', '--friendly', '--update']
@@ -383,7 +378,7 @@ export const I18N_COMMANDS: I18nCommand[] = [
       const free = NAME_POOL.filter((name) => !model.fields.has(name));
       model.fields.set(pick(free, rng), {pattern: rng() < 0.5});
       materializeSource(ctx.fixture, model);
-      controlledOr(syncFriendlyMirror(ctx.fixture, model), 'srcAddField(gen)', ctx, out);
+      controlledOr(syncFriendlyMirror(ctx.fixture, model), 'srcAddField(enrich)', ctx, out);
       return out;
     },
   },
@@ -396,7 +391,7 @@ export const I18N_COMMANDS: I18nCommand[] = [
       const name = pick([...model.fields.keys()], rng);
       model.fields.delete(name);
       materializeSource(ctx.fixture, model);
-      controlledOr(syncFriendlyMirror(ctx.fixture, model), 'srcDropField(gen)', ctx, out);
+      controlledOr(syncFriendlyMirror(ctx.fixture, model), 'srcDropField(enrich)', ctx, out);
       return out;
     },
   },
@@ -457,7 +452,7 @@ export const I18N_COMMANDS: I18nCommand[] = [
     },
   },
   {
-    // The completeness gate: controlled, and TR002 fires iff blanks exist.
+    // The completeness gate: controlled, and enrich-i18n-todo-left fires iff blanks exist.
     name: 'checkT',
     canApply: () => true,
     apply(model, ctx) {
@@ -465,18 +460,16 @@ export const I18N_COMMANDS: I18nCommand[] = [
       const result = runTranslateCli(ctx.fixture, ['enrich', '--i18n', LOCALE, '--no-emit']);
       if (!controlledOr(result, 'checkT', ctx, out)) return out;
       const hasBlanks = /: ''/.test(readTranslation(ctx.fixture));
-      const reported = result.stdout.includes('TR002');
+      const reported = result.stdout.includes('enrich-i18n-todo-left');
       if (hasBlanks !== reported) {
-        out.push(violation('T10', 'checkT', ctx, `TR002 mismatch: blanks=${hasBlanks} reported=${reported}`));
+        out.push(violation('T10', 'checkT', ctx, `enrich-i18n-todo-left mismatch: blanks=${hasBlanks} reported=${reported}`));
       }
       return out;
     },
   },
 ];
 
-// bootstrap lays down the project (tsconfig with the i18n object, the .ts
-// source, and the gen-produced friendly mirror — a source translates once it
-// HAS one) and scaffolds the initial translation.
+// A source translates only once it HAS a friendly mirror, so write one before scaffolding the translation.
 export function bootstrapI18n(fixture: ReconcileFixture, seed: number): {model: I18nModel; violations: I18nViolation[]} {
   const model = initialI18nModel();
   const violations: I18nViolation[] = [];
@@ -496,7 +489,7 @@ export function bootstrapI18n(fixture: ReconcileFixture, seed: number): {model: 
   materializeSource(fixture, model);
 
   const ctx: I18nCtx = {fixture, seed, step: -1};
-  if (!controlledOr(syncFriendlyMirror(fixture, model), 'bootstrap(gen)', ctx, violations)) return {model, violations};
+  if (!controlledOr(syncFriendlyMirror(fixture, model), 'bootstrap(enrich)', ctx, violations)) return {model, violations};
   const result = runTranslateCli(fixture, ['enrich', '--i18n', LOCALE, 'src/models.ts']);
   if (!controlledOr(result, 'bootstrap', ctx, violations)) return {model, violations};
   if (!existsSync(translationPathOf(fixture))) {

@@ -7,16 +7,14 @@ export default defineConfig({
   ssr: {resolve: {conditions: ['source']}},
   plugins: [
     mionVitePlugin({
-      runTypes: {
-        tsConfig: resolve(__dirname, 'tsconfig.json'),
-      },
+      tsConfig: resolve(__dirname, 'tsconfig.json'),
     }),
   ],
   test: {
     name: 'platform-cloudflare',
     globals: true,
     environment: 'node',
-    include: ['src/**/*.spec.ts'],
+    include: ['test/**/*.spec.ts'],
     // the workers bundle is GENERATED per run — never load a committed copy (it goes stale silently)
     globalSetup: ['./globalSetup.ts', '../../scripts/lib/vitest-clean-gendir.ts'],
     coverage: {

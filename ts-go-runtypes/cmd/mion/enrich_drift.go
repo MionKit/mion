@@ -1,0 +1,337 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"github.com/microsoft/typescript-go/shim/tspath"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/enrichgen"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
+)
+
+// driftFinding mirrors enrichment.Finding but is file-anchored; Line/Col are 1-based, zero for file-level enrich-mirror-unreadable.
+type driftFinding struct {
+	File     string              `json:"file"`
+	Severity enrichment.Severity `json:"severity"`
+	Code     string              `json:"code"`
+	Message  string              `json:"message"`
+	Args     []string            `json:"args,omitempty"`
+	Line     int                 `json:"line,omitempty"`
+	Col      int                 `json:"col,omitempty"`
+}
+
+// runMirrorDriftCheck is `enrich [<dir>] --no-emit [--json]`: the enrich-mirror-* drift checks (codes_mirror.go).
+// enrich-mirror-moved lives here, as only the CLI knows the genDir config; the rest come from mirror.CheckBreadcrumbDrift.
+// With no argument it walks the enrich dir from cwd's tsconfig; mirrorDriftExitCode picks the exit code.
+func runMirrorDriftCheck(positional []string, genDirFlag string, asJSON, requireComplete bool, tsconfigFlag string) {
+	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
+	var targets []string
+	if len(positional) > 0 {
+		candidate := tspath.NormalizePath(mustAbs(positional[0]))
+		config := resolveEnrichConfig(candidate, genDirFlag, tsconfigPath, parsed)
+		// A path OUTSIDE the enrich dir is a SOURCE file: check ITS mirrors, not the
+		// source file itself — whose own `import type { … }` lines would otherwise
+		// be misread as breadcrumbs. A source file has one mirror per family and one
+		// translation per configured locale; missing ones are skipped by
+		// collectMirrorFiles. A path inside the enrich dir (a mirror file, or the
+		// dir) is scanned directly.
+		if info, err := os.Stat(candidate); err == nil && !info.IsDir() && !isUnder(config.EnrichDir, candidate) {
+			targets = []string{
+				config.MirrorPath(familyFriendly, candidate),
+				config.MirrorPath(familyMock, candidate),
+			}
+			for _, locale := range config.I18nLocales {
+				targets = append(targets, config.TranslationPathFor(locale, config.MirrorPath(familyFriendly, candidate)))
+			}
+		} else {
+			targets = []string{candidate}
+		}
+	} else {
+		cwd := enrichCwd("enrich --no-emit")
+		// Resolve the enrich dir from cwd's tsconfig — the default scan root.
+		config := resolveEnrichConfig(tspath.NormalizePath(filepath.Join(cwd, "_")), genDirFlag, tsconfigPath, parsed)
+		targets = []string{config.EnrichDir}
+	}
+
+	var mirrorFiles []string
+	for _, target := range targets {
+		files, err := collectMirrorFiles(target)
+		if err != nil {
+			fatal("enrich --no-emit: %v", err)
+		}
+		mirrorFiles = append(mirrorFiles, files...)
+	}
+
+	var findings []driftFinding
+	for _, mirrorFile := range mirrorFiles {
+		findings = append(findings, checkMirrorFile(mirrorFile, genDirFlag, tsconfigPath, parsed)...)
+	}
+	sort.SliceStable(findings, func(left, right int) bool {
+		if findings[left].File != findings[right].File {
+			return findings[left].File < findings[right].File
+		}
+		return findings[left].Code < findings[right].Code
+	})
+
+	exitCode := mirrorDriftExitCode(findings, requireComplete)
+	if asJSON {
+		encoded, encodeErr := json.MarshalIndent(findings, "", "  ")
+		if encodeErr != nil {
+			fatal("enrich --no-emit: encode json: %v", encodeErr)
+		}
+		fmt.Println(string(encoded))
+	} else {
+		for _, finding := range findings {
+			fmt.Printf("%s: [%s %s] %s\n", finding.File, finding.Code, finding.Severity.String(), finding.Message)
+		}
+	}
+	fmt.Fprintf(os.Stderr, "enrich --no-emit: %d mirror file(s), %d finding(s)\n", len(mirrorFiles), len(findings))
+	os.Exit(exitCode)
+}
+
+// mirrorDriftExitCode is the tree walk's exit-code policy, the twin of the
+// single-file lane's enrichFindingFails: a finding carrying the Completeness bit
+// fails only under --require-complete, and any Error-severity finding (a stale
+// carcass via hygieneSeverity, enrich-mirror-* drift) fails both lanes. The
+// cosmetic enrich-mirror-moved location drift is a Warning and never fails.
+func mirrorDriftExitCode(findings []driftFinding, requireComplete bool) int {
+	for _, finding := range findings {
+		if diagnostics.IsCompleteness(finding.Code) {
+			if requireComplete {
+				return 1
+			}
+			continue
+		}
+		if finding.Severity == enrichment.Error {
+			return 1
+		}
+	}
+	return 0
+}
+
+// isUnder reports whether path is dir itself or lies within it (neither escaping
+// with ".." nor on a different volume).
+func isUnder(dir, path string) bool {
+	rel, err := filepath.Rel(dir, path)
+	if err != nil {
+		return false
+	}
+	return rel == "." || !strings.HasPrefix(rel, "..")
+}
+
+// collectMirrorFiles returns the .ts mirror files to check: target itself when
+// it is a file, or every .ts file under it when it is a directory. A missing
+// target yields an empty list (nothing to check), not an error.
+func collectMirrorFiles(target string) ([]string, error) {
+	info, err := os.Stat(target)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("stat %s: %w", target, err)
+	}
+	if !info.IsDir() {
+		return []string{target}, nil
+	}
+	var files []string
+	walkErr := filepath.Walk(target, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		if strings.HasSuffix(path, ".ts") {
+			files = append(files, tspath.NormalizePath(path))
+		}
+		return nil
+	})
+	if walkErr != nil {
+		return nil, walkErr
+	}
+	sort.Strings(files)
+	return files, nil
+}
+
+// checkMirrorFile reads one mirror file's breadcrumb and returns its drift
+// findings. A mirror file with no readable breadcrumb yields nothing (it is not
+// a generated mirror, or has no source link to check).
+func checkMirrorFile(mirrorFile, genDirFlag, tsconfigPath string, parsed *program.InferredConfig) []driftFinding {
+	contents, err := os.ReadFile(mirrorFile)
+	if err != nil {
+		return []driftFinding{{
+			File:     mirrorFile,
+			Severity: enrichment.Error,
+			Code:     diagnostics.CodeGenMirrorUnreadable,
+			Message:  "cannot read mirror file: " + err.Error(),
+			Args:     []string{err.Error()},
+		}}
+	}
+	text := string(contents)
+	breadcrumb, hasBreadcrumb := mirror.ParseBreadcrumb(text)
+	if !hasBreadcrumb {
+		return nil
+	}
+	lineIndex := mirror.NewLineIndex(text)
+
+	var findings []driftFinding
+
+	// Completeness + hygiene: unfilled @todo scaffolds, blank scaffold values, and
+	// stale @rtOrphan carcasses — the SAME text scan CheckFile runs, so the tree
+	// walk gates on completeness under --require-complete exactly like the
+	// single-file check (blanks/@todo are tolerated by --no-emit, fail
+	// --require-complete). Family is read off the committed mirror's path segment.
+	for _, hygiene := range enrichgen.HygieneDiagnostics(text, mirrorFile, isMockMirrorPath(mirrorFile)) {
+		findings = append(findings, driftFinding{
+			File:     mirrorFile,
+			Severity: hygieneSeverity(hygiene.Code),
+			Code:     hygiene.Code,
+			Message:  diagnostics.Definitions[hygiene.Code].Headline,
+			Line:     hygiene.Site.StartLine,
+			Col:      hygiene.Site.StartCol,
+		})
+	}
+
+	// enrich-mirror-source-missing / enrich-mirror-type-missing, the shared checks.
+	for _, drift := range mirror.CheckBreadcrumbDrift(mirrorFile, text, nil) {
+		line, col := lineIndex.At(drift.Start)
+		findings = append(findings, driftFinding{
+			File:     mirrorFile,
+			Severity: drift.Severity(),
+			Code:     drift.Code,
+			Message:  drift.Message,
+			Args:     drift.Args,
+			Line:     line,
+			Col:      col,
+		})
+		if drift.Code == diagnostics.CodeGenSourceMissing {
+			// Can't judge location drift without the source.
+			return findings
+		}
+	}
+
+	// enrich-mirror-moved: the mirror file is not where the source's
+	// computed mirror path would put it. CLI-only (needs the enrich config).
+	// The config anchors at the MIRROR file — the project that owns the mirror
+	// tree — exactly like the enrich write lane, so the two can never disagree. (An
+	// anchor at the resolved source re-derives the config inside a DEPENDENCY
+	// for a node_modules-sourced type and flags the write lane's own output as drifted.)
+	// The expected location depends on the file's FAMILY, read off its path
+	// segment under the enrich root (friendly/, mock/, or i18n/<locale>/); a
+	// file at none of them was moved by hand and drifts against both family paths.
+	resolvedSource := mirror.ResolveBreadcrumb(mirrorFile, breadcrumb.Spec)
+	config := resolveEnrichConfig(mirrorFile, genDirFlag, tsconfigPath, parsed)
+
+	// i18n locale mirror: its canonical home derives from the friendly mirror
+	// it translates (<I18nDir>/<locale>/<friendly-relative path>).
+	if locale, isLocaleMirror := localeMirrorOf(config, mirrorFile); isLocaleMirror {
+		expectedMirror := config.TranslationPathFor(locale, config.MirrorPath(familyFriendly, resolvedSource))
+		if tspath.NormalizePath(expectedMirror) != tspath.NormalizePath(mirrorFile) {
+			line, col := lineIndex.At(breadcrumb.Start)
+			findings = append(findings, driftFinding{
+				File:     mirrorFile,
+				Severity: enrichment.Warning,
+				Code:     diagnostics.CodeGenMirrorDrift,
+				Message:  fmt.Sprintf("mirror location drift: source maps to %s but this file is %s — re-run mion enrich to relocate", expectedMirror, mirrorFile),
+				Args:     []string{expectedMirror, mirrorFile},
+				Line:     line,
+				Col:      col,
+			})
+		}
+		return findings
+	}
+
+	family, ok := mirrorFamilyOf(config.EnrichDir, mirrorFile)
+	if !ok {
+		line, col := lineIndex.At(breadcrumb.Start)
+		expectedFriendly := config.MirrorPath(familyFriendly, resolvedSource)
+		expectedMock := config.MirrorPath(familyMock, resolvedSource)
+		findings = append(findings, driftFinding{
+			File:     mirrorFile,
+			Severity: enrichment.Warning,
+			Code:     diagnostics.CodeGenMirrorDrift,
+			Message: fmt.Sprintf("mirror location drift: source maps to the per-family files %s + %s but this file is %s — re-run mion enrich to relocate",
+				expectedFriendly, expectedMock, mirrorFile),
+			Args: []string{expectedFriendly + " + " + expectedMock, mirrorFile},
+			Line: line,
+			Col:  col,
+		})
+		return findings
+	}
+	expectedMirror := config.MirrorPath(family, resolvedSource)
+	if tspath.NormalizePath(expectedMirror) != tspath.NormalizePath(mirrorFile) {
+		line, col := lineIndex.At(breadcrumb.Start)
+		findings = append(findings, driftFinding{
+			File:     mirrorFile,
+			Severity: enrichment.Warning,
+			Code:     diagnostics.CodeGenMirrorDrift,
+			Message:  fmt.Sprintf("mirror location drift: source maps to %s but this file is %s — re-run mion enrich to relocate", expectedMirror, mirrorFile),
+			Args:     []string{expectedMirror, mirrorFile},
+			Line:     line,
+			Col:      col,
+		})
+	}
+
+	return findings
+}
+
+// localeMirrorOf reports whether mirrorFile is an i18n locale mirror under the
+// config's i18n root, and which locale segment it sits in. A .ts file directly
+// under i18n/ (no locale segment) is not a locale mirror — it falls through to
+// the family check and drifts like any other hand-moved file.
+func localeMirrorOf(config enrichConfig, mirrorFile string) (string, bool) {
+	rel, err := filepath.Rel(config.I18nDir, mirrorFile)
+	if err != nil || rel == "." || strings.HasPrefix(rel, "..") {
+		return "", false
+	}
+	segments := strings.SplitN(filepath.ToSlash(rel), "/", 2)
+	if len(segments) < 2 {
+		return "", false
+	}
+	return segments[0], true
+}
+
+// mirrorFamilyOf reads the family off the first path segment under the enrich root; ok=false outside it or with none.
+func mirrorFamilyOf(enrichDir, mirrorFile string) (string, bool) {
+	rel, err := filepath.Rel(enrichDir, mirrorFile)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return "", false
+	}
+	first := filepath.ToSlash(rel)
+	if idx := strings.Index(first, "/"); idx >= 0 {
+		first = first[:idx]
+	}
+	if first == familyFriendly || first == familyMock {
+		return first, true
+	}
+	return "", false
+}
+
+// isMockMirrorPath reports whether a committed mirror file lives under the mock
+// family dir (`…/enriched/mock/…`) — the cheap family signal the tree-walk
+// hygiene scan uses to pick the enrich-text-* vs enrich-mock-* codes. A friendly or i18n mirror
+// (neither carries the mock segment) reports false → the FriendlyText codes.
+func isMockMirrorPath(mirrorFile string) bool {
+	return strings.Contains(filepath.ToSlash(mirrorFile), "/"+familyMock+"/")
+}
+
+// hygieneSeverity is the severity a tag-hygiene finding carries in the drift
+// report, read from the gate POLICY rather than the catalog level: an incomplete
+// finding (unfilled @todo, blank value; the Completeness bit) is a Warning the
+// default lane tolerates, and everything else the hygiene scan raises (a stale
+// @rtOrphan / @rtOrphanChild carcass) is WRONG content, an Error in both lanes.
+// The catalog level is LevelWarning for all of them (a mirror with a carcass
+// still runs), which is why it cannot drive this report.
+func hygieneSeverity(code string) enrichment.Severity {
+	if diagnostics.IsCompleteness(code) {
+		return enrichment.Warning
+	}
+	return enrichment.Error
+}

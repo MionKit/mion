@@ -12,9 +12,9 @@
 //
 //	go run ./cmd/gen-plugin-keys
 //
-// Or via rtx (regenerates + formats + drift-checks):
+// Or via miondevx (regenerates + formats + drift-checks):
 //
-//	pnpm rtx core codegen pluginkeys [--check]
+//	pnpm miondevx core codegen pluginkeys [--check]
 package main
 
 import (

@@ -7,40 +7,40 @@
 >   `@mionjs/run-types`;
 > - the Go CLI verb `enrich` / `enrich --no-emit` (`ts-go-runtypes/internal/enrichment`, a separate
 >   package), incl. **named-type-driven emission** (one `const` per named type) and
->   the `enrich --no-emit` diagnostics **FT002 / FT003 / FT005 / MD001**;
+>   the `enrich --no-emit` diagnostics **enrich-text-unknown-field / enrich-text-unknown-error-key / enrich-text-unknown-placeholder / enrich-mock-unknown-field**;
 > - **`enrich --update` reconcile + `enrich --prune`** — a value-preserving merge of an
 >   existing mirror against the regenerated set (property merge, field rename,
 >   `@rtType`/`@rtIds` markers, `@rtOrphan`/`@rtOrphanChild` carcasses), with a
 >   byte-identical idempotent re-run, and a destructive prune sweep (see
 >   [`enrich` semantics → `--update`](#enrich---update--reconcile-value-preserving-merge));
 > - the **per-family mirror split** (`<genDir>/enriched/friendly/` + `<genDir>/enriched/mock/`
->   subtrees, with a one-shot auto-migration of pre-split combined mirrors) and the
+>   subtrees) and the
 >   **FriendlyText i18n layer** — per-locale translation mirrors, generator-owned
->   plural templates (checked by **FT006 / FT007 / FT008**), `createFriendlyTextI18n`,
+>   plural templates (checked by **enrich-text-plural-missing-other / enrich-text-unknown-plural-arm / enrich-text-plural-without-count**), `createFriendlyTextI18n`,
 >   `enrich --i18n` / `enrich --i18n --no-emit` (see [Translations (i18n)](#translations-i18n)).
 >
 > **Storage + consumption model (this doc):** enrichment is committed to a **mirror
-> directory** (`src/__runtypes/enriched/`, configured via the tsconfig `plugins` entry;
+> directory** (`src/.mion/enriched/`, configured via the tsconfig `plugins` entry;
 > one subtree per artifact family — `friendly/` + `mock/`)
 > and consumed through **real, committed imports** — never plugin-injected. This
 > follows the persistence invariant ([below](#persistence-invariant--committed-artifacts-get-committed-links)):
 > a committed artifact gets a committed (visible) link; only *ephemeral* cache modules
 > are injected. The Vite plugin is **not** involved in enrichment at runtime.
 >
-> **Deferred refinements (design-stage below):** **MD003** (pool values validate —
+> **Deferred refinements (design-stage below):** **enrich-mock-invalid-pool** (pool values validate —
 > needs the runtime validator), the always-on *Vite-build* surfacing of the
-> `FT0xx`/`MD0xx` diagnostics (today they run via the `enrich --no-emit` CLI mode, not the build),
-> `FT004`/`MD002` (the precise types already make TS catch these), `FT010`/`MD010`
-> drift + `MD004`, and the `$[val]` enrichment. Sections describing those note it.
+> `enrich-text-*` / `enrich-mock-*` diagnostics (today they run via the `enrich --no-emit` CLI mode, not the build),
+> `enrich-text-shape-mismatch`/`enrich-mock-shape-mismatch` (the precise types already make TS catch these), `enrich-text-type-drift`/`enrich-mock-type-drift`
+> drift + `enrich-mock-inverted-range`, and the `$[val]` enrichment. Sections describing those note it.
 
 ## Why this is a new artifact class
 
-Everything RunTypes emits today — validators, JSON/binary codecs, the reflection
+Everything RunTypes emits today — validators, JSON codecs, the reflection
 bundle — is a **pure function of the type**: deterministic, regenerated every
 build, never committed, correct by construction. There is no "sync" problem
 because there is nothing to keep in sync; the artifact *is* the type, recomputed.
 All of it lives only as regenerated files under the gitignored
-`<genDir>/types/` + the `node_modules/.cache/ts-runtypes/` disk cache.
+`<genDir>/types/` + the `node_modules/.cache/mion/` disk cache.
 
 `FriendlyText<T>` and `MockData<T>` are a different species:
 
@@ -54,7 +54,7 @@ All of it lives only as regenerated files under the gitignored
 
 So these are **satellite artifacts keyed by a type**: authored once, committed,
 and validated against the type forever after. They are *not* a code-emit family
-like `validate`/`json`/`binary` — there is no runtime codegen and nothing on the
+like `validate`/`json` — there is no runtime codegen and nothing on the
 hot Vite path. The compiler's only jobs are (1) **`enrich`** — emit a committed
 skeleton from the live type, and (2) **`enrich --no-emit`** — validate the authored literal
 against the live type. Consumers reach the result through an ordinary committed
@@ -71,7 +71,7 @@ linked:
 | | identified by | link to it |
 | --- | --- | --- |
 | Cache module (`<genDir>/types/*.js`) | **structural id** (location-independent, recomputed) | **plugin-injected** (regenerated every build — never hand-imported) |
-| Enrichment (`src/__runtypes/enriched/*`) | **type name + source path** (human-meaningful, committed) | **real `import`** (visible, IDE-managed, in the dep graph) |
+| Enrichment (`src/.mion/enriched/*`) | **type name + source path** (human-meaningful, committed) | **real `import`** (visible, IDE-managed, in the dep graph) |
 
 The rule: **a link's persistence matches its target's**. Committed artifact ⟹
 committed (visible) import; ephemeral artifact ⟹ injected (invisible) link. The
@@ -103,7 +103,7 @@ One recursive node. Every node is `{ rt$label, rt$errors, ...childFields }`:
 `rt$`-prefixed keys are meta, every other key is a child field. Leaf nodes simply
 have no children, so nesting is uniform with no `fields:` wrapper. The `rt$`
 prefix is RESERVED: a source-type property named `rt$…` cannot be enriched —
-`enrich` refuses it and `enrich --no-emit` reports FT011 (friendly) / MD011 (mock). A plain
+`enrich` refuses it and `enrich --no-emit` reports enrich-text-reserved-prefix (friendly) / enrich-mock-reserved-prefix (mock). A plain
 `$`-prefixed property is an ordinary field.
 
 ```ts
@@ -208,17 +208,15 @@ enrichment makes `$[val]` resolve uniformly to the declared bound.
 
 **Constraint granularity is bounded by the type — and the type ENFORCES it.**
 A bare `name: string` can only fail as `type`; you only get `minLength`/`maxLength`
-keys because the field is `FormatString<{minLength; maxLength}>`. The typing is
-param-precise: `ErrorTemplates<F>` reads the field's `__rtFormatParams` brand and
-derives the exact key set — every failable param is a REQUIRED key (blank `''` =
-no custom message), an unknown key is an excess-property error (FT003 moves into
-the IDE), count-bearing keys accept a plural object, and non-failing params
-(`isCurrency` + the transformers `trim`/`lowercase`/`uppercase`/`capitalize`/
-`replace`/`replaceAll` — the `NonFailingParams` union in
-[`friendlyType.ts`](../packages/run-types/src/enrich/friendlyType.ts), mirrored
-by `nonFailingParams` in [`ts-go-runtypes/internal/enrichment/enrich.go`](../ts-go-runtypes/internal/enrichment/enrich.go))
-never become keys. The richness of the friendly map is a function of how richly
-the type is annotated.
+keys because the field is `FormatString<{minLength; maxLength}>`. The keys come
+from each format's own validation-errors code: Go scans it (`formats.ErrorKeysFor`)
+for the scaffold, the sync and the checks, and the generated `FormatErrorKeys`
+table gives `ErrorTemplates<F>` the keys the field's format NAME can produce. Every
+key is optional in the type, an unknown key is an excess-property error, count-bearing
+keys accept a plural object, and `enrich --no-emit` reports a missing key (enrich-text-missing-message) or
+one the field can never fail on (enrich-text-unknown-error-key). Params that never fail (`float`,
+`isCurrency`, the transformers, ...) never become keys. The richness of the friendly
+map is a function of how richly the type is annotated.
 
 ### Aggregation: errors accumulate
 
@@ -247,7 +245,7 @@ both legal in single-locale maps too:
   [`ts-go-runtypes/internal/enrichment/classify.go`](../ts-go-runtypes/internal/enrichment/classify.go), read by emitter
   and checker alike so they can never disagree) may carry a plural OBJECT instead
   of a plain string: `minLength: {one: '…', other: '…'}`. Arm keys are CLDR
-  cardinal categories; only `other` is mandatory (FT006); `enrich` scaffolds the arm
+  cardinal categories; only `other` is mandatory (enrich-text-plural-missing-other); `enrich` scaffolds the arm
   set of the source locale (tsconfig `i18n.sourceLocale`, default `en` — built-in
   CLDR table in [`ts-go-runtypes/internal/enrichment/cldr/`](../ts-go-runtypes/internal/enrichment/cldr/) covering
   en/es/zh/hi/ar/pt/ru/ja/de/fr/pl, all six categories for any other locale). The
@@ -258,7 +256,7 @@ both legal in single-locale maps too:
   legal on a count-bearing constraint; `rt$label` is always a plain string.
   Type-side: `TemplateLeaf = string | PluralTemplate` (plus `PluralCategory`),
   exported from `@mionjs/run-types`; the TS `CountBearingKeys` union in
-  `friendlyType.ts` mirrors Go's `CountBearing` — the second TS↔Go sync point.
+  `friendlyText.ts` mirrors Go's `CountBearing` — the second TS↔Go sync point.
 - **Type-driven `$[val]` rendering.** On the `createFriendlyTextI18n` path the
   error's format payload says what the bound IS. A number with the `isCurrency`
   param (`TF.Currency<P>` = `Number<P & {isCurrency: true}>` — pure
@@ -320,13 +318,13 @@ verbatim-sliced region with a per-branch **instantiation-budget** compile test
 ```ts
 type TemplateLeaf = FriendlyTemplate | PluralTemplate;   // plural only on count-bearing keys
 
-// Param-precise: the leaf arm threads the FIELD's own type F; its
-// `__rtFormatParams` brand decides the exact key set. Two exclusive modes:
-type ConstraintTemplates<P> = { type: FriendlyTemplate } & {
-  [K in Exclude<keyof P & string, NonFailingParams>]: K extends CountBearingKeys ? TemplateLeaf : FriendlyTemplate;
+// The leaf arm threads the FIELD's own type F; its `__rtFormatName` brand picks the
+// generated key set. Two exclusive modes:
+type ConstraintTemplates<Name extends keyof FormatErrorKeys> = { type: FriendlyTemplate } & {
+  [K in FormatErrorKeys[Name]]?: K extends CountBearingKeys ? TemplateLeaf : FriendlyTemplate;
 } & { rt$default?: never };
 type DefaultOnlyTemplates = { rt$default: FriendlyTemplate; type?: never };
-export type ErrorTemplates<F = never> = /* bare `type`-only ⋁ DefaultOnly ⋁ Constraint<P> — see friendlyType.ts */ …;
+export type ErrorTemplates<F = never> = /* bare `type`-only ⋁ DefaultOnly ⋁ Constraint<P> — see friendlyText.ts */ …;
 
 interface FriendlyMeta<F = never> { rt$label: string; rt$errors: ErrorTemplates<F> }  // BOTH required
 type FriendlyLeaf = string | number | boolean | bigint | null | undefined | Date | RegExp;
@@ -393,7 +391,7 @@ const mockUser: MockData<User> = {
 const newUser = createMockDataFn<User>(undefined, { data: mockUser });   // existing factory + the `data` option
 ```
 
-### The pool-validation superpower (MD003)
+### The pool-validation superpower (enrich-mock-invalid-pool)
 
 Because RunTypes can **validate**, the compiler checks that **every pool / range
 value actually satisfies its field's type and format**. An LLM that hallucinates a
@@ -431,9 +429,9 @@ export type MockData<T> = MockNode<T>;
 > key an excess property (editor error), and an object-vs-scalar shape mismatch is a
 > type error (both proven by the P1 instantiation-budget tests). So the Go pass
 > below is a **refinement layer** — it adds only what the type system can't see:
-> constraint-key existence (FT003 — the `rt$errors` record has an index signature, so
-> TS accepts any key), `$[…]` placeholder validity (FT005), mock pool-value
-> validation (MD003), and the semantic-drift hash (FT010/MD010). The feature is
+> constraint-key existence (enrich-text-unknown-error-key — the `rt$errors` record has an index signature, so
+> TS accepts any key), `$[…]` placeholder validity (enrich-text-unknown-placeholder), mock pool-value
+> validation (enrich-mock-invalid-pool), and the semantic-drift hash (enrich-text-type-drift/enrich-mock-type-drift). The feature is
 > already useful with just the types + the editor; the pass sharpens the diagnostics.
 
 **Implemented today as the `enrich --no-emit` CLI mode** (not yet the Vite build). It finds
@@ -442,11 +440,11 @@ runs a **kind-switch paired walk** of the authored object-literal against the
 `RunType` — the emitter convention, in
 [`ts-go-runtypes/internal/enrichment/validate.go`](../ts-go-runtypes/internal/enrichment/validate.go) over a tiny
 `LiteralView` adapter (so the checks are unit-testable without a Program). Wired
-diagnostics: **FT002, FT003, FT005, MD001** (the others below are deferred).
+diagnostics: **enrich-text-unknown-field, enrich-text-unknown-error-key, enrich-text-unknown-placeholder, enrich-mock-unknown-field** (the others below are deferred).
 
 The **always-on build version is the deferred integration**: recognize the
 annotation as one more marker arm during the normal scan and emit on the existing
-`Diagnostic[]` channel so findings surface in Vite/HMR like today's `VL0xx` warnings
+`Diagnostic[]` channel so findings surface in Vite/HMR like today's `validate-*` warnings
 — a **new shape-aware comptime axis** (`ShapeCheckedArgs<T>`) where `CompTimeArgs`
 today only checks *literalness* but this also cross-references the literal's keys
 against `T`'s children and formats. The walk logic is identical to `enrich --no-emit`; only the
@@ -456,31 +454,32 @@ trigger differs (CLI vs build scan).
 
 | Code      | Severity | Status | Meaning                                                                       |
 | --------- | -------- | ------ | ---------------------------------------------------------------------------- |
-| **FT002** | Error    | ✅ `enrich --no-emit` | key is not a field of `T` — stale (field renamed/removed)              |
-| **FT003** | Warning  | ✅ `enrich --no-emit` | `rt$errors` key isn't a constraint this field's format declares (Go has `FormatAnnotation.Params`, so the exact set is known) |
-| **FT005** | Warning  | ✅ `enrich --no-emit` | unknown `$[…]` placeholder for this constraint/context — covers each plural ARM's placeholders; any leftover colon-form `$[val:kind:name]` token (the REMOVED named-format syntax) is flagged with a pointer to plain `$[val]` |
-| **FT006** | Error    | ✅ `enrich --no-emit` | plural template missing the mandatory `other` arm (the render backstop) |
-| **FT007** | Warning  | ✅ `enrich --no-emit` | plural arm key is not a CLDR cardinal category (`zero`/`one`/`two`/`few`/`many`/`other`) |
-| **FT008** | Warning  | ✅ `enrich --no-emit` | plural object on a non-count-bearing constraint — dead arms, only `other` ever renders; use a plain string |
-| **FT009** | Error    | ✅ `enrich --no-emit` | `rt$default` beside any other `rt$errors` key — the catch-all and per-constraint modes are mutually exclusive |
-| **FT011** | Error    | ✅ `enrich --no-emit` | a property of `T` is named `rt$…` — collides with the reserved enrichment meta prefix (`enrich` refuses such a type up front) |
-| **FT001** | Info     | deferred | field of `T` has no label (renders the raw name)                       |
-| **FT004** | Error    | deferred (TS catches) | structural mismatch (object node where `T` is scalar)     |
-| **FT010** | Info     | deferred | `T`'s structural id changed since authored — review for semantic drift |
+| **enrich-text-unknown-field** | Error    | ✅ `enrich --no-emit` | key is not a field of `T` — stale (field renamed/removed)              |
+| **enrich-text-unknown-error-key** | Warning  | ✅ `enrich --no-emit` | `rt$errors` key is not an error this field can produce (Go scans the field's validation-errors code, so the exact set is known) |
+| **enrich-text-unknown-placeholder** | Warning  | ✅ `enrich --no-emit` | unknown `$[…]` placeholder for this constraint/context — covers each plural ARM's placeholders; any leftover colon-form `$[val:kind:name]` token (the REMOVED named-format syntax) is flagged with a pointer to plain `$[val]` |
+| **enrich-text-plural-missing-other** | Error    | ✅ `enrich --no-emit` | plural template missing the mandatory `other` arm (the render backstop) |
+| **enrich-text-unknown-plural-arm** | Warning  | ✅ `enrich --no-emit` | plural arm key is not a CLDR cardinal category (`zero`/`one`/`two`/`few`/`many`/`other`) |
+| **enrich-text-plural-without-count** | Warning  | ✅ `enrich --no-emit` | plural object on a non-count-bearing constraint — dead arms, only `other` ever renders; use a plain string |
+| **enrich-text-default-and-messages** | Error    | ✅ `enrich --no-emit` | `rt$default` beside any other `rt$errors` key — the catch-all and per-constraint modes are mutually exclusive |
+| **enrich-text-reserved-prefix** | Error    | ✅ `enrich --no-emit` | a property of `T` is named `rt$…` — collides with the reserved enrichment meta prefix (`enrich` refuses such a type up front) |
+| **enrich-text-missing-message** | Warning  | ✅ `enrich --no-emit` | a failure the field can produce has no `rt$errors` key and no `rt$default`, so it renders a generic message |
+| **enrich-text-missing-label** | Info     | deferred | field of `T` has no label (renders the raw name)                       |
+| **enrich-text-shape-mismatch** | Error    | deferred (TS catches) | structural mismatch (object node where `T` is scalar)     |
+| **enrich-text-type-drift** | Info     | deferred | `T`'s structural id changed since authored — review for semantic drift |
 
 ### `MockData` diagnostics
 
 | Code      | Severity | Status | Meaning                                                            |
 | --------- | -------- | ------ | ----------------------------------------------------------------- |
-| **MD001** | Error    | ✅ `enrich --no-emit` | key is not a field of `T`                                      |
-| **MD011** | Error    | ✅ `enrich --no-emit` | a property of `T` is named `rt$…` — the reserved enrichment meta prefix (`enrich` refuses such a type up front) |
-| **MD002** | Error    | deferred (TS catches) | structural mismatch                               |
-| **MD003** | Error    | deferred (needs validator) | a pool/range value **fails validation** against the field's type/format |
-| **MD004** | Warning  | deferred | `min > max`, or `rt$length` inverted                              |
-| **MD005** | Info     | deferred | pool below a configured floor (e.g. `< 50`) — off by default     |
-| **MD010** | Info     | deferred | structural drift since authored                                 |
+| **enrich-mock-unknown-field** | Error    | ✅ `enrich --no-emit` | key is not a field of `T`                                      |
+| **enrich-mock-reserved-prefix** | Error    | ✅ `enrich --no-emit` | a property of `T` is named `rt$…` — the reserved enrichment meta prefix (`enrich` refuses such a type up front) |
+| **enrich-mock-shape-mismatch** | Error    | deferred (TS catches) | structural mismatch                               |
+| **enrich-mock-invalid-pool** | Error    | deferred (needs validator) | a pool/range value **fails validation** against the field's type/format |
+| **enrich-mock-inverted-range** | Warning  | deferred | `min > max`, or `rt$length` inverted                              |
+| **enrich-mock-small-pool** | Info     | deferred | pool below a configured floor (e.g. `< 50`) — off by default     |
+| **enrich-mock-type-drift** | Info     | deferred | structural drift since authored                                 |
 
-### Drift detection (FT010 / MD010)
+### Drift detection (enrich-text-type-drift / enrich-mock-type-drift)
 
 Structural diagnostics catch field renames/removals, but not *semantic* drift
 ("shape unchanged, meaning moved"). Stamp each generated artifact with `T`'s
@@ -498,12 +497,12 @@ CLI (below) rather than scraping editor output.
 | `mion enrich <file> --no-emit --json`               | Validate **one file** (tag hygiene, content, drift), structured JSON out. The agent's tight feedback tool. |
 | `mion enrich <file> [--mock] [--friendly] [--update] [--prune]` | Generate / refresh the type's mirror file under `genDir`. `--update` reconciles an existing mirror value-preservingly (property merge + rename + orphan); `--prune` strips `@rtOrphan`/`@rtOrphanChild` carcasses (the only destructive op). Breadcrumb drift now lives under `enrich --no-emit`. See `enrich` semantics below. |
 | `mion enrich --i18n <locale>` (or `all`) `[--update] [--prune] [<src.ts>]` | Scaffold (create-only) / reconcile / prune a locale's `FriendlyText<T>` mirrors — generated from the SOURCE TYPE with the same driver as the friendly mirror (locale-parameterized); `all` fans out over tsconfig `i18n.locales`; without `<src.ts>` targets are discovered as "sources that have a friendly mirror" (path math only — the mirror is never read as an input). See [Translations (i18n)](#translations-i18n). |
-| `mion enrich --i18n <locale> --no-emit` (or `all`) | Translation completeness gate for CI (**TR001–TR004**) — Warnings, promoted to Errors by tsconfig `i18n.strict`. |
+| `mion enrich --i18n <locale> --no-emit` (or `all`) | Translation completeness gate for CI (**enrich-i18n-***) — Warnings, promoted to Errors by tsconfig `i18n.strict`. |
 
 Both run as out-of-band CLI modes of the Go binary (an opt-in bundler-plugin option
 can additionally drive the mechanical scaffold + sync — not translation, not the LLM
 step — in dev/watch). Validation runs via `enrich --no-emit` (CI / agents); surfacing
-the same FT/MD diagnostics *always-on during a Vite build* is the deferred integration
+the same enrich-text-* / enrich-mock-* diagnostics *always-on during a Vite build* is the deferred integration
 (see Validation below).
 
 ### The agent loop — the compiler as a tool for the LLM
@@ -550,7 +549,7 @@ LLM-backed generation.
   *same* validation the always-on scan runs during a real Vite build; the CLI just runs
   it standalone.
 - **Public surface stays in the npm package** via a thin `mion` bin that
-  shells to the Go binary — per CLAUDE.md ("the JS packages are the only public
+  shells to the Go binary — per AGENTS.md ("the JS packages are the only public
   surface") — but the *logic* (the emitter, the walk, file I/O) is Go.
 
 (Earlier draft split file-writing onto the JS side; superseded — the emitter is a
@@ -568,7 +567,8 @@ Enrichment is stored in a committed **mirror directory** whose tree shadows your
 source tree, **one subtree per artifact family**: a type defined in
 `<rootDir>/models/user.ts` gets its friendly map in
 `<genDir>/enriched/friendly/models/user.ts` and its mock data in
-`<genDir>/enriched/mock/models/user.ts`. Storage is anchored to the **type's definition**
+`<genDir>/enriched/mock/models/user.ts` (examples here assume `rootDir: "src"`; without
+`rootDir` the path is taken from the tsconfig folder, e.g. `friendly/src/models/user.ts`). Storage is anchored to the **type's definition**
 (not its call sites) — the committed analog of the cache's *one canonical entry per
 type* rule: **one enrichment home per type per family, at its definition**, however
 many files consume it. A mirror tree (rather than `.rt.ts` siblings interleaved
@@ -597,7 +597,7 @@ tsgo already looks:
     "plugins": [
       {
         "name": "mion",
-        // mirrors live by convention under <genDir>/enriched (genDir default: src/__runtypes)
+        // mirrors live under <genDir>/enriched (genDir default: .mion in the source folder)
         "moduleMode": "default",
         "emitMode": "code",
         "inlineMode": "default"
@@ -608,8 +608,9 @@ tsgo already looks:
 ```
 
 Precedence is **CLI flag > tsconfig entry > built-in default**. `genDir` defaults
-to `<genDir>/enriched`; the mirror path for a type is
-`<genDir>/enriched/<family>/<declFile relative to rootDir>` with `family` = `friendly` |
+to `.mion` in the source folder (`rootDir`, else the folder all program files share); the
+mirror path for a type is
+`<genDir>/enriched/<family>/<declFile relative to rootDir, else to the tsconfig folder>` with `family` = `friendly` |
 `mock`. The optional `i18n` object under the same entry configures the translation
 layer ([Translations (i18n)](#translations-i18n)) and is dormant when absent.
 
@@ -626,7 +627,7 @@ defined there — `friendly<Name>` consts in the `friendly/` subtree, `mock<Name
 consts in `mock/`, each family file importing only its own wrapper type:
 
 ```ts
-// src/__runtypes/enriched/friendly/models/user.ts — GENERATED, COMMITTED, hand-editable.
+// src/.mion/enriched/friendly/models/user.ts — GENERATED, COMMITTED, hand-editable.
 import type { User, Post } from '../../../../models/user';
 import type { FriendlyText } from '@mionjs/run-types';
 
@@ -635,7 +636,7 @@ export const friendlyPost: FriendlyText<Post> = { /* … */ };
 ```
 
 ```ts
-// src/__runtypes/enriched/mock/models/user.ts — same source, the mock family's mirror.
+// src/.mion/enriched/mock/models/user.ts — same source, the mock family's mirror.
 import type { User, Post } from '../../../../models/user';
 import type { MockData } from '@mionjs/run-types';
 
@@ -651,20 +652,8 @@ generated file simply fails to compile and the user fixes the export. That same
 `import type` line doubles as the **breadcrumb** for drift detection (see
 [`enrich` semantics](#enrich-semantics)).
 
-**Migrating a pre-split combined mirror.** A legacy mirror (one file at the
-no-family path holding both `friendly*` and `mock*` consts) is migrated
-automatically — once — by the next `enrich` run over its source: every const, marker,
-hand-written comment and `@rtOrphan` carcass is carried VERBATIM into its family's
-file, the source breadcrumb is recomputed for the one-directory-deeper location
-(cross-mirror value-import specifiers are untouched — both endpoints move down one
-family segment, so the relative path between two mirror files is unchanged), and
-the legacy file is deleted (`SplitCombined` in
-[`ts-go-runtypes/internal/enrichment/mirror/split.go`](../ts-go-runtypes/internal/enrichment/mirror/split.go)). The
-guards are conservative: the legacy file's breadcrumb must resolve back to the
-same source, and an existing family file is never overwritten (a stderr warning
-asks for a hand-merge instead). Until migrated, `enrich --no-emit` flags a combined
-mirror as **GE001** location drift. `--out <path>` keeps the old combined
-single-file layout as an explicit escape hatch.
+`enrich --no-emit` flags a mirror outside its family folder as **enrich-mirror-moved** location
+drift. `--out <path>` writes one combined file instead, as an explicit escape hatch.
 
 ### Named-type-driven emission (decided)
 
@@ -681,6 +670,8 @@ emitted output mirrors the **named-type** structure:
   deferred. Within one file (e.g. a test fixture declaring several interfaces) the
   references are intra-file const references, no imports.
 - **Anonymous / inline shapes are inlined** into their parent const (no name → no const).
+- **Type-format aliases are inlined too** (`TF.String<…>`, `TF.Email`, a user alias of one): a format is a
+  per-field constraint, so two same-format fields get two nodes and two labels, never one shared const.
 - **Cycles break at the back-edge.** Emit named consts in dependency (topological)
   order; a back-edge to an already-in-progress named type becomes a **leaf node**
   (friendly `{rt$label:''}`, mock `{}`) so the const graph never hits a TDZ self-reference.
@@ -910,9 +901,9 @@ generation of another, so the generated dirs can be treated as write-only.
 - **Plural arms are LOCALE-OWNED.** Never orphaned, never rename-paired, never
   down-scoped; a translator-pruned arm stays pruned — only the mandatory
   `other` backstop is ever re-inserted.
-- **`enrich --i18n --no-emit` findings:** **TR001** missing translation file, **TR002**
-  unfilled `@todo` blanks, **TR003** out of date vs the source TYPE (a
-  src-driven reconcile would change the file), **TR004** orphan carcasses
+- **`enrich --i18n --no-emit` findings:** **enrich-i18n-missing-translation** missing translation file, **enrich-i18n-todo-left**
+  unfilled `@todo` blanks, **enrich-i18n-out-of-date** out of date vs the source TYPE (a
+  src-driven reconcile would change the file), **enrich-i18n-orphans** orphan carcasses
   awaiting review / `--prune`. All Warnings (exit 0) unless tsconfig
   `i18n.strict: true` promotes them to Errors (exit 1); the RUNTIME is always
   lenient regardless.
@@ -991,8 +982,8 @@ The consumer imports the enrichment const from its mirror file and passes it. Pl
 greppable, IDE-managed code — no injection, no id-routing, no registry:
 
 ```ts
-import { mockUser }     from 'src/__runtypes/enriched/mock/models/user';
-import { friendlyUser } from 'src/__runtypes/enriched/friendly/models/user';
+import { mockUser }     from 'src/.mion/enriched/mock/models/user';
+import { friendlyUser } from 'src/.mion/enriched/friendly/models/user';
 
 createMockDataFn<User>({ data: mockUser });
 const friendly = createFriendlyText<User>(friendlyUser);
@@ -1049,7 +1040,7 @@ production graph. No special registration-gating mechanism required.
   bound, always carry the raw param value and stop overloading `val` with messages.
   A small, localized change to the format-error emit in
   [`ts-go-runtypes/internal/cachegen/typefunctions/formats/emit.go`](../ts-go-runtypes/internal/cachegen/typefunctions/formats/emit.go).
-- **No new emit family.** Unlike `validate`/`json`/`binary`, this feature adds **no**
+- **No new emit family.** Unlike `validate`/`json`, this feature adds **no**
   runtime codegen and nothing on the hot Vite path. The `enrich` skeleton emitter is a
   one-shot CLI walk; there is no per-build emitter, no id-routing, and no registry.
   Keep it out of the `operations` / `typefns.Families` registries.
@@ -1078,8 +1069,8 @@ overall architecture) and documented here:
 - **Auto-wire vs explicit** — **explicit committed imports, permanently** (per the
   persistence invariant). The injected/registry "auto-wire" variant was considered
   and rejected; it is not a future phase.
-- **`MockData` pool floor** (MD005) — warn-only, threshold configurable, off by
+- **`MockData` pool floor** (enrich-mock-small-pool) — warn-only, threshold configurable, off by
   default.
 
-See [CLAUDE.md](../CLAUDE.md) → "validate contract" for the serializable-data semantics
+See [architecture.md](../.agents/docs/architecture.md#validate-contract-serializable-data-only) for the serializable-data semantics
 that bound what the friendly-error layer can describe.

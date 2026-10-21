@@ -1,0 +1,90 @@
+/* ########
+ * 2026 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+import {FatalError, RpcError, StatusCodes} from '@mionjs/core';
+
+/** The 413 a platform adapter answers when a body passes the route's limit while it arrives. */
+export function requestPayloadTooLarge(): RpcError<'request-payload-too-large'> {
+  return new FatalError({
+    statusCode: StatusCodes.PAYLOAD_TOO_LARGE,
+    publicMessage: 'Payload Too Large',
+    type: 'request-payload-too-large',
+  });
+}
+
+/** How a fetch-style runtime reads a body fastest, a numeric code so the per-request check is one integer
+ *  compare. Measured on each runtime with a real server:
+ *  `stream` pulls the body stream and decodes once: node's Request (undici, the vercel node runtime), where
+ *  `text()` is slower than its own stream at every size.
+ *  `text` is `text()` when a content-length is declared, the stream otherwise: workerd, where both are
+ *  native and only the stream can stop an upload mid-flight.
+ *  `buffered` is `text()` or `arrayBuffer()`, never the stream reader: bun buffers the body natively and its
+ *  stream reader is over ten times slower, so its server-wide native limit is the one mid-flight guard. */
+export const BodyReadStrategy = {stream: 1, text: 2, buffered: 3} as const;
+export type BodyReadStrategy = (typeof BodyReadStrategy)[keyof typeof BodyReadStrategy];
+
+// One decoder for every request: a non-streaming `decode` keeps no state between calls, so sharing it is
+// safe. A streaming decode (`{stream: true}`) would not be, which is why the stream path decodes ONCE.
+const utf8 = new TextDecoder();
+
+/** Reads a fetch-style request body as text against the route's limit, the way the runtime reads fastest
+ *  (`strategy`). A declared `content-length` past the limit is refused before a byte is read. Sizes are
+ *  counted in bytes, never less than the character count the router checks again before parsing, so the
+ *  byte-exact refusal here always fires first. Undefined for a request with no body, else the router's 413. */
+export async function readRequestBody(
+  req: Request,
+  maxBodySize: number,
+  strategy: BodyReadStrategy
+): Promise<string | undefined> {
+  if (!req.body) return undefined;
+  const declared = req.headers.get('content-length');
+  if (declared !== null) {
+    if (Number(declared) > maxBodySize) throw requestPayloadTooLarge();
+    // the runtime delivers exactly content-length bytes: one native decode
+    if (strategy !== BodyReadStrategy.stream) return req.text();
+    return readStream(req, maxBodySize);
+  }
+  if (strategy !== BodyReadStrategy.buffered) return readStream(req, maxBodySize);
+  // no content-length on a runtime whose stream reader is the slow path: take the bytes whole
+  // (the native server limit already bounded them) and refuse past the limit before decoding
+  const bytes = await req.arrayBuffer();
+  if (bytes.byteLength > maxBodySize) throw requestPayloadTooLarge();
+  return utf8.decode(bytes);
+}
+
+/** Pulls the body chunk by chunk with the running size counted, cancels the stream the moment it
+ *  passes the limit so the rest is never pulled, and decodes ONCE at the end. */
+async function readStream(req: Request, maxBodySize: number): Promise<string> {
+  const reader = req.body!.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const {done, value} = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > maxBodySize) {
+      await reader.cancel();
+      throw requestPayloadTooLarge();
+    }
+    chunks.push(value);
+  }
+  return decodeOnce(chunks, size);
+}
+
+/** One UTF-8 decode over the whole body: a single chunk decodes in place, several are joined into
+ *  one buffer first so a character split across chunks is never decoded in halves. */
+function decodeOnce(chunks: Uint8Array[], size: number): string {
+  if (chunks.length === 0) return '';
+  if (chunks.length === 1) return utf8.decode(chunks[0]);
+  const joined = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    joined.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return utf8.decode(joined);
+}

@@ -216,7 +216,7 @@ func TestSidecar_GenerateMemoized(t *testing.T) {
 	}
 }
 
-// TestSidecar_GenerateUnsupportedConstruct pins the FMT005 lane: the
+// TestSidecar_GenerateUnsupportedConstruct pins the format-sample-generation-failed lane: the
 // pattern compiles under new RegExp but randexp throws on it.
 func TestSidecar_GenerateUnsupportedConstruct(t *testing.T) {
 	engine := newTestEngine(t)
@@ -256,7 +256,7 @@ func TestSidecar_GenerateCompileError(t *testing.T) {
 		t.Fatalf("GeneratePattern: %v", err)
 	}
 	if result.CompileError == "" || result.GenerateError != "" {
-		t.Fatalf("invalid syntax must be a CompileError (FMT002 lane), got %+v", result)
+		t.Fatalf("invalid syntax must be a CompileError (format-invalid-params lane), got %+v", result)
 	}
 }
 
@@ -345,5 +345,39 @@ func TestSidecar_TimeoutKillsEngine(t *testing.T) {
 	}
 	if _, err := engine.TestPattern("^b$", "", nil); err == nil {
 		t.Fatal("expected the sticky dead-engine error")
+	}
+}
+
+// TestSidecar_RunawayPatternTimesOutAndIsNotMemoized pins the transient lane
+// on the real bundle: a catastrophically backtracking pattern (the exact
+// shape the fuzz lane found) answers TimedOut, never CompileError (which the
+// disk cache persists as a property of the type), and the verdict is NOT
+// memoized, so the next ask evaluates it again instead of replaying what may
+// have been a load spike for the rest of the session. Slow on purpose: each
+// ask pays the normal budget and the quiet retry.
+func TestSidecar_RunawayPatternTimesOutAndIsNotMemoized(t *testing.T) {
+	engine := newTestEngine(t)
+	runaway := `(x|y)+.*.*\p{L}?`
+	sample := strings.Repeat("x", 2110)
+	for ask := 1; ask <= 2; ask++ {
+		result, err := engine.TestPattern(runaway, "", []string{sample})
+		if err != nil {
+			t.Fatalf("ask %d: TestPattern: %v", ask, err)
+		}
+		if !strings.Contains(result.TimedOut, "timed out") {
+			t.Fatalf("ask %d: expected a TimedOut verdict, got %+v", ask, result)
+		}
+		if result.CompileError != "" || len(result.Offenders) != 0 {
+			t.Fatalf("ask %d: a timeout must ride its own lane only, got %+v", ask, result)
+		}
+		engine.mu.Lock()
+		memoized, roundTrips := len(engine.memo), engine.nextID
+		engine.mu.Unlock()
+		if memoized != 0 {
+			t.Fatalf("ask %d: a timed-out verdict must not be memoized, memo has %d entries", ask, memoized)
+		}
+		if roundTrips != ask {
+			t.Fatalf("ask %d: expected %d sidecar round-trips (no replay), got %d", ask, ask, roundTrips)
+		}
 	}
 }

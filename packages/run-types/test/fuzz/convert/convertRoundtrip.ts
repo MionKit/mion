@@ -273,7 +273,7 @@ export interface ConvertFuzzReport {
   failures: string[];
 }
 
-/** The designed CNV001 refusals the generated space can legitimately reach —
+/** The designed convert-unsupported-kind refusals the generated space can legitimately reach —
  *  each is a documented loud lane, not a bug. Anything else is a failure.
  *  The list is EMPTY since every named recursive declaration converts: the
  *  embedded-self-reference and tuple-slot entries left when those shapes

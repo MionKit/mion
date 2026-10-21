@@ -30,7 +30,9 @@ compares the restated spelling against the shipped type by structural id, so
 drift fails loudly. The full list today: `FUZZ_FORMAT_SCRATCH_PREAMBLE`
 (typeGen.ts, pinned by `enrich/scratchFormatPreamble.test.ts`) and
 `i18nModel.ts`'s inline spellings (pinned by
-`enrich/i18nInlineSpelling.test.ts`). The marker module itself needs no
+`enrich/i18nInlineSpelling.test.ts`), and the `apiids/` lane's `@mionjs/router` and
+`@mionjs/client` stubs (pinned against their sources by `apiids/routerStubPin.test.ts`,
+since a run-types test cannot import the packages that depend on it). The marker module itself needs no
 stand-in at all: `MARKER_PACKAGE_OVERLAY` (@mionjs/devtools helpers)
 serves the REAL package's package.json + built dist .d.ts tree as virtual
 node_modules, so `@mionjs/run-types` resolves the way a consumer install
@@ -53,18 +55,20 @@ the **seed** that produced it, so it replays byte-for-byte (see
 test/fuzz/
 ├── vitest.fuzz-unit.config.ts   # standalone config for *.unit.test.ts (no Go binary)
 ├── core/                        # shared: deterministic RNG + random-type generator + crash guard
-├── value/                       # fix the type, fuzz the VALUE           (O1–O7)
+├── value/                       # fix the type, fuzz the VALUE           (O1–O7, O18–O25)
 ├── roundtrip/                   # one type, every codec strategy must agree (RT-*)
 ├── type/                        # fuzz the TYPE itself                    (TR1–TR4 + O*)
-├── binary/                      # binary encoder size-estimation / buffer growth (O-SIZE-*)
+│                                # (type/ also hosts the JSON size bound lane, JS-MAX-*, and typed emit, TE1–TE3)
 ├── cloning/                     # exact-shape clone vs a reference interpreter (O15–O17)
 ├── elision/                     # unused-builder elision: the two spellings stay equivalent (E0–E3)
+├── security/                    # attack the DECODERS: hostile JSON trees, format pumps (SJ-*, SF-*, GC-*)
+├── apiids/                      # a bundled mion client ships the server's exact runtypes (A1–A4)
 └── enrich/                      # model-based (stateful sequence) fuzzers  (R*, T*, NL/RC/CB…)
 ```
 
 ### Test-file suffixes
 
-| Suffix                  | Runs under                                                   | Needs `bin/mion`?                   | What it is                                                                                                             |
+| Suffix                  | Runs under                                                   | Needs `mion-bin/mion`?              | What it is                                                                                                             |
 | ----------------------- | ------------------------------------------------------------ | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `*.unit.test.ts`        | `vitest.fuzz-unit.config.ts` **and** the main package config | No — pure TS over hand-built graphs | Pins the fuzz _core_ (RNG, generators, mutators) without the compiler                                                  |
 | `*.integration.test.ts` | main package config                                          | Yes — `.skipIf(!HAS_BIN)`           | Drives the full plugin pipeline; a fixed-iteration batch by default, an unbounded soak when its `*_SOAK_MS` env is set |
@@ -113,17 +117,36 @@ so any run replays from a single number.
   _step_ is the seeding and crash-guarding unit; most lanes run one step per
   round, the value and cloning lanes run one per target inside a round.
 - **`typeGen.ts`** — a recursive generator of random TypeScript types across the
-  widest shape space we can express: scalars, literals, `Date`/`RegExp`/`bigint`,
+  widest shape space we can express: scalars, literals, `Date`/`bigint`,
   arrays, tuples, objects (optional / readonly / method / non-identifier keys),
   index signatures, `Record`, unions, intersections, `Map`/`Set`/`Promise`,
-  the non-serialisable kinds (`function`, `symbol`, `ArrayBuffer`, typed arrays,
+  the non-serialisable kinds (`function`, `symbol`, `RegExp`, `ArrayBuffer`, typed arrays,
   `DataView`), and named `interface` (including recursive) / `declare class` /
   `enum` declarations. It emits an abstract `TypeShape`/`Decl` model and renders
-  it to real TS source. Four presets tune the space:
+  it to real TS source.
+
+  **Classes and inheritance.** A plain user class carrying only data properties
+  IS data: it validates structurally, and the emitters treat it exactly like an
+  object literal. So `classes` generates `declare class` decls in every preset,
+  not just the non-data one, and `heritage` generates `extends` on classes
+  (single, chained) and interfaces (single, multi-parent, diamond) plus a
+  narrowing property override. A derived decl's `props` is the FLATTENED
+  member list — the same view the resolver hands the emitters, since the
+  checker merges inherited members into `children` and no emitter reads the
+  heritage slot — while `ownProps` is the subset the declaration itself spells
+  and renders. A base is reached ONLY through `extends`, so `declRefs` carries
+  that edge; without it `pruneUnreachableDecls` deletes the base and the source
+  names an undeclared type (pinned by `typeGen.unit.test.ts`). Never generated,
+  each an unconditional build error or a known mismatch: a non-serialisable
+  built-in as a base, a member named `__proto__` / `constructor` / `prototype`,
+  `static` members (the mock keeps them, every emitter drops them) and
+  `private` / `protected` members (validated, but invisible to `DataOnly<T>`).
+
+  Four presets tune the space:
 
   | Preset                       | `wild` | `nonDataTypes` | Drives                                                                                                              |
   | ---------------------------- | :----: | :------------: | ------------------------------------------------------------------------------------------------------------------- |
-  | `DATA_GEN_OPTIONS`           |  off   |      off       | the strong value oracles — clean, round-trippable types only                                                        |
+  | `DATA_GEN_OPTIONS`           |  off   |      off       | the strong value oracles — clean, round-trippable types only (classes and heritage included: both are data)         |
   | `NONDATA_GEN_OPTIONS`        |  off   |       on       | the DataOnly contract — adds symbols/functions/methods/`Promise`/class/native binary, without `any`/`unknown` noise |
   | `WILD_GEN_OPTIONS` (default) |   on   |       on       | the full adversarial space — everything, plus `any`/`unknown`/`never`/`void` and primitive-branded intersections    |
 
@@ -139,35 +162,66 @@ so any run replays from a single number.
 
 ### `value/` — fix the type, fuzz the value
 
-Holds a small set of concrete schemas and floods each with **three** value
+Holds a small set of concrete schemas and floods each with **five** value
 streams per seed: a conforming mock, that mock mutated to a provably-invalid
-value at exactly one position, and pure type-blind junk. Checks the value
-oracles **O1–O7** (see [the catalog](#oracle-catalog)).
+value at exactly one position, the mock decorated with undeclared keys, the
+mock with ONE undeclared key planted at a walked position, and pure type-blind
+junk. Checks the value oracles **O1–O7**, **O18**, **O21** and **O22–O25** (see
+[the catalog](#oracle-catalog)).
 
-- `fuzzOracle.ts` — the O1–O7 property checks + the `Violation` shape.
+- `fuzzOracle.ts` — the property checks + the `Violation` shape.
 - `shapeValue.ts` — generates conforming values (and single-point corruptions)
   from a `GeneratedType`, respecting recursion budgets and the DataOnly
   projection.
 - `invalidValue.ts` — metamorphic mutation: corrupts a valid value to a provably
   invalid one per kind/position (without descending through `union`/`any`/
   `unknown`, where "invalid" isn't well-defined).
+- `unknownKeyPositions.ts` — the unknown-key position walker: every position
+  that has its own arm in the unknown-keys emitters (root object, union member
+  object AND named class, nested property, array item, tuple slot, Map key and
+  value, Set member, index signature), each labelled `flagged` (every family
+  owes a report) or `carveOut` (an index signature declares every key, so every
+  family owes silence). Deliberately a SECOND walker beside
+  `cloning/extrasValue.ts`, which stays conservative for the clone oracle.
 - `fuzzRunner.ts` — the iteration driver (`runFuzz` for a fixed count,
   `runFuzzForDuration` for a soak).
 - `fuzz.integration.test.ts` — 100 iterations × the concrete targets through the
   real compiled factories; the `*.unit.test.ts` files pin `shapeValue` /
-  `invalidValue` against a reference structural validator with no binary.
+  `invalidValue` / `unknownKeyPositions` against a reference structural
+  validator with no binary.
+
+**Why the unknown-key lane exists.** Several generated functions each decide
+what an "unknown key" is: the `{checkUnknowns: true}` validator and its error
+twin (whose `expected: 'never'` entries are the unknown-key report),
+`removeUnknownKeys` (`ruk`, the public strip), and the JSON decoder's
+`strategy: 'clone'` rebuild (`rjs`). Each has its own emitter and its own arm
+per position, and they have drifted apart more than once, always at a position
+one walk did not reach (a class member of a union was the last, found by hand).
+O18 and O22–O25 hold them against each other rather than against a hand-written
+answer, so a position nobody thought of still gets an answer that has to agree.
+A union answers per branch, so an undeclared key inside one is reported as the
+union failing (`expected: 'union'` at the union's path) rather than at the key;
+O22–O24 accept that entry in place of the key's own. The report
+carries `unknownKeys.{flagged, carveOut, wire}` counters and the test asserts
+each is non-zero, so a green run cannot be green because nothing was planted.
+
+Two documented gaps the oracles work around rather than fail on: a union with
+object members has no `removeUnknownKeys` at all (**unknown-keys-object-union** — the emitter cannot
+know which arm to rebuild), so O24 skips those targets, O18 only checks that the
+strict validator never accepts what `validate` rejects, and O25 covers the decoder
+side of a union instead; and O25 plants blindly on the wire, so it is skipped
+for any target carrying an index signature, where a planted key IS declared.
 
 ### `roundtrip/` — every codec strategy must agree
 
 Generates one random **serialisable** type, compiles _all_ of its codecs at once
-— the four JSON encoder strategies (`clone`/`mutate`/`direct`/`compact`) each
-paired with its decoder (`strip`/`preserve`/`strip`/`compact`), plus the binary
-codec — then sends one generated value through every lane and cross-checks them.
+— the three JSON encoder strategies (`clone`/`mutate`/`compact`) each
+paired with its same-named decoder, and the `rjs` restore over the clone wire — then sends one generated value through every lane and cross-checks them.
 
 Oracle IDs (`roundtripOracle.ts`): **RT-VALIDATE** (both input and output
 validate), **RT-AGREE** (re-encoding each lane's decoded value through the
-canonical clone encoder reproduces the original clone wire — every lane
-round-trips to the same DataOnly value), **RT-STABLE** (each lane's own wire is
+clone, mutate and compact encoders reproduces each one's wire of the original
+value — every lane round-trips to the same DataOnly value), **RT-STABLE** (each lane's own wire is
 byte-stable under re-encode), **RT-FAILAGREE** (a type one lane refuses, every
 lane refuses), **RT-NATIVE** (keyed encoders emit JSON that native `JSON.parse`
 reads back identically — an encoder check independent of our decoders), and
@@ -176,7 +230,8 @@ reads back identically — an encoder check independent of our decoders), and
 - `roundtripHarness.ts` — renders the fixture (one `type T` + the factory call
   sites), drives resolve/emit, and wires the factories by strategy tag.
 - `roundtripOracle.ts` — the RT-\* checks + the static gates
-  (`compactNullRisk`, `jsonRoundTripSafe`) that exclude a lane a value would
+  (`compactNullRisk`: an optional that can be `null` with no free compact
+  placeholder; `jsonRoundTripSafe`) that exclude a lane a value would
   legitimately break.
 - `roundtripRunner.ts` — orchestration; owns the resolver client and restarts it
   on a compile timeout.
@@ -192,9 +247,20 @@ wires the factories in-process, and only then fuzzes a value through them.
 
 Two oracle tiers: build-level **TR1–TR4** run on _every_ generated type
 (resolver clean, every call site resolved, every emitted module evaluates, every
-factory materialises); the strong value oracles (O1–O7, and O10/O12/O14 for the
+factory materialises); the strong value oracles (O1–O7, and O12/O14 for the
 DataOnly lane) run only on the serialisable subset — the tier is chosen from the
 resolver's own diagnostics, not guessed at generation time.
+
+The DataOnly lane also holds the diagnostics to what each of the fifteen compiled
+functions does when it runs (`diagOracle.ts`), per call site: **D1** every error
+a function throws, on the mock value or mid round trip, is a `[CODE]` its call
+site reports (a crash with no code always fails), **D2** a call site
+reporting an always-throw code has a function that throws, **D3** a member an
+encode / decode round trip (or a `removeUnknownKeys` mode) dropped has a drop note,
+checked on the mock and on a second draw with every optional member present.
+**D4** (`dataOnlyOracle.ts`) holds `DataOnly<T>` to the Go side's non-data
+decision: a `never` projection means T's validator throws, the two validators
+agree on the mock and its mutations, and each object keeps the same members.
 
 - `typeFuzzHarness.ts` / `typeFuzzRunner.ts` — compile-a-type harness + the
   per-iteration oracle driver.
@@ -212,33 +278,42 @@ resolver's own diagnostics, not guessed at generation time.
 - `bugReprosValidTs.test.ts` — a corpus of minimal, seed-pinned repros of bugs
   the type fuzzer found (each compiles clean; includes a negative control).
 - `*.smoke.test.ts` — one fix apiece: `indexSigDroppedProp` (G6),
-  `mapSetUnionEnvelope` (G5), `unionStrippedSibling` (G3/G4), `nonDataMock`.
+  `mapSetUnionEnvelope` (G5), `unionStrippedSibling` (G4), `nonDataMock`.
 
-### `binary/` — binary size estimation & buffer growth
+### `type/jsonSizeBound` — the JSON size bound against the serializer
 
-Targets the binary encoder's cold-start size estimate and its dynamic buffer.
-Two lanes per generated type: an **in-bounds** value (`respectBinarySize: true`)
-must fit the pre-sized buffer with no resize; an **oversized** negative control
-(`respectBinarySize: false`, one position inflated past `sizeMaxBytes`, the cap
-every estimate stays under) must trigger growth and still round-trip.
+Targets the build-time `jsonMaxBytes` (the Go `jsonsize` walk, emitted on every
+fully bounded reflection root, the number the mion router derives request limits
+from). The generator runs in `boundedSizes` mode (every string leaf a bounded
+format, every array a `maxItems`, every Map / Set a `maxSize`, no records or
+bigints), so most generated types carry a bound; values come from the product
+`createMockDataFn`, and the two DataOnly presets run so dropped members are
+measured against the encoder that drops them.
 
-- `sizeOracle.ts` — **O-SIZE-NOGROW** (an in-bounds value never resizes the cold
-  buffer), **O-SIZE-ROUNDTRIP** (decode/re-encode is byte-stable), **O-SIZE-GREW**
-  (the oversized lane, if it encodes, still round-trips).
-- `sizeEligible.ts` — filters generated types to the serialisable kinds the size
-  lane applies to (excludes the non-data leaves and callable/class refs).
-- `sizeFuzzRunner.ts` — driver; respawns the resolver on crash and keeps a
-  deterministic floor so a run can't silently go vacuous.
-- Tests: `binarySizeEstimate.integration` (the soak, `MION_FUZZ_SIZE_SOAK_MS`),
-  `binarySizeFloors` (per-kind reserve floors at an adversarial tiny config),
-  `binaryOversizedControl` (the floor's oversized control grows for every seed
-  under every config),
-  `binaryDynamicGrow` + `binaryEncoderResize` (the grow-in-place path — the
-  buffer-overflow / adaptive-history regressions), `binaryIndexSig.smoke` (F1).
+- **JS-MAX-STRINGIFY**: `JSON.stringify(value)` in UTF-8 bytes never passes the bound.
+- **JS-MAX-ENCODER**: the compiled JSON encoder's output never passes it either.
+- **JS-MAX-COMPACT**: nor does the compact encoder's, whose positional union array can outgrow every keyed member.
+- `jsonSizeFuzzRunner.ts` keeps a deterministic floor whose hand-inflated value
+  MUST pass the bound (the negative control), so the comparison cannot go vacuous.
+- Test: `jsonSizeBound.integration` (the soak, `MION_FUZZ_JSONSIZE_SOAK_MS`).
+
+### `type/typedEmitFuzz`: emitMode `ts` against emitMode `both`
+
+Compiles each generated type twice, once as emitMode `both` and once as typed `.ts` modules.
+
+- **TE1 strip parity**: each typed module with its types stripped (Node's `stripTypeScriptTypes`) is its `both`
+  twin, code string included; a type module strips to nothing but its doc comment.
+- **TE2 same verdict**: the typed root validator, built from its own typed factory, answers like the `both` one on
+  generated valid values and their one-spot corruptions.
+- **TE3 strict types**: every typed module of a run type-checks with zero errors under the strictest consumer
+  tsconfig, in one tsc program per run.
+- Negative controls: `typedEmitFuzz.unit.test.ts` breaks each rule on purpose. The rules live in
+  `devtools/test/helpers/typedEmit.ts`, shared with the `mion compile --emit-mode ts` test.
+- Test: `typedEmitFuzz.integration` (the soak, `MION_FUZZ_TYPEDEMIT_SOAK_MS`).
 
 ### `cloning/` — the compiled clone vs a reference interpreter
 
-Targets `createCloneExactShapeFn<T>()`. The strong oracle is **differential**:
+Targets `createRemoveUnknownKeysFn<T>()`. The strong oracle is **differential**:
 a naive reference interpreter walks the reflected RunType graph and the
 compiled clone must agree with it on every conforming value. Three input
 streams per target: a **valid** mock, an **extras** mutation (the same mock
@@ -249,10 +324,11 @@ strip every one), and type-blind **junk** for robustness only.
   **O16** clone-isolation (the input still deep-equals its pre-clone snapshot,
   the clone shares no mutable object reference with it, and an object-typed
   root keeps the input root's prototype), **O17** clone-consistency
-  (`validate(clone(v))` holds and `clone(clone(v))` is stable).
+  (`validate(clone(v))` holds, `clone(clone(v))` is stable, and on the extras
+  stream the `{checkUnknowns: true}` validator accepts `clone(v)`).
 - `referenceClone.ts` — the reference interpreter: mirrors the Go emitter's
   per-kind arms in
-  [`clone_exact_shape.go`](../../../../ts-go-runtypes/internal/cachegen/typefunctions/clone_exact_shape.go)
+  [`remove_unknown_keys.go`](../../../../ts-go-runtypes/internal/cachegen/typefunctions/remove_unknown_keys.go)
   one-for-one, trading every output-shape decision for the dumbest possible
   implementation (no caching, no fastpaths) so a disagreement is eyeballable.
 - `extrasValue.ts` — the clone-fuzz twin of `invalidValue.ts`: injects 1–3
@@ -303,20 +379,159 @@ refusal surface is the convert lane's job) and are reported.
   `elisionOracle.unit` (binary-free negative controls: every oracle proven to
   fire on a deliberately broken output).
 
+### `security/` — attack the decoders
+
+Every other lane checks correctness on VALID input. This one acts as an
+attacker: it starts from a valid wire and mutates it, then checks the rules
+that must hold for every input, hostile or not. Two lanes, one shared
+vulnerability dictionary.
+
+- `attackDictionary.ts` — the **vulnerability dictionary**: for every kind of
+  data a decoder rebuilds (string, number, bigint, boolean, Date, URL,
+  Temporal, literal, enum, union, array, tuple, object, record, Map, Set,
+  any, optional, string / number formats), the known and possible attacks
+  with concrete payloads, each tagged with a vulnerability class (memory,
+  truncation, type confusion, prototype pollution, ReDoS, stack, raw error,
+  transform, unicode, numeric, envelope, time) and an `expect`: `'reject'`
+  means the type rules the payload out, so a decoder must throw or hand back
+  a value `validate` refuses; a mis-accept is a
+  finding. The **wrong-type matrix** is generated on top: one sample of every
+  other kind at every position (a string in a number slot, `true` in a string
+  slot, an object where an array goes). Unions get the whole envelope treated
+  as a target: indexes outside the union, negative, float, string, `true`,
+  null; envelope missing, short, long, not an array; a valid index with
+  another arm's payload; discriminant missing, wrong, as an array.
+  `attackDictionary.unit.test.ts` pins that every class has an entry and
+  every kind has attacks. To add an attack, add one row.
+- `positions.ts` — walks a generated type next to the PARSED JSON tree of a
+  valid value (Date is a string there, a Map an array of pairs, a union member
+  sits in its `[index, value]` envelope) and yields every position with the
+  kind that picks its attacks. Positions under a union or `any` carry
+  `underCatchAll`, which downgrades `'reject'` to `'any'` (a sibling arm may
+  legitimately accept).
+- `treeMutations.ts` — splices a dictionary payload at a position (a
+  prototype key as an OWN key, the way `JSON.parse` yields it) or a random
+  junk subtree (the blind layer), producing the JSON text the decoders read
+  and its re-parsed tree from one `JSON.stringify`.
+- `stringPumps.ts` — floods, sample stretches and corruptions, bracket nests,
+  RTL runs and lone surrogates, up to 64 KB, for the format lane.
+- `securityOracle.ts` — the SJ / SF oracles (catalog below) and the
+  prototype walker behind SJ-PROTO; `securityOracle.unit.test.ts` proves every
+  oracle fires on a broken decoder.
+- `jsonDecodeRunner.ts` / `formatPatternRunner.ts`
+  - the two `*.integration.test.ts` — the lanes. The report counts how often
+    every attack family fired (`applied`) and how decoders failed (`outcomes`,
+    the throw histogram), so a silently unreachable attack cannot pass.
+
+What they found on first contact, fixed in the same change with seed-free
+repros under `test/features/`: the JSON restore loops trusted a non-array's
+`.length`
+(`{"length": 1e9}` at an array position looped a billion times before validate
+ran; every element loop is now behind `Array.isArray`), the Date / bigint /
+Temporal / Map / Set restore arms coerced whatever the wire held (`null`
+became an epoch Date, `true` became `1n`, `null` an empty Set, so validate
+accepted them; every arm now rebuilds only from its wire form and leaves
+anything else for the check), and the compact decoder rebuilt an object from a
+bare number (`{}` for a type whose props are all optional; the positional
+rebuild is now behind `Array.isArray` too).
+
+Decoders deliberately throw whatever the failing arm throws (a
+`SyntaxError` from `BigInt`, the engine's own `TypeError`): no wrapper on the hot path, a caller catches and
+rethrows. A decoder throw is a histogram entry in the report, not a finding.
+
+**`secgen` — the generated-code corpus scan.** The other two lanes attack a
+compiled decoder with input; this one reads the code the emitters produced.
+Every entry module of a generated type (names, literals and enum members drawn
+from a pool that carries quotes, backslashes, newlines, a Unicode line
+terminator and a planted marker) goes through the checks in
+`generatedCodeOracle.ts`: the body compiles as strict JavaScript (GC-PARSE),
+carries no raw control byte or line terminator (GC-TEXT), the marker never
+appears outside a string or regex literal (GC-INJECT, the injection oracle),
+every loop that writes wire keys onto a fresh object carries the
+prototype-name guard and nothing calls `Object.assign` (GC-REBUILD), every
+`new RegExp(` takes a build-time literal (GC-REGEXP), no property access
+spells a non-identifier name bare (GC-ACCESS), and a JSON decoder converts a
+wire value (`new Date(x)`, `new URL(x)`, `BigInt(x)`, `Temporal.X.from(x)`, `new Map(x)`,
+`new Set(x)`, a symbol literal, the union envelope) only after a shape check on
+the same variable (GC-GUARD, the JS twin of the resolver's `MustValidateJson`
+table). `generatedCodeOracle.unit.test.ts`
+proves each check fires on broken text; `test/features/generatedCodeAudit.test.ts`
+runs the same checks over a hand-written nasty corpus in `pnpm test`.
+
+**`sechttp` — hostile requests at the mion router.** The one lane that lives
+outside this package, under `packages/private-test-router-fuzz/test/fuzz/security/`, on the same
+core (`runFuzzLoop`, the seed policy, the crash guard). Two layers: seeded
+attacks through `dispatchRoute` in process (random paths including prototype
+names, JSON bodies mutated from valid ones, JSON text cut and flipped,
+junk `?data=` query bodies, hostile batch ids, hostile headers), and
+raw HTTP at the node adapter on a free port (a content-length past the limit
+or that lies, a chunked body that overflows, junk `?data=`, prototype header
+names, an oversized header, garbage on the wire). Oracles: the router and the
+process still answer a known-good request after every attack (SH-ALIVE), every
+response is a well-formed envelope with a plain-token `x-rpc-error` header and
+nothing internal on any thrown error (SH-ENVELOPE), malformed input never
+yields a 5xx (SH-NO5XX), no response carries engine error text or a file path
+(SH-NOLEAK), each request stays inside its budget (SH-TIME), and
+`Object.prototype` is untouched after the run (SH-PROTO). Replay a finding
+with `MION_FUZZ_SEED=<seed> pnpm miondevx core fuzz sechttp`.
+
+### `apiids/` — a bundled mion client ships the server's runtypes
+
+The mion side of the id story. With `client.routes: 'bundle'`, a client build compiles the
+validators and serializers of every route it calls. The lane drives the real binary over one
+real temp project per generated data type, holding the server (one `initRoutes` call over two
+routes taking and returning the type) and a client calling both routes. It builds the server
+alone into one gen dir, then the whole program into another, the way a release builds the server
+and the client apart.
+
+- **A1** the server manifest's `paramsId` / `returnId` equal the ids the
+  reflection marker assigns to the same types (a probes file, both
+  `getRunTypeId` call shapes), so the API tree walk and the marker scanner
+  agree.
+- **A2** the client build reports no `rpc-client-*` diagnostic and bundles exactly the
+  routes it calls.
+- **A3** `mion api-check` over the server manifest of the server build and the
+  client manifest of the client build exits 0.
+- **A4** `mion api-types` publishes the server as a types-only package, and a
+  client that reads the API from that package alone passes A2 and A3 too.
+
+The negative controls are fixed tests beside the sweep: a client manifest, or a client of a types
+package, from before a server-side type edit fails api-check on `paramsId`. A failure on a
+generated type that is not valid TypeScript is dropped by the `tsValidate.ts` gate, capped at
+`SUPPRESSION_CEILING`. Runner: `apiIdsFuzz.ts`; replay with `MION_FUZZ_SEED`, widen with `MION_FUZZ_ITER`.
+
+### `apitypes` — the types-only package ships what the API reaches, nothing else
+
+A Go lane (`ts-go-runtypes/internal/compiler/apitypes/fuzz_trim_test.go`) over the trimmer behind
+`mion api-types`. Each iteration writes a random graph of `.d.ts` files whose types name each other
+in every position a type can take (members, generics and defaults, heritage, unions, conditional
+and mapped types, `typeof`, `keyof`, `import()` types, namespaces, overloads, merges, augmentations,
+barrels, aliased and namespace imports). Each type is labelled when generated: reached from the
+API (`KEEP_n_`) or not (`POISON_n_`, often importing a fake heavy package).
+
+- **no leak** no poison name, no heavy package import, and no peer but the router ships.
+- **no loss** the output type-checks on its own with the same build version, every reached type
+  ships, and every API member keeps its type id.
+- **idempotent** trimming the output again changes nothing.
+- **deterministic** the same seed gives byte-identical output.
+
+Each oracle has a negative control in the same file, and a coverage test fails when the generator
+stops writing one of the positions. Replay with `MION_FUZZ_SEED`, widen with `MION_FUZZ_ITER`.
+
 ### `enrich/` — model-based (stateful) fuzzers
 
 Three **sequence** fuzzers: instead of one input, they feed a _sequence_ of
 random commands to a stateful system and re-check invariants after each step,
 maintaining a lightweight in-memory **model** of the expected state. Each
 shrinks a failing sequence to a minimal reproducer and replays by seed. All
-three skip without `bin/mion`, and all drive the CLI through
+three skip without `mion-bin/mion`, and all drive the CLI through
 `enrichCli.ts` — a **non-throwing** wrapper so the oracles can observe exit
 code / stdout / stderr / JSON findings on both success and failure paths.
 
 - **enrich CLI sync** (`enrichModel.ts`, `enrichFuzzRunner.ts`,
   `enrichFuzz.integration.test.ts`) — random edits to a source type reconciled
-  into the FriendlyText/MockData mirror via `gen` / `gen --update` / `gen
---prune` / `check`. Invariants: idempotence, metamorphic change, authored-value
+  into the FriendlyText/MockData mirror via `enrich` / `enrich --update` / `enrich
+--prune` / `enrich --no-emit`. Invariants: idempotence, metamorphic change, authored-value
   preservation, orphan carcasses, prune scope, totality (`R1/R2/R3/R5/R6/R7a/R8/R10`).
 - **i18n sync** (`i18nModel.ts`, `i18nFuzzRunner.ts`,
   `i18nFuzz.integration.test.ts`) — the source type is canonical; translations
@@ -329,21 +544,22 @@ code / stdout / stderr / JSON findings on both success and failure paths.
   is ever lost (`NL`), root renames carry labels onto the live const (`RC`), a
   blank-valued twin reconciles to the same structure (`CB`), plus convergence /
   totality / parse-safety.
-- **race** (`enrichRace.test.ts`) — fires several concurrent `gen --update`
+- **race** (`enrichRace.test.ts`) — fires several concurrent `enrich --update`
   processes at one fixture to prove the atomic mirror write never tears. **Skips
   by default**; it self-enables only under `MION_FUZZ_RACE=1` (set by
-  `rtx core fuzz race`).
+  `miondevx core fuzz race`).
 
 ## Running
 
-The `rtx` front door builds the binary first, then runs the suite:
+The `miondevx` front door builds the binary first, then runs the suite:
 
 ```bash
-pnpm rtx core fuzz <lane…> [--quick|--soak]
-#   lane ∈   unit | value | types | nondata | roundtrip | size | cloning |
-#            enrich | i18n | typemod | race | sidecar | patterngen | convert | convertcli | all
+pnpm miondevx core fuzz <lane…> [--quick|--soak]
+#   lane ∈   unit | value | types | nondata | roundtrip | typedemit | cloning |
+#            secjson | secformat | secgen |
+#            enrich | i18n | typemod | race | sidecar | patterngen | convert | convertcli | apiids | apitypes | all
 #   --quick  the per-PR tier: ~2x the fixed batch (what ci.yml runs)
-#   --soak   the release tier: the long soak knobs (see the rt.mjs FUZZ table)
+#   --soak   the release tier: the long soak knobs (see the miondevx.mjs FUZZ table)
 ```
 
 - `unit` runs the pure-TS core tests via `vitest.fuzz-unit.config.ts` (no
@@ -355,33 +571,35 @@ pnpm rtx core fuzz <lane…> [--quick|--soak]
   sidecar lanes, the race test, and both Go sweeps under `internal/convert`
   (including the lane-less schemadoc determinism sweep). It takes no tier flag —
   a quick or soak round is per-lane, so the time-boxed lanes never share CPU.
-- Several lanes in one invocation (`pnpm rtx core fuzz types value --quick`) pay
-  vitest's startup once; if any of them is time-boxed, rtx runs the files
+- Several lanes in one invocation (`pnpm miondevx core fuzz types value --quick`) pay
+  vitest's startup once; if any of them is time-boxed, miondevx runs the files
   sequentially and says so.
 
-`pnpm test` alone already runs every fixed-iteration batch (roundtrip, binary
-size, non-data, and the smoke/gate tests included), and `go test ./internal/...`
-runs the Go-side `convert` sweep. So `rtx core fuzz` is not what makes a lane
+`pnpm test` alone already runs every fixed-iteration batch (roundtrip,
+non-data, and the smoke/gate tests included), and `go test ./internal/...`
+runs the Go-side `convert` sweep. So `miondevx core fuzz` is not what makes a lane
 run — it is the **tier / replay** front door, and `race` is the only lane it
 gates (nothing else sets `MION_FUZZ_RACE=1`).
 
 **Three budget tiers.** The default batch is a floor, not coverage. `--quick` is
 the per-PR tier and runs on EVERY PR in
-[ci.yml](../../../../.github/workflows/ci.yml): the count-based lanes ride the
-`go tests + fuzz` sweep, the six time-boxed ones run as one sequential batch on
-the `js tests + lint` runner, and `MION_FUZZ_ITER` widens the Go sweeps. `--soak`
+[ci.yml](../../../../.github/workflows/ci.yml), all in the `go tests + fuzz`
+job: the count-based lanes ride its sweep, the time-boxed ones run after it as
+one sequential batch, and `MION_FUZZ_ITER` widens the Go sweeps. `--soak`
 is the release tier, run by the **`fuzz-soak` job** of
 [release-gate.yml](../../../../.github/workflows/release-gate.yml) — one runner
 per lane, on release PRs, on the push to `prod`, and on demand via
 `gh workflow run release-gate.yml --ref <branch>` — or off the release path with
-`gh workflow run fuzz-soak.yml`. Those jobs seed each lane from the run id and
+`gh workflow run fuzz-soak.yml`. The `nondata` lane is the exception: it soaks 10 minutes in its own
+[fuzz-nondata-soak.yml](../../../../.github/workflows/fuzz-nondata-soak.yml), which the gate calls as a job of its own
+(`soakWorkflow` on its `FUZZ` entry keeps it out of the gate's matrix; `fuzz-lanes --all` keeps it in fuzz-soak.yml's `all`). Those jobs seed each lane from the run id and
 echo the value, so a CI finding replays verbatim; the per-PR tier keeps the
 version-derived seed instead, so a red lane belongs to that PR.
 
 **Time-boxed vs count-based.** The `*_SOAK_MS` lanes (value, types, nondata,
-roundtrip, size, cloning) fuzz against a wall clock, so CPU contention silently
+roundtrip, cloning, elision, secjson, secformat, secgen) fuzz against a wall clock, so CPU contention silently
 buys them LESS coverage and they must never run concurrently. The rest are
-count-based: fixed coverage, contention costs only wall clock. `rtx` enforces
+count-based: fixed coverage, contention costs only wall clock. `miondevx` enforces
 this for multi-lane runs, and both CI and the soak workflows schedule
 accordingly.
 
@@ -397,14 +615,14 @@ The seed is printed at lane start, so a failing run carries its own replay
 instructions:
 
 ```
-[types-fuzz] seed 0xae14e729 from version 0.12.0 — replay: MION_FUZZ_SEED=0xae14e729 pnpm rtx core fuzz types
+[types-fuzz] seed 0xae14e729 from version 0.12.0 — replay: MION_FUZZ_SEED=0xae14e729 pnpm miondevx core fuzz types
 ```
 
 Vitest only surfaces that line when the test fails, which is exactly when it is
 needed. Every violation is ALSO logged with the per-iteration seed that produced
 it. To replay:
 
-- **Stateless fuzzers** (value / roundtrip / type / binary): set the base seed
+- **Stateless fuzzers** (value / roundtrip / type): set the base seed
   and a short soak so the runner re-derives the same stream, e.g.
   `MION_FUZZ_SEED=<seed> MION_FUZZ_TYPES_SOAK_MS=5000 pnpm exec vitest run typeFuzz.integration`.
 - **Model-based fuzzers** (enrich / i18n / typemod): use the dedicated replay
@@ -424,7 +642,7 @@ behaving.
 A **round** is every lane that has a `--soak` budget, run on one fresh seed. Two
 places do it:
 
-- `pnpm rtx core fuzz <lane> --soak` locally. Set `MION_FUZZ_SEED` to explore
+- `pnpm miondevx core fuzz <lane> --soak` locally. Set `MION_FUZZ_SEED` to explore
   ground the current version does not reach, since an unset seed is derived from
   the version and so is the same every run within a release. Soak the lanes one
   at a time: the time-boxed ones lose coverage to contention, and a full local
@@ -434,7 +652,7 @@ places do it:
   a fresh seed derived from the run id, and a `lane` / `seed` pair of inputs so
   one finding replays on one runner. The release gate runs the same lanes on
   every prod PR. Both derive that lane list from the `FUZZ` registry
-  (`pnpm rtx core fuzz-lanes`), so giving a lane a soak budget is all it takes
+  (`pnpm miondevx core fuzz-lanes`), so giving a lane a soak budget is all it takes
   to enrol it in both.
 
 Rounds are worth running between releases, not only when a release forces one:
@@ -455,7 +673,9 @@ all fuzz knobs are `dev`-scoped with sensible defaults.
 | `MION_FUZZ_NONDATA_SOAK_MS`                                                    | non-data type fuzz soak duration (ms)                                   |
 | `MION_FUZZ_CLONE_SOAK_MS`                                                      | clone fuzz soak duration (ms)                                           |
 | `MION_FUZZ_ROUNDTRIP_SOAK_MS`                                                  | round-trip fuzz soak duration (ms)                                      |
-| `MION_FUZZ_SIZE_SOAK_MS`                                                       | binary-size fuzz soak duration (ms)                                     |
+| `MION_FUZZ_SECJSON_SOAK_MS`                                                    | security fuzz, JSON decoders (ms)                                       |
+| `MION_FUZZ_SECFORMAT_SOAK_MS`                                                  | security fuzz, format validators + patterns (ms)                        |
+| `MION_FUZZ_SECHTTP_SOAK_MS`                                                    | security fuzz, hostile requests at the mion router + node adapter (ms)  |
 | `MION_FUZZ_ENRICH_SEQUENCES` / `_MAXCMDS` / `_REPLAY`                          | enrich fuzz: sequence count / commands per sequence / replay one seed   |
 | `MION_FUZZ_I18N_SEQUENCES` / `_MAXCMDS` / `_REPLAY`                            | i18n fuzz: same three knobs                                             |
 | `MION_FUZZ_TYPEMOD_SEQUENCES` / `_MAXSTEPS` / `_REPLAY` / `_REPORT` / `_DEBUG` | type-mod fuzz: sequences / steps / replay / print stats / verbose diffs |
@@ -465,16 +685,22 @@ all fuzz knobs are `dev`-scoped with sensible defaults.
 
 Grouped by mode.
 
-| Mode                      | IDs                                                                                                                                                                                                                                                                  |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| value / type (value tier) | **O1** valid-accepted · **O2** invalid-rejected · **O3** validate-total · **O4** errors-agree · **O5** json-stable · **O6** binary-stable · **O7** encode-total · **O10** refusal-has-reason · **O12** json↔binary agree · **O14** encoders-agree-on-serialisability |
-| type (build tier)         | **TR1** resolver-clean · **TR2** every-site-resolved · **TR3** every-module-evaluates · **TR4** every-factory-materialises                                                                                                                                           |
-| roundtrip                 | **RT-VALIDATE** · **RT-AGREE** · **RT-STABLE** · **RT-FAILAGREE** · **RT-NATIVE** · **RT-THROW**                                                                                                                                                                     |
-| binary size               | **O-SIZE-NOGROW** · **O-SIZE-ROUNDTRIP** · **O-SIZE-GREW**                                                                                                                                                                                                           |
-| cloning                   | **O15** clone-reference · **O16** clone-isolation · **O17** clone-consistency                                                                                                                                                                                        |
-| enrich (model)            | **R1/R2/R3/R5/R6/R7a/R8/R10**                                                                                                                                                                                                                                        |
-| i18n (model)              | **T1/T2/T3/T4/T5/T6/T7/T10**                                                                                                                                                                                                                                         |
-| type-mod (model)          | **NL** nothing-lost · **RC** rename-carry · **CB** content-blind · **R6** convergence · **R10** totality · **P** parse-safety                                                                                                                                        |
+| Mode                      | IDs                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| value / type (value tier) | **O1** valid-accepted · **O2** invalid-rejected · **O3** validate-total · **O4** errors-agree · **O5** json-stable · **O7** encode-total · **O12** clone↔compact agree · **O14** clone and compact agree on serialisability                                                                                                                                                                                                                                                                                                                                                                                                           |
+| value / unknown keys      | **O18** fused-agree · **O21** strict-self-agree · **O22** on a value validate accepts, the strict error twin reports only unknown-key entries · **O23** a key planted at a flagged position is reported at exactly that path (or by its enclosing union) and rejected by the strict validator, and at an index-signature carve-out by nobody · **O24** the paths the unknown-key report names are exactly the keys removeUnknownKeys drops · **O25** undeclared keys planted on the encoded wire do not change what the `strip` decoder returns                                                                                       |
+| type (build tier)         | **TR1** resolver-clean · **TR2** every-site-resolved · **TR3** every-module-evaluates · **TR4** every-factory-materialises                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| type (diagnostics)        | **D1** throw-reported · **D2** reported-throws · **D3** drop-noted · **D4** DataOnly-agrees                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| roundtrip                 | **RT-VALIDATE** · **RT-AGREE** · **RT-STABLE** · **RT-FAILAGREE** · **RT-NATIVE** · **RT-THROW**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| JSON size bound           | **JS-MAX-STRINGIFY** · **JS-MAX-ENCODER** · **JS-MAX-COMPACT**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| cloning                   | **O15** clone-reference · **O16** clone-isolation · **O17** clone-consistency                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| security / generated code | **GC-PARSE** the body compiles as strict JS · **GC-TEXT** no raw control byte or line terminator · **GC-INJECT** a planted marker never escapes its literal · **GC-REBUILD** key-writing loops onto a fresh object carry the prototype-name guard, no Object.assign · **GC-REGEXP** every new RegExp( takes a build-time literal · **GC-ACCESS** no bare non-identifier property access · **GC-GUARD** a JSON decoder checks the wire shape before it converts a value · **GC-IDENTITY** `instanceof` only against a JavaScript built-in, a user class only by exact constructor against `cix_<id>.cls`, and never `constructor.name` |
+| security / JSON           | **SJ-REJECT** ruled-out payloads never get through validate · **SJ-PROTO** sane prototypes, no inherited enumerable keys, on every decoded value and its exact-shape clone, and no encoder writes a prototype-named key onto the wire · **SJ-GLOBAL** Object/Array/Function prototypes untouched · **SJ-TOTAL** validate(decoded) is a boolean · **SJ-TIME** every call inside its budget                                                                                                                                                                                                                                             |
+| security / formats        | **SF-TOTAL** returns a boolean, never throws · **SF-TIME** one validator call under 250 ms · **SF-PATTERN-TIME** the same per registered pattern regex                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| security / http (router)  | **SH-ALIVE** the router and the process still answer after every attack · **SH-ENVELOPE** a well-formed envelope, a token x-rpc-error header, nothing internal on a thrown error · **SH-NO5XX** malformed input never yields a 5xx · **SH-NOLEAK** no engine text or file path in a response · **SH-TIME** one request inside its budget · **SH-PROTO** Object.prototype untouched                                                                                                                                                                                                                                                    |
+| enrich (model)            | **R1/R2/R3/R5/R6/R7a/R8/R10**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| i18n (model)              | **T1/T2/T3/T4/T5/T6/T7/T10**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| type-mod (model)          | **NL** nothing-lost · **RC** rename-carry · **CB** content-blind · **R6** convergence · **R10** totality · **P** parse-safety                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 </content>
 </invoke>

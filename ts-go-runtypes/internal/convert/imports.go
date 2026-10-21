@@ -1,11 +1,10 @@
-// imports.go plans this package's import-block edits: it reads the file's own
-// imports through internal/tsimports (the scanner both rewriting arms share),
-// adds the bindings the converted output needs, and removes managed bindings the
-// conversion made unused. The four `@mionjs/run-types*` modules are the managed
-// set here. Only statements the scanner fully understands (named imports and/or
-// one namespace import, no default import) are ever rewritten; anything else is
-// left alone and additions go to a new statement.
 package convert
+
+// imports.go plans this package's import-block edits through internal/tsimports, the scanner both
+// rewriting arms share: it adds the bindings the converted output needs and removes managed ones the
+// conversion made unused, the four `@mionjs/run-types*` modules being the managed set. Only
+// statements the scanner fully understands (named imports and at most one namespace import, no
+// default import) are rewritten; anything else is left alone and additions go to a new statement.
 
 import (
 	"sort"
@@ -24,8 +23,7 @@ var (
 	moduleTemporal = marker.DefaultModule + "/formats/temporal"
 )
 
-// isManagedModule is the predicate the shared scanner takes: the modules whose
-// bindings managedRoles owns.
+// isManagedModule is the predicate the shared scanner takes: the modules managedRoles owns.
 func isManagedModule(module string) bool {
 	return module == moduleCore || module == moduleBuilders || module == moduleFormats || module == moduleTemporal
 }
@@ -37,8 +35,7 @@ type (
 	importScan   = tsimports.Scan
 )
 
-// Thin adapters onto the shared scanner, so the planning code below reads as it
-// always did.
+// Thin adapters onto the shared scanner, under this package's own spellings.
 func scanImports(sourceFile *ast.SourceFile) *importScan {
 	return tsimports.ScanFile(sourceFile, isManagedModule)
 }
@@ -55,12 +52,9 @@ func identifierUsedOutside(sourceFile *ast.SourceFile, local string, scan *impor
 	return tsimports.IdentifierUsedOutside(sourceFile, local, scan, spans)
 }
 
-// foreignNeed is one cross-file import the printed output needs: the module
-// specifier this file reaches the declaration's file through, and the exported
-// name. Local carries the binding the printed text actually spelled, which
-// differs from the exported name when the file already binds that name from
-// somewhere else (drizzle's own `index` beside ours). TypeOnly is false for a
-// value need — the drizzle arm imports `tableFromType`, which is called.
+// foreignNeed is one cross-file import the printed output needs. Local is the binding the printed
+// text spelled, which differs from the exported name when the file already binds that name from
+// somewhere else. TypeOnly is false for a value need, such as the drizzle arm's `tableFromType`.
 type foreignNeed struct {
 	moduleSpec string
 	typeName   string
@@ -77,9 +71,8 @@ func (need foreignNeed) binding() namedBinding {
 	return namedBinding{Imported: need.typeName, Local: local, TypeOnly: need.typeOnly}
 }
 
-// importNeeds records which managed bindings the printed output uses, plus
-// the cross-file needs: foreign type names to import and existing locals the
-// printed references spelled (so removal never strips them).
+// importNeeds records which managed bindings the printed output uses, plus the foreign names to
+// import and the existing locals the printed references spelled, so removal never strips them.
 type importNeeds struct {
 	useRT         bool
 	useTF         bool
@@ -95,8 +88,7 @@ func (needs *importNeeds) addForeign(need foreignNeed) {
 	if need.moduleSpec == "" || need.typeName == "" {
 		return
 	}
-	// One canonical key per need, so the same import asked for twice under the
-	// same local is one map entry.
+	// One canonical key per need, so the same import asked for twice is one map entry.
 	if need.local == "" {
 		need.local = need.typeName
 	}
@@ -147,32 +139,26 @@ var managedRoles = []managedRole{
 	{roleModule: moduleTemporal, roleNamespace: true, needed: func(needs importNeeds) bool { return needs.useTFT }, roleLocal: func(names *nameTable) string { return names.TFT }},
 }
 
-// planImportEdits computes the import-statement replacements: per managed
-// module, the final binding set = existing ∪ needed − (managed ∧ unused);
-// per foreign module, needed cross-file type names are added and in-set
-// bindings conversion made unused (removable, unreferenced, not spelled by
-// any printed reference) are dropped.
+// planImportEdits computes the import-statement replacements: per managed module the final binding
+// set is existing ∪ needed − (managed ∧ unused); per foreign module the needed cross-file names are
+// added and in-set bindings the conversion made unused are dropped.
 func planImportEdits(sourceFile *ast.SourceFile, source string, scan *importScan, needs importNeeds, names *nameTable, replacements []replacement, removable map[string]bool) []replacement {
 	usedElsewhere := func(local string) bool {
 		return identifierUsedOutside(sourceFile, local, scan, replacements)
 	}
 	var edits []replacement
 	var additions []string
-	// The managed modules render as ONE canonical block in the module order
-	// below, placed at the FIRST managed statement's position (the others are
-	// removed) — or appended with the additions when the file has none. Keeping
-	// each managed statement in its own slot made the layout path-dependent: a
-	// statement surviving a leg kept its position while one dropped by an
-	// earlier leg was re-added after the other imports, so two conversion
-	// chains landing on the same form disagreed on import order.
+	// The managed modules render as ONE canonical block at the FIRST managed statement's position,
+	// the others removed, or appended with the additions when the file has none. Keeping each
+	// managed statement in its own slot made the layout path-dependent, so two conversion chains
+	// landing on the same form disagreed on import order.
 	var managedBlock []string
 	var managedStmts []*moduleImport
 	for _, module := range []string{moduleCore, moduleBuilders, moduleFormats, moduleTemporal} {
 		entry := scan.ByModule[module]
 		var finalNamespace string
 		var finalNamed []namedBinding
-		// fixed* are bindings on statements the plan never touches (read-only
-		// extras): they count as present but cannot be edited or removed.
+		// fixed* are bindings on statements the plan never touches: present, but not editable.
 		var fixedNamespace string
 		var fixedNamed []namedBinding
 		var foldStmts []*moduleImport
@@ -198,9 +184,8 @@ func planImportEdits(sourceFile *ast.SourceFile, source string, scan *importScan
 				continue
 			}
 			local := role.roleLocal(names)
-			// A namespace import of a managed module covers EVERY member
-			// spelling (the printers then use qualified names), so named
-			// roles count as present under it.
+			// A namespace import of a managed module covers EVERY member spelling, the printers using
+			// qualified names, so named roles count as present under it.
 			present := finalNamespace != "" || fixedNamespace != ""
 			if !present && !role.roleNamespace {
 				for _, binding := range append(append([]namedBinding{}, finalNamed...), fixedNamed...) {
@@ -231,10 +216,8 @@ func planImportEdits(sourceFile *ast.SourceFile, source string, scan *importScan
 				}
 			}
 		}
-		// Unmanaged bindings on an unmanaged statement stay by definition; on a
-		// managed statement every non-role binding was carried into finalNamed
-		// and survives unless its own local is unused AND it is one of ours —
-		// non-role bindings are never removed.
+		// A non-role binding is never removed: on a managed statement it was carried into finalNamed
+		// and survives there.
 		if entry != nil && entry.Managed {
 			managedStmts = append(managedStmts, entry)
 			managedStmts = append(managedStmts, foldStmts...)
@@ -297,9 +280,8 @@ func planImportEdits(sourceFile *ast.SourceFile, source string, scan *importScan
 			return false
 		}
 		if entry == nil || !entry.Rewritable {
-			// No statement to extend (or a shape we never rewrite — default
-			// import, namespace): still-missing names get their own new
-			// statement rather than being silently dropped.
+			// No statement to extend, or a shape we never rewrite, so still-missing names get their
+			// own new statement rather than being dropped.
 			var namedAdds []namedBinding
 			for _, need := range neededNames {
 				if !boundAlready(need.typeName) {
@@ -335,8 +317,8 @@ func planImportEdits(sourceFile *ast.SourceFile, source string, scan *importScan
 		appendImportEdit(&edits, source, entry, renderImport(module, "", finalNamed))
 	}
 	if len(additions) > 0 {
-		// Anchor after the last import that SURVIVES this edit — inserting at a
-		// removed statement's end would land inside its removal span.
+		// Anchor after the last import that SURVIVES this edit: a removed statement's end lies inside
+		// its own removal span.
 		insertAt := 0
 		for _, importEnd := range scan.AllImportEnds {
 			removed := false
@@ -363,9 +345,8 @@ func planImportEdits(sourceFile *ast.SourceFile, source string, scan *importScan
 	return edits
 }
 
-// appendImportEdit records the replacement for one rewritten import
-// statement: a changed statement replaces its span, an emptied one is removed
-// with its trailing newline, an identical render is skipped.
+// appendImportEdit records one import statement's replacement: a changed statement replaces its
+// span, an emptied one is removed with its trailing newline, an identical render is skipped.
 func appendImportEdit(edits *[]replacement, source string, entry *moduleImport, newText string) {
 	oldStart := tokenStart(source, entry.Node.Pos())
 	oldEnd := entry.Node.End()

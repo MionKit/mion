@@ -5,6 +5,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
@@ -27,15 +28,15 @@ import (
 // `pureFnDependencies` slot.
 
 // tripwireCorpus exercises the built-in-referencing families across a spread of
-// shapes: plain objects (validationErrors → rt::newRunTypeErr; the unknown-keys
-// group → rt::hasUnknownKeysFromArray / rt::getUnknownKeysFromArray) and
-// format-branded strings (the format validators → rtFormats::isUUID). Each
+// shapes: plain objects (validationErrors → @mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr; the checkUnknowns
+// validators → @mionjs/run-types/src/runtypes/pure-fns-utils#hasUnknownKeysFromArray / @mionjs/run-types/src/runtypes/pure-fns-utils#getUnknownKeysFromArray) and
+// format-branded strings (the format validators → @mionjs/run-types/src/formats/string/string-formats-pure-fns#isUUID). Each
 // createX<T>() call site demands its family so the resolver renders a real live
 // body for it.
 const tripwireCorpus = `import {
-  createValidateFn, createGetValidationErrorsFn, createHasUnknownKeysFn,
-  createCloneExactShapeFn, createUnknownKeyErrorsFn, createFormatTransformFn,
-  createJsonEncoderFn, createJsonDecoderFn, createBinaryEncoderFn, createBinaryDecoderFn,
+  createValidateFn, createGetValidationErrorsFn,
+  createRemoveUnknownKeysFn, createFormatTransformFn,
+  createJsonEncoderFn, createJsonDecoderFn,
 } from '@mionjs/run-types';
 type TypeFormat<Base, Name extends string, Params> = Base & {
   readonly __rtFormatName?: Name;
@@ -50,29 +51,28 @@ export const vn = createValidateFn<Nested>();
 export const e = createGetValidationErrorsFn<Obj>();
 export const ef = createGetValidationErrorsFn<WithFmt>();
 export const en = createGetValidationErrorsFn<Nested>();
-export const h = createHasUnknownKeysFn<Obj>();
-export const cl = createCloneExactShapeFn<Obj>();
-export const uke = createUnknownKeyErrorsFn<Obj>();
+export const vs = createValidateFn<Obj>(undefined, {checkUnknowns: true});
+export const cl = createRemoveUnknownKeysFn<Obj>();
+export const es = createGetValidationErrorsFn<Obj>(undefined, {checkUnknowns: true});
 export const ft = createFormatTransformFn<WithFmt>();
 export const je = createJsonEncoderFn<WithFmt>();
 export const jd = createJsonDecoderFn<WithFmt>();
-export const be = createBinaryEncoderFn<WithFmt>();
-export const bd = createBinaryDecoderFn<WithFmt>();
 `
 
 // emittedPureFnRe matches a `getPureFn`/`usePureFn` call in an emitted body. The
 // body rides the tuple as a quoteJS single-quoted string, so its inner quotes
-// arrive escaped (`getPureFn(\'rt::newRunTypeErr\')`); the leading `\\*['"]`
-// tolerates the escaped form, a bare single quote, or a double quote so a raw
-// getPureFn written in any quote style is still caught (that's the whole point).
-var emittedPureFnRe = regexp.MustCompile(`(?:get|use)PureFn\(\s*\\*['"]([\w$-]+::[\w$-]+)`)
+// arrive escaped (`getPureFn(\'@mionjs/run-types/src/…#pf_newRunTypeErr\')`); the
+// leading `\\*['"]` tolerates the escaped form, a bare single quote, or a double
+// quote so a raw getPureFn written in any quote style is still caught (that's
+// the whole point).
+var emittedPureFnRe = regexp.MustCompile(`(?:get|use)PureFn\(\s*\\*['"]([^'"\\]+#[^'"\\]+)`)
 
-// recordedPureFnRe matches an UNescaped `'<ns>::<fn>'` token — the shape the
+// recordedPureFnRe matches an UNescaped `'<id>'` token — the shape the
 // pureFnDependencies slot renders (pureFnDepsJS). The `[^\\]` guard rejects the
-// escaped `\'…\'` keys that live inside the body string, so this isolates the
+// escaped `\'…\'` ids that live inside the body string, so this isolates the
 // recorded-deps slot from the getPureFn calls in the code. rtDependencies /
-// cross-family refs are `<fnHash>_<id>` (no `::`), so they never match.
-var recordedPureFnRe = regexp.MustCompile(`(?:^|[^\\])'([\w$-]+::[\w$-]+)'`)
+// cross-family refs are `<fnHash>_<id>` (no `#`), so they never match.
+var recordedPureFnRe = regexp.MustCompile(`(?:^|[^\\])'([^'\\]+#[^'\\]+)'`)
 
 func pureFnKeysOf(re *regexp.Regexp, module string) map[string]bool {
 	out := map[string]bool{}
@@ -114,11 +114,11 @@ func TestPureFnRecording_EmittedKeysAreRecorded(t *testing.T) {
 	if entriesWithPureFns == 0 {
 		t.Fatal("corpus produced no entry that references a pure fn — harness wiring broke")
 	}
-	// Coverage floor: the corpus is meant to reach both `rt::` core built-ins and
-	// an `rtFormats::` format validator through the choke point. If the emitters
+	// Coverage floor: the corpus is meant to reach both core built-ins and a
+	// format validator through the choke point. If the emitters
 	// stop reaching these (a refactor drops the reference), the invariant above
 	// goes vacuous — pin the expected keys so that regression is loud.
-	for _, want := range []string{"rt::newRunTypeErr", "rt::hasUnknownKeysFromArray", "rt::getUnknownKeysFromArray", "rtFormats::isUUID"} {
+	for _, want := range []string{purefnids.NewRunTypeErr, purefnids.HasUnknownKeysFromArray, purefnids.GetUnknownKeysFromArray, purefnids.IsUUID} {
 		if !allEmitted[want] {
 			t.Errorf("corpus no longer exercises %q (emitted keys: %v) — broaden tripwireCorpus or fix the emitter", want, sortedPureFnKeys(allEmitted))
 		}

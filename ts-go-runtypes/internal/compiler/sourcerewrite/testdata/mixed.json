@@ -1,10 +1,10 @@
 {
   "file": "a.ts",
-  "code": "registerPureFnFactory('rt::foo', () => 1);\nconst v = createValidateFn<Baz>();\n",
+  "code": "export const foo = registerPureFnFactory(() => 1);\nconst v = createValidateFn<Baz>();\n",
   "sites": [
     {
       "file": "a.ts",
-      "pos": 75,
+      "pos": 83,
       "id": "Baz6666",
       "paramIndex": 1,
       "fnId": "val"
@@ -13,22 +13,22 @@
   "replacements": [
     {
       "file": "a.ts",
-      "start": 33,
-      "end": 40,
-      "text": "__rt_pf_rt_foo",
-      "importFrom": "rtmod:/pf/rt/foo.js"
+      "start": 41,
+      "end": 48,
+      "text": "__rt_pf$2F$40acme$2Fapp$2Fa$2Ffoo",
+      "importFrom": "rtmod:/pf/@acme/app/a/foo.js"
     }
   ],
-  "expectedCode": "import {__rt_pf_rt_foo} from 'rtmod:/pf/rt/foo.js'; import {__rt_val_Baz6666} from 'rtmod:/val_Baz6666.js';\nregisterPureFnFactory('rt::foo', __rt_pf_rt_foo);\nconst v = createValidateFn<Baz>(undefined, __rt_val_Baz6666);\n",
+  "expectedCode": "import {__rt_pf$2F$40acme$2Fapp$2Fa$2Ffoo} from 'rtmod:/pf/@acme/app/a/foo.js'; import {__rt_val_Baz6666} from 'rtmod:/val_Baz6666.js';\nexport const foo = registerPureFnFactory(__rt_pf$2F$40acme$2Fapp$2Fa$2Ffoo);\nconst v = createValidateFn<Baz>(undefined, __rt_val_Baz6666);\n",
   "expectedMap": {
     "version": 3,
     "sources": [
       "a.ts"
     ],
     "sourcesContent": [
-      "registerPureFnFactory('rt::foo', () => 1);\nconst v = createValidateFn<Baz>();\n"
+      "export const foo = registerPureFnFactory(() => 1);\nconst v = createValidateFn<Baz>();\n"
     ],
     "names": [],
-    "mappings": ";AAAA,qBAAqB,CAAC,CAAC,EAAE,CAAC,CAAC,GAAG,CAAC,CAAC,CAAC,cAAO,CAAC;AACzC,KAAK,CAAC,CAAC,CAAC,CAAC,CAAC,gBAAgB,CAAC,GAAG,CAAC,4BAAC,CAAC;"
+    "mappings": ";AAAA,MAAM,CAAC,KAAK,CAAC,GAAG,CAAC,CAAC,CAAC,qBAAqB,CAAC,iCAAO,CAAC;AACjD,KAAK,CAAC,CAAC,CAAC,CAAC,CAAC,gBAAgB,CAAC,GAAG,CAAC,4BAAC,CAAC;"
   }
 }

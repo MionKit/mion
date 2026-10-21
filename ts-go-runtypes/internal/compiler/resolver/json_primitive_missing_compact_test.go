@@ -1,0 +1,117 @@
+package resolver_test
+
+import (
+	"testing"
+
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
+)
+
+// internal-json-primitive-missing: `compact` over a function / symbol leaf at a propagating position (tuple slot, array element, record value,
+// callable object) must render an alwaysThrow with its sibling's code (cj as clone, cjr as mutate),
+// never an empty entry the composite still binds.
+
+// internalJsonPrimitiveMissingCompactCase pairs a type shape with the root code its
+// unserializable-leaf position should surface (identical across the compact and
+// sibling strategies).
+type internalJsonPrimitiveMissingCompactCase struct {
+	name    string
+	shape   string
+	encoder string // expected encoder root code (clone == compact)
+	decoder string // expected decoder root code (mutate == compact)
+}
+
+var internalJsonPrimitiveMissingCompactCases = []internalJsonPrimitiveMissingCompactCase{
+	{"tuple_fn", `type T = [string, () => void]`, diagnostics.CodePJSFunctionRoot, diagnostics.CodeRJFunctionRoot},
+	{"array_fn", `type T = Array<() => void>`, diagnostics.CodePJSFunctionRoot, diagnostics.CodeRJFunctionRoot},
+	{"callable_iface", `interface T { (x: number): number; a: string }`, diagnostics.CodePJSFunctionRoot, diagnostics.CodeRJFunctionRoot},
+	{"tuple_symbol", `type T = [number, symbol]`, diagnostics.CodePJSSymbolRoot, diagnostics.CodeRJSymbolRoot},
+	{"record_symbol", `type T = Record<string, symbol>`, diagnostics.CodePJSSymbolRoot, diagnostics.CodeRJSymbolRoot},
+}
+
+// runtypeCodes collects the runtype-family diagnostic codes a scan produced.
+func runtypeCodes(t *testing.T, shape, fn, strategy string) []string {
+	t.Helper()
+	code := "import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';\n" +
+		shape + ";\n" +
+		"export const _ = " + fn + "<T>(undefined, {strategy: '" + strategy + "'});\n"
+	r := setupInline(t, map[string]string{"a.ts": code})
+	resp := r.Dispatch(protocol.Request{
+		Op:                  protocol.OpScanFiles,
+		Files:               []string{"a.ts"},
+		IncludeEntryModules: true,
+	})
+	if resp.Error != "" {
+		t.Fatalf("scanFiles: %s", resp.Error)
+	}
+	var codes []string
+	for _, d := range resp.Diagnostics {
+		if d.Code == diagnostics.CodeCompositeMissingPrimitive {
+			t.Fatalf("internal-json-primitive-missing internal breach for %s/%s: args=%v", shape, strategy, d.Args)
+		}
+		if d.Family == diagnostics.FamilyRunType {
+			codes = append(codes, d.Code)
+		}
+	}
+	return codes
+}
+
+func containsCode(codes []string, want string) bool {
+	for _, c := range codes {
+		if c == want {
+			return true
+		}
+	}
+	return false
+}
+
+// TestInternalJsonPrimitiveMissing_CompactMatchesSibling pins that compact encode/decode surface the
+// same alwaysThrow root code as clone/mutate and never trip internal-json-primitive-missing.
+func TestInternalJsonPrimitiveMissing_CompactMatchesSibling(t *testing.T) {
+	for _, tc := range internalJsonPrimitiveMissingCompactCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Encoder: compact (cj) must match clone (pjs).
+			cloneCodes := runtypeCodes(t, tc.shape, "createJsonEncoderFn", "clone")
+			compactEnc := runtypeCodes(t, tc.shape, "createJsonEncoderFn", "compact")
+			if !containsCode(cloneCodes, tc.encoder) {
+				t.Fatalf("clone encoder should surface %s, got %v", tc.encoder, cloneCodes)
+			}
+			if !containsCode(compactEnc, tc.encoder) {
+				t.Errorf("compact encoder should surface %s (matching clone), got %v", tc.encoder, compactEnc)
+			}
+
+			// Decoder: compact (cjr) must match mutate (rj).
+			mutateCodes := runtypeCodes(t, tc.shape, "createJsonDecoderFn", "mutate")
+			compactDec := runtypeCodes(t, tc.shape, "createJsonDecoderFn", "compact")
+			if !containsCode(mutateCodes, tc.decoder) {
+				t.Fatalf("mutate decoder should surface %s, got %v", tc.decoder, mutateCodes)
+			}
+			if !containsCode(compactDec, tc.decoder) {
+				t.Errorf("compact decoder should surface %s (matching mutate), got %v", tc.decoder, compactDec)
+			}
+		})
+	}
+}
+
+// TestInternalJsonPrimitiveMissing_CompactPropertyDropStillWarns — an unserializable member at a
+// PROPERTY position (not propagating) is dropped with a Warning, exactly like
+// the sibling strategies; the object still renders, so no root throw and no
+// internal-json-primitive-missing. Guards that the diag-code delegation also wires the per-slot drop
+// diagnostics (SlotMethodDropped, …), which were silent no-ops before the fix —
+// asserted by matching clone's dropped-property warning code exactly.
+func TestInternalJsonPrimitiveMissing_CompactPropertyDropStillWarns(t *testing.T) {
+	const shape = `interface T { a: string; onClick: () => void }`
+	cloneEnc := runtypeCodes(t, shape, "createJsonEncoderFn", "clone")
+	compactEnc := runtypeCodes(t, shape, "createJsonEncoderFn", "compact")
+	if len(cloneEnc) == 0 {
+		t.Fatalf("clone encoder should warn on a dropped function property, got none")
+	}
+	// Same dropped-property warning code as clone (json-prepare-clone-method-dropped); compact once emitted nothing here.
+	if !containsCode(cloneEnc, diagnostics.CodePJSMethodDropped) {
+		t.Fatalf("expected clone to warn %s, got %v", diagnostics.CodePJSMethodDropped, cloneEnc)
+	}
+	if !containsCode(compactEnc, diagnostics.CodePJSMethodDropped) {
+		t.Errorf("compact encoder should warn %s on a dropped function property (matching clone), got %v",
+			diagnostics.CodePJSMethodDropped, compactEnc)
+	}
+}

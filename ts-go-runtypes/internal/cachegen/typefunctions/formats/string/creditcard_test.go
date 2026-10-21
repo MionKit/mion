@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/jsengine"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
@@ -22,11 +24,21 @@ func newCardStubCtx() *cardStubCtx {
 	return &cardStubCtx{items: map[string]string{}, counters: map[string]int{}}
 }
 
-func (c *cardStubCtx) AddPureFnDependency(_, _, _ string) {}
+func (c *cardStubCtx) AddPureFnDependency(_ string) {}
 
-func (c *cardStubCtx) UsePureFn(namespace, fnName, _ string) string {
-	c.pureFns = append(c.pureFns, namespace+"::"+fnName)
-	return "pf_" + fnName
+func (c *cardStubCtx) UsePureFn(id string) string {
+	c.pureFns = append(c.pureFns, id)
+	return pureFnNameOf(id)
+}
+
+// pureFnNameOf stands in for the alias the real emit context binds a pure fn to
+// inside a body. That alias is derived from the id, which is a hash, so the
+// readable name the generator records is what keeps these expectations legible.
+func pureFnNameOf(id string) string {
+	if name := purefnids.NameOf(id); name != "" {
+		return name
+	}
+	return id
 }
 
 func (c *cardStubCtx) HasContextItem(key string) bool {
@@ -39,7 +51,9 @@ func (c *cardStubCtx) SetContextItem(key, value string) { c.items[key] = value }
 func (c *cardStubCtx) EmitDiagnostic(_ string, _ ...string) {}
 func (c *cardStubCtx) JSEngine() jsengine.Engine            { return nil }
 func (c *cardStubCtx) PatternSampleCount() int              { return 0 }
-func (c *cardStubCtx) PatternGenFailure(_, _ string) string { return "" }
+func (c *cardStubCtx) PatternGenFailure(_, _ string) formats.PatternGenFailure {
+	return formats.PatternGenFailure{}
+}
 
 func (c *cardStubCtx) NextLocalVar(prefix string) string {
 	name := prefix + strconv.Itoa(c.counters[prefix])
@@ -60,11 +74,11 @@ func TestCreditCard_NoNetworksSkipsTheNetworkTable(t *testing.T) {
 	got := creditCardEmitter{}.EmitValidateCheck(cardAnnotation(map[string]any{}), "v", ctx)
 
 	// isCreditCard returns the failure MODE, so "valid" is the empty string.
-	if got != "pf_isCreditCard(v,{})===''" {
+	if got != "isCreditCard(v,{})===''" {
 		t.Fatalf("check = %q, want the base check alone", got)
 	}
-	if len(ctx.pureFns) != 1 || ctx.pureFns[0] != "rtFormats::isCreditCard" {
-		t.Fatalf("pure fns = %v, want exactly [rtFormats::isCreditCard]", ctx.pureFns)
+	if len(ctx.pureFns) != 1 || ctx.pureFns[0] != purefnids.IsCreditCard {
+		t.Fatalf("pure fns = %v, want exactly [%s]", ctx.pureFns, purefnids.IsCreditCard)
 	}
 }
 
@@ -75,7 +89,7 @@ func TestCreditCard_NetworksAddTheNetworkCheck(t *testing.T) {
 	params := map[string]any{"networks": []any{"visa", "mastercard"}}
 	got := creditCardEmitter{}.EmitValidateCheck(cardAnnotation(params), "v", ctx)
 
-	for _, want := range []string{"pf_isCreditCard(v,", "pf_matchesCardNetwork(v,", `"visa"`, `"mastercard"`, " && "} {
+	for _, want := range []string{"isCreditCard(v,", "matchesCardNetwork(v,", `"visa"`, `"mastercard"`, " && "} {
 		if !strings.Contains(got, want) {
 			t.Errorf("check missing %q; got %q", want, got)
 		}
@@ -108,7 +122,7 @@ func TestCreditCard_ErrorsLaneReportsTheFailureMode(t *testing.T) {
 	ctx := newCardStubCtx()
 	got := creditCardEmitter{}.EmitValidationErrorsCheck(
 		cardAnnotation(map[string]any{"networks": []any{"amex"}}), "v", "pth", "er", ctx)
-	for _, want := range []string{`'creditCard'`, `["amex"]`, `errorType:"network"`, "else if (!pf_matchesCardNetwork"} {
+	for _, want := range []string{`'creditCard'`, `["amex"]`, `errorType:"network"`, "else if (!matchesCardNetwork"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("errors lane missing %q; got %q", want, got)
 		}
@@ -117,7 +131,7 @@ func TestCreditCard_ErrorsLaneReportsTheFailureMode(t *testing.T) {
 	// The mode is computed ONCE into a local and used as both `val` and `type`.
 	anyCtx := newCardStubCtx()
 	anyGot := creditCardEmitter{}.EmitValidationErrorsCheck(cardAnnotation(map[string]any{}), "v", "pth", "er", anyCtx)
-	for _, want := range []string{"const ccMode0=pf_isCreditCard(", "val:ccMode0", "errorType:ccMode0"} {
+	for _, want := range []string{"const ccMode0=isCreditCard(", "val:ccMode0", "errorType:ccMode0"} {
 		if !strings.Contains(anyGot, want) {
 			t.Errorf("errors lane missing %q; got %q", want, anyGot)
 		}

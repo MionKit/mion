@@ -15,7 +15,7 @@ export default defineConfig({
     // NO mionVitePlugin here: the proxy builders carry type-only format stamps and
     // never call the marker API themselves — injection happens at the consumer's own
     // call sites, under the consumer's build. With no call sites in the shipped code
-    // the transform changes nothing and only leaves a __runtypes genDir behind.
+    // the transform changes nothing and only leaves a .mion genDir behind.
     // Tests still run the plugin via vitest.config.ts, where the spec/stub call
     // sites need it.
     dts({

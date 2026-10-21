@@ -1,0 +1,132 @@
+/* ########
+ * 2026 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+// Class unions must prefer exact constructors regardless of member order; unregistered subclasses decode structurally.
+// Base-only signatures cannot encode unnamed subclasses; see AGENTS.md marker coverage.
+
+import {afterEach, describe, expect, it} from 'vitest';
+import {createJsonEncoderFn, createJsonDecoderFn, createValidateFn, createGetValidationErrorsFn} from '@mionjs/run-types';
+import {registerClassSerializer} from '@mionjs/run-types/runtime';
+import {clearClassSerializers} from '../../src/runtypes/classSerializerRegistry.ts';
+
+afterEach(() => {
+  clearClassSerializers();
+});
+
+class BaseErr {
+  constructor(public type: string) {}
+}
+class AuthErr extends BaseErr {
+  constructor(
+    type: string,
+    public scope: string,
+    public retryAfter: number
+  ) {
+    super(type);
+  }
+}
+type SubFirst = string | AuthErr | BaseErr;
+type BaseFirst = string | BaseErr | AuthErr;
+
+const registerBase = () => registerClassSerializer(BaseErr, {deserialize: (d) => new BaseErr(d.type)});
+const registerSub = () => registerClassSerializer(AuthErr, {deserialize: (d) => new AuthErr(d.type, d.scope, d.retryAfter)});
+const auth = () => new AuthErr('not-authorized', 'admin', 30);
+const paths = (errors: {path: unknown[]}[]) => errors.map((e) => e.path.map(String).join('.')).sort();
+
+describe('classSerializer / a base class and its subclass declared in one union', () => {
+  it('static (JSON) — each registered class rides its own arm and comes back as itself, in either member order', () => {
+    registerBase();
+    registerSub();
+    for (const [encode, decode] of [
+      [createJsonEncoderFn<SubFirst>(), createJsonDecoderFn<SubFirst>()],
+      [createJsonEncoderFn<BaseFirst>(), createJsonDecoderFn<BaseFirst>()],
+    ] as const) {
+      const wire = encode(auth()) as string;
+      expect(wire).toContain('"scope":"admin"');
+      expect(wire).toContain('"retryAfter":30');
+      const sub = decode(wire) as AuthErr;
+      expect(sub).toBeInstanceOf(AuthErr);
+      expect(sub.scope).toBe('admin');
+      expect(sub.retryAfter).toBe(30);
+      const base = decode(encode(new BaseErr('soft')) as string) as BaseErr;
+      expect(base).toBeInstanceOf(BaseErr);
+      expect(base).not.toBeInstanceOf(AuthErr);
+      expect(decode(encode('plain') as string)).toBe('plain');
+    }
+  });
+
+  it('reflect (JSON) — the same through the value-first form', () => {
+    registerBase();
+    registerSub();
+    const sample: BaseFirst = new BaseErr('x');
+    const encode = createJsonEncoderFn(sample);
+    const decode = createJsonDecoderFn(sample);
+    const sub = decode(encode(auth()) as string) as AuthErr;
+    expect(sub).toBeInstanceOf(AuthErr);
+    expect(sub.scope).toBe('admin');
+    expect(decode(encode(new BaseErr('soft')) as string)).toBeInstanceOf(BaseErr);
+  });
+
+  it('static (JSON) — an unregistered subclass takes the structural road: its own arm, a plain object back', () => {
+    registerBase();
+    for (const [encode, decode] of [
+      [createJsonEncoderFn<SubFirst>(), createJsonDecoderFn<SubFirst>()],
+      [createJsonEncoderFn<BaseFirst>(), createJsonDecoderFn<BaseFirst>()],
+    ] as const) {
+      const wire = encode(auth()) as string;
+      expect(wire).toContain('"scope":"admin"');
+      const sub = decode(wire) as AuthErr;
+      expect(sub).not.toBeInstanceOf(BaseErr);
+      expect(sub.type).toBe('not-authorized');
+      expect(sub.scope).toBe('admin');
+      expect(sub.retryAfter).toBe(30);
+      expect(decode(encode(new BaseErr('soft')) as string)).toBeInstanceOf(BaseErr);
+    }
+  });
+
+  it('reflect — validation accepts both, and a key neither class declares is unknown at the root and inside the union alike', () => {
+    registerBase();
+    registerSub();
+    const sample: BaseFirst = new BaseErr('x');
+    expect(createValidateFn(sample)(auth())).toBe(true);
+    expect(createValidateFn(sample)(new BaseErr('x'))).toBe(true);
+    const stray = {type: 'x', scope: 'admin', retryAfter: 30, bogus: 1};
+    const authSample = auth();
+    expect(createValidateFn(sample, {checkUnknowns: true})(stray)).toBe(false);
+    expect(createValidateFn<AuthErr>(undefined, {checkUnknowns: true})(stray)).toBe(false);
+    expect(createValidateFn(authSample, {checkUnknowns: true})(stray)).toBe(false);
+    // A union reports at its own root: the key is only undeclared relative to a branch.
+    expect(paths(createGetValidationErrorsFn(sample, {checkUnknowns: true})(stray))).toEqual(['']);
+    expect(paths(createGetValidationErrorsFn<AuthErr>(undefined, {checkUnknowns: true})(stray))).toEqual(['bogus']);
+    expect(paths(createGetValidationErrorsFn(authSample, {checkUnknowns: true})(stray))).toEqual(['bogus']);
+    expect(createValidateFn(sample, {checkUnknowns: true})(auth())).toBe(true);
+    expect(createGetValidationErrorsFn(sample, {checkUnknowns: true})(new BaseErr('x'))).toEqual([]);
+  });
+
+  it("static — the decoder's default 'clone' drops a stray key inside the union like at the root", () => {
+    registerBase();
+    registerSub();
+    const wire = createJsonEncoderFn<BaseFirst>(undefined, {strategy: 'mutate'})(Object.assign(auth(), {bogus: 1})) as string;
+    expect(wire).toContain('"bogus":1');
+    const back = createJsonDecoderFn<BaseFirst>()(wire) as AuthErr & {bogus?: number};
+    expect(back).toBeInstanceOf(AuthErr);
+    expect(back.scope).toBe('admin');
+    expect(back.bogus).toBeUndefined();
+    const root = createJsonDecoderFn<AuthErr>()('{"type":"x","scope":"s","retryAfter":1,"bogus":1}') as AuthErr & {
+      bogus?: number;
+    };
+    expect(root.bogus).toBeUndefined();
+  });
+
+  it('static — a wire object never smuggles __proto__ onto the rebuilt instance', () => {
+    registerBase();
+    const decode = createJsonDecoderFn<BaseErr>(undefined, {strategy: 'mutate'});
+    const back = decode('{"type":"x","__proto__":{"polluted":true}}') as BaseErr & {polluted?: boolean};
+    expect(back).toBeInstanceOf(BaseErr);
+    expect(back.polluted).toBeUndefined();
+  });
+});

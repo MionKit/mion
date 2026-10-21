@@ -1,23 +1,38 @@
 {
+  // Check-only config, shared with the editor: src and test in one program, non-composite and no emit.
+  // tsconfig.build.json carries the emit and narrows the program back to src.
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    // The union root tsconfig sets noImplicitAny:false for the mion packages;
-    // re-enable it here so this package keeps its original strictness.
+    // The union root tsconfig sets noImplicitAny:false for the mion packages; this package keeps its own.
     "noImplicitAny": true,
-    "outDir": "dist",
-    "rootDir": "src",
-    // `esnext.temporal` is needed ONLY so the dist build can resolve the
-    // `Temporal.*` references in src/formats/datetime/temporalFormats.ts and
-    // emit its declarations. Without it tsc raises TS2503 and (depending on the
-    // toolchain) skips declaration emit for the erroring file — which removes
-    // markers/createRTFunctions .d.ts and breaks call-site resolution for ALL
-    // consumers, not just Temporal. This is a tsconfig `lib` entry (config-local
-    // to THIS build), NOT a `/// <reference lib>` in the source file — so it does
-    // not travel with the emitted .d.ts and never reaches the Go scanner's
-    // inferred program (which resolves Temporal from the CONSUMER's own `lib`).
+    // `esnext.temporal` resolves the `Temporal.*` references in src/formats/datetime/temporalFormats.ts.
+    // Without it tsc raises TS2503 and, depending on the toolchain, skips declaration emit for that file,
+    // which removes the markers/createRTFunctions .d.ts and breaks call-site resolution for EVERY consumer.
+    // A tsconfig `lib` entry rather than a `/// <reference lib>` so it does not travel with the emitted
+    // .d.ts and never reaches the Go scanner's inferred program, which resolves Temporal from the consumer.
     "lib": ["ES2023", "dom", "esnext.temporal"],
-    "types": []
+    "types": ["node"],
+    "noEmit": true,
+    // Declaration-emit checks (TS4023/4025/2527: exported const uses a private name, inaccessible
+    // `unique symbol`) are noise on test files, which are never emitted, and would force exporting
+    // throwaway fixture model types. The build still declaration-checks the published src.
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    // The Go resolver drives its disk cache off TypeScript's incremental switch, so turning it off keeps
+    // this package's own test runs hermetic: no artifacts under node_modules/.cache during vitest.
+    "incremental": false,
+    // The repo root, not the package: the type-fuzz harness under test/fuzz/ imports the shared
+    // @mionjs/devtools resolver client and inline helpers across the package boundary.
+    "rootDir": "../..",
+    // Resolve this package's self-import in tests to src/index.ts through the `source` exports condition
+    // rather than an un-built dist/index.d.ts. Mirrors vite's `resolve.conditions` at runtime.
+    "customConditions": ["source"]
   },
-  "include": ["src"],
-  "exclude": ["node_modules", "dist", "test", "vitest.config.ts"]
+  "include": ["src/**/*", "test/**/*", "vitest.config.ts"],
+  // test/playground is the relocated playground engine suite: it imports the engine cross-tree from
+  // container/website (its own tsconfig) and a .mjs helper, so it is not part of this program. It runs as
+  // its own vitest project. test/converted-* are the generated converted-suite trees (gitignored, built and
+  // removed by `pnpm miondevx core converted-suites`) and type-check under tsconfig.converted.json.
+  "exclude": ["node_modules", "dist", "test/playground", "test/converted-builders"]
 }

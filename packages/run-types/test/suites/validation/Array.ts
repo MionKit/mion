@@ -1,12 +1,7 @@
 import * as TF from '@mionjs/run-types/formats';
 import type {ValidationCase} from './types.ts';
-import {
-  createValidateFn,
-  createGetValidationErrorsFn,
-  createMockDataFn,
-  createStandardSchema,
-  type DataOnly,
-} from '@mionjs/run-types';
+import {createValidateFn, createGetValidationErrorsFn, createStandardSchema, type DataOnly} from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import * as RT from '@mionjs/run-types/builders';
 import {deserializeValidate, deserializeGetValidationErrors} from '../../util/deserializeRTFunctions.ts';
 
@@ -65,10 +60,6 @@ export const ARRAY = {
     },
     getSamples: () => ({
       valid: [[], ['hello', 'world']],
-      // The mixed-types invalid `['hello', 'world', {hello: 'world'}]`
-      // is the carry-over from the "simple array hasUnknownKeys on
-      // array with non objects" block — the object element fails the
-      // string check, so the whole array fails validate.
       invalid: ['hello', ['hello', 2], ['hello', 'world', {hello: 'world'}], null, undefined, [42], [null]],
     }),
     getExpectedErrors: () => [
@@ -288,33 +279,44 @@ export const ARRAY = {
 
   regexp_array: {
     title: 'RegExp array',
-    description: 'Every element passes the atomic builtin-class RegExp check (`instanceof RegExp`); `[]` is valid.',
+    description: 'A `RegExp` element is not data, so the array factory throws on first call, like `symbol[]`.',
     validateNotes: [
-      'A regex *source string* like `"/abc/"` is rejected — the element check is the nominal `instanceof RegExp`, not a string.',
+      '`DataOnly<RegExp[]>` is `never[]`: the element refusal reaches the root (validate-non-data-root / validation-errors-non-data-root).',
     ],
+    // @mion-downgrade-error validate-non-data-root
     validate: () => createValidateFn<RegExp[]>(),
+    // @mion-downgrade-error validation-errors-non-data-root validate-non-data-root
     standardSchema: () => createStandardSchema<RegExp[]>(),
     validateDataOnly: () => createValidateFn<DataOnly<RegExp[]>>(),
+    // @mion-downgrade-error validate-non-data-root
     validateSchema: () => createValidateFn(RT.array(RT.regexp())),
+    // @mion-downgrade-error validate-non-data-root
     deserializeValidate: () => deserializeValidate<RegExp[]>(),
     validateReflect: () => {
       const v: RegExp[] = [];
+      // @mion-downgrade-error validate-non-data-root
       return createValidateFn(v);
     },
     deserializeValidateReflect: () => {
       const v: RegExp[] = [];
+      // @mion-downgrade-error validate-non-data-root
       return deserializeValidate(v);
     },
+    // @mion-downgrade-error validation-errors-non-data-root
     getValidationErrors: () => createGetValidationErrorsFn<RegExp[]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<RegExp[]>>(),
+    // @mion-downgrade-error validation-errors-non-data-root
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(RT.regexp())),
+    // @mion-downgrade-error validation-errors-non-data-root
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<RegExp[]>(),
     getValidationErrorsReflect: () => {
       const v: RegExp[] = [];
+      // @mion-downgrade-error validation-errors-non-data-root
       return createGetValidationErrorsFn(v);
     },
     deserializeGetValidationErrorsReflect: () => {
       const v: RegExp[] = [];
+      // @mion-downgrade-error validation-errors-non-data-root
       return deserializeGetValidationErrors(v);
     },
     mockType: () => createMockDataFn<RegExp[]>(),
@@ -322,18 +324,9 @@ export const ARRAY = {
       const v: RegExp[] = [];
       return createMockDataFn(v);
     },
-    getSamples: () => ({
-      valid: [[], [/abc/, new RegExp('abc')]],
-      invalid: [['/abc/'], [42], null, undefined, [null], [{}]],
-    }),
-    getExpectedErrors: () => [
-      [{path: [0], expected: 'regexp'}],
-      [{path: [0], expected: 'regexp'}],
-      [{path: [], expected: 'array'}],
-      [{path: [], expected: 'array'}],
-      [{path: [0], expected: 'regexp'}],
-      [{path: [0], expected: 'regexp'}],
-    ],
+    mockTypeExpect: 'skip', // a RegExp is not data: the mock leaves it out
+    factoryThrows: true,
+    getSamples: () => ({valid: [], invalid: []}),
   },
 
   undefined_array: {
@@ -601,55 +594,6 @@ export const ARRAY = {
       [{path: [0, 0, 0], expected: 'string'}],
       [{path: [0, 0, 0], expected: 'string'}],
     ],
-  },
-
-  string_array_noIsArrayCheck: {
-    title: 'noIsArrayCheck array',
-    description:
-      '`{noIsArrayCheck: true}` strips the `Array.isArray` guard, producing a distinctly-hashed validator that only walks elements.',
-    validateNotes: [
-      'With `{noIsArrayCheck: true}`, the `Array.isArray` guard is stripped — non-array inputs may slip through.',
-      'Use only when the caller has already verified the value is an array; the validator trusts the shape and only walks elements.',
-    ],
-    validate: () => createValidateFn<string[]>(undefined, {noIsArrayCheck: true}),
-    standardSchema: () => createStandardSchema<string[]>(undefined, {noIsArrayCheck: true}),
-    validateDataOnly: () => createValidateFn<DataOnly<string[]>>(undefined, {noIsArrayCheck: true}),
-    deserializeValidate: () => deserializeValidate<string[]>(undefined, {noIsArrayCheck: true}),
-    validateReflect: () => {
-      const v: string[] = [];
-      return createValidateFn(v, {noIsArrayCheck: true});
-    },
-    deserializeValidateReflect: () => {
-      const v: string[] = [];
-      return deserializeValidate(v, {noIsArrayCheck: true});
-    },
-    validateSchema: () => createValidateFn(RT.array(TF.string()), {noIsArrayCheck: true}),
-    getValidationErrors: () => createGetValidationErrorsFn<string[]>(undefined, {noIsArrayCheck: true}),
-    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<string[]>>(undefined, {noIsArrayCheck: true}),
-    deserializeGetValidationErrors: () => deserializeGetValidationErrors<string[]>(undefined, {noIsArrayCheck: true}),
-    getValidationErrorsReflect: () => {
-      const v: string[] = [];
-      return createGetValidationErrorsFn(v, {noIsArrayCheck: true});
-    },
-    deserializeGetValidationErrorsReflect: () => {
-      const v: string[] = [];
-      return deserializeGetValidationErrors(v, {noIsArrayCheck: true});
-    },
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(TF.string()), {noIsArrayCheck: true}),
-    mockType: () => createMockDataFn<string[]>(undefined, undefined),
-    mockTypeReflect: () => {
-      const v: string[] = [];
-      return createMockDataFn(v);
-    },
-    getSamples: () => ({
-      valid: [[], ['hello']],
-      // Without the guard, non-array inputs may not be rejected by
-      // the validator (the documented trade-off — the caller has
-      // pre-verified arrayness). Only sample inputs that the loop
-      // itself catches.
-      invalid: [[42]],
-    }),
-    getExpectedErrors: () => [[{path: [0], expected: 'string'}]],
   },
 
   // ---- DEFERRED — sample payloads carried for future activation ----
@@ -1043,31 +987,42 @@ export const ARRAY = {
     validateNotes: [
       'Arrays whose element type is non-serializable (`symbol[]`, `(() => any)[]`, …) cannot be validated: the factory is rendered as alwaysThrow and the first createXxx<symbol[]>() call throws. Use a different shape to carry symbol-like data.',
     ],
+    // @mion-downgrade-error validate-symbol-root
     validate: () => createValidateFn<symbol[]>(),
+    // @mion-downgrade-error validation-errors-symbol-root validate-symbol-root
     standardSchema: () => createStandardSchema<symbol[]>(),
     validateDataOnly: () => createValidateFn<DataOnly<symbol[]>>(),
     // Non-serializable array element (symbol) propagates to the root → alwaysThrow.
     // `RT.array(RT.symbol())` resolves the same factory, so the schema thunk throws.
+    // @mion-downgrade-error validate-symbol-root
     validateSchema: () => createValidateFn(RT.array(RT.symbol())),
+    // @mion-downgrade-error validate-symbol-root
     deserializeValidate: () => deserializeValidate<symbol[]>(),
     validateReflect: () => {
       const v: symbol[] = [];
+      // @mion-downgrade-error validate-symbol-root
       return createValidateFn(v);
     },
     deserializeValidateReflect: () => {
       const v: symbol[] = [];
+      // @mion-downgrade-error validate-symbol-root
       return deserializeValidate(v);
     },
+    // @mion-downgrade-error validation-errors-symbol-root
     getValidationErrors: () => createGetValidationErrorsFn<symbol[]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<symbol[]>>(),
+    // @mion-downgrade-error validation-errors-symbol-root
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(RT.symbol())),
+    // @mion-downgrade-error validation-errors-symbol-root
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<symbol[]>(),
     getValidationErrorsReflect: () => {
       const v: symbol[] = [];
+      // @mion-downgrade-error validation-errors-symbol-root
       return createGetValidationErrorsFn(v);
     },
     deserializeGetValidationErrorsReflect: () => {
       const v: symbol[] = [];
+      // @mion-downgrade-error validation-errors-symbol-root
       return deserializeGetValidationErrors(v);
     },
     mockType: () => createMockDataFn<symbol[]>(),
@@ -1092,7 +1047,7 @@ export const ARRAY = {
     validate: () => createValidateFn<ReadonlyArray<string>>(),
     standardSchema: () => createStandardSchema<ReadonlyArray<string>>(),
     validateDataOnly: () => createValidateFn<DataOnly<ReadonlyArray<string>>>(),
-    validateSchema: () => createValidateFn(RT.array(TF.string())),
+    validateSchema: () => createValidateFn(RT.readonly(RT.array(TF.string()))),
     deserializeValidate: () => deserializeValidate<ReadonlyArray<string>>(),
     validateReflect: () => {
       const v: ReadonlyArray<string> = [];
@@ -1104,7 +1059,7 @@ export const ARRAY = {
     },
     getValidationErrors: () => createGetValidationErrorsFn<ReadonlyArray<string>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<ReadonlyArray<string>>>(),
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(TF.string())),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.readonly(RT.array(TF.string()))),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<ReadonlyArray<string>>(),
     getValidationErrorsReflect: () => {
       const v: ReadonlyArray<string> = [];

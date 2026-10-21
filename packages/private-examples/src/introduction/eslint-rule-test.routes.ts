@@ -1,0 +1,259 @@
+/* eslint-disable */
+// This file demonstrates the mion route checks the lint plugin reports
+// The rules are disabled for this file so you can see both valid and invalid examples
+import {HeadersSubset, RpcError, FatalError, TypedError} from '@mionjs/core';
+import {
+  createMionRouter,
+  Handler,
+  HeaderHandler,
+  CallContext,
+} from '@mionjs/router';
+
+const mion = createMionRouter();
+
+// ========================================
+// ✅ VALID EXAMPLES (these should NOT trigger mion/runtime-error)
+// ========================================
+
+// start:typed-handlers-valid-inline
+mion.route((ctx, name: string): string => `hello ${name}`);
+mion.middleware((ctx, data: number): void => {
+  console.log(data);
+});
+mion.headersMiddleware(
+  (ctx: CallContext, {headers}: HeadersSubset<'x-trace-id'>): void => {
+    // do something
+  }
+);
+// end:typed-handlers-valid-inline
+
+// start:typed-handlers-valid-function-refs
+function validHandler(ctx, name: string): string {
+  return `hello ${name}`;
+}
+const validArrowHandler = (ctx, name: string): string => `hello ${name}`;
+mion.route(validHandler);
+mion.route(validArrowHandler);
+// end:typed-handlers-valid-function-refs
+
+// start:typed-handlers-valid-type-annotations
+const typedHandler: Handler = (ctx, name: string): string => `hello ${name}`;
+const typedHeaderHandler: HeaderHandler = (
+  ctx: CallContext,
+  {headers}: HeadersSubset<'x-trace-id'>
+): void => {
+  const traceId = headers['x-trace-id'];
+  console.log(traceId);
+};
+// end:typed-handlers-valid-type-annotations
+
+// start:typed-handlers-valid-satisfies
+const satisfiesHandler = ((ctx, name: string): string =>
+  `hello ${name}`) satisfies Handler;
+const satisfiesHeaderHandler = ((
+  ctx: CallContext,
+  {headers}: HeadersSubset<'x-trace-id'>
+): void => {
+  const traceId = headers['x-trace-id'];
+  console.log(traceId);
+}) satisfies HeaderHandler;
+// end:typed-handlers-valid-satisfies
+
+// start:typed-handlers-valid-jsdoc
+/**
+ * @mion:route
+ */
+function routeWithJSDoc(ctx, name: string): string {
+  return `hello ${name}`;
+}
+
+/**
+ * @mion:middleware
+ */
+const middlewareWithJSDoc = (ctx, data: number): void => {
+  console.log(data);
+};
+
+/**
+ * @mion:headersMiddleware
+ */
+function headersMiddlewareWithJSDoc(
+  ctx: CallContext,
+  {headers}: HeadersSubset<'x-trace-id'>
+): void {
+  const traceId = headers['x-trace-id'];
+  console.log(traceId);
+}
+// end:typed-handlers-valid-jsdoc
+
+// ========================================
+// ❌ INVALID EXAMPLES (these trigger mion/runtime-error when the lint rules are on)
+// ========================================
+
+// ========================================
+// rpc-handler-missing-return-type / rpc-handler-missing-param-type: typed handlers
+// ========================================
+
+// start:typed-handlers-invalid-inline
+mion.route((ctx, name) => `hello ${name}`); // Missing both param type and return type
+mion.middleware((ctx, data: number) => {
+  console.log(data);
+}); // Missing return type
+mion.headersMiddleware((ctx: CallContext, [traceId]): void => {
+  // do something
+}); // Missing param type
+// end:typed-handlers-invalid-inline
+
+// start:typed-handlers-invalid-function-refs
+function invalidHandler(ctx, name) {
+  return `hello ${name}`;
+}
+const invalidArrowHandler = (ctx, name) => `hello ${name}`;
+mion.route(invalidHandler); // Should error: missing both types
+mion.route(invalidArrowHandler); // Should error: missing both types
+// end:typed-handlers-invalid-function-refs
+
+// start:typed-handlers-invalid-type-annotations
+// 3. Type annotations missing types
+const invalidTypedHandler: Handler = (ctx, name) => `hello ${name}`; // Missing both types
+const invalidTypedHeaderHandler: HeaderHandler = (
+  ctx: CallContext,
+  {headers}: HeadersSubset<'x-trace-id'>
+) => {
+  const traceId = headers['x-trace-id'];
+  console.log(traceId);
+}; // Missing return type
+// end:typed-handlers-invalid-type-annotations
+
+// start:typed-handlers-invalid-satisfies
+// 4. Satisfies expressions missing types
+const invalidSatisfiesHandler = ((ctx, name) =>
+  `hello ${name}`) satisfies Handler; // Missing both types
+const invalidSatisfiesHeaderHandler = ((ctx: CallContext, {headers}): void => {
+  const traceId = headers['x-trace-id'];
+  console.log(traceId);
+}) satisfies HeaderHandler; // Missing param type
+// end:typed-handlers-invalid-satisfies
+
+// start:typed-handlers-invalid-jsdoc
+// 5. JSDoc tags missing types
+/**
+ * @mion:route
+ */
+function invalidRouteJSDoc(ctx, name) {
+  return `hello ${name}`;
+} // Missing both types
+
+/**
+ * @mion:middleware
+ */
+const invalidMiddlewareJSDoc = (ctx, data: number) => {
+  console.log(data);
+}; // Missing return type
+
+/**
+ * @mion:headersMiddleware
+ */
+function invalidHeadersMiddlewareJSDoc(ctx: CallContext, {headers}): void {
+  const traceId = headers['x-trace-id'];
+  console.log(traceId);
+} // Missing param type
+// end:typed-handlers-invalid-jsdoc
+
+// ========================================
+// rpc-handler-throws: return errors instead of throwing
+// ========================================
+
+// start:return-errors-valid
+// 1. Return the error, so it stays in the signature and the client gets it typed
+mion.route((ctx, id: string): string | RpcError<'not-found'> => {
+  if (!id)
+    return new RpcError({type: 'not-found', publicMessage: 'No id given'});
+  return `hello ${id}`;
+});
+
+// 2. A gate returns a FatalError, which ends the request
+mion.middleware((ctx): void | FatalError<'not-authorized'> => {
+  if (!ctx.request.headers.get('cookie'))
+    return new FatalError({
+      type: 'not-authorized',
+      publicMessage: 'Not Authorized',
+    });
+});
+
+// 3. A throw caught inside the handler never reaches the router
+mion.route((ctx, id: string): string | RpcError<'db-error'> => {
+  try {
+    if (!id) throw new Error('empty id');
+    return `hello ${id}`;
+  } catch {
+    return new RpcError({type: 'db-error', publicMessage: 'Lookup failed'});
+  }
+});
+// end:return-errors-valid
+
+// start:return-errors-invalid
+// 1. Throwing drops the error from the signature, so the client cannot handle it typed
+mion.route((ctx, id: string): string => {
+  throw new RpcError({type: 'not-found', publicMessage: 'No id given'});
+});
+
+// 2. A throw inside a callback in the handler body still reaches the router
+mion.route((ctx, ids: string[]): string[] =>
+  ids.map((id) => {
+    throw new Error('bad id');
+  })
+);
+
+// 3. Rethrowing from the catch clause escapes the handler too
+mion.route((ctx, id: string): string => {
+  try {
+    return `hello ${id}`;
+  } catch (err) {
+    throw err;
+  }
+});
+// end:return-errors-invalid
+
+// ========================================
+// rpc-handler-returns-non-rpc-error: returned error types
+// ========================================
+
+// start:error-types-valid
+// 1. An RpcError lands in its own typed slot and the chain keeps running
+mion.route((ctx, id: string): string | RpcError<'not-found'> => {
+  if (!id)
+    return new RpcError({type: 'not-found', publicMessage: 'No id given'});
+  return `hello ${id}`;
+});
+
+// 2. A FatalError is an RpcError subclass, so it is typed too, and it ends the request
+mion.middleware((ctx, id: string): void | FatalError<'not-authorized'> => {
+  if (!id)
+    return new FatalError({
+      type: 'not-authorized',
+      publicMessage: 'Not Authorized',
+    });
+});
+
+// 3. Your own subclass of RpcError keeps the brand, so it is fine as well
+class PetNotFound extends RpcError<'pet-not-found'> {}
+mion.route((ctx, id: string): string | PetNotFound => `hello ${id}`);
+// end:error-types-valid
+
+// start:error-types-invalid
+// 1. A plain Error carries no mion brand, so it never reaches the typed slot
+mion.route((ctx, id: string): string | Error => new Error('no id'));
+
+// 2. Your own class extending Error has the same problem
+class NotFoundError extends Error {}
+mion.route((ctx, id: string): string | NotFoundError => new NotFoundError());
+
+// 3. TypedError is branded, but as the base class it has no public message or status code to show
+mion.route(
+  (ctx, id: string): string | TypedError<'not-found'> =>
+    new TypedError({type: 'not-found'})
+);
+// end:error-types-invalid
+
+export {}; // Make this a module

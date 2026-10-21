@@ -12,7 +12,6 @@ package resolver_test
 // never elided — it throws without an injected id.
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -28,12 +27,7 @@ import {string, number} from '@mionjs/run-types/formats';
 func bundleEmitted(t *testing.T, code string) (bundle bool, valEntries int) {
 	t.Helper()
 	resp := scopeScan(t, code)
-	for basename := range resp.EntryModules {
-		if basename == "runtypes" || strings.HasPrefix(basename, "rts_") {
-			bundle = true
-		}
-	}
-	return bundle, len(familyEntryKeys(resp, "validate"))
+	return hasRunTypeData(resp), len(familyEntryKeys(resp, "validate"))
 }
 
 // TestElision_TypeOnlyUseEmitsNoGraph — the acceptance pair, static side.

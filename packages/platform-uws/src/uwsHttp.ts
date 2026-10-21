@@ -5,27 +5,39 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {dispatchRoute, getRouterFatalErrorResponse, resetRouter, decodeQueryBody, setPlatformConfig} from '@mionjs/router';
+import {
+  dispatchMaybeSync,
+  dispatchPlatformError,
+  resolveExecutionChain,
+  createContextFromChain,
+  getRouterFatalErrorResponse,
+  toRpcError,
+  resetRouter,
+  decodeQueryBody,
+  setPlatformConfig,
+  getDefaultHeaders,
+  releaseHeaders,
+  requestPayloadTooLarge,
+  hostOwnsSocket,
+} from '@mionjs/router';
 import {STATUS_CODES} from 'http';
-import {loadUws} from '@mionjs/uws';
-import type {HttpRequest, HttpResponse, TemplatedApp, us_listen_socket} from '@mionjs/uws';
+import {loadUws} from '@mionjs/bin-uws';
+import type {HttpRequest, HttpResponse, TemplatedApp, us_listen_socket} from '@mionjs/bin-uws';
 import {DEFAULT_UWS_HTTP_OPTIONS} from './constants.ts';
 import type {UwsHttpOptions} from './types.ts';
-import {configureBinary, type BinaryOptionsPatch} from '@mionjs/core';
-import type {MionHeaders, MionResponse} from '@mionjs/router';
+import type {MethodsExecutionChain, MionHeaders, MionResponse, RecordResponseHeaders} from '@mionjs/router';
 import {getENV, SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
-import {RpcError} from '@mionjs/core';
-import {bufferedResponseHeaders, headersFromUwsRequest} from './headers.ts';
+import {RpcError, FatalError} from '@mionjs/core';
+import {headersFromUwsRequest} from './headers.ts';
 
 // ############# PRIVATE STATE #############
 
 let httpOptions: Readonly<UwsHttpOptions> = {...DEFAULT_UWS_HTTP_OPTIONS};
 
-// The most bytes one uWS socket read can deliver: uSockets' LIBUS_RECV_BUFFER_LENGTH (512 KiB) at
-// the uwsTag pinned in packages/uws. A body LARGER than this cannot have arrived in a single read,
-// which is what makes the zero-copy branch in uwsRequestHandler safe (see the comment there); a
-// detachment tripwire guards the assumption at runtime. Re-verify against uSockets on a tag bump.
+// The most bytes one uWS socket read can deliver: uSockets' LIBUS_RECV_BUFFER_LENGTH (512 KiB) at the tag pinned in
+// packages/bin-uws. A LARGER body cannot be single-read, which is what makes the zero-copy branch below safe (a
+// detachment tripwire guards it at runtime). Re-verify against uSockets on a tag bump.
 const UWS_MAX_SINGLE_READ = 524288;
 
 /** The running server: the uWS app plus the socket handle listen() produced. */
@@ -43,29 +55,12 @@ export function resetUwsHttpOpts() {
 }
 
 export function setUwsHttpOpts(options?: Partial<UwsHttpOptions>) {
-  // Middleware mode cannot exist on this platform: uWS is its own C++ event loop and owns its
-  // listen socket, so its handlers cannot mount on a host node http server (a vite dev server,
-  // express). The vite plugin discovers this setter generically, so refuse the flag loudly here.
-  if ((options as {asMiddleware?: boolean} | undefined)?.asMiddleware) {
-    throw new Error(
-      '@mionjs/platform-uws does not support middleware mode: uWebSockets.js owns its own listen ' +
-        'socket and cannot mount on a host node server. Use @mionjs/platform-node for middleware mode.'
-    );
-  }
   httpOptions = {
     ...httpOptions,
     ...options,
   };
 
   return httpOptions;
-}
-
-/** Applies the binary options, arming the buffer pool unless the caller turned it off. Safe here
- *  because uWS copies the payload into its own send buffer synchronously during end() — even under
- *  backpressure — so the adapter releases the pooled buffer right after the corked reply. The
- *  binary spec's concurrent large-payload test pins this assumption. */
-function applyBinaryOptions(binary: BinaryOptionsPatch): void {
-  configureBinary({...binary, pool: {enabled: true, ...binary.pool}});
 }
 
 /** The platform config the router publishes: everything but the TLS file paths. */
@@ -79,7 +74,13 @@ export async function startUwsServer(options?: Partial<UwsHttpOptions>): Promise
   const isTest = getENV('NODE_ENV') === 'test';
 
   if (options) setUwsHttpOpts(options);
-  applyBinaryOptions(httpOptions.binary);
+  // uWS is its own C++ event loop and owns its listen socket, so it cannot mount on a host node server.
+  if (hostOwnsSocket()) {
+    throw new Error(
+      '@mionjs/platform-uws does not support middleware mode: uWebSockets.js owns its own listen ' +
+        'socket and cannot mount on a host node server. Use @mionjs/platform-node for middleware mode.'
+    );
+  }
   const protocol = httpOptions.ssl ? 'https' : 'http';
   const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
   const url = `${protocol}://localhost${port}`;
@@ -125,10 +126,14 @@ export async function startUwsServer(options?: Partial<UwsHttpOptions>): Promise
 
 // ############# PRIVATE METHODS #############
 
-// exported for tests and for mounting on a hand-built uWS app; NOT a middleware handler (see
-// setUwsHttpOpts). uWS contract: `req` is only valid synchronously inside this call, so everything
-// the async dispatch needs is snapshotted before the first await; `res` stays valid until the
-// response ends or onAborted fires.
+// uWS refreshes a socket's idle timeout only from inside a body-data callback, and runs it only when a reader is registered.
+// Without one, a request answered before its body finished arriving is closed mid-upload, so drop every chunk instead.
+function drainRequestBody(res: HttpResponse) {
+  res.onData(() => {});
+}
+
+// exported for tests and for mounting on a hand-built uWS app; NOT a middleware handler (see startUwsServer).
+// uWS contract: `req` is valid only synchronously here, so the async dispatch snapshots it before the first await.
 export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   const state = {replied: false, aborted: false};
   // Everything read from `req` happens HERE, synchronously.
@@ -136,78 +141,109 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   const query = req.getQuery();
   const urlQuery = query === '' ? undefined : query;
   const reqHeaders = headersFromUwsRequest(req);
-  const contentType = req.getHeader('content-type');
 
-  const respHeaders = bufferedResponseHeaders(httpOptions.defaultResponseHeaders);
-  respHeaders.set('server', '@mionjs');
+  const respHeaders = getDefaultHeaders();
 
-  // Must be registered before any async work: after the client disconnects, touching `res`
-  // without this flag set would crash the process (uWS frees the response).
+  // must be registered before any async work: after a disconnect uWS frees the response, and touching it would crash
   res.onAborted(() => {
     state.aborted = true;
   });
 
-  const dispatchBody = (buffer: Buffer) => {
-    const isBinary = contentType.startsWith('application/octet-stream');
-    let reqRawBody: any = isBinary ? buffer : buffer.toString();
-    let reqBodyType: SerializerCode = isBinary ? SerializerModes.binary : SerializerModes.stringifyJson;
-    const queryBody = decodeQueryBody(urlQuery, reqRawBody || undefined);
-    if (queryBody) {
-      reqRawBody = queryBody.rawBody;
-      reqBodyType = queryBody.bodyType;
+  // route resolved BEFORE the body, synchronously: the native read stops at the chain's limit, and a late context stays GC-cheap.
+  // The raw request object is built once: the one a pathTransform reads and the one the handlers see.
+  const rawRequest = {path, urlQuery, headers: reqHeaders};
+  let chain: MethodsExecutionChain;
+  try {
+    chain = resolveExecutionChain(path, urlQuery, rawRequest);
+  } catch (err) {
+    drainRequestBody(res);
+    state.replied = true;
+    fatalFail(res, state, respHeaders, toRpcError(err));
+    return;
+  }
+
+  const dispatchBody = (rawBody: string, readQueryBody: boolean) => {
+    let reqRawBody: any = rawBody;
+    let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
+    // a throw here runs inside uWS' native callback (or a microtask): it must become a response
+    try {
+      const queryBody = readQueryBody ? decodeQueryBody(urlQuery, reqRawBody || undefined) : undefined;
+      if (queryBody) {
+        reqRawBody = queryBody.rawBody;
+        reqBodyType = queryBody.bodyType;
+      }
+    } catch (err) {
+      state.replied = true;
+      fatalFail(res, state, respHeaders, err as RpcError<string>);
+      return;
     }
 
-    dispatchRoute(path, reqRawBody, reqHeaders, respHeaders, {path, urlQuery, headers: reqHeaders}, res, reqBodyType, urlQuery)
-      .then((mionResponse) => {
-        if (state.replied) return;
-        state.replied = true;
-        reply(res, state, mionResponse);
-      })
-      .catch((e) => {
-        if (state.replied) return;
-        state.replied = true;
-        const error = new RpcError({
-          publicMessage: 'Unknown Error',
-          type: 'unknown-error',
-          originalError: e as Error,
-        });
-        fatalFail(res, state, respHeaders, error);
-      });
+    const context = createContextFromChain(chain, path, urlQuery, reqHeaders, respHeaders, reqRawBody, reqBodyType);
+    let dispatched: MionResponse | Promise<MionResponse>;
+    try {
+      dispatched = dispatchMaybeSync(context, rawRequest, res);
+    } catch (err) {
+      failWith(err);
+      return;
+    }
+    // an all-sync chain answers inside uWS' own callback, with no promise in between
+    if (dispatched instanceof Promise) answerWith(dispatched);
+    else answer(dispatched);
   };
 
-  // collectBody assembles the whole request body natively (it rides uWS' onDataV2, which knows the
-  // remaining length and can preallocate) and calls back ONCE — with null when the body exceeds
-  // maxSize, which is exactly the maxBodySize contract.
-  res.collectBody(httpOptions.maxBodySize, (fullBody) => {
+  const answer = (mionResponse: MionResponse) => {
+    if (state.replied) return;
+    state.replied = true;
+    try {
+      reply(res, state, mionResponse);
+    } catch {
+      // already marked replied: a failed write has nothing left to answer with
+    }
+  };
+
+  const failWith = (err: unknown) => {
+    if (state.replied) return;
+    state.replied = true;
+    fatalFail(res, state, respHeaders, toRpcError(err));
+  };
+
+  const answerWith = (dispatched: Promise<MionResponse>) => {
+    dispatched.then(answer).catch(failWith);
+  };
+
+  // collectBody assembles the body natively (uWS' onDataV2 preallocates) and calls back ONCE, with null past maxSize,
+  // which is exactly the maxBodySize contract. A not-found chain has no route to feed: its body is dropped as it arrives.
+  if (!chain.readsBody) {
+    drainRequestBody(res);
+    dispatchBody('', false);
+    return;
+  }
+
+  res.collectBody(chain.maxBodySize, (fullBody) => {
     if (state.replied) return;
     if (fullBody === null) {
-      state.replied = true;
-      const error = new RpcError({
-        publicMessage: 'Payload Too Large',
-        type: 'request-payload-too-large',
-      });
-      fatalFail(res, state, respHeaders, error);
+      // the route resolved, so the refusal still runs the chain's alwaysRun members
+      answerWith(
+        dispatchPlatformError(chain, path, urlQuery, requestPayloadTooLarge(), reqHeaders, respHeaders, rawRequest, res)
+      );
       return;
     }
 
-    // collectBody has two paths (verified in the pinned tag's HttpResponseWrapper.h and by test):
-    // a body that arrived in ONE socket read is handed as a zero-copy window into uWS' receive
-    // buffer and DETACHED when this callback returns — it must be copied here (Buffer.from over an
-    // ArrayBuffer is only a view; the outer Buffer.from is the one real memcpy). A body that took
-    // several reads was assembled in C++ and its memory OWNERSHIP-TRANSFERRED to JS — no copy.
+    // collectBody has two paths (verified in the pinned tag's HttpResponseWrapper.h and by test): a single-read body is a
+    // zero-copy window into uWS' receive buffer, DETACHED when this callback returns, so it must be decoded synchronously
+    // here; a multi-read body was assembled in C++ and OWNERSHIP-TRANSFERRED to JS, so it can be decoded from a microtask.
     if (fullBody.byteLength <= UWS_MAX_SINGLE_READ) {
-      dispatchBody(Buffer.from(Buffer.from(fullBody)));
+      // a body-less request (every GET) skips the view and the decode altogether
+      dispatchBody(fullBody.byteLength === 0 ? '' : Buffer.from(fullBody).toString(), true);
       return;
     }
-    // Bigger than one read can deliver → guaranteed the ownership-transferred path: use the buffer
-    // as-is. The microtask runs after the moment uWS would have detached it (it never does on this
-    // path), so the zero-length check is a tripwire for an upstream behavior change — fail loudly
-    // instead of parsing a neutered buffer.
+    // bigger than one read can deliver → guaranteed the ownership-transferred path, so the buffer survives the microtask.
+    // The zero-length check is a tripwire for an upstream change: fail loudly instead of parsing a neutered buffer.
     queueMicrotask(() => {
       if (state.replied) return;
       if (fullBody.byteLength === 0) {
         state.replied = true;
-        const error = new RpcError({
+        const error = new FatalError({
           publicMessage: 'Internal Server Error',
           type: 'unknown-error',
           errorData: {reason: 'uws detached a multi-read body buffer (upstream behavior change) — report to mion'},
@@ -215,10 +251,26 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
         fatalFail(res, state, respHeaders, error);
         return;
       }
-      dispatchBody(Buffer.from(fullBody));
+      dispatchBody(releaseAfterDecode(fullBody), true);
     });
   });
 }
+
+/** Frees an ownership-transferred body buffer right after decoding it; the single-read window must never come through here.
+ *  `transfer(0)` and not `transfer()`: measured on node 26, only `transfer(0)` releases the backing store there and then.
+ *  Guarded because a future uWS could hand back a buffer that cannot be transferred, which must not fail the request. */
+function releaseAfterDecode(fullBody: ArrayBuffer): string {
+  const text = Buffer.from(fullBody).toString();
+  try {
+    (fullBody as ReleasableBuffer).transfer?.(0);
+  } catch {
+    // not transferable: the collector gets it instead, exactly as before
+  }
+  return text;
+}
+
+/** `transfer` is ES2024 and this package compiles against an ES2023 lib; optional because a runtime without it must work. */
+type ReleasableBuffer = ArrayBuffer & {transfer?: (newByteLength?: number) => ArrayBuffer};
 
 // only called when there is an http error or weird unhandled route errors
 function fatalFail(res: HttpResponse, state: {aborted: boolean}, respHeaders: MionHeaders, error: RpcError<string>) {
@@ -226,61 +278,53 @@ function fatalFail(res: HttpResponse, state: {aborted: boolean}, respHeaders: Mi
   reply(res, state, routeResponse);
 }
 
+function isHeaderSafe(text: string): boolean {
+  // one pass, no allocation: a CR, LF or NUL anywhere makes the header unsafe to write
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code === 13 || code === 10 || code === 0) return false;
+  }
+  return true;
+}
+
+/** The line is a pure function of the code, so it is built once per code rather than per response. */
+const statusLines = new Map<number, string>();
 function statusLine(statusCode: number): string {
+  const cached = statusLines.get(statusCode);
+  if (cached !== undefined) return cached;
   const statusText = STATUS_CODES[statusCode];
-  return statusText ? `${statusCode} ${statusText}` : `${statusCode}`;
+  const line = statusText ? `${statusCode} ${statusText}` : `${statusCode}`;
+  statusLines.set(statusCode, line);
+  return line;
 }
 
 function reply(res: HttpResponse, state: {aborted: boolean}, mionResp: MionResponse) {
-  // The client is gone and uWS freed the response — touching it would crash. The only cleanup
-  // owed is handing a pooled binary buffer back.
-  if (state.aborted) {
-    mionResp.releaseBinBuffer?.();
-    return;
-  }
+  // uWS freed the response when the client left; touching it would crash
+  if (state.aborted) return;
+  const headers = mionResp.headers as RecordResponseHeaders;
 
-  // An unknown serializer becomes a fatal-error response BEFORE corking — uWS ignores a second
-  // writeStatus inside the same cork, so the swap can't happen mid-write.
-  const bodyType = mionResp.serializer;
-  const isKnownBodyType =
-    bodyType === SerializerModes.stringifyJson || bodyType === SerializerModes.json || bodyType === SerializerModes.binary;
-  if (!isKnownBodyType) {
-    const error = new RpcError({
-      publicMessage: 'unknown-mion-response-format',
-      type: 'unknown-error',
-      errorData: {bodyType},
-    });
-    mionResp = getRouterFatalErrorResponse(error, mionResp.headers);
-  }
+  // serialized BEFORE the cork: uWS warns a cork buffer must not be held across event loop iterations
+  const payload = JSON.stringify(mionResp.body);
 
-  // cork batches status + headers + body into one syscall; headers are write-only in uWS and
-  // must all precede end(). content-length is skipped: uWS derives and writes its own from the
-  // end() payload, and a duplicate header corrupts the response.
+  // cork makes one syscall; uWS headers are write-only and must all precede end().
+  // content-length is skipped: uWS writes its own, and a duplicate corrupts the response.
+  // uWS writes headers unchecked, so an echoed CR or LF would be header injection: dropped
+  const write = (name: string, value: string) => {
+    if (isHeaderSafe(value)) res.writeHeader(name, value);
+  };
   res.cork(() => {
     res.writeStatus(statusLine(mionResp.statusCode));
-    for (const [name, value] of mionResp.headers.entries()) {
-      if (name !== 'content-length') res.writeHeader(name, value);
-    }
+    headers.forEach((name, value) => {
+      if (name === 'content-length' || name === 'content-type' || !isHeaderSafe(name)) return;
+      if (typeof value === 'string') write(name, value);
+      // RFC 6265 forbids folding set-cookie; uWS writes a repeated name as its own line
+      else if (name === 'set-cookie') for (const cookie of value) write(name, cookie);
+      else write(name, value.join(', '));
+    });
+    // last, and the store's own skipped above: uWS appends a repeated name instead of replacing it
+    res.writeHeader('content-type', mionResp.contentType);
 
-    switch (mionResp.serializer) {
-      case SerializerModes.binary: {
-        const serializer = mionResp.binSerializer!;
-        res.end(serializer.getBufferView());
-        // uWS copies the payload into its own send buffer synchronously inside end() (also on
-        // the backpressure path), so unlike node there is nothing to wait for — the pooled
-        // buffer goes back immediately. Pinned by the binary spec's concurrent-load test.
-        mionResp.releaseBinBuffer?.();
-        break;
-      }
-      case SerializerModes.json: {
-        // Platform adapter stringifies the prepared body object
-        res.end(JSON.stringify(mionResp.body));
-        break;
-      }
-      default: {
-        // stringifyJson (and the fatal-error swap above): content-type already set by serializer
-        res.end(mionResp.rawBody as string);
-      }
-    }
+    res.end(payload);
   });
+  releaseHeaders(headers);
 }

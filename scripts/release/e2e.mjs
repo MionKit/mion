@@ -41,6 +41,7 @@ import {requireEngine} from '../lib/engine.mjs';
 import {startRegistry, startToolchainContainer, stopRegistry, waitContainerHealthy} from '../container/image.mjs';
 import {capture, die, note, noteErr, reportCliError, run, runOrThrow, sleep, which} from '../lib/proc.mjs';
 import {describeReceipt, writeReceipt} from './receipt.mjs';
+import {versionsOf} from '../lib/publish-order.mjs';
 
 const E2E_DIR = join(REPO_ROOT, 'container/pre-publish-e2e');
 const HOST_SMOKE_DIR = join(E2E_DIR, 'host-smoke');
@@ -50,8 +51,8 @@ const TARBALLS = join(REPO_ROOT, 'tarballs');
 // than derived so the lane says out loud what it covers — readMionVersion() reads
 // each one's package.json, so a name that stops existing fails loudly here instead
 // of quietly shrinking the lane. Installing @mionjs/platform-uws also proves the
-// per-platform binary payload resolution: its @mionjs/uws dep pulls the matching
-// @mionjs/uws-<os>-<arch> optional dependency from the same verdaccio.
+// per-platform binary payload resolution: its @mionjs/bin-uws dep pulls the matching
+// @mionjs/native-uws-<os>-<arch> optional dependency from the same verdaccio.
 const MION_CONSUMER_PACKAGES = [
   '@mionjs/core',
   '@mionjs/router',
@@ -64,7 +65,7 @@ const MION_CONSUMER_PACKAGES = [
   '@mionjs/platform-gcloud',
   '@mionjs/platform-uws',
   '@mionjs/platform-vercel',
-  '@mionjs/uws',
+  '@mionjs/bin-uws',
 ];
 
 // The drizzle packages ride drizzle-orm's version line (NOT the version.json
@@ -73,7 +74,7 @@ const MION_CONSUMER_PACKAGES = [
 // (never a pinned dependency), and the lane installs with --legacy-peer-deps,
 // which skips peer auto-install. Without it the dialect d.ts cannot resolve its
 // `@mionjs/drizzle-orm` imports, the marker types collapse to `any`, and the
-// consumer build halts on MKR007 — which is exactly what a real consumer would
+// consumer build halts on marker-any-from-unresolved-import — which is exactly what a real consumer would
 // hit if the peer were missing, so the lane names it the way a project does.
 const DRIZZLE_CONSUMER_PACKAGES = [
   '@mionjs/drizzle-orm',
@@ -101,33 +102,20 @@ function readVersion() {
   return JSON.parse(readFileSync(join(REPO_ROOT, 'version.json'), 'utf8')).version;
 }
 
-// The framework packages' version, read from the packages themselves rather than
-// version.json: they ride the same lockstep (bump-version.mjs stamps every
-// package.json), so the two agree, and reading the packages is what turns a
-// missed stamp into a loud failure here. Every public @mionjs/* must agree — a
-// split would make the install pins below resolve a version the registry never
-// served, which is a confusing 404 rather than an obvious mistake.
-// Per-package versions for the drizzle dialect packages (they may diverge by
-// patch, so no lockstep requirement — each installs at its own version).
-function readDrizzleVersions() {
-  const versions = new Map();
-  for (const name of DRIZZLE_CONSUMER_PACKAGES) {
-    const dir = name.replace('@mionjs/', '');
-    const manifestFile = join(REPO_ROOT, 'packages', dir, 'package.json');
-    if (!existsSync(manifestFile)) die(`e2e: ${name} is in the drizzle consumer set but packages/${dir}/package.json is missing`);
-    versions.set(name, JSON.parse(readFileSync(manifestFile, 'utf8')).version);
+function consumerVersions(names) {
+  try {
+    return versionsOf(names);
+  } catch (err) {
+    die(`e2e: ${err.message}`);
   }
-  return versions;
 }
 
+// Drizzle dialect packages may diverge by patch, so each installs at its own version.
+const readDrizzleVersions = () => consumerVersions(DRIZZLE_CONSUMER_PACKAGES);
+
+// Read from each package.json, not version.json, so a missed stamp fails here; a split would 404 the install pins.
 function readMionVersion() {
-  const versions = new Map();
-  for (const name of MION_CONSUMER_PACKAGES) {
-    const dir = name.replace('@mionjs/', '');
-    const manifestFile = join(REPO_ROOT, 'packages', dir, 'package.json');
-    if (!existsSync(manifestFile)) die(`e2e: ${name} is in the mion consumer set but packages/${dir}/package.json is missing`);
-    versions.set(name, JSON.parse(readFileSync(manifestFile, 'utf8')).version);
-  }
+  const versions = consumerVersions(MION_CONSUMER_PACKAGES);
   const distinct = [...new Set(versions.values())];
   if (distinct.length !== 1) {
     const detail = [...versions].map(([name, version]) => `${name}@${version}`).join(', ');
@@ -152,8 +140,8 @@ function ensureTarballs(force) {
 // in-container verdaccio, build every bundler app, then assert over the output.
 const MATRIX_SCRIPT = `set -eu
 cd /e2e
-cp -a /e2e-src/apps /e2e-src/test /e2e-src/build-all.mjs /e2e-src/lint-all.mjs /e2e-src/tsconfig.base.json /e2e/
-rm -rf /e2e/apps/*/dist /e2e/apps/*/.rt /e2e/apps/shared/.rt
+cp -a /e2e-src/apps /e2e-src/test /e2e-src/pure-fns /e2e-src/build-all.mjs /e2e-src/lint-all.mjs /e2e-src/tsconfig.base.json /e2e/
+rm -rf /e2e/apps/*/dist /e2e/apps/*/.rt /e2e/apps/shared/.rt /e2e/apps/*/.next /e2e/apps/*/selftest.json
 echo "e2e-matrix: installing @mionjs/run-types@$MION_E2E_VERSION + devtools from $MION_E2E_REGISTRY"
 # Install with npm (like a real consumer + the host smoke): additive onto the
 # baked pnpm-hoisted toolchains, and store-agnostic (pnpm's build-time store lives
@@ -163,16 +151,22 @@ echo "e2e-matrix: installing @mionjs/run-types@$MION_E2E_VERSION + devtools from
 # --legacy-peer-deps mirrors the baked tree's non-strict posture (the toolchains
 # cross-declare loose peers, e.g. rolldown-vite wants esbuild ^0.27 while the pinned
 # esbuild is 0.28) so npm layers the type-system packages on without re-litigating them. That
-# also skips peer auto-install, so @mionjs/bin (devtools' launcher peer, which
-# pulls the matching @mionjs/binary-<os>-<arch> via its optional deps) is
+# also skips peer auto-install, so @mionjs/bin-compiler (devtools' launcher peer, which
+# pulls the matching @mionjs/native-compiler-<os>-<arch> via its optional deps) is
 # installed explicitly - exactly the resolution chain the e2e exists to prove.
 # $MION_E2E_REGISTRY is the in-container verdaccio for the pre-publish backends and
 # the real registry (registry.npmjs.org) for the post-publish npm backend.
-npm install "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/devtools@$MION_E2E_VERSION" "@mionjs/bin@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
+# apps/mion-next hosts the mion API inside a Next app, so the matrix root needs the framework
+# packages that app imports too. They ride their OWN version (the framework train), which is why
+# they are a separate variable from the type-system one above.
+npm install "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/devtools@$MION_E2E_VERSION" "@mionjs/bin-compiler@$MION_E2E_VERSION" $MION_E2E_MATRIX_MION_PKGS --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
 echo "e2e-matrix: building every bundler app"
 node build-all.mjs
 echo "e2e-matrix: asserting over the build output (runtime + rewrite evidence + lint transport)"
-node --test test/*.test.mjs`;
+node --test test/*.test.mjs
+echo "e2e-matrix: pure functions shipped in npm tarballs (two libraries built, packed and installed; a consumer built with the Vite adapter and with mion compile)"
+node pure-fns/run.mjs
+node --test pure-fns/test/*.test.mjs`;
 
 // ── the mion consumer lanes (in-container) ───────────────────────────────────
 // Both run in the SAME registry container as the runtypes matrix, but out of the
@@ -183,8 +177,8 @@ node --test test/*.test.mjs`;
 // $MION_E2E_MION_PKGS is the install list, $MION_E2E_MION_VERSION the version to pin, and
 // $MION_E2E_REGISTRY the verdaccio they come from. --legacy-peer-deps mirrors the baked
 // tree's non-strict posture (same reason as the matrix), which also skips peer
-// auto-install — so @mionjs/bin is named explicitly, and it is that launcher
-// resolving its @mionjs/binary-<os>-<arch> optional dep that the mion plugin
+// auto-install — so @mionjs/bin-compiler is named explicitly, and it is that launcher
+// resolving its @mionjs/native-compiler-<os>-<arch> optional dep that the mion plugin
 // then spawns. @mionjs/run-types is named explicitly too: the drizzle dialect
 // packages take it as a PEER (never a pinned dependency), so the consumer is the
 // one that supplies it — the resolution a real project performs.
@@ -196,16 +190,28 @@ node --test test/*.test.mjs`;
 // fixture keeps its own package.json so a maintainer can run the lane on a host.
 const MION_SCRIPT = `set -eu
 cd /e2e-mion
-rm -rf /e2e-mion/src /e2e-mion/lint /e2e-mion/dist /e2e-mion/.mion /e2e-mion/__runtypes
-cp -a /e2e-src/mion-consumer/src /e2e-src/mion-consumer/lint /e2e-src/mion-consumer/globalSetup.ts /e2e-src/mion-consumer/tsconfig.json /e2e-src/mion-consumer/vitest.config.ts /e2e-src/mion-consumer/vitest.build-output.config.ts /e2e-src/mion-consumer/vite.server.config.ts /e2e-src/mion-consumer/vite.build.config.ts /e2e-mion/
+rm -rf /e2e-mion/src /e2e-mion/lint /e2e-mion/dist /e2e-mion/.mion /e2e-mion/mion-api-types
+cp -a /e2e-src/mion-api-types /e2e-mion/
+cp -a /e2e-src/mion-consumer/src /e2e-src/mion-consumer/lint /e2e-src/mion-consumer/globalSetup.ts /e2e-src/mion-consumer/tsconfig.json /e2e-src/mion-consumer/vitest.config.ts /e2e-src/mion-consumer/vitest.build-output.config.ts /e2e-src/mion-consumer/vite.build.config.ts /e2e-src/mion-consumer/tsconfig.compile.json /e2e-src/mion-consumer/tsconfig.compile-fetch.json /e2e-src/mion-consumer/vitest.compile-output.config.ts /e2e-mion/
 echo "e2e-mion: installing the framework packages @ $MION_E2E_MION_VERSION + the type-system packages @ $MION_E2E_VERSION from $MION_E2E_REGISTRY"
-npm install $MION_E2E_MION_PKGS "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/bin@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
+npm install $MION_E2E_MION_PKGS "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/bin-compiler@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
 echo "e2e-mion: round-trips + packaged-tarball inspection + lint transport"
 npx vitest run
 echo "e2e-mion: production server build"
 npx vite build --config vite.build.config.ts
-echo "e2e-mion: asserting the compiled types + harvested mappers are inlined in the build"
-npx vitest run --config vitest.build-output.config.ts`;
+echo "e2e-mion: asserting the compiled types + the batch transport are inlined in the build"
+npx vitest run --config vitest.build-output.config.ts
+echo "e2e-mion: tsc-like compile with the published mion CLI: the fullstack program, then the same server with a fetching client"
+npx mion compile --tsconfig tsconfig.compile.json --gen-dir .mion-cli
+npx mion compile --tsconfig tsconfig.compile-fetch.json --gen-dir .mion-cli-fetch --client-routes fetch
+echo "e2e-mion: api-check over the server and client manifests one build wrote, then across the two builds"
+npx mion api-check --server-gen-dir .mion-cli --client-gen-dir .mion-cli
+npx mion api-check --server-gen-dir .mion-cli-fetch --client-gen-dir .mion-cli
+echo "e2e-mion: asserting the compiled server generated the table, imports it, and answers both compiled clients under plain node"
+npx vitest run --config vitest.compile-output.config.ts
+echo "e2e-mion: a client built from a packed API's .d.ts checks the server build version (matching, plain tsc, drifted)"
+node mion-api-types/run.mjs
+node --test mion-api-types/test/*.test.mjs`;
 
 // The bun lane installs into its OWN directory rather than /e2e-mion: bun resolves
 // node_modules by walking up from the entry, and a bun tree sharing a root with the
@@ -216,7 +222,7 @@ mkdir -p /e2e-mion-bun
 cd /e2e-mion-bun
 cp -a /e2e-src/mion-bun/. /e2e-mion-bun/
 echo "e2e-mion-bun: installing the published mion + runtypes packages from $MION_E2E_REGISTRY"
-npm install "@mionjs/core@$MION_E2E_MION_VERSION" "@mionjs/router@$MION_E2E_MION_VERSION" "@mionjs/client@$MION_E2E_MION_VERSION" "@mionjs/platform-bun@$MION_E2E_MION_VERSION" "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/devtools@$MION_E2E_VERSION" "@mionjs/bin@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
+npm install "@mionjs/core@$MION_E2E_MION_VERSION" "@mionjs/router@$MION_E2E_MION_VERSION" "@mionjs/client@$MION_E2E_MION_VERSION" "@mionjs/platform-bun@$MION_E2E_MION_VERSION" "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/devtools@$MION_E2E_VERSION" "@mionjs/bin-compiler@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
 echo "e2e-mion-bun: booting a real Bun.serve mion server and round-tripping it"
 bun test`;
 
@@ -239,9 +245,19 @@ function runMionLanes(engine, container, version, mionVersion, registry) {
   if (bun !== 0) die('e2e: the mion bun consumer lane failed', bun);
 }
 
-function runContainerMatrix(engine, container, version, registry) {
+// What apps/mion-next imports, and nothing more: the matrix is not the consumer lane, it just
+// happens to host one mion app now.
+const MATRIX_MION_PACKAGES = ['@mionjs/core', '@mionjs/router', '@mionjs/client', '@mionjs/platform-vercel'];
+
+function runContainerMatrix(engine, container, version, mionVersion, registry) {
   note(`running the multi-bundler feature matrix inside the container (registry: ${registry})`);
-  const code = run(engine, ['exec', '-e', `MION_E2E_VERSION=${version}`, '-e', `MION_E2E_REGISTRY=${registry}`, container, 'sh', '-c', MATRIX_SCRIPT], {stdio: ['inherit', 'inherit', 'inherit']});
+  const matrixMionPkgs = MATRIX_MION_PACKAGES.map((name) => `${name}@${mionVersion}`).join(' ');
+  const env = [
+    '-e', `MION_E2E_VERSION=${version}`,
+    '-e', `MION_E2E_REGISTRY=${registry}`,
+    '-e', `MION_E2E_MATRIX_MION_PKGS=${matrixMionPkgs}`,
+  ];
+  const code = run(engine, ['exec', ...env, container, 'sh', '-c', MATRIX_SCRIPT], {stdio: ['inherit', 'inherit', 'inherit']});
   if (code !== 0) die('e2e: the in-container feature matrix failed', code);
 }
 
@@ -352,7 +368,7 @@ async function runContainerBackend(version, mionVersion, port, opts) {
   try {
     if (!(await waitContainerHealthy(engine, container))) die('e2e: containerized verdaccio failed to publish the tarballs in time');
     note(`containerized verdaccio is healthy on 127.0.0.1:${port}`);
-    if (opts.matrix) runContainerMatrix(engine, container, version, VERDACCIO_INTERNAL);
+    if (opts.matrix) runContainerMatrix(engine, container, version, mionVersion, VERDACCIO_INTERNAL);
     if (opts.mion) runMionLanes(engine, container, version, mionVersion, VERDACCIO_INTERNAL);
     if (opts.hostSmoke) runHostSmoke(version, `http://127.0.0.1:${port}`);
   } finally {
@@ -403,7 +419,7 @@ async function runNpmBackend(version, registry, opts) {
     process.on('SIGINT', () => (teardown(), process.exit(130)));
     process.on('SIGTERM', () => (teardown(), process.exit(143)));
     try {
-      runContainerMatrix(engine, container, version, registry);
+      runContainerMatrix(engine, container, version, readMionVersion(), registry);
       // The framework packages publish from this tree on the same train, so the
       // consumer lanes verify the LIVE release exactly as they verified the tarballs.
       if (opts.mion) runMionLanes(engine, container, version, readMionVersion(), registry);
@@ -428,7 +444,7 @@ function parseArgs(argv) {
     else if (arg === '--no-matrix') opts.matrix = false;
     else if (arg === '--no-mion') opts.mion = false;
     else if (arg === '--no-host-smoke') opts.hostSmoke = false;
-    else die(`e2e: unknown flag '${arg}'. Usage: rtx release e2e [--backend container|host-npx|npm] [--port N] [--registry URL] [--version V] [--pack] [--no-matrix] [--no-mion] [--no-host-smoke]`);
+    else die(`e2e: unknown flag '${arg}'. Usage: miondevx release e2e [--backend container|host-npx|npm] [--port N] [--registry URL] [--version V] [--pack] [--no-matrix] [--no-mion] [--no-host-smoke]`);
   }
   if (!['container', 'host-npx', 'npm'].includes(opts.backend)) die(`e2e: unknown backend '${opts.backend}' (expected container | host-npx | npm)`);
   return opts;

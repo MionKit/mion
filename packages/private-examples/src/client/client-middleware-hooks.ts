@@ -1,0 +1,29 @@
+import {HeadersSubset} from '@mionjs/core';
+import {initClient} from '@mionjs/client';
+import type {MyApi} from './middleware-hooks.routes.ts';
+
+const {middlewares} = initClient<MyApi>({
+  baseURL: 'http://localhost:3000',
+});
+
+declare function redirectToLogin(): void;
+
+// a fresh id for every request, the server echoes it back
+middlewares.trace
+  .onRequest((trace) => {
+    // the remote middleware call: same params as the server's traceHandler
+    trace(new HeadersSubset({'X-Trace-Id': crypto.randomUUID()}));
+  })
+  .onResponse((info) => {
+    console.log('Trace:', info.traceId, 'received at', info.receivedAt);
+  });
+
+// auth takes no params, so it needs no onRequest
+middlewares.auth
+  .onResponse((session) => {
+    console.log('Authenticated as:', session.userId);
+  })
+  .onError('not-authorized', (error) => {
+    console.log('Auth failed:', error.errorData?.reason);
+    redirectToLogin();
+  });

@@ -78,6 +78,73 @@ getRunTypeId(u);
     }
   );
 
+  // `new` expressions take marker args like calls; both shapes per the marker rule, plus a paren-less `new`.
+  const holderClass = `import {type InjectRunTypeId} from '@mionjs/run-types';
+export class Holder<T> {
+  constructor(value?: T, id?: InjectRunTypeId<T>) {}
+}
+`;
+
+  runTest(
+    'static new Holder<T>(): edits mode reproduces go mode byte-for-byte',
+    {
+      'holder.ts': holderClass,
+      'new-static.ts': `import {Holder} from './holder';
+type User = {id: number};
+export const holder = new Holder<User>();
+`,
+    },
+    async (sources) => {
+      await withInlineSources(sources, async ({client}) => {
+        const {applied} = await assertModeParity(client, 'new-static.ts', sources['new-static.ts']);
+        expect(applied.code).toMatch(/new Holder<User>\(undefined, __rt_[A-Za-z0-9]+\);/);
+      });
+    }
+  );
+
+  runTest(
+    'reflect new Holder(value): edits mode reproduces go mode byte-for-byte, same id as the static form',
+    {
+      'holder.ts': holderClass,
+      'new-static.ts': `import {Holder} from './holder';
+type User = {id: number};
+export const holder = new Holder<User>();
+`,
+      'new-reflect.ts': `import {Holder} from './holder';
+type User = {id: number};
+const user: User = {id: 1};
+export const holder = new Holder(user);
+`,
+    },
+    async (sources) => {
+      await withInlineSources(sources, async ({client}) => {
+        const reflect = await assertModeParity(client, 'new-reflect.ts', sources['new-reflect.ts']);
+        const reflectId = reflect.applied.code.match(/new Holder\(user, (__rt_[A-Za-z0-9]+)\);/)?.[1];
+        const staticForm = await assertModeParity(client, 'new-static.ts', sources['new-static.ts']);
+        const staticId = staticForm.applied.code.match(/new Holder<User>\(undefined, (__rt_[A-Za-z0-9]+)\);/)?.[1];
+        expect(reflectId).toBeDefined();
+        expect(reflectId).toBe(staticId);
+      });
+    }
+  );
+
+  runTest(
+    'paren-less new Holder<T> gets its own parens (edits==go)',
+    {
+      'holder.ts': holderClass,
+      'new-bare.ts': `import {Holder} from './holder';
+type User = {id: number};
+export const holder = new Holder<User>;
+`,
+    },
+    async (sources) => {
+      await withInlineSources(sources, async ({client}) => {
+        const {applied} = await assertModeParity(client, 'new-bare.ts', sources['new-bare.ts']);
+        expect(applied.code).toMatch(/new Holder<User>\(undefined, __rt_[A-Za-z0-9]+\);/);
+      });
+    }
+  );
+
   // Regression (two marker calls with the same typeid in one statement):
   // a marker call passed as an argument to an unrelated GENERIC function whose
   // parameter INFERS the branded marker type must still inject — in BOTH wire
@@ -102,6 +169,49 @@ export const x = wrap(getRunTypeId<Q>()).toBe(getRunTypeId<Q>());
         expect(sites).toHaveLength(2);
         const injected = applied.code.match(/getRunTypeId<Q>\(undefined, __rt_[A-Za-z0-9]+\)/g) ?? [];
         expect(injected).toHaveLength(2);
+      });
+    }
+  );
+
+  // A nested non-builder marker call keeps its id in both wire modes; both call shapes per the marker rule.
+  runTest(
+    'nested static getRunTypeId<T>() keeps its injection (edits==go)',
+    {
+      'nested.ts': `import {getRunTypeId, type InjectRunTypeId} from '@mionjs/run-types';
+declare function outer<T>(options?: {tables?: Record<string, unknown>}, id?: InjectRunTypeId<T>): T;
+type P = {p: number};
+type C = {c: number};
+export const direct = outer<C>({tables: {p: getRunTypeId<P>()}});
+export const lazy = outer<C>({tables: {p: () => getRunTypeId<P>()}});
+`,
+    },
+    async (sources) => {
+      await withInlineSources(sources, async ({client}) => {
+        const {sites, applied} = await assertModeParity(client, 'nested.ts', sources['nested.ts']);
+        expect(sites).toHaveLength(4);
+        expect(applied.code.match(/getRunTypeId<P>\(undefined, __rt_[A-Za-z0-9]+\)/g) ?? []).toHaveLength(2);
+        expect(applied.code.match(/\}\}, __rt_[A-Za-z0-9]+\)/g) ?? []).toHaveLength(2);
+      });
+    }
+  );
+
+  runTest(
+    'nested reflect getRunTypeId(value) keeps its injection (edits==go)',
+    {
+      'nested-reflect.ts': `import {getRunTypeId, type InjectRunTypeId} from '@mionjs/run-types';
+declare function outer<T>(options?: {tables?: Record<string, unknown>}, id?: InjectRunTypeId<T>): T;
+type P = {p: number};
+type C = {c: number};
+const value: P = {p: 1};
+export const direct = outer<C>({tables: {p: getRunTypeId(value)}});
+export const lazy = outer<C>({tables: {p: () => getRunTypeId(value)}});
+`,
+    },
+    async (sources) => {
+      await withInlineSources(sources, async ({client}) => {
+        const {sites, applied} = await assertModeParity(client, 'nested-reflect.ts', sources['nested-reflect.ts']);
+        expect(sites).toHaveLength(4);
+        expect(applied.code.match(/getRunTypeId\(value, __rt_[A-Za-z0-9]+\)/g) ?? []).toHaveLength(2);
       });
     }
   );
@@ -182,8 +292,8 @@ export const isNode = createValidateFn(inference, {rejectCircularRefs: true});
   runTest(
     'pure-fn replacement: edits mode reproduces go mode byte-for-byte',
     {
-      'pure.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
-export const _ = registerPureFnFactory('rt::foo', function () {
+      'pure.ts': `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
+export const foo = registerPureFnFactory(function () {
   return function _f(x: number) { return x + 1; };
 });
 `,
@@ -192,7 +302,7 @@ export const _ = registerPureFnFactory('rt::foo', function () {
       await withInlineSources(sources, async ({client}) => {
         const {applied} = await assertModeParity(client, 'pure.ts', sources['pure.ts']);
         // The factory arg is replaced by the entry-module binding.
-        expect(applied.code).toContain("registerPureFnFactory('rt::foo',__rt_pf");
+        expect(applied.code).toContain('registerPureFnFactory(__rt_pf');
       });
     }
   );

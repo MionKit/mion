@@ -1,36 +1,18 @@
-// The single, encapsulated source of randomness for the mock generator. Every
-// random draw the mock library makes — the atomic primitives that used to live
-// as free functions in `mockUtils.ts`, plus the inline `Math.random()` /
-// `crypto` / clock reads scattered across the format and edge mock files — goes
-// through ONE `MockRandom` instance, threaded on the mock options bag so the
-// whole walk shares a single cursor.
-//
-// Two modes, chosen by the constructor:
-//   - `new MockRandom()`  — native: every method reads the platform source
-//     (`Math.random()` / `crypto.randomUUID()` / `Date.now()`) LIVE at the call
-//     site. Existing behavior, unchanged.
-//   - `new MockRandom(seed)` — seeded: every method draws from a deterministic
-//     PRNG, so the same seed reproduces the same value for every type.
-//
-// SOUNDNESS CONTRACT — native mode MUST call the platform source live inside the
-// method body and NEVER capture a reference at construction. The fuzz harness
-// (`test/fuzz/core/seededRng.ts`) makes mocking reproducible by swapping the
-// global `Math.random`; a captured reference would silently defeat that swap and
-// make every fuzz suite non-reproducible.
-//
-// DRAW-ORDER DEPENDENCE — seeded output is a function of the exact order of PRNG
-// draws, so reordering the `random.*` calls in the walker changes the generated
-// value. The repeatability tests (test/suites/mocking/mockSeed.test.ts) pin this.
-//
-// The `mulberry32` PRNG (exported below) is the single copy of the algorithm:
-// the fuzz harness (`test/fuzz/core/seededRng.ts`) imports it from here, since
-// `test/` can import from `src/` but not the reverse. `splitmix32` folds the
-// seed before the class draws from it; both are standard 32-bit algorithms.
+// The single source of randomness for the mock generator: every random draw goes through ONE `MockRandom`
+// instance, threaded on the mock options bag so the whole walk shares a single cursor. `new MockRandom()` reads
+// the platform source (`Math.random()` / `crypto.randomUUID()` / `Date.now()`) live; `new MockRandom(seed)` draws
+// from a deterministic PRNG, so the same seed reproduces the same value for every type.
+// SOUNDNESS CONTRACT: native mode MUST call the platform source inside the method body and NEVER capture a
+// reference at construction, or the fuzz harness (`test/fuzz/core/seededRng.ts`) swapping the global
+// `Math.random` is silently defeated and every fuzz suite stops being reproducible.
+// DRAW-ORDER DEPENDENCE: seeded output is a function of the exact order of PRNG draws, so reordering the
+// `random.*` calls in the walker changes the generated value; test/suites/mocking/mockSeed.test.ts pins it.
+// `mulberry32` is the single copy of the algorithm: the fuzz harness imports it from here, since `test/` can
+// import from `src/` but not the reverse. `splitmix32` folds the seed before the class draws from it.
 
 import {anyValuesList, stringCharSet, mockRegExpsList} from './constants.mock.ts';
 
-// splitmix32 folds a raw seed into a well-distributed 32-bit state so small
-// seeds (0, 1, 2, …) still produce a good initial PRNG stream.
+// splitmix32 folds a raw seed into a well-distributed 32-bit state so small seeds (0, 1, 2, …) still stream well.
 function splitmix32(seed: number): number {
   let z = (seed + 0x9e3779b9) | 0;
   z = Math.imul(z ^ (z >>> 16), 0x21f0aaad);
@@ -38,9 +20,8 @@ function splitmix32(seed: number): number {
   return (z ^ (z >>> 15)) >>> 0;
 }
 
-// mulberry32 — a tiny, fast, well-distributed 32-bit PRNG returning floats in
-// [0, 1), the same contract as `Math.random`. Exported (not via `index.ts`, so
-// it stays out of the public API) purely so the fuzz harness reuses this copy.
+// mulberry32 is a 32-bit PRNG returning floats in [0, 1), the same contract as `Math.random`.
+// Exported, but not via `index.ts`, so it stays out of the public API: only the fuzz harness reuses this copy.
 export function mulberry32(state: number): () => number {
   let current = state >>> 0;
   return function next(): number {
@@ -51,27 +32,21 @@ export function mulberry32(state: number): () => number {
   };
 }
 
-// Fixed reference instant used on the SEEDED path wherever a mock would
-// otherwise read the wall clock (`mockDate`'s default `maxDate = new Date()`,
-// the uuid v7 timestamp, relative `now±P` date/time bounds). A constant keeps
-// time-based mocks from drifting run to run. 2023-11-14T22:13:20Z — an
-// arbitrary, stable epoch with no significance beyond being fixed.
+// Fixed instant used on the SEEDED path wherever a mock would read the wall clock (`mockDate`'s default
+// `maxDate = new Date()`, the uuid v7 timestamp, relative `now±P` bounds), so those mocks don't drift run to run.
+// 2023-11-14T22:13:20Z is arbitrary, with no significance beyond being fixed.
 const SEEDED_NOW_MS = 1_700_000_000_000;
 
-/** The mock generator's random source. Native (`new MockRandom()`) or seeded
- *  (`new MockRandom(seed)`); every mock-random operation is a method so all
- *  randomness is encapsulated in one object passed through the mock context. **/
+/** Every mock-random operation is a method, so all randomness sits in one object passed through the mock context. **/
 export class MockRandom {
-  // Undefined in native mode; the seeded PRNG stream otherwise. Presence of a
-  // stream is what switches every method between native and seeded behavior.
+  // Undefined in native mode; the presence of a stream is what switches every method to seeded behavior.
   private readonly next: (() => number) | undefined;
 
   constructor(seed?: number) {
     this.next = seed === undefined ? undefined : mulberry32(splitmix32(seed));
   }
 
-  /** Float in [0, 1). Native reads `Math.random()` live (see the soundness
-   *  contract); seeded draws from the PRNG. **/
+  /** Float in [0, 1); native reads `Math.random()` live, see the soundness contract. **/
   float(): number {
     return this.next ? this.next() : Math.random();
   }
@@ -99,8 +74,7 @@ export class MockRandom {
     return this.int(min, max);
   }
 
-  /** Random string of `length` chars from `allowedChars` minus `disallowedChars`.
-   *  `length` defaults to a random 0..30 (matching the former `mockString`). **/
+  /** `length` defaults to a random 0..30, matching the former `mockString`. **/
   string(length?: number, allowedChars: string = stringCharSet, disallowedChars: string = ''): string {
     const len = length ?? this.int(0, 30);
     if (allowedChars.length === 0) throw new Error('Can not generate random string as allowedChars cannot be empty');
@@ -122,8 +96,7 @@ export class MockRandom {
     return list[this.int(0, list.length - 1)];
   }
 
-  /** Random date in `[minDate, maxDate]`. Bounds may be `Date` or numeric
-   *  timestamps; an omitted `maxDate` defaults to `now()` (fixed under a seed). **/
+  /** An omitted `maxDate` defaults to `now()`, which is fixed under a seed. **/
   date(minDate: Date | number = new Date(0), maxDate?: Date | number): Date {
     const min = typeof minDate === 'number' ? minDate : minDate.getTime();
     const max = maxDate === undefined ? this.now() : typeof maxDate === 'number' ? maxDate : maxDate.getTime();
@@ -135,15 +108,12 @@ export class MockRandom {
     return anyList[this.int(0, anyList.length - 1)];
   }
 
-  /** Current time in ms. Native reads `Date.now()` live; seeded returns a fixed
-   *  reference instant so time-based defaults don't drift run to run. **/
+  /** Current time in ms; seeded returns a fixed reference instant so time-based defaults don't drift run to run. **/
   now(): number {
     return this.next ? SEEDED_NOW_MS : Date.now();
   }
 
-  /** A v4 UUID. Native prefers `crypto.randomUUID()` (falling back to a
-   *  `float()`-built id when crypto is absent); seeded ALWAYS builds the id from
-   *  PRNG output (never `crypto`) with the version `4` + variant bits set. **/
+  /** A v4 UUID; seeded ALWAYS builds it from PRNG output, never `crypto`, with the version `4` + variant bits set. **/
   uuidV4(): string {
     if (!this.next) {
       const globalCrypto = (globalThis as {crypto?: {randomUUID?: () => string}}).crypto;
@@ -156,11 +126,9 @@ export class MockRandom {
     });
   }
 
-  /** A v7 UUID. Native embeds the real `Date.now()` timestamp; seeded derives a
-   *  deterministic timestamp (fixed base + PRNG offset) so v7 mocks repeat. **/
+  /** A v7 UUID; seeded derives the timestamp from the fixed base plus a PRNG offset, so v7 mocks repeat. **/
   uuidV7(): string {
-    // 32 hex nibbles: 48-bit ms timestamp (12) + version '7' (1) + rand_a (3) +
-    // variant nibble (1) + rand_b (15).
+    // 32 hex nibbles: 48-bit ms timestamp (12) + version '7' (1) + rand_a (3) + variant nibble (1) + rand_b (15).
     const timeMs = this.next ? SEEDED_NOW_MS + this.int(0, 0xffffff) : Date.now();
     const timeHex = timeMs.toString(16).padStart(12, '0').slice(-12);
     const randHex = (count: number): string => {
@@ -174,8 +142,6 @@ export class MockRandom {
   }
 }
 
-/** Shared native (seedless) instance. Native mode holds no state — every draw
- *  reads the platform source live — so a single instance is safe to share as the
- *  fallback for any mock path that runs without a seeded instance on its
- *  options (e.g. `mockRunType` called directly in a test). **/
+/** Native mode holds no state, so one instance is safe to share as the fallback for any mock path whose options
+ *  carry no seeded instance (e.g. `mockRunType` called directly in a test). **/
 export const nativeMockRandom = new MockRandom();

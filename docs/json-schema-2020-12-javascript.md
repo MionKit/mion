@@ -59,7 +59,7 @@ give every `Date` a different identity from the one it was written with.
 The dialect is identified by the meta-schema URI:
 
 ```
-https://runtypes.pages.dev/schema/2020-12-javascript
+https://mion.pages.dev/runtypes/schema/2020-12-javascript
 ```
 
 A document MAY declare it with `$schema`. A document that declares plain `https://json-schema.org/draft/2020-12/schema` and uses extension keywords is still conforming, because by `CORE-INERT` the keywords are inert to a plain 2020-12 reader. Declaring the dialect URI is a signal to tooling, not a requirement for correctness.
@@ -115,6 +115,7 @@ Names the JavaScript type the validated wire form decodes to. Always a sibling o
 | --- | --- | --- | --- |
 | `JS-BIGINT` | `bigint` | `{"type": "string", "pattern": "^-?[0-9]+$"}` | `bigint` |
 | `JS-DATE` | `Date` | `{"type": "string", "format": "date-time"}` | `Date` |
+| `JS-URL` | `URL` | `{"type": "string", "format": "uri"}` | `URL` |
 | `JS-REGEXP` | `RegExp` | `{"type": "string"}` | `RegExp` |
 
 A `RegExp` encodes as `String(re)`, so the wire value carries the delimiters and flags (`"/^ab?c$/gi"`).

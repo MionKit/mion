@@ -62,52 +62,49 @@ func TestUpdateDependencies_SkipsNoopChildren(t *testing.T) {
 	}
 }
 
-// AddPureFnDependency is record-only: it appends the triple and
-// dedupes. Build-time validation against the actual
-// `registerPureFnFactory` registrations is the (unwired) purefunctions
-// dep-validation API; until wired, an unregistered dep surfaces at runtime when
-// `utl.getPureFn` throws.
+// AddPureFnDependency is record-only: it appends the id and dedupes. The
+// dependency is checked against the registrations the build found later, by the
+// resolver's own pass.
 
-func TestAddPureFnDependency_RecordsTriple(t *testing.T) {
+func TestAddPureFnDependency_RecordsID(t *testing.T) {
 	w := newTestWalker()
-	w.AddPureFnDependency("rt", "asJSONString", "/abs/run-types-pure-fns.ts")
+	w.AddPureFnDependency("@acme/app/src/pure#pf_asJSONString")
 	if len(w.PureFnDependencies) != 1 {
 		t.Fatalf("expected 1 dep, got %d (%v)", len(w.PureFnDependencies), w.PureFnDependencies)
 	}
-	got := w.PureFnDependencies[0]
-	if got.Namespace != "rt" || got.FunctionName != "asJSONString" || got.FilePath != "/abs/run-types-pure-fns.ts" {
-		t.Fatalf("triple mismatch: got %+v", got)
+	if got := w.PureFnDependencies[0]; got.ID != "@acme/app/src/pure#pf_asJSONString" {
+		t.Fatalf("id mismatch: got %+v", got)
 	}
 }
 
 func TestAddPureFnDependency_NoValidationAtCallSite(t *testing.T) {
-	// The whole point of the optimization: appending is O(1) and does
-	// NOT touch the filesystem. Pass a nonsense filePath — it should
-	// still record cleanly.
+	// The whole point of the optimization: appending is O(1) and does NOT touch
+	// the filesystem, so an id nothing registers still records cleanly.
 	w := newTestWalker()
-	w.AddPureFnDependency("rt", "asJSONString", "/this/path/does/not/exist.ts")
+	w.AddPureFnDependency("@acme/app/src/pure#pf_asJSONString")
 	if len(w.PureFnDependencies) != 1 {
-		t.Fatalf("expected the triple to be recorded regardless of filePath validity, got %v", w.PureFnDependencies)
+		t.Fatalf("expected the id to be recorded without any lookup, got %v", w.PureFnDependencies)
 	}
 }
 
-func TestAddPureFnDependency_DedupesFullTriple(t *testing.T) {
+func TestAddPureFnDependency_DedupesRepeatedID(t *testing.T) {
 	w := newTestWalker()
 	for i := 0; i < 3; i++ {
-		w.AddPureFnDependency("rt", "asJSONString", "/abs/pure-fns.ts")
+		w.AddPureFnDependency("@acme/app/src/pure#pf_asJSONString")
 	}
 	if len(w.PureFnDependencies) != 1 {
 		t.Fatalf("expected 1 dep after 3 identical appends, got %d (%v)", len(w.PureFnDependencies), w.PureFnDependencies)
 	}
 }
 
-func TestAddPureFnDependency_DifferentFilePathIsDistinctEntry(t *testing.T) {
-	// Same (ns, fn) but different filePath — both entries recorded.
+func TestAddPureFnDependency_DifferentIDsAreDistinctEntries(t *testing.T) {
+	// Two pure fns with the same NAME in different files are two ids, so both
+	// are recorded: the file half is what tells them apart.
 	w := newTestWalker()
-	w.AddPureFnDependency("rt", "asJSONString", "/a.ts")
-	w.AddPureFnDependency("rt", "asJSONString", "/b.ts")
+	w.AddPureFnDependency("@acme/app/src/pure#pf_asJSONString")
+	w.AddPureFnDependency("@acme/app/src/helpers#pf_asJSONString")
 	if len(w.PureFnDependencies) != 2 {
-		t.Fatalf("expected 2 distinct entries by filePath, got %d (%v)", len(w.PureFnDependencies), w.PureFnDependencies)
+		t.Fatalf("expected 2 distinct entries, got %d (%v)", len(w.PureFnDependencies), w.PureFnDependencies)
 	}
 }
 
@@ -124,6 +121,7 @@ func TestCreateFnInContext_CodeSPrependsReturn(t *testing.T) {
 	if call != "ctxFn0(v)" {
 		t.Fatalf("call expression mismatch: %q", call)
 	}
+	w.Code = "return " + call
 	want := "const ctxFn0 = function(v){return doThing(v)}"
 	if got := w.ContextLines(); !strings.Contains(got, want) {
 		t.Fatalf("context line mismatch:\n got: %q\nwant substring: %q", got, want)
@@ -137,6 +135,7 @@ func TestCreateFnInContext_CodeRBVerbatim(t *testing.T) {
 	if call != "ctxFn0(v)" {
 		t.Fatalf("call expression mismatch: %q", call)
 	}
+	w.Code = "return " + call
 	want := "const ctxFn0 = function(v){" + body + "}"
 	if got := w.ContextLines(); !strings.Contains(got, want) {
 		t.Fatalf("CodeRB body must move verbatim (no return prefix):\n got: %q\nwant substring: %q", got, want)
@@ -153,6 +152,7 @@ func TestCreateFnInContext_NamesIncrementAndDeclareInOrder(t *testing.T) {
 	if first != "ctxFn0(v)" || second != "ctxFn1(v)" {
 		t.Fatalf("expected ctxFn0/ctxFn1, got %q / %q", first, second)
 	}
+	w.Code = "return " + second
 	lines := w.ContextLines()
 	inner := strings.Index(lines, "const ctxFn0 = ")
 	outer := strings.Index(lines, "const ctxFn1 = ")
@@ -172,6 +172,7 @@ func TestWrapAsCtxFn_PassesAllocatedAccessorCounters(t *testing.T) {
 	if out.Code != "ctxFn0(v,i0)" {
 		t.Fatalf("call must pass the family arg + the allocated counter: %q", out.Code)
 	}
+	w.Code = "return " + out.Code
 	if !strings.Contains(w.ContextLines(), "const ctxFn0 = function(v,i0){for (const k0 in v[i0])") {
 		t.Fatalf("ctxFn params must mirror the call args by name:\n%s", w.ContextLines())
 	}
@@ -202,5 +203,20 @@ func TestWrapAsCtxFn_EmptyBodyStaysEmpty(t *testing.T) {
 	}
 	if strings.Contains(w.ContextLines(), "ctxFn") {
 		t.Fatalf("no ctxFn may be registered for an empty block: %q", w.ContextLines())
+	}
+}
+
+// TestContextLines_DropsWhatTheBodyNeverReaches: a lookup or helper no kept code reads never ships (found by the
+// typed-emit fuzz lane as noUnusedLocals failures), while one only another kept declaration reads stays.
+func TestContextLines_DropsWhatTheBodyNeverReaches(t *testing.T) {
+	w := newTestWalker()
+	w.ContextItems.set("a", "const a = utl.getRT('a')")
+	w.ContextItems.set("b", "const b = utl.getRT('b')")
+	w.ContextItems.set("helper", "const helper = function(v){return b.fn(v)}")
+	w.ContextItems.set("cs", "let cs_x, cs_x_ep = -1")
+	w.ContextItems.set("raw", "'use strict'")
+	w.Code = "return helper(v) && cs_x_ep"
+	if got, want := w.ContextLines(), "const b = utl.getRT('b');\nconst helper = function(v){return b.fn(v)};\nlet cs_x, cs_x_ep = -1;\n'use strict'"; got != want {
+		t.Errorf("ContextLines =\n%s\nwant\n%s", got, want)
 	}
 }

@@ -1,18 +1,5 @@
-// Shared asserts for the cloning suite (test/suites/cloning). One universal
-// entry point — `assertCloneCase` — derives every check from the case data:
-//
-//   1. value equality: clone(input) deep-equals the input (or the case's
-//      `expected` shape when the input carries undeclared keys),
-//   2. non-mutation: after cloning, the input still deep-equals an untouched
-//      twin built by a second `getTestData()` call,
-//   3. isolation: the clone graph shares NO mutable object reference with the
-//      input graph (walks both sides: plain objects, class instances, arrays,
-//      Map/Set incl. keys/values, Date, RegExp, Temporal instances) — which
-//      also implies mutating the clone can never affect the input,
-//   4. prototype preservation: an object-typed root keeps the input root's
-//      prototype (covers `instanceof` for classes, Date, Map/Set, Temporal),
-//   5. pass-through cases (`passThrough`) assert `clone(x) === x` instead of
-//      2–4, and `factoryThrows` cases assert the CES001 alwaysThrow.
+// `assertCloneCase` derives every check from the case data: value equality, input untouched, no shared mutable
+// reference, root prototype kept. `passThrough` asserts `clone(x) === x` instead, `factoryThrows` the unknown-keys-object-union throw.
 
 import {expect} from 'vitest';
 import type {CloningCase} from '../suites/cloning/types.ts';
@@ -41,8 +28,9 @@ function collectMutableRefs(value: unknown, out: Set<object>, seen: Set<object>)
   if (seen.has(value)) return;
   seen.add(value);
   if (isOpaqueHandle(value)) return;
+  if (value instanceof RegExp) return; // not data — shared by reference, never a fresh copy
   out.add(value);
-  if (value instanceof Date || value instanceof RegExp) return;
+  if (value instanceof Date) return;
   if (value instanceof Map) {
     for (const [entryKey, entryValue] of value) {
       collectMutableRefs(entryKey, out, seen);
@@ -79,7 +67,7 @@ export function assertNoSharedMutableRefs(input: unknown, out: unknown): void {
 /** The universal per-case assertion — see the module doc for the checklist. **/
 export function assertCloneCase(c: CloningCase): void {
   if (c.factoryThrows) {
-    expect(() => c.clone()).toThrow(/CES001/);
+    expect(() => c.clone()).toThrow(/unknown-keys-object-union/);
     return;
   }
   const clone = c.clone();

@@ -9,6 +9,7 @@
 //     to the SAME injected id before and after conversion — the id oracle at
 //     the binary level, both call shapes covered;
 //   - --out-dir converts a copy (assets carried along, sources untouched);
+//   - an unresolved runtypes import fails with convert-unresolved-import instead of a silent no-op;
 //   - flag validation exits non-zero.
 import {describe, expect, it} from 'vitest';
 import fs from 'node:fs';
@@ -60,8 +61,8 @@ function runConvert(dir: string, args: string[]) {
 
 function compileInjectedIds(dir: string): string[] {
   fs.rmSync(path.join(dir, 'dist'), {recursive: true, force: true});
-  fs.rmSync(path.join(dir, '__runtypes'), {recursive: true, force: true});
-  const result = runCli(['compile', '--cwd', dir, '--tsconfig', 'tsconfig.json', '--gen-dir', path.join(dir, '__runtypes')], {
+  fs.rmSync(path.join(dir, '.mion'), {recursive: true, force: true});
+  const result = runCli(['compile', '--cwd', dir, '--tsconfig', 'tsconfig.json', '--gen-dir', path.join(dir, '.mion')], {
     label: 'compile-injected-ids',
   });
   // result.report, not result.stderr: a panicking child dumps a whole Go stack
@@ -136,7 +137,7 @@ describe('mion convert (CLI e2e)', () => {
     }
   });
 
-  register('a Temporal type resolving to any refuses with CNV007 (missing lib guard)', () => {
+  register('a Temporal type resolving to any refuses with convert-temporal-lib-missing (missing lib guard)', () => {
     const dir = makeProject();
     try {
       // The project tsconfig loads no ESNext.Temporal lib, so Temporal.Instant
@@ -145,7 +146,7 @@ describe('mion convert (CLI e2e)', () => {
       fs.writeFileSync(path.join(dir, 'src', 'meeting.ts'), meeting);
       const {status, stderr} = runConvert(dir, ['--to', 'builders', path.join(dir, 'src')]);
       expect(status).toBe(1);
-      expect(stderr).toContain('CNV007');
+      expect(stderr).toContain('convert-temporal-lib-missing');
       expect(fs.readFileSync(path.join(dir, 'src', 'meeting.ts'), 'utf8')).toBe(meeting);
     } finally {
       fs.rmSync(dir, {recursive: true, force: true});
@@ -163,7 +164,7 @@ describe('mion convert (CLI e2e)', () => {
     }
   });
 
-  // Program-roots fix (docs/done/program-roots-lose-ambient-declarations.md):
+  // Program-roots fix (ambient declarations used to vanish from inferred programs):
   // the CLI roots the config's whole file list beside the conversion targets,
   // so an ambient declaration nothing imports resolves like tsc sees it and
   // converts faithfully instead of silently cementing RT.any().
@@ -210,17 +211,56 @@ describe('mion convert (CLI e2e)', () => {
     }
   });
 
-  register('a written type name that resolves nowhere refuses with CNV008 (exit 1, source untouched)', () => {
+  register(
+    'a written type name that resolves nowhere refuses with convert-unresolved-type-name (exit 1, source untouched)',
+    () => {
+      const dir = makeProject();
+      try {
+        const brokenPath = path.join(dir, 'src', 'broken.ts');
+        fs.writeFileSync(brokenPath, 'export type Broken = {value: MissingThing};\n');
+        const before = fs.readFileSync(brokenPath, 'utf8');
+        const {status, stderr} = runConvert(dir, ['--to', 'builders', brokenPath]);
+        expect(status).toBe(1);
+        expect(stderr).toContain('convert-unresolved-type-name');
+        expect(stderr).toContain('MissingThing');
+        expect(fs.readFileSync(brokenPath, 'utf8')).toBe(before);
+      } finally {
+        fs.rmSync(dir, {recursive: true, force: true});
+      }
+    }
+  );
+
+  register(
+    'an import of a package that does not resolve fails with convert-unresolved-import naming it (exit 1, source untouched)',
+    () => {
+      const dir = makeProject();
+      try {
+        const unresolvedPath = path.join(dir, 'src', 'unresolved.ts');
+        fs.writeFileSync(
+          unresolvedPath,
+          "import * as RT from '@mionjs/run-types/not-a-subpath';\nexport const userRT = RT.object({name: RT.string()});\n"
+        );
+        const before = fs.readFileSync(unresolvedPath, 'utf8');
+        const reportPath = path.join(dir, 'report.json');
+        const {status, stderr, report} = runConvert(dir, ['--to', 'type', unresolvedPath, '--report', reportPath]);
+        expect(status, report).toBe(1);
+        expect(stderr).toContain('convert-unresolved-import');
+        expect(stderr).toContain('@mionjs/run-types/not-a-subpath');
+        expect(fs.readFileSync(unresolvedPath, 'utf8')).toBe(before);
+        const written = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+        expect(written.refusals[0].code).toBe('convert-unresolved-import');
+      } finally {
+        fs.rmSync(dir, {recursive: true, force: true});
+      }
+    }
+  );
+
+  register('a project whose imports resolve prints no convert-unresolved-import', () => {
     const dir = makeProject();
     try {
-      const brokenPath = path.join(dir, 'src', 'broken.ts');
-      fs.writeFileSync(brokenPath, 'export type Broken = {value: MissingThing};\n');
-      const before = fs.readFileSync(brokenPath, 'utf8');
-      const {status, stderr} = runConvert(dir, ['--to', 'builders', brokenPath]);
-      expect(status).toBe(1);
-      expect(stderr).toContain('CNV008');
-      expect(stderr).toContain('MissingThing');
-      expect(fs.readFileSync(brokenPath, 'utf8')).toBe(before);
+      const {status, stderr, report} = runConvert(dir, ['--to', 'builders', path.join(dir, 'src')]);
+      expect(status, report).toBe(0);
+      expect(stderr).not.toContain('convert-unresolved-import');
     } finally {
       fs.rmSync(dir, {recursive: true, force: true});
     }

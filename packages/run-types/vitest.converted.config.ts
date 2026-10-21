@@ -3,20 +3,13 @@ import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import runtypesPlugin from '@mionjs/devtools/runtypes/vite';
 
-// The CONVERTED-SUITES project: the same suite tree, rewritten into the value
-// forms by `mion convert`, running against the same assertions.
-//
-// It is deliberately NOT in the root config's `projects` list. The trees it
-// runs (test/converted-<target>/) are generated and gitignored, so a tracked
-// project entry would point at paths that usually do not exist. `pnpm rtx core
-// converted-suites` generates them, runs vitest with THIS config, and deletes
-// them again — that command is the only thing that ever loads this file.
-//
-// Everything else mirrors the marker project (plugin, conditions, timeouts) so
-// a failure here means the CONVERSION changed behaviour, never that the two
-// projects were configured differently. The one difference is the tsconfig:
-// the converted trees are excluded from tsconfig.test.json (so the ordinary
-// lanes never see them) and named by tsconfig.converted.json instead.
+// The CONVERTED-SUITES project: the same suite tree rewritten into the value forms by `mion convert`, running
+// against the same assertions. Deliberately NOT in the root config's `projects` list, since the trees it runs
+// (test/converted-<target>/) are generated and gitignored; `pnpm miondevx core converted-suites` generates them,
+// runs vitest with THIS config and deletes them again, and is the only thing that ever loads this file.
+// Everything else mirrors the marker project so a failure here means the CONVERSION changed behaviour, not the
+// config. The one difference is the tsconfig: the converted trees are excluded from tsconfig.json so the
+// ordinary lanes never see them, and named by tsconfig.converted.json instead.
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const PACKAGE_ROOT = resolve(HERE);
 const REPO_ROOT = resolve(HERE, '../..');
@@ -26,14 +19,17 @@ export default defineConfig({
   ssr: {resolve: {conditions: ['source']}},
   plugins: [
     runtypesPlugin({
-      binary: resolve(REPO_ROOT, 'bin/mion'),
+      binary: resolve(REPO_ROOT, 'mion-bin/mion'),
       cwd: PACKAGE_ROOT,
       tsconfig: 'tsconfig.converted.json',
       emitMode: 'both',
-      // Same opt-out as the marker project: the suites deliberately contain
-      // Error-severity types (the alwaysThrow cases), so the strict default
-      // would refuse to boot.
-      failOnError: false,
+      // The ONE code this generated tree cannot annotate. Everything else the
+      // suites stand down rides along in the comment `mion convert` copies with
+      // the source. Four cloning/Unions.ts cases write their union across
+      // several lines, and convert collapses the whole type argument onto one,
+      // which drops the comment that was inside it. Naming the code here is the
+      // only place left to say it; the hand-written tree names nothing.
+      downgradeErrors: ['unknown-keys-object-union'],
     }),
   ],
   test: {
@@ -46,7 +42,7 @@ export default defineConfig({
     include: ['test/converted-*/**/*.test.ts'],
     // The two enrich lanes that SPAWN the CLI are excluded, and only those.
     // They drive `mion enrich` over fixture projects they generate at
-    // runtime, writing through a `.tmp` root and a repo-level `__runtypes/`
+    // runtime, writing through a `.tmp` root and a repo-level `.mion/`
     // output that are anchored by absolute path — so the builders copy, the
     // JSON Schema copy and the original all target one directory and reconcile
     // on top of each other. Nothing about that exercises the CONVERSION: the

@@ -1,5 +1,5 @@
 // E1 verification: a precompiled library (built with `--compile`, shipping its
-// own `__runtypes/` cache modules) and a consumer that ALSO generates entries
+// own `.mion/` cache modules) and a consumer that ALSO generates entries
 // for the SAME types can be loaded together without any double-registration.
 //
 // The reason it is harmless is content-addressing: an entry's key is
@@ -8,16 +8,15 @@
 // who compiled it. Registering it twice is therefore idempotent:
 //   - addToRTCache is a keyed overwrite — the second write replaces with
 //     identical content, leaving ONE entry.
-//   - addPureFn keeps the existing entry when the bodyHash matches (a content
-//     hash), so identical pure fns never warn. It warns + replaces ONLY on a
-//     genuine body divergence under the same key, which content-addressing
-//     makes impossible for equal bodies.
+//   - addPureFn keeps the existing entry, full stop. A pure fn's id IS the hash
+//     of the body that ships, so two registrations under one id are two copies
+//     of one body by construction and there is nothing to compare or warn about.
 //
 // This pins that behaviour so a future change to the registry can't silently
 // turn a duplicate registration into a warning or a double-count.
 
 import {describe, it, expect, vi} from 'vitest';
-import {getRTUtils, getRTFnCaches, pureFnKey} from '../../src/runtypes/rtUtils.ts';
+import {getRTUtils, getRTFnCaches} from '../../src/runtypes/rtUtils.ts';
 import type {CompiledTypeFn} from '../../src/runtypes/types.ts';
 
 describe('precompiled-library dedupe is harmless (E1)', () => {
@@ -49,19 +48,19 @@ describe('precompiled-library dedupe is harmless (E1)', () => {
     expect(utils.getRTFn(hash)()).toBe(true);
   });
 
-  it('addPureFn keeps the existing entry with NO warning when the body hash matches', () => {
+  it('addPureFn keeps the existing entry with NO warning: one id is one body', () => {
     const utils = getRTUtils();
-    const key = pureFnKey('e1', 'sharedPureFn');
-    const compiled = {code: '(utl) => (v) => v === 1', bodyHash: 'e1bodyhash', paramNames: ['v']} as never;
+    const key = '@acme/e1#sharedPureFn0';
+    const compiled = {code: '(utl) => (v) => v === 1', paramNames: ['v']} as never;
 
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
       utils.addPureFn(key, compiled);
-      // The consumer registers the SAME key + SAME body — no conflict warning.
-      const second = utils.addPureFn(key, {code: '(utl) => (v) => v === 1', bodyHash: 'e1bodyhash', paramNames: ['v']} as never);
+      // The consumer registers the SAME id, which can only be the SAME body.
+      const second = utils.addPureFn(key, {code: '(utl) => (v) => v === 1', paramNames: ['v']} as never);
       expect(warn).not.toHaveBeenCalled();
       // The existing entry is kept (identity preserved), not a fresh registration.
-      expect(second).toBe(utils.getCompiledPureFn(key));
+      expect(second).toBe(utils.getCompiledPureFnByKey(key));
     } finally {
       warn.mockRestore();
     }

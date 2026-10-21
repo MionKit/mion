@@ -1,0 +1,222 @@
+// Strategy-driven family selection on a FACTORY-RETURNED wrapper, mion's
+// createMionRouter(opts).route(handler, opts) shape. The marker slots are conditional types over
+// the route literal (`RO`) and the factory literal (`O`); the scanner reads the family keys off the
+// resolved signature, so a slot resolving to `never` injects nothing. Each case pins the exact
+// families a call compiles, proving the selection lives entirely in TypeScript types.
+import {describe, expect, it} from 'vitest';
+import {Family, type Diagnostic, type Site} from '../src/core/protocol.ts';
+import {CACHE_MODULES} from '../src/core/go-generated/runtypes-constants.generated.ts';
+import {hasBinary, withInlineSources} from './helpers/inline.ts';
+
+const register = hasBinary() ? it : it.skip;
+
+// The factory + helper under test, mirroring what @mionjs/router ships.
+const FACTORY_SRC = `import type {CompTimeArgs, InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
+
+type Handler = (ctx: unknown, ...rest: any[]) => unknown;
+type ParserStrategy = 'clone' | 'mutate' | 'compact';
+type ParserOption = ParserStrategy | {params?: ParserStrategy; return?: ParserStrategy};
+export type RouteOptions = PlainRouteOptions | RouteOptionsWithParser;
+export type RouterOptions = {parser?: ParserOption; basePath?: string};
+
+type Direction = 'params' | 'return';
+type ParserOf<X> = X extends {parser: infer E} ? E : never;
+type IsUnion<T, U = T> = T extends unknown ? ([U] extends [T] ? false : true) : never;
+type SingleLiteral<S> = [S] extends [string] ? (string extends S ? never : IsUnion<S> extends true ? never : S) : never;
+type DirectionStrategy<E, D extends Direction> = [E] extends [string] ? SingleLiteral<E> : [E] extends [Record<D, infer S extends string>] ? SingleLiteral<S> : never;
+type Resolve<RO, O, D extends Direction, Default extends string> =
+  [DirectionStrategy<ParserOf<RO>, D>] extends [never]
+    ? [DirectionStrategy<ParserOf<O>, D>] extends [never]
+      ? Default
+      : DirectionStrategy<ParserOf<O>, D>
+    : DirectionStrategy<ParserOf<RO>, D>;
+type EncodeFamily<S> = S extends 'clone' ? 'prepareForJsonClone' : S extends 'mutate' ? 'prepareForJsonMutate' : S extends 'compact' ? 'compactForJson' : never;
+type ServerDecodeFamily<S> = S extends 'compact' ? 'compactFromJson' : S extends 'mutate' ? 'restoreFromJsonMutate' : S extends string ? 'restoreFromJsonClone' : never;
+type ClientDecodeFamily<S> = S extends 'compact' ? 'compactFromJson' : S extends string ? 'restoreFromJsonClone' : never;
+type ParamsStrategy<RO, O> = Resolve<RO, O, 'params', 'mutate'>;
+type ReturnStrategy<RO, O> = Resolve<RO, O, 'return', 'mutate'>;
+
+export type PlainRouteOptions = {parser?: never; description?: string};
+export type RouteOptionsWithParser = {parser: ParserOption; description?: string};
+
+// The slots as a TUPLE, the way @mionjs/router's MarkerSlots does it: an alias wrapped directly
+// AROUND a marker hides it from the scanner, a tuple ELEMENT keeps the marker's own alias.
+type Slots<H extends Handler, RO, O> = [
+  paramsFns: InjectTypeFnArgs<Parameters<H>, 'validate', 'validationErrors', EncodeFamily<ParamsStrategy<RO, O>>, ServerDecodeFamily<ParamsStrategy<RO, O>>>,
+  returnFns: InjectTypeFnArgs<ReturnType<H>, 'validate', 'validationErrors', EncodeFamily<ReturnStrategy<RO, O>>, ClientDecodeFamily<ReturnStrategy<RO, O>>>,
+  paramsId: InjectRunTypeId<Parameters<H>>,
+];
+
+// ONE call signature, like @mionjs/router: \`RO\` defaults to the no-parser shape, so a call
+// without \`parser\` takes its slots from the factory literal and a call with one from its own.
+export interface RouteHelper<O extends RouterOptions> {
+  <H extends Handler, const RO extends RouteOptions = PlainRouteOptions>(
+    handler: H,
+    opts?: CompTimeArgs<RO>,
+    paramsFns?: Slots<H, RO, O>[0],
+    returnFns?: Slots<H, RO, O>[1],
+    paramsId?: Slots<H, RO, O>[2]
+  ): {handler: H; opts?: RO; paramsFns?: unknown; returnFns?: unknown; paramsId?: string};
+}
+
+export function createRouter<const O extends RouterOptions = {}>(opts?: O): {options: O | undefined; route: RouteHelper<O>} {
+  const route = ((handler: unknown, opts: unknown, paramsFns: unknown, returnFns: unknown, paramsId: unknown) => ({handler, opts, paramsFns, returnFns, paramsId})) as unknown as RouteHelper<O>;
+  return {options: opts, route};
+}
+`;
+
+const PRESET_SRC = `export const compactPreset = {parser: 'compact', description: 'positional wire'} as const;
+export const widenedPreset = {parser: 'compact'};
+`;
+
+// fn ids on the wire are opaque hashes; the site's demand list gives each one's family tag.
+const FAMILY_BY_TAG = new Map(Object.entries(CACHE_MODULES).map(([family, settings]) => [settings.tag as string, family]));
+
+function familiesOf(site: Site): string[] {
+  const ids = site.fnIds ?? (site.fnId ? [site.fnId] : []);
+  const tagByHash = new Map((site.demand ?? []).map((demand) => [demand.fnHash, demand.family]));
+  return ids.map((id) => FAMILY_BY_TAG.get(tagByHash.get(id) ?? '') ?? `?${id}`);
+}
+
+/** The two marker sites of one route call, keyed by slot: paramIndex 2 is paramsFns, 3 is returnFns,
+ *  4 the reflection id. Finding them at all is also the pin that the scanner sees a marker through
+ *  a tuple ELEMENT, which is how the real helpers spell their slots. */
+function routeSites(sites: Site[], file: string): {params: Site; ret: Site; id?: Site} {
+  const own = sites.filter((site) => site.file === file);
+  const params = own.find((site) => site.paramIndex === 2);
+  const ret = own.find((site) => site.paramIndex === 3);
+  if (!params || !ret) throw new Error(`expected paramsFns + returnFns sites in ${file}, got ${JSON.stringify(own)}`);
+  return {params, ret, id: own.find((site) => site.paramIndex === 4)};
+}
+
+function markerDiagsOf(response: {diagnostics?: Diagnostic[]}): Diagnostic[] {
+  return (response.diagnostics ?? []).filter((d) => d.family === Family.Marker);
+}
+
+async function scan(consumers: Record<string, string>) {
+  const sources = {'factory.ts': FACTORY_SRC, 'preset.ts': PRESET_SRC, ...consumers};
+  return withInlineSources(sources, async ({client}) => client.scanFiles(Object.keys(consumers)));
+}
+
+const HANDLER = `(ctx: unknown, user: {name: string; born: Date}): {ok: boolean; at: Date} => ({ok: true, at: user.born})`;
+
+describe('strategy-driven family slots on a factory-returned route helper', () => {
+  register('no option anywhere: the fixture defaults (mutate both ways, one decoder per side)', async () => {
+    const response = await scan({
+      'plain.ts': `import {createRouter} from './factory';
+const mion = createRouter();
+export const r = mion.route(${HANDLER});
+`,
+    });
+    expect(markerDiagsOf(response)).toEqual([]);
+    const {params, ret} = routeSites(response.sites, 'plain.ts');
+    expect(familiesOf(params)).toEqual(['validate', 'validationErrors', 'prepareForJsonMutate', 'restoreFromJsonMutate']);
+    expect(familiesOf(ret)).toEqual(['validate', 'validationErrors', 'prepareForJsonMutate', 'restoreFromJsonClone']);
+  });
+
+  register('a route literal selects compact on both directions, and only compact', async () => {
+    const response = await scan({
+      'compact.ts': `import {createRouter} from './factory';
+const mion = createRouter({basePath: 'api'});
+export const r = mion.route(${HANDLER}, {parser: 'compact'});
+`,
+    });
+    expect(markerDiagsOf(response)).toEqual([]);
+    const {params, ret} = routeSites(response.sites, 'compact.ts');
+    expect(familiesOf(params)).toEqual(['validate', 'validationErrors', 'compactForJson', 'compactFromJson']);
+    expect(familiesOf(ret)).toEqual(['validate', 'validationErrors', 'compactForJson', 'compactFromJson']);
+  });
+
+  register('the factory literal is the router-wide default; a route literal overrides one direction', async () => {
+    const response = await scan({
+      'factory-default.ts': `import {createRouter} from './factory';
+const mion = createRouter({parser: {params: 'clone', return: 'mutate'}});
+export const inherited = mion.route(${HANDLER});
+export const overridden = mion.route(${HANDLER}, {parser: {return: 'compact'}});
+`,
+    });
+    expect(markerDiagsOf(response)).toEqual([]);
+    const own = response.sites.filter((site) => site.file === 'factory-default.ts').sort((a, b) => a.pos - b.pos);
+    // two calls, three sites each (paramsFns, returnFns, paramsId)
+    expect(own.length).toBe(6);
+    const [inheritedParams, inheritedReturn, , overriddenParams, overriddenReturn] = own;
+    expect(familiesOf(inheritedParams)).toEqual(['validate', 'validationErrors', 'prepareForJsonClone', 'restoreFromJsonClone']);
+    expect(familiesOf(inheritedReturn)).toEqual(['validate', 'validationErrors', 'prepareForJsonMutate', 'restoreFromJsonClone']);
+    expect(familiesOf(overriddenParams)).toEqual(['validate', 'validationErrors', 'prepareForJsonClone', 'restoreFromJsonClone']);
+    expect(familiesOf(overriddenReturn)).toEqual(['validate', 'validationErrors', 'compactForJson', 'compactFromJson']);
+  });
+
+  register('an `as const` preset passed by name resolves cross-module', async () => {
+    const response = await scan({
+      'preset-user.ts': `import {createRouter} from './factory';
+import {compactPreset} from './preset';
+const mion = createRouter();
+export const r = mion.route(${HANDLER}, compactPreset);
+`,
+    });
+    expect(markerDiagsOf(response)).toEqual([]);
+    const {params, ret} = routeSites(response.sites, 'preset-user.ts');
+    expect(familiesOf(params)).toEqual(['validate', 'validationErrors', 'compactForJson', 'compactFromJson']);
+    expect(familiesOf(ret)).toEqual(['validate', 'validationErrors', 'compactForJson', 'compactFromJson']);
+  });
+
+  register(
+    'a widened preset is marker-comptime-arg-widened-const; inference falls back to the defaults and the runtime fails closed',
+    async () => {
+      const response = await scan({
+        'widened.ts': `import {createRouter} from './factory';
+import {widenedPreset} from './preset';
+const mion = createRouter();
+export const r = mion.route(${HANDLER}, widenedPreset);
+`,
+      });
+      expect(markerDiagsOf(response).map((d) => d.code)).toContain('marker-comptime-arg-widened-const');
+      // `{parser: string}` is also a type error at the call, so RO falls back to the constraint and
+      // DirectionStrategy filters that widened union out: the defaults get compiled. The runtime value
+      // still says 'compact', so the router refuses the route at init (pinned in @mionjs/router).
+      const {params, ret} = routeSites(response.sites, 'widened.ts');
+      expect(familiesOf(params)).toEqual(['validate', 'validationErrors', 'prepareForJsonMutate', 'restoreFromJsonMutate']);
+      expect(familiesOf(ret)).toEqual(['validate', 'validationErrors', 'prepareForJsonMutate', 'restoreFromJsonClone']);
+    }
+  );
+
+  register('a call expression as the options is marker-comptime-arg-not-literal (non-literal)', async () => {
+    const response = await scan({
+      'call.ts': `import {createRouter} from './factory';
+import type {RouteOptionsWithEncoder} from './factory';
+declare function getOpts(): RouteOptionsWithEncoder;
+const mion = createRouter();
+export const r = mion.route(${HANDLER}, getOpts());
+`,
+    });
+    const codes = markerDiagsOf(response).map((d) => d.code);
+    expect(
+      codes.some((code) => code === 'marker-comptime-arg-not-literal' || code === 'marker-comptime-arg-forbidden-construct')
+    ).toBe(true);
+  });
+
+  // Marker test coverage rule: the static and value-first getRunTypeId shapes resolve the SAME id
+  // as the route params marker, so the families above are keyed under either spelling.
+  register('getRunTypeId<T>() and getRunTypeId(value) agree with the route params id', async () => {
+    const response = await scan({
+      'ids.ts': `import {createRouter} from './factory';
+import {getRunTypeId} from '@mionjs/run-types';
+const mion = createRouter();
+const handler = ${HANDLER};
+export const r = mion.route(handler, {parser: 'compact'});
+export const staticId = getRunTypeId<Parameters<typeof handler>>();
+const paramsValue: Parameters<typeof handler> = [undefined, {name: 'a', born: new Date(0)}];
+export const valueId = getRunTypeId(paramsValue);
+`,
+    });
+    expect(markerDiagsOf(response)).toEqual([]);
+    const {params, id} = routeSites(response.sites, 'ids.ts');
+    expect(id, 'the paramsId reflection slot must be a site').toBeTruthy();
+    // in source order: the route call's three sites, then the two getRunTypeId calls
+    const own = response.sites.filter((site) => site.file === 'ids.ts').sort((a, b) => a.pos - b.pos);
+    expect(own.length).toBe(5);
+    const [staticSite, valueSite] = own.slice(3);
+    const ids = new Set([params.id, id!.id, staticSite.id, valueSite.id]);
+    expect(ids.size, `all four sites must share one type id, got ${[...ids].join(', ')}`).toBe(1);
+  });
+});

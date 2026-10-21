@@ -1,0 +1,299 @@
+// The generated-code audit, as oracles: every compiled function body the
+// emitters produce is JavaScript text materialized with `new Function`, so the
+// hole can sit in the template rather than in any hand-written file. Each
+// check below is a pure predicate over one emitted body, so the unit lane can
+// prove every one FIRES on deliberately broken output, and both drivers (the
+// hand-written nasty corpus in test/features, the generated types in the
+// secgen lane) run the same list.
+//
+//   GC-PARSE    the body compiles as strict-mode JavaScript.
+//   GC-TEXT     the body carries no raw control byte or Unicode line
+//               terminator (a name or literal never ends a line inside its
+//               own string literal; the one quoting helper escapes them).
+//   GC-INJECT   a corpus marker planted inside a property name, a literal, an
+//               enum member or a key pattern never appears OUTSIDE a string or
+//               regex literal: type-derived text stays quoted.
+//   GC-REBUILD  every loop that writes wire keys onto a fresh object carries
+//               the prototype-name guard, and nothing calls Object.assign.
+//   GC-REGEXP   every `new RegExp(` in emitted code takes a build-time
+//               double-quoted literal; nothing builds a RegExp from a wire
+//               value.
+//   GC-ACCESS   a property access never spells an unsafe name bare: after a
+//               `.` comes an identifier, never a quote or a digit.
+//   GC-GUARD    a JSON decoder converts a wire value only after checking its
+//               shape: every `new Date(x)`, `BigInt(x)`, `Temporal.X.from(x)`,
+//               `new Map(x)`, `new Set(x)`, `Symbol(x.substring(` and union
+//               envelope unwrap `x = x[1]` is preceded by a `typeof x ===`,
+//               `Array.isArray(x)`, `.test(x)` or `Number.isInteger(x)` on the
+//               SAME variable. The JS twin of the resolver's MustValidateJson
+//               table (reflection/must_validate_json.go): validation runs on
+//               the restored value, so the decoder is the one check between
+//               attacker-controlled JSON and a constructor.
+//   GC-IDENTITY the emitted code asks "what is this value?" in exactly three
+//               ways: a JavaScript built-in is checked with `instanceof`
+//               against the global constructor (Date / RegExp / Map / Set /
+//               Temporal.*), a USER class is checked by EXACT constructor
+//               against the class-serializer registry lookup
+//               (`v?.constructor === cix_<id>.cls`) and by structural shape
+//               everywhere else, and nothing ever reads `constructor.name`.
+//               `instanceof` against a user class is the one that matters: a
+//               subclass instance is also `instanceof` its base, so a union
+//               would encode a FatalError under its base's arm.
+//
+// Erasable TypeScript only: the secgen lane's runner imports this file
+// alongside the other security oracles.
+
+// The ONE import, and it is a generated const object with no dependencies of
+// its own: GC-IDENTITY derives its Temporal allowlist from the shipped subkind
+// table instead of restating the names (the "real types, never copies" rule).
+import {RunTypeSubKind} from '../../../src/go-generated/runTypeKind.generated.ts';
+
+export type GeneratedCodeOracleId =
+  | 'GC-PARSE'
+  | 'GC-TEXT'
+  | 'GC-INJECT'
+  | 'GC-REBUILD'
+  | 'GC-REGEXP'
+  | 'GC-ACCESS'
+  | 'GC-GUARD'
+  | 'GC-IDENTITY';
+
+export interface EmittedBody {
+  /** The cache key (`<fnHash>_<typeId>`) or the entry-module basename. **/
+  key: string;
+  /** The family tag the entry was emitted for (`val`, `jdCL`, …). **/
+  family: string;
+  code: string;
+}
+
+export interface GeneratedCodeViolation {
+  oracle: GeneratedCodeOracleId;
+  key: string;
+  family: string;
+  message: string;
+}
+
+/** The marker the nasty corpus plants inside names and literals. Seeing it in
+ *  the code outside a string or regex literal means type-derived text broke
+ *  out of its quotes. **/
+export const INJECT_MARKER = 'rt_injected_marker';
+
+// Only `__proto__` swaps a prototype when written under a wire key;
+// `prototype` and `constructor` land as plain own keys and are carried.
+const UNSAFE_KEYS = ['__proto__'];
+
+export function checkGeneratedCode(body: EmittedBody, markers: readonly string[] = [INJECT_MARKER]): GeneratedCodeViolation[] {
+  const out: GeneratedCodeViolation[] = [];
+  const push = (oracle: GeneratedCodeOracleId, message: string): void => {
+    out.push({oracle, key: body.key, family: body.family, message});
+  };
+  const {code} = body;
+
+  // GC-PARSE
+  try {
+    // oxlint-disable-next-line typescript/no-implied-eval
+    new Function('utl', `'use strict'; ${code}`);
+  } catch (err) {
+    push('GC-PARSE', `body does not compile: ${err instanceof Error ? err.message : String(err)}`);
+    return out; // nothing else is meaningful on text that is not a program
+  }
+
+  // GC-TEXT
+  for (let i = 0; i < code.length; i++) {
+    const c = code.charCodeAt(i);
+    if ((c < 0x20 && c !== 0x0a && c !== 0x0d && c !== 0x09) || c === 0x7f || c === 0x2028 || c === 0x2029) {
+      push('GC-TEXT', `raw U+${c.toString(16).padStart(4, '0')} at offset ${i}`);
+      break;
+    }
+  }
+
+  // GC-INJECT
+  const residue = stripLiterals(code);
+  for (const marker of markers) {
+    if (residue.includes(marker)) {
+      push('GC-INJECT', `the marker '${marker}' appears outside a string or regex literal`);
+      break;
+    }
+  }
+
+  // GC-REBUILD
+  if (/\bObject\.assign\(/.test(code))
+    push('GC-REBUILD', 'Object.assign copies inherited-setter keys; use a guarded own-key loop');
+  for (const match of code.matchAll(/for \(const (\w+) in (\w+)\) \{/g)) {
+    const [, keyVar, source] = match;
+    const bodyStart = match.index! + match[0].length;
+    const loopBody = code.slice(bodyStart, bodyStart + 4000);
+    // A write back onto the object being walked is safe: `for…in` only yields
+    // an own `__proto__` key (Object.prototype's is not enumerable), and
+    // assigning an own key never reaches the setter. A write onto any OTHER
+    // object (a fresh `{}`, a clone) does, so that loop must carry the guard.
+    const targets = new Set<string>();
+    for (const write of loopBody.matchAll(new RegExp(`\\b(\\w+)\\[${keyVar}\\] =`, 'g'))) {
+      if (write[1] !== source) targets.add(write[1]);
+    }
+    if (targets.size === 0) continue;
+    const guarded = UNSAFE_KEYS.every((name) => loopBody.includes(`${keyVar} === '${name}'`));
+    if (!guarded)
+      push(
+        'GC-REBUILD',
+        `the loop over '${keyVar}' writes wire keys onto ${[...targets].join(', ')} without the prototype-name guard`
+      );
+  }
+
+  // GC-REGEXP
+  for (const match of code.matchAll(/new RegExp\(/g)) {
+    const next = code.charAt(match.index! + match[0].length);
+    if (next !== '"') push('GC-REGEXP', `new RegExp( takes a non-literal argument at offset ${match.index}`);
+  }
+
+  // GC-ACCESS
+  const access = /[\w$)\]]\.['"\d]/.exec(residue);
+  if (access) push('GC-ACCESS', `a property access spells a non-identifier name at offset ${access.index}`);
+
+  // GC-GUARD (JSON decoders only)
+  if (JSON_DECODER_FAMILIES.has(body.family)) {
+    for (const call of WIRE_TRANSFORMS) {
+      for (const match of residue.matchAll(call)) {
+        const name = match[1];
+        if (!guardedBefore(residue, match.index!, name))
+          push('GC-GUARD', `${code.slice(match.index!, match.index! + match[0].length)} runs on an unchecked wire value`);
+      }
+    }
+  }
+
+  // GC-IDENTITY
+  for (const match of residue.matchAll(/\binstanceof\s+([\w$.]+)/g)) {
+    if (!BUILTIN_CONSTRUCTORS.has(match[1]))
+      push(
+        'GC-IDENTITY',
+        `instanceof ${match[1]}: only a JavaScript built-in belongs on the right of instanceof — a user class is checked by exact constructor`
+      );
+  }
+  for (const match of residue.matchAll(/\.constructor\s*===\s*([\w$.]+)/g)) {
+    if (!CLASS_IDENTITY_LOOKUP.test(match[1]))
+      push('GC-IDENTITY', `.constructor === ${match[1]}: a class arm compares against the registry lookup 'cix_<id>.cls'`);
+  }
+  if (/\bconstructor\s*\.\s*name\b/.test(residue))
+    push('GC-IDENTITY', 'constructor.name is not an identity check — two classes can share a name and a name can be rewritten');
+
+  return out;
+}
+
+/** Every constructor an emitted body may name on the right of `instanceof`.
+ *  Mirrors the Go emitters: Date / RegExp / URL from the atomic leaf checks, Map /
+ *  Set from the iterable arms, and the Temporal classes from the subkind
+ *  table (derived, so a new Temporal type is allowed the day it is added
+ *  rather than tripping this rule). **/
+const BUILTIN_CONSTRUCTORS = new Set<string>([
+  'Date',
+  'RegExp',
+  'URL',
+  'Map',
+  'Set',
+  ...Object.keys(RunTypeSubKind)
+    .filter((name) => name.startsWith('temporal'))
+    .map((name) => `Temporal.${name.slice('temporal'.length)}`),
+]);
+
+/** The class-identity lookup a class arm compares against: an epoch-cached
+ *  `utl.getClassSerializer(<typeId>, <ClassName>)` record whose `.cls` is the
+ *  real constructor. The `cix_` prefix keeps it apart from the `cs_` lookup a
+ *  child serialize / deserialize body declares. **/
+const CLASS_IDENTITY_LOOKUP = /^cix_[A-Za-z_$][\w$]*\.cls$/;
+
+/** The family tags whose bodies rebuild values from JSON: the two primitives and the three composites. **/
+const JSON_DECODER_FAMILIES = new Set(['rj', 'rjs', 'cjr', 'jdCL', 'jdMU', 'jdCO']);
+
+/** Every way an emitted decoder turns a wire value into something else; group 1 is the wire variable. **/
+const WIRE_TRANSFORMS = [
+  /new Date\((\w+)\)/g,
+  /new URL\((\w+)\)/g,
+  /BigInt\((\w+)\)/g,
+  /Temporal\.\w+\.from\((\w+)\)/g,
+  /new Map\((\w+)\)/g,
+  /new Set\((\w+)\)/g,
+  /Symbol\((\w+)\.substring\(/g,
+  // the union envelope unwrap assigns a variable from its own second slot (a tuple member READ is `const x1 = x[1]`)
+  /(\S+) = \1\[1\];/g,
+];
+
+/** A wire-shape check on `name` somewhere before offset `at` (the same predicate as the Go test). **/
+function guardedBefore(text: string, at: number, name: string): boolean {
+  const before = text.slice(0, at);
+  return (
+    before.includes(`typeof ${name} ===`) ||
+    before.includes(`Array.isArray(${name})`) ||
+    before.includes(`.test(${name})`) ||
+    before.includes(`Number.isInteger(${name})`)
+  );
+}
+
+/** Replace the contents of every string, template and regex literal with
+ *  spaces, keeping offsets stable, so a scan sees only the program text. The
+ *  regex heuristic (a `/` after an operator, a bracket or a keyword opens a
+ *  literal) matches what the emitters produce. **/
+export function stripLiterals(code: string): string {
+  const out = code.split('');
+  let i = 0;
+  const blank = (from: number, to: number): void => {
+    for (let k = from; k < to; k++) if (out[k] !== '\n') out[k] = ' ';
+  };
+  // What precedes a `/` decides whether it opens a regex literal: an
+  // operator, an opening bracket, a separator, or one of the keywords a
+  // literal can follow (the emitters write `return /re/.test(v)`).
+  const REGEX_AFTER_KEYWORD = new Set(['return', 'typeof', 'case', 'in', 'of', 'delete', 'void', 'throw', 'instanceof']);
+  const opensRegex = (pos: number): boolean => {
+    let k = pos - 1;
+    while (k >= 0 && (code[k] === ' ' || code[k] === '\n' || code[k] === '\t' || code[k] === '\r')) k--;
+    if (k < 0) return true;
+    const ch = code[k];
+    if (/[(,=:[!&|?{};+\-*%<>~^]/.test(ch)) return true;
+    if (/[\w$]/.test(ch)) {
+      let start = k;
+      while (start >= 0 && /[\w$]/.test(code[start])) start--;
+      return REGEX_AFTER_KEYWORD.has(code.slice(start + 1, k + 1));
+    }
+    return false;
+  };
+  while (i < code.length) {
+    const ch = code[i];
+    if (ch === "'" || ch === '"' || ch === '`') {
+      const start = i;
+      i++;
+      while (i < code.length && code[i] !== ch) {
+        if (code[i] === '\\') i++;
+        i++;
+      }
+      blank(start + 1, i);
+      i++;
+      continue;
+    }
+    if (ch === '/' && code[i + 1] !== '/' && code[i + 1] !== '*' && opensRegex(i)) {
+      const start = i;
+      i++;
+      let inClass = false;
+      while (i < code.length) {
+        const c = code[i];
+        if (c === '\\') {
+          i += 2;
+          continue;
+        }
+        if (c === '[') inClass = true;
+        else if (c === ']') inClass = false;
+        else if (c === '/' && !inClass) break;
+        else if (c === '\n') break;
+        i++;
+      }
+      blank(start + 1, i);
+      i++;
+      while (i < code.length && /[a-z]/.test(code[i])) i++; // flags
+      continue;
+    }
+    i++;
+  }
+  return out.join('');
+}
+
+export function renderGeneratedCodeViolations(violations: GeneratedCodeViolation[]): string {
+  return violations.map((v) => `[${v.oracle}] ${v.key} (${v.family}): ${v.message}`).join('\n');
+}

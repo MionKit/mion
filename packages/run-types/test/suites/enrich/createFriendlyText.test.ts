@@ -99,7 +99,7 @@ describe('createFriendlyText — error rendering', () => {
 
   it('rt$default mode → ONE message per field, not one per failed constraint', () => {
     // `score` fails both `min` and `max`, but its node uses the exclusive rt$default
-    // catch-all — the field yields a SINGLE message, not one per constraint (FT009).
+    // catch-all — the field yields a SINGLE message, not one per constraint (enrich-text-default-and-messages).
     const errs: RTValidationError[] = [
       {path: ['profile', 'score'], expected: 'number', format: {name: 'numberFormat', val: 0, formatPath: ['min']}},
       {path: ['profile', 'score'], expected: 'number', format: {name: 'numberFormat', val: 100, formatPath: ['max']}},

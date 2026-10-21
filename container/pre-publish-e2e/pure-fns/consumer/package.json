@@ -1,0 +1,7 @@
+{
+  "name": "@acme/consumer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure-fn e2e fixture: a project whose pure function reaches @acme/dates and, through it, @acme/text, both installed from their packed tarballs. Built twice by run.mjs, with the Vite adapter and with `mion compile`. Declares no dependency on purpose: run.mjs installs the tarballs with --no-save."
+}

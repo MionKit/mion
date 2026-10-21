@@ -37,6 +37,21 @@ describe('MockData<T> — per-branch correctness (total contract)', () => {
     );
   });
 
+  // The URL global is declared in the snippet (the harness loads no dom or @types/node).
+  it('a URL takes a pool of URLs, not per-member nodes', () => {
+    check(
+      `
+      declare global {
+        interface URL {href: string; pathname: string; toJSON(): string}
+        var URL: {prototype: URL; new (url: string): URL};
+      }
+      type _01 = Expect<Assignable<{pool: URL[]}, MockData<URL>>>;
+      type _02 = ExpectFalse<Assignable<{href: {pool: string[]}}, MockData<URL>>>;
+      `,
+      0
+    );
+  });
+
   it('objects with per-field nodes; every field required; unknown fields rejected', () => {
     check(
       `

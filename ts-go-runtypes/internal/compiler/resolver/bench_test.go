@@ -48,14 +48,14 @@ export const enc = createJsonEncoderFn<User>();
 export const dec = createJsonDecoderFn<User>();
 `
 
-const benchUnionTS = `import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn, createBinaryEncoderFn, createBinaryDecoderFn} from '@mionjs/run-types';
+const benchUnionTS = `import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 type Shape = {kind: 'circle'; radius: number} | {kind: 'square'; size: number} | {kind: 'rect'; w: number; h: number};
 type Mixed = string | number | Date | {a: string} | string[];
 export const v = createValidateFn<Shape>();
 export const je = createJsonEncoderFn<Shape>();
 export const jd = createJsonDecoderFn<Shape>();
-export const be = createBinaryEncoderFn<Mixed>();
-export const bd = createBinaryDecoderFn<Mixed>();
+export const me = createJsonEncoderFn<Mixed>();
+export const md = createJsonDecoderFn<Mixed>();
 `
 
 // benchLargeTS is a generated 48-property object (mixed kinds, nested

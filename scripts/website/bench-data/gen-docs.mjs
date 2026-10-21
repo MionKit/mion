@@ -8,10 +8,8 @@
 //   <case>.json             — { competitors: [{ name, source }] }   (lazy hover)
 //
 // Two benches:
-//   validation — runtime throughput from container/benchmarks/results/<competitor>.json
-//                (the validationErrors·accept path: the metric EVERY competitor
-//                implements, so it's the apples-to-apples column; zod has no cheap
-//                boolean validate). unit = ops/sec, higher is better.
+//   validation — runtime throughput from container/benchmarks/results/<competitor>.json, both
+//                metrics (each page picks one). unit = ops/sec, higher is better.
 //   typecost   — TypeScript type-instantiation count per form from
 //                container/benchmarks/results/<form>.typecost.json. unit = count, LOWER is
 //                better.
@@ -26,6 +24,18 @@ import url from 'node:url';
 import ts from 'typescript';
 import {loadEnv} from '../../lib/env.mjs';
 import {readCompetitorResults as readResultsDir} from '../../../container/benchmarks/_lib/read-results.mjs';
+import {BENCH_COLUMNS, columnProblems} from './columns.mjs';
+import {sourceFileIn} from './sources.mjs';
+
+// A dataset's columns must be a subset of its list in columns.mjs, no name twice:
+// a result file left behind by an older run (a renamed competitor, a typecost form)
+// must fail here, not ship as an empty column. Missing columns are the deploy
+// gate's call (check-static.mjs), so a partial local run still renders.
+function assertColumns(bench, columns) {
+  const problems = columnProblems(bench, columns);
+  if (problems.length === 0) return;
+  throw new Error(`gen-docs: dataset '${bench}' has bad columns: ${problems.join('; ')}. A stale file in ${RESULTS_DIR}? Delete it and rerun.`);
+}
 
 loadEnv(); // load .env (dev) so MION_VALIDATION_BENCH_* knobs apply when run directly
 
@@ -173,6 +183,34 @@ export function extractCaseSources(file, varName = 'cases') {
 // text, so the correctness + validation hovers can show the exact data each
 // validator ran against — the data-side companion to the per-competitor source.
 const SHARED_CASES_DIR = path.join(BENCH_DIR, 'shared/cases');
+const SHARED_CASES_REPO_DIR = 'container/benchmarks/shared/cases';
+
+// Where a section's cases are authored, repo-relative, for the chart's GitHub link.
+// One dir per suite ('validation', 'format-validation', 'realworld', 'strict'), which
+// is what every result row names, so the file is resolved rather than guessed.
+function caseSource(suite, group) {
+  return path.posix.join(SHARED_CASES_REPO_DIR, suite, sourceFileIn(path.join(SHARED_CASES_DIR, suite), group));
+}
+
+/** The four suites the shared cases are split across, in the order sections list them. */
+const CASE_SUITES = ['validation', 'format-validation', 'realworld', 'strict'];
+
+// Where a group's cases live when the ROW does not name its suite (typecost measures
+// every case in one pass and records only the group). Undefined when more than one
+// suite declares the group: typecost's DATETIME section holds the date cases of both
+// the validation and the format suites, and JSON_SCHEMA likewise, so there is no one
+// file to link and those two sections ship without a link rather than a wrong one.
+function uniqueCaseSource(group) {
+  const found = [];
+  for (const suite of CASE_SUITES) {
+    try {
+      found.push(caseSource(suite, group));
+    } catch {
+      // this suite does not declare the group
+    }
+  }
+  return found.length === 1 ? found[0] : undefined;
+}
 
 // Tidy a sample array literal for display: keep the authored line breaks (so inline
 // `//` comments stay on their own line and `//` inside a URL string is never mangled)
@@ -313,6 +351,7 @@ function buildValidationBench() {
     return 0;
   }
   const competitors = results.map((r) => r.competitor).sort(order);
+  assertColumns('validation', competitors);
   const byComp = byCompetitor(results);
   // case list = the longest competitor's cases (preserves suite/group/name order).
   const rows = results.reduce((longest, r) => (r.cases.length > longest.length ? r.cases : longest), []);
@@ -340,8 +379,7 @@ function buildValidationBench() {
   return core + formats;
 }
 
-// Emit one validation bench (index.json + per-case source JSON) for a filtered set of
-// rows. Both the is-valid and validation-errors metrics ship; the page picks one.
+// Both the is-valid and get-errors metrics ship in every bench; the page picks one.
 function emitValidationBench(outName, label, rows, competitors, byComp, sources) {
   const sectionMap = new Map(); // group → {key,label,cases[]}
   const outDir = path.join(OUT_ROOT, outName);
@@ -349,14 +387,15 @@ function emitValidationBench(outName, label, rows, competitors, byComp, sources)
   fs.mkdirSync(outDir, {recursive: true});
 
   for (const row of rows) {
-    // Split the mixed DATETIME group into a Date section (JS Date / date-string
-    // formats) and a Temporal section (Temporal.* types — instant, plainDate, etc.).
+    // DATETIME mixes JS Date / date-string cases (date, date_*) with Temporal ones: one section each.
     let group = row.group;
     if (group === 'DATETIME') {
       const casePart = row.key.slice(row.group.length + 1);
       group = /^date($|_)/.test(casePart) ? 'DATE' : 'TEMPORAL';
     }
-    if (!sectionMap.has(group)) sectionMap.set(group, {key: group, label: sectionLabel(group), cases: []});
+    // row.group, not group: DATE and TEMPORAL both link the one DATETIME file they were split out of.
+    if (!sectionMap.has(group))
+      sectionMap.set(group, {key: group, label: sectionLabel(group), source: caseSource(row.suite, row.group), cases: []});
     const resultsForCase = {};
     const detailComps = [];
     for (const comp of competitors) {
@@ -381,12 +420,8 @@ function emitValidationBench(outName, label, rows, competitors, byComp, sources)
     showInvalid: true,
     hasSamples: true,
     metrics: [
-      {key: 'validate', label: 'Is-valid', metricLabel: 'createValidateFn — boolean is-valid check (ops/sec, higher is better)'},
-      {
-        key: 'validationErrors',
-        label: 'Validation errors',
-        metricLabel: 'getValidationErrors — full error report (ops/sec, higher is better)',
-      },
+      {key: 'validate', label: 'Is valid', metricLabel: 'Is valid: a true/false check (ops/sec, higher is better)'},
+      {key: 'validationErrors', label: 'Get errors', metricLabel: 'Get errors: the full list of errors (ops/sec, higher is better)'},
     ],
     competitors,
     versions: ENV?.versions,
@@ -417,6 +452,8 @@ const TYPECOST_FORMS = [
   {id: 'zod', label: 'zod', srcFile: 'zod/cases.ts', srcVar: 'cases'},
 ];
 
+assertColumns('typecost', TYPECOST_FORMS.map((form) => form.label));
+
 function buildTypecostBench() {
   const byForm = new Map(); // id → Map(key → instantiations)
   const meta = new Map(); // key → {group, name}
@@ -439,15 +476,11 @@ function buildTypecostBench() {
     byForm.set(form.id, m);
   }
   if (orderedKeys.length === 0) {
-    process.stderr.write(`skip typecost bench: no results/*.typecost.json in ${RESULTS_DIR} (run \`pnpm rtx bench typecost\`)\n`);
+    process.stderr.write(`skip typecost bench: no results/*.typecost.json in ${RESULTS_DIR} (run \`pnpm miondevx bench typecost\`)\n`);
     return 0;
   }
 
-  // Every declared form is a column, always. A form whose results are missing or
-  // empty (failed non-fatal typia install, dep not in the image yet, partial
-  // re-run over a stale .docdata) renders as n/a cells instead of vanishing — a
-  // silently disappearing column reads as "removed on purpose" when it is really
-  // "no data this run".
+  // Every declared form stays a column, data or not: a vanished column reads as removed on purpose, not "no data".
   const forms = TYPECOST_FORMS;
   const sources = new Map(forms.map((f) => [f.id, extractCaseSources(path.join(COMPETITORS_DIR, f.srcFile), f.srcVar)]));
 
@@ -458,28 +491,23 @@ function buildTypecostBench() {
   const sectionMap = new Map();
   for (const key of orderedKeys) {
     const {group, name} = meta.get(key);
-    if (!sectionMap.has(group)) sectionMap.set(group, {key: group, label: sectionLabel(group), cases: []});
+    if (!sectionMap.has(group)) sectionMap.set(group, {key: group, label: sectionLabel(group), source: uniqueCaseSource(group), cases: []});
     const results = {};
     const detailComps = [];
     for (const form of forms) {
       const inst = byForm.get(form.id).get(key);
       // Single metric, single path — typecost has no valid/invalid split.
       if (inst !== undefined) results[form.label] = {typecost: {valid: inst, status: 'ok'}};
-      // typecost is single-metric: show the type/schema form (validate body), or the
-      // error form for libraries with no cheap validator (zod). Only for a form
-      // that actually produced a number: the source files are read per FORM, not
-      // per measured cell, so a form whose authoring file happens to mention the
-      // case would otherwise show a hover body under a cell reading n-a.
+      // Sources are read per FORM, not per cell, so an unmeasured form could otherwise show a hover body under n-a.
       if (inst === undefined) continue;
       const caseSources = sources.get(form.id)?.get(key);
-      const source = caseSources?.validate ?? caseSources?.validationErrors;
+      const source = caseSources?.validate;
       if (source) detailComps.push({name: form.label, source});
     }
     sectionMap.get(group).cases.push({key: safeKey(key), title: name, results});
     fs.writeFileSync(path.join(outDir, `${safeKey(key)}.json`), JSON.stringify({competitors: detailComps}));
   }
 
-  // Each typecost form maps to the library whose installed version it measures.
   const FORM_LIB = {
     'mion-type': 'mion',
     'mion-schema': 'mion',
@@ -512,18 +540,19 @@ function buildTypecostBench() {
 // Cross-library correctness: for every case, how many shared samples each competitor
 // disagrees with mion on (0 = fully aligned). Reads the alignment audit's
 // joined output (container/benchmarks/results/alignment-misalignments.json, produced by
-// `pnpm rtx bench audit`). Reuses the SAME competitor table as the speed pages:
+// `pnpm miondevx bench audit`). Reuses the SAME competitor table as the speed pages:
 // unit = count so 0 is the best (green) value and divergences ramp toward red; n-a =
 // the competitor doesn't support the case. The per-case hover shows each library's
 // authored schema, exactly like the validation pages.
 function buildAlignmentBench() {
   const file = path.join(RESULTS_DIR, 'alignment-misalignments.json');
   if (!fs.existsSync(file)) {
-    process.stderr.write(`skip alignment bench: no ${file} (run \`pnpm rtx bench audit\`)\n`);
+    process.stderr.write(`skip alignment bench: no ${file} (run \`pnpm miondevx bench audit\`)\n`);
     return 0;
   }
   const audit = JSON.parse(fs.readFileSync(file, 'utf8'));
   const competitors = [...(audit.competitors ?? [])].sort(order);
+  assertColumns('alignment', competitors);
   const coverage = audit.coverage ?? {};
 
   // Per-case disagreement DATA (not just counts): the exact sample value each
@@ -651,7 +680,7 @@ function buildCompiletimeBench() {
   }
   if (competitors.length === 0) {
     process.stderr.write(
-      `skip compiletime bench: no results/{mion,typia}.compiletime.json in ${RESULTS_DIR} (run \`pnpm rtx bench compiletime\`)\n`
+      `skip compiletime bench: no results/{mion,typia}.compiletime.json in ${RESULTS_DIR} (run \`pnpm miondevx bench compiletime\`)\n`
     );
     return 0;
   }
@@ -680,6 +709,7 @@ function buildCompiletimeBench() {
     ['transform cost', (d) => clamp0(d.full_ms - d.typecheck_ms)],
   ];
   const tierLabels = TIERS.map(([label]) => label);
+  assertColumns('compiletime', tierLabels);
   // Every declared library is a row, always (same posture as the typecost
   // columns): a lib whose results file is absent — e.g. a quick run narrowed
   // MION_COMPILETIME_COMPETITORS to mion on a fresh .docdata — renders as a
@@ -717,26 +747,16 @@ function buildCompiletimeBench() {
   return cases.length;
 }
 
-// The serialization + serialization-formats datasets are produced separately by
-// gen-serialization-bench.mjs (inside the Node 26 container, where results/env.json
-// is not mounted), so unlike the benches built here they ship without the run-
-// environment meta - and their pages render no "measured on ..." banner. Stamp the
-// SAME metaBlock onto their already-written index.json so EVERY benchmark page is
-// consistent. cmd_website_bench runs the serialization stage before this script, so
-// the files exist by now; no-op when a dataset (or env.json) is absent.
+// gen-serialization.mjs runs in a container without results/env.json, so its page would lack the "measured on" banner.
+// cmd_website_bench runs that stage first, so its index.json already exists here to stamp.
 function stampSerializationMeta() {
   const meta = metaBlock();
-  if (!meta) return 0;
-  let stamped = 0;
-  for (const bench of ['serialization', 'serialization-formats']) {
-    const indexFile = path.join(OUT_ROOT, bench, 'index.json');
-    if (!fs.existsSync(indexFile)) continue;
-    const index = JSON.parse(fs.readFileSync(indexFile, 'utf8'));
-    index.meta = meta;
-    fs.writeFileSync(indexFile, JSON.stringify(index));
-    stamped++;
-  }
-  return stamped;
+  const indexFile = path.join(OUT_ROOT, 'serialization', 'index.json');
+  if (!meta || !fs.existsSync(indexFile)) return false;
+  const index = JSON.parse(fs.readFileSync(indexFile, 'utf8'));
+  index.meta = meta;
+  fs.writeFileSync(indexFile, JSON.stringify(index));
+  return true;
 }
 
 if (process.argv[1] && process.argv[1].endsWith('gen-docs.mjs')) {
@@ -748,6 +768,6 @@ if (process.argv[1] && process.argv[1].endsWith('gen-docs.mjs')) {
   process.stdout.write(`compiletime bench: ${c} cases → container/website/public/bench-data/compiletime/\n`);
   const a = buildAlignmentBench();
   process.stdout.write(`alignment bench: ${a} cases → container/website/public/bench-data/alignment/\n`);
-  const sm = stampSerializationMeta();
-  process.stdout.write(`serialization meta: stamped ${sm} index(es) → container/website/public/bench-data/{serialization,serialization-formats}/\n`);
+  const stampNote = stampSerializationMeta() ? 'stamped' : 'skipped (no env.json or index.json yet)';
+  process.stdout.write(`serialization meta: ${stampNote} → container/website/public/bench-data/serialization/index.json\n`);
 }

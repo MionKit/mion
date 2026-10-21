@@ -2,7 +2,7 @@
 
 Compares **RunTypes** validators against **zod**, **typebox**, **ajv**
 and **typia**, over the **full** `validation` + `format-validation` + `realworld`
-suites (263 cases — the exact cases the package tests itself with, plus a
+suites (the exact cases the package tests itself with, plus a
 real-world DTO group). All heavy tooling (the validator libraries, vite, typia's
 tsgo transform) lives **only inside a podman image** — the host never installs it.
 
@@ -17,7 +17,7 @@ joins those per-competitor results by case key into one comparison table.
 
 ```
 competitors/<name>/  cases.ts ── (the validators) ─┐
-shared/cases/    ────  the 263 cases (samples + metadata, ZERO library deps)
+shared/cases/    ────  the shared cases (samples + metadata, ZERO library deps)
 shared/harness/  ────  runCompetitor() + writeResult()  ──> results/<name>.json
                                                              aggregate.mjs ──> table
 ```
@@ -47,7 +47,7 @@ builder `() => (v) => boolean` **or** to the `NOT_SUPPORTED` sentinel. The
 case does not compile — that is the "function or explicit not-supported, for
 every case" guarantee.
 
-**That guarantee is enforced by `pnpm rtx bench typecheck`, not by the type
+**That guarantee is enforced by `pnpm miondevx bench typecheck`, not by the type
 annotation on its own.** The competitor builds are `vite build` / esbuild, which
 strip types without checking them, so for a long time nothing ever compiled these
 files and a dropped key was a silently absent column rather than an error (it
@@ -64,22 +64,6 @@ validator, then checks correctness against the case's valid/invalid samples and
 measures throughput. A builder that **throws** is a hard `errored` (a broken
 plugin rewrite for ts-go, a broken schema for the rest) — surfaced loudly, never
 hidden as not-supported.
-
-Typical coverage (validations/sec; the gap widens on complex objects):
-
-```
-case                  mion       zod    typebox      ajv      typia
-simple_interface              107M/s     646k/s     93M/s        —          —
-nested_object                  78M/s     481k/s     69M/s        —          —
-user (realworld)               63M/s     337k/s     50M/s     24M/s      68M/s
-
-Coverage (of 263):
-  mion   ok=260   not-supported=3
-  zod               ok=118   not-supported=145
-  typebox           ok=96    not-supported=167
-  ajv               ok=67    not-supported=196
-  typia             ok=40    not-supported=223
-```
 
 Why the competitors are not-supported on so many: JSON Schema (ajv) has no
 `bigint`, can't reject `NaN`/`Infinity`, can't validate `Date`/`Map`/`Set`/`Temporal`;
@@ -133,8 +117,8 @@ invalidated only when a dependency manifest changes.
 
 | Inside the image (deps only)                           | Bind-mounted from the repo at run time                     |
 | ------------------------------------------------------ | ---------------------------------------------------------- |
-| zod · @sinclair/typebox · ajv · typia · vite · esbuild | every competitor's source files + `shared/` + `typecost/` source |
-| each competitor's `node_modules` + `package.json`      | `bin/mion` + `packages/*` (ts-go competitor only) |
+| zod · typebox · ajv · typia · vite · esbuild | every competitor's source files + `shared/` + `typecost/` source |
+| each competitor's `node_modules` + `package.json`      | `mion-bin/mion` + `packages/*` (ts-go competitor only) |
 | typia's compiled ttsc plugin (`node_modules/.cache/ttsc`, warmed at image build) | writable `results/` (so each `<name>.json` survives `--rm`) |
 
 ## Usage
@@ -142,19 +126,19 @@ invalidated only when a dependency manifest changes.
 From the repo root:
 
 ```bash
-pnpm rtx bench prep            # build the Go binaries (host + Linux cross) + first-party JS packages on the host (one-time)
-pnpm rtx bench                 # build + validate + throughput for EVERY competitor + aggregate
-pnpm rtx bench --one zod         # the same for a SINGLE competitor (fastest verification loop)
-pnpm rtx bench typecost        # compile-time: per-competitor TS type-instantiation cost
-pnpm rtx bench serialization   # mion round-trip serialization bench (+ formats), IN-CONTAINER
-pnpm rtx bench --website         # ONE command: ALL website benchmark data (validation + typecost + serialization)
-pnpm rtx bench smoke           # quick: build every competitor's dist (no run)
-pnpm rtx bench typecheck       # quickest: compile every competitor project (the totality gate; also what CI runs)
+pnpm miondevx bench prep            # build the Go binaries (host + Linux cross) + first-party JS packages on the host (one-time)
+pnpm miondevx bench                 # build + validate + throughput for EVERY competitor + aggregate
+pnpm miondevx bench --one zod         # the same for a SINGLE competitor (fastest verification loop)
+pnpm miondevx bench typecost        # compile-time: per-competitor TS type-instantiation cost
+pnpm miondevx bench serialization   # mion round-trip serialization bench, IN-CONTAINER
+pnpm miondevx bench --website         # ONE command: ALL website benchmark data (validation + typecost + serialization)
+pnpm miondevx bench smoke           # quick: build every competitor's dist (no run)
+pnpm miondevx bench typecheck       # quickest: compile every competitor project (the totality gate; also what CI runs)
 # --- image publishing (maintainer); all delegate to scripts/container/image.mjs ---
-pnpm rtx container build-image     # build the shared website+benchmark image locally
-pnpm rtx container login           # log in to GHCR (needs a PAT; see SETUP.md)
-pnpm rtx container push            # build + push the multi-arch image to GHCR
-pnpm rtx container pull            # pull the published image and tag it locally
+pnpm miondevx container build-image     # build the shared website+benchmark image locally
+pnpm miondevx container login           # log in to GHCR (needs a PAT; see SETUP.md)
+pnpm miondevx container push            # build + push the multi-arch image to GHCR
+pnpm miondevx container pull            # pull the published image and tag it locally
 ```
 
 The benchmarks run in the **single shared image** built from
@@ -172,9 +156,9 @@ timing runs on native Temporal, the same runtime the published library targets, 
 **inside** the Node 26 container — previously it ran on the host (wrong Node /
 polyfilled Temporal). It reuses the mion competitor context (baked vite +
 the bind-mounted marker package, plugin and Go binary) plus a bind-mounted Linux
-build of the source-body extractor (`bin/extract-fn-bodies-linux-<arch>`, so no Go
-toolchain is needed in-container), and writes `serialization` +
-`serialization-formats` straight into `container/website/public/bench-data`.
+build of the source-body extractor (`mion-bin/extract-fn-bodies-linux-<arch>`, so no Go
+toolchain is needed in-container), and writes `serialization` straight into
+`container/website/public/bench-data`.
 
 Two things this stage needs that the other lanes don't, because it loads the
 **marker package's own test program** rather than a competitor project:
@@ -187,18 +171,19 @@ Two things this stage needs that the other lanes don't, because it loads the
   it can't drift), and the suite compiles under exactly the options it does on
   the host. If the `extends` chain ever grows a link, that mount stops being
   enough — the contract test walks the chain and says so.
-- **`failOnError: false`.** `buildStart` scans everything the tsconfig includes,
+- **`downgradeErrors: '*'`.** `buildStart` scans everything the tsconfig includes,
   alwaysThrow suites included, and those deliberately hold Error-severity types.
-  Same opt-out, same reason, as `packages/run-types/vitest.config.ts`.
+  Same opt-out, same reason, as `packages/run-types/vitest.config.ts`: too many
+  codes across too many files to name, which is what the wildcard is for.
 
 Both are pinned by `packages/devtools/test/repo-contracts.test.ts`;
 each broke a website deploy after landing green in every other lane.
 
 **`bench:website`** is the single command that regenerates **all** benchmark data
 the docs site renders — runtime validation + typecost + `capture-env` +
-serialization (+ formats), every measurement taken inside the Node 26 container,
+serialization, every measurement taken inside the Node 26 container,
 then the `gen-bench-docs` host transform. (Suite-doc panels — schema / generated
-code — are a separate `pnpm rtx website build`.)
+code — are a separate `pnpm miondevx website build`.)
 
 The run commands **pull the latest published `ghcr.io/mionkit/tsrt-website:latest`
 (the shared image) by default** (cheap no-op when current), falling back to a local
@@ -259,13 +244,12 @@ schema→type form — including ts-go's own value-first schema form. Adding a
 competitor automatically extends typecost; it is a separate command, never gating
 the runtime benches.
 
-**Value forcing vs. broader accepted sets.** A few forms intentionally accept a
-wider value set than their *static* type — ts-go's `noLiterals` option (the type
-stays the literal `2`, but any number validates) and the serializable-only
-validate contract (a function/method member is dropped, so the data sample omits
-it). For those the chosen sample need not satisfy `T`, so the probe falls back to
-**declare-only** (`let x!: T`) and measures pure type-resolution cost. A genuine
-type error (a name the type can't resolve, an excessively-deep instantiation —
+**Value forcing vs. broader accepted sets.** Some forms intentionally accept a
+wider value set than their *static* type: the serializable-only validate contract
+drops a function/method member, so the data sample omits it. For those the
+chosen sample need not satisfy `T`, so the probe falls back to **declare-only**
+(`let x!: T`) and measures pure type-resolution cost. A genuine type error (a
+name the type can't resolve, an excessively-deep instantiation —
 e.g. typebox on a circular tuple) still fails and reports `err`, excluded from
 totals; the full `err` detail (case · form · first TS message) prints after the
 table.
@@ -313,9 +297,9 @@ process-start — and typia's one-time ~200s `ttsc` plugin compile, cached in th
 volume — never lands in a measured tier; each number is the **median of N** (default 5).
 
 ```bash
-pnpm rtx bench compiletime                              # mion + typia, three tiers
-MION_COMPILETIME_COMPETITORS="mion" pnpm rtx bench compiletime   # one library
-MION_COMPILETIME_N=10 pnpm rtx bench compiletime             # more repeats
+pnpm miondevx bench compiletime                              # mion + typia, three tiers
+MION_COMPILETIME_COMPETITORS="mion" pnpm miondevx bench compiletime   # one library
+MION_COMPILETIME_N=10 pnpm miondevx bench compiletime             # more repeats
 ```
 
 Results land in `results/{mion,typia}.compiletime.json` (`strip_ms`,
@@ -330,22 +314,11 @@ with the `typecost` type-checking table).
 > comparable, both on tsgo. mion needs `@typescript/native-preview` (tsgo) in its
 > competitor deps for the strip/typecheck tiers; typia already ships it.
 
-## Format-serialization (`serialization-formats`)
-
-`bench:serialization` writes **two** datasets: the regular `serialization` round-trip
-suite, and `serialization-formats` (the `format-serialization` suite). The format
-dataset is the one that shows how a format constraint shrinks the **binary** payload:
-an unconstrained `number` / `bigint` rides the wire as a fixed 8 bytes, but a
-fixed-width (`int8`/`uint16`/…) or a `min`/`max`-bounded twin packs into the narrowest
-width that fits (1, 2, 4 bytes). The bytes tier of the verdict table reads the delta
-off directly. The suite already pairs each unconstrained number against its
-constrained twin, so no new cases are needed.
-
 ## Layout
 
 ```
 shared/
-  cases/{validation,format-validation,realworld}/  the 263 cases (samples + metadata, no library deps)
+  cases/{validation,format-validation,realworld}/  the shared cases (samples + metadata, no library deps)
   cases/index.ts                                    the CaseKey union (drives totality) + iterateCases()
   harness/{types,measure,runner,result}.ts          the generic, competitor-agnostic run loop
 competitors/<name>/        (source only on the host — bind-mounted at run time)
@@ -369,8 +342,8 @@ aggregate.mjs           results/*.json → comparison table + coverage; sets the
 
 Edit the relevant `competitors/<name>/cases.ts`: change a `NOT_SUPPORTED` entry to
 a builder `() => { const s = <schema>; return (v) => <validate>(v, s); }` (the
-`CaseKey` union catches typo'd keys, and `pnpm rtx bench typecheck` is what
-compiles it). Run `pnpm rtx bench --one
+`CaseKey` union catches typo'd keys, and `pnpm miondevx bench typecheck` is what
+compiles it). Run `pnpm miondevx bench --one
 <name>` with `MION_VALIDATION_BENCH_NO_TIMING=1` and fix any reported mismatch — or downgrade it
 back to `NOT_SUPPORTED` (with a one-line reason) when the library genuinely
 diverges from RunTypes' semantics. To add a whole new competitor, copy a
@@ -388,13 +361,13 @@ against the SHARED samples (never its override) to surface and explain every
 cross-library divergence. It is analysis only and changes no case file.
 
 ```bash
-pnpm rtx bench audit        # build + audit-run every competitor, then aggregate + classify
+pnpm miondevx bench audit        # build + audit-run every competitor, then aggregate + classify
 ```
 
 Tooling lives in [`_audit/`](_audit/); the committed write-up is
 [`docs/cross-library-validation-alignment-report.md`](../../docs/cross-library-validation-alignment-report.md).
 The audit also feeds the website's **Correctness** benchmark page (an `alignment` bench
-in `scripts/website/bench-data/gen-docs.mjs`); `pnpm rtx bench --website` runs the audit so that page's
+in `scripts/website/bench-data/gen-docs.mjs`); `pnpm miondevx bench --website` runs the audit so that page's
 data regenerates with the rest.
 
 ## Behind a corporate / MITM proxy
@@ -407,7 +380,7 @@ explicitly (file or dir) to override, and point the build at the proxy network:
 ```bash
 MION_VALIDATION_BENCH_CA_CERT=/usr/local/share/ca-certificates \
 MION_VALIDATION_BENCH_BUILD_NETWORK=host \
-  pnpm rtx container build-image
+  pnpm miondevx container build-image
 ```
 
 The Go binary + first-party packages are built on the host by `bench:prep` and

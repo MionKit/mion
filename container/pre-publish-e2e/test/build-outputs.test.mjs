@@ -4,7 +4,7 @@
 // correct AFTER that bundler mangled it (ESM/CJS, tree-shaking, minification).
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {existsSync, readFileSync} from 'node:fs';
+import {existsSync, readFileSync, readdirSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
 import {pathToFileURL} from 'node:url';
 import path from 'node:path';
@@ -13,10 +13,9 @@ import {fileURLToPath} from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const APPS = path.join(HERE, '..', 'apps');
 
-// build-vite runs the full matrix (13 families); each light smoke runs the lean
-// minimal subset.
+// build-vite runs all 12 families; each light smoke runs the lean subset.
 const HEAVY = 'build-vite';
-const SMOKES = ['smoke-esbuild', 'smoke-rollup', 'smoke-rolldown', 'smoke-webpack', 'smoke-rspack', 'smoke-source', 'smoke-bun'];
+const SMOKES = ['smoke-esbuild', 'smoke-rollup', 'smoke-rolldown', 'smoke-webpack', 'smoke-rspack', 'smoke-source', 'smoke-types-in-src', 'smoke-bun'];
 
 async function loadEntry(app) {
   const dist = path.join(APPS, app, 'dist/entry.js');
@@ -30,7 +29,7 @@ test('build-vite: full feature matrix passes after the Vite-on-Rolldown build', 
   const report = mod.selfCheck();
   const detail = report.failures.map((failure) => `[${failure.family}] ${failure.name}${failure.detail ? ` — ${failure.detail}` : ''}`).join('\n');
   assert.ok(report.ok, `build-vite selfCheck failed (${report.passed}/${report.total}):\n${detail}`);
-  assert.equal(report.families, 13, 'build-vite must exercise all 13 feature families');
+  assert.equal(report.families, 12, 'build-vite must exercise all 12 feature families');
   assert.ok(report.total >= 50, `expected a substantial matrix, got ${report.total} checks`);
 });
 
@@ -53,21 +52,100 @@ for (const app of SMOKES) {
 // This is the only lane where RunTypes reaches the bundler without a plugin at
 // all — Turbopack has none — so it is the one that would break first if the
 // broker or the loader regressed.
-test('smoke-next: the shared subset passes after the Turbopack build', () => {
-  const html = path.join(APPS, 'smoke-next', '.next/server/app/index.html');
-  assert.ok(existsSync(html), 'smoke-next: prerendered index.html is missing — did build-all.mjs run for it?');
-  const rendered = readFileSync(html, 'utf8');
-  const results = JSON.parse(decodeEntities(rendered.match(/id="rt-results">(.*?)<\/div>/s)?.[1] ?? '[]'));
-  const detail = results
-    .filter((result) => !result.ok)
-    .map((result) => `${result.name}${result.detail ? ` — ${result.detail}` : ''}`)
-    .join('\n');
-  assert.ok(results.length >= 5, `smoke-next: expected the lean subset, got ${results.length} checks`);
-  assert.ok(
-    results.every((result) => result.ok),
-    `smoke-next selfCheck failed:\n${detail}`
+for (const app of ['smoke-next', 'smoke-next-ts']) {
+  test(`${app}: the shared subset passes after the Turbopack build`, () => {
+    const html = path.join(APPS, app, '.next/server/app/index.html');
+    assert.ok(existsSync(html), `${app}: prerendered index.html is missing — did build-all.mjs run for it?`);
+    const rendered = readFileSync(html, 'utf8');
+    const results = JSON.parse(decodeEntities(rendered.match(/id="rt-results">(.*?)<\/div>/s)?.[1] ?? '[]'));
+    const detail = results
+      .filter((result) => !result.ok)
+      .map((result) => `${result.name}${result.detail ? ` — ${result.detail}` : ''}`)
+      .join('\n');
+    assert.ok(results.length >= 5, `${app}: expected the lean subset, got ${results.length} checks`);
+    assert.ok(
+      results.every((result) => result.ok),
+      `${app} selfCheck failed:\n${detail}`
+    );
+  });
+}
+
+// emitMode 'ts' writes typed .ts cache modules and no .js twins, so the passing page above ran the typed ones.
+test('smoke-next-ts: the cache holds typed .ts modules only', () => {
+  const types = path.join(APPS, 'smoke-next-ts', '.rt/types');
+  const names = readdirSync(types, {recursive: true}).map(String);
+  assert.ok(names.some((name) => name.endsWith('.ts')), `smoke-next-ts: no .ts module under ${types}`);
+  assert.deepEqual(names.filter((name) => name.endsWith('.js')), [], 'smoke-next-ts: emitMode ts wrote .js modules');
+});
+
+// The genDir comes from the app's tsconfig, so Next reads the same folder the enrich CLI writes.
+test('smoke-next: generates into the tsconfig genDir', () => {
+  const stamp = path.join(APPS, 'smoke-next', '.rt/types/.rt-stamp');
+  assert.ok(existsSync(stamp), `smoke-next: no stamp at ${stamp}, the tsconfig genDir was not honoured`);
+  assert.ok(!existsSync(path.join(APPS, 'smoke-next', '.mion')), 'smoke-next: generated into .mion instead of the tsconfig genDir');
+});
+
+// mion-next is the framework half of the Next story: the app HOSTS the mion API through an App
+// Router catch-all handler. build-all.mjs builds it, serves it with `next start` and fetches the
+// app's own /selftest route, which does the calling; this reads what that reported.
+//
+// A batch is the assertion that matters. Its id is baked into the server by the same build that
+// gave the client's call site that id, so a batch that answers proves client and API really did
+// come out of ONE program — which is the whole reason the API lives in the app.
+test('mion-next: the app serves its own mion API, on both wires and in a batch', () => {
+  const report = path.join(APPS, 'mion-next', 'selftest.json');
+  assert.ok(existsSync(report), 'mion-next: selftest.json is missing — did build-all.mjs run for it?');
+  const {json, compact, batch} = JSON.parse(readFileSync(report, 'utf8'));
+
+  // JSON wire: the Date came back as a Date, which only the compiled serializer can do.
+  assert.equal(json.error, '', `mion-next JSON round trip failed: ${json.error}`);
+  assert.equal(json.message, 'Hello mion!');
+  assert.equal(json.atIsDate, true, 'mion-next: the Date did not survive the JSON round trip');
+
+  // Compact wire: the same client, a route whose serializer is positional.
+  assert.equal(compact.error, '', `mion-next compact round trip failed: ${compact.error}`);
+  assert.equal(compact.sum, 42);
+
+  // Batch: one request, both routes, run by the id this build compiled into the server.
+  assert.equal(batch.error, '', `mion-next batch failed: ${batch.error}`);
+  assert.equal(batch.message, 'Hello batch!');
+  assert.equal(batch.sum, 3);
+});
+
+// A bundled client with useFetchMetadata ships the fetch lane, downloaded only for an unseen route or a moved-on server.
+// Turbopack has no plugin API, so the lane is a plain dynamic import; only a REAL build shows Turbopack kept that split.
+test('mion-next: a bundled Turbopack build keeps the metadata lane out of the page', () => {
+  const dist = path.join(APPS, 'mion-next', 'dist/next-bundle');
+  assert.ok(existsSync(dist), 'mion-next: dist/next-bundle is missing — did build-all.mjs run for it?');
+  const files = readJsFiles(dist);
+  const code = files.map((file) => file.code).join('\n');
+
+  // Guard against a vacuous pass: the routes must be in there before anything else means something.
+  assert.match(code, /sayHello/, 'mion-next bundled: the build emitted no bundled route');
+
+  // The lane ships: a bundled client that comes up short has nowhere else to go.
+  for (const marker of ['indexedDB', 'requestIdleCallback']) {
+    assert.ok(code.includes(marker), `mion-next bundled: the output carries no '${marker}', so no lane at all`);
+  }
+
+  // ...and never beside the registration the page runs on load, or it would be downloaded with it.
+  // Both markers are literals, so they survive the minifier a production Next build runs.
+  const together = files.filter(
+    (file) => file.code.includes('indexedDB') && file.code.includes('bundle-api-invalid-payload')
+  );
+  assert.equal(
+    together.length,
+    0,
+    `mion-next bundled: ${together.map((file) => file.name).join(', ')} carries the lane beside the bundled routes`
   );
 });
+
+/** Every JavaScript file a build wrote, with its name: which file holds what is the question here. */
+function readJsFiles(dir) {
+  return readdirSync(dir, {recursive: true, withFileTypes: true})
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.js'))
+    .map((entry) => ({name: entry.name, code: readFileSync(path.join(entry.parentPath, entry.name), 'utf8')}));
+}
 
 // React escapes the JSON it renders into the page; undo just enough to parse it.
 function decodeEntities(text) {

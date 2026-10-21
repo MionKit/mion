@@ -19,7 +19,7 @@ func TestMaterializeModules_WriteOnlyOnChange(t *testing.T) {
 		"fns/val":     "export const __rt_fns_val=2;\n",
 	}
 
-	written, err := materializeModules(dir, modules)
+	written, err := materializeModules(dir, modules, jsModuleExt)
 	if err != nil {
 		t.Fatalf("first write: %v", err)
 	}
@@ -32,7 +32,7 @@ func TestMaterializeModules_WriteOnlyOnChange(t *testing.T) {
 	}
 
 	// Identical second pass touches nothing.
-	written, err = materializeModules(dir, modules)
+	written, err = materializeModules(dir, modules, jsModuleExt)
 	if err != nil {
 		t.Fatalf("second write: %v", err)
 	}
@@ -42,7 +42,7 @@ func TestMaterializeModules_WriteOnlyOnChange(t *testing.T) {
 
 	// Changing one module rewrites only that one.
 	modules["val_Foo1234"] = "export const __rt_val_Foo1234=99;\n"
-	written, err = materializeModules(dir, modules)
+	written, err = materializeModules(dir, modules, jsModuleExt)
 	if err != nil {
 		t.Fatalf("third write: %v", err)
 	}
@@ -56,14 +56,14 @@ func TestMaterializeModules_WriteOnlyOnChange(t *testing.T) {
 func TestPruneStaleModules(t *testing.T) {
 	dir := t.TempDir()
 	live := map[string]string{"keep": "export const __rt_keep=1;\n"}
-	if _, err := materializeModules(dir, live); err != nil {
+	if _, err := materializeModules(dir, live, jsModuleExt); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "stale.js"), []byte("old\n"), 0o644); err != nil {
 		t.Fatalf("write stale: %v", err)
 	}
 
-	if err := pruneStaleModules(dir, live); err != nil {
+	if err := pruneStaleModules(dir, live, jsModuleExt); err != nil {
 		t.Fatalf("prune: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "stale.js")); !os.IsNotExist(err) {
@@ -74,46 +74,20 @@ func TestPruneStaleModules(t *testing.T) {
 	}
 }
 
-// TestCommonDir pins the common-ancestor math the srcDir inference rides on.
-func TestCommonDir(t *testing.T) {
-	cases := []struct {
-		name  string
-		paths []string
-		want  string
-	}{
-		{"single file", []string{"/p/src/a.ts"}, "/p/src"},
-		{"same dir", []string{"/p/src/a.ts", "/p/src/b.ts"}, "/p/src"},
-		{"nested", []string{"/p/src/a.ts", "/p/src/sub/b.ts"}, "/p/src"},
-		{"split src+test", []string{"/p/src/a.ts", "/p/test/b.ts"}, "/p"},
-		{"no shared root beyond fs root", []string{"/a/x.ts", "/b/y.ts"}, ""},
-		{"empty", nil, ""},
-	}
-	for _, tc := range cases {
-		if got := commonDir(tc.paths); got != tc.want {
-			t.Errorf("%s: commonDir(%v) = %q, want %q", tc.name, tc.paths, got, tc.want)
+// TestPruneStaleModules_ModeSwitch: switching to emitMode ts prunes the .js twin of every live module, and back.
+func TestPruneStaleModules_ModeSwitch(t *testing.T) {
+	dir := t.TempDir()
+	live := map[string]string{"keep": "export const __rt_keep=1;\n"}
+	for _, ext := range []string{jsModuleExt, tsModuleExt, jsModuleExt} {
+		if _, err := materializeModules(dir, live, ext); err != nil {
+			t.Fatalf("write %s: %v", ext, err)
 		}
-	}
-}
-
-// TestIsWithin pins the rootDir-acceptance guard: a rootDir at or below cwd is
-// honored, one above (the tsconfig.test.json `../..` case) is rejected.
-func TestIsWithin(t *testing.T) {
-	cases := []struct {
-		base, target string
-		want         bool
-	}{
-		{"/p", "/p", true},
-		{"/p", "/p/src", true},
-		{"/p/", "/p/src", true},
-		{"/p", "/p/src/deep", true},
-		{"/p/pkg", "/p", false},   // rootDir above cwd (../..)
-		{"/p", "/other", false},   // sibling
-		{"/p", "/p-extra", false}, // prefix-but-not-child
-		{"", "/p", false},
-	}
-	for _, tc := range cases {
-		if got := isWithin(tc.base, tc.target); got != tc.want {
-			t.Errorf("isWithin(%q, %q) = %v, want %v", tc.base, tc.target, got, tc.want)
+		if err := pruneStaleModules(dir, live, ext); err != nil {
+			t.Fatalf("prune %s: %v", ext, err)
+		}
+		entries, _ := os.ReadDir(dir)
+		if len(entries) != 1 || entries[0].Name() != "keep"+ext {
+			t.Fatalf("after a %s build the dir holds %v, want only keep%s", ext, entries, ext)
 		}
 	}
 }
@@ -142,7 +116,7 @@ func TestUnwritableOutDirError(t *testing.T) {
 // TestResolveOutDir_Precedence pins the output-root layering now that it is
 // SESSION config rather than a request field: the explicit spawn-time
 // Options.GenDir (`serve --gen-dir`, the host plugin's own genDir option) wins,
-// else the tsconfig genDir, else the inferred <srcDir>/__runtypes. Relative
+// else the tsconfig genDir, else the inferred <srcDir>/.mion. Relative
 // values anchor under the session cwd. Every op that needs the root — generate,
 // transform, enrich — reads it through here, so this ordering is the single
 // place the lanes can agree or drift.
@@ -168,7 +142,7 @@ func TestResolveOutDir_Precedence(t *testing.T) {
 		})
 	}
 
-	// Neither override set: fall through to the <srcDir>/__runtypes inference.
+	// Neither override set: fall through to the <srcDir>/.mion inference.
 	// With no Program to infer from, inferSrcDir lands on the session cwd, so
 	// the default is observable without building one.
 	sess := &Session{opts: Options{Cwd: cwd}}

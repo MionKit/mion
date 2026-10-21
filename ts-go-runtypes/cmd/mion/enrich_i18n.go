@@ -15,14 +15,9 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
 )
 
-// runGenTranslate implements the `enrich --i18n <locale|all> [<src>]` verbs:
-// scaffold (create-only), --update (the i18n reconcile), and --prune (strip
-// carcasses from the locale's translation files). Translations are SRC-DERIVED:
-// the desired side is emitted from the TYPE by the same EmitClosure walk as the
-// friendly mirror, parameterized per locale (const prefix, output path, plural
-// arms, sibling refs) — the friendly mirror is read for DISCOVERY only (which
-// types to emit), never for generation content.
-func runGenTranslate(translateValue string, positional []string, update, prune bool, genDirFlag, tsconfigFlag string) {
+// runI18nWrite implements `enrich --i18n <locale|all> [<src>]` scaffold, --update and --prune.
+// Translations are emitted from the TYPE; the friendly mirror only says which types to emit, never the content.
+func runI18nWrite(translateValue string, positional []string, update, prune bool, genDirFlag, tsconfigFlag string) {
 	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
 	config, sourceMirrors := translateTargets(positional, genDirFlag, tsconfigPath, parsed)
 	locales := resolveTranslateLocales(translateValue, config)
@@ -156,12 +151,8 @@ func discoverTranslationTypes(sourceMirror string) (translationDiscovery, bool) 
 	return translationDiscovery{declFile: declFile, typeNames: typeNames}, true
 }
 
-// buildTranslationSpecs runs the src-derived pipeline for one friendly mirror:
-// discovery, ONE Program over the decl file (amortized across every locale of
-// the run), then per locale a fresh EmitClosure — the TARGET locale drives the
-// emitted plural arm set — transformed into locale-prefixed mirror.Specs
-// grouped by decl file exactly like gen. ok=false (with a stderr note) when
-// the mirror is unusable; the caller skips it.
+// buildTranslationSpecs shares ONE Program across locales but runs a fresh EmitClosure per locale: it picks the plurals.
+// ok=false (with a stderr note) when the mirror is unusable; the caller skips it.
 func buildTranslationSpecs(config enrichConfig, sourceMirror string, locales []string) (map[string][]mirror.Spec, bool) {
 	discovery, ok := discoverTranslationTypes(sourceMirror)
 	if !ok {
@@ -187,7 +178,7 @@ func buildTranslationSpecs(config enrichConfig, sourceMirror string, locales []s
 			fmt.Fprintf(os.Stderr, "enrich --i18n: %s: skipping type %s: %v\n", sourceMirror, typeName, resolveErr)
 			continue
 		}
-		// The rt$ prefix is RESERVED for enrichment meta keys (see gen).
+		// The rt$ prefix is RESERVED for enrichment meta keys (see enrichgen.Plan).
 		if collisions := enrichment.ReservedPropertyCollisions(resolved.Node, resolved.Resolve); len(collisions) > 0 {
 			fatal("enrich --i18n: %s: property %s collides with the reserved enrichment meta prefix 'rt$' — rename the property or exclude the type from enrichment", typeName, strings.Join(collisions, ", "))
 		}
@@ -251,14 +242,13 @@ type translationFinding struct {
 // remaining, it does not parse.
 var todoBlankPattern = regexp.MustCompile(`:\s*''`)
 
-// runCheckTranslate implements `enrich --i18n <locale|all> --no-emit`: the
-// non-writing completeness gate. Findings: TR001 missing translation file,
-// TR002 unfilled @todo blanks, TR003 out of date vs the src type (a src-derived
-// reconcile would change it), TR004 orphan carcasses awaiting --prune.
+// runI18nCheck implements `enrich --i18n <locale|all> --no-emit`: the
+// non-writing completeness gate. Findings: enrich-i18n-missing-translation, enrich-i18n-todo-left (unfilled
+// @todo blanks), enrich-i18n-out-of-date (a src-derived reconcile would change it), enrich-i18n-orphans (awaiting --prune).
 // Severity is Warning unless the project sets tsconfig i18n.strict OR the caller
 // passes --require-complete (then everything is an Error and the exit code drives
 // CI). Rendering at runtime stays lenient either way.
-func runCheckTranslate(translateValue string, genDirFlag, tsconfigFlag string, requireComplete bool) {
+func runI18nCheck(translateValue string, genDirFlag, tsconfigFlag string, requireComplete bool) {
 	cwd := enrichCwd("enrich --i18n --no-emit")
 	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
 	config := resolveEnrichConfig(tspath.NormalizePath(filepath.Join(cwd, "_")), genDirFlag, tsconfigPath, parsed)
@@ -281,7 +271,7 @@ func runCheckTranslate(translateValue string, genDirFlag, tsconfigFlag string, r
 		// One Program + closure per friendly mirror, specs per locale. A mirror
 		// that can't be processed (unreadable / markerless / unresolvable) was
 		// already noted on stderr; its targets still count as checked and get the
-		// file-local findings (TR001/TR002/TR004) — just no TR003.
+		// file-local findings, just no enrich-i18n-out-of-date.
 		specsByLocale, _ := buildTranslationSpecs(config, sourceMirror, locales)
 		for _, locale := range locales {
 			translationPath := config.TranslationPathFor(locale, sourceMirror)
@@ -313,8 +303,8 @@ func runCheckTranslate(translateValue string, genDirFlag, tsconfigFlag string, r
 
 // checkTranslationFile produces the completeness findings for one translation
 // target. spec is the already-built src-derived desired side for THIS file —
-// nil when the friendly mirror couldn't be processed, which skips TR003 while
-// the file-local findings (TR001/TR002/TR004) still run. severity is the shared
+// nil when the friendly mirror couldn't be processed, which skips enrich-i18n-out-of-date while
+// the file-local findings still run. severity is the shared
 // finding severity for this run (Warning, or Error under i18n.strict /
 // --require-complete).
 func checkTranslationFile(locale, translationPath string, spec *mirror.Spec, severity enrichment.Severity) []translationFinding {
@@ -323,7 +313,7 @@ func checkTranslationFile(locale, translationPath string, spec *mirror.Spec, sev
 	translationBytes, err := os.ReadFile(translationPath)
 	if err != nil {
 		findings = append(findings, translationFinding{
-			File: translationPath, Severity: severity, Code: "TR001",
+			File: translationPath, Severity: severity, Code: "enrich-i18n-missing-translation",
 			Message: fmt.Sprintf("missing translation for locale %q — run: mion enrich --i18n %s", locale, locale),
 		})
 		return findings
@@ -331,17 +321,17 @@ func checkTranslationFile(locale, translationPath string, spec *mirror.Spec, sev
 
 	if blanks := len(todoBlankPattern.FindAllString(string(translationBytes), -1)); blanks > 0 {
 		findings = append(findings, translationFinding{
-			File: translationPath, Severity: severity, Code: "TR002",
+			File: translationPath, Severity: severity, Code: "enrich-i18n-todo-left",
 			Message: fmt.Sprintf("%d unfilled @todo blank template(s) — untranslated leaves fall through to the source language", blanks),
 		})
 	}
 
-	// TR003 — a dry-run src-derived reconcile that would change the file means
+	// enrich-i18n-out-of-date — a dry-run src-derived reconcile that would change the file means
 	// the source type moved since the last --i18n --update.
 	if spec != nil {
 		if _, changed, reconcileErr := mirror.Reconcile(*spec, translationBytes, readSourceFile); reconcileErr == nil && changed {
 			findings = append(findings, translationFinding{
-				File: translationPath, Severity: severity, Code: "TR003",
+				File: translationPath, Severity: severity, Code: "enrich-i18n-out-of-date",
 				Message: fmt.Sprintf("out of date vs %s — run: mion enrich --i18n %s --update", spec.SourceFile, locale),
 			})
 		}
@@ -349,7 +339,7 @@ func checkTranslationFile(locale, translationPath string, spec *mirror.Spec, sev
 
 	if orphans := strings.Count(string(translationBytes), "@rtOrphan"); orphans > 0 {
 		findings = append(findings, translationFinding{
-			File: translationPath, Severity: severity, Code: "TR004",
+			File: translationPath, Severity: severity, Code: "enrich-i18n-orphans",
 			Message: fmt.Sprintf("%d orphan carcass(es) awaiting review — restore or strip with enrich --i18n %s --prune", orphans, locale),
 		})
 	}

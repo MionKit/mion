@@ -39,14 +39,10 @@
 // thunk. Each extractor unwraps its wrapper, preserving the local declarations so
 // `<T>`/`EXPR` resolves where written.
 //
-// Module resolution: each form's probe is emitted INTO the relevant competitor
-// directory so Node-style `node_modules` resolution + each package's `exports`
-// map resolve the bare imports naturally — `mion`(+/schema,
-// /formats, /formats/temporal) from competitors/mion/node_modules
-// (bind-mounted at run time), `zod` / `@sinclair/typebox` from their own image
-// node_modules, and the realworld interfaces via the verbatim relative import.
-// `paths` (see OPTIONS) additionally pins the marker subpaths to the mounted
-// dist as a deterministic safety net.
+// Module resolution: each probe is emitted INTO its competitor directory so node_modules + `exports` resolve
+// its imports: mion from the bind-mounted competitors/mion/node_modules, zod / typebox from their image's
+// node_modules, realworld interfaces via the verbatim relative import. `paths` (see OPTIONS) also pins the
+// marker subpaths to the mounted dist as a safety net.
 
 import ts from 'typescript';
 import fs from 'node:fs';
@@ -140,7 +136,7 @@ const {extractTsGo, extractSchemaCompetitor, extractTypeForm} = makeExtractors(t
 // ── probe assembly ──────────────────────────────────────────────────────────
 
 const INFERTYPE_IMPORT = `import {type InferType} from '@mionjs/run-types';`;
-const TB_STATIC_IMPORT = `import {type Static as __TBStatic} from '@sinclair/typebox';`;
+const TB_STATIC_IMPORT = `import {type Static as __TBStatic} from 'typebox';`;
 
 // Force TypeScript to fully RESOLVE + structurally check the recovered type by
 // assigning a real value (the case's first valid sample). A bare `let x!: T`
@@ -204,13 +200,7 @@ function baseline(key, probePath, text) {
 
 function measure(form, baselineKey, probePath, baselineText, probeText, fallbackText) {
   let result = compile(probePath, probeText);
-  // The probe assigns the case's first valid SAMPLE; some forms intentionally
-  // accept a broader value set than their static type — ts-go's `noLiterals` (the
-  // type stays the literal `2`, but any number validates) and the serializable-only
-  // contract (a function/method member is dropped, so the data sample omits it) —
-  // so the sample need not satisfy T. On such a *value* error, retry WITHOUT the
-  // value to measure pure type-resolution cost. A genuine *type* error (missing
-  // name, excessively-deep instantiation) still fails the retry and surfaces.
+  // Samples omit function members (serializable-only), so a value error retries declare-only; a type error still fails.
   if (result.errors.length && fallbackText && fallbackText !== probeText) {
     const retry = compile(probePath, fallbackText);
     if (!retry.errors.length) result = retry;

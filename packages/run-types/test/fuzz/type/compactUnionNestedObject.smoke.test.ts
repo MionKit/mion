@@ -1,14 +1,10 @@
-// Regression (roundtrip soak, seed 0xd179ff0b / per-type seed 2792797093): a
-// union of JSON-compatible object members round-trips raw on the keyed JSON
-// strategies (no envelope, identity decode). The compact strategy reused that
-// rule while positionalizing every NESTED object, so
-// `{kind: 't1', f0: [{"with\"quote": true}]}` came back as `{kind: 't1', f0: [[true]]}`
-// on the compact lane only. The quote is incidental: any nested object inside a
-// member of such a union broke the same way. Compact now keeps the union
-// envelope whenever a member positionalizes something, so all five lanes agree.
+// Regression (roundtrip soak, seed 0xd179ff0b / per-type seed 2792797093): compact once positionalized a NESTED
+// object inside a union the keyed strategies pass through raw, so `{kind: 't1', f0: [{"with\"quote": true}]}` came
+// back as `{kind: 't1', f0: [[true]]}`. Every lane here must agree, positional or keyed fallback.
 import {describe, it, expect} from 'vitest';
 import {compileCodecs, openClient, hasBinary, ALL_LANES} from '../roundtrip/roundtripHarness.ts';
 import {typecheckGeneratedType} from './tsValidate.ts';
+import {deepCloneForRoundTrip} from '../../util/equalsHelpers.ts';
 import type {GeneratedType, TypeShape, PropShape} from '../core/typeGen.ts';
 
 function lit(value: string): TypeShape {
@@ -21,9 +17,86 @@ function obj(...props: PropShape[]): TypeShape {
   return {kind: 'object', props};
 }
 const bool: TypeShape = {kind: 'boolean'};
+const str: TypeShape = {kind: 'string'};
+const num: TypeShape = {kind: 'number'};
+function optional(name: string, shape: TypeShape): PropShape {
+  return {...prop(name, shape), optional: true};
+}
 const tagged = (tag: string, ...props: PropShape[]): TypeShape => obj(prop('kind', lit(tag)), ...props);
 
 const cases: {title: string; root: TypeShape; values: unknown[]}[] = [
+  {
+    title: 'PaymentMethod: one positional array over every member',
+    root: {
+      kind: 'union',
+      members: [
+        obj(
+          prop('type', lit('credit_card')),
+          prop('lastFourDigits', str),
+          prop('expiryMonth', num),
+          prop('expiryYear', num),
+          prop('brand', str)
+        ),
+        obj(prop('type', lit('bank_account')), prop('bankName', str), prop('accountLastFour', str), prop('routingNumber', str)),
+        obj(prop('type', lit('paypal')), prop('email', str)),
+      ],
+    },
+    values: [
+      {type: 'credit_card', lastFourDigits: '4242', expiryMonth: 12, expiryYear: 2025, brand: 'visa'},
+      {type: 'bank_account', bankName: 'Chase', accountLastFour: '1234', routingNumber: '021000021'},
+      {type: 'paypal', email: 'john.paypal@example.com'},
+    ],
+  },
+  {
+    title: 'nullable object, with a present null in an optional slot',
+    root: {
+      kind: 'union',
+      members: [obj(prop('tag', str), optional('note', {kind: 'union', members: [str, {kind: 'null'}]})), {kind: 'null'}],
+    },
+    values: [{tag: 'x', note: null}, {tag: 'x'}, null],
+  },
+  {
+    title: 'a union member holding another object union, holding a third',
+    root: {
+      kind: 'union',
+      members: [
+        tagged(
+          't0',
+          optional('inner', {
+            kind: 'union',
+            members: [
+              tagged('i0', prop('d', {kind: 'date'})),
+              tagged('i1', prop('deep', {kind: 'union', members: [obj(prop('x', num)), obj(prop('y', str)), {kind: 'null'}]})),
+            ],
+          })
+        ),
+        tagged(
+          't1',
+          prop('list', {
+            kind: 'array',
+            elem: {kind: 'union', members: [tagged('a', optional('n', num)), tagged('b', prop('s', str))]},
+          })
+        ),
+      ],
+    },
+    values: [
+      {kind: 't0'},
+      {kind: 't0', inner: {kind: 'i0', d: new Date('2024-01-01T00:00:00.000Z')}},
+      {kind: 't0', inner: {kind: 'i1', deep: {x: 1}}},
+      {kind: 't0', inner: {kind: 'i1', deep: {y: 'z'}}},
+      {kind: 't0', inner: {kind: 'i1', deep: null}},
+      {kind: 't1', list: [{kind: 'a'}, {kind: 'a', n: 2}, {kind: 'b', s: 'q'}]},
+    ],
+  },
+  {
+    title: 'keyed fallback: a required unknown slot',
+    root: {kind: 'union', members: [tagged('t0', prop('u', {kind: 'unknown'})), tagged('t1', prop('s', str))]},
+    values: [
+      {kind: 't0', u: null},
+      {kind: 't0', u: 1},
+      {kind: 't1', s: 'x'},
+    ],
+  },
   {
     title: 'the soak shape: tuple of a quoted-key object inside a tagged union',
     root: {
@@ -90,15 +163,14 @@ describe('compact strategy: union members holding nested objects', () => {
         expect(compiled.evalError, compiled.evalError).toBeUndefined();
         expect(compiled.errorDiagnostics).toEqual([]);
         for (const value of values) {
-          const cloneWire = compiled.codecs.clone!.encode(value);
+          const cloneWire = compiled.codecs.clone!.encode(deepCloneForRoundTrip(value));
           for (const lane of ALL_LANES) {
             const codec = compiled.codecs[lane];
             expect(codec, `${lane} codec wired`).toBeDefined();
-            const back = codec!.decode(codec!.encode(value));
+            // mutate encodes in place, so every lane gets a fresh copy
+            const back = codec!.decode(codec!.encode(deepCloneForRoundTrip(value)) as string);
             expect(back, `${lane} round-trip`).toEqual(value);
             expect(compiled.validate!(back), `${lane} decoded value validates`).toBe(true);
-            // Cross-lane agreement: re-encoding the decoded value on the clone
-            // lane yields the clone wire of the original.
             expect(compiled.codecs.clone!.encode(back), `${lane} agrees with clone`).toBe(cloneWire);
           }
         }

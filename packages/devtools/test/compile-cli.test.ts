@@ -8,7 +8,7 @@ import {describe, expect, it} from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {BIN, hasBinary} from './helpers/inline.ts';
+import {BIN, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
 import {runCli} from './helpers/cliCrash.ts';
 import {decodeMappings} from './helpers/sourcemap.ts';
 
@@ -19,7 +19,7 @@ const RUNTYPES_DTS = `declare module '@mionjs/run-types' {
   export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
   export type InjectTypeFnArgs<T, F1 extends string, F2 extends string = never, F3 extends string = never, F4 extends string = never, F5 extends string = never, F6 extends string = never, F7 extends string = never, F8 extends string = never, F9 extends string = never, F10 extends string = never, F11 extends string = never, F12 extends string = never> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFns?: [F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12]};
   export type ValidateFn = (value: unknown) => boolean;
-  export function createValidateFn<T>(val?: T, options?: CompTimeFnArgs<{noLiterals?: boolean}>, id?: InjectTypeFnArgs<T, 'val'>): ValidateFn;
+  export function createValidateFn<T>(val?: T, options?: CompTimeFnArgs<{numberMode?: 'isFinite' | 'typeof' | 'notNaN'}>, id?: InjectTypeFnArgs<T, 'validate'>): ValidateFn;
 }
 `;
 
@@ -50,7 +50,7 @@ describe('mion compile (tsc-like CLI)', () => {
       fs.writeFileSync(path.join(dir, 'src', 'runtypes.d.ts'), RUNTYPES_DTS);
       fs.writeFileSync(path.join(dir, 'src', 'user.ts'), USER_TS);
 
-      const run = runCli(['compile', '--cwd', dir, '--tsconfig', 'tsconfig.json', '--gen-dir', path.join(dir, '__runtypes')], {
+      const run = runCli(['compile', '--cwd', dir, '--tsconfig', 'tsconfig.json', '--gen-dir', path.join(dir, '.mion')], {
         label: 'compile-cli',
       });
       expect(run.status, run.report).toBe(0);
@@ -58,7 +58,7 @@ describe('mion compile (tsc-like CLI)', () => {
       // (1) Emitted .js: types stripped, binding import relativized, call rewritten.
       const js = fs.readFileSync(path.join(dir, 'dist', 'user.js'), 'utf8');
       expect(js).not.toContain('rtmod:');
-      expect(js).toMatch(/import \{\s*__rt_[A-Za-z0-9_$]+\s*\} from '\.\.\/__runtypes\/types\/[A-Za-z0-9_$]+\.js'/);
+      expect(js).toMatch(/import \{\s*__rt_[A-Za-z0-9_$]+\s*\} from '\.\.\/.mion\/types\/[A-Za-z0-9_$]+\.js'/);
       expect(js).toMatch(/createValidateFn\(undefined, undefined, __rt_[A-Za-z0-9_$]+\)/);
 
       // (2) Composed map: the call's generated line maps back to ORIGINAL line 5,
@@ -74,7 +74,7 @@ describe('mion compile (tsc-like CLI)', () => {
       expect(originalLines).toContain(5);
 
       // (3) The generated cache module materializes a WORKING validator.
-      const cacheDir = path.join(dir, '__runtypes', 'types');
+      const cacheDir = path.join(dir, '.mion', 'types');
       const cacheFile = fs.readdirSync(cacheDir).find((f) => f.endsWith('.js'))!;
       const cacheSource = fs.readFileSync(path.join(cacheDir, cacheFile), 'utf8');
       // The entry tuple's code slot is the validator body: `function X(v){…}return X`.
@@ -88,7 +88,7 @@ describe('mion compile (tsc-like CLI)', () => {
 
       // (4) VCS hygiene rides the CLI lane too (written Go-side inside
       // generate): every output folder self-documents, types/ is gitignored.
-      const genRoot = path.join(dir, '__runtypes');
+      const genRoot = path.join(dir, '.mion');
       expect(fs.readFileSync(path.join(genRoot, 'README.md'), 'utf8')).toContain('genDir');
       expect(fs.readFileSync(path.join(cacheDir, 'README.md'), 'utf8')).toContain('regenerated');
       expect(fs.readFileSync(path.join(cacheDir, '.gitignore'), 'utf8')).toContain('*');
@@ -96,5 +96,75 @@ describe('mion compile (tsc-like CLI)', () => {
     } finally {
       fs.rmSync(dir, {recursive: true, force: true});
     }
+  });
+
+  // validate-method-dropped (a skipped method) is Info: hidden by default, printed with tsconfig `levels: "all"`, never a failure.
+  // Both getRunTypeId shapes ride along (marker coverage rule) and must compile clean.
+  const METHOD_TS = `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
+export class Pet {
+  name = 'rex';
+  speak(): string { return this.name; }
+}
+export const isPet = createValidateFn<Pet>();
+export const petId = getRunTypeId<Pet>();
+export const sampleId = getRunTypeId(new Pet());
+`;
+  const compileWithLevels = (plugin: Record<string, string> = {}, flags: string[] = []) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-compile-levels-'));
+    const tsconfig = JSON.parse(TSCONFIG);
+    if (Object.keys(plugin).length > 0) tsconfig.compilerOptions.plugins = [{name: 'mion', ...plugin}];
+    fs.writeFileSync(path.join(dir, 'tsconfig.json'), JSON.stringify(tsconfig));
+    fs.mkdirSync(path.join(dir, 'src'));
+    writeMarkerPackage(dir);
+    fs.writeFileSync(path.join(dir, 'src', 'pet.ts'), METHOD_TS);
+    try {
+      return runCli(['compile', '--cwd', dir, '--tsconfig', 'tsconfig.json', '--no-emit', ...flags], {
+        label: 'compile-cli-levels',
+      });
+    } finally {
+      fs.rmSync(dir, {recursive: true, force: true});
+    }
+  };
+
+  register('hides an Info finding unless the tsconfig sets levels: "all"', () => {
+    const quiet = compileWithLevels();
+    expect(quiet.status, quiet.report).toBe(0);
+    expect(quiet.stderr).not.toContain('validate-method-dropped');
+    expect(quiet.stderr).not.toMatch(/: (error|warning) /);
+    expect(quiet.stderr).toContain('checked 1 file(s), wrote nothing');
+
+    const shown = compileWithLevels({levels: 'all'});
+    expect(shown.status, shown.report).toBe(0);
+    // Grouped by default: the name, the message with its one value filled in, then the site.
+    expect(shown.stderr).toMatch(/^info validate-method-dropped \(1\)\n {2}Method `speak` .*\n {4}src\/pet\.ts:\d+:\d+$/m);
+    expect(shown.stderr).toMatch(/^mion: 1 info in 1 file$/m);
+    expect(shown.stderr).not.toMatch(/validate-method-dropped\(/);
+  });
+
+  register('prints one line per finding with --log-style lines, as with the tsconfig logStyle: "lines"', () => {
+    for (const shown of [
+      compileWithLevels({levels: 'all'}, ['--log-style', 'lines']),
+      compileWithLevels({levels: 'all', logStyle: 'lines'}),
+    ]) {
+      expect(shown.status, shown.report).toBe(0);
+      // The same line the bundler plugin prints: the code, then the rendered headline, never the raw args.
+      expect(shown.stderr).toMatch(/\(\d+,\d+\): info validate-method-dropped: \S.*`speak`/);
+      expect(shown.stderr).not.toMatch(/validate-method-dropped \(/);
+    }
+  });
+
+  register('the --log-style flag wins over the tsconfig logStyle', () => {
+    const shown = compileWithLevels({levels: 'all', logStyle: 'lines'}, ['--log-style', 'grouped']);
+    expect(shown.status, shown.report).toBe(0);
+    expect(shown.stderr).toMatch(/^info validate-method-dropped \(1\)$/m);
+  });
+
+  register('refuses an unknown logStyle', () => {
+    const fromFlag = compileWithLevels({}, ['--log-style', 'line']);
+    expect(fromFlag.status).toBe(1);
+    expect(fromFlag.stderr).toContain('logStyle: unknown value "line"');
+    const fromTsconfig = compileWithLevels({logStyle: 'line'});
+    expect(fromTsconfig.status).toBe(1);
+    expect(fromTsconfig.stderr).toContain('logStyle: unknown value "line"');
   });
 });

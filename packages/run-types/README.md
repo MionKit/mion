@@ -3,8 +3,8 @@
 **Compile-time runtime types for TypeScript 7 / typescript-go (tsgo).**
 
 TypeScript throws your types away before your code ever runs. RunTypes reads them
-first, at build time, and hands the runtime back what it lost: validators, JSON and
-binary (de)serializers, mock data, and reflection.
+first, at build time, and hands the runtime back what it lost: validators, JSON
+round trip functions, mock data, and reflection.
 
 This is the runtime package: the sentinel markers the compiler looks for, plus the
 small helper runtime the generated code calls into. It has **zero dependencies**.
@@ -14,10 +14,10 @@ The build-time half lives in
 ## Documentation
 
 Install, guides, the factory reference, and benchmarks live at
-**[runtypes.pages.dev](https://runtypes.pages.dev/)**.
+**[mion.pages.dev/runtypes](https://mion.pages.dev/runtypes)**.
 
-- [Quick start](https://runtypes.pages.dev/introduction/quick-start)
-- [Configuration](https://runtypes.pages.dev/introduction/configuration)
+- [Quick start](https://mion.pages.dev/runtypes/introduction/quick-start)
+- [Configuration](https://mion.pages.dev/runtypes/introduction/configuration)
 - [Source and issues](https://github.com/MionKit/mion)
 
 ## Status

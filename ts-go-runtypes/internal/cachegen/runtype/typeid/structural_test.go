@@ -143,6 +143,104 @@ getRunTypeId<[number, string]>();
 	}
 }
 
+var sameTextLiterals = []struct{ str, other string }{
+	{`'0'`, `0`},
+	{`'1.5'`, `1.5`},
+	{`'true'`, `true`},
+	{`'1n'`, `1n`},
+}
+
+// TestStructural_StringLiteralNotDeduplicatedWithSameText — a shared id gave both the validator compiled first.
+func TestStructural_StringLiteralNotDeduplicatedWithSameText(t *testing.T) {
+	for _, pair := range sameTextLiterals {
+		_, strNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
+getRunTypeId<`+pair.str+`>();
+`)
+		_, otherNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
+getRunTypeId<`+pair.other+`>();
+`)
+		if strNode.ID == otherNode.ID {
+			t.Errorf("%s and %s must not share an id, both got %q", pair.str, pair.other, strNode.ID)
+		}
+	}
+}
+
+// TestStructural_StringLiteralNotDeduplicatedWithSameText_ValueFirst — same pairs, T inferred from a const.
+func TestStructural_StringLiteralNotDeduplicatedWithSameText_ValueFirst(t *testing.T) {
+	for _, pair := range sameTextLiterals {
+		_, strNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
+const value = `+pair.str+` as const;
+getRunTypeId(value);
+`)
+		_, otherNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
+const value = `+pair.other+` as const;
+getRunTypeId(value);
+`)
+		if strNode.ID == otherNode.ID {
+			t.Errorf("%s and %s must not share an id, both got %q", pair.str, pair.other, strNode.ID)
+		}
+		_, staticNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
+getRunTypeId<`+pair.str+`>();
+`)
+		if strNode.ID != staticNode.ID {
+			t.Errorf("%s: value-first id %q must equal static id %q", pair.str, strNode.ID, staticNode.ID)
+		}
+	}
+}
+
+// delimiterTextPairs: each pair's user text once spelled the other's id delimiters, so both built one id.
+var delimiterTextPairs = []struct{ name, decls, first, second string }{
+	{"union member text", ``, `'a,13:b' | 'c'`, `'a' | 'b' | 'c'`},
+	{"unique symbol name", `declare const K: unique symbol;`, `typeof K`, `'sym:K'`},
+	{"template piece", ``, "`a${number}b|`", "`a|b${number}`"},
+	{"property name", ``, `{a: string; b: string}`, `{'a:5,32:b': string}`},
+	{"enum member name", `enum E {a = 1, b = 2, c = 3}
+namespace N { export enum E {'a=1,b' = 2, c = 3} }`, `E`, `N.E`},
+}
+
+// TestStructural_DelimiterTextNotDeduplicated — static shape: each pair keeps two ids.
+func TestStructural_DelimiterTextNotDeduplicated(t *testing.T) {
+	for _, pair := range delimiterTextPairs {
+		_, firstNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
+`+pair.decls+`
+getRunTypeId<`+pair.first+`>();
+`)
+		_, secondNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
+`+pair.decls+`
+getRunTypeId<`+pair.second+`>();
+`)
+		if firstNode.ID == secondNode.ID {
+			t.Errorf("%s: %s and %s must not share an id, both got %q", pair.name, pair.first, pair.second, firstNode.ID)
+		}
+	}
+}
+
+// TestStructural_DelimiterTextNotDeduplicated_ValueFirst — T inferred from a declared value of each type.
+func TestStructural_DelimiterTextNotDeduplicated_ValueFirst(t *testing.T) {
+	for _, pair := range delimiterTextPairs {
+		_, firstNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
+`+pair.decls+`
+declare const value: `+pair.first+`;
+getRunTypeId(value);
+`)
+		_, secondNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
+`+pair.decls+`
+declare const value: `+pair.second+`;
+getRunTypeId(value);
+`)
+		if firstNode.ID == secondNode.ID {
+			t.Errorf("%s: %s and %s must not share an id, both got %q", pair.name, pair.first, pair.second, firstNode.ID)
+		}
+		_, staticNode := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
+`+pair.decls+`
+getRunTypeId<`+pair.first+`>();
+`)
+		if firstNode.ID != staticNode.ID {
+			t.Errorf("%s: value-first id %q must equal static id %q", pair.name, firstNode.ID, staticNode.ID)
+		}
+	}
+}
+
 // TestStructural_ObjectPropertyOrderIndependent — two object types with the SAME
 // properties declared in a DIFFERENT order must produce the SAME structural id.
 // Object members are sorted by name before hashing (memberIDs → sort.Strings in
@@ -276,5 +374,59 @@ getRunTypeId<`+typeText+`>();
 	}
 	if idFor("Generator<string, number>") == idFor("Generator<number, string>") {
 		t.Errorf("type arguments are positional — swapping them must change the id")
+	}
+}
+
+// A shared id would hand the mutable twin the readonly node and its flag.
+func TestStructural_ReadonlySplitsFromMutableTwin(t *testing.T) {
+	for _, testCase := range []struct{ readonlyType, mutableType string }{
+		{"readonly [number, string]", "[number, string]"},
+		{"readonly string[]", "string[]"},
+		{"ReadonlyArray<string>", "string[]"},
+		{"{readonly [k: string]: number}", "{[k: string]: number}"},
+		{"readonly [x: number, y?: string]", "[x: number, y?: string]"},
+	} {
+		_, readonlyNode := rootFor(t, "import {getRunTypeId} from '@mionjs/run-types';\ngetRunTypeId<"+testCase.readonlyType+">();\n")
+		_, mutableNode := rootFor(t, "import {getRunTypeId} from '@mionjs/run-types';\ngetRunTypeId<"+testCase.mutableType+">();\n")
+		if readonlyNode.ID == mutableNode.ID || mutableNode.Readonly {
+			t.Errorf("%s must not share an id or a readonly flag with %s: %q vs %q", testCase.readonlyType, testCase.mutableType, readonlyNode.ID, mutableNode.ID)
+		}
+	}
+}
+
+func TestStructural_ReadonlySplitsFromMutableTwinReflect(t *testing.T) {
+	for _, testCase := range []struct{ readonlyType, mutableType string }{
+		{"readonly [number, string]", "[number, string]"},
+		{"readonly string[]", "string[]"},
+		{"{readonly [k: string]: number}", "{[k: string]: number}"},
+		{"readonly [x: number, y?: string]", "[x: number, y?: string]"},
+	} {
+		_, readonlyNode := rootFor(t, "import {getRunTypeId} from '@mionjs/run-types';\ndeclare const value: "+testCase.readonlyType+";\ngetRunTypeId(value);\n")
+		_, mutableNode := rootFor(t, "import {getRunTypeId} from '@mionjs/run-types';\ndeclare const value: "+testCase.mutableType+";\ngetRunTypeId(value);\n")
+		if readonlyNode.ID == mutableNode.ID || mutableNode.Readonly {
+			t.Errorf("%s must not share an id or a readonly flag with %s: %q vs %q", testCase.readonlyType, testCase.mutableType, readonlyNode.ID, mutableNode.ID)
+		}
+	}
+}
+
+func TestStructural_ReadonlyFormEquivalence(t *testing.T) {
+	for _, typeText := range []string{"readonly [number, string]", "readonly string[]", "ReadonlyArray<string>"} {
+		_, static := rootFor(t, "import {getRunTypeId} from '@mionjs/run-types';\ngetRunTypeId<"+typeText+">();\n")
+		_, reflected := rootFor(t, "import {getRunTypeId} from '@mionjs/run-types';\ndeclare const value: "+typeText+";\ngetRunTypeId(value);\n")
+		if static.ID != reflected.ID || !static.Readonly || !reflected.Readonly {
+			t.Errorf("%s: getRunTypeId<T>() and getRunTypeId(value) must share one readonly entry: %q vs %q", typeText, static.ID, reflected.ID)
+		}
+	}
+}
+
+// IsArrayType holds only for the global Array / ReadonlyArray, so a local interface named ReadonlyArray is mutable.
+func TestStructural_LocalReadonlyArrayIsNotReadonly(t *testing.T) {
+	_, local := rootFor(t, `import {getRunTypeId} from '@mionjs/run-types';
+interface ReadonlyArray<T> extends Array<T> {}
+getRunTypeId<ReadonlyArray<string>>();
+`)
+	_, global := rootFor(t, "import {getRunTypeId} from '@mionjs/run-types';\ngetRunTypeId<readonly string[]>();\n")
+	if local.Readonly || local.ID == global.ID {
+		t.Errorf("a local ReadonlyArray interface must not read as the global readonly array: %q vs %q", local.ID, global.ID)
 	}
 }

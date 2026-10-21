@@ -18,22 +18,26 @@ onMounted(async () => {
 
   const mermaid = await import('mermaid');
 
+  // Mermaid takes only literal colours, here and in a diagram's `style X color:…` lines: resolve every var() first.
+  const cssVar = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const accent = cssVar('--site-accent');
+
   mermaid.default.initialize({
     startOnLoad: false,
     theme: 'dark',
     themeVariables: {
-      primaryColor: '#00dc82',
-      primaryTextColor: '#fff',
-      primaryBorderColor: '#00dc82',
-      lineColor: '#a1a1aa',
-      secondaryColor: '#27272a',
-      tertiaryColor: '#18181b',
+      primaryColor: accent,
+      primaryTextColor: cssVar('--mion-diagram-text'),
+      primaryBorderColor: accent,
+      lineColor: cssVar('--mion-diagram-line'),
+      secondaryColor: cssVar('--mion-diagram-secondary'),
+      tertiaryColor: cssVar('--mion-diagram-tertiary'),
     },
   });
 
   // Get the text content from the hidden slot
   if (sourceContent.value && mermaidContainer.value) {
-    const text = sourceContent.value.textContent?.trim() || '';
+    const text = (sourceContent.value.textContent?.trim() || '').replace(/var\((--[\w-]+)\)/g, (_, name: string) => cssVar(name));
 
     if (text) {
       try {

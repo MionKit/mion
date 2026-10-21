@@ -1,0 +1,563 @@
+package convert
+
+// printdecl.go prints standalone declarations for a types package that ships another package's types instead of
+// importing them. Classes, enums, unique symbols and recursive shapes become their own declarations, referenced
+// through placeholders the caller spells per file.
+
+import (
+	"fmt"
+	"slices"
+	"sort"
+	"strconv"
+	"strings"
+
+	"github.com/microsoft/typescript-go/shim/scanner"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
+)
+
+// DeclKind names what a PrintedDecl declares.
+type DeclKind int
+
+const (
+	DeclClass DeclKind = iota
+	DeclEnum
+	DeclAlias
+	DeclUniqueSymbol
+	// DeclBuiltin is a platform class, spelled by the caller where it is declared and never printed.
+	DeclBuiltin
+	// declKindCount bounds the kind loop in printdecl_kinds_test.go.
+	declKindCount
+)
+
+// KeepsItsName: a class or enum id includes its name, so it is never renamed and a project or mion copy is reused.
+func (kind DeclKind) KeepsItsName() bool {
+	switch kind {
+	case DeclClass, DeclEnum:
+		return true
+	case DeclAlias, DeclUniqueSymbol, DeclBuiltin:
+		return false
+	}
+	panic(fmt.Sprintf("convert: DeclKind %d has no KeepsItsName case", kind))
+}
+
+// HasHome: it ships as its own statement in one file; a unique symbol repeats per file, a platform class never prints.
+func (kind DeclKind) HasHome() bool {
+	switch kind {
+	case DeclClass, DeclEnum, DeclAlias:
+		return true
+	case DeclUniqueSymbol, DeclBuiltin:
+		return false
+	}
+	panic(fmt.Sprintf("convert: DeclKind %d has no HasHome case", kind))
+}
+
+// PrintedDecl is one declaration printed text refers to. Body holds placeholders (DeclRef) for the others.
+type PrintedDecl struct {
+	Key      string
+	Kind     DeclKind
+	Name     string
+	NodeID   string
+	Body     string
+	abstract bool
+}
+
+// DeclPrinter prints reflected nodes, collecting the declarations their text refers to.
+type DeclPrinter struct {
+	resolve func(id string) *reflection.RunType
+	names   *nameTable
+	decls   map[string]*PrintedDecl
+	order   []string
+	// failed holds a refused declaration's diagnostic, returned to every later use.
+	failed   map[string]*Diagnostic
+	usedName map[string]int
+	needs    importNeeds
+	// flags are the printing modes every context gets.
+	flags printFlags
+}
+
+// NewDeclPrinter prints over the graph resolve serves (runtype.Cache.NodeByID).
+func NewDeclPrinter(resolve func(id string) *reflection.RunType) *DeclPrinter {
+	return &DeclPrinter{
+		resolve:  resolve,
+		names:    &nameTable{RT: "RT", TF: "TF", TFT: "TFT", InferType: "InferType", GetRunType: "getRunType", TypeFormat: "TypeFormat", taken: map[string]bool{}},
+		decls:    map[string]*PrintedDecl{},
+		failed:   map[string]*Diagnostic{},
+		usedName: map[string]int{},
+		flags:    flagsDeclareNamedTypes | flagsDeclareUniqueSymbols | flagsNonEnumerableTag | flagsSortMembers,
+	}
+}
+
+const declRefMark = "\x00"
+
+// printedDeclLabel labels declaration printing diagnostics, which name no source declaration.
+var printedDeclLabel = &declaration{Name: "printed declaration"}
+
+// DeclRef is the placeholder printed text holds for the declaration under key.
+func DeclRef(key string) string { return declRefMark + key + declRefMark }
+
+// ReplaceDeclRefs spells every placeholder in text with spell.
+func ReplaceDeclRefs(text string, spell func(key string) string) string {
+	var out strings.Builder
+	for {
+		start := strings.Index(text, declRefMark)
+		if start < 0 {
+			out.WriteString(text)
+			return out.String()
+		}
+		end := strings.Index(text[start+1:], declRefMark)
+		if end < 0 {
+			out.WriteString(text)
+			return out.String()
+		}
+		out.WriteString(text[:start])
+		out.WriteString(spell(text[start+1 : start+1+end]))
+		text = text[start+1+end+1:]
+	}
+}
+
+// DeclRefKeys lists the placeholder keys text holds, in order of first use.
+func DeclRefKeys(text string) []string {
+	var keys []string
+	seen := map[string]bool{}
+	ReplaceDeclRefs(text, func(key string) string {
+		if !seen[key] {
+			seen[key] = true
+			keys = append(keys, key)
+		}
+		return ""
+	})
+	return keys
+}
+
+// Decl returns the declaration a placeholder key names.
+func (printer *DeclPrinter) Decl(key string) *PrintedDecl { return printer.decls[key] }
+
+// Decls lists every declaration collected so far, in order of first use.
+func (printer *DeclPrinter) Decls() []*PrintedDecl {
+	out := make([]*PrintedDecl, 0, len(printer.order))
+	for _, key := range printer.order {
+		out = append(out, printer.decls[key])
+	}
+	return out
+}
+
+// FormatImports are the import lines printed text needs for format brands.
+func (printer *DeclPrinter) FormatImports() []string {
+	return printer.needs.formatImportLines()
+}
+
+func (needs importNeeds) formatImportLines() []string {
+	var lines []string
+	if needs.useTypeFormat {
+		lines = append(lines, fmt.Sprintf("import type { TypeFormat } from '%s';", moduleCore))
+	}
+	if needs.useTF {
+		lines = append(lines, fmt.Sprintf("import type * as TF from '%s';", moduleFormats))
+	}
+	if needs.useTFT {
+		lines = append(lines, fmt.Sprintf("import type * as TFT from '%s';", moduleTemporal))
+	}
+	return lines
+}
+
+// TypeToString prints node as a type expression, declaring what it refers to.
+func (printer *DeclPrinter) TypeToString(node *reflection.RunType) (string, error) {
+	node = printer.deref(node)
+	if node == nil {
+		return "", fmt.Errorf("no reflected type")
+	}
+	ctx := printer.context(node.ID)
+	if isRecursiveShape(node) {
+		// A recursive shape is its alias, so every use of it shares one declaration.
+		ctx.rootID = ""
+	}
+	text, diag := ctx.typeExpr(node)
+	printer.needs.merge(ctx.needs)
+	if diag != nil {
+		return "", fmt.Errorf("%s", diag.Message)
+	}
+	return text, nil
+}
+
+func (printer *DeclPrinter) context(rootID string) *printContext {
+	return &printContext{names: printer.names, opts: Options{Target: TargetType}, decl: printedDeclLabel,
+		resolve: printer.resolve, rootID: rootID, declarations: printer, flags: printer.flags}
+}
+
+func (printer *DeclPrinter) deref(node *reflection.RunType) *reflection.RunType {
+	if node != nil && node.Kind == reflection.KindRef {
+		return printer.resolve(node.ID)
+	}
+	return node
+}
+
+// isRecursiveShape: a back-edged shape prints once as a named alias; a class or enum closes its cycle by its name.
+func isRecursiveShape(node *reflection.RunType) bool {
+	return node.IsCircular && !isUserClass(node) && node.Kind != reflection.KindEnum
+}
+
+func isUserClass(node *reflection.RunType) bool {
+	return node.Kind == reflection.KindClass && node.ClassRef != nil && node.ClassRef.Builtin == "" && node.ClassRef.Name != ""
+}
+
+// claim returns base, or base suffixed, so two declarations of one kind never share a key name.
+func (printer *DeclPrinter) claim(base string) string {
+	if !scanner.IsValidIdentifier(base) {
+		base = "Type"
+	}
+	count := printer.usedName[base]
+	printer.usedName[base] = count + 1
+	if count == 0 {
+		return base
+	}
+	return base + "$" + strconv.Itoa(count)
+}
+
+func (printer *DeclPrinter) add(decl *PrintedDecl) {
+	printer.decls[decl.Key] = decl
+	printer.order = append(printer.order, decl.Key)
+}
+
+// fail drops a declaration whose body was refused, so no later use spells an empty one.
+func (printer *DeclPrinter) fail(key string, diag *Diagnostic) *Diagnostic {
+	delete(printer.decls, key)
+	printer.order = slices.DeleteFunc(printer.order, func(ordered string) bool { return ordered == key })
+	printer.failed[key] = diag
+	return diag
+}
+
+// aliasRef spells a reference to a recursive shape, declaring its alias on first use.
+func (printer *DeclPrinter) aliasRef(ctx *printContext, node *reflection.RunType) (string, *Diagnostic, bool) {
+	if !isRecursiveShape(node) || (node.ID == ctx.rootID && len(ctx.walking) == 0) {
+		return "", nil, false
+	}
+	key := "a:" + node.ID
+	if diag := printer.failed[key]; diag != nil {
+		return "", diag, true
+	}
+	if _, done := printer.decls[key]; !done {
+		if diag := printer.serializeTypeAlias(key, node); diag != nil {
+			return "", diag, true
+		}
+	}
+	return DeclRef(key), nil, true
+}
+
+// serializeTypeAlias declares a recursive shape as a named alias.
+func (printer *DeclPrinter) serializeTypeAlias(key string, node *reflection.RunType) *Diagnostic {
+	name := node.TypeName
+	if name == "" {
+		name = "Recursive"
+	}
+	decl := &PrintedDecl{Key: key, Kind: DeclAlias, Name: printer.claim(name), NodeID: node.ID}
+	printer.add(decl)
+	body := printer.context(node.ID)
+	text, diag := body.typeExpr(node)
+	printer.needs.merge(body.needs)
+	if diag != nil {
+		return printer.fail(key, diag)
+	}
+	decl.Body = text
+	return nil
+}
+
+// classRef spells a user class, declaring it with its members on first use: its name and members make its id.
+func (printer *DeclPrinter) classRef(node *reflection.RunType) (string, *Diagnostic) {
+	key := "c:" + node.ID
+	if diag := printer.failed[key]; diag != nil {
+		return "", diag
+	}
+	if _, done := printer.decls[key]; !done {
+		if diag := printer.expandClassDecl(key, node); diag != nil {
+			return "", diag
+		}
+	}
+	return DeclRef(key), nil
+}
+
+// expandClassDecl declares a user class with its instance members.
+func (printer *DeclPrinter) expandClassDecl(key string, node *reflection.RunType) *Diagnostic {
+	decl := &PrintedDecl{Key: key, Kind: DeclClass, Name: node.TypeName, NodeID: node.ID, abstract: printer.isAbstract(node)}
+	if decl.Name == "" {
+		decl.Name = node.ClassRef.Name
+	}
+	printer.add(decl)
+	body := printer.context(node.ID)
+	text, diag := body.classBody(node)
+	printer.needs.merge(body.needs)
+	if diag != nil {
+		return printer.fail(key, diag)
+	}
+	decl.Body = text
+	return nil
+}
+
+// isAbstract: an abstract member needs an abstract class, which the reflected class does not always say.
+func (printer *DeclPrinter) isAbstract(node *reflection.RunType) bool {
+	if node.IsAbstract {
+		return true
+	}
+	return slices.ContainsFunc(node.Children, func(member *reflection.RunType) bool {
+		member = printer.deref(member)
+		return member != nil && member.IsAbstract && !member.IsStatic
+	})
+}
+
+// builtinRef spells a platform class through the caller, which knows where it is declared.
+func (printer *DeclPrinter) builtinRef(node *reflection.RunType) string {
+	key := "b:" + node.ID
+	if _, done := printer.decls[key]; !done {
+		printer.add(&PrintedDecl{Key: key, Kind: DeclBuiltin, Name: node.ClassRef.Builtin, NodeID: node.ID})
+	}
+	return DeclRef(key)
+}
+
+// enumRef spells an enum, declaring it on first use: its name and members make its id.
+func (printer *DeclPrinter) enumRef(node *reflection.RunType) (string, *Diagnostic) {
+	if node.TypeName == "" {
+		return "", unsupportedDiag(node, printedDeclLabel)
+	}
+	key := "e:" + node.ID
+	if _, done := printer.decls[key]; !done {
+		if diag := printer.expandEnumDecl(key, node); diag != nil {
+			return "", diag
+		}
+	}
+	return DeclRef(key), nil
+}
+
+// expandEnumDecl declares an enum with its members, sorted by name.
+func (printer *DeclPrinter) expandEnumDecl(key string, node *reflection.RunType) *Diagnostic {
+	names := make([]string, 0, len(node.EnumVal))
+	for name := range node.EnumVal {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	parts := make([]string, 0, len(names))
+	for _, name := range names {
+		valueText, ok := enumValueText(node.EnumVal[name])
+		if !ok {
+			return unsupportedDiag(node, printedDeclLabel)
+		}
+		memberName := name
+		if !scanner.IsValidIdentifier(name) {
+			memberName = quoteSingle(name)
+		}
+		parts = append(parts, memberName+" = "+valueText)
+	}
+	printer.add(&PrintedDecl{Key: key, Kind: DeclEnum, Name: node.TypeName, NodeID: node.ID, Body: "{ " + strings.Join(parts, ", ") + " }"})
+	return nil
+}
+
+func enumValueText(value any) (string, bool) {
+	switch typed := value.(type) {
+	case string:
+		return quoteSingle(typed), true
+	case int64:
+		return strconv.FormatInt(typed, 10), true
+	case int:
+		return strconv.Itoa(typed), true
+	case float64:
+		return formatNumberLiteral(typed)
+	}
+	return "", false
+}
+
+// wellKnownSymbols are the `Symbol.*` keys; any other symbol key is a declared unique symbol.
+var wellKnownSymbols = map[string]bool{
+	"asyncDispose": true, "asyncIterator": true, "dispose": true, "hasInstance": true, "isConcatSpreadable": true,
+	"iterator": true, "match": true, "matchAll": true, "metadata": true, "replace": true, "search": true,
+	"species": true, "split": true, "toPrimitive": true, "toStringTag": true, "unscopables": true,
+}
+
+// uniqueSymbolKey spells a symbol member key; the id keeps only the symbol's declared name.
+func (printer *DeclPrinter) uniqueSymbolKey(memberName string) (string, bool) {
+	name := strings.TrimPrefix(memberName, "@@")
+	if len(memberName) >= 2 && memberName[0] == 0xFE && memberName[1] == '@' {
+		name = memberName[2:]
+	}
+	if !scanner.IsValidIdentifier(name) {
+		return "", false
+	}
+	if wellKnownSymbols[name] {
+		return "Symbol." + name, true
+	}
+	key := "s:" + name
+	if _, done := printer.decls[key]; !done {
+		printer.add(&PrintedDecl{Key: key, Kind: DeclUniqueSymbol, Name: name})
+	}
+	return DeclRef(key), true
+}
+
+// uniqueSymbolText spells a unique symbol type as `typeof` its key; a .d.ts symbol's description is its declared name.
+func (ctx *printContext) uniqueSymbolText(node *reflection.RunType) (string, *Diagnostic) {
+	literal, _ := node.Literal.(map[string]any)
+	name, _ := literal["symbol"].(string)
+	if spelled, ok := ctx.declarations.uniqueSymbolKey(name); ok {
+		return "typeof " + spelled, nil
+	}
+	return "", unsupportedDiag(node, ctx.decl)
+}
+
+// classBody mirrors TypeScript's typeElementsToClassElements; as in the id, inherited members flatten in, statics drop.
+func (ctx *printContext) classBody(node *reflection.RunType) (string, *Diagnostic) {
+	var parts []string
+	if hasFlag(node, reflection.FlagPrivateFields) {
+		parts = append(parts, "#private")
+	}
+	members, indexes, diag := ctx.objectMembers(node)
+	if diag != nil {
+		return "", diag
+	}
+	texts, diag := ctx.objectMemberTexts(members, indexes)
+	if diag != nil {
+		return "", diag
+	}
+	parts = append(parts, texts...)
+	if len(parts) == 0 {
+		return "{}", nil
+	}
+	return "{\n  " + strings.Join(parts, ";\n  ") + ";\n}", nil
+}
+
+// declarationStatement renders decl as a top-level statement under name, placeholders unspelled.
+func (decl *PrintedDecl) declarationStatement(name string) string {
+	switch decl.Kind {
+	case DeclClass:
+		abstract := ""
+		if decl.abstract {
+			abstract = "abstract "
+		}
+		return fmt.Sprintf("export declare %sclass %s %s", abstract, name, decl.Body)
+	case DeclEnum:
+		return fmt.Sprintf("export declare enum %s %s", name, decl.Body)
+	case DeclAlias:
+		return fmt.Sprintf("export type %s = %s;", name, decl.Body)
+	case DeclUniqueSymbol:
+		return fmt.Sprintf("declare const %s: unique symbol;", name)
+	case DeclBuiltin:
+		return ""
+	}
+	panic(fmt.Sprintf("convert: DeclKind %d has no declarationStatement case", decl.Kind))
+}
+
+// PlacedDecl is a declaration laid out in one file: Spelling is how that file names it.
+type PlacedDecl struct {
+	Decl      *PrintedDecl
+	Spelling  string
+	Statement string
+}
+
+// LayoutDecls names decls in one file around taken; a class or enum keeps its id's name, in a namespace on a clash.
+func LayoutDecls(decls []*PrintedDecl, taken map[string]bool) []PlacedDecl {
+	used := map[string]bool{}
+	for name := range taken {
+		used[name] = true
+	}
+	symbols := map[string]bool{}
+	out := make([]PlacedDecl, 0, len(decls))
+	free := func(base string) string {
+		name := MakeUniqueName(base, func(candidate string) bool { return used[candidate] })
+		used[name] = true
+		return name
+	}
+	for _, decl := range decls {
+		if !decl.Kind.KeepsItsName() {
+			continue
+		}
+		if !used[decl.Name] {
+			used[decl.Name] = true
+			out = append(out, PlacedDecl{Decl: decl, Spelling: decl.Name, Statement: decl.declarationStatement(decl.Name)})
+			continue
+		}
+		namespace := free(decl.Name)
+		inner := strings.TrimPrefix(decl.declarationStatement(decl.Name), "export declare ")
+		statement := fmt.Sprintf("export declare namespace %s {\n  %s\n}", namespace, strings.ReplaceAll(inner, "\n", "\n  "))
+		out = append(out, PlacedDecl{Decl: decl, Spelling: namespace + "." + decl.Name, Statement: statement})
+	}
+	for _, decl := range decls {
+		switch decl.Kind {
+		case DeclAlias:
+			name := free(decl.Name)
+			out = append(out, PlacedDecl{Decl: decl, Spelling: name, Statement: decl.declarationStatement(name)})
+		case DeclUniqueSymbol:
+			if symbols[decl.Name] {
+				continue
+			}
+			symbols[decl.Name] = true
+			used[decl.Name] = true
+			out = append(out, PlacedDecl{Decl: decl, Spelling: decl.Name, Statement: decl.declarationStatement(decl.Name)})
+		}
+	}
+	return out
+}
+
+// MakeUniqueName is base, or base suffixed `$2`, `$3`…, the first that taken does not hold.
+func MakeUniqueName(base string, taken func(name string) bool) string {
+	name := base
+	for index := 2; taken(name); index++ {
+		name = base + "$" + strconv.Itoa(index)
+	}
+	return name
+}
+
+// TypeModuleKey is the placeholder key a type-module printer gives a referenced child node.
+func TypeModuleKey(typeID string) string { return "t:" + typeID }
+
+// TypeModuleID reads a placeholder key back to its node id, false for any other key.
+func TypeModuleID(key string) (string, bool) { return strings.CutPrefix(key, "t:") }
+
+// typeModuleWorthy: a node printed in its own type module, the kinds users name; platform classes and atoms inline.
+func typeModuleWorthy(node *reflection.RunType) bool {
+	if node.Kind == reflection.KindClass {
+		return isUserClass(node)
+	}
+	return referenceWorthy(node)
+}
+
+// NewTypeModulePrinter prints the DataOnly<T> projection of a node with every reference-worthy child a
+// TypeModuleKey placeholder, so each type id prints once, in its own module.
+func NewTypeModulePrinter(resolve func(id string) *reflection.RunType) *DeclPrinter {
+	printer := NewDeclPrinter(resolve)
+	printer.flags = flagsReferenceChildren | flagsDataOnly | flagsSortMembers
+	return printer
+}
+
+// TypeModuleText prints node's type expression plus the format import lines that text alone needs.
+func (printer *DeclPrinter) TypeModuleText(node *reflection.RunType) (text string, imports []string, err error) {
+	node = printer.deref(node)
+	if node == nil {
+		return "", nil, fmt.Errorf("no reflected type")
+	}
+	ctx := printer.context(node.ID)
+	text, diag := ctx.typeExpr(node)
+	if diag != nil {
+		return "", nil, fmt.Errorf("%s", diag.Message)
+	}
+	return text, ctx.needs.formatImportLines(), nil
+}
+
+// enumValuesText spells an enum's data projection, the union of its member values.
+func enumValuesText(node *reflection.RunType) (string, *Diagnostic) {
+	names := make([]string, 0, len(node.EnumVal))
+	for name := range node.EnumVal {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	seen := map[string]bool{}
+	var parts []string
+	for _, name := range names {
+		valueText, ok := enumValueText(node.EnumVal[name])
+		if !ok {
+			return "", unsupportedDiag(node, printedDeclLabel)
+		}
+		if !seen[valueText] {
+			seen[valueText] = true
+			parts = append(parts, valueText)
+		}
+	}
+	if len(parts) == 0 {
+		return "never", nil
+	}
+	return strings.Join(parts, " | "), nil
+}

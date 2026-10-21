@@ -1,6 +1,6 @@
 {
     "name": "@mionjs/platform-bun",
-    "version": "0.12.2",
+    "version": "0.13.1",
     "type": "module",
     "description": "mion server for bun runtime",
     "keywords": [
@@ -33,10 +33,7 @@
     "files": [
         ".dist",
         "!.dist/**/*.tsbuildinfo",
-        "index.ts",
-        "src",
-        "!src/**/*.spec.ts",
-        "!src/**/*.test.ts"
+        "!.dist/**/*.d.ts.map"
     ],
     "repository": {
         "type": "git",
@@ -49,13 +46,14 @@
         "bun": ">=1.0.1"
     },
     "scripts": {
-        "test": "bun test",
+        "typecheck:test": "tsc -p tsconfig.json --noEmit",
+        "test": "bun --conditions=source test",
         "dev": "vite build --watch",
-        "dev:test": "bun test --watch",
+        "dev:test": "bun --conditions=source test --watch",
         "lint": "eslint src",
         "format": "prettier --write src/**/*.ts",
         "build": "vite build",
-        "clean": "rimraf .dist .coverage __runtypes",
+        "clean": "rimraf .dist .coverage .mion",
         "fresh-start": "pnpm run clean && rimraf node_modules"
     },
     "bugs": {
@@ -65,7 +63,7 @@
         "@mionjs/core": "workspace:*",
         "@mionjs/router": "workspace:*",
         "@mionjs/devtools": "workspace:*",
-        "@mionjs/bin": "workspace:*"
+        "@mionjs/bin-compiler": "workspace:*"
     },
     "peerDependencies": {
         "typescript": ">=6.0.0"

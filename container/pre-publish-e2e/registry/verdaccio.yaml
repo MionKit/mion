@@ -3,7 +3,7 @@
 # here; the in-container matrix, the mion consumer lanes and the host-native smoke
 # then install the PUBLISHED @mionjs/* + @mionjs/* from it — faithfully
 # exercising the launcher ->
-# @mionjs/binary-<os>-<arch> optional-dependency resolution a bare
+# @mionjs/native-compiler-<os>-<arch> optional-dependency resolution a bare
 # file-tarball install can't.
 #
 # Anonymous publish + read are allowed on purpose (ephemeral, loopback only).

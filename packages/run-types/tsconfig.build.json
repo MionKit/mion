@@ -1,0 +1,18 @@
+{
+  // The emit half, what `mion compile` and the CJS pass read. It re-enables what tsconfig.json turns
+  // off for the check and narrows the program back to the published src.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "incremental": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    // No ambient @types in the published declarations: a consumer supplies its own.
+    "types": []
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "test", "vitest.config.ts"]
+}

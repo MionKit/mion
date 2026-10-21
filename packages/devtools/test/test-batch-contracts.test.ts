@@ -1,16 +1,4 @@
-// Contract tests for the `test:ci` batches.
-//
-// `pnpm run test:ci` is the OOM fallback CLAUDE.md points contributors at, and its
-// batch list used to be typed by hand into package.json with nothing tying it to
-// vitest.config.ts. It drifted: it named the 16 mion projects and none of the 5
-// runtypes ones, so it returned green having run 88 of the 397 test files. The 309
-// it skipped were every runtypes test, including the ones that drive the Go
-// resolver through the plugin.
-//
-// The batches now live in scripts/core/test-batches.mjs and only GROUP the names
-// vitest.config.ts declares. These tests pin the pieces that keep it that way: the
-// real grouping covers the real config, each drift shape is actually detected, and
-// both `test:ci` and the CI gate still route through the script.
+// test:ci is the OOM fallback (.agents/docs/testing.md); its groups must cover every project in vitest.config.ts.
 
 import {describe, it, expect} from 'vitest';
 import {readFileSync} from 'node:fs';
@@ -79,15 +67,91 @@ describe('the wiring still points at the batch script', () => {
   const packageJson = JSON.parse(read('package.json')) as {scripts: Record<string, string>};
 
   it('test:ci runs the batch script rather than a hand-written vitest line', () => {
-    expect(packageJson.scripts['test:ci']).toBe('node scripts/rt.mjs core test-batches');
-    expect(packageJson.scripts['check:test-batches']).toBe('node scripts/rt.mjs core test-batches --check');
+    expect(packageJson.scripts['test:ci']).toBe('node scripts/miondevx.mjs core test-batches');
+    expect(packageJson.scripts['check:test-batches']).toBe('node scripts/miondevx.mjs core test-batches --check');
   });
 
   it('ci.yml runs the drift gate', () => {
     expect(read('.github/workflows/ci.yml')).toContain('pnpm run check:test-batches');
   });
 
-  it('rtx dispatches core test-batches', () => {
-    expect(read('scripts/rt.mjs')).toContain("if (sub === 'test-batches')");
+  it('miondevx dispatches core test-batches', () => {
+    expect(read('scripts/miondevx.mjs')).toContain("if (sub === 'test-batches')");
+  });
+});
+
+// Vitest's 10 s default cannot hold a project that compiles, builds or spawns the resolver under batch contention.
+// type-budget's hook: 4.6 s alone, 10.6 s inside the mion-rest batch, where it failed a run that changed nothing near it.
+const HEAVY_TIMEOUT_FLOOR = 30_000;
+
+/** Projects whose tests or hooks compile, build or spawn the resolver. **/
+const HEAVY_PROJECTS = [
+  'runtypes',
+  'runtypes-ts',
+  'playground',
+  'type-budget',
+  'drizzle-example-app',
+  'devtools-core',
+  'devtools',
+  'drizzle-pg',
+  'drizzle-mysql',
+  'drizzle-sqlite',
+] as const;
+
+/** The rest: in-memory fixtures or an in-process server, or their own inline timeout on the hook. **/
+const LIGHT_PROJECTS = [
+  '@mionjs/go-be-sidecar',
+  'mock-format-isolation',
+  'core',
+  'router',
+  'test-router-fuzz',
+  'client',
+  'client-bundled',
+  'platform-aws',
+  'platform-gcloud',
+  'platform-node',
+  'platform-vercel',
+  'platform-uws',
+  'platform-cloudflare',
+  'bin-uws',
+  'drizzle-root',
+] as const;
+
+/** undefined means the project takes vitest's default. **/
+const declaredTimeout = (text: string, key: 'testTimeout' | 'hookTimeout'): number | undefined => {
+  const match = new RegExp(`${key}:\\s*([0-9_]+)`).exec(text);
+  return match ? Number(match[1].replace(/_/g, '')) : undefined;
+};
+
+/** Every project name mapped to the config text that declares it. **/
+const projectConfigs = (): Map<string, string> => {
+  const byName = new Map<string, string>();
+  for (const path of projectConfigPaths(read('vitest.config.ts')) as string[]) {
+    const text = read(path);
+    byName.set(projectName(text) as string, text);
+  }
+  return byName;
+};
+
+describe('the compile and resolver projects raise their own timeouts', () => {
+  it('gives every heavy project both a testTimeout and a hookTimeout above the floor', () => {
+    const configs = projectConfigs();
+    for (const project of HEAVY_PROJECTS) {
+      const text = configs.get(project);
+      expect(text, `${project} is no longer a vitest project`).toBeTruthy();
+      for (const key of ['testTimeout', 'hookTimeout'] as const) {
+        const value = declaredTimeout(text as string, key);
+        expect(value, `${project} declares no ${key}, so it runs on vitest's 10s default`).toBeDefined();
+        expect(value, `${project}'s ${key} is below the floor`).toBeGreaterThanOrEqual(HEAVY_TIMEOUT_FLOOR);
+      }
+    }
+  });
+
+  // Pins the regression shape: a new project arriving on the default passes alone, fails only in a batch.
+  it('classifies every project the root config declares, exactly once', () => {
+    const classified = [...HEAVY_PROJECTS, ...LIGHT_PROJECTS];
+    const declared = [...projectConfigs().keys()];
+    expect([...new Set(classified)]).toHaveLength(classified.length);
+    expect(classified.slice().sort()).toEqual(declared.slice().sort());
   });
 });

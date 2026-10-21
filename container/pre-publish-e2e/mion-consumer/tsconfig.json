@@ -6,6 +6,7 @@
     "strict": true,
     "target": "ES2023",
     "lib": ["ES2023", "DOM"],
+    "types": ["node"],
     "sourceMap": true,
     "isolatedModules": true,
     "skipLibCheck": true,

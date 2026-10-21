@@ -10,8 +10,8 @@ import (
 )
 
 // Cycle back-edge DEPTH tests — the shared-recursive-container convergence
-// class the json-schema translation fuzz lane surfaced (see
-// docs/done/json-schema-shared-recursive-container-id-divergence.md).
+// class the json-schema translation fuzz lane surfaced (two bisimilar
+// recursive containers used to resolve different ids).
 //
 // A cycle token `$<kind>_<relDepth>` is relative to the CYCLE TARGET in the
 // canonical quotient emission (typeid/canonicalize.go), so bisimilar types
@@ -89,14 +89,8 @@ getRunTypeId<Rec>();
 	}
 }
 
-// TestCycleDepthID_MotivatingShape_SameDepthBothMembers — the exact shape the
-// fuzz lane caught: `{p1?: N1[]; kids2: N1[]}`. Both members wrap the SAME
-// recursive ref in the same container at the same nesting, so both member
-// tokens must carry relative depth 2 and no depth-3 token may appear anywhere
-// (the fixture's genuine nesting never exceeds 2, including inside the
-// structural anchor). Before the fix the optional member's discarded
-// `T | undefined` pre-walk baked a `_3` token into the cache and the required
-// member spliced it back in.
+// TestCycleDepthID_MotivatingShape_SameDepthBothMembers — fuzz-caught shape: real nesting never exceeds depth 2.
+// The optional member's discarded `T | undefined` pre-walk once cached a `_3` token the required member spliced in.
 func TestCycleDepthID_MotivatingShape_SameDepthBothMembers(t *testing.T) {
 	r := setupInline(t, map[string]string{"test.ts": `import {getRunTypeId} from '@mionjs/run-types';
 type N1 = {p1?: N1[]; kids2: N1[]};
@@ -104,10 +98,9 @@ getRunTypeId<N1>();
 `})
 	ids := scanSiteIDs(t, r)
 	structural := structuralByID(t, r, ids[0])
-	// Canonical emission: 30{32:kids2:25:0:$30_2,32:p1?:25:0:$30_2} — members
-	// sort by name, so kids2's token is followed by `,` and p1's by `}`.
+	// Members sort by name: 30{32:"kids2":25:0:$30_2,32:"p1"?:25:0:$30_2}, so kids2 ends in `,` and p1 in `}`.
 	arrayOfBackRef := kindDigits(reflection.KindArray) + ":0:"
-	for member, delimiter := range map[string]string{"kids2:": ",", "p1?:": "}"} {
+	for member, delimiter := range map[string]string{`"kids2":`: ",", `"p1"?:`: "}"} {
 		want := member + arrayOfBackRef + cycleToken(reflection.KindObjectLiteral, 2, delimiter)
 		if !strings.Contains(structural, want) {
 			t.Fatalf("member %q must wrap a depth-2 back-edge (%q): %q", member, want, structural)

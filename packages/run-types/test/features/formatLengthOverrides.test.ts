@@ -44,36 +44,32 @@ describe('variable-width format length overrides converge across authoring modes
   });
 });
 
-// The named VARIANTS of those families (urlHttp, emailPunycode, domainStrict,
-// ipv4, base64, …) used to be take-it-or-leave-it presets: the type accepted no
-// override and the builder took no params. They now ride the same merge as their
-// generic sibling, so the preset's own defaults survive whatever the caller
-// leaves out.
+// Named variants ride their generic sibling's merge, so a partial override keeps the preset's own defaults.
 describe('every predefined string format accepts an override', () => {
-  it('urlHttp: the override retunes the bound and KEEPS the http(s) pattern', () => {
-    const typeFirst = getRunTypeId<TF.UrlHttp<{maxLength: 100}>>();
-    const value: TF.UrlHttp<{maxLength: 100}> = 'https://example.com' as TF.UrlHttp<{maxLength: 100}>;
+  it('stringUrlHttp: the override retunes the bound and KEEPS the http(s) pattern', () => {
+    const typeFirst = getRunTypeId<TF.StringUrlHttp<{maxLength: 100}>>();
+    const value: TF.StringUrlHttp<{maxLength: 100}> = 'https://example.com' as TF.StringUrlHttp<{maxLength: 100}>;
     expect(getRunTypeId(value)).toBe(typeFirst);
-    expect(getRunTypeId(TF.urlHttp({maxLength: 100}))).toBe(typeFirst);
-    // Overriding a bound must NOT silently degrade to the generic Url pattern.
-    expect(typeFirst).not.toBe(getRunTypeId(TF.url({maxLength: 100})));
-    const isHttpUrl = createValidateFn(TF.urlHttp({maxLength: 100}));
+    expect(getRunTypeId(TF.stringUrlHttp({maxLength: 100}))).toBe(typeFirst);
+    // Overriding a bound must NOT silently degrade to the generic StringUrl pattern.
+    expect(typeFirst).not.toBe(getRunTypeId(TF.stringUrl({maxLength: 100})));
+    const isHttpUrl = createValidateFn(TF.stringUrlHttp({maxLength: 100}));
     expect(isHttpUrl('https://example.com/path')).toBe(true);
     expect(isHttpUrl('file:///etc/hosts')).toBe(false);
   });
 
-  it('urlFile / emailPunycode / domainUnicode take an override too', () => {
-    expect(getRunTypeId(TF.urlFile({maxLength: 300}))).toBe(getRunTypeId<TF.UrlFile<{maxLength: 300}>>());
+  it('stringUrlFile / emailPunycode / domainUnicode take an override too', () => {
+    expect(getRunTypeId(TF.stringUrlFile({maxLength: 300}))).toBe(getRunTypeId<TF.StringUrlFile<{maxLength: 300}>>());
     expect(getRunTypeId(TF.emailPunycode({minLength: 9}))).toBe(getRunTypeId<TF.EmailPunycode<{minLength: 9}>>());
     expect(getRunTypeId(TF.domainUnicode({maxLength: 120}))).toBe(getRunTypeId<TF.DomainUnicode<{maxLength: 120}>>());
   });
 
-  it('domainStrict / emailStrict keep their decomposition while bounds retune', () => {
-    expect(getRunTypeId(TF.domainStrict({maxLength: 120}))).toBe(getRunTypeId<TF.DomainStrict<{maxLength: 120}>>());
-    expect(getRunTypeId(TF.emailStrict({maxLength: 120}))).toBe(getRunTypeId<TF.EmailStrict<{maxLength: 120}>>());
-    const isStrict = createValidateFn(TF.domainStrict({maxLength: 120}));
-    expect(isStrict('sub.example.com')).toBe(true);
-    expect(isStrict('-bad-.example.com')).toBe(false);
+  it('domainParts / emailParts keep their decomposition while bounds retune', () => {
+    expect(getRunTypeId(TF.domainParts({maxLength: 120}))).toBe(getRunTypeId<TF.DomainParts<{maxLength: 120}>>());
+    expect(getRunTypeId(TF.emailParts({maxLength: 120}))).toBe(getRunTypeId<TF.EmailParts<{maxLength: 120}>>());
+    const isDomainParts = createValidateFn(TF.domainParts({maxLength: 120}));
+    expect(isDomainParts('sub.example.com')).toBe(true);
+    expect(isDomainParts('-bad-.example.com')).toBe(false);
   });
 
   it('ipv4: the override adds a port while the version stays pinned', () => {
@@ -95,8 +91,8 @@ describe('every predefined string format accepts an override', () => {
   });
 
   it('the bare spelling of every preset is unchanged by gaining the override', () => {
-    expect(getRunTypeId(TF.urlHttp())).toBe(getRunTypeId<TF.UrlHttp>());
-    expect(getRunTypeId(TF.emailStrict())).toBe(getRunTypeId<TF.EmailStrict>());
+    expect(getRunTypeId(TF.stringUrlHttp())).toBe(getRunTypeId<TF.StringUrlHttp>());
+    expect(getRunTypeId(TF.emailParts())).toBe(getRunTypeId<TF.EmailParts>());
     expect(getRunTypeId(TF.ipv4())).toBe(getRunTypeId<TF.IPv4>());
     expect(getRunTypeId(TF.base32())).toBe(getRunTypeId<TF.Base32>());
     expect(getRunTypeId(TF.domainPunycode())).toBe(getRunTypeId<TF.DomainPunycode>());

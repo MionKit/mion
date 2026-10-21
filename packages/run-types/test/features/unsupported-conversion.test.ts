@@ -1,30 +1,8 @@
-// THE OFFICIAL LIST of what `mion convert` cannot rewrite.
-//
-// Every entry below is a real declaration handed to the REAL binary over a real
-// temp project, asserting the exact diagnostic code and the message the user
-// sees. The website's conversion guide links here rather than restating the
-// list, so this file is the single source of truth: a refusal that is fixed
-// must be deleted here (the test fails the moment it starts converting), and a
-// new refusal has to be added here to be considered documented.
-//
-// The contract every entry shares, and what makes a refusal safe rather than
-// lossy: the converter NEVER writes a declaration it cannot spell exactly. It
-// reports the code, leaves that declaration byte-identical, converts everything
-// else in the file, and exits non-zero.
-//
-// Not listed, deliberately: internal conditions a user cannot author around
-// (a name the converter cannot derive, an unknown --to target).
-//
-// Also not listed, because they CONVERT: any shape whose only problem is that
-// the target form has no word for it rides the `getRunType<T>()` escape on
-// the builders target, carrying the type verbatim. Index signatures that
-// `record(...)`
-// cannot say (a number key, several signatures, an index beside named
-// members) go that way, as do functions, template literals and generic class
-// instantiations. An escape is only unavailable when the type CANNOT BE
-// SPELLED AT ALL in the escape's text: an unbound type parameter, or a
-// self-reference, since the escape is quoted text that cannot point back at
-// the declaration being defined.
+// The official list of what `mion convert` cannot rewrite, run against the real binary; the conversion guide's table
+// must match it. A refusal leaves that declaration byte-identical, converts the rest of the file and exits non-zero.
+// Shapes the target form cannot name still convert through the `getRunType<T>()` escape, except an unbound type
+// parameter or a self-reference, which the quoted escape cannot spell. scripts/core/converted-suites.mjs reads each
+// row's `says` fragment, so every refusal message must carry one.
 import {describe, expect, it} from 'vitest';
 import {spawnSync} from 'node:child_process';
 import fs from 'node:fs';
@@ -43,7 +21,7 @@ const TSCONFIG = `{
 }
 `;
 
-/** With `ESNext.Temporal` dropped from `lib` — the CNV007 case. */
+/** With `ESNext.Temporal` dropped from `lib` — the convert-temporal-lib-missing case. */
 const TSCONFIG_NO_TEMPORAL = TSCONFIG.replace('"target": "ES2022"', '"target": "ES2022", "lib": ["ES2022"]');
 
 type Target = 'type' | 'builders';
@@ -69,7 +47,7 @@ const UNSUPPORTED: readonly UnsupportedCase[] = [
   // NOT listed: a generic declaration (`type Box<T> = …`). It is left as
   // written, but that is a SKIP, not a refusal — a type parameter has no
   // runtime shape, so there is nothing to convert, exactly as for a class or a
-  // function declaration. It reports CNV002 at WARNING severity and the run
+  // function declaration. It reports convert-generic-declaration at WARNING severity and the run
   // still exits 0; its INSTANTIATIONS convert wherever they are reflected.
   // (As an error it failed a whole file over one type-level helper, which is
   // what stopped the suites' own harness files converting.)
@@ -77,7 +55,7 @@ const UNSUPPORTED: readonly UnsupportedCase[] = [
     title: 'a cycle that never passes through a named type (name the inner type to fix it)',
     files: {'main.ts': "export type Outer = {inner: {back?: Outer['inner']}};\n"},
     target: 'builders',
-    code: 'CNV001',
+    code: 'convert-unsupported-kind',
     says: 'cycle through an unnamed type',
     keeps: "export type Outer = {inner: {back?: Outer['inner']}};",
   },
@@ -85,7 +63,7 @@ const UNSUPPORTED: readonly UnsupportedCase[] = [
     title: 'a symbol-keyed member',
     files: {'main.ts': 'declare const tag: unique symbol;\nexport type Tagged = {[tag]: number};\n'},
     target: 'builders',
-    code: 'CNV001',
+    code: 'convert-unsupported-kind',
     says: 'symbol-keyed member',
     keeps: 'export type Tagged = {[tag]: number};',
   },
@@ -93,7 +71,7 @@ const UNSUPPORTED: readonly UnsupportedCase[] = [
     title: 'a unique symbol literal (typeof sym), which no builder can spell',
     files: {'main.ts': 'declare const sym: unique symbol;\nexport type Tag = typeof sym;\n'},
     target: 'builders',
-    code: 'CNV001',
+    code: 'convert-unsupported-kind',
     says: 'a literal is not convertible',
     keeps: 'export type Tag = typeof sym;',
   },
@@ -101,7 +79,7 @@ const UNSUPPORTED: readonly UnsupportedCase[] = [
     title: 'a member tagged @nonEnumerable, a descriptor no builder form carries',
     files: {'main.ts': 'export type Hidden = {\n  /** @nonEnumerable */\n  secret?: string;\n  name: string;\n};\n'},
     target: 'builders',
-    code: 'CNV001',
+    code: 'convert-unsupported-kind',
     says: 'marked @nonEnumerable',
     keeps: '/** @nonEnumerable */\n  secret?: string;',
   },
@@ -131,7 +109,7 @@ const UNSUPPORTED: readonly UnsupportedCase[] = [
         '};\n',
     },
     target: 'builders',
-    code: 'CNV001',
+    code: 'convert-unsupported-kind',
     says: 'cycle through an unnamed type',
     keeps: 'createValidateFn<DataOnly<Root>>()',
   },
@@ -146,7 +124,7 @@ const UNSUPPORTED: readonly UnsupportedCase[] = [
         '};\n',
     },
     target: 'builders',
-    code: 'CNV001',
+    code: 'convert-unsupported-kind',
     says: 'closes on a tuple slot',
     keeps: 'createValidateFn<DataOnly<Pair>>()',
   },
@@ -159,7 +137,7 @@ const UNSUPPORTED: readonly UnsupportedCase[] = [
       'main.ts': "import {type Leaf} from './leaf.ts';\nexport type Branch = {leaf: Leaf};\n",
     },
     target: 'builders',
-    code: 'CNV004',
+    code: 'convert-outside-set',
     says: 'not part of this conversion run',
     keeps: 'export type Branch = {leaf: Leaf};',
   },
@@ -170,7 +148,7 @@ const UNSUPPORTED: readonly UnsupportedCase[] = [
     files: {'main.ts': 'export type When = {at: Temporal.Instant};\n'},
     target: 'builders',
     noTemporalLib: true,
-    code: 'CNV007',
+    code: 'convert-temporal-lib-missing',
     says: "resolved to 'any'",
     keeps: 'export type When = {at: Temporal.Instant};',
   },

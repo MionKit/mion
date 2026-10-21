@@ -7,10 +7,6 @@ import {
   overrideJsonEncoder,
   createJsonDecoderFn,
   overrideJsonDecoder,
-  createBinaryEncoderFn,
-  overrideBinaryEncoder,
-  createBinaryDecoderFn,
-  overrideBinaryDecoder,
 } from '@mionjs/run-types';
 import type {OverrideCase} from './types.ts';
 
@@ -26,11 +22,6 @@ overrideGetValidationErrors<ArrayTarget>((value, path, errors) => {
 });
 overrideJsonEncoder<ArrayTarget>((v) => 'OVR' + JSON.stringify(v));
 overrideJsonDecoder<ArrayTarget>((serialized) => JSON.parse((serialized as string).slice(3)) as never);
-overrideBinaryEncoder<ArrayTarget>((value, Ser) => {
-  Ser.serString(JSON.stringify(value));
-  return Ser;
-});
-overrideBinaryDecoder<ArrayTarget>((ret, Des) => JSON.parse(Des.desString()) as never);
 
 export const ARRAY_OVERRIDE: OverrideCase = {
   title: 'Arrays',
@@ -42,7 +33,4 @@ export const ARRAY_OVERRIDE: OverrideCase = {
   jsonDecoder: () => createJsonDecoderFn<ArrayTarget>(),
   jsonValue: [{n: 1}, {n: 2}],
   jsonString: 'OVR' + JSON.stringify([{n: 1}, {n: 2}]),
-  binaryEncoder: () => createBinaryEncoderFn<ArrayTarget>(),
-  binaryDecoder: () => createBinaryDecoderFn<ArrayTarget>(),
-  binaryValue: [{n: 3}],
 };

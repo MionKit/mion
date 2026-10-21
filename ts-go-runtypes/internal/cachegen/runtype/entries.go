@@ -1,115 +1,298 @@
 package runtype
 
 import (
+	"maps"
+	"path"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/hashid"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/jsonsize"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// bundleKeyLength sizes the bundle's content-hash key. The key only has to be
-// unique within one runtime registry (vs every other entry key), and it
-// changes whenever the row set changes — 10 dictionary chars is plenty.
+// bundleKeyLength sizes the bundle's content-hash key: it only has to be unique within one runtime registry,
+// and it changes whenever the row set does, so 10 dictionary chars is plenty.
 const bundleKeyLength = 10
 
-// CollectEntries builds the runtype side of the entry-module graph: ONE data
-// bundle (`rtmod:/runtypes.js`) carrying every reflection-demanded node
-// as a headless tuple row with a single combined footer initializer, plus one
-// facade module per reflection ROOT (`rtmod:/<rootId>.js` — the module
-// the rewrite's binding-only injection already imports at getRunTypeId /
-// builder / mock sites). Function-family modules never
-// import runtype modules, so the runtype graph is self-contained: the bundle
-// imports nothing and each facade imports only the bundle. Every node row
-// exists exactly once app-wide — no duplication across roots.
-//
-// Demand-driven: a dump with no reflection sites emits NO runtype modules
-// (createX-only files pay zero reflection payload). Rows are the closure of
-// every root over the ref-bearing slots (collectRefDeps), ordered
-// alphabetically by id. The bundle's tuple KEY is a content hash over the row
-// ids — ids embed shape and binary version, so the key changes exactly when
-// the bundle content does and the runtime's processed-keys guard re-registers
-// an evolved bundle after an HMR reload (the module NAME stays fixed; the
-// Vite plugin invalidates it on addedRunTypes).
-func CollectEntries(dump protocol.Dump) entrymodules.Graph {
+// RowHomes is where each runtype row is written: the one module reaching it, or the shared module of every row
+// reached by the same set of modules, so a row ships once and a module imports only rows it reaches itself. A
+// group too small to pay for a module is copied instead.
+type RowHomes struct {
+	home     map[string]string
+	copied   map[string]bool
+	roots    map[string]bool
+	closures map[string][]string
+}
+
+// PlanRowHomes plans the homes over a whole program; a planner fed one file would keep every row in that file.
+// A row's owner set always contains its parent's, so shared modules import only larger sets and never cycle.
+func PlanRowHomes(dump protocol.Dump, moduleOf func(protocol.Site) string) *RowHomes {
+	nodes := indexNodes(dump.RunTypes)
+	sitesByModule := groupReflectionSites(dump, moduleOf)
+	homes := &RowHomes{home: map[string]string{}, copied: map[string]bool{}, roots: map[string]bool{}, closures: map[string][]string{}}
+	owners := map[string][]string{}
+	for _, module := range slices.Sorted(maps.Keys(sitesByModule)) {
+		roots := reflectionRoots(sitesByModule[module])
+		for _, root := range roots {
+			homes.roots[root] = true
+		}
+		// Kept for the collector: a module's closure is the same in a one-file dump, which holds that file's types.
+		homes.closures[module] = closureRows(roots, nodes)
+		for _, id := range homes.closures[module] {
+			owners[id] = append(owners[id], module)
+		}
+	}
+	rowsBySet := map[string][]string{}
+	for id, modules := range owners {
+		if len(modules) == 1 {
+			homes.home[id] = modules[0]
+			continue
+		}
+		set := strings.Join(modules, "\x00")
+		rowsBySet[set] = append(rowsBySet[set], id)
+	}
+	for _, rows := range rowsBySet {
+		owned := len(owners[rows[0]])
+		if rowBytes(rows, nodes)*(owned-1) < sharedModuleBytes+sharedImportBytes*owned {
+			for _, id := range rows {
+				homes.copied[id] = true
+			}
+			continue
+		}
+		sort.Strings(rows)
+		shared := sharedModuleDir + hashid.QuickHash(strings.Join(rows, ","), sharedModuleHashLength)
+		for _, id := range rows {
+			homes.home[id] = shared
+		}
+	}
+	return homes
+}
+
+// sharedModuleDir prefixes a shared module's name, a hash of its row ids sized by sharedModuleHashLength.
+const (
+	sharedModuleDir        = constants.RunTypesFileModuleDir + "/shared/"
+	sharedModuleHashLength = 10
+)
+
+// A copied group costs its rows once per extra owner, a shared module its wrapper plus one import line per owner.
+const (
+	sharedModuleBytes = 48
+	sharedImportBytes = 64
+)
+
+// rowBytes is the rendered size of rows, without a root size limit.
+func rowBytes(rows []string, nodes map[string]*reflection.RunType) int {
+	size := 0
+	for _, id := range rows {
+		size += len(strings.Join(renderFactoryArgs(nodes[id], 0), ",")) + 3
+	}
+	return size
+}
+
+// withCopies adds to rows the copied rows they or roots reach through other copied rows, never past a row with a
+// module of its own; every one of them is in the closure of each module writing it, so a copy never leaks.
+func (homes *RowHomes) withCopies(rows, roots []string, nodes map[string]*reflection.RunType) []string {
+	seen := make(map[string]bool, len(rows))
+	for _, id := range rows {
+		seen[id] = true
+	}
+	out := slices.Clone(rows)
+	queue := slices.Clone(rows)
+	visit := func(id string) {
+		if homes.copied[id] && nodes[id] != nil && !seen[id] {
+			seen[id] = true
+			out = append(out, id)
+			queue = append(queue, id)
+		}
+	}
+	for _, root := range roots {
+		visit(root)
+	}
+	for len(queue) > 0 {
+		id := queue[len(queue)-1]
+		queue = queue[:len(queue)-1]
+		for _, child := range collectRefDeps(nodes[id]) {
+			visit(child)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// directImports is the sorted set of modules other than self holding the roots or a child of rows; the runtime
+// and the bundler follow each import's own imports for the rest.
+func (homes *RowHomes) directImports(self string, rows, roots []string, nodes map[string]*reflection.RunType) []string {
+	seen := map[string]bool{}
+	add := func(id string) {
+		if home := homes.home[id]; home != "" && home != self && nodes[id] != nil {
+			seen[home] = true
+		}
+	}
+	for _, root := range roots {
+		add(root)
+	}
+	for _, id := range rows {
+		for _, child := range collectRefDeps(nodes[id]) {
+			add(child)
+		}
+	}
+	return slices.Sorted(maps.Keys(seen))
+}
+
+// CollectEntries emits per module (nil moduleOf means one) a data entry of the rows it owns, importing the shared
+// modules holding the rest of its closure, and a facade per root. Nil homes plans them from dump itself.
+// The tuple key hashes the row ids and root size limits, so an evolved module re-registers after an HMR reload.
+// jsonMaxBytes false leaves slot 21 off every root row, so a consumer not deriving request limits pays nothing.
+func CollectEntries(dump protocol.Dump, jsonMaxBytes bool, moduleOf func(protocol.Site) string, homes *RowHomes) entrymodules.Graph {
+	if homes == nil {
+		homes = PlanRowHomes(dump, moduleOf)
+	}
 	graph := entrymodules.Graph{}
 	nodes := indexNodes(dump.RunTypes)
-	// Bundle rows are the reflection-only roots' graphs. Circular createX types
-	// no longer contribute rows: the circular-reference guard became a
-	// compile-time option that bakes a path skeleton into the armed factory, so
-	// it needs no RunType graph at runtime (a plain cyclable type ships nothing).
-	facadeRoots := reflectionRoots(dump.Sites)
-	rowRoots := facadeRoots
-	if len(rowRoots) == 0 {
-		return graph
-	}
-	rows := closureRows(rowRoots, nodes)
-	indexOf := make(map[string]int, len(rows))
-	for i, id := range rows {
-		indexOf[id] = i
-	}
-
-	var rowsText strings.Builder
-	var footer strings.Builder
-	relRows := make([]string, len(rows))
-	for i, id := range rows {
-		if i > 0 {
-			// One row per line — the data array is otherwise a single
-			// unreadable mega-line. Newlines in an array literal are inert,
-			// and bundleKey hashes `rows` (the ids), not this text.
-			rowsText.WriteString(",\n")
-		}
-		rowsText.WriteByte('[')
-		rowsText.WriteString(strings.Join(renderFactoryArgs(nodes[id]), ","))
-		rowsText.WriteByte(']')
-		// Ref relations ride the parallel `rels` array as row INDICES (see
-		// renderRelations); only expression-specials (classType / bigint /
-		// symbol / formatAnnotation) land in the residual footer, so the ini
-		// slot is a hole for the common object/array/union node.
-		relRows[i] = renderRelations(nodes[id], indexOf)
-		if hasBundleSpecials(nodes[id]) {
-			writeBundleSpecials(&footer, nodes[id])
-		}
-	}
-	// Trailing leaf rows carry no relations — trim them so the runtime's
-	// `rels[i]` read returns undefined for those tail indices (a no-op wire).
-	relEnd := len(relRows)
-	for relEnd > 0 && relRows[relEnd-1] == "" {
-		relEnd--
-	}
-	bundleKey := "rts_" + hashid.QuickHash(strings.Join(rows, ","), bundleKeyLength, "")
-	graph.Add(&entrymodules.Entry{
-		Key:      bundleKey,
-		Kind:     entrymodules.KindRunTypeBundle,
-		ArgsText: quoteJS(bundleKey) + ",[" + rowsText.String() + "],[" + strings.Join(relRows[:relEnd], ",") + "]",
-		InitBody: footer.String(),
-	})
-	// Facades are emitted for every reflection root — even one whose node never
-	// made it into the dump (defensive): the injected import must resolve, and
-	// the runtime degrades to a registry miss exactly as before.
-	extraDeps := reflectionSiteDemandKeys(dump.Sites)
-	for _, root := range facadeRoots {
-		graph.Add(&entrymodules.Entry{
-			Key:      root,
-			Kind:     entrymodules.KindRunTypeFacade,
-			ArgsText: quoteJS(root),
-			Deps:     []string{bundleKey},
-			SoftDeps: extraDeps[root],
-		})
+	// A row is written once, so it carries its size limit when it is a root anywhere in the program.
+	rootJSONMax := rootJSONMaxBytes(slices.Sorted(maps.Keys(homes.roots)), nodes, jsonMaxBytes)
+	sitesByModule := groupReflectionSites(dump, moduleOf)
+	emittedShared := map[string]bool{}
+	// Sorted, so the graph is deterministic.
+	for _, module := range slices.Sorted(maps.Keys(sitesByModule)) {
+		collectModule(graph, module, sitesByModule[module], nodes, rootJSONMax, homes, emittedShared)
 	}
 	return graph
 }
 
-// reflectionSiteDemandKeys maps each reflection root id to the deduped, sorted
-// cache-entry keys its sites demand BEYOND the runtype graph — today the fmt
-// (formatTransform) entry a createMockDataFn-shaped site needs so generated
-// mocks apply declared format transforms (see scan.go
-// mockFormatTransformDemand). Riding the facade's SoftDeps loads those entries
-// with the site's injected import; an entry the emitter dropped degrades to a
-// KindMissing stub, so the import always resolves and the mock walker simply
-// finds no transform — the pre-demand behavior.
+// groupReflectionSites buckets the reflection-only sites by the module their file maps to.
+func groupReflectionSites(dump protocol.Dump, moduleOf func(protocol.Site) string) map[string][]protocol.Site {
+	sitesByModule := map[string][]protocol.Site{}
+	for _, site := range dump.Sites {
+		// Circular createX types add no rows: their guard is a path skeleton baked into the armed factory.
+		if site.ID == "" || site.FnId != "" {
+			continue
+		}
+		module := constants.RunTypesBundleBasename
+		if moduleOf != nil {
+			module = moduleOf(site)
+		}
+		sitesByModule[module] = append(sitesByModule[module], site)
+	}
+	return sitesByModule
+}
+
+// collectModule adds one module's data entry and facades to graph, plus every shared module its closure reaches.
+func collectModule(graph entrymodules.Graph, module string, sites []protocol.Site, nodes map[string]*reflection.RunType,
+	rootJSONMax map[string]int, homes *RowHomes, emittedShared map[string]bool) {
+	roots := reflectionRoots(sites)
+	closure := homes.closures[module]
+	rowsByHome := map[string][]string{}
+	for _, id := range closure {
+		rowsByHome[homes.home[id]] = append(rowsByHome[homes.home[id]], id)
+	}
+	// Every row of a shared module is in the closure of each module reaching it, so the slice is the whole module.
+	// Copied rows have no home ("") and ride withCopies instead.
+	for _, shared := range slices.Sorted(maps.Keys(rowsByHome)) {
+		if shared == "" || shared == module || emittedShared[shared] {
+			continue
+		}
+		emittedShared[shared] = true
+		rows := homes.withCopies(rowsByHome[shared], nil, nodes)
+		addDataEntry(graph, shared, "rts_"+path.Base(shared), rows, nodes, rootJSONMax, homes.directImports(shared, rows, nil, nodes))
+	}
+	dataKey := module + moduleKeySeparator + dataEntryName
+	// A root missing from the dump still gets a facade so the injected import resolves; the runtime sees a registry miss.
+	var facadeDeps []string
+	if len(closure) > 0 {
+		rows := homes.withCopies(rowsByHome[module], roots, nodes)
+		addDataEntry(graph, module, "", rows, nodes, rootJSONMax, homes.directImports(module, rows, roots, nodes))
+		facadeDeps = []string{dataKey}
+	}
+	extraDeps := reflectionSiteDemandKeys(sites)
+	for _, root := range roots {
+		graph.Add(&entrymodules.Entry{
+			Key:      module + moduleKeySeparator + root,
+			Kind:     entrymodules.KindRunTypeFacade,
+			Module:   module,
+			Export:   root,
+			ArgsText: quoteJS(root),
+			Deps:     facadeDeps,
+			SoftDeps: extraDeps[root],
+		})
+	}
+}
+
+// addDataEntry adds module's data entry holding rows, importing the data entries of the modules in imports.
+// A file whose rows are all shared still gets one, with no rows, so each facade keeps a single data dep.
+func addDataEntry(graph entrymodules.Graph, module, export string, rows []string, nodes map[string]*reflection.RunType,
+	rootJSONMax map[string]int, imports []string) {
+	sort.Strings(rows)
+	indexOf := make(map[string]int, len(rows))
+	for i, id := range rows {
+		indexOf[id] = i
+	}
+	var rowsText strings.Builder
+	var footer strings.Builder
+	relRows := make([]string, len(rows))
+	keyParts := make([]string, len(rows))
+	for i, id := range rows {
+		if i > 0 {
+			// One row per line: newlines in an array literal are inert, and the tuple key hashes the ids, not this text.
+			rowsText.WriteString(",\n")
+		}
+		rowsText.WriteByte('[')
+		rowsText.WriteString(strings.Join(renderFactoryArgs(nodes[id], rootJSONMax[id]), ","))
+		rowsText.WriteByte(']')
+		// Refs ride the parallel `rels` array as row indices, or as ids for a row another module holds; only
+		// expression-specials need the footer, so ini is mostly a hole.
+		relRows[i] = renderRelations(nodes[id], indexOf)
+		if hasBundleSpecials(nodes[id]) {
+			writeBundleSpecials(&footer, nodes[id])
+		}
+		keyParts[i] = id
+		if max, bounded := rootJSONMax[id]; bounded {
+			keyParts[i] += ":" + strconv.Itoa(max)
+		}
+	}
+	// Trailing leaf rows carry no relations: trimmed, the runtime's `rels[i]` read returns undefined for them.
+	relEnd := len(relRows)
+	for relEnd > 0 && relRows[relEnd-1] == "" {
+		relEnd--
+	}
+	deps := make([]string, len(imports))
+	for i, imported := range imports {
+		deps[i] = imported + moduleKeySeparator + dataEntryName
+	}
+	// The imports join the key: the runtime skips a key it has seen, so two files owning no rows of their own
+	// must still differ by the shared modules they load. A module importing nothing keeps its rows-only key.
+	keyText := strings.Join(keyParts, ",")
+	if len(imports) > 0 {
+		keyText += ">" + strings.Join(imports, ",")
+	}
+	tupleKey := "rts_" + hashid.QuickHash(keyText, bundleKeyLength)
+	graph.Add(&entrymodules.Entry{
+		Key:      module + moduleKeySeparator + dataEntryName,
+		Kind:     entrymodules.KindRunTypeBundle,
+		Module:   module,
+		Export:   export,
+		ArgsText: quoteJS(tupleKey) + ",[" + rowsText.String() + "],[" + strings.Join(relRows[:relEnd], ",") + "]",
+		InitBody: footer.String(),
+		Deps:     deps,
+	})
+}
+
+// moduleKeySeparator joins a module to an entry name in a graph key; no module path or type id contains it.
+const moduleKeySeparator = "#"
+
+const dataEntryName = "rts"
+
+// reflectionSiteDemandKeys maps each reflection root id to the deduped, sorted cache-entry keys its sites demand
+// BEYOND the runtype graph: today the fmt (formatTransform) entry a createMockDataFn-shaped site needs so
+// generated mocks apply declared format transforms (see scan.go mockFormatTransformDemand). They ride the
+// facade's SoftDeps; an entry the emitter dropped degrades to a KindMissing stub, so the import still resolves
+// and the mock walker simply finds no transform.
 func reflectionSiteDemandKeys(sites []protocol.Site) map[string][]string {
 	byRoot := map[string]map[string]bool{}
 	for _, site := range sites {
@@ -152,33 +335,27 @@ func indexNodes(runTypes []*reflection.RunType) map[string]*reflection.RunType {
 	return nodes
 }
 
-// CollectEntriesPerNode is the allModules-mode collector: one entrymodules.Entry
-// per cached RunType (the pre-bundle layout). Tuple args reuse
-// renderFactoryArgs verbatim, the per-entry init body reuses writeFooter, and
-// Deps collects the KindRef ids the footer references so the assembler
-// imports each child's module. Every interned runtype gets an entry — demand
-// scoping happens at the dump layer (scopedDump for scanFiles, full cache for
-// dump). Measured slower than the bundle on dense reflection graphs (the
-// reason the bundle replaced it) — kept as the allModules escape hatch.
-func CollectEntriesPerNode(dump protocol.Dump) entrymodules.Graph {
+// CollectEntriesPerNode is the allModules-mode collector: one entrymodules.Entry per cached RunType, its Deps
+// the KindRef ids the footer references so the assembler imports each child's module. Every interned runtype
+// gets an entry, demand scoping happening at the dump layer. Measured slower than the bundle on dense
+// reflection graphs, which is why the bundle replaced it; kept as the allModules escape hatch.
+func CollectEntriesPerNode(dump protocol.Dump, jsonMaxBytes bool) entrymodules.Graph {
 	graph := make(entrymodules.Graph, len(dump.RunTypes))
-	// Same extra-demand wiring as the bundle path: a mock-shaped reflection
-	// site's fmt entries ride the root node's own module (the injected import
-	// target in allModules mode) as SoftDeps.
+	// As on the bundle path, a mock-shaped site's fmt entries ride the root node's own module as SoftDeps.
 	extraDeps := reflectionSiteDemandKeys(dump.Sites)
+	rootJSONMax := rootJSONMaxBytes(reflectionRoots(dump.Sites), indexNodes(dump.RunTypes), jsonMaxBytes)
 	for _, runType := range dump.RunTypes {
 		if runType == nil || runType.ID == "" {
 			continue
 		}
 		var footer strings.Builder
-		// Per-node footers wire ref slots through `c('<id>')` registry lookups
-		// (each child rides its own module dep), unlike the data bundle which
-		// uses row indices.
+		// Per-node footers wire ref slots through `c('<id>')` registry lookups, each child riding its own module
+		// dep, unlike the data bundle's row indices.
 		writeFooter(&footer, runType)
 		graph.Add(&entrymodules.Entry{
 			Key:      runType.ID,
 			Kind:     entrymodules.KindRunType,
-			ArgsText: strings.Join(renderFactoryArgs(runType), ","),
+			ArgsText: strings.Join(renderFactoryArgs(runType, rootJSONMax[runType.ID]), ","),
 			InitBody: footer.String(),
 			Deps:     collectRefDeps(runType),
 			SoftDeps: extraDeps[runType.ID],
@@ -187,10 +364,28 @@ func CollectEntriesPerNode(dump protocol.Dump) entrymodules.Graph {
 	return graph
 }
 
-// reflectionRoots returns the deduped, sorted ids of every reflection-only
-// site — sites injecting the bare id (FnId empty), i.e. getRunTypeId /
-// value-first builders / createMockDataFn. createX sites
-// demand fn entries instead and never import runtype modules.
+// rootJSONMaxBytes computes the compact-JSON maximum (cachegen/jsonsize) of every fully bounded reflection
+// root, keyed by id. Only roots carry the number: mion reads it off the params / return roots it injects, and a
+// nested row would only bloat every bundle. An unbounded root is absent, so its row renders the slot as a hole.
+func rootJSONMaxBytes(roots []string, nodes map[string]*reflection.RunType, enabled bool) map[string]int {
+	if !enabled {
+		return nil
+	}
+	out := make(map[string]int, len(roots))
+	for _, root := range roots {
+		node := nodes[root]
+		if node == nil {
+			continue
+		}
+		if result := jsonsize.MaxBytes(node, nodes); result.Bounded {
+			out[root] = result.Bytes
+		}
+	}
+	return out
+}
+
+// reflectionRoots returns the deduped, sorted ids of every reflection-only site, one injecting the bare id
+// (FnId empty): getRunTypeId / value-first builders / createMockDataFn. createX sites demand fn entries instead.
 func reflectionRoots(sites []protocol.Site) []string {
 	var roots []string
 	seen := make(map[string]bool)
@@ -205,12 +400,10 @@ func reflectionRoots(sites []protocol.Site) []string {
 	return roots
 }
 
-// closureRows walks the ref-bearing slots from every root over the dumped
-// nodes and returns the reachable ids, sorted alphabetically (row order is
-// registration order; footers only run after every row registered, so any
-// deterministic order works). Refs to ids absent from the dump are skipped —
-// the footer still references them and the runtime registry surfaces the
-// miss, matching the pre-bundle behavior for un-dumped nodes.
+// closureRows walks the ref-bearing slots from every root and returns the reachable ids, sorted alphabetically:
+// row order is registration order and footers run only after every row registered, so any deterministic order
+// works. Refs to ids absent from the dump are skipped, the footer still referencing them and the runtime
+// registry surfacing the miss.
 func closureRows(roots []string, nodes map[string]*reflection.RunType) []string {
 	visited := make(map[string]bool, len(nodes))
 	queue := make([]string, 0, len(roots))
@@ -238,9 +431,8 @@ func closureRows(roots []string, nodes map[string]*reflection.RunType) []string 
 	return rows
 }
 
-// collectRefDeps gathers the distinct KindRef ids reachable from runType's
-// ref-bearing slots — the same slots writeFooter patches (an inline non-ref
-// child embeds as a JSON literal and contributes no row).
+// collectRefDeps gathers the distinct KindRef ids in runType's ref-bearing slots, the ones writeFooter patches;
+// an inline non-ref child embeds as a JSON literal and contributes no row.
 func collectRefDeps(runType *reflection.RunType) []string {
 	var deps []string
 	seen := make(map[string]bool)

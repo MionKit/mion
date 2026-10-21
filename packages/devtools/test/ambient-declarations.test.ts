@@ -1,17 +1,5 @@
-// Program roots vs ambient declarations — the JS-side pin of
-// docs/done/program-roots-lose-ambient-declarations.md on the daemon surface.
-//
-// Production's per-edit shape (handleHotUpdate, the lint worker) pushes ONE
-// file into setSources; anything tsc would include WITHOUT an import — an
-// ambient `.d.ts` in the tsconfig include set — used to vanish from the
-// rebuilt program, silently degrading the type to `any` and changing the
-// site's id. The daemon now unions the config's declaration files into every
-// setSources-built program's roots, and when a written name still cannot
-// resolve, MKR013 fires instead of silence.
-//
-// Marker coverage rule (CLAUDE.md): the fixture uses BOTH getRunTypeId call
-// shapes — static getRunTypeId<T>() and value-first getRunTypeId(value) —
-// with id equality asserted between them.
+// Ambient declarations without import edges must survive setSources edits; unresolved names must report diagnostics.
+// AGENTS.md requires both marker forms and equal ids.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -71,9 +59,9 @@ async function scanAmbientProject(withAmbientOnDisk: boolean) {
 }
 
 describe.runIf(hasBinary())('daemon surface — ambient declarations survive the per-edit rebuild', () => {
-  it('an ambient .d.ts in the include set resolves after setSources edits: no MKR013, both getRunTypeId shapes share one id', async () => {
+  it('an ambient .d.ts in the include set resolves after setSources edits: no marker-any-from-unresolved-name, both getRunTypeId shapes share one id', async () => {
     const result = await scanAmbientProject(true);
-    expect((result.diagnostics ?? []).map((diagnostic) => diagnostic.code)).not.toContain('MKR013');
+    expect((result.diagnostics ?? []).map((diagnostic) => diagnostic.code)).not.toContain('marker-any-from-unresolved-name');
     expect(result.sites).toHaveLength(3);
     const reflectIds = result.sites.filter((site) => !site.fnId).map((site) => site.id);
     expect(reflectIds).toHaveLength(2);
@@ -82,10 +70,12 @@ describe.runIf(hasBinary())('daemon surface — ambient declarations survive the
     expect(new Set(result.sites.map((site) => site.id)).size).toBe(1);
   });
 
-  it('without the ambient file the same edit fails LOUDLY with MKR013 naming the reference, never silently as any', async () => {
+  it('without the ambient file the same edit fails LOUDLY with marker-any-from-unresolved-name naming the reference, never silently as any', async () => {
     const result = await scanAmbientProject(false);
-    const mkr013 = (result.diagnostics ?? []).filter((diagnostic) => diagnostic.code === 'MKR013');
-    expect(mkr013.length).toBeGreaterThan(0);
-    expect(mkr013[0].args).toContain('AmbientMeta');
+    const markerAnyFromUnresolvedName = (result.diagnostics ?? []).filter(
+      (diagnostic) => diagnostic.code === 'marker-any-from-unresolved-name'
+    );
+    expect(markerAnyFromUnresolvedName.length).toBeGreaterThan(0);
+    expect(markerAnyFromUnresolvedName[0].args).toContain('AmbientMeta');
   });
 });

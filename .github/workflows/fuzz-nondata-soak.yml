@@ -1,0 +1,39 @@
+name: prod · non-data fuzz soak
+
+# The non-data type lane soaks 10 minutes, not 60 s: two hand-run 10-minute soaks each found a real gap. release-gate.yml
+# calls it as a gate job (`soakWorkflow` on its FUZZ entry keeps it out of the soak matrix), so a red soak blocks release.
+on:
+  workflow_call:
+    inputs:
+      seed:
+        description: 'MION_FUZZ_SEED; blank derives one from the run id'
+        type: string
+        default: ''
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: 'MION_FUZZ_SEED; blank derives one from the run id (fresh ground)'
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  soak:
+    name: fuzz soak · nondata
+    runs-on: ubuntu-latest
+    # 10 minutes of fuzzing plus the build and the soak headroom; an overrun is a finding.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/bootstrap
+      - uses: ./.github/actions/resolver
+      - name: Build the resolver + dists
+        run: pnpm run check:builds
+      - name: Soak nondata
+        env:
+          MION_FUZZ_SEED: ${{ inputs.seed || github.run_id }}
+        run: |
+          echo "replay this run: MION_FUZZ_SEED=$MION_FUZZ_SEED pnpm miondevx core fuzz nondata --soak"
+          pnpm miondevx core fuzz nondata --soak

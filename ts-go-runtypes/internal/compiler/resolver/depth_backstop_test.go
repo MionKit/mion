@@ -42,18 +42,18 @@ func requireSingle(t *testing.T, diags []diagnostics.Diagnostic, code, expectedA
 	}
 }
 
-// TestScan_SelfInstantiatingGeneric_EmitsMKR009 pins the typeid walker depth
+// TestScan_SelfInstantiatingGeneric_EmitsMarkerSelfInstantiatingGeneric pins the typeid walker depth
 // backstop's cause classification.
 // `Iter<T>`'s `map` method returns a FRESH instantiation `Iter<U>` on every
 // level, so each spine level is a new *checker.Type pointer: the structural-id
 // walk's pointer cycle guard never fires and, without the cap, Compute recursed
 // until a fatal Go stack overflow. The cap now classifies the overflowing stack
-// — instantiations of ONE named type dominating it — and reports MKR009 naming
+// — instantiations of ONE named type dominating it — and reports marker-self-instantiating-generic naming
 // the self-instantiating generic (`Iter`), at the call site, deterministically.
 // This test COMPLETING at all (no crash) is itself half the assertion. The
-// top-level type argument is concrete, so neither MKR003 nor MKR010 pre-empts
+// top-level type argument is concrete, so neither marker-in-generic-function nor marker-unresolved-type-parameter pre-empts
 // it: the free `U` lives in `map`'s own signature, which is exempt by design.
-func TestScan_SelfInstantiatingGeneric_EmitsMKR009(t *testing.T) {
+func TestScan_SelfInstantiatingGeneric_EmitsMarkerSelfInstantiatingGeneric(t *testing.T) {
 	r := setupInline(t, map[string]string{
 		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 interface Iter<T> { map<U>(fn: (x: T) => U): Iter<U>; }
@@ -66,16 +66,16 @@ export const id = getRunTypeId<Iter<string>>();
 	}
 	requireSingle(t, resp.Diagnostics, diagnostics.CodeMarkerSelfInstantiatingGeneric, "Iter")
 	if got := countCode(resp.Diagnostics, diagnostics.CodeStructuralIdDepthExceeded); got != 0 {
-		t.Fatalf("classified spiral must report MKR009, not the MKR008 fallback; got %d MKR008", got)
+		t.Fatalf("classified spiral must report marker-self-instantiating-generic, not the marker-type-too-deep fallback; got %d marker-type-too-deep", got)
 	}
 }
 
-// TestScan_SelfInstantiatingGeneric_ValueFirst_EmitsMKR009 is the value-first
+// TestScan_SelfInstantiatingGeneric_ValueFirst_EmitsMarkerSelfInstantiatingGeneric is the value-first
 // pair of the test above (Marker test-coverage rule): T is inferred from a
 // value of type `Iter<string>` rather than supplied as a type argument. The cap
 // lives in the shared structural-id walker, so both call shapes classify
 // identically.
-func TestScan_SelfInstantiatingGeneric_ValueFirst_EmitsMKR009(t *testing.T) {
+func TestScan_SelfInstantiatingGeneric_ValueFirst_EmitsMarkerSelfInstantiatingGeneric(t *testing.T) {
 	r := setupInline(t, map[string]string{
 		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 interface Iter<T> { map<U>(fn: (x: T) => U): Iter<U>; }
@@ -93,7 +93,7 @@ export const id = getRunTypeId(it);
 // TestScan_RenamedTypeParams_StillSelfInstantiating pins that renaming the type
 // PARAMETERS to `String` / `Number` does not resolve anything — inside the
 // interface those names are the parameters (shadowing the globals), so the
-// shape is exactly as generic as `<T>` / `<U>` and still spirals to MKR009.
+// shape is exactly as generic as `<T>` / `<U>` and still spirals to marker-self-instantiating-generic.
 // The resolved fix is a MONOMORPHIC interface (next test), not a rename.
 func TestScan_RenamedTypeParams_StillSelfInstantiating(t *testing.T) {
 	r := setupInline(t, map[string]string{
@@ -139,12 +139,12 @@ export const b = getRunTypeId(it);
 	}
 }
 
-// TestScan_GrowingArgumentAlias_EmitsMKR009 covers the second unbounded shape:
+// TestScan_GrowingArgumentAlias_EmitsMarkerSelfInstantiatingGeneric covers the second unbounded shape:
 // an alias that re-instantiates itself with a GROWING type argument each level
 // (`Nest<[T]>`). No structure ever repeats, so this is unbounded even for a
 // structural detector — the cap classifies the dominating alias symbol and
 // names it.
-func TestScan_GrowingArgumentAlias_EmitsMKR009(t *testing.T) {
+func TestScan_GrowingArgumentAlias_EmitsMarkerSelfInstantiatingGeneric(t *testing.T) {
 	r := setupInline(t, map[string]string{
 		"a.ts": `import {getRunTypeId} from '@mionjs/run-types';
 type Nest<T> = { value: T; next: Nest<[T]> };
@@ -158,11 +158,11 @@ export const id = getRunTypeId<Nest<string>>();
 	requireSingle(t, resp.Diagnostics, diagnostics.CodeMarkerSelfInstantiatingGeneric, "Nest")
 }
 
-// TestScan_DeepAnonymousNesting_FallsBackToMKR008 pins the residual fallback:
+// TestScan_DeepAnonymousNesting_FallsBackToMarkerTypeTooDeep pins the residual fallback:
 // literally written nesting past the cap with NO named type dominating the
 // stack (every level a distinct anonymous literal). No spiral to name, so the
-// plain too-deep MKR008 fires.
-func TestScan_DeepAnonymousNesting_FallsBackToMKR008(t *testing.T) {
+// plain too-deep marker-type-too-deep fires.
+func TestScan_DeepAnonymousNesting_FallsBackToMarkerTypeTooDeep(t *testing.T) {
 	const depth = 520 // just past maxWalkDepth (512)
 	code := "import {getRunTypeId} from '@mionjs/run-types';\n" +
 		"type Deep = " + strings.Repeat("{a: ", depth) + "string" + strings.Repeat("}", depth) + ";\n" +
@@ -174,7 +174,7 @@ func TestScan_DeepAnonymousNesting_FallsBackToMKR008(t *testing.T) {
 	}
 	requireSingle(t, resp.Diagnostics, diagnostics.CodeStructuralIdDepthExceeded, "")
 	if got := countCode(resp.Diagnostics, diagnostics.CodeMarkerSelfInstantiatingGeneric); got != 0 {
-		t.Fatalf("anonymous nesting has no culprit to name — must fall back to MKR008, got %d MKR009", got)
+		t.Fatalf("anonymous nesting has no culprit to name — must fall back to marker-type-too-deep, got %d marker-self-instantiating-generic", got)
 	}
 }
 
@@ -244,7 +244,7 @@ func sentinelSharedSpine(sites ...string) string {
 // Because the latch clears per top-level walk (assignID → ResetDepthExceeded),
 // a LATER walk that is itself shallow enough to be perfectly legal could
 // cache-hit the poisoned ancestor and commit a `$depth`-bearing structural
-// string as a REAL id — no MKR008, no MKR009, just a silently wrong id.
+// string as a REAL id — no marker-type-too-deep, no marker-self-instantiating-generic, just a silently wrong id.
 //
 // The assertion is differential: `S300` resolved in a program that also walks
 // the over-deep `D400` must get a byte-identical id to `S300` resolved alone.
@@ -262,7 +262,7 @@ func TestScan_DepthSentinelDoesNotPoisonALaterWalk(t *testing.T) {
 	// survives; assert on its position so a future emit change can't silently
 	// leave us comparing the D400 site instead.
 	if got := countCode(poisonedResp.Diagnostics, diagnostics.CodeStructuralIdDepthExceeded); got != 1 {
-		t.Fatalf("precondition: D400 must trip the depth cap exactly once, got %d MKR008: %+v", got, poisonedResp.Diagnostics)
+		t.Fatalf("precondition: D400 must trip the depth cap exactly once, got %d marker-type-too-deep: %+v", got, poisonedResp.Diagnostics)
 	}
 	if len(poisonedResp.Sites) != 1 {
 		t.Fatalf("precondition: the diagnosed D400 site drops out, leaving 1 site, got %d", len(poisonedResp.Sites))
@@ -278,7 +278,7 @@ func TestScan_DepthSentinelDoesNotPoisonALaterWalk(t *testing.T) {
 		t.Fatalf("control scan: %s", controlResp.Error)
 	}
 	if got := countCode(controlResp.Diagnostics, diagnostics.CodeStructuralIdDepthExceeded); got != 0 {
-		t.Fatalf("precondition: S300 alone is 301 frames deep and must NOT trip the cap, got %d MKR008", got)
+		t.Fatalf("precondition: S300 alone is 301 frames deep and must NOT trip the cap, got %d marker-type-too-deep", got)
 	}
 	if len(controlResp.Sites) != 1 {
 		t.Fatalf("precondition: expected 1 control injection site, got %d", len(controlResp.Sites))

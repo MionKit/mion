@@ -1,26 +1,10 @@
-// Type-safety regression tests for the marker package's public surface.
-//
-// The body of each `assertions...` function below is a type-only test.
-// The functions are referenced (so esbuild does not tree-shake them) but
-// never invoked, so the bodies have no runtime effect. Assertions are either
-// positive (must compile) or `@ts-expect-error` directives that pin a
-// type-level REJECTION — a regression that makes such a line compile again
-// surfaces as TS2578 "Unused '@ts-expect-error' directive".
-//
-// Why this shape: vitest's typecheck mode is global (would surface a
-// dozen unrelated preexisting type errors); we want focused regression
-// tests for the builder/marker types. The IDE catches regressions
-// immediately; CI catches them when anyone runs
-// `tsc -p packages/run-types/tsconfig.test.json --noEmit`.
+// Type-safety regression tests for the marker package's public surface. Each `assertions...` body is a
+// type-only test, referenced so esbuild keeps it but never invoked; `@ts-expect-error` pins a type-level
+// REJECTION, and a line that compiles again surfaces as TS2578. Not vitest's typecheck mode: that is global
+// and would surface a dozen unrelated preexisting errors. CI runs `tsc -p packages/run-types/tsconfig.json --noEmit`.
 
-// NOTE: imports use RELATIVE `../src/…` paths (not the `@mionjs/run-types/*` package
-// specifiers) so this file exercises the in-tree source directly. Import style
-// no longer affects the vite plugin's transform scope (the gate is the
-// resolver's site-file set — a scan result, not text matching), so the
-// `getRunTypeId()` "no id injected" runtime-contract tests below call through a
-// TYPE-ERASED alias instead: the scanner matches calls by their resolved marker
-// signature, and an erased signature can never be rewritten. The assertion
-// bodies are type-only / never invoked, so the value builders here never run.
+// Relative imports test the in-tree source, but the transform scope is the resolver's scan, not import text.
+// So the "no id injected" `getRunTypeId()` tests call a TYPE-ERASED alias: an erased signature is never rewritten.
 import * as TF from '../../src/formats/index.ts';
 import * as TFT from '../../src/formats/datetime/temporalFormats.ts';
 import {describe, expect, test} from 'vitest';
@@ -41,6 +25,8 @@ test('type-only assertions are referenced (no runtime work here)', () => {
   expect(typeof assertionsComposerExactInference).toBe('function');
   expect(typeof assertionsFormatBranding).toBe('function');
   expect(typeof assertionsValueFirstBranding).toBe('function');
+  expect(typeof assertionsEmailPresetRoads).toBe('function');
+  expect(typeof assertionsQuickPresetsRejectParts).toBe('function');
 });
 
 // Runtime contract: the markers throw at runtime when no id is injected
@@ -246,7 +232,7 @@ function assertionsExactParams(): void {
   TF.string({minLength: 1, maxLenght: 50});
   // @ts-expect-error — `transfrom` (typo for `transform`) is not a string param. A typo INSIDE the
   // block (`transform: {trimm: true}`) is not a TS error, the exact-params check is shallow; the
-  // build rejects it instead (FMT002 from the Go-side ValidateTransformParams).
+  // build rejects it instead (format-invalid-params from the Go-side ValidateTransformParams).
   TF.string({maxLength: 5, transfrom: {trim: true}});
   // @ts-expect-error — `mx` (typo for `max`) is not a bigint param.
   TF.bigInt({min: 0n, mx: 10n});
@@ -266,6 +252,53 @@ function assertionsExactParams(): void {
   // through and silently fails to apply.
   // @ts-expect-error — `optionl` is a typo for `optional`; not a valid modifier.
   RT.propMod({optionl: true}, TF.string({maxLength: 8}));
+}
+
+// The RFC presets (`emailRfc`) never split, so they reject the localPart/domain keys.
+function assertionsEmailPresetRoads(): void {
+  // The pins must leave the preset's other params overridable.
+  const bounded: TF.EmailAddress<{minLength: 10}> = 'joe@example.com' as TF.EmailAddress<{minLength: 10}>;
+  void bounded;
+  TF.emailAddress({minLength: 10});
+  TF.idnEmail({maxLength: 120});
+
+  // @ts-expect-error — `localPart` is the split road; EmailAddress takes the RFC one.
+  type AddressWithLocalPart = TF.EmailAddress<{localPart: {maxLength: 8}}>;
+  // @ts-expect-error — `domain` is the split road too.
+  type IdnWithDomain = TF.IdnEmail<{domain: {maxLength: 253}}>;
+  void (undefined as unknown as [AddressWithLocalPart, IdnWithDomain]);
+
+  // @ts-expect-error — the builders pin the same keys.
+  TF.emailAddress({localPart: {maxLength: 8}});
+  // @ts-expect-error — same on the idn builder.
+  TF.idnEmail({domain: {maxLength: 253}});
+
+  // EmailParts pins its split keys: they ARE the format.
+  const parts: TF.EmailParts = 'joe@example.com' as TF.EmailParts;
+  void parts;
+  // @ts-expect-error — `localPart` is EmailParts's identity, not an override.
+  type PartsRetuned = TF.EmailParts<{localPart: {maxLength: 8}}>;
+  void (undefined as unknown as PartsRetuned);
+}
+
+// The quick presets never split, so they reject the split keys.
+function assertionsQuickPresetsRejectParts(): void {
+  // @ts-expect-error — `maxParts` needs the split, use DomainParts.
+  type DomainMaxParts = TF.Domain<{maxParts: 2}>;
+  // @ts-expect-error — `names` too.
+  type HostnameNames = TF.Hostname<{names: {maxLength: 10}}>;
+  // @ts-expect-error — `localPart` needs the split, use EmailParts.
+  type EmailLocalPart = TF.Email<{localPart: {maxLength: 8}}>;
+  // @ts-expect-error — `domain` too.
+  type PunycodeDomain = TF.EmailPunycode<{domain: {maxLength: 100}}>;
+  void (undefined as unknown as [DomainMaxParts, HostnameNames, EmailLocalPart, PunycodeDomain]);
+  // @ts-expect-error — the builders reject the same keys.
+  TF.domain({maxLength: 100, maxParts: 2});
+  // @ts-expect-error — same on the email builder.
+  TF.email({maxLength: 100, localPart: {maxLength: 8}});
+  // allowedValues is a whole-value check, so the quick domain keeps it.
+  TF.domain({allowedValues: {val: ['example.com']}});
+  TF.domainParts({maxParts: 4});
 }
 
 function assertionsComposers(): void {
@@ -308,6 +341,7 @@ function assertionsComposers(): void {
   void _back;
 
   // @ts-expect-error — `array` takes a RunType schema, not the bare builder fn.
+  // @mion-downgrade-error marker-comptime-arg-forbidden-construct
   RT.array(RT.boolean);
 
   // @ts-expect-error — `literal` only accepts string/number/bigint/boolean/null/undefined.
@@ -363,12 +397,8 @@ function assertionsNewBuilders(): void {
   RT.tuple({required: [TF.number(), RT.slot('x', TF.number())]});
   // @ts-expect-error — `rest` is a single element, not a list.
   RT.tuple({required: [TF.number()], rest: [TF.string()]});
-  // @ts-expect-error — the positional spelling is gone; groups must be named.
-  RT.tuple([TF.number()], [TF.string()]);
   // @ts-expect-error — `prams` is a typo for `params`.
   RT.func({prams: [TF.number()], ret: TF.string()});
-  // @ts-expect-error — the positional func spelling is gone too.
-  RT.func([TF.number()], TF.string());
 
   // func(): ret defaults to void. The wired cases use no typed params (function
   // values lower per position); `func({ret: any()})` is the `() => any` form that

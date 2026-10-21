@@ -7,11 +7,14 @@
 
 // Every server under test. `dir` is its isolated pnpm project under apps/, `entry`
 // the file to run, `runtime` which binary runs it. The mion lanes share ONE project
-// (one build, three entry points) because they differ only in platform adapter.
+// (one build, one entry point per lane) because they differ only in platform adapter or wire.
 //
 // `description` and `validation` are what the docs table prints, so they live beside
 // the app rather than in the website content - a lane that changes what it does
 // updates its own row.
+//
+// `wire: 'compact'` lanes are written and read with the compact codec. A `twinOf` lane is drawn only
+// on charts that ask for its base (`twins="<app>"`), so it never crowds the framework comparison.
 
 export const APPS = [
   {
@@ -49,6 +52,20 @@ export const APPS = [
     validation: true,
     versionOf: '@mionjs/platform-bun',
     description: 'mion using bun, automatic validation and serialization',
+  },
+  {
+    name: 'mion.compact',
+    label: 'mion.compact',
+    family: 'mion',
+    dir: 'mion',
+    entry: 'dist/server-node-compact.mjs',
+    runtime: 'node',
+    router: true,
+    validation: true,
+    versionOf: '@mionjs/router',
+    description: 'mion on node over compact JSON: objects travel as arrays, no key names',
+    wire: 'compact',
+    twinOf: 'mion',
   },
   {
     name: 'http-node',
@@ -138,5 +155,3 @@ export const APPS = [
 
 export const APP_NAMES = APPS.map((app) => app.name);
 export const findApp = (name) => APPS.find((app) => app.name === name);
-/** The mion adapters, the only lanes the payload-size sweep runs. */
-export const MION_APPS = APPS.filter((app) => app.family === 'mion');

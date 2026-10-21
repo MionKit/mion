@@ -1,0 +1,110 @@
+/* ########
+ * 2026 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+// The REAL `mion convert` binary over a temp project whose node_modules links this workspace's packages.
+// Pins the pair spelling both ways and the byte fixpoint; the random corpus is the Go round-trip fuzz.
+
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {spawnSync} from 'node:child_process';
+import {afterAll, beforeAll, describe, expect, it} from 'vitest';
+import {BIN, hasBinary} from '../../devtools/test/helpers/inline.ts';
+
+const register = hasBinary() ? describe : describe.skip;
+
+const TSCONFIG = `{
+  "compilerOptions": {
+    "target": "ES2022", "module": "ESNext", "moduleResolution": "Bundler",
+    "customConditions": ["source"], "rootDir": "src", "strict": true
+  },
+  "include": ["src"]
+}
+`;
+
+const BUILDERS_SOURCE =
+  "import * as DZ from '@mionjs/drizzle-orm-sqlite-core';\n" +
+  "export const users = DZ.sqliteTable('users', {\n" +
+  '  id: DZ.integer({primaryKey: true}),\n' +
+  "  name: DZ.text('user_name', {notNull: true}),\n" +
+  '  age: DZ.integer({notNull: true, default: [21]}),\n' +
+  '});\n' +
+  'export type UsersTable = typeof users;\n';
+
+let projectDir = '';
+let mainPath = '';
+
+function convertTo(source: string, target: 'type' | 'builders'): string {
+  fs.writeFileSync(mainPath, source);
+  const result = spawnSync(
+    BIN,
+    ['convert', '--tsconfig', path.join(projectDir, 'tsconfig.json'), '--to', target, path.join(projectDir, 'src')],
+    {
+      encoding: 'utf8',
+      cwd: projectDir,
+      maxBuffer: 64 * 1024 * 1024,
+    }
+  );
+  expect(result.status, `convert --to ${target} stderr:\n${result.stderr}\n--- input ---\n${source}`).toBe(0);
+  return fs.readFileSync(mainPath, 'utf8');
+}
+
+register('drizzle convert CLI round trip', () => {
+  beforeAll(() => {
+    projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-drizzle-convert-sqlite-'));
+    fs.writeFileSync(path.join(projectDir, 'tsconfig.json'), TSCONFIG);
+    fs.mkdirSync(path.join(projectDir, 'src'));
+    // Linked by name, so the source export condition resolves their real src.
+    const packages: Array<[string, string]> = [
+      ['@mionjs/drizzle-orm-sqlite-core', path.resolve(__dirname, '..')],
+      ['@mionjs/drizzle-orm', path.resolve(__dirname, '../../drizzle-orm')],
+      ['@mionjs/run-types', path.resolve(__dirname, '../../run-types')],
+    ];
+    for (const [name, target] of packages) {
+      const linkPath = path.join(projectDir, 'node_modules', name);
+      fs.mkdirSync(path.dirname(linkPath), {recursive: true});
+      fs.symlinkSync(target, linkPath, 'junction');
+    }
+    mainPath = path.join(projectDir, 'src', 'main.ts');
+  });
+  afterAll(() => {
+    fs.rmSync(projectDir, {recursive: true, force: true});
+  });
+
+  it('runtime-callback modifiers ride options.runtime through the round trip', () => {
+    const runtimeSource =
+      "import * as DZ from '@mionjs/drizzle-orm-sqlite-core';\n" +
+      "export const jobs = DZ.sqliteTable('jobs', {\n" +
+      '  id: DZ.integer({primaryKey: true}),\n' +
+      "  slug: DZ.text({notNull: true, $defaultFn: [() => 'slug-1']}),\n" +
+      '});\n' +
+      'export type JobsTable = typeof jobs;\n';
+    const typeForm = convertTo(runtimeSource, 'type');
+    expect(typeForm).toContain('  slug: DZ.Text<{notNull: true; $defaultFn: true}>;');
+    expect(typeForm).toContain(
+      "export const jobs = DZ.tableFromType<JobsTable>({runtime: {slug: {$defaultFn: () => 'slug-1'}}});"
+    );
+    const buildersForm = convertTo(typeForm, 'builders');
+    expect(buildersForm).toContain("  slug: DZ.text({notNull: true, $defaultFn: [() => 'slug-1']}),");
+    expect(convertTo(buildersForm, 'type')).toBe(typeForm);
+  });
+
+  it('builders → type emits the canonical pair, and back, landing on a byte fixpoint', () => {
+    const typeForm = convertTo(BUILDERS_SOURCE, 'type');
+    expect(typeForm).toContain("export type UsersTable = DZ.SqliteTable<'users', {");
+    expect(typeForm).toContain("}, [], {name: 'user_name'}>;");
+    expect(typeForm).toContain('  name: DZ.Text<{notNull: true}>;');
+    // The marker form: no repeated type name, no getRunType call.
+    expect(typeForm).toContain('export const users = DZ.tableFromType<UsersTable>();');
+    expect(typeForm).not.toContain('getRunType');
+    const buildersForm = convertTo(typeForm, 'builders');
+    expect(buildersForm).toBe(BUILDERS_SOURCE);
+    const typeAgain = convertTo(buildersForm, 'type');
+    expect(typeAgain).toBe(typeForm);
+    expect(convertTo(typeForm, 'type')).toBe(typeForm);
+  });
+});

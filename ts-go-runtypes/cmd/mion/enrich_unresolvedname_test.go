@@ -11,7 +11,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/enrichgen"
 )
 
-// The enrich lane's half of docs/done/program-roots-lose-ambient-declarations.md:
+// The enrich lane's half of the program-roots fix (ambient declarations):
 // buildProgram unions the config's file list into the inferred Program's roots,
 // so an ambient declaration nothing imports resolves exactly as tsc sees it and
 // the scaffolded mirror covers its members — and a written type name that fails
@@ -58,7 +58,7 @@ func TestEnrichPlan_AmbientDeclarationResolves(t *testing.T) {
 	}
 	defer res.Close()
 
-	specs, _, planErr := enrichgen.Plan(prog, res.Checker(), res.Cache(), absSrc, "Holder", "", true, true, config)
+	specs, planErr := enrichgen.Plan(prog, res.Checker(), res.Cache(), absSrc, "Holder", "", true, true, config)
 	if planErr != nil {
 		t.Fatalf("plan over a resolvable ambient must succeed, got: %v", planErr)
 	}
@@ -86,7 +86,7 @@ func TestEnrichPlan_UnresolvedNameRefuses(t *testing.T) {
 	}
 	defer res.Close()
 
-	_, _, planErr := enrichgen.Plan(prog, res.Checker(), res.Cache(), absSrc, "Broken", "", true, true, config)
+	_, planErr := enrichgen.Plan(prog, res.Checker(), res.Cache(), absSrc, "Broken", "", true, true, config)
 	if planErr == nil {
 		t.Fatalf("plan over an unresolved type name must refuse")
 	}

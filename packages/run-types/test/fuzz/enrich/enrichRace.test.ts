@@ -1,5 +1,5 @@
 // Concurrent-CLI race harness for the enrich-mirror reconciler. Fires several
-// `gen --update` processes at ONE fixture simultaneously (the save + format-on-save
+// `enrich --update` processes at ONE fixture simultaneously (the save + format-on-save
 // double-fire a dev HMR loop produces) and races a source rewrite against them. The
 // ATOMIC mirror write (write-temp + os.Rename, in cmd/mion/enrich_reconcile.go)
 // is the enabler: with it, the worst a race can do is last-writer-wins of a CONVERGENT
@@ -13,7 +13,7 @@
 // MION_FUZZ_RACE=1 (set by the `fuzz:race` / `fuzz:race:soak` scripts) and self-skips
 // otherwise. In isolation it is rock-solid (the soak runs 200 fires/scenario green);
 // the deterministic atomic-write mechanism stays pinned in `pnpm test` by the Go
-// TestAtomicWriteFile_ReplacesCleanly. `bin/mion` must be built (root pretest).
+// TestAtomicWriteFile_ReplacesCleanly. `mion-bin/mion` must be built (root pretest).
 //
 // Knobs: MION_FUZZ_RACE_ITERATIONS (default 2), MION_FUZZ_RACE_FANOUT (default 6).
 
@@ -55,9 +55,7 @@ function authorSentinels(fixture: ReconcileFixture): string[] {
   return sentinels;
 }
 
-// spawnUpdate fires `gen … --update` ASYNCHRONOUSLY so several run at once (the
-// spawnSync wrappers in enrichCli cannot overlap). Resolves with exit code + stderr; a
-// hung process is killed and surfaced as code=null so the controlled-check fails it.
+// Async so several run at once (enrichCli's spawnSync cannot overlap); a hung process is killed and resolves code=null.
 function spawnUpdate(dir: string): Promise<{code: number | null; stderr: string}> {
   return new Promise((resolveDone) => {
     const child = spawn(BIN, ['enrich', 'src/models.ts', ROOT, '--update'], {cwd: dir});

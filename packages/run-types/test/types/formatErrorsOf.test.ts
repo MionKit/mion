@@ -1,11 +1,7 @@
-// Compile-time proof for `FormatErrorsOf<T>` — the typed format-error union a
-// validator for `T` reports — and for the narrowing it buys on
-// `createGetValidationErrorsFn<T>()`: `switch (err.format?.name)` narrows
-// `errorType` to that format's documented modes.
-//
-// The bodies are type-only and never invoked; the `test` references them so lint
-// doesn't flag them. The real check is tsc:
-//   pnpm exec tsc --noEmit -p packages/run-types/tsconfig.test.json
+// Compile-time proof for `FormatErrorsOf<T>`, the typed format-error union a validator for `T` reports, and
+// for the narrowing it buys on `createGetValidationErrorsFn<T>()`: `switch (err.format?.name)` narrows
+// `errorType` to that format's documented modes. Type-only bodies, referenced by `test` so lint leaves them;
+// the real check is `pnpm exec tsc --noEmit -p packages/run-types/tsconfig.json`.
 
 import {expect, test} from 'vitest';
 import type * as TF from '@mionjs/run-types/formats';
@@ -31,10 +27,10 @@ function leafCases(): void {
   assertMutual<FormatErrorsOf<TF.EmailAddress>, TypeFormatError<'email', EmailErrorType>>();
   assertMutual<FormatErrorsOf<TF.IdnEmail>, TypeFormatError<'email', EmailErrorType>>();
   assertMutual<FormatErrorsOf<TF.Email>, TypeFormatError<'email', never>>();
-  // domain: IDNA and the names / tld decomposition set modes; the pattern preset never does
+  // domain: IDNA and the parts split set modes; the pattern preset never does
   assertMutual<FormatErrorsOf<TF.Hostname>, TypeFormatError<'domain', DomainErrorType>>();
   assertMutual<FormatErrorsOf<TF.IdnHostname>, TypeFormatError<'domain', DomainErrorType>>();
-  assertMutual<FormatErrorsOf<TF.DomainStrict>, TypeFormatError<'domain', DomainErrorType>>();
+  assertMutual<FormatErrorsOf<TF.DomainParts>, TypeFormatError<'domain', DomainErrorType>>();
   assertMutual<FormatErrorsOf<TF.Domain>, TypeFormatError<'domain', never>>();
   // ip: only with allowPort
   assertMutual<FormatErrorsOf<TF.IPv4WithPort>, TypeFormatError<'ip', IpErrorType>>();
@@ -42,13 +38,12 @@ function leafCases(): void {
   assertMutual<FormatErrorsOf<TF.IPv4>, TypeFormatError<'ip', never>>();
   // a single-mode format never sets it
   assertMutual<FormatErrorsOf<TF.UUIDv4>, TypeFormatError<'uuid', never>>();
-  assertMutual<FormatErrorsOf<TF.UrlHttp>, TypeFormatError<'url', never>>();
+  assertMutual<FormatErrorsOf<TF.StringUrlHttp>, TypeFormatError<'url', never>>();
 }
 
-// The decomposed email also reports its domain half under the `domain` name.
-function emailStrictCases(): void {
+function emailPartsCases(): void {
   assertMutual<
-    FormatErrorsOf<TF.EmailStrict>,
+    FormatErrorsOf<TF.EmailParts>,
     TypeFormatError<'email', EmailErrorType> | TypeFormatError<'domain', DomainErrorType>
   >();
 }
@@ -110,7 +105,7 @@ function narrowingCases(): void {
 
 test('FormatErrorsOf compile-time contract', () => {
   expect(typeof leafCases).toBe('function');
-  expect(typeof emailStrictCases).toBe('function');
+  expect(typeof emailPartsCases).toBe('function');
   expect(typeof shapeCases).toBe('function');
   expect(typeof narrowingCases).toBe('function');
 });

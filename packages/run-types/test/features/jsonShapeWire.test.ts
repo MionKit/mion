@@ -1,14 +1,5 @@
-// Runtime half of the JSONShape<T> agreement (the type half lives in
-// test/types/jsonShape.test.ts): encode REAL values through the full
-// vite-plugin pipeline, JSON.parse the wire, and compare against expected
-// literals TYPED as JSONShape<T>. The typed literal is the meeting point — the
-// assignment compiles only if the literal matches the declared wire type, and
-// the runtime assertion passes only if the encoder actually produced it, so a
-// drift on either side (the Go serializer or the mapped type) reds this file.
-//
-// Per the CLAUDE.md marker-coverage rule the encoder is exercised through BOTH
-// call shapes — static `createJsonEncoderFn<T>()` and value-first
-// `createJsonEncoderFn(value)` — with an equivalence assertion.
+// JSONShape-typed expectations detect drift between declared wire types and encoders; see test/types/jsonShape.test.ts.
+// AGENTS.md requires both encoder forms with equal results.
 
 import {describe, test, expect} from 'vitest';
 import {createJsonEncoderFn} from '@mionjs/run-types';
@@ -18,7 +9,6 @@ interface Order {
   id: string;
   total: bigint;
   placed: Date;
-  pattern: RegExp;
   note?: string;
 }
 
@@ -34,19 +24,18 @@ describe('JSONShape<T> — wire conformance against the real encoder', () => {
 
   test('static form: JS-only leaves encode to their JSONShape spellings', () => {
     const encode = createJsonEncoderFn<Order>();
-    const order: Order = {id: 'o1', total: 42n, placed, pattern: /ab?c/gi};
+    const order: Order = {id: 'o1', total: 42n, placed};
     const wire = parseWire(encode(order)) as unknown;
     const expected: JSONShape<Order> = {
       id: 'o1',
       total: '42',
       placed: '2026-02-03T04:05:06.789Z',
-      pattern: '/ab?c/gi',
     };
     expect(wire).toEqual(expected);
   });
 
   test('reflection form encodes byte-identically to the static form', () => {
-    const order: Order = {id: 'o2', total: 7n, placed, pattern: /x/, note: 'hi'};
+    const order: Order = {id: 'o2', total: 7n, placed, note: 'hi'};
     const staticWire = createJsonEncoderFn<Order>()(order);
     const valueWire = createJsonEncoderFn(order)({...order});
     expect(valueWire).toBe(staticWire);

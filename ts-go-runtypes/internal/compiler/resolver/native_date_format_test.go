@@ -18,7 +18,7 @@ import (
 
 // scanNativeDate builds a getRunTypeId<TypeFormat<Date, 'nativeDate', P>>()
 // snippet and returns the emitted validate source, the scanned RunTypes,
-// and any FMT002 diagnostics.
+// and any format-invalid-params diagnostics.
 func scanNativeDate(t *testing.T, params string) (string, []*reflection.RunType, []diagnostics.Diagnostic) {
 	t.Helper()
 	code := `import {createValidateFn} from '@mionjs/run-types';

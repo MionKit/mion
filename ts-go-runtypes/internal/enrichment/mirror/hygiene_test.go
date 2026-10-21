@@ -19,7 +19,7 @@ func TestScanDirtyTags_ScaffoldRoundTrip(t *testing.T) {
 		ChildIDs:    map[string]string{"name": "n1"},
 		FriendlyVar: "friendlyUser",
 	}
-	block := ConstBlock("friendlyUser", enrichment.FriendlyTypeName, named, "{\n  name: {},\n}")
+	block := ConstBlock("friendlyUser", enrichment.FriendlyTextName, named, "{\n  name: {},\n}")
 
 	findings := ScanDirtyTags(block)
 	if len(findings) != 1 {
@@ -158,23 +158,23 @@ func TestIsEnrichmentFile(t *testing.T) {
 	}{
 		{"marker", MarkerCommentPrefix + "User#a1 */\nexport const friendlyUser = {};", true},
 		{"bare tag in a string literal", "export const RT_TYPE_TAG = '" + RtTypeTag + "';\nexport const T = '" + RtIdsTag + "';", false},
-		{"friendly annotation", "import type {" + enrichment.FriendlyTypeName + "} from '@mionjs/run-types';\nexport const f: " + enrichment.FriendlyTypeName + "<User> = {};", true},
+		{"friendly annotation", "import type {" + enrichment.FriendlyTextName + "} from '@mionjs/run-types';\nexport const f: " + enrichment.FriendlyTextName + "<User> = {};", true},
 		{"mock annotation", "export const m: " + enrichment.MockDataName + "<User> = {};", true},
-		{"annotation with newline after colon", "export const f:\n  " + enrichment.FriendlyTypeName + "<User> = {};", true},
+		{"annotation with newline after colon", "export const f:\n  " + enrichment.FriendlyTextName + "<User> = {};", true},
 		{"plain source with todo", "// " + TodoTag + ": refactor this\nexport const a = 1;", false},
 		// The DSL package's own sources DECLARE and document the bare names
 		// (and may carry @todo in prose) — never enrichment files.
-		{"dsl declaration file", "// the `" + TodoTag + "`/diagnostic layer enforces this\nexport type " + enrichment.FriendlyTypeName + "<T> = {[K in keyof T]?: unknown};\ntype Use = " + enrichment.FriendlyTypeName + "<{a: 1}>;", false},
+		{"dsl declaration file", "// the `" + TodoTag + "`/diagnostic layer enforces this\nexport type " + enrichment.FriendlyTextName + "<T> = {[K in keyof T]?: unknown};\ntype Use = " + enrichment.FriendlyTextName + "<{a: 1}>;", false},
 		// A runtime that TAKES a map parameter (createFriendlyText's own signature)
 		// is not a mirror — only the const-declaration shape scaffolds emit is.
-		{"parameter annotation", "// blank '' (an unfilled " + TodoTag + ") counts as absent\nexport function createFriendlyText<T>(map: " + enrichment.FriendlyTypeName + "<T>) {\n  return map;\n}", false},
+		{"parameter annotation", "// blank '' (an unfilled " + TodoTag + ") counts as absent\nexport function createFriendlyText<T>(map: " + enrichment.FriendlyTextName + "<T>) {\n  return map;\n}", false},
 		// A JSDoc CODE EXAMPLE showing the const shape lives inside a comment —
 		// masked out, so docs-heavy sources with @todo prose never read as mirrors.
-		{"jsdoc code example", "/**\n * Example:\n *   export const friendlyUser: " + enrichment.FriendlyTypeName + "<User> = {};\n * then fill the " + TodoTag + " blanks.\n */\nexport function helper() {}", false},
+		{"jsdoc code example", "/**\n * Example:\n *   export const friendlyUser: " + enrichment.FriendlyTextName + "<User> = {};\n * then fill the " + TodoTag + " blanks.\n */\nexport function helper() {}", false},
 		// A multiline TEMPLATE embedding a mirror-shaped line is string data —
 		// the structural mask blanks literal bodies, so it never reads as a
 		// mirror (the docs site's own example snippets ship exactly this).
-		{"template-embedded annotation", "export const doc = `\nexport const friendlyUser: " + enrichment.FriendlyTypeName + "<User> = {};\n`;\n", false},
+		{"template-embedded annotation", "export const doc = `\nexport const friendlyUser: " + enrichment.FriendlyTextName + "<User> = {};\n`;\n", false},
 		{"empty", "", false},
 	}
 	for _, testCase := range cases {
@@ -225,8 +225,8 @@ func TestOrphanBlockPatternSource_JSCompatible(t *testing.T) {
 // walks, in precedence order: carcass-interior annotation, nearest live
 // annotation at/after the tag, nearest one before it, the DSL import, Unknown.
 func TestFamilyClassifier_Attribution(t *testing.T) {
-	dsl := "import type { FriendlyType, MockData } from '@mionjs/run-types';\n"
-	friendlyConst := "export const friendlyUser: " + enrichment.FriendlyTypeName + "<User> = {};\n"
+	dsl := "import type { FriendlyText, MockData } from '@mionjs/run-types';\n"
+	friendlyConst := "export const friendlyUser: " + enrichment.FriendlyTextName + "<User> = {};\n"
 	mockConst := "export const mockUser: " + enrichment.MockDataName + "<User> = {};\n"
 
 	cases := []struct {
@@ -251,7 +251,7 @@ func TestFamilyClassifier_Attribution(t *testing.T) {
 		},
 		{
 			name: "no consts at all: single-family DSL import decides",
-			text: "import type { " + enrichment.FriendlyTypeName + " } from '@mionjs/run-types';\n" + TodoLine + "\n",
+			text: "import type { " + enrichment.FriendlyTextName + " } from '@mionjs/run-types';\n" + TodoLine + "\n",
 			want: []MirrorFamily{FamilyFriendly},
 		},
 		{
@@ -261,7 +261,7 @@ func TestFamilyClassifier_Attribution(t *testing.T) {
 		},
 		{
 			name: "annotation inside an ordinary comment never counts",
-			text: dsl + "// example: const x: " + enrichment.FriendlyTypeName + "<T> = {}\n" + TodoLine + "\n" + mockConst,
+			text: dsl + "// example: const x: " + enrichment.FriendlyTextName + "<T> = {}\n" + TodoLine + "\n" + mockConst,
 			want: []MirrorFamily{FamilyMock},
 		},
 	}
@@ -280,16 +280,13 @@ func TestFamilyClassifier_Attribution(t *testing.T) {
 	}
 }
 
-// TestScanDirtyTags_StringLiteralsNeverFire pins the comment-anchoring of the
-// hygiene scan: tag patterns embedded in STRING data — exactly what the
-// generated diagnostic catalog ships, since its messages describe the tags —
-// are not carcasses, and the marker emit form inside a string does not make
-// the file an enrichment mirror.
+// TestScanDirtyTags_StringLiteralsNeverFire: the generated catalog's headlines name the tags inside strings,
+// and a tag or marker inside a string is neither a carcass nor makes the file a mirror.
 func TestScanDirtyTags_StringLiteralsNeverFire(t *testing.T) {
 	catalogLike := "export const DIAG = {\n" +
-		"  FT021: {detail: 'example:\\n/* " + OrphanTag + " export const gone = {}; */\\nrun gen --prune'},\n" +
-		"  FT022: {detail: \"a /* " + OrphanChildTag + " old: 1, */ example\"},\n" +
-		"  FT020: {detail: `fresh scaffold:\n" + MarkerCommentPrefix + "User#a1 */\n" + TodoLine + "`},\n" +
+		"  enrich-text-orphan-type: {headline: 'example:\\n/* " + OrphanTag + " export const gone = {}; */\\nrun mion enrich --prune'},\n" +
+		"  enrich-text-orphan-field: {headline: \"a /* " + OrphanChildTag + " old: 1, */ example\"},\n" +
+		"  enrich-text-todo-left: {headline: `fresh scaffold:\n" + MarkerCommentPrefix + "User#a1 */\n" + TodoLine + "`},\n" +
 		"};\n"
 	if findings := ScanDirtyTags(catalogLike); len(findings) != 0 {
 		t.Errorf("tag patterns inside string literals must not fire; got %+v", findings)
@@ -303,7 +300,7 @@ func TestScanDirtyTags_StringLiteralsNeverFire(t *testing.T) {
 
 	// The same emit forms as REAL comments still fire / still gate.
 	realMirror := MarkerCommentPrefix + "User#a1 */\n" +
-		"export const friendlyUser: " + enrichment.FriendlyTypeName + "<User> = {};\n" +
+		"export const friendlyUser: " + enrichment.FriendlyTextName + "<User> = {};\n" +
 		"/* " + OrphanTag + " export const gone = {}; */\n"
 	if !HasMarkerComment(realMirror) {
 		t.Errorf("real marker comment must be recognised")
@@ -379,5 +376,39 @@ func TestScan_RegexLiteralNeverPhantomComment(t *testing.T) {
 	}
 	if pruned != text || removed != 0 || len(skipped) != 0 {
 		t.Errorf("prune must leave the regex + live code byte-identical; removed=%d skipped=%d\n%s", removed, len(skipped), pruned)
+	}
+}
+
+// TestBlankValues_RangedPool pins that `pool: []` beside a `min` or `max` is a range, not a blank slot, at any depth.
+func TestBlankValues_RangedPool(t *testing.T) {
+	text := "export const mockUser: MockData<User> = {\n" +
+		"  age: {pool: [], min: 18, max: 95},\n" + // range only → no hit
+		"  score: {max: 10, pool: []},\n" + // max only, pool after → no hit
+		"  born: {pool: [], min: new Date('1990-01-01')},\n" + // Date range → no hit
+		"  name: {pool: []},\n" + // bare pool → hit
+		"  tags: {pool: ['a', 'b'], min: 1},\n" + // filled pool → no hit
+		"  address: {\n" +
+		"    floor: {pool: [], min: 0, max: 40},\n" + // nested range → no hit
+		"    street: {pool: []},\n" + // nested bare pool → hit
+		"    items: {rt$items: {pool: [], min: 1}, rt$length: [1, 3]},\n" + // nested array element range → no hit
+		"  },\n" +
+		"  other: {pool: [], rt$min: 1},\n" + // not a range key → hit
+		"};\n"
+
+	findings := ScanBlankValues(text)
+	lines := NewLineIndex(text)
+	var gotLines []int
+	for _, finding := range findings {
+		line, _ := lines.At(finding.Start)
+		gotLines = append(gotLines, line)
+	}
+	want := []int{5, 9, 12}
+	if len(gotLines) != len(want) {
+		t.Fatalf("blank lines = %v, want %v", gotLines, want)
+	}
+	for i := range want {
+		if gotLines[i] != want[i] {
+			t.Fatalf("blank lines = %v, want %v", gotLines, want)
+		}
 	}
 }

@@ -49,6 +49,21 @@ const ctx = {
   },
 };
 
+// recordingCtx captures the warn log, for the cases that care what the gate
+// PRINTED rather than only whether it halted.
+function recordingCtx(): {warnings: string[]; warn(message: unknown): void; error(message: string): never} {
+  const warnings: string[] = [];
+  return {
+    warnings,
+    warn(message: unknown): void {
+      warnings.push(String(message));
+    },
+    error(message: string): never {
+      throw new Error(message);
+    },
+  };
+}
+
 interface Project {
   dir: string;
   models: string;
@@ -96,6 +111,8 @@ interface PluginOptionsLite {
     i18n?: {sourceLocale?: string; locales?: string[]; strict?: boolean};
     suppressHmr?: boolean;
   };
+  downgradeErrors?: string[] | '*';
+  logStyle?: 'grouped' | 'lines';
 }
 
 // makePlugin instantiates the Vite plugin over the project. unplugin merges the
@@ -116,9 +133,9 @@ function makePlugin(project: Project, options: PluginOptionsLite) {
 
 // driveBuild runs configResolved + buildStart under a given Vite command. 'serve'
 // (default) is the write lane (dev/watch); 'build' is the read-only drift gate.
-async function driveBuild(plugin: any, project: Project, command: 'serve' | 'build' = 'serve'): Promise<void> {
-  await plugin.configResolved.call(ctx, {root: project.dir, command});
-  await plugin.buildStart.call(ctx);
+async function driveBuild(plugin: any, project: Project, command: 'serve' | 'build' = 'serve', on: any = ctx): Promise<void> {
+  await plugin.configResolved.call(on, {root: project.dir, command});
+  await plugin.buildStart.call(on);
 }
 
 // driveBuildStart runs the whole-program initial sync under a simulated `vite serve`.
@@ -340,7 +357,7 @@ describeIfBinary('@mionjs/devtools / plugin-driven enrichment sync', () => {
     const plugin = makePlugin(project, {enrich: {friendly: true, mock: true}});
     try {
       // No committed mirrors on disk yet → every desired mirror is "missing" →
-      // the gate fails the build (failOnError defaults true) and writes NOTHING.
+      // the gate fails the build (nothing is downgraded by default) and writes NOTHING.
       await expect(driveBuild(plugin, project, 'build')).rejects.toThrow(/out of date or missing/);
       expect(fs.existsSync(project.friendlyMirror), 'drift gate must NOT write during a build').toBe(false);
       expect(fs.existsSync(project.mockMirror), 'drift gate must NOT write during a build').toBe(false);
@@ -376,6 +393,44 @@ describeIfBinary('@mionjs/devtools / plugin-driven enrichment sync', () => {
     }
   }, 60_000);
 
+  // A downgrade LOWERS a finding, it never hides one. The gate used to filter the
+  // downgraded ones out before printing, so `downgradeErrors` made an enrichment
+  // finding vanish from the build log entirely — the opposite of the contract.
+  it('under downgradeErrors the enrichment findings still print, marked, and stop halting', async () => {
+    const project = track(
+      setupProject([
+        {key: 'name', type: 'string'},
+        {key: 'age', type: 'number'},
+      ])
+    );
+    // A dev pass writes the mirrors in sync, carrying the scaffold blanks.
+    const dev = makePlugin(project, {enrich: {friendly: true, mock: true}});
+    try {
+      await driveBuildStart(dev, project);
+    } finally {
+      await teardown(dev);
+    }
+    for (const logStyle of ['grouped', 'lines'] as const) {
+      const downgraded = makePlugin(project, {enrich: {friendly: true, mock: true}, downgradeErrors: '*', logStyle});
+      const on = recordingCtx();
+      try {
+        await driveBuild(downgraded, project, 'build', on); // must NOT throw
+        const all = on.warnings.join('\n');
+        expect(all, 'the finding is still reported').toMatch(/warning enrich-(?:text|mock)-[a-z0-9-]+/);
+        expect(all, 'and marked so it does not read as an ordinary warning').toContain('(downgraded)');
+        const enrich = on.warnings.filter((warning) => warning.includes('enrich-'));
+        if (logStyle === 'grouped') {
+          expect(enrich, 'one grouped block for the whole gate').toHaveLength(1);
+          expect(enrich[0]).toMatch(/^warning enrich-(?:text|mock)-[a-z0-9-]+ \(\d+\) \(downgraded\)$/m);
+        } else {
+          expect(enrich.every((warning) => /\(\d+,\d+\): warning enrich-[a-z0-9-]+: .*\(downgraded\)$/.test(warning))).toBe(true);
+        }
+      } finally {
+        await teardown(downgraded);
+      }
+    }
+  }, 60_000);
+
   it('a production build PASSES once the scaffolds are authored (in sync AND complete)', async () => {
     const project = track(
       setupProject([
@@ -408,6 +463,52 @@ describeIfBinary('@mionjs/devtools / plugin-driven enrichment sync', () => {
       await expect(driveBuild(build, project, 'build')).resolves.toBeUndefined();
     } finally {
       await teardown(build);
+    }
+  }, 60_000);
+
+  // A carcass is WRONG content, not an unfilled blank: it is a LevelWarning in the
+  // catalog (the mirror still runs) and carries no completeness bit, so a gate
+  // that reads either lets it through. The gate used to do exactly that.
+  it('a production build FAILS on in-sync but STALE mirrors (an @rtOrphan carcass)', async () => {
+    const project = track(
+      setupProject([
+        {key: 'name', type: 'string'},
+        {key: 'age', type: 'number'},
+      ])
+    );
+    const dev = makePlugin(project, {enrich: {friendly: true, mock: true}});
+    try {
+      await driveBuildStart(dev, project);
+      // Author every blank, so the only thing left to find is the carcass below.
+      for (const mirror of [project.friendlyMirror, project.mockMirror]) {
+        const authored = fs
+          .readFileSync(mirror, 'utf8')
+          .split('\n')
+          .filter((line) => !line.includes('@todo'))
+          .join('\n')
+          .replaceAll("''", "'authored'")
+          .replaceAll(': []', ": ['sample']");
+        fs.writeFileSync(mirror, authored);
+      }
+      // Drop a field from the source: the value-preserving sync parks its
+      // authored data under an @rtOrphanChild carcass instead of deleting it,
+      // and the mirrors are IN SYNC with that carcass in place.
+      fs.writeFileSync(project.models, renderModels([{key: 'name', type: 'string'}]));
+      await hotUpdate(dev, project.models);
+      expect(fs.readFileSync(project.friendlyMirror, 'utf8'), 'the dropped field rides a carcass').toContain('@rtOrphanChild');
+    } finally {
+      await teardown(dev);
+    }
+    // In sync, complete, yet stale: the production gate must fail on the carcass
+    // alone (nothing is out of date or missing).
+    const stale = makePlugin(project, {enrich: {friendly: true, mock: true}});
+    try {
+      let failure = '';
+      await driveBuild(stale, project, 'build').catch((error: Error) => (failure = error.message));
+      expect(failure, 'the carcass halts the build').toMatch(/not production-ready.*stale/);
+      expect(failure, 'and it is the carcass, not drift').not.toContain('out of date');
+    } finally {
+      await teardown(stale);
     }
   }, 60_000);
 });

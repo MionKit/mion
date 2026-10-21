@@ -1,30 +1,45 @@
-// Registration module for the date / time pure fns the Go-side
-// date/time/dateTime/nativeDate emitters reach via
-// `utl.getPureFn('rtFormats::<name>')`. Moved out of
-// ../string/string-formats-pure-fns.ts so the whole date-ish surface
-// lives together; the Go path constant `dateTimePureFnFilePath` in
-// internal/cachegen/typefunctions/formats/datetime/shared.go MUST match this
-// file's location or the pure-fn extractor won't ship these bodies.
-//
-// Importing this file from ../index.ts (the `@mionjs/run-types/
-// formats` subpath surface) guarantees the registrations run before any
-// user code references a date/time/dateTime/Date format type.
+// Registration module for the date / time pure fns the Go-side date/time/dateTime/nativeDate emitters
+// reach via `utl.getPureFn(<the id below>)`. The Go path constant `dateTimePureFnFilePath` in
+// internal/cachegen/typefunctions/formats/datetime/shared.go MUST match this file's location or the
+// pure-fn extractor won't ship these bodies. Importing this file from ../index.ts guarantees the
+// registrations run before any user code references a date/time/dateTime/Date format type.
 
 import {registerPureFnFactory} from '../../runtypes/pureFn.ts';
+import {
+  isDateStringId,
+  isDateString_YMDId,
+  isDateString_DMYId,
+  isDateString_MDYId,
+  isDateString_YMId,
+  isDateString_MDId,
+  isDateString_DMId,
+  isHoursId,
+  isMinutesId,
+  isSecondsId,
+  isSecondsWithMsId,
+  isSecondsWithLeapId,
+  isTimeZoneId,
+  isTimeString_ISOId,
+  isTimeString_ISO_TZId,
+  isTimeString_HHmmssId,
+  isTimeString_HHmmId,
+  isTimeString_mmssId,
+  dateStrToMsId,
+  timeStrToMsId,
+  relativeNowKeyId,
+} from '../../runtypes/pure-fn-ids.generated.ts';
 import type {RTUtils} from '../../runtypes/rtUtils.ts';
 
-// IsDateStringFn — shape the base pf_isDateString resolves to, used to
-// type the getPureFn lookups in the layout wrappers below.
+// The shape the base isDateString resolves to, for the getPureFn lookups in the layout wrappers below.
 type IsDateStringFn = (year: string | undefined, month: string, day?: string) => boolean;
 type SegmentFn = (segment: string) => boolean;
 
 // ############### Date pure fns ###############
 //
-// pf_isDateString is the base leap-year-aware validator; the six
-// layout wrappers split on '-' and delegate. Wrappers reach the base fn
-// via utl.getPureFn so the Go extractor records the transitive dep.
+// isDateString is the base leap-year-aware validator; the six layout wrappers split on '-' and reach
+// it via utl.getPureFn, so the Go extractor records the transitive dep.
 
-registerPureFnFactory('rtFormats::isDateString', function () {
+export const isDateString = registerPureFnFactory(function () {
   return function _isDateString(year: string | undefined, month: string, day?: string): boolean {
     let y: number | undefined;
     if (year) {
@@ -48,101 +63,98 @@ registerPureFnFactory('rtFormats::isDateString', function () {
     }
     return true;
   };
-});
+}, isDateStringId);
 
-registerPureFnFactory('rtFormats::isDateString_YMD', function (utl: RTUtils) {
-  const isDate = utl.getPureFn('rtFormats::isDateString') as IsDateStringFn;
+export const isDateString_YMD = registerPureFnFactory(function (utl: RTUtils) {
+  const isDate = utl.getPureFn(isDateString) as IsDateStringFn;
   return function _is_ymd(value: string): boolean {
     const parts = value.split('-');
     return parts.length === 3 && isDate(parts[0], parts[1], parts[2]);
   };
-});
+}, isDateString_YMDId);
 
-registerPureFnFactory('rtFormats::isDateString_DMY', function (utl: RTUtils) {
-  const isDate = utl.getPureFn('rtFormats::isDateString') as IsDateStringFn;
+export const isDateString_DMY = registerPureFnFactory(function (utl: RTUtils) {
+  const isDate = utl.getPureFn(isDateString) as IsDateStringFn;
   return function _is_dmy(value: string): boolean {
     const parts = value.split('-');
     return parts.length === 3 && isDate(parts[2], parts[1], parts[0]);
   };
-});
+}, isDateString_DMYId);
 
-registerPureFnFactory('rtFormats::isDateString_MDY', function (utl: RTUtils) {
-  const isDate = utl.getPureFn('rtFormats::isDateString') as IsDateStringFn;
+export const isDateString_MDY = registerPureFnFactory(function (utl: RTUtils) {
+  const isDate = utl.getPureFn(isDateString) as IsDateStringFn;
   return function _is_mdy(value: string): boolean {
     const parts = value.split('-');
     return parts.length === 3 && isDate(parts[2], parts[0], parts[1]);
   };
-});
+}, isDateString_MDYId);
 
-registerPureFnFactory('rtFormats::isDateString_YM', function (utl: RTUtils) {
-  const isDate = utl.getPureFn('rtFormats::isDateString') as IsDateStringFn;
+export const isDateString_YM = registerPureFnFactory(function (utl: RTUtils) {
+  const isDate = utl.getPureFn(isDateString) as IsDateStringFn;
   return function _is_ym(value: string): boolean {
     const parts = value.split('-');
     return parts.length === 2 && isDate(parts[0], parts[1]);
   };
-});
+}, isDateString_YMId);
 
-registerPureFnFactory('rtFormats::isDateString_MD', function (utl: RTUtils) {
-  const isDate = utl.getPureFn('rtFormats::isDateString') as IsDateStringFn;
+export const isDateString_MD = registerPureFnFactory(function (utl: RTUtils) {
+  const isDate = utl.getPureFn(isDateString) as IsDateStringFn;
   return function _is_md(value: string): boolean {
     const parts = value.split('-');
     return parts.length === 2 && isDate(undefined, parts[0], parts[1]);
   };
-});
+}, isDateString_MDId);
 
-registerPureFnFactory('rtFormats::isDateString_DM', function (utl: RTUtils) {
-  const isDate = utl.getPureFn('rtFormats::isDateString') as IsDateStringFn;
+export const isDateString_DM = registerPureFnFactory(function (utl: RTUtils) {
+  const isDate = utl.getPureFn(isDateString) as IsDateStringFn;
   return function _is_dm(value: string): boolean {
     const parts = value.split('-');
     return parts.length === 2 && isDate(undefined, parts[1], parts[0]);
   };
-});
+}, isDateString_DMId);
 
 // ############### Time pure fns ###############
 //
-// Every layout here is FIXED-SHAPE (two ASCII digits per segment, ':' between
-// them), so the fns check character codes at fixed positions instead of
-// splitting and regex-testing per segment — the split version measured 4-5x
-// slower, all of it array allocation and per-segment regex + `Number()` calls.
-// charCode arithmetic keeps the same strictness those regexes bought: a single
-// digit ('8:3:6'), whitespace, and non-ASCII numerals all fail the 0-9 code
-// range. Each factory redeclares its two-digit helper — the extractor lifts
-// factory bodies alone, so they cannot share one.
+// Every layout here is FIXED-SHAPE (two ASCII digits per segment, ':' between them), so the fns check
+// character codes at fixed positions instead of splitting and regex-testing per segment: the split
+// version measured 4-5x slower, all of it array allocation and per-segment regex + `Number()` calls.
+// charCode arithmetic keeps the same strictness those regexes bought, since a single digit ('8:3:6'),
+// whitespace and non-ASCII numerals all fail the 0-9 code range. Each factory redeclares its two-digit
+// helper, because the extractor lifts factory bodies alone.
 
 // A standalone segment is exactly TWO ASCII digits within the bound.
-registerPureFnFactory('rtFormats::isHours', function () {
+export const isHours = registerPureFnFactory(function () {
   return function _is_h(hours: string): boolean {
     if (hours.length !== 2) return false;
     const tens = hours.charCodeAt(0) - 48;
     const ones = hours.charCodeAt(1) - 48;
     return tens >= 0 && tens <= 9 && ones >= 0 && ones <= 9 && tens * 10 + ones <= 23;
   };
-});
+}, isHoursId);
 
-registerPureFnFactory('rtFormats::isMinutes', function () {
+export const isMinutes = registerPureFnFactory(function () {
   return function _is_m(mins: string): boolean {
     if (mins.length !== 2) return false;
     const tens = mins.charCodeAt(0) - 48;
     const ones = mins.charCodeAt(1) - 48;
     return tens >= 0 && tens <= 9 && ones >= 0 && ones <= 9 && tens * 10 + ones <= 59;
   };
-});
+}, isMinutesId);
 
-registerPureFnFactory('rtFormats::isSeconds', function () {
+export const isSeconds = registerPureFnFactory(function () {
   return function _is_s(secs: string): boolean {
     if (secs.length !== 2) return false;
     const tens = secs.charCodeAt(0) - 48;
     const ones = secs.charCodeAt(1) - 48;
     return tens >= 0 && tens <= 9 && ones >= 0 && ones <= 9 && tens * 10 + ones <= 59;
   };
-});
+}, isSecondsId);
 
-// Seconds with an optional MILLISECOND fraction — exactly three digits, because
-// this backs the layouts that name them (`HH:mm:ss.sss`). The RFC 3339 rule,
-// where the fraction may be any length, lives in isSecondsWithLeap below; the
-// two are deliberately different questions. The only accepted shapes are `dd`
-// and `dd.ddd`, so the dot sits at index 2 or nowhere.
-registerPureFnFactory('rtFormats::isSecondsWithMs', function () {
+// Seconds with an optional MILLISECOND fraction, exactly three digits, because this backs the layouts
+// that name them (`HH:mm:ss.sss`). The RFC 3339 rule, where the fraction may be any length, lives in
+// isSecondsWithLeap below: deliberately different questions. Only `dd` and `dd.ddd` are accepted, so
+// the dot sits at index 2 or nowhere.
+export const isSecondsWithMs = registerPureFnFactory(function () {
   function digitsRun(s: string, start: number, end: number): boolean {
     for (let i = start; i < end; i++) {
       const code = s.charCodeAt(i);
@@ -158,12 +170,11 @@ registerPureFnFactory('rtFormats::isSecondsWithMs', function () {
     if (tens < 0 || tens > 9 || ones < 0 || ones > 9 || tens * 10 + ones > 59) return false;
     return len === 2 || digitsRun(secsAndMs, 3, 6);
   };
-});
+}, isSecondsWithMsId);
 
-// The same, but tolerating second 60 and a fraction of ANY length. Whether that
-// leap second is REAL depends on the offset, which only the full-time validator
-// knows, so this one just admits it and isTimeString_ISO_TZ decides.
-registerPureFnFactory('rtFormats::isSecondsWithLeap', function () {
+// The same, but tolerating second 60 and a fraction of ANY length: whether that leap second is REAL
+// depends on the offset, which only isTimeString_ISO_TZ knows, so this one just admits it.
+export const isSecondsWithLeap = registerPureFnFactory(function () {
   return function _is_s_leap(secsAndMs: string): boolean {
     const len = secsAndMs.length;
     if (len < 2) return false;
@@ -178,20 +189,20 @@ registerPureFnFactory('rtFormats::isSecondsWithLeap', function () {
     }
     return true;
   };
-});
+}, isSecondsWithLeapId);
 
-registerPureFnFactory('rtFormats::isTimeZone', function (utl: RTUtils) {
-  const isH = utl.getPureFn('rtFormats::isHours') as SegmentFn;
-  const isM = utl.getPureFn('rtFormats::isMinutes') as SegmentFn;
+export const isTimeZone = registerPureFnFactory(function (utl: RTUtils) {
+  const isH = utl.getPureFn(isHours) as SegmentFn;
+  const isM = utl.getPureFn(isMinutes) as SegmentFn;
   return function _is_tz(timeZone: string): boolean {
     if (timeZone === 'Z' || timeZone === 'z') return true;
     const parts = timeZone.split(':');
     return parts.length === 2 && isH(parts[0]) && isM(parts[1]);
   };
-});
+}, isTimeZoneId);
 
 // `HH:mm:ss` or `HH:mm:ss.mmm` — length says which, the dot confirms it.
-registerPureFnFactory('rtFormats::isTimeString_ISO', function () {
+export const isTimeString_ISO = registerPureFnFactory(function () {
   function twoDigitsLE(s: string, at: number, max: number): boolean {
     const tens = s.charCodeAt(at) - 48;
     const ones = s.charCodeAt(at + 1) - 48;
@@ -208,16 +219,13 @@ registerPureFnFactory('rtFormats::isTimeString_ISO', function () {
     }
     return true;
   };
-});
+}, isTimeString_ISOId);
 
-// RFC 3339 full-time: HH:MM:SS[.frac] then `Z` or a ±HH:MM offset.
-//
-// The offset is parsed here rather than delegated because of the leap second: a
-// second of 60 is only real at 23:59:60 UTC, so `23:59:60+01:00` (22:59 UTC) is
-// invalid while `01:29:60+01:30` is the same instant as `23:59:60Z` and valid.
-// That answer needs the local time and the offset together, which is only true
-// at this level.
-registerPureFnFactory('rtFormats::isTimeString_ISO_TZ', function () {
+// RFC 3339 full-time: HH:MM:SS[.frac] then `Z` or a ±HH:MM offset. The offset is parsed here rather
+// than delegated because of the leap second: a second of 60 is only real at 23:59:60 UTC, so
+// `23:59:60+01:00` (22:59 UTC) is invalid while `01:29:60+01:30` is the same instant as `23:59:60Z`
+// and valid, and that answer needs the local time and the offset together.
+export const isTimeString_ISO_TZ = registerPureFnFactory(function () {
   const MINUTES_PER_DAY = 1440;
   // -1 when either character is not an ASCII digit, the value otherwise.
   function twoDigitsVal(s: string, at: number): number {
@@ -267,9 +275,9 @@ registerPureFnFactory('rtFormats::isTimeString_ISO_TZ', function () {
     const utcMinutes = (hours * 60 + mins - offsetMinutes + MINUTES_PER_DAY * 2) % MINUTES_PER_DAY;
     return utcMinutes === 23 * 60 + 59;
   };
-});
+}, isTimeString_ISO_TZId);
 
-registerPureFnFactory('rtFormats::isTimeString_HHmmss', function () {
+export const isTimeString_HHmmss = registerPureFnFactory(function () {
   function twoDigitsLE(s: string, at: number, max: number): boolean {
     const tens = s.charCodeAt(at) - 48;
     const ones = s.charCodeAt(at + 1) - 48;
@@ -285,9 +293,9 @@ registerPureFnFactory('rtFormats::isTimeString_HHmmss', function () {
       twoDigitsLE(value, 6, 59)
     );
   };
-});
+}, isTimeString_HHmmssId);
 
-registerPureFnFactory('rtFormats::isTimeString_HHmm', function () {
+export const isTimeString_HHmm = registerPureFnFactory(function () {
   function twoDigitsLE(s: string, at: number, max: number): boolean {
     const tens = s.charCodeAt(at) - 48;
     const ones = s.charCodeAt(at + 1) - 48;
@@ -296,9 +304,9 @@ registerPureFnFactory('rtFormats::isTimeString_HHmm', function () {
   return function _is_hhmm(value: string): boolean {
     return value.length === 5 && value.charCodeAt(2) === 58 && twoDigitsLE(value, 0, 23) && twoDigitsLE(value, 3, 59);
   };
-});
+}, isTimeString_HHmmId);
 
-registerPureFnFactory('rtFormats::isTimeString_mmss', function () {
+export const isTimeString_mmss = registerPureFnFactory(function () {
   function twoDigitsLE(s: string, at: number, max: number): boolean {
     const tens = s.charCodeAt(at) - 48;
     const ones = s.charCodeAt(at + 1) - 48;
@@ -307,32 +315,26 @@ registerPureFnFactory('rtFormats::isTimeString_mmss', function () {
   return function _is_mmss(value: string): boolean {
     return value.length === 5 && value.charCodeAt(2) === 58 && twoDigitsLE(value, 0, 59) && twoDigitsLE(value, 3, 59);
   };
-});
+}, isTimeString_mmssId);
 
 // ############### Bound comparison pure fns ###############
 //
-// These convert a validated value (or a relative `now±P…` spec) to a
-// numeric comparison key. The Go emitter bakes absolute bounds as
-// precomputed numbers on the SAME scale, so a min/max check is a plain
-// `key(value) >= bakedMin` / `<= relativeNowKey(spec)`.
-//
+// These convert a validated value (or a relative `now±P…` spec) to a numeric comparison key. The Go
+// emitter bakes absolute bounds as precomputed numbers on the SAME scale, so a min/max check is a
+// plain `key(value) >= bakedMin` / `<= relativeNowKey(spec)`.
 // Scales (must match internal/cachegen/typefunctions/formats/datetime/literals.go):
 //   - date / dateTime / native Date → epoch milliseconds (UTC)
 //   - time                          → milliseconds-of-day
-// Canonical fills for partial layouts: missing year → 2000, missing day → 1.
-// (The fill year is inlined inside each factory — pure-fn factories can't
-// capture outer-scope bindings.)
+// Canonical fills for partial layouts: missing year → 2000, missing day → 1, inlined in each factory
+// because pure-fn factories can't capture outer-scope bindings.
 
-// dateStrToMs — UTC epoch ms for a date value already known to be valid
-// in `layout`. `layout` is one of the DateFmt strings.
-registerPureFnFactory('rtFormats::dateStrToMs', function () {
+// UTC epoch ms for a date value already known to be valid in `layout`, one of the DateFmt strings.
+export const dateStrToMs = registerPureFnFactory(function () {
   return function _date_to_ms(value: string, layout: string): number {
     const parts = value.split('-');
-    // Canonical fill for yearless layouts (MM-DD / DD-MM): a fixed year is
-    // required to build a comparable epoch, and it MUST match Go's
-    // defaultFillYear in literals.go. 2000 is chosen as a leap year so
-    // '02-29' is representable. (Literal, not an outer const — pure-fn
-    // factories can't capture outer-scope bindings.)
+    // Canonical fill for yearless layouts (MM-DD / DD-MM), which MUST match Go's defaultFillYear in
+    // literals.go; 2000 is a leap year so '02-29' is representable. A literal, not an outer const:
+    // pure-fn factories can't capture outer-scope bindings.
     let year = 2000;
     let month = 1;
     let day = 1;
@@ -368,11 +370,10 @@ registerPureFnFactory('rtFormats::dateStrToMs', function () {
     }
     return Date.UTC(year, month - 1, day, 0, 0, 0, 0);
   };
-});
+}, dateStrToMsId);
 
-// timeStrToMs — ms-of-day for a time value valid in `layout`. The tz
-// (when present) is stripped and ignored (wall-clock comparison).
-registerPureFnFactory('rtFormats::timeStrToMs', function () {
+// ms-of-day for a time value valid in `layout`; a tz is stripped and ignored (wall-clock comparison).
+export const timeStrToMs = registerPureFnFactory(function () {
   return function _time_to_ms(value: string, layout: string): number {
     let body = value;
     if (layout === 'ISO' || layout === 'HH:mm:ss[.mmm]TZ') {
@@ -399,12 +400,9 @@ registerPureFnFactory('rtFormats::timeStrToMs', function () {
       mins = Number(parts[0]);
       secMs = Number(parts[1]) * 1000;
     } else {
-      // HH:mm:ss, HH:mm:ss[.mmm], ISO — up to three segments. A dateTime
-      // bound parses its time half as 'ISO' regardless of the declared
-      // nested layout, so the value may legitimately carry fewer segments
-      // (e.g. an 'HH:mm' nested time → '14:30'). The structural check has
-      // already validated the value against its real layout; here we only
-      // need a tolerant key, so absent segments contribute 0.
+      // A dateTime bound parses its time half as 'ISO' regardless of the declared nested layout, so
+      // the value may legitimately carry fewer segments (an 'HH:mm' nested time → '14:30'). The
+      // structural check already validated it, so a tolerant key is enough: absent segments are 0.
       hours = Number(parts[0]);
       mins = parts[1] ? Number(parts[1]) : 0;
       if (parts[2]) {
@@ -414,16 +412,14 @@ registerPureFnFactory('rtFormats::timeStrToMs', function () {
     }
     return hours * 3600000 + mins * 60000 + secMs;
   };
-});
+}, timeStrToMsId);
 
 // relativeNowKey — evaluates a `now`, `now+P…`, or `now-P…` spec to a
-// comparison key on the requested scale. scale: 'epoch' → UTC epoch ms
-// (calendar-correct add via Date arithmetic); 'timeOfDay' → ms-of-day
-// (only T-section components apply; date components are rejected
-// build-time so won't appear here).
-registerPureFnFactory('rtFormats::relativeNowKey', function () {
-  // Parse the ISO-8601 duration tail into {years, months, weeks, days,
-  // hours, minutes, seconds}. Returns null for bare `now`.
+// comparison key on the requested scale. scale: 'epoch' → UTC epoch ms (calendar-correct add via Date
+// arithmetic); 'epochDate' → the same floored to UTC midnight, matching dateStrToMs; 'timeOfDay' → ms-of-day
+// (only T-section components apply, date components are rejected build-time so won't appear here).
+export const relativeNowKey = registerPureFnFactory(function () {
+  // Parses the ISO-8601 duration tail into years, months, weeks, days, hours, minutes and seconds.
   function parseDuration(tail: string): Record<string, number> {
     const out: Record<string, number> = {years: 0, months: 0, weeks: 0, days: 0, hours: 0, minutes: 0, seconds: 0};
     const body = tail.substring(1); // drop leading 'P'
@@ -457,18 +453,16 @@ registerPureFnFactory('rtFormats::relativeNowKey', function () {
     if (spec !== 'now') {
       const sign = spec[3] === '-' ? -1 : 1;
       const d = parseDuration(spec.substring(4));
-      // Calendar-correct: apply Y/M via setUTCMonth (handles month length),
-      // then W/D and time components as fixed offsets.
+      // Calendar-correct: Y/M via setUTCMonth (handles month length), then W/D and time as fixed offsets.
       result.setUTCFullYear(result.getUTCFullYear() + sign * d.years);
       result.setUTCMonth(result.getUTCMonth() + sign * d.months);
       result.setUTCDate(result.getUTCDate() + sign * (d.weeks * 7 + d.days));
       result.setTime(result.getTime() + sign * (d.hours * 3600000 + d.minutes * 60000 + d.seconds * 1000));
     }
     if (scale === 'epochDate') {
-      // Floor to UTC midnight so the bound is on the same scale as
-      // dateStrToMs (which builds dates at 00:00:00Z).
+      // Floor to UTC midnight, the scale dateStrToMs uses (it builds dates at 00:00:00Z).
       return Date.UTC(result.getUTCFullYear(), result.getUTCMonth(), result.getUTCDate(), 0, 0, 0, 0);
     }
     return result.getTime();
   };
-});
+}, relativeNowKeyId);

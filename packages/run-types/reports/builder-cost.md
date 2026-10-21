@@ -45,16 +45,16 @@ Budgets may only ever be lowered.
 | scalar | `string({params})` | 200 | 225 | 29 | 29 |
 | scalar | `string({params}, brand)` | 268 | 293 | 63 | 63 |
 | scalar | `number()` | 30 | 30 | 9 | 9 |
-| scalar | `number({params})` | 140 | 140 | 29 | 29 |
-| scalar | `currency({params})` | 170 | 170 | 35 | 35 |
+| scalar | `number({params})` | 142 | 142 | 29 | 29 |
+| scalar | `currency({params})` | 172 | 172 | 35 | 35 |
 | scalar | `bigInt({params})` | 132 | 132 | 29 | 29 |
 | scalar | `date({params})` | 134 | 134 | 31 | 31 |
-| string-preset | `email()` | 126 | 126 | 9 | 9 |
-| string-preset | `email({maxLength})` | 284 | 284 | 46 | 46 |
+| string-preset | `email()` | 120 | 126 | 9 | 9 |
+| string-preset | `email({maxLength})` | 274 | 284 | 46 | 46 |
 | string-preset | `uuid()` | 41 | 41 | 9 | 9 |
-| string-preset | `url({maxLength})` | 274 | 274 | 46 | 46 |
+| string-preset | `stringUrl({maxLength})` | 274 | 274 | 46 | 46 |
 | string-preset | `ip({allowLocalHost})` | 269 | 269 | 46 | 46 |
-| string-preset | `domain({maxLength})` | 299 | 299 | 46 | 46 |
+| string-preset | `domain({maxLength})` | 279 | 299 | 46 | 46 |
 | string-preset | `alpha({maxLength})` | 333 | 358 | 49 | 49 |
 | string-preset | `base64({maxLength})` | 336 | 361 | 49 | 49 |
 | number-preset | `integer()` | 50 | 50 | 9 | 9 |

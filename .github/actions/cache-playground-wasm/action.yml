@@ -5,17 +5,24 @@ description: >
   stamp on a hit so the mtime gate short-circuits after a fresh checkout. Use in
   any job that builds the docs site's playground assets on the host.
 
+outputs:
+  hit:
+    description: "'true' when the wasm came from the cache, so building it needs no Go"
+    value: ${{ steps.cache.outputs.cache-hit == 'true' }}
+
 runs:
   using: composite
   steps:
-    # Keyed on the WASM's real inputs: the Go sources it links + the build script
-    # + the toolchain (bootstrap) pin. A Go change misses the key and rebuilds; a
-    # UI-only change hits it.
+    # Keyed on the Go sources the wasm links, the build script and bootstrap, so a UI-only change hits.
+    # The tsgolint gitlink joins the key: it pins typescript-go, which the wasm links, and its patches.
+    - id: tsgolint
+      shell: bash
+      run: echo "sha=$(git rev-parse HEAD:ts-go-runtypes/third_party/tsgolint)" >> "$GITHUB_OUTPUT"
     - id: cache
       uses: actions/cache@v4
       with:
         path: .cache/rt-wasm
-        key: rt-wasm-${{ hashFiles('ts-go-runtypes/cmd/mion-wasm/**', 'ts-go-runtypes/internal/**', 'ts-go-runtypes/go.mod', 'ts-go-runtypes/go.sum', 'container/website/scripts/build-playground.mjs', '.github/actions/bootstrap/**') }}
+        key: rt-wasm-${{ steps.tsgolint.outputs.sha }}-${{ hashFiles('ts-go-runtypes/cmd/mion-wasm/**', 'ts-go-runtypes/internal/**', 'ts-go-runtypes/go.mod', 'ts-go-runtypes/go.sum', 'ts-go-runtypes/go.work', 'ts-go-runtypes/go.work.sum', 'container/website/scripts/build-playground.mjs', 'ts-go-runtypes/.go-version') }}
     # A fresh checkout stamps every file with `now`, so build-playground's mtime
     # gate would treat the (older) cached WASM as stale and rebuild it just to
     # byte-compare. Bump the stamp past the checkout so the gate short-circuits

@@ -51,7 +51,7 @@ function globals(): ResolverGlobals {
 // so the bundler must NOT treat them as module assets (it would try to bundle the
 // ~37 MiB file). A host mounted under a non-root base overrides these via
 // ResolverOptions (the Vue component joins them onto the app baseURL).
-const DEFAULT_WASM_URL = '/playground-app/ts-runtypes.wasm.gz';
+const DEFAULT_WASM_URL = '/playground-app/mion.wasm.gz';
 const DEFAULT_WASM_EXEC_URL = '/playground-app/wasm_exec.js';
 const DEFAULT_SIDECAR_HOOK_URL = '/playground-app/sidecar-hook.js';
 

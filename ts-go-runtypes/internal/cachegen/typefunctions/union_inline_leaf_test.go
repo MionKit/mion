@@ -112,18 +112,7 @@ func assertLeafUnionInlined(
 func TestUnionInlineLeaf_StringUndefined_PrepareForJson(t *testing.T) {
 	assertLeafUnionInlined(t,
 		buildLeafAtomicUnionFixture,
-		"prepareForJson", PrepareForJsonEmitter{}, constants.CacheModules["prepareForJson"],
-		[]string{"typeof v === 'string'", "typeof v === 'undefined'"},
-		[]string{"str", "und"},
-	)
-}
-
-// TestUnionInlineLeaf_StringUndefined_ToBinary — same union, binary encoder:
-// the inline checks gate the per-member tag writes; no cross-family edge.
-func TestUnionInlineLeaf_StringUndefined_ToBinary(t *testing.T) {
-	assertLeafUnionInlined(t,
-		buildLeafAtomicUnionFixture,
-		"toBinary", ToBinaryEmitter{}, constants.CacheModules["toBinary"],
+		"prepareForJsonMutate", PrepareForJsonEmitter{}, constants.CacheModules["prepareForJsonMutate"],
 		[]string{"typeof v === 'string'", "typeof v === 'undefined'"},
 		[]string{"str", "und"},
 	)
@@ -135,17 +124,7 @@ func TestUnionInlineLeaf_StringUndefined_ToBinary(t *testing.T) {
 func TestUnionInlineLeaf_BigIntDate_PrepareForJson(t *testing.T) {
 	assertLeafUnionInlined(t,
 		buildBigIntDateLeafUnionFixture,
-		"prepareForJson", PrepareForJsonEmitter{}, constants.CacheModules["prepareForJson"],
-		[]string{"typeof v === 'bigint'", "(v instanceof Date && !isNaN(v.getTime()))"},
-		[]string{"big", "dat"},
-	)
-}
-
-// TestUnionInlineLeaf_BigIntDate_ToBinary — same union, binary encoder.
-func TestUnionInlineLeaf_BigIntDate_ToBinary(t *testing.T) {
-	assertLeafUnionInlined(t,
-		buildBigIntDateLeafUnionFixture,
-		"toBinary", ToBinaryEmitter{}, constants.CacheModules["toBinary"],
+		"prepareForJsonMutate", PrepareForJsonEmitter{}, constants.CacheModules["prepareForJsonMutate"],
 		[]string{"typeof v === 'bigint'", "(v instanceof Date && !isNaN(v.getTime()))"},
 		[]string{"big", "dat"},
 	)
@@ -163,8 +142,7 @@ func TestUnionInlineLeaf_ObjectMembersStayCrossFamily(t *testing.T) {
 		familyKey string
 		emitter   Emitter
 	}{
-		{"prepareForJson", PrepareForJsonEmitter{}},
-		{"toBinary", ToBinaryEmitter{}},
+		{"prepareForJsonMutate", PrepareForJsonEmitter{}},
 	} {
 		runTypes, rootID := buildConflictPropUnionFixture()
 		dump := protocol.Dump{RunTypes: runTypes}
@@ -198,13 +176,10 @@ func TestUnionInlineLeaf_ObjectMembersStayCrossFamily(t *testing.T) {
 // cross-family `val_<uuid>?.fn(` reference and getRT prologue. Guards against
 // the format check being silently dropped.
 //
-// Uses the binary encoder: `UUID | number` where number inlines
-// (`Number.isFinite(v)`) but the branded uuid keeps its cross-family edge. The
-// JSON encoder collapses this union (both members are prepareForJson-noop, so
-// the root is elided), so the binary family is the natural place to pin it.
+// Uses `UUID | bigint`: the bigint transform keeps the guard chain, where a JSON-identity `UUID | number` would collapse.
 func TestUnionInlineLeaf_FormatMemberStaysCrossFamily(t *testing.T) {
 	uuid := &reflection.RunType{ID: "uid", Kind: reflection.KindString, TypeName: "UUID", FormatAnnotation: &reflection.FormatAnnotation{Name: "uuid"}}
-	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	num := &reflection.RunType{ID: "num", Kind: reflection.KindBigInt}
 	union := &reflection.RunType{
 		ID: "unf", Kind: reflection.KindUnion,
 		Children:          []*reflection.RunType{makeRef("uid"), makeRef("num")},
@@ -212,13 +187,12 @@ func TestUnionInlineLeaf_FormatMemberStaysCrossFamily(t *testing.T) {
 	}
 	runTypes := []*reflection.RunType{uuid, num, union}
 	dump := protocol.Dump{RunTypes: runTypes}
-	settings := constants.CacheModules["toBinary"]
+	settings := constants.CacheModules["prepareForJsonMutate"]
 
-	out := joinEntries(t, FamilyByKey("toBinary").Collect(dump, RenderOpts{EmitMode: "both"}, nil))
+	out := joinEntries(t, FamilyByKey("prepareForJsonMutate").Collect(dump, RenderOpts{EmitMode: "both"}, nil))
 
-	// The non-branded number member inlines.
-	if !strings.Contains(out, "Number.isFinite(v)") {
-		t.Errorf("expected the leaf number member to inline `Number.isFinite(v)`; got:\n%s", out)
+	if !strings.Contains(out, "typeof v === 'bigint'") {
+		t.Errorf("expected the leaf bigint member to inline `typeof v === 'bigint'`; got:\n%s", out)
 	}
 	// The format-branded uuid member keeps its cross-family reference + prologue.
 	uidKey := valKey("uid")
@@ -230,12 +204,11 @@ func TestUnionInlineLeaf_FormatMemberStaysCrossFamily(t *testing.T) {
 	}
 
 	refTable := buildRefTable(runTypes)
-	rendered := renderEntryWithDeps(refTable["unf"], settings, ToBinaryEmitter{}, innerPrefix(settings), refTable, RenderOpts{}, "", nil, false)
+	rendered := renderEntryWithDeps(refTable["unf"], settings, PrepareForJsonEmitter{}, innerPrefix(settings), refTable, RenderOpts{}, "", nil, false)
 	if !containsStr(rendered.crossFamilyDeps, uidKey) {
 		t.Errorf("format-branded member MUST record a CrossFamilyDeps edge %q; got %v", uidKey, rendered.crossFamilyDeps)
 	}
-	// The inlined number member records NO cross-family edge.
 	if containsStr(rendered.crossFamilyDeps, valKey("num")) {
-		t.Errorf("inlined number member must NOT record a CrossFamilyDeps edge; got %v", rendered.crossFamilyDeps)
+		t.Errorf("inlined bigint member must NOT record a CrossFamilyDeps edge; got %v", rendered.crossFamilyDeps)
 	}
 }

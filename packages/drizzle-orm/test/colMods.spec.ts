@@ -1,0 +1,81 @@
+/* ########
+ * 2026 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+// Every reader splits a builder's props by colModNames, so, checked against the manifests and dialect sources:
+// the list covers every recorded modifier (a drizzle upgrade cannot add one as a silent config key), and no
+// config key is named like a modifier (it would be replayed as a method).
+
+import {readFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import {describe, expect, it} from 'vitest';
+import {colModNames, isColModName} from '../src/columns.ts';
+
+const DIALECTS = ['pg', 'mysql', 'sqlite'] as const;
+
+const packageDir = (dialect: string) => fileURLToPath(new URL(`../../drizzle-orm-${dialect}-core/`, import.meta.url));
+
+interface ManifestEntry {
+  fn: string;
+  kind?: string;
+  status?: string;
+  modifiers?: string[];
+}
+
+function manifestModifiers(dialect: string): string[] {
+  const path = `${packageDir(dialect)}manifests/${dialect}.manifest.json`;
+  const entries = JSON.parse(readFileSync(path, 'utf8')).entries as ManifestEntry[];
+  return entries
+    .filter((entry) => entry.kind === 'column' && entry.status === 'migrated')
+    .flatMap((entry) => entry.modifiers ?? []);
+}
+
+/** The config interfaces the column types constrain their props by, read off `P extends Only<P, <Config> & <Bag>>`. */
+function configTypeNames(source: string): string[] {
+  const names = new Set<string>();
+  for (const match of source.matchAll(/extends Only<P, (.+?) & \w*ColMods>/g)) {
+    const bare = match[1]
+      .replace(/^Partial<(.+)>$/, '$1')
+      .replace(/<.*>$/, '')
+      .trim();
+    if (/^[A-Za-z][\w]*$/.test(bare)) names.add(bare);
+  }
+  return [...names];
+}
+
+/** Top-level property names of `export interface <name> {...}`. */
+function interfaceKeys(source: string, name: string): string[] {
+  const head = new RegExp(`^export interface ${name}(<[^>]*>)? \\{$`, 'm').exec(source);
+  if (head === null) throw new Error(`no interface ${name} found`);
+  const body = source.slice(head.index + head[0].length, source.indexOf('\n}', head.index));
+  return [...body.matchAll(/^ {2}([A-Za-z_$][\w$]*)\??:/gm)].map((match) => match[1]);
+}
+
+describe('the one-object column spelling', () => {
+  it('colModNames covers every modifier the dialects record', () => {
+    const recorded = [...new Set(DIALECTS.flatMap(manifestModifiers))].sort();
+    expect(recorded, 'add the new modifier to colModNames (and to the Go convert list)').toEqual([...colModNames].sort());
+  });
+
+  it('is sorted, so the two readers can be diffed by eye', () => {
+    expect([...colModNames]).toEqual([...colModNames].sort());
+  });
+
+  for (const dialect of DIALECTS) {
+    it(`no ${dialect} column config key is named like a modifier`, () => {
+      const columns = readFileSync(`${packageDir(dialect)}src/columns.ts`, 'utf8');
+      const types = readFileSync(`${packageDir(dialect)}src/types.ts`, 'utf8');
+      const configs = configTypeNames(columns);
+      expect(configs.length, 'the column type constraints changed shape, this gate is reading nothing').toBeGreaterThan(3);
+      const clashes = configs.flatMap((name) =>
+        interfaceKeys(types, name)
+          .filter(isColModName)
+          .map((key) => `${name}.${key}`)
+      );
+      expect(clashes, 'a config key with a modifier name would be replayed as a method call').toEqual([]);
+    });
+  }
+});

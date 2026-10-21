@@ -4,14 +4,10 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// FamilySpec bundles everything one type-walking cache family needs to
-// collect its per-entry virtual modules: its constants.CacheModules key
-// (== the wire CacheKind string), settings and emitter. Adding a new RT
-// function family = one emitter file + one row in Families; the resolver
-// wires collection and added-flags off the registry.
+// FamilySpec is one type-walking cache family: its constants.CacheModules key (== the wire CacheKind
+// string), its settings and its emitter. Adding a family is one emitter file plus one row in Families.
 type FamilySpec struct {
 	Key      string
 	Settings constants.CacheModuleSettings
@@ -23,67 +19,44 @@ func family(key string, emitter Emitter) FamilySpec {
 	return FamilySpec{Key: key, Settings: constants.CacheModules[key], Emitter: emitter}
 }
 
-// Families lists every type-walking cache family. Order is no longer
-// load-bearing: cross-family `val_<member>` edges ride each entry's module
-// deps and the resolver's cross-family fixpoint renders the foreign entries
-// they name, so validate needs no special last-place collection pass.
+// Families lists every type-walking cache family. Cross-family `val_<member>` edges travel on each entry's
+// module deps and the resolver's fixpoint renders the foreign entries they name, so collection order does not
+// affect what is rendered. It does fix the order diagnostics come out in (see resolver.collectFamilies).
 var Families = []FamilySpec{
 	family("validationErrors", ValidationErrorsEmitter{}),
-	// prepareForJson / restoreFromJson: the mutating JSON round-trip pair —
-	// `restoreFromJson(JSON.parse(JSON.stringify(prepareForJson(v))))` must
-	// deep-equal v. Unions emit the flat wire shape (see union_flat.go).
-	family("prepareForJson", PrepareForJsonEmitter{}),
-	family("restoreFromJson", RestoreFromJsonEmitter{}),
-	// stringifyJson: single-pass serialiser that builds the JSON string
-	// directly from the type — never mutates v, strips extras by construction.
-	family("stringifyJson", StringifyJsonEmitter{}),
-	// prepareForJsonSafe: non-mutating prepareForJson sibling that strips
-	// undeclared properties and returns a new value.
-	family("prepareForJsonSafe", PrepareForJsonSafeEmitter{}),
-	// compactForJson / compactFromJson: the `compact` strategy's positional-tuple
-	// round-trip pair — declared object props as a positional array (no key names)
-	// instead of a keyed object. Non-mutating clone on encode, keyed-object rebuild
-	// on decode. See json_compact.go / json_compact_restore.go.
+	// The mutating JSON round-trip pair: `restoreFromJsonMutate(JSON.parse(JSON.stringify(prepareForJson(v))))`
+	// must deep-equal v. Unions emit the flat wire shape (see union_flat.go).
+	family("prepareForJsonMutate", PrepareForJsonEmitter{}),
+	family("restoreFromJsonMutate", RestoreFromJsonEmitter{}),
+	// The non-mutating prepareForJson sibling: strips undeclared properties and returns a new value.
+	family("prepareForJsonClone", PrepareForJsonCloneEmitter{}),
+	// The DECODE mirror of prepareForJsonClone: rebuilds each object from the declared shape, so an undeclared
+	// key on the wire is gone rather than blanked. See json_restore_clone.go.
+	family("restoreFromJsonClone", RestoreFromJsonCloneEmitter{}),
+	// The `compact` strategy's round-trip pair: declared object props as a positional array, no key names.
+	// Non-mutating clone on encode, keyed-object rebuild on decode. See json_compact.go / json_compact_restore.go.
 	family("compactForJson", CompactForJsonEmitter{}),
 	family("compactFromJson", CompactFromJsonEmitter{}),
-	// The unknown-keys group: boolean probe, error accumulator, and the
-	// decoder-internal wire-aware to-undefined variant. The public deleting/
-	// undefining mutators (stripUnknownKeys / unknownKeysToUndefined) were
-	// removed in favor of cloneExactShape — measured 3–24x faster and free of
-	// the delete-induced dictionary-mode deopt; the to-undefined EMITTER stays
-	// (unknownkeys_to_undefined.go) because the wire variant delegates to it.
-	family("hasUnknownKeys", HasUnknownKeysEmitter{}),
-	family("unknownKeyErrors", UnknownKeyErrorsEmitter{}),
-	family("unknownKeysToUndefinedWire", UnknownKeysToUndefinedWireEmitter{}),
-	// cloneExactShape: a proper deep clone of the DECLARED shape — unknown
-	// keys dropped by construction, nothing mutable shared with the input
-	// (only immutables and opaque handles pass through). The clone-based
-	// replacement for the removed mutating strip family.
-	family("cloneExactShape", CloneExactShapeEmitter{}),
-	// toBinary / fromBinary: DataViewSerializer (little-endian) round-trip
-	// pair; unions emit the flat-prop wire shape (see union_flat_binary.go).
-	family("toBinary", ToBinaryEmitter{}),
-	family("fromBinary", FromBinaryEmitter{}),
-	// formatTransform: the value-transform family (createFormatTransformFn<T>).
+	// No public mutating strip: removeUnknownKeys is 3-24x faster and avoids the delete-induced dictionary-mode deopt.
+	// A deep clone of the DECLARED shape: unknown keys dropped by construction, nothing mutable shared with
+	// the input (only immutables and opaque handles pass through).
+	family("removeUnknownKeys", RemoveUnknownKeysEmitter{shared: sharedValuesWarn}),
+	family("removeUnknownKeysShared", RemoveUnknownKeysEmitter{shared: sharedValuesShare}),
+	family("removeUnknownKeysRefuse", RemoveUnknownKeysEmitter{shared: sharedValuesRefuse}),
+	// The value-transform family behind createFormatTransformFn<T>.
 	family("formatTransform", FormatTransformEmitter{}),
-	// jsonSchema: the per-type JSON Schema document (see json_schema_doc.go);
-	// the whole document renders inline at the root — no cross-entry deps.
+	// The per-type JSON Schema document (json_schema_doc.go): renders inline at the root, no cross-entry deps.
 	family("jsonSchema", JsonSchemaDocEmitter{}),
-	// classSerializerReg: registerClassSerializer's build-time class-name card
-	// (see class_serializer_reg.go); inline at the root, no cross-entry deps.
+	// registerClassSerializer's build-time class-name card (class_serializer_reg.go): inline at the root, no deps.
 	family("classSerializerReg", ClassSerializerRegEmitter{}),
-	// The fused validators (`{checkUnknowns: true}`): the same bodies as validate
-	// / validationErrors plus the unknown-key check at every object-ish node, so
-	// one walk answers "valid AND free of undeclared keys". See validate_strict.go.
-	// Placed BEFORE validate — the registry's last row must stay `validate` (see
-	// the comment on the final row).
+	// The fused validators (`{checkUnknowns: true}`): validate / validationErrors bodies plus the unknown-key
+	// check at every object-ish node, so one walk answers "valid AND free of undeclared keys" (validate_strict.go).
+	// Placed BEFORE validate: the registry's last row must stay `validate`.
 	family("validateStrict", ValidateStrictEmitter{}),
 	family("validationErrorsStrict", ValidationErrorsStrictEmitter{}),
-	// createParseFn — restore + check in one walk. One family per undeclared-key
-	// strategy; the emitter value carries the policy to every node (see parse.go).
-	family("parse", ParseEmitter{Extras: ExtrasPreserve}),
-	family("parseStrip", ParseEmitter{Extras: ExtrasStrip}),
-	family("parseFail", ParseEmitter{Extras: ExtrasFail}),
+	// The union-scoped validators (`{checkUnionUnknowns: true}`): plain bodies plus a key check on union member arms only.
+	family("validateUnionKeys", ValidateUnionKeysEmitter{}),
+	family("validationErrorsUnionKeys", ValidationErrorsUnionKeysEmitter{}),
 	family("validate", ValidateEmitter{}),
 }
 
@@ -95,8 +68,8 @@ var familiesByKey = func() map[string]FamilySpec {
 	return byKey
 }()
 
-// FamilyByKey returns the registered family for a CacheModules key. Panics on
-// an unknown key — resolver wiring is static, so a typo dies at process init.
+// FamilyByKey returns the registered family for a CacheModules key, panicking on an unknown one:
+// resolver wiring is static, so a typo dies at process init.
 func FamilyByKey(key string) FamilySpec {
 	spec, ok := familiesByKey[key]
 	if !ok {
@@ -105,22 +78,8 @@ func FamilyByKey(key string) FamilySpec {
 	return spec
 }
 
-// Collect compiles the family's demanded entries into per-entry virtual-module
-// records (see CollectFamilyEntries). extraRoots seed (type-id, variant) roots
-// beyond the family's own call-site demand — the resolver's cross-family
-// fixpoint path.
+// Collect compiles the family's demanded entries into per-entry virtual-module records. extraRoots seed
+// (type-id, variant) roots beyond the family's own call-site demand, the resolver's cross-family fixpoint path.
 func (spec FamilySpec) Collect(dump protocol.Dump, opts RenderOpts, extraRoots []ExtraRoot) entrymodules.Graph {
 	return CollectFamilyEntries(dump, spec.Settings, spec.Emitter, innerPrefix(spec.Settings), opts, extraRoots)
-}
-
-// AnySupported reports whether at least one runtype in the slice has a
-// supported emit arm in this family (one shallow pass per family — the
-// per-dispatch profile the perf pass measured and kept).
-func (spec FamilySpec) AnySupported(runTypes []*reflection.RunType) bool {
-	for _, runType := range runTypes {
-		if spec.Emitter.Supports(runType) {
-			return true
-		}
-	}
-	return false
 }

@@ -16,7 +16,7 @@ import (
 // setSources request. Before the tsconfig-fidelity fix it applied no
 // customConditions, so a cross-package type behind a `source` export condition
 // (the source-resolved monorepo dev setup, dist unbuilt) collapsed to `any` —
-// emitting false-positive MKR007 at lint time only, while the build resolved it.
+// emitting false-positive marker-any-from-unresolved-import at lint time only, while the build resolved it.
 //
 // These tests drive the REAL server path (NewServer -> OpSetSources ->
 // dispatchSetSources -> ParseInferredConfig), NOT setupInline (which
@@ -45,7 +45,7 @@ getRunTypeId<CrossPkgUser>();
 declare const sample: CrossPkgUser;
 getRunTypeId(sample);
 
-// createValidateFn<CrossPkgType>() — the site that produced 59 MKR007 in mion
+// createValidateFn<CrossPkgType>() — the site that produced 59 marker-any-from-unresolved-import in mion
 export const validateUser = createValidateFn<CrossPkgUser>();
 `
 
@@ -124,7 +124,7 @@ func kindByID(resp protocol.Response) map[string]reflection.ReflectionKind {
 	return byID
 }
 
-func mkr007Count(resp protocol.Response) int {
+func markerAnyFromUnresolvedImportCount(resp protocol.Response) int {
 	count := 0
 	for _, diagnostic := range resp.Diagnostics {
 		if diagnostic.Code == diagnostics.CodeMarkerAnyFromUnresolvedImport {
@@ -136,13 +136,13 @@ func mkr007Count(resp protocol.Response) int {
 
 // TestInlineServer_SourceCondition_ResolvesCrossPackage — with the project's
 // customConditions:["source"] threaded in, the cross-package marker resolves to
-// the real type: no MKR007, every site an ObjectLiteral, and the two
+// the real type: no marker-any-from-unresolved-import, every site an ObjectLiteral, and the two
 // getRunTypeId forms share one reflection id.
 func TestInlineServer_SourceCondition_ResolvesCrossPackage(t *testing.T) {
 	resp := scanConsumerOverSourceCondition(t, tsconfigWithSource)
 
-	if got := mkr007Count(resp); got != 0 {
-		t.Fatalf("customConditions:[source] must resolve @app/models — got %d MKR007 diagnostic(s): %+v", got, resp.Diagnostics)
+	if got := markerAnyFromUnresolvedImportCount(resp); got != 0 {
+		t.Fatalf("customConditions:[source] must resolve @app/models — got %d marker-any-from-unresolved-import diagnostic(s): %+v", got, resp.Diagnostics)
 	}
 	if len(resp.Sites) != 3 {
 		t.Fatalf("want 3 marker sites (2 getRunTypeId shapes + createValidateFn), got %d: %+v", len(resp.Sites), resp.Sites)
@@ -184,7 +184,7 @@ func TestInlineServer_SourceCondition_ResolvesCrossPackage(t *testing.T) {
 // source condition (no tsconfig at all, or a tsconfig that omits it) the server
 // must keep working (best-effort, no crash) and the cross-package type must NOT
 // resolve to an ObjectLiteral. This proves the tsconfig is the mechanism without
-// pinning whether MKR007 specifically fires.
+// pinning whether marker-any-from-unresolved-import specifically fires.
 func TestInlineServer_NoSourceCondition_BestEffortDoesNotResolve(t *testing.T) {
 	cases := []struct {
 		name     string
@@ -207,7 +207,7 @@ func TestInlineServer_NoSourceCondition_BestEffortDoesNotResolve(t *testing.T) {
 					t.Errorf("CrossPkgUser resolved to ObjectLiteral WITHOUT customConditions:[source] — the source entry should be unreachable (fixture/contract wrong)")
 				}
 			}
-			t.Logf("without source condition: %d MKR007 diagnostic(s) (today-behavior)", mkr007Count(resp))
+			t.Logf("without source condition: %d marker-any-from-unresolved-import diagnostic(s) (today-behavior)", markerAnyFromUnresolvedImportCount(resp))
 		})
 	}
 }

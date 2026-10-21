@@ -1,26 +1,6 @@
-// Value-first `defineObject` validation suite — single source of truth for the
-// behavioral assertions of the value-first authoring surface
-// (`@mionjs/run-types/schema`). Sibling of validation-suite.ts /
-// format-validation-suite.ts.
-//
-// Each model is authored with `RT.object({...})`. Every builder returns the
-// generic `RunType<…>` node, so `typeof Model` is that node and
-// `InferType<typeof Model>` recovers the model type — which is fed to
-// `createValidateFn` / `createGetValidationErrorsFn`, the SAME path as the type-first
-// surface, proving the value-first front-end lowers to the identical RunType
-// graph (same-hash convergence is asserted across all suites in
-// test/suites/id-integrity/).
-//
-// Per the CLAUDE.md marker-coverage rule every case carries BOTH forms:
-//   - static  `createValidateFn<InferType<typeof Model>>()`
-//   - reflect `createValidateFn(value)` where `value` is a runtime object whose
-//     declared type is `InferType<typeof Model>` (the format brand can't be
-//     constructed from a plain literal, so the value is cast — discarded at
-//     runtime, only its static type drives `T` inference).
-//
-// The bare `import '@mionjs/run-types/builders'` is type-only here; the
-// `import '@mionjs/run-types/formats'` side-effect import is load-bearing
-// (registers the format mock fns + pure-fns the emitted validators reach).
+// Shares validation-suite.ts/format-validation-suite.ts assertions; id-integrity checks convergence with type-first graphs.
+// Cast values carry unconstructible format brands for inference only; runtime discards them (AGENTS.md marker coverage).
+// The formats value import registers mocks and pure functions required by emitted validators.
 
 import * as TF from '@mionjs/run-types/formats';
 import * as TFT from '@mionjs/run-types/formats/temporal';
@@ -146,6 +126,11 @@ const CountedRecord = RT.record(RT.unknown(), {minProperties: 1, maxProperties: 
 const ContainsNumbers = RT.array(RT.unknown(), {contains: TF.number(), minContains: 2});
 const PatternKeyed = RT.record(RT.unknown(), {patternProperties: {'^a': TF.number()}});
 const ShortKeys = RT.record(RT.unknown(), {propertyNames: TF.string({maxLength: 3})});
+const BoundedTags = RT.set(TF.string(), {maxItems: 3, uniqueItems: true});
+const NumberSomewhere = RT.set(RT.unknown(), {contains: TF.number()});
+const SmallLookup = RT.map(TF.string(), TF.number(), {maxItems: 2});
+const UniqueLookup = RT.map(RT.object({id: TF.number()}), TF.string(), {uniqueItems: true});
+const AdminSomewhere = RT.map(TF.string(), TF.number(), {contains: RT.tuple({required: [RT.literal('admin'), RT.unknown()]})});
 
 export const VALUE_FIRST_SUITE: Record<string, ValueFirstCase> = {
   flat_mixed: {
@@ -519,6 +504,135 @@ export const VALUE_FIRST_SUITE: Record<string, ValueFirstCase> = {
     getSamples: () => ({
       valid: [[], [1, 2, 3]],
       invalid: [[1, 1], [1, 2, 3, 4], ['x'], 5],
+    }),
+  },
+
+  structural_set_format: {
+    title: 'formattedSet — maxItems + uniqueItems on a Set, the collection keywords',
+    validate: () => createValidateFn<InferType<typeof BoundedTags>>(),
+    validateReflect: () => {
+      const v = new Set(['a']) as unknown as InferType<typeof BoundedTags>;
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<InferType<typeof BoundedTags>>(),
+    deserializeValidateReflect: () => {
+      const v = new Set(['a']) as unknown as InferType<typeof BoundedTags>;
+      return deserializeValidate(v);
+    },
+    getValidationErrors: () => createGetValidationErrorsFn<InferType<typeof BoundedTags>>(),
+    getSamples: () => ({
+      valid: [new Set(), new Set(['a', 'b', 'c'])],
+      invalid: [new Set(['a', 'b', 'c', 'd']), ['a'], 5],
+    }),
+  },
+
+  structural_set_contains: {
+    title: 'formattedSet — contains on a Set',
+    validate: () => createValidateFn<InferType<typeof NumberSomewhere>>(),
+    validateReflect: () => {
+      const v = new Set([1]) as unknown as InferType<typeof NumberSomewhere>;
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<InferType<typeof NumberSomewhere>>(),
+    deserializeValidateReflect: () => {
+      const v = new Set([1]) as unknown as InferType<typeof NumberSomewhere>;
+      return deserializeValidate(v);
+    },
+    getValidationErrors: () => createGetValidationErrorsFn<InferType<typeof NumberSomewhere>>(),
+    getSamples: () => ({
+      valid: [new Set([1]), new Set(['a', 2])],
+      invalid: [new Set(), new Set(['a']), [1]],
+    }),
+  },
+
+  structural_map_format: {
+    title: 'formattedMap — maxItems on a Map',
+    validate: () => createValidateFn<InferType<typeof SmallLookup>>(),
+    validateReflect: () => {
+      const v = new Map([['a', 1]]) as unknown as InferType<typeof SmallLookup>;
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<InferType<typeof SmallLookup>>(),
+    deserializeValidateReflect: () => {
+      const v = new Map([['a', 1]]) as unknown as InferType<typeof SmallLookup>;
+      return deserializeValidate(v);
+    },
+    getValidationErrors: () => createGetValidationErrorsFn<InferType<typeof SmallLookup>>(),
+    getSamples: () => ({
+      valid: [
+        new Map(),
+        new Map([
+          ['a', 1],
+          ['b', 2],
+        ]),
+      ],
+      invalid: [
+        new Map([
+          ['a', 1],
+          ['b', 2],
+          ['c', 3],
+        ]),
+        {a: 1},
+        5,
+      ],
+    }),
+  },
+
+  structural_map_unique: {
+    title: 'formattedMap — uniqueItems on a Map, over its [key, value] pairs',
+    validate: () => createValidateFn<InferType<typeof UniqueLookup>>(),
+    validateReflect: () => {
+      const v = new Map([[{id: 1}, 'a']]) as unknown as InferType<typeof UniqueLookup>;
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<InferType<typeof UniqueLookup>>(),
+    deserializeValidateReflect: () => {
+      const v = new Map([[{id: 1}, 'a']]) as unknown as InferType<typeof UniqueLookup>;
+      return deserializeValidate(v);
+    },
+    getValidationErrors: () => createGetValidationErrorsFn<InferType<typeof UniqueLookup>>(),
+    getSamples: () => ({
+      valid: [
+        new Map(),
+        // Same key content, different values: two DIFFERENT pairs.
+        new Map([
+          [{id: 1}, 'a'],
+          [{id: 1}, 'b'],
+        ]),
+      ],
+      invalid: [
+        new Map([
+          [{id: 1}, 'a'],
+          [{id: 1}, 'a'],
+        ]),
+        {a: 'b'},
+        5,
+      ],
+    }),
+  },
+
+  structural_map_contains: {
+    title: 'formattedMap — contains on a Map, a tuple over its entry',
+    validate: () => createValidateFn<InferType<typeof AdminSomewhere>>(),
+    validateReflect: () => {
+      const v = new Map([['admin', 1]]) as unknown as InferType<typeof AdminSomewhere>;
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<InferType<typeof AdminSomewhere>>(),
+    deserializeValidateReflect: () => {
+      const v = new Map([['admin', 1]]) as unknown as InferType<typeof AdminSomewhere>;
+      return deserializeValidate(v);
+    },
+    getValidationErrors: () => createGetValidationErrorsFn<InferType<typeof AdminSomewhere>>(),
+    getSamples: () => ({
+      valid: [
+        new Map([['admin', 1]]),
+        new Map([
+          ['user', 2],
+          ['admin', 3],
+        ]),
+      ],
+      invalid: [new Map(), new Map([['user', 1]]), {admin: 1}, 5],
     }),
   },
 

@@ -31,7 +31,7 @@ func moduleBasenames(resp protocol.Response) []string {
 // fmt family for its type, and the reflection facade imports the entry (soft
 // dep) so the injected import loads it.
 func TestMockData_DemandsFormatTransform(t *testing.T) {
-	resp := scopeScan(t, `import {createMockDataFn} from '@mionjs/run-types';
+	resp := scopeScan(t, `import {createMockDataFn} from '@mionjs/run-types/mocking';
 import type {Lowercase} from '@mionjs/run-types/formats';
 type Tag = Lowercase<{maxLength: 12}>;
 export const mock = createMockDataFn<Tag>();
@@ -41,7 +41,7 @@ export const mock = createMockDataFn<Tag>();
 		t.Fatal("a createMockDataFn site must demand the fmt family for its type")
 	}
 	rootID := strings.SplitN(fmtKeys[0], "_", 2)[1]
-	facade := entryModule(resp, rootID)
+	facade := reflectionModule(resp, rootID)
 	if facade == "" {
 		t.Fatalf("no reflection facade module for mock root %q (basenames: %v)", rootID, moduleBasenames(resp))
 	}

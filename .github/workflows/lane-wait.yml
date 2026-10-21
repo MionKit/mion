@@ -1,0 +1,64 @@
+name: wait for an older run's lanes
+
+# Waits for the older run the gate deferred a heavy job's lanes to (scripts/ci/supersede.mjs),
+# then re-decides them from the markers. A failed waiter leaves its output empty, so the heavy
+# job falls back to the gate's verdict: waiting never skips a lane nobody proved.
+
+on:
+  workflow_call:
+    inputs:
+      lanes:
+        description: The lanes the heavy job runs, space separated
+        type: string
+        required: true
+      jobs:
+        description: The heavy job's name prefixes as GitHub shows them, `|` separated, whose failure ends the wait
+        type: string
+        required: true
+      decision:
+        description: The gate's verdict JSON, carrying `deferredTo`
+        type: string
+        required: true
+      minutes:
+        description: The job's timeout; the wait stops ten minutes earlier so the re-decide still runs
+        type: number
+        required: true
+    outputs:
+      lanes:
+        description: 'The re-decided JSON map of {lane: {run, hash, reason}}'
+        value: ${{ jobs.wait.outputs.lanes }}
+
+permissions:
+  contents: read
+  # reading the markers and the older run's jobs
+  actions: read
+
+jobs:
+  wait:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.minutes }}
+    outputs:
+      lanes: ${{ steps.decide.outputs.lanes }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # the base comparison in the re-decide
+          fetch-depth: 2
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+          # No install here, so no pnpm store to locate.
+          package-manager-cache: false
+      - name: Wait for the older run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MION_LANE_DECISION: ${{ inputs.decision }}
+        run: |
+          printf '%s' "$MION_LANE_DECISION" > "$RUNNER_TEMP/lane-decision.json"
+          node scripts/ci/supersede.mjs --wait --decision "$RUNNER_TEMP/lane-decision.json" --lanes ${{ inputs.lanes }} \
+            --jobs '${{ inputs.jobs }}' --timeout $(( ${{ inputs.minutes }} - 10 )) ${{ github.event_name == 'pull_request' && '--pr' || '' }}
+      - id: decide
+        uses: ./.github/actions/ci-lanes
+        with:
+          lanes: ${{ inputs.lanes }}
+          supersede: 'false'

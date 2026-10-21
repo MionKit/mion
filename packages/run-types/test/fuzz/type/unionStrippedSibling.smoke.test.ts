@@ -1,25 +1,11 @@
-// G3 / G4 regression: a discriminated union whose members share a property
-// NAME where one member's version is DataOnly-stripped (symbol / Promise /
-// non-serialisable native) and another's survives. The flat-union merge
-// collapses the prop to its surviving candidate, but a value belonging to the
-// STRIPPED member still carries the key at runtime — so the encode must guard
-// the surviving codec and DROP the key, not mis-apply the codec to a foreign
-// value.
-//
-//   - G4 (single surviving candidate): `{kind:'t1'; f2: Date} | {kind:'t2';
-//     f2: Uint8Array}`. A t2 value's `f2` is a Uint8Array; the Date codec used
-//     to run `f2.toISOString()` on it and crash.
-//   - G3 (multi surviving candidate): `{kind:'t0'; f0?: null} | {kind:'t1';
-//     f0: Promise<string>} | {kind:'t2'; f0: Set<number>}`. A t1 value's `f0`
-//     is a Promise; binary set the optional-prop bitmap bit while writing no
-//     bytes, desyncing the decoder ("invalid union index" / DataView overrun).
-//
-// Both shapes are valid TypeScript (typechecked below) — the bug is value-
-// level (the mock builds a value carrying the stripped member's prop), which
-// the TS-validity gate does not catch, so these are real findings.
+// G3 / G4 regression: when union members share a prop NAME and one member's type is DataOnly-stripped, the merge
+// keeps the surviving codec, yet a stripped member's value still carries the key, so encode must DROP it. G4: a t2
+// Uint8Array `f2` hit the t1 Date codec's `toISOString()` and crashed. G3: JSON must drop a t1 Promise `f0` and still
+// restore a t2 Set. The bug is value-level, so the TS-validity gate cannot catch it.
 import {describe, it, expect} from 'vitest';
 import {openClient, compileType, hasBinary} from './typeFuzzHarness.ts';
 import {typecheckGeneratedType} from './tsValidate.ts';
+import {checkCrossWire, type FuzzTarget} from '../value/fuzzOracle.ts';
 import type {GeneratedType, TypeShape, PropShape} from '../core/typeGen.ts';
 
 function prop(name: string, shape: TypeShape, optional = false): PropShape {
@@ -55,6 +41,21 @@ const g3: GeneratedType = {
   },
 };
 
+// Nondata soak seed 3065189181: the oracle's value copy flattened the DataView to `{}`, kept by the object `f1` codec.
+const o12: GeneratedType = {
+  decls: [],
+  root: {
+    kind: 'array',
+    elem: {
+      kind: 'union',
+      members: [
+        obj([prop('kind', lit('t0')), prop('f1', {kind: 'dataview'})]),
+        obj([prop('kind', lit('t2')), prop('f1', obj([prop('p0', {kind: 'literal', value: false}, true)]))]),
+      ],
+    },
+  },
+};
+
 describe('flat-union merged prop with a DataOnly-stripped sibling', () => {
   (hasBinary() ? it : it.skip)('G4: drops a foreign-typed sibling instead of mis-applying the Date codec', () => {
     expect(typecheckGeneratedType(g4), 'g4 must be valid TypeScript').toEqual([]);
@@ -63,35 +64,51 @@ describe('flat-union merged prop with a DataOnly-stripped sibling', () => {
       .then((compiled) => {
         expect(compiled.resolverError, compiled.resolverError).toBeUndefined();
         expect(compiled.evalError, compiled.evalError).toBeUndefined();
-        const {jsonEncode, jsonDecode, binaryEncode, binaryDecode} = compiled.wired;
+        const {jsonEncode, jsonDecode, compactEncode, compactDecode} = compiled.wired;
         // A t2 value carries f2 as a Uint8Array (the stripped member's type).
         const t2 = {kind: 't2', f2: new Uint8Array([1, 2, 3])};
         expect(jsonDecode!(jsonEncode!(t2)!)).toEqual({kind: 't2'});
-        expect(binaryDecode!(binaryEncode!(t2))).toEqual({kind: 't2'});
+        // The positional compact slot cannot drop the key: it writes the placeholder, which decodes to absent.
+        expect(compactDecode!(compactEncode!(t2)!)).toEqual({kind: 't2'});
         // A t1 value's real Date still round-trips.
         const t1 = {kind: 't1', f2: new Date(1000)};
         expect(jsonDecode!(jsonEncode!(t1)!)).toEqual(t1);
-        expect(binaryDecode!(binaryEncode!(t1))).toEqual(t1);
       })
       .finally(() => client.close());
   });
 
-  (hasBinary() ? it : it.skip)('G3: binary drops a Promise sibling instead of desyncing the decoder', () => {
+  (hasBinary() ? it : it.skip)('G3: JSON drops a Promise sibling and restores the Set', () => {
     expect(typecheckGeneratedType(g3), 'g3 must be valid TypeScript').toEqual([]);
     const client = openClient();
     return compileType(client, g3)
       .then((compiled) => {
         expect(compiled.resolverError, compiled.resolverError).toBeUndefined();
         expect(compiled.evalError, compiled.evalError).toBeUndefined();
-        const {jsonEncode, jsonDecode, binaryEncode, binaryDecode} = compiled.wired;
-        // A t1 value carries f0 as a Promise (the stripped member's type).
+        const {jsonEncode, jsonDecode} = compiled.wired;
         const t1 = {kind: 't1', f0: Promise.resolve('x')};
         expect(jsonDecode!(jsonEncode!(t1)!)).toEqual({kind: 't1'});
-        expect(binaryDecode!(binaryEncode!(t1))).toEqual({kind: 't1'});
-        // A t2 value's real Set still round-trips on both wires (restored as a Set).
         const t2 = {kind: 't2', f0: new Set([1, 2, 3])};
         expect(jsonDecode!(jsonEncode!(t2)!)).toEqual({kind: 't2', f0: new Set([1, 2, 3])});
-        expect(binaryDecode!(binaryEncode!(t2))).toEqual({kind: 't2', f0: new Set([1, 2, 3])});
+      })
+      .finally(() => client.close());
+  });
+
+  (hasBinary() ? it : it.skip)('O12: both wires drop a DataView sibling of an object member', () => {
+    expect(typecheckGeneratedType(o12), 'o12 must be valid TypeScript').toEqual([]);
+    const client = openClient();
+    return compileType(client, o12)
+      .then((compiled) => {
+        expect(compiled.resolverError, compiled.resolverError).toBeUndefined();
+        expect(compiled.evalError, compiled.evalError).toBeUndefined();
+        const {jsonEncode, jsonDecode, compactEncode, compactDecode} = compiled.wired;
+        const value = [
+          {kind: 't0', f1: new DataView(new ArrayBuffer(8))},
+          {kind: 't2', f1: {p0: false}},
+        ];
+        const dropped = [{kind: 't0'}, {kind: 't2', f1: {p0: false}}];
+        expect(jsonDecode!(jsonEncode!(value)!)).toEqual(dropped);
+        expect(compactDecode!(compactEncode!(value)!)).toEqual(dropped);
+        expect(checkCrossWire(compiled.wired as FuzzTarget, value, {seed: 3065189181, phase: 'valid'})).toBeNull();
       })
       .finally(() => client.close());
   });

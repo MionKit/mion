@@ -1,56 +1,41 @@
-// Fixture for the object-shaped function families the validation / serialization
-// suites don't exercise standalone: the unknown-keys group (hasUnknownKeys /
-// cloneExactShape / unknownKeyErrors) and formatTransform. A unique branded
-// type per family declares its override at module scope;
-// `registerObjectFnsCase` registers the it()s (called from the single suite
-// runner, overrides.test.ts). These families don't fit the OverrideCase shape
-// (distinct signatures), so they live in their own registrar.
+// Override fixture for removeUnknownKeys and formatTransform, which the other suites do not cover standalone.
+// Their distinct signatures do not fit OverrideCase, hence their own registrar (called from overrides.test.ts).
 
 import {it, expect} from 'vitest';
 import {
-  createHasUnknownKeysFn,
-  overrideHasUnknownKeys,
-  createCloneExactShapeFn,
-  overrideCloneExactShape,
-  createUnknownKeyErrorsFn,
-  overrideUnknownKeyErrors,
+  createRemoveUnknownKeysFn,
+  overrideRemoveUnknownKeys,
   createFormatTransformFn,
   overrideFormatTransform,
 } from '@mionjs/run-types';
 
-type HukTarget = {readonly __brand: 'hukOverride'; a: number};
-overrideHasUnknownKeys<HukTarget>((v) => (v as {x?: number}).x === 1);
-
 type CesTarget = {readonly __brand: 'cesOverride'; a: number};
-overrideCloneExactShape<CesTarget>(() => ({cloned: true}) as never);
-
-type UkeTarget = {readonly __brand: 'ukeOverride'; a: number};
-overrideUnknownKeyErrors<UkeTarget>((value, path, errors) => {
-  const out = errors ?? [];
-  out.push({path: path ?? [], expected: 'override'} as never);
-  return out;
-});
+overrideRemoveUnknownKeys<CesTarget>(() => ({cloned: true}) as never);
 
 type FmtTarget = {readonly __brand: 'fmtOverride'; a: number};
 overrideFormatTransform<FmtTarget>(() => ({fmt: true}) as never);
 
-/** Registers the four object-family it()s (call inside a describe). */
+/** Registers the two object-family it()s (call inside a describe). */
 export function registerObjectFnsCase(): void {
-  it('ObjectFns — hasUnknownKeys', () => {
-    const huk = createHasUnknownKeysFn<HukTarget>();
-    expect(huk({x: 1} as never)).toBe(true);
-    expect(huk({x: 2} as never)).toBe(false);
-  });
-
-  it('ObjectFns — cloneExactShape', () => {
-    const out = createCloneExactShapeFn<CesTarget>()({a: 1} as never) as unknown as {cloned?: boolean};
+  it('ObjectFns — removeUnknownKeys', () => {
+    const out = createRemoveUnknownKeysFn<CesTarget>()({a: 1} as never) as unknown as {cloned?: boolean};
     expect(out.cloned).toBe(true);
   });
 
-  it('ObjectFns — unknownKeyErrors', () => {
-    const errors = createUnknownKeyErrorsFn<UkeTarget>()({a: 1} as never);
-    expect(errors).toHaveLength(1);
-    expect((errors[0] as {expected?: string}).expected).toBe('override');
+  it('ObjectFns — removeUnknownKeys override applies under both sharedValues modes', () => {
+    const value = {a: 1} as CesTarget;
+    const shared = createRemoveUnknownKeysFn<CesTarget>(undefined, {sharedValues: 'share'})(value) as unknown as {
+      cloned?: boolean;
+    };
+    const refused = createRemoveUnknownKeysFn<CesTarget>(undefined, {sharedValues: 'refuse'})(value) as unknown as {
+      cloned?: boolean;
+    };
+    expect(shared.cloned).toBe(true);
+    expect(refused.cloned).toBe(true);
+    const sharedValue = createRemoveUnknownKeysFn(value, {sharedValues: 'share'})(value) as unknown as {cloned?: boolean};
+    const refusedValue = createRemoveUnknownKeysFn(value, {sharedValues: 'refuse'})(value) as unknown as {cloned?: boolean};
+    expect(sharedValue.cloned).toBe(true);
+    expect(refusedValue.cloned).toBe(true);
   });
 
   it('ObjectFns — formatTransform', () => {

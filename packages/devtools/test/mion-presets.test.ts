@@ -7,33 +7,62 @@
 // through toRunTypesOptions, and these tests fail if that stops being true.
 import {describe, expect, it} from 'vitest';
 import {readFileSync} from 'node:fs';
-import {toRunTypesOptions, resolveGenDir, createMapperHarvest, assertNoRemovedOptions} from '../src/options.ts';
+import path from 'node:path';
+import {toRunTypesOptions} from '../src/options.ts';
 import {withMion} from '../src/next/index.ts';
 import {mionVitePlugin} from '../src/vite/index.ts';
+import runtypesVite from '../src/runtypes/vite.ts';
 
 describe('toRunTypesOptions — the mapping both presets share', () => {
   it('rejects emitMode functions, which mion can never support', () => {
     // mion's client serializes compiled fns as code strings; 'functions' omits the
     // code, so every client would fail on its first validate. A plain JS config can
     // still pass it, hence a runtime check rather than types alone.
-    expect(() => toRunTypesOptions({emitMode: 'functions' as never})).toThrow(/emitMode: 'functions' is not supported/);
+    expect(() => toRunTypesOptions({runTypes: {emitMode: 'functions' as never}})).toThrow(
+      /emitMode: 'functions' is not supported/
+    );
   });
 
-  it('accepts the two modes mion does support', () => {
-    expect(toRunTypesOptions({emitMode: 'code'}).emitMode).toBe('code');
-    expect(toRunTypesOptions({emitMode: 'both'}).emitMode).toBe('both');
+  it('accepts the modes mion does support', () => {
+    expect(toRunTypesOptions({runTypes: {emitMode: 'code'}}).emitMode).toBe('code');
+    expect(toRunTypesOptions({runTypes: {emitMode: 'both'}}).emitMode).toBe('both');
+    expect(toRunTypesOptions({runTypes: {emitMode: 'ts'}}).emitMode).toBe('ts');
   });
 
-  it('defaults failOnError to true so Error diagnostics halt the build', () => {
-    expect(toRunTypesOptions({}).failOnError).toBe(true);
-    expect(toRunTypesOptions({failOnError: false}).failOnError).toBe(false);
+  it('downgrades nothing by default so Error diagnostics halt the build', () => {
+    // Passed through UNDEFINED rather than defaulted, so a tsconfig-only
+    // `downgradeErrors` still reaches the host: the echo can only win over an
+    // absent option.
+    expect(toRunTypesOptions({}).downgradeErrors).toBeUndefined();
+    expect(toRunTypesOptions({runTypes: {downgradeErrors: '*'}}).downgradeErrors).toBe('*');
+    expect(toRunTypesOptions({runTypes: {downgradeErrors: ['validate-symbol-root']}}).downgradeErrors).toEqual([
+      'validate-symbol-root',
+    ]);
   });
 
-  it('maps tsConfig onto the resolver tsconfig key and accepts the outDir alias', () => {
+  it('passes levels through, undefined when unset so a tsconfig-only value still reaches the host', () => {
+    expect(toRunTypesOptions({}).levels).toBeUndefined();
+    expect(toRunTypesOptions({runTypes: {levels: 'all'}}).levels).toBe('all');
+  });
+
+  it('passes logStyle through, undefined when unset so a tsconfig-only value still reaches the host', () => {
+    expect(toRunTypesOptions({}).logStyle).toBeUndefined();
+    expect(toRunTypesOptions({runTypes: {logStyle: 'lines'}}).logStyle).toBe('lines');
+  });
+
+  it('maps derivedPayloadLimits onto the resolver jsonMaxBytes key, undefined passing through', () => {
+    expect(toRunTypesOptions({}).jsonMaxBytes).toBeUndefined();
+    expect(toRunTypesOptions({runTypes: {derivedPayloadLimits: false}}).jsonMaxBytes).toBe(false);
+    expect(toRunTypesOptions({runTypes: {derivedPayloadLimits: true}}).jsonMaxBytes).toBe(true);
+  });
+
+  it('passes patternSampleCount through as given', () => {
+    expect(toRunTypesOptions({}).patternSampleCount).toBeUndefined();
+    expect(toRunTypesOptions({runTypes: {patternSampleCount: 7}}).patternSampleCount).toBe(7);
+  });
+
+  it('maps tsConfig onto the resolver tsconfig key', () => {
     expect(toRunTypesOptions({tsConfig: '/p/tsconfig.json'}).tsconfig).toBe('/p/tsconfig.json');
-    expect(toRunTypesOptions({outDir: 'gen'}).genDir).toBe('gen');
-    // genDir wins when both are given — outDir is the pre-0.10 spelling.
-    expect(toRunTypesOptions({genDir: 'a', outDir: 'b'}).genDir).toBe('a');
   });
 });
 
@@ -56,37 +85,54 @@ describe('neither preset maps resolver options on its own', () => {
       // These are the keys the shared mapping sets. A preset assigning one itself is
       // either a duplicate or a divergence; both are the failure this guards.
       const source = read(file);
-      for (const key of ['binary:', 'tsconfig:', 'failOnError:', 'patternSampleCount:', 'jsRuntime:']) {
+      for (const key of ['binary:', 'tsconfig:', 'downgradeErrors:', 'patternSampleCount:', 'jsRuntime:']) {
         expect(source, `${file} assigns ${key} itself instead of via toRunTypesOptions`).not.toContain(`    ${key}`);
       }
     });
   }
 });
 
-describe('assertNoRemovedOptions — both presets reject the same retired keys', () => {
-  it('names the replacement instead of silently ignoring the key', () => {
-    expect(() => assertNoRemovedOptions({runTypes: {reflectionMode: 'never'}} as never)).toThrow(/runTypes.reflectionMode/);
-    expect(() => assertNoRemovedOptions({aotCaches: true} as never)).toThrow(/aotCaches/);
+describe('client.routes — how the client gets each route', () => {
+  it('maps client.routes onto the resolver clientRoutes option', () => {
+    expect(toRunTypesOptions({client: {routes: 'fetch'}}).clientRoutes).toBe('fetch');
+    expect(toRunTypesOptions({client: {routes: 'bundle'}}).clientRoutes).toBe('bundle');
+    // unset forwards nothing, so the resolver's own default (bundle) applies
+    expect(toRunTypesOptions({}).clientRoutes).toBeUndefined();
+    expect(toRunTypesOptions({client: {}}).clientRoutes).toBeUndefined();
   });
 
-  it('is reached through withMion, not only through the vite plugin', async () => {
-    await expect(withMion({}, {aotCaches: true} as never)).rejects.toThrow(/aotCaches/);
-    expect(() => mionVitePlugin({aotCaches: true} as never)).toThrow(/aotCaches/);
+  it('refuses moduleMode allSingle, whose shared modules would carry server types into the client', () => {
+    expect(() => toRunTypesOptions({runTypes: {moduleMode: 'allSingle' as never}})).toThrow(
+      /moduleMode: 'allSingle' is not supported/
+    );
+    expect(() => mionVitePlugin({runTypes: {moduleMode: 'allSingle' as never}})).toThrow(/allSingle/);
   });
-});
 
-describe('resolveGenDir — where the resolver wrote its tree', () => {
-  it('defaults to __runtypes under the root', () => {
-    expect(resolveGenDir('/p')).toBe('/p/__runtypes');
-    expect(resolveGenDir('/p', {genDir: '/abs/gen'})).toBe('/abs/gen');
+  it('refuses a server entry that names no file', () => {
+    expect(() => mionVitePlugin({server: {entry: ''}})).toThrow(/server.entry must name the server entry file/);
+    expect(() => mionVitePlugin({server: {entry: 42 as never}})).toThrow(/server.entry must name the server entry file/);
   });
-});
 
-describe('createMapperHarvest — the serverMapFrom half that DOES reach Turbopack', () => {
-  it('is inert when emit is unset, so pipelines that only import route types are untouched', () => {
-    const {manifestPath, harvest} = createMapperHarvest(undefined, () => '/p/__runtypes');
-    expect(manifestPath).toBeUndefined();
-    expect(() => harvest([], 'build')).not.toThrow();
+  it('has no server block on Next: the API is a route handler there', async () => {
+    await expect(withMion({}, {server: {entry: 'src/server.ts'}, cwd: '/tmp'} as never)).rejects.toThrow(
+      /there is no `server` option/
+    );
+  });
+
+  it('rejects an unknown mode', () => {
+    expect(() => toRunTypesOptions({client: {routes: 'all' as never}})).toThrow(
+      /unknown client routes "all", expected 'bundle' \| 'fetch'/
+    );
+  });
+
+  it('is refused by the plain adapters too, before any resolver starts', async () => {
+    const plugin = runtypesVite({clientRoutes: 'all' as never}) as unknown as {buildStart: () => Promise<void>};
+    await expect(plugin.buildStart()).rejects.toThrow(/unknown client routes "all", expected 'bundle' \| 'fetch'/);
+  });
+
+  it('is reached through BOTH presets', async () => {
+    await expect(withMion({}, {client: {routes: 'all' as never}, cwd: '/tmp'})).rejects.toThrow(/client routes/);
+    expect(() => mionVitePlugin({client: {routes: 'all' as never}})).toThrow(/client routes/);
   });
 });
 
@@ -204,7 +250,7 @@ describe('the published exports map', () => {
   });
 
   it('gives the Turbopack loader a `default` condition, not `import`', () => {
-    // See ../src/runtypes/next/CLAUDE.md invariant 5. This one broke a real build.
+    // Turbopack resolves loaders with require conditions (../src/runtypes/next/AGENTS.md, 5).
     const loader = manifest.exports['./runtypes/next/loader'];
     expect(loader.default).toBeDefined();
     expect(loader.import).toBeUndefined();

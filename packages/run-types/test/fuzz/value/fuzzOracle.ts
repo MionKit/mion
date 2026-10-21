@@ -8,13 +8,10 @@
 //     O1 valid-accepted     validate(mock)            === true
 //     O2 invalid-rejected   validate(corrupted-mock)  === false
 //     O5 json-stable        encode(decode(encode v))  === encode(v)
-//     O20 parse-roundtrip   parse(JSON.parse(encode v)) deep-equals v
-//     O6 binary-stable      same, over the binary wire
 //
 //   CONSISTENCY (two functions must agree)
 //     O4 errors-agree       validate(x)  ⇔  getValidationErrors(x).length === 0
-//     O18 fused-agree       validate{checkUnknowns}(x) ⇔ validate(x) && !hasUnknownKeys(x)
-//     O19 parse-agree       parse(x) throws  ⇔  !validate(restore(x))
+//     O18 fused-agree       validate{checkUnknowns}(x) ⇔ validate(x) && removeUnknownKeys drops nothing
 //
 //   ROBUSTNESS (totality — must never throw / hang on any input)
 //     O3 validate-total     validate(anything) returns a boolean, no throw
@@ -27,6 +24,8 @@
 import {isDeepStrictEqual} from 'node:util';
 import {deepCloneForRoundTrip} from '../../util/equalsHelpers.ts';
 import type {RunType} from '../../../src/runtypes/types.ts';
+import type {RTValidationError, RTValidationErrorPathSegment} from '../../../src/createRTFunctions.ts';
+import {containsKeyedShape, pathKey, UNKNOWN_KEY_PREFIX, wireKeyAdmitted, type PlantedUnknownKey} from './unknownKeyPositions.ts';
 
 /** One target type under fuzz: its schema (to drive mock + corruption) plus
  *  the family functions to exercise. Serialization fns are optional so a
@@ -39,63 +38,58 @@ export interface FuzzTarget {
   mock: () => unknown;
   validate: (value: unknown) => boolean;
   getValidationErrors: (value: unknown) => unknown[];
-  /** The `{checkUnknowns: true}` fused validator, and the two functions it
-   *  replaces. Present together or not at all — O18 compares one against the
-   *  other, so a target supplying only some of them can't be checked. **/
+  /** O18 holds it against `validate` plus `clone`. **/
   validateStrict?: (value: unknown) => boolean;
-  /** The strict ERROR twin. O21 holds it against `validateStrict`: a caller that
-   *  gets a rejection and then asks why must never be handed an empty list. **/
+  /** O21: a `validateStrict` rejection never comes with an empty list; its `'never'` entries feed O22–O24. **/
   errorsStrict?: (value: unknown) => unknown[];
-  /** The predicate half of the reference composition, and it must be the
-   *  `{runsAfterValidation: true}` variant. That is the one the fused form
-   *  replaces: both get to assume validation already ran, so neither emits a
-   *  shape guard. The BLIND variant emits one, which makes it answer differently
-   *  for a value that passes validation without being a plain object — an array
-   *  satisfying `{length: number}`, say. Comparing against the blind form would
-   *  hold the fused families to a contract they are not implementing.
-   *
-   *  O18 only ever calls this after `validate(value)` returned true, which is
-   *  the variant's precondition. **/
-  hasUnknownKeys?: (value: unknown) => boolean;
-  /** Set on a target whose fused validator deliberately answers differently from
-   *  the composition. Unions are the only such shape: the fused form follows the
-   *  branch that matched, the merged allowlist cannot know which one it was. O18
-   *  then checks the half that must still hold — the fused form is never LOOSER
-   *  than the composition — instead of equality. **/
+  /** Unions only: the fused form follows the matched branch while the strip may keep another member's key.
+   *  O18 then checks only that the fused form is never LOOSER. **/
   divergesFromComposition?: true;
-  /** createParseFn for the same type, and the composition it fuses. `parse`
-   *  throws on a mismatch, so both oracles below run it inside a try.
-   *
-   *  `restoreFromJson` is the reference half, recovered through a marker wrapper
-   *  because the primitive has no createX factory. Without it O19 can only check
-   *  that parse's OWN output validates, which a parse that wrongly rejects
-   *  everything would still satisfy — supply it and the oracle becomes the
-   *  two-sided equality O18 is for the fused validator. **/
-  parse?: (value: unknown) => unknown;
-  restoreFromJson?: (value: unknown) => unknown;
+  /** `never` lets any `RemoveUnknownKeysFn<T>` be assigned (contravariant parameter); the oracle casts back. **/
+  clone?: (value: never) => unknown;
+  /** `rjs` via a marker wrapper, since it has no createX factory; O26 needs an undeclared key GONE, not blanked. **/
+  restoreFromJsonClone?: (value: unknown) => unknown;
   jsonEncode?: (value: unknown) => string | undefined;
   jsonDecode?: (serialized: string) => unknown;
-  binaryEncode?: (value: unknown) => Uint8Array;
-  binaryDecode?: (buffer: Uint8Array) => unknown;
+  /** The compact-strategy JSON codec, O12's second opinion on the clone wire. **/
+  compactEncode?: (value: unknown) => string | undefined;
+  compactDecode?: (serialized: string) => unknown;
 }
 
-// O1–O7 are the value oracles (Phase 1 + Phase 2 Tier B). TR1–TR4 are the
-// Phase 2 Tier-A resolver/emit oracles — they police the type-generation
-// pipeline itself rather than a runtime value:
+// O1–O7 are the value oracles. TR1–TR4 police the type-generation pipeline itself rather than a runtime value:
 //   TR1 resolver-clean   no crash + no Error-severity diagnostics for a
 //                        well-formed generated type
 //   TR2 sites-complete   every emitted createX<T>() resolved to a site id
 //   TR3 emit-valid       every demanded entry module evaluates (the emitted
 //                        factory code is valid JS) with no dangling refs
 //   TR4 wire-ok          the real createX factories materialise from the tuples
-//   O12 cross-wire      jsonEncode(binaryDecode(binaryEncode v)) === jsonEncode(v)
-//                       — the JSON and binary wires must agree on the same
+//   O12 cross-wire      jsonEncode(compactDecode(compactEncode v)) === jsonEncode(v)
+//                       — the clone and compact wires must agree on the same
 //                       DataOnly value (model-free: no projection oracle needed)
-//   O14 family-agree    every serialization family agrees serialize-vs-fail
-//   O18 fused-agree     the `{checkUnknowns: true}` validator equals the
-//                       composition it replaces, `validate(v) && !hasUnknownKeys(v)`
+//   O14 family-agree    the clone and compact encoders agree serialize-vs-fail
+//   O18 fused-agree     the `{checkUnknowns: true}` validator accepts exactly
+//                       when `validate(v)` does and removeUnknownKeys drops nothing
 //   O21 strict-self     the `{checkUnknowns: true}` validator and its error twin
 //                       agree: empty report  <=>  accepted
+// O22–O27 are the unknown-key agreement oracles. Several generated functions
+// each decide what an "unknown key" is, each with its own emitter and its own
+// arm per position, and they have drifted apart more than once — always at a
+// position the shared union walk did not reach. They must all give the same
+// answer for the same key. "The unknown-key report" below is the
+// `expected: 'never'` entries of the `{checkUnknowns: true}` error twin:
+//   O22 unknown-self    on a value `validate` accepts, the strict error twin
+//                       reports ONLY unknown-key entries
+//   O23 unknown-planted a key planted at a flagged position is reported at
+//                       exactly that path and rejected by the strict validator;
+//                       at an index-signature carve-out it changes neither
+//   O24 unknown-strip   the paths the unknown-key report names are exactly the
+//                       keys removeUnknownKeys drops
+//   O25 wire-strip      keys planted on the encoded wire do not change what the
+//                       `clone` decoder returns, unless the type admits them
+//   O26 wire-delete     keys planted on the encoded wire are GONE from what
+//                       `rjs` returns, unless the type admits them
+//   O27 walker-reach    run-level: every target whose type carries a keyed
+//                       shape offered the walker a position
 // O15–O17 are the cloning oracles (test/fuzz/cloning/cloneOracle.ts):
 //   O15 clone-reference   clone(v) deep-equals the reference-interpreter clone
 //   O16 clone-isolation   input unmutated + no shared mutable ref + prototype kept
@@ -106,22 +100,27 @@ export type OracleId =
   | 'O3'
   | 'O4'
   | 'O5'
-  | 'O6'
   | 'O7'
-  | 'O10'
   | 'O12'
   | 'O14'
   | 'O15'
   | 'O16'
   | 'O17'
   | 'O18'
-  | 'O19'
-  | 'O20'
   | 'O21'
+  | 'O22'
+  | 'O23'
+  | 'O24'
+  | 'O25'
+  | 'O26'
   | 'TR1'
   | 'TR2'
   | 'TR3'
-  | 'TR4';
+  | 'TR4'
+  | 'D1'
+  | 'D2'
+  | 'D3'
+  | 'D4';
 
 /** A detected expectation violation — everything needed to reproduce + triage. **/
 export interface Violation {
@@ -129,18 +128,20 @@ export interface Violation {
   target: string;
   /** The exact seed to replay this iteration. **/
   seed: number;
-  phase: 'valid' | 'invalid' | 'extras' | 'junk' | 'compile';
+  phase: 'valid' | 'invalid' | 'extras' | 'unknownkeys' | 'junk' | 'compile';
   message: string;
   value: string;
 }
 
 const MAX_SNAPSHOT = 500;
 
-/** Render any value to a short, bigint/symbol-safe string for the report. **/
+/** Render any value to a short string for the report. **/
 export function snapshot(value: unknown): string {
   let text: string;
   try {
-    text = JSON.stringify(value, (_key, v) => (typeof v === 'bigint' ? `${v}n` : typeof v === 'symbol' ? v.toString() : v));
+    text = JSON.stringify(value, (_key, v) =>
+      typeof v === 'bigint' ? `${v}n` : typeof v === 'symbol' ? v.toString() : typeof v === 'function' ? '[function]' : v
+    );
   } catch {
     text = String(value);
   }
@@ -221,58 +222,52 @@ export function checkErrorsAgree(target: FuzzTarget, value: unknown, ctx: CheckC
   return null;
 }
 
-/** O18 — the fused `{checkUnknowns: true}` validator must answer exactly what
- *  the composition it replaces answers: `validate(v) && !hasUnknownKeys(v)`.
- *
- *  Compare-to-a-trusted-source. The two-call form is the reference implementation
- *  users are migrating off, so any input where the two disagree is a regression
- *  in the fused emit — most likely a node kind whose arm forgot to splice the key
- *  check (or spliced it where the shape declares no keys to begin with).
- *
- *  Skipped for a target that does not carry the fused trio. Totality rides along:
- *  the fused validator must be as total as the plain one, so a throw is a
- *  violation rather than a skip. **/
+/** O18: the fused validator accepts exactly when `validate(v)` does and `removeUnknownKeys` drops nothing.
+ *  The strip is its own emitter, so a fused arm missing its key check shows as a disagreement; a throw is a violation.
+ *  The strip runs only on values `validate` accepts; without one (object unions) fused must still never accept more. **/
 export function checkFusedAgree(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
-  const {validateStrict, hasUnknownKeys} = target;
-  if (!validateStrict || !hasUnknownKeys) return null;
-  let expected: boolean;
+  const {validateStrict, clone} = target;
+  if (!validateStrict) return null;
+  let plain: boolean;
   try {
-    expected = target.validate(value) && !hasUnknownKeys(value);
+    plain = target.validate(value);
   } catch {
-    // The reference side is undefined for this input (O3 covers validate's own
-    // totality); there is nothing to compare against.
-    return null;
+    return null; // O3 covers validate's own totality
   }
   let actual: boolean;
   try {
     actual = validateStrict(value);
   } catch (err) {
-    return violation('O18', target, ctx, `checkUnknowns validator threw where the two-call form did not: ${errMsg(err)}`, value);
+    return violation('O18', target, ctx, `checkUnknowns validator threw where validate did not: ${errMsg(err)}`, value);
   }
   if (typeof actual !== 'boolean') {
     return violation('O18', target, ctx, `checkUnknowns validator returned a non-boolean (${typeof actual})`, value);
   }
-  // A diverging target keeps the half that must never break: accepting a value
-  // the composition rejects would mean the fusion LOST a check, which is a bug
-  // under any union policy. Rejecting one it accepts is the documented stance.
-  if (target.divergesFromComposition) {
-    if (actual && !expected) {
-      return violation(
-        'O18',
-        target,
-        ctx,
-        'checkUnknowns validator accepted a value validate(v) && !hasUnknownKeys(v) rejects',
-        value
-      );
-    }
-    return null;
+  if (actual && !plain) return violation('O18', target, ctx, 'checkUnknowns validator accepted a value validate rejects', value);
+  if (!plain || !clone) return null;
+  let dropped: string[];
+  try {
+    dropped = droppedKeyPaths(value, clone(value as never));
+  } catch {
+    return null; // O24 reports a strip throw
   }
-  if (actual !== expected) {
+  const expected = dropped.length === 0;
+  // Accepting a value the strip would change means the fusion LOST a check, a bug under any union policy.
+  if (actual && !expected) {
     return violation(
       'O18',
       target,
       ctx,
-      `checkUnknowns validator returned ${actual} but validate(v) && !hasUnknownKeys(v) is ${expected}`,
+      `checkUnknowns validator accepted a value removeUnknownKeys strips [${dropped.join(', ')}]`,
+      value
+    );
+  }
+  if (!target.divergesFromComposition && actual !== expected) {
+    return violation(
+      'O18',
+      target,
+      ctx,
+      'checkUnknowns validator rejected a valid value removeUnknownKeys leaves unchanged',
       value
     );
   }
@@ -320,116 +315,435 @@ export function checkStrictSelfAgree(target: FuzzTarget, value: unknown, ctx: Ch
   return null;
 }
 
-/** O20 — parse round-trips the encoder: whatever the JSON encoder wrote, parse
- *  must read back into the value it came from.
- *
- *  The strongest property parse has, and the cheapest: no reference
- *  implementation needed, just the pair. It is what catches a leaf whose restore
- *  and whose encode disagree on the wire form (a bigint written as a number but
- *  read as a string, say), which no hand-written case would think to try.
- *
- *  Only runs on the VALID phase — a corrupted or junk value has no encoding to
- *  round-trip. Skipped for a target without both fns. **/
-export function checkParseRoundTrip(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
-  if (!target.parse || !target.jsonEncode) return null;
-  let wire: string | undefined;
+// =============================================================================
+// O22–O27, the unknown-key agreement oracles.
+//
+// Every one of these functions has its own emitter and its own arm per
+// position, and they are supposed to give the same answer about the same key.
+// They have drifted apart more than once, always at a position the shared
+// merged-allowlist walk did not reach — a class member of a union was the last
+// one, found by hand. A hand-written test only covers the positions someone
+// thought of; these hold the functions against EACH OTHER, so a position
+// nobody thought of still gets an answer that has to agree.
+// =============================================================================
+
+/** Sorted `pathKey`s of the report entries expecting `expected`. **/
+function reportedPaths(errors: readonly unknown[], expected: 'never' | 'union'): string[] {
+  return (errors as RTValidationError[])
+    .filter((error) => error.expected === expected)
+    .map((error) => pathKey((error.path ?? []) as RTValidationErrorPathSegment[]))
+    .sort();
+}
+
+/** True when `path` sits at or below `ancestor`, both in `pathKey` spelling. **/
+function isUnderPath(path: string, ancestor: string): boolean {
+  return ancestor === '' || path === ancestor || path.startsWith(`${ancestor}.`);
+}
+
+/** O22: on a value `validate` accepts, the strict twin reports ONLY `'never'` keys or `'union'` nodes rejecting keys.
+ *  Anything else is a mislabelled key entry or a type arm disagreeing with the plain family; O21 pins emptiness. **/
+export function checkUnknownKeysSelfAgree(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
+  const {errorsStrict} = target;
+  if (!errorsStrict) return null;
   try {
-    wire = target.jsonEncode(value);
+    if (!target.validate(value)) return null;
   } catch {
-    return null; // O7 owns encode failures.
+    return null; // O3 covers validate's own totality
   }
-  if (wire === undefined) return null; // no document to parse back (undefined root)
-  let parsed: unknown;
+  let report: RTValidationError[];
   try {
-    parsed = target.parse(JSON.parse(wire));
+    report = errorsStrict(value) as RTValidationError[];
   } catch (err) {
-    return violation('O20', target, ctx, `parse rejected its own encoder's output: ${errMsg(err)}`, value);
+    return violation('O22', target, ctx, `checkUnknowns error report threw: ${errMsg(err)}`, value);
   }
-  // Compared through the encoder rather than by deep equality: re-encoding
-  // normalises the optional-undefined-key vs dropped-key difference the same way
-  // O5 does, and undeclared keys the default `strip` strategy removed were never
-  // on the wire to begin with.
-  let reWire: string | undefined;
-  try {
-    reWire = target.jsonEncode(parsed);
-  } catch (err) {
-    return violation('O20', target, ctx, `re-encoding a parsed value threw: ${errMsg(err)}`, value);
-  }
-  if (reWire !== wire) {
+  const typeErrors = report.filter((error) => error.expected !== 'never' && error.expected !== 'union');
+  if (typeErrors.length > 0) {
+    const expectedList = typeErrors.map(
+      (error) => `${pathKey((error.path ?? []) as RTValidationErrorPathSegment[])}:${error.expected}`
+    );
     return violation(
-      'O20',
+      'O22',
       target,
       ctx,
-      `parse round-trip is not stable:\n  enc1=${cut(wire)}\n  enc2=${cut(String(reWire))}`,
+      `validate accepted but the strict report lists type errors [${expectedList.join(', ')}]`,
       value
     );
   }
   return null;
 }
 
-/** O19 — parse accepts exactly what `restoreFromJson` + `validate` accepts.
- *
- *  The mirror of O18: parse fuses restore and check into one walk, so the
- *  composition it replaces is the trusted source, and the comparison runs BOTH
- *  ways. One way alone is not enough — a parse that rejected everything would
- *  satisfy "whatever it accepted validates" without ever being caught.
- *
- *  The totality check rides along on every phase, junk included: parse may only
- *  ever fail by throwing RTParseError, never by letting a raw
- *  TypeError / SyntaxError out of a restoring leaf.
- *
- *  Every call gets its OWN copy. Restoring leaves rewrite in place (a wire
- *  string becomes a Date on the input object), so sharing one value between the
- *  two sides would compare parse against a reference that had already been
- *  half-restored — and would hand the mutated mock to the oracles that run
- *  after this one. **/
-export function checkParseAgree(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
-  const {parse, restoreFromJson} = target;
-  if (!parse) return null;
-
-  let parsed: unknown;
-  let threw = false;
-  let thrownName = '';
+/** O23: the planted key gets the answer its position owes, which catches a position every family misses.
+ *  A named-key plant is reported at exactly its path and strict-rejected; an index-signature plant changes neither.
+ *  `clean` is the value without the plant, so the comparison is a difference, not an absolute. **/
+export function checkUnknownKeysPlanted(
+  target: FuzzTarget,
+  planted: PlantedUnknownKey,
+  clean: unknown,
+  ctx: CheckCtx
+): Violation | null {
+  const {validateStrict, errorsStrict} = target;
+  if (!validateStrict || !errorsStrict) return null;
+  let added: string[];
+  let addedUnions: string[];
+  let unionsBefore: Set<string>;
+  let plainPlanted: boolean;
+  let acceptedPlanted: boolean;
   try {
-    parsed = parse(deepCloneForRoundTrip(value));
+    const cleanReport = errorsStrict(clean);
+    const plantedReport = errorsStrict(planted.value);
+    const before = new Set(reportedPaths(cleanReport, 'never'));
+    unionsBefore = new Set(reportedPaths(cleanReport, 'union'));
+    added = reportedPaths(plantedReport, 'never').filter((path) => !before.has(path));
+    addedUnions = reportedPaths(plantedReport, 'union').filter((path) => !unionsBefore.has(path));
+    plainPlanted = target.validate(planted.value);
+    acceptedPlanted = validateStrict(planted.value);
   } catch (err) {
-    threw = true;
-    thrownName = err instanceof Error ? err.name : typeof err;
+    return violation('O23', target, ctx, `a checkUnknowns family threw on the planted value: ${errMsg(err)}`, planted.value);
   }
-  if (threw && thrownName !== 'RTParseError') {
-    return violation('O19', target, ctx, `parse failed with a raw ${thrownName} instead of RTParseError`, value);
+  const plantedPath = pathKey(planted.path);
+  // Inside a union the key reports as the union failing at its path, already there if `clean` failed (a subclass field).
+  const unionAbove = (union: string) => union !== plantedPath && isUnderPath(plantedPath, union);
+  const reportedByUnion =
+    planted.kind === 'flagged' &&
+    added.length === 0 &&
+    (addedUnions.length === 1 ? unionAbove(addedUnions[0]) : addedUnions.length === 0 && [...unionsBefore].some(unionAbove));
+  // Gated on `validate`: a carve-out plant breaking the value type fails its union as a type error.
+  if (!reportedByUnion && addedUnions.length > 0 && plainPlanted) {
+    return violation(
+      'O23',
+      target,
+      ctx,
+      `a key planted at a ${planted.kind} position (${plantedPath}) made unions fail at [${addedUnions.join(', ')}]`,
+      planted.value
+    );
   }
+  const expected = planted.kind === 'flagged' && !reportedByUnion ? [plantedPath] : [];
+  if (!isDeepStrictEqual(added, expected)) {
+    return violation(
+      'O23',
+      target,
+      ctx,
+      `a key planted at a ${planted.kind} position should be reported as [${expected.join(', ')}] but was reported as [${added.join(', ')}]`,
+      planted.value
+    );
+  }
+  if (planted.kind === 'flagged' && acceptedPlanted)
+    return violation('O23', target, ctx, `checkUnknowns validator accepted the key planted at ${plantedPath}`, planted.value);
+  // A carve-out plant may break the index signature's value type, so the strict answer must match the plain one.
+  if (planted.kind === 'carveOut' && acceptedPlanted !== plainPlanted)
+    return violation(
+      'O23',
+      target,
+      ctx,
+      `checkUnknowns validator changed its answer for a carve-out key at ${plantedPath}`,
+      planted.value
+    );
+  return null;
+}
 
-  if (restoreFromJson) {
-    let expected: boolean | undefined;
-    try {
-      expected = target.validate(restoreFromJson(deepCloneForRoundTrip(value)));
-    } catch {
-      // The reference side is undefined for this input: restoreFromJson assumes
-      // well-formed data and has no guards of its own (which is the whole reason
-      // parse needed them). O3 owns validate's totality.
-      expected = undefined;
-    }
-    if (expected !== undefined && expected === threw) {
-      const verb = threw ? 'rejected' : 'accepted';
-      const refVerb = expected ? 'accepts' : 'rejects';
-      return violation('O19', target, ctx, `parse ${verb} a value restoreFromJson + validate ${refVerb}`, value);
-    }
+/** O24: the unknown-key report's paths and the keys `removeUnknownKeys` drops must match; each has its own emitter.
+ *  Keys holding `undefined` are skipped: an explicit optional `undefined` may come back absent from a clone.
+ *  The strip covers conforming values only; object unions have no strip (unknown-keys-object-union), so O25 covers them. **/
+export function checkUnknownKeysStripAgree(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
+  const {errorsStrict, clone} = target;
+  if (!errorsStrict || !clone) return null;
+  try {
+    if (!target.validate(value)) return null;
+  } catch {
+    return null; // O3 covers validate's own totality
   }
-
-  // parse's OWN output must validate too, not merely its accept/reject decision.
-  if (!threw) {
-    let ok: boolean;
-    try {
-      ok = target.validate(parsed);
-    } catch {
-      return null; // O3 owns validate's totality.
-    }
-    if (!ok) {
-      return violation('O19', target, ctx, 'parse accepted a value whose restored form fails validate', value);
-    }
+  let reported: string[];
+  let unions: string[];
+  let dropped: string[];
+  try {
+    const report = errorsStrict(value);
+    reported = reportedPaths(report, 'never');
+    unions = reportedPaths(report, 'union');
+    dropped = droppedKeyPaths(value, clone(value as never)).sort();
+  } catch (err) {
+    return violation('O24', target, ctx, `checkUnknowns error report or removeUnknownKeys threw: ${errMsg(err)}`, value);
+  }
+  // A union reports its own path for every key it rejects; each one must cover at least one dropped key.
+  const emptyUnion = unions.find((union) => !dropped.some((path) => isUnderPath(path, union)));
+  if (emptyUnion !== undefined) {
+    return violation(
+      'O24',
+      target,
+      ctx,
+      `the union at [${emptyUnion}] fails but removeUnknownKeys drops nothing under it`,
+      value
+    );
+  }
+  dropped = dropped.filter((path) => !unions.some((union) => isUnderPath(path, union)));
+  if (!isDeepStrictEqual(reported, dropped)) {
+    return violation(
+      'O24',
+      target,
+      ctx,
+      `the unknown-key report names [${reported.join(', ')}] but removeUnknownKeys drops [${dropped.join(', ')}]`,
+      value
+    );
   }
   return null;
+}
+
+/** O27, the run-level coverage rule: the walker must find somewhere to plant for every target
+ *  whose TYPE carries a keyed shape. Not a per-value Violation, so it has no OracleId; the sweep
+ *  asserts it once at the end of the run.
+ *
+ *  Every other unknown-key oracle is silent when `collectUnknownKeyPositions` returns nothing, so a
+ *  position the walker refuses to reach makes them all pass while checking nothing.
+ *
+ *  The rule reads the TYPE, not the root and not one value: an array, a tuple, a union, a Map or a
+ *  Set is not itself keyed but can carry a keyed shape further down, so `containsKeyedShape` walks
+ *  the whole tree. It is answered across the WHOLE run rather than per value, because a single
+ *  value legitimately reaches nowhere (a union's number arm has no object in it); what cannot
+ *  happen is a target that never once offered a position. **/
+export function unreachedKeyedTargets(targets: FuzzTarget[], positionsByTarget: Map<string, number>): string[] {
+  return targets
+    .filter((target) => containsKeyedShape(target.schema))
+    .filter((target) => (positionsByTarget.get(target.title) ?? 0) === 0)
+    .map((target) => target.title);
+}
+
+/** Paths of planted keys still present as OWN keys, in report spelling so `wireKeyAdmitted` can walk them.
+ *  `Object.hasOwn`, not a value check: a key set to `undefined` is still there, and telling those apart is O26's job. **/
+function survivingPlantedKeys(
+  value: unknown,
+  path: RTValidationErrorPathSegment[] = [],
+  depth = 0
+): RTValidationErrorPathSegment[][] {
+  if (depth > 12 || value === null || typeof value !== 'object') return [];
+  if (value instanceof Date || value instanceof URL || value instanceof RegExp) return [];
+  const out: RTValidationErrorPathSegment[][] = [];
+  if (value instanceof Map) {
+    let index = 0;
+    for (const [key, entry] of value) {
+      out.push(...survivingPlantedKeys(key, [...path, {key: index, failed: 'mapKey'}], depth + 1));
+      out.push(...survivingPlantedKeys(entry, [...path, {key: index, failed: 'mapValue'}], depth + 1));
+      index++;
+    }
+    return out;
+  }
+  if (value instanceof Set) {
+    let index = 0;
+    for (const item of value) {
+      out.push(...survivingPlantedKeys(item, [...path, {key: index, failed: 'setKey'}], depth + 1));
+      index++;
+    }
+    return out;
+  }
+  if (Array.isArray(value)) {
+    for (let i = 0; i < value.length; i++) out.push(...survivingPlantedKeys(value[i], [...path, i], depth + 1));
+    return out;
+  }
+  const record = value as Record<string, unknown>;
+  for (const key of Object.keys(record)) {
+    if (key.startsWith(UNKNOWN_KEY_PREFIX)) out.push([...path, key]);
+    else out.push(...survivingPlantedKeys(record[key], [...path, key], depth + 1));
+  }
+  return out;
+}
+
+/** O26: the `rjs` restore deletes an undeclared wire key rather than blanking it. The plant goes on the WIRE, into
+ *  every plain object, reaching where the type walker cannot; `wireKeyAdmitted` then judges each survivor. An index
+ *  signature declares every key, and a union arm may leave an invalid wire for validate, so survivors there pass. **/
+export function checkWireStripDeletes(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
+  const {jsonEncode, restoreFromJsonClone} = target;
+  if (!jsonEncode || !restoreFromJsonClone) return null;
+  let wire: string | undefined;
+  try {
+    wire = jsonEncode(deepCloneForRoundTrip(value));
+  } catch {
+    return null; // O7 owns encode failures
+  }
+  if (typeof wire !== 'string') return null;
+  let planted: unknown;
+  try {
+    planted = JSON.parse(wire);
+    if (plantWireKeys(planted) === 0) return null;
+  } catch {
+    return null; // a wire we cannot re-serialize is not this oracle's subject
+  }
+  // The restore rewrites its input in place, so it gets its own copy.
+  let restored: unknown;
+  try {
+    restored = restoreFromJsonClone(JSON.parse(JSON.stringify(planted)));
+  } catch (err) {
+    return violation('O26', target, ctx, `the rjs restore threw on a wire carrying undeclared keys: ${errMsg(err)}`, planted);
+  }
+  const wireInvalid = !validates(target, restored);
+  const kept = survivingPlantedKeys(restored).filter((path) => !wireKeyAdmitted(target.schema, path, wireInvalid));
+  if (kept.length > 0)
+    return violation(
+      'O26',
+      target,
+      ctx,
+      `the rjs restore left ${kept.length} undeclared wire key(s): [${kept.map(pathKey).join(', ')}]`,
+      restored
+    );
+  return null;
+}
+
+/** O25: keys planted into every plain object of the encoded wire must not change what the `clone` decoder returns.
+ *  Keys the type admits (index signature, a union arm the wire no longer validates) are removed from both sides first.
+ *  Anti-vacuity is a separate test: mutate cannot keep a key on a class arm, which is rebuilt from the type. **/
+export function checkWireStripBlind(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
+  const {jsonEncode, jsonDecode} = target;
+  if (!jsonEncode || !jsonDecode) return null;
+  let wire: string | undefined;
+  try {
+    wire = jsonEncode(deepCloneForRoundTrip(value));
+  } catch {
+    return null; // O7 owns encode failures
+  }
+  if (typeof wire !== 'string') return null;
+  let planted: string;
+  let plantedCount: number;
+  try {
+    const tree = JSON.parse(wire) as unknown;
+    plantedCount = plantWireKeys(tree);
+    if (plantedCount === 0) return null;
+    planted = JSON.stringify(tree);
+  } catch {
+    return null; // a wire we cannot re-serialize is not this oracle's subject
+  }
+  let strippedClean: unknown;
+  let strippedPlanted: unknown;
+  try {
+    const decodedPlanted = jsonDecode(planted);
+    const wireInvalid = !validates(target, decodedPlanted);
+    strippedClean = withoutAdmittedPlantedKeys(target, jsonDecode(wire), wireInvalid);
+    strippedPlanted = withoutAdmittedPlantedKeys(target, decodedPlanted, wireInvalid);
+  } catch (err) {
+    return violation('O25', target, ctx, `a decoder threw on a wire carrying undeclared keys: ${errMsg(err)}`, planted);
+  }
+  if (strippedClean === null || strippedClean === undefined) return null; // nothing decoded, nothing to compare
+  if (!isDeepStrictEqual(strippedClean, strippedPlanted))
+    return violation(
+      'O25',
+      target,
+      ctx,
+      `the clone decoder did not drop ${plantedCount} undeclared wire key(s): got ${snapshot(strippedPlanted)} instead of ${snapshot(strippedClean)}`,
+      planted
+    );
+  return null;
+}
+
+/** A copy with every planted key the type admits removed: a correct decoder keeps it, so it must
+ *  not count as a difference. **/
+function withoutAdmittedPlantedKeys(target: FuzzTarget, value: unknown, wireInvalid: boolean): unknown {
+  return withoutKeys(
+    value,
+    (key, _entry, path) => key.startsWith(UNKNOWN_KEY_PREFIX) && wireKeyAdmitted(target.schema, path, wireInvalid)
+  );
+}
+
+/** validate's answer, a throw counting as a refusal: the judge only gets more lenient on it. **/
+function validates(target: FuzzTarget, value: unknown): boolean {
+  try {
+    return target.validate(value);
+  } catch {
+    return false;
+  }
+}
+
+/** Copy minus the own keys `drop` names (`path` in report spelling); natives kept as is, Maps/Sets/arrays walked. **/
+function withoutKeys(
+  value: unknown,
+  drop: (key: string, entry: unknown, path: RTValidationErrorPathSegment[]) => boolean,
+  path: RTValidationErrorPathSegment[] = [],
+  depth = 0
+): unknown {
+  if (depth > 12 || value === null || typeof value !== 'object') return value;
+  if (value instanceof Date || value instanceof URL || value instanceof RegExp) return value;
+  if (value instanceof Map) {
+    const out = new Map<unknown, unknown>();
+    let index = 0;
+    for (const [key, entry] of value) {
+      out.set(
+        withoutKeys(key, drop, [...path, {key: index, failed: 'mapKey'}], depth + 1),
+        withoutKeys(entry, drop, [...path, {key: index, failed: 'mapValue'}], depth + 1)
+      );
+      index++;
+    }
+    return out;
+  }
+  if (value instanceof Set) {
+    const out = new Set<unknown>();
+    let index = 0;
+    for (const item of value) out.add(withoutKeys(item, drop, [...path, {key: index++, failed: 'setKey'}], depth + 1));
+    return out;
+  }
+  if (Array.isArray(value)) return value.map((item, i) => withoutKeys(item, drop, [...path, i], depth + 1));
+  const record = value as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(record)) {
+    if (drop(key, record[key], [...path, key])) continue;
+    out[key] = withoutKeys(record[key], drop, [...path, key], depth + 1);
+  }
+  return out;
+}
+
+/** Write one undeclared key into every plain object of a parsed wire tree, and return how many were
+ *  written. Blind on purpose: no type is consulted, so it reaches wire positions a type walk would
+ *  have to model (a union envelope's payload, a merged object, an index-signature record). Arrays
+ *  are walked, never written into; a Map, a Set and a tuple all ride as arrays. Whether a planted
+ *  key may survive the decode is the oracle's question, answered per survivor by `wireKeyAdmitted`. **/
+function plantWireKeys(node: unknown, depth = 0): number {
+  if (depth > 12 || node === null || typeof node !== 'object') return 0;
+  let count = 0;
+  if (Array.isArray(node)) {
+    for (const item of node) count += plantWireKeys(item, depth + 1);
+    return count;
+  }
+  const record = node as Record<string, unknown>;
+  for (const key of Object.keys(record)) count += plantWireKeys(record[key], depth + 1);
+  record[`${UNKNOWN_KEY_PREFIX}wire`] = 'fz';
+  return count + 1;
+}
+
+/** Every own key present in `before` and gone from `after`, as report-shaped
+ *  path strings. Walks both sides in step through objects, arrays, Maps and
+ *  Sets; a Map / Set entry is addressed by its iteration index, the way an
+ *  error path addresses it. **/
+function droppedKeyPaths(before: unknown, after: unknown, path: RTValidationErrorPathSegment[] = []): string[] {
+  const out: string[] = [];
+  if (before === null || typeof before !== 'object' || after === null || typeof after !== 'object') return out;
+  if (before instanceof Map && after instanceof Map) {
+    const beforeEntries = [...before];
+    const afterEntries = [...after];
+    for (let i = 0; i < beforeEntries.length && i < afterEntries.length; i++) {
+      out.push(...droppedKeyPaths(beforeEntries[i][0], afterEntries[i][0], [...path, {key: i, failed: 'mapKey'}]));
+      out.push(...droppedKeyPaths(beforeEntries[i][1], afterEntries[i][1], [...path, {key: i, failed: 'mapValue'}]));
+    }
+    return out;
+  }
+  if (before instanceof Set && after instanceof Set) {
+    const beforeItems = [...before];
+    const afterItems = [...after];
+    for (let i = 0; i < beforeItems.length && i < afterItems.length; i++) {
+      out.push(...droppedKeyPaths(beforeItems[i], afterItems[i], [...path, {key: i, failed: 'setKey'}]));
+    }
+    return out;
+  }
+  if (Array.isArray(before)) {
+    if (!Array.isArray(after)) return out;
+    for (let i = 0; i < before.length && i < after.length; i++) out.push(...droppedKeyPaths(before[i], after[i], [...path, i]));
+    return out;
+  }
+  if (Array.isArray(after) || before instanceof Date || before instanceof URL || before instanceof RegExp) return out;
+  const beforeRecord = before as Record<string, unknown>;
+  const afterRecord = after as Record<string, unknown>;
+  for (const key of Object.keys(beforeRecord)) {
+    if (beforeRecord[key] === undefined) continue; // presence, not declaredness
+    if (!Object.hasOwn(afterRecord, key)) {
+      out.push(pathKey([...path, key]));
+      continue;
+    }
+    out.push(...droppedKeyPaths(beforeRecord[key], afterRecord[key], [...path, key]));
+  }
+  return out;
 }
 
 /** O5 — JSON round-trip is stable on the wire: re-encoding a decode of the
@@ -461,62 +775,26 @@ export function checkJsonStable(target: FuzzTarget, value: unknown, ctx: CheckCt
   return null;
 }
 
-/** O6 — binary round-trip is stable on the wire (byte-for-byte). **/
-export function checkBinaryStable(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
-  if (!target.binaryEncode || !target.binaryDecode) return null;
-  let wire1: Uint8Array;
-  try {
-    wire1 = target.binaryEncode(value);
-  } catch (err) {
-    return violation('O7', target, ctx, `binaryEncode threw on a valid mock: ${errMsg(err)}`, value);
-  }
-  try {
-    const wire2 = target.binaryEncode(target.binaryDecode(wire1));
-    if (!isDeepStrictEqual(wire1, wire2)) {
-      return violation('O6', target, ctx, 'binary round-trip is not byte-stable', value);
-    }
-  } catch (err) {
-    return violation('O6', target, ctx, `binary decode/re-encode threw on valid data: ${errMsg(err)}`, value);
-  }
-  return null;
-}
-
-/** O12 — the JSON and binary wires must agree on the same DataOnly value. We
- *  normalise BOTH through `jsonEncode` (so optional-`undefined` vs dropped-key
- *  representation differences between the wires don't register as a mismatch):
- *  `jsonEncode(binaryDecode(binaryEncode v))` must equal `jsonEncode(v)`. Needs
- *  no projection oracle — a divergence means one wire lost or reshaped data the
- *  other kept. Throws are left to O5/O6/O7.
- *
- *  Textual equality is the fast path, not the contract. O5 compares the wire
- *  TEXT on purpose (it sidesteps the optional-`undefined` vs dropped-key
- *  mismatch), which is sound there because both its wires come out of the same
- *  encoder and so carry the same key order. Across wires that does not hold:
- *  the binary layout partitions an object's properties into required-then-
- *  optional (the presence bitmap depends on that split), so binaryDecode
- *  rebuilds in LAYOUT order while jsonEncode emits DECLARATION order. Any type
- *  declaring an optional property before a required one therefore round-trips
- *  to the same value spelled with a different key order — `{p0?, p1}` comes back
- *  as `{p1, p0}`. That is by design, and key order carries no meaning in JSON,
- *  so differing text falls through to a structural comparison and only a real
- *  value difference is a violation. **/
+/** O12 — jsonEncode(compactDecode(compactEncode v)) must equal jsonEncode(v), structurally, so key order is free.
+ *  The caller skips types where compact collapses a present `null` optional with no free placeholder to absent. **/
 export function checkCrossWire(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
-  if (!target.jsonEncode || !target.binaryEncode || !target.binaryDecode) return null;
+  if (!target.jsonEncode || !target.compactEncode || !target.compactDecode) return null;
   let jsonWire: string | undefined;
-  let viaBinaryWire: string | undefined;
+  let viaCompactWire: string | undefined;
   try {
     jsonWire = target.jsonEncode(value);
     if (jsonWire === undefined) return null; // undefined root — nothing to compare
-    viaBinaryWire = target.jsonEncode(target.binaryDecode(target.binaryEncode(value)));
+    const compactWire = target.compactEncode(deepCloneForRoundTrip(value));
+    viaCompactWire = compactWire === undefined ? undefined : target.jsonEncode(target.compactDecode(compactWire));
   } catch {
-    return null; // encode/decode throws are O5/O6/O7's job, not double-counted here
+    return null; // encode/decode throws are O5/O7's job, not double-counted here
   }
-  if (jsonWire !== viaBinaryWire && !sameJsonValue(jsonWire, viaBinaryWire)) {
+  if (jsonWire !== viaCompactWire && !sameJsonValue(jsonWire, viaCompactWire)) {
     return violation(
       'O12',
       target,
       ctx,
-      `JSON and binary wires disagree on the decoded value:\n  json       =${cut(jsonWire)}\n  via-binary =${cut(String(viaBinaryWire))}`,
+      `clone and compact wires disagree on the decoded value:\n  json        =${cut(jsonWire)}\n  via-compact =${cut(String(viaCompactWire))}`,
       value
     );
   }

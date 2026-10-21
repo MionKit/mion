@@ -1,8 +1,4 @@
-// @mionjs/devtools/runtypes/rolldown — the Rolldown plugin (`unplugin.rolldown`).
-// Rolldown speaks Rollup's plugin API, so the transform + generated cache
-// modules behave the same as under Rollup/Vite (Vite 8 already runs on Rolldown
-// internally, so its /vite entry covers Vite users; this is for consumers
-// invoking Rolldown directly).
+// For consumers invoking Rolldown directly: Vite 8 runs on Rolldown internally, so the /vite entry covers Vite users.
 import {unplugin} from '../core/unplugin.ts';
 
 export * from '../core/unplugin.ts';

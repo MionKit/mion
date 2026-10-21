@@ -29,11 +29,6 @@ func declIDsIn(t testing.TB, sources map[string]string) map[string]string {
 	return ids
 }
 
-// declGraphs is declIDs for the C6 oracle: name → canonical reflection graph.
-func declGraphs(t testing.TB, source string) map[string]string {
-	return declGraphsIn(t, map[string]string{"main.ts": source})
-}
-
 func declGraphsIn(t testing.TB, sources map[string]string) map[string]string {
 	t.Helper()
 	prog, session, cwd := setupConvert(t, sources)
@@ -140,14 +135,48 @@ func TestChain_StructuralParamsAtTheirDefault(t *testing.T) {
 	}
 }
 
+func TestChain_BoundedSetAndMap(t *testing.T) {
+	// A Map and a Set both ride the formattedMap / formattedSet brands on the
+	// whole COLLECTION bag: `TF.FormattedSet<Set<string>, {maxItems: 3;
+	// uniqueItems: true}>` spells as `RT.set(TF.string(), {maxItems: 3,
+	// uniqueItems: true})` on the builders road and comes back on the type road,
+	// id-exact at every leg like FormattedArray. `contains` rides its child slot
+	// both ways, and on a Map that child is the TUPLE its entry is.
+	source := "import * as TF from '@mionjs/run-types/formats';\n" +
+		"export type Tags = TF.FormattedSet<Set<string>, {maxItems: 3; uniqueItems: true}>;\n" +
+		"export type Mixed = TF.FormattedSet<Set<unknown>, {contains: number; minContains: 2}>;\n" +
+		"export type Lookup = TF.FormattedMap<Map<string, number>, {minItems: 1; maxItems: 2}>;\n" +
+		"export type Pairs = TF.FormattedMap<Map<{id: number}, string>, {uniqueItems: true}>;\n" +
+		"export type Roles = TF.FormattedMap<Map<string, number>, {contains: [unknown, 100]; maxContains: 1}>;\n"
+	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+	for _, expected := range []string{
+		"RT.set(TF.string(), {maxItems: 3, uniqueItems: true})",
+		"RT.set(RT.unknown(), {contains: TF.number(), minContains: 2})",
+		"RT.map(TF.string(), TF.number(), {maxItems: 2, minItems: 1})",
+		"RT.map(RT.object({id: TF.number()}), TF.string(), {uniqueItems: true})",
+		"RT.map(TF.string(), TF.number(), {contains: RT.tuple({required: [RT.unknown(), RT.literal(100)]}), maxContains: 1})",
+	} {
+		if !strings.Contains(builderForm, expected) {
+			t.Errorf("builder form missing %q:\n%s", expected, builderForm)
+		}
+	}
+	typeForm := convertAndCheckIDs(t, builderForm, convert.TargetType)
+	for _, expected := range []string{
+		"TF.FormattedSet<Set<string>, {maxItems: 3, uniqueItems: true}>",
+		"TF.FormattedSet<Set<unknown>, {contains: number, minContains: 2}>",
+		"TF.FormattedMap<Map<string, number>, {maxItems: 2, minItems: 1}>",
+		"TF.FormattedMap<Map<{id: number}, string>, {uniqueItems: true}>",
+		"TF.FormattedMap<Map<string, number>, {contains: [unknown, 100], maxContains: 1}>",
+	} {
+		if !strings.Contains(typeForm, expected) {
+			t.Errorf("type form missing %q:\n%s", expected, typeForm)
+		}
+	}
+}
+
 func TestChain_UniqueItemsFalseEscapesGenericSpelling(t *testing.T) {
-	// `uniqueItems: false` sits OUTSIDE the public params bag
-	// (FormattedArrayParams declares `uniqueItems?: true`), so the generic
-	// `RT.array(…, {uniqueItems: false})` spelling resolved a DIFFERENT id and
-	// a follow-up --to type dropped the brand entirely. The brand must ride
-	// the raw StructuralBrand spelling instead — the structural twin of the
-	// `isRegex` constructor escape (TestChain_RegexPresetEscapesGenericSpelling).
-	// docs/done history: filed during the json-schema-input removal.
+	// `uniqueItems: false` is outside the public params bag (`uniqueItems?: true`), so `RT.array(…)` resolved another id.
+	// The brand keeps the raw StructuralBrand spelling, like the `isRegex` escape (TestChain_RegexPresetEscapesGenericSpelling).
 	source := "import * as TF from '@mionjs/run-types/formats';\n" +
 		"export type LooseTags = string[] & TF.StructuralBrand<'formattedArray', {uniqueItems: false}>;\n"
 	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
@@ -203,7 +232,7 @@ func TestChain_NamedFormatPresets(t *testing.T) {
 		"export type Contact = TF.Email;\n" +
 		"type Uid = TF.UUIDv4;\n" +
 		"type AnyUid = TF.UUID;\n" +
-		"type Site = TF.Url;\n" +
+		"type Site = TF.StringUrl;\n" +
 		"type Host = TF.Hostname;\n" +
 		"type Day = TF.StringDate;\n" +
 		"type When = TF.Date<{min: 'now'}>;\n"
@@ -214,6 +243,25 @@ func TestChain_NamedFormatPresets(t *testing.T) {
 		}
 	}
 	convertAndCheckIDs(t, builderForm, convert.TargetType)
+}
+
+func TestChain_UrlObject(t *testing.T) {
+	source := "import * as TF from '@mionjs/run-types/formats';\n" +
+		"export type Link = URL;\n" +
+		"type Short = TF.Url<{maxLength: 200}>;\n" +
+		"type Web = TF.UrlHttp;\n"
+	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+	for _, expected := range []string{"TF.url()", "TF.url({maxLength: 200})"} {
+		if !strings.Contains(builderForm, expected) {
+			t.Errorf("builder form missing %q:\n%s", expected, builderForm)
+		}
+	}
+	typeForm := convertAndCheckIDs(t, builderForm, convert.TargetType)
+	for _, expected := range []string{"export type Link = URL;", "TF.Url<{maxLength: 200}>"} {
+		if !strings.Contains(typeForm, expected) {
+			t.Errorf("type form missing %q:\n%s", expected, typeForm)
+		}
+	}
 }
 
 func TestChain_RegexPresetEscapesGenericSpelling(t *testing.T) {
@@ -305,7 +353,7 @@ func TestChain_StructuralParams(t *testing.T) {
 }
 
 func TestChain_Objects(t *testing.T) {
-	// The spec's own motivating example: docs/done/format-conversion-layer.md.
+	// The conversion layer's own motivating example.
 	source := "export type MyType = {\n" +
 		"  id: number;\n" +
 		"  name: string;\n" +
@@ -459,6 +507,118 @@ func TestReadonlyMember_FullChain(t *testing.T) {
 	}
 }
 
+// Readonly is in the id, so convertAndCheckIDs fails on any spelling that drops it.
+func TestChain_ReadonlyCollections(t *testing.T) {
+	for _, testCase := range []struct {
+		source  string
+		builder string
+		typed   string
+	}{
+		{
+			"export type Pair = readonly [number, Pair?];\n",
+			"export type Pair = readonly [number, Pair?];\nexport const pairRT = getRunType<Pair>();",
+			"export type Pair = readonly [number, Pair?];",
+		},
+		{
+			"export type K4 = {a?: K4} | readonly [K4];\n",
+			"export type K4 = readonly [K4] | {a?: K4};",
+			"export type K4 = readonly [K4] | {a?: K4};",
+		},
+		{
+			"export type Box = {readonly items: readonly [Box?]; name: string};\n",
+			"RT.propMod({readonly: true}, RT.readonly(RT.tuple({optional: [RT.self()]})))",
+			"readonly items: readonly [Box?]",
+		},
+		{
+			"export type Tree = {kids: readonly Tree[]};\n",
+			"RT.readonly(RT.array(RT.self()))",
+			"kids: readonly Tree[]",
+		},
+		{
+			"export type Labeled = readonly [x: number, y: string];\n",
+			"getRunType<readonly [x: number, y: string]>()",
+			"export type Labeled = readonly [x: number, y: string];",
+		},
+		{
+			"export type Tagged = {tag: readonly [x: number, y?: Tagged]};\n",
+			"export type Tagged = {tag: readonly [x: number, y?: Tagged]};\nexport const taggedRT = getRunType<Tagged>();",
+			"tag: readonly [x: number, y?: Tagged]",
+		},
+		{
+			"import * as TF from '@mionjs/run-types/formats';\nexport type RoFmt = TF.FormattedArray<readonly string[], {minItems: 1}>;\n",
+			"getRunType<",
+			"TF.FormattedArray<readonly string[], {minItems: 1}>",
+		},
+		{
+			"import * as TF from '@mionjs/run-types/formats';\nexport type RoBag = TF.FormattedObject<{readonly [k: string]: number}, {minProperties: 1}>;\n",
+			"getRunType<",
+			"readonly [key: string]: number",
+		},
+		{
+			"export type MixedIdx = {readonly [k: string]: number; [k: number]: number};\n",
+			"getRunType<",
+			"readonly [key: string]: number",
+		},
+		{
+			"export type RoTup = readonly [string, number];\n",
+			"RT.readonly(RT.tuple({required: [TF.string(), TF.number()]}))",
+			"export type RoTup = readonly [string, number];",
+		},
+		{
+			"export type RoArr = readonly string[];\n",
+			"RT.readonly(RT.array(TF.string()))",
+			"export type RoArr = readonly string[];",
+		},
+		{
+			"export type RoArr2 = ReadonlyArray<number>;\n",
+			"RT.readonly(RT.array(TF.number()))",
+			"export type RoArr2 = readonly number[];",
+		},
+		{
+			"export type Nested = (readonly string[])[];\n",
+			"RT.array(RT.readonly(RT.array(TF.string())))",
+			"export type Nested = (readonly string[])[];",
+		},
+		{
+			"export type RoIdx = {readonly [k: string]: number};\n",
+			"RT.readonly(RT.record(TF.number()))",
+			"export type RoIdx = {readonly [key: string]: number};",
+		},
+		{
+			"export type Mixed = {readonly [k: string]: number | string; a: string};\n",
+			"RT.intersection(RT.readonly(RT.record(RT.union([TF.number(), TF.string()]))), RT.object({a: TF.string()}))",
+			"readonly [key: string]: number | string",
+		},
+	} {
+		builderForm := convertAndCheckIDs(t, testCase.source, convert.TargetBuilders)
+		if !strings.Contains(builderForm, testCase.builder) {
+			t.Errorf("builder form should contain %q:\n%s", testCase.builder, builderForm)
+		}
+		typeForm := convertAndCheckIDs(t, builderForm, convert.TargetType)
+		if !strings.Contains(typeForm, testCase.typed) {
+			t.Errorf("type form should contain %q:\n%s", testCase.typed, typeForm)
+		}
+	}
+}
+
+func TestChain_ReadonlyNotAliasedToMutableTwin(t *testing.T) {
+	source := "export type K4 = {a?: K4} | readonly [K4];\nexport type K6 = {a?: K6} | [K6];\n" +
+		"export type RoList = readonly string[];\nexport type List = string[];\n" +
+		"export type RoMap = {readonly [k: string]: number};\nexport type Map2 = {[k: string]: number};\n"
+	ids := declIDs(t, source)
+	for _, pair := range [][2]string{{"K4", "K6"}, {"RoList", "List"}, {"RoMap", "Map2"}} {
+		if ids[pair[0]] == ids[pair[1]] {
+			t.Errorf("%s and %s differ only in readonly but share id %s", pair[0], pair[1], ids[pair[0]])
+		}
+	}
+	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+	for _, alias := range []string{"k6RT = getRunType<K4>()", "listRT = getRunType<RoList>()", "map2RT = getRunType<RoMap>()"} {
+		if strings.Contains(builderForm, alias) {
+			t.Errorf("a mutable declaration was aliased to its readonly twin (%s):\n%s", alias, builderForm)
+		}
+	}
+}
+
 func TestChain_LabeledTuple(t *testing.T) {
 	source := "type Point = [x: number, y: number];\n" +
 		"export type Span = [start: number, len?: number, ...rest: string[]];\n"
@@ -523,7 +683,7 @@ func TestAnonymousCycle_Refused(t *testing.T) {
 		}
 	}
 	if !foundCycleDiag {
-		t.Fatalf("expected a CNV001 unnamed-cycle diagnostic, got %+v", diags)
+		t.Fatalf("expected a convert-unsupported-kind unnamed-cycle diagnostic, got %+v", diags)
 	}
 	if !strings.Contains(output, "const plainRT = TF.string();") {
 		t.Errorf("the rest of the file still converts:\n%s", output)
@@ -545,7 +705,7 @@ func TestGenericDecl_Refused(t *testing.T) {
 	source := "type Box<T> = T;\ntype Plain = string;\n"
 	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
 	if len(diags) != 1 || diags[0].Code != convert.CodeGenericDecl {
-		t.Fatalf("expected one CNV002, got %+v", diags)
+		t.Fatalf("expected one convert-generic-declaration, got %+v", diags)
 	}
 	if !strings.Contains(output, "type Box<T> = T;") || !strings.Contains(output, "const plainRT = TF.string();") {
 		t.Errorf("generic declarations stay untouched while the rest converts:\n%s", output)

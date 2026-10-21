@@ -1,8 +1,8 @@
-// Which counter did `rt::countEnumKeys` pick for THIS engine, and is that the
+// Which counter did `countEnumKeys` pick for THIS engine, and is that the
 // one it was supposed to pick?
 //
 // The pure fn specialises once at materialisation: `for-in` on V8, a
-// prototype-guarded `Object.keys` on JavaScriptCore (see pf_countEnumKeys in
+// prototype-guarded `Object.keys` on JavaScriptCore (see countEnumKeys in
 // packages/run-types/src/runtypes/pure-fns-utils.ts). Both are pinned to answer
 // identically for every input, so a wrong choice costs throughput and never
 // correctness — which is exactly why it can rot unnoticed. The benchmark is the
@@ -13,7 +13,7 @@
 // misconfigured runtime instead of quietly reporting numbers that mean something
 // other than what the table claims.
 
-import {createHasUnknownKeysFn, createValidateFn} from '@mionjs/run-types';
+import {createValidateFn} from '@mionjs/run-types';
 
 /** 'jsc' = the Object.keys counter (JavaScriptCore / Bun), 'v8' = the for-in counter. */
 export type EngineBranch = 'jsc' | 'v8';
@@ -29,24 +29,17 @@ export function expectedEngineBranch(): EngineBranch {
   return currentRuntime() === 'bun' ? 'jsc' : 'v8';
 }
 
-/** Observe which counter is live by watching whether a strict check reaches
- *  `Object.keys`. Uses the real emitted validator + the real
- *  `runsAfterValidation` predicate, so this is the shipped code path and not a
- *  reimplementation of it — a strict check on an all-required object is what
- *  routes through rt::countEnumKeys. */
+/** Watches whether the shipped strict validator on an all-required object (countEnumKeys) reaches `Object.keys`. */
 export function detectEngineBranch(): EngineBranch {
   interface Probe {
     a: number;
     b: string;
   }
-  const validate = createValidateFn<Probe>();
-  const hasUnknownKeys = createHasUnknownKeysFn<Probe>(undefined, {runsAfterValidation: true});
+  const validateStrict = createValidateFn<Probe>(undefined, {checkUnknowns: true});
   const value: Probe = {a: 1, b: 'x'};
 
-  // Warm the factories so materialisation (which is where the branch is decided)
-  // happens OUTSIDE the window we are watching.
-  validate(value);
-  hasUnknownKeys(value);
+  // Materialisation picks the branch, so it must happen outside the watched window.
+  validateStrict(value);
 
   const originalKeys = Object.keys;
   let objectKeysCalls = 0;
@@ -55,7 +48,7 @@ export function detectEngineBranch(): EngineBranch {
     return originalKeys(obj);
   }) as typeof Object.keys;
   try {
-    hasUnknownKeys(value);
+    validateStrict(value);
   } finally {
     Object.keys = originalKeys;
   }
@@ -70,8 +63,8 @@ export function assertEngineBranch(): EngineBranch {
   const actual = detectEngineBranch();
   if (actual !== expected) {
     throw new Error(
-      `rt::countEnumKeys selected the '${actual}' counter but this runtime (${currentRuntime()}) must select '${expected}'. ` +
-        `Either the engine probe in pf_countEnumKeys stopped matching this runtime, the per-engine branch was removed, ` +
+      `countEnumKeys selected the '${actual}' counter but this runtime (${currentRuntime()}) must select '${expected}'. ` +
+        `Either the engine probe in countEnumKeys stopped matching this runtime, the per-engine branch was removed, ` +
         `or this lane is not running the runtime it claims to.`
     );
   }

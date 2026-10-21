@@ -8,13 +8,16 @@
 /** One tsc error line, reduced to what survives the translation. */
 export function normalizeError(line: string, roots: readonly string[]): string;
 
-/** What the translation ADDED and what it REMOVED. Both empty means the
- *  translated tree typechecks exactly as the untranslated one does. */
+/** `lineNo` is 1-based, as tsc reports it. */
+export function isExactTypeAssertion(sourceLines: readonly string[], lineNo: number): boolean;
+
+/** Both empty means the trees typecheck alike; with `cwd`, added errors on exact-type assertions go to `assertions`. */
 export function diffTypeErrors(input: {
   translated: readonly string[];
   control: readonly string[];
   roots: readonly string[];
-}): {added: string[]; removed: string[]; translatedCount: number; controlCount: number};
+  cwd?: string;
+}): {added: string[]; assertions: string[]; removed: string[]; translatedCount: number; controlCount: number};
 
 /** Only the `error TSxxxx:` lines of a tsc run. */
 export function errorLines(output: string): string[];

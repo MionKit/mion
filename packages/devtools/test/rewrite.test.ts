@@ -1,6 +1,7 @@
 import {describe, expect} from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs';
+import os from 'node:os';
 import {spawnSync} from 'node:child_process';
 import {ReflectionKind, type RunType} from '../src/core/protocol.ts';
 import {
@@ -41,7 +42,7 @@ getRunTypeId<User>();
         // Static form has no value argument — the value slot is padded with
         // `undefined` so the injected entry-module binding lands in slot 1,
         // with the matching import at offset 0.
-        expect(out).toContain(`import {__rt_${sites[0].id}} from 'rtmod:/${sites[0].id}.js';`);
+        expect(out).toMatch(new RegExp(`import \\{__rt_${sites[0].id}\\} from 'rtmod:/rt/[A-Za-z0-9_-]+\\.js';`));
         expect(out).toContain(`getRunTypeId<User>(undefined, __rt_${sites[0].id});`);
       });
     }
@@ -63,7 +64,7 @@ getRunTypeId(u);
         expect(sites.length).toBe(1);
         expect(sites[0].id).toMatch(/^[A-Za-z][A-Za-z0-9]+$/);
         // Reflect form: `u` is arg 0, the injected binding is arg 1.
-        expect(out).toContain(`import {__rt_${sites[0].id}} from 'rtmod:/${sites[0].id}.js';`);
+        expect(out).toMatch(new RegExp(`import \\{__rt_${sites[0].id}\\} from 'rtmod:/rt/[A-Za-z0-9_-]+\\.js';`));
         expect(out).toContain(`getRunTypeId(u, __rt_${sites[0].id});`);
       });
     }
@@ -320,9 +321,7 @@ const myAPI = getRunTypeId(routes);
       return dump.entryModules ?? {};
     });
 
-    // Per-entry emitter — runtype nodes ride as rows of the single data
-    // bundle (tuple slot 0 === 4; dep-less, so slot 1 is a hole); the reflection
-    // root gets a facade module whose inlined deps thunk imports the bundle.
+    // Runtype rows live in the file's data module (dep-less, so slot 1 is a hole); the root gets a facade export.
     const moduleSources = Object.values(entryModules);
     expect(moduleSources.length).toBeGreaterThan(0);
     expect(moduleSources.some((s) => /export const __rt_runtypes=\[4,,/.test(s))).toBe(true);
@@ -351,10 +350,7 @@ const myAPI = getRunTypeId(routes);
     }
   }
 
-  // CLI round-trip via spawnSync — kept as a single test (one form is
-  // sufficient to verify the binary boundary). Uses runTest for the source
-  // hoist + skip gate; the body short-circuits to a raw spawnSync since this
-  // test bypasses the in-process ResolverClient entirely.
+  // One CLI test is enough for the binary boundary; runTest only supplies sources and the skip gate, no ResolverClient.
   runTest(
     "CLI --out-modules writes per-entry modules identical in shape to the plugin's output",
     {
@@ -365,7 +361,7 @@ const myAPI = getRunTypeId(routes);
 `,
     },
     async (sources) => {
-      const tmpDir = path.join(__dirname, '.tmp-modules');
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-rewrite-modules-'));
       const handshake = JSON.stringify({sources: {...MARKER_PACKAGE_OVERLAY, 'router.ts': sources['router.ts']}}) + '\n';
       const request = JSON.stringify({op: 'scanFiles', files: ['router.ts']}) + '\n';
       const out = spawnSync(
@@ -376,7 +372,7 @@ const myAPI = getRunTypeId(routes);
         }
       );
       expect(out.status).toBe(0);
-      const written = fs.readdirSync(tmpDir).filter((name) => name.endsWith('.js'));
+      const written = (fs.readdirSync(tmpDir, {recursive: true}) as string[]).filter((name) => name.endsWith('.js'));
       expect(written.length).toBeGreaterThan(0);
       const sample = fs.readFileSync(path.join(tmpDir, written[0]), 'utf8');
       expect(sample).toContain('export const __rt_');

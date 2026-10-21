@@ -5,16 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {routesFlow, serverMapFrom} from '@mionjs/client';
+import {batch, inputFrom} from '@mionjs/client';
 import {initClient} from '@mionjs/client';
 import {isRpcError, HeadersSubset} from '@mionjs/core';
-import {TestServerApi} from '../server/server.ts';
-import {installMemoryStorage} from '../lib/memoryStorage.ts';
-import {describe, it, expect, beforeAll} from 'vitest';
+import type {TestServerApi} from '../server/server.ts';
+import {describe, it, expect} from 'vitest';
 
-beforeAll(() => {
-    installMemoryStorage();
-});
 
 function createAuthHeaders(token: string): HeadersSubset<'Authorization'> {
     return new HeadersSubset({Authorization: token});
@@ -28,13 +24,9 @@ describe('JSON Serialization E2E', () => {
     type MyApi = TestServerApi;
 
     it('proxy should trap remote method calls and return SubRequest data', () => {
-        const {routes, middleFns} = initClient<MyApi>({baseURL});
-        const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-
-        const authReq = middleFns.auth(authHeaders);
-        expect(authReq.pointer).toEqual(['auth']);
-        expect(authReq.id).toBe('auth');
-        expect(authReq.isResolved).toBe(false);
+        const {routes, middlewares} = initClient<MyApi>({baseURL});
+        // a middleware is hooks only
+        expect(typeof middlewares.auth.onRequest).toBe('function');
 
         const helloReq = routes.sayHello(someUser);
         expect(helloReq.pointer).toEqual(['sayHello']);
@@ -45,28 +37,24 @@ describe('JSON Serialization E2E', () => {
         expect(sumReq.id).toBe('utils/sumTwo');
     });
 
-    it('call() with middleFns should return route data on success', async () => {
-        const {routes, middleFns} = initClient<MyApi>({baseURL});
+    it('call() with an onRequest middleware should return route data on success', async () => {
+        const {routes, middlewares} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+        middlewares.auth.onRequest((auth) => auth(authHeaders));
 
-        const [greeting, routeError, fatal, middleFnResults, middleFnErrors] = await routes.sayHello(someUser).call({
-            middleFns: {auth: middleFns.auth(authHeaders)},
-        });
+        const [greeting, routeError, clientResponse] = await routes.sayHello(someUser).call();
 
         expect(greeting).toBe('Hello John Doe');
         expect(routeError).toBeUndefined();
-        expect(fatal).toBeUndefined();
-        expect(middleFnResults).toBeDefined();
-        expect(middleFnErrors).toBeDefined();
+        expect(clientResponse['@thrownErrors']).toBeUndefined();
     });
 
-    it('call() with middleFns should return error on route failure', async () => {
-        const {routes, middleFns} = initClient<MyApi>({baseURL});
+    it('call() with middlewares should return error on route failure', async () => {
+        const {routes, middlewares} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        const [result, routeError] = await routes.alwaysFails(someUser).call({
-            middleFns: {auth: middleFns.auth(authHeaders)},
-        });
+        middlewares.auth.onRequest((auth) => auth(authHeaders));
+        const [result, routeError] = await routes.alwaysFails(someUser).call();
 
         expect(result).toBeUndefined();
         expect(routeError).toBeDefined();
@@ -74,67 +62,62 @@ describe('JSON Serialization E2E', () => {
         expect(routeError?.publicMessage).toBe('Something fails');
     });
 
-    it('call() with prefilled auth should succeed', async () => {
-        const {routes, middleFns} = initClient<MyApi>({baseURL});
+    it('call() with an async onRequest auth should succeed', async () => {
+        const {routes, middlewares} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        middleFns.auth(authHeaders).prefill();
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        middlewares.auth.onRequest(async (auth) => {
+            await new Promise((resolve) => setTimeout(resolve, 10));
+            auth(authHeaders);
+        });
 
         const [greeting, error] = await routes.sayHello(someUser).call();
 
         expect(greeting).toBe('Hello John Doe');
         expect(error).toBeUndefined();
-
-        middleFns.auth(authHeaders).removePrefill();
     });
 
-    it('call() should fail after removePrefill', async () => {
-        const {routes, middleFns} = initClient<MyApi>({baseURL});
+    it('call() should fail after offRequest', async () => {
+        const {routes, middlewares} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('ABYWZ-TOKEN');
 
-        middleFns.auth(authHeaders).prefill();
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        middlewares.auth.onRequest((auth) => auth(authHeaders));
 
         const [response, callError] = await routes.sayHello(someUser).call();
         expect(callError).toBeUndefined();
         expect(response).toBe('Hello John Doe');
 
-        middleFns.auth(authHeaders).removePrefill();
+        middlewares.auth.offRequest();
 
-        // A missing prefilled middleFn fails request-scoped, so it lands in the fatal slot.
-        const [, , fatal] = await routes.sayHello(someUser).call();
-        expect(fatal).toBeDefined();
-        expect(isRpcError(fatal)).toBe(true);
+        // No headers: the auth middleware's own validation error, at its path.
+        const [, , clientResponse] = await routes.sayHello(someUser).call();
+        expect(isRpcError(clientResponse.auth)).toBe(true);
+        expect(clientResponse.auth).toMatchObject({type: 'validation-error'});
     });
 
-    it('call() with middleFns should return session middleFn data', async () => {
-        const {routes, middleFns} = initClient<MyApi>({baseURL});
+    it('call() with onRequest middlewares should return session middleware data', async () => {
+        const {routes, middlewares} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        const [greeting, routeError, fatal, middleFnResults, middleFnErrors] = await routes.sayHello(someUser).call({
-            middleFns: {
-                auth: middleFns.auth(authHeaders),
-                session: middleFns.session('valid-token'),
-            },
-        });
+        middlewares.auth.onRequest((auth) => auth(authHeaders));
+        middlewares.session.onRequest((session) => session('valid-token'));
+        const [greeting, routeError, clientResponse] = await routes.sayHello(someUser).call();
 
         expect(greeting).toBe('Hello John Doe');
         expect(routeError).toBeUndefined();
-        expect(fatal).toBeUndefined();
-        expect(middleFnErrors?.auth).toBeUndefined();
-        expect(middleFnResults?.session).toBeDefined();
-        expect(middleFnResults?.session?.userId).toBe('user-123');
+        expect(clientResponse['@thrownErrors']).toBeUndefined();
+        expect(clientResponse.auth).toBeUndefined();
+        expect(clientResponse.session).toBeDefined();
+        expect((clientResponse.session as {userId?: string} | undefined)?.userId).toBe('user-123');
     });
 
-    it('routesFlow should execute multiple routes', async () => {
-        const {routes, middleFns} = initClient<MyApi>({baseURL});
+    it('batch should execute multiple routes', async () => {
+        const {routes, middlewares} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        middleFns.auth(authHeaders).prefill();
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        middlewares.auth.onRequest((auth) => auth(authHeaders));
 
-        const [[greeting, age, sum], [greetingError, ageError, sumError]] = await routesFlow([
+        const [[greeting, greetingError], [age, ageError], [sum, sumError]] = await batch([
             routes.sayHello(someUser),
             routes.calculateAge(1990),
             routes.utils.sumTwo(5),
@@ -146,25 +129,20 @@ describe('JSON Serialization E2E', () => {
         expect(greetingError).toBeUndefined();
         expect(ageError).toBeUndefined();
         expect(sumError).toBeUndefined();
-
-        middleFns.auth(authHeaders).removePrefill();
     });
 
-    it('serverMapFrom should run a client-authored mapper on the server, mid-flow', async () => {
-        const {routes, middleFns} = initClient<MyApi>({baseURL});
+    it('inputFrom should run a client-authored mapper on the server, mid-batch', async () => {
+        const {routes, middlewares} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        middleFns.auth(authHeaders).prefill();
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        middlewares.auth.onRequest((auth) => auth(authHeaders));
 
-        // The mapper body is authored HERE, in client flow code. The packaged mion vite plugin
-        // extracts it at build time into the server-mappers manifest, and the server executes it
-        // between the two calls — so this asserts the whole build-time transport survives packing.
-        // The param resolves server-side, hence the `!` (same convention as the docs examples).
+        // The packaged vite plugin extracts this client-written mapper into the batch module the server runs.
+        // So this asserts the build-time transport survives packing; the param resolves server-side, hence the `!`.
         const customer = routes.getCustomerById(7);
-        const [[customerData, prefs], [customerError, prefsError]] = await routesFlow([
+        const [[customerData, customerError], [prefs, prefsError]] = await batch([
             customer,
-            routes.getPreferencesById(serverMapFrom(customer, (customerValue) => customerValue!.preferenceId).asArg()),
+            routes.getPreferencesById(inputFrom(customer, (customerValue) => customerValue!.preferenceId).asArg()),
         ]).call();
 
         expect(customerError).toBeUndefined();
@@ -172,7 +150,5 @@ describe('JSON Serialization E2E', () => {
         expect(customerData).toEqual({id: 7, name: 'Test Customer', preferenceId: 107});
         // 107 is odd -> 'light', userId = prefId - 100 = the original customer id
         expect(prefs).toEqual({id: 107, userId: 7, theme: 'light'});
-
-        middleFns.auth(authHeaders).removePrefill();
     });
 });

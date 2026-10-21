@@ -66,7 +66,7 @@ func main() {
 		ModuleMode: constants.ModuleModeAllSingle,
 		// Pattern mockSample generation runs at the native defaults; it
 		// works when the host installed the sidecar hook (the playground
-		// loads it before this module) and degrades to FMT005 without it.
+		// loads it before this module) and degrades to format-sample-generation-failed without it.
 		PatternSampleCount:   constants.DefaultPatternSampleCount,
 		PatternSampleRetries: constants.DefaultPatternSampleRetries,
 	})

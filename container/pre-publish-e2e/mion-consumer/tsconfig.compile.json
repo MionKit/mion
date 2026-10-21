@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": ".",
+    "outDir": "dist-cli",
+    "rewriteRelativeImportExtensions": true
+  },
+  // The production program: the server and its bundling client. The specs are not shipped, and the
+  // fetch lane's client is compiled on its own by tsconfig.compile-fetch.json.
+  "exclude": ["node_modules", "dist", "dist-cli", "dist-cli-fetch", "src/tests", "src/client/fetchFlow.ts"]
+}
