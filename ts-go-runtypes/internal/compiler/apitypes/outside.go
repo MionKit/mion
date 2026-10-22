@@ -431,15 +431,15 @@ func (state *outsideState) decl(key string) *convert.PrintedDecl {
 func (trimmer *trimmer) placeOutside() bool {
 	state := trimmer.outside
 	keptMore := false
-	for _, key := range state.reachedKeys(trimmer) {
+	state.reachedKeys(trimmer, func(key string) {
 		if _, placed := state.homes[key]; placed {
-			continue
+			return
 		}
 		decl := state.decl(key)
 		if !decl.Kind.HasHome() {
 			// Declared in each file that spells it, or where the platform declares it.
 			state.homes[key] = ""
-			continue
+			return
 		}
 		symbol := state.declSymbol(decl)
 		found := trimmer.originOf(symbol)
@@ -454,7 +454,7 @@ func (trimmer *trimmer) placeOutside() bool {
 						keptMore = true
 					}
 				}
-				continue
+				return
 			}
 			state.homes[key] = sharedOutside
 		case decl.Kind.KeepsItsName() && found.kind == originMion:
@@ -466,12 +466,13 @@ func (trimmer *trimmer) placeOutside() bool {
 		default:
 			state.homes[key] = sharedOutside
 		}
-	}
+	})
 	return keptMore
 }
 
-// reachedKeys lists every declaration key the replaced uses reach, through the bodies they print.
-func (state *outsideState) reachedKeys(trimmer *trimmer) []string {
+// reachedKeys lists every declaration key the replaced uses reach, through the bodies they print; place, when set,
+// sees each key before its body is read. A kept project class or enum ships no printed body, so nothing it names counts.
+func (state *outsideState) reachedKeys(trimmer *trimmer, place func(key string)) []string {
 	var queue []string
 	for _, file := range trimmer.sortedFiles() {
 		for _, hole := range file.holes {
@@ -490,6 +491,12 @@ func (state *outsideState) reachedKeys(trimmer *trimmer) []string {
 		}
 		seen[key] = true
 		out = append(out, key)
+		if place != nil {
+			place(key)
+		}
+		if _, kept := state.projectDecls[key]; kept {
+			continue
+		}
 		if decl := state.decl(key); decl != nil {
 			queue = append(queue, convert.DeclRefKeys(decl.Body)...)
 		}
@@ -550,7 +557,7 @@ func relativePath(from, to string) string {
 func (trimmer *trimmer) renderOutside(files map[string]string) error {
 	state := trimmer.outside
 	byHome := map[string][]*convert.PrintedDecl{}
-	for _, key := range state.reachedKeys(trimmer) {
+	for _, key := range state.reachedKeys(trimmer, nil) {
 		if home := state.homes[key]; home != "" {
 			byHome[home] = append(byHome[home], state.decl(key))
 		}

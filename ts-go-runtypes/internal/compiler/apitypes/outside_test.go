@@ -290,6 +290,26 @@ declare class Hidden { secret: string }
 	assertContains(t, output.Files["_outside/_shared.d.ts"], "export declare class Hidden {")
 }
 
+// Fuzz seed 39803810701: a kept class prints no body, so the hidden class its default names stays out of _shared.
+func TestOutside_AKeptClassDefaultingToAnUnexportedOneShipsNothingShared(t *testing.T) {
+	output, input := trimWithGeo(t, `import type { Page } from 'geo';
+declare class Hidden { secret: string }
+export declare class Box<T = Hidden> { value: T }
+`+apiOf(`get: import("@mionjs/router").PublicRoute<() => Promise<Page<Box>>>;`), nil)
+	assertSelfContained(t, output, input)
+	assertContains(t, output.Files["_outside/geo.d.ts"], `import("../index.js").Box`)
+	if shared, ok := output.Files["_outside/_shared.d.ts"]; ok {
+		t.Errorf("nothing should ship shared:\n%s", shared)
+	}
+	again, err := Trim(Input{Cwd: input.Cwd, TsconfigPath: input.TsconfigPath, DeclarationDir: input.DeclarationDir, Declarations: absoluteFiles(input, output.Files), Entry: input.Entry})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, failure := range oracleSameFiles("trimming the output again", output.Files, again.Files) {
+		t.Error(failure)
+	}
+}
+
 func TestOutside_AProjectFileUnderOutsideCollides(t *testing.T) {
 	_, _, err := tryTrimIn(t, map[string]string{
 		"index.d.ts":        "import type { Address } from 'geo';\nimport type { Local } from './_outside/geo.ts';\n" + apiOf(`get: import("@mionjs/router").PublicRoute<(a: Address, l: Local) => Promise<void>>;`),
