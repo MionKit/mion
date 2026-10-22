@@ -25,6 +25,10 @@ version be staged again, so the same changes ship as 0.13.2.
   another function family's included. A `getValidationErrors` whose union picks its member
   with a validator used to report only its own `validation-errors-*` code while the
   `validate-*` one fired first at runtime; code with that shape now sees both at build time.
+- **apitypes:** Trimming the published API types no longer ships an unused declaration in
+  `_outside/_shared.d.ts` when a kept class defaults a type parameter to an unexported one,
+  and a kept generic class used with a non-default argument (`Page<Box<Address>>`) is
+  shipped printed instead of by its bare name, which failed to type-check.
 - **release:** The staged publish checks every drizzle package it would skip before
   staging anything, reads npm 12's `npm pack` output (whose new shape broke the 0.13.1
   publish), pins the npm it stages with, and reports npm's own error when a download fails.
