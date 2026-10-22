@@ -443,8 +443,9 @@ func (trimmer *trimmer) placeOutside() bool {
 		}
 		symbol := state.declSymbol(decl)
 		found := trimmer.originOf(symbol)
+		keepsName := decl.Kind.KeepsItsName() && trimmer.namesBare(state.cache.TypeByID(decl.NodeID), symbol)
 		switch {
-		case decl.Kind.KeepsItsName() && found.kind == originProject:
+		case keepsName && found.kind == originProject:
 			if project, ok := trimmer.exportedProjectDecl(symbol, decl.Name); ok {
 				state.projectDecls[key] = project
 				state.homes[key] = ""
@@ -457,7 +458,7 @@ func (trimmer *trimmer) placeOutside() bool {
 				return
 			}
 			state.homes[key] = sharedOutside
-		case decl.Kind.KeepsItsName() && found.kind == originMion:
+		case keepsName && found.kind == originMion:
 			state.projectDecls[key] = projectDecl{pkg: found.pkg, name: decl.Name}
 			state.homes[key] = ""
 			trimmer.externals[found.pkg] = true
@@ -470,9 +471,27 @@ func (trimmer *trimmer) placeOutside() bool {
 	return keptMore
 }
 
-// reachedKeys lists every declaration key the replaced uses reach, through the bodies they print; place, when set,
-// sees each key before its body is read. A kept project class or enum ships no printed body, so nothing it names counts.
-func (state *outsideState) reachedKeys(trimmer *trimmer, place func(key string)) []string {
+// namesBare: the bare name of a generic class means this instance only when each argument is its parameter's default.
+func (trimmer *trimmer) namesBare(tsType *checker.Type, symbol *ast.Symbol) bool {
+	if tsType == nil || symbol == nil || tsType.ObjectFlags()&checker.ObjectFlagsReference == 0 {
+		return true
+	}
+	params := trimmer.checker.GetLocalTypeParametersOfClassOrInterfaceOrTypeAlias(symbol)
+	args := trimmer.checker.GetTypeArguments(tsType)
+	if len(args) < len(params) {
+		return false
+	}
+	for index, param := range params {
+		if trimmer.checker.GetDefaultFromTypeParameter(param) != args[index] {
+			return false
+		}
+	}
+	return true
+}
+
+// reachedKeys visits every declaration key the replaced uses reach, through the bodies they print, each before its
+// body is read. A kept project class or enum ships no printed body, so nothing it names counts.
+func (state *outsideState) reachedKeys(trimmer *trimmer, visit func(key string)) {
 	var queue []string
 	for _, file := range trimmer.sortedFiles() {
 		for _, hole := range file.holes {
@@ -482,7 +501,6 @@ func (state *outsideState) reachedKeys(trimmer *trimmer, place func(key string))
 		}
 	}
 	seen := map[string]bool{}
-	var out []string
 	for len(queue) > 0 {
 		key := queue[0]
 		queue = queue[1:]
@@ -490,10 +508,7 @@ func (state *outsideState) reachedKeys(trimmer *trimmer, place func(key string))
 			continue
 		}
 		seen[key] = true
-		out = append(out, key)
-		if place != nil {
-			place(key)
-		}
+		visit(key)
 		if _, kept := state.projectDecls[key]; kept {
 			continue
 		}
@@ -501,7 +516,6 @@ func (state *outsideState) reachedKeys(trimmer *trimmer, place func(key string))
 			queue = append(queue, convert.DeclRefKeys(decl.Body)...)
 		}
 	}
-	return out
 }
 
 // declSymbol is the symbol a printed declaration came from: a class, an enum, or the alias a recursive shape names.
@@ -557,11 +571,11 @@ func relativePath(from, to string) string {
 func (trimmer *trimmer) renderOutside(files map[string]string) error {
 	state := trimmer.outside
 	byHome := map[string][]*convert.PrintedDecl{}
-	for _, key := range state.reachedKeys(trimmer, nil) {
+	state.reachedKeys(trimmer, func(key string) {
 		if home := state.homes[key]; home != "" {
 			byHome[home] = append(byHome[home], state.decl(key))
 		}
-	}
+	})
 	// A symbol key is declared in each file that spells it, never imported.
 	spellings := map[string]map[string]string{}
 	homeOf := map[string]string{}
