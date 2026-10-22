@@ -26,8 +26,8 @@ version be staged again, so the same changes ship as 0.13.2.
   with a validator used to report only its own `validation-errors-*` code while the
   `validate-*` one fired first at runtime; code with that shape now sees both at build time.
 - **release:** The staged publish checks every drizzle package it would skip before
-  staging anything, retries downloading the live tarball it compares against, and reports
-  npm's own error when that fails.
+  staging anything, reads npm 12's `npm pack` output (whose new shape broke the 0.13.1
+  publish), pins the npm it stages with, and reports npm's own error when a download fails.
 
 ## [0.13.0] - 2026-10-18
 
