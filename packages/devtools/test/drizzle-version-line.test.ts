@@ -266,6 +266,15 @@ describe('drizzle line — verifying a skip against the live tarball', () => {
     }
   }, 60_000);
 
+  // npm 11 lists entries, npm 12 keys them by package name; both name the same file.
+  it('reads the tarball name from npm 11 and npm 12 pack output', () => {
+    const entry = {id: '@mionjs/drizzle-orm@0.45.1', filename: 'mionjs-drizzle-orm-0.45.1.tgz'};
+    expect(drizzleLine.packedFilename([entry])).toBe(entry.filename);
+    expect(drizzleLine.packedFilename({'@mionjs/drizzle-orm': entry})).toBe(entry.filename);
+    expect(drizzleLine.packedFilename(entry)).toBe(entry.filename);
+    expect(drizzleLine.packedFilename({})).toBeUndefined();
+  });
+
   it('checks every drizzle skip before staging anything', () => {
     const source = readFileSync(
       join(dirname(new URL(import.meta.url).pathname), '../../../scripts/release/publish-tarballs.mjs'),
