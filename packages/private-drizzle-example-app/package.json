@@ -1,6 +1,6 @@
 {
   "name": "@mionjs/drizzle-example-app",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "private": true,
   "type": "module",
   "description": "Reference app: slim drizzle tables queried through drizzle, returned from mion routes and called from a typed client (never published)",

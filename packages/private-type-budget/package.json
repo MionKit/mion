@@ -1,6 +1,6 @@
 {
   "name": "@mionjs/type-budget",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "private": true,
   "type": "module",
   "description": "Type-instantiation cost budgets for the mion model pipeline (never published)",
