@@ -1,6 +1,6 @@
 {
   "name": "@mionjs/platform-aws",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "type": "module",
   "description": "AWS Lambda wrapper for mion router.",
   "keywords": [

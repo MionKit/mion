@@ -1,6 +1,6 @@
 {
   "name": "@mionjs/bin-compiler",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "description": "Platform launcher for the mion resolver binary. Resolves and execs the prebuilt native binary for the host platform; the binary itself rides as a per-platform optional dependency. Ships zero runtime dependencies.",
   "type": "module",
   "license": "MIT",
