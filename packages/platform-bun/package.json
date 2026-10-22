@@ -1,6 +1,6 @@
 {
     "name": "@mionjs/platform-bun",
-    "version": "0.13.1",
+    "version": "0.13.2",
     "type": "module",
     "description": "mion server for bun runtime",
     "keywords": [
