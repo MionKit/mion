@@ -157,6 +157,14 @@ export function tarballContentDiff(a, b) {
   return [...changed].sort();
 }
 
+// The tarball name in `npm pack --json` output: npm 11 prints a list of entries, npm 12 an object
+// keyed by package name (the 0.13.1 and first 0.13.2 publishes refused their drizzle skips over it).
+export function packedFilename(parsed) {
+  if (Array.isArray(parsed)) return parsed[0]?.filename;
+  if (!parsed || typeof parsed !== 'object') return undefined;
+  return parsed.filename ?? Object.values(parsed).find((entry) => entry && typeof entry === 'object' && entry.filename)?.filename;
+}
+
 // Downloads the published `name@version` into destDir and returns its path. Retries a failed
 // download (a registry or network hiccup must not fail a release) and throws with npm's own
 // error on the last attempt, so a refusal says why.
@@ -166,8 +174,7 @@ export function fetchPublishedTarball(name, version, destDir, registry, attempts
   for (let attempt = 1; ; attempt++) {
     try {
       const out = execFileSync('npm', args, {encoding: 'utf8', shell: process.platform === 'win32', stdio: ['ignore', 'pipe', 'pipe']});
-      const parsed = JSON.parse(out);
-      const filename = Array.isArray(parsed) ? parsed[0]?.filename : parsed?.filename;
+      const filename = packedFilename(JSON.parse(out));
       const file = filename && path.join(destDir, path.basename(filename));
       if (file && fs.existsSync(file)) return file;
       throw new Error(`npm pack reported no tarball file: ${out.trim().slice(0, 300)}`);
