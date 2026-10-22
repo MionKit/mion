@@ -15,6 +15,9 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['test/**/*.spec.ts'],
+    // each describe boots its own workerd process: 10 s is not enough under batch contention
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
     // the workers bundle is GENERATED per run — never load a committed copy (it goes stale silently)
     globalSetup: ['./globalSetup.ts', '../../scripts/lib/vitest-clean-gendir.ts'],
     coverage: {
