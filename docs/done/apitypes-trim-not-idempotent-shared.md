@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-10-22
 ---
 
@@ -46,3 +46,16 @@ Trim is idempotent: trimming its own output changes nothing. Decide whether the 
 `_shared.d.ts` declaration it should drop (or dedupe against the local one), or the second pass drops
 one it should keep, fix the real cause in `ts-go-runtypes/internal/compiler/apitypes`, and pin the
 case as a regression test.
+
+## Plan: skip a kept class's body (approved 2026-10-22, automatic mode)
+
+Cause: the first pass printed `LibPage<KEEP_1_>` into `_outside/lib-pkg.d.ts` as `import("../api.js").KEEP_1_`,
+since `KEEP_1_` is an exported project class that stays in `api.d.ts`. `reachedKeys` still walked the printed
+body of `KEEP_1_`, whose default `T0 = KEEP_0_` reached the unexported `KEEP_0_`, so `KEEP_0_` shipped in
+`_shared.d.ts` with nothing naming it. The second pass reads the output, finds no use of it, and drops it.
+
+Fix (`outside.go`): `reachedKeys` no longer reads the body of a key placed as a kept project or mion class/enum
+(`projectDecls`). `placeOutside` now places each key as `reachedKeys` meets it, so a key is known as kept before
+its body would be read.
+
+Regression test: `TestOutside_AKeptClassDefaultingToAnUnexportedOneShipsNothingShared` (fails before the fix).
