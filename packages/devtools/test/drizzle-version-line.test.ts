@@ -246,3 +246,34 @@ describe('drizzle line — the tree itself', () => {
     }
   });
 });
+
+// The 0.13.1 publish refused a skip because the live tarball "could not be downloaded", with npm's
+// reason thrown away, after half the release was already staged.
+describe('drizzle line — verifying a skip against the live tarball', () => {
+  // npm offline with nothing cached: each attempt fails at once, no network involved, and the error is npm's.
+  it('retries a failed download and throws with npm’s own error', () => {
+    const dest = mkdtempSync(join(tmpdir(), 'drizzle-fetch-'));
+    const saved = process.env.npm_config_offline;
+    process.env.npm_config_offline = 'true';
+    try {
+      expect(() => drizzleLine.fetchPublishedTarball('@mionjs/missing-package', '1.0.0', dest, undefined, 2)).toThrow(
+        /npm pack @mionjs\/missing-package@1\.0\.0 failed 2 times: .*npm error/
+      );
+    } finally {
+      if (saved === undefined) delete process.env.npm_config_offline;
+      else process.env.npm_config_offline = saved;
+      rmSync(dest, {recursive: true, force: true});
+    }
+  }, 60_000);
+
+  it('checks every drizzle skip before staging anything', () => {
+    const source = readFileSync(
+      join(dirname(new URL(import.meta.url).pathname), '../../../scripts/release/publish-tarballs.mjs'),
+      'utf8'
+    );
+    const planned = source.indexOf('drizzlePlans.set(tarball, drizzlePublishPlan(tarball))');
+    const stagingLoop = source.indexOf("const cmd = staged ? ['stage', 'publish'] : ['publish'];");
+    expect(planned).toBeGreaterThan(-1);
+    expect(planned).toBeLessThan(stagingLoop);
+  });
+});

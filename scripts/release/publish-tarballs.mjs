@@ -131,8 +131,12 @@ function drizzlePublishPlan(file) {
   if (npmView(`${name}@${version}`, 'version') === version) {
     const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-drizzle-live-'));
     try {
-      const live = fetchPublishedTarball(name, version, scratch, registry);
-      if (!live) return {error: `${name}@${version} is live but its tarball could not be downloaded — cannot verify the skip`};
+      let live;
+      try {
+        live = fetchPublishedTarball(name, version, scratch, registry);
+      } catch (err) {
+        return {error: `${name}@${version} is live but its tarball could not be downloaded — cannot verify the skip (${err.message})`};
+      }
       const changed = tarballContentDiff(path.join(TARBALLS, file), live);
       if (changed.length > 0) {
         return {error: `${name}@${version} is already live with DIFFERENT sources (${changed.join(', ')}) — bump its patch (pnpm miondevx release bump ...) and re-pack`};
@@ -193,6 +197,18 @@ function main() {
     }
     return;
   }
+  // Every drizzle skip is verified BEFORE anything is staged: a refusal halfway through used to
+  // leave the leaves staged and the rest not, a split release.
+  const drizzlePlans = new Map();
+  if (staged) {
+    for (const tarball of tarballs.filter(isDrizzleTarball)) drizzlePlans.set(tarball, drizzlePublishPlan(tarball));
+    const refused = [...drizzlePlans.values()].filter((plan) => plan.error);
+    if (refused.length > 0) {
+      for (const plan of refused) console.error(`publish-tarballs: refusing to publish — ${plan.error}.`);
+      console.error('Nothing was staged.');
+      process.exit(1);
+    }
+  }
   let published = 0;
   for (const tarball of tarballs) {
     const cmd = staged ? ['stage', 'publish'] : ['publish'];
@@ -200,11 +216,7 @@ function main() {
     // Skip-if-live + backport dist-tag apply only against the PUBLIC registry;
     // the verdaccio e2e always publishes everything fresh.
     if (staged && isDrizzleTarball(tarball)) {
-      const plan = drizzlePublishPlan(tarball);
-      if (plan.error) {
-        console.error(`publish-tarballs: refusing to publish — ${plan.error}.`);
-        process.exit(1);
-      }
+      const plan = drizzlePlans.get(tarball);
       if (plan.skip) {
         console.log(`skipping ${tarball} — ${plan.reason}`);
         continue;
