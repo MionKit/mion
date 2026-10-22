@@ -59,3 +59,9 @@ Fix (`outside.go`): `reachedKeys` no longer reads the body of a key placed as a 
 its body would be read.
 
 Regression test: `TestOutside_AKeptClassDefaultingToAnUnexportedOneShipsNothingShared` (fails before the fix).
+
+Also fixed on the same path (found in review): a kept class is spelled by its bare name, so a generic one used
+with arguments (`Page<Box<Address>>`) printed as `Box` and failed to type-check. `namesBare` keeps a class by
+name only when each argument is its parameter's default; otherwise it ships printed in `_shared.d.ts`.
+Tests: `TestOutside_AGenericProjectClassWithAnArgumentShipsShared` and
+`TestOutside_AMionClassNamingAnUnexportedShapeShipsNothingShared` (the mion half of the skip).
