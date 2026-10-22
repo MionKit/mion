@@ -489,8 +489,8 @@ func (trimmer *trimmer) namesBare(tsType *checker.Type, symbol *ast.Symbol) bool
 	return true
 }
 
-// reachedKeys visits every declaration key the replaced uses reach, through the bodies they print, each before its
-// body is read. A kept project class or enum ships no printed body, so nothing it names counts.
+// reachedKeys visits each key the replaced uses reach, before reading its body.
+// A kept project or mion decl ships no printed body, so nothing it names is reached.
 func (state *outsideState) reachedKeys(trimmer *trimmer, visit func(key string)) {
 	var queue []string
 	for _, file := range trimmer.sortedFiles() {

@@ -330,7 +330,6 @@ func TestOutside_AMionClassNamingAnUnexportedShapeShipsNothingShared(t *testing.
 	assertTrimsAgainTheSame(t, output, input)
 }
 
-// assertTrimsAgainTheSame: trimming the output changes nothing.
 func assertTrimsAgainTheSame(t *testing.T, output *Output, input Input) {
 	t.Helper()
 	again, err := Trim(Input{Cwd: input.Cwd, TsconfigPath: input.TsconfigPath, DeclarationDir: input.DeclarationDir, Declarations: absoluteFiles(input, output.Files), Entry: input.Entry})
