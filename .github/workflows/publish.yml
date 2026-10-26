@@ -123,10 +123,12 @@ jobs:
           package-manager-cache: false
       # Staged publishing needs npm >= 11.15.0 (Trusted Publishing/OIDC needs
       # >= 11.5.1). Node 26's bundled npm may predate that — upgrade to be safe.
+      # Pinned, not @latest: npm 12 changed `npm pack --json` output and broke a release mid-publish.
+      # Move it on purpose, and only to a version with staged publishing (>= 11.15.0).
       - name: Ensure npm supports staged publishing (>= 11.15.0)
         shell: bash
         run: |
-          npm install -g npm@latest
+          npm install -g npm@12.2.1
           npm --version
       - uses: actions/download-artifact@v8
         with:

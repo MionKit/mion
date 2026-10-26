@@ -1,6 +1,6 @@
 {
   "frontEnd": {
-    "tests": 14603,
+    "tests": 14604,
     "files": 584,
     "projects": {
       "@mionjs/go-be-sidecar": 31,
@@ -9,7 +9,7 @@
       "client-bundled": 39,
       "core": 112,
       "devtools": 82,
-      "devtools-core": 1639,
+      "devtools-core": 1640,
       "drizzle-example-app": 150,
       "drizzle-mysql": 114,
       "drizzle-pg": 144,
@@ -31,7 +31,7 @@
     }
   },
   "go": {
-    "tests": 2422,
+    "tests": 2425,
     "packages": 50
   }
 }

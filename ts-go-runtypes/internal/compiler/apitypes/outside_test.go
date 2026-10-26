@@ -290,6 +290,57 @@ declare class Hidden { secret: string }
 	assertContains(t, output.Files["_outside/_shared.d.ts"], "export declare class Hidden {")
 }
 
+// Fuzz seed 39803810701: a kept class prints no body, so the hidden class its default names stays out of _shared.
+func TestOutside_AKeptClassDefaultingToAnUnexportedOneShipsNothingShared(t *testing.T) {
+	output, input := trimWithGeo(t, `import type { Page } from 'geo';
+declare class Hidden { secret: string }
+export declare class Box<T = Hidden> { value: T }
+`+apiOf(`get: import("@mionjs/router").PublicRoute<() => Promise<Page<Box>>>;`), nil)
+	assertSelfContained(t, output, input)
+	assertContains(t, output.Files["_outside/geo.d.ts"], `import("../index.js").Box`)
+	if shared, ok := output.Files["_outside/_shared.d.ts"]; ok {
+		t.Errorf("nothing should ship shared:\n%s", shared)
+	}
+	assertTrimsAgainTheSame(t, output, input)
+}
+
+func TestOutside_AGenericProjectClassWithAnArgumentShipsShared(t *testing.T) {
+	output, input := trimWithGeo(t, `import type { Page, Address } from 'geo';
+export declare class Box<T> { value: T }
+`+apiOf(`get: import("@mionjs/router").PublicRoute<() => Promise<Page<Box<Address>>>>;`), nil)
+	assertSelfContained(t, output, input)
+	assertContains(t, output.Files["_outside/_shared.d.ts"], "export declare class Box {")
+	assertLacks(t, output.Files["_outside/geo.d.ts"], `import("../index.js").Box`)
+	assertTrimsAgainTheSame(t, output, input)
+}
+
+func TestOutside_AMionClassNamingAnUnexportedShapeShipsNothingShared(t *testing.T) {
+	output, input := trimWithGeo(t, `import type { Outcome } from 'wrap';
+`+apiOf(`get: import("@mionjs/router").PublicRoute<() => Promise<Outcome>>;`), map[string]string{
+		"node_modules/@mionjs/core/package.json": `{"name": "@mionjs/core", "types": "index.d.ts"}`,
+		"node_modules/@mionjs/core/index.d.ts":   "interface Tree { kids: Tree[] }\nexport declare class RpcError { tree: Tree }\n",
+		"node_modules/wrap/package.json":         `{"name": "wrap", "types": "index.d.ts"}`,
+		"node_modules/wrap/index.d.ts":           "import type { RpcError } from '@mionjs/core';\nexport interface Outcome { error: RpcError | null }\n",
+	})
+	assertSelfContained(t, output, input, "@mionjs/core")
+	assertContains(t, output.Files["_outside/wrap.d.ts"], `import("@mionjs/core").RpcError`)
+	if shared, ok := output.Files["_outside/_shared.d.ts"]; ok {
+		t.Errorf("nothing should ship shared:\n%s", shared)
+	}
+	assertTrimsAgainTheSame(t, output, input)
+}
+
+func assertTrimsAgainTheSame(t *testing.T, output *Output, input Input) {
+	t.Helper()
+	again, err := Trim(Input{Cwd: input.Cwd, TsconfigPath: input.TsconfigPath, DeclarationDir: input.DeclarationDir, Declarations: absoluteFiles(input, output.Files), Entry: input.Entry})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, failure := range oracleSameFiles("trimming the output again", output.Files, again.Files) {
+		t.Error(failure)
+	}
+}
+
 func TestOutside_AProjectFileUnderOutsideCollides(t *testing.T) {
 	_, _, err := tryTrimIn(t, map[string]string{
 		"index.d.ts":        "import type { Address } from 'geo';\nimport type { Local } from './_outside/geo.ts';\n" + apiOf(`get: import("@mionjs/router").PublicRoute<(a: Address, l: Local) => Promise<void>>;`),

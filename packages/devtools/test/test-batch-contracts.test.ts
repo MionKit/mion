@@ -80,11 +80,11 @@ describe('the wiring still points at the batch script', () => {
   });
 });
 
-// Vitest's 10 s default cannot hold a project that compiles, builds or spawns the resolver under batch contention.
+// Vitest's 10 s default cannot hold a project that compiles, builds or spawns a process under batch contention.
 // type-budget's hook: 4.6 s alone, 10.6 s inside the mion-rest batch, where it failed a run that changed nothing near it.
 const HEAVY_TIMEOUT_FLOOR = 30_000;
 
-/** Projects whose tests or hooks compile, build or spawn the resolver. **/
+/** Projects whose tests or hooks compile, build, or spawn the resolver or workerd. **/
 const HEAVY_PROJECTS = [
   'runtypes',
   'runtypes-ts',
@@ -96,6 +96,7 @@ const HEAVY_PROJECTS = [
   'drizzle-pg',
   'drizzle-mysql',
   'drizzle-sqlite',
+  'platform-cloudflare',
 ] as const;
 
 /** The rest: in-memory fixtures or an in-process server, or their own inline timeout on the hook. **/
@@ -112,7 +113,6 @@ const LIGHT_PROJECTS = [
   'platform-node',
   'platform-vercel',
   'platform-uws',
-  'platform-cloudflare',
   'bin-uws',
   'drizzle-root',
 ] as const;
