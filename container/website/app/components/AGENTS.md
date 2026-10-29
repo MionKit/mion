@@ -23,7 +23,7 @@ Vue components the docs pages and layouts use. Read before adding or editing a c
     `assets/css/code-card.css`, `utils/codeCardPlayer.ts` or `public/fonts/code-card/`: export again.
   - `VerticalIntegration` (rpc home): replaced libraries beside the mion logo, hover shows what mion does instead.
     Library list + icons: `app/utils/replacedLibraries.ts`.
-  - `PlatformTiles` (rpc home): linked platform logos from `public/platforms/`, a `dark` twin for black-ink logos.
+  - `PlatformTiles` (rpc home): linked platform logos from `public/platform-logos/` (not `public/platforms/`: the old `/platforms/*` redirect would capture it), a `dark` twin for black-ink logos.
   - Also: `StatTiles`, `DiagnosticCatalog`, `DetailPanel`, `RealWorldScenario`, `RuntypesPlayground`, `SlidedTitle`,
     `TypeSafeAnimation`, `StylishList`, `HoverList`, `MionType`, `Spacer`,
     `AppHeaderLogo`, `MionLogo`.

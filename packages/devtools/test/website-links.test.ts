@@ -282,6 +282,24 @@ describe('website-redirects', () => {
     }
   });
 
+  // Pages applies redirects BEFORE static files, so a rule whose source covers a file in
+  // public/ hides that file: the old `/platforms/*` page redirect once sent every platform
+  // logo to a 404 under /rpc/platforms/.
+  it('never redirects a file the site serves from public/', () => {
+    const sources = rules(join(PUBLIC_DIR, '_redirects')).map(({from}) => from);
+    const covers = (from: string, path: string): boolean =>
+      from.endsWith('/*') ? path.startsWith(from.slice(0, -1)) : path === from;
+    const assets = globSync('**/*', {cwd: PUBLIC_DIR, withFileTypes: true})
+      .filter((entry) => entry.isFile())
+      .map(
+        (entry) =>
+          `/${posix.relative(PUBLIC_DIR.split('\\').join('/'), join(entry.parentPath, entry.name).split('\\').join('/'))}`
+      );
+    expect(assets.length).toBeGreaterThan(10);
+    const hidden = assets.flatMap((path) => sources.filter((from) => covers(from, path)).map((from) => `${path} (by ${from})`));
+    expect(hidden).toEqual([]);
+  });
+
   // A chain (old -> moved -> final) costs every visitor and crawler an extra hop: each rule
   // must land on a final page. Pages applies the FIRST matching rule, so a splat whose
   // landing spot was itself redirected needs an explicit rule above it.
