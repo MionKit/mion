@@ -111,7 +111,7 @@ pageClass: home-page
         ::::::
       :::::
 
-      :home-bench-table{servers="servers-hello-world" validation="validation"}
+      :home-bench-table{servers="servers-heavy-validation" validation="validation"}
     ::::
   :::
 ::
