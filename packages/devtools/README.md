@@ -17,11 +17,11 @@ root for the shared types and helpers.
 ## Documentation
 
 Install, wiring, the full option list, and the linting setup live at
-**[mion.pages.dev/runtypes](https://mion.pages.dev/runtypes)**.
+**[mion.io/runtypes](https://mion.io/runtypes)**.
 
-- [Quick start](https://mion.pages.dev/runtypes/introduction/quick-start)
-- [Configuration](https://mion.pages.dev/runtypes/introduction/configuration)
-- [Linting](https://mion.pages.dev/runtypes/tooling/linting)
+- [Quick start](https://mion.io/runtypes/introduction/quick-start)
+- [Configuration](https://mion.io/runtypes/introduction/configuration)
+- [Linting](https://mion.io/runtypes/tooling/linting)
 - [Source and issues](https://github.com/MionKit/mion)
 
 ## Status

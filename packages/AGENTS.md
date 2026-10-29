@@ -21,7 +21,7 @@ One pnpm workspace, one `@mionjs/*` namespace, one release train. Read before a 
 
 ## Published READMEs stay thin
 
-- Short description, sibling relationship, link to [mion.pages.dev/runtypes](https://mion.pages.dev/runtypes),
+- Short description, sibling relationship, link to [mion.io/runtypes](https://mion.io/runtypes),
   status/license lines. Nothing else.
 - No option tables, no usage walkthroughs, no env vars or dev-only knobs: the website is their one home.
 - Applies to the three package READMEs + the generated per-platform `@mionjs/native-compiler-*` one.

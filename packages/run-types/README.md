@@ -14,10 +14,10 @@ The build-time half lives in
 ## Documentation
 
 Install, guides, the factory reference, and benchmarks live at
-**[mion.pages.dev/runtypes](https://mion.pages.dev/runtypes)**.
+**[mion.io/runtypes](https://mion.io/runtypes)**.
 
-- [Quick start](https://mion.pages.dev/runtypes/introduction/quick-start)
-- [Configuration](https://mion.pages.dev/runtypes/introduction/configuration)
+- [Quick start](https://mion.io/runtypes/introduction/quick-start)
+- [Configuration](https://mion.io/runtypes/introduction/configuration)
 - [Source and issues](https://github.com/MionKit/mion)
 
 ## Status

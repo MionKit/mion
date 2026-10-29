@@ -1,6 +1,6 @@
 // Nothing in CI renders the containerized site, so this resolves every in-site link against the
 // content tree: a broken link or '#anchor' fails silently in the browser, and an absolute
-// mion.pages.dev link skips the client router.
+// in-site link (mion.io, or the old pages.dev hosts) skips the client router.
 
 import {describe, it, expect} from 'vitest';
 import {existsSync, globSync, readdirSync, readFileSync, statSync} from 'node:fs';
@@ -124,7 +124,7 @@ describe('website-internal-links', () => {
     expect(broken).toEqual([]);
   });
 
-  it('keeps every in-site link relative (no pages.dev domain in the content tree)', () => {
+  it('keeps every in-site link relative (no site domain in the content tree)', () => {
     const offenders: string[] = [];
     const visit = (dir: string): void => {
       for (const name of readdirSync(dir)) {
@@ -132,7 +132,7 @@ describe('website-internal-links', () => {
         if (statSync(full).isDirectory()) visit(full);
         else if (
           name.endsWith('.md') &&
-          /https?:\/\/(runtypes|mion)\.pages\.dev(?!\/runtypes\/schema\/)/.test(readFileSync(full, 'utf8'))
+          /https?:\/\/(runtypes\.pages\.dev|mion\.pages\.dev|mion\.io)(?!\/runtypes\/schema\/)/.test(readFileSync(full, 'utf8'))
         ) {
           offenders.push(posix.relative(REPO_ROOT, full.split('\\').join('/')));
         }
@@ -269,7 +269,7 @@ describe('website-redirects', () => {
       });
   const routes = siteRoutes();
 
-  it('sends every old mion.pages.dev path to a page that exists', () => {
+  it('sends every old path to a page that exists', () => {
     const broken = rules(join(PUBLIC_DIR, '_redirects'))
       .filter(({to}) => !to.includes(':splat'))
       .filter(({to}) => !routes.has(to))

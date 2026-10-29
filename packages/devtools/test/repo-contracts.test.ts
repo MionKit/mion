@@ -229,7 +229,7 @@ describe('published packages ship a README', () => {
       // A separator row is what makes a markdown table a table.
       expect(lines.filter((line) => /^\s*\|\s*:?-{3,}/.test(line))).toEqual([]);
       expect(readme).not.toMatch(/\bMION_[A-Z0-9_]+\b|process\.env/);
-      expect(readme).toContain('https://mion.pages.dev/runtypes');
+      expect(readme).toContain('https://mion.io/runtypes');
     });
   }
 });

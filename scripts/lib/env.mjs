@@ -52,7 +52,7 @@ export const REGISTRY = [
   {name: 'CLOUDFLARE_ACCOUNT_ID', scope: 'secret', task: 'deploy-website', desc: 'Cloudflare account id; .env for a local deploy, a GitHub secret in CI'},
 
   // — deploy config (non-secret) —
-  {name: 'CLOUDFLARE_PAGES_PROJECT', scope: 'dev', task: 'deploy-website', desc: 'Cloudflare Pages project name for the docs site mion.pages.dev (default mion); .env for a local deploy, a GitHub repo variable in CI'},
+  {name: 'CLOUDFLARE_PAGES_PROJECT', scope: 'dev', task: 'deploy-website', desc: 'Cloudflare Pages project name for the docs site mion.io (default mion); .env for a local deploy, a GitHub repo variable in CI'},
 
   // — GHCR coordinates (defaults already target this repo) —
   {name: 'GHCR_OWNER', scope: 'dev', task: '-', desc: 'GHCR namespace (default mionkit)'},
