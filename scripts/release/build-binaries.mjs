@@ -104,7 +104,7 @@ by [\`@mionjs/devtools\`](https://www.npmjs.com/package/@mionjs/devtools).
 
 ## Documentation
 
-Full guides live at **[mion.pages.dev/runtypes](https://mion.pages.dev/runtypes)**.
+Full guides live at **[mion.io/runtypes](https://mion.io/runtypes)**.
 [Source and issues](https://github.com/MionKit/mion).
 
 ## License

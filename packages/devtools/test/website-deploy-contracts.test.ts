@@ -27,7 +27,7 @@ describe('website-deploy dry run', () => {
 
   it('skips the live-version guard and the deploy on a dry run', () => {
     expect(step('Verify the deploy target is the live npm release (abort otherwise)')).toContain('if: ${{ !inputs.dry_run }}');
-    expect(step('Deploy the site to Cloudflare Pages (mion.pages.dev)')).toContain('if: ${{ !inputs.dry_run }}');
+    expect(step('Deploy the site to Cloudflare Pages (mion.io)')).toContain('if: ${{ !inputs.dry_run }}');
   });
 
   it('checks the Cloudflare credentials read-only instead, against the same project', () => {

@@ -131,7 +131,7 @@ jobs:
       # list honest). Keep this in sync if the Pages project's production branch moves.
       # wrangler-action installs wrangler with `pnpm add`, which pnpm refuses at a workspace root, so both
       # Cloudflare steps run a pinned wrangler through `pnpm dlx` (a temp dir, never the workspace).
-      - name: Deploy the site to Cloudflare Pages (mion.pages.dev)
+      - name: Deploy the site to Cloudflare Pages (mion.io)
         if: ${{ !inputs.dry_run }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

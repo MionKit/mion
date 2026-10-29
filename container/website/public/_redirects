@@ -1,7 +1,7 @@
-# Cloudflare Pages redirects for mion.pages.dev.
+# Cloudflare Pages redirects for mion.io.
 #
 # 2026-09: the site became ONE site with three subsites. Every page that used to
-# live at the root of mion.pages.dev moved under /rpc, and the mion server
+# live at the root of the site moved under /rpc, and the mion server
 # benchmarks under /benchmarks/rpc. The first matching rule wins, so a page renamed
 # after its move gets its own rule above the section splat (one hop, never a chain).
 # Redirects apply BEFORE static files, so the

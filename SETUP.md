@@ -4,7 +4,7 @@ Single setup document for RunTypes. Architecture + workflow rules live in [AGENT
 
 > **Automated path:** the `mion-setup` skill ([.agents/skills/ts-runtypes-setup/](.agents/skills/ts-runtypes-setup/)) drives this whole document end-to-end — host deps, submodule bootstrap + patches, `pnpm install`, Go + plugin builds, podman engine, and smoke verification. Run `bash .agents/skills/ts-runtypes-setup/setup.sh` and the rest of this doc is reference material.
 
-The repository contains a **Go binary** at [ts-go-runtypes/cmd/mion/](ts-go-runtypes/cmd/mion/) and a **pnpm workspace** of JS packages under [packages/](packages/). Two **podman-containerized** apps ship alongside: the docs website ([container/website/](container/website/)), one Nuxt install that builds ONE static site, mion.pages.dev, with three subsites (/rpc, /runtypes, /benchmarks), and the validation benchmarks ([container/benchmarks/](container/benchmarks/)).
+The repository contains a **Go binary** at [ts-go-runtypes/cmd/mion/](ts-go-runtypes/cmd/mion/) and a **pnpm workspace** of JS packages under [packages/](packages/). Two **podman-containerized** apps ship alongside: the docs website ([container/website/](container/website/)), one Nuxt install that builds ONE static site, mion.io, with three subsites (/rpc, /runtypes, /benchmarks), and the validation benchmarks ([container/benchmarks/](container/benchmarks/)).
 
 ---
 
