@@ -15,6 +15,9 @@ const PUBLIC_DIR = join(WEBSITE, 'public');
 // Nuxt Content drops the numeric prefix from every path segment and maps a dir's
 // index.md onto the dir itself.
 const routeSegment = (name: string): string => name.replace(/^\d+\./, '').replace(/\.md$/, '');
+// A page's frontmatter `path:` overrides the address its file name gives it (the subsite homes).
+const pathOverride = (file: string): string | undefined =>
+  /^---\n[\s\S]*?^path: (\S+)$[\s\S]*?\n---/m.exec(readFileSync(file, 'utf8'))?.[1];
 
 /** Every route the content tree produces, plus the app routes outside it. */
 function siteRoutes(): Set<string> {
@@ -27,7 +30,7 @@ function siteRoutes(): Set<string> {
         visit(full, [...prefix, routeSegment(name)]);
       } else if (name.endsWith('.md')) {
         const segments = name === 'index.md' ? prefix : [...prefix, routeSegment(name)];
-        routes.add(`/${segments.join('/')}`);
+        routes.add(pathOverride(full) ?? `/${segments.join('/')}`);
       }
     }
   };
@@ -54,6 +57,8 @@ interface Link {
 
 /** The route of a content file, the way the browser sees it (no trailing slash). */
 function routeOfFile(rel: string): string {
+  const override = rel.endsWith('.md') ? pathOverride(join(REPO_ROOT, rel)) : undefined;
+  if (override) return override;
   const segments = rel
     .replace(/^container\/website\/content\//, '')
     .split('/')
@@ -232,7 +237,7 @@ describe('website-anchor-links', () => {
   it('finds the headings and anchor links it claims to check', () => {
     expect(headings.get('/rpc/server/routes')?.has('request-size')).toBe(true);
     // A heading nested inside an MDC component, its words in an MDC span, still publishes its plain-text id.
-    expect(headings.get('/rpc/introduction/about-mion-rpc')?.has('rpc-like')).toBe(true);
+    expect(headings.get('/rpc')?.has('rpc-like')).toBe(true);
     expect(links.length).toBeGreaterThan(20);
     expect(links.some(({target}) => target.startsWith('#'))).toBe(true);
   });
@@ -275,6 +280,26 @@ describe('website-redirects', () => {
       const root = to.replace(/\/:splat$/, '');
       expect(routes.has(root), `${to}: '${root}' is not a section of the site`).toBe(true);
     }
+  });
+
+  // A chain (old -> moved -> final) costs every visitor and crawler an extra hop: each rule
+  // must land on a final page. Pages applies the FIRST matching rule, so a splat whose
+  // landing spot was itself redirected needs an explicit rule above it.
+  it('lands every old path on its final page in one hop', () => {
+    const all = rules(join(PUBLIC_DIR, '_redirects'));
+    const isSplat = (from: string): boolean => from.endsWith('/*');
+    const sources = new Set(all.filter(({from}) => !isSplat(from)).map(({from}) => from));
+    const chained = all.filter(({to}) => sources.has(to)).map(({from, to}) => `${from} -> ${to}`);
+    for (const [index, {from, to}] of all.entries()) {
+      if (!isSplat(from) || !to.endsWith('/:splat')) continue;
+      const [fromRoot, toRoot] = [from.slice(0, -2), to.slice(0, -'/:splat'.length)];
+      for (const source of sources) {
+        if (!source.startsWith(`${toRoot}/`)) continue;
+        const old = fromRoot + source.slice(toRoot.length);
+        if (!all.slice(0, index).some((rule) => rule.from === old)) chained.push(`${old} -> ${source} (via ${from})`);
+      }
+    }
+    expect(chained).toEqual([]);
   });
 });
 

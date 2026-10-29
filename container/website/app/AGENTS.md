@@ -6,14 +6,15 @@ How the Nuxt app wires the three subsites and how colour works.
 
 ## Subsites
 
-- `app/utils/subsites.ts` = single source of truth (`SUBSITES`: id, label, title, path, icon, description).
+- `app/utils/subsites.ts` = single source of truth (`SUBSITES`: id, label, title, path, homeTitle, icon, description).
   `useSubsite()` derives the current one from the route.
-- Words exactly `RPC`, `RunTypes`, `Benchmarks` everywhere. Every link to a subsite goes to its `home`.
+- Words exactly `RPC`, `RunTypes`, `Benchmarks` everywhere. Every link to a subsite goes to its `path` (`/<id>`).
 - Each subsite: OWN sidebar (its sections only), own colour scheme, a home page.
 - Home = first page of its introduction section (`About mion RPC`, `About mion RunTypes`, `mion Benchmarks`).
   A DOCS page: docs layout + sidebar, minus page header and TOC (the hero is its header).
-- `/<id>` redirects to home: app router (`app/pages/<id>/index.vue`, `definePageMeta({redirect})`) + static host
-  (`public/_redirects`).
+- Home is served AT `/<id>` (frontmatter `path: /<id>` + `navigation: false`; no `app/pages/<id>/index.vue`).
+  `subsiteSidebar()` puts it back first in the Introduction sidebar (desktop `DocsAsideLeftBody`, mobile
+  `AppHeaderBody`); its old long URL 301s to `/<id>` in `public/_redirects`.
 - `app/plugins/site-attr.ts`: `data-site="<id>"` on `<html>` (colour scheme keys on it) + the per-section body class.
 - `app/app.config.ts` `navigation.sub: 'aside'`: the one Docus key scoping the sidebar to the current top-level
   section instead of the whole tree.

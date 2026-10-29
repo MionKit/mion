@@ -21,9 +21,9 @@ const { locale, isEnabled } = useDocusI18n()
 const navigation = inject<Ref<ContentNavigationItem[]>>('navigation')
 const { shouldPushContent: shouldHideToc } = useAssistant()
 const { theme: subsite } = useSubsite()
-// A subsite home (content/<NN>.<id>/00.home.md) is a docs page so it sits inside the
-// sidebar, but it brings its own hero: no page header above it (the fourth deliberate change).
-const isSubsiteHome = computed(() => page.value?.path === subsite.value.home)
+// A subsite home (its about page, served at the subsite root) is a docs page so it sits
+// inside the sidebar, but it brings its own hero: no page header above it (the fourth deliberate change).
+const isSubsiteHome = computed(() => page.value?.path === subsite.value.path)
 
 const collectionName = computed(() => isEnabled.value ? `docs_${locale.value}` : 'docs')
 const pageKey = route.path.replace(/[^a-z0-9]+/gi, '-')

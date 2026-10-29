@@ -2,11 +2,17 @@
 #
 # 2026-09: the site became ONE site with three subsites. Every page that used to
 # live at the root of mion.pages.dev moved under /rpc, and the mion server
-# benchmarks under /benchmarks/rpc. Redirects apply BEFORE static files, so the
+# benchmarks under /benchmarks/rpc. The first matching rule wins, so a page renamed
+# after its move gets its own rule above the section splat (one hop, never a chain).
+# Redirects apply BEFORE static files, so the
 # benchmark pages are listed one by one: a `/benchmarks/*` splat would loop on the
 # new /benchmarks/... paths.
+/introduction/about-mion      /rpc  301
+/introduction/about-mion-rpc  /rpc  301
 /introduction/*  /rpc/introduction/:splat  301
+/server/middle-fns  /rpc/server/middleware  301
 /server/*        /rpc/server/:splat        301
+/drizzle-orm/indexes-constraints  /rpc/drizzle-orm/constraints  301
 /drizzle-orm/*   /rpc/drizzle-orm/:splat   301
 /client/*        /rpc/client/:splat        301
 /devtools/eslint-rules  /rpc/devtools/linter  301
@@ -22,24 +28,24 @@
 /runtypes/guide/binary-serialization         /runtypes/guide/json-round-trip       301
 /runtypes/guide/json-serialization           /runtypes/guide/json-round-trip       301
 /benchmarks/runtypes/serialization-formats  /benchmarks/runtypes/json-round-trip  301
-# Each subsite root redirects to its home page, a docs page inside the sidebar
-# (app/pages/<id>/index.vue does the same for the app router).
-/rpc         /rpc/introduction/about-mion-rpc              301
-/runtypes    /runtypes/introduction/about-mion-runtypes    301
-/benchmarks  /benchmarks/introduction/mion-benchmarks      301
+# Each subsite home moved to its subsite root (2026-10): /runtypes is the page itself, so
+# its old long address redirects to it. Every rule lands on its final page in one hop.
+/rpc/introduction/about-mion-rpc            /rpc         301
+/runtypes/introduction/about-mion-runtypes  /runtypes    301
+/benchmarks/introduction/mion-benchmarks    /benchmarks  301
 # Renamed (2026-09): a page whose file name contains "index" is mistaken for a folder
 # index by Nuxt Content's navigation builder (an unanchored /index/ match) and nests
 # under itself in the sidebar, so the slug lost the word.
 /rpc/drizzle-orm/indexes-constraints  /rpc/drizzle-orm/constraints  301
 # The about pages were rewritten as the subsite homes (2026-09) under new names.
-/rpc/introduction/about-mion              /rpc/introduction/about-mion-rpc              301
-/runtypes/introduction/about-ts-runtypes  /runtypes/introduction/about-mion-runtypes    301
+/rpc/introduction/about-mion              /rpc       301
+/runtypes/introduction/about-ts-runtypes  /runtypes  301
 # The RunTypes section collapsed from three pages into one when the two docs
 # sites merged (2026-08-24), and that page went too (2026-09): RunTypes has its own
-# subsite, so every old RunTypes path lands on its about page.
-/run-types       /runtypes/introduction/about-mion-runtypes  301
-/run-types/*     /runtypes/introduction/about-mion-runtypes  301
-/rpc/run-types   /runtypes/introduction/about-mion-runtypes  301
+# subsite, so every old RunTypes path lands on its home page.
+/run-types       /runtypes  301
+/run-types/*     /runtypes  301
+/rpc/run-types   /runtypes  301
 # The diagnostics page split into a section (2026-09): the levels page keeps the old
 # address's readers, the code list is its second page.
 /runtypes/diagnostics  /runtypes/diagnostics/error-levels  301

@@ -23,7 +23,7 @@ pageClass: home-page
         ---
         color: primary
         size: lg
-        to: /rpc/introduction/about-mion-rpc
+        to: /rpc
         icon: icon-park-outline:book-one
         ---
         Learn more about the RPC framework
@@ -68,7 +68,7 @@ pageClass: home-page
           ---
           color: primary
           size: lg
-          to: /runtypes/introduction/about-mion-runtypes
+          to: /runtypes
           icon: icon-park-outline:book-one
           ---
           Read the RunTypes docs
@@ -103,7 +103,7 @@ pageClass: home-page
           ---
           color: primary
           size: lg
-          to: /benchmarks/introduction/mion-benchmarks
+          to: /benchmarks
           icon: i-lucide-gauge
           ---
           See the benchmarks
