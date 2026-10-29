@@ -7,7 +7,7 @@ import {visibleRows} from '~/utils/serverBenchRows';
 // about and benchmarks pages (either family alone): one headline number per family,
 // read from the SAME generated files the benchmark pages read
 // (/bench-data/<bench>/index.json), so the card can never quote a run the pages do
-// not show. RPC: requests per second on the hello-world suite, one row per server.
+// not show. RPC: requests per second on the suite the page names, one row per server.
 // RunTypes: the is-valid check, geometric mean over the cases every library supports
 // (benchAggregate.ts, the same math as the "Overall" row of the validation page), one
 // row per library. Plus the machine and date of the run. A missing dataset renders
@@ -15,7 +15,7 @@ import {visibleRows} from '~/utils/serverBenchRows';
 
 const props = withDefaults(
   defineProps<{
-    /** The mion server dataset, e.g. "servers-hello-world" (empty: no server rows). */
+    /** The mion server dataset, e.g. "servers-heavy-validation" (empty: no server rows). */
     servers?: string;
     /** The RunTypes validation dataset (empty: no validator rows). */
     validation?: string;
