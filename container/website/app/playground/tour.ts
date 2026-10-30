@@ -52,7 +52,7 @@ export type CodeView = 'function' | 'file';
 export const TOUR_KEY = 'mion.runtypes.playground.tour';
 export const CODE_VIEW_KEY = 'mion.runtypes.playground.codeView';
 
-type PrefStorage = Pick<Storage, 'getItem' | 'setItem'>;
+export type PrefStorage = Pick<Storage, 'getItem' | 'setItem'>;
 
 // Storage can be missing or throw (private mode, blocked site data): read as unset, never throw.
 function readPref(storage: PrefStorage | undefined, key: string): string | null {
@@ -63,7 +63,7 @@ function readPref(storage: PrefStorage | undefined, key: string): string | null 
   }
 }
 
-function writePref(storage: PrefStorage | undefined, key: string, value: string): void {
+export function writePref(storage: PrefStorage | undefined, key: string, value: string): void {
   try {
     storage?.setItem(key, value);
   } catch {
@@ -76,18 +76,15 @@ export function readTourState(storage: PrefStorage | undefined): TourState | nul
   return value === 'completed' || value === 'dismissed' ? value : null;
 }
 
-export function writeTourState(storage: PrefStorage | undefined, state: TourState): void {
-  writePref(storage, TOUR_KEY, state);
+// First visit only, once the playground has loaded, never over its error state.
+export function shouldAutoStart(state: TourState | null, ready: boolean, failed: boolean): boolean {
+  return ready && !failed && state === null;
 }
 
-export function shouldAutoStart(state: TourState | null): boolean {
-  return state === null;
+export function tourStepsFor(needsInput: boolean): TourStep[] {
+  return TOUR_STEPS.filter((step) => !step.needsInput || needsInput);
 }
 
 export function readCodeView(storage: PrefStorage | undefined): CodeView {
   return readPref(storage, CODE_VIEW_KEY) === 'file' ? 'file' : 'function';
-}
-
-export function writeCodeView(storage: PrefStorage | undefined, view: CodeView): void {
-  writePref(storage, CODE_VIEW_KEY, view);
 }
