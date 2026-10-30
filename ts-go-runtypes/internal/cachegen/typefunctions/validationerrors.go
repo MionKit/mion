@@ -33,12 +33,27 @@ func (ValidationErrorsEmitter) Args() []ArgSpec {
 func (ValidationErrorsEmitter) EmitArgsPrologue(ctx *EmitContext, root *reflection.RunType, shortcut bool) string {
 	vArg, pthArg, errArg := ctx.ArgName("vλl"), ctx.ArgName("pλth"), ctx.ArgName("εrr")
 	fillPth := "if(" + pthArg + "===undefined)" + pthArg + "=[];"
-	if !shortcut || root == nil || graphHoldsNonData(root, ctx.walker.RefTable) {
+	if !shortcut || !shortcutPaysOff(root) || graphHoldsNonData(root, ctx.walker.RefTable) {
 		return "if(" + errArg + "===undefined)" + errArg + "=[];" + fillPth
 	}
 	validateHash := ctx.CrossFamilyVariantHash(errorFamilyValidatorOp(ctx)) + "_" + root.ID
 	ctx.registerRTLookup(validateHash)
 	return "if(" + errArg + "===undefined){" + errArg + "=[];if(" + validateHash + ".fn(" + vArg + "))return " + errArg + ";}" + fillPth
+}
+
+// shortcutPaysOff is true for a container root. Anywhere else the body is one check (a union already asks its validator), so
+// the shortcut gains nothing on an accepted value and runs a format check twice on a rejected one (bench: 0.7x on DATETIME).
+func shortcutPaysOff(root *reflection.RunType) bool {
+	if root == nil {
+		return false
+	}
+	switch root.Kind {
+	case reflection.KindObjectLiteral, reflection.KindArray, reflection.KindTuple, reflection.KindIntersection:
+		return true
+	case reflection.KindClass:
+		return root.SubKind == reflection.SubKindNone || root.SubKind == reflection.SubKindMap || root.SubKind == reflection.SubKindSet
+	}
+	return false
 }
 
 // graphHoldsNonData keeps the shortcut off a type with a non-data node: the validator would report and throw its own code.

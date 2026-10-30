@@ -80,3 +80,35 @@ func TestValidationErrors_NoShortcutUnderCircularGuard(t *testing.T) {
 		t.Errorf("the armed variant must not reach the validator, got:\n%s", rendered.argsText)
 	}
 }
+
+// TestValidationErrors_ShortcutOnlyOnContainerRoots — a one-check root (atomic, Date, Temporal, union) gains nothing on an
+// accepted value and pays twice on a rejected one, so only container roots take the shortcut.
+func TestValidationErrors_ShortcutOnlyOnContainerRoots(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		root *reflection.RunType
+		want bool
+	}{
+		{"objectLiteral", &reflection.RunType{Kind: reflection.KindObjectLiteral}, true},
+		{"array", &reflection.RunType{Kind: reflection.KindArray}, true},
+		{"tuple", &reflection.RunType{Kind: reflection.KindTuple}, true},
+		{"intersection", &reflection.RunType{Kind: reflection.KindIntersection}, true},
+		{"class", &reflection.RunType{Kind: reflection.KindClass}, true},
+		{"map", &reflection.RunType{Kind: reflection.KindClass, SubKind: reflection.SubKindMap}, true},
+		{"set", &reflection.RunType{Kind: reflection.KindClass, SubKind: reflection.SubKindSet}, true},
+		{"date", &reflection.RunType{Kind: reflection.KindClass, SubKind: reflection.SubKindDate}, false},
+		{"temporal", &reflection.RunType{Kind: reflection.KindClass, SubKind: reflection.SubKindTemporalPlainDate}, false},
+		{"string", &reflection.RunType{Kind: reflection.KindString}, false},
+		{"union", &reflection.RunType{Kind: reflection.KindUnion}, false},
+		{"object", &reflection.RunType{Kind: reflection.KindObject}, false},
+	} {
+		if got := shortcutPaysOff(tc.root); got != tc.want {
+			t.Errorf("%s: shortcutPaysOff = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	rendered := renderErrorsEntry(t, []*reflection.RunType{str}, "str", "validationErrors", ValidationErrorsEmitter{}, false)
+	if !strings.Contains(rendered.argsText, "(v,pth,er){"+fillOnlyPrologue) || containsStr(rendered.crossFamilyDeps, valKey("str")) {
+		t.Errorf("a string root must keep the full walk and reach no validator, got:\n%s", rendered.argsText)
+	}
+}
