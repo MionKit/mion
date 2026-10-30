@@ -1,6 +1,5 @@
 <script setup lang="ts">
-// One scene of a compiled batch, for a CardLoop: `build` copies the batch into the server's batch table under an id,
-// then `run` sends only that id, the server finds it, runs the routes and the mapper, and answers once.
+// One scene of a compiled batch for a CardLoop: `build` stores it on the server under an id, `run` sends only the id.
 import {at} from './shared.ts';
 
 const props = defineProps<{
