@@ -84,6 +84,7 @@ touch. Section 2 ("Transformed Src") is a sub-header inside the Source pane (`:8
   card with a full `.rtpg-head`, `h2` like the others; drop `.rtpg-subhead`). Keep the current 3:2 height
   split (`.rtpg-typestack` flex 3, `.rtpg-transformview` flex 2).
 - Toolbar (mode switch + presets) becomes a card too, same look, so the top row reads as its own section.
+  (Superseded while building: see What shipped, the controls moved into the Source card.)
 - Step badge (`.rtpg-step`, `:1032-1056`) grows to ~20px and sits before the title so every card opens with
   its number. Titles move from muted grey to `--rtpg-text`.
 - The outer `.rt-playground` border can go (cards carry their own). Recheck the page sizing rule
@@ -233,6 +234,10 @@ Built as planned, with these differences found while building:
 - **Smaller UI choices:** the tip key is `generated` (was `cache`); section 2 is titled "Transformed Source";
   code blocks sit on the card background and the file header uses the card header shade; the section 3
   status row (count + switch) right-aligns when it wraps.
+- **Type controls live in the Source card** (asked for during the build). The TS type / Type Builder switch
+  and the example types sit in a compact row under the Source header, with smaller buttons; the separate top
+  toolbar is gone and the Tour button sits in the Source header. The page's layout rule gains the toolbar's
+  height (`calc(100vh - 100px)`).
 - **Browser pass** ran with a Playwright script against `pnpm miondevx website dev --agent`: tour walks all 8
   steps, Done and Skip (Esc) both stop it after reload, the Tour button replays it; title follows the picker;
   switch remembered across reloads and disabled on getRunType; file names shown in both views; dark + light,
