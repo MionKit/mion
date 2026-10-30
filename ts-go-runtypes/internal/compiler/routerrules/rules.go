@@ -53,11 +53,10 @@ func returnTypeSite(fn *ast.Node) *ast.Node {
 	return fn
 }
 
+// parameterName is the written name, a placeholder for a binding pattern: Node.Text panics on one.
 func parameterName(paramNode *ast.Node) string {
-	if name := paramNode.Name(); name != nil {
-		if text := name.Text(); text != "" {
-			return text
-		}
+	if name := paramNode.Name(); name != nil && name.Kind == ast.KindIdentifier {
+		return name.Text()
 	}
 	return "<destructured>"
 }
