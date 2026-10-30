@@ -100,7 +100,7 @@ export const slugify = registerPureFn((s: string): string => s.toLowerCase());
   register(
     'close() returns only once the startup build and its artifact write are done',
     async () => {
-      // Closed before any request: close() used to return while buildStart and the artifact write still ran.
+      // No request first, so close() alone must wait out buildStart and the artifact write.
       const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-next-artifact-'));
       writeProject(root);
       fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({name: '@acme/next-app', type: 'module'}));
@@ -132,7 +132,7 @@ export const slugify = registerPureFn((s: string): string => s.toLowerCase());
   register(
     'close() drops its process exit listener',
     async () => {
-      // One leaked listener per broker: a long-lived process restarting brokers trips MaxListenersExceededWarning.
+      // A leaked listener per broker trips MaxListenersExceededWarning in a process that restarts brokers.
       const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-next-broker-'));
       writeProject(root);
       const before = process.listenerCount('exit');
@@ -307,9 +307,7 @@ export const slugify = registerPureFn((s: string): string => s.toLowerCase());
   register(
     'close() waits for an edit the watcher is still absorbing',
     async () => {
-      // An edit is absorbed in the background, and close() used to return mid-absorb: the regenerate kept
-      // writing into the project and the caller's cleanup failed with ENOTEMPTY. Holding the absorb at its
-      // first read makes the overlap certain instead of a matter of timing.
+      // Holding the absorb at its first read makes close() overlap it for certain, not by timing.
       const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-next-broker-'));
       writeProject(root);
       const entry = path.join(root, 'src/entry.ts');
