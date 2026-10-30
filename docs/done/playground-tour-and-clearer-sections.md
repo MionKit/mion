@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: shipped
 created: 2026-10-30
 ---
 
@@ -215,3 +215,25 @@ substring of the module). The tour is UI state with three values.
 - Browser pass done with screenshots in the PR.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source
   file, each committed on its own (no page is expected to change, so the docs pass should have nothing to do).
+
+## What shipped
+
+Built as planned, with these differences found while building:
+
+- **No-op entries.** A function can need no generated code for a type (the mutate JSON encoder on a type
+  that is plain JSON already ships a no-op entry with no factory). So the switch is disabled ONLY for
+  getRunType; for a no-op the Function view shows a short note pointing at the full file. Pinned by
+  "generatedFactories is empty for a no-op entry" in `engine.test.ts`; the preset × function test requires
+  a factory only for the validators.
+- **Binding names can hold `$`.** The generated `__rt_*` names include `$` (pure fn modules), so
+  `linkBindings` matches `__rt_[\w$]+`. A `\w`-only match broke every format type (`__rt_pf is not defined`).
+- **One column (below 1000px).** The Source card collapsed to a strip, because a clipping card no longer
+  inherits its body's min-height. Fixed with card min-heights, `height: auto` on the page's layout rule
+  below 1000px, and a 520px cap on the generated-code view there.
+- **Smaller UI choices:** the tip key is `generated` (was `cache`); section 2 is titled "Transformed Source";
+  code blocks sit on the card background and the file header uses the card header shade; the section 3
+  status row (count + switch) right-aligns when it wraps.
+- **Browser pass** ran with a Playwright script against `pnpm miondevx website dev --agent`: tour walks all 8
+  steps, Done and Skip (Esc) both stop it after reload, the Tour button replays it; title follows the picker;
+  switch remembered across reloads and disabled on getRunType; file names shown in both views; dark + light,
+  1500px and 800px wide.
