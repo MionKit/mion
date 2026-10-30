@@ -12,8 +12,8 @@
 /introduction/*  /rpc/introduction/:splat  301
 /server/middle-fns  /rpc/server/middleware  301
 /server/*        /rpc/server/:splat        301
-/drizzle-orm/indexes-constraints  /rpc/drizzle-orm/constraints  301
-/drizzle-orm/*   /rpc/drizzle-orm/:splat   301
+/drizzle-orm/indexes-constraints  /runtypes/drizzle-orm/constraints  301
+/drizzle-orm/*   /runtypes/drizzle-orm/:splat   301
 /client/*        /rpc/client/:splat        301
 /devtools/eslint-rules  /rpc/devtools/linter  301
 /devtools/vite-config   /rpc/devtools/vite    301
@@ -36,7 +36,11 @@
 # Renamed (2026-09): a page whose file name contains "index" is mistaken for a folder
 # index by Nuxt Content's navigation builder (an unanchored /index/ match) and nests
 # under itself in the sidebar, so the slug lost the word.
-/rpc/drizzle-orm/indexes-constraints  /rpc/drizzle-orm/constraints  301
+# The Drizzle ORM section moved to RunTypes (2026-10): it documents a RunTypes feature.
+# The renamed page's rule sits above the section splat so it wins.
+/rpc/drizzle-orm/indexes-constraints  /runtypes/drizzle-orm/constraints  301
+/rpc/drizzle-orm    /runtypes/drizzle-orm/drizzle-overview  301
+/rpc/drizzle-orm/*  /runtypes/drizzle-orm/:splat            301
 # The about pages were rewritten as the subsite homes (2026-09) under new names.
 /rpc/introduction/about-mion              /rpc       301
 /runtypes/introduction/about-ts-runtypes  /runtypes  301
