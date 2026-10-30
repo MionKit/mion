@@ -55,6 +55,8 @@ export const DECLARED = {
   'packages/run-types/test/types/substituteSelfHarness.ts': RUN_TYPES_PROGRAM,
   // Writes its report and reads nothing.
   'packages/run-types/test/types/builderCostReport.ts': [],
+  // Reads the playground component as text, to check every tour step's target exists.
+  'packages/run-types/test/playground/tour.test.ts': ['container/website/app/components/playground/PlaygroundStage.client.vue'],
   'packages/run-types/test/types/dataonlyTemporalPosture.test.ts': ['packages/run-types/dist', 'ts-go-runtypes/internal/testfixtures/temporal.d.ts'],
   // TypeScript programs over the mion packages; the files read only their own package.json and write reports.
   'packages/private-type-budget/test/': [...MION_PROGRAM, 'packages/private-type-budget/package.json'],
