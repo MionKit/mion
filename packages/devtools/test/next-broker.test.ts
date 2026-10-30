@@ -129,6 +129,26 @@ export const slugify = registerPureFn((s: string): string => s.toLowerCase());
     60_000
   );
 
+  register(
+    'close() drops its process exit listener',
+    async () => {
+      // One leaked listener per broker: a long-lived process restarting brokers trips MaxListenersExceededWarning.
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-next-broker-'));
+      writeProject(root);
+      const before = process.listenerCount('exit');
+      const handle = await startBroker(root, {binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '.mion'});
+      try {
+        expect(process.listenerCount('exit')).toBe(before + 1);
+        await handle.close();
+        expect(process.listenerCount('exit')).toBe(before);
+      } finally {
+        await handle.close();
+        fs.rmSync(root, {recursive: true, force: true});
+      }
+    },
+    60_000
+  );
+
   it('keeps a resolver out of processes that only LOAD the config', () => {
     // Next's detached telemetry flush evaluates next.config but never bundles,
     // so a resolver started there is pure waste that also outlives the build.
