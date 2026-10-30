@@ -18,6 +18,7 @@ const server = createCardServer({
     wraps: join(DIR, 'wraps.vue'),
     wide: join(DIR, 'wide.vue'),
     clipped: join(DIR, 'clipped.vue'),
+    crowded: join(DIR, 'crowded.vue'),
   },
 });
 let base = '';
@@ -27,6 +28,8 @@ beforeAll(async () => {
   card('wide', 'Wide code', `<CardWindow><CardCode code="const x = '${'x'.repeat(120)}';" /></CardWindow>`);
   // the value outgrows its 300px column and is cut at the window's edge
   card('clipped', 'Clipped', '<CardWindow><CardBars><CardBar label="L" before="1,234,567,890" after="2,345,678,901" unit="steps" /></CardBars></CardWindow>');
+  // the wall's name is wider than its column and runs into the outcome header
+  card('crowded', 'Crowded', '<CardWindow><CardLanes gate="server batch table" outcome="Server answers"><CardLane label="L" :steps="[{label: \'s\', value: \'v\'}]" result="r" /></CardLanes></CardWindow>');
   await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
@@ -48,6 +51,7 @@ describe('code card in Chromium', {timeout: 60_000}, () => {
     expect(await checksOf('wraps')).toEqual([expect.stringContaining('wraps onto a second line: "A title long enough')]);
     expect(await checksOf('wide')).toEqual([expect.stringContaining('too wide, scrolls sideways')]);
     expect(await checksOf('clipped')).toContainEqual(expect.stringContaining('sticks out of the card'));
+    expect(await checksOf('crowded')).toEqual([expect.stringContaining('runs into "Server answers": "server batch table"')]);
   });
 
   it('shot refuses a card failing its checks, and writes no PNG', async () => {

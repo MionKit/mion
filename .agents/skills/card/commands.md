@@ -18,7 +18,8 @@ Measured by the page itself, in Chromium; `shot` refuses a card that fails one:
 
 - the title, a tile value, a bar label or a fact wraps onto a second line;
 - a code line is wider than its window;
-- anything sticks out of the card.
+- anything sticks out of the card;
+- a header label runs into its neighbour (`CardLanes`' wall name and outcome).
 
 A bad prop (5 tiles, a bar value that is not a number, a highlight outside the code) fails the render before any
 browser starts, naming the component.
