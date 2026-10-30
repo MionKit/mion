@@ -47,7 +47,7 @@ async function removeGenDirs(dir: string, depth: number): Promise<void> {
   } catch {
     return; // root vanished mid-walk or unreadable — nothing to clean here
   }
-  // A nested `.git` marks another checkout (a worktree under `.claude/worktrees`, a submodule): its own runs own its genDirs.
+  // A nested `.git` is another checkout (worktree, submodule): its own test runs clean its genDirs.
   if (depth > 0 && entries.some((entry) => entry.name === '.git')) return;
   await Promise.all(
     entries.map(async (entry) => {

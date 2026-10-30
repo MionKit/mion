@@ -85,7 +85,7 @@ describe('vitest-clean-gendir teardown', () => {
     expect(fs.existsSync(dependency)).toBe(true);
   });
 
-  // A worktree under the repo (`.claude/worktrees/<name>`) runs its own tests: sweeping it deletes its genDirs mid-run.
+  // A worktree under the repo runs its own tests: sweeping it deletes its genDirs mid-run.
   it('never reaches into another checkout, a worktree or a submodule', async () => {
     const root = makeTempProjectRoot();
     const worktree = path.join(root, '.claude/worktrees/other');
