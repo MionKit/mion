@@ -39,17 +39,21 @@ covers them.
 
 ## First numbers (noisy cloud box)
 
-From a 4-core shared machine where unchanged code moved ±20% between runs, so treat these as a hint to confirm.
-getErrors change vs `base`, machine drift removed, valid / invalid / mixed:
+From a 4-core shared machine where unchanged code moved ±20% between runs (isValid on one case: 12 to 21 million/s),
+so treat these as a hint to confirm. `bench-refs.mjs --report`, 3 base rounds, 1 round per state, getErrors change vs
+`base` with machine drift removed, valid / invalid / mixed:
 
-| Group | spreadFree | shortcutAllRoots | spreadFree + shortcutAllRoots |
+| Group | spreadFree | shortcutAllRoots | final |
 | --- | --- | --- | --- |
-| ALL | 0.98 / 1.12 / 1.16 | 1.12 / 0.97 / 1.03 | 1.09 / 0.96 / 1.03 |
-| REALWORLD | 0.97 / 1.02 / 0.95 | 1.33 / 1.03 / 1.10 | 1.64 / 1.20 / 1.16 |
-| CIRCULAR | 0.91 / 1.00 / 0.94 | 2.10 / 0.77 / 0.76 | 2.17 / 0.73 / 0.77 |
-| STRICT | 0.91 / 1.03 / 1.44 | 1.75 / 1.06 / 1.19 | 1.48 / 1.09 / 1.10 |
-| DATETIME | 0.99 / 0.95 / 1.11 | 1.07 / 0.76 / 0.95 | 0.96 / 0.68 / 0.87 |
-| STRING_FORMAT | 1.00 / 0.95 / 1.03 | 1.06 / 0.92 / 0.95 | 1.00 / 0.77 / 0.87 |
+| ALL | 0.99 / 1.15 / 1.21 | 1.14 / 1.00 / 1.07 | 1.05 / 1.11 / 1.13 |
+| REALWORLD | 0.89 / 1.04 / 0.93 | 1.21 / 1.05 / 1.07 | 1.20 / 1.18 / 1.26 |
+| CIRCULAR | 0.89 / 1.13 / 1.12 | 2.05 / 0.87 / 0.91 | 2.09 / 0.88 / 1.04 |
+| STRICT | 0.98 / 1.14 / 1.63 | 1.89 / 1.18 / 1.35 | 2.47 / 1.58 / 1.15 |
+| DATETIME | 0.99 / 1.02 / 1.11 | 1.07 / 0.82 / 0.95 | 0.75 / 1.11 / 1.09 |
+| STRING_FORMAT | 0.97 / 0.93 / 1.05 | 1.03 / 0.91 / 0.97 | 1.02 / 1.00 / 1.03 |
+| TEMPLATE_LITERAL | 0.82 / 1.15 / 1.41 | 0.85 / 0.86 / 0.95 | 0.69 / 0.93 / 1.04 |
 
-The DATETIME and STRING_FORMAT losses on the invalid path are what limited the shortcut to container roots.
-CIRCULAR's invalid path stays slower (the validator runs, then the full walk), still well ahead of typia there.
+The invalid-path losses of `shortcutAllRoots` on DATETIME and STRING_FORMAT are what limited the shortcut to container
+roots. `final`'s valid-path drops on DATETIME and TEMPLATE_LITERAL are in groups where its code does not change the
+valid path, so they read as noise, and are the first thing to confirm on a quiet machine. CIRCULAR's invalid path
+stays slower (the validator runs, then the full walk), still well ahead of typia there.
