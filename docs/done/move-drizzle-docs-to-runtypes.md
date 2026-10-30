@@ -63,5 +63,8 @@ this change touched, review its report against the code, and commit it as its ow
   The overview links to it.
 - Links: RPC home Drizzle pitch → the new RPC page; Cloudflare platform page + linter page → the new section URLs;
   section cross-links → `/runtypes/drizzle-orm/...`. `@mionjs/drizzle-orm` README points at the section.
+  `docs/maybe/typed-table-migrations-over-drizzle-kit.md` names the new content path.
+- `website-links.test.ts`: every specific rule sits above the splat covering it, and the old Drizzle addresses
+  resolve (first match wins) to live pages.
 - `_redirects`: `/drizzle-orm/*`, `/rpc/drizzle-orm/*` and bare `/rpc/drizzle-orm` → the new section; both
   `indexes-constraints` rules → `/runtypes/drizzle-orm/constraints`, each above its splat.
