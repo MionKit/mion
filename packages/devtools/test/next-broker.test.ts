@@ -97,6 +97,38 @@ export const slugify = registerPureFn((s: string): string => s.toLowerCase());
     60_000
   );
 
+  register(
+    'close() returns only once the startup build and its artifact write are done',
+    async () => {
+      // Closed before any request: close() used to return while buildStart and the artifact write still ran.
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-next-artifact-'));
+      writeProject(root);
+      fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({name: '@acme/next-app', type: 'module'}));
+      fs.writeFileSync(
+        path.join(root, 'src/pure.ts'),
+        `import {registerPureFn} from '@mionjs/run-types/runtime';
+export const slugify = registerPureFn((s: string): string => s.toLowerCase());
+`
+      );
+      const distDir = path.join(root, '.next');
+      const broker = await startBroker(root, {
+        binary: BIN,
+        cwd: root,
+        tsconfig: 'tsconfig.json',
+        genDir: '.mion',
+        artifactDir: distDir,
+      });
+      try {
+        await broker.close();
+        expect(fs.existsSync(path.join(distDir, PURE_FN_ARTIFACT_DIR, PURE_FN_ARTIFACT_INDEX))).toBe(true);
+      } finally {
+        await broker.close();
+        fs.rmSync(root, {recursive: true, force: true});
+      }
+    },
+    60_000
+  );
+
   it('keeps a resolver out of processes that only LOAD the config', () => {
     // Next's detached telemetry flush evaluates next.config but never bundles,
     // so a resolver started there is pure waste that also outlives the build.
@@ -245,6 +277,48 @@ export const slugify = registerPureFn((s: string): string => s.toLowerCase());
         expect(second.code).not.toBe(first.code);
         expect(fs.readFileSync(second.stamp, 'utf8')).not.toBe(before);
       } finally {
+        await handle.close();
+        fs.rmSync(root, {recursive: true, force: true});
+      }
+    },
+    120_000
+  );
+
+  register(
+    'close() waits for an edit the watcher is still absorbing',
+    async () => {
+      // An edit is absorbed in the background, and close() used to return mid-absorb: the regenerate kept
+      // writing into the project and the caller's cleanup failed with ENOTEMPTY. Holding the absorb at its
+      // first read makes the overlap certain instead of a matter of timing.
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-next-broker-'));
+      writeProject(root);
+      const entry = path.join(root, 'src/entry.ts');
+      let release!: () => void;
+      const held = new Promise<void>((resolve) => (release = resolve));
+      let absorbing!: () => void;
+      const absorbStarted = new Promise<void>((resolve) => (absorbing = resolve));
+      const readFile = fs.promises.readFile;
+      const readSpy = vi.spyOn(fs.promises, 'readFile').mockImplementation((async (file: any, options: any) => {
+        if (file === entry) {
+          absorbing();
+          await held;
+        }
+        return readFile(file, options);
+      }) as typeof readFile);
+      const handle = await startBroker(root, {binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '.mion'});
+      try {
+        expect((await askBroker(handle.socketPath, entry, fs.readFileSync(entry, 'utf8'))).ok).toBe(true);
+        fs.appendFileSync(entry, 'export interface Extra { n: number }\nexport const extraId = getRunTypeId<Extra>();\n');
+        await absorbStarted;
+        let closed = false;
+        const closing = handle.close().then(() => (closed = true));
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        expect(closed, 'close() resolved while an edit was still being absorbed').toBe(false);
+        release();
+        await closing;
+      } finally {
+        release();
+        readSpy.mockRestore();
         await handle.close();
         fs.rmSync(root, {recursive: true, force: true});
       }

@@ -163,7 +163,8 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
       debug(`buildStart done, ${countGenerated()} generated modules`);
       refreshStamp(true);
       startWatching();
-      void writeArtifact();
+      // Awaited inside `ready` so close() covers it, and so the first request's own write never overlaps it.
+      return writeArtifact();
     })
     .catch((error) => {
       startupError = error;
@@ -392,6 +393,9 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
       watcher?.close();
       if (flushTimer) clearTimeout(flushTimer);
       await new Promise<void>((resolve) => server.close(() => resolve()));
+      // Work already under way still writes into the project, and a caller cleaning up after close() must find
+      // it finished: returning early let a regenerate write into a dir being deleted (ENOTEMPTY). None rejects.
+      await Promise.all([ready, chain, hotUpdate]);
       await unlinkQuietly(socketPath);
       built.buildEnd?.call(context);
     },
