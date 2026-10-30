@@ -8,18 +8,18 @@ func TestDomainPattern_AllowedValuesOnBothLanes(t *testing.T) {
 		"allowedValues": map[string]any{"val": []any{"example.com"}},
 	}
 	validate := domainEmitter{}.EmitValidateCheck(annotationOf("domain", params), "v", newCardStubCtx())
-	mustContain(t, "validate", validate, "reFmt0.test(v) && reFmt1.test(v)")
+	mustContain(t, "validate", validate, "reFmt0.test(v) && valSet0.has(v)")
 	errors := domainEmitter{}.EmitValidationErrorsCheck(annotationOf("domain", params), "v", "pth", "er", newCardStubCtx())
-	mustContain(t, "errors", errors, "if (!(reFmt1.test(v)))", "formatPath:['allowedValues']")
+	mustContain(t, "errors", errors, "if (!(valSet0.has(v)))", "formatPath:['allowedValues']")
 	mustNotContain(t, "errors", errors, "errorType")
 }
 
 func TestDomainIdna_AllowedValuesOnBothLanes(t *testing.T) {
 	params := map[string]any{"idna": "unicode", "allowedValues": map[string]any{"val": []any{"example.com"}}}
 	validate := domainEmitter{}.EmitValidateCheck(annotationOf("domain", params), "v", newCardStubCtx())
-	mustContain(t, "validate", validate, "isIdnHostname(v,{idn:true})==='' && reFmt0.test(v)")
+	mustContain(t, "validate", validate, "isIdnHostname(v,{idn:true})==='' && valSet0.has(v)")
 	errors := domainEmitter{}.EmitValidationErrorsCheck(annotationOf("domain", params), "v", "pth", "er", newCardStubCtx())
-	mustContain(t, "errors", errors, "if (!(reFmt0.test(v)))", "formatPath:['allowedValues']")
+	mustContain(t, "errors", errors, "if (!(valSet0.has(v)))", "formatPath:['allowedValues']")
 }
 
 func TestDomainPattern_NoAllowedValuesEmitsNothingExtra(t *testing.T) {

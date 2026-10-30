@@ -48,7 +48,7 @@ func allowedValuesCondition(ctx formats.EmitContext, params map[string]any, vλl
 	if !ok {
 		return ""
 	}
-	return emitPatternTest(ctx, valuesSource(vals), flags, vλl)
+	return valuesTest(ctx, vals, flags, vλl)
 }
 
 func allowedValuesErrorStatement(ctx formats.EmitContext, params map[string]any, vλl, pathExpr, errorsArr string) string {
