@@ -71,7 +71,7 @@ describe('playground tour state', () => {
     expect(TOUR_STEPS.find((step) => step.target === 'run')?.body).toBe(STEP_TIPS.result);
   });
 
-  // The stage wires these by hand: no component mounting in this Node suite, so pin the lines themselves.
+  // No component mounting in this Node suite, so pin the stage's wiring lines as text.
   it('keeps the playground inert under the tour and stores each preference under its own key', () => {
     expect(stage).toContain(':inert="tourOpen"');
     expect(stage).toContain('writePref(browserStorage(), TOUR_KEY, state)');

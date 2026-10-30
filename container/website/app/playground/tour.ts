@@ -1,8 +1,7 @@
-// tour.ts: the playground's first-visit tour, its browser-stored UI preferences and the small view rules
-// its cards follow. Pure (no Vue, no DOM) so the Node test suite can pin it.
+// Pure (no Vue, no DOM) so the Node test suite can pin the playground's tour, preferences and card rules.
 import type {Operation} from './operations.ts';
 
-// The per-section guidance shown in each numbered badge's tooltip AND as the tour body for that section.
+// Shared by each numbered badge's tooltip and that section's tour step.
 export const STEP_TIPS = {
   source: 'Edit MyType and watch the change flow through to the transformed source and the generated functions.',
   transformed:
@@ -77,7 +76,6 @@ export function readTourState(storage: PrefStorage | undefined): TourState | nul
   return value === 'completed' || value === 'dismissed' ? value : null;
 }
 
-// First visit only, once the playground has loaded, never over its error state.
 export function shouldAutoStart(state: TourState | null, ready: boolean, failed: boolean): boolean {
   return ready && !failed && state === null;
 }
@@ -106,7 +104,7 @@ export function resultStep(needsInput: boolean): number {
   return needsInput ? 6 : 5;
 }
 
-// The Run button names the picked function; getRunType returns data, so it names the call itself.
+// getRunType returns data, not a function, so the Run button names the call itself.
 export function runName(op: Pick<Operation, 'kind' | 'label' | 'varName'>): string {
   return op.kind === 'graph' ? op.label : op.varName;
 }
@@ -117,8 +115,6 @@ const GAP = 12;
 const EDGE = 16;
 const NARROW_VIEWPORT = 640;
 
-// Places the tour card beside its target: below, above, right, left, else centred at the viewport bottom.
-// Below NARROW_VIEWPORT it is a full-width sheet at the bottom.
 export function placeCard(
   target: Pick<DOMRect, 'top' | 'left' | 'right' | 'bottom'>,
   viewport: {width: number; height: number},
