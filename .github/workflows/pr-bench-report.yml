@@ -1,16 +1,10 @@
 name: pr · benchmark report (label-gated)
 
-# The `bench-report` label runs the validation benchmarks on the runner the website deploy measures on and posts
-# them next to the live site's numbers, so a pull request shows what it does to the published charts before it lands.
-#
-# Apart from pr-heavy.yml's `bench` lane on purpose: that one proves every competitor still answers correctly on a
-# shared 2-core runner with `--quick` windows. These are publishable numbers: full windows, every competitor, on the
-# dedicated linux-arm64 larger runner (website-deploy.yml says why that runner). About an hour of it, so the run
-# follows the label, not the commits: the job removes the label when it ends, and adding it again re-measures.
-#
-# Baseline: the newest `website-output-deploy` artifact, the live site's bench-data/ from that same runner type.
-# Deliberately NOT pull_request_target, like pr-heavy.yml: fork code never gets secrets or write permissions, so a
-# fork pull request only gets a notice.
+# Shows what a PR does to the published benchmark charts before it lands, vs the newest `website-output-deploy`.
+# Apart from pr-heavy.yml's `bench` lane on purpose: that one checks correctness on a shared 2-core runner with
+# `--quick`; these are publishable numbers on the deploy's linux-arm64 runner (website-deploy.yml says why).
+# About an hour, so the run follows the label, not the commits. NOT pull_request_target, like pr-heavy.yml:
+# fork code never gets secrets or write permissions, so a fork PR only gets a notice.
 
 on:
   pull_request:
@@ -32,8 +26,7 @@ jobs:
     if: github.event.label.name == 'bench-report' && !github.event.pull_request.head.repo.fork
     runs-on: linux-arm64
     timeout-minutes: 120
-    # On the job, not the workflow: any other label fires this workflow too, and must not cancel a run still measuring.
-    # A new bench-report label on the same pull request does supersede it.
+    # On the job: any other label fires this workflow and must not cancel a run; a new bench-report label does.
     concurrency:
       group: pr-bench-report-${{ github.event.pull_request.number }}
       cancel-in-progress: true
@@ -99,7 +92,7 @@ jobs:
             container/website/public/bench-data/validation
             container/website/public/bench-data/validation-formats
           if-no-files-found: error
-      # One comment per pull request, edited in place on every run, found by its marker line.
+      # One comment per pull request, found by its marker line.
       - name: Post the report on the pull request
         env:
           GH_TOKEN: ${{ github.token }}
@@ -115,7 +108,7 @@ jobs:
           else
             gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -F "body=@$RUNNER_TEMP/comment.md" > /dev/null
           fi
-      # Whatever happened, so adding the label again starts a new measurement.
+      # So adding the label again starts a new measurement.
       - name: Remove the label
         if: always()
         env:
