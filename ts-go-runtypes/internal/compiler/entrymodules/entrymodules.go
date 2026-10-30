@@ -195,14 +195,14 @@ func (graph Graph) AddMissingStubs(demanded []string) {
 
 // ModuleName is the virtual-module basename of an entry key. Runtype and type-fn keys are hashes and pass
 // through; a pure fn's key is its id, path-encoded as `pf/<owner>/<hash>` with non-safe bytes escaped per
-// segment (no owner half lands at `pf/<hash>`). The encoding is injective because the hash prefix and `/`
+// segment (no owner half lands at `pf/<hash>`). The encoding is injective because the id separator and `/`
 // are the only separators an id can hold and neither survives escaping inside a segment.
 func ModuleName(key string, kind Kind) string {
 	if kind == KindRunTypeBundle {
 		return constants.RunTypesBundleBasename
 	}
-	// A missing stub keyed by a pure-fn id takes the pure-fn layout too: the raw id holds a `#`, which
-	// a module URL reads as a fragment.
+	// A missing stub keyed by a pure-fn id takes the pure-fn layout too: the raw id holds a `:`, which
+	// a module specifier reads as a URL scheme.
 	if kind != KindPureFn && !(kind == KindMissing && strings.Contains(key, constants.PureFnHashPrefix)) {
 		return key
 	}

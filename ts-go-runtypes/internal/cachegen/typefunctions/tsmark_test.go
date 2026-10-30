@@ -72,7 +72,7 @@ func TestKeyLookupType(t *testing.T) {
 	if got := KeyLookupType(clone); got != "(v: any, ...rest: any[]) => string | undefined" {
 		t.Errorf("KeyLookupType(jeCL) = %q", got)
 	}
-	if got := KeyLookupType("@acme/app#pf_x"); got != "" {
+	if got := KeyLookupType("@acme/app:x"); got != "" {
 		t.Errorf("a pure-fn key typed as %q", got)
 	}
 }

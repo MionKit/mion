@@ -57,7 +57,7 @@ func TestRenderGrouped_UntypedIgnoresTypeFields(t *testing.T) {
 
 func TestRenderGrouped_AmbientDeclarations(t *testing.T) {
 	graph := Graph{}
-	graph.Add(&Entry{Key: "@acme/app#pf_x", Kind: KindPureFn, Ambient: []string{"Bun", "Bun"}, ArgsText: "'@acme/app#pf_x',[],'return 1;',[]"})
+	graph.Add(&Entry{Key: "@acme/app:x", Kind: KindPureFn, Ambient: []string{"Bun", "Bun"}, ArgsText: "'@acme/app:x',[],'return 1;',[]"})
 	out, err := RenderGrouped(graph, nil, true)
 	if err != nil {
 		t.Fatal(err)

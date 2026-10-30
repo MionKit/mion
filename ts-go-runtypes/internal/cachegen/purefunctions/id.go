@@ -8,8 +8,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 )
 
-// A pure function's id is `<package name>#pf_<hash of the body that SHIPS>`
-// (`@mionjs/run-types#pf_Kq3f_xN9pQ2wLd`), the shipped body being the one with each dependency
+// A pure function's id is `<package name>:<hash of the body that SHIPS>` (`@acme/text:Kq3fxN9pQ2`), the
+// marker package spelled `_rt` (`_rt:Kq3fxN9pQ2`), the shipped body being the one with each dependency
 // already replaced by that dependency's id: two files whose `utl.getPureFn(helper)` resolves
 // `helper` to different imports have identical text, so hashing the text as written would collapse
 // them into one entry. Renaming the binding or the export, or moving the file inside the package,
@@ -19,12 +19,24 @@ import (
 // registry key everywhere: injected into the registrar call, registered by the emitted module, and
 // carried as a literal by a dependent body after lowering.
 
+// markerPackageInID spells the marker package in an id: every emitted body names its built-ins, and npm
+// forbids a leading `_`, so no real package claims it.
+const markerPackageInID = "_rt"
+
 // IDFor builds the id of a registration written in filePath whose shipped body hashes to hash.
 // A file under no NAMED package keeps the hash alone, the same answer whatever directory the build ran from.
 func IDFor(markerOpts marker.Options, filePath, hash string) string {
 	opts := marker.WithDefaults(markerOpts)
 	packageName, _ := marker.PackageOfFile(filePath, opts.FS)
-	return packageName + constants.PureFnHashPrefix + hash
+	return IDPrefix(packageName) + hash
+}
+
+// IDPrefix is what every id a package owns starts with.
+func IDPrefix(packageName string) string {
+	if packageName == marker.DefaultModule {
+		packageName = markerPackageInID
+	}
+	return packageName + constants.PureFnHashPrefix
 }
 
 // SplitID returns an id's package and hash halves. ok is false for a string
@@ -34,7 +46,11 @@ func SplitID(id string) (packageName, hash string, ok bool) {
 	if sep < 0 {
 		return "", "", false
 	}
-	return id[:sep], id[sep+len(constants.PureFnHashPrefix):], true
+	packageName = id[:sep]
+	if packageName == markerPackageInID {
+		packageName = marker.DefaultModule
+	}
+	return packageName, id[sep+len(constants.PureFnHashPrefix):], true
 }
 
 // valueNodeOf climbs the wrappers that carry no runtime meaning and returns the outermost

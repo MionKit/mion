@@ -15,11 +15,11 @@ import {trimHelper} from './pureFnHelpers.ts';
 // built consumer sees. An id is the package that owns the pure fn plus a hash
 // of the body that ships, so a test matches its SHAPE and reads the value the
 // build produced rather than spelling one.
-const HERE = '@mionjs/run-types#pf_';
-const ID_RE = /^@mionjs\/run-types#pf_[A-Za-z0-9_-]{14}$/;
+const HERE = '_rt:';
+const ID_RE = /^_rt:[A-Za-z0-9_-]{10}$/;
 
-// The hash half of an id on its own: 14 chars of base64url.
-const ID_HASH_REGEX = /^[A-Za-z0-9_-]{14}$/;
+// The hash half of an id on its own: 10 chars of base64url.
+const ID_HASH_REGEX = /^[A-Za-z0-9_-]{10}$/;
 
 type StringParams = {isLowercase?: boolean; isNumeric?: boolean};
 type Params = {isA?: boolean; isB?: boolean};
@@ -124,7 +124,7 @@ describe('a pure fn is identified by its package and body hash', () => {
     const [first, second, other] = namelessIds;
     expect(first).toBe(second);
     expect(other).not.toBe(first);
-    const [, name] = first.split('#pf_');
+    const [, name] = first.split(':');
     expect(name).toMatch(ID_HASH_REGEX);
     const restored = getRTUtils().getPureFn(first) as (s: string) => string;
     expect(restored('7')).toBe('007');

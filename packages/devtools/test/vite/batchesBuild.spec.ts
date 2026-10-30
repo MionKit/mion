@@ -168,7 +168,7 @@ register('batch transport through a real vite build', () => {
     const [tuple] = Object.values(registered);
     expect(tuple).toBeDefined();
     // the registered value is the generated pure-fn tuple, the mapper's id in its id slot
-    expect(String(tuple[3])).toMatch(/#/);
+    expect(String(tuple[3])).toMatch(/:[A-Za-z0-9_-]{10}$/);
     expect(String(tuple[5])).toContain(MAPPER_BODY);
   });
 

@@ -26,10 +26,10 @@ import (
 
 const (
 	textPkg   = "/virtual/app/node_modules/@acme/text"
-	slugifyID = "@acme/text#pf_slug00000000000"
-	titleID   = "@acme/text#pf_title0000000000"
-	isoDayID  = "@acme/dates#pf_day00000000000"
-	trimID    = "@acme/util#pf_trim00000000000"
+	slugifyID = "@acme/text:slug00000000000"
+	titleID   = "@acme/text:title0000000000"
+	isoDayID  = "@acme/dates:day00000000000"
+	trimID    = "@acme/util:trim00000000000"
 	slugCode  = "return (s) => s.toLowerCase();"
 )
 
@@ -175,7 +175,7 @@ func TestArtifact_BundleIsNeverOpened(t *testing.T) {
 
 // Indexing opens the manifest and the index only; serving an id opens that id's module and no other.
 func TestArtifact_OnlyDemandedModulesAreOpened(t *testing.T) {
-	third := purefunctions.Entry{ID: "@acme/text#pf_third000000000", BindingName: "third", FilePath: "src/third.ts", Code: "return 3;"}
+	third := purefunctions.Entry{ID: "@acme/text:third000000000", BindingName: "third", FilePath: "src/third.ts", Code: "return 3;"}
 	fs := &recordingFS{FS: program.NewOverlayFS(osvfs.FS(), merge(textPackage(nil), textArtifact(slugifyEntry, titleEntry, third)))}
 	// Manifest lookups (package.json up the tree) are not artifact reads.
 	artifactReads := func() []string {
@@ -339,9 +339,9 @@ func TestArtifact_UnreadableIndexAndForeign(t *testing.T) {
 // A listed module missing, swapped or empty is a problem found on demand; the id is a miss on a built package, reported once.
 func TestArtifact_UnreadableModules(t *testing.T) {
 	dir := textPkg + "/dist/" + constants.PureFnArtifactDir
-	gone := purefunctions.Entry{ID: "@acme/text#pf_gone0000000000", BindingName: "gone", Code: "return 0;"}
-	swapped := purefunctions.Entry{ID: "@acme/text#pf_swap0000000000", BindingName: "swapped", Code: "return 0;"}
-	empty := purefunctions.Entry{ID: "@acme/text#pf_empty000000000", BindingName: "empty", Code: "return 0;"}
+	gone := purefunctions.Entry{ID: "@acme/text:gone0000000000", BindingName: "gone", Code: "return 0;"}
+	swapped := purefunctions.Entry{ID: "@acme/text:swap0000000000", BindingName: "swapped", Code: "return 0;"}
+	empty := purefunctions.Entry{ID: "@acme/text:empty000000000", BindingName: "empty", Code: "return 0;"}
 	files := merge(textPackage(nil), textArtifact(slugifyEntry, gone, swapped, empty))
 	delete(files, dir+"/"+ModulePath(gone.ID))
 	files[dir+"/"+ModulePath(swapped.ID)] = moduleFor(slugifyEntry, constants.EmitCode)
@@ -443,41 +443,41 @@ func TestClosure_AcrossPackagesFromDependentRoot(t *testing.T) {
 // A located package lacking the row is a miss; one with no artifact is unbuilt; one not installed is unresolved.
 func TestClosure_MissingUnbuiltUnresolved(t *testing.T) {
 	legacyPkg := "/virtual/app/node_modules/@acme/legacy"
-	const padID = "@acme/legacy#pf_pad0000000000"
+	const padID = "@acme/legacy:pad0000000000"
 	store := storeOver(merge(map[string]string{
 		textPkg + "/package.json":   `{"name":"@acme/text"}`,
 		legacyPkg + "/package.json": `{"name":"@acme/legacy"}`,
 		legacyPkg + "/index.js":     "export const padId = registerPureFn((s) => s.padStart(4, '0'), '" + padID + "');\n",
 	}, textArtifact(slugifyEntry)))
 	result := store.Closure([]Demand{
-		{ID: "@acme/text#pf_gone0000000000", FromDir: "/virtual/app"},
+		{ID: "@acme/text:gone0000000000", FromDir: "/virtual/app"},
 		{ID: padID, FromDir: "/virtual/app"},
 		{ID: trimID, FromDir: "/virtual/app"},
-		{ID: "#own00000000000", FromDir: "/virtual/app"},
+		{ID: ":own00000000000", FromDir: "/virtual/app"},
 	})
 	if len(result.Entries) != 0 {
 		t.Errorf("nothing should be served, got %+v", result.Entries)
 	}
 	wantMissing := []Miss{
 		{ID: padID, Package: "@acme/legacy", Root: legacyPkg, Built: false},
-		{ID: "@acme/text#pf_gone0000000000", Package: "@acme/text", Root: textPkg, Built: true},
+		{ID: "@acme/text:gone0000000000", Package: "@acme/text", Root: textPkg, Built: true},
 	}
 	if !reflect.DeepEqual(result.Missing, wantMissing) {
 		t.Errorf("missing = %+v, want %+v", result.Missing, wantMissing)
 	}
-	if !reflect.DeepEqual(result.Unresolved, []string{"#own00000000000", trimID}) {
+	if !reflect.DeepEqual(result.Unresolved, []string{":own00000000000", trimID}) {
 		t.Errorf("unresolved = %v", result.Unresolved)
 	}
 }
 
 func TestPackageOfID(t *testing.T) {
 	for id, want := range map[string]string{
-		slugifyID:                  "@acme/text",
-		"lib#pf_f":                 "lib",
-		"#hash":                    "",
-		"noseparator":              "",
-		purefnids.NewRunTypeErr:    "@mionjs/run-types",
-		"@scope/name/deep#pf_hash": "@scope/name/deep",
+		slugifyID:               "@acme/text",
+		"lib:f":                 "lib",
+		":hash":                 "",
+		"noseparator":           "",
+		purefnids.NewRunTypeErr: "@mionjs/run-types",
+		"@scope/name/deep:hash": "@scope/name/deep",
 	} {
 		if got := PackageOfID(id); got != want {
 			t.Errorf("PackageOfID(%q) = %q, want %q", id, got, want)
@@ -556,7 +556,7 @@ func TestSource_FallbackWhenNoArtifact(t *testing.T) {
 		t.Fatalf("expected one row from src, got fromSource=%v ids=%v err=%v", idx.FromSource, idx.IDs(), idx.Err)
 	}
 	row, ok := rowNamed(idx, "isoDay")
-	if !ok || !strings.HasPrefix(row.ID, "@acme/dates#") || !reflect.DeepEqual(row.PureFnDependencies, []string{slugifyID}) || !strings.Contains(row.Code, "getPureFn('"+slugifyID+"')") {
+	if !ok || !strings.HasPrefix(row.ID, "@acme/dates:") || !reflect.DeepEqual(row.PureFnDependencies, []string{slugifyID}) || !strings.Contains(row.Code, "getPureFn('"+slugifyID+"')") {
 		t.Errorf("row = %+v", row)
 	}
 	if row.FilePath != "" || row.FactoryArgStart != 0 || row.IDInjectText != "" {
@@ -683,7 +683,7 @@ func TestMarker_ServedFromItsArtifact(t *testing.T) {
 		t.Error("findCycle was not served")
 	}
 	// The closure pulls a dependency's module too (isDateString_YMD → isDateString).
-	result := store.Closure([]Demand{{ID: purefnids.IsDateStringYMD, FromDir: cwd}, {ID: purefnids.IsDateStringDMY, FromDir: cwd}, {ID: "@mionjs/run-types#pf_totallyMadeUp", FromDir: cwd}})
+	result := store.Closure([]Demand{{ID: purefnids.IsDateStringYMD, FromDir: cwd}, {ID: purefnids.IsDateStringDMY, FromDir: cwd}, {ID: "_rt:totallyMadeUp", FromDir: cwd}})
 	served := map[string]int{}
 	for _, entry := range result.Entries {
 		served[entry.ID]++
@@ -694,7 +694,7 @@ func TestMarker_ServedFromItsArtifact(t *testing.T) {
 	if served[purefnids.IsDateString] != 1 || served[purefnids.IsDateStringYMD] != 1 {
 		t.Errorf("closure = %v", served)
 	}
-	if len(result.Missing) != 1 || result.Missing[0].ID != "@mionjs/run-types#pf_totallyMadeUp" || !result.Missing[0].Built {
+	if len(result.Missing) != 1 || result.Missing[0].ID != "_rt:totallyMadeUp" || !result.Missing[0].Built {
 		t.Errorf("a made-up built-in must be a miss on a built package, got %+v", result.Missing)
 	}
 }
@@ -773,8 +773,8 @@ func TestMarker_BothLanesAgreeOnIds(t *testing.T) {
 
 // TestStore_OverridesRoundTrip: the rows a build writes are the rows a consumer reads, from the index alone.
 func TestStore_OverridesRoundTrip(t *testing.T) {
-	rows := []ArtifactOverrideRow{{BaseKey: "{amount:number}", Family: "validate", ID: "@acme/money#pf_abc"}}
-	index := RenderArtifactIndex("@acme/money", "/money", []purefunctions.Entry{{ID: "@acme/money#pf_abc"}}, rows)
+	rows := []ArtifactOverrideRow{{BaseKey: "{amount:number}", Family: "validate", ID: "@acme/money:abc"}}
+	index := RenderArtifactIndex("@acme/money", "/money", []purefunctions.Entry{{ID: "@acme/money:abc"}}, rows)
 	store := storeOver(map[string]string{
 		"/money/package.json":                  `{"name": "@acme/money"}`,
 		"/money/dist/mion-pure-fns/index.json": string(index),
@@ -787,8 +787,8 @@ func TestStore_OverridesRoundTrip(t *testing.T) {
 
 // TestStore_OverridesOfAnotherCompilerAreSkipped: a structural key is only comparable within one compiler version.
 func TestStore_OverridesOfAnotherCompilerAreSkipped(t *testing.T) {
-	rows := []ArtifactOverrideRow{{BaseKey: "{amount:number}", Family: "validate", ID: "@acme/money#pf_abc"}}
-	index := strings.Replace(string(RenderArtifactIndex("@acme/money", "/money", []purefunctions.Entry{{ID: "@acme/money#pf_abc"}}, rows)),
+	rows := []ArtifactOverrideRow{{BaseKey: "{amount:number}", Family: "validate", ID: "@acme/money:abc"}}
+	index := strings.Replace(string(RenderArtifactIndex("@acme/money", "/money", []purefunctions.Entry{{ID: "@acme/money:abc"}}, rows)),
 		`"compiler": "`+constants.Version+`"`, `"compiler": "0.0.0-other"`, 1)
 	store := storeOver(map[string]string{
 		"/money/package.json":                  `{"name": "@acme/money"}`,
@@ -814,8 +814,8 @@ func TestStore_OverridesReportAnUnreadableIndex(t *testing.T) {
 
 // TestStore_OverridesSkipAnotherPackagesIndex: a vendored copy of another package's artifact seeds nothing.
 func TestStore_OverridesSkipAnotherPackagesIndex(t *testing.T) {
-	rows := []ArtifactOverrideRow{{BaseKey: "{amount:number}", Family: "validate", ID: "@other/pkg#pf_abc"}}
-	index := RenderArtifactIndex("@other/pkg", "/money", []purefunctions.Entry{{ID: "@other/pkg#pf_abc"}}, rows)
+	rows := []ArtifactOverrideRow{{BaseKey: "{amount:number}", Family: "validate", ID: "@other/pkg:abc"}}
+	index := RenderArtifactIndex("@other/pkg", "/money", []purefunctions.Entry{{ID: "@other/pkg:abc"}}, rows)
 	store := storeOver(map[string]string{
 		"/money/package.json":                          `{"name": "@acme/money"}`,
 		"/money/vendor/other/mion-pure-fns/index.json": string(index),
@@ -833,8 +833,8 @@ func TestStore_OverridesConflictAcrossIndexes(t *testing.T) {
 	}
 	store := storeOver(map[string]string{
 		"/money/package.json":                      `{"name": "@acme/money"}`,
-		"/money/dist/cjs/mion-pure-fns/index.json": render("@acme/money#pf_abc"),
-		"/money/dist/esm/mion-pure-fns/index.json": render("@acme/money#pf_xyz"),
+		"/money/dist/cjs/mion-pure-fns/index.json": render("@acme/money:abc"),
+		"/money/dist/esm/mion-pure-fns/index.json": render("@acme/money:xyz"),
 	})
 	got, _, conflicts := store.Overrides("/money")
 	if len(got) != 1 || len(conflicts) != 1 {
@@ -957,7 +957,7 @@ func TestTypesOnly_AnInstalledPackageWinsOverItsVendoredCopy(t *testing.T) {
 // TestTypesOnly_AnInstalledCopyWithoutTheIdFallsBackToTheVendoredOne: the vendored copy serves the body built against.
 func TestTypesOnly_AnInstalledCopyWithoutTheIdFallsBackToTheVendoredOne(t *testing.T) {
 	installed := "/virtual/app/node_modules/@acme/dates"
-	other := purefunctions.Entry{ID: "@acme/dates#pf_other0000000000", BindingName: "other", ParamNames: []string{"utl"}, Code: "return 1;"}
+	other := purefunctions.Entry{ID: "@acme/dates:other0000000000", BindingName: "other", ParamNames: []string{"utl"}, Code: "return 1;"}
 	store := storeOver(merge(vendoredTypesPackage(),
 		map[string]string{installed + "/package.json": `{"name":"@acme/dates"}`},
 		artifactDir(installed+"/dist/"+constants.PureFnArtifactDir, "@acme/dates", constants.EmitCode, other)))

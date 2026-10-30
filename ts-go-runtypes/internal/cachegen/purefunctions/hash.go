@@ -7,9 +7,9 @@ import (
 	"strings"
 )
 
-// bodyHashLength keeps enough base64url characters of the sha256 digest to make a collision
-// between two bodies of one build implausible, while emitted modules stay readable.
-const bodyHashLength = 14
+// bodyHashLength keeps 60 bits of the sha256 digest: a collision between two bodies of one package stays
+// implausible, and every emitted body that names the id pays for each character.
+const bodyHashLength = 10
 
 var horizontalWhitespace = regexp.MustCompile(`[ \t]+`)
 

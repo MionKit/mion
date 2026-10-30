@@ -94,7 +94,7 @@ function expectLibArtifact(dir: string, name: string, bindings = ['slugify', 'ti
   expect(index.pureFns.map((row) => row.bindingName).sort()).toEqual(bindings);
   const expectedFiles = [PURE_FN_ARTIFACT_INDEX];
   for (const row of index.pureFns) {
-    expect(row.id).toMatch(new RegExp(`^@acme/${name}#pf_[A-Za-z0-9_-]{14}$`));
+    expect(row.id).toMatch(new RegExp(`^@acme/${name}:[A-Za-z0-9_-]{10}$`));
     expect(row.file).toBe('src/index.ts');
     const rel = modulePath(row.id);
     expectedFiles.push(rel.split(path.sep).join('/'));

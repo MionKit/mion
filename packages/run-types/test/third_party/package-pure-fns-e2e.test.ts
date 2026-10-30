@@ -29,8 +29,8 @@ const CORE_PKG_DIR = fileURLToPath(new URL('../..', import.meta.url));
 
 // An id hashes the body that ships, so the two built libraries' ids are only known once built.
 // Only the runtime-only package writes its own.
-const PAD_ID = '@acme/legacy#pf_pad00000000000';
-const ID_PATTERN = /^@acme\/[a-z]+#pf_[A-Za-z0-9_-]{14}$/;
+const PAD_ID = '@acme/legacy:pad00000000000';
+const ID_PATTERN = /^@acme\/[a-z]+:[A-Za-z0-9_-]{10}$/;
 
 let BASE = '';
 let TEXT_DIR = '';
@@ -172,7 +172,7 @@ function runNode(file: string, cwd: string): Report {
 
 function expectReport(result: Report): void {
   expect(result.deps).toHaveLength(1);
-  expect(result.deps[0]).toMatch(/^@acme\/dates#/);
+  expect(result.deps[0]).toMatch(/^@acme\/dates:/);
   // app → dates (served from src) → text (served from dist).
   expect(result.result).toBe('hello-world@2026-09-18');
   expect(result.isoDayDeps).toEqual([SLUGIFY_ID]);
@@ -320,7 +320,7 @@ describe('pure fns served across packages: dist lane, src lane, and the unbuilt 
     // The bundle holds nothing to read: hollow registrations, no tuple, no id.
     const bundle = fs.readFileSync(path.join(dist, 'index.js'), 'utf8');
     expect(bundle).not.toContain('[2,');
-    expect(bundle).not.toContain('#pf_');
+    for (const id of [slugify, title]) expect(bundle).not.toContain(id);
   });
 
   register('app-vite: the plugin serves dates from src and text from dist', async () => {
@@ -361,7 +361,7 @@ describe('pure fns served across packages: dist lane, src lane, and the unbuilt 
     expect(datesModules).toHaveLength(1);
     const isoDayModule = fs.readFileSync(path.join(pf, '@acme', 'dates', datesModules[0]), 'utf8');
     expect(isoDayModule).toContain(String.raw`getPureFn(\'${SLUGIFY_ID}\')`);
-    expect(fs.readdirSync(path.join(pf, '@acme', 'text'))).toEqual([SLUGIFY_ID.split('#pf_')[1] + '.js']);
+    expect(fs.readdirSync(path.join(pf, '@acme', 'text'))).toEqual([SLUGIFY_ID.split(':')[1] + '.js']);
 
     expectOwnArtifact(app, '@acme/app-vite');
 
@@ -379,7 +379,7 @@ describe('pure fns served across packages: dist lane, src lane, and the unbuilt 
 
     const pf = path.join(app, '.mion', 'types', 'pf');
     expect(fs.readdirSync(path.join(pf, '@acme', 'dates'))).toHaveLength(1);
-    expect(fs.readdirSync(path.join(pf, '@acme', 'text'))).toEqual([SLUGIFY_ID.split('#pf_')[1] + '.js']);
+    expect(fs.readdirSync(path.join(pf, '@acme', 'text'))).toEqual([SLUGIFY_ID.split(':')[1] + '.js']);
 
     // The compile lane writes the consumer's own artifact into its outDir.
     expect(expectOwnArtifact(app, '@acme/app-compile').file).toBe('src/main.ts');

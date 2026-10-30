@@ -36,7 +36,7 @@ interface PureFnEntry {
 
 // An id is the package that owns the pure fn (empty for these fixtures, which
 // declare no package name) plus a hash of the body that ships.
-const ID_RE = /^[^#]*#pf_[A-Za-z0-9_-]{14}$/;
+const ID_RE = /^[^:]*:[A-Za-z0-9_-]{10}$/;
 
 interface Replacement {
   start: number;
@@ -233,14 +233,14 @@ export const x = registerPureFnFactory(function (utl: RTUtils) {
   register('emits purefn-id-mismatch when a written id disagrees with the computed one', async () => {
     const sources = {
       'wrong-id.ts': `import {registerPureFn} from '@mionjs/run-types/runtime';
-export const halve = registerPureFn((n: number): number => n / 2, 'wrong-id#pf_somethingElse');
+export const halve = registerPureFn((n: number): number => n / 2, 'wrong-id:somethingElse');
 `,
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
       const mismatch = pureFnDiagsOf(response).find((d) => d.code === 'purefn-id-mismatch');
       expect(mismatch, `expected purefn-id-mismatch in ${JSON.stringify(pureFnDiagsOf(response))}`).toBeDefined();
-      expect(mismatch!.args?.[0]).toBe('wrong-id#pf_somethingElse');
+      expect(mismatch!.args?.[0]).toBe('wrong-id:somethingElse');
       expect(mismatch!.args?.[1]).toMatch(ID_RE);
       // No entry: registering one body under two ids is what the code prevents.
       expect(Object.keys(evalPureFnEntries(response.entryModules ?? {}))).toEqual([]);
@@ -377,7 +377,7 @@ export const rounder = registerPureFnFactory(function () {
       family: Family.PureFn,
       severity: Severity.Error,
       level: Level.RuntimeError,
-      args: ['@acme/text#pf_9Zt1bRm4cVaPqL'],
+      args: ['@acme/text:9Zt1bRm4cVaPqL'],
       site: {
         filePath: '/abs/path/x.ts',
         startLine: 12,
@@ -390,7 +390,7 @@ export const rounder = registerPureFnFactory(function () {
     // copy here (catalog wording can evolve). Just confirm the line
     // shape: <path>(<line>,<col>): <severity> <code>: <headline-with-arg>
     expect(line).toMatch(/^\/abs\/path\/x\.ts\(12,5\): error purefn-not-registered: /);
-    expect(line).toContain('@acme/text#pf_9Zt1bRm4cVaPqL');
+    expect(line).toContain('@acme/text:9Zt1bRm4cVaPqL');
     expect(line).toMatch(/^[^(]+\(\d+,\d+\):\s+(error|warning)\s+[a-z][a-z0-9]*(?:-[a-z0-9]+)+:\s+.+$/);
   });
 
@@ -446,7 +446,7 @@ export const isNode = createValidateFn<Node>(undefined, {rejectCircularRefs: tru
   async function pureFnEntry(client: ResolverClient, file: string, id?: string): Promise<PureFnEntry> {
     const response = await client.scanFiles([file], {includeEntryModules: true});
     const entries = evalPureFnEntries(response.entryModules!);
-    const key = id ?? Object.keys(entries).find((each) => !each.startsWith('@mionjs/run-types#pf_'));
+    const key = id ?? Object.keys(entries).find((each) => !each.startsWith('_rt:'));
     const entry = key ? entries[key] : undefined;
     if (!entry) throw new Error(`no pure-fn entry ${id ?? "(the fixture's own)"} in ${Object.keys(entries).join(', ')}`);
     return entry;
@@ -504,7 +504,7 @@ export const isNode = createValidateFn<Node>(undefined, {rejectCircularRefs: tru
       family: Family.PureFn,
       severity: Severity.Error,
       level: Level.RuntimeError,
-      args: ['app/src/fns#pf_fn'],
+      args: ['app/src/fns:fn'],
       site: {
         filePath: '/abs/b.ts',
         startLine: 5,

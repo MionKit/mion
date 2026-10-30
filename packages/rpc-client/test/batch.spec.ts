@@ -275,7 +275,7 @@ describe('inputFrom()', () => {
     // The mapper is written inline; the build gives it a pure-fn id and that id
     // IS the mapperKey the server looks the mapper up by.
     const ref = rawInputFrom(fakeSubRequest, (customer: {preferenceId: number}) => customer.preferenceId);
-    expect(ref.mapperKey).toMatch(/#/);
+    expect(ref.mapperKey).toMatch(/:[A-Za-z0-9_-]{10}$/);
     expect(ref.fromRequestId).toBe('test');
     expect(ref.toRequestId).toBe(''); // toRequestId is set once the ref is passed to the target subRequest
   });
@@ -730,7 +730,7 @@ describe('batch runtime behaviour', () => {
     expect(orgError).toBeUndefined();
     expect(clientResponse['@thrownErrors']?.[0]?.type).toBe('batch-mapper-failed');
     expect(clientResponse['@thrownErrors']?.[0]?.statusCode).toBe(422);
-    expect(clientResponse['@thrownErrors']?.[0]?.publicMessage).not.toContain('#');
+    expect(clientResponse['@thrownErrors']?.[0]?.publicMessage).not.toMatch(/:[A-Za-z0-9_-]{10}/);
     expect(clientResponse['@thrownErrors']?.[0]?.publicMessage).toContain("'flow/getOrg'");
 
     const [greeting, , greetingResponse] = await routes.sayHello(someUser).call();
