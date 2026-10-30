@@ -339,7 +339,8 @@ const MyType = RT.object({
           expect(factories.length, `${preset.name} / ${op.key}`).toBeGreaterThan(0);
       }
     }
-  });
+    // ~40 resolver runs: past the project's 30s default under a full parallel run.
+  }, 120_000);
 
   // The function view's empty state: a no-op entry ships a file but no factory.
   it('generatedFactories is empty for a no-op entry (mutate encoder on a plain JSON type)', async () => {
