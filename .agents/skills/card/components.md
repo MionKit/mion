@@ -52,5 +52,12 @@ props, its limits, how it enters. Add a component → add its entry ([content.md
   - Inside a `CardLoop`: the call chip, a track growing down (to the client row only when stopped), the client
     check, the server check, then the result line.
 
+- **`CardBatchCompile`**: one scene of a batch compiled at build time, for a `CardLoop` of two items.
+  A "1 · Build time → 2 · Run time" header marks the scene.
+  - `scene="build"`: the client code gets an id, the build copies the batch into the server's table.
+  - `scene="run"`: only the id travels, the server finds it, runs the routes and the mapper, one answer travels back.
+  - Props: `scene`, `code` (1 to 4 lines), `id` (≤ 8 characters), `routes` (names, run order), `mapper`, `result`.
+  - Beats timed by `--cc-at`; `data-cc-at="travel"` rides a packet along an arrow. Phones: one column.
+
 Entrance order = render order. `CardFrame`'s `step` is the gap between two elements, `speed` one entrance.
 Bars: say in the subtitle what before and after are, or name them in `CardBars`.

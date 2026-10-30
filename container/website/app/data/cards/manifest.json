@@ -1,11 +1,12 @@
 {
   "drizzle-type-cost": {
-    "hash": "5abd2d4f1df396f4a8f48d9e9ec75530204883bc9cacd7567675b0fed85f6cd4",
+    "hash": "865dfebc8c678b770a8bc2175662471edb6f680564ed31bbee2bcb88d929d201",
     "sources": [
       "tools/code-card/card.css",
       "tools/code-card/cards/drizzle-type-cost.vue",
       "tools/code-card/components/CardBar.vue",
       "tools/code-card/components/CardBars.vue",
+      "tools/code-card/components/CardBatchCompile.vue",
       "tools/code-card/components/CardCode.vue",
       "tools/code-card/components/CardDiff.vue",
       "tools/code-card/components/CardFact.vue",
@@ -29,7 +30,7 @@
       "tools/code-card/src/render.ts"
     ],
     "outputs": {
-      "container/website/app/assets/css/code-card.css": "cacab4a02352ff4f3575030cae7267681a9f9e28a2f00b6fd74e4d6dda30b741",
+      "container/website/app/assets/css/code-card.css": "52ef5228b322fcf47c69b8b54de08becc6c528e5a1f078a040473aa636ed5979",
       "container/website/app/data/cards/drizzle-type-cost.html": "1d900f330e18eba895fdac51dc6187cd155083baba756ba652c3bf6d0a229423",
       "container/website/app/utils/codeCardPlayer.ts": "db3f82fc47d3baad9f33dc386a742ab27ba22fb23d561275851df9d1612430d3",
       "container/website/public/fonts/code-card/OFL-Inter.txt": "338c094fbd0de0c0817e6ed12bdca4ed8e1dbc7f4ee19102cda181c0648eff93",
@@ -40,12 +41,13 @@
     }
   },
   "jit-wall": {
-    "hash": "c7d6cbc13b6944091d0065c594557cb9d78c6e983472c62c080afcd74e853aab",
+    "hash": "3096b400033891c72434375678968be00672cadc71a8488f9bd878dc2a58aaa1",
     "sources": [
       "tools/code-card/card.css",
       "tools/code-card/cards/jit-wall.vue",
       "tools/code-card/components/CardBar.vue",
       "tools/code-card/components/CardBars.vue",
+      "tools/code-card/components/CardBatchCompile.vue",
       "tools/code-card/components/CardCode.vue",
       "tools/code-card/components/CardDiff.vue",
       "tools/code-card/components/CardFact.vue",
@@ -69,7 +71,7 @@
       "tools/code-card/src/render.ts"
     ],
     "outputs": {
-      "container/website/app/assets/css/code-card.css": "cacab4a02352ff4f3575030cae7267681a9f9e28a2f00b6fd74e4d6dda30b741",
+      "container/website/app/assets/css/code-card.css": "52ef5228b322fcf47c69b8b54de08becc6c528e5a1f078a040473aa636ed5979",
       "container/website/app/data/cards/jit-wall.html": "fcce7c35fe8801da6edc5a8d6ab86d9a476a106a89f8c27e0e60f5743d624504",
       "container/website/app/utils/codeCardPlayer.ts": "db3f82fc47d3baad9f33dc386a742ab27ba22fb23d561275851df9d1612430d3",
       "container/website/public/fonts/code-card/OFL-Inter.txt": "338c094fbd0de0c0817e6ed12bdca4ed8e1dbc7f4ee19102cda181c0648eff93",
@@ -80,12 +82,13 @@
     }
   },
   "rpc-client-validation": {
-    "hash": "135c5e86d1d53af98cf5409d404bd98b9513c2406b36873a738f3cead049f79b",
+    "hash": "a4268579cc1b9ee11bd9c4dc8a46bf3cd3c6c304b6aeef411b7138970de50e90",
     "sources": [
       "tools/code-card/card.css",
       "tools/code-card/cards/rpc-client-validation.vue",
       "tools/code-card/components/CardBar.vue",
       "tools/code-card/components/CardBars.vue",
+      "tools/code-card/components/CardBatchCompile.vue",
       "tools/code-card/components/CardCode.vue",
       "tools/code-card/components/CardDiff.vue",
       "tools/code-card/components/CardFact.vue",
@@ -109,7 +112,7 @@
       "tools/code-card/src/render.ts"
     ],
     "outputs": {
-      "container/website/app/assets/css/code-card.css": "cacab4a02352ff4f3575030cae7267681a9f9e28a2f00b6fd74e4d6dda30b741",
+      "container/website/app/assets/css/code-card.css": "52ef5228b322fcf47c69b8b54de08becc6c528e5a1f078a040473aa636ed5979",
       "container/website/app/data/cards/rpc-client-validation.html": "38806a54dd6ae87f53a06a00aef991c7c8e36e7c06e599ebf99d73adaae8b5ee",
       "container/website/app/utils/codeCardPlayer.ts": "db3f82fc47d3baad9f33dc386a742ab27ba22fb23d561275851df9d1612430d3",
       "container/website/public/fonts/code-card/OFL-Inter.txt": "338c094fbd0de0c0817e6ed12bdca4ed8e1dbc7f4ee19102cda181c0648eff93",
@@ -120,12 +123,13 @@
     }
   },
   "rpc-json-round-trip": {
-    "hash": "17c24ab74f098905014f51055162c792921d786414a8cddf6c063f7ce2dbb8ad",
+    "hash": "8b06ba8397cfce50dc1d443626004ff7538c560ae84084e1c490f9a61855bda3",
     "sources": [
       "tools/code-card/card.css",
       "tools/code-card/cards/rpc-json-round-trip.vue",
       "tools/code-card/components/CardBar.vue",
       "tools/code-card/components/CardBars.vue",
+      "tools/code-card/components/CardBatchCompile.vue",
       "tools/code-card/components/CardCode.vue",
       "tools/code-card/components/CardDiff.vue",
       "tools/code-card/components/CardFact.vue",
@@ -149,7 +153,7 @@
       "tools/code-card/src/render.ts"
     ],
     "outputs": {
-      "container/website/app/assets/css/code-card.css": "cacab4a02352ff4f3575030cae7267681a9f9e28a2f00b6fd74e4d6dda30b741",
+      "container/website/app/assets/css/code-card.css": "52ef5228b322fcf47c69b8b54de08becc6c528e5a1f078a040473aa636ed5979",
       "container/website/app/data/cards/rpc-json-round-trip.html": "735dd7e62e6cb97cebd4238e72824441a2b6decb9c47801b560956fc16f3c5bf",
       "container/website/app/utils/codeCardPlayer.ts": "db3f82fc47d3baad9f33dc386a742ab27ba22fb23d561275851df9d1612430d3",
       "container/website/public/fonts/code-card/OFL-Inter.txt": "338c094fbd0de0c0817e6ed12bdca4ed8e1dbc7f4ee19102cda181c0648eff93",

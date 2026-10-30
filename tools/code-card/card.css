@@ -461,7 +461,8 @@
   color: var(--text-muted);
   font-size: 20px;
 }
-.code-card .cc-step span {
+.code-card .cc-step span,
+.code-card .cc-bc-box span {
   color: var(--text-muted);
   font-size: 14px;
   font-weight: 500;
@@ -491,7 +492,8 @@
   transform-origin: left center;
 }
 .code-card .cc-lane:not(.cc-stopped) .cc-lane-line,
-.code-card .cc-gate-pass {
+.code-card .cc-gate-pass,
+.code-card .cc-bc-line {
   background: linear-gradient(90deg, var(--accent), var(--accent-light));
   box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 60%, transparent);
 }
@@ -501,7 +503,8 @@
   inset: 0 0 0 70px;
   opacity: 0;
 }
-.code-card .cc-packet b {
+.code-card .cc-packet b,
+.code-card .cc-bc-packet b {
   position: absolute;
   right: 0;
   top: 50%;
@@ -513,7 +516,8 @@
   color: var(--title);
   background: #ffffff30;
 }
-.code-card .cc-lane:not(.cc-stopped) .cc-packet b {
+.code-card .cc-lane:not(.cc-stopped) .cc-packet b,
+.code-card .cc-bc-packet b {
   color: var(--bg-to);
   background: var(--accent-light);
   box-shadow: 0 0 16px var(--accent);
@@ -596,6 +600,197 @@
   opacity: 0.55;
 }
 
+/* batch compile: two scenes of a CardLoop, the build copying the batch into the server's table, then a call
+   sending only its id */
+.code-card .cc-bc {
+  --cc-wire-w: 170px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.code-card .cc-bc-steps {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-size: 18px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+.code-card .cc-bc-steps b {
+  padding: 5px 12px;
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px #ffffff1c;
+}
+.code-card .cc-bc-steps b.cc-bc-now {
+  color: var(--bg-to);
+  background: var(--accent-light);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+.code-card .cc-bc-steps i {
+  font-style: normal;
+}
+.code-card .cc-bc-steps span {
+  margin-left: 8px;
+  font-size: 16px;
+  font-weight: 500;
+}
+.code-card .cc-bc-cols,
+.code-card .cc-bc-row {
+  display: grid;
+  grid-template-columns: 1.2fr var(--cc-wire-w) 1fr;
+  column-gap: 16px;
+}
+.code-card .cc-bc-cols {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+.code-card .cc-bc-cols span + span {
+  grid-column: 3;
+}
+.code-card .cc-bc-row {
+  align-items: center;
+}
+.code-card .cc-bc-side {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.code-card .cc-bc-box {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #ffffff0a;
+  box-shadow: 0 0 0 1px #ffffff1c;
+}
+.code-card .cc-bc-box code {
+  color: var(--title);
+  font: 500 15px 'Card Mono', monospace;
+  white-space: nowrap;
+  font-variant-ligatures: none;
+}
+.code-card .cc-bc-code {
+  padding-bottom: 18px;
+}
+.code-card .cc-bc-id,
+.code-card .cc-bc-entry b {
+  padding: 3px 9px;
+  border-radius: 6px;
+  font: 700 14px 'Card Mono', monospace;
+  white-space: nowrap;
+  color: var(--bg-to);
+  background: var(--accent-light);
+}
+.code-card .cc-bc-id {
+  position: absolute;
+  right: 12px;
+  bottom: -13px;
+  box-shadow: 0 0 16px var(--accent);
+}
+.code-card .cc-bc-table {
+  gap: 10px;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.code-card .cc-bc-table .cc-bc-head {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.code-card .cc-bc-entry {
+  display: grid;
+  grid-template-columns: 76px auto;
+  align-items: center;
+  column-gap: 12px;
+}
+.code-card .cc-bc-entry b {
+  justify-self: start;
+}
+.code-card .cc-bc-ok {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent),
+    0 0 30px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.code-card .cc-bc-ok code {
+  color: var(--accent-light);
+  font-weight: 700;
+}
+.code-card .cc-bc-ok code b {
+  margin-right: 8px;
+}
+.code-card .cc-bc-wire {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.code-card .cc-bc-say {
+  color: var(--text-footer);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.code-card .cc-bc-track {
+  position: relative;
+  align-self: stretch;
+  height: 2px;
+}
+.code-card .cc-bc-track + .cc-bc-track {
+  margin-top: 26px;
+}
+.code-card .cc-bc-line {
+  position: absolute;
+  inset: 0;
+}
+.code-card .cc-bc-line::after {
+  content: '';
+  position: absolute;
+  right: -2px;
+  top: -5px;
+  border: 6px solid transparent;
+  border-right: 0;
+  border-left: 9px solid var(--accent-light);
+}
+.code-card .cc-bc-back .cc-bc-line {
+  background: linear-gradient(270deg, var(--accent), var(--accent-light));
+}
+.code-card .cc-bc-back .cc-bc-line::after {
+  right: auto;
+  left: -2px;
+  border-left: 0;
+  border-right: 9px solid var(--accent-light);
+}
+.code-card .cc-bc-packet {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+.code-card .cc-bc-back .cc-bc-packet b {
+  right: auto;
+  left: 0;
+}
+/* In a CardLoop: the line grows from the sender, the packet rides it from --cc-at to --cc-until, then hides. */
+.code-card .cc-loop .cc-bc-back [data-cc-at='grow'] {
+  transform-origin: right center;
+}
+.code-card .cc-loop .cc-bc [data-cc-at='travel'] {
+  opacity: clamp(0, min(calc(var(--cc-progress) * 20), calc((1 - var(--cc-progress)) * 20)), 1);
+  transform: translateX(calc((var(--cc-progress) - 1) * 100%));
+}
+.code-card .cc-loop .cc-bc-back [data-cc-at='travel'] {
+  transform: translateX(calc((1 - var(--cc-progress)) * 100%));
+}
+
 /* mini: a plain panel for a ~350px slot, in the site's panel colours when it has them */
 .code-card.cc-kind-mini {
   --mini-bg: var(--mion-panel-bg, var(--code-bg));
@@ -645,16 +840,16 @@
   --cc-loop-local: calc(var(--cc-loop-t) * var(--cc-loop-n) - var(--cc-loop-i));
   opacity: clamp(0, min(calc(var(--cc-loop-local) * 14), calc((1 - var(--cc-loop-local)) * 14)), 1);
 }
-/* A beat inside an item: in at --cc-at of its turn; `grow` scales 0 -> 1 from --cc-at to --cc-until. */
+/* A beat inside an item: in at --cc-at of its turn; --cc-progress runs 0 -> 1 from --cc-at to --cc-until. */
 .code-card .cc-loop [data-cc-at] {
   --cc-on: clamp(0, calc((var(--cc-loop-local) - var(--cc-at)) * 12), 1);
+  --cc-progress: clamp(0, calc((var(--cc-loop-local) - var(--cc-at)) / (var(--cc-until) - var(--cc-at))), 1);
   opacity: var(--cc-on);
   transform: translateY(calc((1 - var(--cc-on)) * 4px));
 }
 .code-card .cc-loop [data-cc-at='grow'] {
-  --cc-grow: clamp(0, calc((var(--cc-loop-local) - var(--cc-at)) / (var(--cc-until) - var(--cc-at))), 1);
   opacity: 1;
-  transform: scaleX(var(--cc-grow));
+  transform: scaleX(var(--cc-progress));
   transform-origin: left center;
 }
 .code-card.cc-armed .cc-loop {
@@ -715,7 +910,7 @@
   background: color-mix(in srgb, var(--mini-accent, var(--accent-light)) 45%, transparent);
 }
 .code-card .cc-loop .cc-rt-track [data-cc-at='grow'] {
-  transform: scaleY(var(--cc-grow));
+  transform: scaleY(var(--cc-progress));
   transform-origin: top center;
 }
 .code-card .cc-rt-dot {
@@ -810,7 +1005,7 @@
   background: color-mix(in srgb, var(--mini-muted, var(--text-muted)) 40%, transparent);
 }
 .code-card .cc-loop .cc-vc-track [data-cc-at='grow'] {
-  transform: scaleY(var(--cc-grow));
+  transform: scaleY(var(--cc-progress));
   transform-origin: top center;
 }
 .code-card .cc-vc-dot {
@@ -936,6 +1131,30 @@
   }
   .code-card .cc-gate-pass {
     right: 0;
+  }
+  /* Batch compile: one column, the wire shrinks to its words with a down arrow. */
+  .code-card .cc-bc-row {
+    grid-template-columns: 1fr;
+    row-gap: 12px;
+  }
+  .code-card .cc-bc-cols,
+  .code-card .cc-bc-steps span,
+  .code-card .cc-bc-track {
+    display: none;
+  }
+  /* Run time reads top to bottom: request, server, then the answer back. */
+  .code-card .cc-bc-side,
+  .code-card .cc-bc-wire {
+    display: contents;
+  }
+  .code-card .cc-bc-say::before {
+    content: '↓ ';
+  }
+  .code-card .cc-bc-wire .cc-bc-say:last-child {
+    order: 1;
+  }
+  .code-card .cc-bc-side:first-child .cc-bc-box:last-child {
+    order: 2;
   }
 }
 
