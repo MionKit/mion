@@ -270,3 +270,5 @@ Built as planned, with these differences found while building:
   Input and Result cards (generate buttons in the Input header, note above the editor, `Run validate`,
   `false ✗` after Generate invalid data); the grid inert while the tour is open and not after; dark + light,
   1500px and 800px wide.
+  The screenshots could not be attached to the PR (this environment has no image upload to GitHub); they
+  were shared with the requester in the build session, and the PR lists what each check covered.
