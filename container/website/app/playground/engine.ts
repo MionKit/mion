@@ -117,10 +117,7 @@ export async function versions(options?: ResolverOptions): Promise<ResolverVersi
 
 const EXPORTED_BINDING = /^\s*export\s+const\s+(__rt_[\w$]+)/gm;
 
-// linkBindings links the emitted entry modules into one scope and returns every
-// `__rt_*` binding they export. Each module is `export const __rt_X = [...]`
-// possibly preceded by `import { __rt_dep } …`; deps ride lazy thunks (slot 1) so
-// concatenating every const into one scope is enough, no TDZ on the lazy references.
+// Deps ride lazy thunks (tuple slot 1), so one scope holding every module's consts hits no TDZ.
 function linkBindings(sources: readonly string[]): Record<string, unknown> {
   const parts: string[] = [];
   const names: string[] = [];
@@ -343,18 +340,15 @@ export async function generatedCache(
   return Object.entries(entryModules).map(([basename, code]) => ({name: `rtmod:/${basename}.js`, code: code.trim()}));
 }
 
-// A generated factory: the `function g_<key>(utl){…}` that builds and returns the live function.
+// The emitted `function g_<key>(utl){…}` that builds and returns the live function.
 export interface GeneratedFactory {
   file: string; // the cache module it lives in, e.g. `rtmod:/fns/jdCL.js`
   name: string; // e.g. `g_jdCL_Xk7`
   code: string;
 }
 
-// generatedFactories picks the factories out of the generated cache modules, in emit order.
-// Every type-fn emitter names its factory `g_<entryKey>` (ts-go-runtypes cachegen/typefunctions);
-// pure fns are anonymous and dep thunks are arrows, so the prefix is enough. The resolver emits in
-// `functions` mode, so the live factory sits in the tuple and toString() is its emitted text.
-// Factories are never called. A data-only bundle (getRunType) has none.
+// Only type-fn factories are named `g_…` (ts-go-runtypes cachegen/typefunctions): pure fns are anonymous.
+// Never called: `functions` mode makes toString() the emitted text. getRunType's data bundle has none.
 export function generatedFactories(modules: readonly CacheModule[]): GeneratedFactory[] {
   if (modules.length === 0) return [];
   const bindings = linkBindings(modules.map((module) => module.code));

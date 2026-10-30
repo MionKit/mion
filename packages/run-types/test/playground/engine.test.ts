@@ -291,15 +291,12 @@ const MyType = RT.object({
     // A single function type = one named cache module.
     expect(mods).toHaveLength(1);
     expect(mods[0].name).toMatch(/^rtmod:\/.+\.js$/);
-    // The WASM resolver runs EmitFunctions (cmd/mion-wasm/main.go), so the
-    // factory rides as a real `function g_…(utl){…}` in the tuple, not an escaped
-    // code string - clearer in the "Generated RunType … code" view.
+    // The WASM resolver runs EmitFunctions (cmd/mion-wasm/main.go): the factory is a real function, not a code string.
     expect(mods[0].code).toMatch(/export const __rt_/);
     expect(mods[0].code).toMatch(/function g_[A-Za-z0-9_]+\(utl\)/);
   });
 
-  // The "Function" view of the generated-code card: only the `g_…` factories, each the exact emitted
-  // text of the module it lives in, and labeled with that module's file name.
+  // Backs the "Function" view of the generated-code card.
   it('generatedFactories picks the single validate factory out of its module', async () => {
     const mods = await generatedCache('createValidateFn', TYPE);
     const factories = generatedFactories(mods);
@@ -343,7 +340,7 @@ const MyType = RT.object({
     // ~40 resolver runs: past the project's 30s default under a full parallel run.
   }, 120_000);
 
-  // The function view's empty state: a no-op entry ships a file but no factory.
+  // Backs the function view's empty state.
   it('generatedFactories is empty for a no-op entry (mutate encoder on a plain JSON type)', async () => {
     const op = operationByKey('jsonEncoderMutate');
     const mods = await generatedCache(op.factory, TYPE, undefined, 'type', op.options);

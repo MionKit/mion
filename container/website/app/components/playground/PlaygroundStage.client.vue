@@ -1,21 +1,6 @@
 <script setup lang="ts">
-// PlaygroundStage - the interactive playground UI (client-only: it lazy-loads
-// Monaco + the resolver WASM, both browser-only). A Vue port of the former
-// <runtypes-playground> web component. Three columns of numbered cards:
-//   1. Source     - the TS-type / Builder mode switch + example presets, then
-//                   the type (or builder) editor with its read-only import
-//                   header + call footer.
-//   2. Transformed - what the build plugin injects into that file.
-//   3. Generated  - the code RunTypes generates for the selected function + type,
-//                   as the bare factory function or the full module file.
-//   4. Function   - the build-function picker and what it does.
-//   5. Input      - a JS-expression input pane with Generate valid / invalid data.
-//   6. Result     - the Run button and the result.
-// A first-visit tour (PlaygroundTour) walks through each card.
-//
-// The engine (../../playground) is framework-agnostic; this component owns the
-// Monaco wiring, the debounced codegen, and the highlighted output. Colors follow
-// the site's design tokens (light + dark); Monaco's own theme tracks the color mode.
+// PlaygroundStage - client-only: it lazy-loads Monaco + the resolver WASM, both browser-only. The engine
+// (../../playground) stays framework-agnostic; this component owns the Monaco wiring, debounced codegen and output.
 
 import {
   run,
@@ -101,7 +86,7 @@ const codeviewHtml = ref('<div class="rtpg-placeholder">resolving…</div>');
 const factoryviewHtml = ref('');
 const moduleCount = ref(0);
 const factoryCount = ref(0);
-// Function view (the bare `g_…` factory) or the full module file; remembered in the browser.
+// `'function'` shows only the `g_…` factories, `'file'` the full modules.
 const codeView = ref<CodeView>('function');
 const tourOpen = ref(false);
 const rootEl = ref<HTMLElement>();
@@ -618,8 +603,7 @@ function scheduleCodegen(delay: number): void {
   codeTimer = setTimeout(() => void updateSelectedCode(), delay);
 }
 
-// `head` is already-escaped HTML: the file name always heads a block, so the function view still says
-// which module the code lives in.
+// `head` is already-escaped HTML; the file name heads every block so the function view still names its module.
 async function renderCodeBlocks(blocks: {head: string; code: string}[]): Promise<string> {
   const rendered = await Promise.all(
     blocks.map(
@@ -643,7 +627,7 @@ async function updateSelectedCode(): Promise<void> {
     const html = cacheModules.length
       ? await renderCodeBlocks(cacheModules.map((module) => ({head: escapeHtml(module.name), code: module.code})))
       : '<div class="rtpg-card-note">no code generated for this type</div>';
-    // A function that needs no code for this type (a no-op entry, e.g. the mutate encoder on plain JSON) has none.
+    // A no-op entry (e.g. the mutate encoder on plain JSON) ships no factory.
     const factoryHtml = factories.length
       ? await renderCodeBlocks(
           factories.map((factory) => ({
@@ -654,8 +638,7 @@ async function updateSelectedCode(): Promise<void> {
       : `<div class="rtpg-card-note">No generated function: <code>${escapeHtml(op.varName)}</code> needs no code for this type. The full file shows its no-op entry.</div>`;
     const transformed = await transformedSource(op.factory, op.varName, userCode, opts, CALL_FORM, op.options);
     const transformedHtml = `<pre class="rtpg-code">${await highlight(transformed, 'typescript')}</pre>`;
-    // Drop the result if a newer regeneration started while we awaited - it owns the
-    // busy state and will clear it when it finishes.
+    // A newer regeneration started meanwhile: it owns the busy state and clears it when done.
     if (seq !== codeSeq) return;
     moduleCount.value = cacheModules.length;
     factoryCount.value = factories.length;
@@ -1119,7 +1102,7 @@ onBeforeUnmount(() => {
   padding: 12px;
   min-height: 460px;
 }
-/* Column 1 stacks two cards (Source over Transformed) with the grid's own gap. */
+/* Stacks cards in one grid column; gap matches .rtpg-layout's. */
 .rt-playground .rtpg-col {
   display: flex;
   flex-direction: column;
@@ -1136,7 +1119,6 @@ onBeforeUnmount(() => {
     max-height: 520px;
   }
 }
-/* Every numbered section is a card with the site's one panel look. */
 .rt-playground .rtpg-pane {
   background: var(--mion-panel-bg);
   border: 1px solid var(--ui-border);
@@ -1434,7 +1416,6 @@ onBeforeUnmount(() => {
   gap: 6px;
   margin-left: auto;
 }
-/* Random valid / invalid: filled, tinted buttons; --rtpg-btn-tone picks the colour. */
 .rt-playground .rtpg-btn {
   display: inline-flex;
   align-items: center;

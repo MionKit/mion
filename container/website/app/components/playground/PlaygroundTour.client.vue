@@ -1,7 +1,6 @@
 <script setup lang="ts">
-// PlaygroundTour - the first-visit walkthrough: dims the page, cuts a highlighted hole around one
-// `data-tour` section of the playground, and explains it in a small card. Teleported to <body> so the
-// dimmed layer covers the site header too; the stage owns when it opens and what gets stored.
+// PlaygroundTour - teleported to <body> so the dim layer covers the site header too; the stage decides when
+// it opens and what gets stored.
 import {placeCard, type CardPosition, type TourStep} from '../../playground/tour.ts';
 
 const props = defineProps<{steps: readonly TourStep[]; open: boolean; root?: HTMLElement}>();
@@ -145,8 +144,7 @@ onBeforeUnmount(detach);
   </Teleport>
 </template>
 
-<!-- Non-scoped like the stage's styles, nested under .rtpg-tour. Teleported outside .rt-playground, so
-     the colour tokens it needs are re-derived here from the site tokens. -->
+<!-- Non-scoped like the stage's. Outside .rt-playground, so site tokens, not the stage's --rtpg-* aliases. -->
 <style>
 .rtpg-tour {
   position: fixed;
