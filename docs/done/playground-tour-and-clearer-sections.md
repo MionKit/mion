@@ -241,9 +241,9 @@ Built as planned, with these differences found while building:
   toolbar is gone and the Tour button sits in the Source header. The page's layout rule gains the toolbar's
   height (`calc(100vh - 100px)`).
 - **Function column split into three cards** (asked for during the build): 4 Pick a Function (picker +
-  what it does), 5 Input (the value, Generate valid data / Generate invalid data, and a plain note that the
-  value comes from RunTypes mock data, linking the Mocking guide, instead of the `createMockDataFn<MyType>()`
-  call), 6 Result (Run button + result). The Input card hides for getRunType and Result then takes number 5.
+  what it does), 5 Input (Generate valid data / Generate invalid data in its header, then a plain note on top that
+  the value can be typed or generated with RunTypes mock data, linking the Mocking guide, instead of the
+  `createMockDataFn<MyType>()` call, then the editor), 6 Result (Run button + result). The Input card hides for getRunType and Result then takes number 5.
   The Run button names the picked function (`Run validate`, `Run toJson`, …). Tour titles drop their numbers,
   since the Result number moves.
 - **Review follow-ups:**

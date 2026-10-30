@@ -996,16 +996,13 @@ onBeforeUnmount(() => {
         </section>
 
         <section v-show="needsInput" class="rtpg-pane rtpg-inputpane" data-tour="input">
-          <div class="rtpg-head">
+          <div class="rtpg-head rtpg-head-wrap">
             <span class="rtpg-head-title">
               <button type="button" class="rtpg-step" :aria-label="`Step 5: ${STEP_TIPS.input}`">
                 5<span class="rtpg-tip" role="tooltip">{{ STEP_TIPS.input }}</span>
               </button>
               <h2>Input</h2>
             </span>
-            <span class="rtpg-hint">any JS value</span>
-          </div>
-          <div class="rtpg-controls">
             <div class="rtpg-btn-row">
               <button
                 type="button"
@@ -1038,11 +1035,13 @@ onBeforeUnmount(() => {
                 {{ genInvalidBusy ? 'generating…' : 'Generate invalid data' }}
               </button>
             </div>
-            <div ref="inputEditorEl" class="rtpg-input-editor" />
+          </div>
+          <div class="rtpg-controls">
             <div class="rtpg-mock-badge">
-              The generate buttons build a random value straight from your type, with RunTypes
-              <NuxtLink to="/runtypes/guide/mocking" target="_blank">mock data</NuxtLink>.
+              Type any JS value, or generate one: the buttons build a random value straight from your type, with
+              RunTypes <NuxtLink to="/runtypes/guide/mocking" target="_blank">mock data</NuxtLink>.
             </div>
+            <div ref="inputEditorEl" class="rtpg-input-editor" />
           </div>
         </section>
 
@@ -1440,7 +1439,8 @@ onBeforeUnmount(() => {
 .rt-playground .rtpg-btn-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
+  margin-left: auto;
 }
 /* Random valid / invalid: filled, tinted buttons; --rtpg-btn-tone picks the colour. */
 .rt-playground .rtpg-btn {
@@ -1451,16 +1451,16 @@ onBeforeUnmount(() => {
   border: 1px solid var(--rtpg-btn-tone);
   color: var(--rtpg-btn-tone);
   border-radius: var(--ui-radius);
-  padding: 5px 12px;
-  font-size: 12.5px;
+  padding: 3px 9px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.12s, color 0.12s;
 }
 .rt-playground .rtpg-btn svg {
-  width: 15px;
-  height: 15px;
+  width: 13px;
+  height: 13px;
   display: block;
 }
 .rt-playground .rtpg-btn-valid {
@@ -1706,7 +1706,6 @@ onBeforeUnmount(() => {
   opacity: 1;
 }
 .rt-playground .rtpg-mock-badge {
-  margin-top: 6px;
   font-size: 11px;
   line-height: 1.4;
   color: var(--rtpg-muted);
