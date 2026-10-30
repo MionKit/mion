@@ -116,7 +116,8 @@ export interface RTValidationError<Format extends TypeFormatError = TypeFormatEr
  *  compiling. `Format` is the typed format detail the returned errors carry: the factory hands back
  *  `GetValidationErrorsFn<FormatErrorsOf<T>>`, and the bare `GetValidationErrorsFn` is the wide
  *  shape every narrowed one assigns to. (Parameterized over the error rather than over `T` so the
- *  parameter stays measurably covariant.) **/
+ *  parameter stays measurably covariant.) Called without `errors`, it asks the validator first, so an
+ *  accepted value costs one validate call; passing `errors` always runs the full error walk. **/
 export type GetValidationErrorsFn<Format extends TypeFormatError = TypeFormatError> = (
   value: unknown,
   path?: RTValidationErrorPathSegment[],

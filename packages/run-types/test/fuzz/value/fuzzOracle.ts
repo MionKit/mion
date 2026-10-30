@@ -31,17 +31,23 @@ import {containsKeyedShape, pathKey, UNKNOWN_KEY_PREFIX, wireKeyAdmitted, type P
  *  the family functions to exercise. Serialization fns are optional so a
  *  target can fuzz validation only. The test file builds these so the Vite
  *  plugin can rewrite the `createX` call sites. **/
+/** `never[]` slots so any `GetValidationErrorsFn` assigns; the oracle only ever passes fresh `[]`. **/
+type ErrorsFn = (value: unknown, path?: never[], errors?: never[]) => unknown[];
+
+/** Passing `errors` skips the validator shortcut: the agreement checks must compare two independent walks. **/
+const fullWalk = (getErrors: ErrorsFn, value: unknown): unknown[] => getErrors(value, [], []);
+
 export interface FuzzTarget {
   title: string;
   /** Runtype tree, used to generate mocks and to find corruption sites. **/
   schema: RunType;
   mock: () => unknown;
   validate: (value: unknown) => boolean;
-  getValidationErrors: (value: unknown) => unknown[];
+  getValidationErrors: ErrorsFn;
   /** O18 holds it against `validate` plus `clone`. **/
   validateStrict?: (value: unknown) => boolean;
   /** O21: a `validateStrict` rejection never comes with an empty list; its `'never'` entries feed O22–O24. **/
-  errorsStrict?: (value: unknown) => unknown[];
+  errorsStrict?: ErrorsFn;
   /** Unions only: the fused form follows the matched branch while the strip may keep another member's key.
    *  O18 then checks only that the fused form is never LOOSER. **/
   divergesFromComposition?: true;
@@ -205,7 +211,7 @@ export function checkErrorsAgree(target: FuzzTarget, value: unknown, ctx: CheckC
     return null; // O3 already reports the throw; don't double-count.
   }
   try {
-    errors = target.getValidationErrors(value);
+    errors = fullWalk(target.getValidationErrors, value);
   } catch (err) {
     return violation('O4', target, ctx, `getValidationErrors threw while validate returned ${ok}: ${errMsg(err)}`, value);
   }
@@ -297,7 +303,7 @@ export function checkStrictSelfAgree(target: FuzzTarget, value: unknown, ctx: Ch
   }
   let report: unknown[];
   try {
-    report = errorsStrict(value);
+    report = fullWalk(errorsStrict, value);
   } catch (err) {
     return violation('O21', target, ctx, `checkUnknowns error report threw: ${errMsg(err)}`, value);
   }

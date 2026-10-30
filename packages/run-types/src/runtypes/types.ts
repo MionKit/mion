@@ -159,9 +159,8 @@ export interface CompiledFnData {
   /** Slot → the JS IDENTIFIER it takes in the emitted signature (`{vλl: 'v', pλth: 'pth', εrr: 'er'}` →
    *  `function verr_x(v, pth, er)`). */
   readonly args: CompiledFnArgs;
-  /** Slot → that parameter's DEFAULT EXPRESSION as JS source, `''` when it has none: `{vλl: '', pλth: '[]',
-   *  εrr: '[]'}` is what makes the emitted `function verr_x(v, pth=[], er=[])`. Text, not values — see the
-   *  CompiledFnArgs contract above. */
+  /** Slot → that parameter's DEFAULT EXPRESSION as JS source, `''` when it has none: `pλth: '[]'` would emit
+   *  `function verr_x(v, pth=[], er)`. Text, not values — see the CompiledFnArgs contract above. */
   readonly defaultParamValues: CompiledFnArgs;
   /** True for collapsed-to-identity compilations. */
   readonly isNoop?: boolean;

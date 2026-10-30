@@ -97,7 +97,7 @@ describe('CompiledFnData — the public wire form round-trips', () => {
 
   // Both slots are spliced back into a signature by a consumer rebuilding the
   // function via `new Function(...)`, so the text must actually compose:
-  // `function f(v, pth=[], er=[])`. An empty default means the parameter takes
+  // `function f(v, pth=[])`. An empty default means the parameter takes
   // none at all.
   it('composes a valid function signature, which is what the text is FOR', () => {
     for (const entry of registeredEntries()) {

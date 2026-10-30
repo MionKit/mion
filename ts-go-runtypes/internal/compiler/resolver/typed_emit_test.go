@@ -136,7 +136,7 @@ func TestTypedEmit_FactoryCarriesFamilySignatures(t *testing.T) {
 	for _, want := range []string{
 		"(utl: RTUtils): (v: unknown) => v is T_",
 		"(v: unknown, pth?: RTValidationErrorPathSegment[], er?: RTValidationError[]) => RTValidationError[]",
-		"(v: any,pth: RTValidationErrorPathSegment[]=[],er: RTValidationError[]=[]): RTValidationError[]",
+		"(v: any,pth?: RTValidationErrorPathSegment[],er?: RTValidationError[]): RTValidationError[]",
 		"(utl: RTUtils): (v: T_",
 		"(utl: RTUtils): (s: string) => T_",
 		"utl.getRT<(v: any, ...rest: any[]) => v is T_",

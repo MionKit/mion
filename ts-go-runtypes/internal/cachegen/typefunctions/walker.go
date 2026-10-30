@@ -500,8 +500,20 @@ func (w *Walker) Compile() (innerFnDecl string, isNoop bool, isUnsupported bool)
 		w.emitCircularGuard()
 		noop = false
 	}
+	// After the guard so the prologue lands ahead of it: the guard pushes into `er`. No shortcut under the guard, the plain
+	// validator it would call recurses forever on a cycle.
+	if prologuer, ok := w.Emitter.(ArgsPrologueEmitter); ok {
+		ctx := w.getEmitContext(w.Vλl)
+		w.Code = prologuer.EmitArgsPrologue(ctx, w.resolveRef(w.RootType), !noop && !w.RejectCircular) + w.Code
+		w.putEmitContext(ctx)
+	}
 	innerFnDecl = fmt.Sprintf("function %s(%s)%s{%s}", w.FnName, w.argsList(true), w.innerResultAnn(), w.Code)
 	return innerFnDecl, noop, false
+}
+
+// ArgsPrologueEmitter opens the root body for a family whose optional args take no default.
+type ArgsPrologueEmitter interface {
+	EmitArgsPrologue(ctx *EmitContext, root *reflection.RunType, shortcut bool) string
 }
 
 // CircularGuardReactor emits the cycle guard prepended to walker CircularGuarded bodies (validate / validationErrors).
@@ -726,6 +738,9 @@ func (w *Walker) argsList(includeDefaults bool) string {
 	parts := make([]string, 0, len(args))
 	for index, arg := range args {
 		name := arg.Name
+		if arg.Optional {
+			name += w.tsAnn("?")
+		}
 		if argType := innerArgType(w.FamilyTag, index); argType != "" {
 			name += w.tsAnn(": " + argType)
 		}

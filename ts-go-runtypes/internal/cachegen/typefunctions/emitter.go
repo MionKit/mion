@@ -12,10 +12,12 @@ import (
 
 // ArgSpec describes one parameter of the emitted rt function: Key is the conceptual slot ("vλl", "pλth",
 // "εrr"), Name the JS identifier in the emitted signature, Default the JS-source default expression.
+// Optional marks a parameter the body fills itself (see ArgsPrologueEmitter): typed emit spells it `name?`.
 type ArgSpec struct {
-	Key     string
-	Name    string
-	Default string
+	Key      string
+	Name     string
+	Default  string
+	Optional bool
 }
 
 // Emitter is the per-fn implementation surface, one per rt function id. All fn-specific logic lives behind

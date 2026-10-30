@@ -16,13 +16,54 @@ import (
 // Mirrors ValidateEmitter in validate.go; each arm of the kind switch mirrors the reference's `emitTypeErrors` for that node.
 type ValidationErrorsEmitter struct{}
 
-// Args returns the three parameters: v (current value), pth (path accumulator, default []), er (error accumulator, default []).
+// Args returns the three parameters: v (current value), pth (path accumulator), er (error accumulator).
+// pth and er take no default: EmitArgsPrologue fills them, and must see whether the caller passed er.
 func (ValidationErrorsEmitter) Args() []ArgSpec {
 	return []ArgSpec{
 		{Key: "vλl", Name: "v", Default: ""},
-		{Key: "pλth", Name: "pth", Default: "[]"},
-		{Key: "εrr", Name: "er", Default: "[]"},
+		{Key: "pλth", Name: "pth", Optional: true},
+		{Key: "εrr", Name: "er", Optional: true},
 	}
+}
+
+// EmitArgsPrologue fills the omitted pth / er. With shortcut, a call without `er` asks the validator first and returns an
+// empty list for an accepted value, so only a rejected value pays for building errors (typia's validate does the same).
+// Every nested call passes `er`, so the shortcut runs once per top-level call, and a caller passing its own `er` gets the
+// full walk: the O4 fuzz oracle relies on that to keep comparing two independent walks.
+func (ValidationErrorsEmitter) EmitArgsPrologue(ctx *EmitContext, root *reflection.RunType, shortcut bool) string {
+	vArg, pthArg, errArg := ctx.ArgName("vλl"), ctx.ArgName("pλth"), ctx.ArgName("εrr")
+	fillPth := "if(" + pthArg + "===undefined)" + pthArg + "=[];"
+	if !shortcut || root == nil || graphHoldsNonData(root, ctx.walker.RefTable) {
+		return "if(" + errArg + "===undefined)" + errArg + "=[];" + fillPth
+	}
+	validateHash := ctx.CrossFamilyVariantHash(errorFamilyValidatorOp(ctx)) + "_" + root.ID
+	ctx.registerRTLookup(validateHash)
+	return "if(" + errArg + "===undefined){" + errArg + "=[];if(" + validateHash + ".fn(" + vArg + "))return " + errArg + ";}" + fillPth
+}
+
+// graphHoldsNonData keeps the shortcut off a type with a non-data node: the validator would report and throw its own code.
+func graphHoldsNonData(root *reflection.RunType, refTable map[string]*reflection.RunType) bool {
+	found := false
+	reflection.WalkGraph(root, refTable, func(node *reflection.RunType) reflection.WalkAction {
+		if reflection.NonDataOf(node, func(ref *reflection.RunType) *reflection.RunType { return reflection.ResolveRef(ref, refTable) }) != reflection.Data {
+			found = true
+			return reflection.WalkStop
+		}
+		return reflection.WalkContinue
+	})
+	return found
+}
+
+// errorFamilyValidatorOp names the validator that accepts exactly what this error family reports nothing for: the plain
+// one accepts an undeclared key the strict and union-keys families reject.
+func errorFamilyValidatorOp(ctx *EmitContext) string {
+	switch {
+	case ctx.ChecksUnknownKeys():
+		return "validateStrict"
+	case ctx.ChecksUnionMemberKeys():
+		return "validateUnionKeys"
+	}
+	return "validate"
 }
 
 // EmitCircularGuard renders the inline cycle guard: a detected cycle records a `{expected:'circular'}` entry at the current
@@ -849,17 +890,8 @@ func emitUnionValidationErrors(rt *reflection.RunType, ctx *EmitContext, v strin
 	if members := dataOnlyUnionMembers(rt, ctx); len(members) > 0 && isStrippedUnionMember(ctx.ResolveRef(members[0]), ctx) {
 		return ctx.CompileChild(members[0], CodeS)
 	}
-	// Under checkUnknowns the plain validator accepts an undeclared key, so the strict error function must ask validateStrict.
 	// CrossFamilyVariantHash keys it under the walker's variant, so a strict `numberMode` site reaches the matching entry.
-	checkOp := "validate"
-	switch {
-	case ctx.ChecksUnknownKeys():
-		checkOp = "validateStrict"
-	case ctx.ChecksUnionMemberKeys():
-		// Same reason as the strict case: the plain validator accepts a value this family's own validator rejects.
-		checkOp = "validateUnionKeys"
-	}
-	validateHash := ctx.CrossFamilyVariantHash(checkOp) + "_" + rt.ID
+	validateHash := ctx.CrossFamilyVariantHash(errorFamilyValidatorOp(ctx)) + "_" + rt.ID
 	ctx.registerRTLookup(validateHash)
 	return RTCode{
 		Code: "if (!" + validateHash + ".fn(" + v + ")) " + callRTErr(ctx, "union", ""),
