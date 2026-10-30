@@ -54,6 +54,7 @@ so treat these as a hint to confirm. `bench-refs.mjs --report`, 3 base rounds, 1
 | TEMPLATE_LITERAL | 0.82 / 1.15 / 1.41 | 0.85 / 0.86 / 0.95 | 0.69 / 0.93 / 1.04 |
 
 The invalid-path losses of `shortcutAllRoots` on DATETIME and STRING_FORMAT are what limited the shortcut to container
-roots. `final`'s valid-path drops on DATETIME and TEMPLATE_LITERAL are in groups where its code does not change the
-valid path, so they read as noise, and are the first thing to confirm on a quiet machine. CIRCULAR's invalid path
-stays slower (the validator runs, then the full walk), still well ahead of typia there.
+roots. `final`'s valid-path drops on DATETIME and TEMPLATE_LITERAL sit in groups where its only change is moving the
+`pth` / `er` defaults into the body (the isolated `date` case shows no cost), so they read as noise. They are the first
+thing to confirm on a quiet machine. CIRCULAR's invalid path stays slower (the validator runs, then the full walk),
+still well ahead of typia there.
