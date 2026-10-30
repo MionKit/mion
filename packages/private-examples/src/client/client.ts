@@ -9,7 +9,7 @@ const {routes, middlewares} = initClient<MyApi>({
   baseURL: 'http://localhost:3000',
 });
 
-// ========== Middleware Hooks with Typed Success Return and Error Handling ==========
+// ========== Middleware Handlers with Typed Success Return and Error Handling ==========
 // auth takes no params, so there is no onRequest
 // The auth middleware returns SessionInfo on success or FatalError<'not-authorized', NotAuthorizedData>
 middlewares.auth
