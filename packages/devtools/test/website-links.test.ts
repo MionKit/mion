@@ -319,6 +319,38 @@ describe('website-redirects', () => {
     }
     expect(chained).toEqual([]);
   });
+
+  // Pages applies the FIRST matching rule: a specific rule below the splat covering it never fires.
+  it('puts every specific rule above the splat that covers it', () => {
+    const all = rules(join(PUBLIC_DIR, '_redirects'));
+    const shadowed = all.flatMap(({from}, index) =>
+      all
+        .slice(0, index)
+        .filter((rule) => rule.from.endsWith('/*') && from.startsWith(rule.from.slice(0, -1)))
+        .map((rule) => `${from} (shadowed by ${rule.from})`)
+    );
+    expect(shadowed).toEqual([]);
+  });
+
+  it('sends the moved Drizzle ORM pages to live pages', () => {
+    const all = rules(join(PUBLIC_DIR, '_redirects'));
+    const land = (path: string): string | undefined => {
+      for (const {from, to} of all) {
+        if (from.endsWith('/*') && path.startsWith(from.slice(0, -1))) return to.replace(':splat', path.slice(from.length - 1));
+        if (from === path) return to;
+      }
+      return undefined;
+    };
+    const old = [
+      '/rpc/drizzle-orm',
+      '/rpc/drizzle-orm/views',
+      '/rpc/drizzle-orm/indexes-constraints',
+      '/drizzle-orm/views',
+      '/drizzle-orm/indexes-constraints',
+    ];
+    const dead = old.filter((path) => !routes.has(land(path) ?? '')).map((path) => `${path} -> ${land(path)}`);
+    expect(dead).toEqual([]);
+  });
 });
 
 // A CSS-only commit skips the website build on a pull request, so a broken relative @import must fail here.
