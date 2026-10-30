@@ -1,0 +1,201 @@
+// pr-report.mjs — the Markdown report a `bench-report` labelled pull request posts: its validation benchmark numbers
+// next to the live site's, both read from gen-docs output (bench-data/validation{,-formats}/index.json).
+//
+//   node scripts/website/bench-data/pr-report.mjs --pr <bench-data dir> --live <bench-data dir> [--env <env.json>]
+//
+// Both sides ran on the same runner type, yet machines still drift run to run. The competitors' code is the same on
+// both sides (unless the pull request bumps one), so the median of their PR/live speed ratios is the machine drift,
+// and every mion ratio is divided by it. A single case moves ±10% between runs of unchanged code, so the tables
+// compare per-group geometric means; the per-case list only points at where to look.
+
+import fs from 'node:fs';
+import path from 'node:path';
+
+const DATASETS = ['validation', 'validation-formats'];
+const MION = 'mion';
+const METRICS = [
+  {key: 'validate', label: 'Is valid'},
+  {key: 'validationErrors', label: 'Get errors'},
+];
+const PATHS = ['valid', 'invalid'];
+
+/** caseKey → {group, results: {competitor: {validate, validationErrors}}}, from one bench-data dir. */
+export function readBenchData(dir) {
+  const cases = new Map();
+  let meta = null;
+  for (const dataset of DATASETS) {
+    const file = path.join(dir, dataset, 'index.json');
+    if (!fs.existsSync(file)) throw new Error(`pr-report: no ${file}`);
+    const index = JSON.parse(fs.readFileSync(file, 'utf8'));
+    meta ??= index.meta ?? null;
+    for (const section of index.sections) for (const c of section.cases) cases.set(c.key, {group: section.key, results: c.results});
+  }
+  return {cases, meta};
+}
+
+const speed = (entry, competitor, metric, at) => {
+  const m = entry?.results?.[competitor]?.[metric];
+  return m && m.status === 'ok' && m[at] > 0 ? m[at] : null;
+};
+const geomean = (xs) => (xs.length ? Math.exp(xs.reduce((sum, x) => sum + Math.log(x), 0) / xs.length) : null);
+const median = (xs) => {
+  const sorted = [...xs].sort((a, b) => a - b);
+  return sorted.length ? sorted[sorted.length >> 1] : null;
+};
+const fmtRatio = (r) => (r == null ? '-' : r.toFixed(2));
+
+/** The machine drift: median over the other competitors of their geomean PR/live ratio (every metric and path). */
+export function machineDrift(pr, live) {
+  const competitors = new Set();
+  for (const entry of live.cases.values()) for (const name of Object.keys(entry.results ?? {})) if (name !== MION) competitors.add(name);
+  const perCompetitor = [];
+  for (const name of competitors) {
+    const ratios = [];
+    for (const [key, entry] of live.cases)
+      for (const {key: metric} of METRICS)
+        for (const at of PATHS) {
+          const a = speed(pr.cases.get(key), name, metric, at);
+          const b = speed(entry, name, metric, at);
+          if (a && b) ratios.push(a / b);
+        }
+    const g = geomean(ratios);
+    if (g) perCompetitor.push(g);
+  }
+  return median(perCompetitor) ?? 1;
+}
+
+function groupsOf(data) {
+  const groups = new Map();
+  for (const [key, entry] of data.cases) {
+    if (!groups.has(entry.group)) groups.set(entry.group, []);
+    groups.get(entry.group).push(key);
+  }
+  return groups;
+}
+
+/** mion's place in a group: libraries supporting every case mion supports there, ranked by geomean speed. */
+function groupRank(data, keys, metric, at) {
+  const shared = keys.filter((key) => speed(data.cases.get(key), MION, metric, at));
+  if (shared.length === 0) return null;
+  const competitors = Object.keys(data.cases.get(shared[0]).results ?? {});
+  const scores = [];
+  for (const name of competitors) {
+    const xs = shared.map((key) => speed(data.cases.get(key), name, metric, at));
+    if (xs.every(Boolean)) scores.push({name, score: geomean(xs)});
+  }
+  if (scores.length < 2) return null;
+  scores.sort((a, b) => b.score - a.score);
+  return `${scores.findIndex((s) => s.name === MION) + 1}/${scores.length}`;
+}
+
+/** mion vs one library over the cases both support: geomean speed ratio and wins. */
+function headToHead(data, name, metric, at) {
+  const ratios = [];
+  for (const entry of data.cases.values()) {
+    const a = speed(entry, MION, metric, at);
+    const b = speed(entry, name, metric, at);
+    if (a && b) ratios.push(a / b);
+  }
+  return {ratio: geomean(ratios), wins: ratios.filter((r) => r > 1).length, total: ratios.length};
+}
+
+export function renderReport(pr, live, env) {
+  const drift = machineDrift(pr, live);
+  const groups = groupsOf(pr);
+  const lines = [];
+  const machine = (m) => (m ? `${m.cpu ?? '?'}, ${m.cores ?? '?'} cores, ${m.os ?? '?'}, node ${m.node ?? '?'}` : 'unknown');
+  lines.push('## Validation benchmarks: this PR vs the live site', '');
+  lines.push(`- This PR: ${machine(env ?? pr.meta)}`);
+  lines.push(`- Live site: ${machine(live.meta)}${live.meta?.generatedAt ? `, measured ${live.meta.generatedAt.slice(0, 10)}` : ''}`);
+  lines.push(
+    `- Machine drift, from the other libraries' unchanged code: ${drift.toFixed(3)}. mion's changes below are divided by it. ` +
+      'A single case moves about ±10% between runs of unchanged code, so read the group means.',
+    ''
+  );
+
+  lines.push('### mion speed change, PR vs live (drift removed, >1 = faster)', '');
+  lines.push('| group | is valid: valid | is valid: invalid | get errors: valid | get errors: invalid |', '|---|---|---|---|---|');
+  const all = new Map();
+  for (const [group, keys] of groups) {
+    const cells = [];
+    for (const {key: metric} of METRICS)
+      for (const at of PATHS) {
+        const ratios = [];
+        for (const key of keys) {
+          const a = speed(pr.cases.get(key), MION, metric, at);
+          const b = speed(live.cases.get(key), MION, metric, at);
+          if (a && b) ratios.push(a / b / drift);
+        }
+        const id = `${metric}.${at}`;
+        all.set(id, [...(all.get(id) ?? []), ...ratios]);
+        cells.push(fmtRatio(geomean(ratios)));
+      }
+    lines.push(`| ${group} | ${cells.join(' | ')} |`);
+  }
+  lines.push(`| **all** | ${[...all.values()].map((r) => `**${fmtRatio(geomean(r))}**`).join(' | ')} |`, '');
+
+  lines.push("### mion's rank per group (live → PR)", '');
+  lines.push('Among the libraries that support every case mion supports in the group, by mean speed.', '');
+  lines.push('| group | is valid: valid | is valid: invalid | get errors: valid | get errors: invalid |', '|---|---|---|---|---|');
+  for (const [group, keys] of groups) {
+    const cells = [];
+    for (const {key: metric} of METRICS)
+      for (const at of PATHS) {
+        const before = groupRank(live, keys, metric, at);
+        const after = groupRank(pr, keys, metric, at);
+        cells.push(before || after ? `${before ?? '-'} → ${after ?? '-'}` : '-');
+      }
+    lines.push(`| ${group} | ${cells.join(' | ')} |`);
+  }
+  lines.push('');
+
+  const others = [...new Set([...pr.cases.values()].flatMap((entry) => Object.keys(entry.results ?? {})))].filter((name) => name !== MION);
+  lines.push('### mion vs each library (mean speed ratio over shared cases, wins in brackets)', '');
+  lines.push(`| | ${others.join(' | ')} |`, `|---|${others.map(() => '---').join('|')}|`);
+  for (const {key: metric, label} of METRICS)
+    for (const at of PATHS)
+      for (const [side, data] of [
+        ['live', live],
+        ['PR', pr],
+      ]) {
+        const cells = others.map((name) => {
+          const h = headToHead(data, name, metric, at);
+          return h.ratio == null ? '-' : `${h.ratio.toFixed(2)}x (${h.wins}/${h.total})`;
+        });
+        lines.push(`| ${label}, ${at}, ${side} | ${cells.join(' | ')} |`);
+      }
+  lines.push('');
+
+  const moves = [];
+  for (const [key, entry] of pr.cases)
+    for (const {key: metric, label} of METRICS)
+      for (const at of PATHS) {
+        const a = speed(entry, MION, metric, at);
+        const b = speed(live.cases.get(key), MION, metric, at);
+        if (a && b) moves.push({key, what: `${label}, ${at}`, ratio: a / b / drift, a, b});
+      }
+  moves.sort((x, y) => x.ratio - y.ratio);
+  const row = (m) => `| ${m.key} | ${m.what} | ${(m.b / 1e6).toFixed(1)}M | ${(m.a / 1e6).toFixed(1)}M | ${m.ratio.toFixed(2)} |`;
+  lines.push('<details><summary>Biggest per-case moves (mion, drift removed)</summary>', '');
+  lines.push('| case | metric | live | PR | change |', '|---|---|---|---|---|');
+  for (const m of [...moves.slice(0, 10), ...moves.slice(-10).reverse()]) lines.push(row(m));
+  lines.push('', '</details>', '');
+  return lines.join('\n');
+}
+
+function arg(name) {
+  const i = process.argv.indexOf(`--${name}`);
+  return i > 0 ? process.argv[i + 1] : undefined;
+}
+
+if (process.argv[1] && process.argv[1].endsWith('pr-report.mjs')) {
+  const prDir = arg('pr');
+  const liveDir = arg('live');
+  if (!prDir || !liveDir) {
+    console.error('usage: pr-report.mjs --pr <bench-data dir> --live <bench-data dir> [--env <env.json>]');
+    process.exit(2);
+  }
+  const envFile = arg('env');
+  const env = envFile && fs.existsSync(envFile) ? JSON.parse(fs.readFileSync(envFile, 'utf8')) : null;
+  process.stdout.write(renderReport(readBenchData(prDir), readBenchData(liveDir), env));
+}
