@@ -45,19 +45,20 @@ explaining it. Runs once per browser until finished or dismissed.
     3-6, so the hover tips and the tour never say different things. Update the `cache` tip wording to
     "generated code", not "cache".
   - Storage: one key `mion.runtypes.playground.tour`, value `'completed' | 'dismissed'`.
-    `readTourState(storage)` / `writeTourState(storage, state)` take a `Storage`-like object and wrap every
+    `readTourState(storage)` / `writePref(storage, key, value)` take a `Storage`-like object and wrap every
     access in `try/catch` (private mode, blocked storage → behaves as "never seen", never throws).
-    `shouldAutoStart(state)` = no stored value.
+    `shouldAutoStart(state, ready, failed)` = loaded, no error, no stored value.
 - **New component** `container/website/app/components/playground/PlaygroundTour.client.vue`, rendered by
   the stage:
-  - Props: `steps`, `open`. Emits `finish` (last step's "Done") and `dismiss` (Skip, close X, Esc).
+  - Props: `steps`, `open`, `root` (the stage element the `data-tour` targets are looked up in). Emits `finish` (last step's "Done") and `dismiss` (Skip, close X, Esc).
   - Spotlight: a fixed full-viewport layer; the highlight box is positioned from the target's
     `getBoundingClientRect()` and dims everything else with a large `box-shadow` in a new `--rtpg-scrim` token.
     Recompute on step change, `resize` and `scroll` (passive listeners, removed on close).
   - On each step: `scrollIntoView({block: 'nearest'})` on the target first (one-column layout below 1000px
     puts targets off-screen).
   - Card: "Step n of N", title, body, Back / Next (Done on last), "Skip tour" link, close X.
-    Placed below the target when it fits, else above; full width at the bottom on narrow screens.
+    Placed below the target when it fits, else above, right, left, else centred at the viewport bottom;
+    full width at the bottom below 640px.
     Focus moves to the card; Esc dismisses; Left / Right arrows go back / next.
   - Blocks clicks to the playground while open (the scrim takes pointer events).
   - z-index above the site's sticky header: check the Docus header's value, do not guess.
@@ -134,7 +135,7 @@ transform, so `getErrors` keeps its case). The title may ellipsis on a narrow ca
 
 **Engine** (`container/website/app/playground/engine.ts`):
 
-- Generalize `linkRootTuple` (`:122-129`) into `linkBindings(entryModules)`: same strip-imports + concat, but
+- Generalize `linkRootTuple` (`:122-129`) into `linkBindings(sources: readonly string[])` (the module code strings): same strip-imports + concat, but
   returns an object of every `__rt_*` const (collect names with `/^\s*export\s+const\s+(__rt_\w+)/gm`).
   `linkRootTuple` becomes `linkBindings(...)[binding]`.
 - New export `generatedFactories(modules: CacheModule[]): GeneratedFactory[]`, pure and sync, where
@@ -206,7 +207,8 @@ substring of the module). The tour is UI state with three values.
 
 - First visit: the tour starts once the playground has loaded, highlights each of the 8 steps in order, and
   stops for good after Done or Skip (flag in `localStorage`). "Tour" button replays it.
-- Toolbar, Source, Transformed source, Generated code and Pick a Function are separate cards with visible
+- Source (with the type controls), Transformed source, Generated code, Pick a Function, Input and Result are
+  separate cards with visible
   gaps and borders, in dark and light, wide and one-column.
 - Random valid / Random invalid look like buttons (filled, icon, readable size).
 - Section 3 reads "Generated RunType `<varName>` code" and follows the picker; its switch shows the
@@ -244,6 +246,16 @@ Built as planned, with these differences found while building:
   call), 6 Result (Run button + result). The Input card hides for getRunType and Result then takes number 5.
   The Run button names the picked function (`Run validate`, `Run toJson`, …). Tour titles drop their numbers,
   since the Result number moves.
+- **Review follow-ups:**
+  - The tour storage helpers shrank to `readTourState`, `readCodeView` and one exported `writePref` (keys
+    `TOUR_KEY` / `CODE_VIEW_KEY`).
+  - `shouldAutoStart(state, ready, failed)` now carries the whole start condition and `tourStepsFor(needsInput)`
+    the input-step skip, both tested in `tour.test.ts`.
+  - The playground grid is `inert` while the tour is open, so keyboard focus cannot reach the controls behind it.
+  - New radii use `--ui-radius` / `--mion-panel-radius`.
+  - `tour.test.ts` is declared in `scripts/core/test-skip.mjs`, since it reads the component as text.
+  - Left untested on purpose: `codeHint`, the switch's view logic and the card placement live in Vue
+    components, the playground suite runs in Node with no component mounting, and the browser pass covers them.
 - **Browser pass** ran with a Playwright script against `pnpm miondevx website dev --agent`: tour walks all 8
   steps, Done and Skip (Esc) both stop it after reload, the Tour button replays it; title follows the picker;
   switch remembered across reloads and disabled on getRunType; file names shown in both views; dark + light,
