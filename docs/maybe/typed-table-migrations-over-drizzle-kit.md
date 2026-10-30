@@ -110,7 +110,7 @@ The implementer plans the details. What was checked:
 
 ## Docs
 
-`container/website/content/02.runtypes/06.drizzle-orm/`: a new page for migrations from table versions (it has
+`container/website/content/02.runtypes/04.drizzle-orm/`: a new page for migrations from table versions (it has
 3+ sections of its own: versions, column migrations, phased changes, steps, generate and check). `06.schema-file.md` (existing section
 "Importing Types in Your App") gets a one-line pointer to it.
 
