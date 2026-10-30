@@ -138,11 +138,11 @@ func packageArtifactOf(t *testing.T, packageName string, overrides []purefnindex
 // a pure fn only server code uses stays home, and so does the peer only it needed.
 func TestReachedArtifact_ShipsOnlyWhatAClientCanDemand(t *testing.T) {
 	const (
-		overrideID = "@acme/api#pf_override000000"
-		namedID    = "@acme/api#pf_named000000000"
-		depID      = "@acme/api#pf_dep0000000000"
-		serverID   = "@acme/api#pf_server0000000"
-		foreignID  = "@acme/text#pf_slug00000000000"
+		overrideID = "@acme/api:override000000"
+		namedID    = "@acme/api:named000000000"
+		depID      = "@acme/api:dep0000000000"
+		serverID   = "@acme/api:server0000000"
+		foreignID  = "@acme/text:slug00000000000"
 	)
 	entries := []purefunctions.Entry{
 		{ID: overrideID, BindingName: "noteValidate", ParamNames: []string{"utl"}, Code: "return (v) => typeof v === 'string';"},
@@ -190,11 +190,11 @@ func TestRangeOf_WorkspaceOnlyRanges(t *testing.T) {
 // package is no peer; a mion package, and one that ships no artifact, stay peers.
 func TestBuildPackage_ShipsOtherPackagesPureFns(t *testing.T) {
 	const (
-		namedID  = "@acme/api#pf_named000000000"
-		slugID   = "@acme/text#pf_slug00000000000"
-		lowerID  = "@acme/case#pf_lower0000000000"
-		coreID   = "@mionjs/core#pf_core00000000000"
-		sourceID = "@acme/raw#pf_raw000000000000"
+		namedID  = "@acme/api:named000000000"
+		slugID   = "@acme/text:slug00000000000"
+		lowerID  = "@acme/case:lower0000000000"
+		coreID   = "@mionjs/core:core00000000000"
+		sourceID = "@acme/raw:raw000000000000"
 	)
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "package.json"), `{"name": "@acme/api", "version": "1.0.0"}`)

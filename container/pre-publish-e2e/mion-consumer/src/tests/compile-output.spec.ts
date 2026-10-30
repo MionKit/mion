@@ -91,7 +91,7 @@ describe('mion compile output', () => {
         // carries none.
         const mappers = filesUnder(resolve(genDir, 'rpc/pf'));
         expect(mappers).toHaveLength(1);
-        expect(mappers[0]).toMatch(/[\\/]pf[\\/].+[\\/][A-Za-z0-9_-]{14}\.js$/);
+        expect(mappers[0]).toMatch(/[\\/]pf[\\/].+[\\/][A-Za-z0-9_-]{10}\.js$/);
         // the mapper body authored in src/client/batchFlow.ts
         expect(readFileSync(mappers[0], 'utf-8')).toContain('customerValue.preferenceId');
     });
@@ -110,7 +110,7 @@ describe('mion compile output', () => {
         const content = readFileSync(flowJs, 'utf-8');
         const table = readFileSync(tableJs, 'utf-8');
         const batchId = /'(b_[A-Za-z0-9_-]+)'/.exec(content)?.[1];
-        const mapperKey = /'([^']+#[A-Za-z0-9_-]+)'/.exec(content)?.[1];
+        const mapperKey = /'([^']*:[A-Za-z0-9_-]+)'/.exec(content)?.[1];
         expect(batchId, content).toBeDefined();
         expect(mapperKey, content).toBeDefined();
         expect(table).toContain(`"${batchId}"`);

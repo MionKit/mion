@@ -352,10 +352,10 @@ const (
 	// PureFnModuleDir is the basename directory prefix for pure-fn entry modules (`pf/<ns>/<fn>`), keeping them
 	// distinct from the hash-keyed runtype / type-fn modules.
 	PureFnModuleDir = "pf"
-	// PureFnHashPrefix joins a pure-fn id's owning package to its body hash: `@acme/text#pf_9Zt1bRm4cVaPqL`.
+	// PureFnHashPrefix joins a pure-fn id's owning package to its body hash: `@acme/text:9Zt1bRm4cV`.
 	// One spelling on both sides: the build writes it into every id, a consumer's compiler splits ids on it.
-	// A package name holds no `#`, so the last occurrence always splits an id.
-	PureFnHashPrefix = "#pf_"
+	// No package name, body hash or other entry key holds a `:`, so it both splits an id and tells one apart.
+	PureFnHashPrefix = ":"
 	// PureFnArtifactDir is what every mion build writes into its output dir: its own `pf/` cache modules
 	// (`<package>/<hash>.js`, as generate wrote them) plus the index below. A consumer's compiler serves an
 	// installed package's pure fns from here alone, never its bundle, and `files: ["dist"]` ships it.

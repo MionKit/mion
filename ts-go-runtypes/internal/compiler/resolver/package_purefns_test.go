@@ -17,8 +17,8 @@ import (
 // src) provides the body, and the consumer's graph binds it like any other pure-fn dep.
 
 const (
-	libSlugifyID = "@acme/text#pf_slug00000000000"
-	libTitleID   = "@acme/text#pf_title0000000000"
+	libSlugifyID = "@acme/text:slug00000000000"
+	libTitleID   = "@acme/text:title0000000000"
 	libSlugMod   = "pf/@acme/text/slug00000000000"
 	libTitleMod  = "pf/@acme/text/title0000000000"
 	libPackage   = `{"name":"@acme/text","types":"./dist/index.d.ts","exports":{".":{"types":"./dist/index.d.ts","default":"./dist/index.js"}}}`
@@ -172,7 +172,7 @@ export const title = registerPureFnFactory(function (utl) {
 	if len(served) != 2 {
 		t.Fatalf("expected title and slugify served from src, got modules: %v", keys(resp.EntryModules))
 	}
-	if !strings.Contains(served[0]+served[1], `getPureFn(\'@acme/text#`) {
+	if !strings.Contains(served[0]+served[1], `getPureFn(\'@acme/text:`) {
 		t.Errorf("title must be served from src with its dep lowered:\n%s\n%s", served[0], served[1])
 	}
 }

@@ -17,7 +17,7 @@ import (
 // sourceFile/callPos track where it came from and never leave this package.
 type Entry struct {
 	// ID is the package that owns this pure function plus a hash of the body that ships
-	// (`@acme/text#pf_9Zt1bRm4cVaPqL`), and is the registry key everywhere.
+	// (`@acme/text:9Zt1bRm4cV`), and is the registry key everywhere.
 	ID string
 	// BindingName is the identifier the registration is assigned to, empty for one written
 	// straight into a call. It reaches no id: a hash is what identifies, but it is unreadable

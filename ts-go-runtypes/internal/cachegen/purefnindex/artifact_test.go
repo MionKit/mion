@@ -19,10 +19,10 @@ import (
 // Whatever the body, binding or path, the real renderer's module in each emit mode reads back to the same
 // served row, the index round-trips, and two renders give the same bytes.
 func FuzzArtifactRoundTrip(f *testing.F) {
-	f.Add("slug00000000000", "slugify", "src/slug.ts", "return (s) => s.toLowerCase();", "utl", "@acme/text#pf_other000000000")
+	f.Add("slug00000000000", "slugify", "src/slug.ts", "return (s) => s.toLowerCase();", "utl", "@acme/text:other000000000")
 	f.Add("x", "", "", "", "", "")
 	f.Add("h", "n", "src/a.ts", "return '</script>' + \"\\u2028\" + `\x00`;", "p", "")
-	f.Add("h", "n", "src/ü.ts", "return 'é';", "ü", "@acme/text#pf_ß")
+	f.Add("h", "n", "src/ü.ts", "return 'é';", "ü", "@acme/text:ß")
 	f.Add("h", "n", "src/a.ts", "return function(){ return `}`; }", "p", "")
 	// Fuzzer finds: a non-identifier param with an unparsable body, and a dot hash (a legal file name, not a traversal).
 	f.Add("0", "0", "0", "\"", "0", "0")
@@ -34,7 +34,7 @@ func FuzzArtifactRoundTrip(f *testing.F) {
 				t.Skip()
 			}
 		}
-		if strings.Contains(hash, "#") {
+		if strings.Contains(hash, constants.PureFnHashPrefix) {
 			// A hash never holds the separator: such an id is not this package's, and the parser must say so.
 			id := "@acme/text" + constants.PureFnHashPrefix + hash
 			if _, err := ParseArtifactIndex(RenderArtifactIndex("@acme/text", "/pkg", []purefunctions.Entry{{ID: id}}, nil)); err == nil && PackageOfID(id) != "@acme/text" {

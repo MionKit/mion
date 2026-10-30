@@ -153,7 +153,7 @@ describe('third-party pure fn through a wrapper: full runtime e2e (node_modules 
     }
 
     // The rewrite injected the id at the wrapper call site.
-    const injected = code.match(/registerAcmePureFn\(\s*__rt_pf[A-Za-z0-9_$]*,\s*'([^']+#[^']+)'\)/);
+    const injected = code.match(/registerAcmePureFn\(\s*__rt_pf[A-Za-z0-9_$]*,\s*'([^']+:[^']+)'\)/);
     expect(injected, `wrapper call must carry an injected id in:\n${code}`).toBeTruthy();
 
     // Write the rewritten consumer next to consumer.ts (same dir, so its
@@ -173,7 +173,7 @@ describe('third-party pure fn through a wrapper: full runtime e2e (node_modules 
 
     // Registered under the id of the consumer's own binding, and the id it
     // printed is the SAME one the rewrite injected.
-    expect(result.id).toMatch(/^rt-e2e-fixture#pf_[A-Za-z0-9_-]{14}$/);
+    expect(result.id).toMatch(/^rt-e2e-fixture:[A-Za-z0-9_-]{10}$/);
     expect(result.id).toBe(injected![1]);
     // The untracked runtime-key accessor finds it (and only it).
     expect(result.has).toBe(true);

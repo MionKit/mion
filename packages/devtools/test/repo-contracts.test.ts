@@ -194,7 +194,7 @@ describe('@mionjs/run-types publishes the artifact its built-in pure fns are ser
     expect(index.package).toBe('@mionjs/run-types');
     expect(index.pureFns.length).toBeGreaterThan(0);
     for (const row of index.pureFns) {
-      const [owner, hash] = row.id.split('#pf_');
+      const [owner, hash] = row.id.split(':');
       expect(existsSync(join(packageDir, 'dist', 'mion-pure-fns', ...owner.split('/'), `${hash}.js`))).toBe(true);
     }
   });

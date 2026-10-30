@@ -728,7 +728,7 @@ func TestMappings_ParamOutOfRange_RpcBatchArgumentOutOfRange(t *testing.T) {
 
 func TestCheckConflicts(t *testing.T) {
 	same := []string{"users/getById", "orders/list"}
-	mappingA := Mapping{FromId: "users/getById", ToId: "orders/list", ParamIndex: 0, MapperKey: "@acme/app/src/a#aaa"}
+	mappingA := Mapping{FromId: "users/getById", ToId: "orders/list", ParamIndex: 0, MapperKey: "@acme/app/src/a:aaa"}
 	mappingB := Mapping{FromId: "users/getById", ToId: "orders/list", ParamIndex: 0, MapperKey: "mionjs::toUserId"}
 	// Same routes, different mappings: two batches with two ids, never a conflict.
 	if BatchId(same, []Mapping{mappingA}) == BatchId(same, []Mapping{mappingB}) {
@@ -758,8 +758,8 @@ func TestCheckConflicts(t *testing.T) {
 	}
 	// Same routes, same mappings in a different order: one batch, no conflict.
 	if extra := CheckConflicts([]Site{
-		{FilePath: "/a.ts", BatchId: "b_x", RouteIds: same, Mappings: []Mapping{mappingA, {FromId: "users/getById", ToId: "orders/list", ParamIndex: 1, MapperKey: "@acme/app/src/a#bbb"}}},
-		{FilePath: "/b.ts", BatchId: "b_x", RouteIds: same, Mappings: []Mapping{{FromId: "users/getById", ToId: "orders/list", ParamIndex: 1, MapperKey: "@acme/app/src/a#bbb"}, mappingA}},
+		{FilePath: "/a.ts", BatchId: "b_x", RouteIds: same, Mappings: []Mapping{mappingA, {FromId: "users/getById", ToId: "orders/list", ParamIndex: 1, MapperKey: "@acme/app/src/a:bbb"}}},
+		{FilePath: "/b.ts", BatchId: "b_x", RouteIds: same, Mappings: []Mapping{{FromId: "users/getById", ToId: "orders/list", ParamIndex: 1, MapperKey: "@acme/app/src/a:bbb"}, mappingA}},
 	}); len(extra) != 0 {
 		t.Errorf("mapping order must not count as a conflict: %s", diagnosticsDebug(extra))
 	}
@@ -777,11 +777,11 @@ func TestBatchId_DeterministicAndVersionIndependent(t *testing.T) {
 	if first == BatchId([]string{"orders/list", "users/getById"}, nil) {
 		t.Errorf("order must change the id")
 	}
-	mapping := Mapping{FromId: "users/getById", ToId: "orders/list", ParamIndex: 0, MapperKey: "@acme/app/src/a#aaa"}
+	mapping := Mapping{FromId: "users/getById", ToId: "orders/list", ParamIndex: 0, MapperKey: "@acme/app/src/a:aaa"}
 	if first == BatchId(routes, []Mapping{mapping}) {
 		t.Errorf("a mapping must change the id")
 	}
-	if BatchId(routes, []Mapping{mapping}) == BatchId(routes, []Mapping{{FromId: "users/getById", ToId: "orders/list", ParamIndex: 0, MapperKey: "@acme/app/src/a#bbb"}}) {
+	if BatchId(routes, []Mapping{mapping}) == BatchId(routes, []Mapping{{FromId: "users/getById", ToId: "orders/list", ParamIndex: 0, MapperKey: "@acme/app/src/a:bbb"}}) {
 		t.Errorf("the mapper key must change the id")
 	}
 	originalVersion := constants.Version
@@ -798,14 +798,14 @@ func TestBatchId_DeterministicAndVersionIndependent(t *testing.T) {
 func TestReportAndFiles(t *testing.T) {
 	sites := []Site{
 		{FilePath: "/b.ts", Start: 5, End: 9, BatchId: "b_2", RouteIds: []string{"x/y"}, CalleeName: "batch", CalleeModule: ClientModule},
-		{FilePath: "/a.ts", Start: 30, End: 40, BatchId: "b_1", RouteIds: []string{"a/b", "c/d"}, Mappings: []Mapping{{FromId: "a/b", ToId: "c/d", ParamIndex: 1, MapperKey: "@acme/app/src/a#k"}}},
+		{FilePath: "/a.ts", Start: 30, End: 40, BatchId: "b_1", RouteIds: []string{"a/b", "c/d"}, Mappings: []Mapping{{FromId: "a/b", ToId: "c/d", ParamIndex: 1, MapperKey: "@acme/app/src/a:k"}}},
 		{FilePath: "/a.ts", Start: 1, End: 4, BatchId: "b_0", RouteIds: []string{"a/b"}},
 	}
 	report := Report(sites)
 	if len(report) != 3 || report[0].BatchId != "b_0" || report[1].BatchId != "b_1" || report[2].BatchId != "b_2" {
 		t.Fatalf("Report order = %+v", report)
 	}
-	if len(report[1].Mappings) != 1 || report[1].Mappings[0].MapperKey != "@acme/app/src/a#k" || report[1].Mappings[0].ParamIndex != 1 {
+	if len(report[1].Mappings) != 1 || report[1].Mappings[0].MapperKey != "@acme/app/src/a:k" || report[1].Mappings[0].ParamIndex != 1 {
 		t.Errorf("Report mappings = %+v", report[1].Mappings)
 	}
 	if report[2].CalleeName != "batch" || report[2].CalleeModule != ClientModule {
