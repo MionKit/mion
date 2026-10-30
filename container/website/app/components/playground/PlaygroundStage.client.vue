@@ -2,15 +2,15 @@
 // PlaygroundStage - the interactive playground UI (client-only: it lazy-loads
 // Monaco + the resolver WASM, both browser-only). A Vue port of the former
 // <runtypes-playground> web component. Three columns of numbered cards:
-//   1. Source     - the TypeScript type (or builder) editor, its read-only
-//                   import header + call footer.
+//   1. Source     - the TS-type / Builder mode switch + example presets, then
+//                   the type (or builder) editor with its read-only import
+//                   header + call footer.
 //   2. Transformed - what the build plugin injects into that file.
 //   3. Generated  - the code RunTypes generates for the selected function + type,
 //                   as the bare factory function or the full module file.
 //   4. Function   - a build-function picker, a JS-expression input pane with
 //                   Random valid / Random invalid, a Run button, and the result.
-// Above: real-world presets + a TS-type / Builder mode switch. A first-visit
-// tour (PlaygroundTour) walks through each card.
+// A first-visit tour (PlaygroundTour) walks through each card.
 //
 // The engine (../../playground) is framework-agnostic; this component owns the
 // Monaco wiring, the debounced codegen, and the highlighted output. Colors follow
@@ -837,57 +837,6 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="rootEl" class="rt-playground" :style="{'--rt-pg-min-height': height}">
-    <div class="rtpg-toolbar rtpg-card">
-      <div class="rtpg-typegroup">
-        <div class="rtpg-modeswitch" role="group" aria-label="type form" data-tour="mode">
-          <button
-            type="button"
-            class="rtpg-mode"
-            :class="{'is-active': mode === 'type'}"
-            title="TypeScript type"
-            @click="setMode('type')"
-          >
-            <svg viewBox="0 0 32 32" aria-hidden="true">
-              <path
-                style="fill: var(--rtpg-ts-icon)"
-                d="M23.827 8.243a4.4 4.4 0 0 1 2.223 1.281a6 6 0 0 1 .852 1.143c.011.045-1.534 1.083-2.471 1.662c-.034.023-.169-.124-.322-.35a2.01 2.01 0 0 0-1.67-1c-1.077-.074-1.771.49-1.766 1.433a1.3 1.3 0 0 0 .153.666c.237.49.677.784 2.059 1.383c2.544 1.095 3.636 1.817 4.31 2.843a5.16 5.16 0 0 1 .416 4.333a4.76 4.76 0 0 1-3.932 2.815a11 11 0 0 1-2.708-.028a6.53 6.53 0 0 1-3.616-1.884a6.3 6.3 0 0 1-.926-1.371a3 3 0 0 1 .327-.208c.158-.09.756-.434 1.32-.761l1.024-.6l.214.312a4.8 4.8 0 0 0 1.35 1.292a3.3 3.3 0 0 0 3.458-.175a1.545 1.545 0 0 0 .2-1.974c-.276-.395-.84-.727-2.443-1.422a8.8 8.8 0 0 1-3.349-2.055a4.7 4.7 0 0 1-.976-1.777a7.1 7.1 0 0 1-.062-2.268a4.33 4.33 0 0 1 3.644-3.374a9 9 0 0 1 2.691.084m-8.343 1.483l.011 1.454h-4.63v13.148H7.6V11.183H2.97V9.755a14 14 0 0 1 .04-1.466c.017-.023 2.832-.034 6.245-.028l6.211.017Z"
-              />
-            </svg>
-            <span>TS type</span>
-          </button>
-          <button
-            type="button"
-            class="rtpg-mode"
-            :class="{'is-active': mode === 'builder'}"
-            title="mion builder (run-type)"
-            @click="setMode('builder')"
-          >
-            <svg viewBox="0 0 32 32" aria-hidden="true">
-              <path
-                style="fill: var(--rtpg-js-icon)"
-                d="M18.774 19.7a3.73 3.73 0 0 0 3.376 2.078c1.418 0 2.324-.709 2.324-1.688c0-1.173-.931-1.589-2.491-2.272l-.856-.367c-2.469-1.052-4.11-2.37-4.11-5.156c0-2.567 1.956-4.52 5.012-4.52A5.06 5.06 0 0 1 26.9 10.52l-2.665 1.711a2.33 2.33 0 0 0-2.2-1.467a1.49 1.49 0 0 0-1.638 1.467c0 1.027.636 1.442 2.1 2.078l.856.366c2.908 1.247 4.549 2.518 4.549 5.376c0 3.081-2.42 4.769-5.671 4.769a6.58 6.58 0 0 1-6.236-3.5ZM6.686 20c.538.954 1.027 1.76 2.2 1.76c1.124 0 1.834-.44 1.834-2.15V7.975h3.422v11.683c0 3.543-2.078 5.156-5.11 5.156A5.31 5.31 0 0 1 3.9 21.688Z"
-              />
-            </svg>
-            <span>Type Builder</span>
-          </button>
-        </div>
-        <span class="rtpg-typegroup-sep" />
-        <div class="rtpg-presets" data-tour="presets">
-          <button
-            v-for="(preset, i) in PRESETS"
-            :key="preset.name"
-            type="button"
-            class="rtpg-preset"
-            :class="{'is-active': i === presetIndex}"
-            @click="loadPreset(i)"
-          >
-            {{ preset.name }}
-          </button>
-        </div>
-      </div>
-      <button type="button" class="rtpg-tour-btn" title="Walk through each section" @click="startTour">Tour</button>
-    </div>
-
     <div class="rtpg-layout">
       <div class="rtpg-col">
         <section class="rtpg-pane rtpg-typepane" data-tour="source">
@@ -898,7 +847,58 @@ onBeforeUnmount(() => {
               </button>
               <h2>Source</h2>
             </span>
-            <span class="rtpg-hint" v-html="typeHintHtml" />
+            <span class="rtpg-head-status">
+              <span class="rtpg-hint" v-html="typeHintHtml" />
+              <button type="button" class="rtpg-tour-btn" title="Walk through each section" @click="startTour">
+                Tour
+              </button>
+            </span>
+          </div>
+          <div class="rtpg-typegroup">
+            <div class="rtpg-modeswitch" role="group" aria-label="type form" data-tour="mode">
+              <button
+                type="button"
+                class="rtpg-mode"
+                :class="{'is-active': mode === 'type'}"
+                title="TypeScript type"
+                @click="setMode('type')"
+              >
+                <svg viewBox="0 0 32 32" aria-hidden="true">
+                  <path
+                    style="fill: var(--rtpg-ts-icon)"
+                    d="M23.827 8.243a4.4 4.4 0 0 1 2.223 1.281a6 6 0 0 1 .852 1.143c.011.045-1.534 1.083-2.471 1.662c-.034.023-.169-.124-.322-.35a2.01 2.01 0 0 0-1.67-1c-1.077-.074-1.771.49-1.766 1.433a1.3 1.3 0 0 0 .153.666c.237.49.677.784 2.059 1.383c2.544 1.095 3.636 1.817 4.31 2.843a5.16 5.16 0 0 1 .416 4.333a4.76 4.76 0 0 1-3.932 2.815a11 11 0 0 1-2.708-.028a6.53 6.53 0 0 1-3.616-1.884a6.3 6.3 0 0 1-.926-1.371a3 3 0 0 1 .327-.208c.158-.09.756-.434 1.32-.761l1.024-.6l.214.312a4.8 4.8 0 0 0 1.35 1.292a3.3 3.3 0 0 0 3.458-.175a1.545 1.545 0 0 0 .2-1.974c-.276-.395-.84-.727-2.443-1.422a8.8 8.8 0 0 1-3.349-2.055a4.7 4.7 0 0 1-.976-1.777a7.1 7.1 0 0 1-.062-2.268a4.33 4.33 0 0 1 3.644-3.374a9 9 0 0 1 2.691.084m-8.343 1.483l.011 1.454h-4.63v13.148H7.6V11.183H2.97V9.755a14 14 0 0 1 .04-1.466c.017-.023 2.832-.034 6.245-.028l6.211.017Z"
+                  />
+                </svg>
+                <span>TS type</span>
+              </button>
+              <button
+                type="button"
+                class="rtpg-mode"
+                :class="{'is-active': mode === 'builder'}"
+                title="mion builder (run-type)"
+                @click="setMode('builder')"
+              >
+                <svg viewBox="0 0 32 32" aria-hidden="true">
+                  <path
+                    style="fill: var(--rtpg-js-icon)"
+                    d="M18.774 19.7a3.73 3.73 0 0 0 3.376 2.078c1.418 0 2.324-.709 2.324-1.688c0-1.173-.931-1.589-2.491-2.272l-.856-.367c-2.469-1.052-4.11-2.37-4.11-5.156c0-2.567 1.956-4.52 5.012-4.52A5.06 5.06 0 0 1 26.9 10.52l-2.665 1.711a2.33 2.33 0 0 0-2.2-1.467a1.49 1.49 0 0 0-1.638 1.467c0 1.027.636 1.442 2.1 2.078l.856.366c2.908 1.247 4.549 2.518 4.549 5.376c0 3.081-2.42 4.769-5.671 4.769a6.58 6.58 0 0 1-6.236-3.5ZM6.686 20c.538.954 1.027 1.76 2.2 1.76c1.124 0 1.834-.44 1.834-2.15V7.975h3.422v11.683c0 3.543-2.078 5.156-5.11 5.156A5.31 5.31 0 0 1 3.9 21.688Z"
+                  />
+                </svg>
+                <span>Type Builder</span>
+              </button>
+            </div>
+            <div class="rtpg-presets" data-tour="presets">
+              <button
+                v-for="(preset, i) in PRESETS"
+                :key="preset.name"
+                type="button"
+                class="rtpg-preset"
+                :class="{'is-active': i === presetIndex}"
+                @click="loadPreset(i)"
+              >
+                {{ preset.name }}
+              </button>
+            </div>
           </div>
           <div class="rtpg-typestack">
             <div class="rtpg-ro-wrap rtpg-ro-header">
@@ -1130,14 +1130,11 @@ onBeforeUnmount(() => {
     max-height: 520px;
   }
 }
-/* Every numbered section and the toolbar: the site's one panel look. */
-.rt-playground .rtpg-pane,
-.rt-playground .rtpg-card {
+/* Every numbered section is a card with the site's one panel look. */
+.rt-playground .rtpg-pane {
   background: var(--mion-panel-bg);
   border: 1px solid var(--ui-border);
   border-radius: var(--mion-panel-radius);
-}
-.rt-playground .rtpg-pane {
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -1272,7 +1269,7 @@ onBeforeUnmount(() => {
 .rt-playground .rtpg-typepane {
   flex: 3 1 0;
   /* The pane clips (overflow: hidden), so its body's min-height no longer holds it open. */
-  min-height: 260px;
+  min-height: 300px;
 }
 .rt-playground .rtpg-transformpane {
   flex: 2 1 0;
@@ -1618,20 +1615,13 @@ onBeforeUnmount(() => {
   color: var(--rtpg-muted);
   font-size: 13px;
 }
-.rt-playground .rtpg-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 12px 12px 0;
-  padding: 6px 8px;
-}
 .rt-playground .rtpg-typegroup {
   display: flex;
-  flex: 1;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--rtpg-border);
 }
 .rt-playground .rtpg-tour-btn {
   flex: 0 0 auto;
@@ -1639,23 +1629,17 @@ onBeforeUnmount(() => {
   color: var(--rtpg-accent);
   border: 1px solid var(--rtpg-accent-dim);
   border-radius: 999px;
-  padding: 5px 14px;
-  font-size: 12.5px;
+  padding: 2px 10px;
+  font-size: 11.5px;
   font-weight: 600;
   cursor: pointer;
 }
 .rt-playground .rtpg-tour-btn:hover {
   background: color-mix(in srgb, var(--rtpg-accent) 15%, transparent);
 }
-.rt-playground .rtpg-typegroup-sep {
-  width: 1px;
-  align-self: stretch;
-  background: var(--rtpg-border);
-  margin: 1px 2px;
-}
 .rt-playground .rtpg-presets {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   flex-wrap: wrap;
 }
 .rt-playground .rtpg-preset {
@@ -1663,8 +1647,8 @@ onBeforeUnmount(() => {
   color: var(--rtpg-text);
   border: 1px solid var(--rtpg-border);
   border-radius: 999px;
-  padding: 5px 12px;
-  font-size: 12.5px;
+  padding: 2px 9px;
+  font-size: 11.5px;
   cursor: pointer;
 }
 .rt-playground .rtpg-preset:hover {
@@ -1688,19 +1672,19 @@ onBeforeUnmount(() => {
 .rt-playground .rtpg-mode {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   background: transparent;
   color: var(--rtpg-muted);
   border: 0;
   border-radius: 6px;
-  padding: 5px 11px;
-  font-size: 12.5px;
+  padding: 3px 9px;
+  font-size: 12px;
   cursor: pointer;
   transition: background 0.12s, color 0.12s;
 }
 .rt-playground .rtpg-mode svg {
-  width: 15px;
-  height: 15px;
+  width: 13px;
+  height: 13px;
   display: block;
   opacity: 0.5;
   transition: opacity 0.12s;
@@ -1723,10 +1707,6 @@ onBeforeUnmount(() => {
 .rt-playground .rtpg-mode:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-.rt-playground .rtpg-viewswitch .rtpg-mode {
-  padding: 3px 9px;
-  font-size: 12px;
 }
 .rt-playground .rtpg-mock-badge {
   margin-top: 6px;
