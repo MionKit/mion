@@ -172,3 +172,17 @@ func TestValidationErrors_ShortcutOnlyOnContainerRoots(t *testing.T) {
 	}
 }
 
+// TestValidationErrors_OverriddenChildWalksUnguarded — an errors override is its own contract: the validator accepting a
+// value says nothing about what the override reports, so neither the child guard nor the root shortcut may skip it.
+func TestValidationErrors_OverriddenChildWalksUnguarded(t *testing.T) {
+	runTypes, rootID := buildNamedChildFixture()
+	for _, node := range runTypes {
+		if node.ID == "inn" {
+			node.Overrides = map[string]string{"validationErrors": "pf_userErrors"}
+		}
+	}
+	rendered := renderErrorsEntry(t, runTypes, rootID, "validationErrors", ValidationErrorsEmitter{}, false)
+	if strings.Contains(rendered.argsText, valKey("inn")) || strings.Contains(rendered.argsText, valKey(rootID)) {
+		t.Errorf("an overridden child must reach no validator, got:\n%s", rendered.argsText)
+	}
+}

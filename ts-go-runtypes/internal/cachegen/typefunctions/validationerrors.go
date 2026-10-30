@@ -34,7 +34,8 @@ func (ValidationErrorsEmitter) Args() []ArgSpec {
 func (ValidationErrorsEmitter) EmitArgsPrologue(ctx *EmitContext, root *reflection.RunType, shortcut bool) string {
 	vArg, pthArg, errArg := ctx.ArgName("vλl"), ctx.ArgName("pλth"), ctx.ArgName("εrr")
 	fillPth := "if(" + pthArg + "===undefined)" + pthArg + "=[];"
-	if !shortcut || !shortcutPaysOff(root) || !ctx.walker.errorWalkCostly || graphHoldsNonData(root, ctx.walker.RefTable) {
+	if !shortcut || !shortcutPaysOff(root) || !ctx.walker.errorWalkCostly || graphHoldsNonData(root, ctx.walker.RefTable) ||
+		graphHoldsOverride(root, ctx.walker.RefTable) {
 		return "if(" + errArg + "===undefined)" + errArg + "=[];" + fillPth
 	}
 	validateHash := ctx.CrossFamilyVariantHash(errorFamilyValidatorOp(ctx)) + "_" + root.ID
@@ -512,7 +513,7 @@ func (ctx *EmitContext) markCostlyErrorWalk() {
 // unguarded, or its validator would re-check the same subtree at every level of a deep value.
 func (ValidationErrorsEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
 	call := ctx.emitPathTrackedDepCall(childID)
-	if ctx.walker == nil || graphHoldsNonData(rt, ctx.walker.RefTable) || graphDropsMembers(rt, ctx) {
+	if ctx.walker == nil || graphHoldsNonData(rt, ctx.walker.RefTable) || graphHoldsOverride(rt, ctx.walker.RefTable) || graphDropsMembers(rt, ctx) {
 		return call
 	}
 	if childID == ctx.walker.RTFnHash || ctx.walker.inlineWouldCycle(rt.ID) || graphHoldsCycle(rt, ctx.walker.RefTable) {
@@ -532,6 +533,20 @@ func graphDropsMembers(rt *reflection.RunType, ctx *EmitContext) bool {
 	reflection.WalkGraph(rt, ctx.walker.RefTable, func(node *reflection.RunType) reflection.WalkAction {
 		if node.IsStatic || isMethodMember(node.Kind) || reflection.IsSymbolKeyedName(node.Name) ||
 			(node.Kind == reflection.KindIndexSignature && isSymbolKeyedIndexSig(node, ctx)) {
+			found = true
+			return reflection.WalkStop
+		}
+		return reflection.WalkContinue
+	})
+	return found
+}
+
+// graphHoldsOverride reports a node under rt carrying any override: an errors override is its own contract, so the
+// validator accepting a value says nothing about what that override reports for it.
+func graphHoldsOverride(rt *reflection.RunType, refTable map[string]*reflection.RunType) bool {
+	found := false
+	reflection.WalkGraph(rt, refTable, func(node *reflection.RunType) reflection.WalkAction {
+		if len(node.Overrides) > 0 {
 			found = true
 			return reflection.WalkStop
 		}

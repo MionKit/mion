@@ -75,6 +75,17 @@ export function registerKeyCheckOptionsCase(): void {
     }
   });
 
+  it('KeyCheckOptions — a nested errors override runs on a value every validator accepts', () => {
+    for (const getErrors of [
+      createGetValidationErrorsFn<KeyParent>(),
+      createGetValidationErrorsFn<KeyParent>(undefined, {checkUnknowns: true}),
+      createGetValidationErrorsFn(parent),
+      createGetValidationErrorsFn(parent, {checkUnknowns: true}),
+    ]) {
+      expect((getErrors as Errors)({inner: overridePass, b: 'x'}).map((error) => error.expected)).toEqual(['override']);
+    }
+  });
+
   it('KeyCheckOptions — checkUnionUnknowns runs a nested override and still checks the member keys', () => {
     for (const validate of [
       createValidateFn<KeyUnion>(undefined, {checkUnionUnknowns: true}),
