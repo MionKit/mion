@@ -174,6 +174,14 @@ func TestStrongTypedRoutes_ContextParamsAreExempt(t *testing.T) {
 		diagnostics.CodeRouteMissingParamType)
 }
 
+func TestStrongTypedRoutes_DestructuredParamIsNamed(t *testing.T) {
+	found := checkBody(t, "export const bad = mion.route((ctx, {name}): string => name);")
+	assertCodes(t, found, diagnostics.CodeRouteMissingParamType)
+	if got := found[0].Args; !slices.Equal(got, []string{"route", "<destructured>"}) {
+		t.Fatalf("args = %v, want [route <destructured>]", got)
+	}
+}
+
 func TestStrongTypedRoutes_RawMiddlewareIsNotAHandler(t *testing.T) {
 	// A raw middleware takes no typed params and declares no return type.
 	assertCodes(t, checkBody(t, "export const raw = mion.rawMiddleware((ctx, req) => undefined);"))
