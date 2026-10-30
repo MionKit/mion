@@ -16,8 +16,7 @@ import (
 // Entry is one extracted pure-fn registration; Code is the JS-stripped factory body.
 // sourceFile/callPos track where it came from and never leave this package.
 type Entry struct {
-	// ID is the package that owns this pure function plus a hash of the body that ships
-	// (`@acme/text:9Zt1bRm4cV`), and is the registry key everywhere.
+	// ID is the owning package plus a hash of the shipped body (`@acme/text:9Zt1bRm4cV`), the registry key everywhere.
 	ID string
 	// BindingName is the identifier the registration is assigned to, empty for one written
 	// straight into a call. It reaches no id: a hash is what identifies, but it is unreadable

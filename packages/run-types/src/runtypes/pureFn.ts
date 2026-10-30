@@ -14,7 +14,7 @@ import type {
   PureFunctionFactory as PureFunctionFactoryMarker,
 } from '../markers.ts';
 
-/** A pure function's identity: the owning package plus a hash of the body that ships, like `'@acme/text:9Zt1bRm4cV'`. */
+/** A pure function's identity: owning package plus a hash of the shipped body, like `'@acme/text:9Zt1bRm4cV'`. */
 // A move or a rename keeps the id; a change to the body, or to the id of a helper it reaches, changes it.
 // The brand means only a value a registrar returned type-checks where an id is asked for, so a body reaches another pure fn by importing it.
 export type PureFnId<ID extends string = string> = ID & {readonly __rtPureFnIdBrand: true};

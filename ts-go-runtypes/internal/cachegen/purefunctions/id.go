@@ -8,19 +8,14 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 )
 
-// A pure function's id is `<package name>:<hash of the body that SHIPS>` (`@acme/text:Kq3fxN9pQ2`), the
-// marker package spelled `_rt` (`_rt:Kq3fxN9pQ2`), the shipped body being the one with each dependency
-// already replaced by that dependency's id: two files whose `utl.getPureFn(helper)` resolves
-// `helper` to different imports have identical text, so hashing the text as written would collapse
-// them into one entry. Renaming the binding or the export, or moving the file inside the package,
-// leave the id alone; it moves when the function changes, so a stale reference is a clean miss and
-// never a different body. The package half is what delivery reads ownership off: which installed
-// package serves a pure fn, and which never ride the metadata wire to a client. The id is the
-// registry key everywhere: injected into the registrar call, registered by the emitted module, and
-// carried as a literal by a dependent body after lowering.
+// A pure fn's id is `<package>:<hash of the body that SHIPS>` (`@acme/text:Kq3fxN9pQ2`, marker package `_rt`).
+// The shipped body has each dependency replaced by its id: two files whose `utl.getPureFn(helper)` resolve
+// `helper` to different imports have identical text, which would collapse into one entry. Renames and moves
+// inside the package keep the id; a body change moves it, so a stale reference is a clean miss, never a different
+// body. The package half tells delivery which installed package serves a pure fn and which never ride the
+// metadata wire to a client. The id is the registry key everywhere, a dependent body's literal included.
 
-// markerPackageInID spells the marker package in an id: every emitted body names its built-ins, and npm
-// forbids a leading `_`, so no real package claims it.
+// markerPackageInID is short since every emitted body names built-ins; npm forbids a leading `_`, so no package has it.
 const markerPackageInID = "_rt"
 
 // IDFor builds the id of a registration written in filePath whose shipped body hashes to hash.
@@ -39,8 +34,7 @@ func IDPrefix(packageName string) string {
 	return packageName + constants.PureFnHashPrefix
 }
 
-// SplitID returns an id's package and hash halves. ok is false for a string
-// with no separator, which is never an id this package produced.
+// SplitID returns an id's package and hash halves; ok is false with no separator, never an id this package produced.
 func SplitID(id string) (packageName, hash string, ok bool) {
 	sep := strings.LastIndex(id, constants.PureFnHashPrefix)
 	if sep < 0 {

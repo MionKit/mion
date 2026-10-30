@@ -172,8 +172,7 @@ export interface PureFnSite {
   file: string;
   start: number;
   end: number;
-  // The pure fn's id: the package that owns it and a hash of the body that
-  // ships (`@acme/text:9Zt1bRm4cV`).
+  // The pure fn's id: owning package plus a hash of the shipped body (`@acme/text:9Zt1bRm4cV`).
   key: string;
   // The identifier the registration was assigned to, absent when written straight into a call.
   // Not part of the id; carried because a report of hashes names nothing a reader can search for.
