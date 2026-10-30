@@ -28,7 +28,9 @@
   (mion's own middlewares and its error / serializer routes use them directly.)
 - Never re-add bare `route()` exports or a second init entry point.
 - Second `createMionRouter()` throws until `resetRouter()` clears it: catches a second app built on top of the first.
-- Tests: call it in `beforeEach` / `beforeAll` next to the reset, never where the file is evaluated.
+- Vitest tests may build it at module level: each file gets its own modules, so no sibling sees the flag.
+- bun tests (`packages/platform-bun`): call it in `beforeEach` / `beforeAll` next to the reset, never where the
+  file is evaluated.
 - ⚠️ bun runs a package's test files in ONE process.
   Router built in a describe body throws on a flag a sibling file set.
   That whole file is skipped, run still reports `0 fail`.
