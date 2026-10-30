@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: guidelines
-status: ready
+status: maybe
 created: 2026-10-16
 ---
 
@@ -40,3 +40,10 @@ this change touched, review its report against the code, and commit it as its ow
 - The catalog lists it with both examples.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file,
   each committed on its own.
+
+## Parked (2026-10-30)
+
+No commitment to implement. A first build raised one open question: a raw middleware compiles nothing from its
+params, so an optional context there drops nothing. The "for consistency" line above then conflicts with the Level
+rule (`LevelRuntimeError` needs code that is broken when it runs). Leave raw middlewares out, or give them a lower
+level and their own message.
