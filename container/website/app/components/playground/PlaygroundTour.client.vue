@@ -2,20 +2,16 @@
 // PlaygroundTour - the first-visit walkthrough: dims the page, cuts a highlighted hole around one
 // `data-tour` section of the playground, and explains it in a small card. Teleported to <body> so the
 // dimmed layer covers the site header too; the stage owns when it opens and what gets stored.
-import type {CSSProperties} from 'vue';
-import type {TourStep} from '../../playground/tour.ts';
+import {placeCard, type CardPosition, type TourStep} from '../../playground/tour.ts';
 
 const props = defineProps<{steps: readonly TourStep[]; open: boolean; root?: HTMLElement}>();
 const emit = defineEmits<{finish: []; dismiss: []}>();
 
-const GAP = 12;
-const EDGE = 16;
 const HOLE_PAD = 6;
-const NARROW = 640;
 
 const index = ref(0);
 const hole = ref<{top: number; left: number; width: number; height: number} | null>(null);
-const cardPos = ref<CSSProperties>({});
+const cardPos = ref<CardPosition>({});
 const cardEl = ref<HTMLElement>();
 let returnFocus: HTMLElement | null = null;
 let frame = 0;
@@ -28,27 +24,11 @@ function target(): HTMLElement | null {
   return name ? (props.root?.querySelector<HTMLElement>(`[data-tour="${name}"]`) ?? null) : null;
 }
 
-// Places the card beside the target: below, above, right, left, else pinned to the viewport bottom.
-function placeCard(rect: DOMRect): CSSProperties {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  if (vw < NARROW) return {left: `${EDGE}px`, right: `${EDGE}px`, bottom: `${EDGE}px`};
-  const width = cardEl.value?.offsetWidth ?? 340;
-  const height = cardEl.value?.offsetHeight ?? 180;
-  const clampX = (x: number): number => Math.min(Math.max(x, EDGE), vw - width - EDGE);
-  const clampY = (y: number): number => Math.min(Math.max(y, EDGE), vh - height - EDGE);
-  if (rect.bottom + GAP + height <= vh - EDGE) return {top: `${rect.bottom + GAP}px`, left: `${clampX(rect.left)}px`};
-  if (rect.top - GAP - height >= EDGE) return {top: `${rect.top - GAP - height}px`, left: `${clampX(rect.left)}px`};
-  if (rect.right + GAP + width <= vw - EDGE) return {top: `${clampY(rect.top)}px`, left: `${rect.right + GAP}px`};
-  if (rect.left - GAP - width >= EDGE) return {top: `${clampY(rect.top)}px`, left: `${rect.left - GAP - width}px`};
-  return {bottom: `${EDGE}px`, left: `${(vw - width) / 2}px`};
-}
-
 function measure(): void {
   const el = target();
   if (!el) {
     hole.value = null;
-    cardPos.value = {bottom: `${EDGE}px`, left: `${EDGE}px`};
+    cardPos.value = {bottom: '16px', left: '16px'};
     return;
   }
   const rect = el.getBoundingClientRect();
@@ -58,7 +38,8 @@ function measure(): void {
   const bottom = Math.min(rect.bottom + HOLE_PAD, window.innerHeight);
   const right = Math.min(rect.right + HOLE_PAD, window.innerWidth);
   hole.value = {top, left, width: Math.max(right - left, 0), height: Math.max(bottom - top, 0)};
-  cardPos.value = placeCard(rect);
+  const card = {width: cardEl.value?.offsetWidth ?? 340, height: cardEl.value?.offsetHeight ?? 180};
+  cardPos.value = placeCard(rect, {width: window.innerWidth, height: window.innerHeight}, card);
 }
 
 function scheduleMeasure(): void {
@@ -200,6 +181,7 @@ onBeforeUnmount(detach);
   box-shadow: 0 10px 30px var(--rtpg-shadow);
   outline: none;
 }
+/* Below tour.ts' 640px narrow viewport the card is a full-width bottom sheet. */
 @media (max-width: 639px) {
   .rtpg-tour .rtpg-tour-card {
     width: auto;

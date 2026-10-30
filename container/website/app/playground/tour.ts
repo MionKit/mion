@@ -1,5 +1,6 @@
-// tour.ts: the playground's first-visit tour steps and the browser-stored UI preferences.
-// Pure (no Vue, no DOM) so the Node test suite can pin it.
+// tour.ts: the playground's first-visit tour, its browser-stored UI preferences and the small view rules
+// its cards follow. Pure (no Vue, no DOM) so the Node test suite can pin it.
+import type {Operation} from './operations.ts';
 
 // The per-section guidance shown in each numbered badge's tooltip AND as the tour body for that section.
 export const STEP_TIPS = {
@@ -87,4 +88,49 @@ export function tourStepsFor(needsInput: boolean): TourStep[] {
 
 export function readCodeView(storage: PrefStorage | undefined): CodeView {
   return readPref(storage, CODE_VIEW_KEY) === 'file' ? 'file' : 'function';
+}
+
+// getRunType ships a data bundle with no factory: only the full file exists.
+export function shownCodeView(view: CodeView, hasFactoryView: boolean): CodeView {
+  return hasFactoryView ? view : 'file';
+}
+
+export function codeCountHint(view: CodeView, factoryCount: number, moduleCount: number): string {
+  const count = view === 'function' ? factoryCount : moduleCount;
+  if (!count) return '';
+  return `${count} ${view === 'function' ? 'function' : 'module'}${count === 1 ? '' : 's'}`;
+}
+
+// The Input card hides for a function that reads no input, so the Result card takes its number.
+export function resultStep(needsInput: boolean): number {
+  return needsInput ? 6 : 5;
+}
+
+// The Run button names the picked function; getRunType returns data, so it names the call itself.
+export function runName(op: Pick<Operation, 'kind' | 'label' | 'varName'>): string {
+  return op.kind === 'graph' ? op.label : op.varName;
+}
+
+export type CardPosition = Partial<Record<'top' | 'left' | 'right' | 'bottom', string>>;
+
+const GAP = 12;
+const EDGE = 16;
+const NARROW_VIEWPORT = 640;
+
+// Places the tour card beside its target: below, above, right, left, else centred at the viewport bottom.
+// Below NARROW_VIEWPORT it is a full-width sheet at the bottom.
+export function placeCard(
+  target: Pick<DOMRect, 'top' | 'left' | 'right' | 'bottom'>,
+  viewport: {width: number; height: number},
+  card: {width: number; height: number}
+): CardPosition {
+  const {width: vw, height: vh} = viewport;
+  if (vw < NARROW_VIEWPORT) return {left: `${EDGE}px`, right: `${EDGE}px`, bottom: `${EDGE}px`};
+  const clampX = (x: number): number => Math.min(Math.max(x, EDGE), vw - card.width - EDGE);
+  const clampY = (y: number): number => Math.min(Math.max(y, EDGE), vh - card.height - EDGE);
+  if (target.bottom + GAP + card.height <= vh - EDGE) return {top: `${target.bottom + GAP}px`, left: `${clampX(target.left)}px`};
+  if (target.top - GAP - card.height >= EDGE) return {top: `${target.top - GAP - card.height}px`, left: `${clampX(target.left)}px`};
+  if (target.right + GAP + card.width <= vw - EDGE) return {top: `${clampY(target.top)}px`, left: `${target.right + GAP}px`};
+  if (target.left - GAP - card.width >= EDGE) return {top: `${clampY(target.top)}px`, left: `${target.left - GAP - card.width}px`};
+  return {bottom: `${EDGE}px`, left: `${(vw - card.width) / 2}px`};
 }
