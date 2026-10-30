@@ -600,8 +600,7 @@
   opacity: 0.55;
 }
 
-/* batch compile: two scenes of a CardLoop, the build copying the batch into the server's table, then a call
-   sending only its id */
+/* batch compile: the build copies the batch to the server's table, then a call sends only its id */
 .code-card .cc-bc {
   --cc-wire-w: 170px;
   display: flex;
@@ -779,7 +778,7 @@
   right: auto;
   left: 0;
 }
-/* In a CardLoop: the line grows from the sender, the packet rides it from --cc-at to --cc-until, then hides. */
+/* The line grows from the sender; the packet rides it from --cc-at to --cc-until, then hides. */
 .code-card .cc-loop .cc-bc-back [data-cc-at='grow'] {
   transform-origin: right center;
 }
