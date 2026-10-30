@@ -1,12 +1,7 @@
-// pr-report.mjs — the Markdown report a `bench-report` labelled pull request posts: its validation benchmark numbers
-// next to the live site's, both read from gen-docs output (bench-data/validation{,-formats}/index.json).
-//
-//   node scripts/website/bench-data/pr-report.mjs --pr <bench-data dir> --live <bench-data dir> [--env <env.json>]
-//
-// Both sides ran on the same runner type, yet machines still drift run to run. The competitors' code is the same on
-// both sides (unless the pull request bumps one), so the median of their PR/live speed ratios is the machine drift,
-// and every mion ratio is divided by it. A single case moves ±10% between runs of unchanged code, so the tables
-// compare per-group geometric means; the per-case list only points at where to look.
+// Markdown report a `bench-report` labelled PR posts: its validation numbers vs the live site's, both gen-docs output.
+// Machines drift run to run, but competitor code is unchanged (unless the PR bumps one), so the median of their
+// PR/live ratios is the drift and every mion ratio is divided by it. A single case moves ±10% between runs of
+// unchanged code, so tables use per-group geomeans; the per-case list only points at where to look.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -19,7 +14,7 @@ const METRICS = [
 ];
 const PATHS = ['valid', 'invalid'];
 
-/** caseKey → {group, results: {competitor: {validate, validationErrors}}}, from one bench-data dir. */
+/** caseKey → {group, results: {competitor: {validate, validationErrors}}}. */
 export function readBenchData(dir) {
   const cases = new Map();
   let meta = null;
@@ -44,7 +39,6 @@ const median = (xs) => {
 };
 const fmtRatio = (r) => (r == null ? '-' : r.toFixed(2));
 
-/** The machine drift: median over the other competitors of their geomean PR/live ratio (every metric and path). */
 export function machineDrift(pr, live) {
   const competitors = new Set();
   for (const entry of live.cases.values()) for (const name of Object.keys(entry.results ?? {})) if (name !== MION) competitors.add(name);
@@ -73,7 +67,7 @@ function groupsOf(data) {
   return groups;
 }
 
-/** mion's place in a group: libraries supporting every case mion supports there, ranked by geomean speed. */
+/** Ranks only the libraries that support every case mion supports in the group. */
 function groupRank(data, keys, metric, at) {
   const shared = keys.filter((key) => speed(data.cases.get(key), MION, metric, at));
   if (shared.length === 0) return null;
@@ -88,7 +82,6 @@ function groupRank(data, keys, metric, at) {
   return `${scores.findIndex((s) => s.name === MION) + 1}/${scores.length}`;
 }
 
-/** mion vs one library over the cases both support: geomean speed ratio and wins. */
 function headToHead(data, name, metric, at) {
   const ratios = [];
   for (const entry of data.cases.values()) {

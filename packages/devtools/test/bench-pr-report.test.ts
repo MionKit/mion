@@ -1,5 +1,3 @@
-// The bench-report pull request comment: drift taken from the other libraries, ranks and head-to-head ratios.
-
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -10,7 +8,6 @@ import {machineDrift, readBenchData, renderReport} from '../../../scripts/websit
 type Speeds = Record<string, number>;
 const metric = (valid: number, invalid: number) => ({valid, invalid, mixed: 0, status: 'ok'});
 
-// One dataset dir with a single section; every library gets the same speed on both metrics and paths.
 function benchData(speeds: Record<string, Speeds>): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bench-pr-report-'));
   for (const dataset of ['validation', 'validation-formats']) {
@@ -32,7 +29,7 @@ function benchData(speeds: Record<string, Speeds>): string {
 }
 
 describe('bench-report pull request comment', () => {
-  // The machine ran 10% slower on the PR side; mion's code doubled its speed.
+  // PR side: machine 10% slower, mion's code twice as fast.
   const live = readBenchData(
     benchData({'OBJECT.a': {mion: 100, typia: 50, zod: 20}, 'OBJECT.b': {mion: 100, typia: 50, zod: 20}})
   );
