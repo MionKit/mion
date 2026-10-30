@@ -4,6 +4,8 @@ name: prod · deploy website
 # and npm fires no usable webhook to trigger it. Run it AFTER `pnpm miondevx release stage-approve`,
 # from `prod` after a release or from `main` for a docs-only fix; both ship the live site. See SETUP.md.
 # `dry_run` runs the whole build on either ref before anything is live and ships nothing.
+# `reuse_benchmarks` is for docs-only deploys: it ships the last deploy's benchmark data instead of
+# re-running every benchmark (an hour of the run). Leave it off after a release.
 on:
   workflow_dispatch:
     inputs:
@@ -13,6 +15,11 @@ on:
         type: string
       dry_run:
         description: 'Rehearse: build + check the site and test the Cloudflare credentials, publish nothing'
+        required: false
+        type: boolean
+        default: false
+      reuse_benchmarks:
+        description: "Docs-only deploy: reuse the last deploy's benchmark data, skip running the benchmarks"
         required: false
         type: boolean
         default: false
@@ -44,6 +51,8 @@ jobs:
     permissions:
       contents: read
       packages: read
+      # reuse_benchmarks reads the last deploy's artifact.
+      actions: read
     env:
       # The project name is not a secret, so it is a repo variable.
       CLOUDFLARE_PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT || 'mion' }}
@@ -76,6 +85,37 @@ jobs:
       - name: Verify the deploy target is the live npm release (abort otherwise)
         if: ${{ !inputs.dry_run }}
         run: node scripts/miondevx.mjs release verify-live
+      # reuse_benchmarks, also first and cheap: every deploy (dry runs too) uploads the built site as
+      # `website-output-deploy`, bench-data/ included. Take the newest unexpired one, and fail here
+      # rather than ship empty benchmark pages when none is left.
+      - name: Find the last deploy's benchmark data (reuse_benchmarks)
+        id: last-bench
+        if: ${{ inputs.reuse_benchmarks }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_id=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=website-output-deploy&per_page=50" \
+            --jq '[.artifacts[] | select(.expired | not)][0].workflow_run.id // empty')
+          if [ -z "$run_id" ]; then
+            echo "::error::reuse_benchmarks: no unexpired website-output-deploy artifact left; run a full deploy instead."
+            exit 1
+          fi
+          echo "Reusing the benchmark data of run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$run_id"
+          echo "run-id=$run_id" >> "$GITHUB_OUTPUT"
+      - name: Download the last deploy's site (reuse_benchmarks)
+        if: ${{ inputs.reuse_benchmarks }}
+        uses: actions/download-artifact@v8
+        with:
+          name: website-output-deploy
+          run-id: ${{ steps.last-bench.outputs.run-id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/last-site
+      - name: Reuse its benchmark data (reuse_benchmarks)
+        if: ${{ inputs.reuse_benchmarks }}
+        run: |
+          test -n "$(find "$RUNNER_TEMP/last-site/bench-data" -name '*.json' -print -quit)"
+          mkdir -p container/website/public
+          cp -R "$RUNNER_TEMP/last-site/bench-data" container/website/public/bench-data
       # Reclaim preinstalled cruft before the image pull + Go build-cache restore.
       - uses: ./.github/actions/free-disk
       - uses: ./.github/actions/bootstrap
@@ -97,6 +137,7 @@ jobs:
       # its own image (a competitor web-framework bump must not be able to disturb
       # the validation lanes). Same rule: CI pulls it, never builds it.
       - name: Pull the prebuilt mion-bench image (CI never builds it)
+        if: ${{ !inputs.reuse_benchmarks }}
         uses: ./.github/actions/pull-shared-image
         with:
           remote: ghcr.io/mionkit/mion-bench:latest
@@ -105,8 +146,9 @@ jobs:
       # Reuse the playground wasm across deploys when the Go inputs are unchanged.
       - name: Cache the playground wasm
         uses: ./.github/actions/cache-playground-wasm
+      # --no-bench builds from the bench-data/ copied in above (it fails loud if that is empty).
       - name: Build binary + benchmarks + static site
-        run: pnpm miondevx website build
+        run: pnpm miondevx website build ${{ inputs.reuse_benchmarks && '--no-bench' || '' }}
       # Deploy gate: serve the prerendered artifact and assert it is not hollow. The
       # bench tables and charts fetch their data client side and degrade to a "not
       # generated yet" notice when it is missing, so a benchmark stage that dies
@@ -156,6 +198,8 @@ jobs:
       # never been measured. Read a few runs of this step's output, confirm the
       # inversion holds here, then set MION_VALIDATION_BENCH_ENGINE_ASSERT=1 to make it a failure.
       - name: Engine-branch throughput check (counter inversion, node + bun)
+        # A benchmark too: a docs-only deploy that reused the data has nothing new to measure.
+        if: ${{ !inputs.reuse_benchmarks }}
         env:
           # Flip to '1' to make a real inversion FAIL this job (the deploy above has
           # already shipped, so the site still goes out). Left off until the arm64
