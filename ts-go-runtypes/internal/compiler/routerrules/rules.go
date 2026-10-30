@@ -16,9 +16,8 @@ const RpcErrorName = "RpcError"
 // errorBaseName is the global class an arm must derive from for the rule to say anything about it.
 const errorBaseName = "Error"
 
-// checkAnnotations is rpc-handler-missing-return-type/rpc-handler-missing-param-type: mion compiles the handler's DECLARED types, so an inferred
-// return type leaves the build nothing to compile. It reads the AST, never inference: what matters is
-// whether the annotation was WRITTEN.
+// checkAnnotations is rpc-handler-missing-return-type/rpc-handler-missing-param-type.
+// mion compiles only WRITTEN types, so it reads the AST, never inference.
 func (scope *fileScope) checkAnnotations(discovered handler) []diagnostics.Diagnostic {
 	fnLike := discovered.fn.FunctionLikeData()
 	if fnLike == nil {
@@ -50,8 +49,7 @@ func returnTypeSite(fn *ast.Node) *ast.Node {
 	return fn
 }
 
-// handlerParams is the parameter list without a TypeScript `this`: `Parameters<H>` leaves it out, so counting it
-// would shift the call context by one.
+// handlerParams drops a TypeScript `this`: `Parameters<H>` leaves it out, so counting it shifts the context by one.
 func handlerParams(fn *ast.Node) []*ast.Node {
 	fnLike := fn.FunctionLikeData()
 	if fnLike == nil || fnLike.Parameters == nil {
@@ -64,7 +62,7 @@ func handlerParams(fn *ast.Node) []*ast.Node {
 	return params
 }
 
-// parameterName is the written name, a placeholder for a binding pattern: Node.Text panics on one.
+// parameterName checks the kind first: Node.Text panics on a binding pattern.
 func parameterName(paramNode *ast.Node) string {
 	if name := paramNode.Name(); name != nil && name.Kind == ast.KindIdentifier {
 		return name.Text()
