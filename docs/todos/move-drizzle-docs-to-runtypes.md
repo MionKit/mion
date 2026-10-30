@@ -50,3 +50,18 @@ this change touched, review its report against the code, and commit it as its ow
 - `website-*` and `repo-contracts` tests pass.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file,
   each committed on its own.
+
+## Plan: move + RPC page (approved 2026-10-30)
+
+- `git mv` the whole section to `content/02.runtypes/06.drizzle-orm/` (fills the gap before Diagnostics, no other
+  dir renumbered). `.navigation.yml` gains `redirect: /runtypes/drizzle-orm/drizzle-overview` like its siblings.
+- Cloudflare D1 / Durable Objects page stays in the moved section: its examples use only the SQLite table package
+  plus a drizzle driver, no mion RPC code, so a RunTypes-only reader needs it too. The RPC Cloudflare platform page
+  keeps its short Cloudflare Databases section, linking to it.
+- The overview's two route sections (Using Models in Routes, Returning Query Results) move to a new RPC page,
+  `01.rpc/02.server/08.drizzle-tables.md` (`/rpc/server/drizzle-tables`), plus a pointer to the linter rule.
+  The overview links to it.
+- Links: RPC home Drizzle pitch → the new RPC page; Cloudflare platform page + linter page → the new section URLs;
+  section cross-links → `/runtypes/drizzle-orm/...`. `@mionjs/drizzle-orm` README points at the section.
+- `_redirects`: `/drizzle-orm/*`, `/rpc/drizzle-orm/*` and bare `/rpc/drizzle-orm` → the new section; both
+  `indexes-constraints` rules → `/runtypes/drizzle-orm/constraints`, each above its splat.
