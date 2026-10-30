@@ -4,6 +4,7 @@ import {
   factoryCall,
   factoryImport,
   generatedCache,
+  generatedFactories,
   mock,
   mockInvalid,
   OPERATIONS,
@@ -291,9 +292,61 @@ const MyType = RT.object({
     expect(mods[0].name).toMatch(/^rtmod:\/.+\.js$/);
     // The WASM resolver runs EmitFunctions (cmd/mion-wasm/main.go), so the
     // factory rides as a real `function g_…(utl){…}` in the tuple, not an escaped
-    // code string - clearer in the "Generated Cache" view.
+    // code string - clearer in the "Generated RunType … code" view.
     expect(mods[0].code).toMatch(/export const __rt_/);
     expect(mods[0].code).toMatch(/function g_[A-Za-z0-9_]+\(utl\)/);
+  });
+
+  // The "Function" view of the generated-code card: only the `g_…` factories, each the exact emitted
+  // text of the module it lives in, and labeled with that module's file name.
+  it('generatedFactories picks the single validate factory out of its module', async () => {
+    const mods = await generatedCache('createValidateFn', TYPE);
+    const factories = generatedFactories(mods);
+    expect(factories).toHaveLength(1);
+    const [factory] = factories;
+    expect(factory.name).toMatch(/^g_/);
+    expect(factory.code).toMatch(/^function g_[A-Za-z0-9_]+\(utl\)/);
+    expect(factory.code).not.toContain('export const');
+    expect(factory.file).toBe(mods[0].name);
+    expect(mods[0].code).toContain(factory.code);
+  });
+
+  it('generatedFactories finds every factory of a codec spread over several modules', async () => {
+    const mods = await generatedCache('createJsonDecoderFn', TYPE);
+    const factories = generatedFactories(mods);
+    expect(factories.length).toBeGreaterThan(1);
+    const byName = new Map(mods.map((mod) => [mod.name, mod.code]));
+    for (const factory of factories) {
+      expect(factory.name).toMatch(/^g_/);
+      expect(byName.get(factory.file), factory.name).toContain(factory.code);
+    }
+  });
+
+  it('generatedFactories is empty for the getRunType data bundle', async () => {
+    expect(generatedFactories(await generatedCache('getRunType', TYPE))).toEqual([]);
+  });
+
+  it('every preset shows real emitted factories for every function, and a validator for each', async () => {
+    for (const preset of PRESETS) {
+      for (const op of OPERATIONS) {
+        if (op.kind === 'graph') continue;
+        const mods = await generatedCache(op.factory, preset.ts, undefined, 'type', op.options);
+        const byName = new Map(mods.map((mod) => [mod.name, mod.code]));
+        const factories = generatedFactories(mods);
+        for (const factory of factories) expect(byName.get(factory.file), `${preset.name} / ${op.key}`).toContain(factory.code);
+        // A validator always has code; an encoder can be a no-op for a type that is plain JSON already.
+        if (op.kind === 'predicate' || op.kind === 'errors')
+          expect(factories.length, `${preset.name} / ${op.key}`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  // The function view's empty state: a no-op entry ships a file but no factory.
+  it('generatedFactories is empty for a no-op entry (mutate encoder on a plain JSON type)', async () => {
+    const op = OPERATIONS.find((candidate) => candidate.key === 'jsonEncoderMutate')!;
+    const mods = await generatedCache(op.factory, TYPE, undefined, 'type', op.options);
+    expect(mods.length).toBeGreaterThan(0);
+    expect(generatedFactories(mods)).toEqual([]);
   });
 
   it('generated cache returns one named module per family (codecs span several)', async () => {
