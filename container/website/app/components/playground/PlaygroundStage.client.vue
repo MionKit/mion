@@ -1,14 +1,16 @@
 <script setup lang="ts">
 // PlaygroundStage - the interactive playground UI (client-only: it lazy-loads
 // Monaco + the resolver WASM, both browser-only). A Vue port of the former
-// <runtypes-playground> web component. Three columns:
-//   1. Source     - the TypeScript type (or builder) editor, its
-//                   read-only import header + call footer, and the "Transformed
-//                   Src" view of what the build plugin injects.
-//   2. Generated  - the code RunTypes generates for the selected function + type.
-//   3. Function   - a build-function picker, a JS-expression input pane with
+// <runtypes-playground> web component. Three columns of numbered cards:
+//   1. Source     - the TypeScript type (or builder) editor, its read-only
+//                   import header + call footer.
+//   2. Transformed - what the build plugin injects into that file.
+//   3. Generated  - the code RunTypes generates for the selected function + type,
+//                   as the bare factory function or the full module file.
+//   4. Function   - a build-function picker, a JS-expression input pane with
 //                   Random valid / Random invalid, a Run button, and the result.
-// Above: real-world presets + a TS-type / Builder mode switch.
+// Above: real-world presets + a TS-type / Builder mode switch. A first-visit
+// tour (PlaygroundTour) walks through each card.
 //
 // The engine (../../playground) is framework-agnostic; this component owns the
 // Monaco wiring, the debounced codegen, and the highlighted output. Colors follow
@@ -20,6 +22,7 @@ import {
   mockInvalid,
   versions,
   generatedCache,
+  generatedFactories,
   transformedSource,
   factoryImport,
   factoryCall,
@@ -29,11 +32,24 @@ import {
   ROOT_TYPE,
   type RunResult,
   type Diagnostic,
+  type CacheModule,
+  type GeneratedFactory,
   type Mode,
   type Operation,
   type ResolverOptions,
 } from '../../playground/index.ts';
 import {PRESETS, type Preset} from '../../playground/presets.ts';
+import {
+  STEP_TIPS,
+  TOUR_STEPS,
+  readCodeView,
+  readTourState,
+  shouldAutoStart,
+  writeCodeView,
+  writeTourState,
+  type CodeView,
+} from '../../playground/tour.ts';
+import PlaygroundTour from './PlaygroundTour.client.vue';
 // Monaco's language services (TypeScript completions, hovers, signature help) run
 // inside web workers. Vite's `?worker` suffix bundles each entry as its own worker
 // chunk and hands back a constructor - the canonical way to wire Monaco under Vite.
@@ -60,16 +76,6 @@ const props = withDefaults(
 const TYPE_DEBOUNCE_MS = 2000;
 const PICK_DEBOUNCE_MS = 150;
 
-// The per-title guidance shown in each numbered badge's tooltip.
-const STEP_TIPS = {
-  source: 'Edit MyType and watch the change flow through to the transformed source and the generated functions.',
-  transformed:
-    'The transformed code: the generated functions are imported and referenced by a stable type id (one id per type). RunTypes makes the smallest change it can to your original source.',
-  cache:
-    'The real, ready-to-run code RunTypes generates for your type. This is what actually executes for the function you picked, specialized to your exact shape (no schema walking or reflection at runtime).',
-  function: 'Pick one of the functions RunTypes generates from your type, then run it against the input below.',
-} as const;
-
 const config = useRuntimeConfig();
 const colorMode = useColorMode();
 const monacoTheme = computed(() => (colorMode.value === 'dark' ? 'vs-dark' : 'vs'));
@@ -82,11 +88,17 @@ const operationKey = ref<string>(props.operation ?? OPERATIONS[0]?.key ?? '');
 const ready = ref(false);
 const overlayError = ref('');
 const codegenBusy = ref(false);
-const codeHint = ref('');
 const timing = ref('');
 const outputHtml = ref('<div class="rtpg-placeholder">Run to see the result</div>');
 const transformviewHtml = ref('<div class="rtpg-placeholder">resolving…</div>');
 const codeviewHtml = ref('<div class="rtpg-placeholder">resolving…</div>');
+const factoryviewHtml = ref('');
+const moduleCount = ref(0);
+const factoryCount = ref(0);
+// Function view (the bare `g_…` factory) or the full module file; remembered in the browser.
+const codeView = ref<CodeView>('function');
+const tourOpen = ref(false);
+const rootEl = ref<HTMLElement>();
 const genRandomBusy = ref(false);
 const genInvalidBusy = ref(false);
 // Which generator the sample input last came from, so a type edit refreshes it
@@ -106,6 +118,16 @@ const CALL_FORM: Mode = 'type';
 const currentOp = computed<Operation>(() => operationByKey(operationKey.value));
 const needsInput = computed(() => currentOp.value.needsInput);
 const runLabel = computed(() => (currentOp.value.kind === 'graph' ? 'Unpack RunTypes' : 'Run'));
+// getRunType ships a data bundle with no factory: only the full file exists.
+const hasFactoryView = computed(() => currentOp.value.kind !== 'graph');
+const showFactories = computed(() => codeView.value === 'function' && hasFactoryView.value);
+const codeHint = computed(() => {
+  const count = showFactories.value ? factoryCount.value : moduleCount.value;
+  if (!count) return '';
+  const noun = showFactories.value ? 'function' : 'module';
+  return `${count} ${noun}${count === 1 ? '' : 's'}`;
+});
+const tourSteps = computed(() => TOUR_STEPS.filter((step) => !step.needsInput || needsInput.value));
 const typeHintHtml = computed(() =>
   mode.value === 'builder'
     ? `define <code>${ROOT_TYPE}</code> from RT/TF builders`
@@ -598,6 +620,33 @@ function scheduleCodegen(delay: number): void {
   codeTimer = setTimeout(() => void updateSelectedCode(), delay);
 }
 
+interface CodeBlock {
+  head: string; // already-escaped header HTML
+  code: string;
+}
+
+// The file name always heads a block, so the function view still says which module the code lives in.
+function moduleBlock(module: CacheModule): CodeBlock {
+  return {head: escapeHtml(module.name), code: module.code};
+}
+
+function factoryBlock(factory: GeneratedFactory): CodeBlock {
+  return {
+    head: `${escapeHtml(factory.file)}<span class="rtpg-cache-fn"> · ${escapeHtml(factory.name)}</span>`,
+    code: factory.code,
+  };
+}
+
+async function renderCodeBlocks(blocks: CodeBlock[]): Promise<string> {
+  const rendered = await Promise.all(
+    blocks.map(
+      async (block) =>
+        `<div class="rtpg-cache-file"><div class="rtpg-cache-file-head">${block.head}</div><pre class="rtpg-code">${await highlight(await beautifyModule(block.code), 'javascript')}</pre></div>`,
+    ),
+  );
+  return rendered.join('');
+}
+
 async function updateSelectedCode(): Promise<void> {
   if (!ready.value) return;
   const seq = ++codeSeq;
@@ -607,37 +656,69 @@ async function updateSelectedCode(): Promise<void> {
   codegenBusy.value = true;
   try {
     const cacheModules = await generatedCache(op.factory, userCode, opts, CALL_FORM, op.options);
+    const factories = generatedFactories(cacheModules);
     const html = cacheModules.length
-      ? (
-          await Promise.all(
-            cacheModules.map(
-              async (m) =>
-                `<div class="rtpg-cache-file"><div class="rtpg-cache-file-head">${escapeHtml(m.name)}</div><pre class="rtpg-code">${await highlight(await beautifyModule(m.code), 'javascript')}</pre></div>`,
-            ),
-          )
-        ).join('')
-      : '<div class="rtpg-card-note">no cache generated for this type</div>';
+      ? await renderCodeBlocks(cacheModules.map(moduleBlock))
+      : '<div class="rtpg-card-note">no code generated for this type</div>';
+    // A function that needs no code for this type (a no-op entry, e.g. the mutate encoder on plain JSON) has none.
+    const factoryHtml = factories.length
+      ? await renderCodeBlocks(factories.map(factoryBlock))
+      : `<div class="rtpg-card-note">No generated function: <code>${escapeHtml(op.varName)}</code> needs no code for this type. The full file shows its no-op entry.</div>`;
     const transformed = await transformedSource(op.factory, op.varName, userCode, opts, CALL_FORM, op.options);
     const transformedHtml = `<pre class="rtpg-code">${await highlight(transformed, 'typescript')}</pre>`;
     // Drop the result if a newer regeneration started while we awaited - it owns the
     // busy state and will clear it when it finishes.
     if (seq !== codeSeq) return;
-    codeHint.value = cacheModules.length ? `${cacheModules.length} module${cacheModules.length === 1 ? '' : 's'}` : '';
+    moduleCount.value = cacheModules.length;
+    factoryCount.value = factories.length;
     codeviewHtml.value = html;
+    factoryviewHtml.value = factoryHtml;
     transformviewHtml.value = transformedHtml;
     codegenBusy.value = false;
   } catch (err) {
     if (seq !== codeSeq) return;
     const message = `<pre class="rtpg-code error">${escapeHtml((err as Error).message ?? String(err))}</pre>`;
     codeviewHtml.value = message;
+    factoryviewHtml.value = message;
     transformviewHtml.value = message;
     codegenBusy.value = false;
   }
 }
 
+// ---- tour + stored preferences ------------------------------------------------
+
+// Reading `localStorage` itself can throw (blocked site data), not only its methods.
+function browserStorage(): Storage | undefined {
+  try {
+    return globalThis.localStorage;
+  } catch {
+    return undefined;
+  }
+}
+
+function setCodeView(view: CodeView): void {
+  codeView.value = view;
+  writeCodeView(browserStorage(), view);
+}
+
+function startTour(): void {
+  tourOpen.value = true;
+}
+
+function endTour(state: 'completed' | 'dismissed'): void {
+  tourOpen.value = false;
+  writeTourState(browserStorage(), state);
+}
+
+// First visit only, and only once the loading overlay is gone (never over the error state).
+watch(ready, (isReady) => {
+  if (isReady && !overlayError.value && shouldAutoStart(readTourState(browserStorage()))) startTour();
+});
+
 // ---- boot / teardown --------------------------------------------------------
 
 onMounted(async () => {
+  codeView.value = readCodeView(browserStorage());
   ensureMonacoWorkers();
   try {
     const [loadedMonaco, overlay] = await Promise.all([import('monaco-editor'), loadRuntypesSources()]);
@@ -755,10 +836,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="rt-playground" :style="{'--rt-pg-min-height': height}">
-    <div class="rtpg-toolbar">
+  <div ref="rootEl" class="rt-playground" :style="{'--rt-pg-min-height': height}">
+    <div class="rtpg-toolbar rtpg-card">
       <div class="rtpg-typegroup">
-        <div class="rtpg-modeswitch" role="group" aria-label="type form">
+        <div class="rtpg-modeswitch" role="group" aria-label="type form" data-tour="mode">
           <button
             type="button"
             class="rtpg-mode"
@@ -791,7 +872,7 @@ onBeforeUnmount(() => {
           </button>
         </div>
         <span class="rtpg-typegroup-sep" />
-        <div class="rtpg-presets">
+        <div class="rtpg-presets" data-tour="presets">
           <button
             v-for="(preset, i) in PRESETS"
             :key="preset.name"
@@ -804,68 +885,102 @@ onBeforeUnmount(() => {
           </button>
         </div>
       </div>
+      <button type="button" class="rtpg-tour-btn" title="Walk through each section" @click="startTour">Tour</button>
     </div>
 
     <div class="rtpg-layout">
-      <section class="rtpg-pane rtpg-typepane">
-        <div class="rtpg-head">
-          <span class="rtpg-head-title">
-            <h2>Source</h2>
-            <button type="button" class="rtpg-step" :aria-label="`Step 1: ${STEP_TIPS.source}`">
-              1<span class="rtpg-tip" role="tooltip">{{ STEP_TIPS.source }}</span>
-            </button>
-          </span>
-          <span class="rtpg-hint" v-html="typeHintHtml" />
-        </div>
-        <div class="rtpg-typestack">
-          <div class="rtpg-ro-wrap rtpg-ro-header">
-            <div ref="headerEditorEl" class="rtpg-ro-editor" />
-            <div class="rtpg-ro-hatch" aria-hidden="true" />
+      <div class="rtpg-col">
+        <section class="rtpg-pane rtpg-typepane" data-tour="source">
+          <div class="rtpg-head">
+            <span class="rtpg-head-title">
+              <button type="button" class="rtpg-step" :aria-label="`Step 1: ${STEP_TIPS.source}`">
+                1<span class="rtpg-tip" role="tooltip">{{ STEP_TIPS.source }}</span>
+              </button>
+              <h2>Source</h2>
+            </span>
+            <span class="rtpg-hint" v-html="typeHintHtml" />
           </div>
-          <div ref="editorEl" class="rtpg-editor" />
-          <div class="rtpg-ro-wrap rtpg-ro-footer">
-            <div ref="footerEditorEl" class="rtpg-ro-editor" />
-            <div class="rtpg-ro-hatch" aria-hidden="true" />
+          <div class="rtpg-typestack">
+            <div class="rtpg-ro-wrap rtpg-ro-header">
+              <div ref="headerEditorEl" class="rtpg-ro-editor" />
+              <div class="rtpg-ro-hatch" aria-hidden="true" />
+            </div>
+            <div ref="editorEl" class="rtpg-editor" />
+            <div class="rtpg-ro-wrap rtpg-ro-footer">
+              <div ref="footerEditorEl" class="rtpg-ro-editor" />
+              <div class="rtpg-ro-hatch" aria-hidden="true" />
+            </div>
           </div>
-        </div>
-        <div class="rtpg-subhead">
-          <span class="rtpg-head-title">
-            <h3>Transformed Src</h3>
-            <button type="button" class="rtpg-step" :aria-label="`Step 2: ${STEP_TIPS.transformed}`">
-              2<span class="rtpg-tip" role="tooltip">{{ STEP_TIPS.transformed }}</span>
-            </button>
-          </span>
-          <span class="rtpg-head-status">
-            <span v-show="codegenBusy" class="rtpg-busy-spinner" />
-            <span class="rtpg-hint">the import + argument RunTypes injects</span>
-          </span>
-        </div>
-        <div class="rtpg-transformview" :class="{'is-busy': codegenBusy}" v-html="transformviewHtml" />
-      </section>
+        </section>
 
-      <section class="rtpg-pane">
-        <div class="rtpg-head">
-          <span class="rtpg-head-title">
-            <h2>Generated Cache</h2>
-            <button type="button" class="rtpg-step" :aria-label="`Step 3: ${STEP_TIPS.cache}`">
-              3<span class="rtpg-tip" role="tooltip">{{ STEP_TIPS.cache }}</span>
+        <section class="rtpg-pane rtpg-transformpane" data-tour="transformed">
+          <div class="rtpg-head">
+            <span class="rtpg-head-title">
+              <button type="button" class="rtpg-step" :aria-label="`Step 2: ${STEP_TIPS.transformed}`">
+                2<span class="rtpg-tip" role="tooltip">{{ STEP_TIPS.transformed }}</span>
+              </button>
+              <h2>Transformed Source</h2>
+            </span>
+            <span class="rtpg-head-status">
+              <span v-show="codegenBusy" class="rtpg-busy-spinner" />
+              <span class="rtpg-hint">the import + argument RunTypes injects</span>
+            </span>
+          </div>
+          <div class="rtpg-transformview" :class="{'is-busy': codegenBusy}" v-html="transformviewHtml" />
+        </section>
+      </div>
+
+      <section class="rtpg-pane" data-tour="generated">
+        <div class="rtpg-head rtpg-head-wrap">
+          <span class="rtpg-head-title rtpg-head-title-fluid">
+            <button type="button" class="rtpg-step" :aria-label="`Step 3: ${STEP_TIPS.generated}`">
+              3<span class="rtpg-tip" role="tooltip">{{ STEP_TIPS.generated }}</span>
             </button>
+            <h2>Generated RunType <code>{{ currentOp.varName }}</code> code</h2>
           </span>
           <span class="rtpg-head-status">
             <span v-show="codegenBusy" class="rtpg-busy-spinner" />
             <span class="rtpg-hint">{{ codeHint }}</span>
+            <span
+              class="rtpg-modeswitch rtpg-viewswitch"
+              role="group"
+              aria-label="generated code view"
+              :title="hasFactoryView ? undefined : `${currentOp.label} ships data, not a function`"
+            >
+              <button
+                type="button"
+                class="rtpg-mode"
+                :class="{'is-active': showFactories}"
+                :aria-pressed="showFactories"
+                :disabled="!hasFactoryView"
+                @click="setCodeView('function')"
+              >
+                Function
+              </button>
+              <button
+                type="button"
+                class="rtpg-mode"
+                :class="{'is-active': !showFactories}"
+                :aria-pressed="!showFactories"
+                :disabled="!hasFactoryView"
+                @click="setCodeView('file')"
+              >
+                Full file
+              </button>
+            </span>
           </span>
         </div>
-        <div class="rtpg-codeview" :class="{'is-busy': codegenBusy}" v-html="codeviewHtml" />
+        <div v-if="showFactories" class="rtpg-codeview" :class="{'is-busy': codegenBusy}" v-html="factoryviewHtml" />
+        <div v-else class="rtpg-codeview" :class="{'is-busy': codegenBusy}" v-html="codeviewHtml" />
       </section>
 
       <section class="rtpg-pane">
-        <div class="rtpg-head">
+        <div class="rtpg-head" data-tour="picker">
           <span class="rtpg-head-title">
-            <h2>Pick a Function</h2>
             <button type="button" class="rtpg-step" :aria-label="`Step 4: ${STEP_TIPS.function}`">
-              4<span class="rtpg-tip rtpg-tip-left" role="tooltip">{{ STEP_TIPS.function }}</span>
+              4<span class="rtpg-tip" role="tooltip">{{ STEP_TIPS.function }}</span>
             </button>
+            <h2>Pick a Function</h2>
           </span>
           <select v-model="operationKey" class="rtpg-select" aria-label="Build function">
             <optgroup v-for="group in operationGroups" :key="group.label" :label="group.label">
@@ -888,38 +1003,50 @@ onBeforeUnmount(() => {
               <div class="rtpg-info-detail">{{ currentOp.detail }}</div>
             </div>
           </div>
-          <div v-show="needsInput" class="rtpg-field rtpg-input-field">
-            <div class="rtpg-field-label-row">
-              <span class="rtpg-field-label">Input (JS)</span>
-              <span class="rtpg-btn-row">
-                <button
-                  type="button"
-                  class="rtpg-ghost-btn"
-                  :disabled="genRandomBusy"
-                  title="Generate a valid random value with createMockDataFn"
-                  @click="generateMock"
-                >
-                  {{ genRandomBusy ? 'generating…' : 'Random valid' }}
-                </button>
-                <button
-                  type="button"
-                  class="rtpg-ghost-btn rtpg-ghost-invalid"
-                  :disabled="genInvalidBusy"
-                  title="Generate a random value that fails validation"
-                  @click="generateInvalid"
-                >
-                  {{ genInvalidBusy ? 'generating…' : 'Random invalid' }}
-                </button>
-              </span>
+          <div v-show="needsInput" class="rtpg-field rtpg-input-field" data-tour="input">
+            <span class="rtpg-field-label">Input (JS)</span>
+            <div class="rtpg-btn-row">
+              <button
+                type="button"
+                class="rtpg-btn rtpg-btn-valid"
+                :disabled="genRandomBusy"
+                title="Generate a valid random value with createMockDataFn"
+                @click="generateMock"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    fill="currentColor"
+                    d="M12 2a10 10 0 1 0 0 20a10 10 0 0 0 0-20m-1.2 14.2L6.6 12L8 10.6l2.8 2.8l5.6-5.6L17.8 9.2z"
+                  />
+                </svg>
+                {{ genRandomBusy ? 'generating…' : 'Random valid' }}
+              </button>
+              <button
+                type="button"
+                class="rtpg-btn rtpg-btn-invalid"
+                :disabled="genInvalidBusy"
+                title="Generate a random value that fails validation"
+                @click="generateInvalid"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    fill="currentColor"
+                    d="M12 2a10 10 0 1 0 0 20a10 10 0 0 0 0-20m3.6 12.2l-1.4 1.4l-2.2-2.2l-2.2 2.2l-1.4-1.4l2.2-2.2l-2.2-2.2l1.4-1.4l2.2 2.2l2.2-2.2l1.4 1.4l-2.2 2.2z"
+                  />
+                </svg>
+                {{ genInvalidBusy ? 'generating…' : 'Random invalid' }}
+              </button>
             </div>
             <div ref="inputEditorEl" class="rtpg-input-editor" />
             <div class="rtpg-mock-badge">
               Sample data generated by RunTypes <code>createMockDataFn&lt;{{ ROOT_TYPE }}&gt;()</code>
             </div>
           </div>
-          <button type="button" class="rtpg-run-btn" :disabled="!ready" @click="doRun">{{ runLabel }}</button>
-          <div class="rtpg-result-label">Result <span class="rtpg-hint">{{ timing }}</span></div>
-          <div class="rtpg-result" v-html="outputHtml" />
+          <div class="rtpg-runblock" data-tour="run">
+            <button type="button" class="rtpg-run-btn" :disabled="!ready" @click="doRun">{{ runLabel }}</button>
+            <div class="rtpg-result-label">Result <span class="rtpg-hint">{{ timing }}</span></div>
+            <div class="rtpg-result" v-html="outputHtml" />
+          </div>
         </div>
       </section>
     </div>
@@ -935,6 +1062,14 @@ onBeforeUnmount(() => {
         <div class="rtpg-overlay-sub">Fetching the editor and the resolver (a few MB). Everything runs in your browser.</div>
       </div>
     </div>
+
+    <PlaygroundTour
+      :steps="tourSteps"
+      :open="tourOpen"
+      :root="rootEl"
+      @finish="endTour('completed')"
+      @dismiss="endTour('dismissed')"
+    />
   </div>
 </template>
 
@@ -966,9 +1101,6 @@ onBeforeUnmount(() => {
   color: var(--rtpg-text);
   font-family: var(--rtpg-sans);
   font-size: 14px;
-  border: 1px solid var(--rtpg-border);
-  border-radius: 10px;
-  overflow: hidden;
   min-height: var(--rt-pg-min-height, 460px);
 }
 .rt-playground * {
@@ -977,21 +1109,41 @@ onBeforeUnmount(() => {
 .rt-playground .rtpg-layout {
   display: grid;
   grid-template-columns: 1.1fr 1fr 0.9fr;
-  gap: 1px;
-  background: var(--rtpg-border);
+  gap: 12px;
+  padding: 12px;
   min-height: 460px;
+}
+/* Column 1 stacks two cards (Source over Transformed) with the grid's own gap. */
+.rt-playground .rtpg-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  min-width: 0;
 }
 @media (max-width: 1000px) {
   .rt-playground .rtpg-layout {
     grid-template-columns: 1fr;
   }
+  /* Stacked cards size to their content, so a long generated file scrolls inside its card. */
+  .rt-playground .rtpg-codeview {
+    max-height: 520px;
+  }
+}
+/* Every numbered section and the toolbar: the site's one panel look. */
+.rt-playground .rtpg-pane,
+.rt-playground .rtpg-card {
+  background: var(--mion-panel-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--mion-panel-radius);
 }
 .rt-playground .rtpg-pane {
-  background: var(--rtpg-bg);
   display: flex;
   flex-direction: column;
   min-height: 0;
   min-width: 0;
+  /* Keeps Monaco and the code blocks inside the rounded corners. */
+  overflow: hidden;
 }
 .rt-playground .rtpg-head {
   display: flex;
@@ -1003,7 +1155,13 @@ onBeforeUnmount(() => {
      pane heads stay on the same baseline whether or not they carry a control. */
   min-height: 46px;
   border-bottom: 1px solid var(--rtpg-border);
-  background: var(--rtpg-panel);
+  background: var(--mion-panel-head-bg);
+}
+.rt-playground .rtpg-head-wrap {
+  flex-wrap: wrap;
+}
+.rt-playground .rtpg-head-wrap .rtpg-head-status {
+  margin-left: auto;
 }
 .rt-playground .rtpg-head h2 {
   margin: 0;
@@ -1011,7 +1169,7 @@ onBeforeUnmount(() => {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  color: var(--rtpg-muted);
+  color: var(--rtpg-text);
   /* Never wrap: the function-picker head shares its row with the select, and a
      two-line title there would break the three panes' shared baseline. */
   white-space: nowrap;
@@ -1025,6 +1183,20 @@ onBeforeUnmount(() => {
      by the select rather than clipped, since the h2 does not wrap). */
   flex: 0 0 auto;
 }
+/* The generated-code title carries the picked function's name, so it may shrink (ellipsis) instead. */
+.rt-playground .rtpg-head-title-fluid {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.rt-playground .rtpg-head-title-fluid h2 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rt-playground .rtpg-head h2 code {
+  font-size: 12.5px;
+  letter-spacing: 0;
+  text-transform: none;
+}
 .rt-playground .rtpg-hint {
   color: var(--rtpg-muted);
   font-size: 12px;
@@ -1035,15 +1207,15 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   padding: 0;
   border: 1px solid var(--rtpg-accent-dim);
   border-radius: 50%;
   background: color-mix(in srgb, var(--rtpg-accent) 14%, transparent);
   color: var(--rtpg-accent);
   font-family: var(--rtpg-sans);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   line-height: 1;
   cursor: help;
@@ -1081,16 +1253,6 @@ onBeforeUnmount(() => {
   transition: opacity 0.12s, transform 0.12s;
   pointer-events: none;
 }
-.rt-playground .rtpg-tip-left {
-  left: auto;
-  right: 0;
-}
-@media (max-width: 1000px) {
-  .rt-playground .rtpg-tip-left {
-    left: 0;
-    right: auto;
-  }
-}
 .rt-playground .rtpg-step:hover .rtpg-tip,
 .rt-playground .rtpg-step:focus .rtpg-tip,
 .rt-playground .rtpg-step:focus-visible .rtpg-tip {
@@ -1108,10 +1270,16 @@ onBeforeUnmount(() => {
   min-height: 280px;
 }
 .rt-playground .rtpg-typepane {
-  min-width: 0;
+  flex: 3 1 0;
+  /* The pane clips (overflow: hidden), so its body's min-height no longer holds it open. */
+  min-height: 260px;
+}
+.rt-playground .rtpg-transformpane {
+  flex: 2 1 0;
+  min-height: 170px;
 }
 .rt-playground .rtpg-typestack {
-  flex: 3 1 0;
+  flex: 1 1 0;
   min-height: 210px;
   display: flex;
   flex-direction: column;
@@ -1143,26 +1311,8 @@ onBeforeUnmount(() => {
   pointer-events: auto;
   background: repeating-linear-gradient(135deg, transparent 0 5px, color-mix(in srgb, var(--rtpg-accent) 16%, transparent) 5px 6px);
 }
-.rt-playground .rtpg-subhead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 7px 13px;
-  border-top: 1px solid var(--rtpg-border);
-  border-bottom: 1px solid var(--rtpg-border);
-  background: var(--rtpg-panel);
-}
-.rt-playground .rtpg-subhead h3 {
-  margin: 0;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: var(--rtpg-muted);
-}
 .rt-playground .rtpg-transformview {
-  flex: 2 1 0;
+  flex: 1 1 0;
   min-height: 120px;
   display: flex;
   flex-direction: column;
@@ -1172,6 +1322,7 @@ onBeforeUnmount(() => {
   margin: 0;
   border: 0;
   border-radius: 0;
+  background: transparent;
 }
 .rt-playground .rtpg-transformview > .rtpg-placeholder {
   padding: 13px;
@@ -1200,11 +1351,6 @@ onBeforeUnmount(() => {
   color: var(--rtpg-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-}
-.rt-playground .rtpg-field-label-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
 }
 /* The build-function picker, which sits in the "Pick a Function" pane head. A
    muted primary border marks it as the pane's one control without competing
@@ -1284,27 +1430,41 @@ onBeforeUnmount(() => {
 }
 .rt-playground .rtpg-btn-row {
   display: flex;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 8px;
 }
-.rt-playground .rtpg-ghost-btn {
-  background: transparent;
-  border: 1px solid var(--rtpg-border);
-  color: var(--rtpg-muted);
-  border-radius: 6px;
-  padding: 2px 8px;
-  font-size: 11px;
+/* Random valid / invalid: filled, tinted buttons; --rtpg-btn-tone picks the colour. */
+.rt-playground .rtpg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: color-mix(in srgb, var(--rtpg-btn-tone) 15%, transparent);
+  border: 1px solid var(--rtpg-btn-tone);
+  color: var(--rtpg-btn-tone);
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  transition: background 0.12s, color 0.12s;
 }
-.rt-playground .rtpg-ghost-btn:hover {
-  color: var(--rtpg-accent);
-  border-color: var(--rtpg-accent-dim);
+.rt-playground .rtpg-btn svg {
+  width: 15px;
+  height: 15px;
+  display: block;
 }
-.rt-playground .rtpg-ghost-invalid:hover {
-  color: var(--rtpg-err);
-  border-color: var(--rtpg-err);
+.rt-playground .rtpg-btn-valid {
+  --rtpg-btn-tone: var(--rtpg-accent);
 }
-.rt-playground .rtpg-ghost-btn:disabled {
+.rt-playground .rtpg-btn-invalid {
+  --rtpg-btn-tone: var(--rtpg-err);
+}
+.rt-playground .rtpg-btn:hover:not(:disabled) {
+  background: var(--rtpg-btn-tone);
+  color: var(--rtpg-on-accent);
+}
+.rt-playground .rtpg-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -1337,10 +1497,13 @@ onBeforeUnmount(() => {
   font-family: var(--rtpg-mono);
   font-size: 11.5px;
   color: var(--rtpg-accent);
-  background: var(--rtpg-panel);
+  background: var(--mion-panel-head-bg);
   padding: 6px 12px;
   border-top: 1px solid var(--rtpg-border);
   border-bottom: 1px solid var(--rtpg-border);
+}
+.rt-playground .rtpg-cache-fn {
+  color: var(--rtpg-muted);
 }
 .rt-playground .rtpg-cache-file:first-child .rtpg-cache-file-head {
   border-top: 0;
@@ -1350,6 +1513,7 @@ onBeforeUnmount(() => {
   border: 0;
   border-radius: 0;
   overflow: visible;
+  background: transparent;
 }
 .rt-playground .rtpg-codeview > .rtpg-code {
   margin: 0;
@@ -1359,6 +1523,13 @@ onBeforeUnmount(() => {
 .rt-playground .rtpg-codeview > .rtpg-card-note,
 .rt-playground .rtpg-codeview > .rtpg-placeholder {
   padding: 13px;
+}
+.rt-playground .rtpg-runblock {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  flex: 1;
+  min-height: 0;
 }
 .rt-playground .rtpg-result-label {
   display: flex;
@@ -1450,12 +1621,10 @@ onBeforeUnmount(() => {
 .rt-playground .rtpg-toolbar {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
   gap: 12px;
-  flex-wrap: wrap;
-  padding: 0;
-  border-bottom: 1px solid var(--rtpg-border);
-  background: var(--rtpg-panel);
+  margin: 12px 12px 0;
+  padding: 6px 8px;
 }
 .rt-playground .rtpg-typegroup {
   display: flex;
@@ -1463,9 +1632,20 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  padding: 5px 7px;
-  border-radius: 10px;
-  background: var(--rtpg-bg);
+}
+.rt-playground .rtpg-tour-btn {
+  flex: 0 0 auto;
+  background: transparent;
+  color: var(--rtpg-accent);
+  border: 1px solid var(--rtpg-accent-dim);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.rt-playground .rtpg-tour-btn:hover {
+  background: color-mix(in srgb, var(--rtpg-accent) 15%, transparent);
 }
 .rt-playground .rtpg-typegroup-sep {
   width: 1px;
@@ -1539,6 +1719,14 @@ onBeforeUnmount(() => {
 }
 .rt-playground .rtpg-mode.is-active svg {
   opacity: 1;
+}
+.rt-playground .rtpg-mode:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.rt-playground .rtpg-viewswitch .rtpg-mode {
+  padding: 3px 9px;
+  font-size: 12px;
 }
 .rt-playground .rtpg-mock-badge {
   margin-top: 6px;

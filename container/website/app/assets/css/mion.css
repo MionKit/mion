@@ -929,7 +929,7 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
   --rt-tip-shadow: rgba(0, 0, 0, 0.18);
 }
 
-/* Playground (components/playground/PlaygroundStage.client.vue) */
+/* Playground (components/playground/PlaygroundStage.client.vue + PlaygroundTour.client.vue) */
 :root {
   --rtpg-err: #e3534f;
   --rtpg-warn: #d9a441;
@@ -940,13 +940,15 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
   --rtpg-js-icon: #f5de19;
 }
 
-/* the type stack matches Monaco's editor surface (vs-dark / vs) */
+/* per mode: the type stack matches Monaco's editor surface (vs-dark / vs); the tour's dim layer */
 :root.dark {
   --rtpg-editor-bg: #1e1e1e;
+  --rtpg-scrim: rgba(0, 0, 0, 0.62);
 }
 
 :root.light {
   --rtpg-editor-bg: #fffffe;
+  --rtpg-scrim: rgba(15, 20, 30, 0.45);
 }
 
 /* Home hero "built on typescript-go" badge ──────────────────────────────────
