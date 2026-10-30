@@ -2,6 +2,7 @@ package typefunctions
 
 import (
 	"fmt"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"strconv"
 	"strings"
@@ -33,7 +34,7 @@ func (ValidationErrorsEmitter) Args() []ArgSpec {
 func (ValidationErrorsEmitter) EmitArgsPrologue(ctx *EmitContext, root *reflection.RunType, shortcut bool) string {
 	vArg, pthArg, errArg := ctx.ArgName("vλl"), ctx.ArgName("pλth"), ctx.ArgName("εrr")
 	fillPth := "if(" + pthArg + "===undefined)" + pthArg + "=[];"
-	if !shortcut || !shortcutPaysOff(root) || graphHoldsNonData(root, ctx.walker.RefTable) {
+	if !shortcut || !shortcutPaysOff(root) || !ctx.walker.errorWalkCostly || graphHoldsNonData(root, ctx.walker.RefTable) {
 		return "if(" + errArg + "===undefined)" + errArg + "=[];" + fillPth
 	}
 	validateHash := ctx.CrossFamilyVariantHash(errorFamilyValidatorOp(ctx)) + "_" + root.ID
@@ -43,6 +44,8 @@ func (ValidationErrorsEmitter) EmitArgsPrologue(ctx *EmitContext, root *reflecti
 
 // shortcutPaysOff is true for a container root. Anywhere else the body is one check (a union already asks its validator), so
 // the shortcut gains nothing on an accepted value and runs a format check twice on a rejected one (bench: 0.7x on DATETIME).
+// A container whose walk is plain checks (errorWalkCostly unset) runs as fast as its validator, so it skips the shortcut too
+// (bench: 1.3x without it on toBeChecked).
 func shortcutPaysOff(root *reflection.RunType) bool {
 	if root == nil {
 		return false
@@ -133,6 +136,7 @@ func (e ValidationErrorsEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, 
 	// patternProperties / propertyNames: per-key probes with a scratch error array (er / pth shadowed in an IIFE), one canonical
 	// error per violated entry, gated on the base-kind guard like every splice here.
 	if base.Type == CodeS && rt != nil && (len(rt.PatternProps) > 0 || len(rt.PropNames) > 0) {
+		ctx.markCostlyErrorWalk()
 		appendCheck := func(check string) {
 			check = wrapFormatCheckPath(ctx, check)
 			guard := baseKindGuard(rt, ctx.Vλl, ctx.NumberMode())
@@ -191,6 +195,7 @@ func (e ValidationErrorsEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, 
 	// Contains: count the items whose child verr body pushes ZERO errors and push one canonical error per violated bound.
 	// Gated on the base-kind guard so a non-array value reports only the base error.
 	if base.Type == CodeS && rt != nil && len(rt.Contains) > 0 {
+		ctx.markCostlyErrorWalk()
 		for _, containsCheck := range rt.Contains {
 			if ctx.ResolveRef(containsCheck.Child) == nil {
 				panic("validationErrors: unresolvable contains child — dropping it would silently weaken validation")
@@ -236,7 +241,7 @@ func (e ValidationErrorsEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, 
 	return base
 }
 
-// wrapFormatCheckPath pushes this node's static access-path segments onto the runtime `pth` around the check, then splices
+// wrapFormatCheckPath pushes this node's static access-path segments onto the runtime `pth` around the check, then pops
 // them off. Format errors snapshot the path as `[...pth]` (formats.FormatErrCall), so without this a failure at a property,
 // array element or map entry would report `path: []`. An empty access path (a root-position format) is left unchanged.
 func wrapFormatCheckPath(ctx *EmitContext, check string) string {
@@ -247,7 +252,7 @@ func wrapFormatCheckPath(ctx *EmitContext, check string) string {
 	pathLit := ctx.AccessPathLiteral("")
 	pthArg := ctx.ArgName("pλth")
 	pushArgs := pathLit[1 : len(pathLit)-1] // strip the surrounding `[` … `]`
-	return pthArg + ".push(" + pushArgs + ");" + check + ";" + pthArg + ".splice(-" + strconv.Itoa(pathLen) + ")"
+	return pthArg + ".push(" + pushArgs + ");" + check + ";" + popPath(pthArg, pathLen, ";")
 }
 
 // baseKindGuard returns an expression that is true when vλl matches the base kind, gating format-specific error checks so
@@ -493,10 +498,59 @@ func (ValidationErrorsEmitter) emitKindDefault(rt *reflection.RunType, ctx *Emit
 	return RTCode{Code: "", Type: CodeNS}
 }
 
+// markCostlyErrorWalk records a body part that makes the full walk cost more than the validator (see errorWalkCostly).
+func (ctx *EmitContext) markCostlyErrorWalk() {
+	if ctx.walker != nil {
+		ctx.walker.errorWalkCostly = true
+	}
+}
+
 // EmitDependencyCall returns the call into a pre-rendered child validationErrors entry, wrapped in a
-// `pth.push(...) ; <call> ; pth.splice(-N)` envelope so the child's errors carry the right access-path prefix.
+// `pth.push(...) ; <call> ; pth.pop()` envelope so the child's errors carry the right access-path prefix.
+// A child outside any cycle asks its validator first and is walked only when rejected, so an accepted subtree costs one
+// validate call (bench: 1.9x on an invalid `order`, 1.2x on a valid `productPage`). A child reaching a cycle walks
+// unguarded, or its validator would re-check the same subtree at every level of a deep value.
 func (ValidationErrorsEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
-	return ctx.emitPathTrackedDepCall(childID)
+	call := ctx.emitPathTrackedDepCall(childID)
+	if ctx.walker == nil || graphHoldsNonData(rt, ctx.walker.RefTable) || graphDropsMembers(rt, ctx) {
+		return call
+	}
+	if childID == ctx.walker.RTFnHash || ctx.walker.inlineWouldCycle(rt.ID) || graphHoldsCycle(rt, ctx.walker.RefTable) {
+		ctx.markCostlyErrorWalk()
+		return call
+	}
+	// Children render plain whatever the root's variant, so the guard asks the plain validator too.
+	validateHash := operations.VariantHash(errorFamilyValidatorOp(ctx), nil) + "_" + rt.ID
+	ctx.registerRTLookup(validateHash)
+	return "(" + validateHash + ".fn(" + ctx.Vλl + ")||" + call + ")"
+}
+
+// graphDropsMembers reports a member under rt the validator drops with its own diagnostic (static, method, symbol key): a
+// guard would surface it at this site, and only where the child is dep-called, not where it inlines.
+func graphDropsMembers(rt *reflection.RunType, ctx *EmitContext) bool {
+	found := false
+	reflection.WalkGraph(rt, ctx.walker.RefTable, func(node *reflection.RunType) reflection.WalkAction {
+		if node.IsStatic || isMethodMember(node.Kind) || reflection.IsSymbolKeyedName(node.Name) ||
+			(node.Kind == reflection.KindIndexSignature && isSymbolKeyedIndexSig(node, ctx)) {
+			found = true
+			return reflection.WalkStop
+		}
+		return reflection.WalkContinue
+	})
+	return found
+}
+
+// graphHoldsCycle reports a cyclic node anywhere under rt.
+func graphHoldsCycle(rt *reflection.RunType, refTable map[string]*reflection.RunType) bool {
+	found := false
+	reflection.WalkGraph(rt, refTable, func(node *reflection.RunType) reflection.WalkAction {
+		if node.IsCircular {
+			found = true
+			return reflection.WalkStop
+		}
+		return reflection.WalkContinue
+	})
+	return found
 }
 
 // Finalize marks an empty body as the noop `return er`; otherwise the walker has already appended `return er`.
@@ -618,6 +672,7 @@ func emitObjectValidationErrors(rt *reflection.RunType, ctx *EmitContext, v stri
 		// The shapes where no property check stops an array carry the `[object Object]` brand guard in objectCheck above.
 		if keyErrors := emitParentUnknownKeyErrors(rt, ctx); keyErrors != "" {
 			unknownKeyErrors = guardStatement("!Array.isArray("+v+")", keyErrors)
+			ctx.markCostlyErrorWalk()
 		}
 	}
 	bodyCode := joinSemicolons(childrenCode, unknownKeyErrors)
@@ -846,7 +901,7 @@ func emitMapValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string)
 		}
 		if keyRT.Code != "" {
 			inner.WriteString(keyRT.Code)
-			// A dep-call envelope ends in `(pth.push(...), <call>, pth.splice(-1))`, a parenthesised comma expression with no trailing
+			// A dep-call envelope ends in `(pth.push(...), <call>, pth.pop())`, a parenthesised comma expression with no trailing
 			// semicolon, so the next `const val0 = …` would lex as `(expr)const`. Append `;` for any non-terminator-ending key code.
 			if last := keyRT.Code[len(keyRT.Code)-1]; last != ';' && last != '}' {
 				inner.WriteString(";")

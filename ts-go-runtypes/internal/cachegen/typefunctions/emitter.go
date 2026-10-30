@@ -1,7 +1,7 @@
 package typefunctions
 
 import (
-	"strconv"
+	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
@@ -227,7 +227,7 @@ func (ctx *EmitContext) AccessPathLiteral(extra string) string {
 }
 
 // AccessPathLength counts the static path segments the current stack contributes, `extra` included when
-// non-empty. Sizes the `pth.splice(-N)` pop that unwinds the path after a dependency call returns.
+// non-empty. Sizes the `pth.pop()` run that unwinds the path after a dependency call returns.
 func (ctx *EmitContext) AccessPathLength(extra string) int {
 	n := len(ctx.walker.accessPath())
 	if extra != "" {
@@ -291,7 +291,7 @@ func (ctx *EmitContext) emitDepCall(childID, argsExpr, assignTo string) string {
 	return call
 }
 
-// emitPathTrackedDepCall wraps a dep call in `pth.push(...) , <call> , pth.splice(-N)` while static path segments
+// emitPathTrackedDepCall wraps a dep call in `pth.push(...) , <call> , pth.pop()…` while static path segments
 // are pending, so the child's errors get the path prefix. A comma-expression fits an expression or a statement slot.
 func (ctx *EmitContext) emitPathTrackedDepCall(childID string) string {
 	pthArg := ctx.ArgName("pλth")
@@ -303,7 +303,13 @@ func (ctx *EmitContext) emitPathTrackedDepCall(childID string) string {
 		return callCode
 	}
 	pushArgs := pathLit[1 : len(pathLit)-1] // strip `[` … `]` for push(...args)
-	return "(" + pthArg + ".push(" + pushArgs + ")," + callCode + "," + pthArg + ".splice(-" + strconv.Itoa(pathLen) + "))"
+	return "(" + pthArg + ".push(" + pushArgs + ")," + callCode + "," + popPath(pthArg, pathLen, ",") + ")"
+}
+
+// popPath drops the last n path segments, joined by sep. One pop per segment: `splice(-n)` allocates the removed
+// segments as a new array (1.4x on an invalid `order` in the bench), and `length -= n` is slower still.
+func popPath(pthArg string, n int, sep string) string {
+	return strings.TrimSuffix(strings.Repeat(pthArg+".pop()"+sep, n), sep)
 }
 
 // CreateFnInContext is the EmitContext face of Walker.createFnInContext, for emitters that hand-build

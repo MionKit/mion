@@ -183,6 +183,9 @@ type Walker struct {
 	// ContextItems is the ordered set of `const xyz = …;` declarations WrapClosure
 	// emits before the inner function returns.
 	ContextItems *orderedItems
+	// errorWalkCostly marks a validationErrors body whose full walk costs more than its validator: an unguarded
+	// dependency call, an unknown-key scan or a scratch-array probe. EmitArgsPrologue asks the validator first only then.
+	errorWalkCostly bool
 	// RTDependencies / PureFnDependencies track which other rt and pure functions
 	// this function reaches via dependency calls.
 	RTDependencies     []string

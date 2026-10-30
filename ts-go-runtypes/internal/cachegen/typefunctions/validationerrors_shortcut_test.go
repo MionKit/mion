@@ -26,10 +26,29 @@ func renderErrorsEntry(t *testing.T, runTypes []*reflection.RunType, rootID, fam
 	return rendered
 }
 
+// buildCircularNodeFixture builds `interface Node {a: string; next?: Node}`: its walk recurses unguarded, so it takes the shortcut.
+func buildCircularNodeFixture() ([]*reflection.RunType, string) {
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	propA := &reflection.RunType{ID: "pA", Kind: reflection.KindPropertySignature, Name: "a", IsSafeName: true, Child: makeRef("str")}
+	propN := &reflection.RunType{ID: "pN", Kind: reflection.KindPropertySignature, Name: "next", IsSafeName: true, Optional: true, Child: makeRef("nod")}
+	node := &reflection.RunType{ID: "nod", Kind: reflection.KindObjectLiteral, TypeName: "Node", IsCircular: true, Children: []*reflection.RunType{makeRef("pA"), makeRef("pN")}}
+	return []*reflection.RunType{str, propA, propN, node}, "nod"
+}
+
+// buildNamedChildFixture builds `{c: Inner}` with `interface Inner {a: string}`, a named child the walk dep-calls.
+func buildNamedChildFixture() ([]*reflection.RunType, string) {
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	propA := &reflection.RunType{ID: "pA", Kind: reflection.KindPropertySignature, Name: "a", IsSafeName: true, Child: makeRef("str")}
+	inner := &reflection.RunType{ID: "inn", Kind: reflection.KindObjectLiteral, TypeName: "Inner", Children: []*reflection.RunType{makeRef("pA")}}
+	propC := &reflection.RunType{ID: "pC", Kind: reflection.KindPropertySignature, Name: "c", IsSafeName: true, Child: makeRef("inn")}
+	outer := &reflection.RunType{ID: "out", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pC")}}
+	return []*reflection.RunType{str, propA, inner, propC, outer}, "out"
+}
+
 // TestValidationErrors_ShortcutAsksItsOwnValidator — a call with no `er` returns the validator's verdict first, and each
 // error family asks the validator that accepts exactly what it reports nothing for.
 func TestValidationErrors_ShortcutAsksItsOwnValidator(t *testing.T) {
-	runTypes, rootID := buildStringPropObjectFixture()
+	runTypes, rootID := buildCircularNodeFixture()
 	for _, tc := range []struct {
 		family    string
 		emitter   Emitter
@@ -49,6 +68,46 @@ func TestValidationErrors_ShortcutAsksItsOwnValidator(t *testing.T) {
 				t.Errorf("CrossFamilyDeps %v missing the shortcut's validator %q", rendered.crossFamilyDeps, want)
 			}
 		})
+	}
+}
+
+// TestValidationErrors_NoShortcutOnPlainChecks — a walk of plain checks runs as fast as the validator, so asking it first
+// only adds its cost. The strict family keeps the shortcut: its unknown-key scan costs more than the validator's key count.
+func TestValidationErrors_NoShortcutOnPlainChecks(t *testing.T) {
+	runTypes, rootID := buildStringPropObjectFixture()
+	rendered := renderErrorsEntry(t, runTypes, rootID, "validationErrors", ValidationErrorsEmitter{}, false)
+	if !strings.Contains(rendered.argsText, "(v,pth,er){"+fillOnlyPrologue) || containsStr(rendered.crossFamilyDeps, valKey(rootID)) {
+		t.Errorf("a plain-checks walk must skip the shortcut, got:\n%s", rendered.argsText)
+	}
+	strict := renderErrorsEntry(t, runTypes, rootID, "validationErrorsStrict", ValidationErrorsStrictEmitter{}, false)
+	if !strings.Contains(strict.argsText, shortcutPrologue(operations.PlainHash("validateStrict")+"_"+rootID)) {
+		t.Errorf("the unknown-key scan must keep the shortcut, got:\n%s", strict.argsText)
+	}
+}
+
+// TestValidationErrors_ChildAsksItsValidator — a named child outside any cycle is walked only when its validator rejects
+// it, and the root skips the shortcut since the guarded walk already costs one validate call per accepted subtree.
+func TestValidationErrors_ChildAsksItsValidator(t *testing.T) {
+	runTypes, rootID := buildNamedChildFixture()
+	rendered := renderErrorsEntry(t, runTypes, rootID, "validationErrors", ValidationErrorsEmitter{}, false)
+	childErr := innerPrefix(constants.CacheModules["validationErrors"]) + "inn"
+	// argsText holds the body as a quoted JS string, so its quotes come escaped.
+	want := "(" + valKey("inn") + ".fn(v.c)||(pth.push(\\'c\\')," + childErr + ".fn(v.c,pth,er),pth.pop()))"
+	if !strings.Contains(rendered.argsText, want) {
+		t.Errorf("the child call must ask %s first, want %s in:\n%s", valKey("inn"), want, rendered.argsText)
+	}
+	if !containsStr(rendered.crossFamilyDeps, valKey("inn")) || containsStr(rendered.crossFamilyDeps, valKey(rootID)) {
+		t.Errorf("CrossFamilyDeps %v: want the child validator only", rendered.crossFamilyDeps)
+	}
+}
+
+// TestValidationErrors_CyclicChildWalksUnguarded — a child's validator would re-check the subtree at every level of a deep
+// cyclic value, so a self-call walks unguarded.
+func TestValidationErrors_CyclicChildWalksUnguarded(t *testing.T) {
+	runTypes, rootID := buildCircularNodeFixture()
+	rendered := renderErrorsEntry(t, runTypes, rootID, "validationErrors", ValidationErrorsEmitter{}, false)
+	if strings.Contains(rendered.argsText, valKey(rootID)+".fn(v.next)") {
+		t.Errorf("the self-call must not ask the validator, got:\n%s", rendered.argsText)
 	}
 }
 
@@ -112,3 +171,4 @@ func TestValidationErrors_ShortcutOnlyOnContainerRoots(t *testing.T) {
 		t.Errorf("a string root must keep the full walk and reach no validator, got:\n%s", rendered.argsText)
 	}
 }
+
