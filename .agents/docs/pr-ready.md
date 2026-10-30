@@ -34,6 +34,9 @@ so an unlabelled PR can merge untested.
 - `website`: builds the docs site. For [container/website/](../../container/website/) and
   [packages/private-examples/](../../packages/private-examples/) (pages import its files).
 - `bench`: validation benchmarks. For [container/benchmarks/](../../container/benchmarks/) or their deps.
+- `bench-report`: publishable validation numbers vs the live site, posted as a PR comment
+  ([pr-bench-report.yml](../../.github/workflows/pr-bench-report.yml)). Same `linux-arm64` runner as the deploy,
+  about an hour. For a PR meant to move the charts. Runs once per label: the run removes it, add it again to re-measure.
 - `pre-publish-e2e`: packs every package, publishes to a throwaway registry, runs the consumer lanes.
   For package exports, `package.json` changes, public API renames, anything a consumer installs.
 - `drizzle-e2e`: drizzle's own suites against real databases. For [packages/drizzle-orm/](../../packages/drizzle-orm/),

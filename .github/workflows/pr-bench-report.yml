@@ -1,0 +1,123 @@
+name: pr · benchmark report (label-gated)
+
+# The `bench-report` label runs the validation benchmarks on the runner the website deploy measures on and posts
+# them next to the live site's numbers, so a pull request shows what it does to the published charts before it lands.
+#
+# Apart from pr-heavy.yml's `bench` lane on purpose: that one proves every competitor still answers correctly on a
+# shared 2-core runner with `--quick` windows. These are publishable numbers: full windows, every competitor, on the
+# dedicated linux-arm64 larger runner (website-deploy.yml says why that runner). About an hour of it, so the run
+# follows the label, not the commits: the job removes the label when it ends, and adding it again re-measures.
+#
+# Baseline: the newest `website-output-deploy` artifact, the live site's bench-data/ from that same runner type.
+# Deliberately NOT pull_request_target, like pr-heavy.yml: fork code never gets secrets or write permissions, so a
+# fork pull request only gets a notice.
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+jobs:
+  fork-notice:
+    name: benchmark report · fork pull request
+    if: github.event.label.name == 'bench-report' && github.event.pull_request.head.repo.fork
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "::notice::bench-report needs the registry secret and a write token, which a fork pull request does not get. Run it from a branch of this repository."
+
+  report:
+    name: benchmark report · linux-arm64
+    if: github.event.label.name == 'bench-report' && !github.event.pull_request.head.repo.fork
+    runs-on: linux-arm64
+    timeout-minutes: 120
+    # On the job, not the workflow: any other label fires this workflow too, and must not cancel a run still measuring.
+    # A new bench-report label on the same pull request does supersede it.
+    concurrency:
+      group: pr-bench-report-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    permissions:
+      contents: read
+      # pull the prebuilt shared image
+      packages: read
+      # read the last deploy's artifact
+      actions: read
+      # the sticky comment and the label removal
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+      # First and cheap, like website-deploy.yml's reuse_benchmarks: no baseline, no report.
+      - name: Find the live site's benchmark data
+        id: live
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_id=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=website-output-deploy&per_page=50" \
+            --jq '[.artifacts[] | select(.expired | not)][0].workflow_run.id // empty')
+          if [ -z "$run_id" ]; then
+            echo "::error::bench-report: no unexpired website-output-deploy artifact to compare against; run a website deploy (or its dry run) first."
+            exit 1
+          fi
+          echo "Comparing against run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$run_id"
+          echo "run-id=$run_id" >> "$GITHUB_OUTPUT"
+      - name: Download the live site
+        uses: actions/download-artifact@v8
+        with:
+          name: website-output-deploy
+          run-id: ${{ steps.live.outputs.run-id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/live-site
+      - uses: ./.github/actions/free-disk
+      - uses: ./.github/actions/bootstrap
+      - uses: ./.github/actions/resolver
+      - name: Pull the prebuilt shared image (CI never builds it)
+        uses: ./.github/actions/pull-shared-image
+        with:
+          password: ${{ secrets.GHCR_PAT }}
+      # Full windows and every competitor, as the deploy's website-bench measures them.
+      - name: Run the validation benchmarks
+        run: pnpm miondevx bench
+      - name: Record the machine
+        run: pnpm miondevx bench capture-env
+      - name: Turn the results into the site's bench-data
+        run: node scripts/website/bench-data/gen-docs.mjs
+      - name: Write the report
+        run: |
+          node scripts/website/bench-data/pr-report.mjs \
+            --pr container/website/public/bench-data \
+            --live "$RUNNER_TEMP/live-site/bench-data" \
+            --env container/benchmarks/results/env.json > "$RUNNER_TEMP/report.md"
+          cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload the results
+        uses: actions/upload-artifact@v7
+        with:
+          name: bench-report-${{ github.event.pull_request.number }}
+          path: |
+            container/benchmarks/results/*.json
+            container/benchmarks/results/bun/*.json
+            container/website/public/bench-data/validation
+            container/website/public/bench-data/validation-formats
+          if-no-files-found: error
+      # One comment per pull request, edited in place on every run, found by its marker line.
+      - name: Post the report on the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          marker='<!-- bench-report -->'
+          { echo "$marker"; cat "$RUNNER_TEMP/report.md"; echo; echo "Run: $RUN_URL (raw results in its artifacts)"; } > "$RUNNER_TEMP/comment.md"
+          comment_id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
+            --jq "[.[] | select(.body | startswith(\"$marker\"))][0].id // empty")
+          if [ -n "$comment_id" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$comment_id" -F "body=@$RUNNER_TEMP/comment.md" > /dev/null
+          else
+            gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -F "body=@$RUNNER_TEMP/comment.md" > /dev/null
+          fi
+      # Whatever happened, so adding the label again starts a new measurement.
+      - name: Remove the label
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr edit "${{ github.event.pull_request.number }}" --repo "$GITHUB_REPOSITORY" --remove-label bench-report
