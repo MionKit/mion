@@ -1998,6 +1998,27 @@ describe('website pictures: Nuxt Image resolves to a sharp that loads under the 
     expect(lockfile).toMatch(/^  '@img\/sharp-linux-x64@/m);
   });
 
+  // The subsite homes are served at /<id> by a frontmatter `path:`; a gate that derived their route from the file
+  // name asked for a page the build no longer has and refused the deploy (2026-10).
+  it('check-static looks every page up at the route the site serves it at', async () => {
+    // @ts-expect-error — a plain .mjs script, no types
+    const {pageRoute} = (await import('../../../scripts/website/check-static.mjs')) as {
+      pageRoute: (source: string, markdown: string) => string;
+    };
+    const content = join(REPO_ROOT, 'container/website/content');
+    for (const [id, file] of [
+      ['rpc', '01.rpc/01.introduction/01.about-mion-rpc.md'],
+      ['runtypes', '02.runtypes/01.introduction/01.about-mion-runtypes.md'],
+      ['benchmarks', '03.benchmarks/01.introduction/01.mion-benchmarks.md'],
+    ]) {
+      expect(pageRoute(file, readFileSync(join(content, file), 'utf8')), file).toBe(`/${id}`);
+    }
+    const guide = '02.runtypes/02.guide/03.validation.md';
+    expect(pageRoute(guide, readFileSync(join(content, guide), 'utf8'))).toBe('/runtypes/guide/validation');
+    // a `path:` inside an MDC block in the body is not the page's route
+    expect(pageRoute('01.rpc/x.md', '---\ntitle: X\n---\n\n::code-card\n---\npath: a/b.ts\n---\n::\n')).toBe('/rpc/x');
+  });
+
   it('check-static extracts every same-origin picture a page references, and nothing else', async () => {
     // @ts-expect-error — a plain .mjs script, no types
     const {imageSources} = (await import('../../../scripts/website/check-static.mjs')) as {

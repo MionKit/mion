@@ -17,7 +17,7 @@ const PUBLIC_DIR = join(WEBSITE, 'public');
 const routeSegment = (name: string): string => name.replace(/^\d+\./, '').replace(/\.md$/, '');
 // A page's frontmatter `path:` overrides the address its file name gives it (the subsite homes).
 const pathOverride = (file: string): string | undefined =>
-  /^---\n[\s\S]*?^path: (\S+)$[\s\S]*?\n---/m.exec(readFileSync(file, 'utf8'))?.[1];
+  /^path: (\S+)$/m.exec(/^---\n([\s\S]*?)\n---/.exec(readFileSync(file, 'utf8'))?.[1] ?? '')?.[1];
 
 /** Every route the content tree produces, plus the app routes outside it. */
 function siteRoutes(): Set<string> {
