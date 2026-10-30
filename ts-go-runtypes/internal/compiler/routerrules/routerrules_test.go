@@ -182,6 +182,14 @@ func TestStrongTypedRoutes_DestructuredParamIsNamed(t *testing.T) {
 	}
 }
 
+// `Parameters<H>` leaves a TypeScript `this` out, so the context is the param after it.
+func TestStrongTypedRoutes_ThisParamIsNotTheContext(t *testing.T) {
+	assertCodes(t, check(t, map[string]string{"routes.ts": `
+/** @mion:route */
+export function ok(this: unknown, ctx, name: string): string { return name; }
+`}))
+}
+
 func TestStrongTypedRoutes_RawMiddlewareIsNotAHandler(t *testing.T) {
 	// A raw middleware takes no typed params and declares no return type.
 	assertCodes(t, checkBody(t, "export const raw = mion.rawMiddleware((ctx, req) => undefined);"))

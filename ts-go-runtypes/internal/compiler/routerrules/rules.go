@@ -28,10 +28,7 @@ func (scope *fileScope) checkAnnotations(discovered handler) []diagnostics.Diagn
 	if fnLike.Type == nil {
 		found = append(found, scope.diag(diagnostics.CodeRouteMissingReturnType, discovered.at(returnTypeSite(discovered.fn)), discovered.label))
 	}
-	if fnLike.Parameters == nil {
-		return found
-	}
-	for index, paramNode := range fnLike.Parameters.Nodes {
+	for index, paramNode := range handlerParams(discovered.fn) {
 		if index < discovered.ctxParams {
 			continue // the call context never crosses the wire
 		}
@@ -51,6 +48,20 @@ func returnTypeSite(fn *ast.Node) *ast.Node {
 		return fnLike.Parameters.Nodes[len(fnLike.Parameters.Nodes)-1]
 	}
 	return fn
+}
+
+// handlerParams is the parameter list without a TypeScript `this`: `Parameters<H>` leaves it out, so counting it
+// would shift the call context by one.
+func handlerParams(fn *ast.Node) []*ast.Node {
+	fnLike := fn.FunctionLikeData()
+	if fnLike == nil || fnLike.Parameters == nil {
+		return nil
+	}
+	params := fnLike.Parameters.Nodes
+	if len(params) > 0 && ast.IsThisParameter(params[0]) {
+		return params[1:]
+	}
+	return params
 }
 
 // parameterName is the written name, a placeholder for a binding pattern: Node.Text panics on one.
