@@ -8,8 +8,9 @@
 //   2. Transformed - what the build plugin injects into that file.
 //   3. Generated  - the code RunTypes generates for the selected function + type,
 //                   as the bare factory function or the full module file.
-//   4. Function   - a build-function picker, a JS-expression input pane with
-//                   Random valid / Random invalid, a Run button, and the result.
+//   4. Function   - the build-function picker and what it does.
+//   5. Input      - a JS-expression input pane with Generate valid / invalid data.
+//   6. Result     - the Run button and the result.
 // A first-visit tour (PlaygroundTour) walks through each card.
 //
 // The engine (../../playground) is framework-agnostic; this component owns the
@@ -117,7 +118,8 @@ const CALL_FORM: Mode = 'type';
 
 const currentOp = computed<Operation>(() => operationByKey(operationKey.value));
 const needsInput = computed(() => currentOp.value.needsInput);
-const runLabel = computed(() => (currentOp.value.kind === 'graph' ? 'Unpack RunTypes' : 'Run'));
+// The Input card hides for a function that reads no input, so the Result card takes its number.
+const resultStep = computed(() => (needsInput.value ? 6 : 5));
 // getRunType ships a data bundle with no factory: only the full file exists.
 const hasFactoryView = computed(() => currentOp.value.kind !== 'graph');
 const showFactories = computed(() => codeView.value === 'function' && hasFactoryView.value);
@@ -974,43 +976,56 @@ onBeforeUnmount(() => {
         <div v-else class="rtpg-codeview" :class="{'is-busy': codegenBusy}" v-html="codeviewHtml" />
       </section>
 
-      <section class="rtpg-pane">
-        <div class="rtpg-head" data-tour="picker">
-          <span class="rtpg-head-title">
-            <button type="button" class="rtpg-step" :aria-label="`Step 4: ${STEP_TIPS.function}`">
-              4<span class="rtpg-tip" role="tooltip">{{ STEP_TIPS.function }}</span>
-            </button>
-            <h2>Pick a Function</h2>
-          </span>
-          <select v-model="operationKey" class="rtpg-select" aria-label="Build function">
-            <optgroup v-for="group in operationGroups" :key="group.label" :label="group.label">
-              <option v-for="op in group.ops" :key="op.key" :value="op.key">{{ op.menuLabel }}</option>
-            </optgroup>
-          </select>
-        </div>
-        <div class="rtpg-controls">
-          <div class="rtpg-info">
-            <span class="rtpg-info-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  fill="currentColor"
-                  d="M12 2a10 10 0 1 0 0 20a10 10 0 0 0 0-20m0 5.25a1.25 1.25 0 1 1 0 2.5a1.25 1.25 0 0 1 0-2.5M13.25 17h-2.5v-6h2.5z"
-                />
-              </svg>
+      <div class="rtpg-col">
+        <section class="rtpg-pane rtpg-pickpane" data-tour="picker">
+          <div class="rtpg-head">
+            <span class="rtpg-head-title">
+              <button type="button" class="rtpg-step" :aria-label="`Step 4: ${STEP_TIPS.function}`">
+                4<span class="rtpg-tip" role="tooltip">{{ STEP_TIPS.function }}</span>
+              </button>
+              <h2>Pick a Function</h2>
             </span>
-            <div class="rtpg-info-text">
-              <div class="rtpg-info-title">{{ currentOp.blurb }}</div>
-              <div class="rtpg-info-detail">{{ currentOp.detail }}</div>
+            <select v-model="operationKey" class="rtpg-select" aria-label="Build function">
+              <optgroup v-for="group in operationGroups" :key="group.label" :label="group.label">
+                <option v-for="op in group.ops" :key="op.key" :value="op.key">{{ op.menuLabel }}</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="rtpg-controls">
+            <div class="rtpg-info">
+              <span class="rtpg-info-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    fill="currentColor"
+                    d="M12 2a10 10 0 1 0 0 20a10 10 0 0 0 0-20m0 5.25a1.25 1.25 0 1 1 0 2.5a1.25 1.25 0 0 1 0-2.5M13.25 17h-2.5v-6h2.5z"
+                  />
+                </svg>
+              </span>
+              <div class="rtpg-info-text">
+                <div class="rtpg-info-title">{{ currentOp.blurb }}</div>
+                <div class="rtpg-info-detail">{{ currentOp.detail }}</div>
+              </div>
             </div>
           </div>
-          <div v-show="needsInput" class="rtpg-field rtpg-input-field" data-tour="input">
-            <span class="rtpg-field-label">Input (JS)</span>
+        </section>
+
+        <section v-show="needsInput" class="rtpg-pane rtpg-inputpane" data-tour="input">
+          <div class="rtpg-head">
+            <span class="rtpg-head-title">
+              <button type="button" class="rtpg-step" :aria-label="`Step 5: ${STEP_TIPS.input}`">
+                5<span class="rtpg-tip" role="tooltip">{{ STEP_TIPS.input }}</span>
+              </button>
+              <h2>Input</h2>
+            </span>
+            <span class="rtpg-hint">any JS value</span>
+          </div>
+          <div class="rtpg-controls">
             <div class="rtpg-btn-row">
               <button
                 type="button"
                 class="rtpg-btn rtpg-btn-valid"
                 :disabled="genRandomBusy"
-                title="Generate a valid random value with createMockDataFn"
+                title="Generate a random value that fits the type"
                 @click="generateMock"
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1019,7 +1034,7 @@ onBeforeUnmount(() => {
                     d="M12 2a10 10 0 1 0 0 20a10 10 0 0 0 0-20m-1.2 14.2L6.6 12L8 10.6l2.8 2.8l5.6-5.6L17.8 9.2z"
                   />
                 </svg>
-                {{ genRandomBusy ? 'generating…' : 'Random valid' }}
+                {{ genRandomBusy ? 'generating…' : 'Generate valid data' }}
               </button>
               <button
                 type="button"
@@ -1034,21 +1049,35 @@ onBeforeUnmount(() => {
                     d="M12 2a10 10 0 1 0 0 20a10 10 0 0 0 0-20m3.6 12.2l-1.4 1.4l-2.2-2.2l-2.2 2.2l-1.4-1.4l2.2-2.2l-2.2-2.2l1.4-1.4l2.2 2.2l2.2-2.2l1.4 1.4l-2.2 2.2z"
                   />
                 </svg>
-                {{ genInvalidBusy ? 'generating…' : 'Random invalid' }}
+                {{ genInvalidBusy ? 'generating…' : 'Generate invalid data' }}
               </button>
             </div>
             <div ref="inputEditorEl" class="rtpg-input-editor" />
             <div class="rtpg-mock-badge">
-              Sample data generated by RunTypes <code>createMockDataFn&lt;{{ ROOT_TYPE }}&gt;()</code>
+              The generate buttons build a random value straight from your type, with RunTypes
+              <NuxtLink to="/runtypes/guide/mocking" target="_blank">mock data</NuxtLink>.
             </div>
           </div>
-          <div class="rtpg-runblock" data-tour="run">
-            <button type="button" class="rtpg-run-btn" :disabled="!ready" @click="doRun">{{ runLabel }}</button>
-            <div class="rtpg-result-label">Result <span class="rtpg-hint">{{ timing }}</span></div>
+        </section>
+
+        <section class="rtpg-pane rtpg-resultpane" data-tour="run">
+          <div class="rtpg-head">
+            <span class="rtpg-head-title">
+              <button type="button" class="rtpg-step" :aria-label="`Step ${resultStep}: ${STEP_TIPS.result}`">
+                {{ resultStep }}<span class="rtpg-tip" role="tooltip">{{ STEP_TIPS.result }}</span>
+              </button>
+              <h2>Result</h2>
+            </span>
+            <span class="rtpg-hint">{{ timing }}</span>
+          </div>
+          <div class="rtpg-controls">
+            <button type="button" class="rtpg-run-btn" :disabled="!ready" @click="doRun">
+              Run <code>{{ currentOp.varName }}</code>
+            </button>
             <div class="rtpg-result" v-html="outputHtml" />
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
     </div>
 
     <div v-show="!ready || overlayError" class="rtpg-overlay">
@@ -1275,6 +1304,14 @@ onBeforeUnmount(() => {
   flex: 2 1 0;
   min-height: 170px;
 }
+.rt-playground .rtpg-pickpane,
+.rt-playground .rtpg-inputpane {
+  flex: 0 0 auto;
+}
+.rt-playground .rtpg-resultpane {
+  flex: 1 1 0;
+  min-height: 180px;
+}
 .rt-playground .rtpg-typestack {
   flex: 1 1 0;
   min-height: 210px;
@@ -1337,17 +1374,6 @@ onBeforeUnmount(() => {
   overflow: auto;
   flex: 1;
   min-height: 0;
-}
-.rt-playground .rtpg-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.rt-playground .rtpg-field-label {
-  font-size: 12px;
-  color: var(--rtpg-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 /* The build-function picker, which sits in the "Pick a Function" pane head. A
    muted primary border marks it as the pane's one control without competing
@@ -1475,6 +1501,10 @@ onBeforeUnmount(() => {
   font-size: 14px;
   cursor: pointer;
 }
+.rt-playground .rtpg-run-btn code {
+  font-family: var(--rtpg-mono);
+  font-size: 13.5px;
+}
 .rt-playground .rtpg-run-btn:hover {
   background: var(--rtpg-accent-dim);
 }
@@ -1520,22 +1550,6 @@ onBeforeUnmount(() => {
 .rt-playground .rtpg-codeview > .rtpg-card-note,
 .rt-playground .rtpg-codeview > .rtpg-placeholder {
   padding: 13px;
-}
-.rt-playground .rtpg-runblock {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-  flex: 1;
-  min-height: 0;
-}
-.rt-playground .rtpg-result-label {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  font-size: 11px;
-  color: var(--rtpg-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 .rt-playground .rtpg-result {
   flex: 1;
@@ -1718,9 +1732,9 @@ onBeforeUnmount(() => {
   border-radius: 6px;
   padding: 5px 8px;
 }
-.rt-playground .rtpg-mock-badge code {
-  font-family: var(--rtpg-mono);
+.rt-playground .rtpg-mock-badge a {
   color: var(--rtpg-accent);
+  text-decoration: underline;
 }
 .rt-playground .rtpg-head-status {
   display: inline-flex;

@@ -9,6 +9,9 @@ export const STEP_TIPS = {
   generated:
     'The real, ready-to-run code RunTypes generates for your type. This is what actually executes for the function you picked, specialized to your exact shape (no schema walking or reflection at runtime).',
   function: 'Pick one of the functions RunTypes generates from your type, then run it against the input below.',
+  input:
+    'The value to run the function on. Type any JS value, or generate one from your type: valid data fits it, invalid data breaks it on purpose.',
+  result: 'Run the picked function on the input and see what it returns. Ctrl / Cmd + Enter works too.',
 } as const;
 
 export interface TourStep {
@@ -31,21 +34,16 @@ export const TOUR_STEPS: readonly TourStep[] = [
     title: 'Start from an example',
     body: 'Load a ready-made type, from a simple object to a recursive tree, then edit it.',
   },
-  {target: 'source', title: '1. Your source', body: `${STEP_TIPS.source} The hatched lines above and below are read-only.`},
-  {target: 'transformed', title: '2. What the build changes', body: STEP_TIPS.transformed},
+  {target: 'source', title: 'Your source', body: `${STEP_TIPS.source} The hatched lines above and below are read-only.`},
+  {target: 'transformed', title: 'What the build changes', body: STEP_TIPS.transformed},
   {
     target: 'generated',
-    title: '3. The generated code',
+    title: 'The generated code',
     body: `${STEP_TIPS.generated} The switch shows only the generated function, or the full file it lives in.`,
   },
-  {target: 'picker', title: '4. Pick a function', body: STEP_TIPS.function},
-  {
-    target: 'input',
-    title: 'Give it a value',
-    body: 'Type any JS value, or let RunTypes make one: Random valid fits the type, Random invalid breaks it on purpose.',
-    needsInput: true,
-  },
-  {target: 'run', title: 'Run it', body: 'Run the function against the input and see the result below. Ctrl / Cmd + Enter works too.'},
+  {target: 'picker', title: 'Pick a function', body: STEP_TIPS.function},
+  {target: 'input', title: 'Give it a value', body: STEP_TIPS.input, needsInput: true},
+  {target: 'run', title: 'Run it', body: STEP_TIPS.result},
 ];
 
 export type TourState = 'completed' | 'dismissed';

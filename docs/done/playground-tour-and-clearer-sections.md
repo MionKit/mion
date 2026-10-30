@@ -238,6 +238,12 @@ Built as planned, with these differences found while building:
   and the example types sit in a compact row under the Source header, with smaller buttons; the separate top
   toolbar is gone and the Tour button sits in the Source header. The page's layout rule gains the toolbar's
   height (`calc(100vh - 100px)`).
+- **Function column split into three cards** (asked for during the build): 4 Pick a Function (picker +
+  what it does), 5 Input (the value, Generate valid data / Generate invalid data, and a plain note that the
+  value comes from RunTypes mock data, linking the Mocking guide, instead of the `createMockDataFn<MyType>()`
+  call), 6 Result (Run button + result). The Input card hides for getRunType and Result then takes number 5.
+  The Run button names the picked function (`Run validate`, `Run toJson`, …). Tour titles drop their numbers,
+  since the Result number moves.
 - **Browser pass** ran with a Playwright script against `pnpm miondevx website dev --agent`: tour walks all 8
   steps, Done and Skip (Esc) both stop it after reload, the Tour button replays it; title follows the picker;
   switch remembered across reloads and disabled on getRunType; file names shown in both views; dark + light,
