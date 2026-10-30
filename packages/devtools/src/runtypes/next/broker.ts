@@ -397,6 +397,7 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
       // it finished: returning early let a regenerate write into a dir being deleted (ENOTEMPTY). None rejects.
       await Promise.all([ready, chain, hotUpdate]);
       await unlinkQuietly(socketPath);
+      process.off('exit', cleanup);
       built.buildEnd?.call(context);
     },
   };
