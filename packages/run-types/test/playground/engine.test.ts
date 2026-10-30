@@ -8,6 +8,7 @@ import {
   mock,
   mockInvalid,
   OPERATIONS,
+  operationByKey,
   run,
   setResolver,
   transformedSource,
@@ -344,7 +345,7 @@ const MyType = RT.object({
 
   // The function view's empty state: a no-op entry ships a file but no factory.
   it('generatedFactories is empty for a no-op entry (mutate encoder on a plain JSON type)', async () => {
-    const op = OPERATIONS.find((candidate) => candidate.key === 'jsonEncoderMutate')!;
+    const op = operationByKey('jsonEncoderMutate');
     const mods = await generatedCache(op.factory, TYPE, undefined, 'type', op.options);
     expect(mods.length).toBeGreaterThan(0);
     expect(generatedFactories(mods)).toEqual([]);

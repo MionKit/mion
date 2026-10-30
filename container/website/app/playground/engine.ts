@@ -357,7 +357,7 @@ export interface GeneratedFactory {
 // Factories are never called. A data-only bundle (getRunType) has none.
 export function generatedFactories(modules: readonly CacheModule[]): GeneratedFactory[] {
   if (modules.length === 0) return [];
-  const bindings = linkBindings(modules.map((m) => m.code));
+  const bindings = linkBindings(modules.map((module) => module.code));
   const factories: GeneratedFactory[] = [];
   for (const module of modules) {
     for (const match of module.code.matchAll(EXPORTED_BINDING)) {

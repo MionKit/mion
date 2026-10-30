@@ -33,22 +33,22 @@ import {
   ROOT_TYPE,
   type RunResult,
   type Diagnostic,
-  type CacheModule,
-  type GeneratedFactory,
   type Mode,
   type Operation,
   type ResolverOptions,
 } from '../../playground/index.ts';
 import {PRESETS, type Preset} from '../../playground/presets.ts';
 import {
+  CODE_VIEW_KEY,
   STEP_TIPS,
-  TOUR_STEPS,
+  TOUR_KEY,
   readCodeView,
   readTourState,
   shouldAutoStart,
-  writeCodeView,
-  writeTourState,
+  tourStepsFor,
+  writePref,
   type CodeView,
+  type TourState,
 } from '../../playground/tour.ts';
 import PlaygroundTour from './PlaygroundTour.client.vue';
 // Monaco's language services (TypeScript completions, hovers, signature help) run
@@ -76,6 +76,11 @@ const props = withDefaults(
 // editor, short for a discrete change (function picker / preset / mode).
 const TYPE_DEBOUNCE_MS = 2000;
 const PICK_DEBOUNCE_MS = 150;
+
+const CODE_VIEWS: readonly {value: CodeView; label: string}[] = [
+  {value: 'function', label: 'Function'},
+  {value: 'file', label: 'Full file'},
+];
 
 const config = useRuntimeConfig();
 const colorMode = useColorMode();
@@ -129,7 +134,7 @@ const codeHint = computed(() => {
   const noun = showFactories.value ? 'function' : 'module';
   return `${count} ${noun}${count === 1 ? '' : 's'}`;
 });
-const tourSteps = computed(() => TOUR_STEPS.filter((step) => !step.needsInput || needsInput.value));
+const tourSteps = computed(() => tourStepsFor(needsInput.value));
 const typeHintHtml = computed(() =>
   mode.value === 'builder'
     ? `define <code>${ROOT_TYPE}</code> from RT/TF builders`
@@ -622,24 +627,9 @@ function scheduleCodegen(delay: number): void {
   codeTimer = setTimeout(() => void updateSelectedCode(), delay);
 }
 
-interface CodeBlock {
-  head: string; // already-escaped header HTML
-  code: string;
-}
-
-// The file name always heads a block, so the function view still says which module the code lives in.
-function moduleBlock(module: CacheModule): CodeBlock {
-  return {head: escapeHtml(module.name), code: module.code};
-}
-
-function factoryBlock(factory: GeneratedFactory): CodeBlock {
-  return {
-    head: `${escapeHtml(factory.file)}<span class="rtpg-cache-fn"> · ${escapeHtml(factory.name)}</span>`,
-    code: factory.code,
-  };
-}
-
-async function renderCodeBlocks(blocks: CodeBlock[]): Promise<string> {
+// `head` is already-escaped HTML: the file name always heads a block, so the function view still says
+// which module the code lives in.
+async function renderCodeBlocks(blocks: {head: string; code: string}[]): Promise<string> {
   const rendered = await Promise.all(
     blocks.map(
       async (block) =>
@@ -660,11 +650,16 @@ async function updateSelectedCode(): Promise<void> {
     const cacheModules = await generatedCache(op.factory, userCode, opts, CALL_FORM, op.options);
     const factories = generatedFactories(cacheModules);
     const html = cacheModules.length
-      ? await renderCodeBlocks(cacheModules.map(moduleBlock))
+      ? await renderCodeBlocks(cacheModules.map((module) => ({head: escapeHtml(module.name), code: module.code})))
       : '<div class="rtpg-card-note">no code generated for this type</div>';
     // A function that needs no code for this type (a no-op entry, e.g. the mutate encoder on plain JSON) has none.
     const factoryHtml = factories.length
-      ? await renderCodeBlocks(factories.map(factoryBlock))
+      ? await renderCodeBlocks(
+          factories.map((factory) => ({
+            head: `${escapeHtml(factory.file)}<span class="rtpg-cache-fn"> · ${escapeHtml(factory.name)}</span>`,
+            code: factory.code,
+          })),
+        )
       : `<div class="rtpg-card-note">No generated function: <code>${escapeHtml(op.varName)}</code> needs no code for this type. The full file shows its no-op entry.</div>`;
     const transformed = await transformedSource(op.factory, op.varName, userCode, opts, CALL_FORM, op.options);
     const transformedHtml = `<pre class="rtpg-code">${await highlight(transformed, 'typescript')}</pre>`;
@@ -700,21 +695,16 @@ function browserStorage(): Storage | undefined {
 
 function setCodeView(view: CodeView): void {
   codeView.value = view;
-  writeCodeView(browserStorage(), view);
+  writePref(browserStorage(), CODE_VIEW_KEY, view);
 }
 
-function startTour(): void {
-  tourOpen.value = true;
-}
-
-function endTour(state: 'completed' | 'dismissed'): void {
+function endTour(state: TourState): void {
   tourOpen.value = false;
-  writeTourState(browserStorage(), state);
+  writePref(browserStorage(), TOUR_KEY, state);
 }
 
-// First visit only, and only once the loading overlay is gone (never over the error state).
 watch(ready, (isReady) => {
-  if (isReady && !overlayError.value && shouldAutoStart(readTourState(browserStorage()))) startTour();
+  if (shouldAutoStart(readTourState(browserStorage()), isReady, Boolean(overlayError.value))) tourOpen.value = true;
 });
 
 // ---- boot / teardown --------------------------------------------------------
@@ -839,7 +829,8 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="rootEl" class="rt-playground" :style="{'--rt-pg-min-height': height}">
-    <div class="rtpg-layout">
+    <!-- Inert while the tour runs: keyboard focus cannot reach the playground behind it. -->
+    <div class="rtpg-layout" :inert="tourOpen">
       <div class="rtpg-col">
         <section class="rtpg-pane rtpg-typepane" data-tour="source">
           <div class="rtpg-head">
@@ -851,7 +842,7 @@ onBeforeUnmount(() => {
             </span>
             <span class="rtpg-head-status">
               <span class="rtpg-hint" v-html="typeHintHtml" />
-              <button type="button" class="rtpg-tour-btn" title="Walk through each section" @click="startTour">
+              <button type="button" class="rtpg-tour-btn" title="Walk through each section" @click="tourOpen = true">
                 Tour
               </button>
             </span>
@@ -944,36 +935,31 @@ onBeforeUnmount(() => {
             <span v-show="codegenBusy" class="rtpg-busy-spinner" />
             <span class="rtpg-hint">{{ codeHint }}</span>
             <span
-              class="rtpg-modeswitch rtpg-viewswitch"
+              class="rtpg-modeswitch"
               role="group"
               aria-label="generated code view"
               :title="hasFactoryView ? undefined : `${currentOp.label} ships data, not a function`"
             >
               <button
+                v-for="view in CODE_VIEWS"
+                :key="view.value"
                 type="button"
                 class="rtpg-mode"
-                :class="{'is-active': showFactories}"
-                :aria-pressed="showFactories"
+                :class="{'is-active': showFactories === (view.value === 'function')}"
+                :aria-pressed="showFactories === (view.value === 'function')"
                 :disabled="!hasFactoryView"
-                @click="setCodeView('function')"
+                @click="setCodeView(view.value)"
               >
-                Function
-              </button>
-              <button
-                type="button"
-                class="rtpg-mode"
-                :class="{'is-active': !showFactories}"
-                :aria-pressed="!showFactories"
-                :disabled="!hasFactoryView"
-                @click="setCodeView('file')"
-              >
-                Full file
+                {{ view.label }}
               </button>
             </span>
           </span>
         </div>
-        <div v-if="showFactories" class="rtpg-codeview" :class="{'is-busy': codegenBusy}" v-html="factoryviewHtml" />
-        <div v-else class="rtpg-codeview" :class="{'is-busy': codegenBusy}" v-html="codeviewHtml" />
+        <div
+          class="rtpg-codeview"
+          :class="{'is-busy': codegenBusy}"
+          v-html="showFactories ? factoryviewHtml : codeviewHtml"
+        />
       </section>
 
       <div class="rtpg-col">
@@ -1464,7 +1450,7 @@ onBeforeUnmount(() => {
   background: color-mix(in srgb, var(--rtpg-btn-tone) 15%, transparent);
   border: 1px solid var(--rtpg-btn-tone);
   color: var(--rtpg-btn-tone);
-  border-radius: 8px;
+  border-radius: var(--ui-radius);
   padding: 5px 12px;
   font-size: 12.5px;
   font-weight: 600;
@@ -1487,7 +1473,8 @@ onBeforeUnmount(() => {
   background: var(--rtpg-btn-tone);
   color: var(--rtpg-on-accent);
 }
-.rt-playground .rtpg-btn:disabled {
+.rt-playground .rtpg-btn:disabled,
+.rt-playground .rtpg-mode:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -1717,10 +1704,6 @@ onBeforeUnmount(() => {
 }
 .rt-playground .rtpg-mode.is-active svg {
   opacity: 1;
-}
-.rt-playground .rtpg-mode:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 .rt-playground .rtpg-mock-badge {
   margin-top: 6px;

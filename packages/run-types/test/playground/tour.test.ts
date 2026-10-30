@@ -7,16 +7,17 @@ import {
   readCodeView,
   readTourState,
   shouldAutoStart,
-  writeCodeView,
-  writeTourState,
+  tourStepsFor,
+  writePref,
+  type PrefStorage,
 } from '../../../../container/website/app/playground/tour.ts';
 
-function memoryStorage(): Pick<Storage, 'getItem' | 'setItem'> {
+function memoryStorage(): PrefStorage {
   const items = new Map<string, string>();
   return {getItem: (key) => items.get(key) ?? null, setItem: (key, value) => void items.set(key, value)};
 }
 
-const blockedStorage: Pick<Storage, 'getItem' | 'setItem'> = {
+const blockedStorage: PrefStorage = {
   getItem: () => {
     throw new Error('SecurityError');
   },
@@ -29,23 +30,35 @@ describe('playground tour state', () => {
   it('auto-starts on a fresh browser and never again once completed or dismissed', () => {
     for (const state of ['completed', 'dismissed'] as const) {
       const storage = memoryStorage();
-      expect(shouldAutoStart(readTourState(storage))).toBe(true);
-      writeTourState(storage, state);
-      expect(storage.getItem(TOUR_KEY)).toBe(state);
-      expect(shouldAutoStart(readTourState(storage))).toBe(false);
+      expect(shouldAutoStart(readTourState(storage), true, false)).toBe(true);
+      writePref(storage, TOUR_KEY, state);
+      expect(readTourState(storage)).toBe(state);
+      expect(shouldAutoStart(readTourState(storage), true, false)).toBe(false);
     }
+  });
+
+  it('waits for the playground to load and never starts over its error state', () => {
+    expect(shouldAutoStart(null, false, false)).toBe(false);
+    expect(shouldAutoStart(null, true, true)).toBe(false);
   });
 
   it('reads an unknown stored value as never seen', () => {
     const storage = memoryStorage();
     storage.setItem(TOUR_KEY, 'maybe');
-    expect(shouldAutoStart(readTourState(storage))).toBe(true);
+    expect(readTourState(storage)).toBeNull();
   });
 
   it('never throws when storage is blocked or missing', () => {
-    expect(shouldAutoStart(readTourState(blockedStorage))).toBe(true);
-    expect(() => writeTourState(blockedStorage, 'completed')).not.toThrow();
-    expect(shouldAutoStart(readTourState(undefined))).toBe(true);
+    expect(readTourState(blockedStorage)).toBeNull();
+    expect(() => writePref(blockedStorage, TOUR_KEY, 'completed')).not.toThrow();
+    expect(readTourState(undefined)).toBeNull();
+  });
+
+  it('skips the input step only while the picked function reads no input', () => {
+    expect(tourStepsFor(true)).toEqual(TOUR_STEPS);
+    expect(tourStepsFor(false).map((step) => step.target)).toEqual(
+      TOUR_STEPS.filter((step) => step.target !== 'input').map((step) => step.target)
+    );
   });
 
   // A renamed or removed section must not leave a tour step pointing at nothing.
@@ -63,10 +76,9 @@ describe('playground code view preference', () => {
   it('defaults to the function view and round-trips the full file view', () => {
     const storage = memoryStorage();
     expect(readCodeView(storage)).toBe('function');
-    writeCodeView(storage, 'file');
-    expect(storage.getItem(CODE_VIEW_KEY)).toBe('file');
+    writePref(storage, CODE_VIEW_KEY, 'file');
     expect(readCodeView(storage)).toBe('file');
-    writeCodeView(storage, 'function');
+    writePref(storage, CODE_VIEW_KEY, 'function');
     expect(readCodeView(storage)).toBe('function');
   });
 
@@ -75,6 +87,5 @@ describe('playground code view preference', () => {
     storage.setItem(CODE_VIEW_KEY, 'everything');
     expect(readCodeView(storage)).toBe('function');
     expect(readCodeView(blockedStorage)).toBe('function');
-    expect(() => writeCodeView(blockedStorage, 'file')).not.toThrow();
   });
 });
