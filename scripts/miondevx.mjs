@@ -58,6 +58,8 @@ const die = (msg, code = 1) => {
 // those before any job runs) plus ci.yml's quick-tier wiring are pinned back to
 // this table by packages/devtools/test/fuzz-lane-contracts.test.ts.
 // Entries stay ONE PER LINE — that test parses them line-wise.
+// Soak lanes are also required checks on the `prod` ruleset (`gate / fuzz soak · <lane>`):
+// add, rename or remove one there too, or the next release PR waits on a check that never runs.
 //
 // Budget tiers. Every lane always runs at one of three:
 //   default  what `pnpm test` / `vitest run test/fuzz` executes: a handful of

@@ -77,6 +77,7 @@ Use [the tool mapping](../TOOLS.md) for assistant-specific calls and fallbacks.
 - Never `--admin`, never past a red required check.
 - `prod` ruleset: `allowed_merge_methods` is `["merge"]`, so rebase + squash are not offered at all.
   That is the guard rail that prevents a wrong-method merge, not just catches it after.
-- Required checks on `prod`: the gate jobs + `version-fresh`.
+- Required checks on `prod`: the gate jobs + `version-fresh`. A fuzz soak lane added, renamed or removed in
+  `miondevx core fuzz-lanes` → same change in the ruleset, or the release PR waits on a check that never runs.
 - ⚠️ **Never add `main-ancestor` to the required set.** Right for a normal promotion, but permanently red on a
   forced-tree reunification → broken release line with no legal repair.
