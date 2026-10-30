@@ -1,5 +1,5 @@
-// A getErrors call with no `errors` list asks the validator first where the walk costs more than it (a cycle, an
-// unknown-key scan); a named child is walked only when its own validator rejects it. A caller's own list always gets
+// A getErrors call with no `errors` list asks the validator first where the walk costs more than it (a loop, a cycle,
+// an unknown-key scan); a named child is walked only when its own validator rejects it. A caller's own list always gets
 // the full walk.
 
 import {describe, expect, it} from 'vitest';
@@ -26,7 +26,13 @@ export interface Cart {
   items: Item[];
 }
 
+interface Profile {
+  name: string;
+  address: {city: string};
+}
+
 const getErrors = createGetValidationErrorsFn<Order>();
+const getProfileErrors = createGetValidationErrorsFn<Profile>();
 const getTreeErrors = createGetValidationErrorsFn<TreeNode>();
 const getCartErrors = createGetValidationErrorsFn<Cart>();
 const getStrictErrors = createGetValidationErrorsFn<Order>(undefined, {checkUnknowns: true});
@@ -45,8 +51,13 @@ describe('validation errors shortcut', () => {
     ]);
   });
 
-  it('walks plain checks without asking the validator', () => {
-    expect(body(getErrors)).not.toMatch(shortcut);
+  it('walks loop-free plain checks without asking the validator', () => {
+    expect(body(getProfileErrors)).not.toMatch(shortcut);
+    expect(getProfileErrors({name: 'a', address: {city: 1}})).toEqual([{path: ['address', 'city'], expected: 'string'}]);
+  });
+
+  it('asks the validator before a walk with a loop', () => {
+    expect(body(getErrors)).toMatch(shortcut);
   });
 
   it('walks a named child only when its validator rejects it', () => {

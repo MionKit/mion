@@ -85,6 +85,21 @@ func TestValidationErrors_NoShortcutOnPlainChecks(t *testing.T) {
 	}
 }
 
+// TestValidationErrors_ShortcutOnLoops — any loop runs slower than the validator's on an accepted value, so a walk with
+// one asks the validator first even when every check in it is plain.
+func TestValidationErrors_ShortcutOnLoops(t *testing.T) {
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	arr := &reflection.RunType{ID: "arr", Kind: reflection.KindArray, Child: makeRef("str")}
+	idx := &reflection.RunType{ID: "idx", Kind: reflection.KindIndexSignature, Index: makeRef("str"), Child: makeRef("str")}
+	rec := &reflection.RunType{ID: "rec", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("idx")}}
+	for _, rootID := range []string{"arr", "rec"} {
+		rendered := renderErrorsEntry(t, []*reflection.RunType{str, arr, idx, rec}, rootID, "validationErrors", ValidationErrorsEmitter{}, false)
+		if !strings.Contains(rendered.argsText, "(v,pth,er){"+shortcutPrologue(valKey(rootID))) {
+			t.Errorf("%s: a loop must keep the shortcut, got:\n%s", rootID, rendered.argsText)
+		}
+	}
+}
+
 // TestValidationErrors_ChildAsksItsValidator — a named child outside any cycle is walked only when its validator rejects
 // it, and the root skips the shortcut since the guarded walk already costs one validate call per accepted subtree.
 func TestValidationErrors_ChildAsksItsValidator(t *testing.T) {

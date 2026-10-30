@@ -45,8 +45,9 @@ func (ValidationErrorsEmitter) EmitArgsPrologue(ctx *EmitContext, root *reflecti
 
 // shortcutPaysOff is true for a container root. Anywhere else the body is one check (a union already asks its validator), so
 // the shortcut gains nothing on an accepted value and runs a format check twice on a rejected one (bench: 0.7x on DATETIME).
-// A container whose walk is plain checks (errorWalkCostly unset) runs as fast as its validator, so it skips the shortcut too
-// (bench: 1.3x without it on toBeChecked).
+// A container whose walk is loop-free plain checks (errorWalkCostly unset) runs as fast as its validator, so it skips the
+// shortcut too (bench: 1.3x without it on toBeChecked). Any loop is slower than the validator's on an accepted value (a
+// string-keyed record 6x, a plain array 1.1x), so a loop keeps it.
 func shortcutPaysOff(root *reflection.RunType) bool {
 	if root == nil {
 		return false
@@ -490,6 +491,7 @@ func (ValidationErrorsEmitter) emitKindDefault(rt *reflection.RunType, ctx *Emit
 				Type: CodeS,
 			}
 		}
+		ctx.markCostlyErrorWalk()
 		itemsCode := "for (let " + iVar + " = 0; " + iVar + " < " + v + ".length; " + iVar + "++) {" + childRT.Code + "}"
 		return RTCode{
 			Code: "if (!Array.isArray(" + v + ")) {" + callRTErr(ctx, "array", "") + "} else {" + itemsCode + "}",
@@ -795,6 +797,7 @@ func emitIndexSignatureValidationErrors(rt *reflection.RunType, ctx *EmitContext
 	if childRT.Code == "" && keyRegexVar == "" {
 		return RTCode{Code: "", Type: CodeS}
 	}
+	ctx.markCostlyErrorWalk()
 	var body strings.Builder
 	body.WriteString("for (const ")
 	body.WriteString(keyVar)
@@ -892,6 +895,7 @@ func emitMapValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string)
 	keyType, valueType := mapKeyValueTypes(rt, ctx)
 	entryVar := ctx.NextLocalVar("entry")
 	idxVar := ctx.NextLocalVar("i")
+	ctx.markCostlyErrorWalk()
 	var inner strings.Builder
 	inner.WriteString("let ")
 	inner.WriteString(idxVar)
@@ -991,6 +995,7 @@ func emitSetValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string)
 	itemType := setItemType(rt, ctx)
 	itemVar := ctx.NextLocalVar("item")
 	idxVar := ctx.NextLocalVar("i")
+	ctx.markCostlyErrorWalk()
 	var inner strings.Builder
 	inner.WriteString("let ")
 	inner.WriteString(idxVar)
@@ -1056,6 +1061,7 @@ func emitTupleMemberValidationErrors(rt *reflection.RunType, ctx *EmitContext, v
 		if childRT.Code == "" {
 			return RTCode{Code: "", Type: CodeS}
 		}
+		ctx.markCostlyErrorWalk()
 		return RTCode{
 			Code: "for (let " + iVar + " = " + positionStr(rt) + "; " + iVar + " < " + v + ".length; " + iVar + "++) {" + childRT.Code + "}",
 			Type: CodeS,
