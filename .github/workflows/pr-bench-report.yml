@@ -5,10 +5,21 @@ name: pr · benchmark report (label-gated)
 # `--quick`; these are publishable numbers on the deploy's linux-arm64 runner (website-deploy.yml says why).
 # About an hour, so the run follows the label, not the commits. NOT pull_request_target, like pr-heavy.yml:
 # fork code never gets secrets or write permissions, so a fork PR only gets a notice.
+#
+# Two hops: the linux-arm64 runner group admits workflow files at fixed refs only, and a pull request run sits at
+# refs/pull/<n>/merge. So the label only dispatches this same file on the default branch, which the group lists as
+# `MionKit/mion/.github/workflows/pr-bench-report.yml@refs/heads/main`, and that run checks out the pull request.
 
 on:
   pull_request:
     types: [labeled]
+  # Also by hand: Actions → this workflow → Run workflow, with a pull request number.
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: 'Pull request number to measure'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -16,19 +27,35 @@ permissions:
 jobs:
   fork-notice:
     name: benchmark report · fork pull request
-    if: github.event.label.name == 'bench-report' && github.event.pull_request.head.repo.fork
+    if: github.event_name == 'pull_request' && github.event.label.name == 'bench-report' && github.event.pull_request.head.repo.fork
     runs-on: ubuntu-latest
     steps:
       - run: echo "::notice::bench-report needs the registry secret and a write token, which a fork pull request does not get. Run it from a branch of this repository."
 
+  dispatch:
+    name: benchmark report · start on the default branch
+    if: github.event_name == 'pull_request' && github.event.label.name == 'bench-report' && !github.event.pull_request.head.repo.fork
+    runs-on: ubuntu-latest
+    permissions:
+      # start the workflow_dispatch run
+      actions: write
+    steps:
+      # A GITHUB_TOKEN workflow_dispatch is the one event that token may start a run with.
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run pr-bench-report.yml --repo "$GITHUB_REPOSITORY" \
+            --ref "${{ github.event.repository.default_branch }}" -f pr=${{ github.event.pull_request.number }}
+          echo "::notice::The benchmark run starts on the default branch: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/workflows/pr-bench-report.yml"
+
   report:
     name: benchmark report · linux-arm64
-    if: github.event.label.name == 'bench-report' && !github.event.pull_request.head.repo.fork
+    if: github.event_name == 'workflow_dispatch'
     runs-on: linux-arm64
     timeout-minutes: 120
-    # On the job: any other label fires this workflow and must not cancel a run; a new bench-report label does.
+    # A new run for the same pull request supersedes one still measuring.
     concurrency:
-      group: pr-bench-report-${{ github.event.pull_request.number }}
+      group: pr-bench-report-${{ inputs.pr }}
       cancel-in-progress: true
     permissions:
       contents: read
@@ -38,8 +65,27 @@ jobs:
       actions: read
       # the sticky comment and the label removal
       pull-requests: write
+    env:
+      PR: ${{ inputs.pr }}
     steps:
+      # A dispatch takes any number: refuse a fork's code, which never gets this runner's secrets, and a closed PR.
+      - name: Check the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! [[ "$PR" =~ ^[0-9]+$ ]]; then
+            echo "::error::bench-report: '$PR' is not a pull request number."
+            exit 1
+          fi
+          read -r cross state < <(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json isCrossRepository,state --jq '"\(.isCrossRepository) \(.state)"')
+          if [ "$cross" != "false" ] || [ "$state" != "OPEN" ]; then
+            echo "::error::bench-report measures an open pull request from a branch of this repository; #$PR is cross-repository=$cross, $state."
+            exit 1
+          fi
+      # The merge ref: the pull request as it would land on main.
       - uses: actions/checkout@v5
+        with:
+          ref: refs/pull/${{ inputs.pr }}/merge
       # First and cheap, like website-deploy.yml's reuse_benchmarks: no baseline, no report.
       - name: Find the live site's benchmark data
         id: live
@@ -85,7 +131,7 @@ jobs:
       - name: Upload the results
         uses: actions/upload-artifact@v7
         with:
-          name: bench-report-${{ github.event.pull_request.number }}
+          name: bench-report-${{ inputs.pr }}
           path: |
             container/benchmarks/results/*.json
             container/benchmarks/results/bun/*.json
@@ -96,7 +142,6 @@ jobs:
       - name: Post the report on the pull request
         env:
           GH_TOKEN: ${{ github.token }}
-          PR: ${{ github.event.pull_request.number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           marker='<!-- bench-report -->'
@@ -113,4 +158,4 @@ jobs:
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh pr edit "${{ github.event.pull_request.number }}" --repo "$GITHUB_REPOSITORY" --remove-label bench-report
+        run: gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label bench-report
