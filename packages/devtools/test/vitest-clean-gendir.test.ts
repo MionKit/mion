@@ -85,6 +85,21 @@ describe('vitest-clean-gendir teardown', () => {
     expect(fs.existsSync(dependency)).toBe(true);
   });
 
+  // A worktree under the repo (`.claude/worktrees/<name>`) runs its own tests: sweeping it deletes its genDirs mid-run.
+  it('never reaches into another checkout, a worktree or a submodule', async () => {
+    const root = makeTempProjectRoot();
+    const worktree = path.join(root, '.claude/worktrees/other');
+    fs.mkdirSync(worktree, {recursive: true});
+    fs.writeFileSync(path.join(worktree, '.git'), 'gitdir: /elsewhere\n');
+    const worktreeGenDir = seed(worktree, 'packages/run-types/.mion/types');
+    const ownGenDir = seed(root, 'packages/run-types/.mion/types');
+
+    await cleanRunTypesGenDirs(asProject(root))();
+
+    expect(fs.existsSync(worktreeGenDir)).toBe(true);
+    expect(fs.existsSync(ownGenDir)).toBe(false);
+  });
+
   it('is a no-op when nothing was generated', async () => {
     const root = makeTempProjectRoot();
     await expect(cleanRunTypesGenDirs(asProject(root))()).resolves.toBeUndefined();
