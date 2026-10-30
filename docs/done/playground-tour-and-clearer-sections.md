@@ -39,10 +39,10 @@ explaining it. Runs once per browser until finished or dismissed.
     4. `transformed`: what the build step changes in your file.
     5. `generated`: the generated code, and the Function / Full file switch (section 4 below).
     6. `picker`: pick which function to generate.
-    7. `input`: the input value + Random valid / Random invalid.
+    7. `input`: the input value + Generate valid / invalid data.
     8. `run`: Run button + Result.
   - Move `STEP_TIPS` (`PlaygroundStage.client.vue:64-71`) here and reuse its text as the bodies of steps
-    3-6, so the hover tips and the tour never say different things. Update the `cache` tip wording to
+    3-8, so the hover tips and the tour never say different things. Update the `cache` tip wording to
     "generated code", not "cache".
   - Storage: one key `mion.runtypes.playground.tour`, value `'completed' | 'dismissed'`.
     `readTourState(storage)` / `writePref(storage, key, value)` take a `Storage`-like object and wrap every
@@ -93,6 +93,10 @@ touch. Section 2 ("Transformed Src") is a sub-header inside the Source pane (`:8
 - Below 1000px the grid is one column (`:984-988`): cards stack with the same gap.
 
 ### 3. Random valid / Random invalid as real buttons
+
+(Superseded while building: see What shipped. They became Generate valid data / Generate invalid data,
+right-aligned in the Input card header, 12px text, `3px 9px` padding, `--ui-radius` corners; the
+"Input (JS)" label is gone.)
 
 Today `.rtpg-ghost-btn` (`:1289-1310`, template `:894-913`): transparent, 11px, muted grey.
 
@@ -210,7 +214,7 @@ substring of the module). The tour is UI state with three values.
 - Source (with the type controls), Transformed source, Generated code, Pick a Function, Input and Result are
   separate cards with visible
   gaps and borders, in dark and light, wide and one-column.
-- Random valid / Random invalid look like buttons (filled, icon, readable size).
+- Generate valid data / Generate invalid data look like buttons (filled, icon, readable size).
 - Section 3 reads "Generated RunType `<varName>` code" and follows the picker; its switch shows the
   generated factory by default or the full file, remembers the choice, and is disabled for getRunType.
   Both views show each block's `rtmod:/…` file name.
@@ -254,9 +258,15 @@ Built as planned, with these differences found while building:
   - The playground grid is `inert` while the tour is open, so keyboard focus cannot reach the controls behind it.
   - New radii use `--ui-radius` / `--mion-panel-radius`.
   - `tour.test.ts` is declared in `scripts/core/test-skip.mjs`, since it reads the component as text.
-  - Left untested on purpose: `codeHint`, the switch's view logic and the card placement live in Vue
-    components, the playground suite runs in Node with no component mounting, and the browser pass covers them.
+  - The view rules the cards follow live in `tour.ts` and are tested there: `shownCodeView` (getRunType
+    forces the full file), `codeCountHint`, `resultStep` (Result is card 6, or 5 without Input), `runName`
+    (the Run button's name; getRunType keeps its own name, since it returns data) and `placeCard` (the tour
+    card's position, viewport and card size passed in). `tour.test.ts` also pins, as text, the stage lines
+    with no component logic of their own: the inert grid and which key each preference is stored under.
+  - The code view gets a `:key` per view, so switching between Function and Full file starts at the top.
 - **Browser pass** ran with a Playwright script against `pnpm miondevx website dev --agent`: tour walks all 8
   steps, Done and Skip (Esc) both stop it after reload, the Tour button replays it; title follows the picker;
-  switch remembered across reloads and disabled on getRunType; file names shown in both views; dark + light,
+  switch remembered across reloads and disabled on getRunType; file names shown in both views; the Pick,
+  Input and Result cards (generate buttons in the Input header, note above the editor, `Run validate`,
+  `false ✗` after Generate invalid data); the grid inert while the tour is open and not after; dark + light,
   1500px and 800px wide.
