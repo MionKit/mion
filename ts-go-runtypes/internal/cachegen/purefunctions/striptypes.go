@@ -16,7 +16,7 @@ type textRange struct {
 	Text       string
 }
 
-// stripTypesFromBlock returns the JS-stripped text of blockNode, outer braces removed.
+// stripTypesFromBlock returns the JS-stripped, comment-free text of blockNode, outer braces removed.
 func stripTypesFromBlock(sourceFile *ast.SourceFile, blockNode *ast.Node, lowerings []textRange) string {
 	fullText := sourceFile.Text()
 	startOffset := blockNode.Pos()
@@ -25,6 +25,7 @@ func stripTypesFromBlock(sourceFile *ast.SourceFile, blockNode *ast.Node, loweri
 
 	ranges := append([]textRange(nil), lowerings...)
 	collectTypeRanges(sourceFile, blockNode, &ranges)
+	appendCommentRanges(sourceFile, blockNode, &ranges)
 	stripped := spliceRanges(raw, ranges, startOffset)
 	return trimOuterBraces(stripped)
 }
@@ -38,6 +39,7 @@ func stripTypesFromExpr(sourceFile *ast.SourceFile, exprNode *ast.Node, lowering
 
 	ranges := append([]textRange(nil), lowerings...)
 	collectTypeRanges(sourceFile, exprNode, &ranges)
+	appendCommentRanges(sourceFile, exprNode, &ranges)
 	stripped := spliceRanges(raw, ranges, startOffset)
 	return "return " + strings.TrimSpace(stripped) + ";"
 }
