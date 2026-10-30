@@ -2,6 +2,7 @@
 // PlaygroundTour - the first-visit walkthrough: dims the page, cuts a highlighted hole around one
 // `data-tour` section of the playground, and explains it in a small card. Teleported to <body> so the
 // dimmed layer covers the site header too; the stage owns when it opens and what gets stored.
+import type {CSSProperties} from 'vue';
 import type {TourStep} from '../../playground/tour.ts';
 
 const props = defineProps<{steps: readonly TourStep[]; open: boolean; root?: HTMLElement}>();
@@ -14,7 +15,7 @@ const NARROW = 640;
 
 const index = ref(0);
 const hole = ref<{top: number; left: number; width: number; height: number} | null>(null);
-const cardPos = ref<Record<string, string>>({});
+const cardPos = ref<CSSProperties>({});
 const cardEl = ref<HTMLElement>();
 let returnFocus: HTMLElement | null = null;
 let frame = 0;
@@ -28,7 +29,7 @@ function target(): HTMLElement | null {
 }
 
 // Places the card beside the target: below, above, right, left, else pinned to the viewport bottom.
-function placeCard(rect: DOMRect): Record<string, string> {
+function placeCard(rect: DOMRect): CSSProperties {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   if (vw < NARROW) return {left: `${EDGE}px`, right: `${EDGE}px`, bottom: `${EDGE}px`};
@@ -167,7 +168,6 @@ onBeforeUnmount(detach);
      the colour tokens it needs are re-derived here from the site tokens. -->
 <style>
 .rtpg-tour {
-  --rtpg-tour-accent: var(--site-accent);
   position: fixed;
   inset: 0;
   /* Above the site's sticky header. */
@@ -183,8 +183,8 @@ onBeforeUnmount(detach);
 }
 .rtpg-tour .rtpg-tour-hole {
   position: absolute;
-  border: 2px solid var(--rtpg-tour-accent);
-  border-radius: 12px;
+  border: 2px solid var(--site-accent);
+  border-radius: var(--mion-panel-radius);
   box-shadow: 0 0 0 9999px var(--rtpg-scrim);
   pointer-events: none;
   transition: top 0.2s ease, left 0.2s ease, width 0.2s ease, height 0.2s ease;
@@ -194,7 +194,7 @@ onBeforeUnmount(detach);
   width: min(340px, calc(100vw - 32px));
   padding: 14px 16px;
   border: 1px solid var(--ui-border);
-  border-radius: 12px;
+  border-radius: var(--mion-panel-radius);
   background: var(--ui-bg-elevated);
   color: var(--ui-text-highlighted);
   box-shadow: 0 10px 30px var(--rtpg-shadow);
@@ -211,7 +211,7 @@ onBeforeUnmount(detach);
   justify-content: space-between;
 }
 .rtpg-tour .rtpg-tour-count {
-  color: var(--rtpg-tour-accent);
+  color: var(--site-accent);
   font-size: 11.5px;
   font-weight: 600;
   letter-spacing: 0.4px;
@@ -259,7 +259,7 @@ onBeforeUnmount(detach);
 }
 .rtpg-tour .rtpg-tour-back,
 .rtpg-tour .rtpg-tour-next {
-  border-radius: 8px;
+  border-radius: var(--ui-radius);
   padding: 6px 14px;
   font-size: 13px;
   font-weight: 600;
@@ -271,8 +271,8 @@ onBeforeUnmount(detach);
   color: var(--ui-text-highlighted);
 }
 .rtpg-tour .rtpg-tour-next {
-  border: 1px solid var(--rtpg-tour-accent);
-  background: var(--rtpg-tour-accent);
+  border: 1px solid var(--site-accent);
+  background: var(--site-accent);
   color: var(--rtpg-on-accent);
 }
 </style>
