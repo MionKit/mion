@@ -320,7 +320,7 @@ describe('website-redirects', () => {
     expect(chained).toEqual([]);
   });
 
-  // Pages applies the FIRST matching rule: a specific rule below the splat covering it never fires.
+  // Pages applies the FIRST matching rule.
   it('puts every specific rule above the splat that covers it', () => {
     const all = rules(join(PUBLIC_DIR, '_redirects'));
     const shadowed = all.flatMap(({from}, index) =>
