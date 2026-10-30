@@ -7,8 +7,7 @@ import (
 	"strings"
 )
 
-// bodyHashLength keeps 60 bits of the sha256 digest: a collision between two bodies of one package stays
-// implausible, and every emitted body that names the id pays for each character.
+// bodyHashLength keeps 60 bits: no plausible collision within one package; every body naming an id pays per character.
 const bodyHashLength = 10
 
 var horizontalWhitespace = regexp.MustCompile(`[ \t]+`)

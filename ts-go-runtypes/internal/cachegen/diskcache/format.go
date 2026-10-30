@@ -37,7 +37,7 @@ import "encoding/json"
 // v19 persists an unnamed entry's findings (another family's site may adopt them) and ElidedRefs (noop-gated children).
 // v20 stores structural ids as base64 (StructuralText): JSON turned a symbol key's 0xFE into U+FFFD, so those entries missed.
 // v21 renames every diagnostic code to its readable name: a v20 entry's stored codes are unknown, and replaying one panics.
-// v22 reshapes pure-fn ids (`_rt:<10-char hash>`, comments stripped before hashing): a v21 entry bakes ids nothing registers.
+// v22 reshapes pure-fn ids (`_rt:<10-char hash>`, comment-free bodies): a v21 entry bakes ids nothing registers.
 const FormatVersion = 22
 
 // StructuralText is a structural id stored as base64: a JSON string cannot carry tsgo's raw 0xFE symbol-key byte.

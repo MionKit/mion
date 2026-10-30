@@ -201,8 +201,7 @@ func ModuleName(key string, kind Kind) string {
 	if kind == KindRunTypeBundle {
 		return constants.RunTypesBundleBasename
 	}
-	// A missing stub keyed by a pure-fn id takes the pure-fn layout too: the raw id holds a `:`, which
-	// a module specifier reads as a URL scheme.
+	// A missing pure-fn stub takes the pure-fn layout too: a module specifier reads the id's `:` as a URL scheme.
 	if kind != KindPureFn && !(kind == KindMissing && strings.Contains(key, constants.PureFnHashPrefix)) {
 		return key
 	}

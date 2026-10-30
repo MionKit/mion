@@ -7,15 +7,14 @@ import (
 	"github.com/microsoft/typescript-go/shim/scanner"
 )
 
-// appendCommentRanges adds a range per comment in node's span: the code ships as a string literal, which no
-// minifier reaches into. A comment some other range already covers is left to that range.
+// appendCommentRanges adds a range per comment in node's span: the code ships as a string literal no minifier reaches.
 func appendCommentRanges(sourceFile *ast.SourceFile, node *ast.Node, ranges *[]textRange) {
 	text := sourceFile.Text()
 	start, end := node.Pos(), node.End()
 	existing := len(*ranges)
 	regexStarts := map[int]bool{}
 	collectRegexStarts(sourceFile, node, regexStarts)
-	// One entry per open `{` or `${`: true marks a template substitution, whose `}` resumes the template text.
+	// One entry per open `{` or `${`; true marks a `${`, whose `}` resumes the template text.
 	var braces []bool
 	tokens := scanner.GetScannerForSourceFile(sourceFile, start)
 	for {
@@ -52,8 +51,7 @@ func appendCommentRanges(sourceFile *ast.SourceFile, node *ast.Node, ranges *[]t
 	}
 }
 
-// collectRegexStarts records where each regular expression literal begins: the scanner alone reads its `/` as
-// division, and a `//` inside the pattern would then pass for a comment.
+// collectRegexStarts exists because the scanner reads a regex's `/` as division: a `//` in it would pass for a comment.
 func collectRegexStarts(sourceFile *ast.SourceFile, node *ast.Node, starts map[int]bool) {
 	if node.Kind == ast.KindRegularExpressionLiteral {
 		starts[scanner.GetTokenPosOfNode(node, sourceFile, false)] = true
@@ -94,9 +92,8 @@ func triviaComments(text string, from, to int) [][2]int {
 	return comments
 }
 
-// commentRemoval drops a comment alone on its line together with that line. Beside code, a line comment goes
-// with the spaces before it, and a block comment becomes the one separator it stood for: a newline inside it
-// still ends a `return` statement, and `a/**/b` must not read `ab`.
+// commentRemoval turns a block comment holding a newline into a newline: it still ends a `return` statement.
+// A block comment with no space on either side becomes a space, so `a/**/b` does not read `ab`.
 func commentRemoval(text string, comment [2]int, start, end int) textRange {
 	before := comment[0]
 	for before > start && (text[before-1] == ' ' || text[before-1] == '\t') {
