@@ -69,8 +69,11 @@
 /runtypes/guide/type-formats              /runtypes/type-formats/overview      301
 /runtypes/guide/decoding-untrusted-input  /runtypes/guide/json-round-trip        301
 /runtypes/guide/json-schema-generation    /runtypes/guide/json-schemas         301
-/runtypes/guide/linting                   /runtypes/tooling/linting            301
-/runtypes/guide/source-conversion         /runtypes/tooling/source-conversion  301
+/runtypes/guide/linting                   /runtypes/devtools/linting            301
+/runtypes/guide/source-conversion         /runtypes/devtools/source-conversion  301
+# Tooling was renamed Devtools (2026-10), the name the RPC subsite uses for the same kind of section.
+/runtypes/tooling    /runtypes/devtools/linting  301
+/runtypes/tooling/*  /runtypes/devtools/:splat   301
 # Each middleware's client page merged into its page, as a Client tab (2026-10).
 /rpc/middlewares/fetch-metadata-client  /rpc/middlewares/fetch-metadata  301
 /rpc/middlewares/sync-routes-client     /rpc/middlewares/sync-routes     301

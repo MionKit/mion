@@ -570,7 +570,7 @@ func (ctx *printContext) escapeTypeText(node *reflection.RunType) (string, *Diag
 // unsupportedFormatDiag reports a format family this phase cannot print.
 func unsupportedFormatDiag(name string, decl *declaration) *Diagnostic {
 	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(decl),
-		Message: fmt.Sprintf("format family %q is not convertible yet (see https://mion.io/runtypes/tooling/source-conversion)", name)}
+		Message: fmt.Sprintf("format family %q is not convertible yet (see https://mion.io/runtypes/devtools/source-conversion)", name)}
 }
 
 // tupleShape is a tuple node partitioned into the three builder positions, in validated order:
@@ -897,7 +897,7 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 		case reflection.KindPropertySignature, reflection.KindProperty:
 		default:
 			return nil, nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
-				Message: fmt.Sprintf("object member %q (%s) is not convertible yet (see https://mion.io/runtypes/tooling/source-conversion)", member.Name, kindLabel(member.Kind))}
+				Message: fmt.Sprintf("object member %q (%s) is not convertible yet (see https://mion.io/runtypes/devtools/source-conversion)", member.Name, kindLabel(member.Kind))}
 		}
 		child := ctx.deref(member.Child)
 		if child == nil {
@@ -989,7 +989,7 @@ func hasFlag(node *reflection.RunType, flag string) bool {
 // unsupportedDiag reports a kind outside the current printer coverage.
 func unsupportedDiag(node *reflection.RunType, decl *declaration) *Diagnostic {
 	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(decl),
-		Message: fmt.Sprintf("%s is not convertible yet (see https://mion.io/runtypes/tooling/source-conversion)", kindLabel(node.Kind))}
+		Message: fmt.Sprintf("%s is not convertible yet (see https://mion.io/runtypes/devtools/source-conversion)", kindLabel(node.Kind))}
 }
 
 // isNonDataMember reports a member DataOnly<T> drops: a method or call signature, a symbol key, a non-public member, or a
