@@ -42,9 +42,13 @@ import {
   CODE_VIEW_KEY,
   STEP_TIPS,
   TOUR_KEY,
+  codeCountHint,
   readCodeView,
   readTourState,
+  resultStep,
+  runName,
   shouldAutoStart,
+  shownCodeView,
   tourStepsFor,
   writePref,
   type CodeView,
@@ -76,11 +80,7 @@ const props = withDefaults(
 // editor, short for a discrete change (function picker / preset / mode).
 const TYPE_DEBOUNCE_MS = 2000;
 const PICK_DEBOUNCE_MS = 150;
-
-const CODE_VIEWS: readonly {value: CodeView; label: string}[] = [
-  {value: 'function', label: 'Function'},
-  {value: 'file', label: 'Full file'},
-];
+const CODE_VIEW_LABELS: Record<CodeView, string> = {function: 'Function', file: 'Full file'};
 
 const config = useRuntimeConfig();
 const colorMode = useColorMode();
@@ -123,17 +123,8 @@ const CALL_FORM: Mode = 'type';
 
 const currentOp = computed<Operation>(() => operationByKey(operationKey.value));
 const needsInput = computed(() => currentOp.value.needsInput);
-// The Input card hides for a function that reads no input, so the Result card takes its number.
-const resultStep = computed(() => (needsInput.value ? 6 : 5));
-// getRunType ships a data bundle with no factory: only the full file exists.
 const hasFactoryView = computed(() => currentOp.value.kind !== 'graph');
-const showFactories = computed(() => codeView.value === 'function' && hasFactoryView.value);
-const codeHint = computed(() => {
-  const count = showFactories.value ? factoryCount.value : moduleCount.value;
-  if (!count) return '';
-  const noun = showFactories.value ? 'function' : 'module';
-  return `${count} ${noun}${count === 1 ? '' : 's'}`;
-});
+const shownView = computed(() => shownCodeView(codeView.value, hasFactoryView.value));
 const tourSteps = computed(() => tourStepsFor(needsInput.value));
 const typeHintHtml = computed(() =>
   mode.value === 'builder'
@@ -933,7 +924,7 @@ onBeforeUnmount(() => {
           </span>
           <span class="rtpg-head-status">
             <span v-show="codegenBusy" class="rtpg-busy-spinner" />
-            <span class="rtpg-hint">{{ codeHint }}</span>
+            <span class="rtpg-hint">{{ codeCountHint(shownView, factoryCount, moduleCount) }}</span>
             <span
               class="rtpg-modeswitch"
               role="group"
@@ -941,24 +932,25 @@ onBeforeUnmount(() => {
               :title="hasFactoryView ? undefined : `${currentOp.label} ships data, not a function`"
             >
               <button
-                v-for="view in CODE_VIEWS"
-                :key="view.value"
+                v-for="(label, view) in CODE_VIEW_LABELS"
+                :key="view"
                 type="button"
                 class="rtpg-mode"
-                :class="{'is-active': showFactories === (view.value === 'function')}"
-                :aria-pressed="showFactories === (view.value === 'function')"
+                :class="{'is-active': view === shownView}"
+                :aria-pressed="view === shownView"
                 :disabled="!hasFactoryView"
-                @click="setCodeView(view.value)"
+                @click="setCodeView(view)"
               >
-                {{ view.label }}
+                {{ label }}
               </button>
             </span>
           </span>
         </div>
         <div
+          :key="shownView"
           class="rtpg-codeview"
           :class="{'is-busy': codegenBusy}"
-          v-html="showFactories ? factoryviewHtml : codeviewHtml"
+          v-html="shownView === 'function' ? factoryviewHtml : codeviewHtml"
         />
       </section>
 
@@ -1048,8 +1040,8 @@ onBeforeUnmount(() => {
         <section class="rtpg-pane rtpg-resultpane" data-tour="run">
           <div class="rtpg-head">
             <span class="rtpg-head-title">
-              <button type="button" class="rtpg-step" :aria-label="`Step ${resultStep}: ${STEP_TIPS.result}`">
-                {{ resultStep }}<span class="rtpg-tip" role="tooltip">{{ STEP_TIPS.result }}</span>
+              <button type="button" class="rtpg-step" :aria-label="`Step ${resultStep(needsInput)}: ${STEP_TIPS.result}`">
+                {{ resultStep(needsInput) }}<span class="rtpg-tip" role="tooltip">{{ STEP_TIPS.result }}</span>
               </button>
               <h2>Result</h2>
             </span>
@@ -1057,7 +1049,7 @@ onBeforeUnmount(() => {
           </div>
           <div class="rtpg-controls">
             <button type="button" class="rtpg-run-btn" :disabled="!ready" @click="doRun">
-              Run <code>{{ currentOp.varName }}</code>
+              Run <code>{{ runName(currentOp) }}</code>
             </button>
             <div class="rtpg-result" v-html="outputHtml" />
           </div>
