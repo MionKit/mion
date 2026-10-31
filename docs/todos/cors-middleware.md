@@ -379,3 +379,27 @@ this change touched, review its report against the code, and commit it as its ow
 - Each route accepts only its `httpMethods`; mutation over GET, OPTIONS outside a CORS chain and a form-type
   body refused, each proven by a test written before the fix.
 - Bench numbers before/after in the PR; simplify-docs and simplify-comments passes each committed on their own.
+
+## What shipped (differences from the plan above)
+
+- The 405 check runs at the end of the router's body step (`mionDeserializeRequest`), after the parse, not before
+  the chain: `mionFetchMetadata` (alwaysRun) then still reads a refused request's params, so a GET-only route's
+  rows reach the client on its first POST. The check is still one bit test per request.
+- `HEAD` shares `GET`'s bit (RFC 9110). An unknown name, a lowercase one, or `constructor` is refused; a not-found
+  chain accepts every method and answers 404.
+- 415: every `POST` / `QUERY` must carry a content type that is not `text/plain`, urlencoded or multipart, body or
+  not (a no-cors `fetch` POST with no body has no content type). Each adapter checks it before reading the body,
+  through `contentTypeRefusal` + `dispatchPlatformError`. `dispatchRoute` callers (tests, hosts that parsed the body)
+  skip it. Every adapter test that POSTed without a content type now sends `application/json`.
+- Client: allowed methods = `options.httpMethods ?? defaultHttpMethods(isMutation)` (core). A route refusing POST
+  is sent as GET; one whose params do not fit fails with `get-url-too-long` and sends nothing. A first call answered
+  405 resends once over GET; the metadata-only fetch reads its rows before the 405.
+- `ResolvedRouteOptions.httpMethods` is the option as written; the Go bundled-API reader gained a tuple arm.
+- `HeadersSubset`'s third parameter defaults to `Record<never, never>` (both linters refuse `{}`). Header metadata
+  carries `corsExcluded`; the client metadata now sends only `{headerNames, jitHash}` for `headersParam`.
+- `mionCors` sets `Vary: Origin` on every response of its chain, allowed origin or not, so a shared cache never
+  serves one origin's answer to another. `origin: '*'` allows any origin, always echoed.
+- Vercel's handler also returns `OPTIONS` (Next.js answers OPTIONS itself otherwise); examples and docs export it.
+- Changelog: feature PRs do not edit `CHANGELOG.md`; the breaking commits are marked `!` for the release.
+- Proof from a browser: `packages/platform-node/test/corsBrowser.spec.ts` (Playwright Chromium, else the machine's
+  Chrome; `playwright` added as a root devDependency). Fuzz: `SH-GATE` in the sechttp runner.
