@@ -4,7 +4,7 @@ import {mionSecurity} from '@mionjs/router/middlewares';
 const mion = createMionRouter();
 
 const routes = {
-  // no options: same-origin browsers and non-browser callers pass, CORS is off
+  // no `origins`: same-origin browsers and non-browser callers pass, CORS is off
   mionSecurity: mionSecurity({
     // your own pages post plain HTML forms: the cross-origin check still refuses other sites
     csrf: {formContentTypes: false},
