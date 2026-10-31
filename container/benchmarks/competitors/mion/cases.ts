@@ -1,6 +1,6 @@
 // mion validators keyed by suite case key ("GROUP.case"), TYPE form.
-// Each entry is the case's own `validate` thunk copied VERBATIM from the shared
-// suites (container/benchmarks/src/suites/**) — a `() => createValidateFn<T>()` arrow whose
+// Each entry is the case's own `validate` thunk copied VERBATIM from mion's test
+// suites (packages/run-types/test/suites/**; samples in container/benchmarks/shared/cases/) — a `() => createValidateFn<T>()` arrow whose
 // literal type argument the @mionjs/devtools rewrites at build time. Local
 // enum / interface / type / function declarations inside a thunk are kept exactly
 // as written so the plugin resolves `T` where it is authored. Cases the Go
@@ -15,7 +15,7 @@ import {createValidateFn, createGetValidationErrorsFn, registerFormatPattern} fr
 import {NOT_SUPPORTED, type CompetitorCases} from '../../shared/harness/types.ts';
 
 // Custom string-format patterns the STRING_FORMAT.pattern_* cases reference —
-// copied VERBATIM from container/benchmarks/src/suites/format-validation/StringFormat.ts.
+// copied VERBATIM from packages/run-types/test/suites/format-validation/StringFormat.ts.
 // The Go scanner recovers {source, flags, mockSamples} from these call sites, so
 // the type aliases (`Slug` / `Hex`) resolve identically to the suite.
 const slug = registerFormatPattern({

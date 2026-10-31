@@ -39,7 +39,9 @@ export const ARRAY = {
     }),
   },
   regexp_array: {
-    title: 'Array of RegExps',
+    title: 'RegExp array',
+    description: "A `RegExp` element is not data, so mion's array factory throws on first call, like `symbol[]`.",
+    factoryThrows: true,
     getSamples: () => ({
       valid: [[], [/abc/, new RegExp('abc')]],
       invalid: [['/abc/'], [42], null, undefined, [null], [{}]],

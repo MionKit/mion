@@ -224,17 +224,18 @@ export const OBJECT = {
     }),
   },
   function_top_level: {
-    title: 'Function type at top level (any function passes)',
-    description: "FunctionRunType.emitIsType — `typeof v === 'function'`. Param-arity check is deferred.",
+    title: 'Top-level function',
+    description: "A function is not data, so mion's factory throws on first call.",
+    factoryThrows: true,
     getSamples: () => ({
       valid: [() => {}, function () {}, async () => {}, class {}],
       invalid: [null, undefined, 42, 'function', {}, [], true],
     }),
   },
   interface_callable: {
-    title: 'Callable interface (function plus data properties)',
-    description:
-      'interface.spec.ts "validate callable interface" — the emit detects a CallSignature child and switches the typeof guard from `object` to `function`, then AND-chains the remaining properties on top (JS functions can carry properties).',
+    title: 'Callable interface',
+    description: "An interface with a call signature is function-like, so mion's factory throws on first call, like a bare function.",
+    factoryThrows: true,
     getSamples: () => ({
       valid: [
         Object.assign(
