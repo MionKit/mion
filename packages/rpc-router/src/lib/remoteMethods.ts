@@ -87,9 +87,7 @@ export function getSerializableMethod(executable: RemoteMethod): MethodWithOptio
         : executable.options,
   };
   if (executable.syncId) newRemoteMethod.syncId = executable.syncId;
-  // the names and hash only: the check fns and `corsExcluded` are the server's
-  if (executable.headersParam)
-    newRemoteMethod.headersParam = {headerNames: executable.headersParam.headerNames, jitHash: executable.headersParam.jitHash};
+  if (executable.headersParam) newRemoteMethod.headersParam = executable.headersParam;
   // the client rebuilds a returned HeadersSubset from these names, so they must ride the wire
   if (executable.headersReturn) {
     newRemoteMethod.headersReturn = {
