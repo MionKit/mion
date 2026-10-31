@@ -27,3 +27,5 @@ export const DEFAULT_ROUTE_OPTIONS = {
 export const MAX_ROUTE_NESTING = 10;
 
 export const JSON_CONTENT_TYPE = 'application/json; charset=utf-8';
+/** The default `server` response header; mionSecurity removes it */
+export const MION_SERVER_NAME = 'mionjs';

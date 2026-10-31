@@ -8,6 +8,7 @@
 import {BUILD_VERSION_HEADER, FatalError, StatusCodes} from '@mionjs/core';
 import {middleware} from '../lib/handlers.ts';
 import {endChain} from '../lib/dispatchError.ts';
+import {MION_SERVER_NAME} from '../constants.ts';
 import type {CallContext} from '../types/context.ts';
 import type {HeadersMethod, MethodsExecutionChain} from '../types/remoteMethods.ts';
 import type {MionCorsSettings, MionSecurityOptions} from '../types/general.ts';
@@ -56,6 +57,10 @@ export function mionSecurity(options: MionSecurityOptions = {}) {
     const method = request.method;
     let rules = chainRules.get(executionChain);
     if (!rules) chainRules.set(executionChain, (rules = describeChain(executionChain, cors)));
+    // mion answers only JSON: a browser must never guess another type from the body
+    response.headers.set('x-content-type-options', 'nosniff');
+    // the default names the framework to anyone scanning for it; a server name the app set stays
+    if (response.headers.get('server') === MION_SERVER_NAME) response.headers.delete('server');
 
     if (cors) {
       // the answer depends on the origin, so a shared cache must key on it, allowed or not
