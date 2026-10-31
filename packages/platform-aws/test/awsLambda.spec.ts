@@ -9,7 +9,7 @@ import {describe, it, expect, beforeAll} from 'vitest';
 import {createMionRouter, resetRouter, addStartMiddlewares, addEndMiddlewares} from '@mionjs/router';
 import {awsLambdaHandler, resetAwsLambdaOpts, setAwsLambdaOpts} from '../src/awsLambda.ts';
 import type {CallContext, Route} from '@mionjs/router';
-import type {APIGatewayProxyEvent} from 'aws-lambda';
+import type {APIGatewayProxyEvent, APIGatewayProxyEventHeaders} from 'aws-lambda';
 import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
 
 describe('serverless router', () => {
@@ -55,11 +55,17 @@ describe('serverless router', () => {
     context.response.headers.append('x-list', '2');
   });
 
-  const getDefaultGatewayEvent = (body: string, path: string, httpMethod = 'POST', isBase64Encoded = false) => {
+  const getDefaultGatewayEvent = (
+    body: string,
+    path: string,
+    httpMethod = 'POST',
+    headers: APIGatewayProxyEventHeaders = {},
+    isBase64Encoded = false
+  ) => {
     const context = {} as any;
     const event: APIGatewayProxyEvent = {
       body,
-      headers: {},
+      headers,
       multiValueHeaders: {},
       httpMethod,
       isBase64Encoded,
@@ -145,7 +151,7 @@ describe('serverless router', () => {
 
   describe('with a base64 encoded body (isBase64Encoded: true)', () => {
     const toBase64 = (text: string) => Buffer.from(text).toString('base64');
-    const getBase64GatewayEvent = (body: string, path: string) => getDefaultGatewayEvent(toBase64(body), path, 'POST', true);
+    const getBase64GatewayEvent = (body: string, path: string) => getDefaultGatewayEvent(toBase64(body), path, 'POST', {}, true);
 
     beforeAll(async () => {
       resetAwsLambdaOpts();
@@ -181,7 +187,7 @@ describe('serverless router', () => {
 
     it('leaves a plain body alone when isBase64Encoded is false', async () => {
       const requestData = JSON.stringify({changeUserName: [{name: 'John', surname: 'Doe'}]});
-      const {event, context} = getDefaultGatewayEvent(requestData, '/api/changeUserName', 'POST', false);
+      const {event, context} = getDefaultGatewayEvent(requestData, '/api/changeUserName', 'POST', {}, false);
 
       const awsResponse = await awsLambdaHandler(event, context);
 
