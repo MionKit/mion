@@ -39,6 +39,7 @@ import {
 } from '@mionjs/core';
 import {getRawMethodReflection, getHandlerReflection, assertCompiledParser} from './lib/reflection.ts';
 import {resolveChainMaxBodySize} from './lib/bodyLimit.ts';
+import {ANY_METHOD_BITS, getChainMethodBits, resolveHttpMethods} from './lib/httpMethods.ts';
 import {callerForType} from './dispatch.ts';
 import {serializerMiddlewares} from './routes/serializer.routes.ts';
 import {
@@ -453,6 +454,7 @@ function recursiveCreateExecutionChain(
       declaredBodySize: maxBodySize,
       maxBodySize: maxBodySize ?? platformMaxBodySize,
       readsBody: true,
+      methodBits: getChainMethodBits(routeMethod.options.httpMethods ?? [], methods),
     };
     // route-level only: a global start/end middleware is not in the API type, so a built client never lists it
     const middlewareIds = getPublicMiddlewareIds(levelMethods);
@@ -489,6 +491,7 @@ function buildNotFoundChains(): void {
       declaredBodySize: undefined,
       maxBodySize: platformMaxBodySize,
       readsBody: false,
+      methodBits: ANY_METHOD_BITS,
     });
   }
 }
@@ -618,6 +621,7 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
         description: route.options?.description,
         parser,
         isMutation: route.options?.isMutation,
+        httpMethods: resolveHttpMethods(routeId, route.options?.httpMethods, route.options?.isMutation),
         sanitizeParams: route.options?.sanitizeParams ?? routerOptions.sanitizeParams,
       },
     };

@@ -204,6 +204,7 @@ describe('PublicApi resolved options', () => {
       m: compact.mutation((ctx, n: number): string => `${n}`, {
         parser: {return: 'mutate'},
         maxBodySize: 4096,
+        httpMethods: ['POST'],
       }),
       r: compact.route((ctx): number => 1),
       mf: compact.middleware((ctx, s: string): string => s, {alwaysRun: true, sanitizeParams: true}),
@@ -215,6 +216,7 @@ describe('PublicApi resolved options', () => {
       description: 'd';
       parser: {params: 'compact'; return: 'compact'};
       isMutation: false;
+      httpMethods: undefined;
       sanitizeParams: true;
       maxBodySize: undefined;
     }>();
@@ -225,6 +227,7 @@ describe('PublicApi resolved options', () => {
     expectTypeOf<Api['m']['options']['isMutation']>().toEqualTypeOf<true>();
     expectTypeOf<Api['r']['options']['isMutation']>().toEqualTypeOf<undefined>();
     expectTypeOf<Api['r']['options']['sanitizeParams']>().toEqualTypeOf<undefined>();
+    expectTypeOf<Api['m']['options']['httpMethods']>().toEqualTypeOf<readonly ['POST']>();
     expectTypeOf<Api['mf']['options']>().toEqualTypeOf<{
       alwaysRun: true;
       description: undefined;
@@ -238,10 +241,11 @@ describe('PublicApi resolved options', () => {
     >();
     expect(defs.q).not.toHaveProperty('routerOptions');
 
-    // runtime agrees with the type, except a route's settled request limit, which exists only at registration
+    // runtime agrees with the type, except a route's settled request limit and default methods, which exist only at registration
     const api = compact.initRoutes(defs);
-    const {maxBodySize: settledLimit, ...qOptions} = api.q.options;
+    const {maxBodySize: settledLimit, httpMethods: defaultMethods, ...qOptions} = api.q.options;
     expect(typeof settledLimit).toBe('number');
+    expect(defaultMethods).toEqual(['GET', 'POST']);
     expect(qOptions).toEqual({
       alwaysRun: false,
       description: 'd',
@@ -253,6 +257,7 @@ describe('PublicApi resolved options', () => {
       alwaysRun: false,
       parser: {params: 'compact', return: 'mutate'},
       isMutation: true,
+      httpMethods: ['POST'],
       maxBodySize: 4096,
     });
     expect(api.mf.options).toEqual({

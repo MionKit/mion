@@ -26,6 +26,8 @@ export type ResolvedRouteOptions<RO, O> = {
   description: Named<RO, 'description'>;
   parser: {params: ParamsStrategy<RO, O>; return: ReturnStrategy<RO, O>};
   isMutation: Named<RO, 'isMutation'>;
+  /** As written; unset, the router and the client both default it from `isMutation` (`defaultHttpMethods`). */
+  httpMethods: Named<RO, 'httpMethods'>;
   sanitizeParams: PickRouteOrRouter<Named<RO, 'sanitizeParams'>, Named<O, 'sanitizeParams'>>;
   /** The route's own limit; the one the router settles for a chain declaring none exists only at registration. */
   maxBodySize: Named<RO, 'maxBodySize'>;
