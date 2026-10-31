@@ -62,7 +62,8 @@ Only a failure ends a chain today (`packages/rpc-router/src/dispatch.ts`, the
 `response.hasErrors && !executable.alwaysRun` skip in both chain runners). `mionFetchMetadata` fakes an
 early answer with a `FatalError` carrying status 200.
 
-- New exported helper `endChain(ctx, statusCode = 200)`.
+- New exported helper `endChain(ctx, statusCode = 200)`. ⚠️ **The status code defaults to 200**: a
+  call without one answers `200 OK`. Pass another code only when the early answer needs it.
 - `MionResponse` gains a public `readonly endedEarly: boolean`, so a logger can tell why the chain stopped.
 - One internal flag, `response.stopped`, is set by both a failure (`markResponseFailed`) and `endChain`.
   The loop reads only that flag, so the check costs the same as today:
@@ -76,7 +77,8 @@ early answer with a `FatalError` carrying status 200.
   `mionFetchMetadata` and the serializer included. One that fails there (a required param on an empty
   preflight body) is the developer's to handle.
 - The answer is the status code with the usual `{}` JSON body. Every adapter always writes a JSON body,
-  so 200, not 204.
+  so the default is 200, not the 204 other frameworks use. The CORS preflight calls `endChain(ctx)`
+  with no code, so it answers 200.
 
 ### 3. Allowed HTTP methods per route
 
