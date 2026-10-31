@@ -17,7 +17,6 @@ import {
   setPlatformConfig,
   getResponseDefaults,
   requestPayloadTooLarge,
-  contentTypeRefusal,
   handOverToHost,
 } from '@mionjs/router';
 import type {MethodsExecutionChain} from '@mionjs/router';
@@ -144,19 +143,12 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   const declaredLength = Number(httpReq.headers['content-length']);
   if (declaredLength > maxBodySize) {
     replied = true;
-    void dispatchRefusal(requestPayloadTooLarge(), true);
-    return;
-  }
-  // a form-type body is refused unread; node discards what the client still sends once the response ends
-  const contentTypeRefused = chain.readsBody ? contentTypeRefusal(method, httpReq.headers['content-type']) : undefined;
-  if (contentTypeRefused) {
-    replied = true;
-    void dispatchRefusal(contentTypeRefused, false);
+    void dispatchRefusal();
     return;
   }
 
-  /** Still runs the chain's `alwaysRun` members; past the limit, destroying the stream stops the client sending. */
-  async function dispatchRefusal(refusal: RpcError<string>, destroyStream: boolean) {
+  /** A refused body still runs the chain's `alwaysRun` members, then the stream is destroyed so the client cannot keep sending. */
+  async function dispatchRefusal() {
     bodyChunks.length = 0;
     try {
       const mionResponse = await dispatchPlatformError(
@@ -164,7 +156,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
         path,
         urlQuery,
         method,
-        refusal,
+        requestPayloadTooLarge(),
         reqHeaders,
         respHeaders,
         httpReq,
@@ -174,7 +166,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
     } catch (err) {
       fatalFail(httpResponse, respHeaders, toRpcError(err));
     } finally {
-      if (destroyStream) httpReq.destroy();
+      httpReq.destroy();
     }
   }
 
@@ -250,7 +242,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
     size += data.length;
     if (size > maxBodySize) {
       replied = true;
-      void dispatchRefusal(requestPayloadTooLarge(), true);
+      void dispatchRefusal();
       return;
     }
     bodyChunks.push(data);

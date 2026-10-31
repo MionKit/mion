@@ -75,7 +75,6 @@ describe('uws http router', () => {
       const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
       const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
         method: 'POST',
-        headers: {'content-type': 'application/json'},
         body: JSON.stringify(requestData),
       });
       const reply = await response.json();
@@ -91,7 +90,6 @@ describe('uws http router', () => {
       const requestData = {getDate: ['NOT A DATE POINT']};
       const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
         method: 'POST',
-        headers: {'content-type': 'application/json'},
         body: JSON.stringify(requestData),
       });
       const reply = await response.json();
@@ -112,7 +110,6 @@ describe('uws http router', () => {
     it('set response headers from route response', async () => {
       const response = await fetch(`http://127.0.0.1:${port}/api/updateHeaders`, {
         method: 'POST',
-        headers: {'content-type': 'application/json'},
         body: '{}',
       });
       const reply = await response.json();
@@ -125,11 +122,7 @@ describe('uws http router', () => {
     });
 
     it('sends each appended cookie on its own set-cookie line, other names comma joined', async () => {
-      const response = await fetch(`http://127.0.0.1:${port}/api/setCookies`, {
-        method: 'POST',
-        headers: {'content-type': 'application/json'},
-        body: '{}',
-      });
+      const response = await fetch(`http://127.0.0.1:${port}/api/setCookies`, {method: 'POST', body: '{}'});
       await response.json();
 
       expect(response.headers.getSetCookie()).toEqual(['a=1', 'b=2']);
@@ -161,7 +154,6 @@ describe('uws http router', () => {
       const requestData = {changeUserName: [{name: 'a', surname: 'b'}]};
       const response = await fetch(`http://127.0.0.1:${smallPort}/api/changeUserName`, {
         method: 'POST',
-        headers: {'content-type': 'application/json'},
         body: JSON.stringify(requestData),
       });
       const headers = Object.fromEntries(response.headers.entries());
@@ -196,7 +188,6 @@ describe('uws http router', () => {
       const aborter = new AbortController();
       const doomed = fetch(`http://127.0.0.1:${port}/api/slowDate`, {
         method: 'POST',
-        headers: {'content-type': 'application/json'},
         body: '{}',
         signal: aborter.signal,
       });
@@ -206,11 +197,7 @@ describe('uws http router', () => {
 
       // give the aborted dispatch time to finish its reply-on-aborted path
       await new Promise((resolve) => setTimeout(resolve, 150));
-      const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
-        method: 'POST',
-        headers: {'content-type': 'application/json'},
-        body: '{}',
-      });
+      const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {method: 'POST', body: '{}'});
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
     });
@@ -233,13 +220,11 @@ describe('uws http router', () => {
       const tinyBody = '{"tiny":[1]}';
       const tinyOk = await fetch(`http://127.0.0.1:${bigPort}/api/tiny`, {
         method: 'POST',
-        headers: {'content-type': 'application/json'},
         body: tinyBody + ' '.repeat(40 - tinyBody.length),
       });
       expect(await tinyOk.json()).toEqual({tiny: 1});
       const tinyOver = await fetch(`http://127.0.0.1:${bigPort}/api/tiny`, {
         method: 'POST',
-        headers: {'content-type': 'application/json'},
         body: tinyBody + ' '.repeat(41 - tinyBody.length),
       });
       expect(tinyOver.status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
@@ -249,11 +234,7 @@ describe('uws http router', () => {
 
       const post = async (tagCount: number) => {
         const body = JSON.stringify({countTags: [Array.from({length: tagCount}, (_, i) => `tag-number-${i}-padding-padding`)]});
-        const response = await fetch(`http://127.0.0.1:${bigPort}/api/countTags`, {
-          method: 'POST',
-          headers: {'content-type': 'application/json'},
-          body,
-        });
+        const response = await fetch(`http://127.0.0.1:${bigPort}/api/countTags`, {method: 'POST', body});
         return {size: Buffer.byteLength(body), reply: await response.json()};
       };
 
@@ -294,7 +275,6 @@ describe('uws http router', () => {
       const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
       const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
         method: 'POST',
-        headers: {'content-type': 'application/json'},
         body: JSON.stringify(requestData),
       });
       const reply = await response.json();
@@ -310,7 +290,6 @@ describe('uws http router', () => {
       const requestData = {changeUserName: [{name: 'John', surname: 'Doe'}]};
       const response = await fetch(`http://127.0.0.1:${port}/api/changeUserName`, {
         method: 'POST',
-        headers: {'content-type': 'application/json'},
         body: JSON.stringify(requestData),
       });
       const reply = await response.json();

@@ -1,5 +1,5 @@
 import {initClient} from '@mionjs/client';
-import type {MyApi} from '../router/cors.routes.ts';
+import type {MyApi} from '../router/security.routes.ts';
 
 const {routes} = initClient<MyApi>({
   baseURL: 'https://api.example.com',

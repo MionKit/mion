@@ -16,13 +16,12 @@ import {
   ROUTER_ITEM_SEPARATOR_CHAR,
   isRpcError,
 } from '@mionjs/core';
-import {BATCH_HTTP_METHODS, getInputMapper, hasInputMapper} from '@mionjs/core';
+import {getInputMapper, hasInputMapper} from '@mionjs/core';
 import type {BatchDefinition, BatchMapping} from '@mionjs/core';
 import {getRouteExecutionChain, getPlatformRequestCap, getRouterOptions, startMiddlewares, endMiddlewares} from './router.ts';
 import {getMethodCaller} from './dispatch.ts';
 import {findMionQueryParam} from './lib/urlQuery.ts';
 import {addThrownError, hasThrownError} from './lib/dispatchError.ts';
-import {getChainMethodBits} from './lib/httpMethods.ts';
 import {RouterOptions} from './types/general.ts';
 import {MethodsExecutionChain, RemoteMethod} from './types/remoteMethods.ts';
 import type {CallContext} from './types/context.ts';
@@ -255,7 +254,6 @@ function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[]
     declaredBodySize,
     maxBodySize: declaredBodySize,
     readsBody: true,
-    methodBits: getChainMethodBits(BATCH_HTTP_METHODS, methods),
   };
 }
 

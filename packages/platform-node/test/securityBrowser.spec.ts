@@ -5,14 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// A real browser on one origin calling a mion server on another: only a browser enforces CORS, so only a browser
-// proves the headers are right. Uses Playwright's Chromium, else the machine's Chrome (CI runners ship one).
+// A real browser on one origin calling a mion server on another: only a browser enforces CORS and sends the
+// Sec-Fetch-Site and Origin headers mionSecurity reads. Uses Playwright's Chromium, else the machine's Chrome.
 
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {createServer, type Server} from 'http';
 import {chromium, type Browser, type Page} from 'playwright';
 import {createMionRouter, resetRouter} from '@mionjs/router';
-import {mionCors} from '@mionjs/router/middlewares';
+import {mionSecurity} from '@mionjs/router/middlewares';
 import type {CallContext} from '@mionjs/router';
 import {HeadersSubset} from '@mionjs/core';
 import {resetNodeHttpOpts, setNodeHttpOpts, startNodeServer} from '../src/mionHttp.ts';
@@ -25,6 +25,49 @@ const pageOrigin = `http://127.0.0.1:${pagePort}`;
 const mion = createMionRouter({basePath: 'api/'});
 const auth = mion.headersMiddleware((ctx: CallContext, headers: HeadersSubset<'authorization'>): void => undefined);
 const listUsers = mion.query((): HeadersSubset<'x-total'> => new HeadersSubset({'x-total': '2'}));
+let deleted = 0;
+const deleteAll = mion.mutation((): number => ++deleted);
+
+interface BrowserElement {
+  method: string;
+  action: string;
+  enctype: string;
+  name: string;
+  value: string;
+  append(child: BrowserElement): void;
+  submit(): void;
+}
+interface BrowserDocument {
+  createElement(tag: string): BrowserElement;
+  body: BrowserElement;
+}
+
+/** What another site does: a plain HTML form posting a text/plain body shaped as JSON, no script, no preflight */
+async function submitFormFromPage(page: Page, routeId: string): Promise<boolean> {
+  const before = deleted;
+  await page.goto(pageOrigin);
+  await Promise.all([
+    page.waitForNavigation(),
+    page.evaluate(
+      ([api, id]) => {
+        // runs in the browser: this package's types have no DOM
+        const document = (globalThis as unknown as {document: BrowserDocument}).document;
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `${api}/api/${id}`;
+        form.enctype = 'text/plain';
+        const input = document.createElement('input');
+        input.name = `{"${id}":[],"x":"`;
+        input.value = '"}';
+        form.append(input);
+        document.body.append(form);
+        form.submit();
+      },
+      [apiOrigin, routeId]
+    ),
+  ]);
+  return deleted > before;
+}
 
 /** What the client does: a JSON POST with the auth header, then the returned header read back by name */
 function callFromPage(page: Page, route = 'listUsers') {
@@ -83,14 +126,27 @@ describe('a browser on another origin', () => {
 
   afterAll(() => new Promise((resolve) => (apiServer ? apiServer.close(resolve) : resolve(undefined))));
 
-  it('reads a returned HeadersSubset through mionCors, after the preflight', async () => {
-    await startApi({cors: mionCors({origin: pageOrigin}), auth, listUsers});
+  it('reads a returned HeadersSubset through mionSecurity with cors, after the preflight', async () => {
+    await startApi({mionSecurity: mionSecurity({origins: [pageOrigin], cors: {}}), auth, listUsers});
     expect(await callFromPage(page)).toEqual({status: 200, total: '2'});
   });
 
-  it('is blocked by the browser when the API does not add mionCors', async () => {
+  it('is blocked by the browser when the API sets up no CORS', async () => {
     // another route: the browser caches the first test's preflight answer per URL
     await startApi({auth, listOthers: listUsers});
     expect(await callFromPage(page, 'listOthers')).toMatchObject({status: 0, total: null});
+  });
+
+  it('runs a mutation from a plain form on another site when the API has no mionSecurity', async () => {
+    await startApi({deleteAll});
+    expect(await submitFormFromPage(page, 'deleteAll')).toBe(true);
+  });
+
+  it('never runs a mutation from a plain form on another site behind mionSecurity, even from a trusted origin', async () => {
+    // the trusted origin passes the cross-origin check: the form content type is what refuses it
+    await startApi({mionSecurity: mionSecurity({origins: [pageOrigin]}), deleteAll});
+    expect(await submitFormFromPage(page, 'deleteAll')).toBe(false);
+    await startApi({mionSecurity: mionSecurity(), deleteAll});
+    expect(await submitFormFromPage(page, 'deleteAll')).toBe(false);
   });
 });

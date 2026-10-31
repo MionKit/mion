@@ -66,7 +66,7 @@ export type Api = {
   users: {
     getById: {type: 1; handler: (id: number) => Promise<{id: number; name: string}>; options: Opts<false>; types?: {params: [id: number]; return: {id: number; name: string}; headers: never; isAsync: true}};
     audit: {type: 2; handler: (why: string) => Promise<void>; options: MfOpts; types?: {params: [why: string]; return: void; headers: never; isAsync: false}};
-    remove: {type: 1; handler: (id: number) => Promise<boolean>; options: {alwaysRun: false; description: 'drop'; parser: {params: 'compact'; return: 'mutate'}; isMutation: true; httpMethods: readonly ['POST']; sanitizeParams: true; maxBodySize: undefined}; types?: {params: [id: number]; return: boolean; headers: never; isAsync: false}};
+    remove: {type: 1; handler: (id: number) => Promise<boolean>; options: {alwaysRun: false; description: 'drop'; parser: {params: 'compact'; return: 'mutate'}; isMutation: true; sanitizeParams: true; maxBodySize: undefined}; types?: {params: [id: number]; return: boolean; headers: never; isAsync: false}};
   };
   after: {type: 2; handler: (n: number) => Promise<number>; options: MfOpts; types?: {params: [n: number]; return: number; headers: never; isAsync: false}};
   sum: {type: 1; handler: (a: number, b: number) => Promise<number>; options: Opts<undefined>; types?: {params: [a: number, b: number]; return: number; headers: never; isAsync: false}};
@@ -362,9 +362,6 @@ func TestWalkApi_ReadsResolvedOptionsAndDropsUndefinedKeys(t *testing.T) {
 	if parser["params"] != "compact" || parser["return"] != "mutate" {
 		t.Errorf("remove parser %v", parser)
 	}
-	if methods, _ := remove["httpMethods"].([]any); len(methods) != 1 || methods[0] != "POST" {
-		t.Errorf("a tuple option is read whole, got %v", remove["httpMethods"])
-	}
 	getById := tree.ById["users/getById"].Options
 	if getById["isMutation"] != false {
 		t.Errorf("query pins isMutation false, got %v", getById["isMutation"])
@@ -379,7 +376,7 @@ func TestWalkApi_ReadsResolvedOptionsAndDropsUndefinedKeys(t *testing.T) {
 
 func TestWalkApi_WidenedOptionIsReportedNotGuessed(t *testing.T) {
 	overlay := setupOverlay(t, map[string]string{"a.ts": `import {initClient} from '@mionjs/client';
-type Api = {r: {type: 1; handler: (n: number) => Promise<number>; options: {alwaysRun: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; httpMethods: ('GET' | 'POST')[]; sanitizeParams: boolean}; types?: {params: [n: number]; return: number; headers: never; isAsync: false}}};
+type Api = {r: {type: 1; handler: (n: number) => Promise<number>; options: {alwaysRun: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: boolean}; types?: {params: [n: number]; return: number; headers: never; isAsync: false}}};
 const {routes} = initClient<Api>({});
 export const a = routes.r(1).call();
 `})
@@ -389,7 +386,7 @@ export const a = routes.r(1).call();
 	if problem != "" {
 		t.Fatalf("WalkApi: %s", problem)
 	}
-	if strings.Join(tree.ById["r"].WidenedOptions, ",") != "httpMethods,sanitizeParams" {
+	if strings.Join(tree.ById["r"].WidenedOptions, ",") != "sanitizeParams" {
 		t.Errorf("widened %v", tree.ById["r"].WidenedOptions)
 	}
 	if _, present := tree.ById["r"].Options["sanitizeParams"]; present {
@@ -401,8 +398,7 @@ export const a = routes.r(1).call();
 func TestReadOptions_EveryValueShapeHasARow(t *testing.T) {
 	overlay := setupOverlay(t, map[string]string{"a.ts": `import {initClient} from '@mionjs/client';
 type Api = {r: {type: 1; handler: (n: number) => Promise<number>; options: {
-  literal: 'x'; optional?: 7; union: boolean; readableTuple: readonly ['GET', 'POST']; openTuple: [string];
-  array: ('GET' | 'POST')[]; nested: {inner: true}; wide: number; gone: undefined;
+  literal: 'x'; optional?: 7; union: boolean; nested: {inner: true}; wide: number; gone: undefined;
 }; types?: {params: [n: number]; return: number; headers: never; isAsync: false}}};
 const {routes} = initClient<Api>({});
 export const a = routes.r(1).call();
@@ -413,13 +409,13 @@ export const a = routes.r(1).call();
 		t.Fatalf("WalkApi: %s", problem)
 	}
 	options := tree.ById["r"].Options
-	read := map[string]any{"literal": "x", "optional": float64(7), "readableTuple": []any{"GET", "POST"}, "nested": map[string]any{"inner": true}}
+	read := map[string]any{"literal": "x", "optional": float64(7), "nested": map[string]any{"inner": true}}
 	for name, want := range read {
 		if fmt.Sprint(options[name]) != fmt.Sprint(want) {
 			t.Errorf("%s: read %v, want %v", name, options[name], want)
 		}
 	}
-	if got := strings.Join(tree.ById["r"].WidenedOptions, ","); got != "array,openTuple,union,wide" {
+	if got := strings.Join(tree.ById["r"].WidenedOptions, ","); got != "union,wide" {
 		t.Errorf("widened %s", got)
 	}
 	if _, present := options["gone"]; present {

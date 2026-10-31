@@ -15,7 +15,6 @@ import {getRouteExecutable, getRouterOptions} from '../router.ts';
 import {FatalError, isRpcError} from '@mionjs/core';
 import {RemoteMethod} from '../types/remoteMethods.ts';
 import {recordUndeclaredError} from '../lib/dispatchError.ts';
-import {acceptsMethod, refuseMethod} from '../lib/httpMethods.ts';
 
 // ############# PUBLIC METHODS #############
 
@@ -24,14 +23,9 @@ import {acceptsMethod, refuseMethod} from '../lib/httpMethods.ts';
  * @mion:rawMiddleware
  */
 export function deserializeRequestBody(context: CallContext): MayReturnError {
-  // a stopped chain never parses, as adapters skip its read; aws, gcloud and dispatchRoute hand a body anyway
-  if (!context.readsBody || (context.response as ChainResponse).stopped) return;
-  if (context.request.rawBody) parseRequestBody(context);
-  // after the parse, so an alwaysRun member (mionFetchMetadata) still reads the params of a refused request
-  if (!acceptsMethod(context.executionChain, context.request.method)) refuseMethod(context);
-}
-
-function parseRequestBody(context: CallContext): void {
+  // a request that already failed or ended never parses: a not-found chain has no route to feed and the adapter
+  // skipped the read; a caller that handed a body anyway (aws, gcloud, dispatchRoute) gets the same answer
+  if (!context.readsBody || (context.response as ChainResponse).stopped || !context.request.rawBody) return;
   rejectOversizedBody(context.request.rawBody, context.maxBodySize);
   let parsedBody: any;
   switch (context.request.bodyType) {

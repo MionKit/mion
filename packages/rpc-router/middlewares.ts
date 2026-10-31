@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// mion's isolated middlewares; all but mionCors have a client installer in `@mionjs/client/middlewares`.
+// mion's isolated middlewares; all but mionSecurity have a client installer in `@mionjs/client/middlewares`.
 
 export {mionFetchMetadata} from './src/middlewares/fetchMetadata.ts';
 export {mionSyncRoutes} from './src/middlewares/syncRoutes.ts';
-export {mionCors} from './src/middlewares/cors.ts';
+export {mionSecurity} from './src/middlewares/security.ts';

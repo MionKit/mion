@@ -19,17 +19,7 @@ import type {
 } from './types.ts';
 import type {HandlersRegistry, RequestHandlerEntry} from './lib/handlersRegistry.ts';
 import type {RunTypeError} from '@mionjs/core';
-import {
-  RpcError,
-  isRpcError,
-  MION_ROUTES,
-  toBase64Url,
-  BUILD_VERSION_HEADER,
-  ROUTER_ITEM_SEPARATOR_CHAR,
-  defaultHttpMethods,
-  BATCH_HTTP_METHODS,
-  StatusCodes,
-} from '@mionjs/core';
+import {RpcError, isRpcError, MION_ROUTES, toBase64Url, BUILD_VERSION_HEADER, ROUTER_ITEM_SEPARATOR_CHAR} from '@mionjs/core';
 import {addSubRequest, createCallContext, getRouteIds, getRoutePointers} from './callContext.ts';
 import {noteServerApiVersion, reportApiVersionMismatch, takeApiVersionError} from './lib/apiBuildVersion.ts';
 import {getMethod, hasMethod} from './lib/methods.ts';
@@ -52,8 +42,6 @@ interface DispatchState {
   readonly askedRequestHandlers: Set<string>;
   /** the current attempt reached fetch, so the server may have run its routes */
   sent: boolean;
-  /** the methods a 405 answer's `Allow` header listed: they win over the route's metadata, which may be stale */
-  httpMethods?: readonly string[];
 }
 
 // ############# DISPATCH #############
@@ -180,7 +168,6 @@ async function makeCall(state: DispatchState, skipOptimistic?: boolean): Promise
   }
 
   let response: Response;
-  let sentMethod = '';
   try {
     let serialized: ReturnType<typeof serializeRequestBody>;
     try {
@@ -200,13 +187,11 @@ async function makeCall(state: DispatchState, skipOptimistic?: boolean): Promise
       options,
       isOptimistic,
       isQueryRoute(context),
-      state.httpMethods ?? getHttpMethods(context),
       signal
     );
     state.sent = true;
     response = await fetch(url, fetchOptions);
     context.httpResponse = response;
-    sentMethod = fetchOptions.method as string;
   } catch (error: any) {
     onError(context, error, 'Error executing request', errors);
     return Promise.reject(errors);
@@ -219,13 +204,6 @@ async function makeCall(state: DispatchState, skipOptimistic?: boolean): Promise
       return Promise.reject(errors);
     }
     const deserialized = await deserializeResponseBody(response, options, metadata && ((body) => metadata.readRows(body)));
-    // a refused method ran nothing: resend once with one the server lists, so a stale or optimistic choice recovers
-    const allowed = state.httpMethods ? undefined : getRetryMethods(response, sentMethod);
-    if (allowed) {
-      state.httpMethods = allowed;
-      resetAttempt(state);
-      return makeCall(state, true);
-    }
     if (handlePlatformError(context, deserialized, errors)) return Promise.reject(errors);
     // without the metadata middleware the client cannot check routes one by one, so the whole API is reported
     if (noteServerApiVersion(options.baseURL, response.headers.get(BUILD_VERSION_HEADER)) && !metadata)
@@ -396,19 +374,6 @@ function isQueryRoute(context: ClientCallContext): boolean {
   return meta?.options?.isMutation === false;
 }
 
-function getHttpMethods(context: ClientCallContext): readonly string[] {
-  const meta = context.batchSubRequests ? undefined : getMethod(context.requestId);
-  if (!meta) return BATCH_HTTP_METHODS;
-  return meta.options?.httpMethods ?? defaultHttpMethods(meta.options?.isMutation);
-}
-
-function getRetryMethods(response: Response, sentMethod: string): readonly string[] | undefined {
-  if (response.status !== StatusCodes.METHOD_NOT_ALLOWED) return undefined;
-  const allowed = (response.headers.get('allow') ?? '').split(',').map((method) => method.trim().toUpperCase());
-  const usable = allowed.some((method) => (method === 'GET' || method === 'POST') && method !== sentMethod);
-  return usable ? allowed : undefined;
-}
-
 // ############# ON REQUEST HOOKS #############
 
 /** The middlewares the cached metadata lists in the route's chain (standard flow) */
@@ -512,6 +477,7 @@ export function isMiddlewareInScope(middlewarePointer: string[], routePointer: s
 
 // ############# FETCH #############
 
+/** GET only for a JSON query whose URL fits MAX_GET_URL_LENGTH; mutations, optimistic calls and batches POST */
 function buildFetchOptions(
   url: URL,
   serialized: ReturnType<typeof serializeRequestBody>,
@@ -519,12 +485,9 @@ function buildFetchOptions(
   options: ClientOptions,
   isOptimistic: boolean,
   isQuery: boolean,
-  httpMethods: readonly string[],
   signal?: AbortSignal
 ): RequestInit {
-  const allowsPost = httpMethods.includes('POST');
-  const prefersGet = httpMethods.includes('GET') && (isQuery || !allowsPost);
-  if (!isOptimistic && prefersGet && serialized.contentType.includes('json')) {
+  if (!isOptimistic && isQuery && serialized.contentType.includes('json')) {
     const encoded = toBase64Url(serialized.body as string);
     const testUrl = new URL(url.pathname + url.search, url.origin);
     testUrl.searchParams.set('data', encoded);
@@ -540,12 +503,6 @@ function buildFetchOptions(
       };
     }
   }
-  // a POST would only come back as a 405
-  if (!isOptimistic && !allowsPost)
-    throw new RpcError({
-      type: 'get-url-too-long',
-      publicMessage: `The route accepts only ${httpMethods.join(', ')} and its params do not fit in a GET url of ${MAX_GET_URL_LENGTH} characters.`,
-    });
 
   return {
     ...options.fetchOptions,

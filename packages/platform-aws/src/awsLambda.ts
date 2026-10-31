@@ -9,10 +9,7 @@ import {RpcError, FatalError, SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {
   dispatchWithContext,
-  dispatchPlatformError,
-  resolveExecutionChain,
-  createContextFromChain,
-  contentTypeRefusal,
+  createCallContext,
   getRouterFatalErrorResponse,
   headersFromRecord,
   resetRouter,
@@ -58,40 +55,22 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
   // AWS Lambda always receives body as string (JSON)
   let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
   const urlQuery = buildQueryString(rawRequest.queryStringParameters);
-  const method = rawRequest.httpMethod;
   try {
-    const chain = resolveExecutionChain(rawRequest.path, urlQuery, rawRequest);
-    const refusal = chain.readsBody ? contentTypeRefusal(method, reqHeaders.get('content-type')) : undefined;
-    if (refusal) {
-      // the route resolved, so the refusal still runs the chain's alwaysRun members
-      const refused = await dispatchPlatformError(
-        chain,
-        rawRequest.path,
-        urlQuery,
-        method,
-        refusal,
-        reqHeaders,
-        respHeaders,
-        rawRequest,
-        awsContext
-      );
-      return reply(refused, respHeaders);
-    }
     // the body arrives whole with the event, so there is nothing to read: the router checks its size before parsing
     const queryBody = decodeQueryBody(urlQuery, rawBody || undefined);
     if (queryBody) {
       rawBody = queryBody.rawBody;
       reqBodyType = queryBody.bodyType;
     }
-    const context = createContextFromChain(
-      chain,
+    const context = createCallContext(
       rawRequest.path,
       urlQuery,
-      method,
+      rawRequest,
       reqHeaders,
       respHeaders,
       rawBody,
-      reqBodyType
+      reqBodyType,
+      rawRequest.httpMethod
     );
     const routeResponse = await dispatchWithContext(context, rawRequest, awsContext);
     return reply(routeResponse, respHeaders);

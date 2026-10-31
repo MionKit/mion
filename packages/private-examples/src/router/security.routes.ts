@@ -1,15 +1,14 @@
 import {HeadersSubset} from '@mionjs/core';
 import {createMionRouter, Routes} from '@mionjs/router';
-import {mionCors, mionFetchMetadata} from '@mionjs/router/middlewares';
+import {mionSecurity, mionFetchMetadata} from '@mionjs/router/middlewares';
 
 const mion = createMionRouter();
 
 const routes = {
   // first, before the auth middleware
-  cors: mionCors({
-    origin: ['https://app.example.com'],
-    credentials: true,
-    maxAge: 600,
+  mionSecurity: mionSecurity({
+    origins: ['https://app.example.com'],
+    cors: {credentials: true, maxAge: 600},
   }),
   mionFetchMetadata,
   auth: mion.headersMiddleware(
