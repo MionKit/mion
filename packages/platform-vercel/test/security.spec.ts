@@ -194,6 +194,10 @@ describe('vercel adapter: methods and content types', () => {
     handler = createVercelHandler();
   });
 
+  it('exports OPTIONS, so a CORS preflight reaches mion instead of the Next.js default', () => {
+    expect(handler.OPTIONS).toBe(handler.POST);
+  });
+
   it('puts the HTTP method on the request', async () => {
     expect(await (await send('readMethod', {method: 'POST', headers: json, body: '{}'})).json()).toEqual({readMethod: 'POST'});
     expect(await (await send('readMethod')).json()).toEqual({readMethod: 'GET'});
