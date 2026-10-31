@@ -412,3 +412,5 @@ this change touched, review its report against the code, and commit it as its ow
 - The hole was proven at the node adapter (`it.fails` before the fix); the router-level tests landed with the fix.
 - The adapter-facing `createContextFromChain` / `dispatchPlatformError` gained a `method` parameter and
   `MionRequest.method` / `MionResponse.endedEarly` are required: breaking for an adapter built outside the repo.
+- Not shipped, in the end: the router's method gate, the adapters' 415, the `httpMethods` option and `mionCors`. The
+  checks run in an opt-in middleware instead; `request.method`, `endChain` and `cors: false` shipped as planned.
