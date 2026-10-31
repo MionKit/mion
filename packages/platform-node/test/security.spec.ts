@@ -436,3 +436,55 @@ describe('node adapter: a request with no body headers', () => {
     }
   });
 });
+
+describe('node adapter: requests another site can make a browser send', () => {
+  const csrfPort = 8286;
+  let server: Server;
+  let deleted = 0;
+
+  beforeAll(async () => {
+    resetNodeHttpOpts();
+    resetRouter();
+    const deleteAll = mion.mutation((): number => ++deleted);
+    mion.initRoutes({deleteAll});
+    setNodeHttpOpts({port: csrfPort, maxBodySize: MAX_BODY});
+    server = await startNodeServer();
+  });
+
+  afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  const url = `http://127.0.0.1:${csrfPort}/api/deleteAll`;
+
+  async function runsMutation(init: RequestInit, target = url): Promise<boolean> {
+    const before = deleted;
+    await (await fetch(target, init)).text();
+    return deleted > before;
+  }
+
+  it.fails('a GET (an <img src> or a link) never runs a mutation', async () => {
+    expect(await runsMutation({method: 'GET'}, `${url}?data=${toBase64Url('{"deleteAll":[]}')}`)).toBe(false);
+  });
+
+  it.fails('an OPTIONS never runs a mutation', async () => {
+    expect(await runsMutation({method: 'OPTIONS'})).toBe(false);
+  });
+
+  it.fails('a form POST with a text/plain body never runs a mutation', async () => {
+    expect(await runsMutation({method: 'POST', headers: {'content-type': 'text/plain'}, body: '{"deleteAll":[]}'})).toBe(false);
+  });
+
+  it.fails('a urlencoded or multipart form POST never runs a mutation', async () => {
+    const urlencoded = {'content-type': 'application/x-www-form-urlencoded'};
+    expect(await runsMutation({method: 'POST', headers: urlencoded, body: '{"deleteAll":[]}'})).toBe(false);
+    expect(await runsMutation({method: 'POST', body: new FormData()})).toBe(false);
+  });
+
+  it.fails('a POST with no content type and no body (a no-cors fetch) never runs a mutation', async () => {
+    expect(await runsMutation({method: 'POST'})).toBe(false);
+  });
+
+  it('a JSON POST runs it', async () => {
+    const json = {'content-type': 'application/json'};
+    expect(await runsMutation({method: 'POST', headers: json, body: '{"deleteAll":[]}'})).toBe(true);
+  });
+});
