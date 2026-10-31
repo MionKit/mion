@@ -339,4 +339,24 @@ describe('serverless router', () => {
       expect(JSON.parse((await awsLambdaHandler(event, context)).body)).toEqual({readMethod: method});
     }
   });
+
+  it('answers a throw that is no mion error with the shared unknown-error wrapper', async () => {
+    resetAwsLambdaOpts();
+    // the router calls it once at init to check its shape, so only a request's call throws
+    let calls = 0;
+    const failing = createMionRouter({
+      basePath: 'api/',
+      contextDataFactory: () => {
+        if (calls++) throw new Error('secret detail');
+        return {checked: true};
+      },
+    });
+    failing.initRoutes({ping: failing.route((): string => 'pong')});
+    const {event, context} = getDefaultGatewayEvent('', '/api/ping');
+    const response = await awsLambdaHandler(event, context);
+    const error = JSON.parse(response.body)[MION_ROUTES.thrownErrors][MION_ROUTES.platformError];
+    expect(error).toMatchObject({type: 'unknown-error', publicMessage: 'Unknown Error'});
+    expect(response.body).not.toContain('secret detail');
+    resetAwsLambdaOpts();
+  });
 });
