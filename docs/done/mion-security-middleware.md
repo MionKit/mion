@@ -92,8 +92,8 @@ mionSecurity({
 
 `pnpm miondevx bench servers repeat <lane> hello-world --runs 3` for `mion`, `mion.uws`, `mion.bun`, base vs
 branch, ALTERNATING the arms (base, branch, base, branch) with `git restore --source=<sha> --staged --worktree
-packages/`. Expect no router overhead. Then the cost of the middleware itself: the bench app with
-`mionSecurity()` added (local change, never committed), same lanes. Numbers in the PR.
+packages/`. Expect no router overhead. Numbers in the PR. Only hello-world: the goal is the PR's overhead on an
+app without the middleware.
 
 ## Tests
 
@@ -150,7 +150,7 @@ this change touched, review its report against the code, and commit it as its ow
 - `mionSecurity` alone gives CORS (when configured) and CSRF protection; `mionCors` is gone.
 - The five attack requests and a cross-site JSON POST are refused behind `mionSecurity`, proven over HTTP and in a
   real browser; a correct mion client call is never refused.
-- Hello-world bench: base vs branch shows no router overhead; the middleware's own cost is measured. Both in the PR.
+- Hello-world bench: base vs branch shows no router overhead, numbers in the PR.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file,
   each committed on its own.
 
