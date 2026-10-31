@@ -15,6 +15,7 @@ import {
   createContextFromChain,
   getRouterFatalErrorResponse,
   requestPayloadTooLarge,
+  contentTypeRefusal,
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
@@ -69,6 +70,8 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
     // express already read the body, so the chain's limit is resolved first and the size check runs before the router sees it
     const chain = resolveExecutionChain(rawRequest.path, urlQuery, rawRequest);
     try {
+      const refused = chain.readsBody ? contentTypeRefusal(rawRequest.method, rawRequest.headers['content-type']) : undefined;
+      if (refused) throw refused;
       rejectOversizedRequest(rawRequest, rawBody, chain.maxBodySize);
     } catch (refusal) {
       // the route resolved, so the refusal still runs the chain's alwaysRun members

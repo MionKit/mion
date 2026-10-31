@@ -21,6 +21,7 @@ import {
   handOverToHost,
   getDefaultFetchHeaders,
   replyFetch,
+  contentTypeRefusal,
 } from '@mionjs/router';
 import type {MethodsExecutionChain, FetchResponseHeaders} from '@mionjs/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants.ts';
@@ -60,9 +61,40 @@ export function bunRequestHandler(req: Request): Response | Promise<Response> {
   try {
     // route resolved BEFORE the body: the chain gives the limit bun's native read stops at, and a late context stays GC-cheap
     const chain = resolveExecutionChain(path, urlQuery, req);
+    const refusal = chain.readsBody ? contentTypeRefusal(req.method, req.headers.get('content-type')) : undefined;
+    if (refusal) return refuseUnread(req, chain, path, urlQuery, responseHeaders, refusal);
     // a not-found chain (an unknown path or batch id) has no route to feed: its body is never read
     if (chain.readsBody && req.body) return readBodyAndDispatch(req, chain, path, urlQuery, responseHeaders);
     return dispatchBody(req, chain, path, urlQuery, responseHeaders, undefined);
+  } catch (err) {
+    return fatalFail(toRpcError(err), responseHeaders);
+  }
+}
+
+/** A request refused before its body is read still runs the chain's alwaysRun members. */
+async function refuseUnread(
+  req: Request,
+  chain: MethodsExecutionChain,
+  path: string,
+  urlQuery: string | undefined,
+  responseHeaders: FetchResponseHeaders,
+  refusal: RpcError<string>
+): Promise<Response> {
+  try {
+    // the unread body stays on the socket: close it, or it is parsed as the next request of a kept-alive connection
+    if (req.body) responseHeaders.set('connection', 'close');
+    const refused = await dispatchPlatformError(
+      chain,
+      path,
+      urlQuery,
+      req.method,
+      refusal,
+      req.headers,
+      responseHeaders,
+      req,
+      undefined
+    );
+    return replyFetch(refused, responseHeaders);
   } catch (err) {
     return fatalFail(toRpcError(err), responseHeaders);
   }

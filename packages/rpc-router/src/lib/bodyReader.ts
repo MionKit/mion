@@ -16,6 +16,35 @@ export function requestPayloadTooLarge(): RpcError<'request-payload-too-large'> 
   });
 }
 
+// What a plain HTML form sends, the content types a browser posts to another site with no preflight
+const FORM_CONTENT_TYPES: ReadonlySet<string> = new Set([
+  'text/plain',
+  'application/x-www-form-urlencoded',
+  'multipart/form-data',
+]);
+
+/** The 415 an adapter answers, before reading the body, for a POST or QUERY whose content type a plain form or a
+ *  no-cors fetch can send without a preflight: a form type, or none. Undefined when the request may go on. */
+export function contentTypeRefusal(
+  method: string,
+  contentType: string | null | undefined
+): RpcError<'unsupported-media-type'> | undefined {
+  if (method !== 'POST' && method !== 'QUERY') return undefined;
+  if (contentType && !isFormContentType(contentType)) return undefined;
+  return new FatalError({
+    statusCode: StatusCodes.UNSUPPORTED_MEDIA_TYPE,
+    publicMessage: 'Unsupported Media Type: send the body as application/json.',
+    type: 'unsupported-media-type',
+  });
+}
+
+function isFormContentType(contentType: string): boolean {
+  // what the client sends, without the parse below
+  if (contentType.startsWith('application/json')) return false;
+  const end = contentType.indexOf(';');
+  return FORM_CONTENT_TYPES.has((end === -1 ? contentType : contentType.slice(0, end)).trim().toLowerCase());
+}
+
 /** How a fetch-style runtime reads a body fastest, a numeric code so the per-request check is one integer
  *  compare. Measured on each runtime with a real server:
  *  `stream` pulls the body stream and decodes once: node's Request (undici, the vercel node runtime), where

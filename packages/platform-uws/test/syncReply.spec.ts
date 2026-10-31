@@ -13,7 +13,7 @@ import type {HttpRequest, HttpResponse} from '@mionjs/bin-uws';
 import {uwsRequestHandler} from '../src/uwsHttp.ts';
 
 function stubRequest(path: string): HttpRequest {
-  return {getUrl: () => path, getQuery: () => '', getMethod: () => 'post', forEach: () => undefined} as unknown as HttpRequest;
+  return {getUrl: () => path, getQuery: () => '', getMethod: () => 'get', forEach: () => undefined} as unknown as HttpRequest;
 }
 
 function stubResponse() {

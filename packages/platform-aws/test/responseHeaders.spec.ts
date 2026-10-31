@@ -64,7 +64,12 @@ describe('aws response headers', () => {
 
   // the result's header record read through Headers, so every adapter's test reads the same way
   const call = async (route: string) => {
-    const event = {body: JSON.stringify({[route]: []}), headers: {}, path: `/${route}`, httpMethod: 'POST'} as any;
+    const event = {
+      body: JSON.stringify({[route]: []}),
+      headers: {'content-type': 'application/json'},
+      path: `/${route}`,
+      httpMethod: 'POST',
+    } as any;
     const result = await awsLambdaHandler(event, {} as any);
     return {status: result.statusCode, headers: new Headers(result.headers as Record<string, string>)};
   };

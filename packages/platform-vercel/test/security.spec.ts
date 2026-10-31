@@ -175,3 +175,48 @@ describe('vercel adapter: a refused body runs the alwaysRun middlewares', () => 
     expect(seen).toEqual(['start:/api/echo', 'log:200']);
   });
 });
+
+describe('vercel adapter: methods and content types', () => {
+  let handler: ReturnType<typeof createVercelHandler>;
+  let saves = 0;
+  const json = {'content-type': 'application/json'};
+  const send = (route: string, init?: RequestInit) => {
+    const request = new Request(`http://localhost/api/${route}`, init);
+    return handler[request.method as 'GET' | 'POST' | 'OPTIONS'](request);
+  };
+
+  beforeAll(() => {
+    resetVercelHandlerOpts();
+    resetRouter();
+    const save = mion.mutation((): number => ++saves);
+    const readMethod = mion.query((ctx: CallContext): string => ctx.request.method);
+    mion.initRoutes({save, readMethod});
+    handler = createVercelHandler();
+  });
+
+  it('puts the HTTP method on the request', async () => {
+    expect(await (await send('readMethod', {method: 'POST', headers: json, body: '{}'})).json()).toEqual({readMethod: 'POST'});
+    expect(await (await send('readMethod')).json()).toEqual({readMethod: 'GET'});
+  });
+
+  it('refuses a mutation over GET with a 405', async () => {
+    const before = saves;
+    const response = await send('save');
+    expect(response.status).toBe(StatusCodes.METHOD_NOT_ALLOWED);
+    expect(response.headers.get('allow')).toBe('POST');
+    expect(saves).toBe(before);
+  });
+
+  it('refuses a form content type or none with a 415, without running the route', async () => {
+    const before = saves;
+    for (const headers of [{'content-type': 'text/plain'}, {}] as Record<string, string>[]) {
+      const response = await send('save', {method: 'POST', headers, body: '{"save":[]}'});
+      expect(response.status).toBe(StatusCodes.UNSUPPORTED_MEDIA_TYPE);
+      expect(((await response.json()) as RpcBody)[MION_ROUTES.thrownErrors][MION_ROUTES.platformError].type).toBe(
+        'unsupported-media-type'
+      );
+    }
+    expect(saves).toBe(before);
+    expect((await send('save', {method: 'POST', headers: json, body: '{"save":[]}'})).status).toBe(StatusCodes.OK);
+  });
+});

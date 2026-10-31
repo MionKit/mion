@@ -1,5 +1,5 @@
 import {describe, it, expect} from 'vitest';
-import {readRequestBody as read, BodyReadStrategy} from '../../src/lib/bodyReader.ts';
+import {readRequestBody as read, BodyReadStrategy, contentTypeRefusal} from '../../src/lib/bodyReader.ts';
 
 const STRATEGIES = Object.entries(BodyReadStrategy) as [string, BodyReadStrategy][];
 
@@ -92,5 +92,36 @@ describe.each(STRATEGIES)('readRequestBody, %s strategy', (_name, strategy) => {
   it('an empty chunked body reads as an empty string', async () => {
     const {req} = streamed([]);
     expect(await readRequestBody(req, 5)).toBe('');
+  });
+});
+
+describe('contentTypeRefusal', () => {
+  it('lets a JSON or any non-form content type through', () => {
+    for (const type of [
+      'application/json',
+      'application/json; charset=utf-8',
+      'APPLICATION/JSON',
+      'application/octet-stream',
+      'text/json',
+    ])
+      expect(contentTypeRefusal('POST', type)).toBeUndefined();
+  });
+
+  it('refuses a form content type or none on a POST or QUERY, with a 415', () => {
+    const formTypes = [
+      'text/plain',
+      'Text/Plain;charset=UTF-8',
+      ' application/x-www-form-urlencoded ',
+      'multipart/form-data; boundary=x',
+    ];
+    for (const method of ['POST', 'QUERY']) {
+      for (const type of [...formTypes, '', null, undefined]) {
+        expect(contentTypeRefusal(method, type)).toMatchObject({type: 'unsupported-media-type', statusCode: 415});
+      }
+    }
+  });
+
+  it('never refuses a method that carries no body in mion', () => {
+    for (const method of ['GET', 'HEAD', 'OPTIONS', 'PUT']) expect(contentTypeRefusal(method, 'text/plain')).toBeUndefined();
   });
 });
