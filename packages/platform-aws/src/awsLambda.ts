@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, FatalError, SerializerModes} from '@mionjs/core';
+import {SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {
   dispatchWithContext,
@@ -17,6 +17,7 @@ import {
   getDefaultHeaders,
   releaseHeaders,
   toHttpMethod,
+  toRpcError,
 } from '@mionjs/router';
 import type {MionResponse, RecordResponseHeaders} from '@mionjs/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
@@ -70,15 +71,7 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
     const routeResponse = await dispatchWithContext(context, rawRequest, awsContext);
     return reply(routeResponse, respHeaders);
   } catch (err) {
-    const error =
-      err instanceof RpcError
-        ? err
-        : new FatalError({
-            publicMessage: 'Internal Error',
-            originalError: err as Error,
-            type: 'unknown-error',
-          });
-    return reply(getRouterFatalErrorResponse(error, respHeaders), respHeaders);
+    return reply(getRouterFatalErrorResponse(toRpcError(err), respHeaders), respHeaders);
   }
 }
 
