@@ -251,3 +251,131 @@ this change touched, review its report against the code, and commit it as its ow
 - Dispatch benchmark numbers before and after are in the PR.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched
   source file, each committed on its own.
+
+## Plan: built plan (approved 2026-10-31)
+
+### Decisions taken in planning (answers from you)
+
+- GET-only route + non-bundled client: the 405 answer still carries metadata rows (fetchMetadata is
+  `alwaysRun`); the client reads them, sees GET-only and retries once over GET (also for the metadata-only fetch).
+- 415 rule: every POST / QUERY (any method but GET and OPTIONS) must carry a content type that is not
+  `text/plain`, `application/x-www-form-urlencoded`, `multipart/form-data`, body or not. Checked in each adapter
+  BEFORE reading the body (reuses the 413 `dispatchPlatformError` path). `dispatchRoute` callers skip it.
+- Fuzzing: extend the existing HTTP security fuzz runner, designed through the fuzzy-testing skill.
+- Mine: changelog is not edited by feature PRs (repo rule, `release-to-prod/bump.md`); the breaking commit is
+  marked `feat(...)!:` and the PR body has a Breaking section. `mionFetchMetadata`'s 200 FatalError stays as is
+  (changing it changes the wire contract, not asked). Vercel gains an `OPTIONS` export (Next answers OPTIONS
+  itself otherwise). `origin: '*'` means any origin; the origin is always echoed, with `Vary: Origin`.
+
+### Implementation (one commit per part, tests first where the spec says so)
+
+### 0. Baseline
+- `pnpm exec vitest bench --project router dispatch` (+ `dispatchNoAwait`) on the untouched branch, save numbers.
+
+### 1. Tests proving the hole (commit before the fix, marked `.fails` or asserting current wrong behavior then flipped)
+- Router: GET and OPTIONS on a `mutation` run it (`packages/rpc-router/test/httpMethods.spec.ts`).
+- Node adapter: a `text/plain` POST and a body-less no-content-type POST run a mutation
+  (`packages/platform-node/test/security.spec.ts`).
+
+### 2. `request.method` (packages/rpc-router)
+- `MionRequest.method: string` (uppercase) in `src/types/context.ts` (inside the docs region).
+- `createContextFromChain(chain, path, urlQuery, method, ...)`, `createCallContext`, `dispatchRoute`
+  (trailing `method = 'POST'`), `dispatchPlatformError` take it; eager field in the literal (`callContext.ts`).
+- Every adapter fills it: node `httpReq.method`, bun/cloudflare/vercel `req.method`, uws `req.getMethod()`
+  uppercased via a small constant map (captured synchronously at `uwsHttp.ts:140`, added to `rawRequest`),
+  aws `event.httpMethod`, gcloud `rawRequest.method`. Update `test/router.spec.ts` literals + uws `syncReply` stub.
+
+### 3. `endChain` + `endedEarly` (packages/rpc-router)
+- Internal `response.stopped`, set by `markResponseFailed` and `endChain`; both loops in `src/dispatch.ts` read
+  `if (response.stopped && !executable.alwaysRun) continue;`. Audit other `hasErrors` skip reads
+  (`serializer.routes.ts` `deserializeRequestBody`) and switch the "skip" ones to `stopped`.
+- `endChain(ctx, statusCode = 200)` in `src/lib/dispatchError.ts` (or a sibling `lib/endChain.ts`), exported from
+  `index.ts`; no-op on a failed chain. Public `MionResponse.endedEarly: boolean`.
+- Tests: `test/endChain.spec.ts` modeled on `fatalDispatch.spec.ts` (run order, alwaysRun after early end,
+  200 default, custom code, no-op after failure, `hasErrors` stays false).
+
+### 4. `httpMethods` + the method gate
+- Core: `RouteHttpMethod = 'GET' | 'POST' | 'QUERY'`, `httpMethods?: readonly RouteHttpMethod[]` on
+  `RemoteMethodOpts` (`packages/core/src/types/method.types.ts`), plus a shared `defaultHttpMethods(isMutation)`
+  and `METHOD_BITS = {GET: 1, POST: 2, OPTIONS: 4, QUERY: 8}` (used by router and client).
+- Router: option on `RouteOptionsBase` only; `getExecutableFromRoute` resolves it (route/query: GET,POST;
+  mutation: POST). `MethodsExecutionChain.methodBits` built once: route chains = route bits | OPTIONS when a
+  member is mion's CORS middleware (internal WeakSet mark, like `markOnDemand`); batch chains = POST (| OPTIONS);
+  not-found chains = all bits. `ResolvedRouteOptions` gains `httpMethods: Named<RO,'httpMethods'>` (as written;
+  default comes from `defaultHttpMethods`), update `mionRouter.spec.ts` type pins.
+- Gate in `dispatchMaybeSync` (every path passes there): `if (!stopped && (chain.methodBits & METHOD_BITS[method]) === 0)`
+  record a `FatalError` 405 `method-not-allowed` under `MION_ROUTES.platformError` with an `Allow` header;
+  alwaysRun members still run. Add `METHOD_NOT_ALLOWED: 405`, `UNSUPPORTED_MEDIA_TYPE: 415` to `StatusCodes`.
+- Go bundled lane: `readOptions` (`ts-go-runtypes/internal/compiler/apimeta/tree.go`) gains a tuple / literal
+  array arm so a written `httpMethods` reaches the bundled client; Go test in `apimeta_test.go`.
+- Client (`packages/rpc-client/src/dispatch.ts`): allowed = `options.httpMethods ?? defaultHttpMethods(isMutation)`.
+  Query uses GET when allowed and the URL fits; POST when allowed; GET-only + too long → client error
+  `get-url-too-long`, no request. 405 retry: when a POST got `method-not-allowed` and the fresh metadata says
+  GET-only, retry once over GET; `fetchRemoteMethodsMetadata.ts` reads the rows slot before throwing on that 405.
+
+### 5. 415 content-type gate
+- `contentTypeRefusal(method, contentType)` in `packages/rpc-router/src/lib/` next to `requestPayloadTooLarge`,
+  exported; each adapter calls it right after resolving the chain and before the body read, answering through
+  `dispatchPlatformError` (node: generalize `dispatchRefusal`; uws: drain the body like the 413 path; aws: split
+  into `resolveExecutionChain` + `createContextFromChain` to reuse it).
+- Adapter tests that POST without a content type get `application/json` (node, uws, gcloud, vercel devServer,
+  cloudflare responseHeaders, aws `getDefaultGatewayEvent`); check the bench harness (`container/mion-bench`).
+- New adapter tests per platform: 415 on `text/plain` / missing; 405 on GET mutation; method reaches `request.method`.
+
+### 6. `HeadersSubset` third type parameter
+- First, a small verification test (`packages/core/test/headers.spec.ts` / `mionAdapter.spec.ts`): the compiled
+  class runtype carries the `declare`d `opts`; validation passes with it absent; note type-id + type-budget effect.
+- `HeadersSubset<Required, Optional = never, Opts extends HeadersSubsetOpts<Required | Optional> = {}>` with
+  `declare readonly opts?: Opts` (`packages/core/src/headers.ts`).
+- `getHeaderNamesFromRunType` walk also reads `opts.cors` into `corsExcluded?: string[]` on header metadata
+  (`mionAdapter.ts`, `RtHeadersReflection`); server only, not sent to the client.
+
+### 7. `mionCors` (packages/rpc-router/src/middlewares/cors.ts, exported from `middlewares.ts`)
+- `mionCors(options)` returns an `alwaysRun` `middleware()` def (no params, no return, so not public); raw
+  middleware only if the factory cannot carry the build markers.
+- Allowed origin: `Access-Control-Allow-Origin` (echo), `Vary: Origin`, with `credentials`
+  `Access-Control-Allow-Credentials`; normal request also `Access-Control-Expose-Headers`.
+  Preflight (`OPTIONS` + `access-control-request-method`): also Allow-Methods / Allow-Headers / Max-Age.
+  Every OPTIONS ends with `endChain(ctx)`; disallowed origin gets no CORS headers.
+- Lists per chain, cached in a `WeakMap<MethodsExecutionChain, ...>` per middleware instance:
+  Allow-Headers = `content-type` + every `headersParam.headerNames` + `allowHeaders`; Expose-Headers = every
+  `headersReturn.headerNames` + `x-rpc-error` + `x-build-version` + `exposeHeaders`; Allow-Methods from
+  `methodBits`. `corsExcluded` names removed last.
+- Tests `packages/rpc-router/test/middlewares/cors.spec.ts`: placement (root vs group, API without it gets no
+  headers), preflight answered 200 without reaching the route and without error, origin forms (string, list,
+  RegExp, fn, `*`), credentials, derived lists incl. batch chain, `cors: false` (map + whole subset, both
+  directions), OPTIONS outside a CORS chain → 405.
+- E2E: a test-server route returning a `HeadersSubset` read cross-origin from a browser
+  (Playwright, `packages/rpc-client` browser test or a new spec) — proves "works from another origin".
+
+### 8. Fuzzing
+- Through the fuzzy-testing skill: extend `packages/private-test-router-fuzz/test/fuzz/security/httpFuzzRunner.ts`
+  with random methods + content types; oracle: the mutation / query runs only for an allowed method with a
+  non-form content type.
+
+### 9. Docs (website, examples in `packages/private-examples/src/router/cors-*.ts`)
+- New `container/website/content/01.rpc/03.middlewares/03.cors.md`: placement, options, derived lists,
+  `cors: false`, what CORS does and does not protect; Client tab: `fetchOptions.credentials` for cookies.
+- `02.server/02.middleware.md`: intro CORS line → new page; `endChain` + `endedEarly` next to `alwaysRun`.
+- `02.server/01.routes.md`: `httpMethods`, defaults per helper, why a mutation is POST only.
+- `02.server/04.headers.md`: the options parameter. `02.server/03.call-context.md`: `request.method`,
+  `response.endedEarly` (region import updates itself). `02.server/05.error-handling.md`: 405 and 415.
+- Platform pages if they show raw curl POSTs without a content type.
+
+### Finish (steps 8-13)
+- Gate: `pnpm run lint`, `pnpm run format`, `pnpm test` (bootstrapped host), Go tests
+  `go -C ts-go-runtypes test ./internal/...`, benches after → numbers in the PR.
+- Reconcile the spec with what shipped, `git mv docs/todos/cors-middleware.md docs/done/`.
+- review-pr subagent, fix findings; docs-simplifier + comments-simplifier in parallel, each its own commit.
+- Open PR (labels: `website`, `pre-publish-e2e`), drive CI green.
+
+### Done when (from the spec)
+- Middleware added like any other; an API without it gets no CORS headers.
+- `endChain` ends a chain with a successful answer, no error; `alwaysRun` members still run.
+- Preflight answered without reaching a route and without an error.
+- CORS on = origin policy + names raw middlewares set by hand.
+- Header lists come from declared headers; hand-written names merge; `cors: false` names never appear.
+- A route returning a `HeadersSubset` works from a browser on another origin.
+- Each route accepts only its `httpMethods`; mutation over GET, OPTIONS outside a CORS chain and a form-type
+  body refused, each proven by a test written before the fix.
+- Bench numbers before/after in the PR; simplify-docs and simplify-comments passes each committed on their own.
