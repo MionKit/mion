@@ -56,7 +56,7 @@ describe('fatal dispatch', () => {
 
   const declared = () => new RpcError({publicMessage: 'declared', type: 'declared-error'});
   let stackReads = 0;
-  /** `stack` counts its reads: formatting a real trace costs microseconds and a non-enumerable one is never sent */
+  /** A real trace costs microseconds to format, and a non-enumerable `stack` is never sent */
   const fatal = () => {
     const error = new FatalError({publicMessage: 'Not Authorized', type: 'not-authorized', statusCode: 401});
     Object.defineProperty(error, 'stack', {get: () => (stackReads++, 'trace'), enumerable: false, configurable: true});

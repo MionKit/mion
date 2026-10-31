@@ -7,8 +7,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// nonEnumerableStackProp builds `{ok: number, stack?: bigint}` with `stack` guarded the way an Error's
-// lib-inherited member is (id "obj").
+// nonEnumerableStackProp is `{ok: number, stack?: bigint}` (id "obj") with `stack` guarded like an Error's lib member.
 func nonEnumerableStackProp() protocol.Dump {
 	dump := bigintProp("stack", true)
 	for _, rt := range dump.RunTypes {
@@ -19,9 +18,7 @@ func nonEnumerableStackProp() protocol.Dump {
 	return dump
 }
 
-// Reading a native error's `stack` formats the whole trace (several microseconds per returned error), and a
-// non-enumerable `stack` is dropped anyway. So the encoders that write by name run the own-enumerability
-// test BEFORE they read the member: the read only happens for a key that is really sent.
+// Reading a native error's `stack` formats the whole trace, so the own-enumerability test must run before the read.
 func TestNonEnumerable_GuardRunsBeforeTheRead(t *testing.T) {
 	guard := propertyIsEnumerableGuard("v", "stack")
 	for _, fam := range []string{"prepareForJsonClone", "removeUnknownKeys"} {
@@ -35,7 +32,6 @@ func TestNonEnumerable_GuardRunsBeforeTheRead(t *testing.T) {
 	}
 }
 
-// The ordering applies to the guarded member only: an ordinary optional member keeps the bare read.
 func TestNonEnumerable_OrdinaryMemberKeepsTheCheapTest(t *testing.T) {
 	for _, fam := range []string{"prepareForJsonClone", "removeUnknownKeys"} {
 		out := renderModule(t, bigintProp("stack", true), fam)
