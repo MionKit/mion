@@ -5,6 +5,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import {rowMeans} from '../../../container/website/app/utils/benchAggregate.js';
 
 const DATASETS = ['validation', 'validation-formats'];
 const MION = 'mion';
@@ -67,17 +68,13 @@ function groupsOf(data) {
   return groups;
 }
 
-/** Ranks only the libraries that support every case mion supports in the group. */
+/** mion's place among every library on the group's mean speed, a skipped case counted at the slowest result (rowMeans). */
 function groupRank(data, keys, metric, at) {
-  const shared = keys.filter((key) => speed(data.cases.get(key), MION, metric, at));
-  if (shared.length === 0) return null;
-  const competitors = Object.keys(data.cases.get(shared[0]).results ?? {});
-  const scores = [];
-  for (const name of competitors) {
-    const xs = shared.map((key) => speed(data.cases.get(key), name, metric, at));
-    if (xs.every(Boolean)) scores.push({name, score: geomean(xs)});
-  }
-  if (scores.length < 2) return null;
+  const cases = keys.map((key) => ({key, results: data.cases.get(key)?.results ?? {}}));
+  const competitors = [...new Set(cases.flatMap((kase) => Object.keys(kase.results)))];
+  const {participants, values} = rowMeans(cases, competitors, metric);
+  const scores = participants.map((name) => ({name, score: values[name]?.[at] ?? 0})).filter((s) => s.score > 0);
+  if (scores.length < 2 || !scores.some((s) => s.name === MION)) return null;
   scores.sort((a, b) => b.score - a.score);
   return `${scores.findIndex((s) => s.name === MION) + 1}/${scores.length}`;
 }
@@ -128,7 +125,7 @@ export function renderReport(pr, live, env) {
   lines.push(`| **all** | ${[...all.values()].map((r) => `**${fmtRatio(geomean(r))}**`).join(' | ')} |`, '');
 
   lines.push("### mion's rank per group (live → PR)", '');
-  lines.push('Among the libraries that support every case mion supports in the group, by mean speed.', '');
+  lines.push('Every library, by mean speed. A case a library skips counts at the slowest result among those that ran it.', '');
   lines.push('| group | is valid: valid | is valid: invalid | get errors: valid | get errors: invalid |', '|---|---|---|---|---|');
   for (const [group, keys] of groups) {
     const cells = [];
