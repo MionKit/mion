@@ -12,7 +12,7 @@ import {findMionQueryParam} from './urlQuery.ts';
 // used to take the node and uws processes down with an unhandled rejection. No pre-check: a regex over
 // the value doubled the cost of every query-body request (85 to 170 ns) to refuse what `atob` refuses.
 
-/** The JSON body a GET carries in `?data=`, base64url encoded; undefined when there is none */
+/** The JSON body a GET carries in `?data=` */
 export function decodeQueryBody(urlQuery: string | undefined): string | undefined {
   if (!urlQuery) return undefined;
   const dataValue = findMionQueryParam(urlQuery, 'data');

@@ -527,7 +527,7 @@ function describeAttack(attack: Attack): string {
   return `${attack.path}${attack.urlQuery ? `?${attack.urlQuery.slice(0, 80)}` : ''} headers=${JSON.stringify(attack.headers).slice(0, 120)} body=${body}`;
 }
 
-/** One in-process request, adapter-style: body and query handed over as they came; the router decodes `?data=` */
+/** Adapter-style: body and query go in as they came; the router decodes `?data=` */
 async function dispatchAttack(attack: Attack): Promise<MionResponse> {
   const reqHeaders = headersFromRecord(attack.headers);
   const respHeaders = headersFromRecord({});

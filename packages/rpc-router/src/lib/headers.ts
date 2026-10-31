@@ -107,8 +107,8 @@ export class RecordResponseHeaders extends MionHeadersImpl implements PooledHead
   }
 }
 
-/** A CR or LF written unchecked splits the response (header injection); a NUL ends it early on some hosts.
- *  The value stays out of the message: it may be what an attacker sent. */
+/** CR or LF splits the response (header injection); NUL ends it early on some hosts.
+ *  The value stays out of the error: it may be what an attacker sent. */
 export function assertHeaderSafe(name: string, value: string): void {
   if (hasControlBreak(name) || hasControlBreak(value))
     throw new TypeError(`Invalid header ${JSON.stringify(name.slice(0, 64))}: CR, LF or NUL`);

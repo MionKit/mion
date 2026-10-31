@@ -59,7 +59,7 @@ export function mionSecurity(options: MionSecurityOptions = {}) {
     if (!rules) chainRules.set(executionChain, (rules = describeChain(executionChain, cors)));
     // mion answers only JSON: a browser must never guess another type from the body
     response.headers.set('x-content-type-options', 'nosniff');
-    // the default names the framework to anyone scanning for it; a server name the app set stays
+    // the default names the framework to anyone scanning for it
     if (response.headers.get('server') === MION_SERVER_NAME) response.headers.delete('server');
 
     if (cors) {
