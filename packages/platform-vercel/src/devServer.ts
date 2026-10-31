@@ -7,6 +7,7 @@
 
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
+import {Readable} from 'node:stream';
 import {setPlatformConfig} from '@mionjs/router';
 import {createVercelHandler} from './vercelHandler.ts';
 import type {DevServerOptions} from './types.ts';
@@ -18,15 +19,9 @@ const DEFAULT_DEV_SERVER_OPTIONS: DevServerOptions = {
   protocol: 'http',
 };
 
-async function nodeIncomingToRequest(req: IncomingMessage): Promise<Request> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of req) {
-    chunks.push(chunk as Buffer);
-  }
-  const body = Buffer.concat(chunks);
-  const host = req.headers.host || 'localhost';
-  const protocol = 'http';
-  const url = `${protocol}://${host}${req.url || '/'}`;
+function nodeIncomingToRequest(req: IncomingMessage): Request {
+  // path only: the client's Host header never builds the URL
+  const url = `http://localhost${req.url || '/'}`;
   const headers = new Headers();
   for (const [key, value] of Object.entries(req.headers)) {
     if (value === undefined) continue;
@@ -36,11 +31,10 @@ async function nodeIncomingToRequest(req: IncomingMessage): Promise<Request> {
       headers.set(key, value);
     }
   }
-  return new Request(url, {
-    method: req.method || 'GET',
-    headers,
-    body: body.length > 0 ? body : undefined,
-  });
+  const method = req.method || 'GET';
+  // streamed, never buffered here: the handler's own reader stops a body past maxBodySize
+  const body = method === 'GET' || method === 'HEAD' ? undefined : (Readable.toWeb(req) as ReadableStream<Uint8Array>);
+  return new Request(url, {method, headers, body, duplex: 'half'} as RequestInit);
 }
 
 async function writeWebResponseToNode(webResponse: Response, res: ServerResponse): Promise<void> {
@@ -80,7 +74,7 @@ function startNodeDevServer(
   return new Promise((resolve, reject) => {
     const requestListener = async (req: IncomingMessage, res: ServerResponse) => {
       try {
-        const webRequest = await nodeIncomingToRequest(req);
+        const webRequest = nodeIncomingToRequest(req);
         const webResponse = await handler.POST(webRequest);
         await writeWebResponseToNode(webResponse, res);
       } catch (err) {
