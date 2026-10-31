@@ -86,6 +86,8 @@ export interface RtHeadersReflection {
   headerNames: string[];
   jitHash: string;
   jitFns: Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>;
+  /** Names the type marks `cors: false`, kept off the CORS header lists. Server only, never sent to the client. */
+  corsExcluded?: string[];
 }
 
 /** Reflection data derived exclusively from injected markers (no runtime type reflection). */
@@ -355,6 +357,8 @@ export function getReflectionFromMarkers(
       jitHash: returnTypeId,
       jitFns: {isType: reflection.returnJitFns.isType, typeErrors: reflection.returnJitFns.typeErrors},
     };
+    const corsExcluded = getCorsExcludedFromRunType(returnRunType, returnHeaderNames);
+    if (corsExcluded) reflection.headersReturn.corsExcluded = corsExcluded;
   }
   return reflection;
 }
@@ -367,22 +371,42 @@ interface RtNodeLike {
   typeName?: unknown;
   name?: unknown;
   optional?: unknown;
+  literal?: unknown;
   child?: RtNodeLike;
   children?: RtNodeLike[];
+}
+
+/** The names a HeadersSubset type marks off CORS through its type-only `opts.cors`: every name for `cors: false`,
+ *  the names set to false for a map. Undefined when none is; a union is searched like the names. */
+export function getCorsExcludedFromRunType(runType: RunType<unknown>, headerNames: string[]): string[] | undefined {
+  const root = getHeadersSubsetNode(runType as RtNodeLike);
+  const opts = root?.children?.find((child) => child.name === 'opts')?.child;
+  const cors = opts?.children?.find((child) => child.name === 'cors')?.child;
+  if (!cors) return undefined;
+  if (cors.kind === RunTypeKind.literal && cors.literal === false) return headerNames.length ? [...headerNames] : undefined;
+  const excluded = (cors.children ?? [])
+    .filter((prop) => prop.child?.kind === RunTypeKind.literal && prop.child.literal === false)
+    .map((prop) => prop.name)
+    .filter((name): name is string => typeof name === 'string');
+  return excluded.length ? excluded : undefined;
+}
+
+function getHeadersSubsetNode(root: RtNodeLike): RtNodeLike | undefined {
+  if (root.kind === RunTypeKind.union) {
+    for (const member of root.children ?? []) {
+      const found = getHeadersSubsetNode(member);
+      if (found) return found;
+    }
+    return undefined;
+  }
+  return root.kind === RunTypeKind.class && root.typeName === 'HeadersSubset' ? root : undefined;
 }
 
 /** The declared header names of a HeadersSubset<Required, Optional> runtype: class node -> 'headers' property ->
  *  one object prop per header name. A union is searched for a HeadersSubset member; undefined when there is none. */
 export function getHeaderNamesFromRunType(runType: RunType<unknown>): string[] | undefined {
-  const root = runType as RtNodeLike;
-  if (root.kind === RunTypeKind.union) {
-    for (const member of root.children ?? []) {
-      const names = getHeaderNamesFromRunType(member as RunType<unknown>);
-      if (names) return names;
-    }
-    return undefined;
-  }
-  if (root.kind !== RunTypeKind.class || root.typeName !== 'HeadersSubset') return undefined;
+  const root = getHeadersSubsetNode(runType as RtNodeLike);
+  if (!root) return undefined;
   const headersProp = root.children?.find((child) => child.name === 'headers');
   const propNodes = headersProp?.child?.children;
   if (!propNodes) return [];
@@ -452,5 +476,7 @@ export function getHeadersReflectionFromMarkers(
     jitHash: headersTypeId,
     jitFns: buildHeaderJitFnsFromMarker(rtFns.headersFns, headersTypeId, `${methodId}#headers`),
   };
+  const corsExcluded = getCorsExcludedFromRunType(headersRunType, headerNames);
+  if (corsExcluded) reflection.headersParam.corsExcluded = corsExcluded;
   return reflection;
 }
