@@ -16,7 +16,7 @@ import {
   ROUTER_ITEM_SEPARATOR_CHAR,
   isRpcError,
 } from '@mionjs/core';
-import {getInputMapper, hasInputMapper} from '@mionjs/core';
+import {BATCH_HTTP_METHODS, getInputMapper, hasInputMapper} from '@mionjs/core';
 import type {BatchDefinition, BatchMapping} from '@mionjs/core';
 import {getRouteExecutionChain, getPlatformRequestCap, getRouterOptions, startMiddlewares, endMiddlewares} from './router.ts';
 import {getMethodCaller} from './dispatch.ts';
@@ -255,12 +255,9 @@ function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[]
     declaredBodySize,
     maxBodySize: declaredBodySize,
     readsBody: true,
-    // the client sends a batch as one POST
     methodBits: getChainMethodBits(BATCH_HTTP_METHODS, methods),
   };
 }
-
-const BATCH_HTTP_METHODS = ['POST'];
 
 // ############# MAPPING METHODS #############
 

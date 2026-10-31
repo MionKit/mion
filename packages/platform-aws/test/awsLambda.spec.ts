@@ -344,12 +344,17 @@ describe('serverless router', () => {
       resetAwsLambdaOpts();
       const save = mion.mutation((): number => ++saves);
       const readMethod = mion.query((ctx: CallContext): string => ctx.request.method);
-      mion.initRoutes({save, readMethod});
+      const viaQuery = mion.query((ctx: CallContext): string => ctx.request.method, {httpMethods: ['QUERY', 'POST']});
+      mion.initRoutes({save, readMethod, viaQuery});
     });
 
     it('puts the HTTP method on the request', async () => {
       expect(JSON.parse((await send('readMethod', 'POST', JSON_HEADERS, '{}')).body)).toEqual({readMethod: 'POST'});
       expect(JSON.parse((await send('readMethod', 'GET', {})).body)).toEqual({readMethod: 'GET'});
+    });
+
+    it('reads the body of a QUERY request on a route that lists QUERY', async () => {
+      expect(JSON.parse((await send('viaQuery', 'QUERY', JSON_HEADERS, '{}')).body)).toEqual({viaQuery: 'QUERY'});
     });
 
     it('refuses a mutation over GET with a 405', async () => {

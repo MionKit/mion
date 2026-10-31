@@ -423,7 +423,8 @@ describe('serverless router', () => {
       resetRouter();
       const save = mion.mutation((): number => ++saves);
       const readMethod = mion.query((ctx: CallContext): string => ctx.request.method);
-      mion.initRoutes({save, readMethod});
+      const viaQuery = mion.query((ctx: CallContext): string => ctx.request.method, {httpMethods: ['QUERY', 'POST']});
+      mion.initRoutes({save, readMethod, viaQuery});
       methodsServer = await new Promise<Server>((resolve) => {
         functions.http('HelloTestsMethods', googleCFHandler);
         const expressServer = getTestServer('HelloTestsMethods');
@@ -444,6 +445,12 @@ describe('serverless router', () => {
       expect(await (await fetch(url('readMethod'))).json()).toEqual({readMethod: 'GET'});
     });
 
+    it('reads the body of a QUERY request on a route that lists QUERY', async () => {
+      expect(await (await fetch(url('viaQuery'), {method: 'QUERY', headers: json, body: '{}'})).json()).toEqual({
+        viaQuery: 'QUERY',
+      });
+    });
+
     it('refuses a mutation over GET with a 405', async () => {
       const before = saves;
       const response = await fetch(url('save'));
@@ -458,7 +465,11 @@ describe('serverless router', () => {
         string,
         string
       >[]) {
-        const response = await fetch(url('save'), {method: 'POST', headers, body: '{"save":[]}'});
+        const response = await fetch(url('save'), {
+          method: 'POST',
+          headers,
+          body: headers['content-type'] ? '{"save":[]}' : undefined,
+        });
         expect(response.status).toBe(StatusCodes.UNSUPPORTED_MEDIA_TYPE);
         const body = (await response.json()) as Record<string, Record<string, PublicRpcError<string>>>;
         expect(body[MION_ROUTES.thrownErrors][MION_ROUTES.platformError].type).toBe('unsupported-media-type');

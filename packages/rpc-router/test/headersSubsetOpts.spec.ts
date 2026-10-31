@@ -12,14 +12,14 @@ import {getSerializableMethod} from '../src/lib/remoteMethods.ts';
 import type {CallContext} from '../src/types/context.ts';
 import type {HeadersMethod, RemoteMethod} from '../src/types/remoteMethods.ts';
 import {headersFromRecord} from '../src/lib/headers.ts';
-import {HeadersSubset} from '@mionjs/core';
+import {HeadersSubset, RpcError} from '@mionjs/core';
 
 const mion = createMionRouter({getPublicRoutesData: true});
 
 describe('HeadersSubset options: cors', () => {
   const routes = {
     auth: mion.headersMiddleware(
-      (ctx: CallContext, h: HeadersSubset<'authorization', 'x-debug', {cors: {'x-debug': false}}>): void => undefined
+      (ctx: CallContext, headers: HeadersSubset<'authorization', 'x-debug', {cors: {'x-debug': false}}>): void => undefined
     ),
     someOff: mion.route(
       (): HeadersSubset<'x-total', 'x-node', {cors: {'x-node': false}}> => new HeadersSubset({'x-total': '3', 'x-node': 'n1'})
@@ -28,6 +28,7 @@ describe('HeadersSubset options: cors', () => {
       (): HeadersSubset<'x-trace' | 'x-node', never, {cors: false}> => new HeadersSubset({'x-trace': 't', 'x-node': 'n1'})
     ),
     noOpts: mion.route((): HeadersSubset<'x-total'> => new HeadersSubset({'x-total': '3'})),
+    inUnion: mion.route((): HeadersSubset<'x-a', never, {cors: false}> | RpcError<'nope'> => new HeadersSubset({'x-a': 'a'})),
   };
 
   beforeEach(() => {
@@ -42,6 +43,7 @@ describe('HeadersSubset options: cors', () => {
     });
     expect(getRouteExecutable('allOff')?.headersReturn?.corsExcluded?.toSorted()).toEqual(['x-node', 'x-trace']);
     expect(getRouteExecutable('noOpts')?.headersReturn?.corsExcluded).toBeUndefined();
+    expect(getRouteExecutable('inUnion')?.headersReturn?.corsExcluded).toEqual(['x-a']);
     const auth = getMiddlewareExecutable('auth') as HeadersMethod;
     expect(auth.headersParam).toMatchObject({headerNames: ['authorization', 'x-debug'], corsExcluded: ['x-debug']});
   });

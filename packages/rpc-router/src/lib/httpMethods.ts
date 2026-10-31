@@ -7,7 +7,7 @@
 
 import {FatalError, MION_ROUTES, StatusCodes, defaultHttpMethods} from '@mionjs/core';
 import type {RouteHttpMethod} from '@mionjs/core';
-import type {CallContext, ChainResponse} from '../types/context.ts';
+import type {CallContext} from '../types/context.ts';
 import type {MethodsExecutionChain, RemoteMethod} from '../types/remoteMethods.ts';
 import {recordUndeclaredError} from './dispatchError.ts';
 import {answersPreflight} from './handlers.ts';
@@ -29,16 +29,20 @@ const OTHER_METHOD_BIT = 16;
 export const ANY_METHOD_BITS = ~0;
 const ROUTE_HTTP_METHODS: ReadonlySet<string> = new Set<RouteHttpMethod>(['GET', 'POST', 'QUERY']);
 
-/** The route's own option, else its helper's default; an empty list or an unknown name is a registration error. */
+/** The route's own option, else its helper's default. The list must hold GET or POST, the methods the mion client
+ *  sends; an unknown name is a registration error too. */
 export function resolveHttpMethods(routeId: string, httpMethods: readonly RouteHttpMethod[] | undefined, isMutation?: boolean) {
   if (httpMethods === undefined) return defaultHttpMethods(isMutation);
-  if (!Array.isArray(httpMethods) || httpMethods.length === 0 || httpMethods.some((method) => !ROUTE_HTTP_METHODS.has(method)))
-    throw new Error(`Route '${routeId}': httpMethods must be a non-empty list of 'GET', 'POST' or 'QUERY'.`);
+  const valid =
+    Array.isArray(httpMethods) &&
+    httpMethods.every((method) => ROUTE_HTTP_METHODS.has(method)) &&
+    (httpMethods.includes('GET') || httpMethods.includes('POST'));
+  if (!valid) throw new Error(`Route '${routeId}': httpMethods must list 'GET' or 'POST', and may add 'QUERY'.`);
   return httpMethods;
 }
 
 /** A chain accepts its route's methods, plus OPTIONS when one member is mion's CORS middleware, which ends every OPTIONS. */
-export function getChainMethodBits(httpMethods: readonly string[], members: readonly RemoteMethod[]): number {
+export function getChainMethodBits(httpMethods: readonly RouteHttpMethod[], members: readonly RemoteMethod[]): number {
   let bits = 0;
   for (const method of httpMethods) bits |= METHOD_BITS[method];
   if (members.some(answersPreflight)) bits |= METHOD_BITS.OPTIONS;
@@ -54,10 +58,8 @@ export function acceptsMethod(chain: MethodsExecutionChain, method: string): boo
   return (chain.methodBits & (METHOD_BITS[method] ?? OTHER_METHOD_BIT)) !== 0;
 }
 
-/** Recorded like a platform error: a 405 with an `Allow` header, and the `alwaysRun` members still run. A request
- *  that already failed (the adapter refused its body) keeps that error. */
+/** Recorded like a platform error: a 405 with an `Allow` header, and the `alwaysRun` members still run. */
 export function refuseMethod(context: CallContext): void {
-  if ((context.response as ChainResponse).stopped) return;
   const allowed = getMethodNames(context.executionChain.methodBits);
   context.response.headers.set('allow', allowed.join(', '));
   const refusal = new FatalError({

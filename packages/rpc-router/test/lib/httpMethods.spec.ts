@@ -6,13 +6,13 @@
  * ######## */
 
 import {describe, it, expect, beforeEach} from 'vitest';
-import {createMionRouter, getRouteExecutable, resetRouter} from '../src/router.ts';
-import {registerBatches} from '../src/batches.ts';
+import {createMionRouter, getRouteExecutable, resetRouter} from '../../src/router.ts';
+import {registerBatches} from '../../src/batches.ts';
 import {MION_BATCH_PATH, MION_ROUTES, StatusCodes} from '@mionjs/core';
-import {dispatchRoute} from '../src/dispatch.ts';
-import {createCallContext} from '../src/callContext.ts';
-import type {CallContext} from '../src/types/context.ts';
-import {headersFromRecord} from '../src/lib/headers.ts';
+import {dispatchRoute} from '../../src/dispatch.ts';
+import {createCallContext} from '../../src/callContext.ts';
+import type {CallContext} from '../../src/types/context.ts';
+import {headersFromRecord} from '../../src/lib/headers.ts';
 
 const mion = createMionRouter();
 
@@ -124,13 +124,17 @@ describe('httpMethods', () => {
     expect(getRouteExecutable('getOnly')?.options.httpMethods).toEqual(['GET']);
   });
 
-  it('refuses an empty or unknown list when the routes register', () => {
+  it('refuses a list with an unknown name or without GET and POST when the routes register', () => {
     resetRouter();
     const empty = mion.query((): string => '', {httpMethods: []});
-    expect(() => mion.initRoutes({empty})).toThrow(`Route 'empty': httpMethods must be a non-empty list`);
+    expect(() => mion.initRoutes({empty})).toThrow(`Route 'empty': httpMethods must list 'GET' or 'POST'`);
     resetRouter();
     const unknown = mion.query((): string => '', {httpMethods: ['PUT' as 'GET']});
-    expect(() => mion.initRoutes({unknown})).toThrow(`Route 'unknown': httpMethods must be a non-empty list`);
+    expect(() => mion.initRoutes({unknown})).toThrow(`Route 'unknown': httpMethods must list 'GET' or 'POST'`);
+    // the mion client sends only GET or POST, so a QUERY-only route could never be called
+    resetRouter();
+    const queryOnly = mion.query((): string => '', {httpMethods: ['QUERY']});
+    expect(() => mion.initRoutes({queryOnly})).toThrow(`Route 'queryOnly': httpMethods must list 'GET' or 'POST'`);
   });
 });
 

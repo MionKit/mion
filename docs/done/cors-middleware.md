@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-22
 ---
 
@@ -32,7 +32,7 @@ Found while designing this, and fixed in the same PR: the server never reads the
 (params in the `?data=` query) or an OPTIONS to any route runs it, mutations included. A browser sends
 a GET from an `<img src>`, a link or a form with the user's cookies and no preflight, so any site can
 fire any mutation of a cookie-authenticated app. A `<form>` POST with a `text/plain` body holding JSON
-may run too, if the server never checks the content type (to verify).
+runs too: the server never checked the content type.
 
 ## Direction
 
@@ -100,11 +100,11 @@ early answer with a `FatalError` carrying status 200.
   with the chain. One test per request, after the path lookup that already happens, never per member:
 
   ```ts
-  const METHOD_BITS = {GET: 1, POST: 2, OPTIONS: 4, QUERY: 8};
-  if ((chain.methodBits & METHOD_BITS[method]) === 0) refuseMethod(...);
+  const METHOD_BITS = {GET: 1, HEAD: 1, POST: 2, OPTIONS: 4, QUERY: 8}; // null prototype
+  if ((chain.methodBits & (METHOD_BITS[method] ?? OTHER_METHOD_BIT)) === 0) refuseMethod(...);
   ```
 
-  An unknown method reads `undefined`, gives 0, and is refused.
+  An unknown method reads `OTHER_METHOD_BIT`, which only a not-found chain holds, so a route refuses it.
 - A refused method is recorded like a platform error (`dispatchPlatformError`): a `405`,
   `method-not-allowed` error with an `Allow` header, and the `alwaysRun` members still run.
 - OPTIONS is accepted only by a chain holding mion's CORS middleware, and that middleware ends every
@@ -191,7 +191,7 @@ interface HeadersSubsetOpts<Names extends string> {
 export class HeadersSubset<
   Required extends string,
   Optional extends string = never,
-  Opts extends HeadersSubsetOpts<Required | Optional> = {},
+  Opts extends HeadersSubsetOpts<Required | Optional> = Record<never, never>,
 > {
   readonly headers: {[K in Required]: string} & {[K in Optional]?: string};
   /** Type only, never set at runtime: read from the compiled type */
@@ -204,7 +204,7 @@ HeadersSubset<'authorization', 'x-debug-node', {cors: {'x-debug-node': false}}>
 HeadersSubset<'x-debug-node' | 'x-trace-id', never, {cors: false}>
 ```
 
-- Existing types do not change: the parameter defaults to `{}`. A typo in a name is a type error.
+- Existing types do not change: the parameter defaults to `Record<never, never>` (both linters refuse `{}`). A typo in a name is a type error.
 - Both directions: on a route return, the name stays out of `Expose-Headers`; on a headers middleware
   param, out of `Allow-Headers`.
 - Header names are read from the compiled class type (`getHeaderNamesFromRunType`,
@@ -401,6 +401,14 @@ this change touched, review its report against the code, and commit it as its ow
 - `mionCors` sets `Vary: Origin` on every response of its chain, allowed origin or not, so a shared cache never
   serves one origin's answer to another. `origin: '*'` allows any origin, always echoed.
 - Vercel's handler also returns `OPTIONS` (Next.js answers OPTIONS itself otherwise); examples and docs export it.
-- Changelog: feature PRs do not edit `CHANGELOG.md`; the breaking commits are marked `!` for the release.
+- Changelog: feature PRs do not edit `CHANGELOG.md`; every breaking commit is marked `!` for the release.
 - Proof from a browser: `packages/platform-node/test/corsBrowser.spec.ts` (Playwright Chromium, else the machine's
   Chrome; `playwright` added as a root devDependency). Fuzz: `SH-GATE` in the sechttp runner.
+- Review fixes: an `httpMethods` list must hold `GET` or `POST` (the client sends nothing else, so a QUERY-only route
+  could never be called); `mionCors({origin: '*', credentials: true})` throws; a call answered 405 resends once with a
+  method the `Allow` header lists. `QUERY` is tested on node (SH-GATE), bun, uws, cloudflare, aws and gcloud; Vercel
+  never receives it (Next.js exports standard methods only), said on its page. QUERY stays in no default.
+- Type ids and type budget: the type-budget suite passes unchanged, and no Go golden fixture names `HeadersSubset`.
+- The hole was proven at the node adapter (`it.fails` before the fix); the router-level tests landed with the fix.
+- The adapter-facing `createContextFromChain` / `dispatchPlatformError` gained a `method` parameter and
+  `MionRequest.method` / `MionResponse.endedEarly` are required: breaking for an adapter built outside the repo.
