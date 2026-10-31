@@ -308,3 +308,17 @@ describe('security: middleware metadata is not access control', () => {
     expect(getAllExecutablesIds()).toEqual(expect.arrayContaining(['silent', 'withParams', 'open']));
   });
 });
+
+describe('security: a return value that fails to encode', () => {
+  it('names the route, never its return type', async () => {
+    resetRouter();
+    type SecretShape = {when: Date};
+    const mion = createMionRouter();
+    mion.initRoutes({broken: mion.route((): SecretShape => ({when: 'not a date'}) as unknown as SecretShape)});
+    const response = await dispatchRoute('/broken', '{}', headersFromRecord({}), headersFromRecord({}), {}, {});
+    const error = response.body[MION_ROUTES.thrownErrors]?.broken;
+    expect(error?.type).toBe('prepare-for-json-response-error');
+    expect(error?.publicMessage).toBe('Failed to prepare the return value of broken for JSON.');
+    expect(JSON.stringify(response.body)).not.toContain('SecretShape');
+  });
+});
