@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done
 created: 2026-10-31
 ---
 
@@ -57,14 +57,14 @@ with `SameSite=None` cookies or from a sibling subdomain. CORS only decides who 
 
 ```ts
 mionSecurity({
-  origins?: string | string[] | RegExp | ((origin: string) => boolean), // trusted to send (CSRF) and, with cors, to read
+  origins?: readonly string[] | '*' | ((ctx: CallContext, origin: string) => boolean | Promise<boolean>), // trusted to send and, with cors, to read
   cors?: false | {credentials?: boolean; maxAge?: number; allowHeaders?: string[]; exposeHeaders?: string[]}, // default false
   csrf?: false | {crossOrigin?: boolean; methodByIntent?: boolean; formContentTypes?: boolean},           // each default true
 });
 ```
 
 - `alwaysRun` regular middleware built with the internal `middleware()` helper (no params, no return: not public).
-- Throws at creation: `origins: '*'` with `cors.credentials`; an `origins` of the wrong kind.
+- Throws at creation: `origins: '*'` with `cors.credentials`; `cors` without `origins`.
 - Per request, in order:
   1. CORS headers (only with `cors`): `Vary: Origin` always; allowed origin echoed, credentials, Expose-Headers
      on a normal request; preflight adds Allow-Methods / Allow-Headers / Max-Age. Lists per chain, cached in a
@@ -72,7 +72,7 @@ mionSecurity({
   2. Every OPTIONS ends with `endChain(ctx)`, CORS on or off, so a preflight never runs a route.
   3. A chain that already failed (`hasErrors`) is not refused again.
   4. CSRF (skipped with `csrf: false`), each check switchable:
-     - `methodByIntent`: route = `chain.methods[chain.routeIndex]`; batch (`ctx.batchId`) and `mutation` /
+     - `methodByIntent`: route = `chain.methods[chain.routeIndex]`; batch (`chain.batchId`) and `mutation` /
        `route()` accept POST; `query` (`isMutation === false`) accepts GET, HEAD, POST. Anything else: 405
        `method-not-allowed` with an `Allow` header. Not-found chains (`routeIndex === -1`) are skipped.
      - `crossOrigin` (methods other than GET / HEAD), Go 1.25 `CrossOriginProtection` rules:
@@ -82,8 +82,11 @@ mionSecurity({
        Refused: 403 `cross-origin-request-refused`.
      - `formContentTypes` (POST): `text/plain`, `application/x-www-form-urlencoded`, `multipart/form-data`
        (case and parameters ignored) or no content type: 415 `unsupported-media-type`. Header read only on POST.
-  - Refusals are thrown `FatalError`s, so they land in `@thrownErrors` under the middleware's id and the CORS
-    headers set in step 1 stay on the error answer.
+  - Refusals are returned `FatalError`s (mion's lint refuses a throwing middleware), at the middleware's own key in
+    the answer; the CORS headers set in step 1 stay on it. The middleware takes no params, so the API type leaves it
+    out, like other private middlewares.
+  - `origins` as a function is asked only when the answer matters (an origin CORS answers, or a non-GET request
+    from another site), never for `null`. Only then is the middleware async: a list or `'*'` keeps it sync.
 
 ### 3. Benchmarks
 
@@ -150,3 +153,17 @@ this change touched, review its report against the code, and commit it as its ow
 - Hello-world bench: base vs branch shows no router overhead; the middleware's own cost is measured. Both in the PR.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file,
   each committed on its own.
+
+## What shipped (differences from the plan above)
+
+- `origins` is a list, `'*'` or a sync / async lookup `(ctx, origin)`; the single-string and `RegExp` forms were
+  dropped. A lookup makes the middleware async; a list or `'*'` keeps it sync.
+- The lookup is asked only when its answer matters: an origin CORS answers, or a non-GET request from another site
+  on a chain that has not failed; never for an OPTIONS without CORS, never for `null`.
+- A `csrf` check left `undefined` stays on (`!== false`), so a missing config value never turns one off.
+- Preflight `Access-Control-Allow-Methods` is `GET, POST` for a query (HEAD needs no preflight), `POST` otherwise;
+  the 405 `Allow` header lists `GET, HEAD, POST`.
+- Hello-world bench, base vs branch alternated twice (2 runs each): node 40,551 → 39,601, uws 67,403 → 63,934,
+  bun 63,790 → 65,986 req/s; every range overlaps, the machine drifted ~10% between rounds. The router now only puts
+  `method` on the request and reads one more flag; uws calls `req.getMethod()` per request.
+- The readOptions per-shape coverage test stays, without the array / tuple rows.
