@@ -41,6 +41,7 @@ describe('published mion packages under bun', () => {
     test('serves a route over plain fetch', async () => {
         const response = await fetch(`${baseURL}/sayHello`, {
             method: 'POST',
+            headers: {'content-type': 'application/json'},
             body: JSON.stringify({sayHello: [{name: 'Ada', age: 36}]}),
         });
         expect(response.status).toBe(200);
@@ -51,6 +52,7 @@ describe('published mion packages under bun', () => {
     test('rejects params of the wrong shape', async () => {
         const response = await fetch(`${baseURL}/calculateAge`, {
             method: 'POST',
+            headers: {'content-type': 'application/json'},
             body: JSON.stringify({calculateAge: ['not a number']}),
         });
         const reply = (await response.json()) as Record<string, unknown>;
