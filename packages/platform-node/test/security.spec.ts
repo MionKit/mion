@@ -78,7 +78,7 @@ describe('node adapter hardening', () => {
     expect(response.status).toBe(StatusCodes.UNEXPECTED_ERROR);
     expect(response.headers.get('x-rpc-error')).toBe('invalid-query-body');
     const body = (await response.json()) as RpcBody;
-    expect(body[MION_ROUTES.thrownErrors][MION_ROUTES.platformError].type).toBe('invalid-query-body');
+    expect(body[MION_ROUTES.thrownErrors]['mionDeserializeRequest'].type).toBe('invalid-query-body');
 
     const alive = await fetch(`http://127.0.0.1:${port}/api/echo`, {
       method: 'POST',

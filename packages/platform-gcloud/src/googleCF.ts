@@ -16,11 +16,10 @@ import {
   getRouterFatalErrorResponse,
   requestPayloadTooLarge,
   resetRouter,
-  decodeQueryBody,
   setPlatformConfig,
   getResponseDefaults,
 } from '@mionjs/router';
-import type {MionResponse} from '@mionjs/router';
+import type {MionResponse, RawRequestBody} from '@mionjs/router';
 import {Request, Response} from 'express';
 import {DEFAULT_GOOGLE_CF_OPTIONS} from './constants.ts';
 import {GoogleCFOptions} from './types.ts';
@@ -58,8 +57,8 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
   // TODO use its own express headers wrapper instead headers from record
   const reqHeaders = headersFromIncomingMessage(rawRequest);
   const respHeaders = headersFromServerResponse(rawResponse, getResponseDefaults());
-  let rawBody = rawRequest.body;
-  let reqBodyType: SerializerCode = typeof rawBody === 'string' ? SerializerModes.stringifyJson : SerializerModes.json;
+  const rawBody = rawRequest.body;
+  const reqBodyType: SerializerCode = typeof rawBody === 'string' ? SerializerModes.stringifyJson : SerializerModes.json;
   // everything after the FIRST `?`: a second one is legal inside a query, so splitting on it would drop parameters
   const originalUrl = rawRequest.originalUrl;
   const queryIndex = originalUrl ? originalUrl.indexOf('?') : -1;
@@ -85,11 +84,6 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
       );
       return reply(refused, rawResponse);
     }
-    const queryBody = decodeQueryBody(urlQuery, bodyOrUndefined(rawBody));
-    if (queryBody) {
-      rawBody = queryBody.rawBody;
-      reqBodyType = queryBody.bodyType;
-    }
     const context = createContextFromChain(
       chain,
       rawRequest.path,
@@ -97,7 +91,8 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
       rawRequest.method,
       reqHeaders,
       respHeaders,
-      rawBody,
+      // express hands an empty body over as `{}`: no body, so the router reads `?data=` instead
+      bodyOrUndefined(rawBody),
       reqBodyType
     );
     const routeResponse = await dispatchWithContext(context, rawRequest, rawResponse);
@@ -111,10 +106,10 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
 // ############# PRIVATE METHODS #############
 
 /** express parses a body-less request into an EMPTY object, which is truthy, so `?data=` would never be read without this. */
-function bodyOrUndefined(rawBody: unknown): unknown {
+function bodyOrUndefined(rawBody: unknown): RawRequestBody | undefined {
   if (!rawBody) return undefined;
-  if (typeof rawBody !== 'object') return rawBody;
-  for (const key in rawBody) return rawBody;
+  if (typeof rawBody !== 'object') return rawBody as string;
+  for (const key in rawBody) return rawBody as RawRequestBody;
   return undefined;
 }
 

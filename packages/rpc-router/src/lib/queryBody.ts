@@ -5,26 +5,20 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {fromBase64Url, FatalError, RpcError, SerializerModes, StatusCodes} from '@mionjs/core';
-import type {SerializerCode} from '@mionjs/core';
+import {fromBase64Url, FatalError, RpcError, StatusCodes} from '@mionjs/core';
 import {findMionQueryParam} from './urlQuery.ts';
 
 // `atob` throws a raw InvalidCharacterError on anything that is not base64, and one `GET /route?data=!`
 // used to take the node and uws processes down with an unhandled rejection. No pre-check: a regex over
 // the value doubled the cost of every query-body request (85 to 170 ns) to refuse what `atob` refuses.
 
-export interface QueryBodyResult {
-  rawBody: string;
-  bodyType: SerializerCode;
-}
-
-export function decodeQueryBody(urlQuery: string | undefined, rawBody: unknown): QueryBodyResult | undefined {
-  if (rawBody) return undefined;
+/** The JSON body a GET carries in `?data=`, base64url encoded; undefined when there is none */
+export function decodeQueryBody(urlQuery: string | undefined): string | undefined {
   if (!urlQuery) return undefined;
   const dataValue = findMionQueryParam(urlQuery, 'data');
   if (!dataValue) return undefined;
   try {
-    return {rawBody: fromBase64Url(dataValue), bodyType: SerializerModes.stringifyJson};
+    return fromBase64Url(dataValue);
   } catch (err) {
     throw invalidQueryBody(err);
   }

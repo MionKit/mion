@@ -13,7 +13,6 @@ import {
   getRouterFatalErrorResponse,
   toRpcError,
   resetRouter,
-  decodeQueryBody,
   setPlatformConfig,
   getDefaultHeaders,
   releaseHeaders,
@@ -174,23 +173,10 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
     return;
   }
 
-  const dispatchBody = (rawBody: string, readQueryBody: boolean) => {
-    let reqRawBody: any = rawBody;
-    let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
-    // a throw here runs inside uWS' native callback (or a microtask): it must become a response
-    try {
-      const queryBody = readQueryBody ? decodeQueryBody(urlQuery, reqRawBody || undefined) : undefined;
-      if (queryBody) {
-        reqRawBody = queryBody.rawBody;
-        reqBodyType = queryBody.bodyType;
-      }
-    } catch (err) {
-      state.replied = true;
-      fatalFail(res, state, respHeaders, err as RpcError<string>);
-      return;
-    }
+  const dispatchBody = (rawBody: string) => {
+    const reqBodyType: SerializerCode = SerializerModes.stringifyJson;
 
-    const context = createContextFromChain(chain, path, urlQuery, method, reqHeaders, respHeaders, reqRawBody, reqBodyType);
+    const context = createContextFromChain(chain, path, urlQuery, method, reqHeaders, respHeaders, rawBody, reqBodyType);
     let dispatched: MionResponse | Promise<MionResponse>;
     try {
       dispatched = dispatchMaybeSync(context, rawRequest, res);
@@ -227,7 +213,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   // which is exactly the maxBodySize contract. A not-found chain has no route to feed: its body is dropped as it arrives.
   if (!chain.readsBody) {
     drainRequestBody(res);
-    dispatchBody('', false);
+    dispatchBody('');
     return;
   }
 
@@ -246,7 +232,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
     // here; a multi-read body was assembled in C++ and OWNERSHIP-TRANSFERRED to JS, so it can be decoded from a microtask.
     if (fullBody.byteLength <= UWS_MAX_SINGLE_READ) {
       // a body-less request (every GET) skips the view and the decode altogether
-      dispatchBody(fullBody.byteLength === 0 ? '' : Buffer.from(fullBody).toString(), true);
+      dispatchBody(fullBody.byteLength === 0 ? '' : Buffer.from(fullBody).toString());
       return;
     }
     // bigger than one read can deliver → guaranteed the ownership-transferred path, so the buffer survives the microtask.
@@ -263,7 +249,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
         fatalFail(res, state, respHeaders, error);
         return;
       }
-      dispatchBody(releaseAfterDecode(fullBody), true);
+      dispatchBody(releaseAfterDecode(fullBody));
     });
   });
 }

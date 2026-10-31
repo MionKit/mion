@@ -27,7 +27,6 @@ import {
   setPlatformConfig,
   dispatchRoute,
   headersFromRecord,
-  decodeQueryBody,
   registerBatches,
   getRouterFatalErrorResponse,
 } from '@mionjs/router';
@@ -528,22 +527,11 @@ function describeAttack(attack: Attack): string {
   return `${attack.path}${attack.urlQuery ? `?${attack.urlQuery.slice(0, 80)}` : ''} headers=${JSON.stringify(attack.headers).slice(0, 120)} body=${body}`;
 }
 
-/** One in-process request, adapter-style: the query body is decoded first, as every adapter does. */
+/** One in-process request, adapter-style: body and query handed over as they came; the router decodes `?data=` */
 async function dispatchAttack(attack: Attack): Promise<MionResponse> {
   const reqHeaders = headersFromRecord(attack.headers);
   const respHeaders = headersFromRecord({});
-  let body: string | Uint8Array | undefined = attack.body;
-  let bodyType: SerializerCode = SerializerModes.stringifyJson;
-  try {
-    const query = decodeQueryBody(attack.urlQuery, body);
-    if (query) {
-      body = query.rawBody;
-      bodyType = query.bodyType;
-    }
-  } catch (err) {
-    // an adapter turns this into the fatal envelope; the in-process layer treats it as answered
-    return getRouterFatalErrorResponse(err as never, respHeaders);
-  }
+  const body = attack.body;
   return dispatchRoute(
     attack.path,
     body as never,
@@ -551,7 +539,7 @@ async function dispatchAttack(attack: Attack): Promise<MionResponse> {
     respHeaders,
     {headers: reqHeaders, body},
     {},
-    bodyType,
+    SerializerModes.stringifyJson,
     attack.urlQuery
   );
 }

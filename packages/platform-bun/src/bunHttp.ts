@@ -13,7 +13,6 @@ import {
   getRouterFatalErrorResponse,
   toRpcError,
   resetRouter,
-  decodeQueryBody,
   setPlatformConfig,
   getMaxRouteBodySize,
   readRequestBody,
@@ -26,7 +25,6 @@ import type {MethodsExecutionChain, FetchResponseHeaders} from '@mionjs/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants.ts';
 import type {BunHttpOptions} from './types.ts';
 import {getENV, SerializerModes} from '@mionjs/core';
-import type {SerializerCode} from '@mionjs/core';
 import {RpcError, FatalError} from '@mionjs/core';
 import {Server} from 'bun';
 
@@ -113,15 +111,17 @@ function dispatchBody(
   responseHeaders: FetchResponseHeaders,
   rawBody: string | undefined
 ): Response | Promise<Response> {
-  let reqRawBody: string | undefined = rawBody;
-  let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
-  const queryBody = chain.readsBody ? decodeQueryBody(urlQuery, rawBody) : undefined;
-  if (queryBody) {
-    reqRawBody = queryBody.rawBody;
-    reqBodyType = queryBody.bodyType;
-  }
   const method = req.method;
-  const context = createContextFromChain(chain, path, urlQuery, method, req.headers, responseHeaders, reqRawBody, reqBodyType);
+  const context = createContextFromChain(
+    chain,
+    path,
+    urlQuery,
+    method,
+    req.headers,
+    responseHeaders,
+    rawBody,
+    SerializerModes.stringifyJson
+  );
   const platformResp = dispatchMaybeSync(context, req, undefined);
   if (!(platformResp instanceof Promise)) return replyFetch(platformResp, responseHeaders);
   return platformResp
