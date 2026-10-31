@@ -59,14 +59,16 @@ function interleave(valid: unknown[], invalid: unknown[]): unknown[] {
 function measureMetric(builder: (() => Validator) | null, shared: {valid: unknown[]; invalid: unknown[]} | null, sharedErr: string | null, override: SampleOverride): MetricResult {
   if (builder === null) return notSupported();
   if (sharedErr !== null) return errored(sharedErr);
+  const validSamples = override.valid ?? shared!.valid;
+  const invalidSamples = override.invalid ?? shared!.invalid;
+  // Nothing to check or time (a case mion refuses at its root, e.g. a bare symbol): an `ok` here would count as coverage.
+  if (validSamples.length === 0 && invalidSamples.length === 0) return {...notSupported(), detail: 'the case has no samples'};
   let validator: Validator;
   try {
     validator = builder();
   } catch (err) {
     return errored(err instanceof Error ? err.message : String(err));
   }
-  const validSamples = override.valid ?? shared!.valid;
-  const invalidSamples = override.invalid ?? shared!.invalid;
   const badValid = check(validator, validSamples, true);
   if (badValid >= 0) return {status: 'fail', validOpsSec: 0, invalidOpsSec: 0, mixedOpsSec: 0, detail: `valid[${badValid}] rejected`};
   const badInvalid = check(validator, invalidSamples, false);
