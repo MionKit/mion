@@ -76,8 +76,7 @@ export interface HostRequestHandler {
 
 /** Options of `mionSecurity` */
 export interface MionSecurityOptions {
-  /** Origins trusted to send state-changing requests and, with `cors`, to read answers: a list, `'*'`, or a lookup
-   *  (sync or async) asked only for a request whose origin matters */
+  /** Trusted to send state-changing requests and, with `cors`, to read answers; a lookup runs only when it matters */
   origins?: readonly string[] | '*' | ((ctx: CallContext, origin: string) => boolean | Promise<boolean>);
   /** Lets the trusted origins read answers; off by default */
   cors?: false | MionCorsSettings;
