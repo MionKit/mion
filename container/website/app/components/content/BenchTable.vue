@@ -574,15 +574,15 @@ function verdictAggCells(row: AggRow): VerdictCell[] {
 
 // geomean / rowMeans / aggregateRows live in app/utils/benchAggregate.js:
 // the root landing's HomeBenchTable quotes the same "Overall" numbers, so the math has
-// ONE home. A lower-is-better bench (typecost, unit "count") keeps zeros via +1 smoothing there.
-const aggregateLowerBetter = computed(() => index.value?.unit === 'count');
+// ONE home. Lower-is-better is per metric (a payload bytes metric sits in an ops bench), so a skipped case is
+// filled with the right worst value.
 
 /** Per-category + Overall geometric-mean summary for one metric. The math lives in
  *  benchAggregate.js (the charts and the home summary read the same numbers); this
  *  keeps the table's own section order, REALWORLD first. */
 function aggregateFor(metricKey: string): AggRow[] {
   if (!index.value) return [];
-  return aggregateRows(orderedSections.value, index.value.competitors, metricKey, aggregateLowerBetter.value);
+  return aggregateRows(orderedSections.value, index.value.competitors, metricKey, lowerBetterFor(metricKey));
 }
 
 /** Precomputed aggregates keyed by metric. */
