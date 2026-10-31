@@ -94,6 +94,8 @@ export interface SerializableMethodsData {
 
 export interface HeadersMethodWithJitFns extends HeadersMetaData {
   jitFns: Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>;
+  /** Names the type marks `cors: false`; server only, never sent to the client */
+  corsExcluded?: string[];
 }
 
 export interface MethodWithJitFns extends MethodMetadata {
