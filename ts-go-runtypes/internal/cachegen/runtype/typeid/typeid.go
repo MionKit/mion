@@ -342,11 +342,7 @@ func (computer *Computer) dispatch(tsType *checker.Type) string {
 	// Unique symbol literal — also a literal kind in the reflection model,
 	// but tsgo's flag is `UniqueESSymbol` not a `*Literal`.
 	if flags&checker.TypeFlagsUniqueESSymbol != 0 {
-		name := ""
-		if symbol := tsType.Symbol(); symbol != nil {
-			name = symbol.Name
-		}
-		return strconv.Itoa(int(kind)) + ":sym:" + computer.lit(name)
+		return strconv.Itoa(int(kind)) + ":sym:" + computer.lit(UniqueSymbolName(computer.typeChecker, tsType))
 	}
 
 	switch kind {
@@ -613,7 +609,7 @@ func (computer *Computer) memberIDs(tsType *checker.Type, asClass bool) []string
 
 func (computer *Computer) memberID(symbol *ast.Symbol, asClass bool) string {
 	propertyType := computer.typeChecker.GetTypeOfSymbol(symbol)
-	memberName := computer.lit(strconv.Quote(stableMemberName(symbol.Name)))
+	memberName := computer.lit(strconv.Quote(StableMemberName(computer.typeChecker, symbol.Name)))
 	// A non-enumerable-guarded member (lib-global-inherited or `@nonEnumerable`) is treated as optional in the
 	// projected shape — the wire may omit it — so its `optional` id bit folds the guard in, matching
 	// serialize.go's appendProperty. The separate `#ne` bit keeps a guarded-optional member distinct from a
@@ -705,26 +701,6 @@ func (computer *Computer) privateFieldsBit(tsType *checker.Type) string {
 		}
 	}
 	return ""
-}
-
-// stableMemberName strips the checker-instance symbol id off a late-bound symbol-keyed member name
-// ("\xFE@toPrimitive@5" → "\xFE@toPrimitive") so structural ids never embed which checker (or session)
-// materialized the member. Replicated from internal/cachegen/runtype/serialize.go (the typeid subpackage
-// can't import its parent without an import cycle) — keep them in sync.
-func stableMemberName(name string) string {
-	if len(name) < 2 || name[0] != 0xFE || name[1] != '@' {
-		return name
-	}
-	at := strings.LastIndexByte(name, '@')
-	if at <= 1 || at == len(name)-1 {
-		return name
-	}
-	for i := at + 1; i < len(name); i++ {
-		if name[i] < '0' || name[i] > '9' {
-			return name
-		}
-	}
-	return name[:at]
 }
 
 func readonlyBit(readonly bool) string {
