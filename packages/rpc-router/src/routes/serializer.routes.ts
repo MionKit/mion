@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {MionResponse, MionRequest, CallContext, ResponseBody, RawRequestBody} from '../types/context.ts';
+import {MionResponse, MionRequest, CallContext, ChainResponse, ResponseBody, RawRequestBody} from '../types/context.ts';
 import {RouterOptions} from '../types/general.ts';
 import {MiddlewaresCollection, MayReturnError} from '../types/publicMethods.ts';
 import {AnyObject, Mutable, MION_ROUTES, StatusCodes, SerializerModes} from '@mionjs/core';
@@ -23,9 +23,9 @@ import {recordUndeclaredError} from '../lib/dispatchError.ts';
  * @mion:rawMiddleware
  */
 export function deserializeRequestBody(context: CallContext): MayReturnError {
-  // a request that already failed never parses: a not-found chain has no route to feed and the adapter
+  // a request that already failed or ended never parses: a not-found chain has no route to feed and the adapter
   // skipped the read; a caller that handed a body anyway (aws, gcloud, dispatchRoute) gets the same answer
-  if (!context.readsBody || context.response.hasErrors || !context.request.rawBody) return;
+  if (!context.readsBody || (context.response as ChainResponse).stopped || !context.request.rawBody) return;
   rejectOversizedBody(context.request.rawBody, context.maxBodySize);
   let parsedBody: any;
   switch (context.request.bodyType) {

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody} from './types/context.ts';
+import type {CallContext, ChainResponse, MionResponse, MionRequest, MionHeaders, RawRequestBody} from './types/context.ts';
 import {type RouterOptions} from './types/general.ts';
 import {HeadersMethod, RemoteMethod, RawMethod} from './types/remoteMethods.ts';
 import type {MethodsExecutionChain} from './types/remoteMethods.ts';
@@ -97,14 +97,15 @@ async function runExecutionChain(
   opts: RouterOptions,
   startIndex: number
 ): Promise<MionResponse> {
-  const {response, request, executionChain} = context;
+  const {request, executionChain} = context;
+  const response = context.response as ChainResponse;
   // `alwaysAwait: false` skips the await on sync steps: awaiting one only costs a promise frame
   const alwaysAwait = opts.alwaysAwait;
   const executionList = executionChain.methods;
   const executionCount = executionList.length;
   for (let i = startIndex; i < executionCount; i++) {
     const executable = executionList[i];
-    if (response.hasErrors && !executable.alwaysRun) continue;
+    if (response.stopped && !executable.alwaysRun) continue;
 
     try {
       // runRawMiddleware, runHeadersMiddleware & runRouteOrMiddleware must take the same params in the same order
@@ -133,12 +134,13 @@ function runSyncExecutionChain(
   rawResponse: unknown,
   opts: RouterOptions
 ): MionResponse | Promise<MionResponse> {
-  const {response, request, executionChain} = context;
+  const {request, executionChain} = context;
+  const response = context.response as ChainResponse;
   const executionList = executionChain.methods;
   const executionCount = executionList.length;
   for (let i = 0; i < executionCount; i++) {
     const executable = executionList[i];
-    if (response.hasErrors && !executable.alwaysRun) continue;
+    if (response.stopped && !executable.alwaysRun) continue;
     if (executable.isAsync) return runExecutionChain(context, rawRequest, rawResponse, opts, i);
 
     try {
