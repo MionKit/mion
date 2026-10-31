@@ -21,23 +21,46 @@ export function check(validator: Validator, samples: unknown[], want: boolean): 
   return -1;
 }
 
-function safe(validator: Validator, sample: unknown): boolean {
-  try {
-    return validator(sample);
-  } catch {
-    return false;
+// performance.now() costs ~50 ns, more than most validators: read it once per >= 1000 calls,
+// else the clock read sets the score and fast libraries look as slow as slow ones.
+const CALLS_PER_CLOCK_READ = 1000;
+// Accepted counts land here so the optimizer cannot drop the validator call.
+const sink = {accepted: 0};
+let loopId = 0;
+
+type BenchLoop = (validator: Validator, samples: unknown[]) => number;
+
+// One compiled loop per measured stream: one call site shared by every case goes megamorphic
+// and adds a flat few ns to every call. The trailing id keeps each source unique, since
+// identical `new Function` sources share type feedback through V8's eval cache.
+function freshLoop(): BenchLoop {
+  const make = new Function(
+    'performance',
+    'sink',
+    'timeMs',
+    'callsPerRead',
+    `const safe = function (validator, sample) { try { return validator(sample); } catch { return false; } };
+return function benchOps(validator, samples) {
+  const reps = Math.max(1, Math.ceil(callsPerRead / samples.length));
+  let accepted = 0;
+  for (let i = 0; i < 1000; i++) for (let j = 0; j < samples.length; j++) if (safe(validator, samples[j]) === true) accepted++;
+  let calls = 0;
+  const start = performance.now();
+  while (performance.now() - start < timeMs) {
+    for (let r = 0; r < reps; r++) for (let j = 0; j < samples.length; j++) if (safe(validator, samples[j]) === true) accepted++;
+    calls += reps * samples.length;
   }
+  const elapsed = performance.now() - start;
+  sink.accepted += accepted;
+  return calls / (elapsed / 1000);
+};
+//loop ${loopId++}`
+  ) as (perf: typeof performance, out: typeof sink, timeMs: number, callsPerRead: number) => BenchLoop;
+  return make(performance, sink, TIME_MS, CALLS_PER_CLOCK_READ);
 }
 
-/** Validations/sec over `samples` (warm up, then batch for TIME_MS). */
+/** Validations/sec over `samples` (warm up, then time batches of >= 1000 calls for TIME_MS). */
 export function benchOps(validator: Validator, samples: unknown[]): number {
   if (samples.length === 0) return 0;
-  for (let i = 0; i < 1000; i++) for (const sample of samples) safe(validator, sample);
-  let batches = 0;
-  const start = performance.now();
-  while (performance.now() - start < TIME_MS) {
-    for (const sample of samples) safe(validator, sample);
-    batches++;
-  }
-  return (batches * samples.length) / ((performance.now() - start) / 1000);
+  return freshLoop()(validator, samples);
 }
