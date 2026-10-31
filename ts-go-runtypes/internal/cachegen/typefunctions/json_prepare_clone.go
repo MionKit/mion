@@ -202,10 +202,25 @@ type safePropEmit struct {
 	optional   bool
 	accessor   string // input accessor `v.<name>` for the undefined check
 	expr       string // clone expression evaluated against `accessor`
+	// ownGuard is the own-enumerability test of a guarded member, run BEFORE the value is read: the read
+	// alone can cost (a native error's `stack` formats the whole trace) and a non-enumerable key is skipped.
+	ownGuard string
 	// presenceGuard is ANDed into the `!== undefined` check so a merged-union prop with a stripped
 	// sibling is emitted only for a surviving candidate's values; a value from the stripped member
 	// (present but foreign-typed) omits the key (G4).
 	presenceGuard string
+}
+
+// presence is the test an optional prop's write runs: own-enumerability first, then the value checks.
+func (prop safePropEmit) presence() string {
+	test := prop.accessor + " !== undefined"
+	if prop.ownGuard != "" {
+		test = prop.ownGuard + " && " + test
+	}
+	if prop.presenceGuard != "" {
+		test += " && (" + prop.presenceGuard + ")"
+	}
+	return test
 }
 
 // emitObjectPrepareForJsonClone builds a CodeRB block returning a new object of the declared keys
@@ -275,11 +290,11 @@ func emitObjectPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v s
 			expr:       expr,
 		}
 		// A non-enumerable-guarded member (lib-global-inherited / `@nonEnumerable`) is projected
-		// Optional, so it already takes the guarded-assignment path; the presenceGuard ANDs an
-		// own-enumerability check into it, so a value carrying the prop non-enumerably omits the
+		// Optional, so it already takes the guarded-assignment path; the ownGuard puts an
+		// own-enumerability check in front of it, so a value carrying the prop non-enumerably omits the
 		// key, as native `JSON.stringify` does.
 		if isEnumerabilityGuarded(resolved) {
-			prop.presenceGuard = propertyIsEnumerableGuard(v, resolved.Name)
+			prop.ownGuard = propertyIsEnumerableGuard(v, resolved.Name)
 		}
 		props = append(props, prop)
 	}
@@ -387,11 +402,7 @@ func writePatternArm(builder *strings.Builder, keyVar string, arm indexArm) {
 func writePropAssignments(builder *strings.Builder, props []safePropEmit) {
 	for _, prop := range props {
 		if prop.optional {
-			builder.WriteString("if (" + prop.accessor + " !== undefined")
-			if prop.presenceGuard != "" {
-				builder.WriteString(" && (" + prop.presenceGuard + ")")
-			}
-			builder.WriteString(") ")
+			builder.WriteString("if (" + prop.presence() + ") ")
 		}
 		builder.WriteString("_r[" + quoteJS(prop.name) + "] = " + prop.expr + ";")
 	}
@@ -447,13 +458,7 @@ func buildSafeObjectClone(props []safePropEmit, ctx *EmitContext) RTCode {
 			continue
 		}
 		b.WriteString("if (")
-		b.WriteString(p.accessor)
-		b.WriteString(" !== undefined")
-		if p.presenceGuard != "" {
-			b.WriteString(" && (")
-			b.WriteString(p.presenceGuard)
-			b.WriteString(")")
-		}
+		b.WriteString(p.presence())
 		b.WriteString(") _r[")
 		b.WriteString(quoteJS(p.name))
 		b.WriteString("]=")
@@ -785,7 +790,7 @@ func emitUnionPrepareForJsonCloneLayout(rt *reflection.RunType, ctx *EmitContext
 func emitMergedObjectOpenClone(layout FlatLayout, v string, props []safePropEmit, ctx *EmitContext) string {
 	identity := true
 	for _, prop := range props {
-		if prop.expr != prop.accessor || prop.presenceGuard != "" {
+		if prop.expr != prop.accessor || prop.ownGuard != "" || prop.presenceGuard != "" {
 			identity = false
 			break
 		}
@@ -805,11 +810,7 @@ func emitMergedObjectOpenClone(layout FlatLayout, v string, props []safePropEmit
 	for _, prop := range props {
 		write := "_r[" + quoteJS(prop.name) + "] = " + prop.expr + ";"
 		if prop.optional {
-			presence := prop.accessor + " !== undefined"
-			if prop.presenceGuard != "" {
-				presence += " && (" + prop.presenceGuard + ")"
-			}
-			write = "if (" + presence + ") " + write
+			write = "if (" + prop.presence() + ") " + write
 		}
 		body.WriteString(write)
 	}
