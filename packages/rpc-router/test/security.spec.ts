@@ -172,7 +172,7 @@ describe('security: query body', () => {
     (urlQuery) => {
       let caught: unknown;
       try {
-        decodeQueryBody(urlQuery, undefined);
+        decodeQueryBody(urlQuery);
       } catch (err) {
         caught = err;
       }
@@ -183,8 +183,8 @@ describe('security: query body', () => {
   );
 
   it('a well-formed value still decodes, with or without padding', () => {
-    expect(decodeQueryBody(`data=${toBase64Url('{"a":1}')}`, undefined)?.rawBody).toBe('{"a":1}');
-    expect(decodeQueryBody('data=eyJhIjoxfQ==', undefined)?.rawBody).toBe('{"a":1}');
+    expect(decodeQueryBody(`data=${toBase64Url('{"a":1}')}`)).toBe('{"a":1}');
+    expect(decodeQueryBody('data=eyJhIjoxfQ==')).toBe('{"a":1}');
   });
 });
 

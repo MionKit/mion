@@ -13,7 +13,6 @@ import {
   getRouterFatalErrorResponse,
   headersFromRecord,
   resetRouter,
-  decodeQueryBody,
   setPlatformConfig,
   getDefaultHeaders,
   releaseHeaders,
@@ -49,19 +48,14 @@ export function createAwsLambdaHandler(options?: Partial<AwsLambdaOptions>) {
 }
 
 export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> {
-  let rawBody: any = decodeEventBody(rawRequest);
+  const rawBody: any = decodeEventBody(rawRequest);
   const reqHeaders = headersFromRecord(rawRequest.headers as Record<string, string>);
   const respHeaders = getDefaultHeaders();
   // AWS Lambda always receives body as string (JSON)
-  let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
+  const reqBodyType: SerializerCode = SerializerModes.stringifyJson;
   const urlQuery = buildQueryString(rawRequest.queryStringParameters);
   try {
     // the body arrives whole with the event, so there is nothing to read: the router checks its size before parsing
-    const queryBody = decodeQueryBody(urlQuery, rawBody || undefined);
-    if (queryBody) {
-      rawBody = queryBody.rawBody;
-      reqBodyType = queryBody.bodyType;
-    }
     const context = createCallContext(
       rawRequest.path,
       urlQuery,

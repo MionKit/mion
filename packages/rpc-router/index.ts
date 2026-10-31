@@ -22,6 +22,5 @@ export * from './src/lib/dispatchError.ts';
 export * from './src/lib/headers.ts';
 export * from './src/lib/remoteMethods.ts';
 export * from './src/types/mionRouter.ts';
-export * from './src/lib/queryBody.ts';
 export * from './src/lib/bodyReader.ts';
 export {mionErrorsRoutes} from './src/routes/errors.routes.ts';
