@@ -13,12 +13,12 @@ import {
   getRouterFatalErrorResponse,
   toRpcError,
   resetRouter,
-  decodeQueryBody,
   setPlatformConfig,
   getDefaultFetchHeaders,
   replyFetch,
   readRequestBody,
   BodyReadStrategy,
+  toHttpMethod,
 } from '@mionjs/router';
 import type {FetchResponseHeaders} from '@mionjs/router';
 import {DEFAULT_CLOUDFLARE_OPTIONS} from './constants.ts';
@@ -63,7 +63,7 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
     // route resolved BEFORE the body: the chain gives the limit the read is cancelled at, and a late context stays GC-cheap
     const chain = resolveExecutionChain(path, urlQuery, req);
     let rawBody: any;
-    let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
+    const reqBodyType: SerializerCode = SerializerModes.stringifyJson;
     // a not-found chain (an unknown path or batch id) has no route to feed: its body is never read
     if (chain.readsBody) {
       try {
@@ -74,6 +74,7 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
           chain,
           path,
           urlQuery,
+          toHttpMethod(req.method),
           toRpcError(err),
           req.headers,
           responseHeaders,
@@ -82,13 +83,17 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
         );
         return replyFetch(refused, responseHeaders);
       }
-      const queryBody = decodeQueryBody(urlQuery, rawBody);
-      if (queryBody) {
-        rawBody = queryBody.rawBody;
-        reqBodyType = queryBody.bodyType;
-      }
     }
-    const context = createContextFromChain(chain, path, urlQuery, req.headers, responseHeaders, rawBody, reqBodyType);
+    const context = createContextFromChain(
+      chain,
+      path,
+      urlQuery,
+      toHttpMethod(req.method),
+      req.headers,
+      responseHeaders,
+      rawBody,
+      reqBodyType
+    );
     const platformResp = await dispatchWithContext(context, req, platformContext);
     return replyFetch(platformResp, responseHeaders);
   } catch (err) {

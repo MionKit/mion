@@ -13,12 +13,12 @@ import {
   getRouterFatalErrorResponse,
   toRpcError,
   resetRouter,
-  decodeQueryBody,
   setPlatformConfig,
   getDefaultFetchHeaders,
   replyFetch,
   readRequestBody,
   BodyReadStrategy,
+  toHttpMethod,
 } from '@mionjs/router';
 import type {FetchResponseHeaders} from '@mionjs/router';
 import {DEFAULT_VERCEL_OPTIONS} from './constants.ts';
@@ -57,7 +57,7 @@ async function handleRequest(req: Request): Promise<Response> {
     // route resolved BEFORE the body: the chain gives the limit the stream is cancelled at, and a late context stays GC-cheap
     const chain = resolveExecutionChain(path, urlQuery, req);
     let rawBody: any;
-    let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
+    const reqBodyType: SerializerCode = SerializerModes.stringifyJson;
     // a not-found chain (an unknown path or batch id) has no route to feed: its body is never read
     if (chain.readsBody) {
       try {
@@ -68,6 +68,7 @@ async function handleRequest(req: Request): Promise<Response> {
           chain,
           path,
           urlQuery,
+          toHttpMethod(req.method),
           toRpcError(err),
           req.headers,
           responseHeaders,
@@ -76,13 +77,17 @@ async function handleRequest(req: Request): Promise<Response> {
         );
         return replyFetch(refused, responseHeaders);
       }
-      const queryBody = decodeQueryBody(urlQuery, rawBody);
-      if (queryBody) {
-        rawBody = queryBody.rawBody;
-        reqBodyType = queryBody.bodyType;
-      }
     }
-    const context = createContextFromChain(chain, path, urlQuery, req.headers, responseHeaders, rawBody, reqBodyType);
+    const context = createContextFromChain(
+      chain,
+      path,
+      urlQuery,
+      toHttpMethod(req.method),
+      req.headers,
+      responseHeaders,
+      rawBody,
+      reqBodyType
+    );
     const platformResp = await dispatchWithContext(context, req, undefined);
     return replyFetch(platformResp, responseHeaders);
   } catch (err) {
@@ -99,6 +104,8 @@ export function createVercelHandler(options?: Partial<VercelHandlerOptions>) {
     PUT: handleRequest,
     DELETE: handleRequest,
     PATCH: handleRequest,
+    // Next.js answers OPTIONS itself unless exported, and a CORS preflight must reach mion
+    OPTIONS: handleRequest,
   };
 }
 

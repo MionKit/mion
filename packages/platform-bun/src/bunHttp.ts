@@ -13,7 +13,6 @@ import {
   getRouterFatalErrorResponse,
   toRpcError,
   resetRouter,
-  decodeQueryBody,
   setPlatformConfig,
   getMaxRouteBodySize,
   readRequestBody,
@@ -21,12 +20,12 @@ import {
   handOverToHost,
   getDefaultFetchHeaders,
   replyFetch,
+  toHttpMethod,
 } from '@mionjs/router';
 import type {MethodsExecutionChain, FetchResponseHeaders} from '@mionjs/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants.ts';
 import type {BunHttpOptions} from './types.ts';
 import {getENV, SerializerModes} from '@mionjs/core';
-import type {SerializerCode} from '@mionjs/core';
 import {RpcError, FatalError} from '@mionjs/core';
 import {Server} from 'bun';
 
@@ -85,7 +84,17 @@ async function readBodyAndDispatch(
       // unread chunks stay on the socket: close it, or they are parsed as the next request of a kept-alive connection
       if (refusal.type === 'request-payload-too-large') responseHeaders.set('connection', 'close');
       // the route resolved, so the refusal still runs the chain's alwaysRun members
-      const refused = await dispatchPlatformError(chain, path, urlQuery, refusal, req.headers, responseHeaders, req, undefined);
+      const refused = await dispatchPlatformError(
+        chain,
+        path,
+        urlQuery,
+        toHttpMethod(req.method),
+        refusal,
+        req.headers,
+        responseHeaders,
+        req,
+        undefined
+      );
       return replyFetch(refused, responseHeaders);
     }
     return dispatchBody(req, chain, path, urlQuery, responseHeaders, rawBody);
@@ -103,14 +112,17 @@ function dispatchBody(
   responseHeaders: FetchResponseHeaders,
   rawBody: string | undefined
 ): Response | Promise<Response> {
-  let reqRawBody: string | undefined = rawBody;
-  let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
-  const queryBody = chain.readsBody ? decodeQueryBody(urlQuery, rawBody) : undefined;
-  if (queryBody) {
-    reqRawBody = queryBody.rawBody;
-    reqBodyType = queryBody.bodyType;
-  }
-  const context = createContextFromChain(chain, path, urlQuery, req.headers, responseHeaders, reqRawBody, reqBodyType);
+  const method = toHttpMethod(req.method);
+  const context = createContextFromChain(
+    chain,
+    path,
+    urlQuery,
+    method,
+    req.headers,
+    responseHeaders,
+    rawBody,
+    SerializerModes.stringifyJson
+  );
   const platformResp = dispatchMaybeSync(context, req, undefined);
   if (!(platformResp instanceof Promise)) return replyFetch(platformResp, responseHeaders);
   return platformResp

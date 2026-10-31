@@ -3,4 +3,4 @@
 import {createVercelHandler} from '@mionjs/platform-vercel';
 import '../../../src/routes';
 
-export const {GET, POST, PUT, DELETE, PATCH} = createVercelHandler();
+export const {GET, POST, PUT, DELETE, PATCH, OPTIONS} = createVercelHandler();

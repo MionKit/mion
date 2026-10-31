@@ -6,7 +6,7 @@
  * ######## */
 
 import {CoreRouterOptions, ParserOption} from '@mionjs/core';
-import {ContextDataFactory} from './context.ts';
+import {CallContext, ContextDataFactory} from './context.ts';
 import {HeadersMiddlewareDef, MiddlewareDef, RawMiddlewareDef, RouteDef} from './definitions.ts';
 // #######  Router Object #######
 
@@ -72,4 +72,34 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
 export interface HostRequestHandler {
   node?(req: unknown, res: unknown): void;
   fetch?(req: Request): Response | Promise<Response>;
+}
+
+/** Options of `mionSecurity` */
+export interface MionSecurityOptions {
+  /** Trusted to send state-changing requests and, with `cors`, to read answers; a lookup runs only when it matters */
+  origins?: readonly string[] | '*' | ((ctx: CallContext, origin: string) => boolean | Promise<boolean>);
+  /** Lets the trusted origins read answers; off by default */
+  cors?: false | MionCorsSettings;
+  /** Cross-site request forgery checks, each on by default; a body must always be JSON while csrf is on */
+  csrf?: false | MionCsrfSettings;
+}
+
+export interface MionCorsSettings {
+  /** Lets the browser send cookies; the caller's origin is echoed, and `origins: '*'` is refused */
+  credentials?: boolean;
+  /** Seconds the browser caches a preflight answer */
+  maxAge?: number;
+  /** Request headers a raw middleware reads, added to the ones the routes declare */
+  allowHeaders?: string[];
+  /** Response headers a raw middleware sets, added to the ones the routes declare */
+  exposeHeaders?: string[];
+  /** Headers kept off both lists, whoever declares them; still sent, so never a way to hide a secret */
+  excludeHeaders?: string[];
+}
+
+export interface MionCsrfSettings {
+  /** Refuses a request another site sent, unless its origin is trusted */
+  crossOrigin?: boolean;
+  /** A mutation, an intent-less route and a batch accept only POST; a query GET, HEAD and POST */
+  methodByIntent?: boolean;
 }

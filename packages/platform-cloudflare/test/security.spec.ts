@@ -177,3 +177,16 @@ describe('cloudflare adapter: a refused body runs the alwaysRun middlewares', ()
     expect(seen).toEqual(['start:/api/echo', 'log:200']);
   });
 });
+
+describe('cloudflare adapter: the HTTP method', () => {
+  it('puts it on the request', async () => {
+    resetCloudflareHandlerOpts();
+    resetRouter();
+    mion.initRoutes({readMethod: mion.query((ctx: CallContext): string => ctx.request.method)});
+    const handler = createCloudflareHandler();
+    for (const method of ['GET', 'POST', 'OPTIONS']) {
+      const response = await handler.fetch(new Request('http://localhost/api/readMethod', {method}));
+      expect(await response.json()).toEqual({readMethod: method});
+    }
+  });
+});

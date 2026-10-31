@@ -15,6 +15,7 @@ import {getRouteExecutable, getRouterOptions} from '../router.ts';
 import {FatalError, isRpcError} from '@mionjs/core';
 import {RemoteMethod} from '../types/remoteMethods.ts';
 import {recordUndeclaredError} from '../lib/dispatchError.ts';
+import {decodeQueryBody} from '../lib/queryBody.ts';
 
 // ############# PUBLIC METHODS #############
 
@@ -23,9 +24,10 @@ import {recordUndeclaredError} from '../lib/dispatchError.ts';
  * @mion:rawMiddleware
  */
 export function deserializeRequestBody(context: CallContext): MayReturnError {
-  // a request that already failed never parses: a not-found chain has no route to feed and the adapter
+  // a request that already failed or ended never parses: a not-found chain has no route to feed and the adapter
   // skipped the read; a caller that handed a body anyway (aws, gcloud, dispatchRoute) gets the same answer
-  if (!context.readsBody || context.response.hasErrors || !context.request.rawBody) return;
+  if (!context.readsBody || context.response.stopped) return;
+  if (!context.request.rawBody && !readQueryBody(context)) return;
   rejectOversizedBody(context.request.rawBody, context.maxBodySize);
   let parsedBody: any;
   switch (context.request.bodyType) {
@@ -65,6 +67,16 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
   // Nothing reads the raw body after this. An empty string rather than undefined, because `rawBody` is a
   // non-optional public field: it frees the body without making every consumer's read a maybe.
   if (getRouterOptions().releaseRawBody) (context.request as Mutable<MionRequest>).rawBody = '';
+}
+
+/** A body-less request may carry its body in `?data=`; every platform hands the query over as it came */
+function readQueryBody(context: CallContext): boolean {
+  const rawBody = decodeQueryBody(context.urlQuery);
+  if (rawBody === undefined) return false;
+  const request = context.request as Mutable<MionRequest>;
+  request.rawBody = rawBody;
+  request.bodyType = SerializerModes.stringifyJson;
+  return true;
 }
 
 /** The router-level check of the limit the context carries (the chain's number, capped by the platform's).
@@ -132,7 +144,8 @@ function onPrepareForJsonExecutableError(context: CallContext, method: RemoteMet
   const err = new FatalError({
     statusCode: StatusCodes.UNEXPECTED_ERROR,
     type: 'prepare-for-json-response-error',
-    publicMessage: `Failed to prepare return value for JSON for handler ${method.id}, expected response type: ${method.returnJitFns.json.encode.typeName}`,
+    // the return type's name is the server's own: it stays off the wire
+    publicMessage: `Failed to prepare the return value of ${method.id} for JSON.`,
     originalError: e,
     errorData: {methodId: method.id},
   });

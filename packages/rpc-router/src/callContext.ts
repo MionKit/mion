@@ -6,7 +6,7 @@
  * ######## */
 
 import {getRouteExecutionChain, getNotFoundExecutionChain, getRouterOptions} from './router.ts';
-import type {CallContext, MionHeaders, MionRequest, MionResponse, RawRequestBody} from './types/context.ts';
+import type {CallContext, HttpMethod, MionResponse, MionHeaders, MionRequest, RawRequestBody} from './types/context.ts';
 import type {RouterOptions} from './types/general.ts';
 import type {MethodsExecutionChain} from './types/remoteMethods.ts';
 import {StatusCodes, SerializerModes, SerializerCode, FatalError, MION_ROUTES, MION_BATCH_PATH} from '@mionjs/core';
@@ -34,12 +34,14 @@ export function createContextFromChain(
   chain: MethodsExecutionChain,
   path: string,
   urlQuery: string | undefined,
+  method: HttpMethod,
   reqHeaders: MionHeaders,
   respHeaders: MionHeaders,
   reqRawBody?: RawRequestBody,
   reqBodyType?: SerializerCode
 ): CallContext {
   const request: MionRequest = {
+    method,
     headers: reqHeaders,
     rawBody: reqRawBody,
     bodyType: reqBodyType ?? getRequestBodyType(reqRawBody),
@@ -51,10 +53,11 @@ export function createContextFromChain(
     statusCode: StatusCodes.OK,
     contentType: JSON_CONTENT_TYPE,
     hasErrors: false,
+    stopped: false,
     fatalError: undefined,
     headers: respHeaders,
     body: {},
-  } as MionResponse;
+  };
   const contextDataFactory = getRouterOptions().contextDataFactory;
 
   return {
@@ -82,10 +85,11 @@ export function createCallContext(
   reqHeaders: MionHeaders,
   respHeaders: MionHeaders,
   reqRawBody?: RawRequestBody,
-  reqBodyType?: SerializerCode
+  reqBodyType?: SerializerCode,
+  method: HttpMethod = 'POST'
 ): CallContext {
   const chain = resolveExecutionChain(path, urlQuery, rawRequest);
-  return createContextFromChain(chain, path, urlQuery, reqHeaders, respHeaders, reqRawBody, reqBodyType);
+  return createContextFromChain(chain, path, urlQuery, method, reqHeaders, respHeaders, reqRawBody, reqBodyType);
 }
 
 // ############# HELPER FUNCTIONS #############

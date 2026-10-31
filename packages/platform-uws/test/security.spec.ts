@@ -46,7 +46,7 @@ describe('uws adapter hardening', () => {
     expect(response.status).toBe(StatusCodes.UNEXPECTED_ERROR);
     expect(response.headers.get('x-rpc-error')).toBe('invalid-query-body');
     const body = (await response.json()) as RpcBody;
-    expect(body[MION_ROUTES.thrownErrors][MION_ROUTES.platformError].type).toBe('invalid-query-body');
+    expect(body[MION_ROUTES.thrownErrors]['mionDeserializeRequest'].type).toBe('invalid-query-body');
 
     const alive = await fetch(`http://127.0.0.1:${port}/api/echo`, {
       method: 'POST',
@@ -55,15 +55,16 @@ describe('uws adapter hardening', () => {
     expect(alive.status).toBe(200);
   });
 
-  it('a header value carrying CR or LF is dropped instead of written into the response', async () => {
+  it('a header value carrying CR or LF fails the handler instead of being written into the response', async () => {
     const response = await fetch(`http://127.0.0.1:${port}/api/reflectHeader`, {
       method: 'POST',
       body: JSON.stringify({reflectHeader: ['ok\r\nx-injected: 1']}),
     });
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(StatusCodes.UNEXPECTED_ERROR);
     expect(response.headers.get('x-injected')).toBeNull();
     expect(response.headers.get('x-reflected')).toBeNull();
-    expect(await response.json()).toEqual({reflectHeader: 'ok\r\nx-injected: 1'});
+    const body = (await response.json()) as RpcBody;
+    expect(body[MION_ROUTES.thrownErrors].reflectHeader.type).toBe('unknown-error');
   });
 
   it('a clean header value is written', async () => {
@@ -206,5 +207,28 @@ describe('uws adapter: a refused request', () => {
         expect(await alive.json()).toEqual({echo: {name: 'a', surname: 'b'}});
       }
     );
+  });
+});
+
+describe('uws adapter: the HTTP method', () => {
+  const methodsPort = 8298;
+  let server: UwsServer;
+
+  beforeAll(async () => {
+    resetUwsHttpOpts();
+    resetRouter();
+    mion.initRoutes({readMethod: mion.query((ctx: CallContext): string => ctx.request.method)});
+    setUwsHttpOpts({port: methodsPort});
+    server = await startUwsServer();
+  });
+
+  afterAll(() => server.close());
+
+  it('puts it on the request, uppercase, including one outside the constant map', async () => {
+    const url = `http://127.0.0.1:${methodsPort}/api/readMethod`;
+    for (const method of ['GET', 'POST', 'PUT'])
+      expect(await (await fetch(url, {method, headers: {'content-type': 'application/json'}})).json()).toEqual({
+        readMethod: method,
+      });
   });
 });

@@ -247,8 +247,7 @@ describe('serverless router', () => {
   });
 
   describe('the request limit, whatever shape express hands the body over in', () => {
-    // express parses a `application/json` request into an object, and an object has no wire size
-    // the router can measure, so every one of these shapes has to be refused by the adapter
+    // express may parse the body into an object the router cannot measure, so the adapter enforces the limit
     const limitPort = 8099;
     let limitServer: Server;
     // 113 bytes on the wire against a 50 byte limit
@@ -302,8 +301,7 @@ describe('serverless router', () => {
     });
 
     it('refuses an over-limit parsed body sent chunked, which declares no content-length', async () => {
-      // a stream body makes node send `transfer-encoding: chunked`, so the declared length the
-      // other two are refused on is simply not there and the exact bytes have to be measured
+      // chunked: no content-length to refuse on, so the exact bytes have to be measured
       const chunked = new ReadableStream({
         start(controller) {
           controller.enqueue(new TextEncoder().encode(overLimitBody));
@@ -404,6 +402,35 @@ describe('serverless router', () => {
       });
       expect(response.status).toEqual(StatusCodes.OK);
       expect(seen).toEqual(['start:/api/echo', 'log:200']);
+    });
+  });
+
+  describe('the HTTP method', () => {
+    const methodsPort = 8299;
+    let methodsServer: Server;
+
+    beforeAll(async () => {
+      resetGoogleCFOpts();
+      resetRouter();
+      mion.initRoutes({readMethod: mion.query((ctx: CallContext): string => ctx.request.method)});
+      methodsServer = await new Promise<Server>((resolve) => {
+        functions.http('HelloTestsMethods', googleCFHandler);
+        const expressServer = getTestServer('HelloTestsMethods');
+        expressServer.listen(methodsPort, () => resolve(expressServer));
+      });
+    });
+
+    afterAll(async () => {
+      await closeServer(methodsServer);
+      resetGoogleCFOpts();
+      resetRouter();
+    });
+
+    it('puts it on the request', async () => {
+      for (const method of ['GET', 'POST', 'OPTIONS']) {
+        const response = await fetch(`http://127.0.0.1:${methodsPort}/api/readMethod`, {method});
+        expect(await response.json()).toEqual({readMethod: method});
+      }
     });
   });
 });

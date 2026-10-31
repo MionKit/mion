@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody} from './types/context.ts';
+import type {CallContext, HttpMethod, MionResponse, MionRequest, MionHeaders, RawRequestBody} from './types/context.ts';
 import {type RouterOptions} from './types/general.ts';
 import {HeadersMethod, RemoteMethod, RawMethod} from './types/remoteMethods.ts';
 import type {MethodsExecutionChain} from './types/remoteMethods.ts';
@@ -30,9 +30,10 @@ export async function dispatchRoute<Req, Resp>(
   rawRequest: Req,
   rawResponse?: Resp,
   reqBodyType?: SerializerCode,
-  urlQuery?: string
+  urlQuery?: string,
+  method: HttpMethod = 'POST'
 ): Promise<MionResponse> {
-  const context = createCallContext(path, urlQuery, rawRequest, reqHeaders, respHeaders, reqRawBody, reqBodyType);
+  const context = createCallContext(path, urlQuery, rawRequest, reqHeaders, respHeaders, reqRawBody, reqBodyType, method);
   return dispatchWithContext(context, rawRequest, rawResponse);
 }
 
@@ -75,13 +76,14 @@ export function dispatchPlatformError<Req, Resp>(
   chain: MethodsExecutionChain,
   path: string,
   urlQuery: string | undefined,
+  method: HttpMethod,
   platformError: RpcError<string>,
   reqHeaders: MionHeaders,
   respHeaders: MionHeaders,
   rawRequest: Req,
   rawResponse?: Resp
 ): Promise<MionResponse> {
-  const context = createContextFromChain(chain, path, urlQuery, reqHeaders, respHeaders);
+  const context = createContextFromChain(chain, path, urlQuery, method, reqHeaders, respHeaders);
   recordUndeclaredError(context, MION_ROUTES.platformError, platformError);
   return dispatchWithContext(context, rawRequest, rawResponse);
 }
@@ -95,14 +97,15 @@ async function runExecutionChain(
   opts: RouterOptions,
   startIndex: number
 ): Promise<MionResponse> {
-  const {response, request, executionChain} = context;
+  const {request, executionChain} = context;
+  const response = context.response;
   // `alwaysAwait: false` skips the await on sync steps: awaiting one only costs a promise frame
   const alwaysAwait = opts.alwaysAwait;
   const executionList = executionChain.methods;
   const executionCount = executionList.length;
   for (let i = startIndex; i < executionCount; i++) {
     const executable = executionList[i];
-    if (response.hasErrors && !executable.alwaysRun) continue;
+    if (response.stopped && !executable.alwaysRun) continue;
 
     try {
       // runRawMiddleware, runHeadersMiddleware & runRouteOrMiddleware must take the same params in the same order
@@ -131,12 +134,13 @@ function runSyncExecutionChain(
   rawResponse: unknown,
   opts: RouterOptions
 ): MionResponse | Promise<MionResponse> {
-  const {response, request, executionChain} = context;
+  const {request, executionChain} = context;
+  const response = context.response;
   const executionList = executionChain.methods;
   const executionCount = executionList.length;
   for (let i = 0; i < executionCount; i++) {
     const executable = executionList[i];
-    if (response.hasErrors && !executable.alwaysRun) continue;
+    if (response.stopped && !executable.alwaysRun) continue;
     if (executable.isAsync) return runExecutionChain(context, rawRequest, rawResponse, opts, i);
 
     try {

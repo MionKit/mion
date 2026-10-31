@@ -330,4 +330,48 @@ describe('serverless router', () => {
       expect(seen).toEqual(['start:/api/echo', 'log:200']);
     });
   });
+
+  it('puts the HTTP method on the request', async () => {
+    resetAwsLambdaOpts();
+    mion.initRoutes({readMethod: mion.query((ctx: CallContext): string => ctx.request.method)});
+    for (const method of ['GET', 'POST', 'OPTIONS']) {
+      const {event, context} = getDefaultGatewayEvent('', '/api/readMethod', method);
+      expect(JSON.parse((await awsLambdaHandler(event, context)).body)).toEqual({readMethod: method});
+    }
+  });
+
+  it('answers a throw that is no mion error with the shared unknown-error wrapper', async () => {
+    resetAwsLambdaOpts();
+    // the router calls it once at init to check its shape, so only a request's call throws
+    let calls = 0;
+    const failing = createMionRouter({
+      basePath: 'api/',
+      contextDataFactory: () => {
+        if (calls++) throw new Error('secret detail');
+        return {checked: true};
+      },
+    });
+    failing.initRoutes({ping: failing.route((): string => 'pong')});
+    const {event, context} = getDefaultGatewayEvent('', '/api/ping');
+    const response = await awsLambdaHandler(event, context);
+    const error = JSON.parse(response.body)[MION_ROUTES.thrownErrors][MION_ROUTES.platformError];
+    expect(error).toMatchObject({type: 'unknown-error', publicMessage: 'Unknown Error'});
+    expect(response.body).not.toContain('secret detail');
+    resetAwsLambdaOpts();
+  });
+
+  it('fails a handler that sets a header with CR or LF, and writes no injected header', async () => {
+    resetAwsLambdaOpts();
+    mion.initRoutes({
+      reflect: mion.route((ctx: CallContext, value: string): string => {
+        ctx.response.headers.set('x-reflected', value);
+        return value;
+      }),
+    });
+    const {event, context} = getDefaultGatewayEvent(JSON.stringify({reflect: ['ok\r\nx-injected: 1']}), '/api/reflect');
+    const response = await awsLambdaHandler(event, context);
+    expect(response.headers?.['x-injected']).toBeUndefined();
+    expect(response.headers?.['x-reflected']).toBeUndefined();
+    expect(JSON.parse(response.body)[MION_ROUTES.thrownErrors].reflect.type).toBe('unknown-error');
+  });
 });

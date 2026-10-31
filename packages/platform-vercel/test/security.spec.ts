@@ -175,3 +175,17 @@ describe('vercel adapter: a refused body runs the alwaysRun middlewares', () => 
     expect(seen).toEqual(['start:/api/echo', 'log:200']);
   });
 });
+
+describe('vercel adapter: the HTTP method', () => {
+  it('puts it on the request, and exports OPTIONS so a CORS preflight reaches mion', async () => {
+    resetVercelHandlerOpts();
+    resetRouter();
+    mion.initRoutes({readMethod: mion.query((ctx: CallContext): string => ctx.request.method)});
+    const handler = createVercelHandler();
+    expect(handler.OPTIONS).toBe(handler.POST);
+    for (const method of ['GET', 'POST', 'OPTIONS'] as const) {
+      const response = await handler[method](new Request('http://localhost/api/readMethod', {method}));
+      expect(await response.json()).toEqual({readMethod: method});
+    }
+  });
+});

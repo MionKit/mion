@@ -6,6 +6,7 @@
  * ######## */
 
 import type {HostRequestHandler, Route, RouterOptions, Routes, RouterEntry} from './types/general.ts';
+import {assertHeaderSafe} from './lib/headers.ts';
 import type {
   RemoteMethod,
   MethodsExecutionChain,
@@ -17,7 +18,7 @@ import type {
 import type {PublicApi, PrivateDef, MiddlewaresCollection} from './types/publicMethods.ts';
 import type {HeadersMiddlewareDef, MiddlewareDef, RawMiddlewareDef} from './types/definitions.ts';
 import type {ResponseDefaults} from './types/context.ts';
-import {DEFAULT_ROUTE_OPTIONS, JSON_CONTENT_TYPE, MAX_ROUTE_NESTING} from './constants.ts';
+import {DEFAULT_ROUTE_OPTIONS, JSON_CONTENT_TYPE, MAX_ROUTE_NESTING, MION_SERVER_NAME} from './constants.ts';
 import {
   isRawMiddlewareDef,
   isHeadersMiddlewareDef,
@@ -749,8 +750,12 @@ function refreshChainBodyLimits(): void {
 /** `server` first so the option can replace it, `content-type` last so it cannot; lowercased, or `Headers` would
  *  append a name repeated in another case. */
 function mergeResponseDefaults(responseHeaders: Record<string, string>): ResponseDefaults {
-  const merged: Record<string, string> = {server: 'mionjs'};
-  for (const name in responseHeaders) merged[name.toLowerCase()] = responseHeaders[name];
+  const merged: Record<string, string> = {server: MION_SERVER_NAME};
+  for (const name in responseHeaders) {
+    // refused at startup, so no adapter ever writes a bad default
+    assertHeaderSafe(name, responseHeaders[name]);
+    merged[name.toLowerCase()] = responseHeaders[name];
+  }
   merged['content-type'] = JSON_CONTENT_TYPE;
   return merged;
 }

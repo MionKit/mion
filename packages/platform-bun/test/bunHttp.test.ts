@@ -389,3 +389,17 @@ describe('bun: a router with the default alwaysAwait', () => {
     expect(errors.failing).toBeDefined();
   });
 });
+
+describe('bun adapter: the HTTP method', () => {
+  // built in the test, never in the describe body: bun runs every test file of the package in one process
+  test('puts it on the request', async () => {
+    resetBunHttpOpts();
+    resetRouter();
+    const mion = createMionRouter({basePath: 'api/'});
+    mion.initRoutes({readMethod: mion.query((ctx: CallContext): string => ctx.request.method)});
+    for (const method of ['GET', 'POST', 'OPTIONS']) {
+      const response = await bunRequestHandler(new Request('http://127.0.0.1/api/readMethod', {method}));
+      expect(await response.json()).toEqual({readMethod: method});
+    }
+  });
+});

@@ -2,6 +2,7 @@ package apimeta
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strings"
 	"testing"
@@ -390,6 +391,38 @@ export const a = routes.r(1).call();
 	}
 	if _, present := tree.ById["r"].Options["sanitizeParams"]; present {
 		t.Errorf("a widened option must stay unset")
+	}
+}
+
+// Every value shape readOptions meets has a row: read whole, or reported widened, never guessed.
+func TestReadOptions_EveryValueShapeHasARow(t *testing.T) {
+	overlay := setupOverlay(t, map[string]string{"a.ts": `import {initClient} from '@mionjs/client';
+type Api = {r: {type: 1; handler: (n: number) => Promise<number>; options: {
+  literal: 'x'; optional?: 7; union: boolean; nested: {inner: true}; wide: number; gone: undefined;
+}; types?: {params: [n: number]; return: number; headers: never; isAsync: false}}};
+const {routes} = initClient<Api>({});
+export const a = routes.r(1).call();
+`})
+	sites, _ := overlay.extract()
+	tree, problem := WalkApi(sites[0].Checker, sites[0].ApiType)
+	if problem != "" {
+		t.Fatalf("WalkApi: %s", problem)
+	}
+	options := tree.ById["r"].Options
+	read := map[string]any{"literal": "x", "optional": float64(7), "nested": map[string]any{"inner": true}}
+	for name, want := range read {
+		if fmt.Sprint(options[name]) != fmt.Sprint(want) {
+			t.Errorf("%s: read %v, want %v", name, options[name], want)
+		}
+	}
+	if got := strings.Join(tree.ById["r"].WidenedOptions, ","); got != "union,wide" {
+		t.Errorf("widened %s", got)
+	}
+	if _, present := options["gone"]; present {
+		t.Errorf("an undefined option must be absent")
+	}
+	if len(options) != len(read) {
+		t.Errorf("unexpected options %v", options)
 	}
 }
 

@@ -38,8 +38,23 @@ export interface CallContext<ContextData extends Record<string, any> = any> {
 /** Request body as the adapter hands it over: a JSON string, or an object a host already parsed */
 export type RawRequestBody = string | AnyObject;
 
+/** Every standard HTTP method plus QUERY; an adapter hands any other method over as `OTHER` */
+export type HttpMethod =
+  | 'GET'
+  | 'HEAD'
+  | 'POST'
+  | 'PUT'
+  | 'DELETE'
+  | 'CONNECT'
+  | 'OPTIONS'
+  | 'TRACE'
+  | 'PATCH'
+  | 'QUERY'
+  | 'OTHER';
+
 /** Router's own request object, do not confuse with the underlying raw request */
 export interface MionRequest {
+  readonly method: HttpMethod;
   readonly headers: Readonly<Omit<MionHeaders, 'append' | 'set' | 'delete'>>;
   readonly rawBody: RawRequestBody;
   readonly bodyType: SerializerCode;
@@ -59,6 +74,8 @@ export interface MionResponse {
   readonly body: Readonly<ResponseBody>;
   /** true once something ended the execution chain: a thrown error or a returned FatalError */
   readonly hasErrors: boolean;
+  /** true once the chain stopped: an error (`hasErrors`) or `endChain`. Later members run only if `alwaysRun`. */
+  readonly stopped: boolean;
   /** The error that ended the chain (thrown or a returned FatalError), first one wins. An `alwaysRun` logger reads it here. */
   readonly fatalError?: RpcError<string>;
 }

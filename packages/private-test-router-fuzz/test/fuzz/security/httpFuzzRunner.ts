@@ -13,6 +13,8 @@
 //   SH-NOLEAK    no engine error text and no file path in any response
 //   SH-TIME      one request inside its time budget
 //   SH-PROTO     Object.prototype untouched after the run
+//   SH-GATE      behind mionSecurity, a route runs exactly when its intent accepts the method, the request is
+//                same-origin or trusted, and any body is typed JSON (the gate lane, over raw HTTP)
 
 import {createConnection} from 'node:net';
 import type {Server} from 'node:http';
@@ -25,7 +27,6 @@ import {
   setPlatformConfig,
   dispatchRoute,
   headersFromRecord,
-  decodeQueryBody,
   registerBatches,
   getRouterFatalErrorResponse,
 } from '@mionjs/router';
@@ -33,6 +34,7 @@ import type {MionResponse} from '@mionjs/router';
 import {HeadersSubset, MION_BATCH_PATH, MION_ROUTES, SerializerModes, toBase64Url} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {setNodeHttpOpts, startNodeServer, resetNodeHttpOpts} from '@mionjs/platform-node';
+import {mionSecurity} from '@mionjs/router/middlewares';
 import {compactTestRoutes} from '@mionjs/test-server';
 
 // the test-server fixture module already created its own factory at import: clear the once-guard first
@@ -41,7 +43,7 @@ const mion = createMionRouter({contextDataFactory: () => ({user: null})});
 
 // ############# oracles #############
 
-export type HttpOracleId = 'SH-ALIVE' | 'SH-ENVELOPE' | 'SH-NO5XX' | 'SH-NOLEAK' | 'SH-TIME' | 'SH-PROTO';
+export type HttpOracleId = 'SH-ALIVE' | 'SH-ENVELOPE' | 'SH-NO5XX' | 'SH-NOLEAK' | 'SH-TIME' | 'SH-PROTO' | 'SH-GATE';
 
 export interface HttpViolation {
   oracle: HttpOracleId;
@@ -122,6 +124,9 @@ type User = {name: string; surname: string; age: number; tags: string[]; joined:
 type Tree = {value: number; children: Tree[]};
 type Either = Date | bigint | {kind: 'a'; n: number} | string;
 
+const gateRuns = {save: 0, read: 0, ping: 0};
+const GATE_TRUSTED_ORIGIN = 'https://app.example.com';
+
 const routes = {
   auth: mion.headersMiddleware((ctx, h: HeadersSubset<'authorization'>): void => undefined),
   session: mion.middleware((ctx, token?: string): {ok: boolean} => ({ok: token === 'good'})),
@@ -142,6 +147,13 @@ const routes = {
     throw new Error('handler exploded with a secret /home/user/app.ts:12');
   }),
   compact: compactTestRoutes,
+  // the gate lane counts runs: a route that ran is the observation its oracle checks
+  gate: {
+    mionSecurity: mionSecurity({origins: [GATE_TRUSTED_ORIGIN]}),
+    save: mion.mutation((ctx): number => ++gateRuns.save),
+    read: mion.query((ctx): number => ++gateRuns.read),
+    ping: mion.route((ctx): number => ++gateRuns.ping),
+  },
 };
 
 const VALID_USER: User = {
@@ -515,22 +527,11 @@ function describeAttack(attack: Attack): string {
   return `${attack.path}${attack.urlQuery ? `?${attack.urlQuery.slice(0, 80)}` : ''} headers=${JSON.stringify(attack.headers).slice(0, 120)} body=${body}`;
 }
 
-/** One in-process request, adapter-style: the query body is decoded first, as every adapter does. */
+/** Adapter-style: body and query go in as they came; the router decodes `?data=` */
 async function dispatchAttack(attack: Attack): Promise<MionResponse> {
   const reqHeaders = headersFromRecord(attack.headers);
   const respHeaders = headersFromRecord({});
-  let body: string | Uint8Array | undefined = attack.body;
-  let bodyType: SerializerCode = SerializerModes.stringifyJson;
-  try {
-    const query = decodeQueryBody(attack.urlQuery, body);
-    if (query) {
-      body = query.rawBody;
-      bodyType = query.bodyType;
-    }
-  } catch (err) {
-    // an adapter turns this into the fatal envelope; the in-process layer treats it as answered
-    return getRouterFatalErrorResponse(err as never, respHeaders);
-  }
+  const body = attack.body;
   return dispatchRoute(
     attack.path,
     body as never,
@@ -538,7 +539,7 @@ async function dispatchAttack(attack: Attack): Promise<MionResponse> {
     respHeaders,
     {headers: reqHeaders, body},
     {},
-    bodyType,
+    SerializerModes.stringifyJson,
     attack.urlQuery
   );
 }
@@ -831,4 +832,139 @@ export function renderHttpViolations(violations: HttpViolation[], limit = 25): s
     .map((v) => `  [${v.oracle}] ${v.attack} (seed=0x${v.seed.toString(16)}): ${v.message}\n      ${v.input}`);
   if (violations.length > limit) lines.push(`  …and ${violations.length - limit} more`);
   return lines.join('\n');
+}
+
+// ############# the method + content-type gate (node adapter) #############
+
+type GateRoute = keyof typeof gateRuns;
+
+/** By intent: a query reads, a mutation and an intent-less route only POST */
+const GATE_METHODS: Record<GateRoute, readonly string[]> = {
+  save: ['POST'],
+  read: ['GET', 'HEAD', 'POST'],
+  ping: ['POST'],
+};
+const GATE_ROUTES = Object.keys(GATE_METHODS) as GateRoute[];
+// node refuses lowercase and unknown names with its own 400, before mion: they must not run either
+const GATE_METHOD_POOL = ['GET', 'HEAD', 'POST', 'QUERY', 'OPTIONS', 'PUT', 'DELETE', 'PATCH', 'get', 'Post', 'TRACE'];
+const GATE_CONTENT_TYPES: Array<string | undefined> = [
+  undefined,
+  'application/json',
+  'application/json; charset=utf-8',
+  'APPLICATION/JSON',
+  'text/plain',
+  'TEXT/PLAIN;charset=UTF-8',
+  'text/plain ; charset=utf-8',
+  'application/x-www-form-urlencoded',
+  'multipart/form-data; boundary=----x',
+  'application/octet-stream',
+  'text/json',
+  'application/vnd.api+json',
+];
+const GATE_FETCH_SITES = [undefined, 'same-origin', 'none', 'same-site', 'cross-site'];
+// `http://x` is the Host the wire below sends, so it reads as same-origin without Sec-Fetch-Site
+const GATE_ORIGINS = [undefined, GATE_TRUSTED_ORIGIN, 'https://evil.example', 'null', 'http://x', 'not a url'];
+
+export interface GateRequest {
+  route: GateRoute;
+  method: string;
+  contentType: string | undefined;
+  secFetchSite: string | undefined;
+  origin: string | undefined;
+  /** where the route's params travel: the body, the `?data=` query, or nowhere */
+  carrier: 'body' | 'query' | 'none';
+}
+
+/** The oracle, written from mionSecurity's contract alone, not its code */
+function gateShouldRun({route, method, contentType, secFetchSite, origin}: GateRequest): boolean {
+  if (!GATE_METHODS[route].includes(method)) return false;
+  if (method === 'GET' || method === 'HEAD') return true;
+  const trusted = origin === GATE_TRUSTED_ORIGIN;
+  const sameOrigin = secFetchSite
+    ? secFetchSite === 'same-origin' || secFetchSite === 'none' || trusted
+    : origin === undefined || trusted || origin === 'http://x';
+  if (!sameOrigin) return false;
+  if (contentType === undefined) return false;
+  return contentType.split(';')[0].trim().toLowerCase() === 'application/json';
+}
+
+/** SH-GATE: a violation message when what happened is not what the rule says */
+export function checkGate(request: GateRequest, ran: boolean): string | null {
+  const expected = gateShouldRun(request);
+  if (ran === expected) return null;
+  return expected
+    ? 'the route was refused although its methods and content type allow it'
+    : 'the route ran although the gate must refuse it';
+}
+
+function buildGateRequest(rng: Rng): GateRequest {
+  return {
+    route: rng.pick(GATE_ROUTES),
+    method: rng.pick(GATE_METHOD_POOL),
+    contentType: rng.pick(GATE_CONTENT_TYPES),
+    secFetchSite: rng.pick(GATE_FETCH_SITES),
+    origin: rng.pick(GATE_ORIGINS),
+    carrier: rng.pick(['body', 'query', 'none'] as const),
+  };
+}
+
+function gateWire(request: GateRequest): string {
+  const path = `/gate/${request.route}`;
+  const id = `gate/${request.route}`;
+  const body = JSON.stringify({[id]: []});
+  const query = request.carrier === 'query' ? `?data=${toBase64Url(body)}` : '';
+  const sent = request.carrier === 'body' ? body : '';
+  const contentType = request.contentType === undefined ? '' : `Content-Type: ${request.contentType}\r\n`;
+  const site = request.secFetchSite === undefined ? '' : `Sec-Fetch-Site: ${request.secFetchSite}\r\n`;
+  const origin = request.origin === undefined ? '' : `Origin: ${request.origin}\r\n`;
+  return (
+    `${request.method} ${path}${query} HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer ok\r\n${contentType}${site}${origin}` +
+    `Content-Length: ${Buffer.byteLength(sent)}\r\nConnection: close\r\n\r\n${sent}`
+  );
+}
+
+export interface GateReport {
+  violations: HttpViolation[];
+  /** requests sent, by whether the rule said the route runs */
+  outcomes: {ran: number; refused: number};
+}
+
+/** Seeded requests at the node adapter, each checked against SH-GATE; every step replays from its seed. */
+export async function runGateFuzz(seed: number, iterations: number): Promise<GateReport> {
+  resetNodeHttpOpts();
+  await openLane();
+  setNodeHttpOpts({port: 0, maxBodySize: 64_000});
+  const server: Server = (await startNodeServer()) as Server;
+  const port = (server.address() as {port: number}).port;
+  const violations: HttpViolation[] = [];
+  const outcomes = {ran: 0, refused: 0};
+  try {
+    const seeds = mulberry32(seed);
+    for (let i = 0; i < iterations; i++) {
+      const stepSeed = Math.floor(seeds() * 0xffffffff);
+      const request = buildGateRequest(makeRng(stepSeed));
+      const before = gateRuns[request.route];
+      const wire = gateWire(request);
+      const answer = await rawSocketRequest(port, wire);
+      const ran = gateRuns[request.route] > before;
+      outcomes[gateShouldRun(request) ? 'ran' : 'refused']++;
+      const message = checkGate(request, ran);
+      if (message)
+        violations.push({
+          oracle: 'SH-GATE',
+          attack: `gate.${request.method}`,
+          seed: stepSeed,
+          message: `${message} (status ${answer.status})`,
+          input: JSON.stringify(request),
+        });
+    }
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+  return {violations, outcomes};
+}
+
+/** Replays one gate step by the seed its violation printed. */
+export function replayGateRequest(stepSeed: number): GateRequest {
+  return buildGateRequest(makeRng(stepSeed));
 }

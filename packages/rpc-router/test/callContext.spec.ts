@@ -10,8 +10,10 @@
 import {describe, it, expect, beforeEach} from 'vitest';
 import {createMionRouter, resetRouter} from '../src/router.ts';
 import {dispatchRoute} from '../src/dispatch.ts';
+import {createCallContext} from '../src/callContext.ts';
 import {headersFromRecord} from '../src/lib/headers.ts';
-import type {CallContext} from '../src/types/context.ts';
+import {toHttpMethod} from '../src/lib/httpMethod.ts';
+import type {CallContext, HttpMethod} from '../src/types/context.ts';
 
 type User = {name: string; surname: string};
 
@@ -73,5 +75,38 @@ describe('call context per request', () => {
     expect(seen.length).toBe(50);
     expect(new Set(seen).size).toBe(50);
     expect(seen.map((ctx) => (ctx.shared as {tag: string}).tag).sort()).toEqual([...names].sort());
+  });
+});
+
+describe('request.method', () => {
+  const dispatch = (method?: HttpMethod) =>
+    dispatchRoute('/readMethod', '{}', headersFromRecord({}), headersFromRecord({}), {}, {}, undefined, undefined, method);
+
+  beforeEach(() => {
+    resetRouter();
+    const mion = createMionRouter();
+    mion.initRoutes({readMethod: mion.query((ctx: CallContext): string => ctx.request.method)});
+  });
+
+  it('is POST when the caller names none', async () => {
+    expect((await dispatch()).body.readMethod).toBe('POST');
+    expect(createCallContext('/readMethod', undefined, {}, headersFromRecord({}), headersFromRecord({})).request.method).toBe(
+      'POST'
+    );
+  });
+
+  it('is the method the caller passes, and the router refuses none of them', async () => {
+    for (const method of ['GET', 'OPTIONS', 'PUT', 'OTHER'] as const)
+      expect((await dispatch(method)).body.readMethod).toBe(method);
+  });
+});
+
+describe('toHttpMethod', () => {
+  it('keeps every standard method and QUERY, and maps anything else to OTHER', () => {
+    for (const method of ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'CONNECT', 'OPTIONS', 'TRACE', 'PATCH', 'QUERY'])
+      expect(toHttpMethod(method)).toBe(method);
+    // HTTP methods are case sensitive; a prototype name must not read Object.prototype
+    for (const method of ['get', 'Post', 'PROPFIND', 'constructor', '__proto__', '', undefined])
+      expect(toHttpMethod(method)).toBe('OTHER');
   });
 });

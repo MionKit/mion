@@ -172,7 +172,7 @@ describe('security: query body', () => {
     (urlQuery) => {
       let caught: unknown;
       try {
-        decodeQueryBody(urlQuery, undefined);
+        decodeQueryBody(urlQuery);
       } catch (err) {
         caught = err;
       }
@@ -183,8 +183,8 @@ describe('security: query body', () => {
   );
 
   it('a well-formed value still decodes, with or without padding', () => {
-    expect(decodeQueryBody(`data=${toBase64Url('{"a":1}')}`, undefined)?.rawBody).toBe('{"a":1}');
-    expect(decodeQueryBody('data=eyJhIjoxfQ==', undefined)?.rawBody).toBe('{"a":1}');
+    expect(decodeQueryBody(`data=${toBase64Url('{"a":1}')}`)).toBe('{"a":1}');
+    expect(decodeQueryBody('data=eyJhIjoxfQ==')).toBe('{"a":1}');
   });
 });
 
@@ -306,5 +306,19 @@ describe('security: middleware metadata is not access control', () => {
     const withParams = mion.middleware((ctx, token: string): void => undefined);
     mion.initRoutes({silent, withParams, open: mion.route((ctx): string => 'x')});
     expect(getAllExecutablesIds()).toEqual(expect.arrayContaining(['silent', 'withParams', 'open']));
+  });
+});
+
+describe('security: a return value that fails to encode', () => {
+  it('names the route, never its return type', async () => {
+    resetRouter();
+    type SecretShape = {when: Date};
+    const mion = createMionRouter();
+    mion.initRoutes({broken: mion.route((): SecretShape => ({when: 'not a date'}) as unknown as SecretShape)});
+    const response = await dispatchRoute('/broken', '{}', headersFromRecord({}), headersFromRecord({}), {}, {});
+    const error = response.body[MION_ROUTES.thrownErrors]?.broken;
+    expect(error?.type).toBe('prepare-for-json-response-error');
+    expect(error?.publicMessage).toBe('Failed to prepare the return value of broken for JSON.');
+    expect(JSON.stringify(response.body)).not.toContain('SecretShape');
   });
 });

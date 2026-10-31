@@ -3,4 +3,4 @@ import {createVercelHandler} from '@mionjs/platform-vercel';
 import './routes-example.ts';
 
 // the App Router method handlers Next expects
-export const {GET, POST, PUT, DELETE, PATCH} = createVercelHandler();
+export const {GET, POST, PUT, DELETE, PATCH, OPTIONS} = createVercelHandler();

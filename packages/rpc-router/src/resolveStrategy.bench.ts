@@ -93,6 +93,7 @@ function fillContext(ctx: CallContext, reqHeaders: MionHeaders, respHeaders: Mio
   mutable.response = {
     statusCode: StatusCodes.OK,
     hasErrors: false,
+    stopped: false,
     fatalError: undefined,
     headers: respHeaders,
     body: {},
@@ -116,6 +117,7 @@ function buildContextFromChain(
     response: {
       statusCode: StatusCodes.OK,
       hasErrors: false,
+      stopped: false,
       fatalError: undefined,
       headers: respHeaders,
       body: {},
