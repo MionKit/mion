@@ -5,7 +5,7 @@ import {mionCors, mionFetchMetadata} from '@mionjs/router/middlewares';
 const mion = createMionRouter();
 
 const routes = {
-  // first: a preflight carries none of your headers, so auth must not run before it
+  // first, before the auth middleware
   cors: mionCors({
     origin: ['https://app.example.com'],
     credentials: true,

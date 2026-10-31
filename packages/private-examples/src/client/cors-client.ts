@@ -1,9 +1,9 @@
 import {initClient} from '@mionjs/client';
 import type {MyApi} from '../router/cors.routes.ts';
 
-// the API is on another origin; `include` sends its cookies, which needs `credentials: true` on the server
 const {routes} = initClient<MyApi>({
   baseURL: 'https://api.example.com',
+  // needs `credentials: true` on the server
   fetchOptions: {credentials: 'include'},
 });
 
