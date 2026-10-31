@@ -284,15 +284,6 @@ function fatalFail(res: HttpResponse, state: {aborted: boolean}, respHeaders: Mi
   reply(res, state, routeResponse);
 }
 
-function isHeaderSafe(text: string): boolean {
-  // one pass, no allocation: a CR, LF or NUL anywhere makes the header unsafe to write
-  for (let i = 0; i < text.length; i++) {
-    const code = text.charCodeAt(i);
-    if (code === 13 || code === 10 || code === 0) return false;
-  }
-  return true;
-}
-
 /** The line is a pure function of the code, so it is built once per code rather than per response. */
 const statusLines = new Map<number, string>();
 function statusLine(statusCode: number): string {
@@ -314,14 +305,12 @@ function reply(res: HttpResponse, state: {aborted: boolean}, mionResp: MionRespo
 
   // cork makes one syscall; uWS headers are write-only and must all precede end().
   // content-length is skipped: uWS writes its own, and a duplicate corrupts the response.
-  // uWS writes headers unchecked, so an echoed CR or LF would be header injection: dropped
-  const write = (name: string, value: string) => {
-    if (isHeaderSafe(value)) res.writeHeader(name, value);
-  };
+  // the header store refused any CR, LF or NUL when it was set
+  const write = (name: string, value: string) => res.writeHeader(name, value);
   res.cork(() => {
     res.writeStatus(statusLine(mionResp.statusCode));
     headers.forEach((name, value) => {
-      if (name === 'content-length' || name === 'content-type' || !isHeaderSafe(name)) return;
+      if (name === 'content-length' || name === 'content-type') return;
       if (typeof value === 'string') write(name, value);
       // RFC 6265 forbids folding set-cookie; uWS writes a repeated name as its own line
       else if (name === 'set-cookie') for (const cookie of value) write(name, cookie);

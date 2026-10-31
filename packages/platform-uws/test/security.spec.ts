@@ -55,15 +55,16 @@ describe('uws adapter hardening', () => {
     expect(alive.status).toBe(200);
   });
 
-  it('a header value carrying CR or LF is dropped instead of written into the response', async () => {
+  it('a header value carrying CR or LF fails the handler instead of being written into the response', async () => {
     const response = await fetch(`http://127.0.0.1:${port}/api/reflectHeader`, {
       method: 'POST',
       body: JSON.stringify({reflectHeader: ['ok\r\nx-injected: 1']}),
     });
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(StatusCodes.UNEXPECTED_ERROR);
     expect(response.headers.get('x-injected')).toBeNull();
     expect(response.headers.get('x-reflected')).toBeNull();
-    expect(await response.json()).toEqual({reflectHeader: 'ok\r\nx-injected: 1'});
+    const body = (await response.json()) as RpcBody;
+    expect(body[MION_ROUTES.thrownErrors].reflectHeader.type).toBe('unknown-error');
   });
 
   it('a clean header value is written', async () => {
