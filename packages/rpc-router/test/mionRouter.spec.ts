@@ -241,7 +241,7 @@ describe('PublicApi resolved options', () => {
     >();
     expect(defs.q).not.toHaveProperty('routerOptions');
 
-    // runtime agrees with the type, except a route's settled request limit and default methods, which exist only at registration
+    // runtime matches the type, except the settled request limit and default methods, set only at registration
     const api = compact.initRoutes(defs);
     const {maxBodySize: settledLimit, httpMethods: defaultMethods, ...qOptions} = api.q.options;
     expect(typeof settledLimit).toBe('number');

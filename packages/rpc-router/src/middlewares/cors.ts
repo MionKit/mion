@@ -16,9 +16,8 @@ import type {MionCorsOptions} from '../types/general.ts';
 /** mion's own response headers the client reads */
 const MION_EXPOSED_HEADERS = ['x-rpc-error', BUILD_VERSION_HEADER];
 
-/** CORS for the routes it is placed before: at the root every route, in a group that group. Place it first, before
- *  any headers middleware: a preflight never carries the app's headers. `alwaysRun`, so an error answer is
- *  readable too. Every OPTIONS request ends here, so it never reaches a route. */
+/** Place it first, before any headers middleware: a preflight never carries the app's headers.
+ *  `alwaysRun` so an error answer is readable too. */
 export function mionCors(options: MionCorsOptions) {
   // any origin echoed with cookies would let every site read answers sent with the user's cookies
   if (options.origin === '*' && options.credentials)
@@ -72,7 +71,6 @@ function getOriginCheck(origin: MionCorsOptions['origin']): (origin: string) => 
   throw new Error('mionCors: `origin` must be a string, a list of strings, a RegExp or a function.');
 }
 
-/** The CORS header values of one chain, joined once */
 function buildChainHeaders(chain: MethodsExecutionChain, options: MionCorsOptions) {
   const allowHeaders = new Set<string>(['content-type']);
   const exposeHeaders = new Set<string>(MION_EXPOSED_HEADERS);

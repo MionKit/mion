@@ -396,14 +396,12 @@ function isQueryRoute(context: ClientCallContext): boolean {
   return meta?.options?.isMutation === false;
 }
 
-/** What the route accepts; a batch is always one POST, and a route with no rows yet is sent as POST */
 function getHttpMethods(context: ClientCallContext): readonly string[] {
   const meta = context.batchSubRequests ? undefined : getMethod(context.requestId);
   if (!meta) return BATCH_HTTP_METHODS;
   return meta.options?.httpMethods ?? defaultHttpMethods(meta.options?.isMutation);
 }
 
-/** The methods a 405 lists, when one of them is a method the client sends and not the one it just sent. */
 function getRetryMethods(response: Response, sentMethod: string): readonly string[] | undefined {
   if (response.status !== StatusCodes.METHOD_NOT_ALLOWED) return undefined;
   const allowed = (response.headers.get('allow') ?? '').split(',').map((method) => method.trim().toUpperCase());
@@ -514,7 +512,6 @@ export function isMiddlewareInScope(middlewarePointer: string[], routePointer: s
 
 // ############# FETCH #############
 
-/** GET for a JSON query whose URL fits MAX_GET_URL_LENGTH, or a route that refuses POST; everything else POSTs */
 function buildFetchOptions(
   url: URL,
   serialized: ReturnType<typeof serializeRequestBody>,

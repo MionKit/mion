@@ -371,8 +371,7 @@ interface RtNodeLike {
   children?: RtNodeLike[];
 }
 
-/** The names a HeadersSubset type marks off CORS through its type-only `opts.cors`: every name for `cors: false`,
- *  the names set to false for a map. Undefined when none is; a union is searched like the names. */
+/** The names a HeadersSubset's type-only `opts.cors` takes off CORS; undefined when none. */
 function getCorsExcludedFromRunType(runType: RunType<unknown>, headerNames: string[]): string[] | undefined {
   const root = getHeadersSubsetNode(runType as RtNodeLike);
   const opts = root?.children?.find((child) => child.name === 'opts')?.child;
@@ -397,8 +396,7 @@ function getHeadersSubsetNode(root: RtNodeLike): RtNodeLike | undefined {
   return root.kind === RunTypeKind.class && root.typeName === 'HeadersSubset' ? root : undefined;
 }
 
-/** The declared header names of a HeadersSubset<Required, Optional> runtype: class node -> 'headers' property ->
- *  one object prop per header name. A union is searched for a HeadersSubset member; undefined when there is none. */
+/** The declared header names of a HeadersSubset runtype, or of a union's HeadersSubset member. */
 export function getHeaderNamesFromRunType(runType: RunType<unknown>): string[] | undefined {
   const root = getHeadersSubsetNode(runType as RtNodeLike);
   if (!root) return undefined;

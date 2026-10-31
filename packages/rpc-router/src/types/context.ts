@@ -68,7 +68,7 @@ export interface MionResponse {
 }
 // end-call-context-type
 
-/** The response as the router writes it. `stopped` is set by a failure and by `endChain`: the one flag the chain loop reads. */
+/** `stopped` is set by a failure and by `endChain`: the one flag the chain loop reads. */
 export interface ChainResponse extends MionResponse {
   stopped: boolean;
 }

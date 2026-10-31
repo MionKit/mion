@@ -12,9 +12,9 @@ import type {MethodsExecutionChain, RemoteMethod} from '../types/remoteMethods.t
 import {recordUndeclaredError} from './dispatchError.ts';
 import {answersPreflight} from './handlers.ts';
 
-// One bit per method, so a chain keeps the methods it accepts as one number and a request costs one test.
-// Null prototype: the method comes off the wire, so `constructor` must not read as a bit.
-// HEAD is GET without the body (RFC 9110), so it shares GET's bit.
+// One bit per method: a chain's methods fit in one number, and a request costs one test.
+// Null prototype: a `constructor` method off the wire must not read as a bit.
+// HEAD is GET without the body (RFC 9110).
 const METHOD_BITS: Readonly<Record<string, number>> = Object.assign(Object.create(null), {
   GET: 1,
   HEAD: 1,
@@ -29,8 +29,7 @@ const OTHER_METHOD_BIT = 16;
 export const ANY_METHOD_BITS = ~0;
 const ROUTE_HTTP_METHODS: ReadonlySet<string> = new Set<RouteHttpMethod>(['GET', 'POST', 'QUERY']);
 
-/** The route's own option, else its helper's default. The list must hold GET or POST, the methods the mion client
- *  sends; an unknown name is a registration error too. */
+/** The list must hold GET or POST: the only methods the mion client sends. */
 export function resolveHttpMethods(routeId: string, httpMethods: readonly RouteHttpMethod[] | undefined, isMutation?: boolean) {
   if (httpMethods === undefined) return defaultHttpMethods(isMutation);
   const valid =
@@ -41,7 +40,7 @@ export function resolveHttpMethods(routeId: string, httpMethods: readonly RouteH
   return httpMethods;
 }
 
-/** A chain accepts its route's methods, plus OPTIONS when one member is mion's CORS middleware, which ends every OPTIONS. */
+/** mion's CORS middleware ends every OPTIONS, so a chain holding it accepts OPTIONS. */
 export function getChainMethodBits(httpMethods: readonly RouteHttpMethod[], members: readonly RemoteMethod[]): number {
   let bits = 0;
   for (const method of httpMethods) bits |= METHOD_BITS[method];
@@ -49,7 +48,7 @@ export function getChainMethodBits(httpMethods: readonly RouteHttpMethod[], memb
   return bits;
 }
 
-/** The method names a chain accepts, in a fixed order: the `Allow` and `Access-Control-Allow-Methods` values. */
+/** In a fixed order: the `Allow` and `Access-Control-Allow-Methods` values. */
 export function getMethodNames(bits: number): string[] {
   return METHOD_NAMES.filter((method) => (bits & METHOD_BITS[method]) !== 0);
 }
@@ -58,7 +57,7 @@ export function acceptsMethod(chain: MethodsExecutionChain, method: string): boo
   return (chain.methodBits & (METHOD_BITS[method] ?? OTHER_METHOD_BIT)) !== 0;
 }
 
-/** Recorded like a platform error: a 405 with an `Allow` header, and the `alwaysRun` members still run. */
+/** Recorded like a platform error, so the `alwaysRun` members still run. */
 export function refuseMethod(context: CallContext): void {
   const allowed = getMethodNames(context.executionChain.methodBits);
   context.response.headers.set('allow', allowed.join(', '));
