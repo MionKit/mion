@@ -86,7 +86,7 @@ test('installed @acme/text: the index maps each export to its id and each id to 
   assert.ok(titleModule.includes(`getPureFn(\\'${slugify}\\')`), 'title module carries the lowered slugify id');
   // tsc's emit carries no id; the index is how a consumer maps the name.
   const dts = readFileSync(path.join(dir, 'index.d.ts'), 'utf8');
-  assert.ok(!dts.includes(HASH_PREFIX), `the declarations carry no id:\n${dts}`);
+  for (const id of [slugify, title]) assert.ok(!dts.includes(id), `the declarations carry no id:\n${dts}`);
 });
 
 test('installed @acme/dates: its module carries the lowered @acme/text id and lists it as a dep', () => {
