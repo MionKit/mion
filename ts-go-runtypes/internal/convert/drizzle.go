@@ -27,7 +27,7 @@ const (
 	sentinelColSpec = "@rtColSpecKey"
 )
 
-// stripSentinelId reduces a late-bound member name to its stable form, mirroring cachegen/runtype's stableMemberName.
+// stripSentinelId drops the checker's symbol id off a member name, as typeid.StableMemberName does for a user symbol.
 func stripSentinelId(name string) string {
 	if len(name) < 2 || name[0] != 0xFE || name[1] != '@' {
 		return name

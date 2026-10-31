@@ -155,6 +155,29 @@ export type Keys = {k: keyof string; own: typeof tag; it: typeof Symbol.iterator
 	assertContainsAll(t, printed, "typeof Symbol.iterator", "declare const tag: unique symbol;", "typeof tag")
 }
 
+func TestDeclPrinter_UserSymbolNamedLikeAPlatformOneAsAKey(t *testing.T) {
+	assertUserAndPlatformSymbolsDiffer(t, `declare const iterator: unique symbol;
+export type User = {[iterator]: string};
+export type Platform = {[Symbol.iterator]: string};
+`, "[iterator]: string", "[Symbol.iterator]: string")
+}
+
+func TestDeclPrinter_UserSymbolNamedLikeAPlatformOneAsATypeofType(t *testing.T) {
+	assertUserAndPlatformSymbolsDiffer(t, `declare const iterator: unique symbol;
+export type User = {tag: typeof iterator};
+export type Platform = {tag: typeof Symbol.iterator};
+`, "tag: typeof iterator", "tag: typeof Symbol.iterator")
+}
+
+func assertUserAndPlatformSymbolsDiffer(t *testing.T, source, userText, platformText string) {
+	t.Helper()
+	printed := assertDeclIDs(t, source, "User", "Platform")
+	assertContainsAll(t, printed, "declare const iterator: unique symbol;", userText, platformText)
+	if ids := declIDsIn(t, map[string]string{"main.ts": source}); ids["User"] == ids["Platform"] {
+		t.Errorf("a user `iterator` must not share the id of `Symbol.iterator`: %q", ids["User"])
+	}
+}
+
 func TestDeclPrinter_RecursiveShapesPrintAsNamedAliases(t *testing.T) {
 	assertDeclIDs(t, `export interface TreeNode { value: string; children: TreeNode[]; parent?: TreeNode }
 export type Json = string | number | boolean | null | Json[] | {[key: string]: Json};
