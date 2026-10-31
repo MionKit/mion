@@ -392,8 +392,9 @@ this change touched, review its report against the code, and commit it as its ow
   through `contentTypeRefusal` + `dispatchPlatformError`. `dispatchRoute` callers (tests, hosts that parsed the body)
   skip it. Every adapter test that POSTed without a content type now sends `application/json`.
 - Client: allowed methods = `options.httpMethods ?? defaultHttpMethods(isMutation)` (core). A route refusing POST
-  is sent as GET; one whose params do not fit fails with `get-url-too-long` and sends nothing. A first call answered
-  405 resends once over GET; the metadata-only fetch reads its rows before the 405.
+  is sent as GET; one whose params do not fit fails with `get-url-too-long` and sends nothing. A call answered 405
+  resends once with a method the `Allow` header lists (a GET-only route's optimistic first POST, or a bundled row
+  that predates a query turned into a mutation); the metadata-only fetch reads its rows before the 405.
 - `ResolvedRouteOptions.httpMethods` is the option as written; the Go bundled-API reader gained a tuple arm.
 - `HeadersSubset`'s third parameter defaults to `Record<never, never>` (both linters refuse `{}`). Header metadata
   carries `corsExcluded`; the client metadata now sends only `{headerNames, jitHash}` for `headersParam`.
