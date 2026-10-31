@@ -4,6 +4,8 @@ import {mionSecurity, mionFetchMetadata} from '@mionjs/router/middlewares';
 
 const mion = createMionRouter();
 
+type User = {name: string; surname: string};
+
 const routes = {
   // first, before the auth middleware
   mionSecurity: mionSecurity({
@@ -14,10 +16,12 @@ const routes = {
   auth: mion.headersMiddleware(
     (ctx, {headers}: HeadersSubset<'Authorization'>): void => undefined
   ),
-  // `x-total` is exposed to the browser with no CORS setting
-  listUsers: mion.query(
-    (ctx): HeadersSubset<'x-total'> => new HeadersSubset({'x-total': '2'})
+  // `x-ratelimit-remaining` is exposed to the browser with no CORS setting
+  rateLimit: mion.middleware(
+    (ctx): HeadersSubset<'x-ratelimit-remaining'> =>
+      new HeadersSubset({'x-ratelimit-remaining': '99'})
   ),
+  listUsers: mion.query((ctx): User[] => [{name: 'John', surname: 'Doe'}]),
 } satisfies Routes;
 
 const myApi = mion.initRoutes(routes);

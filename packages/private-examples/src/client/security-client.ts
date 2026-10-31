@@ -1,3 +1,4 @@
+import {isRpcError} from '@mionjs/core';
 import {initClient} from '@mionjs/client';
 import type {MyApi} from '../router/security.routes.ts';
 
@@ -7,5 +8,9 @@ const {routes} = initClient<MyApi>({
   fetchOptions: {credentials: 'include'},
 });
 
-const [users] = await routes.listUsers().call();
-console.log(users?.headers['x-total']);
+const [users, error, response] = await routes.listUsers().call();
+if (!error) console.log(users);
+// a header a middleware returned, at its path
+const {rateLimit} = response;
+if (rateLimit && !isRpcError(rateLimit))
+  console.log(rateLimit.headers['x-ratelimit-remaining']);
