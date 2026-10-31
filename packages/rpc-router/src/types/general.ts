@@ -80,7 +80,7 @@ export interface MionSecurityOptions {
   origins?: readonly string[] | '*' | ((ctx: CallContext, origin: string) => boolean | Promise<boolean>);
   /** Lets the trusted origins read answers; off by default */
   cors?: false | MionCorsSettings;
-  /** Cross-site request forgery checks, each on by default */
+  /** Cross-site request forgery checks, each on by default; a body must always be JSON while csrf is on */
   csrf?: false | MionCsrfSettings;
 }
 
@@ -102,6 +102,4 @@ export interface MionCsrfSettings {
   crossOrigin?: boolean;
   /** A mutation, an intent-less route and a batch accept only POST; a query GET, HEAD and POST */
   methodByIntent?: boolean;
-  /** Refuses a POST with a form content type or none */
-  formContentTypes?: boolean;
 }

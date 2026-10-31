@@ -14,12 +14,6 @@ import type {MionCorsSettings, MionSecurityOptions} from '../types/general.ts';
 
 /** mion's own response headers the client reads */
 const MION_EXPOSED_HEADERS = ['x-rpc-error', BUILD_VERSION_HEADER];
-/** What a plain HTML form sends: a browser posts these to another site with no preflight */
-const FORM_CONTENT_TYPES: ReadonlySet<string> = new Set([
-  'text/plain',
-  'application/x-www-form-urlencoded',
-  'multipart/form-data',
-]);
 const QUERY_METHODS: readonly string[] = ['GET', 'HEAD', 'POST'];
 const POST_ONLY: readonly string[] = ['POST'];
 
@@ -36,7 +30,6 @@ export function mionSecurity(options: MionSecurityOptions = {}) {
       : {
           crossOrigin: csrfOptions?.crossOrigin !== false,
           methodByIntent: csrfOptions?.methodByIntent !== false,
-          formContentTypes: csrfOptions?.formContentTypes !== false,
         };
   if (cors && origins === undefined) throw new Error('mionSecurity: `cors` needs the `origins` allowed to read answers.');
   // any origin echoed with cookies would let every site read the user's answers
@@ -101,7 +94,8 @@ export function mionSecurity(options: MionSecurityOptions = {}) {
         type: 'cross-origin-request-refused',
         publicMessage: 'Cross-origin request refused.',
       });
-    if (csrf.formContentTypes && method === 'POST' && isFormContentType(request.headers.get('content-type')))
+    // mion reads every body as JSON: a form or a typeless fetch another site sends could parse as a call
+    if (!isJsonContentType(request.headers.get('content-type')))
       return new FatalError({
         statusCode: StatusCodes.UNSUPPORTED_MEDIA_TYPE,
         type: 'unsupported-media-type',
@@ -145,12 +139,12 @@ function isPlainlySameOrigin(headers: CallContext['request']['headers']): boolea
   }
 }
 
-function isFormContentType(contentType: string | null | undefined): boolean {
-  if (!contentType) return true;
+function isJsonContentType(contentType: string | null | undefined): boolean {
+  if (!contentType) return false;
   // what the mion client sends, without the parse below
-  if (contentType.startsWith('application/json')) return false;
+  if (contentType === 'application/json; charset=utf-8' || contentType === 'application/json') return true;
   const end = contentType.indexOf(';');
-  return FORM_CONTENT_TYPES.has((end === -1 ? contentType : contentType.slice(0, end)).trim().toLowerCase());
+  return (end === -1 ? contentType : contentType.slice(0, end)).trim().toLowerCase() === 'application/json';
 }
 
 /** What a chain needs per request: the methods its route's intent accepts, and its CORS header values */

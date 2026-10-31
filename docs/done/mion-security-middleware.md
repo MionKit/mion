@@ -168,4 +168,6 @@ this change touched, review its report against the code, and commit it as its ow
   `method` on the request and reads one more flag; uws calls `req.getMethod()` per request.
 - `HeadersSubset` carries nothing about CORS: its `cors: false` type option is gone. A header is kept off CORS by
   `cors.excludeHeaders`, a list in `mionSecurity` that wins over every other source.
+- No `formContentTypes` option: mion reads every body as JSON, so while `csrf` is on a body must be typed
+  `application/json`, on any method with a body, or it gets a 415.
 - The readOptions per-shape coverage test stays, without the array / tuple rows.

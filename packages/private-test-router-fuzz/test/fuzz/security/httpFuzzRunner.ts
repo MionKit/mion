@@ -14,7 +14,7 @@
 //   SH-TIME      one request inside its time budget
 //   SH-PROTO     Object.prototype untouched after the run
 //   SH-GATE      behind mionSecurity, a route runs exactly when its intent accepts the method, the request is
-//                same-origin or trusted, and a POST carries no form content type (the gate lane, over raw HTTP)
+//                same-origin or trusted, and any body is typed JSON (the gate lane, over raw HTTP)
 
 import {createConnection} from 'node:net';
 import type {Server} from 'node:http';
@@ -859,7 +859,6 @@ const GATE_METHODS: Record<GateRoute, readonly string[]> = {
 const GATE_ROUTES = Object.keys(GATE_METHODS) as GateRoute[];
 // node refuses lowercase and unknown names with its own 400, before mion: they must not run either
 const GATE_METHOD_POOL = ['GET', 'HEAD', 'POST', 'QUERY', 'OPTIONS', 'PUT', 'DELETE', 'PATCH', 'get', 'Post', 'TRACE'];
-const FORM_TYPES = ['text/plain', 'application/x-www-form-urlencoded', 'multipart/form-data'];
 const GATE_CONTENT_TYPES: Array<string | undefined> = [
   undefined,
   'application/json',
@@ -898,7 +897,7 @@ function gateShouldRun({route, method, contentType, secFetchSite, origin}: GateR
     : origin === undefined || trusted || origin === 'http://x';
   if (!sameOrigin) return false;
   if (contentType === undefined) return false;
-  return !FORM_TYPES.includes(contentType.split(';')[0].trim().toLowerCase());
+  return contentType.split(';')[0].trim().toLowerCase() === 'application/json';
 }
 
 /** SH-GATE: a violation message when what happened is not what the rule says */
