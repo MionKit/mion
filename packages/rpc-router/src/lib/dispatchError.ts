@@ -1,6 +1,6 @@
 import {RpcError, FatalError, MION_ROUTES, Mutable, StatusCodes, markFatal} from '@mionjs/core';
 import {JSON_CONTENT_TYPE} from '../constants.ts';
-import type {CallContext, MionHeaders, MionRequest, MionResponse, ResponseBody} from '../types/context.ts';
+import type {CallContext, ChainResponse, MionHeaders, MionRequest, MionResponse, ResponseBody} from '../types/context.ts';
 
 /** The response for an error raised outside the router by any adapter; it goes in `@thrownErrors` like a route error. */
 
@@ -11,10 +11,12 @@ export function getRouterFatalErrorResponse(returnErr: RpcError<string>, respHea
     '@thrownErrors': {[MION_ROUTES.platformError]: returnErr},
   };
   respHeaders.set('x-rpc-error', errorHeaderValue(returnErr.type));
-  const response: Mutable<MionResponse> = {
+  const response: Mutable<ChainResponse> = {
     statusCode: returnErr.statusCode || StatusCodes.SERVER_ERROR, // Global errors are always unexpected
     contentType: JSON_CONTENT_TYPE,
     hasErrors: true,
+    endedEarly: false,
+    stopped: true,
     fatalError: returnErr,
     headers: respHeaders,
     body,
@@ -31,18 +33,30 @@ export function errorHeaderValue(type: string): string {
 }
 
 /** Marks the response as ended by `rpcError`: the error header (first error only), the status code,
- *  `hasErrors` (what the dispatcher's skip rule reads) and `fatalError` (first one wins). Shared by the
+ *  `hasErrors`, `stopped` (what the dispatcher's skip rule reads) and `fatalError` (first one wins). Shared by the
  *  thrown path and a returned FatalError; where the error itself lands is the caller's decision.
  *  `fallbackStatus` answers when the error carries no statusCode: a thrown one is unexpected (422), a
  *  returned FatalError a declared application error (400). */
 export function markResponseFailed(context: CallContext, rpcError: RpcError<string>, fallbackStatus: number) {
-  const response = context.response as Mutable<MionResponse>;
+  const response = context.response as Mutable<ChainResponse>;
   if (!response.hasErrors) {
     response.headers.set('x-rpc-error', errorHeaderValue(rpcError.type));
     response.fatalError = rpcError;
   }
   response.statusCode = rpcError.statusCode ?? fallbackStatus;
   response.hasErrors = true;
+  response.stopped = true;
+}
+
+/** Ends the chain with a successful answer: every later member is skipped except the `alwaysRun` ones, exactly as
+ *  after an error, but `hasErrors` stays false. The status code defaults to 200, the answer is the usual JSON body.
+ *  A chain that already failed is left as it is. */
+export function endChain(context: CallContext, statusCode: number = StatusCodes.OK): void {
+  const response = context.response as Mutable<ChainResponse>;
+  if (response.stopped) return;
+  response.statusCode = statusCode;
+  response.endedEarly = true;
+  response.stopped = true;
 }
 
 /** Whatever an adapter caught, as the mion error the wire carries. */
