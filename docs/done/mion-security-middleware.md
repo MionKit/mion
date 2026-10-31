@@ -170,4 +170,10 @@ this change touched, review its report against the code, and commit it as its ow
   `cors.excludeHeaders`, a list in `mionSecurity` that wins over every other source.
 - No `formContentTypes` option: mion reads every body as JSON, so while `csrf` is on a body must be typed
   `application/json`, on any method with a body, or it gets a 415.
+- `MionResponse.stopped` is the one public flag for a stopped chain (an error or `endChain`); no `endedEarly`, no
+  internal `ChainResponse`. `request.method` is an `HttpMethod`: the standard methods, `QUERY` and `OTHER`, mapped
+  by `toHttpMethod` in each adapter.
+- An extra round moved shared work out of the adapters: the router's deserializer decodes `?data=` (never for an
+  unknown path); response headers refuse CR, LF or NUL on every platform; aws uses `toRpcError`; the encode error
+  names no type; `mionSecurity` sends `nosniff` and drops `server: mionjs`; the Vercel dev server streams the body.
 - The readOptions per-shape coverage test stays, without the array / tuple rows.
