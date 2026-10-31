@@ -21,7 +21,7 @@ refuses to ship a page whose benchmark would render empty.
   detail panel. **No live page renders it** as of 2026-09: the charts replaced it
   everywhere. It is kept because the parked correctness page is written against it and
   is meant to come back, so treat it as on the shelf rather than dead.
-  The two share their summary math ([benchAggregate.ts](../container/website/app/utils/benchAggregate.ts))
+  The two share their summary math ([benchAggregate.js](../container/website/app/utils/benchAggregate.js))
   and their number formatting ([benchFormat.ts](../container/website/app/utils/benchFormat.ts)).
   A missing data file renders a tidy "Benchmark data not generated yet" notice, never an
   error — which is why the build gates on
@@ -36,7 +36,7 @@ refuses to ship a page whose benchmark would render empty.
   (`:home-bench-table{servers="servers-hello-world" validation="validation"}`) reads the
   hello-world server rows and the validation index, and shows the fastest few of each
   (the validation number is the same geometric mean as the is-valid page's "Overall"
-  row, from [benchAggregate.ts](../container/website/app/utils/benchAggregate.ts)).
+  row, from [benchAggregate.js](../container/website/app/utils/benchAggregate.js)).
   `check-static.mjs` gates both datasets for it like it does for the pages.
 
 | Page                                | `bench=` slug           | Produced by                                    |

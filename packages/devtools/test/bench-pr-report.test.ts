@@ -50,6 +50,26 @@ describe('bench-report pull request comment', () => {
     expect(report).toContain('| Get errors, valid, PR | 4.00x (2/2) | 10.00x (2/2) |');
   });
 
+  it('ranks every library, a skipped case counted at the slowest result', () => {
+    const skip = {status: 'not-supported'};
+    const results = (mion: number, zod: number | null) => ({
+      mion: {validate: metric(mion, mion), validationErrors: metric(mion, mion)},
+      zod:
+        zod === null
+          ? {validate: skip, validationErrors: skip}
+          : {validate: metric(zod, zod), validationErrors: metric(zod, zod)},
+    });
+    // zod is 2x mion where both run; mion alone runs the slow case b
+    const data = {
+      meta: null,
+      cases: new Map([
+        ['OBJECT.a', {group: 'OBJECT', results: results(100, 200)}],
+        ['OBJECT.b', {group: 'OBJECT', results: results(10, null)}],
+      ]),
+    };
+    expect(renderReport(data, data, null)).toContain('| OBJECT | 2/2 → 2/2 |');
+  });
+
   it('refuses a bench-data dir without the validation datasets', () => {
     expect(() => readBenchData(fs.mkdtempSync(path.join(os.tmpdir(), 'bench-pr-report-')))).toThrow(/pr-report: no /);
   });
