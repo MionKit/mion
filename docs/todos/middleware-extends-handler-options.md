@@ -36,7 +36,7 @@ returns a `createMionRouter`-like function that takes the options literal:
 export const createAppRouter = customMionRouter<{
   shared: {user: string};                // types ctx.shared
   router: {audit?: boolean};             // added router keys
-  handler: MionSecurityHandlerOptions;   // added route + middleware keys
+  handler: MionSecurityHandlerOptions;   // keys added to every handler
 }>();
 
 const mion = createAppRouter({
@@ -64,6 +64,14 @@ Why this shape, and what was rejected:
   the literal, so a type copy would only duplicate it.
 - **Combining is the dev's job**, as with `contextDataFactory` today: `handler: MionSecurityHandlerOptions & AuditHandlerOptions`.
   Each middleware exports its option type (`MionSecurityHandlerOptions` from `@mionjs/router/middlewares`).
+- **One `handler` list for every handler kind**: routes, middlewares, headers middlewares and raw middlewares
+  all take the same added keys. Simplest; a key that means nothing on a kind (`cors` on a raw middleware, which
+  declares no headers) just does nothing there.
+- **Added keys live on the handler's `options` and go to the client by default.** Types are the source the
+  client reads from, so the metadata and the client API type carry them like any other option, with the
+  literal the dev wrote (`cors: false` included). Ids and hashes built from a method's options take them in too.
+- **`ctx.shared` is `never` without a `shared` part.** Fully typed from the first line: a handler on a router
+  that declared no shared type cannot read `ctx.shared`.
 
 ## Direction
 
@@ -94,14 +102,19 @@ Three parts, in order. The implementer plans the details.
   then lands in the module calling `customMionRouter`, which loads before any route runs. Check the diagnostic
   prose naming the factory (`ts-go-runtypes/internal/diagnostics/`) still reads true.
 - **Runtime.** The router rebuilds each handler's `options` from a fixed key list (`getExecutableFromRoute`,
-  `getExecutableFromMiddleware` in `packages/rpc-router/src/router.ts`), so an added key is silently dropped at
-  registration today. Carry the added keys through so the middleware reads them off the chain members, as
-  `mionSecurity` reads `isMutation`. Router keys already survive (`initRouter` spreads every key) and are read
-  with `getRouterOptions()`.
+  `getExecutableFromMiddleware`, `getExecutableFromRawMiddleware` in `packages/rpc-router/src/router.ts`), so
+  an added key is silently dropped at registration today. Carry the added keys onto `options` so the middleware
+  reads them off the chain members, as `mionSecurity` reads `isMutation`. Router keys already survive
+  (`initRouter` spreads every key) and are read with `getRouterOptions()`.
 - **Client metadata.** `getSerializableMethod` (`packages/rpc-router/src/lib/remoteMethods.ts`) sends a
-  handler's `options` object as is. Added keys reaching it would go to the client. Client API types are safe
-  already: `ResolvedRouteOptions` / `ResolvedMiddlewareOptions` (`packages/rpc-router/src/types/resolvedOptions.ts`)
-  list fixed keys, and the build reads options off those types.
+  handler's `options` object as is, so carried keys reach the client with no extra step. The client API types
+  need the change: `ResolvedRouteOptions` / `ResolvedMiddlewareOptions`
+  (`packages/rpc-router/src/types/resolvedOptions.ts`) list fixed keys today; add the `handler` keys with the
+  literal each route wrote. The build reads options off those types (`readOptions` in
+  `ts-go-runtypes/internal/compiler/apimeta/tree.go`), so a build-compiled client gets them too; Go-test it.
+  This resolved type is paid per route: include it in the type-cost measure.
+- **Raw middlewares.** `RawMiddlewareOptions` (a `Pick` in `remoteMethods.ts`) takes the `handler` keys as well.
+  Raw middlewares never reach the client, so only the server reads them.
 
 ### 2. `cors: false` as a handler option
 
@@ -119,6 +132,8 @@ expose lists, the same as listing them in `cors.excludeHeaders`, and winning ove
   it without `customMionRouter` is a type error. `ContextDataOf<O>` inference
   (`packages/rpc-router/src/types/mionRouter.ts`) goes away, with no fallback or hint (root AGENTS.md: a removed
   thing leaves no trace).
+- Without a `shared` part, `ctx.shared` is `never` (today `any`), on `createMionRouter` and on a
+  `customMionRouter` that names none.
 - Why: an explicit type is cheaper to check than one inferred from the factory's body, a known cost when that
   body builds an inferred Drizzle database. With the type required by design, no lint rule forcing an explicit
   return type on `contextDataFactory` is needed.
@@ -127,23 +142,15 @@ expose lists, the same as listing them in `cors.excludeHeaders`, and winning ove
 
 ## Open questions
 
-The implementer resolves these with the user while planning; the recommendation is the default.
+The implementer resolves this with the user while planning.
 
-1. **Added keys and the client.** Keep types as the source the client reads from: send none for now (`cors` is
-   server-only), or let a middleware mark keys that ride the metadata and the client API type? Recommended:
-   none in this change; strip added keys from `getSerializableMethod` or keep them off `options`, see 2.
-2. **Where the added keys live at runtime.** On the handler's `options` (what the middleware reads, but then
-   `getSerializableMethod` must pick only the known keys), or in a separate server-only field on the method
-   (never serialized, since the metadata is built from named fields)?
-3. **Security's per-chain cache.** `mionSecurity` keeps a module-level `WeakMap` from chain to its built CORS
-   strings (`chainRules` in `security.ts`): middleware state beside the router's own data. Should the router give
-   a middleware a place on the chain, or a startup step, so it keeps no map of its own? Related, since
-   `describeChain` is what `cors: false` changes: fix it in this change.
-4. **Raw middlewares.** Do they get the `handler` keys? They declare no headers, so `cors` means nothing there.
-   Recommended: no.
-5. **One `handler` part or one per kind** (`route`, `middleware`)? Recommended: one, `cors: false` needs both.
-6. **`ctx.shared` without a `shared` part.** Stays `any` as today, or becomes an empty type now that plain
-   `createMionRouter` can no longer set it?
+1. **Security's per-chain cache.** On a chain's first request, `mionSecurity` builds four values from all the
+   chain's members (accepted HTTP methods, the allow and expose header strings, the allowed methods) and keeps
+   them in its own module-level `WeakMap`, keyed by the chain (`chainRules` + `describeChain` in `security.ts`).
+   Not a copy of the routes, but middleware state kept beside the router's data. Choices: keep it; the router
+   gives a middleware a slot on the chain itself (`MethodsExecutionChain` in `remoteMethods.ts`); or a startup
+   step builds it per chain (startup time). Related, since `describeChain` is what `cors: false` changes:
+   settle it in this change.
 
 ## Docs
 
@@ -162,8 +169,10 @@ this change touched, review its report against the code, and commit it as its ow
 
 ## Done when
 
-- `customMionRouter<{shared, router, handler}>()` types `ctx.shared`, router keys and route + middleware keys;
-  an unknown key fails on routes, middlewares and the router, even next to a valid one.
+- `customMionRouter<{shared, router, handler}>()` types `ctx.shared`, router keys and the keys of every handler
+  kind; an unknown key fails on handlers and the router, even next to a valid one.
+- Added keys reach the client in the metadata and in the client API type, build-compiled clients included.
+- `ctx.shared` is `never` without a `shared` part.
 - The build finds a router created through `customMionRouter`, Go-tested.
 - `{cors: false}` on a route or middleware keeps all its headers off the CORS lists, tested next to
   `excludeHeaders`.
