@@ -144,7 +144,8 @@ function onPrepareForJsonExecutableError(context: CallContext, method: RemoteMet
   const err = new FatalError({
     statusCode: StatusCodes.UNEXPECTED_ERROR,
     type: 'prepare-for-json-response-error',
-    publicMessage: `Failed to prepare return value for JSON for handler ${method.id}, expected response type: ${method.returnJitFns.json.encode.typeName}`,
+    // the return type's name is the server's own: it stays off the wire
+    publicMessage: `Failed to prepare the return value of ${method.id} for JSON.`,
     originalError: e,
     errorData: {methodId: method.id},
   });
