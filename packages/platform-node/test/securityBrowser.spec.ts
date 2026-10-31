@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// A real browser on one origin calling a mion server on another: only a browser enforces CORS and sends the
-// Sec-Fetch-Site and Origin headers mionSecurity reads. Uses Playwright's Chromium, else the machine's Chrome.
+// Only a real browser enforces CORS and sends the Sec-Fetch-Site and Origin headers mionSecurity reads.
 
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {createServer, type Server} from 'http';
@@ -42,7 +41,7 @@ interface BrowserDocument {
   body: BrowserElement;
 }
 
-/** What another site does: a plain HTML form posting a text/plain body shaped as JSON, no script, no preflight */
+/** A forged request from another site: a plain HTML form, no script, no preflight */
 async function submitFormFromPage(page: Page, routeId: string): Promise<boolean> {
   const before = deleted;
   await page.goto(pageOrigin);
@@ -69,7 +68,7 @@ async function submitFormFromPage(page: Page, routeId: string): Promise<boolean>
   return deleted > before;
 }
 
-/** What the client does: a JSON POST with the auth header, then the returned header read back by name */
+/** What the mion client does from the page */
 function callFromPage(page: Page, route = 'listUsers') {
   return page.evaluate(
     async ([api, routeId]) => {

@@ -23,12 +23,12 @@ const FORM_CONTENT_TYPES: ReadonlySet<string> = new Set([
 const QUERY_METHODS: readonly string[] = ['GET', 'HEAD', 'POST'];
 const POST_ONLY: readonly string[] = ['POST'];
 
-/** CORS and CSRF for the routes it is placed before. Place it first: a preflight carries none of the app's
- *  headers. `alwaysRun`, so an error answer still carries the CORS headers. */
+/** Place it first: a preflight carries none of the app's headers.
+ *  `alwaysRun`, so an error answer still carries the CORS headers. */
 export function mionSecurity(options: MionSecurityOptions = {}) {
   const {origins} = options;
   const cors = options.cors || undefined;
-  // `!== false`: an option left `undefined` keeps its check on, so a missing config value never turns one off
+  // `!== false`, so a missing config value never turns a check off
   const csrfOptions = options.csrf;
   const csrf =
     csrfOptions === false
@@ -39,16 +39,15 @@ export function mionSecurity(options: MionSecurityOptions = {}) {
           formContentTypes: csrfOptions?.formContentTypes !== false,
         };
   if (cors && origins === undefined) throw new Error('mionSecurity: `cors` needs the `origins` allowed to read answers.');
-  // any origin echoed with cookies would let every site read answers sent with the user's cookies
+  // any origin echoed with cookies would let every site read the user's answers
   if (cors?.credentials && origins === '*')
     throw new Error("mionSecurity: `cors.credentials` needs the allowed origins listed, never '*'.");
   const maxAge = cors?.maxAge === undefined ? undefined : String(cors.maxAge);
   // built on a chain's first request, from what its members declare
   const chainRules = new WeakMap<MethodsExecutionChain, ReturnType<typeof describeChain>>();
 
-  /** The origin to ask about, only when the answer can change anything: CORS answers every origin, the
-   *  cross-origin check only a request from another site that is still running. `null` is the origin of a
-   *  sandboxed page: never trusted, never asked. */
+  /** Asks only when the answer matters: always with CORS, else a cross-site request with no error yet.
+   *  `null` is a sandboxed page's origin: never trusted. */
   function prepare(ctx: CallContext) {
     const {headers, method} = ctx.request;
     const origin = headers.get('origin');
@@ -110,7 +109,7 @@ export function mionSecurity(options: MionSecurityOptions = {}) {
       });
   }
 
-  // a lookup function may be async, so only then is the middleware: a list never pays for a promise
+  // only a lookup may be async: a list never pays for a promise
   if (typeof origins === 'function') {
     return middleware(
       async (ctx: CallContext): Promise<ReturnType<typeof respond>> => {
@@ -132,8 +131,7 @@ export function mionSecurity(options: MionSecurityOptions = {}) {
   );
 }
 
-/** Go 1.25 CrossOriginProtection: the browser's Sec-Fetch-Site first, else Origin against Host; a caller sending
- *  neither is not a browser, so there is no user's cookie to abuse */
+/** Mirrors Go 1.25 CrossOriginProtection; a caller sending neither header is no browser: no cookie to abuse */
 function isPlainlySameOrigin(headers: CallContext['request']['headers']): boolean {
   const site = headers.get('sec-fetch-site');
   if (site) return site === 'same-origin' || site === 'none';
@@ -173,7 +171,7 @@ function describeChain(chain: MethodsExecutionChain, cors: MionCorsSettings | un
   }
   cors.allowHeaders?.forEach((name) => allowHeaders.add(name.toLowerCase()));
   cors.exposeHeaders?.forEach((name) => exposeHeaders.add(name.toLowerCase()));
-  // last, after every merge, so nothing adds a `cors: false` name back
+  // last, so no merge adds a `cors: false` name back
   allowExcluded.forEach((name) => allowHeaders.delete(name));
   exposeExcluded.forEach((name) => exposeHeaders.delete(name));
   return {

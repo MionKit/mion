@@ -850,7 +850,7 @@ export function renderHttpViolations(violations: HttpViolation[], limit = 25): s
 
 type GateRoute = keyof typeof gateRuns;
 
-/** The methods each gate route's intent accepts: a query reads, a mutation and an intent-less route only POST */
+/** By intent: a query reads, a mutation and an intent-less route only POST */
 const GATE_METHODS: Record<GateRoute, readonly string[]> = {
   save: ['POST'],
   read: ['GET', 'HEAD', 'POST'],
@@ -888,7 +888,7 @@ export interface GateRequest {
   carrier: 'body' | 'query' | 'none';
 }
 
-/** The rule, written from mionSecurity's contract alone: intent, then same-origin or trusted, then the form types */
+/** The oracle, written from mionSecurity's contract alone, not its code */
 function gateShouldRun({route, method, contentType, secFetchSite, origin}: GateRequest): boolean {
   if (!GATE_METHODS[route].includes(method)) return false;
   if (method === 'GET' || method === 'HEAD') return true;
