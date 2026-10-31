@@ -101,7 +101,7 @@ function dispatch(path: string, body: string, urlQuery?: string) {
   return dispatchRoute(path, body, reqHeaders, headersFromRecord({}), rawRequest, rawResponse, undefined, urlQuery);
 }
 
-/** A GET query route, the way an adapter serves one: the body rides in `?data=` and the deserializer decodes it */
+/** A GET query route as an adapter serves it: no body, the deserializer decodes `?data=` */
 function dispatchQueryBody(path: string, urlQuery: string) {
   return dispatchRoute(path, '', reqHeaders, headersFromRecord({}), rawRequest, rawResponse, undefined, urlQuery);
 }

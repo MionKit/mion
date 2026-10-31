@@ -92,7 +92,6 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
       toHttpMethod(rawRequest.method),
       reqHeaders,
       respHeaders,
-      // express hands an empty body over as `{}`: no body, so the router reads `?data=` instead
       bodyOrUndefined(rawBody),
       reqBodyType
     );

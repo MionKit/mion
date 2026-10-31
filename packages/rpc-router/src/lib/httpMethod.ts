@@ -21,7 +21,7 @@ const HTTP_METHODS: Readonly<Record<string, HttpMethod>> = Object.assign(Object.
   QUERY: 'QUERY',
 });
 
-/** The method off the wire as an HttpMethod. HTTP methods are case sensitive, so `get` is `OTHER`. */
+/** HTTP methods are case sensitive, so `get` is `OTHER`. */
 export function toHttpMethod(method: string | undefined): HttpMethod {
   return (method && HTTP_METHODS[method]) || 'OTHER';
 }

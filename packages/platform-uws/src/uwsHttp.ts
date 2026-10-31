@@ -126,7 +126,7 @@ export async function startUwsServer(options?: Partial<UwsHttpOptions>): Promise
 
 // ############# PRIVATE METHODS #############
 
-// uWS lowercases the method, so it is mapped from the lowercase name
+// uWS hands the method over lowercased
 // null prototype: a `constructor` method off the wire must not read Object.prototype
 const LOWER_CASE_METHODS: Readonly<Record<string, HttpMethod>> = Object.assign(Object.create(null), {
   get: 'GET',

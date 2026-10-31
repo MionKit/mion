@@ -631,7 +631,7 @@ describe('Query body decoding (data in URL query)', () => {
     surname: string;
   };
 
-  /** What a platform adapter does: hands the body and the query over as they came; the router decodes `?data=` */
+  /** Adapter-style: body and query go in as they came; the router decodes `?data=` */
   function decodeAndDispatch(path: string, rawBody: any, urlQuery: string | undefined) {
     return dispatchRoute(
       path,
