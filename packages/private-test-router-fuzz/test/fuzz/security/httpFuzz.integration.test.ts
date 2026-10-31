@@ -11,6 +11,8 @@ import {
   renderHttpViolations,
   rawSocketRequest,
   checkSocketAnswer,
+  runGateFuzz,
+  checkGate,
 } from './httpFuzzRunner.ts';
 import {soakTestTimeout, pathologyReport} from '../../../../run-types/test/fuzz/core/soakBudget.ts';
 import {entrySeed} from '../../../../run-types/test/fuzz/core/fuzzPolicy.ts';
@@ -72,6 +74,26 @@ describe('fuzz / security / http — hostile requests never crash, hang, leak or
       for (const socket of sockets) socket.destroy();
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
+  });
+
+  it('a route runs only for its methods and a content type no plain form sends', async () => {
+    const report = await runGateFuzz(entrySeed('sechttp'), 300);
+    if (report.violations.length > 0)
+      throw new Error(`${report.violations.length} SH-GATE violation(s):\n${renderHttpViolations(report.violations)}`);
+    // both sides of the rule were exercised, or a clean run would prove nothing
+    expect(report.outcomes.ran).toBeGreaterThan(20);
+    expect(report.outcomes.refused).toBeGreaterThan(20);
+  }, 120_000);
+
+  it('SH-GATE fires on a forged observation, both ways', () => {
+    const mutationOverGet = {route: 'save', method: 'GET', contentType: undefined, carrier: 'query'} as const;
+    expect(checkGate(mutationOverGet, true)).toBe('the route ran although the gate must refuse it');
+    const formPost = {route: 'read', method: 'POST', contentType: 'Text/Plain; charset=utf-8', carrier: 'body'} as const;
+    expect(checkGate(formPost, true)).toBe('the route ran although the gate must refuse it');
+    const headOnRead = {route: 'read', method: 'HEAD', contentType: undefined, carrier: 'none'} as const;
+    expect(checkGate(headOnRead, false)).toBe('the route was refused although its methods and content type allow it');
+    const jsonQuery = {route: 'withQuery', method: 'QUERY', contentType: 'application/json', carrier: 'body'} as const;
+    expect(checkGate(jsonQuery, true)).toBeNull();
   });
 
   const soakMs = Number(process.env.MION_FUZZ_SECHTTP_SOAK_MS ?? 0);
