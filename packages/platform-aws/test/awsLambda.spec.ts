@@ -359,4 +359,19 @@ describe('serverless router', () => {
     expect(response.body).not.toContain('secret detail');
     resetAwsLambdaOpts();
   });
+
+  it('fails a handler that sets a header with CR or LF, and writes no injected header', async () => {
+    resetAwsLambdaOpts();
+    mion.initRoutes({
+      reflect: mion.route((ctx: CallContext, value: string): string => {
+        ctx.response.headers.set('x-reflected', value);
+        return value;
+      }),
+    });
+    const {event, context} = getDefaultGatewayEvent(JSON.stringify({reflect: ['ok\r\nx-injected: 1']}), '/api/reflect');
+    const response = await awsLambdaHandler(event, context);
+    expect(response.headers?.['x-injected']).toBeUndefined();
+    expect(response.headers?.['x-reflected']).toBeUndefined();
+    expect(JSON.parse(response.body)[MION_ROUTES.thrownErrors].reflect.type).toBe('unknown-error');
+  });
 });

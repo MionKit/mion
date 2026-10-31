@@ -627,6 +627,22 @@ describe('response headers', () => {
     expect(defaults['x-team']).toBe('mion');
   });
 
+  it('refuse a CR, LF or NUL in a name or value, as fetch Headers does, without echoing the value', () => {
+    for (const headers of [new FetchResponseHeaders(DEFAULTS), new RecordResponseHeaders(DEFAULTS)]) {
+      for (const write of ['set', 'append'] as const) {
+        expect(() => headers[write]('x-a', 'ok\r\nx-injected: 1')).toThrow(TypeError);
+        expect(() => headers[write]('x-a\nx-b', 'ok')).toThrow(TypeError);
+        expect(() => headers[write]('x-a', 'ok\0')).toThrow(TypeError);
+      }
+      expect(headers.get('x-injected')).toBeFalsy();
+    }
+    expect(() => new RecordResponseHeaders(DEFAULTS).set('x-a', 'secret\r\n')).not.toThrow(/secret/);
+  });
+
+  it('refuse a bad responseHeaders default when the router starts', () => {
+    expect(() => createMionRouter({responseHeaders: {'x-bad': 'a\r\nb'}}).initRoutes({})).toThrow(TypeError);
+  });
+
   it('go back to the pool for the next request only while unused', () => {
     const first = getDefaultHeaders();
     releaseHeaders(first);
