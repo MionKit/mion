@@ -68,6 +68,7 @@ async function handleRequest(req: Request): Promise<Response> {
           chain,
           path,
           urlQuery,
+          req.method,
           toRpcError(err),
           req.headers,
           responseHeaders,
@@ -82,7 +83,7 @@ async function handleRequest(req: Request): Promise<Response> {
         reqBodyType = queryBody.bodyType;
       }
     }
-    const context = createContextFromChain(chain, path, urlQuery, req.headers, responseHeaders, rawBody, reqBodyType);
+    const context = createContextFromChain(chain, path, urlQuery, req.method, req.headers, responseHeaders, rawBody, reqBodyType);
     const platformResp = await dispatchWithContext(context, req, undefined);
     return replyFetch(platformResp, responseHeaders);
   } catch (err) {
@@ -99,6 +100,8 @@ export function createVercelHandler(options?: Partial<VercelHandlerOptions>) {
     PUT: handleRequest,
     DELETE: handleRequest,
     PATCH: handleRequest,
+    // Next.js answers OPTIONS itself unless exported, and a CORS preflight must reach mion
+    OPTIONS: handleRequest,
   };
 }
 

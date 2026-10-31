@@ -59,6 +59,7 @@ describe('resolveExecutionChain', () => {
       chain,
       '/hello',
       undefined,
+      'POST',
       headersFromRecord({}),
       headersFromRecord({}),
       '{"hello":["John"]}'
@@ -81,7 +82,7 @@ describe('resolveExecutionChain', () => {
 
   it('a shared not-found chain takes the path the request brought', () => {
     const chain = resolveExecutionChain('/nope', undefined, {});
-    const context = createContextFromChain(chain, '/nope', undefined, headersFromRecord({}), headersFromRecord({}));
+    const context = createContextFromChain(chain, '/nope', undefined, 'POST', headersFromRecord({}), headersFromRecord({}));
     expect(context.path).toEqual('/nope');
   });
 });

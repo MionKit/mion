@@ -34,12 +34,14 @@ export function createContextFromChain(
   chain: MethodsExecutionChain,
   path: string,
   urlQuery: string | undefined,
+  method: string,
   reqHeaders: MionHeaders,
   respHeaders: MionHeaders,
   reqRawBody?: RawRequestBody,
   reqBodyType?: SerializerCode
 ): CallContext {
   const request: MionRequest = {
+    method,
     headers: reqHeaders,
     rawBody: reqRawBody,
     bodyType: reqBodyType ?? getRequestBodyType(reqRawBody),
@@ -82,10 +84,11 @@ export function createCallContext(
   reqHeaders: MionHeaders,
   respHeaders: MionHeaders,
   reqRawBody?: RawRequestBody,
-  reqBodyType?: SerializerCode
+  reqBodyType?: SerializerCode,
+  method = 'POST'
 ): CallContext {
   const chain = resolveExecutionChain(path, urlQuery, rawRequest);
-  return createContextFromChain(chain, path, urlQuery, reqHeaders, respHeaders, reqRawBody, reqBodyType);
+  return createContextFromChain(chain, path, urlQuery, method, reqHeaders, respHeaders, reqRawBody, reqBodyType);
 }
 
 // ############# HELPER FUNCTIONS #############

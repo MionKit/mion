@@ -74,6 +74,7 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
           chain,
           path,
           urlQuery,
+          req.method,
           toRpcError(err),
           req.headers,
           responseHeaders,
@@ -88,7 +89,7 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
         reqBodyType = queryBody.bodyType;
       }
     }
-    const context = createContextFromChain(chain, path, urlQuery, req.headers, responseHeaders, rawBody, reqBodyType);
+    const context = createContextFromChain(chain, path, urlQuery, req.method, req.headers, responseHeaders, rawBody, reqBodyType);
     const platformResp = await dispatchWithContext(context, req, platformContext);
     return replyFetch(platformResp, responseHeaders);
   } catch (err) {

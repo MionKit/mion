@@ -714,7 +714,16 @@ describe('the mionFetchMetadata middleware sends the build version header', () =
     const rawRequest = {headers: headersFromRecord({})};
     const respHeaders = headersFromRecord({});
     const chain = resolveExecutionChain('/ping', undefined, rawRequest);
-    await dispatchPlatformError(chain, '/ping', undefined, requestPayloadTooLarge(), rawRequest.headers, respHeaders, rawRequest);
+    await dispatchPlatformError(
+      chain,
+      '/ping',
+      undefined,
+      'POST',
+      requestPayloadTooLarge(),
+      rawRequest.headers,
+      respHeaders,
+      rawRequest
+    );
     expect(respHeaders.get(BUILD_VERSION_HEADER)).toBe('abc123');
   });
 

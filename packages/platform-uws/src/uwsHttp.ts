@@ -126,6 +126,12 @@ export async function startUwsServer(options?: Partial<UwsHttpOptions>): Promise
 
 // ############# PRIVATE METHODS #############
 
+// uWS lowercases the method; the common ones map to a constant so a request allocates no new string
+const UPPER_CASE_METHODS: Record<string, string> = {get: 'GET', post: 'POST', options: 'OPTIONS', query: 'QUERY'};
+function upperCaseMethod(method: string): string {
+  return UPPER_CASE_METHODS[method] ?? method.toUpperCase();
+}
+
 // uWS refreshes a socket's idle timeout only from inside a body-data callback, and runs it only when a reader is registered.
 // Without one, a request answered before its body finished arriving is closed mid-upload, so drop every chunk instead.
 function drainRequestBody(res: HttpResponse) {
@@ -140,6 +146,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   const path = req.getUrl();
   const query = req.getQuery();
   const urlQuery = query === '' ? undefined : query;
+  const method = upperCaseMethod(req.getMethod());
   const reqHeaders = headersFromUwsRequest(req);
 
   const respHeaders = getDefaultHeaders();
@@ -178,7 +185,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
       return;
     }
 
-    const context = createContextFromChain(chain, path, urlQuery, reqHeaders, respHeaders, reqRawBody, reqBodyType);
+    const context = createContextFromChain(chain, path, urlQuery, method, reqHeaders, respHeaders, reqRawBody, reqBodyType);
     let dispatched: MionResponse | Promise<MionResponse>;
     try {
       dispatched = dispatchMaybeSync(context, rawRequest, res);
@@ -224,7 +231,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
     if (fullBody === null) {
       // the route resolved, so the refusal still runs the chain's alwaysRun members
       answerWith(
-        dispatchPlatformError(chain, path, urlQuery, requestPayloadTooLarge(), reqHeaders, respHeaders, rawRequest, res)
+        dispatchPlatformError(chain, path, urlQuery, method, requestPayloadTooLarge(), reqHeaders, respHeaders, rawRequest, res)
       );
       return;
     }
