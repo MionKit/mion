@@ -48,9 +48,7 @@ export function markResponseFailed(context: CallContext, rpcError: RpcError<stri
   response.stopped = true;
 }
 
-/** Ends the chain with a successful answer: every later member is skipped except the `alwaysRun` ones, exactly as
- *  after an error, but `hasErrors` stays false. The status code defaults to 200, the answer is the usual JSON body.
- *  A chain that already failed is left as it is. */
+/** Later members are skipped except `alwaysRun` ones, as after an error, but `hasErrors` stays false. */
 export function endChain(context: CallContext, statusCode: number = StatusCodes.OK): void {
   const response = context.response as Mutable<ChainResponse>;
   if (response.stopped) return;

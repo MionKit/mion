@@ -155,8 +155,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
     return;
   }
 
-  /** A refused request still runs the chain's `alwaysRun` members. Past the limit the stream is destroyed, so
-   *  the client cannot keep sending. */
+  /** Still runs the chain's `alwaysRun` members; past the limit, destroying the stream stops the client sending. */
   async function dispatchRefusal(refusal: RpcError<string>, destroyStream: boolean) {
     bodyChunks.length = 0;
     try {

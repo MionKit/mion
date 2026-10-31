@@ -23,8 +23,7 @@ const FORM_CONTENT_TYPES: ReadonlySet<string> = new Set([
   'multipart/form-data',
 ]);
 
-/** The 415 an adapter answers, before reading the body, for a POST or QUERY whose content type a plain form or a
- *  no-cors fetch can send without a preflight: a form type, or none. Undefined when the request may go on. */
+/** Answered before reading the body: a form type or none lets another site post with no preflight. */
 export function contentTypeRefusal(
   method: string,
   contentType: string | null | undefined

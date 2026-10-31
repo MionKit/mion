@@ -196,18 +196,17 @@ export function hasJitFnsForMethod(metadata: MethodWithOptions): boolean {
   return hasFullSet(metadata.returnJitHash, parser.return);
 }
 
-/** The router id of a Route or Middleware: its pointer inside the Routes object, e.g. ['users', 'getUser']. */
 const MUTATION_HTTP_METHODS: readonly RouteHttpMethod[] = Object.freeze(['POST']);
 /** A batch is always one POST, on the client and on the router */
 export const BATCH_HTTP_METHODS = MUTATION_HTTP_METHODS;
 const READ_HTTP_METHODS: readonly RouteHttpMethod[] = Object.freeze(['GET', 'POST']);
 
-/** A route's HTTP methods when it names none: a mutation is never right over GET. POST stays on a read
- *  so the client can fall back to it when the URL is too long. */
+/** A mutation is never right over GET; a read keeps POST for when the URL is too long. */
 export function defaultHttpMethods(isMutation: boolean | undefined): readonly RouteHttpMethod[] {
   return isMutation ? MUTATION_HTTP_METHODS : READ_HTTP_METHODS;
 }
 
+/** The router id of a Route or Middleware: its pointer inside the Routes object, e.g. ['users', 'getUser']. */
 export function getRouterItemId(itemPointer: string[]) {
   return itemPointer.join(ROUTER_ITEM_SEPARATOR_CHAR);
 }
