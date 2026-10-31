@@ -9,6 +9,6 @@ const routes = {
   getAvatar: mion.query((ctx, id: number): string => `avatar ${id}`, {
     httpMethods: ['GET'],
   }),
-  // default POST only: a GET, a link or an image never runs it
+  // default POST only: a link or image on another site (a GET with the user's cookies) never runs it
   deleteUser: mion.mutation((ctx, id: number): boolean => true),
 } satisfies Routes;
