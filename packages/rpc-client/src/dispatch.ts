@@ -27,6 +27,7 @@ import {
   BUILD_VERSION_HEADER,
   ROUTER_ITEM_SEPARATOR_CHAR,
   defaultHttpMethods,
+  StatusCodes,
 } from '@mionjs/core';
 import {addSubRequest, createCallContext, getRouteIds, getRoutePointers} from './callContext.ts';
 import {noteServerApiVersion, reportApiVersionMismatch, takeApiVersionError} from './lib/apiBuildVersion.ts';
@@ -50,6 +51,8 @@ interface DispatchState {
   readonly askedRequestHandlers: Set<string>;
   /** the current attempt reached fetch, so the server may have run its routes */
   sent: boolean;
+  /** the methods a 405 answer's `Allow` header listed: they win over the route's metadata, which may be stale */
+  httpMethods?: readonly string[];
 }
 
 // ############# DISPATCH #############
@@ -176,6 +179,7 @@ async function makeCall(state: DispatchState, skipOptimistic?: boolean): Promise
   }
 
   let response: Response;
+  let sentMethod = '';
   try {
     let serialized: ReturnType<typeof serializeRequestBody>;
     try {
@@ -195,12 +199,13 @@ async function makeCall(state: DispatchState, skipOptimistic?: boolean): Promise
       options,
       isOptimistic,
       isQueryRoute(context),
-      getHttpMethods(context),
+      state.httpMethods ?? getHttpMethods(context),
       signal
     );
     state.sent = true;
     response = await fetch(url, fetchOptions);
     context.httpResponse = response;
+    sentMethod = fetchOptions.method as string;
   } catch (error: any) {
     onError(context, error, 'Error executing request', errors);
     return Promise.reject(errors);
@@ -213,6 +218,13 @@ async function makeCall(state: DispatchState, skipOptimistic?: boolean): Promise
       return Promise.reject(errors);
     }
     const deserialized = await deserializeResponseBody(response, options, metadata && ((body) => metadata.readRows(body)));
+    // a refused method ran nothing: resend once with one the server lists, so a stale or optimistic choice recovers
+    const allowed = state.httpMethods ? undefined : getRetryMethods(response, sentMethod);
+    if (allowed) {
+      state.httpMethods = allowed;
+      resetAttempt(state);
+      return makeCall(state, true);
+    }
     if (handlePlatformError(context, deserialized, errors)) return Promise.reject(errors);
     // without the metadata middleware the client cannot check routes one by one, so the whole API is reported
     if (noteServerApiVersion(options.baseURL, response.headers.get(BUILD_VERSION_HEADER)) && !metadata)
@@ -392,6 +404,14 @@ function getHttpMethods(context: ClientCallContext): readonly string[] {
 }
 
 const BATCH_HTTP_METHODS: readonly string[] = ['POST'];
+
+/** The methods a 405 lists, when one of them is a method the client sends and not the one it just sent. */
+function getRetryMethods(response: Response, sentMethod: string): readonly string[] | undefined {
+  if (response.status !== StatusCodes.METHOD_NOT_ALLOWED) return undefined;
+  const allowed = (response.headers.get('allow') ?? '').split(',').map((method) => method.trim().toUpperCase());
+  const usable = allowed.some((method) => (method === 'GET' || method === 'POST') && method !== sentMethod);
+  return usable ? allowed : undefined;
+}
 
 // ############# ON REQUEST HOOKS #############
 
