@@ -161,7 +161,7 @@ describe('mionCors', () => {
       } satisfies Routes);
       const inGroup = await send('/open/listUsers', 'POST', {origin: APP}, {listUsers: []});
       expect(inGroup.headers.get('access-control-allow-origin')).toBe(APP);
-      const outside = await send('/closed/saveUser', 'POST', {origin: APP}, {'closed-saveUser': ['a']});
+      const outside = await send('/closed/saveUser', 'POST', {origin: APP}, {'closed/saveUser': ['a']});
       expect(outside.headers.get('access-control-allow-origin')).toBeFalsy();
       expect(outside.headers.get('vary')).toBeFalsy();
       const optionsOutside = await preflight('/closed/saveUser');

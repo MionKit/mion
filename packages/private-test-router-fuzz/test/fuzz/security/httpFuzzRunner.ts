@@ -13,6 +13,8 @@
 //   SH-NOLEAK    no engine error text and no file path in any response
 //   SH-TIME      one request inside its time budget
 //   SH-PROTO     Object.prototype untouched after the run
+//   SH-GATE      a route runs exactly when its httpMethods accept the method (HEAD as GET) and, for a POST or
+//                QUERY, the content type is neither a form type nor missing (the gate lane, over raw HTTP)
 
 import {createConnection} from 'node:net';
 import type {Server} from 'node:http';
@@ -41,7 +43,7 @@ const mion = createMionRouter({contextDataFactory: () => ({user: null})});
 
 // ############# oracles #############
 
-export type HttpOracleId = 'SH-ALIVE' | 'SH-ENVELOPE' | 'SH-NO5XX' | 'SH-NOLEAK' | 'SH-TIME' | 'SH-PROTO';
+export type HttpOracleId = 'SH-ALIVE' | 'SH-ENVELOPE' | 'SH-NO5XX' | 'SH-NOLEAK' | 'SH-TIME' | 'SH-PROTO' | 'SH-GATE';
 
 export interface HttpViolation {
   oracle: HttpOracleId;
@@ -122,6 +124,8 @@ type User = {name: string; surname: string; age: number; tags: string[]; joined:
 type Tree = {value: number; children: Tree[]};
 type Either = Date | bigint | {kind: 'a'; n: number} | string;
 
+const gateRuns = {save: 0, read: 0, getOnly: 0, withQuery: 0};
+
 const routes = {
   auth: mion.headersMiddleware((ctx, h: HeadersSubset<'authorization'>): void => undefined),
   session: mion.middleware((ctx, token?: string): {ok: boolean} => ({ok: token === 'good'})),
@@ -142,6 +146,13 @@ const routes = {
     throw new Error('handler exploded with a secret /home/user/app.ts:12');
   }),
   compact: compactTestRoutes,
+  // the gate lane counts runs: a route that ran is the observation its oracle checks
+  gate: {
+    save: mion.mutation((ctx): number => ++gateRuns.save),
+    read: mion.query((ctx): number => ++gateRuns.read),
+    getOnly: mion.query((ctx): number => ++gateRuns.getOnly, {httpMethods: ['GET']}),
+    withQuery: mion.query((ctx): number => ++gateRuns.withQuery, {httpMethods: ['QUERY', 'POST']}),
+  },
 };
 
 const VALID_USER: User = {
@@ -831,4 +842,129 @@ export function renderHttpViolations(violations: HttpViolation[], limit = 25): s
     .map((v) => `  [${v.oracle}] ${v.attack} (seed=0x${v.seed.toString(16)}): ${v.message}\n      ${v.input}`);
   if (violations.length > limit) lines.push(`  …and ${violations.length - limit} more`);
   return lines.join('\n');
+}
+
+// ############# the method + content-type gate (node adapter) #############
+
+type GateRoute = keyof typeof gateRuns;
+
+/** Each gate route's httpMethods, as declared above */
+const GATE_METHODS: Record<GateRoute, readonly string[]> = {
+  save: ['POST'],
+  read: ['GET', 'POST'],
+  getOnly: ['GET'],
+  withQuery: ['QUERY', 'POST'],
+};
+const GATE_ROUTES = Object.keys(GATE_METHODS) as GateRoute[];
+// node refuses lowercase and unknown names with its own 400, before mion: they must not run either
+const GATE_METHOD_POOL = ['GET', 'HEAD', 'POST', 'QUERY', 'OPTIONS', 'PUT', 'DELETE', 'PATCH', 'get', 'Post', 'TRACE'];
+const FORM_TYPES = ['text/plain', 'application/x-www-form-urlencoded', 'multipart/form-data'];
+const GATE_CONTENT_TYPES: Array<string | undefined> = [
+  undefined,
+  'application/json',
+  'application/json; charset=utf-8',
+  'APPLICATION/JSON',
+  'text/plain',
+  'TEXT/PLAIN;charset=UTF-8',
+  'text/plain ; charset=utf-8',
+  'application/x-www-form-urlencoded',
+  'multipart/form-data; boundary=----x',
+  'application/octet-stream',
+  'text/json',
+  'application/vnd.api+json',
+];
+
+export interface GateRequest {
+  route: GateRoute;
+  method: string;
+  contentType: string | undefined;
+  /** where the route's params travel: the body, the `?data=` query, or nowhere */
+  carrier: 'body' | 'query' | 'none';
+}
+
+/** The rule: what the request must do to the route, from the route's declared methods alone */
+export function gateShouldRun({route, method, contentType}: GateRequest): boolean {
+  const asGet = method === 'HEAD' ? 'GET' : method;
+  if (!GATE_METHODS[route].includes(asGet)) return false;
+  if (method !== 'POST' && method !== 'QUERY') return true;
+  if (contentType === undefined) return false;
+  const mediaType = contentType.split(';')[0].trim().toLowerCase();
+  return !FORM_TYPES.includes(mediaType);
+}
+
+/** SH-GATE: a violation message when what happened is not what the rule says */
+export function checkGate(request: GateRequest, ran: boolean): string | null {
+  const expected = gateShouldRun(request);
+  if (ran === expected) return null;
+  return expected
+    ? 'the route was refused although its methods and content type allow it'
+    : 'the route ran although the gate must refuse it';
+}
+
+function buildGateRequest(rng: Rng): GateRequest {
+  return {
+    route: rng.pick(GATE_ROUTES),
+    method: rng.pick(GATE_METHOD_POOL),
+    contentType: rng.pick(GATE_CONTENT_TYPES),
+    carrier: rng.pick(['body', 'query', 'none'] as const),
+  };
+}
+
+function gateWire(request: GateRequest): string {
+  const path = `/gate/${request.route}`;
+  const id = `gate/${request.route}`;
+  const body = JSON.stringify({[id]: []});
+  const query = request.carrier === 'query' ? `?data=${toBase64Url(body)}` : '';
+  const sent = request.carrier === 'body' ? body : '';
+  const contentType = request.contentType === undefined ? '' : `Content-Type: ${request.contentType}\r\n`;
+  return (
+    `${request.method} ${path}${query} HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer ok\r\n${contentType}` +
+    `Content-Length: ${Buffer.byteLength(sent)}\r\nConnection: close\r\n\r\n${sent}`
+  );
+}
+
+export interface GateReport {
+  violations: HttpViolation[];
+  /** requests sent, by whether the rule said the route runs */
+  outcomes: {ran: number; refused: number};
+}
+
+/** Seeded requests at the node adapter, each checked against SH-GATE; every step replays from its seed. */
+export async function runGateFuzz(seed: number, iterations: number): Promise<GateReport> {
+  resetNodeHttpOpts();
+  await openLane();
+  setNodeHttpOpts({port: 0, maxBodySize: 64_000});
+  const server: Server = (await startNodeServer()) as Server;
+  const port = (server.address() as {port: number}).port;
+  const violations: HttpViolation[] = [];
+  const outcomes = {ran: 0, refused: 0};
+  try {
+    const seeds = mulberry32(seed);
+    for (let i = 0; i < iterations; i++) {
+      const stepSeed = Math.floor(seeds() * 0xffffffff);
+      const request = buildGateRequest(makeRng(stepSeed));
+      const before = gateRuns[request.route];
+      const wire = gateWire(request);
+      const answer = await rawSocketRequest(port, wire);
+      const ran = gateRuns[request.route] > before;
+      outcomes[gateShouldRun(request) ? 'ran' : 'refused']++;
+      const message = checkGate(request, ran);
+      if (message)
+        violations.push({
+          oracle: 'SH-GATE',
+          attack: `gate.${request.method}`,
+          seed: stepSeed,
+          message: `${message} (status ${answer.status})`,
+          input: JSON.stringify(request),
+        });
+    }
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+  return {violations, outcomes};
+}
+
+/** Replays one gate step by the seed its violation printed. */
+export function replayGateRequest(stepSeed: number): GateRequest {
+  return buildGateRequest(makeRng(stepSeed));
 }
