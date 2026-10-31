@@ -80,6 +80,7 @@ describe('node http router', () => {
       const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
       const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
         method: 'POST',
+        headers: {'content-type': 'application/json'},
         body: JSON.stringify(requestData),
       });
       const reply = await response.json();
@@ -93,7 +94,7 @@ describe('node http router', () => {
 
     it('answers a HEAD request with the headers only, and keeps serving on the same connection', async () => {
       const head = 'HEAD /api/getDate HTTP/1.1\r\nHost: x\r\n\r\n';
-      const post = 'POST /api/getDate HTTP/1.1\r\nHost: x\r\nContent-Length: 2\r\n\r\n{}';
+      const post = 'POST /api/getDate HTTP/1.1\r\nHost: x\r\nContent-Type: application/json\r\nContent-Length: 2\r\n\r\n{}';
       const dateBody = '{"getDate":{"date":"2022-04-22T00:17:00.000Z"}}';
       const wire = await new Promise<string>((resolve, reject) => {
         let data = '';
@@ -119,7 +120,11 @@ describe('node http router', () => {
     });
 
     it('fails the call instead of sending a returned header holding a line break', async () => {
-      const response = await fetch(`http://127.0.0.1:${port}/api/badHeader`, {method: 'POST', body: '{}'});
+      const response = await fetch(`http://127.0.0.1:${port}/api/badHeader`, {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+        body: '{}',
+      });
       const reply = (await response.json()) as Record<string, Record<string, PublicRpcError<string>>>;
       expect(response.status).toEqual(StatusCodes.UNEXPECTED_ERROR);
       expect(response.headers.get('x-tag')).toBeNull();
@@ -130,6 +135,7 @@ describe('node http router', () => {
       const requestData = {getDate: ['NOT A DATE POINT']};
       const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
         method: 'POST',
+        headers: {'content-type': 'application/json'},
         body: JSON.stringify(requestData),
       });
       const reply = await response.json();
@@ -151,6 +157,7 @@ describe('node http router', () => {
     it('set response headers from route response', async () => {
       const response = await fetch(`http://127.0.0.1:${port}/api/updateHeaders`, {
         method: 'POST',
+        headers: {'content-type': 'application/json'},
         body: '{}',
       });
       const reply = await response.json();
@@ -189,6 +196,7 @@ describe('node http router', () => {
       const requestData = {changeUserName: [{name: 'a', surname: 'b'}]};
       const response = await fetch(`http://127.0.0.1:${smallPort}/api/changeUserName`, {
         method: 'POST',
+        headers: {'content-type': 'application/json'},
         body: JSON.stringify(requestData),
       });
       const headers = Object.fromEntries(response.headers.entries());
@@ -230,6 +238,7 @@ describe('node http router', () => {
       const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
       const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
         method: 'POST',
+        headers: {'content-type': 'application/json'},
         body: JSON.stringify(requestData),
       });
       const reply = await response.json();
@@ -245,6 +254,7 @@ describe('node http router', () => {
       const requestData = {changeUserName: [{name: 'John', surname: 'Doe'}]};
       const response = await fetch(`http://127.0.0.1:${port}/api/changeUserName`, {
         method: 'POST',
+        headers: {'content-type': 'application/json'},
         body: JSON.stringify(requestData),
       });
       const reply = await response.json();

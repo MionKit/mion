@@ -14,7 +14,14 @@ import {answersPreflight} from './handlers.ts';
 
 // One bit per method, so a chain keeps the methods it accepts as one number and a request costs one test.
 // Null prototype: the method comes off the wire, so `constructor` must not read as a bit.
-const METHOD_BITS: Readonly<Record<string, number>> = Object.assign(Object.create(null), {GET: 1, POST: 2, OPTIONS: 4, QUERY: 8});
+// HEAD is GET without the body (RFC 9110), so it shares GET's bit.
+const METHOD_BITS: Readonly<Record<string, number>> = Object.assign(Object.create(null), {
+  GET: 1,
+  HEAD: 1,
+  POST: 2,
+  OPTIONS: 4,
+  QUERY: 8,
+});
 const METHOD_NAMES = ['GET', 'POST', 'OPTIONS', 'QUERY'] as const;
 /** Any method missing from METHOD_BITS: only a chain accepting every method has it */
 const OTHER_METHOD_BIT = 16;

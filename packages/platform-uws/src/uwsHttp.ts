@@ -18,6 +18,7 @@ import {
   getDefaultHeaders,
   releaseHeaders,
   requestPayloadTooLarge,
+  contentTypeRefusal,
   hostOwnsSocket,
 } from '@mionjs/router';
 import {STATUS_CODES} from 'http';
@@ -223,6 +224,14 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   if (!chain.readsBody) {
     drainRequestBody(res);
     dispatchBody('', false);
+    return;
+  }
+
+  const refusal = contentTypeRefusal(method, reqHeaders.get('content-type'));
+  if (refusal) {
+    // the route resolved, so the refusal still runs the chain's alwaysRun members; the unread body is dropped
+    drainRequestBody(res);
+    answerWith(dispatchPlatformError(chain, path, urlQuery, method, refusal, reqHeaders, respHeaders, rawRequest, res));
     return;
   }
 

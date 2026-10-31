@@ -18,6 +18,7 @@ import {
   getDefaultFetchHeaders,
   replyFetch,
   readRequestBody,
+  contentTypeRefusal,
   BodyReadStrategy,
 } from '@mionjs/router';
 import type {FetchResponseHeaders} from '@mionjs/router';
@@ -67,9 +68,11 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
     // a not-found chain (an unknown path or batch id) has no route to feed: its body is never read
     if (chain.readsBody) {
       try {
+        const refusal = contentTypeRefusal(req.method, req.headers.get('content-type'));
+        if (refusal) throw refusal;
         rawBody = await readRequestBody(req, chain.maxBodySize, BodyReadStrategy.text);
       } catch (err) {
-        // the route resolved, so a refused body still runs the chain's alwaysRun members
+        // the route resolved, so a refused request still runs the chain's alwaysRun members
         const refused = await dispatchPlatformError(
           chain,
           path,

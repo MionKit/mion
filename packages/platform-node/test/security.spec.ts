@@ -81,13 +81,18 @@ describe('node adapter hardening', () => {
 
     const alive = await fetch(`http://127.0.0.1:${port}/api/echo`, {
       method: 'POST',
+      headers: {'content-type': 'application/json'},
       body: '{"echo":[{"name":"a","surname":"b"}]}',
     });
     expect(alive.status).toBe(200);
   });
 
   it('a malformed JSON body is a typed error with a fixed message', async () => {
-    const response = await fetch(`http://127.0.0.1:${port}/api/echo`, {method: 'POST', body: '{"echo": [}'});
+    const response = await fetch(`http://127.0.0.1:${port}/api/echo`, {
+      method: 'POST',
+      headers: {'content-type': 'application/json'},
+      body: '{"echo": [}',
+    });
     expect(response.status).toBe(StatusCodes.UNEXPECTED_ERROR);
     const error = ((await response.json()) as RpcBody)[MION_ROUTES.thrownErrors]['mionDeserializeRequest'];
     expect(error).toMatchObject({type: 'parsing-json-request-error', publicMessage: 'Invalid json request body.'});
@@ -140,15 +145,24 @@ describe('node adapter hardening', () => {
   it('a body at the route limit dispatches and one byte over is refused, both under the adapter cap', async () => {
     const valid = '{"small":[7]}';
     const atLimit = valid + ' '.repeat(40 - valid.length);
-    const ok = await fetch(`http://127.0.0.1:${port}/api/small`, {method: 'POST', body: atLimit});
+    const ok = await fetch(`http://127.0.0.1:${port}/api/small`, {
+      method: 'POST',
+      headers: {'content-type': 'application/json'},
+      body: atLimit,
+    });
     expect(await ok.json()).toEqual({small: 7});
-    const over = await fetch(`http://127.0.0.1:${port}/api/small`, {method: 'POST', body: atLimit + ' '});
+    const over = await fetch(`http://127.0.0.1:${port}/api/small`, {
+      method: 'POST',
+      headers: {'content-type': 'application/json'},
+      body: atLimit + ' ',
+    });
     expect(over.status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
   });
 
   it('a body inside the limit still dispatches', async () => {
     const response = await fetch(`http://127.0.0.1:${port}/api/echo`, {
       method: 'POST',
+      headers: {'content-type': 'application/json'},
       body: '{"echo":[{"name":"a","surname":"b"}]}',
     });
     expect(await response.json()).toEqual({echo: {name: 'a', surname: 'b'}});
@@ -157,13 +171,18 @@ describe('node adapter hardening', () => {
   it.each(['constructor', 'toString', '__proto__'])("has('%s') is false on a request that never sent it", async (name) => {
     const response = await fetch(`http://127.0.0.1:${port}/api/hasHeader`, {
       method: 'POST',
+      headers: {'content-type': 'application/json'},
       body: JSON.stringify({hasHeader: [name]}),
     });
     expect(await response.json()).toEqual({hasHeader: false});
   });
 
   it('response headers can be listed from a handler', async () => {
-    const response = await fetch(`http://127.0.0.1:${port}/api/listHeaders`, {method: 'POST', body: '{"listHeaders":[]}'});
+    const response = await fetch(`http://127.0.0.1:${port}/api/listHeaders`, {
+      method: 'POST',
+      headers: {'content-type': 'application/json'},
+      body: '{"listHeaders":[]}',
+    });
     const body = (await response.json()) as RpcBody;
     expect(body.listHeaders).toEqual(expect.arrayContaining(['x-one=1', 'server=mionjs']));
   });
@@ -308,6 +327,7 @@ describe('node adapter: a refused body runs the alwaysRun middlewares', () => {
     seen = [];
     const alive = await fetch(`http://127.0.0.1:${refusedPort}/api/echo`, {
       method: 'POST',
+      headers: {'content-type': 'application/json'},
       body: '{"echo":[{"name":"a","surname":"b"}]}',
     });
     expect(alive.status).toBe(200);
@@ -384,7 +404,7 @@ describe('node adapter: a request with no body headers', () => {
   it('answers pipelined requests on one connection, a body-less one before and after a POST with a body', async () => {
     const responses = await exchange(
       `GET /api/hello HTTP/1.1\r\nHost: x\r\n\r\n` +
-        `POST /api/echo HTTP/1.1\r\nHost: x\r\nContent-Length: ${userBody.length}\r\n\r\n${userBody}` +
+        `POST /api/echo HTTP/1.1\r\nHost: x\r\nContent-Type: application/json\r\nContent-Length: ${userBody.length}\r\n\r\n${userBody}` +
         `GET /api/hello HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n`
     );
     expect(responses).toEqual([
@@ -421,7 +441,7 @@ describe('node adapter: a request with no body headers', () => {
     await new Promise<void>((resolve) => h2Server.listen(h2Port, '127.0.0.1', resolve));
     const client = connectHttp2(`http://127.0.0.1:${h2Port}`);
     try {
-      const stream = client.request({':method': 'POST', ':path': '/api/echo', host: 'x'});
+      const stream = client.request({':method': 'POST', ':path': '/api/echo', host: 'x', 'content-type': 'application/json'});
       stream.setEncoding('utf8');
       let body = '';
       stream.on('data', (chunk) => (body += chunk));
@@ -469,17 +489,17 @@ describe('node adapter: requests another site can make a browser send', () => {
     expect(await runsMutation({method: 'OPTIONS'})).toBe(false);
   });
 
-  it.fails('a form POST with a text/plain body never runs a mutation', async () => {
+  it('a form POST with a text/plain body never runs a mutation', async () => {
     expect(await runsMutation({method: 'POST', headers: {'content-type': 'text/plain'}, body: '{"deleteAll":[]}'})).toBe(false);
   });
 
-  it.fails('a urlencoded or multipart form POST never runs a mutation', async () => {
+  it('a urlencoded or multipart form POST never runs a mutation', async () => {
     const urlencoded = {'content-type': 'application/x-www-form-urlencoded'};
     expect(await runsMutation({method: 'POST', headers: urlencoded, body: '{"deleteAll":[]}'})).toBe(false);
     expect(await runsMutation({method: 'POST', body: new FormData()})).toBe(false);
   });
 
-  it.fails('a POST with no content type and no body (a no-cors fetch) never runs a mutation', async () => {
+  it('a POST with no content type and no body (a no-cors fetch) never runs a mutation', async () => {
     expect(await runsMutation({method: 'POST'})).toBe(false);
   });
 

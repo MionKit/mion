@@ -93,12 +93,17 @@ describe('httpMethods', () => {
   });
 
   it('refuses OPTIONS on a chain without the CORS middleware, and any method it does not know', async () => {
-    for (const method of ['OPTIONS', 'PUT', 'DELETE', 'HEAD', 'get', 'constructor', '__proto__']) {
+    for (const method of ['OPTIONS', 'PUT', 'DELETE', 'get', 'constructor', '__proto__']) {
       const response = await dispatch('/read', {}, method);
       expect(response.statusCode).toBe(StatusCodes.METHOD_NOT_ALLOWED);
       expect(response.headers.get('allow')).toBe('GET, POST');
     }
     expect(ran.every((step) => step === 'always:405')).toBe(true);
+  });
+
+  it('accepts HEAD wherever it accepts GET', async () => {
+    expect((await dispatch('/read', {}, 'HEAD')).statusCode).toBe(StatusCodes.OK);
+    expect((await dispatch('/save', {}, 'HEAD')).statusCode).toBe(StatusCodes.METHOD_NOT_ALLOWED);
   });
 
   it('accepts only the methods a route names', async () => {

@@ -90,6 +90,7 @@ describe('serverless router', () => {
       const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
       const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
         method: 'POST',
+        headers: {'content-type': 'application/json'},
         body: JSON.stringify(requestData),
       });
 
@@ -108,6 +109,7 @@ describe('serverless router', () => {
       // query: splitting on every `?` would silently drop the parameters that follow
       const response = await fetch(`http://127.0.0.1:${port}/api/echoQuery?a=1?b=2&c=3`, {
         method: 'POST',
+        headers: {'content-type': 'application/json'},
         body: JSON.stringify({echoQuery: []}),
       });
 
@@ -128,6 +130,7 @@ describe('serverless router', () => {
     it('reports no query string as undefined', async () => {
       const response = await fetch(`http://127.0.0.1:${port}/api/echoQuery`, {
         method: 'POST',
+        headers: {'content-type': 'application/json'},
         body: JSON.stringify({echoQuery: []}),
       });
 
@@ -156,6 +159,7 @@ describe('serverless router', () => {
       const requestData = {getDate: ['NOT A DATE POINT']};
       const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
         method: 'POST',
+        headers: {'content-type': 'application/json'},
         body: JSON.stringify(requestData),
       });
       const reply = (await response.json()) as RpcBody;
@@ -178,6 +182,7 @@ describe('serverless router', () => {
     it('set response headers from route response', async () => {
       const response = await fetch(`http://127.0.0.1:${port}/api/updateHeaders`, {
         method: 'POST',
+        headers: {'content-type': 'application/json'},
         body: '{}',
       });
       const reply = (await response.json()) as RpcBody;
@@ -216,6 +221,7 @@ describe('serverless router', () => {
       const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
       const response = await fetch(`http://127.0.0.1:${port2}/api/getDate`, {
         method: 'POST',
+        headers: {'content-type': 'application/json'},
         body: JSON.stringify(requestData),
       });
 
@@ -233,6 +239,7 @@ describe('serverless router', () => {
       const requestData = {changeUserName: [{name: 'John', surname: 'Doe'}]};
       const response = await fetch(`http://127.0.0.1:${port2}/api/changeUserName`, {
         method: 'POST',
+        headers: {'content-type': 'application/json'},
         body: JSON.stringify(requestData),
       });
 
@@ -248,7 +255,7 @@ describe('serverless router', () => {
 
   describe('the request limit, whatever shape express hands the body over in', () => {
     // express parses a `application/json` request into an object, and an object has no wire size
-    // the router can measure, so every one of these shapes has to be refused by the adapter
+    // the router can measure, so the adapter refuses it
     const limitPort = 8099;
     let limitServer: Server;
     // 113 bytes on the wire against a 50 byte limit
@@ -283,13 +290,13 @@ describe('serverless router', () => {
       } as RequestInit);
     }
 
-    it('refuses an over-limit body express left as a string', async () => {
+    it('refuses a text/plain body, the one express leaves as a string, with a 415 before the limit', async () => {
       const response = await post(overLimitBody);
 
-      expect(response.status).toEqual(StatusCodes.PAYLOAD_TOO_LARGE);
-      expect(response.headers.get('x-rpc-error')).toEqual('request-payload-too-large');
+      expect(response.status).toEqual(StatusCodes.UNSUPPORTED_MEDIA_TYPE);
+      expect(response.headers.get('x-rpc-error')).toEqual('unsupported-media-type');
       const reply = (await response.json()) as RpcBody;
-      expect(reply[MION_ROUTES.thrownErrors][MION_ROUTES.platformError].type).toEqual('request-payload-too-large');
+      expect(reply[MION_ROUTES.thrownErrors][MION_ROUTES.platformError].type).toEqual('unsupported-media-type');
     });
 
     it('refuses an over-limit body express already parsed', async () => {
@@ -316,12 +323,9 @@ describe('serverless router', () => {
       expect(response.headers.get('x-rpc-error')).toEqual('request-payload-too-large');
     });
 
-    it('answers a body under the limit normally, parsed or not', async () => {
-      const asString = await post(underLimitBody);
+    it('answers a parsed body under the limit normally', async () => {
       const asObject = await post(underLimitBody, {'content-type': 'application/json'});
 
-      expect(asString.status).toEqual(StatusCodes.OK);
-      expect(await asString.json()).toEqual({echoLimited: 'x'});
       expect(asObject.status).toEqual(StatusCodes.OK);
       expect(await asObject.json()).toEqual({echoLimited: 'x'});
     });
@@ -404,6 +408,63 @@ describe('serverless router', () => {
       });
       expect(response.status).toEqual(StatusCodes.OK);
       expect(seen).toEqual(['start:/api/echo', 'log:200']);
+    });
+  });
+
+  describe('methods and content types', () => {
+    const methodsPort = 8299;
+    let methodsServer: Server;
+    let saves = 0;
+    const json = {'content-type': 'application/json'};
+    const url = (route: string) => `http://127.0.0.1:${methodsPort}/api/${route}`;
+
+    beforeAll(async () => {
+      resetGoogleCFOpts();
+      resetRouter();
+      const save = mion.mutation((): number => ++saves);
+      const readMethod = mion.query((ctx: CallContext): string => ctx.request.method);
+      mion.initRoutes({save, readMethod});
+      methodsServer = await new Promise<Server>((resolve) => {
+        functions.http('HelloTestsMethods', googleCFHandler);
+        const expressServer = getTestServer('HelloTestsMethods');
+        expressServer.listen(methodsPort, () => resolve(expressServer));
+      });
+    });
+
+    afterAll(async () => {
+      await closeServer(methodsServer);
+      resetGoogleCFOpts();
+      resetRouter();
+    });
+
+    it('puts the HTTP method on the request', async () => {
+      expect(await (await fetch(url('readMethod'), {method: 'POST', headers: json, body: '{}'})).json()).toEqual({
+        readMethod: 'POST',
+      });
+      expect(await (await fetch(url('readMethod'))).json()).toEqual({readMethod: 'GET'});
+    });
+
+    it('refuses a mutation over GET with a 405', async () => {
+      const before = saves;
+      const response = await fetch(url('save'));
+      expect(response.status).toBe(StatusCodes.METHOD_NOT_ALLOWED);
+      expect(response.headers.get('allow')).toBe('POST');
+      expect(saves).toBe(before);
+    });
+
+    it('refuses a form content type or none with a 415, without running the route', async () => {
+      const before = saves;
+      for (const headers of [{'content-type': 'text/plain'}, {'content-type': 'application/x-www-form-urlencoded'}, {}] as Record<
+        string,
+        string
+      >[]) {
+        const response = await fetch(url('save'), {method: 'POST', headers, body: '{"save":[]}'});
+        expect(response.status).toBe(StatusCodes.UNSUPPORTED_MEDIA_TYPE);
+        const body = (await response.json()) as Record<string, Record<string, PublicRpcError<string>>>;
+        expect(body[MION_ROUTES.thrownErrors][MION_ROUTES.platformError].type).toBe('unsupported-media-type');
+      }
+      expect(saves).toBe(before);
+      expect((await fetch(url('save'), {method: 'POST', headers: json, body: '{"save":[]}'})).status).toBe(StatusCodes.OK);
     });
   });
 });

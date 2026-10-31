@@ -55,11 +55,12 @@ describe('serverless router', () => {
     context.response.headers.append('x-list', '2');
   });
 
+  const JSON_HEADERS: APIGatewayProxyEventHeaders = {'content-type': 'application/json'};
   const getDefaultGatewayEvent = (
     body: string,
     path: string,
     httpMethod = 'POST',
-    headers: APIGatewayProxyEventHeaders = {},
+    headers: APIGatewayProxyEventHeaders = JSON_HEADERS,
     isBase64Encoded = false
   ) => {
     const context = {} as any;
@@ -151,7 +152,8 @@ describe('serverless router', () => {
 
   describe('with a base64 encoded body (isBase64Encoded: true)', () => {
     const toBase64 = (text: string) => Buffer.from(text).toString('base64');
-    const getBase64GatewayEvent = (body: string, path: string) => getDefaultGatewayEvent(toBase64(body), path, 'POST', {}, true);
+    const getBase64GatewayEvent = (body: string, path: string) =>
+      getDefaultGatewayEvent(toBase64(body), path, 'POST', JSON_HEADERS, true);
 
     beforeAll(async () => {
       resetAwsLambdaOpts();
@@ -187,7 +189,7 @@ describe('serverless router', () => {
 
     it('leaves a plain body alone when isBase64Encoded is false', async () => {
       const requestData = JSON.stringify({changeUserName: [{name: 'John', surname: 'Doe'}]});
-      const {event, context} = getDefaultGatewayEvent(requestData, '/api/changeUserName', 'POST', {}, false);
+      const {event, context} = getDefaultGatewayEvent(requestData, '/api/changeUserName', 'POST', JSON_HEADERS, false);
 
       const awsResponse = await awsLambdaHandler(event, context);
 
@@ -328,6 +330,45 @@ describe('serverless router', () => {
       const response = await call('{"echo":[{"name":"a","surname":"b"}]}', '/api/echo');
       expect(response.statusCode).toEqual(StatusCodes.OK);
       expect(seen).toEqual(['start:/api/echo', 'log:200']);
+    });
+  });
+
+  describe('methods and content types', () => {
+    let saves = 0;
+    const send = async (route: string, httpMethod: string, headers: APIGatewayProxyEventHeaders, body = '') => {
+      const {event, context} = getDefaultGatewayEvent(body, `/api/${route}`, httpMethod, headers);
+      return awsLambdaHandler(event, context);
+    };
+
+    beforeAll(() => {
+      resetAwsLambdaOpts();
+      const save = mion.mutation((): number => ++saves);
+      const readMethod = mion.query((ctx: CallContext): string => ctx.request.method);
+      mion.initRoutes({save, readMethod});
+    });
+
+    it('puts the HTTP method on the request', async () => {
+      expect(JSON.parse((await send('readMethod', 'POST', JSON_HEADERS, '{}')).body)).toEqual({readMethod: 'POST'});
+      expect(JSON.parse((await send('readMethod', 'GET', {})).body)).toEqual({readMethod: 'GET'});
+    });
+
+    it('refuses a mutation over GET with a 405', async () => {
+      const before = saves;
+      const result = await send('save', 'GET', {});
+      expect(result.statusCode).toBe(StatusCodes.METHOD_NOT_ALLOWED);
+      expect(result.headers?.allow).toBe('POST');
+      expect(saves).toBe(before);
+    });
+
+    it('refuses a form content type or none with a 415, without running the route', async () => {
+      const before = saves;
+      for (const headers of [{'content-type': 'text/plain'}, {}] as Record<string, string>[]) {
+        const result = await send('save', 'POST', headers, '{"save":[]}');
+        expect(result.statusCode).toBe(StatusCodes.UNSUPPORTED_MEDIA_TYPE);
+        expect(JSON.parse(result.body)[MION_ROUTES.thrownErrors][MION_ROUTES.platformError].type).toBe('unsupported-media-type');
+      }
+      expect(saves).toBe(before);
+      expect((await send('save', 'POST', JSON_HEADERS, '{"save":[]}')).statusCode).toBe(StatusCodes.OK);
     });
   });
 });

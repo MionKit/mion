@@ -50,6 +50,7 @@ describe('uws adapter hardening', () => {
 
     const alive = await fetch(`http://127.0.0.1:${port}/api/echo`, {
       method: 'POST',
+      headers: {'content-type': 'application/json'},
       body: '{"echo":[{"name":"a","surname":"b"}]}',
     });
     expect(alive.status).toBe(200);
@@ -58,6 +59,7 @@ describe('uws adapter hardening', () => {
   it('a header value carrying CR or LF is dropped instead of written into the response', async () => {
     const response = await fetch(`http://127.0.0.1:${port}/api/reflectHeader`, {
       method: 'POST',
+      headers: {'content-type': 'application/json'},
       body: JSON.stringify({reflectHeader: ['ok\r\nx-injected: 1']}),
     });
     expect(response.status).toBe(200);
@@ -69,13 +71,18 @@ describe('uws adapter hardening', () => {
   it('a clean header value is written', async () => {
     const response = await fetch(`http://127.0.0.1:${port}/api/reflectHeader`, {
       method: 'POST',
+      headers: {'content-type': 'application/json'},
       body: JSON.stringify({reflectHeader: ['plain']}),
     });
     expect(response.headers.get('x-reflected')).toBe('plain');
   });
 
   it('a malformed JSON body is a typed error with a fixed message', async () => {
-    const response = await fetch(`http://127.0.0.1:${port}/api/echo`, {method: 'POST', body: '{"echo": [}'});
+    const response = await fetch(`http://127.0.0.1:${port}/api/echo`, {
+      method: 'POST',
+      headers: {'content-type': 'application/json'},
+      body: '{"echo": [}',
+    });
     const error = ((await response.json()) as RpcBody)[MION_ROUTES.thrownErrors]['mionDeserializeRequest'];
     expect(error).toMatchObject({type: 'parsing-json-request-error', publicMessage: 'Invalid json request body.'});
   });
@@ -96,19 +103,28 @@ describe('uws adapter: an unknown path never reads the body', () => {
   afterAll(() => server.close());
 
   it('answers 404 without parsing a body that is not JSON, and the connection serves the next request', async () => {
-    const response = await fetch(`http://127.0.0.1:${notFoundPort}/api/nope`, {method: 'POST', body: '{not json'});
+    const response = await fetch(`http://127.0.0.1:${notFoundPort}/api/nope`, {
+      method: 'POST',
+      headers: {'content-type': 'application/json'},
+      body: '{not json',
+    });
     expect(response.status).toBe(StatusCodes.NOT_FOUND);
     const body = (await response.json()) as RpcBody;
     expect(body[MION_ROUTES.thrownErrors][MION_ROUTES.notFound].type).toBe('route-not-found');
     expect(body[MION_ROUTES.thrownErrors]['mionDeserializeRequest']).toBeUndefined();
 
     // a large body on the same kept-alive connection is drained, never assembled
-    const big = await fetch(`http://127.0.0.1:${notFoundPort}/api/nope`, {method: 'POST', body: 'x'.repeat(600_000)});
+    const big = await fetch(`http://127.0.0.1:${notFoundPort}/api/nope`, {
+      method: 'POST',
+      headers: {'content-type': 'application/json'},
+      body: 'x'.repeat(600_000),
+    });
     expect(big.status).toBe(StatusCodes.NOT_FOUND);
     await big.text();
 
     const alive = await fetch(`http://127.0.0.1:${notFoundPort}/api/echo`, {
       method: 'POST',
+      headers: {'content-type': 'application/json'},
       body: '{"echo":[{"name":"a","surname":"b"}]}',
     });
     expect(alive.status).toBe(200);
@@ -159,6 +175,7 @@ describe('uws adapter: a refused request', () => {
         seen = [];
         const response = await fetch(`http://127.0.0.1:${refusedPort}/api/echo`, {
           method: 'POST',
+          headers: {'content-type': 'application/json'},
           body: JSON.stringify({echo: [{name: 'x'.repeat(120), surname: 'y'}]}),
         });
         expect(response.status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
@@ -170,6 +187,7 @@ describe('uws adapter: a refused request', () => {
         seen = [];
         const alive = await fetch(`http://127.0.0.1:${refusedPort}/api/echo`, {
           method: 'POST',
+          headers: {'content-type': 'application/json'},
           body: '{"echo":[{"name":"a","surname":"b"}]}',
         });
         expect(alive.status).toBe(200);
@@ -193,6 +211,7 @@ describe('uws adapter: a refused request', () => {
       async () => {
         const refused = await fetch(`http://127.0.0.1:${transformPort}/api/boom`, {
           method: 'POST',
+          headers: {'content-type': 'application/json'},
           body: 'x'.repeat(600_000),
         });
         expect(refused.status).toBe(StatusCodes.SERVER_ERROR);
@@ -200,11 +219,59 @@ describe('uws adapter: a refused request', () => {
 
         const alive = await fetch(`http://127.0.0.1:${transformPort}/api/echo`, {
           method: 'POST',
+          headers: {'content-type': 'application/json'},
           body: '{"echo":[{"name":"a","surname":"b"}]}',
         });
         expect(alive.status).toBe(200);
         expect(await alive.json()).toEqual({echo: {name: 'a', surname: 'b'}});
       }
     );
+  });
+});
+
+describe('uws adapter: methods and content types', () => {
+  const methodsPort = 8298;
+  let server: UwsServer;
+  let saves = 0;
+  const json = {'content-type': 'application/json'};
+  const url = (route: string) => `http://127.0.0.1:${methodsPort}/api/${route}`;
+
+  beforeAll(async () => {
+    resetUwsHttpOpts();
+    resetRouter();
+    const save = mion.mutation((): number => ++saves);
+    const readMethod = mion.query((ctx: CallContext): string => ctx.request.method);
+    mion.initRoutes({save, readMethod});
+    setUwsHttpOpts({port: methodsPort});
+    server = await startUwsServer();
+  });
+
+  afterAll(() => server.close());
+
+  it('puts the HTTP method on the request, uppercase', async () => {
+    expect(await (await fetch(url('readMethod'), {method: 'POST', headers: json, body: '{}'})).json()).toEqual({
+      readMethod: 'POST',
+    });
+    expect(await (await fetch(url('readMethod'))).json()).toEqual({readMethod: 'GET'});
+  });
+
+  it('refuses a mutation over GET with a 405', async () => {
+    const before = saves;
+    const response = await fetch(url('save'));
+    expect(response.status).toBe(StatusCodes.METHOD_NOT_ALLOWED);
+    expect(response.headers.get('allow')).toBe('POST');
+    expect(saves).toBe(before);
+  });
+
+  it('refuses a form content type or none with a 415, without running the route', async () => {
+    const before = saves;
+    for (const headers of [{'content-type': 'text/plain'}, {}] as Record<string, string>[]) {
+      const response = await fetch(url('save'), {method: 'POST', headers, body: '{"save":[]}'});
+      expect(response.status).toBe(StatusCodes.UNSUPPORTED_MEDIA_TYPE);
+      const body = (await response.json()) as Record<string, Record<string, PublicRpcError<string>>>;
+      expect(body[MION_ROUTES.thrownErrors][MION_ROUTES.platformError].type).toBe('unsupported-media-type');
+    }
+    expect(saves).toBe(before);
+    expect((await fetch(url('save'), {method: 'POST', headers: json, body: '{"save":[]}'})).status).toBe(StatusCodes.OK);
   });
 });

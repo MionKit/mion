@@ -62,7 +62,11 @@ describe('google cloud response headers', () => {
   const port = 8105;
   let server: Server;
   const call = async (route: string) => {
-    const response = await fetch(`http://127.0.0.1:${port}/${route}`, {method: 'POST', body: JSON.stringify({[route]: []})});
+    const response = await fetch(`http://127.0.0.1:${port}/${route}`, {
+      method: 'POST',
+      headers: {'content-type': 'application/json'},
+      body: JSON.stringify({[route]: []}),
+    });
     await response.text();
     return response;
   };

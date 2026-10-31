@@ -75,6 +75,7 @@ describe('bun router should', () => {
     const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
     const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
       method: 'POST',
+      headers: {'content-type': 'application/json'},
       body: JSON.stringify(requestData),
     });
 
@@ -91,6 +92,7 @@ describe('bun router should', () => {
     const requestData = {getDate: ['NOT A DATE POINT']};
     const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
       method: 'POST',
+      headers: {'content-type': 'application/json'},
       body: JSON.stringify(requestData),
     });
     const reply = (await response.json()) as Record<string, unknown>;
@@ -113,6 +115,7 @@ describe('bun router should', () => {
   test('set response headers from route response', async () => {
     const response = await fetch(`http://127.0.0.1:${port}/api/updateHeaders`, {
       method: 'POST',
+      headers: {'content-type': 'application/json'},
       body: '{}',
     });
     const reply = await response.json();
@@ -156,6 +159,7 @@ describe('bun router should', () => {
     const requestData = {changeUserName: [{name: 'a', surname: 'b'}]};
     const response = await fetch(`http://127.0.0.1:${smallPort}/api/changeUserName`, {
       method: 'POST',
+      headers: {'content-type': 'application/json'},
       body: JSON.stringify(requestData),
     });
     // Bun.serve refuses the body itself with maxRequestBodySize; when it hands the request over
@@ -172,6 +176,7 @@ describe('bun router should', () => {
     // a chunked body with no content-length is read against the route limit as it streams in
     const streamed = await fetch(`http://127.0.0.1:${smallPort}/api/changeUserName`, {
       method: 'POST',
+      headers: {'content-type': 'application/json'},
       body: new ReadableStream<Uint8Array>({
         start(controller) {
           const chunk = new TextEncoder().encode(JSON.stringify(requestData));
@@ -187,7 +192,12 @@ describe('bun router should', () => {
     await streamed.text();
     // the refused stream's connection is closed by the server (`connection: close`); Bun's own fetch
     // client still reuses it once and gets a 400, so the liveness check opens a fresh connection
-    const alive = await fetch(`http://127.0.0.1:${smallPort}/api/getDate`, {method: 'POST', body: '{}', keepalive: false});
+    const alive = await fetch(`http://127.0.0.1:${smallPort}/api/getDate`, {
+      method: 'POST',
+      headers: {'content-type': 'application/json'},
+      body: '{}',
+      keepalive: false,
+    });
     expect(alive.status).toBe(200);
 
     void smallServer.stop(true);
@@ -198,12 +208,20 @@ describe('bun router should', () => {
   });
 
   test('an unknown path answers 404 without reading the body, and the server keeps serving', async () => {
-    const response = await fetch(`http://127.0.0.1:${port}/api/nope`, {method: 'POST', body: '{not json'});
+    const response = await fetch(`http://127.0.0.1:${port}/api/nope`, {
+      method: 'POST',
+      headers: {'content-type': 'application/json'},
+      body: '{not json',
+    });
     expect(response.status).toBe(StatusCodes.NOT_FOUND);
     const body = (await response.json()) as Record<string, any>;
     expect(body[MION_ROUTES.thrownErrors][MION_ROUTES.notFound].type).toBe('route-not-found');
     expect(body[MION_ROUTES.thrownErrors]['mionDeserializeRequest']).toBeUndefined();
-    const alive = await fetch(`http://127.0.0.1:${port}/api/getDate`, {method: 'POST', body: '{}'});
+    const alive = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
+      method: 'POST',
+      headers: {'content-type': 'application/json'},
+      body: '{}',
+    });
     expect(alive.status).toBe(200);
   });
 
@@ -239,6 +257,7 @@ describe('bun router should', () => {
     const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
     const response = await fetch(`http://127.0.0.1:${testPort}/api/getDate`, {
       method: 'POST',
+      headers: {'content-type': 'application/json'},
       body: JSON.stringify(requestData),
     });
 
@@ -270,6 +289,7 @@ describe('bun router should', () => {
     const requestData = {changeUserName: [{name: 'John', surname: 'Doe'}]};
     const response = await fetch(`http://127.0.0.1:${testPort}/api/changeUserName`, {
       method: 'POST',
+      headers: {'content-type': 'application/json'},
       body: JSON.stringify(requestData),
     });
 
@@ -330,6 +350,7 @@ describe('bun: a refused body runs the alwaysRun middlewares', () => {
     seen.length = 0;
     const response = await fetch(`http://127.0.0.1:${refusedPort}/api/echo`, {
       method: 'POST',
+      headers: {'content-type': 'application/json'},
       body: JSON.stringify({echo: [{name: 'x'.repeat(120), surname: 'y'}]}),
     });
     expect(response.status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
@@ -343,6 +364,7 @@ describe('bun: a refused body runs the alwaysRun middlewares', () => {
     seen.length = 0;
     const response = await fetch(`http://127.0.0.1:${refusedPort}/api/echo`, {
       method: 'POST',
+      headers: {'content-type': 'application/json'},
       body: '{"echo":[{"name":"a","surname":"b"}]}',
     });
     expect(response.status).toBe(200);
@@ -387,5 +409,48 @@ describe('bun: a router with the default alwaysAwait', () => {
     expect(response.status).toBe(StatusCodes.UNEXPECTED_ERROR);
     const errors = ((await response.json()) as RpcBody)[MION_ROUTES.thrownErrors];
     expect(errors.failing).toBeDefined();
+  });
+});
+
+describe('bun adapter: methods and content types', () => {
+  let saves = 0;
+  const json = {'content-type': 'application/json'};
+  const send = (route: string, init?: RequestInit) =>
+    Promise.resolve(bunRequestHandler(new Request(`http://127.0.0.1/api/${route}`, init)));
+
+  // built in the hook, never in the describe body: bun runs every test file of the package in one process
+  beforeAll(() => {
+    resetBunHttpOpts();
+    resetRouter();
+    const mion = createMionRouter({basePath: 'api/'});
+    const save = mion.mutation((): number => ++saves);
+    const readMethod = mion.query((ctx: CallContext): string => ctx.request.method);
+    mion.initRoutes({save, readMethod});
+  });
+
+  test('puts the HTTP method on the request', async () => {
+    expect(await (await send('readMethod', {method: 'POST', headers: json, body: '{}'})).json()).toEqual({readMethod: 'POST'});
+    expect(await (await send('readMethod')).json()).toEqual({readMethod: 'GET'});
+  });
+
+  test('refuses a mutation over GET with a 405', async () => {
+    const before = saves;
+    const response = await send('save');
+    expect(response.status).toBe(StatusCodes.METHOD_NOT_ALLOWED);
+    expect(response.headers.get('allow')).toBe('POST');
+    expect(saves).toBe(before);
+  });
+
+  test('refuses a form content type or none with a 415, without running the route, and closes the socket', async () => {
+    const before = saves;
+    for (const headers of [{'content-type': 'text/plain'}, {}] as Record<string, string>[]) {
+      const response = await send('save', {method: 'POST', headers, body: '{"save":[]}'});
+      expect(response.status).toBe(StatusCodes.UNSUPPORTED_MEDIA_TYPE);
+      expect(response.headers.get('connection')).toBe('close');
+      const body = (await response.json()) as Record<string, Record<string, PublicRpcError<string>>>;
+      expect(body[MION_ROUTES.thrownErrors][MION_ROUTES.platformError].type).toBe('unsupported-media-type');
+    }
+    expect(saves).toBe(before);
+    expect((await send('save', {method: 'POST', headers: json, body: '{"save":[]}'})).status).toBe(StatusCodes.OK);
   });
 });
