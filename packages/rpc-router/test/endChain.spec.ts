@@ -83,7 +83,7 @@ describe('endChain', () => {
     expect(response.statusCode).toBe(401);
     expect(response.hasErrors).toBe(true);
     expect(response.endedEarly).toBe(false);
-    expect(response.body[MION_ROUTES.thrownErrors].first.type).toBe('not-authorized');
+    expect(response.body[MION_ROUTES.thrownErrors]?.first?.type).toBe('not-authorized');
   });
 
   it('leaves a chain it never touched running to the route', async () => {
