@@ -18,6 +18,7 @@ import {
   replyFetch,
   readRequestBody,
   BodyReadStrategy,
+  toHttpMethod,
 } from '@mionjs/router';
 import type {FetchResponseHeaders} from '@mionjs/router';
 import {DEFAULT_VERCEL_OPTIONS} from './constants.ts';
@@ -67,7 +68,7 @@ async function handleRequest(req: Request): Promise<Response> {
           chain,
           path,
           urlQuery,
-          req.method,
+          toHttpMethod(req.method),
           toRpcError(err),
           req.headers,
           responseHeaders,
@@ -77,7 +78,16 @@ async function handleRequest(req: Request): Promise<Response> {
         return replyFetch(refused, responseHeaders);
       }
     }
-    const context = createContextFromChain(chain, path, urlQuery, req.method, req.headers, responseHeaders, rawBody, reqBodyType);
+    const context = createContextFromChain(
+      chain,
+      path,
+      urlQuery,
+      toHttpMethod(req.method),
+      req.headers,
+      responseHeaders,
+      rawBody,
+      reqBodyType
+    );
     const platformResp = await dispatchWithContext(context, req, undefined);
     return replyFetch(platformResp, responseHeaders);
   } catch (err) {

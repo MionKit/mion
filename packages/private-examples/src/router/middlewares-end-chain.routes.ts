@@ -9,10 +9,14 @@ const routes = {
   }),
   auth: mion.middleware((ctx): void => undefined),
   sayHello: mion.route((ctx, name: string): string => `Hello ${name}`),
-  // alwaysRun: still runs after endChain, and endedEarly tells it apart from an error
+  // alwaysRun: still runs after endChain; stopped with no error means endChain ended it
   log: mion.rawMiddleware(
     (ctx): void => {
-      console.log(ctx.path, ctx.response.statusCode, ctx.response.endedEarly);
+      console.log(
+        ctx.path,
+        ctx.response.statusCode,
+        ctx.response.stopped && !ctx.response.hasErrors
+      );
     },
     {alwaysRun: true}
   ),

@@ -16,6 +16,7 @@ import {
   setPlatformConfig,
   getDefaultHeaders,
   releaseHeaders,
+  toHttpMethod,
 } from '@mionjs/router';
 import type {MionResponse, RecordResponseHeaders} from '@mionjs/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
@@ -64,7 +65,7 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
       respHeaders,
       rawBody,
       reqBodyType,
-      rawRequest.httpMethod
+      toHttpMethod(rawRequest.httpMethod)
     );
     const routeResponse = await dispatchWithContext(context, rawRequest, awsContext);
     return reply(routeResponse, respHeaders);

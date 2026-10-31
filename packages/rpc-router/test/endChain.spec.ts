@@ -18,7 +18,7 @@ const mion = createMionRouter();
 
 describe('endChain', () => {
   const ran: string[] = [];
-  let seen: Pick<MionResponse, 'hasErrors' | 'endedEarly' | 'statusCode'> | undefined;
+  let seen: Pick<MionResponse, 'hasErrors' | 'stopped' | 'statusCode'> | undefined;
 
   const dispatch = (mode: string) =>
     dispatchRoute('/target', JSON.stringify({first: [mode], target: []}), headersFromRecord({}), headersFromRecord({}), {}, {});
@@ -45,8 +45,8 @@ describe('endChain', () => {
     always: mion.middleware(
       (ctx: CallContext): void => {
         ran.push('always');
-        const {hasErrors, endedEarly, statusCode} = ctx.response;
-        seen = {hasErrors, endedEarly, statusCode};
+        const {hasErrors, stopped, statusCode} = ctx.response;
+        seen = {hasErrors, stopped, statusCode};
       },
       {alwaysRun: true}
     ),
@@ -64,17 +64,17 @@ describe('endChain', () => {
     expect(ran).toEqual(['first', 'always']);
     expect(response.statusCode).toBe(StatusCodes.OK);
     expect(response.hasErrors).toBe(false);
-    expect(response.endedEarly).toBe(true);
+    expect(response.stopped).toBe(true);
     expect(response.fatalError).toBeUndefined();
     expect(response.headers.get('x-rpc-error')).toBeFalsy();
     expect(response.body).toEqual({});
-    expect(seen).toEqual({hasErrors: false, endedEarly: true, statusCode: StatusCodes.OK});
+    expect(seen).toEqual({hasErrors: false, stopped: true, statusCode: StatusCodes.OK});
   });
 
   it('answers the status code it is given', async () => {
     const response = await dispatch('end-202');
     expect(response.statusCode).toBe(202);
-    expect(response.endedEarly).toBe(true);
+    expect(response.stopped).toBe(true);
   });
 
   it('changes nothing on a chain that already failed', async () => {
@@ -82,14 +82,15 @@ describe('endChain', () => {
     expect(ran).toEqual(['first', 'always']);
     expect(response.statusCode).toBe(401);
     expect(response.hasErrors).toBe(true);
-    expect(response.endedEarly).toBe(false);
+    // stopped by the error, so endChain had nothing left to do
+    expect(response.stopped).toBe(true);
     expect(response.body[MION_ROUTES.thrownErrors]?.first?.type).toBe('not-authorized');
   });
 
   it('leaves a chain it never touched running to the route', async () => {
     const response = await dispatch('ok');
     expect(ran).toEqual(['first', 'target', 'always']);
-    expect(response.endedEarly).toBe(false);
+    expect(response.stopped).toBe(false);
     expect(response.body.target).toBe('ran');
   });
 });

@@ -1,6 +1,6 @@
 import {RpcError, FatalError, MION_ROUTES, Mutable, StatusCodes, markFatal} from '@mionjs/core';
 import {JSON_CONTENT_TYPE} from '../constants.ts';
-import type {CallContext, ChainResponse, MionHeaders, MionRequest, MionResponse, ResponseBody} from '../types/context.ts';
+import type {CallContext, MionResponse, MionHeaders, MionRequest, ResponseBody} from '../types/context.ts';
 
 /** The response for an error raised outside the router by any adapter; it goes in `@thrownErrors` like a route error. */
 
@@ -11,11 +11,10 @@ export function getRouterFatalErrorResponse(returnErr: RpcError<string>, respHea
     '@thrownErrors': {[MION_ROUTES.platformError]: returnErr},
   };
   respHeaders.set('x-rpc-error', errorHeaderValue(returnErr.type));
-  const response: Mutable<ChainResponse> = {
+  const response: Mutable<MionResponse> = {
     statusCode: returnErr.statusCode || StatusCodes.SERVER_ERROR, // Global errors are always unexpected
     contentType: JSON_CONTENT_TYPE,
     hasErrors: true,
-    endedEarly: false,
     stopped: true,
     fatalError: returnErr,
     headers: respHeaders,
@@ -38,7 +37,7 @@ export function errorHeaderValue(type: string): string {
  *  `fallbackStatus` answers when the error carries no statusCode: a thrown one is unexpected (422), a
  *  returned FatalError a declared application error (400). */
 export function markResponseFailed(context: CallContext, rpcError: RpcError<string>, fallbackStatus: number) {
-  const response = context.response as Mutable<ChainResponse>;
+  const response = context.response as Mutable<MionResponse>;
   if (!response.hasErrors) {
     response.headers.set('x-rpc-error', errorHeaderValue(rpcError.type));
     response.fatalError = rpcError;
@@ -50,10 +49,9 @@ export function markResponseFailed(context: CallContext, rpcError: RpcError<stri
 
 /** Later members are skipped except `alwaysRun` ones, as after an error, but `hasErrors` stays false. */
 export function endChain(context: CallContext, statusCode: number = StatusCodes.OK): void {
-  const response = context.response as Mutable<ChainResponse>;
+  const response = context.response as Mutable<MionResponse>;
   if (response.stopped) return;
   response.statusCode = statusCode;
-  response.endedEarly = true;
   response.stopped = true;
 }
 

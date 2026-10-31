@@ -691,10 +691,10 @@ describe('Query body decoding (data in URL query)', () => {
     mion.initRoutes({getUser});
 
     const bad = await decodeAndDispatch('/getUser', undefined, 'data=!');
-    expect(bad.body[MION_ROUTES.thrownErrors]['mionDeserializeRequest'].type).toBe('invalid-query-body');
+    expect(bad.body[MION_ROUTES.thrownErrors]?.['mionDeserializeRequest']?.type).toBe('invalid-query-body');
     const unknown = await decodeAndDispatch('/nope', undefined, 'data=!');
     expect(unknown.statusCode).toBe(StatusCodes.NOT_FOUND);
-    expect(unknown.body[MION_ROUTES.thrownErrors][MION_ROUTES.notFound].type).toBe('route-not-found');
+    expect(unknown.body[MION_ROUTES.thrownErrors]?.[MION_ROUTES.notFound]?.type).toBe('route-not-found');
   });
 
   it('should handle ?data= with other query params', async () => {
