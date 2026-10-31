@@ -414,4 +414,6 @@ this change touched, review its report against the code, and commit it as its ow
   `MionRequest.method` / `MionResponse.endedEarly` are required: breaking for an adapter built outside the repo.
 - Not shipped, in the end: the router's method gate, the adapters' 415, the `httpMethods` option and `mionCors`. The
   checks run in an opt-in middleware instead; `request.method`, `endChain` and `cors: false` shipped as planned.
+- Not shipped either: `HeadersSubset`'s third type parameter and `corsExcluded` (lines above). Too much hidden in a
+  type; a header is kept off CORS by `mionSecurity({cors: {excludeHeaders}})` instead.
 - The dispatch benchmarks were not run: the hello-world server bench, base vs branch, measured the PR's overhead.

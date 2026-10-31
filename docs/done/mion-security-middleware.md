@@ -166,4 +166,6 @@ this change touched, review its report against the code, and commit it as its ow
 - Hello-world bench, base vs branch alternated twice (2 runs each): node 40,551 → 39,601, uws 67,403 → 63,934,
   bun 63,790 → 65,986 req/s; every range overlaps, the machine drifted ~10% between rounds. The router now only puts
   `method` on the request and reads one more flag; uws calls `req.getMethod()` per request.
+- `HeadersSubset` carries nothing about CORS: its `cors: false` type option is gone. A header is kept off CORS by
+  `cors.excludeHeaders`, a list in `mionSecurity` that wins over every other source.
 - The readOptions per-shape coverage test stays, without the array / tuple rows.

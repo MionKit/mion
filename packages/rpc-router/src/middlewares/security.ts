@@ -161,28 +161,21 @@ function describeChain(chain: MethodsExecutionChain, cors: MionCorsSettings | un
   if (!cors) return {acceptedMethods, allowHeaders: '', exposeHeaders: '', allowMethods: ''};
   const allowHeaders = new Set<string>(['content-type']);
   const exposeHeaders = new Set<string>(MION_EXPOSED_HEADERS);
-  const allowExcluded = new Set<string>();
-  const exposeExcluded = new Set<string>();
   for (const member of chain.methods) {
-    const headersParam = (member as HeadersMethod).headersParam;
-    if (headersParam) addNames(allowHeaders, allowExcluded, headersParam.headerNames, headersParam.corsExcluded);
-    const headersReturn = member.headersReturn;
-    if (headersReturn) addNames(exposeHeaders, exposeExcluded, headersReturn.headerNames, headersReturn.corsExcluded);
+    (member as HeadersMethod).headersParam?.headerNames.forEach((name) => allowHeaders.add(name.toLowerCase()));
+    member.headersReturn?.headerNames.forEach((name) => exposeHeaders.add(name.toLowerCase()));
   }
   cors.allowHeaders?.forEach((name) => allowHeaders.add(name.toLowerCase()));
   cors.exposeHeaders?.forEach((name) => exposeHeaders.add(name.toLowerCase()));
-  // last, so no merge adds a `cors: false` name back
-  allowExcluded.forEach((name) => allowHeaders.delete(name));
-  exposeExcluded.forEach((name) => exposeHeaders.delete(name));
+  // last, so no other source adds an excluded name back
+  cors.excludeHeaders?.forEach((name) => {
+    allowHeaders.delete(name.toLowerCase());
+    exposeHeaders.delete(name.toLowerCase());
+  });
   return {
     acceptedMethods,
     allowHeaders: [...allowHeaders].join(', '),
     exposeHeaders: [...exposeHeaders].join(', '),
     allowMethods: acceptedMethods === QUERY_METHODS ? 'GET, POST' : 'POST',
   };
-}
-
-function addNames(names: Set<string>, excluded: Set<string>, headerNames: string[], corsExcluded: string[] | undefined) {
-  headerNames.forEach((name) => names.add(name.toLowerCase()));
-  corsExcluded?.forEach((name) => excluded.add(name.toLowerCase()));
 }

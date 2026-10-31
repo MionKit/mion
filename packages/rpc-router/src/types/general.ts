@@ -93,6 +93,8 @@ export interface MionCorsSettings {
   allowHeaders?: string[];
   /** Response headers a raw middleware sets, added to the ones the routes declare */
   exposeHeaders?: string[];
+  /** Headers kept off both lists, whoever declares them; still sent, so never a way to hide a secret */
+  excludeHeaders?: string[];
 }
 
 export interface MionCsrfSettings {

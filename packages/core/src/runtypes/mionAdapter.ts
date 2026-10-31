@@ -24,7 +24,6 @@ import type {
   PureFnsDataCache,
 } from '../types/general.types.ts';
 import type {CompiledPureFunction} from '../types/pureFunctions.types.ts';
-import type {HeadersMethodWithJitFns} from '../types/method.types.ts';
 
 // ############# mion <-> mion adapter #############
 // Turns the marker payloads the devtools plugin fills at build time into the JitCompiledFunctions / reflection
@@ -83,7 +82,11 @@ export interface RtMarkerPayload {
 }
 
 /** Header validation fns + metadata derived from a HeadersSubset marker/runtype. */
-export type RtHeadersReflection = HeadersMethodWithJitFns;
+export interface RtHeadersReflection {
+  headerNames: string[];
+  jitHash: string;
+  jitFns: Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>;
+}
 
 /** Reflection data derived exclusively from injected markers (no runtime type reflection). */
 export interface RtMethodReflection {
@@ -352,8 +355,6 @@ export function getReflectionFromMarkers(
       jitHash: returnTypeId,
       jitFns: {isType: reflection.returnJitFns.isType, typeErrors: reflection.returnJitFns.typeErrors},
     };
-    const corsExcluded = getCorsExcludedFromRunType(returnRunType, returnHeaderNames);
-    if (corsExcluded) reflection.headersReturn.corsExcluded = corsExcluded;
   }
   return reflection;
 }
@@ -366,40 +367,22 @@ interface RtNodeLike {
   typeName?: unknown;
   name?: unknown;
   optional?: unknown;
-  literal?: unknown;
   child?: RtNodeLike;
   children?: RtNodeLike[];
 }
 
-/** The names a HeadersSubset's type-only `opts.cors` takes off CORS; undefined when none. */
-function getCorsExcludedFromRunType(runType: RunType<unknown>, headerNames: string[]): string[] | undefined {
-  const root = getHeadersSubsetNode(runType as RtNodeLike);
-  const opts = root?.children?.find((child) => child.name === 'opts')?.child;
-  const cors = opts?.children?.find((child) => child.name === 'cors')?.child;
-  if (!cors) return undefined;
-  if (cors.kind === RunTypeKind.literal && cors.literal === false) return headerNames.length ? [...headerNames] : undefined;
-  const excluded = (cors.children ?? [])
-    .filter((prop) => prop.child?.kind === RunTypeKind.literal && prop.child.literal === false)
-    .map((prop) => prop.name)
-    .filter((name): name is string => typeof name === 'string');
-  return excluded.length ? excluded : undefined;
-}
-
-function getHeadersSubsetNode(root: RtNodeLike): RtNodeLike | undefined {
+/** The declared header names of a HeadersSubset<Required, Optional> runtype: class node -> 'headers' property ->
+ *  one object prop per header name. A union is searched for a HeadersSubset member; undefined when there is none. */
+export function getHeaderNamesFromRunType(runType: RunType<unknown>): string[] | undefined {
+  const root = runType as RtNodeLike;
   if (root.kind === RunTypeKind.union) {
     for (const member of root.children ?? []) {
-      const found = getHeadersSubsetNode(member);
-      if (found) return found;
+      const names = getHeaderNamesFromRunType(member as RunType<unknown>);
+      if (names) return names;
     }
     return undefined;
   }
-  return root.kind === RunTypeKind.class && root.typeName === 'HeadersSubset' ? root : undefined;
-}
-
-/** The declared header names of a HeadersSubset runtype, or of a union's HeadersSubset member. */
-export function getHeaderNamesFromRunType(runType: RunType<unknown>): string[] | undefined {
-  const root = getHeadersSubsetNode(runType as RtNodeLike);
-  if (!root) return undefined;
+  if (root.kind !== RunTypeKind.class || root.typeName !== 'HeadersSubset') return undefined;
   const headersProp = root.children?.find((child) => child.name === 'headers');
   const propNodes = headersProp?.child?.children;
   if (!propNodes) return [];
@@ -469,7 +452,5 @@ export function getHeadersReflectionFromMarkers(
     jitHash: headersTypeId,
     jitFns: buildHeaderJitFnsFromMarker(rtFns.headersFns, headersTypeId, `${methodId}#headers`),
   };
-  const corsExcluded = getCorsExcludedFromRunType(headersRunType, headerNames);
-  if (corsExcluded) reflection.headersParam.corsExcluded = corsExcluded;
   return reflection;
 }

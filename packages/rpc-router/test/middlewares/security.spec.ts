@@ -22,12 +22,10 @@ const JSON_TYPE = {'content-type': 'application/json'};
 
 let ran: string[] = [];
 
-const auth = mion.headersMiddleware(
-  (ctx: CallContext, headers: HeadersSubset<'authorization', 'x-debug-node', {cors: {'x-debug-node': false}}>): void => {
-    ran.push('auth');
-  }
-);
-const listUsers = mion.query((): HeadersSubset<'x-total', 'x-node', {cors: {'x-node': false}}> => {
+const auth = mion.headersMiddleware((ctx: CallContext, headers: HeadersSubset<'authorization', 'x-debug-node'>): void => {
+  ran.push('auth');
+});
+const listUsers = mion.query((): HeadersSubset<'x-total', 'x-node'> => {
   ran.push('listUsers');
   return new HeadersSubset({'x-total': '2', 'x-node': 'n1'});
 });
@@ -43,7 +41,7 @@ const ping = mion.route((): string => {
   ran.push('ping');
   return 'pong';
 });
-const trace = mion.route((): HeadersSubset<'x-trace', never, {cors: false}> => new HeadersSubset({'x-trace': 't1'}));
+const trace = mion.route((): HeadersSubset<'x-trace'> => new HeadersSubset({'x-trace': 't1'}));
 const failing = mion.route((): string => {
   throw new Error('boom');
 });
@@ -82,7 +80,15 @@ describe('mionSecurity', () => {
 
   describe('CORS', () => {
     beforeEach(() =>
-      init({origins: [APP], cors: {maxAge: 600, allowHeaders: ['X-Raw-In'], exposeHeaders: ['x-raw-out', 'x-node']}})
+      init({
+        origins: [APP],
+        cors: {
+          maxAge: 600,
+          allowHeaders: ['X-Raw-In'],
+          exposeHeaders: ['x-raw-out', 'x-node'],
+          excludeHeaders: ['X-Debug-Node', 'x-node', 'x-trace'],
+        },
+      })
     );
 
     it('answers a preflight 200 with no error, before any other member runs', async () => {
@@ -100,18 +106,18 @@ describe('mionSecurity', () => {
       expect(headers.get('access-control-allow-credentials')).toBeFalsy();
     });
 
-    it('allows the request headers the chain declares plus the hand-written ones, never a cors: false one', async () => {
+    it('allows the request headers the chain declares plus the hand-written ones, never an excluded one', async () => {
       const headers = (await preflight('/listUsers')).headers;
       expect(list(headers.get('access-control-allow-headers') as string)).toEqual(['authorization', 'content-type', 'x-raw-in']);
       expect(headers.get('access-control-allow-methods')).toBe('GET, POST');
     });
 
-    it('exposes the response headers the route declares plus mion and hand-written ones, never a cors: false one', async () => {
+    it('exposes the response headers the route declares plus mion and hand-written ones, never an excluded one', async () => {
       const response = await post('/listUsers', {listUsers: []}, {origin: APP});
       expect(response.statusCode).toBe(StatusCodes.OK);
       expect(ran).toEqual(['auth', 'listUsers']);
       expect(response.headers.get('access-control-allow-origin')).toBe(APP);
-      // x-node is hand-written AND marked cors: false: the mark wins
+      // x-node is hand-written AND excluded: the exclusion wins
       expect(list(response.headers.get('access-control-expose-headers') as string)).toEqual([
         'x-build-version',
         'x-raw-out',

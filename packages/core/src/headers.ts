@@ -11,25 +11,13 @@ import {FatalError, type ValidationErrorData} from './errors.ts';
 import {StatusCodes} from './constants.ts';
 import {headerCheckFnsFromMarker} from './runtypes/mionAdapter.ts';
 
-/** Options a HeadersSubset carries in its type only: the build reads them, nothing sets them at runtime. */
-export interface HeadersSubsetOpts<Names extends string> {
-  /** false: none of these headers cross origins; a map: only the names set to false. Read only by `mionSecurity`. */
-  cors?: false | {[K in Names]?: false};
-}
-
 /** Type-safe wrapper for HTTP headers, checked against its own type when built by a mion build */
-export class HeadersSubset<
-  Required extends string,
-  Optional extends string = never,
-  Opts extends HeadersSubsetOpts<Required | Optional> = Record<never, never>,
-> {
+export class HeadersSubset<Required extends string, Optional extends string = never> {
   readonly headers: {[K in Required]: string} & {[K in Optional]?: string};
-  /** Type only, never set at runtime: the build reads it from the compiled type */
-  declare readonly opts?: Opts;
   // NoInfer keeps Optional out of argument inference, so it comes from the declared return type or stays never.
   constructor(
     headers: {[K in Required]: string} & {[K in NoInfer<Optional>]?: string},
-    fns?: InjectTypeFnArgs<HeadersSubset<Required, Optional, Opts>, 'validate', 'validationErrors'>
+    fns?: InjectTypeFnArgs<HeadersSubset<Required, Optional>, 'validate', 'validationErrors'>
   ) {
     this.headers = headers;
     if (fns !== undefined) checkHeadersOrThrow(this, fns);
