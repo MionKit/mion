@@ -18,6 +18,7 @@ import {
   releaseHeaders,
   requestPayloadTooLarge,
   hostOwnsSocket,
+  HttpMethod,
 } from '@mionjs/router';
 import {STATUS_CODES} from 'http';
 import {loadUws} from '@mionjs/bin-uws';
@@ -125,15 +126,22 @@ export async function startUwsServer(options?: Partial<UwsHttpOptions>): Promise
 
 // ############# PRIVATE METHODS #############
 
-// uWS lowercases the method; the common ones map to a constant so a request allocates no new string
+// uWS lowercases the method, so it is mapped from the lowercase name
 // null prototype: a `constructor` method off the wire must not read Object.prototype
-const UPPER_CASE_METHODS: Readonly<Record<string, string>> = Object.assign(Object.create(null), {
+const LOWER_CASE_METHODS: Readonly<Record<string, HttpMethod>> = Object.assign(Object.create(null), {
   get: 'GET',
+  head: 'HEAD',
   post: 'POST',
+  put: 'PUT',
+  delete: 'DELETE',
+  connect: 'CONNECT',
   options: 'OPTIONS',
+  trace: 'TRACE',
+  patch: 'PATCH',
+  query: 'QUERY',
 });
-function upperCaseMethod(method: string): string {
-  return UPPER_CASE_METHODS[method] ?? method.toUpperCase();
+function upperCaseMethod(method: string): HttpMethod {
+  return LOWER_CASE_METHODS[method] ?? 'OTHER';
 }
 
 // uWS refreshes a socket's idle timeout only from inside a body-data callback, and runs it only when a reader is registered.

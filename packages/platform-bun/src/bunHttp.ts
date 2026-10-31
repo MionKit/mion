@@ -20,6 +20,7 @@ import {
   handOverToHost,
   getDefaultFetchHeaders,
   replyFetch,
+  toHttpMethod,
 } from '@mionjs/router';
 import type {MethodsExecutionChain, FetchResponseHeaders} from '@mionjs/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants.ts';
@@ -87,7 +88,7 @@ async function readBodyAndDispatch(
         chain,
         path,
         urlQuery,
-        req.method,
+        toHttpMethod(req.method),
         refusal,
         req.headers,
         responseHeaders,
@@ -111,7 +112,7 @@ function dispatchBody(
   responseHeaders: FetchResponseHeaders,
   rawBody: string | undefined
 ): Response | Promise<Response> {
-  const method = req.method;
+  const method = toHttpMethod(req.method);
   const context = createContextFromChain(
     chain,
     path,

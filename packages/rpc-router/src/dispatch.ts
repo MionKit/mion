@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {CallContext, ChainResponse, MionResponse, MionRequest, MionHeaders, RawRequestBody} from './types/context.ts';
+import type {CallContext, HttpMethod, MionResponse, MionRequest, MionHeaders, RawRequestBody} from './types/context.ts';
 import {type RouterOptions} from './types/general.ts';
 import {HeadersMethod, RemoteMethod, RawMethod} from './types/remoteMethods.ts';
 import type {MethodsExecutionChain} from './types/remoteMethods.ts';
@@ -31,7 +31,7 @@ export async function dispatchRoute<Req, Resp>(
   rawResponse?: Resp,
   reqBodyType?: SerializerCode,
   urlQuery?: string,
-  method = 'POST'
+  method: HttpMethod = 'POST'
 ): Promise<MionResponse> {
   const context = createCallContext(path, urlQuery, rawRequest, reqHeaders, respHeaders, reqRawBody, reqBodyType, method);
   return dispatchWithContext(context, rawRequest, rawResponse);
@@ -76,7 +76,7 @@ export function dispatchPlatformError<Req, Resp>(
   chain: MethodsExecutionChain,
   path: string,
   urlQuery: string | undefined,
-  method: string,
+  method: HttpMethod,
   platformError: RpcError<string>,
   reqHeaders: MionHeaders,
   respHeaders: MionHeaders,
@@ -98,7 +98,7 @@ async function runExecutionChain(
   startIndex: number
 ): Promise<MionResponse> {
   const {request, executionChain} = context;
-  const response = context.response as ChainResponse;
+  const response = context.response;
   // `alwaysAwait: false` skips the await on sync steps: awaiting one only costs a promise frame
   const alwaysAwait = opts.alwaysAwait;
   const executionList = executionChain.methods;
@@ -135,7 +135,7 @@ function runSyncExecutionChain(
   opts: RouterOptions
 ): MionResponse | Promise<MionResponse> {
   const {request, executionChain} = context;
-  const response = context.response as ChainResponse;
+  const response = context.response;
   const executionList = executionChain.methods;
   const executionCount = executionList.length;
   for (let i = 0; i < executionCount; i++) {

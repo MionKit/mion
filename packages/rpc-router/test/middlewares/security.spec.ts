@@ -10,6 +10,7 @@ import {createMionRouter, resetRouter} from '../../src/router.ts';
 import {dispatchRoute} from '../../src/dispatch.ts';
 import {registerBatches} from '../../src/batches.ts';
 import {headersFromRecord} from '../../src/lib/headers.ts';
+import {toHttpMethod} from '../../src/lib/httpMethod.ts';
 import {mionSecurity, mionFetchMetadata} from '../../middlewares.ts';
 import type {CallContext, MionResponse} from '../../src/types/context.ts';
 import type {MionSecurityOptions, Routes} from '../../src/types/general.ts';
@@ -55,7 +56,17 @@ function send(
   const reqHeaders = headersFromRecord({authorization: 'token', ...headers});
   const raw = body ? JSON.stringify(body) : '';
   const query = path.includes('?') ? path.slice(path.indexOf('?') + 1) : undefined;
-  return dispatchRoute(path.split('?')[0], raw, reqHeaders, headersFromRecord({}), {}, {}, undefined, query, method);
+  return dispatchRoute(
+    path.split('?')[0],
+    raw,
+    reqHeaders,
+    headersFromRecord({}),
+    {},
+    {},
+    undefined,
+    query,
+    toHttpMethod(method)
+  );
 }
 /** A JSON POST, what the mion client sends */
 const post = (path: string, body: Record<string, unknown[]>, headers: Record<string, string> = {}) =>
@@ -95,7 +106,7 @@ describe('mionSecurity', () => {
       const response = await preflight('/saveUser');
       expect(response.statusCode).toBe(StatusCodes.OK);
       expect(response.hasErrors).toBe(false);
-      expect(response.endedEarly).toBe(true);
+      expect(response.stopped).toBe(true);
       expect(response.body).toEqual({});
       expect(ran).toEqual([]);
       const headers = response.headers;
@@ -272,7 +283,7 @@ describe('mionSecurity', () => {
     it('ends every OPTIONS without CORS too, so a preflight never runs a route', async () => {
       const response = await send('/saveUser', 'OPTIONS', {}, {saveUser: ['a']});
       expect(response.statusCode).toBe(StatusCodes.OK);
-      expect(response.endedEarly).toBe(true);
+      expect(response.stopped).toBe(true);
       expect(ran).toEqual([]);
     });
   });
@@ -358,7 +369,7 @@ describe('mionSecurity', () => {
       const form = {...crossSite, 'content-type': 'text/plain'};
       expect((await send('/saveUser', 'POST', form, {saveUser: ['a']})).statusCode).toBe(StatusCodes.OK);
       // OPTIONS still ends: it is a preflight, not a CSRF check
-      expect((await send('/saveUser', 'OPTIONS')).endedEarly).toBe(true);
+      expect((await send('/saveUser', 'OPTIONS')).stopped).toBe(true);
     });
 
     it('keeps a check on when its option is left undefined', async () => {

@@ -17,6 +17,7 @@ import {
   getResponseDefaults,
   requestPayloadTooLarge,
   handOverToHost,
+  toHttpMethod,
 } from '@mionjs/router';
 import type {MethodsExecutionChain} from '@mionjs/router';
 import {createServer as createHttp} from 'http';
@@ -117,7 +118,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   const queryIndex = nodeUrl.indexOf('?');
   const path = queryIndex === -1 ? nodeUrl : nodeUrl.substring(0, queryIndex);
   const urlQuery = queryIndex === -1 ? undefined : nodeUrl.substring(queryIndex + 1);
-  const method = httpReq.method || 'GET';
+  const method = toHttpMethod(httpReq.method);
   let size = 0;
   const bodyChunks: Buffer[] = [];
 
