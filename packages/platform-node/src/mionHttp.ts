@@ -118,6 +118,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   const queryIndex = nodeUrl.indexOf('?');
   const path = queryIndex === -1 ? nodeUrl : nodeUrl.substring(0, queryIndex);
   const urlQuery = queryIndex === -1 ? undefined : nodeUrl.substring(queryIndex + 1);
+  const method = httpReq.method || 'GET';
   let size = 0;
   const bodyChunks: Buffer[] = [];
 
@@ -154,6 +155,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
         chain,
         path,
         urlQuery,
+        method,
         requestPayloadTooLarge(),
         reqHeaders,
         respHeaders,
@@ -176,7 +178,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
         reqRawBody = queryBody.rawBody;
         reqBodyType = queryBody.bodyType;
       }
-      const context = createContextFromChain(chain, path, urlQuery, reqHeaders, respHeaders, reqRawBody, reqBodyType);
+      const context = createContextFromChain(chain, path, urlQuery, method, reqHeaders, respHeaders, reqRawBody, reqBodyType);
       const dispatched = dispatchMaybeSync(context, httpReq, httpResponse);
       // an all-sync chain answers inside the listener, with no promise in between
       if (dispatched instanceof Promise) dispatched.then(answer).catch(failWith);

@@ -40,6 +40,8 @@ export type RawRequestBody = string | AnyObject;
 
 /** Router's own request object, do not confuse with the underlying raw request */
 export interface MionRequest {
+  /** The HTTP method, uppercase: `GET`, `POST`, `OPTIONS`... */
+  readonly method: string;
   readonly headers: Readonly<Omit<MionHeaders, 'append' | 'set' | 'delete'>>;
   readonly rawBody: RawRequestBody;
   readonly bodyType: SerializerCode;

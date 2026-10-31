@@ -30,9 +30,10 @@ export async function dispatchRoute<Req, Resp>(
   rawRequest: Req,
   rawResponse?: Resp,
   reqBodyType?: SerializerCode,
-  urlQuery?: string
+  urlQuery?: string,
+  method = 'POST'
 ): Promise<MionResponse> {
-  const context = createCallContext(path, urlQuery, rawRequest, reqHeaders, respHeaders, reqRawBody, reqBodyType);
+  const context = createCallContext(path, urlQuery, rawRequest, reqHeaders, respHeaders, reqRawBody, reqBodyType, method);
   return dispatchWithContext(context, rawRequest, rawResponse);
 }
 
@@ -75,13 +76,14 @@ export function dispatchPlatformError<Req, Resp>(
   chain: MethodsExecutionChain,
   path: string,
   urlQuery: string | undefined,
+  method: string,
   platformError: RpcError<string>,
   reqHeaders: MionHeaders,
   respHeaders: MionHeaders,
   rawRequest: Req,
   rawResponse?: Resp
 ): Promise<MionResponse> {
-  const context = createContextFromChain(chain, path, urlQuery, reqHeaders, respHeaders);
+  const context = createContextFromChain(chain, path, urlQuery, method, reqHeaders, respHeaders);
   recordUndeclaredError(context, MION_ROUTES.platformError, platformError);
   return dispatchWithContext(context, rawRequest, rawResponse);
 }

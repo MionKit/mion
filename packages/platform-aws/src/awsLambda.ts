@@ -62,7 +62,16 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
       rawBody = queryBody.rawBody;
       reqBodyType = queryBody.bodyType;
     }
-    const context = createCallContext(rawRequest.path, urlQuery, rawRequest, reqHeaders, respHeaders, rawBody, reqBodyType);
+    const context = createCallContext(
+      rawRequest.path,
+      urlQuery,
+      rawRequest,
+      reqHeaders,
+      respHeaders,
+      rawBody,
+      reqBodyType,
+      rawRequest.httpMethod
+    );
     const routeResponse = await dispatchWithContext(context, rawRequest, awsContext);
     return reply(routeResponse, respHeaders);
   } catch (err) {

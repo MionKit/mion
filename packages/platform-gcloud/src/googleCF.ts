@@ -76,6 +76,7 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
         chain,
         rawRequest.path,
         urlQuery,
+        rawRequest.method,
         toRpcError(refusal),
         reqHeaders,
         respHeaders,
@@ -89,7 +90,16 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
       rawBody = queryBody.rawBody;
       reqBodyType = queryBody.bodyType;
     }
-    const context = createContextFromChain(chain, rawRequest.path, urlQuery, reqHeaders, respHeaders, rawBody, reqBodyType);
+    const context = createContextFromChain(
+      chain,
+      rawRequest.path,
+      urlQuery,
+      rawRequest.method,
+      reqHeaders,
+      respHeaders,
+      rawBody,
+      reqBodyType
+    );
     const routeResponse = await dispatchWithContext(context, rawRequest, rawResponse);
     reply(routeResponse, rawResponse);
   } catch (err) {
