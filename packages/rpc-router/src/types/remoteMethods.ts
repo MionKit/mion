@@ -1,13 +1,6 @@
 // ####### Executables #######
 
-import type {
-  ParserOption,
-  HeadersMethodWithJitFns,
-  MethodWithJitFns,
-  RemoteMethodOpts,
-  RouteOnlyOptions,
-  RouteHttpMethod,
-} from '@mionjs/core'; // do not import type only
+import type {ParserOption, HeadersMethodWithJitFns, MethodWithJitFns, RemoteMethodOpts, RouteOnlyOptions} from '@mionjs/core'; // do not import type only
 import type {AnyHandler, Handler, HeaderHandler, RawMiddlewareHandler} from './handlers.ts'; // do not import type only
 import {HandlerType} from '@mionjs/core'; // do not import type only
 
@@ -51,8 +44,6 @@ interface RouteOptionsBase {
   description?: string;
   /** Whether this route mutates data (query / mutation set it, route leaves it undefined). */
   isMutation?: boolean | undefined;
-  /** The HTTP methods the route accepts; another method is refused with a 405. Default: `mutation` POST, others GET and POST. */
-  httpMethods?: readonly RouteHttpMethod[];
   sanitizeParams?: boolean;
   /** Largest request body in bytes; wins over the number derived from the types and over the router option. */
   maxBodySize?: number;
@@ -107,6 +98,4 @@ export interface MethodsExecutionChain {
   maxBodySize: number;
   /** False only on not-found chains: no route to feed, so neither the adapter reads the body nor the router parses it. */
   readsBody: boolean;
-  /** The HTTP methods the chain accepts, one bit each (see lib/httpMethods.ts), built once with the chain. */
-  methodBits: number;
 }

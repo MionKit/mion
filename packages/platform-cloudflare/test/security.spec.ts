@@ -178,52 +178,15 @@ describe('cloudflare adapter: a refused body runs the alwaysRun middlewares', ()
   });
 });
 
-describe('cloudflare adapter: methods and content types', () => {
-  let handler: ReturnType<typeof createCloudflareHandler>;
-  let saves = 0;
-  const json = {'content-type': 'application/json'};
-  const send = (route: string, init?: RequestInit) => {
-    const request = new Request(`http://localhost/api/${route}`, init);
-    return handler.fetch(request);
-  };
-
-  beforeAll(() => {
+describe('cloudflare adapter: the HTTP method', () => {
+  it('puts it on the request', async () => {
     resetCloudflareHandlerOpts();
     resetRouter();
-    const save = mion.mutation((): number => ++saves);
-    const readMethod = mion.query((ctx: CallContext): string => ctx.request.method);
-    const viaQuery = mion.query((ctx: CallContext): string => ctx.request.method, {httpMethods: ['QUERY', 'POST']});
-    mion.initRoutes({save, readMethod, viaQuery});
-    handler = createCloudflareHandler();
-  });
-
-  it('puts the HTTP method on the request', async () => {
-    expect(await (await send('readMethod', {method: 'POST', headers: json, body: '{}'})).json()).toEqual({readMethod: 'POST'});
-    expect(await (await send('readMethod')).json()).toEqual({readMethod: 'GET'});
-  });
-
-  it('reads the body of a QUERY request on a route that lists QUERY', async () => {
-    expect(await (await send('viaQuery', {method: 'QUERY', headers: json, body: '{}'})).json()).toEqual({viaQuery: 'QUERY'});
-  });
-
-  it('refuses a mutation over GET with a 405', async () => {
-    const before = saves;
-    const response = await send('save');
-    expect(response.status).toBe(StatusCodes.METHOD_NOT_ALLOWED);
-    expect(response.headers.get('allow')).toBe('POST');
-    expect(saves).toBe(before);
-  });
-
-  it('refuses a form content type or none with a 415, without running the route', async () => {
-    const before = saves;
-    for (const headers of [{'content-type': 'text/plain'}, {}] as Record<string, string>[]) {
-      const response = await send('save', {method: 'POST', headers, body: headers['content-type'] ? '{"save":[]}' : undefined});
-      expect(response.status).toBe(StatusCodes.UNSUPPORTED_MEDIA_TYPE);
-      expect(((await response.json()) as RpcBody)[MION_ROUTES.thrownErrors][MION_ROUTES.platformError].type).toBe(
-        'unsupported-media-type'
-      );
+    mion.initRoutes({readMethod: mion.query((ctx: CallContext): string => ctx.request.method)});
+    const handler = createCloudflareHandler();
+    for (const method of ['GET', 'POST', 'OPTIONS']) {
+      const response = await handler.fetch(new Request('http://localhost/api/readMethod', {method}));
+      expect(await response.json()).toEqual({readMethod: method});
     }
-    expect(saves).toBe(before);
-    expect((await send('save', {method: 'POST', headers: json, body: '{"save":[]}'})).status).toBe(StatusCodes.OK);
   });
 });

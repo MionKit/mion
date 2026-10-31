@@ -516,14 +516,6 @@ const routes = {
     urlQuery: ctx.urlQuery,
   })),
 
-  // a query refusing POST: the client's first call (POST) is refused, and it resends over GET
-  getOnlyRequestInfo: query(
-    (ctx, message: string): {message: string; httpMethod: string} => ({message, httpMethod: ctx.request.method}),
-    {
-      httpMethods: ['GET'],
-    }
-  ),
-
   // mutation(): the client always uses POST
   mutateRequestInfo: mutation((ctx, message: string): {message: string; httpMethod: string; urlQuery: string | undefined} => ({
     message,

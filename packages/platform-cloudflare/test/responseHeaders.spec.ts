@@ -70,11 +70,7 @@ describe('cloudflare response headers', () => {
   let handler: ReturnType<typeof createCloudflareHandler>;
   const call = (route: string) =>
     handler.fetch(
-      new Request(`http://localhost/${route}`, {
-        method: 'POST',
-        headers: {'content-type': 'application/json'},
-        body: JSON.stringify({[route]: []}),
-      }),
+      new Request(`http://localhost/${route}`, {method: 'POST', body: JSON.stringify({[route]: []})}),
       {} as any,
       {} as any
     );

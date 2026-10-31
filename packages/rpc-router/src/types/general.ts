@@ -6,7 +6,7 @@
  * ######## */
 
 import {CoreRouterOptions, ParserOption} from '@mionjs/core';
-import {ContextDataFactory} from './context.ts';
+import {CallContext, ContextDataFactory} from './context.ts';
 import {HeadersMiddlewareDef, MiddlewareDef, RawMiddlewareDef, RouteDef} from './definitions.ts';
 // #######  Router Object #######
 
@@ -74,11 +74,19 @@ export interface HostRequestHandler {
   fetch?(req: Request): Response | Promise<Response>;
 }
 
-/** Options of `mionCors` */
-export interface MionCorsOptions {
-  /** The origins allowed to read answers: one, a list, a pattern, a check, or `'*'` for any */
-  origin: string | string[] | RegExp | ((origin: string) => boolean);
-  /** Lets the browser send cookies; the caller's origin is echoed, and `'*'` is refused */
+/** Options of `mionSecurity` */
+export interface MionSecurityOptions {
+  /** Origins trusted to send state-changing requests and, with `cors`, to read answers: a list, `'*'`, or a lookup
+   *  (sync or async) asked only for a request whose origin matters */
+  origins?: readonly string[] | '*' | ((ctx: CallContext, origin: string) => boolean | Promise<boolean>);
+  /** Lets the trusted origins read answers; off by default */
+  cors?: false | MionCorsSettings;
+  /** Cross-site request forgery checks, each on by default */
+  csrf?: false | MionCsrfSettings;
+}
+
+export interface MionCorsSettings {
+  /** Lets the browser send cookies; the caller's origin is echoed, and `origins: '*'` is refused */
   credentials?: boolean;
   /** Seconds the browser caches a preflight answer */
   maxAge?: number;
@@ -86,4 +94,13 @@ export interface MionCorsOptions {
   allowHeaders?: string[];
   /** Response headers a raw middleware sets, added to the ones the routes declare */
   exposeHeaders?: string[];
+}
+
+export interface MionCsrfSettings {
+  /** Refuses a request another site sent, unless its origin is trusted */
+  crossOrigin?: boolean;
+  /** A mutation, an intent-less route and a batch accept only POST; a query GET, HEAD and POST */
+  methodByIntent?: boolean;
+  /** Refuses a POST with a form content type or none */
+  formContentTypes?: boolean;
 }

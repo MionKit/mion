@@ -82,7 +82,6 @@ describe('bun asMiddleware should', () => {
     host = Bun.serve({port: 0, fetch: bunRequestHandler});
     const response = await fetch(`http://127.0.0.1:${host.port}/api/changeUserName`, {
       method: 'POST',
-      headers: {'content-type': 'application/json'},
       body: JSON.stringify({changeUserName: [{name: 'Leo', surname: 'Tungsten'}]}),
     });
 

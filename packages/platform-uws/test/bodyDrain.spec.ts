@@ -45,9 +45,7 @@ function trickleUpload(path: string) {
     let statusCode: number | null = null;
     let ticker: NodeJS.Timeout;
     socket.on('connect', () => {
-      socket.write(
-        `POST ${path} HTTP/1.1\r\nHost: x\r\nContent-Type: application/json\r\nContent-Length: ${uploadBytes}\r\n\r\n`
-      );
+      socket.write(`POST ${path} HTTP/1.1\r\nHost: x\r\nContent-Length: ${uploadBytes}\r\n\r\n`);
       ticker = setInterval(() => {
         if (socket.destroyed || sentBytes >= uploadBytes) return;
         socket.write(chunk.subarray(0, Math.min(chunkBytes, uploadBytes - sentBytes)));

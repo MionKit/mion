@@ -69,13 +69,7 @@ describe('vercel response headers', () => {
 
   let handler: ReturnType<typeof createVercelHandler>;
   const call = (route: string) =>
-    handler.POST(
-      new Request(`http://localhost/${route}`, {
-        method: 'POST',
-        headers: {'content-type': 'application/json'},
-        body: JSON.stringify({[route]: []}),
-      })
-    );
+    handler.POST(new Request(`http://localhost/${route}`, {method: 'POST', body: JSON.stringify({[route]: []})}));
 
   beforeAll(() => {
     resetVercelHandlerOpts();

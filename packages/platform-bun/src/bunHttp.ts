@@ -21,7 +21,6 @@ import {
   handOverToHost,
   getDefaultFetchHeaders,
   replyFetch,
-  contentTypeRefusal,
 } from '@mionjs/router';
 import type {MethodsExecutionChain, FetchResponseHeaders} from '@mionjs/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants.ts';
@@ -61,10 +60,8 @@ export function bunRequestHandler(req: Request): Response | Promise<Response> {
   try {
     // route resolved BEFORE the body: the chain gives the limit bun's native read stops at, and a late context stays GC-cheap
     const chain = resolveExecutionChain(path, urlQuery, req);
-    const refusal = chain.readsBody ? contentTypeRefusal(req.method, req.headers.get('content-type')) : undefined;
     // a not-found chain (an unknown path or batch id) has no route to feed: its body is never read
-    if (refusal || (chain.readsBody && req.body))
-      return readBodyAndDispatch(req, chain, path, urlQuery, responseHeaders, refusal);
+    if (chain.readsBody && req.body) return readBodyAndDispatch(req, chain, path, urlQuery, responseHeaders);
     return dispatchBody(req, chain, path, urlQuery, responseHeaders, undefined);
   } catch (err) {
     return fatalFail(toRpcError(err), responseHeaders);
@@ -76,20 +73,17 @@ async function readBodyAndDispatch(
   chain: MethodsExecutionChain,
   path: string,
   urlQuery: string | undefined,
-  responseHeaders: FetchResponseHeaders,
-  contentTypeRefused?: RpcError<string>
+  responseHeaders: FetchResponseHeaders
 ): Promise<Response> {
   // read as TEXT: `req.json()` would throw a raw SyntaxError outside any mion envelope, and the limit needs the size first
   try {
     let rawBody: string | undefined;
     try {
-      if (contentTypeRefused) throw contentTypeRefused;
       rawBody = await readRequestBody(req, chain.maxBodySize, BodyReadStrategy.buffered);
     } catch (err) {
       const refusal = toRpcError(err);
       // unread chunks stay on the socket: close it, or they are parsed as the next request of a kept-alive connection
-      if (refusal.type === 'request-payload-too-large' || (refusal === contentTypeRefused && req.body))
-        responseHeaders.set('connection', 'close');
+      if (refusal.type === 'request-payload-too-large') responseHeaders.set('connection', 'close');
       // the route resolved, so the refusal still runs the chain's alwaysRun members
       const refused = await dispatchPlatformError(
         chain,

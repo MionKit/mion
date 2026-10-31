@@ -9,7 +9,7 @@ import {describe, it, expect, beforeEach, vi} from 'vitest';
 import {initClient} from './lib/fetchingClient.ts';
 import {isMiddlewareInScope} from '../src/dispatch.ts';
 import type {RouteSubRequest} from '../src/types.ts';
-import {isRpcError, HeadersSubset, resetRoutesCache, RpcError, MION_ROUTES} from '@mionjs/core';
+import {isRpcError, HeadersSubset, resetRoutesCache, RpcError} from '@mionjs/core';
 import {resetJitFunctionsCache} from '@mionjs/core/testing';
 import type {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
@@ -799,34 +799,6 @@ describe('client', () => {
       expect(result?.message).toBe('hello from mutation');
       expect(result?.httpMethod).toBe('POST');
       // mutation routes send body via POST/PUT, urlQuery may be undefined
-    });
-
-    it('a GET-only query works from its first call: the refused POST brings the rows, the resend uses GET', async () => {
-      resetRoutesCache();
-      const [result, error] = await routes.getOnlyRequestInfo('first call').call();
-      expect(error).toBeUndefined();
-      expect(result).toEqual({message: 'first call', httpMethod: 'GET'});
-    });
-
-    it('a GET-only query reads its rows from a metadata fetch the route refuses', async () => {
-      resetRoutesCache();
-      expect(await routes.getOnlyRequestInfo('rows only').typeErrors()).toEqual([]);
-      const [result] = await routes.getOnlyRequestInfo('after the fetch').call();
-      expect(result?.httpMethod).toBe('GET');
-    });
-
-    it('a GET-only query whose params do not fit in the url fails in the client, without a POST', async () => {
-      await routes.getOnlyRequestInfo('primes the metadata').call();
-      const fetchSpy = vi.spyOn(globalThis, 'fetch');
-      try {
-        const [result, error, thrown] = await routes.getOnlyRequestInfo('x'.repeat(5000)).call();
-        expect(result).toBeUndefined();
-        expect(error).toBeUndefined();
-        expect(thrown?.[MION_ROUTES.thrownErrors]?.[0]?.type).toBe('get-url-too-long');
-        expect(fetchSpy).not.toHaveBeenCalled();
-      } finally {
-        fetchSpy.mockRestore();
-      }
     });
 
     it('query() route should work after the onRequest hook is replaced', async () => {
