@@ -632,7 +632,7 @@ describe('Query body decoding (data in URL query)', () => {
   };
 
   /** Adapter-style: body and query go in as they came; the router decodes `?data=` */
-  function decodeAndDispatch(path: string, rawBody: any, urlQuery: string | undefined) {
+  function dispatchWithQuery(path: string, rawBody: any, urlQuery: string | undefined) {
     return dispatchRoute(
       path,
       rawBody,
@@ -654,7 +654,7 @@ describe('Query body decoding (data in URL query)', () => {
     const body = JSON.stringify({getUser: [{name: 'Leo', surname: 'Tungsten'}]});
     const encoded = toBase64Url(body);
 
-    const response = await decodeAndDispatch('/getUser', undefined, `data=${encoded}`);
+    const response = await dispatchWithQuery('/getUser', undefined, `data=${encoded}`);
     expect(response.hasErrors).toBeFalsy();
     expect(response.body['getUser']).toEqual('Leo Tungsten');
   });
@@ -668,7 +668,7 @@ describe('Query body decoding (data in URL query)', () => {
     const body = JSON.stringify({updateUser: [{name: 'Leo', surname: 'Tungsten'}]});
     const encoded = toBase64Url(body);
 
-    const response = await decodeAndDispatch('/updateUser', undefined, `data=${encoded}`);
+    const response = await dispatchWithQuery('/updateUser', undefined, `data=${encoded}`);
     expect(response.hasErrors).toBeFalsy();
     expect(response.body['updateUser']).toEqual({name: 'LEO', surname: 'Tungsten'});
   });
@@ -681,7 +681,7 @@ describe('Query body decoding (data in URL query)', () => {
     const bodyFromQuery = JSON.stringify({getUser: [{name: 'FromQuery', surname: 'Get'}]});
     const encoded = toBase64Url(bodyFromQuery);
 
-    const response = await decodeAndDispatch('/getUser', bodyFromPost, `data=${encoded}`);
+    const response = await dispatchWithQuery('/getUser', bodyFromPost, `data=${encoded}`);
     expect(response.hasErrors).toBeFalsy();
     expect(response.body['getUser']).toEqual('FromBody Post');
   });
@@ -690,9 +690,9 @@ describe('Query body decoding (data in URL query)', () => {
     const getUser = mion.query((ctx, user: SimpleUser): string => `${user.name} ${user.surname}`);
     mion.initRoutes({getUser});
 
-    const bad = await decodeAndDispatch('/getUser', undefined, 'data=!');
+    const bad = await dispatchWithQuery('/getUser', undefined, 'data=!');
     expect(bad.body[MION_ROUTES.thrownErrors]?.['mionDeserializeRequest']?.type).toBe('invalid-query-body');
-    const unknown = await decodeAndDispatch('/nope', undefined, 'data=!');
+    const unknown = await dispatchWithQuery('/nope', undefined, 'data=!');
     expect(unknown.statusCode).toBe(StatusCodes.NOT_FOUND);
     expect(unknown.body[MION_ROUTES.thrownErrors]?.[MION_ROUTES.notFound]?.type).toBe('route-not-found');
   });
@@ -704,7 +704,7 @@ describe('Query body decoding (data in URL query)', () => {
     const body = JSON.stringify({getUser: [{name: 'Leo', surname: 'Tungsten'}]});
     const encoded = toBase64Url(body);
 
-    const response = await decodeAndDispatch('/getUser', undefined, `foo=bar&data=${encoded}&baz=qux`);
+    const response = await dispatchWithQuery('/getUser', undefined, `foo=bar&data=${encoded}&baz=qux`);
     expect(response.hasErrors).toBeFalsy();
     expect(response.body['getUser']).toEqual('Leo Tungsten');
   });
@@ -716,7 +716,7 @@ describe('Query body decoding (data in URL query)', () => {
     const body = JSON.stringify({getUser: [{name: 'Leo', surname: 'Tungsten'}]});
     const encoded = toBase64Url(body);
 
-    const response = await decodeAndDispatch('/getUser', undefined, `data=${encoded}`);
+    const response = await dispatchWithQuery('/getUser', undefined, `data=${encoded}`);
     expect(response.hasErrors).toBeFalsy();
     expect(response.body['getUser']).toEqual('Leo Tungsten');
   });
