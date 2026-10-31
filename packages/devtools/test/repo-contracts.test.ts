@@ -1681,13 +1681,13 @@ describe('mion server benchmarks stay wired end to end', () => {
   it('the benchmark geometric means are computed in one place, for the pages and the home summary', () => {
     // BenchTable's "Overall" row and HomeBenchTable's headline number for the same
     // dataset must agree, so neither carries its own copy of the math.
-    const shared = join(REPO_ROOT, 'container/website/app/utils/benchAggregate.ts');
+    const shared = join(REPO_ROOT, 'container/website/app/utils/benchAggregate.js');
     expect(existsSync(shared)).toBe(true);
     for (const name of ['BenchTable', 'HomeBenchTable', 'RuntypesBenchBars']) {
       const component = readFileSync(join(REPO_ROOT, `container/website/app/components/content/${name}.vue`), 'utf8');
       expect(component, `${name} imports the shared helpers`).toContain("from '~/utils/benchAggregate'");
       expect(component, `${name} carries its own geomean`).not.toMatch(
-        /function (geomean|geomeanOver|commonBasis|caseSupported|aggregateRows)\(/
+        /function (geomean|rowMeans|meanWithWorstFill|caseSupported|aggregateRows)\(/
       );
     }
   });

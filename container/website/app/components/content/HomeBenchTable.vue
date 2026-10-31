@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {computed, onMounted, ref} from 'vue';
-import {commonBasis, geomeanOver, type AggregateCase} from '~/utils/benchAggregate';
+import {rowMeans, type AggregateCase} from '~/utils/benchAggregate';
 import {visibleRows} from '~/utils/serverBenchRows';
 
 // The small results table on the root landing's benchmarks card, and the bars on the
@@ -8,8 +8,8 @@ import {visibleRows} from '~/utils/serverBenchRows';
 // read from the SAME generated files the benchmark pages read
 // (/bench-data/<bench>/index.json), so the card can never quote a run the pages do
 // not show. RPC: requests per second on the suite the page names, one row per server.
-// RunTypes: the is-valid check, geometric mean over the cases every library supports
-// (benchAggregate.ts, the same math as the "Overall" row of the validation page), one
+// RunTypes: the is-valid check, geometric mean over every case, a library's missing case scored at the slowest result
+// (benchAggregate.js, the same math as the "Overall" row of the validation page), one
 // row per library. Plus the machine and date of the run. A missing dataset renders
 // the "not generated yet" note, never an error; check-static gates the deploy.
 
@@ -51,10 +51,10 @@ const validationRows = computed<Row[]>(() => {
   if (!index?.sections?.length) return [];
   const cases = index.sections.flatMap((section) => section.cases);
   const competitors = [...new Set(index.competitors ?? [])];
-  const {participants, common} = commonBasis(cases, competitors, 'validate');
+  const {participants, values} = rowMeans(cases, competitors, 'validate');
   const rows: Row[] = participants.map((comp) => ({
     name: comp,
-    value: geomeanOver(common, 'validate', comp, 'valid') ?? 0,
+    value: values[comp]?.valid ?? 0,
     mion: /mion|ts-runtypes/.test(comp),
   }));
   return rows
