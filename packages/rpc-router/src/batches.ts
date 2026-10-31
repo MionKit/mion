@@ -22,6 +22,7 @@ import {getRouteExecutionChain, getPlatformRequestCap, getRouterOptions, startMi
 import {getMethodCaller} from './dispatch.ts';
 import {findMionQueryParam} from './lib/urlQuery.ts';
 import {addThrownError, hasThrownError} from './lib/dispatchError.ts';
+import {getChainMethodBits} from './lib/httpMethods.ts';
 import {RouterOptions} from './types/general.ts';
 import {MethodsExecutionChain, RemoteMethod} from './types/remoteMethods.ts';
 import type {CallContext} from './types/context.ts';
@@ -254,8 +255,12 @@ function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[]
     declaredBodySize,
     maxBodySize: declaredBodySize,
     readsBody: true,
+    // the client sends a batch as one POST
+    methodBits: getChainMethodBits(BATCH_HTTP_METHODS, methods),
   };
 }
+
+const BATCH_HTTP_METHODS = ['POST'];
 
 // ############# MAPPING METHODS #############
 

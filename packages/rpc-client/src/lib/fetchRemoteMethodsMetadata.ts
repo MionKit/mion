@@ -40,13 +40,15 @@ export async function fetchRemoteMethodsMetadata(
     });
     // the middleware pins the built-in parser on both wires, so its answer is plain JSON
     const parsedBody = await response.json();
-    const platformError = parsedBody?.[MION_ROUTES.thrownErrors]?.[MION_ROUTES.platformError];
-    if (isRpcError(platformError)) throw new RpcError(platformError);
     const slot = parsedBody?.[middlewareId];
     // a union answer rides the `[index, value]` envelope
     const answer = (Array.isArray(slot) ? slot[1] : slot) as RpcError<string, FetchMetadataOnlyData> | undefined;
-    if (!isRpcError(answer) || answer.type !== 'metadata-only' || !answer.errorData?.metadata)
+    // read before the platform error: a GET-only route refuses this POST with a 405 and still sends the rows
+    if (!isRpcError(answer) || answer.type !== 'metadata-only' || !answer.errorData?.metadata) {
+      const platformError = parsedBody?.[MION_ROUTES.thrownErrors]?.[MION_ROUTES.platformError];
+      if (isRpcError(platformError)) throw new RpcError(platformError);
       throw new Error(`the server answered no metadata; place ${middlewareId} first in its routes`);
+    }
     installMethodRows(answer.errorData.metadata, options);
     const stillMissing = missingAfterLocal.filter((id) => !hasMethod(id));
     if (stillMissing.length) throw new Error(`Failed to fetch metadata for: ${stillMissing.join(', ')}`);

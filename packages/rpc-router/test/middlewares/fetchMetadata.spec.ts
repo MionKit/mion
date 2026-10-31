@@ -172,6 +172,7 @@ describe('Client Routes should', () => {
     parser: {params: 'clone', return: 'clone'},
     description: undefined,
     isMutation: undefined,
+    httpMethods: ['GET', 'POST'],
     // every chain here carries `auth`, whose `token: string` has no maximum, so each route publishes
     // the platform's number (the shared default with no adapter)
     maxBodySize: DEFAULT_MAX_BODY_SIZE,

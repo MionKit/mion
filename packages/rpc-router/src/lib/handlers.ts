@@ -15,6 +15,7 @@ import type {
   RouterOptionsInput,
 } from '../types/mionRouter.ts';
 import type {CallContext} from '../types/context.ts';
+import type {RemoteMethod} from '../types/remoteMethods.ts';
 
 // ############# Route & Middlewares initialization (INTERNAL) #############
 // These bodies initialize the definition objects AND are the mion injection points: the trailing marker
@@ -116,4 +117,16 @@ export function getOnEveryCall(def: object): OnEveryCall | undefined {
 }
 
 /** mion's own ids, never exposed to clients */
+const preflightHandlers = new WeakSet<object>();
+
+/** Marks mion's CORS middleware: a chain holding it accepts OPTIONS, which the middleware always ends. */
+export function markAnswersPreflight<Def extends {handler: object}>(def: Def): Def {
+  preflightHandlers.add(def.handler);
+  return def;
+}
+
+export function answersPreflight(method: RemoteMethod): boolean {
+  return preflightHandlers.has(method.handler);
+}
+
 export const mionInternalRouteIds: ReadonlySet<string> = new Set(Object.values(MION_ROUTES));

@@ -34,6 +34,8 @@ function failedOnWire(errors: RequestErrors): boolean {
   for (const error of errors.values()) {
     const type = error?.type;
     if (type === 'serialization-error' || type === 'validation-error' || type === 'parsing-json-request-error') return true;
+    // the first call to a GET-only route goes out as POST; the rows that came back tell the resend to use GET
+    if (type === 'method-not-allowed') return true;
   }
   return false;
 }

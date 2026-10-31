@@ -14,7 +14,7 @@ import {
   EMPTY_HASH,
 } from './constants.ts';
 import {DEFAULT_PARSER} from './parser.ts';
-import type {MethodWithOptions, MethodsCache, MethodWithOptsAndJitFns} from './types/method.types.ts';
+import type {MethodWithOptions, MethodsCache, MethodWithOptsAndJitFns, RouteHttpMethod} from './types/method.types.ts';
 import type {
   CoreRouterOptions,
   MionTypeFn,
@@ -197,6 +197,15 @@ export function hasJitFnsForMethod(metadata: MethodWithOptions): boolean {
 }
 
 /** The router id of a Route or Middleware: its pointer inside the Routes object, e.g. ['users', 'getUser']. */
+const MUTATION_HTTP_METHODS: readonly RouteHttpMethod[] = Object.freeze(['POST']);
+const READ_HTTP_METHODS: readonly RouteHttpMethod[] = Object.freeze(['GET', 'POST']);
+
+/** A route's HTTP methods when it names none: a mutation is never right over GET. POST stays on a read
+ *  so the client can fall back to it when the URL is too long. */
+export function defaultHttpMethods(isMutation: boolean | undefined): readonly RouteHttpMethod[] {
+  return isMutation ? MUTATION_HTTP_METHODS : READ_HTTP_METHODS;
+}
+
 export function getRouterItemId(itemPointer: string[]) {
   return itemPointer.join(ROUTER_ITEM_SEPARATOR_CHAR);
 }

@@ -301,6 +301,11 @@ func readOptions(typeChecker *checker.Checker, optionsType *checker.Type, prefix
 		switch {
 		case flags&(checker.TypeFlagsStringLiteral|checker.TypeFlagsNumberLiteral|checker.TypeFlagsBooleanLiteral) != 0:
 			out[property.Name] = comptimeargs.TypeLiteralValue(typeChecker, valueType, comptimeargs.TypeValueOptions{})
+		// a tuple of literals (`httpMethods: ['GET']`) is read whole; an array type has no single value to read
+		case checker.IsTupleType(valueType) && comptimeargs.IsTypeReadableValue(typeChecker, valueType):
+			out[property.Name] = comptimeargs.TypeLiteralValue(typeChecker, valueType, comptimeargs.TypeValueOptions{})
+		case checker.IsTupleType(valueType) || checker.Checker_isArrayType(typeChecker, valueType):
+			widened = append(widened, name)
 		case flags&checker.TypeFlagsObject != 0:
 			nested, nestedWidened := readOptions(typeChecker, valueType, name+".")
 			out[property.Name] = nested

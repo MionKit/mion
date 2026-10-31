@@ -461,11 +461,11 @@ describe('node adapter: requests another site can make a browser send', () => {
     return deleted > before;
   }
 
-  it.fails('a GET (an <img src> or a link) never runs a mutation', async () => {
+  it('a GET (an <img src> or a link) never runs a mutation', async () => {
     expect(await runsMutation({method: 'GET'}, `${url}?data=${toBase64Url('{"deleteAll":[]}')}`)).toBe(false);
   });
 
-  it.fails('an OPTIONS never runs a mutation', async () => {
+  it('an OPTIONS never runs a mutation', async () => {
     expect(await runsMutation({method: 'OPTIONS'})).toBe(false);
   });
 

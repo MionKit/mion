@@ -19,7 +19,15 @@ import type {
 } from './types.ts';
 import type {HandlersRegistry, RequestHandlerEntry} from './lib/handlersRegistry.ts';
 import type {RunTypeError} from '@mionjs/core';
-import {RpcError, isRpcError, MION_ROUTES, toBase64Url, BUILD_VERSION_HEADER, ROUTER_ITEM_SEPARATOR_CHAR} from '@mionjs/core';
+import {
+  RpcError,
+  isRpcError,
+  MION_ROUTES,
+  toBase64Url,
+  BUILD_VERSION_HEADER,
+  ROUTER_ITEM_SEPARATOR_CHAR,
+  defaultHttpMethods,
+} from '@mionjs/core';
 import {addSubRequest, createCallContext, getRouteIds, getRoutePointers} from './callContext.ts';
 import {noteServerApiVersion, reportApiVersionMismatch, takeApiVersionError} from './lib/apiBuildVersion.ts';
 import {getMethod, hasMethod} from './lib/methods.ts';
@@ -187,6 +195,7 @@ async function makeCall(state: DispatchState, skipOptimistic?: boolean): Promise
       options,
       isOptimistic,
       isQueryRoute(context),
+      getHttpMethods(context),
       signal
     );
     state.sent = true;
@@ -374,6 +383,16 @@ function isQueryRoute(context: ClientCallContext): boolean {
   return meta?.options?.isMutation === false;
 }
 
+/** What the route accepts; a batch is always one POST, and a route with no rows yet is sent as POST */
+function getHttpMethods(context: ClientCallContext): readonly string[] {
+  if (context.batchSubRequests) return BATCH_HTTP_METHODS;
+  const meta = getMethod(context.requestId);
+  if (!meta) return BATCH_HTTP_METHODS;
+  return meta.options?.httpMethods ?? defaultHttpMethods(meta.options?.isMutation);
+}
+
+const BATCH_HTTP_METHODS: readonly string[] = ['POST'];
+
 // ############# ON REQUEST HOOKS #############
 
 /** The middlewares the cached metadata lists in the route's chain (standard flow) */
@@ -477,7 +496,7 @@ export function isMiddlewareInScope(middlewarePointer: string[], routePointer: s
 
 // ############# FETCH #############
 
-/** GET only for a JSON query whose URL fits MAX_GET_URL_LENGTH; mutations, optimistic calls and batches POST */
+/** GET for a JSON query whose URL fits MAX_GET_URL_LENGTH, or a route that refuses POST; everything else POSTs */
 function buildFetchOptions(
   url: URL,
   serialized: ReturnType<typeof serializeRequestBody>,
@@ -485,9 +504,12 @@ function buildFetchOptions(
   options: ClientOptions,
   isOptimistic: boolean,
   isQuery: boolean,
+  httpMethods: readonly string[],
   signal?: AbortSignal
 ): RequestInit {
-  if (!isOptimistic && isQuery && serialized.contentType.includes('json')) {
+  const allowsPost = httpMethods.includes('POST');
+  const prefersGet = httpMethods.includes('GET') && (isQuery || !allowsPost);
+  if (!isOptimistic && prefersGet && serialized.contentType.includes('json')) {
     const encoded = toBase64Url(serialized.body as string);
     const testUrl = new URL(url.pathname + url.search, url.origin);
     testUrl.searchParams.set('data', encoded);
@@ -503,6 +525,12 @@ function buildFetchOptions(
       };
     }
   }
+  // a POST would only come back as a 405
+  if (!isOptimistic && !allowsPost)
+    throw new RpcError({
+      type: 'get-url-too-long',
+      publicMessage: `The route accepts only ${httpMethods.join(', ')} and its params do not fit in a GET url of ${MAX_GET_URL_LENGTH} characters.`,
+    });
 
   return {
     ...options.fetchOptions,

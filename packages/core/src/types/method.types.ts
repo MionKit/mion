@@ -45,6 +45,9 @@ export interface MethodMetadata {
   nestLevel: number;
 }
 
+/** The HTTP methods a route can accept. `QUERY` is the draft method that reads like GET with a body. */
+export type RouteHttpMethod = 'GET' | 'POST' | 'QUERY';
+
 export interface RemoteMethodOpts {
   alwaysRun?: boolean;
   description?: string;
@@ -52,6 +55,9 @@ export interface RemoteMethodOpts {
   parser?: ResolvedParser;
   /** Whether this route mutates data. Only set for route handlers, undefined for middlewares. */
   isMutation?: boolean | undefined;
+  /** The HTTP methods a route accepts, resolved from its helper when unset (`mutation` POST, others GET and POST).
+   *  Rides the metadata so the client never sends a method the route refuses. Routes only. */
+  httpMethods?: readonly RouteHttpMethod[];
   /** Resolved (route ?? router) and sent in the metadata, so a client with its own sanitizeParams on applies it too.
    *  Rewrites params only, never headers or returns, after decode and BEFORE validation. */
   sanitizeParams?: boolean;
