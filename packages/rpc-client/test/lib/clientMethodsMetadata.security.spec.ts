@@ -54,7 +54,7 @@ describe('client metadata cache: prototype safety', () => {
   it('a __proto__ id in the store never writes onto Object.prototype', async () => {
     await seed([
       {kind: 'p', id: `__proto__`, json: JSON.stringify(pureFn('polluted'))},
-      {kind: 'p', id: `@acme/app/src/fns#ok`, json: JSON.stringify({...pureFn('fine'), id: '__proto__'})},
+      {kind: 'p', id: `@acme/app:Ok3dEf9hJk`, json: JSON.stringify({...pureFn('fine'), id: '__proto__'})},
     ]);
     await hydrateMetadataCache(options);
     expect(({} as any).polluted).toBeUndefined();
@@ -79,7 +79,7 @@ describe('client metadata cache: prototype safety', () => {
       "purFnDeps": {
         "__proto__": ${JSON.stringify(pureFn('polluted'))},
         "constructor": ${JSON.stringify(pureFn('prototype'))},
-        "@acme/app/src/fns#fine": ${JSON.stringify(pureFn('fine'))}
+        "@acme/app:Fn3dEf9hJk": ${JSON.stringify(pureFn('fine'))}
       }
     }`;
     receiveFromServer(JSON.parse(wire));
@@ -87,7 +87,7 @@ describe('client metadata cache: prototype safety', () => {
 
     const store = await getMetadataStore();
     const stored = await store.readAll(options.baseURL);
-    expect(stored.map((record) => `${record.kind}:${record.id}`)).toEqual(['p:@acme/app/src/fns#fine']);
+    expect(stored.map((record) => `${record.kind}:${record.id}`)).toEqual(['p:@acme/app:Fn3dEf9hJk']);
     expect(warn).toHaveBeenCalled();
     warn.mockRestore();
   });

@@ -90,7 +90,7 @@ function processMethodsMetadata(serializableMethodsData: SerializableMethodsData
 /** A name that reaches an object key on restore is checked even though the server is trusted: `__proto__` as
  *  a namespace would land the next write on Object.prototype, page-wide. A refused entry is only warned about. */
 function isStorableName(name: string): boolean {
-  return !isUnsafePropertyName(name) && !name.includes(':');
+  return !isUnsafePropertyName(name);
 }
 
 // ############# WRITE PATH #############
