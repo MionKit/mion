@@ -23,7 +23,7 @@ const apiOrigin = `http://127.0.0.1:${apiPort}`;
 const pageOrigin = `http://127.0.0.1:${pagePort}`;
 
 const mion = createMionRouter({basePath: 'api/'});
-const auth = mion.headersMiddleware((ctx: CallContext, h: HeadersSubset<'authorization'>): void => undefined);
+const auth = mion.headersMiddleware((ctx: CallContext, headers: HeadersSubset<'authorization'>): void => undefined);
 const listUsers = mion.query((): HeadersSubset<'x-total'> => new HeadersSubset({'x-total': '2'}));
 
 /** What the client does: a JSON POST with the auth header, then the returned header read back by name */

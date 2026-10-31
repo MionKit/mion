@@ -10,4 +10,3 @@
 export {mionFetchMetadata} from './src/middlewares/fetchMetadata.ts';
 export {mionSyncRoutes} from './src/middlewares/syncRoutes.ts';
 export {mionCors} from './src/middlewares/cors.ts';
-export type {MionCorsOptions} from './src/middlewares/cors.ts';

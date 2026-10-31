@@ -883,7 +883,7 @@ export interface GateRequest {
 }
 
 /** The rule: what the request must do to the route, from the route's declared methods alone */
-export function gateShouldRun({route, method, contentType}: GateRequest): boolean {
+function gateShouldRun({route, method, contentType}: GateRequest): boolean {
   const asGet = method === 'HEAD' ? 'GET' : method;
   if (!GATE_METHODS[route].includes(asGet)) return false;
   if (method !== 'POST' && method !== 'QUERY') return true;

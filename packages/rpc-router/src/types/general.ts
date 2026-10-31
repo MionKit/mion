@@ -73,3 +73,17 @@ export interface HostRequestHandler {
   node?(req: unknown, res: unknown): void;
   fetch?(req: Request): Response | Promise<Response>;
 }
+
+/** Options of `mionCors` */
+export interface MionCorsOptions {
+  /** The origins allowed to read answers: one, a list, a pattern, a check, or `'*'` for any */
+  origin: string | string[] | RegExp | ((origin: string) => boolean);
+  /** Lets the browser send cookies; the caller's origin is echoed, and `'*'` is refused */
+  credentials?: boolean;
+  /** Seconds the browser caches a preflight answer */
+  maxAge?: number;
+  /** Request headers a raw middleware reads, added to the ones the routes declare */
+  allowHeaders?: string[];
+  /** Response headers a raw middleware sets, added to the ones the routes declare */
+  exposeHeaders?: string[];
+}

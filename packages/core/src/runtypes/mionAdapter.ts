@@ -24,6 +24,7 @@ import type {
   PureFnsDataCache,
 } from '../types/general.types.ts';
 import type {CompiledPureFunction} from '../types/pureFunctions.types.ts';
+import type {HeadersMethodWithJitFns} from '../types/method.types.ts';
 
 // ############# mion <-> mion adapter #############
 // Turns the marker payloads the devtools plugin fills at build time into the JitCompiledFunctions / reflection
@@ -82,13 +83,7 @@ export interface RtMarkerPayload {
 }
 
 /** Header validation fns + metadata derived from a HeadersSubset marker/runtype. */
-export interface RtHeadersReflection {
-  headerNames: string[];
-  jitHash: string;
-  jitFns: Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>;
-  /** Names the type marks `cors: false`, kept off the CORS header lists. Server only, never sent to the client. */
-  corsExcluded?: string[];
-}
+export type RtHeadersReflection = HeadersMethodWithJitFns;
 
 /** Reflection data derived exclusively from injected markers (no runtime type reflection). */
 export interface RtMethodReflection {
@@ -378,7 +373,7 @@ interface RtNodeLike {
 
 /** The names a HeadersSubset type marks off CORS through its type-only `opts.cors`: every name for `cors: false`,
  *  the names set to false for a map. Undefined when none is; a union is searched like the names. */
-export function getCorsExcludedFromRunType(runType: RunType<unknown>, headerNames: string[]): string[] | undefined {
+function getCorsExcludedFromRunType(runType: RunType<unknown>, headerNames: string[]): string[] | undefined {
   const root = getHeadersSubsetNode(runType as RtNodeLike);
   const opts = root?.children?.find((child) => child.name === 'opts')?.child;
   const cors = opts?.children?.find((child) => child.name === 'cors')?.child;

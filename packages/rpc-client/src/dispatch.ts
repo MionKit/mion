@@ -27,6 +27,7 @@ import {
   BUILD_VERSION_HEADER,
   ROUTER_ITEM_SEPARATOR_CHAR,
   defaultHttpMethods,
+  BATCH_HTTP_METHODS,
   StatusCodes,
 } from '@mionjs/core';
 import {addSubRequest, createCallContext, getRouteIds, getRoutePointers} from './callContext.ts';
@@ -397,13 +398,10 @@ function isQueryRoute(context: ClientCallContext): boolean {
 
 /** What the route accepts; a batch is always one POST, and a route with no rows yet is sent as POST */
 function getHttpMethods(context: ClientCallContext): readonly string[] {
-  if (context.batchSubRequests) return BATCH_HTTP_METHODS;
-  const meta = getMethod(context.requestId);
+  const meta = context.batchSubRequests ? undefined : getMethod(context.requestId);
   if (!meta) return BATCH_HTTP_METHODS;
   return meta.options?.httpMethods ?? defaultHttpMethods(meta.options?.isMutation);
 }
-
-const BATCH_HTTP_METHODS: readonly string[] = ['POST'];
 
 /** The methods a 405 lists, when one of them is a method the client sends and not the one it just sent. */
 function getRetryMethods(response: Response, sentMethod: string): readonly string[] | undefined {

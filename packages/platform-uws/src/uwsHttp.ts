@@ -128,7 +128,13 @@ export async function startUwsServer(options?: Partial<UwsHttpOptions>): Promise
 // ############# PRIVATE METHODS #############
 
 // uWS lowercases the method; the common ones map to a constant so a request allocates no new string
-const UPPER_CASE_METHODS: Record<string, string> = {get: 'GET', post: 'POST', options: 'OPTIONS', query: 'QUERY'};
+// null prototype: a `constructor` method off the wire must not read Object.prototype
+const UPPER_CASE_METHODS: Readonly<Record<string, string>> = Object.assign(Object.create(null), {
+  get: 'GET',
+  post: 'POST',
+  options: 'OPTIONS',
+  query: 'QUERY',
+});
 function upperCaseMethod(method: string): string {
   return UPPER_CASE_METHODS[method] ?? method.toUpperCase();
 }

@@ -62,39 +62,10 @@ export function bunRequestHandler(req: Request): Response | Promise<Response> {
     // route resolved BEFORE the body: the chain gives the limit bun's native read stops at, and a late context stays GC-cheap
     const chain = resolveExecutionChain(path, urlQuery, req);
     const refusal = chain.readsBody ? contentTypeRefusal(req.method, req.headers.get('content-type')) : undefined;
-    if (refusal) return refuseUnread(req, chain, path, urlQuery, responseHeaders, refusal);
     // a not-found chain (an unknown path or batch id) has no route to feed: its body is never read
-    if (chain.readsBody && req.body) return readBodyAndDispatch(req, chain, path, urlQuery, responseHeaders);
+    if (refusal || (chain.readsBody && req.body))
+      return readBodyAndDispatch(req, chain, path, urlQuery, responseHeaders, refusal);
     return dispatchBody(req, chain, path, urlQuery, responseHeaders, undefined);
-  } catch (err) {
-    return fatalFail(toRpcError(err), responseHeaders);
-  }
-}
-
-/** A request refused before its body is read still runs the chain's alwaysRun members. */
-async function refuseUnread(
-  req: Request,
-  chain: MethodsExecutionChain,
-  path: string,
-  urlQuery: string | undefined,
-  responseHeaders: FetchResponseHeaders,
-  refusal: RpcError<string>
-): Promise<Response> {
-  try {
-    // the unread body stays on the socket: close it, or it is parsed as the next request of a kept-alive connection
-    if (req.body) responseHeaders.set('connection', 'close');
-    const refused = await dispatchPlatformError(
-      chain,
-      path,
-      urlQuery,
-      req.method,
-      refusal,
-      req.headers,
-      responseHeaders,
-      req,
-      undefined
-    );
-    return replyFetch(refused, responseHeaders);
   } catch (err) {
     return fatalFail(toRpcError(err), responseHeaders);
   }
@@ -105,17 +76,20 @@ async function readBodyAndDispatch(
   chain: MethodsExecutionChain,
   path: string,
   urlQuery: string | undefined,
-  responseHeaders: FetchResponseHeaders
+  responseHeaders: FetchResponseHeaders,
+  contentTypeRefused?: RpcError<string>
 ): Promise<Response> {
   // read as TEXT: `req.json()` would throw a raw SyntaxError outside any mion envelope, and the limit needs the size first
   try {
     let rawBody: string | undefined;
     try {
+      if (contentTypeRefused) throw contentTypeRefused;
       rawBody = await readRequestBody(req, chain.maxBodySize, BodyReadStrategy.buffered);
     } catch (err) {
       const refusal = toRpcError(err);
       // unread chunks stay on the socket: close it, or they are parsed as the next request of a kept-alive connection
-      if (refusal.type === 'request-payload-too-large') responseHeaders.set('connection', 'close');
+      if (refusal.type === 'request-payload-too-large' || (refusal === contentTypeRefused && req.body))
+        responseHeaders.set('connection', 'close');
       // the route resolved, so the refusal still runs the chain's alwaysRun members
       const refused = await dispatchPlatformError(
         chain,
@@ -152,16 +126,8 @@ function dispatchBody(
     reqRawBody = queryBody.rawBody;
     reqBodyType = queryBody.bodyType;
   }
-  const context = createContextFromChain(
-    chain,
-    path,
-    urlQuery,
-    req.method,
-    req.headers,
-    responseHeaders,
-    reqRawBody,
-    reqBodyType
-  );
+  const method = req.method;
+  const context = createContextFromChain(chain, path, urlQuery, method, req.headers, responseHeaders, reqRawBody, reqBodyType);
   const platformResp = dispatchMaybeSync(context, req, undefined);
   if (!(platformResp instanceof Promise)) return replyFetch(platformResp, responseHeaders);
   return platformResp

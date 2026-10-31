@@ -21,7 +21,7 @@ const APP = 'https://app.example.com';
 let ran: string[] = [];
 
 const auth = mion.headersMiddleware(
-  (ctx: CallContext, h: HeadersSubset<'authorization', 'x-debug-node', {cors: {'x-debug-node': false}}>): void => {
+  (ctx: CallContext, headers: HeadersSubset<'authorization', 'x-debug-node', {cors: {'x-debug-node': false}}>): void => {
     ran.push('auth');
   }
 );
@@ -51,7 +51,7 @@ function send(
 }
 const preflight = (path: string, origin = APP, extra: Record<string, string> = {}) =>
   send(path, 'OPTIONS', {origin, 'access-control-request-method': 'POST', ...extra});
-const list = (s: string) => s.split(', ').sort();
+const list = (value: string) => value.split(', ').sort();
 
 describe('mionCors', () => {
   beforeEach(() => {
@@ -189,9 +189,15 @@ describe('mionCors', () => {
     });
 
     it('echoes the origin with credentials, never *', async () => {
-      const headers = await allowed('*', APP, true);
+      const headers = await allowed([APP], APP, true);
       expect(headers.get('access-control-allow-origin')).toBe(APP);
       expect(headers.get('access-control-allow-credentials')).toBe('true');
+    });
+
+    it('refuses any origin together with credentials: every site could read answers sent with cookies', () => {
+      expect(() => mionCors({origin: '*', credentials: true})).toThrow(
+        'mionCors: `credentials` needs the allowed origins listed'
+      );
     });
 
     it('refuses an origin option of the wrong kind', () => {

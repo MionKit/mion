@@ -214,7 +214,7 @@ describe('vercel adapter: methods and content types', () => {
   it('refuses a form content type or none with a 415, without running the route', async () => {
     const before = saves;
     for (const headers of [{'content-type': 'text/plain'}, {}] as Record<string, string>[]) {
-      const response = await send('save', {method: 'POST', headers, body: '{"save":[]}'});
+      const response = await send('save', {method: 'POST', headers, body: headers['content-type'] ? '{"save":[]}' : undefined});
       expect(response.status).toBe(StatusCodes.UNSUPPORTED_MEDIA_TYPE);
       expect(((await response.json()) as RpcBody)[MION_ROUTES.thrownErrors][MION_ROUTES.platformError].type).toBe(
         'unsupported-media-type'

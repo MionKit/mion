@@ -103,22 +103,15 @@ describe('uws adapter: an unknown path never reads the body', () => {
   afterAll(() => server.close());
 
   it('answers 404 without parsing a body that is not JSON, and the connection serves the next request', async () => {
-    const response = await fetch(`http://127.0.0.1:${notFoundPort}/api/nope`, {
-      method: 'POST',
-      headers: {'content-type': 'application/json'},
-      body: '{not json',
-    });
+    // a form content type: an unknown path answers 404 whatever the request sends
+    const response = await fetch(`http://127.0.0.1:${notFoundPort}/api/nope`, {method: 'POST', body: '{not json'});
     expect(response.status).toBe(StatusCodes.NOT_FOUND);
     const body = (await response.json()) as RpcBody;
     expect(body[MION_ROUTES.thrownErrors][MION_ROUTES.notFound].type).toBe('route-not-found');
     expect(body[MION_ROUTES.thrownErrors]['mionDeserializeRequest']).toBeUndefined();
 
     // a large body on the same kept-alive connection is drained, never assembled
-    const big = await fetch(`http://127.0.0.1:${notFoundPort}/api/nope`, {
-      method: 'POST',
-      headers: {'content-type': 'application/json'},
-      body: 'x'.repeat(600_000),
-    });
+    const big = await fetch(`http://127.0.0.1:${notFoundPort}/api/nope`, {method: 'POST', body: 'x'.repeat(600_000)});
     expect(big.status).toBe(StatusCodes.NOT_FOUND);
     await big.text();
 
@@ -241,7 +234,8 @@ describe('uws adapter: methods and content types', () => {
     resetRouter();
     const save = mion.mutation((): number => ++saves);
     const readMethod = mion.query((ctx: CallContext): string => ctx.request.method);
-    mion.initRoutes({save, readMethod});
+    const viaQuery = mion.query((ctx: CallContext): string => ctx.request.method, {httpMethods: ['QUERY', 'POST']});
+    mion.initRoutes({save, readMethod, viaQuery});
     setUwsHttpOpts({port: methodsPort});
     server = await startUwsServer();
   });
@@ -253,6 +247,14 @@ describe('uws adapter: methods and content types', () => {
       readMethod: 'POST',
     });
     expect(await (await fetch(url('readMethod'))).json()).toEqual({readMethod: 'GET'});
+    // uWS sends `head` lowercase, outside the constant map: a HEAD on a query reads as GET
+    expect((await fetch(url('readMethod'), {method: 'HEAD'})).status).toBe(StatusCodes.OK);
+  });
+
+  it('reads the body of a QUERY request on a route that lists QUERY', async () => {
+    expect(await (await fetch(url('viaQuery'), {method: 'QUERY', headers: json, body: '{}'})).json()).toEqual({
+      viaQuery: 'QUERY',
+    });
   });
 
   it('refuses a mutation over GET with a 405', async () => {
@@ -266,7 +268,11 @@ describe('uws adapter: methods and content types', () => {
   it('refuses a form content type or none with a 415, without running the route', async () => {
     const before = saves;
     for (const headers of [{'content-type': 'text/plain'}, {}] as Record<string, string>[]) {
-      const response = await fetch(url('save'), {method: 'POST', headers, body: '{"save":[]}'});
+      const response = await fetch(url('save'), {
+        method: 'POST',
+        headers,
+        body: headers['content-type'] ? '{"save":[]}' : undefined,
+      });
       expect(response.status).toBe(StatusCodes.UNSUPPORTED_MEDIA_TYPE);
       const body = (await response.json()) as Record<string, Record<string, PublicRpcError<string>>>;
       expect(body[MION_ROUTES.thrownErrors][MION_ROUTES.platformError].type).toBe('unsupported-media-type');

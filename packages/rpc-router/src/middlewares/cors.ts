@@ -11,26 +11,7 @@ import {endChain} from '../lib/dispatchError.ts';
 import {getMethodNames} from '../lib/httpMethods.ts';
 import type {CallContext, MionHeaders} from '../types/context.ts';
 import type {HeadersMethod, MethodsExecutionChain} from '../types/remoteMethods.ts';
-
-export interface MionCorsOptions {
-  /** The origins allowed to read answers: one, a list, a pattern, a check, or `'*'` for any */
-  origin: string | string[] | RegExp | ((origin: string) => boolean);
-  /** Lets the browser send cookies; the caller's origin is echoed, never `*` */
-  credentials?: boolean;
-  /** Seconds the browser caches a preflight answer */
-  maxAge?: number;
-  /** Request headers a raw middleware reads, added to the ones the routes declare */
-  allowHeaders?: string[];
-  /** Response headers a raw middleware sets, added to the ones the routes declare */
-  exposeHeaders?: string[];
-}
-
-/** The CORS header values of one chain, joined once */
-interface ChainCorsHeaders {
-  allowHeaders: string;
-  exposeHeaders: string;
-  allowMethods: string;
-}
+import type {MionCorsOptions} from '../types/general.ts';
 
 /** mion's own response headers the client reads */
 const MION_EXPOSED_HEADERS = ['x-rpc-error', BUILD_VERSION_HEADER];
@@ -39,20 +20,14 @@ const MION_EXPOSED_HEADERS = ['x-rpc-error', BUILD_VERSION_HEADER];
  *  any headers middleware: a preflight never carries the app's headers. `alwaysRun`, so an error answer is
  *  readable too. Every OPTIONS request ends here, so it never reaches a route. */
 export function mionCors(options: MionCorsOptions) {
+  // any origin echoed with cookies would let every site read answers sent with the user's cookies
+  if (options.origin === '*' && options.credentials)
+    throw new Error("mionCors: `credentials` needs the allowed origins listed, never '*'.");
   const isAllowed = getOriginCheck(options.origin);
   const credentials = !!options.credentials;
   const maxAge = options.maxAge === undefined ? undefined : String(options.maxAge);
   // built on a chain's first request: the lists come from what its members declare
-  const chainHeaders = new WeakMap<MethodsExecutionChain, ChainCorsHeaders>();
-
-  const getChainHeaders = (chain: MethodsExecutionChain): ChainCorsHeaders => {
-    let headers = chainHeaders.get(chain);
-    if (!headers) {
-      headers = buildChainHeaders(chain, options);
-      chainHeaders.set(chain, headers);
-    }
-    return headers;
-  };
+  const chainHeaders = new WeakMap<MethodsExecutionChain, ReturnType<typeof buildChainHeaders>>();
 
   function cors(ctx: CallContext): void {
     const {request, response} = ctx;
@@ -62,7 +37,8 @@ export function mionCors(options: MionCorsOptions) {
     const origin = request.headers.get('origin');
     if (origin && isAllowed(origin)) {
       const headers = response.headers;
-      const lists = getChainHeaders(ctx.executionChain);
+      let lists = chainHeaders.get(ctx.executionChain);
+      if (!lists) chainHeaders.set(ctx.executionChain, (lists = buildChainHeaders(ctx.executionChain, options)));
       headers.set('access-control-allow-origin', origin);
       if (credentials) headers.set('access-control-allow-credentials', 'true');
       if (!isOptions) {
@@ -96,7 +72,8 @@ function getOriginCheck(origin: MionCorsOptions['origin']): (origin: string) => 
   throw new Error('mionCors: `origin` must be a string, a list of strings, a RegExp or a function.');
 }
 
-function buildChainHeaders(chain: MethodsExecutionChain, options: MionCorsOptions): ChainCorsHeaders {
+/** The CORS header values of one chain, joined once */
+function buildChainHeaders(chain: MethodsExecutionChain, options: MionCorsOptions) {
   const allowHeaders = new Set<string>(['content-type']);
   const exposeHeaders = new Set<string>(MION_EXPOSED_HEADERS);
   const allowExcluded = new Set<string>();

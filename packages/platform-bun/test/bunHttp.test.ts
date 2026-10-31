@@ -208,11 +208,8 @@ describe('bun router should', () => {
   });
 
   test('an unknown path answers 404 without reading the body, and the server keeps serving', async () => {
-    const response = await fetch(`http://127.0.0.1:${port}/api/nope`, {
-      method: 'POST',
-      headers: {'content-type': 'application/json'},
-      body: '{not json',
-    });
+    // a form content type: an unknown path answers 404 whatever the request sends
+    const response = await fetch(`http://127.0.0.1:${port}/api/nope`, {method: 'POST', body: '{not json'});
     expect(response.status).toBe(StatusCodes.NOT_FOUND);
     const body = (await response.json()) as Record<string, any>;
     expect(body[MION_ROUTES.thrownErrors][MION_ROUTES.notFound].type).toBe('route-not-found');
@@ -425,12 +422,17 @@ describe('bun adapter: methods and content types', () => {
     const mion = createMionRouter({basePath: 'api/'});
     const save = mion.mutation((): number => ++saves);
     const readMethod = mion.query((ctx: CallContext): string => ctx.request.method);
-    mion.initRoutes({save, readMethod});
+    const viaQuery = mion.query((ctx: CallContext): string => ctx.request.method, {httpMethods: ['QUERY', 'POST']});
+    mion.initRoutes({save, readMethod, viaQuery});
   });
 
   test('puts the HTTP method on the request', async () => {
     expect(await (await send('readMethod', {method: 'POST', headers: json, body: '{}'})).json()).toEqual({readMethod: 'POST'});
     expect(await (await send('readMethod')).json()).toEqual({readMethod: 'GET'});
+  });
+
+  test('reads the body of a QUERY request on a route that lists QUERY', async () => {
+    expect(await (await send('viaQuery', {method: 'QUERY', headers: json, body: '{}'})).json()).toEqual({viaQuery: 'QUERY'});
   });
 
   test('refuses a mutation over GET with a 405', async () => {
@@ -444,9 +446,10 @@ describe('bun adapter: methods and content types', () => {
   test('refuses a form content type or none with a 415, without running the route, and closes the socket', async () => {
     const before = saves;
     for (const headers of [{'content-type': 'text/plain'}, {}] as Record<string, string>[]) {
-      const response = await send('save', {method: 'POST', headers, body: '{"save":[]}'});
+      const response = await send('save', {method: 'POST', headers, body: headers['content-type'] ? '{"save":[]}' : undefined});
       expect(response.status).toBe(StatusCodes.UNSUPPORTED_MEDIA_TYPE);
-      expect(response.headers.get('connection')).toBe('close');
+      // only an unread body is left on the socket
+      expect(response.headers.get('connection')).toBe(headers['content-type'] ? 'close' : null);
       const body = (await response.json()) as Record<string, Record<string, PublicRpcError<string>>>;
       expect(body[MION_ROUTES.thrownErrors][MION_ROUTES.platformError].type).toBe('unsupported-media-type');
     }
