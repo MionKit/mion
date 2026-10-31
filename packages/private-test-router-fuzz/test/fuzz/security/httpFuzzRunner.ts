@@ -13,8 +13,8 @@
 //   SH-NOLEAK    no engine error text and no file path in any response
 //   SH-TIME      one request inside its time budget
 //   SH-PROTO     Object.prototype untouched after the run
-//   SH-GATE      a route runs exactly when its httpMethods accept the method (HEAD as GET) and, for a POST or
-//                QUERY, the content type is neither a form type nor missing (the gate lane, over raw HTTP)
+//   SH-GATE      behind mionSecurity, a route runs exactly when its intent accepts the method, the request is
+//                same-origin or trusted, and a POST carries no form content type (the gate lane, over raw HTTP)
 
 import {createConnection} from 'node:net';
 import type {Server} from 'node:http';
@@ -35,6 +35,7 @@ import type {MionResponse} from '@mionjs/router';
 import {HeadersSubset, MION_BATCH_PATH, MION_ROUTES, SerializerModes, toBase64Url} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {setNodeHttpOpts, startNodeServer, resetNodeHttpOpts} from '@mionjs/platform-node';
+import {mionSecurity} from '@mionjs/router/middlewares';
 import {compactTestRoutes} from '@mionjs/test-server';
 
 // the test-server fixture module already created its own factory at import: clear the once-guard first
@@ -124,7 +125,8 @@ type User = {name: string; surname: string; age: number; tags: string[]; joined:
 type Tree = {value: number; children: Tree[]};
 type Either = Date | bigint | {kind: 'a'; n: number} | string;
 
-const gateRuns = {save: 0, read: 0, getOnly: 0, withQuery: 0};
+const gateRuns = {save: 0, read: 0, ping: 0};
+const GATE_TRUSTED_ORIGIN = 'https://app.example.com';
 
 const routes = {
   auth: mion.headersMiddleware((ctx, h: HeadersSubset<'authorization'>): void => undefined),
@@ -148,10 +150,10 @@ const routes = {
   compact: compactTestRoutes,
   // the gate lane counts runs: a route that ran is the observation its oracle checks
   gate: {
+    mionSecurity: mionSecurity({origins: [GATE_TRUSTED_ORIGIN]}),
     save: mion.mutation((ctx): number => ++gateRuns.save),
     read: mion.query((ctx): number => ++gateRuns.read),
-    getOnly: mion.query((ctx): number => ++gateRuns.getOnly, {httpMethods: ['GET']}),
-    withQuery: mion.query((ctx): number => ++gateRuns.withQuery, {httpMethods: ['QUERY', 'POST']}),
+    ping: mion.route((ctx): number => ++gateRuns.ping),
   },
 };
 
@@ -848,12 +850,11 @@ export function renderHttpViolations(violations: HttpViolation[], limit = 25): s
 
 type GateRoute = keyof typeof gateRuns;
 
-/** Each gate route's httpMethods, as declared above */
+/** The methods each gate route's intent accepts: a query reads, a mutation and an intent-less route only POST */
 const GATE_METHODS: Record<GateRoute, readonly string[]> = {
   save: ['POST'],
-  read: ['GET', 'POST'],
-  getOnly: ['GET'],
-  withQuery: ['QUERY', 'POST'],
+  read: ['GET', 'HEAD', 'POST'],
+  ping: ['POST'],
 };
 const GATE_ROUTES = Object.keys(GATE_METHODS) as GateRoute[];
 // node refuses lowercase and unknown names with its own 400, before mion: they must not run either
@@ -873,23 +874,31 @@ const GATE_CONTENT_TYPES: Array<string | undefined> = [
   'text/json',
   'application/vnd.api+json',
 ];
+const GATE_FETCH_SITES = [undefined, 'same-origin', 'none', 'same-site', 'cross-site'];
+// `http://x` is the Host the wire below sends, so it reads as same-origin without Sec-Fetch-Site
+const GATE_ORIGINS = [undefined, GATE_TRUSTED_ORIGIN, 'https://evil.example', 'null', 'http://x', 'not a url'];
 
 export interface GateRequest {
   route: GateRoute;
   method: string;
   contentType: string | undefined;
+  secFetchSite: string | undefined;
+  origin: string | undefined;
   /** where the route's params travel: the body, the `?data=` query, or nowhere */
   carrier: 'body' | 'query' | 'none';
 }
 
-/** The rule: what the request must do to the route, from the route's declared methods alone */
-function gateShouldRun({route, method, contentType}: GateRequest): boolean {
-  const asGet = method === 'HEAD' ? 'GET' : method;
-  if (!GATE_METHODS[route].includes(asGet)) return false;
-  if (method !== 'POST' && method !== 'QUERY') return true;
+/** The rule, written from mionSecurity's contract alone: intent, then same-origin or trusted, then the form types */
+function gateShouldRun({route, method, contentType, secFetchSite, origin}: GateRequest): boolean {
+  if (!GATE_METHODS[route].includes(method)) return false;
+  if (method === 'GET' || method === 'HEAD') return true;
+  const trusted = origin === GATE_TRUSTED_ORIGIN;
+  const sameOrigin = secFetchSite
+    ? secFetchSite === 'same-origin' || secFetchSite === 'none' || trusted
+    : origin === undefined || trusted || origin === 'http://x';
+  if (!sameOrigin) return false;
   if (contentType === undefined) return false;
-  const mediaType = contentType.split(';')[0].trim().toLowerCase();
-  return !FORM_TYPES.includes(mediaType);
+  return !FORM_TYPES.includes(contentType.split(';')[0].trim().toLowerCase());
 }
 
 /** SH-GATE: a violation message when what happened is not what the rule says */
@@ -906,6 +915,8 @@ function buildGateRequest(rng: Rng): GateRequest {
     route: rng.pick(GATE_ROUTES),
     method: rng.pick(GATE_METHOD_POOL),
     contentType: rng.pick(GATE_CONTENT_TYPES),
+    secFetchSite: rng.pick(GATE_FETCH_SITES),
+    origin: rng.pick(GATE_ORIGINS),
     carrier: rng.pick(['body', 'query', 'none'] as const),
   };
 }
@@ -917,8 +928,10 @@ function gateWire(request: GateRequest): string {
   const query = request.carrier === 'query' ? `?data=${toBase64Url(body)}` : '';
   const sent = request.carrier === 'body' ? body : '';
   const contentType = request.contentType === undefined ? '' : `Content-Type: ${request.contentType}\r\n`;
+  const site = request.secFetchSite === undefined ? '' : `Sec-Fetch-Site: ${request.secFetchSite}\r\n`;
+  const origin = request.origin === undefined ? '' : `Origin: ${request.origin}\r\n`;
   return (
-    `${request.method} ${path}${query} HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer ok\r\n${contentType}` +
+    `${request.method} ${path}${query} HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer ok\r\n${contentType}${site}${origin}` +
     `Content-Length: ${Buffer.byteLength(sent)}\r\nConnection: close\r\n\r\n${sent}`
   );
 }
