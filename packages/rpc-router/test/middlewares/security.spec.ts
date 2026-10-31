@@ -9,10 +9,10 @@ import {describe, it, expect, beforeEach} from 'vitest';
 import {createMionRouter, resetRouter} from '../../src/router.ts';
 import {dispatchRoute} from '../../src/dispatch.ts';
 import {registerBatches} from '../../src/batches.ts';
-import {headersFromRecord} from '../../src/lib/headers.ts';
+import {getDefaultHeaders, headersFromRecord} from '../../src/lib/headers.ts';
 import {toHttpMethod} from '../../src/lib/httpMethod.ts';
 import {mionSecurity, mionFetchMetadata} from '../../middlewares.ts';
-import type {CallContext, MionResponse} from '../../src/types/context.ts';
+import type {CallContext, MionHeaders, MionResponse} from '../../src/types/context.ts';
 import type {MionSecurityOptions, Routes} from '../../src/types/general.ts';
 import {HeadersSubset, MION_BATCH_PATH, StatusCodes} from '@mionjs/core';
 
@@ -388,6 +388,27 @@ describe('mionSecurity', () => {
       const failed = await dispatchRoute('/saveUser', '{not json', reqHeaders, headersFromRecord({}), {}, {});
       expect(failed.statusCode).toBe(StatusCodes.UNEXPECTED_ERROR);
       expect(refusal(failed)).toBeUndefined();
+    });
+  });
+
+  describe('hardening headers', () => {
+    const dispatchWith = (respHeaders: MionHeaders) =>
+      dispatchRoute('/ping', JSON.stringify({ping: []}), headersFromRecord(JSON_TYPE), respHeaders, {}, {});
+
+    it('sends nosniff and removes the default server name, on success and on a refusal', async () => {
+      init({});
+      const ok = await dispatchWith(getDefaultHeaders());
+      expect(ok.headers.get('x-content-type-options')).toBe('nosniff');
+      expect(ok.headers.get('server')).toBeFalsy();
+      const refused = await send('/wipe', 'GET');
+      expect(refused.statusCode).toBe(StatusCodes.METHOD_NOT_ALLOWED);
+      expect(refused.headers.get('x-content-type-options')).toBe('nosniff');
+    });
+
+    it('keeps a server name the app set', async () => {
+      init({});
+      const response = await dispatchWith(headersFromRecord({server: 'my-api'}));
+      expect(response.headers.get('server')).toBe('my-api');
     });
   });
 
