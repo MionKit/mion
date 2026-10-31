@@ -55,7 +55,13 @@ describe('fatal dispatch', () => {
   const dispatch = (path: string, req: RawRequest) => dispatchRoute(path, req.body, req.headers, headersFromRecord({}), req, {});
 
   const declared = () => new RpcError({publicMessage: 'declared', type: 'declared-error'});
-  const fatal = () => new FatalError({publicMessage: 'Not Authorized', type: 'not-authorized', statusCode: 401});
+  let stackReads = 0;
+  /** `stack` counts its reads: formatting a real trace costs microseconds and a non-enumerable one is never sent */
+  const fatal = () => {
+    const error = new FatalError({publicMessage: 'Not Authorized', type: 'not-authorized', statusCode: 401});
+    Object.defineProperty(error, 'stack', {get: () => (stackReads++, 'trace'), enumerable: false, configurable: true});
+    return error;
+  };
 
   const routes = {
     // mode picks how the FIRST middleware answers: 'return' | 'fatal' | 'throw' | 'ok'
@@ -127,6 +133,13 @@ describe('fatal dispatch', () => {
   });
 
   describe('a returned FatalError', () => {
+    it('is encoded without reading its stack', async () => {
+      stackReads = 0;
+      const response = await dispatch('/target', request({first: ['ok'], target: ['fatal']}, {'X-Mode': 'ok'}));
+      expect(unwrap(response.body.target).type).toBe('not-authorized');
+      expect(stackReads).toBe(0);
+    });
+
     it('from a middleware halts the chain and stays in its own typed slot', async () => {
       const response = await dispatch('/target', request({first: ['fatal'], target: ['ok']}, {'X-Mode': 'ok'}));
       expect(ran).toEqual(['first', 'always']);
