@@ -316,15 +316,18 @@ describe('mionSecurity', () => {
     });
   });
 
-  describe('CSRF: form content types', () => {
+  describe('CSRF: JSON bodies only', () => {
     beforeEach(() => init({}));
 
-    it('refuses a POST a plain HTML form or a no-cors fetch can send, with a 415', async () => {
+    it('refuses a body that is not JSON, or has no type, with a 415', async () => {
       const types = [
         'text/plain',
         'Text/Plain; charset=UTF-8',
         'application/x-www-form-urlencoded',
         'multipart/form-data; boundary=x',
+        'text/json',
+        'application/octet-stream',
+        'application/jsonx',
       ];
       for (const type of [...types, undefined]) {
         const headers: Record<string, string> = type ? {'content-type': type} : {};
@@ -335,26 +338,31 @@ describe('mionSecurity', () => {
       expect(ran).toEqual([]);
     });
 
-    it('lets JSON and any other type through', async () => {
-      for (const type of ['application/json', 'application/json; charset=utf-8', 'APPLICATION/JSON', 'text/json'])
+    it('lets JSON through, whatever its case and parameters', async () => {
+      for (const type of ['application/json', 'application/json; charset=utf-8', 'APPLICATION/JSON', ' application/json ;x=1'])
         expect((await send('/saveUser', 'POST', {'content-type': type}, {saveUser: ['a']})).statusCode).toBe(StatusCodes.OK);
     });
   });
 
   describe('switching checks off', () => {
     it('runs each check only when it is on, and none with csrf: false', async () => {
-      const crossSite = {'sec-fetch-site': 'cross-site', origin: EVIL, 'content-type': 'text/plain'};
-      init({csrf: {crossOrigin: false, methodByIntent: false, formContentTypes: false}});
+      const crossSite = {'sec-fetch-site': 'cross-site', origin: EVIL};
+      init({csrf: {crossOrigin: false, methodByIntent: false}});
       expect((await send('/wipe', 'GET')).body.wipe).toBe('gone');
-      expect((await send('/saveUser', 'POST', crossSite, {saveUser: ['a']})).statusCode).toBe(StatusCodes.OK);
+      expect((await post('/saveUser', {saveUser: ['a']}, crossSite)).statusCode).toBe(StatusCodes.OK);
+      // the JSON check stays: mion reads no other body
+      expect((await send('/saveUser', 'PUT', {'content-type': 'text/plain'}, {saveUser: ['a']})).statusCode).toBe(
+        StatusCodes.UNSUPPORTED_MEDIA_TYPE
+      );
       init({csrf: false});
-      expect((await send('/saveUser', 'POST', crossSite, {saveUser: ['a']})).statusCode).toBe(StatusCodes.OK);
+      const form = {...crossSite, 'content-type': 'text/plain'};
+      expect((await send('/saveUser', 'POST', form, {saveUser: ['a']})).statusCode).toBe(StatusCodes.OK);
       // OPTIONS still ends: it is a preflight, not a CSRF check
       expect((await send('/saveUser', 'OPTIONS')).endedEarly).toBe(true);
     });
 
     it('keeps a check on when its option is left undefined', async () => {
-      init({csrf: {crossOrigin: undefined, methodByIntent: undefined, formContentTypes: undefined}});
+      init({csrf: {crossOrigin: undefined, methodByIntent: undefined}});
       const crossSite = {'sec-fetch-site': 'cross-site', origin: EVIL};
       expect((await post('/saveUser', {saveUser: ['a']}, crossSite)).statusCode).toBe(StatusCodes.FORBIDDEN);
       expect((await send('/saveUser', 'GET')).statusCode).toBe(StatusCodes.METHOD_NOT_ALLOWED);
