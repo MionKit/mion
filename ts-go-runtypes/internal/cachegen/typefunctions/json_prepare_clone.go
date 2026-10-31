@@ -202,8 +202,7 @@ type safePropEmit struct {
 	optional   bool
 	accessor   string // input accessor `v.<name>` for the undefined check
 	expr       string // clone expression evaluated against `accessor`
-	// ownGuard is the own-enumerability test of a guarded member, run BEFORE the value is read: the read
-	// alone can cost (a native error's `stack` formats the whole trace) and a non-enumerable key is skipped.
+	// ownGuard runs before the read: reading a native error's `stack` formats the whole trace, only to drop it.
 	ownGuard string
 	// presenceGuard is ANDed into the `!== undefined` check so a merged-union prop with a stripped
 	// sibling is emitted only for a surviving candidate's values; a value from the stripped member
@@ -211,7 +210,7 @@ type safePropEmit struct {
 	presenceGuard string
 }
 
-// presence is the test an optional prop's write runs: own-enumerability first, then the value checks.
+// presence guards an optional prop's write; ownGuard goes first, before the value is read.
 func (prop safePropEmit) presence() string {
 	test := prop.accessor + " !== undefined"
 	if prop.ownGuard != "" {
@@ -289,10 +288,8 @@ func emitObjectPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v s
 			accessor:   accessor,
 			expr:       expr,
 		}
-		// A non-enumerable-guarded member (lib-global-inherited / `@nonEnumerable`) is projected
-		// Optional, so it already takes the guarded-assignment path; the ownGuard puts an
-		// own-enumerability check in front of it, so a value carrying the prop non-enumerably omits the
-		// key, as native `JSON.stringify` does.
+		// Guarded members (lib-global-inherited / `@nonEnumerable`) are projected Optional, so they take the guarded write.
+		// A value carrying the prop non-enumerably omits the key, as native `JSON.stringify` does.
 		if isEnumerabilityGuarded(resolved) {
 			prop.ownGuard = propertyIsEnumerableGuard(v, resolved.Name)
 		}
