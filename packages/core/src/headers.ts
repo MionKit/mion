@@ -13,7 +13,7 @@ import {headerCheckFnsFromMarker} from './runtypes/mionAdapter.ts';
 
 /** Options a HeadersSubset carries in its type only: the build reads them, nothing sets them at runtime. */
 export interface HeadersSubsetOpts<Names extends string> {
-  /** false: none of these headers cross origins; a map: only the names set to false. Read only by `mionCors`. */
+  /** false: none of these headers cross origins; a map: only the names set to false. Read only by `mionSecurity`. */
   cors?: false | {[K in Names]?: false};
 }
 
