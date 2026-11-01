@@ -1,17 +1,15 @@
 import {z} from 'zod';
-import {NOT_SUPPORTED, type CompetitorCases} from '../../shared/harness/types.ts';
+import {type CompetitorCases} from '../../shared/harness/types.ts';
 
-// RunTypes' plain-object guard: an all-optional object type accepts only an ordinary
-// object, never an array, a Date / Map / Set / RegExp or any other builtin instance,
-// even though every property is optional. z.object alone only excludes arrays and null,
-// and a `.refine` on it sees the PARSED copy (a fresh plain object), so the guard has to
-// run on the input, ahead of the object schema. This is zod's deliberate, documented
-// choice here (docs/cross-library-validation-alignment-report.md, "Plain-object guard"):
-// zod agrees with mion on every sample of these cases, and the release gate counts a
-// `fail` on them as a broken run.
-const plainObject = <Output, Input>(schema: z.ZodType<Output, Input>) =>
-  z.custom<Input>((value) => Object.prototype.toString.call(value) === '[object Object]').pipe(schema);
-
+// RunTypes' plain-object guard: an all-optional object type (and every index-signature node) accepts only an
+// ordinary object, never an array, a Date / Map / Set / RegExp or any other builtin instance. z.object alone only
+// excludes arrays and null, and a `.refine` on it sees the PARSED copy (a fresh plain object), so the guard is a
+// z.custom on the INPUT. Its keys are then checked with `.check(z.properties(...))`, which asserts each key in place
+// (no output copy in validate), instead of piping into a z.object. z.record already carries the guard (isPlainObject).
+//
+// Hooks (z.custom, .refine, .superRefine) sit only at the leaf that needs them, where no zod feature does the same
+// check; each one makes zod re-run its runtime parser on an invalid sample, the library's own cost.
+//
 // Each thunk is self-contained and copy-paste runnable (shared sub-schemas inlined).
 // `z.compile` returns a schema with a reference cycle (the circular cases) uncompiled: those run zod's regular parser.
 
@@ -66,17 +64,15 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // enum_mixed: numeric reverse-mapping (0,'green',2) with mixed member types is not expressible via z.enum (strings only)
-  // and z.nativeEnum also doesn't match the sample set (0, 'green', 2 but not 'Red'/'Green'/'Blue').
-  // z.nativeEnum on a const object {Red:0,Green:'green',Blue:2} accepts 0,'green',2 AND keys 'Red','Green','Blue' — too broad.
+  // enum_mixed: z.enum on the member object; getEnumValues keeps the values 0, 'green', 2 (names and reverse keys rejected)
   'ATOMIC.enum_mixed': {
     build: () => {
-      const schema = z.union([z.literal(0), z.literal('green'), z.literal(2)]);
+      const schema = z.enum({Red: 0, Green: 'green', Blue: 2});
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.union([z.literal(0), z.literal('green'), z.literal(2)]);
+      const schema = z.enum({Red: 0, Green: 'green', Blue: 2});
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -732,15 +728,16 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // index_signature_non_root: object with string prop + nested index sig — requires named prop b:string AND c:{[k]:string}
+  // index_signature_non_root: {b: string; c: {a: string; [k: string]: string}}. The record is the index
+  // signature (plain-object guard + every value a string); z.properties makes the named `a` required.
   'OBJECT.index_signature_non_root': {
     build: () => {
-      const schema = z.object({b: z.string(), c: z.record(z.string(), z.string())});
+      const schema = z.object({b: z.string(), c: z.record(z.string(), z.string()).check(z.properties({a: z.string()}))});
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.object({b: z.string(), c: z.record(z.string(), z.string())});
+      const schema = z.object({b: z.string(), c: z.record(z.string(), z.string()).check(z.properties({a: z.string()}))});
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -771,17 +768,21 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // interface_all_optional: {a?:string, b?:number} — the same interface as mion, behind the
-  // plain-object guard (plainObject above): z.object alone accepts Date/Map/Set/RegExp
-  // instances, since its isObject only excludes arrays and null.
+  // interface_all_optional: {a?:string, b?:number} behind RunTypes' plain-object guard (an all-optional
+  // object accepts only an ordinary object, never an array / Date / Map / Set / RegExp). The guard is a
+  // z.custom on the input; z.properties then asserts each key in place, so validate builds no copy.
   'OBJECT.interface_all_optional': {
     build: () => {
-      const schema = plainObject(z.object({a: z.string().optional(), b: z.number().optional()}));
+      const schema = z
+        .custom<{a?: string; b?: number}>((value) => Object.prototype.toString.call(value) === '[object Object]')
+        .check(z.properties({a: z.string().optional(), b: z.number().optional()}));
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = plainObject(z.object({a: z.string().optional(), b: z.number().optional()}));
+      const schema = z
+        .custom<{a?: string; b?: number}>((value) => Object.prototype.toString.call(value) === '[object Object]')
+        .check(z.properties({a: z.string().optional(), b: z.number().optional()}));
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -887,12 +888,12 @@ export const cases: CompetitorCases = {
   },
   'OBJECT.object_with_union_prop': {
     build: () => {
-      const schema = z.object({kind: z.union([z.literal('a'), z.literal('b')]), n: z.number()});
+      const schema = z.object({kind: z.enum(['a', 'b']), n: z.number()});
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.object({kind: z.union([z.literal('a'), z.literal('b')]), n: z.number()});
+      const schema = z.object({kind: z.enum(['a', 'b']), n: z.number()});
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -1263,8 +1264,8 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // circular_union: self-referential union (Date | number | string | object | array) — a lazy
-  // z.union whose array + record arms recurse into the union itself.
+  // circular_union: Date | number | string | {a?: U; b?: string} | U[]; the all-optional object arm gets mion's
+  // plain-object guard + weak-type guard (a known key present, or no key at all) on the input, then z.properties.
   'UNION.circular_union': {
     build: () => {
       const schema = z.lazy(() => {
@@ -1273,10 +1274,13 @@ export const cases: CompetitorCases = {
           z.number(),
           z.string(),
           z.array(z.lazy(() => schema)),
-          z.record(
-            z.string(),
-            z.lazy(() => schema)
-          ),
+          z
+            .custom<{a?: unknown; b?: string}>(
+              (value) =>
+                Object.prototype.toString.call(value) === '[object Object]' &&
+                ('a' in (value as object) || 'b' in (value as object) || Object.keys(value as object).length === 0)
+            )
+            .check(z.properties({a: z.lazy(() => schema).optional(), b: z.string().optional()})),
         ]);
         return schema;
       });
@@ -1290,10 +1294,13 @@ export const cases: CompetitorCases = {
           z.number(),
           z.string(),
           z.array(z.lazy(() => schema)),
-          z.record(
-            z.string(),
-            z.lazy(() => schema)
-          ),
+          z
+            .custom<{a?: unknown; b?: string}>(
+              (value) =>
+                Object.prototype.toString.call(value) === '[object Object]' &&
+                ('a' in (value as object) || 'b' in (value as object) || Object.keys(value as object).length === 0)
+            )
+            .check(z.properties({a: z.lazy(() => schema).optional(), b: z.string().optional()})),
         ]);
         return schema;
       });
@@ -1326,13 +1333,13 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // union_with_index_arm: one arm is a non-empty record of bigint values; empty {} matches no arm
+  // union_with_index_arm: third arm is {c: bigint; [k: string]: bigint} → required c + catchall(bigint)
   'UNION.union_with_index_arm': {
     build: () => {
       const schema = z.union([
         z.object({a: z.string(), aa: z.boolean()}),
         z.object({b: z.number()}),
-        z.record(z.string(), z.bigint()).refine((record) => Object.keys(record).length > 0),
+        z.object({c: z.bigint()}).catchall(z.bigint()),
       ]);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
@@ -1341,7 +1348,7 @@ export const cases: CompetitorCases = {
       const schema = z.union([
         z.object({a: z.string(), aa: z.boolean()}),
         z.object({b: z.number()}),
-        z.record(z.string(), z.bigint()).refine((record) => Object.keys(record).length > 0),
+        z.object({c: z.bigint()}).catchall(z.bigint()),
       ]);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
@@ -1368,7 +1375,7 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // union_mixed_arrays_and_objects: arrays and objects in same union
+  // union_mixed_arrays_and_objects: arrays and objects in same union; last arm's `aa` is the literal 'string' (as mion)
   'UNION.union_mixed_arrays_and_objects': {
     build: () => {
       const schema = z.union([
@@ -1377,6 +1384,7 @@ export const cases: CompetitorCases = {
         z.array(z.boolean()),
         z.object({a: z.string(), aa: z.boolean()}),
         z.object({b: z.number()}),
+        z.object({c: z.bigint(), aa: z.literal('string')}),
       ]);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
@@ -1388,6 +1396,7 @@ export const cases: CompetitorCases = {
         z.array(z.boolean()),
         z.object({a: z.string(), aa: z.boolean()}),
         z.object({b: z.number()}),
+        z.object({c: z.bigint(), aa: z.literal('string')}),
       ]);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
@@ -1405,14 +1414,15 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // union_mixed_with_index: arrays + objects (some with index sigs); empty {} matches no arm
+  // union_mixed_with_index: string[] | {a,aa} | {b:number} | {a:string;[k]:string} | {[k]:bigint;b:bigint}
   'UNION.union_mixed_with_index': {
     build: () => {
       const schema = z.union([
         z.array(z.string()),
         z.object({a: z.string(), aa: z.boolean()}),
         z.object({b: z.number()}),
-        z.record(z.string(), z.bigint()).refine((record) => Object.keys(record).length > 0),
+        z.object({a: z.string()}).catchall(z.string()),
+        z.object({b: z.bigint()}).catchall(z.bigint()),
       ]);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
@@ -1422,7 +1432,8 @@ export const cases: CompetitorCases = {
         z.array(z.string()),
         z.object({a: z.string(), aa: z.boolean()}),
         z.object({b: z.number()}),
-        z.record(z.string(), z.bigint()).refine((record) => Object.keys(record).length > 0),
+        z.object({a: z.string()}).catchall(z.string()),
+        z.object({b: z.bigint()}).catchall(z.bigint()),
       ]);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
@@ -1522,21 +1533,15 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // multi_segment_url: version must be v1 or v2; username any string; post id number
+  // multi_segment_url: `/api/v${number}/user/${string}/posts/${number}` → one template literal, one regex
   'TEMPLATE_LITERAL.multi_segment_url': {
     build: () => {
-      const schema = z.union([
-        z.templateLiteral(['/api/v1/user/', z.string(), '/posts/', z.number()]),
-        z.templateLiteral(['/api/v2/user/', z.string(), '/posts/', z.number()]),
-      ]);
+      const schema = z.templateLiteral(['/api/v', z.number(), '/user/', z.string(), '/posts/', z.number()]);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.union([
-        z.templateLiteral(['/api/v1/user/', z.string(), '/posts/', z.number()]),
-        z.templateLiteral(['/api/v2/user/', z.string(), '/posts/', z.number()]),
-      ]);
+      const schema = z.templateLiteral(['/api/v', z.number(), '/user/', z.string(), '/posts/', z.number()]);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -1709,7 +1714,7 @@ export const cases: CompetitorCases = {
     build: () => {
       const schema = z.lazy(() => {
         const schema: z.ZodType = z.object({
-          tuple: z.tuple([z.bigint()]).rest(z.lazy(() => schema) as z.ZodType),
+          tuple: z.tuple([z.bigint(), z.lazy(() => schema).optional()]),
         });
         return schema;
       });
@@ -1719,7 +1724,7 @@ export const cases: CompetitorCases = {
     buildErrors: () => {
       const schema = z.lazy(() => {
         const schema: z.ZodType = z.object({
-          tuple: z.tuple([z.bigint()]).rest(z.lazy(() => schema) as z.ZodType),
+          tuple: z.tuple([z.bigint(), z.lazy(() => schema).optional()]),
         });
         return schema;
       });
@@ -1755,21 +1760,16 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // object_deeply_nested: T={deep1:{deep2:{deep3:{} | {deep4:T}}}}; deep4 must satisfy T or be absent
+  // object_deeply_nested: deep3 is all-optional, so it gets the plain-object guard; deep4 recurses or is absent / undefined
   'CIRCULAR.object_deeply_nested': {
     build: () => {
       const schema = z.lazy(() => {
         const schema: z.ZodType = z.object({
           deep1: z.object({
             deep2: z.object({
-              deep3: z.custom((value) => {
-                if (typeof value !== 'object' || value === null) return false;
-                const obj = value as Record<string, unknown>;
-                if ('deep4' in obj) {
-                  return schema.safeParse(obj.deep4).success;
-                }
-                return true; // empty object (no deep4)
-              }),
+              deep3: z
+                .custom<{deep4?: unknown}>((value) => Object.prototype.toString.call(value) === '[object Object]')
+                .check(z.properties({deep4: z.lazy(() => schema).optional()})),
             }),
           }),
         });
@@ -1783,14 +1783,9 @@ export const cases: CompetitorCases = {
         const schema: z.ZodType = z.object({
           deep1: z.object({
             deep2: z.object({
-              deep3: z.custom((value) => {
-                if (typeof value !== 'object' || value === null) return false;
-                const obj = value as Record<string, unknown>;
-                if ('deep4' in obj) {
-                  return schema.safeParse(obj.deep4).success;
-                }
-                return true; // empty object (no deep4)
-              }),
+              deep3: z
+                .custom<{deep4?: unknown}>((value) => Object.prototype.toString.call(value) === '[object Object]')
+                .check(z.properties({deep4: z.lazy(() => schema).optional()})),
             }),
           }),
         });
@@ -1842,6 +1837,7 @@ export const cases: CompetitorCases = {
           month: z.number(),
           year: z.number(),
           embedded: z.lazy(() => ciDate).optional(),
+          deep: ciDeep.optional(),
         });
         const root: z.ZodType = z.object({
           isRoot: z.literal(true),
@@ -1866,6 +1862,7 @@ export const cases: CompetitorCases = {
           month: z.number(),
           year: z.number(),
           embedded: z.lazy(() => ciDate).optional(),
+          deep: ciDeep.optional(),
         });
         const root: z.ZodType = z.object({
           isRoot: z.literal(true),
@@ -1880,34 +1877,134 @@ export const cases: CompetitorCases = {
     },
   },
 
-  // ── CIRCULAR_REFS ── (cyclic VALUES; zod has no cyclic-value detection)
-  'CIRCULAR_REFS.linked_list_cycle': NOT_SUPPORTED, // a reference cycle would stack-overflow
-  'CIRCULAR_REFS.tree_cycle': NOT_SUPPORTED, // a reference cycle would stack-overflow
-  'CIRCULAR_REFS.object_self_cycle': NOT_SUPPORTED, // a reference cycle would stack-overflow
-
-  // ── UTILITY ──
-  // partial: {name?:string, age?:number, createdAt?:Date} — the Partial<> of UTILITY.required, the
-  // same interface as mion behind the plain-object guard (rejects arrays/Date/Map/Set).
-  'UTILITY.partial': {
+  // ── CIRCULAR_REFS ── (cyclic VALUES: one root z.custom walks the recursive edge only, then the normal recursive schema)
+  // linked_list_cycle: walk follows `next` only, ancestor list like mion's findCycle
+  'CIRCULAR_REFS.linked_list_cycle': {
     build: () => {
-      const schema = plainObject(
-        z.object({
-          name: z.string().optional(),
-          age: z.number().optional(),
-          createdAt: z.date().optional(),
-        })
-      );
+      const hasCycle = (value: unknown): boolean => {
+        const stack: object[] = [];
+        let node = value;
+        while (typeof node === 'object' && node !== null) {
+          if (stack.indexOf(node) !== -1) return true;
+          stack.push(node);
+          node = (node as {next?: unknown}).next;
+        }
+        return false;
+      };
+      const node: z.ZodType = z.object({value: z.number(), next: z.lazy(() => node).nullable()});
+      const schema = z.custom((value) => !hasCycle(value)).pipe(node);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = plainObject(
-        z.object({
-          name: z.string().optional(),
-          age: z.number().optional(),
-          createdAt: z.date().optional(),
-        })
-      );
+      const hasCycle = (value: unknown): boolean => {
+        const stack: object[] = [];
+        let node = value;
+        while (typeof node === 'object' && node !== null) {
+          if (stack.indexOf(node) !== -1) return true;
+          stack.push(node);
+          node = (node as {next?: unknown}).next;
+        }
+        return false;
+      };
+      const node: z.ZodType = z.object({value: z.number(), next: z.lazy(() => node).nullable()});
+      const schema = z.custom((value) => !hasCycle(value)).pipe(node);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  // tree_cycle: walk follows `children[*]` only; `safe` skips subtrees already proven acyclic (mion's per-node Set)
+  'CIRCULAR_REFS.tree_cycle': {
+    build: () => {
+      const hasCycle = (node: unknown, stack: object[], safe: Set<object>): boolean => {
+        if (typeof node !== 'object' || node === null || safe.has(node)) return false;
+        if (stack.indexOf(node) !== -1) return true;
+        stack.push(node);
+        const children = (node as {children?: unknown}).children;
+        if (Array.isArray(children)) {
+          for (let i = 0; i < children.length; i++) if (hasCycle(children[i], stack, safe)) return true;
+        }
+        stack.pop();
+        safe.add(node);
+        return false;
+      };
+      const node: z.ZodType = z.object({label: z.string(), children: z.array(z.lazy(() => node))});
+      const schema = z.custom((value) => !hasCycle(value, [], new Set())).pipe(node);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const hasCycle = (node: unknown, stack: object[], safe: Set<object>): boolean => {
+        if (typeof node !== 'object' || node === null || safe.has(node)) return false;
+        if (stack.indexOf(node) !== -1) return true;
+        stack.push(node);
+        const children = (node as {children?: unknown}).children;
+        if (Array.isArray(children)) {
+          for (let i = 0; i < children.length; i++) if (hasCycle(children[i], stack, safe)) return true;
+        }
+        stack.pop();
+        safe.add(node);
+        return false;
+      };
+      const node: z.ZodType = z.object({label: z.string(), children: z.array(z.lazy(() => node))});
+      const schema = z.custom((value) => !hasCycle(value, [], new Set())).pipe(node);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  // object_self_cycle: walk follows `next` only
+  'CIRCULAR_REFS.object_self_cycle': {
+    build: () => {
+      const hasCycle = (value: unknown): boolean => {
+        const stack: object[] = [];
+        let node = value;
+        while (typeof node === 'object' && node !== null) {
+          if (stack.indexOf(node) !== -1) return true;
+          stack.push(node);
+          node = (node as {next?: unknown}).next;
+        }
+        return false;
+      };
+      const node: z.ZodType = z.object({name: z.string(), next: z.lazy(() => node).optional()});
+      const schema = z.custom((value) => !hasCycle(value)).pipe(node);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const hasCycle = (value: unknown): boolean => {
+        const stack: object[] = [];
+        let node = value;
+        while (typeof node === 'object' && node !== null) {
+          if (stack.indexOf(node) !== -1) return true;
+          stack.push(node);
+          node = (node as {next?: unknown}).next;
+        }
+        return false;
+      };
+      const node: z.ZodType = z.object({name: z.string(), next: z.lazy(() => node).optional()});
+      const schema = z.custom((value) => !hasCycle(value)).pipe(node);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+
+  // ── UTILITY ──
+  'UTILITY.partial': {
+    build: () => {
+      const schema = z
+        .custom<{name?: string; age?: number; createdAt?: Date}>(
+          (value) => Object.prototype.toString.call(value) === '[object Object]'
+        )
+        .check(z.properties({name: z.string().optional(), age: z.number().optional(), createdAt: z.date().optional()}));
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const schema = z
+        .custom<{name?: string; age?: number; createdAt?: Date}>(
+          (value) => Object.prototype.toString.call(value) === '[object Object]'
+        )
+        .check(z.properties({name: z.string().optional(), age: z.number().optional(), createdAt: z.date().optional()}));
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -1977,10 +2074,9 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // exclude_from_object_union: {kind:'square',x:number} | {kind:'triangle',base:number,height:number}
   'UTILITY.exclude_from_object_union': {
     build: () => {
-      const schema = z.union([
+      const schema = z.discriminatedUnion('kind', [
         z.object({kind: z.literal('square'), x: z.number()}),
         z.object({kind: z.literal('triangle'), base: z.number(), height: z.number()}),
       ]);
@@ -1988,7 +2084,7 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.union([
+      const schema = z.discriminatedUnion('kind', [
         z.object({kind: z.literal('square'), x: z.number()}),
         z.object({kind: z.literal('triangle'), base: z.number(), height: z.number()}),
       ]);
@@ -2113,15 +2209,14 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // mapped_type_custom: {a:string|null, b:number|null}
   'UTILITY.mapped_type_custom': {
     build: () => {
-      const schema = z.object({a: z.union([z.string(), z.null()]), b: z.union([z.number(), z.null()])});
+      const schema = z.object({a: z.string().nullable(), b: z.number().nullable()});
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.object({a: z.union([z.string(), z.null()]), b: z.union([z.number(), z.null()])});
+      const schema = z.object({a: z.string().nullable(), b: z.number().nullable()});
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -2160,31 +2255,52 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // deep_partial_recursive_mapped: {display?:{theme?:'light'|'dark', brightness?:number}, audio?:{volume?:number, muted?:boolean}}
-  // the same nested interface as mion; every level is all-optional, so every level sits
-  // behind the plain-object guard, exactly where mion applies it.
   'UTILITY.deep_partial_recursive_mapped': {
     build: () => {
-      const schema = plainObject(
-        z.object({
-          display: plainObject(
-            z.object({theme: z.enum(['light', 'dark']).optional(), brightness: z.number().optional()})
-          ).optional(),
-          audio: plainObject(z.object({volume: z.number().optional(), muted: z.boolean().optional()})).optional(),
-        })
-      );
+      const schema = z
+        .custom<{display?: {theme?: string; brightness?: number}; audio?: {volume?: number; muted?: boolean}}>(
+          (value) => Object.prototype.toString.call(value) === '[object Object]'
+        )
+        .check(
+          z.properties({
+            display: z
+              .custom<{theme?: string; brightness?: number}>(
+                (value) => Object.prototype.toString.call(value) === '[object Object]'
+              )
+              .check(z.properties({theme: z.enum(['light', 'dark']).optional(), brightness: z.number().optional()}))
+              .optional(),
+            audio: z
+              .custom<{volume?: number; muted?: boolean}>(
+                (value) => Object.prototype.toString.call(value) === '[object Object]'
+              )
+              .check(z.properties({volume: z.number().optional(), muted: z.boolean().optional()}))
+              .optional(),
+          })
+        );
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = plainObject(
-        z.object({
-          display: plainObject(
-            z.object({theme: z.enum(['light', 'dark']).optional(), brightness: z.number().optional()})
-          ).optional(),
-          audio: plainObject(z.object({volume: z.number().optional(), muted: z.boolean().optional()})).optional(),
-        })
-      );
+      const schema = z
+        .custom<{display?: {theme?: string; brightness?: number}; audio?: {volume?: number; muted?: boolean}}>(
+          (value) => Object.prototype.toString.call(value) === '[object Object]'
+        )
+        .check(
+          z.properties({
+            display: z
+              .custom<{theme?: string; brightness?: number}>(
+                (value) => Object.prototype.toString.call(value) === '[object Object]'
+              )
+              .check(z.properties({theme: z.enum(['light', 'dark']).optional(), brightness: z.number().optional()}))
+              .optional(),
+            audio: z
+              .custom<{volume?: number; muted?: boolean}>(
+                (value) => Object.prototype.toString.call(value) === '[object Object]'
+              )
+              .check(z.properties({volume: z.number().optional(), muted: z.boolean().optional()}))
+              .optional(),
+          })
+        );
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -2244,14 +2360,102 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  'DATETIME.instant': NOT_SUPPORTED, // Temporal.Instant not available in validation suite container (no Temporal polyfill)
-  'DATETIME.zonedDateTime': NOT_SUPPORTED, // Temporal.ZonedDateTime not available in validation suite container
-  'DATETIME.plainDate': NOT_SUPPORTED, // Temporal.PlainDate not available in validation suite container
-  'DATETIME.plainTime': NOT_SUPPORTED, // Temporal.PlainTime not available in validation suite container
-  'DATETIME.plainDateTime': NOT_SUPPORTED, // Temporal.PlainDateTime not available in validation suite container
-  'DATETIME.plainYearMonth': NOT_SUPPORTED, // Temporal.PlainYearMonth not available in validation suite container
-  'DATETIME.plainMonthDay': NOT_SUPPORTED, // Temporal.PlainMonthDay not available in validation suite container
-  'DATETIME.duration': NOT_SUPPORTED, // Temporal.Duration not available in validation suite container
+  'DATETIME.instant': {
+    build: () => {
+      const schema = z.instanceof(Temporal.Instant);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const schema = z.instanceof(Temporal.Instant);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.zonedDateTime': {
+    build: () => {
+      const schema = z.instanceof(Temporal.ZonedDateTime);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const schema = z.instanceof(Temporal.ZonedDateTime);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.plainDate': {
+    build: () => {
+      const schema = z.instanceof(Temporal.PlainDate);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const schema = z.instanceof(Temporal.PlainDate);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.plainTime': {
+    build: () => {
+      const schema = z.instanceof(Temporal.PlainTime);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const schema = z.instanceof(Temporal.PlainTime);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.plainDateTime': {
+    build: () => {
+      const schema = z.instanceof(Temporal.PlainDateTime);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const schema = z.instanceof(Temporal.PlainDateTime);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.plainYearMonth': {
+    build: () => {
+      const schema = z.instanceof(Temporal.PlainYearMonth);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const schema = z.instanceof(Temporal.PlainYearMonth);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.plainMonthDay': {
+    build: () => {
+      const schema = z.instanceof(Temporal.PlainMonthDay);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const schema = z.instanceof(Temporal.PlainMonthDay);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.duration': {
+    build: () => {
+      const schema = z.instanceof(Temporal.Duration);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const schema = z.instanceof(Temporal.Duration);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
 
   // ── STRING_FORMAT ──
   'STRING_FORMAT.string_maxLength': {
@@ -2386,14 +2590,15 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
+  // disallowedValues: one anchored negative lookahead = mion's `!/^(?:admin|root)$/.test(v)`, no hook
   'STRING_FORMAT.string_disallowedValues': {
     build: () => {
-      const schema = z.string().refine((text) => !['admin', 'root'].includes(text));
+      const schema = z.string().regex(/^(?!(?:admin|root)$)/);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.string().refine((text) => !['admin', 'root'].includes(text));
+      const schema = z.string().regex(/^(?!(?:admin|root)$)/);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -2410,56 +2615,58 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
+  // alpha family: Unicode letter / number classes, as mion (`u` flag)
   'STRING_FORMAT.alpha': {
     build: () => {
-      const schema = z.string().regex(/^[A-Za-z]+$/);
+      const schema = z.string().regex(/^\p{L}+$/u);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.string().regex(/^[A-Za-z]+$/);
+      const schema = z.string().regex(/^\p{L}+$/u);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
   'STRING_FORMAT.alphaNumeric': {
     build: () => {
-      const schema = z.string().regex(/^[A-Za-z0-9]+$/);
+      const schema = z.string().regex(/^[\p{L}\p{N}]+$/u);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.string().regex(/^[A-Za-z0-9]+$/);
+      const schema = z.string().regex(/^[\p{L}\p{N}]+$/u);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
   'STRING_FORMAT.numeric': {
     build: () => {
-      const schema = z.string().regex(/^[0-9]+$/);
+      const schema = z.string().regex(/^\p{N}+$/u);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.string().regex(/^[0-9]+$/);
+      const schema = z.string().regex(/^\p{N}+$/u);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
+  // alpha_withLength: length first, then the Unicode letter pattern (mion's order)
   'STRING_FORMAT.alpha_withLength': {
     build: () => {
       const schema = z
         .string()
-        .regex(/^[A-Za-z]+$/)
-        .max(3);
+        .max(3)
+        .regex(/^\p{L}+$/u);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
       const schema = z
         .string()
-        .regex(/^[A-Za-z]+$/)
-        .max(3);
+        .max(3)
+        .regex(/^\p{L}+$/u);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -2515,12 +2722,12 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // date_DMY: DD-MM-YYYY with calendar validity
+  // date_DMY: DD-MM-YYYY with calendar validity; `abort` on the layout regex so a bad layout is ONE error (mion)
   'STRING_FORMAT.date_DMY': {
     build: () => {
       const schema = z
         .string()
-        .regex(/^\d{2}-\d{2}-\d{4}$/)
+        .regex(/^\d{2}-\d{2}-\d{4}$/, {abort: true})
         .refine((text) => {
           const [dd, mm, yyyy] = text.split('-');
           const date = new Date(`${yyyy}-${mm}-${dd}T00:00:00Z`);
@@ -2532,7 +2739,7 @@ export const cases: CompetitorCases = {
     buildErrors: () => {
       const schema = z
         .string()
-        .regex(/^\d{2}-\d{2}-\d{4}$/)
+        .regex(/^\d{2}-\d{2}-\d{4}$/, {abort: true})
         .refine((text) => {
           const [dd, mm, yyyy] = text.split('-');
           const date = new Date(`${yyyy}-${mm}-${dd}T00:00:00Z`);
@@ -2555,47 +2762,71 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // date_MD: MM-DD (no year) — note: 02-29 is valid (leap-day without year context), 13-01 invalid
+  // date_MD: MM-DD with per-month day limits; 02-29 always allowed (no year), as mion
   'STRING_FORMAT.date_MD': {
     build: () => {
-      const schema = z.string().regex(/^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/);
+      const schema = z
+        .string()
+        .regex(/^(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|02-(?:0[1-9]|[12]\d))$/);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.string().regex(/^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/);
+      const schema = z
+        .string()
+        .regex(/^(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|02-(?:0[1-9]|[12]\d))$/);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // date_minMax_absolute: 2020-01-01..2020-12-31 inclusive
+  // date_minMax_absolute: calendar-aware ISO date (z.iso.date) + inclusive bounds; ISO dates compare as strings
   'STRING_FORMAT.date_minMax_absolute': {
     build: () => {
-      const schema = z
-        .string()
-        .regex(/^\d{4}-\d{2}-\d{2}$/)
-        .refine((text) => text >= '2020-01-01' && text <= '2020-12-31');
+      const schema = z.iso.date().refine((text) => text >= '2020-01-01' && text <= '2020-12-31');
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z
-        .string()
-        .regex(/^\d{4}-\d{2}-\d{2}$/)
-        .refine((text) => text >= '2020-01-01' && text <= '2020-12-31');
+      const schema = z.iso.date().refine((text) => text >= '2020-01-01' && text <= '2020-12-31');
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // time_iso: HH:mm:ss with timezone (Z or ±HH:MM)
+  // time_iso: RFC 3339 full-time like mion: tz required, `z` allowed, any fraction, second 60 only at 23:59 UTC
   'STRING_FORMAT.time_iso': {
     build: () => {
-      const schema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d:[0-5]\d(\.\d+)?(Z|[+-]([01]\d|2[0-3]):[0-5]\d)$/);
+      const leapSecondOk = (text: string) => {
+        if (text.charCodeAt(6) !== 54) return true; // seconds are not 60
+        const last = text.charCodeAt(text.length - 1);
+        let offset = 0;
+        if (last !== 90 && last !== 122) {
+          const at = text.length - 6;
+          offset = (+text.slice(at + 1, at + 3) * 60 + +text.slice(at + 4, at + 6)) * (text.charCodeAt(at) === 45 ? -1 : 1);
+        }
+        return (+text.slice(0, 2) * 60 + +text.slice(3, 5) - offset + 2880) % 1440 === 1439;
+      };
+      const schema = z
+        .string()
+        .regex(/^(?:[01]\d|2[0-3]):[0-5]\d:(?:[0-5]\d|60)(?:\.\d+)?(?:[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/, {abort: true})
+        .refine(leapSecondOk);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d:[0-5]\d(\.\d+)?(Z|[+-]([01]\d|2[0-3]):[0-5]\d)$/);
+      const leapSecondOk = (text: string) => {
+        if (text.charCodeAt(6) !== 54) return true; // seconds are not 60
+        const last = text.charCodeAt(text.length - 1);
+        let offset = 0;
+        if (last !== 90 && last !== 122) {
+          const at = text.length - 6;
+          offset = (+text.slice(at + 1, at + 3) * 60 + +text.slice(at + 4, at + 6)) * (text.charCodeAt(at) === 45 ? -1 : 1);
+        }
+        return (+text.slice(0, 2) * 60 + +text.slice(3, 5) - offset + 2880) % 1440 === 1439;
+      };
+      const schema = z
+        .string()
+        .regex(/^(?:[01]\d|2[0-3]):[0-5]\d:(?:[0-5]\d|60)(?:\.\d+)?(?:[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/, {abort: true})
+        .refine(leapSecondOk);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -2613,15 +2844,15 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // time_HHmmss_ms: HH:mm:ss[.mmm] optional milliseconds (exactly 1-3 digits)
+  // time_HHmmss_ms: HH:mm:ss with an optional fraction of EXACTLY 3 digits (mion)
   'STRING_FORMAT.time_HHmmss_ms': {
     build: () => {
-      const schema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d:[0-5]\d(\.\d{1,3})?$/);
+      const schema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d:[0-5]\d(\.\d{3})?$/);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d:[0-5]\d(\.\d{1,3})?$/);
+      const schema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d:[0-5]\d(\.\d{3})?$/);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -2659,12 +2890,12 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // dateTime_custom: DD-MM-YYYY HH:mm with calendar validity
+  // dateTime_custom: DD-MM-YYYY HH:mm with calendar validity; `abort` on the layout regex so a bad layout is ONE error (mion)
   'STRING_FORMAT.dateTime_custom': {
     build: () => {
       const schema = z
         .string()
-        .regex(/^\d{2}-\d{2}-\d{4} ([01]\d|2[0-3]):[0-5]\d$/)
+        .regex(/^\d{2}-\d{2}-\d{4} ([01]\d|2[0-3]):[0-5]\d$/, {abort: true})
         .refine((text) => {
           const [date] = text.split(' ');
           const [dd, mm, yyyy] = date.split('-');
@@ -2677,7 +2908,7 @@ export const cases: CompetitorCases = {
     buildErrors: () => {
       const schema = z
         .string()
-        .regex(/^\d{2}-\d{2}-\d{4} ([01]\d|2[0-3]):[0-5]\d$/)
+        .regex(/^\d{2}-\d{2}-\d{4} ([01]\d|2[0-3]):[0-5]\d$/, {abort: true})
         .refine((text) => {
           const [date] = text.split(' ');
           const [dd, mm, yyyy] = date.split('-');
@@ -2688,21 +2919,40 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // dateTime_minMax_absolute: 2020-01-01T00:00:00..2020-12-31T23:59:59 (no tz suffix in samples)
+  // dateTime_minMax_absolute: calendar-aware YYYY-MM-DD (zod's own date regex), `T`/`t`, HH:mm:ss in range,
+  // then inclusive bounds compared on the date and time halves (bounds fixed: R4b)
   'STRING_FORMAT.dateTime_minMax_absolute': {
     build: () => {
       const schema = z
         .string()
-        .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/)
-        .refine((text) => text >= '2020-01-01T00:00:00' && text <= '2020-12-31T23:59:59');
+        .regex(
+          /^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|02-(?:0[1-9]|1\d|2[0-8])))[Tt](?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d$/,
+        )
+        .refine((text) => {
+          const date = text.slice(0, 10);
+          const time = text.slice(11);
+          return (
+            (date > '2020-01-01' || (date === '2020-01-01' && time >= '00:00:00')) &&
+            (date < '2020-12-31' || (date === '2020-12-31' && time <= '23:59:59'))
+          );
+        });
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
       const schema = z
         .string()
-        .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/)
-        .refine((text) => text >= '2020-01-01T00:00:00' && text <= '2020-12-31T23:59:59');
+        .regex(
+          /^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|02-(?:0[1-9]|1\d|2[0-8])))[Tt](?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d$/,
+        )
+        .refine((text) => {
+          const date = text.slice(0, 10);
+          const time = text.slice(11);
+          return (
+            (date > '2020-01-01' || (date === '2020-01-01' && time >= '00:00:00')) &&
+            (date < '2020-12-31' || (date === '2020-12-31' && time <= '23:59:59'))
+          );
+        });
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -2746,208 +2996,306 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // ipv4_port: v4:port where port ≤ 65535 — zod ipv4() doesn't include port
+  // ipv4_port: one regex = zod's own IPv4 rule (z.regexes.ipv4) + a required `:port` of 1-5 digits <= 65535
   'STRING_FORMAT.ipv4_port': {
     build: () => {
-      const schema = z
-        .string()
-        .regex(/^(\d{1,3}\.){3}\d{1,3}:\d+$/)
-        .refine((text) => {
-          const [ip, portStr] = text.split(':');
-          const port = +portStr;
-          if (port < 0 || port > 65535) return false;
-          return ip.split('.').every((octet) => +octet >= 0 && +octet <= 255);
-        });
+      const address = z.regexes.ipv4.source.slice(1, -1);
+      const port = '(?:\\d{1,4}|[0-5]\\d{4}|6[0-4]\\d{3}|65[0-4]\\d{2}|655[0-2]\\d|6553[0-5])';
+      const schema = z.string().regex(new RegExp(`^${address}:${port}$`));
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z
-        .string()
-        .regex(/^(\d{1,3}\.){3}\d{1,3}:\d+$/)
-        .refine((text) => {
-          const [ip, portStr] = text.split(':');
-          const port = +portStr;
-          if (port < 0 || port > 65535) return false;
-          return ip.split('.').every((octet) => +octet >= 0 && +octet <= 255);
-        });
+      const address = z.regexes.ipv4.source.slice(1, -1);
+      const port = '(?:\\d{1,4}|[0-5]\\d{4}|6[0-4]\\d{3}|65[0-4]\\d{2}|655[0-2]\\d|6553[0-5])';
+      const schema = z.string().regex(new RegExp(`^${address}:${port}$`));
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // ipv6_port: [v6]:port where port ≤ 65535
+  // ipv6_port: `[address]:port`, zod's own IPv6 check (z.ipv6) on the address, required port <= 65535
   'STRING_FORMAT.ipv6_port': {
     build: () => {
-      const schema = z
-        .string()
-        .regex(/^\[.+\]:\d+$/)
-        .refine((text) => {
-          const lastColon = text.lastIndexOf(':');
-          const port = +text.slice(lastColon + 1);
-          return port >= 0 && port <= 65535;
-        });
+      const ipv6 = z.compile(z.ipv6());
+      const bracketed = /^\[([^\]]+)\]:(\d+)$/;
+      const schema = z.string().refine((text) => {
+        const match = bracketed.exec(text);
+        return match !== null && +match[2] <= 65535 && ipv6.validate(match[1]);
+      });
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z
-        .string()
-        .regex(/^\[.+\]:\d+$/)
-        .refine((text) => {
-          const lastColon = text.lastIndexOf(':');
-          const port = +text.slice(lastColon + 1);
-          return port >= 0 && port <= 65535;
-        });
+      const ipv6 = z.compile(z.ipv6());
+      const bracketed = /^\[([^\]]+)\]:(\d+)$/;
+      const schema = z.string().refine((text) => {
+        const match = bracketed.exec(text);
+        return match !== null && +match[2] <= 65535 && ipv6.validate(match[1]);
+      });
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // domain: standard domain (2+ labels, TLD ≥ 2 chars, no leading hyphen)
+  // domain: whole name 5..253 chars, labels 1..63 with no edge hyphen, letters-only TLD 2..63 (mion's rule)
   'STRING_FORMAT.domain': {
     build: () => {
-      const schema = z.string().regex(/^(?!-)[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/);
+      const schema = z
+        .string()
+        .max(253)
+        .min(5)
+        .regex(/^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$/);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.string().regex(/^(?!-)[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/);
+      const schema = z
+        .string()
+        .max(253)
+        .min(5)
+        .regex(/^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$/);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // domainParts: 2-6 labels, no hyphen-edge label, no digit-only TLD
+  // domainParts: mion's rules. Name 5..253, every label 2..63 `[a-zA-Z0-9-]` without edge hyphen, 2..6 parts,
+  // TLD 2..12 letters. Plain `.length`: every char must pass an ASCII pattern, so code points never change the answer.
+  // validate stops at the first broken rule; errors reports every broken rule (as mion's two functions do).
   'STRING_FORMAT.domainParts': {
     build: () => {
-      const schema = z.string().refine((text) => {
-        const parts = text.split('.');
-        if (parts.length < 2 || parts.length > 6) return false;
-        const tld = parts[parts.length - 1];
-        if (/^\d+$/.test(tld)) return false; // TLD must not be all digits
-        for (const part of parts) {
-          if (!part || part.startsWith('-') || part.endsWith('-')) return false;
-          if (!/^[A-Za-z0-9-]+$/.test(part)) return false; // no underscore
+      const label = /^[a-zA-Z0-9-]+$/;
+      const tldPattern = /^[a-zA-Z]+(\.[a-zA-Z]+)?$/;
+      const schema = z.string().refine((s) => {
+        if (s.length > 253 || s.length < 5) return false;
+        let count = 1;
+        let start = 0;
+        let pos;
+        while ((pos = s.indexOf('.', start)) !== -1) {
+          const name = s.substring(start, pos);
+          if (name.startsWith('-') || name.endsWith('-')) return false;
+          if (name.length > 63 || name.length < 2 || !label.test(name)) return false;
+          start = pos + 1;
+          count++;
         }
-        return true;
+        if (count > 6 || count < 2) return false;
+        const tld = s.substring(start);
+        return tld.length <= 12 && tld.length >= 2 && tldPattern.test(tld);
       });
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.string().refine((text) => {
-        const parts = text.split('.');
-        if (parts.length < 2 || parts.length > 6) return false;
-        const tld = parts[parts.length - 1];
-        if (/^\d+$/.test(tld)) return false; // TLD must not be all digits
-        for (const part of parts) {
-          if (!part || part.startsWith('-') || part.endsWith('-')) return false;
-          if (!/^[A-Za-z0-9-]+$/.test(part)) return false; // no underscore
+      const label = /^[a-zA-Z0-9-]+$/;
+      const tldPattern = /^[a-zA-Z]+(\.[a-zA-Z]+)?$/;
+      const schema = z.string().superRefine((s, ctx) => {
+        if (s.length > 253) ctx.addIssue('domain maxLength');
+        if (s.length < 5) ctx.addIssue('domain minLength');
+        let count = 0;
+        let start = 0;
+        let pos;
+        while ((pos = s.indexOf('.', start)) !== -1) {
+          const name = s.substring(start, pos);
+          if (name.startsWith('-') || name.endsWith('-')) ctx.addIssue('label hyphen');
+          if (name.length > 63) ctx.addIssue('label maxLength');
+          if (name.length < 2) ctx.addIssue('label minLength');
+          if (!label.test(name)) ctx.addIssue('label pattern');
+          start = pos + 1;
+          count++;
         }
-        return true;
+        count++;
+        if (count > 6) ctx.addIssue('maxParts');
+        if (count < 2) ctx.addIssue('minParts');
+        const tld = s.substring(start);
+        if (tld.length > 12) ctx.addIssue('tld maxLength');
+        if (tld.length < 2) ctx.addIssue('tld minLength');
+        if (!tldPattern.test(tld)) ctx.addIssue('tld pattern');
       });
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // email: zod 4 first-class z.email() builder. The case requires a localPart ≥2 chars and a first
-  // domain label ≥2 chars (e.g. 'a@b.co' is rejected), which zod's default email regex does not enforce,
-  // so we pass the case's pattern via the builder's {pattern} option rather than hand-rolling a refine.
+  // email: z.email with mion's pattern + mion's whole-address length bounds 7..254
   'STRING_FORMAT.email': {
     build: () => {
-      const schema = z.email({pattern: /^[A-Za-z0-9.+_-]{2,}@([A-Za-z0-9][A-Za-z0-9-]+\.)+[A-Za-z]{2,}$/});
+      const schema = z
+        .email({pattern: /^[^\s@]{1,64}@(?:[a-zA-Z0-9-]{1,63}\.)+[a-zA-Z]{2,63}$/})
+        .max(254)
+        .min(7);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.email({pattern: /^[A-Za-z0-9.+_-]{2,}@([A-Za-z0-9][A-Za-z0-9-]+\.)+[A-Za-z]{2,}$/});
+      const schema = z
+        .email({pattern: /^[^\s@]{1,64}@(?:[a-zA-Z0-9-]{1,63}\.)+[a-zA-Z]{2,63}$/})
+        .max(254)
+        .min(7);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // emailPunycode: email with punycode TLD (xn--...)
+  // emailPunycode: as email, but the TLD may hold digits and `-` (xn--...)
   'STRING_FORMAT.emailPunycode': {
     build: () => {
       const schema = z
-        .string()
-        .regex(/^[^@\s]+@[^@\s]+\.[^@\s]+$/)
-        .refine((text) => {
-          const [, domain] = text.split('@');
-          return !!domain && domain.includes('.');
-        });
+        .email({pattern: /^[^\s@]{1,64}@(?:[a-zA-Z0-9-]{1,63}\.)+[a-zA-Z0-9-]{2,63}$/})
+        .max(254)
+        .min(7);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
       const schema = z
-        .string()
-        .regex(/^[^@\s]+@[^@\s]+\.[^@\s]+$/)
-        .refine((text) => {
-          const [, domain] = text.split('@');
-          return !!domain && domain.includes('.');
-        });
+        .email({pattern: /^[^\s@]{1,64}@(?:[a-zA-Z0-9-]{1,63}\.)+[a-zA-Z0-9-]{2,63}$/})
+        .max(254)
+        .min(7);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // emailParts: no + in the local part, no underscore in the domain
+  // emailParts: mion's rules. Whole <= 254 code points, split at the LAST `@`, local part 1..64 code points without
+  // any of ` ()<>[]:;\,{}|+@`, domain = the domainParts rules (ASCII patterns: plain `.length` there).
+  // validate stops at the first broken rule; errors reports every broken rule (as mion's two functions do).
   'STRING_FORMAT.emailParts': {
     build: () => {
-      const schema = z.string().regex(/^[a-zA-Z0-9.]+@[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$/);
+      const codePoints = (s: string) => {
+        let n = s.length;
+        for (let i = 0; i < s.length; i++) {
+          const c = s.charCodeAt(i);
+          if (c >= 0xd800 && c <= 0xdbff && i + 1 < s.length) {
+            i++;
+            n--;
+          }
+        }
+        return n;
+      };
+      const disallowed = /[ ()<>[\]:;\\,{}|+@]/;
+      const label = /^[a-zA-Z0-9-]+$/;
+      const tldPattern = /^[a-zA-Z]+(\.[a-zA-Z]+)?$/;
+      const schema = z.string().refine((e) => {
+        if (e.length > 254 && (e.length > 508 || codePoints(e) > 254)) return false;
+        const at = e.lastIndexOf('@');
+        if (at === -1) return false;
+        const local = e.substring(0, at);
+        if (local.length < 1 || (local.length > 64 && (local.length > 128 || codePoints(local) > 64))) return false;
+        if (disallowed.test(local)) return false;
+        const s = e.substring(at + 1);
+        if (s.length > 253 || s.length < 5) return false;
+        let count = 1;
+        let start = 0;
+        let pos;
+        while ((pos = s.indexOf('.', start)) !== -1) {
+          const name = s.substring(start, pos);
+          if (name.startsWith('-') || name.endsWith('-')) return false;
+          if (name.length > 63 || name.length < 2 || !label.test(name)) return false;
+          start = pos + 1;
+          count++;
+        }
+        if (count > 6 || count < 2) return false;
+        const tld = s.substring(start);
+        return tld.length <= 12 && tld.length >= 2 && tldPattern.test(tld);
+      });
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.string().regex(/^[a-zA-Z0-9.]+@[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$/);
+      const codePoints = (s: string) => {
+        let n = s.length;
+        for (let i = 0; i < s.length; i++) {
+          const c = s.charCodeAt(i);
+          if (c >= 0xd800 && c <= 0xdbff && i + 1 < s.length) {
+            i++;
+            n--;
+          }
+        }
+        return n;
+      };
+      const disallowed = /[ ()<>[\]:;\\,{}|+@]/;
+      const label = /^[a-zA-Z0-9-]+$/;
+      const tldPattern = /^[a-zA-Z]+(\.[a-zA-Z]+)?$/;
+      const schema = z.string().superRefine((e, ctx) => {
+        if (e.length > 254 && (e.length > 508 || codePoints(e) > 254)) ctx.addIssue('email maxLength');
+        const at = e.lastIndexOf('@');
+        if (at === -1) {
+          ctx.addIssue('email missing @');
+          return;
+        }
+        const local = e.substring(0, at);
+        if (local.length > 64 && (local.length > 128 || codePoints(local) > 64)) ctx.addIssue('local maxLength');
+        if (local.length < 1) ctx.addIssue('local minLength');
+        if (disallowed.test(local)) ctx.addIssue('local disallowedChars');
+        const s = e.substring(at + 1);
+        if (s.length > 253) ctx.addIssue('domain maxLength');
+        if (s.length < 5) ctx.addIssue('domain minLength');
+        let count = 0;
+        let start = 0;
+        let pos;
+        while ((pos = s.indexOf('.', start)) !== -1) {
+          const name = s.substring(start, pos);
+          if (name.startsWith('-') || name.endsWith('-')) ctx.addIssue('label hyphen');
+          if (name.length > 63) ctx.addIssue('label maxLength');
+          if (name.length < 2) ctx.addIssue('label minLength');
+          if (!label.test(name)) ctx.addIssue('label pattern');
+          start = pos + 1;
+          count++;
+        }
+        count++;
+        if (count > 6) ctx.addIssue('maxParts');
+        if (count < 2) ctx.addIssue('minParts');
+        const tld = s.substring(start);
+        if (tld.length > 12) ctx.addIssue('tld maxLength');
+        if (tld.length < 2) ctx.addIssue('tld minLength');
+        if (!tldPattern.test(tld)) ctx.addIssue('tld pattern');
+      });
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // url: http/ftp/ws/wss schemes (mailto rejected); zod strips trailing ':' from protocol before testing regex
+  // url: http/ftp/ws schemes + mion's 2048 code-point cap; zod strips trailing ':' from protocol before testing
   'STRING_FORMAT.url': {
     build: () => {
-      const schema = z.url({protocol: /^(https?|ftps?|wss?)$/});
+      const schema = z.url({protocol: /^(https?|ftps?|wss?)$/}).max(2048);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.url({protocol: /^(https?|ftps?|wss?)$/});
+      const schema = z.url({protocol: /^(https?|ftps?|wss?)$/}).max(2048);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // urlHttp: http(s) only
+  // urlHttp: http(s) only + mion's 2048 cap. `/^https?$/` keeps zod's literal `://` guard; no hostname check (mion has none)
   'STRING_FORMAT.urlHttp': {
     build: () => {
-      const schema = z.httpUrl();
+      const schema = z.url({protocol: /^https?$/}).max(2048);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.httpUrl();
+      const schema = z.url({protocol: /^https?$/}).max(2048);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // urlFile: file:// URLs; zod strips trailing ':' from protocol before testing
+  // urlFile: file:// URLs + mion's 2048 code-point cap
   'STRING_FORMAT.urlFile': {
     build: () => {
-      const schema = z.url({protocol: /^file$/});
+      const schema = z.url({protocol: /^file$/}).max(2048);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.url({protocol: /^file$/});
+      const schema = z.url({protocol: /^file$/}).max(2048);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
   'STRING_FORMAT.pattern_slug': {
     build: () => {
-      const schema = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+      const schema = z.string().regex(/^[a-z0-9-]+$/);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+      const schema = z.string().regex(/^[a-z0-9-]+$/);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -3052,38 +3400,39 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
+  // `.int()` last: a failed int check aborts every later check, so it must not hide the bound / multipleOf errors
   'NUMBER_FORMAT.number_combined': {
     build: () => {
-      const schema = z.number().int().min(0).max(100).multipleOf(5);
+      const schema = z.number().max(100).min(0).multipleOf(5).int();
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.number().int().min(0).max(100).multipleOf(5);
+      const schema = z.number().max(100).min(0).multipleOf(5).int();
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
   'NUMBER_FORMAT.number_int8': {
     build: () => {
-      const schema = z.number().int().min(-128).max(127);
+      const schema = z.number().max(127).min(-128).int();
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.number().int().min(-128).max(127);
+      const schema = z.number().max(127).min(-128).int();
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
   'NUMBER_FORMAT.number_uint8': {
     build: () => {
-      const schema = z.number().int().min(0).max(255);
+      const schema = z.number().max(255).min(0).int();
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.number().int().min(0).max(255);
+      const schema = z.number().max(255).min(0).int();
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -3164,24 +3513,24 @@ export const cases: CompetitorCases = {
   },
   'BIGINT_FORMAT.bigint_int64': {
     build: () => {
-      const schema = z.bigint().gte(-9223372036854775808n).lte(9223372036854775807n);
+      const schema = z.int64();
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.bigint().gte(-9223372036854775808n).lte(9223372036854775807n);
+      const schema = z.int64();
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
   'BIGINT_FORMAT.bigint_uint64': {
     build: () => {
-      const schema = z.bigint().gte(0n).lte(18446744073709551615n);
+      const schema = z.uint64();
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.bigint().gte(0n).lte(18446744073709551615n);
+      const schema = z.uint64();
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -3201,29 +3550,30 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
+  // date_gtlt: exclusive bounds via the standalone z.gt / z.lt checks (Date constants hoisted by z.compile)
   'DATETIME.date_gtlt': {
     build: () => {
       const schema = z
         .date()
-        .refine((date) => date > new Date(Date.UTC(2020, 0, 1, 0, 0, 0)) && date < new Date(Date.UTC(2020, 11, 31, 23, 59, 59)));
+        .check(z.gt(new Date(Date.UTC(2020, 0, 1, 0, 0, 0))), z.lt(new Date(Date.UTC(2020, 11, 31, 23, 59, 59))));
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
       const schema = z
         .date()
-        .refine((date) => date > new Date(Date.UTC(2020, 0, 1, 0, 0, 0)) && date < new Date(Date.UTC(2020, 11, 31, 23, 59, 59)));
+        .check(z.gt(new Date(Date.UTC(2020, 0, 1, 0, 0, 0))), z.lt(new Date(Date.UTC(2020, 11, 31, 23, 59, 59))));
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // date_min_lt: inclusive lower via z.date().min(); the exclusive upper (lt) has no native builder, so refine
+  // date_min_lt: inclusive lower via .min(), exclusive upper via the standalone z.lt check
   'DATETIME.date_min_lt': {
     build: () => {
       const schema = z
         .date()
         .min(new Date(Date.UTC(2020, 0, 1, 0, 0, 0)))
-        .refine((date) => date < new Date(Date.UTC(2020, 11, 31, 23, 59, 59)));
+        .check(z.lt(new Date(Date.UTC(2020, 11, 31, 23, 59, 59))));
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
@@ -3231,92 +3581,616 @@ export const cases: CompetitorCases = {
       const schema = z
         .date()
         .min(new Date(Date.UTC(2020, 0, 1, 0, 0, 0)))
-        .refine((date) => date < new Date(Date.UTC(2020, 11, 31, 23, 59, 59)));
+        .check(z.lt(new Date(Date.UTC(2020, 11, 31, 23, 59, 59))));
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // date_max_now: inclusive upper bound (now) via z.date().max()
+  // date_max_now: "now" is read on every call (a .max(new Date()) frozen at build drifts)
   'DATETIME.date_max_now': {
     build: () => {
-      const schema = z.date().max(new Date());
+      const schema = z.date().refine((d) => d.getTime() <= Date.now());
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.date().max(new Date());
+      const schema = z.date().refine((d) => d.getTime() <= Date.now());
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // date_rel_window: inclusive relative window via z.date().min()/.max() over computed bounds
+  // date_rel_window: both bounds computed per call in UTC calendar math, one refine per bound
   'DATETIME.date_rel_window': {
     build: () => {
-      const now = new Date();
-      const minDate = new Date(now);
-      minDate.setFullYear(minDate.getFullYear() - 1000);
-      const maxDate = new Date(now);
-      maxDate.setFullYear(maxDate.getFullYear() + 1000);
-      const schema = z.date().min(minDate).max(maxDate);
+      const schema = z
+        .date()
+        .refine((d) => {
+          const min = new Date();
+          min.setUTCFullYear(min.getUTCFullYear() - 1000);
+          return d.getTime() >= min.getTime();
+        })
+        .refine((d) => {
+          const max = new Date();
+          max.setUTCFullYear(max.getUTCFullYear() + 1000);
+          return d.getTime() <= max.getTime();
+        });
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const now = new Date();
-      const minDate = new Date(now);
-      minDate.setFullYear(minDate.getFullYear() - 1000);
-      const maxDate = new Date(now);
-      maxDate.setFullYear(maxDate.getFullYear() + 1000);
-      const schema = z.date().min(minDate).max(maxDate);
+      const schema = z
+        .date()
+        .refine((d) => {
+          const min = new Date();
+          min.setUTCFullYear(min.getUTCFullYear() - 1000);
+          return d.getTime() >= min.getTime();
+        })
+        .refine((d) => {
+          const max = new Date();
+          max.setUTCFullYear(max.getUTCFullYear() + 1000);
+          return d.getTime() <= max.getTime();
+        });
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // date_rel_datetime_components: inclusive lower bound (now - 1000y - 12h) via z.date().min()
+  // date_rel_datetime_components: now - 1000 years (UTC) - 12 hours, computed per call
   'DATETIME.date_rel_datetime_components': {
     build: () => {
-      const minDate = new Date();
-      minDate.setFullYear(minDate.getFullYear() - 1000);
-      minDate.setHours(minDate.getHours() - 12);
-      const schema = z.date().min(minDate);
+      const schema = z.date().refine((d) => {
+        const min = new Date();
+        min.setUTCFullYear(min.getUTCFullYear() - 1000);
+        min.setTime(min.getTime() - 12 * 3_600_000);
+        return d.getTime() >= min.getTime();
+      });
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const minDate = new Date();
-      minDate.setFullYear(minDate.getFullYear() - 1000);
-      minDate.setHours(minDate.getHours() - 12);
-      const schema = z.date().min(minDate);
+      const schema = z.date().refine((d) => {
+        const min = new Date();
+        min.setUTCFullYear(min.getUTCFullYear() - 1000);
+        min.setTime(min.getTime() - 12 * 3_600_000);
+        return d.getTime() >= min.getTime();
+      });
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  'DATETIME.instant_minmax': NOT_SUPPORTED, // Temporal not available in benchmark container; getSamples() throws
-  'DATETIME.instant_gtlt': NOT_SUPPORTED, // Temporal not available in benchmark container; getSamples() throws
-  'DATETIME.instant_rel': NOT_SUPPORTED, // Temporal not available in benchmark container; getSamples() throws
-  'DATETIME.plainDate_minmax': NOT_SUPPORTED, // Temporal not available in benchmark container; getSamples() throws
-  'DATETIME.plainDate_gtlt': NOT_SUPPORTED, // Temporal not available in benchmark container; getSamples() throws
-  'DATETIME.plainDate_min_lt': NOT_SUPPORTED, // Temporal not available in benchmark container; getSamples() throws
-  'DATETIME.plainDate_gt_max': NOT_SUPPORTED, // Temporal not available in benchmark container; getSamples() throws
-  'DATETIME.plainDate_min_only': NOT_SUPPORTED, // Temporal not available in benchmark container; getSamples() throws
-  'DATETIME.plainDate_max_only': NOT_SUPPORTED, // Temporal not available in benchmark container; getSamples() throws
-  'DATETIME.plainDate_gt_only': NOT_SUPPORTED, // Temporal not available in benchmark container; getSamples() throws
-  'DATETIME.plainDate_lt_only': NOT_SUPPORTED, // Temporal not available in benchmark container; getSamples() throws
-  'DATETIME.plainDate_rel_window': NOT_SUPPORTED, // Temporal not available in benchmark container; getSamples() throws
-  'DATETIME.plainDate_rel_ymd': NOT_SUPPORTED, // Temporal not available in benchmark container; getSamples() throws
-  'DATETIME.plainDate_rel_weeks': NOT_SUPPORTED, // Temporal not available in benchmark container; getSamples() throws
-  'DATETIME.plainTime_minmax': NOT_SUPPORTED, // Temporal not available in benchmark container; getSamples() throws
-  'DATETIME.plainTime_gtlt': NOT_SUPPORTED, // Temporal not available in benchmark container; getSamples() throws
-  'DATETIME.plainDateTime_minmax': NOT_SUPPORTED, // Temporal not available in benchmark container; getSamples() throws
-  'DATETIME.plainDateTime_gtlt': NOT_SUPPORTED, // Temporal not available in benchmark container; getSamples() throws
-  'DATETIME.plainDateTime_rel': NOT_SUPPORTED, // Temporal not available in benchmark container; getSamples() throws
-  'DATETIME.plainDateTime_rel_combo': NOT_SUPPORTED, // Temporal not available in benchmark container; getSamples() throws
-  'DATETIME.plainYearMonth_minmax': NOT_SUPPORTED, // Temporal not available in benchmark container; getSamples() throws
-  'DATETIME.plainYearMonth_gtlt': NOT_SUPPORTED, // Temporal not available in benchmark container; getSamples() throws
-  'DATETIME.plainYearMonth_rel': NOT_SUPPORTED, // Temporal not available in benchmark container; getSamples() throws
-  'DATETIME.zonedDateTime_minmax': NOT_SUPPORTED, // Temporal not available in benchmark container; getSamples() throws
-  'DATETIME.zonedDateTime_gtlt': NOT_SUPPORTED, // Temporal not available in benchmark container; getSamples() throws
-  'DATETIME.zonedDateTime_rel': NOT_SUPPORTED, // Temporal not available in benchmark container; getSamples() throws
+  'DATETIME.instant_minmax': {
+    build: () => {
+      const min = Temporal.Instant.from('2020-01-01T00:00:00Z');
+      const max = Temporal.Instant.from('2020-12-31T23:59:59Z');
+      const schema = z
+        .instanceof(Temporal.Instant)
+        .refine((v) => Temporal.Instant.compare(v, min) >= 0)
+        .refine((v) => Temporal.Instant.compare(v, max) <= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const min = Temporal.Instant.from('2020-01-01T00:00:00Z');
+      const max = Temporal.Instant.from('2020-12-31T23:59:59Z');
+      const schema = z
+        .instanceof(Temporal.Instant)
+        .refine((v) => Temporal.Instant.compare(v, min) >= 0)
+        .refine((v) => Temporal.Instant.compare(v, max) <= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.instant_gtlt': {
+    build: () => {
+      const gt = Temporal.Instant.from('2020-01-01T00:00:00Z');
+      const lt = Temporal.Instant.from('2020-12-31T23:59:59Z');
+      const schema = z
+        .instanceof(Temporal.Instant)
+        .refine((v) => Temporal.Instant.compare(v, gt) > 0)
+        .refine((v) => Temporal.Instant.compare(v, lt) < 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const gt = Temporal.Instant.from('2020-01-01T00:00:00Z');
+      const lt = Temporal.Instant.from('2020-12-31T23:59:59Z');
+      const schema = z
+        .instanceof(Temporal.Instant)
+        .refine((v) => Temporal.Instant.compare(v, gt) > 0)
+        .refine((v) => Temporal.Instant.compare(v, lt) < 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.instant_rel': {
+    build: () => {
+      const span = Temporal.Duration.from('PT8760000H'); // constant parse, hoisted; "now" is read per call
+      const schema = z
+        .instanceof(Temporal.Instant)
+        .refine((v) => Temporal.Instant.compare(v, Temporal.Now.instant().subtract(span)) >= 0)
+        .refine((v) => Temporal.Instant.compare(v, Temporal.Now.instant().add(span)) <= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const span = Temporal.Duration.from('PT8760000H'); // constant parse, hoisted; "now" is read per call
+      const schema = z
+        .instanceof(Temporal.Instant)
+        .refine((v) => Temporal.Instant.compare(v, Temporal.Now.instant().subtract(span)) >= 0)
+        .refine((v) => Temporal.Instant.compare(v, Temporal.Now.instant().add(span)) <= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.plainDate_minmax': {
+    build: () => {
+      const min = Temporal.PlainDate.from('2020-01-01');
+      const max = Temporal.PlainDate.from('2020-12-31');
+      const schema = z
+        .instanceof(Temporal.PlainDate)
+        .refine((v) => Temporal.PlainDate.compare(v, min) >= 0)
+        .refine((v) => Temporal.PlainDate.compare(v, max) <= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const min = Temporal.PlainDate.from('2020-01-01');
+      const max = Temporal.PlainDate.from('2020-12-31');
+      const schema = z
+        .instanceof(Temporal.PlainDate)
+        .refine((v) => Temporal.PlainDate.compare(v, min) >= 0)
+        .refine((v) => Temporal.PlainDate.compare(v, max) <= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.plainDate_gtlt': {
+    build: () => {
+      const gt = Temporal.PlainDate.from('2020-01-01');
+      const lt = Temporal.PlainDate.from('2020-12-31');
+      const schema = z
+        .instanceof(Temporal.PlainDate)
+        .refine((v) => Temporal.PlainDate.compare(v, gt) > 0)
+        .refine((v) => Temporal.PlainDate.compare(v, lt) < 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const gt = Temporal.PlainDate.from('2020-01-01');
+      const lt = Temporal.PlainDate.from('2020-12-31');
+      const schema = z
+        .instanceof(Temporal.PlainDate)
+        .refine((v) => Temporal.PlainDate.compare(v, gt) > 0)
+        .refine((v) => Temporal.PlainDate.compare(v, lt) < 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.plainDate_min_lt': {
+    build: () => {
+      const min = Temporal.PlainDate.from('2020-01-01');
+      const lt = Temporal.PlainDate.from('2020-01-10');
+      const schema = z
+        .instanceof(Temporal.PlainDate)
+        .refine((v) => Temporal.PlainDate.compare(v, min) >= 0)
+        .refine((v) => Temporal.PlainDate.compare(v, lt) < 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const min = Temporal.PlainDate.from('2020-01-01');
+      const lt = Temporal.PlainDate.from('2020-01-10');
+      const schema = z
+        .instanceof(Temporal.PlainDate)
+        .refine((v) => Temporal.PlainDate.compare(v, min) >= 0)
+        .refine((v) => Temporal.PlainDate.compare(v, lt) < 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.plainDate_gt_max': {
+    build: () => {
+      const max = Temporal.PlainDate.from('2020-01-10');
+      const gt = Temporal.PlainDate.from('2020-01-01');
+      const schema = z
+        .instanceof(Temporal.PlainDate)
+        .refine((v) => Temporal.PlainDate.compare(v, max) <= 0)
+        .refine((v) => Temporal.PlainDate.compare(v, gt) > 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const max = Temporal.PlainDate.from('2020-01-10');
+      const gt = Temporal.PlainDate.from('2020-01-01');
+      const schema = z
+        .instanceof(Temporal.PlainDate)
+        .refine((v) => Temporal.PlainDate.compare(v, max) <= 0)
+        .refine((v) => Temporal.PlainDate.compare(v, gt) > 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.plainDate_min_only': {
+    build: () => {
+      const min = Temporal.PlainDate.from('2020-01-01');
+      const schema = z
+        .instanceof(Temporal.PlainDate)
+        .refine((v) => Temporal.PlainDate.compare(v, min) >= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const min = Temporal.PlainDate.from('2020-01-01');
+      const schema = z
+        .instanceof(Temporal.PlainDate)
+        .refine((v) => Temporal.PlainDate.compare(v, min) >= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.plainDate_max_only': {
+    build: () => {
+      const max = Temporal.PlainDate.from('2020-12-31');
+      const schema = z
+        .instanceof(Temporal.PlainDate)
+        .refine((v) => Temporal.PlainDate.compare(v, max) <= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const max = Temporal.PlainDate.from('2020-12-31');
+      const schema = z
+        .instanceof(Temporal.PlainDate)
+        .refine((v) => Temporal.PlainDate.compare(v, max) <= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.plainDate_gt_only': {
+    build: () => {
+      const gt = Temporal.PlainDate.from('2020-01-01');
+      const schema = z
+        .instanceof(Temporal.PlainDate)
+        .refine((v) => Temporal.PlainDate.compare(v, gt) > 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const gt = Temporal.PlainDate.from('2020-01-01');
+      const schema = z
+        .instanceof(Temporal.PlainDate)
+        .refine((v) => Temporal.PlainDate.compare(v, gt) > 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.plainDate_lt_only': {
+    build: () => {
+      const lt = Temporal.PlainDate.from('2020-12-31');
+      const schema = z
+        .instanceof(Temporal.PlainDate)
+        .refine((v) => Temporal.PlainDate.compare(v, lt) < 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const lt = Temporal.PlainDate.from('2020-12-31');
+      const schema = z
+        .instanceof(Temporal.PlainDate)
+        .refine((v) => Temporal.PlainDate.compare(v, lt) < 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.plainDate_rel_window': {
+    build: () => {
+      const span = Temporal.Duration.from('P1000Y'); // constant parse, hoisted; "now" is read per call
+      const schema = z
+        .instanceof(Temporal.PlainDate)
+        .refine((v) => Temporal.PlainDate.compare(v, Temporal.Now.plainDateISO().subtract(span)) >= 0)
+        .refine((v) => Temporal.PlainDate.compare(v, Temporal.Now.plainDateISO().add(span)) <= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const span = Temporal.Duration.from('P1000Y'); // constant parse, hoisted; "now" is read per call
+      const schema = z
+        .instanceof(Temporal.PlainDate)
+        .refine((v) => Temporal.PlainDate.compare(v, Temporal.Now.plainDateISO().subtract(span)) >= 0)
+        .refine((v) => Temporal.PlainDate.compare(v, Temporal.Now.plainDateISO().add(span)) <= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.plainDate_rel_ymd': {
+    build: () => {
+      const span = Temporal.Duration.from('P100Y6M15D'); // constant parse, hoisted; "now" is read per call
+      const schema = z
+        .instanceof(Temporal.PlainDate)
+        .refine((v) => Temporal.PlainDate.compare(v, Temporal.Now.plainDateISO().subtract(span)) >= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const span = Temporal.Duration.from('P100Y6M15D'); // constant parse, hoisted; "now" is read per call
+      const schema = z
+        .instanceof(Temporal.PlainDate)
+        .refine((v) => Temporal.PlainDate.compare(v, Temporal.Now.plainDateISO().subtract(span)) >= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.plainDate_rel_weeks': {
+    build: () => {
+      const span = Temporal.Duration.from('P52200W'); // constant parse, hoisted; "now" is read per call
+      const schema = z
+        .instanceof(Temporal.PlainDate)
+        .refine((v) => Temporal.PlainDate.compare(v, Temporal.Now.plainDateISO().subtract(span)) >= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const span = Temporal.Duration.from('P52200W'); // constant parse, hoisted; "now" is read per call
+      const schema = z
+        .instanceof(Temporal.PlainDate)
+        .refine((v) => Temporal.PlainDate.compare(v, Temporal.Now.plainDateISO().subtract(span)) >= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.plainTime_minmax': {
+    build: () => {
+      const min = Temporal.PlainTime.from('09:00:00');
+      const max = Temporal.PlainTime.from('17:00:00');
+      const schema = z
+        .instanceof(Temporal.PlainTime)
+        .refine((v) => Temporal.PlainTime.compare(v, min) >= 0)
+        .refine((v) => Temporal.PlainTime.compare(v, max) <= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const min = Temporal.PlainTime.from('09:00:00');
+      const max = Temporal.PlainTime.from('17:00:00');
+      const schema = z
+        .instanceof(Temporal.PlainTime)
+        .refine((v) => Temporal.PlainTime.compare(v, min) >= 0)
+        .refine((v) => Temporal.PlainTime.compare(v, max) <= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.plainTime_gtlt': {
+    build: () => {
+      const gt = Temporal.PlainTime.from('09:00:00');
+      const lt = Temporal.PlainTime.from('17:00:00');
+      const schema = z
+        .instanceof(Temporal.PlainTime)
+        .refine((v) => Temporal.PlainTime.compare(v, gt) > 0)
+        .refine((v) => Temporal.PlainTime.compare(v, lt) < 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const gt = Temporal.PlainTime.from('09:00:00');
+      const lt = Temporal.PlainTime.from('17:00:00');
+      const schema = z
+        .instanceof(Temporal.PlainTime)
+        .refine((v) => Temporal.PlainTime.compare(v, gt) > 0)
+        .refine((v) => Temporal.PlainTime.compare(v, lt) < 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.plainDateTime_minmax': {
+    build: () => {
+      const min = Temporal.PlainDateTime.from('2020-01-01T00:00:00');
+      const max = Temporal.PlainDateTime.from('2020-12-31T23:59:59');
+      const schema = z
+        .instanceof(Temporal.PlainDateTime)
+        .refine((v) => Temporal.PlainDateTime.compare(v, min) >= 0)
+        .refine((v) => Temporal.PlainDateTime.compare(v, max) <= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const min = Temporal.PlainDateTime.from('2020-01-01T00:00:00');
+      const max = Temporal.PlainDateTime.from('2020-12-31T23:59:59');
+      const schema = z
+        .instanceof(Temporal.PlainDateTime)
+        .refine((v) => Temporal.PlainDateTime.compare(v, min) >= 0)
+        .refine((v) => Temporal.PlainDateTime.compare(v, max) <= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.plainDateTime_gtlt': {
+    build: () => {
+      const gt = Temporal.PlainDateTime.from('2020-01-01T00:00:00');
+      const lt = Temporal.PlainDateTime.from('2020-12-31T23:59:59');
+      const schema = z
+        .instanceof(Temporal.PlainDateTime)
+        .refine((v) => Temporal.PlainDateTime.compare(v, gt) > 0)
+        .refine((v) => Temporal.PlainDateTime.compare(v, lt) < 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const gt = Temporal.PlainDateTime.from('2020-01-01T00:00:00');
+      const lt = Temporal.PlainDateTime.from('2020-12-31T23:59:59');
+      const schema = z
+        .instanceof(Temporal.PlainDateTime)
+        .refine((v) => Temporal.PlainDateTime.compare(v, gt) > 0)
+        .refine((v) => Temporal.PlainDateTime.compare(v, lt) < 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.plainDateTime_rel': {
+    build: () => {
+      const span = Temporal.Duration.from('P1000Y'); // constant parse, hoisted; "now" is read per call
+      const schema = z
+        .instanceof(Temporal.PlainDateTime)
+        .refine((v) => Temporal.PlainDateTime.compare(v, Temporal.Now.plainDateTimeISO().subtract(span)) >= 0)
+        .refine((v) => Temporal.PlainDateTime.compare(v, Temporal.Now.plainDateTimeISO().add(span)) <= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const span = Temporal.Duration.from('P1000Y'); // constant parse, hoisted; "now" is read per call
+      const schema = z
+        .instanceof(Temporal.PlainDateTime)
+        .refine((v) => Temporal.PlainDateTime.compare(v, Temporal.Now.plainDateTimeISO().subtract(span)) >= 0)
+        .refine((v) => Temporal.PlainDateTime.compare(v, Temporal.Now.plainDateTimeISO().add(span)) <= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.plainDateTime_rel_combo': {
+    build: () => {
+      const span = Temporal.Duration.from('P500YT12H'); // constant parse, hoisted; "now" is read per call
+      const schema = z
+        .instanceof(Temporal.PlainDateTime)
+        .refine((v) => Temporal.PlainDateTime.compare(v, Temporal.Now.plainDateTimeISO().subtract(span)) >= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const span = Temporal.Duration.from('P500YT12H'); // constant parse, hoisted; "now" is read per call
+      const schema = z
+        .instanceof(Temporal.PlainDateTime)
+        .refine((v) => Temporal.PlainDateTime.compare(v, Temporal.Now.plainDateTimeISO().subtract(span)) >= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.plainYearMonth_minmax': {
+    build: () => {
+      const min = Temporal.PlainYearMonth.from('2020-01');
+      const max = Temporal.PlainYearMonth.from('2020-12');
+      const schema = z
+        .instanceof(Temporal.PlainYearMonth)
+        .refine((v) => Temporal.PlainYearMonth.compare(v, min) >= 0)
+        .refine((v) => Temporal.PlainYearMonth.compare(v, max) <= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const min = Temporal.PlainYearMonth.from('2020-01');
+      const max = Temporal.PlainYearMonth.from('2020-12');
+      const schema = z
+        .instanceof(Temporal.PlainYearMonth)
+        .refine((v) => Temporal.PlainYearMonth.compare(v, min) >= 0)
+        .refine((v) => Temporal.PlainYearMonth.compare(v, max) <= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.plainYearMonth_gtlt': {
+    build: () => {
+      const gt = Temporal.PlainYearMonth.from('2020-01');
+      const lt = Temporal.PlainYearMonth.from('2020-12');
+      const schema = z
+        .instanceof(Temporal.PlainYearMonth)
+        .refine((v) => Temporal.PlainYearMonth.compare(v, gt) > 0)
+        .refine((v) => Temporal.PlainYearMonth.compare(v, lt) < 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const gt = Temporal.PlainYearMonth.from('2020-01');
+      const lt = Temporal.PlainYearMonth.from('2020-12');
+      const schema = z
+        .instanceof(Temporal.PlainYearMonth)
+        .refine((v) => Temporal.PlainYearMonth.compare(v, gt) > 0)
+        .refine((v) => Temporal.PlainYearMonth.compare(v, lt) < 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.plainYearMonth_rel': {
+    build: () => {
+      const span = Temporal.Duration.from('P1000Y'); // constant parse, hoisted; "now" is read per call
+      const schema = z
+        .instanceof(Temporal.PlainYearMonth)
+        .refine((v) => Temporal.PlainYearMonth.compare(v, Temporal.Now.plainDateISO().toPlainYearMonth().subtract(span)) >= 0)
+        .refine((v) => Temporal.PlainYearMonth.compare(v, Temporal.Now.plainDateISO().toPlainYearMonth().add(span)) <= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const span = Temporal.Duration.from('P1000Y'); // constant parse, hoisted; "now" is read per call
+      const schema = z
+        .instanceof(Temporal.PlainYearMonth)
+        .refine((v) => Temporal.PlainYearMonth.compare(v, Temporal.Now.plainDateISO().toPlainYearMonth().subtract(span)) >= 0)
+        .refine((v) => Temporal.PlainYearMonth.compare(v, Temporal.Now.plainDateISO().toPlainYearMonth().add(span)) <= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.zonedDateTime_minmax': {
+    build: () => {
+      const min = Temporal.ZonedDateTime.from('2020-01-01T00:00:00[UTC]');
+      const max = Temporal.ZonedDateTime.from('2020-12-31T23:59:59[UTC]');
+      const schema = z
+        .instanceof(Temporal.ZonedDateTime)
+        .refine((v) => Temporal.ZonedDateTime.compare(v, min) >= 0)
+        .refine((v) => Temporal.ZonedDateTime.compare(v, max) <= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const min = Temporal.ZonedDateTime.from('2020-01-01T00:00:00[UTC]');
+      const max = Temporal.ZonedDateTime.from('2020-12-31T23:59:59[UTC]');
+      const schema = z
+        .instanceof(Temporal.ZonedDateTime)
+        .refine((v) => Temporal.ZonedDateTime.compare(v, min) >= 0)
+        .refine((v) => Temporal.ZonedDateTime.compare(v, max) <= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.zonedDateTime_gtlt': {
+    build: () => {
+      const gt = Temporal.ZonedDateTime.from('2020-01-01T00:00:00[UTC]');
+      const lt = Temporal.ZonedDateTime.from('2020-12-31T23:59:59[UTC]');
+      const schema = z
+        .instanceof(Temporal.ZonedDateTime)
+        .refine((v) => Temporal.ZonedDateTime.compare(v, gt) > 0)
+        .refine((v) => Temporal.ZonedDateTime.compare(v, lt) < 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const gt = Temporal.ZonedDateTime.from('2020-01-01T00:00:00[UTC]');
+      const lt = Temporal.ZonedDateTime.from('2020-12-31T23:59:59[UTC]');
+      const schema = z
+        .instanceof(Temporal.ZonedDateTime)
+        .refine((v) => Temporal.ZonedDateTime.compare(v, gt) > 0)
+        .refine((v) => Temporal.ZonedDateTime.compare(v, lt) < 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  'DATETIME.zonedDateTime_rel': {
+    build: () => {
+      const span = Temporal.Duration.from('P1000Y'); // constant parse, hoisted; "now" is read per call
+      const schema = z
+        .instanceof(Temporal.ZonedDateTime)
+        .refine((v) => Temporal.ZonedDateTime.compare(v, Temporal.Now.zonedDateTimeISO().subtract(span)) >= 0)
+        .refine((v) => Temporal.ZonedDateTime.compare(v, Temporal.Now.zonedDateTimeISO().add(span)) <= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const span = Temporal.Duration.from('P1000Y'); // constant parse, hoisted; "now" is read per call
+      const schema = z
+        .instanceof(Temporal.ZonedDateTime)
+        .refine((v) => Temporal.ZonedDateTime.compare(v, Temporal.Now.zonedDateTimeISO().subtract(span)) >= 0)
+        .refine((v) => Temporal.ZonedDateTime.compare(v, Temporal.Now.zonedDateTimeISO().add(span)) <= 0);
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
 
   // ── REALWORLD ──
   'REALWORLD.user': {
@@ -3559,10 +4433,9 @@ export const cases: CompetitorCases = {
   },
 
   // ── JSON_SCHEMA ──
-  // zod has no JSON Schema INPUT door (it emits with z.toJSONSchema but cannot
-  // build a validator from one), so these entries state the same CONSTRAINT in
-  // zod's own dialect, exactly like every other group here. Only the keywords
-  // zod genuinely cannot express opt out.
+  // Each entry states the same CONSTRAINT in zod's own dialect, like every other group here.
+  // z.fromJSONSchema exists but wraps each keyword in extra transform / safeParse steps, so it is not the
+  // fast path. Keywords with no zod check (contains, uniqueItems, key counts) use a refine on that leaf.
   'JSON_SCHEMA.property_names': {
     build: () => {
       const schema = z.record(z.string().regex(/^[a-z]+$/), z.number());
@@ -3575,9 +4448,77 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  'JSON_SCHEMA.contains_count': NOT_SUPPORTED, // no array `contains` / count-of-matching-items check
-  'JSON_SCHEMA.unique_items': NOT_SUPPORTED, // no array uniqueness check
-  'JSON_SCHEMA.object_size': NOT_SUPPORTED, // no key-count bounds on objects
+  // contains_count: no zod check counts matching items, so a refine on the array leaf (number items: the copy equals the input)
+  'JSON_SCHEMA.contains_count': {
+    build: () => {
+      const schema = z.array(z.number()).refine((items) => {
+        let count = 0;
+        for (let i = 0; i < items.length; i++) if (items[i] >= 10) count++;
+        return count >= 2;
+      });
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const schema = z.array(z.number()).refine((items) => {
+        let count = 0;
+        for (let i = 0; i < items.length; i++) if (items[i] >= 10) count++;
+        return count >= 2;
+      });
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  // unique_items: no zod uniqueness check, so a refine on the array leaf; number items, so Set (SameValueZero) like mion
+  'JSON_SCHEMA.unique_items': {
+    build: () => {
+      const schema = z.array(z.number()).refine((items) => {
+        if (items.length < 2) return true;
+        const seen = new Set<number>();
+        for (let i = 0; i < items.length; i++) {
+          if (seen.has(items[i])) return false;
+          seen.add(items[i]);
+        }
+        return true;
+      });
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const schema = z.array(z.number()).refine((items) => {
+        if (items.length < 2) return true;
+        const seen = new Set<number>();
+        for (let i = 0; i < items.length; i++) {
+          if (seen.has(items[i])) return false;
+          seen.add(items[i]);
+        }
+        return true;
+      });
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
+  // object_size: no zod key-count check on records, so a refine on the record leaf counting keys (1..3)
+  'JSON_SCHEMA.object_size': {
+    build: () => {
+      const schema = z.record(z.string(), z.number()).refine((obj) => {
+        let count = 0;
+        for (const _key in obj) count++;
+        return count >= 1 && count <= 3;
+      });
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.validate(value);
+    },
+    buildErrors: () => {
+      const schema = z.record(z.string(), z.number()).refine((obj) => {
+        let count = 0;
+        for (const _key in obj) count++;
+        return count >= 1 && count <= 3;
+      });
+      const compiled = z.compile(schema);
+      return (value: unknown) => compiled.safeParse(value).success;
+    },
+  },
   'JSON_SCHEMA.string_email': {
     build: () => {
       const schema = z.email();
