@@ -27,7 +27,7 @@ export function clientRowView(row: MethodWithOptions) {
   };
 }
 
-// typed against core's option keys, so a key mion adds later is a compile error here, not a silent "added" option
+// `satisfies` makes a key mion adds later a compile error here, not a silent "added" option
 const MION_OPTION_KEYS = new Set(
   Object.keys({alwaysRun: 1, description: 1, parser: 1, isMutation: 1, sanitizeParams: 1, maxBodySize: 1} satisfies Record<
     keyof RemoteMethodOpts,

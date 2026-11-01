@@ -1,5 +1,4 @@
-// The unknown-key guard of the router options, pinned at the compiler level: `@ts-expect-error` only proves some
-// error happens, this proves the message names the key a dev mistyped, on a handler and on the router factory.
+// `@ts-expect-error` only proves some error happens; this proves the message names the mistyped option key.
 
 import {describe, it, expect} from 'vitest';
 import * as ts from 'typescript';

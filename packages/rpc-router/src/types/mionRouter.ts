@@ -31,10 +31,9 @@ import type {
 import type {ApiBuildVersion, PublicApi} from './publicMethods.ts';
 
 // ####### The typed router factory #######
-// `createMionRouter(opts)`, or the factory `customMionRouter<Types>()` returns, is the ONE way to initialize the
-// router and declare routes / middlewares. The options literal rides BY TYPE (`O`) into every helper, so the
-// router-wide `parser` reaches what the build compiles for a route; the declared types (`T`) ride beside it and
-// type `ctx.shared` and the keys every handler takes.
+// `createMionRouter` (also what `customMionRouter<Types>()` returns) is the ONE way to create the router.
+// The options (`O`) ride BY TYPE into every helper, so the build compiles each route with the router-wide `parser`.
+// The declared types (`T`) ride beside them and type `ctx.shared` and the keys every handler takes.
 // These interfaces are the ONE place a helper signature is written; lib/handlers.ts holds the bodies
 // and is TYPED BY them. `O` can only reach a declaration through a method of the object the factory
 // returns: TypeScript has no partial type application, so a plain exported function cannot capture it.
@@ -43,7 +42,7 @@ import type {ApiBuildVersion, PublicApi} from './publicMethods.ts';
 // `opts` is CompTimeArgs so the build rejects a non-literal (marker-comptime-arg-*), and it must stay
 // immediately before the first marker slot: the resolver reads the options argument at (first marker index - 1).
 
-/** What `customMionRouter<Types>()` declares; a dev fills only the parts they need. */
+/** What `customMionRouter<Types>()` declares. */
 export interface CustomRouterTypes {
   /** The type of `ctx.shared`; the factory's `contextDataFactory` must return it. */
   shared?: Record<string, any>;
@@ -55,16 +54,13 @@ export interface CustomRouterTypes {
 /** The types of a router created with plain `createMionRouter`: nothing declared. */
 export type PlainRouterTypes = object;
 
-/** The `ctx.shared` type: `never` when no `shared` part was declared. */
 type SharedOf<T> = T extends {shared: infer Shared extends Record<string, any>} ? Shared : never;
-/** The keys the `handler` part adds, none when it is absent. */
 type HandlerKeysOf<T> = T extends {handler: infer Keys} ? Keys : unknown;
 type RouterKeysOf<T> = T extends {router: infer Keys} ? Keys : unknown;
 
-/** The widest router options shape, every option optional. */
+/** The widest router options shape. */
 export type RouterOptionsInput = Partial<RouterOptions>;
-/** The options a factory accepts: `contextDataFactory` is required with a `shared` part and refused without one.
- *  Intersected, never `Omit`: a mapped type here costs every router declaration. */
+/** Intersected, never `Omit`: a mapped type here costs every router declaration. */
 type RouterOptionsInputOf<T> = RouterOptionsInput &
   RouterKeysOf<T> &
   (T extends {shared: infer Shared extends Record<string, any>}
@@ -72,10 +68,9 @@ type RouterOptionsInputOf<T> = RouterOptionsInput &
     : {contextDataFactory?: never});
 /** What plain `createMionRouter` accepts, written out so a router declaring nothing evaluates no conditional. */
 export type PlainRouterOptionsInput = RouterOptionsInput & {contextDataFactory?: never};
-/** The factory's parameter type: the options literal, with a widened `parser` and an unknown key rejected. */
+/** The factory's parameter type: the options literal, with a widened `parser` rejected. */
 export type RouterOptionsArg<O> = O & ParserLiteralGuard<O>;
-/** Part of `customMionRouter`'s constraint: an added handler key whose value is no JSON data (a function, a RegExp, a
- *  bigint) is an error, since its value goes to the client in the metadata. */
+/** In `customMionRouter`'s constraint: a non-JSON `handler` key value is an error, it reaches the client as metadata. */
 export type JsonHandlerKeys<T> = {
   [Part in keyof T]: Part extends 'handler'
     ? {[Key in keyof T[Part]]: [Extract<T[Part][Key], NonJsonValue>] extends [never] ? T[Part][Key] : NotJsonOptionKey<Key>}
@@ -86,8 +81,8 @@ type NonJsonValue = ((...args: any[]) => unknown) | bigint | symbol | RegExp | D
 interface NotJsonOptionKey<Key extends PropertyKey> {
   readonly notJsonOptionKey: Key;
 }
-/** Part of a factory's constraint, `O extends Input & KnownKeysOf<O, T>`: a key outside the router's makes `O` miss it, even next to a valid key.
- *  In the constraint, not the parameter, so inference and contextual typing never compute it. */
+/** Rejects an unknown router option key, even next to a valid one.
+ *  In the factory's constraint, not its parameter, so inference and contextual typing never compute it. */
 export type KnownKeysOf<O, T> = {
   // a wide key (`ReturnType<typeof createMionRouter>` reads `O` as any) names no option to check
   [Key in keyof O]: Key extends keyof RouterOptions | keyof RouterKeysOf<T>
@@ -97,21 +92,18 @@ export type KnownKeysOf<O, T> = {
       : UnknownOptionKey<Key>;
 };
 
-/** Intersected onto an options literal so a key outside `Allowed` is a type error, even next to a valid key:
- *  generic inference runs no excess-property check against the constraint. */
+/** Rejects a key outside `Allowed` even next to a valid one: generic inference runs no excess-property check. */
 type UnknownKeysGuard<Options, Allowed extends PropertyKey> = [keyof Options] extends [Allowed]
   ? unknown
   : {[Key in Exclude<keyof Options, Allowed>]: UnknownOptionKey<Key>};
-/** What an unknown key is typed as, so the error names it: `Type 'false' is not assignable to type 'UnknownOptionKey<"corz">'`. */
+/** What an unknown key is typed as, so the error names it: `UnknownOptionKey<"corz">`. */
 interface UnknownOptionKey<Key extends PropertyKey> {
   readonly unknownOptionKey: Key;
 }
 
-/** The options the helpers carry: `contextDataFactory` is dropped, so its inferred return type (a whole inferred
- *  database) never rides into a route's types; `ctx.shared` comes from the declared `shared` part. */
+/** Drops `contextDataFactory`, so its inferred return (a whole database type) never rides into a route's types. */
 export type CarriedOptions<O> = O extends {contextDataFactory: any} ? Omit<O, 'contextDataFactory'> : O;
 
-/** The CallContext every handler of a router receives: `ctx.shared` is typed from the `shared` part. */
 // An interface, not an alias: it resolves lazily, a few instantiations less on every router the type budget tracks.
 export interface RouterCallContext<T extends CustomRouterTypes> extends CallContext<SharedOf<T>> {
   shared: SharedOf<T>;
@@ -132,7 +124,7 @@ type HeadersRouteSlots<O, H extends HeaderHandler, RO> = MarkerSlots<HeaderHandl
 /** The two extra slots a headers middleware carries for its HeadersSubset parameter. */
 type HeaderSlots<H extends HeaderHandler> = HeaderMarkerSlots<HeaderHandlerHeaders<H>>;
 
-/** `mion.route` / `mion.query` / `mion.mutation`: declares a route whose handler context is typed from the router options.
+/** `mion.route` / `mion.query` / `mion.mutation`: declares a route whose handler context is typed from the router types.
  *  `M` is the `isMutation` the helper pins (`query` false, `mutation` true, `route` nothing), carried on the returned options. */
 export interface RouteHelper<
   O extends RouterOptionsInput,
@@ -154,7 +146,7 @@ export interface RouteHelper<
 /** The route options literal with `isMutation` pinned by the helper (`route()` leaves it as written). */
 export type PinnedMutation<RO, M extends boolean | undefined> = M extends boolean ? RO & {isMutation: M} : RO;
 
-/** `mion.middleware`: declares a middleware whose handler context is typed from the router options. */
+/** `mion.middleware`: declares a middleware whose handler context is typed from the router types. */
 export interface MiddlewareHelper<O extends RouterOptionsInput, T extends CustomRouterTypes = PlainRouterTypes> {
   <H extends Handler<RouterCallContext<T>>, const RO extends object = PlainMiddlewareOptions>(
     handler: H,
@@ -169,7 +161,7 @@ export interface MiddlewareHelper<O extends RouterOptionsInput, T extends Custom
 }
 
 /**
- * `mion.headersMiddleware`: declares a headers middleware with the context typed from the router options.
+ * `mion.headersMiddleware`: declares a headers middleware with the context typed from the router types.
  * The handler's 2nd param must be a HeadersSubset<Required, Optional>, whose header names are read at
  * build time from its runtype graph. A HeadersSubset return gets its headers written onto the response.
  * @example
@@ -203,9 +195,7 @@ export interface RawMiddlewareHelper<T extends CustomRouterTypes = PlainRouterTy
   ): RawMiddlewareDef<H>;
 }
 
-/** What a router factory returns: the route / middleware helpers plus `initRoutes`, all carrying the options and declared types.
- *  `Carried` is what the helpers carry: the options minus `contextDataFactory` on a router that shares data. Its own
- *  parameter, not `CarriedOptions<O>` inside, so a router sharing nothing evaluates no conditional (type budget). */
+/** `Carried` is its own parameter, not `CarriedOptions<O>` inside, so a router sharing nothing skips a conditional. */
 export interface MionRouter<
   O extends RouterOptionsInput = RouterOptionsInput,
   T extends CustomRouterTypes = PlainRouterTypes,
@@ -229,8 +219,7 @@ export interface MionRouter<
   ): PublicApi<R> & ApiBuildVersion<Version>;
 }
 
-/** What `customMionRouter<T>()` returns: `createMionRouter` with the declared types; the options are required
- *  when a `shared` part makes `contextDataFactory` required. */
+/** What `customMionRouter<T>()` returns: `createMionRouter` with the declared types. */
 export type CustomRouterFactory<T extends CustomRouterTypes> = T extends {shared: any}
   ? <const O extends RouterOptionsInputOf<T> & KnownKeysOf<O, T>>(
       opts: RouterOptionsArg<O>

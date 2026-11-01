@@ -217,11 +217,8 @@ export const resetRouter = () => {
   // Only a test of AOT cache loading calls it.
 };
 
-/** The ONE way to initialize the router and to declare routes and middlewares: the options are written once
- *  and carried BY TYPE into every helper the factory returns, so router-wide defaults can be read at build time.
- *  `ctx.shared` is `never` here: a router sharing data is created with `customMionRouter`. The helpers are plain
- *  closures (no `this`), so destructuring them is fine. Create the router once per app: a second call throws
- *  until `resetRouter()` (tests) clears it. */
+/** Options ride BY TYPE into every helper, so router-wide defaults are read at build time. `ctx.shared` is `never`:
+ *  a router sharing data uses `customMionRouter`. The helpers are plain closures (no `this`), safe to destructure. */
 export function createMionRouter<
   const O extends PlainRouterOptionsInput & KnownKeysOf<O, PlainRouterTypes> = Record<never, never>,
 >(opts?: RouterOptionsArg<O>): MionRouter<O> {
@@ -250,9 +247,7 @@ export function createMionRouter<
   };
 }
 
-/** Declares the types a router changes, then returns its factory: `shared` types `ctx.shared` (and the
- *  `contextDataFactory` that builds it), `router` adds router options, `handler` adds keys to every handler's
- *  options. Types only: the returned factory is `createMionRouter`.
+/** Declares a router's types (see `CustomRouterTypes`) and returns `createMionRouter` typed by them.
  *  @example
  *  ```ts
  *  export const createAppRouter = customMionRouter<{shared: {user: string}; handler: MionSecurityHandlerOptions}>();

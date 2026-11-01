@@ -781,7 +781,6 @@ it("keeps core's metadata handler types equal to the handlers it runs", () => {
   expectTypeOf<ReturnType<Middleware>>().toEqualTypeOf<ReturnType<FetchMetadataHandler>>();
 });
 
-// Keys a `customMionRouter` `handler` part adds ride the metadata like mion's own options.
 describe('added handler keys in the metadata', () => {
   type ClientReturn = SerializableMethodsData | RpcError<string>;
   type AddedKeys = MionSecurityHandlerOptions & {audit?: {level: 'high' | 'low'}};

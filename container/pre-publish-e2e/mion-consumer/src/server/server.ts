@@ -11,9 +11,8 @@ import {mionFetchMetadata} from '@mionjs/router/middlewares';
 import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
 
 // ============ Router ============
-// The options are written once here; every handler below is declared through `mion.*`
-// and `startServer` boots with `mion.initRoutes(routes)`. `shared` declares the type of
-// `ctx.shared` in every handler (what `auth` stores in it); `contextDataFactory` must return it.
+// Every handler below is declared through `mion.*`; `startServer` boots with `mion.initRoutes(routes)`.
+// `shared` types `ctx.shared` in every handler (what `auth` stores in it); `contextDataFactory` must return it.
 const mion = customMionRouter<{shared: {user: User | null}}>()({contextDataFactory: () => ({user: null})});
 
 // ============ Types ============

@@ -30,7 +30,7 @@ import {csrf, getCsrfToken, rotateCsrfToken} from './csrf.middleware.ts';
 type TestSharedData = {user: {name: string; surname: string} | null; httpMethod: string | null; page: number | null};
 const getSharedData = (): TestSharedData => ({user: null, httpMethod: null, page: null});
 // The default 100 is too few for the metadata 'all' mode to answer every method here
-// `handler` adds mionSecurity's `cors` key, so the client tests see an added key ride the metadata
+// `handler` is here so the client tests see an added key (`cors`) ride the metadata
 const mion = customMionRouter<{shared: TestSharedData; handler: MionSecurityHandlerOptions}>()({
   contextDataFactory: getSharedData,
   getAllRemoteMethodsMaxNumber: 200,

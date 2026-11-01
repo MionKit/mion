@@ -2196,9 +2196,8 @@ describe('bun test files never build the router at evaluation time', () => {
   // Bun evaluates all describe bodies before any hook in one process, so a router built there hits a sibling's once-guard.
   // The throw skips that whole file and the summary still reads `0 fail`.
   // Indentation is the nesting test: 0 is module level, 2 a describe body, deeper runs after the reset.
-  // A router is built by `createMionRouter(`, by calling what `customMionRouter<T>()` returns (inline, under an import
-  // alias, or through a const holding it), never by `customMionRouter<T>()` alone. Matched on the whole source:
-  // a `<{...}>` type argument may span lines.
+  // A build calls `createMionRouter` or what `customMionRouter<T>()` returns, never `customMionRouter<T>()` alone.
+  // Matched on the whole source: a `<{...}>` type argument may span lines.
   const evaluationTimeCalls = (source: string): string[] => {
     const customNames = ['customMionRouter', ...[...source.matchAll(/customMionRouter\s+as\s+(\w+)/g)].map((match) => match[1])];
     const custom = `(?:${customNames.join('|')})\\s*(?:<[^]*?>)?\\s*\\(\\s*\\)`;

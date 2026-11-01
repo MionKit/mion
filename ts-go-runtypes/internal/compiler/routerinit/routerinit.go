@@ -20,8 +20,7 @@ import (
 // `declare module '@mionjs/router'` form.
 const RouterModule = "@mionjs/router"
 
-// FactoryNames are the functions that create the router, a cheap pre-filter before the signature is resolved:
-// `customMionRouter<T>()` returns the factory, so the module declaring the router's types is where the import lands.
+// FactoryNames is a cheap pre-filter; a `customMionRouter<T>()` call puts the import in the module declaring the types.
 var FactoryNames = []string{"createMionRouter", "customMionRouter"}
 
 // Site is one module that creates the router.
