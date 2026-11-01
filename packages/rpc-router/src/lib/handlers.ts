@@ -92,7 +92,7 @@ export const headersMiddleware: HeadersMiddlewareHelper<RouterOptionsInput> = (
   rtFns: {paramsFns, returnFns, paramsId, returnId, isAsyncId, syncId, headersFns, headersId},
 });
 
-export const rawMiddleware: RawMiddlewareHelper<RouterOptionsInput> = (handler, opts) => ({
+export const rawMiddleware: RawMiddlewareHelper = (handler, opts) => ({
   type: HandlerType.rawMiddleware,
   handler,
   options: opts,

@@ -180,7 +180,7 @@ export interface HeadersMiddlewareHelper<O extends RouterOptionsInput, T extends
 }
 
 /** `mion.rawMiddleware`: declares a raw middleware (raw request/response access, no typed params, nothing compiled). */
-export interface RawMiddlewareHelper<O extends RouterOptionsInput, T extends object = PlainRouterTypes> {
+export interface RawMiddlewareHelper<T extends object = PlainRouterTypes> {
   <H extends RawMiddlewareHandler<RouterCallContext<T>>, const RO extends object = RawMiddlewareOptions>(
     handler: H,
     opts?: RO &
@@ -198,7 +198,7 @@ export interface MionRouter<O extends RouterOptionsInput = RouterOptionsInput, T
   readonly mutation: RouteHelper<O, T, true>;
   readonly middleware: MiddlewareHelper<O, T>;
   readonly headersMiddleware: HeadersMiddlewareHelper<O, T>;
-  readonly rawMiddleware: RawMiddlewareHelper<O, T>;
+  readonly rawMiddleware: RawMiddlewareHelper<T>;
   /** Once per app, and synchronous: the compiled type functions were injected at build time, so nothing loads here.
    *  `buildVersion` is filled by the build, never by hand: the server answers with it so a client can spot stale routes. */
   initRoutes<R extends Routes, const Version extends string = string>(
