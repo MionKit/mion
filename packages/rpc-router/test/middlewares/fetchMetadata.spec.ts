@@ -178,7 +178,7 @@ describe('Client Routes should', () => {
   const initApp = (opts: {getAllRemoteMethodsMaxNumber?: number} = {}) =>
     createApp({contextDataFactory: getSharedData, ...opts}).initRoutes({mionFetchMetadata, ...routes});
 
-  const defaultRouteOpts: RouteOnlyOptions = {
+  const defaultRouteOpts = {
     alwaysRun: false,
     parser: {params: 'clone', return: 'clone'},
     description: undefined,
@@ -186,12 +186,12 @@ describe('Client Routes should', () => {
     // every chain here carries `auth`, whose `token: string` has no maximum, so each route publishes
     // the platform's number (the shared default with no adapter)
     maxBodySize: DEFAULT_MAX_BODY_SIZE,
-  };
-  const defaultMiddlewareOpts: RemoteMethodOpts = {
+  } satisfies RouteOnlyOptions;
+  const defaultMiddlewareOpts = {
     alwaysRun: false,
     description: undefined,
     parser: {params: 'clone', return: 'clone'},
-  };
+  } satisfies RemoteMethodOpts;
 
   const methodsMetadata = {
     'users/getUser': {
