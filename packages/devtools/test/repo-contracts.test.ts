@@ -472,12 +472,12 @@ describe('the compile-time bench loads what its lanes install', () => {
   const read = (file: string) => readFileSync(join(REPO_ROOT, file), 'utf8');
 
   it('imports the vite plugin from the subpath the mion lane uses, which the devtools export', () => {
-    const subpath = /importExport\([^)]*'@mionjs\/devtools'\), '([^']+)'\)/.exec(
+    const subpath = /import \w+ from '@mionjs\/devtools(\/[^']+)'/.exec(
       read('container/benchmarks/compiletime/compiletime.mjs')
     )?.[1];
     expect(subpath).toBeDefined();
-    expect(read('container/benchmarks/competitors/mion/vite.config.ts')).toContain(`from '@mionjs/devtools${subpath!.slice(1)}'`);
-    expect(JSON.parse(read('packages/devtools/package.json')).exports[subpath!]).toBeDefined();
+    expect(read('container/benchmarks/competitors/mion/vite.config.ts')).toContain(`from '@mionjs/devtools${subpath}'`);
+    expect(JSON.parse(read('packages/devtools/package.json')).exports[`.${subpath}`]).toBeDefined();
   });
 
   it('skips a TypeScript with no parser API, such as the TypeScript 7 the typia lane installs', () => {
