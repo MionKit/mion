@@ -68,8 +68,6 @@ import {
 } from './lib/handlers.ts';
 import type {CallContext} from './types/context.ts';
 import type {
-  CustomRouterFactory,
-  CustomRouterTypes,
   HeadersMiddlewareHelper,
   JsonHandlerKeys,
   KnownKeysOf,
@@ -79,8 +77,10 @@ import type {
   RawMiddlewareHelper,
   RouteHelper,
   RouterOptionsInput,
-  PlainRouterOptionsInput,
   RouterOptionsArg,
+  RouterTypes,
+  TypedRouterFactory,
+  WithShared,
 } from './types/mionRouter.ts';
 
 type RouterKeyEntryList = [string, RouterEntry][];
@@ -217,11 +217,11 @@ export const resetRouter = () => {
   // Only a test of AOT cache loading calls it.
 };
 
-/** Options ride BY TYPE into every helper, so router-wide defaults are read at build time. `ctx.shared` is `never`:
- *  a router sharing data uses `customMionRouter`. The helpers are plain closures (no `this`), safe to destructure. */
-export function createMionRouter<
-  const O extends PlainRouterOptionsInput & KnownKeysOf<O, PlainRouterTypes> = Record<never, never>,
->(opts?: RouterOptionsArg<O>): MionRouter<O> {
+/** Options ride BY TYPE into every helper, so router-wide defaults are read at build time and `ctx.shared` is typed from
+ *  `sharedDataFactory`'s written return type. The helpers are plain closures (no `this`), safe to destructure. */
+export function createMionRouter<const O extends RouterOptionsInput & KnownKeysOf<O, PlainRouterTypes> = Record<never, never>>(
+  opts?: RouterOptionsArg<O>
+): MionRouter<O, WithShared<O, PlainRouterTypes>> {
   if (isRouterCreated)
     throw new Error(
       'createMionRouter has already been called: create the router once per app (resetRouter() clears it in tests)'
@@ -230,12 +230,12 @@ export function createMionRouter<
   const options = Object.freeze({...opts}) as Readonly<O>;
   return {
     options,
-    route: route as RouteHelper<O>,
-    query: query as RouteHelper<O, PlainRouterTypes, false>,
-    mutation: mutation as RouteHelper<O, PlainRouterTypes, true>,
-    middleware: middleware as MiddlewareHelper<O>,
-    headersMiddleware: headersMiddleware as HeadersMiddlewareHelper<O>,
-    rawMiddleware: rawMiddleware as RawMiddlewareHelper,
+    route: route as RouteHelper<O, WithShared<O, PlainRouterTypes>>,
+    query: query as RouteHelper<O, WithShared<O, PlainRouterTypes>, false>,
+    mutation: mutation as RouteHelper<O, WithShared<O, PlainRouterTypes>, true>,
+    middleware: middleware as MiddlewareHelper<O, WithShared<O, PlainRouterTypes>>,
+    headersMiddleware: headersMiddleware as HeadersMiddlewareHelper<O, WithShared<O, PlainRouterTypes>>,
+    rawMiddleware: rawMiddleware as RawMiddlewareHelper<O, WithShared<O, PlainRouterTypes>>,
     // Typed by MionRouter, the one place its signature is written.
     initRoutes(routes, buildVersion) {
       initRouter(options, buildVersion);
@@ -247,15 +247,18 @@ export function createMionRouter<
   };
 }
 
-/** Declares a router's types (see `CustomRouterTypes`) and returns `createMionRouter` typed by them.
+/** Declares the keys a router adds (see `RouterTypes`) and returns `createMionRouter` typed by them. Types only: a type
+ *  argument on `createMionRouter` itself would stop the options literal from being inferred.
  *  @example
  *  ```ts
- *  export const createAppRouter = customMionRouter<{shared: {user: string}; handler: MionSecurityHandlerOptions}>();
- *  const mion = createAppRouter({contextDataFactory: () => ({user: ''})});
+ *  const mion = createMionRouter.withTypes<{handler: MionSecurityHandlerOptions}>()({basePath: 'api'});
+ *  mion.route(handler, {cors: false});
  *  ``` */
-export function customMionRouter<T extends CustomRouterTypes & JsonHandlerKeys<T> = PlainRouterTypes>(): CustomRouterFactory<T> {
-  return createMionRouter as unknown as CustomRouterFactory<T>;
-}
+createMionRouter.withTypes = function withTypes<
+  T extends RouterTypes & JsonHandlerKeys<T> = PlainRouterTypes,
+>(): TypedRouterFactory<T> {
+  return createMionRouter as unknown as TypedRouterFactory<T>;
+};
 
 /** Once per app; `resetRouter()` clears it. */
 function initRouter(opts: RouterOptionsInput, version?: string): void {
@@ -700,15 +703,15 @@ function getExecutablesFromMiddlewaresCollection(
 }
 
 function validateSharedDataFactory(opts?: Partial<RouterOptions>): void {
-  if (!opts?.contextDataFactory) return;
-  const testSharedData = opts.contextDataFactory();
+  if (!opts?.sharedDataFactory) return;
+  const testSharedData = opts.sharedDataFactory();
   if (
     typeof testSharedData !== 'object' ||
     Array.isArray(testSharedData) ||
     testSharedData === null ||
     Object.keys(testSharedData).length === 0
   ) {
-    throw new Error('contextDataFactory must return a plain object with at least one property');
+    throw new Error('sharedDataFactory must return a plain object with at least one property');
   }
 }
 

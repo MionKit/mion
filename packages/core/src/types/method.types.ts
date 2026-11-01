@@ -67,7 +67,7 @@ export interface RouteOnlyOptions extends RemoteMethodOpts {
   alwaysRun: false;
   parser: ResolvedParser;
 }
-/** The index signature makes the metadata codec keep the keys a `customMionRouter` `handler` part added. */
+/** The index signature makes the metadata codec keep the keys a `createMionRouter` `handler` part added. */
 export interface MethodOptionsMetadata extends RemoteMethodOpts {
   [addedKey: string]: unknown;
 }

@@ -7,7 +7,7 @@
 import {describe, it, expect, beforeEach, afterEach} from 'vitest';
 import {createServer, type Server} from 'http';
 import {
-  customMionRouter,
+  createMionRouter,
   resetRouter,
   getPlatformConfig,
   setHostOwnsSocket,
@@ -24,9 +24,9 @@ import type {CallContext, Route} from '@mionjs/router';
 
 describe('startNodeServer({asMiddleware: true})', () => {
   type SimpleUser = {name: string; surname: string};
-  const getSharedData = () => ({auth: {me: null as any}});
-  const mion = customMionRouter<{shared: ReturnType<typeof getSharedData>}>()({
-    contextDataFactory: getSharedData,
+  const getSharedData = (): {auth: {me: any}} => ({auth: {me: null}});
+  const mion = createMionRouter({
+    sharedDataFactory: getSharedData,
     basePath: 'api/',
   });
   const changeUserName: Route = mion.route(

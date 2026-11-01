@@ -13,7 +13,7 @@
 // is created once per module.
 
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
-import {customMionRouter, resetRouter} from '@mionjs/router';
+import {createMionRouter, resetRouter} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
 import {StatusCodes} from '@mionjs/core';
 import {resetUwsHttpOpts, setUwsHttpOpts, startUwsServer, type UwsServer} from '../src/uwsHttp.ts';
@@ -24,8 +24,8 @@ const uploadBytes = 3_000_000;
 const chunkBytes = 20_000;
 const chunkEveryMs = 100; // 200 KB/s: ~15s of upload, past uWS' 10s idle timeout
 
-const mion = customMionRouter<{shared: {user: null}}>()({
-  contextDataFactory: () => ({user: null}),
+const mion = createMionRouter({
+  sharedDataFactory: (): {user: null} => ({user: null}),
   basePath: 'api/',
   pathTransform: (request, path: string): string => {
     if (path.includes('boom')) throw new Error('pathTransform exploded');

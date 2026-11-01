@@ -6,7 +6,7 @@
  * ######## */
 
 import {RpcError} from '@mionjs/core';
-import {PublicApi, Routes, customMionRouter} from '@mionjs/router';
+import {PublicApi, Routes, createMionRouter} from '@mionjs/router';
 import {mionFetchMetadata} from '@mionjs/router/middlewares';
 
 // NOTE: regular imports only — the resolver reads types from the program, but the
@@ -15,10 +15,10 @@ import {mionFetchMetadata} from '@mionjs/router/middlewares';
 type SimpleUser = {name: string; age: number};
 
 // The router is created and its routes initialized in this one file; the test imports
-// it and then starts the server. The contextDataFactory must return a plain object with
+// it and then starts the server. The sharedDataFactory must return a plain object with
 // at least one property (the router validates it at init), so give it the shape a real
 // app would carry.
-const mion = customMionRouter<{shared: {user: null}}>()({contextDataFactory: () => ({user: null})});
+const mion = createMionRouter({sharedDataFactory: (): {user: null} => ({user: null})});
 
 const routes = {
     // serves route metadata to a client that fetches it

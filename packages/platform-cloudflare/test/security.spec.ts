@@ -10,14 +10,14 @@
 // runs inside the guard, and the router's own body limit is the only limit this platform has.
 
 import {describe, it, expect, beforeAll} from 'vitest';
-import {customMionRouter, resetRouter, addStartMiddlewares, addEndMiddlewares} from '@mionjs/router';
+import {createMionRouter, resetRouter, addStartMiddlewares, addEndMiddlewares} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
 import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
 import {createCloudflareHandler, resetCloudflareHandlerOpts, setCloudflareHandlerOpts} from '../src/cloudflareHandler.ts';
 
 type RpcBody = Record<string, unknown> & Record<typeof MION_ROUTES.thrownErrors, Record<string, PublicRpcError<string>>>;
 
-const mion = customMionRouter<{shared: {user: null}}>()({contextDataFactory: () => ({user: null}), basePath: 'api/'});
+const mion = createMionRouter({sharedDataFactory: (): {user: null} => ({user: null}), basePath: 'api/'});
 
 type SimpleUser = {name: string; surname: string};
 const echo = mion.route((ctx: CallContext, user: SimpleUser): SimpleUser => user);

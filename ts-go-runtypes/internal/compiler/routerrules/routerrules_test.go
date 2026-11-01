@@ -34,7 +34,10 @@ const routerDts = `declare module '@mionjs/router' {
     readonly rawMiddleware: RawMiddlewareHelper;
   }
   export function createMionRouter(opts?: unknown): MionRouter;
-  export function customMionRouter<T = {}>(): (opts?: unknown) => MionRouter;
+  export interface TypedRouterFactory { (opts?: unknown): MionRouter }
+  export namespace createMionRouter {
+    function withTypes<T = {}>(): TypedRouterFactory;
+  }
   // The package's OWN internal helper bodies (lib/handlers.ts), typed by the same
   // interfaces, which is how the framework declares its built-in routes.
   export const route: RouteHelper;
@@ -272,8 +275,8 @@ export const bad = route((ctx, name: string) => name);
 const {route: declare_} = createMionRouter();
 export const bad = declare_((ctx, name: string) => name);
 `,
-		"custom": `import {customMionRouter} from '@mionjs/router';
-const mion = customMionRouter<{handler: {cors?: false}}>()();
+		"withTypes": `import {createMionRouter} from '@mionjs/router';
+const mion = createMionRouter.withTypes<{handler: {cors?: false}}>()();
 export const bad = mion.route((ctx, name: string) => name);
 `,
 	}
@@ -296,10 +299,10 @@ export const bad = mion.route((ctx, name: string) => name);
 	}), diagnostics.CodeRouteMissingReturnType)
 }
 
-func TestRouterShapes_CustomFactoryInAnotherModule(t *testing.T) {
+func TestRouterShapes_WithTypesFactoryInAnotherModule(t *testing.T) {
 	assertCodes(t, check(t, map[string]string{
-		"appRouter.ts": `import {customMionRouter} from '@mionjs/router';
-export const createAppRouter = customMionRouter<{shared: {user: string}}>();
+		"appRouter.ts": `import {createMionRouter} from '@mionjs/router';
+export const createAppRouter = createMionRouter.withTypes<{handler: {cors?: false}}>();
 `,
 		"mion.ts": `import {createAppRouter} from './appRouter.ts';
 export const mion = createAppRouter();
@@ -560,5 +563,61 @@ func TestArgsFollowTheHeadlineSlots(t *testing.T) {
 		if index < 0 || !slices.Equal(found[index].Args, want) {
 			t.Errorf("%s args, want %q\n%s", code, want, render(found))
 		}
+	}
+}
+
+// rpc-handler-shared-factory-untyped: `ctx.shared` comes from the factory's return, which a client infers from the
+// body unless it is written.
+func TestSharedDataFactory_InferredReturnIsReported(t *testing.T) {
+	cases := map[string]string{
+		"inline": `import {createMionRouter} from '@mionjs/router';
+export const mion = createMionRouter({sharedDataFactory: () => ({user: null})});
+`,
+		"withTypes": `import {createMionRouter} from '@mionjs/router';
+export const mion = createMionRouter.withTypes<{handler: {cors?: false}}>()({sharedDataFactory: () => ({user: null})});
+`,
+		"variable": `import {createMionRouter} from '@mionjs/router';
+const getShared = () => ({user: null});
+export const mion = createMionRouter({sharedDataFactory: getShared});
+`,
+		"shorthand": `import {createMionRouter} from '@mionjs/router';
+function sharedDataFactory() { return {user: null}; }
+export const mion = createMionRouter({sharedDataFactory});
+`,
+		"alias": `import {createMionRouter as create} from '@mionjs/router';
+export const mion = create({sharedDataFactory: () => ({user: null})});
+`,
+	}
+	for name, source := range cases {
+		t.Run(name, func(t *testing.T) {
+			assertCodes(t, check(t, map[string]string{"router.ts": source}), diagnostics.CodeRouteSharedFactoryUntyped)
+		})
+	}
+}
+
+func TestSharedDataFactory_WrittenReturnIsFine(t *testing.T) {
+	cases := map[string]string{
+		"inline": `import {createMionRouter} from '@mionjs/router';
+export const mion = createMionRouter({sharedDataFactory: (): {user: null} => ({user: null})});
+`,
+		"variable": `import {createMionRouter} from '@mionjs/router';
+const getShared = (): {user: null} => ({user: null});
+export const mion = createMionRouter({sharedDataFactory: getShared});
+`,
+		"typedVariable": `import {createMionRouter} from '@mionjs/router';
+const getShared: () => {user: null} = () => ({user: null});
+export const mion = createMionRouter({sharedDataFactory: getShared});
+`,
+		"method": `import {createMionRouter} from '@mionjs/router';
+export const mion = createMionRouter({sharedDataFactory(): {user: null} { return {user: null}; }});
+`,
+		"sameNamedLocal": `function createMionRouter(opts: unknown) { return opts; }
+export const mion = createMionRouter({sharedDataFactory: () => ({user: null})});
+`,
+	}
+	for name, source := range cases {
+		t.Run(name, func(t *testing.T) {
+			assertCodes(t, check(t, map[string]string{"router.ts": source}))
+		})
 	}
 }

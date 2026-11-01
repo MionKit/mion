@@ -785,7 +785,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   'rpc-batch-router-init-hidden': {
     headline:
-      'The batch table {file} was written, but no module of this program calls `createMionRouter` or `customMionRouter` directly, so nothing imports it; import it by hand in the module that creates the router.',
+      'The batch table {file} was written, but no module of this program calls `createMionRouter` directly, so nothing imports it; import it by hand in the module that creates the router.',
     level: 'runtimeError',
     family: 'marker',
     slots: ['file'],
@@ -926,6 +926,12 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     level: 'runtimeError',
     family: 'mionroute',
     slots: ['handler', 'errorType'],
+  },
+  'rpc-handler-shared-factory-untyped': {
+    headline:
+      '`sharedDataFactory` has no written return type, so every client computes it from the body; write it, `ctx.shared` is typed from it.',
+    level: 'warning',
+    family: 'mionroute',
   },
   'rpc-handler-throws': {
     headline:

@@ -88,7 +88,7 @@ export function getSerializableMethod(executable: RemoteMethod): MethodWithOptio
     paramNames: executable.paramNames,
     // a route whose types could not say takes the platform's number: filled in here, once, so the
     // client sees the limit the server really applies (the adapter has published it by now)
-    // registration copied the keys a `customMionRouter` added onto the options: they go to the client as written
+    // registration copied the keys a `createMionRouter` added onto the options: they go to the client as written
     options: (executable.type === HandlerType.route && executable.options.maxBodySize === undefined
       ? {...executable.options, maxBodySize: getPlatformMaxBodySize()}
       : executable.options) as MethodOptionsMetadata,

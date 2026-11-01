@@ -78,5 +78,5 @@ export const myApp = {
 // a new object per request, so one request never sees another's user
 export const getSharedData = (): {me: User | null} => ({me: null});
 
-export type ContextData = ReturnType<typeof getSharedData>;
-export type Context = CallContext<ContextData>;
+export type SharedData = ReturnType<typeof getSharedData>;
+export type Context = CallContext<SharedData>;

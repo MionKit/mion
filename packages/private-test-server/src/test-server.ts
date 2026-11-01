@@ -7,7 +7,7 @@
  * ######## */
 
 import {RpcError, FatalError, HeadersSubset} from '@mionjs/core';
-import {PublicApi, Routes, customMionRouter} from '@mionjs/router';
+import {PublicApi, Routes, createMionRouter} from '@mionjs/router';
 import {mionFetchMetadata} from '@mionjs/router/middlewares';
 import type {MionSecurityHandlerOptions} from '@mionjs/router';
 import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
@@ -31,8 +31,8 @@ type TestSharedData = {user: {name: string; surname: string} | null; httpMethod:
 const getSharedData = (): TestSharedData => ({user: null, httpMethod: null, page: null});
 // The default 100 is too few for the metadata 'all' mode to answer every method here
 // `handler` is here so the client tests see an added key (`cors`) ride the metadata
-const mion = customMionRouter<{shared: TestSharedData; handler: MionSecurityHandlerOptions}>()({
-  contextDataFactory: getSharedData,
+const mion = createMionRouter.withTypes<{handler: MionSecurityHandlerOptions}>()({
+  sharedDataFactory: getSharedData,
   getAllRemoteMethodsMaxNumber: 200,
 });
 const {route, headersMiddleware, middleware, query, mutation, rawMiddleware} = mion;

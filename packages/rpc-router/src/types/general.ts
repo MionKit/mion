@@ -6,7 +6,7 @@
  * ######## */
 
 import {CoreRouterOptions, ParserOption} from '@mionjs/core';
-import {CallContext, ContextDataFactory} from './context.ts';
+import {CallContext, SharedDataFactory} from './context.ts';
 import {AnyHeadersMiddlewareDef, AnyMiddlewareDef, RawMiddlewareDef, RouteDef} from './definitions.ts';
 // #######  Router Object #######
 
@@ -22,15 +22,15 @@ export interface Routes {
 // ####### Router Options #######
 
 /** Global Router Options */
-export interface RouterOptions<Req = any, ContextData extends Record<string, any> = any> extends CoreRouterOptions {
+export interface RouterOptions<Req = any, SharedData extends Record<string, any> = any> extends CoreRouterOptions {
   /** basePath for all routes, i.e: api/v1. A path separator is added after it */
   basePath: string;
   /** suffix for all routes, i.e: .json. No path separator is added before it */
   suffix: string;
   /** Transform the path before finding a route */
   pathTransform?: (request: Req, path: string) => string;
-  /** factory function to initialize shared call context data */
-  contextDataFactory?: ContextDataFactory<ContextData>;
+  /** Creates `ctx.shared` on each request; its written return type is the type of `ctx.shared` */
+  sharedDataFactory?: SharedDataFactory<SharedData>;
   /** The router-wide parser strategy: a string sets both directions, an object `params` and `return`.
    *  A BUILD-TIME literal, so a widened value is a type error; a route's own `parser` overrides it.
    *  @default {params: 'clone', return: 'clone'} */
@@ -84,7 +84,7 @@ export interface MionSecurityOptions {
   csrf?: false | MionCsrfSettings;
 }
 
-/** Handler option keys `mionSecurity` reads; add with `customMionRouter<{handler: MionSecurityHandlerOptions}>()` */
+/** Handler option keys `mionSecurity` reads; add with `createMionRouter.withTypes<{handler: MionSecurityHandlerOptions}>()()` */
 export interface MionSecurityHandlerOptions {
   /** `false` keeps every header the handler declares off the CORS lists, like `excludeHeaders`; still sent */
   cors?: false;

@@ -6,7 +6,6 @@
 package routerinit
 
 import (
-	"slices"
 	"sort"
 	"strings"
 
@@ -20,8 +19,12 @@ import (
 // `declare module '@mionjs/router'` form.
 const RouterModule = "@mionjs/router"
 
-// FactoryNames is a cheap pre-filter; a `customMionRouter<T>()` call puts the import in the module declaring the types.
-var FactoryNames = []string{"createMionRouter", "customMionRouter"}
+// FactoryName is a cheap pre-filter before the signature is resolved.
+const FactoryName = "createMionRouter"
+
+// WithTypesName is the member that returns the factory typed by the router's declared keys: a
+// `createMionRouter.withTypes<T>()` call marks its module as the router-init module too.
+const WithTypesName = "withTypes"
 
 // Site is one module that creates the router.
 type Site struct {
@@ -91,7 +94,7 @@ func callsFactory(typeChecker *checker.Checker, markerOpts marker.Options, sourc
 	// Text pre-filter: this runs on every Program rebuild, and resolving a symbol per call across the whole
 	// program is the cost. The file it skips can only reach the factory through a barrel that RENAMES it,
 	// deliberately not detected; rpc-batch-router-init-hidden covers a program left without a router-init module.
-	if text := sourceFile.Text(); !strings.Contains(text, RouterModule) && !slices.ContainsFunc(FactoryNames, func(name string) bool { return strings.Contains(text, name) }) {
+	if text := sourceFile.Text(); !strings.Contains(text, FactoryName) && !strings.Contains(text, RouterModule) {
 		return false
 	}
 	found := false
@@ -122,11 +125,17 @@ func isFactoryCall(typeChecker *checker.Checker, markerOpts marker.Options, call
 	if nameNode == nil {
 		return false
 	}
+	if nameNode.Text() == WithTypesName && callExpr.Expression.Kind == ast.KindPropertyAccessExpression {
+		nameNode = identifierOrMemberName(callExpr.Expression.AsPropertyAccessExpression().Expression)
+		if nameNode == nil {
+			return false
+		}
+	}
 	symbol := typeChecker.GetSymbolAtLocation(nameNode)
 	if symbol != nil && symbol.Flags&ast.SymbolFlagsAlias != 0 {
 		symbol = typeChecker.GetAliasedSymbol(symbol)
 	}
-	if symbol == nil || !slices.Contains(FactoryNames, symbol.Name) {
+	if symbol == nil || symbol.Name != FactoryName {
 		return false
 	}
 	signature := checker.Checker_getResolvedSignature(typeChecker, call, nil, 0)
@@ -141,7 +150,11 @@ func calleeNameNode(callExpr *ast.CallExpression) *ast.Node {
 	if callExpr == nil || callExpr.Expression == nil {
 		return nil
 	}
-	expr := callExpr.Expression
+	return identifierOrMemberName(callExpr.Expression)
+}
+
+// identifierOrMemberName returns the identifier itself, or the member name of `ns.f`.
+func identifierOrMemberName(expr *ast.Node) *ast.Node {
 	switch expr.Kind {
 	case ast.KindIdentifier:
 		return expr

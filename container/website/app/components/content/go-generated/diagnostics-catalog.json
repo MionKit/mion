@@ -1177,6 +1177,15 @@
       "example": null
     },
     {
+      "code": "rpc-handler-shared-factory-untyped",
+      "subsystem": "mion-routes",
+      "level": "warning",
+      "headline": "`sharedDataFactory` has no written return type, so every client computes it from the body; write it, `ctx.shared` is typed from it.",
+      "summary": "`ctx.shared` is typed from what `sharedDataFactory` returns. A client types the router by inferring its whole options object, so a factory with no written return type makes every client compute that return from the body, a whole database type included, even when every route is slim. Write the return type; a database the client never needs can be declared `unknown` and cast on the server.",
+      "fix": "createMionRouter({sharedDataFactory: (): {user: User | null} => ({user: null})});",
+      "example": null
+    },
+    {
       "code": "rpc-handler-throws",
       "subsystem": "mion-routes",
       "level": "runtimeError",
@@ -1243,8 +1252,8 @@
       "code": "rpc-batch-router-init-hidden",
       "subsystem": "batches",
       "level": "runtimeError",
-      "headline": "The batch table {file} was written, but no module of this program calls `createMionRouter` or `customMionRouter` directly, so nothing imports it; import it by hand in the module that creates the router.",
-      "summary": "The build adds the batch table import to every module that calls `createMionRouter` or `customMionRouter` from `@mionjs/router`, following aliases, namespace imports and local re-export files. It found none, for example because a wrapper from another package creates the router, so the server never loads the table. Import the table yourself in the module that creates the router (path relative to that module), or call `createMionRouter` or `customMionRouter` from a source file of this project.",
+      "headline": "The batch table {file} was written, but no module of this program calls `createMionRouter` directly, so nothing imports it; import it by hand in the module that creates the router.",
+      "summary": "The build adds the batch table import to every module that calls `createMionRouter` from `@mionjs/router`, following aliases, namespace imports and local re-export files. It found none, for example because a wrapper from another package creates the router, so the server never loads the table. Import the table yourself in the module that creates the router (path relative to that module), or call `createMionRouter` from a source file of this project.",
       "fix": "import './<genDir>/rpc/batches.generated.js';",
       "example": null
     },

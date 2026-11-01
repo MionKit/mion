@@ -58,7 +58,7 @@ export function createContextFromChain(
     headers: respHeaders,
     body: {},
   };
-  const contextDataFactory = getRouterOptions().contextDataFactory;
+  const sharedDataFactory = getRouterOptions().sharedDataFactory;
 
   return {
     path: chain.path ?? path,
@@ -68,7 +68,7 @@ export function createContextFromChain(
     maxBodySize: chain.maxBodySize,
     readsBody: chain.readsBody,
     // Eager: a lazy defineProperty puts contexts in V8 dictionary mode (2x heap, 6% less throughput at 1 KB)
-    shared: contextDataFactory ? contextDataFactory() : {},
+    shared: sharedDataFactory ? sharedDataFactory() : {},
     urlQuery,
     batchId: chain.batchId,
     batchRouteIds: chain.batchRouteIds,

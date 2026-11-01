@@ -6,14 +6,15 @@
  * ######## */
 
 import {RpcError, HeadersSubset} from '@mionjs/core';
-import {PublicApi, Routes, customMionRouter} from '@mionjs/router';
+import {PublicApi, Routes, createMionRouter} from '@mionjs/router';
 import {mionFetchMetadata} from '@mionjs/router/middlewares';
 import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
 
 // ============ Router ============
-// Every handler below is declared through `mion.*`; `startServer` boots with `mion.initRoutes(routes)`.
-// `shared` types `ctx.shared` in every handler (what `auth` stores in it); `contextDataFactory` must return it.
-const mion = customMionRouter<{shared: {user: User | null}}>()({contextDataFactory: () => ({user: null})});
+// The options are written once here; every handler below is declared through `mion.*`
+// and `startServer` boots with `mion.initRoutes(routes)`. The factory's return type IS
+// the type of `ctx.shared` in every handler, so spell out what `auth` will store in it.
+const mion = createMionRouter({sharedDataFactory: (): {user: User | null} => ({user: null})});
 
 // ============ Types ============
 // NOTE: Regular imports only! Never use `import type` for types that need reflection.

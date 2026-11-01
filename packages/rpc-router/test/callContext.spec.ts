@@ -8,7 +8,7 @@
 // A handler may keep its context past the response without reading nulls or another request's data.
 
 import {describe, it, expect, beforeEach} from 'vitest';
-import {createMionRouter, customMionRouter, resetRouter} from '../src/router.ts';
+import {createMionRouter, resetRouter} from '../src/router.ts';
 import {dispatchRoute} from '../src/dispatch.ts';
 import {createCallContext} from '../src/callContext.ts';
 import {headersFromRecord} from '../src/lib/headers.ts';
@@ -25,7 +25,7 @@ describe('call context per request', () => {
 
   /** Registers one echo route that records the context it ran with. */
   const setup = (seen: CallContext[]): void => {
-    const mion = customMionRouter<{shared: {tag: string}}>()({contextDataFactory: () => ({tag: 'none'})});
+    const mion = createMionRouter({sharedDataFactory: (): {tag: string} => ({tag: 'none'})});
     mion.initRoutes({
       echo: mion.route((ctx, user: User): User => {
         seen.push(ctx as CallContext);

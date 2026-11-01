@@ -493,7 +493,7 @@ routes.orders.getById(inputFrom(user, 'toUserId'));`,
 		Fix:     "inputFrom(user, 'toOrgId')",
 	},
 	CodeBatchNoRouterInit: {
-		Summary: "The build adds the batch table import to every module that calls `createMionRouter` or `customMionRouter` from `@mionjs/router`, following aliases, namespace imports and local re-export files. It found none, for example because a wrapper from another package creates the router, so the server never loads the table. Import the table yourself in the module that creates the router (path relative to that module), or call `createMionRouter` or `customMionRouter` from a source file of this project.",
+		Summary: "The build adds the batch table import to every module that calls `createMionRouter` from `@mionjs/router`, following aliases, namespace imports and local re-export files. It found none, for example because a wrapper from another package creates the router, so the server never loads the table. Import the table yourself in the module that creates the router (path relative to that module), or call `createMionRouter` from a source file of this project.",
 		Fix:     "import './<genDir>/rpc/batches.generated.js';",
 	},
 
@@ -1071,6 +1071,10 @@ export const removeToolbarKeys = createRemoveUnknownKeysFn<Toolbar>(undefined, {
 	CodeRouteThrowInHandler: {
 		Summary: "A returned error stays in the handler's signature, so the client gets it typed at the call site. A thrown one goes to the undeclared `@thrownErrors` slot, and the client sees only its public message. A `throw` caught by `try` and `catch` in the same handler is not reported. If a throw is on purpose, add `// @mion-expect-error rpc-handler-throws` above it and say why.",
 		Fix:     "return new RpcError({statusCode: 404, name: 'not-found', publicMessage: 'no pet'});",
+	},
+	CodeRouteSharedFactoryUntyped: {
+		Summary: "`ctx.shared` is typed from what `sharedDataFactory` returns. A client types the router by inferring its whole options object, so a factory with no written return type makes every client compute that return from the body, a whole database type included, even when every route is slim. Write the return type; a database the client never needs can be declared `unknown` and cast on the server.",
+		Fix:     "createMionRouter({sharedDataFactory: (): {user: User | null} => ({user: null})});",
 	},
 	CodeRouteReturnedErrorType: {
 		Summary: "A returned `RpcError` (or any subclass) goes to its own typed slot, and the client gets it typed. A plain `Error`, a class extending it, or a bare `TypedError` fails the request and goes to the undeclared `@thrownErrors` slot, so your declared return type is no longer true. Answer with an `RpcError` or a `FatalError`.",
