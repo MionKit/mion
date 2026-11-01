@@ -13,14 +13,10 @@
 // The document lives on the case as plain data so ajv compiles the very same
 // bytes. The other competitors do NOT consume it: they express the same
 // constraint in their own dialect, which is what makes the row a comparison
-// rather than a capability check. Where a dialect cannot state the constraint at
-// all, that competitor declares NOT_SUPPORTED and the cell reads n-a — verified
-// against the pinned versions, never assumed:
-//   - TypeBox carries `propertyNames` in the schema but never compiles it into
-//     a check.
-//   - zod has no array `uniqueItems` / `contains` and no key-count bounds.
-//   - typia has no regex-keyed index signature, no count-of-matching-items tag,
-//     and no key-count bounds.
+// rather than a capability check. Where a dialect cannot state the constraint
+// with a feature, it uses a leaf custom check doing the same work (a zod
+// `.check`, a TypeBox `Type.Refine`, a typia custom tag); a competitor declares
+// NOT_SUPPORTED only when neither can, and the cell reads n-a.
 //
 // The samples encode OUR semantics, always — they are the mion truth the
 // alignment audit measures everyone against, never a lowest common denominator.
