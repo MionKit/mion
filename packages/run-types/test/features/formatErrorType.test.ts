@@ -195,7 +195,7 @@ describe('ip — the address or the port', () => {
     ['nope:80', 'address'],
     ['192.168.0.1:99999', 'port'],
     ['192.168.0.1:abc', 'port'],
-    // The port is required: missing or empty is a port problem.
+    // The port is required.
     ['192.168.0.1', 'port'],
     ['192.168.0.1:', 'port'],
     // Both wrong: the address outranks the port.
