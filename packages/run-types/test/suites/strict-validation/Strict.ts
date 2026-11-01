@@ -20,7 +20,8 @@ export function undeclaredKeyErrors(value: unknown, declared: DeclaredKeys, path
     if (!Array.isArray(value)) return [];
     return value.flatMap((item, index) => undeclaredKeyErrors(item, declared[0], [...path, index]));
   }
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return [];
+  // An array in an object position is an object: its index keys are keys, as the generated check counts them.
+  if (typeof value !== 'object' || value === null) return [];
   const props = declared as {readonly [key: string]: DeclaredKeys | null};
   const errors: RTValidationError[] = [];
   for (const key of Object.keys(value)) {

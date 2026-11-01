@@ -123,7 +123,7 @@ describe('checkUnknowns — parity with the plain validator plus a key walk', ()
   const errorsStrict = createGetValidationErrorsFn<Person>(undefined, {checkUnknowns: true});
   const typeErrors = createGetValidationErrorsFn<Person>();
 
-  // Admitted by the object guard; an array, Map or Date is a shape error only, its indexes never undeclared keys.
+  // Admitted by the object guard. A Map or Date has no enumerable keys; an array's indexes are undeclared keys.
   const objectCorpus: unknown[] = [
     {name: 'Ada', age: 36, address: {street: 'A', city: 'B'}},
     {name: 'Ada', age: 36, address: {street: 'A', city: 'B'}, tags: ['x']},
@@ -135,6 +135,8 @@ describe('checkUnknowns — parity with the plain validator plus a key walk', ()
     {},
     [],
     [{name: 'Ada'}],
+    Object.assign([], {name: 'Ada', age: 36, address: {street: 'A', city: 'B'}}),
+    Object.assign([1], {name: 'Ada', age: 36, address: {street: 'A', city: 'B'}}),
     new Map(),
     new Date(),
   ];

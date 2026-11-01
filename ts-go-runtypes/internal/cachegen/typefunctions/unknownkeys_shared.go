@@ -207,10 +207,6 @@ func unknownKeysObjectGuard(v string) string {
 	return "typeof " + v + " === 'object' && " + v + " !== null && !Array.isArray(" + v + ")"
 }
 
-func guardStatement(guard, body string) string {
-	return "if (" + guard + ") {" + body + "}"
-}
-
 // siblingNamedKeysCtxKey names the context item holding the parent object's sibling-named-prop set for `idxSig`.
 // Keyed by the index sig's own RunType ID, the only canonical handle it has: parent-relative data must never live on a
 // shared canonical node.
