@@ -306,8 +306,9 @@ export const STRING_FORMAT = {
   },
   ipv4_port: {
     title: 'FormatIPv4WithPort — v4 with port',
-    getSamples: () => ({valid: ['192.168.0.1:8080'], invalid: ['192.168.0.1:70000', '192.168.0.1', '192.168.0.1:']}),
+    getSamples: () => ({valid: ['192.168.0.1:8080'], invalid: ['192.168.0.1:70000', '192.168.0.1', '192.168.0.1:', '010.0.0.1:8080']}),
     expectedFormatErrors: () => [
+      {name: 'ip', val: 4},
       {name: 'ip', val: 4},
       {name: 'ip', val: 4},
       {name: 'ip', val: 4},

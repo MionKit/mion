@@ -2751,7 +2751,7 @@ export const cases: CompetitorCases = {
     build: () => {
       const schema = z
         .string()
-        .regex(/^(\d{1,3}\.){3}\d{1,3}:\d+$/)
+        .regex(/^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d):\d+$/)
         .refine((text) => {
           const [ip, portStr] = text.split(':');
           const port = +portStr;
@@ -2764,7 +2764,7 @@ export const cases: CompetitorCases = {
     buildErrors: () => {
       const schema = z
         .string()
-        .regex(/^(\d{1,3}\.){3}\d{1,3}:\d+$/)
+        .regex(/^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d):\d+$/)
         .refine((text) => {
           const [ip, portStr] = text.split(':');
           const port = +portStr;
