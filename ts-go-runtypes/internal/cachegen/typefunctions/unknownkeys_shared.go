@@ -175,6 +175,10 @@ func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 		if resolved.IsStatic || isMethodMember(resolved.Kind) {
 			continue
 		}
+		// An array's `length` passes the property check but is not enumerable, so the count would miss it.
+		if resolved.Name == "length" {
+			return 0, false
+		}
 		if resolved.Optional {
 			return 0, false
 		}

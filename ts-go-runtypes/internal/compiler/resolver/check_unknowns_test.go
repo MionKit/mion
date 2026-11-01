@@ -412,6 +412,38 @@ func assertNoArraySkip(t *testing.T, source string) {
 	}
 }
 
+// A declared `length` keeps the validator off the key count: an array passes the `length` check without enumerating it.
+func TestCheckUnknowns_DeclaredLengthSkipsKeyCount(t *testing.T) {
+	assertKeyScanNotCount(t, `import {createValidateFn} from '@mionjs/run-types';
+interface Sized {id: number; length: number}
+export const isSized = createValidateFn<Sized>(undefined, {checkUnknowns: true});
+`)
+}
+
+func TestCheckUnknowns_DeclaredLengthSkipsKeyCount_ValueFirst(t *testing.T) {
+	assertKeyScanNotCount(t, `import {createValidateFn} from '@mionjs/run-types';
+interface Sized {id: number; length: number}
+const sample: Sized = {id: 1, length: 0};
+export const isSized = createValidateFn(sample, {checkUnknowns: true});
+`)
+}
+
+func assertKeyScanNotCount(t *testing.T, source string) {
+	t.Helper()
+	modules := scanEntryModules(t, source)
+	name, ok := findEntryWith(modules, familyPrefix(t, "validateStrict"))
+	if !ok {
+		t.Fatalf("no validateStrict entry emitted\nmodules: %v", keys(modules))
+	}
+	body := fnBodyOf(modules[name])
+	if strings.Contains(body, purefnids.CountEnumKeys) {
+		t.Errorf("a declared `length` took the key count, which misses an array's non-enumerable length:\n%s", body)
+	}
+	if !strings.Contains(body, purefnids.HasUnknownKeysFromArray) {
+		t.Errorf("a declared `length` lost its key scan:\n%s", body)
+	}
+}
+
 // objectGuardNeedle is the guard as it appears INSIDE an emitted module, where
 // the body is a JS string literal and its quotes are backslash-escaped.
 const objectGuardNeedle = `typeof v === \'object\'`
