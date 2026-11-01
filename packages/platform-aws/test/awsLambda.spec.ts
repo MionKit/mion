@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect, beforeAll} from 'vitest';
-import {createMionRouter, resetRouter, addStartMiddlewares, addEndMiddlewares} from '@mionjs/router';
+import {customMionRouter, resetRouter, addStartMiddlewares, addEndMiddlewares} from '@mionjs/router';
 import {awsLambdaHandler, resetAwsLambdaOpts, setAwsLambdaOpts} from '../src/awsLambda.ts';
 import type {CallContext, Route} from '@mionjs/router';
 import type {APIGatewayProxyEvent, APIGatewayProxyEventHeaders} from 'aws-lambda';
@@ -33,7 +33,7 @@ describe('serverless router', () => {
     },
   };
   const getSharedData = () => ({auth: {me: null as any}});
-  const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+  const mion = customMionRouter<{shared: MySharedData}>()({contextDataFactory: getSharedData, basePath: 'api/'});
 
   const changeUserName: Route = mion.route((ctx: Context, user: SimpleUser): SimpleUser => {
     return myApp.db.changeUserName(user);
@@ -209,7 +209,9 @@ describe('serverless router', () => {
       resetRouter();
       // `changeUserName` takes a plain SimpleUser (unbounded strings), so the adapter's number applies
       setAwsLambdaOpts({maxBodySize: 50});
-      createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'}).initRoutes({changeUserName});
+      customMionRouter<{shared: MySharedData}>()({contextDataFactory: getSharedData, basePath: 'api/'}).initRoutes({
+        changeUserName,
+      });
       const requestData = JSON.stringify({changeUserName: [{name: 'John', surname: 'Doe'}]});
       expect(requestData.length).toBeGreaterThan(50);
       const {event, context} = getBase64GatewayEvent(requestData, '/api/changeUserName');
@@ -240,7 +242,7 @@ describe('serverless router', () => {
     beforeAll(async () => {
       resetAwsLambdaOpts();
       resetRouter();
-      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+      const jsonRouter = customMionRouter<{shared: MySharedData}>()({contextDataFactory: getSharedData, basePath: 'api/'});
       jsonRouter.initRoutes({changeUserName, getDate});
     });
 
@@ -280,7 +282,7 @@ describe('serverless router', () => {
     beforeAll(() => {
       resetAwsLambdaOpts();
       resetRouter();
-      const app = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+      const app = customMionRouter<{shared: MySharedData}>()({contextDataFactory: getSharedData, basePath: 'api/'});
       const echo = app.route((ctx: CallContext, user: SimpleUser): SimpleUser => user);
       const plainStart = app.rawMiddleware((ctx: CallContext) => {
         seen.push(`start:${ctx.path}`);
@@ -344,7 +346,7 @@ describe('serverless router', () => {
     resetAwsLambdaOpts();
     // the router calls it once at init to check its shape, so only a request's call throws
     let calls = 0;
-    const failing = createMionRouter({
+    const failing = customMionRouter<{shared: {checked: boolean}}>()({
       basePath: 'api/',
       contextDataFactory: () => {
         if (calls++) throw new Error('secret detail');

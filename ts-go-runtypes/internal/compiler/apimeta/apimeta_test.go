@@ -394,6 +394,42 @@ export const a = routes.r(1).call();
 	}
 }
 
+// The keys a customMionRouter `handler` part adds ride the resolved options as an intersection
+// (ResolvedRouteOptions in packages/rpc-router): read like mion's own, a widened one reported.
+func TestWalkApi_ReadsAddedOptionKeysOffTheIntersection(t *testing.T) {
+	overlay := setupOverlay(t, map[string]string{"a.ts": `import {initClient} from '@mionjs/client';
+type Base = {alwaysRun: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined};
+type Types = {params: [n: number]; return: number; headers: never; isAsync: false};
+type Api = {
+  hidden: {type: 1; handler: (n: number) => Promise<number>; options: Base & {cors: false; audit: {level: 'high'}}; types?: Types};
+  wide: {type: 1; handler: (n: number) => Promise<number>; options: Base & {cors: boolean}; types?: Types};
+};
+const {routes} = initClient<Api>({});
+export const a = routes.hidden(1).call();
+export const b = routes.wide(1).call();
+`})
+	sites, _ := overlay.extract()
+	for _, site := range sites {
+		tree, problem := WalkApi(site.Checker, site.ApiType)
+		if problem != "" {
+			t.Fatalf("WalkApi: %s", problem)
+		}
+		hidden := tree.ById["hidden"].Options
+		if hidden["cors"] != false || hidden["alwaysRun"] != false {
+			t.Errorf("hidden options %v", hidden)
+		}
+		if audit, _ := hidden["audit"].(map[string]any); audit["level"] != "high" {
+			t.Errorf("a nested added key is read whole, got %v", hidden["audit"])
+		}
+		if strings.Join(tree.ById["wide"].WidenedOptions, ",") != "cors" {
+			t.Errorf("widened %v", tree.ById["wide"].WidenedOptions)
+		}
+		if _, present := tree.ById["wide"].Options["cors"]; present {
+			t.Errorf("a widened added key must stay unset")
+		}
+	}
+}
+
 // Every value shape readOptions meets has a row: read whole, or reported widened, never guessed.
 func TestReadOptions_EveryValueShapeHasARow(t *testing.T) {
 	overlay := setupOverlay(t, map[string]string{"a.ts": `import {initClient} from '@mionjs/client';

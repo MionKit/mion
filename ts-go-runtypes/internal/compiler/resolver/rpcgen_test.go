@@ -26,6 +26,7 @@ import (
 // router-init detector reads: the factory's declaring module is what matters.
 const routerDTS = `declare module '@mionjs/router' {
   export function createMionRouter(opts?: unknown): {initRoutes: (routes: unknown) => unknown};
+  export function customMionRouter<T = {}>(): (opts?: unknown) => {initRoutes: (routes: unknown) => unknown};
 }
 `
 
@@ -295,11 +296,18 @@ func TestRpc_RouterInitDetectionShapes(t *testing.T) {
 	// the import lands there, which is enough (the caller imports the wrapper's module)
 	sources["wrapper.ts"] = "import {createMionRouter} from '@mionjs/router';\nexport const createApi = (opts?: unknown) => createMionRouter(opts);\n"
 	sources["viaWrapper.ts"] = "import {createApi} from './wrapper.ts';\nexport const m = createApi();\n"
+	// `customMionRouter<T>()` returns the factory: the module declaring the router's types is the router-init module
+	sources["custom.ts"] = "import {customMionRouter} from '@mionjs/router';\nexport const createAppRouter = customMionRouter<{shared: {a: 1}}>();\n"
+	sources["viaCustom.ts"] = "import {createAppRouter} from './custom.ts';\nexport const m = createAppRouter();\n"
+	sources["customAlias.ts"] = "import {customMionRouter as custom} from '@mionjs/router';\nexport const m = custom()();\n"
+	sources["customNs.ts"] = "import * as router from '@mionjs/router';\nexport const m = router.customMionRouter();\n"
+	sources["customLocal.ts"] = "function customMionRouter() { return () => 1; }\nexport const m = customMionRouter()();\n"
 	r := setupGen(t, sources, t.TempDir())
 	gen := generate(t, r)
 
 	want := map[string]bool{
 		"alias.ts": true, "ns.ts": true, "viaBarrel.ts": true, "wrapper.ts": true,
+		"custom.ts": true, "customAlias.ts": true, "customNs.ts": true, "viaCustom.ts": false, "customLocal.ts": false,
 		"typeOnly.ts": false, "local.ts": false, "barrel.ts": false, "renamingBarrel.ts": false, "viaRenamingBarrel.ts": false, "viaWrapper.ts": false,
 	}
 	for file, expect := range want {
@@ -498,6 +506,29 @@ func TestRpc_NoRouterInitButRouterImported(t *testing.T) {
 	// the by-hand import the warning asks for resolves: the table is where it says
 	if _, err := os.Stat(filepath.Join(outDir, "rpc", "batches.generated.js")); err != nil {
 		t.Errorf("table missing: %v", err)
+	}
+}
+
+// TestRpc_CustomRouterOnlyNeedsNoHandImport: a program creating its router only through `customMionRouter`
+// gets the batch import in the module calling it, and no rpc-batch-router-init-hidden.
+func TestRpc_CustomRouterOnlyNeedsNoHandImport(t *testing.T) {
+	sources := rpcSources()
+	delete(sources, "server.ts")
+	sources["appRouter.ts"] = "import {customMionRouter} from '@mionjs/router';\nexport const createAppRouter = customMionRouter<{handler: {cors?: false}}>();\n"
+	sources["server.ts"] = "import {createAppRouter} from './appRouter.ts';\nexport const api = createAppRouter().initRoutes({});\n"
+	r := setupGen(t, sources, t.TempDir())
+	gen := generate(t, r)
+	for _, diag := range gen.Diagnostics {
+		if diag.Code == "rpc-batch-router-init-hidden" {
+			t.Errorf("unexpected %s: %v", diag.Code, diag.Args)
+		}
+	}
+	want := tspath.ResolvePath(r.Program.TS.GetCurrentDirectory(), "appRouter.ts")
+	if strings.Join(gen.RouterInitFiles, ",") != want {
+		t.Errorf("RouterInitFiles = %v, want [%s]", gen.RouterInitFiles, want)
+	}
+	if code := transform(t, r, "appRouter.ts"); !strings.Contains(code, "batches.generated") {
+		t.Errorf("the batch import must land in the module calling customMionRouter:\n%s", code)
 	}
 }
 

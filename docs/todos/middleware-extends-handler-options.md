@@ -179,3 +179,27 @@ this change touched, review its report against the code, and commit it as its ow
 - Plain `createMionRouter` rejects `contextDataFactory` at the type level; every use moved to `customMionRouter`.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file,
   each committed on its own.
+
+## Plan: customMionRouter build (approved 2026-10-31)
+
+- **Types** (`packages/rpc-router/src/types/`): `CustomRouterTypes` (`shared`, `router`, `handler`) rides as `T`
+  next to `O` on `MionRouter` and every helper. `ctx` is `CallContext<SharedOf<T>>`, `never` without `shared`.
+  Handler option constraints resolve once per router; a strict-key guard (`ParserLiteralGuard` style) inside
+  `CompTimeArgs<...>` rejects an unknown key on every helper and on the factory options. Plain
+  `createMionRouter` types `contextDataFactory` as `never`; the custom factory requires `() => S` when `shared`
+  is declared. `ContextDataOf` removed. `PublicHandler` matches `(ctx: any, ...)` so a `never`-shared handler
+  keeps its client type. `ResolvedRouteOptions` / `ResolvedMiddlewareOptions` carry the extra keys of `RO`.
+- **Runtime**: `customMionRouter<T>()` returns `createMionRouter`. Registration copies extra keys onto
+  `options`, fixed keys after. Core `RemoteMethodOpts` gains an index signature so the `clone` metadata
+  route keeps extra keys both ways.
+- **Security**: `MionSecurityHandlerOptions = {cors?: false}`; `describeChain` excludes a `cors: false`
+  member's headers last, beside `excludeHeaders`. Per-chain cache kept, keyed by the chain object (WeakMap):
+  not-found and batch chains have no id, identity lookup needs no key building, and entries die with their
+  chain instead of outliving `resetRouter`.
+- **Build**: `routerinit` accepts `customMionRouter`; diagnostic prose names both factories; catalog regenerated.
+- **Migration**: every `contextDataFactory` use moves to `customMionRouter`.
+- **Tests**: type tests for shared / factory / router keys / handler keys / unknown keys / client API type;
+  runtime key copy; metadata serialization (server, clone round trip, fetched + bundled client lanes, drift);
+  security `cors: false`; Go router init, apimeta, apigen, api version; devtools batch build; type budget.
+- **Docs**: middleware, security, call-context, linter pages; examples move to `customMionRouter`.
+- **Fuzzing**: none, no input space with a cheap oracle.

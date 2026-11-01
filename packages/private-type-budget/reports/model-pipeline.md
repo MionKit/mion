@@ -24,11 +24,11 @@ checker.
 | 1 | slim table + row | 884 | 884 | 884 |
 | 2 | refineTableType | 1082 | 1082 | 1966 |
 | 3 | Infer* models | 545 | 545 | 2511 |
-| 4 | mion route api | 504 | 525 | 3015 |
-| 5 | initClient | 3127 | 3179 | 6142 |
-| 6 | db query (toDrizzle) | 8470 | 8470 | 14612 |
+| 4 | mion route api | 508 | 525 | 3019 |
+| 5 | initClient | 3160 | 3179 | 6179 |
+| 6 | db query (toDrizzle) | 8470 | 8470 | 14649 |
 
-Total for the whole chain: **14612**, against a total budget of **14718**.
+Total for the whole chain: **14649**, against a total budget of **14718**.
 
 | Downstream consumer, read from the emitted `.d.ts` | Value |
 | ---- | ----: |
@@ -44,11 +44,11 @@ Total for the whole chain: **14612**, against a total budget of **14718**.
 | 1 | slim table + row | 903 | 903 | 903 |
 | 2 | refineTableType | 1079 | 1079 | 1982 |
 | 3 | Infer* models | 545 | 545 | 2527 |
-| 4 | mion route api | 504 | 525 | 3031 |
-| 5 | initClient | 3127 | 3179 | 6158 |
-| 6 | db query (toDrizzle) | 7143 | 7143 | 13301 |
+| 4 | mion route api | 508 | 525 | 3035 |
+| 5 | initClient | 3160 | 3179 | 6195 |
+| 6 | db query (toDrizzle) | 7143 | 7143 | 13338 |
 
-Total for the whole chain: **13301**, against a total budget of **13407**.
+Total for the whole chain: **13338**, against a total budget of **13407**.
 
 | Downstream consumer, read from the emitted `.d.ts` | Value |
 | ---- | ----: |
@@ -64,11 +64,11 @@ Total for the whole chain: **13301**, against a total budget of **13407**.
 | 1 | slim table + row | 908 | 908 | 908 |
 | 2 | refineTableType | 1074 | 1074 | 1982 |
 | 3 | Infer* models | 545 | 545 | 2527 |
-| 4 | mion route api | 503 | 524 | 3030 |
-| 5 | initClient | 3127 | 3179 | 6157 |
-| 6 | db query (toDrizzle) | 7317 | 7317 | 13474 |
+| 4 | mion route api | 507 | 524 | 3034 |
+| 5 | initClient | 3160 | 3179 | 6194 |
+| 6 | db query (toDrizzle) | 7317 | 7317 | 13511 |
 
-Total for the whole chain: **13474**, against a total budget of **13580**.
+Total for the whole chain: **13511**, against a total budget of **13580**.
 
 | Downstream consumer, read from the emitted `.d.ts` | Value |
 | ---- | ----: |

@@ -7,8 +7,9 @@
  * ######## */
 
 import {RpcError, FatalError, HeadersSubset} from '@mionjs/core';
-import {PublicApi, Routes, createMionRouter} from '@mionjs/router';
+import {PublicApi, Routes, customMionRouter} from '@mionjs/router';
 import {mionFetchMetadata} from '@mionjs/router/middlewares';
+import type {MionSecurityHandlerOptions} from '@mionjs/router/middlewares';
 import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
 import type {Server as HttpServer} from 'node:http';
 import type {Server as HttpsServer} from 'node:https';
@@ -29,7 +30,11 @@ import {csrf, getCsrfToken, rotateCsrfToken} from './csrf.middleware.ts';
 type TestSharedData = {user: {name: string; surname: string} | null; httpMethod: string | null; page: number | null};
 const getSharedData = (): TestSharedData => ({user: null, httpMethod: null, page: null});
 // The default 100 is too few for the metadata 'all' mode to answer every method here
-const mion = createMionRouter({contextDataFactory: getSharedData, getAllRemoteMethodsMaxNumber: 200});
+// `handler` adds mionSecurity's `cors` key, so the client tests see an added key ride the metadata
+const mion = customMionRouter<{shared: TestSharedData; handler: MionSecurityHandlerOptions}>()({
+  contextDataFactory: getSharedData,
+  getAllRemoteMethodsMaxNumber: 200,
+});
 const {route, headersMiddleware, middleware, query, mutation, rawMiddleware} = mion;
 
 // ============ Batch chain fixtures (flow/*) ============
@@ -265,6 +270,7 @@ const routes = {
 
   // ============ JSON routes (default parser) ============
   sayHello: route((_ctx, user: User): string | RpcError<'some-error'> => `Hello ${user.name} ${user.surname}`),
+  corsOff: route((_ctx, name: string): string => `Hello ${name}`, {cors: false}),
   alwaysFails: route((ctx, user: User): User | RpcError<'unknown-error'> => {
     return new RpcError({publicMessage: 'Something fails', type: 'unknown-error'});
   }),

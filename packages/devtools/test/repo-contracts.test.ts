@@ -2200,7 +2200,11 @@ describe('bun test files never build the router at evaluation time', () => {
     source
       .split('\n')
       .map((line, index) => ({line, number: index + 1}))
-      .filter(({line}) => /createMionRouter\s*\(/.test(line) && /^ {0,2}\S/.test(line) && !/^\s*(\/\/|\*)/.test(line))
+      // `customMionRouter<T>()` alone only returns the factory: calling what it returns builds the router
+      .filter(
+        ({line}) =>
+          /createMionRouter\s*\(|customMionRouter\b.*\)\s*\(/.test(line) && /^ {0,2}\S/.test(line) && !/^\s*(\/\/|\*)/.test(line)
+      )
       .map(({line, number}) => `${number}: ${line.trim()}`);
 
   const bunTestFiles = globSync('**/*.{test,spec}.ts', {cwd: BUN_PACKAGE, exclude: (name) => name === 'node_modules'});

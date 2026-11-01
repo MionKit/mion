@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {expect, test, beforeAll, afterAll, describe, setDefaultTimeout} from 'bun:test';
-import {createMionRouter, resetRouter, getPlatformConfig, setHostOwnsSocket, getHostRequestHandler} from '@mionjs/router';
+import {customMionRouter, resetRouter, getPlatformConfig, setHostOwnsSocket, getHostRequestHandler} from '@mionjs/router';
 import {setBunHttpOpts, resetBunHttpOpts, startBunServer, bunRequestHandler} from '../src/bunHttp.ts';
 import {CallContext} from '@mionjs/router';
 import {Server} from 'bun';
@@ -28,7 +28,10 @@ describe('bun asMiddleware should', () => {
   beforeAll(async () => {
     resetBunHttpOpts();
     resetRouter();
-    const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+    const mion = customMionRouter<{shared: ReturnType<typeof getSharedData>}>()({
+      contextDataFactory: getSharedData,
+      basePath: 'api/',
+    });
     const changeUserName = mion.route((context: Context, user: SimpleUser): SimpleUser => {
       return {name: 'NewName', surname: user.surname};
     });

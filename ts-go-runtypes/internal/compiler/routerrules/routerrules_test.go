@@ -34,6 +34,7 @@ const routerDts = `declare module '@mionjs/router' {
     readonly rawMiddleware: RawMiddlewareHelper;
   }
   export function createMionRouter(opts?: unknown): MionRouter;
+  export function customMionRouter<T = {}>(): (opts?: unknown) => MionRouter;
   // The package's OWN internal helper bodies (lib/handlers.ts), typed by the same
   // interfaces, which is how the framework declares its built-in routes.
   export const route: RouteHelper;
@@ -271,6 +272,10 @@ export const bad = route((ctx, name: string) => name);
 const {route: declare_} = createMionRouter();
 export const bad = declare_((ctx, name: string) => name);
 `,
+		"custom": `import {customMionRouter} from '@mionjs/router';
+const mion = customMionRouter<{handler: {cors?: false}}>()();
+export const bad = mion.route((ctx, name: string) => name);
+`,
 	}
 	for name, source := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -284,6 +289,21 @@ func TestRouterShapes_LocalBarrel(t *testing.T) {
 	assertCodes(t, check(t, map[string]string{
 		"mion.ts": `import {createMionRouter} from '@mionjs/router';
 export const mion = createMionRouter();
+`,
+		"routes.ts": `import {mion} from './mion.ts';
+export const bad = mion.route((ctx, name: string) => name);
+`,
+	}), diagnostics.CodeRouteMissingReturnType)
+}
+
+func TestRouterShapes_CustomFactoryInAnotherModule(t *testing.T) {
+	// The router types are declared in one module, the router created from the returned factory in another.
+	assertCodes(t, check(t, map[string]string{
+		"appRouter.ts": `import {customMionRouter} from '@mionjs/router';
+export const createAppRouter = customMionRouter<{shared: {user: string}}>();
+`,
+		"mion.ts": `import {createAppRouter} from './appRouter.ts';
+export const mion = createAppRouter();
 `,
 		"routes.ts": `import {mion} from './mion.ts';
 export const bad = mion.route((ctx, name: string) => name);

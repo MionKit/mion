@@ -6,27 +6,39 @@ import {DIALECTS} from './routeVariants.ts';
 
 describe.each(DIALECTS)('%s database context boundary', (dialect) => {
   it('measures database context cost separately from public result types', () => {
-    const imports = `import {createMionRouter} from '@mionjs/router';
+    const imports = `import {createMionRouter, customMionRouter} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
 import {db, usersDb} from '../db/${dialect}.types.db.ts';
 import type {User} from '../db/${dialect}.types.ts';`;
+    // every router sharing data declares its `shared` type: the factory return is checked against it, never inferred
+    const dbRouter = 'customMionRouter<{shared: {db: typeof db}}>()({contextDataFactory: () => ({db})})';
     const results = [
-      ['empty context', '{}', '_ctx', 'db'],
-      ['small context', "{contextDataFactory: () => ({requestId: 'request'})}", '_ctx', 'db'],
-      ['database context', '{contextDataFactory: () => ({db})}', 'ctx', 'ctx.shared.db'],
-      ['unused database context', '{contextDataFactory: () => ({db})}', '_ctx', 'db'],
-      ['light handler context', '{contextDataFactory: () => ({db})}', '_ctx: CallContext<{}>', 'db'],
-      ['opaque database context', '{contextDataFactory: (): {db: unknown} => ({db})}', 'ctx', '(ctx.shared.db as typeof db)'],
-      ['written database context', '{contextDataFactory: () => ({db})}', 'ctx: CallContext<{db: typeof db}>', 'ctx.shared.db'],
-    ].map(([name, options, context, database]) => {
-      const measured = measureCase(`${imports}\nconst mion = createMionRouter(${options});`, {
+      ['empty context', 'createMionRouter({})', '_ctx', 'db'],
+      [
+        'small context',
+        "customMionRouter<{shared: {requestId: string}}>()({contextDataFactory: () => ({requestId: 'request'})})",
+        '_ctx',
+        'db',
+      ],
+      ['database context', dbRouter, 'ctx', 'ctx.shared.db'],
+      ['unused database context', dbRouter, '_ctx', 'db'],
+      ['light handler context', dbRouter, '_ctx: CallContext<{}>', 'db'],
+      [
+        'opaque database context',
+        'customMionRouter<{shared: {db: unknown}}>()({contextDataFactory: (): {db: unknown} => ({db})})',
+        'ctx',
+        '(ctx.shared.db as typeof db)',
+      ],
+      ['written database context', dbRouter, 'ctx: CallContext<{db: typeof db}>', 'ctx.shared.db'],
+    ].map(([name, router, context, database]) => {
+      const measured = measureCase(`${imports}\nconst mion = ${router};`, {
         name,
         body: `list: mion.route(async (${context}, id: User['id']): Promise<User[]> => ${database}.select().from(usersDb))`,
         paramsOnly: `list: mion.route((${context}, id: User['id']): void => {})`,
       });
       expect(measured.errors, name).toEqual([]);
       const registered = measureRegisteredClient(
-        `${imports}\nconst mion = createMionRouter(${options});`,
+        `${imports}\nconst mion = ${router};`,
         `list: mion.route(async (${context}, id: User['id']): Promise<User[]> => ${database}.select().from(usersDb))`
       );
       expect(registered.errors, name).toEqual([]);
@@ -36,11 +48,14 @@ import type {User} from '../db/${dialect}.types.ts';`;
     expect(cost('unused database context')).toBe(cost('database context'));
     expect(cost('opaque database context')).toBeLessThan(cost('empty context') * 1.1);
 
-    const exposed = measureCase(`${imports}\nconst mion = createMionRouter({contextDataFactory: (): {db: unknown} => ({db})});`, {
-      name: 'inferred database result',
-      body: "list: mion.route(async (ctx, id: User['id']) => (ctx.shared.db as typeof db).select().from(usersDb))",
-      paramsOnly: "list: mion.route((ctx, id: User['id']): void => {})",
-    });
+    const exposed = measureCase(
+      `${imports}\nconst mion = customMionRouter<{shared: {db: unknown}}>()({contextDataFactory: (): {db: unknown} => ({db})});`,
+      {
+        name: 'inferred database result',
+        body: "list: mion.route(async (ctx, id: User['id']) => (ctx.shared.db as typeof db).select().from(usersDb))",
+        paramsOnly: "list: mion.route((ctx, id: User['id']): void => {})",
+      }
+    );
     expect(exposed.errors).toEqual([]);
     expect(exposed.rawClient).toBeGreaterThan(cost('opaque database context'));
     const report = fileURLToPath(new URL('../reports/', import.meta.url));

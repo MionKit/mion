@@ -33,7 +33,7 @@ const (
 	// call. Args: [0] the mapper id.
 	CodeBatchMapperMissing = "rpc-batch-mapper-missing"
 	// CodeBatchNoRouterInit: batches exist and this program names `@mionjs/router`, but no module
-	// calls `createMionRouter` directly (it sits behind a wrapper the build cannot see through), so
+	// calls `createMionRouter` or `customMionRouter` directly (it sits behind a wrapper the build cannot see through), so
 	// the table was written and nothing imports it. Args: [0] the table module's path.
 	CodeBatchNoRouterInit = "rpc-batch-router-init-hidden"
 )
@@ -47,7 +47,7 @@ func init() {
 		{Code: CodeBatchDuplicateRoute, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "The same route is listed twice in one `batch()`"},
 		{Code: CodeBatchMappingParamOutOfRange, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "`inputFrom()` sits at an argument position the target route does not declare"},
 		{Code: CodeBatchMapperMissing, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Raised: RaisedWholeProgram, Title: "A batch names an inline `inputFrom()` mapper the build produced no pure function for"},
-		{Code: CodeBatchNoRouterInit, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Raised: RaisedWholeProgram, Title: "The batch table was written but no module calls `createMionRouter` directly, so nothing imports it"},
+		{Code: CodeBatchNoRouterInit, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Raised: RaisedWholeProgram, Title: "The batch table was written but no module calls `createMionRouter` or `customMionRouter` directly, so nothing imports it"},
 	} {
 		register(definition)
 	}

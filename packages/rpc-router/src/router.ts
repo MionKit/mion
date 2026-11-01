@@ -68,12 +68,17 @@ import {
 } from './lib/handlers.ts';
 import type {CallContext} from './types/context.ts';
 import type {
+  CustomRouterFactory,
+  CustomRouterTypes,
   HeadersMiddlewareHelper,
+  KnownKeysOf,
   MiddlewareHelper,
   MionRouter,
+  PlainRouterTypes,
   RawMiddlewareHelper,
   RouteHelper,
   RouterOptionsInput,
+  PlainRouterOptionsInput,
   RouterOptionsArg,
 } from './types/mionRouter.ts';
 
@@ -212,13 +217,13 @@ export const resetRouter = () => {
 };
 
 /** The ONE way to initialize the router and to declare routes and middlewares: the options are written once
- *  and carried BY TYPE into every helper the factory returns, so a handler's `ctx.shared` is typed from
- *  `contextDataFactory` and router-wide defaults can be read at build time. The helpers are plain closures
- *  (no `this`), so destructuring them is fine. Create the router once per app: a second call throws until
- *  `resetRouter()` (tests) clears it. */
-export function createMionRouter<const O extends RouterOptionsInput = RouterOptionsInput>(
-  opts?: RouterOptionsArg<O>
-): MionRouter<O> {
+ *  and carried BY TYPE into every helper the factory returns, so router-wide defaults can be read at build time.
+ *  `ctx.shared` is `never` here: a router sharing data is created with `customMionRouter`. The helpers are plain
+ *  closures (no `this`), so destructuring them is fine. Create the router once per app: a second call throws
+ *  until `resetRouter()` (tests) clears it. */
+export function createMionRouter<
+  const O extends PlainRouterOptionsInput & KnownKeysOf<O, PlainRouterTypes> = Record<never, never>,
+>(opts?: RouterOptionsArg<O>): MionRouter<O> {
   if (isRouterCreated)
     throw new Error(
       'createMionRouter has already been called: create the router once per app (resetRouter() clears it in tests)'
@@ -228,11 +233,11 @@ export function createMionRouter<const O extends RouterOptionsInput = RouterOpti
   return {
     options,
     route: route as RouteHelper<O>,
-    query: query as RouteHelper<O, false>,
-    mutation: mutation as RouteHelper<O, true>,
+    query: query as RouteHelper<O, PlainRouterTypes, false>,
+    mutation: mutation as RouteHelper<O, PlainRouterTypes, true>,
     middleware: middleware as MiddlewareHelper<O>,
     headersMiddleware: headersMiddleware as HeadersMiddlewareHelper<O>,
-    rawMiddleware: rawMiddleware as RawMiddlewareHelper<O>,
+    rawMiddleware: rawMiddleware as RawMiddlewareHelper,
     // Typed by MionRouter, the one place its signature is written.
     initRoutes(routes, buildVersion) {
       initRouter(options, buildVersion);
@@ -242,6 +247,18 @@ export function createMionRouter<const O extends RouterOptionsInput = RouterOpti
       return api;
     },
   };
+}
+
+/** Declares the types a router changes, then returns its factory: `shared` types `ctx.shared` (and the
+ *  `contextDataFactory` that builds it), `router` adds router options, `handler` adds keys to every handler's
+ *  options. Types only: the returned factory is `createMionRouter`.
+ *  @example
+ *  ```ts
+ *  export const createAppRouter = customMionRouter<{shared: {user: string}; handler: MionSecurityHandlerOptions}>();
+ *  const mion = createAppRouter({contextDataFactory: () => ({user: ''})});
+ *  ``` */
+export function customMionRouter<T extends CustomRouterTypes = PlainRouterTypes>(): CustomRouterFactory<T> {
+  return createMionRouter as unknown as CustomRouterFactory<T>;
 }
 
 /** Once per app; `resetRouter()` clears it. */
@@ -537,7 +554,9 @@ export function getExecutableFromMiddleware(
       alwaysRun: !!middleware.options?.alwaysRun,
       quotedId: JSON.stringify(middlewareId),
       ...reflectionData,
+      // added keys first, so mion's own always win
       options: {
+        ...middleware.options,
         alwaysRun: !!middleware.options?.alwaysRun,
         description: middleware.options?.description,
         parser,
@@ -585,6 +604,7 @@ export function getExecutableFromRawMiddleware(
     quotedId: JSON.stringify(middlewareId),
     ...reflectionData,
     options: {
+      ...middleware.options,
       alwaysRun: !!middleware.options?.alwaysRun,
       description: middleware.options?.description,
     },
@@ -615,6 +635,7 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
       quotedId: JSON.stringify(routeId),
       ...reflectionData,
       options: {
+        ...route.options,
         alwaysRun: false,
         description: route.options?.description,
         parser,

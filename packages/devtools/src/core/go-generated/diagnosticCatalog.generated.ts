@@ -785,7 +785,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   'rpc-batch-router-init-hidden': {
     headline:
-      'The batch table {file} was written, but no module of this program calls `createMionRouter` directly, so nothing imports it; import it by hand in the module that creates the router.',
+      'The batch table {file} was written, but no module of this program calls `createMionRouter` or `customMionRouter` directly, so nothing imports it; import it by hand in the module that creates the router.',
     level: 'runtimeError',
     family: 'marker',
     slots: ['file'],

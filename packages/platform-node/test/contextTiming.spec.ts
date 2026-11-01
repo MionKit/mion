@@ -13,12 +13,12 @@
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {createConnection} from 'net';
 import type {Server} from 'http';
-import {createMionRouter, resetRouter} from '@mionjs/router';
+import {customMionRouter, resetRouter} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
 import {resetNodeHttpOpts, setNodeHttpOpts, startNodeServer} from '../src/mionHttp.ts';
 
 let contextsBuilt = 0;
-const mion = createMionRouter({
+const mion = customMionRouter<{shared: {user: null}}>()({
   contextDataFactory: () => {
     contextsBuilt++;
     return {user: null};

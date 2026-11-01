@@ -10,7 +10,7 @@
 // month, which is worse than no test. Each one fails if the allocation it describes comes back.
 
 import {describe, it, expect, beforeEach} from 'vitest';
-import {createMionRouter, resetRouter} from '../src/router.ts';
+import {createMionRouter, customMionRouter, resetRouter} from '../src/router.ts';
 import {createCallContext} from '../src/callContext.ts';
 import {dispatchRoute} from '../src/dispatch.ts';
 import {headersFromRecord} from '../src/lib/headers.ts';
@@ -73,7 +73,7 @@ describe('shared data', () => {
 
   it('a configured contextDataFactory runs exactly once per request', () => {
     let calls = 0;
-    const mion = createMionRouter({
+    const mion = customMionRouter<{shared: {user: null}}>()({
       contextDataFactory: () => {
         calls++;
         return {user: null};

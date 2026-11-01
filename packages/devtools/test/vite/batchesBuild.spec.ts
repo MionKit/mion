@@ -39,6 +39,7 @@ const CLIENT_DTS = `declare module '@mionjs/client' {
 `;
 const ROUTER_DTS = `declare module '@mionjs/router' {
   export function createMionRouter(opts?: unknown): {initRoutes: (routes: unknown) => unknown};
+  export function customMionRouter<T = {}>(): (opts?: unknown) => {initRoutes: (routes: unknown) => unknown};
   export function replaceBatches(table: unknown): void;
 }
 declare module '@mionjs/core' {
@@ -63,6 +64,7 @@ export const mion = createMionRouter();
 export const api = mion.initRoutes({});
 `;
 const ROUTER_STUB = `export const createMionRouter = () => ({initRoutes: () => ({})});
+export const customMionRouter = () => createMionRouter;
 export const replaceBatches = (table) => { globalThis.__table = table; };
 `;
 const CORE_STUB = `export const registerInputMapperTuple = (key, tuple) => { (globalThis.__mappers ??= {})[key] = tuple; };
@@ -170,6 +172,25 @@ register('batch transport through a real vite build', () => {
     // the registered value is the generated pure-fn tuple, the mapper's id in its id slot
     expect(String(tuple[3])).toMatch(/:[A-Za-z0-9_-]{10}$/);
     expect(String(tuple[5])).toContain(MAPPER_BODY);
+  });
+
+  it('runs: a router created through customMionRouter in its own module still registers the batch table', async () => {
+    // the types module calls customMionRouter, so the batch import lands there; the server only calls the factory
+    writeFileSync(
+      path.join(root, 'src', 'appRouter.ts'),
+      "import {customMionRouter} from '@mionjs/router';\nexport const createAppRouter = customMionRouter<{handler: {cors?: false}}>();\n"
+    );
+    writeFileSync(
+      path.join(root, 'src', 'server.ts'),
+      "import {createAppRouter} from './appRouter.ts';\nexport const mion = createAppRouter();\nexport const api = mion.initRoutes({});\n"
+    );
+    const code = await buildServer();
+    const runtime = `${root}/artifact-custom.mjs`;
+    writeFileSync(runtime, code);
+    const globals = globalThis as {__table?: Record<string, unknown>};
+    delete globals.__table;
+    await import(runtime);
+    expect(Object.keys(globals.__table ?? {})).toHaveLength(1);
   });
 
   it('builds a server without batches when the program has none, and generates no rpc/', async () => {

@@ -6,6 +6,7 @@
  * ######## */
 
 import type {ParamsStrategy, ReturnStrategy} from './parser.ts';
+import type {MiddlewareOptionKey, RouteOptionKey} from './remoteMethods.ts';
 
 // The options of a route or middleware AS THE ROUTER RESOLVES THEM, at type level: the route literal,
 // then the router literal, then the built-in default, the same three steps `getExecutableFromRoute`
@@ -18,10 +19,22 @@ import type {ParamsStrategy, ReturnStrategy} from './parser.ts';
 type Named<Opts, K extends PropertyKey> = Opts extends {[P in K]: infer V} ? V : undefined;
 type PickRouteOrRouter<RouteValue, RouterValue> = [RouteValue] extends [undefined] ? RouterValue : RouteValue;
 
-// Both views are flat object types (no intersection) so the build reads them as one literal object.
+/** The keys a `customMionRouter` `handler` part added that the method wrote: an optional one is a key it did not. */
+type AddedKeys<Opts, Known extends PropertyKey> = {
+  [Key in Exclude<keyof Opts, Known>]: Record<never, never> extends Pick<Opts, Key> ? never : Key;
+}[Exclude<keyof Opts, Known>];
+/** The resolved view plus each added key, as the literal the method wrote. */
+type WithAddedKeys<Resolved, RO, Known extends PropertyKey> = [keyof RO] extends [Known]
+  ? Resolved
+  : Resolved & {[Key in AddedKeys<NonNullable<RO>, Known>]: NonNullable<RO>[Key]};
 
 /** A route's effective options: `alwaysRun` is always false and `isMutation` is what the helper pinned. */
-export type ResolvedRouteOptions<RO, O> = {
+export type ResolvedRouteOptions<RO, O> = WithAddedKeys<RouteOptionsView<RO, O>, RO, RouteOptionKey>;
+/** A middleware's effective options (headers middlewares included). */
+export type ResolvedMiddlewareOptions<RO, O> = WithAddedKeys<MiddlewareOptionsView<RO, O>, RO, MiddlewareOptionKey>;
+
+// Both views are flat object types, so a method naming no added key gets one literal object.
+type RouteOptionsView<RO, O> = {
   alwaysRun: false;
   description: Named<RO, 'description'>;
   parser: {params: ParamsStrategy<RO, O>; return: ReturnStrategy<RO, O>};
@@ -31,8 +44,7 @@ export type ResolvedRouteOptions<RO, O> = {
   maxBodySize: Named<RO, 'maxBodySize'>;
 };
 
-/** A middleware's effective options (headers middlewares included). */
-export type ResolvedMiddlewareOptions<RO, O> = {
+type MiddlewareOptionsView<RO, O> = {
   alwaysRun: [Named<RO, 'alwaysRun'>] extends [true] ? true : false;
   description: Named<RO, 'description'>;
   parser: {params: ParamsStrategy<RO, O>; return: ReturnStrategy<RO, O>};

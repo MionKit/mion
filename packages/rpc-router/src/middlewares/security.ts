@@ -11,7 +11,7 @@ import {endChain} from '../lib/dispatchError.ts';
 import {MION_SERVER_NAME} from '../constants.ts';
 import type {CallContext} from '../types/context.ts';
 import type {HeadersMethod, MethodsExecutionChain} from '../types/remoteMethods.ts';
-import type {MionCorsSettings, MionSecurityOptions} from '../types/general.ts';
+import type {MionCorsSettings, MionSecurityHandlerOptions, MionSecurityOptions} from '../types/general.ts';
 
 /** mion's own response headers the client reads */
 const MION_EXPOSED_HEADERS = ['x-rpc-error', BUILD_VERSION_HEADER];
@@ -37,7 +37,7 @@ export function mionSecurity(options: MionSecurityOptions = {}) {
   if (cors?.credentials && origins === '*')
     throw new Error("mionSecurity: `cors.credentials` needs the allowed origins listed, never '*'.");
   const maxAge = cors?.maxAge === undefined ? undefined : String(cors.maxAge);
-  // built on a chain's first request, from what its members declare
+  // built on a chain's first request; keyed by the chain itself: not-found and batch chains carry no id
   const chainRules = new WeakMap<MethodsExecutionChain, ReturnType<typeof describeChain>>();
 
   /** Asks only when the answer matters: always with CORS, else a cross-site request with no error yet.
@@ -160,16 +160,21 @@ function describeChain(chain: MethodsExecutionChain, cors: MionCorsSettings | un
   if (!cors) return {acceptedMethods, allowHeaders: '', exposeHeaders: '', allowMethods: ''};
   const allowHeaders = new Set<string>(['content-type']);
   const exposeHeaders = new Set<string>(MION_EXPOSED_HEADERS);
+  const excluded = new Set<string>(cors.excludeHeaders?.map((name) => name.toLowerCase()));
   for (const member of chain.methods) {
-    (member as HeadersMethod).headersParam?.headerNames.forEach((name) => allowHeaders.add(name.toLowerCase()));
-    member.headersReturn?.headerNames.forEach((name) => exposeHeaders.add(name.toLowerCase()));
+    // a `cors: false` handler's headers are excluded like `excludeHeaders`, whoever else declares them
+    const corsOff = (member.options as MionSecurityHandlerOptions).cors === false;
+    const allowed = corsOff ? excluded : allowHeaders;
+    const exposed = corsOff ? excluded : exposeHeaders;
+    (member as HeadersMethod).headersParam?.headerNames.forEach((name) => allowed.add(name.toLowerCase()));
+    member.headersReturn?.headerNames.forEach((name) => exposed.add(name.toLowerCase()));
   }
   cors.allowHeaders?.forEach((name) => allowHeaders.add(name.toLowerCase()));
   cors.exposeHeaders?.forEach((name) => exposeHeaders.add(name.toLowerCase()));
   // last, so no other source adds an excluded name back
-  cors.excludeHeaders?.forEach((name) => {
-    allowHeaders.delete(name.toLowerCase());
-    exposeHeaders.delete(name.toLowerCase());
+  excluded.forEach((name) => {
+    allowHeaders.delete(name);
+    exposeHeaders.delete(name);
   });
   return {
     acceptedMethods,

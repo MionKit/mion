@@ -103,7 +103,7 @@ describe('mion compile output', () => {
         const tableImport = relative(dirname(serverJs), tableJs);
         expect(tableImport).toBe('../../../.mion-cli/rpc/batches.generated.js');
         expect(content).toContain(`import '${tableImport}';`);
-        expect(content).toContain('createMionRouter(');
+        expect(content).toContain('customMionRouter()(');
     });
 
     it('the emitted client flow carries the batch id and mapper id the table registers', () => {

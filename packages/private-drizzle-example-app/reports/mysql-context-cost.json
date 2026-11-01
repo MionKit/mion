@@ -3,39 +3,39 @@
   "results": [
     {
       "name": "empty context",
-      "client": 1945,
-      "registeredClient": 1995
+      "client": 2253,
+      "registeredClient": 2301
     },
     {
       "name": "small context",
-      "client": 2003,
-      "registeredClient": 2061
+      "client": 2416,
+      "registeredClient": 2466
     },
     {
       "name": "database context",
-      "client": 14637,
-      "registeredClient": 14695
+      "client": 15050,
+      "registeredClient": 15100
     },
     {
       "name": "unused database context",
-      "client": 14637,
-      "registeredClient": 14695
+      "client": 15050,
+      "registeredClient": 15100
     },
     {
       "name": "light handler context",
-      "client": 14629,
-      "registeredClient": 14687
+      "client": 15046,
+      "registeredClient": 15096
     },
     {
       "name": "opaque database context",
-      "client": 1985,
-      "registeredClient": 2043
+      "client": 2416,
+      "registeredClient": 2466
     },
     {
       "name": "written database context",
-      "client": 14629,
-      "registeredClient": 14687
+      "client": 15046,
+      "registeredClient": 15096
     }
   ],
-  "inferredResultClient": 14644
+  "inferredResultClient": 15075
 }

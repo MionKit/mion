@@ -23,7 +23,16 @@ export function clientRowView(row: MethodWithOptions) {
     parser: typeof parser === 'string' ? {params: parser, return: parser} : (parser ?? undefined),
     isMutation: row.options?.isMutation ?? undefined,
     sanitizeParams: row.options?.sanitizeParams ?? undefined,
+    addedOptions: addedOptionsOf(row.options),
   };
+}
+
+const MION_OPTION_KEYS = new Set(['alwaysRun', 'description', 'parser', 'isMutation', 'sanitizeParams', 'maxBodySize']);
+
+/** The keys a `customMionRouter` `handler` part added, so parity sees one missing from a bundled row. */
+function addedOptionsOf(options: MethodWithOptions['options'] | undefined) {
+  const added = Object.entries(options ?? {}).filter(([key]) => !MION_OPTION_KEYS.has(key));
+  return added.length ? Object.fromEntries(added) : undefined;
 }
 
 function headersView(headers: MethodMetadata['headersParam'] | null | undefined) {

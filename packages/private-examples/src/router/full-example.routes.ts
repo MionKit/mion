@@ -1,16 +1,21 @@
 import {RpcError, FatalError} from '@mionjs/core';
-import {createMionRouter, Routes} from '@mionjs/router';
-import {NewUser, myApp, getSharedData} from './full-example.app.ts';
+import {customMionRouter, Routes} from '@mionjs/router';
+import {
+  NewUser,
+  myApp,
+  getSharedData,
+  type ContextData,
+} from './full-example.app.ts';
 import {User} from './full-example.app.ts';
 
 // start-create-router
-const mion = createMionRouter({
+const mion = customMionRouter<{shared: ContextData}>()({
   contextDataFactory: getSharedData,
   basePath: 'api/v1',
 });
 // end-create-router
 
-// ctx.shared is typed from the contextDataFactory given to createMionRouter
+// ctx.shared is typed from the `shared` part given to customMionRouter
 const getUser = mion.route(
   (ctx, id: number): User | RpcError<'user-not-found'> => {
     const user = myApp.store.getUser(id);

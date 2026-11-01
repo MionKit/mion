@@ -135,7 +135,7 @@ export function assertCompiledParser(methodId: string, parser: ResolvedParser, r
       throw new Error(
         `mion: ${direction} parser of "${methodId}" is '${wanted}' at runtime but the build compiled ` +
           `'${fns.json.strategy}'. Write the parser option inline on the route (or as an \`as const\` preset) and the ` +
-          `router-wide default as a literal on createMionRouter, so the build sees the same value the runtime reads.`
+          `router-wide default as a literal on the router factory, so the build sees the same value the runtime reads.`
       );
   }
 }

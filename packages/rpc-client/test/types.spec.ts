@@ -29,6 +29,13 @@ import type {RpcError, ValidationError} from '@mionjs/core';
 
 const {routes, middlewares} = initClient<TestServerApi>({baseURL: 'http://localhost:0'});
 
+describe('the API type a client is built from', () => {
+  it('carries the option keys a customMionRouter added, as the literal the route wrote', () => {
+    expectTypeOf<TestServerApi['corsOff']['options']['cors']>().toEqualTypeOf<false>();
+    expectTypeOf<TestServerApi['sayHello']['options']>().not.toHaveProperty('cors');
+  });
+});
+
 describe('subrequest types carry the route id and the API', () => {
   it('names a top-level route and a nested route by their key path', () => {
     const hello = routes.sayHello({name: 'a', surname: 'b'});

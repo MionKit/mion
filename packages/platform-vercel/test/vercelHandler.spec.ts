@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect, beforeAll} from 'vitest';
-import {createMionRouter} from '@mionjs/router';
+import {customMionRouter} from '@mionjs/router';
 import {createVercelHandler, resetVercelHandlerOpts, setVercelHandlerOpts} from '../src/vercelHandler.ts';
 import type {CallContext, Route} from '@mionjs/router';
 import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
@@ -30,7 +30,7 @@ describe('vercel handler', () => {
     },
   };
   const getSharedData = () => ({auth: {me: null as any}});
-  const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+  const mion = customMionRouter<{shared: MySharedData}>()({contextDataFactory: getSharedData, basePath: 'api/'});
 
   const changeUserName: Route = mion.route((ctx: Context, user: SimpleUser): SimpleUser => {
     return myApp.db.changeUserName(user);
@@ -115,7 +115,7 @@ describe('vercel handler', () => {
     beforeAll(async () => {
       resetVercelHandlerOpts();
       setVercelHandlerOpts();
-      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+      const jsonRouter = customMionRouter<{shared: MySharedData}>()({contextDataFactory: getSharedData, basePath: 'api/'});
       jsonRouter.initRoutes({changeUserName, getDate});
       handler = createVercelHandler();
     });

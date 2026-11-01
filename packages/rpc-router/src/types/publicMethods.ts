@@ -8,7 +8,6 @@
 import type {Prettify, RpcError, MethodMetadata, RemoteMethodOpts} from '@mionjs/core';
 import type {ResolvedMiddlewareOptions, ResolvedRouteOptions} from './resolvedOptions.ts';
 import type {ParamsStrategy, ReturnStrategy, WireFormat} from './parser.ts';
-import type {CallContext} from './context.ts';
 import type {Routes} from './general.ts';
 import type {
   Handler,
@@ -19,7 +18,7 @@ import type {
   HeaderHandlerHeaders,
   HeaderHandlerParams,
 } from './handlers.ts';
-import type {HeadersMiddlewareDef, MiddlewareDef, RawMiddlewareDef} from './definitions.ts';
+import type {AnyHeadersMiddlewareDef, AnyMiddlewareDef, RawMiddlewareDef} from './definitions.ts';
 import {HandlerType} from '@mionjs/core'; // do not import type only
 
 // ####### Raw Middlewares #######
@@ -29,12 +28,12 @@ import {HandlerType} from '@mionjs/core'; // do not import type only
 export type MayReturnError = void | RpcError<string> | Promise<RpcError<string> | void>;
 
 export type MiddlewaresCollection = {
-  [key: string]: MiddlewareDef | HeadersMiddlewareDef | RawMiddlewareDef;
+  [key: string]: AnyMiddlewareDef | AnyHeadersMiddlewareDef | RawMiddlewareDef;
 };
 
 // ####### Private Middlewares #######
 
-export interface PrivateMiddlewareDef extends MiddlewareDef {
+export interface PrivateMiddlewareDef extends AnyMiddlewareDef {
   handler: (ctx?: any) => void | never | undefined;
 }
 
@@ -149,9 +148,10 @@ export interface PublicHeadersMiddleware<
   readonly types?: Types;
 }
 
-/** Removes the context from handlers */
+/** Removes the context from handlers. The context is matched as `any`: a handler whose `ctx.shared` is `never`
+ *  takes a context `CallContext` is not assignable to. */
 // prettier-ignore
 export type PublicHandler<H extends Handler> =
-    H extends (ctx: CallContext, ...rest: infer Req) => infer Resp
+    H extends (ctx: any, ...rest: infer Req) => infer Resp
     ? (...rest: Req) => Promise<Awaited<Resp>>
     : never;

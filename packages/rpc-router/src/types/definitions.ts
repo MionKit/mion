@@ -13,7 +13,8 @@ import type {RouterOptions} from './general.ts';
 // #######  Routes Definitions #######
 // Flat interfaces on purpose: a definition type is instantiated on every route declaration, and a
 // `Pick` plus intersection costs measurably more in the type-instantiation budget.
-// `RO` is the options literal the author wrote, `O` the router options the helper was created with.
+// `RO` is the options literal the author wrote, `O` the router options the helper was created with. `RO` is
+// only `object`: a literal of nothing but added keys (`{cors: false}`) shares no key with mion's own options.
 // `O` is type-only, so `PublicApi` can resolve the effective options (route, router, default) the
 // same way the router does and a client build reads them off the API type.
 
@@ -22,7 +23,7 @@ export type DeclaredRouterOptions = Partial<RouterOptions>;
 
 export interface RouteDef<
   H extends Handler = any,
-  RO extends RouteOptions = RouteOptions,
+  RO extends object = RouteOptions,
   O extends DeclaredRouterOptions = DeclaredRouterOptions,
 > {
   type: typeof HandlerType.route;
@@ -37,7 +38,7 @@ export interface RouteDef<
 /** Middleware definition: a step that runs in the ExecutionChain around the route. */
 export interface MiddlewareDef<
   H extends Handler = any,
-  RO extends MiddlewareOptions = MiddlewareOptions,
+  RO extends object = MiddlewareOptions,
   O extends DeclaredRouterOptions = DeclaredRouterOptions,
 > {
   type: typeof HandlerType.middleware;
@@ -52,7 +53,7 @@ export interface MiddlewareDef<
 /** Headers Middleware definition, used to handle header params */
 export interface HeadersMiddlewareDef<
   H extends HeaderHandler = any,
-  RO extends HeadersMiddlewareOptions = HeadersMiddlewareOptions,
+  RO extends object = HeadersMiddlewareOptions,
   O extends DeclaredRouterOptions = DeclaredRouterOptions,
 > {
   type: typeof HandlerType.headersMiddleware;
@@ -72,3 +73,8 @@ export interface RawMiddlewareDef<H extends RawMiddlewareHandler = any> {
 }
 
 export type AnyHandlerDef = RouteDef | MiddlewareDef | HeadersMiddlewareDef | RawMiddlewareDef;
+
+/** A definition of any options literal, the shape a router tree holds. */
+export type AnyRouteDef = RouteDef<any, object>;
+export type AnyMiddlewareDef = MiddlewareDef<any, object>;
+export type AnyHeadersMiddlewareDef = HeadersMiddlewareDef<any, object>;

@@ -7,12 +7,12 @@
 
 import {CoreRouterOptions, ParserOption} from '@mionjs/core';
 import {CallContext, ContextDataFactory} from './context.ts';
-import {HeadersMiddlewareDef, MiddlewareDef, RawMiddlewareDef, RouteDef} from './definitions.ts';
+import {AnyHeadersMiddlewareDef, AnyMiddlewareDef, AnyRouteDef, RawMiddlewareDef, RouteDef} from './definitions.ts';
 // #######  Router Object #######
 
 export type Route = RouteDef;
 
-export type RouterEntry = Routes | MiddlewareDef | RouteDef | RawMiddlewareDef | HeadersMiddlewareDef;
+export type RouterEntry = Routes | AnyMiddlewareDef | AnyRouteDef | RawMiddlewareDef | AnyHeadersMiddlewareDef;
 
 /** Data structure to define all the routes */
 export interface Routes {
@@ -82,6 +82,12 @@ export interface MionSecurityOptions {
   cors?: false | MionCorsSettings;
   /** Cross-site request forgery checks, each on by default; a body must always be JSON while csrf is on */
   csrf?: false | MionCsrfSettings;
+}
+
+/** Keys `mionSecurity` reads on a handler's options: add them with `customMionRouter<{handler: MionSecurityHandlerOptions}>()` */
+export interface MionSecurityHandlerOptions {
+  /** `false` keeps every header the handler declares off the CORS lists, like `excludeHeaders`; still sent */
+  cors?: false;
 }
 
 export interface MionCorsSettings {

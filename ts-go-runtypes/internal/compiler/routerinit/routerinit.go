@@ -6,6 +6,7 @@
 package routerinit
 
 import (
+	"slices"
 	"sort"
 	"strings"
 
@@ -19,8 +20,9 @@ import (
 // `declare module '@mionjs/router'` form.
 const RouterModule = "@mionjs/router"
 
-// FactoryName is a cheap pre-filter before the signature is resolved.
-const FactoryName = "createMionRouter"
+// FactoryNames are the functions that create the router, a cheap pre-filter before the signature is resolved:
+// `customMionRouter<T>()` returns the factory, so the module declaring the router's types is where the import lands.
+var FactoryNames = []string{"createMionRouter", "customMionRouter"}
 
 // Site is one module that creates the router.
 type Site struct {
@@ -90,7 +92,7 @@ func callsFactory(typeChecker *checker.Checker, markerOpts marker.Options, sourc
 	// Text pre-filter: this runs on every Program rebuild, and resolving a symbol per call across the whole
 	// program is the cost. The file it skips can only reach the factory through a barrel that RENAMES it,
 	// deliberately not detected; rpc-batch-router-init-hidden covers a program left without a router-init module.
-	if text := sourceFile.Text(); !strings.Contains(text, FactoryName) && !strings.Contains(text, RouterModule) {
+	if text := sourceFile.Text(); !strings.Contains(text, RouterModule) && !containsFactoryName(text) {
 		return false
 	}
 	found := false
@@ -125,7 +127,7 @@ func isFactoryCall(typeChecker *checker.Checker, markerOpts marker.Options, call
 	if symbol != nil && symbol.Flags&ast.SymbolFlagsAlias != 0 {
 		symbol = typeChecker.GetAliasedSymbol(symbol)
 	}
-	if symbol == nil || symbol.Name != FactoryName {
+	if symbol == nil || !slices.Contains(FactoryNames, symbol.Name) {
 		return false
 	}
 	signature := checker.Checker_getResolvedSignature(typeChecker, call, nil, 0)
@@ -133,6 +135,15 @@ func isFactoryCall(typeChecker *checker.Checker, markerOpts marker.Options, call
 		return false
 	}
 	return marker.DeclaringModuleOfNode(checker.Signature_declaration(signature), markerOpts.FS) == RouterModule
+}
+
+func containsFactoryName(text string) bool {
+	for _, name := range FactoryNames {
+		if strings.Contains(text, name) {
+			return true
+		}
+	}
+	return false
 }
 
 // calleeNameNode returns the identifier a call is made through, the member name for `ns.f(...)`.
