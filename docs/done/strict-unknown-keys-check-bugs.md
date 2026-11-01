@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-10-31
 ---
 
@@ -54,3 +54,12 @@ makes the code match it.
 - Vitest (`packages/run-types/test/features/unknownKeys.test.ts`): validate and errors agree on arrays (count
   fast path and key-scan path), 12 unknown keys all reported without a throw, both call shapes.
 - No docs: documented behavior unchanged. Not a fuzz candidate: a fix, not a feature.
+
+## What shipped
+
+- As planned. `guardStatement` (only caller was the dropped skip) is gone; the helper's body hash changed, so
+  `pnpm miondevx core codegen builtinpurefns` regenerated both id files.
+- The old skip had a reason: an array that FAILS its property checks got no index-key noise. That is dropped on
+  purpose: the error list is now complete, so `[1, 2, 3]` against a strict object reports its type errors plus
+  `'0'`, `'1'`, `'2'`. The test oracle `undeclaredKeyErrors` (`test/suites/strict-validation/Strict.ts`) counts an
+  array's keys the same way, and the parity corpus in `checkUnknowns.test.ts` gained two arrays carrying the props.
