@@ -44,65 +44,9 @@ import {build} from 'esbuild';
 import ttscEsbuild from '@ttsc/unplugin/esbuild';
 import path from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
+import {stripReturnPredicates} from './strip-predicates.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-
-// Remove TS return-type predicate annotations (": input is <TYPE> =>" -> " =>").
-// Balanced scan past the type (respecting (), [], {}, <>, and string literals) up
-// to the depth-0 "=>", so unions/generics/parenthesized arms are consumed whole.
-export function stripReturnPredicates(code) {
-  const needle = ': input is ';
-  let out = '';
-  let cursor = 0;
-  while (cursor < code.length) {
-    const at = code.indexOf(needle, cursor);
-    if (at === -1) {
-      out += code.slice(cursor);
-      break;
-    }
-    out += code.slice(cursor, at);
-    let scan = at + needle.length;
-    let depth = 0;
-    let stringDelim = null;
-    while (scan < code.length) {
-      const ch = code[scan];
-      if (stringDelim) {
-        if (ch === '\\') {
-          scan += 2;
-          continue;
-        }
-        if (ch === stringDelim) stringDelim = null;
-        scan++;
-        continue;
-      }
-      if (ch === '"' || ch === "'" || ch === '`') {
-        stringDelim = ch;
-        scan++;
-        continue;
-      }
-      // A nested function type's `=>` must not read its `>` as a closing bracket.
-      if (ch === '=' && code[scan + 1] === '>') {
-        if (depth === 0) break;
-        scan += 2;
-        continue;
-      }
-      if (ch === '(' || ch === '[' || ch === '{' || ch === '<') {
-        depth++;
-        scan++;
-        continue;
-      }
-      if (ch === ')' || ch === ']' || ch === '}' || ch === '>') {
-        depth--;
-        scan++;
-        continue;
-      }
-      scan++;
-    }
-    out += ' '; // collapse the stripped annotation to one space before "=>"
-    cursor = scan;
-  }
-  return out;
-}
 
 // Wrap @ttsc/unplugin's esbuild adapter: run the typia transform, then strip the
 // type-predicate annotations from whatever it returns so esbuild can parse it.
