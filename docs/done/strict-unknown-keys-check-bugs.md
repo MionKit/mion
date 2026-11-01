@@ -68,3 +68,16 @@ makes the code match it.
   and Vitest, both call shapes.
 - The same count also misses a declared prop that is a getter or otherwise not enumerable (not array-specific).
   Fixing it trades away the strict fast path, so it is filed as its own todo in this PR.
+
+## Follow-up: the cap stays (owner review, 2026-11-01)
+
+Removing `MAX_UNKNOWN_KEYS` was wrong: it bounds the work and the response size when a body carries thousands of
+extra keys. Only the throw was the bug, since the router turned it into a generic `unknown-error` (500) instead of
+the `validation-error` (422) a single unknown key gets. What shipped instead:
+
+- The cap lives in the Go emitter (`maxUnknownKeys = 10`, `unknownkeys_errors.go`) and is passed to
+  `getUnknownKeysFromArray(obj, keys, max)`, which stops one key past `max`.
+- The error list reports the first 10 keys as `never`, then one `{path: <object path>, expected: 'tooManyUnknownKeys'}`.
+  The standard issue mapping renders it as "Too many unknown keys", like `circular`.
+- Tests: Vitest cap tests (10 keys exact, 12 keys, nested path), both call shapes; a router test that 50 extra keys
+  give a `validation-error` with 11 entries; the Go test checks the emitted cap. The validation guide documents it.
