@@ -356,13 +356,8 @@ export const isCallable = createValidateFn<Callable>(undefined, {checkUnknowns: 
 // THE KEY CHECK ADDS NO SHAPE GUARD OF ITS OWN.
 //
 // The fused validator needs no object guard beyond its own: `typeof` / `!== null` are
-// already its leading term, and an array is already stopped by the property
-// check (an array has no `a`) or, on a shape with no required property, by the
-// `[object Object]` brand guard emitObjectValidate adds for exactly that reason.
-//
-// The error family is the one exception, and it is not about shape: it reports
-// everything rather than stopping at the first failure, so unlike the validator
-// it can still reach the key scan on an array. Pinned separately below.
+// already its leading term. An array that carries every declared prop reaches the
+// key check, which counts its indices as keys and so rejects it.
 func TestCheckUnknowns_ValidatorKeyCheckAddsNoGuard(t *testing.T) {
 	modules := scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';
 interface T {a: string; b: number}
@@ -381,15 +376,26 @@ export const isT = createValidateFn<T>(undefined, {checkUnknowns: true});
 	}
 }
 
-// The error family DOES keep the array test, for the one reason that is not
-// about shape: it does not short-circuit. A value that fails its property checks
-// still reaches the key scan here, so without this an array's indices would be
-// listed as undeclared keys on a value the type does not admit at all.
-func TestCheckUnknowns_ErrorFamilyStillExcludesArrays(t *testing.T) {
-	modules := scanEntryModules(t, `import {createGetValidationErrorsFn} from '@mionjs/run-types';
+// The error family emits no array test either, so it reports an array's index keys
+// exactly where the validator's key check rejects them. Both marker call shapes.
+func TestCheckUnknowns_ErrorFamilyScansArraysLikeValidator(t *testing.T) {
+	assertNoArraySkip(t, `import {createGetValidationErrorsFn} from '@mionjs/run-types';
 interface T {a: string; b: number}
 export const tErrors = createGetValidationErrorsFn<T>(undefined, {checkUnknowns: true});
 `)
+}
+
+func TestCheckUnknowns_ErrorFamilyScansArraysLikeValidator_ValueFirst(t *testing.T) {
+	assertNoArraySkip(t, `import {createGetValidationErrorsFn} from '@mionjs/run-types';
+interface T {a: string; b: number}
+const sample: T = {a: 'x', b: 1};
+export const tErrors = createGetValidationErrorsFn(sample, {checkUnknowns: true});
+`)
+}
+
+func assertNoArraySkip(t *testing.T, source string) {
+	t.Helper()
+	modules := scanEntryModules(t, source)
 	name, ok := findEntryWith(modules, familyPrefix(t, "validationErrorsStrict"))
 	if !ok {
 		t.Fatalf("no validationErrorsStrict entry emitted\nmodules: %v", keys(modules))
@@ -398,8 +404,11 @@ export const tErrors = createGetValidationErrorsFn<T>(undefined, {checkUnknowns:
 	if got := strings.Count(body, objectGuardNeedle); got != 1 {
 		t.Errorf("the fused error form emits the shape guard %d times, want exactly 1:\n%s", got, body)
 	}
-	if !strings.Contains(body, "!Array.isArray") {
-		t.Errorf("the fused error form lost its array exclusion:\n%s", body)
+	if strings.Contains(body, "Array.isArray") {
+		t.Errorf("the fused error form skips arrays, so it reports nothing for an array its validator rejects:\n%s", body)
+	}
+	if !strings.Contains(body, purefnids.GetUnknownKeysFromArray) {
+		t.Errorf("the fused error form lost its unknown-key scan:\n%s", body)
 	}
 }
 
