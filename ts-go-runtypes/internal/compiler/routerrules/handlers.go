@@ -65,7 +65,7 @@ func (scope *fileScope) discoverHandlers() []handler {
 	return found
 }
 
-// helperCall reports whether a call declares a route, and with which helper. Like routerinit.isFactoryCall:
+// helperCall reports whether a call declares a route, and with which helper. Like routerinit.IsFactoryCall:
 // the callee gives the label the message shows, and the RESOLVED signature must be declared by one of
 // RouterModule's helper interfaces, which is what makes an alias or a local barrel match while a same-named
 // call from another package does not.

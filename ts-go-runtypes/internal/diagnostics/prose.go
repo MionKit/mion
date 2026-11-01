@@ -1073,6 +1073,8 @@ export const removeToolbarKeys = createRemoveUnknownKeysFn<Toolbar>(undefined, {
 		Fix:     "return new RpcError({statusCode: 404, name: 'not-found', publicMessage: 'no pet'});",
 	},
 	CodeRouteSharedFactoryUntyped: {
+		// No Example: the harness only installs `@mionjs/run-types`, and this is raised on a `@mionjs/router` call
+		// (routerrules_test.go covers each factory shape).
 		Summary: "`ctx.shared` is typed from what `sharedDataFactory` returns. A client types the router by inferring its whole options object, so a factory with no written return type makes every client compute that return from the body, a whole database type included, even when every route is slim. Write the return type; a database the client never needs can be declared `unknown` and cast on the server.",
 		Fix:     "createMionRouter({sharedDataFactory: (): {user: User | null} => ({user: null})});",
 	},
