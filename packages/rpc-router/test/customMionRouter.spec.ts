@@ -27,8 +27,7 @@ type AuditHandler = {audit?: 'log' | 'skip'};
 type AppTypes = {shared: Shared; router: Audit; handler: MionSecurityHandlerOptions};
 const createAppRouter = customMionRouter<AppTypes>();
 
-// The type assertions below only bite under `tsc -p tsconfig.json` (the package's typecheck:test): they sit in
-// functions never called, so no second router is created at runtime.
+// Type assertions sit in never-called functions (no second router at runtime): only `tsc` typecheck:test checks them.
 
 describe('customMionRouter types: ctx.shared and contextDataFactory', () => {
   it('types ctx.shared as never without a shared part', () => {

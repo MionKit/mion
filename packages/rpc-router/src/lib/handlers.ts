@@ -27,8 +27,7 @@ type InternalTypes = {shared: any};
 // call them directly, each pinning its own `encoder`.
 // ⚠️ There is NO signature here on purpose: each body is TYPED BY its helper interface in
 // types/mionRouter.ts, the one place a helper signature is written, so there is no second surface to keep
-// in step. `RouterOptionsInput` is the widest options shape; the router factory narrows each helper to
-// its own `O` and `T` so a declaration reads the factory's options and declared types.
+// in step. The router factory narrows each `RouterOptionsInput` helper to its own `O` and `T`.
 
 export const route: RouteHelper<RouterOptionsInput, InternalTypes> = (
   handler,

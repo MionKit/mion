@@ -394,8 +394,7 @@ export const a = routes.r(1).call();
 	}
 }
 
-// The keys a customMionRouter `handler` part adds ride the resolved options as an intersection
-// (ResolvedRouteOptions in packages/rpc-router): read like mion's own, a widened one reported.
+// Added `handler` keys ride the options as an intersection (rpc-router ResolvedRouteOptions); widened ones are reported.
 func TestWalkApi_ReadsAddedOptionKeysOffTheIntersection(t *testing.T) {
 	overlay := setupOverlay(t, map[string]string{"a.ts": `import {initClient} from '@mionjs/client';
 type Base = {alwaysRun: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined};

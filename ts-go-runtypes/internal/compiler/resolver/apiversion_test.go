@@ -90,8 +90,7 @@ func TestApiVersion_ServerAndClientOfOneApiAgree(t *testing.T) {
 	}
 }
 
-// TestApiVersion_AddedOptionKeyMovesTheVersion: a key a customMionRouter `handler` part adds rides the resolved
-// options, which the version hashes, so changing only that key moves the version.
+// TestApiVersion_AddedOptionKeyMovesTheVersion: added `handler` keys ride the resolved options the version hashes.
 func TestApiVersion_AddedOptionKeyMovesTheVersion(t *testing.T) {
 	routerDTS := strings.Replace(versionRouterDTS, "options: Opts;", "options: Opts & (R[K] extends {options: infer O} ? O : {});", 1)
 	routes := func(options string) string {

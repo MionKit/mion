@@ -148,8 +148,7 @@ export interface PublicHeadersMiddleware<
   readonly types?: Types;
 }
 
-/** Removes the context from handlers. The context is matched as `any`: a handler whose `ctx.shared` is `never`
- *  takes a context `CallContext` is not assignable to. */
+/** Removes the context from handlers; `ctx: any`, since `CallContext` is not assignable to a `ctx.shared: never` one. */
 // prettier-ignore
 export type PublicHandler<H extends Handler> =
     H extends (ctx: any, ...rest: infer Req) => infer Resp

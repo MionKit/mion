@@ -84,7 +84,7 @@ export interface MionSecurityOptions {
   csrf?: false | MionCsrfSettings;
 }
 
-/** Keys `mionSecurity` reads on a handler's options: add them with `customMionRouter<{handler: MionSecurityHandlerOptions}>()` */
+/** Handler option keys `mionSecurity` reads; add with `customMionRouter<{handler: MionSecurityHandlerOptions}>()` */
 export interface MionSecurityHandlerOptions {
   /** `false` keeps every header the handler declares off the CORS lists, like `excludeHeaders`; still sent */
   cors?: false;

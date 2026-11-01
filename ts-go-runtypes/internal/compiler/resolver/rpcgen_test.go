@@ -509,8 +509,7 @@ func TestRpc_NoRouterInitButRouterImported(t *testing.T) {
 	}
 }
 
-// TestRpc_CustomRouterOnlyNeedsNoHandImport: a program creating its router only through `customMionRouter`
-// gets the batch import in the module calling it, and no rpc-batch-router-init-hidden.
+// TestRpc_CustomRouterOnlyNeedsNoHandImport: the batch import lands in the module calling `customMionRouter`.
 func TestRpc_CustomRouterOnlyNeedsNoHandImport(t *testing.T) {
 	sources := rpcSources()
 	delete(sources, "server.ts")

@@ -297,7 +297,6 @@ export const bad = mion.route((ctx, name: string) => name);
 }
 
 func TestRouterShapes_CustomFactoryInAnotherModule(t *testing.T) {
-	// The router types are declared in one module, the router created from the returned factory in another.
 	assertCodes(t, check(t, map[string]string{
 		"appRouter.ts": `import {customMionRouter} from '@mionjs/router';
 export const createAppRouter = customMionRouter<{shared: {user: string}}>();
