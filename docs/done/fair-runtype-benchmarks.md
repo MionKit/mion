@@ -256,4 +256,5 @@ Built as planned, with these differences and additions:
 - **mion bugs found and delegated** (own todos, own sessions, own PRs, merged before this one): strict
   unknown-key check bugs; date / UUID / IP-with-port formats accepting invalid values; Temporal bounds
   re-parsed per call. Competitors keep the correct stricter checks meanwhile.
-- **Review working files** lived in `container/benchmarks/_review/` and were deleted before merge.
+- **Review working files** (rules, library notes, mion reference sheets, findings) lived on the branch while the
+  agents worked and were deleted before merge.
