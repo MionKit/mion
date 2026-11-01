@@ -29,23 +29,23 @@
         {
           "step": 4,
           "label": "mion route api",
-          "delta": 510,
+          "delta": 509,
           "budget": 525,
-          "cumulative": 3021
+          "cumulative": 3020
         },
         {
           "step": 5,
           "label": "initClient",
           "delta": 3161,
           "budget": 3179,
-          "cumulative": 6182
+          "cumulative": 6181
         },
         {
           "step": 6,
           "label": "db query (toDrizzle)",
           "delta": 8470,
           "budget": 8470,
-          "cumulative": 14652
+          "cumulative": 14651
         }
       ],
       "totalBudget": 14718,
@@ -83,23 +83,23 @@
         {
           "step": 4,
           "label": "mion route api",
-          "delta": 510,
+          "delta": 509,
           "budget": 525,
-          "cumulative": 3037
+          "cumulative": 3036
         },
         {
           "step": 5,
           "label": "initClient",
           "delta": 3161,
           "budget": 3179,
-          "cumulative": 6198
+          "cumulative": 6197
         },
         {
           "step": 6,
           "label": "db query (toDrizzle)",
           "delta": 7143,
           "budget": 7143,
-          "cumulative": 13341
+          "cumulative": 13340
         }
       ],
       "totalBudget": 13407,
@@ -137,23 +137,23 @@
         {
           "step": 4,
           "label": "mion route api",
-          "delta": 509,
+          "delta": 508,
           "budget": 524,
-          "cumulative": 3036
+          "cumulative": 3035
         },
         {
           "step": 5,
           "label": "initClient",
           "delta": 3161,
           "budget": 3179,
-          "cumulative": 6197
+          "cumulative": 6196
         },
         {
           "step": 6,
           "label": "db query (toDrizzle)",
           "delta": 7317,
           "budget": 7317,
-          "cumulative": 13514
+          "cumulative": 13513
         }
       ],
       "totalBudget": 13580,
