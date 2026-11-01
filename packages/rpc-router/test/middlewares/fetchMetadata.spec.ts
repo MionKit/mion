@@ -814,9 +814,7 @@ describe('added handler keys in the metadata', () => {
     initAdded();
     const encodeJson = createJsonEncoderFn<ClientReturn>();
     const decodeJson = createJsonDecoderFn<ClientReturn>();
-    const decoded = decodeJson(
-      encodeJson(structuredClone(metadataOf('hidden', 'log', 'token', 'open')))!
-    ) as SerializableMethodsData;
+    const decoded = decodeJson(encodeJson(metadataOf('hidden', 'log', 'token', 'open'))!) as SerializableMethodsData;
     expect(decoded.methods.hidden.options).toEqual(
       expect.objectContaining({cors: false, audit: {level: 'high'}, alwaysRun: false})
     );
