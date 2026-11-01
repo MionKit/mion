@@ -189,6 +189,7 @@ describe('customMionRouter types: router and handler keys', () => {
       const app = customMionRouter<{handler: MionSecurityHandlerOptions}>()({parser: 'compact'});
       const defs = {r: app.route((): string => '', {cors: false})};
       expectTypeOf<PublicApi<typeof defs>['r']['options']['parser']>().toEqualTypeOf<{params: 'compact'; return: 'compact'}>();
+      void defs;
     }
     void compileOnly;
   });
