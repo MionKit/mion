@@ -16,7 +16,7 @@ The table uses `Api = typeof api` after `mion.initRoutes(definitions)`. JSON fil
 
 A typed database in `shared` increases client cost even when the handler never uses it. A light handler context type also leaves the cost high. Declaring `shared` as `{db: unknown}` and writing the factory return as `{db: unknown}` returns near baseline, but requires a server-side cast for database access. Declaring `shared` alone is not enough: the client resolves the router's type by inferring the whole options literal, so a factory with an inferred `() => ({db})` return still makes it compute the database type.
 
-Route definitions no longer carry `contextDataFactory` in their router-options type, so `PublicApi` never reads the factory. The remaining cost is the factory call's own inference, paid once per client program.
+The cost is the factory call's own inference, paid once per client program, not per route.
 
 The diagnostic checks written return types and non-context parameters. Context parameters are exempt, so this factory cost is not covered. Slim public returns alone do not guarantee low client cost in this pattern.
 

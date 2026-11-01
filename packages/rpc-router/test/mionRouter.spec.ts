@@ -12,7 +12,7 @@ import {headersFromRecord} from '../src/lib/headers.ts';
 import {HandlerType, HeadersSubset} from '@mionjs/core';
 import type {CallContext} from '../src/types/context.ts';
 import type {Routes} from '../src/types/general.ts';
-import type {CarriedOptions, MionRouter, PlainRouterTypes, RouterCallContext, RouteHelper} from '../src/types/mionRouter.ts';
+import type {MionRouter, PlainRouterTypes, RouterCallContext, RouteHelper} from '../src/types/mionRouter.ts';
 import type {ApiBuildVersion, PublicApi, RemoteApi} from '../src/types/publicMethods.ts';
 
 type SharedData = {user: string | null; visits: number};
@@ -94,9 +94,9 @@ describe('createMionRouter helpers', () => {
 describe('createMionRouter types', () => {
   it('types the handler context from the shared part', () => {
     expectTypeOf<RouterCallContext<AppTypes>>().toEqualTypeOf<CallContext<SharedData>>();
-    expectTypeOf(mion.route).toEqualTypeOf<RouteHelper<{readonly basePath: 'api'}, AppTypes>>();
-    // the factory never rides into a route's types: its inferred return could be a whole database type
-    expectTypeOf<CarriedOptions<typeof mion.options>>().toEqualTypeOf<{readonly basePath: 'api'}>();
+    expectTypeOf(mion.route).toEqualTypeOf<
+      RouteHelper<{readonly basePath: 'api'; readonly contextDataFactory: () => SharedData}, AppTypes>
+    >();
     mion.route((ctx, name: string) => {
       expectTypeOf(ctx.shared).toEqualTypeOf<SharedData>();
       // @ts-expect-error not a field of the shared data

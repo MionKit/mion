@@ -101,8 +101,6 @@ interface UnknownOptionKey<Key extends PropertyKey> {
   readonly unknownOptionKey: Key;
 }
 
-/** Drops `contextDataFactory`, so its inferred return (a whole database type) never rides into a route's types. */
-export type CarriedOptions<O> = O extends {contextDataFactory: any} ? Omit<O, 'contextDataFactory'> : O;
 
 // An interface, not an alias: it resolves lazily, a few instantiations less on every router the type budget tracks.
 export interface RouterCallContext<T extends CustomRouterTypes> extends CallContext<SharedOf<T>> {
@@ -195,21 +193,16 @@ export interface RawMiddlewareHelper<T extends CustomRouterTypes = PlainRouterTy
   ): RawMiddlewareDef<H>;
 }
 
-/** `Carried` is its own parameter, not `CarriedOptions<O>` inside, so a router sharing nothing skips a conditional. */
-export interface MionRouter<
-  O extends RouterOptionsInput = RouterOptionsInput,
-  T extends CustomRouterTypes = PlainRouterTypes,
-  Carried extends RouterOptionsInput = O,
-> {
+export interface MionRouter<O extends RouterOptionsInput = RouterOptionsInput, T extends CustomRouterTypes = PlainRouterTypes> {
   /** The options given to the factory, frozen. */
   readonly options: Readonly<O>;
-  readonly route: RouteHelper<Carried, T>;
+  readonly route: RouteHelper<O, T>;
   /** Read-only route: the client sends it as a GET when the payload fits in the url. */
-  readonly query: RouteHelper<Carried, T, false>;
+  readonly query: RouteHelper<O, T, false>;
   /** Route that changes data: always sent as a POST. */
-  readonly mutation: RouteHelper<Carried, T, true>;
-  readonly middleware: MiddlewareHelper<Carried, T>;
-  readonly headersMiddleware: HeadersMiddlewareHelper<Carried, T>;
+  readonly mutation: RouteHelper<O, T, true>;
+  readonly middleware: MiddlewareHelper<O, T>;
+  readonly headersMiddleware: HeadersMiddlewareHelper<O, T>;
   readonly rawMiddleware: RawMiddlewareHelper<T>;
   /** Once per app, and synchronous: the compiled type functions were injected at build time, so nothing loads here.
    *  `buildVersion` is filled by the build, never by hand: the server answers with it so a client can spot stale routes. */
@@ -223,7 +216,7 @@ export interface MionRouter<
 export type CustomRouterFactory<T extends CustomRouterTypes> = T extends {shared: any}
   ? <const O extends RouterOptionsInputOf<T> & KnownKeysOf<O, T>>(
       opts: RouterOptionsArg<O>
-    ) => MionRouter<O, T, CarriedOptions<O>>
+    ) => MionRouter<O, T>
   : OptionalOptionsFactory<T>;
 /** Overloads, not a defaulted `O`: a default cannot be proven to meet a constraint that reads `O` and `T`. */
 interface OptionalOptionsFactory<T extends CustomRouterTypes> {
