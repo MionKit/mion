@@ -190,9 +190,10 @@ fix: <the exact new entry, or NOT_SUPPORTED + reason>
 ## Tests
 
 - New `packages/devtools/test/bench-aggregate.test.ts`, importing the website util directly (the util moved to plain JS for that) like
-  `packages/devtools/test/mion-bench-wire.test.ts:18`: a case only one library runs leaves every ratio
-  unchanged; a missing case takes the worst value (lowest ops, highest count); a case nobody runs drops
-  out; `fail` counts as missing; Overall and section rows use the same rule.
+  `packages/devtools/test/mion-bench-wire.test.ts:18`: a case only one library runs gives everyone its value,
+  so that library never falls behind for running it (ratios move toward 1); a missing case takes the worst
+  value (lowest ops, highest count); a case nobody runs drops out; `fail` counts as missing; Overall and
+  section rows use the same rule, a library that runs nothing in one section included.
 - `pr-report.mjs` rank change: extend its existing test if one exists, else cover it in the same file.
 - Bench conformance: `pnpm miondevx bench typecheck` + full `pnpm miondevx bench` green; typecost and
   compiletime entry counts per library reported before and after.
@@ -238,6 +239,10 @@ Built as planned, with these differences and additions:
   `serverBenchRows.js`). `rowMeans` replaces `commonBasis` + `geomeanOver`; `pr-report.mjs` ranks with it.
   `BenchTable.vue` now passes lower-is-better per metric (a bytes metric inside an ops bench was filled with the
   best value).
+- **Tests beyond the plan.** `packages/devtools/test/bench-fairness.test.ts` pins the timing loop, the
+  no-sample rule, the case extractor, typia's predicate strip (moved to its own import-free
+  `strip-predicates.mjs` so a host test can load it), the side benches' same-case rules, and the
+  library-wide settings (typia `finite`, TypeBox `maxErrors`, ajv strict defaults).
 - **Measuring code fixed (harness review).** `benchOps` read the clock once per pass and most cases have 1-2
   samples, so a ~50 ns clock read dominated and squeezed fast libraries together. It now reads the clock once
   per >= 1000 calls, keeps every result in a sink, and compiles a fresh loop per stream (one shared call site
@@ -248,13 +253,14 @@ Built as planned, with these differences and additions:
 - **Entries.** All four competitor files were rewritten by per-library fixers, then aligned by one consistency
   pass. Library-wide settings: TypeBox `maxErrors: Infinity`, ajv default strict mode (its `strict: false`
   silently disabled the finite-number check), typia `finite: true`. Every `samples` override is gone (ajv 27,
-  typia 48, TypeBox 3). Final coverage per library: zod 270, TypeBox 270, ajv 270, typia 266 of 272.
+  typia 49, TypeBox 3). Final coverage per library: zod 270, TypeBox 270, ajv 270, typia 266 of 272.
 - **Side benches.** Beyond the plan: compiletime's typia full tier never ran its transform (`noEmit` in the
   base config), now fixed; mion's full tier runs as its own process like typia's. typecost's builder baseline
   called a builder that does not exist.
 - **typia build.** `stripReturnPredicates` read a nested function type's `=>` as a closing bracket.
-- **mion bugs found and delegated** (own todos, own sessions, own PRs, merged before this one): strict
-  unknown-key check bugs; date / UUID / IP-with-port formats accepting invalid values; Temporal bounds
-  re-parsed per call. Competitors keep the correct stricter checks meanwhile.
+- **mion bugs found and delegated** (own todos, own sessions, own PRs MionKit/mion#549, #547, #548, which
+  merge before this one): strict unknown-key check bugs; date / UUID / IP-with-port formats accepting invalid
+  values; Temporal bounds re-parsed per call. The competitors keep the correct stricter checks, which mion
+  matches once those PRs land.
 - **Review working files** (rules, library notes, mion reference sheets, findings) lived on the branch while the
   agents worked and were deleted before merge.
