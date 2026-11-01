@@ -69,7 +69,7 @@ import {
 import type {CallContext} from './types/context.ts';
 import type {
   HeadersMiddlewareHelper,
-  JsonHandlerKeys,
+  CheckedRouterTypes,
   KnownKeysOf,
   MiddlewareHelper,
   MionRouter,
@@ -253,7 +253,7 @@ export function createMionRouter<const O extends RouterOptionsInput & KnownKeysO
  *  const mion = createMionRouter.withTypes<{handler: MionSecurityHandlerOptions}>()({basePath: 'api'});
  *  mion.route(handler, {cors: false});
  *  ``` */
-createMionRouter.withTypes = function withTypes<T extends RouterTypes & JsonHandlerKeys<T> = object>(): TypedRouterFactory<T> {
+createMionRouter.withTypes = function withTypes<T extends RouterTypes & CheckedRouterTypes<T> = object>(): TypedRouterFactory<T> {
   return createMionRouter as unknown as TypedRouterFactory<T>;
 };
 

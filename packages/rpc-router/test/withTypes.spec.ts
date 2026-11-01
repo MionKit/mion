@@ -150,6 +150,16 @@ describe('createMionRouter.withTypes: router and handler keys', () => {
     void compileOnly;
   });
 
+  it('refuses a misspelled part, alone or next to a valid one', () => {
+    function compileOnly(): void {
+      // @ts-expect-error `handlr` is not a part: it would declare nothing
+      createMionRouter.withTypes<{handlr: MionSecurityHandlerOptions}>();
+      // @ts-expect-error `routr` next to a valid part
+      createMionRouter.withTypes<{handler: MionSecurityHandlerOptions; routr: {audit?: boolean}}>();
+    }
+    void compileOnly;
+  });
+
   it('refuses an added key whose value is no JSON data, since it goes to the client', () => {
     function compileOnly(): void {
       // @ts-expect-error a function cannot reach the client in the metadata
