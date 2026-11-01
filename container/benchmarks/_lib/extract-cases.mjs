@@ -158,13 +158,19 @@ export function makeExtractors(ts) {
     return {preamble: extractPreamble(source, mapName), entries};
   }
 
-  /** DFS for the first `callName<…>(…)` call carrying a type argument under `node`
-   *  (callName is the call's source text — `createValidateFn` or `typia.createIs`). */
-  function findTypedCall(node, callName, source) {
+  /** DFS for the first call under `node` whose callee text is one of `callNames`
+   *  (`createValidateFn`, `typia.createIs`, `typia.createEquals`) and that carries a
+   *  type argument, or, with `allowUntyped`, any argument (builder form). */
+  function findTypedCall(node, callNames, source, {allowUntyped = false} = {}) {
+    const names = [].concat(callNames);
     let found = null;
     const visit = (n) => {
       if (found || !n) return;
-      if (ts.isCallExpression(n) && n.typeArguments?.length && n.expression.getText(source) === callName) {
+      if (
+        ts.isCallExpression(n) &&
+        names.includes(n.expression.getText(source)) &&
+        (n.typeArguments?.length || (allowUntyped && n.arguments.length))
+      ) {
         found = n;
         return;
       }
@@ -175,13 +181,15 @@ export function makeExtractors(ts) {
   }
 
   /** Type-form competitor cases.ts (ts-go type, typia) → {preamble, entries:{key:
-   *  {locals, typeText}}, keys}. Each entry is a `{build, buildErrors}` object,
+   *  {locals, typeText, callText}}, keys}. `typeText` is null for a builder-form call
+   *  (only matched with `allowUntyped`); `callText` is the verbatim call, options
+   *  included. Each entry is a `{build, buildErrors}` object,
    *  optionally wrapped in an IIFE `(() => { …local decls…; return {…}; })()` whose
    *  pre-return statements declare the enum/interface/type the `<T>` references. The
-   *  literal type argument lives on the `build` thunk's `callName<T>(…)` call —
-   *  `createValidateFn` for ts-go, `typia.createIs` for typia. NOT_SUPPORTED entries
+   *  literal type argument lives on the `build` thunk's call named in `callNames`:
+   *  `createValidateFn` for ts-go, `typia.createIs` / `typia.createEquals` for typia. NOT_SUPPORTED entries
    *  are skipped; `keys` lists EVERY map key in file order (drives table/row order). */
-  function extractTypeForm(file, mapName, callName) {
+  function extractTypeForm(file, mapName, callNames, opts = {}) {
     const source = sf(file);
     const obj = findMapObject(source, mapName);
     const entries = {};
@@ -212,7 +220,7 @@ export function makeExtractors(ts) {
           (p) => ts.isPropertyAssignment(p) && p.name.getText(source) === 'build'
         );
         if (!build) continue;
-        const call = findTypedCall(build.initializer, callName, source);
+        const call = findTypedCall(build.initializer, callNames, source, opts);
         if (!call) continue;
         // typia authors the type's local decls INSIDE the build block — `() => { type
         // Person = …; const check = typia.createIs<Pick<Person, …>>(); return … }` —
@@ -222,11 +230,15 @@ export function makeExtractors(ts) {
         const buildArrow = build.initializer;
         if (ts.isArrowFunction(buildArrow) && ts.isBlock(buildArrow.body)) {
           for (const stmt of buildArrow.body.statements) {
-            if (ts.isReturnStatement(stmt) || findTypedCall(stmt, callName, source)) continue;
+            if (ts.isReturnStatement(stmt) || findTypedCall(stmt, callNames, source, opts)) continue;
             locals.push(stmt.getText(source));
           }
         }
-        entries[key] = {locals, typeText: call.typeArguments[0].getText(source)};
+        entries[key] = {
+          locals,
+          typeText: call.typeArguments?.length ? call.typeArguments[0].getText(source) : null,
+          callText: call.getText(source),
+        };
       }
     }
     return {preamble: extractPreamble(source, mapName), entries, keys};
