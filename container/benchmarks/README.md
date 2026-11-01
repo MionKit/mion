@@ -65,12 +65,11 @@ measures throughput. A builder that **throws** is a hard `errored` (a broken
 plugin rewrite for ts-go, a broken schema for the rest) — surfaced loudly, never
 hidden as not-supported.
 
-Why the competitors are not-supported on so many: JSON Schema (ajv) has no
-`bigint`, can't reject `NaN`/`Infinity`, can't validate `Date`/`Map`/`Set`/`Temporal`;
-TypeBox can't express bigint literals or `RegExp`; zod has no compile-time type
-recovery for many TS-only constructs; typia's runtime semantics diverge on a
-handful of shapes (see below). RunTypes is not-supported only on the three
-cases that are intrinsically un-validatable (bare `symbol` at a root, etc.).
+Not-supported is rare: every competitor runs 263 or more of the 272 cases. What is left is the
+cases mion itself refuses as non-data (a bare `symbol`, a `RegExp`, a `Promise`, a function root, …:
+`factoryThrows` in the shared case) and two cases with no samples. Where a library has no dedicated
+feature, its entry uses a leaf custom check doing the same work (see
+[Fair comparison rules](#fair-comparison-rules)).
 
 ## typia — wired via the tsgo transform
 
@@ -100,12 +99,11 @@ set at least that old.
 
 typia entries copy the per-case literal `T` verbatim from the ts-go competitor
 (the type must be written at the `createIs<T>()` call site, like ts-go's
-`createValidateFn<T>()`). A case is supported only when typia can express the type
-**and** its runtime semantics match the shared samples; the divergences that force
-`NOT_SUPPORTED` are documented inline in
-[`competitors/typia/cases.ts`](competitors/typia/cases.ts) — e.g. `createIs<number>()`
-accepts `NaN`/`Infinity`, `Date` is an `instanceof` check, and a string index
-signature accepts an explicit-`undefined` property value (`{a: undefined}`).
+`createValidateFn<T>()`). The plugin entry in
+[`competitors/typia/tsconfig.json`](competitors/typia/tsconfig.json) sets `finite: true`, so every
+`number` rejects `NaN`/`Infinity` like mion's. Checks typia has no tag for (a valid `Date`, a plain
+object, a cycle) are custom tags declared once at the top of
+[`competitors/typia/cases.ts`](competitors/typia/cases.ts).
 
 ## What runs where
 

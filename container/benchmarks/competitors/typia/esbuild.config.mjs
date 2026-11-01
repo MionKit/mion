@@ -10,7 +10,7 @@
 //
 // Plugin discovery: `@ttsc/unplugin` compiles the project its `project` option names
 // (this dir's tsconfig.json, whose `compilerOptions.plugins` is
-// `[{ transform: "typia/lib/transform" }]`) and hands back the transformed source of
+// `[{transform: "typia/lib/transform", finite: true}]`) and hands back the transformed source of
 // that project's OWN files, i.e. the files under this dir. The shared harness it
 // reaches through `../../shared` is part of the program (type-checked, in the
 // `include`) but is never emitted, so the wrapper below leaves those files to
@@ -80,6 +80,12 @@ export function stripReturnPredicates(code) {
         scan++;
         continue;
       }
+      // A nested function type's `=>` must not read its `>` as a closing bracket.
+      if (ch === '=' && code[scan + 1] === '>') {
+        if (depth === 0) break;
+        scan += 2;
+        continue;
+      }
       if (ch === '(' || ch === '[' || ch === '{' || ch === '<') {
         depth++;
         scan++;
@@ -90,7 +96,6 @@ export function stripReturnPredicates(code) {
         scan++;
         continue;
       }
-      if (depth === 0 && ch === '=' && code[scan + 1] === '>') break;
       scan++;
     }
     out += ' '; // collapse the stripped annotation to one space before "=>"
