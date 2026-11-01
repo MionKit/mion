@@ -17,11 +17,13 @@
 ## One router factory
 
 - `createMionRouter(opts)` ([src/router.ts](src/router.ts), types [src/types/mionRouter.ts](src/types/mionRouter.ts)),
-  or the factory `customMionRouter<Types>()` returns: ONLY public way to init the router and declare routes / middleware.
+  or the factory `customMionRouter<Types>()` returns: ONLY public way to init the router and declare routes /
+  middleware.
 - Options written once, ride by type (`O`) into every helper; the declared types (`T`) ride beside them.
 - `ctx.shared` is typed from the `shared` part, `never` without one. `contextDataFactory` is refused on plain
   `createMionRouter`.
-- `handler` keys reach every handler's runtime `options` and the client metadata; `router` keys reach `getRouterOptions()`.
+- `handler` keys reach every handler's runtime `options` and the client metadata.
+- `router` keys reach `getRouterOptions()`.
 - Unknown keys fail through `KnownKeysOf` in the factory's constraint and a `NoInfer` guard on handler options:
   both kept out of inference, the cost the type budget tracks.
 - Router-wide `parser` reaches what the build compiles for a route naming none.
