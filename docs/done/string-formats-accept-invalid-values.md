@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-10-31
 ---
 
@@ -53,17 +53,21 @@ Delegated session, automatic mode: no human in the loop, decisions recorded here
 - **Dates**: `isDateString` reads each part as exactly N ASCII digits (charCode loop, no `Number()`).
   An empty part (`'2024-02-'`, `'-02-29'`) now fails: `undefined` means "the layout has no such part",
   `''` means "missing". Added per the parent session's follow-up message.
-- **UUID**: pinned versions (`4`, `7`) check the variant character (index 19) is `[89abAB]`.
+- **UUID**: pinned versions (`4`, `7`) check the variant character (index 19) is `[89abAB]`, by exact char
+  code (a `| 32` case fold would let control chars `\x18` / `\x19` through).
   `version: 'any'` stays layout-only so the Nil / Max UUIDs keep passing (JSON Schema `format: uuid`).
 - **IP**: `allowPort` now REQUIRES a port (`'1.2.3.4'`, `'1.2.3.4:'`, `'[::1]'`, `'[::1]:'` fail with
   `errorType: 'port'`). IPv6 port gets the same digits check as IPv4.
 - **Leading zeros (decided)**: rejected, in plain IPv4 and in an IPv6 embedded dotted quad.
   Ambiguous (some parsers read `010` as octal), and ajv, zod and typia reject them too.
+  Email address literals share the IPv4 check, so `joe@[010.0.0.1]` now fails too (stricter than
+  RFC 5321's `Snum`, on purpose: same ambiguity). Pinned in `formatErrorType.test.ts`.
 - Mock fix: the IPv6 loopback mock with `allowPort` now carries a port.
 - Pure-fn ids are content hashes: regenerated with `pnpm miondevx core codegen builtinpurefns`.
 - Tests: bad values added to `StringFormat.ts` suite (date ISO / DMY / YM / MD, dateTime, UUID v4 / v7,
   IPv4, IPv6, both WithPort) with format-error expectations; missing-port `errorType` cases in
   `formatErrorType.test.ts`. Same values mirrored into the bench shared samples.
-- Bench: TypeBox's hand-written IPv4 octet regex accepted leading zeros; tightened to match.
+- Bench: TypeBox's IPv4 octet regex and zod's `ipv4_port` regex accepted leading zeros; tightened to match.
+  `ipv4_port` samples carry `010.0.0.1:8080` so every library is checked on it.
 - Docs: `02.string.md` IP section states the no-leading-zeros rule and that `WithPort` requires a port.
   Date page and UUID line describe no accepted shape: unchanged.
