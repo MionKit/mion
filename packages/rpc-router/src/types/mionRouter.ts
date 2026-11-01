@@ -61,12 +61,18 @@ type RouterKeysOf<T> = T extends {router: infer Keys} ? Keys : unknown;
 export type RouterOptionsInput = Partial<RouterOptions>;
 /** The factory's parameter type: the options literal, with a widened `parser` rejected. */
 export type RouterOptionsArg<O> = O & ParserLiteralGuard<O>;
-/** In `withTypes`' constraint: a non-JSON `handler` key value is an error, it reaches the client as metadata. */
-export type JsonHandlerKeys<T> = {
+/** In `withTypes`' constraint: a misspelled part, or a non-JSON `handler` key value (it reaches the client), is an error. */
+export type CheckedRouterTypes<T> = {
   [Part in keyof T]: Part extends 'handler'
     ? {[Key in keyof T[Part]]: [Extract<T[Part][Key], NonJsonValue>] extends [never] ? T[Part][Key] : NotJsonOptionKey<Key>}
-    : T[Part];
+    : Part extends keyof RouterTypes
+      ? T[Part]
+      : UnknownTypesPart<Part>;
 };
+/** What a misspelled part (`handlr`) is typed as, so the error names it. */
+interface UnknownTypesPart<Part extends PropertyKey> {
+  readonly unknownTypesPart: Part;
+}
 type NonJsonValue = ((...args: any[]) => unknown) | bigint | symbol | RegExp | Date | Map<unknown, unknown> | Set<unknown>;
 /** What a non-JSON added key is typed as, so the error names it. */
 interface NotJsonOptionKey<Key extends PropertyKey> {
