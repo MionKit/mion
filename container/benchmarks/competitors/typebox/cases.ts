@@ -2723,12 +2723,12 @@ export const cases: CompetitorCases = {
       const shape = /^\d{2}-\d{2}-\d{4}$/;
       const schema = Type.Refine(Type.String(), (v) => {
         if (!shape.test(v)) return false;
-        const y = Number(v.slice(6, 10));
-        const m = Number(v.slice(3, 5));
-        const d = Number(v.slice(0, 2));
-        if (m < 1 || m > 12 || d < 1) return false;
-        if (m === 2) return d <= 28 || (d === 29 && y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0));
-        return d <= (m === 4 || m === 6 || m === 9 || m === 11 ? 30 : 31);
+        const year = Number(v.slice(6, 10));
+        const month = Number(v.slice(3, 5));
+        const day = Number(v.slice(0, 2));
+        if (month < 1 || month > 12 || day < 1) return false;
+        if (month === 2) return day <= 28 || (day === 29 && year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0));
+        return day <= (month === 4 || month === 6 || month === 9 || month === 11 ? 30 : 31);
       });
       const check = Compile(schema);
       return (value: unknown) => check.Check(value);
@@ -2737,12 +2737,12 @@ export const cases: CompetitorCases = {
       const shape = /^\d{2}-\d{2}-\d{4}$/;
       const schema = Type.Refine(Type.String(), (v) => {
         if (!shape.test(v)) return false;
-        const y = Number(v.slice(6, 10));
-        const m = Number(v.slice(3, 5));
-        const d = Number(v.slice(0, 2));
-        if (m < 1 || m > 12 || d < 1) return false;
-        if (m === 2) return d <= 28 || (d === 29 && y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0));
-        return d <= (m === 4 || m === 6 || m === 9 || m === 11 ? 30 : 31);
+        const year = Number(v.slice(6, 10));
+        const month = Number(v.slice(3, 5));
+        const day = Number(v.slice(0, 2));
+        if (month < 1 || month > 12 || day < 1) return false;
+        if (month === 2) return day <= 28 || (day === 29 && year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0));
+        return day <= (month === 4 || month === 6 || month === 9 || month === 11 ? 30 : 31);
       });
       const check = Compile(schema);
       return (value: unknown) => check.Errors(value).length === 0;
@@ -2754,8 +2754,8 @@ export const cases: CompetitorCases = {
       const shape = /^\d{4}-\d{2}$/;
       const schema = Type.Refine(Type.String(), (v) => {
         if (!shape.test(v)) return false;
-        const m = Number(v.slice(5, 7));
-        return m >= 1 && m <= 12;
+        const month = Number(v.slice(5, 7));
+        return month >= 1 && month <= 12;
       });
       const check = Compile(schema);
       return (value: unknown) => check.Check(value);
@@ -2764,8 +2764,8 @@ export const cases: CompetitorCases = {
       const shape = /^\d{4}-\d{2}$/;
       const schema = Type.Refine(Type.String(), (v) => {
         if (!shape.test(v)) return false;
-        const m = Number(v.slice(5, 7));
-        return m >= 1 && m <= 12;
+        const month = Number(v.slice(5, 7));
+        return month >= 1 && month <= 12;
       });
       const check = Compile(schema);
       return (value: unknown) => check.Errors(value).length === 0;
@@ -2777,10 +2777,10 @@ export const cases: CompetitorCases = {
       const shape = /^\d{2}-\d{2}$/;
       const schema = Type.Refine(Type.String(), (v) => {
         if (!shape.test(v)) return false;
-        const m = Number(v.slice(0, 2));
-        const d = Number(v.slice(3, 5));
-        if (m < 1 || m > 12 || d < 1) return false;
-        return d <= (m === 2 ? 29 : m === 4 || m === 6 || m === 9 || m === 11 ? 30 : 31);
+        const month = Number(v.slice(0, 2));
+        const day = Number(v.slice(3, 5));
+        if (month < 1 || month > 12 || day < 1) return false;
+        return day <= (month === 2 ? 29 : month === 4 || month === 6 || month === 9 || month === 11 ? 30 : 31);
       });
       const check = Compile(schema);
       return (value: unknown) => check.Check(value);
@@ -2789,10 +2789,10 @@ export const cases: CompetitorCases = {
       const shape = /^\d{2}-\d{2}$/;
       const schema = Type.Refine(Type.String(), (v) => {
         if (!shape.test(v)) return false;
-        const m = Number(v.slice(0, 2));
-        const d = Number(v.slice(3, 5));
-        if (m < 1 || m > 12 || d < 1) return false;
-        return d <= (m === 2 ? 29 : m === 4 || m === 6 || m === 9 || m === 11 ? 30 : 31);
+        const month = Number(v.slice(0, 2));
+        const day = Number(v.slice(3, 5));
+        if (month < 1 || month > 12 || day < 1) return false;
+        return day <= (month === 2 ? 29 : month === 4 || month === 6 || month === 9 || month === 11 ? 30 : 31);
       });
       const check = Compile(schema);
       return (value: unknown) => check.Errors(value).length === 0;
@@ -2803,8 +2803,8 @@ export const cases: CompetitorCases = {
       const min = Date.UTC(2020, 0, 1);
       const max = Date.UTC(2020, 11, 31);
       const schema = Type.Refine(Type.String({format: 'date'}), (v) => {
-        const t = Date.UTC(Number(v.slice(0, 4)), Number(v.slice(5, 7)) - 1, Number(v.slice(8, 10)));
-        return t >= min && t <= max;
+        const time = Date.UTC(Number(v.slice(0, 4)), Number(v.slice(5, 7)) - 1, Number(v.slice(8, 10)));
+        return time >= min && time <= max;
       });
       const check = Compile(schema);
       return (value: unknown) => check.Check(value);
@@ -2813,8 +2813,8 @@ export const cases: CompetitorCases = {
       const min = Date.UTC(2020, 0, 1);
       const max = Date.UTC(2020, 11, 31);
       const schema = Type.Refine(Type.String({format: 'date'}), (v) => {
-        const t = Date.UTC(Number(v.slice(0, 4)), Number(v.slice(5, 7)) - 1, Number(v.slice(8, 10)));
-        return t >= min && t <= max;
+        const time = Date.UTC(Number(v.slice(0, 4)), Number(v.slice(5, 7)) - 1, Number(v.slice(8, 10)));
+        return time >= min && time <= max;
       });
       const check = Compile(schema);
       return (value: unknown) => check.Errors(value).length === 0;
@@ -2892,12 +2892,12 @@ export const cases: CompetitorCases = {
       const shape = /^\d{2}-\d{2}-\d{4} (?:2[0-3]|[01]\d):[0-5]\d$/;
       const schema = Type.Refine(Type.String(), (v) => {
         if (!shape.test(v)) return false;
-        const y = Number(v.slice(6, 10));
-        const m = Number(v.slice(3, 5));
-        const d = Number(v.slice(0, 2));
-        if (m < 1 || m > 12 || d < 1) return false;
-        if (m === 2) return d <= 28 || (d === 29 && y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0));
-        return d <= (m === 4 || m === 6 || m === 9 || m === 11 ? 30 : 31);
+        const year = Number(v.slice(6, 10));
+        const month = Number(v.slice(3, 5));
+        const day = Number(v.slice(0, 2));
+        if (month < 1 || month > 12 || day < 1) return false;
+        if (month === 2) return day <= 28 || (day === 29 && year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0));
+        return day <= (month === 4 || month === 6 || month === 9 || month === 11 ? 30 : 31);
       });
       const check = Compile(schema);
       return (value: unknown) => check.Check(value);
@@ -2906,12 +2906,12 @@ export const cases: CompetitorCases = {
       const shape = /^\d{2}-\d{2}-\d{4} (?:2[0-3]|[01]\d):[0-5]\d$/;
       const schema = Type.Refine(Type.String(), (v) => {
         if (!shape.test(v)) return false;
-        const y = Number(v.slice(6, 10));
-        const m = Number(v.slice(3, 5));
-        const d = Number(v.slice(0, 2));
-        if (m < 1 || m > 12 || d < 1) return false;
-        if (m === 2) return d <= 28 || (d === 29 && y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0));
-        return d <= (m === 4 || m === 6 || m === 9 || m === 11 ? 30 : 31);
+        const year = Number(v.slice(6, 10));
+        const month = Number(v.slice(3, 5));
+        const day = Number(v.slice(0, 2));
+        if (month < 1 || month > 12 || day < 1) return false;
+        if (month === 2) return day <= 28 || (day === 29 && year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0));
+        return day <= (month === 4 || month === 6 || month === 9 || month === 11 ? 30 : 31);
       });
       const check = Compile(schema);
       return (value: unknown) => check.Errors(value).length === 0;
@@ -2924,14 +2924,14 @@ export const cases: CompetitorCases = {
       const sep = /[Tt]/;
       const hhmmss = /^(?:2[0-3]|[01][0-9]):[0-5][0-9]:[0-5][0-9]$/;
       const schema = Type.Refine(Type.String(), (v) => {
-        const i = v.search(sep);
-        if (i === -1) return false;
-        const d = v.substring(0, i);
-        const t = v.substring(i + 1);
-        if (!Format.IsDate(d) || !hhmmss.test(t)) return false;
+        const sepAt = v.search(sep);
+        if (sepAt === -1) return false;
+        const datePart = v.substring(0, sepAt);
+        const timePart = v.substring(sepAt + 1);
+        if (!Format.IsDate(datePart) || !hhmmss.test(timePart)) return false;
         const ms = Date.UTC(
-          Number(d.slice(0, 4)), Number(d.slice(5, 7)) - 1, Number(d.slice(8, 10)),
-          Number(t.slice(0, 2)), Number(t.slice(3, 5)), Number(t.slice(6, 8)),
+          Number(datePart.slice(0, 4)), Number(datePart.slice(5, 7)) - 1, Number(datePart.slice(8, 10)),
+          Number(timePart.slice(0, 2)), Number(timePart.slice(3, 5)), Number(timePart.slice(6, 8)),
         );
         return ms >= min && ms <= max;
       });
@@ -2944,14 +2944,14 @@ export const cases: CompetitorCases = {
       const sep = /[Tt]/;
       const hhmmss = /^(?:2[0-3]|[01][0-9]):[0-5][0-9]:[0-5][0-9]$/;
       const schema = Type.Refine(Type.String(), (v) => {
-        const i = v.search(sep);
-        if (i === -1) return false;
-        const d = v.substring(0, i);
-        const t = v.substring(i + 1);
-        if (!Format.IsDate(d) || !hhmmss.test(t)) return false;
+        const sepAt = v.search(sep);
+        if (sepAt === -1) return false;
+        const datePart = v.substring(0, sepAt);
+        const timePart = v.substring(sepAt + 1);
+        if (!Format.IsDate(datePart) || !hhmmss.test(timePart)) return false;
         const ms = Date.UTC(
-          Number(d.slice(0, 4)), Number(d.slice(5, 7)) - 1, Number(d.slice(8, 10)),
-          Number(t.slice(0, 2)), Number(t.slice(3, 5)), Number(t.slice(6, 8)),
+          Number(datePart.slice(0, 4)), Number(datePart.slice(5, 7)) - 1, Number(datePart.slice(8, 10)),
+          Number(timePart.slice(0, 2)), Number(timePart.slice(3, 5)), Number(timePart.slice(6, 8)),
         );
         return ms >= min && ms <= max;
       });
@@ -3024,8 +3024,8 @@ export const cases: CompetitorCases = {
     build: () => {
       const bracketed = /^\[([^\]]+)\]:(\d+)$/;
       const schema = Type.Refine(Type.String(), (v) => {
-        const m = bracketed.exec(v);
-        return m !== null && Format.IsIPv6(m[1]) && Number(m[2]) <= 65535;
+        const match = bracketed.exec(v);
+        return match !== null && Format.IsIPv6(match[1]) && Number(match[2]) <= 65535;
       });
       const check = Compile(schema);
       return (value: unknown) => check.Check(value);
@@ -3033,8 +3033,8 @@ export const cases: CompetitorCases = {
     buildErrors: () => {
       const bracketed = /^\[([^\]]+)\]:(\d+)$/;
       const schema = Type.Refine(Type.String(), (v) => {
-        const m = bracketed.exec(v);
-        return m !== null && Format.IsIPv6(m[1]) && Number(m[2]) <= 65535;
+        const match = bracketed.exec(v);
+        return match !== null && Format.IsIPv6(match[1]) && Number(match[2]) <= 65535;
       });
       const check = Compile(schema);
       return (value: unknown) => check.Errors(value).length === 0;
@@ -4201,12 +4201,12 @@ export const cases: CompetitorCases = {
   // TypeBox schemas ARE JSON Schema: its own builders emit the same document as each constraint.
   'JSON_SCHEMA.property_names': {
     build: () => {
-      const schema = Type.Refine(Type.Record(Type.String(), Type.Number(), {propertyNames: {pattern: '^[a-z]+$'}}), (value) => Object.prototype.toString.call(value) === '[object Object]');
+      const schema = Type.Refine(Type.Record(Type.String(), Type.Number(), {propertyNames: {pattern: /^[a-z]+$/}}), (value) => Object.prototype.toString.call(value) === '[object Object]');
       const check = Compile(schema);
       return (value: unknown) => check.Check(value);
     },
     buildErrors: () => {
-      const schema = Type.Refine(Type.Record(Type.String(), Type.Number(), {propertyNames: {pattern: '^[a-z]+$'}}), (value) => Object.prototype.toString.call(value) === '[object Object]');
+      const schema = Type.Refine(Type.Record(Type.String(), Type.Number(), {propertyNames: {pattern: /^[a-z]+$/}}), (value) => Object.prototype.toString.call(value) === '[object Object]');
       const check = Compile(schema);
       return (value: unknown) => check.Errors(value).length === 0;
     },
@@ -4249,13 +4249,20 @@ export const cases: CompetitorCases = {
   },
   'JSON_SCHEMA.string_email': {
     build: () => {
-      // TypeBox's email format allows a dotless domain (`missing@tld`); the pattern adds mion's dotted-TLD rule.
-      const schema = Type.String({format: 'email', pattern: '\\.[a-zA-Z]{2,63}$'});
+      const schema = Type.String({
+        minLength: 7,
+        maxLength: 254,
+        pattern: /^[^\s@]{1,64}@(?:[a-zA-Z0-9-]{1,63}\.)+[a-zA-Z]{2,63}$/,
+      });
       const check = Compile(schema);
       return (value: unknown) => check.Check(value);
     },
     buildErrors: () => {
-      const schema = Type.String({format: 'email', pattern: '\\.[a-zA-Z]{2,63}$'});
+      const schema = Type.String({
+        minLength: 7,
+        maxLength: 254,
+        pattern: /^[^\s@]{1,64}@(?:[a-zA-Z0-9-]{1,63}\.)+[a-zA-Z]{2,63}$/,
+      });
       const check = Compile(schema);
       return (value: unknown) => check.Errors(value).length === 0;
     },
