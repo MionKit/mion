@@ -8,9 +8,8 @@ import {visibleRows} from '~/utils/serverBenchRows';
 // read from the SAME generated files the benchmark pages read
 // (/bench-data/<bench>/index.json), so the card can never quote a run the pages do
 // not show. RPC: requests per second on the suite the page names, one row per server.
-// RunTypes: the is-valid check, geometric mean over every case, a library's missing case scored at the slowest result
-// (benchAggregate.js, the same math as the "Overall" row of the validation page), one
-// row per library. Plus the machine and date of the run. A missing dataset renders
+// RunTypes: the is-valid check, geomean over every case with a missing case scored at the slowest result
+// (benchAggregate.js, same math as the validation page's "Overall" row), one row per library. Plus the machine and date of the run. A missing dataset renders
 // the "not generated yet" note, never an error; check-static gates the deploy.
 
 const props = withDefaults(

@@ -12,8 +12,7 @@
 // type written LITERALLY at the call site, so each non-format entry copies the
 // literal `T` (and any local enum / interface / recursive type decl) from the ts-go
 // competitor's cases.ts, plus a leaf tag where typia's own check differs (below).
-// Recursion, utility types (Partial/Pick/Omit/Exclude/Extract/keyof/indexed-access/
-// conditional/mapped/key-remapping), and template-literal types are expressed natively.
+// Recursion, utility and template-literal types are expressed natively.
 //
 // FORMAT suites can't use the `Format*` brand types, so they translate to typia
 // tags (`Format<…>`, `Pattern<…>`, `Type<…>`, bounds, `Exclude<…>`), or to a custom
@@ -28,9 +27,7 @@
 //     (ValidDate, `instanceof Temporal.X` + `compare`, PlainObject);
 //   - typia drops function members and methods from is / validate, as mion does;
 //   - CIRCULAR_REFS: typia ends its walk on a cycle (accepts it), so a root tag rejects it.
-// NOT_SUPPORTED (each entry carries its reason): a symbol literal and the two function cases (typia emits no
-// symbol / function check and no tag can target either), `never` (accepts undefined), the two unions with an
-// index-signature arm (no place for the plain-object tag), and the two cases with no shared samples.
+// Each NOT_SUPPORTED entry carries its reason.
 
 import typia, {tags} from 'typia';
 import {NOT_SUPPORTED, type CompetitorCases} from '../../shared/harness/types.ts';
@@ -797,8 +794,7 @@ export const cases: CompetitorCases = {
       },
     };
   })(),
-  // JS keys are strings and mion does not test them; typia's number key adds a Number(key) test per key (and skips
-  // the value of a non-numeric key), so the string-key spelling does mion's work.
+  // String key on purpose: typia's number key adds a Number(key) test and skips non-numeric keys' values; mion does neither.
   'OBJECT.index_signature_number_key': {
     build: () => {
       const check = typia.createIs<{[k: string]: string} & PlainObject & NoUndefinedValues>();
@@ -1020,7 +1016,7 @@ export const cases: CompetitorCases = {
     },
   },
   'UNION.circular_union': (() => {
-    // The all-optional arm carries mion's plain-object + weak-type guard as an object tag (R3), so an Invalid Date
+    // The all-optional arm carries mion's plain-object + weak-type guard as an object tag, so an Invalid Date
     // rejected by ValidDate cannot fall through to it.
     type PlainWeak = tags.TagBase<{
       target: 'object';
@@ -1241,8 +1237,7 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
-  // A Pattern tag on a string key covers every key, so a key outside `api/…` is rejected (a template-literal key
-  // type would leave it as an accepted surplus key).
+  // A Pattern tag on a string key rejects a key outside `api/…`; a template-literal key type would accept it as surplus.
   // PlainObject = mion's plain-object guard on the index-signature node.
   'TEMPLATE_LITERAL.template_literal_index_key': {
     build: () => {
@@ -1447,8 +1442,8 @@ export const cases: CompetitorCases = {
 
   // ── CIRCULAR_REFS ──
   'CIRCULAR_REFS.linked_list_cycle': (() => {
-    // R6 root hook along `next` only: typia's visit guard ends its walk on a cycle (it would accept it), so this tag on
-    // the ROOT reference rejects it. `hasCycle` is named in the tag string and resolves at the call site.
+    // Root cycle hook along `next` only: typia's visit guard stops on a cycle and accepts it, so this ROOT tag rejects it.
+    // `hasCycle` is named in the tag string and resolves at the call site.
     const hasCycle = (node: unknown, stack: object[]): boolean => {
       if (node === null || typeof node !== 'object') return false;
       if (stack.indexOf(node) !== -1) return true;
@@ -1474,7 +1469,7 @@ export const cases: CompetitorCases = {
     };
   })(),
   'CIRCULAR_REFS.tree_cycle': (() => {
-    // R6 root hook along `children[*]` only (ancestor stack + finished set, like mion's walker); see linked_list_cycle.
+    // Root cycle hook along `children[*]` only (ancestor stack + finished set, like mion's walker); see linked_list_cycle.
     const hasCycle = (node: unknown, stack: object[], safe: Set<object>): boolean => {
       if (node === null || typeof node !== 'object' || safe.has(node)) return false;
       if (stack.indexOf(node) !== -1) return true;
@@ -1504,7 +1499,7 @@ export const cases: CompetitorCases = {
     };
   })(),
   'CIRCULAR_REFS.object_self_cycle': (() => {
-    // R6 root hook along `next` only; see linked_list_cycle.
+    // Root cycle hook along `next` only; see linked_list_cycle.
     const hasCycle = (node: unknown, stack: object[]): boolean => {
       if (node === null || typeof node !== 'object') return false;
       if (stack.indexOf(node) !== -1) return true;
@@ -1908,7 +1903,7 @@ export const cases: CompetitorCases = {
   })(),
 
   // ── DATETIME ──
-  // Temporal is no typia native and a tag on a class type is dropped, so `instanceof Temporal.X` (R4) is an object tag.
+  // Temporal is no typia native and a tag on a class type is dropped, so `instanceof Temporal.X` is an object tag.
   'DATETIME.date': {
     build: () => {
       const check = typia.createIs<ValidDate>();
@@ -2203,8 +2198,7 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
-  // Unicode classes need the `u` flag, which Pattern cannot take: alpha / alphaNumeric / numeric use a leaf tag on
-  // a hoisted regex.
+  // Unicode classes need the `u` flag, which Pattern cannot take: alpha / alphaNumeric / numeric use a hoisted-regex tag.
   'STRING_FORMAT.alpha': (() => {
     const ALPHA = /^[\p{L}]+$/u;
     type Alpha = tags.TagBase<{target: 'string'; kind: 'alpha'; value: undefined; validate: 'ALPHA.test($input)'}>;
@@ -2504,8 +2498,8 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
-  // typia's own IPv4 octet rule (`_isFormatIpv4`) + a port of 1-5 digits <= 65535, leading zeros allowed like mion.
-  // Port required (stricter than mion, which accepts a missing port).
+  // typia's own IPv4 octet rule (`_isFormatIpv4`) + a 1-5 digit port <= 65535, leading zeros allowed like mion.
+  // Port required, stricter than mion, which accepts a missing port.
   'STRING_FORMAT.ipv4_port': {
     build: () => {
       const check = typia.createIs<
@@ -2567,8 +2561,7 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
-  // email / emailPunycode: mion's rule (7..254 code points + its regex); Format<'email'> allows 1-char labels and has
-  // no length rule.
+  // email / emailPunycode: mion's rule (7..254 code points + its regex); Format<'email'> allows 1-char labels, no length.
   'STRING_FORMAT.email': {
     build: () => {
       const check = typia.createIs<string & tags.MaxLength<254> & tags.MinLength<7> & tags.Pattern<'^[^\\s@]{1,64}@(?:[a-zA-Z0-9-]{1,63}\\.)+[a-zA-Z]{2,63}$'>>();
@@ -2854,9 +2847,8 @@ export const cases: CompetitorCases = {
   },
 
   // ── DATETIME (format) ──
-  // Each case is ONE object tag: valid Date (R2) or `instanceof Temporal.X` (R4), then mion's bounds in mion's order.
-  // Fixed bounds are UTC epoch-ms literals for Date and parsed once per builder for Temporal (R4b); builders, not the
-  // module, hold them so a runtime with no Temporal global still loads the file. "now" is read on every call.
+  // Each case is ONE object tag: valid Date or `instanceof Temporal.X`, then mion's bounds in mion's order.
+  // Temporal bounds are parsed once per builder, not in the module, so a runtime with no Temporal still loads it.
   'DATETIME.date_minmax': (() => {
     type Check = object &
       tags.TagBase<{
@@ -2915,7 +2907,7 @@ export const cases: CompetitorCases = {
     };
   })(),
   'DATETIME.date_max_now': (() => {
-    // R2 + bound as one leaf hook on `object`; "now" read per call (R4b).
+    // Valid Date + bound as one leaf hook on `object`; "now" read per call.
     type Check = object &
       tags.TagBase<{
         target: 'object';
@@ -2935,7 +2927,7 @@ export const cases: CompetitorCases = {
     };
   })(),
   'DATETIME.date_rel_window': (() => {
-    // R2 + bounds as one leaf hook on `object`; now ± P1000Y with UTC calendar math per call, as mion (R4b).
+    // Valid Date + bounds as one leaf hook on `object`; now ± P1000Y with UTC calendar math per call, as mion.
     const yearsFromNow = (years: number) => {
       const now = new Date();
       return now.setUTCFullYear(now.getUTCFullYear() + years);
@@ -2959,7 +2951,7 @@ export const cases: CompetitorCases = {
     };
   })(),
   'DATETIME.date_rel_datetime_components': (() => {
-    // R2 + bound as one leaf hook on `object`; now - P1000YT12H with UTC calendar math per call, as mion (R4b).
+    // Valid Date + bound as one leaf hook on `object`; now - P1000YT12H with UTC calendar math per call, as mion.
     const minBound = () => {
       const now = new Date();
       return now.setUTCFullYear(now.getUTCFullYear() - 1000) - 43200000;
@@ -3912,9 +3904,8 @@ export const cases: CompetitorCases = {
 
   // ── STRICT ──
   // createIs is structural and ACCEPTS excess keys, so the closed forms
-  // (createEquals / createValidateEquals) are the correct pair here. Known gap, typia's own semantics: an extra
-  // key whose value is `undefined` passes (typia treats it as absent), where mion rejects any unknown key. No
-  // shared sample has one, and a no-undefined tag would also reject an optional prop set to undefined.
+  // (createEquals / createValidateEquals) are the correct pair here. Known gap: typia passes an extra key set to
+  // `undefined` (mion rejects it); no sample has one, and a no-undefined tag would also reject an optional undefined prop.
   'STRICT.flat_required': {
     build: () => {
       interface StrictFlat {

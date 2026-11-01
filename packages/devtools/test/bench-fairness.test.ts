@@ -1,6 +1,4 @@
-// The benchmark's fairness machinery that runs on the host: the timing loop, the no-sample rule, the case
-// extractor typecost and compiletime share, typia's predicate strip, and the library-wide settings that make
-// each competitor do mion's work.
+// The benchmark's fairness machinery that runs on the host, from the timing loop to each competitor's settings.
 import {describe, expect, it, vi} from 'vitest';
 import ts from 'typescript';
 import {mkdtempSync, readFileSync, writeFileSync} from 'node:fs';

@@ -1,9 +1,6 @@
-// The summary math the benchmark tables share: a geometric mean per library over every
-// case at least one library runs. BenchTable (the full per-page tables) and
-// HomeBenchTable (the headline rows on the root landing) both read it from here, so
-// the "Overall" row on a benchmark page and the number the home page quotes for the
-// same dataset can never be computed two different ways.
-// Plain JS typed in JSDoc: host tests load it, and the site's generated tsconfig only exists in its image.
+// The summary math BenchTable and HomeBenchTable share, so a page's "Overall" row and the home page's number for the
+// same dataset can never be computed two ways. Plain JS typed in JSDoc: host tests load it, and the site's generated
+// tsconfig only exists in its image.
 
 /** @typedef {'ok' | 'fail' | 'not-supported'} AggregateStatus */
 /** @typedef {'valid' | 'invalid' | 'mixed'} AggregatePath */

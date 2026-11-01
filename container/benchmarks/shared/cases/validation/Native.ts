@@ -43,7 +43,7 @@ export const NATIVE = {
     getSamples: () => {
       const realPromise = Promise.resolve('x');
       const thenable = {then: () => null};
-      // {then: 'not a function'} — fails the typeof === 'function' check
+      // {then: 'not a function'} is not a thenable
       const fakeThenable = {then: 'not a function'};
       return {
         valid: [realPromise, thenable],

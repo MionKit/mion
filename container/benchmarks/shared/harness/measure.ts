@@ -21,17 +21,14 @@ export function check(validator: Validator, samples: unknown[], want: boolean): 
   return -1;
 }
 
-// performance.now() costs ~50 ns, more than most validators: read it once per >= 1000 calls,
-// else the clock read sets the score and fast libraries look as slow as slow ones.
+// performance.now() costs ~50 ns, more than most validators: read it once per >= 1000 calls or it sets the score.
 const CALLS_PER_CLOCK_READ = 1000;
 // Accepted counts land here so the optimizer cannot drop the validator call.
 const sink = {accepted: 0};
 let loopId = 0;
 
-/** Validations/sec over `samples` (warm up, then time batches of >= 1000 calls for TIME_MS).
- *  Each call compiles its own loop: one call site shared by every case goes megamorphic and adds
- *  a flat few ns to every call. The trailing id keeps each source unique, since identical
- *  `new Function` sources share type feedback through V8's eval cache. */
+/** Each call compiles its own loop: one call site shared by every case goes megamorphic, a few ns per call.
+ *  The trailing id keeps each source unique: identical `new Function` sources share feedback via V8's eval cache. */
 export function benchOps(validator: Validator, samples: unknown[]): number {
   if (samples.length === 0) return 0;
   const make = new Function(

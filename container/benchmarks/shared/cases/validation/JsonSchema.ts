@@ -1,27 +1,9 @@
-// The JSON_SCHEMA group of the VALIDATION suite: structural constraints stated
-// as a JSON Schema document for ajv, expressed natively by each competitor.
-//
-// Every other group here asks "how fast does each library validate this shape",
-// each library describing the shape in its own dialect. This group asks the same
-// question, but only about keywords whose whole point is that they constrain
-// beyond the shape: a constraint on the keys themselves, key counts, item
-// uniqueness, a contains count. Plain shapes (objects, arrays, tuples, $ref
-// recursion) and the union-ish combinators are deliberately NOT here — the
-// other groups already bench those in every dialect, and duplicating them told
-// the reader nothing new.
-//
-// The document lives on the case as plain data so ajv compiles the very same
-// bytes. The other competitors do NOT consume it: they express the same
-// constraint in their own dialect, which is what makes the row a comparison
-// rather than a capability check. Where a dialect cannot state the constraint
-// with a feature, it uses a leaf custom check doing the same work (a zod
-// `.check`, a TypeBox `Type.Refine`, a typia custom tag); a competitor declares
-// NOT_SUPPORTED only when neither can, and the cell reads n-a.
-//
-// The samples encode OUR semantics, always — they are the mion truth the
-// alignment audit measures everyone against, never a lowest common denominator.
-// A competitor that would be marked `fail` on a divergent value opts its timing
-// lane out with a per-competitor `samples` override, which the audit ignores.
+// JSON_SCHEMA group: only keywords that constrain beyond the shape (key shape, key counts, uniqueness, contains
+// counts); plain shapes and combinators are benched by the other groups. ajv compiles the case's own `schema` bytes;
+// every other competitor states the same constraint in its own dialect, with a leaf custom check (zod `.check`,
+// TypeBox `Type.Refine`, typia custom tag) where no feature fits, and NOT_SUPPORTED (n-a) only when neither can.
+// Samples encode mion's semantics, never a lowest common denominator: a competitor that would `fail` on a divergent
+// value opts its timing lane out with a per-competitor `samples` override, which the alignment audit ignores.
 import type {JsonSchemaCase} from '../types.ts';
 
 export const JSON_SCHEMA = {

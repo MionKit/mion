@@ -61,7 +61,7 @@ function measureMetric(builder: (() => Validator) | null, shared: {valid: unknow
   if (sharedErr !== null) return errored(sharedErr);
   const validSamples = override.valid ?? shared!.valid;
   const invalidSamples = override.invalid ?? shared!.invalid;
-  // Nothing to check or time (a case mion refuses at its root, e.g. a bare symbol): an `ok` here would count as coverage.
+  // No samples (a case mion refuses at its root, e.g. a bare symbol): an `ok` here would count as coverage.
   if (validSamples.length === 0 && invalidSamples.length === 0) return {...notSupported(), detail: 'the case has no samples'};
   let validator: Validator;
   try {

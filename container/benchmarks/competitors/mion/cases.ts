@@ -1,12 +1,8 @@
-// mion validators keyed by suite case key ("GROUP.case"), TYPE form.
-// Each entry is the case's own `validate` thunk copied VERBATIM from mion's test
-// suites (packages/run-types/test/suites/**; samples in container/benchmarks/shared/cases/) — a `() => createValidateFn<T>()` arrow whose
-// literal type argument the @mionjs/devtools rewrites at build time. Local
-// enum / interface / type / function declarations inside a thunk are kept exactly
-// as written so the plugin resolves `T` where it is authored. Cases the Go
-// pipeline renders as an alwaysThrow factory (`factoryThrows`: symbol at a root or
-// propagating position) opt out with NOT_SUPPORTED. This map also drives the
-// runtime ts-go column and typecost's ts-go-type column. TOTAL over every key.
+// mion TYPE-form validators keyed by "GROUP.case": each is the case's `validate` thunk copied VERBATIM from
+// packages/run-types/test/suites/** (samples in container/benchmarks/shared/cases/), local declarations kept as
+// written so @mionjs/devtools resolves `T` where it is authored. Cases the Go pipeline renders as an alwaysThrow
+// factory (`factoryThrows`: symbol at a root or propagating position) are NOT_SUPPORTED. Also drives the runtime
+// ts-go column and typecost's ts-go-type column. TOTAL over every key.
 
 import * as TF from '@mionjs/run-types/formats';
 import type * as TFT from '@mionjs/run-types/formats/temporal';
@@ -14,10 +10,8 @@ import * as RT from '@mionjs/run-types/builders';
 import {createValidateFn, createGetValidationErrorsFn, registerFormatPattern} from '@mionjs/run-types';
 import {NOT_SUPPORTED, type CompetitorCases} from '../../shared/harness/types.ts';
 
-// Custom string-format patterns the STRING_FORMAT.pattern_* cases reference —
-// copied VERBATIM from packages/run-types/test/suites/format-validation/StringFormat.ts.
-// The Go scanner recovers {source, flags, mockSamples} from these call sites, so
-// the type aliases (`Slug` / `Hex`) resolve identically to the suite.
+// Copied VERBATIM from packages/run-types/test/suites/format-validation/StringFormat.ts.
+// The Go scanner reads these call sites, so `Slug` / `Hex` resolve as in the suite.
 const slug = registerFormatPattern({
   source: '^[a-z0-9-]+$',
   mockSamples: ['my-slug', 'abc', 'a-b-c'],
