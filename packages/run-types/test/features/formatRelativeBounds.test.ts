@@ -89,6 +89,13 @@ describe('relative time bounds (now±P, time components only)', () => {
     expect(validate('14:00')).toBe(true);
     expect(validate('14:01')).toBe(false);
   });
+
+  it('one validator follows the clock: max now+PT1H', () => {
+    const validate = createValidateFn<TF.StringTime<{format: 'HH:mm'; max: 'now+PT1H'}>>();
+    expect(validate('14:00')).toBe(false);
+    vi.setSystemTime(new Date(NOW + 60 * 60000));
+    expect(validate('14:00')).toBe(true);
+  });
 });
 
 describe('relative bounds — mock respects them (every generated value is valid)', () => {

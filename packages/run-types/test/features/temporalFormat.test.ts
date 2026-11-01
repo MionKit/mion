@@ -88,14 +88,21 @@ describe('Temporal relative now±P bounds (wide margins, clock-independent)', ()
     const validate = createValidateFn<TFT.PlainDate<{max: 'now'}>>();
     expect(validate(T.PlainDate.from('2999-01-01'))).toBe(false);
   });
+});
 
-  // The parsed duration is built once with the validator; `now` must still be read on every call.
+// Real-clock tests: the parsed bounds are built once with the validator, `now` must still be read per call.
+describe('Temporal bounds — parsed once, clock read per call', () => {
   it('one validator follows the clock: lt:now-PT0S flips once time passes', async () => {
     const validate = createValidateFn<TFT.Instant<{lt: 'now-PT0S'}>>();
-    const soon = T.Now.instant().add({milliseconds: 100});
+    const soon = T.Now.instant().add({milliseconds: 1000});
     expect(validate(soon)).toBe(false);
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    await new Promise((resolve) => setTimeout(resolve, 1200));
     expect(validate(soon)).toBe(true);
+  });
+
+  // A bad literal is parsed when the validator is built, so creation throws, before any value reaches it.
+  it('a malformed absolute bound throws when the validator is created', () => {
+    expect(() => createValidateFn<{a?: TFT.PlainDate<{min: '2020-1-1'}>}>()).toThrow(RangeError);
   });
 });
 
