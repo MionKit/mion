@@ -22,24 +22,13 @@
 const PATHS = ['valid', 'invalid', 'mixed']
 
 /**
- * Geometric mean of the positive values: outlier-resistant summary across cases.
- * @param {number[]} values
- * @returns {number | null}
- */
-export function geomean(values) {
-  const positive = values.filter((value) => typeof value === 'number' && value > 0)
-  if (positive.length === 0) return null
-  return Math.exp(positive.reduce((acc, value) => acc + Math.log(value), 0) / positive.length)
-}
-
-/**
  * A competitor "supports" a case for a metric when it ran (not fail / not-supported).
  * @param {AggregateCase} kase
  * @param {string} comp
  * @param {string} metricKey
  * @returns {boolean}
  */
-export function caseSupported(kase, comp, metricKey) {
+function caseSupported(kase, comp, metricKey) {
   const result = kase.results[comp]?.[metricKey]
   return !!result && result.status !== 'fail' && result.status !== 'not-supported'
 }
@@ -100,18 +89,18 @@ function meanWithWorstFill(cases, participants, metricKey, path, lowerBetter) {
 }
 
 /**
- * One row's means: the participants (competitors that ran >=1 of these cases) and their
- * geometric means per path, every participant over the SAME cases (meanWithWorstFill).
- * Participants are row-local, so a group one library cannot do at all leaves it n-a there
- * instead of filling the whole group with other libraries' numbers.
+ * One row's means: the participants and their geometric means per path, every participant over the
+ * SAME cases (meanWithWorstFill). Participants default to the competitors that ran >=1 of these cases;
+ * aggregateRows passes the ones that ran >=1 case anywhere, so a library that runs nothing in one
+ * section is still filled there with the slowest result, like any other case it skips.
  * @param {AggregateCase[]} cases
  * @param {string[]} competitors
  * @param {string} metricKey
  * @param {boolean} [lowerBetter]
+ * @param {string[]} [participants]
  * @returns {{participants: string[], values: AggregateValues}}
  */
-export function rowMeans(cases, competitors, metricKey, lowerBetter = false) {
-  const participants = competitors.filter((comp) => cases.some((kase) => caseSupported(kase, comp, metricKey)))
+export function rowMeans(cases, competitors, metricKey, lowerBetter = false, participants = ranAny(cases, competitors, metricKey)) {
   const byPath = Object.fromEntries(PATHS.map((path) => [path, meanWithWorstFill(cases, participants, metricKey, path, lowerBetter)]))
   /** @type {AggregateValues} */
   const values = {}
@@ -125,6 +114,17 @@ export function rowMeans(cases, competitors, metricKey, lowerBetter = false) {
 }
 
 /**
+ * The competitors that ran at least one of these cases.
+ * @param {AggregateCase[]} cases
+ * @param {string[]} competitors
+ * @param {string} metricKey
+ * @returns {string[]}
+ */
+function ranAny(cases, competitors, metricKey) {
+  return competitors.filter((comp) => cases.some((kase) => caseSupported(kase, comp, metricKey)))
+}
+
+/**
  * The per-section geometric means plus a final `__overall__` row over every case, all
  * computed by rowMeans.
  * @param {AggregateSection[]} sections
@@ -134,14 +134,15 @@ export function rowMeans(cases, competitors, metricKey, lowerBetter = false) {
  * @returns {AggregateRow[]}
  */
 export function aggregateRows(sections, competitors, metricKey, lowerBetter = false) {
+  const everyCase = sections.flatMap((section) => section.cases)
+  const participants = ranAny(everyCase, competitors, metricKey)
   /** @type {AggregateRow[]} */
   const rows = sections.map((section) => ({
     key: section.key,
     label: section.label,
     source: section.source,
-    values: rowMeans(section.cases, competitors, metricKey, lowerBetter).values,
+    values: rowMeans(section.cases, competitors, metricKey, lowerBetter, participants).values,
   }))
-  const everyCase = sections.flatMap((section) => section.cases)
-  rows.push({key: '__overall__', label: 'Overall', values: rowMeans(everyCase, competitors, metricKey, lowerBetter).values})
+  rows.push({key: '__overall__', label: 'Overall', values: rowMeans(everyCase, competitors, metricKey, lowerBetter, participants).values})
   return rows
 }

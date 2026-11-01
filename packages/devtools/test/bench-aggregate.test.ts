@@ -27,13 +27,13 @@ const valid = (cases: ReturnType<typeof kase>[], lowerBetter = false) => {
 describe('benchmark scores fill a missing case with the worst result', () => {
   const shared = [kase('A.a', {mion: 400, zod: 100, typia: 200}), kase('A.b', {mion: 900, zod: 100, typia: 300})];
 
-  it('a case only one library runs leaves every ratio unchanged', () => {
+  it('a case only one library runs gives everyone its value, so that library never falls behind for running it', () => {
     const before = valid(shared);
     const after = valid([...shared, kase('A.temporal', {mion: 10, zod: 'not-supported', typia: 'not-supported'})]);
-    expect(after.mion! / after.zod!).toBeCloseTo(Math.pow(before.mion! / before.zod!, 2 / 3));
-    // the mion-only case gives every library the same number, so mion never falls behind for running it
-    expect(after.mion! / after.zod!).toBeGreaterThan(1);
-    expect(after.mion! / after.typia!).toBeGreaterThan(1);
+    // the tie pulls the ratio toward 1 (one of three cases is now equal) but never below it
+    expect(after.mion / after.zod).toBeCloseTo(Math.pow(before.mion / before.zod, 2 / 3));
+    expect(after.mion / after.zod).toBeGreaterThan(1);
+    expect(after.mion / after.typia).toBeGreaterThan(1);
   });
 
   // every library runs A.base, so each one takes part in the row
@@ -53,10 +53,10 @@ describe('benchmark scores fill a missing case with the worst result', () => {
 
   it('a case no library runs drops out', () => {
     const means = valid([...shared, kase('A.none', {mion: 'not-supported', zod: 'not-supported', typia: 'not-supported'})]);
-    for (const lib of LIBS) expect(means[lib]).toBeCloseTo(valid(shared)[lib]!);
+    for (const lib of LIBS) expect(means[lib]).toBeCloseTo(valid(shared)[lib]);
   });
 
-  it('a library that runs nothing in the row is n-a, never filled', () => {
+  it('a library that runs no case at all is n-a, never filled', () => {
     expect(valid([kase('A.a', {mion: 400, zod: 100, typia: 'not-supported'})]).typia).toBeNull();
   });
 
@@ -70,7 +70,7 @@ describe('benchmark scores fill a missing case with the worst result', () => {
     expect(means.typia).toBeCloseTo(9);
   });
 
-  it('a library that runs nothing in a group is n-a there, but still filled in Overall', () => {
+  it('a library that runs nothing in one group is still filled there with the slowest result', () => {
     const sections = [
       {key: 'A', label: 'A', cases: shared},
       {key: 'T', label: 'T', cases: [kase('T.x', {mion: 10, zod: 5, typia: 'not-supported'})]},
@@ -78,7 +78,7 @@ describe('benchmark scores fill a missing case with the worst result', () => {
     const rows = aggregateRows(sections, LIBS, 'validate');
     const group = rows.find((row: {key: string}) => row.key === 'T');
     const overall = rows.find((row: {key: string}) => row.key === '__overall__');
-    expect(group.values.typia.valid).toBeNull();
+    expect(group.values.typia.valid).toBeCloseTo(5);
     expect(overall.values.typia.valid).toBeCloseTo(Math.cbrt(200 * 300 * 5));
   });
 });
