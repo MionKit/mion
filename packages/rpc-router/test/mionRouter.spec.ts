@@ -12,7 +12,7 @@ import {headersFromRecord} from '../src/lib/headers.ts';
 import {HandlerType, HeadersSubset} from '@mionjs/core';
 import type {CallContext} from '../src/types/context.ts';
 import type {Routes} from '../src/types/general.ts';
-import type {MionRouter, PlainRouterTypes, RouterCallContext, RouteHelper, WithShared} from '../src/types/mionRouter.ts';
+import type {MionRouter, RouterCallContext, RouteHelper, WithShared} from '../src/types/mionRouter.ts';
 import type {ApiBuildVersion, PublicApi, RemoteApi} from '../src/types/publicMethods.ts';
 
 type SharedData = {user: string | null; visits: number};
@@ -93,8 +93,8 @@ describe('createMionRouter helpers', () => {
 describe('createMionRouter types', () => {
   it("types the handler context from sharedDataFactory's return type", () => {
     type Options = {readonly basePath: 'api'; readonly sharedDataFactory: () => SharedData};
-    expectTypeOf<RouterCallContext<WithShared<Options, PlainRouterTypes>>>().toEqualTypeOf<CallContext<SharedData>>();
-    expectTypeOf(mion.route).toEqualTypeOf<RouteHelper<Options, WithShared<Options, PlainRouterTypes>>>();
+    expectTypeOf<RouterCallContext<WithShared<Options, object>>>().toEqualTypeOf<CallContext<SharedData>>();
+    expectTypeOf(mion.route).toEqualTypeOf<RouteHelper<Options, WithShared<Options, object>>>();
     mion.route((ctx, name: string) => {
       expectTypeOf(ctx.shared).toEqualTypeOf<SharedData>();
       // @ts-expect-error not a field of the shared data
@@ -105,7 +105,7 @@ describe('createMionRouter types', () => {
 
   it('types ctx.shared as never when no shared part was declared', () => {
     type Bare = MionRouter<{basePath: 'x'}>;
-    expectTypeOf<RouterCallContext<PlainRouterTypes>>().toEqualTypeOf<CallContext<never>>();
+    expectTypeOf<RouterCallContext<object>>().toEqualTypeOf<CallContext<never>>();
     expectTypeOf<Parameters<Bare['initRoutes']>[0]>().toEqualTypeOf<Routes>();
   });
 
