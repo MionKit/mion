@@ -353,11 +353,7 @@ export const isCallable = createValidateFn<Callable>(undefined, {checkUnknowns: 
 	}
 }
 
-// THE KEY CHECK ADDS NO SHAPE GUARD OF ITS OWN.
-//
-// The fused validator needs no object guard beyond its own: `typeof` / `!== null` are
-// already its leading term. An array that carries every declared prop reaches the
-// key check, which counts its indices as keys and so rejects it.
+// The fused validator's leading `typeof` / `!== null` is its only guard; an array with every declared prop fails the key check.
 func TestCheckUnknowns_ValidatorKeyCheckAddsNoGuard(t *testing.T) {
 	modules := scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';
 interface T {a: string; b: number}
@@ -376,8 +372,7 @@ export const isT = createValidateFn<T>(undefined, {checkUnknowns: true});
 	}
 }
 
-// The error family emits no array test either, so it reports an array's index keys
-// exactly where the validator's key check rejects them. Both marker call shapes.
+// No array test in the error family either: it reports an array's index keys wherever the validator rejects them.
 func TestCheckUnknowns_ErrorFamilyScansArraysLikeValidator(t *testing.T) {
 	assertNoArraySkip(t, `import {createGetValidationErrorsFn} from '@mionjs/run-types';
 interface T {a: string; b: number}
