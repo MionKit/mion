@@ -10,6 +10,7 @@ import (
 
 // bound_hoist_test.go pins that a validator parses each fixed bound once, in its factory prologue, never per
 // call: Temporal literals, Temporal durations and the native-Date relative spec. Only `now` stays per call.
+// It also pins that a rest tuple's validate ends in one `return true`.
 
 // scanFamilySource returns the `family` entry source for a module calling createValidateFn or
 // createGetValidationErrorsFn.
