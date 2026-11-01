@@ -40,8 +40,10 @@ export const isUUID = registerPureFnFactory(function () {
         if (value[i] !== params.version) return false;
       } else if (i === 19 && pinned) {
         // RFC 9562 variant: `[89abAB]`.
-        const variant = value.charCodeAt(i) | 32;
-        if (variant !== 56 && variant !== 57 && variant !== 97 && variant !== 98) return false;
+        const variant = value.charCodeAt(i);
+        const isVariant =
+          variant === 56 || variant === 57 || variant === 97 || variant === 98 || variant === 65 || variant === 66;
+        if (!isVariant) return false;
       } else {
         const charCode = value.charCodeAt(i);
         const is09 = charCode >= 48 && charCode <= 57;
@@ -506,7 +508,7 @@ export const isIPV4 = registerPureFnFactory(function (utl: RTUtils) {
 
 export const isIPV6 = registerPureFnFactory(function (utl: RTUtils) {
   const isLocalHostFn = utl.getPureFn(isLocalHost) as IsLocalHostFn;
-  const ipv6PortRegexp = /^\[([^\]]+)\](?::(.*))?$/;
+  const ipv6PortRegexp = /^\[([^\]]+)\](?::([\s\S]*))?$/;
   const portRegexp = /^\d{1,5}$/;
   // The group walkers work on index RANGES of the one address string: a split-and-regex version of the
   // same rules measured ~2x slower, all of it allocation and per-group regex overhead.

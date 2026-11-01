@@ -48,6 +48,10 @@ const V7 = '018f1b8c-2e3d-7b5c-8d6e-1f2a3b4c5d6e'; // version nibble = 7
 // Variant nibble (char 19) outside RFC 9562's `[89ab]`.
 const V4_BAD_VARIANT = '9f1b8c2e-3d4a-4b5c-cd6e-1f2a3b4c5d6e';
 const V7_BAD_VARIANT = '018f1b8c-2e3d-7b5c-0d6e-1f2a3b4c5d6e';
+// Control chars that a case fold (`| 32`) would turn into '8' / '9'.
+const V4_CTRL_VARIANT = '9f1b8c2e-3d4a-4b5c-\x18d6e-1f2a3b4c5d6e';
+const V7_CTRL_VARIANT = '018f1b8c-2e3d-7b5c-\x19d6e-1f2a3b4c5d6e';
+const V4_UPPER_VARIANT = '9f1b8c2e-3d4a-4b5c-Ad6e-1f2a3b4c5d6e';
 const V1 = '9f1b8c2e-3d4a-1b5c-8d6e-1f2a3b4c5d6e'; // version nibble = 1
 // RFC 9562 §5.9 / §5.10 — the Nil and Max UUIDs are VALID UUIDs whose version
 // nibble (0 / f) names no version at all. They are the reason `format: 'uuid'`
@@ -894,7 +898,7 @@ export const STRING_FORMAT = {
       'Only a well-formed v4 UUID passes; the version nibble must be `4`.',
       'A v7 UUID fails with `val` `4`; a non-UUID string (`not-a-uuid`) also fails with `val` `4`.',
       'The empty string, a hyphen-stripped UUID, and a non-string (123) are all rejected.',
-      'The variant character (19th) must be one of `89ab`; `c` fails with `val` `4`.',
+      'The variant character (20th) must be one of `89ab` in either case; `c` or a control char fails with `val` `4`.',
     ],
     validate: () => createValidateFn<TF.UUIDv4>(),
     standardSchema: () => createStandardSchema<TF.UUIDv4>(),
@@ -926,8 +930,19 @@ export const STRING_FORMAT = {
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.UUIDv4>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.uuidv4()),
     mockType: () => createMockDataFn<TF.UUIDv4>(),
-    getSamples: () => ({valid: [V4], invalid: [V7, 'not-a-uuid', '', V4.replace(/-/g, ''), 123, V4_BAD_VARIANT]}),
-    expectedFormatErrors: () => [{name: 'uuid', val: '4'}, {name: 'uuid', val: '4'}, null, null, null, {name: 'uuid', val: '4'}],
+    getSamples: () => ({
+      valid: [V4, V4_UPPER_VARIANT],
+      invalid: [V7, 'not-a-uuid', '', V4.replace(/-/g, ''), 123, V4_BAD_VARIANT, V4_CTRL_VARIANT],
+    }),
+    expectedFormatErrors: () => [
+      {name: 'uuid', val: '4'},
+      {name: 'uuid', val: '4'},
+      null,
+      null,
+      null,
+      {name: 'uuid', val: '4'},
+      {name: 'uuid', val: '4'},
+    ],
   },
   uuidv7: {
     title: 'UUID v7',
@@ -968,9 +983,18 @@ export const STRING_FORMAT = {
     mockType: () => createMockDataFn<TF.UUIDv7>(),
     getSamples: () => ({
       valid: [V7],
-      invalid: [V4, V7.slice(0, -1), V7.replace('1', 'g'), V7.replace('7b5c', 'cb5c'), '', 123, V7_BAD_VARIANT],
+      invalid: [V4, V7.slice(0, -1), V7.replace('1', 'g'), V7.replace('7b5c', 'cb5c'), '', 123, V7_BAD_VARIANT, V7_CTRL_VARIANT],
     }),
-    expectedFormatErrors: () => [{name: 'uuid', val: '7'}, null, null, null, null, null, {name: 'uuid', val: '7'}],
+    expectedFormatErrors: () => [
+      {name: 'uuid', val: '7'},
+      null,
+      null,
+      null,
+      null,
+      null,
+      {name: 'uuid', val: '7'},
+      {name: 'uuid', val: '7'},
+    ],
   },
 
   // ──────────────────────────── Credit card ───────────────────────
@@ -2381,7 +2405,7 @@ export const STRING_FORMAT = {
     description: 'TF.IPv4WithPort (format `ip`, version 4, port allowed) accepting `ipv4:port`.',
     validateNotes: [
       'The port must be in range; `192.168.0.1:8080` passes, while `192.168.0.1:70000` (port > 65535) fails with `val` 4.',
-      'The port is required: `192.168.0.1` and `192.168.0.1:` fail.',
+      'The port is required: `192.168.0.1` and `192.168.0.1:` fail. Leading zeros fail here too (`010.0.0.1:8080`).',
     ],
     validate: () => createValidateFn<TF.IPv4WithPort>(),
     standardSchema: () => createStandardSchema<TF.IPv4WithPort>(),
@@ -2413,8 +2437,12 @@ export const STRING_FORMAT = {
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.IPv4WithPort>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.ipv4WithPort()),
     mockType: () => createMockDataFn<TF.IPv4WithPort>(),
-    getSamples: () => ({valid: ['192.168.0.1:8080'], invalid: ['192.168.0.1:70000', '192.168.0.1', '192.168.0.1:']}),
+    getSamples: () => ({
+      valid: ['192.168.0.1:8080'],
+      invalid: ['192.168.0.1:70000', '192.168.0.1', '192.168.0.1:', '010.0.0.1:8080'],
+    }),
     expectedFormatErrors: () => [
+      {name: 'ip', val: 4},
       {name: 'ip', val: 4},
       {name: 'ip', val: 4},
       {name: 'ip', val: 4},

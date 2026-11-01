@@ -54,17 +54,17 @@ export const isDateString = registerPureFnFactory(function () {
   }
   return function _isDateString(year: string | undefined, month: string, day?: string): boolean {
     // `undefined` means the layout has no such part; an empty string is a missing one and fails.
-    const y = year === undefined ? -1 : digitsVal(year, 4);
-    if (year !== undefined && y < 0) return false;
-    const m = digitsVal(month, 2);
-    if (m < 1 || m > 12) return false;
+    const yearNum = year === undefined ? -1 : digitsVal(year, 4);
+    if (year !== undefined && yearNum < 0) return false;
+    const monthNum = digitsVal(month, 2);
+    if (monthNum < 1 || monthNum > 12) return false;
     if (day !== undefined) {
-      const d = digitsVal(day, 2);
-      if (d < 1 || d > 31) return false;
-      if (m === 2) {
-        if (d > 29) return false;
-        if (y >= 0 && d === 29 && !(y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0))) return false;
-      } else if ((m === 4 || m === 6 || m === 9 || m === 11) && d > 30) {
+      const dayNum = digitsVal(day, 2);
+      if (dayNum < 1 || dayNum > 31) return false;
+      if (monthNum === 2) {
+        if (dayNum > 29) return false;
+        if (yearNum >= 0 && dayNum === 29 && !(yearNum % 4 === 0 && (yearNum % 100 !== 0 || yearNum % 400 === 0))) return false;
+      } else if ((monthNum === 4 || monthNum === 6 || monthNum === 9 || monthNum === 11) && dayNum > 30) {
         return false;
       }
     }
