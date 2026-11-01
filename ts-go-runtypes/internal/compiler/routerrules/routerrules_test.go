@@ -566,8 +566,7 @@ func TestArgsFollowTheHeadlineSlots(t *testing.T) {
 	}
 }
 
-// rpc-handler-shared-factory-untyped: `ctx.shared` comes from the factory's return, which a client infers from the
-// body unless it is written.
+// rpc-handler-shared-factory-untyped: a client infers `ctx.shared` from the factory's body unless its return is written.
 func TestSharedDataFactory_InferredReturnIsReported(t *testing.T) {
 	const imp = "import {createMionRouter} from '@mionjs/router';\n"
 	cases := map[string]map[string]string{

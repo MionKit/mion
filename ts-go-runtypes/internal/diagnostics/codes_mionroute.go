@@ -26,9 +26,8 @@ const (
 	// Reports the DECLARATION, so it fires for types no route reaches yet. Args: [0] the property
 	// name.
 	CodeRouteUnsafePropertyName = "rpc-handler-non-data-property"
-	// CodeRouteSharedFactoryUntyped: a router's `sharedDataFactory` with no written return type. `ctx.shared` is that
-	// return type, and a client types the router by inferring the whole options literal, so an inferred return makes
-	// every client compute it (a whole database type). Works at runtime, hence a warning. No args.
+	// CodeRouteSharedFactoryUntyped: a `sharedDataFactory` with no written return type, which every client infers
+	// from the body (a whole database type). Works at runtime, hence a warning. No args.
 	CodeRouteSharedFactoryUntyped = "rpc-handler-shared-factory-untyped"
 )
 
