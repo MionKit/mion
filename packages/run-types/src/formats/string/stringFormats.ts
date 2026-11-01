@@ -308,8 +308,8 @@ export type UUIDv7 = TypeFormat<string, 'uuid', {version: '7'}, never>;
 
 /** The failure modes an `ip` format reports in `TypeFormatError.errorType`,
  *  ONLY when `allowPort` is on: `'address'` (not an address of the accepted
- *  version) or `'port'` (a good address, a port that is not digits or is over
- *  65535). Without `allowPort` there is one way to fail and the field stays
+ *  version) or `'port'` (a good address, a port that is missing, not digits or
+ *  over 65535). Without `allowPort` there is one way to fail and the field stays
  *  unset. Under `version: 'any'` a port complaint from either parser wins. **/
 export type IpErrorType = 'address' | 'port';
 
@@ -318,6 +318,7 @@ export type IpErrorType = 'address' | 'port';
 export interface IPParams {
   version: 4 | 6 | 'any';
   allowLocalHost?: boolean;
+  /** Requires a port after the address: `1.2.3.4:80`, `[::1]:80`. **/
   allowPort?: boolean;
   /** Value rewrite (`{lowercase: true}` canonicalises IPv6 hex digits). Off by default. **/
   transform?: StringTransformParams;
@@ -753,7 +754,7 @@ export const uuidv7 = presetBuilder<UUIDv7>('uuid');
 /** IP address, any version (`IP`); `ip({allowLocalHost: true})` also accepts the
  *  hostname `localhost`. **/
 export const ip = presetFormatBuilder<'ip', DEFAULT_IP_PARAMS, Override<IPParams>>('ip');
-/** IPv4 (`IPv4`); `ipv4({allowPort: true})` accepts a trailing port. **/
+/** IPv4 (`IPv4`); `ipv4({allowPort: true})` requires a trailing port. **/
 export const ipv4 = presetFormatBuilder<'ip', DEFAULT_IPV4_PARAMS, Override<IPParams, 'version'>>('ip');
 /** IPv6 (`IPv6`). **/
 export const ipv6 = presetFormatBuilder<'ip', DEFAULT_IPV6_PARAMS, Override<IPParams, 'version'>>('ip');

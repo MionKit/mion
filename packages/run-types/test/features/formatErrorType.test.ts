@@ -193,6 +193,9 @@ describe('ip — the address or the port', () => {
     ['nope:80', 'address'],
     ['192.168.0.1:99999', 'port'],
     ['192.168.0.1:abc', 'port'],
+    // The port is required: missing or empty is a port problem.
+    ['192.168.0.1', 'port'],
+    ['192.168.0.1:', 'port'],
     // Both wrong: the address outranks the port.
     ['nope:99999', 'address'],
   ];
@@ -219,6 +222,16 @@ describe('ip — the address or the port', () => {
     expect(formatErrorOf(getErrors('[2001:db8::1]:99999'))?.errorType).toBe('port');
     expect(formatErrorOf(getErrors('10.0.0.1:99999'))?.errorType).toBe('port');
     expect(formatErrorOf(getErrors('zzz'))?.errorType).toBe('address');
+  });
+
+  it('requires the port on IPv6 too, reported as a port problem', () => {
+    const getErrors = createGetValidationErrorsFn<TF.IPv6WithPort>();
+    expect(getErrors('[::1]:80')).toEqual([]);
+    expect(formatErrorOf(getErrors('[::1]'))?.errorType).toBe('port');
+    expect(formatErrorOf(getErrors('[::1]:'))?.errorType).toBe('port');
+    expect(formatErrorOf(getErrors('[::1]:8a'))?.errorType).toBe('port');
+    // A bare address is not the bracketed shape at all.
+    expect(formatErrorOf(getErrors('::1'))?.errorType).toBe('address');
   });
 
   it('is left unset without allowPort, where there is one way to fail', () => {

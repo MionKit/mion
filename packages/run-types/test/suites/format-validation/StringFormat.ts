@@ -45,6 +45,9 @@ type Generated = TF.String<{pattern: {source: '^[a-d]{2}-[0-9]{2}$'; flags: 'u'}
 
 const V4 = '9f1b8c2e-3d4a-4b5c-8d6e-1f2a3b4c5d6e'; // version nibble = 4
 const V7 = '018f1b8c-2e3d-7b5c-8d6e-1f2a3b4c5d6e'; // version nibble = 7
+// Variant nibble (char 19) outside RFC 9562's `[89ab]`.
+const V4_BAD_VARIANT = '9f1b8c2e-3d4a-4b5c-cd6e-1f2a3b4c5d6e';
+const V7_BAD_VARIANT = '018f1b8c-2e3d-7b5c-0d6e-1f2a3b4c5d6e';
 const V1 = '9f1b8c2e-3d4a-1b5c-8d6e-1f2a3b4c5d6e'; // version nibble = 1
 // RFC 9562 §5.9 / §5.10 — the Nil and Max UUIDs are VALID UUIDs whose version
 // nibble (0 / f) names no version at all. They are the reason `format: 'uuid'`
@@ -61,6 +64,8 @@ const AMEX = '378282246310005';
 const VISA_TYPO = '4111111111111112';
 const VISA_SPACED = '4111 1111 1111 1111';
 const VISA_DASHED = '4111-1111-1111-1111';
+
+const DATE_ISO_NOT_DIGITS = ['0x1F-01-01', '1e03-01-01', '2024-+1-01', '2024- 1-01', '2024-01-1.', '2024-02-', '-02-29'];
 
 export const STRING_FORMAT = {
   // ─────────────────────────── TF.String ───────────────────────
@@ -889,6 +894,7 @@ export const STRING_FORMAT = {
       'Only a well-formed v4 UUID passes; the version nibble must be `4`.',
       'A v7 UUID fails with `val` `4`; a non-UUID string (`not-a-uuid`) also fails with `val` `4`.',
       'The empty string, a hyphen-stripped UUID, and a non-string (123) are all rejected.',
+      'The variant character (19th) must be one of `89ab`; `c` fails with `val` `4`.',
     ],
     validate: () => createValidateFn<TF.UUIDv4>(),
     standardSchema: () => createStandardSchema<TF.UUIDv4>(),
@@ -920,15 +926,15 @@ export const STRING_FORMAT = {
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.UUIDv4>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.uuidv4()),
     mockType: () => createMockDataFn<TF.UUIDv4>(),
-    getSamples: () => ({valid: [V4], invalid: [V7, 'not-a-uuid', '', V4.replace(/-/g, ''), 123]}),
-    expectedFormatErrors: () => [{name: 'uuid', val: '4'}, {name: 'uuid', val: '4'}, null, null, null],
+    getSamples: () => ({valid: [V4], invalid: [V7, 'not-a-uuid', '', V4.replace(/-/g, ''), 123, V4_BAD_VARIANT]}),
+    expectedFormatErrors: () => [{name: 'uuid', val: '4'}, {name: 'uuid', val: '4'}, null, null, null, {name: 'uuid', val: '4'}],
   },
   uuidv7: {
     title: 'UUID v7',
     description: 'TF.UUIDv7 (format `uuid`, version `7`) accepting only version-7 UUIDs and rejecting v4.',
     validateNotes: [
       'The version nibble must be `7`; a valid v4 UUID fails with `val` `7`.',
-      'Malformed input is also rejected: a wrong-length UUID, a non-hex character (`g`), a wrong-version-nibble form, the empty string, and a non-string (123) all fail.',
+      'Malformed input is also rejected: a wrong-length UUID, a non-hex character (`g`), a wrong-version-nibble form, the empty string, a non-string (123) and a variant character outside `89ab` all fail.',
     ],
     validate: () => createValidateFn<TF.UUIDv7>(),
     standardSchema: () => createStandardSchema<TF.UUIDv7>(),
@@ -962,9 +968,9 @@ export const STRING_FORMAT = {
     mockType: () => createMockDataFn<TF.UUIDv7>(),
     getSamples: () => ({
       valid: [V7],
-      invalid: [V4, V7.slice(0, -1), V7.replace('1', 'g'), V7.replace('7b5c', 'cb5c'), '', 123],
+      invalid: [V4, V7.slice(0, -1), V7.replace('1', 'g'), V7.replace('7b5c', 'cb5c'), '', 123, V7_BAD_VARIANT],
     }),
-    expectedFormatErrors: () => [{name: 'uuid', val: '7'}, null, null, null, null, null],
+    expectedFormatErrors: () => [{name: 'uuid', val: '7'}, null, null, null, null, null, {name: 'uuid', val: '7'}],
   },
 
   // ──────────────────────────── Credit card ───────────────────────
@@ -1463,6 +1469,7 @@ export const STRING_FORMAT = {
       'Default layout is ISO `YYYY-MM-DD`; the format error `val` is `ISO`.',
       'Calendar validity is enforced: `2023-02-29` (not a leap year), `2024-13-01` (month 13), and `2024-04-31` (April has 30 days) all fail.',
       'Width is exact — `2024-1-1` (single-digit month/day) fails; `not-a-date` fails. `0001-01-01` is accepted.',
+      'Each part is plain ASCII digits: `0x1F-01-01`, `1e03-01-01`, `2024-+1-01`, `2024- 1-01` and `2024-01-1.` fail, as does an empty part (`2024-02-`, `-02-29`).',
     ],
     validate: () => createValidateFn<TF.StringDate>(),
     standardSchema: () => createStandardSchema<TF.StringDate>(),
@@ -1496,15 +1503,30 @@ export const STRING_FORMAT = {
     mockType: () => createMockDataFn<TF.StringDate>(),
     getSamples: () => ({
       valid: ['2024-02-29', '2026-05-28', '0001-01-01'],
-      invalid: ['2023-02-29', '2024-13-01', '2024-04-31', '2024-1-1', 'not-a-date'],
+      invalid: [
+        '2023-02-29',
+        '2024-13-01',
+        '2024-04-31',
+        '2024-1-1',
+        'not-a-date',
+        // Right width, but not plain digits, or a part left empty.
+        ...DATE_ISO_NOT_DIGITS,
+      ],
     }),
-    expectedFormatErrors: () => [{name: 'date', val: 'ISO'}, null, null, null, null],
+    expectedFormatErrors: () => [
+      {name: 'date', val: 'ISO'},
+      null,
+      null,
+      null,
+      null,
+      ...DATE_ISO_NOT_DIGITS.map(() => ({name: 'date', val: 'ISO'})),
+    ],
   },
   date_DMY: {
     title: 'String date DMY',
     description: 'TF.StringDate with the `DD-MM-YYYY` layout using day-first ordering plus calendar validity.',
     validateNotes: [
-      'Layout is `DD-MM-YYYY` (format error `val` `DD-MM-YYYY`); `29-02-2024` passes. An ISO-ordered string (`2024-02-29`) fails the layout, and `31-04-2024` fails calendar validity (April has 30 days).',
+      'Layout is `DD-MM-YYYY` (format error `val` `DD-MM-YYYY`); `29-02-2024` passes. An ISO-ordered string (`2024-02-29`) fails the layout, and `31-04-2024` fails calendar validity (April has 30 days). An empty part (`29-02-`, `-02-2024`) or a signed one (`+1-02-2024`) fails.',
     ],
     validate: () => createValidateFn<TF.StringDate<{format: 'DD-MM-YYYY'}>>(),
     standardSchema: () => createStandardSchema<TF.StringDate<{format: 'DD-MM-YYYY'}>>(),
@@ -1536,8 +1558,11 @@ export const STRING_FORMAT = {
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.StringDate<{format: 'DD-MM-YYYY'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.stringDate({format: 'DD-MM-YYYY'})),
     mockType: () => createMockDataFn<TF.StringDate<{format: 'DD-MM-YYYY'}>>(),
-    getSamples: () => ({valid: ['29-02-2024'], invalid: ['2024-02-29', '31-04-2024']}),
+    getSamples: () => ({valid: ['29-02-2024'], invalid: ['2024-02-29', '31-04-2024', '29-02-', '-02-2024', '+1-02-2024']}),
     expectedFormatErrors: () => [
+      {name: 'date', val: 'DD-MM-YYYY'},
+      {name: 'date', val: 'DD-MM-YYYY'},
+      {name: 'date', val: 'DD-MM-YYYY'},
       {name: 'date', val: 'DD-MM-YYYY'},
       {name: 'date', val: 'DD-MM-YYYY'},
     ],
@@ -1546,7 +1571,7 @@ export const STRING_FORMAT = {
     title: 'String date YM',
     description: 'TF.StringDate with the `YYYY-MM` layout (year-month, no day component).',
     validateNotes: [
-      'Layout is `YYYY-MM` (format error `val` `YYYY-MM`); `2024-02` passes. Month 13 (`2024-13`) fails, and supplying a day (`2024-02-29`) fails the layout.',
+      'Layout is `YYYY-MM` (format error `val` `YYYY-MM`); `2024-02` passes. Month 13 (`2024-13`) fails, and supplying a day (`2024-02-29`) fails the layout. An empty or non-digit part (`-02`, `1e03-02`, `2024-+2`) fails.',
     ],
     validate: () => createValidateFn<TF.StringDate<{format: 'YYYY-MM'}>>(),
     standardSchema: () => createStandardSchema<TF.StringDate<{format: 'YYYY-MM'}>>(),
@@ -1578,8 +1603,11 @@ export const STRING_FORMAT = {
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.StringDate<{format: 'YYYY-MM'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.stringDate({format: 'YYYY-MM'})),
     mockType: () => createMockDataFn<TF.StringDate<{format: 'YYYY-MM'}>>(),
-    getSamples: () => ({valid: ['2024-02'], invalid: ['2024-13', '2024-02-29']}),
+    getSamples: () => ({valid: ['2024-02'], invalid: ['2024-13', '2024-02-29', '-02', '1e03-02', '2024-+2']}),
     expectedFormatErrors: () => [
+      {name: 'date', val: 'YYYY-MM'},
+      {name: 'date', val: 'YYYY-MM'},
+      {name: 'date', val: 'YYYY-MM'},
       {name: 'date', val: 'YYYY-MM'},
       {name: 'date', val: 'YYYY-MM'},
     ],
@@ -1588,7 +1616,7 @@ export const STRING_FORMAT = {
     title: 'String date MD',
     description: 'TF.StringDate with the `MM-DD` layout (month-day, no year component).',
     validateNotes: [
-      'Layout is `MM-DD` (format error `val` `MM-DD`); `02-29` passes. Month 13 (`13-01`) fails, as does a day-overflow (`02-30`, February has no 30th).',
+      'Layout is `MM-DD` (format error `val` `MM-DD`); `02-29` passes. Month 13 (`13-01`) fails, as does a day-overflow (`02-30`, February has no 30th), an empty day (`02-`) and a signed month (`+2-01`).',
     ],
     validate: () => createValidateFn<TF.StringDate<{format: 'MM-DD'}>>(),
     standardSchema: () => createStandardSchema<TF.StringDate<{format: 'MM-DD'}>>(),
@@ -1620,8 +1648,10 @@ export const STRING_FORMAT = {
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.StringDate<{format: 'MM-DD'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.stringDate({format: 'MM-DD'})),
     mockType: () => createMockDataFn<TF.StringDate<{format: 'MM-DD'}>>(),
-    getSamples: () => ({valid: ['02-29'], invalid: ['13-01', '02-30']}),
+    getSamples: () => ({valid: ['02-29'], invalid: ['13-01', '02-30', '02-', '+2-01']}),
     expectedFormatErrors: () => [
+      {name: 'date', val: 'MM-DD'},
+      {name: 'date', val: 'MM-DD'},
       {name: 'date', val: 'MM-DD'},
       {name: 'date', val: 'MM-DD'},
     ],
@@ -1864,7 +1894,7 @@ export const STRING_FORMAT = {
       'Both halves must be individually valid and joined by `T`; `2024-02-29T12:30:45Z` passes.',
       'A lowercase separator (`1963-06-19t08:30:06z`) passes too, per RFC 3339; both validate and getValidationErrors accept it.',
       'A space separator (`2024-02-29 12:30:45Z`) fails on the split char (formatPathTail `splitChar`).',
-      'A non-leap date (`2023-02-29`), an out-of-range hour (`25:30:45`), and `not-a-datetime` are all rejected.',
+      'A non-leap date (`2023-02-29`), an out-of-range hour (`25:30:45`), `not-a-datetime`, a non-digit year (`1e03`) and an empty day (`2024-02-`) are all rejected.',
     ],
     validate: () => createValidateFn<TF.StringDateTime>(),
     standardSchema: () => createStandardSchema<TF.StringDateTime>(),
@@ -1898,9 +1928,23 @@ export const STRING_FORMAT = {
     mockType: () => createMockDataFn<TF.StringDateTime>(),
     getSamples: () => ({
       valid: ['2024-02-29T12:30:45Z', '2026-05-28T00:00:00.500+02:00', '1963-06-19t08:30:06z'],
-      invalid: ['2024-02-29 12:30:45Z', '2023-02-29T12:30:45Z', '2024-02-29T25:30:45Z', 'not-a-datetime'],
+      invalid: [
+        '2024-02-29 12:30:45Z',
+        '2023-02-29T12:30:45Z',
+        '2024-02-29T25:30:45Z',
+        'not-a-datetime',
+        '1e03-01-01T12:30:45Z',
+        '2024-02-T12:30:45Z',
+      ],
     }),
-    expectedFormatErrors: () => [{name: 'dateTime', formatPathTail: 'splitChar'}, null, null, null],
+    expectedFormatErrors: () => [
+      {name: 'dateTime', formatPathTail: 'splitChar'},
+      null,
+      null,
+      null,
+      {name: 'dateTime', formatPathTail: 'date'},
+      {name: 'dateTime', formatPathTail: 'date'},
+    ],
   },
   dateTime_custom: {
     title: 'String dateTime custom',
@@ -2142,6 +2186,7 @@ export const STRING_FORMAT = {
     validateNotes: [
       'Each octet must be 0–255 in plain decimal; `192.168.0.1`, `0.0.0.0`, and `255.255.255.255` pass.',
       'Out-of-range octets (`999.999.999.999`, `256.0.0.1`), a 3-octet address (`1.2.3`), an IPv6 address (`::1`), hex/empty octets (`0x7f.0.0.1`, `192.168..1`) and trailing whitespace all fail; the first failure carries `val` 4.',
+      'Leading zeros (`010.0.0.1`, `192.168.01.1`) fail: some parsers read them as octal.',
       'The hostname `localhost` is NOT an address, so it fails here; `TF.IPv4<{allowLocalHost: true}>` opts back into it.',
     ],
     validate: () => createValidateFn<TF.IPv4>(),
@@ -2176,9 +2221,31 @@ export const STRING_FORMAT = {
     mockType: () => createMockDataFn<TF.IPv4>(),
     getSamples: () => ({
       valid: ['192.168.0.1', '0.0.0.0', '255.255.255.255'],
-      invalid: ['999.999.999.999', '256.0.0.1', '1.2.3', '::1', 'localhost', '0x7f.0.0.1', '192.168..1', '192.168.0.1 '],
+      invalid: [
+        '999.999.999.999',
+        '256.0.0.1',
+        '1.2.3',
+        '::1',
+        'localhost',
+        '0x7f.0.0.1',
+        '192.168..1',
+        '192.168.0.1 ',
+        '010.0.0.1',
+        '192.168.01.1',
+      ],
     }),
-    expectedFormatErrors: () => [{name: 'ip', val: 4}, null, null, null, null, null, null, null],
+    expectedFormatErrors: () => [
+      {name: 'ip', val: 4},
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      {name: 'ip', val: 4},
+      {name: 'ip', val: 4},
+    ],
   },
   ipv4_localhost: {
     title: 'IPv4 with localhost',
@@ -2229,7 +2296,7 @@ export const STRING_FORMAT = {
     description:
       'TF.IPv6 (format `ip`, version 6) accepting colon-separated IPv6 addresses including `::` compression and loopback.',
     validateNotes:
-      'Full, compressed (`::1`), and link-local (`fe80::1`) forms pass. An IPv4 address (`192.168.0.1`) and a group exceeding 4 hex digits (`12345::1`) each fail with `val` 6.',
+      'Full, compressed (`::1`), and link-local (`fe80::1`) forms pass. An IPv4 address (`192.168.0.1`) a group exceeding 4 hex digits (`12345::1`) and an embedded IPv4 with a leading zero (`::ffff:010.0.0.1`) each fail with `val` 6.',
     validate: () => createValidateFn<TF.IPv6>(),
     standardSchema: () => createStandardSchema<TF.IPv6>(),
     validateReflect: () => {
@@ -2260,8 +2327,12 @@ export const STRING_FORMAT = {
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.IPv6>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.ipv6()),
     mockType: () => createMockDataFn<TF.IPv6>(),
-    getSamples: () => ({valid: ['2001:db8:0:0:0:0:0:1', '::1', 'fe80::1'], invalid: ['192.168.0.1', '12345::1']}),
+    getSamples: () => ({
+      valid: ['2001:db8:0:0:0:0:0:1', '::1', 'fe80::1'],
+      invalid: ['192.168.0.1', '12345::1', '::ffff:010.0.0.1'],
+    }),
     expectedFormatErrors: () => [
+      {name: 'ip', val: 6},
       {name: 'ip', val: 6},
       {name: 'ip', val: 6},
     ],
@@ -2310,6 +2381,7 @@ export const STRING_FORMAT = {
     description: 'TF.IPv4WithPort (format `ip`, version 4, port allowed) accepting `ipv4:port`.',
     validateNotes: [
       'The port must be in range; `192.168.0.1:8080` passes, while `192.168.0.1:70000` (port > 65535) fails with `val` 4.',
+      'The port is required: `192.168.0.1` and `192.168.0.1:` fail.',
     ],
     validate: () => createValidateFn<TF.IPv4WithPort>(),
     standardSchema: () => createStandardSchema<TF.IPv4WithPort>(),
@@ -2341,14 +2413,19 @@ export const STRING_FORMAT = {
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.IPv4WithPort>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.ipv4WithPort()),
     mockType: () => createMockDataFn<TF.IPv4WithPort>(),
-    getSamples: () => ({valid: ['192.168.0.1:8080'], invalid: ['192.168.0.1:70000']}),
-    expectedFormatErrors: () => [{name: 'ip', val: 4}],
+    getSamples: () => ({valid: ['192.168.0.1:8080'], invalid: ['192.168.0.1:70000', '192.168.0.1', '192.168.0.1:']}),
+    expectedFormatErrors: () => [
+      {name: 'ip', val: 4},
+      {name: 'ip', val: 4},
+      {name: 'ip', val: 4},
+    ],
   },
   ipv6_port: {
     title: 'IPv6 with port',
     description: 'TF.IPv6WithPort (format `ip`, version 6, port allowed) accepting bracketed `[ipv6]:port`.',
     validateNotes: [
       'The port must be in range; `[2001:db8::1]:443` passes, while `[2001:db8::1]:99999` (port > 65535) fails with `val` 6.',
+      'The port is required: `[2001:db8::1]` and `[2001:db8::1]:` fail.',
     ],
     validate: () => createValidateFn<TF.IPv6WithPort>(),
     standardSchema: () => createStandardSchema<TF.IPv6WithPort>(),
@@ -2380,8 +2457,12 @@ export const STRING_FORMAT = {
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.IPv6WithPort>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.ipv6WithPort()),
     mockType: () => createMockDataFn<TF.IPv6WithPort>(),
-    getSamples: () => ({valid: ['[2001:db8::1]:443'], invalid: ['[2001:db8::1]:99999']}),
-    expectedFormatErrors: () => [{name: 'ip', val: 6}],
+    getSamples: () => ({valid: ['[2001:db8::1]:443'], invalid: ['[2001:db8::1]:99999', '[2001:db8::1]', '[2001:db8::1]:']}),
+    expectedFormatErrors: () => [
+      {name: 'ip', val: 6},
+      {name: 'ip', val: 6},
+      {name: 'ip', val: 6},
+    ],
   },
 
   // ────────────────────────────── Domain ──────────────────────────
