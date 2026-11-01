@@ -280,7 +280,7 @@ const CASE_FILTER = (process.env.MION_VALIDATION_BENCH_CASE ?? '').toLowerCase()
 const matchesFilter = (key) => !CASE_FILTER || key.toLowerCase().includes(CASE_FILTER);
 
 async function main() {
-  const tsType = extractTypeForm(path.join(TSGO_DIR, 'cases.ts'), 'cases', 'createValidateFn');
+  const tsType = extractTypeForm(path.join(TSGO_DIR, 'cases.ts'), 'cases', ['createValidateFn']);
   const tsSchema = extractTsGo(path.join(TSGO_DIR, 'schemaCases.ts'), 'schemaCases', 'schema');
   const zod = extractSchemaCompetitor(path.join(ZOD_DIR, 'cases.ts'), 'cases');
   const typebox = extractSchemaCompetitor(path.join(TYPEBOX_DIR, 'cases.ts'), 'cases');

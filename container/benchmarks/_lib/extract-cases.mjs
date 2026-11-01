@@ -162,13 +162,12 @@ export function makeExtractors(ts) {
    *  (`createValidateFn`, `typia.createIs`, `typia.createEquals`) and that carries a
    *  type argument, or, with `allowUntyped`, any argument (builder form). */
   function findTypedCall(node, callNames, source, {allowUntyped = false} = {}) {
-    const names = [].concat(callNames);
     let found = null;
     const visit = (n) => {
       if (found || !n) return;
       if (
         ts.isCallExpression(n) &&
-        names.includes(n.expression.getText(source)) &&
+        callNames.includes(n.expression.getText(source)) &&
         (n.typeArguments?.length || (allowUntyped && n.arguments.length))
       ) {
         found = n;

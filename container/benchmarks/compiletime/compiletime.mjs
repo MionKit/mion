@@ -165,7 +165,7 @@ function cleanup() {
 }
 
 async function main() {
-  const CALLS = {mion: 'createValidateFn', typia: ['typia.createIs', 'typia.createEquals']};
+  const CALLS = {mion: ['createValidateFn'], typia: ['typia.createIs', 'typia.createEquals']};
   const extract = (lib) =>
     extractTypeForm(path.join(COMPETITOR_DIR, '..', lib, 'cases.ts'), 'cases', CALLS[lib], {allowUntyped: true});
   const model = extract(COMPETITOR);
