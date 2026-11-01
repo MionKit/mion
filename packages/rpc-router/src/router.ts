@@ -235,7 +235,7 @@ export function createMionRouter<const O extends RouterOptionsInput & KnownKeysO
     mutation: mutation as RouteHelper<O, WithShared<O, PlainRouterTypes>, true>,
     middleware: middleware as MiddlewareHelper<O, WithShared<O, PlainRouterTypes>>,
     headersMiddleware: headersMiddleware as HeadersMiddlewareHelper<O, WithShared<O, PlainRouterTypes>>,
-    rawMiddleware: rawMiddleware as RawMiddlewareHelper<O, WithShared<O, PlainRouterTypes>>,
+    rawMiddleware: rawMiddleware as RawMiddlewareHelper<WithShared<O, PlainRouterTypes>>,
     // Typed by MionRouter, the one place its signature is written.
     initRoutes(routes, buildVersion) {
       initRouter(options, buildVersion);
