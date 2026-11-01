@@ -338,16 +338,28 @@ describe('checkUnknowns — validate and errors agree on arrays', () => {
   });
 });
 
-describe('checkUnknowns — errors report every unknown key', () => {
-  it('reports 12 unknown keys without throwing (static)', () => {
-    const errors = createGetValidationErrorsFn<StrictFlat>(undefined, {checkUnknowns: true})(withExtraKeys);
-    expect(errors.map((error) => error.path[0]).sort()).toEqual([...extraKeys].sort());
+// The error list stops at 10 unknown keys per object and adds one entry for the rest, so a huge body stays a small report.
+const tenUnknown = extraKeys.slice(0, 10).map((key) => ({path: [key], expected: 'never'}));
+const tooMany = {path: [], expected: 'tooManyUnknownKeys'};
+const withTenExtraKeys = {...flag, ...Object.fromEntries(extraKeys.slice(0, 10).map((key) => [key, 0]))};
+
+describe('checkUnknowns — unknown keys are capped per object', () => {
+  it('reports 10 keys then one tooManyUnknownKeys entry, without throwing (static)', () => {
+    const getErrors = createGetValidationErrorsFn<StrictFlat>(undefined, {checkUnknowns: true});
+    expect(getErrors(withExtraKeys)).toEqual([...tenUnknown, tooMany]);
+    expect(getErrors(withTenExtraKeys)).toEqual(tenUnknown);
     expect(createValidateFn<StrictFlat>(undefined, {checkUnknowns: true})(withExtraKeys)).toBe(false);
   });
 
-  it('reports 12 unknown keys without throwing (value-first)', () => {
-    const errors = createGetValidationErrorsFn(flag, {checkUnknowns: true})(withExtraKeys);
-    expect(errors.map((error) => error.path[0]).sort()).toEqual([...extraKeys].sort());
+  it('reports 10 keys then one tooManyUnknownKeys entry, without throwing (value-first)', () => {
+    const getErrors = createGetValidationErrorsFn(flag, {checkUnknowns: true});
+    expect(getErrors(withExtraKeys)).toEqual([...tenUnknown, tooMany]);
+    expect(getErrors(withTenExtraKeys)).toEqual(tenUnknown);
     expect(createValidateFn(flag, {checkUnknowns: true})(withExtraKeys)).toBe(false);
+  });
+
+  it('puts the tooManyUnknownKeys entry at the nested object path', () => {
+    const getErrors = createGetValidationErrorsFn<{inner: StrictFlat}>(undefined, {checkUnknowns: true});
+    expect(getErrors({inner: withExtraKeys}).at(-1)).toEqual({path: ['inner'], expected: 'tooManyUnknownKeys'});
   });
 });

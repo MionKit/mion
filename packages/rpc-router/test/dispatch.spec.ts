@@ -767,6 +767,19 @@ describe('undeclared params keys, per parser strategy', () => {
     });
   });
 
+  it('mutateStrict answers a body with too many unknown keys with a validation error, never a crash', async () => {
+    mion.initRoutes({rejectsExtras});
+
+    const extras = Object.fromEntries(Array.from({length: 50}, (_, i) => [`extra${i}`, i]));
+    const request = getDefaultRequest('rejectsExtras', [{name: 'Leo', surname: 'Tungsten', ...extras}]);
+    const response = await dispatchRoute('/rejectsExtras', request.body, request.headers, headersFromRecord({}), request, {});
+    const thrown = response.body[MION_ROUTES.thrownErrors]?.rejectsExtras;
+    expect(thrown).toMatchObject({type: 'validation-error'});
+    const typeErrors = thrown?.errorData?.typeErrors;
+    expect(typeErrors).toHaveLength(11);
+    expect(typeErrors?.at(-1)).toEqual({path: [0], expected: 'tooManyUnknownKeys'});
+  });
+
   it('mutate keeps the key and hands it to the handler', async () => {
     mion.initRoutes({keepsExtras});
 

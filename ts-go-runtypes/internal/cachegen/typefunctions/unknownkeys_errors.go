@@ -2,10 +2,15 @@ package typefunctions
 
 import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
+	"strconv"
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
+
+// maxUnknownKeys caps the `never` entries per object; past it one `tooManyUnknownKeys` entry stands for the rest, so
+// a body with thousands of extra keys never builds thousands of errors.
+const maxUnknownKeys = 10
 
 // callUnknownKeyErr appends a 'never' error for an unknown key; `extra` is the key VARIABLE, the key being a runtime value.
 func callUnknownKeyErr(ctx *EmitContext, extra string) string {
@@ -19,7 +24,8 @@ func callUnknownKeyErr(ctx *EmitContext, extra string) string {
 	return key + "(" + strings.Join(args, ",") + ")"
 }
 
-// emitParentUnknownKeyErrors pushes one `{path, expected: 'never'}` per undeclared key for `validationErrorsStrict`;
+// emitParentUnknownKeyErrors pushes one `{path, expected: 'never'}` per undeclared key, up to maxUnknownKeys, for
+// `validationErrorsStrict`;
 // "" when an index signature declares every key or the shape declares no names.
 // ⚠️ THE CALLER OWNS THE OBJECT GUARD: the fused family already sits inside emitObjectValidationErrors' guard, and a
 // second one would emit on every object node, which strictObjectKeyAssertion also avoids on validate.
@@ -33,7 +39,10 @@ func emitParentUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext) string
 		return ""
 	}
 	unknownVar := ctx.NextLocalVar("unk")
-	keyVar := ctx.NextLocalVar("ky")
+	indexVar := ctx.NextLocalVar("iu")
+	limit := strconv.Itoa(maxUnknownKeys)
 	return "const " + unknownVar + " = " + unknownValue + ";" +
-		"if (" + unknownVar + ") {for (const " + keyVar + " of " + unknownVar + ") {" + callUnknownKeyErr(ctx, keyVar) + "}}"
+		"for (let " + indexVar + " = 0; " + indexVar + " < " + unknownVar + ".length && " + indexVar + " < " + limit + "; " + indexVar + "++) {" +
+		callUnknownKeyErr(ctx, unknownVar+"["+indexVar+"]") + "}" +
+		"if (" + unknownVar + ".length > " + limit + ") " + callRTErr(ctx, "tooManyUnknownKeys", "")
 }
