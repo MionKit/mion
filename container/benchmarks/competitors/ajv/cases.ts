@@ -12,7 +12,7 @@ import {JSON_SCHEMA} from '../../shared/cases/json-schema/index.ts';
 type JsonSchemaKey = keyof typeof JSON_SCHEMA;
 const doc = (key: JsonSchemaKey): object => JSON_SCHEMA[key].schema as object;
 
-// `plainObject`: the document's root is a record, so mion's plain-object guard (R3) joins its `type: 'object'`.
+// `plainObject`: the document's root is a record, so mion's plain-object guard joins its `type: 'object'`.
 function compile2020(key: JsonSchemaKey, allErrors: boolean, plainObject = false): (value: unknown) => boolean {
   const ajv = new Ajv2020({allErrors});
   if (key === 'string_email') addFormats(ajv, {mode: 'full'}); // full: `email` must require the dotted TLD ('missing@tld')
@@ -22,10 +22,8 @@ function compile2020(key: JsonSchemaKey, allErrors: boolean, plainObject = false
 }
 
 // ── Leaf hooks ──
-// JSON Schema has no keyword for bigint, undefined, Date, Temporal, the plain-object guard or cycle detection, so each
-// is an ajv `code` keyword: its check is inlined into the generated validator (no call, no per-call object), bound
-// values are bound once from ajv's scope. `cxt.pass(cond)` / `cxt.error()` report one error; without allErrors ajv
-// returns at once, with allErrors it records it and keeps going, so one keyword serves both metrics.
+// JSON Schema cannot type these, so each is an ajv `code` keyword inlined in the validator: no call, no per-call object.
+// `cxt.pass` / `cxt.error` report one error; allErrors decides stop or collect, so one keyword serves both metrics.
 
 type Op = '>=' | '<=' | '>' | '<';
 const holds: Record<Op, (left: Code, right: Code) => Code> = {
@@ -38,8 +36,8 @@ const holds: Record<Op, (left: Code, right: Code) => Code> = {
 const boundCode = (cxt: KeywordCxt, bound: unknown): Code =>
   typeof bound === 'function' ? _`${cxt.gen.scopeValue('func', {ref: bound})}()` : cxt.gen.scopeValue('obj', {ref: bound});
 
-// `{bigint: true}`: `typeof v === 'bigint'` (R5). `{bigint: {max, lt, min, gt, multipleOf}}` (decimal strings, as a
-// bigint cannot be JSON): the type check, then one error per failed bound in mion's order. Type-less: runs on any value.
+// `{bigint: true | {max, lt, min, gt, multipleOf}}`, bounds as decimal strings since a bigint cannot be JSON.
+// One error per failed bound in mion's order; type-less, so it runs on any value.
 function addBigint(ajv: Ajv): void {
   ajv.addKeyword({
     keyword: 'bigint',
@@ -63,7 +61,7 @@ function addBigint(ajv: Ajv): void {
   });
 }
 
-// `{bigintConst: '1'}`: `v === 1n`, mion's bigint literal check (R5).
+// `{bigintConst: '1'}`: `v === 1n`, mion's bigint literal check.
 function addBigintConst(ajv: Ajv): void {
   ajv.addKeyword({
     keyword: 'bigintConst',
@@ -72,7 +70,7 @@ function addBigintConst(ajv: Ajv): void {
   });
 }
 
-// `{isUndefined: true}`: `v === undefined`. Type-less, so it also runs on `undefined`.
+// Type-less, so ajv also runs it on `undefined`.
 function addIsUndefined(ajv: Ajv): void {
   ajv.addKeyword({
     keyword: 'isUndefined',
@@ -81,9 +79,8 @@ function addIsUndefined(ajv: Ajv): void {
   });
 }
 
-// `{plainObject: true}` next to `type: 'object'`: mion's plain-object guard (R3), on index-signature and
-// all-optional nodes only. `type: 'object'` already rejects null and arrays; this adds the toString test and runs
-// first in the object group (before the key loop), like mion's guard.
+// mion's plain-object guard, index-signature and all-optional nodes only; `type: 'object'` already rejects null/arrays.
+// Runs first in the object group (before the key loop), like mion's guard.
 function addPlainObject(ajv: Ajv): void {
   ajv.addKeyword({
     keyword: 'plainObject',
@@ -94,8 +91,7 @@ function addPlainObject(ajv: Ajv): void {
   });
 }
 
-// `{validDate: true}`: a valid Date, mion's `v instanceof Date && !isNaN(v.getTime())` (R2), then each `bounds`
-// entry as `v.getTime() <op> bound` in the given order (mion's). Type-less: runs on any value.
+// mion's valid-Date check, then `bounds` in the given order (mion's); type-less, so it runs on any value.
 function addValidDate(ajv: Ajv, bounds: [Op, number | (() => number)][] = []): void {
   ajv.addKeyword({
     keyword: 'validDate',
@@ -113,8 +109,7 @@ function addValidDate(ajv: Ajv, bounds: [Op, number | (() => number)][] = []): v
   });
 }
 
-// `{temporal: true}`: `v instanceof <Class>` (R4), then each `bounds` entry as `<Class>.compare(v, bound) <op> 0`
-// in the given order (mion's). The class is passed in, so Temporal is only read inside a DATETIME builder.
+// instanceof, then `bounds` in the given order (mion's). The class is passed in, so only a DATETIME builder reads Temporal.
 function addTemporal(ajv: Ajv, cls: object, bounds: [Op, unknown][] = []): void {
   ajv.addKeyword({
     keyword: 'temporal',
@@ -136,9 +131,8 @@ function addTemporal(ajv: Ajv, cls: object, bounds: [Op, unknown][] = []): void 
   });
 }
 
-// `{noCycle: true}` at the root: one call to `hasCycle`, which walks ONLY the recursive property path (R6). Used as
-// `if: {noCycle: true}, then: <shape>, else: false`: the `if` runs without allErrors, so a cyclic value never
-// reaches the recursive shape check (which would never end) in either metric.
+// Root gate: `if: {noCycle: true}, then: <shape>, else: false`, so a cycle never reaches the endless shape check.
+// The `if` runs without allErrors, so the gate holds in both metrics.
 function addNoCycle(ajv: Ajv, hasCycle: (value: unknown) => boolean): void {
   ajv.addKeyword({
     keyword: 'noCycle',
@@ -147,8 +141,7 @@ function addNoCycle(ajv: Ajv, hasCycle: (value: unknown) => boolean): void {
   });
 }
 
-// `{<keyword>: true}`: one inlined `test(v)` for a value JSON Schema cannot type (symbol, RegExp, function,
-// thenable: the cases mion refuses as non-data). Type-less: runs on any value.
+// For values JSON Schema cannot type (symbol, RegExp, function, thenable: what mion refuses as non-data); runs on any value.
 function addTest(ajv: Ajv, keyword: string, test: (data: Name) => Code): void {
   ajv.addKeyword({keyword, schemaType: 'boolean', code: (cxt: KeywordCxt) => cxt.pass(test(cxt.data))});
 }
@@ -160,26 +153,14 @@ function isCalendarDate(year: number, month: number, day: number): boolean {
   return month >= 1 && month <= 12 && day >= 1 && day <= (month === 2 && leap ? 29 : DAYS[month]);
 }
 
-// Each supported case compiles its JSON Schema inside its own builder thunk:
-// self-contained and copy-paste runnable, with any shared sub-schema inlined (the
-// leaf hooks above are the only shared code). The `validate` metric uses a default
-// Ajv; `validationErrors` uses an allErrors:true Ajv (the "collect every error"
-// path). Options stay at ajv's defaults: strict mode on, which also keeps
-// `strictNumbers` on, so every `number` / `integer` check rejects NaN and
-// ±Infinity like mion. A non-default option (`allowUnionTypes` for a `type` array,
-// `discriminator` for a tag switch) carries its reason at the call site. ajv-formats
-// is added only where a schema uses one of its formats or limit keywords, in full
-// mode only where mion's check is calendar-aware. Self references are `$ref: '#'`
-// (a direct self-call). The Ajv instance + compile run inside the builder (one-time
-// setup, not timed), so only the returned check function is measured. No case
-// carries a `samples` override.
+// Each case is self-contained and copy-paste runnable: sub-schemas inlined, the leaf hooks are the only shared code.
+// Ajv and compile run in the builder (untimed setup); `validationErrors` uses allErrors: true.
+// Default options keep strict mode, so `strictNumbers` rejects NaN and ±Infinity like mion; any other option says why.
+// ajv-formats only where its formats or limit keywords are used, full mode only where mion's check is calendar-aware.
+// Self references are `$ref: '#'` (a direct self-call). No case carries a `samples` override.
 
-// TOTAL map over every shared case key (order matches the suite). Supported cases
-// compile a JSON Schema, with a leaf hook where JSON Schema has no type (bigint,
-// undefined, Date, Temporal, Map, Set, symbol, RegExp, function, thenable, the
-// plain-object guard, cycle detection). The cases mion refuses as non-data still run
-// here (scoring fills mion's cell). NOT_SUPPORTED is left only for the two cases
-// with no shared samples.
+// TOTAL over every shared case key, in suite order. Cases mion refuses as non-data still run (scoring fills mion's cell).
+// NOT_SUPPORTED is left only for the two cases with no shared samples.
 export const cases: CompetitorCases = {
   // ── ATOMIC ──
   'ATOMIC.any': {
@@ -2439,7 +2420,6 @@ export const cases: CompetitorCases = {
       return (value: unknown) => validate(value) === true;
     },
   },
-  // a thenable: an object whose `then` is a function
   'NATIVE.promise_string': {
     build: () => {
       const ajv = new Ajv();
@@ -2747,7 +2727,7 @@ export const cases: CompetitorCases = {
   'CIRCULAR_REFS.linked_list_cycle': {
     build: () => {
       const ajv = new Ajv();
-      // cycle walk along the recursive `next` path only (R6): on one path the visited set is the ancestor set
+      // cycle walk along the recursive `next` path only: on one path the visited set is the ancestor set
       addNoCycle(ajv, (value) => {
         const seen = new Set<object>();
         for (let node = value; typeof node === 'object' && node !== null; node = (node as {next?: unknown}).next) {
@@ -2772,7 +2752,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // cycle walk along the recursive `next` path only (R6): on one path the visited set is the ancestor set
+      // cycle walk along the recursive `next` path only: on one path the visited set is the ancestor set
       addNoCycle(ajv, (value) => {
         const seen = new Set<object>();
         for (let node = value; typeof node === 'object' && node !== null; node = (node as {next?: unknown}).next) {
@@ -2799,7 +2779,7 @@ export const cases: CompetitorCases = {
   'CIRCULAR_REFS.tree_cycle': {
     build: () => {
       const ajv = new Ajv();
-      // cycle walk along `children[*]` only (R6): ancestor stack + finished set, like mion's walker
+      // cycle walk along `children[*]` only: ancestor stack + finished set, like mion's walker
       const hasCycle = (node: unknown, stack: object[], done: Set<object>): boolean => {
         if (typeof node !== 'object' || node === null || done.has(node)) return false;
         if (stack.includes(node)) return true;
@@ -2829,7 +2809,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // cycle walk along `children[*]` only (R6): ancestor stack + finished set, like mion's walker
+      // cycle walk along `children[*]` only: ancestor stack + finished set, like mion's walker
       const hasCycle = (node: unknown, stack: object[], done: Set<object>): boolean => {
         if (typeof node !== 'object' || node === null || done.has(node)) return false;
         if (stack.includes(node)) return true;
@@ -2861,7 +2841,7 @@ export const cases: CompetitorCases = {
   'CIRCULAR_REFS.object_self_cycle': {
     build: () => {
       const ajv = new Ajv();
-      // cycle walk along the recursive `next` path only (R6): on one path the visited set is the ancestor set
+      // cycle walk along the recursive `next` path only: on one path the visited set is the ancestor set
       addNoCycle(ajv, (value) => {
         const seen = new Set<object>();
         for (let node = value; typeof node === 'object' && node !== null; node = (node as {next?: unknown}).next) {
@@ -2886,7 +2866,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // cycle walk along the recursive `next` path only (R6): on one path the visited set is the ancestor set
+      // cycle walk along the recursive `next` path only: on one path the visited set is the ancestor set
       addNoCycle(ajv, (value) => {
         const seen = new Set<object>();
         for (let node = value; typeof node === 'object' && node !== null; node = (node as {next?: unknown}).next) {
@@ -3791,13 +3771,13 @@ export const cases: CompetitorCases = {
   'STRING_FORMAT.date_iso': {
     build: () => {
       const ajv = new Ajv();
-      addFormats(ajv, {mode: 'full'}); // full: calendar-aware date, like mion (R9)
+      addFormats(ajv, {mode: 'full'}); // full: calendar-aware date, like mion
       const validate = ajv.compile({type: 'string', format: 'date'});
       return (value: unknown) => validate(value) === true;
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      addFormats(ajv, {mode: 'full'}); // full: calendar-aware date, like mion (R9)
+      addFormats(ajv, {mode: 'full'}); // full: calendar-aware date, like mion
       const validate = ajv.compile({type: 'string', format: 'date'});
       return (value: unknown) => validate(value) === true;
     },
@@ -3865,13 +3845,13 @@ export const cases: CompetitorCases = {
   'STRING_FORMAT.date_minMax_absolute': {
     build: () => {
       const ajv = new Ajv();
-      addFormats(ajv, {mode: 'full', keywords: true}); // full: calendar `date` (R9); keywords: formatMinimum/formatMaximum
+      addFormats(ajv, {mode: 'full', keywords: true}); // full: calendar `date`; keywords: formatMinimum/formatMaximum
       const validate = ajv.compile({type: 'string', format: 'date', formatMinimum: '2020-01-01', formatMaximum: '2020-12-31'});
       return (value: unknown) => validate(value) === true;
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      addFormats(ajv, {mode: 'full', keywords: true}); // full: calendar `date` (R9); keywords: formatMinimum/formatMaximum
+      addFormats(ajv, {mode: 'full', keywords: true}); // full: calendar `date`; keywords: formatMinimum/formatMaximum
       const validate = ajv.compile({type: 'string', format: 'date', formatMinimum: '2020-01-01', formatMaximum: '2020-12-31'});
       return (value: unknown) => validate(value) === true;
     },
@@ -3879,13 +3859,13 @@ export const cases: CompetitorCases = {
   'STRING_FORMAT.time_iso': {
     build: () => {
       const ajv = new Ajv();
-      addFormats(ajv, {mode: 'full'}); // full: RFC 3339 time, tz required, leap second only at 23:59 UTC, like mion (R9)
+      addFormats(ajv, {mode: 'full'}); // full: RFC 3339 time, tz required, leap second only at 23:59 UTC, like mion
       const validate = ajv.compile({type: 'string', format: 'time'});
       return (value: unknown) => validate(value) === true;
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      addFormats(ajv, {mode: 'full'}); // full: RFC 3339 time, tz required, leap second only at 23:59 UTC, like mion (R9)
+      addFormats(ajv, {mode: 'full'}); // full: RFC 3339 time, tz required, leap second only at 23:59 UTC, like mion
       const validate = ajv.compile({type: 'string', format: 'time'});
       return (value: unknown) => validate(value) === true;
     },
@@ -3947,13 +3927,13 @@ export const cases: CompetitorCases = {
   'STRING_FORMAT.dateTime_default': {
     build: () => {
       const ajv = new Ajv();
-      addFormats(ajv, {mode: 'full'}); // full: calendar date + RFC 3339 time (R9)
+      addFormats(ajv, {mode: 'full'}); // full: calendar date + RFC 3339 time
       const validate = ajv.compile({type: 'string', format: 'date-time', pattern: '[Tt]'});
       return (value: unknown) => validate(value) === true;
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      addFormats(ajv, {mode: 'full'}); // full: calendar date + RFC 3339 time (R9)
+      addFormats(ajv, {mode: 'full'}); // full: calendar date + RFC 3339 time
       const validate = ajv.compile({type: 'string', format: 'date-time', pattern: '[Tt]'});
       return (value: unknown) => validate(value) === true;
     },
@@ -4082,8 +4062,8 @@ export const cases: CompetitorCases = {
       return (value: unknown) => validate(value) === true;
     },
   },
-  // ajv-formats' IPv4 octet rule (as the ipv4 entry) + a port of 1-5 digits <= 65535, leading zeros allowed like mion.
-  // Port required (stricter than mion, which accepts a missing port).
+  // ajv-formats' IPv4 octet rule + a 1-5 digit port <= 65535, leading zeros allowed like mion.
+  // Port required, stricter than mion, which accepts a missing port.
   'STRING_FORMAT.ipv4_port': {
     build: () => {
       const ajv = new Ajv();
@@ -4103,7 +4083,7 @@ export const cases: CompetitorCases = {
       });
       return (value: unknown) => validate(value) === true;
     },
-  }, // port required; 1-5 digits <= 65535, like mion
+  }, // port required (stricter than mion); 1-5 digits <= 65535
   'STRING_FORMAT.ipv6_port': {
     build: () => {
       const ajv = new Ajv();
@@ -4603,14 +4583,14 @@ export const cases: CompetitorCases = {
   'DATETIME.date_max_now': {
     build: () => {
       const ajv = new Ajv();
-      // relative bounds re-read the clock on every call (R4b), with mion's UTC calendar shift
+      // relative bounds re-read the clock on every call, with mion's UTC calendar shift
       addValidDate(ajv, [['<=', () => Date.now()]]);
       const validate = ajv.compile({validDate: true});
       return (value: unknown) => validate(value) === true;
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // relative bounds re-read the clock on every call (R4b), with mion's UTC calendar shift
+      // relative bounds re-read the clock on every call, with mion's UTC calendar shift
       addValidDate(ajv, [['<=', () => Date.now()]]);
       const validate = ajv.compile({validDate: true});
       return (value: unknown) => validate(value) === true;
@@ -4619,7 +4599,7 @@ export const cases: CompetitorCases = {
   'DATETIME.date_rel_window': {
     build: () => {
       const ajv = new Ajv();
-      // relative bounds re-read the clock on every call (R4b), with mion's UTC calendar shift
+      // relative bounds re-read the clock on every call, with mion's UTC calendar shift
       const shiftYears = (years: number) => () => {
         const bound = new Date();
         bound.setUTCFullYear(bound.getUTCFullYear() + years);
@@ -4634,7 +4614,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // relative bounds re-read the clock on every call (R4b), with mion's UTC calendar shift
+      // relative bounds re-read the clock on every call, with mion's UTC calendar shift
       const shiftYears = (years: number) => () => {
         const bound = new Date();
         bound.setUTCFullYear(bound.getUTCFullYear() + years);
@@ -4651,7 +4631,7 @@ export const cases: CompetitorCases = {
   'DATETIME.date_rel_datetime_components': {
     build: () => {
       const ajv = new Ajv();
-      // relative bounds re-read the clock on every call (R4b), with mion's UTC calendar shift
+      // relative bounds re-read the clock on every call, with mion's UTC calendar shift
       addValidDate(ajv, [
         [
           '>=',
@@ -4667,7 +4647,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // relative bounds re-read the clock on every call (R4b), with mion's UTC calendar shift
+      // relative bounds re-read the clock on every call, with mion's UTC calendar shift
       addValidDate(ajv, [
         [
           '>=',
@@ -4685,7 +4665,7 @@ export const cases: CompetitorCases = {
   'DATETIME.instant_minmax': {
     build: () => {
       const ajv = new Ajv();
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.Instant, [
         ['>=', Temporal.Instant.from('2020-01-01T00:00:00Z')],
         ['<=', Temporal.Instant.from('2020-12-31T23:59:59Z')],
@@ -4695,7 +4675,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.Instant, [
         ['>=', Temporal.Instant.from('2020-01-01T00:00:00Z')],
         ['<=', Temporal.Instant.from('2020-12-31T23:59:59Z')],
@@ -4707,7 +4687,7 @@ export const cases: CompetitorCases = {
   'DATETIME.instant_gtlt': {
     build: () => {
       const ajv = new Ajv();
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.Instant, [
         ['>', Temporal.Instant.from('2020-01-01T00:00:00Z')],
         ['<', Temporal.Instant.from('2020-12-31T23:59:59Z')],
@@ -4717,7 +4697,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.Instant, [
         ['>', Temporal.Instant.from('2020-01-01T00:00:00Z')],
         ['<', Temporal.Instant.from('2020-12-31T23:59:59Z')],
@@ -4729,7 +4709,7 @@ export const cases: CompetitorCases = {
   'DATETIME.instant_rel': {
     build: () => {
       const ajv = new Ajv();
-      // relative bounds re-read the clock on every call (R4b), with mion's UTC calendar shift
+      // relative bounds re-read the clock on every call, with mion's UTC calendar shift
       const nowFn = () => Temporal.Now.instant();
       const d0 = Temporal.Duration.from('PT8760000H');
       addTemporal(ajv, Temporal.Instant, [
@@ -4741,7 +4721,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // relative bounds re-read the clock on every call (R4b), with mion's UTC calendar shift
+      // relative bounds re-read the clock on every call, with mion's UTC calendar shift
       const nowFn = () => Temporal.Now.instant();
       const d0 = Temporal.Duration.from('PT8760000H');
       addTemporal(ajv, Temporal.Instant, [
@@ -4755,7 +4735,7 @@ export const cases: CompetitorCases = {
   'DATETIME.plainDate_minmax': {
     build: () => {
       const ajv = new Ajv();
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.PlainDate, [
         ['>=', Temporal.PlainDate.from('2020-01-01')],
         ['<=', Temporal.PlainDate.from('2020-12-31')],
@@ -4765,7 +4745,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.PlainDate, [
         ['>=', Temporal.PlainDate.from('2020-01-01')],
         ['<=', Temporal.PlainDate.from('2020-12-31')],
@@ -4777,7 +4757,7 @@ export const cases: CompetitorCases = {
   'DATETIME.plainDate_gtlt': {
     build: () => {
       const ajv = new Ajv();
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.PlainDate, [
         ['>', Temporal.PlainDate.from('2020-01-01')],
         ['<', Temporal.PlainDate.from('2020-12-31')],
@@ -4787,7 +4767,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.PlainDate, [
         ['>', Temporal.PlainDate.from('2020-01-01')],
         ['<', Temporal.PlainDate.from('2020-12-31')],
@@ -4799,7 +4779,7 @@ export const cases: CompetitorCases = {
   'DATETIME.plainDate_min_lt': {
     build: () => {
       const ajv = new Ajv();
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.PlainDate, [
         ['>=', Temporal.PlainDate.from('2020-01-01')],
         ['<', Temporal.PlainDate.from('2020-01-10')],
@@ -4809,7 +4789,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.PlainDate, [
         ['>=', Temporal.PlainDate.from('2020-01-01')],
         ['<', Temporal.PlainDate.from('2020-01-10')],
@@ -4821,7 +4801,7 @@ export const cases: CompetitorCases = {
   'DATETIME.plainDate_gt_max': {
     build: () => {
       const ajv = new Ajv();
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.PlainDate, [
         ['<=', Temporal.PlainDate.from('2020-01-10')],
         ['>', Temporal.PlainDate.from('2020-01-01')],
@@ -4831,7 +4811,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.PlainDate, [
         ['<=', Temporal.PlainDate.from('2020-01-10')],
         ['>', Temporal.PlainDate.from('2020-01-01')],
@@ -4843,14 +4823,14 @@ export const cases: CompetitorCases = {
   'DATETIME.plainDate_min_only': {
     build: () => {
       const ajv = new Ajv();
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.PlainDate, [['>=', Temporal.PlainDate.from('2020-01-01')]]);
       const validate = ajv.compile({temporal: true});
       return (value: unknown) => validate(value) === true;
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.PlainDate, [['>=', Temporal.PlainDate.from('2020-01-01')]]);
       const validate = ajv.compile({temporal: true});
       return (value: unknown) => validate(value) === true;
@@ -4859,14 +4839,14 @@ export const cases: CompetitorCases = {
   'DATETIME.plainDate_max_only': {
     build: () => {
       const ajv = new Ajv();
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.PlainDate, [['<=', Temporal.PlainDate.from('2020-12-31')]]);
       const validate = ajv.compile({temporal: true});
       return (value: unknown) => validate(value) === true;
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.PlainDate, [['<=', Temporal.PlainDate.from('2020-12-31')]]);
       const validate = ajv.compile({temporal: true});
       return (value: unknown) => validate(value) === true;
@@ -4875,14 +4855,14 @@ export const cases: CompetitorCases = {
   'DATETIME.plainDate_gt_only': {
     build: () => {
       const ajv = new Ajv();
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.PlainDate, [['>', Temporal.PlainDate.from('2020-01-01')]]);
       const validate = ajv.compile({temporal: true});
       return (value: unknown) => validate(value) === true;
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.PlainDate, [['>', Temporal.PlainDate.from('2020-01-01')]]);
       const validate = ajv.compile({temporal: true});
       return (value: unknown) => validate(value) === true;
@@ -4891,14 +4871,14 @@ export const cases: CompetitorCases = {
   'DATETIME.plainDate_lt_only': {
     build: () => {
       const ajv = new Ajv();
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.PlainDate, [['<', Temporal.PlainDate.from('2020-12-31')]]);
       const validate = ajv.compile({temporal: true});
       return (value: unknown) => validate(value) === true;
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.PlainDate, [['<', Temporal.PlainDate.from('2020-12-31')]]);
       const validate = ajv.compile({temporal: true});
       return (value: unknown) => validate(value) === true;
@@ -4907,7 +4887,7 @@ export const cases: CompetitorCases = {
   'DATETIME.plainDate_rel_window': {
     build: () => {
       const ajv = new Ajv();
-      // relative bounds re-read the clock on every call (R4b), with mion's UTC calendar shift
+      // relative bounds re-read the clock on every call, with mion's UTC calendar shift
       const nowFn = () => Temporal.Now.plainDateISO();
       const d0 = Temporal.Duration.from('P1000Y');
       addTemporal(ajv, Temporal.PlainDate, [
@@ -4919,7 +4899,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // relative bounds re-read the clock on every call (R4b), with mion's UTC calendar shift
+      // relative bounds re-read the clock on every call, with mion's UTC calendar shift
       const nowFn = () => Temporal.Now.plainDateISO();
       const d0 = Temporal.Duration.from('P1000Y');
       addTemporal(ajv, Temporal.PlainDate, [
@@ -4933,7 +4913,7 @@ export const cases: CompetitorCases = {
   'DATETIME.plainDate_rel_ymd': {
     build: () => {
       const ajv = new Ajv();
-      // relative bounds re-read the clock on every call (R4b), with mion's UTC calendar shift
+      // relative bounds re-read the clock on every call, with mion's UTC calendar shift
       const nowFn = () => Temporal.Now.plainDateISO();
       const d0 = Temporal.Duration.from('P100Y6M15D');
       addTemporal(ajv, Temporal.PlainDate, [
@@ -4944,7 +4924,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // relative bounds re-read the clock on every call (R4b), with mion's UTC calendar shift
+      // relative bounds re-read the clock on every call, with mion's UTC calendar shift
       const nowFn = () => Temporal.Now.plainDateISO();
       const d0 = Temporal.Duration.from('P100Y6M15D');
       addTemporal(ajv, Temporal.PlainDate, [
@@ -4957,7 +4937,7 @@ export const cases: CompetitorCases = {
   'DATETIME.plainDate_rel_weeks': {
     build: () => {
       const ajv = new Ajv();
-      // relative bounds re-read the clock on every call (R4b), with mion's UTC calendar shift
+      // relative bounds re-read the clock on every call, with mion's UTC calendar shift
       const nowFn = () => Temporal.Now.plainDateISO();
       const d0 = Temporal.Duration.from('P52200W');
       addTemporal(ajv, Temporal.PlainDate, [
@@ -4968,7 +4948,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // relative bounds re-read the clock on every call (R4b), with mion's UTC calendar shift
+      // relative bounds re-read the clock on every call, with mion's UTC calendar shift
       const nowFn = () => Temporal.Now.plainDateISO();
       const d0 = Temporal.Duration.from('P52200W');
       addTemporal(ajv, Temporal.PlainDate, [
@@ -4981,7 +4961,7 @@ export const cases: CompetitorCases = {
   'DATETIME.plainTime_minmax': {
     build: () => {
       const ajv = new Ajv();
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.PlainTime, [
         ['>=', Temporal.PlainTime.from('09:00:00')],
         ['<=', Temporal.PlainTime.from('17:00:00')],
@@ -4991,7 +4971,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.PlainTime, [
         ['>=', Temporal.PlainTime.from('09:00:00')],
         ['<=', Temporal.PlainTime.from('17:00:00')],
@@ -5003,7 +4983,7 @@ export const cases: CompetitorCases = {
   'DATETIME.plainTime_gtlt': {
     build: () => {
       const ajv = new Ajv();
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.PlainTime, [
         ['>', Temporal.PlainTime.from('09:00:00')],
         ['<', Temporal.PlainTime.from('17:00:00')],
@@ -5013,7 +4993,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.PlainTime, [
         ['>', Temporal.PlainTime.from('09:00:00')],
         ['<', Temporal.PlainTime.from('17:00:00')],
@@ -5025,7 +5005,7 @@ export const cases: CompetitorCases = {
   'DATETIME.plainDateTime_minmax': {
     build: () => {
       const ajv = new Ajv();
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.PlainDateTime, [
         ['>=', Temporal.PlainDateTime.from('2020-01-01T00:00:00')],
         ['<=', Temporal.PlainDateTime.from('2020-12-31T23:59:59')],
@@ -5035,7 +5015,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.PlainDateTime, [
         ['>=', Temporal.PlainDateTime.from('2020-01-01T00:00:00')],
         ['<=', Temporal.PlainDateTime.from('2020-12-31T23:59:59')],
@@ -5047,7 +5027,7 @@ export const cases: CompetitorCases = {
   'DATETIME.plainDateTime_gtlt': {
     build: () => {
       const ajv = new Ajv();
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.PlainDateTime, [
         ['>', Temporal.PlainDateTime.from('2020-01-01T00:00:00')],
         ['<', Temporal.PlainDateTime.from('2020-12-31T23:59:59')],
@@ -5057,7 +5037,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.PlainDateTime, [
         ['>', Temporal.PlainDateTime.from('2020-01-01T00:00:00')],
         ['<', Temporal.PlainDateTime.from('2020-12-31T23:59:59')],
@@ -5069,7 +5049,7 @@ export const cases: CompetitorCases = {
   'DATETIME.plainDateTime_rel': {
     build: () => {
       const ajv = new Ajv();
-      // relative bounds re-read the clock on every call (R4b), with mion's UTC calendar shift
+      // relative bounds re-read the clock on every call, with mion's UTC calendar shift
       const nowFn = () => Temporal.Now.plainDateTimeISO();
       const d0 = Temporal.Duration.from('P1000Y');
       addTemporal(ajv, Temporal.PlainDateTime, [
@@ -5081,7 +5061,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // relative bounds re-read the clock on every call (R4b), with mion's UTC calendar shift
+      // relative bounds re-read the clock on every call, with mion's UTC calendar shift
       const nowFn = () => Temporal.Now.plainDateTimeISO();
       const d0 = Temporal.Duration.from('P1000Y');
       addTemporal(ajv, Temporal.PlainDateTime, [
@@ -5095,7 +5075,7 @@ export const cases: CompetitorCases = {
   'DATETIME.plainDateTime_rel_combo': {
     build: () => {
       const ajv = new Ajv();
-      // relative bounds re-read the clock on every call (R4b), with mion's UTC calendar shift
+      // relative bounds re-read the clock on every call, with mion's UTC calendar shift
       const nowFn = () => Temporal.Now.plainDateTimeISO();
       const d0 = Temporal.Duration.from('P500YT12H');
       addTemporal(ajv, Temporal.PlainDateTime, [
@@ -5106,7 +5086,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // relative bounds re-read the clock on every call (R4b), with mion's UTC calendar shift
+      // relative bounds re-read the clock on every call, with mion's UTC calendar shift
       const nowFn = () => Temporal.Now.plainDateTimeISO();
       const d0 = Temporal.Duration.from('P500YT12H');
       addTemporal(ajv, Temporal.PlainDateTime, [
@@ -5119,7 +5099,7 @@ export const cases: CompetitorCases = {
   'DATETIME.plainYearMonth_minmax': {
     build: () => {
       const ajv = new Ajv();
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.PlainYearMonth, [
         ['>=', Temporal.PlainYearMonth.from('2020-01')],
         ['<=', Temporal.PlainYearMonth.from('2020-12')],
@@ -5129,7 +5109,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.PlainYearMonth, [
         ['>=', Temporal.PlainYearMonth.from('2020-01')],
         ['<=', Temporal.PlainYearMonth.from('2020-12')],
@@ -5141,7 +5121,7 @@ export const cases: CompetitorCases = {
   'DATETIME.plainYearMonth_gtlt': {
     build: () => {
       const ajv = new Ajv();
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.PlainYearMonth, [
         ['>', Temporal.PlainYearMonth.from('2020-01')],
         ['<', Temporal.PlainYearMonth.from('2020-12')],
@@ -5151,7 +5131,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.PlainYearMonth, [
         ['>', Temporal.PlainYearMonth.from('2020-01')],
         ['<', Temporal.PlainYearMonth.from('2020-12')],
@@ -5163,7 +5143,7 @@ export const cases: CompetitorCases = {
   'DATETIME.plainYearMonth_rel': {
     build: () => {
       const ajv = new Ajv();
-      // relative bounds re-read the clock on every call (R4b), with mion's UTC calendar shift
+      // relative bounds re-read the clock on every call, with mion's UTC calendar shift
       const nowFn = () => Temporal.Now.plainDateISO().toPlainYearMonth();
       const d0 = Temporal.Duration.from('P1000Y');
       addTemporal(ajv, Temporal.PlainYearMonth, [
@@ -5175,7 +5155,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // relative bounds re-read the clock on every call (R4b), with mion's UTC calendar shift
+      // relative bounds re-read the clock on every call, with mion's UTC calendar shift
       const nowFn = () => Temporal.Now.plainDateISO().toPlainYearMonth();
       const d0 = Temporal.Duration.from('P1000Y');
       addTemporal(ajv, Temporal.PlainYearMonth, [
@@ -5189,7 +5169,7 @@ export const cases: CompetitorCases = {
   'DATETIME.zonedDateTime_minmax': {
     build: () => {
       const ajv = new Ajv();
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.ZonedDateTime, [
         ['>=', Temporal.ZonedDateTime.from('2020-01-01T00:00:00[UTC]')],
         ['<=', Temporal.ZonedDateTime.from('2020-12-31T23:59:59[UTC]')],
@@ -5199,7 +5179,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.ZonedDateTime, [
         ['>=', Temporal.ZonedDateTime.from('2020-01-01T00:00:00[UTC]')],
         ['<=', Temporal.ZonedDateTime.from('2020-12-31T23:59:59[UTC]')],
@@ -5211,7 +5191,7 @@ export const cases: CompetitorCases = {
   'DATETIME.zonedDateTime_gtlt': {
     build: () => {
       const ajv = new Ajv();
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.ZonedDateTime, [
         ['>', Temporal.ZonedDateTime.from('2020-01-01T00:00:00[UTC]')],
         ['<', Temporal.ZonedDateTime.from('2020-12-31T23:59:59[UTC]')],
@@ -5221,7 +5201,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // fixed bounds parsed once (R4b)
+      // fixed bounds parsed once
       addTemporal(ajv, Temporal.ZonedDateTime, [
         ['>', Temporal.ZonedDateTime.from('2020-01-01T00:00:00[UTC]')],
         ['<', Temporal.ZonedDateTime.from('2020-12-31T23:59:59[UTC]')],
@@ -5233,7 +5213,7 @@ export const cases: CompetitorCases = {
   'DATETIME.zonedDateTime_rel': {
     build: () => {
       const ajv = new Ajv();
-      // relative bounds re-read the clock on every call (R4b), with mion's UTC calendar shift
+      // relative bounds re-read the clock on every call, with mion's UTC calendar shift
       const nowFn = () => Temporal.Now.zonedDateTimeISO();
       const d0 = Temporal.Duration.from('P1000Y');
       addTemporal(ajv, Temporal.ZonedDateTime, [
@@ -5245,7 +5225,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
-      // relative bounds re-read the clock on every call (R4b), with mion's UTC calendar shift
+      // relative bounds re-read the clock on every call, with mion's UTC calendar shift
       const nowFn = () => Temporal.Now.zonedDateTimeISO();
       const d0 = Temporal.Duration.from('P1000Y');
       addTemporal(ajv, Temporal.ZonedDateTime, [
@@ -5606,8 +5586,8 @@ export const cases: CompetitorCases = {
   },
 
   // ── JSON_SCHEMA ──
-  // Each case's own 2020-12 document, compiled by ajv 2020-12 (full-mode email requires the dotted TLD; multipleOf
-  // rejects NaN and Infinity). The two record roots add mion's plain-object guard.
+  // Each case's own 2020-12 document (full-mode email requires the dotted TLD; multipleOf rejects NaN and Infinity).
+  // The two record roots add mion's plain-object guard.
   'JSON_SCHEMA.property_names': {
     build: () => compile2020('property_names', false, true),
     buildErrors: () => compile2020('property_names', true, true),

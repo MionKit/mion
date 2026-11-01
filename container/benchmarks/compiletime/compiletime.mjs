@@ -8,22 +8,16 @@
 //              difference is the type-checking, so typecheck - strip is its pure cost.
 //   full       type-check + transform + emit the generated validators:
 //                typia        `ttsc` (tsgo + the typia transform, emit)
-//                mion  `vite build` + the @mionjs/devtools plugin (the Go resolver,
-//                             itself tsgo, generates the validators; the bundler emits
-//                             them). RT's transform is not a tsgo plugin, so this is its
-//                             real build path rather than a `tsgo` CLI call. Spawned as a
-//                             process like ttsc, so both pay the same process start.
+//                mion  `vite build` + @mionjs/devtools (its Go resolver is itself tsgo). Not a tsgo
+//                             plugin, so this is its real build path; spawned like ttsc, so both pay one process start.
 //
-// Both lanes compile the SAME cases: only those both libraries support, each call
-// emitted verbatim (options and typia's STRICT `createEquals` included).
+// Both lanes compile the SAME cases, those both libraries support, each call verbatim (options, typia's createEquals).
 //
 // The deltas read the story: typecheck - strip = the cost of type-checking; full -
 // typecheck = the cost of the transform + emitting the functions.
 //
-// Run with cwd = competitors/<name>; tsgo/ttsc/vite + the bind-mounted plugin all live
-// in that competitor's node_modules. Each number is the median of N (default 5); a
-// warm-up build runs first so typia's ttsc plugin compile (if the image did not bake
-// it) never lands in a tier. Any build that exits non-zero fails the run.
+// Run with cwd = competitors/<name>; tsgo/ttsc/vite + the bind-mounted plugin live in its node_modules.
+// Median of N (default 5) after a warm-up build, so typia's unbaked ttsc plugin compile never lands in a tier.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -102,8 +96,7 @@ function buildProbeSource(model, keys) {
 }
 
 // ── tiers ────────────────────────────────────────────────────────────────────
-// Each returns wall-clock ms for one build of the current PROBE. A non-zero exit fails
-// the run: a build that errored did not do the work being timed.
+// Each tier times one build of PROBE in ms; a non-zero exit throws, as an errored build did not do the timed work.
 function spawnMs(bin, args, env) {
   const t0 = process.hrtime.bigint();
   const r = spawnSync(bin, args, {
@@ -144,8 +137,8 @@ function setupFull() {
   fullMs = () => {
     wipe(MION_CACHE);
     wipe(VITE_CACHE);
-    // The RT disk cache follows the project's incremental setting; force it on at MION_CACHE (wiped above, so each
-    // run starts cold) via the internal MION_CACHE_DIR env. The plugin's resolver child inherits it.
+    // The RT disk cache follows the project's incremental setting: the internal MION_CACHE_DIR forces it on at the
+    // wiped MION_CACHE (cold each run); the plugin's resolver child inherits it.
     return spawnMs(VITE, ['build', '--config', VITE_CONFIG], {MION_CACHE_DIR: MION_CACHE});
   };
 }
@@ -170,7 +163,7 @@ async function main() {
     extractTypeForm(path.join(COMPETITOR_DIR, '..', lib, 'cases.ts'), 'cases', CALLS[lib], {allowUntyped: true});
   const model = extract(COMPETITOR);
   const other = extract(COMPETITOR === 'typia' ? 'mion' : 'typia');
-  // Same set for both lanes: only the cases BOTH libraries support.
+  // Same case set for both lanes.
   const keys = model.keys.filter((k) => model.entries[k] && other.entries[k]);
   if (!keys.length) {
     console.error(`compiletime[${COMPETITOR}]: no supported cases`);
@@ -180,8 +173,8 @@ async function main() {
   fs.writeFileSync(PROBE, buildProbeSource(model, keys));
   fs.writeFileSync(
     PROBE_TSCONFIG,
-    // Every tier emits (the base config is noEmit, which would also skip typia's emit-time transform). rootDir = the
-    // bench root (probe + ../../shared) keeps all output under OUT_DIR; `.ts` import specifiers need the rewrite to emit.
+    // Every tier emits, and noEmit would skip typia's emit-time transform; rootDir '../..' keeps shared output in OUT_DIR.
+    // `.ts` import specifiers need the rewrite to emit.
     JSON.stringify(
       {
         extends: './tsconfig.json',
@@ -194,20 +187,14 @@ async function main() {
   );
   setupFull();
 
-  // Warm up each tier once (discarded): disk caches, and typia's ttsc plugin compile (if the image did not bake it
-  // under node_modules/.cache/ttsc). A failing build aborts here.
+  // Discarded warm-up per tier: disk caches, plus typia's ttsc plugin compile when the image did not bake it.
   console.error(`compiletime[${COMPETITOR}]: warming up (${keys.length} types)...`);
   stripMs();
   typecheckMs();
   fullMs();
 
   console.error(`compiletime[${COMPETITOR}]: timing strip / typecheck / full (median of ${N}, interleaved)...`);
-  // Interleave the tiers per round (strip, typecheck, full, then repeat) instead of
-  // timing them in separate blocks. Sequential blocks biased the FIRST tier (strip)
-  // slow — it ran on the coldest system (fresh outDir + disk cache) while later tiers
-  // warmed up — which wrongly made strip look slower than typecheck. Interleaving gives
-  // every tier the same distribution of warm/cold rounds, so strip <= typecheck <= full
-  // reflects the real work each does.
+  // Interleave tiers per round: sequential blocks ran strip on the coldest system and made it look slower than typecheck.
   const samples = {strip: [], typecheck: [], full: []};
   for (let i = 0; i < N; i++) {
     samples.strip.push(stripMs());

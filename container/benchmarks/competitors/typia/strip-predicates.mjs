@@ -1,8 +1,6 @@
 // Kept apart from esbuild.config.mjs, which imports the bench-only toolchain at load, so a host test can import it.
 
-// Remove TS return-type predicate annotations (": input is <TYPE> =>" -> " =>").
-// Balanced scan past the type (respecting (), [], {}, <>, and string literals) up
-// to the depth-0 "=>", so unions/generics/parenthesized arms are consumed whole.
+// ": input is <TYPE> =>" -> " =>", scanning to the depth-0 "=>" so unions, generics and parenthesized arms go whole.
 export function stripReturnPredicates(code) {
   const needle = ': input is ';
   let out = '';

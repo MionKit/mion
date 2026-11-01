@@ -158,9 +158,7 @@ export function makeExtractors(ts) {
     return {preamble: extractPreamble(source, mapName), entries};
   }
 
-  /** DFS for the first call under `node` whose callee text is one of `callNames`
-   *  (`createValidateFn`, `typia.createIs`, `typia.createEquals`) and that carries a
-   *  type argument, or, with `allowUntyped`, any argument (builder form). */
+  /** DFS for the first `callNames` call with a type argument; `allowUntyped` also takes a builder-form call. */
   function findTypedCall(node, callNames, source, {allowUntyped = false} = {}) {
     let found = null;
     const visit = (n) => {
@@ -179,15 +177,7 @@ export function makeExtractors(ts) {
     return found;
   }
 
-  /** Type-form competitor cases.ts (ts-go type, typia) → {preamble, entries:{key:
-   *  {locals, typeText, callText}}, keys}. `typeText` is null for a builder-form call
-   *  (only matched with `allowUntyped`); `callText` is the verbatim call, options
-   *  included. Each entry is a `{build, buildErrors}` object,
-   *  optionally wrapped in an IIFE `(() => { …local decls…; return {…}; })()` whose
-   *  pre-return statements declare the enum/interface/type the `<T>` references. The
-   *  literal type argument lives on the `build` thunk's call named in `callNames`:
-   *  `createValidateFn` for ts-go, `typia.createIs` / `typia.createEquals` for typia. NOT_SUPPORTED entries
-   *  are skipped; `keys` lists EVERY map key in file order (drives table/row order). */
+  /** Type-form cases.ts (ts-go, typia); `keys` keeps every map key, NOT_SUPPORTED too, as it drives row order. */
   function extractTypeForm(file, mapName, callNames, opts = {}) {
     const source = sf(file);
     const obj = findMapObject(source, mapName);
@@ -198,7 +188,7 @@ export function makeExtractors(ts) {
         if (!ts.isPropertyAssignment(prop)) continue;
         const key = prop.name.getText(source).replace(/['"]/g, '');
         keys.push(key);
-        // Unwrap an optional IIFE wrapper, capturing its local declarations verbatim.
+        // Optional IIFE wrapper: ts-go declares the case's local types there.
         const init = unwrapExpr(prop.initializer);
         const locals = [];
         let objLiteral = init;
@@ -221,11 +211,7 @@ export function makeExtractors(ts) {
         if (!build) continue;
         const call = findTypedCall(build.initializer, callNames, source, opts);
         if (!call) continue;
-        // typia authors the type's local decls INSIDE the build block — `() => { type
-        // Person = …; const check = typia.createIs<Pick<Person, …>>(); return … }` —
-        // whereas ts-go uses an outer IIFE (captured above). Gather the build-block
-        // declarations too, skipping the `return` and the createIs/createValidateFn
-        // statement itself so `<T>` resolves without dragging the runtime call in.
+        // typia declares the type's locals inside the build block: keep them, minus the return and the runtime call.
         const buildArrow = build.initializer;
         if (ts.isArrowFunction(buildArrow) && ts.isBlock(buildArrow.body)) {
           for (const stmt of buildArrow.body.statements) {

@@ -447,7 +447,7 @@ function combinedAggCell(values: {valid: number | null; invalid: number | null},
   const unit = unitFor(metricKey);
   const valid = values.valid != null ? formatValue(values.valid, unit) : '';
   const invalid = values.invalid != null ? formatValue(values.invalid, unit, true) : '';
-  // null geomean = the competitor doesn't participate in this row (rowMeans), so it's n-a, same as a cell.
+  // null = the competitor doesn't participate in this row (rowMeans): n-a, same as a cell.
   if (!valid && !invalid) return {cls: 'bench-val--na', valid: 'n-a', invalid: ''};
   return {cls: 'bench-val--ok', valid: valid || '—', invalid, misaligned: values.valid != null && Math.round(values.valid) > 0};
 }
@@ -572,14 +572,10 @@ function verdictAggCells(row: AggRow): VerdictCell[] {
   return buildVerdict(rtVals, (i) => ({enc: tRow?.values[comps[i]]?.valid, dec: tRow?.values[comps[i]]?.invalid, bytes: pRow?.values[comps[i]]?.valid}));
 }
 
-// geomean / rowMeans / aggregateRows live in app/utils/benchAggregate.js:
-// the root landing's HomeBenchTable quotes the same "Overall" numbers, so the math has
-// ONE home. Lower-is-better is per metric (a payload bytes metric sits in an ops bench), so a skipped case is
-// filled with the right worst value.
+// The math lives in app/utils/benchAggregate.js because HomeBenchTable quotes the same "Overall" numbers.
+// Lower-is-better is per metric (a bytes metric sits in an ops bench), so a skipped case gets the right worst value.
 
-/** Per-category + Overall geometric-mean summary for one metric. The math lives in
- *  benchAggregate.js (the charts and the home summary read the same numbers); this
- *  keeps the table's own section order, REALWORLD first. */
+/** Per-category + Overall geomean rows for one metric, in the table's own section order, REALWORLD first. */
 function aggregateFor(metricKey: string): AggRow[] {
   if (!index.value) return [];
   return aggregateRows(orderedSections.value, index.value.competitors, metricKey, lowerBetterFor(metricKey));

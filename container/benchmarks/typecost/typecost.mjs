@@ -34,7 +34,7 @@
 // object — optionally wrapped in an IIFE `(() => { …local decls…; return {…}; })()`
 // so a case can declare a local enum/interface/type the `<T>` references; the
 // literal type argument rides the `build` thunk's `createValidateFn<T>()` /
-// `typia.createIs<T>()` call. The schema form (ts-go) is a LAZY `() => …` thunk;
+// `typia.createIs<T>()` / `typia.createEquals<T>()` call. The schema form (ts-go) is a LAZY `() => …` thunk;
 // zod/typebox build their schema as `const schema = EXPR` inside a build/buildErrors
 // thunk. Each extractor unwraps its wrapper, preserving the local declarations so
 // `<T>`/`EXPR` resolves where written.
@@ -334,8 +334,8 @@ async function main() {
     const measureAll = (v) =>
       Object.fromEntries(forms.map(([f, e, b, p, base, mk]) => [f, e ? measure(f, b, p, base, mk(e, v)) : {status: 'na'}]));
     let measured = measureAll(value);
-    // Samples omit function members (serializable-only), so a form's type can reject the sample. Then the WHOLE row
-    // goes declare-only, so no form does less work than another; a type error still fails.
+    // Samples omit function members, so a form's type can reject one.
+    // The WHOLE row then goes declare-only, so no form does less work; a type error still fails.
     if (value !== undefined && Object.values(measured).some((c) => c.status === 'err')) {
       const declared = measureAll(undefined);
       if (Object.keys(measured).some((f) => measured[f].status === 'err' && declared[f].status === 'ok')) {

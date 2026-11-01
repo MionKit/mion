@@ -68,8 +68,7 @@ function groupsOf(data) {
   return groups;
 }
 
-/** mion's place among every library on the group's mean speed, a skipped case counted at the slowest result
- *  (rowMeans), the same way the site's group rows fill it. */
+/** mion's rank by group mean speed, a skipped case counted at the slowest result, as the site's rows do (rowMeans). */
 function groupRank(data, keys, metric, at) {
   const toCase = ([key, entry]) => ({key, results: entry?.results ?? {}});
   const everyCase = [...data.cases].map(toCase);

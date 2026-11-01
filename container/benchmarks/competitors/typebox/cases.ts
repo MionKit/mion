@@ -1,10 +1,8 @@
-// TOTAL map over every shared case key. TypeBox 1.x has no Date, Map, Set, RegExp or Temporal type: each is a leaf
-// `Type.Refine` over `Type.Unsafe({})` (instanceof check, plus the bound compares for min/max/relative cases).
-// Bigint literals and int64 / uint64 bounds are refines too: TypeBox prints a bigint const or bound as a number
-// literal, wrong above 2^53 (and `Type.Literal(1n)` never matches). All-optional and index-signature objects get
-// mion's plain-object guard as a refine (TypeBox's Object only rejects arrays). Patterns are RegExp objects: they
-// keep mion's flags and are not re-compiled per `.Errors` call. The cases mion refuses as non-data still run here
-// (scoring fills mion's cell); NOT_SUPPORTED is left only for the two cases with no shared samples.
+// TOTAL over every shared case key. TypeBox 1.x has no Date, Map, Set, RegExp or Temporal: each is a leaf `Type.Refine`
+// over `Type.Unsafe({})`. Bigint literals and int64 / uint64 bounds are refines too: TypeBox prints a bigint as a
+// number literal, wrong above 2^53. All-optional and index-signature objects get mion's plain-object guard as a refine.
+// Patterns are RegExp objects: they keep mion's flags and are not re-compiled per `.Errors` call. Cases mion refuses
+// as non-data still run (scoring fills mion's cell); NOT_SUPPORTED only for the two cases with no shared samples.
 
 import {Type} from 'typebox';
 import {Compile} from 'typebox/compile';
@@ -3001,8 +2999,8 @@ export const cases: CompetitorCases = {
       return (value: unknown) => check.Errors(value).length === 0;
     },
   },
-  // TypeBox's own IPv4 octet rule (`format/ipv4.mjs`, as the ipv4 entry) + a port of 1-5 digits <= 65535, leading zeros
-  // allowed like mion. Port required (stricter than mion, which accepts a missing port).
+  // TypeBox's own IPv4 octet rule (`format/ipv4.mjs`) + a 1-5 digit port <= 65535, leading zeros allowed like mion.
+  // Port required, stricter than mion, which accepts a missing port.
   'STRING_FORMAT.ipv4_port': {
     build: () => {
       const schema = Type.String({

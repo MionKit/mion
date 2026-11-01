@@ -67,8 +67,7 @@ export const ATOMIC = {
     getSamples: () => {
       const sym = Symbol('hello');
       return {
-        // identity by description per the reference semantics:
-        // emit is `typeof === 'symbol' && v.description === 'hello'`
+        // identity by description: a symbol whose description is 'hello'
         valid: [sym, Symbol('hello')],
         invalid: [Symbol('nice'), 'hello', null, undefined],
       };

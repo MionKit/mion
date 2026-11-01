@@ -135,8 +135,7 @@ export const TUPLE = {
     description: "A function slot makes the whole tuple non-data, so mion's factory throws on first call.",
     factoryThrows: true,
     getSamples: () => ({
-      // `[3]` is valid — v[1] is undefined which satisfies the
-      // `v[1] === undefined` check the function slot emits.
+      // `[3]` is valid: an absent function slot reads as undefined.
       valid: [[3, undefined], [3]],
       invalid: [
         [3, () => null],

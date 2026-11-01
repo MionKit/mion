@@ -1,11 +1,10 @@
 import {z} from 'zod';
 import {NOT_SUPPORTED, type CompetitorCases} from '../../shared/harness/types.ts';
 
-// RunTypes' plain-object guard: an all-optional object type (and every index-signature node) accepts only an
-// ordinary object, never an array, a Date / Map / Set / RegExp or any other builtin instance. z.object alone only
-// excludes arrays and null, and a `.refine` on it sees the PARSED copy (a fresh plain object), so the guard is a
-// z.custom on the INPUT. Its keys are then checked with `.check(z.properties(...))`, which asserts each key in place
-// (no output copy in validate), instead of piping into a z.object. z.record already carries the guard (isPlainObject).
+// RunTypes' plain-object guard: an all-optional object (and every index-signature node) accepts only an ordinary
+// object. z.object alone only excludes arrays and null and a `.refine` sees the PARSED copy, so the guard is a z.custom
+// on the INPUT, keys asserted in place by `.check(z.properties(...))` (no output copy, unlike a pipe into z.object).
+// z.record already carries the guard (isPlainObject).
 //
 // Hooks (z.custom, .refine, .superRefine) sit only at the leaf that needs them, where no zod feature does the same
 // check; each one makes zod re-run its runtime parser on an invalid sample, the library's own cost.
@@ -747,9 +746,7 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // interface_all_optional: {a?:string, b?:number} behind RunTypes' plain-object guard (an all-optional
-  // object accepts only an ordinary object, never an array / Date / Map / Set / RegExp). The guard is a
-  // z.custom on the input; z.properties then asserts each key in place, so validate builds no copy.
+  // interface_all_optional: {a?:string, b?:number} behind RunTypes' plain-object guard (see the file header).
   'OBJECT.interface_all_optional': {
     build: () => {
       const schema = z
@@ -2900,7 +2897,7 @@ export const cases: CompetitorCases = {
     },
   },
   // dateTime_minMax_absolute: calendar-aware YYYY-MM-DD (zod's own date regex), `T`/`t`, HH:mm:ss in range,
-  // then inclusive bounds compared on the date and time halves (bounds fixed: R4b)
+  // then inclusive bounds compared on the date and time halves (fixed bounds parsed once)
   'STRING_FORMAT.dateTime_minMax_absolute': {
     build: () => {
       const schema = z
@@ -4413,9 +4410,7 @@ export const cases: CompetitorCases = {
   },
 
   // ── JSON_SCHEMA ──
-  // Each entry states the same CONSTRAINT in zod's own dialect, like every other group here.
-  // z.fromJSONSchema exists but wraps each keyword in extra transform / safeParse steps, so it is not the
-  // fast path. Keywords with no zod check (contains, uniqueItems, key counts) use a refine on that leaf.
+  // Not z.fromJSONSchema: it wraps each keyword in extra transform / safeParse steps, so it is not the fast path.
   'JSON_SCHEMA.property_names': {
     build: () => {
       const schema = z.record(z.string().regex(/^[a-z]+$/), z.number());
