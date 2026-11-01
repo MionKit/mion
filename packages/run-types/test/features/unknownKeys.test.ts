@@ -4,6 +4,7 @@
 import {describe, expect, it} from 'vitest';
 import {createGetValidationErrorsFn, createValidateFn, getRunType} from '@mionjs/run-types';
 import {getFnHash} from '@mionjs/run-types/runtime';
+import type {StrictFlat} from '../suites/strict-validation/Strict.ts';
 
 describe('checkUnknowns — basics', () => {
   it('accepts an atomic type', () => {
@@ -280,24 +281,15 @@ describe('checkUnknowns — a container root the value does not match', () => {
 
 // Validate and the error list must agree. An array is an object whose index keys are enumerable keys, so an array
 // carrying every declared prop is rejected for its indices by both.
-interface Flag {
-  id: number;
-  name: string;
-  active: boolean;
-}
-const arrayWithProps = (extra: Record<string, unknown> = {}, items: unknown[] = [1]): any =>
-  Object.assign(items, {id: 1, name: 'a', active: true}, extra);
-const withExtraKeys = (count: number): Record<string, unknown> => {
-  const value: Record<string, unknown> = {id: 1, name: 'a', active: true};
-  for (let i = 0; i < count; i++) value[`x${i}`] = i;
-  return value;
-};
-const extraKeys = (count: number) => Array.from({length: count}, (_, i) => `x${i}`).sort();
+const flag: StrictFlat = {id: 1, name: 'a', active: true};
+const arrayWithProps = (extra: Record<string, unknown> = {}, items: unknown[] = [1]) => Object.assign(items, flag, extra);
+const extraKeys = Array.from({length: 12}, (_, i) => `x${i}`);
+const withExtraKeys = {...flag, ...Object.fromEntries(extraKeys.map((key) => [key, 0]))};
 
 describe('checkUnknowns — validate and errors agree on arrays', () => {
-  it('rejects index keys and an extra key on the key-count path (static)', () => {
-    const isStrict = createValidateFn<Flag>(undefined, {checkUnknowns: true});
-    const getErrors = createGetValidationErrorsFn<Flag>(undefined, {checkUnknowns: true});
+  it('rejects index keys and an extra key (static)', () => {
+    const isStrict = createValidateFn<StrictFlat>(undefined, {checkUnknowns: true});
+    const getErrors = createGetValidationErrorsFn<StrictFlat>(undefined, {checkUnknowns: true});
     expect(isStrict(arrayWithProps())).toBe(false);
     expect(getErrors(arrayWithProps())).toEqual([{path: ['0'], expected: 'never'}]);
     expect(isStrict(arrayWithProps({extra: 1}, []))).toBe(false);
@@ -306,10 +298,9 @@ describe('checkUnknowns — validate and errors agree on arrays', () => {
     expect(getErrors(arrayWithProps({}, []))).toEqual([]);
   });
 
-  it('rejects index keys and an extra key on the key-count path (value-first)', () => {
-    const sample: Flag = {id: 1, name: 'a', active: true};
-    const isStrict = createValidateFn(sample, {checkUnknowns: true});
-    const getErrors = createGetValidationErrorsFn(sample, {checkUnknowns: true});
+  it('rejects index keys and an extra key (value-first)', () => {
+    const isStrict = createValidateFn(flag, {checkUnknowns: true});
+    const getErrors = createGetValidationErrorsFn(flag, {checkUnknowns: true});
     expect(isStrict(arrayWithProps())).toBe(false);
     expect(getErrors(arrayWithProps())).toEqual([{path: ['0'], expected: 'never'}]);
     expect(isStrict(arrayWithProps({extra: 1}, []))).toBe(false);
@@ -318,36 +309,46 @@ describe('checkUnknowns — validate and errors agree on arrays', () => {
     expect(getErrors(arrayWithProps({}, []))).toEqual([]);
   });
 
-  it('rejects index keys on the key-scan path (static)', () => {
-    const isStrict = createValidateFn<{id: number; name?: string}>(undefined, {checkUnknowns: true});
-    const getErrors = createGetValidationErrorsFn<{id: number; name?: string}>(undefined, {checkUnknowns: true});
-    const value: any = Object.assign([1], {id: 1});
-    expect(isStrict(value)).toBe(false);
-    expect(getErrors(value)).toEqual([{path: ['0'], expected: 'never'}]);
+  // `length` is a declared prop an array passes but never enumerates, so a key count cannot stand in for the key scan.
+  interface WithLength {
+    id: number;
+    length: number;
+  }
+  const lengthCases: [unknown, boolean, string[]][] = [
+    [Object.assign([5], {id: 1}), false, ['0']],
+    [Object.assign([], {id: 1}), true, []],
+  ];
+
+  it('agrees on a type that declares `length` (static)', () => {
+    const isStrict = createValidateFn<WithLength>(undefined, {checkUnknowns: true});
+    const getErrors = createGetValidationErrorsFn<WithLength>(undefined, {checkUnknowns: true});
+    for (const [value, valid, unknownKeys] of lengthCases) {
+      expect(isStrict(value)).toBe(valid);
+      expect(getErrors(value).map((error) => error.path[0])).toEqual(unknownKeys);
+    }
   });
 
-  it('rejects index keys on the key-scan path (value-first)', () => {
-    const sample: {id: number; name?: string} = {id: 1};
+  it('agrees on a type that declares `length` (value-first)', () => {
+    const sample: WithLength = {id: 1, length: 0};
     const isStrict = createValidateFn(sample, {checkUnknowns: true});
     const getErrors = createGetValidationErrorsFn(sample, {checkUnknowns: true});
-    const value: any = Object.assign([1], {id: 1});
-    expect(isStrict(value)).toBe(false);
-    expect(getErrors(value)).toEqual([{path: ['0'], expected: 'never'}]);
+    for (const [value, valid, unknownKeys] of lengthCases) {
+      expect(isStrict(value)).toBe(valid);
+      expect(getErrors(value).map((error) => error.path[0])).toEqual(unknownKeys);
+    }
   });
 });
 
 describe('checkUnknowns — errors report every unknown key', () => {
   it('reports 12 unknown keys without throwing (static)', () => {
-    const getErrors = createGetValidationErrorsFn<Flag>(undefined, {checkUnknowns: true});
-    const errors = getErrors(withExtraKeys(12));
-    expect(errors.map((error) => error.path[0]).sort()).toEqual(extraKeys(12));
-    expect(createValidateFn<Flag>(undefined, {checkUnknowns: true})(withExtraKeys(12))).toBe(false);
+    const errors = createGetValidationErrorsFn<StrictFlat>(undefined, {checkUnknowns: true})(withExtraKeys);
+    expect(errors.map((error) => error.path[0]).sort()).toEqual([...extraKeys].sort());
+    expect(createValidateFn<StrictFlat>(undefined, {checkUnknowns: true})(withExtraKeys)).toBe(false);
   });
 
   it('reports 12 unknown keys without throwing (value-first)', () => {
-    const sample: Flag = {id: 1, name: 'a', active: true};
-    const errors = createGetValidationErrorsFn(sample, {checkUnknowns: true})(withExtraKeys(12));
-    expect(errors.map((error) => error.path[0]).sort()).toEqual(extraKeys(12));
-    expect(createValidateFn(sample, {checkUnknowns: true})(withExtraKeys(12))).toBe(false);
+    const errors = createGetValidationErrorsFn(flag, {checkUnknowns: true})(withExtraKeys);
+    expect(errors.map((error) => error.path[0]).sort()).toEqual([...extraKeys].sort());
+    expect(createValidateFn(flag, {checkUnknowns: true})(withExtraKeys)).toBe(false);
   });
 });

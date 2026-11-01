@@ -21,6 +21,7 @@ export function undeclaredKeyErrors(value: unknown, declared: DeclaredKeys, path
     return value.flatMap((item, index) => undeclaredKeyErrors(item, declared[0], [...path, index]));
   }
   // An array in an object position is an object: its index keys are keys, as the generated check counts them.
+  // Only where the object check admits an array (a required prop an array lacks); a brand-guarded position reports the shape alone.
   if (typeof value !== 'object' || value === null) return [];
   const props = declared as {readonly [key: string]: DeclaredKeys | null};
   const errors: RTValidationError[] = [];
