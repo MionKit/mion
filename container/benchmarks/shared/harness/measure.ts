@@ -28,12 +28,12 @@ const CALLS_PER_CLOCK_READ = 1000;
 const sink = {accepted: 0};
 let loopId = 0;
 
-type BenchLoop = (validator: Validator, samples: unknown[]) => number;
-
-// One compiled loop per measured stream: one call site shared by every case goes megamorphic
-// and adds a flat few ns to every call. The trailing id keeps each source unique, since
-// identical `new Function` sources share type feedback through V8's eval cache.
-function freshLoop(): BenchLoop {
+/** Validations/sec over `samples` (warm up, then time batches of >= 1000 calls for TIME_MS).
+ *  Each call compiles its own loop: one call site shared by every case goes megamorphic and adds
+ *  a flat few ns to every call. The trailing id keeps each source unique, since identical
+ *  `new Function` sources share type feedback through V8's eval cache. */
+export function benchOps(validator: Validator, samples: unknown[]): number {
+  if (samples.length === 0) return 0;
   const make = new Function(
     'performance',
     'sink',
@@ -55,12 +55,6 @@ return function benchOps(validator, samples) {
   return calls / (elapsed / 1000);
 };
 //loop ${loopId++}`
-  ) as (perf: typeof performance, out: typeof sink, timeMs: number, callsPerRead: number) => BenchLoop;
-  return make(performance, sink, TIME_MS, CALLS_PER_CLOCK_READ);
-}
-
-/** Validations/sec over `samples` (warm up, then time batches of >= 1000 calls for TIME_MS). */
-export function benchOps(validator: Validator, samples: unknown[]): number {
-  if (samples.length === 0) return 0;
-  return freshLoop()(validator, samples);
+  ) as (perf: typeof performance, out: typeof sink, timeMs: number, callsPerRead: number) => typeof benchOps;
+  return make(performance, sink, TIME_MS, CALLS_PER_CLOCK_READ)(validator, samples);
 }
