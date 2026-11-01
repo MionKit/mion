@@ -6,13 +6,13 @@ The table uses `Api = typeof api` after `mion.initRoutes(definitions)`. JSON fil
 
 | Context | PostgreSQL | MySQL | SQLite |
 | --- | ---: | ---: | ---: |
-| empty context | 2,272 | 2,301 | 2,314 |
-| small context | 2,437 | 2,466 | 2,479 |
-| database context | 14,787 | 15,100 | 14,444 |
-| unused database context | 14,787 | 15,100 | 14,444 |
-| light handler context | 14,783 | 15,096 | 14,440 |
-| opaque database context | 2,437 | 2,466 | 2,479 |
-| written database context | 14,783 | 15,096 | 14,440 |
+| empty context | 2,033 | 2,062 | 2,075 |
+| small context | 2,195 | 2,224 | 2,237 |
+| database context | 14,533 | 14,846 | 14,190 |
+| unused database context | 14,533 | 14,846 | 14,190 |
+| light handler context | 14,528 | 14,841 | 14,185 |
+| opaque database context | 2,195 | 2,224 | 2,237 |
+| written database context | 14,528 | 14,841 | 14,185 |
 
 A typed database in `shared` increases client cost even when the handler never uses it. A light handler context type also leaves the cost high. Declaring `shared` as `{db: unknown}` and writing the factory return as `{db: unknown}` returns near baseline, but requires a server-side cast for database access. Declaring `shared` alone is not enough: the client resolves the router's type by inferring the whole options literal, so a factory with an inferred `() => ({db})` return still makes it compute the database type.
 

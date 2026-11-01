@@ -3,223 +3,681 @@
     "selectAll": {
       "drizzle": {
         "server": {
-          "params": 2357,
+          "params": 2356,
           "return": 15687,
-          "total": 18044
+          "total": 18043
         },
         "client": {
-          "params": 2981,
+          "params": 2980,
           "return": 16092,
-          "total": 19073
+          "total": 19072
         }
       },
       "types": {
         "server": {
-          "params": 279,
+          "params": 278,
           "return": 14589,
-          "total": 14868
+          "total": 14867
         },
         "client": {
-          "params": 915,
+          "params": 914,
           "return": 903,
-          "total": 1818
+          "total": 1817
         }
       },
       "builders": {
         "server": {
-          "params": 1095,
+          "params": 1094,
           "return": 16291,
-          "total": 17386
+          "total": 17385
         },
         "client": {
-          "params": 1731,
+          "params": 1730,
           "return": 1029,
-          "total": 2760
+          "total": 2759
         }
       }
     },
     "partialSelect": {
       "drizzle": {
         "server": {
-          "params": 2359,
+          "params": 2358,
           "return": 15492,
-          "total": 17851
+          "total": 17850
         },
         "client": {
-          "params": 2983,
+          "params": 2982,
           "return": 15718,
-          "total": 18701
+          "total": 18700
         }
       },
       "types": {
         "server": {
-          "params": 322,
+          "params": 321,
           "return": 14078,
-          "total": 14400
+          "total": 14399
         },
         "client": {
-          "params": 958,
+          "params": 957,
           "return": 976,
-          "total": 1934
+          "total": 1933
         }
       },
       "builders": {
         "server": {
-          "params": 1095,
+          "params": 1094,
           "return": 15753,
-          "total": 16848
+          "total": 16847
         },
         "client": {
-          "params": 1731,
+          "params": 1730,
           "return": 1141,
-          "total": 2872
+          "total": 2871
         }
       }
     },
     "innerJoin": {
       "drizzle": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 18360,
-          "total": 18509
+          "total": 18508
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 19244,
-          "total": 20004
+          "total": 20003
         }
       },
       "types": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 16574,
-          "total": 16723
+          "total": 16722
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 1377,
-          "total": 2137
+          "total": 2136
         }
       },
       "builders": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 19099,
-          "total": 19248
+          "total": 19247
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 2777,
-          "total": 3537
+          "total": 3536
         }
       }
     },
     "leftJoin": {
       "drizzle": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 18728,
-          "total": 18877
+          "total": 18876
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 19644,
-          "total": 20404
+          "total": 20403
         }
       },
       "types": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 16085,
-          "total": 16234
+          "total": 16233
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 1310,
-          "total": 2070
+          "total": 2069
         }
       },
       "builders": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 18726,
-          "total": 18875
+          "total": 18874
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 2710,
-          "total": 3470
+          "total": 3469
         }
       }
     },
     "aggregate": {
       "drizzle": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 17752,
-          "total": 17901
+          "total": 17900
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 18018,
-          "total": 18778
+          "total": 18777
         }
       },
       "types": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 14237,
-          "total": 14386
+          "total": 14385
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 354,
-          "total": 1114
+          "total": 1113
         }
       },
       "builders": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 16673,
-          "total": 16822
+          "total": 16821
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 1127,
-          "total": 1887
+          "total": 1886
         }
       }
     },
     "insertReturning": {
       "drizzle": {
         "server": {
-          "params": 7687,
+          "params": 7686,
           "return": 11534,
-          "total": 19221
+          "total": 19220
         },
         "client": {
-          "params": 8487,
+          "params": 8486,
           "return": 11687,
-          "total": 20174
+          "total": 20173
         }
       },
       "types": {
         "server": {
-          "params": 1263,
+          "params": 1262,
           "return": 15430,
-          "total": 16693
+          "total": 16692
         },
         "client": {
-          "params": 2510,
+          "params": 2509,
           "return": 345,
-          "total": 2855
+          "total": 2854
+        }
+      },
+      "builders": {
+        "server": {
+          "params": 2211,
+          "return": 17106,
+          "total": 19317
+        },
+        "client": {
+          "params": 3003,
+          "return": 646,
+          "total": 3649
+        }
+      }
+    },
+    "updateReturning": {
+      "drizzle": {
+        "server": {
+          "params": 7885,
+          "return": 10420,
+          "total": 18305
+        },
+        "client": {
+          "params": 8753,
+          "return": 10616,
+          "total": 19369
+        }
+      },
+      "types": {
+        "server": {
+          "params": 1350,
+          "return": 14575,
+          "total": 15925
+        },
+        "client": {
+          "params": 2620,
+          "return": 421,
+          "total": 3041
+        }
+      },
+      "builders": {
+        "server": {
+          "params": 2303,
+          "return": 16166,
+          "total": 18469
+        },
+        "client": {
+          "params": 3163,
+          "return": 674,
+          "total": 3837
+        }
+      }
+    },
+    "relations": {
+      "drizzle": {
+        "server": {
+          "params": 148,
+          "return": 19120,
+          "total": 19268
+        },
+        "client": {
+          "params": 759,
+          "return": 20031,
+          "total": 20790
+        }
+      },
+      "types": {
+        "server": {
+          "params": 148,
+          "return": 16788,
+          "total": 16936
+        },
+        "client": {
+          "params": 759,
+          "return": 1527,
+          "total": 2286
+        }
+      },
+      "builders": {
+        "server": {
+          "params": 148,
+          "return": 19306,
+          "total": 19454
+        },
+        "client": {
+          "params": 759,
+          "return": 2935,
+          "total": 3694
+        }
+      }
+    },
+    "viewColumns": {
+      "drizzle": {
+        "server": {
+          "params": 148,
+          "return": 18398,
+          "total": 18546
+        },
+        "client": {
+          "params": 759,
+          "return": 18584,
+          "total": 19343
+        }
+      },
+      "types": {
+        "server": {
+          "params": 148,
+          "return": 15140,
+          "total": 15288
+        },
+        "client": {
+          "params": 759,
+          "return": 1011,
+          "total": 1770
+        }
+      },
+      "builders": {
+        "server": {
+          "params": 148,
+          "return": 17358,
+          "total": 17506
+        },
+        "client": {
+          "params": 759,
+          "return": 992,
+          "total": 1751
+        }
+      }
+    },
+    "viewQueryBuilder": {
+      "drizzle": {
+        "server": {
+          "params": 148,
+          "return": 18827,
+          "total": 18975
+        },
+        "client": {
+          "params": 759,
+          "return": 19103,
+          "total": 19862
+        }
+      },
+      "types": {
+        "server": {
+          "params": 148,
+          "return": 15287,
+          "total": 15435
+        },
+        "client": {
+          "params": 759,
+          "return": 542,
+          "total": 1301
+        }
+      },
+      "builders": {
+        "server": {
+          "params": 148,
+          "return": 17736,
+          "total": 17884
+        },
+        "client": {
+          "params": 759,
+          "return": 1814,
+          "total": 2573
+        }
+      }
+    },
+    "transaction": {
+      "drizzle": {
+        "server": {
+          "params": 2729,
+          "return": 98512,
+          "total": 101241
+        },
+        "client": {
+          "params": 3358,
+          "return": 98748,
+          "total": 102106
+        }
+      },
+      "types": {
+        "server": {
+          "params": 362,
+          "return": 97344,
+          "total": 97706
+        },
+        "client": {
+          "params": 1003,
+          "return": 715,
+          "total": 1718
+        }
+      },
+      "builders": {
+        "server": {
+          "params": 1195,
+          "return": 101485,
+          "total": 102680
+        },
+        "client": {
+          "params": 1836,
+          "return": 816,
+          "total": 2652
+        }
+      }
+    },
+    "mappedShape": {
+      "drizzle": {
+        "server": {
+          "params": 148,
+          "return": 19732,
+          "total": 19880
+        },
+        "client": {
+          "params": 759,
+          "return": 19783,
+          "total": 20542
+        }
+      },
+      "types": {
+        "server": {
+          "params": 148,
+          "return": 15825,
+          "total": 15973
+        },
+        "client": {
+          "params": 759,
+          "return": 603,
+          "total": 1362
+        }
+      },
+      "builders": {
+        "server": {
+          "params": 148,
+          "return": 18384,
+          "total": 18532
+        },
+        "client": {
+          "params": 759,
+          "return": 1942,
+          "total": 2701
+        }
+      }
+    }
+  },
+  "mysql": {
+    "selectAll": {
+      "drizzle": {
+        "server": {
+          "params": 2326,
+          "return": 15542,
+          "total": 17868
+        },
+        "client": {
+          "params": 2953,
+          "return": 15944,
+          "total": 18897
+        }
+      },
+      "types": {
+        "server": {
+          "params": 297,
+          "return": 14943,
+          "total": 15240
+        },
+        "client": {
+          "params": 933,
+          "return": 913,
+          "total": 1846
+        }
+      },
+      "builders": {
+        "server": {
+          "params": 1057,
+          "return": 16695,
+          "total": 17752
+        },
+        "client": {
+          "params": 1693,
+          "return": 1029,
+          "total": 2722
+        }
+      }
+    },
+    "partialSelect": {
+      "drizzle": {
+        "server": {
+          "params": 2323,
+          "return": 15369,
+          "total": 17692
+        },
+        "client": {
+          "params": 2950,
+          "return": 15592,
+          "total": 18542
+        }
+      },
+      "types": {
+        "server": {
+          "params": 312,
+          "return": 14477,
+          "total": 14789
+        },
+        "client": {
+          "params": 948,
+          "return": 1014,
+          "total": 1962
+        }
+      },
+      "builders": {
+        "server": {
+          "params": 1057,
+          "return": 16174,
+          "total": 17231
+        },
+        "client": {
+          "params": 1693,
+          "return": 1141,
+          "total": 2834
+        }
+      }
+    },
+    "innerJoin": {
+      "drizzle": {
+        "server": {
+          "params": 148,
+          "return": 18186,
+          "total": 18334
+        },
+        "client": {
+          "params": 759,
+          "return": 19068,
+          "total": 19827
+        }
+      },
+      "types": {
+        "server": {
+          "params": 148,
+          "return": 16936,
+          "total": 17084
+        },
+        "client": {
+          "params": 759,
+          "return": 1437,
+          "total": 2196
+        }
+      },
+      "builders": {
+        "server": {
+          "params": 148,
+          "return": 19473,
+          "total": 19621
+        },
+        "client": {
+          "params": 759,
+          "return": 2803,
+          "total": 3562
+        }
+      }
+    },
+    "leftJoin": {
+      "drizzle": {
+        "server": {
+          "params": 148,
+          "return": 18540,
+          "total": 18688
+        },
+        "client": {
+          "params": 759,
+          "return": 19456,
+          "total": 20215
+        }
+      },
+      "types": {
+        "server": {
+          "params": 148,
+          "return": 16458,
+          "total": 16606
+        },
+        "client": {
+          "params": 759,
+          "return": 1370,
+          "total": 2129
+        }
+      },
+      "builders": {
+        "server": {
+          "params": 148,
+          "return": 19091,
+          "total": 19239
+        },
+        "client": {
+          "params": 759,
+          "return": 2736,
+          "total": 3495
+        }
+      }
+    },
+    "aggregate": {
+      "drizzle": {
+        "server": {
+          "params": 148,
+          "return": 17594,
+          "total": 17742
+        },
+        "client": {
+          "params": 759,
+          "return": 17860,
+          "total": 18619
+        }
+      },
+      "types": {
+        "server": {
+          "params": 148,
+          "return": 14627,
+          "total": 14775
+        },
+        "client": {
+          "params": 759,
+          "return": 345,
+          "total": 1104
+        }
+      },
+      "builders": {
+        "server": {
+          "params": 148,
+          "return": 17057,
+          "total": 17205
+        },
+        "client": {
+          "params": 759,
+          "return": 1090,
+          "total": 1849
+        }
+      }
+    },
+    "insertReturning": {
+      "drizzle": {
+        "server": {
+          "params": 7665,
+          "return": 10362,
+          "total": 18027
+        },
+        "client": {
+          "params": 8468,
+          "return": 10468,
+          "total": 18936
+        }
+      },
+      "types": {
+        "server": {
+          "params": 1315,
+          "return": 14961,
+          "total": 16276
+        },
+        "client": {
+          "params": 2561,
+          "return": 345,
+          "total": 2906
         }
       },
       "builders": {
         "server": {
           "params": 2212,
-          "return": 17106,
-          "total": 19318
+          "return": 16648,
+          "total": 18860
         },
         "client": {
           "params": 3004,
@@ -231,33 +689,33 @@
     "updateReturning": {
       "drizzle": {
         "server": {
-          "params": 7886,
-          "return": 10420,
-          "total": 18306
+          "params": 7863,
+          "return": 10257,
+          "total": 18120
         },
         "client": {
-          "params": 8754,
-          "return": 10616,
-          "total": 19370
+          "params": 8734,
+          "return": 9943,
+          "total": 18677
         }
       },
       "types": {
         "server": {
-          "params": 1351,
-          "return": 14575,
-          "total": 15926
+          "params": 1403,
+          "return": 14876,
+          "total": 16279
         },
         "client": {
-          "params": 2621,
+          "params": 2672,
           "return": 421,
-          "total": 3042
+          "total": 3093
         }
       },
       "builders": {
         "server": {
           "params": 2304,
-          "return": 16166,
-          "total": 18470
+          "return": 16514,
+          "total": 18818
         },
         "client": {
           "params": 3164,
@@ -269,648 +727,190 @@
     "relations": {
       "drizzle": {
         "server": {
-          "params": 149,
-          "return": 19120,
-          "total": 19269
-        },
-        "client": {
-          "params": 760,
-          "return": 20031,
-          "total": 20791
-        }
-      },
-      "types": {
-        "server": {
-          "params": 149,
-          "return": 16788,
-          "total": 16937
-        },
-        "client": {
-          "params": 760,
-          "return": 1527,
-          "total": 2287
-        }
-      },
-      "builders": {
-        "server": {
-          "params": 149,
-          "return": 19306,
-          "total": 19455
-        },
-        "client": {
-          "params": 760,
-          "return": 2935,
-          "total": 3695
-        }
-      }
-    },
-    "viewColumns": {
-      "drizzle": {
-        "server": {
-          "params": 149,
-          "return": 18398,
-          "total": 18547
-        },
-        "client": {
-          "params": 760,
-          "return": 18584,
-          "total": 19344
-        }
-      },
-      "types": {
-        "server": {
-          "params": 149,
-          "return": 15140,
-          "total": 15289
-        },
-        "client": {
-          "params": 760,
-          "return": 1011,
-          "total": 1771
-        }
-      },
-      "builders": {
-        "server": {
-          "params": 149,
-          "return": 17358,
-          "total": 17507
-        },
-        "client": {
-          "params": 760,
-          "return": 992,
-          "total": 1752
-        }
-      }
-    },
-    "viewQueryBuilder": {
-      "drizzle": {
-        "server": {
-          "params": 149,
-          "return": 18827,
-          "total": 18976
-        },
-        "client": {
-          "params": 760,
-          "return": 19103,
-          "total": 19863
-        }
-      },
-      "types": {
-        "server": {
-          "params": 149,
-          "return": 15287,
-          "total": 15436
-        },
-        "client": {
-          "params": 760,
-          "return": 542,
-          "total": 1302
-        }
-      },
-      "builders": {
-        "server": {
-          "params": 149,
-          "return": 17736,
-          "total": 17885
-        },
-        "client": {
-          "params": 760,
-          "return": 1814,
-          "total": 2574
-        }
-      }
-    },
-    "transaction": {
-      "drizzle": {
-        "server": {
-          "params": 2730,
-          "return": 98512,
-          "total": 101242
-        },
-        "client": {
-          "params": 3359,
-          "return": 98748,
-          "total": 102107
-        }
-      },
-      "types": {
-        "server": {
-          "params": 363,
-          "return": 97344,
-          "total": 97707
-        },
-        "client": {
-          "params": 1004,
-          "return": 715,
-          "total": 1719
-        }
-      },
-      "builders": {
-        "server": {
-          "params": 1196,
-          "return": 101485,
-          "total": 102681
-        },
-        "client": {
-          "params": 1837,
-          "return": 816,
-          "total": 2653
-        }
-      }
-    },
-    "mappedShape": {
-      "drizzle": {
-        "server": {
-          "params": 149,
-          "return": 19732,
-          "total": 19881
-        },
-        "client": {
-          "params": 760,
-          "return": 19783,
-          "total": 20543
-        }
-      },
-      "types": {
-        "server": {
-          "params": 149,
-          "return": 15825,
-          "total": 15974
-        },
-        "client": {
-          "params": 760,
-          "return": 603,
-          "total": 1363
-        }
-      },
-      "builders": {
-        "server": {
-          "params": 149,
-          "return": 18384,
-          "total": 18533
-        },
-        "client": {
-          "params": 760,
-          "return": 1942,
-          "total": 2702
-        }
-      }
-    }
-  },
-  "mysql": {
-    "selectAll": {
-      "drizzle": {
-        "server": {
-          "params": 2327,
-          "return": 15542,
-          "total": 17869
-        },
-        "client": {
-          "params": 2954,
-          "return": 15944,
-          "total": 18898
-        }
-      },
-      "types": {
-        "server": {
-          "params": 298,
-          "return": 14943,
-          "total": 15241
-        },
-        "client": {
-          "params": 934,
-          "return": 913,
-          "total": 1847
-        }
-      },
-      "builders": {
-        "server": {
-          "params": 1058,
-          "return": 16695,
-          "total": 17753
-        },
-        "client": {
-          "params": 1694,
-          "return": 1029,
-          "total": 2723
-        }
-      }
-    },
-    "partialSelect": {
-      "drizzle": {
-        "server": {
-          "params": 2324,
-          "return": 15369,
-          "total": 17693
-        },
-        "client": {
-          "params": 2951,
-          "return": 15592,
-          "total": 18543
-        }
-      },
-      "types": {
-        "server": {
-          "params": 313,
-          "return": 14477,
-          "total": 14790
-        },
-        "client": {
-          "params": 949,
-          "return": 1014,
-          "total": 1963
-        }
-      },
-      "builders": {
-        "server": {
-          "params": 1058,
-          "return": 16174,
-          "total": 17232
-        },
-        "client": {
-          "params": 1694,
-          "return": 1141,
-          "total": 2835
-        }
-      }
-    },
-    "innerJoin": {
-      "drizzle": {
-        "server": {
-          "params": 149,
-          "return": 18186,
-          "total": 18335
-        },
-        "client": {
-          "params": 760,
-          "return": 19068,
-          "total": 19828
-        }
-      },
-      "types": {
-        "server": {
-          "params": 149,
-          "return": 16936,
-          "total": 17085
-        },
-        "client": {
-          "params": 760,
-          "return": 1437,
-          "total": 2197
-        }
-      },
-      "builders": {
-        "server": {
-          "params": 149,
-          "return": 19473,
-          "total": 19622
-        },
-        "client": {
-          "params": 760,
-          "return": 2803,
-          "total": 3563
-        }
-      }
-    },
-    "leftJoin": {
-      "drizzle": {
-        "server": {
-          "params": 149,
-          "return": 18540,
-          "total": 18689
-        },
-        "client": {
-          "params": 760,
-          "return": 19456,
-          "total": 20216
-        }
-      },
-      "types": {
-        "server": {
-          "params": 149,
-          "return": 16458,
-          "total": 16607
-        },
-        "client": {
-          "params": 760,
-          "return": 1370,
-          "total": 2130
-        }
-      },
-      "builders": {
-        "server": {
-          "params": 149,
-          "return": 19091,
-          "total": 19240
-        },
-        "client": {
-          "params": 760,
-          "return": 2736,
-          "total": 3496
-        }
-      }
-    },
-    "aggregate": {
-      "drizzle": {
-        "server": {
-          "params": 149,
-          "return": 17594,
-          "total": 17743
-        },
-        "client": {
-          "params": 760,
-          "return": 17860,
-          "total": 18620
-        }
-      },
-      "types": {
-        "server": {
-          "params": 149,
-          "return": 14627,
-          "total": 14776
-        },
-        "client": {
-          "params": 760,
-          "return": 345,
-          "total": 1105
-        }
-      },
-      "builders": {
-        "server": {
-          "params": 149,
-          "return": 17057,
-          "total": 17206
-        },
-        "client": {
-          "params": 760,
-          "return": 1090,
-          "total": 1850
-        }
-      }
-    },
-    "insertReturning": {
-      "drizzle": {
-        "server": {
-          "params": 7666,
-          "return": 10362,
-          "total": 18028
-        },
-        "client": {
-          "params": 8469,
-          "return": 10468,
-          "total": 18937
-        }
-      },
-      "types": {
-        "server": {
-          "params": 1316,
-          "return": 14961,
-          "total": 16277
-        },
-        "client": {
-          "params": 2562,
-          "return": 345,
-          "total": 2907
-        }
-      },
-      "builders": {
-        "server": {
-          "params": 2213,
-          "return": 16648,
-          "total": 18861
-        },
-        "client": {
-          "params": 3005,
-          "return": 646,
-          "total": 3651
-        }
-      }
-    },
-    "updateReturning": {
-      "drizzle": {
-        "server": {
-          "params": 7864,
-          "return": 10257,
-          "total": 18121
-        },
-        "client": {
-          "params": 8735,
-          "return": 9943,
-          "total": 18678
-        }
-      },
-      "types": {
-        "server": {
-          "params": 1404,
-          "return": 14876,
-          "total": 16280
-        },
-        "client": {
-          "params": 2673,
-          "return": 421,
-          "total": 3094
-        }
-      },
-      "builders": {
-        "server": {
-          "params": 2305,
-          "return": 16514,
-          "total": 18819
-        },
-        "client": {
-          "params": 3165,
-          "return": 674,
-          "total": 3839
-        }
-      }
-    },
-    "relations": {
-      "drizzle": {
-        "server": {
-          "params": 149,
+          "params": 148,
           "return": 18883,
-          "total": 19032
+          "total": 19031
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 19794,
-          "total": 20554
+          "total": 20553
         }
       },
       "types": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 17106,
-          "total": 17255
+          "total": 17254
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 1587,
-          "total": 2347
+          "total": 2346
         }
       },
       "builders": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 19614,
-          "total": 19763
+          "total": 19762
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 2961,
-          "total": 3721
+          "total": 3720
         }
       }
     },
     "viewColumns": {
       "drizzle": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 18161,
-          "total": 18310
+          "total": 18309
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 18347,
-          "total": 19107
+          "total": 19106
         }
       },
       "types": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 15507,
-          "total": 15656
+          "total": 15655
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 1016,
-          "total": 1776
+          "total": 1775
         }
       },
       "builders": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 17742,
-          "total": 17891
+          "total": 17890
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 997,
-          "total": 1757
+          "total": 1756
         }
       }
     },
     "viewQueryBuilder": {
       "drizzle": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 18593,
-          "total": 18742
+          "total": 18741
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 18869,
-          "total": 19629
+          "total": 19628
         }
       },
       "types": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 15598,
-          "total": 15747
+          "total": 15746
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 616,
-          "total": 1376
+          "total": 1375
         }
       },
       "builders": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 18041,
-          "total": 18190
+          "total": 18189
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 1826,
-          "total": 2586
+          "total": 2585
         }
       }
     },
     "transaction": {
       "drizzle": {
         "server": {
-          "params": 2698,
+          "params": 2697,
           "return": 285149,
-          "total": 287847
+          "total": 287846
         },
         "client": {
-          "params": 3330,
+          "params": 3329,
           "return": 285010,
-          "total": 288340
+          "total": 288339
         }
       },
       "types": {
         "server": {
-          "params": 434,
+          "params": 433,
           "return": 284466,
-          "total": 284900
+          "total": 284899
         },
         "client": {
-          "params": 1075,
+          "params": 1074,
           "return": 673,
-          "total": 1748
+          "total": 1747
         }
       },
       "builders": {
         "server": {
-          "params": 1159,
+          "params": 1158,
           "return": 288369,
-          "total": 289528
+          "total": 289527
         },
         "client": {
-          "params": 1800,
+          "params": 1799,
           "return": 816,
-          "total": 2616
+          "total": 2615
         }
       }
     },
     "mappedShape": {
       "drizzle": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 19495,
-          "total": 19644
+          "total": 19643
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 19546,
-          "total": 20306
+          "total": 20305
         }
       },
       "types": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 16140,
-          "total": 16289
+          "total": 16288
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 618,
-          "total": 1378
+          "total": 1377
         }
       },
       "builders": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 18689,
-          "total": 18838
+          "total": 18837
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 1954,
-          "total": 2714
+          "total": 2713
         }
       }
     }
@@ -919,456 +919,456 @@
     "selectAll": {
       "drizzle": {
         "server": {
-          "params": 2738,
+          "params": 2737,
           "return": 15709,
-          "total": 18447
+          "total": 18446
         },
         "client": {
-          "params": 3365,
+          "params": 3364,
           "return": 16111,
-          "total": 19476
+          "total": 19475
         }
       },
       "types": {
         "server": {
-          "params": 301,
+          "params": 300,
           "return": 14208,
-          "total": 14509
+          "total": 14508
         },
         "client": {
-          "params": 937,
+          "params": 936,
           "return": 923,
-          "total": 1860
+          "total": 1859
         }
       },
       "builders": {
         "server": {
-          "params": 1015,
+          "params": 1014,
           "return": 15966,
-          "total": 16981
+          "total": 16980
         },
         "client": {
-          "params": 1651,
+          "params": 1650,
           "return": 1029,
-          "total": 2680
+          "total": 2679
         }
       }
     },
     "partialSelect": {
       "drizzle": {
         "server": {
-          "params": 2746,
+          "params": 2745,
           "return": 15541,
-          "total": 18287
+          "total": 18286
         },
         "client": {
-          "params": 3373,
+          "params": 3372,
           "return": 15764,
-          "total": 19137
+          "total": 19136
         }
       },
       "types": {
         "server": {
-          "params": 330,
+          "params": 329,
           "return": 13756,
-          "total": 14086
+          "total": 14085
         },
         "client": {
-          "params": 966,
+          "params": 965,
           "return": 1010,
-          "total": 1976
+          "total": 1975
         }
       },
       "builders": {
         "server": {
-          "params": 1015,
+          "params": 1014,
           "return": 15473,
-          "total": 16488
+          "total": 16487
         },
         "client": {
-          "params": 1651,
+          "params": 1650,
           "return": 1141,
-          "total": 2792
+          "total": 2791
         }
       }
     },
     "innerJoin": {
       "drizzle": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 18762,
-          "total": 18911
+          "total": 18910
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 19647,
-          "total": 20407
+          "total": 20406
         }
       },
       "types": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 16220,
-          "total": 16369
+          "total": 16368
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 1496,
-          "total": 2256
+          "total": 2255
         }
       },
       "builders": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 18723,
-          "total": 18872
+          "total": 18871
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 2853,
-          "total": 3613
+          "total": 3612
         }
       }
     },
     "leftJoin": {
       "drizzle": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 19118,
-          "total": 19267
+          "total": 19266
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 20034,
-          "total": 20794
+          "total": 20793
         }
       },
       "types": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 15728,
-          "total": 15877
+          "total": 15876
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 1429,
-          "total": 2189
+          "total": 2188
         }
       },
       "builders": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 18327,
-          "total": 18476
+          "total": 18475
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 2786,
-          "total": 3546
+          "total": 3545
         }
       }
     },
     "aggregate": {
       "drizzle": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 18188,
-          "total": 18337
+          "total": 18336
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 18454,
-          "total": 19214
+          "total": 19213
         }
       },
       "types": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 13925,
-          "total": 14074
+          "total": 14073
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 362,
-          "total": 1122
+          "total": 1121
         }
       },
       "builders": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 16315,
-          "total": 16464
+          "total": 16463
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 1047,
-          "total": 1807
+          "total": 1806
         }
       }
     },
     "insertReturning": {
       "drizzle": {
         "server": {
-          "params": 8119,
+          "params": 8118,
           "return": 9940,
-          "total": 18059
+          "total": 18058
         },
         "client": {
-          "params": 8922,
+          "params": 8921,
           "return": 10090,
-          "total": 19012
+          "total": 19011
         }
       },
       "types": {
         "server": {
-          "params": 1340,
+          "params": 1339,
           "return": 13501,
-          "total": 14841
+          "total": 14840
         },
         "client": {
-          "params": 2585,
+          "params": 2584,
           "return": 345,
-          "total": 2930
+          "total": 2929
         }
       },
       "builders": {
         "server": {
-          "params": 2182,
+          "params": 2181,
           "return": 15144,
-          "total": 17326
+          "total": 17325
         },
         "client": {
-          "params": 2974,
+          "params": 2973,
           "return": 646,
-          "total": 3620
+          "total": 3619
         }
       }
     },
     "updateReturning": {
       "drizzle": {
         "server": {
-          "params": 8317,
+          "params": 8316,
           "return": 10342,
-          "total": 18659
+          "total": 18658
         },
         "client": {
-          "params": 9188,
+          "params": 9187,
           "return": 10487,
-          "total": 19675
+          "total": 19674
         }
       },
       "types": {
         "server": {
-          "params": 1428,
+          "params": 1427,
           "return": 14042,
-          "total": 15470
+          "total": 15469
         },
         "client": {
-          "params": 2696,
+          "params": 2695,
           "return": 421,
-          "total": 3117
+          "total": 3116
         }
       },
       "builders": {
         "server": {
-          "params": 2274,
+          "params": 2273,
           "return": 15692,
-          "total": 17966
+          "total": 17965
         },
         "client": {
-          "params": 3134,
+          "params": 3133,
           "return": 674,
-          "total": 3808
+          "total": 3807
         }
       }
     },
     "relations": {
       "drizzle": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 19548,
-          "total": 19697
+          "total": 19696
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 20459,
-          "total": 21219
+          "total": 21218
         }
       },
       "types": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 16471,
-          "total": 16620
+          "total": 16619
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 1646,
-          "total": 2406
+          "total": 2405
         }
       },
       "builders": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 18945,
-          "total": 19094
+          "total": 19093
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 3011,
-          "total": 3771
+          "total": 3770
         }
       }
     },
     "viewColumns": {
       "drizzle": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 18827,
-          "total": 18976
+          "total": 18975
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 19013,
-          "total": 19773
+          "total": 19772
         }
       },
       "types": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 14720,
-          "total": 14869
+          "total": 14868
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 1042,
-          "total": 1802
+          "total": 1801
         }
       },
       "builders": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 16895,
-          "total": 17044
+          "total": 17043
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 1023,
-          "total": 1783
+          "total": 1782
         }
       }
     },
     "viewQueryBuilder": {
       "drizzle": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 19226,
-          "total": 19375
+          "total": 19374
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 19502,
-          "total": 20262
+          "total": 20261
         }
       },
       "types": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 14929,
-          "total": 15078
+          "total": 15077
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 622,
-          "total": 1382
+          "total": 1381
         }
       },
       "builders": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 17332,
-          "total": 17481
+          "total": 17480
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 1820,
-          "total": 2580
+          "total": 2579
         }
       }
     },
     "transaction": {
       "drizzle": {
         "server": {
-          "params": 3115,
+          "params": 3114,
           "return": 284083,
-          "total": 287198
+          "total": 287197
         },
         "client": {
-          "params": 3747,
+          "params": 3746,
           "return": 284160,
-          "total": 287907
+          "total": 287906
         }
       },
       "types": {
         "server": {
-          "params": 421,
+          "params": 420,
           "return": 282303,
-          "total": 282724
+          "total": 282723
         },
         "client": {
-          "params": 1062,
+          "params": 1061,
           "return": 699,
-          "total": 1761
+          "total": 1760
         }
       },
       "builders": {
         "server": {
-          "params": 1116,
+          "params": 1115,
           "return": 286017,
-          "total": 287133
+          "total": 287132
         },
         "client": {
-          "params": 1757,
+          "params": 1756,
           "return": 816,
-          "total": 2573
+          "total": 2572
         }
       }
     },
     "mappedShape": {
       "drizzle": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 20160,
-          "total": 20309
+          "total": 20308
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 20211,
-          "total": 20971
+          "total": 20970
         }
       },
       "types": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 15495,
-          "total": 15644
+          "total": 15643
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 641,
-          "total": 1401
+          "total": 1400
         }
       },
       "builders": {
         "server": {
-          "params": 149,
+          "params": 148,
           "return": 18004,
-          "total": 18153
+          "total": 18152
         },
         "client": {
-          "params": 760,
+          "params": 759,
           "return": 1948,
-          "total": 2708
+          "total": 2707
         }
       }
     }
