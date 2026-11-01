@@ -8,15 +8,10 @@
 // during the esbuild pass, then esbuild bundles everything to ONE runnable
 // `dist/run.mjs` (ESM, node22) that the bench runner executes directly.
 //
-// Plugin discovery: `@ttsc/unplugin` compiles the project its `project` option names
-// (this dir's tsconfig.json, whose `compilerOptions.plugins` is
-// `[{transform: "typia/lib/transform", finite: true}]`) and hands back the transformed source of
-// that project's OWN files, i.e. the files under this dir. The shared harness it
-// reaches through `../../shared` is part of the program (type-checked, in the
-// `include`) but is never emitted, so the wrapper below leaves those files to
-// esbuild's own TypeScript loader: they hold no typia call, nothing there needs the
-// transform. Without `project`, the adapter picks the nearest tsconfig.json of each
-// FILE, and the shared files have none.
+// Plugin discovery: `@ttsc/unplugin` compiles the tsconfig its `project` option names and hands back only that
+// project's OWN files. The `../../shared` harness is type-checked but never emitted, so the wrapper below leaves it to
+// esbuild's TypeScript loader (it holds no typia call). Without `project`, the adapter picks each FILE's nearest
+// tsconfig.json, and the shared files have none.
 //
 // ttsc resolves the `typescript` package from this dir (TypeScript 7 ships the native
 // compiler as `@typescript/typescript-<platform>`); the `@typescript/native-preview`

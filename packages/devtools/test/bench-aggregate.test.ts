@@ -1,5 +1,3 @@
-// The website's benchmark scoring (container/website/app/utils/benchAggregate.js): a library that
-// skips or fails a case scores it at the worst value among the libraries that ran it.
 import {describe, expect, it} from 'vitest';
 // @ts-expect-error untyped .js (the site's tsconfig only exists in its image)
 import {aggregateRows, rowMeans} from '../../../container/website/app/utils/benchAggregate.js';
@@ -7,7 +5,6 @@ import {aggregateRows, rowMeans} from '../../../container/website/app/utils/benc
 type Status = 'ok' | 'fail' | 'not-supported';
 type Cell = number | Status;
 
-/** One case: per library, its ops (status ok) or a status. */
 function kase(key: string, cells: Record<string, Cell>) {
   const results: Record<string, Record<string, {valid?: number; invalid?: number; mixed?: number; status: Status}>> = {};
   for (const [lib, cell] of Object.entries(cells)) {

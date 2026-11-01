@@ -1679,8 +1679,7 @@ describe('mion server benchmarks stay wired end to end', () => {
   });
 
   it('the benchmark geometric means are computed in one place, for the pages and the home summary', () => {
-    // BenchTable's "Overall" row and HomeBenchTable's headline number for the same
-    // dataset must agree, so neither carries its own copy of the math.
+    // BenchTable's "Overall" row and HomeBenchTable's headline for the same dataset must agree.
     const shared = join(REPO_ROOT, 'container/website/app/utils/benchAggregate.js');
     expect(existsSync(shared)).toBe(true);
     for (const name of ['BenchTable', 'HomeBenchTable', 'RuntypesBenchBars']) {

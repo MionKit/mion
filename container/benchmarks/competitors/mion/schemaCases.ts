@@ -1,12 +1,7 @@
-// mion validators keyed by suite case key ("GROUP.case"), BUILDER form.
-// Each entry is the case's own `validateSchema` thunk copied VERBATIM from the
-// upstream suites (packages/run-types/test/suites/): a
-// `() => createValidateFn(RT.…)` arrow built from the `mion/builders`
-// surface instead of a literal type argument. Case keys and samples come from
-// container/benchmarks/shared/cases/. Consumed by typecost ONLY (it is
-// NOT imported by main.ts). Cases whose value-first form can't be authored
-// (`validateSchema: 'not-supported'`) or that render an alwaysThrow factory
-// (`factoryThrows`) opt out with NOT_SUPPORTED. TOTAL over every key.
+// mion BUILDER-form validators keyed by "GROUP.case": each is the case's `validateSchema` thunk copied VERBATIM
+// from packages/run-types/test/suites/; keys and samples come from container/benchmarks/shared/cases/. typecost
+// ONLY: main.ts never imports it. Cases with no value-first form (`validateSchema: 'not-supported'`) or an
+// alwaysThrow factory (`factoryThrows`) are NOT_SUPPORTED. TOTAL over every key.
 
 import * as TF from '@mionjs/run-types/formats';
 import * as TFT from '@mionjs/run-types/formats/temporal';

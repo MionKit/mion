@@ -634,11 +634,9 @@ describe("typia's esbuild wrapper leaves the shared harness to esbuild", () => {
 });
 
 describe('the all-optional zod cases keep the plain-object guard', () => {
-  // The Correctness page states zod agrees with RunTypes on every sample, and aggregate.mjs
-  // fails the release gate on any `fail`. z.object alone accepts a Date / Map / Set / RegExp
-  // for an all-optional shape, and a `.refine` sees the parsed copy, so the guard is a
-  // z.custom on the INPUT, with the keys checked in place by `.check(z.properties(...))`
-  // (a pipe into z.object would copy the object on every call).
+  // A `fail` breaks aggregate.mjs's release gate and the Correctness page's "zod agrees on every sample".
+  // z.object alone accepts a Date / Map / Set / RegExp for an all-optional shape; a `.refine` sees the parsed copy.
+  // So the guard is a z.custom on the INPUT; a pipe into z.object would copy the object on every call.
   const source = read('container/benchmarks/competitors/zod/cases.ts');
   const entry = (key: string): string => {
     const start = source.indexOf(`'${key}': {`);
