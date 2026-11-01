@@ -8,8 +8,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// maxUnknownKeys caps the `never` entries per object; past it one `tooManyUnknownKeys` entry stands for the rest, so
-// a body with thousands of extra keys never builds thousands of errors.
+// maxUnknownKeys caps `never` errors per object, so a body with thousands of extra keys stays a small report.
 const maxUnknownKeys = 10
 
 // callUnknownKeyErr appends a 'never' error for an unknown key; `extra` is the key VARIABLE, the key being a runtime value.
@@ -24,9 +23,8 @@ func callUnknownKeyErr(ctx *EmitContext, extra string) string {
 	return key + "(" + strings.Join(args, ",") + ")"
 }
 
-// emitParentUnknownKeyErrors pushes one `{path, expected: 'never'}` per undeclared key, up to maxUnknownKeys, for
-// `validationErrorsStrict`;
-// "" when an index signature declares every key or the shape declares no names.
+// emitParentUnknownKeyErrors emits the `never` errors for `validationErrorsStrict`.
+// It returns "" when an index signature declares every key or the shape declares no names.
 // ⚠️ THE CALLER OWNS THE OBJECT GUARD: the fused family already sits inside emitObjectValidationErrors' guard, and a
 // second one would emit on every object node, which strictObjectKeyAssertion also avoids on validate.
 // Pinned by TestCheckUnknowns_DoesNotDoubleGuardObjects.

@@ -338,7 +338,7 @@ describe('checkUnknowns — validate and errors agree on arrays', () => {
   });
 });
 
-// The error list stops at 10 unknown keys per object and adds one entry for the rest, so a huge body stays a small report.
+// Capped per object so a huge body stays a small report.
 const tenUnknown = extraKeys.slice(0, 10).map((key) => ({path: [key], expected: 'never'}));
 const tooMany = {path: [], expected: 'tooManyUnknownKeys'};
 const withTenExtraKeys = {...flag, ...Object.fromEntries(extraKeys.slice(0, 10).map((key) => [key, 0]))};
