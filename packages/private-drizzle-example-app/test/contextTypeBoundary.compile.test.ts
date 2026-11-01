@@ -10,9 +10,10 @@ describe.each(DIALECTS)('%s database context boundary', (dialect) => {
 import type {CallContext} from '@mionjs/router';
 import {db, usersDb} from '../db/${dialect}.types.db.ts';
 import type {User} from '../db/${dialect}.types.ts';`;
-    // every factory writes its return type: an inferred one is computed by every client
+    // only the first row infers the factory's return, the case rpc-handler-shared-factory-untyped warns about
     const dbRouter = 'createMionRouter({sharedDataFactory: (): {db: typeof db} => ({db})})';
     const results = [
+      ['inferred database context', 'createMionRouter({sharedDataFactory: () => ({db})})', '_ctx', 'db'],
       ['empty context', 'createMionRouter({})', '_ctx', 'db'],
       [
         'small context',
@@ -47,6 +48,7 @@ import type {User} from '../db/${dialect}.types.ts';`;
     const cost = (name: string) => results.find((r) => r.name === name)!.client;
     expect(cost('unused database context')).toBe(cost('database context'));
     expect(cost('opaque database context')).toBeLessThan(cost('empty context') * 1.1);
+    expect(cost('inferred database context')).toBeGreaterThan(cost('opaque database context') * 2);
 
     const exposed = measureCase(`${imports}\nconst mion = createMionRouter({sharedDataFactory: (): {db: unknown} => ({db})});`, {
       name: 'inferred database result',

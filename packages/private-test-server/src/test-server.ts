@@ -250,23 +250,29 @@ const routes = {
   // ============ Shared middleware ============
   // A gate: a present but WRONG token answers a FatalError, typed for the client and ending the
   // chain so the route never runs. A missing header fails header validation before the handler.
-  auth: headersMiddleware((ctx, h: HeadersSubset<'Authorization'>): void | RpcError<'not-authorized'> => {
-    if (h.headers.Authorization === 'WRONG-TOKEN') {
-      return new FatalError({publicMessage: 'Not Authorized', type: 'not-authorized', statusCode: 401});
-    }
-    ctx.shared.user = {name: 'John', surname: 'Doe'};
-  }),
-  session: middleware((ctx, sessionToken?: string): SessionInfo | RpcError<'session-expired'> | null => {
-    if (!sessionToken) return null;
-    if (sessionToken === 'expired') {
-      return new RpcError({publicMessage: 'Session expired', type: 'session-expired'});
-    }
-    return {
-      userId: 'user-123',
-      role: 'admin',
-      expiresAt: Date.now() + 3600000, // 1 hour from now
-    };
-  }),
+  auth: headersMiddleware(
+    (ctx, h: HeadersSubset<'Authorization'>): void | RpcError<'not-authorized'> => {
+      if (h.headers.Authorization === 'WRONG-TOKEN') {
+        return new FatalError({publicMessage: 'Not Authorized', type: 'not-authorized', statusCode: 401});
+      }
+      ctx.shared.user = {name: 'John', surname: 'Doe'};
+    },
+    {cors: false}
+  ),
+  session: middleware(
+    (ctx, sessionToken?: string): SessionInfo | RpcError<'session-expired'> | null => {
+      if (!sessionToken) return null;
+      if (sessionToken === 'expired') {
+        return new RpcError({publicMessage: 'Session expired', type: 'session-expired'});
+      }
+      return {
+        userId: 'user-123',
+        role: 'admin',
+        expiresAt: Date.now() + 3600000, // 1 hour from now
+      };
+    },
+    {cors: false}
+  ),
 
   // ============ JSON routes (default parser) ============
   sayHello: route((_ctx, user: User): string | RpcError<'some-error'> => `Hello ${user.name} ${user.surname}`),

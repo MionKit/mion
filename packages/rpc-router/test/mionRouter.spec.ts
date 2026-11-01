@@ -103,7 +103,7 @@ describe('createMionRouter types', () => {
     });
   });
 
-  it('types ctx.shared as never when no shared part was declared', () => {
+  it('types ctx.shared as never without a sharedDataFactory', () => {
     type Bare = MionRouter<{basePath: 'x'}>;
     expectTypeOf<RouterCallContext<object>>().toEqualTypeOf<CallContext<never>>();
     expectTypeOf<Parameters<Bare['initRoutes']>[0]>().toEqualTypeOf<Routes>();

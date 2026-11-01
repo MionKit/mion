@@ -43,6 +43,9 @@ describe('fetchRemoteMethodsMetadata', () => {
   it('keeps the option keys a createMionRouter added after decoding the fetched metadata', async () => {
     await fetchRemoteMethodsMetadata(['corsOff', 'sayHello'], ['corsOff'], options);
     expect(routesCache.getMetadata('corsOff')?.options.cors).toBe(false);
+    // the chain's middleware and headers middleware come along with the route
+    expect(routesCache.getMetadata('auth')?.options.cors).toBe(false);
+    expect(routesCache.getMetadata('session')?.options.cors).toBe(false);
     expect(routesCache.getMetadata('sayHello')?.options).not.toHaveProperty('cors');
   });
 

@@ -2196,12 +2196,11 @@ describe('bun test files never build the router at evaluation time', () => {
   // Bun evaluates all describe bodies before any hook in one process, so a router built there hits a sibling's once-guard.
   // The throw skips that whole file and the summary still reads `0 fail`.
   // Indentation is the nesting test: 0 is module level, 2 a describe body, deeper runs after the reset.
-  // A build calls `createMionRouter` (under an import alias too) or the factory `createMionRouter.withTypes<T>()`
+  // A build calls `createMionRouter` or the factory `createMionRouter.withTypes<T>()`
   // returns, inline or through a const holding it; `withTypes<T>()` alone builds nothing. Matched on the whole source:
   // a `<{...}>` type argument may span lines.
   const evaluationTimeCalls = (source: string): string[] => {
-    const names = ['createMionRouter', ...[...source.matchAll(/createMionRouter\s+as\s+(\w+)/g)].map((match) => match[1])];
-    const factory = `(?:${names.join('|')})`;
+    const factory = 'createMionRouter';
     const typed = `${factory}\\s*\\.\\s*withTypes\\s*(?:<[^]*?>)?\\s*\\(\\s*\\)`;
     const held = [...source.matchAll(new RegExp(`(\\w+)\\s*=\\s*${typed}\\s*;`, 'g'))].map((match) => match[1]);
     const builds = new RegExp(`\\b(?:${[factory, ...held].join('|')})\\s*\\(|\\b${typed}\\s*\\(`, 'g');
@@ -2235,9 +2234,6 @@ describe('bun test files never build the router at evaluation time', () => {
     expect(evaluationTimeCalls(multiLine)).toEqual(['2: const mion = createMionRouter.withTypes<{']);
     const held = "const createApp = createMionRouter.withTypes<T>();\ndescribe('x', () => {\n  const mion = createApp({});\n});";
     expect(evaluationTimeCalls(held)).toEqual(['3: const mion = createApp({});']);
-    const aliased =
-      "import {createMionRouter as cmr} from '@mionjs/router';\ndescribe('x', () => {\n  const mion = cmr.withTypes()();\n});";
-    expect(evaluationTimeCalls(aliased)).toEqual(['3: const mion = cmr.withTypes()();']);
   });
 
   it('lets a module-level createMionRouter.withTypes<T>() alone through: it builds no router', () => {

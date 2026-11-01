@@ -235,6 +235,8 @@ describe('a client built with client routes bundled', () => {
     expect(error).toBeUndefined();
     expect(result).toBe('Hello Ann');
     expect(getMethod('corsOff')?.options.cors).toBe(false);
+    expect(getMethod('auth')?.options.cors).toBe(false);
+    expect(getMethod('session')?.options.cors).toBe(false);
   });
 
   it('gives a returned HeadersSubset back', async () => {

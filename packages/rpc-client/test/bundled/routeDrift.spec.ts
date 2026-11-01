@@ -82,7 +82,7 @@ let fetches = 0;
 /** Explicit versions keep these two APIs out of the lane's own version check (rpc-client-version-mismatch), which is one API per program. */
 function serve(routes: typeof oldRoutes | typeof newRoutes, version: string) {
   resetRouter();
-  const mion = createMionRouter(options);
+  const mion = createMionRouter.withTypes<AppTypes>()(options);
   mion.initRoutes(routes(mion), version);
 }
 
