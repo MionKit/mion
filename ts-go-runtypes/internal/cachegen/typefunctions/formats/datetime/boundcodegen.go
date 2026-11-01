@@ -9,7 +9,7 @@ import (
 
 // boundcodegen.go emits the runtime min/max comparison for a validated date/time/dateTime/native-Date value.
 // Absolute bounds are baked as a number on the runtime scale (epoch ms, ms-of-day for time); relative `now±P…`
-// bounds emit relativeNowKey(spec, scale) so JS owns the calendar arithmetic at check time.
+// bounds hoist relativeNowKey(spec, scale), a clock-reading fn, so JS owns the calendar arithmetic at check time.
 
 // scaleFor returns the relativeNowKey scale arg for a bound kind.
 // dateStrToMs floors a date value to UTC midnight, so a date relative bound floors `now` too ('epochDate'), or a
@@ -26,7 +26,7 @@ func scaleFor(kind boundKind) string {
 	}
 }
 
-// boundExpr renders what a bound compares against: a baked number for an absolute literal, relativeNowKey(spec, scale) for a relative one.
+// boundExpr renders what a bound compares against: a baked number for an absolute literal, a call to the hoisted relativeNowKey(spec, scale) fn for a relative one.
 func boundExpr(ctx formats.EmitContext, params map[string]any, key string, kind boundKind, layout string) (string, bool) {
 	bound, present := stringParam(params, key)
 	if !present || bound == "" {
@@ -36,8 +36,9 @@ func boundExpr(ctx formats.EmitContext, params map[string]any, key string, kind 
 		if relErr != "" {
 			return "", false // already reported by ValidateParams
 		}
+		// The spec is parsed once into a hoisted clock-reading fn; only its call stays per check.
 		alias := pureFnAlias(ctx, purefnids.RelativeNowKey)
-		return alias + "(" + strconv.Quote(bound) + "," + scaleFor(kind) + ")", true
+		return hoistOrInline(ctx, "rNow", alias+"("+strconv.Quote(bound)+","+scaleFor(kind)+")") + "()", true
 	}
 	keyVal, ok := comparableLiteral(bound, kind, layout)
 	if !ok {

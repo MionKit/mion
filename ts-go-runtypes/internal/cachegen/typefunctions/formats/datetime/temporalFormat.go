@@ -41,8 +41,8 @@ func (e temporalFormatEmitter) relBoundKind() boundKind {
 
 // ValidateParams validates the relative `now±P…` bounds: grammar plus the per-type component restriction, since
 // calendar units on an Instant bound would throw in `.add()` at runtime.
-// Absolute literals are NOT parsed here: Temporal's grammar is rich (tz + calendar annotations) and
-// `Temporal.X.from(...)` validates them loudly when the cache module loads.
+// Absolute literals are NOT parsed here: Temporal's grammar is rich (tz + calendar annotations) and the hoisted
+// `Temporal.X.from(...)` validates them loudly when the validator is created.
 func (e temporalFormatEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
@@ -91,11 +91,12 @@ func temporalTitle(info reflection.TemporalInfo) string {
 	return "Temporal" + info.Name
 }
 
-// temporalBoundExpr renders what a bound compares against: `Temporal.X.from('lit')`, or a relative
-// `Temporal.Now.X()[.add|.subtract](Temporal.Duration.from('P…'))`.
-func (e temporalFormatEmitter) temporalBoundExpr(bound string) string {
+// temporalBoundExpr renders what a bound compares against. A literal `Temporal.X.from('lit')` and the
+// `Temporal.Duration.from('P…')` of a relative bound are hoisted into the factory prologue, parsed once; only
+// `Temporal.Now.X()` stays in the body, since a relative bound must read the clock on every call.
+func (e temporalFormatEmitter) temporalBoundExpr(ctx formats.EmitContext, bound string) string {
 	if !strings.HasPrefix(bound, "now") {
-		return e.info.Builtin + ".from(" + strconv.Quote(bound) + ")"
+		return hoistOrInline(ctx, "tBound", e.info.Builtin+".from("+strconv.Quote(bound)+")")
 	}
 	rest := bound[len("now"):]
 	if rest == "" {
@@ -105,13 +106,21 @@ func (e temporalFormatEmitter) temporalBoundExpr(bound string) string {
 	if rest[0] == '-' {
 		op = "subtract"
 	}
-	duration := rest[1:]
-	return e.info.NowExpr + "." + op + "(Temporal.Duration.from(" + strconv.Quote(duration) + "))"
+	duration := hoistOrInline(ctx, "tDur", "Temporal.Duration.from("+strconv.Quote(rest[1:])+")")
+	return e.info.NowExpr + "." + op + "(" + duration + ")"
+}
+
+// hoistOrInline returns the hoisted const name, or `init` itself when there is no context to hoist into.
+func hoistOrInline(ctx formats.EmitContext, prefix, init string) string {
+	if name := formats.HoistConst(ctx, prefix, init); name != "" {
+		return name
+	}
+	return init
 }
 
 // boundCompare builds `Temporal.X.compare(v, <bound>) <op> 0`.
-func (e temporalFormatEmitter) boundCompare(vλl, bound, op string) string {
-	return e.info.Builtin + ".compare(" + vλl + ", " + e.temporalBoundExpr(bound) + ") " + op + " 0"
+func (e temporalFormatEmitter) boundCompare(ctx formats.EmitContext, vλl, bound, op string) string {
+	return e.info.Builtin + ".compare(" + vλl + ", " + e.temporalBoundExpr(ctx, bound) + ") " + op + " 0"
 }
 
 func (e temporalFormatEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
@@ -121,7 +130,7 @@ func (e temporalFormatEmitter) EmitValidateCheck(annotation *reflection.FormatAn
 	var checks []string
 	for _, bound := range temporalBoundOps {
 		if value, ok := stringParam(annotation.Params, bound.key); ok && value != "" {
-			checks = append(checks, "("+e.boundCompare(vλl, value, bound.op)+")")
+			checks = append(checks, "("+e.boundCompare(ctx, vλl, value, bound.op)+")")
 		}
 	}
 	return strings.Join(checks, " && ")
@@ -134,7 +143,7 @@ func (e temporalFormatEmitter) EmitValidationErrorsCheck(annotation *reflection.
 	var stmts []string
 	for _, bound := range temporalBoundOps {
 		if value, ok := stringParam(annotation.Params, bound.key); ok && value != "" {
-			stmts = append(stmts, "if (!("+e.boundCompare(vλl, value, bound.op)+")) "+
+			stmts = append(stmts, "if (!("+e.boundCompare(ctx, vλl, value, bound.op)+")) "+
 				formats.FormatErrCall(pathExpr, errorsArr, e.info.Builtin, e.info.FormatName, bound.key, strconv.Quote(value)))
 		}
 	}

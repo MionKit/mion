@@ -88,6 +88,15 @@ describe('Temporal relative now±P bounds (wide margins, clock-independent)', ()
     const validate = createValidateFn<TFT.PlainDate<{max: 'now'}>>();
     expect(validate(T.PlainDate.from('2999-01-01'))).toBe(false);
   });
+
+  // The parsed duration is built once with the validator; `now` must still be read on every call.
+  it('one validator follows the clock: lt:now-PT0S flips once time passes', async () => {
+    const validate = createValidateFn<TFT.Instant<{lt: 'now-PT0S'}>>();
+    const soon = T.Now.instant().add({milliseconds: 100});
+    expect(validate(soon)).toBe(false);
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(validate(soon)).toBe(true);
+  });
 });
 
 // Bound-aware mocking — every generated value must re-pass validate for the

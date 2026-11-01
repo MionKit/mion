@@ -795,7 +795,7 @@ func (w *Walker) handleCodeInterpolation(child RTCode, parentCT CodeType) RTCode
 	case parentCT == CodeRB && childCT == CodeS:
 		return RTCode{Code: addFullStop(code), Type: childCT}
 	case parentCT == CodeRB && childCT == CodeRB:
-		return RTCode{Code: addFullStop(code) + " return " + w.returnName(), Type: childCT}
+		return child
 	}
 	panic(fmt.Sprintf("typefns: unexpected code type (parent=%s child=%s)", parentCT, childCT))
 }
