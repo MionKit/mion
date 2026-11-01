@@ -68,15 +68,24 @@ function groupsOf(data) {
   return groups;
 }
 
-/** mion's place among every library on the group's mean speed, a skipped case counted at the slowest result (rowMeans). */
+/** mion's place among every library on the group's mean speed, a skipped case counted at the slowest result
+ *  (rowMeans), the same way the site's group rows fill it. */
 function groupRank(data, keys, metric, at) {
-  const cases = keys.map((key) => ({key, results: data.cases.get(key)?.results ?? {}}));
-  const competitors = [...new Set(cases.flatMap((kase) => Object.keys(kase.results)))];
-  const {participants, values} = rowMeans(cases, competitors, metric);
-  const scores = participants.map((name) => ({name, score: values[name]?.[at] ?? 0})).filter((s) => s.score > 0);
-  if (scores.length < 2 || !scores.some((s) => s.name === MION)) return null;
+  const toCase = ([key, entry]) => ({key, results: entry?.results ?? {}});
+  const everyCase = [...data.cases].map(toCase);
+  const competitors = [...new Set(everyCase.flatMap((kase) => Object.keys(kase.results)))];
+  const {participants} = rowMeans(everyCase, competitors, metric);
+  const {values} = rowMeans(
+    keys.map((key) => toCase([key, data.cases.get(key)])),
+    competitors,
+    metric,
+    false,
+    participants
+  );
+  const scores = participants.map((name) => ({name, score: values[name]?.[at] ?? 0})).filter((entry) => entry.score > 0);
+  if (scores.length < 2 || !scores.some((entry) => entry.name === MION)) return null;
   scores.sort((a, b) => b.score - a.score);
-  return `${scores.findIndex((s) => s.name === MION) + 1}/${scores.length}`;
+  return `${scores.findIndex((entry) => entry.name === MION) + 1}/${scores.length}`;
 }
 
 function headToHead(data, name, metric, at) {
