@@ -3912,7 +3912,9 @@ export const cases: CompetitorCases = {
 
   // ── STRICT ──
   // createIs is structural and ACCEPTS excess keys, so the closed forms
-  // (createEquals / createValidateEquals) are the correct pair here.
+  // (createEquals / createValidateEquals) are the correct pair here. Known gap, typia's own semantics: an extra
+  // key whose value is `undefined` passes (typia treats it as absent), where mion rejects any unknown key. No
+  // shared sample has one, and a no-undefined tag would also reject an optional prop set to undefined.
   'STRICT.flat_required': {
     build: () => {
       interface StrictFlat {
