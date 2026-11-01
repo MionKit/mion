@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-10-31
 ---
 
@@ -32,7 +32,9 @@ Also seen in the same review, same emitter family: the generated validate for a 
 
 ## Docs
 
-None, because behavior does not change; only per-call cost.
+None. Valid bounds behave the same; only per-call cost drops. One timing change: a malformed absolute Temporal
+literal (e.g. `'2020-1-1'`) used to throw a RangeError only when a value reached that compare. It now throws when
+the validator is created, pinned by `temporalFormat.test.ts`.
 
 ## Done when
 
@@ -52,7 +54,11 @@ None, because behavior does not change; only per-call cost.
 - Rest tuple: the walker's block-in-block case appended a dead `return v` after a child block that already
   returns, which also stopped the tuple from stripping the rest loop's `return true`. It now passes the child
   block through unchanged (`walker.go`, `handleCodeInterpolation`).
-- Tests: Go `resolver/bound_hoist_test.go` (Temporal + native Date + rest tuple, both call shapes), updated
+- Tests: Go `resolver/bound_hoist_test.go` (Temporal + native Date, validate AND validationErrors, rest tuple;
+  both call shapes each), updated
   `temporal_format_test.go`; JS clock-movement tests in `formatRelativeBounds.test.ts` and
-  `temporalFormat.test.ts` (one validator instance, answer flips as time passes).
+  `temporalFormat.test.ts` (one validator instance, answer flips as time passes, on the epoch, epochDate and
+  timeOfDay scales and for Temporal), plus a test that a malformed Temporal literal throws at creation.
+- The `file:line` pointers in Intent are from before the change; the code now lives in `temporalBoundExpr`
+  (`temporalFormat.go`) and `relativeNowKey` (`dateTime-pure-fns.ts`).
 - No docs: behavior unchanged.

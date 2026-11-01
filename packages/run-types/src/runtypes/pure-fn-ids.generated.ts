@@ -14,13 +14,13 @@ export const RUN_TYPES_PURE_FN_ID_PREFIX = '_rt:';
 
 export const uniqueArrayItemsId = '_rt:-yTRFuK01Y';
 export const isIPV4Id = '_rt:0yJQ37XnmN';
+export const relativeNowKeyId = '_rt:2kI9kVFYAY';
 export const isTimeString_mmssId = '_rt:2xtQHAMu-y';
 export const isDateString_YMDId = '_rt:3RndhrueRD';
 export const punycodeEncodeId = '_rt:5oCqd7YyfA';
 export const isSecondsWithMsId = '_rt:6E7qWsIwaF';
 export const isDateStringId = '_rt:8AgZCCAhyw';
 export const isDateString_MDId = '_rt:AmEsDA-eXW';
-export const relativeNowKeyId = '_rt:Cbe5WNq8gl';
 export const uniqueSetMembersId = '_rt:D503ooPt08';
 export const punycodeDecodeId = '_rt:GA20s6bj41';
 export const isCreditCardId = '_rt:GaLOTE4b_F';
