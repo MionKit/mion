@@ -10,30 +10,52 @@
 // at build time by typia's tsgo transform (driven through `@ttsc/unplugin` in
 // esbuild.config.mjs). Like ts-go's `createValidateFn<T>()` it needs the per-case
 // type written LITERALLY at the call site, so each non-format entry copies the
-// literal `T` (and any local enum / interface / recursive type decl) VERBATIM from
-// the ts-go competitor's cases.ts. Recursion, utility types (Partial/Pick/Omit/
-// Exclude/Extract/keyof/indexed-access/conditional/mapped/key-remapping), and
-// template-literal types are all expressed natively and work.
+// literal `T` (and any local enum / interface / recursive type decl) from the ts-go
+// competitor's cases.ts, plus a leaf tag where typia's own check differs (below).
+// Recursion, utility and template-literal types are expressed natively.
 //
 // FORMAT suites can't use the `Format*` brand types, so they translate to typia
-// tags (`string & tags.MinLength<…>`, `… & tags.Pattern<'…'>`, `number & tags.Type<…>
-// & tags.Minimum<…>`, etc.). Tag semantics confirmed against the installed typings
-// and each case's exact samples; a tag is used only where it matches the samples.
+// tags (`Format<…>`, `Pattern<…>`, `Type<…>`, bounds, `Exclude<…>`), or to a custom
+// tag (`tags.TagBase`) where no built-in tag does mion's exact rule. Every entry is
+// checked against the case's exact shared samples; no entry overrides them.
 //
-// A case is marked supported ONLY when (a) typia can express the type and (b) the
-// shared sample data matches typia's runtime semantics. Divergences that force
-// NOT_SUPPORTED (each entry below carries the precise reason):
-//   - bare `number` accepts NaN/Infinity (no tag means "finite" without also forcing
-//     integer/range), so every case rejecting NaN/Infinity at a plain-number position fails;
-//   - `Date` is `instanceof Date` only, so Invalid Date (new Date('invalid')) passes;
-//   - calendar/bound-aware string formats (date/date-time with real-calendar or
-//     min/max bounds) exceed what a Pattern can express;
-//   - typia validates function-typed members & methods (we silently drop them),
-//     mis-renders `void`, treats `never`/`object`/all-optional objects/Promise/Temporal
-//     differently than these suites, and can't hold 64-bit bigint bounds as tag literals.
+// Same work as mion:
+//   - the plugin entry sets `finite: true` (tsconfig.json), so every number rejects
+//     NaN / Infinity like mion's `Number.isFinite`;
+//   - typia's `Date` is `instanceof` only, Temporal is checked by structure and all-optional /
+//     index-signature objects only reject arrays, so leaf object tags add mion's rule
+//     (ValidDate, `instanceof Temporal.X` + `compare`, PlainObject);
+//   - typia drops function members and methods from is / validate, as mion does;
+//   - CIRCULAR_REFS: typia ends its walk on a cycle (accepts it), so a root tag rejects it.
+// Each NOT_SUPPORTED entry carries its reason.
 
 import typia, {tags} from 'typia';
 import {NOT_SUPPORTED, type CompetitorCases} from '../../shared/harness/types.ts';
+
+// Leaf hooks shared by many entries (typia custom tags, inlined at each use):
+// - ValidDate: typia's Date check is `instanceof Date` only and a tag on `Date` is dropped, so mion's valid-Date rule
+//   sits on `object` (`{}` would be erased from the intersection). typia adds its own typeof / null / isArray prefix.
+// - PlainObject: mion's plain-object guard on all-optional and index-signature nodes; typia already rejects arrays there.
+// - NoUndefinedValues: typia's index loop skips an undefined value, mion checks every value, so {a: undefined} fails.
+type ValidDate = object &
+  tags.TagBase<{
+    target: 'object';
+    kind: 'validDate';
+    value: undefined;
+    validate: '$input instanceof Date && !isNaN($input.getTime())';
+  }>;
+type PlainObject = tags.TagBase<{
+  target: 'object';
+  kind: 'plainObject';
+  value: undefined;
+  validate: "Object.prototype.toString.call($input) === '[object Object]'";
+}>;
+type NoUndefinedValues = tags.TagBase<{
+  target: 'object';
+  kind: 'noUndefinedValues';
+  value: undefined;
+  validate: '!Object.values($input).includes(undefined)';
+}>;
 
 export const cases: CompetitorCases = {
   // ── ATOMIC ──
@@ -69,15 +91,14 @@ export const cases: CompetitorCases = {
   },
   'ATOMIC.date': {
     build: () => {
-      const check = typia.createIs<Date>();
+      const check = typia.createIs<ValidDate>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<Date>();
+      const val = typia.createValidate<ValidDate>();
       return (v) => val(v).success;
     },
-    samples: {invalid: ['hello', null, undefined, 42]},
-  }, // override: typia Date is instanceof (accepts Invalid Date); invalid set drops new Date('invalid')/new Date(NaN)
+  },
   'ATOMIC.enum_mixed': (() => {
     enum Color {
       Red,
@@ -125,8 +146,17 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
-  'ATOMIC.literal_1n': NOT_SUPPORTED, // typia does not support bigint literal types (is<1n>() rejects the literal 1n)
-  'ATOMIC.literal_symbol': NOT_SUPPORTED, // we match a symbol by its description; typia can't constrain symbol identity/description
+  'ATOMIC.literal_1n': {
+    build: () => {
+      const check = typia.createIs<1n>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      const val = typia.createValidate<1n>();
+      return (v) => val(v).success;
+    },
+  },
+  'ATOMIC.literal_symbol': NOT_SUPPORTED, // typia emits no symbol check and no tag targets a symbol, so the description test has no place
   'ATOMIC.never': NOT_SUPPORTED, // typia is<never>() accepts undefined
   'ATOMIC.null': {
     build: () => {
@@ -147,9 +177,18 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<number>();
       return (v) => val(v).success;
     },
-    samples: {invalid: ['hello', null, undefined]},
-  }, // override: typia number accepts NaN/Infinity; invalid set drops them
-  'ATOMIC.object': NOT_SUPPORTED, // typia is<object>() rejects arrays; the suite treats [] as a valid object
+  },
+  // TS `object` includes arrays; typia's `object` rejects them, so the array arm is spelled out
+  'ATOMIC.object': {
+    build: () => {
+      const check = typia.createIs<object | unknown[]>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      const val = typia.createValidate<object | unknown[]>();
+      return (v) => val(v).success;
+    },
+  },
   'ATOMIC.regexp': {
     build: () => {
       const check = typia.createIs<RegExp>();
@@ -170,16 +209,7 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
-  'ATOMIC.symbol': {
-    build: () => {
-      const check = typia.createIs<symbol>();
-      return (v) => check(v);
-    },
-    buildErrors: () => {
-      const val = typia.createValidate<symbol>();
-      return (v) => val(v).success;
-    },
-  },
+  'ATOMIC.symbol': NOT_SUPPORTED, // no shared samples (factoryThrows): nothing to check
   'ATOMIC.undefined': {
     build: () => {
       const check = typia.createIs<undefined>();
@@ -190,7 +220,16 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
-  'ATOMIC.void': NOT_SUPPORTED, // typia transform emits invalid JS `(void) => true` for the void type
+  'ATOMIC.void': {
+    build: () => {
+      const check = typia.createIs<void>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      const val = typia.createValidate<void>();
+      return (v) => val(v).success;
+    },
+  },
   'ATOMIC.unknown': {
     build: () => {
       const check = typia.createIs<unknown>();
@@ -222,8 +261,7 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<number[]>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [[1, '2'], 'not-array', null, undefined, [null], [BigInt(1)]]},
-  }, // override: typia number element accepts NaN/Infinity; invalid drops [Infinity]/[-Infinity]/[NaN]
+  },
   'ARRAY.boolean_array': {
     build: () => {
       const check = typia.createIs<boolean[]>();
@@ -246,15 +284,14 @@ export const cases: CompetitorCases = {
   },
   'ARRAY.date_array': {
     build: () => {
-      const check = typia.createIs<Date[]>();
+      const check = typia.createIs<ValidDate[]>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<Date[]>();
+      const val = typia.createValidate<ValidDate[]>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [['2024'], [42], null, undefined]},
-  }, // override: typia Date element is instanceof (accepts Invalid Date); invalid drops [new Date('invalid')]
+  },
   'ARRAY.regexp_array': {
     build: () => {
       const check = typia.createIs<RegExp[]>();
@@ -334,8 +371,7 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<(string | number)[]>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [[true], 'a', [null], ['a', true], null, undefined, [BigInt(1)]]},
-  }, // override: typia number arm accepts Infinity element; invalid drops [Infinity]
+  },
   'ARRAY.tuple_array': {
     build: () => {
       const check = typia.createIs<[string, number][]>();
@@ -346,7 +382,19 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
-  'ARRAY.circular_array': NOT_SUPPORTED, // typia transform stack-overflows on the base-case-free self-referential array (type X = X[])
+  'ARRAY.circular_array': (() => {
+    type CircularArray = CircularArray[];
+    return {
+      build: () => {
+        const check = typia.createIs<CircularArray>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<CircularArray>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
   'ARRAY.circular_object_with_array': (() => {
     type ObjectType = {a: string; deep?: {b: string; c: number}; d?: ObjectType[]};
     return {
@@ -360,16 +408,7 @@ export const cases: CompetitorCases = {
       },
     };
   })(),
-  'ARRAY.symbol_array': {
-    build: () => {
-      const check = typia.createIs<symbol[]>();
-      return (v) => check(v);
-    },
-    buildErrors: () => {
-      const val = typia.createValidate<symbol[]>();
-      return (v) => val(v).success;
-    },
-  },
+  'ARRAY.symbol_array': NOT_SUPPORTED, // no shared samples (factoryThrows): nothing to check
   'ARRAY.readonly_string_array': {
     build: () => {
       const check = typia.createIs<ReadonlyArray<string>>();
@@ -391,8 +430,7 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<{a: string; b: number}>();
       return (v) => val(v).success;
     },
-    samples: {invalid: ['hello', null, undefined, {a: 'x'}, {a: 1, b: 1}, {a: 'x', b: 'not number'}, {b: 1}, true]},
-  }, // override: typia number prop accepts NaN/Infinity; invalid drops {a:'x',b:NaN}/{a:'x',b:Infinity}
+  },
   'OBJECT.object_as_const_literals': {
     build: () => {
       const check = typia.createIs<{readonly name: 'john'; readonly age: 30}>();
@@ -447,20 +485,27 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<{a: string; b?: number}>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [{a: 'x', b: 'not number'}, {a: 1}, null, undefined, {}, {b: 1}]},
-  }, // override: typia number prop accepts NaN; invalid drops {a:'x',b:NaN}
+  },
   'OBJECT.interface_with_date': {
     build: () => {
-      const check = typia.createIs<{date: Date; name: string}>();
+      const check = typia.createIs<{date: ValidDate; name: string}>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<{date: Date; name: string}>();
+      const val = typia.createValidate<{date: ValidDate; name: string}>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [{date: 'not date', name: 'x'}, {date: new Date(), name: 1}, {name: 'x'}, null, undefined]},
-  }, // override: typia Date prop is instanceof (accepts Invalid Date); invalid drops the two Invalid Date entries
-  'OBJECT.interface_with_method': NOT_SUPPORTED, // typia validates the function prop (cb); we silently drop it, so valid samples with cb:42/null fail here
+  },
+  'OBJECT.interface_with_method': {
+    build: () => {
+      const check = typia.createIs<{name: string; cb: () => any}>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      const val = typia.createValidate<{name: string; cb: () => any}>();
+      return (v) => val(v).success;
+    },
+  },
   'OBJECT.nested_object': {
     build: () => {
       const check = typia.createIs<{a: string; deep: {b: string; c: number}}>();
@@ -470,8 +515,7 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<{a: string; deep: {b: string; c: number}}>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [{a: 'x'}, {a: 'x', deep: {b: 1, c: 1}}, {a: 'x', deep: null}, null, undefined, {a: 'x', deep: {b: 'y'}}]},
-  }, // override: typia nested number prop accepts NaN; invalid drops {a:'x',deep:{b:'y',c:NaN}}
+  },
   'OBJECT.interface_string_array_prop': {
     build: () => {
       const check = typia.createIs<{tags: string[]}>();
@@ -521,45 +565,46 @@ export const cases: CompetitorCases = {
       },
     };
   })(),
-  // typia accepts an explicit-`undefined` property value ({a: undefined}) for a
-  // string index signature — a genuine runtime-semantics divergence from the suite
-  // (we reject it: every index value must satisfy the value type). Not fixable
-  // at the type level, so opted out rather than left as a perpetual correctness FAIL.
-  // typia accepts an explicit-`undefined` property value ({a: undefined}) for a
-  // string index signature; we reject it (every index value must satisfy the value type).
-  'OBJECT.index_signature_string': NOT_SUPPORTED,
-  'OBJECT.index_signature_named_props': {
+  'OBJECT.index_signature_string': {
     build: () => {
-      const check = typia.createIs<{a: string; b: number; [key: string]: string | number}>();
+      const check = typia.createIs<{[key: string]: string} & PlainObject & NoUndefinedValues>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<{a: string; b: number; [key: string]: string | number}>();
+      const val = typia.createValidate<{[key: string]: string} & PlainObject & NoUndefinedValues>();
+      return (v) => val(v).success;
+    },
+  },
+  'OBJECT.index_signature_named_props': {
+    build: () => {
+      const check = typia.createIs<{a: string; b: number; [key: string]: string | number} & PlainObject & NoUndefinedValues>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      const val = typia.createValidate<{a: string; b: number; [key: string]: string | number} & PlainObject & NoUndefinedValues>();
       return (v) => val(v).success;
     },
   },
   'OBJECT.index_signature_nested': {
     build: () => {
-      const check = typia.createIs<{[key: string]: {[key: string]: number}}>();
+      const check = typia.createIs<{[key: string]: {[key: string]: number} & PlainObject & NoUndefinedValues} & PlainObject & NoUndefinedValues>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<{[key: string]: {[key: string]: number}}>();
+      const val = typia.createValidate<{[key: string]: {[key: string]: number} & PlainObject & NoUndefinedValues} & PlainObject & NoUndefinedValues>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [{a: 1}, {a: {x: 'not number'}}, null, undefined, {a: {x: null}}]},
-  }, // override: typia nested number value accepts NaN; invalid drops {a:{x:NaN}}
+  },
   'OBJECT.index_signature_date_value': {
     build: () => {
-      const check = typia.createIs<{[key: string]: {[key: string]: Date}}>();
+      const check = typia.createIs<{[key: string]: {[key: string]: ValidDate} & PlainObject & NoUndefinedValues} & PlainObject & NoUndefinedValues>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<{[key: string]: {[key: string]: Date}}>();
+      const val = typia.createValidate<{[key: string]: {[key: string]: ValidDate} & PlainObject & NoUndefinedValues} & PlainObject & NoUndefinedValues>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [{a: {x: 'not date'}}, {a: 'not object'}, null, undefined]},
-  }, // override: typia Date value is instanceof (accepts Invalid Date); invalid drops {a:{x:new Date('invalid')}}
+  },
   'OBJECT.index_signature_non_root': (() => {
     interface Obj1 {
       a: string;
@@ -567,7 +612,7 @@ export const cases: CompetitorCases = {
     }
     interface Obj2 {
       b: string;
-      c: Obj1;
+      c: Obj1 & PlainObject & NoUndefinedValues;
     }
     return {
       build: () => {
@@ -580,15 +625,24 @@ export const cases: CompetitorCases = {
       },
     };
   })(),
-  'OBJECT.function_top_level': NOT_SUPPORTED, // typia transform emits invalid JS for the void return position of () => void
-  'OBJECT.interface_callable': NOT_SUPPORTED, // typia does not validate a callable interface as a function-with-props; rejects the valid function value
-  'OBJECT.interface_all_optional': NOT_SUPPORTED, // typia's all-optional object accepts Date/Map/Set/array instances; we reject them
+  'OBJECT.function_top_level': NOT_SUPPORTED, // typia emits no check for a function type (`() => true`) and no tag targets a function
+  'OBJECT.interface_callable': NOT_SUPPORTED, // typia checks a callable interface as `typeof 'object'`, rejecting every function; no tag targets a function
+  'OBJECT.interface_all_optional': {
+    build: () => {
+      const check = typia.createIs<{a?: string; b?: number} & PlainObject>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      const val = typia.createValidate<{a?: string; b?: number} & PlainObject>();
+      return (v) => val(v).success;
+    },
+  },
   'OBJECT.class_simple': {
     build: () => {
       class MySerializableClass {
-        date: Date;
+        date: ValidDate;
         name: string;
-        constructor(date: Date, name: string) {
+        constructor(date: ValidDate, name: string) {
           this.date = date;
           this.name = name;
         }
@@ -601,9 +655,9 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       class MySerializableClass {
-        date: Date;
+        date: ValidDate;
         name: string;
-        constructor(date: Date, name: string) {
+        constructor(date: ValidDate, name: string) {
           this.date = date;
           this.name = name;
         }
@@ -614,8 +668,7 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<MySerializableClass>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [{date: 'not date', name: 'x'}, {date: new Date()}, {name: 'x'}, null, 'not object', undefined]},
-  }, // override: typia Date prop is instanceof (accepts Invalid Date); invalid drops the two Invalid Date entries
+  },
   'OBJECT.rpc_error_class': (() => {
     class RpcError<ErrType extends string> {
       public readonly 'mion@isΣrrθr': true = true;
@@ -650,8 +703,7 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<Parameters<CallSig>>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [[1, 'not boolean'], [1], [1, true, 'extra'], ['not number', true], 'not array', null, undefined, []]},
-  }, // override: typia number param accepts NaN; invalid drops [NaN,true]
+  },
   'OBJECT.call_signature_params_with_optional': {
     build: () => {
       type CallSig = (a: number, b: boolean, c?: string) => Date;
@@ -663,21 +715,19 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<Parameters<CallSig>>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [[3, 3, 3], [3, true, 'hello', 7], [3], 'not array', null, undefined]},
-  }, // override: typia number param accepts NaN; invalid drops [NaN,true]
+  },
   'OBJECT.call_signature_params_with_rest': {
     build: () => {
-      type CallSig = (a: number, b: boolean, ...c: Date[]) => Date;
+      type CallSig = (a: number, b: boolean, ...c: ValidDate[]) => Date;
       const check = typia.createIs<Parameters<CallSig>>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      type CallSig = (a: number, b: boolean, ...c: Date[]) => Date;
+      type CallSig = (a: number, b: boolean, ...c: ValidDate[]) => Date;
       const val = typia.createValidate<Parameters<CallSig>>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [[3, 3, 3], [3, true, new Date(), 7], [3, true, new Date(), 7, true], 'not array', null, undefined]},
-  }, // override: typia Date rest element is instanceof (accepts Invalid Date); invalid drops [3,true,new Date('invalid')]
+  },
   'OBJECT.record_union_keys': {
     build: () => {
       const check = typia.createIs<Record<'a' | 'b', number>>();
@@ -687,19 +737,17 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<Record<'a' | 'b', number>>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [{a: 1}, {b: 1}, {}, {a: 'x', b: 1}, null, 'not object', undefined]},
-  }, // override: typia number value accepts NaN/Infinity; invalid drops {a:1,b:NaN}/{a:Infinity,b:1}
+  },
   'OBJECT.union_value_index': {
     build: () => {
-      const check = typia.createIs<{[key: string]: string | number}>();
+      const check = typia.createIs<{[key: string]: string | number} & PlainObject & NoUndefinedValues>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<{[key: string]: string | number}>();
+      const val = typia.createValidate<{[key: string]: string | number} & PlainObject & NoUndefinedValues>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [{a: true}, {a: 'x', b: null}, 'not object', null, undefined, {a: BigInt(1)}]},
-  }, // override: typia number index value accepts NaN; invalid drops {a:NaN}
+  },
   'OBJECT.object_with_union_prop': {
     build: () => {
       const check = typia.createIs<{kind: 'a' | 'b'; n: number}>();
@@ -709,8 +757,7 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<{kind: 'a' | 'b'; n: number}>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [{kind: 'c', n: 1}, {n: 1}, {kind: 'a', n: 'not number'}, null, undefined, {kind: 'a'}]},
-  }, // override: typia number prop accepts NaN; invalid drops {kind:'a',n:NaN}
+  },
   'OBJECT.interface_inheritance': (() => {
     interface Base {
       a: string;
@@ -747,13 +794,14 @@ export const cases: CompetitorCases = {
       },
     };
   })(),
+  // String key on purpose: typia's number key adds a Number(key) test and skips non-numeric keys' values; mion does neither.
   'OBJECT.index_signature_number_key': {
     build: () => {
-      const check = typia.createIs<{[k: number]: string}>();
+      const check = typia.createIs<{[k: string]: string} & PlainObject & NoUndefinedValues>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<{[k: number]: string}>();
+      const val = typia.createValidate<{[k: string]: string} & PlainObject & NoUndefinedValues>();
       return (v) => val(v).success;
     },
   },
@@ -768,30 +816,17 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<[string, number]>();
       return (v) => val(v).success;
     },
-    samples: {
-      invalid: [[], ['hello'], ['hello', 1, 'extra'], [1, 'hello'], 'not array', null, undefined, [null, 1], ['hello', null]],
-    },
-  }, // override: typia number slot accepts NaN; invalid drops ['hello',NaN]
+  },
   'TUPLE.full_mion_tuple': {
     build: () => {
-      const check = typia.createIs<[Date, number, string, null, string[], bigint]>();
+      const check = typia.createIs<[ValidDate, number, string, null, string[], bigint]>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<[Date, number, string, null, string[], bigint]>();
+      const val = typia.createValidate<[ValidDate, number, string, null, string[], bigint]>();
       return (v) => val(v).success;
     },
-    samples: {
-      invalid: [
-        [new Date(), 123, 'hello', null, ['a', 'b', 'c']],
-        [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123), 34],
-        [new Date(), 123, 'hello', null, ['a', 'b', 'c'], 'not bigint'],
-        null,
-        undefined,
-        [new Date(), 123, 'hello', undefined, ['a'], 1n],
-      ],
-    },
-  }, // override: typia Date slot is instanceof + number slot accepts NaN; invalid drops the Invalid Date + NaN entries
+  },
   'TUPLE.tuple_with_optional': {
     build: () => {
       const check = typia.createIs<[number, bigint?, boolean?, number?]>();
@@ -801,8 +836,7 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<[number, bigint?, boolean?, number?]>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [[], [3, 'not bigint'], [3, 1n, false, 4, 'extra'], 'not array', null, undefined, ['not number']]},
-  }, // override: typia number slot accepts NaN; invalid drops [NaN]
+  },
   'TUPLE.nested_tuple_in_array': {
     build: () => {
       const check = typia.createIs<[string, number][]>();
@@ -812,8 +846,7 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<[string, number][]>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [[['a', 'b']], [['a']], ['not tuple'], null, undefined, [[null, 1]]]},
-  }, // override: typia number slot accepts NaN; invalid drops [['a',NaN]]
+  },
   'TUPLE.tuple_rest': {
     build: () => {
       const check = typia.createIs<[number, ...string[]]>();
@@ -823,9 +856,20 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<[number, ...string[]]>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [[3, 'a', 4], ['not number'], [], 'not array', [3, 1], null, undefined, [3, null]]},
-  }, // override: typia number slot accepts NaN; invalid drops [NaN,'a']
-  'TUPLE.tuple_circular': NOT_SUPPORTED, // typia transform stack-overflows computing the full name of the anonymous self-referential tuple type alias (type TupleCircular = [..., TupleCircular?])
+  },
+  'TUPLE.tuple_circular': (() => {
+    type TupleCircular = [ValidDate, number, string, null, string[], bigint, TupleCircular?];
+    return {
+      build: () => {
+        const check = typia.createIs<TupleCircular>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<TupleCircular>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
   'TUPLE.tuple_multiple_trailing_optionals': {
     build: () => {
       const check = typia.createIs<[number, bigint?, boolean?, number?]>();
@@ -835,8 +879,7 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<[number, bigint?, boolean?, number?]>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [[], [3, 'not bigint'], [3, 1n, true, 4, 'extra'], 'not array', null, undefined, [3, 1n, 'not boolean']]},
-  }, // override: typia number slot accepts NaN; invalid drops [NaN]
+  },
   'TUPLE.tuple_named_labels': {
     build: () => {
       const check = typia.createIs<[name: string, age: number]>();
@@ -846,9 +889,18 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<[name: string, age: number]>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [[], ['Alice'], ['Alice', '30'], [30, 'Alice'], null, 'not array', undefined, [null, 30]]},
-  }, // override: typia number slot accepts NaN; invalid drops ['Alice',NaN]
-  'TUPLE.tuple_with_non_serializable': NOT_SUPPORTED, // typia requires the function slot; we treat it as must-be-undefined (valid sample [3] omits it)
+  },
+  // the function slot must be `undefined`, like zod / TypeBox / ajv (an absent slot passes too)
+  'TUPLE.tuple_with_non_serializable': {
+    build: () => {
+      const check = typia.createIs<[number, undefined?]>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      const val = typia.createValidate<[number, undefined?]>();
+      return (v) => val(v).success;
+    },
+  },
   'TUPLE.empty_tuple': {
     build: () => {
       const check = typia.createIs<[]>();
@@ -883,15 +935,14 @@ export const cases: CompetitorCases = {
   // ── UNION ──
   'UNION.atomic_union': {
     build: () => {
-      const check = typia.createIs<Date | number | string | null | bigint>();
+      const check = typia.createIs<ValidDate | number | string | null | bigint>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<Date | number | string | null | bigint>();
+      const val = typia.createValidate<ValidDate | number | string | null | bigint>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [{}, [], true, undefined, Symbol(), () => null]},
-  }, // override: typia Date arm is instanceof + number arm accepts Infinity; invalid drops new Date('invalid')/Infinity
+  },
   'UNION.string_literal_union': {
     build: () => {
       const check = typia.createIs<'UNO' | 'DOS' | 'TRES'>();
@@ -923,8 +974,7 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<string | number>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [null, undefined, true, [], {}, BigInt(1)]},
-  }, // override: typia number arm accepts NaN/Infinity; invalid drops NaN/Infinity
+  },
   'UNION.union_of_array_types': {
     build: () => {
       const check = typia.createIs<string[] | number[] | boolean[]>();
@@ -934,19 +984,17 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<string[] | number[] | boolean[]>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [['a', 1], [1, 'a'], 'not array', null, undefined, [null], [BigInt(1)]]},
-  }, // override: typia number[] arm accepts Infinity element; invalid drops [Infinity]
+  },
   'UNION.array_of_union': {
     build: () => {
-      const check = typia.createIs<(string | bigint | boolean | Date)[]>();
+      const check = typia.createIs<(string | bigint | boolean | ValidDate)[]>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<(string | bigint | boolean | Date)[]>();
+      const val = typia.createValidate<(string | bigint | boolean | ValidDate)[]>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [['a', false, 2], null, undefined, [null], [{}]]},
-  }, // override: typia Date arm is instanceof (accepts Invalid Date element); invalid drops [new Date('invalid')]
+  },
   'UNION.union_of_object_shapes': {
     build: () => {
       const check = typia.createIs<{a: string; aa: boolean} | {b: number} | {c: bigint}>();
@@ -966,24 +1014,38 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<{kind: 'a'; n: number} | {kind: 'b'; s: string}>();
       return (v) => val(v).success;
     },
-    samples: {
-      invalid: [{kind: 'c', n: 1}, {kind: 'a', n: 'not number'}, {n: 1}, null, 'not object', undefined, {kind: 'a'}, {kind: 'b'}],
-    },
-  }, // override: typia number prop accepts NaN; invalid drops {kind:'a',n:NaN}
-  'UNION.circular_union': {
+  },
+  'UNION.circular_union': (() => {
+    // The all-optional arm carries mion's plain-object + weak-type guard as an object tag, so an Invalid Date
+    // rejected by ValidDate cannot fall through to it.
+    type PlainWeak = tags.TagBase<{
+      target: 'object';
+      kind: 'plainWeak';
+      value: undefined;
+      validate: "Object.prototype.toString.call($input) === '[object Object]' && ('a' in $input || 'b' in $input || Object.keys($input).length === 0)";
+    }>;
+    type UnionC = ValidDate | number | string | ({a?: UnionC; b?: string} & PlainWeak) | UnionC[];
+    return {
+      build: () => {
+        const check = typia.createIs<UnionC>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<UnionC>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'UNION.union_with_methods': {
     build: () => {
-      type UnionC = Date | number | string | {a?: UnionC; b?: string} | UnionC[];
-      const check = typia.createIs<UnionC>();
+      const check = typia.createIs<{name: string; getName(): string} | {age: number; getAge(): number}>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      type UnionC = Date | number | string | {a?: UnionC; b?: string} | UnionC[];
-      const val = typia.createValidate<UnionC>();
+      const val = typia.createValidate<{name: string; getName(): string} | {age: number; getAge(): number}>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [true, null, undefined, {a: true}, [true], Symbol()]},
-  }, // override: typia Date arm is instanceof + number arm accepts Infinity; invalid drops new Date('invalid') + Infinity
-  'UNION.union_with_methods': NOT_SUPPORTED, // typia validates the methods; we drop them, so valid samples omitting the method fail here
+  },
   'UNION.intersection_to_object': {
     build: () => {
       const check = typia.createIs<{a: string} & {b: number}>();
@@ -993,19 +1055,8 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<{a: string} & {b: number}>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [{a: 'x'}, {b: 1}, null, {a: 1, b: 1}, {a: 'x', b: 'not number'}, undefined, {}]},
-  }, // override: typia number prop accepts NaN; invalid drops {a:'x',b:NaN}
-  'UNION.union_with_index_arm': {
-    build: () => {
-      const check = typia.createIs<{a: string; aa: boolean} | {b: number} | {c: bigint; [key: string]: bigint}>();
-      return (v) => check(v);
-    },
-    buildErrors: () => {
-      const val = typia.createValidate<{a: string; aa: boolean} | {b: number} | {c: bigint; [key: string]: bigint}>();
-      return (v) => val(v).success;
-    },
-    samples: {invalid: [{a: 'hello'}, {b: 'hello'}, {a: 'hello', d: 'extra'}, {c: 1n, d: 'hello'}, null, undefined, {}]},
-  }, // override: typia number prop accepts NaN; invalid drops {b:NaN}
+  },
+  'UNION.union_with_index_arm': NOT_SUPPORTED, // a tag on a union arm makes createValidate skip that arm's index loop, so mion's plain-object check has no place
   'UNION.union_same_prop_different_types': {
     build: () => {
       const check = typia.createIs<{type: 'a'; prop: boolean} | {type: 'b'; prop: number} | {type: 'c'; prop: string}>();
@@ -1039,30 +1090,8 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<{a: boolean} | {a: number}>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [{a: 'hello'}, {}, null, undefined, {a: 'string not boolean or number'}, {a: null}]},
-  }, // override: typia number arm accepts NaN; invalid drops {a:NaN}
-  'UNION.union_mixed_with_index': {
-    build: () => {
-      const check = typia.createIs<
-        | string[]
-        | {a: string; aa: boolean}
-        | {b: number}
-        | {a: string; [key: string]: string}
-        | {[key: string]: bigint; b: bigint}
-      >();
-      return (v) => check(v);
-    },
-    buildErrors: () => {
-      const val = typia.createValidate<
-        | string[]
-        | {a: string; aa: boolean}
-        | {b: number}
-        | {a: string; [key: string]: string}
-        | {[key: string]: bigint; b: bigint}
-      >();
-      return (v) => val(v).success;
-    },
   },
+  'UNION.union_mixed_with_index': NOT_SUPPORTED, // a tag on a union arm makes createValidate skip that arm's index loop, so mion's plain-object check has no place
   'UNION.union_with_any_fallback': {
     build: () => {
       const check = typia.createIs<string | any>();
@@ -1155,8 +1184,7 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<Base | Extended | Unrelated>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [{}, {name: 'test'}, {id: 123}, {value: 'not number'}, null, undefined]},
-  }, // override: typia number prop accepts NaN; invalid drops {value:NaN}
+  },
 
   // ── TEMPLATE_LITERAL ──
   'TEMPLATE_LITERAL.url_with_number_id': {
@@ -1209,7 +1237,18 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
-  'TEMPLATE_LITERAL.template_literal_index_key': NOT_SUPPORTED, // verified typia accepts {foo:1} for a template-literal index key — it ignores keys not matching the pattern, where we require every own key to match (structural divergence, not purely sample-semantics)
+  // A Pattern tag on a string key rejects a key outside `api/…`; a template-literal key type would accept it as surplus.
+  // PlainObject = mion's plain-object guard on the index-signature node.
+  'TEMPLATE_LITERAL.template_literal_index_key': {
+    build: () => {
+      const check = typia.createIs<{[key: string & tags.Pattern<'^api/'>]: number} & PlainObject & NoUndefinedValues>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      const val = typia.createValidate<{[key: string & tags.Pattern<'^api/'>]: number} & PlainObject & NoUndefinedValues>();
+      return (v) => val(v).success;
+    },
+  },
   'TEMPLATE_LITERAL.template_literal_union_placeholder': {
     build: () => {
       const check = typia.createIs<`${'a' | 'b'}-${number}`>();
@@ -1231,20 +1270,7 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<Map<string, number>>();
       return (v) => val(v).success;
     },
-    samples: {
-      invalid: [
-        {},
-        [],
-        null,
-        'not map',
-        new Map<any, number>([[1, 1]]),
-        new Map<string, any>([['a', 'not number']]),
-        undefined,
-        new Date(),
-        new Set(),
-      ],
-    },
-  }, // override: typia Map number value accepts NaN; invalid drops the NaN-valued Map (keeps wrongKey/wrongValue)
+  },
   'NATIVE.set_string': {
     build: () => {
       const check = typia.createIs<Set<string>>();
@@ -1255,7 +1281,21 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
-  'NATIVE.promise_string': NOT_SUPPORTED, // typia does not validate Promise<T> as a thenable; rejects a real Promise
+  'NATIVE.promise_string': (() => {
+    // a thenable: an object whose `then` is a function, as an object tag (typia's Promise check rejects a thenable)
+    type Thenable = object &
+      tags.TagBase<{target: 'object'; kind: 'thenable'; value: undefined; validate: "typeof $input.then === 'function'"}>;
+    return {
+      build: () => {
+        const check = typia.createIs<Thenable>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<Thenable>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
   'NATIVE.awaited_promise': {
     build: () => {
       const check = typia.createIs<Awaited<Promise<string>>>();
@@ -1274,7 +1314,7 @@ export const cases: CompetitorCases = {
         n: number;
         s: string;
         c?: Circular;
-        d?: Date;
+        d?: ValidDate;
       }
       const check = typia.createIs<Circular>();
       return (v) => check(v);
@@ -1284,23 +1324,25 @@ export const cases: CompetitorCases = {
         n: number;
         s: string;
         c?: Circular;
-        d?: Date;
+        d?: ValidDate;
       }
       const val = typia.createValidate<Circular>();
       return (v) => val(v).success;
     },
-    samples: {
-      invalid: [
-        {n: 1, s: 'hello', c: {n: 2, s: 123}},
-        {n: 1, s: 'hello', c: {n: 2}},
-        null,
-        undefined,
-        {n: 1, s: 'x', d: 'not date'},
-        {},
-      ],
-    },
-  }, // override: typia number prop accepts NaN + Date prop is instanceof; invalid drops {n:NaN,...} + the Invalid Date entry
-  'CIRCULAR.array_of_union_with_self_ref': NOT_SUPPORTED, // typia transform stack-overflows computing the full name of the anonymous self-referential array/union type alias (type CuArray = (CuArray | …)[])
+  },
+  'CIRCULAR.array_of_union_with_self_ref': (() => {
+    type CuArray = (CuArray | ValidDate | number | string)[];
+    return {
+      build: () => {
+        const check = typia.createIs<CuArray>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<CuArray>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
   'CIRCULAR.object_with_tuple_prop': (() => {
     interface CircularTuple {
       tuple: [bigint, CircularTuple?];
@@ -1318,7 +1360,7 @@ export const cases: CompetitorCases = {
   })(),
   'CIRCULAR.object_with_index_prop': (() => {
     interface CircularIndex {
-      index: {[key: string]: CircularIndex};
+      index: {[key: string]: CircularIndex} & PlainObject & NoUndefinedValues;
     }
     return {
       build: () => {
@@ -1333,7 +1375,7 @@ export const cases: CompetitorCases = {
   })(),
   'CIRCULAR.object_deeply_nested': (() => {
     interface CircularDeep {
-      deep1: {deep2: {deep3: {deep4?: CircularDeep}}};
+      deep1: {deep2: {deep3: {deep4?: CircularDeep} & PlainObject}};
     }
     return {
       build: () => {
@@ -1374,7 +1416,7 @@ export const cases: CompetitorCases = {
       embedded: {hello: string; child?: ICircularDeep};
     }
     interface ICircularDate {
-      date: Date;
+      date: ValidDate;
       month: number;
       year: number;
       embedded?: ICircularDate;
@@ -1398,19 +1440,118 @@ export const cases: CompetitorCases = {
     };
   })(),
 
-  // ── CIRCULAR_REFS ── (cyclic VALUES; typia has no cyclic-value detection)
-  'CIRCULAR_REFS.linked_list_cycle': NOT_SUPPORTED, // a reference cycle would stack-overflow
-  'CIRCULAR_REFS.tree_cycle': NOT_SUPPORTED, // a reference cycle would stack-overflow
-  'CIRCULAR_REFS.object_self_cycle': NOT_SUPPORTED, // a reference cycle would stack-overflow
+  // ── CIRCULAR_REFS ──
+  'CIRCULAR_REFS.linked_list_cycle': (() => {
+    // Root cycle hook along `next` only: typia's visit guard stops on a cycle and accepts it, so this ROOT tag rejects it.
+    // `hasCycle` is named in the tag string and resolves at the call site.
+    const hasCycle = (node: unknown, stack: object[]): boolean => {
+      if (node === null || typeof node !== 'object') return false;
+      if (stack.indexOf(node) !== -1) return true;
+      stack.push(node);
+      const hit = hasCycle((node as {next?: unknown}).next, stack);
+      stack.pop();
+      return hit;
+    };
+    type CycleFree = tags.TagBase<{target: 'object'; kind: 'cycleFree'; value: undefined; validate: '!hasCycle($input, [])'}>;
+    interface Node {
+      value: number;
+      next: Node | null;
+    }
+    return {
+      build: () => {
+        const check = typia.createIs<Node & CycleFree>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<Node & CycleFree>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'CIRCULAR_REFS.tree_cycle': (() => {
+    // Root cycle hook along `children[*]` only (ancestor stack + finished set, like mion's walker); see linked_list_cycle.
+    const hasCycle = (node: unknown, stack: object[], safe: Set<object>): boolean => {
+      if (node === null || typeof node !== 'object' || safe.has(node)) return false;
+      if (stack.indexOf(node) !== -1) return true;
+      const children = (node as {children?: unknown}).children;
+      if (Array.isArray(children)) {
+        stack.push(node);
+        for (let i = 0; i < children.length; i++) if (hasCycle(children[i], stack, safe)) return true;
+        stack.pop();
+      }
+      safe.add(node);
+      return false;
+    };
+    type CycleFree = tags.TagBase<{target: 'object'; kind: 'cycleFree'; value: undefined; validate: '!hasCycle($input, [], new Set())'}>;
+    interface Node {
+      label: string;
+      children: Node[];
+    }
+    return {
+      build: () => {
+        const check = typia.createIs<Node & CycleFree>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<Node & CycleFree>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'CIRCULAR_REFS.object_self_cycle': (() => {
+    // Root cycle hook along `next` only; see linked_list_cycle.
+    const hasCycle = (node: unknown, stack: object[]): boolean => {
+      if (node === null || typeof node !== 'object') return false;
+      if (stack.indexOf(node) !== -1) return true;
+      stack.push(node);
+      const hit = hasCycle((node as {next?: unknown}).next, stack);
+      stack.pop();
+      return hit;
+    };
+    type CycleFree = tags.TagBase<{target: 'object'; kind: 'cycleFree'; value: undefined; validate: '!hasCycle($input, [])'}>;
+    interface Node {
+      name: string;
+      next?: Node;
+    }
+    return {
+      build: () => {
+        const check = typia.createIs<Node & CycleFree>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<Node & CycleFree>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
 
   // ── UTILITY ──
-  'UTILITY.partial': NOT_SUPPORTED, // all-optional object: typia accepts a Date/Map/Set instance (verified: new Date() passes) where we reject it — a structural divergence, same as OBJECT.interface_all_optional (not purely sample-semantics)
+  'UTILITY.partial': {
+    build: () => {
+      interface Person {
+        name: string;
+        age: number;
+        createdAt: ValidDate;
+      }
+      const check = typia.createIs<Partial<Person> & PlainObject>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      interface Person {
+        name: string;
+        age: number;
+        createdAt: ValidDate;
+      }
+      const val = typia.createValidate<Partial<Person> & PlainObject>();
+      return (v) => val(v).success;
+    },
+  },
   'UTILITY.required': {
     build: () => {
       interface MaybePerson {
         name?: string;
         age?: number;
-        createdAt?: Date;
+        createdAt?: ValidDate;
       }
       const check = typia.createIs<Required<MaybePerson>>();
       return (v) => check(v);
@@ -1419,21 +1560,18 @@ export const cases: CompetitorCases = {
       interface MaybePerson {
         name?: string;
         age?: number;
-        createdAt?: Date;
+        createdAt?: ValidDate;
       }
       const val = typia.createValidate<Required<MaybePerson>>();
       return (v) => val(v).success;
     },
-    samples: {
-      invalid: [{}, {name: 'John'}, {name: 'John', age: 30}, {name: 'John', age: 30, createdAt: 'not date'}, null, undefined],
-    },
-  }, // override: typia number prop accepts NaN + Date prop is instanceof; invalid drops the NaN + Invalid Date entries
+  },
   'UTILITY.pick': {
     build: () => {
       interface Person {
         name: string;
         age: number;
-        createdAt: Date;
+        createdAt: ValidDate;
       }
       const check = typia.createIs<Pick<Person, 'name' | 'createdAt'>>();
       return (v) => check(v);
@@ -1442,19 +1580,18 @@ export const cases: CompetitorCases = {
       interface Person {
         name: string;
         age: number;
-        createdAt: Date;
+        createdAt: ValidDate;
       }
       const val = typia.createValidate<Pick<Person, 'name' | 'createdAt'>>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [{name: 'John'}, {createdAt: new Date()}, {name: 42, createdAt: new Date()}, null, undefined]},
-  }, // override: typia Date prop is instanceof (accepts Invalid Date); invalid drops {name:'John',createdAt:new Date('invalid')}
+  },
   'UTILITY.omit': {
     build: () => {
       interface Person {
         name: string;
         age: number;
-        createdAt: Date;
+        createdAt: ValidDate;
       }
       const check = typia.createIs<Omit<Person, 'age'>>();
       return (v) => check(v);
@@ -1463,13 +1600,12 @@ export const cases: CompetitorCases = {
       interface Person {
         name: string;
         age: number;
-        createdAt: Date;
+        createdAt: ValidDate;
       }
       const val = typia.createValidate<Omit<Person, 'age'>>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [{name: 'John'}, {createdAt: new Date()}, null, undefined]},
-  }, // override: typia Date prop is instanceof (accepts Invalid Date); invalid drops {name:'John',createdAt:new Date('invalid')}
+  },
   'UTILITY.exclude_atomic': {
     build: () => {
       const check = typia.createIs<Exclude<'name' | 'age' | 'createdAt', 'age'>>();
@@ -1507,8 +1643,7 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<Exclude<Shape, {kind: 'circle'}>>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [{kind: 'circle', radius: 3}, {}, null, undefined, {kind: 'square'}, {kind: 'triangle', base: 4}]},
-  }, // override: typia number prop accepts NaN; invalid drops {kind:'square',x:NaN}
+  },
   'UTILITY.non_nullable': {
     build: () => {
       const check = typia.createIs<NonNullable<string | number | null | undefined>>();
@@ -1518,21 +1653,19 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<NonNullable<string | number | null | undefined>>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [null, undefined, true, {}, []]},
-  }, // override: typia number arm accepts NaN/Infinity; invalid drops NaN/Infinity
+  },
   'UTILITY.return_type': {
     build: () => {
-      type Fn = (a: number, b: boolean) => Date;
+      type Fn = (a: number, b: boolean) => ValidDate;
       const check = typia.createIs<ReturnType<Fn>>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      type Fn = (a: number, b: boolean) => Date;
+      type Fn = (a: number, b: boolean) => ValidDate;
       const val = typia.createValidate<ReturnType<Fn>>();
       return (v) => val(v).success;
     },
-    samples: {invalid: ['not date', 42, null, undefined, {}, []]},
-  }, // override: typia resolves to Date (instanceof, accepts Invalid Date); invalid drops new Date('invalid')/new Date(NaN)
+  },
   'UTILITY.readonly': {
     build: () => {
       interface Person {
@@ -1550,14 +1683,13 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<Readonly<Person>>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [{name: 'John'}, {age: 30}, null, undefined, {name: 1, age: 30}]},
-  }, // override: typia number prop accepts NaN; invalid drops {name:'John',age:NaN}
+  },
   'UTILITY.intersection_with_required_override': {
     build: () => {
       interface Person {
         name: string;
         age: number;
-        createdAt: Date;
+        createdAt: ValidDate;
       }
       const check = typia.createIs<Partial<Person> & Required<Pick<Person, 'name'>>>();
       return (v) => check(v);
@@ -1566,13 +1698,12 @@ export const cases: CompetitorCases = {
       interface Person {
         name: string;
         age: number;
-        createdAt: Date;
+        createdAt: ValidDate;
       }
       const val = typia.createValidate<Partial<Person> & Required<Pick<Person, 'name'>>>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [{}, {age: 30}, {name: 42}, {name: 'John', age: '30'}, null, undefined]},
-  }, // override: typia number prop accepts NaN + Date prop is instanceof (name required ⇒ not all-optional); invalid drops the NaN + Invalid Date entries
+  },
   'UTILITY.omit_keeping_optional': {
     build: () => {
       const check = typia.createIs<Omit<{a: string; b?: number; c: boolean}, 'a'>>();
@@ -1582,8 +1713,7 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<Omit<{a: string; b?: number; c: boolean}, 'a'>>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [{}, {b: 1}, {c: 'not boolean'}, null, undefined, {c: 0}, {b: 1, c: 1}]},
-  }, // override: typia number prop accepts NaN (c required ⇒ not all-optional); invalid drops {c:true,b:NaN}
+  },
   'UTILITY.keyof_to_literal_union': (() => {
     interface Person {
       name: string;
@@ -1695,9 +1825,27 @@ export const cases: CompetitorCases = {
       const val = typia.createValidate<Wrap<string | number>>();
       return (v) => val(v).success;
     },
-    samples: {invalid: [{w: true}, {w: null}, {}, null, undefined]},
-  }, // override: typia number arm accepts NaN; invalid drops {w:NaN}
-  'UTILITY.deep_partial_recursive_mapped': NOT_SUPPORTED, // all-optional outer object: typia accepts a Date instance (verified: new Date() passes) where we reject it — a structural divergence, same as OBJECT.interface_all_optional (not purely sample-semantics)
+  },
+  'UTILITY.deep_partial_recursive_mapped': {
+    build: () => {
+      interface Settings {
+        display: {theme: 'light' | 'dark'; brightness: number};
+        audio: {volume: number; muted: boolean};
+      }
+      type DeepPartial<T> = {[K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K]} & PlainObject;
+      const check = typia.createIs<DeepPartial<Settings>>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      interface Settings {
+        display: {theme: 'light' | 'dark'; brightness: number};
+        audio: {volume: number; muted: boolean};
+      }
+      type DeepPartial<T> = {[K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K]} & PlainObject;
+      const val = typia.createValidate<DeepPartial<Settings>>();
+      return (v) => val(v).success;
+    },
+  },
 
   // ── TYPE_MAPPINGS ──
   'TYPE_MAPPINGS.key_prefix_rename': (() => {
@@ -1721,7 +1869,7 @@ export const cases: CompetitorCases = {
     interface Source {
       id: number;
       name: string;
-      createdAt: Date;
+      createdAt: ValidDate;
     }
     type MongoForm<T> = {[K in keyof T as K extends 'id' ? '_id' : K]: T[K]};
     return {
@@ -1755,27 +1903,169 @@ export const cases: CompetitorCases = {
   })(),
 
   // ── DATETIME ──
-  // Temporal.* are branded class instances; typia validates by structure and can't reliably
-  // distinguish them (and the bench runtime has no Temporal global, so samples can't even build).
+  // Temporal is no typia native and a tag on a class type is dropped, so `instanceof Temporal.X` is an object tag.
   'DATETIME.date': {
     build: () => {
-      const check = typia.createIs<Date>();
+      const check = typia.createIs<ValidDate>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<Date>();
+      const val = typia.createValidate<ValidDate>();
       return (v) => val(v).success;
     },
-    samples: {invalid: ['hello', null, undefined, 42]},
-  }, // override: typia Date is instanceof (accepts Invalid Date); invalid drops new Date('invalid')/new Date(NaN)
-  'DATETIME.instant': NOT_SUPPORTED,
-  'DATETIME.zonedDateTime': NOT_SUPPORTED,
-  'DATETIME.plainDate': NOT_SUPPORTED,
-  'DATETIME.plainTime': NOT_SUPPORTED,
-  'DATETIME.plainDateTime': NOT_SUPPORTED,
-  'DATETIME.plainYearMonth': NOT_SUPPORTED,
-  'DATETIME.plainMonthDay': NOT_SUPPORTED,
-  'DATETIME.duration': NOT_SUPPORTED,
+  },
+  'DATETIME.instant': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalInstant';
+        value: undefined;
+        validate: '$input instanceof Temporal.Instant';
+      }>;
+    return {
+      build: () => {
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.zonedDateTime': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalZonedDateTime';
+        value: undefined;
+        validate: '$input instanceof Temporal.ZonedDateTime';
+      }>;
+    return {
+      build: () => {
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.plainDate': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalPlainDate';
+        value: undefined;
+        validate: '$input instanceof Temporal.PlainDate';
+      }>;
+    return {
+      build: () => {
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.plainTime': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalPlainTime';
+        value: undefined;
+        validate: '$input instanceof Temporal.PlainTime';
+      }>;
+    return {
+      build: () => {
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.plainDateTime': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalPlainDateTime';
+        value: undefined;
+        validate: '$input instanceof Temporal.PlainDateTime';
+      }>;
+    return {
+      build: () => {
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.plainYearMonth': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalPlainYearMonth';
+        value: undefined;
+        validate: '$input instanceof Temporal.PlainYearMonth';
+      }>;
+    return {
+      build: () => {
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.plainMonthDay': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalPlainMonthDay';
+        value: undefined;
+        validate: '$input instanceof Temporal.PlainMonthDay';
+      }>;
+    return {
+      build: () => {
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.duration': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalDuration';
+        value: undefined;
+        validate: '$input instanceof Temporal.Duration';
+      }>;
+    return {
+      build: () => {
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
 
   // ── STRING_FORMAT ──
   'STRING_FORMAT.string_maxLength': {
@@ -1890,11 +2180,11 @@ export const cases: CompetitorCases = {
   },
   'STRING_FORMAT.string_disallowedValues': {
     build: () => {
-      const check = typia.createIs<string & tags.Pattern<'^(?!(?:admin|root)$).*$'>>();
+      const check = typia.createIs<string & tags.Exclude<['admin', 'root']>>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<string & tags.Pattern<'^(?!(?:admin|root)$).*$'>>();
+      const val = typia.createValidate<string & tags.Exclude<['admin', 'root']>>();
       return (v) => val(v).success;
     },
   },
@@ -1908,46 +2198,63 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
-  'STRING_FORMAT.alpha': {
-    build: () => {
-      const check = typia.createIs<string & tags.Pattern<'^[a-zA-Z]+$'>>();
-      return (v) => check(v);
-    },
-    buildErrors: () => {
-      const val = typia.createValidate<string & tags.Pattern<'^[a-zA-Z]+$'>>();
-      return (v) => val(v).success;
-    },
-  },
-  'STRING_FORMAT.alphaNumeric': {
-    build: () => {
-      const check = typia.createIs<string & tags.Pattern<'^[a-zA-Z0-9]+$'>>();
-      return (v) => check(v);
-    },
-    buildErrors: () => {
-      const val = typia.createValidate<string & tags.Pattern<'^[a-zA-Z0-9]+$'>>();
-      return (v) => val(v).success;
-    },
-  },
-  'STRING_FORMAT.numeric': {
-    build: () => {
-      const check = typia.createIs<string & tags.Pattern<'^[0-9]+$'>>();
-      return (v) => check(v);
-    },
-    buildErrors: () => {
-      const val = typia.createValidate<string & tags.Pattern<'^[0-9]+$'>>();
-      return (v) => val(v).success;
-    },
-  },
-  'STRING_FORMAT.alpha_withLength': {
-    build: () => {
-      const check = typia.createIs<string & tags.Pattern<'^[a-zA-Z]+$'> & tags.MaxLength<3>>();
-      return (v) => check(v);
-    },
-    buildErrors: () => {
-      const val = typia.createValidate<string & tags.Pattern<'^[a-zA-Z]+$'> & tags.MaxLength<3>>();
-      return (v) => val(v).success;
-    },
-  },
+  // Unicode classes need the `u` flag, which Pattern cannot take: alpha / alphaNumeric / numeric use a hoisted-regex tag.
+  'STRING_FORMAT.alpha': (() => {
+    const ALPHA = /^[\p{L}]+$/u;
+    type Alpha = tags.TagBase<{target: 'string'; kind: 'alpha'; value: undefined; validate: 'ALPHA.test($input)'}>;
+    return {
+      build: () => {
+        const check = typia.createIs<string & Alpha>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<string & Alpha>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'STRING_FORMAT.alphaNumeric': (() => {
+    const ALPHA_NUMERIC = /^[\p{L}\p{N}]+$/u;
+    type AlphaNumeric = tags.TagBase<{target: 'string'; kind: 'alphaNumeric'; value: undefined; validate: 'ALPHA_NUMERIC.test($input)'}>;
+    return {
+      build: () => {
+        const check = typia.createIs<string & AlphaNumeric>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<string & AlphaNumeric>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'STRING_FORMAT.numeric': (() => {
+    const NUMERIC = /^[\p{N}]+$/u;
+    type Numeric = tags.TagBase<{target: 'string'; kind: 'numeric'; value: undefined; validate: 'NUMERIC.test($input)'}>;
+    return {
+      build: () => {
+        const check = typia.createIs<string & Numeric>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<string & Numeric>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'STRING_FORMAT.alpha_withLength': (() => {
+    const ALPHA = /^[\p{L}]+$/u;
+    type Alpha = tags.TagBase<{target: 'string'; kind: 'alpha'; value: undefined; validate: 'ALPHA.test($input)'}>;
+    return {
+      build: () => {
+        const check = typia.createIs<string & tags.MaxLength<3> & Alpha>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<string & tags.MaxLength<3> & Alpha>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
   'STRING_FORMAT.lowercase_validate': {
     build: () => {
       const check = typia.createIs<string>();
@@ -1986,8 +2293,35 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
-  'STRING_FORMAT.date_iso': NOT_SUPPORTED, // needs calendar validity; verified typia tags.Format<'date'> accepts 2023-02-29 (format-only, no real-calendar check)
-  'STRING_FORMAT.date_DMY': NOT_SUPPORTED, // needs calendar validity (rejects 31-04-2024); a Pattern can only check format
+  'STRING_FORMAT.date_iso': {
+    build: () => {
+      const check = typia.createIs<string & tags.Format<'date'>>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      const val = typia.createValidate<string & tags.Format<'date'>>();
+      return (v) => val(v).success;
+    },
+  },
+  'STRING_FORMAT.date_DMY': (() => {
+    // Pattern = layout, then typia's own calendar helper on the reordered parts.
+    type CalendarDMY = tags.TagBase<{
+      target: 'string';
+      kind: 'calendarDMY';
+      value: undefined;
+      validate: '$importInternal("isFormatDate")($input.slice(6, 10) + "-" + $input.slice(3, 5) + "-" + $input.slice(0, 2))';
+    }>;
+    return {
+      build: () => {
+        const check = typia.createIs<string & tags.Pattern<'^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-[0-9]{4}$'> & CalendarDMY>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<string & tags.Pattern<'^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-[0-9]{4}$'> & CalendarDMY>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
   'STRING_FORMAT.date_YM': {
     build: () => {
       const check = typia.createIs<string & tags.Pattern<'^[0-9]{4}-(0[1-9]|1[0-2])$'>>();
@@ -1998,28 +2332,39 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
+  // month day limits as mion, Feb 29 always allowed
   'STRING_FORMAT.date_MD': {
     build: () => {
-      const check = typia.createIs<string & tags.Pattern<'^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'>>();
+      const check = typia.createIs<string & tags.Pattern<'^(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1[0-9]|2[0-9])|(?:0[13-9]|1[0-2])-30|(?:0[13578]|1[02])-31)$'>>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<string & tags.Pattern<'^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'>>();
+      const val = typia.createValidate<string & tags.Pattern<'^(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1[0-9]|2[0-9])|(?:0[13-9]|1[0-2])-30|(?:0[13578]|1[02])-31)$'>>();
       return (v) => val(v).success;
     },
   },
-  'STRING_FORMAT.date_minMax_absolute': NOT_SUPPORTED, // needs absolute min/max bound comparison on date strings (no typia tag)
+  'STRING_FORMAT.date_minMax_absolute': (() => {
+    // After Format<'date'> the value is fixed-width YYYY-MM-DD, so a string compare is the exact inclusive day bound.
+    type DateMin = tags.TagBase<{target: 'string'; kind: 'dateMin'; value: undefined; validate: '"2020-01-01" <= $input'}>;
+    type DateMax = tags.TagBase<{target: 'string'; kind: 'dateMax'; value: undefined; validate: '$input <= "2020-12-31"'}>;
+    return {
+      build: () => {
+        const check = typia.createIs<string & tags.Format<'date'> & DateMin & DateMax>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<string & tags.Format<'date'> & DateMin & DateMax>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
   'STRING_FORMAT.time_iso': {
     build: () => {
-      const check = typia.createIs<
-        string & tags.Pattern<'^([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\\.[0-9]{1,9})?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])$'>
-      >();
+      const check = typia.createIs<string & tags.Format<'time'>>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<
-        string & tags.Pattern<'^([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\\.[0-9]{1,9})?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])$'>
-      >();
+      const val = typia.createValidate<string & tags.Format<'time'>>();
       return (v) => val(v).success;
     },
   },
@@ -2035,31 +2380,94 @@ export const cases: CompetitorCases = {
   },
   'STRING_FORMAT.time_HHmmss_ms': {
     build: () => {
-      const check = typia.createIs<string & tags.Pattern<'^([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\\.[0-9]{1,3})?$'>>();
+      const check = typia.createIs<string & tags.Pattern<'^([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\\.[0-9]{3})?$'>>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<string & tags.Pattern<'^([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\\.[0-9]{1,3})?$'>>();
+      const val = typia.createValidate<string & tags.Pattern<'^([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\\.[0-9]{3})?$'>>();
       return (v) => val(v).success;
     },
   },
-  'STRING_FORMAT.time_minMax_absolute': NOT_SUPPORTED, // needs absolute min/max bound comparison on time strings (no typia tag)
-  'STRING_FORMAT.dateTime_default': NOT_SUPPORTED, // verified typia tags.Format<'date-time'> accepts the space-split form '2024-02-29 12:30:45Z' (RFC 3339 allows space) + no calendar check; we need a T-only split with calendar validity
-  'STRING_FORMAT.dateTime_custom': {
+  'STRING_FORMAT.time_minMax_absolute': (() => {
+    // After the Pattern the value is fixed-width HH:mm, so a string compare is the exact inclusive minute bound.
+    type TimeMin = tags.TagBase<{target: 'string'; kind: 'timeMin'; value: undefined; validate: '"09:00" <= $input'}>;
+    type TimeMax = tags.TagBase<{target: 'string'; kind: 'timeMax'; value: undefined; validate: '$input <= "17:00"'}>;
+    return {
+      build: () => {
+        const check = typia.createIs<string & tags.Pattern<'^([01][0-9]|2[0-3]):[0-5][0-9]$'> & TimeMin & TimeMax>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<string & tags.Pattern<'^([01][0-9]|2[0-3]):[0-5][0-9]$'> & TimeMin & TimeMax>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'STRING_FORMAT.dateTime_default': {
     build: () => {
-      const check = typia.createIs<
-        string & tags.Pattern<'^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-[0-9]{4} ([01][0-9]|2[0-3]):[0-5][0-9]$'>
-      >();
+      const check = typia.createIs<string & tags.Format<'date-time'>>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<
-        string & tags.Pattern<'^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-[0-9]{4} ([01][0-9]|2[0-3]):[0-5][0-9]$'>
-      >();
+      const val = typia.createValidate<string & tags.Format<'date-time'>>();
       return (v) => val(v).success;
     },
   },
-  'STRING_FORMAT.dateTime_minMax_absolute': NOT_SUPPORTED, // needs absolute min/max bound comparison on datetime strings (no typia tag)
+  'STRING_FORMAT.dateTime_custom': (() => {
+    // Pattern = layout, then typia's own calendar helper on the reordered date parts.
+    type CalendarDMY = tags.TagBase<{
+      target: 'string';
+      kind: 'calendarDMY';
+      value: undefined;
+      validate: '$importInternal("isFormatDate")($input.slice(6, 10) + "-" + $input.slice(3, 5) + "-" + $input.slice(0, 2))';
+    }>;
+    return {
+      build: () => {
+        const check = typia.createIs<string & tags.Pattern<'^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-[0-9]{4} ([01][0-9]|2[0-3]):[0-5][0-9]$'> & CalendarDMY>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<string & tags.Pattern<'^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-[0-9]{4} ([01][0-9]|2[0-3]):[0-5][0-9]$'> & CalendarDMY>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'STRING_FORMAT.dateTime_minMax_absolute': (() => {
+    // Pattern = layout, calendar via typia's helper, then fixed-width string bounds on a `T`-normalised copy (mion accepts `t`).
+    type CalendarDate = tags.TagBase<{
+      target: 'string';
+      kind: 'calendarDate';
+      value: undefined;
+      validate: '$importInternal("isFormatDate")($input.slice(0, 10))';
+    }>;
+    type DateTimeMin = tags.TagBase<{
+      target: 'string';
+      kind: 'dateTimeMin';
+      value: undefined;
+      validate: '"2020-01-01T00:00:00" <= ($input[10] === "t" ? $input.slice(0, 10) + "T" + $input.slice(11) : $input)';
+    }>;
+    type DateTimeMax = tags.TagBase<{
+      target: 'string';
+      kind: 'dateTimeMax';
+      value: undefined;
+      validate: '($input[10] === "t" ? $input.slice(0, 10) + "T" + $input.slice(11) : $input) <= "2020-12-31T23:59:59"';
+    }>;
+    type DateTimeMinMax = string &
+      tags.Pattern<'^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])[Tt]([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$'> &
+      CalendarDate &
+      DateTimeMin &
+      DateTimeMax;
+    return {
+      build: () => {
+        const check = typia.createIs<DateTimeMinMax>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<DateTimeMinMax>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
   'STRING_FORMAT.ipv4': {
     build: () => {
       const check = typia.createIs<string & tags.Format<'ipv4'>>();
@@ -2090,129 +2498,133 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
+  // typia's own IPv4 octet rule (`_isFormatIpv4`) + a 1-5 digit port <= 65535, leading zeros allowed like mion.
+  // Port required, stricter than mion, which accepts a missing port.
   'STRING_FORMAT.ipv4_port': {
     build: () => {
       const check = typia.createIs<
         string &
-          tags.Pattern<'^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]):(?:6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[1-5][0-9]{4}|[1-9][0-9]{0,3}|0)$'>
+          tags.Pattern<'^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]):(?:[0-9]{1,4}|[0-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$'>
       >();
       return (v) => check(v);
     },
     buildErrors: () => {
       const val = typia.createValidate<
         string &
-          tags.Pattern<'^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]):(?:6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[1-5][0-9]{4}|[1-9][0-9]{0,3}|0)$'>
+          tags.Pattern<'^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]):(?:[0-9]{1,4}|[0-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$'>
       >();
       return (v) => val(v).success;
     },
   },
-  'STRING_FORMAT.ipv6_port': {
-    build: () => {
-      const check = typia.createIs<
-        string &
-          tags.Pattern<'^\\[[0-9a-fA-F:]+\\]:(?:6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[1-5][0-9]{4}|[1-9][0-9]{0,3}|0)$'>
-      >();
-      return (v) => check(v);
-    },
-    buildErrors: () => {
-      const val = typia.createValidate<
-        string &
-          tags.Pattern<'^\\[[0-9a-fA-F:]+\\]:(?:6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[1-5][0-9]{4}|[1-9][0-9]{0,3}|0)$'>
-      >();
-      return (v) => val(v).success;
-    },
-  },
+  'STRING_FORMAT.ipv6_port': (() => {
+    // Leaf tag: typia's own IPv6 check on the bracket content + port <= 65535; the port stays required.
+    const BRACKETED = /^\[([^\]]+)\]:(\d+)$/;
+    const ipv6WithPort = (text: string, isIpv6: (v: string) => boolean): boolean => {
+      const match = BRACKETED.exec(text);
+      return match !== null && isIpv6(match[1]) && Number(match[2]) <= 65535;
+    };
+    type Ipv6WithPort = tags.TagBase<{
+      target: 'string';
+      kind: 'ipv6WithPort';
+      value: undefined;
+      validate: 'ipv6WithPort($input, $importInternal("isFormatIpv6"))';
+    }>;
+    return {
+      build: () => {
+        const check = typia.createIs<string & Ipv6WithPort>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<string & Ipv6WithPort>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
   'STRING_FORMAT.domain': {
     build: () => {
-      const check = typia.createIs<string & tags.Pattern<'^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\\.)+[a-zA-Z]{2,}$'>>();
+      const check = typia.createIs<string & tags.MaxLength<253> & tags.MinLength<5> & tags.Pattern<'^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\\.)+[a-zA-Z]{2,63}$'>>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<string & tags.Pattern<'^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\\.)+[a-zA-Z]{2,}$'>>();
+      const val = typia.createValidate<string & tags.MaxLength<253> & tags.MinLength<5> & tags.Pattern<'^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\\.)+[a-zA-Z]{2,63}$'>>();
       return (v) => val(v).success;
     },
   },
+  // labels 2..63 chars, 2..6 parts, TLD 2..12 letters, as mion
   'STRING_FORMAT.domainParts': {
     build: () => {
-      const check = typia.createIs<string & tags.Pattern<'^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\\.){1,5}[a-zA-Z]{2,}$'>>();
+      const check = typia.createIs<string & tags.MaxLength<253> & tags.MinLength<5> & tags.Pattern<'^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])\\.){1,5}[a-zA-Z]{2,12}$'>>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<
-        string & tags.Pattern<'^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\\.){1,5}[a-zA-Z]{2,}$'>
-      >();
+      const val = typia.createValidate<string & tags.MaxLength<253> & tags.MinLength<5> & tags.Pattern<'^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])\\.){1,5}[a-zA-Z]{2,12}$'>>();
       return (v) => val(v).success;
     },
   },
+  // email / emailPunycode: mion's rule (7..254 code points + its regex); Format<'email'> allows 1-char labels, no length.
   'STRING_FORMAT.email': {
     build: () => {
-      const check = typia.createIs<string & tags.Format<'email'>>();
+      const check = typia.createIs<string & tags.MaxLength<254> & tags.MinLength<7> & tags.Pattern<'^[^\\s@]{1,64}@(?:[a-zA-Z0-9-]{1,63}\\.)+[a-zA-Z]{2,63}$'>>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<string & tags.Format<'email'>>();
+      const val = typia.createValidate<string & tags.MaxLength<254> & tags.MinLength<7> & tags.Pattern<'^[^\\s@]{1,64}@(?:[a-zA-Z0-9-]{1,63}\\.)+[a-zA-Z]{2,63}$'>>();
       return (v) => val(v).success;
     },
-    samples: {
-      valid: ['john@example.com', 'jane.doe@mion.io', 'ab@cd.co', 'user+tag@sub.example.org'],
-      invalid: ['not-an-email', '@example.com', 'john@', 'john@example', 'john doe@example.com', ''],
-    },
-  }, // override: typia email accepts a@b.co (1-char domain label) which we reject; invalid drops only that one sample
+  },
   'STRING_FORMAT.emailPunycode': {
     build: () => {
-      const check = typia.createIs<string & tags.Format<'email'>>();
+      const check = typia.createIs<string & tags.MaxLength<254> & tags.MinLength<7> & tags.Pattern<'^[^\\s@]{1,64}@(?:[a-zA-Z0-9-]{1,63}\\.)+[a-zA-Z0-9-]{2,63}$'>>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<string & tags.Format<'email'>>();
+      const val = typia.createValidate<string & tags.MaxLength<254> & tags.MinLength<7> & tags.Pattern<'^[^\\s@]{1,64}@(?:[a-zA-Z0-9-]{1,63}\\.)+[a-zA-Z0-9-]{2,63}$'>>();
       return (v) => val(v).success;
     },
   },
-  'STRING_FORMAT.emailParts': {
-    build: () => {
-      const check = typia.createIs<
-        string & tags.Pattern<'^[a-zA-Z0-9._-]+@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\\.)+[a-zA-Z]{2,}$'>
-      >();
-      return (v) => check(v);
-    },
-    buildErrors: () => {
-      const val = typia.createValidate<
-        string & tags.Pattern<'^[a-zA-Z0-9._-]+@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\\.)+[a-zA-Z]{2,}$'>
-      >();
-      return (v) => val(v).success;
-    },
-  },
+  'STRING_FORMAT.emailParts': (() => {
+    // The local part is 1..64 code points, so a `u` regex (Pattern takes no flags) on a hoisted literal.
+    const EMAIL_PARTS = /^[^ ()<>\[\]:;\\,{}|+@]{1,64}@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])\.){1,5}[a-zA-Z]{2,12}$/u;
+    type EmailParts = tags.TagBase<{target: 'string'; kind: 'emailParts'; value: undefined; validate: 'EMAIL_PARTS.test($input)'}>;
+    return {
+      build: () => {
+        const check = typia.createIs<string & tags.MaxLength<254> & EmailParts>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<string & tags.MaxLength<254> & EmailParts>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  // url / urlHttp / urlFile: mion's regex, its `i` flag spelled as case classes (Pattern takes no flags).
   'STRING_FORMAT.url': {
     build: () => {
-      const check = typia.createIs<
-        string & tags.Pattern<'^(?:https?|ftp|wss?):\\/\\/[^\\s.]+(?:\\.[^\\s.]+)+(?:[\\/?][^\\s]*)?$'>
-      >();
+      const check = typia.createIs<string & tags.MaxLength<2048> & tags.Pattern<'^(?:[hH][tT][tT][pP][sS]?|[fF][tT][pP][sS]?|[wW][sS][sS]?):\\/\\/[^\\s/$.?#-][^\\s]*$'>>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<
-        string & tags.Pattern<'^(?:https?|ftp|wss?):\\/\\/[^\\s.]+(?:\\.[^\\s.]+)+(?:[\\/?][^\\s]*)?$'>
-      >();
+      const val = typia.createValidate<string & tags.MaxLength<2048> & tags.Pattern<'^(?:[hH][tT][tT][pP][sS]?|[fF][tT][pP][sS]?|[wW][sS][sS]?):\\/\\/[^\\s/$.?#-][^\\s]*$'>>();
       return (v) => val(v).success;
     },
   },
   'STRING_FORMAT.urlHttp': {
     build: () => {
-      const check = typia.createIs<string & tags.Pattern<'^https?:\\/\\/[^\\s.]+(?:\\.[^\\s.]+)+(?:[\\/?][^\\s]*)?$'>>();
+      const check = typia.createIs<string & tags.MaxLength<2048> & tags.Pattern<'^[hH][tT][tT][pP][sS]?:\\/\\/[^\\s/$.?#-][^\\s]*$'>>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<string & tags.Pattern<'^https?:\\/\\/[^\\s.]+(?:\\.[^\\s.]+)+(?:[\\/?][^\\s]*)?$'>>();
+      const val = typia.createValidate<string & tags.MaxLength<2048> & tags.Pattern<'^[hH][tT][tT][pP][sS]?:\\/\\/[^\\s/$.?#-][^\\s]*$'>>();
       return (v) => val(v).success;
     },
   },
   'STRING_FORMAT.urlFile': {
     build: () => {
-      const check = typia.createIs<string & tags.Pattern<'^file:\\/\\/\\/[^\\s]+$'>>();
+      const check = typia.createIs<string & tags.MaxLength<2048> & tags.Pattern<'^[fF][iI][lL][eE]:\\/\\/\\/?(?:[a-zA-Z]:)?[^\\s/$.?#-][^\\s]*$'>>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<string & tags.Pattern<'^file:\\/\\/\\/[^\\s]+$'>>();
+      const val = typia.createValidate<string & tags.MaxLength<2048> & tags.Pattern<'^[fF][iI][lL][eE]:\\/\\/\\/?(?:[a-zA-Z]:)?[^\\s/$.?#-][^\\s]*$'>>();
       return (v) => val(v).success;
     },
   },
@@ -2278,16 +2690,20 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
-  'NUMBER_FORMAT.number_integer': {
-    build: () => {
-      const check = typia.createIs<number & tags.Type<'int32'>>();
-      return (v) => check(v);
-    },
-    buildErrors: () => {
-      const val = typia.createValidate<number & tags.Type<'int32'>>();
-      return (v) => val(v).success;
-    },
-  },
+  'NUMBER_FORMAT.number_integer': (() => {
+    // Number.isInteger as a leaf tag: every typia integer Type also adds a range check mion does not run.
+    type Integer = tags.TagBase<{target: 'number'; kind: 'integer'; value: undefined; validate: 'Number.isInteger($input)'}>;
+    return {
+      build: () => {
+        const check = typia.createIs<number & Integer>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<number & Integer>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
   // FormatFloat carries no failable constraint, so the equivalent typia type is a plain
   // number. `tags.Type<'float'>` is NOT the match: it adds a float32 representability
   // check RunTypes never imposes.
@@ -2311,33 +2727,37 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
-  'NUMBER_FORMAT.number_combined': {
-    build: () => {
-      const check = typia.createIs<number & tags.Type<'int32'> & tags.Minimum<0> & tags.Maximum<100> & tags.MultipleOf<5>>();
-      return (v) => check(v);
-    },
-    buildErrors: () => {
-      const val = typia.createValidate<number & tags.Type<'int32'> & tags.Minimum<0> & tags.Maximum<100> & tags.MultipleOf<5>>();
-      return (v) => val(v).success;
-    },
-  },
+  'NUMBER_FORMAT.number_combined': (() => {
+    // Number.isInteger as a leaf tag (no range check, as mion); tags in mion's order.
+    type Integer = tags.TagBase<{target: 'number'; kind: 'integer'; value: undefined; validate: 'Number.isInteger($input)'}>;
+    return {
+      build: () => {
+        const check = typia.createIs<number & Integer & tags.Maximum<100> & tags.Minimum<0> & tags.MultipleOf<5>>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<number & Integer & tags.Maximum<100> & tags.Minimum<0> & tags.MultipleOf<5>>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
   'NUMBER_FORMAT.number_int8': {
     build: () => {
-      const check = typia.createIs<number & tags.Type<'int32'> & tags.Minimum<-128> & tags.Maximum<127>>();
+      const check = typia.createIs<number & tags.Type<'int8'>>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<number & tags.Type<'int32'> & tags.Minimum<-128> & tags.Maximum<127>>();
+      const val = typia.createValidate<number & tags.Type<'int8'>>();
       return (v) => val(v).success;
     },
   },
   'NUMBER_FORMAT.number_uint8': {
     build: () => {
-      const check = typia.createIs<number & tags.Type<'uint32'> & tags.Maximum<255>>();
+      const check = typia.createIs<number & tags.Type<'uint8'>>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<number & tags.Type<'uint32'> & tags.Maximum<255>>();
+      const val = typia.createValidate<number & tags.Type<'uint8'>>();
       return (v) => val(v).success;
     },
   },
@@ -2403,45 +2823,731 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
-  'BIGINT_FORMAT.bigint_int64': NOT_SUPPORTED, // typia tag schema can't hold 64-bit bigint bounds as literals (precision loss → "non-literal type")
-  'BIGINT_FORMAT.bigint_uint64': NOT_SUPPORTED, // typia tag schema can't hold 64-bit bigint bounds as literals (precision loss → "non-literal type")
+  // Type<'int64'> on bigint: exact 64-bit bounds (Minimum / Maximum literals cannot hold them).
+  'BIGINT_FORMAT.bigint_int64': {
+    build: () => {
+      const check = typia.createIs<bigint & tags.Type<'int64'>>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      const val = typia.createValidate<bigint & tags.Type<'int64'>>();
+      return (v) => val(v).success;
+    },
+  },
+  // Type<'uint64'> on bigint: exact 64-bit bounds (Minimum / Maximum literals cannot hold them).
+  'BIGINT_FORMAT.bigint_uint64': {
+    build: () => {
+      const check = typia.createIs<bigint & tags.Type<'uint64'>>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      const val = typia.createValidate<bigint & tags.Type<'uint64'>>();
+      return (v) => val(v).success;
+    },
+  },
 
   // ── DATETIME (format) ──
-  // All DATETIME format cases need min/max/gt/lt/relative bound comparison on a Date or
-  // Temporal value — typia has no tag for temporal range constraints (Min/Max tags target
-  // number/bigint/string length only), and the Date-backed ones also accept Invalid Date.
-  'DATETIME.date_minmax': NOT_SUPPORTED,
-  'DATETIME.date_gtlt': NOT_SUPPORTED,
-  'DATETIME.date_min_lt': NOT_SUPPORTED,
-  'DATETIME.date_max_now': NOT_SUPPORTED,
-  'DATETIME.date_rel_window': NOT_SUPPORTED,
-  'DATETIME.date_rel_datetime_components': NOT_SUPPORTED,
-  'DATETIME.instant_minmax': NOT_SUPPORTED,
-  'DATETIME.instant_gtlt': NOT_SUPPORTED,
-  'DATETIME.instant_rel': NOT_SUPPORTED,
-  'DATETIME.plainDate_minmax': NOT_SUPPORTED,
-  'DATETIME.plainDate_gtlt': NOT_SUPPORTED,
-  'DATETIME.plainDate_min_lt': NOT_SUPPORTED,
-  'DATETIME.plainDate_gt_max': NOT_SUPPORTED,
-  'DATETIME.plainDate_min_only': NOT_SUPPORTED,
-  'DATETIME.plainDate_max_only': NOT_SUPPORTED,
-  'DATETIME.plainDate_gt_only': NOT_SUPPORTED,
-  'DATETIME.plainDate_lt_only': NOT_SUPPORTED,
-  'DATETIME.plainDate_rel_window': NOT_SUPPORTED,
-  'DATETIME.plainDate_rel_ymd': NOT_SUPPORTED,
-  'DATETIME.plainDate_rel_weeks': NOT_SUPPORTED,
-  'DATETIME.plainTime_minmax': NOT_SUPPORTED,
-  'DATETIME.plainTime_gtlt': NOT_SUPPORTED,
-  'DATETIME.plainDateTime_minmax': NOT_SUPPORTED,
-  'DATETIME.plainDateTime_gtlt': NOT_SUPPORTED,
-  'DATETIME.plainDateTime_rel': NOT_SUPPORTED,
-  'DATETIME.plainDateTime_rel_combo': NOT_SUPPORTED,
-  'DATETIME.plainYearMonth_minmax': NOT_SUPPORTED,
-  'DATETIME.plainYearMonth_gtlt': NOT_SUPPORTED,
-  'DATETIME.plainYearMonth_rel': NOT_SUPPORTED,
-  'DATETIME.zonedDateTime_minmax': NOT_SUPPORTED,
-  'DATETIME.zonedDateTime_gtlt': NOT_SUPPORTED,
-  'DATETIME.zonedDateTime_rel': NOT_SUPPORTED,
+  // Each case is ONE object tag: valid Date or `instanceof Temporal.X`, then mion's bounds in mion's order.
+  // Temporal bounds are parsed once per builder, not in the module, so a runtime with no Temporal still loads it.
+  'DATETIME.date_minmax': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'dateBounds';
+        value: undefined;
+        validate: '$input instanceof Date && !isNaN($input.getTime()) && $input.getTime() >= 1577836800000 && $input.getTime() <= 1609459199000';
+      }>;
+    return {
+      build: () => {
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.date_gtlt': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'dateBounds';
+        value: undefined;
+        validate: '$input instanceof Date && !isNaN($input.getTime()) && $input.getTime() > 1577836800000 && $input.getTime() < 1609459199000';
+      }>;
+    return {
+      build: () => {
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.date_min_lt': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'dateBounds';
+        value: undefined;
+        validate: '$input instanceof Date && !isNaN($input.getTime()) && $input.getTime() >= 1577836800000 && $input.getTime() < 1609459199000';
+      }>;
+    return {
+      build: () => {
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.date_max_now': (() => {
+    // Valid Date + bound as one leaf hook on `object`; "now" read per call.
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'dateBounds';
+        value: undefined;
+        validate: '$input instanceof Date && !isNaN($input.getTime()) && $input.getTime() <= Date.now()';
+      }>;
+    return {
+      build: () => {
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.date_rel_window': (() => {
+    // Valid Date + bounds as one leaf hook on `object`; now ± P1000Y with UTC calendar math per call, as mion.
+    const yearsFromNow = (years: number) => {
+      const now = new Date();
+      return now.setUTCFullYear(now.getUTCFullYear() + years);
+    };
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'dateBounds';
+        value: undefined;
+        validate: '$input instanceof Date && !isNaN($input.getTime()) && $input.getTime() >= yearsFromNow(-1000) && $input.getTime() <= yearsFromNow(1000)';
+      }>;
+    return {
+      build: () => {
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.date_rel_datetime_components': (() => {
+    // Valid Date + bound as one leaf hook on `object`; now - P1000YT12H with UTC calendar math per call, as mion.
+    const minBound = () => {
+      const now = new Date();
+      return now.setUTCFullYear(now.getUTCFullYear() - 1000) - 43200000;
+    };
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'dateBounds';
+        value: undefined;
+        validate: '$input instanceof Date && !isNaN($input.getTime()) && $input.getTime() >= minBound()';
+      }>;
+    return {
+      build: () => {
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.instant_minmax': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalInstantBounds';
+        value: undefined;
+        validate: '$input instanceof Temporal.Instant && Temporal.Instant.compare($input, MIN) >= 0 && Temporal.Instant.compare($input, MAX) <= 0';
+      }>;
+    return {
+      build: () => {
+        const MIN = Temporal.Instant.from('2020-01-01T00:00:00Z');
+        const MAX = Temporal.Instant.from('2020-12-31T23:59:59Z');
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const MIN = Temporal.Instant.from('2020-01-01T00:00:00Z');
+        const MAX = Temporal.Instant.from('2020-12-31T23:59:59Z');
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.instant_gtlt': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalInstantBounds';
+        value: undefined;
+        validate: '$input instanceof Temporal.Instant && Temporal.Instant.compare($input, GT) > 0 && Temporal.Instant.compare($input, LT) < 0';
+      }>;
+    return {
+      build: () => {
+        const GT = Temporal.Instant.from('2020-01-01T00:00:00Z');
+        const LT = Temporal.Instant.from('2020-12-31T23:59:59Z');
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const GT = Temporal.Instant.from('2020-01-01T00:00:00Z');
+        const LT = Temporal.Instant.from('2020-12-31T23:59:59Z');
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.instant_rel': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalInstantBounds';
+        value: undefined;
+        validate: '$input instanceof Temporal.Instant && Temporal.Instant.compare($input, Temporal.Now.instant().subtract(SPAN)) >= 0 && Temporal.Instant.compare($input, Temporal.Now.instant().add(SPAN)) <= 0';
+      }>;
+    return {
+      build: () => {
+        const SPAN = Temporal.Duration.from('PT8760000H');
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const SPAN = Temporal.Duration.from('PT8760000H');
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.plainDate_minmax': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalPlainDateBounds';
+        value: undefined;
+        validate: '$input instanceof Temporal.PlainDate && Temporal.PlainDate.compare($input, MIN) >= 0 && Temporal.PlainDate.compare($input, MAX) <= 0';
+      }>;
+    return {
+      build: () => {
+        const MIN = Temporal.PlainDate.from('2020-01-01');
+        const MAX = Temporal.PlainDate.from('2020-12-31');
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const MIN = Temporal.PlainDate.from('2020-01-01');
+        const MAX = Temporal.PlainDate.from('2020-12-31');
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.plainDate_gtlt': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalPlainDateBounds';
+        value: undefined;
+        validate: '$input instanceof Temporal.PlainDate && Temporal.PlainDate.compare($input, GT) > 0 && Temporal.PlainDate.compare($input, LT) < 0';
+      }>;
+    return {
+      build: () => {
+        const GT = Temporal.PlainDate.from('2020-01-01');
+        const LT = Temporal.PlainDate.from('2020-12-31');
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const GT = Temporal.PlainDate.from('2020-01-01');
+        const LT = Temporal.PlainDate.from('2020-12-31');
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.plainDate_min_lt': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalPlainDateBounds';
+        value: undefined;
+        validate: '$input instanceof Temporal.PlainDate && Temporal.PlainDate.compare($input, MIN) >= 0 && Temporal.PlainDate.compare($input, LT) < 0';
+      }>;
+    return {
+      build: () => {
+        const MIN = Temporal.PlainDate.from('2020-01-01');
+        const LT = Temporal.PlainDate.from('2020-01-10');
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const MIN = Temporal.PlainDate.from('2020-01-01');
+        const LT = Temporal.PlainDate.from('2020-01-10');
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.plainDate_gt_max': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalPlainDateBounds';
+        value: undefined;
+        validate: '$input instanceof Temporal.PlainDate && Temporal.PlainDate.compare($input, MAX) <= 0 && Temporal.PlainDate.compare($input, GT) > 0';
+      }>;
+    return {
+      build: () => {
+        const MAX = Temporal.PlainDate.from('2020-01-10');
+        const GT = Temporal.PlainDate.from('2020-01-01');
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const MAX = Temporal.PlainDate.from('2020-01-10');
+        const GT = Temporal.PlainDate.from('2020-01-01');
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.plainDate_min_only': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalPlainDateBounds';
+        value: undefined;
+        validate: '$input instanceof Temporal.PlainDate && Temporal.PlainDate.compare($input, MIN) >= 0';
+      }>;
+    return {
+      build: () => {
+        const MIN = Temporal.PlainDate.from('2020-01-01');
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const MIN = Temporal.PlainDate.from('2020-01-01');
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.plainDate_max_only': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalPlainDateBounds';
+        value: undefined;
+        validate: '$input instanceof Temporal.PlainDate && Temporal.PlainDate.compare($input, MAX) <= 0';
+      }>;
+    return {
+      build: () => {
+        const MAX = Temporal.PlainDate.from('2020-12-31');
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const MAX = Temporal.PlainDate.from('2020-12-31');
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.plainDate_gt_only': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalPlainDateBounds';
+        value: undefined;
+        validate: '$input instanceof Temporal.PlainDate && Temporal.PlainDate.compare($input, GT) > 0';
+      }>;
+    return {
+      build: () => {
+        const GT = Temporal.PlainDate.from('2020-01-01');
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const GT = Temporal.PlainDate.from('2020-01-01');
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.plainDate_lt_only': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalPlainDateBounds';
+        value: undefined;
+        validate: '$input instanceof Temporal.PlainDate && Temporal.PlainDate.compare($input, LT) < 0';
+      }>;
+    return {
+      build: () => {
+        const LT = Temporal.PlainDate.from('2020-12-31');
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const LT = Temporal.PlainDate.from('2020-12-31');
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.plainDate_rel_window': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalPlainDateBounds';
+        value: undefined;
+        validate: '$input instanceof Temporal.PlainDate && Temporal.PlainDate.compare($input, Temporal.Now.plainDateISO().subtract(SPAN)) >= 0 && Temporal.PlainDate.compare($input, Temporal.Now.plainDateISO().add(SPAN)) <= 0';
+      }>;
+    return {
+      build: () => {
+        const SPAN = Temporal.Duration.from('P1000Y');
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const SPAN = Temporal.Duration.from('P1000Y');
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.plainDate_rel_ymd': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalPlainDateBounds';
+        value: undefined;
+        validate: '$input instanceof Temporal.PlainDate && Temporal.PlainDate.compare($input, Temporal.Now.plainDateISO().subtract(SPAN)) >= 0';
+      }>;
+    return {
+      build: () => {
+        const SPAN = Temporal.Duration.from('P100Y6M15D');
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const SPAN = Temporal.Duration.from('P100Y6M15D');
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.plainDate_rel_weeks': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalPlainDateBounds';
+        value: undefined;
+        validate: '$input instanceof Temporal.PlainDate && Temporal.PlainDate.compare($input, Temporal.Now.plainDateISO().subtract(SPAN)) >= 0';
+      }>;
+    return {
+      build: () => {
+        const SPAN = Temporal.Duration.from('P52200W');
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const SPAN = Temporal.Duration.from('P52200W');
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.plainTime_minmax': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalPlainTimeBounds';
+        value: undefined;
+        validate: '$input instanceof Temporal.PlainTime && Temporal.PlainTime.compare($input, MIN) >= 0 && Temporal.PlainTime.compare($input, MAX) <= 0';
+      }>;
+    return {
+      build: () => {
+        const MIN = Temporal.PlainTime.from('09:00:00');
+        const MAX = Temporal.PlainTime.from('17:00:00');
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const MIN = Temporal.PlainTime.from('09:00:00');
+        const MAX = Temporal.PlainTime.from('17:00:00');
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.plainTime_gtlt': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalPlainTimeBounds';
+        value: undefined;
+        validate: '$input instanceof Temporal.PlainTime && Temporal.PlainTime.compare($input, GT) > 0 && Temporal.PlainTime.compare($input, LT) < 0';
+      }>;
+    return {
+      build: () => {
+        const GT = Temporal.PlainTime.from('09:00:00');
+        const LT = Temporal.PlainTime.from('17:00:00');
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const GT = Temporal.PlainTime.from('09:00:00');
+        const LT = Temporal.PlainTime.from('17:00:00');
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.plainDateTime_minmax': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalPlainDateTimeBounds';
+        value: undefined;
+        validate: '$input instanceof Temporal.PlainDateTime && Temporal.PlainDateTime.compare($input, MIN) >= 0 && Temporal.PlainDateTime.compare($input, MAX) <= 0';
+      }>;
+    return {
+      build: () => {
+        const MIN = Temporal.PlainDateTime.from('2020-01-01T00:00:00');
+        const MAX = Temporal.PlainDateTime.from('2020-12-31T23:59:59');
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const MIN = Temporal.PlainDateTime.from('2020-01-01T00:00:00');
+        const MAX = Temporal.PlainDateTime.from('2020-12-31T23:59:59');
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.plainDateTime_gtlt': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalPlainDateTimeBounds';
+        value: undefined;
+        validate: '$input instanceof Temporal.PlainDateTime && Temporal.PlainDateTime.compare($input, GT) > 0 && Temporal.PlainDateTime.compare($input, LT) < 0';
+      }>;
+    return {
+      build: () => {
+        const GT = Temporal.PlainDateTime.from('2020-01-01T00:00:00');
+        const LT = Temporal.PlainDateTime.from('2020-12-31T23:59:59');
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const GT = Temporal.PlainDateTime.from('2020-01-01T00:00:00');
+        const LT = Temporal.PlainDateTime.from('2020-12-31T23:59:59');
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.plainDateTime_rel': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalPlainDateTimeBounds';
+        value: undefined;
+        validate: '$input instanceof Temporal.PlainDateTime && Temporal.PlainDateTime.compare($input, Temporal.Now.plainDateTimeISO().subtract(SPAN)) >= 0 && Temporal.PlainDateTime.compare($input, Temporal.Now.plainDateTimeISO().add(SPAN)) <= 0';
+      }>;
+    return {
+      build: () => {
+        const SPAN = Temporal.Duration.from('P1000Y');
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const SPAN = Temporal.Duration.from('P1000Y');
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.plainDateTime_rel_combo': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalPlainDateTimeBounds';
+        value: undefined;
+        validate: '$input instanceof Temporal.PlainDateTime && Temporal.PlainDateTime.compare($input, Temporal.Now.plainDateTimeISO().subtract(SPAN)) >= 0';
+      }>;
+    return {
+      build: () => {
+        const SPAN = Temporal.Duration.from('P500YT12H');
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const SPAN = Temporal.Duration.from('P500YT12H');
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.plainYearMonth_minmax': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalPlainYearMonthBounds';
+        value: undefined;
+        validate: '$input instanceof Temporal.PlainYearMonth && Temporal.PlainYearMonth.compare($input, MIN) >= 0 && Temporal.PlainYearMonth.compare($input, MAX) <= 0';
+      }>;
+    return {
+      build: () => {
+        const MIN = Temporal.PlainYearMonth.from('2020-01');
+        const MAX = Temporal.PlainYearMonth.from('2020-12');
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const MIN = Temporal.PlainYearMonth.from('2020-01');
+        const MAX = Temporal.PlainYearMonth.from('2020-12');
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.plainYearMonth_gtlt': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalPlainYearMonthBounds';
+        value: undefined;
+        validate: '$input instanceof Temporal.PlainYearMonth && Temporal.PlainYearMonth.compare($input, GT) > 0 && Temporal.PlainYearMonth.compare($input, LT) < 0';
+      }>;
+    return {
+      build: () => {
+        const GT = Temporal.PlainYearMonth.from('2020-01');
+        const LT = Temporal.PlainYearMonth.from('2020-12');
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const GT = Temporal.PlainYearMonth.from('2020-01');
+        const LT = Temporal.PlainYearMonth.from('2020-12');
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.plainYearMonth_rel': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalPlainYearMonthBounds';
+        value: undefined;
+        validate: '$input instanceof Temporal.PlainYearMonth && Temporal.PlainYearMonth.compare($input, Temporal.Now.plainDateISO().toPlainYearMonth().subtract(SPAN)) >= 0 && Temporal.PlainYearMonth.compare($input, Temporal.Now.plainDateISO().toPlainYearMonth().add(SPAN)) <= 0';
+      }>;
+    return {
+      build: () => {
+        const SPAN = Temporal.Duration.from('P1000Y');
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const SPAN = Temporal.Duration.from('P1000Y');
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.zonedDateTime_minmax': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalZonedDateTimeBounds';
+        value: undefined;
+        validate: '$input instanceof Temporal.ZonedDateTime && Temporal.ZonedDateTime.compare($input, MIN) >= 0 && Temporal.ZonedDateTime.compare($input, MAX) <= 0';
+      }>;
+    return {
+      build: () => {
+        const MIN = Temporal.ZonedDateTime.from('2020-01-01T00:00:00[UTC]');
+        const MAX = Temporal.ZonedDateTime.from('2020-12-31T23:59:59[UTC]');
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const MIN = Temporal.ZonedDateTime.from('2020-01-01T00:00:00[UTC]');
+        const MAX = Temporal.ZonedDateTime.from('2020-12-31T23:59:59[UTC]');
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.zonedDateTime_gtlt': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalZonedDateTimeBounds';
+        value: undefined;
+        validate: '$input instanceof Temporal.ZonedDateTime && Temporal.ZonedDateTime.compare($input, GT) > 0 && Temporal.ZonedDateTime.compare($input, LT) < 0';
+      }>;
+    return {
+      build: () => {
+        const GT = Temporal.ZonedDateTime.from('2020-01-01T00:00:00[UTC]');
+        const LT = Temporal.ZonedDateTime.from('2020-12-31T23:59:59[UTC]');
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const GT = Temporal.ZonedDateTime.from('2020-01-01T00:00:00[UTC]');
+        const LT = Temporal.ZonedDateTime.from('2020-12-31T23:59:59[UTC]');
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
+  'DATETIME.zonedDateTime_rel': (() => {
+    type Check = object &
+      tags.TagBase<{
+        target: 'object';
+        kind: 'temporalZonedDateTimeBounds';
+        value: undefined;
+        validate: '$input instanceof Temporal.ZonedDateTime && Temporal.ZonedDateTime.compare($input, Temporal.Now.zonedDateTimeISO().subtract(SPAN)) >= 0 && Temporal.ZonedDateTime.compare($input, Temporal.Now.zonedDateTimeISO().add(SPAN)) <= 0';
+      }>;
+    return {
+      build: () => {
+        const SPAN = Temporal.Duration.from('P1000Y');
+        const check = typia.createIs<Check>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const SPAN = Temporal.Duration.from('P1000Y');
+        const val = typia.createValidate<Check>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
 
   // ── REALWORLD ──
   'REALWORLD.user': {
@@ -2689,8 +3795,39 @@ export const cases: CompetitorCases = {
   // tags, like every other group here. Every entry below was verified against
   // this group's EXACT shared samples by building it through the real ttsc
   // transform, not inferred from the tag names.
-  'JSON_SCHEMA.property_names': NOT_SUPPORTED, // an index signature key cannot carry a regex constraint
-  'JSON_SCHEMA.contains_count': NOT_SUPPORTED, // no count-of-matching-items tag
+  // A Pattern tag on the index-signature key is enforced per key by is + validate.
+  'JSON_SCHEMA.property_names': {
+    build: () => {
+      const check = typia.createIs<{[key: string & tags.Pattern<'^[a-z]+$'>]: number} & PlainObject & NoUndefinedValues>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      const val = typia.createValidate<{[key: string & tags.Pattern<'^[a-z]+$'>]: number} & PlainObject & NoUndefinedValues>();
+      return (v) => val(v).success;
+    },
+  },
+  'JSON_SCHEMA.contains_count': (() => {
+    // contains {minimum: 10} + minContains 2 as an array tag (no typia feature); full counting loop like mion.
+    const countAtLeast10 = (items: unknown[]): number => {
+      let count = 0;
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (Number.isFinite(item) && (item as number) >= 10) count++;
+      }
+      return count;
+    };
+    type MinContains = tags.TagBase<{target: 'array'; kind: 'minContains'; value: 2; validate: 'countAtLeast10($input) >= 2'}>;
+    return {
+      build: () => {
+        const check = typia.createIs<Array<number> & MinContains>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<Array<number> & MinContains>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
   'JSON_SCHEMA.unique_items': {
     build: () => {
       const check = typia.createIs<Array<number> & tags.UniqueItems>();
@@ -2701,27 +3838,49 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
-  'JSON_SCHEMA.object_size': NOT_SUPPORTED, // no key-count bounds on an index signature
+  'JSON_SCHEMA.object_size': (() => {
+    // minProperties 1 / maxProperties 3 as an object tag (no typia key-count feature); counts keys like mion's for-in.
+    const sizeInRange = (obj: object): boolean => {
+      let count = 0;
+      for (const _k in obj) count++;
+      return count >= 1 && count <= 3;
+    };
+    type ObjectSize = tags.TagBase<{target: 'object'; kind: 'objectSize'; value: undefined; validate: 'sizeInRange($input)'}>;
+    return {
+      build: () => {
+        const check = typia.createIs<{[key: string]: number} & PlainObject & NoUndefinedValues & ObjectSize>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<{[key: string]: number} & PlainObject & NoUndefinedValues & ObjectSize>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
   'JSON_SCHEMA.string_email': {
     build: () => {
-      const check = typia.createIs<string & tags.Format<'email'>>();
+      const check = typia.createIs<string & tags.MaxLength<254> & tags.MinLength<7> & tags.Pattern<'^[^\\s@]{1,64}@(?:[a-zA-Z0-9-]{1,63}\\.)+[a-zA-Z]{2,63}$'>>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<string & tags.Format<'email'>>();
+      const val = typia.createValidate<string & tags.MaxLength<254> & tags.MinLength<7> & tags.Pattern<'^[^\\s@]{1,64}@(?:[a-zA-Z0-9-]{1,63}\\.)+[a-zA-Z]{2,63}$'>>();
       return (v) => val(v).success;
     },
   },
-  'JSON_SCHEMA.int_bounded': {
-    build: () => {
-      const check = typia.createIs<number & tags.Type<'int32'> & tags.Minimum<0> & tags.Maximum<130>>();
-      return (v) => check(v);
-    },
-    buildErrors: () => {
-      const val = typia.createValidate<number & tags.Type<'int32'> & tags.Minimum<0> & tags.Maximum<130>>();
-      return (v) => val(v).success;
-    },
-  },
+  'JSON_SCHEMA.int_bounded': (() => {
+    // Number.isInteger as a leaf tag: every typia integer Type also adds a range check mion does not run.
+    type Integer = tags.TagBase<{target: 'number'; kind: 'integer'; value: undefined; validate: 'Number.isInteger($input)'}>;
+    return {
+      build: () => {
+        const check = typia.createIs<number & Integer & tags.Maximum<130> & tags.Minimum<0>>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<number & Integer & tags.Maximum<130> & tags.Minimum<0>>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
   'JSON_SCHEMA.string_pattern': {
     build: () => {
       const check = typia.createIs<string & tags.Pattern<'^[a-z][a-z0-9-]*$'>>();
@@ -2745,7 +3904,8 @@ export const cases: CompetitorCases = {
 
   // ── STRICT ──
   // createIs is structural and ACCEPTS excess keys, so the closed forms
-  // (createEquals / createValidateEquals) are the correct pair here.
+  // (createEquals / createValidateEquals) are the correct pair here. Known gap: typia passes an extra key set to
+  // `undefined` (mion rejects it); no sample has one, and a no-undefined tag would also reject an optional undefined prop.
   'STRICT.flat_required': {
     build: () => {
       interface StrictFlat {

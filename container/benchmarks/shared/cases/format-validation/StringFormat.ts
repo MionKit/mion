@@ -325,10 +325,10 @@ export const STRING_FORMAT = {
     title: 'registerFormatPattern — slug regex recovered from the call site',
     getSamples: () => ({valid: ['my-slug', 'a-b-c'], invalid: ['Has Capitals', 'UPPER', 'has space', '']}),
     expectedFormatErrors: () => [
-      {name: 'stringFormat', val: 'Invalid pattern'},
-      {name: 'stringFormat', val: 'Invalid pattern'},
-      {name: 'stringFormat', val: 'Invalid pattern'},
-      {name: 'stringFormat', val: 'Invalid pattern'},
+      {name: 'stringFormat', val: 'must be a slug'},
+      {name: 'stringFormat', val: 'must be a slug'},
+      {name: 'stringFormat', val: 'must be a slug'},
+      {name: 'stringFormat', val: 'must be a slug'},
     ],
   },
   pattern_hex: {

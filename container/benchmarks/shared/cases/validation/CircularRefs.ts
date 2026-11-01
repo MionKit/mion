@@ -1,10 +1,6 @@
-// Circular-REFERENCE benchmark section: recursive types fed runtime values that
-// contain a reference cycle. mion builds its validators with the
-// per-call `{rejectCircularRefs: true}` option (so it pays the cycle-detection walk
-// and REJECTS the cyclic `invalid` samples); the other competitors have no
-// cyclic-value detection (a cycle would stack-overflow them), so they declare
-// these cases NOT_SUPPORTED. `valid` samples are acyclic instances of the same
-// recursive type; `invalid` samples close a reference loop.
+// Circular-REFERENCE section: recursive types fed values with a reference cycle. mion validates with
+// `{rejectCircularRefs: true}`, paying the cycle walk and REJECTING the cyclic `invalid` samples; a competitor
+// matches it with one root check walking the same recursive path, on top of its normal schema.
 import type {SharedCase} from '../types.ts';
 
 export const CIRCULAR_REFS = {

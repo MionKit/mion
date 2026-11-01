@@ -24,8 +24,8 @@
 // The probe sources are EXTRACTED (TS compiler API) from the real competitor maps:
 //   - ts-go (type):   the `createValidateFn<TYPE>()` type argument per case in
 //                     competitors/mion/cases.ts.
-//   - typia:          the `typia.createIs<TYPE>()` type argument per case in
-//                     competitors/typia/cases.ts.
+//   - typia:          the `typia.createIs<TYPE>()` / `typia.createEquals<TYPE>()`
+//                     (STRICT) type argument per case in competitors/typia/cases.ts.
 //   - ts-go (builder): the `createValidateFn(EXPR)` argument per case in
 //                     competitors/mion/schemaCases.ts.
 //   - zod / typebox:  the `const schema = EXPR` declared inside each case's
@@ -34,7 +34,7 @@
 // object — optionally wrapped in an IIFE `(() => { …local decls…; return {…}; })()`
 // so a case can declare a local enum/interface/type the `<T>` references; the
 // literal type argument rides the `build` thunk's `createValidateFn<T>()` /
-// `typia.createIs<T>()` call. The schema form (ts-go) is a LAZY `() => …` thunk;
+// `typia.createIs<T>()` / `typia.createEquals<T>()` call. The schema form (ts-go) is a LAZY `() => …` thunk;
 // zod/typebox build their schema as `const schema = EXPR` inside a build/buildErrors
 // thunk. Each extractor unwraps its wrapper, preserving the local declarations so
 // `<T>`/`EXPR` resolves where written.
@@ -193,18 +193,20 @@ function compile(probePath, text) {
 
 // baseline = same scaffold/imports with a trivial type → fixed cost to subtract.
 const baselineCache = new Map();
+// A broken baseline must fail the run: it would shift every cell of its form.
 function baseline(key, probePath, text) {
-  if (!baselineCache.has(key)) baselineCache.set(key, compile(probePath, text).count);
+  if (!baselineCache.has(key)) {
+    const r = compile(probePath, text);
+    if (r.errors.length) {
+      throw new Error(`typecost: baseline ${key} does not compile: ${ts.flattenDiagnosticMessageText(r.errors[0].messageText, ' ')}`);
+    }
+    baselineCache.set(key, r.count);
+  }
   return baselineCache.get(key);
 }
 
-function measure(form, baselineKey, probePath, baselineText, probeText, fallbackText) {
-  let result = compile(probePath, probeText);
-  // Samples omit function members (serializable-only), so a value error retries declare-only; a type error still fails.
-  if (result.errors.length && fallbackText && fallbackText !== probeText) {
-    const retry = compile(probePath, fallbackText);
-    if (!retry.errors.length) result = retry;
-  }
+function measure(form, baselineKey, probePath, baselineText, probeText) {
+  const result = compile(probePath, probeText);
   if (result.errors.length) return {status: 'err', n: 0, detail: ts.flattenDiagnosticMessageText(result.errors[0].messageText, ' ')};
   const base = baseline(`${form}:${baselineKey}`, probePath, baselineText);
   return {status: 'ok', n: Math.max(0, result.count - base)};
@@ -278,7 +280,7 @@ const CASE_FILTER = (process.env.MION_VALIDATION_BENCH_CASE ?? '').toLowerCase()
 const matchesFilter = (key) => !CASE_FILTER || key.toLowerCase().includes(CASE_FILTER);
 
 async function main() {
-  const tsType = extractTypeForm(path.join(TSGO_DIR, 'cases.ts'), 'cases', 'createValidateFn');
+  const tsType = extractTypeForm(path.join(TSGO_DIR, 'cases.ts'), 'cases', ['createValidateFn']);
   const tsSchema = extractTsGo(path.join(TSGO_DIR, 'schemaCases.ts'), 'schemaCases', 'schema');
   const zod = extractSchemaCompetitor(path.join(ZOD_DIR, 'cases.ts'), 'cases');
   const typebox = extractSchemaCompetitor(path.join(TYPEBOX_DIR, 'cases.ts'), 'cases');
@@ -288,7 +290,7 @@ async function main() {
   // 'err' — the column still renders, and this line names the cause in the log.
   const typiaInstalled = fs.existsSync(path.join(TYPIA_DIR, 'node_modules', 'typia'));
   if (!typiaInstalled) console.error('typecost: typia is not installed in this image (its install layer is non-fatal); its column renders n/a.');
-  const typia = typiaInstalled ? extractTypeForm(path.join(TYPIA_DIR, 'cases.ts'), 'cases', 'typia.createIs') : {preamble: [], entries: {}, keys: []};
+  const typia = typiaInstalled ? extractTypeForm(path.join(TYPIA_DIR, 'cases.ts'), 'cases', ['typia.createIs', 'typia.createEquals']) : {preamble: [], entries: {}, keys: []};
 
   const valueByKey = await loadSampleValues();
 
@@ -322,28 +324,26 @@ async function main() {
       process.exit(0);
     }
 
-    const t = tsType.entries[key];
-    cell.tsType = t
-      ? measure('tsType', 'tsgo', PROBE_TSGO, probeTsType(tsType.preamble, [], 'string', V), probeTsType(tsType.preamble, t.locals, t.typeText, value), probeTsType(tsType.preamble, t.locals, t.typeText, undefined))
-      : {status: 'na'};
-
-    const s = tsSchema.entries[key];
-    cell.tsSchema = s
-      ? measure('tsSchema', 'tsgo', PROBE_TSGO, probeTsSchema(tsSchema.preamble, [], 'RT.string()', V), probeTsSchema(tsSchema.preamble, s.locals, s.arg.text, value), probeTsSchema(tsSchema.preamble, s.locals, s.arg.text, undefined))
-      : {status: 'na'};
-
-    cell.zod = zod.entries[key]
-      ? measure('zod', 'zod', PROBE_ZOD, probeZod(zod.preamble, [], 'z.string()', V), probeZod(zod.preamble, zod.entries[key].locals, zod.entries[key].exprText, value))
-      : {status: 'na'};
-
-    cell.typebox = typebox.entries[key]
-      ? measure('typebox', 'typebox', PROBE_TYPEBOX, probeTypebox(typebox.preamble, [], 'Type.String()', V), probeTypebox(typebox.preamble, typebox.entries[key].locals, typebox.entries[key].exprText, value))
-      : {status: 'na'};
-
-    const tp = typia.entries[key];
-    cell.typia = tp
-      ? measure('typia', 'typia', PROBE_TYPIA, probeTsType(typia.preamble, [], 'string', V), probeTsType(typia.preamble, tp.locals, tp.typeText, value), probeTsType(typia.preamble, tp.locals, tp.typeText, undefined))
-      : {status: 'na'};
+    const forms = [
+      ['tsType', tsType.entries[key], 'tsgo', PROBE_TSGO, probeTsType(tsType.preamble, [], 'string', V), (e, v) => probeTsType(tsType.preamble, e.locals, e.typeText, v)],
+      ['tsSchema', tsSchema.entries[key], 'tsgo', PROBE_TSGO, probeTsSchema(tsSchema.preamble, [], 'TF.string()', V), (e, v) => probeTsSchema(tsSchema.preamble, e.locals, e.arg.text, v)],
+      ['zod', zod.entries[key], 'zod', PROBE_ZOD, probeZod(zod.preamble, [], 'z.string()', V), (e, v) => probeZod(zod.preamble, e.locals, e.exprText, v)],
+      ['typebox', typebox.entries[key], 'typebox', PROBE_TYPEBOX, probeTypebox(typebox.preamble, [], 'Type.String()', V), (e, v) => probeTypebox(typebox.preamble, e.locals, e.exprText, v)],
+      ['typia', typia.entries[key], 'typia', PROBE_TYPIA, probeTsType(typia.preamble, [], 'string', V), (e, v) => probeTsType(typia.preamble, e.locals, e.typeText, v)],
+    ];
+    const measureAll = (v) =>
+      Object.fromEntries(forms.map(([f, e, b, p, base, mk]) => [f, e ? measure(f, b, p, base, mk(e, v)) : {status: 'na'}]));
+    let measured = measureAll(value);
+    // Samples omit function members, so a form's type can reject one.
+    // The WHOLE row then goes declare-only, so no form does less work; a type error still fails.
+    if (value !== undefined && Object.values(measured).some((c) => c.status === 'err')) {
+      const declared = measureAll(undefined);
+      if (Object.keys(measured).some((f) => measured[f].status === 'err' && declared[f].status === 'ok')) {
+        measured = declared;
+        cell.declareOnly = true;
+      }
+    }
+    Object.assign(cell, measured);
 
     rows.push(cell);
   }
@@ -398,6 +398,9 @@ function report(rows) {
   for (const [name, field] of LIBS) {
     console.log(`  ${padR(name, 16)} ${padL(totals[field], 9)}  over ${counts[field]} cases`);
   }
+
+  const declareOnly = rows.filter((row) => row.declareOnly).length;
+  if (declareOnly) console.log(`  (${declareOnly} rows declare-only: a form's type rejected the sample, so every form skipped it)`);
 
   // Fair head-to-head: only cases every form measured cleanly.
   const commonRows = rows.filter((row) => LIBS.every(([, f]) => row[f].status === 'ok'));

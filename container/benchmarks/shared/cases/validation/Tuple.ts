@@ -131,12 +131,11 @@ export const TUPLE = {
     }),
   },
   tuple_with_non_serializable: {
-    title: 'Tuple with a function slot (must be undefined)',
-    description:
-      "the serialization-suite TUPLES.tuple_with_non_serializable. Function-typed tuple members emit `v[i] === undefined` per the non-serializable handling. The function slot must be absent or explicitly undefined; any other value (a real function, a string, …) fails.",
+    title: 'Function slot',
+    description: "A function slot makes the whole tuple non-data, so mion's factory throws on first call.",
+    factoryThrows: true,
     getSamples: () => ({
-      // `[3]` is valid — v[1] is undefined which satisfies the
-      // `v[1] === undefined` check the function slot emits.
+      // `[3]` is valid: an absent function slot reads as undefined.
       valid: [[3, undefined], [3]],
       invalid: [
         [3, () => null],
