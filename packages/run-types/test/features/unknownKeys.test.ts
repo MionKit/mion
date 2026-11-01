@@ -279,8 +279,7 @@ describe('checkUnknowns — a container root the value does not match', () => {
   });
 });
 
-// Validate and the error list must agree. An array is an object whose index keys are enumerable keys, so an array
-// carrying every declared prop is rejected for its indices by both.
+// A non-empty array carrying every declared prop is rejected for its indices by validate and the error list alike.
 const flag: StrictFlat = {id: 1, name: 'a', active: true};
 const arrayWithProps = (extra: Record<string, unknown> = {}, items: unknown[] = [1]) => Object.assign(items, flag, extra);
 const extraKeys = Array.from({length: 12}, (_, i) => `x${i}`);
