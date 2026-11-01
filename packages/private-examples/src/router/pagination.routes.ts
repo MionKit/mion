@@ -9,7 +9,7 @@ declare function findProducts(
 ): {items: Product[]; total: number};
 
 const mion = createMionRouter({
-  // a key with no value yet: a factory returning an empty object makes initRoutes throw
+  // an empty object here makes initRoutes throw
   sharedDataFactory: (): {pagination?: Pagination} => ({pagination: undefined}),
 });
 

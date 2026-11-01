@@ -1,7 +1,7 @@
 import {createMionRouter, Routes} from '@mionjs/router';
 import {getSessionUser, type AuthUser} from './myAuth.ts';
 
-// its written return type is the type of ctx.shared (an inferred one would be only `null`)
+// an inferred return type would be only `null`
 const newSharedData = (): {me: AuthUser | null} => ({me: null});
 
 const mion = createMionRouter({sharedDataFactory: newSharedData});
