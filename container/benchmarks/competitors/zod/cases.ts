@@ -1,5 +1,5 @@
 import {z} from 'zod';
-import {type CompetitorCases} from '../../shared/harness/types.ts';
+import {NOT_SUPPORTED, type CompetitorCases} from '../../shared/harness/types.ts';
 
 // RunTypes' plain-object guard: an all-optional object type (and every index-signature node) accepts only an
 // ordinary object, never an array, a Date / Map / Set / RegExp or any other builtin instance. z.object alone only
@@ -211,18 +211,7 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  'ATOMIC.symbol': {
-    build: () => {
-      const schema = z.symbol();
-      const compiled = z.compile(schema);
-      return (value: unknown) => compiled.validate(value);
-    },
-    buildErrors: () => {
-      const schema = z.symbol();
-      const compiled = z.compile(schema);
-      return (value: unknown) => compiled.safeParse(value).success;
-    },
-  },
+  'ATOMIC.symbol': NOT_SUPPORTED, // no shared samples (factoryThrows): nothing to check
   'ATOMIC.undefined': {
     build: () => {
       const schema = z.undefined();
@@ -473,18 +462,7 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  'ARRAY.symbol_array': {
-    build: () => {
-      const schema = z.array(z.symbol());
-      const compiled = z.compile(schema);
-      return (value: unknown) => compiled.validate(value);
-    },
-    buildErrors: () => {
-      const schema = z.array(z.symbol());
-      const compiled = z.compile(schema);
-      return (value: unknown) => compiled.safeParse(value).success;
-    },
-  },
+  'ARRAY.symbol_array': NOT_SUPPORTED, // no shared samples (factoryThrows): nothing to check
   'ARRAY.readonly_string_array': {
     build: () => {
       const schema = z.array(z.string());
@@ -691,15 +669,16 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // index_signature_named_props: {a:string, b:number} + catchall of string|number for extra keys
+  // index_signature_named_props: the record is the index signature (plain-object guard + every value string | number);
+  // z.properties makes the named a / b required with their own types.
   'OBJECT.index_signature_named_props': {
     build: () => {
-      const schema = z.object({a: z.string(), b: z.number()}).catchall(z.union([z.string(), z.number()]));
+      const schema = z.record(z.string(), z.union([z.string(), z.number()])).check(z.properties({a: z.string(), b: z.number()}));
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.object({a: z.string(), b: z.number()}).catchall(z.union([z.string(), z.number()]));
+      const schema = z.record(z.string(), z.union([z.string(), z.number()])).check(z.properties({a: z.string(), b: z.number()}));
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -1273,7 +1252,6 @@ export const cases: CompetitorCases = {
           z.date(),
           z.number(),
           z.string(),
-          z.array(z.lazy(() => schema)),
           z
             .custom<{a?: unknown; b?: string}>(
               (value) =>
@@ -1281,6 +1259,7 @@ export const cases: CompetitorCases = {
                 ('a' in (value as object) || 'b' in (value as object) || Object.keys(value as object).length === 0)
             )
             .check(z.properties({a: z.lazy(() => schema).optional(), b: z.string().optional()})),
+          z.array(z.lazy(() => schema)),
         ]);
         return schema;
       });
@@ -1293,7 +1272,6 @@ export const cases: CompetitorCases = {
           z.date(),
           z.number(),
           z.string(),
-          z.array(z.lazy(() => schema)),
           z
             .custom<{a?: unknown; b?: string}>(
               (value) =>
@@ -1301,6 +1279,7 @@ export const cases: CompetitorCases = {
                 ('a' in (value as object) || 'b' in (value as object) || Object.keys(value as object).length === 0)
             )
             .check(z.properties({a: z.lazy(() => schema).optional(), b: z.string().optional()})),
+          z.array(z.lazy(() => schema)),
         ]);
         return schema;
       });
@@ -1333,13 +1312,13 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // union_with_index_arm: third arm is {c: bigint; [k: string]: bigint} → required c + catchall(bigint)
+  // union_with_index_arm: third arm {c: bigint; [k: string]: bigint} is a record (plain-object guard) + z.properties for c
   'UNION.union_with_index_arm': {
     build: () => {
       const schema = z.union([
         z.object({a: z.string(), aa: z.boolean()}),
         z.object({b: z.number()}),
-        z.object({c: z.bigint()}).catchall(z.bigint()),
+        z.record(z.string(), z.bigint()).check(z.properties({c: z.bigint()})),
       ]);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
@@ -1348,7 +1327,7 @@ export const cases: CompetitorCases = {
       const schema = z.union([
         z.object({a: z.string(), aa: z.boolean()}),
         z.object({b: z.number()}),
-        z.object({c: z.bigint()}).catchall(z.bigint()),
+        z.record(z.string(), z.bigint()).check(z.properties({c: z.bigint()})),
       ]);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
@@ -1414,15 +1393,16 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // union_mixed_with_index: string[] | {a,aa} | {b:number} | {a:string;[k]:string} | {[k]:bigint;b:bigint}
+  // union_mixed_with_index: string[] | {a,aa} | {b:number} | {a:string;[k]:string} | {[k]:bigint;b:bigint}; each index arm
+  // is a record (plain-object guard) + z.properties for its named key
   'UNION.union_mixed_with_index': {
     build: () => {
       const schema = z.union([
         z.array(z.string()),
         z.object({a: z.string(), aa: z.boolean()}),
         z.object({b: z.number()}),
-        z.object({a: z.string()}).catchall(z.string()),
-        z.object({b: z.bigint()}).catchall(z.bigint()),
+        z.record(z.string(), z.string()).check(z.properties({a: z.string()})),
+        z.record(z.string(), z.bigint()).check(z.properties({b: z.bigint()})),
       ]);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
@@ -1432,8 +1412,8 @@ export const cases: CompetitorCases = {
         z.array(z.string()),
         z.object({a: z.string(), aa: z.boolean()}),
         z.object({b: z.number()}),
-        z.object({a: z.string()}).catchall(z.string()),
-        z.object({b: z.bigint()}).catchall(z.bigint()),
+        z.record(z.string(), z.string()).check(z.properties({a: z.string()})),
+        z.record(z.string(), z.bigint()).check(z.properties({b: z.bigint()})),
       ]);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
@@ -1695,7 +1675,7 @@ export const cases: CompetitorCases = {
   'CIRCULAR.array_of_union_with_self_ref': {
     build: () => {
       const schema = z.lazy(() => {
-        const schema: z.ZodType = z.array(z.union([z.date(), z.number(), z.string(), z.lazy(() => schema)]));
+        const schema: z.ZodType = z.array(z.union([z.lazy(() => schema), z.date(), z.number(), z.string()]));
         return schema;
       });
       const compiled = z.compile(schema);
@@ -1703,7 +1683,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const schema = z.lazy(() => {
-        const schema: z.ZodType = z.array(z.union([z.date(), z.number(), z.string(), z.lazy(() => schema)]));
+        const schema: z.ZodType = z.array(z.union([z.lazy(() => schema), z.date(), z.number(), z.string()]));
         return schema;
       });
       const compiled = z.compile(schema);

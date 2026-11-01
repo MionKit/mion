@@ -28,8 +28,9 @@
 //     (ValidDate, `instanceof Temporal.X` + `compare`, PlainObject);
 //   - typia drops function members and methods from is / validate, as mion does;
 //   - CIRCULAR_REFS: typia ends its walk on a cycle (accepts it), so a root tag rejects it.
-// NOT_SUPPORTED (each entry carries its reason): symbol (typia emits no check), `never`
-// (accepts undefined), `object` (rejects arrays), and the cases mion refuses as non-data.
+// NOT_SUPPORTED (each entry carries its reason): a symbol literal and the two function cases (typia emits no
+// symbol / function check and no tag can target either), `never` (accepts undefined), and the two cases with no
+// shared samples.
 
 import typia, {tags} from 'typia';
 import {NOT_SUPPORTED, type CompetitorCases} from '../../shared/harness/types.ts';
@@ -151,7 +152,7 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
-  'ATOMIC.literal_symbol': NOT_SUPPORTED, // we match a symbol by its description; typia can't constrain symbol identity/description
+  'ATOMIC.literal_symbol': NOT_SUPPORTED, // typia emits no symbol check and no tag targets a symbol, so the description test has no place
   'ATOMIC.never': NOT_SUPPORTED, // typia is<never>() accepts undefined
   'ATOMIC.null': {
     build: () => {
@@ -173,7 +174,17 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
-  'ATOMIC.object': NOT_SUPPORTED, // typia is<object>() rejects arrays; the suite treats [] as a valid object
+  // TS `object` includes arrays; typia's `object` rejects them, so the array arm is spelled out
+  'ATOMIC.object': {
+    build: () => {
+      const check = typia.createIs<object | unknown[]>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      const val = typia.createValidate<object | unknown[]>();
+      return (v) => val(v).success;
+    },
+  },
   'ATOMIC.regexp': {
     build: () => {
       const check = typia.createIs<RegExp>();
@@ -194,7 +205,7 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
-  'ATOMIC.symbol': NOT_SUPPORTED, // typia has no symbol check (emits `true`, every value passes) and no tag can target symbol
+  'ATOMIC.symbol': NOT_SUPPORTED, // no shared samples (factoryThrows): nothing to check
   'ATOMIC.undefined': {
     build: () => {
       const check = typia.createIs<undefined>();
@@ -393,7 +404,7 @@ export const cases: CompetitorCases = {
       },
     };
   })(),
-  'ARRAY.symbol_array': NOT_SUPPORTED, // typia has no symbol check (each element emits `true`, any array passes) and no tag can target symbol
+  'ARRAY.symbol_array': NOT_SUPPORTED, // no shared samples (factoryThrows): nothing to check
   'ARRAY.readonly_string_array': {
     build: () => {
       const check = typia.createIs<ReadonlyArray<string>>();
@@ -626,8 +637,8 @@ export const cases: CompetitorCases = {
       },
     };
   })(),
-  'OBJECT.function_top_level': NOT_SUPPORTED, // typia transform emits invalid JS for the void return position of () => void
-  'OBJECT.interface_callable': NOT_SUPPORTED, // typia does not validate a callable interface as a function-with-props; rejects the valid function value
+  'OBJECT.function_top_level': NOT_SUPPORTED, // typia emits no check for a function type (`() => true`) and no tag targets a function
+  'OBJECT.interface_callable': NOT_SUPPORTED, // typia checks a callable interface as `typeof 'object'`, rejecting every function; no tag targets a function
   'OBJECT.interface_all_optional': {
     build: () => {
       const check = typia.createIs<{a?: string; b?: number} & PlainObject>();
@@ -892,7 +903,17 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
-  'TUPLE.tuple_with_non_serializable': NOT_SUPPORTED, // typia requires the function slot; we treat it as must-be-undefined (valid sample [3] omits it)
+  // the function slot must be `undefined`, like zod / TypeBox / ajv (an absent slot passes too)
+  'TUPLE.tuple_with_non_serializable': {
+    build: () => {
+      const check = typia.createIs<[number, undefined?]>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      const val = typia.createValidate<[number, undefined?]>();
+      return (v) => val(v).success;
+    },
+  },
   'TUPLE.empty_tuple': {
     build: () => {
       const check = typia.createIs<[]>();
@@ -1048,6 +1069,9 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
+  // No PlainObject on the index-signature arm: a tag on a union arm makes typia's createValidate run that arm with
+  // `_exceptionable = false`, which skips its index-value loop (`{c: 1n, d: 'hello'}` would pass). The shared samples
+  // do not need the guard, so typia runs this case without mion's toString test.
   'UNION.union_with_index_arm': {
     build: () => {
       const check = typia.createIs<{a: string; aa: boolean} | {b: number} | {c: bigint; [key: string]: bigint}>();
@@ -1092,6 +1116,9 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
+  // No PlainObject on each index-signature arm: a tag on a union arm makes typia's createValidate run that arm with
+  // `_exceptionable = false`, which skips its index-value loop (`{c: 1n, d: 'hello'}` would pass). The shared samples
+  // do not need the guard, so typia runs this case without mion's toString test.
   'UNION.union_mixed_with_index': {
     build: () => {
       const check = typia.createIs<
@@ -1261,13 +1288,14 @@ export const cases: CompetitorCases = {
   },
   // A Pattern tag on a string key covers every key, so a key outside `api/…` is rejected (a template-literal key
   // type would leave it as an accepted surplus key).
+  // PlainObject = mion's plain-object guard on the index-signature node.
   'TEMPLATE_LITERAL.template_literal_index_key': {
     build: () => {
-      const check = typia.createIs<{[key: string & tags.Pattern<'^api/'>]: number}>();
+      const check = typia.createIs<{[key: string & tags.Pattern<'^api/'>]: number} & PlainObject>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<{[key: string & tags.Pattern<'^api/'>]: number}>();
+      const val = typia.createValidate<{[key: string & tags.Pattern<'^api/'>]: number} & PlainObject>();
       return (v) => val(v).success;
     },
   },
@@ -1303,7 +1331,21 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
-  'NATIVE.promise_string': NOT_SUPPORTED, // typia does not validate Promise<T> as a thenable; rejects a real Promise
+  'NATIVE.promise_string': (() => {
+    // a thenable: an object whose `then` is a function, as an object tag (typia's Promise check rejects a thenable)
+    type Thenable = object &
+      tags.TagBase<{target: 'object'; kind: 'thenable'; value: undefined; validate: "typeof $input.then === 'function'"}>;
+    return {
+      build: () => {
+        const check = typia.createIs<Thenable>();
+        return (v) => check(v);
+      },
+      buildErrors: () => {
+        const val = typia.createValidate<Thenable>();
+        return (v) => val(v).success;
+      },
+    };
+  })(),
   'NATIVE.awaited_promise': {
     build: () => {
       const check = typia.createIs<Awaited<Promise<string>>>();
@@ -1477,18 +1519,20 @@ export const cases: CompetitorCases = {
     };
   })(),
   'CIRCULAR_REFS.tree_cycle': (() => {
-    // R6 root hook along `children[*]` only; see linked_list_cycle.
-    const hasCycle = (node: unknown, stack: object[]): boolean => {
-      if (node === null || typeof node !== 'object') return false;
+    // R6 root hook along `children[*]` only (ancestor stack + finished set, like mion's walker); see linked_list_cycle.
+    const hasCycle = (node: unknown, stack: object[], safe: Set<object>): boolean => {
+      if (node === null || typeof node !== 'object' || safe.has(node)) return false;
       if (stack.indexOf(node) !== -1) return true;
       const children = (node as {children?: unknown}).children;
-      if (!Array.isArray(children)) return false;
-      stack.push(node);
-      for (let i = 0; i < children.length; i++) if (hasCycle(children[i], stack)) return true;
-      stack.pop();
+      if (Array.isArray(children)) {
+        stack.push(node);
+        for (let i = 0; i < children.length; i++) if (hasCycle(children[i], stack, safe)) return true;
+        stack.pop();
+      }
+      safe.add(node);
       return false;
     };
-    type CycleFree = tags.TagBase<{target: 'object'; kind: 'cycleFree'; value: undefined; validate: '!hasCycle($input, [])'}>;
+    type CycleFree = tags.TagBase<{target: 'object'; kind: 'cycleFree'; value: undefined; validate: '!hasCycle($input, [], new Set())'}>;
     interface Node {
       label: string;
       children: Node[];
@@ -2505,18 +2549,20 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
+  // typia's own IPv4 octet rule (`_isFormatIpv4`) + a port of 1-5 digits <= 65535, leading zeros allowed like mion.
+  // Port required (stricter than mion, which accepts a missing port).
   'STRING_FORMAT.ipv4_port': {
     build: () => {
       const check = typia.createIs<
         string &
-          tags.Pattern<'^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]):(?:6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[1-5][0-9]{4}|[1-9][0-9]{0,3}|0)$'>
+          tags.Pattern<'^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]):(?:[0-9]{1,4}|[0-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$'>
       >();
       return (v) => check(v);
     },
     buildErrors: () => {
       const val = typia.createValidate<
         string &
-          tags.Pattern<'^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]):(?:6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[1-5][0-9]{4}|[1-9][0-9]{0,3}|0)$'>
+          tags.Pattern<'^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]):(?:[0-9]{1,4}|[0-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$'>
       >();
       return (v) => val(v).success;
     },
