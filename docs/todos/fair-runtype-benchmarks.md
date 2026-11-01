@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: full-plan
-status: ready
+status: done
 created: 2026-10-31
 ---
 
@@ -124,7 +124,7 @@ one slice keeps each context small; overrides (S2, S4) and reopened opt-outs (S5
 
 ### Step 5. Fair overall score (code)
 
-New rule in `container/website/app/utils/benchAggregate.ts`, every aggregate row, every metric:
+New rule in `container/website/app/utils/benchAggregate.ts` (shipped as `benchAggregate.js`, see What Shipped), every aggregate row, every metric:
 
 - Basis = every case at least one library supports (not the common set).
 - A library that does not support a case, or fails it, scores that case at the WORST result among the
@@ -189,7 +189,7 @@ fix: <the exact new entry, or NOT_SUPPORTED + reason>
 
 ## Tests
 
-- New `packages/devtools/test/bench-aggregate.test.ts`, importing the website util directly like
+- New `packages/devtools/test/bench-aggregate.test.ts`, importing the website util directly (the util moved to plain JS for that) like
   `packages/devtools/test/mion-bench-wire.test.ts:18`: a case only one library runs leaves every ratio
   unchanged; a missing case takes the worst value (lowest ops, highest count); a case nobody runs drops
   out; `fail` counts as missing; Overall and section rows use the same rule.
@@ -228,3 +228,32 @@ this change touched, review its report against the code, and commit it as its ow
 - README rules section, alignment report and website intros updated.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source
   file, each committed on its own.
+
+## What Shipped
+
+Built as planned, with these differences and additions:
+
+- **Scoring util is plain JS.** `benchAggregate.ts` became `benchAggregate.js` typed in JSDoc: the site's
+  tsconfig only exists in its image, so a host test could not load a `.ts` util from there (same precedent as
+  `serverBenchRows.js`). `rowMeans` replaces `commonBasis` + `geomeanOver`; `pr-report.mjs` ranks with it.
+  `BenchTable.vue` now passes lower-is-better per metric (a bytes metric inside an ops bench was filled with the
+  best value).
+- **Measuring code fixed (harness review).** `benchOps` read the clock once per pass and most cases have 1-2
+  samples, so a ~50 ns clock read dominated and squeezed fast libraries together. It now reads the clock once
+  per >= 1000 calls, keeps every result in a sink, and compiles a fresh loop per stream (one shared call site
+  went megamorphic). A case with no samples is `not-supported`, not `ok`.
+- **Shared cases.** 7 cases mion refuses as non-data now carry mion's current title, description and
+  `factoryThrows`; competitors still run them where they can. The cycle-cases header and the slug message were
+  stale.
+- **Entries.** All four competitor files were rewritten by per-library fixers, then aligned by one consistency
+  pass. Library-wide settings: TypeBox `maxErrors: Infinity`, ajv default strict mode (its `strict: false`
+  silently disabled the finite-number check), typia `finite: true`. Every `samples` override is gone (ajv 27,
+  typia 48, TypeBox 3). Final coverage per library: zod 270, TypeBox 270, ajv 270, typia 266 of 272.
+- **Side benches.** Beyond the plan: compiletime's typia full tier never ran its transform (`noEmit` in the
+  base config), now fixed; mion's full tier runs as its own process like typia's. typecost's builder baseline
+  called a builder that does not exist.
+- **typia build.** `stripReturnPredicates` read a nested function type's `=>` as a closing bracket.
+- **mion bugs found and delegated** (own todos, own sessions, own PRs, merged before this one): strict
+  unknown-key check bugs; date / UUID / IP-with-port formats accepting invalid values; Temporal bounds
+  re-parsed per call. Competitors keep the correct stricter checks meanwhile.
+- **Review working files** lived in `container/benchmarks/_review/` and were deleted before merge.
