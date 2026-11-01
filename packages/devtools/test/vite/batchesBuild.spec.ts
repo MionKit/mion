@@ -39,7 +39,9 @@ const CLIENT_DTS = `declare module '@mionjs/client' {
 `;
 const ROUTER_DTS = `declare module '@mionjs/router' {
   export function createMionRouter(opts?: unknown): {initRoutes: (routes: unknown) => unknown};
-  export function createMionRouter: (opts?: unknown) => {initRoutes: (routes: unknown) => unknown};
+  export namespace createMionRouter {
+    function withTypes<T = {}>(): (opts?: unknown) => {initRoutes: (routes: unknown) => unknown};
+  }
   export function replaceBatches(table: unknown): void;
 }
 declare module '@mionjs/core' {
@@ -64,7 +66,7 @@ export const mion = createMionRouter();
 export const api = mion.initRoutes({});
 `;
 const ROUTER_STUB = `export const createMionRouter = () => ({initRoutes: () => ({})});
-export const createMionRouter = () => createMionRouter;
+createMionRouter.withTypes = () => createMionRouter;
 export const replaceBatches = (table) => { globalThis.__table = table; };
 `;
 const CORE_STUB = `export const registerInputMapperTuple = (key, tuple) => { (globalThis.__mappers ??= {})[key] = tuple; };
@@ -174,11 +176,11 @@ register('batch transport through a real vite build', () => {
     expect(String(tuple[5])).toContain(MAPPER_BODY);
   });
 
-  it('runs: a router created through createMionRouter in its own module still registers the batch table', async () => {
-    // the types module calls createMionRouter, so the batch import lands there; the server only calls the factory
+  it('runs: a router typed with createMionRouter.withTypes in its own module still registers the batch table', async () => {
+    // the module calling withTypes gets the batch import; the server only calls the returned factory
     writeFileSync(
       path.join(root, 'src', 'appRouter.ts'),
-      "import {createMionRouter} from '@mionjs/router';\nexport const createAppRouter = createMionRouter.withTypes<{handler: {cors?: false}}>()();\n"
+      "import {createMionRouter} from '@mionjs/router';\nexport const createAppRouter = createMionRouter.withTypes<{handler: {cors?: false}}>();\n"
     );
     writeFileSync(
       path.join(root, 'src', 'server.ts'),
