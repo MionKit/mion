@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: guidelines
-status: ready
+status: done
 created: 2026-10-31
 ---
 
@@ -142,15 +142,9 @@ expose lists, the same as listing them in `cors.excludeHeaders`, and winning ove
 
 ## Open questions
 
-The implementer resolves this with the user while planning.
-
-1. **Security's per-chain cache.** On a chain's first request, `mionSecurity` builds four values from all the
-   chain's members (accepted HTTP methods, the allow and expose header strings, the allowed methods) and keeps
-   them in its own module-level `WeakMap`, keyed by the chain (`chainRules` + `describeChain` in `security.ts`).
-   Not a copy of the routes, but middleware state kept beside the router's data. Choices: keep it; the router
-   gives a middleware a slot on the chain itself (`MethodsExecutionChain` in `remoteMethods.ts`); or a startup
-   step builds it per chain (startup time). Related, since `describeChain` is what `cors: false` changes:
-   settle it in this change.
+1. **Security's per-chain cache.** Settled with the user: kept, keyed by the chain object (`WeakMap`). Not-found and
+   merged batch chains carry no route id, an identity lookup builds no key per request, and an entry dies with its
+   chain instead of outliving `resetRouter`.
 
 ## Docs
 
@@ -203,3 +197,27 @@ this change touched, review its report against the code, and commit it as its ow
   security `cors: false`; Go router init, apimeta, apigen, api version; devtools batch build; type budget.
 - **Docs**: middleware, security, call-context, linter pages; examples move to `customMionRouter`.
 - **Fuzzing**: none, no input space with a cheap oracle.
+
+## Shipped (reconciled 2026-10-31)
+
+Built as planned, with these differences found while building:
+
+- **Unknown keys.** Router options: `KnownKeysOf<O, T>` in the factory's constraint. Handler options: a guard inside
+  `NoInfer<...>` on the parameter. Both stay out of inference: written as plain intersections they cost about 200
+  type instantiations per router in the `type-budget` route step. The error names the key:
+  `Type 'false' is not assignable to type 'UnknownOptionKey<"corz">'`.
+- **Route option constraint.** Handler options take `RO extends object` and are checked through the parameter, so
+  no per-router default has to meet a conditional constraint. Definitions (`RouteDef` and siblings) take
+  `RO extends object` too, and the router tree holds `AnyRouteDef` / `AnyMiddlewareDef` / `AnyHeadersMiddlewareDef`:
+  a literal of only added keys (`{cors: false}`) shares no key with mion's own options.
+- **`contextDataFactory` is required** on a custom factory with a `shared` part. A custom factory without one is a
+  pair of overloads (no options, or options), since a default `O` cannot be proven to meet a constraint reading `O`.
+- **Factory type cost.** `contextDataFactory` is dropped from the options the helpers carry (`CarriedOptions`), so
+  `PublicApi` never reads it. The claim that an explicit `shared` type alone keeps an inferred database off the
+  client is only half true: a client still infers the whole options literal to type the router, factory return
+  included. The cheap form is `shared: {db: unknown}` with the factory return written as `{db: unknown}`
+  (`packages/private-drizzle-example-app/reports/context-type-cost.md`); the linter page says so.
+- **Client metadata.** Core `RemoteMethodOpts` gained an index signature: the `clone` codec of `mionFetchMetadata`
+  dropped undeclared keys both ways.
+- **`PublicHandler`** matches `(ctx: any, ...)`: a handler whose `ctx.shared` is `never` lost its client type.
+- **Error text test** lives in `packages/private-type-budget/test/routerOptionKeys.test.ts`, which compiles snippets.

@@ -4,7 +4,7 @@
 
 - RunTypes resolves types at BUILD TIME from the TS program.
 - Injects compiled functions at the `mion.route()` / `mion.middleware()` call site → erased import changes nothing.
-- Those helpers come from `createMionRouter()`.
+- Those helpers come from the router factory (`createMionRouter`, or what `customMionRouter` returns).
 - Scanner reads the resolved signature: a destructured helper works the same.
 - Guarded by [test/typeOnlyImports.spec.ts](test/typeOnlyImports.spec.ts).
 - Never add a rule or warning against `import type` here.
@@ -16,10 +16,14 @@
 
 ## One router factory
 
-- `createMionRouter(opts)` ([src/router.ts](src/router.ts), types [src/types/mionRouter.ts](src/types/mionRouter.ts)):
-  ONLY public way to init the router and declare routes / middleware.
-- Options written once, ride by type (`O`) into every helper.
-- `ctx.shared` is typed from `contextDataFactory`.
+- `createMionRouter(opts)` ([src/router.ts](src/router.ts), types [src/types/mionRouter.ts](src/types/mionRouter.ts)),
+  or the factory `customMionRouter<Types>()` returns: ONLY public way to init the router and declare routes / middleware.
+- Options written once, ride by type (`O`) into every helper; the declared types (`T`) ride beside them.
+- `ctx.shared` is typed from the `shared` part, `never` without one. `contextDataFactory` is refused on plain
+  `createMionRouter`, and dropped from the options a route carries, so `PublicApi` never reads it.
+- `handler` keys reach every handler's runtime `options` and the client metadata; `router` keys reach `getRouterOptions()`.
+- Unknown keys fail through `KnownKeysOf` in the factory's constraint and a `NoInfer` guard on handler options:
+  both kept out of inference, the cost the type budget tracks.
 - Router-wide `parser` reaches what the build compiles for a route naming none.
 - Runtime still the module singleton.
   `mion.initRoutes(routes)` runs private `initRouter` + `registerRoutes` in `src/router.ts`.
@@ -27,7 +31,7 @@
 - Helper bodies in [src/lib/handlers.ts](src/lib/handlers.ts) are internal, NOT exported from `index.ts`.
   (mion's own middlewares and its error / serializer routes use them directly.)
 - Never re-add bare `route()` exports or a second init entry point.
-- Second `createMionRouter()` throws until `resetRouter()` clears it: catches a second app built on top of the first.
+- Second router factory call throws until `resetRouter()` clears it: catches a second app built on top of the first.
 - Vitest tests may build it at module level: each file gets its own modules, so no sibling sees the flag.
 - bun tests (`packages/platform-bun`): call it in `beforeEach` / `beforeAll` next to the reset, never where the
   file is evaluated.
