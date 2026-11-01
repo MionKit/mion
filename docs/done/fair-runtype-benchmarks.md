@@ -253,7 +253,7 @@ Built as planned, with these differences and additions:
 - **Entries.** All four competitor files were rewritten by per-library fixers, then aligned by one consistency
   pass. Library-wide settings: TypeBox `maxErrors: Infinity`, ajv default strict mode (its `strict: false`
   silently disabled the finite-number check), typia `finite: true`. Every `samples` override is gone (ajv 27,
-  typia 49, TypeBox 3). Final coverage per library: zod 270, TypeBox 270, ajv 270, typia 266 of 272.
+  typia 49, TypeBox 3). Final coverage per library: zod 270, TypeBox 270, ajv 270, typia 264 of 272.
 - **Side benches.** Beyond the plan: compiletime's typia full tier never ran its transform (`noEmit` in the
   base config), now fixed; mion's full tier runs as its own process like typia's. typecost's builder baseline
   called a builder that does not exist.
