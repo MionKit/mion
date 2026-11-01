@@ -19,7 +19,7 @@ import type {MiddlewareOptions, RouteOptions} from './remoteMethods.ts';
 type Named<Opts, K extends PropertyKey> = Opts extends {[P in K]: infer V} ? V : undefined;
 type PickRouteOrRouter<RouteValue, RouterValue> = [RouteValue] extends [undefined] ? RouterValue : RouteValue;
 
-/** The keys a `customMionRouter` `handler` part added that the method wrote: an optional one is a key it did not. */
+/** The keys a `createMionRouter` `handler` part added that the method wrote: an optional one is a key it did not. */
 type AddedKeys<Opts, Known extends PropertyKey> = {
   [Key in Exclude<keyof Opts, Known>]: Record<never, never> extends Pick<Opts, Key> ? never : Key;
 }[Exclude<keyof Opts, Known>];

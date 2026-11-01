@@ -173,8 +173,8 @@ type Response struct {
 	// BatchesModule is the absolute path of `<OutDir>/rpc/batches.generated.js` when OpGenerate wrote one, empty
 	// otherwise. The host uses it to know the module appeared or vanished; it never parses the file.
 	BatchesModule string `json:"batchesModule,omitempty"`
-	// RouterInitFiles lists the files calling `createMionRouter` or `customMionRouter`, where the transform appends the
-	// batch import. A dev host re-transforms them when BatchesModule first appears after they loaded without it.
+	// RouterInitFiles lists the program files calling `createMionRouter`, the modules the transform appends the
+	// batch import to. A dev host re-transforms them when BatchesModule first appears after they loaded without it.
 	RouterInitFiles []string `json:"routerInitFiles,omitempty"`
 	// DowngradeErrors echoes the tsconfig's downgradeErrors on OpGenerate and OpScanFiles for a dependency-free host;
 	// the host's own option wins. A list of codes or the single wildcard "*". Emitted via MarshalJSON.

@@ -1,5 +1,5 @@
 import {
-  customMionRouter,
+  createMionRouter,
   Routes,
   type MionSecurityHandlerOptions,
 } from '@mionjs/router';
@@ -8,11 +8,10 @@ import {HeadersSubset} from '@mionjs/core';
 
 type AuditHandlerOptions = {audit?: 'log' | 'skip'};
 
-// once per app: every handler now takes the keys of both middlewares
-export const createAppRouter = customMionRouter<{
+// every handler now takes the keys of both middlewares
+const mion = createMionRouter.withTypes<{
   handler: MionSecurityHandlerOptions & AuditHandlerOptions;
-}>();
-const mion = createAppRouter();
+}>()();
 
 const routes = {
   security: mionSecurity({origins: ['https://app.example.com'], cors: {}}),

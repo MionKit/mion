@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {expect, test, beforeAll, afterAll, describe, setDefaultTimeout} from 'bun:test';
-import {createMionRouter, customMionRouter, resetRouter, addStartMiddlewares, addEndMiddlewares} from '@mionjs/router';
+import {createMionRouter, resetRouter, addStartMiddlewares, addEndMiddlewares} from '@mionjs/router';
 import {setBunHttpOpts, resetBunHttpOpts, startBunServer, bunRequestHandler} from '../src/bunHttp.ts';
 import {CallContext} from '@mionjs/router';
 import {MION_ROUTES, PublicRpcError, StatusCodes} from '@mionjs/core';
@@ -31,14 +31,14 @@ describe('bun router should', () => {
       changeUserName: (user: SimpleUser) => ({name: 'NewName', surname: user.surname}),
     },
   };
-  const getSharedData = () => ({auth: {me: null as any}});
+  const getSharedData = (): {auth: {me: any}} => ({auth: {me: null}});
 
   // Called from beforeAll, not the describe body: bun evaluates every body before any hook, in one process.
   // A router built in the body sets the once-guard the other test file then hits, skipping that whole file.
   const buildApp = () => {
     resetBunHttpOpts();
-    const mion = customMionRouter<{shared: MySharedData}>()({
-      contextDataFactory: getSharedData,
+    const mion = createMionRouter({
+      sharedDataFactory: getSharedData,
       basePath: 'api/',
       alwaysAwait: false,
     });
@@ -235,7 +235,7 @@ describe('bun router should', () => {
 
     const testPort = 8081;
     resetBunHttpOpts();
-    const jsonRouter = customMionRouter<{shared: MySharedData}>()({contextDataFactory: getSharedData, basePath: 'api/'});
+    const jsonRouter = createMionRouter({sharedDataFactory: getSharedData, basePath: 'api/'});
     jsonRouter.initRoutes({changeUserName: app.routes.changeUserName, getDate: app.routes.getDate});
     setBunHttpOpts({port: testPort});
     const testServer = await startBunServer();
@@ -266,7 +266,7 @@ describe('bun router should', () => {
 
     const testPort = 8081;
     resetBunHttpOpts();
-    const jsonRouter = customMionRouter<{shared: MySharedData}>()({contextDataFactory: getSharedData, basePath: 'api/'});
+    const jsonRouter = createMionRouter({sharedDataFactory: getSharedData, basePath: 'api/'});
     jsonRouter.initRoutes({changeUserName: app.routes.changeUserName, getDate: app.routes.getDate});
     setBunHttpOpts({port: testPort});
     const testServer = await startBunServer();

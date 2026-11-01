@@ -26,6 +26,10 @@ const (
 	// Reports the DECLARATION, so it fires for types no route reaches yet. Args: [0] the property
 	// name.
 	CodeRouteUnsafePropertyName = "rpc-handler-non-data-property"
+	// CodeRouteSharedFactoryUntyped: a router's `sharedDataFactory` with no written return type. `ctx.shared` is that
+	// return type, and a client types the router by inferring the whole options literal, so an inferred return makes
+	// every client compute it (a whole database type). Works at runtime, hence a warning. No args.
+	CodeRouteSharedFactoryUntyped = "rpc-handler-shared-factory-untyped"
 )
 
 func init() {
@@ -35,6 +39,7 @@ func init() {
 		{Code: CodeRouteThrowInHandler, Family: FamilyMionRoute, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "mion handlers return errors, they never throw them"},
 		{Code: CodeRouteReturnedErrorType, Family: FamilyMionRoute, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "mion handler answers with an error that is not an `RpcError`"},
 		{Code: CodeRouteUnsafePropertyName, Family: FamilyMionRoute, Level: LevelWarning, Scope: ScopeGraph, Title: "Property named `__proto__` can never be data and is dropped"},
+		{Code: CodeRouteSharedFactoryUntyped, Family: FamilyMionRoute, Level: LevelWarning, Scope: ScopeNotSource, Title: "`sharedDataFactory` has no written return type"},
 	} {
 		register(definition)
 	}

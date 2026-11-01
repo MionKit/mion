@@ -7,7 +7,7 @@
 
 import {describe, it, expect, expectTypeOf, beforeEach} from 'vitest';
 import {getPublicApi, serializeMethodDeps} from '../../src/lib/remoteMethods.ts';
-import {customMionRouter, resetRouter} from '../../src/router.ts';
+import {createMionRouter, resetRouter} from '../../src/router.ts';
 import {CallContext} from '../../src/types/context.ts';
 import {Routes} from '../../src/types/general.ts';
 import {MiddlewareMethod, RouteMethod} from '../../src/types/remoteMethods.ts';
@@ -19,8 +19,8 @@ import type {InitializedTypeFn} from '@mionjs/run-types';
 
 const shared = {auth: {me: null as any}};
 const getSharedData = (): typeof shared => shared;
-const mion = customMionRouter<{shared: ReturnType<typeof getSharedData>}>()({
-  contextDataFactory: getSharedData,
+const mion = createMionRouter({
+  sharedDataFactory: getSharedData,
   getPublicRoutesData: true,
 });
 
@@ -53,8 +53,8 @@ describe('Public Methods should', () => {
   beforeEach(() => resetRouter());
 
   it('not generate public data when  generateSpec = false', async () => {
-    const publicExecutables = customMionRouter<{shared: ReturnType<typeof getSharedData>}>()({
-      contextDataFactory: getSharedData,
+    const publicExecutables = createMionRouter({
+      sharedDataFactory: getSharedData,
       getPublicRoutesData: false,
     }).initRoutes(routes);
 
@@ -222,8 +222,8 @@ describe('Public Methods should', () => {
       auth: paramsMiddleware,
       route1,
     };
-    const api = customMionRouter<{shared: ReturnType<typeof getSharedData>}>()({
-      contextDataFactory: getSharedData,
+    const api = createMionRouter({
+      sharedDataFactory: getSharedData,
       getPublicRoutesData: true,
       basePath: 'v1',
       suffix: '.json',

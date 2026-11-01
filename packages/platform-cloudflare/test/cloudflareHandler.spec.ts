@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect, beforeAll} from 'vitest';
-import {customMionRouter} from '@mionjs/router';
+import {createMionRouter} from '@mionjs/router';
 import {createCloudflareHandler, resetCloudflareHandlerOpts, setCloudflareHandlerOpts} from '../src/cloudflareHandler.ts';
 import type {CallContext, Route} from '@mionjs/router';
 import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
@@ -29,8 +29,8 @@ describe('cloudflare handler', () => {
       changeUserName: (user: SimpleUser) => ({name: 'NewName', surname: user.surname}),
     },
   };
-  const getSharedData = () => ({auth: {me: null as any}});
-  const mion = customMionRouter<{shared: MySharedData}>()({contextDataFactory: getSharedData, basePath: 'api/'});
+  const getSharedData = (): {auth: {me: any}} => ({auth: {me: null}});
+  const mion = createMionRouter({sharedDataFactory: getSharedData, basePath: 'api/'});
 
   const changeUserName: Route = mion.route((ctx: Context, user: SimpleUser): SimpleUser => {
     return myApp.db.changeUserName(user);
@@ -137,7 +137,7 @@ describe('cloudflare handler', () => {
     beforeAll(async () => {
       resetCloudflareHandlerOpts();
       setCloudflareHandlerOpts({basePath: ''});
-      const jsonRouter = customMionRouter<{shared: MySharedData}>()({contextDataFactory: getSharedData, basePath: 'api/'});
+      const jsonRouter = createMionRouter({sharedDataFactory: getSharedData, basePath: 'api/'});
       jsonRouter.initRoutes({changeUserName, getDate});
       handler = createCloudflareHandler();
     });

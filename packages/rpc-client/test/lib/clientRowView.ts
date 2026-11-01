@@ -35,7 +35,7 @@ const MION_OPTION_KEYS = new Set(
   >)
 );
 
-/** The keys a `customMionRouter` `handler` part added, so parity sees one missing from a bundled row. */
+/** The keys a `createMionRouter` `handler` part added, so parity sees one missing from a bundled row. */
 function addedOptionsOf(options: MethodWithOptions['options'] | undefined) {
   const added = Object.entries(options ?? {}).filter(([key]) => !MION_OPTION_KEYS.has(key));
   return added.length ? Object.fromEntries(added) : undefined;

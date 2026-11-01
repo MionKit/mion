@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect, beforeEach} from 'vitest';
-import {createMionRouter, customMionRouter, resetRouter, getRouteExecutable, getMiddlewareExecutable} from '../src/router.ts';
+import {createMionRouter, resetRouter, getRouteExecutable, getMiddlewareExecutable} from '../src/router.ts';
 import {dispatchRoute} from '../src/dispatch.ts';
 import type {Email, Transform} from '@mionjs/run-types/formats';
 import {CallContext, MionHeaders} from '../src/types/context.ts';
@@ -18,7 +18,7 @@ import {findMionQueryParam} from '../src/lib/urlQuery.ts';
 
 const shared = {auth: {me: null as any}};
 const getSharedData = (): typeof shared => shared;
-const mion = customMionRouter<{shared: ReturnType<typeof getSharedData>}>()({contextDataFactory: getSharedData});
+const mion = createMionRouter({sharedDataFactory: getSharedData});
 
 type RawRequest = {
   headers: MionHeaders;
@@ -296,14 +296,14 @@ describe('Dispatch routes', () => {
         ...getDefaultRequest(routeId, []),
       };
       const options = {
-        contextDataFactory: getSharedData,
+        sharedDataFactory: getSharedData,
         pathTransform: (req, path: string): string => {
           const rPath = path.replace(`${options.basePath}/`, `${options.basePath}/${req.method.toLowerCase()}`);
           return rPath;
         },
         basePath: 'api/v1',
       };
-      customMionRouter<{shared: ReturnType<typeof getSharedData>}>()(options).initRoutes({
+      createMionRouter(options).initRoutes({
         getHello: mion.route((): string => 'hello'), // GET api/v1/Hello
       });
 
@@ -312,8 +312,8 @@ describe('Dispatch routes', () => {
     });
 
     it('dispatch routes with prefix', async () => {
-      customMionRouter<{shared: ReturnType<typeof getSharedData>}>()({
-        contextDataFactory: getSharedData,
+      createMionRouter({
+        sharedDataFactory: getSharedData,
         basePath: 'api/v1',
       }).initRoutes({changeUserName});
 
@@ -332,8 +332,8 @@ describe('Dispatch routes', () => {
     });
 
     it('return not-found for route without prefix when prefix is configured', async () => {
-      customMionRouter<{shared: ReturnType<typeof getSharedData>}>()({
-        contextDataFactory: getSharedData,
+      createMionRouter({
+        sharedDataFactory: getSharedData,
         basePath: 'api/v1',
       }).initRoutes({changeUserName});
 
@@ -372,7 +372,7 @@ describe('Dispatch routes', () => {
 
   describe('fail path should', () => {
     it('return an error if no route is found', async () => {
-      customMionRouter<{shared: ReturnType<typeof getSharedData>}>()({contextDataFactory: getSharedData}).initRoutes({
+      createMionRouter({sharedDataFactory: getSharedData}).initRoutes({
         changeUserName,
       });
 

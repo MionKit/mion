@@ -21,7 +21,7 @@ import type {Server} from 'node:http';
 import {runFuzzLoop, type FuzzLoopResult} from '../../../../run-types/test/fuzz/core/runLoop.ts';
 import {mulberry32} from '../../../../run-types/test/fuzz/core/seededRng.ts';
 import {
-  customMionRouter,
+  createMionRouter,
   resetRouter,
   getRouteExecutionChain,
   setPlatformConfig,
@@ -39,7 +39,7 @@ import {compactTestRoutes} from '@mionjs/test-server';
 
 // the test-server fixture module already created its own factory at import: clear the once-guard first
 resetRouter();
-const mion = customMionRouter<{shared: {user: null}}>()({contextDataFactory: () => ({user: null})});
+const mion = createMionRouter({sharedDataFactory: (): {user: null} => ({user: null})});
 
 // ############# oracles #############
 

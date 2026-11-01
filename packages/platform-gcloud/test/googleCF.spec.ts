@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
-import {createMionRouter, customMionRouter, resetRouter, addStartMiddlewares, addEndMiddlewares} from '@mionjs/router';
+import {createMionRouter, resetRouter, addStartMiddlewares, addEndMiddlewares} from '@mionjs/router';
 import {googleCFHandler, resetGoogleCFOpts, setGoogleCFOpts} from '../src/googleCF.ts';
 import type {CallContext, Route} from '@mionjs/router';
 import {MION_ROUTES, PublicRpcError, StatusCodes} from '@mionjs/core';
@@ -36,8 +36,8 @@ describe('serverless router', () => {
       changeUserName: (user: SimpleUser) => ({name: 'NewName', surname: user.surname}),
     },
   };
-  const getSharedData = () => ({auth: {me: null as any}});
-  const mion = customMionRouter<{shared: MySharedData}>()({contextDataFactory: getSharedData, basePath: 'api/'});
+  const getSharedData = (): {auth: {me: any}} => ({auth: {me: null}});
+  const mion = createMionRouter({sharedDataFactory: getSharedData, basePath: 'api/'});
 
   const changeUserName: Route = mion.route((ctx: Context, user: SimpleUser): SimpleUser => {
     return myApp.db.changeUserName(user);
@@ -205,7 +205,7 @@ describe('serverless router', () => {
     beforeAll(async () => {
       resetGoogleCFOpts();
       resetRouter();
-      const jsonRouter = customMionRouter<{shared: MySharedData}>()({contextDataFactory: getSharedData, basePath: 'api/'});
+      const jsonRouter = createMionRouter({sharedDataFactory: getSharedData, basePath: 'api/'});
       jsonRouter.initRoutes({changeUserName, getDate});
       server2 = await initServer2(port2);
     });

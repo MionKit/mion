@@ -198,146 +198,34 @@ this change touched, review its report against the code, and commit it as its ow
 - **Docs**: middleware, security, call-context, linter pages; examples move to `customMionRouter`.
 - **Fuzzing**: none, no input space with a cheap oracle.
 
-## Shipped (reconciled 2026-10-31)
+## Shipped (reconciled 2026-11-01)
 
-Built as planned, with these differences found while building:
+The settled design changed during review with the user. What shipped:
 
+- **`createMionRouter.withTypes<{router, handler}>()`**, not `customMionRouter`. It returns `createMionRouter` typed by
+  the declared keys, a pattern agents know (Redux Toolkit `.withTypes`, zustand `create<T>()(...)`), and keeps one
+  init name. `createMionRouter<Types>(opts)` stays impossible: an explicit type argument stops the options literal
+  from being inferred, so the router-wide `parser` is lost. A spread form (`...extendRouter<T>()` into the options)
+  was prototyped and works, but no library uses it, so agents would not write it from memory.
+- **No `shared` part. `contextDataFactory` is renamed `sharedDataFactory`** (it builds `ctx.shared`), and plain
+  `createMionRouter` accepts it again. `ctx.shared` is its return type, `never` without a factory.
+- **The premise of part 3 was half wrong.** A declared `shared` type does not stop the cost: a client types the router
+  by inferring the whole options literal, so a factory with no written return type is computed from its body before
+  any declared type is compared. Only a written return type avoids it (measured: 14,737 vs 2,437 client
+  instantiations, `packages/private-drizzle-example-app/reports/context-type-cost.md`). So the lint rule the spec
+  discarded ships: `rpc-handler-shared-factory-untyped` (warning) reports a `sharedDataFactory` with no written return.
 - **Unknown keys.** Router options: `KnownKeysOf<O, T>` in the factory's constraint. Handler options: a guard inside
-  `NoInfer<...>` on the parameter. Both stay out of inference: written as plain intersections they cost about 200
-  type instantiations per router in the `type-budget` route step. The error names the key:
-  `Type 'false' is not assignable to type 'UnknownOptionKey<"corz">'`.
-- **Route option constraint.** Handler options take `RO extends object` and are checked through the parameter, so
-  no per-router default has to meet a conditional constraint. Definitions (`RouteDef` and siblings) take
-  `RO extends object` too, and the router tree holds `AnyRouteDef` / `AnyMiddlewareDef` / `AnyHeadersMiddlewareDef`:
-  a literal of only added keys (`{cors: false}`) shares no key with mion's own options.
-- **`contextDataFactory` is required** on a custom factory with a `shared` part. A custom factory without one is a
-  pair of overloads (no options, or options), since a default `O` cannot be proven to meet a constraint reading `O`.
-- **Factory type cost.** The claim that an explicit `shared` type alone keeps an inferred database off the client is
-  only half true: a client infers the whole options literal to type the router, factory return included. The cheap
-  form is `shared: {db: unknown}` with the factory return written as `{db: unknown}`
-  (`packages/private-drizzle-example-app/reports/context-type-cost.md`); the linter page says so. Dropping
-  `contextDataFactory` from the options the helpers carry was tried and removed: it saved nothing measurable and cost
-  the drizzle boundary test its margin.
-- **Client metadata.** `getSerializableMethod` (`packages/rpc-router/src/lib/remoteMethods.ts`) sends a
-  handler's `options` object as is, so carried keys reach the client with no extra step. The client API types
-  need the change: `ResolvedRouteOptions` / `ResolvedMiddlewareOptions`
-  (`packages/rpc-router/src/types/resolvedOptions.ts`) list fixed keys today; add the `handler` keys with the
-  literal each route wrote. The build reads options off those types (`readOptions` in
-  `ts-go-runtypes/internal/compiler/apimeta/tree.go`), so a build-compiled client gets them too; Go-test it.
-  This resolved type is paid per route: include it in the type-cost measure.
-- **Raw middlewares.** `RawMiddlewareOptions` (a `Pick` in `remoteMethods.ts`) takes the `handler` keys as well.
-  Raw middlewares never reach the client, so only the server reads them.
-
-### 2. `cors: false` as a handler option
-
-A route or middleware with `{cors: false}` keeps all its declared headers off `mionSecurity`'s CORS allow and
-expose lists, the same as listing them in `cors.excludeHeaders`, and winning over `allowHeaders` and
-`exposeHeaders`. The headers are still sent. The lists are built per chain in `describeChain`
-(`packages/rpc-router/src/middlewares/security.ts`). `MionSecurityHandlerOptions` is exported beside
-`mionSecurity`.
-
-### 3. Move the `ctx.shared` type into the `shared` part
-
-- `customMionRouter<{shared: S}>()` types `ctx.shared` in every helper, and `contextDataFactory` in the
-  returned factory's options is checked against `() => S`, never inferred.
-- **Plain `createMionRouter` stops accepting `contextDataFactory`: the key is typed `never` there**, so passing
-  it without `customMionRouter` is a type error. `ContextDataOf<O>` inference
-  (`packages/rpc-router/src/types/mionRouter.ts`) goes away, with no fallback or hint (root AGENTS.md: a removed
-  thing leaves no trace).
-- Without a `shared` part, `ctx.shared` is `never` (today `any`), on `createMionRouter` and on a
-  `customMionRouter` that names none.
-- Why: an explicit type is cheaper to check than one inferred from the factory's body, a known cost when that
-  body builds an inferred Drizzle database. With the type required by design, no lint rule forcing an explicit
-  return type on `contextDataFactory` is needed.
-- Wide change: `contextDataFactory` appears about 138 times in 46 files (tests, `packages/private-examples`,
-  website pages). All move to `customMionRouter`.
-
-## Open questions
-
-1. **Security's per-chain cache.** Settled with the user: kept, keyed by the chain object (`WeakMap`). Not-found and
-   merged batch chains carry no route id, an identity lookup builds no key per request, and an entry dies with its
-   chain instead of outliving `resetRouter`.
-
-## Docs
-
-- `container/website/content/01.rpc/02.server/02.middleware.md`: new section on options a middleware adds,
-  through `customMionRouter`.
-- `container/website/content/01.rpc/03.middlewares/03.security.md`: existing section "CORS Headers From Your
-  Types", the `cors: false` handler option next to `excludeHeaders`.
-- `container/website/content/01.rpc/02.server/03.call-context.md`: existing section "Sharing Data Between
-  Handlers", the `shared` part of `customMionRouter`.
-- `container/website/content/01.rpc/07.devtools/01.linter.md`: the note on an inferred Drizzle database in
-  `contextDataFactory` now reads against an explicit `shared` type.
-- Every other page or example using `contextDataFactory` moves to `customMionRouter`.
-
-Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagent) over every page and example
-this change touched, review its report against the code, and commit it as its own commit.
-
-## Done when
-
-- `customMionRouter<{shared, router, handler}>()` types `ctx.shared`, router keys and the keys of every handler
-  kind; an unknown key fails on handlers and the router, even next to a valid one.
-- Added keys reach the client in the metadata and in the client API type, build-compiled clients included.
-- `ctx.shared` is `never` without a `shared` part.
-- The build finds a router created through `customMionRouter`, Go-tested.
-- `{cors: false}` on a route or middleware keeps all its headers off the CORS lists, tested next to
-  `excludeHeaders`.
-- Plain `createMionRouter` rejects `contextDataFactory` at the type level; every use moved to `customMionRouter`.
-- The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file,
-  each committed on its own.
-
-## Plan: customMionRouter build (approved 2026-10-31)
-
-- **Types** (`packages/rpc-router/src/types/`): `CustomRouterTypes` (`shared`, `router`, `handler`) rides as `T`
-  next to `O` on `MionRouter` and every helper. `ctx` is `CallContext<SharedOf<T>>`, `never` without `shared`.
-  Handler option constraints resolve once per router; a strict-key guard (`ParserLiteralGuard` style) inside
-  `CompTimeArgs<...>` rejects an unknown key on every helper and on the factory options. Plain
-  `createMionRouter` types `contextDataFactory` as `never`; the custom factory requires `() => S` when `shared`
-  is declared. `ContextDataOf` removed. `PublicHandler` matches `(ctx: any, ...)` so a `never`-shared handler
-  keeps its client type. `ResolvedRouteOptions` / `ResolvedMiddlewareOptions` carry the extra keys of `RO`.
-- **Runtime**: `customMionRouter<T>()` returns `createMionRouter`. Registration copies extra keys onto
-  `options`, fixed keys after. Core `RemoteMethodOpts` gains an index signature so the `clone` metadata
-  route keeps extra keys both ways.
-- **Security**: `MionSecurityHandlerOptions = {cors?: false}`; `describeChain` excludes a `cors: false`
-  member's headers last, beside `excludeHeaders`. Per-chain cache kept, keyed by the chain object (WeakMap):
-  not-found and batch chains have no id, identity lookup needs no key building, and entries die with their
-  chain instead of outliving `resetRouter`.
-- **Build**: `routerinit` accepts `customMionRouter`; diagnostic prose names both factories; catalog regenerated.
-- **Migration**: every `contextDataFactory` use moves to `customMionRouter`.
-- **Tests**: type tests for shared / factory / router keys / handler keys / unknown keys / client API type;
-  runtime key copy; metadata serialization (server, clone round trip, fetched + bundled client lanes, drift);
-  security `cors: false`; Go router init, apimeta, apigen, api version; devtools batch build; type budget.
-- **Docs**: middleware, security, call-context, linter pages; examples move to `customMionRouter`.
-- **Fuzzing**: none, no input space with a cheap oracle.
-
-## Shipped (reconciled 2026-10-31)
-
-Built as planned, with these differences found while building:
-
-- **Unknown keys.** Router options: `KnownKeysOf<O, T>` in the factory's constraint. Handler options: a guard inside
-  `NoInfer<...>` on the parameter. Both stay out of inference: written as plain intersections they cost about 200
-  type instantiations per router in the `type-budget` route step. The error names the key:
-  `Type 'false' is not assignable to type 'UnknownOptionKey<"corz">'`.
-- **Route option constraint.** Handler options take `RO extends object` and are checked through the parameter, so
-  no per-router default has to meet a conditional constraint. Definitions (`RouteDef` and siblings) take
-  `RO extends object` too, and the router tree holds `AnyRouteDef` / `AnyMiddlewareDef` / `AnyHeadersMiddlewareDef`:
-  a literal of only added keys (`{cors: false}`) shares no key with mion's own options.
-- **`contextDataFactory` is required** on a custom factory with a `shared` part. A custom factory without one is a
-  pair of overloads (no options, or options), since a default `O` cannot be proven to meet a constraint reading `O`.
-- **Factory type cost.** `contextDataFactory` is dropped from the options the helpers carry (`CarriedOptions`), so
-  `PublicApi` never reads it. The claim that an explicit `shared` type alone keeps an inferred database off the
-  client is only half true: a client still infers the whole options literal to type the router, factory return
-  included. The cheap form is `shared: {db: unknown}` with the factory return written as `{db: unknown}`
-  (`packages/private-drizzle-example-app/reports/context-type-cost.md`); the linter page says so.
-- **Client metadata.** Core's `MethodWithOptions` rows take `MethodOptionsMetadata`, `RemoteMethodOpts` plus an index
-  signature: the `clone` codec of `mionFetchMetadata` dropped undeclared keys both ways. The server-side option types
-  stay closed, so a middleware reads its added key with a cast, as `mionSecurity` does.
-- **JSON values only.** `customMionRouter`'s constraint (`JsonHandlerKeys`) refuses an added key typed as a function,
-  RegExp, bigint, symbol, Date, Map or Set: the fetched row, the bundled row and the client type would disagree.
-- **Raw middlewares.** `RawMiddlewareHelper<T>` carries no `O` (nothing compiled) and takes the same `NoInfer` key
-  guard as the other helpers, so a preset variable with an unknown key fails too.
-- **Router types are constrained.** `T extends CustomRouterTypes` on every helper, `MionRouter` and
-  `RouterCallContext`, so the old `RouteHelper<O, true>` or `RouterCallContext<typeof options>` fails instead of
-  compiling with a new meaning. `RouterCallContext` is an interface: a few instantiations less per router.
+  `NoInfer<...>` on the parameter. Both stay out of inference (the type budget). The error names the key:
+  `UnknownOptionKey<"corz">`. Raw middlewares take the same guard.
+- **`ctx.shared` joins the router types once per router** (`WithShared<O, T>`): reading it off `O` in every helper made
+  the factory's unknown-key constraint cost about 20 more instantiations per router.
+- **Definitions take `RO extends object`**, and the router tree holds `RouteDef<any, object>` and siblings: a literal of
+  only added keys (`{cors: false}`) shares no key with mion's own options.
+- **Client metadata.** Core's `MethodWithOptions` rows take `MethodOptionsMetadata` (`RemoteMethodOpts` plus an index
+  signature): the `clone` codec of `mionFetchMetadata` dropped undeclared keys both ways. Server-side option types
+  stay closed, so a middleware reads its key with a cast, as `mionSecurity` does.
+- **JSON values only.** `withTypes`' constraint (`JsonHandlerKeys`) refuses an added key typed as a function, RegExp,
+  bigint, symbol, Date, Map or Set.
 - **`PublicHandler`** matches `(ctx: any, ...)`: a handler whose `ctx.shared` is `never` lost its client type.
+- **Build.** Router-init detection accepts `createMionRouter.withTypes(...)`, alias and namespace forms included.
 - **Error text test** lives in `packages/private-type-budget/test/routerOptionKeys.test.ts`, which compiles snippets.

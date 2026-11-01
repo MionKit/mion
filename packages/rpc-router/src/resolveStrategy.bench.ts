@@ -98,7 +98,7 @@ function fillContext(ctx: CallContext, reqHeaders: MionHeaders, respHeaders: Mio
     headers: respHeaders,
     body: {},
   };
-  mutable.shared = getRouterOptions().contextDataFactory?.() ?? {};
+  mutable.shared = getRouterOptions().sharedDataFactory?.() ?? {};
   return ctx;
 }
 
@@ -125,7 +125,7 @@ function buildContextFromChain(
     executionChain: chain,
     maxBodySize: chain.maxBodySize,
     readsBody: chain.readsBody,
-    shared: getRouterOptions().contextDataFactory?.() ?? {},
+    shared: getRouterOptions().sharedDataFactory?.() ?? {},
     urlQuery,
     batchId: chain.batchId,
     batchRouteIds: chain.batchRouteIds,

@@ -8,7 +8,6 @@
 import {describe, it, expect, expectTypeOf, beforeEach} from 'vitest';
 import {
   createMionRouter,
-  customMionRouter,
   resetRouter,
   getRouterOptions,
   getAnyExecutable,
@@ -19,18 +18,39 @@ import {HeadersSubset} from '@mionjs/core';
 import type {CallContext} from '../src/types/context.ts';
 import type {MionSecurityHandlerOptions, Routes} from '../src/types/general.ts';
 import type {PublicApi, PublicHandler} from '../src/types/publicMethods.ts';
-import type {RouterCallContext} from '../src/types/mionRouter.ts';
 
 type Shared = {user: string; visits: number};
-type Audit = {audit?: boolean};
 type AuditHandler = {audit?: 'log' | 'skip'};
-type AppTypes = {shared: Shared; router: Audit; handler: MionSecurityHandlerOptions};
-const createAppRouter = customMionRouter<AppTypes>();
+const createAppRouter = createMionRouter.withTypes<{router: {audit?: boolean}; handler: MionSecurityHandlerOptions}>();
 
 // Type assertions sit in never-called functions (no second router at runtime): only `tsc` typecheck:test checks them.
 
-describe('customMionRouter types: ctx.shared and contextDataFactory', () => {
-  it('types ctx.shared as never without a shared part', () => {
+describe('ctx.shared comes from the written return type of sharedDataFactory', () => {
+  it('types ctx.shared in every helper, plain and withTypes routers alike', () => {
+    function compileOnly(): void {
+      const plain = createMionRouter({sharedDataFactory: (): Shared => ({user: '', visits: 0})});
+      plain.route((ctx) => expectTypeOf(ctx.shared).toEqualTypeOf<Shared>());
+      plain.query((ctx) => expectTypeOf(ctx.shared).toEqualTypeOf<Shared>());
+      plain.mutation((ctx) => expectTypeOf(ctx.shared).toEqualTypeOf<Shared>());
+      plain.middleware((ctx) => expectTypeOf(ctx.shared).toEqualTypeOf<Shared>());
+      plain.headersMiddleware((ctx, h: HeadersSubset<'authorization'>): void => {
+        expectTypeOf(ctx.shared).toEqualTypeOf<Shared>();
+      });
+      plain.rawMiddleware((ctx, req: unknown, resp: unknown): void => {
+        expectTypeOf(ctx.shared).toEqualTypeOf<Shared>();
+      });
+      plain.route((ctx): number => {
+        // @ts-expect-error not a field of the shared type
+        void ctx.shared.nope;
+        return ctx.shared.visits;
+      });
+      const typed = createAppRouter({sharedDataFactory: (): Shared => ({user: '', visits: 0})});
+      typed.route((ctx) => expectTypeOf(ctx.shared).toEqualTypeOf<Shared>(), {cors: false});
+    }
+    void compileOnly;
+  });
+
+  it('types ctx.shared as never without a factory', () => {
     function compileOnly(): void {
       const plain = createMionRouter();
       plain.route((ctx): void => {
@@ -38,54 +58,21 @@ describe('customMionRouter types: ctx.shared and contextDataFactory', () => {
         // @ts-expect-error nothing to read on a router that shares no data
         void ctx.shared.user;
       });
-      const handlerOnly = customMionRouter<{handler: MionSecurityHandlerOptions}>()();
-      handlerOnly.middleware((ctx): void => {
+      createAppRouter().middleware((ctx): void => {
         expectTypeOf(ctx.shared).toEqualTypeOf<never>();
       });
-      const nothing = customMionRouter<Record<never, never>>()();
-      nothing.route((ctx): void => {
-        expectTypeOf(ctx.shared).toEqualTypeOf<never>();
-      });
-      const defaulted = customMionRouter()();
-      defaulted.rawMiddleware((ctx, req: unknown, resp: unknown): void => {
+      createMionRouter({basePath: 'x'}).rawMiddleware((ctx, req: unknown, resp: unknown): void => {
         expectTypeOf(ctx.shared).toEqualTypeOf<never>();
       });
     }
     void compileOnly;
   });
 
-  it('refuses contextDataFactory without a shared part', () => {
-    function compileOnly(): void {
-      // @ts-expect-error a plain router declares no shared type
-      createMionRouter({contextDataFactory: () => ({a: 1})});
-      // @ts-expect-error neither does a custom router without a shared part
-      customMionRouter<{handler: MionSecurityHandlerOptions}>()({contextDataFactory: () => ({a: 1})});
-    }
-    void compileOnly;
-  });
-
-  it('requires contextDataFactory with a shared part, checked against the shared type', () => {
-    function compileOnly(): void {
-      // @ts-expect-error the factory is required: ctx.shared would be undefined at runtime
-      createAppRouter();
-      // @ts-expect-error the options are required, and so is the factory inside them
-      createAppRouter({basePath: 'api'});
-      // @ts-expect-error a field of the shared type is missing
-      createAppRouter({contextDataFactory: () => ({user: ''})});
-      // @ts-expect-error a field has the wrong type
-      createAppRouter({contextDataFactory: () => ({user: 1, visits: 0})});
-      // the shared type is never inferred: a factory returning more still types ctx.shared as declared
-      const app = createAppRouter({contextDataFactory: () => ({user: '', visits: 0, extra: true})});
-      app.route((ctx) => expectTypeOf(ctx.shared).toEqualTypeOf<Shared>());
-    }
-    void compileOnly;
-  });
-
-  it('still accepts a handler annotated with a plain CallContext on every router', () => {
+  it('still accepts a handler annotated with a plain CallContext', () => {
     function compileOnly(): void {
       const handler = (ctx: CallContext, name: string): string => `${name}${ctx.path}`;
       createMionRouter().route(handler);
-      createAppRouter({contextDataFactory: () => ({user: '', visits: 0})}).middleware(handler);
+      createAppRouter({sharedDataFactory: (): Shared => ({user: '', visits: 0})}).middleware(handler);
     }
     void compileOnly;
   });
@@ -100,27 +87,29 @@ describe('customMionRouter types: ctx.shared and contextDataFactory', () => {
   });
 });
 
-describe('customMionRouter types: router and handler keys', () => {
-  it('types the router keys and refuses an unknown one, even next to a valid key', () => {
+describe('createMionRouter.withTypes: router and handler keys', () => {
+  it('types the router keys, requires a required one, and refuses an unknown one even next to a valid key', () => {
     function compileOnly(): void {
-      createAppRouter({contextDataFactory: () => ({user: '', visits: 0}), audit: true});
+      createAppRouter({audit: true});
       // @ts-expect-error wrong value type for a router key
-      createAppRouter({contextDataFactory: () => ({user: '', visits: 0}), audit: 'yes'});
-      // @ts-expect-error unknown router key next to valid ones
-      createAppRouter({contextDataFactory: () => ({user: '', visits: 0}), basePath: 'x', fooBar: 1});
+      createAppRouter({audit: 'yes'});
+      // @ts-expect-error unknown router key next to a valid one
+      createAppRouter({basePath: 'x', fooBar: 1});
+      const strict = createMionRouter.withTypes<{router: {audit: boolean}}>();
+      strict({audit: false});
+      // @ts-expect-error a required router key is missing
+      strict({basePath: 'x'});
       // @ts-expect-error a router key the plain factory never declared
       createMionRouter({audit: true});
       // @ts-expect-error unknown key next to a valid one on the plain factory
       createMionRouter({basePath: 'x', fooBar: 1});
-      // @ts-expect-error unknown key alone
-      createMionRouter({fooBar: 1});
     }
     void compileOnly;
   });
 
   it('takes the handler keys on every handler kind', () => {
     function compileOnly(): void {
-      const app = customMionRouter<{handler: MionSecurityHandlerOptions}>()();
+      const app = createAppRouter();
       app.route((): string => '', {cors: false});
       app.query((): string => '', {cors: false, description: 'q'});
       app.mutation((): string => '', {cors: false});
@@ -135,7 +124,7 @@ describe('customMionRouter types: router and handler keys', () => {
 
   it('refuses an unknown handler key next to a valid one, on every handler kind', () => {
     function compileOnly(): void {
-      const app = customMionRouter<{handler: MionSecurityHandlerOptions}>()();
+      const app = createAppRouter();
       // @ts-expect-error unknown key on a route
       app.route((): string => '', {description: 'd', fooBar: 1});
       // @ts-expect-error unknown key on a query
@@ -166,27 +155,19 @@ describe('customMionRouter types: router and handler keys', () => {
   it('refuses an added key whose value is no JSON data, since it goes to the client', () => {
     function compileOnly(): void {
       // @ts-expect-error a function cannot reach the client in the metadata
-      customMionRouter<{handler: {onDeny?: () => void}}>();
+      createMionRouter.withTypes<{handler: {onDeny?: () => void}}>();
       // @ts-expect-error neither can a RegExp
-      customMionRouter<{handler: {match?: RegExp}}>();
+      createMionRouter.withTypes<{handler: {match?: RegExp}}>();
       // @ts-expect-error nor a bigint
-      customMionRouter<{handler: {limit?: bigint}}>();
-      customMionRouter<{handler: {audit?: {level: 'high' | 'low'}; tags?: string[]}}>();
+      createMionRouter.withTypes<{handler: {limit?: bigint}}>();
+      createMionRouter.withTypes<{handler: {audit?: {level: 'high' | 'low'}; tags?: string[]}}>();
     }
     void compileOnly;
   });
 
-  it('refuses a router types argument that declares no part', () => {
+  it('carries the router-wide parser to a route on a withTypes router', () => {
     function compileOnly(): void {
-      // @ts-expect-error router options are not router types: the old `RouterCallContext<typeof options>` fails loudly
-      expectTypeOf<RouterCallContext<{basePath: 'x'}>>();
-    }
-    void compileOnly;
-  });
-
-  it('carries the router-wide parser to a route on a custom router without a shared part', () => {
-    function compileOnly(): void {
-      const app = customMionRouter<{handler: MionSecurityHandlerOptions}>()({parser: 'compact'});
+      const app = createAppRouter({parser: 'compact'});
       const defs = {r: app.route((): string => '', {cors: false})};
       expectTypeOf<PublicApi<typeof defs>['r']['options']['parser']>().toEqualTypeOf<{params: 'compact'; return: 'compact'}>();
       void defs;
@@ -196,7 +177,7 @@ describe('customMionRouter types: router and handler keys', () => {
 
   it('combines the keys of several middlewares', () => {
     function compileOnly(): void {
-      const app = customMionRouter<{handler: MionSecurityHandlerOptions & AuditHandler}>()();
+      const app = createMionRouter.withTypes<{handler: MionSecurityHandlerOptions & AuditHandler}>()();
       app.route((): string => '', {cors: false, audit: 'log'});
       // @ts-expect-error not one of the declared values
       app.route((): string => '', {audit: 'all'});
@@ -208,7 +189,7 @@ describe('customMionRouter types: router and handler keys', () => {
 // ####### Runtime: one router for the rest of the file #######
 
 const mion = createAppRouter({
-  contextDataFactory: () => ({user: 'anonymous', visits: 0}),
+  sharedDataFactory: (): Shared => ({user: 'anonymous', visits: 0}),
   audit: true,
   getPublicRoutesData: true,
 });
@@ -220,7 +201,7 @@ const routes = {
   open: mion.route((ctx): number => ctx.shared.visits),
 } satisfies Routes;
 
-describe('customMionRouter types: what the client sees', () => {
+describe('createMionRouter.withTypes: what the client sees', () => {
   type Api = PublicApi<typeof routes>;
 
   it('carries each added key on the resolved options, as the literal the method wrote', () => {
@@ -250,14 +231,14 @@ describe('customMionRouter types: what the client sees', () => {
   });
 });
 
-describe('customMionRouter runtime', () => {
+describe('createMionRouter.withTypes runtime', () => {
   beforeEach(() => resetRouter());
 
   it('is createMionRouter: one router per app until reset', () => {
-    expect(() => createAppRouter({contextDataFactory: () => ({user: '', visits: 0})})).not.toThrow();
+    expect(() => createAppRouter()).not.toThrow();
     expect(() => createMionRouter()).toThrow('createMionRouter has already been called');
     resetRouter();
-    expect(() => customMionRouter()()).not.toThrow();
+    expect(() => createMionRouter.withTypes()()).not.toThrow();
   });
 
   it('copies the added keys onto every registered method, and keeps mion own keys', () => {
@@ -276,7 +257,7 @@ describe('customMionRouter runtime', () => {
   });
 
   it('never lets an added key override an option mion resolves', () => {
-    const loose = customMionRouter<{handler: Record<string, unknown>}>()();
+    const loose = createMionRouter.withTypes<{handler: Record<string, unknown>}>()();
     // a cast slips mion's own key in as an added one: the resolved value still wins
     const def = loose.route((): string => 'x', {alwaysRun: true} as any);
     loose.initRoutes({def});

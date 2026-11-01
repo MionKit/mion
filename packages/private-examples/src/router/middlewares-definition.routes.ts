@@ -1,9 +1,7 @@
-import {customMionRouter, Routes} from '@mionjs/router';
-import {myApp, getSharedData, type ContextData} from './full-example.app.ts';
+import {createMionRouter, Routes} from '@mionjs/router';
+import {myApp, getSharedData} from './full-example.app.ts';
 
-const mion = customMionRouter<{shared: ContextData}>()({
-  contextDataFactory: getSharedData,
-});
+const mion = createMionRouter({sharedDataFactory: getSharedData});
 
 const routes = {
   logger: mion.middleware(

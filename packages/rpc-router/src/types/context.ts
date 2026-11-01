@@ -13,13 +13,13 @@ import type {MethodsExecutionChain} from './remoteMethods.ts';
 
 // start-call-context-type
 /** The call Context object passed as first parameter to any middleware or route */
-export interface CallContext<ContextData extends Record<string, any> = any> {
+export interface CallContext<SharedData extends Record<string, any> = any> {
   /** The route's URL path, like `/users/getUser` */
   readonly path: string;
   readonly request: MionRequest;
   readonly response: MionResponse;
   /** Shared by the chain's handlers, never sent back. */
-  shared: ContextData;
+  shared: SharedData;
   readonly executionChain: MethodsExecutionChain;
   /** The request limit this request was read against: the chain's number capped by the platform's */
   readonly maxBodySize: number;
@@ -104,8 +104,8 @@ export interface MionHeaders {
   values(): IterableIterator<string>;
 }
 
-/** Creates the context data object on each route call */
-export type ContextDataFactory<ContextData extends Record<string, any>> = () => ContextData;
+/** Creates `ctx.shared` on each request */
+export type SharedDataFactory<SharedData extends Record<string, any>> = () => SharedData;
 
 /** Response body, a record containing the result of each handler or an error. */
 export interface ResponseBody extends Record<string, any> {

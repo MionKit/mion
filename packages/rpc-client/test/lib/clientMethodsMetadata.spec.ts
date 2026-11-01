@@ -40,7 +40,7 @@ describe('fetchRemoteMethodsMetadata', () => {
     resetClientCaches();
   });
 
-  it('keeps the option keys a customMionRouter added after decoding the fetched metadata', async () => {
+  it('keeps the option keys a createMionRouter added after decoding the fetched metadata', async () => {
     await fetchRemoteMethodsMetadata(['corsOff', 'sayHello'], ['corsOff'], options);
     expect(routesCache.getMetadata('corsOff')?.options.cors).toBe(false);
     expect(routesCache.getMetadata('sayHello')?.options).not.toHaveProperty('cors');

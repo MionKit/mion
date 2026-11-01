@@ -13,13 +13,13 @@ import {createConnection} from 'net';
 import type {Server} from 'http';
 import {createServer as createHttp2Server, connect as connectHttp2} from 'http2';
 import type {IncomingMessage, ServerResponse} from 'http';
-import {createMionRouter, customMionRouter, resetRouter, addStartMiddlewares, addEndMiddlewares} from '@mionjs/router';
+import {createMionRouter, resetRouter, addStartMiddlewares, addEndMiddlewares} from '@mionjs/router';
 import {mionSecurity} from '@mionjs/router/middlewares';
 import type {CallContext} from '@mionjs/router';
 import {HeadersSubset, MION_ROUTES, StatusCodes, toBase64Url, type PublicRpcError} from '@mionjs/core';
 import {httpRequestHandler, resetNodeHttpOpts, setNodeHttpOpts, startNodeServer} from '../src/mionHttp.ts';
 
-const mion = customMionRouter<{shared: {user: null}}>()({contextDataFactory: () => ({user: null}), basePath: 'api/'});
+const mion = createMionRouter({sharedDataFactory: (): {user: null} => ({user: null}), basePath: 'api/'});
 
 type SimpleUser = {name: string; surname: string};
 

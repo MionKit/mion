@@ -11,7 +11,7 @@
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {createServer, type Server} from 'node:http';
 import {routesCache} from '@mionjs/core';
-import {customMionRouter, resetRouter} from '@mionjs/router';
+import {createMionRouter, resetRouter} from '@mionjs/router';
 import type {MionRouter, PublicApi, RemoteApi} from '@mionjs/router';
 import type {MionSecurityHandlerOptions} from '@mionjs/router';
 import {mionFetchMetadata, mionSyncRoutes} from '@mionjs/router/middlewares';
@@ -82,7 +82,7 @@ let fetches = 0;
 /** Explicit versions keep these two APIs out of the lane's own version check (rpc-client-version-mismatch), which is one API per program. */
 function serve(routes: typeof oldRoutes | typeof newRoutes, version: string) {
   resetRouter();
-  const mion = customMionRouter<AppTypes>()(options);
+  const mion = createMionRouter(options);
   mion.initRoutes(routes(mion), version);
 }
 
@@ -157,7 +157,7 @@ describe('a client built against routes the server has since changed', () => {
       expect(same.fetches).toBe(1);
     });
 
-    it('runs a route whose only change is an option key a customMionRouter added', async () => {
+    it('runs a route whose only change is an option key a createMionRouter added', async () => {
       const [value, , response] = await reloadClient().routes.addedKeyChanged(2).call();
       expect(value).toBe(6);
       expect(response['@thrownErrors']).toBeUndefined();

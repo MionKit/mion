@@ -2,7 +2,7 @@
 
 Measured with TypeScript 6, real slim schema packages, Drizzle proxy databases and `initClient`. Each route explicitly returns `Promise<User[]>` and takes a slim `User['id']` parameter. The server fixture and client root are checked for TypeScript errors. Client counts check only the client root, as when consumers import the server API type. These are type instantiations, not wall-clock timings.
 
-The table uses `Api = typeof api` after `mion.initRoutes(definitions)`. JSON files also contain direct `PublicApi<typeof definitions>` counts. Every router sharing data is created with `customMionRouter<{shared: X}>()`, `X` written by hand; the empty context uses plain `createMionRouter`.
+The table uses `Api = typeof api` after `mion.initRoutes(definitions)`. JSON files also contain direct `PublicApi<typeof definitions>` counts. Every router sharing data is created with `createMionRouter`, `X` written by hand; the empty context uses plain `createMionRouter`.
 
 | Context | PostgreSQL | MySQL | SQLite |
 | --- | ---: | ---: | ---: |

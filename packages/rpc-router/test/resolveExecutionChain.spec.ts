@@ -12,15 +12,15 @@
 // in throughput and memory on a large body.
 
 import {describe, it, expect, beforeAll} from 'vitest';
-import {customMionRouter, resetRouter, getRouteExecutionChain} from '../src/router.ts';
+import {createMionRouter, resetRouter, getRouteExecutionChain} from '../src/router.ts';
 import {resolveExecutionChain, createContextFromChain} from '../src/callContext.ts';
 import {headersFromRecord} from '../src/lib/headers.ts';
 import {MION_ROUTES} from '@mionjs/core';
 import type {CallContext} from '../src/types/context.ts';
 
 let sharedCalls = 0;
-const mion = customMionRouter<{shared: {user: null}}>()({
-  contextDataFactory: () => {
+const mion = createMionRouter({
+  sharedDataFactory: (): {user: null} => {
     sharedCalls++;
     return {user: null};
   },

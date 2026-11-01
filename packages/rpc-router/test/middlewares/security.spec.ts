@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect, beforeEach} from 'vitest';
-import {customMionRouter, getRouteExecutable, resetRouter} from '../../src/router.ts';
+import {createMionRouter, getRouteExecutable, resetRouter} from '../../src/router.ts';
 import {dispatchRoute} from '../../src/dispatch.ts';
 import {registerBatches} from '../../src/batches.ts';
 import {getDefaultHeaders, headersFromRecord} from '../../src/lib/headers.ts';
@@ -17,7 +17,7 @@ import type {CallContext, MionHeaders, MionResponse} from '../../src/types/conte
 import type {MionSecurityOptions, Routes} from '../../src/types/general.ts';
 import {HeadersSubset, MION_BATCH_PATH, StatusCodes} from '@mionjs/core';
 
-const mion = customMionRouter<{handler: MionSecurityHandlerOptions}>()();
+const mion = createMionRouter.withTypes<{handler: MionSecurityHandlerOptions}>()();
 const APP = 'https://app.example.com';
 const EVIL = 'https://evil.example';
 const JSON_TYPE = {'content-type': 'application/json'};

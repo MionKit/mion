@@ -8,14 +8,7 @@
 import {describe, it, expect, expectTypeOf, afterEach, beforeEach} from 'vitest';
 import type {FetchMetadataHandler, FetchMetadataOnlyData} from '@mionjs/core/middlewares';
 import {MionHeaders} from '../../src/types/context.ts';
-import {
-  createMionRouter,
-  customMionRouter,
-  resetRouter,
-  getRouteExecutable,
-  getMiddlewareExecutable,
-  getRouterOptions,
-} from '../../src/router.ts';
+import {createMionRouter, resetRouter, getRouteExecutable, getMiddlewareExecutable, getRouterOptions} from '../../src/router.ts';
 import {
   getRoutePath,
   HeadersSubset,
@@ -174,9 +167,9 @@ describe('Client Routes should', () => {
 
   const shared = {auth: {me: null as any}};
   const getSharedData = (): typeof shared => shared;
-  const createApp = customMionRouter<{shared: typeof shared}>();
+  const createApp = createMionRouter;
   const initApp = (opts: {getAllRemoteMethodsMaxNumber?: number} = {}) =>
-    createApp({contextDataFactory: getSharedData, ...opts}).initRoutes({mionFetchMetadata, ...routes});
+    createApp({sharedDataFactory: getSharedData, ...opts}).initRoutes({mionFetchMetadata, ...routes});
 
   const defaultRouteOpts = {
     alwaysRun: false,
@@ -425,7 +418,7 @@ describe('Client Routes should', () => {
 
   it("stops the call before its route in 'only' mode, and never runs a middleware after it", async () => {
     const runs: string[] = [];
-    const router = createApp({contextDataFactory: getSharedData});
+    const router = createApp({sharedDataFactory: getSharedData});
     router.initRoutes({
       mionFetchMetadata,
       gate: router.middleware((ctx): void => void runs.push('gate')),
@@ -441,7 +434,7 @@ describe('Client Routes should', () => {
 
   it('refuses a mode it does not know instead of treating it as a mode', async () => {
     const runs: string[] = [];
-    const router = createApp({contextDataFactory: getSharedData});
+    const router = createApp({sharedDataFactory: getSharedData});
     router.initRoutes({mionFetchMetadata, ping: router.route((ctx): string => (runs.push('ping'), 'pong'))});
     const body = JSON.stringify({[methodsId]: [['ping'], 'bogus']});
     const response = await dispatchRoute('/ping', body, headersFromRecord({}), headersFromRecord({}), {body} as any, {});
@@ -632,7 +625,7 @@ describe('metadata is generated for everything the client can call', () => {
 
   afterEach(() => resetRouter());
   const initApp = () =>
-    customMionRouter<{shared: {user: null}}>()({contextDataFactory: () => ({user: null})}).initRoutes({
+    createMionRouter({sharedDataFactory: (): {user: null} => ({user: null})}).initRoutes({
       mionFetchMetadata,
       ...routes,
     });
@@ -682,7 +675,7 @@ describe('metadata is generated for everything the client can call', () => {
 describe('the mionFetchMetadata middleware sends the build version header', () => {
   afterEach(() => resetRouter());
 
-  function initApp(opts: Omit<RouterOptionsInput, 'contextDataFactory'>, version?: string) {
+  function initApp(opts: Omit<RouterOptionsInput, 'sharedDataFactory'>, version?: string) {
     const router = createMionRouter(opts);
     router.initRoutes(
       {
@@ -789,7 +782,7 @@ describe('added handler keys in the metadata', () => {
   afterEach(() => resetRouter());
 
   function initAdded() {
-    const app = customMionRouter<{handler: AddedKeys}>()();
+    const app = createMionRouter.withTypes<{handler: AddedKeys}>()();
     const routes = {
       hidden: app.route((ctx): string => 'h', {cors: false, audit: {level: 'high'}}),
       log: app.middleware((ctx, line: string): string => line, {cors: false}),

@@ -8,7 +8,6 @@
 import {describe, it, expect, beforeEach} from 'vitest';
 import {
   createMionRouter,
-  customMionRouter,
   getMiddlewaresSize,
   geRoutesSize,
   getComplexity,
@@ -248,11 +247,10 @@ describe('Create routes should', () => {
     expect(() => mion.initRoutes(numericNames)).toThrow('Invalid route: directory/2. Numeric route names are not allowed');
   });
 
-  it('throw an error when contextDataFactory returns invalid values', async () => {
-    const errorMessage = 'contextDataFactory must return a plain object with at least one property';
+  it('throw an error when sharedDataFactory returns invalid values', async () => {
+    const errorMessage = 'sharedDataFactory must return a plain object with at least one property';
 
-    const initWith = (contextDataFactory: () => any) =>
-      customMionRouter<{shared: any}>()({contextDataFactory}).initRoutes(routes);
+    const initWith = (sharedDataFactory: () => any) => createMionRouter({sharedDataFactory}).initRoutes(routes);
 
     expect(() => initWith(() => undefined)).toThrow(errorMessage);
     resetRouter();
@@ -267,14 +265,12 @@ describe('Create routes should', () => {
     expect(() => initWith(() => ({}))).toThrow(errorMessage);
   });
 
-  it('accept valid contextDataFactory that returns an object with properties', async () => {
-    expect(() =>
-      customMionRouter<{shared: {user: null}}>()({contextDataFactory: () => ({user: null})}).initRoutes(routes)
-    ).not.toThrow();
+  it('accept valid sharedDataFactory that returns an object with properties', async () => {
+    expect(() => createMionRouter({sharedDataFactory: (): {user: null} => ({user: null})}).initRoutes(routes)).not.toThrow();
     resetRouter();
     expect(() =>
-      customMionRouter<{shared: {user: null; data: string}}>()({
-        contextDataFactory: () => ({user: null, data: 'test'}),
+      createMionRouter({
+        sharedDataFactory: (): {user: null; data: string} => ({user: null, data: 'test'}),
       }).initRoutes(routes)
     ).not.toThrow();
   });

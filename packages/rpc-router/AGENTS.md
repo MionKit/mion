@@ -4,7 +4,7 @@
 
 - RunTypes resolves types at BUILD TIME from the TS program.
 - Injects compiled functions at the `mion.route()` / `mion.middleware()` call site → erased import changes nothing.
-- Those helpers come from the router factory (`createMionRouter`, or what `customMionRouter` returns).
+- Those helpers come from the router factory (`createMionRouter`, or what `createMionRouter` returns).
 - Scanner reads the resolved signature: a destructured helper works the same.
 - Guarded by [test/typeOnlyImports.spec.ts](test/typeOnlyImports.spec.ts).
 - Never add a rule or warning against `import type` here.
@@ -17,11 +17,11 @@
 ## One router factory
 
 - `createMionRouter(opts)` ([src/router.ts](src/router.ts), types [src/types/mionRouter.ts](src/types/mionRouter.ts)),
-  or the factory `customMionRouter<Types>()` returns: ONLY public way to init the router and declare routes /
+  or the factory `createMionRouter.withTypes<T>()` returns: ONLY public way to init the router and declare routes /
   middleware.
 - Options written once, ride by type (`O`) into every helper; the declared types (`T`) ride beside them.
-- `ctx.shared` is typed from the `shared` part, `never` without one. `contextDataFactory` is refused on plain
-  `createMionRouter`.
+- `ctx.shared` is the written return type of `sharedDataFactory`, `never` without one (`WithShared` joins it to `T`
+  once per router). An inferred return costs every client: `rpc-handler-shared-factory-untyped` reports it.
 - `handler` keys reach every handler's runtime `options` and the client metadata.
 - `router` keys reach `getRouterOptions()`.
 - Unknown keys fail through `KnownKeysOf` in the factory's constraint and a `NoInfer` guard on handler options:

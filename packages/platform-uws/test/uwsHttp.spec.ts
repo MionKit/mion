@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
-import {customMionRouter, resetRouter, setHostOwnsSocket} from '@mionjs/router';
+import {createMionRouter, resetRouter, setHostOwnsSocket} from '@mionjs/router';
 import {setUwsHttpOpts, resetUwsHttpOpts, startUwsServer, type UwsServer} from '../src/uwsHttp.ts';
 import type {CallContext, Route} from '@mionjs/router';
 import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
@@ -23,8 +23,8 @@ describe('uws http router', () => {
       changeUserName: (user: SimpleUser) => ({name: 'NewName', surname: user.surname}),
     },
   };
-  const getSharedData = () => ({auth: {me: null as any}});
-  const mion = customMionRouter<{shared: MySharedData}>()({contextDataFactory: getSharedData, basePath: 'api/'});
+  const getSharedData = (): {auth: {me: any}} => ({auth: {me: null}});
+  const mion = createMionRouter({sharedDataFactory: getSharedData, basePath: 'api/'});
 
   const changeUserName: Route = mion.route((context: Context, user: SimpleUser): SimpleUser => {
     return myApp.db.changeUserName(user);
@@ -138,8 +138,8 @@ describe('uws http router', () => {
       resetUwsHttpOpts();
       resetRouter();
       setUwsHttpOpts(httpOpts);
-      customMionRouter<{shared: MySharedData}>()({
-        contextDataFactory: getSharedData,
+      createMionRouter({
+        sharedDataFactory: getSharedData,
         basePath: 'api/',
         responseHeaders: {'x-app-name': 'MyApp'},
       }).initRoutes({
@@ -267,7 +267,7 @@ describe('uws http router', () => {
       resetUwsHttpOpts();
       setUwsHttpOpts({port});
       resetRouter();
-      const jsonRouter = customMionRouter<{shared: MySharedData}>()({contextDataFactory: getSharedData, basePath: 'api/'});
+      const jsonRouter = createMionRouter({sharedDataFactory: getSharedData, basePath: 'api/'});
       jsonRouter.initRoutes({changeUserName, getDate});
     });
 

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Routes, customMionRouter, resetRouter} from '@mionjs/router';
+import {Routes, createMionRouter, resetRouter} from '@mionjs/router';
 import type {RouterOptions} from '@mionjs/router';
 import {CallContext, Route} from '@mionjs/router';
 import {createVercelHandler, resetVercelHandlerOpts} from '@mionjs/platform-vercel';
@@ -23,13 +23,13 @@ type DataPoint = {
 type MySharedData = ReturnType<typeof getSharedData>;
 type Context = CallContext<MySharedData>;
 
-const getSharedData = () => ({auth: {me: null as any}});
+const getSharedData = (): {auth: {me: any}} => ({auth: {me: null}});
 
 // ############# Routes #############
 
 // setup() creates the router that initializes these, once per call (resetRouter clears the once-guard).
 // The parser is a build-time literal, so the `mutate` variant is a second route set, not an option.
-const mion = customMionRouter<{shared: MySharedData}>()({contextDataFactory: getSharedData, basePath: 'api/'});
+const mion = createMionRouter({sharedDataFactory: getSharedData, basePath: 'api/'});
 
 const changeUserName: Route = mion.route((ctx: Context, user: SimpleUser): SimpleUser => {
   return {name: 'NewName', surname: user.surname};
@@ -75,8 +75,8 @@ export async function setup(options?: EdgeSetupOptions) {
   assertKnownSetupOptions(options, EDGE_SETUP_KEYS, 'EdgeTestServer.setup');
   resetVercelHandlerOpts();
   resetRouter();
-  const router = customMionRouter<{shared: MySharedData}>()({
-    contextDataFactory: getSharedData,
+  const router = createMionRouter({
+    sharedDataFactory: getSharedData,
     basePath: 'api/',
     responseHeaders: options?.responseHeaders ?? {},
   });

@@ -228,7 +228,7 @@ describe('a client built with client routes bundled', () => {
     expect(getMethod('getRequestInfo')?.options.isMutation).toBe(false);
   });
 
-  it('keeps the option keys a customMionRouter added on the bundled row', async () => {
+  it('keeps the option keys a createMionRouter added on the bundled row', async () => {
     const {routes, middlewares} = initClient<TestServerApi>({baseURL});
     useAuth(middlewares);
     const [result, error] = await routes.corsOff('Ann').call();
