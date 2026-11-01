@@ -569,51 +569,67 @@ func TestArgsFollowTheHeadlineSlots(t *testing.T) {
 // rpc-handler-shared-factory-untyped: `ctx.shared` comes from the factory's return, which a client infers from the
 // body unless it is written.
 func TestSharedDataFactory_InferredReturnIsReported(t *testing.T) {
-	cases := map[string]string{
-		"inline": `import {createMionRouter} from '@mionjs/router';
-export const mion = createMionRouter({sharedDataFactory: () => ({user: null})});
-`,
-		"withTypes": `import {createMionRouter} from '@mionjs/router';
-export const mion = createMionRouter.withTypes<{handler: {cors?: false}}>()({sharedDataFactory: () => ({user: null})});
-`,
-		"variable": `import {createMionRouter} from '@mionjs/router';
-const getShared = () => ({user: null});
-export const mion = createMionRouter({sharedDataFactory: getShared});
-`,
-		"shorthand": `import {createMionRouter} from '@mionjs/router';
-function sharedDataFactory() { return {user: null}; }
-export const mion = createMionRouter({sharedDataFactory});
-`,
-		"alias": `import {createMionRouter as create} from '@mionjs/router';
-export const mion = create({sharedDataFactory: () => ({user: null})});
-`,
+	const imp = "import {createMionRouter} from '@mionjs/router';\n"
+	cases := map[string]map[string]string{
+		"inline":             {"router.ts": imp + "export const mion = createMionRouter({sharedDataFactory: () => ({user: null})});\n"},
+		"functionExpression": {"router.ts": imp + "export const mion = createMionRouter({sharedDataFactory: function () { return {user: null}; }});\n"},
+		"method":             {"router.ts": imp + "export const mion = createMionRouter({sharedDataFactory() { return {user: null}; }});\n"},
+		"stringKey":          {"router.ts": imp + "export const mion = createMionRouter({'sharedDataFactory': () => ({user: null})});\n"},
+		"computedKey":        {"router.ts": imp + "export const mion = createMionRouter({['sharedDataFactory']: () => ({user: null})});\n"},
+		"withTypes": {"router.ts": imp +
+			"export const mion = createMionRouter.withTypes<{handler: {cors?: false}}>()({sharedDataFactory: () => ({user: null})});\n"},
+		"variable": {"router.ts": imp + "const getShared = () => ({user: null});\n" +
+			"export const mion = createMionRouter({sharedDataFactory: getShared});\n"},
+		"shorthand": {"router.ts": imp + "function sharedDataFactory() { return {user: null}; }\n" +
+			"export const mion = createMionRouter({sharedDataFactory});\n"},
+		"spread": {"router.ts": imp + "const base = {sharedDataFactory: () => ({user: null})};\n" +
+			"export const mion = createMionRouter({...base, basePath: 'x'});\n"},
+		"optionsVariable": {"router.ts": imp + "const opts = {sharedDataFactory: () => ({user: null})};\n" +
+			"export const mion = createMionRouter(opts);\n"},
+		"callResult": {"router.ts": imp + "const makeShared = () => () => ({user: null});\n" +
+			"export const mion = createMionRouter({sharedDataFactory: makeShared()});\n"},
+		"propertyAccess": {"router.ts": imp + "const factories = {shared: () => ({user: null})};\n" +
+			"export const mion = createMionRouter({sharedDataFactory: factories.shared});\n"},
+		"alias": {"router.ts": "import {createMionRouter as create} from '@mionjs/router';\n" +
+			"export const mion = create({sharedDataFactory: () => ({user: null})});\n"},
+		"namespace": {"router.ts": "import * as router from '@mionjs/router';\n" +
+			"export const mion = router.createMionRouter({sharedDataFactory: () => ({user: null})});\n"},
+		"importedVariable": {
+			"shared.ts": "export const getShared = () => ({user: null});\n",
+			"router.ts": imp + "import {getShared} from './shared.ts';\n" +
+				"export const mion = createMionRouter({sharedDataFactory: getShared});\n",
+		},
+		"withTypesInAnotherModule": {
+			"appRouter.ts": imp + "export const createAppRouter = createMionRouter.withTypes<{handler: {cors?: false}}>();\n",
+			"router.ts": "import {createAppRouter} from './appRouter.ts';\n" +
+				"export const mion = createAppRouter({sharedDataFactory: () => ({user: null})});\n",
+		},
 	}
-	for name, source := range cases {
+	for name, files := range cases {
 		t.Run(name, func(t *testing.T) {
-			assertCodes(t, check(t, map[string]string{"router.ts": source}), diagnostics.CodeRouteSharedFactoryUntyped)
+			assertCodes(t, check(t, files), diagnostics.CodeRouteSharedFactoryUntyped)
 		})
 	}
 }
 
 func TestSharedDataFactory_WrittenReturnIsFine(t *testing.T) {
+	const imp = "import {createMionRouter} from '@mionjs/router';\n"
 	cases := map[string]string{
-		"inline": `import {createMionRouter} from '@mionjs/router';
-export const mion = createMionRouter({sharedDataFactory: (): {user: null} => ({user: null})});
-`,
-		"variable": `import {createMionRouter} from '@mionjs/router';
-const getShared = (): {user: null} => ({user: null});
-export const mion = createMionRouter({sharedDataFactory: getShared});
-`,
-		"typedVariable": `import {createMionRouter} from '@mionjs/router';
-const getShared: () => {user: null} = () => ({user: null});
-export const mion = createMionRouter({sharedDataFactory: getShared});
-`,
-		"method": `import {createMionRouter} from '@mionjs/router';
-export const mion = createMionRouter({sharedDataFactory(): {user: null} { return {user: null}; }});
-`,
-		"sameNamedLocal": `function createMionRouter(opts: unknown) { return opts; }
-export const mion = createMionRouter({sharedDataFactory: () => ({user: null})});
-`,
+		"inline":    imp + "export const mion = createMionRouter({sharedDataFactory: (): {user: null} => ({user: null})});\n",
+		"method":    imp + "export const mion = createMionRouter({sharedDataFactory(): {user: null} { return {user: null}; }});\n",
+		"noFactory": imp + "export const mion = createMionRouter({basePath: 'x'});\n",
+		"variable": imp + "const getShared = (): {user: null} => ({user: null});\n" +
+			"export const mion = createMionRouter({sharedDataFactory: getShared});\n",
+		"typedVariable": imp + "const getShared: () => {user: null} = () => ({user: null});\n" +
+			"export const mion = createMionRouter({sharedDataFactory: getShared});\n",
+		"typedVariableAlias": imp + "const typed: () => {user: null} = () => ({user: null});\nconst getShared = typed;\n" +
+			"export const mion = createMionRouter({sharedDataFactory: getShared});\n",
+		"typedCallResult": imp + "const makeShared = (): (() => {user: null}) => () => ({user: null});\n" +
+			"export const mion = createMionRouter({sharedDataFactory: makeShared()});\n",
+		"typedOptionsVariable": imp + "const opts: {sharedDataFactory: () => {user: null}} = {sharedDataFactory: () => ({user: null})};\n" +
+			"export const mion = createMionRouter(opts);\n",
+		"sameNamedLocal": "function createMionRouter(opts: unknown) { return opts; }\n" +
+			"export const mion = createMionRouter({sharedDataFactory: () => ({user: null})});\n",
 	}
 	for name, source := range cases {
 		t.Run(name, func(t *testing.T) {

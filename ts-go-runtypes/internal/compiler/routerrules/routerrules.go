@@ -123,7 +123,7 @@ func CheckSourceFile(typeChecker *checker.Checker, markerOpts marker.Options, so
 	// The unsafe-name rule reads declarations, not handlers, so it runs over every file: it reports the
 	// declaration before any route reaches the type.
 	found = append(found, scope.checkUnsafePropertyNames()...)
-	if strings.Contains(sourceFile.Text(), SharedDataFactoryKey) {
+	if strings.Contains(sourceFile.Text(), sharedDataFactoryKey) {
 		found = append(found, scope.checkSharedDataFactory()...)
 	}
 	if hasTextSignal(sourceFile.Text()) {
