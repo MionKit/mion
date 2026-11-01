@@ -273,6 +273,11 @@ describe('Create routes should', () => {
         sharedDataFactory: (): {user: null; data: string} => ({user: null, data: 'test'}),
       }).initRoutes(routes)
     ).not.toThrow();
+    resetRouter();
+    // a key filled later by a handler (the pagination example) counts, even while it holds undefined
+    expect(() =>
+      createMionRouter({sharedDataFactory: (): {page?: number} => ({page: undefined})}).initRoutes(routes)
+    ).not.toThrow();
   });
 
   it('optimize parsing routes (complexity) when there are multiple routes in a row', async () => {

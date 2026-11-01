@@ -2,6 +2,11 @@
   "dialect": "pg",
   "results": [
     {
+      "name": "inferred database context",
+      "client": 14400,
+      "registeredClient": 14456
+    },
+    {
       "name": "empty context",
       "client": 1983,
       "registeredClient": 2031

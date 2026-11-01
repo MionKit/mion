@@ -167,9 +167,8 @@ describe('Client Routes should', () => {
 
   const shared = {auth: {me: null as any}};
   const getSharedData = (): typeof shared => shared;
-  const createApp = createMionRouter;
   const initApp = (opts: {getAllRemoteMethodsMaxNumber?: number} = {}) =>
-    createApp({sharedDataFactory: getSharedData, ...opts}).initRoutes({mionFetchMetadata, ...routes});
+    createMionRouter({sharedDataFactory: getSharedData, ...opts}).initRoutes({mionFetchMetadata, ...routes});
 
   const defaultRouteOpts = {
     alwaysRun: false,
@@ -418,7 +417,7 @@ describe('Client Routes should', () => {
 
   it("stops the call before its route in 'only' mode, and never runs a middleware after it", async () => {
     const runs: string[] = [];
-    const router = createApp({sharedDataFactory: getSharedData});
+    const router = createMionRouter({sharedDataFactory: getSharedData});
     router.initRoutes({
       mionFetchMetadata,
       gate: router.middleware((ctx): void => void runs.push('gate')),
@@ -434,7 +433,7 @@ describe('Client Routes should', () => {
 
   it('refuses a mode it does not know instead of treating it as a mode', async () => {
     const runs: string[] = [];
-    const router = createApp({sharedDataFactory: getSharedData});
+    const router = createMionRouter({sharedDataFactory: getSharedData});
     router.initRoutes({mionFetchMetadata, ping: router.route((ctx): string => (runs.push('ping'), 'pong'))});
     const body = JSON.stringify({[methodsId]: [['ping'], 'bogus']});
     const response = await dispatchRoute('/ping', body, headersFromRecord({}), headersFromRecord({}), {body} as any, {});
@@ -675,7 +674,7 @@ describe('metadata is generated for everything the client can call', () => {
 describe('the mionFetchMetadata middleware sends the build version header', () => {
   afterEach(() => resetRouter());
 
-  function initApp(opts: Omit<RouterOptionsInput, 'sharedDataFactory'>, version?: string) {
+  function initApp(opts: RouterOptionsInput, version?: string) {
     const router = createMionRouter(opts);
     router.initRoutes(
       {
@@ -786,7 +785,7 @@ describe('added handler keys in the metadata', () => {
     const routes = {
       hidden: app.route((ctx): string => 'h', {cors: false, audit: {level: 'high'}}),
       log: app.middleware((ctx, line: string): string => line, {cors: false}),
-      token: app.headersMiddleware((ctx, h: HeadersSubset<'x-token'>): void => undefined, {cors: false}),
+      token: app.headersMiddleware((ctx, headers: HeadersSubset<'x-token'>): void => undefined, {cors: false}),
       open: app.route((ctx): string => 'o'),
     } satisfies Routes;
     app.initRoutes({mionFetchMetadata, ...routes});
@@ -801,6 +800,14 @@ describe('added handler keys in the metadata', () => {
     initAdded();
     const typeErrors = createGetValidationErrorsFn<ClientReturn>();
     expect(typeErrors(metadataOf('hidden', 'log', 'token', 'open'))).toEqual([]);
+  });
+
+  it('still refuses a wrong value for an option mion owns', () => {
+    initAdded();
+    const typeErrors = createGetValidationErrorsFn<ClientReturn>();
+    const metadata = metadataOf('hidden');
+    metadata.methods.hidden.options = {...metadata.methods.hidden.options, alwaysRun: 'yes' as any};
+    expect(typeErrors(metadata)).not.toEqual([]);
   });
 
   it('keeps the added keys through the clone encode and decode the metadata route uses', () => {
@@ -820,11 +827,12 @@ describe('added handler keys in the metadata', () => {
     initAdded();
     const request: RawRequest = {
       headers: headersFromRecord({}),
-      body: JSON.stringify({[methodsId]: [['hidden', 'log'], 'only']}),
+      body: JSON.stringify({[methodsId]: [['hidden', 'log', 'token'], 'only']}),
     };
     const response = await dispatchRoute('/hidden', request.body, request.headers, headersFromRecord({}), request, {});
     const data = rowsOf(response);
     expect(data.methods.hidden.options).toEqual(expect.objectContaining({cors: false, audit: {level: 'high'}}));
     expect(data.methods.log.options.cors).toBe(false);
+    expect(data.methods.token.options.cors).toBe(false);
   });
 });

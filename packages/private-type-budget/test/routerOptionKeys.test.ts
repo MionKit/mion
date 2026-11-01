@@ -14,13 +14,13 @@ function errorsOf(body: string): string[] {
   const caseFile = program.getSourceFile(CASE_FILE)!;
   return program
     .getSemanticDiagnostics(caseFile)
-    .map((d) => `TS${d.code} ${ts.flattenDiagnosticMessageText(d.messageText, '\n')}`);
+    .map((diagnostic) => `TS${diagnostic.code} ${ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n')}`);
 }
 
 describe('unknown router option keys', () => {
   it('names the mistyped key on a handler, even next to a valid key', {timeout: 60_000}, () => {
     const errors = errorsOf(`const mion = createMionRouter.withTypes<{handler: MionSecurityHandlerOptions}>()();
-export const r = mion.route((): string => 'x', {description: 'd', corz: false});`);
+export const route = mion.route((): string => 'x', {description: 'd', corz: false});`);
     expect(errors).toHaveLength(1);
     expect(errors[0]).toContain('UnknownOptionKey<"corz">');
   });
@@ -36,7 +36,7 @@ export const r = mion.route((): string => 'x', {description: 'd', corz: false});
   it('accepts the declared keys', {timeout: 60_000}, () => {
     const errors =
       errorsOf(`const mion = createMionRouter.withTypes<{router: {audit?: boolean}; handler: MionSecurityHandlerOptions}>()({audit: true});
-export const r = mion.route((): string => 'x', {description: 'd', cors: false});`);
+export const route = mion.route((): string => 'x', {description: 'd', cors: false});`);
     expect(errors).toEqual([]);
   });
 });

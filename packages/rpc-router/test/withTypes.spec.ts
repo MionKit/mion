@@ -26,26 +26,25 @@ const createAppRouter = createMionRouter.withTypes<{router: {audit?: boolean}; h
 // Type assertions sit in never-called functions (no second router at runtime): only `tsc` typecheck:test checks them.
 
 describe('ctx.shared comes from the written return type of sharedDataFactory', () => {
-  it('types ctx.shared in every helper, plain and withTypes routers alike', () => {
+  // mionRouter.spec.ts covers the plain router
+  it('types ctx.shared in every helper of a withTypes router', () => {
     function compileOnly(): void {
-      const plain = createMionRouter({sharedDataFactory: (): Shared => ({user: '', visits: 0})});
-      plain.route((ctx) => expectTypeOf(ctx.shared).toEqualTypeOf<Shared>());
-      plain.query((ctx) => expectTypeOf(ctx.shared).toEqualTypeOf<Shared>());
-      plain.mutation((ctx) => expectTypeOf(ctx.shared).toEqualTypeOf<Shared>());
-      plain.middleware((ctx) => expectTypeOf(ctx.shared).toEqualTypeOf<Shared>());
-      plain.headersMiddleware((ctx, h: HeadersSubset<'authorization'>): void => {
+      const typed = createAppRouter({sharedDataFactory: (): Shared => ({user: '', visits: 0})});
+      typed.route((ctx) => expectTypeOf(ctx.shared).toEqualTypeOf<Shared>(), {cors: false});
+      typed.query((ctx) => expectTypeOf(ctx.shared).toEqualTypeOf<Shared>());
+      typed.mutation((ctx) => expectTypeOf(ctx.shared).toEqualTypeOf<Shared>());
+      typed.middleware((ctx) => expectTypeOf(ctx.shared).toEqualTypeOf<Shared>());
+      typed.headersMiddleware((ctx, headers: HeadersSubset<'authorization'>): void => {
         expectTypeOf(ctx.shared).toEqualTypeOf<Shared>();
       });
-      plain.rawMiddleware((ctx, req: unknown, resp: unknown): void => {
+      typed.rawMiddleware((ctx, req: unknown, resp: unknown): void => {
         expectTypeOf(ctx.shared).toEqualTypeOf<Shared>();
       });
-      plain.route((ctx): number => {
+      typed.route((ctx): number => {
         // @ts-expect-error not a field of the shared type
         void ctx.shared.nope;
         return ctx.shared.visits;
       });
-      const typed = createAppRouter({sharedDataFactory: (): Shared => ({user: '', visits: 0})});
-      typed.route((ctx) => expectTypeOf(ctx.shared).toEqualTypeOf<Shared>(), {cors: false});
     }
     void compileOnly;
   });
@@ -71,7 +70,6 @@ describe('ctx.shared comes from the written return type of sharedDataFactory', (
   it('still accepts a handler annotated with a plain CallContext', () => {
     function compileOnly(): void {
       const handler = (ctx: CallContext, name: string): string => `${name}${ctx.path}`;
-      createMionRouter().route(handler);
       createAppRouter({sharedDataFactory: (): Shared => ({user: '', visits: 0})}).middleware(handler);
     }
     void compileOnly;
@@ -114,7 +112,7 @@ describe('createMionRouter.withTypes: router and handler keys', () => {
       app.query((): string => '', {cors: false, description: 'q'});
       app.mutation((): string => '', {cors: false});
       app.middleware((): void => undefined, {cors: false, alwaysRun: true});
-      app.headersMiddleware((ctx, h: HeadersSubset<'x-a'>): void => undefined, {cors: false});
+      app.headersMiddleware((ctx, headers: HeadersSubset<'x-a'>): void => undefined, {cors: false});
       app.rawMiddleware((): void => undefined, {cors: false});
       // the parser option works next to the added keys
       app.route((): string => '', {cors: false, parser: 'compact'});
@@ -134,7 +132,7 @@ describe('createMionRouter.withTypes: router and handler keys', () => {
       // @ts-expect-error unknown key on a middleware
       app.middleware((): void => undefined, {alwaysRun: true, fooBar: 1});
       // @ts-expect-error unknown key on a headers middleware
-      app.headersMiddleware((ctx, h: HeadersSubset<'x-a'>): void => undefined, {description: 'd', fooBar: 1});
+      app.headersMiddleware((ctx, headers: HeadersSubset<'x-a'>): void => undefined, {description: 'd', fooBar: 1});
       // @ts-expect-error unknown key on a raw middleware
       app.rawMiddleware((): void => undefined, {description: 'd', fooBar: 1});
       // @ts-expect-error wrong value type for a handler key
@@ -160,6 +158,10 @@ describe('createMionRouter.withTypes: router and handler keys', () => {
       createMionRouter.withTypes<{handler: {match?: RegExp}}>();
       // @ts-expect-error nor a bigint
       createMionRouter.withTypes<{handler: {limit?: bigint}}>();
+      // @ts-expect-error nor a Date, even optional
+      createMionRouter.withTypes<{handler: {at?: Date}}>();
+      // @ts-expect-error nor a Map
+      createMionRouter.withTypes<{handler: {byId?: Map<string, number>}}>();
       createMionRouter.withTypes<{handler: {audit?: {level: 'high' | 'low'}; tags?: string[]}}>();
     }
     void compileOnly;
@@ -168,8 +170,11 @@ describe('createMionRouter.withTypes: router and handler keys', () => {
   it('carries the router-wide parser to a route on a withTypes router', () => {
     function compileOnly(): void {
       const app = createAppRouter({parser: 'compact'});
-      const defs = {r: app.route((): string => '', {cors: false})};
-      expectTypeOf<PublicApi<typeof defs>['r']['options']['parser']>().toEqualTypeOf<{params: 'compact'; return: 'compact'}>();
+      const defs = {route: app.route((): string => '', {cors: false})};
+      expectTypeOf<PublicApi<typeof defs>['route']['options']['parser']>().toEqualTypeOf<{
+        params: 'compact';
+        return: 'compact';
+      }>();
       void defs;
     }
     void compileOnly;
@@ -194,7 +199,7 @@ const mion = createAppRouter({
   getPublicRoutesData: true,
 });
 const routes = {
-  auth: mion.headersMiddleware((ctx, h: HeadersSubset<'authorization'>): void => undefined, {cors: false}),
+  auth: mion.headersMiddleware((ctx, headers: HeadersSubset<'authorization'>): void => undefined, {cors: false}),
   log: mion.middleware((ctx, line: string): string => line, {cors: false, description: 'log'}),
   raw: mion.rawMiddleware((ctx, req: unknown, resp: unknown): void => undefined, {cors: false}),
   hidden: mion.query((ctx): string => ctx.shared.user, {cors: false}),
@@ -260,7 +265,11 @@ describe('createMionRouter.withTypes runtime', () => {
     const loose = createMionRouter.withTypes<{handler: Record<string, unknown>}>()();
     // a cast slips mion's own key in as an added one: the resolved value still wins
     const def = loose.route((): string => 'x', {alwaysRun: true} as any);
-    loose.initRoutes({def});
+    const check = loose.middleware((): void => undefined, {alwaysRun: 'yes'} as any);
+    const raw = loose.rawMiddleware((): void => undefined, {alwaysRun: 'yes'} as any);
+    loose.initRoutes({check, raw, def});
     expect(getRouteExecutable('def')?.options.alwaysRun).toBe(false);
+    expect(getMiddlewareExecutable('check')?.options.alwaysRun).toBe(true);
+    expect(getAnyExecutable('raw')?.options.alwaysRun).toBe(true);
   });
 });

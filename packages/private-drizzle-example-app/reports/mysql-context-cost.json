@@ -2,6 +2,11 @@
   "dialect": "mysql",
   "results": [
     {
+      "name": "inferred database context",
+      "client": 14713,
+      "registeredClient": 14769
+    },
+    {
       "name": "empty context",
       "client": 2012,
       "registeredClient": 2060
