@@ -90,6 +90,28 @@ func TestApiVersion_ServerAndClientOfOneApiAgree(t *testing.T) {
 	}
 }
 
+// TestApiVersion_AddedOptionKeyMovesTheVersion: a key a customMionRouter `handler` part adds rides the resolved
+// options, which the version hashes, so changing only that key moves the version.
+func TestApiVersion_AddedOptionKeyMovesTheVersion(t *testing.T) {
+	routerDTS := strings.Replace(versionRouterDTS, "options: Opts;", "options: Opts & (R[K] extends {options: infer O} ? O : {});", 1)
+	routes := func(options string) string {
+		return "import {createMionRouter} from '@mionjs/router';\nconst mion = createMionRouter();\n" +
+			"export const api = mion.initRoutes({sum: {type: 1 as const, handler: (a: number, b: number): number => a + b" + options + "}});\n"
+	}
+	plain := transformedVersion(t, setupApi(t, map[string]string{"router.d.ts": routerDTS, "routes.ts": routes("")}, t.TempDir(), ""), "routes.ts")
+	added := transformedVersion(t, setupApi(t, map[string]string{"router.d.ts": routerDTS, "routes.ts": routes(", options: {cors: false as const}")}, t.TempDir(), ""), "routes.ts")
+	again := transformedVersion(t, setupApi(t, map[string]string{"router.d.ts": routerDTS, "routes.ts": routes(", options: {cors: false as const}")}, t.TempDir(), ""), "routes.ts")
+	if plain == "" || added == "" {
+		t.Fatalf("no version: plain %q, added %q", plain, added)
+	}
+	if plain == added {
+		t.Errorf("an added option key must move the version, both %q", plain)
+	}
+	if added != again {
+		t.Errorf("the same added key must give the same version: %q then %q", added, again)
+	}
+}
+
 // TestApiVersion_DerivedFromTheTypesAlone: nothing about the build (a temp dir, a clock, a counter) may reach the value.
 func TestApiVersion_DerivedFromTheTypesAlone(t *testing.T) {
 	sources := map[string]string{"router.d.ts": versionRouterDTS, "routes.ts": apiServerRoutesTS(1, false)}

@@ -493,7 +493,7 @@ routes.orders.getById(inputFrom(user, 'toUserId'));`,
 		Fix:     "inputFrom(user, 'toOrgId')",
 	},
 	CodeBatchNoRouterInit: {
-		Summary: "The build adds the batch table import to every module that calls `createMionRouter` from `@mionjs/router`, following aliases, namespace imports and local re-export files. It found none, for example because a wrapper from another package creates the router, so the server never loads the table. Import the table yourself in the module that creates the router (path relative to that module), or call `createMionRouter` from a source file of this project.",
+		Summary: "The build adds the batch table import to every module that calls `createMionRouter` or `customMionRouter` from `@mionjs/router`, following aliases, namespace imports and local re-export files. It found none, for example because a wrapper from another package creates the router, so the server never loads the table. Import the table yourself in the module that creates the router (path relative to that module), or call `createMionRouter` or `customMionRouter` from a source file of this project.",
 		Fix:     "import './<genDir>/rpc/batches.generated.js';",
 	},
 

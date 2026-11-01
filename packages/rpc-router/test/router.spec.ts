@@ -8,6 +8,7 @@
 import {describe, it, expect, beforeEach} from 'vitest';
 import {
   createMionRouter,
+  customMionRouter,
   getMiddlewaresSize,
   geRoutesSize,
   getComplexity,
@@ -250,7 +251,8 @@ describe('Create routes should', () => {
   it('throw an error when contextDataFactory returns invalid values', async () => {
     const errorMessage = 'contextDataFactory must return a plain object with at least one property';
 
-    const initWith = (contextDataFactory: () => any) => createMionRouter({contextDataFactory}).initRoutes(routes);
+    const initWith = (contextDataFactory: () => any) =>
+      customMionRouter<{shared: any}>()({contextDataFactory}).initRoutes(routes);
 
     expect(() => initWith(() => undefined)).toThrow(errorMessage);
     resetRouter();
@@ -266,9 +268,15 @@ describe('Create routes should', () => {
   });
 
   it('accept valid contextDataFactory that returns an object with properties', async () => {
-    expect(() => createMionRouter({contextDataFactory: () => ({user: null})}).initRoutes(routes)).not.toThrow();
+    expect(() =>
+      customMionRouter<{shared: {user: null}}>()({contextDataFactory: () => ({user: null})}).initRoutes(routes)
+    ).not.toThrow();
     resetRouter();
-    expect(() => createMionRouter({contextDataFactory: () => ({user: null, data: 'test'})}).initRoutes(routes)).not.toThrow();
+    expect(() =>
+      customMionRouter<{shared: {user: null; data: string}}>()({
+        contextDataFactory: () => ({user: null, data: 'test'}),
+      }).initRoutes(routes)
+    ).not.toThrow();
   });
 
   it('optimize parsing routes (complexity) when there are multiple routes in a row', async () => {

@@ -14,7 +14,11 @@ import type {
   RouteHelper,
   RouterOptionsInput,
 } from '../types/mionRouter.ts';
+
 import type {CallContext} from '../types/context.ts';
+
+/** mion's own handlers annotate their context, so the bodies take any shared data. */
+type InternalTypes = {shared: any};
 
 // ############# Route & Middlewares initialization (INTERNAL) #############
 // These bodies initialize the definition objects AND are the mion injection points: the trailing marker
@@ -23,10 +27,10 @@ import type {CallContext} from '../types/context.ts';
 // call them directly, each pinning its own `encoder`.
 // ⚠️ There is NO signature here on purpose: each body is TYPED BY its helper interface in
 // types/mionRouter.ts, the one place a helper signature is written, so there is no second surface to keep
-// in step. `RouterOptionsInput` is the widest options shape; `createMionRouter` narrows each helper to
-// its own `O` so a declaration reads the factory's options.
+// in step. `RouterOptionsInput` is the widest options shape; the router factory narrows each helper to
+// its own `O` and `T` so a declaration reads the factory's options and declared types.
 
-export const route: RouteHelper<RouterOptionsInput> = (
+export const route: RouteHelper<RouterOptionsInput, InternalTypes> = (
   handler,
   opts,
   paramsFns,
@@ -43,7 +47,7 @@ export const route: RouteHelper<RouterOptionsInput> = (
 });
 
 /** Typed as the same helper as `route()`, so both keep the marker signature the scanner reads at the call site. */
-function routeWithMutation<M extends boolean>(isMutation: M): RouteHelper<RouterOptionsInput, M> {
+function routeWithMutation<M extends boolean>(isMutation: M): RouteHelper<RouterOptionsInput, InternalTypes, M> {
   return (handler, opts, paramsFns, returnFns, paramsId, returnId, isAsyncId, syncId) => ({
     type: HandlerType.route,
     handler,
@@ -57,7 +61,7 @@ export const query = routeWithMutation(false);
 
 export const mutation = routeWithMutation(true);
 
-export const middleware: MiddlewareHelper<RouterOptionsInput> = (
+export const middleware: MiddlewareHelper<RouterOptionsInput, InternalTypes> = (
   handler,
   opts,
   paramsFns,
@@ -73,7 +77,7 @@ export const middleware: MiddlewareHelper<RouterOptionsInput> = (
   rtFns: {paramsFns, returnFns, paramsId, returnId, isAsyncId, syncId},
 });
 
-export const headersMiddleware: HeadersMiddlewareHelper<RouterOptionsInput> = (
+export const headersMiddleware: HeadersMiddlewareHelper<RouterOptionsInput, InternalTypes> = (
   handler,
   opts,
   headersFns,
@@ -91,7 +95,7 @@ export const headersMiddleware: HeadersMiddlewareHelper<RouterOptionsInput> = (
   rtFns: {paramsFns, returnFns, paramsId, returnId, isAsyncId, syncId, headersFns, headersId},
 });
 
-export const rawMiddleware: RawMiddlewareHelper<RouterOptionsInput> = (handler, opts) => ({
+export const rawMiddleware: RawMiddlewareHelper<InternalTypes> = (handler, opts) => ({
   type: HandlerType.rawMiddleware,
   handler,
   options: opts,

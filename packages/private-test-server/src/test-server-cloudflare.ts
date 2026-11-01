@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Routes, createMionRouter, resetRouter} from '@mionjs/router';
+import {Routes, customMionRouter, resetRouter} from '@mionjs/router';
 import type {RouterOptions} from '@mionjs/router';
 import {CallContext, Route} from '@mionjs/router';
 import {createCloudflareHandler, resetCloudflareHandlerOpts} from '@mionjs/platform-cloudflare';
@@ -29,7 +29,7 @@ const getSharedData = () => ({auth: {me: null as any}});
 
 // setup() creates the router that initializes these, once per call (resetRouter clears the once-guard).
 // The parser is a build-time literal, so the `mutate` variant is a second route set, not an option.
-const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+const mion = customMionRouter<{shared: MySharedData}>()({contextDataFactory: getSharedData, basePath: 'api/'});
 
 const changeUserName: Route = mion.route((ctx: Context, user: SimpleUser): SimpleUser => {
   return {name: 'NewName', surname: user.surname};
@@ -80,7 +80,7 @@ export async function setup(options?: CloudflareSetupOptions) {
   assertKnownSetupOptions(options, CLOUDFLARE_SETUP_KEYS, 'CloudflareTestServer.setup');
   resetCloudflareHandlerOpts();
   resetRouter();
-  const router = createMionRouter({
+  const router = customMionRouter<{shared: MySharedData}>()({
     contextDataFactory: getSharedData,
     basePath: 'api/',
     responseHeaders: options?.responseHeaders ?? {},

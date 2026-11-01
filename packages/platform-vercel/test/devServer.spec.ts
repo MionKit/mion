@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
-import {createMionRouter} from '@mionjs/router';
+import {customMionRouter} from '@mionjs/router';
 import {resetVercelHandlerOpts, setVercelHandlerOpts} from '../src/vercelHandler.ts';
 import {startVercelDevServer} from '../src/devServer.ts';
 import type {CallContext, Route} from '@mionjs/router';
@@ -25,7 +25,7 @@ type MySharedData = ReturnType<typeof getSharedData>;
 type Context = CallContext<MySharedData>;
 
 const getSharedData = () => ({auth: {me: null as any}});
-const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+const mion = customMionRouter<{shared: MySharedData}>()({contextDataFactory: getSharedData, basePath: 'api/'});
 
 const changeUserName: Route = mion.route((ctx: Context, user: SimpleUser): SimpleUser => {
   return {name: 'NewName', surname: user.surname};
@@ -205,7 +205,7 @@ describe('vercel dev server (node) - default encoder', () => {
   beforeAll(async () => {
     resetVercelHandlerOpts();
     setVercelHandlerOpts();
-    const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+    const jsonRouter = customMionRouter<{shared: MySharedData}>()({contextDataFactory: getSharedData, basePath: 'api/'});
     jsonRouter.initRoutes({changeUserName, getDate});
     server = await startVercelDevServer({port});
   });

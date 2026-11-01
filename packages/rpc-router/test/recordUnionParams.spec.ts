@@ -3,7 +3,7 @@
 // that matched can refuse it; these routes are the end-to-end proof, from wire to handler.
 
 import {describe, it, expect, beforeEach} from 'vitest';
-import {createMionRouter, resetRouter} from '../src/router.ts';
+import {customMionRouter, resetRouter} from '../src/router.ts';
 import {dispatchRoute} from '../src/dispatch.ts';
 import {headersFromRecord} from '../src/lib/headers.ts';
 import {MION_ROUTES} from '@mionjs/core';
@@ -31,7 +31,7 @@ describe('a param whose type is a union with a Record member', () => {
 
   it('refuses an undeclared key on the default (clone) strategy', async () => {
     let received: unknown;
-    const mion = createMionRouter({contextDataFactory: getSharedData});
+    const mion = customMionRouter<{shared: ReturnType<typeof getSharedData>}>()({contextDataFactory: getSharedData});
     const echo = mion.route((ctx, thing: ObjectOrNumbers): string => {
       received = thing;
       return 'ok';
@@ -44,7 +44,7 @@ describe('a param whose type is a union with a Record member', () => {
   });
 
   it('refuses it on the compact strategy too', async () => {
-    const mion = createMionRouter({contextDataFactory: getSharedData});
+    const mion = customMionRouter<{shared: ReturnType<typeof getSharedData>}>()({contextDataFactory: getSharedData});
     const echo = mion.route((ctx, thing: ObjectOrNumbers): string => 'ok', {parser: 'compact'});
     mion.initRoutes({echo});
 
@@ -53,7 +53,7 @@ describe('a param whose type is a union with a Record member', () => {
   });
 
   it('refuses it on mutateStrict, which keeps every key it was sent', async () => {
-    const mion = createMionRouter({contextDataFactory: getSharedData});
+    const mion = customMionRouter<{shared: ReturnType<typeof getSharedData>}>()({contextDataFactory: getSharedData});
     const echo = mion.route((ctx, thing: ObjectOrNumbers): string => 'ok', {parser: {params: 'mutateStrict'}});
     mion.initRoutes({echo});
 
@@ -63,7 +63,7 @@ describe('a param whose type is a union with a Record member', () => {
 
   it('mutate is the permissive strategy and hands the key to the handler', async () => {
     let received: unknown;
-    const mion = createMionRouter({contextDataFactory: getSharedData});
+    const mion = customMionRouter<{shared: ReturnType<typeof getSharedData>}>()({contextDataFactory: getSharedData});
     const echo = mion.route(
       (ctx, thing: ObjectOrNumbers): string => {
         received = thing;
@@ -80,7 +80,7 @@ describe('a param whose type is a union with a Record member', () => {
 
   it('accepts the key when the value really is a record', async () => {
     let received: unknown;
-    const mion = createMionRouter({contextDataFactory: getSharedData});
+    const mion = customMionRouter<{shared: ReturnType<typeof getSharedData>}>()({contextDataFactory: getSharedData});
     const echo = mion.route((ctx, thing: ObjectOrStrings): string => {
       received = thing;
       return 'ok';
@@ -94,7 +94,7 @@ describe('a param whose type is a union with a Record member', () => {
   });
 
   it('still rejects a value matching no member', async () => {
-    const mion = createMionRouter({contextDataFactory: getSharedData});
+    const mion = customMionRouter<{shared: ReturnType<typeof getSharedData>}>()({contextDataFactory: getSharedData});
     const echo = mion.route((ctx, thing: ObjectOrNumbers): string => 'ok');
     mion.initRoutes({echo});
 
@@ -104,7 +104,7 @@ describe('a param whose type is a union with a Record member', () => {
 
   it('CONTROL: a plain object param is stripped before the handler', async () => {
     let received: unknown;
-    const mion = createMionRouter({contextDataFactory: getSharedData});
+    const mion = customMionRouter<{shared: ReturnType<typeof getSharedData>}>()({contextDataFactory: getSharedData});
     const echo = mion.route((ctx, thing: {a: string}): string => {
       received = thing;
       return 'ok';
@@ -118,7 +118,7 @@ describe('a param whose type is a union with a Record member', () => {
 
   it('CONTROL: one key-bearing member means no union check, so the decoder still does the work', async () => {
     let received: unknown;
-    const mion = createMionRouter({contextDataFactory: getSharedData});
+    const mion = customMionRouter<{shared: ReturnType<typeof getSharedData>}>()({contextDataFactory: getSharedData});
     const echo = mion.route((ctx, thing: ObjectOrNumber): string => {
       received = thing;
       return 'ok';

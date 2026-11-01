@@ -61,6 +61,8 @@ export interface RemoteMethodOpts {
    *  whose params type has no maximum, its own declared contribution to that sum. Rides the methods metadata so
    *  a client can refuse an oversize call before sending it. */
   maxBodySize?: number;
+  /** Keys a `customMionRouter` `handler` part added, as the method wrote them: declared so the metadata codec keeps them. */
+  [addedKey: string]: unknown;
 }
 
 export interface RouteOnlyOptions extends RemoteMethodOpts {

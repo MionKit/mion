@@ -37,7 +37,7 @@ var headlineByCode = map[string]string{
 	"rpc-batch-duplicate-route":                    "Route `{route}` is listed twice in this `batch()`; a batch runs each route once, so drop the duplicate or move it into a second batch.",
 	"rpc-batch-argument-out-of-range":              "`inputFrom()` sits at argument index {index} of route `{route}`, which declares only {count} parameter(s); move the mapping to an argument the route declares.",
 	"config-output-outside-out-dir":                "`mion compile` refused to write {file}: it lands outside outDir ({outDir}) because its source sits outside rootDir; move rootDir up so every file of the program is under it, or reach that module through its package name.",
-	"rpc-batch-router-init-hidden":                 "The batch table {file} was written, but no module of this program calls `createMionRouter` directly, so nothing imports it; import it by hand in the module that creates the router.",
+	"rpc-batch-router-init-hidden":                 "The batch table {file} was written, but no module of this program calls `createMionRouter` or `customMionRouter` directly, so nothing imports it; import it by hand in the module that creates the router.",
 	"rpc-client-api-unreadable":                    "The API type at this dispatch site cannot be read as a mion PublicApi ({reason}); bundling needs `PublicApi<typeof routes>`.",
 	"rpc-client-route-not-declared":                "This call names the route `{route}`, which the API type does not declare; nothing is bundled for it.",
 	"rpc-client-route-id-widened":                  "The route id at this call is `string` (a generic helper erased it), so nothing is bundled for it, and this client never sets up `useFetchMetadata`: the call fails.",

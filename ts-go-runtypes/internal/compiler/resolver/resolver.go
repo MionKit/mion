@@ -173,7 +173,7 @@ type Session struct {
 	ownPackageDone bool
 	// batchFileCache is the `batch([...])` twin of pureFnFileCache, memoised for the current Program and dropped with it.
 	batchFileCache *requestbatch.FileCache
-	// routerInitFileCache memoises per-file `createMionRouter` detection: the modules the batch import is appended to.
+	// routerInitFileCache memoises per-file router factory detection: the modules the batch import is appended to.
 	routerInitFileCache *routerinit.FileCache
 	// apiFileCache memoises per-file dispatch-site extraction (the bundled-routes lane), dropped with the Program.
 	apiFileCache *apimeta.FileCache

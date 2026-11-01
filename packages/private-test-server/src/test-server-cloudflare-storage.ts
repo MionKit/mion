@@ -17,7 +17,7 @@ import {drizzle as doDrizzle} from 'drizzle-orm/durable-sqlite';
 import type {DrizzleD1Database} from 'drizzle-orm/d1';
 import type {DrizzleSqliteDODatabase} from 'drizzle-orm/durable-sqlite';
 import {RpcError} from '@mionjs/core';
-import {createMionRouter, resetRouter} from '@mionjs/router';
+import {customMionRouter, resetRouter} from '@mionjs/router';
 import type {CallContext, Route, Routes} from '@mionjs/router';
 import {createCloudflareHandler, resetCloudflareHandlerOpts} from '@mionjs/platform-cloudflare';
 import {apiNotes, type Note, type NewNote} from './cloudflare-storage.schema.ts';
@@ -66,7 +66,7 @@ type SharedData = {d1: DrizzleD1Database | null; notes: NotesDurableObject | nul
 type Context = CallContext<SharedData>;
 
 const getSharedData = (): SharedData => ({d1: null, notes: null});
-const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+const mion = customMionRouter<{shared: SharedData}>()({contextDataFactory: getSharedData, basePath: 'api/'});
 
 /** A raw middleware is how a route reaches the bindings: the cloudflare adapter passes `{env, ctx}` as the raw response. */
 const withStorage = mion.rawMiddleware(async (ctx: Context, _request: unknown, platform: {env: StorageEnv}): Promise<void> => {

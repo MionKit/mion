@@ -1,4 +1,4 @@
-import {createMionRouter, Routes} from '@mionjs/router';
+import {customMionRouter, Routes} from '@mionjs/router';
 
 export type Product = {id: string; name: string};
 export type Pagination = {page: number; pageSize: number; total: number};
@@ -8,8 +8,8 @@ declare function findProducts(
   pageSize: number
 ): {items: Product[]; total: number};
 
-const mion = createMionRouter({
-  contextDataFactory: (): {pagination?: Pagination} => ({}),
+const mion = customMionRouter<{shared: {pagination?: Pagination}}>()({
+  contextDataFactory: () => ({}),
 });
 
 const routes = {

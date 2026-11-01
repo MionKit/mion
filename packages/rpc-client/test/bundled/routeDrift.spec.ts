@@ -11,8 +11,9 @@
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {createServer, type Server} from 'node:http';
 import {routesCache} from '@mionjs/core';
-import {createMionRouter, resetRouter} from '@mionjs/router';
+import {customMionRouter, resetRouter} from '@mionjs/router';
 import type {MionRouter, PublicApi, RemoteApi} from '@mionjs/router';
+import type {MionSecurityHandlerOptions} from '@mionjs/router/middlewares';
 import {mionFetchMetadata, mionSyncRoutes} from '@mionjs/router/middlewares';
 import {httpRequestHandler} from '@mionjs/platform-node';
 import {initClient} from '../../src/client.ts';
@@ -26,7 +27,8 @@ import {resetMetadataStore} from '../../src/lib/metadataStore.ts';
 import {flushMetadataCache, resetMetadataCacheState} from '../../src/lib/clientMethodsMetadata.ts';
 
 const options = {} as const;
-type Mion = MionRouter<typeof options>;
+type AppTypes = {handler: MionSecurityHandlerOptions};
+type Mion = MionRouter<typeof options, AppTypes>;
 
 /** How many times each handler ran: a refused call leaves its count alone. */
 const handlerCalls: Record<string, number> = {};
@@ -40,6 +42,7 @@ const oldRoutes = (mion: Mion) => ({
   paramsChanged: mion.route((ctx, name: string): string => (count('paramsChanged'), name)),
   returnChanged: mion.route((ctx, name: string): string => (count('returnChanged'), name)),
   optionsChanged: mion.query((ctx, value: number): number => (count('optionsChanged'), value)),
+  addedKeyChanged: mion.route((ctx, value: number): number => (count('addedKeyChanged'), value)),
   parserChanged: mion.route((ctx, name: string): {name: string} => (count('parserChanged'), {name})),
   stored: mion.route((ctx, value: number): number => (count('stored'), value)),
   secured: {
@@ -57,6 +60,8 @@ const newRoutes = (mion: Mion) => ({
   returnChanged: mion.route((ctx, name: string): number => (count('returnChanged'), name.length)),
   // query to mutation: GET becomes POST, the types stay
   optionsChanged: mion.mutation((ctx, value: number): number => (count('optionsChanged'), value * 2)),
+  // only an added option key: the types and the wire stay
+  addedKeyChanged: mion.route((ctx, value: number): number => (count('addedKeyChanged'), value * 3), {cors: false}),
   // same types, other bytes on the wire
   parserChanged: mion.route((ctx, name: string): {name: string} => (count('parserChanged'), {name}), {parser: 'compact'}),
   stored: mion.route((ctx, value: number): string => (count('stored'), `${value}`)),
@@ -77,7 +82,7 @@ let fetches = 0;
 /** Explicit versions keep these two APIs out of the lane's own version check (rpc-client-version-mismatch), which is one API per program. */
 function serve(routes: typeof oldRoutes | typeof newRoutes, version: string) {
   resetRouter();
-  const mion = createMionRouter(options);
+  const mion = customMionRouter<AppTypes>()(options);
   mion.initRoutes(routes(mion), version);
 }
 
@@ -150,6 +155,13 @@ describe('a client built against routes the server has since changed', () => {
       const same = await counted(() => reloadClient().routes.same(1).call());
       expect(same.value[0]).toBe(2);
       expect(same.fetches).toBe(1);
+    });
+
+    it('runs a route whose only change is an option key a customMionRouter added', async () => {
+      const [value, , response] = await reloadClient().routes.addedKeyChanged(2).call();
+      expect(value).toBe(6);
+      expect(response['@thrownErrors']).toBeUndefined();
+      expect(response.mionSyncRoutes).toBeUndefined();
     });
 
     it('runs a route whose options changed, and ignores a route the server added', async () => {

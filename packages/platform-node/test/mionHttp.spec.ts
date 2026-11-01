@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
-import {createMionRouter, resetRouter} from '@mionjs/router';
+import {customMionRouter, resetRouter} from '@mionjs/router';
 import {setNodeHttpOpts, resetNodeHttpOpts, startNodeServer} from '../src/mionHttp.ts';
 import type {CallContext, Route} from '@mionjs/router';
 import {HeadersSubset, MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
@@ -28,7 +28,7 @@ describe('node http router', () => {
     },
   };
   const getSharedData = () => ({auth: {me: null as any}});
-  const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+  const mion = customMionRouter<{shared: MySharedData}>()({contextDataFactory: getSharedData, basePath: 'api/'});
 
   const changeUserName: Route = mion.route((context: Context, user: SimpleUser): SimpleUser => {
     return myApp.db.changeUserName(user);
@@ -172,7 +172,7 @@ describe('node http router', () => {
       resetNodeHttpOpts();
       resetRouter();
       setNodeHttpOpts(httpOpts);
-      createMionRouter({
+      customMionRouter<{shared: MySharedData}>()({
         contextDataFactory: getSharedData,
         basePath: 'api/',
         responseHeaders: {'x-app-name': 'MyApp'},
@@ -222,7 +222,7 @@ describe('node http router', () => {
       resetNodeHttpOpts();
       setNodeHttpOpts({port});
       resetRouter();
-      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+      const jsonRouter = customMionRouter<{shared: MySharedData}>()({contextDataFactory: getSharedData, basePath: 'api/'});
       jsonRouter.initRoutes({changeUserName, getDate});
     });
 
