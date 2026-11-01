@@ -29,8 +29,8 @@
 //   - typia drops function members and methods from is / validate, as mion does;
 //   - CIRCULAR_REFS: typia ends its walk on a cycle (accepts it), so a root tag rejects it.
 // NOT_SUPPORTED (each entry carries its reason): a symbol literal and the two function cases (typia emits no
-// symbol / function check and no tag can target either), `never` (accepts undefined), and the two cases with no
-// shared samples.
+// symbol / function check and no tag can target either), `never` (accepts undefined), the two unions with an
+// index-signature arm (no place for the plain-object tag), and the two cases with no shared samples.
 
 import typia, {tags} from 'typia';
 import {NOT_SUPPORTED, type CompetitorCases} from '../../shared/harness/types.ts';
@@ -39,6 +39,7 @@ import {NOT_SUPPORTED, type CompetitorCases} from '../../shared/harness/types.ts
 // - ValidDate: typia's Date check is `instanceof Date` only and a tag on `Date` is dropped, so mion's valid-Date rule
 //   sits on `object` (`{}` would be erased from the intersection). typia adds its own typeof / null / isArray prefix.
 // - PlainObject: mion's plain-object guard on all-optional and index-signature nodes; typia already rejects arrays there.
+// - NoUndefinedValues: typia's index loop skips an undefined value, mion checks every value, so {a: undefined} fails.
 type ValidDate = object &
   tags.TagBase<{
     target: 'object';
@@ -51,6 +52,12 @@ type PlainObject = tags.TagBase<{
   kind: 'plainObject';
   value: undefined;
   validate: "Object.prototype.toString.call($input) === '[object Object]'";
+}>;
+type NoUndefinedValues = tags.TagBase<{
+  target: 'object';
+  kind: 'noUndefinedValues';
+  value: undefined;
+  validate: '!Object.values($input).includes(undefined)';
 }>;
 
 export const cases: CompetitorCases = {
@@ -492,23 +499,16 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
-  'OBJECT.interface_with_method': (() => {
-    // Named, so typia's emitted `input is WithCb` predicate holds no `=>` (the build's predicate strip miscounts it).
-    interface WithCb {
-      name: string;
-      cb: () => any;
-    }
-    return {
-      build: () => {
-        const check = typia.createIs<WithCb>();
-        return (v) => check(v);
-      },
-      buildErrors: () => {
-        const val = typia.createValidate<WithCb>();
-        return (v) => val(v).success;
-      },
-    };
-  })(),
+  'OBJECT.interface_with_method': {
+    build: () => {
+      const check = typia.createIs<{name: string; cb: () => any}>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      const val = typia.createValidate<{name: string; cb: () => any}>();
+      return (v) => val(v).success;
+    },
+  },
   'OBJECT.nested_object': {
     build: () => {
       const check = typia.createIs<{a: string; deep: {b: string; c: number}}>();
@@ -568,52 +568,43 @@ export const cases: CompetitorCases = {
       },
     };
   })(),
-  'OBJECT.index_signature_string': (() => {
-    // typia's index loop skips explicit-undefined values, mion checks every value, so {a: undefined} must fail.
-    type NoUndefinedValues = tags.TagBase<{
-      target: 'object';
-      kind: 'noUndefinedValues';
-      value: undefined;
-      validate: '!Object.values($input).includes(undefined)';
-    }>;
-    return {
-      build: () => {
-        const check = typia.createIs<{[key: string]: string} & PlainObject & NoUndefinedValues>();
-        return (v) => check(v);
-      },
-      buildErrors: () => {
-        const val = typia.createValidate<{[key: string]: string} & PlainObject & NoUndefinedValues>();
-        return (v) => val(v).success;
-      },
-    };
-  })(),
-  'OBJECT.index_signature_named_props': {
+  'OBJECT.index_signature_string': {
     build: () => {
-      const check = typia.createIs<{a: string; b: number; [key: string]: string | number} & PlainObject>();
+      const check = typia.createIs<{[key: string]: string} & PlainObject & NoUndefinedValues>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<{a: string; b: number; [key: string]: string | number} & PlainObject>();
+      const val = typia.createValidate<{[key: string]: string} & PlainObject & NoUndefinedValues>();
+      return (v) => val(v).success;
+    },
+  },
+  'OBJECT.index_signature_named_props': {
+    build: () => {
+      const check = typia.createIs<{a: string; b: number; [key: string]: string | number} & PlainObject & NoUndefinedValues>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      const val = typia.createValidate<{a: string; b: number; [key: string]: string | number} & PlainObject & NoUndefinedValues>();
       return (v) => val(v).success;
     },
   },
   'OBJECT.index_signature_nested': {
     build: () => {
-      const check = typia.createIs<{[key: string]: {[key: string]: number} & PlainObject} & PlainObject>();
+      const check = typia.createIs<{[key: string]: {[key: string]: number} & PlainObject & NoUndefinedValues} & PlainObject & NoUndefinedValues>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<{[key: string]: {[key: string]: number} & PlainObject} & PlainObject>();
+      const val = typia.createValidate<{[key: string]: {[key: string]: number} & PlainObject & NoUndefinedValues} & PlainObject & NoUndefinedValues>();
       return (v) => val(v).success;
     },
   },
   'OBJECT.index_signature_date_value': {
     build: () => {
-      const check = typia.createIs<{[key: string]: {[key: string]: ValidDate} & PlainObject} & PlainObject>();
+      const check = typia.createIs<{[key: string]: {[key: string]: ValidDate} & PlainObject & NoUndefinedValues} & PlainObject & NoUndefinedValues>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<{[key: string]: {[key: string]: ValidDate} & PlainObject} & PlainObject>();
+      const val = typia.createValidate<{[key: string]: {[key: string]: ValidDate} & PlainObject & NoUndefinedValues} & PlainObject & NoUndefinedValues>();
       return (v) => val(v).success;
     },
   },
@@ -624,7 +615,7 @@ export const cases: CompetitorCases = {
     }
     interface Obj2 {
       b: string;
-      c: Obj1 & PlainObject;
+      c: Obj1 & PlainObject & NoUndefinedValues;
     }
     return {
       build: () => {
@@ -752,11 +743,11 @@ export const cases: CompetitorCases = {
   },
   'OBJECT.union_value_index': {
     build: () => {
-      const check = typia.createIs<{[key: string]: string | number} & PlainObject>();
+      const check = typia.createIs<{[key: string]: string | number} & PlainObject & NoUndefinedValues>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<{[key: string]: string | number} & PlainObject>();
+      const val = typia.createValidate<{[key: string]: string | number} & PlainObject & NoUndefinedValues>();
       return (v) => val(v).success;
     },
   },
@@ -810,11 +801,11 @@ export const cases: CompetitorCases = {
   // the value of a non-numeric key), so the string-key spelling does mion's work.
   'OBJECT.index_signature_number_key': {
     build: () => {
-      const check = typia.createIs<{[k: string]: string} & PlainObject>();
+      const check = typia.createIs<{[k: string]: string} & PlainObject & NoUndefinedValues>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<{[k: string]: string} & PlainObject>();
+      const val = typia.createValidate<{[k: string]: string} & PlainObject & NoUndefinedValues>();
       return (v) => val(v).success;
     },
   },
@@ -1069,19 +1060,7 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
-  // No PlainObject on the index-signature arm: a tag on a union arm makes typia's createValidate run that arm with
-  // `_exceptionable = false`, which skips its index-value loop (`{c: 1n, d: 'hello'}` would pass). The shared samples
-  // do not need the guard, so typia runs this case without mion's toString test.
-  'UNION.union_with_index_arm': {
-    build: () => {
-      const check = typia.createIs<{a: string; aa: boolean} | {b: number} | {c: bigint; [key: string]: bigint}>();
-      return (v) => check(v);
-    },
-    buildErrors: () => {
-      const val = typia.createValidate<{a: string; aa: boolean} | {b: number} | {c: bigint; [key: string]: bigint}>();
-      return (v) => val(v).success;
-    },
-  },
+  'UNION.union_with_index_arm': NOT_SUPPORTED, // a tag on a union arm makes createValidate skip that arm's index loop, so mion's plain-object check has no place
   'UNION.union_same_prop_different_types': {
     build: () => {
       const check = typia.createIs<{type: 'a'; prop: boolean} | {type: 'b'; prop: number} | {type: 'c'; prop: string}>();
@@ -1116,31 +1095,7 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
-  // No PlainObject on each index-signature arm: a tag on a union arm makes typia's createValidate run that arm with
-  // `_exceptionable = false`, which skips its index-value loop (`{c: 1n, d: 'hello'}` would pass). The shared samples
-  // do not need the guard, so typia runs this case without mion's toString test.
-  'UNION.union_mixed_with_index': {
-    build: () => {
-      const check = typia.createIs<
-        | string[]
-        | {a: string; aa: boolean}
-        | {b: number}
-        | {a: string; [key: string]: string}
-        | {[key: string]: bigint; b: bigint}
-      >();
-      return (v) => check(v);
-    },
-    buildErrors: () => {
-      const val = typia.createValidate<
-        | string[]
-        | {a: string; aa: boolean}
-        | {b: number}
-        | {a: string; [key: string]: string}
-        | {[key: string]: bigint; b: bigint}
-      >();
-      return (v) => val(v).success;
-    },
-  },
+  'UNION.union_mixed_with_index': NOT_SUPPORTED, // a tag on a union arm makes createValidate skip that arm's index loop, so mion's plain-object check has no place
   'UNION.union_with_any_fallback': {
     build: () => {
       const check = typia.createIs<string | any>();
@@ -1291,11 +1246,11 @@ export const cases: CompetitorCases = {
   // PlainObject = mion's plain-object guard on the index-signature node.
   'TEMPLATE_LITERAL.template_literal_index_key': {
     build: () => {
-      const check = typia.createIs<{[key: string & tags.Pattern<'^api/'>]: number} & PlainObject>();
+      const check = typia.createIs<{[key: string & tags.Pattern<'^api/'>]: number} & PlainObject & NoUndefinedValues>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<{[key: string & tags.Pattern<'^api/'>]: number} & PlainObject>();
+      const val = typia.createValidate<{[key: string & tags.Pattern<'^api/'>]: number} & PlainObject & NoUndefinedValues>();
       return (v) => val(v).success;
     },
   },
@@ -1410,7 +1365,7 @@ export const cases: CompetitorCases = {
   })(),
   'CIRCULAR.object_with_index_prop': (() => {
     interface CircularIndex {
-      index: {[key: string]: CircularIndex} & PlainObject;
+      index: {[key: string]: CircularIndex} & PlainObject & NoUndefinedValues;
     }
     return {
       build: () => {
@@ -2570,9 +2525,9 @@ export const cases: CompetitorCases = {
   'STRING_FORMAT.ipv6_port': (() => {
     // Leaf tag: typia's own IPv6 check on the bracket content + port <= 65535; the port stays required.
     const BRACKETED = /^\[([^\]]+)\]:(\d+)$/;
-    const ipv6WithPort = (s: string, isIpv6: (v: string) => boolean): boolean => {
-      const m = BRACKETED.exec(s);
-      return m !== null && isIpv6(m[1]) && Number(m[2]) <= 65535;
+    const ipv6WithPort = (text: string, isIpv6: (v: string) => boolean): boolean => {
+      const match = BRACKETED.exec(text);
+      return match !== null && isIpv6(match[1]) && Number(match[2]) <= 65535;
     };
     type Ipv6WithPort = tags.TagBase<{
       target: 'string';
@@ -2982,8 +2937,8 @@ export const cases: CompetitorCases = {
   'DATETIME.date_rel_window': (() => {
     // R2 + bounds as one leaf hook on `object`; now ± P1000Y with UTC calendar math per call, as mion (R4b).
     const yearsFromNow = (years: number) => {
-      const d = new Date();
-      return d.setUTCFullYear(d.getUTCFullYear() + years);
+      const now = new Date();
+      return now.setUTCFullYear(now.getUTCFullYear() + years);
     };
     type Check = object &
       tags.TagBase<{
@@ -3006,8 +2961,8 @@ export const cases: CompetitorCases = {
   'DATETIME.date_rel_datetime_components': (() => {
     // R2 + bound as one leaf hook on `object`; now - P1000YT12H with UTC calendar math per call, as mion (R4b).
     const minBound = () => {
-      const d = new Date();
-      return d.setUTCFullYear(d.getUTCFullYear() - 1000) - 43200000;
+      const now = new Date();
+      return now.setUTCFullYear(now.getUTCFullYear() - 1000) - 43200000;
     };
     type Check = object &
       tags.TagBase<{
@@ -3851,23 +3806,23 @@ export const cases: CompetitorCases = {
   // A Pattern tag on the index-signature key is enforced per key by is + validate.
   'JSON_SCHEMA.property_names': {
     build: () => {
-      const check = typia.createIs<{[key: string & tags.Pattern<'^[a-z]+$'>]: number} & PlainObject>();
+      const check = typia.createIs<{[key: string & tags.Pattern<'^[a-z]+$'>]: number} & PlainObject & NoUndefinedValues>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<{[key: string & tags.Pattern<'^[a-z]+$'>]: number} & PlainObject>();
+      const val = typia.createValidate<{[key: string & tags.Pattern<'^[a-z]+$'>]: number} & PlainObject & NoUndefinedValues>();
       return (v) => val(v).success;
     },
   },
   'JSON_SCHEMA.contains_count': (() => {
     // contains {minimum: 10} + minContains 2 as an array tag (no typia feature); full counting loop like mion.
     const countAtLeast10 = (items: unknown[]): number => {
-      let n = 0;
+      let count = 0;
       for (let i = 0; i < items.length; i++) {
-        const x = items[i];
-        if (Number.isFinite(x) && (x as number) >= 10) n++;
+        const item = items[i];
+        if (Number.isFinite(item) && (item as number) >= 10) count++;
       }
-      return n;
+      return count;
     };
     type MinContains = tags.TagBase<{target: 'array'; kind: 'minContains'; value: 2; validate: 'countAtLeast10($input) >= 2'}>;
     return {
@@ -3893,30 +3848,30 @@ export const cases: CompetitorCases = {
   },
   'JSON_SCHEMA.object_size': (() => {
     // minProperties 1 / maxProperties 3 as an object tag (no typia key-count feature); counts keys like mion's for-in.
-    const sizeInRange = (o: object): boolean => {
-      let n = 0;
-      for (const _k in o) n++;
-      return n >= 1 && n <= 3;
+    const sizeInRange = (obj: object): boolean => {
+      let count = 0;
+      for (const _k in obj) count++;
+      return count >= 1 && count <= 3;
     };
     type ObjectSize = tags.TagBase<{target: 'object'; kind: 'objectSize'; value: undefined; validate: 'sizeInRange($input)'}>;
     return {
       build: () => {
-        const check = typia.createIs<{[key: string]: number} & PlainObject & ObjectSize>();
+        const check = typia.createIs<{[key: string]: number} & PlainObject & NoUndefinedValues & ObjectSize>();
         return (v) => check(v);
       },
       buildErrors: () => {
-        const val = typia.createValidate<{[key: string]: number} & PlainObject & ObjectSize>();
+        const val = typia.createValidate<{[key: string]: number} & PlainObject & NoUndefinedValues & ObjectSize>();
         return (v) => val(v).success;
       },
     };
   })(),
   'JSON_SCHEMA.string_email': {
     build: () => {
-      const check = typia.createIs<string & tags.Format<'email'>>();
+      const check = typia.createIs<string & tags.MaxLength<254> & tags.MinLength<7> & tags.Pattern<'^[^\\s@]{1,64}@(?:[a-zA-Z0-9-]{1,63}\\.)+[a-zA-Z]{2,63}$'>>();
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidate<string & tags.Format<'email'>>();
+      const val = typia.createValidate<string & tags.MaxLength<254> & tags.MinLength<7> & tags.Pattern<'^[^\\s@]{1,64}@(?:[a-zA-Z0-9-]{1,63}\\.)+[a-zA-Z]{2,63}$'>>();
       return (v) => val(v).success;
     },
   },
