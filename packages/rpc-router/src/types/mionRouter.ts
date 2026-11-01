@@ -101,7 +101,6 @@ interface UnknownOptionKey<Key extends PropertyKey> {
   readonly unknownOptionKey: Key;
 }
 
-
 // An interface, not an alias: it resolves lazily, a few instantiations less on every router the type budget tracks.
 export interface RouterCallContext<T extends CustomRouterTypes> extends CallContext<SharedOf<T>> {
   shared: SharedOf<T>;
@@ -214,9 +213,7 @@ export interface MionRouter<O extends RouterOptionsInput = RouterOptionsInput, T
 
 /** What `customMionRouter<T>()` returns: `createMionRouter` with the declared types. */
 export type CustomRouterFactory<T extends CustomRouterTypes> = T extends {shared: any}
-  ? <const O extends RouterOptionsInputOf<T> & KnownKeysOf<O, T>>(
-      opts: RouterOptionsArg<O>
-    ) => MionRouter<O, T>
+  ? <const O extends RouterOptionsInputOf<T> & KnownKeysOf<O, T>>(opts: RouterOptionsArg<O>) => MionRouter<O, T>
   : OptionalOptionsFactory<T>;
 /** Overloads, not a defaulted `O`: a default cannot be proven to meet a constraint that reads `O` and `T`. */
 interface OptionalOptionsFactory<T extends CustomRouterTypes> {
