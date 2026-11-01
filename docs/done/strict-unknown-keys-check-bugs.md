@@ -63,3 +63,8 @@ makes the code match it.
   purpose: the error list is now complete, so `[1, 2, 3]` against a strict object reports its type errors plus
   `'0'`, `'1'`, `'2'`. The test oracle `undeclaredKeyErrors` (`test/suites/strict-validation/Strict.ts`) counts an
   array's keys the same way, and the parity corpus in `checkUnknowns.test.ts` gained two arrays carrying the props.
+- Review found one more array disagreement: a strict type declaring `length` took the key count, which misses an
+  array's non-enumerable `length`. `countFastPathN` now refuses the count for a declared `length`, pinned in Go
+  and Vitest, both call shapes.
+- The same count also misses a declared prop that is a getter or otherwise not enumerable (not array-specific).
+  Fixing it trades away the strict fast path, so it is filed as its own todo in this PR.
