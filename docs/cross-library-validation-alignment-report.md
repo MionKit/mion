@@ -85,7 +85,7 @@ replaces the shared samples with its own.
 | zod        | 0                | 2                   | 0                    |
 | TypeBox    | 0                | 2                   | 0                    |
 | ajv        | 0                | 2                   | 0                    |
-| typia      | 0                | 6                   | 0                    |
+| typia      | 0                | 8                   | 0                    |
 
 An earlier run of this audit found 111 divergences, every one a competitor ACCEPTING a value RunTypes
 rejects, each hidden behind a `SampleOverride`. They came from five causes, and each was closed in the
@@ -106,7 +106,9 @@ competitor's own case file, with the library's own features, following the bench
   RunTypes refuses a bare `symbol` at the root as non-data, so there is nothing to check.
 - **typia**: also `ATOMIC.literal_symbol`, `ATOMIC.never`, `OBJECT.function_top_level` and
   `OBJECT.interface_callable`. typia emits no check for a symbol or a function type and no tag can target
-  one; `is<never>()` accepts `undefined`.
+  one; `is<never>()` accepts `undefined`. And `UNION.union_with_index_arm` / `UNION.union_mixed_with_index`:
+  a tag on a union arm makes `createValidate` skip that arm's index loop, so RunTypes' plain-object check has
+  no place there.
 - **RunTypes**: the 9 cases it refuses as non-data (`factoryThrows` in the shared case): a symbol, a
   `RegExp`, a `Promise`, a function root, a callable interface, a tuple with a function slot. The
   competitors still run the ones they can express, and the website scores RunTypes at the worst result
