@@ -40,23 +40,30 @@ type SegmentFn = (segment: string) => boolean;
 // it via utl.getPureFn, so the Go extractor records the transitive dep.
 
 export const isDateString = registerPureFnFactory(function () {
-  return function _isDateString(year: string | undefined, month: string, day?: string): boolean {
-    let y: number | undefined;
-    if (year) {
-      if (year.length !== 4) return false;
-      y = Number(year);
-      if (isNaN(y) || y < 0 || y > 9999) return false;
+  // The part as a number when it is exactly `len` ASCII digits, -1 otherwise. Not `Number()`, which takes
+  // '0x1F', '1e03', '+1', ' 1' and '1.' too.
+  function digitsVal(part: string, len: number): number {
+    if (part.length !== len) return -1;
+    let val = 0;
+    for (let i = 0; i < len; i++) {
+      const digit = part.charCodeAt(i) - 48;
+      if (digit < 0 || digit > 9) return -1;
+      val = val * 10 + digit;
     }
-    if (month.length !== 2) return false;
-    const m = Number(month);
-    if (isNaN(m) || m < 1 || m > 12) return false;
-    if (day) {
-      if (day.length !== 2) return false;
-      const d = Number(day);
-      if (isNaN(d) || d < 1 || d > 31) return false;
+    return val;
+  }
+  return function _isDateString(year: string | undefined, month: string, day?: string): boolean {
+    // `undefined` means the layout has no such part; an empty string is a missing one and fails.
+    const y = year === undefined ? -1 : digitsVal(year, 4);
+    if (year !== undefined && y < 0) return false;
+    const m = digitsVal(month, 2);
+    if (m < 1 || m > 12) return false;
+    if (day !== undefined) {
+      const d = digitsVal(day, 2);
+      if (d < 1 || d > 31) return false;
       if (m === 2) {
         if (d > 29) return false;
-        if (y && d === 29 && !(y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0))) return false;
+        if (y >= 0 && d === 29 && !(y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0))) return false;
       } else if ((m === 4 || m === 6 || m === 9 || m === 11) && d > 30) {
         return false;
       }
