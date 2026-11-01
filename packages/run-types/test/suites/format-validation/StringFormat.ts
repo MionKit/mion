@@ -1491,7 +1491,7 @@ export const STRING_FORMAT = {
     description: 'TF.StringDate (format `date`) with the default ISO `YYYY-MM-DD` layout that enforces calendar validity.',
     validateNotes: [
       'Default layout is ISO `YYYY-MM-DD`; the format error `val` is `ISO`.',
-      'Calendar validity is enforced: `2023-02-29` (not a leap year), `2024-13-01` (month 13), and `2024-04-31` (April has 30 days) all fail.',
+      'Calendar validity is enforced: `2023-02-29` (not a leap year), `2024-13-01` (month 13), `2024-04-31` (April has 30 days), month `00`, day `00` and day `32` all fail.',
       'Width is exact — `2024-1-1` (single-digit month/day) fails; `not-a-date` fails. `0001-01-01` is accepted.',
       'Each part is plain ASCII digits: `0x1F-01-01`, `1e03-01-01`, `2024-+1-01`, `2024- 1-01` and `2024-01-1.` fail, as does an empty part (`2024-02-`, `-02-29`).',
     ],
@@ -1533,6 +1533,10 @@ export const STRING_FORMAT = {
         '2024-04-31',
         '2024-1-1',
         'not-a-date',
+        // Range edges: month 00, day 00 and day 32.
+        '2024-00-10',
+        '2024-01-00',
+        '2024-01-32',
         // Right width, but not plain digits, or a part left empty.
         ...DATE_ISO_NOT_DIGITS,
       ],
@@ -1543,6 +1547,9 @@ export const STRING_FORMAT = {
       null,
       null,
       null,
+      {name: 'date', val: 'ISO'},
+      {name: 'date', val: 'ISO'},
+      {name: 'date', val: 'ISO'},
       ...DATE_ISO_NOT_DIGITS.map(() => ({name: 'date', val: 'ISO'})),
     ],
   },

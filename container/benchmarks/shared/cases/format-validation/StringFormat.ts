@@ -149,6 +149,10 @@ export const STRING_FORMAT = {
         '2024-04-31',
         '2024-1-1',
         'not-a-date',
+        // Range edges: month 00, day 00 and day 32.
+        '2024-00-10',
+        '2024-01-00',
+        '2024-01-32',
         // Right width, but not plain digits, or a part left empty.
         ...DATE_ISO_NOT_DIGITS,
       ],
@@ -159,6 +163,9 @@ export const STRING_FORMAT = {
       null,
       null,
       null,
+      {name: 'date', val: 'ISO'},
+      {name: 'date', val: 'ISO'},
+      {name: 'date', val: 'ISO'},
       ...DATE_ISO_NOT_DIGITS.map(() => ({name: 'date', val: 'ISO'})),
     ],
   },
