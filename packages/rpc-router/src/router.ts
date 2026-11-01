@@ -73,7 +73,6 @@ import type {
   KnownKeysOf,
   MiddlewareHelper,
   MionRouter,
-  PlainRouterTypes,
   RawMiddlewareHelper,
   RouteHelper,
   RouterOptionsInput,
@@ -219,9 +218,9 @@ export const resetRouter = () => {
 
 /** Options ride BY TYPE into every helper, so router-wide defaults are read at build time and `ctx.shared` is typed from
  *  `sharedDataFactory`'s written return type. The helpers are plain closures (no `this`), safe to destructure. */
-export function createMionRouter<const O extends RouterOptionsInput & KnownKeysOf<O, PlainRouterTypes> = Record<never, never>>(
+export function createMionRouter<const O extends RouterOptionsInput & KnownKeysOf<O, object> = Record<never, never>>(
   opts?: RouterOptionsArg<O>
-): MionRouter<O, WithShared<O, PlainRouterTypes>> {
+): MionRouter<O, WithShared<O, object>> {
   if (isRouterCreated)
     throw new Error(
       'createMionRouter has already been called: create the router once per app (resetRouter() clears it in tests)'
@@ -230,12 +229,12 @@ export function createMionRouter<const O extends RouterOptionsInput & KnownKeysO
   const options = Object.freeze({...opts}) as Readonly<O>;
   return {
     options,
-    route: route as RouteHelper<O, WithShared<O, PlainRouterTypes>>,
-    query: query as RouteHelper<O, WithShared<O, PlainRouterTypes>, false>,
-    mutation: mutation as RouteHelper<O, WithShared<O, PlainRouterTypes>, true>,
-    middleware: middleware as MiddlewareHelper<O, WithShared<O, PlainRouterTypes>>,
-    headersMiddleware: headersMiddleware as HeadersMiddlewareHelper<O, WithShared<O, PlainRouterTypes>>,
-    rawMiddleware: rawMiddleware as RawMiddlewareHelper<WithShared<O, PlainRouterTypes>>,
+    route: route as RouteHelper<O, WithShared<O, object>>,
+    query: query as RouteHelper<O, WithShared<O, object>, false>,
+    mutation: mutation as RouteHelper<O, WithShared<O, object>, true>,
+    middleware: middleware as MiddlewareHelper<O, WithShared<O, object>>,
+    headersMiddleware: headersMiddleware as HeadersMiddlewareHelper<O, WithShared<O, object>>,
+    rawMiddleware: rawMiddleware as RawMiddlewareHelper<WithShared<O, object>>,
     // Typed by MionRouter, the one place its signature is written.
     initRoutes(routes, buildVersion) {
       initRouter(options, buildVersion);
@@ -254,9 +253,7 @@ export function createMionRouter<const O extends RouterOptionsInput & KnownKeysO
  *  const mion = createMionRouter.withTypes<{handler: MionSecurityHandlerOptions}>()({basePath: 'api'});
  *  mion.route(handler, {cors: false});
  *  ``` */
-createMionRouter.withTypes = function withTypes<
-  T extends RouterTypes & JsonHandlerKeys<T> = PlainRouterTypes,
->(): TypedRouterFactory<T> {
+createMionRouter.withTypes = function withTypes<T extends RouterTypes & JsonHandlerKeys<T> = object>(): TypedRouterFactory<T> {
   return createMionRouter as unknown as TypedRouterFactory<T>;
 };
 

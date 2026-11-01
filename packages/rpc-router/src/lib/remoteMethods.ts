@@ -8,14 +8,7 @@
 import {type RouterEntry, type Routes} from '../types/general.ts';
 import {type RemoteMethod} from '../types/remoteMethods.ts';
 import type {PublicApi} from '../types/publicMethods.ts';
-import type {
-  AnyObject,
-  CompiledTypeFn,
-  CompiledFnData,
-  MethodOptionsMetadata,
-  MethodWithOptions,
-  PureFnsDataCache,
-} from '@mionjs/core';
+import type {AnyObject, CompiledTypeFn, CompiledFnData, MethodWithOptions, PureFnsDataCache} from '@mionjs/core';
 import {isRoute, isHeadersMiddlewareDef, isMiddlewareDef} from '../types/guards.ts';
 import {getMiddlewareExecutable, getRouteExecutable, isPrivateDefinition, getPlatformMaxBodySize} from '../router.ts';
 import {
@@ -91,7 +84,7 @@ export function getSerializableMethod(executable: RemoteMethod): MethodWithOptio
     // registration copied the keys a `createMionRouter` added onto the options: they go to the client as written
     options: (executable.type === HandlerType.route && executable.options.maxBodySize === undefined
       ? {...executable.options, maxBodySize: getPlatformMaxBodySize()}
-      : executable.options) as MethodOptionsMetadata,
+      : executable.options) as MethodWithOptions['options'],
   };
   if (executable.syncId) newRemoteMethod.syncId = executable.syncId;
   if (executable.headersParam) newRemoteMethod.headersParam = executable.headersParam;

@@ -12,7 +12,6 @@ import type {
   PinnedMutation,
   RawMiddlewareHelper,
   RouteHelper,
-  PlainRouterTypes,
   RouterOptionsInput,
 } from '../types/mionRouter.ts';
 
@@ -44,7 +43,7 @@ export const route: RouteHelper<RouterOptionsInput> = (
 });
 
 /** Typed as the same helper as `route()`, so both keep the marker signature the scanner reads at the call site. */
-function routeWithMutation<M extends boolean>(isMutation: M): RouteHelper<RouterOptionsInput, PlainRouterTypes, M> {
+function routeWithMutation<M extends boolean>(isMutation: M): RouteHelper<RouterOptionsInput, object, M> {
   return (handler, opts, paramsFns, returnFns, paramsId, returnId, isAsyncId, syncId) => ({
     type: HandlerType.route,
     handler,

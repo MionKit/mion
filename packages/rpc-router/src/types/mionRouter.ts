@@ -49,21 +49,16 @@ export interface RouterTypes {
   /** Keys added to the options of every handler kind. */
   handler?: object;
 }
-/** The types of a router created with plain `createMionRouter`: nothing declared. */
-export type PlainRouterTypes = object;
-
-/** `ctx.shared`: what `sharedDataFactory` returns, `never` without one. Write the factory's return type: inferring it
- *  from the body makes every client compute it (a whole database type), even when the type is declared elsewhere. */
-/** The router types the helpers read: `ctx.shared` joins them once per router, and a router with no factory keeps `T`
- *  as is. Read off `O` in every helper instead, it makes the factory's unknown-key constraint cost far more. */
+/** The router types the helpers read: `ctx.shared` (what `sharedDataFactory` returns, `never` without one) joins them
+ *  once per router. Read off `O` in every helper instead, it makes the factory's unknown-key constraint cost far more. */
 export type WithShared<O, T> = O extends {sharedDataFactory: SharedDataFactory<infer Shared>} ? T & {readonly shared: Shared} : T;
 type SharedOf<T> = T extends {readonly shared: infer Shared extends Record<string, any>} ? Shared : never;
+// Two helpers, not one keyed by part: the shared `Record<Part, infer Keys>` form costs the route step ~30 instantiations.
 type HandlerKeysOf<T> = T extends {handler: infer Keys} ? Keys : unknown;
 type RouterKeysOf<T> = T extends {router: infer Keys} ? Keys : unknown;
 
 /** The widest router options shape. */
 export type RouterOptionsInput = Partial<RouterOptions>;
-type RouterOptionsInputOf<T> = RouterOptionsInput & RouterKeysOf<T>;
 /** The factory's parameter type: the options literal, with a widened `parser` rejected. */
 export type RouterOptionsArg<O> = O & ParserLiteralGuard<O>;
 /** In `withTypes`' constraint: a non-JSON `handler` key value is an error, it reaches the client as metadata. */
@@ -105,7 +100,7 @@ export interface RouterCallContext<T> extends CallContext<SharedOf<T>> {
 // Resolved once per router, since `T` is fixed: a router with no `handler` part pays nothing per route.
 type RouteOptionsOf<T> = RouteOptions & HandlerKeysOf<T>;
 type MiddlewareOptionsOf<T> = MiddlewareOptions & HandlerKeysOf<T>;
-type MiddlewareKeysOf<T> = keyof MiddlewareOptions | keyof HandlerKeysOf<T>;
+type RawMiddlewareOptionsOf<T> = RawMiddlewareOptions & HandlerKeysOf<T>;
 
 // `RO` is the route's own options literal, defaulting to the no-parser shape, so a route naming no `parser` takes its
 // slots from `O`, the factory literal; the slot types fall back route, then router, then the built-in default.
@@ -119,14 +114,10 @@ type HeaderSlots<H extends HeaderHandler> = HeaderMarkerSlots<HeaderHandlerHeade
 
 /** `mion.route` / `mion.query` / `mion.mutation`: declares a route whose handler context is typed from the router types.
  *  `M` is the `isMutation` the helper pins (`query` false, `mutation` true, `route` nothing), carried on the returned options. */
-export interface RouteHelper<
-  O extends RouterOptionsInput,
-  T extends object = PlainRouterTypes,
-  M extends boolean | undefined = undefined,
-> {
+export interface RouteHelper<O extends RouterOptionsInput, T extends object = object, M extends boolean | undefined = undefined> {
   <H extends Handler<RouterCallContext<T>>, const RO extends object = PlainRouteOptions>(
     handler: H,
-    opts?: CompTimeArgs<RO & NoInfer<RouteOptionsOf<T> & UnknownKeysGuard<RO, keyof RouteOptions | keyof HandlerKeysOf<T>>>>,
+    opts?: CompTimeArgs<RO & NoInfer<RouteOptionsOf<T> & UnknownKeysGuard<RO, keyof RouteOptionsOf<T>>>>,
     paramsFns?: RouteSlots<O, H, RO>[0],
     returnFns?: RouteSlots<O, H, RO>[1],
     paramsId?: RouteSlots<O, H, RO>[2],
@@ -140,10 +131,10 @@ export interface RouteHelper<
 export type PinnedMutation<RO, M extends boolean | undefined> = M extends boolean ? RO & {isMutation: M} : RO;
 
 /** `mion.middleware`: declares a middleware whose handler context is typed from the router types. */
-export interface MiddlewareHelper<O extends RouterOptionsInput, T extends object = PlainRouterTypes> {
+export interface MiddlewareHelper<O extends RouterOptionsInput, T extends object = object> {
   <H extends Handler<RouterCallContext<T>>, const RO extends object = PlainMiddlewareOptions>(
     handler: H,
-    opts?: CompTimeArgs<RO & NoInfer<MiddlewareOptionsOf<T> & UnknownKeysGuard<RO, MiddlewareKeysOf<T>>>>,
+    opts?: CompTimeArgs<RO & NoInfer<MiddlewareOptionsOf<T> & UnknownKeysGuard<RO, keyof MiddlewareOptionsOf<T>>>>,
     paramsFns?: RouteSlots<O, H, RO>[0],
     returnFns?: RouteSlots<O, H, RO>[1],
     paramsId?: RouteSlots<O, H, RO>[2],
@@ -164,10 +155,10 @@ export interface MiddlewareHelper<O extends RouterOptionsInput, T extends object
  * })
  * ```
  */
-export interface HeadersMiddlewareHelper<O extends RouterOptionsInput, T extends object = PlainRouterTypes> {
+export interface HeadersMiddlewareHelper<O extends RouterOptionsInput, T extends object = object> {
   <H extends HeaderHandler<RouterCallContext<T>>, const RO extends object = PlainHeadersMiddlewareOptions>(
     handler: H,
-    opts?: CompTimeArgs<RO & NoInfer<MiddlewareOptionsOf<T> & UnknownKeysGuard<RO, MiddlewareKeysOf<T>>>>,
+    opts?: CompTimeArgs<RO & NoInfer<MiddlewareOptionsOf<T> & UnknownKeysGuard<RO, keyof MiddlewareOptionsOf<T>>>>,
     headersFns?: HeaderSlots<H>[0],
     paramsFns?: HeadersRouteSlots<O, H, RO>[0],
     returnFns?: HeadersRouteSlots<O, H, RO>[1],
@@ -180,15 +171,14 @@ export interface HeadersMiddlewareHelper<O extends RouterOptionsInput, T extends
 }
 
 /** `mion.rawMiddleware`: declares a raw middleware (raw request/response access, no typed params, nothing compiled). */
-export interface RawMiddlewareHelper<T extends object = PlainRouterTypes> {
+export interface RawMiddlewareHelper<T extends object = object> {
   <H extends RawMiddlewareHandler<RouterCallContext<T>>, const RO extends object = RawMiddlewareOptions>(
     handler: H,
-    opts?: RO &
-      NoInfer<RawMiddlewareOptions & HandlerKeysOf<T> & UnknownKeysGuard<RO, keyof RawMiddlewareOptions | keyof HandlerKeysOf<T>>>
+    opts?: RO & NoInfer<RawMiddlewareOptionsOf<T> & UnknownKeysGuard<RO, keyof RawMiddlewareOptionsOf<T>>>
   ): RawMiddlewareDef<H>;
 }
 
-export interface MionRouter<O extends RouterOptionsInput = RouterOptionsInput, T extends object = PlainRouterTypes> {
+export interface MionRouter<O extends RouterOptionsInput = RouterOptionsInput, T extends object = object> {
   /** The options given to the factory, frozen. */
   readonly options: Readonly<O>;
   readonly route: RouteHelper<O, T>;
@@ -211,5 +201,7 @@ export interface MionRouter<O extends RouterOptionsInput = RouterOptionsInput, T
  *  defaulted `O`: a default cannot be proven to meet a constraint that reads `O` and `T`. */
 export interface TypedRouterFactory<T extends RouterTypes> {
   (): MionRouter<Record<never, never>, T>;
-  <const O extends RouterOptionsInputOf<T> & KnownKeysOf<O, T>>(opts: RouterOptionsArg<O>): MionRouter<O, WithShared<O, T>>;
+  <const O extends RouterOptionsInput & RouterKeysOf<T> & KnownKeysOf<O, T>>(
+    opts: RouterOptionsArg<O>
+  ): MionRouter<O, WithShared<O, T>>;
 }
