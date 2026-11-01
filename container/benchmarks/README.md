@@ -338,6 +338,41 @@ _lib/extract-cases.mjs  shared AST extractors (typecost + compiletime consume it
 aggregate.mjs           results/*.json → comparison table + coverage; sets the exit code
 ```
 
+## Fair comparison rules
+
+mion is the reference: each competitor entry does the SAME work as mion's validator for that case, with the
+library's own features. Check every new or changed entry against these rules, reading the library source or its
+generated code when in doubt:
+
+1. **Same answer.** Accept and reject exactly the shared samples.
+2. **Same work.** The same checks mion runs, no more, no less: types, unknown keys (ignored outside STRICT,
+   never stripped or copied when the library offers a way not to), NaN / Infinity, Invalid Date, format rules,
+   bounds, cycle detection (only the CIRCULAR_REFS cases). A check the library's own type always does is its
+   built-in cost, not a violation.
+3. **Real features.** The dedicated feature when the library has one (`z.email()`, not a regex refine). A custom
+   hook (`z.custom`, `.refine`, `Type.Refine`, an ajv keyword, a typia custom tag) is fine when none fits, placed
+   at the leaf that needs it, never one hook that re-implements the whole validator.
+4. **Best real path.** Compile once inside the builder (`z.compile`, `Compile`, `ajv.compile`, `typia.createIs`);
+   the returned function only calls it and turns the result into a boolean.
+5. **All errors.** `buildErrors` collects every error, like mion: no early stop, no default error cap.
+6. **Options.** Library defaults, unless a one-line comment says why. Library-wide settings that make the
+   library match mion (TypeBox `maxErrors`, typia `finite`) are set once per competitor.
+7. **No feature, no case.** If neither a feature nor a hook can do the same work, the entry is `NOT_SUPPORTED`
+   with a one-line reason. A `NOT_SUPPORTED` the library can do is a bug.
+8. **Overrides are a last resort.** A `samples` override is kept only when the library treats a value
+   differently by design, no hook can fix it, and the kept samples are as hard to check as the shared ones.
+9. **Relative bounds stay live.** A fixed date bound may be parsed once; "now" is read on every call.
+
+How the numbers stay fair once the entries are:
+
+- **Timing.** `benchOps` reads the clock once per 1000+ calls (a clock read costs more than most validators),
+  keeps every result so the call cannot be optimized away, and compiles a fresh loop per measured stream so one
+  shared call site never slows later cases.
+- **Scores.** Every average is a geometric mean over every case at least one library runs. A library that skips
+  or fails a case scores it at the WORST result among the libraries that ran it (lowest ops, highest count), so
+  supporting a slow case only one library runs never lowers that library's score, and skipping a case never
+  helps (`container/website/app/utils/benchAggregate.js`).
+
 ## Adding competitor coverage for a case
 
 Edit the relevant `competitors/<name>/cases.ts`: change a `NOT_SUPPORTED` entry to
