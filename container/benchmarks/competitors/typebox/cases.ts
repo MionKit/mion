@@ -1,10 +1,10 @@
-// TOTAL map over every shared case key. TypeBox 1.x has no Date, Map, Set or Temporal type: each is a leaf
+// TOTAL map over every shared case key. TypeBox 1.x has no Date, Map, Set, RegExp or Temporal type: each is a leaf
 // `Type.Refine` over `Type.Unsafe({})` (instanceof check, plus the bound compares for min/max/relative cases).
 // Bigint literals and int64 / uint64 bounds are refines too: TypeBox prints a bigint const or bound as a number
 // literal, wrong above 2^53 (and `Type.Literal(1n)` never matches). All-optional and index-signature objects get
 // mion's plain-object guard as a refine (TypeBox's Object only rejects arrays). Patterns are RegExp objects: they
-// keep mion's flags and are not re-compiled per `.Errors` call. Unsupported: the non-data cases mion refuses
-// (factoryThrows: symbol, RegExp, Promise, callable interface).
+// keep mion's flags and are not re-compiled per `.Errors` call. The cases mion refuses as non-data still run here
+// (scoring fills mion's cell); NOT_SUPPORTED is left only for the two cases with no shared samples.
 
 import {Type} from 'typebox';
 import {Compile} from 'typebox/compile';
@@ -129,7 +129,19 @@ export const cases: CompetitorCases = {
       return (value: unknown) => check.Errors(value).length === 0;
     },
   },
-  'ATOMIC.literal_symbol': NOT_SUPPORTED, // factoryThrows: mion refuses a symbol literal (non-data); Type.Literal(symbol) throws
+  // Symbol + leaf refine: TypeBox has no symbol literal, the case matches a symbol by its description.
+  'ATOMIC.literal_symbol': {
+    build: () => {
+      const schema = Type.Refine(Type.Symbol(), (value) => value.description === 'hello');
+      const check = Compile(schema);
+      return (value: unknown) => check.Check(value);
+    },
+    buildErrors: () => {
+      const schema = Type.Refine(Type.Symbol(), (value) => value.description === 'hello');
+      const check = Compile(schema);
+      return (value: unknown) => check.Errors(value).length === 0;
+    },
+  },
   'ATOMIC.never': {
     build: () => {
       const schema = Type.Never();
@@ -180,7 +192,19 @@ export const cases: CompetitorCases = {
       return (value: unknown) => check.Errors(value).length === 0;
     },
   },
-  'ATOMIC.regexp': NOT_SUPPORTED, // factoryThrows: mion refuses RegExp (non-data); TypeBox has no RegExp instance type
+  // No RegExp instance type: leaf instanceof refine, like Date.
+  'ATOMIC.regexp': {
+    build: () => {
+      const schema = Type.Refine(Type.Unsafe<RegExp>({}), (value) => value instanceof RegExp);
+      const check = Compile(schema);
+      return (value: unknown) => check.Check(value);
+    },
+    buildErrors: () => {
+      const schema = Type.Refine(Type.Unsafe<RegExp>({}), (value) => value instanceof RegExp);
+      const check = Compile(schema);
+      return (value: unknown) => check.Errors(value).length === 0;
+    },
+  },
   'ATOMIC.string': {
     build: () => {
       const schema = Type.String();
@@ -193,7 +217,7 @@ export const cases: CompetitorCases = {
       return (value: unknown) => check.Errors(value).length === 0;
     },
   },
-  'ATOMIC.symbol': NOT_SUPPORTED, // factoryThrows: shared case has no samples
+  'ATOMIC.symbol': NOT_SUPPORTED, // no shared samples (factoryThrows): nothing to check
   'ATOMIC.undefined': {
     build: () => {
       const schema = Type.Undefined();
@@ -292,7 +316,18 @@ export const cases: CompetitorCases = {
       return (value: unknown) => check.Errors(value).length === 0;
     },
   },
-  'ARRAY.regexp_array': NOT_SUPPORTED, // factoryThrows: mion refuses RegExp (non-data); TypeBox has no RegExp instance type
+  'ARRAY.regexp_array': {
+    build: () => {
+      const schema = Type.Array(Type.Refine(Type.Unsafe<RegExp>({}), (value) => value instanceof RegExp));
+      const check = Compile(schema);
+      return (value: unknown) => check.Check(value);
+    },
+    buildErrors: () => {
+      const schema = Type.Array(Type.Refine(Type.Unsafe<RegExp>({}), (value) => value instanceof RegExp));
+      const check = Compile(schema);
+      return (value: unknown) => check.Errors(value).length === 0;
+    },
+  },
   'ARRAY.undefined_array': {
     build: () => {
       const schema = Type.Array(Type.Undefined());
@@ -421,7 +456,7 @@ export const cases: CompetitorCases = {
       return (value: unknown) => check.Errors(value).length === 0;
     },
   },
-  'ARRAY.symbol_array': NOT_SUPPORTED, // factoryThrows: shared case has no samples
+  'ARRAY.symbol_array': NOT_SUPPORTED, // no shared samples (factoryThrows): nothing to check
   'ARRAY.readonly_string_array': {
     build: () => {
       const schema = Type.Array(Type.String());
@@ -682,7 +717,19 @@ export const cases: CompetitorCases = {
       return (value: unknown) => check.Errors(value).length === 0;
     },
   },
-  'OBJECT.interface_callable': NOT_SUPPORTED, // Intersect(Function, Object) compiles typeof 'object' check which rejects functions
+  // Function + leaf refine on its `extra` prop (an Intersect with an Object would demand typeof 'object').
+  'OBJECT.interface_callable': {
+    build: () => {
+      const schema = Type.Refine(Type.Function([Type.Number(), Type.Boolean()], Type.String()), (value) => typeof (value as {extra?: unknown}).extra === 'string');
+      const check = Compile(schema);
+      return (value: unknown) => check.Check(value);
+    },
+    buildErrors: () => {
+      const schema = Type.Refine(Type.Function([Type.Number(), Type.Boolean()], Type.String()), (value) => typeof (value as {extra?: unknown}).extra === 'string');
+      const check = Compile(schema);
+      return (value: unknown) => check.Errors(value).length === 0;
+    },
+  },
   // TypeBox Object rejects arrays only; the refine adds mion's plain-object guard so Date / Map / Set / RegExp fail.
   'OBJECT.interface_all_optional': {
     build: () => {
@@ -1274,11 +1321,11 @@ export const cases: CompetitorCases = {
   },
   'UNION.union_with_index_arm': {
     build: () => {
-      // arm 3 {c: bigint; [k: string]: bigint}: named c + additionalProperties for every other key
+      // arm 3 {c: bigint; [k: string]: bigint}: named c + additionalProperties for every other key, refine = plain-object guard
       const schema = Type.Union([
         Type.Object({a: Type.String(), aa: Type.Boolean()}),
         Type.Object({b: Type.Number()}),
-        Type.Object({c: Type.BigInt()}, {additionalProperties: Type.BigInt()}),
+        Type.Refine(Type.Object({c: Type.BigInt()}, {additionalProperties: Type.BigInt()}), (value) => Object.prototype.toString.call(value) === '[object Object]'),
       ]);
       const check = Compile(schema);
       return (value: unknown) => check.Check(value);
@@ -1287,7 +1334,7 @@ export const cases: CompetitorCases = {
       const schema = Type.Union([
         Type.Object({a: Type.String(), aa: Type.Boolean()}),
         Type.Object({b: Type.Number()}),
-        Type.Object({c: Type.BigInt()}, {additionalProperties: Type.BigInt()}),
+        Type.Refine(Type.Object({c: Type.BigInt()}, {additionalProperties: Type.BigInt()}), (value) => Object.prototype.toString.call(value) === '[object Object]'),
       ]);
       const check = Compile(schema);
       return (value: unknown) => check.Errors(value).length === 0;
@@ -1354,13 +1401,14 @@ export const cases: CompetitorCases = {
   },
   'UNION.union_mixed_with_index': {
     build: () => {
-      // index arms: named props + additionalProperties for every other key (mion skips the named keys in its index loop)
+      // index arms: named props + additionalProperties for every other key (mion skips the named keys in its index loop),
+      // each behind a refine = mion's plain-object guard (every index-signature node)
       const schema = Type.Union([
         Type.Array(Type.String()),
         Type.Object({a: Type.String(), aa: Type.Boolean()}),
         Type.Object({b: Type.Number()}),
-        Type.Object({a: Type.String()}, {additionalProperties: Type.String()}),
-        Type.Object({b: Type.BigInt()}, {additionalProperties: Type.BigInt()}),
+        Type.Refine(Type.Object({a: Type.String()}, {additionalProperties: Type.String()}), (value) => Object.prototype.toString.call(value) === '[object Object]'),
+        Type.Refine(Type.Object({b: Type.BigInt()}, {additionalProperties: Type.BigInt()}), (value) => Object.prototype.toString.call(value) === '[object Object]'),
       ]);
       const check = Compile(schema);
       return (value: unknown) => check.Check(value);
@@ -1370,8 +1418,8 @@ export const cases: CompetitorCases = {
         Type.Array(Type.String()),
         Type.Object({a: Type.String(), aa: Type.Boolean()}),
         Type.Object({b: Type.Number()}),
-        Type.Object({a: Type.String()}, {additionalProperties: Type.String()}),
-        Type.Object({b: Type.BigInt()}, {additionalProperties: Type.BigInt()}),
+        Type.Refine(Type.Object({a: Type.String()}, {additionalProperties: Type.String()}), (value) => Object.prototype.toString.call(value) === '[object Object]'),
+        Type.Refine(Type.Object({b: Type.BigInt()}, {additionalProperties: Type.BigInt()}), (value) => Object.prototype.toString.call(value) === '[object Object]'),
       ]);
       const check = Compile(schema);
       return (value: unknown) => check.Errors(value).length === 0;
@@ -1522,14 +1570,15 @@ export const cases: CompetitorCases = {
       return (value: unknown) => check.Errors(value).length === 0;
     },
   },
+  // Refine = mion's plain-object guard on the index-signature node.
   'TEMPLATE_LITERAL.template_literal_index_key': {
     build: () => {
-      const schema = Type.Record(Type.TemplateLiteral('api/${string}'), Type.Number(), {additionalProperties: false});
+      const schema = Type.Refine(Type.Record(Type.TemplateLiteral('api/${string}'), Type.Number(), {additionalProperties: false}), (value) => Object.prototype.toString.call(value) === '[object Object]');
       const check = Compile(schema);
       return (value: unknown) => check.Check(value);
     },
     buildErrors: () => {
-      const schema = Type.Record(Type.TemplateLiteral('api/${string}'), Type.Number(), {additionalProperties: false});
+      const schema = Type.Refine(Type.Record(Type.TemplateLiteral('api/${string}'), Type.Number(), {additionalProperties: false}), (value) => Object.prototype.toString.call(value) === '[object Object]');
       const check = Compile(schema);
       return (value: unknown) => check.Errors(value).length === 0;
     },
@@ -1603,7 +1652,19 @@ export const cases: CompetitorCases = {
       return (value: unknown) => check.Errors(value).length === 0;
     },
   },
-  'NATIVE.promise_string': NOT_SUPPORTED, // factoryThrows: mion refuses Promise (non-data); TypeBox has no Promise type
+  // No Promise type: an object whose `then` is a function (a thenable), as a leaf refine.
+  'NATIVE.promise_string': {
+    build: () => {
+      const schema = Type.Refine(Type.Object({}), (value) => typeof (value as {then?: unknown}).then === 'function');
+      const check = Compile(schema);
+      return (value: unknown) => check.Check(value);
+    },
+    buildErrors: () => {
+      const schema = Type.Refine(Type.Object({}), (value) => typeof (value as {then?: unknown}).then === 'function');
+      const check = Compile(schema);
+      return (value: unknown) => check.Errors(value).length === 0;
+    },
+  },
   'NATIVE.awaited_promise': {
     build: () => {
       const schema = Type.String();
@@ -1821,35 +1882,40 @@ export const cases: CompetitorCases = {
   },
   'CIRCULAR_REFS.tree_cycle': {
     build: () => {
-      // Root cycle hook along `children[*]` only; `then` (the recursive schema) runs only on an acyclic value.
-      const hasCycle = (node: unknown, stack: object[]): boolean => {
-        if (node === null || typeof node !== 'object') return false;
+      // Root cycle hook along `children[*]` only (ancestor stack + finished set, like mion's walker); `then` (the recursive
+      // schema) runs only on an acyclic value.
+      const hasCycle = (node: unknown, stack: object[], safe: Set<object>): boolean => {
+        if (node === null || typeof node !== 'object' || safe.has(node)) return false;
         if (stack.indexOf(node) !== -1) return true;
         const children = (node as {children?: unknown}).children;
-        if (!Array.isArray(children)) return false;
-        stack.push(node);
-        for (let i = 0; i < children.length; i++) if (hasCycle(children[i], stack)) return true;
-        stack.pop();
+        if (Array.isArray(children)) {
+          stack.push(node);
+          for (let i = 0; i < children.length; i++) if (hasCycle(children[i], stack, safe)) return true;
+          stack.pop();
+        }
+        safe.add(node);
         return false;
       };
       const shape = Type.Cyclic({Node: Type.Object({label: Type.String(), children: Type.Array(Type.Ref('Node'))})}, 'Node');
-      const schema = Type.Unsafe<unknown>({if: Type.Refine(Type.Unknown(), (value) => !hasCycle(value, [])), then: shape, else: false});
+      const schema = Type.Unsafe<unknown>({if: Type.Refine(Type.Unknown(), (value) => !hasCycle(value, [], new Set())), then: shape, else: false});
       const check = Compile(schema);
       return (value: unknown) => check.Check(value);
     },
     buildErrors: () => {
-      const hasCycle = (node: unknown, stack: object[]): boolean => {
-        if (node === null || typeof node !== 'object') return false;
+      const hasCycle = (node: unknown, stack: object[], safe: Set<object>): boolean => {
+        if (node === null || typeof node !== 'object' || safe.has(node)) return false;
         if (stack.indexOf(node) !== -1) return true;
         const children = (node as {children?: unknown}).children;
-        if (!Array.isArray(children)) return false;
-        stack.push(node);
-        for (let i = 0; i < children.length; i++) if (hasCycle(children[i], stack)) return true;
-        stack.pop();
+        if (Array.isArray(children)) {
+          stack.push(node);
+          for (let i = 0; i < children.length; i++) if (hasCycle(children[i], stack, safe)) return true;
+          stack.pop();
+        }
+        safe.add(node);
         return false;
       };
       const shape = Type.Cyclic({Node: Type.Object({label: Type.String(), children: Type.Array(Type.Ref('Node'))})}, 'Node');
-      const schema = Type.Unsafe<unknown>({if: Type.Refine(Type.Unknown(), (value) => !hasCycle(value, [])), then: shape, else: false});
+      const schema = Type.Unsafe<unknown>({if: Type.Refine(Type.Unknown(), (value) => !hasCycle(value, [], new Set())), then: shape, else: false});
       const check = Compile(schema);
       return (value: unknown) => check.Errors(value).length === 0;
     },
@@ -2895,12 +2961,12 @@ export const cases: CompetitorCases = {
   },
   'STRING_FORMAT.ipv4': {
     build: () => {
-      const schema = Type.String({pattern: /^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$/});
+      const schema = Type.String({format: 'ipv4'});
       const check = Compile(schema);
       return (value: unknown) => check.Check(value);
     },
     buildErrors: () => {
-      const schema = Type.String({pattern: /^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$/});
+      const schema = Type.String({format: 'ipv4'});
       const check = Compile(schema);
       return (value: unknown) => check.Errors(value).length === 0;
     },
@@ -2920,7 +2986,7 @@ export const cases: CompetitorCases = {
   'STRING_FORMAT.ip_any': {
     build: () => {
       const schema = Type.Union([
-        Type.String({pattern: /^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$/}),
+        Type.String({format: 'ipv4'}),
         Type.String({format: 'ipv6'}),
       ]);
       const check = Compile(schema);
@@ -2928,25 +2994,26 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const schema = Type.Union([
-        Type.String({pattern: /^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$/}),
+        Type.String({format: 'ipv4'}),
         Type.String({format: 'ipv6'}),
       ]);
       const check = Compile(schema);
       return (value: unknown) => check.Errors(value).length === 0;
     },
   },
-  // Port required (stricter than mion, which accepts a missing port); a port is 1-5 digits <= 65535, leading zeros allowed.
+  // TypeBox's own IPv4 octet rule (`format/ipv4.mjs`, as the ipv4 entry) + a port of 1-5 digits <= 65535, leading zeros
+  // allowed like mion. Port required (stricter than mion, which accepts a missing port).
   'STRING_FORMAT.ipv4_port': {
     build: () => {
       const schema = Type.String({
-        pattern: /^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?):(?:6553[0-5]|655[0-2]\d|65[0-4]\d{2}|6[0-4]\d{3}|[0-5]\d{4}|\d{1,4})$/,
+        pattern: /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d):(?:6553[0-5]|655[0-2]\d|65[0-4]\d{2}|6[0-4]\d{3}|[0-5]\d{4}|\d{1,4})$/,
       });
       const check = Compile(schema);
       return (value: unknown) => check.Check(value);
     },
     buildErrors: () => {
       const schema = Type.String({
-        pattern: /^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?):(?:6553[0-5]|655[0-2]\d|65[0-4]\d{2}|6[0-4]\d{3}|[0-5]\d{4}|\d{1,4})$/,
+        pattern: /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d):(?:6553[0-5]|655[0-2]\d|65[0-4]\d{2}|6[0-4]\d{3}|[0-5]\d{4}|\d{1,4})$/,
       });
       const check = Compile(schema);
       return (value: unknown) => check.Errors(value).length === 0;
