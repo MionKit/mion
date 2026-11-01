@@ -22,8 +22,7 @@ const RouterModule = "@mionjs/router"
 // FactoryName is a cheap pre-filter before the signature is resolved.
 const FactoryName = "createMionRouter"
 
-// withTypesName is the member that returns the factory typed by the router's declared keys: a
-// `createMionRouter.withTypes<T>()` call marks its module as the router-init module too.
+// withTypesName: a `createMionRouter.withTypes<T>()` call marks its module as the router-init module too.
 const withTypesName = "withTypes"
 
 // Site is one module that creates the router.

@@ -14,10 +14,8 @@ const sharedDataFactoryKey = "sharedDataFactory"
 // typedRouterFactoryName declares the factory `createMionRouter.withTypes<T>()` returns.
 const typedRouterFactoryName = "TypedRouterFactory"
 
-// checkSharedDataFactory is rpc-handler-shared-factory-untyped. A client types the router by inferring the whole
-// options literal, so a factory with no written return type makes every client compute that return, however slim
-// the routes are. The factory is read off the options' TYPE, so a spread, a variable, a quoted key or a factory
-// built by a call all count, and a variable with a written function type counts as written.
+// checkSharedDataFactory: every client infers the whole options literal, so an unwritten factory return costs each.
+// Read off the options' TYPE: spreads, variables, quoted keys, built factories count; a typed variable is written.
 func (scope *fileScope) checkSharedDataFactory() []diagnostics.Diagnostic {
 	var found []diagnostics.Diagnostic
 	var visit ast.Visitor
@@ -37,8 +35,7 @@ func (scope *fileScope) checkSharedDataFactory() []diagnostics.Diagnostic {
 	return found
 }
 
-// isRouterFactoryCall is routerinit's factory match, or a call to the factory `withTypes` returns, declared by the
-// router package.
+// isRouterFactoryCall is routerinit's factory match, or a call of the router package's factory `withTypes` returns.
 func (scope *fileScope) isRouterFactoryCall(call *ast.Node) bool {
 	if routerinit.IsFactoryCall(scope.typeChecker, scope.markerOpts, call) {
 		return true
@@ -52,8 +49,7 @@ func (scope *fileScope) isRouterFactoryCall(call *ast.Node) bool {
 		enclosingInterfaceName(declaration) == typedRouterFactoryName
 }
 
-// untypedSharedDataFactory returns the node to report when the options' `sharedDataFactory` is a function whose
-// return type is not written: the property when this file declares it, else the options argument.
+// untypedSharedDataFactory returns where to report an unwritten return: the property if declared here, else the options.
 func (scope *fileScope) untypedSharedDataFactory(call *ast.Node) *ast.Node {
 	callExpr := call.AsCallExpression()
 	if callExpr == nil || len(callExpr.Arguments.Nodes) == 0 {
