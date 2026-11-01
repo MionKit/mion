@@ -1,4 +1,4 @@
-import Ajv, {_, type Code, type KeywordCxt} from 'ajv';
+import Ajv, {_, type Code, type KeywordCxt, type Name} from 'ajv';
 import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 import {NOT_SUPPORTED, type CompetitorCases} from '../../shared/harness/types.ts';
@@ -12,10 +12,12 @@ import {JSON_SCHEMA} from '../../shared/cases/json-schema/index.ts';
 type JsonSchemaKey = keyof typeof JSON_SCHEMA;
 const doc = (key: JsonSchemaKey): object => JSON_SCHEMA[key].schema as object;
 
-function compile2020(key: JsonSchemaKey, allErrors: boolean): (value: unknown) => boolean {
+// `plainObject`: the document's root is a record, so mion's plain-object guard (R3) joins its `type: 'object'`.
+function compile2020(key: JsonSchemaKey, allErrors: boolean, plainObject = false): (value: unknown) => boolean {
   const ajv = new Ajv2020({allErrors});
-  addFormats(ajv, {mode: 'full'}); // full: format `email` must require the dotted TLD (the 'missing@tld' sample)
-  const validate = ajv.compile(doc(key));
+  if (key === 'string_email') addFormats(ajv, {mode: 'full'}); // full: `email` must require the dotted TLD ('missing@tld')
+  if (plainObject) addPlainObject(ajv);
+  const validate = ajv.compile(plainObject ? {...doc(key), plainObject: true} : doc(key));
   return (value: unknown) => validate(value) === true;
 }
 
@@ -145,6 +147,12 @@ function addNoCycle(ajv: Ajv, hasCycle: (value: unknown) => boolean): void {
   });
 }
 
+// `{<keyword>: true}`: one inlined `test(v)` for a value JSON Schema cannot type (symbol, RegExp, function,
+// thenable: the cases mion refuses as non-data). Type-less: runs on any value.
+function addTest(ajv: Ajv, keyword: string, test: (data: Name) => Code): void {
+  ajv.addKeyword({keyword, schemaType: 'boolean', code: (cxt: KeywordCxt) => cxt.pass(test(cxt.data))});
+}
+
 // Gregorian day-of-month check shared by the custom date formats (the calendar rule of ajv-formats `date`).
 const DAYS = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 function isCalendarDate(y: number, m: number, d: number): boolean {
@@ -168,9 +176,10 @@ function isCalendarDate(y: number, m: number, d: number): boolean {
 
 // TOTAL map over every shared case key (order matches the suite). Supported cases
 // compile a JSON Schema, with a leaf hook where JSON Schema has no type (bigint,
-// undefined, Date, Temporal, Map, Set, the plain-object guard, cycle detection).
-// NOT_SUPPORTED is left only for the factoryThrows cases (not data: mion refuses
-// them too, so there is nothing to match).
+// undefined, Date, Temporal, Map, Set, symbol, RegExp, function, thenable, the
+// plain-object guard, cycle detection). The cases mion refuses as non-data still run
+// here (scoring fills mion's cell). NOT_SUPPORTED is left only for the two cases
+// with no shared samples.
 export const cases: CompetitorCases = {
   // ── ATOMIC ──
   'ATOMIC.any': {
@@ -287,7 +296,21 @@ export const cases: CompetitorCases = {
       return (value: unknown) => validate(value) === true;
     },
   },
-  'ATOMIC.literal_symbol': NOT_SUPPORTED, // factoryThrows: not data, mion refuses it too (no baseline)
+  // the case matches a symbol by its description
+  'ATOMIC.literal_symbol': {
+    build: () => {
+      const ajv = new Ajv();
+      addTest(ajv, 'helloSymbol', (v) => _`typeof ${v} == "symbol" && ${v}.description === "hello"`);
+      const validate = ajv.compile({helloSymbol: true});
+      return (value: unknown) => validate(value) === true;
+    },
+    buildErrors: () => {
+      const ajv = new Ajv({allErrors: true});
+      addTest(ajv, 'helloSymbol', (v) => _`typeof ${v} == "symbol" && ${v}.description === "hello"`);
+      const validate = ajv.compile({helloSymbol: true});
+      return (value: unknown) => validate(value) === true;
+    },
+  },
   'ATOMIC.never': {
     build: () => {
       const ajv = new Ajv();
@@ -338,7 +361,20 @@ export const cases: CompetitorCases = {
       return (value: unknown) => validate(value) === true;
     },
   }, // TS `object` = any non-null object, arrays included: one `typeof` test
-  'ATOMIC.regexp': NOT_SUPPORTED, // factoryThrows: not data, mion refuses it too (no baseline)
+  'ATOMIC.regexp': {
+    build: () => {
+      const ajv = new Ajv();
+      addTest(ajv, 'isRegExp', (v) => _`${v} instanceof RegExp`);
+      const validate = ajv.compile({isRegExp: true});
+      return (value: unknown) => validate(value) === true;
+    },
+    buildErrors: () => {
+      const ajv = new Ajv({allErrors: true});
+      addTest(ajv, 'isRegExp', (v) => _`${v} instanceof RegExp`);
+      const validate = ajv.compile({isRegExp: true});
+      return (value: unknown) => validate(value) === true;
+    },
+  },
   'ATOMIC.string': {
     build: () => {
       const ajv = new Ajv();
@@ -351,7 +387,7 @@ export const cases: CompetitorCases = {
       return (value: unknown) => validate(value) === true;
     },
   },
-  'ATOMIC.symbol': NOT_SUPPORTED, // factoryThrows: not data, mion refuses it too (no baseline)
+  'ATOMIC.symbol': NOT_SUPPORTED, // no shared samples (factoryThrows): nothing to check
   'ATOMIC.undefined': {
     build: () => {
       const ajv = new Ajv();
@@ -458,7 +494,20 @@ export const cases: CompetitorCases = {
       return (value: unknown) => validate(value) === true;
     },
   },
-  'ARRAY.regexp_array': NOT_SUPPORTED, // factoryThrows: not data, mion refuses it too (no baseline)
+  'ARRAY.regexp_array': {
+    build: () => {
+      const ajv = new Ajv();
+      addTest(ajv, 'isRegExp', (v) => _`${v} instanceof RegExp`);
+      const validate = ajv.compile({type: 'array', items: {isRegExp: true}});
+      return (value: unknown) => validate(value) === true;
+    },
+    buildErrors: () => {
+      const ajv = new Ajv({allErrors: true});
+      addTest(ajv, 'isRegExp', (v) => _`${v} instanceof RegExp`);
+      const validate = ajv.compile({type: 'array', items: {isRegExp: true}});
+      return (value: unknown) => validate(value) === true;
+    },
+  },
   'ARRAY.undefined_array': {
     build: () => {
       const ajv = new Ajv();
@@ -625,7 +674,7 @@ export const cases: CompetitorCases = {
       return (value: unknown) => validate(value) === true;
     },
   },
-  'ARRAY.symbol_array': NOT_SUPPORTED, // factoryThrows: not data, mion refuses it too (no baseline)
+  'ARRAY.symbol_array': NOT_SUPPORTED, // no shared samples (factoryThrows): nothing to check
   'ARRAY.readonly_string_array': {
     build: () => {
       const ajv = new Ajv();
@@ -1052,8 +1101,35 @@ export const cases: CompetitorCases = {
       return (value: unknown) => validate(value) === true;
     },
   },
-  'OBJECT.function_top_level': NOT_SUPPORTED, // factoryThrows: not data, mion refuses it too (no baseline)
-  'OBJECT.interface_callable': NOT_SUPPORTED, // factoryThrows: not data, mion refuses it too (no baseline)
+  'OBJECT.function_top_level': {
+    build: () => {
+      const ajv = new Ajv();
+      addTest(ajv, 'isFunction', (v) => _`typeof ${v} == "function"`);
+      const validate = ajv.compile({isFunction: true});
+      return (value: unknown) => validate(value) === true;
+    },
+    buildErrors: () => {
+      const ajv = new Ajv({allErrors: true});
+      addTest(ajv, 'isFunction', (v) => _`typeof ${v} == "function"`);
+      const validate = ajv.compile({isFunction: true});
+      return (value: unknown) => validate(value) === true;
+    },
+  },
+  // a function with a string `extra` prop (ajv's object keywords skip a function value)
+  'OBJECT.interface_callable': {
+    build: () => {
+      const ajv = new Ajv();
+      addTest(ajv, 'callable', (v) => _`typeof ${v} == "function" && typeof ${v}.extra == "string"`);
+      const validate = ajv.compile({callable: true});
+      return (value: unknown) => validate(value) === true;
+    },
+    buildErrors: () => {
+      const ajv = new Ajv({allErrors: true});
+      addTest(ajv, 'callable', (v) => _`typeof ${v} == "function" && typeof ${v}.extra == "string"`);
+      const validate = ajv.compile({callable: true});
+      return (value: unknown) => validate(value) === true;
+    },
+  },
   'OBJECT.interface_all_optional': {
     build: () => {
       const ajv = new Ajv();
@@ -1508,7 +1584,21 @@ export const cases: CompetitorCases = {
       return (value: unknown) => validate(value) === true;
     },
   },
-  'TUPLE.tuple_with_non_serializable': NOT_SUPPORTED, // factoryThrows: not data, mion refuses it too (no baseline)
+  // the function slot must be `undefined`, like zod / TypeBox (an absent slot passes too)
+  'TUPLE.tuple_with_non_serializable': {
+    build: () => {
+      const ajv = new Ajv();
+      addIsUndefined(ajv);
+      const validate = ajv.compile({type: 'array', items: [{type: 'number'}, {isUndefined: true}], minItems: 1, maxItems: 2});
+      return (value: unknown) => validate(value) === true;
+    },
+    buildErrors: () => {
+      const ajv = new Ajv({allErrors: true});
+      addIsUndefined(ajv);
+      const validate = ajv.compile({type: 'array', items: [{type: 'number'}, {isUndefined: true}], minItems: 1, maxItems: 2});
+      return (value: unknown) => validate(value) === true;
+    },
+  },
   'TUPLE.empty_tuple': {
     build: () => {
       const ajv = new Ajv();
@@ -2347,7 +2437,21 @@ export const cases: CompetitorCases = {
       return (value: unknown) => validate(value) === true;
     },
   },
-  'NATIVE.promise_string': NOT_SUPPORTED, // factoryThrows: not data, mion refuses it too (no baseline)
+  // a thenable: an object whose `then` is a function
+  'NATIVE.promise_string': {
+    build: () => {
+      const ajv = new Ajv();
+      addTest(ajv, 'isThenable', (v) => _`typeof ${v} == "object" && ${v} !== null && typeof ${v}.then == "function"`);
+      const validate = ajv.compile({isThenable: true});
+      return (value: unknown) => validate(value) === true;
+    },
+    buildErrors: () => {
+      const ajv = new Ajv({allErrors: true});
+      addTest(ajv, 'isThenable', (v) => _`typeof ${v} == "object" && ${v} !== null && typeof ${v}.then == "function"`);
+      const validate = ajv.compile({isThenable: true});
+      return (value: unknown) => validate(value) === true;
+    },
+  },
   'NATIVE.awaited_promise': {
     build: () => {
       const ajv = new Ajv();
@@ -3974,6 +4078,8 @@ export const cases: CompetitorCases = {
       return (value: unknown) => validate(value) === true;
     },
   },
+  // ajv-formats' IPv4 octet rule (as the ipv4 entry) + a port of 1-5 digits <= 65535, leading zeros allowed like mion.
+  // Port required (stricter than mion, which accepts a missing port).
   'STRING_FORMAT.ipv4_port': {
     build: () => {
       const ajv = new Ajv();
@@ -5496,16 +5602,11 @@ export const cases: CompetitorCases = {
   },
 
   // ── JSON_SCHEMA ──
-  // One document, compiled by ajv 2020-12 exactly as mion receives it.
-  // No `samples` override survives in this group: every remaining case was
-  // verified to agree with our semantics by RUNNING ajv (full-mode email
-  // requires the dotted TLD; multipleOf rejects NaN and Infinity). The two
-  // cases that did diverge (record_number, union_anyof, both the bare
-  // `{type:'number'}` NaN/Infinity split) were plain shapes and left this group
-  // with the rest of the shape cases.
+  // Each case's own 2020-12 document, compiled by ajv 2020-12 (full-mode email requires the dotted TLD; multipleOf
+  // rejects NaN and Infinity). The two record roots add mion's plain-object guard.
   'JSON_SCHEMA.property_names': {
-    build: () => compile2020('property_names', false),
-    buildErrors: () => compile2020('property_names', true),
+    build: () => compile2020('property_names', false, true),
+    buildErrors: () => compile2020('property_names', true, true),
   },
   'JSON_SCHEMA.contains_count': {
     build: () => compile2020('contains_count', false),
@@ -5516,8 +5617,8 @@ export const cases: CompetitorCases = {
     buildErrors: () => compile2020('unique_items', true),
   },
   'JSON_SCHEMA.object_size': {
-    build: () => compile2020('object_size', false),
-    buildErrors: () => compile2020('object_size', true),
+    build: () => compile2020('object_size', false, true),
+    buildErrors: () => compile2020('object_size', true, true),
   },
   'JSON_SCHEMA.string_email': {
     build: () => compile2020('string_email', false),
