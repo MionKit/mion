@@ -40,8 +40,7 @@ type SegmentFn = (segment: string) => boolean;
 // it via utl.getPureFn, so the Go extractor records the transitive dep.
 
 export const isDateString = registerPureFnFactory(function () {
-  // The part as a number when it is exactly `len` ASCII digits, -1 otherwise. Not `Number()`, which takes
-  // '0x1F', '1e03', '+1', ' 1' and '1.' too.
+  // -1 unless exactly `len` ASCII digits. Not `Number()`, which takes '0x1F', '1e03', '+1', ' 1' and '1.' too.
   function digitsVal(part: string, len: number): number {
     if (part.length !== len) return -1;
     let val = 0;

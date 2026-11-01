@@ -306,11 +306,8 @@ export type UUIDv7 = TypeFormat<string, 'uuid', {version: '7'}, never>;
 
 // ──────────────────────────────── IP ────────────────────────────────
 
-/** The failure modes an `ip` format reports in `TypeFormatError.errorType`,
- *  ONLY when `allowPort` is on: `'address'` (not an address of the accepted
- *  version) or `'port'` (a good address, a port that is missing, not digits or
- *  over 65535). Without `allowPort` there is one way to fail and the field stays
- *  unset. Under `version: 'any'` a port complaint from either parser wins. **/
+/** Set ONLY under `allowPort`: `'port'` for a good address whose port is missing, not digits or over 65535,
+ *  else `'address'`. Under `version: 'any'` a port complaint from either parser wins. **/
 export type IpErrorType = 'address' | 'port';
 
 /** Params for the `ip` family. With `allowPort` a failing value reports WHICH
