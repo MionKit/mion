@@ -28,11 +28,11 @@ function compile2020(key: JsonSchemaKey, allErrors: boolean, plainObject = false
 // returns at once, with allErrors it records it and keeps going, so one keyword serves both metrics.
 
 type Op = '>=' | '<=' | '>' | '<';
-const holds: Record<Op, (l: Code, r: Code) => Code> = {
-  '>=': (l, r) => _`${l} >= ${r}`,
-  '<=': (l, r) => _`${l} <= ${r}`,
-  '>': (l, r) => _`${l} > ${r}`,
-  '<': (l, r) => _`${l} < ${r}`,
+const holds: Record<Op, (left: Code, right: Code) => Code> = {
+  '>=': (left, right) => _`${left} >= ${right}`,
+  '<=': (left, right) => _`${left} <= ${right}`,
+  '>': (left, right) => _`${left} > ${right}`,
+  '<': (left, right) => _`${left} < ${right}`,
 };
 // A fixed bound is bound once; a function bound (a relative "now" bound) is called on every check.
 const boundCode = (cxt: KeywordCxt, bound: unknown): Code =>
@@ -107,7 +107,7 @@ function addValidDate(ajv: Ajv, bounds: [Op, number | (() => number)][] = []): v
       gen.if(
         _`!(${isDate})`,
         () => cxt.error(),
-        () => bounds.forEach(([op, b]) => gen.if(_`!(${holds[op](_`${data}.getTime()`, boundCode(cxt, b))})`, () => cxt.error()))
+        () => bounds.forEach(([op, bound]) => gen.if(_`!(${holds[op](_`${data}.getTime()`, boundCode(cxt, bound))})`, () => cxt.error()))
       );
     },
   });
@@ -121,14 +121,14 @@ function addTemporal(ajv: Ajv, cls: object, bounds: [Op, unknown][] = []): void 
     schemaType: 'boolean',
     code(cxt: KeywordCxt) {
       const {gen, data} = cxt;
-      const C = gen.scopeValue('obj', {ref: cls});
-      if (bounds.length === 0) return cxt.pass(_`${data} instanceof ${C}`);
+      const temporalClass = gen.scopeValue('obj', {ref: cls});
+      if (bounds.length === 0) return cxt.pass(_`${data} instanceof ${temporalClass}`);
       gen.if(
-        _`!(${data} instanceof ${C})`,
+        _`!(${data} instanceof ${temporalClass})`,
         () => cxt.error(),
         () =>
-          bounds.forEach(([op, b]) => {
-            const cmp = _`${C}.compare(${data}, ${boundCode(cxt, b)})`;
+          bounds.forEach(([op, bound]) => {
+            const cmp = _`${temporalClass}.compare(${data}, ${boundCode(cxt, bound)})`;
             gen.if(_`!(${holds[op](cmp, _`0`)})`, () => cxt.error());
           })
       );
@@ -155,9 +155,9 @@ function addTest(ajv: Ajv, keyword: string, test: (data: Name) => Code): void {
 
 // Gregorian day-of-month check shared by the custom date formats (the calendar rule of ajv-formats `date`).
 const DAYS = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-function isCalendarDate(y: number, m: number, d: number): boolean {
-  const leap = y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0);
-  return m >= 1 && m <= 12 && d >= 1 && d <= (m === 2 && leap ? 29 : DAYS[m]);
+function isCalendarDate(year: number, month: number, day: number): boolean {
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  return month >= 1 && month <= 12 && day >= 1 && day <= (month === 2 && leap ? 29 : DAYS[month]);
 }
 
 // Each supported case compiles its JSON Schema inside its own builder thunk:
@@ -1219,9 +1219,10 @@ export const cases: CompetitorCases = {
   'OBJECT.call_signature_params_with_optional': {
     build: () => {
       const ajv = new Ajv();
+      addIsUndefined(ajv);
       const validate = ajv.compile({
         type: 'array',
-        items: [{type: 'number'}, {type: 'boolean'}, {type: 'string'}],
+        items: [{type: 'number'}, {type: 'boolean'}, {anyOf: [{type: 'string'}, {isUndefined: true}]}],
         minItems: 2,
         maxItems: 3,
       });
@@ -1229,9 +1230,10 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
+      addIsUndefined(ajv);
       const validate = ajv.compile({
         type: 'array',
-        items: [{type: 'number'}, {type: 'boolean'}, {type: 'string'}],
+        items: [{type: 'number'}, {type: 'boolean'}, {anyOf: [{type: 'string'}, {isUndefined: true}]}],
         minItems: 2,
         maxItems: 3,
       });
@@ -1837,7 +1839,7 @@ export const cases: CompetitorCases = {
         code: (cxt: KeywordCxt) =>
           cxt.pass(
             (cxt.schema as string[]).reduceRight(
-              (c: Code, k) => _`${k} in ${cxt.data} || ${c}`,
+              (acc: Code, k) => _`${k} in ${cxt.data} || ${acc}`,
               _`Object.keys(${cxt.data}).length === 0`
             )
           ),
@@ -1865,7 +1867,7 @@ export const cases: CompetitorCases = {
         code: (cxt: KeywordCxt) =>
           cxt.pass(
             (cxt.schema as string[]).reduceRight(
-              (c: Code, k) => _`${k} in ${cxt.data} || ${c}`,
+              (acc: Code, k) => _`${k} in ${cxt.data} || ${acc}`,
               _`Object.keys(${cxt.data}).length === 0`
             )
           ),
@@ -2514,9 +2516,10 @@ export const cases: CompetitorCases = {
     build: () => {
       const ajv = new Ajv();
       addBigint(ajv);
+      addIsUndefined(ajv);
       const validate = ajv.compile({
         type: 'object',
-        properties: {tuple: {type: 'array', items: [{bigint: true}, {$ref: '#'}], minItems: 1, maxItems: 2}},
+        properties: {tuple: {type: 'array', items: [{bigint: true}, {anyOf: [{$ref: '#'}, {isUndefined: true}]}], minItems: 1, maxItems: 2}},
         required: ['tuple'],
       });
       return (value: unknown) => validate(value) === true;
@@ -2524,9 +2527,10 @@ export const cases: CompetitorCases = {
     buildErrors: () => {
       const ajv = new Ajv({allErrors: true});
       addBigint(ajv);
+      addIsUndefined(ajv);
       const validate = ajv.compile({
         type: 'object',
-        properties: {tuple: {type: 'array', items: [{bigint: true}, {$ref: '#'}], minItems: 1, maxItems: 2}},
+        properties: {tuple: {type: 'array', items: [{bigint: true}, {anyOf: [{$ref: '#'}, {isUndefined: true}]}], minItems: 1, maxItems: 2}},
         required: ['tuple'],
       });
       return (value: unknown) => validate(value) === true;
@@ -2746,9 +2750,9 @@ export const cases: CompetitorCases = {
       // cycle walk along the recursive `next` path only (R6): on one path the visited set is the ancestor set
       addNoCycle(ajv, (value) => {
         const seen = new Set<object>();
-        for (let n = value; typeof n === 'object' && n !== null; n = (n as {next?: unknown}).next) {
-          if (seen.has(n)) return true;
-          seen.add(n);
+        for (let node = value; typeof node === 'object' && node !== null; node = (node as {next?: unknown}).next) {
+          if (seen.has(node)) return true;
+          seen.add(node);
         }
         return false;
       });
@@ -2771,9 +2775,9 @@ export const cases: CompetitorCases = {
       // cycle walk along the recursive `next` path only (R6): on one path the visited set is the ancestor set
       addNoCycle(ajv, (value) => {
         const seen = new Set<object>();
-        for (let n = value; typeof n === 'object' && n !== null; n = (n as {next?: unknown}).next) {
-          if (seen.has(n)) return true;
-          seen.add(n);
+        for (let node = value; typeof node === 'object' && node !== null; node = (node as {next?: unknown}).next) {
+          if (seen.has(node)) return true;
+          seen.add(node);
         }
         return false;
       });
@@ -2860,9 +2864,9 @@ export const cases: CompetitorCases = {
       // cycle walk along the recursive `next` path only (R6): on one path the visited set is the ancestor set
       addNoCycle(ajv, (value) => {
         const seen = new Set<object>();
-        for (let n = value; typeof n === 'object' && n !== null; n = (n as {next?: unknown}).next) {
-          if (seen.has(n)) return true;
-          seen.add(n);
+        for (let node = value; typeof node === 'object' && node !== null; node = (node as {next?: unknown}).next) {
+          if (seen.has(node)) return true;
+          seen.add(node);
         }
         return false;
       });
@@ -2885,9 +2889,9 @@ export const cases: CompetitorCases = {
       // cycle walk along the recursive `next` path only (R6): on one path the visited set is the ancestor set
       addNoCycle(ajv, (value) => {
         const seen = new Set<object>();
-        for (let n = value; typeof n === 'object' && n !== null; n = (n as {next?: unknown}).next) {
-          if (seen.has(n)) return true;
-          seen.add(n);
+        for (let node = value; typeof node === 'object' && node !== null; node = (node as {next?: unknown}).next) {
+          if (seen.has(node)) return true;
+          seen.add(node);
         }
         return false;
       });
@@ -3803,9 +3807,9 @@ export const cases: CompetitorCases = {
       const ajv = new Ajv();
       const DMY = /^(\d\d)-(\d\d)-(\d\d\d\d)$/;
       // leaf format hook: DD-MM-YYYY with the Gregorian calendar check
-      ajv.addFormat('date-dmy', (s: string) => {
-        const m = DMY.exec(s);
-        return m !== null && isCalendarDate(+m[3], +m[2], +m[1]);
+      ajv.addFormat('date-dmy', (text: string) => {
+        const match = DMY.exec(text);
+        return match !== null && isCalendarDate(+match[3], +match[2], +match[1]);
       });
       const validate = ajv.compile({type: 'string', format: 'date-dmy'});
       return (value: unknown) => validate(value) === true;
@@ -3814,9 +3818,9 @@ export const cases: CompetitorCases = {
       const ajv = new Ajv({allErrors: true});
       const DMY = /^(\d\d)-(\d\d)-(\d\d\d\d)$/;
       // leaf format hook: DD-MM-YYYY with the Gregorian calendar check
-      ajv.addFormat('date-dmy', (s: string) => {
-        const m = DMY.exec(s);
-        return m !== null && isCalendarDate(+m[3], +m[2], +m[1]);
+      ajv.addFormat('date-dmy', (text: string) => {
+        const match = DMY.exec(text);
+        return match !== null && isCalendarDate(+match[3], +match[2], +match[1]);
       });
       const validate = ajv.compile({type: 'string', format: 'date-dmy'});
       return (value: unknown) => validate(value) === true;
@@ -3922,7 +3926,7 @@ export const cases: CompetitorCases = {
       // leaf format with compare: HH:mm is fixed width, so a string compare orders it
       ajv.addFormat('time-hhmm', {
         validate: /^(?:[01]\d|2[0-3]):[0-5]\d$/,
-        compare: (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0),
+        compare: (left: string, right: string) => (left < right ? -1 : left > right ? 1 : 0),
       });
       addFormats(ajv, {formats: [], keywords: true}); // only the formatMinimum/formatMaximum keywords
       const validate = ajv.compile({type: 'string', format: 'time-hhmm', formatMinimum: '09:00', formatMaximum: '17:00'});
@@ -3933,7 +3937,7 @@ export const cases: CompetitorCases = {
       // leaf format with compare: HH:mm is fixed width, so a string compare orders it
       ajv.addFormat('time-hhmm', {
         validate: /^(?:[01]\d|2[0-3]):[0-5]\d$/,
-        compare: (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0),
+        compare: (left: string, right: string) => (left < right ? -1 : left > right ? 1 : 0),
       });
       addFormats(ajv, {formats: [], keywords: true}); // only the formatMinimum/formatMaximum keywords
       const validate = ajv.compile({type: 'string', format: 'time-hhmm', formatMinimum: '09:00', formatMaximum: '17:00'});
@@ -3959,9 +3963,9 @@ export const cases: CompetitorCases = {
       const ajv = new Ajv();
       const DMY_HM = /^(\d\d)-(\d\d)-(\d\d\d\d) (?:[01]\d|2[0-3]):[0-5]\d$/;
       // leaf format hook: DD-MM-YYYY (Gregorian calendar check) + ' ' + HH:mm
-      ajv.addFormat('datetime-dmy-hhmm', (s: string) => {
-        const m = DMY_HM.exec(s);
-        return m !== null && isCalendarDate(+m[3], +m[2], +m[1]);
+      ajv.addFormat('datetime-dmy-hhmm', (text: string) => {
+        const match = DMY_HM.exec(text);
+        return match !== null && isCalendarDate(+match[3], +match[2], +match[1]);
       });
       const validate = ajv.compile({type: 'string', format: 'datetime-dmy-hhmm'});
       return (value: unknown) => validate(value) === true;
@@ -3970,9 +3974,9 @@ export const cases: CompetitorCases = {
       const ajv = new Ajv({allErrors: true});
       const DMY_HM = /^(\d\d)-(\d\d)-(\d\d\d\d) (?:[01]\d|2[0-3]):[0-5]\d$/;
       // leaf format hook: DD-MM-YYYY (Gregorian calendar check) + ' ' + HH:mm
-      ajv.addFormat('datetime-dmy-hhmm', (s: string) => {
-        const m = DMY_HM.exec(s);
-        return m !== null && isCalendarDate(+m[3], +m[2], +m[1]);
+      ajv.addFormat('datetime-dmy-hhmm', (text: string) => {
+        const match = DMY_HM.exec(text);
+        return match !== null && isCalendarDate(+match[3], +match[2], +match[1]);
       });
       const validate = ajv.compile({type: 'string', format: 'datetime-dmy-hhmm'});
       return (value: unknown) => validate(value) === true;
@@ -3984,18 +3988,18 @@ export const cases: CompetitorCases = {
       const DT = /^(\d\d\d\d)-(\d\d)-(\d\d)[Tt](?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d$/;
       // leaf format with compare: YYYY-MM-DD (Gregorian calendar check) [Tt] HH:mm:ss, no tz
       ajv.addFormat('datetime-ymd-hms', {
-        validate: (s: string) => {
-          const m = DT.exec(s);
-          return m !== null && isCalendarDate(+m[1], +m[2], +m[3]);
+        validate: (text: string) => {
+          const match = DT.exec(text);
+          return match !== null && isCalendarDate(+match[1], +match[2], +match[3]);
         },
         // fixed width: compare the date and time halves as strings, skipping the T/t at index 10
-        compare: (a: string, b: string) => {
-          const da = a.slice(0, 10);
-          const db = b.slice(0, 10);
-          if (da !== db) return da < db ? -1 : 1;
-          const ta = a.slice(11);
-          const tb = b.slice(11);
-          return ta < tb ? -1 : ta > tb ? 1 : 0;
+        compare: (left: string, right: string) => {
+          const leftDate = left.slice(0, 10);
+          const rightDate = right.slice(0, 10);
+          if (leftDate !== rightDate) return leftDate < rightDate ? -1 : 1;
+          const leftTime = left.slice(11);
+          const rightTime = right.slice(11);
+          return leftTime < rightTime ? -1 : leftTime > rightTime ? 1 : 0;
         },
       });
       addFormats(ajv, {formats: [], keywords: true}); // only the formatMinimum/formatMaximum keywords
@@ -4012,18 +4016,18 @@ export const cases: CompetitorCases = {
       const DT = /^(\d\d\d\d)-(\d\d)-(\d\d)[Tt](?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d$/;
       // leaf format with compare: YYYY-MM-DD (Gregorian calendar check) [Tt] HH:mm:ss, no tz
       ajv.addFormat('datetime-ymd-hms', {
-        validate: (s: string) => {
-          const m = DT.exec(s);
-          return m !== null && isCalendarDate(+m[1], +m[2], +m[3]);
+        validate: (text: string) => {
+          const match = DT.exec(text);
+          return match !== null && isCalendarDate(+match[1], +match[2], +match[3]);
         },
         // fixed width: compare the date and time halves as strings, skipping the T/t at index 10
-        compare: (a: string, b: string) => {
-          const da = a.slice(0, 10);
-          const db = b.slice(0, 10);
-          if (da !== db) return da < db ? -1 : 1;
-          const ta = a.slice(11);
-          const tb = b.slice(11);
-          return ta < tb ? -1 : ta > tb ? 1 : 0;
+        compare: (left: string, right: string) => {
+          const leftDate = left.slice(0, 10);
+          const rightDate = right.slice(0, 10);
+          if (leftDate !== rightDate) return leftDate < rightDate ? -1 : 1;
+          const leftTime = left.slice(11);
+          const rightTime = right.slice(11);
+          return leftTime < rightTime ? -1 : leftTime > rightTime ? 1 : 0;
         },
       });
       addFormats(ajv, {formats: [], keywords: true}); // only the formatMinimum/formatMaximum keywords
@@ -4106,9 +4110,9 @@ export const cases: CompetitorCases = {
       const IPV6 = addFormats.get('ipv6') as RegExp; // the library's own ipv6 rule
       const BRACKETED = /^\[([^\]]+)\]:(\d+)$/;
       // leaf format hook: mion's bracket + port split (port required, <= 65535), ajv-formats ipv6 inside
-      ajv.addFormat('ipv6-port', (s: string) => {
-        const m = BRACKETED.exec(s);
-        return m !== null && IPV6.test(m[1]) && Number(m[2]) <= 65535;
+      ajv.addFormat('ipv6-port', (text: string) => {
+        const match = BRACKETED.exec(text);
+        return match !== null && IPV6.test(match[1]) && Number(match[2]) <= 65535;
       });
       const validate = ajv.compile({type: 'string', format: 'ipv6-port'});
       return (value: unknown) => validate(value) === true;
@@ -4118,9 +4122,9 @@ export const cases: CompetitorCases = {
       const IPV6 = addFormats.get('ipv6') as RegExp; // the library's own ipv6 rule
       const BRACKETED = /^\[([^\]]+)\]:(\d+)$/;
       // leaf format hook: mion's bracket + port split (port required, <= 65535), ajv-formats ipv6 inside
-      ajv.addFormat('ipv6-port', (s: string) => {
-        const m = BRACKETED.exec(s);
-        return m !== null && IPV6.test(m[1]) && Number(m[2]) <= 65535;
+      ajv.addFormat('ipv6-port', (text: string) => {
+        const match = BRACKETED.exec(text);
+        return match !== null && IPV6.test(match[1]) && Number(match[2]) <= 65535;
       });
       const validate = ajv.compile({type: 'string', format: 'ipv6-port'});
       return (value: unknown) => validate(value) === true;
@@ -4617,9 +4621,9 @@ export const cases: CompetitorCases = {
       const ajv = new Ajv();
       // relative bounds re-read the clock on every call (R4b), with mion's UTC calendar shift
       const shiftYears = (years: number) => () => {
-        const d = new Date();
-        d.setUTCFullYear(d.getUTCFullYear() + years);
-        return d.getTime();
+        const bound = new Date();
+        bound.setUTCFullYear(bound.getUTCFullYear() + years);
+        return bound.getTime();
       };
       addValidDate(ajv, [
         ['>=', shiftYears(-1000)],
@@ -4632,9 +4636,9 @@ export const cases: CompetitorCases = {
       const ajv = new Ajv({allErrors: true});
       // relative bounds re-read the clock on every call (R4b), with mion's UTC calendar shift
       const shiftYears = (years: number) => () => {
-        const d = new Date();
-        d.setUTCFullYear(d.getUTCFullYear() + years);
-        return d.getTime();
+        const bound = new Date();
+        bound.setUTCFullYear(bound.getUTCFullYear() + years);
+        return bound.getTime();
       };
       addValidDate(ajv, [
         ['>=', shiftYears(-1000)],
@@ -4652,9 +4656,9 @@ export const cases: CompetitorCases = {
         [
           '>=',
           () => {
-            const d = new Date();
-            d.setUTCFullYear(d.getUTCFullYear() - 1000);
-            return d.getTime() - 12 * 3600000;
+            const bound = new Date();
+            bound.setUTCFullYear(bound.getUTCFullYear() - 1000);
+            return bound.getTime() - 12 * 3600000;
           },
         ],
       ]);
@@ -4668,9 +4672,9 @@ export const cases: CompetitorCases = {
         [
           '>=',
           () => {
-            const d = new Date();
-            d.setUTCFullYear(d.getUTCFullYear() - 1000);
-            return d.getTime() - 12 * 3600000;
+            const bound = new Date();
+            bound.setUTCFullYear(bound.getUTCFullYear() - 1000);
+            return bound.getTime() - 12 * 3600000;
           },
         ],
       ]);

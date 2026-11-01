@@ -3044,20 +3044,20 @@ export const cases: CompetitorCases = {
     build: () => {
       const label = /^[a-zA-Z0-9-]+$/;
       const tldPattern = /^[a-zA-Z]+(\.[a-zA-Z]+)?$/;
-      const schema = z.string().refine((s) => {
-        if (s.length > 253 || s.length < 5) return false;
+      const schema = z.string().refine((text) => {
+        if (text.length > 253 || text.length < 5) return false;
         let count = 1;
         let start = 0;
         let pos;
-        while ((pos = s.indexOf('.', start)) !== -1) {
-          const name = s.substring(start, pos);
+        while ((pos = text.indexOf('.', start)) !== -1) {
+          const name = text.substring(start, pos);
           if (name.startsWith('-') || name.endsWith('-')) return false;
           if (name.length > 63 || name.length < 2 || !label.test(name)) return false;
           start = pos + 1;
           count++;
         }
         if (count > 6 || count < 2) return false;
-        const tld = s.substring(start);
+        const tld = text.substring(start);
         return tld.length <= 12 && tld.length >= 2 && tldPattern.test(tld);
       });
       const compiled = z.compile(schema);
@@ -3066,14 +3066,14 @@ export const cases: CompetitorCases = {
     buildErrors: () => {
       const label = /^[a-zA-Z0-9-]+$/;
       const tldPattern = /^[a-zA-Z]+(\.[a-zA-Z]+)?$/;
-      const schema = z.string().superRefine((s, ctx) => {
-        if (s.length > 253) ctx.addIssue('domain maxLength');
-        if (s.length < 5) ctx.addIssue('domain minLength');
+      const schema = z.string().superRefine((text, ctx) => {
+        if (text.length > 253) ctx.addIssue('domain maxLength');
+        if (text.length < 5) ctx.addIssue('domain minLength');
         let count = 0;
         let start = 0;
         let pos;
-        while ((pos = s.indexOf('.', start)) !== -1) {
-          const name = s.substring(start, pos);
+        while ((pos = text.indexOf('.', start)) !== -1) {
+          const name = text.substring(start, pos);
           if (name.startsWith('-') || name.endsWith('-')) ctx.addIssue('label hyphen');
           if (name.length > 63) ctx.addIssue('label maxLength');
           if (name.length < 2) ctx.addIssue('label minLength');
@@ -3084,7 +3084,7 @@ export const cases: CompetitorCases = {
         count++;
         if (count > 6) ctx.addIssue('maxParts');
         if (count < 2) ctx.addIssue('minParts');
-        const tld = s.substring(start);
+        const tld = text.substring(start);
         if (tld.length > 12) ctx.addIssue('tld maxLength');
         if (tld.length < 2) ctx.addIssue('tld minLength');
         if (!tldPattern.test(tld)) ctx.addIssue('tld pattern');
@@ -3136,80 +3136,80 @@ export const cases: CompetitorCases = {
   // validate stops at the first broken rule; errors reports every broken rule (as mion's two functions do).
   'STRING_FORMAT.emailParts': {
     build: () => {
-      const codePoints = (s: string) => {
-        let n = s.length;
-        for (let i = 0; i < s.length; i++) {
-          const c = s.charCodeAt(i);
-          if (c >= 0xd800 && c <= 0xdbff && i + 1 < s.length) {
+      const codePoints = (text: string) => {
+        let count = text.length;
+        for (let i = 0; i < text.length; i++) {
+          const code = text.charCodeAt(i);
+          if (code >= 0xd800 && code <= 0xdbff && i + 1 < text.length) {
             i++;
-            n--;
+            count--;
           }
         }
-        return n;
+        return count;
       };
       const disallowed = /[ ()<>[\]:;\\,{}|+@]/;
       const label = /^[a-zA-Z0-9-]+$/;
       const tldPattern = /^[a-zA-Z]+(\.[a-zA-Z]+)?$/;
-      const schema = z.string().refine((e) => {
-        if (e.length > 254 && (e.length > 508 || codePoints(e) > 254)) return false;
-        const at = e.lastIndexOf('@');
+      const schema = z.string().refine((email) => {
+        if (email.length > 254 && (email.length > 508 || codePoints(email) > 254)) return false;
+        const at = email.lastIndexOf('@');
         if (at === -1) return false;
-        const local = e.substring(0, at);
+        const local = email.substring(0, at);
         if (local.length < 1 || (local.length > 64 && (local.length > 128 || codePoints(local) > 64))) return false;
         if (disallowed.test(local)) return false;
-        const s = e.substring(at + 1);
-        if (s.length > 253 || s.length < 5) return false;
+        const domain = email.substring(at + 1);
+        if (domain.length > 253 || domain.length < 5) return false;
         let count = 1;
         let start = 0;
         let pos;
-        while ((pos = s.indexOf('.', start)) !== -1) {
-          const name = s.substring(start, pos);
+        while ((pos = domain.indexOf('.', start)) !== -1) {
+          const name = domain.substring(start, pos);
           if (name.startsWith('-') || name.endsWith('-')) return false;
           if (name.length > 63 || name.length < 2 || !label.test(name)) return false;
           start = pos + 1;
           count++;
         }
         if (count > 6 || count < 2) return false;
-        const tld = s.substring(start);
+        const tld = domain.substring(start);
         return tld.length <= 12 && tld.length >= 2 && tldPattern.test(tld);
       });
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const codePoints = (s: string) => {
-        let n = s.length;
-        for (let i = 0; i < s.length; i++) {
-          const c = s.charCodeAt(i);
-          if (c >= 0xd800 && c <= 0xdbff && i + 1 < s.length) {
+      const codePoints = (text: string) => {
+        let count = text.length;
+        for (let i = 0; i < text.length; i++) {
+          const code = text.charCodeAt(i);
+          if (code >= 0xd800 && code <= 0xdbff && i + 1 < text.length) {
             i++;
-            n--;
+            count--;
           }
         }
-        return n;
+        return count;
       };
       const disallowed = /[ ()<>[\]:;\\,{}|+@]/;
       const label = /^[a-zA-Z0-9-]+$/;
       const tldPattern = /^[a-zA-Z]+(\.[a-zA-Z]+)?$/;
-      const schema = z.string().superRefine((e, ctx) => {
-        if (e.length > 254 && (e.length > 508 || codePoints(e) > 254)) ctx.addIssue('email maxLength');
-        const at = e.lastIndexOf('@');
+      const schema = z.string().superRefine((email, ctx) => {
+        if (email.length > 254 && (email.length > 508 || codePoints(email) > 254)) ctx.addIssue('email maxLength');
+        const at = email.lastIndexOf('@');
         if (at === -1) {
           ctx.addIssue('email missing @');
           return;
         }
-        const local = e.substring(0, at);
+        const local = email.substring(0, at);
         if (local.length > 64 && (local.length > 128 || codePoints(local) > 64)) ctx.addIssue('local maxLength');
         if (local.length < 1) ctx.addIssue('local minLength');
         if (disallowed.test(local)) ctx.addIssue('local disallowedChars');
-        const s = e.substring(at + 1);
-        if (s.length > 253) ctx.addIssue('domain maxLength');
-        if (s.length < 5) ctx.addIssue('domain minLength');
+        const domain = email.substring(at + 1);
+        if (domain.length > 253) ctx.addIssue('domain maxLength');
+        if (domain.length < 5) ctx.addIssue('domain minLength');
         let count = 0;
         let start = 0;
         let pos;
-        while ((pos = s.indexOf('.', start)) !== -1) {
-          const name = s.substring(start, pos);
+        while ((pos = domain.indexOf('.', start)) !== -1) {
+          const name = domain.substring(start, pos);
           if (name.startsWith('-') || name.endsWith('-')) ctx.addIssue('label hyphen');
           if (name.length > 63) ctx.addIssue('label maxLength');
           if (name.length < 2) ctx.addIssue('label minLength');
@@ -3220,7 +3220,7 @@ export const cases: CompetitorCases = {
         count++;
         if (count > 6) ctx.addIssue('maxParts');
         if (count < 2) ctx.addIssue('minParts');
-        const tld = s.substring(start);
+        const tld = domain.substring(start);
         if (tld.length > 12) ctx.addIssue('tld maxLength');
         if (tld.length < 2) ctx.addIssue('tld minLength');
         if (!tldPattern.test(tld)) ctx.addIssue('tld pattern');
@@ -3229,41 +3229,41 @@ export const cases: CompetitorCases = {
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // url: http/ftp/ws schemes + mion's 2048 code-point cap; zod strips trailing ':' from protocol before testing
+  // url: mion's regex + 2048 cap; z.url() runs a WHATWG URL parse + trim that accepts values mion rejects
   'STRING_FORMAT.url': {
     build: () => {
-      const schema = z.url({protocol: /^(https?|ftps?|wss?)$/}).max(2048);
+      const schema = z.string().max(2048).regex(/^(?:https?|ftps?|wss?):\/\/[^\s/$.?#-][^\s]*$/i);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.url({protocol: /^(https?|ftps?|wss?)$/}).max(2048);
+      const schema = z.string().max(2048).regex(/^(?:https?|ftps?|wss?):\/\/[^\s/$.?#-][^\s]*$/i);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // urlHttp: http(s) only + mion's 2048 cap. `/^https?$/` keeps zod's literal `://` guard; no hostname check (mion has none)
+  // urlHttp: http(s) only, mion's regex + 2048 cap (same reason as url)
   'STRING_FORMAT.urlHttp': {
     build: () => {
-      const schema = z.url({protocol: /^https?$/}).max(2048);
+      const schema = z.string().max(2048).regex(/^https?:\/\/[^\s/$.?#-][^\s]*$/i);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.url({protocol: /^https?$/}).max(2048);
+      const schema = z.string().max(2048).regex(/^https?:\/\/[^\s/$.?#-][^\s]*$/i);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
   },
-  // urlFile: file:// URLs + mion's 2048 code-point cap
+  // urlFile: file:// URLs, mion's regex + 2048 cap (same reason as url)
   'STRING_FORMAT.urlFile': {
     build: () => {
-      const schema = z.url({protocol: /^file$/}).max(2048);
+      const schema = z.string().max(2048).regex(/^file:\/\/\/?(?:[a-zA-Z]:)?[^\s/$.?#-][^\s]*$/i);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.url({protocol: /^file$/}).max(2048);
+      const schema = z.string().max(2048).regex(/^file:\/\/\/?(?:[a-zA-Z]:)?[^\s/$.?#-][^\s]*$/i);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -3569,12 +3569,12 @@ export const cases: CompetitorCases = {
   // date_max_now: "now" is read on every call (a .max(new Date()) frozen at build drifts)
   'DATETIME.date_max_now': {
     build: () => {
-      const schema = z.date().refine((d) => d.getTime() <= Date.now());
+      const schema = z.date().refine((date) => date.getTime() <= Date.now());
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.date().refine((d) => d.getTime() <= Date.now());
+      const schema = z.date().refine((date) => date.getTime() <= Date.now());
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
@@ -3584,15 +3584,15 @@ export const cases: CompetitorCases = {
     build: () => {
       const schema = z
         .date()
-        .refine((d) => {
+        .refine((date) => {
           const min = new Date();
           min.setUTCFullYear(min.getUTCFullYear() - 1000);
-          return d.getTime() >= min.getTime();
+          return date.getTime() >= min.getTime();
         })
-        .refine((d) => {
+        .refine((date) => {
           const max = new Date();
           max.setUTCFullYear(max.getUTCFullYear() + 1000);
-          return d.getTime() <= max.getTime();
+          return date.getTime() <= max.getTime();
         });
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
@@ -3600,15 +3600,15 @@ export const cases: CompetitorCases = {
     buildErrors: () => {
       const schema = z
         .date()
-        .refine((d) => {
+        .refine((date) => {
           const min = new Date();
           min.setUTCFullYear(min.getUTCFullYear() - 1000);
-          return d.getTime() >= min.getTime();
+          return date.getTime() >= min.getTime();
         })
-        .refine((d) => {
+        .refine((date) => {
           const max = new Date();
           max.setUTCFullYear(max.getUTCFullYear() + 1000);
-          return d.getTime() <= max.getTime();
+          return date.getTime() <= max.getTime();
         });
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
@@ -3617,21 +3617,21 @@ export const cases: CompetitorCases = {
   // date_rel_datetime_components: now - 1000 years (UTC) - 12 hours, computed per call
   'DATETIME.date_rel_datetime_components': {
     build: () => {
-      const schema = z.date().refine((d) => {
+      const schema = z.date().refine((date) => {
         const min = new Date();
         min.setUTCFullYear(min.getUTCFullYear() - 1000);
         min.setTime(min.getTime() - 12 * 3_600_000);
-        return d.getTime() >= min.getTime();
+        return date.getTime() >= min.getTime();
       });
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.date().refine((d) => {
+      const schema = z.date().refine((date) => {
         const min = new Date();
         min.setUTCFullYear(min.getUTCFullYear() - 1000);
         min.setTime(min.getTime() - 12 * 3_600_000);
-        return d.getTime() >= min.getTime();
+        return date.getTime() >= min.getTime();
       });
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
@@ -4501,12 +4501,18 @@ export const cases: CompetitorCases = {
   },
   'JSON_SCHEMA.string_email': {
     build: () => {
-      const schema = z.email();
+      const schema = z
+        .email({pattern: /^[^\s@]{1,64}@(?:[a-zA-Z0-9-]{1,63}\.)+[a-zA-Z]{2,63}$/})
+        .max(254)
+        .min(7);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.validate(value);
     },
     buildErrors: () => {
-      const schema = z.email();
+      const schema = z
+        .email({pattern: /^[^\s@]{1,64}@(?:[a-zA-Z0-9-]{1,63}\.)+[a-zA-Z]{2,63}$/})
+        .max(254)
+        .min(7);
       const compiled = z.compile(schema);
       return (value: unknown) => compiled.safeParse(value).success;
     },
