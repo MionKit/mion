@@ -20,7 +20,7 @@
   or the factory `customMionRouter<Types>()` returns: ONLY public way to init the router and declare routes / middleware.
 - Options written once, ride by type (`O`) into every helper; the declared types (`T`) ride beside them.
 - `ctx.shared` is typed from the `shared` part, `never` without one. `contextDataFactory` is refused on plain
-  `createMionRouter`, and dropped from the options a route carries, so `PublicApi` never reads it.
+  `createMionRouter`.
 - `handler` keys reach every handler's runtime `options` and the client metadata; `router` keys reach `getRouterOptions()`.
 - Unknown keys fail through `KnownKeysOf` in the factory's constraint and a `NoInfer` guard on handler options:
   both kept out of inference, the cost the type budget tracks.
