@@ -420,11 +420,9 @@ export const timeStrToMs = registerPureFnFactory(function () {
   };
 }, timeStrToMsId);
 
-// relativeNowKey — parses a `now`, `now+P…`, or `now-P…` spec ONCE and returns a fn that reads the clock and
-// evaluates it to a comparison key on the requested scale. The validator hoists that fn into its prologue and
-// calls it per check, so only `now` is per call. scale: 'epoch' → UTC epoch ms (calendar-correct add via Date
-// arithmetic); 'epochDate' → the same floored to UTC midnight, matching dateStrToMs; 'timeOfDay' → ms-of-day
-// (only T-section components apply, date components are rejected build-time so won't appear here).
+// relativeNowKey parses a `now±P…` spec once; the validator hoists the returned fn and calls it per check.
+// Scales: 'epoch' UTC ms, 'epochDate' floored to UTC midnight like dateStrToMs, 'timeOfDay' ms-of-day.
+// 'timeOfDay' ignores date components: they are rejected at build time.
 export const relativeNowKey = registerPureFnFactory(function () {
   // Parses the ISO-8601 duration tail into years, months, weeks, days, hours, minutes and seconds.
   function parseDuration(tail: string): Record<string, number> {

@@ -64,7 +64,7 @@ func TestTemporalFormat_EmitsExclusiveCompareCheck(t *testing.T) {
 	if len(diags) != 0 {
 		t.Fatalf("valid bounds diagnosed: %+v", diags)
 	}
-	// Bounds are hoisted in declaration order: tBound0 is gt, tBound1 is lt.
+	// Hoisted in temporalBoundOps order: tBound0 is gt, tBound1 is lt.
 	if !strings.Contains(src, `compare(v, tBound0) > 0`) {
 		t.Fatalf("expected exclusive `> 0` for gt, got:\n%s", src)
 	}

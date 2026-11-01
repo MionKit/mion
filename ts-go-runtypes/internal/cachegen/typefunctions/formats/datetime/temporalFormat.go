@@ -39,10 +39,8 @@ func (e temporalFormatEmitter) relBoundKind() boundKind {
 	}
 }
 
-// ValidateParams validates the relative `now±P…` bounds: grammar plus the per-type component restriction, since
-// calendar units on an Instant bound would throw in `.add()` at runtime.
-// Absolute literals are NOT parsed here: Temporal's grammar is rich (tz + calendar annotations) and the hoisted
-// `Temporal.X.from(...)` validates them loudly when the validator is created.
+// ValidateParams checks relative `now±P…` grammar and per-type units: calendar units on Instant throw in `.add()`.
+// Absolute literals (rich tz + calendar grammar) are left to the hoisted `.from()`, which throws at validator creation.
 func (e temporalFormatEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
@@ -91,9 +89,7 @@ func temporalTitle(info reflection.TemporalInfo) string {
 	return "Temporal" + info.Name
 }
 
-// temporalBoundExpr renders what a bound compares against. A literal `Temporal.X.from('lit')` and the
-// `Temporal.Duration.from('P…')` of a relative bound are hoisted into the factory prologue, parsed once; only
-// `Temporal.Now.X()` stays in the body, since a relative bound must read the clock on every call.
+// temporalBoundExpr hoists each `.from(...)` parse into the prologue; `Temporal.Now.X()` must read the clock per call.
 func (e temporalFormatEmitter) temporalBoundExpr(ctx formats.EmitContext, bound string) string {
 	if !strings.HasPrefix(bound, "now") {
 		return hoistOrInline(ctx, "tBound", e.info.Builtin+".from("+strconv.Quote(bound)+")")
