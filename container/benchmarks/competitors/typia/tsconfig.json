@@ -1,1 +1,10 @@
-{"extends": "../../tsconfig.base.json", "compilerOptions": {"strict": true, "strictNullChecks": true, "plugins": [{"transform": "typia/lib/transform"}]}, "include": ["cases.ts", "main.ts", "../../shared"]}
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "strict": true,
+    "strictNullChecks": true,
+    // `finite`: mion `number` is Number.isFinite, so every typia number leaf must reject NaN / Infinity too.
+    "plugins": [{"transform": "typia/lib/transform", "finite": true}]
+  },
+  "include": ["cases.ts", "main.ts", "../../shared"]
+}
