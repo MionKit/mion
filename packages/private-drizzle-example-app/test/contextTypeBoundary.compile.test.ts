@@ -10,7 +10,7 @@ describe.each(DIALECTS)('%s database context boundary', (dialect) => {
 import type {CallContext} from '@mionjs/router';
 import {db, usersDb} from '../db/${dialect}.types.db.ts';
 import type {User} from '../db/${dialect}.types.ts';`;
-    // every router sharing data declares its `shared` type: the factory return is checked against it, never inferred
+    // every factory writes its return type: an inferred one is computed by every client
     const dbRouter = 'createMionRouter({sharedDataFactory: (): {db: typeof db} => ({db})})';
     const results = [
       ['empty context', 'createMionRouter({})', '_ctx', 'db'],

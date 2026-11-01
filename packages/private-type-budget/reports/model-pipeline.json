@@ -29,23 +29,23 @@
         {
           "step": 4,
           "label": "mion route api",
-          "delta": 509,
+          "delta": 511,
           "budget": 525,
-          "cumulative": 3020
+          "cumulative": 3022
         },
         {
           "step": 5,
           "label": "initClient",
-          "delta": 3161,
+          "delta": 3157,
           "budget": 3179,
-          "cumulative": 6181
+          "cumulative": 6179
         },
         {
           "step": 6,
           "label": "db query (toDrizzle)",
           "delta": 8470,
           "budget": 8470,
-          "cumulative": 14651
+          "cumulative": 14649
         }
       ],
       "totalBudget": 14718,
@@ -83,23 +83,23 @@
         {
           "step": 4,
           "label": "mion route api",
-          "delta": 509,
+          "delta": 511,
           "budget": 525,
-          "cumulative": 3036
+          "cumulative": 3038
         },
         {
           "step": 5,
           "label": "initClient",
-          "delta": 3161,
+          "delta": 3157,
           "budget": 3179,
-          "cumulative": 6197
+          "cumulative": 6195
         },
         {
           "step": 6,
           "label": "db query (toDrizzle)",
           "delta": 7143,
           "budget": 7143,
-          "cumulative": 13340
+          "cumulative": 13338
         }
       ],
       "totalBudget": 13407,
@@ -137,23 +137,23 @@
         {
           "step": 4,
           "label": "mion route api",
-          "delta": 508,
+          "delta": 510,
           "budget": 524,
-          "cumulative": 3035
+          "cumulative": 3037
         },
         {
           "step": 5,
           "label": "initClient",
-          "delta": 3161,
+          "delta": 3157,
           "budget": 3179,
-          "cumulative": 6196
+          "cumulative": 6194
         },
         {
           "step": 6,
           "label": "db query (toDrizzle)",
           "delta": 7317,
           "budget": 7317,
-          "cumulative": 13513
+          "cumulative": 13511
         }
       ],
       "totalBudget": 13580,

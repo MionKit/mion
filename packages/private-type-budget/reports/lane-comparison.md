@@ -26,9 +26,9 @@ Net instantiations per step, one table per dialect.
 | 1 | declare the formatted row | 884 | 47 | 553 |
 | 2 | refine two columns | 1082 | 393 | 384 |
 | 3 | select / insert / update models | 545 | 254 | 262 |
-| 4 | mion route api | 509 | 498 | 493 |
-| 5 | initClient | 3161 | 3067 | 3311 |
-| | **Total** | **6181** | **4259** | **5003** |
+| 4 | mion route api | 511 | 500 | 495 |
+| 5 | initClient | 3157 | 3063 | 3307 |
+| | **Total** | **6179** | **4257** | **5001** |
 
 ## mysql
 
@@ -37,9 +37,9 @@ Net instantiations per step, one table per dialect.
 | 1 | declare the formatted row | 903 | 47 | 553 |
 | 2 | refine two columns | 1079 | 393 | 384 |
 | 3 | select / insert / update models | 545 | 254 | 262 |
-| 4 | mion route api | 509 | 498 | 493 |
-| 5 | initClient | 3161 | 3067 | 3311 |
-| | **Total** | **6197** | **4259** | **5003** |
+| 4 | mion route api | 511 | 500 | 495 |
+| 5 | initClient | 3157 | 3063 | 3307 |
+| | **Total** | **6195** | **4257** | **5001** |
 
 ## sqlite
 
@@ -48,9 +48,9 @@ Net instantiations per step, one table per dialect.
 | 1 | declare the formatted row | 908 | 47 | 549 |
 | 2 | refine two columns | 1074 | 388 | 379 |
 | 3 | select / insert / update models | 545 | 254 | 262 |
-| 4 | mion route api | 508 | 498 | 493 |
-| 5 | initClient | 3161 | 3067 | 3311 |
-| | **Total** | **6196** | **4254** | **4994** |
+| 4 | mion route api | 510 | 500 | 495 |
+| 5 | initClient | 3157 | 3063 | 3307 |
+| | **Total** | **6194** | **4252** | **4992** |
 
 ## Reading this
 
