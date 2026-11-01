@@ -6,7 +6,7 @@
  * ######## */
 
 import type {ParamsStrategy, ReturnStrategy} from './parser.ts';
-import type {MiddlewareOptionKey, RouteOptionKey} from './remoteMethods.ts';
+import type {MiddlewareOptions, RouteOptions} from './remoteMethods.ts';
 
 // The options of a route or middleware AS THE ROUTER RESOLVES THEM, at type level: the route literal,
 // then the router literal, then the built-in default, the same three steps `getExecutableFromRoute`
@@ -29,9 +29,9 @@ type WithAddedKeys<Resolved, RO, Known extends PropertyKey> = [keyof RO] extends
   : Resolved & {[Key in AddedKeys<NonNullable<RO>, Known>]: NonNullable<RO>[Key]};
 
 /** A route's effective options: `alwaysRun` is always false and `isMutation` is what the helper pinned. */
-export type ResolvedRouteOptions<RO, O> = WithAddedKeys<RouteOptionsView<RO, O>, RO, RouteOptionKey>;
+export type ResolvedRouteOptions<RO, O> = WithAddedKeys<RouteOptionsView<RO, O>, RO, keyof RouteOptions>;
 /** A middleware's effective options (headers middlewares included). */
-export type ResolvedMiddlewareOptions<RO, O> = WithAddedKeys<MiddlewareOptionsView<RO, O>, RO, MiddlewareOptionKey>;
+export type ResolvedMiddlewareOptions<RO, O> = WithAddedKeys<MiddlewareOptionsView<RO, O>, RO, keyof MiddlewareOptions>;
 
 // Both views are flat object types, so a method naming no added key gets one literal object.
 type RouteOptionsView<RO, O> = {

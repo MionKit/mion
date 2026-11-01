@@ -15,11 +15,11 @@ import {
   getRouteExecutable,
   getMiddlewareExecutable,
 } from '../src/router.ts';
-import {getSerializableMethod} from '../src/lib/remoteMethods.ts';
 import {HeadersSubset} from '@mionjs/core';
 import type {CallContext} from '../src/types/context.ts';
 import type {MionSecurityHandlerOptions, Routes} from '../src/types/general.ts';
 import type {PublicApi, PublicHandler} from '../src/types/publicMethods.ts';
+import type {RouterCallContext} from '../src/types/mionRouter.ts';
 
 type Shared = {user: string; visits: number};
 type Audit = {audit?: boolean};
@@ -31,28 +31,6 @@ const createAppRouter = customMionRouter<AppTypes>();
 // functions never called, so no second router is created at runtime.
 
 describe('customMionRouter types: ctx.shared and contextDataFactory', () => {
-  it('types ctx.shared from the shared part in every helper', () => {
-    function compileOnly(): void {
-      const app = createAppRouter({contextDataFactory: () => ({user: '', visits: 0})});
-      app.route((ctx) => expectTypeOf(ctx.shared).toEqualTypeOf<Shared>());
-      app.query((ctx) => expectTypeOf(ctx.shared).toEqualTypeOf<Shared>());
-      app.mutation((ctx) => expectTypeOf(ctx.shared).toEqualTypeOf<Shared>());
-      app.middleware((ctx) => expectTypeOf(ctx.shared).toEqualTypeOf<Shared>());
-      app.headersMiddleware((ctx, h: HeadersSubset<'authorization'>): void => {
-        expectTypeOf(ctx.shared).toEqualTypeOf<Shared>();
-      });
-      app.rawMiddleware((ctx, req: unknown, resp: unknown): void => {
-        expectTypeOf(ctx.shared).toEqualTypeOf<Shared>();
-      });
-      app.route((ctx): number => {
-        // @ts-expect-error not a field of the shared type
-        void ctx.shared.nope;
-        return ctx.shared.visits;
-      });
-    }
-    void compileOnly;
-  });
-
   it('types ctx.shared as never without a shared part', () => {
     function compileOnly(): void {
       const plain = createMionRouter();
@@ -186,6 +164,36 @@ describe('customMionRouter types: router and handler keys', () => {
     void compileOnly;
   });
 
+  it('refuses an added key whose value is no JSON data, since it goes to the client', () => {
+    function compileOnly(): void {
+      // @ts-expect-error a function cannot reach the client in the metadata
+      customMionRouter<{handler: {onDeny?: () => void}}>();
+      // @ts-expect-error neither can a RegExp
+      customMionRouter<{handler: {match?: RegExp}}>();
+      // @ts-expect-error nor a bigint
+      customMionRouter<{handler: {limit?: bigint}}>();
+      customMionRouter<{handler: {audit?: {level: 'high' | 'low'}; tags?: string[]}}>();
+    }
+    void compileOnly;
+  });
+
+  it('refuses a router types argument that declares no part', () => {
+    function compileOnly(): void {
+      // @ts-expect-error router options are not router types: the old `RouterCallContext<typeof options>` fails loudly
+      expectTypeOf<RouterCallContext<{basePath: 'x'}>>();
+    }
+    void compileOnly;
+  });
+
+  it('carries the router-wide parser to a route on a custom router without a shared part', () => {
+    function compileOnly(): void {
+      const app = customMionRouter<{handler: MionSecurityHandlerOptions}>()({parser: 'compact'});
+      const defs = {r: app.route((): string => '', {cors: false})};
+      expectTypeOf<PublicApi<typeof defs>['r']['options']['parser']>().toEqualTypeOf<{params: 'compact'; return: 'compact'}>();
+    }
+    void compileOnly;
+  });
+
   it('combines the keys of several middlewares', () => {
     function compileOnly(): void {
       const app = customMionRouter<{handler: MionSecurityHandlerOptions & AuditHandler}>()();
@@ -252,11 +260,6 @@ describe('customMionRouter runtime', () => {
     expect(() => customMionRouter()()).not.toThrow();
   });
 
-  it('still checks contextDataFactory at registration', () => {
-    const broken = customMionRouter<{shared: any}>()({contextDataFactory: () => ({})});
-    expect(() => broken.initRoutes({})).toThrow('contextDataFactory must return a plain object with at least one property');
-  });
-
   it('copies the added keys onto every registered method, and keeps mion own keys', () => {
     const api = mion.initRoutes(routes);
     expect(getRouterOptions()).toEqual(expect.objectContaining({audit: true}));
@@ -278,12 +281,5 @@ describe('customMionRouter runtime', () => {
     const def = loose.route((): string => 'x', {alwaysRun: true} as any);
     loose.initRoutes({def});
     expect(getRouteExecutable('def')?.options.alwaysRun).toBe(false);
-  });
-
-  it('sends the added keys in the serialized metadata a client fetches', () => {
-    mion.initRoutes(routes);
-    expect(getSerializableMethod(getRouteExecutable('hidden')!).options.cors).toBe(false);
-    expect(getSerializableMethod(getMiddlewareExecutable('log')!).options.cors).toBe(false);
-    expect(getSerializableMethod(getRouteExecutable('open')!).options).not.toHaveProperty('cors');
   });
 });

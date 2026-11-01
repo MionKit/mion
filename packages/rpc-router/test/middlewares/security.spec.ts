@@ -12,7 +12,7 @@ import {registerBatches} from '../../src/batches.ts';
 import {getDefaultHeaders, headersFromRecord} from '../../src/lib/headers.ts';
 import {toHttpMethod} from '../../src/lib/httpMethod.ts';
 import {mionSecurity, mionFetchMetadata} from '../../middlewares.ts';
-import type {MionSecurityHandlerOptions} from '../../middlewares.ts';
+import type {MionSecurityHandlerOptions} from '../../src/types/general.ts';
 import type {CallContext, MionHeaders, MionResponse} from '../../src/types/context.ts';
 import type {MionSecurityOptions, Routes} from '../../src/types/general.ts';
 import {HeadersSubset, MION_BATCH_PATH, StatusCodes} from '@mionjs/core';
@@ -51,6 +51,8 @@ const failing = mion.route((): string => {
 const secretIn = mion.headersMiddleware((ctx: CallContext, headers: HeadersSubset<'x-secret-in'>): void => undefined, {
   cors: false,
 });
+// declares x-total like `hidden`, without the option, so both sit in one chain
+const stamp = mion.middleware((): HeadersSubset<'x-total'> => new HeadersSubset({'x-total': '0'}));
 const hidden = mion.route((): HeadersSubset<'x-hidden', 'x-total'> => new HeadersSubset({'x-hidden': 'h', 'x-total': '1'}), {
   cors: false,
 });
@@ -257,7 +259,7 @@ describe('mionSecurity', () => {
   });
 
   describe('CORS: a handler with cors: false', () => {
-    const corsOffRoutes = {auth, secretIn, listUsers, hidden} satisfies Routes;
+    const corsOffRoutes = {auth, secretIn, stamp, listUsers, hidden} satisfies Routes;
     const corsOff = (cors: MionSecurityOptions['cors'] = {}) => init({origins: [APP], cors}, corsOffRoutes);
 
     it('keeps the request headers of a middleware off the allow list, and only those', async () => {
@@ -270,7 +272,7 @@ describe('mionSecurity', () => {
       ]);
     });
 
-    it('keeps the response headers of a route off the expose list, even one another member declares', async () => {
+    it('keeps the response headers of a route off the expose list, even one another member of its chain declares', async () => {
       corsOff();
       const response = await post('/hidden', {hidden: []}, {origin: APP, 'x-secret-in': 's'});
       expect(response.hasErrors).toBe(false);
@@ -280,7 +282,7 @@ describe('mionSecurity', () => {
       // only the lists change: the headers are still sent
       expect(response.headers.get('x-hidden')).toBe('h');
       expect(response.headers.get('x-total')).toBe('1');
-      // another chain, whose route declares x-total without the option, still exposes it
+      // another chain, where nothing with the option declares x-total, still exposes it
       const listed = await post('/listUsers', {listUsers: []}, {origin: APP, 'x-secret-in': 's'});
       expect(listed.headers.get('access-control-expose-headers')).toContain('x-total');
     });
@@ -297,7 +299,7 @@ describe('mionSecurity', () => {
     it('carries the option on the registered method, where mionSecurity reads it', async () => {
       corsOff();
       expect(hidden.options).toEqual({cors: false});
-      expect(getRouteExecutable('hidden')?.options.cors).toBe(false);
+      expect(getRouteExecutable('hidden')?.options).toMatchObject({cors: false});
       expect(getRouteExecutable('listUsers')?.options).not.toHaveProperty('cors');
     });
   });

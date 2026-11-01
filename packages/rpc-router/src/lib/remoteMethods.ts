@@ -8,7 +8,14 @@
 import {type RouterEntry, type Routes} from '../types/general.ts';
 import {type RemoteMethod} from '../types/remoteMethods.ts';
 import type {PublicApi} from '../types/publicMethods.ts';
-import type {AnyObject, CompiledTypeFn, CompiledFnData, MethodWithOptions, PureFnsDataCache} from '@mionjs/core';
+import type {
+  AnyObject,
+  CompiledTypeFn,
+  CompiledFnData,
+  MethodOptionsMetadata,
+  MethodWithOptions,
+  PureFnsDataCache,
+} from '@mionjs/core';
 import {isRoute, isHeadersMiddlewareDef, isMiddlewareDef} from '../types/guards.ts';
 import {getMiddlewareExecutable, getRouteExecutable, isPrivateDefinition, getPlatformMaxBodySize} from '../router.ts';
 import {
@@ -81,10 +88,10 @@ export function getSerializableMethod(executable: RemoteMethod): MethodWithOptio
     paramNames: executable.paramNames,
     // a route whose types could not say takes the platform's number: filled in here, once, so the
     // client sees the limit the server really applies (the adapter has published it by now)
-    options:
-      executable.type === HandlerType.route && executable.options.maxBodySize === undefined
-        ? {...executable.options, maxBodySize: getPlatformMaxBodySize()}
-        : executable.options,
+    // registration copied the keys a `customMionRouter` added onto the options: they go to the client as written
+    options: (executable.type === HandlerType.route && executable.options.maxBodySize === undefined
+      ? {...executable.options, maxBodySize: getPlatformMaxBodySize()}
+      : executable.options) as MethodOptionsMetadata,
   };
   if (executable.syncId) newRemoteMethod.syncId = executable.syncId;
   if (executable.headersParam) newRemoteMethod.headersParam = executable.headersParam;

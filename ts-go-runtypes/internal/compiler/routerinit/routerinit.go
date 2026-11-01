@@ -92,7 +92,7 @@ func callsFactory(typeChecker *checker.Checker, markerOpts marker.Options, sourc
 	// Text pre-filter: this runs on every Program rebuild, and resolving a symbol per call across the whole
 	// program is the cost. The file it skips can only reach the factory through a barrel that RENAMES it,
 	// deliberately not detected; rpc-batch-router-init-hidden covers a program left without a router-init module.
-	if text := sourceFile.Text(); !strings.Contains(text, RouterModule) && !containsFactoryName(text) {
+	if text := sourceFile.Text(); !strings.Contains(text, RouterModule) && !slices.ContainsFunc(FactoryNames, func(name string) bool { return strings.Contains(text, name) }) {
 		return false
 	}
 	found := false
@@ -135,15 +135,6 @@ func isFactoryCall(typeChecker *checker.Checker, markerOpts marker.Options, call
 		return false
 	}
 	return marker.DeclaringModuleOfNode(checker.Signature_declaration(signature), markerOpts.FS) == RouterModule
-}
-
-func containsFactoryName(text string) bool {
-	for _, name := range FactoryNames {
-		if strings.Contains(text, name) {
-			return true
-		}
-	}
-	return false
 }
 
 // calleeNameNode returns the identifier a call is made through, the member name for `ns.f(...)`.

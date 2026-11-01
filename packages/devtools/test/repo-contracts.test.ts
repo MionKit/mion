@@ -2196,16 +2196,20 @@ describe('bun test files never build the router at evaluation time', () => {
   // Bun evaluates all describe bodies before any hook in one process, so a router built there hits a sibling's once-guard.
   // The throw skips that whole file and the summary still reads `0 fail`.
   // Indentation is the nesting test: 0 is module level, 2 a describe body, deeper runs after the reset.
-  const evaluationTimeCalls = (source: string): string[] =>
-    source
-      .split('\n')
-      .map((line, index) => ({line, number: index + 1}))
-      // `customMionRouter<T>()` alone only returns the factory: calling what it returns builds the router
-      .filter(
-        ({line}) =>
-          /createMionRouter\s*\(|customMionRouter\b.*\)\s*\(/.test(line) && /^ {0,2}\S/.test(line) && !/^\s*(\/\/|\*)/.test(line)
-      )
-      .map(({line, number}) => `${number}: ${line.trim()}`);
+  // A router is built by `createMionRouter(`, by calling what `customMionRouter<T>()` returns (inline, under an import
+  // alias, or through a const holding it), never by `customMionRouter<T>()` alone. Matched on the whole source:
+  // a `<{...}>` type argument may span lines.
+  const evaluationTimeCalls = (source: string): string[] => {
+    const customNames = ['customMionRouter', ...[...source.matchAll(/customMionRouter\s+as\s+(\w+)/g)].map((match) => match[1])];
+    const custom = `(?:${customNames.join('|')})\\s*(?:<[^]*?>)?\\s*\\(\\s*\\)`;
+    const heldFactories = [...source.matchAll(new RegExp(`(\\w+)\\s*=\\s*${custom}\\s*;`, 'g'))].map((match) => match[1]);
+    const builds = new RegExp(`\\b(?:${['createMionRouter', ...heldFactories].join('|')})\\s*\\(|\\b${custom}\\s*\\(`, 'g');
+    const lines = source.split('\n');
+    return [...source.matchAll(builds)]
+      .map((match) => source.slice(0, match.index).split('\n').length)
+      .filter((number) => /^ {0,2}\S/.test(lines[number - 1]) && !/^\s*(\/\/|\*)/.test(lines[number - 1]))
+      .map((number) => `${number}: ${lines[number - 1].trim()}`);
+  };
 
   const bunTestFiles = globSync('**/*.{test,spec}.ts', {cwd: BUN_PACKAGE, exclude: (name) => name === 'node_modules'});
 
@@ -2220,6 +2224,23 @@ describe('bun test files never build the router at evaluation time', () => {
   it('spots a router built in a describe body', () => {
     const offending = "describe('x', () => {\n  const mion = createMionRouter();\n});";
     expect(evaluationTimeCalls(offending)).toEqual(['2: const mion = createMionRouter();']);
+  });
+
+  it('spots a router built through customMionRouter in every form', () => {
+    const inline = "describe('x', () => {\n  const mion = customMionRouter<{shared: S}>()({contextDataFactory: f});\n});";
+    expect(evaluationTimeCalls(inline)).toEqual(['2: const mion = customMionRouter<{shared: S}>()({contextDataFactory: f});']);
+    const multiLine =
+      "describe('x', () => {\n  const mion = customMionRouter<{\n    shared: Map<string, number>;\n  }>()({});\n});";
+    expect(evaluationTimeCalls(multiLine)).toEqual(['2: const mion = customMionRouter<{']);
+    const held = "const createApp = customMionRouter<T>();\ndescribe('x', () => {\n  const mion = createApp({});\n});";
+    expect(evaluationTimeCalls(held)).toEqual(['3: const mion = createApp({});']);
+    const aliased =
+      "import {customMionRouter as cmr} from '@mionjs/router';\ndescribe('x', () => {\n  const mion = cmr()();\n});";
+    expect(evaluationTimeCalls(aliased)).toEqual(['3: const mion = cmr()();']);
+  });
+
+  it('lets a module-level customMionRouter<T>() alone through: it builds no router', () => {
+    expect(evaluationTimeCalls('const createApp = customMionRouter<{shared: S}>();\n')).toEqual([]);
   });
 });
 

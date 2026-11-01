@@ -9,7 +9,7 @@ import {makeHost, RESOLVING_OPTIONS} from './modelPipelineHarness.ts';
 const CASE_FILE = fileURLToPath(new URL('./__routerOptionKeysCase__.ts', import.meta.url));
 
 function errorsOf(body: string): string[] {
-  const source = `import {customMionRouter} from '@mionjs/router';\nimport type {MionSecurityHandlerOptions} from '@mionjs/router/middlewares';\n${body}\n`;
+  const source = `import {customMionRouter, type MionSecurityHandlerOptions} from '@mionjs/router';\n${body}\n`;
   const options: ts.CompilerOptions = {...RESOLVING_OPTIONS, strict: true, noEmit: true};
   const program = ts.createProgram([CASE_FILE], options, makeHost(options, new Map([[CASE_FILE, source]])));
   const caseFile = program.getSourceFile(CASE_FILE)!;
