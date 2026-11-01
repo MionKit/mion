@@ -101,13 +101,14 @@ describe('a browser on another origin', () => {
   let pageServer: Server;
   let apiServer: Server | undefined;
 
+  // Starting Chromium alone can pass the 10s default hook timeout on a busy CI runner.
   beforeAll(async () => {
     pageServer = createServer((req, res) => res.writeHead(200, {'content-type': 'text/html'}).end('<html></html>'));
     await new Promise<void>((resolve) => pageServer.listen(pagePort, '127.0.0.1', resolve));
     browser = await launchBrowser();
     page = await browser.newPage();
     await page.goto(pageOrigin);
-  });
+  }, 60_000);
 
   afterAll(async () => {
     await browser?.close();
