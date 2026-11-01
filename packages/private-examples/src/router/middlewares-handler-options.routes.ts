@@ -1,8 +1,9 @@
-import {customMionRouter, Routes} from '@mionjs/router';
 import {
-  mionSecurity,
+  customMionRouter,
+  Routes,
   type MionSecurityHandlerOptions,
-} from '@mionjs/router/middlewares';
+} from '@mionjs/router';
+import {mionSecurity} from '@mionjs/router/middlewares';
 import {HeadersSubset} from '@mionjs/core';
 
 type AuditHandlerOptions = {audit?: 'log' | 'skip'};
@@ -18,7 +19,8 @@ const routes = {
   audit: mion.middleware((ctx): void => {
     // the added key sits on the options of the chain's route
     const route = ctx.executionChain.methods[ctx.executionChain.routeIndex];
-    if (route?.options.audit === 'log') console.log('audit', ctx.path);
+    const options = route?.options as AuditHandlerOptions | undefined;
+    if (options?.audit === 'log') console.log('audit', ctx.path);
   }),
   // cors: false keeps this header off the CORS lists
   rateLimit: mion.middleware(

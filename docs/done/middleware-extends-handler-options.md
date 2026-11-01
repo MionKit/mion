@@ -217,7 +217,15 @@ Built as planned, with these differences found while building:
   client is only half true: a client still infers the whole options literal to type the router, factory return
   included. The cheap form is `shared: {db: unknown}` with the factory return written as `{db: unknown}`
   (`packages/private-drizzle-example-app/reports/context-type-cost.md`); the linter page says so.
-- **Client metadata.** Core `RemoteMethodOpts` gained an index signature: the `clone` codec of `mionFetchMetadata`
-  dropped undeclared keys both ways.
+- **Client metadata.** Core's `MethodWithOptions` rows take `MethodOptionsMetadata`, `RemoteMethodOpts` plus an index
+  signature: the `clone` codec of `mionFetchMetadata` dropped undeclared keys both ways. The server-side option types
+  stay closed, so a middleware reads its added key with a cast, as `mionSecurity` does.
+- **JSON values only.** `customMionRouter`'s constraint (`JsonHandlerKeys`) refuses an added key typed as a function,
+  RegExp, bigint, symbol, Date, Map or Set: the fetched row, the bundled row and the client type would disagree.
+- **Raw middlewares.** `RawMiddlewareHelper<T>` carries no `O` (nothing compiled) and takes the same `NoInfer` key
+  guard as the other helpers, so a preset variable with an unknown key fails too.
+- **Router types are constrained.** `T extends CustomRouterTypes` on every helper, `MionRouter` and
+  `RouterCallContext`, so the old `RouteHelper<O, true>` or `RouterCallContext<typeof options>` fails instead of
+  compiling with a new meaning. `RouterCallContext` is an interface: a few instantiations less per router.
 - **`PublicHandler`** matches `(ctx: any, ...)`: a handler whose `ctx.shared` is `never` lost its client type.
 - **Error text test** lives in `packages/private-type-budget/test/routerOptionKeys.test.ts`, which compiles snippets.

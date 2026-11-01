@@ -71,6 +71,7 @@ import type {
   CustomRouterFactory,
   CustomRouterTypes,
   HeadersMiddlewareHelper,
+  JsonHandlerKeys,
   KnownKeysOf,
   MiddlewareHelper,
   MionRouter,
@@ -257,7 +258,7 @@ export function createMionRouter<
  *  export const createAppRouter = customMionRouter<{shared: {user: string}; handler: MionSecurityHandlerOptions}>();
  *  const mion = createAppRouter({contextDataFactory: () => ({user: ''})});
  *  ``` */
-export function customMionRouter<T extends CustomRouterTypes = PlainRouterTypes>(): CustomRouterFactory<T> {
+export function customMionRouter<T extends CustomRouterTypes & JsonHandlerKeys<T> = PlainRouterTypes>(): CustomRouterFactory<T> {
   return createMionRouter as unknown as CustomRouterFactory<T>;
 }
 

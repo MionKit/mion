@@ -10,4 +10,3 @@
 export {mionFetchMetadata} from './src/middlewares/fetchMetadata.ts';
 export {mionSyncRoutes} from './src/middlewares/syncRoutes.ts';
 export {mionSecurity} from './src/middlewares/security.ts';
-export type {MionSecurityHandlerOptions} from './src/types/general.ts';

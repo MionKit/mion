@@ -81,9 +81,6 @@ export type PlainHeadersMiddlewareOptions = PlainMiddlewareOptions;
 export type HeadersMiddlewareOptions = MiddlewareOptions;
 // No parser: raw middlewares handle their own JSON round trip.
 export type RawMiddlewareOptions = Partial<Pick<RawMethod['options'], 'description' | 'alwaysRun'>>;
-/** The keys mion itself reads on a route's options: every other key is one a `customMionRouter` added. */
-export type RouteOptionKey = keyof RouteOptionsBase | 'parser';
-export type MiddlewareOptionKey = keyof MiddlewareOptionsBase | 'parser';
 
 export interface MethodsExecutionChain {
   /** -1 on routeless not-found chains; a `methods[routeIndex]` reader must skip them (maxBodySize cap, body parser do). */

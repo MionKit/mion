@@ -9,7 +9,7 @@
 import {RpcError, FatalError, HeadersSubset} from '@mionjs/core';
 import {PublicApi, Routes, customMionRouter} from '@mionjs/router';
 import {mionFetchMetadata} from '@mionjs/router/middlewares';
-import type {MionSecurityHandlerOptions} from '@mionjs/router/middlewares';
+import type {MionSecurityHandlerOptions} from '@mionjs/router';
 import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
 import type {Server as HttpServer} from 'node:http';
 import type {Server as HttpsServer} from 'node:https';

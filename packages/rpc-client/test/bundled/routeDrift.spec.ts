@@ -13,7 +13,7 @@ import {createServer, type Server} from 'node:http';
 import {routesCache} from '@mionjs/core';
 import {customMionRouter, resetRouter} from '@mionjs/router';
 import type {MionRouter, PublicApi, RemoteApi} from '@mionjs/router';
-import type {MionSecurityHandlerOptions} from '@mionjs/router/middlewares';
+import type {MionSecurityHandlerOptions} from '@mionjs/router';
 import {mionFetchMetadata, mionSyncRoutes} from '@mionjs/router/middlewares';
 import {httpRequestHandler} from '@mionjs/platform-node';
 import {initClient} from '../../src/client.ts';

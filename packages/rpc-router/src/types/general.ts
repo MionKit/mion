@@ -7,12 +7,12 @@
 
 import {CoreRouterOptions, ParserOption} from '@mionjs/core';
 import {CallContext, ContextDataFactory} from './context.ts';
-import {AnyHeadersMiddlewareDef, AnyMiddlewareDef, AnyRouteDef, RawMiddlewareDef, RouteDef} from './definitions.ts';
+import {AnyHeadersMiddlewareDef, AnyMiddlewareDef, RawMiddlewareDef, RouteDef} from './definitions.ts';
 // #######  Router Object #######
 
 export type Route = RouteDef;
 
-export type RouterEntry = Routes | AnyMiddlewareDef | AnyRouteDef | RawMiddlewareDef | AnyHeadersMiddlewareDef;
+export type RouterEntry = Routes | AnyMiddlewareDef | RouteDef<any, object> | RawMiddlewareDef | AnyHeadersMiddlewareDef;
 
 /** Data structure to define all the routes */
 export interface Routes {

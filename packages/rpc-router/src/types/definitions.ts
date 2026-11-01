@@ -75,6 +75,5 @@ export interface RawMiddlewareDef<H extends RawMiddlewareHandler = any> {
 export type AnyHandlerDef = RouteDef | MiddlewareDef | HeadersMiddlewareDef | RawMiddlewareDef;
 
 /** A definition of any options literal, the shape a router tree holds. */
-export type AnyRouteDef = RouteDef<any, object>;
 export type AnyMiddlewareDef = MiddlewareDef<any, object>;
 export type AnyHeadersMiddlewareDef = HeadersMiddlewareDef<any, object>;
