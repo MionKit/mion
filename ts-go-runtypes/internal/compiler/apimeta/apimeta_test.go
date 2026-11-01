@@ -399,9 +399,12 @@ func TestWalkApi_ReadsAddedOptionKeysOffTheIntersection(t *testing.T) {
 	overlay := setupOverlay(t, map[string]string{"a.ts": `import {initClient} from '@mionjs/client';
 type Base = {alwaysRun: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined};
 type Types = {params: [n: number]; return: number; headers: never; isAsync: false};
+type Auth = {headers: {authorization: string}};
 type Api = {
   hidden: {type: 1; handler: (n: number) => Promise<number>; options: Base & {cors: false; audit: {level: 'high'}}; types?: Types};
   wide: {type: 1; handler: (n: number) => Promise<number>; options: Base & {cors: boolean}; types?: Types};
+  log: {type: 2; handler: (n: number) => Promise<void>; options: Base & {cors: false}; types?: Types};
+  token: {type: 3; handler: (h: Auth) => Promise<void>; options: Base & {cors: false}; types?: {params: []; return: void; headers: Auth; isAsync: false}};
 };
 const {routes} = initClient<Api>({});
 export const a = routes.hidden(1).call();
@@ -419,6 +422,11 @@ export const b = routes.wide(1).call();
 		}
 		if audit, _ := hidden["audit"].(map[string]any); audit["level"] != "high" {
 			t.Errorf("a nested added key is read whole, got %v", hidden["audit"])
+		}
+		for _, middlewareId := range []string{"log", "token"} {
+			if tree.ById[middlewareId].Options["cors"] != false {
+				t.Errorf("%s options %v", middlewareId, tree.ById[middlewareId].Options)
+			}
 		}
 		if strings.Join(tree.ById["wide"].WidenedOptions, ",") != "cors" {
 			t.Errorf("widened %v", tree.ById["wide"].WidenedOptions)
