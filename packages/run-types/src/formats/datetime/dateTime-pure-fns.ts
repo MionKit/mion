@@ -420,8 +420,9 @@ export const timeStrToMs = registerPureFnFactory(function () {
   };
 }, timeStrToMsId);
 
-// relativeNowKey — evaluates a `now`, `now+P…`, or `now-P…` spec to a
-// comparison key on the requested scale. scale: 'epoch' → UTC epoch ms (calendar-correct add via Date
+// relativeNowKey — parses a `now`, `now+P…`, or `now-P…` spec ONCE and returns a fn that reads the clock and
+// evaluates it to a comparison key on the requested scale. The validator hoists that fn into its prologue and
+// calls it per check, so only `now` is per call. scale: 'epoch' → UTC epoch ms (calendar-correct add via Date
 // arithmetic); 'epochDate' → the same floored to UTC midnight, matching dateStrToMs; 'timeOfDay' → ms-of-day
 // (only T-section components apply, date components are rejected build-time so won't appear here).
 export const relativeNowKey = registerPureFnFactory(function () {
@@ -444,31 +445,34 @@ export const relativeNowKey = registerPureFnFactory(function () {
     eat(timePart, {H: 'hours', M: 'minutes', S: 'seconds'});
     return out;
   }
-  return function _relative_now_key(spec: string, scale: string): number {
-    const now = new Date();
+  return function _relative_now_key(spec: string, scale: string): () => number {
+    const sign = spec[3] === '-' ? -1 : 1;
+    const d = spec === 'now' ? parseDuration('P') : parseDuration(spec.substring(4));
+    const timeMs = sign * (d.hours * 3600000 + d.minutes * 60000 + d.seconds * 1000);
     if (scale === 'timeOfDay') {
-      let ms = now.getUTCHours() * 3600000 + now.getUTCMinutes() * 60000 + now.getUTCSeconds() * 1000 + now.getUTCMilliseconds();
-      if (spec !== 'now') {
-        const sign = spec[3] === '-' ? -1 : 1;
-        const d = parseDuration(spec.substring(4));
-        ms += sign * (d.hours * 3600000 + d.minutes * 60000 + d.seconds * 1000);
-      }
-      return ms;
+      return function () {
+        const now = new Date();
+        return (
+          now.getUTCHours() * 3600000 +
+          now.getUTCMinutes() * 60000 +
+          now.getUTCSeconds() * 1000 +
+          now.getUTCMilliseconds() +
+          timeMs
+        );
+      };
     }
-    const result = new Date(now.getTime());
-    if (spec !== 'now') {
-      const sign = spec[3] === '-' ? -1 : 1;
-      const d = parseDuration(spec.substring(4));
+    return function () {
+      const result = new Date();
       // Calendar-correct: Y/M via setUTCMonth (handles month length), then W/D and time as fixed offsets.
       result.setUTCFullYear(result.getUTCFullYear() + sign * d.years);
       result.setUTCMonth(result.getUTCMonth() + sign * d.months);
       result.setUTCDate(result.getUTCDate() + sign * (d.weeks * 7 + d.days));
-      result.setTime(result.getTime() + sign * (d.hours * 3600000 + d.minutes * 60000 + d.seconds * 1000));
-    }
-    if (scale === 'epochDate') {
-      // Floor to UTC midnight, the scale dateStrToMs uses (it builds dates at 00:00:00Z).
-      return Date.UTC(result.getUTCFullYear(), result.getUTCMonth(), result.getUTCDate(), 0, 0, 0, 0);
-    }
-    return result.getTime();
+      result.setTime(result.getTime() + timeMs);
+      if (scale === 'epochDate') {
+        // Floor to UTC midnight, the scale dateStrToMs uses (it builds dates at 00:00:00Z).
+        return Date.UTC(result.getUTCFullYear(), result.getUTCMonth(), result.getUTCDate(), 0, 0, 0, 0);
+      }
+      return result.getTime();
+    };
   };
 }, relativeNowKeyId);
