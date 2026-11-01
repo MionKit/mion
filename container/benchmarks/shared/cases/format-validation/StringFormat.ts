@@ -2,6 +2,11 @@ import type {FormatValidationCase} from '../types.ts';
 
 const V4 = '9f1b8c2e-3d4a-4b5c-8d6e-1f2a3b4c5d6e'; // version nibble = 4
 const V7 = '018f1b8c-2e3d-7b5c-8d6e-1f2a3b4c5d6e'; // version nibble = 7
+// Variant nibble (char 19) outside RFC 9562's `[89ab]`.
+const V4_BAD_VARIANT = '9f1b8c2e-3d4a-4b5c-cd6e-1f2a3b4c5d6e';
+const V7_BAD_VARIANT = '018f1b8c-2e3d-7b5c-0d6e-1f2a3b4c5d6e';
+
+const DATE_ISO_NOT_DIGITS = ['0x1F-01-01', '1e03-01-01', '2024-+1-01', '2024- 1-01', '2024-01-1.', '2024-02-', '-02-29'];
 
 export const STRING_FORMAT = {
   string_maxLength: {
@@ -123,42 +128,70 @@ export const STRING_FORMAT = {
   },
   uuidv4: {
     title: 'FormatUUIDv4 — accepts v4, rejects v7 and malformed',
-    getSamples: () => ({valid: [V4], invalid: [V7, 'not-a-uuid', '', V4.replace(/-/g, ''), 123]}),
-    expectedFormatErrors: () => [{name: 'uuid', val: '4'}, {name: 'uuid', val: '4'}, null, null, null],
+    getSamples: () => ({valid: [V4], invalid: [V7, 'not-a-uuid', '', V4.replace(/-/g, ''), 123, V4_BAD_VARIANT]}),
+    expectedFormatErrors: () => [{name: 'uuid', val: '4'}, {name: 'uuid', val: '4'}, null, null, null, {name: 'uuid', val: '4'}],
   },
   uuidv7: {
     title: 'FormatUUIDv7 — accepts v7, rejects v4',
-    getSamples: () => ({valid: [V7], invalid: [V4]}),
-    expectedFormatErrors: () => [{name: 'uuid', val: '7'}],
+    getSamples: () => ({valid: [V7], invalid: [V4, V7_BAD_VARIANT]}),
+    expectedFormatErrors: () => [
+      {name: 'uuid', val: '7'},
+      {name: 'uuid', val: '7'},
+    ],
   },
   date_iso: {
     title: 'FormatStringDate — ISO / YYYY-MM-DD (default)',
     getSamples: () => ({
       valid: ['2024-02-29', '2026-05-28', '0001-01-01'],
-      invalid: ['2023-02-29', '2024-13-01', '2024-04-31', '2024-1-1', 'not-a-date'],
+      invalid: [
+        '2023-02-29',
+        '2024-13-01',
+        '2024-04-31',
+        '2024-1-1',
+        'not-a-date',
+        // Right width, but not plain digits, or a part left empty.
+        ...DATE_ISO_NOT_DIGITS,
+      ],
     }),
-    expectedFormatErrors: () => [{name: 'date', val: 'ISO'}, null, null, null, null],
+    expectedFormatErrors: () => [
+      {name: 'date', val: 'ISO'},
+      null,
+      null,
+      null,
+      null,
+      ...DATE_ISO_NOT_DIGITS.map(() => ({name: 'date', val: 'ISO'})),
+    ],
   },
   date_DMY: {
     title: 'FormatStringDate — DD-MM-YYYY layout',
-    getSamples: () => ({valid: ['29-02-2024'], invalid: ['2024-02-29', '31-04-2024']}),
+    getSamples: () => ({valid: ['29-02-2024'], invalid: ['2024-02-29', '31-04-2024', '29-02-', '-02-2024', '+1-02-2024']}),
     expectedFormatErrors: () => [
+      {name: 'date', val: 'DD-MM-YYYY'},
+      {name: 'date', val: 'DD-MM-YYYY'},
+      {name: 'date', val: 'DD-MM-YYYY'},
       {name: 'date', val: 'DD-MM-YYYY'},
       {name: 'date', val: 'DD-MM-YYYY'},
     ],
   },
   date_YM: {
     title: 'FormatStringDate — YYYY-MM layout (no day)',
-    getSamples: () => ({valid: ['2024-02'], invalid: ['2024-13', '2024-02-29']}),
+    getSamples: () => ({valid: ['2024-02'], invalid: ['2024-13', '2024-02-29', '-02', '1e03-02', '2024-+2']}),
     expectedFormatErrors: () => [
+      {name: 'date', val: 'YYYY-MM'},
+      {name: 'date', val: 'YYYY-MM'},
+      {name: 'date', val: 'YYYY-MM'},
       {name: 'date', val: 'YYYY-MM'},
       {name: 'date', val: 'YYYY-MM'},
     ],
   },
   date_MD: {
     title: 'FormatStringDate — MM-DD layout (no year)',
-    getSamples: () => ({valid: ['02-29'], invalid: ['13-01']}),
-    expectedFormatErrors: () => [{name: 'date', val: 'MM-DD'}],
+    getSamples: () => ({valid: ['02-29'], invalid: ['13-01', '02-', '+2-01']}),
+    expectedFormatErrors: () => [
+      {name: 'date', val: 'MM-DD'},
+      {name: 'date', val: 'MM-DD'},
+      {name: 'date', val: 'MM-DD'},
+    ],
   },
   date_minMax_absolute: {
     title: 'FormatStringDate — absolute min/max bounds (inclusive)',
@@ -208,9 +241,23 @@ export const STRING_FORMAT = {
     title: 'FormatStringDateTime — default (ISO date T ISO time)',
     getSamples: () => ({
       valid: ['2024-02-29T12:30:45Z', '2026-05-28T00:00:00.500+02:00'],
-      invalid: ['2024-02-29 12:30:45Z', '2023-02-29T12:30:45Z', '2024-02-29T25:30:45Z', 'not-a-datetime'],
+      invalid: [
+        '2024-02-29 12:30:45Z',
+        '2023-02-29T12:30:45Z',
+        '2024-02-29T25:30:45Z',
+        'not-a-datetime',
+        '1e03-01-01T12:30:45Z',
+        '2024-02-T12:30:45Z',
+      ],
     }),
-    expectedFormatErrors: () => [{name: 'dateTime', formatPathTail: 'splitChar'}, null, null, null],
+    expectedFormatErrors: () => [
+      {name: 'dateTime', formatPathTail: 'splitChar'},
+      null,
+      null,
+      null,
+      {name: 'dateTime', formatPathTail: 'date'},
+      {name: 'dateTime', formatPathTail: 'date'},
+    ],
   },
   dateTime_custom: {
     title: 'FormatStringDateTime — custom nested layouts + splitChar',
@@ -239,14 +286,15 @@ export const STRING_FORMAT = {
     title: 'FormatIPv4 — dotted-quad addresses',
     getSamples: () => ({
       valid: ['192.168.0.1', '0.0.0.0', '255.255.255.255'],
-      invalid: ['999.999.999.999', '256.0.0.1', '1.2.3', '::1'],
+      invalid: ['999.999.999.999', '256.0.0.1', '1.2.3', '::1', '010.0.0.1', '192.168.01.1'],
     }),
-    expectedFormatErrors: () => [{name: 'ip', val: 4}, null, null, null],
+    expectedFormatErrors: () => [{name: 'ip', val: 4}, null, null, null, {name: 'ip', val: 4}, {name: 'ip', val: 4}],
   },
   ipv6: {
     title: 'FormatIPv6 — colon-separated, loopback allowed',
-    getSamples: () => ({valid: ['2001:db8:0:0:0:0:0:1', '::1', 'fe80::1'], invalid: ['192.168.0.1', '12345::1']}),
+    getSamples: () => ({valid: ['2001:db8:0:0:0:0:0:1', '::1', 'fe80::1'], invalid: ['192.168.0.1', '12345::1', '::ffff:010.0.0.1']}),
     expectedFormatErrors: () => [
+      {name: 'ip', val: 6},
       {name: 'ip', val: 6},
       {name: 'ip', val: 6},
     ],
@@ -258,13 +306,21 @@ export const STRING_FORMAT = {
   },
   ipv4_port: {
     title: 'FormatIPv4WithPort — v4 with port',
-    getSamples: () => ({valid: ['192.168.0.1:8080'], invalid: ['192.168.0.1:70000']}),
-    expectedFormatErrors: () => [{name: 'ip', val: 4}],
+    getSamples: () => ({valid: ['192.168.0.1:8080'], invalid: ['192.168.0.1:70000', '192.168.0.1', '192.168.0.1:']}),
+    expectedFormatErrors: () => [
+      {name: 'ip', val: 4},
+      {name: 'ip', val: 4},
+      {name: 'ip', val: 4},
+    ],
   },
   ipv6_port: {
     title: 'FormatIPv6WithPort — v6 with bracketed port',
-    getSamples: () => ({valid: ['[2001:db8::1]:443'], invalid: ['[2001:db8::1]:99999']}),
-    expectedFormatErrors: () => [{name: 'ip', val: 6}],
+    getSamples: () => ({valid: ['[2001:db8::1]:443'], invalid: ['[2001:db8::1]:99999', '[2001:db8::1]', '[2001:db8::1]:']}),
+    expectedFormatErrors: () => [
+      {name: 'ip', val: 6},
+      {name: 'ip', val: 6},
+      {name: 'ip', val: 6},
+    ],
   },
   domain: {
     title: 'FormatDomain — standard',
