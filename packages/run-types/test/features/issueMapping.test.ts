@@ -58,6 +58,13 @@ describe('runTypeErrorsToIssues', () => {
     expect(runTypeErrorsToIssues(errs)).toEqual([{message: 'Circular reference', path: ['root', 'next'], expected: 'circular'}]);
   });
 
+  test('tooManyUnknownKeys error renders "Too many unknown keys"', () => {
+    const errs: RTValidationError[] = [{path: ['inner'], expected: 'tooManyUnknownKeys'}];
+    expect(runTypeErrorsToIssues(errs)).toEqual([
+      {message: 'Too many unknown keys', path: ['inner'], expected: 'tooManyUnknownKeys'},
+    ]);
+  });
+
   test('issue carries structured expected + format (lossless) alongside message + path', () => {
     const errs: RTValidationError[] = [
       {path: ['email'], expected: 'string', format: {name: 'email', val: 'pattern', formatPath: ['pattern']}},

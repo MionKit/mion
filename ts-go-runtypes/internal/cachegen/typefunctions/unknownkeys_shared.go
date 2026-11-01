@@ -142,7 +142,7 @@ func callCheckUnknownPropertiesForHas(rt *reflection.RunType, ctx *EmitContext, 
 	}
 	if returnKeys {
 		fnVar := ctx.UsePureFn(purefnids.GetUnknownKeysFromArray)
-		return fnVar + "(" + ctx.Vλl + ", " + keysCtx.keysName + ")"
+		return fnVar + "(" + ctx.Vλl + ", " + keysCtx.keysName + ", " + strconv.Itoa(maxUnknownKeys) + ")"
 	}
 	fnVar := ctx.UsePureFn(purefnids.HasUnknownKeysFromArray)
 	return fnVar + "(" + ctx.Vλl + ", " + keysCtx.keysName + ")"

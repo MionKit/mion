@@ -405,6 +405,9 @@ func assertNoArraySkip(t *testing.T, source string) {
 	if !strings.Contains(body, purefnids.GetUnknownKeysFromArray) {
 		t.Errorf("the fused error form lost its unknown-key scan:\n%s", body)
 	}
+	if !strings.Contains(body, "tooManyUnknownKeys") {
+		t.Errorf("the fused error form lost its cap on unknown-key errors:\n%s", body)
+	}
 }
 
 // A declared `length` keeps the validator off the key count: an array passes the `length` check without enumerating it.
