@@ -86,6 +86,8 @@ describe('email — which PART of the address is wrong', () => {
     ['joe@-bad-.com', 'domain'],
     ['joe@[999.1.1.1]', 'addressLiteral'],
     ['joe@[IPv6:zzz]', 'addressLiteral'],
+    // Same IPv4 rule as TF.IPv4: no leading zeros, read as octal by some parsers.
+    ['joe@[010.0.0.1]', 'addressLiteral'],
     // The whole address over the declared bound folds in as 'length'.
     ['a'.repeat(250) + '@example.com', 'length'],
   ];
@@ -230,6 +232,7 @@ describe('ip — the address or the port', () => {
     expect(formatErrorOf(getErrors('[::1]'))?.errorType).toBe('port');
     expect(formatErrorOf(getErrors('[::1]:'))?.errorType).toBe('port');
     expect(formatErrorOf(getErrors('[::1]:8a'))?.errorType).toBe('port');
+    expect(formatErrorOf(getErrors('[::1]:8\n0'))?.errorType).toBe('port');
     // A bare address is not the bracketed shape at all.
     expect(formatErrorOf(getErrors('::1'))?.errorType).toBe('address');
   });
