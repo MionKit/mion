@@ -63,6 +63,8 @@ Run in automatic mode from the parent session's delegation brief (no human in th
 - Fixture tests compute the prologue from a real parse instead of storing it in the JSON.
 - `foldImportBlock` (Vue SFC) folds from the first changed line, so a directive line stays where it was.
 - The transform-wire bench passes `importAt` to `applyEdits`.
+- `isTurbopack` reads `__NEXT_DEV_SERVER`: Next forks the `next dev --webpack` server without the flag, so it
+  used to get the Turbopack rules and no rewrite. The new `next dev` e2e check found it.
 - e2e: smoke-next builds with `next build --webpack` and with Turbopack, and serves the page with `next dev` on
   both bundlers, checking the `rt-use-client` / `rt-use-server` ids each time.
 
