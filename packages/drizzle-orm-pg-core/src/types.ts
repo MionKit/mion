@@ -13,7 +13,6 @@ import type {
   String as Str,
   StringDate,
   StringDateTime,
-  UUID,
   UUIDv4,
   UUIDv7,
 } from '@mionjs/run-types/formats';
