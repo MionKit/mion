@@ -60,6 +60,13 @@ Approved through the delegation brief from the parent session (maintainer decisi
 
 ## What shipped
 
-As planned. Maintainer check during the build: Postgres's uuid column takes any version, drizzle (0.45.4, 1.0 beta)
-has no version 7 builder, `defaultRandom()` writes `gen_random_uuid()` (version 4). `version: '7'` is kept as the
-type-only shortcut of `$type: $type<UUIDv7>()`; it adds no default, since `uuidv7()` needs PostgreSQL 18.
+Diverged from the plan on the maintainer's call: `version` is a shortcut for the default plus the type, not type-only.
+
+- Checked first: Postgres's uuid column takes any version; drizzle (0.45.4, 1.0 beta) has no version 7 builder;
+  `defaultRandom()` writes `gen_random_uuid()` (version 4).
+- `version: '7'` = `default: [sql\`uuidv7()\`]` (PostgreSQL 18) + UUIDv7 field; `'4'` = `defaultRandom` + UUIDv4.
+  Counts as a default (optional on insert); a second `default` / `defaultRandom` is a compile error.
+- Core: `ColumnShortcut` / `ColumnShortcuts` types; `recordColumn` and `rtTableFromRunType` take the dialect's
+  shortcuts and replay each as its modifier. pg passes `pgUuidShortcuts` (`src/shortcuts.ts`).
+- The e2e image is postgres 17: the addendum proves the default reaches drizzle and v4 generates; it cannot run
+  `uuidv7()` itself.

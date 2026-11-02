@@ -3,7 +3,7 @@ import type {InferSelectModel} from '@mionjs/drizzle-orm';
 import {createValidateFn} from '@mionjs/run-types';
 
 export const orders = DZ.pgTable('orders', {
-  id: DZ.uuid({version: '7', primaryKey: true}), // the model field is a UUIDv7
+  id: DZ.uuid({version: '7', primaryKey: true}), // UUIDv7 field, default uuidv7() (PostgreSQL 18)
   status: DZ.text({enum: ['pending', 'shipped'], notNull: true}),
   trackingCode: DZ.varchar('tracking_code', {length: 40}),
 });
