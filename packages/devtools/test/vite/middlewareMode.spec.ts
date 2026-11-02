@@ -11,7 +11,7 @@ import {tmpdir} from 'node:os';
 import {createServer as createHttpServer, type Server} from 'node:http';
 import path from 'node:path';
 import {createServer, type ViteDevServer} from 'vite';
-import {mionMiddlewarePlugin, type MionMiddlewarePlugin} from '../../src/vite/middlewareMode.ts';
+import {mionMiddlewarePlugin} from '../../src/vite/middlewareMode.ts';
 import {mionVitePlugin} from '../../src/vite/mionVitePlugin.ts';
 import type {MionServerOptions} from '../../src/vite/mionVitePlugin.ts';
 import type {Plugin} from 'vite';
@@ -28,6 +28,7 @@ import type {Plugin} from 'vite';
 const ROUTER_STUB = (basePath: string) => `
 globalThis.__mion = globalThis.__mion ?? {loads: 0, resets: 0, platformConfig: undefined, host: {}};
 globalThis.__mion.routerCopies = (globalThis.__mion.routerCopies ?? 0) + 1;
+globalThis.__mion.host = {}; // per copy, like the real router: a fresh copy owns nothing until the host says so
 export const setHostOwnsSocket = (owns) => {globalThis.__mion.host = owns ? {...globalThis.__mion.host, owns} : {};};
 export const hostOwnsSocket = () => globalThis.__mion.host.owns === true;
 export const handOverToHost = (handler) => {
@@ -97,7 +98,7 @@ describe('middleware mode (in-process vite dev server)', () => {
   let http: Server | undefined;
   let baseUrl = '';
   let ready: {resolved: boolean; error?: Error};
-  let plugin: Plugin;
+  let plugin: ReturnType<typeof mionMiddlewarePlugin>;
 
   beforeEach(() => {
     root = mkdtempSync(path.join(tmpdir(), 'mion-middleware-'));
@@ -384,6 +385,55 @@ startNodeServer();
     expect((await res.json()) as {loads: number}).toMatchObject({loads: 2});
   });
 
+  it('reloads after an edit made while the first load was still running', async () => {
+    const entry = `import {startNodeServer} from ${JSON.stringify(path.join(root, 'platform-stub.js'))};
+import './routes.ts';
+await new Promise((resolve) => setTimeout(resolve, 150));
+globalThis.__mion.loads += 1;
+startNodeServer();
+`;
+    await startDevServer({basePath: '/api', entry});
+    const first = fetch(`${baseUrl}/api/users.get`);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    editRoutes('routes-v2');
+    await first;
+    const res = await fetch(`${baseUrl}/api/users.get`);
+    expect((await res.json()) as {loads: number}).toMatchObject({loads: 2});
+  });
+
+  it('serves a request sent after a mid-reload edit from the reload that saw the edit', async () => {
+    const entry = `import {startNodeServer} from ${JSON.stringify(path.join(root, 'platform-stub.js'))};
+import './routes.ts';
+await new Promise((resolve) => setTimeout(resolve, 150));
+globalThis.__mion.loads += 1;
+startNodeServer();
+`;
+    await startDevServer({basePath: '/api', entry});
+    await fetch(`${baseUrl}/api/users.get`);
+    editRoutes('routes-v2');
+    const duringFirstReload = fetch(`${baseUrl}/api/users.get`);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    editRoutes('routes-v3');
+    const afterSecondEdit = await fetch(`${baseUrl}/api/users.get`);
+    await duringFirstReload;
+    expect((await afterSecondEdit.json()) as {loads: number}).toMatchObject({loads: 3});
+  });
+
+  it('after a failed load, retries on an edit to a file the failed load never reached', async () => {
+    writeFileSync(
+      path.join(root, 'src', 'broken.ts'),
+      `globalThis.__mion.attempts = (globalThis.__mion.attempts ?? 0) + 1;\nthrow new Error('broken');\n`
+    );
+    await startDevServer({basePath: '/api', entry: `import './broken.ts';\nimport './routes.ts';\n`});
+    expect((await fetch(`${baseUrl}/api/users.get`)).status).toBe(503);
+    expect((globalThis as any).__mion.attempts).toBe(1);
+    const unrelated = path.join(root, 'src', 'helper.ts');
+    writeFileSync(unrelated, `export const helper = 1;\n`);
+    vite!.watcher.emit('change', unrelated);
+    await fetch(`${baseUrl}/api/users.get`);
+    expect((globalThis as any).__mion.attempts).toBe(2);
+  });
+
   it('leaves the API alone when the changed file is not part of it', async () => {
     await startDevServer({basePath: '/api'});
     await fetch(`${baseUrl}/api/users.get`);
@@ -471,7 +521,7 @@ startNodeServer();
     expect(registered()).toEqual([]);
 
     writeTable('b_late');
-    (plugin as MionMiddlewarePlugin).markStale();
+    plugin.markStale();
 
     await fetch(`${baseUrl}/api/users.get`);
     expect(registered()).toEqual(['b_late']);
@@ -481,7 +531,7 @@ startNodeServer();
     await startDevServer({basePath: '/api', server: {hotReload: false}});
     await fetch(`${baseUrl}/api/users.get`);
     vite!.watcher.emit('change', path.join(root, 'src', 'routes.ts'));
-    (plugin as MionMiddlewarePlugin).markStale();
+    plugin.markStale();
     await fetch(`${baseUrl}/api/users.get`);
     expect(loads()).toBe(1);
   });

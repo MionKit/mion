@@ -95,7 +95,7 @@ export function createBatchTransportSignals(invalidate: (files: string[]) => voi
 
 export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] {
   const rt = options.runTypes ?? {};
-  // Both invalidations change what the API runs, and no watcher event reports them, so the API is marked stale too.
+  // The batch table appearing or vanishing changes what the API runs, and no watcher event reports it in time.
   let markApiStale = (): void => {};
   const transport = createBatchTransportSignals((files) => {
     invalidateFiles(files);
@@ -117,7 +117,6 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
       const mod = graph.getModuleById(id);
       if (mod) graph.invalidateModule(mod);
     }
-    if (siteFiles.length) markApiStale();
   };
 
   /** Invalidates the modules of `files` in every environment graph (the API entry is loaded through
