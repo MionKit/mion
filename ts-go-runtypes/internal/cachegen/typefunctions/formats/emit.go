@@ -53,3 +53,16 @@ func FormatNumber(value float64) string {
 func PureFnAlias(ctx EmitContext, id string) string {
 	return ctx.UsePureFn(id)
 }
+
+// HoistConst hoists `const <name> = <init>` into the factory prologue, so it runs once per factory, not per call.
+// "" = no context, caller builds inline: only direct emitter tests hit it, the resolver always supplies one.
+func HoistConst(ctx EmitContext, prefix, init string) string {
+	if ctx == nil {
+		return ""
+	}
+	name := ctx.NextLocalVar(prefix)
+	if !ctx.HasContextItem(name) {
+		ctx.SetContextItem(name, "const "+name+" = "+init)
+	}
+	return name
+}

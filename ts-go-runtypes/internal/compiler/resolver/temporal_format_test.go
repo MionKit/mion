@@ -64,10 +64,11 @@ func TestTemporalFormat_EmitsExclusiveCompareCheck(t *testing.T) {
 	if len(diags) != 0 {
 		t.Fatalf("valid bounds diagnosed: %+v", diags)
 	}
-	if !strings.Contains(src, `Temporal.PlainDate.from("2020-01-01")) > 0`) {
+	// Hoisted in temporalBoundOps order: tBound0 is gt, tBound1 is lt.
+	if !strings.Contains(src, `compare(v, tBound0) > 0`) {
 		t.Fatalf("expected exclusive `> 0` for gt, got:\n%s", src)
 	}
-	if !strings.Contains(src, `Temporal.PlainDate.from("2020-12-31")) < 0`) {
+	if !strings.Contains(src, `compare(v, tBound1) < 0`) {
 		t.Fatalf("expected exclusive `< 0` for lt, got:\n%s", src)
 	}
 }
@@ -77,7 +78,8 @@ func TestTemporalFormat_RelativeBoundEmitsNow(t *testing.T) {
 	if len(diags) != 0 {
 		t.Fatalf("valid relative bound diagnosed: %+v", diags)
 	}
-	if !strings.Contains(src, "Temporal.Now.plainDateISO()") || !strings.Contains(src, `.subtract(Temporal.Duration.from("P1Y"))`) {
+	if !strings.Contains(src, "Temporal.Now.plainDateISO()") || !strings.Contains(src, `.subtract(tDur0)`) ||
+		!strings.Contains(src, `const tDur0 = Temporal.Duration.from("P1Y")`) {
 		t.Fatalf("expected Now+subtract(Duration), got:\n%s", src)
 	}
 }

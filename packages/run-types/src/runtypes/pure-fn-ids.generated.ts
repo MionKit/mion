@@ -14,9 +14,9 @@ export const RUN_TYPES_PURE_FN_ID_PREFIX = '_rt:';
 
 export const uniqueArrayItemsId = '_rt:-yTRFuK01Y';
 export const isIPV4Id = '_rt:0yJQ37XnmN';
+export const relativeNowKeyId = '_rt:2kI9kVFYAY';
 export const isTimeString_mmssId = '_rt:2xtQHAMu-y';
 export const isDateString_YMDId = '_rt:3RndhrueRD';
-export const relativeNowKeyId = '_rt:4F-Rfav40N';
 export const punycodeEncodeId = '_rt:5oCqd7YyfA';
 export const isSecondsWithMsId = '_rt:6E7qWsIwaF';
 export const isDateStringId = '_rt:8AgZCCAhyw';

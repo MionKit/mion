@@ -52,6 +52,22 @@ describe('relative date bounds (now±P, date components only)', () => {
     expect(validate('2026-06-23')).toBe(false);
   });
 
+  // The spec is parsed once with the validator; `now` must still be read on every call.
+  it('one validator follows the clock: max now+P1D flips when the clock moves', () => {
+    const validate = createValidateFn<TF.StringDate<{format: 'YYYY-MM-DD'; max: 'now+P1D'}>>();
+    expect(validate('2026-06-20')).toBe(false);
+    vi.setSystemTime(new Date(Date.UTC(2026, 5, 19, 12, 0, 0)));
+    expect(validate('2026-06-20')).toBe(true);
+  });
+
+  it('one validator follows the clock: native Date min now-PT1H', () => {
+    const validate = createValidateFn<TF.Date<{min: 'now-PT1H'}>>();
+    const value = new Date(NOW - 30 * 60000);
+    expect(validate(value)).toBe(true);
+    vi.setSystemTime(new Date(NOW + 60 * 60000));
+    expect(validate(value)).toBe(false);
+  });
+
   it('bare now as max — rejects any future date', () => {
     const validate = createValidateFn<TF.StringDate<{format: 'YYYY-MM-DD'; max: 'now'}>>();
     expect(validate('2026-06-15')).toBe(true); // today still passes (inclusive, same day 00:00 <= now)
@@ -72,6 +88,13 @@ describe('relative time bounds (now±P, time components only)', () => {
     const validate = createValidateFn<TF.StringTime<{format: 'HH:mm'; max: 'now+PT2H'}>>();
     expect(validate('14:00')).toBe(true);
     expect(validate('14:01')).toBe(false);
+  });
+
+  it('one validator follows the clock: max now+PT1H', () => {
+    const validate = createValidateFn<TF.StringTime<{format: 'HH:mm'; max: 'now+PT1H'}>>();
+    expect(validate('14:00')).toBe(false);
+    vi.setSystemTime(new Date(NOW + 60 * 60000));
+    expect(validate('14:00')).toBe(true);
   });
 });
 

@@ -82,21 +82,6 @@ func readStringListParam(params map[string]any, key string) ([]string, bool) {
 	return values, len(values) > 0
 }
 
-// hoistConst hoists a `const <name> = <init>` into the factory prologue, mirroring emitPatternTest
-// (formats/string/pattern.go) and the index-signature key-regex hoist (validate.go).
-// "" means there was no context to hoist into and the caller builds inline: reachable only from direct emitter
-// tests, never from the resolver, which always supplies a context.
-func hoistConst(ctx formats.EmitContext, prefix, init string) string {
-	if ctx == nil {
-		return ""
-	}
-	name := ctx.NextLocalVar(prefix)
-	if !ctx.HasContextItem(name) {
-		ctx.SetContextItem(name, "const "+name+" = "+init)
-	}
-	return name
-}
-
 // keyAllowTest decides whether key `keyVar` is allowed rather than additional: a declared key, or one matching a
 // patternProperties source, since per 2020-12 a key matching a pattern is NOT additional.
 // Everything reusable is hoisted into the factory prologue, so nothing is rebuilt per call or per key.
@@ -108,7 +93,7 @@ func keyAllowTest(ctx formats.EmitContext, params map[string]any, keys []string,
 			for _, key := range keys {
 				tests = append(tests, keyVar+" === "+jsquote.Single(key))
 			}
-		} else if setVar := hoistConst(ctx, "ksObj", "new Set("+closedKeysLiteral(keys)+")"); setVar != "" {
+		} else if setVar := formats.HoistConst(ctx, "ksObj", "new Set("+closedKeysLiteral(keys)+")"); setVar != "" {
 			tests = append(tests, setVar+".has("+keyVar+")")
 		} else {
 			tests = append(tests, closedKeysLiteral(keys)+".includes("+keyVar+")")
@@ -116,7 +101,7 @@ func keyAllowTest(ctx formats.EmitContext, params map[string]any, keys []string,
 	}
 	if sources, ok := readStringListParam(params, "closedPatterns"); ok {
 		for _, source := range sources {
-			reVar := hoistConst(ctx, "reObj", "new RegExp("+jsquote.Double(source)+")")
+			reVar := formats.HoistConst(ctx, "reObj", "new RegExp("+jsquote.Double(source)+")")
 			if reVar == "" {
 				reVar = "new RegExp(" + jsquote.Double(source) + ")"
 			}
@@ -175,7 +160,7 @@ func objectWalkCall(ctx formats.EmitContext, params map[string]any, vλl string)
 	if body == "" {
 		return ""
 	}
-	if fnVar := hoistConst(ctx, "okObj", "function(o){"+body+"}"); fnVar != "" {
+	if fnVar := formats.HoistConst(ctx, "okObj", "function(o){"+body+"}"); fnVar != "" {
 		return fnVar + "(" + vλl + ")"
 	}
 	return "((o) => {" + body + "})(" + vλl + ")"
@@ -186,7 +171,7 @@ func objectWalkCall(ctx formats.EmitContext, params map[string]any, vλl string)
 // array, the same trade countEnumKeys documents.
 func countWalkCall(ctx formats.EmitContext, vλl string) string {
 	body := "let n = 0;for (const k in o) n++;return n"
-	if fnVar := hoistConst(ctx, "cntObj", "function(o){"+body+"}"); fnVar != "" {
+	if fnVar := formats.HoistConst(ctx, "cntObj", "function(o){"+body+"}"); fnVar != "" {
 		return fnVar + "(" + vλl + ")"
 	}
 	return "((o) => {" + body + "})(" + vλl + ")"
@@ -195,7 +180,7 @@ func countWalkCall(ctx formats.EmitContext, vλl string) string {
 // closedWalkCall hoists the allowed-key sweep alone, for the errors lane's closedness statement.
 func closedWalkCall(ctx formats.EmitContext, params map[string]any, keys []string, vλl string) string {
 	body := "for (const k in o) {if (!(" + keyAllowTest(ctx, params, keys, "k") + ")) return false;}return true"
-	if fnVar := hoistConst(ctx, "ckObj", "function(o){"+body+"}"); fnVar != "" {
+	if fnVar := formats.HoistConst(ctx, "ckObj", "function(o){"+body+"}"); fnVar != "" {
 		return fnVar + "(" + vλl + ")"
 	}
 	return "((o) => {" + body + "})(" + vλl + ")"
