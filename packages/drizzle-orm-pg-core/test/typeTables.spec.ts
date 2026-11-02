@@ -873,3 +873,36 @@ describe('pg columns: models compile full-fidelity validators', () => {
     expect(getRunTypeId(person)).toBe(getRunTypeId<Person>());
   });
 });
+
+// A uuid version narrows the model field only: drizzle gets a plain uuid on both roads.
+const sessions = pgTable('sessions', {
+  id: uuid({version: '7', primaryKey: true}),
+  token: uuid('token', {version: '4', notNull: true}),
+});
+type Sessions = PgTable<'sessions', {id: Uuid<{version: '7'; primaryKey: true}>; token: Uuid<{version: '4'; notNull: true}>}>;
+const rawSessions = dz.pgTable('sessions', {
+  id: dz.uuid().primaryKey(),
+  token: dz.uuid('token').notNull(),
+});
+type Session = InferSelectModel<typeof sessions>;
+const validSession = {id: '019a4e2c-7b3d-7c1e-9f2a-3b4c5d6e7f80', token: '793aff46-42ac-4372-b7fa-c48ba48ed94f'};
+
+describe('pg columns: only pg: uuid version', () => {
+  const validateSession = createValidateFn<Session>();
+  it('the builder and the hand-written type materialize a plain drizzle uuid', () => {
+    expect(project(toDrizzle(sessions))).toEqual(project(rawSessions));
+    expect(project(toDrizzle(tableFromType<Sessions>()))).toEqual(project(rawSessions));
+  });
+  it('the model checks the uuid version', () => {
+    expect(validateSession(validSession)).toBe(true);
+    expect(validateSession({...validSession, id: validSession.token})).toBe(false);
+    expect(validateSession({...validSession, token: validSession.id})).toBe(false);
+  });
+  it('static form: the versioned model resolves to the hand-written table model', () => {
+    expect(getRunTypeId<Session>()).toBe(getRunTypeId<InferSelectModel<Sessions>>());
+  });
+  it('reflection form: the versioned model resolves to the hand-written table model', () => {
+    const session: Session = validSession as Session;
+    expect(getRunTypeId(session)).toBe(getRunTypeId<InferSelectModel<Sessions>>());
+  });
+});

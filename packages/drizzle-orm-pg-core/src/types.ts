@@ -13,6 +13,9 @@ import type {
   String as Str,
   StringDate,
   StringDateTime,
+  UUID,
+  UUIDv4,
+  UUIDv7,
 } from '@mionjs/run-types/formats';
 import type {
   AnyColumn,
@@ -68,6 +71,11 @@ export interface PgDateColMods extends PgColMods {
 export interface PgUuidColMods extends PgColMods {
   defaultRandom?: true;
 }
+/** mion's own uuid setting, type-only: drizzle's uuid() takes no config. */
+export interface PgUuidConfig {
+  version?: '4' | '7';
+}
+export type UuidData<C> = C extends {version: '7'} ? UUIDv7 : C extends {version: '4'} ? UUIDv4 : UUID;
 /** smallint / integer / bigint: + the identity modifiers. */
 export interface PgIntColMods extends PgColMods {
   generatedAlwaysAsIdentity?: true | readonly [PgIdentityConfig];

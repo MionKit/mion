@@ -23,6 +23,8 @@ import type {
   StringDateTime,
   StringTime,
   UUID,
+  UUIDv4,
+  UUIDv7,
 } from '@mionjs/run-types/formats';
 import type {
   ColSpecOf,
@@ -349,6 +351,26 @@ export type ModePins = [
   Expect<Equal<typeof modes.numericNumber, Numeric<{mode: 'number'; precision: 10; scale: 2}>>>,
   Expect<Equal<typeof modes.timestampString, Timestamp<{mode: 'string'}>>>,
 ];
+
+// ── uuid version: the model field narrows, drizzle sees a plain uuid ─────────
+
+export const versionedUuids = pgTable('versioned_uuids', {
+  v7: uuid({version: '7', primaryKey: true}),
+  v4: uuid('v4', {version: '4', notNull: true}),
+  any: uuid(),
+});
+type VersionedUuids = PgTable<
+  'versioned_uuids',
+  {v7: Uuid<{version: '7'; primaryKey: true}>; v4: Uuid<{version: '4'; notNull: true}>; any: Uuid}
+>;
+type VersionedUuidRow = {v7: UUIDv7; v4: UUIDv4; any: UUID | null};
+export type OnlyPg_UuidVersionPins = [
+  Expect<Equal<typeof versionedUuids, VersionedUuids>>,
+  Expect<Equal<InferSelectModel<typeof versionedUuids>, VersionedUuidRow>>,
+  Expect<Equal<DataOf<Uuid<{version: '7'}>>, UUIDv7>>,
+];
+// @ts-expect-error only pg: a version uuid formats lack
+uuid({version: '1'});
 
 // ── explicit db names go to the table's names map ────────────────────────────
 
