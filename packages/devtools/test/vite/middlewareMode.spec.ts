@@ -468,11 +468,9 @@ startNodeServer();
   });
 
   // ############# the batch module rides the same reload #############
-  // The resolver generates `<genDir>/rpc/batches.generated.js` and appends its import to the
-  // router-init module in the transform, so it is a node in the SSR graph and a rewrite is an
-  // ordinary change. Its first APPEARANCE (or its removal) reaches no watcher in time, so the preset
-  // marks the API stale itself. The transform is the Go side's job; here the entry imports the module
-  // directly, which is what a transformed entry looks like.
+  // The transform appends the table's import to the router-init module, so a rewrite is an ordinary graph change.
+  // Its first APPEARANCE (or removal) reaches no watcher in time, so the preset marks the API stale itself.
+  // The transform is the Go side's job: here the entry imports the module directly, as a transformed one would.
   const batchesModule = () => path.join(root, '.mion', 'rpc', 'batches.generated.js');
   const BATCH_ENTRY = `
 import {createMionRouter} from '@mionjs/router';
@@ -512,8 +510,7 @@ startNodeServer();
   });
 
   it('reloads when the preset marks the API stale: the table appeared, and no file event says so', async () => {
-    // the entry is loaded WITHOUT the table (a server started before its client had a batch):
-    // the module the entry imports is still an empty stub
+    // a server started before its client had a batch: the module the entry imports is still an empty stub
     mkdirSync(path.dirname(batchesModule()), {recursive: true});
     writeFileSync(batchesModule(), 'export {};\n');
     await startDevServer({basePath: '/api', entry: BATCH_ENTRY});

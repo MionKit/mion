@@ -355,12 +355,11 @@ async function buildMionNext(app) {
 }
 
 
-// `next dev` re-evaluates the route bundle after an edit, @mionjs/router inside it: each run is a fresh router, so
-// the API keeps answering with no restart. Each edit is polled until the new code answers, and EVERY answer along
-// the way must be a good one: a reload that drops even one request fails the lane.
+// `next dev` re-evaluates the route bundle, @mionjs/router included, so each edit gets a fresh router, no restart.
+// A reload that drops even one request before the new code answers fails the lane.
 const MION_NEXT_DEV_EDITS = [
   {name: 'handler', file: 'src/routes.ts', from: '`Hello ${name}!`', to: '`Hi ${name}!`', expect: (report) => report.json.message === 'Hi mion!'},
-  // the server now serializes `at` as a plain string, so the client gets no Date back
+  // `at` now goes out as a plain string, so the client gets no Date back
   {name: 'type', file: 'src/routes.ts', from: 'at: Date};', to: 'at: string};', expect: (report) => report.json.atIsDate === false},
   {
     // the batch's route order is its id, so the client build compiles a NEW batch the running API must learn
@@ -404,7 +403,6 @@ async function runMionNextDevEdits(appDir, nextBin) {
   if (failed.length) throw new Error(`mion-next dev: an edit broke the API: ${JSON.stringify(failed)}`);
 }
 
-/** Polls the selftest until `reached` holds; every non-200 answer or reported error along the way is a failure. */
 async function pollUntil(url, reached, child, timeoutMs) {
   const failures = [];
   const deadline = Date.now() + timeoutMs;

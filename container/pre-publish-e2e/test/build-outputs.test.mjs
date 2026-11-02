@@ -120,7 +120,6 @@ test('mion-next: the app serves its own mion API, on both wires and in a batch',
   assert.equal(batch.sum, 3);
 });
 
-// `next dev` after each kind of edit: the new code answers, and no request failed while Next reloaded the API.
 test('mion-next: editing a handler, a type and a client batch during next dev keeps the API answering', () => {
   const report = path.join(APPS, 'mion-next', 'dev-reload.json');
   assert.ok(existsSync(report), 'mion-next: dev-reload.json is missing — did build-all.mjs run for it?');
