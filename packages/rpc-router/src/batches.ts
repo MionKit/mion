@@ -11,7 +11,6 @@ import {
   StatusCodes,
   HandlerType,
   getNoopJitFns,
-  getOrCreateGlobal,
   getRoutePath,
   ROUTER_ITEM_SEPARATOR_CHAR,
   isRpcError,
@@ -47,8 +46,8 @@ export interface BatchEntry {
   maxBodySize?: number;
 }
 
-const batchesById = getOrCreateGlobal('mion.router.batchesById', () => new Map<string, BatchEntry>());
-const mappingMethodCache = getOrCreateGlobal('mion.router.batchMappingMethodCache', () => new Map<string, RemoteMethod>());
+const batchesById = new Map<string, BatchEntry>();
+const mappingMethodCache = new Map<string, RemoteMethod>();
 
 /** A malformed definition is a configuration error and throws at registration, never at request time.
  *  Re-registering an id replaces it; ids not in `table` are left alone (replaceBatches is the whole-table form). */

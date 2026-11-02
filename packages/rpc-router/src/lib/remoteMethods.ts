@@ -18,13 +18,12 @@ import {
   DEFAULT_PARSER,
   resolveCompiledPureFn,
   EMPTY_HASH,
-  getOrCreateGlobal,
   HandlerType,
 } from '@mionjs/core';
 import {getRTUtils, RUN_TYPES_PURE_FN_ID_PREFIX} from '@mionjs/run-types/runtime';
 
 // ############# PRIVATE STATE #############
-const publicMethods = getOrCreateGlobal('mion.remoteMethods.publicMethods', () => new Map<string, MethodWithOptions>());
+const publicMethods = new Map<string, MethodWithOptions>();
 
 // ############# PUBLIC METHODS #############
 export function resetRemoteMethodsMetadata() {

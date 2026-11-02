@@ -28,7 +28,7 @@ describe('the dev-host flag', () => {
     expect(getHostRequestHandler()).toBeUndefined();
   });
 
-  it('survives resetRouter, which a dev host calls before reloading the entry', () => {
+  it('is left alone by resetRouter, which clears routes only', () => {
     setHostOwnsSocket(true);
     resetRouter();
     expect(hostOwnsSocket()).toBe(true);
