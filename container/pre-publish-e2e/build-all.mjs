@@ -349,6 +349,80 @@ async function buildMionNext(app) {
     stdio: 'inherit',
     env: {...process.env, NODE_ENV: 'production', MION_E2E_CLIENT_ROUTES: 'bundle'},
   });
+
+  await runMionNextDevEdits(appDir, nextBin);
+}
+
+const MION_NEXT_DEV_PORT = 8089;
+
+// `next dev` re-evaluates the route bundle after an edit, @mionjs/router inside it: each run is a fresh router, so
+// the API keeps answering with no restart. Each edit is polled until the new code answers, and EVERY answer along
+// the way must be a good one: a reload that drops even one request fails the lane.
+const MION_NEXT_DEV_EDITS = [
+  {name: 'handler', file: 'src/routes.ts', from: '`Hello ${name}!`', to: '`Hi ${name}!`', expect: (r) => r.json.message === 'Hi mion!'},
+  {name: 'type', file: 'src/routes.ts', from: 'at: Date};', to: 'at: Date; note?: string};', expect: () => true},
+  {
+    // the batch's route order is its id, so the client build compiles a NEW batch the running API must learn
+    name: 'client batch',
+    file: 'app/selftest/route.ts',
+    from: `const [[batched, batchedError, batchResponse], [batchedSum, batchedSumError]] = await batch([
+    routes.sayHello('batch'),
+    routes.addNumbers(1, 2),
+  ]).call();`,
+    to: `const [[batchedSum, batchedSumError], [batched, batchedError, batchResponse]] = await batch([
+    routes.addNumbers(1, 2),
+    routes.sayHello('batch'),
+  ]).call();`,
+    expect: (r) => r.batch.sum === 3 && r.batch.message === 'Hi batch!',
+  },
+];
+
+async function runMionNextDevEdits(appDir, nextBin) {
+  const originals = new Map();
+  const child = spawn(process.execPath, [nextBin, 'dev', '--port', String(MION_NEXT_DEV_PORT)], {
+    cwd: appDir,
+    stdio: 'inherit',
+    env: {...process.env, NODE_ENV: 'development'},
+  });
+  const selftest = `http://127.0.0.1:${MION_NEXT_DEV_PORT}/selftest`;
+  const results = [];
+  try {
+    await waitForOk(selftest, child, 120_000);
+    for (const edit of MION_NEXT_DEV_EDITS) {
+      const file = path.join(appDir, edit.file);
+      if (!originals.has(file)) originals.set(file, readFileSync(file, 'utf8'));
+      const source = readFileSync(file, 'utf8');
+      if (!source.includes(edit.from)) throw new Error(`mion-next dev: the '${edit.name}' edit no longer matches ${edit.file}`);
+      writeFileSync(file, source.replace(edit.from, edit.to));
+      results.push({name: edit.name, ...(await pollUntil(selftest, edit.expect, child, 60_000))});
+    }
+  } finally {
+    child.kill('SIGTERM');
+    for (const [file, content] of originals) writeFileSync(file, content);
+  }
+  writeFileSync(path.join(appDir, 'dev-reload.json'), `${JSON.stringify(results, null, 2)}\n`);
+  const failed = results.filter((result) => result.failures.length || !result.reached);
+  if (failed.length) throw new Error(`mion-next dev: an edit broke the API: ${JSON.stringify(failed)}`);
+}
+
+/** Polls the selftest until `reached` holds; every non-200 answer or reported error along the way is a failure. */
+async function pollUntil(url, reached, child, timeoutMs) {
+  const failures = [];
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (child.exitCode !== null) throw new Error(`mion-next: \`next dev\` exited with ${child.exitCode}`);
+    const res = await fetch(url);
+    const body = await res.text();
+    if (!res.ok) failures.push(`${res.status} ${body.slice(0, 300)}`);
+    else {
+      const report = JSON.parse(body);
+      const errors = [report.json.error, report.compact.error, report.batch.error].filter(Boolean);
+      if (errors.length) failures.push(errors.join(' | '));
+      else if (reached(report)) return {reached: true, failures};
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  return {reached: false, failures};
 }
 
 const BUILDERS = {vite: buildVite, esbuild: buildEsbuild, rollup: buildRollup, rolldown: buildRolldown, webpack: buildWebpack, rspack: buildRspack, bun: buildBun, bunPreload: buildBunPreload, next: buildNext, mionNext: buildMionNext};
