@@ -1,7 +1,6 @@
 {
   "file": "a.ts",
   "code": "#!/usr/bin/env node\n'use strict';\nconst id = getRunTypeId<string>();\n",
-  "prologueEnd": 33,
   "sites": [
     {
       "file": "a.ts",

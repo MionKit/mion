@@ -1,7 +1,6 @@
 {
   "file": "a.ts",
   "code": "\"use client\";\nconst x = marker(1);\n",
-  "prologueEnd": 13,
   "sites": [],
   "replacements": [
     {

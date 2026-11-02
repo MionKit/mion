@@ -3,7 +3,7 @@ package sourcerewrite
 // edits.go — the 'edits'-mode counterpart to Apply: ComputeEdits returns the raw edit list for the
 // FE to apply with its own EditBuffer (packages/devtools/src/core/apply-edits.ts) instead of
 // rewriting here. Both modes share the SAME buildGroupInsertion / buildImportBlock / placeImportBlock / makeByteToChar,
-// and the FE applier calls prepend / appendLeft / update in the identical sequence Apply does, so
+// and the FE applier calls appendLeft / update in the identical sequence Apply does, so
 // the code + map come out byte-identical by construction. Edit offsets are UTF-16 code units, what
 // the JS string applier indexes, converted from the resolver's byte offsets here.
 
@@ -15,7 +15,7 @@ import (
 )
 
 // ComputeEdits derives the same edits Apply would make and returns them for the FE. importBlock goes in
-// at importAt (UTF-16; 0 = prepend), before every other edit, and still carries rtmod: specifiers,
+// at importAt (UTF-16), before every other edit, and still carries rtmod: specifiers,
 // which the caller relativizes for files-mode; edits are flat point/span edits in UTF-16 offsets.
 // ("", 0, nil) when there is nothing to rewrite, matching Apply's (source, nil) short-circuit.
 func ComputeEdits(source string, prologueEnd int, sites []protocol.Site, replacements []protocol.Replacement) (string, int, []protocol.Edit) {

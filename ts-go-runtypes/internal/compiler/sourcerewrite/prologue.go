@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/ast"
+	"github.com/microsoft/typescript-go/shim/scanner"
 )
 
 // PrologueEnd is the byte offset just past a leading `#!` line and the file's directive prologue
@@ -11,14 +12,7 @@ import (
 // land after it: a directive only counts while it is the first statement, and a shebang only on line 1.
 // 0 when the file has neither.
 func PrologueEnd(sourceFile *ast.SourceFile) int {
-	text := sourceFile.Text()
-	end := 0
-	if strings.HasPrefix(text, "#!") {
-		end = len(text)
-		if newline := strings.IndexByte(text, '\n'); newline >= 0 {
-			end = newline
-		}
-	}
+	end := len(scanner.GetShebang(sourceFile.Text()))
 	for _, statement := range sourceFile.Statements.Nodes {
 		if !ast.IsPrologueDirective(statement) {
 			break
@@ -36,28 +30,10 @@ func placeImportBlock(source string, prologueEnd int, importBlock string) (int, 
 	if prologueEnd == 0 || importBlock == "" {
 		return 0, importBlock
 	}
-	cursor := prologueEnd
-	for cursor < len(source) {
-		switch {
-		case source[cursor] == ' ' || source[cursor] == '\t' || source[cursor] == '\r':
-			cursor++
-		case source[cursor] == '\n':
-			return cursor + 1, importBlock
-		case strings.HasPrefix(source[cursor:], "//"):
-			newline := strings.IndexByte(source[cursor:], '\n')
-			if newline < 0 {
-				return prologueEnd, "\n" + importBlock
-			}
-			return cursor + newline + 1, importBlock
-		case strings.HasPrefix(source[cursor:], "/*"):
-			closing := strings.Index(source[cursor+2:], "*/")
-			if closing < 0 || strings.Contains(source[cursor:cursor+2+closing], "\n") {
-				return prologueEnd, "\n" + importBlock
-			}
-			cursor += 2 + closing + 2
-		default:
-			return prologueEnd, "\n" + importBlock
-		}
+	next := scanner.SkipTriviaEx(source, prologueEnd, &scanner.SkipTriviaOptions{StopAfterLineBreak: true})
+	// The first newline must be the one trivia stopped after, not one inside a block comment.
+	if newline := strings.IndexByte(source[prologueEnd:], '\n'); newline >= 0 && prologueEnd+newline+1 == next {
+		return next, importBlock
 	}
 	return prologueEnd, "\n" + importBlock
 }

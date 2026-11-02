@@ -61,10 +61,9 @@ type replacement struct {
 }
 
 // editBuffer accumulates point insertions and span replacements against an immutable original (in
-// UTF-16 units), plus an optional prepended intro, then renders the patched units and a source map.
+// UTF-16 units), then renders the patched units and a source map.
 type editBuffer struct {
 	original []uint16
-	intro    []uint16
 	// leftInserts maps an original index to the text inserted immediately to its left; repeated
 	// appendLeft calls at one index accumulate in call order.
 	leftInserts map[int][]uint16
@@ -74,11 +73,6 @@ type editBuffer struct {
 
 func newEditBuffer(original []uint16) *editBuffer {
 	return &editBuffer{original: original, leftInserts: make(map[int][]uint16)}
-}
-
-// prepend stitches content onto the very front of the output; the rewrite calls it once.
-func (eb *editBuffer) prepend(content string) {
-	eb.intro = append(asciiUnits(content), eb.intro...)
 }
 
 // appendLeft inserts content immediately to the left of the original index;
@@ -98,10 +92,9 @@ func (eb *editBuffer) update(start, end int, content string) {
 	eb.replacements = append(eb.replacements, replacement{start: start, end: end, content: asciiUnits(content)})
 }
 
-// string renders the patched source as UTF-8: the intro, then the original woven with its edits.
+// string renders the patched source as UTF-8: the original woven with its edits.
 func (eb *editBuffer) string() string {
-	out := make([]uint16, 0, len(eb.original)+len(eb.intro))
-	out = append(out, eb.intro...)
+	out := make([]uint16, 0, len(eb.original))
 	eb.eachChunk(
 		func(start, end int) { out = append(out, eb.original[start:end]...) },
 		func(text []uint16) { out = append(out, text...) },
@@ -113,9 +106,6 @@ func (eb *editBuffer) string() string {
 // generateMap produces a v3 source map back to the original, with boundary-granular segments.
 func (eb *editBuffer) generateMap(source, originalUTF8 string) *protocol.SourceMap {
 	m := newMappings(eb.original)
-	if len(eb.intro) > 0 {
-		m.advance(eb.intro)
-	}
 	eb.eachChunk(
 		func(start, end int) { m.addUnedited(start, end) },
 		func(text []uint16) { m.advance(text) },
@@ -228,8 +218,8 @@ func newMappings(original []uint16) *mappings {
 	}
 }
 
-// advance bumps the generated cursor past emitted-but-unmapped text (the intro
-// and inserted runs) without recording any segment.
+// advance bumps the generated cursor past emitted-but-unmapped text (inserted
+// runs) without recording any segment.
 func (m *mappings) advance(text []uint16) {
 	if len(text) == 0 {
 		return

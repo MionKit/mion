@@ -1,0 +1,25 @@
+{
+  "file": "a.ts",
+  "code": "#!/usr/bin/env node\nconst id = getRunTypeId<string>();\n",
+  "sites": [
+    {
+      "file": "a.ts",
+      "pos": 52,
+      "id": "Dir0001",
+      "paramIndex": 1
+    }
+  ],
+  "replacements": [],
+  "expectedCode": "#!/usr/bin/env node\nimport {__rt_Dir0001} from 'rtmod:/Dir0001.js';\nconst id = getRunTypeId<string>(undefined, __rt_Dir0001);\n",
+  "expectedMap": {
+    "version": 3,
+    "sources": [
+      "a.ts"
+    ],
+    "sourcesContent": [
+      "#!/usr/bin/env node\nconst id = getRunTypeId<string>();\n"
+    ],
+    "names": [],
+    "mappings": "AAAA,CAAC,CAAC,CAAC,GAAG,CAAC,GAAG,CAAC,GAAG,CAAC;;AACf,KAAK,CAAC,EAAE,CAAC,CAAC,CAAC,YAAY,CAAC,MAAM,CAAC,wBAAC,CAAC;"
+  }
+}

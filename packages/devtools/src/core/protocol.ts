@@ -232,7 +232,7 @@ export interface TransformResult {
   // <outDir>/types in files mode. Absent when the file needs no injected imports.
   importBlock?: string;
   // 'edits' mode: where `importBlock` goes, in UTF-16 code units: past a `#!` line and the directive
-  // prologue (`"use client"` must stay first). Absent = 0 = prepend.
+  // prologue (`"use client"` must stay first). Absent = 0, the start of the file.
   importAt?: number;
   // 'edits' mode: the flat point/span edit list, NOT the import block, in UTF-16 code-unit offsets
   // against the ORIGINAL source (the FE indexes JS strings natively).
