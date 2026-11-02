@@ -15,6 +15,8 @@ export default defineConfig({
     cjsPackageJsonPlugin('.dist/cjs'),
     mionVitePlugin({
       tsConfig: resolve(__dirname, 'tsconfig.build.json'),
+      // edge runtimes forbid `new Function`: ship each compiled fn live, not only as a code string
+      runTypes: {emitMode: 'both'},
     }),
     dts({
       outDir: ['.dist/cjs', '.dist/esm'],
