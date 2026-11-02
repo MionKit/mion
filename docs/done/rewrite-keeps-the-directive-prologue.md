@@ -54,3 +54,15 @@ Run in automatic mode from the parent session's delegation brief (no human in th
   a `"use server"` module with call sites, built by Turbopack and by `next build --webpack`, ids asserted in the
   prerendered HTML.
 - Docs: none (spec says so). Fuzzing: not a feature.
+
+## What shipped (after review)
+
+- `placeImportBlock` uses the tsgo scanner (`SkipTriviaEx` with `StopAfterLineBreak`), `PrologueEnd` uses
+  `GetShebang`. The block always goes in through `appendLeft` before any other edit; offset 0 gives the same
+  output as the old prepend, so `prepend` and the intro were removed from both edit buffers.
+- Fixture tests compute the prologue from a real parse instead of storing it in the JSON.
+- `foldImportBlock` (Vue SFC) folds from the first changed line, so a directive line stays where it was.
+- The transform-wire bench passes `importAt` to `applyEdits`.
+- e2e: smoke-next builds with `next build --webpack` and with Turbopack, and serves the page with `next dev` on
+  both bundlers, checking the `rt-use-client` / `rt-use-server` ids each time.
+
