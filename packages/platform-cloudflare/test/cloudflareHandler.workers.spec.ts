@@ -38,8 +38,6 @@ async function startMiniflare(setupCode: string, port?: number): Promise<Minifla
   const bundleCode = readFileSync(CLOUDFLARE_BUNDLE_PATH, 'utf-8');
   // Service worker format: the IIFE bundle defines CloudflareTestServer on globalThis.
   const workerScript = `
-        // Polyfill process for bundled code that checks typeof process
-        globalThis.process = { env: {} };
         ${bundleCode}
         const __initPromise = CloudflareTestServer.setup(${setupCode});
         addEventListener('fetch', event => {

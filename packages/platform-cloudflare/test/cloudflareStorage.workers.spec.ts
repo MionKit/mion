@@ -43,7 +43,6 @@ beforeAll(async () => {
     durableObjects: {NOTES_DO: {className: 'NotesDurableObject', useSQLite: true}},
     d1Databases: {DB: 'mion-notes'},
     compatibilityDate: '2024-11-12',
-    compatibilityFlags: ['nodejs_compat'],
   });
   // Force the runtime up before the first test, so a boot failure reads as a
   // boot failure rather than as every test timing out.

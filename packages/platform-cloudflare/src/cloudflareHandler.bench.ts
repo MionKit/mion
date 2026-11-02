@@ -18,7 +18,6 @@ const CLOUDFLARE_BUNDLE_PATH = resolve(__dirname, '../../private-test-server/bui
 const bundleCode = readFileSync(CLOUDFLARE_BUNDLE_PATH, 'utf-8');
 const mf = new Miniflare({
   script: `
-    globalThis.process = { env: {} };
     ${bundleCode}
     const __initPromise = CloudflareTestServer.setup({});
     addEventListener('fetch', event => {

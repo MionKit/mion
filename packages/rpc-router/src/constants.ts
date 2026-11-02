@@ -11,8 +11,8 @@ export const DEFAULT_ROUTE_OPTIONS = {
   basePath: '',
   suffix: '',
   pathTransform: undefined,
-  /** set to true to generate router spec for clients.  */
-  getPublicRoutesData: process.env.GENERATE_ROUTER_SPEC === 'true',
+  /** set to true to generate router spec for clients; GENERATE_ROUTER_SPEC=true also enables it  */
+  getPublicRoutesData: false,
   autoGenerateErrorId: false,
   /** Every chain step is awaited by default, so the chain keeps yielding between steps */
   alwaysAwait: true,
