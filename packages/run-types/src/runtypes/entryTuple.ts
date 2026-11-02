@@ -475,7 +475,7 @@ function fillLiveFactory(utils: RTUtils, tuple: EntryTuple, key: string): void {
     if (createRTFn && existing && !existing.fn && !existing.createRTFn) existing.createRTFn = createRTFn;
   } else if (slot0 === KIND_PURE_FN) {
     const createPureFn = tuple[CREATE_PURE_FN_SLOT] as CompiledPureFunction['createPureFn'];
-    const existing = utils.getCompiledPureFnByKey(key) as Mutable<CompiledPureFunction> | undefined;
+    const existing = utils.getCompiledPureFnByKey(key);
     if (createPureFn && existing && !existing.fn && !existing.createPureFn) existing.createPureFn = createPureFn;
   }
 }

@@ -27,7 +27,7 @@ afterAll(async () => {
 
 async function post(path: string, body: unknown): Promise<Record<string, any>> {
     const response = await fetch(`${baseURL}${path}`, {method: 'POST', body: JSON.stringify(body)});
-    return (await response.json()) as Record<string, any>;
+    return response.json();
 }
 
 describe('a Worker built from the published packages runs on workerd', () => {
