@@ -258,9 +258,9 @@ export function buildPureFnFactoryFromCode(paramNames: string[], code: string): 
 function buildOrNameEntry<F>(build: () => F, label: string): F {
   try {
     return build();
-  } catch (error: any) {
+  } catch (error) {
     throw new Error(
-      `${error?.message ?? error}: ${label} ships only as a code string. The module that emitted it was built with ` +
+      `${error instanceof Error ? error.message : String(error)}: ${label} ships only as a code string. The module that emitted it was built with ` +
         `emitMode 'code' (your app or a dependency): search the bundle for that id to find it.`,
       {cause: error}
     );
