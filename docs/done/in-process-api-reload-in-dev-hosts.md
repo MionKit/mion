@@ -71,21 +71,24 @@ A reload is a fresh copy of the API in every host, mion included, so nothing has
 
 - `@mionjs/core` and `@mionjs/router` keep no state on `globalThis`: `getOrCreateGlobal`, the core load counter,
   its dual-load warning and `MION_SUPPRESS_DUAL_LOAD_WARN` go. Each module copy owns its tables, flags and caches.
-  The `createMionRouter` guard stays as it is.
+  The `createMionRouter` guard stays; its error now says to keep `@mionjs/*` bundled.
 - Next: a dev edit re-evaluates the route bundle, mion bundled in it (Next's default), so the fresh copy starts
   empty. No reset hook needed. Pinned by a `next dev` edit lane in the pre-publish e2e `mion-next` app.
 - Vite (`middlewareMode.ts`): the reload invalidates the entry's whole SSR module tree (inlined `@mionjs/*`
   included) instead of "own files" by Vite root, and never calls `resetRouter()`. Every request awaits one shared
-  reload. A change marks the API stale when the file is in the tree the last load collected. The batch table
-  appearing or vanishing, and a type edit re-transforming sites, mark it stale from the plugin directly (the `add`
-  listener goes). A failed first load lets page navigations through instead of answering 503 for the whole site.
+  reload, and an edit made during a reload starts another. A change marks the API stale when the file is in the tree
+  the last load collected; after a failed load, or before the first load collected its tree, any source edit outside
+  `node_modules` does. The batch table appearing or vanishing marks it stale from the plugin directly (the `add`
+  listener goes). A type edit needs nothing of its own: it rewrites the generated module the API imports, an
+  ordinary change in the tree. A failed load with no basePath known lets page navigations through instead of
+  answering 503 for the whole site.
 - Docs: Next "Editing Types While the Dev Server Runs" (reloads, keep `@mionjs/*` out of
   `serverExternalPackages`), Vite "Fullstack Apps" (reload, entry outside the root, one genDir per process).
 - Tests: `rpc-router/test/moduleCopies.spec.ts` (a fresh copy needs no reset, the guard holds inside one copy),
-  `devtools/test/vite/middlewareMode.spec.ts` (fresh-copy reload, 20 concurrent requests during a reload, entry
-  outside the root, failed reload then recovery, page navigation on a failed first load, stale mark),
-  `sfcTransform.spec.ts` (a batch only in a `.vue` file reaches the running API through the real resolver).
+  plus a fresh batch table and a fresh `@mionjs/core` cache; `devtools/test/vite/middlewareMode.spec.ts` (fresh-copy
+  reload, 20 concurrent requests during a reload, edits during the first load and during a reload, entry outside
+  the root, failed reload then recovery, retry after a failed load, page navigation on a failed first load, stale
+  mark); `sfcTransform.spec.ts` through the real resolver and a genDir outside the vite root (a batch only in a
+  `.vue` file reaches the running API; an `import type`-only type edit reloads it).
   The `next dev` lane runs in the `pre-publish-e2e` CI label only: its image is private.
-- The 503 body (ANSI codes) stays with the packaging session, as the parent split the work.
-- Out of scope, owned by the packaging session: ESM-only packages (drop the `require` builds), the last way a
-  process can load two copies of mion.
+- Out of scope: ESM-only packages and the dev 503 body's ANSI codes, filed as their own todo.
