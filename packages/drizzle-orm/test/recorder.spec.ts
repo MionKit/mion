@@ -200,12 +200,17 @@ describe('recorder core (fake namespace, no drizzle installed)', () => {
     ]);
   });
 
-  it('recordColumn keeps a type-only config key (uuid version) away from drizzle', () => {
+  it('recordColumn replays a shortcut key as the modifier it stands for, never as config', () => {
     const fake = makeFakeContext();
-    const id = recordColumn([{version: '7', primaryKey: true}], (context, callArgs) => context.ns.uuid(...(callArgs as never[])));
+    const id = recordColumn(
+      [{version: '4', primaryKey: true}],
+      (context, callArgs) => context.ns.uuid(...(callArgs as never[])),
+      {version: () => ['defaultRandom', true]}
+    );
     id.toDrizzleColumn(fake.context);
     expect(fake.calls).toEqual([
       ['ns', 'uuid'],
+      ['ns.uuid', 'defaultRandom'],
       ['ns.uuid', 'primaryKey'],
     ]);
   });

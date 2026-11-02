@@ -58,8 +58,10 @@ import type {
   TimeConfig,
   TimestampData,
   UuidData,
+  UuidOneDefault,
   VarcharData,
 } from './types.ts';
+import {pgUuidShortcuts} from './shortcuts.ts';
 
 /** What a nameless builder returns; a named call wraps it in NamedColumn. */
 type Built<Fn extends string, C, D, B extends ColBaseFlag = never> = Column<Fn, PropsOf<C>, D, B>;
@@ -412,16 +414,18 @@ export function timestamp(...args: unknown[]) {
   return recordNsColumn('timestamp', args);
 }
 
-export type Uuid<P extends Only<P, PgUuidConfig & PgUuidColMods> = NoProps> = Column<'uuid', P, UuidData<P>>;
+export type Uuid<P extends Only<P, PgUuidConfig & PgUuidColMods> & UuidOneDefault<P> = NoProps> = Column<'uuid', P, UuidData<P>>;
 export function uuid(): Column<'uuid', NoProps, UUID>;
 export function uuid<N extends string>(name: N): NamedColumn<N, Column<'uuid', NoProps, UUID>>;
-export function uuid<N extends string, const C extends Only<C, PgUuidConfig & PgUuidIn>>(
+export function uuid<N extends string, const C extends Only<C, PgUuidConfig & PgUuidIn> & UuidOneDefault<C>>(
   name: N,
   props: C
 ): NamedColumn<N, Built<'uuid', C, UuidData<C>>>;
-export function uuid<const C extends Only<C, PgUuidConfig & PgUuidIn>>(props: C): Built<'uuid', C, UuidData<C>>;
+export function uuid<const C extends Only<C, PgUuidConfig & PgUuidIn> & UuidOneDefault<C>>(
+  props: C
+): Built<'uuid', C, UuidData<C>>;
 export function uuid(...args: unknown[]) {
-  return recordNsColumn('uuid', args);
+  return recordNsColumn('uuid', args, pgUuidShortcuts);
 }
 
 export type Varchar<P extends Only<P, PgVarcharConfig & PgColMods> = NoProps> = Column<'varchar', P, VarcharData<P>>;

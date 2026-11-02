@@ -89,6 +89,8 @@ type NotNullKeys = 'notNull' | 'primaryKey' | 'generatedAlwaysAsIdentity' | 'gen
 // Mirrors the builders: generated and identity columns carry a default, so they are never required on insert.
 type DefaultKeys =
   | 'default'
+  // pg uuid: the version sets the matching default
+  | 'version'
   | 'defaultNow'
   | 'defaultRandom'
   | 'generatedAlwaysAs'
@@ -263,6 +265,11 @@ export type BuildTableFn = (
   columnBuilders: Record<string, unknown>,
   extraConfigReplay?: (dzExtraColumns: Record<string, unknown>) => unknown[] | Record<string, unknown>
 ) => unknown;
+
+/** A dialect setting drizzle lacks (pg uuid `version`), replayed as the modifier call it stands for. */
+export type ColumnShortcut = (value: unknown) => readonly [method: string, args: true | readonly unknown[]];
+/** A builder's shortcuts by props key. */
+export type ColumnShortcuts = Readonly<Record<string, ColumnShortcut>>;
 
 /** A view's type: the table meta minus extras, since a view has none. */
 export interface RtViewMeta<Name extends string, Cols, Names = NoNames> {
