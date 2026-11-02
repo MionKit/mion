@@ -102,6 +102,9 @@ export interface PluginOptions {
   // patternSampleCount × patternSampleRetries draws before a pattern is declared ungeneratable.
   // Raise it for heavily constrained patterns. Canonical home is the tsconfig `patternSampleRetries` knob.
   patternSampleRetries?: number;
+  // Internal, undocumented (--max-unknown-keys; undefined = 10): unknown-key errors a strict errors fn lists per object
+  // before one `tooManyUnknownKeys` entry. Canonical home is the tsconfig `maxUnknownKeys` knob.
+  maxUnknownKeys?: number;
   // Emit, on every reflection root whose type is fully bounded, the largest compact-JSON size a valid value
   // can have, which a framework turns into per-route request and response limits. On by default; `false`
   // emits none, so a project that keeps its own limits pays nothing. Canonical home is the tsconfig `jsonMaxBytes` key.
@@ -337,6 +340,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       ...(options.hashLength !== undefined ? {hashLength: options.hashLength} : {}),
       ...(options.patternSampleCount !== undefined ? {patternSampleCount: options.patternSampleCount} : {}),
       ...(options.patternSampleRetries !== undefined ? {patternSampleRetries: options.patternSampleRetries} : {}),
+      ...(options.maxUnknownKeys !== undefined ? {maxUnknownKeys: options.maxUnknownKeys} : {}),
       ...(options.jsonMaxBytes !== undefined ? {jsonMaxBytes: options.jsonMaxBytes} : {}),
       ...(options.markers?.packages?.length ? {markerPackages: options.markers.packages} : {}),
       ...(options.markers?.checkPackage === false ? {markerPackageCheck: false} : {}),

@@ -46,6 +46,12 @@ describe('buildResolverArgs — bundler-lane project knobs', () => {
     expect(args[idx + 1]).toBe('25');
   });
 
+  it('forwards maxUnknownKeys as `--max-unknown-keys <n>`, and omits it when unset', () => {
+    const args = buildResolverArgs('/proj', 'tsconfig.json', {maxUnknownKeys: 3});
+    expect(args[args.indexOf('--max-unknown-keys') + 1]).toBe('3');
+    expect(buildResolverArgs('/proj', 'tsconfig.json', {})).not.toContain('--max-unknown-keys');
+  });
+
   it('omits both pattern-sample flags when unset (tsconfig / binary defaults apply)', () => {
     const args = buildResolverArgs('/proj', 'tsconfig.json', {});
     expect(args).not.toContain('--pattern-sample-count');

@@ -194,6 +194,8 @@ type Walker struct {
 	// same names; the pattern emitter's format-sample-generation-failed lane reads them at emit time.
 	PatternSampleCount int
 	PatternGenFailures map[string]formats.PatternGenFailure
+	// MaxUnknownKeys mirrors RenderOpts.MaxUnknownKeys, read through EmitContext.MaxUnknownKeys.
+	MaxUnknownKeys int
 	// CrossFamilyDeps records the cross-family RT lookups this function reaches via
 	// registerRTLookup: childIDs whose family-tag prefix differs from this walker's
 	// own InnerPrefix, as when a serializer body references a validator entry to

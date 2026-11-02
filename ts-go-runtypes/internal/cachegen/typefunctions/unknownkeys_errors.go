@@ -8,9 +8,6 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// maxUnknownKeys caps `never` errors per object, so a body with thousands of extra keys stays a small report.
-const maxUnknownKeys = 10
-
 // callUnknownKeyErr appends a 'never' error for an unknown key; `extra` is the key VARIABLE, the key being a runtime value.
 func callUnknownKeyErr(ctx *EmitContext, extra string) string {
 	key := ctx.UsePureFn(purefnids.NewRunTypeErr)
@@ -23,7 +20,8 @@ func callUnknownKeyErr(ctx *EmitContext, extra string) string {
 	return key + "(" + strings.Join(args, ",") + ")"
 }
 
-// emitParentUnknownKeyErrors emits the `never` errors for `validationErrorsStrict`.
+// emitParentUnknownKeyErrors emits the `never` errors for `validationErrorsStrict`, at most ctx.MaxUnknownKeys() per
+// object, then one `tooManyUnknownKeys` entry so a body full of extra keys stays a small report.
 // It returns "" when an index signature declares every key or the shape declares no names.
 // ⚠️ THE CALLER OWNS THE OBJECT GUARD: the fused family already sits inside emitObjectValidationErrors' guard, and a
 // second one would emit on every object node, which strictObjectKeyAssertion also avoids on validate.
@@ -38,7 +36,7 @@ func emitParentUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext) string
 	}
 	unknownVar := ctx.NextLocalVar("unk")
 	indexVar := ctx.NextLocalVar("iu")
-	limit := strconv.Itoa(maxUnknownKeys)
+	limit := strconv.Itoa(ctx.MaxUnknownKeys())
 	return "const " + unknownVar + " = " + unknownValue + ";" +
 		"for (let " + indexVar + " = 0; " + indexVar + " < " + unknownVar + ".length && " + indexVar + " < " + limit + "; " + indexVar + "++) {" +
 		callUnknownKeyErr(ctx, unknownVar+"["+indexVar+"]") + "}" +

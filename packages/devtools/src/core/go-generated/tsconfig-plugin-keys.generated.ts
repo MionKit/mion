@@ -18,6 +18,7 @@ export const TSCONFIG_PLUGIN_KEYS = [
   'levels',
   'logStyle',
   'markers',
+  'maxUnknownKeys',
   'moduleMode',
   'name',
   'parallelRender',
