@@ -1,9 +1,6 @@
-// EditBuffer — an in-house string editor + source-map generator, so the published package carries
-// ZERO runtime dependencies: it replaced `magic-string`. It implements only what apply-edits.ts
-// uses, and leans on three properties of the rewrite's edits a general-purpose editor can't assume:
-// every edit is against ORIGINAL coordinates (so one left-to-right pass is exact and edit order is
-// irrelevant); edits never overlap (asserted, not resolved); only the import block adds
-// newlines, so column shifts stay confined to each edited line.
+// EditBuffer: in-house editor + source-map generator, so the package has ZERO runtime dependencies. Covers only
+// apply-edits.ts and relies on the rewrite's edits: all against ORIGINAL coordinates (one pass, order irrelevant),
+// never overlapping (asserted, not resolved), and only the import block adds newlines (column shifts stay per line).
 //
 // ───────────────────────── CREDIT / ATTRIBUTION ─────────────────────────
 // The source-map segment math in `Mappings` (advance / addUnedited /

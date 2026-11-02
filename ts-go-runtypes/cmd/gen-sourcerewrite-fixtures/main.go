@@ -1,34 +1,8 @@
-// gen-sourcerewrite-fixtures regenerates the rewrite + source-map fixtures the
-// internal/compiler/sourcerewrite tests pin against:
-//
-//   - testdata/<name>.json      — one object per primary case (TestApply_Fixtures,
-//     TestComputeEdits_MatchesApply)
-//   - testdata/extra/cases.json — one array of named cases (TestApply_ExtraDiff)
-//
-// It replaces the deleted testdata/gen_golden.mjs + testdata/extra/diff_extra.mjs,
-// whose JS rewrite() oracle was removed in 7031676c (Go owns the transform). The
-// wire OpTransform is NOT a usable oracle for these fixtures: an OpTransform
-// request carries only file paths and the resolver computes sites/replacements
-// itself from a real type-check scan, so it cannot accept the SYNTHETIC sites the
-// fixtures pin (fabricated typeIds, multi-fn binding arrays, hand-authored pure-fn
-// replacements). Those synthetic inputs feed the lower-level entry point
-// sourcerewrite.Apply(file, source, prologueEnd, sites, replacements) directly — the same
-// function the tests exercise — so this generator calls Apply directly. No binary,
-// no JS, no type-checking.
-//
-// With the independent JS oracle gone, TestApply_Fixtures is a SNAPSHOT/regression
-// test: the committed JSON is the reviewed baseline, and any change to Apply /
-// EditBuffer / the VLQ source-map math fails it until the fixtures are regenerated
-// and the diff re-reviewed. The surviving differential is internal —
-// TestComputeEdits_MatchesApply pins the 'edits' wire path (ComputeEdits +
-// applyComputed) byte-identical to Apply over this same corpus.
-//
-// Byte offsets are native in Go: strings.Index returns a UTF-8 byte offset, which
-// is exactly what protocol.Site.Pos / Replacement.Start/End carry — no
-// Buffer.byteLength dance (the JS original had to convert char indices to bytes).
-//
-// Run (from anywhere in the module; the testdata dir is anchored to this source
-// file, so CWD does not matter):
+// gen-sourcerewrite-fixtures regenerates the sourcerewrite fixtures: testdata/<name>.json (TestApply_Fixtures,
+// TestComputeEdits_MatchesApply) and testdata/extra/cases.json (TestApply_ExtraDiff). It calls sourcerewrite.Apply
+// directly: OpTransform computes its own sites from a type-check scan, so it cannot take the SYNTHETIC sites these
+// pin. The JSON is a reviewed snapshot, so re-review its diff after regenerating. The testdata dir is anchored to
+// this file, so any CWD works:
 //
 //	go -C ts-go-runtypes run ./cmd/gen-sourcerewrite-fixtures
 package main
@@ -184,7 +158,7 @@ var primaryCases = []fixtureCase{
 	{"empty", "a.ts", "const noop = 1;\n", func(code string) ([]protocol.Site, []protocol.Replacement) {
 		return nil, nil
 	}},
-	// 15-23. directive prologue + shebang: the import block lands after them, never above.
+	// 15-26. directive prologue + shebang: the import block lands after them, never above.
 	{"directive_use_client", "a.tsx", "\"use client\";\n\nexport function P() { return <i>{getRunTypeId<string>()}</i>; }\n", getRunTypeIdSite},
 	{"directive_pair", "a.ts", "'use server';\n\"use strict\";\nexport async function act() { return getRunTypeId<string>(); }\n", getRunTypeIdSite},
 	{"directive_no_semicolon", "a.ts", "\"use client\"\nconst id = getRunTypeId<string>();\n", getRunTypeIdSite},

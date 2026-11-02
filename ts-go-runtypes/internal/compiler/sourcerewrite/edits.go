@@ -1,11 +1,8 @@
 package sourcerewrite
 
-// edits.go — the 'edits'-mode counterpart to Apply: ComputeEdits returns the raw edit list for the
-// FE to apply with its own EditBuffer (packages/devtools/src/core/apply-edits.ts) instead of
-// rewriting here. Both modes share the SAME buildGroupInsertion / buildImportBlock / placeImportBlock / makeByteToChar,
-// and the FE applier calls appendLeft / update in the identical sequence Apply does, so
-// the code + map come out byte-identical by construction. Edit offsets are UTF-16 code units, what
-// the JS string applier indexes, converted from the resolver's byte offsets here.
+// edits.go: the 'edits'-mode twin of Apply, its edit list applied by packages/devtools/src/core/apply-edits.ts.
+// Both share buildGroupInsertion / buildImportBlock / placeImportBlock / makeByteToChar and the appendLeft / update
+// order, so code + map come out byte-identical. Edit offsets are UTF-16 code units, converted from bytes here.
 
 import (
 	"hash/fnv"
@@ -14,10 +11,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// ComputeEdits derives the same edits Apply would make and returns them for the FE. importBlock goes in
-// at importAt (UTF-16), before every other edit, and still carries rtmod: specifiers,
-// which the caller relativizes for files-mode; edits are flat point/span edits in UTF-16 offsets.
-// ("", 0, nil) when there is nothing to rewrite, matching Apply's (source, nil) short-circuit.
+// ComputeEdits returns Apply's rewrite as edits. importBlock goes in at importAt (UTF-16) before every other edit,
+// still carrying rtmod: specifiers the caller relativizes for files-mode. ("", 0, nil) where Apply short-circuits.
 func ComputeEdits(source string, prologueEnd int, sites []protocol.Site, replacements []protocol.Replacement) (string, int, []protocol.Edit) {
 	if len(sites) == 0 && len(replacements) == 0 {
 		return "", 0, nil
@@ -35,9 +30,7 @@ func ComputeEdits(source string, prologueEnd int, sites []protocol.Site, replace
 	}
 	toChar := makeByteToChar(source, units, byteOffsets)
 
-	// Sites first, then replacements, the same order Apply appends them. The FE EditBuffer resolves
-	// every edit against ORIGINAL coordinates, so order is not load-bearing; matching Apply only
-	// keeps the two modes trivially comparable.
+	// Apply's order, only to keep the modes comparable: edits use ORIGINAL coordinates, so order is not load-bearing.
 	edits := make([]protocol.Edit, 0, len(sites)+len(replacements))
 	for _, group := range groupSitesByPos(sites) {
 		charPos := toChar(group[0].Pos)

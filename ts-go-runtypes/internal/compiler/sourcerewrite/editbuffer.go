@@ -60,8 +60,7 @@ type replacement struct {
 	content []uint16
 }
 
-// editBuffer accumulates point insertions and span replacements against an immutable original (in
-// UTF-16 units), then renders the patched units and a source map.
+// editBuffer collects point inserts and span replacements against an immutable UTF-16 original.
 type editBuffer struct {
 	original []uint16
 	// leftInserts maps an original index to the text inserted immediately to its left; repeated
@@ -92,7 +91,7 @@ func (eb *editBuffer) update(start, end int, content string) {
 	eb.replacements = append(eb.replacements, replacement{start: start, end: end, content: asciiUnits(content)})
 }
 
-// string renders the patched source as UTF-8: the original woven with its edits.
+// string renders the patched source as UTF-8.
 func (eb *editBuffer) string() string {
 	out := make([]uint16, 0, len(eb.original))
 	eb.eachChunk(
@@ -218,8 +217,7 @@ func newMappings(original []uint16) *mappings {
 	}
 }
 
-// advance bumps the generated cursor past emitted-but-unmapped text (inserted
-// runs) without recording any segment.
+// advance bumps the generated cursor past unmapped inserted text without recording a segment.
 func (m *mappings) advance(text []uint16) {
 	if len(text) == 0 {
 		return
