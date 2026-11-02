@@ -26,8 +26,7 @@ import type {
 import {createRtTable, rtTableFromRunType, RtValueRecorder, RtViewBuilder, rtValueKey} from '@mionjs/drizzle-orm';
 import type {InjectRunTypeId} from '@mionjs/run-types';
 import {getRunType} from '@mionjs/run-types';
-import {pgColumnHelpers, type PgColumnHelpers} from './columns.ts';
-import {pgColumnShortcuts} from './shortcuts.ts';
+import {pgColumnHelpers, pgColumnShortcuts, type PgColumnHelpers} from './columns.ts';
 import {makeEnumFactory, type pgEnum} from './helpers.ts';
 import {requireColumns, type pgMaterializedView, type pgView} from './views.ts';
 import type {AnyPgTable} from './types.ts';

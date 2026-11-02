@@ -24,9 +24,10 @@ export function recordColumn(
   ];
   const config: Record<string, unknown> = {};
   const mods: Array<[string, unknown]> = [];
+  const propKeys = Object.keys(props ?? {});
   for (const [key, value] of Object.entries(props ?? {})) {
     const shortcut = shortcuts?.[key];
-    if (shortcut) mods.push([...shortcut(value)]);
+    if (shortcut) mods.push([...shortcut(value, propKeys)]);
     else if (isColModName(key)) mods.push([key, value]);
     else config[key] = value;
   }

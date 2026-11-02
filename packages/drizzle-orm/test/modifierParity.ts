@@ -103,7 +103,9 @@ export function parseExportRenames(indexSource: string): Map<string, string> {
 /** The bag(s) a column type's props constraint names, or null if not found. */
 function bagOfColumnType(source: string, typeName: string): string | null {
   // Lazy so a one-line declaration cannot run on into the next type's ' = Column<'.
-  const declaration = source.match(new RegExp(String.raw`^export type ${typeName}<([\s\S]*?)>\s*=\s*Column<`, 'm'));
+  const declaration = source.match(
+    new RegExp(String.raw`^export type ${typeName}<([\s\S]*?)>\s*=\s*(?:P extends [\s\S]*?\?\s*)?Column<`, 'm')
+  );
   if (!declaration || declaration[1].includes('\nexport ')) return null;
   const named = [...new Set([...declaration[1].matchAll(/\b(\w*ColMods)\b/g)].map((match) => match[1]))];
   return named.length ? named.join('+') : null;

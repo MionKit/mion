@@ -205,7 +205,7 @@ describe('recorder core (fake namespace, no drizzle installed)', () => {
     const id = recordColumn(
       [{version: '4', primaryKey: true}],
       (context, callArgs) => context.ns.uuid(...(callArgs as never[])),
-      {version: () => ['defaultRandom', true]}
+      {version: () => ['defaultRandom', []]}
     );
     id.toDrizzleColumn(fake.context);
     expect(fake.calls).toEqual([

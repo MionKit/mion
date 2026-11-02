@@ -896,6 +896,22 @@ describe('pg columns: only pg: uuid version', () => {
     expect(project(toDrizzle(sessions))).toEqual(project(rawSessions));
     expect(project(toDrizzle(tableFromType<Sessions>()))).toEqual(project(rawSessions));
   });
+  it('the default is the sql that generates the version, on both roads', () => {
+    const pgDialect = new dz.PgDialect();
+    const defaultSql = (table: dz.PgTable) =>
+      dz.getTableConfig(table).columns.map((column) => pgDialect.sqlToQuery(column.default as never).sql);
+    expect(defaultSql(toDrizzle(sessions))).toEqual(['uuidv7()', 'gen_random_uuid()']);
+    expect(defaultSql(toDrizzle(tableFromType<Sessions>()))).toEqual(['uuidv7()', 'gen_random_uuid()']);
+  });
+  it('a version with a second default throws, on both roads', () => {
+    expect(() => uuid({version: '7', defaultRandom: true})).toThrow('a uuid version sets its own default');
+    expect(() => tableFromType<PgTable<'two_defaults', {id: Uuid<{version: '4'; default: ['x']}>}>>()).toThrow(
+      'a uuid version sets its own default'
+    );
+  });
+  it('an unknown version throws', () => {
+    expect(() => uuid({version: '1'} as never)).toThrow("uuid version takes '4' or '7', got 1");
+  });
   it('the model checks the uuid version', () => {
     expect(validateSession(validSession)).toBe(true);
     expect(validateSession({...validSession, id: validSession.token})).toBe(false);

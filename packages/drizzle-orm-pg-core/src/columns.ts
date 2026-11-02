@@ -19,8 +19,8 @@ import type {
   StringTime,
   UUID,
 } from '@mionjs/run-types/formats';
-import {RtValueRecorder, rtValueKey, recordColumn, recordNsColumn} from '@mionjs/drizzle-orm';
-import type {ColBaseFlag, Column, NamedColumn, NoProps, Only, PropsOf} from '@mionjs/drizzle-orm';
+import {RtValueRecorder, rtValueKey, recordColumn, recordNsColumn, sql} from '@mionjs/drizzle-orm';
+import type {ColBaseFlag, Column, ColumnShortcuts, NamedColumn, NoProps, Only, PropsOf} from '@mionjs/drizzle-orm';
 import type {
   BigintData,
   BitData,
@@ -57,11 +57,9 @@ import type {
   TextData,
   TimeConfig,
   TimestampData,
-  UuidData,
-  UuidOneDefault,
+  UuidByVersion,
   VarcharData,
 } from './types.ts';
-import {pgUuidShortcuts} from './shortcuts.ts';
 
 /** What a nameless builder returns; a named call wraps it in NamedColumn. */
 type Built<Fn extends string, C, D, B extends ColBaseFlag = never> = Column<Fn, PropsOf<C>, D, B>;
@@ -414,16 +412,41 @@ export function timestamp(...args: unknown[]) {
   return recordNsColumn('timestamp', args);
 }
 
-export type Uuid<P extends Only<P, PgUuidConfig & PgUuidColMods> & UuidOneDefault<P> = NoProps> = Column<'uuid', P, UuidData<P>>;
+/** uuid `version`: drizzle has no such setting, so it replays as the default that generates that version. */
+const pgUuidShortcuts: ColumnShortcuts = {
+  version: (version, propKeys) => {
+    if (propKeys.includes('default') || propKeys.includes('defaultRandom'))
+      throw new Error('@mionjs/drizzle-orm-pg-core: a uuid version sets its own default, drop default / defaultRandom');
+    if (version === '7') return ['default', [sql`uuidv7()`]];
+    if (version === '4') return ['defaultRandom', []];
+    throw new Error(`@mionjs/drizzle-orm-pg-core: uuid version takes '4' or '7', got ${String(version)}`);
+  },
+};
+/** The type road's shortcuts, by builder fn. */
+export const pgColumnShortcuts = {uuid: pgUuidShortcuts};
+
+// One conditional: a uuid without a version pays for nothing more.
+export type Uuid<P extends Only<P, PgUuidConfig & PgUuidColMods> = NoProps> = P extends {
+  version: infer V extends keyof UuidByVersion;
+}
+  ? Column<'uuid', P, UuidByVersion[V], 'hasDefault'>
+  : Column<'uuid', P, UUID>;
 export function uuid(): Column<'uuid', NoProps, UUID>;
 export function uuid<N extends string>(name: N): NamedColumn<N, Column<'uuid', NoProps, UUID>>;
-export function uuid<N extends string, const C extends Only<C, PgUuidConfig & PgUuidIn> & UuidOneDefault<C>>(
+export function uuid<N extends string, const C extends Only<C, PgUuidConfig & PgUuidIn>>(
   name: N,
   props: C
-): NamedColumn<N, Built<'uuid', C, UuidData<C>>>;
-export function uuid<const C extends Only<C, PgUuidConfig & PgUuidIn> & UuidOneDefault<C>>(
+): NamedColumn<
+  N,
+  C extends {version: infer V extends keyof UuidByVersion}
+    ? Built<'uuid', C, UuidByVersion[V], 'hasDefault'>
+    : Built<'uuid', C, UUID>
+>;
+export function uuid<const C extends Only<C, PgUuidConfig & PgUuidIn>>(
   props: C
-): Built<'uuid', C, UuidData<C>>;
+): C extends {version: infer V extends keyof UuidByVersion}
+  ? Built<'uuid', C, UuidByVersion[V], 'hasDefault'>
+  : Built<'uuid', C, UUID>;
 export function uuid(...args: unknown[]) {
   return recordNsColumn('uuid', args, pgUuidShortcuts);
 }
