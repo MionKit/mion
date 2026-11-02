@@ -9,7 +9,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 )
 
-// Element / root rejection reasons, surfaced as rpc-batch-element-unreadable's `{0}` argument (and, prefixed, as rpc-batch-mapper-unreadable's).
+// Rejection reasons: rpc-batch-element-unreadable's `{0}` argument, and, prefixed, rpc-batch-mapper-unreadable's.
 const (
 	reasonSpread         = "spread element"
 	reasonNotRouteCall   = "not a route call"
@@ -97,8 +97,7 @@ func (scope *fileScope) returnsRouteSubRequest(call *ast.Node) bool {
 	return symbol != nil && symbol.Name == routeSubRequestName && marker.DeclaredInModule(symbol, ClientModule, scope.markerOpts.FS)
 }
 
-// accessChain splits an access chain into its segments (outermost last) and the identifier or call at its
-// root: `a.b['c'].d` gives ([b c d], a). Any other shape yields a non-empty reason.
+// accessChain gives `a.b['c'].d` as ([b c d], a), rooted at an identifier or a call; any other shape gives a reason.
 func accessChain(expr *ast.Node) (segments []string, root *ast.Node, reason string) {
 	for {
 		expr = unwrap(expr)
@@ -138,9 +137,8 @@ func accessChain(expr *ast.Node) (segments []string, root *ast.Node, reason stri
 	}
 }
 
-// resolveRootPath resolves the root of an access chain, plus the chain's segments, to the full path from the
-// client object (`initClient()`'s result). Any other call is a runtime value (`inject()`, a composable) the
-// build cannot follow. A non-empty reason is the rpc-batch-element-unreadable argument.
+// resolveRootPath resolves a chain root to its path from `initClient()`'s result; no other call can be followed.
+// A non-empty reason is the rpc-batch-element-unreadable argument.
 func (scope *fileScope) resolveRootPath(root *ast.Node, segments []string, depth int) (path []string, reason string) {
 	if root.Kind == ast.KindCallExpression {
 		if scope.isInitClientCall(root) {
@@ -208,8 +206,7 @@ func (scope *fileScope) resolveSymbolPath(symbol *ast.Symbol, segments []string,
 	return nil, reasonNotRoutesProxy
 }
 
-// initializerPath resolves a binding's initializer, an access chain rooted at `initClient()` or at a binding
-// that resolves to it, to its path from the client object.
+// initializerPath resolves a binding's initializer to its path from the client object.
 func (scope *fileScope) initializerPath(initializer *ast.Node, depth int) ([]string, string) {
 	segments, root, chainReason := accessChain(initializer)
 	if chainReason != "" {
@@ -228,9 +225,8 @@ func (scope *fileScope) moduleExport(moduleSymbol *ast.Symbol, name string) *ast
 	return nil
 }
 
-// bindingElementPath returns the property names a destructuring element binds and the const / let
-// initializer they are read from (`const {routes} = client` gives [routes], client). A nil initializer means
-// the element is no path: a rest element, an array pattern, a `var`, or no initializer.
+// bindingElementPath gives `const {routes} = client` as ([routes], client).
+// A nil initializer means no path: a rest element, an array pattern, a `var`, or no initializer.
 func bindingElementPath(declaration *ast.Node) ([]string, *ast.Node) {
 	var path []string
 	node := declaration

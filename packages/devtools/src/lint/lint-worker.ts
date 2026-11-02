@@ -111,8 +111,7 @@ async function lintOne(request: LintWorkerRequest): Promise<LintWorkerResponse> 
       if (stage === 'scan' && message.includes('source file not in program:')) {
         return /\.(?:[cm]?js|jsx)$/i.test(scanned) ? {seq: request.seq, diagnostics: []} : {seq: request.seq, error: message};
       }
-      // Config failures are deterministic; keep the connection for the next lint.
-      // setSources reparses the config, so fixes apply on the next lint.
+      // Config failures are deterministic, so keep the connection: setSources reparses the config on the next lint.
       if (message.includes('config-tsconfig-not-loaded')) {
         return {
           seq: request.seq,

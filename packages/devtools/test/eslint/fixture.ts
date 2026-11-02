@@ -73,7 +73,7 @@ export function makeFixtureProject(files: Record<string, string> = {}): FixtureP
   return project;
 }
 
-// linkVue gives a fixture the repo's own `vue`, as a Vue project has it: lint reads `.vue` files with its compiler.
+// linkVue links the repo's `vue` into a fixture: lint reads `.vue` files with the project's own compiler.
 export function linkVue(project: FixtureProject): void {
   const target = path.join(project.dir, 'node_modules', 'vue');
   if (!fs.existsSync(target)) fs.symlinkSync(fs.realpathSync(path.join(ROOT, 'node_modules', 'vue')), target, 'dir');

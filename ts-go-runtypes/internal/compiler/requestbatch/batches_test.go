@@ -621,8 +621,7 @@ func depthChain(n int) string {
 	return chain
 }
 
-// Shape 9: rpc-batch-element-unreadable, every element the build cannot read, with the reason and
-// the element it points at.
+// Shape 9: rpc-batch-element-unreadable, every unreadable element with its reason and the element it points at.
 func TestShapes_Rejections_RpcBatchElementUnreadable(t *testing.T) {
 	cases := map[string]struct{ body, at, reason string }{
 		"spread":                          {routesBound + "const prepared = [routes.users.getById(1)];\nexport const b = batch([...prepared, routes.orders.list(1)]);", "...prepared", reasonSpread},

@@ -49,7 +49,7 @@ const CLIENT_DTS = `declare module '@mionjs/client' {
 }
 `;
 
-// The route map plus the one client every case file imports its routes from.
+// The route map plus the clients the case files import their routes from.
 const API = `import {initClient} from '@mionjs/client';
 export type Api = {
   users: {
@@ -472,8 +472,7 @@ describe('request-batch diagnostics and readable shapes', () => {
   });
 
   describe('rpc-batch-element-unreadable: element not readable', () => {
-    // Every entry: the case body, the substring that starts the offending
-    // element (its line is asserted), and the reason the headline must render.
+    // `needle` starts the offending element, whose line is asserted; `reason` must render in the headline.
     const rejected: Record<string, {body: string; needle: string; reason?: string | RegExp}> = {
       'spread element': {
         body: `const prepared = [routes.users.getById(1)];\nexport const b = batch([...prepared, routes.orders.list(1)]);\n`,

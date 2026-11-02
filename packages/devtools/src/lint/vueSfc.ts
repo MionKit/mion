@@ -1,14 +1,13 @@
-// A Vue SFC is not a file tsgo accepts, so the lint worker registers its <script> code under the build's
-// virtual `Comp.vue.<lang>` path (vite/sfcTransform.ts) and maps each finding back onto the `.vue` file.
-// ESLint (vue-eslint-parser) hands the rule the whole SFC; oxlint calls it once per <script> block with
-// only that block's text and rejects a report outside it.
+// tsgo cannot read a Vue SFC, so lint scans its <script> code under the build's virtual `Comp.vue.<lang>` path
+// (vite/sfcTransform.ts) and maps findings back. ESLint passes the whole SFC; oxlint passes one <script> block's
+// text and rejects a report outside it.
 
 import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import path from 'node:path';
 import type {Diagnostic, DiagnosticSite} from '../core/protocol.ts';
 
-/** The subset of @vue/compiler-sfc read here, the same parser the build's SFC pass uses. */
+/** Subset of @vue/compiler-sfc, the parser the build's SFC pass also uses. */
 interface SfcBlock {
   lang?: string;
   src?: string;
@@ -26,7 +25,7 @@ interface Position {
 interface VueLintSource {
   virtualFile: string;
   text: string;
-  /** The finding on the `.vue` file's (or oxlint block's) own lines, or undefined when it lies outside them. */
+  /** Undefined when the finding lies outside the `.vue` file's (or oxlint block's) own lines. */
   toVue(diagnostic: Diagnostic): Diagnostic | undefined;
 }
 
@@ -53,8 +52,7 @@ export function vueLintSource(file: string, text: string, readFile: (file: strin
     const virtualFile = virtualPath(file, blocks);
     return {virtualFile, text: scriptsOnly(text, blocks), toVue: (diagnostic) => remap(diagnostic, virtualFile, file)};
   }
-  // An oxlint block edited since the last save: alone it is the module the build compiles only when it is the
-  // file's one block; beside another block it would miss that block's types and report what the build does not.
+  // An oxlint block edited since the save: beside another block it lacks that block's types, so it reports nothing.
   return {
     virtualFile: diskVirtual,
     text,
@@ -90,8 +88,7 @@ function scriptBlocks(sfc: string, file: string): SfcBlock[] {
     .sort((first, second) => first.loc.start.offset - second.loc.start.offset);
 }
 
-// Same naming as vite/sfcTransform.ts, so relative imports resolve from the `.vue` file's own folder. No saved
-// block to read the language from: TypeScript, which also parses plain JavaScript.
+// Mirrors vite/sfcTransform.ts so relative imports resolve; no saved block falls back to `.ts`, which also parses JavaScript.
 function virtualPath(file: string, blocks: SfcBlock[]): string {
   if (!blocks.length) return `${file}.ts`;
   return `${file}.${blocks.find((block) => block.lang)?.lang ?? 'js'}`;
