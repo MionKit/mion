@@ -206,9 +206,7 @@ function bareVueFile(id: string): string | undefined {
   return file;
 }
 
-/** Keeps the injected code on the SAME number of lines as the source it replaces: the injected import block
- *  would otherwise shift every line below it and break plugin-vue's source map. The block sits after any
- *  directive prologue, so the fold starts at the first line the rewrite changed. */
+/** Keeps the SAME line count, or plugin-vue's source map breaks; the block may sit below a directive prologue. */
 export function foldImportBlock(source: string, transformed: string): string {
   const sourceLines = source.split('\n');
   const lines = transformed.split('\n');

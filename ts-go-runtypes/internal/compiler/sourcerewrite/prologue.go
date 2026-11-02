@@ -7,10 +7,9 @@ import (
 	"github.com/microsoft/typescript-go/shim/scanner"
 )
 
-// PrologueEnd is the byte offset just past a leading `#!` line and the file's directive prologue
-// (`"use client"`, `'use server'`, `"use strict"`, any string-literal directive). The import block must
-// land after it: a directive only counts while it is the first statement, and a shebang only on line 1.
-// 0 when the file has neither.
+// PrologueEnd is the byte offset past a leading `#!` line and the directive prologue (any leading string-literal
+// statement: `"use client"`, `'use server'`, `"use strict"`), 0 when the file has neither.
+// The import block lands after it: a directive only counts as the first statement, a shebang only on line 1.
 func PrologueEnd(sourceFile *ast.SourceFile) int {
 	end := len(scanner.GetShebang(sourceFile.Text()))
 	for _, statement := range sourceFile.Statements.Nodes {
@@ -22,10 +21,8 @@ func PrologueEnd(sourceFile *ast.SourceFile) int {
 	return end
 }
 
-// placeImportBlock picks where the import block goes for a prologue ending at byte `prologueEnd`: the
-// start of the next line when only blanks or comments follow on the prologue's line, so that line stays
-// untouched; otherwise right at prologueEnd, behind a newline so the block never fuses onto a directive
-// written without `;`. Returns the byte offset and the block text to insert there.
+// placeImportBlock picks the next line when only trivia follows the prologue on its line, leaving that line untouched;
+// otherwise prologueEnd behind a newline, so the block never fuses onto a directive written without `;`.
 func placeImportBlock(source string, prologueEnd int, importBlock string) (int, string) {
 	if prologueEnd == 0 || importBlock == "" {
 		return 0, importBlock

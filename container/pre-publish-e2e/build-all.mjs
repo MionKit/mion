@@ -92,8 +92,7 @@ const APP_LIST = [
   {name: 'smoke-bun-preload', adapter: 'bunPreload'},
   // Turbopack has no plugin API; next build requires a separate CLI process.
   // Next is not a workspace dependency; this supplies build coverage (packages/devtools/src/runtypes/next/AGENTS.md).
-  // `directiveProbes`: its "use client" / "use server" call sites (app/ClientProbe.tsx, app/actions.ts) are
-  // also built with `next build --webpack` and served by `next dev` on both bundlers.
+  // `directiveProbes` (app/ClientProbe.tsx, app/actions.ts): also `next build --webpack`, `next dev` on both bundlers.
   {name: 'smoke-next', adapter: 'next', directiveProbes: true},
   // The same Turbopack lane over the typed .ts cache modules emitMode 'ts' writes (its tsconfig asks for it).
   // No type-edit rebuild: smoke-next already proves it, and the mode changes nothing in it.
@@ -238,17 +237,14 @@ async function buildBunPreload(app) {
   runBun(path.join(APPS, app.name), ['--preload', './rt-preload.ts', 'src/run.ts']);
 }
 
-// Next owns its own output layout (.next/), so there is no dist/entry.js to
-// assert against; the page prerenders selfCheck() and the assertions read the
-// built HTML instead.
+// Next's .next/ layout has no dist/entry.js: the page prerenders selfCheck() and the assertions read the built HTML.
 async function buildNext(app) {
   const appDir = path.join(APPS, app.name);
   const nextBin = path.join(HERE, 'node_modules/next/dist/bin/next');
   const html = path.join(appDir, '.next/server/app/index.html');
   const run = (flags = []) =>
     execFileSync(process.execPath, [nextBin, 'build', ...flags], {cwd: appDir, stdio: 'inherit', env: {...process.env, NODE_ENV: 'production'}});
-  // Next fails outright when the injected imports land above a "use client" / "use server", so these runs
-  // prove the rewrite keeps the prologue first. build-outputs.test.mjs reads the final Turbopack build.
+  // Next fails if the injected imports land above a directive. Turbopack builds last: build-outputs.test.mjs reads it.
   if (app.directiveProbes) {
     run(['--webpack']);
     assertDirectiveIds(readFileSync(html, 'utf8'), `${app.name} (next build --webpack)`);
@@ -257,22 +253,12 @@ async function buildNext(app) {
   run();
   if (app.typeEdit === false) return;
 
-  // Second build, after editing a type the page reflects through an ERASED
-  // import (apps/smoke-next/typeDep.ts — `import type`, so Turbopack has no edge
-  // to it). The loader declares its type dependencies via addDependency; this
-  // proves declaring them does not break a Turbopack build and that the edit is
-  // picked up, with Next's persistent build cache in play.
-  //
-  // NB: `next build` re-runs loaders on every build, so this lane cannot fail
-  // for a MISSING declaration — the stale case lives in `next dev`. It is
-  // covered where it can actually be driven, in
-  // packages/devtools/test/type-deps-invalidation.test.ts, which
-  // re-transforms after a type edit and asserts the injected id moved.
+  // Rebuild after editing typeDep.ts (erased `import type`): Turbopack must accept the declared dep and see the edit.
+  // `next build` reruns loaders, so a MISSING type-dep declaration only shows in `next dev`:
+  // packages/devtools/test/type-deps-invalidation.test.ts covers that.
   const probe = path.join(appDir, 'typeDep.ts');
   const original = readFileSync(probe, 'utf8');
-  // Capture word characters only. The injected id is [A-Za-z0-9_], and React can
-  // emit comment separators (`<!-- -->`) inside a div, which a lazy match up to
-  // </div> would swallow into the captured value.
+  // \w+, not a lazy match up to </div>: React can emit `<!-- -->` separators inside the div.
   const injectedId = () => {
     if (!existsSync(html)) throw new Error(`smoke-next: no prerendered HTML at ${html} — did the build emit it?`);
     const id = /id="rt-typedep">(\w+)/.exec(readFileSync(html, 'utf8'))?.[1];
@@ -297,7 +283,6 @@ async function buildNext(app) {
 const MION_NEXT_PORT = 8088;
 const SMOKE_NEXT_DEV_PORT = 8089;
 
-// The ids the "use client" / "use server" call sites render; missing means the rewrite or the page broke.
 function assertDirectiveIds(rendered, where) {
   for (const probe of ['rt-use-client', 'rt-use-server']) {
     if (!new RegExp(`id="${probe}">\\w+`).test(rendered)) throw new Error(`${where}: no ${probe} id in the rendered page`);

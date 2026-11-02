@@ -21,10 +21,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// Apply rewrites `source` per the resolver's sites + replacements: call-site bindings, pure-fn
-// replacements and the single deduped import block after the prologue (PrologueEnd, 0 = none), then
-// generates a v3 source map. With no sites AND no replacements it returns (source, nil). `file` is
-// recorded as sources[0].
+// Apply rewrites `source` per sites + replacements, with one deduped import block after prologueEnd (0 = none).
+// It also returns a v3 source map; (source, nil) with no sites AND no replacements. `file` is sources[0].
 func Apply(file, source string, prologueEnd int, sites []protocol.Site, replacements []protocol.Replacement) (string, *protocol.SourceMap) {
 	if len(sites) == 0 && len(replacements) == 0 {
 		return source, nil

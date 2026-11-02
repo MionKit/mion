@@ -78,8 +78,7 @@ getRunTypeId(u);
     }
   );
 
-  // The import block goes AFTER the directive prologue: Next rejects a `"use client"` / `"use server"` that is not
-  // first. Both marker shapes, on both rewrite paths.
+  // Next rejects a directive that is not first, so the import block goes AFTER the prologue. Both marker shapes.
   runTest(
     'static getRunTypeId<T>() under "use client": both modes keep the directive first',
     {

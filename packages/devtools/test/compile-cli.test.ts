@@ -98,8 +98,7 @@ describe('mion compile (tsc-like CLI)', () => {
     }
   });
 
-  // Next rejects a `"use client"` / `"use server"` that is not the first statement, so the injected imports land
-  // after the prologue. compileDirective compiles one such file and returns its .js plus the decoded map.
+  // Next rejects a `"use client"` / `"use server"` that is not the first statement, so imports land after the prologue.
   const compileDirective = (call: string) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-compile-directive-'));
     try {

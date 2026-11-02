@@ -10,11 +10,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// applyComputed is the reference applier the FE mirrors: the import block first,
-// at importAt, then each point/span edit against
-// the ORIGINAL source via the same EditBuffer Apply uses. If ComputeEdits' output
-// run through this reproduces Apply's output, the edit list is a faithful
-// description of the rewrite and the two transform modes cannot diverge.
+// applyComputed is the reference applier the FE mirrors: import block first, then each edit on the ORIGINAL source.
+// Reproducing Apply's output proves the edit list describes the rewrite, so the two modes cannot diverge.
 func applyComputed(file, source, importBlock string, importAt int, edits []protocol.Edit) (string, *protocol.SourceMap) {
 	// Mirror Apply's no-rewrite short-circuit: nothing to apply → original
 	// source, nil map (the FE plugin returns null in this case).
