@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {describe, expect, it, beforeAll, afterAll, vi} from 'vitest';
+import {describe, expect, it, beforeAll, afterAll, afterEach, vi} from 'vitest';
 import {mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync} from 'node:fs';
 import {createServer as createHttpServer, type Server} from 'node:http';
 import path from 'node:path';
@@ -108,15 +108,23 @@ async function closeQuietly(server: ViteDevServer | undefined): Promise<void> {
   await Promise.race([server.close(), new Promise((resolve) => setTimeout(resolve, 5000))]);
 }
 
-function devServer(root: string, sfc?: boolean): Promise<ViteDevServer> {
+/** `extra` adds aliases and preset options, for a fixture that also mounts an API. */
+function devServer(
+  root: string,
+  sfc?: boolean,
+  extra: {alias?: Record<string, string>; runTypes?: {genDir?: string}; server?: {entry: string}} = {}
+): Promise<ViteDevServer> {
   return createServer({
     root,
     configFile: false,
     logLevel: 'silent',
     appType: 'custom',
-    resolve: markerAlias(root),
+    resolve: {alias: {...markerAlias(root).alias, ...extra.alias}},
     server: {middlewareMode: true},
-    plugins: [mionVitePlugin({tsConfig: path.join(root, 'tsconfig.json'), runTypes: {sfc}}), vue()],
+    plugins: [
+      mionVitePlugin({tsConfig: path.join(root, 'tsconfig.json'), runTypes: {sfc, ...extra.runTypes}, server: extra.server}),
+      vue(),
+    ],
   });
 }
 
@@ -351,15 +359,22 @@ describe('import block fold', () => {
   });
 });
 
-// A batch only inside a .vue file is unknown to the program the API first loads with: the SFC pass registers it
-// when the page is transformed, and the table appears then. No watcher event reports that in time, so the preset
-// must mark the in-process API stale itself, or every fresh `vite dev` answers batch-unknown-id.
-describe('a batch first seen in a .vue file', () => {
+// The in-process API, run through the real preset, with its genDir outside the vite root (a Nuxt layout).
+// - A batch only inside a .vue file is unknown to the program the API first loads with: the SFC pass registers it
+//   when the page is transformed, and no watcher event reports the table appearing, so the preset marks the API
+//   stale itself.
+// - A type the API reaches only through `import type` is erased from its module graph; its edit rewrites the
+//   generated module the API imports, and that change reloads it.
+describe('the in-process API under vite dev', () => {
   const SERVER = `import {createMionRouter} from '@mionjs/router';
+import {createValidateFn} from '@mionjs/run-types';
+import type {User} from './models.ts';
 export const mion = createMionRouter();
 mion.initRoutes({});
+export const validateUser = createValidateFn<User>();
+(globalThis as any).__apiLoads = ((globalThis as any).__apiLoads ?? 0) + 1;
 export function httpRequestHandler(req: unknown, res: {end: (body: string) => void}): void {
-  res.end(JSON.stringify(Object.keys((globalThis as any).__table ?? {})));
+  res.end(JSON.stringify({batches: Object.keys((globalThis as any).__table ?? {}), loads: (globalThis as any).__apiLoads}));
 }
 `;
   const PAGE = `<template><div>orders</div></template>
@@ -386,14 +401,19 @@ export const replaceBatches = (table) => { globalThis.__table = table; };
   let server: ViteDevServer | undefined;
   let http: Server | undefined;
 
-  afterAll(async () => {
+  afterEach(async () => {
     await new Promise<void>((resolve) => (http ? http.close(() => resolve()) : resolve()));
     await closeQuietly(server);
     rmSync(root, {recursive: true, force: true});
+    rmSync(`${root}-gen`, {recursive: true, force: true});
+    http = undefined;
+    server = undefined;
     delete (globalThis as any).__table;
+    delete (globalThis as any).__apiLoads;
   });
 
-  it('reaches the running API once the page registers it, with no file touched', async () => {
+  /** Boots the fixture app with its API mounted, and returns a caller for the API. */
+  async function startApi(): Promise<() => Promise<{batches: string[]; loads: number}>> {
     root = writeFixture({
       'src/client.d.ts': CLIENT_DTS,
       'src/router.d.ts': ROUTER_DTS,
@@ -403,37 +423,37 @@ export const replaceBatches = (table) => { globalThis.__table = table; };
       ...STUBS,
     });
     const stub = (name: string) => path.join(root, name);
-    server = await createServer({
-      root,
-      configFile: false,
-      logLevel: 'silent',
-      appType: 'custom',
-      resolve: {
-        alias: {
-          ...markerAlias(root).alias,
-          '@mionjs/router': stub('router-stub.js'),
-          '@mionjs/core': stub('core-stub.js'),
-          '@mionjs/client': stub('client-stub.js'),
-        },
+    server = await devServer(root, undefined, {
+      alias: {
+        '@mionjs/router': stub('router-stub.js'),
+        '@mionjs/core': stub('core-stub.js'),
+        '@mionjs/client': stub('client-stub.js'),
       },
-      server: {middlewareMode: true},
-      plugins: [
-        mionVitePlugin({
-          tsConfig: path.join(root, 'tsconfig.json'),
-          runTypes: {genDir: path.join(root, '.mion')},
-          server: {entry: path.join(root, 'src/server.ts')},
-        }),
-        vue(),
-      ],
+      runTypes: {genDir: `${root}-gen`},
+      server: {entry: path.join(root, 'src/server.ts')},
     });
-    const devServer = server;
-    http = createHttpServer((req, res) => devServer.middlewares(req, res));
+    const devServerInstance = server;
+    http = createHttpServer((req, res) => devServerInstance.middlewares(req, res));
     await new Promise<void>((resolve) => http!.listen(0, resolve));
     const api = `http://127.0.0.1:${(http!.address() as {port: number}).port}/rpc`;
+    return async () => (await fetch(api, {method: 'POST'})).json() as Promise<{batches: string[]; loads: number}>;
+  }
 
-    expect(await (await fetch(api, {method: 'POST'})).json()).toEqual([]);
-    await server.transformRequest('/src/Page.vue');
-    const ids = (await (await fetch(api, {method: 'POST'})).json()) as string[];
-    expect(ids).toHaveLength(1);
+  it('learns a batch first seen in a .vue file, with no file touched', async () => {
+    const callApi = await startApi();
+    expect((await callApi()).batches).toEqual([]);
+    await server!.transformRequest('/src/Page.vue');
+    expect((await callApi()).batches).toHaveLength(1);
+  }, 180_000);
+
+  it('reloads after an edit to a type it only imports with `import type`', async () => {
+    const callApi = await startApi();
+    expect((await callApi()).loads).toBe(1);
+    const models = path.join(root, 'src/models.ts');
+    writeFileSync(models, `export type User = {name: string; age: number; country: string};\n`);
+    server!.watcher.emit('change', models);
+    // the resolver re-scans asynchronously, as in the type-dependency test above
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    expect((await callApi()).loads).toBe(2);
   }, 180_000);
 });
