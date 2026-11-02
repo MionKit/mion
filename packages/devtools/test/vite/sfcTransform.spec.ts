@@ -12,7 +12,7 @@ import {fileURLToPath} from 'node:url';
 import {build, createServer, type ViteDevServer} from 'vite';
 import vue from '@vitejs/plugin-vue';
 import {mionVitePlugin} from '../../src/vite/mionVitePlugin.ts';
-import {createVirtualSiteMap} from '../../src/vite/sfcTransform.ts';
+import {createVirtualSiteMap, foldImportBlock} from '../../src/vite/sfcTransform.ts';
 import {writeMarkerPackage} from '../helpers/inline.ts';
 
 // Typed mion code inside a .vue <script> used to be silently untransformed. These run the REAL
@@ -330,4 +330,21 @@ describe('type-dependency invalidation', () => {
     expect(secondId).toBeTruthy();
     expect(secondId).not.toBe(firstId);
   }, 180_000);
+});
+
+describe('import block fold', () => {
+  const block = "import {__rt_A} from 'rtmod:/A.js';";
+
+  it('folds a block at the top onto the first script line', () => {
+    const source = '\nconst a = f();\n';
+    expect(foldImportBlock(source, `${block}\n\nconst a = f(__rt_A);\n`)).toBe(`${block} \nconst a = f(__rt_A);\n`);
+  });
+
+  it('folds a block below a directive onto the line after it, leaving the directive line alone', () => {
+    const source = "\n'use strict';\nconst a = f();\n";
+    const transformed = `\n'use strict';\n${block}\nconst a = f(__rt_A);\n`;
+    const folded = foldImportBlock(source, transformed);
+    expect(folded).toBe(`\n'use strict';\n${block} const a = f(__rt_A);\n`);
+    expect(folded.split('\n').length).toBe(source.split('\n').length);
+  });
 });
