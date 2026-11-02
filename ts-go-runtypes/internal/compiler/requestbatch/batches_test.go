@@ -10,6 +10,7 @@ import (
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/comptimeargs"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
@@ -314,12 +315,14 @@ func TestShapes_RootShapes(t *testing.T) {
 		"element access":                     routesBound + "export const b = batch([routes['users'].getById(1)]);",
 		"element access whole chain":         "const c = initClient<Routes>();\nexport const b = batch([c['routes']['users']['getById'](1)]);",
 		"renamed initClient import":          "import {initClient as makeClient, batch} from '@mionjs/client';\n" + routesType + "const {routes} = makeClient<Routes>();\nexport const b = batch([routes.users.getById(1)]);",
-		"destructured from a client":         "const c = initClient<Routes>();\nconst {routes} = c;\nexport const b = batch([routes.users.getById(1)]);",
-		"destructured renamed from a client": "const c = initClient<Routes>();\nconst {routes: r} = c;\nexport const b = batch([r.users.getById(1)]);",
-		"nested from a client":               "const c = initClient<Routes>();\nconst {routes: {users}} = c;\nexport const b = batch([users.getById(1)]);",
-		"destructured from client.routes":    "const c = initClient<Routes>();\nconst {users} = c.routes;\nexport const b = batch([users.getById(1)]);",
-		"destructured through a const chain": "const c = initClient<Routes>();\nconst alias = c;\nconst {routes} = alias;\nexport const b = batch([routes.users.getById(1)]);",
-		"destructured from a wrapped client": "const c = initClient<Routes>();\nconst {routes} = (c as typeof c)!;\nexport const b = batch([routes.users.getById(1)]);",
+		"destructured from a client":         "const client = initClient<Routes>();\nconst {routes} = client;\nexport const b = batch([routes.users.getById(1)]);",
+		"destructured renamed from a client": "const client = initClient<Routes>();\nconst {routes: api} = client;\nexport const b = batch([api.users.getById(1)]);",
+		"nested from a client":               "const client = initClient<Routes>();\nconst {routes: {users}} = client;\nexport const b = batch([users.getById(1)]);",
+		"destructured from client.routes":    "const client = initClient<Routes>();\nconst {users} = client.routes;\nexport const b = batch([users.getById(1)]);",
+		"destructured through a const chain": "const client = initClient<Routes>();\nconst alias = client;\nconst {routes} = alias;\nexport const b = batch([routes.users.getById(1)]);",
+		"destructured from a wrapped client": "const client = initClient<Routes>();\nconst {routes} = (client as typeof client)!;\nexport const b = batch([routes.users.getById(1)]);",
+		"initClient() inline in the chain":   "export const b = batch([initClient<Routes>().routes.users.getById(1)]);",
+		"routes read off initClient()":       "const routes = initClient<Routes>().routes;\nexport const b = batch([routes.users.getById(1)]);",
 		"namespace initClient import":        "import * as client from '@mionjs/client';\nimport {batch} from '@mionjs/client';\n" + routesType + "const {routes} = client.initClient<Routes>();\nexport const b = batch([routes.users.getById(1)]);",
 	}
 	for name, body := range cases {
@@ -609,6 +612,15 @@ func TestShapes_Silent(t *testing.T) {
 	}
 }
 
+// depthChain binds the client through `n` aliases, alias0 the farthest from initClient().
+func depthChain(n int) string {
+	chain := "const alias" + strconv.Itoa(n) + " = initClient<Routes>();\n"
+	for i := n - 1; i >= 0; i-- {
+		chain += "const alias" + strconv.Itoa(i) + " = alias" + strconv.Itoa(i+1) + ";\n"
+	}
+	return chain
+}
+
 // Shape 9: rpc-batch-element-unreadable, every element the build cannot read, with the reason and
 // the element it points at.
 func TestShapes_Rejections_RpcBatchElementUnreadable(t *testing.T) {
@@ -636,13 +648,14 @@ func TestShapes_Rejections_RpcBatchElementUnreadable(t *testing.T) {
 		"parameter binding":               {routesBound + "export function f(u: RouteSubRequest<any>) { return batch([u, routes.users.getById(1)]); }", "batch([u", reasonNotBound},
 		"same-shaped object":              {"const fake = {routes: {users: {getById: (id: number): RouteSubRequest<any> => ({id: 'x'})}}};\nexport const b = batch([fake.routes.users.getById(1)]);", "getById(1)]", reasonNotRoutesProxy},
 		"arbitrary expression":            {routesBound + "export const b = batch([routes.users.getById(1), Promise.resolve(1) as unknown as RouteSubRequest<any>]);", "RouteSubRequest<any>]", reasonNotRouteCall},
-		"call in the chain":               {"export const b = batch([initClient<Routes>().routes.users.getById(1)]);", "getById(1)]", reasonCallResult},
 		"destructured from a helper call": {"function useApi() { return initClient<Routes>(); }\nconst {routes} = useApi();\nexport const b = batch([routes.users.getById(1)]);", "getById(1)]", reasonCallResult},
 		"destructured from inject()":      {"declare function inject<T>(key: string): T;\nconst {routes} = inject<ReturnType<typeof initClient<Routes>>>('api');\nexport const b = batch([routes.users.getById(1)]);", "getById(1)]", reasonCallResult},
-		"client bound to a call result":   {"declare function inject<T>(key: string): T;\nconst c = inject<ReturnType<typeof initClient<Routes>>>('api')!;\nexport const b = batch([c.routes.users.getById(1)]);", "getById(1)]", reasonCallResult},
+		"client bound to a call result":   {"declare function inject<T>(key: string): T;\nconst client = inject<ReturnType<typeof initClient<Routes>>>('api')!;\nexport const b = batch([client.routes.users.getById(1)]);", "getById(1)]", reasonCallResult},
 		"routes read off a call result":   {"declare function useApp(): {$client: ReturnType<typeof initClient<Routes>>};\nexport const b = batch([useApp().$client.routes.users.getById(1)]);", "getById(1)]", reasonCallResult},
-		"destructured from a parameter":   {"export function f(c: ReturnType<typeof initClient<Routes>>) { const {routes} = c; return batch([routes.users.getById(1)]); }", "getById(1)]", reasonNotRoutesProxy},
-		"destructured let reassigned":     {"const c = initClient<Routes>();\nlet {routes} = c;\nroutes = c.routes;\nexport const b = batch([routes.users.getById(1)]);", "getById(1)]", reasonReassigned},
+		"destructured from a parameter":   {"export function f(client: ReturnType<typeof initClient<Routes>>) { const {routes} = client; return batch([routes.users.getById(1)]); }", "getById(1)]", reasonNotRoutesProxy},
+		"destructured let reassigned":     {"const client = initClient<Routes>();\nlet {routes} = client;\nroutes = client.routes;\nexport const b = batch([routes.users.getById(1)]);", "getById(1)]", reasonReassigned},
+		"destructured from a ternary":     {"const client = initClient<Routes>();\ndeclare const flag: boolean;\nconst {routes} = flag ? client : client;\nexport const b = batch([routes.users.getById(1)]);", "getById(1)]", reasonNotRoutesProxy},
+		"destructured past the depth cap": {depthChain(comptimeargs.DepthCap) + "const {routes} = alias0;\nexport const b = batch([routes.users.getById(1)]);", "getById(1)]", reasonDepthCap},
 	}
 	for name, testCase := range cases {
 		t.Run(name, func(t *testing.T) {
