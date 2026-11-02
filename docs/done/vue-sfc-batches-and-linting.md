@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-11-02
 ---
 
@@ -126,3 +126,14 @@ only an API built in the same Vite run; a separately built API answers `batch-un
 Gate: `go -C ts-go-runtypes test ./internal/...`, rebuild binary + `@mionjs/devtools`, `pnpm test`, `pnpm run lint`,
 `pnpm run format`. Reconcile spec, append this plan, `git mv` to `docs/done/`. review-pr, then docs-simplifier +
 comments-simplifier in parallel (own commits). PR linking parent session, CI to green. No fuzzing: fix, not feature.
+
+## What shipped
+
+- Batch reader: a destructure now follows its initializer like a plain `const` does (`initializerPath` in
+  `requestbatch/routes.go`). Tracing stops at any function call; those get the reason "client comes from a function
+  call the build cannot follow". The message and prose now say `routes` must trace to `initClient()`.
+- `.vue` lint: `packages/devtools/src/lint/vueSfc.ts`, used by `lint-worker.ts`. Script detection is a small regex
+  scanner (no `@vue/compiler-sfc` dependency in the lint path).
+- SFC-only batches: documented only. A separately built API never reads `.vue` files, so no build diagnostic can
+  see the gap. The docs say to keep such batches in `.ts` files; whether a one-config build picks up `.vue` batches
+  belongs to the dev-reload work and is not claimed.
