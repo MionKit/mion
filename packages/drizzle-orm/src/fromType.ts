@@ -123,8 +123,11 @@ function buildColumn(
     const method = member.name as string;
     const shortcut = shortcuts?.[method];
     if (shortcut) {
-      const [shortcutMethod, args] = shortcut(literalValueOf(member.child as ReflectedNode, `${key}.${method}`));
-      recorder.record(shortcutMethod, args === true ? [] : [...args]);
+      const [shortcutMethod, shortcutArgs] = shortcut(
+        literalValueOf(member.child as ReflectedNode, `${key}.${method}`),
+        configMembers.map((configMember) => configMember.name as string)
+      );
+      recorder.record(shortcutMethod, [...shortcutArgs]);
       continue;
     }
     if (!isColModName(method) || method === '$type') continue;

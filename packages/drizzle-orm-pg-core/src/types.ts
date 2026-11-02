@@ -75,12 +75,11 @@ export interface PgUuidColMods extends PgColMods {
 export interface PgUuidConfig {
   version?: '4' | '7';
 }
-/** A version is the default already, so it refuses a second one. */
-// Mapped over the props, as Only is: a conditional on the whole props would be a circular constraint.
-export type UuidOneDefault<C> = {
-  [K in keyof C]: K extends 'default' | 'defaultRandom' ? ('version' extends keyof C ? never : unknown) : unknown;
-};
-export type UuidData<C> = C extends {version: '7'} ? UUIDv7 : C extends {version: '4'} ? UUIDv4 : UUID;
+/** The model type of each uuid version. */
+export interface UuidByVersion {
+  '4': UUIDv4;
+  '7': UUIDv7;
+}
 /** smallint / integer / bigint: + the identity modifiers. */
 export interface PgIntColMods extends PgColMods {
   generatedAlwaysAsIdentity?: true | readonly [PgIdentityConfig];

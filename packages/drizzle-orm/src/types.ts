@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {rtColNameKey, rtColSpecKey, rtEntrySpecKey, rtNamedColumnKey, rtSqlTextKey} from './columns.ts';
+import type {ColModName, rtColNameKey, rtColSpecKey, rtEntrySpecKey, rtNamedColumnKey, rtSqlTextKey} from './columns.ts';
 import type {RtColumnRecorder, rtColumnKey, rtTableBrand, rtViewBrand} from './recorder.ts';
 
 // ── Column types ─────────────────────────────────────────────────────────────
@@ -89,8 +89,6 @@ type NotNullKeys = 'notNull' | 'primaryKey' | 'generatedAlwaysAsIdentity' | 'gen
 // Mirrors the builders: generated and identity columns carry a default, so they are never required on insert.
 type DefaultKeys =
   | 'default'
-  // pg uuid: the version sets the matching default
-  | 'version'
   | 'defaultNow'
   | 'defaultRandom'
   | 'generatedAlwaysAs'
@@ -266,10 +264,11 @@ export type BuildTableFn = (
   extraConfigReplay?: (dzExtraColumns: Record<string, unknown>) => unknown[] | Record<string, unknown>
 ) => unknown;
 
-/** A dialect setting drizzle lacks (pg uuid `version`), replayed as the modifier call it stands for. */
-export type ColumnShortcut = (value: unknown) => readonly [method: string, args: true | readonly unknown[]];
-/** A builder's shortcuts by props key. */
-export type ColumnShortcuts = Readonly<Record<string, ColumnShortcut>>;
+/** A builder's settings drizzle lacks (pg uuid `version`), by props key, each replayed as the modifier call it stands for.
+ *  Gets the column's other props keys too, to refuse a clash. */
+export type ColumnShortcuts = Readonly<
+  Record<string, (value: unknown, propKeys: readonly string[]) => readonly [method: ColModName, args: readonly unknown[]]>
+>;
 
 /** A view's type: the table meta minus extras, since a view has none. */
 export interface RtViewMeta<Name extends string, Cols, Names = NoNames> {
