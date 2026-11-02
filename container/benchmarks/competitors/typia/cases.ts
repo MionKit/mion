@@ -2499,7 +2499,7 @@ export const cases: CompetitorCases = {
     },
   },
   // typia's own IPv4 octet rule (`_isFormatIpv4`) + a 1-5 digit port <= 65535, leading zeros allowed like mion.
-  // Port required, stricter than mion, which accepts a missing port.
+  // Port required, like mion.
   'STRING_FORMAT.ipv4_port': {
     build: () => {
       const check = typia.createIs<
