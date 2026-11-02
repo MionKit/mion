@@ -6,15 +6,24 @@
 import {EditBuffer, type SourceMap} from './edit-buffer.ts';
 import type {Edit} from './protocol.ts';
 
-// applyEdits prepends `importBlock` verbatim (the resolver already relativized it for files-mode) and
-// lands the edits against ORIGINAL coordinates, so their order is irrelevant. `file` names sources[0].
-export function applyEdits(file: string, code: string, importBlock: string, edits: Edit[]): {code: string; map: SourceMap} {
+// applyEdits inserts `importBlock` verbatim (the resolver already relativized it for files-mode) at
+// `importAt`, past any `#!` line and directive prologue, prepending at 0. It goes in before the edits so
+// it precedes any other insertion at the same offset; the edits land against ORIGINAL coordinates, so
+// their order is irrelevant. `file` names sources[0].
+export function applyEdits(
+  file: string,
+  code: string,
+  importBlock: string,
+  importAt: number,
+  edits: Edit[]
+): {code: string; map: SourceMap} {
   const buffer = new EditBuffer(code);
+  if (importBlock && importAt === 0) buffer.prepend(importBlock);
+  else if (importBlock) buffer.appendLeft(importAt, importBlock);
   for (const edit of edits) {
     if (edit.start === edit.end) buffer.appendLeft(edit.start, edit.text);
     else buffer.update(edit.start, edit.end, edit.text);
   }
-  if (importBlock) buffer.prepend(importBlock);
   const map = buffer.generateMap({source: file, includeContent: true});
   return {code: buffer.toString(), map};
 }

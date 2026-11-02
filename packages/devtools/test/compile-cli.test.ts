@@ -98,6 +98,49 @@ describe('mion compile (tsc-like CLI)', () => {
     }
   });
 
+  // Next rejects a `"use client"` / `"use server"` that is not the first statement, so the injected imports land
+  // after the prologue. Both getRunTypeId shapes (marker coverage rule).
+  register('keeps a "use client" directive first in the emitted .js', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-compile-directive-'));
+    try {
+      fs.writeFileSync(path.join(dir, 'tsconfig.json'), TSCONFIG);
+      fs.mkdirSync(path.join(dir, 'src'));
+      writeMarkerPackage(dir);
+      fs.writeFileSync(
+        path.join(dir, 'src', 'client.ts'),
+        `"use client";
+import {getRunTypeId} from '@mionjs/run-types';
+interface User {
+  id: number;
+}
+const user: User = {id: 1};
+export const staticId = getRunTypeId<User>();
+export const valueId = getRunTypeId(user);
+`
+      );
+      const run = runCli(['compile', '--cwd', dir, '--tsconfig', 'tsconfig.json', '--gen-dir', path.join(dir, '.mion')], {
+        label: 'compile-cli-directive',
+      });
+      expect(run.status, run.report).toBe(0);
+
+      const js = fs.readFileSync(path.join(dir, 'dist', 'client.js'), 'utf8');
+      expect(js).toMatch(
+        /^"use client";\nimport \{\s*__rt_[A-Za-z0-9_$]+\s*\} from '\.\.\/\.mion\/types\/[A-Za-z0-9_$/]+\.js';\n/
+      );
+      expect(js).toMatch(/getRunTypeId\(undefined, __rt_[A-Za-z0-9_$]+\)/);
+      expect(js).toMatch(/getRunTypeId\(user, __rt_[A-Za-z0-9_$]+\)/);
+
+      // The map still lands on the original lines: the directive on 0, the value call on 7.
+      const map = JSON.parse(fs.readFileSync(path.join(dir, 'dist', 'client.js.map'), 'utf8'));
+      const segments = decodeMappings(map.mappings);
+      expect(segments[0].map((s) => s.originalLine)).toContain(0);
+      const valueLine = js.split('\n').findIndex((line) => line.includes('getRunTypeId(user'));
+      expect(segments[valueLine].map((s) => s.originalLine)).toContain(7);
+    } finally {
+      fs.rmSync(dir, {recursive: true, force: true});
+    }
+  });
+
   // validate-method-dropped (a skipped method) is Info: hidden by default, printed with tsconfig `levels: "all"`, never a failure.
   // Both getRunTypeId shapes ride along (marker coverage rule) and must compile clean.
   const METHOD_TS = `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';

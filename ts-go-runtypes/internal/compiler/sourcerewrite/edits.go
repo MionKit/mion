@@ -2,7 +2,7 @@ package sourcerewrite
 
 // edits.go — the 'edits'-mode counterpart to Apply: ComputeEdits returns the raw edit list for the
 // FE to apply with its own EditBuffer (packages/devtools/src/core/apply-edits.ts) instead of
-// rewriting here. Both modes share the SAME buildGroupInsertion / buildImportBlock / makeByteToChar,
+// rewriting here. Both modes share the SAME buildGroupInsertion / buildImportBlock / placeImportBlock / makeByteToChar,
 // and the FE applier calls prepend / appendLeft / update in the identical sequence Apply does, so
 // the code + map come out byte-identical by construction. Edit offsets are UTF-16 code units, what
 // the JS string applier indexes, converted from the resolver's byte offsets here.
@@ -14,17 +14,19 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// ComputeEdits derives the same edits Apply would make and returns them for the FE. importBlock is
-// prepended at offset 0 and still carries rtmod: specifiers, which the caller relativizes for
-// files-mode; edits are flat point/span edits in UTF-16 offsets. ("", nil) when there is nothing to
-// rewrite, matching Apply's (source, nil) short-circuit.
-func ComputeEdits(source string, sites []protocol.Site, replacements []protocol.Replacement) (string, []protocol.Edit) {
+// ComputeEdits derives the same edits Apply would make and returns them for the FE. importBlock goes in
+// at importAt (UTF-16; 0 = prepend), before every other edit, and still carries rtmod: specifiers,
+// which the caller relativizes for files-mode; edits are flat point/span edits in UTF-16 offsets.
+// ("", 0, nil) when there is nothing to rewrite, matching Apply's (source, nil) short-circuit.
+func ComputeEdits(source string, prologueEnd int, sites []protocol.Site, replacements []protocol.Replacement) (string, int, []protocol.Edit) {
 	if len(sites) == 0 && len(replacements) == 0 {
-		return "", nil
+		return "", 0, nil
 	}
+	importByte, importBlock := placeImportBlock(source, prologueEnd, buildImportBlock(sites, replacements))
 
 	units := utf16.Encode([]rune(source))
-	byteOffsets := make([]int, 0, len(sites)+2*len(replacements))
+	byteOffsets := make([]int, 0, len(sites)+2*len(replacements)+1)
+	byteOffsets = append(byteOffsets, importByte)
 	for _, site := range sites {
 		byteOffsets = append(byteOffsets, site.Pos)
 	}
@@ -45,7 +47,7 @@ func ComputeEdits(source string, sites []protocol.Site, replacements []protocol.
 		edits = append(edits, protocol.Edit{Start: toChar(rep.Start), End: toChar(rep.End), Text: rep.Text})
 	}
 
-	return buildImportBlock(sites, replacements), edits
+	return importBlock, toChar(importByte), edits
 }
 
 // SourceHash is the consistency guard for 'edits' mode: FNV-1a/32 over the EXACT source bytes the

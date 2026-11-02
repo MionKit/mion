@@ -10,12 +10,12 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// applyComputed is the reference applier the FE mirrors: prepend the import
-// block, then apply each point/span edit against the ORIGINAL source via the
-// same EditBuffer Apply uses. If ComputeEdits' output run through this
-// reproduces Apply's output, the edit list is a faithful description of the
-// rewrite and the two transform modes cannot diverge.
-func applyComputed(file, source, importBlock string, edits []protocol.Edit) (string, *protocol.SourceMap) {
+// applyComputed is the reference applier the FE mirrors: the import block first
+// (prepended at 0, else inserted at importAt), then each point/span edit against
+// the ORIGINAL source via the same EditBuffer Apply uses. If ComputeEdits' output
+// run through this reproduces Apply's output, the edit list is a faithful
+// description of the rewrite and the two transform modes cannot diverge.
+func applyComputed(file, source, importBlock string, importAt int, edits []protocol.Edit) (string, *protocol.SourceMap) {
 	// Mirror Apply's no-rewrite short-circuit: nothing to apply → original
 	// source, nil map (the FE plugin returns null in this case).
 	if importBlock == "" && len(edits) == 0 {
@@ -23,15 +23,17 @@ func applyComputed(file, source, importBlock string, edits []protocol.Edit) (str
 	}
 	units := utf16.Encode([]rune(source))
 	eb := newEditBuffer(units)
+	if importBlock != "" && importAt == 0 {
+		eb.prepend(importBlock)
+	} else if importBlock != "" {
+		eb.appendLeft(importAt, importBlock)
+	}
 	for _, edit := range edits {
 		if edit.Start == edit.End {
 			eb.appendLeft(edit.Start, edit.Text)
 		} else {
 			eb.update(edit.Start, edit.End, edit.Text)
 		}
-	}
-	if importBlock != "" {
-		eb.prepend(importBlock)
 	}
 	return eb.string(), eb.generateMap(file, source)
 }
@@ -59,9 +61,9 @@ func TestComputeEdits_MatchesApply(t *testing.T) {
 				t.Fatalf("unmarshal %s: %v", path, err)
 			}
 
-			wantCode, wantMap := Apply(tc.File, tc.Code, tc.Sites, tc.Replacements)
-			importBlock, edits := ComputeEdits(tc.Code, tc.Sites, tc.Replacements)
-			gotCode, gotMap := applyComputed(tc.File, tc.Code, importBlock, edits)
+			wantCode, wantMap := Apply(tc.File, tc.Code, tc.PrologueEnd, tc.Sites, tc.Replacements)
+			importBlock, importAt, edits := ComputeEdits(tc.Code, tc.PrologueEnd, tc.Sites, tc.Replacements)
+			gotCode, gotMap := applyComputed(tc.File, tc.Code, importBlock, importAt, edits)
 
 			if gotCode != wantCode {
 				t.Errorf("code mismatch\n got: %q\nwant: %q", gotCode, wantCode)
@@ -92,7 +94,7 @@ func TestComputeEdits_Offsets_UTF16(t *testing.T) {
 	source := "🦄x"
 	byteOfX := len("🦄") // 4
 	sites := []protocol.Site{{File: "u.ts", Pos: byteOfX, ID: "abc"}}
-	_, edits := ComputeEdits(source, sites, nil)
+	_, _, edits := ComputeEdits(source, 0, sites, nil)
 	if len(edits) != 1 {
 		t.Fatalf("expected 1 edit, got %d", len(edits))
 	}

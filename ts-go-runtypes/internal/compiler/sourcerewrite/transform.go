@@ -22,16 +22,19 @@ import (
 )
 
 // Apply rewrites `source` per the resolver's sites + replacements: call-site bindings, pure-fn
-// replacements and the single deduped import block at offset 0, then generates a v3 source map.
-// With no sites AND no replacements it returns (source, nil). `file` is recorded as sources[0].
-func Apply(file, source string, sites []protocol.Site, replacements []protocol.Replacement) (string, *protocol.SourceMap) {
+// replacements and the single deduped import block after the prologue (PrologueEnd, 0 = none), then
+// generates a v3 source map. With no sites AND no replacements it returns (source, nil). `file` is
+// recorded as sources[0].
+func Apply(file, source string, prologueEnd int, sites []protocol.Site, replacements []protocol.Replacement) (string, *protocol.SourceMap) {
 	if len(sites) == 0 && len(replacements) == 0 {
 		return source, nil
 	}
+	importAt, importBlock := placeImportBlock(source, prologueEnd, buildImportBlock(sites, replacements))
 
 	// Source is edited in UTF-16 units, matching the JS string the EditBuffer indexes.
 	units := utf16.Encode([]rune(source))
-	byteOffsets := make([]int, 0, len(sites)+2*len(replacements))
+	byteOffsets := make([]int, 0, len(sites)+2*len(replacements)+1)
+	byteOffsets = append(byteOffsets, importAt)
 	for _, site := range sites {
 		byteOffsets = append(byteOffsets, site.Pos)
 	}
@@ -41,6 +44,13 @@ func Apply(file, source string, sites []protocol.Site, replacements []protocol.R
 	toChar := makeByteToChar(source, units, byteOffsets)
 
 	editBuffer := newEditBuffer(units)
+	// Offset 0 keeps the plain prepend. Past a prologue the block goes in first, so it precedes any other
+	// insertion at the same offset.
+	if importBlock != "" && importAt == 0 {
+		editBuffer.prepend(importBlock)
+	} else if importBlock != "" {
+		editBuffer.appendLeft(toChar(importAt), importBlock)
+	}
 	// The EditBuffer resolves every edit against ORIGINAL coordinates, so order is irrelevant.
 	for _, group := range groupSitesByPos(sites) {
 		editBuffer.appendLeft(toChar(group[0].Pos), buildGroupInsertion(group))
@@ -52,11 +62,6 @@ func Apply(file, source string, sites []protocol.Site, replacements []protocol.R
 			editBuffer.update(toChar(rep.Start), toChar(rep.End), rep.Text)
 		}
 	}
-	importBlock := buildImportBlock(sites, replacements)
-	if importBlock != "" {
-		editBuffer.prepend(importBlock)
-	}
-
 	sourceMap := editBuffer.generateMap(file, source)
 	return editBuffer.string(), sourceMap
 }

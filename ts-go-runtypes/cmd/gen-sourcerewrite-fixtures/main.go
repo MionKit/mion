@@ -12,7 +12,7 @@
 // itself from a real type-check scan, so it cannot accept the SYNTHETIC sites the
 // fixtures pin (fabricated typeIds, multi-fn binding arrays, hand-authored pure-fn
 // replacements). Those synthetic inputs feed the lower-level entry point
-// sourcerewrite.Apply(file, source, sites, replacements) directly — the same
+// sourcerewrite.Apply(file, source, prologueEnd, sites, replacements) directly — the same
 // function the tests exercise — so this generator calls Apply directly. No binary,
 // no JS, no type-checking.
 //
@@ -42,6 +42,10 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/microsoft/typescript-go/shim/ast"
+	"github.com/microsoft/typescript-go/shim/core"
+	"github.com/microsoft/typescript-go/shim/parser"
+	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/sourcerewrite"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
@@ -54,6 +58,7 @@ type fixture struct {
 	Name         string                 `json:"name,omitempty"`
 	File         string                 `json:"file"`
 	Code         string                 `json:"code"`
+	PrologueEnd  int                    `json:"prologueEnd,omitempty"`
 	Sites        []protocol.Site        `json:"sites"`
 	Replacements []protocol.Replacement `json:"replacements"`
 	ExpectedCode string                 `json:"expectedCode"`
@@ -78,6 +83,11 @@ func byteIndexOf(code, needle string, from int) int {
 		log.Fatalf("gen-sourcerewrite-fixtures: needle %q not found in %q (from %d)", needle, code, from)
 	}
 	return from + rel
+}
+
+// getRunTypeIdSite is the builder for a case whose one site is the first getRunTypeId call.
+func getRunTypeIdSite(code string) ([]protocol.Site, []protocol.Replacement) {
+	return []protocol.Site{site(byteIndexOf(code, ")", strings.Index(code, "getRunTypeId")), "Dir0001")}, nil
 }
 
 // site is a terse protocol.Site constructor for the corpus below.
@@ -175,6 +185,26 @@ var primaryCases = []fixtureCase{
 	{"empty", "a.ts", "const noop = 1;\n", func(code string) ([]protocol.Site, []protocol.Replacement) {
 		return nil, nil
 	}},
+	// 15-23. directive prologue + shebang: the import block lands after them, never above.
+	{"directive_use_client", "a.tsx", "\"use client\";\n\nexport function P() { return <i>{getRunTypeId<string>()}</i>; }\n", getRunTypeIdSite},
+	{"directive_pair", "a.ts", "'use server';\n\"use strict\";\nexport async function act() { return getRunTypeId<string>(); }\n", getRunTypeIdSite},
+	{"directive_no_semicolon", "a.ts", "\"use client\"\nconst id = getRunTypeId<string>();\n", getRunTypeIdSite},
+	{"directive_trailing_comment", "a.ts", "// header\n\"use client\"; /* why */ // client only\nconst id = getRunTypeId<string>();\n", getRunTypeIdSite},
+	// Code shares the directive's line, so the block goes right after it behind its own newline.
+	{"directive_same_line_code", "a.ts", "\"use client\"; const id = getRunTypeId<string>();\n", getRunTypeIdSite},
+	{"directive_multiline_comment", "a.ts", "\"use client\" /* a\nb */\nconst id = getRunTypeId<string>();\n", getRunTypeIdSite},
+	{"shebang_directive", "a.ts", "#!/usr/bin/env node\n'use strict';\nconst id = getRunTypeId<string>();\n", getRunTypeIdSite},
+	// A string that is not a whole statement is no directive: plain prepend.
+	{"not_a_directive", "a.ts", "\"use client\".length;\nconst id = getRunTypeId<string>();\n", getRunTypeIdSite},
+	// A zero-width insert at the block's own offset still lands AFTER the block.
+	{"directive_shared_offset", "a.ts", "\"use client\";\nconst x = marker(1);\n", func(code string) ([]protocol.Site, []protocol.Replacement) {
+		at := byteIndexOf(code, "const", 0)
+		mark := byteIndexOf(code, "1", 0)
+		return nil, []protocol.Replacement{
+			{File: "a.ts", Start: at, End: at, Text: "/*x*/"},
+			{File: "a.ts", Start: mark, End: mark + 1, Text: "__rt_pf_m", ImportFrom: "rtmod:/pf/m.js"},
+		}
+	}},
 }
 
 // extraCases mirror the old diff_extra.mjs corpus — harder multibyte / boundary
@@ -257,16 +287,27 @@ func buildFixture(name string, gc fixtureCase) fixture {
 	if replacements == nil {
 		replacements = []protocol.Replacement{}
 	}
-	code, sourceMap := sourcerewrite.Apply(gc.file, gc.code, sites, replacements)
+	prologueEnd := sourcerewrite.PrologueEnd(parse(gc.file, gc.code))
+	code, sourceMap := sourcerewrite.Apply(gc.file, gc.code, prologueEnd, sites, replacements)
 	return fixture{
 		Name:         name,
 		File:         gc.file,
 		Code:         gc.code,
+		PrologueEnd:  prologueEnd,
 		Sites:        sites,
 		Replacements: replacements,
 		ExpectedCode: code,
 		ExpectedMap:  sourceMap,
 	}
+}
+
+// parse gives PrologueEnd the real AST the resolver hands it, so a fixture's prologue is never hand-pinned.
+func parse(file, code string) *ast.SourceFile {
+	kind := core.ScriptKindTS
+	if strings.HasSuffix(file, ".tsx") {
+		kind = core.ScriptKindTSX
+	}
+	return parser.ParseSourceFile(ast.SourceFileParseOptions{FileName: "/" + file, Path: tspath.Path("/" + file)}, code, kind)
 }
 
 // marshalPretty matches the old JS JSON.stringify(x, null, 2) + '\n' output:

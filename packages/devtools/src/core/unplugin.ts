@@ -501,7 +501,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     declareTypeDeps(ctx, rel, fileResult.typeDeps);
 
     try {
-      const applied = applyEdits(rel, code, fileResult.importBlock ?? '', fileResult.edits ?? []);
+      const applied = applyEdits(rel, code, fileResult.importBlock ?? '', fileResult.importAt ?? 0, fileResult.edits ?? []);
       return {code: applied.code, map: applied.map as any};
     } catch (error) {
       // A malformed edit set (should be impossible) must not break the build.

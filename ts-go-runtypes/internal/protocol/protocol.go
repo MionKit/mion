@@ -357,10 +357,14 @@ type Replacement struct {
 type TransformResult struct {
 	Code string     `json:"code,omitempty"`
 	Map  *SourceMap `json:"map,omitempty"`
-	// ImportBlock is the deduped import block the rewrite prepends at offset 0, a single physical line already
+	// ImportBlock is the deduped import block the rewrite inserts at ImportAt, a single physical line already
 	// relativized to <outDir>/types when files-mode is in effect; empty when the file needs no injected imports.
-	// 'edits' mode only; the host prepends it verbatim.
+	// 'edits' mode only; the host inserts it verbatim.
 	ImportBlock string `json:"importBlock,omitempty"`
+	// ImportAt is where ImportBlock goes, in UTF-16 CODE UNITS: past a `#!` line and the directive prologue
+	// (`"use client"` must stay first), 0 = prepend. The host inserts the block there before any other edit.
+	// 'edits' mode only.
+	ImportAt int `json:"importAt,omitempty"`
 	// Edits is the flat point/span edit list, ImportBlock excluded, in UTF-16 CODE-UNIT offsets against the
 	// ORIGINAL source: the applier indexes JS strings natively, so Go converts every byte offset through
 	// makeByteToChar first. 'edits' mode only.
