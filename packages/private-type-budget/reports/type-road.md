@@ -16,9 +16,9 @@ sqlite) is left out of that dialect's wide vocabulary.
 
 | Dialect | Case | Net instantiations | Budget |
 | ------- | ---- | -----------------: | -----: |
-| pg | builder road, 5 mixed columns | 1089 | 1089 |
-| pg | type road, 5 mixed columns | 676 | 676 |
-| pg | type road, 5 mixed columns + insert model | 1283 | 1283 |
+| pg | builder road, 5 mixed columns | 1107 | 1107 |
+| pg | type road, 5 mixed columns | 684 | 684 |
+| pg | type road, 5 mixed columns + insert model | 1290 | 1290 |
 | pg | type road, 20 plain columns | 309 | 309 |
 | pg | builder road, 20 plain columns | 581 | 581 |
 | pg | bare Column interface, 20 plain columns | 305 | 305 |

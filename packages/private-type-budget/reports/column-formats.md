@@ -13,16 +13,16 @@ lowered.
 
 | Dialect | Shape | Types (budget) | Builders (budget) |
 | ------- | ----- | -------------: | ----------------: |
-| pg | 5 mixed, select | 681 (681) | 1160 (1160) |
-| pg | 5 mixed, select + insert | 1288 (1288) | 1842 (1842) |
+| pg | 5 mixed, select | 688 (688) | 1151 (1151) |
+| pg | 5 mixed, select + insert | 1294 (1294) | 1833 (1833) |
 | pg | 10 plain, db name per column | 220 (220) | 371 (371) |
 | pg | 20 plain, db name per column | 310 (310) | 581 (581) |
 | pg | 40 plain, db name per column | 490 (490) | 1001 (1001) |
 | pg | 20 plain, nameless | 310 (310) | 540 (540) |
 | pg | wide vocabulary, select | 858 (858) | 1459 (1459) |
 | pg | two tables, one reference | 279 (279) | 500 (500) |
-| pg | refineTableType, select | 1382 (1382) | 1883 (1883) |
-| pg | toDrizzle + select / insert / update query | 8821 (8821) | 9996 (9996) |
+| pg | refineTableType, select | 1389 (1389) | 1874 (1874) |
+| pg | toDrizzle + select / insert / update query | 8827 (8827) | 9987 (9987) |
 | mysql | 5 mixed, select | 710 (710) | 1184 (1184) |
 | mysql | 5 mixed, select + insert | 1280 (1280) | 1815 (1815) |
 | mysql | 10 plain, db name per column | 238 (238) | 390 (390) |
