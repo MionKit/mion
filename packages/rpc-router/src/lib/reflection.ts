@@ -42,7 +42,8 @@ export class RuntimeCodeGenBlockedError extends Error {
         `Build with \`mionVitePlugin({runTypes: {emitMode: 'both'}})\`: the default 'code' ships each ` +
         `compiled fn as a source string that is turned into a function on first use, which edge ` +
         `runtimes (Cloudflare Workers / workerd, Vercel Edge) refuse. 'both' also emits the live ` +
-        `factory, so nothing is compiled at runtime.` +
+        `factory, so nothing is compiled at runtime. Already on 'both'? Then the entry named below comes from a ` +
+        `dependency built in 'code' mode: rebuild that dependency with 'both'.` +
         (cause ? `\nCause: ${cause}` : '')
     );
     this.name = 'RuntimeCodeGenBlockedError';
