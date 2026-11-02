@@ -253,15 +253,16 @@ export function buildPureFnFactoryFromCode(paramNames: string[], code: string): 
   return new Function(...paramNames, `'use strict'; ${code}`) as PureFunctionFactory;
 }
 
-/** Runs a `new Function` build; when the host forbids it, the error names the code-only entry so the user can
- *  find which module (the app's own or a dependency's) was built with emitMode 'code'. **/
+/** Runs a `new Function` build; when the host forbids it (an EvalError), the error names the code-only entry.
+ *  Any other error, such as a SyntaxError from a broken code string, is rethrown as is. **/
 function buildOrNameEntry<F>(build: () => F, label: string): F {
   try {
     return build();
   } catch (error) {
+    if (!(error instanceof EvalError)) throw error;
     throw new Error(
-      `${error instanceof Error ? error.message : String(error)}: ${label} ships only as a code string. The module that emitted it was built with ` +
-        `emitMode 'code' (your app or a dependency): search the bundle for that id to find it.`,
+      `${error.message}: ${label} has no live function, only a code string. ` +
+        `Generated modules built with emitMode 'code' (your app's or a dependency's) ship it that way: search the bundle for that id.`,
       {cause: error}
     );
   }
