@@ -105,17 +105,24 @@ comments-simplifier passes (own commits), PR linking parent session, drive CI gr
 ## What shipped (2026-11-02)
 
 - As planned, with these differences:
-  - `miniflare` is installed per run next to the packed `@mionjs/*` (pin read from the root `package.json`), not
-    baked into `_deps-mion`: CI never rebuilds the e2e image, so a baked dependency would block the gate until a
-    maintainer pushed a new image.
+  - `miniflare` is baked into `_deps-mion` (same pin as the root). `_deps-mion/pnpm-workspace.yaml` keeps workerd's
+    postinstall off (`workerd: false`), as the root workspace does: its binary arrives through an optional dep.
   - The lane lives in `container/pre-publish-e2e/mion-consumer/edge/` (own tsconfig, so its program and batch table
     hold only the Worker) and runs at the end of the mion consumer script.
-  - `cloudflareStorage.workers.spec.ts` also dropped `nodejs_compat`: it passes without it.
-  - The fill-in of a live factory runs both on register and on the "already seen this key" shortcut in
-    `collectClosure`, since a second module with the same key never reaches register.
+  - `cloudflareStorage.workers.spec.ts` also dropped `nodejs_compat`, and `cloudflareHandler.bench.ts` its `process`
+    polyfill: both pass without them.
+  - The blocked-codegen error names the entry id and type name (`compiled fn "<id>" (<type>)`, `pure fn "<id>"`), not a
+    module path: a registered entry does not know which module emitted it. The message says to search the bundle for
+    the id. Only an `EvalError` (blocked `new Function`) is rewrapped; any other build error is rethrown as is.
+  - The live-factory fill runs on the register path and on the "already seen this key" shortcut in `collectClosure`.
+    On the shortcut, a filled entry's deps are walked too, so a code-only dependency of a live entry is filled as well.
+  - `DEFAULT_ROUTE_OPTIONS.getPublicRoutesData` is now always `false`; `GENERATE_ROUTER_SPEC=true` still enables the
+    spec through `shouldFullGenerateSpec`, now pinned by a router test.
+  - A repo contract pins `emitMode: 'both'` on every public package that runs the mion Vite plugin.
   - `06.vercel.md` and `02.vite.md` unchanged: both already link to the Cloudflare caution and stay accurate.
 - Size: the router's generated modules grow from about 88 KB to 189 KB unminified (core: about 1.5 KB). Server only:
   `@mionjs/client` does not import the router. The test Worker is 104 KB, 27.6 KB gzipped.
-- Verified on this host: packed tarballs installed into a scratch project, Worker built with the documented config,
-  3/3 on workerd. With a code-only router swapped in, boot fails with the new message naming the entry. The
-  in-container run could not happen here (the e2e image is private and not pullable from this session).
+- Verified: `pnpm miondevx release e2e --backend container --no-matrix --no-host-smoke` passes, edge lane 3/3 on
+  workerd (image built locally from the changed manifests, base image from `mirror.gcr.io`). With a code-only router
+  swapped in, the Worker fails to boot with the new message naming the entry. The `tsrt-e2e` image is not pushed:
+  runs rebuild it locally on the changed manifest until a maintainer pushes it.
