@@ -18,8 +18,8 @@
   - [`apps/smoke-next/`](../../../../../container/pre-publish-e2e/apps/smoke-next/):
     the app. Page prerenders shared `selfCheck()` → passing build proves the rewrite survived Turbopack
     **and** the transformed code ran.
-    Its `"use client"` / `"use server"` call sites are also built with `next build --webpack`: Next fails the
-    build if the injected imports land above a directive.
+    Its `"use client"` / `"use server"` call sites also run through `next build --webpack` and `next dev` on both
+    bundlers: Next rejects the file if the injected imports land above a directive.
   - [`apps/smoke-next-ts/`](../../../../../container/pre-publish-e2e/apps/smoke-next-ts/):
     the same check in emitMode 'ts' (typed `.ts` cache modules).
   - [`build-all.mjs`](../../../../../container/pre-publish-e2e/build-all.mjs):
