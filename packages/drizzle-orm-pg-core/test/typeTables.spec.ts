@@ -874,7 +874,6 @@ describe('pg columns: models compile full-fidelity validators', () => {
   });
 });
 
-// A uuid version types the model field and adds the default that generates it, on both roads.
 const sessions = pgTable('sessions', {
   id: uuid({version: '7', primaryKey: true}),
   token: uuid('token', {version: '4', notNull: true}),

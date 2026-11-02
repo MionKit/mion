@@ -412,7 +412,7 @@ export function timestamp(...args: unknown[]) {
   return recordNsColumn('timestamp', args);
 }
 
-/** uuid `version`: drizzle has no such setting, so it replays as the default that generates that version. */
+/** drizzle has no uuid `version`, so it replays as the default that generates that version. */
 const pgUuidShortcuts: ColumnShortcuts = {
   version: (version, propKeys) => {
     if (propKeys.includes('default') || propKeys.includes('defaultRandom'))

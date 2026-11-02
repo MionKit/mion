@@ -75,7 +75,6 @@ export interface PgUuidColMods extends PgColMods {
 export interface PgUuidConfig {
   version?: '4' | '7';
 }
-/** The model type of each uuid version. */
 export interface UuidByVersion {
   '4': UUIDv4;
   '7': UUIDv7;

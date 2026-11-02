@@ -252,7 +252,7 @@ describe('addendum — uuid version', () => {
           placing substring(int8send((extract(epoch from clock_timestamp()) * 1000)::bigint) from 3)
           from 1 for 6), 52, 1), 53, 1), 'hex')::uuid
       $$`);
-    // The defaults come from the recorded columns, so the database runs what mion recorded.
+    // Defaults read off the recorded columns, so the database runs what mion recorded.
     const [id, token] = getTableConfig(sessionsDb).columns;
     await db.execute(sql`drop table if exists ${sessionsDb}`);
     await db.execute(

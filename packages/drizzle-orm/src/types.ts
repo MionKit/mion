@@ -264,8 +264,7 @@ export type BuildTableFn = (
   extraConfigReplay?: (dzExtraColumns: Record<string, unknown>) => unknown[] | Record<string, unknown>
 ) => unknown;
 
-/** A builder's settings drizzle lacks (pg uuid `version`), by props key, each replayed as the modifier call it stands for.
- *  Gets the column's other props keys too, to refuse a clash. */
+/** Props drizzle lacks (pg uuid `version`), replayed as modifier calls; gets the other props keys to refuse a clash. */
 export type ColumnShortcuts = Readonly<
   Record<string, (value: unknown, propKeys: readonly string[]) => readonly [method: ColModName, args: readonly unknown[]]>
 >;
