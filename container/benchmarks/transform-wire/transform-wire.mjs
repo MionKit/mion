@@ -143,7 +143,7 @@ async function transformFile(client, mode, file, source) {
     const fr = resp.transformed[file];
     if (!fr) return {rtMs, applyMs: 0};
     const t1 = process.hrtime.bigint();
-    if (sourceHash(source) === fr.sourceHash) applyEdits(file, source, fr.importBlock ?? '', fr.edits ?? []);
+    if (sourceHash(source) === fr.sourceHash) applyEdits(file, source, fr.importBlock ?? '', fr.importAt ?? 0, fr.edits ?? []);
     return {rtMs, applyMs: Number(process.hrtime.bigint() - t1) / 1e6};
   }
   const t0 = process.hrtime.bigint();
