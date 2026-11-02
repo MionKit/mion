@@ -514,6 +514,10 @@ const (
 	DefaultPatternSampleRetries = 10
 )
 
+// DefaultMaxUnknownKeys caps the `never` errors a strict errors fn lists per object; past it one `tooManyUnknownKeys`
+// entry stands for the rest, so a body full of extra keys stays a small report. Internal `maxUnknownKeys` knob.
+const DefaultMaxUnknownKeys = 10
+
 // Tuple slot-0 kind discriminators for entry-module tuples. Type-fn entries carry their QUOTED family tag in
 // slot 0 instead of a number, so the runtime discriminates with `typeof t[0] === 'string'`.
 const (

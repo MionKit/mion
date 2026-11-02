@@ -62,6 +62,8 @@ type RenderOpts struct {
 	// reads both to tell disabled (count 0) from failed generation.
 	PatternSampleCount int
 	PatternGenFailures map[string]formats.PatternGenFailure
+	// MaxUnknownKeys mirrors the resolver knob; 0 means constants.DefaultMaxUnknownKeys.
+	MaxUnknownKeys int
 	// ProvenanceSites maps an entry (ProvenanceKey) to the sites whose TYPE reaches it, as throw messages and pure-fn deps name.
 	ProvenanceSites map[string][]diagnostics.Site
 	// RootedSites keeps the sites that NAME the id, the only ones a walk reports at; ReportReachedFindings covers the rest.
@@ -516,6 +518,7 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 	walker.JSEngine = opts.JSEngine
 	walker.PatternSampleCount = opts.PatternSampleCount
 	walker.PatternGenFailures = opts.PatternGenFailures
+	walker.MaxUnknownKeys = opts.MaxUnknownKeys
 	provenanceKey := ProvenanceKey(runType.ID, settings.Tag)
 	if opts.ProvenanceSites != nil {
 		walker.rootProvenance = opts.ProvenanceSites[provenanceKey]

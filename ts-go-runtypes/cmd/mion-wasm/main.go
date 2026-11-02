@@ -69,6 +69,7 @@ func main() {
 		// loads it before this module) and degrades to format-sample-generation-failed without it.
 		PatternSampleCount:   constants.DefaultPatternSampleCount,
 		PatternSampleRetries: constants.DefaultPatternSampleRetries,
+		MaxUnknownKeys:       constants.DefaultMaxUnknownKeys,
 	})
 
 	dispatch := js.FuncOf(func(this js.Value, args []js.Value) (result any) {

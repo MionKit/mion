@@ -21,6 +21,7 @@ func baseFlags() buildFlags {
 		moduleMode:           "default",
 		patternSampleCount:   100,
 		patternSampleRetries: 10,
+		maxUnknownKeys:       10,
 		jsonMaxBytes:         true,
 	}
 }
@@ -34,7 +35,8 @@ func TestMergeBuildOptions_DefaultsWhenEmpty(t *testing.T) {
 		hashLength: 0, emitMode: "code", inlineMode: "default", moduleMode: "default",
 		genDir:             filepath.Join("/proj", ".mion"),
 		patternSampleCount: 100, patternSampleRetries: 10,
-		jsonMaxBytes: true,
+		maxUnknownKeys: 10,
+		jsonMaxBytes:   true,
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("merge defaults = %+v, want %+v", got, want)
@@ -54,6 +56,7 @@ func TestMergeBuildOptions_TsconfigFillsGaps(t *testing.T) {
 		ParallelRender:       boolPtr(false),
 		PatternSampleCount:   intPtr(25),
 		PatternSampleRetries: intPtr(4),
+		MaxUnknownKeys:       intPtr(3),
 		JSONMaxBytes:         boolPtr(false),
 	}
 	got := mergeBuildOptions(baseFlags(), plugin, "/proj")
@@ -68,6 +71,7 @@ func TestMergeBuildOptions_TsconfigFillsGaps(t *testing.T) {
 		moduleMode:            "allSingle",
 		patternSampleCount:    25,
 		patternSampleRetries:  4,
+		maxUnknownKeys:        3,
 		jsonMaxBytes:          false,
 	}
 	if !reflect.DeepEqual(got, want) {
@@ -189,6 +193,16 @@ func TestMergeBuildOptions_PatternSampleKnobs(t *testing.T) {
 	got = mergeBuildOptions(flags, plugin, "/proj")
 	if got.patternSampleCount != 12 || got.patternSampleRetries != 3 {
 		t.Errorf("flags should win: got (%d, %d), want (12, 3)", got.patternSampleCount, got.patternSampleRetries)
+	}
+}
+
+// TestMergeBuildOptions_MaxUnknownKeysFlagWins: an explicit --max-unknown-keys shadows the tsconfig value.
+func TestMergeBuildOptions_MaxUnknownKeysFlagWins(t *testing.T) {
+	flags := baseFlags()
+	flags.set["max-unknown-keys"] = true
+	flags.maxUnknownKeys = 5
+	if got := mergeBuildOptions(flags, tsRuntypesPlugin{MaxUnknownKeys: intPtr(50)}, "/proj"); got.maxUnknownKeys != 5 {
+		t.Errorf("maxUnknownKeys = %d, want the flag's 5", got.maxUnknownKeys)
 	}
 }
 
