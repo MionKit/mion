@@ -44,6 +44,9 @@ export function runTypesTurbopackRules(socketPath: string): Record<string, Turbo
 export function isTurbopack(): boolean {
   if (process.env.TURBOPACK === '0') return false;
   if (process.env.TURBOPACK) return true;
+  // `next dev` forks its server with `__NEXT_DEV_SERVER` set and passes TURBOPACK only to a Turbopack one, never
+  // the `--webpack` flag: without this the `next dev --webpack` server got the Turbopack rules and no rewrite.
+  if (process.env.__NEXT_DEV_SERVER) return false;
   return !process.argv.includes('--webpack');
 }
 
