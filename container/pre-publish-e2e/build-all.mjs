@@ -282,6 +282,7 @@ async function buildNext(app) {
 // the lanes run one at a time inside an image nothing else listens in, so a port is just a name.
 const MION_NEXT_PORT = 8088;
 const SMOKE_NEXT_DEV_PORT = 8089;
+const MION_NEXT_DEV_PORT = 8090;
 
 function assertDirectiveIds(rendered, where) {
   for (const probe of ['rt-use-client', 'rt-use-server']) {
@@ -353,14 +354,14 @@ async function buildMionNext(app) {
   await runMionNextDevEdits(appDir, nextBin);
 }
 
-const MION_NEXT_DEV_PORT = 8089;
 
 // `next dev` re-evaluates the route bundle after an edit, @mionjs/router inside it: each run is a fresh router, so
 // the API keeps answering with no restart. Each edit is polled until the new code answers, and EVERY answer along
 // the way must be a good one: a reload that drops even one request fails the lane.
 const MION_NEXT_DEV_EDITS = [
-  {name: 'handler', file: 'src/routes.ts', from: '`Hello ${name}!`', to: '`Hi ${name}!`', expect: (r) => r.json.message === 'Hi mion!'},
-  {name: 'type', file: 'src/routes.ts', from: 'at: Date};', to: 'at: Date; note?: string};', expect: () => true},
+  {name: 'handler', file: 'src/routes.ts', from: '`Hello ${name}!`', to: '`Hi ${name}!`', expect: (report) => report.json.message === 'Hi mion!'},
+  // the server now serializes `at` as a plain string, so the client gets no Date back
+  {name: 'type', file: 'src/routes.ts', from: 'at: Date};', to: 'at: string};', expect: (report) => report.json.atIsDate === false},
   {
     // the batch's route order is its id, so the client build compiles a NEW batch the running API must learn
     name: 'client batch',
@@ -373,17 +374,14 @@ const MION_NEXT_DEV_EDITS = [
     routes.addNumbers(1, 2),
     routes.sayHello('batch'),
   ]).call();`,
-    expect: (r) => r.batch.sum === 3 && r.batch.message === 'Hi batch!',
+    expect: (report) => report.batch.sum === 3 && report.batch.message === 'Hi batch!',
   },
 ];
 
 async function runMionNextDevEdits(appDir, nextBin) {
   const originals = new Map();
-  const child = spawn(process.execPath, [nextBin, 'dev', '--port', String(MION_NEXT_DEV_PORT)], {
-    cwd: appDir,
-    stdio: 'inherit',
-    env: {...process.env, NODE_ENV: 'development'},
-  });
+  const {NODE_ENV: _nodeEnv, ...env} = process.env;
+  const child = spawn(process.execPath, [nextBin, 'dev', '--port', String(MION_NEXT_DEV_PORT)], {cwd: appDir, stdio: 'inherit', env});
   const selftest = `http://127.0.0.1:${MION_NEXT_DEV_PORT}/selftest`;
   const results = [];
   try {
@@ -398,6 +396,7 @@ async function runMionNextDevEdits(appDir, nextBin) {
     }
   } finally {
     child.kill('SIGTERM');
+    await new Promise((resolve) => (child.exitCode === null ? child.once('exit', resolve) : resolve()));
     for (const [file, content] of originals) writeFileSync(file, content);
   }
   writeFileSync(path.join(appDir, 'dev-reload.json'), `${JSON.stringify(results, null, 2)}\n`);
