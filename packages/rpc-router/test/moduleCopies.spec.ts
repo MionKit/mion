@@ -6,9 +6,7 @@
  * ######## */
 import {describe, it, expect, vi} from 'vitest';
 
-// `next dev` re-evaluates the route bundle after an edit, @mionjs/router inside it, and a Vite reload re-runs the
-// whole API module tree: each run is a fresh copy of the router module. A copy shares nothing with another, so the
-// fresh one starts empty and its createMionRouter + initRoutes need no reset.
+// `next dev` and a Vite reload each re-run @mionjs/router as a fresh copy: it shares nothing, so needs no reset.
 async function freshRouterCopy(): Promise<typeof import('../src/router.ts')> {
   vi.resetModules();
   return import('../src/router.ts');

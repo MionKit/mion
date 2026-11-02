@@ -25,8 +25,7 @@ import type {
 import {getRTUtils} from '@mionjs/run-types/runtime';
 import {jitFunctionsCache, headerJitFunctionsCache} from './jitFunctionsCaches.ts';
 
-// Null-prototype on purpose: the id comes off the wire, so a plain object would answer `constructor` /
-// `toString` / `__proto__` with an inherited value. Every lookup below is an own-key lookup for the same reason.
+// Null-prototype: a wire id like `constructor` or `__proto__` must not hit an inherited value; lookups are own-key too.
 const methodsCache: MethodsCache = Object.create(null) as MethodsCache;
 
 /** The router cache: method metadata for routes registered via addRoutesToCache() or virtual modules. */

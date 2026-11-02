@@ -39,8 +39,7 @@ export interface MionServerOptions {
   /** DEV + no router `basePath`: paths NOT served by mion, so vite's internals and static assets still work.
    *  With a basePath the router's prefix decides what reaches mion. */
   exclude?: RegExp[];
-  /** DEV: re-load the API when its sources change (default true). A reload runs a fresh copy of the API,
-   *  `@mionjs/*` included, and every request waits for it. */
+  /** DEV: re-load the API on source change (default true), a fresh copy with `@mionjs/*`; requests wait for it. */
   hotReload?: boolean;
 }
 
@@ -74,10 +73,8 @@ export interface MionPluginOptions extends MionPresetOptions {
  * });
  * ```
  */
-/** The resolver's generate echo folded into what vite needs. A later generate where the batch table APPEARS or
- *  VANISHES invalidates the router-init modules: they were transformed with the opposite import. The FIRST
- *  generate never invalidates, nothing has been transformed yet. Exported for its spec; the preset is its only
- *  other caller. */
+/** A batch table APPEARING or VANISHING invalidates the router-init modules: they hold the opposite import.
+ *  Never on the FIRST generate, nothing is transformed yet. Exported for its spec; the preset is its only other caller. */
 export function createBatchTransportSignals(invalidate: (files: string[]) => void): {
   onGenerate: (info: GenerateInfo) => void;
 } {
@@ -160,8 +157,7 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
     if (typeof server.entry !== 'string' || !server.entry) {
       throw new Error('[mionVitePlugin] server.entry must name the server entry file.');
     }
-    // In-process: nothing is spawned, and nothing happens outside `vite dev`. `onReady`/`onError` only feed
-    // the 503 path, no promise leaves this preset.
+    // In-process, `vite dev` only. `onReady`/`onError` only feed the 503 path, no promise leaves this preset.
     const middleware = mionMiddlewarePlugin(server, {onReady: () => {}, onError: () => {}});
     markApiStale = middleware.markStale;
     extraPlugins.unshift(middleware);

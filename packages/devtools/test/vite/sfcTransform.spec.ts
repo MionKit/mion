@@ -359,12 +359,9 @@ describe('import block fold', () => {
   });
 });
 
-// The in-process API, run through the real preset, with its genDir outside the vite root (a Nuxt layout).
-// - A batch only inside a .vue file is unknown to the program the API first loads with: the SFC pass registers it
-//   when the page is transformed, and no watcher event reports the table appearing, so the preset marks the API
-//   stale itself.
-// - A type the API reaches only through `import type` is erased from its module graph; its edit rewrites the
-//   generated module the API imports, and that change reloads it.
+// The in-process API through the real preset, genDir outside the vite root (a Nuxt layout).
+// A .vue-only batch registers when the page transforms and no watcher sees it, so the preset marks the API stale.
+// An `import type`-only type is erased from the API graph; its edit rewrites a generated module the API does import.
 describe('the in-process API under vite dev', () => {
   const SERVER = `import {createMionRouter} from '@mionjs/router';
 import {createValidateFn} from '@mionjs/run-types';
@@ -412,7 +409,6 @@ export const replaceBatches = (table) => { globalThis.__table = table; };
     delete (globalThis as any).__apiLoads;
   });
 
-  /** Boots the fixture app with its API mounted, and returns a caller for the API. */
   async function startApi(): Promise<() => Promise<{batches: string[]; loads: number}>> {
     root = writeFixture({
       'src/client.d.ts': CLIENT_DTS,
