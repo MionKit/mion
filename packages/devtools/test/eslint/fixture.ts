@@ -73,6 +73,12 @@ export function makeFixtureProject(files: Record<string, string> = {}): FixtureP
   return project;
 }
 
+// linkVue gives a fixture the repo's own `vue`, as a Vue project has it: lint reads `.vue` files with its compiler.
+export function linkVue(project: FixtureProject): void {
+  const target = path.join(project.dir, 'node_modules', 'vue');
+  if (!fs.existsSync(target)) fs.symlinkSync(fs.realpathSync(path.join(ROOT, 'node_modules', 'vue')), target, 'dir');
+}
+
 // LintReportedProblem is what the mock context collects from a rule run.
 export interface LintReportedProblem {
   message: string;

@@ -7,7 +7,7 @@ import {pathToFileURL} from 'node:url';
 import {ESLint, type Linter} from 'eslint';
 import tseslint from 'typescript-eslint';
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
-import {hasBinary, makeFixtureProject, type FixtureProject} from './fixture.ts';
+import {hasBinary, linkVue, makeFixtureProject, type FixtureProject} from './fixture.ts';
 
 const DIST = path.resolve(__dirname, '../../dist/lint');
 const ready = hasBinary() && fs.existsSync(path.join(DIST, 'index.js'));
@@ -50,7 +50,7 @@ export const isSymbol = createValidateFn<symbol>();
 const sfcParser: Linter.Parser = {
   parseForESLint(code: string) {
     const lines = code.split('\n');
-    const end = {line: lines.length, column: lines[lines.length - 1]!.length};
+    const end = {line: lines.length, column: lines[lines.length - 1].length};
     return {
       ast: {
         type: 'Program',
@@ -77,6 +77,7 @@ describe.runIf(ready)('eslint end to end (configs.recommended from the built plu
 
   beforeAll(async () => {
     project = makeFixtureProject({'widget.ts': WIDGET_TS, 'lowered.ts': LOWERED_TS, 'Widget.vue': WIDGET_VUE});
+    linkVue(project);
     // The plugin roots its resolver at process.cwd(), like an editor or CI run from the project root.
     originalCwd = process.cwd();
     process.chdir(project.dir);
