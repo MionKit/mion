@@ -7,7 +7,7 @@ export default defineConfig({
     mionVitePlugin({
       tsConfig: resolve(__dirname, 'tsconfig.json'),
       runTypes: {
-        // required on Workers: no `new Function` at runtime
+        // required on Workers
         emitMode: 'both',
       },
     }),
