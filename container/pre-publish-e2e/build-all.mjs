@@ -92,9 +92,9 @@ const APP_LIST = [
   {name: 'smoke-bun-preload', adapter: 'bunPreload'},
   // Turbopack has no plugin API; next build requires a separate CLI process.
   // Next is not a workspace dependency; this supplies build coverage (packages/devtools/src/runtypes/next/AGENTS.md).
-  // `webpack`: also builds once with `next build --webpack`, the other bundler Next ships.
-  // `directiveProbes`: the app has "use client" / "use server" call sites (app/ClientProbe.tsx, app/actions.ts).
-  {name: 'smoke-next', adapter: 'next', webpack: true, directiveProbes: true},
+  // `directiveProbes`: its "use client" / "use server" call sites (app/ClientProbe.tsx, app/actions.ts) are
+  // also built with `next build --webpack` and served by `next dev` on both bundlers.
+  {name: 'smoke-next', adapter: 'next', directiveProbes: true},
   // The same Turbopack lane over the typed .ts cache modules emitMode 'ts' writes (its tsconfig asks for it).
   // No type-edit rebuild: smoke-next already proves it, and the mode changes nothing in it.
   {name: 'smoke-next-ts', adapter: 'next', typeEdit: false},
@@ -245,25 +245,15 @@ async function buildNext(app) {
   const appDir = path.join(APPS, app.name);
   const nextBin = path.join(HERE, 'node_modules/next/dist/bin/next');
   const html = path.join(appDir, '.next/server/app/index.html');
-  const build = (flags) =>
+  const run = (flags = []) =>
     execFileSync(process.execPath, [nextBin, 'build', ...flags], {cwd: appDir, stdio: 'inherit', env: {...process.env, NODE_ENV: 'production'}});
-  // Next fails the build outright when the injected imports land above a directive; this also checks the
-  // "use client" / "use server" call sites rendered an id.
-  const assertDirectiveProbes = (bundler) => {
-    if (!app.directiveProbes) return;
-    const rendered = readFileSync(html, 'utf8');
-    for (const probe of ['rt-use-client', 'rt-use-server']) {
-      if (!new RegExp(`id="${probe}">\\w+`).test(rendered)) throw new Error(`${app.name} (${bundler}): no ${probe} id in ${html}`);
-    }
-  };
-  if (app.webpack) {
-    build(['--webpack']);
-    assertDirectiveProbes('webpack');
+  // Next fails outright when the injected imports land above a "use client" / "use server", so these runs
+  // prove the rewrite keeps the prologue first. build-outputs.test.mjs reads the final Turbopack build.
+  if (app.directiveProbes) {
+    run(['--webpack']);
+    assertDirectiveIds(readFileSync(html, 'utf8'), `${app.name} (next build --webpack)`);
+    for (const flags of [[], ['--webpack']]) await checkNextDev(app, appDir, nextBin, flags);
   }
-  const run = () => {
-    build([]);
-    assertDirectiveProbes('turbopack');
-  };
   run();
   if (app.typeEdit === false) return;
 
@@ -305,11 +295,32 @@ async function buildNext(app) {
 // Fixed, like every other port in this container (the node consumer's 8086, the bun one's 8087):
 // the lanes run one at a time inside an image nothing else listens in, so a port is just a name.
 const MION_NEXT_PORT = 8088;
+const SMOKE_NEXT_DEV_PORT = 8089;
+
+// The ids the "use client" / "use server" call sites render; missing means the rewrite or the page broke.
+function assertDirectiveIds(rendered, where) {
+  for (const probe of ['rt-use-client', 'rt-use-server']) {
+    if (!new RegExp(`id="${probe}">\\w+`).test(rendered)) throw new Error(`${where}: no ${probe} id in the rendered page`);
+  }
+}
+
+// `next dev` rewrites through the same loader (Turbopack) or plugin (webpack) as a build, served lazily.
+async function checkNextDev(app, appDir, nextBin, flags) {
+  const {NODE_ENV: _nodeEnv, ...env} = process.env;
+  const child = spawn(process.execPath, [nextBin, 'dev', '--port', String(SMOKE_NEXT_DEV_PORT), ...flags], {cwd: appDir, stdio: 'inherit', env});
+  try {
+    const res = await waitForOk(`http://127.0.0.1:${SMOKE_NEXT_DEV_PORT}/`, child, 180_000);
+    assertDirectiveIds(await res.text(), `${app.name} (${['next dev', ...flags].join(' ')})`);
+  } finally {
+    child.kill('SIGTERM');
+    await new Promise((resolve) => (child.exitCode === null ? child.once('exit', resolve) : resolve()));
+  }
+}
 
 async function waitForOk(url, child, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    if (child.exitCode !== null) throw new Error(`mion-next: \`next start\` exited with ${child.exitCode} before serving ${url}`);
+    if (child.exitCode !== null) throw new Error(`the server exited with ${child.exitCode} before serving ${url}`);
     try {
       const res = await fetch(url);
       if (res.ok) return res;
@@ -318,7 +329,7 @@ async function waitForOk(url, child, timeoutMs) {
     }
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
-  throw new Error(`mion-next: ${url} did not answer within ${timeoutMs}ms`);
+  throw new Error(`${url} did not answer within ${timeoutMs}ms`);
 }
 
 // SERVED with a real `next start`, because the API only exists at request time. The app's own /selftest
