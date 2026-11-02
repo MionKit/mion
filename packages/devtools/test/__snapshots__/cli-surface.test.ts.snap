@@ -41,6 +41,8 @@ Flags:
     	how diagnostics print: "grouped" (default) groups them by name, "lines" prints one line each (also the tsconfig "logStyle" plugin key, flag overrides it)
   --marker-packages packages
     	comma-separated packages additionally allowed to declare the marker types (InjectRunTypeId, CompTimeArgs, …); @mionjs/run-types is always accepted
+  --max-unknown-keys int
+    	unknown-key errors a strict errors fn lists per object before one tooManyUnknownKeys entry (internal; default 10)
   --module-mode string
     	virtual-module grouping: default | allSingle | allModules
   --no-emit
@@ -162,6 +164,8 @@ Flags:
     	emit on every fully bounded reflection root the largest compact-JSON size a valid value can have (per-route size limits); --json-max-bytes=false emits none
   --marker-packages packages
     	comma-separated packages additionally allowed to declare the marker types (InjectRunTypeId, CompTimeArgs, …); @mionjs/run-types is always accepted
+  --max-unknown-keys int
+    	unknown-key errors a strict errors fn lists per object before one tooManyUnknownKeys entry (internal; default 10)
   --module-mode string
     	virtual-module grouping: default | allSingle | allModules
   --no-marker-package-check
