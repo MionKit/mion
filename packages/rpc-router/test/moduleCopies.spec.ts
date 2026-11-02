@@ -35,6 +35,26 @@ describe('a fresh copy of the router module', () => {
     expect(second.geRoutesSize()).toBe(0);
   });
 
+  it('starts with an empty batch table', async () => {
+    await freshRouterCopy();
+    const batches = await import('../src/batches.ts');
+    batches.replaceBatches({b_old: {routes: ['ping']}});
+    expect(batches.getBatchIds()).toEqual(['b_old']);
+    await freshRouterCopy();
+    const freshBatches = await import('../src/batches.ts');
+    expect(freshBatches.getBatchIds()).toEqual([]);
+  });
+
+  it('comes with a fresh @mionjs/core, whose route metadata cache starts empty', async () => {
+    vi.resetModules();
+    const firstCore = await import('@mionjs/core');
+    firstCore.routesCache.setMetadata('ping', {id: 'ping'} as never);
+    expect(firstCore.routesCache.getMetadata('ping')).toBeDefined();
+    vi.resetModules();
+    const secondCore = await import('@mionjs/core');
+    expect(secondCore.routesCache.getMetadata('ping')).toBeUndefined();
+  });
+
   it('still refuses a second router within ONE copy', async () => {
     const copy = await freshRouterCopy();
     copy.createMionRouter();
