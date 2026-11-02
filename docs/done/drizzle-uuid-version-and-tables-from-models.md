@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: guidelines
-status: ready
+status: done
 created: 2026-11-02
 ---
 
@@ -57,3 +57,9 @@ Approved through the delegation brief from the parent session (maintainer decisi
   both `getRunTypeId` shapes), type pins, convert round trip, pg e2e addendum row round trip.
 - Docs: column-formats PostgreSQL row + tip; overview "Union Models" section with a private example.
 - Not a fuzz candidate: a type-only key with three values, covered by the existing table-equality fuzz on uuid.
+
+## What shipped
+
+As planned. Maintainer check during the build: Postgres's uuid column takes any version, drizzle (0.45.4, 1.0 beta)
+has no version 7 builder, `defaultRandom()` writes `gen_random_uuid()` (version 4). `version: '7'` is kept as the
+type-only shortcut of `$type: $type<UUIDv7>()`; it adds no default, since `uuidv7()` needs PostgreSQL 18.
