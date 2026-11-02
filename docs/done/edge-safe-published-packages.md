@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-11-02
 ---
 
@@ -101,3 +101,21 @@ comments-simplifier passes (own commits), PR linking parent session, drive CI gr
 - Worker from packed packages + documented config answers routes, a batch and a validation error on workerd, no
   `nodejs_compat`, no `process` polyfill, under the release gate.
 - Both simplify passes ran and are committed separately.
+
+## What shipped (2026-11-02)
+
+- As planned, with these differences:
+  - `miniflare` is installed per run next to the packed `@mionjs/*` (pin read from the root `package.json`), not
+    baked into `_deps-mion`: CI never rebuilds the e2e image, so a baked dependency would block the gate until a
+    maintainer pushed a new image.
+  - The lane lives in `container/pre-publish-e2e/mion-consumer/edge/` (own tsconfig, so its program and batch table
+    hold only the Worker) and runs at the end of the mion consumer script.
+  - `cloudflareStorage.workers.spec.ts` also dropped `nodejs_compat`: it passes without it.
+  - The fill-in of a live factory runs both on register and on the "already seen this key" shortcut in
+    `collectClosure`, since a second module with the same key never reaches register.
+  - `06.vercel.md` and `02.vite.md` unchanged: both already link to the Cloudflare caution and stay accurate.
+- Size: the router's generated modules grow from about 88 KB to 189 KB unminified (core: about 1.5 KB). Server only:
+  `@mionjs/client` does not import the router. The test Worker is 104 KB, 27.6 KB gzipped.
+- Verified on this host: packed tarballs installed into a scratch project, Worker built with the documented config,
+  3/3 on workerd. With a code-only router swapped in, boot fails with the new message naming the entry. The
+  in-container run could not happen here (the e2e image is private and not pullable from this session).
