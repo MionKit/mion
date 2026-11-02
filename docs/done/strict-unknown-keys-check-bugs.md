@@ -81,3 +81,9 @@ the `validation-error` (422) a single unknown key gets. What shipped instead:
   The standard issue mapping renders it as "Too many unknown keys", like `circular`.
 - Tests: Vitest cap tests (10 keys exact, 12 keys, nested path), both call shapes; a router test that 50 extra keys
   give a `validation-error` with 11 entries; the Go test checks the emitted cap. The validation guide documents it.
+- The cap is an internal knob (owner request): tsconfig `maxUnknownKeys`, flag `--max-unknown-keys`, bundler option
+  `maxUnknownKeys`, default `constants.DefaultMaxUnknownKeys` (10), must be >= 1. Undocumented on the website on
+  purpose, like `singleThreaded`. It reaches the emitter through `resolver.Options` → `RenderOpts` → the walker
+  (`EmitContext.MaxUnknownKeys`), and is a disk-cache fingerprint input (fingerprint v14), since it changes emitted
+  bodies. Tests: config merge + flag precedence, fingerprint, devtools arg forwarding, and an emit test with the knob
+  at 3, both call shapes.
