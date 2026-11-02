@@ -119,7 +119,8 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
     try {
       let stdout = '';
       try {
-        stdout = (await execFileAsync(OXLINT, ['-c', '.oxlintrc.json', 'vue/Widget.vue'], {cwd: project.dir})).stdout;
+        stdout = (await execFileAsync(OXLINT, ['-c', '.oxlintrc.json', '--format', 'unix', 'vue/Widget.vue'], {cwd: project.dir}))
+          .stdout;
       } catch (error) {
         stdout = (error as {stdout?: string}).stdout ?? '';
       }
