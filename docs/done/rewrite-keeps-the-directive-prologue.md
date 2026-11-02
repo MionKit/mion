@@ -60,7 +60,9 @@ Run in automatic mode from the parent session's delegation brief (no human in th
 - `placeImportBlock` uses the tsgo scanner (`SkipTriviaEx` with `StopAfterLineBreak`), `PrologueEnd` uses
   `GetShebang`. The block always goes in through `appendLeft` before any other edit; offset 0 gives the same
   output as the old prepend, so `prepend` and the intro were removed from both edit buffers.
-- Fixture tests compute the prologue from a real parse instead of storing it in the JSON.
+- Tests: the placement cases run end to end, not as Go fixtures. `packages/devtools/test/directive-prologue.test.ts`
+  runs a real `vite build` over real files in both transform modes and checks the placement, the source map
+  and that both modes agree. `mion compile` and the smoke-next e2e cover the CLI and Next.
 - `foldImportBlock` (Vue SFC) folds from the first changed line, so a directive line stays where it was.
 - The transform-wire bench passes `importAt` to `applyEdits`.
 - `isTurbopack` reads `__NEXT_DEV_SERVER`: Next forks the `next dev --webpack` server without the flag, so it

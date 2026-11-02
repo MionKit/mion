@@ -78,49 +78,6 @@ getRunTypeId(u);
     }
   );
 
-  // Next rejects a directive that is not first, so the import block goes AFTER the prologue. Both marker shapes.
-  runTest(
-    'static getRunTypeId<T>() under "use client": both modes keep the directive first',
-    {
-      'client-static.ts': `"use client";
-import {getRunTypeId} from '@mionjs/run-types';
-type User = {id: number};
-export const id = getRunTypeId<User>();
-`,
-    },
-    async (sources) => {
-      await withInlineSources(sources, async ({client}) => {
-        const {applied} = await assertModeParity(client, 'client-static.ts', sources['client-static.ts']);
-        expect(applied.code).toMatch(/^"use client";\nimport \{__rt_[A-Za-z0-9]+\} from '[^']+';\nimport \{getRunTypeId\}/);
-      });
-    }
-  );
-
-  runTest(
-    "reflect getRunTypeId(value) under 'use server' + 'use strict': both modes keep the prologue first",
-    {
-      'server-reflect.ts': `// server actions
-'use server';
-'use strict'; // both directives stay first
-import {getRunTypeId} from '@mionjs/run-types';
-type User = {id: number};
-const user: User = {id: 1};
-export async function act() {
-  return getRunTypeId(user);
-}
-`,
-    },
-    async (sources) => {
-      await withInlineSources(sources, async ({client}) => {
-        const {applied} = await assertModeParity(client, 'server-reflect.ts', sources['server-reflect.ts']);
-        expect(applied.code).toMatch(
-          /^\/\/ server actions\n'use server';\n'use strict'; \/\/ both directives stay first\nimport \{__rt_[A-Za-z0-9]+\} from '[^']+';\n/
-        );
-        expect(applied.code).toMatch(/getRunTypeId\(user, __rt_[A-Za-z0-9]+\);/);
-      });
-    }
-  );
-
   // `new` expressions take marker args like calls; both shapes per the marker rule, plus a paren-less `new`.
   const holderClass = `import {type InjectRunTypeId} from '@mionjs/run-types';
 export class Holder<T> {
