@@ -103,6 +103,35 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
     expect(result.stdout).not.toContain('source file not in program');
   });
 
+  // oxlint lints each <script> block on its own; the type from <script> must still reach <script setup>.
+  it('lints a .vue file and reports on its own lines', {timeout: 120000}, async () => {
+    const sfc =
+      '<template>\n  <p>{{ label }}</p>\n</template>\n' +
+      '<script lang="ts">\nexport interface Widget {\n  label: string;\n}\n</script>\n\n' +
+      '<script setup lang="ts">\n' +
+      "import {createValidateFn} from '@mionjs/run-types';\n" +
+      'const label = 1;\n' +
+      'export const isWidget = createValidateFn<Widget>();\n' +
+      'export const isSymbol = createValidateFn<symbol>();\n' +
+      '</script>\n';
+    project.write('vue/Widget.vue', sfc);
+    try {
+      let stdout = '';
+      try {
+        stdout = (await execFileAsync(OXLINT, ['-c', '.oxlintrc.json', 'vue/Widget.vue'], {cwd: project.dir})).stdout;
+      } catch (error) {
+        stdout = (error as {stdout?: string}).stdout ?? '';
+      }
+      expect(stdout).not.toContain('source file not in program');
+      expect(stdout).not.toContain('resolver failed');
+      const symbolLine = sfc.split('\n').findIndex((line) => line.includes('createValidateFn<symbol>')) + 1;
+      expect(stdout).toMatch(new RegExp(`Widget\\.vue:${symbolLine}:\\d+[^\\n]*\\[validate-symbol-root\\]`));
+      expect(stdout).not.toContain('marker-any-from-unresolved');
+    } finally {
+      fs.rmSync(path.join(project.dir, 'vue'), {recursive: true, force: true});
+    }
+  });
+
   afterAll(() => {
     project.cleanup();
   });
