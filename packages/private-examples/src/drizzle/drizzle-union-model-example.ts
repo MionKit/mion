@@ -3,7 +3,7 @@ import type {InferSelectModel} from '@mionjs/drizzle-orm';
 import {createValidateFn} from '@mionjs/run-types';
 
 export const orders = DZ.pgTable('orders', {
-  id: DZ.uuid({version: '7', primaryKey: true}), // UUIDv7 field, default uuidv7() (PostgreSQL 18)
+  id: DZ.uuid({version: '7', primaryKey: true}), // default uuidv7(), needs PostgreSQL 18
   status: DZ.text({enum: ['pending', 'shipped'], notNull: true}),
   trackingCode: DZ.varchar('tracking_code', {length: 40}),
 });
@@ -11,7 +11,6 @@ export const orders = DZ.pgTable('orders', {
 type OrderRow = InferSelectModel<typeof orders>;
 type OrderBase = Omit<OrderRow, 'status' | 'trackingCode'>;
 
-// a union has no table form: write it by hand from the row type
 export type Order =
   | (OrderBase & {status: 'pending'; trackingCode: null})
   | (OrderBase & {
