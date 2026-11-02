@@ -61,6 +61,8 @@ export interface ResolverClientOptions {
   patternSampleCount?: number;
   // Forwarded as --pattern-sample-retries: the per-sample draw multiplier for pattern sample generation (default 10).
   patternSampleRetries?: number;
+  // Forwarded as --max-unknown-keys: the per-object cap on a strict errors fn's unknown-key errors (default 10).
+  maxUnknownKeys?: number;
   // false forwards --json-max-bytes=false: no root row carries its compact-JSON maximum.
   jsonMaxBytes?: boolean;
   // Extra packages allowed to declare the marker types, forwarded as --marker-packages at spawn. Session config, not
@@ -472,6 +474,7 @@ export function buildResolverArgs(cwd: string, tsconfigPath: string, opts: Resol
   if (opts.hashLength !== undefined) args.push('--hash-length', String(opts.hashLength));
   if (opts.patternSampleCount !== undefined) args.push('--pattern-sample-count', String(opts.patternSampleCount));
   if (opts.patternSampleRetries !== undefined) args.push('--pattern-sample-retries', String(opts.patternSampleRetries));
+  if (opts.maxUnknownKeys !== undefined) args.push('--max-unknown-keys', String(opts.maxUnknownKeys));
   if (opts.jsonMaxBytes === false) args.push('--json-max-bytes=false');
   if (opts.markerPackages?.length) args.push('--marker-packages', opts.markerPackages.join(','));
   if (opts.markerPackageCheck === false) args.push('--no-marker-package-check');

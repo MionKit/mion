@@ -100,6 +100,9 @@ type Options struct {
 	// Post-intern, so typeIDs never depend on them; the emitted annotation does, so BOTH are disk-fingerprint inputs.
 	PatternSampleCount   int
 	PatternSampleRetries int
+	// MaxUnknownKeys caps the unknown-key errors a strict errors fn lists per object; it changes emitted bodies, so it is
+	// a disk-fingerprint input. 0 means constants.DefaultMaxUnknownKeys.
+	MaxUnknownKeys int
 	// JSONMaxBytes emits, on every fully bounded reflection ROOT row, the largest compact-JSON byte size a valid value
 	// can have (row slot 21), which is what a framework derives per-route limits from. On by default; off means the slot
 	// is never computed. A disk-fingerprint input: it changes the emitted root rows.
@@ -277,6 +280,7 @@ func newRTStore(opts Options, incremental bool) *diskcache.Store {
 		InlineMode:           string(opts.InlineMode),
 		PatternSampleCount:   opts.PatternSampleCount,
 		PatternSampleRetries: opts.PatternSampleRetries,
+		MaxUnknownKeys:       opts.MaxUnknownKeys,
 		JSONMaxBytes:         opts.JSONMaxBytes,
 	})
 	return diskcache.New(baseDir, fp)

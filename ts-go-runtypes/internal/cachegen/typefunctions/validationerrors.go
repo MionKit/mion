@@ -556,13 +556,9 @@ func emitObjectValidationErrors(rt *reflection.RunType, ctx *EmitContext, v stri
 	// emitsUnknownKeyCheck decides, the same call emitObjectValidate makes.
 	unknownKeyErrors := ""
 	if emitsUnknownKeyCheck(rt, ctx, nil) {
-		// Arrays excluded HERE and nowhere else in this family. emitObjectValidate's `&&` chain short-circuits on a failed property
-		// check, so it never reaches the key scan on an array; this family reports everything instead of stopping at the first
-		// failure, and would list an array's indices as undeclared keys.
-		// The shapes where no property check stops an array carry the `[object Object]` brand guard in objectCheck above.
-		if keyErrors := emitParentUnknownKeyErrors(rt, ctx); keyErrors != "" {
-			unknownKeyErrors = guardStatement("!Array.isArray("+v+")", keyErrors)
-		}
+		// No array skip: an array with every declared prop passes the property checks and the validator rejects its indices,
+		// so skipping it here would leave a rejected value with no errors.
+		unknownKeyErrors = emitParentUnknownKeyErrors(rt, ctx)
 	}
 	bodyCode := joinSemicolons(childrenCode, unknownKeyErrors)
 

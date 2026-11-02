@@ -41,8 +41,8 @@ interface RTValidationError {
 declare const Bun: unknown;
 
 export const getUnknownKeysFromArray = registerPureFnFactory(function () {
-  const MAX_UNKNOWN_KEYS = 10;
-  return function _getUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): StrNumber[] {
+  // Stops one key past `max`, so a huge body stays cheap and the extra key tells the caller more were cut.
+  return function _getUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[], max: number): StrNumber[] {
     const unknownKeys: StrNumber[] = [];
     for (const prop in obj) {
       let found = false;
@@ -54,7 +54,7 @@ export const getUnknownKeysFromArray = registerPureFnFactory(function () {
       }
       if (!found) {
         unknownKeys.push(prop as string);
-        if (unknownKeys.length >= MAX_UNKNOWN_KEYS) throw new Error('Too many unknown keys');
+        if (unknownKeys.length > max) break;
       }
     }
     return unknownKeys;

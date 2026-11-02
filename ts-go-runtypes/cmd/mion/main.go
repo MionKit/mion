@@ -145,6 +145,7 @@ type sharedFlags struct {
 	numberMode           string
 	patternSampleCount   int
 	patternSampleRetries int
+	maxUnknownKeys       int
 	markerPackages       string
 	noMarkerPackageCheck bool
 	pprofCPU             string
@@ -183,6 +184,8 @@ func registerSharedFlags(fs *flag.FlagSet) *sharedFlags {
 		"generated mockSamples per sample-less format pattern (default 100; 0 disables generation)")
 	fs.IntVar(&s.patternSampleRetries, "pattern-sample-retries", constants.DefaultPatternSampleRetries,
 		"per-sample draw multiplier for pattern sample generation (whole budget = count × retries; default 10)")
+	fs.IntVar(&s.maxUnknownKeys, "max-unknown-keys", constants.DefaultMaxUnknownKeys,
+		"unknown-key errors a strict errors fn lists per object before one tooManyUnknownKeys entry (internal; default 10)")
 	fs.StringVar(&s.markerPackages, "marker-packages", "",
 		"comma-separated `packages` additionally allowed to declare the marker types (InjectRunTypeId, CompTimeArgs, …); @mionjs/run-types is always accepted")
 	fs.BoolVar(&s.noMarkerPackageCheck, "no-marker-package-check", false,
@@ -303,6 +306,7 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		numberMode:           s.numberMode,
 		patternSampleCount:   s.patternSampleCount,
 		patternSampleRetries: s.patternSampleRetries,
+		maxUnknownKeys:       s.maxUnknownKeys,
 		markerPackages:       s.markerPackages,
 		noMarkerPackageCheck: s.noMarkerPackageCheck,
 	}, plugin, absCwd)
@@ -334,6 +338,10 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 	}
 	if merged.patternSampleRetries < 1 {
 		fmt.Fprintf(os.Stderr, "mion: invalid pattern-sample-retries %d (want >= 1)\n", merged.patternSampleRetries)
+		os.Exit(2)
+	}
+	if merged.maxUnknownKeys < 1 {
+		fmt.Fprintf(os.Stderr, "mion: invalid max-unknown-keys %d (want >= 1)\n", merged.maxUnknownKeys)
 		os.Exit(2)
 	}
 
@@ -384,6 +392,7 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		ValidateDefaults:     resolver.ValidateDefaults{NumberMode: merged.numberMode},
 		PatternSampleCount:   merged.patternSampleCount,
 		PatternSampleRetries: merged.patternSampleRetries,
+		MaxUnknownKeys:       merged.maxUnknownKeys,
 	}
 	return sessionConfig{absCwd: absCwd, tsconfigPath: tsconfigPath, genDir: merged.genDir, opts: opts}
 }

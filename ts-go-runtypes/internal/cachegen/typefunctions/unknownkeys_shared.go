@@ -142,7 +142,7 @@ func callCheckUnknownPropertiesForHas(rt *reflection.RunType, ctx *EmitContext, 
 	}
 	if returnKeys {
 		fnVar := ctx.UsePureFn(purefnids.GetUnknownKeysFromArray)
-		return fnVar + "(" + ctx.Vλl + ", " + keysCtx.keysName + ")"
+		return fnVar + "(" + ctx.Vλl + ", " + keysCtx.keysName + ", " + strconv.Itoa(ctx.MaxUnknownKeys()) + ")"
 	}
 	fnVar := ctx.UsePureFn(purefnids.HasUnknownKeysFromArray)
 	return fnVar + "(" + ctx.Vλl + ", " + keysCtx.keysName + ")"
@@ -175,6 +175,10 @@ func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 		if resolved.IsStatic || isMethodMember(resolved.Kind) {
 			continue
 		}
+		// An array's `length` passes the property check but is not enumerable, so the count would miss it.
+		if resolved.Name == "length" {
+			return 0, false
+		}
 		if resolved.Optional {
 			return 0, false
 		}
@@ -205,10 +209,6 @@ func joinSemicolons(parts ...string) string {
 // shape is validationErrors' job.
 func unknownKeysObjectGuard(v string) string {
 	return "typeof " + v + " === 'object' && " + v + " !== null && !Array.isArray(" + v + ")"
-}
-
-func guardStatement(guard, body string) string {
-	return "if (" + guard + ") {" + body + "}"
 }
 
 // siblingNamedKeysCtxKey names the context item holding the parent object's sibling-named-prop set for `idxSig`.
