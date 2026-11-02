@@ -35,7 +35,7 @@ func emitDeclarationFiles(cwd, tsconfigPath string, original *program.Program, o
 		if sourceFile == nil {
 			continue
 		}
-		text, sourceMap := sourcerewrite.Apply(abs, sourceFile.Text(), nil, fileSplices)
+		text, sourceMap := sourcerewrite.Apply(abs, sourceFile.Text(), sourcerewrite.PrologueEnd(sourceFile), nil, fileSplices)
 		overlay[abs] = text
 		if sourceMap != nil {
 			mapByAbs[abs] = sourceMap

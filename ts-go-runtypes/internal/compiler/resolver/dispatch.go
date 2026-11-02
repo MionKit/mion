@@ -897,22 +897,24 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 				}
 			}
 			source := sourceFile.Text()
+			prologueEnd := sourcerewrite.PrologueEnd(sourceFile)
 			if request.EmitEdits {
 				// ComputeEdits and JS EditBuffer must reproduce Apply byte for byte; SourceHash detects upstream source edits.
-				importBlock, edits := sourcerewrite.ComputeEdits(source, fileSites, fileReplacements)
+				importBlock, importAt, edits := sourcerewrite.ComputeEdits(source, prologueEnd, fileSites, fileReplacements)
 				if importBlock != "" && transformOutDir != "" {
 					// Only the injected block has rtmod: specifiers; relativizing it matches go-mode output.
 					importBlock = relativizeUserImports(sess.absPath(file), transformOutDir, importBlock, moduleExt(sess.opts.EmitMode))
 				}
 				transformed[file] = protocol.TransformResult{
 					ImportBlock: importBlock,
+					ImportAt:    importAt,
 					Edits:       edits,
 					SourceHash:  sourcerewrite.SourceHash(source),
 					TypeDeps:    sess.cache.DeclFilesForFiles([]string{file}),
 				}
 				continue
 			}
-			code, sourceMap := sourcerewrite.Apply(file, source, fileSites, fileReplacements)
+			code, sourceMap := sourcerewrite.Apply(file, source, prologueEnd, fileSites, fileReplacements)
 			if transformOutDir != "" {
 				// Absolute bases keep filepath.Rel valid; the injected block stays one line to preserve the source map.
 				code = relativizeUserImports(sess.absPath(file), transformOutDir, code, moduleExt(sess.opts.EmitMode))

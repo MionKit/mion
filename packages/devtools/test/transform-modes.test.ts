@@ -32,7 +32,7 @@ async function assertModeParity(client: ResolverClient, file: string, source: st
   // Happy path: no drift, so no re-sync would fire in the plugin.
   expect(edFile.sourceHash).toBe(sourceHash(source));
 
-  const applied = applyEdits(file, source, edFile.importBlock ?? '', edFile.edits ?? []);
+  const applied = applyEdits(file, source, edFile.importBlock ?? '', edFile.importAt ?? 0, edFile.edits ?? []);
 
   expect(applied.code).toBe(goFile.code);
   const goMap = goFile.map as SourceMap;
@@ -74,6 +74,50 @@ getRunTypeId(u);
       await withInlineSources(sources, async ({client}) => {
         const {applied} = await assertModeParity(client, 'user-reflect.ts', sources['user-reflect.ts']);
         expect(applied.code).toMatch(/getRunTypeId\(u, __rt_[A-Za-z0-9]+\);/);
+      });
+    }
+  );
+
+  // The import block goes AFTER the directive prologue: Next rejects a `"use client"` / `"use server"` that is not
+  // first. Both marker shapes, on both rewrite paths.
+  runTest(
+    'static getRunTypeId<T>() under "use client": both modes keep the directive first',
+    {
+      'client-static.ts': `"use client";
+import {getRunTypeId} from '@mionjs/run-types';
+type User = {id: number};
+export const id = getRunTypeId<User>();
+`,
+    },
+    async (sources) => {
+      await withInlineSources(sources, async ({client}) => {
+        const {applied} = await assertModeParity(client, 'client-static.ts', sources['client-static.ts']);
+        expect(applied.code).toMatch(/^"use client";\nimport \{__rt_[A-Za-z0-9]+\} from '[^']+';\nimport \{getRunTypeId\}/);
+      });
+    }
+  );
+
+  runTest(
+    "reflect getRunTypeId(value) under 'use server' + 'use strict': both modes keep the prologue first",
+    {
+      'server-reflect.ts': `// server actions
+'use server';
+'use strict'; // both directives stay first
+import {getRunTypeId} from '@mionjs/run-types';
+type User = {id: number};
+const user: User = {id: 1};
+export async function act() {
+  return getRunTypeId(user);
+}
+`,
+    },
+    async (sources) => {
+      await withInlineSources(sources, async ({client}) => {
+        const {applied} = await assertModeParity(client, 'server-reflect.ts', sources['server-reflect.ts']);
+        expect(applied.code).toMatch(
+          /^\/\/ server actions\n'use server';\n'use strict'; \/\/ both directives stay first\nimport \{__rt_[A-Za-z0-9]+\} from '[^']+';\n/
+        );
+        expect(applied.code).toMatch(/getRunTypeId\(user, __rt_[A-Za-z0-9]+\);/);
       });
     }
   );
@@ -379,7 +423,7 @@ getRunTypeId<Guard>();
         const second = ed2.transformed['guard.ts'];
         expect(second.sourceHash).toBe(sourceHash(drifted));
 
-        const applied = applyEdits('guard.ts', drifted, second.importBlock ?? '', second.edits ?? []);
+        const applied = applyEdits('guard.ts', drifted, second.importBlock ?? '', second.importAt ?? 0, second.edits ?? []);
         expect(applied.code).toContain('// injected by an upstream pre-plugin');
         expect(applied.code).toMatch(/getRunTypeId<Guard>\(undefined, __rt_[A-Za-z0-9]+\);/);
       });

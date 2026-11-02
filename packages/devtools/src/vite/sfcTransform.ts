@@ -206,7 +206,7 @@ function bareVueFile(id: string): string | undefined {
   return file;
 }
 
-/** Keeps the injected code on the SAME number of lines as the source it replaces: the prepended import block
+/** Keeps the injected code on the SAME number of lines as the source it replaces: the injected import block
  *  would otherwise shift every line below the script and break plugin-vue's source map. */
 function foldImportBlock(source: string, transformed: string): string {
   const extra = transformed.split('\n').length - source.split('\n').length;

@@ -228,9 +228,12 @@ export interface BatchSite {
 export interface TransformResult {
   code?: string;
   map?: SourceMap;
-  // 'edits' mode: the deduped import block prepended at offset 0, one physical line, relativized to
+  // 'edits' mode: the deduped import block inserted at `importAt`, one physical line, relativized to
   // <outDir>/types in files mode. Absent when the file needs no injected imports.
   importBlock?: string;
+  // 'edits' mode: where `importBlock` goes, in UTF-16 code units: past a `#!` line and the directive
+  // prologue (`"use client"` must stay first). Absent = 0 = prepend.
+  importAt?: number;
   // 'edits' mode: the flat point/span edit list, NOT the import block, in UTF-16 code-unit offsets
   // against the ORIGINAL source (the FE indexes JS strings natively).
   edits?: Edit[];

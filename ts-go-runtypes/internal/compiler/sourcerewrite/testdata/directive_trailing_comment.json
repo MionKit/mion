@@ -1,0 +1,26 @@
+{
+  "file": "a.ts",
+  "code": "// header\n\"use client\"; /* why */ // client only\nconst id = getRunTypeId<string>();\n",
+  "prologueEnd": 23,
+  "sites": [
+    {
+      "file": "a.ts",
+      "pos": 81,
+      "id": "Dir0001",
+      "paramIndex": 1
+    }
+  ],
+  "replacements": [],
+  "expectedCode": "// header\n\"use client\"; /* why */ // client only\nimport {__rt_Dir0001} from 'rtmod:/Dir0001.js';\nconst id = getRunTypeId<string>(undefined, __rt_Dir0001);\n",
+  "expectedMap": {
+    "version": 3,
+    "sources": [
+      "a.ts"
+    ],
+    "sourcesContent": [
+      "// header\n\"use client\"; /* why */ // client only\nconst id = getRunTypeId<string>();\n"
+    ],
+    "names": [],
+    "mappings": "AAAA,CAAC,CAAC,CAAC;AACH,CAAC,GAAG,CAAC,MAAM,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,GAAG,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,MAAM,CAAC;;AAClC,KAAK,CAAC,EAAE,CAAC,CAAC,CAAC,YAAY,CAAC,MAAM,CAAC,wBAAC,CAAC;"
+  }
+}

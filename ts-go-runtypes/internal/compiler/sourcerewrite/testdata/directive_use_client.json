@@ -1,0 +1,26 @@
+{
+  "file": "a.tsx",
+  "code": "\"use client\";\n\nexport function P() { return <i>{getRunTypeId<string>()}</i>; }\n",
+  "prologueEnd": 13,
+  "sites": [
+    {
+      "file": "a.ts",
+      "pos": 69,
+      "id": "Dir0001",
+      "paramIndex": 1
+    }
+  ],
+  "replacements": [],
+  "expectedCode": "\"use client\";\nimport {__rt_Dir0001} from 'rtmod:/Dir0001.js';\n\nexport function P() { return <i>{getRunTypeId<string>(undefined, __rt_Dir0001)}</i>; }\n",
+  "expectedMap": {
+    "version": 3,
+    "sources": [
+      "a.tsx"
+    ],
+    "sourcesContent": [
+      "\"use client\";\n\nexport function P() { return <i>{getRunTypeId<string>()}</i>; }\n"
+    ],
+    "names": [],
+    "mappings": "AAAA,CAAC,GAAG,CAAC,MAAM,CAAC;;;AAEZ,MAAM,CAAC,QAAQ,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,MAAM,CAAC,CAAC,CAAC,CAAC,CAAC,YAAY,CAAC,MAAM,CAAC,wBAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC;"
+  }
+}
