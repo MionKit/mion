@@ -23,17 +23,11 @@ import type {
   ParserStrategy,
 } from './types/general.types.ts';
 import {getRTUtils} from '@mionjs/run-types/runtime';
-import {getOrCreateGlobal} from './utils.ts';
+import {jitFunctionsCache, headerJitFunctionsCache} from './jitFunctionsCaches.ts';
 
 // Null-prototype on purpose: the id comes off the wire, so a plain object would answer `constructor` /
 // `toString` / `__proto__` with an inherited value. Every lookup below is an own-key lookup for the same reason.
-const methodsCache: MethodsCache = getOrCreateGlobal('mion.routerUtils.methodsCache', () => Object.create(null) as MethodsCache);
-
-const jitFunctionsCache = getOrCreateGlobal('mion.routerUtils.jitFunctionsCache', () => new Map<string, JitCompiledFunctions>());
-const headerJitFunctionsCache = getOrCreateGlobal(
-  'mion.routerUtils.headerJitFunctionsCache',
-  () => new Map<string, Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>>()
-);
+const methodsCache: MethodsCache = Object.create(null) as MethodsCache;
 
 /** The router cache: method metadata for routes registered via addRoutesToCache() or virtual modules. */
 export const routesCache = {

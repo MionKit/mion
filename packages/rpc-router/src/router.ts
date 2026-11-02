@@ -29,15 +29,7 @@ import {
   isAnyMiddlewareDef,
   isPublicExecutable,
 } from './types/guards.ts';
-import {
-  BUILD_VERSION_HEADER,
-  HandlerType,
-  isTestEnv,
-  resetRoutesCache,
-  getOrCreateGlobal,
-  resolveParser,
-  DEFAULT_MAX_BODY_SIZE,
-} from '@mionjs/core';
+import {BUILD_VERSION_HEADER, HandlerType, isTestEnv, resetRoutesCache, resolveParser, DEFAULT_MAX_BODY_SIZE} from '@mionjs/core';
 import {getRawMethodReflection, getHandlerReflection, assertCompiledParser} from './lib/reflection.ts';
 import {resolveChainMaxBodySize} from './lib/bodyLimit.ts';
 import {callerForType} from './dispatch.ts';
@@ -90,19 +82,16 @@ type RoutesWithId = {
 
 // ############# PRIVATE STATE #############
 
-const flatRouter = getOrCreateGlobal('mion.router.flatRouter', () => new Map<string, MethodsExecutionChain>()); // Main Router
+const flatRouter = new Map<string, MethodsExecutionChain>(); // Main Router
 /** mion's two not-found chains (an unknown path, an unknown batch id) are NOT routes and not in the
  *  router above: each is the global middleware behind a first member that throws, and is rebuilt on
  *  every registration because that middleware is. */
-const notFoundChains = getOrCreateGlobal('mion.router.notFoundChains', () => new Map<string, MethodsExecutionChain>());
-const middlewaresById = getOrCreateGlobal(
-  'mion.router.middlewaresById',
-  () => new Map<string, MiddlewareMethod | HeadersMethod | RawMethod>()
-);
-const routesById = getOrCreateGlobal('mion.router.routesById', () => new Map<string, RouteMethod>());
-const rawMiddlewaresById = getOrCreateGlobal('mion.router.rawMiddlewaresById', () => new Map<string, RawMethod>());
-const middlewareNames = getOrCreateGlobal('mion.router.middlewareNames', () => new Set<string>());
-const routeNames = getOrCreateGlobal('mion.router.routeNames', () => new Set<string>());
+const notFoundChains = new Map<string, MethodsExecutionChain>();
+const middlewaresById = new Map<string, MiddlewareMethod | HeadersMethod | RawMethod>();
+const routesById = new Map<string, RouteMethod>();
+const rawMiddlewaresById = new Map<string, RawMethod>();
+const middlewareNames = new Set<string>();
+const routeNames = new Set<string>();
 let complexity = 0;
 let routerOptions: RouterOptions = {...DEFAULT_ROUTE_OPTIONS};
 let isRouterInitialized = false;
@@ -164,11 +153,11 @@ export function setPlatformConfig(config: Record<string, unknown>): void {
 
 export const getPlatformConfig = (): Readonly<Record<string, unknown>> | undefined => platformConfig;
 
-// Survives resetRouter on purpose: a dev host reloads the entry after a reset and still owns the socket.
-const devHost = getOrCreateGlobal('mion.router.devHost', () => ({
+// resetRouter leaves it alone: the dev host sets it before the entry loads, not the routes.
+const devHost = {
   ownsSocket: false,
   handler: undefined as HostRequestHandler | undefined,
-}));
+};
 
 /** Set by a dev host that owns the socket (the mion vite plugin) BEFORE it loads the server entry, so whatever
  *  platform adapter the entry starts registers its routes and hands over its handler instead of listening. */
@@ -223,7 +212,8 @@ export function createMionRouter<const O extends RouterOptionsInput & KnownKeysO
 ): MionRouter<O, WithShared<O, object>> {
   if (isRouterCreated)
     throw new Error(
-      'createMionRouter has already been called: create the router once per app (resetRouter() clears it in tests)'
+      'createMionRouter has already been called: create the router once per app (resetRouter() clears it in tests). ' +
+        'A dev server re-running the module that creates it must re-run @mionjs/router too: keep @mionjs/* bundled.'
     );
   isRouterCreated = true;
   const options = Object.freeze({...opts}) as Readonly<O>;

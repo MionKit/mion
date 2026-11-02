@@ -34,6 +34,9 @@
   (mion's own middlewares and its error / serializer routes use them directly.)
 - Never re-add bare `route()` exports or a second init entry point.
 - Second router factory call throws until `resetRouter()` clears it: catches a second app built on top of the first.
+- Router and core state is per module copy, NEVER on `globalThis`. A dev reload is a fresh copy (`next dev`
+  re-evaluates the route bundle, the Vite plugin re-runs the API's module tree), so nothing is reset between reloads.
+  A shared slot would let a fresh copy collide with the tables of the one it replaces.
 - Vitest tests may build it at module level: each file gets its own modules, so no sibling sees the flag.
 - bun tests (`packages/platform-bun`): call it in `beforeEach` / `beforeAll` next to the reset, never where the
   file is evaluated.

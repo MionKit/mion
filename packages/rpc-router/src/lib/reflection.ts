@@ -6,7 +6,7 @@
  * ######## */
 
 import type {MethodWithJitFns} from '@mionjs/core';
-import {EMPTY_HASH, getNoopJitFns, getOrCreateGlobal, type ResolvedParser} from '@mionjs/core';
+import {EMPTY_HASH, getNoopJitFns, type ResolvedParser} from '@mionjs/core';
 import {getHeadersReflectionFromMarkers, getReflectionFromMarkers, isAsyncHandler} from '@mionjs/core';
 import {Handler} from '../types/handlers.ts';
 import {RouterOptions} from '../types/general.ts';
@@ -61,10 +61,7 @@ function isCodeGenBlocked(message?: string): boolean {
 
 // ############ Raw Middleware Reflection ############
 
-const rawMiddlewareReflectionCache = getOrCreateGlobal(
-  'mion.reflection.rawMiddlewareReflectionCache',
-  () => new Map<string, MethodReflect>()
-);
+const rawMiddlewareReflectionCache = new Map<string, MethodReflect>();
 
 /** Creates a MethodReflect for raw middlewares: no type info, NoopJitFns. */
 function createRawMiddlewareReflection(isAsync: boolean, hasReturnData: boolean = false, paramsCount: number = 0): MethodReflect {
