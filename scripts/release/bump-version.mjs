@@ -19,7 +19,7 @@ import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {installedDrizzleVersion, peerRangeFor, plannedVersion, readDialectPackages, unreleasedChanges} from '../lib/drizzle-line.mjs';
+import {installedDrizzleVersion, peerRangeFor, plannedVersion, readDialectPackages, rootPeerRangeFor, unreleasedChanges} from '../lib/drizzle-line.mjs';
 import {writeJsonKeepingIndent as writeJson} from '../lib/json-file.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -75,6 +75,7 @@ function planDrizzleLine(newVersion) {
 // Writes the planned drizzle versions and returns the files it edited.
 function applyDrizzleLine(plan) {
   const edited = [];
+  const rootNext = plan.find(({pkg}) => pkg.name === '@mionjs/drizzle-orm')?.next;
   for (const {pkg, packageFile, next, coreRange, coreRangeMoved, changed} of plan) {
     if (next === pkg.version) {
       console.log(`  ${pkg.name}: unchanged since ${pkg.version} — not republished`);
@@ -84,6 +85,7 @@ function applyDrizzleLine(plan) {
     console.log(`  ${pkg.name}: ${why} -> ${next}`);
     pkg.version = next;
     pkg.peerDependencies['@mionjs/run-types'] = coreRange;
+    if (rootNext && pkg.peerDependencies['@mionjs/drizzle-orm']) pkg.peerDependencies['@mionjs/drizzle-orm'] = rootPeerRangeFor(rootNext);
     writeJson(packageFile, pkg);
     edited.push(path.relative(REPO_ROOT, packageFile));
   }

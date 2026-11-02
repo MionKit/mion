@@ -24,6 +24,7 @@ const {
   plannedVersion,
   readDialectPackages,
   REPO_ROOT,
+  rootPeerRangeFor,
   tarballContentDiff,
   unreleasedChanges,
 } = drizzleLine;
@@ -92,6 +93,11 @@ describe('drizzle line — what version comes next', () => {
   it('states a peer range as one whole minor line', () => {
     expect(peerRangeFor('0.45.2')).toBe('>=0.45.0 <0.46.0');
     expect(peerRangeFor('1.0.0')).toBe('>=1.0.0 <1.1.0');
+  });
+
+  it('floors a dialect peer on the core at the core version it is released with', () => {
+    expect(rootPeerRangeFor('0.45.2')).toBe('>=0.45.2 <0.46.0');
+    expect(rootPeerRangeFor('0.46.0')).toBe('>=0.46.0 <0.47.0');
   });
 });
 

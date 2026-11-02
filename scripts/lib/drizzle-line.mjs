@@ -51,6 +51,13 @@ export function peerRangeFor(version) {
   return `>=${major}.${minor}.0 <${major}.${minor + 1}.0`;
 }
 
+// `>=0.45.2 <0.46.0` for core 0.45.2: a republished dialect's @mionjs/drizzle-orm peer.
+// Floored at the core it was built against, since a dialect may call what an older core lacks.
+export function rootPeerRangeFor(rootVersion) {
+  const [major, minor] = rootVersion.split('.').map(Number);
+  return `>=${rootVersion} <${major}.${minor + 1}.0`;
+}
+
 // The lockstep version every non-drizzle package is on (version.json).
 export function lockstepVersion(repoRoot = REPO_ROOT) {
   return readJson(path.join(repoRoot, 'version.json')).version;
