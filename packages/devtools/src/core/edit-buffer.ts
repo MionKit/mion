@@ -2,7 +2,7 @@
 // ZERO runtime dependencies: it replaced `magic-string`. It implements only what apply-edits.ts
 // uses, and leans on three properties of the rewrite's edits a general-purpose editor can't assume:
 // every edit is against ORIGINAL coordinates (so one left-to-right pass is exact and edit order is
-// irrelevant); edits never overlap (asserted, not resolved); only the prepended import block adds
+// irrelevant); edits never overlap (asserted, not resolved); only the import block adds
 // newlines, so column shifts stay confined to each edited line.
 //
 // ───────────────────────── CREDIT / ATTRIBUTION ─────────────────────────
@@ -62,19 +62,12 @@ interface Replacement {
 // EditBuffer edits an immutable original: every index it is given is an ORIGINAL coordinate.
 export class EditBuffer {
   private readonly original: string;
-  private intro = '';
   // Repeated appendLeft at one index accumulate in call order.
   private readonly leftInserts = new Map<number, string>();
   private readonly replacements: Replacement[] = [];
 
   constructor(original: string) {
     this.original = original;
-  }
-
-  // prepend adds to the front of the output (the import block); the rewrite only ever calls it once.
-  prepend(content: string): this {
-    this.intro = content + this.intro;
-    return this;
   }
 
   // appendLeft inserts to the left of an original index; later calls there land after earlier ones.
@@ -91,7 +84,7 @@ export class EditBuffer {
   }
 
   toString(): string {
-    let out = this.intro;
+    let out = '';
     this.eachChunk(
       (start, end) => (out += this.original.slice(start, end)),
       (text) => (out += text),
@@ -103,7 +96,6 @@ export class EditBuffer {
   // generateMap maps generated positions back to the original, with boundary-granular segments.
   generateMap(options: GenerateMapOptions = {}): SourceMap {
     const mappings = new Mappings(this.original, makeLocator(this.original));
-    if (this.intro) mappings.advance(this.intro);
     this.eachChunk(
       (start, end) => mappings.addUnedited(start, end),
       (text) => mappings.advance(text),
@@ -189,7 +181,7 @@ class Mappings {
     private readonly locate: (index: number) => {line: number; column: number}
   ) {}
 
-  // advance moves the cursor past unmapped text (intro, inserted runs) without recording a segment.
+  // advance moves the cursor past unmapped text (inserted runs) without recording a segment.
   advance(text: string): void {
     if (!text) return;
     const lines = text.split('\n');

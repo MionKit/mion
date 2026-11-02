@@ -362,7 +362,7 @@ type TransformResult struct {
 	// 'edits' mode only; the host inserts it verbatim.
 	ImportBlock string `json:"importBlock,omitempty"`
 	// ImportAt is where ImportBlock goes, in UTF-16 CODE UNITS: past a `#!` line and the directive prologue
-	// (`"use client"` must stay first), 0 = prepend. The host inserts the block there before any other edit.
+	// (`"use client"` must stay first), 0 = the start of the file. The host inserts the block there before any other edit.
 	// 'edits' mode only.
 	ImportAt int `json:"importAt,omitempty"`
 	// Edits is the flat point/span edit list, ImportBlock excluded, in UTF-16 CODE-UNIT offsets against the

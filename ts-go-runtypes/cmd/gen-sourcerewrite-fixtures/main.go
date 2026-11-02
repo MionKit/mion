@@ -58,7 +58,6 @@ type fixture struct {
 	Name         string                 `json:"name,omitempty"`
 	File         string                 `json:"file"`
 	Code         string                 `json:"code"`
-	PrologueEnd  int                    `json:"prologueEnd,omitempty"`
 	Sites        []protocol.Site        `json:"sites"`
 	Replacements []protocol.Replacement `json:"replacements"`
 	ExpectedCode string                 `json:"expectedCode"`
@@ -194,6 +193,15 @@ var primaryCases = []fixtureCase{
 	{"directive_same_line_code", "a.ts", "\"use client\"; const id = getRunTypeId<string>();\n", getRunTypeIdSite},
 	{"directive_multiline_comment", "a.ts", "\"use client\" /* a\nb */\nconst id = getRunTypeId<string>();\n", getRunTypeIdSite},
 	{"shebang_directive", "a.ts", "#!/usr/bin/env node\n'use strict';\nconst id = getRunTypeId<string>();\n", getRunTypeIdSite},
+	{"shebang_only", "a.ts", "#!/usr/bin/env node\nconst id = getRunTypeId<string>();\n", getRunTypeIdSite},
+	// Multibyte text before the prologue end: the block offset goes through makeByteToChar like any edit.
+	{"directive_multibyte_header", "a.ts", "// 🦄 — note\n\"use client\";\nconst id = getRunTypeId<string>();\n", getRunTypeIdSite},
+	// The value marker shape under a directive (marker coverage rule).
+	{"directive_reflect_value", "a.ts", "\"use client\";\nconst s = 'hello';\nconst id = getRunTypeId(s);\n", func(code string) ([]protocol.Site, []protocol.Replacement) {
+		reflectSite := site(byteIndexOf(code, ")", strings.Index(code, "getRunTypeId")), "Dir0002")
+		reflectSite.ArgsCount = 1
+		return []protocol.Site{reflectSite}, nil
+	}},
 	// A string that is not a whole statement is no directive: plain prepend.
 	{"not_a_directive", "a.ts", "\"use client\".length;\nconst id = getRunTypeId<string>();\n", getRunTypeIdSite},
 	// A zero-width insert at the block's own offset still lands AFTER the block.
@@ -287,27 +295,18 @@ func buildFixture(name string, gc fixtureCase) fixture {
 	if replacements == nil {
 		replacements = []protocol.Replacement{}
 	}
-	prologueEnd := sourcerewrite.PrologueEnd(parse(gc.file, gc.code))
-	code, sourceMap := sourcerewrite.Apply(gc.file, gc.code, prologueEnd, sites, replacements)
+	// The real AST the resolver hands PrologueEnd, so a fixture's prologue is never hand-pinned.
+	parsed := parser.ParseSourceFile(ast.SourceFileParseOptions{FileName: "/" + gc.file, Path: tspath.Path("/" + gc.file)}, gc.code, core.GetScriptKindFromFileName(gc.file))
+	code, sourceMap := sourcerewrite.Apply(gc.file, gc.code, sourcerewrite.PrologueEnd(parsed), sites, replacements)
 	return fixture{
 		Name:         name,
 		File:         gc.file,
 		Code:         gc.code,
-		PrologueEnd:  prologueEnd,
 		Sites:        sites,
 		Replacements: replacements,
 		ExpectedCode: code,
 		ExpectedMap:  sourceMap,
 	}
-}
-
-// parse gives PrologueEnd the real AST the resolver hands it, so a fixture's prologue is never hand-pinned.
-func parse(file, code string) *ast.SourceFile {
-	kind := core.ScriptKindTS
-	if strings.HasSuffix(file, ".tsx") {
-		kind = core.ScriptKindTSX
-	}
-	return parser.ParseSourceFile(ast.SourceFileParseOptions{FileName: "/" + file, Path: tspath.Path("/" + file)}, code, kind)
 }
 
 // marshalPretty matches the old JS JSON.stringify(x, null, 2) + '\n' output:

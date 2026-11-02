@@ -10,8 +10,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// applyComputed is the reference applier the FE mirrors: the import block first
-// (prepended at 0, else inserted at importAt), then each point/span edit against
+// applyComputed is the reference applier the FE mirrors: the import block first,
+// at importAt, then each point/span edit against
 // the ORIGINAL source via the same EditBuffer Apply uses. If ComputeEdits' output
 // run through this reproduces Apply's output, the edit list is a faithful
 // description of the rewrite and the two transform modes cannot diverge.
@@ -23,11 +23,7 @@ func applyComputed(file, source, importBlock string, importAt int, edits []proto
 	}
 	units := utf16.Encode([]rune(source))
 	eb := newEditBuffer(units)
-	if importBlock != "" && importAt == 0 {
-		eb.prepend(importBlock)
-	} else if importBlock != "" {
-		eb.appendLeft(importAt, importBlock)
-	}
+	eb.appendLeft(importAt, importBlock)
 	for _, edit := range edits {
 		if edit.Start == edit.End {
 			eb.appendLeft(edit.Start, edit.Text)
@@ -61,8 +57,9 @@ func TestComputeEdits_MatchesApply(t *testing.T) {
 				t.Fatalf("unmarshal %s: %v", path, err)
 			}
 
-			wantCode, wantMap := Apply(tc.File, tc.Code, tc.PrologueEnd, tc.Sites, tc.Replacements)
-			importBlock, importAt, edits := ComputeEdits(tc.Code, tc.PrologueEnd, tc.Sites, tc.Replacements)
+			prologueEnd := PrologueEnd(parseForTest(tc.File, tc.Code))
+			wantCode, wantMap := Apply(tc.File, tc.Code, prologueEnd, tc.Sites, tc.Replacements)
+			importBlock, importAt, edits := ComputeEdits(tc.Code, prologueEnd, tc.Sites, tc.Replacements)
 			gotCode, gotMap := applyComputed(tc.File, tc.Code, importBlock, importAt, edits)
 
 			if gotCode != wantCode {

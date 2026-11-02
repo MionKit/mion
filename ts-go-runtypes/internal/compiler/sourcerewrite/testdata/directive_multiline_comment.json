@@ -1,7 +1,6 @@
 {
   "file": "a.ts",
   "code": "\"use client\" /* a\nb */\nconst id = getRunTypeId<string>();\n",
-  "prologueEnd": 12,
   "sites": [
     {
       "file": "a.ts",

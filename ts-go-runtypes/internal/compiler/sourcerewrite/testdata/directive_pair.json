@@ -1,7 +1,6 @@
 {
   "file": "a.ts",
   "code": "'use server';\n\"use strict\";\nexport async function act() { return getRunTypeId<string>(); }\n",
-  "prologueEnd": 27,
   "sites": [
     {
       "file": "a.ts",

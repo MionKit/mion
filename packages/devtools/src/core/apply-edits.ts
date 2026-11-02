@@ -1,13 +1,13 @@
 // apply-edits.ts — the FE half of 'edits'-mode transform: it applies the resolver's edit list
 // (computed by internal/compiler/sourcerewrite/edits.go) in JS, so the rewritten file and its dense
-// source map never cross the wire. It must call prepend / appendLeft / update in the same sequence as
+// source map never cross the wire. It must call appendLeft / update in the same sequence as
 // Go's Apply, or the two modes stop being byte-identical. Offsets are UTF-16 CODE UNITS, converted
 // from bytes on the Go side, so a JS string indexes with them directly.
 import {EditBuffer, type SourceMap} from './edit-buffer.ts';
 import type {Edit} from './protocol.ts';
 
 // applyEdits inserts `importBlock` verbatim (the resolver already relativized it for files-mode) at
-// `importAt`, past any `#!` line and directive prologue, prepending at 0. It goes in before the edits so
+// `importAt`, past any `#!` line and directive prologue (0 when there is none). It goes in before the edits so
 // it precedes any other insertion at the same offset; the edits land against ORIGINAL coordinates, so
 // their order is irrelevant. `file` names sources[0].
 export function applyEdits(
@@ -18,8 +18,7 @@ export function applyEdits(
   edits: Edit[]
 ): {code: string; map: SourceMap} {
   const buffer = new EditBuffer(code);
-  if (importBlock && importAt === 0) buffer.prepend(importBlock);
-  else if (importBlock) buffer.appendLeft(importAt, importBlock);
+  buffer.appendLeft(importAt, importBlock);
   for (const edit of edits) {
     if (edit.start === edit.end) buffer.appendLeft(edit.start, edit.text);
     else buffer.update(edit.start, edit.end, edit.text);

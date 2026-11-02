@@ -1,7 +1,6 @@
 {
   "file": "a.tsx",
   "code": "\"use client\";\n\nexport function P() { return <i>{getRunTypeId<string>()}</i>; }\n",
-  "prologueEnd": 13,
   "sites": [
     {
       "file": "a.ts",
