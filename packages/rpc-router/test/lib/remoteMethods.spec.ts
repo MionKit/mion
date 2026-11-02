@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {describe, it, expect, expectTypeOf, beforeEach} from 'vitest';
+import {describe, it, expect, expectTypeOf, beforeEach, vi} from 'vitest';
 import {getPublicApi, serializeMethodDeps} from '../../src/lib/remoteMethods.ts';
 import {createMionRouter, resetRouter} from '../../src/router.ts';
 import {CallContext} from '../../src/types/context.ts';
@@ -59,6 +59,16 @@ describe('Public Methods should', () => {
     }).initRoutes(routes);
 
     expect(publicExecutables).toEqual({});
+  });
+
+  it('generate public data when GENERATE_ROUTER_SPEC=true, even with getPublicRoutesData off', async () => {
+    vi.stubEnv('GENERATE_ROUTER_SPEC', 'true');
+    try {
+      const publicExecutables = createMionRouter({sharedDataFactory: getSharedData}).initRoutes(routes);
+      expect(Object.keys(publicExecutables).length).toBeGreaterThan(0);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it('generate all the required public fields for middleware and route', async () => {
