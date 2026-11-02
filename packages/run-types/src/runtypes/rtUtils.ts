@@ -236,7 +236,10 @@ function initPureFunction(compiled: CompiledPureFunction): asserts compiled is C
   if (compiled.fn) return;
   let factory = compiled.createPureFn;
   if (!factory) {
-    factory = buildPureFnFactoryFromCode(compiled.paramNames, compiled.code ?? '');
+    factory = buildOrNameEntry(
+      () => buildPureFnFactoryFromCode(compiled.paramNames, compiled.code ?? ''),
+      `pure fn "${compiled.id}"`
+    );
     (compiled as Mutable<CompiledPureFunction>).createPureFn = factory;
   }
   compiled.fn = factory(rtUtils);
@@ -248,6 +251,20 @@ function initPureFunction(compiled: CompiledPureFunction): asserts compiled is C
 export function buildPureFnFactoryFromCode(paramNames: string[], code: string): PureFunctionFactory {
   // oxlint-disable-next-line typescript/no-implied-eval
   return new Function(...paramNames, `'use strict'; ${code}`) as PureFunctionFactory;
+}
+
+/** Runs a `new Function` build; when the host forbids it, the error names the code-only entry so the user can
+ *  find which module (the app's own or a dependency's) was built with emitMode 'code'. **/
+function buildOrNameEntry<F>(build: () => F, label: string): F {
+  try {
+    return build();
+  } catch (error: any) {
+    throw new Error(
+      `${error?.message ?? error}: ${label} ships only as a code string. The module that emitted it was built with ` +
+        `emitMode 'code' (your app or a dependency): search the bundle for that id to find it.`,
+      {cause: error}
+    );
+  }
 }
 
 /** Builds a fresh factory closure from a serialized code body. Forces strict mode. **/
@@ -290,7 +307,10 @@ function materializeRTFn(entry: CompiledTypeFn): asserts entry is InitializedTyp
   try {
     // `functions` mode ships createRTFn directly; otherwise rebuild it from the code string (entryCode ===
     // entry.code here, since createRTFn is absent).
-    if (!entry.createRTFn) (entry as Mutable<CompiledTypeFn>).createRTFn = buildFactoryFromCode(entryCode(entry));
+    if (!entry.createRTFn) {
+      const label = `compiled fn "${entry.rtFnHash}" (${entry.typeName})`;
+      (entry as Mutable<CompiledTypeFn>).createRTFn = buildOrNameEntry(() => buildFactoryFromCode(entryCode(entry)), label);
+    }
     (entry as Mutable<CompiledTypeFn>).fn = (entry as InitializedTypeFn).createRTFn(rtUtils);
   } finally {
     materializing.delete(entry.rtFnHash);
