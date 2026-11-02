@@ -315,9 +315,11 @@ export const ${p}u = db.update(${p}D).set({age: 31});`,
     budgets: {
       // All raised 8 to 24 (except toDrizzle): a REVIEWED EXCEPTION, tables carry drizzle's $inferSelect / $inferInsert.
       // 539 -> 671 and 971 -> 1152: a REVIEWED EXCEPTION, props reject stray modifier keys (Only<P, Allowed>, ~30 per column).
-      '5 mixed, select': {types: 681, builders: 1160},
+      // 681 -> 688: a REVIEWED EXCEPTION, the uuid column type reads its version (one conditional per uuid column).
+      '5 mixed, select': {types: 688, builders: 1151},
       // 1132 -> 1264 and 1638 -> 1820: a REVIEWED EXCEPTION, props reject stray modifier keys.
-      '5 mixed, select + insert': {types: 1288, builders: 1842},
+      // 1288 -> 1294: a REVIEWED EXCEPTION, the uuid column type reads its version (one conditional per uuid column).
+      '5 mixed, select + insert': {types: 1294, builders: 1833},
       '10 plain, db name per column': {types: 220, builders: 371},
       '20 plain, db name per column': {types: 310, builders: 581},
       '40 plain, db name per column': {types: 490, builders: 1001},
@@ -328,9 +330,11 @@ export const ${p}u = db.update(${p}D).set({age: 31});`,
       // 212 -> 263 and 423 -> 490: a REVIEWED EXCEPTION, props reject stray modifier keys.
       'two tables, one reference': {types: 279, builders: 500},
       // 1277 -> 1366 and 1729 -> 1869: a REVIEWED EXCEPTION, props reject stray modifier keys.
-      'refineTableType, select': {types: 1382, builders: 1883},
+      // 1382 -> 1389: a REVIEWED EXCEPTION, the uuid column type reads its version (one conditional per uuid column).
+      'refineTableType, select': {types: 1389, builders: 1874},
       // 8812 -> 8943 and 9915 -> 10095: a REVIEWED EXCEPTION, props reject stray modifier keys. Now 8822 / 9999: rows keep formats.
-      'toDrizzle + select / insert / update query': {types: 8821, builders: 9996},
+      // 8821 -> 8827: a REVIEWED EXCEPTION, the uuid column type reads its version (one conditional per uuid column).
+      'toDrizzle + select / insert / update query': {types: 8827, builders: 9987},
     },
   },
   {
