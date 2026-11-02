@@ -467,6 +467,18 @@ describe('every tracked JavaScript file parses', () => {
   });
 });
 
+// Edge runtimes forbid `new Function`, and an app's emitMode never reaches a package's prebuilt modules.
+describe('published packages ship live generated functions', () => {
+  it('every public package that runs the mion vite plugin builds with emitMode both', () => {
+    const offenders = globSync('packages/*/vite.config.ts', {cwd: REPO_ROOT}).filter((file) => {
+      const config = readFileSync(join(REPO_ROOT, file), 'utf8');
+      const isPublic = !JSON.parse(readFileSync(join(REPO_ROOT, dirname(file), 'package.json'), 'utf8')).private;
+      return isPublic && config.includes('mionVitePlugin(') && !/emitMode:\s*'both'/.test(config);
+    });
+    expect(offenders).toEqual([]);
+  });
+});
+
 // No CI lane runs the compile-time bench, so these pin the two things that broke it unseen.
 describe('the compile-time bench loads what its lanes install', () => {
   const read = (file: string) => readFileSync(join(REPO_ROOT, file), 'utf8');
