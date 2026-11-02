@@ -245,22 +245,25 @@ const sessionsDb = toDrizzle(sessions);
 
 describe('addendum — uuid version', () => {
   beforeAll(async () => {
-    await db.execute(sql`drop table if exists ${sessionsDb}`);
-    // The image is postgres 17, which has no uuidv7(): the table is created without that default.
-    await db.execute(sql`create table ${sessionsDb} (id uuid primary key, token uuid not null default gen_random_uuid())`);
-  });
-
-  test('the version reaches drizzle as its default', () => {
+    // postgres 18 ships uuidv7(); the image is 17, so this stand-in makes the recorded default run.
+    await db.execute(sql`
+      create or replace function uuidv7() returns uuid language sql as $$
+        select encode(set_bit(set_bit(overlay(uuid_send(gen_random_uuid())
+          placing substring(int8send((extract(epoch from clock_timestamp()) * 1000)::bigint) from 3)
+          from 1 for 6), 52, 1), 53, 1), 'hex')::uuid
+      $$`);
+    // The defaults come from the recorded columns, so the database runs what mion recorded.
     const [id, token] = getTableConfig(sessionsDb).columns;
-    expect([id!.getSQLType(), token!.getSQLType()]).toEqual(['uuid', 'uuid']);
-    expect([id!.hasDefault, token!.hasDefault]).toEqual([true, true]);
+    await db.execute(sql`drop table if exists ${sessionsDb}`);
+    await db.execute(
+      sql`create table ${sessionsDb} (id uuid primary key default ${id!.default}, token uuid not null default ${token!.default})`
+    );
   });
 
-  test('a v7 id round-trips and version 4 generates its token', async () => {
-    const id = '019a4e2c-7b3d-7c1e-9f2a-3b4c5d6e7f80';
-    await db.insert(sessionsDb).values({id});
+  test('each version generates its own uuid version', async () => {
+    await db.insert(sessionsDb).values({});
     const [row] = await db.select().from(sessionsDb);
-    expect(row!.id).toBe(id);
+    expect(row!.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-/);
     expect(row!.token).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-/);
   });
 });
