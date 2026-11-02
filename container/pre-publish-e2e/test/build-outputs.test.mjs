@@ -120,6 +120,21 @@ test('mion-next: the app serves its own mion API, on both wires and in a batch',
   assert.equal(batch.sum, 3);
 });
 
+// `next dev` after each kind of edit: the new code answers, and no request failed while Next reloaded the API.
+test('mion-next: editing a handler, a type and a client batch during next dev keeps the API answering', () => {
+  const report = path.join(APPS, 'mion-next', 'dev-reload.json');
+  assert.ok(existsSync(report), 'mion-next: dev-reload.json is missing — did build-all.mjs run for it?');
+  const results = JSON.parse(readFileSync(report, 'utf8'));
+  assert.deepEqual(
+    results.map((result) => result.name),
+    ['handler', 'type', 'client batch']
+  );
+  for (const result of results) {
+    assert.equal(result.reached, true, `mion-next dev: the '${result.name}' edit never reached the API`);
+    assert.deepEqual(result.failures, [], `mion-next dev: requests failed after the '${result.name}' edit`);
+  }
+});
+
 // A bundled client with useFetchMetadata ships the fetch lane, downloaded only for an unseen route or a moved-on server.
 // Turbopack has no plugin API, so the lane is a plain dynamic import; only a REAL build shows Turbopack kept that split.
 test('mion-next: a bundled Turbopack build keeps the metadata lane out of the page', () => {
