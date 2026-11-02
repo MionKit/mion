@@ -352,7 +352,7 @@ export type ModePins = [
   Expect<Equal<typeof modes.timestampString, Timestamp<{mode: 'string'}>>>,
 ];
 
-// ── uuid version: the model field narrows, drizzle sees a plain uuid ─────────
+// ── uuid version: the model field narrows, the version is the default ────────
 
 export const versionedUuids = pgTable('versioned_uuids', {
   v7: uuid({version: '7', primaryKey: true}),
@@ -368,7 +368,12 @@ export type OnlyPg_UuidVersionPins = [
   Expect<Equal<typeof versionedUuids, VersionedUuids>>,
   Expect<Equal<InferSelectModel<typeof versionedUuids>, VersionedUuidRow>>,
   Expect<Equal<DataOf<Uuid<{version: '7'}>>, UUIDv7>>,
+  Expect<Equal<InferInsertModel<typeof versionedUuids>, {v7?: UUIDv7; v4?: UUIDv4; any?: UUID | null}>>,
 ];
+// @ts-expect-error only pg: a uuid version is its default, a second one is refused
+uuid({version: '7', defaultRandom: true});
+// @ts-expect-error only pg: a hand-written uuid version refuses a second default
+export type TwoDefaults = Uuid<{version: '7'; default: ['x']}>;
 // @ts-expect-error only pg: a version uuid formats lack
 uuid({version: '1'});
 

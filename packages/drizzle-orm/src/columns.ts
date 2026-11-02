@@ -56,13 +56,5 @@ export function isColModName(name: string): name is ColModName {
   return colModNameSet.has(name);
 }
 
-/** Config keys that only shape the column's data type: pg uuid's `version`. Never passed to drizzle. */
-export const typeOnlyConfigNames = ['version'] as const;
-const typeOnlyConfigNameSet: ReadonlySet<string> = new Set(typeOnlyConfigNames);
-/** Is this config key mion's own, read by the types alone? */
-export function isTypeOnlyConfigName(name: string): boolean {
-  return typeOnlyConfigNameSet.has(name);
-}
-
 /** Sentinel key of a table entry spec (index/unique/check/foreignKey/...). */
 export const rtEntrySpecKey: unique symbol = Symbol('rtEntrySpec');

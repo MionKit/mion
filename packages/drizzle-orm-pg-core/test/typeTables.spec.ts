@@ -874,22 +874,25 @@ describe('pg columns: models compile full-fidelity validators', () => {
   });
 });
 
-// A uuid version narrows the model field only: drizzle gets a plain uuid on both roads.
+// A uuid version types the model field and adds the default that generates it, on both roads.
 const sessions = pgTable('sessions', {
   id: uuid({version: '7', primaryKey: true}),
   token: uuid('token', {version: '4', notNull: true}),
 });
 type Sessions = PgTable<'sessions', {id: Uuid<{version: '7'; primaryKey: true}>; token: Uuid<{version: '4'; notNull: true}>}>;
 const rawSessions = dz.pgTable('sessions', {
-  id: dz.uuid().primaryKey(),
-  token: dz.uuid('token').notNull(),
+  id: dz
+    .uuid()
+    .default(dzSql`uuidv7()`)
+    .primaryKey(),
+  token: dz.uuid('token').defaultRandom().notNull(),
 });
 type Session = InferSelectModel<typeof sessions>;
 const validSession = {id: '019a4e2c-7b3d-7c1e-9f2a-3b4c5d6e7f80', token: '793aff46-42ac-4372-b7fa-c48ba48ed94f'};
 
 describe('pg columns: only pg: uuid version', () => {
   const validateSession = createValidateFn<Session>();
-  it('the builder and the hand-written type materialize a plain drizzle uuid', () => {
+  it('the builder and the hand-written type materialize the uuid with its version default', () => {
     expect(project(toDrizzle(sessions))).toEqual(project(rawSessions));
     expect(project(toDrizzle(tableFromType<Sessions>()))).toEqual(project(rawSessions));
   });

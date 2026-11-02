@@ -27,6 +27,7 @@ import {createRtTable, rtTableFromRunType, RtValueRecorder, RtViewBuilder, rtVal
 import type {InjectRunTypeId} from '@mionjs/run-types';
 import {getRunType} from '@mionjs/run-types';
 import {pgColumnHelpers, type PgColumnHelpers} from './columns.ts';
+import {pgColumnShortcuts} from './shortcuts.ts';
 import {makeEnumFactory, type pgEnum} from './helpers.ts';
 import {requireColumns, type pgMaterializedView, type pgView} from './views.ts';
 import type {AnyPgTable} from './types.ts';
@@ -204,5 +205,5 @@ export function pgSchema<SchemaName extends string>(schemaName: SchemaName): PgS
 // Needs @mionjs/devtools; references read options.tables, runtime-callback markers options.runtime.
 /** Runtime twin of a hand-written table type; a call WITH options is not memoized, its callbacks or tables may differ. */
 export function tableFromType<T extends AnyPgTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): T {
-  return rtTableFromRunType(getRunType<T>(undefined, id) as ReflectedNode, pgBuildTable, 'pg', options) as T;
+  return rtTableFromRunType(getRunType<T>(undefined, id) as ReflectedNode, pgBuildTable, 'pg', options, pgColumnShortcuts) as T;
 }

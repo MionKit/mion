@@ -71,10 +71,15 @@ export interface PgDateColMods extends PgColMods {
 export interface PgUuidColMods extends PgColMods {
   defaultRandom?: true;
 }
-/** mion's own uuid setting, type-only: drizzle's uuid() takes no config. */
+/** mion's own uuid setting: types the model and adds the default for it ('7' needs PostgreSQL 18's uuidv7()). */
 export interface PgUuidConfig {
   version?: '4' | '7';
 }
+/** A version is the default already, so it refuses a second one. */
+// Mapped over the props, as Only is: a conditional on the whole props would be a circular constraint.
+export type UuidOneDefault<C> = {
+  [K in keyof C]: K extends 'default' | 'defaultRandom' ? ('version' extends keyof C ? never : unknown) : unknown;
+};
 export type UuidData<C> = C extends {version: '7'} ? UUIDv7 : C extends {version: '4'} ? UUIDv4 : UUID;
 /** smallint / integer / bigint: + the identity modifiers. */
 export interface PgIntColMods extends PgColMods {

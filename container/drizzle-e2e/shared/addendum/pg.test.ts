@@ -235,7 +235,7 @@ describe('addendum — bit, vector, halfvec, sparsevec and geometry', () => {
   });
 });
 
-// ── a uuid version: mion's own setting, drizzle sees a plain uuid ───────────
+// ── a uuid version: mion's own setting, replayed as its default ─────────────
 
 const sessions = pgTable('addendum_sessions', {
   id: uuid('id', {version: '7', primaryKey: true}),
@@ -246,14 +246,22 @@ const sessionsDb = toDrizzle(sessions);
 describe('addendum — uuid version', () => {
   beforeAll(async () => {
     await db.execute(sql`drop table if exists ${sessionsDb}`);
-    await db.execute(sql`create table ${sessionsDb} (id uuid primary key, token uuid not null)`);
+    // The image is postgres 17, which has no uuidv7(): the table is created without that default.
+    await db.execute(sql`create table ${sessionsDb} (id uuid primary key, token uuid not null default gen_random_uuid())`);
   });
 
-  test('a versioned uuid column is a plain uuid column, and a row round-trips', async () => {
-    expect(getTableConfig(sessionsDb).columns.map((column) => column.getSQLType())).toEqual(['uuid', 'uuid']);
-    const row = {id: '019a4e2c-7b3d-7c1e-9f2a-3b4c5d6e7f80', token: '793aff46-42ac-4372-b7fa-c48ba48ed94f'};
-    await db.insert(sessionsDb).values(row);
-    expect(await db.select().from(sessionsDb)).toEqual([row]);
+  test('the version reaches drizzle as its default', () => {
+    const [id, token] = getTableConfig(sessionsDb).columns;
+    expect([id!.getSQLType(), token!.getSQLType()]).toEqual(['uuid', 'uuid']);
+    expect([id!.hasDefault, token!.hasDefault]).toEqual([true, true]);
+  });
+
+  test('a v7 id round-trips and version 4 generates its token', async () => {
+    const id = '019a4e2c-7b3d-7c1e-9f2a-3b4c5d6e7f80';
+    await db.insert(sessionsDb).values({id});
+    const [row] = await db.select().from(sessionsDb);
+    expect(row!.id).toBe(id);
+    expect(row!.token).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-/);
   });
 });
 

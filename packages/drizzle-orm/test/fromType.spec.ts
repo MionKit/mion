@@ -120,11 +120,16 @@ describe('buildRtTableFromGraph', () => {
     expect(fake.calls[0]).toEqual(['ns', 'varchar', 'note', {length: 5}]);
   });
 
-  it('a type-only config key (uuid version) never reaches drizzle', () => {
+  it("replays a shortcut key as the modifier it stands for, by the column's builder", () => {
     const fake = makeFake();
-    const slim = buildRtTableFromGraph(tableNode('t', {id: colNode('uuid', {version: lit('7')})}), fake.buildTable);
-    materializeRtTable(slim, fake.context);
-    expect(fake.calls[0]).toEqual(['ns', 'uuid', 'id']);
+    const shortcuts = {uuid: {version: (value: unknown) => ['default', [`v${String(value)}`]] as const}};
+    const graph = tableNode('t', {id: colNode('uuid', {version: lit('7')}), other: colNode('text', {version: lit('7')})});
+    materializeRtTable(buildRtTableFromGraph(graph, fake.buildTable, undefined, undefined, shortcuts), fake.context);
+    expect(fake.calls.slice(0, 3)).toEqual([
+      ['ns', 'uuid', 'id'],
+      ['ns.uuid', 'default', 'v7'],
+      ['ns', 'text', 'other', {version: '7'}],
+    ]);
   });
 
   it('replays a runtime-callback marker with the options.runtime callback, in props order', () => {
