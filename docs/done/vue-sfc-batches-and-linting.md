@@ -129,11 +129,24 @@ comments-simplifier in parallel (own commits). PR linking parent session, CI to 
 
 ## What shipped
 
-- Batch reader: a destructure now follows its initializer like a plain `const` does (`initializerPath` in
-  `requestbatch/routes.go`). Tracing stops at any function call; those get the reason "client comes from a function
-  call the build cannot follow". The message and prose now say `routes` must trace to `initClient()`.
-- `.vue` lint: `packages/devtools/src/lint/vueSfc.ts`, used by `lint-worker.ts`. Script detection is a small regex
-  scanner (no `@vue/compiler-sfc` dependency in the lint path).
+- Batch reader: a destructure follows its initializer like a plain `const` does (`initializerPath` in
+  `requestbatch/routes.go`). `accessChain` returns an identifier or a call as the chain root, and
+  `resolveRootPath` decides the call once: `initClient()` is the client (so `initClient().routes.x.y()` and
+  `const routes = initClient().routes` now read), any other call at the root gets "client comes from a function
+  call the build cannot follow". A call deeper in the expression (`await useClient()`) still gets the generic
+  "root is not the client routes proxy". The message and prose say `routes` must trace to `initClient()`.
+- `.vue` lint: `packages/devtools/src/lint/vueSfc.ts`, used by `lint-worker.ts`. Blocks come from the project's own
+  `vue/compiler-sfc`, the parser the build's SFC pass uses; unresolvable, the file reports an engine error.
+  An oxlint block edited since the last save is linted alone only when it is the file's one block; beside another
+  block it reports nothing until saved (alone it would miss the sibling's types). Related sites in other files keep
+  their path. Columns are UTF-8 bytes, like the resolver's.
+- Tests: Go rows in `batches_test.go`; JS rows in `batch-diagnostics.test.ts`; unit rows in
+  `test/eslint/vue-sfc.test.ts`; real oxlint runs in `oxlint-e2e.test.ts`; the ESLint shape in `eslint-e2e.test.ts`
+  through the built plugin with a stand-in for vue-eslint-parser (skipped without the built dist, like that suite).
+  `accessChain` gets no per-kind coverage test: it reads one access chain, not a whole tree, and refuses every kind
+  but its four arms, each pinned by rows.
 - SFC-only batches: documented only. A separately built API never reads `.vue` files, so no build diagnostic can
-  see the gap. The docs say to keep such batches in `.ts` files; whether a one-config build picks up `.vue` batches
-  belongs to the dev-reload work and is not claimed.
+  see the gap. The docs say to keep such batches in `.ts` files.
+- Left to the dev-reload work owned by the orchestrator session
+  https://claude.ai/code/session_019XsAKr19ziKfbrAuyEiaRT: the SFC batch registration race in `vite dev`, and
+  whether a one-config `vite build` (client + `server.build`) registers `.vue` batches before the API bundle.
