@@ -1,6 +1,5 @@
-// Registration is first-wins by key, so a code-only entry (a dependency built in emitMode 'code') registered
-// before the app's live copy of the same key must not force `new Function` on hosts that forbid it.
-// Also pins the blocked-codegen error naming the code-only entry.
+// Registration is first-wins by key: a code-only entry (a dependency built in emitMode 'code') registered before
+// the app's live copy must not force `new Function` on hosts that forbid it.
 
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {initFromTuple, type EntryTuple} from '../../src/runtypes/entryTuple.ts';
