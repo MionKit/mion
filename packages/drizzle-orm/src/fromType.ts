@@ -9,7 +9,7 @@
 // ride the rtColSpec sentinel, db names the `names` member). No runtime @mionjs/run-types import: the dialects'
 // tableFromType resolves the graph and this walker reads the nodes structurally.
 
-import {isColModName} from './columns.ts';
+import {isColModName, isTypeOnlyConfigName} from './columns.ts';
 import {RtColumnRecorder, RtEntryRecorder, sql} from './recorder.ts';
 import type {AnyTableRef, BuildTableFn, ReflectedNode, TableFromTypeOptions} from './types.ts';
 import {createRtTable} from './table.ts';
@@ -110,7 +110,8 @@ function buildColumn(
   for (const member of configMembers) {
     if (typeof member.name !== 'string' || member.child === undefined) fail(`column "${key}" config has a malformed member`);
     // Modifier keys are skipped BEFORE reading a value: $type carries a type with no literal value.
-    if (!isColModName(member.name)) config[member.name] = literalValueOf(member.child, `${key}.${member.name}`);
+    if (!isColModName(member.name) && !isTypeOnlyConfigName(member.name))
+      config[member.name] = literalValueOf(member.child, `${key}.${member.name}`);
   }
   const args: unknown[] = [];
   if (dbName !== undefined) args.push(dbName);

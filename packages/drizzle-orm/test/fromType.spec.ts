@@ -120,6 +120,13 @@ describe('buildRtTableFromGraph', () => {
     expect(fake.calls[0]).toEqual(['ns', 'varchar', 'note', {length: 5}]);
   });
 
+  it('a type-only config key (uuid version) never reaches drizzle', () => {
+    const fake = makeFake();
+    const slim = buildRtTableFromGraph(tableNode('t', {id: colNode('uuid', {version: lit('7')})}), fake.buildTable);
+    materializeRtTable(slim, fake.context);
+    expect(fake.calls[0]).toEqual(['ns', 'uuid', 'id']);
+  });
+
   it('replays a runtime-callback marker with the options.runtime callback, in props order', () => {
     const fake = makeFake();
     const callback = () => 'generated';

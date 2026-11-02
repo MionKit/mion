@@ -36,6 +36,7 @@ import {
   sparsevec,
   text,
   uniqueIndex,
+  uuid,
   vector,
 } from '@mionjs/drizzle-orm-pg-core';
 import {toDrizzle} from '@mionjs/drizzle-orm-pg-core/drizzle';
@@ -231,6 +232,28 @@ describe('addendum — bit, vector, halfvec, sparsevec and geometry', () => {
     expect(rows[0]!.embedding).toEqual([1, 2, 3]);
     expect(rows[0]!.half).toEqual([1, 2, 3]);
     expect(rows[0]!.place).toEqual({x: 1, y: 2});
+  });
+});
+
+// ── a uuid version: mion's own setting, drizzle sees a plain uuid ───────────
+
+const sessions = pgTable('addendum_sessions', {
+  id: uuid('id', {version: '7', primaryKey: true}),
+  token: uuid('token', {version: '4', notNull: true}),
+});
+const sessionsDb = toDrizzle(sessions);
+
+describe('addendum — uuid version', () => {
+  beforeAll(async () => {
+    await db.execute(sql`drop table if exists ${sessionsDb}`);
+    await db.execute(sql`create table ${sessionsDb} (id uuid primary key, token uuid not null)`);
+  });
+
+  test('a versioned uuid column is a plain uuid column, and a row round-trips', async () => {
+    expect(getTableConfig(sessionsDb).columns.map((column) => column.getSQLType())).toEqual(['uuid', 'uuid']);
+    const row = {id: '019a4e2c-7b3d-7c1e-9f2a-3b4c5d6e7f80', token: '793aff46-42ac-4372-b7fa-c48ba48ed94f'};
+    await db.insert(sessionsDb).values(row);
+    expect(await db.select().from(sessionsDb)).toEqual([row]);
   });
 });
 

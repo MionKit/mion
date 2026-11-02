@@ -200,6 +200,16 @@ describe('recorder core (fake namespace, no drizzle installed)', () => {
     ]);
   });
 
+  it('recordColumn keeps a type-only config key (uuid version) away from drizzle', () => {
+    const fake = makeFakeContext();
+    const id = recordColumn([{version: '7', primaryKey: true}], (context, callArgs) => context.ns.uuid(...(callArgs as never[])));
+    id.toDrizzleColumn(fake.context);
+    expect(fake.calls).toEqual([
+      ['ns', 'uuid'],
+      ['ns.uuid', 'primaryKey'],
+    ]);
+  });
+
   it('a tableRef() inside sql resolves to the column it names', () => {
     const fake = makeFakeContext();
     const users = createRtTable('users', {id: column('integer', 'id')}, undefined, fakeBuildTable(fake.calls));

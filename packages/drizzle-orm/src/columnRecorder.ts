@@ -9,7 +9,7 @@
 
 import {RtColumnRecorder} from './recorder.ts';
 import type {AnyTableRef, DrizzleContext} from './types.ts';
-import {isColModName} from './columns.ts';
+import {isColModName, isTypeOnlyConfigName} from './columns.ts';
 import {refColumn} from './table.ts';
 
 /** Record a builder call `(name?, props?)`: `init` builds from the config half, the modifiers replay on it. */
@@ -22,7 +22,7 @@ export function recordColumn(args: unknown[], init: (context: DrizzleContext, ca
   const mods: Array<[string, unknown]> = [];
   for (const [key, value] of Object.entries(props ?? {})) {
     if (isColModName(key)) mods.push([key, value]);
-    else config[key] = value;
+    else if (!isTypeOnlyConfigName(key)) config[key] = value;
   }
   const callArgs: unknown[] = [];
   if (name !== undefined) callArgs.push(name);
