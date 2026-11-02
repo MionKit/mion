@@ -16,7 +16,8 @@ const (
 	reasonNotRoutesProxy = "root is not the client routes proxy"
 	reasonNotBound       = "binding is not a const/let with a route-call initializer"
 	reasonReassigned     = "binding is reassigned after its initializer"
-	reasonChainRoot      = "route path does not start at an identifier (`this`, a call result, …)"
+	reasonChainRoot      = "route path does not start at an identifier (`this`, an array, …)"
+	reasonCallResult     = "client comes from a function call the build cannot follow (`inject()`, a composable, …)"
 	reasonComputedMember = "computed member in the route path"
 	reasonOptionalChain  = "optional chaining in the route path"
 	reasonDepthCap       = "depth cap"
@@ -131,6 +132,8 @@ func accessChain(expr *ast.Node) (segments []string, root *ast.Node, reason stri
 				segments[i], segments[j] = segments[j], segments[i]
 			}
 			return segments, expr, ""
+		case ast.KindCallExpression:
+			return nil, nil, reasonCallResult
 		default:
 			return nil, nil, reasonChainRoot
 		}
@@ -170,12 +173,17 @@ func (scope *fileScope) resolveSymbolPath(symbol *ast.Symbol, segments []string,
 		}
 		switch declaration.Kind {
 		case ast.KindBindingElement:
-			if bindingPath, ok := scope.bindingElementPath(declaration); ok {
-				if scope.isReassigned(symbol, declaration) {
-					return nil, reasonReassigned
-				}
-				return append(bindingPath, segments...), ""
+			bindingPath, bindingReason := scope.bindingElementPath(declaration, depth)
+			if bindingReason == reasonNotBound {
+				continue
 			}
+			if scope.isReassigned(symbol, declaration) {
+				return nil, reasonReassigned
+			}
+			if bindingReason != "" {
+				return nil, bindingReason
+			}
+			return append(bindingPath, segments...), ""
 		case ast.KindVariableDeclaration:
 			initializer := blockScopedInitializer(declaration)
 			if initializer == nil {
@@ -184,21 +192,31 @@ func (scope *fileScope) resolveSymbolPath(symbol *ast.Symbol, segments []string,
 			if scope.isReassigned(symbol, declaration) {
 				return nil, reasonReassigned
 			}
-			if scope.isInitClientCall(initializer) {
-				return append([]string(nil), segments...), ""
-			}
-			initSegments, root, chainReason := accessChain(initializer)
-			if chainReason != "" {
-				continue
-			}
-			prefix, rootReason := scope.resolveRootPath(root, initSegments, depth+1)
-			if rootReason != "" {
-				return nil, rootReason
+			prefix, initReason := scope.initializerPath(initializer, depth)
+			if initReason != "" {
+				return nil, initReason
 			}
 			return append(prefix, segments...), ""
 		}
 	}
 	return nil, reasonNotRoutesProxy
+}
+
+// initializerPath resolves a binding's initializer to its path from the client object: `initClient()` itself,
+// or an access chain rooted at a binding that resolves to it. A call result (`inject()`, a composable) is a
+// runtime value the build cannot follow, so tracing stops there with reasonCallResult.
+func (scope *fileScope) initializerPath(initializer *ast.Node, depth int) ([]string, string) {
+	if scope.isInitClientCall(initializer) {
+		return nil, ""
+	}
+	segments, root, chainReason := accessChain(initializer)
+	if chainReason == reasonCallResult {
+		return nil, chainReason
+	}
+	if chainReason != "" {
+		return nil, reasonNotRoutesProxy
+	}
+	return scope.resolveRootPath(root, segments, depth+1)
 }
 
 // moduleExport looks an export up by name on a module symbol, including the ones `export * from` forwards.
@@ -211,46 +229,48 @@ func (scope *fileScope) moduleExport(moduleSymbol *ast.Symbol, name string) *ast
 	return nil
 }
 
-// bindingElementPath returns the property path a destructuring element binds, only when its declaration is
-// a const / let initialised by initClient(). Rest elements and array patterns are not paths.
-func (scope *fileScope) bindingElementPath(declaration *ast.Node) ([]string, bool) {
+// bindingElementPath returns the path from the client object a destructuring element binds: the property
+// names it destructures, after its initializer's own path (`const {routes} = client`). reasonNotBound means
+// the element is no path at all: a rest element, an array pattern, a `var`, or no initializer.
+func (scope *fileScope) bindingElementPath(declaration *ast.Node, depth int) ([]string, string) {
 	var path []string
 	node := declaration
 	for node != nil && node.Kind == ast.KindBindingElement {
 		element := node.AsBindingElement()
 		if element.DotDotDotToken != nil {
-			return nil, false
+			return nil, reasonNotBound
 		}
 		nameNode := element.PropertyName
 		if nameNode == nil {
 			nameNode = element.Name()
 		}
 		if nameNode == nil {
-			return nil, false
+			return nil, reasonNotBound
 		}
 		switch nameNode.Kind {
 		case ast.KindIdentifier, ast.KindStringLiteral, ast.KindNoSubstitutionTemplateLiteral:
 			path = append(path, nameNode.Text())
 		default:
-			return nil, false
+			return nil, reasonNotBound
 		}
 		pattern := node.Parent
 		if pattern == nil || pattern.Kind != ast.KindObjectBindingPattern {
-			return nil, false
+			return nil, reasonNotBound
 		}
 		node = pattern.Parent
 	}
-	if node == nil || node.Kind != ast.KindVariableDeclaration {
-		return nil, false
-	}
 	initializer := blockScopedInitializer(node)
-	if initializer == nil || !scope.isInitClientCall(initializer) {
-		return nil, false
+	if initializer == nil {
+		return nil, reasonNotBound
 	}
 	for i, j := 0, len(path)-1; i < j; i, j = i+1, j-1 {
 		path[i], path[j] = path[j], path[i]
 	}
-	return path, true
+	prefix, reason := scope.initializerPath(initializer, depth)
+	if reason != "" {
+		return nil, reason
+	}
+	return append(prefix, path...), ""
 }
 
 // blockScopedInitializer returns the unwrapped initializer of a `const` / `let` declaration, nil for `var`.

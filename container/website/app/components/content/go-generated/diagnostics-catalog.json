@@ -1216,8 +1216,8 @@
       "code": "rpc-batch-element-unreadable",
       "subsystem": "batches",
       "level": "error",
-      "headline": "`batch()` element is not a route call the build can read ({reason}); write `routes.a.b(...)` inline or bind it to a `const`/`let` in this file.",
-      "summary": "Each item in `batch([...])` must be a call on the client routes, like `routes.users.getById(1)`, written inline or saved in a `const` or `let` in the same file. The build reads them to know which routes run, in what order. A spread, a function parameter, a call on anything other than the routes, or a variable not set to a route call cannot be read.",
+      "headline": "`batch()` element is not a route call the build can read ({reason}); write `routes.a.b(...)` inline or bind it to a `const`/`let` in this file, with `routes` traced to `initClient()` through `const`s and imports.",
+      "summary": "Each item in `batch([...])` must be a call on the client routes, like `routes.users.getById(1)`, written inline or saved in a `const` or `let` in the same file. The build reads them to know which routes run, in what order. The routes must come from `initClient()` through `const`s and imports, destructured or not. A spread, a function parameter, a call on anything other than the routes, a variable not set to a route call, or a client returned by a function (`inject()`, a composable, `useNuxtApp()`) cannot be read.",
       "fix": "const user = routes.users.getById(id);\nbatch([user, routes.orders.list()]);",
       "example": null
     },

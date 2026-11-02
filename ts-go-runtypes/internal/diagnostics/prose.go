@@ -461,7 +461,7 @@ export const outer: Outer = {inner: {ok: 1, __proto__: 'x'}};`,
 	// ───────────────────────── batch routes (rpc-batch-*) ─────────────────────────
 
 	CodeBatchElementNotReadable: {
-		Summary: "Each item in `batch([...])` must be a call on the client routes, like `routes.users.getById(1)`, written inline or saved in a `const` or `let` in the same file. The build reads them to know which routes run, in what order. A spread, a function parameter, a call on anything other than the routes, or a variable not set to a route call cannot be read.",
+		Summary: "Each item in `batch([...])` must be a call on the client routes, like `routes.users.getById(1)`, written inline or saved in a `const` or `let` in the same file. The build reads them to know which routes run, in what order. The routes must come from `initClient()` through `const`s and imports, destructured or not. A spread, a function parameter, a call on anything other than the routes, a variable not set to a route call, or a client returned by a function (`inject()`, a composable, `useNuxtApp()`) cannot be read.",
 		Fix: `const user = routes.users.getById(id);
 batch([user, routes.orders.list()]);`,
 	},
