@@ -15,6 +15,7 @@ import {build} from 'vite';
 type RollupOutput = Extract<Awaited<ReturnType<typeof build>>, {output: unknown}>;
 import {mionVitePlugin} from '../../src/vite/mionVitePlugin.ts';
 import {BIN, hasBinary, writeMarkerPackage} from '../helpers/inline.ts';
+import {CLIENT_DTS, ROUTER_DTS, ROUTES} from '../helpers/batchFixture.ts';
 
 // The batch transport through a REAL vite build over a REAL program: the resolver generates
 // `<genDir>/rpc/` (the table plus the inline mapper modules, relative imports only) and appends the
@@ -26,35 +27,6 @@ import {BIN, hasBinary, writeMarkerPackage} from '../helpers/inline.ts';
 // factory's declaring module is what the router-init detector reads) and to runtime stubs for
 // rollup, so the test needs no built framework packages.
 
-const CLIENT_DTS = `declare module '@mionjs/client' {
-  import type {PureFunction, InjectPureFnId, InjectBatchId} from '@mionjs/run-types';
-  export interface RouteSubRequest<PH> { id: string }
-  export type ClientRoutes<RA> = { [K in keyof RA]: RA[K] extends (...a: infer P) => infer R ? (...p: P) => RouteSubRequest<RA[K]> : ClientRoutes<RA[K]> };
-  export function initClient<RA>(o?: unknown): {client: unknown; routes: ClientRoutes<RA>};
-  export interface InputFromRef<F> { asArg(): ReturnType<F> }
-  export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, name: string): InputFromRef<(v: any) => M>;
-  export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, mapper: PureFunction<(v: any) => M>, hash?: InjectPureFnId<(v: any) => M>): InputFromRef<(v: any) => M>;
-  export function batch<R extends RouteSubRequest<any>[]>(routes: [...R], batchId?: InjectBatchId<R>): unknown;
-}
-`;
-const ROUTER_DTS = `declare module '@mionjs/router' {
-  export function createMionRouter(opts?: unknown): {initRoutes: (routes: unknown) => unknown};
-  export namespace createMionRouter {
-    function withTypes<T = {}>(): (opts?: unknown) => {initRoutes: (routes: unknown) => unknown};
-  }
-  export function replaceBatches(table: unknown): void;
-}
-declare module '@mionjs/core' {
-  export function registerInputMapperTuple(key: string, tuple: unknown): void;
-}
-`;
-const ROUTES = `import {initClient} from '@mionjs/client';
-export type Routes = {
-  users: {getById: (id: number) => {id: number; name: string}};
-  orders: {getById: (id: number) => {id: number}};
-};
-export const {routes} = initClient<Routes>();
-`;
 const MAPPER_BODY = 'u.idFromClientCode';
 const CLIENT = `import {batch, inputFrom} from '@mionjs/client';
 import {routes} from './routes.ts';

@@ -7,6 +7,7 @@
 
 import {describe, expect, it, beforeAll, afterAll, vi} from 'vitest';
 import {mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync} from 'node:fs';
+import {createServer as createHttpServer, type Server} from 'node:http';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {build, createServer, type ViteDevServer} from 'vite';
@@ -14,6 +15,7 @@ import vue from '@vitejs/plugin-vue';
 import {mionVitePlugin} from '../../src/vite/mionVitePlugin.ts';
 import {createVirtualSiteMap, foldImportBlock} from '../../src/vite/sfcTransform.ts';
 import {writeMarkerPackage} from '../helpers/inline.ts';
+import {CLIENT_DTS, ROUTER_DTS, ROUTES} from '../helpers/batchFixture.ts';
 
 // Typed mion code inside a .vue <script> used to be silently untransformed. These run the REAL
 // pipeline — real vite, real @vitejs/plugin-vue, the real mion resolver — because the whole
@@ -347,4 +349,91 @@ describe('import block fold', () => {
     expect(folded).toBe(`\n'use strict';\n${block} const a = f(__rt_A);\n`);
     expect(folded.split('\n').length).toBe(source.split('\n').length);
   });
+});
+
+// A batch only inside a .vue file is unknown to the program the API first loads with: the SFC pass registers it
+// when the page is transformed, and the table appears then. No watcher event reports that in time, so the preset
+// must mark the in-process API stale itself, or every fresh `vite dev` answers batch-unknown-id.
+describe('a batch first seen in a .vue file', () => {
+  const SERVER = `import {createMionRouter} from '@mionjs/router';
+export const mion = createMionRouter();
+mion.initRoutes({});
+export function httpRequestHandler(req: unknown, res: {end: (body: string) => void}): void {
+  res.end(JSON.stringify(Object.keys((globalThis as any).__table ?? {})));
+}
+`;
+  const PAGE = `<template><div>orders</div></template>
+<script setup lang="ts">
+import {batch} from '@mionjs/client';
+import {routes} from './routes.ts';
+const both = batch([routes.users.getById(1), routes.orders.getById(2)]);
+</script>
+`;
+  // Only what the middleware asks of the router, plus the table registrar the generated module calls.
+  const ROUTER_STUB = `export const setHostOwnsSocket = () => {};
+export const getHostRequestHandler = () => undefined;
+export const getRouterOptions = () => ({});
+export const getPlatformConfig = () => undefined;
+export const createMionRouter = () => ({initRoutes: () => ({})});
+export const replaceBatches = (table) => { globalThis.__table = table; };
+`;
+  const STUBS = {
+    'router-stub.js': ROUTER_STUB,
+    'core-stub.js': `export const registerInputMapperTuple = () => {};\n`,
+    'client-stub.js': `export const batch = () => ({});\nexport const initClient = () => ({routes: {}});\n`,
+  };
+  let root = '';
+  let server: ViteDevServer | undefined;
+  let http: Server | undefined;
+
+  afterAll(async () => {
+    await new Promise<void>((resolve) => (http ? http.close(() => resolve()) : resolve()));
+    await closeQuietly(server);
+    rmSync(root, {recursive: true, force: true});
+    delete (globalThis as any).__table;
+  });
+
+  it('reaches the running API once the page registers it, with no file touched', async () => {
+    root = writeFixture({
+      'src/client.d.ts': CLIENT_DTS,
+      'src/router.d.ts': ROUTER_DTS,
+      'src/routes.ts': ROUTES,
+      'src/server.ts': SERVER,
+      'src/Page.vue': PAGE,
+      ...STUBS,
+    });
+    const stub = (name: string) => path.join(root, name);
+    server = await createServer({
+      root,
+      configFile: false,
+      logLevel: 'silent',
+      appType: 'custom',
+      resolve: {
+        alias: {
+          ...markerAlias(root).alias,
+          '@mionjs/router': stub('router-stub.js'),
+          '@mionjs/core': stub('core-stub.js'),
+          '@mionjs/client': stub('client-stub.js'),
+        },
+      },
+      server: {middlewareMode: true},
+      plugins: [
+        mionVitePlugin({
+          tsConfig: path.join(root, 'tsconfig.json'),
+          runTypes: {genDir: path.join(root, '.mion')},
+          server: {entry: path.join(root, 'src/server.ts')},
+        }),
+        vue(),
+      ],
+    });
+    const devServer = server;
+    http = createHttpServer((req, res) => devServer.middlewares(req, res));
+    await new Promise<void>((resolve) => http!.listen(0, resolve));
+    const api = `http://127.0.0.1:${(http!.address() as {port: number}).port}/rpc`;
+
+    expect(await (await fetch(api, {method: 'POST'})).json()).toEqual([]);
+    await server.transformRequest('/src/Page.vue');
+    const ids = (await (await fetch(api, {method: 'POST'})).json()) as string[];
+    expect(ids).toHaveLength(1);
+  }, 180_000);
 });

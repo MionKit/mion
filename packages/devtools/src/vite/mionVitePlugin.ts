@@ -39,8 +39,8 @@ export interface MionServerOptions {
   /** DEV + no router `basePath`: paths NOT served by mion, so vite's internals and static assets still work.
    *  With a basePath the router's prefix decides what reaches mion. */
   exclude?: RegExp[];
-  /** DEV: re-load the API when its sources change (default true); the reload resets the router first, since
-   *  `initRoutes` refuses to run twice. */
+  /** DEV: re-load the API when its sources change (default true). A reload runs a fresh copy of the API,
+   *  `@mionjs/*` included, and every request waits for it. */
   hotReload?: boolean;
 }
 
@@ -74,19 +74,16 @@ export interface MionPluginOptions extends MionPresetOptions {
  * });
  * ```
  */
-/** The resolver's generate echo folded into the two things vite needs. `batchesModuleOf` is the table's
- *  current path ('' when there is none), which the middleware's `add` listener compares against. A later
- *  generate where the module APPEARS or VANISHES invalidates the router-init modules: they were transformed
- *  with the opposite import. The FIRST generate never invalidates, nothing has been transformed yet.
- *  Exported for its spec; the preset is its only other caller. */
+/** The resolver's generate echo folded into what vite needs. A later generate where the batch table APPEARS or
+ *  VANISHES invalidates the router-init modules: they were transformed with the opposite import. The FIRST
+ *  generate never invalidates, nothing has been transformed yet. Exported for its spec; the preset is its only
+ *  other caller. */
 export function createBatchTransportSignals(invalidate: (files: string[]) => void): {
   onGenerate: (info: GenerateInfo) => void;
-  batchesModuleOf: () => string;
 } {
   let firstGenerateDone = false;
   let batchesModule = '';
   return {
-    batchesModuleOf: () => batchesModule,
     onGenerate: (info) => {
       const presenceChanged = (info.batchesModule !== '') !== (batchesModule !== '');
       batchesModule = info.batchesModule;
@@ -98,7 +95,12 @@ export function createBatchTransportSignals(invalidate: (files: string[]) => voi
 
 export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] {
   const rt = options.runTypes ?? {};
-  const transport = createBatchTransportSignals((files) => invalidateFiles(files));
+  // Both invalidations change what the API runs, and no watcher event reports them, so the API is marked stale too.
+  let markApiStale = (): void => {};
+  const transport = createBatchTransportSignals((files) => {
+    invalidateFiles(files);
+    markApiStale();
+  });
   // Vue SFC scripts are registered with the resolver under a VIRTUAL path (`Comp.vue.ts`) while vite serves
   // `Comp.vue`, and stale site files are reported by the path the resolver knows, so they need translating
   // before invalidating. Built here because the mion plugin and the SFC pass are both constructed below.
@@ -115,6 +117,7 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
       const mod = graph.getModuleById(id);
       if (mod) graph.invalidateModule(mod);
     }
+    if (siteFiles.length) markApiStale();
   };
 
   /** Invalidates the modules of `files` in every environment graph (the API entry is loaded through
@@ -160,13 +163,9 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
     }
     // In-process: nothing is spawned, and nothing happens outside `vite dev`. `onReady`/`onError` only feed
     // the 503 path, no promise leaves this preset.
-    extraPlugins.unshift(
-      mionMiddlewarePlugin(server, {
-        onReady: () => {},
-        onError: () => {},
-        batchesModuleOf: transport.batchesModuleOf,
-      })
-    );
+    const middleware = mionMiddlewarePlugin(server, {onReady: () => {}, onError: () => {}});
+    markApiStale = middleware.markStale;
+    extraPlugins.unshift(middleware);
     if (server.build) extraPlugins.unshift(serverBundlePlugin(server, server.build));
   }
   return [...extraPlugins, plugins];

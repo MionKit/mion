@@ -45,13 +45,14 @@ export const DEFAULT_MIDDLEWARE_EXCLUDE: RegExp[] = [
 export interface MiddlewareReadySignals {
   onReady: () => void;
   onError: (err: Error) => void;
-  /** The batch table module the resolver last generated, '' when there is none: its first appearance is the
-   *  one file event the module graph cannot see, so the API is marked stale on it. */
-  batchesModuleOf?: () => string;
 }
 
+/** The plugin plus the one hook the preset needs: a change no watcher event reports (the batch table appearing
+ *  or vanishing, a type edit re-transforming files) marks the API stale through it. */
+export type MionMiddlewarePlugin = Plugin & {markStale: () => void};
+
 /** The vite plugin that mounts the mion API in-process — the one way the preset runs it. */
-export function mionMiddlewarePlugin(options: MionServerOptions, signals: MiddlewareReadySignals): Plugin {
+export function mionMiddlewarePlugin(options: MionServerOptions, signals: MiddlewareReadySignals): MionMiddlewarePlugin {
   // A relative entry is the vite root's, settled in configResolved.
   let entryPath = path.resolve(options.entry);
   const exclude = options.exclude ?? DEFAULT_MIDDLEWARE_EXCLUDE;
@@ -61,7 +62,10 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
   let nodeHandler: NodeHandler | undefined;
   let fetchHandler: FetchHandler | undefined;
   let mountPath = '';
-  let staleSince: number | undefined;
+  let isStale = false;
+  let reloading: Promise<void> | undefined;
+  /** Every file the last load evaluated for the API: a change to one of them is what makes the API stale. */
+  let apiFiles = new Set<string>();
   let routerModule: Record<string, any> | undefined;
   let closed = false;
   let inFlight: Promise<unknown> = Promise.resolve();
@@ -90,35 +94,60 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
     fetchHandler = handlers.fetch;
   }
 
+  /** Records the entry's module tree once it loaded (or failed half-way: what did load is still watched). */
+  async function collectApiFiles(server: ViteDevServer): Promise<void> {
+    const graph = ssrGraphOf(server);
+    const entryModule = await graph.getModuleByUrl(entryPath, true);
+    const files = new Set<string>([path.resolve(entryPath)]);
+    if (entryModule) for (const mod of moduleTreeOf(entryModule)) if (mod.file) files.add(path.resolve(mod.file));
+    apiFiles = files;
+  }
+
+  /** Loads the entry and records the outcome: initError holds the last failure, cleared by a good load. */
+  async function loadAndSettle(server: ViteDevServer): Promise<void> {
+    try {
+      await track(load(server));
+      initError = undefined;
+      signals.onReady();
+    } catch (err) {
+      initError = err instanceof Error ? err : new Error(String(err));
+      console.error(`[mion] middleware mode failed to load ${entryPath}:`, initError);
+      signals.onError(initError);
+    }
+    if (!closed) await collectApiFiles(server).catch(() => undefined);
+  }
+
   /** Single init chain — every request awaits this one before matching. */
   function init(server: ViteDevServer): Promise<void> {
-    initPromise ??= track(load(server)).then(
-      () => signals.onReady(),
-      (err) => {
-        initError = err instanceof Error ? err : new Error(String(err));
-        console.error(`[mion] middleware mode failed to load ${entryPath}:`, initError);
-        signals.onError(initError);
-      }
-    );
+    initPromise ??= loadAndSettle(server);
     return initPromise;
   }
 
-  /** Re-loads the entry after a source change: mion's router is global state, so it is reset
-   *  first — `initRoutes` throws "Router has already been initialized" otherwise. */
+  /** A reload is a fresh copy of the API, mion's own modules included, so no shared state needs a reset. */
   async function reload(server: ViteDevServer): Promise<void> {
-    // ssrLoadModule runs in the ssr environment, so the invalidation must hit THAT graph: under vite 8 the
-    // legacy mixed-graph module node leaves the next ssrLoadModule serving the cached, stale entry.
-    const ssrGraph = (server as any).environments?.ssr?.moduleGraph;
-    const graph = ssrGraph ?? server.moduleGraph;
+    const graph = ssrGraphOf(server);
     const entryModule = await graph.getModuleByUrl(entryPath, true);
-    if (entryModule) invalidateOwnModules(server, graph, entryModule);
-    const router = await server.ssrLoadModule('@mionjs/router');
-    router.resetRouter?.();
-    await track(load(server));
+    if (entryModule) for (const mod of moduleTreeOf(entryModule)) graph.invalidateModule(mod);
+    await loadAndSettle(server);
+  }
+
+  /** Init, then any pending reload: every request waits on the SAME reload, none sees it half done. */
+  async function ready(server: ViteDevServer): Promise<void> {
+    await init(server);
+    if (isStale && !reloading) {
+      isStale = false;
+      reloading = reload(server).finally(() => (reloading = undefined));
+    }
+    if (reloading) await reloading;
+  }
+
+  function markStale(): void {
+    if (initPromise && options.hotReload !== false) isStale = true;
   }
 
   return {
     name: 'mion-middleware-server',
+    markStale,
 
     configResolved(config) {
       entryPath = path.resolve(config.root, options.entry);
@@ -149,13 +178,13 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
         try {
           const url = req.url || '/';
           if (mountPath && !isUnderMountPath(url, mountPath)) return next();
-          await init(server);
-          if (staleSince !== undefined) {
-            staleSince = undefined;
-            await reload(server);
-          }
+          await ready(server);
           if (!matches(req.url || '/', mountPath, exclude)) return next();
-          if (initError) return fail(res, initError);
+          if (initError) {
+            // No load ever got far enough to read the basePath: a page navigation is the app's, not the API's.
+            if (!mountPath && isPageNavigation(req)) return next();
+            return fail(res, initError);
+          }
           if (nodeHandler) return nodeHandler(req, res);
           if (fetchHandler) return await serveFetchHandler(fetchHandler, req, res, isSecure(server));
           return fail(res, new Error('no mion request handler was resolved'));
@@ -170,37 +199,50 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
       if (!process.env.VITEST) void init(server);
 
       if (options.hotReload === false) return;
-      // The batch table module is imported by the router-init module, so a REWRITE of it is an ordinary change
-      // below. Its first APPEARANCE is not: the entry was loaded without it and nothing in the graph names it
-      // yet (the plugin re-transforms the router-init modules; this reload makes them re-run).
-      server.watcher.on('add', (file) => {
-        if (!initPromise || staleSince !== undefined) return;
-        const batchesModule = signals.batchesModuleOf?.() ?? '';
-        if (batchesModule && path.resolve(file) === batchesModule) staleSince = Date.now();
-      });
       // Lazy reload: mark on change, re-load on the next API request. Reloading eagerly would
       // re-run initRoutes for every unrelated frontend edit.
       server.watcher.on('change', (file) => {
-        if (!initPromise || staleSince !== undefined) return;
-        if (!isOwnFile(server, file)) return;
-        // vite 8 keys its module graphs by real path while watcher events can carry the symlinked spelling
-        // (macOS /var vs /private/var), so look both up; and the mixed moduleGraph proxy no longer surfaces
-        // ssr-only modules, which is how this plugin loads the API entry, so ask every environment graph too.
-        let realFile = file;
-        try {
-          realFile = fs.realpathSync(file);
-        } catch {
-          // unresolvable path (deleted mid-event): fall through with the raw spelling
-        }
-        const candidates = realFile === file ? [file] : [file, realFile];
-        const graphs = server.environments
-          ? Object.values(server.environments).map((env: any) => env.moduleGraph)
-          : [server.moduleGraph];
-        if (!graphs.some((graph) => candidates.some((f) => graph?.getModulesByFile?.(f)?.size))) return;
-        staleSince = Date.now();
+        if (!initPromise || isStale) return;
+        // A failed load may have stopped before reaching the edited file: any source edit is worth a retry.
+        if (initError ? !file.includes('node_modules') : isApiFile(apiFiles, file)) isStale = true;
       });
     },
   };
+}
+
+/** ssrLoadModule runs in the ssr environment, so invalidation must hit THAT graph: under vite 8 the legacy mixed
+ *  graph's node leaves the next ssrLoadModule serving the cached, stale entry. */
+function ssrGraphOf(server: ViteDevServer): {
+  getModuleByUrl: (url: string, ssr?: boolean) => Promise<ModuleNode | undefined>;
+  invalidateModule: (mod: any) => void;
+} {
+  return (server as any).environments?.ssr?.moduleGraph ?? server.moduleGraph;
+}
+
+/** The entry and every module it imports. The ssr environment's graph and the legacy mixed one name the
+ *  imported set differently (ssrImportedModules vs importedModules). */
+function moduleTreeOf(entryModule: ModuleNode): Set<ModuleNode> {
+  const seen = new Set<ModuleNode>();
+  const walk = (mod: ModuleNode): void => {
+    if (seen.has(mod)) return;
+    seen.add(mod);
+    ((mod as any).ssrImportedModules ?? (mod as any).importedModules ?? []).forEach(walk);
+  };
+  walk(entryModule);
+  return seen;
+}
+
+/** vite 8 keys its module graphs by real path while watcher events can carry the symlinked spelling
+ *  (macOS /var vs /private/var), so both are looked up. */
+function isApiFile(apiFiles: Set<string>, file: string): boolean {
+  const resolved = path.resolve(file);
+  return apiFiles.has(resolved) || apiFiles.has(safeRealpath(resolved));
+}
+
+/** A browser asking for a page: GET or HEAD that accepts html. mion's client never sends that. */
+function isPageNavigation(req: IncomingMessage): boolean {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return false;
+  return String(req.headers.accept ?? '').includes('text/html');
 }
 
 /** An entry that opened a port anyway got a DIFFERENT router copy than the one the host flag was set on. */
@@ -272,34 +314,6 @@ function safeRealpath(p: string): string {
   } catch {
     return p;
   }
-}
-
-/** A file the user owns: dependencies keep their module instances, and their warm caches, across a reload,
- *  which is what lets `resetRouter()` do its job instead of a whole fresh graph. Compared through realpath
- *  too, since vite 8 keys module files by real path and a symlinked root would disown every module. */
-function isOwnFile(server: ViteDevServer, file: string): boolean {
-  if (file.includes('node_modules')) return false;
-  const resolved = path.resolve(file);
-  const root = path.resolve(server.config.root);
-  return resolved.startsWith(root) || safeRealpath(resolved).startsWith(safeRealpath(root));
-}
-
-/** Invalidates the entry's own source subtree so the next load re-evaluates it. The ssr environment's graph
- *  and the legacy mixed one name the imported set differently (ssrImportedModules vs importedModules). */
-function invalidateOwnModules(
-  server: ViteDevServer,
-  graph: {invalidateModule: (mod: any) => void},
-  entryModule: ModuleNode
-): void {
-  const seen = new Set<ModuleNode>();
-  const walk = (mod: ModuleNode): void => {
-    if (seen.has(mod)) return;
-    seen.add(mod);
-    if (mod.file && !isOwnFile(server, mod.file)) return;
-    graph.invalidateModule(mod);
-    ((mod as any).ssrImportedModules ?? (mod as any).importedModules ?? []).forEach(walk);
-  };
-  walk(entryModule);
 }
 
 /** 503 with the real cause — a dev server that answers "something went wrong" is a wasted round. */
