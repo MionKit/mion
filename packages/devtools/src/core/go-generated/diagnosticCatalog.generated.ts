@@ -758,7 +758,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   'rpc-batch-element-unreadable': {
     headline:
-      '`batch()` element is not a route call the build can read ({reason}); write `routes.a.b(...)` inline or bind it to a `const`/`let` in this file.',
+      '`batch()` element is not a route call the build can read ({reason}); write `routes.a.b(...)` inline or bind it to a `const`/`let` in this file, with `routes` traced to `initClient()` through `const`s and imports.',
     level: 'error',
     family: 'marker',
     slots: ['reason'],

@@ -30,7 +30,7 @@ var headlineByCode = map[string]string{
 	"marker-comptime-arg-too-deep":                 "`CompTimeArgs<T>` literal nesting exceeds the depth cap (16), refactor to flatten.",
 	"marker-comptime-arg-forbidden-construct":      "`CompTimeArgs<T>` literal contains a forbidden construct ({construct}). Only literals and nested literals are allowed.",
 	"marker-comptime-arg-widened-const":            "`CompTimeArgs<T>` value comes from a `const` with a widened (non-literal) member ({member}); declare the const `as const`.",
-	"rpc-batch-element-unreadable":                 "`batch()` element is not a route call the build can read ({reason}); write `routes.a.b(...)` inline or bind it to a `const`/`let` in this file.",
+	"rpc-batch-element-unreadable":                 "`batch()` element is not a route call the build can read ({reason}); write `routes.a.b(...)` inline or bind it to a `const`/`let` in this file, with `routes` traced to `initClient()` through `const`s and imports.",
 	"rpc-batch-source-not-before":                  "`inputFrom()` reads route `{source}` for route `{target}`, but the source is not in this batch or runs after the target; sources must be listed before the routes they feed.",
 	"rpc-batch-id-collision":                       "Batch id `{id}` is shared by two different batches; reorder the routes of one of them so the ids no longer collide.",
 	"rpc-batch-mapper-unreadable":                  "`inputFrom()` mapper is not readable at build time ({reason}); pass an inline arrow function or a string literal mapper name.",
