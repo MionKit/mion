@@ -3000,7 +3000,7 @@ export const cases: CompetitorCases = {
     },
   },
   // TypeBox's own IPv4 octet rule (`format/ipv4.mjs`) + a 1-5 digit port <= 65535, leading zeros allowed like mion.
-  // Port required, stricter than mion, which accepts a missing port.
+  // Port required, like mion.
   'STRING_FORMAT.ipv4_port': {
     build: () => {
       const schema = Type.String({
@@ -3017,7 +3017,7 @@ export const cases: CompetitorCases = {
       return (value: unknown) => check.Errors(value).length === 0;
     },
   },
-  // Leaf refine: brackets + TypeBox's own ipv6 check inside + port <= 65535. Port required (stricter than mion).
+  // Leaf refine: brackets + TypeBox's own ipv6 check inside + port <= 65535. Port required, like mion.
   'STRING_FORMAT.ipv6_port': {
     build: () => {
       const bracketed = /^\[([^\]]+)\]:(\d+)$/;

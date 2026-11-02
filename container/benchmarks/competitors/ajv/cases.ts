@@ -4063,7 +4063,7 @@ export const cases: CompetitorCases = {
     },
   },
   // ajv-formats' IPv4 octet rule + a 1-5 digit port <= 65535, leading zeros allowed like mion.
-  // Port required, stricter than mion, which accepts a missing port.
+  // Port required, like mion.
   'STRING_FORMAT.ipv4_port': {
     build: () => {
       const ajv = new Ajv();
@@ -4083,7 +4083,7 @@ export const cases: CompetitorCases = {
       });
       return (value: unknown) => validate(value) === true;
     },
-  }, // port required (stricter than mion); 1-5 digits <= 65535
+  }, // port required; 1-5 digits <= 65535
   'STRING_FORMAT.ipv6_port': {
     build: () => {
       const ajv = new Ajv();

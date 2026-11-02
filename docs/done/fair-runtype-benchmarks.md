@@ -259,8 +259,8 @@ Built as planned, with these differences and additions:
   called a builder that does not exist.
 - **typia build.** `stripReturnPredicates` read a nested function type's `=>` as a closing bracket.
 - **mion bugs found and delegated** (own todos, own sessions, own PRs MionKit/mion#549, #547, #548, which
-  merge before this one): strict unknown-key check bugs; date / UUID / IP-with-port formats accepting invalid
-  values; Temporal bounds re-parsed per call. The competitors keep the correct stricter checks, which mion
-  matches once those PRs land.
+  merged before this one): strict unknown-key check bugs; date / UUID / IP-with-port formats accepting invalid
+  values; Temporal bounds re-parsed per call. The competitors kept the correct stricter checks, which mion
+  now matches.
 - **Review working files** (rules, library notes, mion reference sheets, findings) lived on the branch while the
   agents worked and were deleted before merge.
