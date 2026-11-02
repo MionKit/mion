@@ -253,8 +253,7 @@ export function buildPureFnFactoryFromCode(paramNames: string[], code: string): 
   return new Function(...paramNames, `'use strict'; ${code}`) as PureFunctionFactory;
 }
 
-/** Runs a `new Function` build; when the host forbids it (an EvalError), the error names the code-only entry.
- *  Any other error, such as a SyntaxError from a broken code string, is rethrown as is. **/
+/** Names the code-only entry in the error when the host forbids `new Function` (an EvalError). **/
 function buildOrNameEntry<F>(build: () => F, label: string): F {
   try {
     return build();
@@ -306,8 +305,7 @@ function materializeRTFn(entry: CompiledTypeFn): asserts entry is InitializedTyp
   if (!entry.createRTFn && !entry.code) return;
   materializing.add(entry.rtFnHash);
   try {
-    // `functions` mode ships createRTFn directly; otherwise rebuild it from the code string (entryCode ===
-    // entry.code here, since createRTFn is absent).
+    // entryCode === entry.code here, since createRTFn is absent.
     if (!entry.createRTFn) {
       const label = `compiled fn "${entry.rtFnHash}" (${entry.typeName})`;
       (entry as Mutable<CompiledTypeFn>).createRTFn = buildOrNameEntry(() => buildFactoryFromCode(entryCode(entry)), label);

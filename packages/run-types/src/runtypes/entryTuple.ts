@@ -469,8 +469,7 @@ function collectClosure(tuple: unknown, utils: RTUtils, fresh: EntryTuple[], vis
 const CREATE_RT_FN_SLOT = FN_TYPE_TUPLE_KEYS.indexOf('createRTFn');
 const CREATE_PURE_FN_SLOT = PURE_FN_TUPLE_KEYS.indexOf('createPureFn');
 
-// First registration wins, so a code-only copy of a key (a dependency built in emitMode 'code') must not hide a
-// later live factory for the same key: hosts that forbid `new Function` (workerd, Vercel Edge) need the live one.
+// First registration wins: a later live factory fills a code-only copy, for hosts without `new Function`.
 function fillLiveFactory(utils: RTUtils, tuple: EntryTuple, key: string): boolean {
   const slot0 = tuple[SLOT_KIND];
   if (typeof slot0 === 'string') {

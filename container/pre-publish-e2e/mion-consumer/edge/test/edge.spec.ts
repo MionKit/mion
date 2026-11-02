@@ -3,8 +3,7 @@ import {dirname, resolve} from 'path';
 import {Miniflare} from 'miniflare';
 import {runEdgeBatch} from '../src/client.ts';
 
-// The Worker `vite build` made from the published packages, booted on workerd with no `nodejs_compat` and no
-// `process` polyfill: what a user deploying with the documented config gets.
+// Booted without `nodejs_compat` or a `process` polyfill: what a user deploying the documented config gets.
 const WORKER_PATH = resolve(__dirname, '../dist/worker.js');
 
 let mf: Miniflare;

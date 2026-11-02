@@ -2,8 +2,7 @@ import {defineConfig} from 'vite';
 import {resolve} from 'path';
 import {mionVitePlugin} from '@mionjs/devtools/vite';
 
-// The Worker config the Cloudflare docs page shows, built over the INSTALLED tarballs: @mionjs/* is
-// bundled from its published dist, so the packages' own generated modules ship as they would to a user.
+// Mirrors the Cloudflare docs config; @mionjs/* bundles from the installed tarballs' dist, as in a user's build.
 export default defineConfig({
     plugins: [
         mionVitePlugin({
@@ -21,7 +20,7 @@ export default defineConfig({
             fileName: 'worker',
         },
         rollupOptions: {
-            // Workers do not support dynamic code splitting, so bundle everything into one file
+            // Workers do not support dynamic code splitting
             output: {inlineDynamicImports: true},
         },
     },
