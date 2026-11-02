@@ -7,7 +7,7 @@ import path from 'node:path';
 import {promisify} from 'node:util';
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import {TODO_LINE} from '../../src/core/go-generated/runtypes-constants.generated.ts';
-import {BIN, hasBinary, makeFixtureProject, type FixtureProject} from './fixture.ts';
+import {BIN, hasBinary, linkVue, makeFixtureProject, type FixtureProject} from './fixture.ts';
 
 const execFileAsync = promisify(execFile);
 const ROOT = path.resolve(__dirname, '../../../..');
@@ -115,6 +115,7 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
       'export const isSymbol = createValidateFn<symbol>();\n' +
       '</script>\n';
     project.write('vue/Widget.vue', sfc);
+    linkVue(project);
     try {
       let stdout = '';
       try {
@@ -127,6 +128,22 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
       const symbolLine = sfc.split('\n').findIndex((line) => line.includes('createValidateFn<symbol>')) + 1;
       expect(stdout).toMatch(new RegExp(`Widget\\.vue:${symbolLine}:\\d+[^\\n]*\\[validate-symbol-root\\]`));
       expect(stdout).not.toContain('marker-any-from-unresolved');
+    } finally {
+      fs.rmSync(path.join(project.dir, 'vue'), {recursive: true, force: true});
+    }
+  });
+
+  // No `lang`: the script is JavaScript, which a project without allowJs leaves out of the program, like a `.js` file.
+  it('skips a .vue file whose script is JavaScript outside the program', {timeout: 120000}, async () => {
+    project.write(
+      'vue/Plain.vue',
+      "<template><p/></template>\n<script setup>\nimport {createValidateFn} from '@mionjs/run-types';\nexport const isText = createValidateFn();\n</script>\n"
+    );
+    linkVue(project);
+    try {
+      const result = await execFileAsync(OXLINT, ['-c', '.oxlintrc.json', 'vue/Plain.vue'], {cwd: project.dir});
+      expect(result.stdout).not.toContain('source file not in program');
+      expect(result.stdout).not.toContain('resolver failed');
     } finally {
       fs.rmSync(path.join(project.dir, 'vue'), {recursive: true, force: true});
     }

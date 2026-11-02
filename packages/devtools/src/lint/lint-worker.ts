@@ -22,7 +22,8 @@ import {
   type LintWorkerRequest,
   type LintWorkerResponse,
 } from './session-protocol.ts';
-import {isVueFile, vueLintSource} from './vueSfc.ts';
+import {anchoredIn} from './diagnosticRouting.ts';
+import {vueLintSource} from './vueSfc.ts';
 
 const data = workerData as LintWorkerData;
 const requests = data.port;
@@ -81,10 +82,6 @@ async function ensureConnection(tsconfig: string, binary: string): Promise<Resol
   return connection;
 }
 
-function isVirtual(diagnostic: Diagnostic, virtualFile: string): boolean {
-  return path.resolve(diagnostic.site.filePath) === path.resolve(virtualFile);
-}
-
 // The transport's own connection-death strings, not a per-file op error the resolver answered with.
 const connectionLostPattern = /resolver exited|spawn failed|resolver is closed/;
 
@@ -96,7 +93,7 @@ async function lintOne(request: LintWorkerRequest): Promise<LintWorkerResponse> 
     try {
       const resolver = await ensureConnection(request.tsconfig ?? '', request.binary ?? '');
       stage = 'scan';
-      const vue = isVueFile(request.file) ? vueLintSource(request.file, request.text) : undefined;
+      const vue = request.file.endsWith('.vue') ? vueLintSource(request.file, request.text) : undefined;
       scanned = vue?.virtualFile ?? request.file;
       const rel = path.relative(process.cwd(), scanned) || scanned;
       await resolver.setSources({[rel]: vue?.text ?? request.text});
@@ -105,7 +102,7 @@ async function lintOne(request: LintWorkerRequest): Promise<LintWorkerResponse> 
       let diagnostics = (result.diagnostics ?? []) as Diagnostic[];
       if (vue)
         diagnostics = diagnostics.flatMap((diagnostic) =>
-          isVirtual(diagnostic, scanned) ? (vue.toVue(diagnostic) ?? []) : [diagnostic]
+          anchoredIn(diagnostic, scanned) ? (vue.toVue(diagnostic) ?? []) : [diagnostic]
         );
       return {seq: request.seq, diagnostics, downgradeErrors: result.downgradeErrors};
     } catch (error) {

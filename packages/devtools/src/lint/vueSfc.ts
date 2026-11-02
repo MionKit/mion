@@ -4,55 +4,62 @@
 // only that block's text and rejects a report outside it.
 
 import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import path from 'node:path';
 import type {Diagnostic, DiagnosticSite} from '../core/protocol.ts';
 
-interface ScriptBlock {
-  contentStart: number;
-  contentEnd: number;
+/** The subset of @vue/compiler-sfc read here, the same parser the build's SFC pass uses. */
+interface SfcBlock {
   lang?: string;
+  src?: string;
+  loc: {start: {offset: number}; end: {offset: number}};
+}
+interface SfcCompiler {
+  parse(source: string, options?: {filename?: string}): {descriptor: {script: SfcBlock | null; scriptSetup: SfcBlock | null}};
 }
 
-/** What the worker sends for one `.vue` lint request, and how its findings come back. */
-export interface VueLintSource {
+interface Position {
+  line: number;
+  col: number;
+}
+
+interface VueLintSource {
   virtualFile: string;
   text: string;
   /** The finding on the `.vue` file's (or oxlint block's) own lines, or undefined when it lies outside them. */
   toVue(diagnostic: Diagnostic): Diagnostic | undefined;
 }
 
-const scriptOpenTag = /<script\b([^>]*)>/gi;
-const scriptCloseTag = /<\/script\s*>/i;
-
-export function isVueFile(file: string): boolean {
-  return file.endsWith('.vue');
-}
-
 export function vueLintSource(file: string, text: string, readFile: (file: string) => string = readDisk): VueLintSource {
   const onDisk = readFile(file);
-  const diskBlocks = scriptBlocks(onDisk);
-  // An oxlint block: its text sits inside one block of the saved file, so the whole file gives the module.
+  const diskBlocks = onDisk ? scriptBlocks(onDisk, file) : [];
+  const diskVirtual = virtualPath(file, diskBlocks);
+  // An oxlint block: its text is one block of the saved file, so the whole file gives the module.
   for (const block of diskBlocks) {
-    const content = onDisk.slice(block.contentStart, block.contentEnd);
+    const content = onDisk.slice(block.loc.start.offset, block.loc.end.offset);
     const offset = content.indexOf(text);
     if (!text.trim() || offset < 0 || content.slice(0, offset).trim() || content.slice(offset + text.length).trim()) continue;
-    const start = block.contentStart + offset;
+    const start = block.loc.start.offset + offset;
+    const range = {start: lineCol(onDisk, start), end: lineCol(onDisk, start + text.length)};
     return {
-      virtualFile: virtualPath(file, diskBlocks),
+      virtualFile: diskVirtual,
       text: scriptsOnly(onDisk, diskBlocks),
-      toVue: (diagnostic) => toBlock(diagnostic, file, lineCol(onDisk, start), lineCol(onDisk, start + text.length)),
+      toVue: (diagnostic) => remap(diagnostic, diskVirtual, file, range),
     };
   }
   // The whole SFC (ESLint): blanking everything but script code keeps every line and column where it was.
   if (/<script\b/i.test(text)) {
-    const blocks = scriptBlocks(text);
-    return {
-      virtualFile: virtualPath(file, blocks),
-      text: scriptsOnly(text, blocks),
-      toVue: (diagnostic) => onFile(diagnostic, file),
-    };
+    const blocks = scriptBlocks(text, file);
+    const virtualFile = virtualPath(file, blocks);
+    return {virtualFile, text: scriptsOnly(text, blocks), toVue: (diagnostic) => remap(diagnostic, virtualFile, file)};
   }
-  // An oxlint block edited since the last save: lint it alone, its lines are already the block's.
-  return {virtualFile: virtualPath(file, diskBlocks), text, toVue: (diagnostic) => onFile(diagnostic, file)};
+  // An oxlint block edited since the last save: alone it is the module the build compiles only when it is the
+  // file's one block; beside another block it would miss that block's types and report what the build does not.
+  return {
+    virtualFile: diskVirtual,
+    text,
+    toVue: diskBlocks.length > 1 ? () => undefined : (diagnostic) => remap(diagnostic, diskVirtual, file),
+  };
 }
 
 function readDisk(file: string): string {
@@ -63,32 +70,39 @@ function readDisk(file: string): string {
   }
 }
 
-// Vue reads top-level <script> blocks as raw text up to the first `</script>`; a `src` block is a real file.
-function scriptBlocks(sfc: string): ScriptBlock[] {
-  const blocks: ScriptBlock[] = [];
-  for (const open of sfc.matchAll(scriptOpenTag)) {
-    const attrs = open[1] ?? '';
-    const contentStart = open.index + open[0].length;
-    const close = scriptCloseTag.exec(sfc.slice(contentStart));
-    if (!close) break;
-    if (/\bsrc\s*=/.test(attrs)) continue;
-    const lang = /\blang\s*=\s*["']?([A-Za-z]+)/.exec(attrs)?.[1];
-    blocks.push({contentStart, contentEnd: contentStart + close.index, lang});
+// The project's own compiler, as the build's SFC pass borrows it, so lint reads exactly the blocks the build does.
+function sfcCompiler(file: string): SfcCompiler {
+  for (const from of [file, path.join(process.cwd(), 'index.js')]) {
+    try {
+      return createRequire(from)('vue/compiler-sfc') as SfcCompiler;
+    } catch {
+      // try the next location
+    }
   }
-  return blocks;
+  throw new Error(`vue/compiler-sfc is not resolvable from ${file}, so its <script> code cannot be linted`);
 }
 
-// Same naming as vite/sfcTransform.ts, so relative imports resolve from the `.vue` file's own folder.
-function virtualPath(file: string, blocks: ScriptBlock[]): string {
+// A `src` block is a real file the program already holds.
+function scriptBlocks(sfc: string, file: string): SfcBlock[] {
+  const {descriptor} = sfcCompiler(file).parse(sfc, {filename: file});
+  return [descriptor.script, descriptor.scriptSetup]
+    .filter((block): block is SfcBlock => !!block && !block.src)
+    .sort((first, second) => first.loc.start.offset - second.loc.start.offset);
+}
+
+// Same naming as vite/sfcTransform.ts, so relative imports resolve from the `.vue` file's own folder. No saved
+// block to read the language from: TypeScript, which also parses plain JavaScript.
+function virtualPath(file: string, blocks: SfcBlock[]): string {
+  if (!blocks.length) return `${file}.ts`;
   return `${file}.${blocks.find((block) => block.lang)?.lang ?? 'js'}`;
 }
 
-function scriptsOnly(sfc: string, blocks: ScriptBlock[]): string {
+function scriptsOnly(sfc: string, blocks: SfcBlock[]): string {
   let out = '';
   let cursor = 0;
   for (const block of blocks) {
-    out += blank(sfc.slice(cursor, block.contentStart)) + sfc.slice(block.contentStart, block.contentEnd);
-    cursor = block.contentEnd;
+    out += blank(sfc.slice(cursor, block.loc.start.offset)) + sfc.slice(block.loc.start.offset, block.loc.end.offset);
+    cursor = block.loc.end.offset;
   }
   return out + blank(sfc.slice(cursor));
 }
@@ -97,28 +111,26 @@ function blank(markup: string): string {
   return markup.replace(/[^\r\n]/g, ' ');
 }
 
-// 1-based line and column, the way diagnostic sites count.
-function lineCol(text: string, offset: number): {line: number; col: number} {
+// 1-based line and UTF-8 byte column, the way the resolver counts diagnostic sites.
+function lineCol(text: string, offset: number): Position {
   const before = text.slice(0, offset);
   const lineStart = before.lastIndexOf('\n') + 1;
-  return {line: before.split('\n').length, col: offset - lineStart + 1};
+  return {line: before.split('\n').length, col: Buffer.byteLength(before.slice(lineStart)) + 1};
 }
 
-function onFile(diagnostic: Diagnostic, file: string): Diagnostic {
-  return {
-    ...diagnostic,
-    site: {...diagnostic.site, filePath: file},
-    related: diagnostic.related?.map((related) => ({...related, filePath: file})),
-  };
-}
-
-type Position = {line: number; col: number};
-
-function toBlock(diagnostic: Diagnostic, file: string, start: Position, end: Position): Diagnostic | undefined {
-  const site = shift(diagnostic.site, start, end);
+// Only sites in the virtual module move onto the `.vue` file; a related site in an imported file keeps its path.
+function remap(
+  diagnostic: Diagnostic,
+  virtualFile: string,
+  file: string,
+  range?: {start: Position; end: Position}
+): Diagnostic | undefined {
+  const inModule = (site: DiagnosticSite): boolean => path.resolve(site.filePath) === path.resolve(virtualFile);
+  const site = range ? shift(diagnostic.site, range.start, range.end) : diagnostic.site;
   if (!site) return undefined;
   const related = diagnostic.related?.flatMap((entry) => {
-    const moved = shift(entry, start, end);
+    if (!inModule(entry)) return [entry];
+    const moved = range ? shift(entry, range.start, range.end) : entry;
     return moved ? [{...entry, ...moved, filePath: file}] : [];
   });
   return {...diagnostic, site: {...site, filePath: file}, related};
@@ -143,6 +155,6 @@ function within(position: Position, start: Position, end: Position): boolean {
   return afterStart && beforeEnd;
 }
 
-function relative(line: number, col: number, start: Position): {startLine: number; startCol: number} {
+function relative(line: number, col: number, start: Position): Pick<DiagnosticSite, 'startLine' | 'startCol'> {
   return {startLine: line - start.line + 1, startCol: line === start.line ? col - start.col + 1 : col};
 }

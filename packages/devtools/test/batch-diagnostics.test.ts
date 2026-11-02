@@ -277,11 +277,11 @@ describe('request-batch diagnostics and readable shapes', () => {
         routeIds: ['users/getById', 'orders/list'],
       },
       'routes destructured from a same-file client': {
-        body: `const local = initClient<Api>();\nconst {routes: r} = local;\nexport const b = batch([r.users.getById(1)]);\n`,
+        body: `const local = initClient<Api>();\nconst {routes: api} = local;\nexport const b = batch([api.users.getById(1)]);\n`,
         routeIds: ['users/getById'],
       },
       'routes destructured from a client imported from api.ts': {
-        body: `import {client} from './api';\nconst {routes: r} = client;\nexport const b = batch([r.users.getById(1), r.orders.list(1)]);\n`,
+        body: `import {client} from './api';\nconst {routes: api} = client;\nexport const b = batch([api.users.getById(1), api.orders.list(1)]);\n`,
         routeIds: ['users/getById', 'orders/list'],
       },
       'nested destructuring of the routes proxy': {
@@ -541,8 +541,8 @@ describe('request-batch diagnostics and readable shapes', () => {
         reason: 'not the client routes proxy',
       },
       'routes destructured from a client a function returns (inject(), a composable)': {
-        body: `declare function inject<T>(key: string): T;\nconst {routes: r} = inject<ReturnType<typeof initClient<Api>>>('api');\nexport const b = batch([r.users.getById(1)]);\n`,
-        needle: 'r.users.getById(1)',
+        body: `declare function inject<T>(key: string): T;\nconst {routes: api} = inject<ReturnType<typeof initClient<Api>>>('api');\nexport const b = batch([api.users.getById(1)]);\n`,
+        needle: 'api.users.getById(1)',
         reason: 'function call the build cannot follow',
       },
       'var binding': {
