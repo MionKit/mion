@@ -205,6 +205,29 @@ describe('withMion — composed onto the Next lane, never nested', () => {
       else process.env.TURBOPACK = previous;
     }
   });
+
+  it('picks the webpack plugin in the `next dev --webpack` server, which Next forks without the flag', async () => {
+    const saved = {turbopack: process.env.TURBOPACK, devServer: process.env.__NEXT_DEV_SERVER};
+    const restore = (key: 'TURBOPACK' | '__NEXT_DEV_SERVER', value: string | undefined) => {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    };
+    process.env.__NEXT_DEV_SERVER = '1';
+    try {
+      delete process.env.TURBOPACK;
+      const webpackLane = (await withoutBroker(() => withMion({}, {cwd: '/tmp'}))) as {webpack?: unknown; turbopack?: unknown};
+      expect(typeof webpackLane.webpack).toBe('function');
+      expect(webpackLane.turbopack).toBeUndefined();
+
+      // A Turbopack dev server gets TURBOPACK from Next, so it keeps the loader rules.
+      process.env.TURBOPACK = '1';
+      const turbopackLane = (await withoutBroker(() => withMion({}, {cwd: '/tmp'}))) as {turbopack?: {rules?: object}};
+      expect(turbopackLane.turbopack?.rules).toBeDefined();
+    } finally {
+      restore('TURBOPACK', saved.turbopack);
+      restore('__NEXT_DEV_SERVER', saved.devServer);
+    }
+  });
 });
 
 // The exports map is a runtime contract no typecheck covers: a subpath that stops
