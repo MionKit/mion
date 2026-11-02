@@ -54,9 +54,8 @@ func TestComputeEdits_MatchesApply(t *testing.T) {
 				t.Fatalf("unmarshal %s: %v", path, err)
 			}
 
-			prologueEnd := PrologueEnd(parseForTest(tc.File, tc.Code))
-			wantCode, wantMap := Apply(tc.File, tc.Code, prologueEnd, tc.Sites, tc.Replacements)
-			importBlock, importAt, edits := ComputeEdits(tc.Code, prologueEnd, tc.Sites, tc.Replacements)
+			wantCode, wantMap := Apply(tc.File, tc.Code, 0, tc.Sites, tc.Replacements)
+			importBlock, importAt, edits := ComputeEdits(tc.Code, 0, tc.Sites, tc.Replacements)
 			gotCode, gotMap := applyComputed(tc.File, tc.Code, importBlock, importAt, edits)
 
 			if gotCode != wantCode {

@@ -48,7 +48,7 @@ func TestApply_Fixtures(t *testing.T) {
 				t.Fatalf("unmarshal %s: %v", path, err)
 			}
 
-			gotCode, gotMap := Apply(tc.File, tc.Code, PrologueEnd(parseForTest(tc.File, tc.Code)), tc.Sites, tc.Replacements)
+			gotCode, gotMap := Apply(tc.File, tc.Code, 0, tc.Sites, tc.Replacements)
 
 			if gotCode != tc.ExpectedCode {
 				t.Errorf("code mismatch\n got: %q\nwant: %q", gotCode, tc.ExpectedCode)
