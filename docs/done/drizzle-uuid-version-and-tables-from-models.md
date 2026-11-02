@@ -73,3 +73,6 @@ Diverged from the plan on the maintainer's call: `version` is a shortcut for the
   each as its modifier. pg's `uuid()` and `tableFromType` pass the uuid one (`src/columns.ts`).
 - The e2e image is postgres 17: the addendum adds a stand-in `uuidv7()` function, creates the table from the recorded
   defaults and checks a real row gets a version 7 id and a version 4 token.
+- Release: a republished dialect's `@mionjs/drizzle-orm` peer is floored at the core version it ships with
+  (`rootPeerRangeFor` in `scripts/lib/drizzle-line.mjs`), so pg 0.45.2 cannot pair with core 0.45.1, which ignores
+  `version`.
