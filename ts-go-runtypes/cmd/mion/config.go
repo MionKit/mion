@@ -85,6 +85,9 @@ type tsRuntypesPlugin struct {
 	// Pointers so an explicit 0 is distinct from an absent key.
 	PatternSampleCount   *int `json:"patternSampleCount"`
 	PatternSampleRetries *int `json:"patternSampleRetries"`
+	// MaxUnknownKeys caps the unknown-key errors a strict errors fn lists per object (default 10). Internal and
+	// undocumented, like singleThreaded: a pointer so an absent key keeps the default.
+	MaxUnknownKeys *int `json:"maxUnknownKeys"`
 	// PureFnReport is the pure-fn build report switch: `true` emits the report
 	// AND writes it to the HARDCODED `<genDir>/types/pure-fns-report.json`;
 	// absent (nil) / false keeps it off. A pointer so an absent key falls

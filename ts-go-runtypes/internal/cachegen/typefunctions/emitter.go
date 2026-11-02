@@ -421,6 +421,14 @@ func (ctx *EmitContext) JSEngine() jsengine.Engine {
 	return ctx.walker.JSEngine
 }
 
+// MaxUnknownKeys is the per-object cap on unknown-key errors, the default when no knob reached this walker.
+func (ctx *EmitContext) MaxUnknownKeys() int {
+	if ctx.walker == nil || ctx.walker.MaxUnknownKeys <= 0 {
+		return constants.DefaultMaxUnknownKeys
+	}
+	return ctx.walker.MaxUnknownKeys
+}
+
 // PatternSampleCount / PatternGenFailure mirror the resolver's pattern
 // mockSample auto-generation state — see formats.EmitContext.
 func (ctx *EmitContext) PatternSampleCount() int {

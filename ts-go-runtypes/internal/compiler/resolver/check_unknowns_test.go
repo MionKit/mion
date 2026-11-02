@@ -6,6 +6,8 @@ import (
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
@@ -439,6 +441,45 @@ func assertKeyScanNotCount(t *testing.T, source string) {
 	}
 	if !strings.Contains(body, purefnids.HasUnknownKeysFromArray) {
 		t.Errorf("a declared `length` lost its key scan:\n%s", body)
+	}
+}
+
+// The maxUnknownKeys knob reaches the emitted cap: the scan stops one key past it and the loop lists at most that many.
+func TestCheckUnknowns_MaxUnknownKeysKnob(t *testing.T) {
+	assertUnknownKeysCap(t, `import {createGetValidationErrorsFn} from '@mionjs/run-types';
+interface T {a: string; b: number}
+export const tErrors = createGetValidationErrorsFn<T>(undefined, {checkUnknowns: true});
+`)
+}
+
+func TestCheckUnknowns_MaxUnknownKeysKnob_ValueFirst(t *testing.T) {
+	assertUnknownKeysCap(t, `import {createGetValidationErrorsFn} from '@mionjs/run-types';
+interface T {a: string; b: number}
+const sample: T = {a: 'x', b: 1};
+export const tErrors = createGetValidationErrorsFn(sample, {checkUnknowns: true});
+`)
+}
+
+func assertUnknownKeysCap(t *testing.T, source string) {
+	t.Helper()
+	r := setupInlineWith(t, map[string]string{"a.ts": source}, func(programOpts *program.Options, resolverOpts *resolver.Options) {
+		programOpts.SingleThreaded = true
+		resolverOpts.SingleThreaded = true
+		resolverOpts.MaxUnknownKeys = 3
+	})
+	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"a.ts"}, IncludeEntryModules: true})
+	if resp.Error != "" {
+		t.Fatalf("scan: %s", resp.Error)
+	}
+	name, ok := findEntryWith(resp.EntryModules, familyPrefix(t, "validationErrorsStrict"))
+	if !ok {
+		t.Fatalf("no validationErrorsStrict entry emitted\nmodules: %v", keys(resp.EntryModules))
+	}
+	body := fnBodyOf(resp.EntryModules[name])
+	for _, want := range []string{", 3)", "< 3;", ".length > 3)"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("maxUnknownKeys 3 did not reach the emitted cap (missing %q):\n%s", want, body)
+		}
 	}
 }
 
