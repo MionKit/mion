@@ -124,6 +124,12 @@ function readMionVersion() {
   return distinct[0];
 }
 
+// The edge lane boots workerd through the same miniflare pin the workspace's own Workers tests use; installed per
+// run (proxied through the registry) rather than baked, so a bump never needs a new image.
+function readMiniflareVersion() {
+  return JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')).devDependencies.miniflare;
+}
+
 // Ensure tarballs/ holds the packed packages (mirror the gate's build job). Build
 // them when missing or when --pack forces a rebuild.
 function ensureTarballs(force) {
@@ -190,11 +196,11 @@ node --test pure-fns/test/*.test.mjs`;
 // fixture keeps its own package.json so a maintainer can run the lane on a host.
 const MION_SCRIPT = `set -eu
 cd /e2e-mion
-rm -rf /e2e-mion/src /e2e-mion/lint /e2e-mion/dist /e2e-mion/.mion /e2e-mion/mion-api-types
-cp -a /e2e-src/mion-api-types /e2e-mion/
+rm -rf /e2e-mion/src /e2e-mion/lint /e2e-mion/dist /e2e-mion/.mion /e2e-mion/mion-api-types /e2e-mion/edge
+cp -a /e2e-src/mion-api-types /e2e-src/mion-consumer/edge /e2e-mion/
 cp -a /e2e-src/mion-consumer/src /e2e-src/mion-consumer/lint /e2e-src/mion-consumer/globalSetup.ts /e2e-src/mion-consumer/tsconfig.json /e2e-src/mion-consumer/vitest.config.ts /e2e-src/mion-consumer/vitest.build-output.config.ts /e2e-src/mion-consumer/vite.build.config.ts /e2e-src/mion-consumer/tsconfig.compile.json /e2e-src/mion-consumer/tsconfig.compile-fetch.json /e2e-src/mion-consumer/vitest.compile-output.config.ts /e2e-mion/
 echo "e2e-mion: installing the framework packages @ $MION_E2E_MION_VERSION + the type-system packages @ $MION_E2E_VERSION from $MION_E2E_REGISTRY"
-npm install $MION_E2E_MION_PKGS "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/bin-compiler@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
+npm install $MION_E2E_MION_PKGS "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/bin-compiler@$MION_E2E_VERSION" "miniflare@$MION_E2E_MINIFLARE_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
 echo "e2e-mion: round-trips + packaged-tarball inspection + lint transport"
 npx vitest run
 echo "e2e-mion: production server build"
@@ -211,7 +217,11 @@ echo "e2e-mion: asserting the compiled server generated the table, imports it, a
 npx vitest run --config vitest.compile-output.config.ts
 echo "e2e-mion: a client built from a packed API's .d.ts checks the server build version (matching, plain tsc, drifted)"
 node mion-api-types/run.mjs
-node --test mion-api-types/test/*.test.mjs`;
+node --test mion-api-types/test/*.test.mjs
+echo "e2e-mion: a Worker built from the packed packages with the documented config answers on workerd (no nodejs_compat)"
+cd /e2e-mion/edge
+npx vite build
+npx vitest run`;
 
 // The bun lane installs into its OWN directory rather than /e2e-mion: bun resolves
 // node_modules by walking up from the entry, and a bun tree sharing a root with the
@@ -236,6 +246,7 @@ function runMionLanes(engine, container, version, mionVersion, registry) {
     '-e', `MION_E2E_MION_VERSION=${mionVersion}`,
     '-e', `MION_E2E_REGISTRY=${registry}`,
     '-e', `MION_E2E_MION_PKGS=${pkgs}`,
+    '-e', `MION_E2E_MINIFLARE_VERSION=${readMiniflareVersion()}`,
   ];
   note(`running the mion consumer lane inside the container (@mionjs/* @ ${mionVersion}, registry: ${registry})`);
   const consumer = run(engine, ['exec', ...env, container, 'sh', '-c', MION_SCRIPT], {stdio: ['inherit', 'inherit', 'inherit']});
