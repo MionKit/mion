@@ -71,6 +71,15 @@ for (const app of ['smoke-next', 'smoke-next-ts']) {
 }
 
 // emitMode 'ts' writes typed .ts cache modules and no .js twins, so the passing page above ran the typed ones.
+// Next rejects a "use client" / "use server" that is not the first statement, so these ids only render while
+// the rewrite keeps its injected imports below the directive.
+test('smoke-next: "use client" and "use server" call sites keep their directive first', () => {
+  const rendered = readFileSync(path.join(APPS, 'smoke-next', '.next/server/app/index.html'), 'utf8');
+  for (const probe of ['rt-use-client', 'rt-use-server']) {
+    assert.match(rendered, new RegExp(`id="${probe}">\\w+`), `smoke-next: no ${probe} id in the prerendered HTML`);
+  }
+});
+
 test('smoke-next-ts: the cache holds typed .ts modules only', () => {
   const types = path.join(APPS, 'smoke-next-ts', '.rt/types');
   const names = readdirSync(types, {recursive: true}).map(String);

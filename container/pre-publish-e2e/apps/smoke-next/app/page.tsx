@@ -6,14 +6,19 @@ import {selfCheck} from '../../shared/src/minimal';
 // The loader has to declare it as a dependency or a type edit there leaves this
 // rewrite cached and stale. See ../typeDep.ts.
 import type {StaleProbe} from '../typeDep';
+import {ClientProbe} from './ClientProbe';
+import {serverProbeId} from './actions';
 
-export default function Page() {
+export default async function Page() {
   const outcome = selfCheck();
+  const serverId = await serverProbeId();
   return (
     <main>
       <div id="rt-ok">{String(outcome.ok)}</div>
       <div id="rt-results">{JSON.stringify(outcome.results)}</div>
       <div id="rt-typedep">{getRunTypeId<StaleProbe>()}</div>
+      <ClientProbe />
+      <div id="rt-use-server">{serverId}</div>
     </main>
   );
 }

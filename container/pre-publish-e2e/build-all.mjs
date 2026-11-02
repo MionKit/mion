@@ -92,7 +92,9 @@ const APP_LIST = [
   {name: 'smoke-bun-preload', adapter: 'bunPreload'},
   // Turbopack has no plugin API; next build requires a separate CLI process.
   // Next is not a workspace dependency; this supplies build coverage (packages/devtools/src/runtypes/next/AGENTS.md).
-  {name: 'smoke-next', adapter: 'next'},
+  // `webpack`: also builds once with `next build --webpack`, the other bundler Next ships.
+  // `directiveProbes`: the app has "use client" / "use server" call sites (app/ClientProbe.tsx, app/actions.ts).
+  {name: 'smoke-next', adapter: 'next', webpack: true, directiveProbes: true},
   // The same Turbopack lane over the typed .ts cache modules emitMode 'ts' writes (its tsconfig asks for it).
   // No type-edit rebuild: smoke-next already proves it, and the mode changes nothing in it.
   {name: 'smoke-next-ts', adapter: 'next', typeEdit: false},
@@ -242,8 +244,26 @@ async function buildBunPreload(app) {
 async function buildNext(app) {
   const appDir = path.join(APPS, app.name);
   const nextBin = path.join(HERE, 'node_modules/next/dist/bin/next');
-  const run = () =>
-    execFileSync(process.execPath, [nextBin, 'build'], {cwd: appDir, stdio: 'inherit', env: {...process.env, NODE_ENV: 'production'}});
+  const html = path.join(appDir, '.next/server/app/index.html');
+  const build = (flags) =>
+    execFileSync(process.execPath, [nextBin, 'build', ...flags], {cwd: appDir, stdio: 'inherit', env: {...process.env, NODE_ENV: 'production'}});
+  // Next fails the build outright when the injected imports land above a directive; this also checks the
+  // "use client" / "use server" call sites rendered an id.
+  const assertDirectiveProbes = (bundler) => {
+    if (!app.directiveProbes) return;
+    const rendered = readFileSync(html, 'utf8');
+    for (const probe of ['rt-use-client', 'rt-use-server']) {
+      if (!new RegExp(`id="${probe}">\\w+`).test(rendered)) throw new Error(`${app.name} (${bundler}): no ${probe} id in ${html}`);
+    }
+  };
+  if (app.webpack) {
+    build(['--webpack']);
+    assertDirectiveProbes('webpack');
+  }
+  const run = () => {
+    build([]);
+    assertDirectiveProbes('turbopack');
+  };
   run();
   if (app.typeEdit === false) return;
 
@@ -260,7 +280,6 @@ async function buildNext(app) {
   // re-transforms after a type edit and asserts the injected id moved.
   const probe = path.join(appDir, 'typeDep.ts');
   const original = readFileSync(probe, 'utf8');
-  const html = path.join(appDir, '.next/server/app/index.html');
   // Capture word characters only. The injected id is [A-Za-z0-9_], and React can
   // emit comment separators (`<!-- -->`) inside a div, which a lazy match up to
   // </div> would swallow into the captured value.
