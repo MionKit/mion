@@ -51,12 +51,12 @@ Approved through the delegation brief from the parent session (maintainer decisi
 
 - pg only: drizzle's mysql and sqlite cores have no uuid column.
 - `PgUuidConfig {version?: '4' | '7'}` + `UuidData<C>` in pg `types.ts`; `uuid()` and the `Uuid` column type take it.
-- `version` is mion's own: core `typeOnlyConfigNames` lists it, the builder road (`recordColumn`) and the type road
-  (`fromType.ts`) leave it out of drizzle's call. `mion convert` already carries it as a plain config literal.
+- `version` is mion's own setting: it types the model field and replays as the default for that version
+  (see What shipped). `mion convert` already carries it as a plain config literal.
 - Tests: core recorder + fromType units, pg typeTables (both roads equal raw drizzle, validator checks the version,
   both `getRunTypeId` shapes), type pins, convert round trip, pg e2e addendum row round trip.
 - Docs: column-formats PostgreSQL row + tip; overview "Union Models" section with a private example.
-- Not a fuzz candidate: a type-only key with three values, covered by the existing table-equality fuzz on uuid.
+- Not fuzzed: two values, both pinned against raw drizzle and their default sql in typeTables.spec.ts.
 
 ## What shipped
 
@@ -65,8 +65,11 @@ Diverged from the plan on the maintainer's call: `version` is a shortcut for the
 - Checked first: Postgres's uuid column takes any version; drizzle (0.45.4, 1.0 beta) has no version 7 builder;
   `defaultRandom()` writes `gen_random_uuid()` (version 4).
 - `version: '7'` = `default: [sql\`uuidv7()\`]` (PostgreSQL 18) + UUIDv7 field; `'4'` = `defaultRandom` + UUIDv4.
-  Counts as a default (optional on insert); a second `default` / `defaultRandom` is a compile error.
-- Core: `ColumnShortcut` / `ColumnShortcuts` types; `recordColumn` and `rtTableFromRunType` take the dialect's
-  shortcuts and replay each as its modifier. pg passes `pgUuidShortcuts` (`src/shortcuts.ts`).
-- The e2e image is postgres 17: the addendum proves the default reaches drizzle and v4 generates; it cannot run
-  `uuidv7()` itself.
+  Counts as a default (optional on insert, pg's `hasDefault` base flag). A second `default` / `defaultRandom` throws
+  when the table is declared: a compile error cost about 35 type instantiations per uuid column, so the maintainer
+  chose the runtime error. The typing is one conditional on the props (about +7 per uuid column), a reviewed budget
+  raise in private-type-budget.
+- Core: a `ColumnShortcuts` type; `recordColumn` and `rtTableFromRunType` take the dialect's shortcuts and replay
+  each as its modifier. pg's `uuid()` and `tableFromType` pass the uuid one (`src/columns.ts`).
+- The e2e image is postgres 17: the addendum adds a stand-in `uuidv7()` function, creates the table from the recorded
+  defaults and checks a real row gets a version 7 id and a version 4 token.
