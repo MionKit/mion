@@ -124,12 +124,6 @@ function readMionVersion() {
   return distinct[0];
 }
 
-// The edge lane boots workerd through the same miniflare pin the workspace's own Workers tests use; installed per
-// run (proxied through the registry) rather than baked, so a bump never needs a new image.
-function readMiniflareVersion() {
-  return JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')).devDependencies.miniflare;
-}
-
 // Ensure tarballs/ holds the packed packages (mirror the gate's build job). Build
 // them when missing or when --pack forces a rebuild.
 function ensureTarballs(force) {
@@ -200,7 +194,7 @@ rm -rf /e2e-mion/src /e2e-mion/lint /e2e-mion/dist /e2e-mion/.mion /e2e-mion/mio
 cp -a /e2e-src/mion-api-types /e2e-src/mion-consumer/edge /e2e-mion/
 cp -a /e2e-src/mion-consumer/src /e2e-src/mion-consumer/lint /e2e-src/mion-consumer/globalSetup.ts /e2e-src/mion-consumer/tsconfig.json /e2e-src/mion-consumer/vitest.config.ts /e2e-src/mion-consumer/vitest.build-output.config.ts /e2e-src/mion-consumer/vite.build.config.ts /e2e-src/mion-consumer/tsconfig.compile.json /e2e-src/mion-consumer/tsconfig.compile-fetch.json /e2e-src/mion-consumer/vitest.compile-output.config.ts /e2e-mion/
 echo "e2e-mion: installing the framework packages @ $MION_E2E_MION_VERSION + the type-system packages @ $MION_E2E_VERSION from $MION_E2E_REGISTRY"
-npm install $MION_E2E_MION_PKGS "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/bin-compiler@$MION_E2E_VERSION" "miniflare@$MION_E2E_MINIFLARE_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
+npm install $MION_E2E_MION_PKGS "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/bin-compiler@$MION_E2E_VERSION" --registry "$MION_E2E_REGISTRY" --no-audit --no-fund --legacy-peer-deps
 echo "e2e-mion: round-trips + packaged-tarball inspection + lint transport"
 npx vitest run
 echo "e2e-mion: production server build"
@@ -246,7 +240,6 @@ function runMionLanes(engine, container, version, mionVersion, registry) {
     '-e', `MION_E2E_MION_VERSION=${mionVersion}`,
     '-e', `MION_E2E_REGISTRY=${registry}`,
     '-e', `MION_E2E_MION_PKGS=${pkgs}`,
-    '-e', `MION_E2E_MINIFLARE_VERSION=${readMiniflareVersion()}`,
   ];
   note(`running the mion consumer lane inside the container (@mionjs/* @ ${mionVersion}, registry: ${registry})`);
   const consumer = run(engine, ['exec', ...env, container, 'sh', '-c', MION_SCRIPT], {stdio: ['inherit', 'inherit', 'inherit']});
