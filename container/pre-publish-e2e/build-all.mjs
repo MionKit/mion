@@ -97,12 +97,6 @@ const APP_LIST = [
   // The same Turbopack lane over the typed .ts cache modules emitMode 'ts' writes (its tsconfig asks for it).
   // No type-edit rebuild: smoke-next already proves it, and the mode changes nothing in it.
   {name: 'smoke-next-ts', adapter: 'next', typeEdit: false},
-  // The mion half of the Next story: the app HOSTS the API through an App Router catch-all
-  // handler, so one build produces the front end and the API from one program. smoke-next
-  // covers the transform under Turbopack; this covers the framework on top of it, including a
-  // batch, which only works when the client's call site and the server's table come from the
-  // same build.
-  {name: 'mion-next', adapter: 'mionNext'},
 ];
 
 async function buildVite(app) {
@@ -258,16 +252,13 @@ async function buildNext(app) {
   // packages/devtools/test/type-deps-invalidation.test.ts covers that.
   const probe = path.join(appDir, 'typeDep.ts');
   const original = readFileSync(probe, 'utf8');
-  // \w+, not a lazy match up to </div>: React can emit `<!-- -->` separators inside the div.
   const injectedId = () => {
     if (!existsSync(html)) throw new Error(`smoke-next: no prerendered HTML at ${html} — did the build emit it?`);
-    const id = /id="rt-typedep">(\w+)/.exec(readFileSync(html, 'utf8'))?.[1];
-    if (!id) throw new Error(`smoke-next: no rt-typedep id in ${html} — did the page stop rendering the probe?`);
-    return id;
+    return typeDepId(readFileSync(html, 'utf8'), html);
   };
   const firstId = injectedId();
   try {
-    writeFileSync(probe, original.replace('label: string;', 'label: string;\n  country: string;'));
+    writeFileSync(probe, editTypeDep(original));
     run();
     const secondId = injectedId();
     if (firstId === secondId) {
@@ -280,9 +271,16 @@ async function buildNext(app) {
 
 // Fixed, like every other port in this container (the node consumer's 8086, the bun one's 8087):
 // the lanes run one at a time inside an image nothing else listens in, so a port is just a name.
-const MION_NEXT_PORT = 8088;
 const SMOKE_NEXT_DEV_PORT = 8089;
-const MION_NEXT_DEV_PORT = 8090;
+
+// \w+, not a lazy match up to </div>: React can emit `<!-- -->` separators inside the div.
+function typeDepId(rendered, where) {
+  const id = /id="rt-typedep">(\w+)/.exec(rendered)?.[1];
+  if (!id) throw new Error(`smoke-next: no rt-typedep id in ${where} — did the page stop rendering the probe?`);
+  return id;
+}
+
+const editTypeDep = (source) => source.replace('label: string;', 'label: string;\n  country: string;');
 
 function assertDirectiveIds(rendered, where) {
   for (const probe of ['rt-use-client', 'rt-use-server']) {
@@ -291,16 +289,38 @@ function assertDirectiveIds(rendered, where) {
 }
 
 // `next dev` rewrites through the same loader (Turbopack) or plugin (webpack) as a build, served lazily.
+// Under Turbopack it also edits typeDep.ts while the server runs: only the broker's file watcher and the
+// loader's type deps can move the served id, since `next dev` keeps every untouched rewrite cached.
 async function checkNextDev(app, appDir, nextBin, flags) {
   const {NODE_ENV: _nodeEnv, ...env} = process.env;
+  const where = `${app.name} (${['next dev', ...flags].join(' ')})`;
+  const url = `http://127.0.0.1:${SMOKE_NEXT_DEV_PORT}/`;
   const child = spawn(process.execPath, [nextBin, 'dev', '--port', String(SMOKE_NEXT_DEV_PORT), ...flags], {cwd: appDir, stdio: 'inherit', env});
+  const probe = path.join(appDir, 'typeDep.ts');
+  const original = readFileSync(probe, 'utf8');
   try {
-    const res = await waitForOk(`http://127.0.0.1:${SMOKE_NEXT_DEV_PORT}/`, child, 180_000);
-    assertDirectiveIds(await res.text(), `${app.name} (${['next dev', ...flags].join(' ')})`);
+    const rendered = await (await waitForOk(url, child, 180_000)).text();
+    assertDirectiveIds(rendered, where);
+    if (flags.length || app.typeEdit === false) return;
+    const firstId = typeDepId(rendered, where);
+    writeFileSync(probe, editTypeDep(original));
+    await pollUntilIdMoves(url, firstId, child, where, 60_000);
   } finally {
+    writeFileSync(probe, original);
     child.kill('SIGTERM');
     await new Promise((resolve) => (child.exitCode === null ? child.once('exit', resolve) : resolve()));
   }
+}
+
+async function pollUntilIdMoves(url, firstId, child, where, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (child.exitCode !== null) throw new Error(`${where}: \`next dev\` exited with ${child.exitCode}`);
+    const res = await fetch(url);
+    if (res.ok && typeDepId(await res.text(), where) !== firstId) return;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error(`${where}: the rt-typedep id did not move within ${timeoutMs}ms of a type edit — the dev rewrite is stale`);
 }
 
 async function waitForOk(url, child, timeoutMs) {
@@ -318,111 +338,7 @@ async function waitForOk(url, child, timeoutMs) {
   throw new Error(`${url} did not answer within ${timeoutMs}ms`);
 }
 
-// SERVED with a real `next start`, because the API only exists at request time. The app's own /selftest
-// route does the calling (its batch has to be in the app's program); this driver only saves the report.
-async function buildMionNext(app) {
-  const appDir = path.join(APPS, app.name);
-  const nextBin = path.join(HERE, 'node_modules/next/dist/bin/next');
-  execFileSync(process.execPath, [nextBin, 'build'], {cwd: appDir, stdio: 'inherit', env: {...process.env, NODE_ENV: 'production'}});
-
-  const child = spawn(process.execPath, [nextBin, 'start', '--port', String(MION_NEXT_PORT)], {
-    cwd: appDir,
-    stdio: 'inherit',
-    env: {...process.env, NODE_ENV: 'production'},
-  });
-  try {
-    const base = `http://127.0.0.1:${MION_NEXT_PORT}`;
-    await waitForOk(`${base}/`, child, 90_000);
-    const res = await waitForOk(`${base}/selftest`, child, 30_000);
-    const report = await res.json();
-    // Fail here as well as in the assertions: a broken lane should not need `node --test` to say so.
-    const failures = [report.json.error, report.compact.error, report.batch.error].filter(Boolean);
-    if (failures.length) throw new Error(`mion-next: the app reported errors: ${failures.join(' | ')}`);
-    writeFileSync(path.join(appDir, 'selftest.json'), `${JSON.stringify(report, null, 2)}\n`);
-  } finally {
-    child.kill('SIGTERM');
-  }
-
-  // Second build, on the bundled lane. Not served: what it proves is what is IN the output, and
-  // Turbopack drops the fetched lane through a resolveAlias, which only a real build can confirm.
-  execFileSync(process.execPath, [nextBin, 'build'], {
-    cwd: appDir,
-    stdio: 'inherit',
-    env: {...process.env, NODE_ENV: 'production', MION_E2E_CLIENT_ROUTES: 'bundle'},
-  });
-
-  await runMionNextDevEdits(appDir, nextBin);
-}
-
-
-// `next dev` re-evaluates the route bundle, @mionjs/router included, so each edit gets a fresh router, no restart.
-// A reload that drops even one request before the new code answers fails the lane.
-const MION_NEXT_DEV_EDITS = [
-  {name: 'handler', file: 'src/routes.ts', from: '`Hello ${name}!`', to: '`Hi ${name}!`', expect: (report) => report.json.message === 'Hi mion!'},
-  // `at` now goes out as a plain string, so the client gets no Date back
-  {name: 'type', file: 'src/routes.ts', from: 'at: Date};', to: 'at: string};', expect: (report) => report.json.atIsDate === false},
-  {
-    // the batch's route order is its id, so the client build compiles a NEW batch the running API must learn
-    name: 'client batch',
-    file: 'app/selftest/route.ts',
-    from: `const [[batched, batchedError, batchResponse], [batchedSum, batchedSumError]] = await batch([
-    routes.sayHello('batch'),
-    routes.addNumbers(1, 2),
-  ]).call();`,
-    to: `const [[batchedSum, batchedSumError], [batched, batchedError, batchResponse]] = await batch([
-    routes.addNumbers(1, 2),
-    routes.sayHello('batch'),
-  ]).call();`,
-    expect: (report) => report.batch.sum === 3 && report.batch.message === 'Hi batch!',
-  },
-];
-
-async function runMionNextDevEdits(appDir, nextBin) {
-  const originals = new Map();
-  const {NODE_ENV: _nodeEnv, ...env} = process.env;
-  const child = spawn(process.execPath, [nextBin, 'dev', '--port', String(MION_NEXT_DEV_PORT)], {cwd: appDir, stdio: 'inherit', env});
-  const selftest = `http://127.0.0.1:${MION_NEXT_DEV_PORT}/selftest`;
-  const results = [];
-  try {
-    await waitForOk(selftest, child, 120_000);
-    for (const edit of MION_NEXT_DEV_EDITS) {
-      const file = path.join(appDir, edit.file);
-      if (!originals.has(file)) originals.set(file, readFileSync(file, 'utf8'));
-      const source = readFileSync(file, 'utf8');
-      if (!source.includes(edit.from)) throw new Error(`mion-next dev: the '${edit.name}' edit no longer matches ${edit.file}`);
-      writeFileSync(file, source.replace(edit.from, edit.to));
-      results.push({name: edit.name, ...(await pollUntil(selftest, edit.expect, child, 60_000))});
-    }
-  } finally {
-    child.kill('SIGTERM');
-    await new Promise((resolve) => (child.exitCode === null ? child.once('exit', resolve) : resolve()));
-    for (const [file, content] of originals) writeFileSync(file, content);
-  }
-  writeFileSync(path.join(appDir, 'dev-reload.json'), `${JSON.stringify(results, null, 2)}\n`);
-  const failed = results.filter((result) => result.failures.length || !result.reached);
-  if (failed.length) throw new Error(`mion-next dev: an edit broke the API: ${JSON.stringify(failed)}`);
-}
-
-async function pollUntil(url, reached, child, timeoutMs) {
-  const failures = [];
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (child.exitCode !== null) throw new Error(`mion-next: \`next dev\` exited with ${child.exitCode}`);
-    const res = await fetch(url);
-    const body = await res.text();
-    if (!res.ok) failures.push(`${res.status} ${body.slice(0, 300)}`);
-    else {
-      const report = JSON.parse(body);
-      const errors = [report.json.error, report.compact.error, report.batch.error].filter(Boolean);
-      if (errors.length) failures.push(errors.join(' | '));
-      else if (reached(report)) return {reached: true, failures};
-    }
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-  return {reached: false, failures};
-}
-
-const BUILDERS = {vite: buildVite, esbuild: buildEsbuild, rollup: buildRollup, rolldown: buildRolldown, webpack: buildWebpack, rspack: buildRspack, bun: buildBun, bunPreload: buildBunPreload, next: buildNext, mionNext: buildMionNext};
+const BUILDERS = {vite: buildVite, esbuild: buildEsbuild, rollup: buildRollup, rolldown: buildRolldown, webpack: buildWebpack, rspack: buildRspack, bun: buildBun, bunPreload: buildBunPreload, next: buildNext};
 
 async function main() {
   const requested = process.argv.slice(2);

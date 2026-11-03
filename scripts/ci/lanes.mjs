@@ -167,7 +167,7 @@ const agentInstruction = (path) => /(^|\/)(AGENTS|CLAUDE)\.md$/.test(path);
 export const unclassified = (paths) => paths.filter((path) => !agentInstruction(path) && !matches(path, FEEDS_NOTHING) && !Object.values(LANES).some((lane) => matches(path, lane.paths)));
 
 // Raw: text a test or the site reads (fixtures, snapshots, examples, `// case:` routes, e2e cli([...]), generated files).
-// JSX (four e2e files, not worth the risk) and vendored trees too; cmd/code-digest/property_test.go copies RAW_CODE.
+// JSX (five e2e files, not worth the risk) and vendored trees too; cmd/code-digest/property_test.go copies RAW_CODE.
 const CODE_FILE = /\.(ts|mts|cts|js|mjs|cjs|go)$/;
 const RAW_CODE =
   /fixture|testdata|__snapshots__|(^|\/)(_deps|node_modules|third_party)\/|^packages\/private-examples\/|^packages\/private-drizzle-example-app\/src\/server\/|^container\/pre-publish-e2e\/(build|lint)-all\.mjs$|\.generated\.(ts|go)$/;
