@@ -190,8 +190,8 @@ function serverBundlePlugin(server: MionServerOptions, build: MionServerBuildOpt
     config: {
       order: 'post',
       handler(userConfig, env) {
-        // The API bundle takes vite's ssr environment over, so a server build the config already has would be
-        // replaced silently. Dev only mounts the API as middleware, so it is left alone.
+        // The API bundle takes over vite's ssr environment, silently replacing a server build the config sets.
+        // Dev only mounts the API as middleware, so nothing gets replaced.
         if (env.command === 'build') {
           const fix = 'Remove `server.build` and build the API with its own vite config.';
           if (userConfig.build?.ssr) {
@@ -233,7 +233,6 @@ function serverBundlePlugin(server: MionServerOptions, build: MionServerBuildOpt
   } satisfies Plugin;
 }
 
-/** A string, or a non-empty list or map of entries. */
 function namesEntry(input: unknown): boolean {
   if (typeof input === 'string') return input !== '';
   return typeof input === 'object' && input !== null && Object.keys(input).length > 0;

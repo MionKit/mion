@@ -132,7 +132,7 @@ register('one config, two bundles', () => {
     };
   }
 
-  /** The app config both the build and the dev server run; `extra` keys replace the defaults. */
+  /** `extra` keys replace the default keys whole, not merged into them. */
   function appConfig(
     binary: string,
     extra: InlineConfig = {},
