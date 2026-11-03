@@ -29,7 +29,7 @@ import {
   isAnyMiddlewareDef,
   isPublicExecutable,
 } from './types/guards.ts';
-import {BUILD_VERSION_HEADER, HandlerType, isTestEnv, resetRoutesCache, resolveParser, DEFAULT_MAX_BODY_SIZE} from '@mionjs/core';
+import {BUILD_VERSION_HEADER, HandlerType, resetRoutesCache, resolveParser, DEFAULT_MAX_BODY_SIZE} from '@mionjs/core';
 import {getRawMethodReflection, getHandlerReflection, assertCompiledParser} from './lib/reflection.ts';
 import {resolveChainMaxBodySize} from './lib/bodyLimit.ts';
 import {callerForType} from './dispatch.ts';
@@ -259,7 +259,6 @@ function initRouter(opts: RouterOptionsInput, version?: string): void {
   setErrorOptions(routerOptions);
   isRouterInitialized = true;
   registerRoutes({...mionErrorsRoutes});
-  if (!isTestEnv()) console.log('mion router initialized', {routerOptions});
 }
 
 function registerRoutes<R extends Routes>(routes: R): PublicApi<R> {
