@@ -4,7 +4,7 @@ import { transformerTwoslash, rendererRich, defaultHoverInfoProcessor } from '@s
 // which re-exports its own `createTwoslasher`. Functionally identical for non-Vue code.
 import { createTwoslasher } from 'twoslash-vue'
 import { readFileSync, readdirSync, statSync, existsSync } from 'fs'
-import { join, relative, resolve, dirname, sep } from 'path'
+import { join, relative, resolve, dirname } from 'path'
 import { createRequire } from 'module'
 import { getRepoRoot, resolveInPackages } from '../utils/repo-root'
 
@@ -132,8 +132,7 @@ function findFiles(dir: string, pattern: RegExp, files: string[] = []): string[]
 
 /**
  * The built `.d.ts` a package's own package.json names as its `.` types entry, absolute.
- * Reads the three spellings the workspace uses: a plain `exports['.'].types`, the
- * conditional `exports['.'].import.types` (@mionjs/run-types), and a top-level `types`.
+ * Reads the two spellings the workspace uses: `exports['.'].types` and a top-level `types`.
  * Undefined when the manifest names none. Mirrored by repo-contracts.test.ts.
  */
 function typesEntry(pkgDir: string): string | undefined {
@@ -141,7 +140,7 @@ function typesEntry(pkgDir: string): string | undefined {
   if (!existsSync(manifestPath)) return undefined
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
   const root = manifest.exports?.['.']
-  const declared: unknown = typeof root === 'string' ? root : (root?.types ?? root?.import?.types ?? manifest.types)
+  const declared: unknown = typeof root === 'string' ? root : (root?.types ?? manifest.types)
   if (typeof declared !== 'string' || !declared.endsWith('.d.ts')) return undefined
   return resolve(pkgDir, declared)
 }
@@ -222,11 +221,7 @@ function loadPackageTypes(): Map<string, string> {
       continue
     }
     const pkgDistDir = dirname(entry)
-    // dist/cjs/ is the CommonJS twin of the same declarations, mounting it would
-    // double the VFS for no added resolution, so keep only the ESM tree.
-    const dtsFiles = findFiles(pkgDistDir, /\.d\.ts$/).filter(
-      (file) => !relative(pkgDistDir, file).startsWith('cjs' + sep),
-    )
+    const dtsFiles = findFiles(pkgDistDir, /\.d\.ts$/)
     if (dtsFiles.length === 0) {
       console.warn(`[twoslash] ${pkg.name}: no .d.ts under ${relative(repoRoot, pkgDistDir)} (not built?), not mounted`)
       continue

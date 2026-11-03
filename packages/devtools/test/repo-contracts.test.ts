@@ -839,16 +839,13 @@ describe('twoslash VFS mounts the packages the examples import', () => {
   // to pin is that every manifest names an entry, that a built dist really holds it
   // where the manifest says, and that the subpaths the examples import sit where
   // classic node resolution looks under that root.
-  const TYPES_SPELLINGS = 'exports["."].types, exports["."].import.types or a top-level types';
+  const TYPES_SPELLINGS = 'exports["."].types or a top-level types';
 
   // Mirrors typesEntry() in twoslash.post.ts: the `.` types entry relative to the
-  // package dir, in the three spellings the workspace uses.
+  // package dir, in the two spellings the workspace uses.
   function declaredTypes(manifest: Record<string, any>, subpath: string): string | undefined {
     const entry = manifest.exports?.[subpath];
-    const declared =
-      typeof entry === 'string'
-        ? entry
-        : (entry?.types ?? entry?.import?.types ?? (subpath === '.' ? manifest.types : undefined));
+    const declared = typeof entry === 'string' ? entry : (entry?.types ?? (subpath === '.' ? manifest.types : undefined));
     return typeof declared === 'string' && declared.endsWith('.d.ts') ? posix.normalize(declared) : undefined;
   }
 
@@ -2104,6 +2101,20 @@ describe('website pictures: Nuxt Image resolves to a sharp that loads under the 
 // It is a heavy dependency to re-acquire by accident (a second module runner in every consumer
 // install), so pin that neither manifest declares it.
 
+describe('every published package declares the Node >= 24 floor', () => {
+  // The packages ship ESM only; a CommonJS consumer loads them through require(esm), safe from Node 24.
+  it('engines.node starts at 24 (platform-bun runs on Bun only)', () => {
+    const offenders = readdirSync(join(REPO_ROOT, 'packages'))
+      .map((dir) => join(REPO_ROOT, 'packages', dir, 'package.json'))
+      .filter((file) => existsSync(file))
+      .map((file) => JSON.parse(readFileSync(file, 'utf8')))
+      .filter((manifest) => !manifest.private && manifest.name !== '@mionjs/platform-bun')
+      .filter((manifest) => !/^>=24\b/.test(manifest.engines?.node ?? ''))
+      .map((manifest) => manifest.name);
+    expect(offenders).toEqual([]);
+  });
+});
+
 describe('no manifest declares vite-node', () => {
   it('neither the root nor the devtools package pulls it in', () => {
     for (const manifest of ['package.json', 'packages/devtools/package.json']) {
@@ -2361,7 +2372,7 @@ describe('mion compile (tsgo) checks the same projects tsc does', () => {
     expect(scripts['check:tsgo']).toBe('node scripts/miondevx.mjs core tsgo-check');
   });
 
-  it('every tsc-only project is still named by a script, and skipped', () => {
+  it('checks every project a script names', () => {
     const root = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')).scripts;
     const named = coverage
       .readPackages(REPO_ROOT)
@@ -2370,10 +2381,7 @@ describe('mion compile (tsgo) checks the same projects tsc does', () => {
       );
     const listed = tsgoCheck.projects(REPO_ROOT).map(({dir, config}: {dir: string; config: string}) => `${dir}/${config}`);
     expect(listed).toContain('rpc-router/tsconfig.json');
-    for (const project of Object.keys(tsgoCheck.TSC_ONLY)) {
-      expect(named, project).toContain(project);
-      expect(listed).not.toContain(project);
-    }
+    expect(listed.sort()).toEqual(named.sort());
   });
 
   it('fails on a TypeScript error or a crash, not on RunType diagnostics alone', () => {

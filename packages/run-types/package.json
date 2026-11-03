@@ -6,16 +6,12 @@
     "sideEffects": [
         "./src/formats/**",
         "./dist/formats/**",
-        "./dist/cjs/formats/**",
         "./src/runtypes/**",
         "./dist/runtypes/**",
-        "./dist/cjs/runtypes/**",
         "./src/builders/**",
         "./dist/builders/**",
-        "./dist/cjs/builders/**",
         "./src/createRTFunctions.ts",
-        "./dist/createRTFunctions.js",
-        "./dist/cjs/createRTFunctions.js"
+        "./dist/createRTFunctions.js"
     ],
     "license": "MIT",
     "module": "./dist/index.js",
@@ -23,69 +19,33 @@
     "exports": {
         ".": {
             "source": "./src/index.ts",
-            "import": {
-                "types": "./dist/index.d.ts",
-                "default": "./dist/index.js"
-            },
-            "require": {
-                "types": "./dist/cjs/index.d.ts",
-                "default": "./dist/cjs/index.js"
-            }
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
         },
         "./formats": {
             "source": "./src/formats/index.ts",
-            "import": {
-                "types": "./dist/formats/index.d.ts",
-                "default": "./dist/formats/index.js"
-            },
-            "require": {
-                "types": "./dist/cjs/formats/index.d.ts",
-                "default": "./dist/cjs/formats/index.js"
-            }
+            "types": "./dist/formats/index.d.ts",
+            "default": "./dist/formats/index.js"
         },
         "./formats/temporal": {
             "source": "./src/formats/datetime/temporalFormats.ts",
-            "import": {
-                "types": "./dist/formats/datetime/temporalFormats.d.ts",
-                "default": "./dist/formats/datetime/temporalFormats.js"
-            },
-            "require": {
-                "types": "./dist/cjs/formats/datetime/temporalFormats.d.ts",
-                "default": "./dist/cjs/formats/datetime/temporalFormats.js"
-            }
+            "types": "./dist/formats/datetime/temporalFormats.d.ts",
+            "default": "./dist/formats/datetime/temporalFormats.js"
         },
         "./mocking": {
             "source": "./src/mocking/index.ts",
-            "import": {
-                "types": "./dist/mocking/index.d.ts",
-                "default": "./dist/mocking/index.js"
-            },
-            "require": {
-                "types": "./dist/cjs/mocking/index.d.ts",
-                "default": "./dist/cjs/mocking/index.js"
-            }
+            "types": "./dist/mocking/index.d.ts",
+            "default": "./dist/mocking/index.js"
         },
         "./runtime": {
             "source": "./src/runtime/index.ts",
-            "import": {
-                "types": "./dist/runtime/index.d.ts",
-                "default": "./dist/runtime/index.js"
-            },
-            "require": {
-                "types": "./dist/cjs/runtime/index.d.ts",
-                "default": "./dist/cjs/runtime/index.js"
-            }
+            "types": "./dist/runtime/index.d.ts",
+            "default": "./dist/runtime/index.js"
         },
         "./builders": {
             "source": "./src/builders/index.ts",
-            "import": {
-                "types": "./dist/builders/index.d.ts",
-                "default": "./dist/builders/index.js"
-            },
-            "require": {
-                "types": "./dist/cjs/builders/index.d.ts",
-                "default": "./dist/cjs/builders/index.js"
-            }
+            "types": "./dist/builders/index.d.ts",
+            "default": "./dist/builders/index.js"
         }
     },
     "bin": {
@@ -112,7 +72,7 @@
         "directory": "packages/run-types"
     },
     "scripts": {
-        "build": "mion compile --tsconfig tsconfig.build.json --gen-dir .mion-build && tsc -p tsconfig.cjs.json && node ../../scripts/lib/emit-cjs-pkg.mjs dist/cjs && node ../../scripts/core/hollow-builtin-purefns.mjs",
+        "build": "mion compile --tsconfig tsconfig.build.json --gen-dir .mion-build && node ../../scripts/core/hollow-builtin-purefns.mjs",
         "typecheck:test": "tsc -p tsconfig.json --noEmit",
         "pretest": "node ../../scripts/miondevx.mjs core build --trust-stamp",
         "test": "vitest run",
@@ -123,5 +83,8 @@
     "devDependencies": {
         "@mionjs/bin-compiler": "workspace:*",
         "@mionjs/devtools": "workspace:*"
+    },
+    "engines": {
+        "node": ">=24"
     }
 }

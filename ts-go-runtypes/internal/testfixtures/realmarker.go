@@ -35,11 +35,11 @@ var (
 	markerSrcErr   error
 )
 
-// artifactDirSegment matches anywhere under the dist: a dual ESM/CJS build writes one artifact per output dir.
+// artifactDirSegment picks the pure-fn artifact files out of the dist walk.
 const artifactDirSegment = string(filepath.Separator) + constants.PureFnArtifactDir + string(filepath.Separator)
 
 // RealMarkerPackage returns the real `@mionjs/run-types` as a CONSUMER INSTALL under MarkerPackagePrefix: published package.json, the
-// dist .d.ts tree (dist/cjs/ too, a node16 CommonJS importer resolves `require`) and the pure-fn artifact. No sources and no `source`
+// dist .d.ts tree and the pure-fn artifact. No sources and no `source`
 // condition, the tarball carries neither. Overlay under a test cwd WITHOUT program roots; errors when the dist is unbuilt.
 func RealMarkerPackage() (map[string]string, error) {
 	markerOnce.Do(func() { markerFiles, markerErr = readMarkerPackage() })

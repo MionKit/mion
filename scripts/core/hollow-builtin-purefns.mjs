@@ -23,8 +23,7 @@
 // including a consumer's own, is left alone.
 //
 // Usage: node scripts/core/hollow-builtin-purefns.mjs [<distDir>]
-//   distDir defaults to packages/run-types/dist; both it and its dist/cjs twin
-//   are processed.
+//   distDir defaults to packages/run-types/dist.
 
 import {execFileSync} from 'node:child_process';
 import {existsSync, readFileSync, writeFileSync} from 'node:fs';
@@ -220,23 +219,13 @@ export function hollowSource(src, file = '<memory>') {
   let cursor = 0;
   let count = 0;
   for (let at = src.indexOf(CALL); at !== -1; at = src.indexOf(CALL, at + 1)) {
-    // `CALL` must be a standalone identifier — the char on each side is not part
-    // of a longer identifier. This matches both the ESM shape
-    // (`registerPureFnFactory(`) and the tsc CJS shape
-    // (`(0, mod.registerPureFnFactory)(`), where a member access precedes it and
-    // a `)` follows before the args paren.
+    // `CALL` must be a standalone identifier: the char on each side is not part of a longer one.
     const before = src[at - 1];
     const after = src[at + CALL.length];
     if (before && /[A-Za-z0-9_$]/.test(before)) continue;
     if (after && /[A-Za-z0-9_$]/.test(after)) continue;
-    // Locate the ARGS open paren: skip whitespace; step over the CJS
-    // `(0, …name)` wrapper's closing `)`; then expect `(`.
     let j = at + CALL.length;
     while (j < src.length && /\s/.test(src[j])) j++;
-    if (src[j] === ')') {
-      j++;
-      while (j < src.length && /\s/.test(src[j])) j++;
-    }
     if (src[j] !== '(') continue; // a reference to the name that is not a call
     const openParen = j;
     const close = findCallCloseParen(src, openParen);
@@ -268,18 +257,19 @@ export function hollowSource(src, file = '<memory>') {
   return {code: out, count};
 }
 
-function processDistRoot(distRoot, label) {
-  if (!existsSync(distRoot)) return {files: 0, hollowed: 0};
+function main() {
+  const distArg = process.argv[2];
+  const distRoot = distArg ? join(REPO_ROOT, distArg) : join(REPO_ROOT, 'packages/run-types/dist');
   let files = 0;
   let hollowed = 0;
   for (const rel of BUILTIN_FILES) {
     const path = join(distRoot, rel);
     if (!existsSync(path)) continue;
     const src = readFileSync(path, 'utf8');
-    const {code, count} = hollowSource(src, `${label}/${rel}`);
+    const {code, count} = hollowSource(src, `dist/${rel}`);
     if (count === 0) continue;
     if (src.split('\n').length !== code.split('\n').length) {
-      throw new Error(`${label}/${rel}: line count changed (${src.split('\n').length} -> ${code.split('\n').length}) — hollowing must preserve it`);
+      throw new Error(`dist/${rel}: line count changed (${src.split('\n').length} -> ${code.split('\n').length}) — hollowing must preserve it`);
     }
     writeFileSync(path, code);
     // Fail loudly if the rewrite produced invalid JS.
@@ -287,20 +277,11 @@ function processDistRoot(distRoot, label) {
     files++;
     hollowed += count;
   }
-  return {files, hollowed};
-}
-
-function main() {
-  const distArg = process.argv[2];
-  const distRoot = distArg ? join(REPO_ROOT, distArg) : join(REPO_ROOT, 'packages/run-types/dist');
-  const esm = processDistRoot(distRoot, 'dist');
-  const cjs = processDistRoot(join(distRoot, 'cjs'), 'dist/cjs');
-  const total = esm.hollowed + cjs.hollowed;
-  if (total === 0) {
+  if (hollowed === 0) {
     console.error('hollow-builtin-purefns: no built-in registrations found to hollow (already hollow, or dist not built?)');
     return;
   }
-  console.error(`hollow-builtin-purefns: hollowed ${total} built-in registration(s) across ${esm.files + cjs.files} dist file(s)`);
+  console.error(`hollow-builtin-purefns: hollowed ${hollowed} built-in registration(s) across ${files} dist file(s)`);
 }
 
 // Run only when invoked directly (`node hollow-builtin-purefns.mjs`), not when a

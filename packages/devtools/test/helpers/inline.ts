@@ -34,9 +34,8 @@ export const BARE_CWD = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-bare-'));
 export type InlineSources = Record<string, string>;
 
 // The REAL `@mionjs/run-types` as a CONSUMER INSTALL, keyed as virtual node_modules paths: the
-// published package.json (no `source` condition, what pack.mjs strips), the dist .d.ts tree
-// (dist/cjs/ too, a node16 CommonJS importer resolves `require`) and the `mion-pure-fns/`
-// artifact, the only place the built-in pure-fn bodies live once the dist is hollowed.
+// published package.json (no `source` condition, what pack.mjs strips), the dist .d.ts tree and
+// the `mion-pure-fns/` artifact, the only place the built-in pure-fn bodies live once the dist is hollowed.
 // No sources, because the tarball carries none. No hand-written stand-in to drift ("Real types,
 // never copies" in packages/run-types/test/fuzz/README.md). Read once per worker; the dist is
 // kept fresh by `pretest` → `check:builds`.

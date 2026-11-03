@@ -23,25 +23,21 @@
         ".": {
             "source": "./index.ts",
             "types": "./.dist/esm/index.d.ts",
-            "require": "./.dist/cjs/index.cjs",
             "default": "./.dist/esm/index.js"
         },
         "./middlewares": {
             "source": "./middlewares.ts",
             "types": "./.dist/esm/middlewares.d.ts",
-            "require": "./.dist/cjs/middlewares.cjs",
             "default": "./.dist/esm/middlewares.js"
         }
     },
     "imports": {
         "#metadata-from-server": {
             "source": "./src/lib/metadataFromServer.ts",
-            "require": "./.dist/cjs/src/lib/metadataFromServer.cjs",
             "default": "./.dist/esm/src/lib/metadataFromServer.js"
         },
         "#bundled-api": {
             "source": "./src/lib/bundledApi.ts",
-            "require": "./.dist/cjs/src/lib/bundledApi.cjs",
             "default": "./.dist/esm/src/lib/bundledApi.js"
         }
     },
@@ -84,5 +80,8 @@
     "dependencies": {
         "@mionjs/core": "workspace:*",
         "@mionjs/run-types": "workspace:*"
+    },
+    "engines": {
+        "node": ">=24"
     }
 }

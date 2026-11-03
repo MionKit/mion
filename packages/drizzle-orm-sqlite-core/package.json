@@ -74,5 +74,8 @@
         "drizzle-orm": {
             "optional": true
         }
+    },
+    "engines": {
+        "node": ">=24"
     }
 }
