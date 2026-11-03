@@ -37,8 +37,6 @@
 - Router and core state is per module copy, NEVER on `globalThis`. A shared slot lets a fresh copy collide with
   the tables of the one it replaces.
   - Vite dev: the plugin re-runs the API's whole module tree, router included, so nothing is reset.
-  - `next dev` re-runs only edited modules and keeps the router loaded: the Next preset opens the router module
-    with a reset that keeps the batch table (`packages/devtools/src/next/devRouterReset.ts`).
 - Vitest tests may build it at module level: each file gets its own modules, so no sibling sees the flag.
 - bun tests (`packages/platform-bun`): call it in `beforeEach` / `beforeAll` next to the reset, never where the
   file is evaluated.

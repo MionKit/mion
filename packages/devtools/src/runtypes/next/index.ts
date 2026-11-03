@@ -1,7 +1,6 @@
 // Turbopack runs loaders, not plugins; one config-process broker serves the loader workers.
-// Export the pieces for downstream composition; read ./AGENTS.md for invariants and container-only build coverage.
+// Read ./AGENTS.md for invariants and container-only build coverage.
 import path from 'node:path';
-import {createUnplugin} from 'unplugin';
 import {unplugin} from '../../core/unplugin.ts';
 import {startBroker, socketPathFor, ownsBroker, isNextDev, type BrokerHandle, type NextOptions} from './broker.ts';
 
@@ -22,7 +21,7 @@ interface TurbopackRule {
   as?: string;
 }
 interface NextConfigLike {
-  turbopack?: {rules?: Record<string, unknown>; resolveAlias?: Record<string, unknown>; [key: string]: unknown};
+  turbopack?: {rules?: Record<string, unknown>; [key: string]: unknown};
   webpack?: (config: WebpackConfigLike, context: unknown) => WebpackConfigLike;
   [key: string]: unknown;
 }
@@ -105,26 +104,9 @@ function withWebpackPlugin(nextConfig: NextConfigLike, options: NextOptions): Ne
 
 // socketPath is a broker-only concern; the webpack lane has no broker.
 function webpackPlugin(options: NextOptions): unknown {
-  const {socketPath: _socketPath, rewriteOutput, ...pluginOptions} = options;
+  const {socketPath: _socketPath, ...pluginOptions} = options;
   // webpack's config carries no `next dev` signal, so the lane is decided here, as the broker does for Turbopack.
-  const resolved = {...pluginOptions, devServer: pluginOptions.devServer ?? isNextDev()};
-  if (!rewriteOutput) return unplugin.webpack(resolved);
-  // The same last pass the broker runs, wrapped around the shared transform.
-  return createUnplugin<undefined>((_options, meta) => {
-    const raw = unplugin.raw(resolved, meta);
-    const plugin = (Array.isArray(raw) ? raw[0] : raw) as {transform?: (this: unknown, code: string, id: string) => unknown};
-    const transform = plugin.transform;
-    return {
-      ...plugin,
-      async transform(this: unknown, code: string, id: string) {
-        const result = (await transform?.call(this, code, id)) as {code?: string; map?: unknown} | string | null | undefined;
-        const rewritten = typeof result === 'string' ? result : result?.code;
-        const output = rewriteOutput(id, rewritten ?? code);
-        if (rewritten === undefined) return output === code ? result : output;
-        return typeof result === 'string' ? output : {...result, code: output};
-      },
-    } as never;
-  }).webpack(undefined);
+  return unplugin.webpack({...pluginOptions, devServer: pluginOptions.devServer ?? isNextDev()});
 }
 
 export default withRunTypes;

@@ -5,9 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// What the mion PRESETS share, so vite and Next cannot drift: the same options mapped to the same resolver options.
-// Each preset keeps only what its host has: vite the Vue SFC pass, middleware mode and module-graph invalidation;
-// Next nothing (the broker's typeDeps + stamp cover staleness, and Next runs its own dev server).
+// The mion preset's options, mapped onto the resolver's own. Host hooks (Vue SFC pass, middleware mode,
+// module-graph invalidation) stay in the vite preset.
 
 import {type PluginOptions as TsRuntypesPluginOptions} from './core/unplugin.ts';
 import {assertValidClientRoutes} from './core/option-guards.ts';
@@ -86,19 +85,17 @@ export function resolveRtBinary(explicit?: string): string | undefined {
   return explicit; // otherwise @mionjs/bin-compiler getExePath() takes over (MION_BIN → platform binary)
 }
 
-/** The options both mion presets read. */
+/** The options the mion preset reads. */
 export interface MionPresetOptions {
-  /** The ONE tsconfig holding client and server code (absolute, or relative to the vite root / Next cwd).
+  /** The ONE tsconfig holding client and server code (absolute, or relative to the vite root).
    *  Unset, `tsconfig.json` is searched upward from there, like tsc. */
   tsConfig?: string;
   client?: MionClientOptions;
   runTypes?: MionRunTypesOptions;
 }
 
-/** Maps the preset options onto the resolver's own; shared by BOTH presets so a new knob reaches vite and Next at once.
- *
- *  Host-specific hooks are NOT set here: `onSiteFilesChanged` and `onGenerate` are vite's module-graph
- *  invalidation, and the Next lane needs no equivalent (the broker declares typeDeps plus a stamp instead). */
+/** Maps the preset options onto the resolver's own. Host hooks (`onSiteFilesChanged`, `onGenerate`) are NOT set
+ *  here: the vite preset adds them. */
 export function toRunTypesOptions(options: MionPresetOptions = {}): TsRuntypesPluginOptions {
   const rt = options.runTypes ?? {};
   // The type says 'code' | 'both' | 'ts', but configs are plain JS/JSON often written by hand.
