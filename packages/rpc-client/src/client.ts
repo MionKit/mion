@@ -120,10 +120,12 @@ class MethodProxy {
     },
 
     // On the middlewares tree hook names win, so no middleware can be named after one
-    get: (_target: any, prop: string): any => {
-      if (this.isMiddleware && prop === (MIDDLEWARE_TARGET as unknown)) {
+    get: (_target: any, prop: string | symbol): any => {
+      if (this.isMiddleware && prop === MIDDLEWARE_TARGET) {
         return {id: getRouterItemId(this.parentProps), registry: this.client.handlersRegistry} satisfies MiddlewareTarget;
       }
+      // A callable `then` makes `await routes` wait forever, and no symbol names a route
+      if (prop === 'then' || typeof prop === 'symbol') return undefined;
       if (this.isMiddleware && middlewareHooks.has(prop)) return this.getEvents()[prop].bind(this.events);
       const existing = this.propsProxies[prop];
       if (existing) return existing.proxy;

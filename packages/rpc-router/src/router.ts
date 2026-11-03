@@ -355,6 +355,8 @@ function recursiveFlatRoutes(
       throw new Error(`Invalid route: ${joinPath(...newPointer)}. '${key}' is not a valid route name.`);
     if (key === MION_BATCH_KEY)
       throw new Error(`Invalid route: ${joinPath(...newPointer)}. '${MION_BATCH_KEY}' is a reserved mion route name.`);
+    // the client proxy answers no `then`, so `await routes` settles; such a route could never be called
+    if (key === 'then') throw new Error(`Invalid route: ${joinPath(...newPointer)}. 'then' is a reserved mion route name.`);
 
     if (isAnyMiddlewareDef(item)) {
       // a start or end middleware already owns this id, and would otherwise be silently reused in its place
