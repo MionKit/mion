@@ -109,7 +109,7 @@ function webpackPlugin(options: NextOptions): unknown {
   // webpack's config carries no `next dev` signal, so the lane is decided here, as the broker does for Turbopack.
   const resolved = {...pluginOptions, devServer: pluginOptions.devServer ?? isNextDev()};
   if (!rewriteOutput) return unplugin.webpack(resolved);
-  // The same last pass the broker runs, wrapped around the shared transform.
+  // Same rewriteOutput pass as ./broker.ts.
   return createUnplugin<undefined>((_options, meta) => {
     const raw = unplugin.raw(resolved, meta);
     const plugin = (Array.isArray(raw) ? raw[0] : raw) as {transform?: (this: unknown, code: string, id: string) => unknown};

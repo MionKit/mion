@@ -44,8 +44,7 @@ export interface NextOptions extends PluginOptions {
   // Best effort, as Turbopack has no post-build hook: written once buildStart is done, and again on the first
   // loader request because Turbopack has emptied the dir by then.
   artifactDir?: string;
-  // A last pass over each file's output, rewritten or not, run in the next.config process (a function, so never a
-  // loader option). The mion preset uses it for its `next dev` router reset.
+  // Runs over every file's output, rewritten or not, in the next.config process: a function cannot be a loader option.
   rewriteOutput?: (file: string, code: string) => string;
 }
 
