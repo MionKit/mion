@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The mion preset's options, mapped onto the resolver's own. Host hooks (Vue SFC pass, middleware mode,
-// module-graph invalidation) stay in the vite preset.
+// Host hooks (Vue SFC pass, middleware mode, module-graph invalidation) stay in the vite preset, not here.
 
 import {type PluginOptions as TsRuntypesPluginOptions} from './core/unplugin.ts';
 import {assertValidClientRoutes} from './core/option-guards.ts';
@@ -85,17 +84,14 @@ export function resolveRtBinary(explicit?: string): string | undefined {
   return explicit; // otherwise @mionjs/bin-compiler getExePath() takes over (MION_BIN → platform binary)
 }
 
-/** The options the mion preset reads. */
 export interface MionPresetOptions {
-  /** The ONE tsconfig holding client and server code (absolute, or relative to the vite root).
-   *  Unset, `tsconfig.json` is searched upward from there, like tsc. */
+  /** The ONE client + server tsconfig (absolute or vite-root-relative); unset, tsc's upward `tsconfig.json` search. */
   tsConfig?: string;
   client?: MionClientOptions;
   runTypes?: MionRunTypesOptions;
 }
 
-/** Maps the preset options onto the resolver's own. Host hooks (`onSiteFilesChanged`, `onGenerate`) are NOT set
- *  here: the vite preset adds them. */
+/** Host hooks (`onSiteFilesChanged`, `onGenerate`) are NOT set here: the vite preset adds them. */
 export function toRunTypesOptions(options: MionPresetOptions = {}): TsRuntypesPluginOptions {
   const rt = options.runTypes ?? {};
   // The type says 'code' | 'both' | 'ts', but configs are plain JS/JSON often written by hand.

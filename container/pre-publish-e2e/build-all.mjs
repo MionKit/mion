@@ -269,8 +269,7 @@ async function buildNext(app) {
   }
 }
 
-// Fixed, like every other port in this container (the node consumer's 8086, the bun one's 8087):
-// the lanes run one at a time inside an image nothing else listens in, so a port is just a name.
+// Fixed, like the consumers' 8086 / 8087: the lanes run one at a time in an image nothing else listens in.
 const SMOKE_NEXT_DEV_PORT = 8089;
 
 // \w+, not a lazy match up to </div>: React can emit `<!-- -->` separators inside the div.
@@ -296,8 +295,7 @@ function assertDirectiveIds(rendered, where) {
 }
 
 // `next dev` rewrites through the same loader (Turbopack) or plugin (webpack) as a build, served lazily.
-// Under Turbopack it also edits typeDep.ts while the server runs: only the broker's file watcher and the
-// loader's type deps can move the served id, since `next dev` keeps every untouched rewrite cached.
+// Turbopack's type edit: `next dev` caches untouched rewrites, so only the broker's watcher and type deps move the id.
 async function checkNextDev(app, appDir, nextBin, flags) {
   const {NODE_ENV: _nodeEnv, ...env} = process.env;
   const where = `${app.name} (${['next dev', ...flags].join(' ')})`;

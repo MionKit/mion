@@ -347,8 +347,7 @@ export const slugify = registerPureFn((s: string): string => s.toLowerCase());
   register(
     'moves the invalidation stamp when a typed (.ts) runtype module changes',
     async () => {
-      // emitMode 'ts' writes `.ts` modules, and a runtype module keeps its name when its types change, so the stamp must
-      // hash a `.ts` one's content exactly as it hashes a `.js` one's. Driven at the file level.
+      // A runtype module keeps its name across type edits, so the stamp must hash `.ts` module content like `.js`.
       const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-next-broker-'));
       writeProject(root);
       const entry = path.join(root, 'src/entry.ts');

@@ -415,8 +415,7 @@ async function runNpmBackend(version, registry, opts) {
     process.on('SIGTERM', () => (teardown(), process.exit(143)));
     try {
       runContainerMatrix(engine, container, version, registry);
-      // The framework packages publish from this tree on the same train, so the
-      // consumer lanes verify the LIVE release exactly as they verified the tarballs.
+      // Framework packages publish on the same train, so the consumer lanes verify the LIVE release like the tarballs.
       if (opts.mion) runMionLanes(engine, container, version, readMionVersion(), registry);
     } finally {
       teardown();

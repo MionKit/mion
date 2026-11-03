@@ -1,5 +1,3 @@
-// The mion preset: its option mapping (toRunTypesOptions) and the package's own
-// exports map.
 import {describe, expect, it} from 'vitest';
 import {readFileSync} from 'node:fs';
 import {toRunTypesOptions} from '../src/options.ts';
@@ -59,9 +57,7 @@ describe('toRunTypesOptions — the preset option mapping', () => {
   });
 });
 
-// The drift guard, checked at the seam: the preset derives its resolver options from
-// toRunTypesOptions and nowhere else. A second literal mapping is invisible to a
-// behavioural test.
+// Read as source: a second literal mapping beside toRunTypesOptions is invisible to a behavioural test.
 describe('the preset maps no resolver options on its own', () => {
   // Named by path so the preset moving fails loudly here.
   const file = 'vite/mionVitePlugin.ts';
@@ -116,11 +112,9 @@ describe('client.routes — how the client gets each route', () => {
   });
 });
 
-// The exports map is a runtime contract no typecheck covers: a subpath that stops
-// resolving fails only when a consumer imports it. `runtypes/next/loader` is the
-// sharp one — Turbopack resolves a loader specifier with CJS require conditions, so
-// an `import`-only entry is invisible to it and the build dies with
-// "Package subpath is not defined by exports".
+// No typecheck covers the exports map: a subpath that stops resolving fails only when a consumer imports it.
+// `runtypes/next/loader` is the sharp one: Turbopack resolves loaders with CJS require conditions,
+// so an `import`-only entry fails the build with "Package subpath is not defined by exports".
 describe('the published exports map', () => {
   const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
     exports: Record<string, Record<string, string>>;
