@@ -19,6 +19,4 @@ export type {
  *  you know every vite-internal URL you would take over. */
 export {DEFAULT_MIDDLEWARE_EXCLUDE} from './middlewareMode.ts';
 
-export {cjsPackageJsonPlugin} from './cjsPackageJsonPlugin.ts';
-
 export {collectBuildEntries} from './buildEntries.ts';
