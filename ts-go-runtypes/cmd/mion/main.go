@@ -643,6 +643,9 @@ the tsconfig then writes nothing.
 --no-emit runs the type check, the scan and the RunType-family diagnostics
 only and writes nothing (tsc --noEmit-style).
 
+--list-files-only prints the tsconfig's root files, one absolute path per line,
+and builds nothing (tsc --listFilesOnly-style, roots only).
+
 --emit-mode ts writes TypeScript instead: every source under the project root,
 call sites rewritten, to the outDir, importing typed .ts cache modules, for a
 TypeScript-to-native compiler to build.
@@ -656,6 +659,8 @@ func runCompile(args []string) {
 		"where compile writes the generated cache modules (default <cwd>/.mion; also the tsconfig \"genDir\" plugin key, flag overrides it)")
 	noEmit := fs.Bool("no-emit", false,
 		"report the RunType-family diagnostics without writing (tsc --noEmit-style): scan only, emit no .js and no cache modules")
+	listFilesOnly := fs.Bool("list-files-only", false,
+		"print the tsconfig's root files, one absolute path per line, and build nothing")
 	logStyle := registerLogStyleFlag(fs)
 	fs.Usage = func() { printUsage(fs, compileUsage) }
 	_ = fs.Parse(args)
@@ -665,6 +670,12 @@ func runCompile(args []string) {
 	cfg := resolveSharedConfig(fs, s, *genDir, true)
 	if cfg.tsconfigPath == "" {
 		fatal("compile: no tsconfig.json found searching upward from %s (tsc-style discovery) — pass --tsconfig", cfg.absCwd)
+	}
+	if *listFilesOnly {
+		if err := listRootFiles(cfg.absCwd, cfg.tsconfigPath, os.Stdout); err != nil {
+			fatal("compile: %v", err)
+		}
+		return
 	}
 	grouped := resolveLogStyle("compile", *logStyle, cfg)
 
@@ -689,6 +700,20 @@ func runCompile(args []string) {
 	if errorCount > 0 {
 		exitAfterProfiling(1)
 	}
+}
+
+// listRootFiles writes the tsconfig's root file names, the list a build tool turns into its entries.
+func listRootFiles(cwd, tsconfigPath string, out io.Writer) error {
+	config, err := program.ParseInferredConfig(cwd, tsconfigPath)
+	if err != nil {
+		return err
+	}
+	for _, fileName := range config.FileNames() {
+		if _, err := fmt.Fprintln(out, fileName); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func registerLogStyleFlag(fs *flag.FlagSet) *string {
