@@ -42,8 +42,8 @@ One pnpm workspace, one `@mionjs/*` namespace, one release train. Read before a 
   - Preset: `@mionjs/devtools/vite` (`mionVitePlugin`) = mion-opinionated.
     Plain adapters: `@mionjs/devtools/runtypes/*` (vite, rollup, rolldown, webpack, rspack, esbuild, bun, next).
   - ⚠️ Next.js / Turbopack ([src/runtypes/next/](devtools/src/runtypes/next/)): bundler with NO plugin API →
-    broker started from `next.config` + a `turbopack.rules` loader. Read [its AGENTS.md](devtools/src/runtypes/next/AGENTS.md) first:
-    invariants there look like cleanups but are not.
+    broker started from `next.config` + a `turbopack.rules` loader.
+    Read [its AGENTS.md](devtools/src/runtypes/next/AGENTS.md) first: invariants there look like cleanups but are not.
 - [bin-compiler](bin-compiler/) (`@mionjs/bin-compiler`): platform launcher + the `mion` CLI command.
   - `getExePath()` resolves the prebuilt resolver binary from per-platform
     `@mionjs/native-compiler-<os>-<arch>` optional deps.
