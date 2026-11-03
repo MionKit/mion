@@ -23,7 +23,7 @@ describe('resolveUwsBinaryPath error paths', () => {
 
   it('names the supported Node majors when the ABI is unsupported', () => {
     // ABI 131 = Node 23, an odd major upstream never ships.
-    expect(() => resolveUwsBinaryPath({...supportedHost, abi: '131'})).toThrow(/Node\.js 22, 24, 26/);
+    expect(() => resolveUwsBinaryPath({...supportedHost, abi: '131'})).toThrow(/Node\.js 24, 26/);
     expect(() => resolveUwsBinaryPath({...supportedHost, abi: '131'})).toThrow(/ABI 131/);
   });
 
