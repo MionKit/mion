@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-11-02
 ---
 
@@ -75,21 +75,22 @@ this change touched, review its report against the code, and commit it as its ow
 2. **Bad package name used as a path** — `ts-go-runtypes/internal/compiler/marker/marker.go` `lookupPackageUpward`.
    A `name` that is not a valid npm name (regex like validate-npm-package-name, uppercase allowed for legacy)
    counts as no name: root still returned, name `""`. Ids then use the hash only, like a nameless package.
-   Test: Go unit test in marker (`/abs/path/my-app`, `../x`, `@scope/ok`, `ok`), plus `ModuleName` no longer
-   producing `pf//...` for that case.
+   Test: Go unit tests in marker over invalid and valid names. The bad name never reaches `ModuleName` now,
+   so no test there.
 
 3. **platform-bun pulls the compiler in production** — `packages/platform-bun/package.json`.
    `loader/` is not shipped (not in `files`, `exports`, or build), so `@mionjs/devtools` + `@mionjs/bin-compiler`
-   deps and the `typescript` peer serve nothing published: remove them (root devDeps already supply devtools for
-   the package's own preload/tests; add `@mionjs/bin-compiler` to root devDeps if the preload needs it).
+   deps and the `typescript` peer serve nothing published: removed them (root devDeps supply devtools for the
+   package's own preload/tests; devtools brings bin-compiler, no root change needed).
    Bun does not bundle its TypeScript types (`bun init` adds `@types/bun`), and the shipped `.d.ts` imports
    `'bun'`: add `@types/bun` as optional peer `*`. Update `packages/AGENTS.md` range-peer list (three → four).
    Check: `pnpm pack` + install in a scratch dir shows no compiler.
 
 4. **run-types sourcemaps point at unshipped src** — add `"inlineSources": true` to
    `packages/run-types/tsconfig.build.json` and `packages/devtools/tsconfig.build.json` (same tsc/`mion compile`
-   build, same problem). Verify `mion compile` honours it; if not, fix that in the Go emit (same PR).
-   Check: build, `sourcesContent` present in `dist/*.js.map`; fresh Vite app on packed packages logs no map warnings.
+   build, same problem). `mion compile` honours it (checked).
+   Check: packed run-types + devtools, all 126 `.js.map` files carry `sourcesContent`. The full fresh-app run on
+   every packed package is the `pre-publish-e2e` CI lane.
 
 5. **Only `.mion/types/` gitignored** — `ts-go-runtypes/internal/compiler/resolver/generate.go`.
    Factor the `.gitignore` + `.npmignore` pair `EnsureOutputHygiene` writes for `types/` into a helper; call it
@@ -107,7 +108,8 @@ this change touched, review its report against the code, and commit it as its ow
      A tsconfig error exits 1 with the same message as today. Go test in `cmd/mion`.
    - TS: `collectBuildEntries` runs it with `execFileSync(getExePath(), ['compile', '--list-files-only',
      '--tsconfig', path, '--cwd', packageDir])` (`@mionjs/bin-compiler`, already a devtools peer) and keeps its
-     filtering. Its existing tests (and every package build that uses it) pin the same entry lists.
+     filtering. New `test/vite/buildEntries.spec.ts`; checked the entry lists of all 14 packages that use it are
+   identical to the old TypeScript-based ones. The `compile --help` golden gained the flag.
    - `import ts from 'typescript'` was the ONLY TypeScript use in devtools: drop the `typescript` peer and its
      `peerDependenciesMeta` entry from `packages/devtools/package.json`. Users then pick any TS version.
 
@@ -118,17 +120,19 @@ this change touched, review its report against the code, and commit it as its ow
      `packages/rpc-client/test/bundleSplit.spec.ts` uses the string as one of two "router code leaked into the
      client bundle" markers; drop it there, the other marker (`createMionRouter has already been called`) stays.
    - Resolver respawn (`packages/devtools/src/core/resolver-client.ts`): a bad tsconfig makes the child exit
-     with code 1 at startup (`program: tsconfig parse failed: ...`, verified). Pipe child stderr, forward it live to
-     `process.stderr`, keep a small tail. Respawn only when the child died by a signal (external kill / host race),
-     not on a non-zero exit code. The error then reads `resolver exited (code 1): <stderr tail>` (matcher keeps
-     treating it as transport loss by prefix). Test: vitest spawning the real binary against a broken tsconfig:
-     no "respawned" line, error carries the config message; existing respawn test (kill by signal) still passes.
+     with code 1 at startup (`program: tsconfig parse failed: ...`, verified). Child stderr is now piped, forwarded
+     live to `process.stderr`, and its tail kept. Exit code 1 (the binary's own `fatal()`) is never respawned: the
+     error reads `resolver exited (code 1): <stderr tail>`, built on `close` so the last stderr line is in. Every
+     other death (a signal, a Go panic's exit 2, exit 0) is still respawned. Tests: a broken tsconfig reports its
+     message with no respawn warning; a wrapper that exits 2 once is respawned; the kill-by-signal tests still pass.
+   - Review follow-ups: the TypeScript-free, platform-bun dependency and `inlineSources` rules live in
+     `packages/devtools/test/repo-contracts.test.ts`; `typescript-floor.ts` stays as a build-time notice with no
+     peer range behind it. The router log removal has no test: the old line was already off under test envs.
 
 ### Docs
 
-None needed: each fix removes a surprise. `container/website/content/01.rpc/06.platforms/02.bun.md` checked:
-it never mentions the loader; add one line that Bun type checking needs `@types/bun` only if the page
-has an install step that lacks it (it shows `bun add @mionjs/platform-bun @mionjs/router`).
+None changed: each fix removes a surprise. `container/website/content/01.rpc/06.platforms/02.bun.md` never
+mentions the loader, and a Bun project already has `@types/bun` from `bun init`, so the page stays as is.
 
 ### Fuzzing
 
