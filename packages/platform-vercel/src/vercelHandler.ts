@@ -95,7 +95,7 @@ async function handleRequest(req: Request): Promise<Response> {
   }
 }
 
-/** Creates Next.js App Router / Vercel serverless route handlers */
+/** Creates Vercel Function handlers, one Web standard `Request -> Response` export per HTTP method */
 export function createVercelHandler(options?: Partial<VercelHandlerOptions>) {
   setVercelHandlerOpts(options);
   return {
@@ -104,7 +104,7 @@ export function createVercelHandler(options?: Partial<VercelHandlerOptions>) {
     PUT: handleRequest,
     DELETE: handleRequest,
     PATCH: handleRequest,
-    // Next.js answers OPTIONS itself unless exported, and a CORS preflight must reach mion
+    // exported so a CORS preflight reaches mion
     OPTIONS: handleRequest,
   };
 }
