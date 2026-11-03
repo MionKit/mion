@@ -71,6 +71,31 @@ func TestPackageNameForFile_PackageJsonWithoutName(t *testing.T) {
 	}
 }
 
+func TestPackageNameForFile_InvalidNpmNameCountsAsNameless(t *testing.T) {
+	for _, name := range []string{"/abs/path/my-app", "../escape", "./rel", "a/b", "@scope/", "_private", ".hidden", "has space", ""} {
+		root := t.TempDir()
+		srcDir := filepath.Join(root, "src")
+		mustMkdir(t, srcDir)
+		writeFile(t, filepath.Join(root, "package.json"), `{"name": "`+name+`"}`)
+		gotName, gotRoot := PackageOfFile(filepath.Join(srcDir, "file.ts"), nil)
+		if gotName != "" || gotRoot != root {
+			t.Fatalf("name %q: expected nameless package rooted at %s, got (%q, %q)", name, root, gotName, gotRoot)
+		}
+	}
+}
+
+func TestPackageNameForFile_ValidNpmNamesKept(t *testing.T) {
+	for _, name := range []string{"my-app", "@scope/pkg", "@mionjs/run-types", "a.b_c~d", "LegacyUpper"} {
+		root := t.TempDir()
+		srcDir := filepath.Join(root, "src")
+		mustMkdir(t, srcDir)
+		writeFile(t, filepath.Join(root, "package.json"), `{"name": "`+name+`"}`)
+		if got := packageNameForFile(filepath.Join(srcDir, "file.ts"), nil); got != name {
+			t.Fatalf("expected %q, got %q", name, got)
+		}
+	}
+}
+
 func TestPackageNameForFile_MalformedJson(t *testing.T) {
 	root := t.TempDir()
 	pkgDir := filepath.Join(root, "pkg")
