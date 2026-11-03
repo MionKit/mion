@@ -639,30 +639,31 @@ describe('the workspace package dependency graph stays acyclic', () => {
   });
 });
 
+// Every module specifier a file imports, exports from, dynamic-imports or requires.
+const importedModules = (file: string): string[] => {
+  const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
+  const found: string[] = [];
+  const visit = (node: ts.Node): void => {
+    if (
+      (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+      node.moduleSpecifier &&
+      ts.isStringLiteral(node.moduleSpecifier)
+    ) {
+      found.push(node.moduleSpecifier.text);
+    }
+    const isImportCall =
+      ts.isCallExpression(node) &&
+      (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+        (ts.isIdentifier(node.expression) && node.expression.text === 'require'));
+    if (isImportCall && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) found.push(node.arguments[0].text);
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return found;
+};
+
 // devtools does not depend on run-types (the reverse does); fixture sources inside strings may still name it.
 describe('devtools code never imports @mionjs/run-types', () => {
-  const importedModules = (file: string): string[] => {
-    const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
-    const found: string[] = [];
-    const visit = (node: ts.Node): void => {
-      if (
-        (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
-        node.moduleSpecifier &&
-        ts.isStringLiteral(node.moduleSpecifier)
-      ) {
-        found.push(node.moduleSpecifier.text);
-      }
-      const isImportCall =
-        ts.isCallExpression(node) &&
-        (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
-          (ts.isIdentifier(node.expression) && node.expression.text === 'require'));
-      if (isImportCall && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) found.push(node.arguments[0].text);
-      ts.forEachChild(node, visit);
-    };
-    visit(source);
-    return found;
-  };
-
   // Parallel tests write scratch fixtures that import run-types on purpose; scanning them failed at random.
   const isScratchDir = (name: string): boolean => name === 'node_modules' || /^\.?tmp($|[-_.])/.test(name);
   const runTypesImports = (root: string): string[] =>
@@ -2113,6 +2114,38 @@ describe('no manifest declares vite-node', () => {
         expect(Object.keys(pkg[field] ?? {}), `${manifest} ${field}`).not.toContain('vite-node');
       }
     }
+  });
+});
+
+// The Vite plugin runs on our own compiler: loading TypeScript's JS API would tie it to one TypeScript major.
+describe('devtools never loads TypeScript', () => {
+  it('no src file imports typescript', () => {
+    const devtools = join(REPO_ROOT, 'packages/devtools');
+    const importers = globSync('src/**/*.ts', {cwd: devtools}).filter((file) =>
+      importedModules(join(devtools, file)).some((specifier) => specifier === 'typescript' || specifier.startsWith('typescript/'))
+    );
+    expect(importers).toEqual([]);
+  });
+
+  it('and declares no typescript peer, so any TypeScript version installs beside it', () => {
+    const pkg = JSON.parse(readFileSync(join(REPO_ROOT, 'packages/devtools/package.json'), 'utf8'));
+    expect(Object.keys(pkg.peerDependencies ?? {})).not.toContain('typescript');
+  });
+});
+
+// platform-bun's loader is not published, so a dependency on the compiler only added 25 MB to production installs.
+describe('platform-bun installs without the compiler', () => {
+  it('depends on core and router only', () => {
+    const pkg = JSON.parse(readFileSync(join(REPO_ROOT, 'packages/platform-bun/package.json'), 'utf8'));
+    expect(Object.keys(pkg.dependencies ?? {}).sort()).toEqual(['@mionjs/core', '@mionjs/router']);
+  });
+});
+
+// src/ is not published, so a map that only points at it warns in every consumer's dev server.
+describe('tsc-built packages embed their sources in the published maps', () => {
+  it.each(['packages/run-types/tsconfig.build.json', 'packages/devtools/tsconfig.build.json'])('%s', (config) => {
+    const parsed = ts.parseConfigFileTextToJson(config, readFileSync(join(REPO_ROOT, config), 'utf8'));
+    expect(parsed.config?.compilerOptions?.inlineSources).toBe(true);
   });
 });
 

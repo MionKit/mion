@@ -5,14 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync} from 'fs';
+import {mkdirSync, mkdtempSync, rmSync, writeFileSync} from 'fs';
 import {tmpdir} from 'os';
 import {dirname, join} from 'path';
-import {fileURLToPath} from 'url';
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import {collectBuildEntries} from '../../src/vite/buildEntries.ts';
-
-const devtoolsRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 describe('collectBuildEntries', () => {
   let dir: string;
@@ -46,19 +43,5 @@ describe('collectBuildEntries', () => {
   it('names the tsconfig and the parse error when the config is broken', () => {
     writeFileSync(join(dir, 'broken.json'), JSON.stringify({extends: './missing.json'}));
     expect(() => collectBuildEntries(dir, 'broken.json')).toThrow(/broken\.json.*missing\.json/s);
-  });
-
-  it('devtools never loads the TypeScript JS API, so any installed TypeScript version works with the Vite plugin', () => {
-    const sources = readdirSync(join(devtoolsRoot, 'src'), {recursive: true, encoding: 'utf8'}).filter((file) =>
-      file.endsWith('.ts')
-    );
-    const importers = sources.filter((file) =>
-      /from 'typescript'|import\('typescript'\)|require\('typescript'\)/.test(
-        readFileSync(join(devtoolsRoot, 'src', file), 'utf8')
-      )
-    );
-    expect(importers).toEqual([]);
-    const manifest = JSON.parse(readFileSync(join(devtoolsRoot, 'package.json'), 'utf8'));
-    expect(Object.keys(manifest.peerDependencies ?? {})).not.toContain('typescript');
   });
 });
