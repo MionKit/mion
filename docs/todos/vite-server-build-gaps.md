@@ -23,6 +23,8 @@ fails silently or leaks. Investigation in the mion-starters repo, `docs/investig
    file paths and mapper ids, so a static CDN deploy publishes them.
 5. **`vite preview` does not serve the API** (there is no `configurePreviewServer`).
 
+Rechecked on 2026-11-03 against `main` (`85f3488af`): every item is still open.
+
 Out of scope: building several API entries from one config. A real app deploys to one target, so this is not a
 generic need.
 
@@ -30,12 +32,11 @@ generic need.
 
 The implementer plans the fixes. Verified pointers:
 
-- `packages/devtools/src/vite/mionVitePlugin.ts:195-221` (the `config` hook, `order: 'post'`) and `:254-279`
-  (`serverBundlePlugin`):
+- `packages/devtools/src/vite/mionVitePlugin.ts`, `serverBundlePlugin` (its `config` hook, `order: 'post'`):
   - warn or fail when an existing input would be replaced;
   - set `copyPublicDir: false` on the server environment;
   - detect a host that already owns `ssr` and fail with a clear message.
-- `packages/devtools/src/core/unplugin.ts:619-640` (the pure-fn artifact): decide whether an app build should emit it
+- `packages/devtools/src/core/unplugin.ts`, the `mion-pure-fns/` writer (the pure-fn artifact): decide whether an app build should emit it
   at all. It must never land in a client `outDir`.
 - Preview: document how to preview the API (run the built server, proxy from `vite preview`), or mount it in
   `configurePreviewServer` if that is cheap.

@@ -25,9 +25,11 @@ mion-starters to 0.13.2; investigation in the mion-starters repo, `docs/investig
 5. **Only `.mion/types/` is gitignored**; `.mion/api/` and `.mion/rpc/` would be committed.
 6. **`typescript >=6` peer admits TS 7**, whose package no longer exports the JS API `@mionjs/devtools/vite`
    imports.
-7. **Dev noise:** the full router options object is logged on every init (dev, build workers, production), the 503
-   body carries ANSI colour codes, and "resolver process died unexpectedly, respawned" prints before the real
+7. **Dev noise:** the full router options object is logged on every init (dev, build workers, production), and "resolver process died unexpectedly, respawned" prints before the real
    config error (and the final error loses it).
+
+Rechecked on 2026-11-03 against `main` (`85f3488af`): every item is still open. The dev 503 body's ANSI codes moved
+to the ESM-only packages todo.
 
 ## Direction
 
@@ -41,7 +43,7 @@ The implementer plans the fixes. Verified pointers:
 - `packages/run-types/package.json` `files` and its `mion compile` build: inline `sourcesContent` or ship no maps.
 - `ts-go-runtypes/internal/compiler/resolver/generate.go:172-185` (gitignore written for `types/` only).
 - `packages/devtools/package.json` peer range, `packages/devtools/src/vite/buildEntries.ts`.
-- `packages/rpc-router/src/router.ts:259`, `packages/devtools/src/vite/middlewareMode.ts` (503 body), the resolver
+- `packages/rpc-router/src/router.ts` (`mion router initialized` log), the resolver
   client respawn path.
 
 ## Docs
