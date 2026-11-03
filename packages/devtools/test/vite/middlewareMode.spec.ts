@@ -146,7 +146,9 @@ describe('middleware mode (in-process vite dev server)', () => {
       configFile: false,
       logLevel: 'silent',
       appType: 'custom', // no SPA fallback: an unmatched request must 404, not return index.html
-      server: {middlewareMode: true},
+      // No real fs watcher: each test signals its edits with watcher.emit, and chokidar's own event for the
+      // same write could land after the first reload and load the API a third time.
+      server: {middlewareMode: true, watch: null},
       resolve: {alias: {'@mionjs/router': routerPath, '@mionjs/core': corePath, '@mionjs/platform-node': nodePlatformPath}},
       plugins: [
         (plugin = mionMiddlewarePlugin(serverOptions, {
