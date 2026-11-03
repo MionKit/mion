@@ -1,11 +1,11 @@
-// The supported TypeScript floor for the consumer's own tsconfig, a build-time notice only. No peer range
-// backs it: devtools never loads TypeScript, so any version installs. Deliberately off the public surface.
+// A build-time notice of the consumer's TypeScript floor. No peer range backs it: devtools never loads
+// TypeScript, so any version installs. Deliberately off the public surface.
 
 import fs from 'node:fs';
 import {createRequire} from 'node:module';
 import path from 'node:path';
 
-// The oldest major whose tsconfig the bundled compiler reads the way that version's editor does.
+// Oldest major whose tsconfig the bundled compiler reads as that version's editor does.
 export const TYPESCRIPT_FLOOR_MAJOR = 6;
 
 // Once per process, not per build: a monorepo runs several plugin containers against one install.

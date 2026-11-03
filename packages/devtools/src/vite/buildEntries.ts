@@ -14,7 +14,7 @@ import {getExePath} from '@mionjs/bin-compiler';
  *  three lanes agree on one list. `tsconfigFile` is resolved against packageDir. */
 export function collectBuildEntries(packageDir: string, tsconfigFile = 'tsconfig.build.json'): Record<string, string> {
   const configPath = resolve(packageDir, tsconfigFile);
-  // The mion binary parses the tsconfig, so importing the Vite plugin never loads TypeScript's JS API
+  // Importing the Vite plugin must never load TypeScript's JS API
   let listed: string;
   try {
     listed = execFileSync(getExePath(), ['compile', '--list-files-only', '--cwd', packageDir, '--tsconfig', configPath], {

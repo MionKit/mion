@@ -1,11 +1,6 @@
-// The TypeScript floor notice.
-//
-// package.json declares no `typescript` peer: the resolver carries its own
-// compiler (the bundled tsgo) and never loads the consumer's, so a project with
-// any TypeScript version, or none installed at all, still builds. What an older copy can do is write a tsconfig the resolver reads
-// differently than the editor does, which is worth saying once and no more.
-//
-// So the rule these tests pin is: warn, never throw, never fail a build.
+// No `typescript` peer: the bundled tsgo never loads the consumer's, so any TypeScript version, or none, builds.
+// An older copy can only write a tsconfig read differently than the editor reads it, so these tests pin:
+// warn once, never throw, never fail a build.
 
 import fs from 'node:fs';
 import os from 'node:os';
