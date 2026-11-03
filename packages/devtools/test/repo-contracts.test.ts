@@ -828,21 +828,11 @@ describe('twoslash VFS mounts the packages the examples import', () => {
     for (const name of mountedPackageNames()) expect(name).toMatch(/^@mionjs\//);
   });
 
-  // The mount ROOT is not written in the list: twoslash.post.ts reads each package's
-  // own package.json and mounts the directory holding its `.` types entry. The dists
-  // are not laid out alike (core emits `.dist/esm/index.d.ts`, the drizzle packages
-  // `.dist/esm/src/index.d.ts`, run-types `dist/`, uws a committed `lib/`), and the
-  // hand-written `distPath` this replaced mounted `.dist/esm` for the drizzle
-  // packages: a root holding only `src/`, so `import ... from
-  // '@mionjs/drizzle-orm-pg-core'` resolved nothing and the home page's drizzle card
-  // rendered a compiler error. Reading the manifest removes that drift; what is left
-  // to pin is that every manifest names an entry, that a built dist really holds it
-  // where the manifest says, and that the subpaths the examples import sit where
-  // classic node resolution looks under that root.
+  // twoslash.post.ts mounts the dir holding each `.` types entry: dists differ in layout, a wrong root renders an error.
+  // Pinned: every manifest names an entry, the built dist holds it, example subpaths sit where classic resolution looks.
   const TYPES_SPELLINGS = 'exports["."].types or a top-level types';
 
-  // Mirrors typesEntry() in twoslash.post.ts: the `.` types entry relative to the
-  // package dir, in the two spellings the workspace uses.
+  // Mirrors typesEntry() in twoslash.post.ts, but relative to the package dir.
   function declaredTypes(manifest: Record<string, any>, subpath: string): string | undefined {
     const entry = manifest.exports?.[subpath];
     const declared = typeof entry === 'string' ? entry : (entry?.types ?? (subpath === '.' ? manifest.types : undefined));

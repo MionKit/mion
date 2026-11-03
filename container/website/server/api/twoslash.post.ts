@@ -130,11 +130,7 @@ function findFiles(dir: string, pattern: RegExp, files: string[] = []): string[]
   return files
 }
 
-/**
- * The built `.d.ts` a package's own package.json names as its `.` types entry, absolute.
- * Reads the two spellings the workspace uses: `exports['.'].types` and a top-level `types`.
- * Undefined when the manifest names none. Mirrored by repo-contracts.test.ts.
- */
+/** Mirrored by declaredTypes() in repo-contracts.test.ts. */
 function typesEntry(pkgDir: string): string | undefined {
   const manifestPath = join(pkgDir, 'package.json')
   if (!existsSync(manifestPath)) return undefined
@@ -227,8 +223,7 @@ function loadPackageTypes(): Map<string, string> {
       continue
     }
 
-    // Synthetic package.json so TS's Node resolver finds the entry (and subpath
-    // exports like `@mionjs/run-types/formats`) for bare imports in examples.
+    // Synthetic package.json so TS resolves an example's bare import to the entry.
     const entryFile = relative(pkgDistDir, entry)
     fsMap.set(
       `/node_modules/${pkg.name}/package.json`,
@@ -236,17 +231,12 @@ function loadPackageTypes(): Map<string, string> {
     )
 
     for (const dtsFile of dtsFiles) {
-      // Get relative path from dist directory
       const relativePath = relative(pkgDistDir, dtsFile)
-      // Create virtual node_modules path
       const virtualPath = `/node_modules/${pkg.name}/${relativePath}`
 
       try {
         let content = readFileSync(dtsFile, 'utf-8')
-        // Strip .ts extensions from imports so TypeScript resolves to .d.ts files.
-        // Our .d.ts files carry .ts extensions (e.g. `from './types.ts'`, the
-        // source spelling tsc preserves) but the VFS only has .d.ts files.
-        // Extensionless imports let TS find them.
+        // Our .d.ts files import `./types.ts` (tsc keeps the source spelling), but the VFS holds only .d.ts.
         content = content.replace(/(from\s+['"])([^'"]+)\.ts(['"])/g, '$1$2$3')
         fsMap.set(virtualPath, content)
       } catch (e) {
