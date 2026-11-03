@@ -65,15 +65,20 @@ this change touched, review its report against the code, and commit it as its ow
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file,
   each committed on its own.
 
-## Plan: one reload model (approved 2026-11-02)
+## Plan: per-copy state, a reload per host (approved 2026-11-02, Next part revised 2026-11-03)
 
-A reload is a fresh copy of the API in every host, mion included, so nothing has to reset shared state.
+Core and router keep their state per module copy. Vite reloads a fresh copy of the whole API; Next keeps the router
+loaded, so the Next preset resets it.
 
 - `@mionjs/core` and `@mionjs/router` keep no state on `globalThis`: `getOrCreateGlobal`, the core load counter,
   its dual-load warning and `MION_SUPPRESS_DUAL_LOAD_WARN` go. Each module copy owns its tables, flags and caches.
-  The `createMionRouter` guard stays; its error now says to keep `@mionjs/*` bundled.
-- Next: a dev edit re-evaluates the route bundle, mion bundled in it (Next's default), so the fresh copy starts
-  empty. No reset hook needed. Pinned by a `next dev` edit lane in the pre-publish e2e `mion-next` app.
+  The `createMionRouter` guard stays as it is.
+- Next: the first CI run of the `next dev` lane showed Turbopack re-runs only the edited module and its importers,
+  keeping `@mionjs/router` loaded, so the re-run `createMionRouter` hit the guard. Next-only fix, keeping core and
+  Vite clean: in `next dev`, `withMion` opens the router-init module (the resolver's `routerInitFiles`) with a
+  one-line reset that keeps the batch table (`src/next/devRouterReset.ts`), through a `rewriteOutput` pass on the
+  broker and the webpack lane. Production gets no reset, so the guard holds. Pinned by the `next dev` edit lane in
+  the pre-publish e2e `mion-next` app, the broker and reset specs, and a router spec of the reset's steps.
 - Vite (`middlewareMode.ts`): the reload invalidates the entry's whole SSR module tree (inlined `@mionjs/*`
   included) instead of "own files" by Vite root, and never calls `resetRouter()`. Every request awaits one shared
   reload, and an edit made during a reload starts another. A change marks the API stale when the file is in the tree
@@ -82,8 +87,7 @@ A reload is a fresh copy of the API in every host, mion included, so nothing has
   listener goes). A type edit needs nothing of its own: it rewrites the generated module the API imports, an
   ordinary change in the tree. A failed load with no basePath known lets page navigations through instead of
   answering 503 for the whole site.
-- Docs: Next "Editing Types While the Dev Server Runs" (reloads, keep `@mionjs/*` out of
-  `serverExternalPackages`), Vite "Fullstack Apps" (reload, entry outside the root, one genDir per process).
+- Docs: Next "Editing Types While the Dev Server Runs" (route, type and batch edits reload the API), Vite "Fullstack Apps" (reload, entry outside the root, one genDir per process).
 - Tests: `rpc-router/test/moduleCopies.spec.ts` (a fresh copy needs no reset, the guard holds inside one copy),
   plus a fresh batch table and a fresh `@mionjs/core` cache; `devtools/test/vite/middlewareMode.spec.ts` (fresh-copy
   reload, 20 concurrent requests during a reload, edits during the first load and during a reload, entry outside
