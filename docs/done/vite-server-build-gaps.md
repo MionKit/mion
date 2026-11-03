@@ -110,3 +110,10 @@ The built API bundle inlines its own router copy and opens its own port, so moun
 - `container/website/content/02.runtypes/02.guide/09.pure-functions.md`: a client app build skips the directory.
 - `packages/devtools/AGENTS.md` pure-fn artifact section: the client-app skip.
 
+## Shipped
+
+As planned, plus:
+
+- "Fullstack Apps" also lost its other framework aside (where the entry may sit), for the same generic rule.
+- The preview proxy lives in the page's existing example, `packages/private-examples/src/codegen/vite-client.config.ts`.
+- Not mounted in `configurePreviewServer`: the built API bundles its own router and opens its own port.
