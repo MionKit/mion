@@ -33,12 +33,9 @@ export const BARE_CWD = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-bare-'));
 
 export type InlineSources = Record<string, string>;
 
-// The REAL `@mionjs/run-types` as a CONSUMER INSTALL, keyed as virtual node_modules paths: the
-// published package.json (no `source` condition, what pack.mjs strips), the dist .d.ts tree and
-// the `mion-pure-fns/` artifact, the only place the built-in pure-fn bodies live once the dist is hollowed.
-// No sources, because the tarball carries none. No hand-written stand-in to drift ("Real types,
-// never copies" in packages/run-types/test/fuzz/README.md). Read once per worker; the dist is
-// kept fresh by `pretest` → `check:builds`.
+// The real `@mionjs/run-types` as its tarball installs it, never a stand-in (packages/run-types/test/fuzz/README.md).
+// `mion-pure-fns/` is the only home of the built-in pure-fn bodies once the dist is hollowed.
+// `pretest` → `check:builds` keeps the dist fresh.
 // A relative literal on purpose: `core test-pr` reads it as the edge that reruns these tests when run-types changes.
 const MARKER_PKG_DIR = path.resolve(__dirname, '../../../run-types');
 const ARTIFACT_SEGMENT = `${path.sep}mion-pure-fns${path.sep}`;

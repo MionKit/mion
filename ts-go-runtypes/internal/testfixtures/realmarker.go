@@ -38,9 +38,8 @@ var (
 // artifactDirSegment picks the pure-fn artifact files out of the dist walk.
 const artifactDirSegment = string(filepath.Separator) + constants.PureFnArtifactDir + string(filepath.Separator)
 
-// RealMarkerPackage returns the real `@mionjs/run-types` as a CONSUMER INSTALL under MarkerPackagePrefix: published package.json, the
-// dist .d.ts tree and the pure-fn artifact. No sources and no `source`
-// condition, the tarball carries neither. Overlay under a test cwd WITHOUT program roots; errors when the dist is unbuilt.
+// RealMarkerPackage returns the real `@mionjs/run-types` under MarkerPackagePrefix as its tarball installs it.
+// Overlay it under a test cwd WITHOUT program roots; errors when the dist is unbuilt.
 func RealMarkerPackage() (map[string]string, error) {
 	markerOnce.Do(func() { markerFiles, markerErr = readMarkerPackage() })
 	return markerFiles, markerErr

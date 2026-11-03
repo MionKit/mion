@@ -71,9 +71,7 @@ describe('published tarballs ship type definitions, never sources', () => {
             const root = pkgDir(name);
             const manifest = readManifest(name);
 
-            // scripts/release/pack.mjs strips it: it would name a src/ the tarball does not carry,
-            // and a dangling condition fails the consumer who asks, where an absent one falls
-            // through to `types`.
+            // scripts/release/pack.mjs strips it: naming the missing src/ fails, an absent one falls through to `types`.
             it('declares no `source` export condition', () => {
                 const sourcePaths = collectCondition(manifest.exports, 'source');
                 expect(sourcePaths, `${name} still declares "source": ${sourcePaths.join(', ')}`).toEqual([]);
@@ -107,8 +105,8 @@ describe('published tarballs ship type definitions, never sources', () => {
     }
 });
 
-// Every package ships ESM only: a CommonJS consumer loads it through Node's require(esm), one copy for import and require.
-// @mionjs/devtools stays import-only build tooling (its `./eslint` entry awaits at the top level, which require refuses).
+// ESM only: a CommonJS consumer loads each package through require(esm), one copy for import and require.
+// @mionjs/devtools stays import-only: its `./eslint` entry uses top-level await, which require refuses.
 const requirablePackages = [...publicPackages.filter((name) => name !== '@mionjs/devtools'), '@mionjs/bin-uws'];
 // `./drizzle` re-exports upstream drizzle-orm, an optional peer this lane does not install.
 const optionalPeerSubpaths = new Set(['./drizzle']);

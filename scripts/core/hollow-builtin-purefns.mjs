@@ -1,29 +1,7 @@
-// hollow-builtin-purefns.mjs — strip the built-in pure-fn factory BODIES out of
-// the published dist, keeping only the registration scaffolding.
-//
-// Why: the resolver delivers every package-owned body on demand from the
-// built-in table, so the side-effect-imported registration files
-// (pure-fns-utils.js, *-pure-fns.js) no longer need to CARRY the bodies — they
-// cost roughly 11 KB in every bundle. This post-build step rewrites each
-// `registerPureFnFactory(<factory>, <id>)` in those dist files to
-// `registerPureFnFactory(null /** <id> hollowed */)`, so the file keeps its
-// exports, its line count (stack traces / maps line up), and its side-effect
-// registration (now an inert no-op — see registerCore's hollow lane), but ships
-// scaffolding bytes only. The `.d.ts` is untouched (neither argument is part of
-// the declared type). The bodies still reach a consumer, on demand, through the
-// pure-fn cache, which is why `src` must stay in this package's published
-// `files`: it is the only place they exist.
-//
-// The id argument goes with the body: an inert registration has nothing to key,
-// and dropping it leaves the generated id module with no used export, so a
-// bundler drops those strings too. A `null` factory is what marks the hollow
-// lane; a file no build processed still throws.
-//
-// Only the listed registration FILES are rewritten; every other pure fn,
-// including a consumer's own, is left alone.
-//
-// Usage: node scripts/core/hollow-builtin-purefns.mjs [<distDir>]
-//   distDir defaults to packages/run-types/dist.
+// Post-build: the resolver delivers built-in pure-fn bodies on demand, so each listed registration file's
+// `registerPureFnFactory(<factory>, <id>)` becomes `registerPureFnFactory(null /** <id> hollowed */)`, ~11 KB a bundle.
+// Line count must not change, so stack traces and maps line up. The id goes too, so bundlers drop the id strings.
+// A `null` factory marks registerCore's hollow lane; a file no build processed still throws. Other pure fns stay.
 
 import {execFileSync} from 'node:child_process';
 import {existsSync, readFileSync, writeFileSync} from 'node:fs';
@@ -211,15 +189,13 @@ function findTopLevelComma(src, from, close) {
   return -1;
 }
 
-// hollowSource rewrites every listed registerPureFnFactory call in one dist
-// file. Returns {code, count}. Idempotent: an already-hollowed call (factory arg
-// literally `null`) is skipped.
+// Idempotent: an already-hollowed call (factory literally `null`) is skipped.
 export function hollowSource(src, file = '<memory>') {
   let out = '';
   let cursor = 0;
   let count = 0;
   for (let at = src.indexOf(CALL); at !== -1; at = src.indexOf(CALL, at + 1)) {
-    // `CALL` must be a standalone identifier: the char on each side is not part of a longer one.
+    // `CALL` must stand alone, not be part of a longer identifier.
     const before = src[at - 1];
     const after = src[at + CALL.length];
     if (before && /[A-Za-z0-9_$]/.test(before)) continue;
@@ -231,9 +207,7 @@ export function hollowSource(src, file = '<memory>') {
     const close = findCallCloseParen(src, openParen);
     if (close === -1) throw new Error(`${file}: unbalanced ${CALL}( at offset ${at}`);
 
-    // The factory is the FIRST argument; the id follows it. A call with no
-    // second argument is not one of ours (the build injects the id, and these
-    // files pass it explicitly), so leave it alone.
+    // A call with no id argument is not one of ours: these files pass the id explicitly.
     let factoryStart = openParen + 1;
     while (factoryStart < close && /\s/.test(src[factoryStart])) factoryStart++;
     const comma = findTopLevelComma(src, factoryStart, close);
@@ -244,7 +218,6 @@ export function hollowSource(src, file = '<memory>') {
     const factory = src.slice(factoryStart, comma);
     if (factory.trim() === 'null' || factory.trimStart().startsWith('null ')) continue; // already hollow
 
-    // The whole argument list is replaced, so count the newlines it spans.
     const newlines = (src.slice(factoryStart, close).match(/\n/g) || []).length;
     // Replacement occupies the SAME number of lines so maps/traces line up.
     const replacement = `null /** ${id} hollowed — body ships on demand${'\n'.repeat(newlines)}*/`;
@@ -272,7 +245,6 @@ function main() {
       throw new Error(`dist/${rel}: line count changed (${src.split('\n').length} -> ${code.split('\n').length}) — hollowing must preserve it`);
     }
     writeFileSync(path, code);
-    // Fail loudly if the rewrite produced invalid JS.
     execFileSync(process.execPath, ['--check', path]);
     files++;
     hollowed += count;

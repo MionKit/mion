@@ -2,11 +2,8 @@ import {describe, it, expect} from 'vitest';
 // @ts-expect-error — a plain .mjs build script, no types
 import {hollowSource} from '../../../scripts/core/hollow-builtin-purefns.mjs';
 
-// The dist hollow transform strips built-in pure-fn factory BODIES out of the
-// published registration files (they ship on demand from the built-in table
-// now). These pin the scanner: it must find the matching call `)` past regex,
-// template, string, and comment content, replace the WHOLE argument list (the
-// id goes with the body) and preserve the file's line count.
+// The scanner must find the call's `)` past regex, template, string and comment content,
+// replace the WHOLE argument list (the id goes with the body) and keep the line count.
 
 const UTILS = '@mionjs/run-types/src/runtypes/pure-fns-utils';
 const FORMATS = '@mionjs/run-types/src/formats/string/string-formats-pure-fns';
