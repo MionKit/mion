@@ -120,6 +120,11 @@ function isTransportLoss(reason: string): boolean {
   return reason === RESOLVER_EXITED || reason.startsWith(SPAWN_FAILED_PREFIX);
 }
 
+// How much of the child's last stderr a death report carries: enough for its fatal line, never a whole build log.
+const STDERR_TAIL_CHARS = 2048;
+// The Go binary's own fatal() exit code (a broken tsconfig at startup); a panic exits 2 and stays respawnable.
+const RESOLVER_FATAL_EXIT_CODE = 1;
+
 // How long close() waits for in-flight requests before releasing the process anyway: a hung child must not wedge teardown.
 const CLOSE_DRAIN_TIMEOUT_MS = 5000;
 
@@ -510,6 +515,8 @@ export class ResolverClient extends ResolverClientBase {
   // Lifetime respawn budget: enough for the rare transient child loss (host lifecycle races, external kills)
   // without churning forever on a host where every spawn dies.
   private respawnsLeft = 3;
+  // Set when the child exited through its own fatal(): deterministic, so it is reported, never respawned.
+  private fatalExit: string | undefined;
 
   constructor(
     private readonly binary: string,
@@ -521,6 +528,8 @@ export class ResolverClient extends ResolverClientBase {
     this.spawnChild();
   }
 
+  // The current child's last stderr bytes, quoted when it dies: its own fatal line is the real error.
+  private stderrTail = '';
   // The child's OS pid (fresh after a respawn). Diagnostics + tests.
   get pid(): number | undefined {
     return this.child.pid;
@@ -537,6 +546,7 @@ export class ResolverClient extends ResolverClientBase {
     // The stdio pipes are libuv handles of their own and keep the loop alive, so the child handle is not enough.
     unrefHandle(this.child?.stdin);
     unrefHandle(this.child?.stdout);
+    unrefHandle(this.child?.stderr);
   }
 
   override close(): void {
@@ -552,11 +562,18 @@ export class ResolverClient extends ResolverClientBase {
     // cacheDir rides the child's MION_CACHE_DIR env, not a CLI arg, so concurrent spawns with different cache
     // dirs don't collide. A path forces the cache on there, '' forces it off, undefined leaves the env untouched.
     const env = this.opts.cacheDir !== undefined ? {...process.env, MION_CACHE_DIR: this.opts.cacheDir} : process.env;
-    const child = spawn(this.binary, args, {stdio: ['pipe', 'pipe', 'inherit'], env});
-    if (!child.stdin || !child.stdout) {
+    const child = spawn(this.binary, args, {stdio: ['pipe', 'pipe', 'pipe'], env});
+    if (!child.stdin || !child.stdout || !child.stderr) {
       throw new Error('failed to spawn mion (no stdio pipes)');
     }
     this.child = child;
+    this.stderrTail = '';
+    // Piped, not inherited, so a death report can quote it; still forwarded live as the child writes it.
+    child.stderr.setEncoding('utf8');
+    child.stderr.on('data', (chunk: string) => {
+      process.stderr.write(chunk);
+      this.stderrTail = (this.stderrTail + chunk).slice(-STDERR_TAIL_CHARS);
+    });
     const stdin = child.stdin;
     const stdout = child.stdout;
     // A write into the pipe of a child that just died (exit event not yet delivered) raises a stream error;
@@ -575,7 +592,15 @@ export class ResolverClient extends ResolverClientBase {
       // after the constructor naturally lands after it on the wire.
       transport.writeUnframed(JSON.stringify({sources: this.opts.inlineSources}) + '\n');
     }
-    child.on('exit', () => transport.markClosed(RESOLVER_EXITED));
+    // 'close', not 'exit': it fires once stdio is drained, so the tail already holds the child's last line.
+    child.on('close', (code) => {
+      // The child's own verdict: a fresh child would reach the same one.
+      if (code === RESOLVER_FATAL_EXIT_CODE) {
+        const tail = this.stderrTail.trim();
+        this.fatalExit = `${RESOLVER_EXITED} (code ${code})${tail ? `: ${tail}` : ''}`;
+      }
+      transport.markClosed(this.fatalExit ?? RESOLVER_EXITED);
+    });
   }
 
   // An UNEXPECTED child death is retryable: the one-shot lanes are stateless across spawns, so one respawn plus
@@ -589,6 +614,7 @@ export class ResolverClient extends ResolverClientBase {
     } catch (error) {
       // 'resolver is closed': the transport was already down before this request was written, e.g. the death
       // happened between two requests.
+      if (this.fatalExit) throw new Error(this.fatalExit);
       if (!this.canRespawn()) throw error;
       this.respawnFor(attempt);
       return this.transport.request(req);
@@ -601,7 +627,7 @@ export class ResolverClient extends ResolverClientBase {
   }
 
   private canRespawn(): boolean {
-    return !this.intentionalClose && !this.opts.serverMode && this.respawnsLeft > 0;
+    return !this.intentionalClose && !this.opts.serverMode && !this.fatalExit && this.respawnsLeft > 0;
   }
 
   // respawnFor replaces the dead child exactly once per loss: concurrent requests that died together all funnel
