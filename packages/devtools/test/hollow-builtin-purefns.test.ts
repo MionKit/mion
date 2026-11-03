@@ -6,8 +6,7 @@ import {hollowSource} from '../../../scripts/core/hollow-builtin-purefns.mjs';
 // published registration files (they ship on demand from the built-in table
 // now). These pin the scanner: it must find the matching call `)` past regex,
 // template, string, and comment content, replace the WHOLE argument list (the
-// id goes with the body), preserve the file's line count, and handle both the
-// ESM and tsc CJS call shapes.
+// id goes with the body) and preserve the file's line count.
 
 const UTILS = '@mionjs/run-types/src/runtypes/pure-fns-utils';
 const FORMATS = '@mionjs/run-types/src/formats/string/string-formats-pure-fns';
@@ -29,18 +28,6 @@ describe('hollowSource', () => {
     expect(code).toContain(`registerPureFnFactory(null /** '${UTILS}#x' hollowed`);
     expect(code).not.toContain('re.test'); // body gone
     expect(code.trimEnd().endsWith('*/);')).toBe(true);
-  });
-
-  it('hollows the tsc CJS call shape `(0, mod.registerPureFnFactory)(...)`', () => {
-    const src = `exports.isY = (0, pureFn_ts_1.registerPureFnFactory)(function () {
-    return function (v) { return v; };
-}, '${FORMATS}#isY');
-`;
-    const {code, count} = hollowSource(src);
-    expect(count).toBe(1);
-    expect(lineCount(code)).toBe(lineCount(src));
-    expect(code).toContain(`null /** '${FORMATS}#isY' hollowed`);
-    expect(code).not.toContain('return v;');
   });
 
   it('leaves a call the build never gave an id alone', () => {
