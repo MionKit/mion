@@ -1,14 +1,10 @@
-// withRunTypes, the Next config wrapper: Turbopack rules, the webpack fallback, and which
-// lane a `next dev` server gets. The broker itself is covered in next-broker.test.ts.
+// The broker itself is covered in next-broker.test.ts.
 import {describe, expect, it} from 'vitest';
 import {withRunTypes} from '../src/runtypes/next/index.ts';
 
 describe('withRunTypes — the Next config wrapper', () => {
-  // next.config is loaded by more than the process that bundles: Next's detached
-  // telemetry flush loads it too. Such a process must get the RULES but start no
-  // resolver — one there would never serve a loader and would linger after the
-  // build. Driving that path is also what keeps this test from spawning a real
-  // resolver, so the rules shape is checked without a broker.
+  // Next's telemetry flush loads next.config too: it gets rules, no resolver (that would serve no loader, then linger).
+  // Faking that process is also what keeps these tests from spawning a real resolver.
   async function withoutBroker<T>(run: () => Promise<T>): Promise<T> {
     const previous = process.argv[1];
     process.argv[1] = '/fake/next/dist/telemetry/detached-flush.js';
@@ -64,8 +60,7 @@ describe('withRunTypes — the Next config wrapper', () => {
       const built = config.webpack({plugins: []}, {});
       expect(callerRan).toBe(true);
       expect(built.plugins).toHaveLength(1);
-      // The webpack lane has a real plugin host with its own buildStart, so it needs
-      // no broker and gets no turbopack rules.
+      // The webpack lane has a real plugin host with its own buildStart, so no broker and no turbopack rules.
       expect(config.turbopack).toBeUndefined();
     } finally {
       if (previous === undefined) delete process.env.TURBOPACK;

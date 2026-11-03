@@ -95,7 +95,7 @@ async function handleRequest(req: Request): Promise<Response> {
   }
 }
 
-/** Creates Vercel Function handlers, one Web standard `Request -> Response` export per HTTP method */
+/** Vercel Function handlers: one Web standard `Request -> Response` export per HTTP method */
 export function createVercelHandler(options?: Partial<VercelHandlerOptions>) {
   setVercelHandlerOpts(options);
   return {

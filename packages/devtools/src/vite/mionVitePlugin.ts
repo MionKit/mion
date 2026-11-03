@@ -133,9 +133,7 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
   const rtPluginOptions: TsRuntypesPluginOptions = {
     ...toRunTypesOptions(options),
     onGenerate: transport.onGenerate,
-    // Editing a type in ANOTHER file leaves every file reflecting it serving a validator for the old shape:
-    // the import that named it was erased, so vite has no edge to follow and the resolver reports the stale
-    // files here instead.
+    // A type edit in ANOTHER file comes through an erased import vite cannot follow; the resolver names the stale files.
     onSiteFilesChanged: invalidateStaleSites,
   };
   const plugins = tsRuntypes(rtPluginOptions);
