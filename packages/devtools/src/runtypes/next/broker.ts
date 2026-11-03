@@ -175,9 +175,6 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
   // when the resolver can, and the stamp is the fallback. It hashes the generated listing, whose names are
   // content-addressed (a `types/rt/` entry adds a content hash), and every rewritten file declares it, so any type
   // change re-runs every marker-bearing file. Bounded: only files with sites are transformed, a few ms each.
-  // `rpc/` is listed because the module calling `createMionRouter` gets the batch table's import appended, which
-  // appears or vanishes on a client's first or last batch with no import edge to follow.
-  // The mapper modules under `rpc/pf/` are content-addressed like `types/`, hence the recursive listing.
   // `.ts` under emitMode 'ts', `.js` otherwise.
   const isModuleFile = (name: string): boolean => name.endsWith('.js') || name.endsWith('.ts');
 
@@ -190,22 +187,20 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
     }
   }
 
-  /** `types/` plus `rpc/`, each entry prefixed by its half so a name cannot collide across them. A `types/rt/`
-   *  module keeps its name when its types change, so its entry adds a content hash. */
+  /** Every `types/` entry, recursive. A `types/rt/` module keeps its name when its types change, so its entry
+   *  adds a content hash. */
   function generatedListing(): string[] {
+    let names: string[];
+    try {
+      names = fs.readdirSync(path.join(genDirAbs, 'types'), {recursive: true}) as string[];
+    } catch {
+      return []; // not generated yet
+    }
     const listing: string[] = [];
-    for (const half of ['types', 'rpc']) {
-      let names: string[];
-      try {
-        names = fs.readdirSync(path.join(genDirAbs, half), {recursive: true}) as string[];
-      } catch {
-        continue; // this half has not been generated
-      }
-      for (const name of names) {
-        // Recursive readdir joins with the OS separator; the prefix test and the stamp want '/'.
-        const entry = `${half}/${name.split(path.sep).join('/')}`;
-        listing.push(entry.startsWith(FILE_MODULE_PREFIX) && isModuleFile(entry) ? `${entry}#${contentHash(entry)}` : entry);
-      }
+    for (const name of names) {
+      // Recursive readdir joins with the OS separator; the prefix test and the stamp want '/'.
+      const entry = `types/${name.split(path.sep).join('/')}`;
+      listing.push(entry.startsWith(FILE_MODULE_PREFIX) && isModuleFile(entry) ? `${entry}#${contentHash(entry)}` : entry);
     }
     return listing.sort();
   }
