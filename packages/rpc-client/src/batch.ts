@@ -28,7 +28,7 @@ export function batch<Routes extends RouteSubRequest<any>[]>(
     throw new RpcError({
       type: 'batch-missing-id',
       publicMessage:
-        'batch() needs the mion build plugin (vite or next preset) to inject the batch id. ' +
+        'batch() needs the mion build plugin (the vite preset or the mion CLI) to inject the batch id. ' +
         'Batches are compiled into the server at build time, so a client without the build cannot send one.',
     });
   }

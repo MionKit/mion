@@ -130,35 +130,6 @@ export const slugify = registerPureFn((s: string): string => s.toLowerCase());
   );
 
   register(
-    'runs rewriteOutput over every reply, a file the resolver left alone included',
-    async () => {
-      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-next-broker-'));
-      writeProject(root);
-      const plain = path.join(root, 'src/plain.ts');
-      fs.writeFileSync(plain, `export const plain = 1;\n`);
-      const handle = await startBroker(root, {
-        binary: BIN,
-        cwd: root,
-        tsconfig: 'tsconfig.json',
-        genDir: '.mion',
-        rewriteOutput: (file, code) => (file === plain ? `/* seen */ ${code}` : code),
-      });
-      try {
-        const reply = await askBroker(handle.socketPath, plain, fs.readFileSync(plain, 'utf8'));
-        expect(reply.ok).toBe(true);
-        expect(reply.code).toBe(`/* seen */ export const plain = 1;\n`);
-        const entry = path.join(root, 'src/entry.ts');
-        const untouched = await askBroker(handle.socketPath, entry, fs.readFileSync(entry, 'utf8'));
-        expect(untouched.code).not.toContain('/* seen */');
-      } finally {
-        await handle.close();
-        fs.rmSync(root, {recursive: true, force: true});
-      }
-    },
-    60_000
-  );
-
-  register(
     'close() drops its process exit listener',
     async () => {
       // A leaked listener per broker trips MaxListenersExceededWarning in a process that restarts brokers.

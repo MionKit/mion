@@ -44,7 +44,7 @@ describe('the hash mode of each lane', () => {
       'container/pre-publish-e2e/build-all.mjs',
       'ts-go-runtypes/internal/cachegen/purefnids/ids.generated.go',
       'packages/run-types/src/go-generated/fnHashes.generated.ts',
-      'container/pre-publish-e2e/apps/mion-next/app/page.tsx',
+      'container/pre-publish-e2e/apps/smoke-next/app/page.tsx',
       'container/benchmarks/_deps/competitors/zod/a.ts',
       'ts-go-runtypes/third_party/tsgolint/a.go',
       'packages/core/package.json',

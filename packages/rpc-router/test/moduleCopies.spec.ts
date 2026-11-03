@@ -58,22 +58,4 @@ describe('a fresh copy of the router module', () => {
     copy.createMionRouter();
     expect(() => copy.createMionRouter()).toThrow('createMionRouter has already been called');
   });
-
-  // What the next dev preset runs at the top of the router module, where Turbopack re-runs only that module.
-  it('lets one copy create its router again after a reset that keeps the batch table', async () => {
-    const copy = await freshRouterCopy();
-    const batches = await import('../src/batches.ts');
-    const first = copy.createMionRouter();
-    first.initRoutes({ping: first.query((): string => 'v1')});
-    batches.replaceBatches({b_kept: {routes: ['ping']}});
-
-    // a BatchEntry as the reset passes it: registerBatches reads only routes + mappings
-    const kept = Object.fromEntries(batches.getBatchIds().map((id) => [id, batches.getBatch(id)!])) as never;
-    copy.resetRouter();
-    batches.registerBatches(kept);
-
-    const second = copy.createMionRouter();
-    expect(() => second.initRoutes({ping: second.query((): string => 'v2')})).not.toThrow();
-    expect(batches.getBatchIds()).toEqual(['b_kept']);
-  });
 });

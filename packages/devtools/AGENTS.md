@@ -2,7 +2,7 @@
 
 ## ⚠️ This package is consumed COMPILED
 
-- Exports point to `./dist/`, not source. Exception: the two mion preset entries also declare `source` (in-repo tests).
+- Exports point to `./dist/`, not source. Exception: the mion vite preset entry also declares `source` (in-repo tests).
 - Root eslint loads `./eslint` through node (never sees `source`) → other packages + root lint run compiled JS.
 - `dist/` = gitignored build artifact. `pnpm run check:builds` rebuilds it when stale.
 - After editing `src/`, rebuild BEFORE other packages' tests or root lint: `pnpm --filter @mionjs/devtools run build`.
@@ -41,12 +41,10 @@ Both former devtools packages in one: the whole build-time surface.
 - `src/core/`: resolver client, transform, edit buffer, codegen. Bundler agnostic.
 - `src/runtypes/`: unopinionated adapter entries, one per bundler, plus `next/`.
 - `src/vite/`: mion vite preset: `mionVitePlugin`, Vue SFC pass, middleware mode.
-- `src/next/`: mion Next preset: `withMion`, composed onto `src/runtypes/next/`.
-- `src/options.ts`: what BOTH presets share, so a knob reaches vite and Next in one commit.
+- `src/options.ts`: maps the preset's options onto the plain adapter options.
 - `src/lint/`: one module, one `mion` plugin, one rule per diagnostic level.
-- Presets (`src/vite/`, `src/next/`) = OPINIONATED: mion's choices (`emitMode` guard, batch transport).
-  Plain adapters they sit on (`src/runtypes/vite.ts`, `src/runtypes/next/`) hold none.
-- `src/options.ts` sits at src root on purpose: inside one preset would imply Next depends on vite. It does not.
+- Preset (`src/vite/`) = OPINIONATED: mion's choices (`emitMode` guard, batch transport).
+  Plain adapters (`src/runtypes/vite.ts`, `src/runtypes/next/`) hold none.
 
 ## Two vitest projects, one package
 
@@ -88,6 +86,6 @@ Both former devtools packages in one: the whole build-time surface.
 
 ## emitMode
 
-- mion presets reject `emitMode: 'functions'` at config time: mion's client serializes compiled functions
+- The mion preset rejects `emitMode: 'functions'` at config time: mion's client serializes compiled functions
   as strings → only `'code' | 'both'` valid.
 - Unopinionated `runtypes/*` entries accept all three.
