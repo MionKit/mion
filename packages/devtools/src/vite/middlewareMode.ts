@@ -7,6 +7,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import {stripVTControlCharacters} from 'node:util';
 import type {IncomingMessage, ServerResponse} from 'node:http';
 import type {ModuleGraph, ModuleNode, Plugin, ViteDevServer} from 'vite';
 import {serveFetchHandler} from './nodeWebBridge.ts';
@@ -306,7 +307,7 @@ function safeRealpath(p: string): string {
 function fail(res: ServerResponse, err: Error): void {
   res.statusCode = 503;
   res.setHeader('content-type', 'text/plain; charset=utf-8');
-  res.end(`mion API failed to initialize:\n${err.message}`);
+  res.end(`mion API failed to initialize:\n${stripVTControlCharacters(err.message)}`);
 }
 
 /** Whether the dev server itself is on https, so bridged Requests carry the right scheme. */

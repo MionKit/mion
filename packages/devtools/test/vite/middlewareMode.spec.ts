@@ -245,6 +245,13 @@ describe('middleware mode (in-process vite dev server)', () => {
     expect(ready.error?.message).toContain('boom: routes are broken');
   });
 
+  it('strips terminal colour codes from the 503 body', async () => {
+    await startDevServer({basePath: '/api', entry: `throw new Error('\\u001b[31mboom\\u001b[39m in red');\n`});
+    const body = await (await fetch(`${baseUrl}/api/users.get`)).text();
+    expect(body).toContain('boom in red');
+    expect(body).not.toContain('\u001b');
+  });
+
   it('fails loudly when the entry opened its own port (a second adapter instance)', async () => {
     const listeningEntry = `
 import {setPlatformConfig} from '@mionjs/router';
