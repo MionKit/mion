@@ -347,7 +347,6 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
         | undefined;
       collecting = null;
       collectingDeps = null;
-      const rewritten = result && typeof result.code === 'string' ? result.code : undefined;
       // Forced: the reply hands the loader this stamp, so it must reflect THIS transform's output. The throttle
       // is for the fs-watcher path; two back-to-back transforms land inside its window and the second reply
       // pointed at a stale stamp (caught by the "moves the invalidation stamp" test).
@@ -355,7 +354,7 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
       reply = {
         id: request.id,
         ok: true,
-        ...(rewritten !== undefined ? {code: rewritten, map: result?.map} : {}),
+        ...(result && typeof result.code === 'string' ? {code: result.code, map: result.map} : {}),
         ...(warnings.length ? {warnings} : {}),
         ...(deps.length ? {typeDeps: [...new Set(deps)].sort()} : {}),
         // Empty typeDeps means unknown; always send the stamp to prevent stale rewrites (./AGENTS.md, 7).
