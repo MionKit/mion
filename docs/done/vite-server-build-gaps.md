@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-11-02
 ---
 
@@ -52,7 +52,7 @@ this change touched, review its report against the code, and commit it as its ow
 ## Done when
 
 - A replaced input is reported, the API bundle holds no `public/` files, a host that owns `ssr` gets a clear error
-  instead of a broken build, and no pure-fn artifact lands in the client output. Each is pinned by a test.
+  instead of a broken build, and no pure-fn artifact lands in a Vite app's client output. Each is pinned by a test.
 - Previewing the API is documented or works.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file,
   each committed on its own.
@@ -117,3 +117,9 @@ As planned, plus:
 - "Fullstack Apps" also lost its other framework aside (where the entry may sit), for the same generic rule.
 - The preview proxy lives in the page's existing example, `packages/private-examples/src/codegen/vite-client.config.ts`.
 - Not mounted in `configurePreviewServer`: the built API bundles its own router and opens its own port.
+- A Vite client output counts as an app when it emits an `.html` page and has no `build.lib`; a package built
+  through `rollupOptions.input` keeps its artifact. Other bundlers still write it: they have no app vs library signal.
+- The taken-ssr check reads `rolldownOptions.input`, `rollupOptions.input` and a string `build.ssr`
+  (`build.ssr: true` names no entry, so it builds). Only `build.ssr` signals a server build, since vite derives
+  `isSsrBuild` from it.
+- A plugin that replaces the ssr input after mion's config hook is left alone: it does so on purpose.
