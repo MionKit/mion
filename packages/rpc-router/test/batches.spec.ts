@@ -81,6 +81,16 @@ describe('batches', () => {
 
       expect(() => mion.initRoutes(routesWithBatchName)).toThrow(`'${MION_BATCH_KEY}' is a reserved mion route name`);
     });
+
+    it('should reject a route named then, which an awaited client proxy would call', async () => {
+      expect(() => mion.initRoutes({then: mion.route((ctx): string => 'test')})).toThrow(`'then' is a reserved mion route name`);
+    });
+
+    it('should reject a nested route named then', async () => {
+      expect(() => mion.initRoutes({users: {then: mion.route((ctx): string => 'test')}})).toThrow(
+        `'then' is a reserved mion route name`
+      );
+    });
   });
 
   describe('batch execution', () => {

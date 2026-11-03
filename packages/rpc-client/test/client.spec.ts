@@ -34,6 +34,18 @@ describe('client', () => {
     expect(client.isApiBundled).toBe(false);
   });
 
+  it('routes and middlewares proxies are not thenables, so awaiting them settles', async () => {
+    const {routes, middlewares} = initClient<MyApi>({baseURL});
+    expect((routes as any).then).toBeUndefined();
+    expect((routes.utils as any).then).toBeUndefined();
+    expect((middlewares as any).then).toBeUndefined();
+    expect(await (async () => routes)()).toBe(routes);
+    expect(await Promise.resolve(routes.utils)).toBe(routes.utils);
+    expect(await (async () => middlewares)()).toBe(middlewares);
+    expect((routes as any)[Symbol.iterator]).toBeUndefined();
+    expect((routes as any)[Symbol.toPrimitive]).toBeUndefined();
+  });
+
   it('proxy to trap remote methods calls and return MethodRequest data', () => {
     const {routes, middlewares} = initClient<MyApi>({baseURL});
 
