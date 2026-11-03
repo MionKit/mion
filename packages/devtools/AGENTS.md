@@ -71,7 +71,7 @@ Both former devtools packages in one: the whole build-time surface.
   - write a file only when its bytes changed;
   - delete every other file in the dir (dir is the build's, nothing else may live in it);
   - remove the dir when the package registers no pure fn;
-  - skip a Vite client environment with no `build.lib`: an app's client output is served as is.
+  - skip a Vite client environment with no `build.lib` that emits an `.html` page: an app's output is served as is.
 - Sync must run from the hook that fires once the bundle is on disk.
   Generate runs at `buildStart`, before the bundler empties its output dir → any earlier write is lost.
 - unplugin's universal `writeBundle` carries no arguments → each host names its own hook + output dir:

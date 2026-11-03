@@ -665,8 +665,6 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     return file ? path.dirname(path.resolve(base, file)) : '';
   }
 
-  type ViteEnvironmentContext = {environment?: {config?: {consumer?: string; build?: {lib?: unknown}}}};
-
   // Fires once per output, so a build with several outputs gets a copy in every output dir.
   async function writeArtifactForOutput(this: unknown, output: {dir?: string; file?: string}): Promise<void> {
     await writePureFnArtifact(outputDirOf(output));
@@ -987,10 +985,12 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     },
 
     vite: {
-      writeBundle(this: ViteEnvironmentContext, output: {dir?: string; file?: string}) {
-        // The artifact feeds a consumer's compiler; an app's client output is served as is, so it never gets one.
-        const environment = this.environment?.config;
-        if (environment?.consumer === 'client' && !environment.build?.lib) return;
+      writeBundle(output, bundle) {
+        // The artifact feeds a consumer's compiler; a client output with a page is an app, served as is.
+        const config = this.environment?.config;
+        const isApp =
+          config?.consumer === 'client' && !config.build?.lib && Object.keys(bundle).some((file) => file.endsWith('.html'));
+        if (isApp) return;
         return writePureFnArtifact(outputDirOf(output));
       },
 

@@ -203,13 +203,38 @@ describe('the pure-fn artifact lands in every bundler output dir', () => {
         logLevel: 'error',
         plugins: [runtypesVite(pluginOptions(root)) as never],
         builder: {},
-        build: {minify: false},
+        build: {minify: false, rollupOptions: {external: ['@mionjs/run-types']}},
         environments: {ssr: {build: {outDir: path.join(root, 'dist-server'), ssr: path.join(root, 'src/index.ts')}}},
       });
       await builder.buildApp();
       expect(fs.existsSync(path.join(root, 'dist', 'index.html'))).toBe(true);
       expect(fs.existsSync(path.join(root, 'dist', PURE_FN_ARTIFACT_DIR))).toBe(false);
       expectLibArtifact(path.join(root, 'dist-server'), 'vite-spa');
+    },
+    120_000
+  );
+
+  register(
+    'vite build of a package without lib mode: still next to the bundle',
+    async () => {
+      const root = writeProject('vite-input-lib', LIB_SRC);
+      const outDir = path.join(root, 'dist');
+      await build({
+        root,
+        configFile: false,
+        logLevel: 'error',
+        plugins: [runtypesVite(pluginOptions(root)) as never],
+        build: {
+          outDir,
+          minify: false,
+          rollupOptions: {
+            input: path.join(root, 'src/index.ts'),
+            preserveEntrySignatures: 'strict',
+            external: ['@mionjs/run-types'],
+          },
+        },
+      });
+      expectLibArtifact(outDir, 'vite-input-lib');
     },
     120_000
   );
