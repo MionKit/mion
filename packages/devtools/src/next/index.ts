@@ -9,7 +9,8 @@
 // Next owns the dev server and API build; the server generates tables and mappers, so a client app generates none.
 // Shared ./options.ts mapping keeps Vite and Next options aligned, including client pointers.
 // Type dependencies plus a stamp cover ambient types with no import edge; read ../runtypes/next/AGENTS.md before editing.
-import {withRunTypes, type NextOptions} from '../runtypes/next/index.ts';
+import {withRunTypes, isNextDev, type NextOptions} from '../runtypes/next/index.ts';
+import {createDevRouterReset} from './devRouterReset.ts';
 import {toRunTypesOptions, type MionPresetOptions} from '../options.ts';
 
 export type {NextOptions};
@@ -53,6 +54,7 @@ export async function withMion(nextConfig: NextConfigLike = {}, options: MionNex
   const resolverOptions: NextOptions = {
     ...toRunTypesOptions(options),
     cwd: root,
+    ...(isNextDev() ? createDevRouterReset() : {}),
   };
   return withRunTypes(nextConfig, resolverOptions);
 }

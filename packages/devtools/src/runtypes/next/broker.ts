@@ -44,6 +44,9 @@ export interface NextOptions extends PluginOptions {
   // Best effort, as Turbopack has no post-build hook: written once buildStart is done, and again on the first
   // loader request because Turbopack has emptied the dir by then.
   artifactDir?: string;
+  // A last pass over each file's output, rewritten or not, run in the next.config process (a function, so never a
+  // loader option). The mion preset uses it for its `next dev` router reset.
+  rewriteOutput?: (file: string, code: string) => string;
 }
 
 export interface BrokerHandle {
@@ -100,7 +103,7 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
     return startBroker(rootAbs, options);
   }
 
-  const {socketPath: _socketPath, ...pluginOptions} = options;
+  const {socketPath: _socketPath, rewriteOutput, ...pluginOptions} = options;
   const rawPlugin = unplugin.raw(
     {
       ...pluginOptions,
@@ -347,6 +350,9 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
         | undefined;
       collecting = null;
       collectingDeps = null;
+      const rewritten = result && typeof result.code === 'string' ? result.code : undefined;
+      const output = rewriteOutput ? rewriteOutput(request.file, rewritten ?? request.code) : rewritten;
+      const changed = output !== undefined && output !== (rewritten ?? request.code);
       // Forced: the reply hands the loader this stamp, so it must reflect THIS transform's output. The throttle
       // is for the fs-watcher path; two back-to-back transforms land inside its window and the second reply
       // pointed at a stale stamp (caught by the "moves the invalidation stamp" test).
@@ -354,7 +360,7 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
       reply = {
         id: request.id,
         ok: true,
-        ...(result && typeof result.code === 'string' ? {code: result.code, map: result.map} : {}),
+        ...(rewritten !== undefined || changed ? {code: output, ...(rewritten !== undefined ? {map: result?.map} : {})} : {}),
         ...(warnings.length ? {warnings} : {}),
         ...(deps.length ? {typeDeps: [...new Set(deps)].sort()} : {}),
         // Empty typeDeps means unknown; always send the stamp to prevent stale rewrites (./AGENTS.md, 7).
