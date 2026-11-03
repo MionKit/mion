@@ -9,7 +9,7 @@ import {describe, expect, it, beforeEach, afterEach} from 'vitest';
 import {existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
-import {createBuilder} from 'vite';
+import {createBuilder, createServer, mergeConfig, type InlineConfig} from 'vite';
 
 /** `createBuilder` as the `vite build` CLI calls it: the second argument is `null`, so the config's
  *  own `builder` block is what decides between the app build and the legacy single-environment one.
@@ -137,29 +137,35 @@ register('one config, two bundles', () => {
     binary: string,
     serverOutDir?: string,
     entry = path.join(root, 'src', 'server.ts'),
-    rootFromPlugin = false
+    rootFromPlugin = false,
+    extraConfig: InlineConfig = {}
   ): Promise<void> {
-    const builder = await createBuilderLikeCli({
-      root: rootFromPlugin ? undefined : root,
-      configFile: false,
-      logLevel: 'silent',
-      resolve: {
-        alias: {'@mionjs/router': path.join(root, 'router-stub.js'), '@mionjs/run-types': path.join(root, 'marker-stub.js')},
-      },
-      plugins: [
-        mionVitePlugin({
-          tsConfig: path.join(root, 'tsconfig.json'),
-          runTypes: {binary, genDir: path.join(root, '.mion')},
-          server: {
-            entry,
-            build: serverOutDir ? {outDir: serverOutDir} : {},
+    const builder = await createBuilderLikeCli(
+      mergeConfig(
+        {
+          root: rootFromPlugin ? undefined : root,
+          configFile: false,
+          logLevel: 'silent',
+          resolve: {
+            alias: {'@mionjs/router': path.join(root, 'router-stub.js'), '@mionjs/run-types': path.join(root, 'marker-stub.js')},
           },
-        }),
-        // A framework plugin listed after mion that sets the root from its own config hook.
-        ...(rootFromPlugin ? [{name: 'late-root', config: () => ({root})}] : []),
-      ],
-      build: {minify: false},
-    });
+          plugins: [
+            mionVitePlugin({
+              tsConfig: path.join(root, 'tsconfig.json'),
+              runTypes: {binary, genDir: path.join(root, '.mion')},
+              server: {
+                entry,
+                build: serverOutDir ? {outDir: serverOutDir} : {},
+              },
+            }),
+            // A framework plugin listed after mion that sets the root from its own config hook.
+            ...(rootFromPlugin ? [{name: 'late-root', config: () => ({root})}] : []),
+          ],
+          build: {minify: false},
+        },
+        extraConfig
+      )
+    );
     await builder.buildApp();
   }
 
@@ -251,6 +257,46 @@ register('one config, two bundles', () => {
     await buildApp(binary, 'dist-api');
     expect(existsSync(path.join(root, 'dist-api'))).toBe(true);
     expect(existsSync(path.join(root, 'dist-server'))).toBe(false);
+  });
+
+  it('keeps the static folder out of the server bundle', async () => {
+    mkdirSync(path.join(root, 'public'));
+    writeFileSync(path.join(root, 'public', 'robots.txt'), 'User-agent: *\n');
+    const {binary} = countingBinary();
+    await buildApp(binary);
+    expect(existsSync(path.join(root, 'dist', 'robots.txt'))).toBe(true);
+    expect(existsSync(path.join(root, 'dist-server', 'robots.txt'))).toBe(false);
+  });
+
+  it('fails instead of replacing an ssr input the config already set', async () => {
+    const {binary} = countingBinary();
+    const own = path.join(root, 'src', 'audit.ts');
+    const build = buildApp(binary, undefined, undefined, false, {environments: {ssr: {build: {rollupOptions: {input: own}}}}});
+    await expect(build).rejects.toThrow(/server\.build would replace the ssr environment's input .*audit\.ts/);
+    expect(existsSync(path.join(root, 'dist-server'))).toBe(false);
+  });
+
+  it('fails instead of replacing a server bundle this run already builds', async () => {
+    const {binary} = countingBinary();
+    const build = buildApp(binary, undefined, undefined, false, {build: {ssr: path.join(root, 'src', 'audit.ts')}});
+    await expect(build).rejects.toThrow(/server\.build cannot run in an SSR build/);
+  });
+
+  it('still starts the dev server when the config builds a server bundle of its own', async () => {
+    const {binary} = countingBinary();
+    const server = await createServer({
+      root,
+      configFile: false,
+      logLevel: 'silent',
+      server: {middlewareMode: true},
+      build: {ssr: path.join(root, 'src', 'audit.ts')},
+      plugins: mionVitePlugin({
+        tsConfig: path.join(root, 'tsconfig.json'),
+        runTypes: {binary, genDir: path.join(root, '.mion')},
+        server: {entry: path.join(root, 'src', 'server.ts'), build: {}},
+      }),
+    });
+    await server.close();
   });
 
   it('leaves a build alone when server.build is not set', async () => {
