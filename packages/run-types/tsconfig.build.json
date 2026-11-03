@@ -7,6 +7,8 @@
     "noEmit": false,
     "declaration": true,
     "declarationMap": true,
+    // The maps carry the source text: src/ is not published, so a map pointing at it warns in every consumer.
+    "inlineSources": true,
     "incremental": true,
     "outDir": "dist",
     "rootDir": "src",
