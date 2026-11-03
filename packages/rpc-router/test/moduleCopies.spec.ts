@@ -6,7 +6,7 @@
  * ######## */
 import {describe, it, expect, vi} from 'vitest';
 
-// `next dev` and a Vite reload each re-run @mionjs/router as a fresh copy: it shares nothing, so needs no reset.
+// A Vite reload re-runs @mionjs/router as a fresh copy: it shares nothing, so needs no reset.
 async function freshRouterCopy(): Promise<typeof import('../src/router.ts')> {
   vi.resetModules();
   return import('../src/router.ts');
@@ -56,6 +56,24 @@ describe('a fresh copy of the router module', () => {
   it('still refuses a second router within ONE copy', async () => {
     const copy = await freshRouterCopy();
     copy.createMionRouter();
-    expect(() => copy.createMionRouter()).toThrow('keep @mionjs/* bundled');
+    expect(() => copy.createMionRouter()).toThrow('createMionRouter has already been called');
+  });
+
+  // What the next dev preset runs at the top of the router module, where Turbopack re-runs only that module.
+  it('lets one copy create its router again after a reset that keeps the batch table', async () => {
+    const copy = await freshRouterCopy();
+    const batches = await import('../src/batches.ts');
+    const first = copy.createMionRouter();
+    first.initRoutes({ping: first.query((): string => 'v1')});
+    batches.replaceBatches({b_kept: {routes: ['ping']}});
+
+    // a BatchEntry as the reset passes it: registerBatches reads only routes + mappings
+    const kept = Object.fromEntries(batches.getBatchIds().map((id) => [id, batches.getBatch(id)!])) as never;
+    copy.resetRouter();
+    batches.registerBatches(kept);
+
+    const second = copy.createMionRouter();
+    expect(() => second.initRoutes({ping: second.query((): string => 'v2')})).not.toThrow();
+    expect(batches.getBatchIds()).toEqual(['b_kept']);
   });
 });

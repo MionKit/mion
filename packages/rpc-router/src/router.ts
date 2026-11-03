@@ -212,8 +212,7 @@ export function createMionRouter<const O extends RouterOptionsInput & KnownKeysO
 ): MionRouter<O, WithShared<O, object>> {
   if (isRouterCreated)
     throw new Error(
-      'createMionRouter has already been called: create the router once per app (resetRouter() clears it in tests). ' +
-        'A dev server re-running the module that creates it must re-run @mionjs/router too: keep @mionjs/* bundled.'
+      'createMionRouter has already been called: create the router once per app (resetRouter() clears it in tests)'
     );
   isRouterCreated = true;
   const options = Object.freeze({...opts}) as Readonly<O>;
