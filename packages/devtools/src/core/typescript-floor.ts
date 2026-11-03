@@ -1,12 +1,11 @@
-// The supported TypeScript floor. package.json is the real contract (`typescript` is an optional peer,
-// so an unmet range already prints at install); this only makes it visible again during a build, since
-// install output is easy to scroll past. Deliberately off the public surface: a notice, not API.
+// The supported TypeScript floor for the consumer's own tsconfig, a build-time notice only. No peer range
+// backs it: devtools never loads TypeScript, so any version installs. Deliberately off the public surface.
 
 import fs from 'node:fs';
 import {createRequire} from 'node:module';
 import path from 'node:path';
 
-// Keep in step with the `typescript` peer range in package.json.
+// The oldest major whose tsconfig the bundled compiler reads the way that version's editor does.
 export const TYPESCRIPT_FLOOR_MAJOR = 6;
 
 // Once per process, not per build: a monorepo runs several plugin containers against one install.
