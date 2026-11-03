@@ -153,6 +153,9 @@ func generateRpc(outDir string, collection rpcCollection, emitMode constants.Emi
 	if err := os.MkdirAll(rpcDir, 0o755); err != nil {
 		return "", unwritableOutDirError(rpcDir, err)
 	}
+	if err := writeGeneratedDirIgnores(rpcDir); err != nil {
+		return "", err
+	}
 	if _, err := materializeModules(rpcDir, files, moduleExt(emitMode)); err != nil {
 		return "", unwritableOutDirError(rpcDir, err)
 	}

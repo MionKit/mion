@@ -139,6 +139,7 @@ func TestApiGen_GenerateWritesUsedRoutesWithTheirChains(t *testing.T) {
 		t.Fatalf("unexpected rpc-client-* diagnostics: %+v", diags)
 	}
 	apiDir := filepath.Join(genDir, constants.ApiModuleDir)
+	assertGitIgnoredButPacked(t, apiDir)
 	files := listGenerated(t, apiDir)
 	joined := strings.Join(files, "\n")
 	for _, want := range []string{"m/users/getById.js", "m/users/audit.js", "m/auth.js", "m/sum.js", "s/users/getById.js", "s/sum.js"} {
