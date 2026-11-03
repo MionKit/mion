@@ -665,7 +665,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     return file ? path.dirname(path.resolve(base, file)) : '';
   }
 
-  // Fires once per output, so a build with several outputs gets a copy in every output dir.
+  // Fires once per output, so every output dir gets a copy.
   async function writeArtifactForOutput(this: unknown, output: {dir?: string; file?: string}): Promise<void> {
     await writePureFnArtifact(outputDirOf(output));
   }
