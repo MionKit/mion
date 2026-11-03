@@ -253,7 +253,6 @@ func TestGenerate_TypesDirShipsUnderNpmPack(t *testing.T) {
 	assertGitIgnoredButPacked(t, filepath.Join(outDir, "types"))
 }
 
-// assertGitIgnoredButPacked: a generated dir carries a .gitignore hiding all of it and an empty .npmignore beside it.
 func assertGitIgnoredButPacked(t *testing.T, dir string) {
 	t.Helper()
 	gitignore, err := os.ReadFile(filepath.Join(dir, ".gitignore"))

@@ -120,9 +120,9 @@ function isTransportLoss(reason: string): boolean {
   return reason === RESOLVER_EXITED || reason.startsWith(SPAWN_FAILED_PREFIX);
 }
 
-// How much of the child's last stderr a death report carries: enough for its fatal line, never a whole build log.
+// Enough for the child's fatal line, never a whole build log.
 const STDERR_TAIL_CHARS = 2048;
-// The Go binary's own fatal() exit code (a broken tsconfig at startup); a panic exits 2 and stays respawnable.
+// The Go binary's fatal() exit code (e.g. a broken tsconfig); a panic exits 2 and stays respawnable.
 const RESOLVER_FATAL_EXIT_CODE = 1;
 
 // How long close() waits for in-flight requests before releasing the process anyway: a hung child must not wedge teardown.
@@ -515,7 +515,7 @@ export class ResolverClient extends ResolverClientBase {
   // Lifetime respawn budget: enough for the rare transient child loss (host lifecycle races, external kills)
   // without churning forever on a host where every spawn dies.
   private respawnsLeft = 3;
-  // Set when the child exited through its own fatal(): deterministic, so it is reported, never respawned.
+  // Set by the child's own fatal(): deterministic, so reported, never respawned.
   private fatalExit: string | undefined;
 
   constructor(
@@ -528,7 +528,7 @@ export class ResolverClient extends ResolverClientBase {
     this.spawnChild();
   }
 
-  // The current child's last stderr bytes, quoted when it dies: its own fatal line is the real error.
+  // Quoted when the child dies: its own fatal line is the real error.
   private stderrTail = '';
   // The child's OS pid (fresh after a respawn). Diagnostics + tests.
   get pid(): number | undefined {
@@ -568,7 +568,7 @@ export class ResolverClient extends ResolverClientBase {
     }
     this.child = child;
     this.stderrTail = '';
-    // Piped, not inherited, so a death report can quote it; still forwarded live as the child writes it.
+    // Piped, not inherited, so a death report can quote it.
     child.stderr.setEncoding('utf8');
     child.stderr.on('data', (chunk: string) => {
       process.stderr.write(chunk);
@@ -576,8 +576,7 @@ export class ResolverClient extends ResolverClientBase {
     });
     const stdin = child.stdin;
     const stdout = child.stdout;
-    // A write into the pipe of a child that just died (exit event not yet delivered) raises a stream error;
-    // swallow it, since the exit handler below owns the failure semantics and `send` retries the request.
+    // A write to a child that just died raises a stream error: the close handler below owns it, `send` retries.
     stdin.on('error', () => {});
     const transport = new MessageTransport(stdin, stdout, () => {
       stdin.end();
@@ -592,7 +591,7 @@ export class ResolverClient extends ResolverClientBase {
       // after the constructor naturally lands after it on the wire.
       transport.writeUnframed(JSON.stringify({sources: this.opts.inlineSources}) + '\n');
     }
-    // 'close', not 'exit': it fires once stdio is drained, so the tail already holds the child's last line.
+    // 'close', not 'exit': it fires after stdio drains, so the tail already holds the last line.
     child.on('close', (code) => {
       // The child's own verdict: a fresh child would reach the same one.
       if (code === RESOLVER_FATAL_EXIT_CODE) {

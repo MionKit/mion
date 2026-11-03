@@ -639,7 +639,6 @@ describe('the workspace package dependency graph stays acyclic', () => {
   });
 });
 
-// Every module specifier a file imports, exports from, dynamic-imports or requires.
 const importedModules = (file: string): string[] => {
   const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
   const found: string[] = [];
@@ -2117,7 +2116,7 @@ describe('no manifest declares vite-node', () => {
   });
 });
 
-// The Vite plugin runs on our own compiler: loading TypeScript's JS API would tie it to one TypeScript major.
+// Loading TypeScript's JS API would tie the Vite plugin to one TypeScript major.
 describe('devtools never loads TypeScript', () => {
   it('no src file imports typescript', () => {
     const devtools = join(REPO_ROOT, 'packages/devtools');
@@ -2133,7 +2132,7 @@ describe('devtools never loads TypeScript', () => {
   });
 });
 
-// platform-bun's loader is not published, so a dependency on the compiler only added 25 MB to production installs.
+// platform-bun's loader is not published, so the compiler would only add 25 MB to production installs.
 describe('platform-bun installs without the compiler', () => {
   it('depends on core and router only', () => {
     const pkg = JSON.parse(readFileSync(join(REPO_ROOT, 'packages/platform-bun/package.json'), 'utf8'));
