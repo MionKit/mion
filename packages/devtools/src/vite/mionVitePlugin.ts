@@ -10,7 +10,7 @@ import tsRuntypes from '../runtypes/vite.ts';
 import {mionMiddlewarePlugin} from './middlewareMode.ts';
 import {createVirtualSiteMap, mionSfcPlugins} from './sfcTransform.ts';
 import type {GenerateInfo, PluginOptions as TsRuntypesPluginOptions} from '../core/unplugin.ts';
-import type {ConfigEnv, Plugin, PluginOption, UserConfig} from 'vite';
+import type {Plugin, PluginOption} from 'vite';
 import {
   resolveRtBinary,
   toRunTypesOptions,
@@ -190,8 +190,26 @@ function serverBundlePlugin(server: MionServerOptions, build: MionServerBuildOpt
     config: {
       order: 'post',
       handler(userConfig, env) {
-        // Dev only mounts the API as middleware, so a config whose server side is built elsewhere is fine there.
-        if (env.command === 'build') assertSsrBuildIsFree(userConfig, env);
+        // The API bundle takes vite's ssr environment over, so a server build the config already has would be
+        // replaced silently. Dev only mounts the API as middleware, so it is left alone.
+        if (env.command === 'build') {
+          const fix = 'Remove `server.build` and build the API with its own vite config.';
+          if (userConfig.build?.ssr) {
+            throw new Error(
+              `[mionVitePlugin] server.build cannot run in an SSR build: this vite run already builds a server ` +
+                `bundle (build.ssr is set), and the API bundle would replace it. ${fix}`
+            );
+          }
+          const ssrBuild = userConfig.environments?.ssr?.build;
+          // `build.ssr: true` names no entry: vite then reads the input, which is ours.
+          const taken = [ssrBuild?.rolldownOptions?.input, ssrBuild?.rollupOptions?.input, ssrBuild?.ssr].find(namesEntry);
+          if (taken) {
+            throw new Error(
+              `[mionVitePlugin] server.build would replace the ssr environment's input ${JSON.stringify(taken)} ` +
+                `with server.entry. ${fix}`
+            );
+          }
+        }
         // vite resolves only its own defaults against root, rollupOptions.input is taken as written.
         const root = path.resolve(userConfig.root ?? process.cwd());
         return {
@@ -215,22 +233,8 @@ function serverBundlePlugin(server: MionServerOptions, build: MionServerBuildOpt
   } satisfies Plugin;
 }
 
-/** The API bundle takes vite's `ssr` environment over, so a build that already uses it would be replaced
- *  silently: the replaced output then fails only at runtime. */
-function assertSsrBuildIsFree(userConfig: UserConfig, env: ConfigEnv): void {
-  const fix = 'Remove `server.build` and build the API with its own vite config.';
-  if (env.isSsrBuild || userConfig.build?.ssr) {
-    throw new Error(
-      `[mionVitePlugin] server.build cannot run in an SSR build: this vite run already builds a server bundle ` +
-        `(build.ssr is set), and the API bundle would replace it. ${fix}`
-    );
-  }
-  const ssrBuild = userConfig.environments?.ssr?.build;
-  const taken = ssrBuild?.rollupOptions?.input ?? ssrBuild?.ssr;
-  if (taken) {
-    throw new Error(
-      `[mionVitePlugin] server.build would replace the ssr environment's input ${JSON.stringify(taken)} with ` +
-        `server.entry. ${fix}`
-    );
-  }
+/** A string, or a non-empty list or map of entries. */
+function namesEntry(input: unknown): boolean {
+  if (typeof input === 'string') return input !== '';
+  return typeof input === 'object' && input !== null && Object.keys(input).length > 0;
 }
