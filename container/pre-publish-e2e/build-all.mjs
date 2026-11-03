@@ -280,7 +280,14 @@ function typeDepId(rendered, where) {
   return id;
 }
 
-const editTypeDep = (source) => source.replace('label: string;', 'label: string;\n  country: string;');
+function editTypeDep(source) {
+  const edited = source.replace('label: string;', 'label: string;\n  country: string;');
+  if (edited === source) throw new Error("smoke-next: typeDep.ts has no 'label: string;' to edit");
+  return edited;
+}
+
+// A server killed by a signal keeps exitCode null and sets signalCode instead.
+const exited = (child) => child.exitCode !== null || child.signalCode !== null;
 
 function assertDirectiveIds(rendered, where) {
   for (const probe of ['rt-use-client', 'rt-use-server']) {
@@ -301,37 +308,29 @@ async function checkNextDev(app, appDir, nextBin, flags) {
   try {
     const rendered = await (await waitForOk(url, child, 180_000)).text();
     assertDirectiveIds(rendered, where);
-    if (flags.length || app.typeEdit === false) return;
+    if (flags.length) return;
     const firstId = typeDepId(rendered, where);
     writeFileSync(probe, editTypeDep(original));
-    await pollUntilIdMoves(url, firstId, child, where, 60_000);
+    const moved = (body) => typeDepId(body, where) !== firstId;
+    await waitForOk(url, child, 60_000, moved).catch((error) => {
+      throw new Error(`${where}: the rt-typedep id did not move after a type edit — the dev rewrite is stale (${error.message})`);
+    });
   } finally {
     writeFileSync(probe, original);
     child.kill('SIGTERM');
-    await new Promise((resolve) => (child.exitCode === null ? child.once('exit', resolve) : resolve()));
+    await new Promise((resolve) => (exited(child) ? resolve() : child.once('exit', resolve)));
   }
 }
 
-async function pollUntilIdMoves(url, firstId, child, where, timeoutMs) {
+async function waitForOk(url, child, timeoutMs, accept = () => true) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    if (child.exitCode !== null) throw new Error(`${where}: \`next dev\` exited with ${child.exitCode}`);
-    const res = await fetch(url);
-    if (res.ok && typeDepId(await res.text(), where) !== firstId) return;
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-  throw new Error(`${where}: the rt-typedep id did not move within ${timeoutMs}ms of a type edit — the dev rewrite is stale`);
-}
-
-async function waitForOk(url, child, timeoutMs) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (child.exitCode !== null) throw new Error(`the server exited with ${child.exitCode} before serving ${url}`);
+    if (exited(child)) throw new Error(`the server exited (${child.exitCode ?? child.signalCode}) before serving ${url}`);
     try {
       const res = await fetch(url);
-      if (res.ok) return res;
+      if (res.ok && accept(await res.clone().text())) return res;
     } catch {
-      // not listening yet
+      // not listening yet, or mid-recompile
     }
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
