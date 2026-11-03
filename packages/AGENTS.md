@@ -5,8 +5,9 @@ One pnpm workspace, one `@mionjs/*` namespace, one release train. Read before a 
 ## Dependencies
 
 - Type-system + framework packages ride the same `version.json` lockstep, depend on each other via `workspace:*`.
-- All `dependencies` / `devDependencies` exact-pinned. THREE peerDeps stay ranges:
+- All `dependencies` / `devDependencies` exact-pinned. FOUR peerDeps stay ranges:
   - `@mionjs/devtools`: so consumers can dedupe Vite.
+  - `@mionjs/platform-bun` → optional `@types/bun` peer: its published `.d.ts` imports `'bun'`, Bun ships no types.
   - `@mionjs/drizzle-orm-*-core` → `drizzle-orm` peer: the range IS the compatibility promise of their
     drizzle-aligned version line.
   - `@mionjs/drizzle-orm-*-core` → `@mionjs/run-types` peer: consumer's single copy supplies BOTH the format types

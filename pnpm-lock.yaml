@@ -172,15 +172,9 @@ importers:
 
   packages/platform-bun:
     dependencies:
-      '@mionjs/bin-compiler':
-        specifier: workspace:*
-        version: link:../bin-compiler
       '@mionjs/core':
         specifier: workspace:*
         version: link:../core
-      '@mionjs/devtools':
-        specifier: workspace:*
-        version: link:../devtools
       '@mionjs/router':
         specifier: workspace:*
         version: link:../rpc-router
