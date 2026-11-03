@@ -250,17 +250,23 @@ getRunTypeId(value);
 func TestGenerate_TypesDirShipsUnderNpmPack(t *testing.T) {
 	outDir := t.TempDir()
 	generateArtifact(t, map[string]string{"package.json": `{"name":"@acme/app"}`, "src/text.ts": artifactSources}, outDir, constants.ModuleModeDefault)
-	gitignore, err := os.ReadFile(filepath.Join(outDir, "types", ".gitignore"))
+	assertGitIgnoredButPacked(t, filepath.Join(outDir, "types"))
+}
+
+// assertGitIgnoredButPacked: a generated dir carries a .gitignore hiding all of it and an empty .npmignore beside it.
+func assertGitIgnoredButPacked(t *testing.T, dir string) {
+	t.Helper()
+	gitignore, err := os.ReadFile(filepath.Join(dir, ".gitignore"))
 	if err != nil || !strings.Contains(string(gitignore), "*") {
-		t.Fatalf("types/.gitignore must ignore everything (err %v): %q", err, gitignore)
+		t.Fatalf("%s/.gitignore must ignore everything (err %v): %q", dir, err, gitignore)
 	}
-	npmignore, err := os.ReadFile(filepath.Join(outDir, "types", ".npmignore"))
+	npmignore, err := os.ReadFile(filepath.Join(dir, ".npmignore"))
 	if err != nil {
-		t.Fatalf("types/.npmignore must exist: %v", err)
+		t.Fatalf("%s/.npmignore must exist: %v", dir, err)
 	}
 	for _, line := range strings.Split(strings.TrimSpace(string(npmignore)), "\n") {
 		if !strings.HasPrefix(line, "#") {
-			t.Errorf("types/.npmignore must ignore nothing, got %q", line)
+			t.Errorf("%s/.npmignore must ignore nothing, got %q", dir, line)
 		}
 	}
 }
