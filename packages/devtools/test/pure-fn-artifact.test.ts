@@ -193,6 +193,28 @@ describe('the pure-fn artifact lands in every bundler output dir', () => {
   );
 
   register(
+    'vite app build: not in the client output, which is served as is',
+    async () => {
+      const root = writeProject('vite-spa', LIB_SRC);
+      fs.writeFileSync(path.join(root, 'index.html'), '<script type="module" src="/src/index.ts"></script>');
+      const builder = await createBuilder({
+        root,
+        configFile: false,
+        logLevel: 'error',
+        plugins: [runtypesVite(pluginOptions(root)) as never],
+        builder: {},
+        build: {minify: false},
+        environments: {ssr: {build: {outDir: path.join(root, 'dist-server'), ssr: path.join(root, 'src/index.ts')}}},
+      });
+      await builder.buildApp();
+      expect(fs.existsSync(path.join(root, 'dist', 'index.html'))).toBe(true);
+      expect(fs.existsSync(path.join(root, 'dist', PURE_FN_ARTIFACT_DIR))).toBe(false);
+      expectLibArtifact(path.join(root, 'dist-server'), 'vite-spa');
+    },
+    120_000
+  );
+
+  register(
     'esbuild: next to the bundle for outdir and for outfile',
     async () => {
       const root = writeProject('esbuild-lib', LIB_SRC);
