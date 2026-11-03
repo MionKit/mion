@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: done
 created: 2026-11-03
 ---
 
@@ -11,8 +11,9 @@ created: 2026-11-03
 
 mion RPC targets SPAs (a browser app calling its own server). The maintainer dropped Next.js for RPC: the
 `withMion` preset (`@mionjs/devtools/next`) and everything that only exists for it goes, with no trace. RunTypes
-keeps its Next.js adapter (`@mionjs/devtools/runtypes/next`). `@mionjs/platform-vercel` stays: it is a deploy
-target, not build support. The starters side shipped in MionKit/mion-starters#3.
+keeps its Next.js adapter (`@mionjs/devtools/runtypes/next`), and Next.js code lives nowhere else.
+`@mionjs/platform-vercel` stays as a plain Vercel Functions adapter. The starters side shipped in
+MionKit/mion-starters#3.
 
 ## Done when
 
@@ -28,8 +29,13 @@ target, not build support. The starters side shipped in MionKit/mion-starters#3.
   `rpc-router/test/moduleCopies.spec.ts`, the `mion-next` e2e app and its build/test/release/env wiring
   (`MION_E2E_CLIENT_ROUTES`, `MION_E2E_MATRIX_MION_PKGS`), the Next codegen examples and the
   `01.rpc/07.devtools/03.nextjs.md` page (later pages renumbered).
-- RunTypes adapter: drop the RPC-only `rewriteOutput` hook. Keep the broker's `rpc/` stamp (any program importing
-  `@mionjs/router` gets `rpc/`), reword its comment.
+- RunTypes adapter: drop the RPC-only `rewriteOutput` hook and the broker stamp's `rpc/` half (it only made RPC
+  batches reload under `next dev`); the stamp covers `types/` alone. The compiler's batch table import stays: it is
+  how batches load on any host.
 - Move the `withRunTypes` cases of `mion-presets.test.ts` to call `withRunTypes` directly.
 - Agent docs, CI lane comment and RPC website pages lose their Next.js mentions. RunTypes pages untouched.
-- New `smoke-next` `next dev` type-edit check in `build-all.mjs` + `build-outputs.test.mjs`.
+- `@mionjs/platform-vercel` comments and its page describe Vercel Functions: one `api/mion.ts` plus a `vercel.json`
+  rewrite, since outside Next.js a file under `api/` serves only its own path (checked in `@vercel/fs-detectors`,
+  `@vercel/node` and the `vercel dev` router).
+- New `smoke-next` `next dev` (Turbopack) type-edit check in `build-all.mjs` `checkNextDev`: it fails the build by
+  throwing, like the existing `next build` type-edit check.
