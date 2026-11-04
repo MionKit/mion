@@ -52,7 +52,6 @@
         "dev:test": "vitest watch",
         "lint": "eslint src",
         "typecheck:test": "tsc -p tsconfig.json --noEmit",
-        "format": "prettier --write src/**/*.ts",
         "build": "vite build",
         "clean": "rimraf .dist .coverage .mion",
         "fresh-start": "pnpm run clean && rimraf node_modules"

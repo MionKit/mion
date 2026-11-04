@@ -347,7 +347,7 @@ const byCompetitor = (results) => new Map(results.map((r) => [r.competitor, new 
 function buildValidationBench() {
   const results = readCompetitorResults(RESULTS_DIR);
   if (results.length === 0) {
-    process.stderr.write(`skip validation bench: no competitor results in ${RESULTS_DIR} (run \`pnpm run bench\` first)\n`);
+    process.stderr.write(`skip validation bench: no competitor results in ${RESULTS_DIR} (run \`pnpm miondevx bench\` first)\n`);
     return 0;
   }
   const competitors = results.map((r) => r.competitor).sort(order);

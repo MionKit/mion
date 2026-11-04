@@ -47,7 +47,6 @@
         "dev": "vite build --watch",
         "dev:test": "vitest watch",
         "lint": "eslint src",
-        "format": "prettier --write src/**/*.ts",
         "build": "vite build",
         "typecheck:test": "tsc -p tsconfig.json --noEmit",
         "clean": "rimraf .dist .coverage .mion",

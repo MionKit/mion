@@ -49,7 +49,6 @@
         "lint:oxlint": "oxlint",
         "lint:directives": "node scripts/core/lint-directives.mjs",
         "lint:eslint": "eslint 'packages/{core,rpc-router,rpc-client,devtools,drizzle-orm,drizzle-orm-pg-core,drizzle-orm-mysql-core,drizzle-orm-sqlite-core,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-uws,platform-vercel,private-test-server,private-test-router-fuzz,private-drizzle-example-app,bin-uws}/**/*.ts'",
-        "lint:spec": "eslint --fix packages/**/*.spec.ts",
         "lint-pre-committ": "eslint --quiet",
         "typecheck:test": "node scripts/core/typecheck-coverage.mjs --check && pnpm -r run typecheck:test",
         "pretypecheck": "pnpm run check:builds",

@@ -11,9 +11,8 @@ packages:
 # ── Build-script allowlist ───────────────────────────────
 # pnpm 11 blocks every dependency install/postinstall script by default.
 # Only the packages listed here may run them.
-# - esbuild: needed by the mion packages' toolchain (vite 7 still bundles via
-#   esbuild; the runtypes side is on vite 8 / rolldown and does not need it).
-#   TODO(step 3): drop when the mion packages move to the unified toolchain.
+# - esbuild: its install script fetches the native binary; the devtools tests,
+#   the pre-publish e2e, the benchmarks and some scripts import it directly.
 allowBuilds:
   esbuild: true
 
