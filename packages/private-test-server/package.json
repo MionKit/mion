@@ -41,12 +41,11 @@
     "test": "echo 'No tests for test-server package'",
     "dev": "vite build --watch",
     "lint": "eslint src",
-    "format": "prettier --write src/**/*.ts",
     "build": "pnpm run build:edge && pnpm run build:cloudflare",
     "build:lib": "vite build",
     "build:edge": "node buildTestBundle.ts edge",
     "build:cloudflare": "node buildTestBundle.ts cloudflare",
-    "clean": "rimraf .dist .coverage build .mion .mion-edge .mion-cloudflare .mion",
+    "clean": "rimraf .dist .coverage build .mion .mion-edge .mion-cloudflare .mion-cloudflare-storage",
     "fresh-start": "pnpm run clean && rimraf node_modules"
   },
   "bugs": {
