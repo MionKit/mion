@@ -500,3 +500,31 @@ describe('checkUnknowns — declared props that are not own enumerable keys', ()
     expectAgreement(isStrict, errorsStrict);
   });
 });
+
+// A class shape reports the same off-count entry under its own name.
+describe('checkUnknowns — an all-required class with a hidden field', () => {
+  class Point {
+    x = 1;
+    y = 2;
+  }
+  const hiddenX = () => {
+    const point = new Point();
+    Object.defineProperty(point, 'x', {value: 1, enumerable: false});
+    return point;
+  };
+
+  it('both reject with a class shape error (static shape)', () => {
+    const isStrict = createValidateFn<Point>(undefined, {checkUnknowns: true});
+    const errorsStrict = createGetValidationErrorsFn<Point>(undefined, {checkUnknowns: true});
+    expect([isStrict(new Point()), errorsStrict(new Point())]).toEqual([true, []]);
+    expect([isStrict(hiddenX()), errorsStrict(hiddenX())]).toEqual([false, [{path: [], expected: 'class'}]]);
+  });
+
+  it('both reject with a class shape error (value shape)', () => {
+    const sample = new Point();
+    const isStrict = createValidateFn(sample, {checkUnknowns: true});
+    const errorsStrict = createGetValidationErrorsFn(sample, {checkUnknowns: true});
+    expect([isStrict(new Point()), errorsStrict(new Point())]).toEqual([true, []]);
+    expect([isStrict(hiddenX()), errorsStrict(hiddenX())]).toEqual([false, [{path: [], expected: 'class'}]]);
+  });
+});

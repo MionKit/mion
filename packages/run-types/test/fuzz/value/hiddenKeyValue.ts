@@ -3,10 +3,11 @@
 
 import {deepCopyValue} from '../cloning/extrasValue.ts';
 
-export type HiddenKeyMode = 'nonEnumerable' | 'inherited' | 'getter';
-export const HIDDEN_KEY_MODES: readonly HiddenKeyMode[] = ['nonEnumerable', 'inherited', 'getter'];
+export const HIDDEN_KEY_MODES = ['nonEnumerable', 'inherited', 'getter'] as const;
+type HiddenKeyMode = (typeof HIDDEN_KEY_MODES)[number];
+type PlainObjectAt = {target: object; path: (string | number)[]};
 
-export interface HiddenKeyValue {
+interface HiddenKeyValue {
   value: unknown;
   path: (string | number)[];
   key: string;
@@ -14,7 +15,7 @@ export interface HiddenKeyValue {
 }
 
 /** Plain objects with an own key, reached only through plain objects and arrays. **/
-function collectPlainObjects(value: unknown, path: (string | number)[], out: {target: object; path: (string | number)[]}[]) {
+function collectPlainObjects(value: unknown, path: (string | number)[], out: PlainObjectAt[]) {
   if (Array.isArray(value)) {
     value.forEach((item, index) => collectPlainObjects(item, [...path, index], out));
     return;
@@ -27,7 +28,7 @@ function collectPlainObjects(value: unknown, path: (string | number)[], out: {ta
 /** A copy of `value` with one random own key hidden, or null when it holds no plain object with a key. **/
 export function hideOwnKey(value: unknown, random: () => number): HiddenKeyValue | null {
   const copy = deepCopyValue(value);
-  const objects: {target: object; path: (string | number)[]}[] = [];
+  const objects: PlainObjectAt[] = [];
   collectPlainObjects(copy, [], objects);
   if (objects.length === 0) return null;
   const {target, path} = objects[Math.floor(random() * objects.length)];
