@@ -162,14 +162,17 @@ so any run replays from a single number.
 
 ### `value/` — fix the type, fuzz the value
 
-Holds a small set of concrete schemas and floods each with **five** value
+Holds a small set of concrete schemas and floods each with **six** value
 streams per seed: a conforming mock, that mock mutated to a provably-invalid
 value at exactly one position, the mock decorated with undeclared keys, the
-mock with ONE undeclared key planted at a walked position, and pure type-blind
+mock with ONE undeclared key planted at a walked position, the mock, decorated
+and planted values with ONE own key hidden from `for...in` (non-enumerable,
+inherited or a prototype getter, checked by O3 + O21), and pure type-blind
 junk. Checks the value oracles **O1–O7**, **O18**, **O21** and **O22–O25** (see
 [the catalog](#oracle-catalog)).
 
 - `fuzzOracle.ts` — the property checks + the `Violation` shape.
+- `hiddenKeyValue.ts` — hides one own key of a plain object from `for...in`, value still readable.
 - `shapeValue.ts` — generates conforming values (and single-point corruptions)
   from a `GeneratedType`, respecting recursion budgets and the DataOnly
   projection.

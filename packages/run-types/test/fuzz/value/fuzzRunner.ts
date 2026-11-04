@@ -5,6 +5,7 @@
 //   invalid  mutateToInvalid(valid)     → O2, O3, O4, O18
 //   extras   mutateWithExtras(valid)    → O18, O21
 //   unknown  plantUnknownKey(valid)     → O22, O23, O24, O25, O26
+//   hidden   hideOwnKey(valid / extras / planted) → O3, O21
 //   junk     randomJunk() (type-blind)  → O3, O4, O18
 //
 // O27 is run-level rather than per value: the report tallies the walker's positions per target and
@@ -21,6 +22,7 @@ import {runFuzzLoopSync} from '../core/runLoop.ts';
 import {mutateToInvalid} from './invalidValue.ts';
 import {mutateWithExtras, deepCopyValue} from '../cloning/extrasValue.ts';
 import {collectUnknownKeyPositions, plantUnknownKey} from './unknownKeyPositions.ts';
+import {hideOwnKey} from './hiddenKeyValue.ts';
 import {
   checkErrorsAgree,
   checkFusedAgree,
@@ -198,6 +200,17 @@ function fuzzOneIteration(target: FuzzTarget, seed: number, out: Violation[], un
     push(out, checkUnknownKeysPlanted(target, planted, valid, unknownCtx));
     push(out, checkUnknownKeysSelfAgree(target, planted.value, unknownCtx));
     push(out, checkUnknownKeysStripAgree(target, planted.value, unknownCtx));
+  }
+
+  // --- hidden-key pass (one own key turned non-enumerable, inherited or a prototype getter) ---
+  // The strict validator counts keys where its error twin names them; a declared prop the count cannot see must not split them.
+  const hiddenCtx = {seed, phase: 'hidden' as const};
+  for (const source of [valid, extras, planted?.value]) {
+    if (source === null || source === undefined) continue;
+    const hidden = hideOwnKey(source, Math.random);
+    if (!hidden) continue;
+    push(out, checkValidateTotal(target, hidden.value, hiddenCtx));
+    push(out, checkStrictSelfAgree(target, hidden.value, hiddenCtx));
   }
 
   // --- junk pass (type-blind random data; only robustness oracles apply) ---

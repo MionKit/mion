@@ -128,7 +128,7 @@ export interface Violation {
   target: string;
   /** The exact seed to replay this iteration. **/
   seed: number;
-  phase: 'valid' | 'invalid' | 'extras' | 'unknownkeys' | 'junk' | 'compile';
+  phase: 'valid' | 'invalid' | 'extras' | 'unknownkeys' | 'hidden' | 'junk' | 'compile';
   message: string;
   value: string;
 }
