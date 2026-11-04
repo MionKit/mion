@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype/typeid"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
@@ -610,7 +611,7 @@ func (ctx *printContext) objectMemberTexts(members []*objectMember, indexes []in
 }
 
 func (ctx *printContext) objectMemberText(member *objectMember) (string, *Diagnostic) {
-	prefix := nonEnumerableTag(member.nonEnumerable) + member.modifiers
+	prefix := nonEnumerableTag(member.nonEnumerable) + jsDocTagLine(member.accessorTag) + member.modifiers
 	optionalMark := ""
 	if member.optional {
 		optionalMark = "?"
@@ -642,9 +643,14 @@ func (ctx *printContext) objectMemberText(member *objectMember) (string, *Diagno
 		return "", innerDiag
 	}
 	if member.accessor {
+		setter := fmt.Sprintf("%sset %s(value: %s)", prefix, member.key, innerText)
+		// A class accessor is only optional when it has no getter.
+		if member.optional {
+			return setter, nil
+		}
 		text := fmt.Sprintf("%sget %s(): %s", prefix, member.key, innerText)
 		if !member.readonly {
-			text += fmt.Sprintf("; %sset %s(value: %s)", prefix, member.key, innerText)
+			text += "; " + setter
 		}
 		return text, nil
 	}
@@ -654,9 +660,16 @@ func (ctx *printContext) objectMemberText(member *objectMember) (string, *Diagno
 // nonEnumerableTag keeps a guarded member's id (own line, or the parser drops it); only declaration printing reaches it.
 func nonEnumerableTag(nonEnumerable bool) string {
 	if nonEnumerable {
-		return "\n/** @nonEnumerable */\n"
+		return jsDocTagLine(typeid.NonEnumerableTagName)
 	}
 	return ""
+}
+
+func jsDocTagLine(name string) string {
+	if name == "" {
+		return ""
+	}
+	return "\n/** @" + name + " */\n"
 }
 
 // indexSignatureText renders one `[key: K]: V` member; the key's NAME is not in the id, so `key` keeps it stable.

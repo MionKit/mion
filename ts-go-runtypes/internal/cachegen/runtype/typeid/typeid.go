@@ -615,7 +615,7 @@ func (computer *Computer) memberID(symbol *ast.Symbol, asClass bool) string {
 	// serialize.go's appendProperty. The separate `#ne` bit keeps a guarded-optional member distinct from a
 	// plain declared-optional one (enumerability check vs `!== undefined`).
 	guarded := IsNonEnumerable(symbol)
-	optional := symbol.Flags&ast.SymbolFlagsOptional != 0 || guarded || IsTypelessPrivateSymbol(symbol)
+	optional := symbol.Flags&ast.SymbolFlagsOptional != 0 || guarded || IsTypelessPrivateSymbol(symbol) || IsSetterOnly(symbol)
 	// Readonly splits the id: `{a: string}` and `{readonly a: string}` must not share a cache slot.
 	// Mirrors internal/cachegen/runtype/modifiers.go:applyMemberModifiers; on mapped / synthetic symbols the AST lies.
 	const checkFlagsSynthOrMapped = ast.CheckFlagsMapped | ast.CheckFlagsSyntheticProperty | ast.CheckFlagsSyntheticMethod
@@ -655,6 +655,8 @@ func (computer *Computer) memberID(symbol *ast.Symbol, asClass bool) string {
 	if asClass {
 		kind = reflection.KindProperty
 	}
+	// Past the method form: a getter of a function is a method, and a method cannot spell `readonly`.
+	readonly = readonly || IsGetterOnly(symbol)
 	// The `optional` bit says undefined: resolve the child without it, as serializer's ResolveOptionalChild does,
 	// or a recursive optional property's back-edge differs between the type-first and value-first paths.
 	// Keep the if/else: walking the raw wrapper too pollutes the pointer cache with depths inflated by the union frame.
@@ -664,12 +666,73 @@ func (computer *Computer) memberID(symbol *ast.Symbol, asClass bool) string {
 	} else {
 		child = computer.Compute(propertyType)
 	}
-	return memberID(int(kind), memberName, optional, child) + readonlyBit(readonly) + guardedBit(guarded) + accessorBit(asClass && IsAccessorMember(symbol))
+	return memberID(int(kind), memberName, optional, child) + readonlyBit(readonly) + guardedBit(guarded) +
+		accessorBit(IsAccessorMember(symbol), HasNoUsableSetter(computer.typeChecker, symbol))
 }
+
+// accessorDeclarations finds a member's `get` and `set`, by declaration because a mapped copy of a member keeps those but
+// not the symbol's accessor flag. One in an object literal is skipped: there `get` makes an own key, which is plain data.
+func accessorDeclarations(symbol *ast.Symbol) (getter, setter *ast.Node) {
+	if symbol == nil {
+		return nil, nil
+	}
+	for _, declaration := range symbol.Declarations {
+		if declaration == nil || (declaration.Parent != nil && declaration.Parent.Kind == ast.KindObjectLiteralExpression) {
+			continue
+		}
+		switch declaration.Kind {
+		case ast.KindGetAccessor:
+			getter = declaration
+		case ast.KindSetAccessor:
+			setter = declaration
+		}
+	}
+	return getter, setter
+}
+
+// AccessorTagName and AccessorNoSetterTagName keep an accessor's id in a printed declaration: `get` / `set` cannot spell an
+// optional member, a readonly pair, or a setter that takes another type.
+const (
+	AccessorTagName         = "accessor"
+	AccessorNoSetterTagName = "accessorNoSetter"
+)
 
 // IsAccessorMember reports a get / set accessor; shared by the projection and memberID so id and flag cannot drift.
 func IsAccessorMember(symbol *ast.Symbol) bool {
-	return symbol != nil && symbol.Flags&ast.SymbolFlagsAccessor != 0
+	getter, setter := accessorDeclarations(symbol)
+	return getter != nil || setter != nil || (symbol != nil && (hasJSDocTag(symbol, AccessorTagName) || hasJSDocTag(symbol, AccessorNoSetterTagName)))
+}
+
+// IsGetterOnly reports a member that TypeScript reads as readonly.
+func IsGetterOnly(symbol *ast.Symbol) bool {
+	getter, setter := accessorDeclarations(symbol)
+	return getter != nil && setter == nil
+}
+
+// IsSetterOnly reports a member with nothing to read, so a real instance reads undefined whatever its type says.
+func IsSetterOnly(symbol *ast.Symbol) bool {
+	getter, setter := accessorDeclarations(symbol)
+	return getter == nil && setter != nil
+}
+
+// HasNoUsableSetter reports an accessor no function may write: getter-only, or a setter that does not take what the getter
+// returns, the only type the wire holds.
+func HasNoUsableSetter(typeChecker *checker.Checker, symbol *ast.Symbol) bool {
+	if symbol != nil && hasJSDocTag(symbol, AccessorNoSetterTagName) {
+		return true
+	}
+	getter, setter := accessorDeclarations(symbol)
+	if getter == nil {
+		return false
+	}
+	if setter == nil {
+		return true
+	}
+	parameters := setter.Parameters()
+	if getter.Type() == nil || len(parameters) == 0 || parameters[0].Type() == nil {
+		return false
+	}
+	return !checker.Checker_isTypeAssignableTo(typeChecker, typeChecker.GetTypeFromTypeNode(getter.Type()), typeChecker.GetTypeFromTypeNode(parameters[0].Type()))
 }
 
 // IsFunctionField reports a member declared as a property (`fn = () => 1`, a parameter property), not a method.
@@ -677,9 +740,12 @@ func IsFunctionField(symbol *ast.Symbol) bool {
 	return symbol != nil && symbol.Flags&ast.SymbolFlagsProperty != 0
 }
 
-// accessorBit keeps a getter apart from a data property of the same type: removeUnknownKeys copies one and not the other.
-func accessorBit(accessor bool) string {
-	if accessor {
+// accessorBit keeps a getter apart from a data property of the same type, and a member no function may write from one it may.
+func accessorBit(accessor, noSetter bool) string {
+	switch {
+	case noSetter:
+		return "#acn"
+	case accessor:
 		return "#acc"
 	}
 	return ""
@@ -958,6 +1024,10 @@ func isDefaultLibGlobalMember(symbol *ast.Symbol) bool {
 // Custom tags parse as JSDocUnknownTag, so the match is on the bare tag name (no leading `@`), the same
 // read the tsgolint no_deprecated rule uses.
 func hasNonEnumerableTag(symbol *ast.Symbol) bool {
+	return hasJSDocTag(symbol, NonEnumerableTagName)
+}
+
+func hasJSDocTag(symbol *ast.Symbol, name string) bool {
 	for _, declaration := range symbol.Declarations {
 		if declaration == nil {
 			continue
@@ -972,7 +1042,7 @@ func hasNonEnumerableTag(symbol *ast.Symbol) bool {
 					continue
 				}
 				tagName := tag.TagName()
-				if tagName != nil && tagName.Text() == NonEnumerableTagName {
+				if tagName != nil && tagName.Text() == name {
 					return true
 				}
 			}
