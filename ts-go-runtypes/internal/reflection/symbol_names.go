@@ -23,6 +23,8 @@ func SymbolKeyLabel(name string) string {
 const (
 	// FlagAccessor marks a get / set accessor: it lives on the prototype, so an instance has no own value for it.
 	FlagAccessor = "accessor"
+	// FlagAccessorNoSetter marks an accessor no function may write: getter-only, or a setter that refuses the getter's type.
+	FlagAccessorNoSetter = "accessorNoSetter"
 	// FlagField marks a function-typed class PROPERTY (`fn = () => 1`): an own value, not a prototype method.
 	FlagField = "field"
 	// FlagPrivateFields marks a class with `#name` fields, which only its constructor can create.

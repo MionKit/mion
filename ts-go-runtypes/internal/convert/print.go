@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype/typeid"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
@@ -71,7 +72,7 @@ const (
 	flagsDeclareNamedTypes printFlags = 1 << iota
 	// flagsDeclareUniqueSymbols prints a symbol key as `[name]` with a declared unique symbol.
 	flagsDeclareUniqueSymbols
-	// flagsNonEnumerableTag prints @nonEnumerable as a JSDoc tag instead of refusing the member.
+	// flagsNonEnumerableTag prints @nonEnumerable, and an accessor outside a class, as a JSDoc tag instead of refusing the member.
 	flagsNonEnumerableTag
 	// flagsSortMembers prints members sorted by name, since merged declarations bind in file order.
 	flagsSortMembers
@@ -826,8 +827,10 @@ type objectMember struct {
 	// modifiers, accessor, field and typeless are class members' own (TypeScript's addClassModifiers).
 	modifiers string
 	accessor  bool
-	field     bool
-	typeless  bool
+	// accessorTag is the JSDoc tag for an accessor `get` / `set` cannot spell.
+	accessorTag string
+	field       bool
+	typeless    bool
 }
 
 // indexSignature is one `[key: K]: V` member.
@@ -874,6 +877,12 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 			return nil, nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
 				Message: fmt.Sprintf("member %q is marked @nonEnumerable, which has no conversion spelling yet", member.Name)}
 		}
+		accessor := hasFlag(member, reflection.FlagAccessor)
+		if accessor && node.Kind != reflection.KindClass && ctx.flags&(flagsNonEnumerableTag|flagsDataOnly) == 0 {
+			// Same reason: a copy of a class accessor folds into the id with no builder spelling.
+			return nil, nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+				Message: fmt.Sprintf("member %q is a class getter or setter, which has no conversion spelling yet", member.Name)}
+		}
 		key, keyDiag := ctx.memberKey(member)
 		if keyDiag != nil && member.Kind != reflection.KindCallSignature {
 			return nil, nil, keyDiag
@@ -913,7 +922,9 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 			nonEnumerable: member.NonEnumerable && !dataOnly,
 			child:         child,
 			modifiers:     classModifiers(member),
-			accessor:      hasFlag(member, reflection.FlagAccessor),
+			// Only a class spells `get` / `set`: a mapped copy can be optional, which an accessor cannot.
+			accessor:    node.Kind == reflection.KindClass && accessor,
+			accessorTag: accessorTag(node, member, ctx.flags&flagsDataOnly != 0),
 			// A typeless `private x;` is how a `.d.ts` hides a private member's type; the id reads it as optional `any`.
 			typeless: member.Visibility != nil && *member.Visibility == reflection.VisibilityPrivate && child.Kind == reflection.KindAny,
 		})
@@ -977,6 +988,20 @@ func hasSignatureMembers(members []*objectMember) bool {
 }
 
 // hasFlag reports whether the node carries the given free-form flag marker.
+// accessorTag names the tag a member needs to keep its id: every copy outside a class, and a class setter of another type.
+func accessorTag(node, member *reflection.RunType, dataOnly bool) string {
+	noSetter := hasFlag(member, reflection.FlagAccessorNoSetter)
+	switch {
+	case dataOnly || !hasFlag(member, reflection.FlagAccessor):
+		return ""
+	case node.Kind == reflection.KindClass && (!noSetter || member.Readonly):
+		return ""
+	case noSetter:
+		return typeid.AccessorNoSetterTagName
+	}
+	return typeid.AccessorTagName
+}
+
 func hasFlag(node *reflection.RunType, flag string) bool {
 	for _, candidate := range node.Flags {
 		if candidate == flag {
