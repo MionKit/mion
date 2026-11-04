@@ -1,3 +1,4 @@
+import {createHash} from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -13,10 +14,13 @@ import {mayHoldDrizzleSchemas, mayHoldMarkerCalls} from './markerImports.ts';
 import {isDowngraded, resolveDowngradeErrors, DOWNGRADE_ALL, type DowngradeSet} from './downgradeErrors.ts';
 import {LEVELS_ALL, resolveGrouped, resolveShowInfo} from './levels.ts';
 import {haltError, hostHalt, hostWarn, printFindings, surfaceDiagnostics, type HostContext} from './surface.ts';
-import type {Finding, LogStyle} from './types.ts';
+import type {CacheKeyGenerator, Finding, LogStyle, VitestCacheContext} from './types.ts';
 import {DevReporter} from './devReporter.ts';
 import {createTypeDepsIndex, depKey} from './type-deps.ts';
 import {warnBelowTypeScriptFloor} from './typescript-floor.ts';
+
+// The path the Vue pass registers an SFC's <script> under: `Comp.vue.ts` next to `Comp.vue`.
+const VIRTUAL_SFC_SCRIPT = /\.vue\.[mc]?[jt]sx?$/;
 
 // Host-facing plugin name, shared by every adapter entry (the bun one needs it before it builds the inner plugin).
 export const PLUGIN_NAME = '@mionjs/devtools';
@@ -281,6 +285,9 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   // The transform gate: cwd-relative, forward-slashed paths of every file the scan found marker sites in.
   // Rebuilt from generate()'s siteFiles at buildStart, kept current per-file by handleHotUpdate.
   let siteFiles = new Set<string>();
+  // Mixed into Vitest's on-disk module cache key for every file the transform may rewrite. Unset until buildStart's
+  // generate and while an edit rebuilds the program: no key then, so nothing is cached against a stale program.
+  let cacheDigest: string | undefined;
   let cwdAbs = '';
   // The resolved output root (<cwd>/.mion by default); modules land under <genDirAbs>/types.
   let genDirAbs = '';
@@ -621,6 +628,38 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     return gen;
   }
 
+  // Transform output follows the whole program, the generated module set and the options, never the file alone.
+  function digestOf(gen: GenerateResult): string | undefined {
+    if (!gen.programHash) return undefined;
+    const hash = createHash('sha256');
+    for (const part of [gen.programHash, ...[...gen.modules].sort(), ...[...gen.siteFiles].sort(), gen.batchesModule]) {
+      hash.update(part).update('\0');
+    }
+    // Functions drop out: callbacks only observe, they never change what the transform writes.
+    hash.update(JSON.stringify(options) ?? '');
+    return hash.digest('hex');
+  }
+
+  // The transform's own gate, so a file the transform leaves alone keeps Vitest's plain key.
+  function mayTransform(code: string, id: string): boolean {
+    if (!/\.[mc]?[jt]sx?$/.test(id)) return false;
+    const rel = path.relative(cwdAbs || process.cwd(), id);
+    return siteFiles.has(siteKey(rel)) || mayHoldMarkerCalls(code, id, options.markers) || mayHoldDrizzleSchemas(code);
+  }
+
+  // Vitest's `defineCacheKeyGenerator` contract: a string joins the key, false skips the disk cache, undefined adds nothing.
+  // Before the first generate the site set is empty, so a wrapper call site would pass for untouched: skip them all.
+  const cacheKeyFor: CacheKeyGenerator = ({id, sourceCode}) => {
+    if (!/\.[mc]?[jt]sx?$/.test(id)) return undefined;
+    if (!resolver || !cacheDigest) return false;
+    return mayTransform(sourceCode, id) ? cacheDigest : undefined;
+  };
+
+  // Vitest reads this off any plugin in the config; Vitest 4 named the registrar `experimental_`.
+  function configureVitest(context: VitestCacheContext): void {
+    (context.defineCacheKeyGenerator ?? context.experimental_defineCacheKeyGenerator)?.(cacheKeyFor);
+  }
+
   // `<dir>/mion-pure-fns/` is the build's alone; a file with unchanged bytes is skipped so a watch build is not retriggered.
   // Each bundler's own post-bundle hook calls it, since unplugin's arg-less writeBundle carries no output dir.
   async function writePureFnArtifact(dir: string): Promise<void> {
@@ -746,6 +785,11 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       if (typeof update.content === 'string') sourceOverlay.set(overlayKey(rels[index]), update.content);
     });
     const sources: Record<string, string> = Object.fromEntries(sourceOverlay);
+    // A Vue SFC script registered under its virtual path is no edit (the pass does it for every .vue file it
+    // transforms), so it keeps the digest; a real edit clears it until its generate, so no fetch caches against
+    // the old program.
+    const editsProgram = relevant.some((update) => !VIRTUAL_SFC_SCRIPT.test(update.file));
+    if (editsProgram) cacheDigest = undefined;
     if (Object.keys(sources).length > 0) {
       try {
         await resolver.setSources(sources);
@@ -793,6 +837,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     // Regenerate so any new/changed modules hit disk before anything resolves them.
     try {
       const gen = await regenerate();
+      if (editsProgram) cacheDigest = digestOf(gen);
       // The whole-program echo keeps a file in the gate whose only rewrite the per-file scan cannot see:
       // a router-init module gets the batch import appended at transform time, never a scan site, so the
       // loop above would have just dropped it.
@@ -870,6 +915,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     rtWritePureFnArtifact: writePureFnArtifact,
     // Not an unplugin hook: the Next broker cannot infer the resolved genDir it keeps its stamp in.
     rtGenDir: (): string => genDirAbs,
+    // Not an unplugin hook: the Vue pass keys the `.vue` files it rewrites with the same digest (false: none yet).
+    rtCacheDigest: (): string | false => (resolver && cacheDigest) || false,
     // Must run BEFORE vite/esbuild's built-in TypeScript transform: the resolver returns byte offsets into
     // the ORIGINAL source, so code with its type syntax already stripped puts every offset past the new EOF.
     enforce: 'pre' as const,
@@ -888,6 +935,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       // types/.gitignore) are written by the Go side inside generate, so the CLI compile lane gets them too.
       const gen = await regenerate();
       if (gen.outDir) genDirAbs = gen.outDir;
+      cacheDigest = digestOf(gen);
       // Adopting the echo under the explicit option is how a tsconfig-only setting reaches this dependency-free host.
       downgrade = resolveDowngradeErrors(options.downgradeErrors ?? gen.downgradeErrors);
       showInfo = resolveShowInfo(options.levels ?? gen.levels);
@@ -948,11 +996,10 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
 
     async transform(this: any, code: string, id: string) {
       if (!resolver) return null;
-      if (!/\.[mc]?[jt]sx?$/.test(id)) return null;
-      const rel = path.relative(cwdAbs || process.cwd(), id);
       // Wrapper sites need no configuration; new files use the linter’s text gate until the next scan.
+      if (!mayTransform(code, id)) return null;
+      const rel = path.relative(cwdAbs || process.cwd(), id);
       const inSiteSet = siteFiles.has(siteKey(rel));
-      if (!inSiteSet && !mayHoldMarkerCalls(code, id, options.markers) && !mayHoldDrizzleSchemas(code)) return null;
 
       try {
         // `await` keeps rejections in this catch; returning the promise would bypass it.
@@ -964,8 +1011,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       }
     },
 
-    rollup: {writeBundle: writeArtifactForOutput},
-    rolldown: {writeBundle: writeArtifactForOutput},
+    rollup: {writeBundle: writeArtifactForOutput, configureVitest},
+    rolldown: {writeBundle: writeArtifactForOutput, configureVitest},
     esbuild: {
       setup(build: {
         initialOptions: {outdir?: string; outfile?: string; absWorkingDir?: string};
@@ -985,6 +1032,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     },
 
     vite: {
+      configureVitest,
+
       writeBundle(output, bundle) {
         // The artifact feeds a consumer's compiler; a client output with a page is an app, served as is.
         const config = this.environment?.config;

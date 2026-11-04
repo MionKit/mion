@@ -279,6 +279,8 @@ export interface GenerateResult {
   modules: string[];
   outDir: string;
   siteFiles: string[];
+  // Echo of Response.programHash; '' when the resolver sent none.
+  programHash: string;
   // Echo of Response.batchesModule / routerInitFiles; `batchesModule` is '' when no table was written.
   batchesModule: string;
   routerInitFiles: string[];
@@ -396,6 +398,7 @@ abstract class ResolverClientBase implements ResolverConnection {
       modules: resp.generated ?? [],
       outDir: resp.outDir ?? '',
       siteFiles: resp.siteFiles ?? [],
+      programHash: resp.programHash ?? '',
       batchesModule: resp.batchesModule ?? '',
       routerInitFiles: resp.routerInitFiles ?? [],
       diagnostics: resp.diagnostics,

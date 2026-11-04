@@ -8,6 +8,7 @@
 import path from 'node:path';
 import {createRequire} from 'node:module';
 import type {Plugin} from 'vite';
+import type {VitestCacheContext} from '../core/types.ts';
 
 // ############# Vue SFC support #############
 // The core only transforms plain TS/JS ids, and it cannot transform a module that exists nowhere on disk,
@@ -120,10 +121,18 @@ export function mionSfcPlugins(rt: Plugin | undefined, inject = true, virtualSit
     return typeof code === 'string' ? foldImportBlock(source, code) : undefined;
   }
 
-  const injector: Plugin = {
+  const injector: Plugin & {configureVitest: (context: VitestCacheContext) => void} = {
     name: 'mion-sfc',
     // before @vitejs/plugin-vue: it is the last point where the script still carries its types
     enforce: 'pre',
+
+    // Its output follows the program like the core transform's, so it takes the core's Vitest cache digest.
+    configureVitest(context: VitestCacheContext) {
+      const digest = (rt as {rtCacheDigest?: () => string | false} | undefined)?.rtCacheDigest;
+      const define = context.defineCacheKeyGenerator ?? context.experimental_defineCacheKeyGenerator;
+      if (typeof digest !== 'function') return;
+      define?.(({id, sourceCode}) => (id.split('?')[0].endsWith('.vue') && MARKER_PROBE.test(sourceCode) ? digest() : undefined));
+    },
 
     configResolved(config) {
       root = config.root;

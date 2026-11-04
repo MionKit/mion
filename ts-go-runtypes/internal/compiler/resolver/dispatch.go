@@ -783,6 +783,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		// A file whose only marker use is the version slot on `initRoutes` / `initClient` still needs the transform.
 		siteFiles = append(siteFiles, sess.apiVersionFiles(sess.programSourceFiles(), routerInitFiles)...)
 		genResponse := protocol.Response{Generated: manifest, OutDir: outDir, SiteFiles: uniqueSiteFiles(genDump.Sites, siteFiles)}
+		genResponse.ProgramHash = sess.programHash()
 		genResponse.BatchesModule = batchesModule
 		genResponse.RouterInitFiles = routerInitFiles
 		genResponse.Diagnostics = append(genResponse.Diagnostics, rpc.mapperDiags...)
