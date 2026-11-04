@@ -1,5 +1,4 @@
-// Pins the hidden-key reshaper without the compiler: the key leaves the own-enumerable list, keeps its value, and the
-// input stays untouched, so O21 over these values tests the hide and not a broken copy.
+// Pins hideOwnKey without the compiler, so O21 over its values tests the hide and not a broken copy.
 
 import {describe, it, expect} from 'vitest';
 import {mulberry32} from '../core/seededRng.ts';

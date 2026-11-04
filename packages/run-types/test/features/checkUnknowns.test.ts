@@ -415,8 +415,8 @@ describe('checkUnknowns — a dropped non-data member', () => {
   });
 });
 
-// Validate counts keys on an all-required shape, and the error report must give the same answer on a declared prop the
-// count cannot see (a getter, a non-enumerable or an inherited prop); which answer such a value deserves is open.
+// Validate counts keys on an all-required shape; the error report must agree with it on these values.
+// Which answer such a value deserves is still open.
 describe('checkUnknowns — declared props that are not own enumerable keys', () => {
   interface G {
     id: number;

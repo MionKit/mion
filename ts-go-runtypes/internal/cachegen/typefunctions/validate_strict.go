@@ -63,7 +63,7 @@ func nodeTakesUnknownKeyCheck(rt *reflection.RunType, ctx *EmitContext, callSigC
 // check belongs here is emitsUnknownKeyCheck's call, and children splice their own.
 // It must go LAST in the object's `&&` chain, after the property checks. Then every declared prop is known present, so
 // the O(1) key count holds at any depth (else `{a,b,x}` passes for `{a,b,c}`), and the leading object guard
-// (or a union arm's) already ran. The error twin gates its key report on the same count (emitParentUnknownKeyErrors).
+// (or a union arm's) already ran. emitParentUnknownKeyErrors gates its key report on the same count.
 func strictObjectKeyAssertion(rt *reflection.RunType, ctx *EmitContext) string {
 	if n, ok := countFastPathN(rt, ctx); ok {
 		return emitCountKeys(ctx, ctx.Vλl, n)
