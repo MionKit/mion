@@ -30,7 +30,6 @@
         "dev": "vite build --watch",
         "lint": "eslint src",
         "check-types": "tsc --noEmit -p tsconfig.json",
-        "format": "prettier --write src/**/*.ts",
         "build": "echo noop: examples packages does not need to be built",
         "typecheck:test": "tsc -p tsconfig.drizzle.json --noEmit",
         "clean": "rimraf .dist",

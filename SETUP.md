@@ -605,8 +605,8 @@ pnpm miondevx bench [--one <name>|--full|--website] [--quick]   # benchmarks
 pnpm miondevx verify                  # lint + typecheck + format check
 pnpm miondevx fmt [--check]           # format (oxfmt + prettier + gofmt)
 pnpm miondevx clean [--keep-deps|--dry-run|--deep]   # hard clean; --deep reinstalls after
-pnpm miondevx codegen all --check     # regenerate Go→TS mirrors, fail on drift
-pnpm miondevx publish [--dry-run]     # preflight -> npm -> website (interactive)
+pnpm miondevx core codegen all --check   # regenerate Go→TS mirrors, fail on drift
+pnpm miondevx release all [--dry-run] # preflight -> npm -> website (interactive)
 ```
 
 ## Workspace command cheatsheet
