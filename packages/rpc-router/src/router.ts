@@ -199,7 +199,7 @@ export const resetRouter = () => {
   resetRemoteMethodsMetadata();
   resetRoutesCache();
   clearBatches();
-  // resetJitFnCaches() is deliberately NOT called: the JIT caches are global, and the
+  // resetJitFnCaches() is deliberately NOT called: the JIT caches belong to run-types, not the router, and the
   // serializableClassRegistry it clears is needed to (de)serialize classes like RpcError.
   // Only a test of AOT cache loading calls it.
 };

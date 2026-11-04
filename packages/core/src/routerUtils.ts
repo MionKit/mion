@@ -28,7 +28,7 @@ import {jitFunctionsCache, headerJitFunctionsCache} from './jitFunctionsCaches.t
 // Null-prototype: a wire id like `constructor` or `__proto__` must not hit an inherited value; lookups are own-key too.
 const methodsCache: MethodsCache = Object.create(null) as MethodsCache;
 
-/** The router cache: method metadata for routes registered via addRoutesToCache() or virtual modules. */
+/** The router cache: method metadata for routes registered via addRoutesToCache(). */
 export const routesCache = {
   getMetadata(id: string): MethodWithOptions | undefined {
     // a plain read is an own-key read on a null-prototype table
@@ -206,8 +206,6 @@ export function getRoutePath(pathPointer: string[], routerOptions: Pick<CoreRout
 export function resetRoutesCache() {
   for (const k in methodsCache) delete methodsCache[k];
 }
-
-// resetJitFunctionsCache moved to @mionjs/core/testing: a shipped client must not carry a cache reset.
 
 // Noop fns for handlers with no params or void return; the json pair reads as `mutate`, which frames
 // as a plain json value and never encodes anything.

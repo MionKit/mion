@@ -150,8 +150,6 @@ export function addSerializedJitCaches(deps: Record<string, CompiledFnData>, pur
   }
 }
 
-// resetJitFnCaches moved to @mionjs/core/testing: a shipped client must not carry a cache reset.
-
 /** Reads the compiled pure fn an id names, for wire serialization. The UNTRACKED lookup, not
  *  `getCompiledPureFn`, which needs a branded id readable at build time; this id comes off a compiled entry. */
 export function resolveCompiledPureFn(id: string): CompiledPureFunction | undefined {

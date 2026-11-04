@@ -99,7 +99,7 @@ describe('registerInputMapperTuple', () => {
     expect(hasInputMapper('@acme/other/src/batches#scopedTuple')).toBe(false);
   });
 
-  it('re-registering the same tuple on a dev reload is idempotent', () => {
+  it('re-registering the same tuple is idempotent', () => {
     const id = `${MAPPER}reloaded`;
     const tuple = tupleFor(id, 'return (v) => v + 1;');
     registerInputMapperTuple(id, tuple);
