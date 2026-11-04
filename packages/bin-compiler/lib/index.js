@@ -39,7 +39,7 @@ function overrideExe() {
   return exe;
 }
 
-// import.meta.resolve is sync on Node >= 20.6 / 18.19; createRequire is the older-runtime fallback.
+// createRequire covers a runtime or loader that leaves import.meta.resolve undefined.
 // package.json rather than the binary, so the lookup never depends on an exports map.
 function resolvePackageJson(specifier) {
   if (typeof import.meta.resolve === 'function') {

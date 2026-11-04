@@ -1,5 +1,5 @@
 {
-  // The emit half, what `mion compile` and the CJS pass read. It re-enables what tsconfig.json turns
+  // The emit half, what `mion compile` reads. It re-enables what tsconfig.json turns
   // off for the check and narrows the program back to the published src.
   "extends": "./tsconfig.json",
   "compilerOptions": {
