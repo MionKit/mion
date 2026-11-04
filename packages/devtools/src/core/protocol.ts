@@ -363,6 +363,9 @@ export interface Response {
   // The plugin gates its per-file transform on this set, so wrapper call sites in another package
   // (node_modules included) rewrite with zero configuration.
   siteFiles?: string[];
+  // `generate` only: fingerprint of the program sources, compiler options and tsconfig text, for a host that
+  // caches transforms across runs.
+  programHash?: string;
   // enrich only: the computed mirror files (path + content + added + kind).
   // The daemon never writes; the caller writes them under its own HMR-suppression window.
   enrichFiles?: EnrichFile[];
