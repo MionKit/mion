@@ -186,11 +186,16 @@ func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 	return len(rtChildren), true
 }
 
-// emitCountKeys emits `cntEK(v) === N`; countEnumKeys picks its counter per engine, both pinned to answer identically
-// (packages/run-types/src/runtypes/pure-fns-utils.ts).
+// emitCountKeys emits `cntEK(v) === N && <plain object>`; countEnumKeys picks its counter per engine, both pinned to answer
+// identically (packages/run-types/src/runtypes/pure-fns-utils.ts). False sends the caller to the key names.
 func emitCountKeys(ctx *EmitContext, v string, n int) string {
 	fnVar := ctx.UsePureFn(purefnids.CountEnumKeys)
-	return fnVar + "(" + v + ") === " + strconv.Itoa(n)
+	return fnVar + "(" + v + ") === " + strconv.Itoa(n) + " && " + emitPlainPrototype(v)
+}
+
+// emitPlainPrototype is the check that makes a key count exact: a declared prop can only hide from the count on a prototype.
+func emitPlainPrototype(v string) string {
+	return "Object.getPrototypeOf(" + v + ") === Object.prototype"
 }
 
 // joinSemicolons joins non-empty strings with `;`, dropping the empty ones.

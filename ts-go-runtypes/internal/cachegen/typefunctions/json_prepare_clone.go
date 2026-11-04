@@ -316,11 +316,11 @@ func emitObjectPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v s
 		return clone
 	}
 
-	// With every prop required and extra-proof, the declared-key clone equals `v` whenever
-	// `Object.keys(v).length === N`, so a clean input skips the allocation.
+	// With every prop required and extra-proof, the declared-key clone equals `v` whenever a plain object has N keys,
+	// so a clean input skips the allocation. Past a plain object a declared prop can hide from the count.
 	fastpath := allExtraProof && allRequired
 	if fastpath {
-		body := "if (Object.keys(" + v + ").length === " + strconv.Itoa(len(props)) + ") return " + v + ";" +
+		body := "if (Object.keys(" + v + ").length === " + strconv.Itoa(len(props)) + " && " + emitPlainPrototype(v) + ") return " + v + ";" +
 			"return " + clone.Code
 		return RTCode{Code: body, Type: CodeRB}
 	}

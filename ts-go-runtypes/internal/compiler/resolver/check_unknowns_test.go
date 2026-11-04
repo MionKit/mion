@@ -613,7 +613,7 @@ export const isNames = createValidateFn<string[]>(undefined, {checkUnknowns: tru
 	})
 }
 
-// An all-required error twin gates on validate's key count, or a getter leaves validate rejecting with no errors.
+// An all-required error twin gates on validate's key count, so a plain object with the right keys reports nothing.
 func strictErrorsBody(t *testing.T, source string) string {
 	t.Helper()
 	modules := scanEntryModules(t, source)
@@ -627,12 +627,12 @@ func strictErrorsBody(t *testing.T, source string) string {
 func assertErrorsGateOnKeyCount(t *testing.T, body string) {
 	t.Helper()
 	snapshotAt := strings.Index(body, "const ne0 = er.length;")
-	gateAt := strings.Index(body, "if (!(er.length === ne0) || !(cntEK(v) === 2))")
+	gateAt := strings.Index(body, "if (!(er.length === ne0) || !(cntEK(v) === 2 && Object.getPrototypeOf(v) === Object.prototype))")
 	if snapshotAt < 0 || gateAt < 0 || snapshotAt > gateAt {
 		t.Errorf("all-required shape's error report is not gated on the key count after an error-count snapshot:\n%s", body)
 	}
-	if !strings.Contains(body, `if (er.length === ne0) nRT(pth,er,\'objectLiteral\')`) {
-		t.Errorf("an off count with no unknown name reports nothing:\n%s", body)
+	if strings.Contains(body, `if (er.length === ne0) nRT(pth,er,\'objectLiteral\')`) {
+		t.Errorf("an off count with no unknown name is a valid value and must not report:\n%s", body)
 	}
 }
 

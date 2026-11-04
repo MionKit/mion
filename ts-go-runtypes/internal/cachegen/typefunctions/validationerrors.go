@@ -567,7 +567,7 @@ func emitObjectValidationErrors(rt *reflection.RunType, ctx *EmitContext, v stri
 	if emitsUnknownKeyCheck(rt, ctx, nil) {
 		// No array skip: an array with every declared prop passes the property checks and the validator rejects its indices,
 		// so skipping it here would leave a rejected value with no errors.
-		unknownKeyPrologue, unknownKeyErrors = emitParentUnknownKeyErrors(rt, ctx, expected)
+		unknownKeyPrologue, unknownKeyErrors = emitParentUnknownKeyErrors(rt, ctx)
 	}
 	bodyCode := joinSemicolons(unknownKeyPrologue, childrenCode, unknownKeyErrors)
 
