@@ -26,10 +26,9 @@ func callUnknownKeyErr(ctx *EmitContext, extra string) string {
 // ⚠️ THE CALLER OWNS THE OBJECT GUARD: the fused family already sits inside emitObjectValidationErrors' guard, and a
 // second one would emit on every object node, which strictObjectKeyAssertion also avoids on validate.
 // Pinned by TestCheckUnknowns_DoesNotDoubleGuardObjects.
-// On the count path a node with no prop error reports keys only when validate's count is off, so both agree;
-// an off count with no unknown name (a prop the count cannot see) gets one `shapeExpected` entry.
+// On the count path a node with no prop error reports keys only when validate's count is off, so both agree.
 // A node with a prop error lists every unknown name. `prologue` must run before the property checks.
-func emitParentUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext, shapeExpected string) (prologue string, code string) {
+func emitParentUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext) (prologue string, code string) {
 	if objectHasIndexSignatureChild(rt, ctx) {
 		return "", ""
 	}
@@ -52,7 +51,6 @@ func emitParentUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext, shapeE
 	startVar := ctx.NextLocalVar("ne")
 	prologue = "const " + startVar + " = " + errArg + ".length"
 	clean := errArg + ".length === " + startVar
-	code = "if (!(" + clean + ") || !(" + emitCountKeys(ctx, ctx.Vλl, keyCount) + ")) {" + report + ";if (" + clean + ") " +
-		callRTErr(ctx, shapeExpected, "") + "}"
+	code = "if (!(" + clean + ") || !(" + emitCountKeys(ctx, ctx.Vλl, keyCount) + ")) {" + report + "}"
 	return prologue, code
 }
