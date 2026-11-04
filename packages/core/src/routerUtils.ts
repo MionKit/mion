@@ -28,7 +28,7 @@ import {jitFunctionsCache, headerJitFunctionsCache} from './jitFunctionsCaches.t
 // Null-prototype: a wire id like `constructor` or `__proto__` must not hit an inherited value; lookups are own-key too.
 const methodsCache: MethodsCache = Object.create(null) as MethodsCache;
 
-/** The router cache: method metadata for routes registered via addRoutesToCache(). */
+/** Method metadata for routes registered via addRoutesToCache(). */
 export const routesCache = {
   getMetadata(id: string): MethodWithOptions | undefined {
     // a plain read is an own-key read on a null-prototype table

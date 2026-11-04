@@ -4,7 +4,7 @@ import {getExePath} from '../lib/index.js';
 
 const exe = getExePath();
 
-// On POSIX, replace this process so signals and the exit code pass through.
+// Replace this process so signals and the exit code pass through.
 if (process.platform !== 'win32' && typeof process.execve === 'function') {
   try {
     process.execve(exe, [exe, ...process.argv.slice(2)]);
