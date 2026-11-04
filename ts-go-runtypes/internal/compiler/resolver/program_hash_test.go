@@ -9,7 +9,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// generateProgramHash builds a fresh on-disk project session, as each Vitest run spawns one, and returns its hash.
+// generateProgramHash builds a fresh session per call, as each Vitest run spawns one.
 func generateProgramHash(t *testing.T, dir, tsconfig string) string {
 	t.Helper()
 	writeDisk(t, tspath.ResolvePath(dir, "tsconfig.json"), tsconfig)
@@ -32,8 +32,7 @@ func generateProgramHash(t *testing.T, dir, tsconfig string) string {
 	return resp.ProgramHash
 }
 
-// The hash is a host's cache key for a site file's rewrite: equal for an unchanged project, new when the program's
-// file list (tsconfig include), any file's text or the tsconfig changes, though the site file's own text did not.
+// The site file's text never changes here, so only the hash can tell its rewrite went stale.
 func TestGenerate_ProgramHashFollowsTheProgram(t *testing.T) {
 	dir := tspath.NormalizePath(t.TempDir())
 	for rel, content := range realMarkerOverlay(t) {

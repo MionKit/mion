@@ -285,8 +285,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   // The transform gate: cwd-relative, forward-slashed paths of every file the scan found marker sites in.
   // Rebuilt from generate()'s siteFiles at buildStart, kept current per-file by handleHotUpdate.
   let siteFiles = new Set<string>();
-  // Mixed into Vitest's on-disk module cache key for every file the transform may rewrite. Unset until buildStart's
-  // generate and while an edit rebuilds the program: no key then, so nothing is cached against a stale program.
+  // Vitest cache key for files the transform may rewrite; unset until buildStart and while an edit rebuilds: no caching.
   let cacheDigest: string | undefined;
   let cwdAbs = '';
   // The resolved output root (<cwd>/.mion by default); modules land under <genDirAbs>/types.
@@ -785,9 +784,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       if (typeof update.content === 'string') sourceOverlay.set(overlayKey(rels[index]), update.content);
     });
     const sources: Record<string, string> = Object.fromEntries(sourceOverlay);
-    // A Vue SFC script registered under its virtual path is no edit (the pass does it for every .vue file it
-    // transforms), so it keeps the digest; a real edit clears it until its generate, so no fetch caches against
-    // the old program.
+    // A Vue SFC script at its virtual path is no edit: the Vue pass registers one for every .vue it transforms.
+    // A real edit clears the digest until its generate, so no fetch caches against the old program.
     const editsProgram = relevant.some((update) => !VIRTUAL_SFC_SCRIPT.test(update.file));
     if (editsProgram) cacheDigest = undefined;
     if (Object.keys(sources).length > 0) {

@@ -1,5 +1,4 @@
 // Vitest's on-disk module cache keys a file on its own text, while mion's rewrite of it follows the whole program.
-// The plugin's `configureVitest` mixes a program digest into the key of every file it may rewrite.
 import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
 import {createRequire} from 'node:module';
@@ -60,7 +59,6 @@ function vitestRun(dir: string): string {
   return result.static;
 }
 
-/** Cache entry name to mtime, the metadata file left out. */
 function cacheEntries(cacheDir: string): Map<string, number> {
   const entries = fs.readdirSync(cacheDir).filter((name) => name !== '_metadata.json');
   return new Map(entries.map((name) => [name, fs.statSync(path.join(cacheDir, name)).mtimeMs]));

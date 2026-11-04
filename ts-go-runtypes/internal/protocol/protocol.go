@@ -161,8 +161,7 @@ type Response struct {
 	// included) rewrite with zero configuration. Emitted via the hand-rolled MarshalJSON below (the struct tag
 	// alone doesn't put it on the wire).
 	SiteFiles []string `json:"siteFiles,omitempty"`
-	// ProgramHash (generate only) fingerprints the program sources, compiler options and tsconfig text: a host
-	// that caches transforms across runs mixes it into a site file's key.
+	// ProgramHash (generate only) hashes program sources, compiler options and tsconfig text, for a host's transform cache.
 	ProgramHash string `json:"programHash,omitempty"`
 	// EnrichFiles is OpEnrich's computed mirror files; the daemon never writes, the caller writes them under its
 	// own HMR-suppression window. Emitted via the hand-rolled MarshalJSON below (the struct tag alone doesn't).
