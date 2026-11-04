@@ -44,3 +44,28 @@ this change touched, review its report against the code, and commit it as its ow
 - Every candidate is removed or listed in the PR with why it stays; lint, typecheck and the full test suite pass.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file,
   each committed on its own.
+
+## Plan: sweep (approved 2026-11-04)
+
+Remove or fix:
+
+- `.gitignore` leftovers: the `.next` lines in `packages/private-examples`, the Next/Gatsby/`out`/`.rts2_cache_*`
+  template lines in `packages/platform-bun`, and the root `.next` line moved to
+  `container/pre-publish-e2e/.gitignore` as `apps/*/.next/` (its only job: host-built `smoke-next`).
+- Node floor + ESM-only wording: `bin-uws` `comment:exports`, `run-types/tsconfig.build.json` "CJS pass",
+  `bin-compiler` / `bin-uws` Node 18/20/22 comments, pre-publish e2e `node22` target and "ESM/CJS" comment,
+  `private-examples` `engines >= 18`.
+- Dead code: `isTestEnv` in core; unused exports `getRouteEntries`, `isRouteDef`, `isRawExecutable`,
+  `isHeaderExecutable`, `isRouteExecutable` (rpc-router), `emailLocalPartSymbols` (run-types).
+- Stale comments: "moved to @mionjs/core/testing" notes, "or virtual modules", "JIT caches are global",
+  "on a dev reload" test name.
+- Scripts + docs: `SETUP.md` commands that don't exist, `pnpm run bench` references, root `lint:spec`,
+  per-package Prettier `format` scripts, `packages/devtools/build` in clean, the vite 7 comment in
+  `pnpm-workspace.yaml`, broken benchmark README links, example paths to missing files, `private-test-server`
+  clean list + tsconfig includes.
+
+Keep (listed in the PR): the RunTypes Next adapter and `smoke-next`, the client metadata store on `globalThis`,
+`routerInitFiles` / `resetRouter`, benchmark `node22` targets, the private apps' workspace deps, root
+`@types/express` / `@types/aws-lambda`, items inside `packages/devtools/src/vite/*`.
+
+The root `changelog` script that rewrites `CHANGELOG.md` is out of scope: filed as its own todo.
