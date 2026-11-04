@@ -28,9 +28,9 @@ describe('a fresh copy of the router module', () => {
     const first = await freshRouterCopy();
     const mion = first.createMionRouter();
     mion.initRoutes({ping: mion.query((): string => 'pong')});
-    expect(first.geRoutesSize()).toBeGreaterThan(0);
+    expect(first.getRoutesSize()).toBeGreaterThan(0);
     const second = await freshRouterCopy();
-    expect(second.geRoutesSize()).toBe(0);
+    expect(second.getRoutesSize()).toBe(0);
   });
 
   it('starts with an empty batch table', async () => {
