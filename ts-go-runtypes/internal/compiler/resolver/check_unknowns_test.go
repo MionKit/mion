@@ -650,12 +650,23 @@ export const userErrors = createGetValidationErrorsFn(user, {checkUnknowns: true
 `))
 }
 
-func TestCheckUnknowns_OptionalPropErrorsTakeNoKeyCount(t *testing.T) {
-	body := strictErrorsBody(t, `import {createGetValidationErrorsFn} from '@mionjs/run-types';
-interface User {a: string; b?: number}
-export const userErrors = createGetValidationErrorsFn<User>(undefined, {checkUnknowns: true});
-`)
+func assertErrorsTakeNoKeyCount(t *testing.T, body string) {
+	t.Helper()
 	if strings.Contains(body, "cntEK(") || strings.Contains(body, "er.length === ne") {
 		t.Errorf("optional-prop shape's error report took the key-count gate:\n%s", body)
 	}
+}
+
+func TestCheckUnknowns_OptionalPropErrorsTakeNoKeyCount_Static(t *testing.T) {
+	assertErrorsTakeNoKeyCount(t, strictErrorsBody(t, `import {createGetValidationErrorsFn} from '@mionjs/run-types';
+interface User {a: string; b?: number}
+export const userErrors = createGetValidationErrorsFn<User>(undefined, {checkUnknowns: true});
+`))
+}
+
+func TestCheckUnknowns_OptionalPropErrorsTakeNoKeyCount_Value(t *testing.T) {
+	assertErrorsTakeNoKeyCount(t, strictErrorsBody(t, `import {createGetValidationErrorsFn} from '@mionjs/run-types';
+const user: {a: string; b?: number} = {a: 'x'};
+export const userErrors = createGetValidationErrorsFn(user, {checkUnknowns: true});
+`))
 }

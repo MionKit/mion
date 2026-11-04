@@ -44,7 +44,7 @@ func emitParentUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext, shapeE
 		"for (let " + indexVar + " = 0; " + indexVar + " < " + unknownVar + ".length && " + indexVar + " < " + limit + "; " + indexVar + "++) {" +
 		callUnknownKeyErr(ctx, unknownVar+"["+indexVar+"]") + "}" +
 		"if (" + unknownVar + ".length > " + limit + ") " + callRTErr(ctx, "tooManyUnknownKeys", "")
-	n, ok := countFastPathN(rt, ctx)
+	keyCount, ok := countFastPathN(rt, ctx)
 	if !ok {
 		return "", report
 	}
@@ -52,7 +52,7 @@ func emitParentUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext, shapeE
 	startVar := ctx.NextLocalVar("ne")
 	prologue = "const " + startVar + " = " + errArg + ".length"
 	clean := errArg + ".length === " + startVar
-	code = "if (!(" + clean + ") || !(" + emitCountKeys(ctx, ctx.Vλl, n) + ")) {" + report + ";if (" + clean + ") " +
+	code = "if (!(" + clean + ") || !(" + emitCountKeys(ctx, ctx.Vλl, keyCount) + ")) {" + report + ";if (" + clean + ") " +
 		callRTErr(ctx, shapeExpected, "") + "}"
 	return prologue, code
 }
