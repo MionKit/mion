@@ -612,3 +612,51 @@ export const isNames = createValidateFn<string[]>(undefined, {checkUnknowns: tru
 		}
 	})
 }
+
+// The strict error twin of an all-required shape gates its key report on the SAME count validate uses, or a declared
+// prop the count cannot see (a getter) leaves validate rejecting with an empty report.
+func strictErrorsBody(t *testing.T, source string) string {
+	t.Helper()
+	modules := scanEntryModules(t, source)
+	name, ok := findEntryWith(modules, familyPrefix(t, "validationErrorsStrict"))
+	if !ok {
+		t.Fatalf("no validationErrorsStrict entry emitted\nmodules: %v", keys(modules))
+	}
+	return modules[name]
+}
+
+func assertErrorsGateOnKeyCount(t *testing.T, body string) {
+	t.Helper()
+	snapshotAt := strings.Index(body, "const ne0 = er.length;")
+	gateAt := strings.Index(body, "if (!(er.length === ne0) || !(cntEK(v) === 2))")
+	if snapshotAt < 0 || gateAt < 0 || snapshotAt > gateAt {
+		t.Errorf("all-required shape's error report is not gated on the key count after an error-count snapshot:\n%s", body)
+	}
+	if !strings.Contains(body, `if (er.length === ne0) nRT(pth,er,\'objectLiteral\')`) {
+		t.Errorf("an off count with no unknown name reports nothing:\n%s", body)
+	}
+}
+
+func TestCheckUnknowns_AllRequiredErrorsGateOnKeyCount_Static(t *testing.T) {
+	assertErrorsGateOnKeyCount(t, strictErrorsBody(t, `import {createGetValidationErrorsFn} from '@mionjs/run-types';
+interface User {a: string; b: number}
+export const userErrors = createGetValidationErrorsFn<User>(undefined, {checkUnknowns: true});
+`))
+}
+
+func TestCheckUnknowns_AllRequiredErrorsGateOnKeyCount_Value(t *testing.T) {
+	assertErrorsGateOnKeyCount(t, strictErrorsBody(t, `import {createGetValidationErrorsFn} from '@mionjs/run-types';
+const user: {a: string; b: number} = {a: 'x', b: 1};
+export const userErrors = createGetValidationErrorsFn(user, {checkUnknowns: true});
+`))
+}
+
+func TestCheckUnknowns_OptionalPropErrorsTakeNoKeyCount(t *testing.T) {
+	body := strictErrorsBody(t, `import {createGetValidationErrorsFn} from '@mionjs/run-types';
+interface User {a: string; b?: number}
+export const userErrors = createGetValidationErrorsFn<User>(undefined, {checkUnknowns: true});
+`)
+	if strings.Contains(body, "cntEK(") || strings.Contains(body, "er.length === ne") {
+		t.Errorf("optional-prop shape's error report took the key-count gate:\n%s", body)
+	}
+}

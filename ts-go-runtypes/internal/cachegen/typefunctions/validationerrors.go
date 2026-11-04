@@ -554,13 +554,13 @@ func emitObjectValidationErrors(rt *reflection.RunType, ctx *EmitContext, v stri
 
 	// Runs AFTER the property errors, inside the `else` where `v` is a non-null object, so entries interleave per node.
 	// emitsUnknownKeyCheck decides, the same call emitObjectValidate makes.
-	unknownKeyErrors := ""
+	unknownKeyPrologue, unknownKeyErrors := "", ""
 	if emitsUnknownKeyCheck(rt, ctx, nil) {
 		// No array skip: an array with every declared prop passes the property checks and the validator rejects its indices,
 		// so skipping it here would leave a rejected value with no errors.
-		unknownKeyErrors = emitParentUnknownKeyErrors(rt, ctx)
+		unknownKeyPrologue, unknownKeyErrors = emitParentUnknownKeyErrors(rt, ctx, expected)
 	}
-	bodyCode := joinSemicolons(childrenCode, unknownKeyErrors)
+	bodyCode := joinSemicolons(unknownKeyPrologue, childrenCode, unknownKeyErrors)
 
 	if bodyCode == "" {
 		// No contributing children — emit only the shape guard.

@@ -26,19 +26,33 @@ func callUnknownKeyErr(ctx *EmitContext, extra string) string {
 // ⚠️ THE CALLER OWNS THE OBJECT GUARD: the fused family already sits inside emitObjectValidationErrors' guard, and a
 // second one would emit on every object node, which strictObjectKeyAssertion also avoids on validate.
 // Pinned by TestCheckUnknowns_DoesNotDoubleGuardObjects.
-func emitParentUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext) string {
+// Where validate takes the key count, a node whose props all passed reports keys only when that same count is off, so
+// both answer alike; one `shapeExpected` entry covers an off count with no unknown name (a prop the count cannot see).
+// A node with a prop error lists every unknown name as before. `prologue` must run before the property checks.
+func emitParentUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext, shapeExpected string) (prologue string, code string) {
 	if objectHasIndexSignatureChild(rt, ctx) {
-		return ""
+		return "", ""
 	}
 	unknownValue := callCheckUnknownPropertiesForHas(rt, ctx, true)
 	if unknownValue == "" {
-		return ""
+		return "", ""
 	}
 	unknownVar := ctx.NextLocalVar("unk")
 	indexVar := ctx.NextLocalVar("iu")
 	limit := strconv.Itoa(ctx.MaxUnknownKeys())
-	return "const " + unknownVar + " = " + unknownValue + ";" +
+	report := "const " + unknownVar + " = " + unknownValue + ";" +
 		"for (let " + indexVar + " = 0; " + indexVar + " < " + unknownVar + ".length && " + indexVar + " < " + limit + "; " + indexVar + "++) {" +
 		callUnknownKeyErr(ctx, unknownVar+"["+indexVar+"]") + "}" +
 		"if (" + unknownVar + ".length > " + limit + ") " + callRTErr(ctx, "tooManyUnknownKeys", "")
+	n, ok := countFastPathN(rt, ctx)
+	if !ok {
+		return "", report
+	}
+	errArg := ctx.ArgName("εrr")
+	startVar := ctx.NextLocalVar("ne")
+	prologue = "const " + startVar + " = " + errArg + ".length"
+	clean := errArg + ".length === " + startVar
+	code = "if (!(" + clean + ") || !(" + emitCountKeys(ctx, ctx.Vλl, n) + ")) {" + report + ";if (" + clean + ") " +
+		callRTErr(ctx, shapeExpected, "") + "}"
+	return prologue, code
 }
