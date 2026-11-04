@@ -4,7 +4,7 @@ An analysis pass over the benchmark suite that explains every place a competitor
 (zod, TypeBox, ajv, typia) disagrees with mion about what counts as a valid
 value. It does not change the library, the rewrite pipeline, or any competitor
 case file. Its deliverable is the committed report at
-[`docs/cross-library-validation-alignment-report.md`](../../docs/cross-library-validation-alignment-report.md).
+[`docs/cross-library-validation-alignment-report.md`](../../../docs/cross-library-validation-alignment-report.md).
 
 ## Why it exists
 

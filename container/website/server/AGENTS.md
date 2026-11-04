@@ -10,7 +10,7 @@ How TypeScript examples reach a page. Read before writing an example or editing 
 - Paths relative to the monorepo root, not the website root.
 - Dev: a Vite plugin watches `packages/private-examples/src/` and hot-reloads on example changes.
 
-- Full file: `<code-import path="packages/private-examples/src/guide/ser-json-basics.ts" lang="ts" />`.
+- Full file: `<code-import path="packages/private-examples/src/introduction/quick-start-validate.ts" lang="ts" />`.
 - Tab title in a code-group: `lang="ts [json.ts]"`. Line range: `lines="1,10"` (start,end).
 - Between comment markers (preferred, markers stripped from output):
   `commentStart="// start-basics" commentEnd="// end-basics"`.

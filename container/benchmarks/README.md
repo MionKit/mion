@@ -12,7 +12,7 @@ Each competitor is a **standalone pnpm project**: its own `package.json` (under
 [`_deps/competitors/<name>/`](_deps/competitors/)) → its own `node_modules`, with
 its source under [`competitors/<name>/`](competitors/), its own build and its own
 `dist/run.mjs`, run as its own process
-writing [`results/<name>.json`](results/). [`aggregate.mjs`](aggregate.mjs) then
+writing `results/<name>.json`. [`aggregate.mjs`](aggregate.mjs) then
 joins those per-competitor results by case key into one comparison table.
 
 ```
@@ -34,7 +34,7 @@ This isolation is the whole point:
   only thing special about it is *build* mechanics — its validators are generated
   at build time by `@mionjs/devtools` spawning the **Go binary**, so that
   binary + the first-party packages are bind-mounted into its `node_modules` at run
-  time (see [`scripts/website/bench-data/bench.mjs`](../scripts/website/bench-data/bench.mjs) `mount_args`).
+  time (see [`scripts/website/bench-data/bench.mjs`](../../scripts/website/bench-data/bench.mjs) `mount_args`).
 
 ## Totality — a validator **or** an explicit not-supported, for every case
 
@@ -150,7 +150,7 @@ timing runs on native Temporal, the same runtime the published library targets, 
 `MION_VALIDATION_BENCH_BASE_IMAGE`, forwarded to the build).
 
 **`bench:serialization`** runs the mion-only round-trip bench
-([`scripts/website/bench-data/gen-serialization.mjs`](../scripts/website/bench-data/gen-serialization.mjs))
+([`scripts/website/bench-data/gen-serialization.mjs`](../../scripts/website/bench-data/gen-serialization.mjs))
 **inside** the Node 26 container — previously it ran on the host (wrong Node /
 polyfilled Temporal). It reuses the mion competitor context (baked vite +
 the bind-mounted marker package, plugin and Go binary) plus a bind-mounted Linux
@@ -382,7 +382,7 @@ back to `NOT_SUPPORTED` (with a one-line reason) when the library genuinely
 diverges from RunTypes' semantics. To add a whole new competitor, copy a
 `competitors/<name>/` source folder, add its `package.json` under
 `_deps/competitors/<name>/`, write a total `cases.ts`, add a COPY+install layer
-to [`Containerfile`](Containerfile), and add it to `competitor_list()` in
+to [`container/website/Containerfile`](../website/Containerfile), and add it to `competitor_list()` in
 `scripts/website/bench-data/bench.mjs`.
 
 ## Cross-library validation alignment audit
