@@ -414,3 +414,89 @@ describe('checkUnknowns — a dropped non-data member', () => {
     for (const value of [{b: 1}, {b: 1, x: 1}, {b: 1, p: 1}]) expect(isStrict(value)).toBe(isWithFn(value));
   });
 });
+
+// Validate counts keys on an all-required shape, and the error report must give the same answer on a declared prop the
+// count cannot see (a getter, a non-enumerable or an inherited prop); which answer such a value deserves is open.
+describe('checkUnknowns — declared props that are not own enumerable keys', () => {
+  interface G {
+    id: number;
+    name: string;
+  }
+  class WithGetter {
+    get id() {
+      return 1;
+    }
+    name = 'a';
+  }
+  class WithGetterExtra extends WithGetter {
+    extra = 1;
+  }
+  const hidden = (extra: boolean) => {
+    const value: Record<string, unknown> = {name: 'a'};
+    Object.defineProperty(value, 'id', {value: 1, enumerable: false});
+    if (extra) value.extra = 1;
+    return value;
+  };
+  const inherited = (extra: boolean) => {
+    const value = Object.create(extra ? {id: 1, extra: 1} : {id: 1});
+    value.name = 'a';
+    return value;
+  };
+  const samples = () => [new WithGetter(), new WithGetterExtra(), hidden(false), hidden(true), inherited(false), inherited(true)];
+  const shapeError = [{path: [], expected: 'objectLiteral'}];
+  const extraError = [{path: ['extra'], expected: 'never'}];
+
+  function expectAgreement(isStrict: (value: unknown) => boolean, errorsStrict: (value: unknown) => unknown[]) {
+    for (const value of samples()) expect(errorsStrict(value).length === 0).toBe(isStrict(value));
+  }
+
+  it('validate and errors agree on an all-required shape (static shape)', () => {
+    const isStrict = createValidateFn<G>(undefined, {checkUnknowns: true});
+    const errorsStrict = createGetValidationErrorsFn<G>(undefined, {checkUnknowns: true});
+    expectAgreement(isStrict, errorsStrict);
+    expect([isStrict(new WithGetter()), errorsStrict(new WithGetter())]).toEqual([false, shapeError]);
+    expect([isStrict(hidden(false)), errorsStrict(hidden(false))]).toEqual([false, shapeError]);
+    expect([isStrict(inherited(true)), errorsStrict(inherited(true))]).toEqual([false, extraError]);
+    expect([isStrict({id: 1, name: 'a', extra: 1}), errorsStrict({id: 1, name: 'a', extra: 1})]).toEqual([false, extraError]);
+    expect([isStrict({id: 1, name: 'a'}), errorsStrict({id: 1, name: 'a'})]).toEqual([true, []]);
+  });
+
+  it('validate and errors agree on an all-required shape (value shape)', () => {
+    const sample: G = {id: 1, name: 'a'};
+    const isStrict = createValidateFn(sample, {checkUnknowns: true});
+    const errorsStrict = createGetValidationErrorsFn(sample, {checkUnknowns: true});
+    expectAgreement(isStrict, errorsStrict);
+    expect([isStrict(new WithGetter()), errorsStrict(new WithGetter())]).toEqual([false, shapeError]);
+    expect([isStrict(hidden(false)), errorsStrict(hidden(false))]).toEqual([false, shapeError]);
+    expect([isStrict(inherited(true)), errorsStrict(inherited(true))]).toEqual([false, extraError]);
+    expect([isStrict({id: 1, name: 'a', extra: 1}), errorsStrict({id: 1, name: 'a', extra: 1})]).toEqual([false, extraError]);
+    expect([isStrict({id: 1, name: 'a'}), errorsStrict({id: 1, name: 'a'})]).toEqual([true, []]);
+  });
+
+  it('reports the shape error under the cap, beside capped unknown keys (static shape)', () => {
+    interface Wide {
+      a: number;
+      b: number;
+      c: number;
+    }
+    const errorsStrict = createGetValidationErrorsFn<Wide>(undefined, {checkUnknowns: true});
+    const many: Record<string, number> = {a: 1, b: 1, c: 1};
+    for (let i = 0; i < 20; i++) many[`x${i}`] = 1;
+    const report = errorsStrict(many);
+    expect(report.at(-1)).toEqual({path: [], expected: 'tooManyUnknownKeys'});
+    expect(report.some((error) => error.expected === 'objectLiteral')).toBe(false);
+  });
+
+  it('validate and errors agree with an optional prop (static shape)', () => {
+    const isStrict = createValidateFn<G & {note?: string}>(undefined, {checkUnknowns: true});
+    const errorsStrict = createGetValidationErrorsFn<G & {note?: string}>(undefined, {checkUnknowns: true});
+    expectAgreement(isStrict, errorsStrict);
+  });
+
+  it('validate and errors agree with an optional prop (value shape)', () => {
+    const sample: G & {note?: string} = {id: 1, name: 'a'};
+    const isStrict = createValidateFn(sample, {checkUnknowns: true});
+    const errorsStrict = createGetValidationErrorsFn(sample, {checkUnknowns: true});
+    expectAgreement(isStrict, errorsStrict);
+  });
+});
