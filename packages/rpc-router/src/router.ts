@@ -122,7 +122,6 @@ export let endMiddlewares: RemoteMethod[] = [];
 export const getRouteExecutionChain = (path: string) => flatRouter.get(path);
 /** The chain that answers an unknown path or an unknown batch id, by its `MION_ROUTES` id. */
 export const getNotFoundExecutionChain = (id: string) => notFoundChains.get(id);
-export const getRouteEntries = () => flatRouter.entries();
 export const geRoutesSize = () => flatRouter.size;
 export const getRouteExecutable = (id: string) => routesById.get(id);
 export const getMiddlewareExecutable = (id: string) => middlewaresById.get(id);

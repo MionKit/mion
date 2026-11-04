@@ -41,11 +41,3 @@ export function isUnsafePropertyName(name: string): boolean {
 export function fromBase64Url(encoded: string): string {
   return atob(encoded.replace(/-/g, '+').replace(/_/g, '/'));
 }
-
-let isTest: boolean | undefined = undefined;
-
-export function isTestEnv() {
-  if (isTest !== undefined) return isTest;
-  isTest = getENV('VITEST') !== undefined || getENV('NODE_ENV') === 'test';
-  return isTest;
-}
