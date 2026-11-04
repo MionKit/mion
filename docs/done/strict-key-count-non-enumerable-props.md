@@ -50,3 +50,29 @@ the same thing.
 - Validate and errors agree on the repro above and its `extra` variant, pinned by paired tests.
 - No measurable slowdown on the clean path of the strict benchmark cases, or the trade is stated in the PR.
 - The simplify-comments pass ran on every touched source file, committed on its own.
+
+## Plan: count in both strict families (approved 2026-11-04)
+
+The maintainer chose to keep the key count, the strict validator's fast path, and to make the error report follow it,
+rather than switch either function to a name check. Which answer a value with a getter, inherited or non-enumerable
+declared prop deserves is left to a separate review of class getters and setters.
+
+- Validate: unchanged, `cntEK(v) === N` on an all-required shape.
+- Errors (`emitParentUnknownKeyErrors`): on the same shapes, snapshot the error count before the property checks.
+  A node whose props all passed reports keys only when `cntEK(v) !== N`: the unknown names as before, plus one
+  shape error (`objectLiteral` / `class`) at the object when no name is unknown. A node with a prop error lists every
+  unknown name, as before, so a missing prop plus an extra key still names the extra key.
+- Tests: paired static / value-first Vitest cases over a getter, non-enumerable and inherited prop, each with and
+  without an extra key, for an all-required and an optional-prop shape; Go tests pin the gated error body.
+- Fuzz: the value lane hides one own key (non-enumerable, inherited or prototype getter) of the valid, extras and
+  planted values and checks O3 + O21. Proven by a negative control: the old resolver fails O21 on that phase.
+- Benchmark: measure the STRICT cases' validate and errors before and after.
+
+## What shipped
+
+- As planned. Both repro values now get the same answer from validate and errors: `{get id, name}` is rejected with a
+  `{path: [], expected: 'objectLiteral'}` entry, `{get id, name, extra}` is accepted by both (count 2 === 2).
+- Benchmark (Node, ns per call, valid values): validate unchanged; strict errors got faster on the count path, e.g.
+  moltar_dto 65 → 32, flat_required 27 → 21, realworld_order 145 → 100. Invalid values unchanged.
+- Getter semantics, and the all-required class that declares its own getter (its instances fail the count), moved to
+  a separate guidelines todo on class getter and setter support.
