@@ -199,9 +199,7 @@ export const resetRouter = () => {
   resetRemoteMethodsMetadata();
   resetRoutesCache();
   clearBatches();
-  // resetJitFnCaches() is deliberately NOT called: the JIT caches belong to run-types, not the router, and the
-  // serializableClassRegistry it clears is needed to (de)serialize classes like RpcError.
-  // Only a test of AOT cache loading calls it.
+  // No resetJitFnCaches(): it lives in @mionjs/core/testing, which a shipped router must not import.
 };
 
 /** Options ride BY TYPE into every helper, so router-wide defaults are read at build time and `ctx.shared` is typed from

@@ -39,7 +39,7 @@ function overrideExe() {
   return exe;
 }
 
-// createRequire covers a runtime or loader that leaves import.meta.resolve undefined.
+// Fallback for a runtime or loader without import.meta.resolve.
 // package.json rather than the binary, so the lookup never depends on an exports map.
 function resolvePackageJson(specifier) {
   if (typeof import.meta.resolve === 'function') {

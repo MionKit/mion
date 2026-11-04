@@ -41,7 +41,7 @@ function overrideDir(env) {
   return dir;
 }
 
-// createRequire covers a runtime or loader that leaves import.meta.resolve undefined.
+// Fallback for a runtime or loader without import.meta.resolve.
 function resolvePackageJson(specifier) {
   if (typeof import.meta.resolve === 'function') {
     return fileURLToPath(import.meta.resolve(specifier));
