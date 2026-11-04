@@ -595,7 +595,7 @@ main() {
   echo "  pnpm miondevx --help         # the internal dev/website/bench/publish CLI"
   echo "  pnpm test              # full JS suite (spawns the Go binary)"
   echo "  pnpm miondevx website dev   # docs site -> http://localhost:3000"
-  echo "  pnpm miondevx bench    # full validation benchmark"
+  echo "  pnpm miondevx bench    # validation benchmark (every competitor)"
 
   if [ "$FAILED" = 0 ]; then bold "Setup OK."; else bold "Setup incomplete - see ERR above."; exit 1; fi
 }
