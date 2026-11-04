@@ -203,7 +203,7 @@ function fuzzOneIteration(target: FuzzTarget, seed: number, out: Violation[], un
   }
 
   // --- hidden-key pass (one own key turned non-enumerable, inherited or a prototype getter) ---
-  // The strict validator counts keys where its error twin names them; a declared prop the count cannot see must not split them.
+  // Validate counts keys where its error twin names them; a hidden declared prop must not split them.
   const hiddenCtx = {seed, phase: 'hidden' as const};
   for (const source of [valid, extras, planted?.value]) {
     if (source === null || source === undefined) continue;

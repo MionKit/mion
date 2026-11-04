@@ -613,8 +613,7 @@ export const isNames = createValidateFn<string[]>(undefined, {checkUnknowns: tru
 	})
 }
 
-// The strict error twin of an all-required shape gates its key report on the SAME count validate uses, or a declared
-// prop the count cannot see (a getter) leaves validate rejecting with an empty report.
+// An all-required error twin gates on validate's key count, or a getter leaves validate rejecting with no errors.
 func strictErrorsBody(t *testing.T, source string) string {
 	t.Helper()
 	modules := scanEntryModules(t, source)

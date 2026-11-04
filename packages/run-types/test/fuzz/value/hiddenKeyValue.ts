@@ -1,6 +1,5 @@
-// Moves one own key of a plain object off the key list a `for...in` sees, keeping its value readable: a non-enumerable
-// own prop, an inherited prop, or a getter on the prototype. The strict validator counts keys where the error report
-// can name them, so O21 run over these values pins that both still answer alike when a declared prop hides.
+// Takes one key of a plain object off its own enumerable keys, value still readable. Validate counts keys where the
+// error report names them, so O21 over these values pins that both agree when a declared prop hides.
 
 import {deepCopyValue} from '../cloning/extrasValue.ts';
 
@@ -14,7 +13,7 @@ export interface HiddenKeyValue {
   mode: HiddenKeyMode;
 }
 
-/** Every plain object (prototype `Object.prototype`) with an own key, reached through plain objects and arrays. **/
+/** Plain objects with an own key, reached only through plain objects and arrays. **/
 function collectPlainObjects(value: unknown, path: (string | number)[], out: {target: object; path: (string | number)[]}[]) {
   if (Array.isArray(value)) {
     value.forEach((item, index) => collectPlainObjects(item, [...path, index], out));
