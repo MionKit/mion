@@ -1,7 +1,7 @@
 // Runtime-behavior assertions over the BUILT artifacts. Loads each app's dist
 // (produced by build-all.mjs — each bundler transformed the shared source through
 // its RunTypes plugin) and runs the app's selfCheck(). Proves the transform is
-// correct AFTER that bundler mangled it (ESM/CJS, tree-shaking, minification).
+// correct AFTER that bundler mangled it (tree-shaking, minification).
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {existsSync, readFileSync, readdirSync} from 'node:fs';

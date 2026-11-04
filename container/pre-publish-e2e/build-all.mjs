@@ -157,7 +157,7 @@ async function buildEsbuild(app) {
     bundle: true,
     format: 'esm',
     platform: 'node',
-    target: 'node22',
+    target: 'node24',
     outfile: path.join(appDir, 'dist/entry.js'),
     external: ['@mionjs/run-types', '@mionjs/run-types/*'],
     plugins: [runtypes(rtOptions(appDir))],

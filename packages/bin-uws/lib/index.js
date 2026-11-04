@@ -41,7 +41,7 @@ function overrideDir(env) {
   return dir;
 }
 
-// import.meta.resolve is sync on Node >= 20.6; createRequire is the fallback.
+// createRequire covers a runtime or loader that leaves import.meta.resolve undefined.
 function resolvePackageJson(specifier) {
   if (typeof import.meta.resolve === 'function') {
     return fileURLToPath(import.meta.resolve(specifier));
