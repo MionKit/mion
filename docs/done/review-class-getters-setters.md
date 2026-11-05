@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: guidelines
-status: ready
+status: done
 created: 2026-11-04
 ---
 
@@ -189,6 +189,27 @@ Gate: rebuild `mion-bin/mion`, `pnpm test`, `go -C ts-go-runtypes test ./interna
 `pnpm run format`, fuzz lane. Reconcile the spec and `git mv` it to `docs/done/`. Then review-pr (automatic),
 docs-simplifier + comments-simplifier in one message, PR with labels from `pr-ready.md`, drive CI to green, list
 every decision I made.
+
+## What shipped
+
+Differences from the plan above, and what it did not say:
+
+- **Strict benchmark.** `Object.getPrototypeOf` cut strict validate to 0.49x on valid data and 0.57x on invalid. Final
+  form against `main`, median of 4 to 6 interleaved rounds, geomean of the 4 `STRICT` cases, Node / Bun:
+  valid 0.92x / 0.91x, invalid 0.97x / 0.90x, mixed 0.97x / 0.93x. Round spread was up to 2% on Node, up to 6% on Bun.
+  The errors form stayed within 5%.
+- **A function-typed getter** (`get fn(): () => void`) is a method, so it stays dropped and does not take `readonly`.
+- **Printed declarations keep their ids.** `get` / `set` cannot spell an optional member, a readonly pair or a setter of
+  another type, so a printed member uses a `/** @accessor */` or `/** @accessorNoSetter */` tag, read like
+  `@nonEnumerable`. Outside a class every copy uses the tag.
+- **Source conversion refuses a copy of an accessor** (`Pick<User, 'fullName'>`): no builder can spell it.
+- **Union object arm:** each accessor copies under `'id' in v`, so a member without it stays without it.
+- **Limits left in place.** A format transform skips a no-setter member in a plain copy too, so `Pick` of a getter-only
+  member is not formatted on a plain value. A plain type given a class value with a getter-only member has no build-time
+  sign, so a format on it still throws.
+- **Mutate:** a getter that returns an inner array or object hands back that same object, and its contents are converted
+  in place, as for any field.
+- **Fuzz:** oracle O28 in the value lane's hidden pass, and the hidden getter now sits on a class prototype.
 
 ### Done when (mirrors the section above)
 
