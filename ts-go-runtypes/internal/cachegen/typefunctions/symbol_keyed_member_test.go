@@ -51,7 +51,7 @@ func TestSymbolKeyedProperty_StrictCountsStringKeysOnly(t *testing.T) {
 	tag := &reflection.RunType{ID: "pt", Kind: reflection.KindPropertySignature, Name: "\xFE@tag", Child: makeRef("s")}
 	obj := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pn"), makeRef("pt")}}
 	out := renderModule(t, protocol.Dump{RunTypes: []*reflection.RunType{value, name, tag, obj}}, "validateStrict")
-	if strings.Contains(out, "\xFE") || strings.Contains(out, "@tag") || !strings.Contains(out, "cntEK(v) === 1") {
+	if strings.Contains(out, "\xFE") || strings.Contains(out, "@tag") || !strings.Contains(out, "cntEK(v)) === 1") {
 		t.Errorf("the strict check must count one key and never name the symbol key; got:\n%s", out)
 	}
 }

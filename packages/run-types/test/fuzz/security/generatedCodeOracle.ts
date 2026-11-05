@@ -170,7 +170,7 @@ export function checkGeneratedCode(body: EmittedBody, markers: readonly string[]
       );
   }
   for (const match of residue.matchAll(/\.constructor\s*===\s*([\w$.]+)/g)) {
-    if (!CLASS_IDENTITY_LOOKUP.test(match[1]))
+    if (!CLASS_IDENTITY_LOOKUP.test(match[1]) && match[1] !== PLAIN_OBJECT_CONSTRUCTOR)
       push('GC-IDENTITY', `.constructor === ${match[1]}: a class arm compares against the registry lookup 'cix_<id>.cls'`);
   }
   if (/\bconstructor\s*\.\s*name\b/.test(residue))
@@ -200,6 +200,9 @@ const BUILTIN_CONSTRUCTORS = new Set<string>([
  *  real constructor. The `cix_` prefix keeps it apart from the `cs_` lookup a
  *  child serialize / deserialize body declares. **/
 const CLASS_IDENTITY_LOOKUP = /^cix_[A-Za-z_$][\w$]*\.cls$/;
+
+/** The plain object check of a key count: not a class identity, and a user class can never answer it. **/
+const PLAIN_OBJECT_CONSTRUCTOR = 'Object';
 
 /** The family tags whose bodies rebuild values from JSON: the two primitives and the three composites. **/
 const JSON_DECODER_FAMILIES = new Set(['rj', 'rjs', 'cjr', 'jdCL', 'jdMU', 'jdCO']);

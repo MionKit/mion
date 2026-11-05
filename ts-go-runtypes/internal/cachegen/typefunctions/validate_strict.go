@@ -65,10 +65,10 @@ func nodeTakesUnknownKeyCheck(rt *reflection.RunType, ctx *EmitContext, callSigC
 // the O(1) key count holds at any depth (else `{a,b,x}` passes for `{a,b,c}`), and the leading object guard
 // (or a union arm's) already ran. emitParentUnknownKeyErrors gates its key report on the same count.
 func strictObjectKeyAssertion(rt *reflection.RunType, ctx *EmitContext) string {
+	// Non-empty by now, since emitsUnknownKeyCheck already rejected the shapes whose scan returns "".
+	scan := "!(" + callCheckUnknownPropertiesForHas(rt, ctx, false) + ")"
 	if n, ok := countFastPathN(rt, ctx); ok {
-		return emitCountKeys(ctx, ctx.Vλl, n)
+		return emitStrictKeyCount(ctx, ctx.Vλl, n, scan)
 	}
-	// Ineligible for the count compare (optional props or non-RT children): fall back to the key-array scan, negated into
-	// the chain. Non-empty by now, since emitsUnknownKeyCheck already rejected the shapes whose scan returns "".
-	return "!(" + callCheckUnknownPropertiesForHas(rt, ctx, false) + ")"
+	return scan
 }

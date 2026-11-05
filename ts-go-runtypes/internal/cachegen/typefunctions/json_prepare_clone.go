@@ -13,10 +13,8 @@ import (
 // `prepareForJson + JSON.stringify` writes, flat-union envelopes included.
 // Cost model: one allocation per nested object / array node, with noop leaves (string, number, …)
 // shared by reference, then native JSON.stringify does the serialising.
-// Approach 3 fastpath: when the whole subtree is JSON-compatible (`isJsonCompatible` in
-// json_compat.go) AND every property is required, the object emit gates a runtime
-// `Object.keys(v).length === N` check that returns `v` unchanged. Mixed-optionality shapes always
-// build the clone — the fastpath check would be too expensive to short-circuit safely.
+// No key-count gate: on V8, `Object.keys(v).length === N` costs more than the rebuild, and a count
+// misses a class accessor.
 type PrepareForJsonCloneEmitter struct{}
 
 func (PrepareForJsonCloneEmitter) Args() []ArgSpec {
@@ -223,8 +221,7 @@ func (prop safePropEmit) presence() string {
 }
 
 // emitObjectPrepareForJsonClone builds a CodeRB block returning a new object of the declared keys
-// only, with transformed leaves. The Approach 3 fastpath short-circuits to `return v` when
-// `Object.keys(v).length === N`, and only when every prop is required and extra-proof.
+// only, with transformed leaves.
 func emitObjectPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	// A callable interface is DataOnly never: like a bare function, alwaysThrow at root and dropped at a property.
 	if isCallableValue(rt, ctx) {
@@ -232,10 +229,6 @@ func emitObjectPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v s
 	}
 	var props []safePropEmit
 	var indexSigs []*reflection.RunType
-	// `allExtraProof` is the stricter fastpath gate: a nested object child can be isJsonCompatible
-	// per the TYPE and still carry extras at runtime, which the outer's `return v` would leak.
-	allExtraProof := true
-	allRequired := true
 	for _, child := range objectMembers(rt) {
 		resolved := ctx.ResolveRef(child)
 		if resolved == nil {
@@ -252,7 +245,6 @@ func emitObjectPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v s
 		if resolved.Kind == reflection.KindIndexSignature {
 			// Deferred: the for-in tail below copies non-declared keys under the sig's transform.
 			indexSigs = append(indexSigs, resolved)
-			allExtraProof = false // index sig dynamic keys can't be passed through
 			continue
 		}
 		if resolved.Kind != reflection.KindProperty && resolved.Kind != reflection.KindPropertySignature {
@@ -275,12 +267,6 @@ func emitObjectPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v s
 		if !ok {
 			return RTCode{Code: "", Type: CodeNS}
 		}
-		if !isExtraProof(propResolved, ctx) {
-			allExtraProof = false
-		}
-		if resolved.Optional {
-			allRequired = false
-		}
 		prop := safePropEmit{
 			name:       resolved.Name,
 			isSafeName: resolved.IsSafeName,
@@ -296,7 +282,6 @@ func emitObjectPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v s
 		props = append(props, prop)
 	}
 
-	// An index signature walks every key at runtime, so the fastpath cannot apply.
 	// Skip ALL declared keys, not only kept props: a DROPPED one (`p0: ArrayBuffer`) must not be copied back in (G6).
 	if len(indexSigs) > 0 {
 		return buildSafeIndexSignatureObject(v, props, collectSiblingNamedKeys(rt, ctx), indexSigs, ctx)
@@ -307,23 +292,7 @@ func emitObjectPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v s
 		return RTCode{Code: "return {}", Type: CodeRB}
 	}
 
-	clone := buildSafeObjectClone(props, ctx)
-	if clone.Type == CodeRB {
-		// Mixed-optionality: the accumulator block self-returns, so it IS the factory body. Splice
-		// it directly instead of hoisting into a context fn, since the object emit sits in
-		// statement position. The fastpath below cannot apply: a CodeRB clone means at least one
-		// prop is optional.
-		return clone
-	}
-
-	// All required and extra-proof: at N keys the clone equals `v`, so skip it. `Object.keys` misses a class accessor.
-	fastpath := allExtraProof && allRequired && len(hiddenAccessors(rt, ctx)) == 0
-	if fastpath {
-		body := "if (Object.keys(" + v + ").length === " + strconv.Itoa(len(props)) + ") return " + v + ";" +
-			"return " + clone.Code
-		return RTCode{Code: body, Type: CodeRB}
-	}
-	return RTCode{Code: "return " + clone.Code, Type: CodeRB}
+	return buildSafeObjectClone(props, ctx)
 }
 
 // buildSafeIndexSignatureObject copies a key matching no pattern untouched, since validation refuses it.

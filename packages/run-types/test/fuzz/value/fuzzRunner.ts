@@ -5,7 +5,7 @@
 //   invalid  mutateToInvalid(valid)     → O2, O3, O4, O18
 //   extras   mutateWithExtras(valid)    → O18, O21
 //   unknown  plantUnknownKey(valid)     → O22, O23, O24, O25, O26
-//   hidden   hideOwnKey(valid / extras / planted) → O3, O21
+//   hidden   hideOwnKey(valid / extras / planted) → O3, O21, O28
 //   junk     randomJunk() (type-blind)  → O3, O4, O18
 //
 // O27 is run-level rather than per value: the report tallies the walker's positions per target and
@@ -27,6 +27,7 @@ import {
   checkErrorsAgree,
   checkFusedAgree,
   checkStrictSelfAgree,
+  checkHiddenKeyStrict,
   checkInvalidRejected,
   checkJsonStable,
   checkValidAccepted,
@@ -203,7 +204,7 @@ function fuzzOneIteration(target: FuzzTarget, seed: number, out: Violation[], un
   }
 
   // --- hidden-key pass (one own key turned non-enumerable, inherited or a prototype getter) ---
-  // Validate counts keys where its error twin names them; a hidden declared prop must not split them.
+  // A hidden declared prop is still declared, and must not split validate from its error twin.
   const hiddenCtx = {seed, phase: 'hidden' as const};
   for (const source of [valid, extras, planted?.value]) {
     if (source === null || source === undefined) continue;
@@ -211,6 +212,7 @@ function fuzzOneIteration(target: FuzzTarget, seed: number, out: Violation[], un
     if (!hidden) continue;
     push(out, checkValidateTotal(target, hidden.value, hiddenCtx));
     push(out, checkStrictSelfAgree(target, hidden.value, hiddenCtx));
+    push(out, checkHiddenKeyStrict(target, source, hidden, hiddenCtx));
   }
 
   // --- junk pass (type-blind random data; only robustness oracles apply) ---
