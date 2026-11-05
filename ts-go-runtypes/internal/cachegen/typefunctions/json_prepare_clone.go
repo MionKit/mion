@@ -583,6 +583,7 @@ func emitTuplePrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v st
 	}
 	var parts []string
 	restPart := ""
+	hasOptional := false
 	for _, child := range rt.Children {
 		resolved := ctx.ResolveRef(child)
 		if resolved == nil {
@@ -617,6 +618,7 @@ func emitTuplePrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v st
 			return RTCode{Code: "", Type: CodeNS}
 		}
 		if resolved.Optional {
+			hasOptional = true
 			// Replace an `undefined` slot with `null` so the JSON form keeps the slot, the tuple
 			// semantic for an optional at a non-trailing position.
 			expr = "(" + accessor + " === undefined ? null : " + expr + ")"
@@ -629,7 +631,12 @@ func emitTuplePrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v st
 	if len(parts) == 0 {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	return RTCode{Code: "[" + strings.Join(parts, ",") + "]", Type: CodeE}
+	tuple := "[" + strings.Join(parts, ",") + "]"
+	if hasOptional {
+		// A short tuple stays short: the literal holds every declared slot.
+		tuple += ".slice(0, " + v + ".length)"
+	}
+	return RTCode{Code: tuple, Type: CodeE}
 }
 
 // emitIndexSignaturePrepareForJsonClone produces a new object whose values are the child's
