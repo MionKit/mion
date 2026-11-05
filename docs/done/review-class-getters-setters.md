@@ -31,9 +31,9 @@ therefore handle it on purpose. An object literal getter is an own enumerable ke
   `DataOnly<T>`, and the symbol keeps its accessor flag in an intersection and an interface. Renamed keys and `Record`
   lose it, correctly, since those are new props.
 - `accessor x = 1` follows the same rule: it is a prop backed by hidden storage.
-- A plain type given a class value (`validate<Plain>(new Impl())`) cannot be detected at build time, and it stays as
-  `main` has it. Every exception is emitted at build time, only for a type that names an accessor, so any other type
-  keeps its exact code and speed.
+- A plain type given a class value (`validate<Plain>(new Impl())`) cannot be detected at build time. Strict checks the
+  value at runtime and clone never counts keys, so both answer right. Mutate and format exceptions are emitted only
+  for a type that names an accessor.
 
 ## Behavior per function
 
@@ -52,8 +52,8 @@ therefore handle it on purpose. An object literal getter is an own enumerable ke
 
 Direction for the two hard rows:
 
-- **Strict:** the count `cntEK(v) === N` cannot see an accessor, so a type that names one takes the key names
-  (`!hUKFA(v, k)`), as an optional prop already does. Validate and errors share the answer. Any other type keeps the count.
+- **Strict:** the count `cntEK(v) === N` cannot see an accessor, so it only answers on a plain object. Anything else takes
+  the key names (`!hUKFA(v, k)`), as an optional prop already does. Validate and errors share the answer.
 - **Mutate:** it works in place and `JSON.stringify` skips accessors, so an object with an accessor member must be
   copied instead, never written to. Today a setter gets the encoded value: `set n(v: bigint)` receives `"1"` and
   corrupts the instance.
@@ -104,7 +104,7 @@ change touched, review its report against the code, and commit it as its own com
 - Every function above behaves as the table says, tested.
 - A class instance with a getter passes strict, and an extra key on it fails, for validate and errors alike.
 - No function writes to a member the type marks as a getter or crashes on one, and encode never calls a setter it can see.
-- A type with no accessor emits the same code as `main`.
+- The strict change has benchmark numbers, with the user warned before the run.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file,
   each committed on its own.
 
@@ -130,14 +130,14 @@ this plan to it, and keep each fix below in its own commit with its own tests.
 
 ### 2. Strict
 
-`countFastPathN` answers no for a type with a hidden accessor. `strictObjectKeyAssertion` and
-`emitParentUnknownKeyErrors` then take the key names, with no new code in either. Fixes class, `Pick` and interface
-together. The union-keys families share this function.
+`strictObjectKeyAssertion` becomes `(kCnt = cntEK(v)) === N ? v.constructor === Object || scan : kCnt < N && scan`, where
+`scan` reads the key names. `emitParentUnknownKeyErrors` gates its report on the same check. Fixes class, `Pick`,
+interface and plain type + class value together. The union-keys families share this function.
 
 ### 3. Clone encode fast path (found while planning)
 
 `if (Object.keys(v).length === N) return v` in `json_prepare_clone.go` has the same hole: an accessor stays off the
-count. A type with a hidden accessor does not emit the fast path.
+count. The shortcut is gone: clone always builds the object, which measured no slower than counting.
 
 ### 4. Mutate encode
 
@@ -163,7 +163,8 @@ count. A type with a hidden accessor does not emit the fast path.
   value-first marker shapes, root and one level deep. Getter-only, pair, setter-only, mixed types, inherited, abstract,
   `static`, `private`; through interface, `Pick`, `Partial`, intersection, `DataOnly<T>`. All three JSON strategies
   round trip through decode and validate, registered class too. Encode never calls a setter.
-- The fuzz lane generates no accessor type, so its hidden key rules stay as they are.
+- Fuzz: in the hidden key lane, a valid value with a hidden declared key must pass strict, and an extra key beside it
+  must fail unless it fills the count of a plain object (known limit).
 
 ### Docs
 
@@ -175,9 +176,8 @@ count. A type with a hidden accessor does not emit the fast path.
 
 ### Benchmark
 
-Any type with no accessor emits the same bytes as `main`, so no run is needed. Proven by generating 184 entries over
-plain types, classes and copies on both and comparing them, once by hand. Go tests pin the strict count and the clone
-shortcut staying on plain types; the mutate and format gates are pinned by their paired tests.
+The plain object check adds one compare to a hot path. Before any run I post a heads-up with an end time, as the Mac is
+shared, then run the validator bench against the branch without it, and check the round spread. Numbers go in the PR.
 
 ### Finish
 
@@ -190,10 +190,10 @@ every decision I made.
 
 Differences from the plan above, and what it did not say:
 
-- **Compile-time only.** A runtime check on every object (`v.constructor === Object`) cost plain types 3 to 10 percent on
-  strict validate, and `Object.getPrototypeOf` halved it. The maintainer asked for no cost outside accessor types, so
-  those checks are gone and each exception is emitted only for a type that names an accessor. Copies count: `Pick`, an
-  interface with `get` and an intersection all say so at build time.
+- **A runtime check on strict only.** Compile-time gating left `strict<Shape>(classValue)` wrong, so the maintainer
+  accepted one compare on the count path. `Object.getPrototypeOf` halved strict validate, so it reads `v.constructor`.
+  Mutate and format exceptions stay compile-time only. Copies count: `Pick`, an interface with `get` and an
+  intersection all say so at build time.
 - **A function-typed getter** (`get fn(): () => void`) is a method, so it stays dropped and does not take `readonly`.
 - **Printed declarations keep their ids.** `get` / `set` cannot spell an optional member, a readonly pair or a setter of
   another type, so a printed member uses a `/** @accessor */` or `/** @accessorNoSetter */` tag, read like
@@ -208,23 +208,23 @@ Differences from the plan above, and what it did not say:
   hand-written one look the same, so writing it there opts that member in, with the same code an accessor gets.
 - **A format on a copy of a no-setter member** runs only where the value owns the key. A class
   value keeps answering through its accessor.
-- **Decided limit: a plain type trusts a plain value.** The same as on `main`. Given a class instance with no accessor in
-  the type, strict and clone count keys and miss the getter: `{get id, name}` fails strict for `{id, name}`, and
-  `{get id, name, extra}` passes it and goes through clone as it is, leaking `extra`. Mutate and a format write straight
-  to the instance: the setter runs, a getter-only member throws `TypeError`, and a mutate noop leaves a getter to
-  `JSON.stringify`, which drops it. Closing this needs a check on every object. Stated in the docs, pinned by tests.
+- **Decided limit: a plain type trusts a plain value, on mutate and format.** Given a class instance with no accessor in
+  the type, they write straight to the instance: the setter runs, a getter-only member throws `TypeError`, and a mutate
+  noop leaves a getter to `JSON.stringify`, which drops it. Only a noop can stay free, so no runtime check closes this.
+  Stated in the docs, pinned by tests.
+- **Known limit: strict on a hand-built plain value.** An own non-enumerable prop plus an extra key, or a getter on a
+  hand-built plain prototype plus an extra key, still match the count. Only in-process values can do that.
 - **Decided limit: key formats read own keys.** `minProperties`, `maxProperties` and `uniqueItems` work on the value's own
   keys, so they miss a getter, as they miss a `#private` field. They receive no type, and they target JSON-shaped data.
   Stated in the docs, pinned by a test.
 - **Mutate:** a getter that returns an inner array or object hands back that same object, and its contents are converted
   in place, as for any field.
-- **No new fuzz rule.** The value lane generates no accessor type, and its hidden key rules describe plain types, which
-  keep their answers. Accessor types are covered by the paired tests.
+- **Fuzz rule O28.** A declared key hidden from `for...in` passes strict, and an extra key beside it fails.
 
 ### Done when (mirrors the section above)
 
 - Every function behaves as the spec's table says, tested.
 - A class instance with a getter passes strict, an extra key on it fails, for validate and errors alike.
 - No function writes to a member the type marks as a getter or crashes on one, and encode never calls a setter it can see.
-- A type with no accessor emits the same code as `main`.
+- The strict change has benchmark numbers, with the user warned before the run.
 - simplify-docs ran on every touched page and simplify-comments on every touched source file, each its own commit.

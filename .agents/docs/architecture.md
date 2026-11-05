@@ -21,8 +21,8 @@ Load-bearing pipeline rules. Read before touching markers, rewrites, caches, val
 - Non-serialisable members (functions, symbols) drop with a build-time **Info** (hidden unless `levels: 'all'`).
   Decoders return `DataOnly<T>`.
 - A `get` / `set` member is a prop in every family, on any shape a mapped type copies it to. JS lists neither, so
-  a type naming one reads key names instead of counting, and a mutate encode works on a copy. All of it is emitted
-  only for such a type: any other type keeps its code, so never add a runtime check for accessors.
+  a strict key count only holds on a plain object (`v.constructor === Object`, else key names), and clone never
+  counts keys. Mutate works on a copy and a format skips a no-setter member, emitted only for a type naming one.
 - `any` / `unknown` the author wrote ARE data, kept for third-party types: accepted at every position in every
   family (a required member only needs its key). An Info at a root, never an error.
 - `any` from an unresolved name, import or lib = RuntimeError: `marker-any-from-unresolved-import`,
