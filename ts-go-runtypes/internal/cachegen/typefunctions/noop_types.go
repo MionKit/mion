@@ -538,6 +538,9 @@ func formatNoopObjectChildren(children []*reflection.RunType, ctx *EmitContext, 
 		if isMethodMember(resolved.Kind) {
 			continue
 		}
+		if hasNoSetter(resolved) {
+			continue
+		}
 		if !formatNoopRecursive(resolved, ctx, visited) {
 			return false
 		}

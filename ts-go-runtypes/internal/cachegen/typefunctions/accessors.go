@@ -25,6 +25,11 @@ func isHiddenAccessor(rt *reflection.RunType) bool {
 		!reflection.IsSymbolKeyedName(rt.Name) && !reflection.IsUnsafePropertyName(rt.Name)
 }
 
+// hasNoSetter reports an accessor no function may write: a write throws on a getter-only, or hands a setter the wrong type.
+func hasNoSetter(rt *reflection.RunType) bool {
+	return rt != nil && slices.Contains(rt.Flags, reflection.FlagAccessorNoSetter)
+}
+
 // hiddenAccessors lists rt's hidden accessor props.
 func hiddenAccessors(rt *reflection.RunType, ctx *EmitContext) []*reflection.RunType {
 	var members []*reflection.RunType

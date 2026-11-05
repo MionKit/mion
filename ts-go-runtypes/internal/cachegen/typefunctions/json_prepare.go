@@ -175,7 +175,7 @@ func emitObjectJsonPrepare(rt *reflection.RunType, ctx *EmitContext, v string) R
 	if copied == "" {
 		return children
 	}
-	return RTCode{Code: joinSemicolons(copied, children.Code), Type: CodeS}
+	return RTCode{Code: copied + ";" + children.Code, Type: CodeS}
 }
 
 // emitObjectJsonChildren is the object walk the restore side shares verbatim — the per-property
