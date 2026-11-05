@@ -119,6 +119,7 @@ describe('build gate — the mion-bin/mion stamp', () => {
       expect(out).not.toContain(`mion-bin/mion-linux-${GOARCH} is up to date (stamp)`);
       expect(out).toContain(`Built mion-bin/mion-linux-${GOARCH}.`);
       expect(statSync(LINUX_BIN).size).toBeGreaterThan(0);
+      expect(spawnSync('go', ['version', '-m', LINUX_BIN], {encoding: 'utf8'}).stdout).not.toContain('vcs.');
       expect(readFileSync(LINUX_STAMP, 'utf8')).toBe(linuxOriginal);
     },
     300_000

@@ -188,6 +188,7 @@ describe('go-inputs — the CI cache key for the prebuilt binaries', () => {
     const build = readFileSync(join(REPO_ROOT, 'container/website/scripts/build-playground.mjs'), 'utf8');
     const stale = build.slice(build.indexOf('function buildWasmIfStale()'));
     expect(stale.indexOf('if (!wasmMaybeStale())')).toBeLessThan(stale.indexOf("if (!which('go'))"));
+    expect(stale).toContain("run('go', ['build', '-buildvcs=false',");
   });
 
   it('keys the resolver and the extractor on their own inputs', () => {

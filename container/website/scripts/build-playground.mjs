@@ -99,8 +99,9 @@ function buildWasmIfStale() {
   const tmp = join(CACHE_DIR, `.wasm-ref-${process.pid}`);
   try {
     // No version ldflags: the asset is dev-only, and matching flags is what lets the
-    // staleness compare cache (see core/build.mjs checkGo). Keep it flagless.
-    const built = run('go', ['build', '-o', tmp, WASM_PKG], {cwd: GO_ROOT, env: {GOOS: 'js', GOARCH: 'wasm'}});
+    // staleness compare cache (see core/build.mjs checkGo). No git stamps either, so a
+    // commit in the main checkout cannot change the build ID of a worktree's wasm.
+    const built = run('go', ['build', '-buildvcs=false', '-o', tmp, WASM_PKG], {cwd: GO_ROOT, env: {GOOS: 'js', GOARCH: 'wasm'}});
     if (built !== 0) die('==> ERROR: wasm build failed.');
     if (existsSync(RAW_WASM) && sameAsDisk(tmp, RAW_WASM)) {
       // Inputs changed but the compiler produced the same bytes (comments, tests,
