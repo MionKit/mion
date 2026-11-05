@@ -988,8 +988,8 @@ func hasSignatureMembers(members []*objectMember) bool {
 	return false
 }
 
-// accessorTag names the tag a member needs to keep its id: every copy outside a class, a typeless member, and a class
-// setter of another type. spelled says the member prints `get` / `set`.
+// accessorTag names the tag keeping a member's id: a copy outside a class, a typeless member, a setter of another type.
+// spelled: the member prints `get` / `set`.
 func accessorTag(member *reflection.RunType, spelled, dataOnly bool) string {
 	noSetter := hasFlag(member, reflection.FlagAccessorNoSetter)
 	switch {

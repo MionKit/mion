@@ -38,8 +38,7 @@ func addObjectPropsToContext(rt *reflection.RunType, ctx *EmitContext) objectKey
 	}
 }
 
-// addWritableKeysToContext is addObjectPropsToContext for a class rebuild: strict keeps a getter-only member as known, a
-// rebuild must not write it. Shares the known-key array when nothing differs.
+// addWritableKeysToContext is for a class rebuild: strict knows a no-setter member, a rebuild must not write it.
 func addWritableKeysToContext(rt *reflection.RunType, ctx *EmitContext) string {
 	keys := addObjectPropsToContext(rt, ctx)
 	writable := slices.Clone(keys.rtChildrenNames)
@@ -207,18 +206,17 @@ func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 	return len(rtChildren), true
 }
 
-// keyCountVar holds the count between its two reads in emitStrictKeyCount; nothing runs between them, so one per closure is
-// safe. An expression has nowhere to declare a local.
+// keyCountVar is one per closure, safe as nothing runs between its two reads; an expression cannot declare a local.
 const keyCountVar = "kCnt"
 
-// emitCountKeys emits `cntEK(v) === N && <plain object>`; countEnumKeys picks its counter per engine, both pinned to answer
-// identically (packages/run-types/src/runtypes/pure-fns-utils.ts). False sends the caller to the key names.
+// emitCountKeys emits `cntEK(v) === N && <plain object>`; false sends the caller to the key names.
+// countEnumKeys picks its counter per engine, both pinned to match (packages/run-types/src/runtypes/pure-fns-utils.ts).
 func emitCountKeys(ctx *EmitContext, v string, n int) string {
 	return ctx.UsePureFn(purefnids.CountEnumKeys) + "(" + v + ") === " + strconv.Itoa(n) + " && " + emitPlainObject(v)
 }
 
-// emitStrictKeyCount answers from the count where it can, since the key names cost far more: over N keys is an unknown key,
-// N on a plain object is clean. Anything else may hide a declared prop, so `scan` reads the names.
+// emitStrictKeyCount answers from the count, as key names cost far more: over N is unknown, N on a plain object clean.
+// Anything else may hide a declared prop, so `scan` reads the names.
 func emitStrictKeyCount(ctx *EmitContext, v string, keyCount int, scan string) string {
 	ctx.SetContextItem(keyCountVar, "let "+keyCountVar+" = 0")
 	limit := strconv.Itoa(keyCount)
@@ -226,9 +224,8 @@ func emitStrictKeyCount(ctx *EmitContext, v string, keyCount int, scan string) s
 		emitPlainObject(v) + " || " + scan + " : " + keyCountVar + " < " + limit + " && " + scan + ")"
 }
 
-// emitPlainObject is the check that makes a key count exact: a class prop can hide from it on the prototype. Reads
-// `constructor` because `Object.getPrototypeOf` halves strict validate. A class always answers its own, so only a value on
-// a hand-built plain prototype gets through.
+// emitPlainObject makes a key count exact: a class prop can hide from it on the prototype.
+// `Object.getPrototypeOf` halves strict validate; every class answers its own, so only a hand-built plain prototype passes.
 func emitPlainObject(v string) string {
 	return v + ".constructor === Object"
 }

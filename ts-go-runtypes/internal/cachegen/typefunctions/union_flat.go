@@ -168,8 +168,7 @@ func emitUnionPrepareForJsonFlat(rt *reflection.RunType, ctx *EmitContext, v str
 	return RTCode{Code: prologue + strings.Join(clauses, ""), Type: CodeS}
 }
 
-// emitUnionAccessorCopy is the mutate copy for every object member: an accessor one member lacks reads undefined, which
-// the props and JSON both skip. Empty without an accessor.
+// emitUnionAccessorCopy copies all members' accessors: one the taken arm lacks reads undefined, which props and JSON skip.
 func emitUnionAccessorCopy(layout FlatLayout, v string, ctx *EmitContext) string {
 	var members []*reflection.RunType
 	var tests []string
