@@ -41,7 +41,7 @@ const small = mion.route((ctx: CallContext, n: number): number => n, {maxBodySiz
 function rawRequest(head: string, body: string, delayMs = 0, rawPort?: number): Promise<{status: number; body: string}> {
   return new Promise((resolve, reject) => {
     const socket = createConnection({host: '127.0.0.1', port: rawPort ?? port}, () => {
-      // One write unless a test wants a slow body: a body landing after a Connection: close answer resets the socket.
+      // One write: a body landing after a Connection: close answer resets the socket.
       if (!delayMs) return socket.write(head + body);
       socket.write(head);
       setTimeout(() => socket.write(body), delayMs);
