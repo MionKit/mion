@@ -139,9 +139,12 @@ export const pinnedGoVersion = () => `go${readFileSync(GO_VERSION_FILE, 'utf8').
 
 export const pendingPatches = (states) => states.filter((state) => !state.endsWith('=applied'));
 
+// Go finds a worktree's git state in the main checkout, so that checkout's commits would change the build ID.
+const GO_BUILD_FLAGS = ['-buildvcs=false'];
+
 // Needs no Go and no checkout: the gitlink pins the commit and its patches, so only UNapplied patches count.
 export function goIdentity() {
-  const identity = [pinnedGoVersion(), `${process.platform}/${process.arch}`, tsgolintCommit()];
+  const identity = [pinnedGoVersion(), `${process.platform}/${process.arch}`, tsgolintCommit(), ...GO_BUILD_FLAGS];
   if (submoduleInitialised()) identity.push(...pendingPatches(patchState()));
   return identity;
 }
@@ -176,7 +179,7 @@ function checkStampedGoBin({bin, stamp, pkg, digest, ldflags, trustStamp, env}) 
   if (!filled) {
     info(`Building ${name} (missing; may take a moment on a cold cache)...`);
     mkdirSync(dirname(bin), {recursive: true});
-    if (run('go', ['build', ...ldArgs, '-o', bin, pkg], {cwd: GO_ROOT, env}) !== 0) fail('Build failed.');
+    if (run('go', ['build', ...GO_BUILD_FLAGS, ...ldArgs, '-o', bin, pkg], {cwd: GO_ROOT, env}) !== 0) fail('Build failed.');
     writeStamp(stamp, digest);
     return success(`Built ${name}.`);
   }
@@ -185,7 +188,7 @@ function checkStampedGoBin({bin, stamp, pkg, digest, ldflags, trustStamp, env}) 
   info(`Verifying ${name} matches current source...`);
   const tmpBin = tempBesideBin(bin);
   try {
-    if (run('go', ['build', ...ldArgs, '-o', tmpBin, pkg], {cwd: GO_ROOT, env}) !== 0) fail('Reference build failed.');
+    if (run('go', ['build', ...GO_BUILD_FLAGS, ...ldArgs, '-o', tmpBin, pkg], {cwd: GO_ROOT, env}) !== 0) fail('Reference build failed.');
     const diskId = buildId(bin);
     const refId = buildId(tmpBin);
     // An unreadable binary on disk is just stale; only the reference must have an ID.

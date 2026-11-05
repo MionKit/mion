@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-11-05
 ---
 
@@ -42,3 +42,17 @@ binaries.
 
 - The build ID stays the same when the main checkout commits or gets dirty, and the case passes from a worktree.
 - Comment simplification pass done.
+
+## Plan: build without git stamps (approved 2026-11-05)
+
+- Pass `-buildvcs=false` to both `go build` calls in `checkStampedGoBin`, and add it to `goIdentity()`, so old binaries
+  rebuild once and the CI cache key changes once.
+- Applies to every local build, main checkout included. Worktrees and the main checkout then produce the same binary.
+- Left alone: the setup skill's raw `go build`, which the gate already replaces, and the release build, which has its own
+  script.
+- Test: `build-gate.test.ts` checks that `mion-bin/mion` has no `vcs.` stamps. It runs on Linux too, so CI guards the fix.
+
+## What shipped
+
+As planned. `go version -m` does not print the `-buildvcs=false` flag, so the test checks for missing `vcs.` lines. A build
+without the flag prints 3 of them. `status` moved to `done`.

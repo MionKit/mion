@@ -51,6 +51,12 @@ describe('build gate — the mion-bin/mion stamp', () => {
     if (original) writeFileSync(STAMP, original);
   });
 
+  it('a binary carries no git state, so a commit elsewhere cannot change its build ID', () => {
+    const {stdout} = spawnSync('go', ['version', '-m', join(REPO_ROOT, 'mion-bin/mion')], {encoding: 'utf8'});
+    expect(stdout).toContain('-compiler=gc');
+    expect(stdout).not.toContain('vcs.');
+  }, 60_000);
+
   it('a trusted call on a matching stamp skips the reference build', () => {
     const {status, out} = trusted();
     expect(status, out).toBe(0);

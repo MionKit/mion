@@ -130,6 +130,7 @@ describe('go-inputs — the CI cache key for the prebuilt binaries', () => {
     expect(pinnedGoVersion()).toMatch(/^go\d+\.\d+\.\d+$/);
     expect(identity).toContain(`${process.platform}/${process.arch}`);
     expect(identity).toContain(tsgolintCommit());
+    expect(identity).toContain('-buildvcs=false');
   });
 
   // The wasm is built with the pinned Go, so a Go bump must miss the cached one.
