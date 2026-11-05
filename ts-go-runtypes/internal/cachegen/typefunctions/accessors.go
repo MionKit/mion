@@ -1,6 +1,7 @@
 package typefunctions
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -15,6 +16,39 @@ func propertyAccessor(parent, name string, safe bool) string {
 		return parent + "." + name
 	}
 	return parent + "[" + quoteJS(name) + "]"
+}
+
+// isHiddenAccessor reports a class `get` or `set` prop, which `JSON.stringify` and a spread cannot see and a write would
+// reach as a setter call. Shared by the mutate copy and the noop predicates, so they cannot drift.
+func isHiddenAccessor(rt *reflection.RunType) bool {
+	return rt != nil && slices.Contains(rt.Flags, reflection.FlagAccessor) && !rt.IsStatic && !isMethodMember(rt.Kind) &&
+		!reflection.IsSymbolKeyedName(rt.Name) && !reflection.IsUnsafePropertyName(rt.Name)
+}
+
+// hiddenAccessors lists rt's hidden accessor props.
+func hiddenAccessors(rt *reflection.RunType, ctx *EmitContext) []*reflection.RunType {
+	var members []*reflection.RunType
+	for _, child := range objectMembers(rt) {
+		if resolved := ctx.ResolveRef(child); isHiddenAccessor(resolved) {
+			members = append(members, resolved)
+		}
+	}
+	return members
+}
+
+// emitAccessorCopy emits `v = {...v, id: v.id}` so a mutate encode writes to a copy that lists the accessor, never to the
+// instance. Undeclared keys stay, as mutate promises. Empty without an accessor.
+func emitAccessorCopy(rt *reflection.RunType, ctx *EmitContext, v string) string {
+	members := hiddenAccessors(rt, ctx)
+	if len(members) == 0 {
+		return ""
+	}
+	entries := make([]string, 0, len(members)+1)
+	entries = append(entries, "..."+v)
+	for _, member := range members {
+		entries = append(entries, jsonObjectKeyLiteral(member.Name, member.IsSafeName)+":"+propertyAccessor(v, member.Name, member.IsSafeName))
+	}
+	return v + " = {" + strings.Join(entries, ",") + "}"
 }
 
 // isEnumerabilityGuarded reports whether a property member's presence test and by-name write need a runtime

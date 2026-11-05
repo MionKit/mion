@@ -319,6 +319,9 @@ func jsonNoopObjectChildren(children []*reflection.RunType, ctx *EmitContext, mo
 		if isMethodMember(resolved.Kind) {
 			continue
 		}
+		if mode == noopModePrepare && isHiddenAccessor(resolved) {
+			return false
+		}
 		if !jsonNoopRecursive(resolved, ctx, mode, visited) {
 			return false
 		}

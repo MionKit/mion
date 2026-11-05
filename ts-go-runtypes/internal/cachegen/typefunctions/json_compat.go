@@ -194,6 +194,9 @@ func objectChildrenCompat(children []*reflection.RunType, ctx *EmitContext, visi
 		if isMethodMember(resolved.Kind) {
 			continue
 		}
+		if isHiddenAccessor(resolved) {
+			return false
+		}
 		if !jsonCompatRecursive(resolved, ctx, visited) {
 			return false
 		}
