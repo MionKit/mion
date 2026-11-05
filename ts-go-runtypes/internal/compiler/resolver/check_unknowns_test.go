@@ -730,3 +730,29 @@ export const encodePlain = createJsonEncoderFn(plain);
 export const encodeGetter = createJsonEncoderFn(withGetter);
 `))
 }
+
+func assertArrayBesideASetIsShared(t *testing.T, modules map[string]string) {
+	t.Helper()
+	for name, body := range modules {
+		if strings.Contains(body, "'array'") && strings.Contains(body, ".map(") {
+			t.Errorf("%s: a string array must be shared, not copied:\n%s", name, body)
+		}
+	}
+}
+
+// A Set element is a ref, and the verdict it reaches must not stick to `string`.
+func TestCloneEncode_ArrayBesideASetIsShared_Static(t *testing.T) {
+	assertArrayBesideASetIsShared(t, scanEntryModules(t, `import {createJsonEncoderFn} from '@mionjs/run-types';
+export const encodeSet = createJsonEncoderFn<Set<string>>();
+export const encodeArray = createJsonEncoderFn<string[]>();
+`))
+}
+
+func TestCloneEncode_ArrayBesideASetIsShared_Value(t *testing.T) {
+	assertArrayBesideASetIsShared(t, scanEntryModules(t, `import {createJsonEncoderFn} from '@mionjs/run-types';
+const set: Set<string> = new Set();
+const array: string[] = [];
+export const encodeSet = createJsonEncoderFn(set);
+export const encodeArray = createJsonEncoderFn(array);
+`))
+}

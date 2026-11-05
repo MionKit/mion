@@ -451,6 +451,9 @@ func jsonObjectKeyLiteral(name string, isSafeName bool) string {
 // a bigint / symbol literal) is not either, since sharing it by reference would skip the transform.
 // Cycle-safe: re-entry on an in-progress ID answers false, and cloning is always the safe answer.
 func isExtraProof(rt *reflection.RunType, ctx *EmitContext) bool {
+	// Resolve first, as isJsonCompatible does: a Map/Set element arrives as a ref, and its false would be memoized under
+	// the target's id, so `string[]` beside `Set<string>` would copy.
+	rt = ctx.ResolveRef(rt)
 	if rt != nil && rt.ID != "" {
 		if verdict, known := ctx.walker.factsLookup(factExtraProof, rt.ID); known {
 			return verdict
