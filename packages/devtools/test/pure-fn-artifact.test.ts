@@ -137,7 +137,7 @@ describe('the pure-fn artifact lands in every bundler output dir', () => {
   const register = hasBinary() ? it : it.skip;
 
   beforeAll(() => {
-    BASE = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-pure-fn-artifact-'));
+    BASE = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'rt-pure-fn-artifact-')));
   });
   afterAll(() => fs.rmSync(BASE, {recursive: true, force: true}));
 
