@@ -321,8 +321,8 @@ export function checkStrictSelfAgree(target: FuzzTarget, value: unknown, ctx: Ch
 
 /** O28 — a declared prop JS does not list is still declared. A value the strict validator accepted stays accepted with a
  *  key hidden, as long as plain `validate` agrees, since a class getter is exactly such a key. A real extra key elsewhere
- *  still fails, except on an own non-enumerable key: its extra key fills the count of a plain object, a known limit only
- *  an in-process value can reach. **/
+ *  still fails, except where the count cannot see the hidden key on a plain object: an own non-enumerable key, or a getter
+ *  on a plain prototype. Its extra key fills the count, a known limit only an in-process value can reach. **/
 export function checkHiddenKeyStrict(
   target: FuzzTarget,
   source: unknown,
@@ -348,7 +348,8 @@ export function checkHiddenKeyStrict(
   }
   const hiddenPath = pathKey([...hidden.path, hidden.key] as RTValidationErrorPathSegment[]);
   const extraRemains = sourceUnknown.some((path) => !isUnderPath(path, hiddenPath));
-  if (hidden.mode !== 'nonEnumerable' && extraRemains && hiddenAccepted) {
+  const countIsBlind = hidden.mode === 'nonEnumerable' || hidden.mode === 'plainGetter';
+  if (!countIsBlind && extraRemains && hiddenAccepted) {
     return violation('O28', target, ctx, `strict accepted an extra key beside one hidden as ${hidden.mode}`, hidden.value);
   }
   return null;

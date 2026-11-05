@@ -71,6 +71,7 @@ describe('checkHiddenKeyStrict (O28)', () => {
       (value) => (value === source ? extra : [])
     );
     expect(checkHiddenKeyStrict(acceptsHidden, source, hiddenAs('nonEnumerable'), ctx)).toBeNull();
+    expect(checkHiddenKeyStrict(acceptsHidden, source, hiddenAs('plainGetter'), ctx)).toBeNull();
     const extraHidden: HiddenKeyValue = {value: {}, path: [], key: 'extra', mode: 'getter'};
     expect(checkHiddenKeyStrict(acceptsHidden, source, extraHidden, ctx)).toBeNull();
   });
