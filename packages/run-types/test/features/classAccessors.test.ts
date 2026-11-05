@@ -108,17 +108,32 @@ describe('class accessors — strict', () => {
     expect(isUnion(new UserExtra())).toBe(false);
   });
 
-  it('a plain type counts keys, so it misses a getter on a class value (static shape)', () => {
-    const isStrict = createValidateFn<PlainHolder>(undefined, {checkUnknowns: true});
-    expect(isStrict({user: new User(), tag: 't'})).toBe(false);
-    expect(isStrict({user: new UserExtra(), tag: 't'})).toBe(true);
+  it('a plain type reads a getter on a class value (static shape)', () => {
+    const isStrict = createValidateFn<UserShape>(undefined, {checkUnknowns: true});
+    const errorsStrict = createGetValidationErrorsFn<UserShape>(undefined, {checkUnknowns: true});
+    expect([isStrict(new User()), errorsStrict(new User())]).toEqual([true, []]);
+    expect([isStrict(new UserExtra()), errorsStrict(new UserExtra())]).toEqual([false, extraError()]);
   });
 
-  it('a plain type counts keys, so it misses a getter on a class value (value shape)', () => {
+  it('a plain type reads a getter on a class value (value shape)', () => {
+    const sample: UserShape = {id: 1, name: 'a'};
+    const isStrict = createValidateFn(sample, {checkUnknowns: true});
+    const errorsStrict = createGetValidationErrorsFn(sample, {checkUnknowns: true});
+    expect([isStrict(new User()), errorsStrict(new User())]).toEqual([true, []]);
+    expect([isStrict(new UserExtra()), errorsStrict(new UserExtra())]).toEqual([false, extraError()]);
+  });
+
+  it('a plain type holds one level deep on a class value (static shape)', () => {
+    const isStrict = createValidateFn<PlainHolder>(undefined, {checkUnknowns: true});
+    expect(isStrict({user: new User(), tag: 't'})).toBe(true);
+    expect(isStrict({user: new UserExtra(), tag: 't'})).toBe(false);
+  });
+
+  it('a plain type holds one level deep on a class value (value shape)', () => {
     const sample: PlainHolder = {user: {id: 1, name: 'a'}, tag: 't'};
     const isStrict = createValidateFn(sample, {checkUnknowns: true});
-    expect(isStrict({user: new User(), tag: 't'})).toBe(false);
-    expect(isStrict({user: new UserExtra(), tag: 't'})).toBe(true);
+    expect(isStrict({user: new User(), tag: 't'})).toBe(true);
+    expect(isStrict({user: new UserExtra(), tag: 't'})).toBe(false);
   });
 });
 
@@ -189,15 +204,17 @@ describe('class accessors — clone encode', () => {
     expect(JSON.parse(createJsonEncoderFn(sample, {strategy: 'compact'})(new User()) as string)).toEqual(expected);
   });
 
-  it('a plain type counts keys, so a class value of the same count goes through as it is (static shape)', () => {
+  it('a plain type writes the getter of a class value, never an extra key (static shape)', () => {
     const encode = createJsonEncoderFn<UserShape>();
-    expect(JSON.parse(encode(new UserExtra()) as string)).toEqual({extra: 1, name: 'a'});
+    expect(JSON.parse(encode(new User()) as string)).toEqual({id: 1, name: 'a'});
+    expect(JSON.parse(encode(new UserExtra()) as string)).toEqual({id: 1, name: 'a'});
   });
 
-  it('a plain type counts keys, so a class value of the same count goes through as it is (value shape)', () => {
+  it('a plain type writes the getter of a class value, never an extra key (value shape)', () => {
     const sample: UserShape = {id: 1, name: 'a'};
     const encode = createJsonEncoderFn(sample);
-    expect(JSON.parse(encode(new UserExtra()) as string)).toEqual({extra: 1, name: 'a'});
+    expect(JSON.parse(encode(new User()) as string)).toEqual({id: 1, name: 'a'});
+    expect(JSON.parse(encode(new UserExtra()) as string)).toEqual({id: 1, name: 'a'});
   });
 });
 

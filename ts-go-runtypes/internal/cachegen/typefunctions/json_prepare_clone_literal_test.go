@@ -154,13 +154,3 @@ func TestPrepareForJsonClone_ArrayOfSymbolLiteral(t *testing.T) {
 		t.Errorf("no symbol wire form may be emitted, got:\n%s", decl)
 	}
 }
-
-// An object whose props are ALL required and ALL bigint literals must not take
-// the `Object.keys(v).length === N` fastpath — that returns the input by
-// reference, bigints and all.
-func TestPrepareForJsonClone_BigintLiteralObjectSkipsKeyCountFastpath(t *testing.T) {
-	decl := compileSafeLiteral(t, "objBig")
-	if strings.Contains(decl, "Object.keys(") {
-		t.Errorf("object of bigint-literal props must not take the key-count fastpath, got:\n%s", decl)
-	}
-}

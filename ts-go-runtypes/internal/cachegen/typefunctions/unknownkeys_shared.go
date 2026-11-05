@@ -169,7 +169,7 @@ func callCheckUnknownPropertiesForHas(rt *reflection.RunType, ctx *EmitContext, 
 }
 
 // countFastPathN returns N and whether `countEnumKeys(v) === N` is sound; it registers nothing in the closure prologue.
-// Validation must prove all N present (non-RT props are never validated) and the count must see each: no class accessor.
+// Validation must prove all N present, and non-RT props are never validated.
 func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 	rtNames, allNames := collectObjectChildNames(rt, ctx)
 	rtChildren := dedupSortStrings(rtNames)
@@ -194,9 +194,6 @@ func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 		if resolved.IsStatic || isMethodMember(resolved.Kind) {
 			continue
 		}
-		if isHiddenAccessor(resolved, ctx) {
-			return 0, false
-		}
 		// An array's `length` passes the property check but is not enumerable, so the count would miss it.
 		if resolved.Name == "length" {
 			return 0, false
@@ -208,10 +205,28 @@ func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 	return len(rtChildren), true
 }
 
-// emitCountKeys counts per engine, both counters pinned to match (packages/run-types/src/runtypes/pure-fns-utils.ts).
+// keyCountVar is one per closure, safe as nothing runs between its two reads; an expression cannot declare a local.
+const keyCountVar = "kCnt"
+
+// emitCountKeys emits `cntEK(v) === N && <plain object>`; false sends the caller to the key names.
+// countEnumKeys picks its counter per engine, both pinned to match (packages/run-types/src/runtypes/pure-fns-utils.ts).
 func emitCountKeys(ctx *EmitContext, v string, n int) string {
-	fnVar := ctx.UsePureFn(purefnids.CountEnumKeys)
-	return fnVar + "(" + v + ") === " + strconv.Itoa(n)
+	return ctx.UsePureFn(purefnids.CountEnumKeys) + "(" + v + ") === " + strconv.Itoa(n) + " && " + emitPlainObject(v)
+}
+
+// emitStrictKeyCount answers from the count, as key names cost far more: over N is unknown, N on a plain object clean.
+// Anything else may hide a declared prop, so `scan` reads the names.
+func emitStrictKeyCount(ctx *EmitContext, v string, keyCount int, scan string) string {
+	ctx.SetContextItem(keyCountVar, "let "+keyCountVar+" = 0")
+	limit := strconv.Itoa(keyCount)
+	return "((" + keyCountVar + " = " + ctx.UsePureFn(purefnids.CountEnumKeys) + "(" + v + ")) === " + limit + " ? " +
+		emitPlainObject(v) + " || " + scan + " : " + keyCountVar + " < " + limit + " && " + scan + ")"
+}
+
+// emitPlainObject makes a key count exact: a class prop can hide from it on the prototype.
+// `Object.getPrototypeOf` halves strict validate; every class answers its own, so only a hand-built plain prototype passes.
+func emitPlainObject(v string) string {
+	return v + ".constructor === Object"
 }
 
 // joinSemicolons joins non-empty strings with `;`, dropping the empty ones.
