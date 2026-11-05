@@ -106,17 +106,17 @@ func TestCollectionFormats_ErrorsLane(t *testing.T) {
 	ctx := newStubCtx()
 	got := lookupCollection(t, formattedSetName).EmitValidationErrorsCheck(
 		setAnnotation(map[string]any{"minItems": 1.0, "maxItems": 2.0, "uniqueItems": true}), "v", "pth", "er", ctx)
-	want := "if (v.size < 1) er.push({expected:'set',path:[...pth],format:{name:'formattedSet',formatPath:['minItems'],val:1}});" +
-		"if (v.size > 2) er.push({expected:'set',path:[...pth],format:{name:'formattedSet',formatPath:['maxItems'],val:2}});" +
-		"if (!(uniqueSetMembers(v))) er.push({expected:'set',path:[...pth],format:{name:'formattedSet',formatPath:['uniqueItems'],val:true}})"
+	want := "if (v.size < 1) er.push({expected:'set',path:pth.slice(),format:{name:'formattedSet',formatPath:['minItems'],val:1}});" +
+		"if (v.size > 2) er.push({expected:'set',path:pth.slice(),format:{name:'formattedSet',formatPath:['maxItems'],val:2}});" +
+		"if (!(uniqueSetMembers(v))) er.push({expected:'set',path:pth.slice(),format:{name:'formattedSet',formatPath:['uniqueItems'],val:true}})"
 	if got != want {
 		t.Errorf("set errors = %q\nwant %q", got, want)
 	}
 
 	got = lookupCollection(t, formattedMapName).EmitValidationErrorsCheck(
 		mapAnnotation(map[string]any{"maxItems": 2.0, "uniqueItems": true}), "v", "pth", "er", newStubCtx())
-	want = "if (v.size > 2) er.push({expected:'map',path:[...pth],format:{name:'formattedMap',formatPath:['maxItems'],val:2}});" +
-		"if (!(uniqueMapEntries(v))) er.push({expected:'map',path:[...pth],format:{name:'formattedMap',formatPath:['uniqueItems'],val:true}})"
+	want = "if (v.size > 2) er.push({expected:'map',path:pth.slice(),format:{name:'formattedMap',formatPath:['maxItems'],val:2}});" +
+		"if (!(uniqueMapEntries(v))) er.push({expected:'map',path:pth.slice(),format:{name:'formattedMap',formatPath:['uniqueItems'],val:true}})"
 	if got != want {
 		t.Errorf("map errors = %q\nwant %q", got, want)
 	}

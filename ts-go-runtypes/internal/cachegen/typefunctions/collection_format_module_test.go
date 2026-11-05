@@ -45,9 +45,9 @@ func TestCollectionFormat_ValidateSplicesAfterTheSetBody(t *testing.T) {
 func TestCollectionFormat_ErrorsGatedOnTheSetGuard(t *testing.T) {
 	out := renderErrorsToString(t, brandedSetDump())
 	for _, fragment := range []string{
-		"if (v instanceof Set) {if (v.size < 1) er.push({expected:'set',path:[...pth],format:{name:'formattedSet',formatPath:['minItems'],val:1}});",
-		"if (v.size > 2) er.push({expected:'set',path:[...pth],format:{name:'formattedSet',formatPath:['maxItems'],val:2}});",
-		"er.push({expected:'set',path:[...pth],format:{name:'formattedSet',formatPath:['uniqueItems'],val:true}})}",
+		"if (v instanceof Set) {if (v.size < 1) er.push({expected:'set',path:pth.slice(),format:{name:'formattedSet',formatPath:['minItems'],val:1}});",
+		"if (v.size > 2) er.push({expected:'set',path:pth.slice(),format:{name:'formattedSet',formatPath:['maxItems'],val:2}});",
+		"er.push({expected:'set',path:pth.slice(),format:{name:'formattedSet',formatPath:['uniqueItems'],val:true}})}",
 	} {
 		if !strings.Contains(out, fragment) {
 			t.Errorf("expected fragment %q in:\n%s", fragment, out)
@@ -103,7 +103,7 @@ func TestCollectionFormat_ContainsIteratesAMapWithForOf(t *testing.T) {
 	errors := renderErrorsToString(t, containsMapDump())
 	for _, fragment := range []string{
 		"for (const ci0 of v) {",
-		"er.push({expected:'map',path:[...pth],format:{name:'contains',formatPath:['minContains'],val:1}})",
+		"er.push({expected:'map',path:pth.slice(),format:{name:'contains',formatPath:['minContains'],val:1}})",
 	} {
 		if !strings.Contains(errors, fragment) {
 			t.Errorf("errors: expected fragment %q in:\n%s", fragment, errors)
@@ -130,8 +130,8 @@ func TestCollectionFormat_ContainsIteratesASetWithForOf(t *testing.T) {
 	errors := renderErrorsToString(t, containsSetDump())
 	for _, fragment := range []string{
 		"for (const ci0 of v) {",
-		"er.push({expected:'set',path:[...pth],format:{name:'contains',formatPath:['minContains'],val:1}})",
-		"er.push({expected:'set',path:[...pth],format:{name:'contains',formatPath:['maxContains'],val:2}})",
+		"er.push({expected:'set',path:pth.slice(),format:{name:'contains',formatPath:['minContains'],val:1}})",
+		"er.push({expected:'set',path:pth.slice(),format:{name:'contains',formatPath:['maxContains'],val:2}})",
 	} {
 		if !strings.Contains(errors, fragment) {
 			t.Errorf("errors: expected fragment %q in:\n%s", fragment, errors)

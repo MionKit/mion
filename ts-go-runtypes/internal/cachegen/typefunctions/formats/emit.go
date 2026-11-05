@@ -5,7 +5,7 @@ import "strconv"
 // FormatErrCall pushes the canonical nested RTValidationError `{expected, path, format: {name, formatPath, val}}`.
 // A bare `{name, formatPath, val}` push is invisible to consumers reading `.path` / `.format`.
 // Inlined rather than routed through a pure fn: a handful of bytes with no shared logic to factor out.
-// paramValLiteral is the already-rendered JS value; path is copied (`[...pth]`) so each pushed error owns its array.
+// paramValLiteral is the already-rendered JS value; path is copied (`pth.slice()`) so each pushed error owns its array.
 func FormatErrCall(pathExpr, errorsArr, expected, fmtName, paramName, paramValLiteral string) string {
 	return FormatErrCallWith(pathExpr, errorsArr, expected, fmtName, paramName, paramValLiteral, "")
 }
@@ -17,7 +17,7 @@ func FormatErrCallWith(pathExpr, errorsArr, expected, fmtName, paramName, paramV
 	if path == "" {
 		path = "pth"
 	}
-	return errorsArr + ".push({expected:'" + expected + "',path:[..." + path + "]," +
+	return errorsArr + ".push({expected:'" + expected + "',path:" + path + ".slice()," +
 		"format:{name:'" + fmtName + "',formatPath:['" + paramName + "'],val:" + paramValLiteral + extraFormatProps + "}})"
 }
 
