@@ -2,6 +2,7 @@ package typefunctions
 
 import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -41,14 +42,10 @@ func addObjectPropsToContext(rt *reflection.RunType, ctx *EmitContext) objectKey
 // rebuild must not write it. Shares the known-key array when nothing differs.
 func addWritableKeysToContext(rt *reflection.RunType, ctx *EmitContext) string {
 	keys := addObjectPropsToContext(rt, ctx)
-	writable := make([]string, 0, len(keys.rtChildrenNames))
-	blocked := map[string]bool{}
-	for _, member := range hiddenAccessors(rt, ctx) {
-		blocked[member.Name] = hasNoSetter(member)
-	}
-	for _, name := range keys.rtChildrenNames {
-		if !blocked[name] {
-			writable = append(writable, name)
+	writable := slices.Clone(keys.rtChildrenNames)
+	for _, child := range objectMembers(rt) {
+		if member := ctx.ResolveRef(child); hasNoSetter(member) {
+			writable = slices.DeleteFunc(writable, func(name string) bool { return name == member.Name })
 		}
 	}
 	if len(writable) == len(keys.rtChildrenNames) {
@@ -222,9 +219,9 @@ func emitCountKeys(ctx *EmitContext, v string, n int) string {
 
 // emitStrictKeyCount answers from the count where it can, since the key names cost far more: over N keys is an unknown key,
 // N on a plain object is clean. Anything else may hide a declared prop, so `scan` reads the names.
-func emitStrictKeyCount(ctx *EmitContext, v string, n int, scan string) string {
+func emitStrictKeyCount(ctx *EmitContext, v string, keyCount int, scan string) string {
 	ctx.SetContextItem(keyCountVar, "let "+keyCountVar+" = 0")
-	limit := strconv.Itoa(n)
+	limit := strconv.Itoa(keyCount)
 	return "((" + keyCountVar + " = " + ctx.UsePureFn(purefnids.CountEnumKeys) + "(" + v + ")) === " + limit + " ? " +
 		emitPlainObject(v) + " || " + scan + " : " + keyCountVar + " < " + limit + " && " + scan + ")"
 }
