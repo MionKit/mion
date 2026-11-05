@@ -121,6 +121,9 @@ func TestDeclPrinter_ClassAccessorsKeepTheirForm(t *testing.T) {
   set write(value: boolean);
   get mixed(): string; set mixed(value: number);
   get action(): () => void;
+  accessor auto: number;
+  private get hidden();
+  private get hiddenPair(); private set hiddenPair(value);
 }
 export interface Plain { get read(): number; get both(): string; set both(value: string) }
 export type Holder = {
