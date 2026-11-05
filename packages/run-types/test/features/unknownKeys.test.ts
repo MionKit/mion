@@ -60,7 +60,7 @@ describe('checkUnknowns — named nested types', () => {
   });
 
   it('compiles an all-required named child to the key-count compare', () => {
-    expect(createValidateFn<Address>(undefined, {checkUnknowns: true}).toString()).toContain('cntEK(v) === 2');
+    expect(createValidateFn<Address>(undefined, {checkUnknowns: true}).toString()).toContain('cntEK(v)) === 2');
   });
 
   it('keeps the key scan for a shape with an optional key', () => {
