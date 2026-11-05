@@ -439,7 +439,16 @@ func (ValidationErrorsEmitter) emitKindDefault(rt *reflection.RunType, ctx *Emit
 
 // EmitDependencyCall returns the call into a pre-rendered child validationErrors entry, wrapped in a
 // `pth.push(...) , <call> , pth.pop()…` envelope so the child's errors carry the right access-path prefix.
+// An override child gets its own copy of the path instead: user code may keep the array, and the live one is reused.
 func (ValidationErrorsEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
+	if ctx.walker.OverrideOpKey != "" && rt.Overrides[ctx.walker.OverrideOpKey] != "" {
+		pthArg := ctx.ArgName("pλth")
+		ownPath := pthArg + ".slice()"
+		if pathLit := ctx.AccessPathLiteral(""); pathLit != "" {
+			ownPath = pthArg + ".concat(" + pathLit + ")"
+		}
+		return ctx.emitDepCall(childID, ctx.Vλl+","+ownPath+","+ctx.ArgName("εrr"), "")
+	}
 	return ctx.emitPathTrackedDepCall(childID)
 }
 
