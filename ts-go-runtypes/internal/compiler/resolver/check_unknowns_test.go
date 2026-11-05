@@ -696,7 +696,7 @@ func assertOnlyAnAccessorTypeLeavesTheCount(t *testing.T, modules map[string]str
 	}
 }
 
-// A type with no accessor pays nothing: only a type that names one leaves the count for the key names.
+// A type with no accessor pays nothing.
 func TestCheckUnknowns_OnlyAnAccessorTypeLeavesTheCount_Static(t *testing.T) {
 	assertOnlyAnAccessorTypeLeavesTheCount(t, scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';`+accessorGateClasses+`
 export const isPlain = createValidateFn<Plain>(undefined, {checkUnknowns: true});
