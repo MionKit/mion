@@ -263,12 +263,14 @@ describe('class accessors — round trip', () => {
     registerClassSerializer(Tag, {});
     const isTag = createValidateFn<Tag>();
     const roundTrips = [
-      (tag: Tag) => createJsonDecoderFn<Tag>()(createJsonEncoderFn<Tag>()(tag)),
+      (tag: Tag) => createJsonDecoderFn<Tag>()(createJsonEncoderFn<Tag>()(tag) as string),
       (tag: Tag) =>
-        createJsonDecoderFn<Tag>(undefined, {strategy: 'mutate'})(createJsonEncoderFn<Tag>(undefined, {strategy: 'mutate'})(tag)),
+        createJsonDecoderFn<Tag>(undefined, {strategy: 'mutate'})(
+          createJsonEncoderFn<Tag>(undefined, {strategy: 'mutate'})(tag) as string
+        ),
       (tag: Tag) =>
         createJsonDecoderFn<Tag>(undefined, {strategy: 'compact'})(
-          createJsonEncoderFn<Tag>(undefined, {strategy: 'compact'})(tag)
+          createJsonEncoderFn<Tag>(undefined, {strategy: 'compact'})(tag) as string
         ),
     ];
     for (const roundTrip of roundTrips) {
@@ -286,9 +288,11 @@ describe('class accessors — round trip', () => {
     const sample = new Tag();
     const isTag = createValidateFn(sample);
     const roundTrips = [
-      (tag: Tag) => createJsonDecoderFn(sample)(createJsonEncoderFn(sample)(tag)),
-      (tag: Tag) => createJsonDecoderFn(sample, {strategy: 'mutate'})(createJsonEncoderFn(sample, {strategy: 'mutate'})(tag)),
-      (tag: Tag) => createJsonDecoderFn(sample, {strategy: 'compact'})(createJsonEncoderFn(sample, {strategy: 'compact'})(tag)),
+      (tag: Tag) => createJsonDecoderFn(sample)(createJsonEncoderFn(sample)(tag) as string),
+      (tag: Tag) =>
+        createJsonDecoderFn(sample, {strategy: 'mutate'})(createJsonEncoderFn(sample, {strategy: 'mutate'})(tag) as string),
+      (tag: Tag) =>
+        createJsonDecoderFn(sample, {strategy: 'compact'})(createJsonEncoderFn(sample, {strategy: 'compact'})(tag) as string),
     ];
     for (const roundTrip of roundTrips) {
       const original = source();
