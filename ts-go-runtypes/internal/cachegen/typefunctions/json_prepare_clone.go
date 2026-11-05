@@ -320,7 +320,7 @@ func emitObjectPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v s
 	// so a clean input skips the allocation. Past a plain object a declared prop can hide from the count.
 	fastpath := allExtraProof && allRequired
 	if fastpath {
-		body := "if (Object.keys(" + v + ").length === " + strconv.Itoa(len(props)) + " && " + emitPlainPrototype(v) + ") return " + v + ";" +
+		body := "if (Object.keys(" + v + ").length === " + strconv.Itoa(len(props)) + " && " + emitPlainObject(v) + ") return " + v + ";" +
 			"return " + clone.Code
 		return RTCode{Code: body, Type: CodeRB}
 	}

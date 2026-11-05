@@ -68,7 +68,7 @@ func strictObjectKeyAssertion(rt *reflection.RunType, ctx *EmitContext) string {
 	// Non-empty by now, since emitsUnknownKeyCheck already rejected the shapes whose scan returns "".
 	scan := "!(" + callCheckUnknownPropertiesForHas(rt, ctx, false) + ")"
 	if n, ok := countFastPathN(rt, ctx); ok {
-		return "(" + emitCountKeys(ctx, ctx.Vλl, n) + " || " + scan + ")"
+		return emitStrictKeyCount(ctx, ctx.Vλl, n, scan)
 	}
 	return scan
 }

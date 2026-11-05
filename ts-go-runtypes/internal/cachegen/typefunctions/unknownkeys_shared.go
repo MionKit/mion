@@ -210,16 +210,30 @@ func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 	return len(rtChildren), true
 }
 
+// keyCountVar holds the count between its two reads in emitStrictKeyCount; nothing runs between them, so one per closure is
+// safe. An expression has nowhere to declare a local.
+const keyCountVar = "kCnt"
+
 // emitCountKeys emits `cntEK(v) === N && <plain object>`; countEnumKeys picks its counter per engine, both pinned to answer
 // identically (packages/run-types/src/runtypes/pure-fns-utils.ts). False sends the caller to the key names.
 func emitCountKeys(ctx *EmitContext, v string, n int) string {
-	fnVar := ctx.UsePureFn(purefnids.CountEnumKeys)
-	return fnVar + "(" + v + ") === " + strconv.Itoa(n) + " && " + emitPlainPrototype(v)
+	return ctx.UsePureFn(purefnids.CountEnumKeys) + "(" + v + ") === " + strconv.Itoa(n) + " && " + emitPlainObject(v)
 }
 
-// emitPlainPrototype is the check that makes a key count exact: a declared prop can only hide from the count on a prototype.
-func emitPlainPrototype(v string) string {
-	return "Object.getPrototypeOf(" + v + ") === Object.prototype"
+// emitStrictKeyCount answers from the count where it can, since the key names cost far more: over N keys is an unknown key,
+// N on a plain object is clean. Anything else may hide a declared prop, so `scan` reads the names.
+func emitStrictKeyCount(ctx *EmitContext, v string, n int, scan string) string {
+	ctx.SetContextItem(keyCountVar, "let "+keyCountVar+" = 0")
+	limit := strconv.Itoa(n)
+	return "((" + keyCountVar + " = " + ctx.UsePureFn(purefnids.CountEnumKeys) + "(" + v + ")) === " + limit + " ? " +
+		emitPlainObject(v) + " || " + scan + " : " + keyCountVar + " < " + limit + " && " + scan + ")"
+}
+
+// emitPlainObject is the check that makes a key count exact: a class prop can hide from it on the prototype. Reads
+// `constructor` because `Object.getPrototypeOf` halves strict validate. A class always answers its own, so only a value on
+// a hand-built plain prototype gets through.
+func emitPlainObject(v string) string {
+	return v + ".constructor === Object"
 }
 
 // joinSemicolons joins non-empty strings with `;`, dropping the empty ones.
