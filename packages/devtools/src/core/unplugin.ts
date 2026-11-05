@@ -324,19 +324,15 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     if (resolver) return;
     cwdAbs = path.resolve(options.cwd ?? (viteRoot || process.cwd()));
     realCwdAbs = fs.existsSync(cwdAbs) ? fs.realpathSync(cwdAbs) : cwdAbs;
-    // Left empty when unset: the plugin can't parse tsconfig without a dep, so the Go side owns the
-    // <srcDir>/.mion default and echoes the resolved path back from generate().
+    // Empty when unset: no dep to parse tsconfig, so Go owns the <srcDir>/.mion default and echoes it from generate().
     genDirAbs = options.genDir ? path.resolve(cwdAbs, options.genDir) : '';
-    // Every knob below is forwarded ONLY when set explicitly here, so an unset one falls through to the
-    // tsconfig mion plugin entry and then the binary default — tsc-style precedence.
-    //
+    // Forward knobs below ONLY when set: unset falls to the tsconfig mion plugin entry, then the binary default.
     // Surface a config typo at the host boundary (the binary validates the merged value too).
     assertValidModuleMode(options.moduleMode);
     assertValidClientRoutes(options.clientRoutes);
     // getExePath throws with a clear message when no platform binary is installed.
     const binaryPath = options.binary ?? getExePath();
-    // Forward ONLY an explicit options.tsconfig: the Go side hard errors when it is missing or broken,
-    // and when unset it resolves the config exactly as tsc does, searching upward from cwd.
+    // Only an explicit tsconfig: Go hard errors on a missing or broken one; unset, it searches upward from cwd like tsc.
     resolver = new ResolverClient(binaryPath, cwdAbs, options.tsconfig ?? '', {
       ...(options.emitMode ? {emitMode: options.emitMode} : {}),
       ...(options.validate?.numberMode ? {numberMode: options.validate.numberMode} : {}),
@@ -356,10 +352,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       // Report on the wire for both 'file' and 'callback'; the JSON file only for 'file'.
       ...(reportEnabled ? {pureFnReportWire: true} : {}),
       ...(writeReportFile ? {pureFnReportFile: true} : {}),
-      // Session config the wire deliberately does not carry: an explicit genDir rides --gen-dir so EVERY op
-      // (generate, transform, enrich) roots identically, the plugin lane always relativizes transform
-      // imports (the generated modules are real files on disk), and locales/sourceLocale default from the
-      // tsconfig i18n block.
+      // Session config the wire does not carry: genDir rides --gen-dir so EVERY op roots identically.
+      // transformRelative: generated modules are real files; locales/sourceLocale default from the tsconfig i18n block.
       ...(genDirAbs ? {genDir: genDirAbs} : {}),
       ...(options.clientRoutes ? {clientRoutes: options.clientRoutes} : {}),
       transformRelative: true,
@@ -370,8 +364,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       ...(enrichLocales.length > 0 ? {enrichLocales} : {}),
       ...(enrichSourceLocale ? {enrichSourceLocale} : {}),
     });
-    // Unref right after spawn: the resolver stays usable, and losing the parent closes its stdin so the
-    // Go serve loop exits on EOF.
+    // The resolver stays usable, and losing the parent closes its stdin so the Go serve loop exits on EOF.
     if (options.detachResolver) resolver.unref();
   }
 
@@ -1017,7 +1010,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
         // `await` keeps rejections in this catch; returning the promise would bypass it.
         return await (transformMode === 'edits' ? transformViaEdits(this, rel, code) : transformViaGo(this, rel, {code}));
       } catch (error) {
-        // Text gates can admit files outside the program; a site-set miss must fail or real injections would be lost.
+        // Text gates can admit non-program files; a site-set file must still fail or real injections would be lost.
         if (inSiteSet || !(error instanceof Error && error.message.includes('source file not in program'))) throw error;
         failOnSymlinkedSite(id);
         return null;
