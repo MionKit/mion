@@ -112,7 +112,7 @@ func emitObjectFormat(rt *reflection.RunType, ctx *EmitContext, _ string) RTCode
 	var parts []string
 	for _, child := range objectMembers(rt) {
 		resolved := ctx.ResolveRef(child)
-		if resolved == nil || resolved.IsStatic || isMethodMember(resolved.Kind) {
+		if resolved == nil || resolved.IsStatic || isMethodMember(resolved.Kind) || hasNoSetter(resolved) {
 			continue
 		}
 		childRT := ctx.CompileChild(child, CodeS)

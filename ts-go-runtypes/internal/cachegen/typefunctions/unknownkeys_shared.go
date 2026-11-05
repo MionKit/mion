@@ -37,6 +37,30 @@ func addObjectPropsToContext(rt *reflection.RunType, ctx *EmitContext) objectKey
 	}
 }
 
+// addWritableKeysToContext is addObjectPropsToContext for a class rebuild: strict keeps a getter-only member as known, a
+// rebuild must not write it. Shares the known-key array when nothing differs.
+func addWritableKeysToContext(rt *reflection.RunType, ctx *EmitContext) string {
+	keys := addObjectPropsToContext(rt, ctx)
+	writable := make([]string, 0, len(keys.rtChildrenNames))
+	blocked := map[string]bool{}
+	for _, member := range hiddenAccessors(rt, ctx) {
+		blocked[member.Name] = hasNoSetter(member)
+	}
+	for _, name := range keys.rtChildrenNames {
+		if !blocked[name] {
+			writable = append(writable, name)
+		}
+	}
+	if len(writable) == len(keys.rtChildrenNames) {
+		return keys.keysName
+	}
+	keysName := "kw_" + rt.ID
+	if !ctx.HasContextItem(keysName) {
+		ctx.SetContextItem(keysName, "const "+keysName+" = "+arrayToJSLiteral(writable))
+	}
+	return keysName
+}
+
 // collectObjectChildNames returns the RT-included property names and the FULL set, which keeps the children RT drops.
 // Both lists exclude index-signature children (they have no property name) and children with empty names.
 func collectObjectChildNames(rt *reflection.RunType, ctx *EmitContext) (rtNames []string, allNames []string) {

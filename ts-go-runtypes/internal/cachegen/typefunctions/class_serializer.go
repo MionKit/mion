@@ -133,7 +133,7 @@ func wrapRestoreWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, v 
 		return structural
 	}
 	csVar, decl := classSerializerLookup(ctx, rt.ID, className)
-	keys := addObjectPropsToContext(rt, ctx).keysName
+	keys := addWritableKeysToContext(rt, ctx)
 	custom := v + " = utl.deserializeClass(" + csVar + ", " + v + ", " + keys + ")"
 	structuralThenRebuild := structural.Code
 	if structuralThenRebuild != "" {
