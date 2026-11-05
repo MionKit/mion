@@ -95,11 +95,8 @@ export const isUser = createValidateFn<User>(undefined, {checkUnknowns: true});
 		t.Fatalf("no validateStrict entry emitted\nmodules: %v", keys(modules))
 	}
 	body := modules[name]
-	if !strings.Contains(body, "((kCnt = cntEK(v)) === 2 ? v.constructor === Object || !(hUKFA(v, ") {
+	if !strings.Contains(body, "=== 2") {
 		t.Errorf("all-required 2-prop shape did not use the key-count compare:\n%s", body)
-	}
-	if !strings.Contains(body, ": kCnt < 2 && !(hUKFA(v, ") {
-		t.Errorf("under the count, a shape must still scan its key names:\n%s", body)
 	}
 	// The count compare comes last: the property checks it depends on precede it.
 	countAt := strings.Index(body, "=== 2")
@@ -616,7 +613,7 @@ export const isNames = createValidateFn<string[]>(undefined, {checkUnknowns: tru
 	})
 }
 
-// An all-required error twin gates on validate's key count, so a plain object with the right keys reports nothing.
+// An all-required error twin gates on validate's key count, or a getter leaves validate rejecting with no errors.
 func strictErrorsBody(t *testing.T, source string) string {
 	t.Helper()
 	modules := scanEntryModules(t, source)
@@ -630,12 +627,12 @@ func strictErrorsBody(t *testing.T, source string) string {
 func assertErrorsGateOnKeyCount(t *testing.T, body string) {
 	t.Helper()
 	snapshotAt := strings.Index(body, "const ne0 = er.length;")
-	gateAt := strings.Index(body, "if (!(er.length === ne0) || !(cntEK(v) === 2 && v.constructor === Object))")
+	gateAt := strings.Index(body, "if (!(er.length === ne0) || !(cntEK(v) === 2))")
 	if snapshotAt < 0 || gateAt < 0 || snapshotAt > gateAt {
 		t.Errorf("all-required shape's error report is not gated on the key count after an error-count snapshot:\n%s", body)
 	}
-	if strings.Contains(body, `if (er.length === ne0) nRT(pth,er,\'objectLiteral\')`) {
-		t.Errorf("an off count with no unknown name is a valid value and must not report:\n%s", body)
+	if !strings.Contains(body, `if (er.length === ne0) nRT(pth,er,\'objectLiteral\')`) {
+		t.Errorf("an off count with no unknown name reports nothing:\n%s", body)
 	}
 }
 
@@ -672,4 +669,28 @@ func TestCheckUnknowns_OptionalPropErrorsTakeNoKeyCount_Value(t *testing.T) {
 const user: {a: string; b?: number} = {a: 'x'};
 export const userErrors = createGetValidationErrorsFn(user, {checkUnknowns: true});
 `))
+}
+
+// A type with no accessor pays nothing: only a type that names one leaves the count for the key names.
+func TestCheckUnknowns_OnlyAnAccessorTypeLeavesTheCount(t *testing.T) {
+	modules := scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';
+class Plain {a = ''; b = 1}
+class WithGetter {a = ''; get b(): number { return 1; }}
+export const isPlain = createValidateFn<Plain>(undefined, {checkUnknowns: true});
+export const isGetter = createValidateFn<WithGetter>(undefined, {checkUnknowns: true});
+`)
+	plain, ok := findEntryWith(modules, "'Plain'")
+	if !ok {
+		t.Fatalf("no entry for Plain\nmodules: %v", keys(modules))
+	}
+	if body := modules[plain]; !strings.Contains(body, "cntEK(v) === 2") || strings.Contains(body, "hUKFA") || strings.Contains(body, "constructor") {
+		t.Errorf("a class with no accessor must keep the bare key count:\n%s", body)
+	}
+	getter, ok := findEntryWith(modules, "'WithGetter'")
+	if !ok {
+		t.Fatalf("no entry for WithGetter\nmodules: %v", keys(modules))
+	}
+	if body := modules[getter]; strings.Contains(body, "cntEK") || !strings.Contains(body, "hUKFA(v, ") {
+		t.Errorf("a class with a getter must read the key names:\n%s", body)
+	}
 }

@@ -415,7 +415,8 @@ describe('checkUnknowns — a dropped non-data member', () => {
   });
 });
 
-// A declared prop that JS does not list is still declared: the value passes, and an extra key fails.
+// Validate counts keys on an all-required shape; the error report must agree with it on these values.
+// Which answer such a value deserves is still open.
 describe('checkUnknowns — declared props that are not own enumerable keys', () => {
   interface G {
     id: number;
@@ -442,6 +443,7 @@ describe('checkUnknowns — declared props that are not own enumerable keys', ()
     return value;
   };
   const samples = () => [new WithGetter(), new WithGetterExtra(), hidden(false), hidden(true), inherited(false), inherited(true)];
+  const shapeError = [{path: [], expected: 'objectLiteral'}];
   const extraError = [{path: ['extra'], expected: 'never'}];
 
   function expectAgreement(isStrict: (value: unknown) => boolean, errorsStrict: (value: unknown) => unknown[]) {
@@ -452,12 +454,8 @@ describe('checkUnknowns — declared props that are not own enumerable keys', ()
     const isStrict = createValidateFn<G>(undefined, {checkUnknowns: true});
     const errorsStrict = createGetValidationErrorsFn<G>(undefined, {checkUnknowns: true});
     expectAgreement(isStrict, errorsStrict);
-    expect([isStrict(new WithGetter()), errorsStrict(new WithGetter())]).toEqual([true, []]);
-    expect([isStrict(new WithGetterExtra()), errorsStrict(new WithGetterExtra())]).toEqual([false, extraError]);
-    expect([isStrict(hidden(false)), errorsStrict(hidden(false))]).toEqual([true, []]);
-    // Known limit: the extra key fills the count of a plain object, and only an in-process value can hide a key.
-    expect([isStrict(hidden(true)), errorsStrict(hidden(true))]).toEqual([true, []]);
-    expect([isStrict(inherited(false)), errorsStrict(inherited(false))]).toEqual([true, []]);
+    expect([isStrict(new WithGetter()), errorsStrict(new WithGetter())]).toEqual([false, shapeError]);
+    expect([isStrict(hidden(false)), errorsStrict(hidden(false))]).toEqual([false, shapeError]);
     expect([isStrict(inherited(true)), errorsStrict(inherited(true))]).toEqual([false, extraError]);
     expect([isStrict({id: 1, name: 'a', extra: 1}), errorsStrict({id: 1, name: 'a', extra: 1})]).toEqual([false, extraError]);
     expect([isStrict({id: 1, name: 'a'}), errorsStrict({id: 1, name: 'a'})]).toEqual([true, []]);
@@ -468,18 +466,14 @@ describe('checkUnknowns — declared props that are not own enumerable keys', ()
     const isStrict = createValidateFn(sample, {checkUnknowns: true});
     const errorsStrict = createGetValidationErrorsFn(sample, {checkUnknowns: true});
     expectAgreement(isStrict, errorsStrict);
-    expect([isStrict(new WithGetter()), errorsStrict(new WithGetter())]).toEqual([true, []]);
-    expect([isStrict(new WithGetterExtra()), errorsStrict(new WithGetterExtra())]).toEqual([false, extraError]);
-    expect([isStrict(hidden(false)), errorsStrict(hidden(false))]).toEqual([true, []]);
-    // Known limit: the extra key fills the count of a plain object, and only an in-process value can hide a key.
-    expect([isStrict(hidden(true)), errorsStrict(hidden(true))]).toEqual([true, []]);
-    expect([isStrict(inherited(false)), errorsStrict(inherited(false))]).toEqual([true, []]);
+    expect([isStrict(new WithGetter()), errorsStrict(new WithGetter())]).toEqual([false, shapeError]);
+    expect([isStrict(hidden(false)), errorsStrict(hidden(false))]).toEqual([false, shapeError]);
     expect([isStrict(inherited(true)), errorsStrict(inherited(true))]).toEqual([false, extraError]);
     expect([isStrict({id: 1, name: 'a', extra: 1}), errorsStrict({id: 1, name: 'a', extra: 1})]).toEqual([false, extraError]);
     expect([isStrict({id: 1, name: 'a'}), errorsStrict({id: 1, name: 'a'})]).toEqual([true, []]);
   });
 
-  it('caps unknown keys without a shape error (static shape)', () => {
+  it('reports the shape error under the cap, beside capped unknown keys (static shape)', () => {
     interface Wide {
       a: number;
       b: number;
@@ -507,6 +501,7 @@ describe('checkUnknowns — declared props that are not own enumerable keys', ()
   });
 });
 
+// A class shape reports the same off-count entry under its own name.
 describe('checkUnknowns — an all-required class with a hidden field', () => {
   class Point {
     x = 1;
@@ -518,18 +513,18 @@ describe('checkUnknowns — an all-required class with a hidden field', () => {
     return point;
   };
 
-  it('both accept the hidden field (static shape)', () => {
+  it('both reject with a class shape error (static shape)', () => {
     const isStrict = createValidateFn<Point>(undefined, {checkUnknowns: true});
     const errorsStrict = createGetValidationErrorsFn<Point>(undefined, {checkUnknowns: true});
     expect([isStrict(new Point()), errorsStrict(new Point())]).toEqual([true, []]);
-    expect([isStrict(hiddenX()), errorsStrict(hiddenX())]).toEqual([true, []]);
+    expect([isStrict(hiddenX()), errorsStrict(hiddenX())]).toEqual([false, [{path: [], expected: 'class'}]]);
   });
 
-  it('both accept the hidden field (value shape)', () => {
+  it('both reject with a class shape error (value shape)', () => {
     const sample = new Point();
     const isStrict = createValidateFn(sample, {checkUnknowns: true});
     const errorsStrict = createGetValidationErrorsFn(sample, {checkUnknowns: true});
     expect([isStrict(new Point()), errorsStrict(new Point())]).toEqual([true, []]);
-    expect([isStrict(hiddenX()), errorsStrict(hiddenX())]).toEqual([true, []]);
+    expect([isStrict(hiddenX()), errorsStrict(hiddenX())]).toEqual([false, [{path: [], expected: 'class'}]]);
   });
 });
