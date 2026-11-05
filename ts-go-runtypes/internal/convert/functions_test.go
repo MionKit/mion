@@ -113,6 +113,16 @@ func TestClassAccessorCopy_Refused(t *testing.T) {
 	}
 }
 
+func TestClassAccessorOfAFunction_NotRefusedAsAccessor(t *testing.T) {
+	source := "declare class Doors { get run(): () => void; both: string }\nexport type Picked = Pick<Doors, 'run'>;\n"
+	_, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
+	for _, diag := range diags {
+		if strings.Contains(diag.Message, "class getter or setter") {
+			t.Fatalf("a getter of a function is a method, got %+v", diag)
+		}
+	}
+}
+
 func TestParameterDefault_Refused(t *testing.T) {
 	source := "function greet(name = 'ana'): string {\n  return name;\n}\nexport type Greeter = typeof greet;\n"
 	_, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
