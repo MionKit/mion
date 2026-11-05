@@ -319,10 +319,8 @@ export function checkStrictSelfAgree(target: FuzzTarget, value: unknown, ctx: Ch
   return null;
 }
 
-/** O28 — a declared prop JS does not list is still declared. A value the strict validator accepted stays accepted with a
- *  key hidden, as long as plain `validate` agrees, since a class getter is exactly such a key. A real extra key elsewhere
- *  still fails, except where the count cannot see the hidden key on a plain object: an own non-enumerable key, or a getter
- *  on a plain prototype. Its extra key fills the count, a known limit only an in-process value can reach. **/
+/** O28 — with a key hidden, strict still accepts what it did if plain `validate` agrees: a class getter is such a key.
+ *  An extra key elsewhere fails too, unless it fills a plain object's count: a limit only in-process values reach. **/
 export function checkHiddenKeyStrict(
   target: FuzzTarget,
   source: unknown,

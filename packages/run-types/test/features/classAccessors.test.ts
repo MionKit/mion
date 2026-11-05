@@ -278,7 +278,7 @@ describe('class accessors — a getter the data shape strips', () => {
   });
 });
 
-// The test build leaves `accessor` as written, which Node cannot run: the type uses the keyword, the value is what it compiles to.
+// Node cannot run the `accessor` the test build leaves as written: the type uses the keyword, the value its compiled form.
 declare class Auto {
   name: string;
   accessor count: number;

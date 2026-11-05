@@ -17,21 +17,19 @@ func propertyAccessor(parent, name string, safe bool) string {
 	return parent + "[" + quoteJS(name) + "]"
 }
 
-// isHiddenAccessor reports a class `get` or `set` prop, which `JSON.stringify` and a spread cannot see and a write would
-// reach as a setter call. Shared by the mutate copy and the noop predicates, so they cannot drift. A stripped member is
-// not one: the wire never holds it, so reading it would only run the getter.
+// isHiddenAccessor reports a class `get` / `set` prop: `JSON.stringify` and a spread miss it, a write calls the setter.
+// Shared so mutate copy and noop predicates cannot drift; a stripped member is off the wire, a read only runs its getter.
 func isHiddenAccessor(rt *reflection.RunType, ctx *EmitContext) bool {
 	return rt != nil && hasFlag(rt.Flags, reflection.FlagAccessor) && !rt.IsStatic &&
 		!reflection.IsSymbolKeyedName(rt.Name) && !reflection.IsUnsafePropertyName(rt.Name) &&
 		!isStrippedUnionMember(ctx.ResolveRef(rt.Child), ctx)
 }
 
-// hasNoSetter reports an accessor no function may write: a write throws on a getter-only, or hands a setter the wrong type.
+// hasNoSetter reports an accessor no function may write (typeid.HasNoUsableSetter).
 func hasNoSetter(rt *reflection.RunType) bool {
 	return rt != nil && hasFlag(rt.Flags, reflection.FlagAccessorNoSetter)
 }
 
-// hiddenAccessors lists rt's hidden accessor props.
 func hiddenAccessors(rt *reflection.RunType, ctx *EmitContext) []*reflection.RunType {
 	var members []*reflection.RunType
 	for _, child := range objectMembers(rt) {
@@ -42,8 +40,8 @@ func hiddenAccessors(rt *reflection.RunType, ctx *EmitContext) []*reflection.Run
 	return members
 }
 
-// emitAccessorCopy emits `v = {...v, id: v.id}` so a mutate encode writes to a copy that lists the accessors, never to the
-// instance. Undeclared keys stay, as mutate promises.
+// emitAccessorCopy emits `v = {...v, id: v.id}`: a mutate encode writes a copy listing the accessors, never the instance.
+// Undeclared keys stay, as mutate promises.
 func emitAccessorCopy(members []*reflection.RunType, v string) string {
 	entries := make([]string, 0, len(members)+1)
 	entries = append(entries, "..."+v)
