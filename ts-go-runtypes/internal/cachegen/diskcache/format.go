@@ -38,7 +38,7 @@ import "encoding/json"
 // v20 stores structural ids as base64 (StructuralText): JSON turned a symbol key's 0xFE into U+FFFD, so those entries missed.
 // v21 renames every diagnostic code to its readable name: a v20 entry's stored codes are unknown, and replaying one panics.
 // v22 reshapes pure-fn ids (`_rt:<10-char hash>`, comment-free bodies): a v21 entry bakes ids nothing registers.
-// v23 changes the strict, clone and mutate code of a class accessor under ids that did not move: a v22 entry rejects a real instance.
+// v23 changes class accessor strict, clone and mutate code under unmoved ids: a v22 entry rejects a real instance.
 const FormatVersion = 23
 
 // StructuralText is a structural id stored as base64: a JSON string cannot carry tsgo's raw 0xFE symbol-key byte.

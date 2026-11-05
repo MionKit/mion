@@ -168,10 +168,8 @@ func callCheckUnknownPropertiesForHas(rt *reflection.RunType, ctx *EmitContext, 
 	return fnVar + "(" + ctx.Vλl + ", " + keysCtx.keysName + ")"
 }
 
-// countFastPathN returns N and whether the fused validators' `countEnumKeys(v) === N` fast path is sound here: every RT
-// child REQUIRED (validation proved all N present), no index-signature child, no class accessor (the count cannot see
-// one, so that type alone takes the key names) and RT children equal ALL children (non-RT props are never validated).
-// It registers nothing in the closure prologue.
+// countFastPathN returns N and whether `countEnumKeys(v) === N` is sound; it registers nothing in the closure prologue.
+// Validation must prove all N present (non-RT props are never validated) and the count must see each: no class accessor.
 func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 	rtNames, allNames := collectObjectChildNames(rt, ctx)
 	rtChildren := dedupSortStrings(rtNames)
@@ -210,8 +208,7 @@ func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 	return len(rtChildren), true
 }
 
-// emitCountKeys emits `cntEK(v) === N`; countEnumKeys picks its counter per engine, both pinned to answer identically
-// (packages/run-types/src/runtypes/pure-fns-utils.ts).
+// emitCountKeys counts per engine, both counters pinned to match (packages/run-types/src/runtypes/pure-fns-utils.ts).
 func emitCountKeys(ctx *EmitContext, v string, n int) string {
 	fnVar := ctx.UsePureFn(purefnids.CountEnumKeys)
 	return fnVar + "(" + v + ") === " + strconv.Itoa(n)

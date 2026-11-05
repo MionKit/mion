@@ -316,8 +316,7 @@ func emitObjectPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v s
 		return clone
 	}
 
-	// With every prop required and extra-proof, the declared-key clone equals `v` whenever
-	// `Object.keys(v).length === N`, so a clean input skips the allocation. A class accessor stays off that count.
+	// All required and extra-proof: at N keys the clone equals `v`, so skip it. `Object.keys` misses a class accessor.
 	fastpath := allExtraProof && allRequired && len(hiddenAccessors(rt, ctx)) == 0
 	if fastpath {
 		body := "if (Object.keys(" + v + ").length === " + strconv.Itoa(len(props)) + ") return " + v + ";" +
@@ -778,12 +777,8 @@ func emitUnionPrepareForJsonCloneLayout(rt *reflection.RunType, ctx *EmitContext
 	return RTCode{Code: body, Type: CodeRB}
 }
 
-// emitMergedObjectOpenClone is the object clause of a carve-out union: a member carrying an index
-// signature declares every key from the union's point of view, so the object member keeps every key
-// exactly as the decoders keep it. A member whose props need no transform and hold no accessor is returned untouched;
-// otherwise a copy of every own key is built, with the prototype-name refusal the record arm uses,
-// and only the declared props are rewritten. The copy skips every declared name so the writes own
-// their slot, a dropped one included (G6).
+// emitMergedObjectOpenClone keeps every key as the decoders do: a carve-out union's index signature declares them all.
+// The copy skips every declared name so the writes own their slot, a dropped one included (G6).
 func emitMergedObjectOpenClone(layout FlatLayout, v string, props []safePropEmit, ctx *EmitContext) string {
 	identity := true
 	for _, prop := range props {
