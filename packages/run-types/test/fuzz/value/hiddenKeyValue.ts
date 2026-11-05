@@ -3,7 +3,7 @@
 
 import {deepCopyValue} from '../cloning/extrasValue.ts';
 
-export const HIDDEN_KEY_MODES = ['nonEnumerable', 'inherited', 'getter'] as const;
+export const HIDDEN_KEY_MODES = ['nonEnumerable', 'inherited', 'getter', 'plainGetter'] as const;
 type HiddenKeyMode = (typeof HIDDEN_KEY_MODES)[number];
 type PlainObjectAt = {target: object; path: (string | number)[]};
 
@@ -45,6 +45,8 @@ export function hideOwnKey(value: unknown, random: () => number): HiddenKeyValue
     Object.defineProperty(record, key, {value: held, enumerable: false, writable: true, configurable: true});
   } else if (mode === 'inherited') {
     Object.setPrototypeOf(record, {[key]: held});
+  } else if (mode === 'plainGetter') {
+    Object.setPrototypeOf(record, Object.defineProperty({}, key, {get: () => held, configurable: true}));
   } else {
     const prototype = Object.defineProperty(Object.create(ClassPrototype.prototype), key, {get: () => held, configurable: true});
     Object.setPrototypeOf(record, prototype);
