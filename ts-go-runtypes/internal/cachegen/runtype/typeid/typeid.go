@@ -8,6 +8,7 @@ package typeid
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -618,7 +619,6 @@ func (computer *Computer) memberID(symbol *ast.Symbol, asClass bool) string {
 	optional := symbol.Flags&ast.SymbolFlagsOptional != 0 || guarded || IsTypelessPrivateSymbol(symbol) || IsSetterOnly(symbol)
 	// Readonly splits the id: `{a: string}` and `{readonly a: string}` must not share a cache slot.
 	// Mirrors internal/cachegen/runtype/modifiers.go:applyMemberModifiers; on mapped / synthetic symbols the AST lies.
-	const checkFlagsSynthOrMapped = ast.CheckFlagsMapped | ast.CheckFlagsSyntheticProperty | ast.CheckFlagsSyntheticMethod
 	var readonly bool
 	if symbol.CheckFlags&checkFlagsSynthOrMapped != 0 {
 		readonly = symbol.CheckFlags&ast.CheckFlagsReadonly != 0
@@ -690,21 +690,38 @@ func accessorDeclarations(symbol *ast.Symbol) (getter, setter *ast.Node) {
 	return getter, setter
 }
 
-// AccessorTagName and AccessorNoSetterTagName keep an accessor's id in a printed declaration: `get` / `set` cannot spell an
-// optional member, a readonly pair, or a setter that takes another type.
-const (
-	AccessorTagName         = "accessor"
-	AccessorNoSetterTagName = "accessorNoSetter"
-)
+// checkFlagsSynthOrMapped marks a symbol the checker built, whose declarations no longer answer for it.
+const checkFlagsSynthOrMapped = ast.CheckFlagsMapped | ast.CheckFlagsSyntheticProperty | ast.CheckFlagsSyntheticMethod
 
-// IsAccessorMember reports a get / set accessor; shared by the projection and memberID so id and flag cannot drift.
+// IsAccessorMember reports a get / set accessor, or an auto `accessor x`, which is a get and set pair with hidden storage.
+// Shared by the projection and memberID so id and flag cannot drift. The tags keep the id in a printed declaration: `get`
+// / `set` cannot spell an optional member, a readonly pair, or a setter that takes another type.
 func IsAccessorMember(symbol *ast.Symbol) bool {
+	if symbol == nil {
+		return false
+	}
 	getter, setter := accessorDeclarations(symbol)
-	return getter != nil || setter != nil || (symbol != nil && (hasJSDocTag(symbol, AccessorTagName) || hasJSDocTag(symbol, AccessorNoSetterTagName)))
+	return getter != nil || setter != nil || slices.ContainsFunc(symbol.Declarations, isAutoAccessor) ||
+		hasAccessorTag(symbol, reflection.FlagAccessor) || hasAccessorTag(symbol, reflection.FlagAccessorNoSetter)
 }
 
-// IsGetterOnly reports a member that TypeScript reads as readonly.
+func isAutoAccessor(declaration *ast.Node) bool {
+	return declaration != nil && ast.IsAutoAccessorPropertyDeclaration(declaration)
+}
+
+// hasAccessorTag reads a printed member's tag. A real class field holds its own value, whatever a doc comment on it says.
+func hasAccessorTag(symbol *ast.Symbol, name string) bool {
+	isField := func(declaration *ast.Node) bool {
+		return declaration != nil && declaration.Kind == ast.KindPropertyDeclaration && declaration.Flags&ast.NodeFlagsAmbient == 0
+	}
+	return !slices.ContainsFunc(symbol.Declarations, isField) && hasJSDocTag(symbol, name)
+}
+
+// IsGetterOnly reports a member that TypeScript reads as readonly. On a mapped or merged copy the checker already decided.
 func IsGetterOnly(symbol *ast.Symbol) bool {
+	if symbol != nil && symbol.CheckFlags&checkFlagsSynthOrMapped != 0 {
+		return false
+	}
 	getter, setter := accessorDeclarations(symbol)
 	return getter != nil && setter == nil
 }
@@ -715,15 +732,15 @@ func IsSetterOnly(symbol *ast.Symbol) bool {
 	return getter == nil && setter != nil
 }
 
-// HasNoUsableSetter reports an accessor no function may write: getter-only, or a setter that does not take what the getter
-// returns, the only type the wire holds.
+// HasNoUsableSetter reports an accessor no function may write: getter-only, setter-only (nothing can read back what it was
+// given, so no check covers it), or a setter that does not take what the getter returns, the only type the wire holds.
 func HasNoUsableSetter(typeChecker *checker.Checker, symbol *ast.Symbol) bool {
-	if symbol != nil && hasJSDocTag(symbol, AccessorNoSetterTagName) {
+	if symbol != nil && hasAccessorTag(symbol, reflection.FlagAccessorNoSetter) {
 		return true
 	}
 	getter, setter := accessorDeclarations(symbol)
 	if getter == nil {
-		return false
+		return setter != nil
 	}
 	if setter == nil {
 		return true
@@ -954,7 +971,7 @@ func IsNonEnumerable(symbol *ast.Symbol) bool {
 	if !isOptionalSymbol(symbol) {
 		return false
 	}
-	return isDefaultLibGlobalMember(symbol) || hasNonEnumerableTag(symbol)
+	return isDefaultLibGlobalMember(symbol) || hasJSDocTag(symbol, NonEnumerableTagName)
 }
 
 // IsTypelessPrivateSymbol reports a member whose every declaration is an ambient typeless `private`, as plain tsc emits.
@@ -1020,13 +1037,8 @@ func isDefaultLibGlobalMember(symbol *ast.Symbol) bool {
 	return true
 }
 
-// hasNonEnumerableTag reports whether any declaration of the member carries a `@nonEnumerable` JSDoc tag.
-// Custom tags parse as JSDocUnknownTag, so the match is on the bare tag name (no leading `@`), the same
-// read the tsgolint no_deprecated rule uses.
-func hasNonEnumerableTag(symbol *ast.Symbol) bool {
-	return hasJSDocTag(symbol, NonEnumerableTagName)
-}
-
+// hasJSDocTag reports whether any declaration of the member carries the JSDoc tag. Custom tags parse as JSDocUnknownTag, so
+// the match is on the bare tag name (no leading `@`), the same read the tsgolint no_deprecated rule uses.
 func hasJSDocTag(symbol *ast.Symbol, name string) bool {
 	for _, declaration := range symbol.Declarations {
 		if declaration == nil {

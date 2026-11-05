@@ -1181,12 +1181,6 @@ func (cache *Cache) appendProperty(parent *reflection.RunType, symbol *ast.Symbo
 	member.NonEnumerable = guarded
 	member.IsSafeName = isSafeName(memberName)
 	applyMemberModifiers(member, symbol, asClass)
-	if typeid.IsAccessorMember(symbol) {
-		member.Flags = append(member.Flags, reflection.FlagAccessor)
-	}
-	if typeid.HasNoUsableSetter(cache.typeChecker, symbol) {
-		member.Flags = append(member.Flags, reflection.FlagAccessorNoSetter)
-	}
 
 	// The member id must exist BEFORE a signature projects into it: parameters intern under
 	// `_pa_<member id>_<name>_<i>`, so an empty id collides every same-named parameter onto one node.
@@ -1211,8 +1205,14 @@ func (cache *Cache) appendProperty(parent *reflection.RunType, symbol *ast.Symbo
 		} else {
 			member.Kind = reflection.KindPropertySignature
 		}
-		// Twin of the same line in typeid.memberID, past the method form.
+		// Twins of the same reads in typeid.memberID, past the method form.
 		member.Readonly = member.Readonly || typeid.IsGetterOnly(symbol)
+		if typeid.IsAccessorMember(symbol) {
+			member.Flags = append(member.Flags, reflection.FlagAccessor)
+		}
+		if typeid.HasNoUsableSetter(cache.typeChecker, symbol) {
+			member.Flags = append(member.Flags, reflection.FlagAccessorNoSetter)
+		}
 		// The Optional flag IS the "undefined-permitted" signal, so the `T | undefined` wrapper is redundant;
 		// stripping it also closes a circular optional self-reference on the inner type, not on a union node.
 		if member.Optional {

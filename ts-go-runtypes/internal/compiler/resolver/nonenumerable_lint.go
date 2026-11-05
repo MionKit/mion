@@ -49,7 +49,7 @@ func isPropertyMember(node *ast.Node) bool {
 	return ast.IsPropertyDeclaration(node) || ast.IsPropertySignatureDeclaration(node)
 }
 
-// hasNonEnumerableJSDocTag mirrors typeid.hasNonEnumerableTag, which reads the same tag off the property SYMBOL.
+// hasNonEnumerableJSDocTag mirrors typeid.hasJSDocTag, which reads the same tag off the property SYMBOL.
 func hasNonEnumerableJSDocTag(node *ast.Node, sourceFile *ast.SourceFile) bool {
 	for _, jsdoc := range node.JSDoc(sourceFile) {
 		tags := jsdoc.AsJSDoc().Tags
