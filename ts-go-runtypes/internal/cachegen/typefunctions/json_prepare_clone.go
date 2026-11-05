@@ -780,7 +780,7 @@ func emitUnionPrepareForJsonCloneLayout(rt *reflection.RunType, ctx *EmitContext
 
 // emitMergedObjectOpenClone is the object clause of a carve-out union: a member carrying an index
 // signature declares every key from the union's point of view, so the object member keeps every key
-// exactly as the decoders keep it. A member whose props need no transform is returned untouched;
+// exactly as the decoders keep it. A member whose props need no transform and hold no accessor is returned untouched;
 // otherwise a copy of every own key is built, with the prototype-name refusal the record arm uses,
 // and only the declared props are rewritten. The copy skips every declared name so the writes own
 // their slot, a dropped one included (G6).
@@ -792,12 +792,14 @@ func emitMergedObjectOpenClone(layout FlatLayout, v string, props []safePropEmit
 			break
 		}
 	}
-	if identity {
-		return v
-	}
 	var declared []string
 	for _, member := range layout.ObjectMembers {
 		declared = append(declared, collectSiblingNamedKeys(member.Resolved, ctx)...)
+		// JSON cannot see an accessor on the untouched value.
+		identity = identity && len(hiddenAccessors(member.Resolved, ctx)) == 0
+	}
+	if identity {
+		return v
 	}
 	keyVar := ctx.NextLocalVar("k")
 	var body strings.Builder
