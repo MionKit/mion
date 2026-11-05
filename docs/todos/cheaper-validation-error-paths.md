@@ -113,3 +113,21 @@ None, because no path, error shape or API changes; only the cost of building the
   (recursive / circular cases for the happy path), every path value identical, the traps above covered by
   tests.
 - The simplify-comments pass ran on every touched source file, committed on its own.
+
+## Plan: pool + pop + one copy (approved 2026-11-04)
+
+Agreed with the maintainer after measuring (ajv builds string paths, zod 4 prefixes keys on the way up, typebox
+builds strings while collecting: copying either would change the path format, so not done).
+
+1. **Root pool, one pure fn.** `_errPool` holds a shared path list and error list. The generated root takes
+   both when called with neither `path` nor `errors`, walks, and gives them back: a valid result is one shared
+   frozen empty array, an invalid one is handed to the caller. A nested call or a throw finds the pool empty and
+   allocates.
+2. **`pop()` per segment** instead of `splice(-N)` after a non-inlined child call and around nested formats.
+3. **One copy per error**: `pth.slice()`, `pth.concat(accessPath)`, or the fresh static literal when `pth`
+   is empty; format errors use `pth.slice()`.
+
+Each idea is checked with a focused micro benchmark (the cloud box is too noisy for the full suite).
+Tests: path values unchanged across suites, every error owns its path, caller `path` untouched, pool behavior on
+valid / invalid / throw / nested call, both `getRunTypeId` shapes. Docs: one line on the frozen empty result in
+the runtypes validation guide.
