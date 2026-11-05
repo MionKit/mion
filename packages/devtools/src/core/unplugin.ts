@@ -423,6 +423,16 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     return rel.split(path.sep).join('/');
   }
 
+  // Hosts load real paths, so a program spelled through a symlinked cwd misses them and would lose the rewrites silently.
+  function symlinkedCwdError(id: string): Error | undefined {
+    const realCwd = fs.existsSync(cwdAbs) ? fs.realpathSync(cwdAbs) : cwdAbs;
+    if (realCwd === cwdAbs || !siteFiles.has(siteKey(path.relative(realCwd, id)))) return undefined;
+    return new Error(
+      `@mionjs/devtools: cannot rewrite the mion calls in ${id}. The project path ${cwdAbs} goes through a symlink, ` +
+        `but the bundler loads real paths. Build from ${realCwd} instead.`
+    );
+  }
+
   // A file the buildStart scan couldn't have seen can introduce NEW error-level diagnostics (warnings were
   // already surfaced program-wide). Same lane rule as buildStart: a fatal Error fails the transform
   // everywhere, a RuntimeError everywhere but the dev server.
@@ -1004,8 +1014,10 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
         return await (transformMode === 'edits' ? transformViaEdits(this, rel, code) : transformViaGo(this, rel, {code}));
       } catch (error) {
         // Text gates can admit files outside the program; a site-set miss must fail or real injections would be lost.
-        if (!inSiteSet && error instanceof Error && error.message.includes('source file not in program')) return null;
-        throw error;
+        if (inSiteSet || !(error instanceof Error && error.message.includes('source file not in program'))) throw error;
+        const symlinkError = symlinkedCwdError(id);
+        if (symlinkError) throw symlinkError;
+        return null;
       }
     },
 
