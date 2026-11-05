@@ -63,6 +63,51 @@ describe('class accessors — strict', () => {
     expect(errorsStrict({user: new UserExtra(), tag: 't'})).toEqual(extraError('user'));
   });
 
+  it('holds in a union and an array, for validate and errors alike (static shape)', () => {
+    const isUnion = createValidateFn<User | {other: string}>(undefined, {checkUnknowns: true});
+    const unionErrors = createGetValidationErrorsFn<User | {other: string}>(undefined, {checkUnknowns: true});
+    const isList = createValidateFn<User[]>(undefined, {checkUnknowns: true});
+    const listErrors = createGetValidationErrorsFn<User[]>(undefined, {checkUnknowns: true});
+    expect([isUnion(new User()), unionErrors(new User())]).toEqual([true, []]);
+    expect(isUnion(new UserExtra())).toBe(false);
+    expect(unionErrors(new UserExtra())).not.toEqual([]);
+    expect([isList([new User()]), listErrors([new User()])]).toEqual([true, []]);
+    expect([isList([new UserExtra()]), listErrors([new UserExtra()])]).toEqual([
+      false,
+      [{path: [0, 'extra'], expected: 'never'}],
+    ]);
+  });
+
+  it('holds in a union and an array, for validate and errors alike (value shape)', () => {
+    const unionSample: User | {other: string} = new User();
+    const listSample: User[] = [new User()];
+    const isUnion = createValidateFn(unionSample, {checkUnknowns: true});
+    const unionErrors = createGetValidationErrorsFn(unionSample, {checkUnknowns: true});
+    const isList = createValidateFn(listSample, {checkUnknowns: true});
+    const listErrors = createGetValidationErrorsFn(listSample, {checkUnknowns: true});
+    expect([isUnion(new User()), unionErrors(new User())]).toEqual([true, []]);
+    expect(isUnion(new UserExtra())).toBe(false);
+    expect(unionErrors(new UserExtra())).not.toEqual([]);
+    expect([isList([new User()]), listErrors([new User()])]).toEqual([true, []]);
+    expect([isList([new UserExtra()]), listErrors([new UserExtra()])]).toEqual([
+      false,
+      [{path: [0, 'extra'], expected: 'never'}],
+    ]);
+  });
+
+  it('holds with union member keys (static shape)', () => {
+    const isUnion = createValidateFn<{other: string} | User>(undefined, {checkUnionUnknowns: true});
+    expect(isUnion(new User())).toBe(true);
+    expect(isUnion(new UserExtra())).toBe(false);
+  });
+
+  it('holds with union member keys (value shape)', () => {
+    const sample: {other: string} | User = new User();
+    const isUnion = createValidateFn(sample, {checkUnionUnknowns: true});
+    expect(isUnion(new User())).toBe(true);
+    expect(isUnion(new UserExtra())).toBe(false);
+  });
+
   it('a plain type counts keys, so it misses a getter on a class value (static shape)', () => {
     const isStrict = createValidateFn<PlainHolder>(undefined, {checkUnknowns: true});
     expect(isStrict({user: new User(), tag: 't'})).toBe(false);
@@ -128,6 +173,20 @@ describe('class accessors — clone encode', () => {
     const expected = {user: wire, tag: 't'};
     expect(JSON.parse(encode({user: new User(), tag: 't'}) as string)).toEqual(expected);
     expect(JSON.parse(encode({user: new UserExtra(), tag: 't'}) as string)).toEqual(expected);
+  });
+
+  it('keeps the getter in a union with a record, on clone and compact (static shape)', () => {
+    type Open = Record<string, boolean> | UserInterface;
+    const expected = [-1, wire];
+    expect(JSON.parse(createJsonEncoderFn<Open>()(new User()) as string)).toEqual(expected);
+    expect(JSON.parse(createJsonEncoderFn<Open>(undefined, {strategy: 'compact'})(new User()) as string)).toEqual(expected);
+  });
+
+  it('keeps the getter in a union with a record, on clone and compact (value shape)', () => {
+    const sample: Record<string, boolean> | UserInterface = new User();
+    const expected = [-1, wire];
+    expect(JSON.parse(createJsonEncoderFn(sample)(new User()) as string)).toEqual(expected);
+    expect(JSON.parse(createJsonEncoderFn(sample, {strategy: 'compact'})(new User()) as string)).toEqual(expected);
   });
 
   it('a plain type counts keys, so a class value of the same count goes through as it is (static shape)', () => {
@@ -543,6 +602,7 @@ describe('class accessors — format transform', () => {
     type Copy = Pick<Formatted, 'only'>;
     const format = createFormatTransformFn<Copy>();
     expect(format({only: '  o  '})).toEqual({only: 'o'});
+    expect(format(Object.assign(Object.create(null), {only: '  o  '})).only).toBe('o');
     expect(format(new Formatted()).only).toBe('  o  ');
   });
 
@@ -550,6 +610,7 @@ describe('class accessors — format transform', () => {
     const sample: Pick<Formatted, 'only'> = {only: '  o  '};
     const format = createFormatTransformFn(sample);
     expect(format({only: '  o  '})).toEqual({only: 'o'});
+    expect(format(Object.assign(Object.create(null), {only: '  o  '})).only).toBe('o');
     expect(format(new Formatted()).only).toBe('  o  ');
   });
 });
@@ -903,6 +964,33 @@ describe('class accessors — other shapes one level deep', () => {
     expect(isStrict(derivedShapes(() => new UserExtra()))).toBe(false);
     const mutate = createJsonEncoderFn(sample, {strategy: 'mutate'});
     expect(JSON.parse(mutate(derivedShapes(() => new User())) as string)).toEqual(derivedWire);
+  });
+});
+
+class Numbered {
+  #id: number;
+  constructor(id: number) {
+    this.#id = id;
+  }
+  get id() {
+    return this.#id;
+  }
+}
+
+describe('class accessors — key formats read own keys', () => {
+  type Sized = TF.FormattedObject<Pick<User, 'id' | 'name'>, {minProperties: 2}>;
+  type Unique = TF.FormattedArray<Numbered[], {uniqueItems: true}>;
+
+  it('minProperties and uniqueItems miss a getter (static shape)', () => {
+    expect(createValidateFn<Sized>()(new User())).toBe(false);
+    expect(createValidateFn<Unique>()([new Numbered(1), new Numbered(2)])).toBe(false);
+  });
+
+  it('minProperties and uniqueItems miss a getter (value shape)', () => {
+    const sized: Sized = {id: 1, name: 'a'};
+    const unique: Unique = [new Numbered(1)];
+    expect(createValidateFn(sized)(new User())).toBe(false);
+    expect(createValidateFn(unique)([new Numbered(1), new Numbered(2)])).toBe(false);
   });
 });
 

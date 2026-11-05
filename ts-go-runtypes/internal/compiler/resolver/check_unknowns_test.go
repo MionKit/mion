@@ -671,14 +671,15 @@ export const userErrors = createGetValidationErrorsFn(user, {checkUnknowns: true
 `))
 }
 
-// A type with no accessor pays nothing: only a type that names one leaves the count for the key names.
-func TestCheckUnknowns_OnlyAnAccessorTypeLeavesTheCount(t *testing.T) {
-	modules := scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';
+const accessorGateClasses = `
 class Plain {a = ''; b = 1}
 class WithGetter {a = ''; get b(): number { return 1; }}
-export const isPlain = createValidateFn<Plain>(undefined, {checkUnknowns: true});
-export const isGetter = createValidateFn<WithGetter>(undefined, {checkUnknowns: true});
-`)
+declare const plain: Plain;
+declare const withGetter: WithGetter;
+`
+
+func assertOnlyAnAccessorTypeLeavesTheCount(t *testing.T, modules map[string]string) {
+	t.Helper()
 	plain, ok := findEntryWith(modules, "'Plain'")
 	if !ok {
 		t.Fatalf("no entry for Plain\nmodules: %v", keys(modules))
@@ -693,4 +694,51 @@ export const isGetter = createValidateFn<WithGetter>(undefined, {checkUnknowns: 
 	if body := modules[getter]; strings.Contains(body, "cntEK") || !strings.Contains(body, "hUKFA(v, ") {
 		t.Errorf("a class with a getter must read the key names:\n%s", body)
 	}
+}
+
+// A type with no accessor pays nothing: only a type that names one leaves the count for the key names.
+func TestCheckUnknowns_OnlyAnAccessorTypeLeavesTheCount_Static(t *testing.T) {
+	assertOnlyAnAccessorTypeLeavesTheCount(t, scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';`+accessorGateClasses+`
+export const isPlain = createValidateFn<Plain>(undefined, {checkUnknowns: true});
+export const isGetter = createValidateFn<WithGetter>(undefined, {checkUnknowns: true});
+`))
+}
+
+func TestCheckUnknowns_OnlyAnAccessorTypeLeavesTheCount_Value(t *testing.T) {
+	assertOnlyAnAccessorTypeLeavesTheCount(t, scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';`+accessorGateClasses+`
+export const isPlain = createValidateFn(plain, {checkUnknowns: true});
+export const isGetter = createValidateFn(withGetter, {checkUnknowns: true});
+`))
+}
+
+func assertOnlyAnAccessorTypeLeavesTheCloneShortcut(t *testing.T, modules map[string]string) {
+	t.Helper()
+	plain, ok := findEntryWith(modules, "'Plain'")
+	if !ok {
+		t.Fatalf("no entry for Plain\nmodules: %v", keys(modules))
+	}
+	if body := modules[plain]; !strings.Contains(body, "if (Object.keys(v).length === 2) return v;") {
+		t.Errorf("a class with no accessor must keep the bare clone shortcut:\n%s", body)
+	}
+	getter, ok := findEntryWith(modules, "'WithGetter'")
+	if !ok {
+		t.Fatalf("no entry for WithGetter\nmodules: %v", keys(modules))
+	}
+	if body := modules[getter]; strings.Contains(body, "Object.keys(v).length") {
+		t.Errorf("a class with a getter must not take the clone shortcut:\n%s", body)
+	}
+}
+
+func TestCloneEncode_OnlyAnAccessorTypeLeavesTheShortcut_Static(t *testing.T) {
+	assertOnlyAnAccessorTypeLeavesTheCloneShortcut(t, scanEntryModules(t, `import {createJsonEncoderFn} from '@mionjs/run-types';`+accessorGateClasses+`
+export const encodePlain = createJsonEncoderFn<Plain>();
+export const encodeGetter = createJsonEncoderFn<WithGetter>();
+`))
+}
+
+func TestCloneEncode_OnlyAnAccessorTypeLeavesTheShortcut_Value(t *testing.T) {
+	assertOnlyAnAccessorTypeLeavesTheCloneShortcut(t, scanEntryModules(t, `import {createJsonEncoderFn} from '@mionjs/run-types';`+accessorGateClasses+`
+export const encodePlain = createJsonEncoderFn(plain);
+export const encodeGetter = createJsonEncoderFn(withGetter);
+`))
 }

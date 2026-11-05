@@ -176,7 +176,8 @@ count. A type with a hidden accessor does not emit the fast path.
 ### Benchmark
 
 Any type with no accessor emits the same bytes as `main`, so no run is needed. Proven by generating 184 entries over
-plain types, classes and copies on both and comparing them. Pinned by `TestCheckUnknowns_OnlyAnAccessorTypeLeavesTheCount`.
+plain types, classes and copies on both and comparing them, once by hand. Go tests pin the strict count and the clone
+shortcut staying on plain types; the mutate and format gates are pinned by their paired tests.
 
 ### Finish
 
@@ -203,14 +204,18 @@ Differences from the plan above, and what it did not say:
 - **Setter-only:** counts as no-setter. Validate reads undefined whatever the setter took, so no check covers a wire value.
 - **`accessor x`** is a get and set pair with hidden storage, detected from its declaration.
 - **Stripped accessors** (`get rx(): RegExp`, `get later(): Promise<T>`) are never read: the wire does not hold them.
-- **A doc comment** with `@accessor` on a real class field means nothing: the tags only count on a printed member.
-- **A format on a copy of a no-setter member** runs only on a plain value, gated by its prototype. A class
+- **A doc comment** with `@accessor` on a real class field means nothing. On a type member the printer's tag and a
+  hand-written one look the same, so writing it there opts that member in, with the same code an accessor gets.
+- **A format on a copy of a no-setter member** runs only where the value owns the key. A class
   value keeps answering through its accessor.
 - **Decided limit: a plain type trusts a plain value.** The same as on `main`. Given a class instance with no accessor in
   the type, strict and clone count keys and miss the getter: `{get id, name}` fails strict for `{id, name}`, and
   `{get id, name, extra}` passes it and goes through clone as it is, leaking `extra`. Mutate and a format write straight
   to the instance: the setter runs, a getter-only member throws `TypeError`, and a mutate noop leaves a getter to
   `JSON.stringify`, which drops it. Closing this needs a check on every object. Stated in the docs, pinned by tests.
+- **Decided limit: key formats read own keys.** `minProperties`, `maxProperties` and `uniqueItems` work on the value's own
+  keys, so they miss a getter, as they miss a `#private` field. They receive no type, and they target JSON-shaped data.
+  Stated in the docs, pinned by a test.
 - **Mutate:** a getter that returns an inner array or object hands back that same object, and its contents are converted
   in place, as for any field.
 - **No new fuzz rule.** The value lane generates no accessor type, and its hidden key rules describe plain types, which
