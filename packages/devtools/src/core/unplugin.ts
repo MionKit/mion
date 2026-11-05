@@ -288,6 +288,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   // Vitest cache key for files the transform may rewrite; unset until buildStart and while an edit rebuilds: no caching.
   let cacheDigest: string | undefined;
   let cwdAbs = '';
+  let realCwdAbs = '';
   // The resolved output root (<cwd>/.mion by default); modules land under <genDirAbs>/types.
   let genDirAbs = '';
   // Held until writePureFnArtifact: generate runs at buildStart, before a bundler empties its output dir.
@@ -322,6 +323,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   function ensureResolver() {
     if (resolver) return;
     cwdAbs = path.resolve(options.cwd ?? (viteRoot || process.cwd()));
+    realCwdAbs = fs.existsSync(cwdAbs) ? fs.realpathSync(cwdAbs) : cwdAbs;
     // Left empty when unset: the plugin can't parse tsconfig without a dep, so the Go side owns the
     // <srcDir>/.mion default and echoes the resolved path back from generate().
     genDirAbs = options.genDir ? path.resolve(cwdAbs, options.genDir) : '';
@@ -424,12 +426,11 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
   }
 
   // Hosts load real paths, so a program spelled through a symlinked cwd misses them and silently loses rewrites.
-  function symlinkedCwdError(id: string): Error | undefined {
-    const realCwd = fs.existsSync(cwdAbs) ? fs.realpathSync(cwdAbs) : cwdAbs;
-    if (realCwd === cwdAbs || !siteFiles.has(siteKey(path.relative(realCwd, id)))) return undefined;
-    return new Error(
+  function failOnSymlinkedSite(id: string): void {
+    if (realCwdAbs === cwdAbs || !siteFiles.has(siteKey(path.relative(realCwdAbs, id)))) return;
+    throw new Error(
       `@mionjs/devtools: cannot rewrite the mion calls in ${id}. The project path ${cwdAbs} goes through a symlink, ` +
-        `but the bundler loads real paths. Build from ${realCwd} instead.`
+        `but the bundler loads real paths. Build from ${realCwdAbs} instead.`
     );
   }
 
@@ -1005,7 +1006,10 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     async transform(this: any, code: string, id: string) {
       if (!resolver) return null;
       // Wrapper sites need no configuration; new files use the linter’s text gate until the next scan.
-      if (!mayTransform(code, id)) return null;
+      if (!mayTransform(code, id)) {
+        failOnSymlinkedSite(id);
+        return null;
+      }
       const rel = path.relative(cwdAbs || process.cwd(), id);
       const inSiteSet = siteFiles.has(siteKey(rel));
 
@@ -1015,8 +1019,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       } catch (error) {
         // Text gates can admit files outside the program; a site-set miss must fail or real injections would be lost.
         if (inSiteSet || !(error instanceof Error && error.message.includes('source file not in program'))) throw error;
-        const symlinkError = symlinkedCwdError(id);
-        if (symlinkError) throw symlinkError;
+        failOnSymlinkedSite(id);
         return null;
       }
     },
