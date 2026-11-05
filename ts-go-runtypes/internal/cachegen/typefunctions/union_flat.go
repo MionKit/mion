@@ -147,7 +147,7 @@ func emitUnionPrepareForJsonFlat(rt *reflection.RunType, ctx *EmitContext, v str
 				propParts = append(propParts, "if ("+namedPropertyPresenceTest(mp.Name, v, accessor)+") {"+propCode+"}")
 			}
 		}
-		body := strings.Join(append(emitUnionAccessorCopies(layout, v, ctx), propParts...), ";")
+		body := joinSemicolons(append([]string{emitUnionAccessorCopy(layout, v, ctx)}, propParts...)...)
 		if body != "" {
 			body += ";"
 		}
@@ -168,21 +168,25 @@ func emitUnionPrepareForJsonFlat(rt *reflection.RunType, ctx *EmitContext, v str
 	return RTCode{Code: prologue + strings.Join(clauses, ""), Type: CodeS}
 }
 
-// emitUnionAccessorCopies copies each accessor off the value when this member has it, keeping an absent prop absent.
-func emitUnionAccessorCopies(layout FlatLayout, v string, ctx *EmitContext) []string {
-	var copies []string
+// emitUnionAccessorCopy is the mutate copy for every object member: an accessor one member lacks reads undefined, which
+// the props and JSON both skip. Empty without an accessor.
+func emitUnionAccessorCopy(layout FlatLayout, v string, ctx *EmitContext) string {
+	var members []*reflection.RunType
+	var tests []string
 	seen := map[string]bool{}
 	for _, member := range layout.ObjectMembers {
 		for _, accessor := range hiddenAccessors(member.Resolved, ctx) {
-			if seen[accessor.Name] {
-				continue
+			if !seen[accessor.Name] {
+				seen[accessor.Name] = true
+				members = append(members, accessor)
+				tests = append(tests, quoteJS(accessor.Name)+" in "+v)
 			}
-			seen[accessor.Name] = true
-			copies = append(copies, "if ("+quoteJS(accessor.Name)+" in "+v+") "+v+" = {..."+v+","+
-				jsonObjectKeyLiteral(accessor.Name, accessor.IsSafeName)+":"+propertyAccessor(v, accessor.Name, accessor.IsSafeName)+"}")
 		}
 	}
-	return copies
+	if len(members) == 0 {
+		return ""
+	}
+	return "if (" + strings.Join(tests, " || ") + ") " + emitAccessorCopy(members, v)
 }
 
 // emitMergedPropPrepare returns the inline JS body that transforms one merged property's value, or

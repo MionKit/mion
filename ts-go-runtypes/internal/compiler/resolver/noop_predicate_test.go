@@ -52,6 +52,11 @@ type UObjects = Compat | Stamped;
 type Circ = {a: string; deep?: {b: string; c: number}; d?: Circ[]};
 type CircDate = {at: Date; next?: CircDate};
 class Account {id: number = 0; name: string = ''}
+class FmtGetter {get only(): TypeFormat<string, 'stringFormat', {transform: {trim: true}}> { return ''; }}
+type FmtGetterCopy = Pick<FmtGetter, 'only'>;
+class WithGetter {name = ''; get id(): number { return 1; }}
+class StrippedGetter {name = ''; get rx(): RegExp { return /a/; } get later(): Promise<number> { return Promise.resolve(1); }}
+type GetterArm = {kind: 'a'} | Pick<WithGetter, 'id' | 'name'>;
 type WithUndef = {u: undefined; v: void};
 type DeepNest = {l1: {l2: {l3: Nested[]}}};
 type LitOnly = 'only';
@@ -117,6 +122,11 @@ getRunTypeId<UObjects>();
 getRunTypeId<Circ>();
 getRunTypeId<CircDate>();
 getRunTypeId<Account>();
+getRunTypeId<FmtGetter>();
+getRunTypeId<FmtGetterCopy>();
+getRunTypeId<WithGetter>();
+getRunTypeId<StrippedGetter>();
+getRunTypeId<GetterArm>();
 getRunTypeId<WithUndef>();
 getRunTypeId<DeepNest>();
 `
@@ -213,4 +223,22 @@ func TestNoopPredicate_SoundAgainstEmitters(t *testing.T) {
 		t.Fatal("corpus produced no comparable (emitter, type) pairs — harness wiring broke")
 	}
 	t.Logf("noop predicate agreement: %d pairs checked, %d cyclic types skipped, %d conservative misses (sound)", checked, skippedCyclic, conservativeMisses)
+}
+
+// The class never takes a format write, so nothing is emitted; a plain copy of the same member holds the key as data.
+func TestFormatNoop_GetterSkippedOnClassOnly(t *testing.T) {
+	modules := scanEntryModules(t, `import {createFormatTransformFn} from '@mionjs/run-types';
+type TypeFormat<Base, Name extends string, Params> = Base & {readonly __rtFormatName?: Name; readonly __rtFormatParams?: Params};
+class FmtGetter {name = ''; get only(): TypeFormat<string, 'stringFormat', {transform: {trim: true}}> { return ''; }}
+export const onClass = createFormatTransformFn<FmtGetter>();
+export const onCopy = createFormatTransformFn<Pick<FmtGetter, 'only'>>();
+`)
+	name, ok := findEntryWith(modules, "'FmtGetter',,true]")
+	if !ok {
+		t.Fatalf("class format of a getter is not noop\nmodules: %v", modules)
+	}
+	delete(modules, name)
+	if _, ok := findEntryWith(modules, "if (v.constructor === Object) {"); !ok {
+		t.Fatalf("copy of a getter must format a plain value\nmodules: %v", modules)
+	}
 }

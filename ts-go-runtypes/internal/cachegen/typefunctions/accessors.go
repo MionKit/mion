@@ -1,7 +1,6 @@
 package typefunctions
 
 import (
-	"slices"
 	"strconv"
 	"strings"
 
@@ -19,35 +18,33 @@ func propertyAccessor(parent, name string, safe bool) string {
 }
 
 // isHiddenAccessor reports a class `get` or `set` prop, which `JSON.stringify` and a spread cannot see and a write would
-// reach as a setter call. Shared by the mutate copy and the noop predicates, so they cannot drift.
-func isHiddenAccessor(rt *reflection.RunType) bool {
-	return rt != nil && slices.Contains(rt.Flags, reflection.FlagAccessor) && !rt.IsStatic && !isMethodMember(rt.Kind) &&
-		!reflection.IsSymbolKeyedName(rt.Name) && !reflection.IsUnsafePropertyName(rt.Name)
+// reach as a setter call. Shared by the mutate copy and the noop predicates, so they cannot drift. A stripped member is
+// not one: the wire never holds it, so reading it would only run the getter.
+func isHiddenAccessor(rt *reflection.RunType, ctx *EmitContext) bool {
+	return rt != nil && hasFlag(rt.Flags, reflection.FlagAccessor) && !rt.IsStatic &&
+		!reflection.IsSymbolKeyedName(rt.Name) && !reflection.IsUnsafePropertyName(rt.Name) &&
+		!isStrippedUnionMember(ctx.ResolveRef(rt.Child), ctx)
 }
 
 // hasNoSetter reports an accessor no function may write: a write throws on a getter-only, or hands a setter the wrong type.
 func hasNoSetter(rt *reflection.RunType) bool {
-	return rt != nil && slices.Contains(rt.Flags, reflection.FlagAccessorNoSetter)
+	return rt != nil && hasFlag(rt.Flags, reflection.FlagAccessorNoSetter)
 }
 
 // hiddenAccessors lists rt's hidden accessor props.
 func hiddenAccessors(rt *reflection.RunType, ctx *EmitContext) []*reflection.RunType {
 	var members []*reflection.RunType
 	for _, child := range objectMembers(rt) {
-		if resolved := ctx.ResolveRef(child); isHiddenAccessor(resolved) {
+		if resolved := ctx.ResolveRef(child); isHiddenAccessor(resolved, ctx) {
 			members = append(members, resolved)
 		}
 	}
 	return members
 }
 
-// emitAccessorCopy emits `v = {...v, id: v.id}` so a mutate encode writes to a copy that lists the accessor, never to the
-// instance. Undeclared keys stay, as mutate promises. Empty without an accessor.
-func emitAccessorCopy(rt *reflection.RunType, ctx *EmitContext, v string) string {
-	members := hiddenAccessors(rt, ctx)
-	if len(members) == 0 {
-		return ""
-	}
+// emitAccessorCopy emits `v = {...v, id: v.id}` so a mutate encode writes to a copy that lists the accessors, never to the
+// instance. Undeclared keys stay, as mutate promises.
+func emitAccessorCopy(members []*reflection.RunType, v string) string {
 	entries := make([]string, 0, len(members)+1)
 	entries = append(entries, "..."+v)
 	for _, member := range members {

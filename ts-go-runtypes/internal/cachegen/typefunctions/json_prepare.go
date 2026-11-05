@@ -168,14 +168,11 @@ func emitLiteralPrepareForJson(rt *reflection.RunType, v string) RTCode {
 // emitObjectJsonPrepare is the object walk on a copy when the object has an accessor.
 func emitObjectJsonPrepare(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	children := emitObjectJsonChildren(rt, ctx)
-	if children.Type == CodeNS {
+	members := hiddenAccessors(rt, ctx)
+	if children.Type == CodeNS || len(members) == 0 {
 		return children
 	}
-	copied := emitAccessorCopy(rt, ctx, v)
-	if copied == "" {
-		return children
-	}
-	return RTCode{Code: copied + ";" + children.Code, Type: CodeS}
+	return RTCode{Code: emitAccessorCopy(members, v) + ";" + children.Code, Type: CodeS}
 }
 
 // emitObjectJsonChildren is the object walk the restore side shares verbatim — the per-property

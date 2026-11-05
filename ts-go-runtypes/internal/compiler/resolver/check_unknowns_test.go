@@ -95,8 +95,11 @@ export const isUser = createValidateFn<User>(undefined, {checkUnknowns: true});
 		t.Fatalf("no validateStrict entry emitted\nmodules: %v", keys(modules))
 	}
 	body := modules[name]
-	if !strings.Contains(body, "=== 2") {
+	if !strings.Contains(body, "((kCnt = cntEK(v)) === 2 ? v.constructor === Object || !(hUKFA(v, ") {
 		t.Errorf("all-required 2-prop shape did not use the key-count compare:\n%s", body)
+	}
+	if !strings.Contains(body, ": kCnt < 2 && !(hUKFA(v, ") {
+		t.Errorf("under the count, a shape must still scan its key names:\n%s", body)
 	}
 	// The count compare comes last: the property checks it depends on precede it.
 	countAt := strings.Index(body, "=== 2")
