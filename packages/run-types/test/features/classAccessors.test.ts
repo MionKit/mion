@@ -8,10 +8,12 @@ import {
   createGetValidationErrorsFn,
   createJsonDecoderFn,
   createJsonEncoderFn,
+  createJsonSchemaFn,
   createRemoveUnknownKeysFn,
   createValidateFn,
   type DataOnly,
 } from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import {registerClassSerializer} from '@mionjs/run-types/runtime';
 import {clearClassSerializers} from '../../src/runtypes/classSerializerRegistry.ts';
 
@@ -75,6 +77,29 @@ describe('class accessors — strict', () => {
   });
 });
 
+describe('class accessors — plain validate', () => {
+  const missing = [{path: ['id'], expected: 'number'}];
+
+  it('a declared getter is required and typed (static shape)', () => {
+    const isUser = createValidateFn<User>();
+    expect(isUser(new User())).toBe(true);
+    expect(isUser({id: 1, name: 'a'})).toBe(true);
+    expect(isUser({name: 'a'})).toBe(false);
+    expect(isUser({id: 'x', name: 'a'})).toBe(false);
+    expect(createGetValidationErrorsFn<User>()({name: 'a'})).toEqual(missing);
+  });
+
+  it('a declared getter is required and typed (value shape)', () => {
+    const sample = new User();
+    const isUser = createValidateFn(sample);
+    expect(isUser(new User())).toBe(true);
+    expect(isUser({id: 1, name: 'a'} as User)).toBe(true);
+    expect(isUser({name: 'a'} as User)).toBe(false);
+    expect(isUser({id: 'x', name: 'a'} as unknown as User)).toBe(false);
+    expect(createGetValidationErrorsFn(sample)({name: 'a'} as User)).toEqual(missing);
+  });
+});
+
 describe('class accessors — clone encode of a plain type', () => {
   const wire = {id: 1, name: 'a'};
 
@@ -89,6 +114,21 @@ describe('class accessors — clone encode of a plain type', () => {
     const encode = createJsonEncoderFn(sample);
     expect(JSON.parse(encode(new User()) as string)).toEqual(wire);
     expect(JSON.parse(encode(new UserExtra()) as string)).toEqual(wire);
+  });
+
+  it('holds one level deep (static shape)', () => {
+    const encode = createJsonEncoderFn<PlainHolder>();
+    const expected = {user: wire, tag: 't'};
+    expect(JSON.parse(encode({user: new User(), tag: 't'}) as string)).toEqual(expected);
+    expect(JSON.parse(encode({user: new UserExtra(), tag: 't'}) as string)).toEqual(expected);
+  });
+
+  it('holds one level deep (value shape)', () => {
+    const sample: PlainHolder = {user: {id: 1, name: 'a'}, tag: 't'};
+    const encode = createJsonEncoderFn(sample);
+    const expected = {user: wire, tag: 't'};
+    expect(JSON.parse(encode({user: new User(), tag: 't'}) as string)).toEqual(expected);
+    expect(JSON.parse(encode({user: new UserExtra(), tag: 't'}) as string)).toEqual(expected);
   });
 });
 
@@ -109,7 +149,7 @@ class Account {
 }
 type AccountWire = {cents: string; label: string; name: string; writes: number};
 const accountWire: AccountWire = {cents: '1', label: 'L', name: 'a', writes: 0};
-type Arm = {kind: 'a'; n: number} | Pick<Account, 'cents' | 'name'>;
+type Arm = {kind: 'a'; count: bigint} | Pick<Account, 'cents' | 'label' | 'name'>;
 
 describe('class accessors — mutate encode', () => {
   const unchanged = (account: Account) => {
@@ -171,23 +211,128 @@ describe('class accessors — mutate encode', () => {
     unchanged(item);
   });
 
-  it('copies in a union object arm, and not an absent prop (static shape)', () => {
+  it('copies every accessor in a union object arm, and a plain arm stays in place (static shape)', () => {
     const encode = createJsonEncoderFn<Arm>(undefined, {strategy: 'mutate'});
     const decode = createJsonDecoderFn<Arm>(undefined, {strategy: 'mutate'});
     const account = new Account();
-    expect(decode(encode(account) as string)).toEqual({cents: 1n, name: 'a', writes: 0});
+    expect(decode(encode(account) as string)).toEqual({cents: 1n, label: 'L', name: 'a', writes: 0});
     unchanged(account);
-    expect(decode(encode({kind: 'a', n: 1}) as string)).toEqual({kind: 'a', n: 1});
+    const plain: Arm = {kind: 'a', count: 1n};
+    const wire = encode(plain) as string;
+    expect(plain.count as unknown).not.toBe(1n);
+    expect(decode(wire)).toEqual({kind: 'a', count: 1n});
   });
 
-  it('copies in a union object arm, and not an absent prop (value shape)', () => {
-    const sample: Arm = {kind: 'a', n: 1};
+  it('copies every accessor in a union object arm, and a plain arm stays in place (value shape)', () => {
+    const sample: Arm = {kind: 'a', count: 1n};
     const encode = createJsonEncoderFn(sample, {strategy: 'mutate'});
     const decode = createJsonDecoderFn(sample, {strategy: 'mutate'});
     const account = new Account();
-    expect(decode(encode(account) as string)).toEqual({cents: 1n, name: 'a', writes: 0});
+    expect(decode(encode(account) as string)).toEqual({cents: 1n, label: 'L', name: 'a', writes: 0});
     unchanged(account);
-    expect(decode(encode({kind: 'a', n: 1}) as string)).toEqual({kind: 'a', n: 1});
+    const plain: Arm = {kind: 'a', count: 1n};
+    const wire = encode(plain) as string;
+    expect(plain.count as unknown).not.toBe(1n);
+    expect(decode(wire)).toEqual({kind: 'a', count: 1n});
+  });
+});
+
+class Lazy {
+  name = 'a';
+  reads = 0;
+  get rx(): RegExp {
+    this.reads++;
+    return /a/;
+  }
+  get later(): Promise<number> {
+    this.reads++;
+    return Promise.resolve(1);
+  }
+}
+type LazyArm = {kind: 'a'} | Pick<Lazy, 'later' | 'name' | 'reads'>;
+
+describe('class accessors — a getter the data shape strips', () => {
+  const wire = {name: 'a', reads: 0};
+
+  it('is never read by a mutate encode (static shape)', () => {
+    const encode = createJsonEncoderFn<Lazy>(undefined, {strategy: 'mutate'});
+    expect(JSON.parse(encode(new Lazy()) as string)).toEqual(wire);
+  });
+
+  it('is never read by a mutate encode (value shape)', () => {
+    const encode = createJsonEncoderFn(new Lazy(), {strategy: 'mutate'});
+    expect(JSON.parse(encode(new Lazy()) as string)).toEqual(wire);
+  });
+
+  it('is never read in a union object arm (static shape)', () => {
+    const encode = createJsonEncoderFn<LazyArm>(undefined, {strategy: 'mutate'});
+    const decode = createJsonDecoderFn<LazyArm>(undefined, {strategy: 'mutate'});
+    expect(decode(encode(new Lazy()) as string)).toEqual(wire);
+  });
+
+  it('is never read in a union object arm (value shape)', () => {
+    const sample: LazyArm = {kind: 'a'};
+    const encode = createJsonEncoderFn(sample, {strategy: 'mutate'});
+    const decode = createJsonDecoderFn(sample, {strategy: 'mutate'});
+    expect(decode(encode(new Lazy()) as string)).toEqual(wire);
+  });
+});
+
+// The test build leaves `accessor` as written, which Node cannot run: the type uses the keyword, the value is what it compiles to.
+declare class Auto {
+  name: string;
+  accessor count: number;
+  accessor big: bigint;
+}
+class AutoInstance {
+  name = 'a';
+  #count = 1;
+  #big = 1n;
+  get count() {
+    return this.#count;
+  }
+  set count(value: number) {
+    this.#count = value;
+  }
+  get big() {
+    return this.#big;
+  }
+  set big(value: bigint) {
+    this.#big = value;
+  }
+}
+const newAuto = (): Auto => new AutoInstance();
+const autoWire = {big: '1', count: 1, name: 'a'};
+
+describe('class accessors — the accessor keyword', () => {
+  const expectUntouched = (auto: Auto) => expect([auto.big, Object.keys(auto)]).toEqual([1n, ['name']]);
+
+  it('encodes on a copy and keeps the value (static shape)', () => {
+    const auto = newAuto();
+    expect(JSON.parse(createJsonEncoderFn<Auto>(undefined, {strategy: 'mutate'})(auto) as string)).toEqual(autoWire);
+    expectUntouched(auto);
+  });
+
+  it('encodes on a copy and keeps the value (value shape)', () => {
+    const auto = newAuto();
+    expect(JSON.parse(createJsonEncoderFn(newAuto(), {strategy: 'mutate'})(auto) as string)).toEqual(autoWire);
+    expectUntouched(auto);
+  });
+
+  it('stays on the prototype in removeUnknownKeys (static shape)', () => {
+    expect(Object.keys(createRemoveUnknownKeysFn<Auto>()(newAuto()))).toEqual(['name']);
+  });
+
+  it('stays on the prototype in removeUnknownKeys (value shape)', () => {
+    expect(Object.keys(createRemoveUnknownKeysFn(newAuto())(newAuto()))).toEqual(['name']);
+  });
+
+  it('passes strict (static shape)', () => {
+    expect(createValidateFn<Auto>(undefined, {checkUnknowns: true})(newAuto())).toBe(true);
+  });
+
+  it('passes strict (value shape)', () => {
+    expect(createValidateFn(newAuto(), {checkUnknowns: true})(newAuto())).toBe(true);
   });
 });
 
@@ -258,6 +403,45 @@ describe('class accessors — round trip', () => {
     tag.sets = 0;
     return tag;
   };
+
+  const plainTag = {code: 'x', name: 'n', sets: 0, upper: 'X'};
+
+  it('without a registered class every strategy gives a plain value that validates (static shape)', () => {
+    const isTag = createValidateFn<Tag>();
+    const roundTrips = [
+      (tag: Tag) => createJsonDecoderFn<Tag>()(createJsonEncoderFn<Tag>()(tag) as string),
+      (tag: Tag) =>
+        createJsonDecoderFn<Tag>(undefined, {strategy: 'mutate'})(
+          createJsonEncoderFn<Tag>(undefined, {strategy: 'mutate'})(tag) as string
+        ),
+      (tag: Tag) =>
+        createJsonDecoderFn<Tag>(undefined, {strategy: 'compact'})(
+          createJsonEncoderFn<Tag>(undefined, {strategy: 'compact'})(tag) as string
+        ),
+    ];
+    for (const roundTrip of roundTrips) {
+      const decoded = roundTrip(source());
+      expect(decoded).toEqual(plainTag);
+      expect(isTag(decoded)).toBe(true);
+    }
+  });
+
+  it('without a registered class every strategy gives a plain value that validates (value shape)', () => {
+    const sample = new Tag();
+    const isTag = createValidateFn(sample);
+    const roundTrips = [
+      (tag: Tag) => createJsonDecoderFn(sample)(createJsonEncoderFn(sample)(tag) as string),
+      (tag: Tag) =>
+        createJsonDecoderFn(sample, {strategy: 'mutate'})(createJsonEncoderFn(sample, {strategy: 'mutate'})(tag) as string),
+      (tag: Tag) =>
+        createJsonDecoderFn(sample, {strategy: 'compact'})(createJsonEncoderFn(sample, {strategy: 'compact'})(tag) as string),
+    ];
+    for (const roundTrip of roundTrips) {
+      const decoded = roundTrip(source());
+      expect(decoded).toEqual(plainTag);
+      expect(isTag(decoded)).toBe(true);
+    }
+  });
 
   it('every strategy encodes, decodes and validates (static shape)', () => {
     registerClassSerializer(Tag, {});
@@ -344,7 +528,49 @@ describe('class accessors — format transform', () => {
     const result = createFormatTransformFn(sample)({inner: new Formatted()});
     expect([result.inner.pair, result.inner.only]).toEqual(['p', '  o  ']);
   });
+
+  it('a copy of a getter formats a plain value and leaves a class value (static shape)', () => {
+    type Copy = Pick<Formatted, 'only'>;
+    const format = createFormatTransformFn<Copy>();
+    expect(format({only: '  o  '})).toEqual({only: 'o'});
+    expect(format(new Formatted()).only).toBe('  o  ');
+  });
+
+  it('a copy of a getter formats a plain value and leaves a class value (value shape)', () => {
+    const sample: Pick<Formatted, 'only'> = {only: '  o  '};
+    const format = createFormatTransformFn(sample);
+    expect(format({only: '  o  '})).toEqual({only: 'o'});
+    expect(format(new Formatted()).only).toBe('  o  ');
+  });
 });
+
+describe('class accessors — a plain type trusts a plain value', () => {
+  type PlainFormat = {only: TF.Transform<string, {trim: true}>};
+  type PlainAccount = {cents: bigint; name: string};
+
+  it('a format and a mutate encode write to the instance (static shape)', () => {
+    expect(() => createFormatTransformFn<PlainFormat>()(new Formatted())).toThrow(TypeError);
+    const account = new Account();
+    createJsonEncoderFn<PlainAccount>(undefined, {strategy: 'mutate'})(account);
+    expect(account.writes).toBe(1);
+  });
+
+  it('a format and a mutate encode write to the instance (value shape)', () => {
+    const formatSample: PlainFormat = {only: 'o'};
+    const accountSample: PlainAccount = {cents: 1n, name: 'a'};
+    expect(() => createFormatTransformFn(formatSample)(new Formatted())).toThrow(TypeError);
+    const account = new Account();
+    createJsonEncoderFn(accountSample, {strategy: 'mutate'})(account);
+    expect(account.writes).toBe(1);
+  });
+});
+
+class Tagged {
+  /** @accessor */
+  plain = 1;
+  /** @accessorNoSetter */
+  other = 2;
+}
 
 describe('class accessors — removeUnknownKeys', () => {
   it('drops an extra key and keeps the getter (static shape)', () => {
@@ -356,6 +582,34 @@ describe('class accessors — removeUnknownKeys', () => {
     const result = createRemoveUnknownKeysFn(new User())(new UserExtra());
     expect([Object.keys(result), result.id]).toEqual([['name'], 1]);
   });
+
+  it('holds one level deep (static shape)', () => {
+    const result = createRemoveUnknownKeysFn<Holder>()({user: new UserExtra(), tag: 't'});
+    expect([Object.keys(result.user), result.user.id]).toEqual([['name'], 1]);
+  });
+
+  it('holds one level deep (value shape)', () => {
+    const sample: Holder = {user: new User(), tag: 't'};
+    const result = createRemoveUnknownKeysFn(sample)({user: new UserExtra(), tag: 't'});
+    expect([Object.keys(result.user), result.user.id]).toEqual([['name'], 1]);
+  });
+
+  it('a plain copy stores the value as its own key (static shape)', () => {
+    expect(createRemoveUnknownKeysFn<Pick<User, 'id' | 'name'>>()(new UserExtra())).toEqual({id: 1, name: 'a'});
+  });
+
+  it('a plain copy stores the value as its own key (value shape)', () => {
+    const sample: Pick<User, 'id' | 'name'> = {id: 1, name: 'a'};
+    expect(createRemoveUnknownKeysFn(sample)(new UserExtra())).toEqual({id: 1, name: 'a'});
+  });
+
+  it('a doc comment does not turn a field into an accessor (static shape)', () => {
+    expect(Object.keys(createRemoveUnknownKeysFn<Tagged>()(new Tagged()))).toEqual(['plain', 'other']);
+  });
+
+  it('a doc comment does not turn a field into an accessor (value shape)', () => {
+    expect(Object.keys(createRemoveUnknownKeysFn(new Tagged())(new Tagged()))).toEqual(['plain', 'other']);
+  });
 });
 
 class SetterOnly {
@@ -366,12 +620,12 @@ class SetterOnly {
 }
 class Mixed {
   name = 'a';
-  #n = '1';
-  get n(): string {
-    return this.#n;
+  #level = '1';
+  get level(): string {
+    return this.#level;
   }
-  set n(value: number) {
-    this.#n = String(value);
+  set level(value: number) {
+    this.#level = String(value);
   }
 }
 abstract class Base {
@@ -400,6 +654,22 @@ class WithPrivate {
   }
 }
 
+type MemberKinds = {setter: SetterOnly; mixed: Mixed; concrete: Base; child: Child; withStatic: WithStatic};
+const memberKinds = (): MemberKinds => ({
+  setter: new SetterOnly(),
+  mixed: new Mixed(),
+  concrete: new Concrete(),
+  child: new Child(),
+  withStatic: new WithStatic(),
+});
+const memberKindsWire = {
+  setter: {name: 'a'},
+  mixed: {level: '1', name: 'a'},
+  concrete: {id: 1, name: 'a'},
+  child: {id: 1, name: 'a'},
+  withStatic: {name: 'a'},
+};
+
 describe('class accessors — member kinds', () => {
   afterEach(() => clearClassSerializers());
 
@@ -422,18 +692,30 @@ describe('class accessors — member kinds', () => {
     expect(JSON.parse(createJsonEncoderFn(sample, {strategy: 'mutate'})(new SetterOnly()) as string)).toEqual({name: 'a'});
   });
 
+  it('a rebuild never hands a wire value to a setter-only member (static shape)', () => {
+    registerClassSerializer(SetterOnly, {});
+    const decoded = createJsonDecoderFn<SetterOnly>()('{"name":"b","secret":123}');
+    expect([decoded, decoded.name]).toEqual([expect.any(SetterOnly), 'b']);
+  });
+
+  it('a rebuild never hands a wire value to a setter-only member (value shape)', () => {
+    registerClassSerializer(SetterOnly, {});
+    const decoded = createJsonDecoderFn(new SetterOnly())('{"name":"b","secret":123}');
+    expect([decoded, decoded.name]).toEqual([expect.any(SetterOnly), 'b']);
+  });
+
   it('mixed get and set types carry the read type, and a rebuild skips it (static shape)', () => {
     registerClassSerializer(Mixed, {});
-    expect(JSON.parse(createJsonEncoderFn<Mixed>()(new Mixed()) as string)).toEqual({n: '1', name: 'a'});
-    expect(createJsonDecoderFn<Mixed>()('{"n":"9","name":"b"}').n).toBe('1');
+    expect(JSON.parse(createJsonEncoderFn<Mixed>()(new Mixed()) as string)).toEqual({level: '1', name: 'a'});
+    expect(createJsonDecoderFn<Mixed>()('{"level":"9","name":"b"}').level).toBe('1');
     expect(createValidateFn<Mixed>()(new Mixed())).toBe(true);
   });
 
   it('mixed get and set types carry the read type, and a rebuild skips it (value shape)', () => {
     registerClassSerializer(Mixed, {});
     const sample = new Mixed();
-    expect(JSON.parse(createJsonEncoderFn(sample)(new Mixed()) as string)).toEqual({n: '1', name: 'a'});
-    expect(createJsonDecoderFn(sample)('{"n":"9","name":"b"}').n).toBe('1');
+    expect(JSON.parse(createJsonEncoderFn(sample)(new Mixed()) as string)).toEqual({level: '1', name: 'a'});
+    expect(createJsonDecoderFn(sample)('{"level":"9","name":"b"}').level).toBe('1');
     expect(createValidateFn(sample)(new Mixed())).toBe(true);
   });
 
@@ -468,6 +750,23 @@ describe('class accessors — member kinds', () => {
     expect(createValidateFn(withStatic, {checkUnknowns: true})(new WithStatic())).toBe(true);
     expect(JSON.parse(createJsonEncoderFn(withStatic)(new WithStatic()) as string)).toEqual({name: 'a'});
     expect(JSON.parse(createJsonEncoderFn(withPrivate)(new WithPrivate()) as string)).toEqual({name: 'a', secret: 's'});
+  });
+});
+
+describe('class accessors — member kinds one level deep', () => {
+  it('pass strict and encode like a prop (static shape)', () => {
+    expect(createValidateFn<MemberKinds>(undefined, {checkUnknowns: true})(memberKinds())).toBe(true);
+    expect(JSON.parse(createJsonEncoderFn<MemberKinds>()(memberKinds()) as string)).toEqual(memberKindsWire);
+    const mutate = createJsonEncoderFn<MemberKinds>(undefined, {strategy: 'mutate'});
+    expect(JSON.parse(mutate(memberKinds()) as string)).toEqual(memberKindsWire);
+  });
+
+  it('pass strict and encode like a prop (value shape)', () => {
+    const sample = memberKinds();
+    expect(createValidateFn(sample, {checkUnknowns: true})(memberKinds())).toBe(true);
+    expect(JSON.parse(createJsonEncoderFn(sample)(memberKinds()) as string)).toEqual(memberKindsWire);
+    const mutate = createJsonEncoderFn(sample, {strategy: 'mutate'});
+    expect(JSON.parse(mutate(memberKinds()) as string)).toEqual(memberKindsWire);
   });
 });
 
@@ -559,6 +858,77 @@ describe('class accessors — the same member through another shape', () => {
   it('DataOnly (value shape)', () => {
     const sample: DataOnly<User> = new User();
     expectShape(createValidateFn(sample, strict), createJsonEncoderFn(sample, mutate), new User(), new UserExtra());
+  });
+});
+
+type DerivedShapes = {
+  shaped: UserInterface;
+  picked: Pick<User, 'id' | 'name'>;
+  loose: Partial<User>;
+  joined: User & {name: string};
+  data: DataOnly<User>;
+};
+const derivedShapes = (user: () => User): DerivedShapes => ({
+  shaped: user(),
+  picked: user(),
+  loose: user(),
+  joined: user(),
+  data: user(),
+});
+const derivedWire = {shaped: wireUser, picked: wireUser, loose: wireUser, joined: wireUser, data: wireUser};
+
+describe('class accessors — other shapes one level deep', () => {
+  it('pass strict, fail an extra key and encode (static shape)', () => {
+    const isStrict = createValidateFn<DerivedShapes>(undefined, {checkUnknowns: true});
+    expect(isStrict(derivedShapes(() => new User()))).toBe(true);
+    expect(isStrict(derivedShapes(() => new UserExtra()))).toBe(false);
+    const mutate = createJsonEncoderFn<DerivedShapes>(undefined, {strategy: 'mutate'});
+    expect(JSON.parse(mutate(derivedShapes(() => new User())) as string)).toEqual(derivedWire);
+  });
+
+  it('pass strict, fail an extra key and encode (value shape)', () => {
+    const sample = derivedShapes(() => new User());
+    const isStrict = createValidateFn(sample, {checkUnknowns: true});
+    expect(isStrict(derivedShapes(() => new User()))).toBe(true);
+    expect(isStrict(derivedShapes(() => new UserExtra()))).toBe(false);
+    const mutate = createJsonEncoderFn(sample, {strategy: 'mutate'});
+    expect(JSON.parse(mutate(derivedShapes(() => new User())) as string)).toEqual(derivedWire);
+  });
+});
+
+class Documented {
+  name = 'a';
+  get id() {
+    return 1;
+  }
+  set secret(_value: string) {
+    throw new Error('never called');
+  }
+}
+
+describe('class accessors — JSON schema and mock data', () => {
+  const expectSchema = (doc: Record<string, unknown>) => {
+    expect(Object.keys(doc.properties as object).sort()).toEqual(['id', 'name', 'secret']);
+    expect(doc.required).toEqual(['name', 'id']);
+    expect(doc.tsReadonly).toEqual(['id']);
+  };
+
+  it('a getter is required and readonly, a setter-only member optional (static shape)', () => {
+    expectSchema(createJsonSchemaFn<Documented>()());
+  });
+
+  it('a getter is required and readonly, a setter-only member optional (value shape)', () => {
+    expectSchema(createJsonSchemaFn(new Documented())());
+  });
+
+  it('a mock of a plain copy validates (static shape)', () => {
+    type Copy = Pick<Documented, 'id' | 'name'>;
+    expect(createValidateFn<Copy>()(createMockDataFn<Copy>()())).toBe(true);
+  });
+
+  it('a mock of a plain copy validates (value shape)', () => {
+    const sample: Pick<Documented, 'id' | 'name'> = {id: 1, name: 'a'};
+    expect(createValidateFn(sample)(createMockDataFn(sample)())).toBe(true);
   });
 });
 
