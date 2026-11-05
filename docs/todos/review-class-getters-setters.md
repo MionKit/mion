@@ -51,11 +51,12 @@ therefore handle it on purpose. An object literal getter is an own enumerable ke
 
 Direction for the two hard rows:
 
-- **Strict:** the count `cntEK(v) === N` is only exact on a plain object. Keep it as the fast path when the prototype is
-  `Object.prototype` or null. Anything else, or a count that does not match, takes the key-name check: a listed key that
-  is not declared fails. Validate and errors must share the answer. Known limit: own non-enumerable prop plus an extra
-  key on a plain object still matches the count. Only in-process values can do that, since `JSON.parse` output has no
-  hidden keys. This sits on a hot path: benchmark it.
+- **Strict:** the count `cntEK(v) === N` is only exact on a plain object, so strict emits
+  `((kCnt = cntEK(v)) === N ? v.constructor === Object || !hUKFA(v, k) : kCnt < N && !hUKFA(v, k))`. Over N keys is an
+  unknown key, N on a plain object is clean, anything else reads the key names. Validate and errors share the answer.
+  Known limits: an own non-enumerable prop plus an extra key on a plain object, or a getter on a hand-built plain
+  prototype plus an extra key, still match the count. Only in-process values can do that, since `JSON.parse` output has
+  no hidden keys, and a class instance never does. `Object.getPrototypeOf` was tried first and halved strict validate.
 - **Mutate:** it works in place and `JSON.stringify` skips accessors, so an object with an accessor member must be
   copied instead, never written to. Today a setter gets the encoded value: `set n(v: bigint)` receives `"1"` and
   corrupts the instance.
@@ -131,16 +132,15 @@ this plan to it, and keep each fix below in its own commit with its own tests.
 
 ### 2. Strict (Go, no accessor-specific code)
 
-`strictObjectKeyAssertion` becomes
-`(cntEK(v) === N && Object.getPrototypeOf(v) === Object.prototype) || !hUKFA(v, k_id)`.
-`emitParentUnknownKeyErrors` gates its report on the same check. An off count with no unknown name can no longer
+`strictObjectKeyAssertion` emits the check under "Strict" above, a single closure `let` holding the count.
+`emitParentUnknownKeyErrors` gates its report on `cntEK(v) === N && v.constructor === Object`. An off count with no unknown name can no longer
 happen, so the `shapeExpected` entry and parameter go. Fixes class, `Pick`, interface and plain type + class value
 together. The union-keys families share this function.
 
 ### 3. Clone encode fast path (found while planning)
 
 `if (Object.keys(v).length === N) return v` in `json_prepare_clone.go` has the same hole: `{get id, name, extra}`
-through a plain type returns `v`, so `id` is lost and `extra` leaks. Add the same prototype check.
+through a plain type returns `v`, so `id` is lost and `extra` leaks. Add the same plain object check.
 
 ### 4. Mutate encode
 
@@ -180,7 +180,7 @@ through a plain type returns `v`, so `id` is lost and `extra` leaks. Add the sam
 
 ### Benchmark
 
-The prototype check adds one compare to a hot path. Before any run I post a heads-up with an end time, as the Mac is
+The plain object check adds one compare to a hot path. Before any run I post a heads-up with an end time, as the Mac is
 shared, then run the validator bench on `main` and on the branch, and check the round spread. Numbers go in the PR.
 
 ### Finish

@@ -14,6 +14,9 @@ export interface HiddenKeyValue {
   mode: HiddenKeyMode;
 }
 
+/** Gives a hidden getter the prototype of a real class accessor. **/
+class ClassPrototype {}
+
 /** Plain objects with an own key, reached only through plain objects and arrays. **/
 function collectPlainObjects(value: unknown, path: (string | number)[], out: PlainObjectAt[]) {
   if (Array.isArray(value)) {
@@ -43,7 +46,8 @@ export function hideOwnKey(value: unknown, random: () => number): HiddenKeyValue
   } else if (mode === 'inherited') {
     Object.setPrototypeOf(record, {[key]: held});
   } else {
-    Object.setPrototypeOf(record, Object.defineProperty({}, key, {get: () => held, enumerable: false, configurable: true}));
+    const prototype = Object.defineProperty(Object.create(ClassPrototype.prototype), key, {get: () => held, configurable: true});
+    Object.setPrototypeOf(record, prototype);
   }
   return {value: copy, path, key, mode};
 }

@@ -22,6 +22,7 @@ Load-bearing pipeline rules. Read before touching markers, rewrites, caches, val
   Decoders return `DataOnly<T>`.
 - A `get` / `set` member is a prop in every family, on any shape a mapped type copies it to. JS lists neither, so
   a key count only holds on a plain object (past one, read key names), and a mutate encode works on a copy.
+  The plain check reads `constructor`, not the prototype: `Object.getPrototypeOf` halved strict validate.
 - `any` / `unknown` the author wrote ARE data, kept for third-party types: accepted at every position in every
   family (a required member only needs its key). An Info at a root, never an error.
 - `any` from an unresolved name, import or lib = RuntimeError: `marker-any-from-unresolved-import`,

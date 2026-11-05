@@ -627,7 +627,7 @@ func strictErrorsBody(t *testing.T, source string) string {
 func assertErrorsGateOnKeyCount(t *testing.T, body string) {
 	t.Helper()
 	snapshotAt := strings.Index(body, "const ne0 = er.length;")
-	gateAt := strings.Index(body, "if (!(er.length === ne0) || !(cntEK(v) === 2 && Object.getPrototypeOf(v) === Object.prototype))")
+	gateAt := strings.Index(body, "if (!(er.length === ne0) || !(cntEK(v) === 2 && v.constructor === Object))")
 	if snapshotAt < 0 || gateAt < 0 || snapshotAt > gateAt {
 		t.Errorf("all-required shape's error report is not gated on the key count after an error-count snapshot:\n%s", body)
 	}
