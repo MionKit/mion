@@ -61,7 +61,7 @@ describe('a vite root reached through a symlink', () => {
     120_000
   );
 
-  // The real tsconfig keeps the program on real paths, so nothing is lost and nothing fails.
+  // The real tsconfig keeps the program on real paths, so nothing fails.
   register(
     'still rewrites getRunTypeId<T>() when the program holds real paths',
     async () => {

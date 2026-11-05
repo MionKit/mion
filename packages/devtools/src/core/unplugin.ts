@@ -423,7 +423,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     return rel.split(path.sep).join('/');
   }
 
-  // Hosts load real paths, so a program spelled through a symlinked cwd misses them and would lose the rewrites silently.
+  // Hosts load real paths, so a program spelled through a symlinked cwd misses them and silently loses rewrites.
   function symlinkedCwdError(id: string): Error | undefined {
     const realCwd = fs.existsSync(cwdAbs) ? fs.realpathSync(cwdAbs) : cwdAbs;
     if (realCwd === cwdAbs || !siteFiles.has(siteKey(path.relative(realCwd, id)))) return undefined;
