@@ -90,7 +90,7 @@ func (PrepareForJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Co
 		case reflection.SubKindUrl:
 			return RTCode{Code: "", Type: CodeS}
 		case reflection.SubKindNone:
-			structural := emitObjectJsonChildren(rt, ctx)
+			structural := emitObjectJsonPrepare(rt, ctx, v)
 			return wrapPrepareWithClassSerializer(rt, ctx, v, structural)
 		case reflection.SubKindMap, reflection.SubKindSet:
 			return emitNativeIterablePrepareForJson(rt, ctx, v)
@@ -104,7 +104,7 @@ func (PrepareForJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Co
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindObjectLiteral:
-		return emitObjectJsonChildren(rt, ctx)
+		return emitObjectJsonPrepare(rt, ctx, v)
 
 	case reflection.KindProperty, reflection.KindPropertySignature:
 		return emitPropertyPrepareForJson(rt, ctx, v)
@@ -163,6 +163,19 @@ func emitLiteralPrepareForJson(rt *reflection.RunType, v string) RTCode {
 		return RTCode{Code: "", Type: CodeNS}
 	}
 	return RTCode{Code: "", Type: CodeS}
+}
+
+// emitObjectJsonPrepare is the object walk on a copy when the object has an accessor.
+func emitObjectJsonPrepare(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
+	children := emitObjectJsonChildren(rt, ctx)
+	if children.Type == CodeNS {
+		return children
+	}
+	copied := emitAccessorCopy(rt, ctx, v)
+	if copied == "" {
+		return children
+	}
+	return RTCode{Code: joinSemicolons(copied, children.Code), Type: CodeS}
 }
 
 // emitObjectJsonChildren is the object walk the restore side shares verbatim — the per-property
