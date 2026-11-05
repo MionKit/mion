@@ -47,12 +47,13 @@ binaries.
 
 - Pass `-buildvcs=false` to both `go build` calls in `checkStampedGoBin`, and add it to `goIdentity()`, so old binaries
   rebuild once and the CI cache key changes once.
-- Applies to every local build, main checkout included. Worktrees and the main checkout then produce the same binary.
-- Left alone: the setup skill's raw `go build`, which the gate already replaces, and the release build, which has its own
-  script.
+- Applies to every build the gates compare by build ID: `checkStampedGoBin` and the playground wasm. A binary no longer
+  depends on the main checkout's git state.
+- Left alone: the release build has its own script, and `tools/drizzle-type-cost/setup.mjs` has no gate. The setup skill's raw
+  `go build` also stays. The gate replaces it when the stamp disagrees; a matching stamp trusts it, and it works the same.
 - Test: `build-gate.test.ts` checks that `mion-bin/mion` has no `vcs.` stamps. It runs on Linux too, so CI guards the fix.
 
 ## What shipped
 
-As planned. `go version -m` does not print the `-buildvcs=false` flag, so the test checks for missing `vcs.` lines. A build
+As planned, plus the wasm build, which the review found. `go version -m` does not print the `-buildvcs=false` flag, so the test checks for missing `vcs.` lines. A build
 without the flag prints 3 of them. `status` moved to `done`.
