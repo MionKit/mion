@@ -238,7 +238,7 @@ export const onCopy = createFormatTransformFn<Pick<FmtGetter, 'only'>>();
 		t.Fatalf("class format of a getter is not noop\nmodules: %v", modules)
 	}
 	delete(modules, name)
-	if _, ok := findEntryWith(modules, "if (v.constructor === Object) {"); !ok {
+	if _, ok := findEntryWith(modules, "if (Object.getPrototypeOf(v) === Object.prototype) {"); !ok {
 		t.Fatalf("copy of a getter must format a plain value\nmodules: %v", modules)
 	}
 }

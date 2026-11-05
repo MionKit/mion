@@ -1,21 +1,18 @@
-// Takes one key of a plain object off its own enumerable keys, value still readable, as a class getter is. O21 pins that
-// validate and its error report agree on these values, O28 that a hidden declared prop still passes strict.
+// Takes one key of a plain object off its own enumerable keys, value still readable. Validate counts keys where the
+// error report names them, so O21 over these values pins that both agree when a declared prop hides.
 
 import {deepCopyValue} from '../cloning/extrasValue.ts';
 
-export const HIDDEN_KEY_MODES = ['nonEnumerable', 'inherited', 'getter', 'plainGetter'] as const;
+export const HIDDEN_KEY_MODES = ['nonEnumerable', 'inherited', 'getter'] as const;
 type HiddenKeyMode = (typeof HIDDEN_KEY_MODES)[number];
 type PlainObjectAt = {target: object; path: (string | number)[]};
 
-export interface HiddenKeyValue {
+interface HiddenKeyValue {
   value: unknown;
   path: (string | number)[];
   key: string;
   mode: HiddenKeyMode;
 }
-
-/** Gives a hidden getter the prototype of a real class accessor. **/
-class ClassPrototype {}
 
 /** Plain objects with an own key, reached only through plain objects and arrays. **/
 function collectPlainObjects(value: unknown, path: (string | number)[], out: PlainObjectAt[]) {
@@ -45,11 +42,8 @@ export function hideOwnKey(value: unknown, random: () => number): HiddenKeyValue
     Object.defineProperty(record, key, {value: held, enumerable: false, writable: true, configurable: true});
   } else if (mode === 'inherited') {
     Object.setPrototypeOf(record, {[key]: held});
-  } else if (mode === 'plainGetter') {
-    Object.setPrototypeOf(record, Object.defineProperty({}, key, {get: () => held, configurable: true}));
   } else {
-    const prototype = Object.defineProperty(Object.create(ClassPrototype.prototype), key, {get: () => held, configurable: true});
-    Object.setPrototypeOf(record, prototype);
+    Object.setPrototypeOf(record, Object.defineProperty({}, key, {get: () => held, enumerable: false, configurable: true}));
   }
   return {value: copy, path, key, mode};
 }

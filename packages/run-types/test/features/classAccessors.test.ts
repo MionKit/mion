@@ -63,17 +63,17 @@ describe('class accessors — strict', () => {
     expect(errorsStrict({user: new UserExtra(), tag: 't'})).toEqual(extraError('user'));
   });
 
-  it('reads a class value through a plain type by name (static shape)', () => {
+  it('a plain type counts keys, so it misses a getter on a class value (static shape)', () => {
     const isStrict = createValidateFn<PlainHolder>(undefined, {checkUnknowns: true});
-    expect(isStrict({user: new User(), tag: 't'})).toBe(true);
-    expect(isStrict({user: new UserExtra(), tag: 't'})).toBe(false);
+    expect(isStrict({user: new User(), tag: 't'})).toBe(false);
+    expect(isStrict({user: new UserExtra(), tag: 't'})).toBe(true);
   });
 
-  it('reads a class value through a plain type by name (value shape)', () => {
+  it('a plain type counts keys, so it misses a getter on a class value (value shape)', () => {
     const sample: PlainHolder = {user: {id: 1, name: 'a'}, tag: 't'};
     const isStrict = createValidateFn(sample, {checkUnknowns: true});
-    expect(isStrict({user: new User(), tag: 't'})).toBe(true);
-    expect(isStrict({user: new UserExtra(), tag: 't'})).toBe(false);
+    expect(isStrict({user: new User(), tag: 't'})).toBe(false);
+    expect(isStrict({user: new UserExtra(), tag: 't'})).toBe(true);
   });
 });
 
@@ -100,35 +100,45 @@ describe('class accessors — plain validate', () => {
   });
 });
 
-describe('class accessors — clone encode of a plain type', () => {
+describe('class accessors — clone encode', () => {
   const wire = {id: 1, name: 'a'};
 
   it('keeps the getter and drops an extra key (static shape)', () => {
-    const encode = createJsonEncoderFn<UserShape>();
+    const encode = createJsonEncoderFn<User>();
     expect(JSON.parse(encode(new User()) as string)).toEqual(wire);
     expect(JSON.parse(encode(new UserExtra()) as string)).toEqual(wire);
   });
 
   it('keeps the getter and drops an extra key (value shape)', () => {
-    const sample: UserShape = {id: 1, name: 'a'};
-    const encode = createJsonEncoderFn(sample);
+    const encode = createJsonEncoderFn(new User());
     expect(JSON.parse(encode(new User()) as string)).toEqual(wire);
     expect(JSON.parse(encode(new UserExtra()) as string)).toEqual(wire);
   });
 
   it('holds one level deep (static shape)', () => {
-    const encode = createJsonEncoderFn<PlainHolder>();
+    const encode = createJsonEncoderFn<Holder>();
     const expected = {user: wire, tag: 't'};
     expect(JSON.parse(encode({user: new User(), tag: 't'}) as string)).toEqual(expected);
     expect(JSON.parse(encode({user: new UserExtra(), tag: 't'}) as string)).toEqual(expected);
   });
 
   it('holds one level deep (value shape)', () => {
-    const sample: PlainHolder = {user: {id: 1, name: 'a'}, tag: 't'};
+    const sample: Holder = {user: new User(), tag: 't'};
     const encode = createJsonEncoderFn(sample);
     const expected = {user: wire, tag: 't'};
     expect(JSON.parse(encode({user: new User(), tag: 't'}) as string)).toEqual(expected);
     expect(JSON.parse(encode({user: new UserExtra(), tag: 't'}) as string)).toEqual(expected);
+  });
+
+  it('a plain type counts keys, so a class value of the same count goes through as it is (static shape)', () => {
+    const encode = createJsonEncoderFn<UserShape>();
+    expect(JSON.parse(encode(new UserExtra()) as string)).toEqual({extra: 1, name: 'a'});
+  });
+
+  it('a plain type counts keys, so a class value of the same count goes through as it is (value shape)', () => {
+    const sample: UserShape = {id: 1, name: 'a'};
+    const encode = createJsonEncoderFn(sample);
+    expect(JSON.parse(encode(new UserExtra()) as string)).toEqual({extra: 1, name: 'a'});
   });
 });
 

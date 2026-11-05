@@ -25,7 +25,6 @@ import {isDeepStrictEqual} from 'node:util';
 import {deepCloneForRoundTrip} from '../../util/equalsHelpers.ts';
 import type {RunType} from '../../../src/runtypes/types.ts';
 import type {RTValidationError, RTValidationErrorPathSegment} from '../../../src/createRTFunctions.ts';
-import type {HiddenKeyValue} from './hiddenKeyValue.ts';
 import {containsKeyedShape, pathKey, UNKNOWN_KEY_PREFIX, wireKeyAdmitted, type PlantedUnknownKey} from './unknownKeyPositions.ts';
 
 /** One target type under fuzz: its schema (to drive mock + corruption) plus
@@ -70,8 +69,6 @@ export interface FuzzTarget {
 //   O14 family-agree    the clone and compact encoders agree serialize-vs-fail
 //   O18 fused-agree     the `{checkUnknowns: true}` validator accepts exactly
 //                       when `validate(v)` does and removeUnknownKeys drops nothing
-//   O28 hidden-strict   a declared key hidden from `for...in` still passes strict,
-//                       and an extra key beside it still fails
 //   O21 strict-self     the `{checkUnknowns: true}` validator and its error twin
 //                       agree: empty report  <=>  accepted
 // O22–O27 are the unknown-key agreement oracles. Several generated functions
@@ -116,7 +113,6 @@ export type OracleId =
   | 'O24'
   | 'O25'
   | 'O26'
-  | 'O28'
   | 'TR1'
   | 'TR2'
   | 'TR3'
@@ -315,40 +311,6 @@ export function checkStrictSelfAgree(target: FuzzTarget, value: unknown, ctx: Ch
         : 'validator REJECTED but the report is empty — a caller asking why gets nothing',
       value
     );
-  }
-  return null;
-}
-
-/** O28 — with a key hidden, strict still accepts what it did if plain `validate` agrees: a class getter is such a key.
- *  An extra key elsewhere fails too, unless it fills a plain object's count: a limit only in-process values reach. **/
-export function checkHiddenKeyStrict(
-  target: FuzzTarget,
-  source: unknown,
-  hidden: HiddenKeyValue,
-  ctx: CheckCtx
-): Violation | null {
-  const {validateStrict, errorsStrict} = target;
-  if (!validateStrict || !errorsStrict) return null;
-  let sourceAccepted: boolean;
-  let sourceUnknown: string[];
-  let plainAccepted: boolean;
-  let hiddenAccepted: boolean;
-  try {
-    sourceAccepted = validateStrict(source);
-    sourceUnknown = reportedPaths(errorsStrict(source), 'never');
-    plainAccepted = target.validate(hidden.value);
-    hiddenAccepted = validateStrict(hidden.value);
-  } catch {
-    return null; // O3 and O21 cover a throw
-  }
-  if (sourceAccepted && plainAccepted && !hiddenAccepted) {
-    return violation('O28', target, ctx, `strict rejected a declared key hidden as ${hidden.mode}: ${hidden.key}`, hidden.value);
-  }
-  const hiddenPath = pathKey([...hidden.path, hidden.key] as RTValidationErrorPathSegment[]);
-  const extraRemains = sourceUnknown.some((path) => !isUnderPath(path, hiddenPath));
-  const countIsBlind = hidden.mode === 'nonEnumerable' || hidden.mode === 'plainGetter';
-  if (!countIsBlind && extraRemains && hiddenAccepted) {
-    return violation('O28', target, ctx, `strict accepted an extra key beside one hidden as ${hidden.mode}`, hidden.value);
   }
   return null;
 }

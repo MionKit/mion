@@ -120,7 +120,7 @@ func emitObjectFormat(rt *reflection.RunType, ctx *EmitContext, v string) RTCode
 		case childRT.Code == "":
 		case hasNoSetter(resolved):
 			// A copy of a no-setter member: a plain value holds it as data, a class value still answers through its accessor.
-			parts = append(parts, "if ("+emitPlainObject(v)+") {"+childRT.Code+"}")
+			parts = append(parts, "if (Object.getPrototypeOf("+v+") === Object.prototype) {"+childRT.Code+"}")
 		default:
 			parts = append(parts, childRT.Code)
 		}
