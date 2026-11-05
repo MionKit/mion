@@ -106,7 +106,7 @@ change touched, review its report against the code, and commit it as its own com
 
 - Every function above behaves as the table says, tested.
 - A class instance with a getter passes strict, and an extra key on it fails, for validate and errors alike.
-- No function writes to a getter or crashes on one, and encode never calls a setter.
+- No function writes to a member the type marks as a getter or crashes on one, and encode never calls a setter it can see.
 - The strict change has benchmark numbers in the PR, with the user warned before the run.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file,
   each committed on its own.
@@ -122,10 +122,11 @@ this plan to it, and keep each fix below in its own commit with its own tests.
 
 - `typeid.IsAccessorMember`: read declarations (`KindGetAccessor` / `KindSetAccessor`), skip a parent that is an object
   literal expression. Remove the `asClass` gate in `serialize.go` `appendProperty` and in `typeid.go` `memberID`.
-- New `reflection.FlagAccessorNoSetter`: getter-only, or get and set types differ. Compare declared types (getter's
-  return type vs the setter parameter's), so `Box<T>` instantiations do not read as different. `#acc` gets a second
-  form so the two cannot share a cache entry.
-- Getter-only sets `Readonly` in `modifiers.go` and in `memberID`; fix the wrong comment there.
+- New `reflection.FlagAccessorNoSetter`: getter-only, setter-only, or a setter that does not accept the getter's declared
+  type. Compare declared types (getter's return type vs the setter parameter's), so `Box<T>` instantiations do not read
+  as different. `#acc` gets a second form so the two cannot share a cache entry.
+- Getter-only sets `Readonly` in `appendProperty` past the method form and in `memberID`; fix the wrong comment in
+  `modifiers.go`. A mapped or merged copy keeps what the checker decided.
 - Setter-only is optional, in both `appendProperty` and `memberID`, as they must agree.
 - `convert`: only class members print `get` / `set`. Other shapes print a plain prop, as TypeScript shows it. A class
   member that is an optional accessor is setter-only and prints only `set` (a getter cannot be optional).
@@ -203,18 +204,29 @@ Differences from the plan above, and what it did not say:
   another type, so a printed member uses a `/** @accessor */` or `/** @accessorNoSetter */` tag, read like
   `@nonEnumerable`. Outside a class every copy uses the tag.
 - **Source conversion refuses a copy of an accessor** (`Pick<User, 'fullName'>`): no builder can spell it.
-- **Union object arm:** each accessor copies under `'id' in v`, so a member without it stays without it.
-- **Limits left in place.** A format transform skips a no-setter member in a plain copy too, so `Pick` of a getter-only
-  member is not formatted on a plain value. A plain type given a class value with a getter-only member has no build-time
-  sign, so a format on it still throws.
+- **Union object arm:** one copy under `'id' in v || 'name' in v` lists every accessor. An accessor the value lacks reads
+  undefined, which the props and JSON both skip. A value with none stays in place.
+- **Setter-only:** counts as no-setter. Validate reads undefined whatever the setter took, so no check covers a wire value.
+- **`accessor x`** is a get and set pair with hidden storage, detected from its declaration.
+- **Stripped accessors** (`get rx(): RegExp`, `get later(): Promise<T>`) are never read: the wire does not hold them.
+- **A doc comment** with `@accessor` on a real class field means nothing: the tags only count on a printed member.
+- **A format on a copy of a no-setter member** runs only on a plain value, gated by `v.constructor === Object`. A class
+  value keeps answering through its accessor.
+- **The strict check keeps `kCnt`.** One count that answers both sides beats testing `cntEK(v) === N` then `cntEK(v) <= N`,
+  which counts twice on every rejected value. Only this form has benchmark numbers.
+- **Decided limit: a plain type trusts a plain value.** Given a class instance with no accessor in the type, mutate and a
+  format write straight to it: the setter runs, a getter-only member throws `TypeError`, and a mutate noop leaves a getter
+  to `JSON.stringify`, which drops it. Only a noop can stay free, so no runtime check can close this. Stated in the docs,
+  pinned by a test. Clone reads by name and has no such limit.
 - **Mutate:** a getter that returns an inner array or object hands back that same object, and its contents are converted
   in place, as for any field.
-- **Fuzz:** oracle O28 in the value lane's hidden pass, and the hidden getter now sits on a class prototype.
+- **Fuzz:** oracle O28 in the value lane's hidden pass. The hidden getter sits on a class prototype, and a fourth mode
+  keeps one on a plain prototype, exempt from the extra key half of O28 beside own non-enumerable keys.
 
 ### Done when (mirrors the section above)
 
 - Every function behaves as the spec's table says, tested.
 - A class instance with a getter passes strict, an extra key on it fails, for validate and errors alike.
-- No function writes to a getter or crashes on one, and encode never calls a setter.
+- No function writes to a member the type marks as a getter or crashes on one, and encode never calls a setter it can see.
 - The strict change has benchmark numbers in the PR, with the user warned before the run.
 - simplify-docs ran on every touched page and simplify-comments on every touched source file, each its own commit.
