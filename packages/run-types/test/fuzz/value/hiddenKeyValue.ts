@@ -1,5 +1,5 @@
-// Takes one key of a plain object off its own enumerable keys, value still readable. Validate counts keys where the
-// error report names them, so O21 over these values pins that both agree when a declared prop hides.
+// Takes one key of a plain object off its own enumerable keys, value still readable, as a class getter is. O21 pins that
+// validate and its error report agree on these values, O28 that a hidden declared prop still passes strict.
 
 import {deepCopyValue} from '../cloning/extrasValue.ts';
 
@@ -7,7 +7,7 @@ export const HIDDEN_KEY_MODES = ['nonEnumerable', 'inherited', 'getter'] as cons
 type HiddenKeyMode = (typeof HIDDEN_KEY_MODES)[number];
 type PlainObjectAt = {target: object; path: (string | number)[]};
 
-interface HiddenKeyValue {
+export interface HiddenKeyValue {
   value: unknown;
   path: (string | number)[];
   key: string;
