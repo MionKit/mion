@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-11-01
 ---
 
@@ -114,20 +114,25 @@ None, because no path, error shape or API changes; only the cost of building the
   tests.
 - The simplify-comments pass ran on every touched source file, committed on its own.
 
-## Plan: pool + pop + one copy (approved 2026-11-04)
+## What shipped
 
-Agreed with the maintainer after measuring (ajv builds string paths, zod 4 prefixes keys on the way up, typebox
-builds strings while collecting: copying either would change the path format, so not done).
+1. **`pop()` per segment** instead of `splice(-N)` after a non-inlined child call and around nested formats.
+2. **One copy per error** in `_err`: `pth.slice()`, `pth.concat(accessPath)`, or the fresh static literal when
+   `pth` is empty. Format errors use `pth.slice()`.
+3. **An override child gets its own path copy** (`pth.concat([...])` / `pth.slice()`): user code may keep the
+   array it is handed, and the live one keeps changing. Also broken before this change.
 
-1. **Root pool, one pure fn.** `_errPool` holds a shared path list and error list. The generated root takes
-   both when called with neither `path` nor `errors`, walks, and gives them back: a valid result is one shared
-   frozen empty array, an invalid one is handed to the caller. A nested call or a throw finds the pool empty and
-   allocates.
-2. **`pop()` per segment** instead of `splice(-N)` after a non-inlined child call and around nested formats.
-3. **One copy per error**: `pth.slice()`, `pth.concat(accessPath)`, or the fresh static literal when `pth`
-   is empty; format errors use `pth.slice()`.
+Tests: `test/features/validationErrorPaths.test.ts` (paths, path ownership, caller path, override, both shapes).
 
-Each idea is checked with a focused micro benchmark (the cloud box is too noisy for the full suite).
-Tests: path values unchanged across suites, every error owns its path, caller `path` untouched, pool behavior on
-valid / invalid / throw / nested call, both `getRunTypeId` shapes. Docs: one line on the frozen empty result in
-the runtypes validation guide.
+Official benchmark, MacBook, Node and Bun, 3 interleaved rounds, best round, average of 14 cases (M ops/s):
+
+| Runtime, input | Before | Shipped | Shipped + pool + `false` result |
+| --- | --- | --- | --- |
+| Node, valid | 45.5 | 65.0 | 48.9 |
+| Node, invalid | 21.6 | 31.6 | 31.4 |
+| Bun, valid | 32.3 | 50.5 | 47.4 |
+| Bun, invalid | 18.2 | 33.5 | 28.8 |
+
+Tried and dropped: a root pool lending the path and errors lists, returning `false` for a valid value, and a
+runtime wrapper doing both outside the generated fn. Together they were slower on every row but a tie on Node invalid (simple objects on
+Node 143 -> 55), so none shipped. That code is commit `20b3600e4` in the pull request history.
