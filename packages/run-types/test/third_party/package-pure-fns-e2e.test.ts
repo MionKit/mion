@@ -246,7 +246,7 @@ describe('pure fns served across packages: dist lane, src lane, and the unbuilt 
   const register = hasBinary() ? it : it.skip;
 
   beforeAll(async () => {
-    BASE = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-package-purefns-e2e-'));
+    BASE = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'rt-package-purefns-e2e-')));
     TEXT_DIR = path.join(BASE, 'lib-text');
     DATES_DIR = path.join(BASE, 'lib-dates');
     LEGACY_DIR = path.join(BASE, 'lib-legacy');
