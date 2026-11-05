@@ -179,6 +179,11 @@ count. The shortcut is gone: clone always builds the object, which measured no s
 The plain object check adds one compare to a hot path. Before any run I post a heads-up with an end time, as the Mac is
 shared, then run the validator bench against the branch without it, and check the round spread. Numbers go in the PR.
 
+Result against the branch without it, median of 6 interleaved rounds, Node / Bun. Strict validate, geomean of the 4
+`STRICT` cases: valid 0.92x / 0.89x, invalid 0.97x / 0.91x, mixed 0.97x / 0.93x. Worst single case 0.85x. Strict errors
+0.99x / 0.98x on valid. Clone encode, geomean of 155 cases: 1.03x, with mutate and compact (unchanged code) at 1.02x and
+1.01x. Round spread was up to 12%, so read these as about 8 to 11 percent on valid strict, and clone unchanged.
+
 ### Finish
 
 Gate: rebuild `mion-bin/mion`, `pnpm test`, `go -C ts-go-runtypes test ./internal/...`, `pnpm run lint`,
@@ -194,6 +199,9 @@ Differences from the plan above, and what it did not say:
   accepted one compare on the count path. `Object.getPrototypeOf` halved strict validate, so it reads `v.constructor`.
   Mutate and format exceptions stay compile-time only. Copies count: `Pick`, an interface with `get` and an
   intersection all say so at build time.
+- **Removing the clone shortcut exposed two older bugs,** both fixed. An optional tuple slot padded a short tuple
+  (`['a']` for `[string, boolean?]` wrote `["a",null]`). `isExtraProof` memoized a false from a Map or Set element ref
+  under the element's id, so `string[]` beside `Set<string>` was copied, which cost `string[]` 40 percent until fixed.
 - **A function-typed getter** (`get fn(): () => void`) is a method, so it stays dropped and does not take `readonly`.
 - **Printed declarations keep their ids.** `get` / `set` cannot spell an optional member, a readonly pair or a setter of
   another type, so a printed member uses a `/** @accessor */` or `/** @accessorNoSetter */` tag, read like
