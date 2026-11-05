@@ -1,8 +1,9 @@
-// Pins hideOwnKey without the compiler, so O21 over its values tests the hide and not a broken copy.
+// Pins hideOwnKey without the compiler, so O21 and O28 over its values test the hide and not a broken copy.
 
 import {describe, it, expect} from 'vitest';
 import {mulberry32} from '../core/seededRng.ts';
-import {hideOwnKey, HIDDEN_KEY_MODES} from './hiddenKeyValue.ts';
+import {hideOwnKey, HIDDEN_KEY_MODES, type HiddenKeyValue} from './hiddenKeyValue.ts';
+import {checkHiddenKeyStrict, type FuzzTarget} from './fuzzOracle.ts';
 
 describe('hideOwnKey', () => {
   it('hides one key per mode, keeping its value readable', () => {
@@ -35,5 +36,42 @@ describe('hideOwnKey', () => {
     const random = mulberry32(1);
     for (const value of [1, 'x', null, [], [1, 2], {}, new Date(), new Map([['a', 1]])])
       expect(hideOwnKey(value, random)).toBeNull();
+  });
+});
+
+describe('checkHiddenKeyStrict (O28)', () => {
+  const ctx = {seed: 1, phase: 'hidden' as const};
+  const target = (validateStrict: (value: unknown) => boolean, errorsStrict: (value: unknown) => unknown[]) =>
+    ({title: 't', validate: () => true, validateStrict, errorsStrict}) as unknown as FuzzTarget;
+  const hiddenAs = (mode: HiddenKeyValue['mode']): HiddenKeyValue => ({value: {}, path: [], key: 'a', mode});
+  const extra = [{path: ['extra'], expected: 'never'}];
+
+  it('fires when strict rejects a hidden declared key', () => {
+    const source = {a: 1};
+    const rejectsHidden = target(
+      (value) => value === source,
+      () => []
+    );
+    expect(checkHiddenKeyStrict(rejectsHidden, source, hiddenAs('getter'), ctx)?.oracle).toBe('O28');
+  });
+
+  it('fires when strict accepts an extra key beside a hidden one', () => {
+    const source = {a: 1, extra: 1};
+    const acceptsHidden = target(
+      (value) => value !== source,
+      (value) => (value === source ? extra : [])
+    );
+    expect(checkHiddenKeyStrict(acceptsHidden, source, hiddenAs('inherited'), ctx)?.oracle).toBe('O28');
+  });
+
+  it('stays quiet on the known limit and when the extra key is the hidden one', () => {
+    const source = {a: 1, extra: 1};
+    const acceptsHidden = target(
+      (value) => value !== source,
+      (value) => (value === source ? extra : [])
+    );
+    expect(checkHiddenKeyStrict(acceptsHidden, source, hiddenAs('nonEnumerable'), ctx)).toBeNull();
+    const extraHidden: HiddenKeyValue = {value: {}, path: [], key: 'extra', mode: 'getter'};
+    expect(checkHiddenKeyStrict(acceptsHidden, source, extraHidden, ctx)).toBeNull();
   });
 });
