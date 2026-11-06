@@ -234,8 +234,7 @@ describe('uws adapter: the HTTP method', () => {
   });
 });
 
-// uWS splits the byte stream into requests by its own rules; a proxy in front that reads the framing differently
-// would split it elsewhere (request smuggling), so whatever uWS reads loosely the adapter refuses itself.
+// a proxy reading framing differently from uWS splits requests elsewhere (smuggling): the adapter refuses loose framing
 describe('uws adapter: request and answer framing', () => {
   const framingPort = 8297;
   let server: UwsServer;

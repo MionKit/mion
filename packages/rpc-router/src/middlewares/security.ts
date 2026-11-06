@@ -64,8 +64,7 @@ export function mionSecurity(options: MionSecurityOptions = {}) {
     // the default names the framework to anyone scanning for it
     if (response.headers.get('server') === MION_SERVER_NAME) response.headers.delete('server');
 
-    // a shared cache must key the answer on every request header it depends on, or it serves one user's answer
-    // to another (cache poisoning or deception): the origin under CORS, allowed or not, and the headers the chain reads
+    // a shared cache missing a request header the answer depends on serves one user's answer to another
     const vary = method === 'OPTIONS' ? preflightVary : rules.vary;
     if (vary.length) addVary(response.headers, vary);
 
@@ -147,7 +146,6 @@ function isPlainlySameOrigin(headers: CallContext['request']['headers']): boolea
   }
 }
 
-/** Adds the names a `vary` header lacks, keeping any the app or a header set before */
 function addVary(headers: CallContext['response']['headers'], names: readonly string[]): void {
   const vary = headers.get('vary');
   if (!vary) return headers.set('vary', names.join(', '));
@@ -168,7 +166,6 @@ function isJsonContentType(contentType: string | null | undefined): boolean {
   return (end === -1 ? contentType : contentType.slice(0, end)).trim().toLowerCase() === 'application/json';
 }
 
-/** What a chain needs per request: the methods its route's intent accepts, and its CORS header values */
 function describeChain(chain: MethodsExecutionChain, cors: MionCorsSettings | undefined) {
   const route = chain.routeIndex === -1 ? undefined : chain.methods[chain.routeIndex];
   // a batch is one POST; a query reads, so it may come as GET; a mutation and an intent-less route only POST
