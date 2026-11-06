@@ -43,6 +43,8 @@ export interface HttpResponse {
   writeHeader(key: string, value: string): HttpResponse;
   write(chunk: string | ArrayBuffer | Uint8Array): boolean;
   end(body?: string | ArrayBuffer | Uint8Array, closeConnection?: boolean): HttpResponse;
+  /** Ends with no body: a HEAD answer. `reportedContentLength` is the content-length a GET would get. */
+  endWithoutBody(reportedContentLength?: number, closeConnection?: boolean): HttpResponse;
   tryEnd(chunk: string | ArrayBuffer | Uint8Array, totalSize: number): [boolean, boolean];
   close(): HttpResponse;
   cork(cb: () => void): HttpResponse;

@@ -153,13 +153,13 @@ function drainRequestBody(res: HttpResponse) {
 // exported for tests and for mounting on a hand-built uWS app; NOT a middleware handler (see startUwsServer).
 // uWS contract: `req` is valid only synchronously here, so the async dispatch snapshots it before the first await.
 export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
-  const state = {replied: false, aborted: false};
   // Everything read from `req` happens HERE, synchronously.
   const path = req.getUrl();
   const query = req.getQuery();
   const urlQuery = query === '' ? undefined : query;
   const method = upperCaseMethod(req.getMethod());
   const reqHeaders = headersFromUwsRequest(req);
+  const state: ReplyState = {replied: false, aborted: false, head: method === 'HEAD', close: false};
 
   const respHeaders = getDefaultHeaders();
 
@@ -167,6 +167,13 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   res.onAborted(() => {
     state.aborted = true;
   });
+
+  if (hasAmbiguousFraming(reqHeaders)) {
+    state.replied = true;
+    state.close = true;
+    fatalFail(res, state, respHeaders, ambiguousFraming());
+    return;
+  }
 
   // route resolved BEFORE the body, synchronously: the native read stops at the chain's limit, and a late context stays GC-cheap.
   // The raw request object is built once: the one a pathTransform reads and the one the handlers see.
@@ -262,6 +269,24 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   });
 }
 
+/** uWS reads any `transfer-encoding` as chunked and takes the first of two content-lengths. A proxy in front that
+ *  reads them another way splits the stream elsewhere (request smuggling), so RFC 9112 says answer 400 and close. */
+function hasAmbiguousFraming(headers: MionHeaders): boolean {
+  const length = headers.get('content-length');
+  if (length != null && !DECIMAL_LENGTH.test(length)) return true;
+  const coding = headers.get('transfer-encoding');
+  return coding != null && coding.toLowerCase() !== 'chunked';
+}
+const DECIMAL_LENGTH = /^\d+$/;
+
+function ambiguousFraming(): RpcError<'invalid-request-framing'> {
+  return new FatalError({
+    statusCode: 400,
+    publicMessage: 'Bad Request: invalid content-length or transfer-encoding.',
+    type: 'invalid-request-framing',
+  });
+}
+
 /** Frees an ownership-transferred body buffer right after decoding it; the single-read window must never come through here.
  *  `transfer(0)` and not `transfer()`: measured on node 26, only `transfer(0)` releases the backing store there and then.
  *  Guarded because a future uWS could hand back a buffer that cannot be transferred, which must not fail the request. */
@@ -279,7 +304,16 @@ function releaseAfterDecode(fullBody: ArrayBuffer): string {
 type ReleasableBuffer = ArrayBuffer & {transfer?: (newByteLength?: number) => ArrayBuffer};
 
 // only called when there is an http error or weird unhandled route errors
-function fatalFail(res: HttpResponse, state: {aborted: boolean}, respHeaders: MionHeaders, error: RpcError<string>) {
+interface ReplyState {
+  replied: boolean;
+  aborted: boolean;
+  /** RFC 9110: a HEAD answer has no body; one sent anyway is read as the start of the next answer */
+  head: boolean;
+  /** the stream can no longer be split into requests, so the connection ends with this answer */
+  close: boolean;
+}
+
+function fatalFail(res: HttpResponse, state: ReplyState, respHeaders: MionHeaders, error: RpcError<string>) {
   const routeResponse = getRouterFatalErrorResponse(error, respHeaders);
   reply(res, state, routeResponse);
 }
@@ -295,7 +329,7 @@ function statusLine(statusCode: number): string {
   return line;
 }
 
-function reply(res: HttpResponse, state: {aborted: boolean}, mionResp: MionResponse) {
+function reply(res: HttpResponse, state: ReplyState, mionResp: MionResponse) {
   // uWS freed the response when the client left; touching it would crash
   if (state.aborted) return;
   const headers = mionResp.headers as RecordResponseHeaders;
@@ -310,7 +344,8 @@ function reply(res: HttpResponse, state: {aborted: boolean}, mionResp: MionRespo
   res.cork(() => {
     res.writeStatus(statusLine(mionResp.statusCode));
     headers.forEach((name, value) => {
-      if (name === 'content-length' || name === 'content-type') return;
+      // framing is uWS' own: a handler's transfer-encoding next to uWS' content-length corrupts the response
+      if (name === 'content-length' || name === 'content-type' || name === 'transfer-encoding') return;
       if (typeof value === 'string') write(name, value);
       // RFC 6265 forbids folding set-cookie; uWS writes a repeated name as its own line
       else if (name === 'set-cookie') for (const cookie of value) write(name, cookie);
@@ -319,7 +354,8 @@ function reply(res: HttpResponse, state: {aborted: boolean}, mionResp: MionRespo
     // last, and the store's own skipped above: uWS appends a repeated name instead of replacing it
     res.writeHeader('content-type', mionResp.contentType);
 
-    res.end(payload);
+    if (state.head) res.endWithoutBody(Buffer.byteLength(payload, 'utf8'), state.close);
+    else res.end(payload, state.close);
   });
   releaseHeaders(headers);
 }

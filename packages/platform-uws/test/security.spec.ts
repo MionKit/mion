@@ -14,6 +14,7 @@ import {createMionRouter, resetRouter, addStartMiddlewares, addEndMiddlewares} f
 import type {CallContext} from '@mionjs/router';
 import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
 import {resetUwsHttpOpts, setUwsHttpOpts, startUwsServer, type UwsServer} from '../src/uwsHttp.ts';
+import {createConnection} from 'net';
 
 const mion = createMionRouter({sharedDataFactory: (): {user: null} => ({user: null}), basePath: 'api/'});
 
@@ -230,5 +231,98 @@ describe('uws adapter: the HTTP method', () => {
       expect(await (await fetch(url, {method, headers: {'content-type': 'application/json'}})).json()).toEqual({
         readMethod: method,
       });
+  });
+});
+
+// uWS splits the byte stream into requests by its own rules; a proxy in front that reads the framing differently
+// would split it elsewhere (request smuggling), so whatever uWS reads loosely the adapter refuses itself.
+describe('uws adapter: request and answer framing', () => {
+  const framingPort = 8297;
+  let server: UwsServer;
+  const body = '{"echo":[{"name":"a","surname":"b"}]}';
+  const setFraming = mion.route((ctx: CallContext): string => {
+    ctx.response.headers.set('transfer-encoding', 'chunked');
+    return 'ok';
+  });
+  const readName = mion.query((ctx: CallContext): string => 'mion');
+
+  /** Every byte the server writes on one connection, until it closes it or goes quiet. */
+  function rawExchange(request: string): Promise<{data: string; closed: boolean}> {
+    return new Promise((resolve, reject) => {
+      const socket = createConnection({host: '127.0.0.1', port: framingPort}, () => socket.write(request));
+      let data = '';
+      socket.setEncoding('utf8');
+      socket.on('data', (chunk) => (data += chunk));
+      socket.on('error', reject);
+      socket.on('close', () => resolve({data, closed: true}));
+      setTimeout(() => {
+        socket.destroy();
+        resolve({data, closed: false});
+      }, 300);
+    });
+  }
+  const post = (framing: string, payload = body) => `POST /api/echo HTTP/1.1\r\nHost: x\r\n${framing}\r\n\r\n${payload}`;
+  const chunked = `${body.length.toString(16)}\r\n${body}\r\n0\r\n\r\n`;
+
+  beforeAll(async () => {
+    resetUwsHttpOpts();
+    resetRouter();
+    mion.initRoutes({echo, setFraming, readName});
+    setUwsHttpOpts({port: framingPort});
+    server = await startUwsServer();
+  });
+
+  afterAll(() => server.close());
+
+  it.each([
+    ['two different content-lengths', `Content-Length: 4\r\nContent-Length: ${body.length}`],
+    ['an empty content-length', 'Content-Length: '],
+  ])('%s is refused with a 400 and the connection closed', async (_, framing) => {
+    const {data, closed} = await rawExchange(post(framing));
+    expect(data).toMatch(/^HTTP\/1\.1 400 /);
+    expect(data).toContain('invalid-request-framing');
+    expect(closed).toBe(true);
+  });
+
+  it.each([
+    ['a coding other than chunked', 'identity'],
+    ['a coding uWS cannot decode before chunked', 'gzip, chunked'],
+    ['chunked twice', 'chunked, chunked'],
+  ])('a transfer-encoding with %s is refused with a 400 and the connection closed', async (_, coding) => {
+    const {data, closed} = await rawExchange(post(`Transfer-Encoding: ${coding}`, chunked));
+    expect(data).toMatch(/^HTTP\/1\.1 400 /);
+    expect(data).toContain('invalid-request-framing');
+    expect(closed).toBe(true);
+  });
+
+  it('a plain content-length or a chunked body in any letter case still dispatches', async () => {
+    for (const request of [
+      post(`Content-Length: ${body.length}`),
+      post('Transfer-Encoding: chunked', chunked),
+      post('Transfer-Encoding: Chunked', chunked),
+    ]) {
+      const {data} = await rawExchange(request);
+      expect(data).toMatch(/^HTTP\/1\.1 200 /);
+      expect(data.endsWith('{"echo":{"name":"a","surname":"b"}}')).toBe(true);
+    }
+  });
+
+  it('a HEAD answer has no body, so the next answer on the connection starts where the client expects it', async () => {
+    const head = 'HEAD /api/readName HTTP/1.1\r\nHost: x\r\n\r\n';
+    const get = 'GET /api/readName HTTP/1.1\r\nHost: x\r\n\r\n';
+    const {data} = await rawExchange(head + get);
+    const [headAnswer, getAnswer] = data.split(/(?=HTTP\/1\.1 )/);
+    expect(headAnswer).toMatch(/^HTTP\/1\.1 200 /);
+    // the length a GET would get, and nothing after the blank line
+    expect(headAnswer).toMatch(/content-length: 19\r\n/i);
+    expect(headAnswer.endsWith('\r\n\r\n')).toBe(true);
+    expect(getAnswer.endsWith('{"readName":"mion"}')).toBe(true);
+  });
+
+  it('a transfer-encoding a handler sets is dropped: the answer keeps one framing, its content-length', async () => {
+    const {data} = await rawExchange('GET /api/setFraming HTTP/1.1\r\nHost: x\r\n\r\n');
+    expect(data).toMatch(/^HTTP\/1\.1 200 /);
+    expect(data.toLowerCase()).not.toContain('transfer-encoding');
+    expect(data.endsWith('{"setFraming":"ok"}')).toBe(true);
   });
 });
