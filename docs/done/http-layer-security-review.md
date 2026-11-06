@@ -61,16 +61,16 @@ Proxy Handles" table on the security page.
 
 ## What shipped
 
-- **platform-uws**: refuses a request whose framing uWS reads loosely (a repeated or empty `content-length`, a
-  `transfer-encoding` other than `chunked`) with a 400 `invalid-request-framing` and closes the connection; a HEAD
-  answer has no body (`endWithoutBody`); a handler's `transfer-encoding` header is dropped.
-- **platform-node, platform-gcloud, platform-aws**: a handler's `transfer-encoding` header is dropped, so an answer
-  never carries it next to the length the adapter or the gateway sets.
+- **mionSecurity**: refuses a request whose body length is unclear (a repeated or non-numeric `content-length`, a
+  `transfer-encoding` other than `chunked`) with a 400 `unclear-body-length` and `connection: close`. uWS reads these
+  loosely (first length wins, any coding is chunked); node and bun refuse them in their parsers.
+- **platform-uws**: closes the socket when an answer says `connection: close` (uWS wrote the header but kept the
+  socket open); a HEAD answer has no body (`endWithoutBody`).
 - **mionSecurity**: `Vary` lists every request header the chain declares in a headers parameter (plus `Origin` with CORS) on real answers, so a
   shared cache keys on them. A preflight keeps `Vary: Origin`.
 - **rpc-client**: a query GETs only when its URL fits 2048 characters (was 4096), leaving half of uws' 4 KB head to headers and cookies.
 - **router**: the nesting-limit error names the limit (it printed the template text).
-- **Docs**: security page (cache keys row, "What Your Server or Proxy Handles" table), Node timeouts, uWS framing.
+- **Docs**: security page (cache keys row, "What Your Server or Proxy Handles" table), Node timeouts, the unclear-length refusal.
 
 ## Verdicts
 
@@ -106,8 +106,8 @@ Probed over raw sockets on node, bun and uws; the serverless adapters get bytes 
 | 4.1.3 proxy-set headers not overridable | Covered: mion reads no `X-Forwarded-*`; docs advice. |
 | 4.1.4 only supported methods | Covered with mionSecurity (`methodByIntent`); without it every method runs the route. |
 | 4.1.5 message signatures | Not mion's layer. |
-| 4.2.1 request framing | Fixed here for uws; uWS itself refuses CL+TE (now tested). node and bun parsers refuse CL+TE, duplicate CL and bad TE. uWS also refuses chunk extensions RFC 9112 allows: fails closed, not a gap. |
-| 4.2.2 response framing | Fixed here: HEAD body on uws, handler `transfer-encoding` on node, gcloud, uws, aws. bun drops it itself (probed); cloudflare and vercel answer with a `Response` whose runtime sets the framing. |
+| 4.2.1 request framing | Fixed here, with mionSecurity (the refusal) and the uws adapter (closing on `connection: close`); uWS itself refuses CL+TE (now tested). node and bun parsers refuse CL+TE, duplicate CL and bad TE. uWS also refuses chunk extensions RFC 9112 allows: fails closed, not a gap. |
+| 4.2.2 response framing | Fixed here: HEAD body on uws. A `transfer-encoding` header the app sets itself is the app's choice: mion leaves it alone (node then sends it next to its `content-length`; bun drops it). |
 | 4.2.3/4.2.4 HTTP/2 connection headers, CR/LF | Covered: node's http2 and the header stores refuse CR, LF, NUL (earlier audit). |
 | 4.2.5 outgoing request size | Fixed here: the client's `?data=` GET allowed a 4096-character URL, which uws refuses with a 431 (its whole head is capped near 4 KB). It now POSTs past 2048. |
 | 4.3 GraphQL, 4.4 WebSocket | Not applicable: mion has neither. |
@@ -116,7 +116,7 @@ Probed over raw sockets on node, bun and uws; the serverless adapters get bytes 
 
 | Class | Verdict |
 | --- | --- |
-| Request smuggling | Fixed here for uws (see 4.2.1); node, bun refuse every probed shape. |
+| Request smuggling | Fixed here, with mionSecurity (see 4.2.1); node, bun refuse every probed shape. |
 | Host header attacks | Covered: mion builds no URL from `Host`; it only compares it with `Origin` when `Sec-Fetch-Site` is missing. Node accepts two `Host` headers (uws and bun refuse); harmless for that check. |
 | Web cache poisoning and deception | Fixed here, with mionSecurity: `Vary` lists the headers a chain declares. `Cache-Control` stays the app's; docs advice. |
 | HTTP/2 issues | Covered: only node serves HTTP/2 (through a host server); its parser enforces the rules. |
