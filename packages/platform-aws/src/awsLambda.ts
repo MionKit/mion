@@ -102,6 +102,8 @@ function reply(routeResponse: MionResponse, headers: RecordResponseHeaders): API
   const singleHeaders: Record<string, string> = {};
   let cookies: string[] | undefined;
   headers.forEach((name, value) => {
+    // framing is the gateway's: a handler's transfer-encoding would contradict the length it sets
+    if (name === 'transfer-encoding') return;
     if (typeof value === 'string') singleHeaders[name] = value;
     // RFC 6265 forbids folding set-cookie: it goes out through multiValueHeaders below
     else if (name === 'set-cookie') cookies = value;

@@ -48,6 +48,10 @@ describe('serverless router', () => {
     context.response.headers.set('server', 'my-server');
   });
 
+  const setFraming: Route = mion.route((context: Context): void => {
+    context.response.headers.set('transfer-encoding', 'chunked');
+  });
+
   const setCookies: Route = mion.route((context: Context): void => {
     context.response.headers.append('set-cookie', 'a=1');
     context.response.headers.append('set-cookie', 'b=2');
@@ -85,7 +89,7 @@ describe('serverless router', () => {
     beforeAll(async () => {
       resetAwsLambdaOpts();
       resetRouter();
-      mion.initRoutes({changeUserName, getDate, updateHeaders, setCookies});
+      mion.initRoutes({changeUserName, getDate, updateHeaders, setCookies, setFraming});
     });
 
     it('should get an ok response from a route', async () => {
@@ -136,6 +140,13 @@ describe('serverless router', () => {
       // expect(headers['content-length']).toEqual('2'); // AWS manages content-length automatically
       expect(headers['server']).toEqual('my-server');
       expect(headers['x-something']).toEqual('true');
+    });
+
+    it('drops a transfer-encoding a handler sets: the gateway frames the answer', async () => {
+      const {event, context} = getDefaultGatewayEvent('{}', '/api/setFraming');
+      const awsResponse = await awsLambdaHandler(event, context);
+      expect(awsResponse.headers?.['transfer-encoding']).toBeUndefined();
+      expect(JSON.parse(awsResponse.body)).toEqual({});
     });
 
     it('sends appended cookies as separate multiValueHeaders values, other names stay comma joined', async () => {
