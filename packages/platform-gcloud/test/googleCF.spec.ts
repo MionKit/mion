@@ -52,6 +52,11 @@ describe('serverless router', () => {
     context.response.headers.set('server', 'my-server');
   });
 
+  const setFraming: Route = mion.route((ctx: Context): string => {
+    ctx.response.headers.set('transfer-encoding', 'chunked');
+    return 'ok';
+  });
+
   const echoQuery: Route = mion.route((ctx: Context): string => ctx.urlQuery ?? '<undefined>');
 
   const echoLimited: Route = mion.route((ctx: Context, text: string): string => text);
@@ -80,7 +85,7 @@ describe('serverless router', () => {
     beforeAll(async () => {
       resetGoogleCFOpts();
       resetRouter();
-      mion.initRoutes({changeUserName, getDate, updateHeaders, echoQuery});
+      mion.initRoutes({changeUserName, getDate, updateHeaders, echoQuery, setFraming});
       server = await initServer(port);
     });
 
@@ -101,6 +106,13 @@ describe('serverless router', () => {
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
       expect(headers['content-length']).toEqual('47');
       expect(headers['server']).toEqual('mionjs');
+    });
+
+    it('drops a transfer-encoding a handler sets: the answer keeps one framing, its content-length', async () => {
+      const response = await fetch(`http://127.0.0.1:${port}/api/setFraming`, {method: 'POST', body: '{"setFraming":[]}'});
+      expect(response.headers.get('transfer-encoding')).toBeNull();
+      expect(response.headers.get('content-length')).toBe('19');
+      expect(await response.json()).toEqual({setFraming: 'ok'});
     });
 
     it('keeps the whole query string, including a second ? inside it', async () => {

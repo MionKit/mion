@@ -29,6 +29,10 @@ type RpcBody = Record<string, unknown> & Record<typeof MION_ROUTES.thrownErrors,
 
 const echo = mion.route((ctx: CallContext, user: SimpleUser): SimpleUser => user);
 const hasHeader = mion.route((ctx: CallContext, name: string): boolean => ctx.request.headers.has(name));
+const setFraming = mion.route((ctx: CallContext): string => {
+  ctx.response.headers.set('transfer-encoding', 'chunked');
+  return 'ok';
+});
 const listHeaders = mion.route((ctx: CallContext): string[] => {
   ctx.response.headers.set('x-one', '1');
   return [...ctx.response.headers.entries()].map(([name, value]) => `${name}=${value}`);
@@ -58,6 +62,18 @@ function rawRequest(head: string, body: string, delayMs = 0, rawPort?: number): 
   });
 }
 
+/** The whole raw answer, headers included, of one request on a connection the server closes. */
+function rawExchange(request: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const socket = createConnection({host: '127.0.0.1', port}, () => socket.write(request));
+    let data = '';
+    socket.setEncoding('utf8');
+    socket.on('data', (chunk) => (data += chunk));
+    socket.on('error', reject);
+    socket.on('close', () => resolve(data));
+  });
+}
+
 function envelope(text: string): Record<string, any> {
   return JSON.parse(text)[MION_ROUTES.thrownErrors];
 }
@@ -68,7 +84,7 @@ describe('node adapter hardening', () => {
   beforeAll(async () => {
     resetNodeHttpOpts();
     resetRouter();
-    mion.initRoutes({echo, hasHeader, listHeaders, small});
+    mion.initRoutes({echo, hasHeader, listHeaders, small, setFraming});
     setNodeHttpOpts({port, maxBodySize: MAX_BODY});
     server = await startNodeServer();
   });
@@ -163,6 +179,14 @@ describe('node adapter hardening', () => {
       body: JSON.stringify({hasHeader: [name]}),
     });
     expect(await response.json()).toEqual({hasHeader: false});
+  });
+
+  it('a transfer-encoding a handler sets is dropped: the answer keeps one framing, its content-length', async () => {
+    const response = await rawExchange(`GET /api/setFraming HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n`);
+    expect(response).toMatch(/^HTTP\/1\.1 200/);
+    expect(response.toLowerCase()).not.toContain('transfer-encoding');
+    expect(response.toLowerCase()).toContain('content-length: 19');
+    expect(response.endsWith('{"setFraming":"ok"}')).toBe(true);
   });
 
   it('response headers can be listed from a handler', async () => {
