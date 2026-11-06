@@ -1207,6 +1207,7 @@ func (cache *Cache) appendProperty(parent *reflection.RunType, symbol *ast.Symbo
 		}
 		// Twins of the same reads in typeid.memberID, past the method form.
 		member.Readonly = member.Readonly || typeid.IsGetterOnly(symbol)
+		// An accessor stays a normal member, encode included: left out of the JSON, a decoded plain object fails its own type.
 		if typeid.IsAccessorMember(symbol) {
 			member.Flags = append(member.Flags, reflection.FlagAccessor)
 		}
