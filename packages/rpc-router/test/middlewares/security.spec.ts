@@ -470,6 +470,36 @@ describe('mionSecurity', () => {
     });
   });
 
+  describe('unclear body length', () => {
+    it.each([
+      ['a repeated content-length', {'content-length': '4, 10'}],
+      ['a content-length that is not a number', {'content-length': '+4'}],
+      ['a transfer-encoding other than chunked', {'transfer-encoding': 'identity'}],
+      ['chunked twice', {'transfer-encoding': 'chunked, chunked'}],
+    ])('refuses %s with a 400 that closes the connection, before the route runs', async (_, framing) => {
+      init({});
+      const response = await post('/saveUser', {saveUser: ['a']}, framing);
+      expect(response.statusCode).toBe(StatusCodes.BAD_REQUEST);
+      expect(refusal(response).type).toBe('unclear-body-length');
+      expect(response.headers.get('connection')).toBe('close');
+      expect(ran).not.toContain('saveUser');
+    });
+
+    it('lets a plain content-length or a chunked body in any letter case through', async () => {
+      init({});
+      const framings: Record<string, string>[] = [
+        {'content-length': '18'},
+        {'transfer-encoding': 'chunked'},
+        {'transfer-encoding': 'Chunked'},
+      ];
+      for (const framing of framings) {
+        const response = await post('/saveUser', {saveUser: ['a']}, framing);
+        expect(response.statusCode).toBe(StatusCodes.OK);
+        expect(response.headers.get('connection')).toBeFalsy();
+      }
+    });
+  });
+
   describe('cache keys', () => {
     const getUsers = (respHeaders: MionHeaders) =>
       dispatchRoute(
