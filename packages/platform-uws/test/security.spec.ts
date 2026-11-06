@@ -12,6 +12,7 @@
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {createMionRouter, resetRouter, addStartMiddlewares, addEndMiddlewares} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
+import {mionSecurity} from '@mionjs/router/middlewares';
 import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
 import {resetUwsHttpOpts, setUwsHttpOpts, startUwsServer, type UwsServer} from '../src/uwsHttp.ts';
 import {createConnection} from 'net';
@@ -234,15 +235,12 @@ describe('uws adapter: the HTTP method', () => {
   });
 });
 
-// a proxy reading framing differently from uWS splits requests elsewhere (smuggling): the adapter refuses loose framing
-describe('uws adapter: request and answer framing', () => {
+// uWS takes the first of two content-lengths and reads any transfer-encoding as chunked; behind mionSecurity
+// such a request is refused and, since the answer says `connection: close`, the adapter closes the socket
+describe('uws adapter: body length and answer framing', () => {
   const framingPort = 8297;
   let server: UwsServer;
   const body = '{"echo":[{"name":"a","surname":"b"}]}';
-  const setFraming = mion.route((ctx: CallContext): string => {
-    ctx.response.headers.set('transfer-encoding', 'chunked');
-    return 'ok';
-  });
   const readName = mion.query((ctx: CallContext): string => 'mion');
 
   /** Every byte the server writes on one connection, until it closes it or goes quiet. */
@@ -263,13 +261,14 @@ describe('uws adapter: request and answer framing', () => {
       });
     });
   }
-  const post = (framing: string, payload = body) => `POST /api/echo HTTP/1.1\r\nHost: x\r\n${framing}\r\n\r\n${payload}`;
+  const post = (framing: string, payload = body) =>
+    `POST /api/echo HTTP/1.1\r\nHost: x\r\nContent-Type: application/json\r\n${framing}\r\n\r\n${payload}`;
   const chunked = `${body.length.toString(16)}\r\n${body}\r\n0\r\n\r\n`;
 
   beforeAll(async () => {
     resetUwsHttpOpts();
     resetRouter();
-    mion.initRoutes({echo, setFraming, readName});
+    mion.initRoutes({mionSecurity: mionSecurity(), echo, readName});
     setUwsHttpOpts({port: framingPort});
     server = await startUwsServer();
   });
@@ -279,10 +278,12 @@ describe('uws adapter: request and answer framing', () => {
   it.each([
     ['two different content-lengths', `Content-Length: 4\r\nContent-Length: ${body.length}`],
     ['an empty content-length', 'Content-Length: '],
+    ['a transfer-encoding other than chunked', 'Transfer-Encoding: identity'],
+    ['chunked twice', 'Transfer-Encoding: chunked, chunked'],
   ])('%s is refused with a 400 and the connection closed', async (_, framing) => {
-    const {data, closed} = await rawExchange(post(framing));
+    const {data, closed} = await rawExchange(post(framing, framing.startsWith('Transfer') ? chunked : body));
     expect(data).toMatch(/^HTTP\/1\.1 400 /);
-    expect(data).toContain('invalid-request-framing');
+    expect(data).toContain('unclear-body-length');
     expect(closed).toBe(true);
   });
 
@@ -292,26 +293,16 @@ describe('uws adapter: request and answer framing', () => {
     expect(closed).toBe(true);
   });
 
-  it.each([
-    ['a coding other than chunked', 'identity'],
-    ['a coding uWS cannot decode before chunked', 'gzip, chunked'],
-    ['chunked twice', 'chunked, chunked'],
-  ])('a transfer-encoding with %s is refused with a 400 and the connection closed', async (_, coding) => {
-    const {data, closed} = await rawExchange(post(`Transfer-Encoding: ${coding}`, chunked));
-    expect(data).toMatch(/^HTTP\/1\.1 400 /);
-    expect(data).toContain('invalid-request-framing');
-    expect(closed).toBe(true);
-  });
-
-  it('a plain content-length or a chunked body in any letter case still dispatches', async () => {
+  it('a plain content-length or a chunked body in any letter case still dispatches, on a connection kept open', async () => {
     for (const request of [
       post(`Content-Length: ${body.length}`),
       post('Transfer-Encoding: chunked', chunked),
       post('Transfer-Encoding: Chunked', chunked),
     ]) {
-      const {data} = await rawExchange(request);
+      const {data, closed} = await rawExchange(request);
       expect(data).toMatch(/^HTTP\/1\.1 200 /);
       expect(data.endsWith('{"echo":{"name":"a","surname":"b"}}')).toBe(true);
+      expect(closed).toBe(false);
     }
   });
 
@@ -325,12 +316,5 @@ describe('uws adapter: request and answer framing', () => {
     expect(headAnswer).toMatch(/content-length: 19\r\n/i);
     expect(headAnswer.endsWith('\r\n\r\n')).toBe(true);
     expect(getAnswer.endsWith('{"readName":"mion"}')).toBe(true);
-  });
-
-  it('a transfer-encoding a handler sets is dropped: the answer keeps one framing, its content-length', async () => {
-    const {data} = await rawExchange('GET /api/setFraming HTTP/1.1\r\nHost: x\r\n\r\n');
-    expect(data).toMatch(/^HTTP\/1\.1 200 /);
-    expect(data.toLowerCase()).not.toContain('transfer-encoding');
-    expect(data.endsWith('{"setFraming":"ok"}')).toBe(true);
   });
 });
