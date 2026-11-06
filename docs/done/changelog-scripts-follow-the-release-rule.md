@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: done
 created: 2026-11-04
 ---
 
@@ -37,3 +37,15 @@ this change touched, review its report against the code, and commit it as its ow
 - No script or doc line offers a whole-file `CHANGELOG.md` regeneration; any kept script matches the release skill.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file,
   each committed on its own.
+
+## Plan: drop both scripts (approved 2026-11-06, automatic run)
+
+- Remove `changelog` and `changelog:unreleased` from the root `package.json`. `changelog:unreleased` does not match
+  the release flow either: it writes raw, untagged, uncurated output straight into the file, and `--unreleased`
+  counts from the last reachable tag, while release tags sit on `prod` merge commits that `main` does not contain.
+  The release skill's explicit-range `--tag` command stays the one way to make a section.
+- `SETUP.md`: drop both lines from the Commits section, say the file is curated one release at a time via the
+  release skill, keep the "git-cliff is not an npm dependency" note for that step. Fix the Publishing paragraph and
+  the troubleshooting row that named `pnpm run changelog`.
+- `cliff.toml` header comment: same change.
+- No code test: chore with no runtime code. No website page.
