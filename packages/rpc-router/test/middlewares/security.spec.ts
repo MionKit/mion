@@ -57,6 +57,8 @@ const hidden = mion.route((): HeadersSubset<'x-hidden', 'x-total'> => new Header
   cors: false,
 });
 
+const readsOrigin = mion.headersMiddleware((ctx: CallContext, headers: HeadersSubset<'origin'>): void => undefined);
+
 function send(
   path: string,
   method: string,
@@ -489,6 +491,12 @@ describe('mionSecurity', () => {
       init({}, {ping});
       const pong = await post('/ping', {ping: []});
       expect(pong.headers.get('vary')).toBeFalsy();
+    });
+
+    it('lists Origin once when CORS is on and a chain reads the origin header too', async () => {
+      init({origins: [APP], cors: {}}, {readsOrigin, ping});
+      const response = await post('/ping', {ping: []}, {origin: APP});
+      expect(response.headers.get('vary')).toBe('Origin');
     });
 
     it('adds only the names a vary the app set lacks, and never touches a vary of *', async () => {
