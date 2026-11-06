@@ -1,5 +1,5 @@
 // Takes one key of a plain object off its own enumerable keys, value still readable, as a class getter is. O21 pins that
-// validate and its error report agree on these values, O28 that a hidden declared prop still passes strict.
+// validate and its error report agree on these values, O28 that one on a class prototype still passes strict.
 
 import {deepCopyValue} from '../cloning/extrasValue.ts';
 

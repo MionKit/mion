@@ -204,7 +204,7 @@ function fuzzOneIteration(target: FuzzTarget, seed: number, out: Violation[], un
   }
 
   // --- hidden-key pass (one own key turned non-enumerable, inherited or a prototype getter) ---
-  // A hidden declared prop is still declared, and must not split validate from its error twin.
+  // A hidden declared prop must not split validate from its error twin.
   const hiddenCtx = {seed, phase: 'hidden' as const};
   for (const source of [valid, extras, planted?.value]) {
     if (source === null || source === undefined) continue;

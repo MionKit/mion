@@ -205,22 +205,17 @@ func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 	return len(rtChildren), true
 }
 
-// keyCountVar is one per closure, safe as nothing runs between its two reads; an expression cannot declare a local.
-const keyCountVar = "kCnt"
-
 // emitCountKeys emits `cntEK(v) === N && <plain object>`; false sends the caller to the key names.
 // countEnumKeys picks its counter per engine, both pinned to match (packages/run-types/src/runtypes/pure-fns-utils.ts).
 func emitCountKeys(ctx *EmitContext, v string, n int) string {
 	return ctx.UsePureFn(purefnids.CountEnumKeys) + "(" + v + ") === " + strconv.Itoa(n) + " && " + emitPlainObject(v)
 }
 
-// emitStrictKeyCount answers from the count, as key names cost far more: over N is unknown, N on a plain object clean.
-// Anything else may hide a declared prop, so `scan` reads the names.
+// emitStrictKeyCount lets a plain object answer from the count alone, as key names cost far more. A class prop can hide
+// from the count, so anything else reads the names in `scan`.
 func emitStrictKeyCount(ctx *EmitContext, v string, keyCount int, scan string) string {
-	ctx.SetContextItem(keyCountVar, "let "+keyCountVar+" = 0")
-	limit := strconv.Itoa(keyCount)
-	return "((" + keyCountVar + " = " + ctx.UsePureFn(purefnids.CountEnumKeys) + "(" + v + ")) === " + limit + " ? " +
-		emitPlainObject(v) + " || " + scan + " : " + keyCountVar + " < " + limit + " && " + scan + ")"
+	return "(" + emitPlainObject(v) + " ? " + ctx.UsePureFn(purefnids.CountEnumKeys) + "(" + v + ") === " + strconv.Itoa(keyCount) +
+		" : " + scan + ")"
 }
 
 // emitPlainObject makes a key count exact: a class prop can hide from it on the prototype.
