@@ -631,6 +631,9 @@ func assertErrorsGateOnKeyCount(t *testing.T, body string) {
 	if snapshotAt < 0 || gateAt < 0 || snapshotAt > gateAt {
 		t.Errorf("all-required shape's error report is not gated on the key count after an error-count snapshot:\n%s", body)
 	}
+	if !strings.Contains(body, `if (er.length === ne0 && v.constructor === Object) nRT(pth,er,\'objectLiteral\')`) {
+		t.Errorf("an off count on a plain object with no unknown name reports nothing:\n%s", body)
+	}
 }
 
 func TestCheckUnknowns_AllRequiredErrorsGateOnKeyCount_Static(t *testing.T) {
@@ -683,7 +686,7 @@ func assertStrictCountHoldsOnPlainObjectsOnly(t *testing.T, modules map[string]s
 			t.Fatalf("no entry for %s\nmodules: %v", name, keys(modules))
 		}
 		body := modules[entry]
-		if !strings.Contains(body, "cntEK(v)) === 2 ? v.constructor === Object || !(hUKFA(v, ") {
+		if !strings.Contains(body, "(v.constructor === Object ? cntEK(v) === 2 : !(hUKFA(v, ") {
 			t.Errorf("%s must trust the key count on a plain object only:\n%s", name, body)
 		}
 	}

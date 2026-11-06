@@ -415,7 +415,7 @@ describe('checkUnknowns — a dropped non-data member', () => {
   });
 });
 
-// A declared prop that JS does not list is still declared: the value passes, and an extra key fails.
+// A class prop that JS does not list is still declared. A plain object answers from its count, and both agree.
 describe('checkUnknowns — declared props that are not own enumerable keys', () => {
   interface G {
     id: number;
@@ -443,6 +443,7 @@ describe('checkUnknowns — declared props that are not own enumerable keys', ()
   };
   const samples = () => [new WithGetter(), new WithGetterExtra(), hidden(false), hidden(true), inherited(false), inherited(true)];
   const extraError = [{path: ['extra'], expected: 'never'}];
+  const shapeError = [{path: [], expected: 'objectLiteral'}];
 
   function expectAgreement(isStrict: (value: unknown) => boolean, errorsStrict: (value: unknown) => unknown[]) {
     for (const value of samples()) expect(errorsStrict(value).length === 0).toBe(isStrict(value));
@@ -454,7 +455,7 @@ describe('checkUnknowns — declared props that are not own enumerable keys', ()
     expectAgreement(isStrict, errorsStrict);
     expect([isStrict(new WithGetter()), errorsStrict(new WithGetter())]).toEqual([true, []]);
     expect([isStrict(new WithGetterExtra()), errorsStrict(new WithGetterExtra())]).toEqual([false, extraError]);
-    expect([isStrict(hidden(false)), errorsStrict(hidden(false))]).toEqual([true, []]);
+    expect([isStrict(hidden(false)), errorsStrict(hidden(false))]).toEqual([false, shapeError]);
     // Known limit: the extra key fills the count of a plain object, and only an in-process value can hide a key.
     expect([isStrict(hidden(true)), errorsStrict(hidden(true))]).toEqual([true, []]);
     expect([isStrict(inherited(false)), errorsStrict(inherited(false))]).toEqual([true, []]);
@@ -470,7 +471,7 @@ describe('checkUnknowns — declared props that are not own enumerable keys', ()
     expectAgreement(isStrict, errorsStrict);
     expect([isStrict(new WithGetter()), errorsStrict(new WithGetter())]).toEqual([true, []]);
     expect([isStrict(new WithGetterExtra()), errorsStrict(new WithGetterExtra())]).toEqual([false, extraError]);
-    expect([isStrict(hidden(false)), errorsStrict(hidden(false))]).toEqual([true, []]);
+    expect([isStrict(hidden(false)), errorsStrict(hidden(false))]).toEqual([false, shapeError]);
     // Known limit: the extra key fills the count of a plain object, and only an in-process value can hide a key.
     expect([isStrict(hidden(true)), errorsStrict(hidden(true))]).toEqual([true, []]);
     expect([isStrict(inherited(false)), errorsStrict(inherited(false))]).toEqual([true, []]);

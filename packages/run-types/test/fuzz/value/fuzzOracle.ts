@@ -70,7 +70,7 @@ export interface FuzzTarget {
 //   O14 family-agree    the clone and compact encoders agree serialize-vs-fail
 //   O18 fused-agree     the `{checkUnknowns: true}` validator accepts exactly
 //                       when `validate(v)` does and removeUnknownKeys drops nothing
-//   O28 hidden-strict   a declared key hidden from `for...in` still passes strict,
+//   O28 hidden-strict   a declared key hidden on a class prototype still passes strict,
 //                       and an extra key beside it still fails
 //   O21 strict-self     the `{checkUnknowns: true}` validator and its error twin
 //                       agree: empty report  <=>  accepted
@@ -319,8 +319,8 @@ export function checkStrictSelfAgree(target: FuzzTarget, value: unknown, ctx: Ch
   return null;
 }
 
-/** O28 — with a key hidden, strict still accepts what it did if plain `validate` agrees: a class getter is such a key.
- *  An extra key elsewhere fails too, unless it fills a plain object's count: a limit only in-process values reach. **/
+/** O28 — with a key hidden on a class prototype, strict still accepts what it did if plain `validate` agrees.
+ *  An extra key elsewhere fails too. A plain object trusts its count: a limit only in-process values reach. **/
 export function checkHiddenKeyStrict(
   target: FuzzTarget,
   source: unknown,
@@ -341,12 +341,12 @@ export function checkHiddenKeyStrict(
   } catch {
     return null; // O3 and O21 cover a throw
   }
-  if (sourceAccepted && plainAccepted && !hiddenAccepted) {
+  const countIsBlind = hidden.mode === 'nonEnumerable' || hidden.mode === 'plainGetter';
+  if (!countIsBlind && sourceAccepted && plainAccepted && !hiddenAccepted) {
     return violation('O28', target, ctx, `strict rejected a declared key hidden as ${hidden.mode}: ${hidden.key}`, hidden.value);
   }
   const hiddenPath = pathKey([...hidden.path, hidden.key] as RTValidationErrorPathSegment[]);
   const extraRemains = sourceUnknown.some((path) => !isUnderPath(path, hiddenPath));
-  const countIsBlind = hidden.mode === 'nonEnumerable' || hidden.mode === 'plainGetter';
   if (!countIsBlind && extraRemains && hiddenAccepted) {
     return violation('O28', target, ctx, `strict accepted an extra key beside one hidden as ${hidden.mode}`, hidden.value);
   }

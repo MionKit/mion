@@ -130,8 +130,7 @@ this plan to it, and keep each fix below in its own commit with its own tests.
 
 ### 2. Strict
 
-`strictObjectKeyAssertion` becomes `(kCnt = cntEK(v)) === N ? v.constructor === Object || scan : kCnt < N && scan`, where
-`scan` reads the key names. `emitParentUnknownKeyErrors` gates its report on the same check. Fixes class, `Pick`,
+`strictObjectKeyAssertion` becomes `v.constructor === Object ? cntEK(v) === N : scan`, where `scan` reads the key names. `emitParentUnknownKeyErrors` gates its report on the same check. Fixes class, `Pick`,
 interface and plain type + class value together. The union-keys families share this function.
 
 ### 3. Clone encode fast path (found while planning)
@@ -163,8 +162,8 @@ count. The shortcut is gone: clone always builds the object, which measured no s
   value-first marker shapes, root and one level deep. Getter-only, pair, setter-only, mixed types, inherited, abstract,
   `static`, `private`; through interface, `Pick`, `Partial`, intersection, `DataOnly<T>`. All three JSON strategies
   round trip through decode and validate, registered class too. Encode never calls a setter.
-- Fuzz: in the hidden key lane, a valid value with a hidden declared key must pass strict, and an extra key beside it
-  must fail unless it fills the count of a plain object (known limit).
+- Fuzz: in the hidden key lane, a value with a key hidden on a class prototype must pass strict, and an extra key
+  beside it must fail. A plain object trusts its count (known limit).
 
 ### Docs
 
@@ -179,10 +178,17 @@ count. The shortcut is gone: clone always builds the object, which measured no s
 The plain object check adds one compare to a hot path. Before any run I post a heads-up with an end time, as the Mac is
 shared, then run the validator bench against the branch without it, and check the round spread. Numbers go in the PR.
 
-Result against the branch without it, median of 6 interleaved rounds, Node / Bun. Strict validate, geomean of the 4
-`STRICT` cases: valid 0.92x / 0.89x, invalid 0.97x / 0.91x, mixed 0.97x / 0.93x. Worst single case 0.85x. Strict errors
-0.99x / 0.98x on valid. Clone encode, geomean of 155 cases: 1.03x, with mutate and compact (unchanged code) at 1.02x and
-1.01x. Round spread was up to 12%, so read these as about 8 to 11 percent on valid strict, and clone unchanged.
+Result against the branch without it, median of 6 interleaved rounds, geomean of the 4 `STRICT` cases, Node / Bun:
+
+| Strict form                                                             | Valid       | Invalid     | Mixed       |
+| ----------------------------------------------------------------------- | ----------- | ----------- | ----------- |
+| `Object.getPrototypeOf` + `\|\| scan`                                     | 0.49x/0.78x | 0.57x/0.63x | 0.55x/0.72x |
+| `cntEK(v) === N && v.constructor === Object \|\| scan`                    | 0.97x/0.83x | 0.66x/0.64x | 0.75x/0.73x |
+| `(kCnt = cntEK(v)) === N ? plain \|\| scan : kCnt < N && scan`            | 0.92x/0.92x | 0.96x/0.90x | 0.97x/0.94x |
+| `v.constructor === Object ? cntEK(v) === N : scan` (shipped)              | 1.01x/1.27x | 0.99x/0.98x | 0.98x/1.03x |
+
+Round spread on the shipped form was up to 4%. Clone encode, geomean of 155 cases: 1.03x, with mutate and compact
+(unchanged code) at 1.02x and 1.01x, so clone is unchanged.
 
 ### Finish
 
@@ -196,7 +202,7 @@ every decision I made.
 Differences from the plan above, and what it did not say:
 
 - **A runtime check on strict only.** Compile-time gating left `strict<Shape>(classValue)` wrong, so the maintainer
-  accepted one compare on the count path. `Object.getPrototypeOf` halved strict validate, so it reads `v.constructor`.
+  asked for the cheapest runtime check. Reading `v.constructor` first measured no slower than the bare count.
   Mutate and format exceptions stay compile-time only. Copies count: `Pick`, an interface with `get` and an
   intersection all say so at build time.
 - **Removing the clone shortcut exposed two older bugs,** both fixed. An optional tuple slot padded a short tuple
@@ -220,14 +226,15 @@ Differences from the plan above, and what it did not say:
   the type, they write straight to the instance: the setter runs, a getter-only member throws `TypeError`, and a mutate
   noop leaves a getter to `JSON.stringify`, which drops it. Only a noop can stay free, so no runtime check closes this.
   Stated in the docs, pinned by tests.
-- **Known limit: strict on a hand-built plain value.** An own non-enumerable prop plus an extra key, or a getter on a
-  hand-built plain prototype plus an extra key, still match the count. Only in-process values can do that.
+- **Known limit: strict on a hand-built plain value.** A plain object answers from its count alone, as on `main`. An own
+  non-enumerable declared prop, or a getter on a hand-built plain prototype, fails strict with one shape error, and
+  either one plus an extra key passes. Only in-process values can do that, and a class instance never does.
 - **Decided limit: key formats read own keys.** `minProperties`, `maxProperties` and `uniqueItems` work on the value's own
   keys, so they miss a getter, as they miss a `#private` field. They receive no type, and they target JSON-shaped data.
   Stated in the docs, pinned by a test.
 - **Mutate:** a getter that returns an inner array or object hands back that same object, and its contents are converted
   in place, as for any field.
-- **Fuzz rule O28.** A declared key hidden from `for...in` passes strict, and an extra key beside it fails.
+- **Fuzz rule O28.** A declared key hidden on a class prototype passes strict, and an extra key beside it fails.
 
 ### Done when (mirrors the section above)
 
