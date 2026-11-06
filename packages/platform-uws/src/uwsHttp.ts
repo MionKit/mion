@@ -158,7 +158,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   const urlQuery = query === '' ? undefined : query;
   const method = upperCaseMethod(req.getMethod());
   const reqHeaders = headersFromUwsRequest(req);
-  const state: ReplyState = {replied: false, aborted: false, head: method === 'HEAD', close: false};
+  const state: ReplyState = {replied: false, aborted: false, head: method === 'HEAD'};
 
   const respHeaders = getDefaultHeaders();
 
@@ -166,17 +166,6 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   res.onAborted(() => {
     state.aborted = true;
   });
-
-  if (hasAmbiguousFraming(reqHeaders)) {
-    state.close = true;
-    const error = new FatalError({
-      statusCode: 400,
-      publicMessage: 'Bad Request: invalid content-length or transfer-encoding.',
-      type: 'invalid-request-framing',
-    });
-    fatalFail(res, state, respHeaders, error);
-    return;
-  }
 
   // route resolved BEFORE the body: the native read stops at the chain's limit, and a late context stays GC-cheap.
   // The raw request object is built once: the one a pathTransform reads and the one the handlers see.
@@ -271,16 +260,6 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   });
 }
 
-/** uWS reads any `transfer-encoding` as chunked and takes the first of two content-lengths.
- *  A proxy reading them another way splits the stream elsewhere (request smuggling): RFC 9112 says 400 and close. */
-function hasAmbiguousFraming(headers: MionHeaders): boolean {
-  const length = headers.get('content-length');
-  if (length != null && !DECIMAL_LENGTH.test(length)) return true;
-  const coding = headers.get('transfer-encoding');
-  return coding != null && coding.toLowerCase() !== 'chunked';
-}
-const DECIMAL_LENGTH = /^\d+$/;
-
 /** Frees an ownership-transferred body buffer right after decoding it; the single-read window must never come through here.
  *  `transfer(0)` and not `transfer()`: measured on node 26, only `transfer(0)` releases the backing store there and then.
  *  Guarded because a future uWS could hand back a buffer that cannot be transferred, which must not fail the request. */
@@ -302,8 +281,6 @@ interface ReplyState {
   aborted: boolean;
   /** RFC 9110: a HEAD answer has no body; one sent anyway is read as the start of the next answer */
   readonly head: boolean;
-  /** the stream can no longer be split into requests, so the connection ends with this answer */
-  close: boolean;
 }
 
 // only for http errors and unhandled route errors
@@ -330,6 +307,8 @@ function reply(res: HttpResponse, state: ReplyState, mionResp: MionResponse) {
 
   // serialized BEFORE the cork: uWS warns a cork buffer must not be held across event loop iterations
   const payload = JSON.stringify(mionResp.body);
+  // uWS writes a `connection: close` header but keeps the socket open, so the close is asked for here
+  const close = headers.get('connection')?.toLowerCase() === 'close';
 
   // cork makes one syscall; uWS headers are write-only and must all precede end().
   // content-length is skipped: uWS writes its own, and a duplicate corrupts the response.
@@ -338,8 +317,7 @@ function reply(res: HttpResponse, state: ReplyState, mionResp: MionResponse) {
   res.cork(() => {
     res.writeStatus(statusLine(mionResp.statusCode));
     headers.forEach((name, value) => {
-      // framing is uWS' own: a handler's transfer-encoding next to uWS' content-length corrupts the response
-      if (name === 'content-length' || name === 'content-type' || name === 'transfer-encoding') return;
+      if (name === 'content-length' || name === 'content-type') return;
       if (typeof value === 'string') write(name, value);
       // RFC 6265 forbids folding set-cookie; uWS writes a repeated name as its own line
       else if (name === 'set-cookie') for (const cookie of value) write(name, cookie);
@@ -348,8 +326,8 @@ function reply(res: HttpResponse, state: ReplyState, mionResp: MionResponse) {
     // last, and the store's own skipped above: uWS appends a repeated name instead of replacing it
     res.writeHeader('content-type', mionResp.contentType);
 
-    if (state.head) res.endWithoutBody(Buffer.byteLength(payload, 'utf8'), state.close);
-    else res.end(payload, state.close);
+    if (state.head) res.endWithoutBody(Buffer.byteLength(payload, 'utf8'), close);
+    else res.end(payload, close);
   });
   releaseHeaders(headers);
 }
