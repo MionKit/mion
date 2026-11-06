@@ -259,8 +259,6 @@ function fatalFail(httpResponse: ServerResponse, respHeaders: MionHeaders, error
 function reply(httpResp: ServerResponse, mionResp: MionResponse) {
   httpResp.statusCode = mionResp.statusCode;
   const jsonString = JSON.stringify(mionResp.body);
-  // framing is the adapter's: node would send a handler's transfer-encoding next to this content-length
-  httpResp.removeHeader('transfer-encoding');
   // byteLength measures without copying the response into a Buffer
   httpResp.setHeader('content-length', Buffer.byteLength(jsonString, 'utf8'));
   httpResp.setHeader('content-type', mionResp.contentType);
