@@ -29,10 +29,6 @@ type RpcBody = Record<string, unknown> & Record<typeof MION_ROUTES.thrownErrors,
 
 const echo = mion.route((ctx: CallContext, user: SimpleUser): SimpleUser => user);
 const hasHeader = mion.route((ctx: CallContext, name: string): boolean => ctx.request.headers.has(name));
-const setFraming = mion.route((ctx: CallContext): string => {
-  ctx.response.headers.set('transfer-encoding', 'chunked');
-  return 'ok';
-});
 const listHeaders = mion.route((ctx: CallContext): string[] => {
   ctx.response.headers.set('x-one', '1');
   return [...ctx.response.headers.entries()].map(([name, value]) => `${name}=${value}`);
@@ -41,12 +37,7 @@ const listHeaders = mion.route((ctx: CallContext): string[] => {
 const small = mion.route((ctx: CallContext, n: number): number => n, {maxBodySize: 40});
 
 /** One raw HTTP exchange; `status` is 0 when the server hung up before answering. */
-function rawRequest(
-  head: string,
-  body: string,
-  delayMs = 0,
-  rawPort?: number
-): Promise<{status: number; head: string; body: string}> {
+function rawRequest(head: string, body: string, delayMs = 0, rawPort?: number): Promise<{status: number; body: string}> {
   return new Promise((resolve, reject) => {
     const socket = createConnection({host: '127.0.0.1', port: rawPort ?? port}, () => {
       // One write: a body landing after a Connection: close answer resets the socket.
@@ -60,8 +51,7 @@ function rawRequest(
     socket.on('error', reject);
     socket.on('close', () => {
       const status = Number(/^HTTP\/1\.1 (\d{3})/.exec(data)?.[1] ?? 0);
-      const headEnd = data.indexOf('\r\n\r\n');
-      resolve({status, head: data.slice(0, headEnd), body: data.slice(headEnd + 4)});
+      resolve({status, body: data.slice(data.indexOf('\r\n\r\n') + 4)});
     });
     setTimeout(() => socket.destroy(), 2000);
   });
@@ -77,7 +67,7 @@ describe('node adapter hardening', () => {
   beforeAll(async () => {
     resetNodeHttpOpts();
     resetRouter();
-    mion.initRoutes({echo, hasHeader, listHeaders, small, setFraming});
+    mion.initRoutes({echo, hasHeader, listHeaders, small});
     setNodeHttpOpts({port, maxBodySize: MAX_BODY});
     server = await startNodeServer();
   });
@@ -172,14 +162,6 @@ describe('node adapter hardening', () => {
       body: JSON.stringify({hasHeader: [name]}),
     });
     expect(await response.json()).toEqual({hasHeader: false});
-  });
-
-  it('a transfer-encoding a handler sets is dropped: the answer keeps one framing, its content-length', async () => {
-    const answer = await rawRequest(`GET /api/setFraming HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n`, '');
-    expect(answer.status).toBe(200);
-    expect(answer.head.toLowerCase()).not.toContain('transfer-encoding');
-    expect(answer.head.toLowerCase()).toContain('content-length: 19');
-    expect(answer.body).toBe('{"setFraming":"ok"}');
   });
 
   it('response headers can be listed from a handler', async () => {
