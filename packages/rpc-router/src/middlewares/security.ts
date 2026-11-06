@@ -81,6 +81,15 @@ export function mionSecurity(options: MionSecurityOptions = {}) {
         }
       }
     }
+    // RFC 9112: answer 400 and close, or a proxy reading the length another way sends the leftover bytes as a request
+    if (hasUnclearLength(request.headers)) {
+      response.headers.set('connection', 'close');
+      return new FatalError({
+        statusCode: StatusCodes.BAD_REQUEST,
+        type: 'unclear-body-length',
+        publicMessage: 'Bad Request: invalid content-length or transfer-encoding.',
+      });
+    }
     // a preflight never reaches a route; a disallowed one gets no CORS headers, so the browser blocks the call
     if (method === 'OPTIONS') return endChain(ctx);
     if (!csrf || response.hasErrors) return;
@@ -157,6 +166,16 @@ function addVary(headers: CallContext['response']['headers'], names: readonly st
   const missing = names.filter((name) => !present.includes(name.toLowerCase()));
   if (missing.length) headers.set('vary', `${vary}, ${missing.join(', ')}`);
 }
+
+/** A repeated or non-numeric content-length, or a transfer-encoding other than chunked: some servers (uWS) read
+ *  these loosely, taking the first length or treating any coding as chunked */
+function hasUnclearLength(headers: CallContext['request']['headers']): boolean {
+  const length = headers.get('content-length');
+  if (length != null && !DECIMAL_LENGTH.test(length)) return true;
+  const coding = headers.get('transfer-encoding');
+  return coding != null && coding.toLowerCase() !== 'chunked';
+}
+const DECIMAL_LENGTH = /^\d+$/;
 
 function isJsonContentType(contentType: string | null | undefined): boolean {
   if (!contentType) return false;

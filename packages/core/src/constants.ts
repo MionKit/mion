@@ -55,6 +55,8 @@ export const StatusCodes = {
   NOT_FOUND: 404,
   /** The request body (or the query body) is larger than the configured maxBodySize */
   PAYLOAD_TOO_LARGE: 413,
+  /** A request whose body length mionSecurity cannot trust */
+  BAD_REQUEST: 400,
   /** A cross-origin request mionSecurity refused */
   FORBIDDEN: 403,
   METHOD_NOT_ALLOWED: 405,
