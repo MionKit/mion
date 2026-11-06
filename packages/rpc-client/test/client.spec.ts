@@ -803,6 +803,17 @@ describe('client', () => {
       expect(result?.urlQuery).toContain('data=');
     });
 
+    it('query() route whose URL would pass 2048 characters uses POST, so a server head limit never refuses it', async () => {
+      // uWebSockets refuses a request head over 4 KB with a 431, and the browser's own headers share that budget
+      await routes.getRequestInfo('primes the metadata').call();
+      const message = 'x'.repeat(2000);
+      const [result, error] = await routes.getRequestInfo(message).call();
+
+      expect(error).toBeUndefined();
+      expect(result?.message).toBe(message);
+      expect(result?.httpMethod).toBe('POST');
+    });
+
     it('mutation() route should use POST', async () => {
       const [result, error] = await routes.mutateRequestInfo('hello from mutation').call();
 
