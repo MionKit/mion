@@ -132,6 +132,8 @@ function reply(mionResp: MionResponse, resp: Response): void {
   resp.status(mionResp.statusCode);
   const jsonString = JSON.stringify(mionResp.body);
   resp.set('content-type', mionResp.contentType);
+  // framing is the adapter's: node would send a handler's transfer-encoding next to this content-length
+  resp.removeHeader('transfer-encoding');
   // byteLength measures without copying the response into a Buffer
   resp.set('content-length', `${Buffer.byteLength(jsonString, 'utf8')}`);
   resp.end(jsonString, 'utf8');
