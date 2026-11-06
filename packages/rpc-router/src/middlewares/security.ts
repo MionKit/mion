@@ -37,6 +37,8 @@ export function mionSecurity(options: MionSecurityOptions = {}) {
   if (cors?.credentials && origins === '*')
     throw new Error("mionSecurity: `cors.credentials` needs the allowed origins listed, never '*'.");
   const maxAge = cors?.maxAge === undefined ? undefined : String(cors.maxAge);
+  // a preflight's answer depends only on the origin; the headers a chain reads change only a real answer
+  const preflightVary: readonly string[] = cors ? ['Origin'] : [];
   // built on a chain's first request; keyed by the chain itself: not-found and batch chains carry no id
   const chainRules = new WeakMap<MethodsExecutionChain, ReturnType<typeof describeChain>>();
 
@@ -64,7 +66,7 @@ export function mionSecurity(options: MionSecurityOptions = {}) {
 
     // a shared cache must key the answer on every request header it depends on, or it serves one user's answer
     // to another (cache poisoning or deception): the origin under CORS, allowed or not, and the headers the chain reads
-    const vary = method === 'OPTIONS' ? rules.preflightVary : rules.vary;
+    const vary = method === 'OPTIONS' ? preflightVary : rules.vary;
     if (vary.length) addVary(response.headers, vary);
 
     if (cors) {
@@ -171,12 +173,13 @@ function describeChain(chain: MethodsExecutionChain, cors: MionCorsSettings | un
   const route = chain.routeIndex === -1 ? undefined : chain.methods[chain.routeIndex];
   // a batch is one POST; a query reads, so it may come as GET; a mutation and an intent-less route only POST
   const acceptedMethods = !route ? undefined : !chain.batchId && route.options.isMutation === false ? QUERY_METHODS : POST_ONLY;
-  // a preflight's answer depends only on the origin; the headers a chain reads change only a real answer
-  const preflightVary = cors ? ['Origin'] : [];
-  const vary = new Set<string>(preflightVary);
+  // lower case, so an `origin` a chain reads is not listed twice next to the CORS one
+  const varyNames = new Set<string>();
   for (const member of chain.methods)
-    (member as HeadersMethod).headersParam?.headerNames.forEach((name) => vary.add(name.toLowerCase()));
-  if (!cors) return {acceptedMethods, preflightVary, vary: [...vary], allowHeaders: '', exposeHeaders: '', allowMethods: ''};
+    (member as HeadersMethod).headersParam?.headerNames.forEach((name) => varyNames.add(name.toLowerCase()));
+  if (cors) varyNames.delete('origin');
+  const vary: readonly string[] = cors ? ['Origin', ...varyNames] : [...varyNames];
+  if (!cors) return {acceptedMethods, vary, allowHeaders: '', exposeHeaders: '', allowMethods: ''};
   const allowHeaders = new Set<string>(['content-type']);
   const exposeHeaders = new Set<string>(MION_EXPOSED_HEADERS);
   const excluded = new Set<string>(cors.excludeHeaders?.map((name) => name.toLowerCase()));
@@ -197,8 +200,7 @@ function describeChain(chain: MethodsExecutionChain, cors: MionCorsSettings | un
   });
   return {
     acceptedMethods,
-    preflightVary,
-    vary: [...vary],
+    vary,
     allowHeaders: [...allowHeaders].join(', '),
     exposeHeaders: [...exposeHeaders].join(', '),
     allowMethods: acceptedMethods === QUERY_METHODS ? 'GET, POST' : 'POST',
