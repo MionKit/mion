@@ -179,7 +179,7 @@ describe('mionSecurity', () => {
       const response = await send('/listUsers', 'GET', {origin: EVIL});
       expect(ran).toContain('listUsers');
       expect(response.headers.get('access-control-allow-origin')).toBeFalsy();
-      expect(response.headers.get('vary')).toBe('Origin');
+      expect(response.headers.get('vary')).toBe('Origin, authorization, x-debug-node');
       const refused = await preflight('/saveUser', EVIL);
       expect(refused.statusCode).toBe(StatusCodes.OK);
       expect(refused.headers.get('access-control-allow-origin')).toBeFalsy();
@@ -465,6 +465,38 @@ describe('mionSecurity', () => {
       init({});
       const response = await dispatchWith(headersFromRecord({server: 'my-api'}));
       expect(response.headers.get('server')).toBe('my-api');
+    });
+  });
+
+  describe('cache keys', () => {
+    const getUsers = (respHeaders: MionHeaders) =>
+      dispatchRoute(
+        '/listUsers',
+        '',
+        headersFromRecord({authorization: 'token'}),
+        respHeaders,
+        {},
+        {},
+        undefined,
+        undefined,
+        'GET'
+      );
+
+    it('lists the request headers the chain reads in vary, without CORS too, so a shared cache keys on them', async () => {
+      init({});
+      expect((await getUsers(getDefaultHeaders())).headers.get('vary')).toBe('authorization, x-debug-node');
+      // a chain that reads no header leaves vary alone
+      init({}, {ping});
+      const pong = await post('/ping', {ping: []});
+      expect(pong.headers.get('vary')).toBeFalsy();
+    });
+
+    it('adds only the names a vary the app set lacks, and never touches a vary of *', async () => {
+      init({});
+      const kept = await getUsers(headersFromRecord({vary: 'Accept-Encoding, Authorization'}));
+      expect(kept.headers.get('vary')).toBe('Accept-Encoding, Authorization, x-debug-node');
+      const any = await getUsers(headersFromRecord({vary: '*'}));
+      expect(any.headers.get('vary')).toBe('*');
     });
   });
 

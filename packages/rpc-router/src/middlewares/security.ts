@@ -62,11 +62,12 @@ export function mionSecurity(options: MionSecurityOptions = {}) {
     // the default names the framework to anyone scanning for it
     if (response.headers.get('server') === MION_SERVER_NAME) response.headers.delete('server');
 
+    // a shared cache must key the answer on every request header it depends on, or it serves one user's answer
+    // to another (cache poisoning or deception): the origin under CORS, allowed or not, and the headers the chain reads
+    const vary = method === 'OPTIONS' ? rules.preflightVary : rules.vary;
+    if (vary.length) addVary(response.headers, vary);
+
     if (cors) {
-      // the answer depends on the origin, so a shared cache must key on it, allowed or not
-      const vary = response.headers.get('vary');
-      if (!vary) response.headers.set('vary', 'Origin');
-      else if (!/(^|,)\s*origin\s*(,|$)/i.test(vary)) response.headers.set('vary', `${vary}, Origin`);
       if (origin && trusted) {
         response.headers.set('access-control-allow-origin', origin);
         if (cors.credentials) response.headers.set('access-control-allow-credentials', 'true');
@@ -144,6 +145,19 @@ function isPlainlySameOrigin(headers: CallContext['request']['headers']): boolea
   }
 }
 
+/** Adds the names a `vary` header lacks, keeping any the app or a header set before */
+function addVary(headers: CallContext['response']['headers'], names: readonly string[]): void {
+  const vary = headers.get('vary');
+  if (!vary) return headers.set('vary', names.join(', '));
+  const present = vary
+    .toLowerCase()
+    .split(',')
+    .map((name) => name.trim());
+  if (present.includes('*')) return;
+  const missing = names.filter((name) => !present.includes(name.toLowerCase()));
+  if (missing.length) headers.set('vary', `${vary}, ${missing.join(', ')}`);
+}
+
 function isJsonContentType(contentType: string | null | undefined): boolean {
   if (!contentType) return false;
   // what the mion client sends, without the parse below
@@ -157,7 +171,12 @@ function describeChain(chain: MethodsExecutionChain, cors: MionCorsSettings | un
   const route = chain.routeIndex === -1 ? undefined : chain.methods[chain.routeIndex];
   // a batch is one POST; a query reads, so it may come as GET; a mutation and an intent-less route only POST
   const acceptedMethods = !route ? undefined : !chain.batchId && route.options.isMutation === false ? QUERY_METHODS : POST_ONLY;
-  if (!cors) return {acceptedMethods, allowHeaders: '', exposeHeaders: '', allowMethods: ''};
+  // a preflight's answer depends only on the origin; the headers a chain reads change only a real answer
+  const preflightVary = cors ? ['Origin'] : [];
+  const vary = new Set<string>(preflightVary);
+  for (const member of chain.methods)
+    (member as HeadersMethod).headersParam?.headerNames.forEach((name) => vary.add(name.toLowerCase()));
+  if (!cors) return {acceptedMethods, preflightVary, vary: [...vary], allowHeaders: '', exposeHeaders: '', allowMethods: ''};
   const allowHeaders = new Set<string>(['content-type']);
   const exposeHeaders = new Set<string>(MION_EXPOSED_HEADERS);
   const excluded = new Set<string>(cors.excludeHeaders?.map((name) => name.toLowerCase()));
@@ -178,6 +197,8 @@ function describeChain(chain: MethodsExecutionChain, cors: MionCorsSettings | un
   });
   return {
     acceptedMethods,
+    preflightVary,
+    vary: [...vary],
     allowHeaders: [...allowHeaders].join(', '),
     exposeHeaders: [...exposeHeaders].join(', '),
     allowMethods: acceptedMethods === QUERY_METHODS ? 'GET, POST' : 'POST',
