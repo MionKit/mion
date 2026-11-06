@@ -40,8 +40,7 @@ const listHeaders = mion.route((ctx: CallContext): string[] => {
 // a per-route limit BELOW the adapter's cap: the read must stop at the route's own number
 const small = mion.route((ctx: CallContext, n: number): number => n, {maxBodySize: 40});
 
-/** One raw HTTP exchange: returns the status line and the body text, or 'closed' when the server
- *  hung up before answering. */
+/** One raw HTTP exchange; `status` is 0 when the server hung up before answering. */
 function rawRequest(
   head: string,
   body: string,

@@ -153,7 +153,6 @@ function drainRequestBody(res: HttpResponse) {
 // exported for tests and for mounting on a hand-built uWS app; NOT a middleware handler (see startUwsServer).
 // uWS contract: `req` is valid only synchronously here, so the async dispatch snapshots it before the first await.
 export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
-  // Everything read from `req` happens HERE, synchronously.
   const path = req.getUrl();
   const query = req.getQuery();
   const urlQuery = query === '' ? undefined : query;
@@ -179,7 +178,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
     return;
   }
 
-  // route resolved BEFORE the body, synchronously: the native read stops at the chain's limit, and a late context stays GC-cheap.
+  // route resolved BEFORE the body: the native read stops at the chain's limit, and a late context stays GC-cheap.
   // The raw request object is built once: the one a pathTransform reads and the one the handlers see.
   const rawRequest = {path, urlQuery, headers: reqHeaders};
   let chain: MethodsExecutionChain;
@@ -246,15 +245,14 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
       return;
     }
 
-    // collectBody has two paths (verified in the pinned tag's HttpResponseWrapper.h and by test): a single-read body is a
-    // zero-copy window into uWS' receive buffer, DETACHED when this callback returns, so it must be decoded synchronously
-    // here; a multi-read body was assembled in C++ and OWNERSHIP-TRANSFERRED to JS, so it can be decoded from a microtask.
+    // A single-read body is a zero-copy window DETACHED when this callback returns (HttpResponseWrapper.h): decode now.
+    // A multi-read body was assembled in C++ and OWNERSHIP-TRANSFERRED to JS, so a microtask may decode it.
     if (fullBody.byteLength <= UWS_MAX_SINGLE_READ) {
       // a body-less request (every GET) skips the view and the decode altogether
       dispatchBody(fullBody.byteLength === 0 ? '' : Buffer.from(fullBody).toString());
       return;
     }
-    // bigger than one read can deliver → guaranteed the ownership-transferred path, so the buffer survives the microtask.
+    // past one read's size → always the ownership-transferred path, so the buffer survives the microtask.
     // The zero-length check is a tripwire for an upstream change: fail loudly instead of parsing a neutered buffer.
     queueMicrotask(() => {
       if (state.replied) return;
@@ -273,8 +271,8 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   });
 }
 
-/** uWS reads any `transfer-encoding` as chunked and takes the first of two content-lengths. A proxy in front that
- *  reads them another way splits the stream elsewhere (request smuggling), so RFC 9112 says answer 400 and close. */
+/** uWS reads any `transfer-encoding` as chunked and takes the first of two content-lengths.
+ *  A proxy reading them another way splits the stream elsewhere (request smuggling): RFC 9112 says 400 and close. */
 function hasAmbiguousFraming(headers: MionHeaders): boolean {
   const length = headers.get('content-length');
   if (length != null && !DECIMAL_LENGTH.test(length)) return true;
@@ -299,7 +297,6 @@ function releaseAfterDecode(fullBody: ArrayBuffer): string {
 /** `transfer` is ES2024 and this package compiles against an ES2023 lib; optional because a runtime without it must work. */
 type ReleasableBuffer = ArrayBuffer & {transfer?: (newByteLength?: number) => ArrayBuffer};
 
-// only called when there is an http error or weird unhandled route errors
 interface ReplyState {
   replied: boolean;
   aborted: boolean;
@@ -309,6 +306,7 @@ interface ReplyState {
   close: boolean;
 }
 
+// only for http errors and unhandled route errors
 function fatalFail(res: HttpResponse, state: ReplyState, respHeaders: MionHeaders, error: RpcError<string>) {
   const routeResponse = getRouterFatalErrorResponse(error, respHeaders);
   reply(res, state, routeResponse);

@@ -30,8 +30,7 @@ export const DEFAULT_CLIENT_OPTIONS: ClientOptions = {
 /** The hook names a middleware function answers; a sub request carries none of them */
 export const MIDDLEWARE_HOOKS = ['onRequest', 'offRequest', 'onResponse', 'offResponse', 'onError', 'offError'] as const;
 
-/** Longest URL a ?data= GET may have; a longer query POSTs. uWebSockets caps the whole request head at 4 KB,
- *  and the browser's own headers and cookies share that budget. */
+/** A longer ?data= GET POSTs: uWebSockets caps the request head at 4 KB, shared with browser headers and cookies. */
 export const MAX_GET_URL_LENGTH = 2048;
 
 export const STORAGE_KEY = 'mion:client';

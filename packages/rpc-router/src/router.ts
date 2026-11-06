@@ -321,9 +321,7 @@ export function shouldFullGenerateSpec(): boolean {
 
 // ############# PRIVATE METHODS #############
 
-/** Flattens the routes object into a list of Executable objects. `currentPointer` is the position in that
- *  object (i.e. ['users', 'get']); `preMiddlewares` / `postMiddlewares` are the middlewares one level up, before
- *  and after that position. */
+/** `currentPointer` is the position in `routes` (e.g. ['users', 'get']); the middlewares come from one level up. */
 function recursiveFlatRoutes(
   routes: Routes,
   currentPointer: string[] = [],
