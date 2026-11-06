@@ -254,11 +254,14 @@ describe('uws adapter: request and answer framing', () => {
       socket.setEncoding('utf8');
       socket.on('data', (chunk) => (data += chunk));
       socket.on('error', reject);
-      socket.on('close', () => resolve({data, closed: true}));
-      setTimeout(() => {
+      const quiet = setTimeout(() => {
         socket.destroy();
         resolve({data, closed: false});
       }, 300);
+      socket.on('close', () => {
+        clearTimeout(quiet);
+        resolve({data, closed: true});
+      });
     });
   }
   const post = (framing: string, payload = body) => `POST /api/echo HTTP/1.1\r\nHost: x\r\n${framing}\r\n\r\n${payload}`;
@@ -281,6 +284,12 @@ describe('uws adapter: request and answer framing', () => {
     const {data, closed} = await rawExchange(post(framing));
     expect(data).toMatch(/^HTTP\/1\.1 400 /);
     expect(data).toContain('invalid-request-framing');
+    expect(closed).toBe(true);
+  });
+
+  it('a content-length next to a chunked transfer-encoding is refused by uWS itself, with the connection closed', async () => {
+    const {data, closed} = await rawExchange(post(`Content-Length: 4\r\nTransfer-Encoding: chunked`, chunked));
+    expect(data).toMatch(/^HTTP\/1\.1 400 /);
     expect(closed).toBe(true);
   });
 
