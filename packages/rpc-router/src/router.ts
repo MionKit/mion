@@ -332,7 +332,7 @@ function recursiveFlatRoutes(
   nestLevel = 0
 ) {
   if (nestLevel > MAX_ROUTE_NESTING)
-    throw new Error('Too many nested routes, you can only nest routes ${MAX_ROUTE_NESTING} levels');
+    throw new Error(`Too many nested routes, you can only nest routes ${MAX_ROUTE_NESTING} levels`);
 
   const entries = Object.entries(routes);
   if (entries.length === 0)

@@ -247,6 +247,12 @@ describe('Create routes should', () => {
     expect(() => mion.initRoutes(numericNames)).toThrow('Invalid route: directory/2. Numeric route names are not allowed');
   });
 
+  it('names the nesting limit when routes nest too deep', async () => {
+    let deep: Routes = {route1};
+    for (let level = 0; level < 12; level++) deep = {nested: deep};
+    expect(() => mion.initRoutes(deep)).toThrow('Too many nested routes, you can only nest routes 10 levels');
+  });
+
   it('throw an error when sharedDataFactory returns invalid values', async () => {
     const errorMessage = 'sharedDataFactory must return a plain object with at least one property';
 
