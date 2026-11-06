@@ -306,6 +306,14 @@ describe('uws adapter: body length and answer framing', () => {
     }
   });
 
+  it('a request head up to the 8 KB maxHeaderSize gets through, past it uWS answers 431', async () => {
+    // uWS' own default is 4 KB, which a 4096-character ?data= URL alone would fill
+    const long = await fetch(`http://127.0.0.1:${framingPort}/api/readName?pad=${'a'.repeat(6000)}`);
+    expect(long.status).toBe(200);
+    const tooLong = await fetch(`http://127.0.0.1:${framingPort}/api/readName?pad=${'a'.repeat(9000)}`);
+    expect(tooLong.status).toBe(431);
+  });
+
   it('a HEAD answer has no body, so the next answer on the connection starts where the client expects it', async () => {
     const head = 'HEAD /api/readName HTTP/1.1\r\nHost: x\r\n\r\n';
     const get = 'GET /api/readName HTTP/1.1\r\nHost: x\r\n\r\n';
