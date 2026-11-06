@@ -199,6 +199,7 @@ export const REGISTRY = [
 
   // — mion framework knobs (MION_*) —
   {name: 'GENERATE_ROUTER_SPEC', scope: 'dev', task: '-', desc: "Set to 'true' to make @mionjs/router expose its public routes data (the router spec). Read at runtime by the router, so it keeps its unprefixed name: renaming it would break every consumer that already sets it"},
+  {name: 'UWS_HTTP_MAX_HEADERS_SIZE', scope: 'dev', task: '-', desc: "uWebSockets.js' own limit in bytes for a request's line and headers, read once when its binary loads. @mionjs/platform-uws sets it from its maxHeaderSize option (8 KB) unless you set it first"},
   {name: 'MION_UWS_BINARY_DIR', scope: 'dev', task: '-', desc: "Directory holding a uWebSockets.js native binary (uws_<platform>_<arch>_<abi>.node) that @mionjs/bin-uws loads INSTEAD of the fetched cache / the @mionjs/native-uws-* optional dependency — the escape hatch for air-gapped installs, vendored copies, or self-built binaries for an unsupported Node ABI"},
 
   // — internal / protocol vars: set by the scripts (container paths, plumbing). DO NOT set in .env —

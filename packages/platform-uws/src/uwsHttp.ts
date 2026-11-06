@@ -90,6 +90,8 @@ export async function startUwsServer(options?: Partial<UwsHttpOptions>): Promise
       httpOptions,
     });
 
+  // uWS reads it once, when its binary loads
+  process.env.UWS_HTTP_MAX_HEADERS_SIZE ??= String(httpOptions.maxHeaderSize);
   const uws = loadUws();
   const app = httpOptions.ssl ? uws.SSLApp(httpOptions.ssl) : uws.App();
   app.any('/*', uwsRequestHandler);
