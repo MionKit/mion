@@ -169,9 +169,13 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   });
 
   if (hasAmbiguousFraming(reqHeaders)) {
-    state.replied = true;
     state.close = true;
-    fatalFail(res, state, respHeaders, ambiguousFraming());
+    const error = new FatalError({
+      statusCode: 400,
+      publicMessage: 'Bad Request: invalid content-length or transfer-encoding.',
+      type: 'invalid-request-framing',
+    });
+    fatalFail(res, state, respHeaders, error);
     return;
   }
 
@@ -279,14 +283,6 @@ function hasAmbiguousFraming(headers: MionHeaders): boolean {
 }
 const DECIMAL_LENGTH = /^\d+$/;
 
-function ambiguousFraming(): RpcError<'invalid-request-framing'> {
-  return new FatalError({
-    statusCode: 400,
-    publicMessage: 'Bad Request: invalid content-length or transfer-encoding.',
-    type: 'invalid-request-framing',
-  });
-}
-
 /** Frees an ownership-transferred body buffer right after decoding it; the single-read window must never come through here.
  *  `transfer(0)` and not `transfer()`: measured on node 26, only `transfer(0)` releases the backing store there and then.
  *  Guarded because a future uWS could hand back a buffer that cannot be transferred, which must not fail the request. */
@@ -308,7 +304,7 @@ interface ReplyState {
   replied: boolean;
   aborted: boolean;
   /** RFC 9110: a HEAD answer has no body; one sent anyway is read as the start of the next answer */
-  head: boolean;
+  readonly head: boolean;
   /** the stream can no longer be split into requests, so the connection ends with this answer */
   close: boolean;
 }

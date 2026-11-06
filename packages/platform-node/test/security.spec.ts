@@ -42,7 +42,12 @@ const small = mion.route((ctx: CallContext, n: number): number => n, {maxBodySiz
 
 /** One raw HTTP exchange: returns the status line and the body text, or 'closed' when the server
  *  hung up before answering. */
-function rawRequest(head: string, body: string, delayMs = 0, rawPort?: number): Promise<{status: number; body: string}> {
+function rawRequest(
+  head: string,
+  body: string,
+  delayMs = 0,
+  rawPort?: number
+): Promise<{status: number; head: string; body: string}> {
   return new Promise((resolve, reject) => {
     const socket = createConnection({host: '127.0.0.1', port: rawPort ?? port}, () => {
       // One write: a body landing after a Connection: close answer resets the socket.
@@ -56,21 +61,10 @@ function rawRequest(head: string, body: string, delayMs = 0, rawPort?: number): 
     socket.on('error', reject);
     socket.on('close', () => {
       const status = Number(/^HTTP\/1\.1 (\d{3})/.exec(data)?.[1] ?? 0);
-      resolve({status, body: data.slice(data.indexOf('\r\n\r\n') + 4)});
+      const headEnd = data.indexOf('\r\n\r\n');
+      resolve({status, head: data.slice(0, headEnd), body: data.slice(headEnd + 4)});
     });
     setTimeout(() => socket.destroy(), 2000);
-  });
-}
-
-/** The whole raw answer, headers included, of one request on a connection the server closes. */
-function rawExchange(request: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const socket = createConnection({host: '127.0.0.1', port}, () => socket.write(request));
-    let data = '';
-    socket.setEncoding('utf8');
-    socket.on('data', (chunk) => (data += chunk));
-    socket.on('error', reject);
-    socket.on('close', () => resolve(data));
   });
 }
 
@@ -182,11 +176,11 @@ describe('node adapter hardening', () => {
   });
 
   it('a transfer-encoding a handler sets is dropped: the answer keeps one framing, its content-length', async () => {
-    const response = await rawExchange(`GET /api/setFraming HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n`);
-    expect(response).toMatch(/^HTTP\/1\.1 200/);
-    expect(response.toLowerCase()).not.toContain('transfer-encoding');
-    expect(response.toLowerCase()).toContain('content-length: 19');
-    expect(response.endsWith('{"setFraming":"ok"}')).toBe(true);
+    const answer = await rawRequest(`GET /api/setFraming HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n`, '');
+    expect(answer.status).toBe(200);
+    expect(answer.head.toLowerCase()).not.toContain('transfer-encoding');
+    expect(answer.head.toLowerCase()).toContain('content-length: 19');
+    expect(answer.body).toBe('{"setFraming":"ok"}');
   });
 
   it('response headers can be listed from a handler', async () => {
