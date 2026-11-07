@@ -9,6 +9,8 @@
 //   - its drizzle-orm peer range is exactly `>=X.Y.0 <X.(Y+1).0`,
 //   - its @mionjs/run-types peer range covers version.json's minor (core is a
 //     type-only peer: the consumer's single copy must supply the format types),
+//   - a dialect's @mionjs/drizzle-orm peer is a range on the same line that the
+//     core's current version satisfies (corePeerProblems),
 //   - its committed manifest's drizzleOrm field equals the installed version.
 // Run via `pnpm miondevx release check-drizzle-versions` (CI: next to the
 // drizzle-manifest --check steps). Exits non-zero on any violation.
@@ -20,7 +22,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import {installedDrizzleVersion, lockstepVersion, peerRangeFor, plannedVersion, readDialectPackages, REPO_ROOT, unreleasedChanges} from '../lib/drizzle-line.mjs';
+import {corePeerProblems, installedDrizzleVersion, lockstepVersion, peerRangeFor, plannedVersion, readDialectPackages, REPO_ROOT, unreleasedChanges} from '../lib/drizzle-line.mjs';
 
 const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
 
@@ -31,6 +33,7 @@ function main() {
   const [major, minor] = installed.split('.').map(Number);
   const expectedPeerRange = peerRangeFor(installed);
   const expectedCoreRange = peerRangeFor(lockstepVersion(REPO_ROOT));
+  const corePkg = rows.find((row) => row.dialect === 'root').pkg;
   const problems = [];
 
   for (const row of rows) {
@@ -57,6 +60,7 @@ function main() {
     if (pkg.dependencies?.['@mionjs/run-types']) {
       problems.push(`${label}: @mionjs/run-types must be a peerDependency (+ a workspace devDependency), never a dependency`);
     }
+    if (row.dialect !== 'root') problems.push(...corePeerProblems(pkg, corePkg.version));
     const manifestFile = path.join(REPO_ROOT, row.packageDir, row.manifest);
     const manifest = readJson(manifestFile);
     if (manifest.drizzleOrm !== installed) {
