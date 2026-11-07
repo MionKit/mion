@@ -62,5 +62,5 @@ so an unlabelled PR can merge untested.
   (git and node only).
 - [.github/actions/resolver](../../.github/actions/resolver/action.yml) = ONE place a job sets up Go + the tsgolint
   submodule, only on a cache miss or with `toolchain: 'true'`.
-- `ci.yml`'s `go-build` job runs it first; every heavy job waits, then restores. A Go change builds once per run.
+- `ci.yml`'s `go-build` job runs it first. Every heavy job waits, then restores. A Go change builds once per run.
 - CI's Go version pinned in `ts-go-runtypes/.go-version`.
