@@ -96,13 +96,11 @@ describe('node adapter hardening', () => {
   });
 
   it('a declared content-length past the limit is refused before a body byte is read', async () => {
-    const started = performance.now();
+    // No body byte is ever sent: only a refusal from the headers alone can answer.
     const {status, body} = await rawRequest(
       `POST /api/echo HTTP/1.1\r\nHost: x\r\nContent-Length: 100000\r\nContent-Type: application/json\r\n\r\n`,
-      '{"echo":',
-      50
+      ''
     );
-    expect(performance.now() - started).toBeLessThan(1500);
     expect(status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
     expect(envelope(body)[MION_ROUTES.platformError].type).toBe('request-payload-too-large');
   });
