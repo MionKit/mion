@@ -312,6 +312,17 @@ async function checkBenchTable(base, page, props, options = {}) {
 
 /** The datasets the charts and server tables fetch: present, with rows (or with every
  *  named section populated). Checked once per dataset across the whole site. */
+/** A server dataset's rows, against the rounds its meta says ran: a row without its rounds
+ *  would print a median nobody can check, and its spread would silently disappear. */
+export function roundsProblem(rows, meta) {
+  const bad = rows.filter((row) => !Number.isFinite(row.requests));
+  if (bad.length > 0) return `${bad.map((row) => row.app).join(', ')} without a requests number`;
+  const rounds = meta?.rounds ?? 0;
+  if (rounds < 2) return null;
+  const short = rows.filter((row) => row.rounds?.length !== rounds || !Number.isFinite(row.spread));
+  return short.length > 0 ? `${short.map((row) => row.app).join(', ')} without ${rounds} rounds and a spread` : null;
+}
+
 async function checkChartDatasets(base, datasets) {
   let failures = 0;
   for (const [bench, sections] of datasets) {
@@ -331,11 +342,23 @@ async function checkChartDatasets(base, datasets) {
         failures += fail(`${path}: section${bad.length === 1 ? '' : 's'} ${bad.join(', ')} missing or empty (has: ${[...have.keys()].join(', ') || 'none'})`);
         continue;
       }
+      const broken = [...have.values()]
+        .map((section) => [section.key, roundsProblem(section.rows, section.meta)])
+        .filter(([, problem]) => problem);
+      if (broken.length > 0) {
+        failures += fail(`${path}: ${broken.map(([key, problem]) => `section ${key}: ${problem}`).join('; ')}`);
+        continue;
+      }
       pass(`${path}: ${have.size} sections, all ${sections.size} referenced ones populated`);
       continue;
     }
     if (!(data.rows ?? []).length) {
       failures += fail(`${path}: no rows - the table and charts would render empty`);
+      continue;
+    }
+    const problem = roundsProblem(data.rows, data.meta);
+    if (problem) {
+      failures += fail(`${path}: ${problem}`);
       continue;
     }
     pass(`${path}: ${data.rows.length} rows`);

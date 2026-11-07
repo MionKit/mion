@@ -50,8 +50,23 @@ type Row = {
   maxMem: number;
   maxCpu: number;
   bytes?: number | null;
+  /** Requests per second of each round; `requests` is their median. */
+  rounds?: number[];
+  spread?: number | null;
 };
-type Meta = {generatedAt?: string | null; os?: string | null; cpu?: string | null; cores?: number | null; node?: string | null; method?: string; tolerance?: number | null};
+type Meta = {
+  generatedAt?: string | null;
+  os?: string | null;
+  cpu?: string | null;
+  cores?: number | null;
+  node?: string | null;
+  method?: string;
+  tolerance?: number | null;
+  duration?: number | null;
+  rounds?: number | null;
+  warmup?: number | null;
+  rewarmup?: number | null;
+};
 type BenchIndex = {label?: string; meta?: Meta; rows?: Row[]; sections?: {key: string; label: string; meta?: Meta; rows: Row[]}[]};
 
 const index = ref<BenchIndex | undefined>();
@@ -78,15 +93,31 @@ const value = (row: Row): string => {
   const change = changeVsBase(row, rows.value, props.metric);
   return change === null ? text : `${text} (${formatChange(change)})`;
 };
+const spread = (row: Row): string | null => ((row.rounds?.length ?? 0) > 1 && typeof row.spread === 'number' ? `spread ${row.spread.toFixed(1)}%` : null);
 const detail = (row: Row): string =>
-  [row.version ? `v${row.version}` : null, row.runtime && row.runtimeVersion ? `${row.runtime} ${row.runtimeVersion}` : row.runtime].filter(Boolean).join(' · ');
+  [
+    row.version ? `v${row.version}` : null,
+    row.runtime && row.runtimeVersion ? `${row.runtime} ${row.runtimeVersion}` : row.runtime,
+    props.metric === 'requests' ? spread(row) : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+const roundsLine = (row: Row): string | null =>
+  (row.rounds?.length ?? 0) > 1 ? `Rounds: ${row.rounds!.map((rate) => Math.round(rate).toLocaleString('en-US')).join(' / ')} req/s.` : null;
 // Too wide for the name column: shown in a tooltip on the name.
-const about = (row: Row): string => [row.router ? null : 'No router.', row.validation ? null : 'No validation.', row.description].filter(Boolean).join(' ');
+const about = (row: Row): string =>
+  [row.router ? null : 'No router.', row.validation ? null : 'No validation.', row.description, roundsLine(row)].filter(Boolean).join(' ');
 
 // A section carries its own meta (the payload sweep caps concurrency on the big sizes).
 const meta = computed(() => section.value?.meta ?? index.value?.meta);
 const machine = computed(() => [meta.value?.cpu, meta.value?.os, meta.value?.cores ? `${meta.value.cores} vCPUs` : null].filter(Boolean).join(' | '));
 const runDate = computed(() => (meta.value?.generatedAt ? new Date(meta.value.generatedAt).toUTCString() : ''));
+const roundsText = computed(() => {
+  const m = meta.value;
+  if (!m?.rounds || m.rounds < 2) return 'a warm-up, then the measured window';
+  const warm = m.rewarmup ? `${m.warmup}s warm-up before the first, ${m.rewarmup}s before the others` : `${m.warmup}s warm-up before each`;
+  return `${m.rounds} rounds of ${m.duration}s, each app taking its turn per round, ${warm}. The bars show the median of each app's rounds`;
+});
 const caption = computed(() => {
   const what = section.value?.label ?? index.value?.label ?? props.bench;
   return `${what} · ${metric.value.label} (${metric.value.unit}, ${metric.value.lowerBetter ? 'lower' : 'higher'} is better)`;
@@ -116,8 +147,8 @@ onMounted(async () => {
         <li v-if="machine"><strong>Machine:</strong> {{ machine }}</li>
         <li v-if="meta.node"><strong>Node:</strong> <code>v{{ meta.node.replace(/^v/, '') }}</code></li>
         <li v-if="runDate"><strong>Run:</strong> {{ runDate }}</li>
-        <li v-if="meta.method"><strong>Method:</strong> <code>{{ meta.method }}</code> (a warm-up round, then the measured one)</li>
-        <li v-if="meta.tolerance"><strong>Repeatability:</strong> running the same server twice lands within {{ meta.tolerance }}%</li>
+        <li v-if="meta.method"><strong>Method:</strong> <code>{{ meta.method }}</code>, {{ roundsText }}</li>
+        <li v-if="meta.tolerance"><strong>Repeatability:</strong> the rounds of one server land within {{ meta.tolerance }}% of each other</li>
       </ul>
 
       <table class="server-bench-bars-table" :class="{'has-change': twins}">
