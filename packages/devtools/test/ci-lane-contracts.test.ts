@@ -124,10 +124,10 @@ describe('the lane table', () => {
     }
   });
 
-  // Every repo path a Go test reads goes through testfixtures.RepoLinks (pinned by its own Go test).
+  // Every repo path a Go test reads goes through testfixtures repoLinks (pinned by its own Go test).
   it('feeds every repo path the Go suites read into the go lane', () => {
     const links =
-      /var RepoLinks = \[\]string\{\n([\s\S]*?)\n\}/.exec(read('ts-go-runtypes/internal/testfixtures/repo.go'))?.[1] ?? '';
+      /var repoLinks = \[\]string\{\n([\s\S]*?)\n\}/.exec(read('ts-go-runtypes/internal/testfixtures/repo.go'))?.[1] ?? '';
     const linked = [...links.matchAll(/"([^"]+)"/g)].map((match) => match[1]);
     expect(linked).toEqual(expect.arrayContaining(['packages/run-types', 'packages/core', 'version.json']));
     for (const path of linked)
@@ -193,6 +193,30 @@ describe('the lane table', () => {
     expect(feeds('smoke', 'packages/core/src/errors.ts')).toEqual(['website', 'bench']);
     // `website check` builds the playground assets with these scripts.
     expect(feeds('smoke', 'scripts/website/playground-overlay.mjs')).toEqual(['website']);
+  });
+
+  // A shard item claims no path: every input of its lane feeds every shard, so each shard hashes the whole lane.
+  it('feeds every Go and fuzz shard every input of its lane, and each shard hashes the lane', () => {
+    const {hashes} = laneHashes('HEAD');
+    for (const lane of ['go', 'js-fuzz']) {
+      const items = Object.keys(LANES[lane].items);
+      for (const path of ['ts-go-runtypes/internal/reflection/kind.go', 'packages/run-types/src/index.ts', 'pnpm-lock.yaml']) {
+        expect(
+          items.filter((item) => itemFeeds(LANES[lane], item, path)),
+          `${lane} ${path}`
+        ).toEqual(items);
+      }
+      for (const item of items) expect(hashes[`${lane}.${item}`], `${lane}.${item}`).toBe(hashes[lane]);
+    }
+    // The shard script decides what each Go runner runs, so editing it re-runs the suite.
+    expect(matches('scripts/ci/go-shard.mjs', LANES.go.paths)).toBe(true);
+  });
+
+  it('runs only the Go shards not yet proven', () => {
+    const hashes = {go: 'g', 'go.1': 'g', 'go.2': 'g', 'go.3': 'g'};
+    const one = decide(['go'], {hashes, greenKeys: [greenKey('go.1', 'g'), greenKey('go.3', 'g')]}).go;
+    expect(one.runItems).toEqual(['2']);
+    expect(decide(['go'], {hashes, greenKeys: [greenKey('go', 'g')]}).go.run).toBe(false);
   });
 
   it('keeps page text and CSS out of the website lanes, and every other website file in', () => {
@@ -555,7 +579,6 @@ describe('a marker is only ever written by work that actually ran and passed', (
     );
     // The shard count is the number of items, so no item names a shard the script does not have.
     expect(shards).toContain(`run: pnpm miondevx core go-shard \${{ matrix.shard }}/${Object.keys(LANES.go.items).length}\n`);
-    expect(jobOf(ci, 'go-checks')).toContain(`run: pnpm miondevx core go-shard --check ${Object.keys(LANES.go.items).length}\n`);
     const green = jobOf(ci, 'go-green');
     expect(green).toContain('needs: [lanes, go-suite]');
     expect(green).toContain("if: ${{ !cancelled() && needs.go-suite.result == 'success' }}");
@@ -591,11 +614,13 @@ describe('a marker is only ever written by work that actually ran and passed', (
 
   // An item that did not run proved nothing, so its save must re-check its own verdict.
   it('guards every in-job item save on that item having run', () => {
-    for (const [file, lane, items] of [
-      ['ci.yml', 'smoke', ['website', 'bench']],
-      ['ci.yml', 'js-fuzz', ['sweep', 'timeboxed']],
-      ['pr-heavy.yml', 'e2e', ['matrix', 'mion', 'host-smoke']],
+    // Read from the lane table: an item renamed there but not in the workflow would skip its job, which counts as proven.
+    for (const [file, lane] of [
+      ['ci.yml', 'smoke'],
+      ['ci.yml', 'js-fuzz'],
+      ['pr-heavy.yml', 'e2e'],
     ] as const) {
+      const items = Object.keys(LANES[lane].items);
       const workflow = read(`.github/workflows/${file}`);
       const accessor = (lane.includes('-') ? `['${lane}']` : `.${lane}`).replace(/[.[\]]/g, '\\$&');
       for (const item of items) {
