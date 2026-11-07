@@ -57,6 +57,33 @@ export function rootPeerRangeFor(rootVersion) {
   return `>=${rootVersion} <${major}.${minor + 1}.0`;
 }
 
+// Why a dialect's @mionjs/drizzle-orm peer breaks the line contract, or [] when it holds: a range (never a pin,
+// so every dialect shares the consumer's one core copy) that the core's current version satisfies, capped at
+// the drizzle minor line, plus a workspace devDependency and no runtime dependency.
+export function corePeerProblems(pkg, coreVersion) {
+  const label = pkg.name;
+  const problems = [];
+  const range = pkg.peerDependencies?.['@mionjs/drizzle-orm'];
+  const match = /^>=(\d+)\.(\d+)\.(\d+) <(\d+)\.(\d+)\.0$/.exec(range ?? '');
+  const [major, minor, patch] = coreVersion.split('.').map(Number);
+  if (!match) {
+    problems.push(`${label}: @mionjs/drizzle-orm peer must be a range ">=X.Y.Z <X.(Y+1).0", got "${range}"`);
+  } else {
+    const [floorMajor, floorMinor, floorPatch, capMajor, capMinor] = match.slice(1).map(Number);
+    const onLine = floorMajor === major && floorMinor === minor && capMajor === major && capMinor === minor + 1;
+    if (!onLine || floorPatch > patch) {
+      problems.push(`${label}: @mionjs/drizzle-orm peer "${range}" must sit on ${major}.${minor}.x and admit the core's ${coreVersion}`);
+    }
+  }
+  if (pkg.dependencies?.['@mionjs/drizzle-orm']) {
+    problems.push(`${label}: @mionjs/drizzle-orm must be a peerDependency (+ a workspace devDependency), never a dependency`);
+  }
+  if (pkg.devDependencies?.['@mionjs/drizzle-orm'] !== 'workspace:*') {
+    problems.push(`${label}: @mionjs/drizzle-orm devDependency must be "workspace:*"`);
+  }
+  return problems;
+}
+
 // The lockstep version every non-drizzle package is on (version.json).
 export function lockstepVersion(repoRoot = REPO_ROOT) {
   return readJson(path.join(repoRoot, 'version.json')).version;

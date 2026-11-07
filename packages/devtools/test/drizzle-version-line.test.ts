@@ -17,6 +17,7 @@ import {afterEach, describe, expect, it} from 'vitest';
 import * as drizzleLine from '../../../scripts/lib/drizzle-line.mjs';
 
 const {
+  corePeerProblems,
   isPublishedFile,
   isTrackedSource,
   lockstepVersion,
@@ -98,6 +99,38 @@ describe('drizzle line — what version comes next', () => {
   it('floors a dialect peer on the core at the core version it is released with', () => {
     expect(rootPeerRangeFor('0.45.2')).toBe('>=0.45.2 <0.46.0');
     expect(rootPeerRangeFor('0.46.0')).toBe('>=0.46.0 <0.47.0');
+  });
+
+  const dialect = (peer: string | undefined, extra: Record<string, unknown> = {}) => ({
+    name: '@mionjs/dialect',
+    peerDependencies: peer === undefined ? {} : {'@mionjs/drizzle-orm': peer},
+    devDependencies: {'@mionjs/drizzle-orm': 'workspace:*'},
+    ...extra,
+  });
+
+  it('accepts a dialect core peer on the line that admits the core, the shape bump-version writes', () => {
+    expect(corePeerProblems(dialect(rootPeerRangeFor('0.45.1')), '0.45.1')).toEqual([]);
+    // A core patch released without republishing the dialect still satisfies its older floor.
+    expect(corePeerProblems(dialect('>=0.45.0 <0.46.0'), '0.45.3')).toEqual([]);
+  });
+
+  it('rejects a pinned, missing, off-line or too-high dialect core peer', () => {
+    for (const [peer, core] of [
+      ['0.45.1', '0.45.1'],
+      [undefined, '0.45.1'],
+      ['^0.45.1', '0.45.1'],
+      ['>=0.44.0 <0.45.0', '0.45.1'],
+      ['>=0.45.0 <0.47.0', '0.45.1'],
+      ['>=0.45.2 <0.46.0', '0.45.1'],
+    ] as const) {
+      expect(corePeerProblems(dialect(peer), core), `${peer} vs core ${core}`).toHaveLength(1);
+    }
+  });
+
+  it('rejects the core as a runtime dependency or a non-workspace devDependency', () => {
+    const peer = '>=0.45.0 <0.46.0';
+    expect(corePeerProblems(dialect(peer, {dependencies: {'@mionjs/drizzle-orm': '0.45.1'}}), '0.45.1')).toHaveLength(1);
+    expect(corePeerProblems(dialect(peer, {devDependencies: {'@mionjs/drizzle-orm': '0.45.1'}}), '0.45.1')).toHaveLength(1);
   });
 });
 
@@ -249,6 +282,14 @@ describe('drizzle line — the tree itself', () => {
       expect(row.pkg.dependencies?.['@mionjs/run-types']).toBeUndefined();
       // Kept resolvable in the workspace, and dev deps never reach a consumer.
       expect(row.pkg.devDependencies?.['@mionjs/run-types']).toBe('workspace:*');
+    }
+  });
+
+  it('takes @mionjs/drizzle-orm as a ranged peer that admits the core in the tree', () => {
+    const rows = readDialectPackages(REPO_ROOT);
+    const core = rows.find((row: {dialect: string}) => row.dialect === 'root').pkg.version;
+    for (const row of rows.filter((row: {dialect: string}) => row.dialect !== 'root')) {
+      expect(corePeerProblems(row.pkg, core)).toEqual([]);
     }
   });
 });
