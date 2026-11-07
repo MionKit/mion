@@ -1,6 +1,5 @@
-// Ops/sec timing for the serialization benchmark (gen-serialization.mjs imports it).
-// A 800-call window lasts under a millisecond on a fast codec, so a run either catches the optimized code or not: the
-// same encoder read 1.0M/s in one process and 2.0M/s in the next. Each cycle now lasts at least `cycleMs`.
+// Ops/sec timing for gen-serialization.mjs. Each cycle lasts at least `cycleMs`: a sub-millisecond window either
+// catches the optimized code or not, so one encoder read 1.0M/s in one process and 2.0M/s in the next.
 
 import {performance} from 'node:perf_hooks';
 
@@ -8,9 +7,8 @@ import {performance} from 'node:perf_hooks';
 const sink = {last: undefined};
 let loopId = 0;
 
-// One compiled loop per measured stream: a call site shared by every codec goes megamorphic, and the speed one case
-// reads then depends on the cases before it. The trailing id keeps each source unique, since identical
-// `new Function` sources share type feedback through V8's eval cache.
+// One loop per measured stream: a call site shared by every codec goes megamorphic, skewing later cases.
+// The trailing id keeps sources unique: identical `new Function` sources share type feedback via V8's eval cache.
 function freshLoop() {
   const make = new Function(
     'performance',
@@ -29,9 +27,8 @@ function freshLoop() {
 }
 
 /**
- * Median calls/sec of `fn` over `cycles` timed passes, each over a fresh `makePool(n)` built outside the clock, so an
- * in-place encoder never sees a value twice. Warm-up passes run until `warmupMs` have passed and grow `n` until one
- * pass lasts `cycleMs`, capped at `maxCalls`. Also returns every cycle's rate.
+ * Median calls/sec of `fn`, with `calls` grown during warm-up until one pass lasts `cycleMs`.
+ * Each pass gets a fresh `makePool(n)` built off the clock, so an in-place encoder never sees a value twice.
  */
 export function measureOps(fn, makePool, {cycles, cycleMs, warmupMs, startCalls, maxCalls}) {
   const loop = freshLoop();

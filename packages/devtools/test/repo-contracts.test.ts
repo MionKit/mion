@@ -1761,8 +1761,7 @@ describe('mion server benchmarks stay wired end to end', () => {
       expect(source, `${generator} imports the resolver`).toContain("from './sources.mjs'");
       expect(source, `${generator} carries its own groupToFile`).not.toMatch(/function groupToFile\(/);
     }
-    // It rides into the benchmark image beside the generator that imports it: a
-    // sibling import there is a hard ERR_MODULE_NOT_FOUND, not a soft miss.
+    // Both ride into the benchmark image beside their importer: a missing sibling there is a hard ERR_MODULE_NOT_FOUND.
     expect(readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/bench.mjs'), 'utf8')).toContain(
       "'sources.mjs')}:${tsgo}/sources.mjs"
     );

@@ -415,9 +415,7 @@ export function serializationRunArgs(cfg, out) {
     '-v', `${join(REPO_ROOT, 'tsconfig.json')}:${tsgo}/node_modules/tsconfig.json:ro${mo}`,
     '-v', `${PLUGIN_PKG}:${tsgo}/node_modules/@mionjs/devtools:ro${mo}`,
     '-v', `${join(SCRIPT_DIR, 'gen-serialization.mjs')}:${tsgo}/gen-serialization.mjs:ro${mo}`,
-    // Its sibling imports: the resolver that names each group's case file for the
-    // chart's GitHub link, and the ops timer. Unlike the env loader (a soft, try/caught import) a missing
-    // module here is a hard ERR_MODULE_NOT_FOUND, so the stage would not start at all.
+    // Its sibling imports are hard, unlike the try/caught env loader: a missing one stops the stage (ERR_MODULE_NOT_FOUND).
     '-v', `${join(SCRIPT_DIR, 'sources.mjs')}:${tsgo}/sources.mjs:ro${mo}`,
     '-v', `${join(SCRIPT_DIR, 'ops-timer.mjs')}:${tsgo}/ops-timer.mjs:ro${mo}`,
     '-v', `${out}:/bench/bench-out${mo}`,
