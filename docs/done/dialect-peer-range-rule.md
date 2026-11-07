@@ -1,7 +1,7 @@
 ---
 type: docs
 spec: guidelines
-status: ready
+status: done
 created: 2026-11-07
 ---
 
@@ -14,7 +14,7 @@ The three dialect packages (`@mionjs/drizzle-orm-{mysql,pg,sqlite}-core`) carry 
 `@mionjs/drizzle-orm` peer (`>=X.Y.Z <X.(Y+1).0`). The release bump writes it on purpose
 (`rootPeerRangeFor` in `scripts/lib/drizzle-line.mjs`): floored at the core version the dialect ships with,
 capped at the drizzle minor line, so all dialects share the consumer's single core copy and a core patch never
-forces a dialect republish. The tool is right; the rule is stale. Nothing checks this peer today either.
+forces a dialect republish. The tool was right; the rule was stale, and nothing checked this peer.
 
 ## Direction
 
@@ -37,3 +37,15 @@ this change touched, review its report against the code, and commit it as its ow
 - The rule and the bump tool agree, and the gate fails on a pinned or off-line core peer, with a test.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file,
   each committed on its own.
+
+## Plan: what shipped (approved 2026-11-07, delegated brief)
+
+- `packages/AGENTS.md`: FIVE peer ranges, the new bullet says why, and the dialect devDependency exception names
+  `@mionjs/drizzle-orm` too.
+- `corePeerProblems(pkg, coreVersion, label)` in `scripts/lib/drizzle-line.mjs`: built on `rootPeerRangeFor` +
+  `peerRangeFor`, so the check and the bump tool share one range shape. The floor may sit below the core's
+  patch (a core patch need not republish the dialects).
+- `check-drizzle-versions.mjs` calls it for every non-root row, skipped when the core has no version
+  (the root row's own version check reports that).
+- Tests: accept and reject tables, a tree test, and a run of the gate itself on the tree.
+- Website: none, release internals only. Simplify-docs pass: no-op, no page touched.
