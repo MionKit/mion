@@ -61,8 +61,7 @@ var reachesRepo = regexp.MustCompile(climbsOut.String() + `|Root\(\), "packages"
 // declaresRepo is a test reading through the links, or declaring what it reads outside the module.
 var declaresRepo = regexp.MustCompile(`testfixtures\.(Repo|DeclareInputs)\(`)
 
-// TestRepoReads_GoThroughTheLinks keeps Go's test cache honest: it re-checks only files inside the module, so a test
-// reads the repo through Repo, and a package whose code reaches the repo any other way declares it in its tests.
+// TestRepoReads_GoThroughTheLinks keeps Go's test cache honest: it re-checks only files inside the module.
 func TestRepoReads_GoThroughTheLinks(t *testing.T) {
 	module := filepath.Join(packageDir(), "..", "..")
 	type pkgSources struct{ reaches, declares, tested bool }

@@ -32,7 +32,7 @@ func FuzzSeed(lane string) (int64, string, error) {
 	return seed, fmt.Sprintf("[%s-fuzz] seed %d from version %s (replay: MION_FUZZ_SEED=%d)", lane, seed, version, seed), nil
 }
 
-// RepoVersion reads version.json, the one string every sweep seeds from; located from this file, so the caller's cwd cannot change it.
+// RepoVersion reads version.json, the one string every sweep seeds from; found from this file, not the cwd.
 func RepoVersion() (string, error) {
 	raw, err := os.ReadFile(Repo("version.json"))
 	if err != nil {

@@ -29,8 +29,7 @@ export async function setup(project: TestProject): Promise<void> {
   const configFile = project.vite.config.configFile;
   if (!configFile) throw new Error(`lane server: project ${project.name} has no config file to start the server from`);
   const entry = fileURLToPath(new URL('./laneServerChild.mjs', import.meta.url));
-  // The child roots its vite server where vitest roots this project, so both name the shared genDir's modules alike;
-  // rooted anywhere else, each one's generate prunes the other's modules and a spec run first cannot import its own.
+  // Rooted anywhere but vitest's project root, the child's and vitest's generate prune each other's genDir modules.
   const spawned = fork(entry, [configFile, project.config.root], {
     env: {...process.env, NODE_ENV: 'test'},
     stdio: ['ignore', 'inherit', 'inherit', 'ipc'],
