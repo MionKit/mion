@@ -1,6 +1,6 @@
 {
   "name": "@mionjs/devtools",
-  "version": "0.13.2",
+  "version": "0.14.0",
   "description": "mion devtools: the build transform (Vite/Rollup/Rolldown/webpack/Rspack/esbuild/Bun/Next-Turbopack) that rewrites mion RunTypes marker calls, the mion Vite preset, and the OXlint/ESLint plugin.",
   "type": "module",
   "license": "MIT",
