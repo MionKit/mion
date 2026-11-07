@@ -19,7 +19,8 @@ jobs:
   # but that only fires AFTER the merge. This is the same check on the PR, so a
   # promotion whose version.json is already live goes red here instead of
   # merging green and failing to publish. Registry read is anonymous — the
-  # @mionjs/* packages are public.
+  # @mionjs/* packages are public. It also needs the version's CHANGELOG.md
+  # section, which publish.yml turns into the GitHub Release body.
   version-fresh:
     name: version.json not already on npm
     runs-on: ubuntu-latest
@@ -34,6 +35,13 @@ jobs:
             exit 1
           fi
           echo "OK: ${version} is not on npm yet — safe to promote."
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+          package-manager-cache: false # no pnpm here: miondevx is zero-dep
+      - name: CHANGELOG.md has a section for this version
+        shell: bash
+        run: node scripts/miondevx.mjs release notes "$(jq -r .version version.json)" >/dev/null
 
   # ── main-ancestor: the release head must be a frozen prefix of main ──────────
   # The release PR's head is a release/vX.Y.Z branch cut from main (not main

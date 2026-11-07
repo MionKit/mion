@@ -352,6 +352,7 @@ export const AREAS = {
         ...noBuild,
       },
       {name: 'verify-live', summary: "deploy guard: fail unless the tree's version is LIVE on npm (all packages)", ...noBuild},
+      {name: 'notes', args: '<version>', summary: "print that version's CHANGELOG.md section (the GitHub Release body)", ...noBuild},
       {
         name: 'check-drizzle-versions',
         summary: 'guard: the drizzle package versions, peer ranges and manifests match the installed drizzle-orm',
