@@ -105,8 +105,9 @@ function main() {
 
   const manifest = readJson(VERSION_FILE);
   const version = nextVersion(manifest.version, bump);
-  // Planned first: a drizzle-line violation must abort before any file is written.
+  // Planned first: a drizzle-line violation or an unreadable workspace list must abort before any file is written.
   const drizzlePlan = planDrizzleLine(version);
+  const lockstepFiles = lockstepManifestFiles(REPO_ROOT);
 
   // version.json is the source of truth (read by build-binaries.mjs + CI).
   manifest.version = version;
@@ -115,7 +116,7 @@ function main() {
 
   // The @mionjs/bin-compiler bump is load-bearing: pnpm packs that version into @mionjs/devtools' workspace:* dep.
   // drizzle-orm line packages are never stamped: <drizzle major.minor>.<own patch>, see check-drizzle-versions.mjs.
-  for (const file of lockstepManifestFiles(REPO_ROOT)) {
+  for (const file of lockstepFiles) {
     const pkg = readJson(file);
     pkg.version = version;
     writeJson(file, pkg);
