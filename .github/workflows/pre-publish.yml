@@ -19,8 +19,8 @@ jobs:
   # but that only fires AFTER the merge. This is the same check on the PR, so a
   # promotion whose version.json is already live goes red here instead of
   # merging green and failing to publish. Registry read is anonymous — the
-  # @mionjs/* packages are public. It also needs the version's CHANGELOG.md
-  # section, which publish.yml turns into the GitHub Release body.
+  # @mionjs/* packages are public. Also checks the CHANGELOG.md section that
+  # publish.yml makes the GitHub Release body.
   version-fresh:
     name: version.json not already on npm
     runs-on: ubuntu-latest

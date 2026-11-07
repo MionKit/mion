@@ -150,9 +150,7 @@ jobs:
             echo "@mionjs/run-types@${VERSION} is already on npm. Bump version.json on the release PR." >&2
             exit 1
           fi
-      # The Release body is the curated CHANGELOG.md section of this version, the
-      # same text the bump PR landed. Read before staging, so a missing section
-      # fails the run while nothing is staged or tagged yet.
+      # Before staging, so a missing section fails the run while nothing is staged or tagged yet.
       - name: Release notes from the curated CHANGELOG.md section
         shell: bash
         run: node scripts/miondevx.mjs release notes "${VERSION}" > RELEASE_NOTES.md
