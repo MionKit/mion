@@ -17,8 +17,6 @@ declare module 'vitest' {
   export interface ProvidedContext {
     /** Base URL of this lane's own test server (see test/lib/laneServer.ts). */
     laneServerBaseURL: string;
-    /** The vite root the lane server compiled under, which must be this project's root (laneServerChild.mjs). */
-    laneServerRoot: string;
   }
 }
 
@@ -31,24 +29,24 @@ export async function setup(project: TestProject): Promise<void> {
   const configFile = project.vite.config.configFile;
   if (!configFile) throw new Error(`lane server: project ${project.name} has no config file to start the server from`);
   const entry = fileURLToPath(new URL('./laneServerChild.mjs', import.meta.url));
-  // The child roots its vite server where vitest roots this project, so both name the shared genDir's modules alike.
+  // The child roots its vite server where vitest roots this project, so both name the shared genDir's modules alike;
+  // rooted anywhere else, each one's generate prunes the other's modules and a spec run first cannot import its own.
   const spawned = fork(entry, [configFile, project.config.root], {
     env: {...process.env, NODE_ENV: 'test'},
     stdio: ['ignore', 'inherit', 'inherit', 'ipc'],
   });
   child = spawned;
-  const {port, root} = await startedPort(spawned, project.name).catch((error: unknown) => {
+  const port = await startedPort(spawned, project.name, project.config.root).catch((error: unknown) => {
     // vitest never runs teardown for a globalSetup that threw, so the fork would outlive the run
     spawned.kill();
     child = undefined;
     throw error;
   });
   project.provide('laneServerBaseURL', `http://localhost:${port}`);
-  project.provide('laneServerRoot', root);
 }
 
-function startedPort(spawned: ChildProcess, name: string): Promise<{port: number; root: string}> {
-  return new Promise<{port: number; root: string}>((resolve, reject) => {
+function startedPort(spawned: ChildProcess, name: string, root: string): Promise<number> {
+  return new Promise<number>((resolve, reject) => {
     const timer = setTimeout(
       () => reject(new Error(`lane server for ${name} did not start within ${START_TIMEOUT_MS}ms`)),
       START_TIMEOUT_MS
@@ -56,7 +54,8 @@ function startedPort(spawned: ChildProcess, name: string): Promise<{port: number
     spawned.once('message', (message: {port?: number; root?: string}) => {
       clearTimeout(timer);
       if (typeof message?.port !== 'number') return reject(new Error(`lane server for ${name} sent no port`));
-      resolve({port: message.port, root: message.root ?? ''});
+      if (message.root !== root) return reject(new Error(`lane server for ${name} compiled under ${message.root}, not ${root}`));
+      resolve(message.port);
     });
     spawned.once('exit', (code) => {
       clearTimeout(timer);
