@@ -25,7 +25,7 @@ import {ghcrConfig} from '../../lib/engine.mjs';
 import {loadEnv, REPO_ROOT} from '../../lib/env.mjs';
 import {die, hostGoArch, note, reportCliError, run, which} from '../../lib/proc.mjs';
 import {main as mionBenchMain} from './mion-bench.mjs';
-import {clearValidationRounds, mergeValidationRounds, readValidationRounds, validationPlan, validationRoundFile, validationSchedule} from './validation-rounds.mjs';
+import {mergeValidationRounds, readValidationRounds, roundsEnv, validationPlan, validationRoundFile, validationSchedule} from './validation-rounds.mjs';
 
 // Env-independent paths.
 const BENCH_DIR = join(REPO_ROOT, 'container/benchmarks');
@@ -242,26 +242,34 @@ function buildOne(cfg, competitor) {
 // disagreeing with RunTypes on a sample is data for the Correctness page, not a broken
 // lane (see shared/harness/result.ts).
 function runCompetitors(cfg, competitors, withBun = benchBun()) {
-  const {rounds} = validationPlan();
+  const broken = competitors.filter((competitor) => !buildOne(cfg, competitor));
+  const built = competitors.filter((competitor) => !broken.includes(competitor));
+  const runRound = (lane, round, timeMs) => {
+    const cmd = `cd competitors/${lane.competitor} && MION_VALIDATION_BENCH_ROUND=${round} MION_VALIDATION_BENCH_TIME_MS=${timeMs} ${lane.cmd}`;
+    return runInContainer(cfg, ['sh', '-c', cmd]) === 0;
+  };
+  return [...new Set([...broken, ...runValidationRounds(built, {runRound, withBun})])];
+}
+
+/** The round loop of runCompetitors with the container step injected, so a test can drive it. */
+export function runValidationRounds(competitors, {runRound, withBun = benchBun(), resultsDir = runtimeResultsDir, env = process.env}) {
+  const {rounds, timeMs} = validationPlan(env);
   // An MION_VALIDATION_BENCH_CASE inspection run writes no results file by design, so
   // neither the "did it write results?" signal nor the merge applies to it.
-  const inspecting = Boolean(process.env.MION_VALIDATION_BENCH_CASE);
+  const inspecting = Boolean(env.MION_VALIDATION_BENCH_CASE);
   const runtimes = [['node', 'node dist/run.mjs']];
   if (withBun) runtimes.push(['bun', `MION_VALIDATION_BENCH_SKIP_GROUPS=${BUN_SKIP_GROUPS} bun dist/run.mjs`]);
   const broken = new Set();
-  const built = competitors.filter((competitor) => buildOne(cfg, competitor) || (broken.add(competitor), false));
-  const lanes = built.flatMap((competitor) => runtimes.map(([runtime, cmd]) => ({competitor, runtime, cmd, label: `competitor '${competitor}' (${runtime})`})));
-  for (const lane of lanes) clearValidationRounds(runtimeResultsDir(lane.runtime), lane.competitor, rounds);
+  const lanes = competitors.flatMap((competitor) => runtimes.map(([runtime, cmd]) => ({competitor, runtime, cmd, label: `competitor '${competitor}' (${runtime})`})));
 
   const stopped = new Set();
   for (const {round, lane} of validationSchedule(lanes, rounds)) {
     if (stopped.has(lane)) continue;
     console.log(`-------- round ${round}/${rounds}: ${lane.competitor} (${lane.runtime}) --------`);
-    const cmd = `cd competitors/${lane.competitor} && MION_VALIDATION_BENCH_ROUND=${round} ${lane.cmd}`;
-    if (runInContainer(cfg, ['sh', '-c', cmd]) === 0) continue;
+    if (runRound(lane, round, timeMs)) continue;
     broken.add(lane.competitor);
     if (inspecting) console.log(`==> ${lane.label} FAILED - see output above`);
-    else if (existsSync(validationRoundFile(runtimeResultsDir(lane.runtime), lane.competitor, round)))
+    else if (existsSync(validationRoundFile(resultsDir(lane.runtime), lane.competitor, round)))
       console.log(`==> ${lane.label}: errored case(s) in round ${round} - its results JSON WAS written, see the errors above`);
     else {
       console.log(`==> ${lane.label} DID NOT RUN in round ${round} (startup failed) - no results JSON, its column will be missing from the tables`);
@@ -270,7 +278,7 @@ function runCompetitors(cfg, competitors, withBun = benchBun()) {
   }
   if (inspecting) return [...broken];
   for (const lane of lanes.filter((entry) => !stopped.has(entry))) {
-    const dir = runtimeResultsDir(lane.runtime);
+    const dir = resultsDir(lane.runtime);
     const found = readValidationRounds(dir, lane.competitor, rounds);
     if (found.length > 0) writeFileSync(join(dir, `${lane.competitor}.json`), `${JSON.stringify(mergeValidationRounds(found), null, 2)}\n`);
   }
@@ -321,10 +329,13 @@ function publishDocdata(cfg) {
 // Delete top-level results JSON matching a predicate (the `find -maxdepth 1 -delete`).
 function clearResults(pred) {
   mkdirSync(RESULTS_DIR, {recursive: true});
-  // The per-runtime subdirs too: a stale bun result surviving a failed bun run would
-  // let checkEngineBranch pass on last week's numbers. Round files are judged by the
-  // result they belong to.
-  for (const dir of [RESULTS_DIR, join(RESULTS_DIR, 'bun')]) {
+  clearResultFiles([RESULTS_DIR, join(RESULTS_DIR, 'bun')], pred);
+}
+
+/** The per-runtime subdirs too: a stale bun result surviving a failed bun run would let
+ *  checkEngineBranch pass on last week's numbers. Round files are judged by the result they belong to. */
+export function clearResultFiles(dirs, pred) {
+  for (const dir of dirs) {
     if (!existsSync(dir)) continue;
     for (const f of globSync('*.json', {cwd: dir})) if (pred(f)) rmSync(join(dir, f), {force: true});
     for (const f of globSync('rounds/*.json', {cwd: dir})) if (pred(f.slice('rounds/'.length).replace(/\.r\d+\.json$/, '.json'))) rmSync(join(dir, f), {force: true});
@@ -622,12 +633,11 @@ function applyQuick() {
   const setIfUnset = (name, value) => {
     if (!(name in process.env)) process.env[name] = value;
   };
-  setIfUnset('MION_VALIDATION_BENCH_ROUNDS', '1'); // runtime: one round (vs 3)
   setIfUnset('MION_VALIDATION_BENCH_TIME_MS', '20'); // runtime: short per-cell window (vs 50ms a round)
   setIfUnset('MION_COMPILETIME_N', '1'); // compile-time: single repeat (vs 5)
   setIfUnset('MION_TRANSFORM_WIRE_N', '1'); // transform-wire: single repeat (vs 5)
   setIfUnset('MION_COMPILETIME_COMPETITORS', 'mion');
-  console.error(`==> MION_VALIDATION_BENCH_QUICK on: fast/preview mode (MION_VALIDATION_BENCH_TIME_MS=${process.env.MION_VALIDATION_BENCH_TIME_MS}, MION_COMPILETIME_N=${process.env.MION_COMPILETIME_N}, serialization iters reduced). Numbers are noisy.`);
+  console.error(`==> MION_VALIDATION_BENCH_QUICK on: fast/preview mode (MION_VALIDATION_BENCH_ROUNDS=${process.env.MION_VALIDATION_BENCH_ROUNDS}, MION_VALIDATION_BENCH_TIME_MS=${process.env.MION_VALIDATION_BENCH_TIME_MS}, MION_COMPILETIME_N=${process.env.MION_COMPILETIME_N}, serialization iters reduced). Numbers are noisy.`);
 }
 
 function dispatch(cfg, args) {
@@ -664,8 +674,10 @@ export function main(rawArgs) {
     if (rawArgs[i] === '--quick') process.env.MION_VALIDATION_BENCH_QUICK = '1';
     else if (rawArgs[i] === '--only') setOnlyCompetitors(rawArgs[++i] ?? '');
     else if (rawArgs[i] === '--rounds') process.env.MION_VALIDATION_BENCH_ROUNDS = rawArgs[++i] ?? 'missing';
+    else if (rawArgs[i].startsWith('--rounds=')) process.env.MION_VALIDATION_BENCH_ROUNDS = rawArgs[i].slice('--rounds='.length);
     else args.push(rawArgs[i]);
   }
+  Object.assign(process.env, roundsEnv(process.env));
   applyQuick();
   // A bad round knob is a usage error, caught before any result is touched.
   try {

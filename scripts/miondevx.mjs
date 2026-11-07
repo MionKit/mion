@@ -424,19 +424,24 @@ const BENCH_SUB = new Set(['audit', 'typecheck', 'engine-check', 'typecost', 'co
 // own sub-verbs; a bare sub-verb passes through, and the default is `bench`.
 function benchArgs(args) {
   if (args[0] && !args[0].startsWith('-') && BENCH_SUB.has(args[0])) return args;
+  // Taken out first: its value is not a word, so the stray-command check below must not see it.
+  const rounds = takeFlag(args, '--rounds', {valued: true});
+  if (rounds.rest !== args && (rounds.value === undefined || rounds.value.startsWith('-'))) die('bench: --rounds needs a number', 2);
+  const withRounds = (out) => (rounds.value === undefined ? out : [...out, '--rounds', rounds.value]);
+  args = rounds.rest;
   const one = takeFlag(args, '--one', {valued: true});
-  if (one.value !== undefined) return ['bench-one', one.value, ...one.rest];
+  if (one.value !== undefined) return withRounds(['bench-one', one.value, ...one.rest]);
   const full = takeFlag(args, '--full');
-  if (full.value) return ['fullbench', ...full.rest];
+  if (full.value) return withRounds(['fullbench', ...full.rest]);
   const web = takeFlag(args, '--website');
-  if (web.value) return ['website-bench', ...web.rest];
+  if (web.value) return withRounds(['website-bench', ...web.rest]);
   const buildOnly = takeFlag(args, '--build-only');
-  if (buildOnly.value) return ['build', ...buildOnly.rest];
+  if (buildOnly.value) return withRounds(['build', ...buildOnly.rest]);
   const only = takeFlag(args, '--only', {valued: true});
   if (args.includes('--only') && (only.value === undefined || only.value.startsWith('-'))) die('bench: --only needs a comma list of competitors', 2);
   const stray = only.rest.find((arg) => !arg.startsWith('-'));
   if (stray) die(`unknown bench command '${stray}'. ${usage('bench')}`, 2);
-  return ['bench', ...only.rest, ...(only.value === undefined ? [] : ['--only', only.value])];
+  return withRounds(['bench', ...only.rest, ...(only.value === undefined ? [] : ['--only', only.value])]);
 }
 // `miondevx bench servers …` is the OTHER benchmark family: the mion HTTP server
 // benchmarks, which run in their own mion-bench image. Everything after `servers` is

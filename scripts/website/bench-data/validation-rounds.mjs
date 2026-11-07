@@ -11,12 +11,11 @@
 // 2-3%, inside the 4-6% two 100 ms runs differ by per case). Three rounds still let the
 // median drop one slow round; the cost is 150 ms of timing per case instead of 100.
 
-import {existsSync, readFileSync, rmSync} from 'node:fs';
-import {join} from 'node:path';
-import {median, roundOrder, spreadPct} from '../../../container/mion-bench/shared/rounds.mjs';
+import {existsSync, readFileSync} from 'node:fs';
+import {median, round2, roundFile, roundOrder, spreadPct} from '../../../container/mion-bench/shared/rounds.mjs';
 
 export const DEFAULT_ROUNDS = 3;
-// Per stream per round; keep in step with TIME_MS in container/benchmarks/shared/harness/measure.ts.
+// Per stream per round. The driver always passes it, so the harness's own default only serves a bare run.
 export const DEFAULT_ROUND_MS = 50;
 const STREAMS = ['validOpsSec', 'invalidOpsSec', 'mixedOpsSec'];
 
@@ -37,10 +36,14 @@ export function validationSchedule(lanes, rounds) {
 }
 
 /** A round's result file, beside the canonical one in a subdir the results reader never lists. */
-export const validationRoundFile = (dir, competitor, round) => join(dir, 'rounds', `${competitor}.r${round}.json`);
+export const validationRoundFile = roundFile;
 
-export function clearValidationRounds(dir, competitor, rounds) {
-  for (let round = 1; round <= rounds; round++) rmSync(validationRoundFile(dir, competitor, round), {force: true});
+/** Runs that publish no timing get one round: a correctness-only or one-case inspection run repeats nothing useful.
+ *  A rounds count the user set still wins. */
+export function roundsEnv(env) {
+  if (env.MION_VALIDATION_BENCH_ROUNDS) return {};
+  if (env.MION_VALIDATION_BENCH_QUICK === '1' || env.MION_VALIDATION_BENCH_NO_TIMING === '1' || env.MION_VALIDATION_BENCH_CASE) return {MION_VALIDATION_BENCH_ROUNDS: '1'};
+  return {};
 }
 
 export function readValidationRounds(dir, competitor, rounds) {
@@ -59,7 +62,7 @@ function mergeMetric(metrics) {
   if (metrics.length > 1) {
     merged.rounds = Object.fromEntries(STREAMS.map((stream) => [stream, metrics.map((metric) => metric[stream])]));
     const spreads = STREAMS.map((stream) => metrics.map((metric) => metric[stream])).filter((values) => values.every((value) => value > 0));
-    merged.spread = spreads.length ? Math.round(Math.max(...spreads.map(spreadPct)) * 100) / 100 : 0;
+    merged.spread = spreads.length ? round2(Math.max(...spreads.map(spreadPct))) : 0;
   }
   return merged;
 }

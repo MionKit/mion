@@ -1,15 +1,28 @@
 // The validation benchmarks in interleaved rounds (scripts/website/bench-data/validation-rounds.mjs).
-import {describe, expect, it} from 'vitest';
+import {existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {dirname, join} from 'node:path';
+import {afterEach, describe, expect, it, vi} from 'vitest';
 // @ts-expect-error untyped .mjs
 import * as rounds from '../../../scripts/website/bench-data/validation-rounds.mjs';
+// @ts-expect-error untyped .mjs
+import * as driver from '../../../scripts/website/bench-data/bench.mjs';
 
-const {DEFAULT_ROUNDS, DEFAULT_ROUND_MS, mergeValidationRounds, validationPlan, validationRoundFile, validationSchedule} = rounds;
+const {
+  DEFAULT_ROUNDS,
+  DEFAULT_ROUND_MS,
+  mergeValidationRounds,
+  roundsEnv,
+  validationPlan,
+  validationRoundFile,
+  validationSchedule,
+} = rounds;
+const {clearResultFiles, runValidationRounds} = driver;
 
 describe('validationPlan', () => {
   it('runs 3 rounds of 50 ms: shorter windows read low', () => {
-    expect(validationPlan({})).toEqual({rounds: 3, timeMs: 50});
-    expect(DEFAULT_ROUND_MS).toBeGreaterThanOrEqual(50);
-    expect(DEFAULT_ROUNDS).toBeGreaterThanOrEqual(3);
+    expect(validationPlan({})).toEqual({rounds: DEFAULT_ROUNDS, timeMs: DEFAULT_ROUND_MS});
+    expect([DEFAULT_ROUNDS, DEFAULT_ROUND_MS]).toEqual([3, 50]);
   });
 
   it('reads the knobs, and refuses one that would schedule no round', () => {
@@ -116,5 +129,111 @@ describe('mergeValidationRounds', () => {
     const single = mergeValidationRounds([result(1, ok(100), ok(1))]);
     expect(single.cases[0].validate).toEqual(ok(100));
     expect(() => mergeValidationRounds([])).toThrow(/no rounds/);
+  });
+});
+
+describe('roundsEnv', () => {
+  it('gives runs that publish no timing one round, unless the user set a count', () => {
+    for (const env of [
+      {MION_VALIDATION_BENCH_QUICK: '1'},
+      {MION_VALIDATION_BENCH_NO_TIMING: '1'},
+      {MION_VALIDATION_BENCH_CASE: 'OBJECT'},
+    ])
+      expect(roundsEnv(env), JSON.stringify(env)).toEqual({MION_VALIDATION_BENCH_ROUNDS: '1'});
+    expect(roundsEnv({MION_VALIDATION_BENCH_QUICK: '1', MION_VALIDATION_BENCH_ROUNDS: '3'})).toEqual({});
+    expect(roundsEnv({})).toEqual({});
+  });
+});
+
+describe('runValidationRounds', () => {
+  let dir: string;
+  afterEach(() => rmSync(dir, {recursive: true, force: true}));
+  const resultsDir = (runtime: string) => (runtime === 'node' ? dir : join(dir, runtime));
+
+  /** Stands in for the container: writes the round result the harness would, then reports the exit. */
+  function fake(outcome: (competitor: string, round: number) => 'ok' | 'errored' | 'no-start') {
+    const calls: string[] = [];
+    const runRound = (lane: {competitor: string; runtime: string}, round: number, timeMs: number) => {
+      calls.push(`${lane.competitor}.${lane.runtime}.${round}@${timeMs}`);
+      const what = outcome(lane.competitor, round);
+      if (what === 'no-start') return false;
+      const file = validationRoundFile(resultsDir(lane.runtime), lane.competitor, round);
+      mkdirSync(dirname(file), {recursive: true});
+      writeFileSync(file, JSON.stringify({...result(round, ok(100 + round), ok(1)), competitor: lane.competitor}));
+      return what === 'ok';
+    };
+    return {calls, runRound};
+  }
+  const canonical = (competitor: string) => join(dir, `${competitor}.json`);
+
+  it('merges every lane that ran, including one with errored cases, and stops one that never started', () => {
+    dir = mkdtempSync(join(tmpdir(), 'mion-vrounds-'));
+    const {calls, runRound} = fake((competitor, round) =>
+      competitor === 'zod' && round === 2 ? 'errored' : competitor === 'ajv' && round === 1 ? 'no-start' : 'ok'
+    );
+    const broken = runValidationRounds(['mion', 'zod', 'ajv'], {runRound, withBun: false, resultsDir, env: {}});
+    expect(broken.sort()).toEqual(['ajv', 'zod']);
+    expect(calls.filter((call) => call.startsWith('ajv'))).toEqual(['ajv.node.1@50']);
+    expect(existsSync(canonical('ajv'))).toBe(false);
+    for (const competitor of ['mion', 'zod']) expect(JSON.parse(readFileSync(canonical(competitor), 'utf8')).env.rounds).toBe(3);
+  });
+
+  it('an inspection run merges nothing and runs one round', () => {
+    dir = mkdtempSync(join(tmpdir(), 'mion-vrounds-'));
+    const {calls, runRound} = fake(() => 'ok');
+    const env = {MION_VALIDATION_BENCH_CASE: 'OBJECT', ...roundsEnv({MION_VALIDATION_BENCH_CASE: 'OBJECT'})};
+    runValidationRounds(['mion'], {runRound, withBun: true, resultsDir, env});
+    expect(calls).toEqual(['mion.node.1@50', 'mion.bun.1@50']);
+    expect(existsSync(canonical('mion'))).toBe(false);
+  });
+});
+
+describe('clearResultFiles', () => {
+  it("removes a competitor's result and its rounds in every runtime dir, and nobody else's", () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mion-vclear-'));
+    const files = [
+      'zod.json',
+      'mion.json',
+      'rounds/zod.r1.json',
+      'rounds/mion.r1.json',
+      'bun/zod.json',
+      'bun/rounds/zod.r3.json',
+      'bun/rounds/mion.r2.json',
+    ];
+    for (const file of files) {
+      mkdirSync(dirname(join(dir, file)), {recursive: true});
+      writeFileSync(join(dir, file), '{}');
+    }
+    clearResultFiles([dir, join(dir, 'bun')], (file: string) => file === 'zod.json');
+    expect(files.filter((file) => existsSync(join(dir, file)))).toEqual([
+      'mion.json',
+      'rounds/mion.r1.json',
+      'bun/rounds/mion.r2.json',
+    ]);
+    rmSync(dir, {recursive: true, force: true});
+  });
+});
+
+describe('the harness files a round where the driver reads it', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('MION_VALIDATION_BENCH_ROUND sends the result to rounds/<name>.r<n>.json, bun under bun/', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mion-vharness-'));
+    vi.stubEnv('MION_VALIDATION_BENCH_RESULTS_DIR', dir);
+    vi.resetModules();
+    const {writeResult} = await import('../../../container/benchmarks/shared/harness/result.ts');
+    const write = (runtime: 'node' | 'bun', round?: number) =>
+      writeResult({
+        ...result(round ?? 0, ok(1), ok(1)),
+        runtime,
+        env: {node: 'v26', timeMs: 50, noTiming: false, ...(round ? {round} : {})},
+      } as never);
+    write('node', 2);
+    write('bun', 3);
+    write('node');
+    expect(existsSync(validationRoundFile(dir, 'zod', 2))).toBe(true);
+    expect(existsSync(validationRoundFile(join(dir, 'bun'), 'zod', 3))).toBe(true);
+    expect(existsSync(join(dir, 'zod.json'))).toBe(true);
+    rmSync(dir, {recursive: true, force: true});
   });
 });

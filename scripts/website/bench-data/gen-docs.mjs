@@ -94,8 +94,7 @@ function toMetric(m) {
   if (mixed === 0 && m.validOpsSec > 0 && m.invalidOpsSec > 0) {
     mixed = 2 / (1 / m.validOpsSec + 1 / m.invalidOpsSec);
   }
-  // `spread`: how far apart the rounds behind these medians landed (absent on a single round).
-  return {valid: m.validOpsSec, invalid: m.invalidOpsSec, mixed, status: m.status, ...(typeof m.spread === 'number' ? {spread: m.spread} : {})};
+  return {valid: m.validOpsSec, invalid: m.invalidOpsSec, mixed, status: m.status};
 }
 
 // ── competitor source extraction ────────────────────────────────────────────
