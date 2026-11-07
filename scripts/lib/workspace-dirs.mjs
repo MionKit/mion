@@ -3,25 +3,26 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 // Only the `- '<dir>/*'` form is in use; any other glob throws instead of matching nothing.
-export function workspacePatterns(yamlText) {
+export function workspaceParentDirs(yamlText) {
   const lines = yamlText.split(/\r?\n/);
   const start = lines.findIndex((line) => /^packages:[ \t]*(?:#.*)?$/.test(line));
   if (start < 0) throw new Error('pnpm-workspace.yaml has no packages: list');
-  const patterns = [];
-  // A top-level key ends the list; blank and comment lines do not.
+  const parents = [];
+  // A top-level key ends the list; blank lines, comments and unindented `- ` items do not.
   for (const line of lines.slice(start + 1)) {
-    if (/^\S/.test(line) && !line.startsWith('#')) break;
-    const pattern = /^[ \t]+-[ \t]*['"]?([^'"#]+?)['"]?[ \t]*(?:#.*)?$/.exec(line)?.[1];
+    if (/^[^\s#-]/.test(line)) break;
+    const pattern = /^[ \t]*-[ \t]*['"]?([^'"#]+?)['"]?[ \t]*(?:#.*)?$/.exec(line)?.[1];
     if (!pattern) continue;
     if (!/^[\w.-]+(?:\/[\w.-]+)*\/\*$/.test(pattern)) throw new Error(`unsupported pnpm-workspace.yaml pattern "${pattern}": only "<dir>/*" is handled`);
-    patterns.push(pattern.slice(0, -2));
+    parents.push(pattern.slice(0, -2));
   }
-  return patterns;
+  if (parents.length === 0) throw new Error('pnpm-workspace.yaml lists no "<dir>/*" package pattern');
+  return parents;
 }
 
 // The manifests the release bump stamps; drizzle-orm line packages carry their own versions.
 export function lockstepManifestFiles(repoRoot) {
-  const parents = workspacePatterns(fs.readFileSync(path.join(repoRoot, 'pnpm-workspace.yaml'), 'utf8'));
+  const parents = workspaceParentDirs(fs.readFileSync(path.join(repoRoot, 'pnpm-workspace.yaml'), 'utf8'));
   const dirs = parents.flatMap((parent) => fs.readdirSync(path.join(repoRoot, parent)).map((name) => path.join(repoRoot, parent, name))).sort();
   return [repoRoot, ...dirs]
     .map((dir) => path.join(dir, 'package.json'))
