@@ -6,10 +6,15 @@ import (
 	"testing"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
+
+	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
 // TestFormatErrorKeysFileInSync fails when the committed file misses a format's keys; CI's `--check` is the exact guard.
 func TestFormatErrorKeysFileInSync(t *testing.T) {
+	if err := testfixtures.DeclareInputs(outputPath()); err != nil {
+		t.Fatal(err)
+	}
 	committed, err := os.ReadFile(outputPath())
 	if err != nil {
 		t.Fatalf("read %s: %v", outputPath(), err)

@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
 // TestRunTypeKindFileInSync is the source-of-truth check that BOTH committed TS
@@ -23,6 +25,9 @@ import (
 // raw string compare here is exact — no formatting step needed (the two mirrors
 // are also re-checked, post-format, by `pnpm miondevx core codegen kind --check`).
 func TestRunTypeKindFileInSync(t *testing.T) {
+	if err := testfixtures.DeclareInputs(runTypeKindOutputPath(), reflectionKindOutputPath()); err != nil {
+		t.Fatal(err)
+	}
 	cases := []struct {
 		label    string
 		generate func() (string, error)
