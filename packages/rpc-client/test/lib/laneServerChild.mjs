@@ -15,8 +15,7 @@ const [configFile, root] = process.argv.slice(2);
 if (!configFile || !root) throw new Error('usage: laneServerChild.mjs <vitest config file> <vitest project root>');
 const entry = fileURLToPath(new URL('../../../private-test-server/src/test-server.ts', import.meta.url));
 
-// Vitest's own project root: both processes then name the shared genDir's modules alike. Any other root (vite's
-// default is the cwd, the repo root here) names them apart, and each one's generate prunes the other's modules.
+// Vitest's own project root (vite's default, the cwd, is the repo root here); laneServer.ts refuses any other.
 const vite = await createServer({
   configFile,
   root,
