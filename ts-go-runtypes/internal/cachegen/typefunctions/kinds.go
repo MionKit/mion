@@ -125,3 +125,38 @@ func indexSignatureKeyRegexVar(rt *reflection.RunType, ctx *EmitContext) string 
 	}
 	return keyRegexVar
 }
+
+// repeatsIndexSignature reports whether an earlier plain string / number keyed sibling has sig's value type.
+// Both sweep every key, so the second repeats each write, check and error (resolver-split `Record<string | number, T>`).
+func repeatsIndexSignature(parent, sig *reflection.RunType, ctx *EmitContext) bool {
+	valueID, ok := plainIndexSignatureValueID(sig, ctx)
+	if !ok {
+		return false
+	}
+	for _, child := range objectMembers(parent) {
+		earlier := ctx.ResolveRef(child)
+		if earlier == sig {
+			return false
+		}
+		if earlierID, plain := plainIndexSignatureValueID(earlier, ctx); plain && earlierID == valueID {
+			return true
+		}
+	}
+	return false
+}
+
+// plainIndexSignatureValueID is the value type id of a string / number keyed signature with no key pattern.
+func plainIndexSignatureValueID(rt *reflection.RunType, ctx *EmitContext) (string, bool) {
+	if rt == nil || rt.Kind != reflection.KindIndexSignature || rt.Child == nil {
+		return "", false
+	}
+	index := ctx.ResolveRef(rt.Index)
+	if index == nil || (index.Kind != reflection.KindString && index.Kind != reflection.KindNumber) {
+		return "", false
+	}
+	if _, patterned := indexSignatureKeyRegex(rt, ctx); patterned {
+		return "", false
+	}
+	id := indexSigValueID(rt, ctx)
+	return id, id != ""
+}
