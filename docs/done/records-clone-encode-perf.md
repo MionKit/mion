@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: shipped
 created: 2026-11-07
 ---
 
@@ -39,3 +39,29 @@ None, because no page describes the benchmark harness or these encoders' interna
 - The cause is named with evidence, and either fixed or shown to be noise.
 - Before / after tables for both benches are in the PR, nothing else slower.
 - The simplify-comments pass ran on every touched source file, committed on its own.
+
+## What shipped
+
+The drop is noise, not a code change.
+
+- The generated clone encoder for both RECORDS cases is byte-identical at cb9d90ea4 and main (hash names aside),
+  and the serialization harness and test data did not change between them.
+- The harness timed 800 calls per cycle after 50 warm-up calls: under 1 ms on these encoders. The same encoder, timed
+  that way in fresh processes, read 0.99M/s to 2.03M/s. Six alternating runs of cb9d90ea4 and main on one machine
+  gave the same two speed levels for both.
+
+Fixed on the way:
+
+- A second index signature with the first one's value type (`Record<string | number, T>` resolves to two) is skipped
+  by the clone and compact encoders, validate and getErrors (`repeatsIndexSignature` in `kinds.go`). They wrote each
+  value twice, swept every key twice, and getErrors reported one bad value twice. Mutate already skipped it.
+- `scripts/website/bench-data/ops-timer.mjs`: each serialization cycle lasts at least 5 ms, after at least 25 ms of
+  warm-up, over a fresh pool, in a loop compiled for that one stream. A full run takes about 3 minutes instead of
+  36 seconds. Median max/min spread per row over five runs of the same code: 1.63 → 1.39 on a shared machine.
+
+Evidence that nothing else moved: compiling every run-types test suite type with the old and new resolver changes
+only the clone and compact encoders of the two types carrying a repeated signature; all 572 generated validation
+functions of the validation bench, and its built bundle, are byte-identical.
+
+Overlapping signatures whose value types differ are still inconsistent across families: that needs a rule decided
+first, filed as its own todo.
