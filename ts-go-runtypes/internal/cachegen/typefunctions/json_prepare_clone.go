@@ -244,7 +244,9 @@ func emitObjectPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v s
 		}
 		if resolved.Kind == reflection.KindIndexSignature {
 			// Deferred: the for-in tail below copies non-declared keys under the sig's transform.
-			indexSigs = append(indexSigs, resolved)
+			if !repeatsIndexSignature(rt, resolved, ctx) {
+				indexSigs = append(indexSigs, resolved)
+			}
 			continue
 		}
 		if resolved.Kind != reflection.KindProperty && resolved.Kind != reflection.KindPropertySignature {

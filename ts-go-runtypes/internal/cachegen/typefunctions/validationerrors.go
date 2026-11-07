@@ -524,6 +524,9 @@ func emitObjectValidationErrors(rt *reflection.RunType, ctx *EmitContext, v stri
 		}
 		if resolved.Kind == reflection.KindIndexSignature {
 			hasIndexSig = true
+			if repeatsIndexSignature(rt, resolved, ctx) {
+				continue
+			}
 		}
 		if isMethodMember(resolved.Kind) {
 			// Method-shaped members on the shape are skipped; the callable case is covered by the typeof guard below.
