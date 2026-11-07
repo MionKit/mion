@@ -105,6 +105,7 @@ describe('devx registry — the build gate', () => {
     ['release', ['tarballs'], false],
     ['release', ['stage-approve', '--dry-run'], false],
     ['release', ['verify-live'], false],
+    ['release', ['notes', '1.2.3'], false],
     ['release', ['bump', '1.2.3'], false],
     ['release', ['binaries'], false],
     ['release', ['pack'], false],
