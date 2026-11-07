@@ -386,7 +386,7 @@ function measureRoundTrip(caseObj, rt) {
     }
     return wires;
   };
-  const decOps = wirePool(surviving.length).length > 0 ? timeOps(decode, wirePool, maxCalls) : 0;
+  const decOps = timeOps(decode, wirePool, maxCalls);
 
   return {encOps, decOps, bytes};
 }

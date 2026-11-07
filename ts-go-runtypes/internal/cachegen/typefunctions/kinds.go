@@ -134,7 +134,7 @@ func repeatsIndexSignature(parent, sig *reflection.RunType, ctx *EmitContext) bo
 	if !ok {
 		return false
 	}
-	for _, child := range parent.Children {
+	for _, child := range objectMembers(parent) {
 		earlier := ctx.ResolveRef(child)
 		if earlier == sig {
 			return false
@@ -158,9 +158,6 @@ func plainIndexSignatureValueID(rt *reflection.RunType, ctx *EmitContext) (strin
 	if _, patterned := indexSignatureKeyRegex(rt, ctx); patterned {
 		return "", false
 	}
-	value := ctx.ResolveRef(rt.Child)
-	if value == nil || value.ID == "" {
-		return "", false
-	}
-	return value.ID, true
+	id := indexSigValueID(rt, ctx)
+	return id, id != ""
 }
