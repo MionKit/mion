@@ -125,3 +125,42 @@ func indexSignatureKeyRegexVar(rt *reflection.RunType, ctx *EmitContext) string 
 	}
 	return keyRegexVar
 }
+
+// repeatsIndexSignature reports whether an earlier plain string / number keyed sibling of sig in parent has the same
+// value type. A for-in reaches every key in both sweeps, so the second one would only write or check each value again
+// (one error twice). The resolver splits `Record<string | number, T>` into one signature per key kind.
+func repeatsIndexSignature(parent, sig *reflection.RunType, ctx *EmitContext) bool {
+	valueID, ok := plainIndexSignatureValueID(sig, ctx)
+	if !ok {
+		return false
+	}
+	for _, child := range parent.Children {
+		earlier := ctx.ResolveRef(child)
+		if earlier == sig {
+			return false
+		}
+		if earlierID, plain := plainIndexSignatureValueID(earlier, ctx); plain && earlierID == valueID {
+			return true
+		}
+	}
+	return false
+}
+
+// plainIndexSignatureValueID is the value type id of a string / number keyed signature; ok is false for any other member.
+func plainIndexSignatureValueID(rt *reflection.RunType, ctx *EmitContext) (string, bool) {
+	if rt == nil || rt.Kind != reflection.KindIndexSignature || rt.Child == nil {
+		return "", false
+	}
+	index := ctx.ResolveRef(rt.Index)
+	if index == nil || (index.Kind != reflection.KindString && index.Kind != reflection.KindNumber) {
+		return "", false
+	}
+	if _, patterned := indexSignatureKeyRegex(rt, ctx); patterned {
+		return "", false
+	}
+	value := ctx.ResolveRef(rt.Child)
+	if value == nil || value.ID == "" {
+		return "", false
+	}
+	return value.ID, true
+}
