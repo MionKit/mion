@@ -310,10 +310,7 @@ async function checkBenchTable(base, page, props, options = {}) {
   return failures + detailFailures;
 }
 
-/** The datasets the charts and server tables fetch: present, with rows (or with every
- *  named section populated). Checked once per dataset across the whole site. */
-/** A server dataset's rows, against the rounds its meta says ran: a row without its rounds
- *  would print a median nobody can check, and its spread would silently disappear. */
+/** A row without its rounds would print a median nobody can check, and its spread would silently disappear. */
 export function roundsProblem(rows, meta) {
   const bad = rows.filter((row) => !Number.isFinite(row.requests));
   if (bad.length > 0) return `${bad.map((row) => row.app).join(', ')} without a requests number`;
@@ -326,6 +323,7 @@ export function roundsProblem(rows, meta) {
   return short.length > 0 ? `${short.map((row) => row.app).join(', ')} without ${rounds} rounds and a spread` : null;
 }
 
+/** The datasets the charts and server tables fetch, checked once each across the whole site. */
 async function checkChartDatasets(base, datasets) {
   let failures = 0;
   for (const [bench, sections] of datasets) {

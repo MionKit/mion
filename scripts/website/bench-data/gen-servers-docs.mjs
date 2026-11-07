@@ -75,13 +75,12 @@ export function metaFrom(rows) {
     connections: first.connections,
     threads: first.threads ?? null,
     pipelining: first.pipelining,
-    // Seconds per round, how many rounds, and the warm-up before the first and the later ones.
+    // Seconds per round, not per lane.
     duration: first.duration,
     rounds: first.rounds?.length ?? null,
     warmup: first.rounds?.[0]?.warmup ?? null,
     rewarmup: first.rounds?.[1]?.warmup ?? null,
-    // What the rounds of a lane are expected to agree within, so a reader can tell a real
-    // gap between two servers from noise. The driver records it; nobody types it.
+    // How close a lane's rounds should agree, so a reader can tell a real gap from noise; recorded, never typed.
     tolerance: first.tolerance ?? null,
     // The line the pages used to hardcode, assembled from what actually ran. It names
     // wrk because wrk is what ran: the upstream benchmarks repo kept printing

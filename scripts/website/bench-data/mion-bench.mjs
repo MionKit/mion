@@ -11,9 +11,7 @@
 //
 // Commands: prep | build-image | servers | one <app> | suite <key> | sweep |
 // repeat <app> [suite] | gcprobe | aggregate | build | shell | login | push | pull | clean.
-// Every lane is measured in interleaved rounds (container/mion-bench/shared/rounds.mjs).
-// `--rounds <n>` sets how many; `--quick` anywhere is one short round (a dev loop, not a
-// number to publish).
+// Lanes run in interleaved rounds (container/mion-bench/shared/rounds.mjs); `--quick`: one unpublishable round.
 
 import {existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import {cpus} from 'node:os';
@@ -43,13 +41,10 @@ const MION_BIN_PATH = '/mion-bench/apps/mion/bin/mion';
 
 const SWEEP_SIZES = SWEEP_SIZE_DEFS.map((size) => size.key);
 
-// The spread a lane's rounds are expected to stay inside, as a percentage. Recorded on
-// every result so the docs pages can print it, warned about on every run and enforced by
-// `pnpm miondevx bench servers repeat <app>`.
+// Percent spread allowed between a lane's rounds: printed by the docs pages, warned on every run, enforced by `repeat`.
 // A function, not a constant: `.env` is loaded after this module is evaluated.
 const tolerance = () => Number(process.env.MION_BENCH_TOLERANCE || 10);
 
-/** The round plan for one lane, with every MION_BENCH_* knob the user set taking precedence. */
 export function lanePlan(sizeKey, env = process.env) {
   const knob = (name) => {
     if (!env[name]) return undefined;
@@ -200,9 +195,8 @@ function envArgs(extra = {}) {
   ];
   const cpu = cpus()[0]?.model ?? '';
   if (cpu) args.push('-e', `MION_BENCH_HOST_CPU=${cpu}`);
-  // Every load knob the harness reads. TIMEOUT and INFLIGHT_BUDGET were missing here,
-  // so setting them on the host quietly did nothing to the run inside the container.
-  // The round knobs are not here: the driver reads them and passes each round's lengths.
+  // Every load knob the harness reads: one missing here silently does nothing in the container.
+  // Round knobs stay out: the driver reads them and passes each round's lengths as flags.
   const knobs = [
     'MION_BENCH_PORT',
     'MION_BENCH_CONNECTIONS',
@@ -245,19 +239,13 @@ function runRound(cfg, app, lane, round) {
 const suiteLanes = () => SUITE_KEYS.map((suite) => ({key: suite, suite, plan: lanePlan(undefined)}));
 const sweepLanes = () => SWEEP_SIZES.map((size) => ({key: `payload-sizes/${size}`, size, plan: lanePlan(size)}));
 
-/**
- * Measures every app on every lane in interleaved rounds (shared/rounds.mjs) and writes each
- * lane's merged record, the median round, where the site generator reads it. Returns the
- * failed `<app>/<lane>` names. A failed round drops that app's lane: its later rounds are
- * skipped and no record is left for the site to publish.
- */
+/** A failed round drops that app's lane: its later rounds are skipped and no record is left for the site to publish. */
 export function runLanes(apps, lanes, {runRound, resultsDir = RESULTS_DIR}) {
   const failed = new Set();
   const wide = [];
   const limit = tolerance();
   const id = (app, lane) => `${app.name}/${lane.size ?? lane.suite}`;
-  // Only the round files go up front. A merged record stays until its lane fails or is
-  // replaced, so an aborted run leaves the previous results whole.
+  // Only round files go up front: a merged record stays until its lane fails or is replaced, so an abort keeps it.
   for (const lane of lanes) {
     const dir = laneDir(resultsDir, lane);
     for (const app of apps) {
@@ -282,8 +270,7 @@ export function runLanes(apps, lanes, {runRound, resultsDir = RESULTS_DIR}) {
     note(`${id(app, lane)}: median ${Math.round(record.requests.mean)} req/s (rounds ${seen}, spread ${record.spread}%)`);
     if (lane.plan.rounds > 1 && record.spread > limit) wide.push(`${id(app, lane)} ${record.spread}%`);
   }
-  // A warning, not a failure: the median already drops the slow round, and a deploy should
-  // not die on a noisy box. `repeat` is the command that fails on it.
+  // Warn, not fail: the median drops the slow round and a deploy should not die on a noisy box. `repeat` fails on it.
   if (wide.length > 0) note(`rounds spread wider than the ${limit}% tolerance: ${wide.join(', ')}`);
   return [...failed];
 }
@@ -317,7 +304,6 @@ function cmdSuite(cfg, suite) {
 function cmdSweep(cfg, only) {
   ensurePrereqs(cfg);
   buildMionApp(cfg);
-  // `sweep <app>` runs the sizes for one lane, the way `one <app>` runs the suites for one
   const apps = only ? [findApp(only)] : APPS;
   if (only && !apps[0]) die(`mion-bench: unknown app '${only}'. Try one of: ${APP_NAMES.join(', ')}`);
   const failed = runLanes(apps, sweepLanes(), roundRunner(cfg));
@@ -326,10 +312,8 @@ function cmdSweep(cfg, only) {
   if (failed.length > 0) die(`mion-bench: ${failed.length} sweep lane(s) failed: ${failed.join(', ')}`);
 }
 
-// Run ONE lane in its rounds and fail when they land further apart than the tolerance the
-// pages publish. A number is only worth publishing if the lane agrees with itself, and the
-// bun lanes are why this exists: they are the ones a node-based load generator could not
-// measure repeatably.
+// Fails when one lane's rounds land further apart than the published tolerance. Exists for the bun lanes,
+// which a node-based load generator could not measure repeatably.
 function cmdRepeat(cfg, appName, suiteArg) {
   if (!appName) die(`mion-bench: repeat needs an app. Try one of: ${APP_NAMES.join(', ')}`);
   const app = findApp(appName);
@@ -421,8 +405,8 @@ function gcProbeMetrics(record) {
 // by what they say about themselves instead.
 const gcProbeDir = (label) => join(RESULTS_DIR, 'gcprobe', label);
 
-// Longer than a published round: the GC ratios need MIN_SAMPLE_REQUESTS per window, and
-// the 4 MB lane collects ~30 a second. Every round restarts the server, so each warms in full.
+// Longer than a published round: GC ratios need MIN_SAMPLE_REQUESTS per window, and 4 MB collects ~30 a second.
+// Every round restarts the server, so each warms in full.
 const GCPROBE_SECONDS = 20;
 
 function gcProbeRun(cfg, app, size, label, round) {
@@ -557,7 +541,7 @@ function cmdClean() {
   note('removed results/ and the mion app dist');
 }
 
-/** The env quick mode runs under: one short round, unless the user set a knob themselves. */
+/** A knob the user set wins over quick mode's. */
 export function quickEnv(env) {
   return {
     MION_BENCH_ROUNDS: '1',
