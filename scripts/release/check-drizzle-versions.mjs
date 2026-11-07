@@ -19,7 +19,7 @@
 // on them: carrying unreleased changes is the normal state of `main` between
 // releases, and bump-version.mjs is what stamps the patch.
 //
-// `--root <dir>` checks another tree instead of this repo (tests run it on a fixture).
+// `--root <dir>` checks another tree instead of this repo, for fixture tests.
 
 import fs from 'node:fs';
 import path from 'node:path';
