@@ -79,7 +79,6 @@ export function metaFrom(rows) {
     duration: first.duration,
     rounds: first.rounds?.length ?? null,
     warmup: first.rounds?.[0]?.warmup ?? null,
-    rewarmup: first.rounds?.[1]?.warmup ?? null,
     // How close a lane's rounds should agree, so a reader can tell a real gap from noise; recorded, never typed.
     tolerance: first.tolerance ?? null,
     // The line the pages used to hardcode, assembled from what actually ran. It names

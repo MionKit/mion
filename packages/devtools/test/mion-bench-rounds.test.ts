@@ -8,7 +8,7 @@ import {afterEach, describe, expect, it} from 'vitest';
 // @ts-expect-error untyped .mjs
 import * as rounds from '../../../container/mion-bench/shared/rounds.mjs';
 
-const {DEFAULT_PLAN, SIZE_PLANS, median, mergeRounds, planFor, roundFile, roundOrder, schedule, spreadPct, warmupFor} = rounds;
+const {DEFAULT_PLAN, SIZE_PLANS, median, mergeRounds, planFor, roundFile, roundOrder, schedule, spreadPct} = rounds;
 // @ts-expect-error untyped .mjs
 import {lanePlan, quickEnv, runLanes} from '../../../scripts/website/bench-data/mion-bench.mjs';
 // @ts-expect-error untyped .mjs
@@ -98,10 +98,9 @@ describe('median and spread', () => {
 });
 
 describe('planFor', () => {
-  it('gives the request-rate lanes 4 rounds of 5 s, warmed 5 s then 2 s', () => {
+  it('gives the request-rate lanes 4 rounds of 5 s, each warmed 2 s', () => {
     const plan = planFor(undefined);
-    expect(plan).toEqual({rounds: 4, seconds: 5, warmup: 5, rewarmup: 2});
-    expect([1, 2, 3, 4].map((round) => warmupFor(plan, round))).toEqual([5, 2, 2, 2]);
+    expect(plan).toEqual({rounds: 4, seconds: 5, warmup: 2});
   });
 
   it('gives the big payloads longer rounds, and every sweep size a plan', () => {
@@ -120,13 +119,10 @@ describe('planFor', () => {
 describe('the driver plan', () => {
   it('reads the MION_BENCH_* knobs, leaving the unset ones to the defaults', () => {
     expect(lanePlan(undefined, {})).toEqual(planFor(undefined));
-    expect(
-      lanePlan('huge', {MION_BENCH_ROUNDS: '2', MION_BENCH_DURATION: '7', MION_BENCH_WARMUP: '3', MION_BENCH_REWARMUP: '1'})
-    ).toEqual({
+    expect(lanePlan('huge', {MION_BENCH_ROUNDS: '2', MION_BENCH_DURATION: '7', MION_BENCH_WARMUP: '3'})).toEqual({
       rounds: 2,
       seconds: 7,
       warmup: 3,
-      rewarmup: 1,
     });
   });
 
@@ -146,7 +142,7 @@ describe('the driver plan', () => {
 const round = (n: number, mean: number, extra: Record<string, unknown> = {}) => ({
   app: 'mion',
   round: n,
-  warmup: n === 1 ? 5 : 2,
+  warmup: 2,
   requests: {mean, stddev: mean / 10},
   latency: {mean: 1000 / mean, p99: 5000 / mean},
   throughput: {mean: mean * 100},
@@ -287,14 +283,14 @@ describe('the site dataset from merged rounds', () => {
     expect(rows[0].rounds).toEqual([100, 104, 96, 102]);
     expect(rows[0].spread).toBeCloseTo(7.69, 1);
     const meta = metaFrom([lane('mion')]);
-    expect(meta).toMatchObject({rounds: 4, duration: 5, warmup: 5, rewarmup: 2, tolerance: 10});
+    expect(meta).toMatchObject({rounds: 4, duration: 5, warmup: 2, tolerance: 10});
     expect(roundsProblem(rows, meta)).toBeNull();
   });
 
   it('a quick single round next to full rounds fails the gate', () => {
     const quick = {...mergeRounds([round(1, 100)], {tolerance: 10}), app: 'mion.uws', label: 'mion.uws'};
     const rows = [quick, lane('hono')].map(toRow);
-    expect(metaFrom([quick])).toMatchObject({rounds: 1, rewarmup: null});
+    expect(metaFrom([quick])).toMatchObject({rounds: 1});
     expect(roundsProblem(rows, metaFrom([quick]))).toMatch(/different round counts/);
   });
 });
