@@ -121,6 +121,9 @@ describe('drizzle line — what version comes next', () => {
       ['^0.45.1', '0.45.1'],
       ['>=0.44.0 <0.45.0', '0.45.1'],
       ['>=0.45.0 <0.47.0', '0.45.1'],
+      ['>=0.44.0 <0.46.0', '0.45.1'],
+      ['>=1.45.0 <0.46.0', '0.45.1'],
+      ['>=0.45.0 <1.46.0', '0.45.1'],
       ['>=0.45.2 <0.46.0', '0.45.1'],
     ] as const) {
       expect(corePeerProblems(dialect(peer), core), `${peer} vs core ${core}`).toHaveLength(1);
