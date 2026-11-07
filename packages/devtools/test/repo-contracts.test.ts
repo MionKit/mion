@@ -25,6 +25,8 @@ import {tmpdir} from 'node:os';
 import {sampleKeys, sampleMirrorDrift} from '../../../scripts/env/check.mjs';
 // @ts-expect-error — a plain .mjs script, no types
 import {REGISTRY} from '../../../scripts/lib/env.mjs';
+// @ts-expect-error — a plain .mjs script, no types
+import {releaseNotes} from '../../../scripts/release/release-notes.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
 import {CARD_MANIFEST, CARDS_EXPORT_DIR, hashSources, staleCards} from '../../../scripts/lib/card-manifest.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
@@ -959,6 +961,28 @@ describe('miondevx release — help and typos never reach the publish umbrella',
     const {status, stderr} = miondevx(['release', 'all', '--oops']);
     expect(status).toBe(2);
     expect(stderr).toContain("unknown flag '--oops'");
+  });
+
+  // The exact command publish.yml and pre-publish.yml run, through the dispatcher.
+  it('`release notes <newest>` prints that section and nothing else', () => {
+    const changelog = readFileSync(join(REPO_ROOT, 'CHANGELOG.md'), 'utf8');
+    const newest = /^## \[([^\]]+)\]/m.exec(changelog)?.[1] ?? '';
+    const {status, stdout} = miondevx(['release', 'notes', newest]);
+    expect(status).toBe(0);
+    expect(stdout).toBe(releaseNotes(changelog, newest));
+  });
+
+  it('`release notes` of a version with no section fails with 1 and names it', () => {
+    const {status, stdout, stderr} = miondevx(['release', 'notes', '9.9.9']);
+    expect(status).toBe(1);
+    expect(stdout).toBe('');
+    expect(stderr).toContain('CHANGELOG.md has no "## [9.9.9]" section');
+  });
+
+  it('`release notes` with no version is a usage error', () => {
+    const {status, stderr} = miondevx(['release', 'notes']);
+    expect(status).toBe(2);
+    expect(stderr).toContain('usage: miondevx release notes <version>');
   });
 
   it('the package pre-hooks route every engine consumer through the trusted build check', () => {
