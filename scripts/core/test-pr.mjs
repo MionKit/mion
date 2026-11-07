@@ -52,11 +52,30 @@ const takeBase = (argv) => {
   return {base: argv[at + 1], rest: argv.toSpliced(at, 2)};
 };
 
-// Pure, for the tests.
+// Pulls `--project` / `--skip-project` (both `--flag name` and `--flag=name`) out of the passthrough args.
+function takeProjectFlags(args) {
+  const only = [];
+  const skip = [];
+  const rest = [];
+  for (let at = 0; at < args.length; at++) {
+    const [flag, inline] = args[at].split(/=(.*)/s);
+    const into = flag === '--project' ? only : flag === '--skip-project' ? skip : undefined;
+    if (!into) rest.push(args[at]);
+    else if (inline !== undefined) into.push(inline);
+    else if (args[at + 1] === undefined) die(`core test-pr: ${flag} needs a project name`, 2);
+    else into.push(args[++at]);
+  }
+  return {only, skip, rest};
+}
+
+// Pure, for the tests. `--project` narrows the plan, never widens it; `--skip-project` removes from it.
 export function suiteCommand(plan, {skipPassed = false, passThrough = []} = {}) {
-  if (!plan.full && plan.projects.length === 0) return null;
-  const projectFlags = plan.full ? [] : plan.projects.flatMap((project) => ['--project', project]);
-  if (skipPassed) return ['node', [TEST_SKIP, ...projectFlags, ...passThrough]];
+  const {only, skip, rest} = takeProjectFlags(passThrough);
+  if ((only.length > 0 || skip.length > 0) && !skipPassed) die('core test-pr: --project and --skip-project need --skip-passed', 2);
+  const projects = plan.full ? only : plan.projects.filter((project) => (only.length === 0 || only.includes(project)) && !skip.includes(project));
+  if (!plan.full && projects.length === 0) return null;
+  const projectFlags = projects.flatMap((project) => ['--project', project]);
+  if (skipPassed) return ['node', [TEST_SKIP, ...projectFlags, ...skip.flatMap((project) => ['--skip-project', project]), ...rest]];
   // An --exclude can empty a selected project (test-router-fuzz is all test/fuzz/).
   return ['pnpm', ['exec', 'vitest', 'run', ...projectFlags, ...(plan.full ? [] : ['--passWithNoTests']), ...passThrough]];
 }
