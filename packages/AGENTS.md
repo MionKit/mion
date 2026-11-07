@@ -5,7 +5,7 @@ One pnpm workspace, one `@mionjs/*` namespace, one release train. Read before a 
 ## Dependencies
 
 - Type-system + framework packages ride the same `version.json` lockstep, depend on each other via `workspace:*`.
-- All `dependencies` / `devDependencies` exact-pinned. FOUR peerDeps stay ranges:
+- All `dependencies` / `devDependencies` exact-pinned. FIVE peerDeps stay ranges:
   - `@mionjs/devtools`: so consumers can dedupe Vite.
   - `@mionjs/platform-bun` → optional `@types/bun` peer: its published `.d.ts` imports `'bun'`, Bun ships no types.
   - `@mionjs/drizzle-orm-*-core` → `drizzle-orm` peer: the range IS the compatibility promise of their
@@ -13,9 +13,14 @@ One pnpm workspace, one `@mionjs/*` namespace, one release train. Read before a 
   - `@mionjs/drizzle-orm-*-core` → `@mionjs/run-types` peer: consumer's single copy supplies BOTH the format types
     and the runtime `getRunType` the tableFromType/toDrizzle marker overloads forward to.
     Exact pin would also force a republish every release.
+  - `@mionjs/drizzle-orm-*-core` → `@mionjs/drizzle-orm` peer: all dialects share the consumer's one core copy.
+    Floored at the core version the dialect ships with (it may call what an older core lacks), capped at the
+    drizzle minor line. Exact pin would force a dialect republish on every core patch.
+    `pnpm miondevx release check-drizzle-versions` enforces all three dialect peers.
 - Cross-package deps: `workspace:*`. Every `@mionjs/*` dep on `RunTypes/*` too → mion tests need the Go toolchain.
 - devDependencies live root-level, never per package. TWO exceptions (dev deps never reach a consumer):
-  - each drizzle dialect package carries `@mionjs/run-types: workspace:*` (satisfies its own peer in the workspace);
+  - each drizzle dialect package carries `@mionjs/run-types` + `@mionjs/drizzle-orm` as `workspace:*`
+    (satisfies its own peers in the workspace);
   - `@mionjs/run-types` carries `@mionjs/devtools` + `@mionjs/bin-compiler` (the `mion` CLI its build runs).
 - ⚠️ One way only: `@mionjs/devtools` NEVER depends on or imports `@mionjs/run-types` (else workspace cycle).
   Why + how its tests cope: [devtools/AGENTS.md](devtools/AGENTS.md). `pnpm run check:tree` fails on any cycle.
