@@ -1,5 +1,4 @@
-// The workspace package dirs pnpm-workspace.yaml declares, so a script walking "every
-// workspace package" can never miss a folder the workspace added.
+// Reads package dirs from pnpm-workspace.yaml, so a walk over every workspace package never misses a new folder.
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -9,7 +8,7 @@ export function workspacePatterns(yamlText) {
   const start = lines.findIndex((line) => /^packages:[ \t]*(?:#.*)?$/.test(line));
   if (start < 0) throw new Error('pnpm-workspace.yaml has no packages: list');
   const patterns = [];
-  // The list runs until the next top-level key; blank and comment lines do not end it.
+  // A top-level key ends the list; blank and comment lines do not.
   for (const line of lines.slice(start + 1)) {
     if (/^\S/.test(line) && !line.startsWith('#')) break;
     const pattern = /^[ \t]+-[ \t]*['"]?([^'"#]+?)['"]?[ \t]*(?:#.*)?$/.exec(line)?.[1];
@@ -20,8 +19,7 @@ export function workspacePatterns(yamlText) {
   return patterns;
 }
 
-// The manifests the release bump stamps with the version.json string: the root + every
-// workspace package with a version, minus the drizzle-orm version line (own versions).
+// The manifests the release bump stamps; drizzle-orm line packages carry their own versions.
 export function lockstepManifestFiles(repoRoot) {
   const parents = workspacePatterns(fs.readFileSync(path.join(repoRoot, 'pnpm-workspace.yaml'), 'utf8'));
   const dirs = parents.flatMap((parent) => fs.readdirSync(path.join(repoRoot, parent)).map((name) => path.join(repoRoot, parent, name))).sort();
@@ -34,7 +32,6 @@ export function lockstepManifestFiles(repoRoot) {
     });
 }
 
-// The lockstep manifests whose version is not version.json's, repo-relative.
 export function lockstepDrift(repoRoot) {
   const version = JSON.parse(fs.readFileSync(path.join(repoRoot, 'version.json'), 'utf8')).version;
   return lockstepManifestFiles(repoRoot)

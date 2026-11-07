@@ -113,13 +113,8 @@ function main() {
   writeJson(VERSION_FILE, manifest);
   const edited = [path.relative(REPO_ROOT, VERSION_FILE)];
 
-  // Every workspace package.json pnpm-workspace.yaml declares (packages/* and the
-  // private tools/*) + the root, so the lockstep stays exact. The @mionjs/bin-compiler
-  // bump is load-bearing: pnpm writes that concrete version into
-  // @mionjs/devtools' workspace:* dependency at pack time. Packages marked
-  // `"versionLine": "drizzle-orm"` ride drizzle-orm's version line instead
-  // (<drizzle major.minor>.<own patch>, guarded by check-drizzle-versions.mjs)
-  // and are never stamped here.
+  // The @mionjs/bin-compiler bump is load-bearing: pnpm packs that version into @mionjs/devtools' workspace:* dep.
+  // drizzle-orm line packages are never stamped: <drizzle major.minor>.<own patch>, see check-drizzle-versions.mjs.
   for (const file of lockstepManifestFiles(REPO_ROOT)) {
     const pkg = readJson(file);
     pkg.version = version;
