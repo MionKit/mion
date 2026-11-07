@@ -90,7 +90,6 @@ describe('unwrap', () => {
   });
 });
 
-// Anything the changelog does not use yet fails the run, naming the version, the line and the construct.
 describe('unwrap refuses Markdown it cannot keep', () => {
   const rows: Array<[string, string, string]> = [
     ['a backtick code fence', 'Intro.\n```ts\nconst a = 1;\n```', 'a code fence'],

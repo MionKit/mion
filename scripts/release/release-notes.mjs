@@ -27,9 +27,8 @@ const HEADING_LINE = /^ {0,3}#{1,6}(\s|$)/;
 const BULLET = /^(\s*)[-*] /;
 const ORDERED = /^(\s*)(\d+)[.)]\s/;
 
-// GitHub renders a Release body's single newlines as hard breaks, so soft-wrapped paragraphs and list items
-// become one line each. Supported: paragraphs, `- ` / `* ` / `N. ` items with continuations and nesting,
-// ATX headings, blank lines. `firstLine` is the CHANGELOG.md line of the first one, for the error.
+// GitHub renders a Release body's single newlines as hard breaks, so each paragraph and list item becomes one line.
+// Supports paragraphs, `- ` / `* ` / `N. ` items with continuations and nesting, ATX headings and blank lines.
 export function unwrap(markdown, {version = '', firstLine = 1} = {}) {
   const out = [];
   let inList = false;
