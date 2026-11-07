@@ -14,7 +14,6 @@ export const RUN_TYPES_PURE_FN_ID_PREFIX = '_rt:';
 
 export const uniqueArrayItemsId = '_rt:-yTRFuK01Y';
 export const isIPV4Id = '_rt:0yJQ37XnmN';
-export const relativeNowKeyId = '_rt:2kI9kVFYAY';
 export const isTimeString_mmssId = '_rt:2xtQHAMu-y';
 export const isDateString_YMDId = '_rt:3RndhrueRD';
 export const punycodeEncodeId = '_rt:5oCqd7YyfA';
@@ -34,6 +33,7 @@ export const isEcmaRegexId = '_rt:Qd_9GJQlOC';
 export const isDateString_MDYId = '_rt:T48n0wyjPx';
 export const luhnSumId = '_rt:VJiknJ2exR';
 export const codePointLengthId = '_rt:Z2sc5xQPKB';
+export const relativeNowKeyId = '_rt:ZPLfUKoTJQ';
 export const newRunTypeErrId = '_rt:_abcB3do2M';
 export const isUUIDId = '_rt:cK87_2eKQW';
 export const isMinutesId = '_rt:cgwpjq6rGs';

@@ -444,6 +444,7 @@ export const relativeNowKey = registerPureFnFactory(function () {
     return out;
   }
   return function _relative_now_key(spec: string, scale: string): () => number {
+    const isPlainNow = spec === 'now';
     const sign = spec[3] === '-' ? -1 : 1;
     const duration = parseDuration(spec.substring(4));
     const timeMs = sign * (duration.hours * 3600000 + duration.minutes * 60000 + duration.seconds * 1000);
@@ -461,11 +462,13 @@ export const relativeNowKey = registerPureFnFactory(function () {
     }
     return function () {
       const result = new Date();
-      // Calendar-correct: Y/M via setUTCMonth (handles month length), then W/D and time as fixed offsets.
-      result.setUTCFullYear(result.getUTCFullYear() + sign * duration.years);
-      result.setUTCMonth(result.getUTCMonth() + sign * duration.months);
-      result.setUTCDate(result.getUTCDate() + sign * (duration.weeks * 7 + duration.days));
-      result.setTime(result.getTime() + timeMs);
+      if (!isPlainNow) {
+        // Calendar-correct: Y/M via setUTCMonth (handles month length), then W/D and time as fixed offsets.
+        result.setUTCFullYear(result.getUTCFullYear() + sign * duration.years);
+        result.setUTCMonth(result.getUTCMonth() + sign * duration.months);
+        result.setUTCDate(result.getUTCDate() + sign * (duration.weeks * 7 + duration.days));
+        result.setTime(result.getTime() + timeMs);
+      }
       if (scale === 'epochDate') {
         // Floor to UTC midnight, the scale dateStrToMs uses (it builds dates at 00:00:00Z).
         return Date.UTC(result.getUTCFullYear(), result.getUTCMonth(), result.getUTCDate(), 0, 0, 0, 0);
