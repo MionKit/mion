@@ -1,6 +1,6 @@
 {
     "name": "@mionjs/drizzle-orm-pg-core",
-    "version": "0.45.1",
+    "version": "0.45.2",
     "versionLine": "drizzle-orm",
     "type": "module",
     "description": "drizzle-orm/pg-core authoring surface with slim runtype-format types: record tables drizzle-style, derive flat models, materialize with toDrizzle",
@@ -65,9 +65,9 @@
         "@mionjs/drizzle-orm": "workspace:*"
     },
     "peerDependencies": {
-        "@mionjs/run-types": ">=0.13.0 <0.14.0",
+        "@mionjs/run-types": ">=0.14.0 <0.15.0",
         "drizzle-orm": ">=0.45.0 <0.46.0",
-        "@mionjs/drizzle-orm": ">=0.45.0 <0.46.0"
+        "@mionjs/drizzle-orm": ">=0.45.2 <0.46.0"
     },
     "peerDependenciesMeta": {
         "drizzle-orm": {
