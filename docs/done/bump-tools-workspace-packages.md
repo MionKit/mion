@@ -11,7 +11,7 @@ created: 2026-11-07
 
 `scripts/release/bump-version.mjs` says it stamps "every workspace package.json (published and private,
 so the lockstep stays exact)", but it only scans `packages/*`. `pnpm-workspace.yaml` also lists `tools/*`,
-so `tools/code-card/package.json` stayed on 0.12.2 while every lockstep package moved on (0.13.2 on main).
+so `tools/code-card/package.json` stayed on 0.12.2 while every lockstep package moved on (0.13.2 at the time).
 Nothing caught the drift. Intended behavior: the script's own comment. Private tools ride the lockstep too.
 
 ## Direction
@@ -21,8 +21,12 @@ Nothing caught the drift. Intended behavior: the script's own comment. Private t
   fail loudly on any other pattern rather than silently matching nothing.
 - Keep the root package.json and the drizzle-orm version line exception exactly as they are.
 - Realign `tools/code-card` to the current `version.json` version.
-- A repo contract test: every workspace package.json with a `version` (drizzle line excepted) carries the
-  `version.json` version. A unit test for the workspace-dir reader over a scratch repo.
+- A drift sweep in the always-on `scripts/ci/check-tree.mjs` gate: every workspace package.json with a `version`
+  (drizzle line excepted) carries the `version.json` version. Not a vitest contract: `tools/` feeds no gated lane,
+  so a tools-only PR would skip it. Vitest unit tests cover the reader (blank lines, no final newline, unsupported
+  globs) and the drift rule over a scratch repo.
+- Shipped: `scripts/lib/workspace-dirs.mjs` (`workspacePatterns`, `lockstepManifestFiles`, `lockstepDrift`),
+  used by both the bump and the sweep.
 - The implementer plans the details.
 
 ## Docs
