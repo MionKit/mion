@@ -420,11 +420,10 @@ export const timeStrToMs = registerPureFnFactory(function () {
   };
 }, timeStrToMsId);
 
-// relativeNowKey parses a `now±P…` spec once; the validator hoists the returned fn and calls it per check.
-// Scales: 'epoch' UTC ms, 'epochDate' floored to UTC midnight like dateStrToMs, 'timeOfDay' ms-of-day.
+// Parses a `now` or `now±P…` spec once; the validator hoists the returned fn and calls it per check.
 // 'timeOfDay' ignores date components: they are rejected at build time.
 export const relativeNowKey = registerPureFnFactory(function () {
-  // Parses the ISO-8601 duration tail into years, months, weeks, days, hours, minutes and seconds.
+  // Parses the ISO-8601 duration tail.
   function parseDuration(tail: string): Record<string, number> {
     const out: Record<string, number> = {years: 0, months: 0, weeks: 0, days: 0, hours: 0, minutes: 0, seconds: 0};
     const body = tail.substring(1); // drop leading 'P'
@@ -463,14 +462,14 @@ export const relativeNowKey = registerPureFnFactory(function () {
     return function () {
       const result = new Date();
       if (!isPlainNow) {
-        // Calendar-correct: Y/M via setUTCMonth (handles month length), then W/D and time as fixed offsets.
+        // Calendar-correct: Y/M first (months vary in length), then W/D and time as fixed offsets.
         result.setUTCFullYear(result.getUTCFullYear() + sign * duration.years);
         result.setUTCMonth(result.getUTCMonth() + sign * duration.months);
         result.setUTCDate(result.getUTCDate() + sign * (duration.weeks * 7 + duration.days));
         result.setTime(result.getTime() + timeMs);
       }
       if (scale === 'epochDate') {
-        // Floor to UTC midnight, the scale dateStrToMs uses (it builds dates at 00:00:00Z).
+        // Same scale as dateStrToMs, which builds dates at 00:00:00Z.
         return Date.UTC(result.getUTCFullYear(), result.getUTCMonth(), result.getUTCDate(), 0, 0, 0, 0);
       }
       return result.getTime();
