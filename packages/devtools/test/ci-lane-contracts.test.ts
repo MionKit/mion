@@ -684,7 +684,7 @@ const jobOf = (workflow: string, name: string): string => {
   return next === -1 ? workflow.slice(start) : workflow.slice(start, start + 1 + next);
 };
 
-// A Go change builds the binaries on one runner: every job that restores them starts after go-build, never beside it.
+// A job that starts beside go-build misses the cache and builds the binaries itself.
 describe('the Go binaries are built once per run', () => {
   const ci = read('.github/workflows/ci.yml');
   const restorers = [...ci.matchAll(/^ {2}([\w-]+):\n/gm)]
