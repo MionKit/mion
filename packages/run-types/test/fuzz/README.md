@@ -586,8 +586,8 @@ gates (nothing else sets `MION_FUZZ_RACE=1`).
 
 **Three budget tiers.** The default batch is a floor, not coverage. `--quick` is
 the per-PR tier and runs on EVERY PR in
-[ci.yml](../../../../.github/workflows/ci.yml): the count-based lanes ride the
-sweep of the `js fuzz sweep` job, the time-boxed ones run as one sequential batch
+[ci.yml](../../../../.github/workflows/ci.yml): the count-based lanes run in the
+`js fuzz sweep` job, the time-boxed ones as one sequential batch
 in the `js fuzz time-boxed` job, and `MION_FUZZ_ITER` widens the Go sweeps. `--soak`
 is the release tier, run by the **`fuzz-soak` job** of
 [release-gate.yml](../../../../.github/workflows/release-gate.yml) — one runner

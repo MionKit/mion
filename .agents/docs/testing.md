@@ -29,7 +29,7 @@ How to run and add JS + Go checks. Read before adding, running or reporting test
 - CI: PRs skip what the cached list proved. `main` runs `--audit`: runs everything, fails when a file the list
   would have skipped fails.
 - A project set to `maxWorkers: 1` runs one file at a time AFTER every other file (vitest 4). CI runs those
-  projects in their own job (`--project`), the rest with `--skip-project`. A contract keeps both lists equal to
+  projects in their own job (`--project`), the rest with `--skip-project`. A contract test checks both lists match
   the configs that set it.
 - Go suite in shards: `pnpm miondevx core go-shard <i>/<n>` (CI: 3 runners); its unit tests prove every test
   runs once.
