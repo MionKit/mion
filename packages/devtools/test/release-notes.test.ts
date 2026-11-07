@@ -1,10 +1,5 @@
-// The GitHub Release body is the curated CHANGELOG.md section of the version
-// (scripts/release/release-notes.mjs), never raw git-cliff output: v0.14.0's
-// generated notes listed features that never shipped and todo noise the
-// curated section had dropped.
-//
-// Lives in this package for the same reason as release-receipt.test.ts: scripts/
-// has no vitest project of its own.
+// Release body = curated CHANGELOG.md section, never raw git-cliff output: v0.14.0's listed unshipped features
+// and todo noise. Lives here, like release-receipt.test.ts, because scripts/ has no vitest project of its own.
 import {readFileSync} from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
