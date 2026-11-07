@@ -61,7 +61,11 @@ The full run IS the normal PR: make it shorter, and stop running it for page edi
 
 ## What shipped
 
-All six items. Where the build left the plan below:
+All six items. Measured on this PR's own run 42320635559, every lane running: **8.0 min** from start to the last job
+(before: median 16.7 min). The longest job is now the unchanged container smoke (7.5 min), then the time-boxed fuzz
+lanes (6.8 min) and js lint (5.5 min); the three Go shards took 3.2, 4.3 and 4.6 min.
+
+Where the build left the plan below:
 
 - **Item 2: no project went parallel.** Forced to 4 workers, `client` failed 1 of 5 runs and again on one core (7
   files: `Cannot find module '../.mion/types/…'`, its gen dir raced) and `drizzle-example-app` its first run.
