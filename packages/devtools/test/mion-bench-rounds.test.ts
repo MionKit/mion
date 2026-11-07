@@ -1,6 +1,9 @@
 // The round scheduling and merge behind `bench servers` (container/mion-bench/shared/rounds.mjs)
 // and the quick / --rounds knobs the driver turns into a plan (scripts/website/bench-data/mion-bench.mjs).
-import {describe, expect, it} from 'vitest';
+import {mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {dirname, join} from 'node:path';
+import {afterEach, describe, expect, it} from 'vitest';
 // Plain ESM dev scripts, no types: one directive per import line.
 // @ts-expect-error untyped .mjs
 import {
@@ -16,7 +19,9 @@ import {
   warmupFor,
 } from '../../../container/mion-bench/shared/rounds.mjs';
 // @ts-expect-error untyped .mjs
-import {lanePlan, quickEnv} from '../../../scripts/website/bench-data/mion-bench.mjs';
+import {lanePlan, quickEnv, runLanes} from '../../../scripts/website/bench-data/mion-bench.mjs';
+// @ts-expect-error untyped .mjs
+import {metaFrom, toRow} from '../../../scripts/website/bench-data/gen-servers-docs.mjs';
 // @ts-expect-error untyped .mjs
 import {SWEEP_SIZES} from '../../../container/mion-bench/shared/payloads.mjs';
 // @ts-expect-error untyped .mjs
@@ -134,6 +139,13 @@ describe('the driver plan', () => {
     });
   });
 
+  it('refuses a round count that would schedule no final round', () => {
+    for (const bad of ['0', '-1', '2.5'])
+      expect(() => lanePlan(undefined, {MION_BENCH_ROUNDS: bad}), bad).toThrow(/rounds must be/);
+    expect(() => lanePlan(undefined, {MION_BENCH_ROUNDS: 'abc'})).toThrow(/must be a number/);
+    expect(() => lanePlan(undefined, {MION_BENCH_DURATION: '0'})).toThrow(/DURATION/);
+  });
+
   it('quick mode is one short round, and an explicit knob still wins', () => {
     expect(lanePlan('huge', quickEnv({}))).toMatchObject({rounds: 1, seconds: 3, warmup: 1});
     expect(lanePlan(undefined, quickEnv({MION_BENCH_ROUNDS: '3'}))).toMatchObject({rounds: 3, seconds: 3});
@@ -207,12 +219,91 @@ describe('the deploy gate on a server dataset', () => {
   });
 
   it('names a row missing its rounds or its spread', () => {
-    expect(roundsProblem([row('mion', [100, 101]), row('hono', [1, 2, 3, 4])], {rounds: 4})).toMatch(/mion without 4 rounds/);
+    expect(roundsProblem([row('mion', [100, 101]), row('hono', [100, 101])], {rounds: 4})).toMatch(/mion, hono without 4 rounds/);
+    expect(roundsProblem([row('mion', [100, 101]), row('hono', [1, 2, 3, 4])], {rounds: 4})).toMatch(/different round counts/);
     expect(roundsProblem([row('hono', [1, 2, 3, 4], null)], {rounds: 4})).toMatch(/hono/);
   });
 
   it('asks nothing of a single-round dataset, and still wants a number on every row', () => {
     expect(roundsProblem([row('mion', [])], {rounds: 1})).toBeNull();
     expect(roundsProblem([{app: 'mion', requests: null}], {})).toMatch(/mion without a requests number/);
+  });
+});
+
+describe('runLanes', () => {
+  let dir: string;
+  afterEach(() => rmSync(dir, {recursive: true, force: true}));
+
+  const apps = [{name: 'a'}, {name: 'b'}, {name: 'c'}];
+  const lanes = [{key: 'hello-world', suite: 'hello-world', plan: planFor(undefined)}];
+  const merged = (app: string) => join(dir, 'hello-world', `${app}.json`);
+
+  /** Stands in for the container: writes the round record the harness would, or fails the round. */
+  function fakeRunner(failing: (app: string, round: number) => boolean) {
+    const calls: string[] = [];
+    const runRound = (app: {name: string}, lane: {suite: string}, n: number) => {
+      calls.push(`${app.name}.${n}`);
+      if (failing(app.name, n)) return false;
+      const file = roundFile(join(dir, lane.suite), app.name, n);
+      mkdirSync(dirname(file), {recursive: true});
+      writeFileSync(file, JSON.stringify(round(n, 100 + n)));
+      return true;
+    };
+    return {calls, runRound};
+  }
+
+  it('merges each app after its last round and keeps the others when one fails', () => {
+    dir = mkdtempSync(join(tmpdir(), 'mion-rounds-'));
+    mkdirSync(join(dir, 'hello-world'), {recursive: true});
+    writeFileSync(merged('b'), '{"stale":true}');
+    const {calls, runRound} = fakeRunner((app, n) => app === 'b' && n === 2);
+
+    expect(runLanes(apps, lanes, {runRound, resultsDir: dir})).toEqual(['b/hello-world']);
+    // b's later rounds are skipped, and its stale record is gone so the site cannot publish it
+    expect(calls.filter((call) => call.startsWith('b.'))).toEqual(['b.1', 'b.2']);
+    expect(existsSync(merged('b'))).toBe(false);
+    for (const app of ['a', 'c']) {
+      const record = JSON.parse(readFileSync(merged(app), 'utf8'));
+      expect(record.rounds).toHaveLength(4);
+      expect(record.requests.mean).toBe(102.5);
+    }
+  });
+
+  it('leaves the previous merged records in place until a lane is replaced', () => {
+    dir = mkdtempSync(join(tmpdir(), 'mion-rounds-'));
+    mkdirSync(join(dir, 'hello-world'), {recursive: true});
+    writeFileSync(merged('a'), '{"previous":true}');
+    // a run that dies before any lane reaches its last round
+    const {runRound} = fakeRunner((_app, n) => n > 1);
+    runLanes([{name: 'z'}], lanes, {runRound, resultsDir: dir});
+    expect(JSON.parse(readFileSync(merged('a'), 'utf8'))).toEqual({previous: true});
+  });
+});
+
+describe('the site dataset from merged rounds', () => {
+  const lane = (app: string) => ({
+    ...mergeRounds([round(1, 100), round(2, 104), round(3, 96), round(4, 102)], {tolerance: 10}),
+    app,
+    label: app,
+    duration: 5,
+    connections: 100,
+    timeout: 60,
+    pipelining: 1,
+  });
+
+  it('carries the rounds and spread the bars and the deploy gate read', () => {
+    const rows = [lane('mion'), lane('hono')].map(toRow);
+    expect(rows[0].rounds).toEqual([100, 104, 96, 102]);
+    expect(rows[0].spread).toBeCloseTo(7.69, 1);
+    const meta = metaFrom([lane('mion')]);
+    expect(meta).toMatchObject({rounds: 4, duration: 5, warmup: 5, rewarmup: 2, tolerance: 10});
+    expect(roundsProblem(rows, meta)).toBeNull();
+  });
+
+  it('a quick single round next to full rounds fails the gate', () => {
+    const quick = {...mergeRounds([round(1, 100)], {tolerance: 10}), app: 'mion.uws', label: 'mion.uws'};
+    const rows = [quick, lane('hono')].map(toRow);
+    expect(metaFrom([quick])).toMatchObject({rounds: 1, rewarmup: null});
+    expect(roundsProblem(rows, metaFrom([quick]))).toMatch(/different round counts/);
   });
 });

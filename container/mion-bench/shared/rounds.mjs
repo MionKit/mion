@@ -37,7 +37,7 @@ export const SIZE_PLANS = {
 // Round 1 warms a cold server. Later rounds restart it too, but the machine, the page
 // cache and the image layers are already warm, so a shorter warm-up is enough.
 export const DEFAULT_WARMUP = 5;
-export const DEFAULT_REWARMUP = 2;
+const DEFAULT_REWARMUP = 2;
 
 /**
  * The rounds a lane runs and how long each lasts. `overrides` holds the knobs a user set

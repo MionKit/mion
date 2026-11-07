@@ -317,6 +317,9 @@ async function checkBenchTable(base, page, props, options = {}) {
 export function roundsProblem(rows, meta) {
   const bad = rows.filter((row) => !Number.isFinite(row.requests));
   if (bad.length > 0) return `${bad.map((row) => row.app).join(', ')} without a requests number`;
+  // meta.rounds is the fastest row's, so the rows are checked against each other too.
+  const counts = [...new Set(rows.map((row) => row.rounds?.length ?? 0))];
+  if (counts.length > 1) return `rows ran different round counts (${counts.join(', ')}) - mixed runs`;
   const rounds = meta?.rounds ?? 0;
   if (rounds < 2) return null;
   const short = rows.filter((row) => row.rounds?.length !== rounds || !Number.isFinite(row.spread));
