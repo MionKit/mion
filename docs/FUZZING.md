@@ -241,9 +241,9 @@ door over those same commands, not a gate (`race` is the one lane it gates,
 since nothing else sets `MION_FUZZ_RACE=1`).
 
 Every lane runs on EVERY PR at its quick budget, in
-[ci.yml](../.github/workflows/ci.yml), all in the `go tests + fuzz` job: the
-count-based lanes ride its parallel sweep, the time-boxed ones run after it in
-one sequential batch, and the Go sweeps widen via `MION_FUZZ_ITER`. Seeds stay
+[ci.yml](../.github/workflows/ci.yml): the count-based lanes ride the parallel
+sweep of the `js fuzz sweep` job, the time-boxed ones run in one sequential batch
+in the `js fuzz time-boxed` job, and the Go sweeps widen via `MION_FUZZ_ITER`. Seeds stay
 version-derived there (no `MION_FUZZ_SEED`), so a red lane belongs to that PR and
 replays locally with the command the failing step names. The point is that a
 finding lands while the change that caused it is still in review, instead of
