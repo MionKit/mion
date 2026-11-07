@@ -619,6 +619,12 @@ export function main(rawArgs) {
     else args.push(arg);
   }
   applyQuick();
+  // A bad knob is a usage error, caught before any result is touched.
+  try {
+    for (const size of [undefined, ...SWEEP_SIZES]) lanePlan(size);
+  } catch (err) {
+    die(err.message);
+  }
   dispatch(config(), args, {gcprobe});
 }
 
