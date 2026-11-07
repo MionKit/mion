@@ -29,7 +29,6 @@ const ci = (hashes: Partial<Record<'go' | 'js' | 'js-fuzz', string>> = {}, run =
   },
   labels: [],
 });
-// Every key of ci() deferred to one older run.
 const ciDeferred = (runId: number) => ({
   'go.1': runId,
   'go.2': runId,

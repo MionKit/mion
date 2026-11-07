@@ -1,4 +1,4 @@
-// Unit tests for `miondevx core go-shard`: the shards must run every Go package and test exactly once.
+// The `miondevx core go-shard` shards must run every Go package and test exactly once.
 
 import {describe, it, expect, vi} from 'vitest';
 import {

@@ -9,8 +9,7 @@ import (
 	"strings"
 )
 
-// repoLinks are the repo paths outside this Go module that the Go tests read, each reached through a symlink
-// under testdata/repo/: Go's test cache only re-checks files whose path lies inside the module.
+// repoLinks are the outside-module paths Go tests read, via testdata/repo/ symlinks: the test cache sees only the module.
 var repoLinks = []string{
 	"packages/core",
 	"packages/devtools/src/core/go-generated",
@@ -39,15 +38,13 @@ func Repo(rel string) string {
 	return filepath.Join(packageDir(), "testdata", "repo", filepath.FromSlash(rel))
 }
 
-// RepoRoot is the real repo root, for a test that hands repo paths to a tool. Go's test cache cannot see what the
-// tool reads there, so that test also calls DeclareInputs for it.
+// RepoRoot is the real repo root for paths handed to a tool; Go's test cache misses those reads, so DeclareInputs too.
 func RepoRoot() string {
 	return filepath.Join(packageDir(), "..", "..", "..")
 }
 
-// DeclareInputs stats every file under each path through its link, so Go's test cache keys on them even when the
-// test's real reads go through a path outside the module (a temp dir symlinked into a package, a generator's own
-// repo path). A path is repo-relative, or absolute under RepoRoot.
+// DeclareInputs stats every file under each path through its link, so Go's test cache keys on reads outside the module.
+// A path is repo-relative, or absolute under RepoRoot.
 func DeclareInputs(paths ...string) error {
 	for _, path := range paths {
 		rel, err := repoRelative(path)

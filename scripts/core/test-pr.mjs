@@ -52,7 +52,6 @@ const takeBase = (argv) => {
   return {base: argv[at + 1], rest: argv.toSpliced(at, 2)};
 };
 
-// Pulls `--project` / `--skip-project` (both `--flag name` and `--flag=name`) out of the passthrough args.
 function takeProjectFlags(args) {
   const only = [];
   const skip = [];
@@ -71,8 +70,7 @@ function takeProjectFlags(args) {
   return {only, skip, rest};
 }
 
-// Pure, for the tests. `--project` narrows the plan, never widens it; `--skip-project` removes from it.
-// `known` (every project name) turns a mistyped name into an error, not an empty plan that passes green.
+// Pure, for the tests. `known` (every project name) turns a typo into an error, not an empty plan that passes green.
 export function suiteCommand(plan, {skipPassed = false, passThrough = [], known} = {}) {
   const {only, skip, rest} = takeProjectFlags(passThrough);
   if ((only.length > 0 || skip.length > 0) && !skipPassed) die('core test-pr: --project and --skip-project need --skip-passed', 2);

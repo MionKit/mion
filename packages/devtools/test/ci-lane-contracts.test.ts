@@ -55,9 +55,7 @@ describe('the lane table', () => {
     }
   });
 
-  // A pull request that only touches the docs content must still run check-code-imports, the
-  // one gate that turns a dangling <code-import> into a failure instead of an
-  // error placeholder rendered into the page.
+  // A docs-only PR must still run check-code-imports: it alone fails a dangling <code-import> instead of rendering it.
   it('feeds the docs content and the examples into the js-static lane that checks them', () => {
     for (const fed of ['container/', 'packages/']) expect(LANES['js-static'].paths).toContain(fed);
   });
@@ -110,8 +108,7 @@ describe('the lane table', () => {
     }
   });
 
-  // The two trees read into each other: derive each direction from the thing that
-  // does the reading, so neither can rot into a silent skip.
+  // The two trees read into each other: derive each direction from its reader, so neither rots into a silent skip.
   it('feeds every tsconfig the root typecheck compiles into the js-static lane', () => {
     const typecheck = JSON.parse(read('package.json')).scripts.typecheck as string;
     const projects = [...typecheck.matchAll(/tsc -p (\S+)/g)].map((match) => match[1]);
@@ -439,8 +436,7 @@ describe('js-suite and js-serial — the passed test lists', () => {
     expect(KEEP_ON_MAIN['mion-vitest-serial-passed-']).toBeGreaterThan(0);
   });
 
-  // Vitest runs a `maxWorkers: 1` project one file at a time after every other file, so js-serial runs them beside the
-  // suite: the two jobs must split the projects by exactly the configs that set it.
+  // Vitest runs a `maxWorkers: 1` project one file at a time after every other file, hence js-serial beside the suite.
   it('splits off exactly the projects whose config sets maxWorkers: 1', () => {
     const oneWorker = (readProjects(REPO_ROOT) as {name: string; configPath: string}[])
       .filter((project) => /^\s*maxWorkers: 1,$/m.test(read(project.configPath)))
@@ -567,7 +563,6 @@ describe('a marker is only ever written by work that actually ran and passed', (
       expect(checks).toContain(`if: success() && fromJSON(env.MION_LANES)${lane}.run`);
   });
 
-  // Each shard saves its own item; the lane marker waits on the whole matrix, the shards that ran it included.
   it('records each Go shard on its own, and the lane only after every shard that ran passed', () => {
     const shards = jobOf(ci, 'go-suite');
     expect(shards).toContain(
@@ -585,7 +580,6 @@ describe('a marker is only ever written by work that actually ran and passed', (
     expect(green).toContain('lane: go\n');
   });
 
-  // A fuzz job skipped because its item was proven still lets the lane marker through; a failed or cancelled one never.
   it('records the js-fuzz lane only once each fuzz job passed or had nothing to prove', () => {
     const green = jobOf(ci, 'js-fuzz-green');
     expect(green).toContain('needs: [lanes, js-fuzz-sweep, js-fuzz-timeboxed]');
@@ -682,7 +676,6 @@ describe('a marker is only ever written by work that actually ran and passed', (
   });
 });
 
-// The suite command lines of a job: test-pr on a pull request, test-skip --audit otherwise.
 const commandsOf = (body: string): string[] => body.split('\n').filter((line) => /core test-pr|core test-skip/.test(line));
 
 const jobOf = (workflow: string, name: string): string => {
@@ -778,8 +771,7 @@ describe('a new commit cancels only what it changed', () => {
     }
   }
 
-  // Each job waits in a step before its first lane step: a raw job waits only when nothing it reads changed,
-  // comments included, and a code job then has nothing left to run.
+  // A raw job waits only when nothing it reads changed, comments included; a code job then has nothing left to run.
   describe('waits inside each heavy job, before the steps of its lanes', () => {
     const ci = read('.github/workflows/ci.yml');
     // `jobs` prefixes the job's own name, shared by its sibling jobs, so any of them failing ends the wait.

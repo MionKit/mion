@@ -58,9 +58,8 @@ const REPO_CONFIG = ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 't
 const WORKSPACE = [GO_BUILD, ...REPO_CONFIG];
 const GO_TREE = ['ts-go-runtypes/', ...REPO_CONFIG];
 
-// The JS half of the repo as js-static reads it. `container/` belongs here, not only to the container lanes:
-// check-code-imports and the link test read every page in the docs content tree, and the contract tests walk
-// that tree plus the benchmark competitor maps and the workflow files.
+// The JS half of the repo as js-static reads it.
+// `container/` is in: code-import and link checks read its docs pages, the contract tests those and its benchmark maps.
 const JS_STATIC = ['packages/', 'scripts/', 'container/', CODE_DIGEST, 'vitest.config.ts', 'version.json', 'drizzle-dialects.json', 'drizzle-suites.pin.json', '.env.sample', '.oxlintrc.json', '.oxfmtrc.json', 'eslint.config.js', '.github/workflows/', ...WORKSPACE];
 // The JS test, fuzz and Go-backed lanes read the same minus the page text, which only js-static's checks read.
 const CONTAINER_CODE = {prefix: 'container/', keep: (path) => !path.startsWith('container/website/content/')};
@@ -84,9 +83,7 @@ export const SKIP_DEFAULTS = 'skip-defaults';
 const DEFAULTS = {unless: SKIP_DEFAULTS};
 export const LANES = {
   // ci.yml
-  // The Go suites read these repo paths through internal/testfixtures/testdata/repo (repoLinks): the real marker and
-  // drizzle packages, the drizzle example app's server against the real router, core and platform-node sources, the
-  // committed go-generated files the generators' tests compare, and version.json.
+  // The repo paths the Go suites read through internal/testfixtures/testdata/repo (repoLinks).
   // One item per shard (scripts/ci/go-shard.mjs), each run by its own go-suite matrix job.
   go: {
     job: 'go suite',

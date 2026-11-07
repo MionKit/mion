@@ -1,10 +1,6 @@
-// Contract test for the `skip-defaults` label on ci.yml.
-//
-// The label lets a maintainer skip every heavy ci job (HEAVY below) on one PR. It only works if BOTH halves are in place: the trigger must
-// fire on label changes (or the label does nothing until the next push), and
-// every heavy job's `if:` must read it (or one job keeps running). The light
-// jobs (`lanes`, `commitlint`) must NOT read it: they cost seconds and keep the
-// PR's commit messages gated.
+// The `skip-defaults` label skips every heavy ci.yml job (HEAVY below) on one PR, only if BOTH halves hold: the trigger
+// fires on label changes (or the label waits for the next push), and every heavy job's `if:` reads it (or one job keeps
+// running). The light jobs (`lanes`, `commitlint`) must NOT read it: they cost seconds and keep commit messages gated.
 import {readFileSync} from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';

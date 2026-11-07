@@ -469,7 +469,6 @@ jobs:
   # ── js-suite + js-serial: the JS suite, minus the fuzz tree ────────────────
   # Vitest runs a project set to `maxWorkers: 1` one file at a time AFTER every other file, so those projects
   # (they share a generated dir and race on it in parallel) run beside the suite in js-serial instead.
-  # With the fuzz jobs and build-gate (go-checks), a complete disjoint partition of the JS suite.
   js-suite:
     name: js suite
     needs: lanes
@@ -490,9 +489,7 @@ jobs:
           fetch-depth: 2
       - uses: ./.github/actions/bootstrap
       - uses: ./.github/actions/resolver
-      # bun is NOT a workspace dependency — the devtools Bun adapter's tests
-      # spawn it and skip themselves when it is absent, so without this step the
-      # whole @mionjs/devtools/bun lane would silently never run in CI.
+      # bun is NOT a workspace dependency, and the devtools Bun adapter's tests silently skip without it.
       # Only this job needs it, hence not in the shared bootstrap action.
       - uses: oven-sh/setup-bun@v2
         with:

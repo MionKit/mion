@@ -1,10 +1,5 @@
-// go-shard.mjs — one of N shards of the Go suite (`go test ./internal/... ./cmd/...`), so CI runs them on
-// parallel runners. The slow packages run their tests one at a time, so each is split by test name; every other
-// package goes to one shard whole. Together the shards run every package and every test exactly once.
-//
-// Usage (via `pnpm miondevx core go-shard`, or `node scripts/ci/go-shard.mjs`):
-//   go-shard <i>/<n>          run shard i of n
-//   go-shard <i>/<n> --list   print the shard's go test commands, run nothing
+// One of N shards of the Go suite, each on its own CI runner. The slow packages run their tests one at a time, so they
+// split by test name; every other package goes to one shard whole. Every package and test runs exactly once.
 import {GO_ROOT} from '../lib/env.mjs';
 import {capture, die, note, reportCliError, runAsync} from '../lib/proc.mjs';
 
@@ -51,7 +46,6 @@ export function planShard({packages, testsOf, index, count}) {
 
 export const runPattern = (tests) => `^(${tests.join('|')})$`;
 
-// The `go test` argument lists of one planned shard.
 export function shardCommands({light, heavy}) {
   return [...heavy.map(({pkg, tests}) => ['test', pkg, '-run', runPattern(tests)]), ...(light.length > 0 ? [['test', ...light]] : [])];
 }
@@ -70,7 +64,7 @@ export function parseShard(args) {
   return {index: Number(match[1]) - 1, count: Number(match[2])};
 }
 
-// Runs a shard's commands at once; any non-zero exit fails the shard. `run` is runAsync, or a stand-in in tests.
+// `run` is runAsync, or a stand-in in tests.
 export async function runShard(commands, label, run = (command, at) => runAsync('go', command, {cwd: GO_ROOT, prefix: `${label}.${at + 1}`})) {
   note(`go-shard ${label}: ${commands.length} go test run(s) in parallel`);
   const codes = await Promise.all(commands.map(run));
