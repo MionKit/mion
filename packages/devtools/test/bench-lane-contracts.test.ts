@@ -203,7 +203,7 @@ describe('a competitor lane exits non-zero only when it did not really run', () 
     // The distinguishing signal: a round that never ran wrote no result file. The
     // directory is resolved per RUNTIME (`runtimeResultsDir`) because the same built
     // bundle runs under node and bun, and bun's results live in their own subdir.
-    expect(source).toContain('existsSync(validationRoundFile(runtimeResultsDir(lane.runtime), lane.competitor, round))');
+    expect(source).toContain('existsSync(validationRoundFile(resultsDir(lane.runtime), lane.competitor, round))');
   });
 });
 
@@ -226,6 +226,26 @@ describe('the default bench run is a correctness gate', () => {
       expect(run.stderr).toContain('bench: --only needs a comma list of competitors');
     }
   }, 120_000);
+
+  it('takes --rounds on the bare run and refuses a count that runs no round', () => {
+    const bench = (...args: string[]) =>
+      spawnSync(process.execPath, [join(REPO_ROOT, 'scripts/miondevx.mjs'), 'bench', ...args], {
+        cwd: REPO_ROOT,
+        encoding: 'utf8',
+      });
+    const missing = bench('--rounds');
+    expect(missing.status, missing.stderr).toBe(2);
+    expect(missing.stderr).toContain('bench: --rounds needs a number');
+    // past the dispatcher's stray-command check (it used to read the 0 as a command), refused by the driver
+    for (const args of [
+      ['--rounds', '0'],
+      ['--quick', '--rounds=2.5'],
+    ]) {
+      const run = bench(...args);
+      expect(run.status, run.stderr).toBe(2);
+      expect(run.stderr).toContain('MION_VALIDATION_BENCH_ROUNDS must be a whole number');
+    }
+  }, 180_000);
 
   // `--only` is how CI runs just the competitors not yet proven green.
   it('runs only the competitors --only names, and refuses an unknown one', async () => {

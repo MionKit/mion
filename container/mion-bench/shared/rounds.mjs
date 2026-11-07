@@ -67,7 +67,7 @@ export function spreadPct(values) {
   return best > 0 ? ((best - Math.min(...values)) / best) * 100 : 0;
 }
 
-const round2 = (value) => Math.round(value * 100) / 100;
+export const round2 = (value) => Math.round(value * 100) / 100;
 
 /** Keeps each round's own numbers on the record so a page can show how far apart they landed. */
 export function mergeRounds(records, {tolerance}) {
