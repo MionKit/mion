@@ -22,7 +22,11 @@ describe('benchOps times batches of many calls', () => {
   it.each([1, 2, 50])(
     'reads the clock once per 1000 or more validator calls, and calls the validator on every sample (%i rounds)',
     async (rounds) => {
+      // pinned: an empty, 0 or huge ambient window would run zero rounds or never end
+      vi.stubEnv('MION_VALIDATION_BENCH_TIME_MS', '100');
+      vi.resetModules();
       const {benchOps} = await harness('measure.ts');
+      vi.unstubAllEnvs();
       const seen = new Set<unknown>();
       let calls = 0;
       const validator = (value: unknown) => {
@@ -31,7 +35,11 @@ describe('benchOps times batches of many calls', () => {
         return true;
       };
       let reads = 0;
-      const clock = vi.spyOn(performance, 'now').mockImplementation(() => (reads++ <= rounds ? 0 : 1e9));
+      // the start read clears `seen`, so it holds only what the timed rounds called
+      const clock = vi.spyOn(performance, 'now').mockImplementation(() => {
+        if (reads === 0) seen.clear();
+        return reads++ <= rounds ? 0 : 1e9;
+      });
       const opsPerSec = benchOps(validator, ['a', 'b']);
       clock.mockRestore();
       expect(opsPerSec).toBeGreaterThan(0);
