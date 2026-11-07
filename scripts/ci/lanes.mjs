@@ -76,9 +76,9 @@ export const SKIP_DEFAULTS = 'skip-defaults';
 // else, so a file outside every entry cannot make it re-run.
 //
 // A lane is owned by exactly ONE piece of work, because that work is what proves
-// it and saves its marker. `go` and `js-fuzz` therefore split the two halves of
-// the go-fuzz job: the Go suite and the JS fuzz sweep run on the same runner but
-// answer to different inputs, and neither may claim the other's marker.
+// it and saves its marker. A lane split over several jobs gives each job an item:
+// `paths: []` feeds every lane input to every item, and a record job saves the
+// lane marker once each item passed.
 //
 // `gate` mirrors the job `if:` labels (ci-lane-contracts.test.ts), so a newer run sees what an older one runs.
 const DEFAULTS = {unless: SKIP_DEFAULTS};
@@ -86,21 +86,24 @@ export const LANES = {
   // ci.yml
   // The Go suites mount the real marker and drizzle packages (internal/testfixtures/realmarker.go, realdrizzle.go).
   // The api-types tests compile the drizzle example app's server against the real router and core sources.
+  // One item per shard (scripts/ci/go-shard.mjs), each run by its own go-suite matrix job.
   go: {
-    job: 'go tests + fuzz · the Go suite',
+    job: 'go suite',
     hash: 'tokens',
     gate: DEFAULTS,
     paths: ['scripts/ci/go-shard.mjs', 'packages/run-types/', 'packages/drizzle-orm', 'packages/private-drizzle-example-app/', 'packages/rpc-router/', 'packages/core/', ...GO_TREE],
+    items: {1: {paths: []}, 2: {paths: []}, 3: {paths: []}},
   },
-  'js-fuzz': {job: 'go tests + fuzz · the JS fuzz sweep', hash: 'tokens', gate: DEFAULTS, paths: JS},
-  // JS checks that need Go (codegen and drizzle-manifest drift, build-gate tests), so js-lint never sets Go up.
+  // The count-based sweep and the time-boxed lanes, each on its own runner.
+  'js-fuzz': {job: 'js fuzz', hash: 'tokens', gate: DEFAULTS, paths: JS, items: {sweep: {paths: []}, timeboxed: {paths: []}}},
+  // JS checks that need Go (codegen and drizzle-manifest drift, build-gate tests), so the JS jobs never set Go up.
   // Raw: the generators copy comments into what they emit (the diagnostic prose).
-  'go-tools': {job: 'go tests + fuzz · the Go-backed JS checks', hash: 'raw', gate: DEFAULTS, paths: [...JS, 'ts-go-runtypes/']},
+  'go-tools': {job: 'go checks · the Go-backed JS checks', hash: 'raw', gate: DEFAULTS, paths: [...JS, 'ts-go-runtypes/']},
   // gofmt and vet read comments (formatting, //go: directives).
-  'go-static': {job: 'go tests + fuzz · gofmt and vet', hash: 'raw', gate: DEFAULTS, paths: GO_TREE},
-  js: {job: 'js tests + lint · the JS suite', hash: 'tokens', gate: DEFAULTS, paths: JS},
+  'go-static': {job: 'go checks · gofmt and vet', hash: 'raw', gate: DEFAULTS, paths: GO_TREE},
+  js: {job: 'js suite', hash: 'tokens', gate: DEFAULTS, paths: JS},
   // Format, lint, typecheck, the docs checks and the contract tests all read comments.
-  'js-static': {job: 'js tests + lint · format, lint and contracts', hash: 'raw', gate: DEFAULTS, paths: JS_STATIC},
+  'js-static': {job: 'js lint', hash: 'raw', gate: DEFAULTS, paths: JS_STATIC},
   // Both halves build with our packages and Go (the site, and the mion competitor).
   smoke: {
     job: 'container smoke',

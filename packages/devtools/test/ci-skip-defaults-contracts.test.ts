@@ -1,7 +1,6 @@
 // Contract test for the `skip-defaults` label on ci.yml.
 //
-// The label lets a maintainer skip the three heavy ci jobs (go-fuzz, js-lint,
-// smoke) on one PR. It only works if BOTH halves are in place: the trigger must
+// The label lets a maintainer skip every heavy ci job (HEAVY below) on one PR. It only works if BOTH halves are in place: the trigger must
 // fire on label changes (or the label does nothing until the next push), and
 // every heavy job's `if:` must read it (or one job keeps running). The light
 // jobs (`lanes`, `commitlint`) must NOT read it: they cost seconds and keep the
@@ -24,6 +23,9 @@ function jobCondition(job: string): string | undefined {
   return /^    if: (.*)$/m.exec(body)?.[1];
 }
 
+// Every job that sets up a runner for real work; the `*-green` record jobs follow from them.
+const HEAVY = ['go-checks', 'go-suite', 'js-fuzz-sweep', 'js-fuzz-timeboxed', 'js-static', 'js-suite', 'js-serial', 'smoke'];
+
 describe('the skip-defaults label', () => {
   it('takes effect when added or removed, not only on the next push', () => {
     const types = /^  pull_request:\n(?:    .*\n)*?    types: \[([^\]]*)\]/m.exec(ci)?.[1] ?? '';
@@ -35,7 +37,10 @@ describe('the skip-defaults label', () => {
   });
 
   it('skips every heavy job', () => {
-    for (const job of ['go-fuzz', 'js-lint', 'smoke']) expect(jobCondition(job), job).toContain(GUARD);
+    for (const job of HEAVY) expect(jobCondition(job), job).toContain(GUARD);
+    const jobs = [...ci.matchAll(/^ {2}([\w-]+):\n {4}name: /gm)].map((match) => match[1]);
+    const unguarded = jobs.filter((job) => !HEAVY.includes(job) && !job.endsWith('-green') && !job.endsWith('-wait'));
+    expect(unguarded.sort(), 'a job that is neither heavy, a record job nor a waiter').toEqual(['commitlint', 'lanes']);
   });
 
   it('never skips the light jobs', () => {
@@ -44,19 +49,21 @@ describe('the skip-defaults label', () => {
 
   it('is a guard on the existing content gate, not a replacement for it', () => {
     // `(a || b) && !label`: the parentheses keep the label from binding to `b` alone.
-    // go-fuzz and js-lint wait in a step, so they start from the gate alone.
-    const verdict = (job: string) =>
-      job === 'smoke'
-        ? `fromJSON\\(needs\\.${job}-wait\\.outputs\\.lanes \\|\\| needs\\.lanes\\.outputs\\.lanes\\)`
-        : 'fromJSON\\(needs\\.lanes\\.outputs\\.lanes\\)';
-    const guarded = (job: string, condition: string) =>
+    // Jobs that wait in a step start from the gate alone; go-suite and smoke read their waiter job first.
+    const gate = 'fromJSON\\(needs\\.lanes\\.outputs\\.lanes\\)';
+    const waited = (job: string) => `fromJSON\\(needs\\.${job}-wait\\.outputs\\.lanes \\|\\| needs\\.lanes\\.outputs\\.lanes\\)`;
+    const guarded = (condition: string) =>
       new RegExp(`^\\$\\{\\{ !cancelled\\(\\) && needs\\.lanes\\.result == 'success' && ${condition} && !contains`);
-    expect(jobCondition('go-fuzz')).toMatch(
-      guarded('go-fuzz', `\\(${verdict('go-fuzz')}[.[].+ \\|\\| ${verdict('go-fuzz')}[.[].+\\)`)
+    expect(jobCondition('go-checks')).toMatch(
+      guarded(`\\(${gate}\\['go-static'\\]\\.run \\|\\| ${gate}\\['go-tools'\\]\\.run\\)`)
     );
-    expect(jobCondition('js-lint')).toMatch(
-      guarded('js-lint', `\\(${verdict('js-lint')}\\.js\\.run \\|\\| ${verdict('js-lint')}\\['js-static'\\]\\.run\\)`)
-    );
-    expect(jobCondition('smoke')).toMatch(guarded('smoke', `${verdict('smoke')}\\.smoke\\.run`));
+    expect(jobCondition('go-suite')).toMatch(guarded(`${waited('go-suite')}\\.go\\.run`));
+    for (const item of ['sweep', 'timeboxed'])
+      expect(jobCondition(`js-fuzz-${item}`)).toMatch(
+        guarded(`\\(${gate}\\['js-fuzz'\\]\\.run && contains\\(${gate}\\['js-fuzz'\\]\\.runItems, '${item}'\\)\\)`)
+      );
+    expect(jobCondition('js-static')).toMatch(guarded(`\\(${gate}\\['js-static'\\]\\.run\\)`));
+    for (const job of ['js-suite', 'js-serial']) expect(jobCondition(job)).toMatch(guarded(`\\(${gate}\\.js\\.run\\)`));
+    expect(jobCondition('smoke')).toMatch(guarded(`${waited('smoke')}\\.smoke\\.run`));
   });
 });

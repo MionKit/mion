@@ -174,12 +174,16 @@ describe('every soak lane carries a quick budget (the per-PR tier)', () => {
 });
 
 describe('ci.yml runs every lane at its quick budget on every PR', () => {
-  it('go-fuzz runs exactly the time-boxed lanes at --quick, in one invocation', () => {
+  it('js-fuzz-timeboxed runs exactly the time-boxed lanes at --quick, in one invocation, alone on its runner', () => {
     const step = ciStep('Time-boxed fuzz lanes at quick budgets');
     const at = ci.indexOf('- name: Time-boxed fuzz lanes at quick budgets');
-    expect(at).toBeGreaterThan(ci.indexOf('\n  go-fuzz:\n'));
-    expect(at).toBeLessThan(ci.indexOf('\n  js-lint:\n'));
-    expect(step).toContain("if: fromJSON(env.MION_LANES)['js-fuzz'].run");
+    const job = ci.indexOf('\n  js-fuzz-timeboxed:\n');
+    expect(at).toBeGreaterThan(job);
+    expect(at).toBeLessThan(job + 1 + ci.slice(job + 1).search(/\n {2}[\w-]+:\n/));
+    expect(ci.slice(job, at)).not.toMatch(/\n {8}run: pnpm (exec vitest|miondevx core fuzz)/);
+    expect(step).toContain(
+      "if: fromJSON(env.MION_LANES)['js-fuzz'].run && contains(fromJSON(env.MION_LANES)['js-fuzz'].runItems, 'timeboxed')"
+    );
     const command = /pnpm miondevx core fuzz ([a-z0-9 ]+) --quick/.exec(step);
     if (!command) throw new Error('ci.yml: the time-boxed quick step no longer runs `miondevx core fuzz … --quick`');
     expect(command[1].trim().split(' ').sort()).toEqual(timeBoxedLanes);
@@ -192,7 +196,7 @@ describe('ci.yml runs every lane at its quick budget on every PR', () => {
     expect(miondevx).toMatch(/const isTimeBoxed = \(lane\) =>[^\n]*_SOAK_MS/);
   });
 
-  it("go-fuzz's sweep excludes exactly the time-boxed lanes' files (nothing double-runs)", () => {
+  it("the fuzz sweep excludes exactly the time-boxed lanes' files (nothing double-runs)", () => {
     const sweep = ciStep('JS fuzz sweep (count-based lanes at quick budgets)');
     // Trailing slash on the filter keeps this devtools test file (test/fuzz-…)
     // out of the sweep, so the two jobs stay a disjoint partition.

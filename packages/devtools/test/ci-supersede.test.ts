@@ -14,13 +14,29 @@ type Verdict = {run: boolean; hash: string; items?: Record<string, Item>; runIte
 type Decision = {lanes: Record<string, Verdict>; labels: string[]; baseRef?: string};
 type Older = {runId: number; decision: Decision | null};
 
+// go and js-fuzz run as one job per item (their shards), so their verdicts carry items as lanes.mjs decides them.
+const sharded = (hash: string, names: string[], run: boolean): Verdict => ({
+  run,
+  hash,
+  runItems: run ? names : [],
+  items: Object.fromEntries(names.map((item) => [item, {run, hash}])),
+});
 const ci = (hashes: Partial<Record<'go' | 'js' | 'js-fuzz', string>> = {}, run = true): Decision => ({
   lanes: {
-    go: {run, hash: hashes.go ?? 'g1'},
-    'js-fuzz': {run, hash: hashes['js-fuzz'] ?? 'f1'},
+    go: sharded(hashes.go ?? 'g1', ['1', '2', '3'], run),
+    'js-fuzz': sharded(hashes['js-fuzz'] ?? 'f1', ['sweep', 'timeboxed'], run),
     js: {run, hash: hashes.js ?? 'j1'},
   },
   labels: [],
+});
+// Every key of ci() deferred to one older run.
+const ciDeferred = (runId: number) => ({
+  'go.1': runId,
+  'go.2': runId,
+  'go.3': runId,
+  'js-fuzz.sweep': runId,
+  'js-fuzz.timeboxed': runId,
+  js: runId,
 });
 const benchLane = (hashes: Record<string, string>, runItems: string[]): Verdict => ({
   run: runItems.length > 0,
@@ -36,7 +52,7 @@ const bench = (hashes: Record<string, string>, runItems: string[], labels = ['be
 describe('supersede', () => {
   it('keeps an older run whose every live lane is unchanged, and defers those lanes to it', () => {
     const plan = supersede({ours: ci(), older: [{runId: 7, decision: ci()}]});
-    expect(plan).toMatchObject({keep: [7], cancel: [], deferred: {go: 7, 'js-fuzz': 7, js: 7}});
+    expect(plan).toMatchObject({keep: [7], cancel: [], deferred: ciDeferred(7)});
     expect(plan.lanes.go).toMatchObject({run: true, deferredTo: 7});
   });
 
@@ -67,7 +83,7 @@ describe('supersede', () => {
       return {...decision, lanes: {...decision.lanes, 'js-static': {run: true, hash: staticHash}}};
     };
     const plan = supersede({ours: withStatic('s2'), older: [{runId: 7, decision: withStatic('s1')}]});
-    expect(plan).toMatchObject({keep: [7], cancel: [], deferred: {go: 7, 'js-fuzz': 7, js: 7}});
+    expect(plan).toMatchObject({keep: [7], cancel: [], deferred: ciDeferred(7)});
     expect(plan.lanes['js-static']).toEqual({run: true, hash: 's2'});
     const codeToo = supersede({ours: withStatic('s2', {js: 'j2'}), older: [{runId: 7, decision: withStatic('s1')}]});
     expect(codeToo).toMatchObject({keep: [], cancel: [7], reasons: {7: 'this commit changes js'}});
@@ -85,7 +101,7 @@ describe('supersede', () => {
       return {...decision, lanes: {...decision.lanes, 'js-static': {run: true, hash: staticHash}}};
     };
     const plan = supersede({ours: withStatic('s2'), older: [{runId: 7, decision: withStatic('s1')}]});
-    expect(plan).toMatchObject({keep: [7], cancel: [], deferred: {go: 7, 'js-fuzz': 7, js: 7}});
+    expect(plan).toMatchObject({keep: [7], cancel: [], deferred: ciDeferred(7)});
     expect(plan.lanes['js-static']).toEqual({run: true, hash: 's2'});
     const codeToo = supersede({ours: withStatic('s2', {js: 'j2'}), older: [{runId: 7, decision: withStatic('s1')}]});
     expect(codeToo).toMatchObject({keep: [], cancel: [7], reasons: {7: 'this commit changes js'}});
@@ -214,19 +230,19 @@ describe('supersede', () => {
 describe('deferredKeys', () => {
   it('waits for the lane marker of a plain lane and the item markers of an item lane, each on its own run', () => {
     const lanes: Record<string, Verdict> = {
-      go: {run: true, hash: 'g', deferredTo: 7},
+      'go-static': {run: true, hash: 'g', deferredTo: 7},
       js: {run: true, hash: 'j'},
       bench: {...benchLane({mion: 'm', zod: 'z'}, ['mion', 'zod']), deferredTo: 6},
     };
     (lanes.bench.items as Record<string, Item>).mion.deferredTo = 6;
-    expect(deferredKeys(lanes, ['go', 'js', 'bench'], {pr: false})).toEqual([
-      {runId: 7, keys: [greenKey('go', 'g')]},
+    expect(deferredKeys(lanes, ['go-static', 'js', 'bench'], {pr: false})).toEqual([
+      {runId: 7, keys: [greenKey('go-static', 'g')]},
       {runId: 6, keys: [greenKey('bench.mion', 'm')]},
     ]);
     expect(deferredKeys(lanes, ['js'], {pr: false})).toEqual([]);
   });
 
-  // js-lint on a pull request saves the narrower js-pr marker, so waiting only for `js` would outwait the job.
+  // The js suite on a pull request saves the narrower js-pr marker, so waiting only for `js` would outwait the job.
   it('takes the PR proof for js on a pull request only', () => {
     const lanes = {js: {run: true, hash: 'j', deferredTo: 7}};
     expect(deferredKeys(lanes, ['js'], {pr: true})[0].keys).toEqual([greenKey('js', 'j'), greenKey('js-pr', 'j')]);
@@ -261,7 +277,7 @@ describe('waitForRun', () => {
     {runId: 7, keys: ['k1']},
     {runId: 7, keys: ['k2', 'k2-pr']},
   ];
-  const jobs = ['go tests + fuzz'];
+  const jobs = ['go checks'];
 
   it('returns once every group has a marker, any key of the group counting', () => {
     const fake = harness((args, polls) =>
@@ -280,7 +296,7 @@ describe('waitForRun', () => {
 
   it("stops when the older run fails one of this job's own jobs, and never cancels it", () => {
     const fake = harness((args) =>
-      args[0] === 'cache' ? {status: 0, stdout: ''} : running([{name: 'go tests + fuzz', conclusion: 'failure'}])
+      args[0] === 'cache' ? {status: 0, stdout: ''} : running([{name: 'go checks', conclusion: 'failure'}])
     );
     expect(waitForRun({groups, jobs, ...fake, deadline: 10 * 60_000})).toEqual(['failed', 'failed']);
     expect(fake.cancels()).toEqual([]);
@@ -347,7 +363,9 @@ describe('the supersede CLI', () => {
     ]);
     expect(JSON.parse(readFileSync(file('final.json'), 'utf8')).go).toMatchObject({deferredTo: 5});
     expect(readFileSync(process.env.GITHUB_OUTPUT as string, 'utf8')).toBe('cancel=4 6\n');
-    expect(readFileSync(process.env.GITHUB_STEP_SUMMARY as string, 'utf8')).toContain('| 5 | keep | go, js-fuzz, js |');
+    expect(readFileSync(process.env.GITHUB_STEP_SUMMARY as string, 'utf8')).toContain(
+      '| 5 | keep | go.1, go.2, go.3, js-fuzz.sweep, js-fuzz.timeboxed, js |'
+    );
   });
 
   it('returns at once from --wait when nothing waits, without calling gh', () => {

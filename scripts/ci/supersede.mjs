@@ -59,7 +59,7 @@ export function supersede({ours, older}) {
   return {keep, cancel, reasons, deferred, lanes};
 }
 
-// Any key proves its group, so on a pull request `js` also accepts the js-pr marker a partial js-lint run saves.
+// Any key proves its group, so on a pull request `js` also accepts the js-pr marker a partial js suite run saves.
 export function deferredKeys(lanes, names, {pr}) {
   const groups = [];
   for (const name of names) {

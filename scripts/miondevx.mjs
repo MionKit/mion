@@ -65,7 +65,7 @@ const die = (msg, code = 1) => {
 //   default  what `pnpm test` / `vitest run test/fuzz` executes: a handful of
 //            iterations — a floor proving the harness runs, not real coverage.
 //   quick    `--quick`: the per-PR tier (ci.yml). Roughly 2x the default work,
-//            sized so the two heavy CI jobs stay balanced (~+2-3 min total).
+//            sized to stay under the JS suite's wall clock (~+2-3 min total).
 //   soak     `--soak`: the release tier (release-gate.yml / fuzz-soak.yml),
 //            one lane per runner under a 45-minute cap. Giving a lane a `soak`
 //            block IS the opt-in — it is a wall-clock commitment, and the

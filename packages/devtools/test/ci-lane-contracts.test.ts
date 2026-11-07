@@ -30,6 +30,8 @@ import {
 } from '../../../scripts/ci/lanes.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
 import {SWEEPS} from '../../../scripts/ci/check-tree.mjs';
+// @ts-expect-error — a plain .mjs repo script, no types.
+import {readProjects} from '../../../scripts/core/test-batches.mjs';
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
 const read = (rel: string): string => readFileSync(path.join(REPO_ROOT, rel), 'utf8');
@@ -53,8 +55,7 @@ describe('the lane table', () => {
     }
   });
 
-  // The old dorny/paths-filter gate listed neither, so a pull request that only
-  // touched the docs content skipped js-lint and with it check-code-imports, the
+  // A pull request that only touches the docs content must still run check-code-imports, the
   // one gate that turns a dangling <code-import> into a failure instead of an
   // error placeholder rendered into the page.
   it('feeds the docs content and the examples into the js-static lane that checks them', () => {
@@ -109,16 +110,17 @@ describe('the lane table', () => {
     }
   });
 
-  // The two trees read into each other, and the old path gate got BOTH wrong: it
-  // ran js-lint on any Go change (right, but for no stated reason) and never fed
-  // the marker sources into the Go lane at all. Derive each direction from the
-  // thing that does the reading, so neither can rot into a silent skip.
-  it('feeds every tsconfig the root typecheck compiles into the js lane', () => {
+  // The two trees read into each other: derive each direction from the thing that
+  // does the reading, so neither can rot into a silent skip.
+  it('feeds every tsconfig the root typecheck compiles into the js-static lane', () => {
     const typecheck = JSON.parse(read('package.json')).scripts.typecheck as string;
     const projects = [...typecheck.matchAll(/tsc -p (\S+)/g)].map((match) => match[1]);
     expect(projects.length).toBeGreaterThan(2);
     for (const project of projects) {
-      expect(matches(project, LANES.js.paths), `${project} is typechecked by js-lint but feeds no js lane path`).toBe(true);
+      expect(
+        matches(project, LANES['js-static'].paths),
+        `${project} is typechecked by js-static but feeds no js-static path`
+      ).toBe(true);
     }
   });
 
@@ -263,8 +265,8 @@ describe('the lane table', () => {
 
   // Exact keys, so a marker can never fall off the end of a long cache listing.
   it('names the exact marker keys decide reads, with the PR proof only on a pull request', () => {
-    const hashes = {js: 'abc', go: 'def'};
-    expect(candidateKeys(['js', 'go'], {hashes})).toEqual([greenKey('js', 'abc'), greenKey('go', 'def')]);
+    const hashes = {js: 'abc', 'go-static': 'def'};
+    expect(candidateKeys(['js', 'go-static'], {hashes})).toEqual([greenKey('js', 'abc'), greenKey('go-static', 'def')]);
     expect(candidateKeys(['js'], {hashes, pr: true})).toEqual([greenKey('js', 'abc'), greenKey('js-pr', 'abc')]);
     expect(read('.github/actions/ci-lanes/action.yml')).not.toContain('--limit 200');
   });
@@ -352,49 +354,83 @@ describe('the lane table', () => {
     expect(action).toContain('--out .lane-decision/lanes.json $PR_FLAG');
   });
 
-  it('js-lint saves the full js marker only for a full run, and js-pr for a partial one', () => {
+  it('js-green saves the full js marker only for a full run, and js-pr for a partial one', () => {
     const ci = read('.github/workflows/ci.yml');
-    const suite = ci.slice(ci.indexOf('- name: JS suite (everything except test/fuzz)'));
-    expect(suite).toMatch(/scope=partial"[^\n]*\n\s+pnpm miondevx core test-pr --base HEAD\^1 --skip-passed /);
-    expect(suite).toMatch(/scope=full"[^\n]*\n\s+pnpm miondevx core test-skip --audit /);
-    expect(ci).toMatch(
-      /if: success\(\) && steps\.suite\.outputs\.scope == 'full'\n\s+uses: \.\/\.github\/actions\/save-lane-green\n\s+with:\n\s+lane: js\n/
+    for (const [job, step] of [
+      ['js-suite', '- name: JS suite (everything except test/fuzz)'],
+      ['js-serial', '- name: JS suite (one-worker projects)'],
+    ]) {
+      const suite = jobOf(ci, job).slice(jobOf(ci, job).indexOf(step));
+      expect(suite, job).toMatch(/scope=partial"[^\n]*\n\s+pnpm miondevx core test-pr --base HEAD\^1 --skip-passed /);
+      expect(suite, job).toMatch(/scope=full"[^\n]*\n\s+pnpm miondevx core test-skip --audit /);
+      expect(jobOf(ci, job), job).toContain('      scope: ${{ steps.suite.outputs.scope }}\n');
+    }
+    const green = jobOf(ci, 'js-green');
+    expect(green).toContain(
+      "    if: ${{ !cancelled() && needs.js-suite.result == 'success' && needs.js-serial.result == 'success' && needs.js-suite.outputs.scope == needs.js-serial.outputs.scope }}"
     );
-    expect(ci).toMatch(
-      /if: success\(\) && steps\.suite\.outputs\.scope == 'partial'\n\s+uses: \.\/\.github\/actions\/save-lane-green\n\s+with:\n\s+lane: js-pr\n/
+    expect(green).toMatch(
+      /if: needs\.js-suite\.outputs\.scope == 'full'\n\s+uses: \.\/\.github\/actions\/save-lane-green\n\s+with:\n\s+lane: js\n/
+    );
+    expect(green).toMatch(
+      /if: needs\.js-suite\.outputs\.scope == 'partial'\n\s+uses: \.\/\.github\/actions\/save-lane-green\n\s+with:\n\s+lane: js-pr\n/
     );
   });
 });
 
 // PRs skip what the list proved; main runs everything, so a key missing an input fails there instead of hiding.
-// Both halves share one list, keyed per run so every run saves.
-describe('js-lint — the passed test list', () => {
-  const job = () => jobOf(read('.github/workflows/ci.yml'), 'js-lint');
-  const step = (name: string) =>
-    job()
-      .slice(job().indexOf(`- name: ${name}`))
+// Each suite job keeps its own list, keyed per run so every run saves.
+describe('js-suite and js-serial — the passed test lists', () => {
+  const ci = read('.github/workflows/ci.yml');
+  const step = (job: string, name: string) =>
+    jobOf(ci, job)
+      .slice(jobOf(ci, job).indexOf(`- name: ${name}`))
       .split(/\n\s+- name: /)[0];
 
-  it('restores the list before the suite and saves it after, under one per-run key with a prefix fallback', () => {
-    const restore = step('Restore the passed test list');
-    const save = step('Save the passed test list');
-    const key = 'key: mion-vitest-passed-${{ github.run_id }}-${{ github.run_attempt }}';
+  it.each([
+    ['js-suite', 'the passed test list', 'vitest-passed.json', 'mion-vitest-passed-'],
+    ['js-serial', 'the passed one-worker test list', 'vitest-serial-passed.json', 'mion-vitest-serial-passed-'],
+  ])('%s restores %s before the suite and saves it after, under one per-run key', (job, list, file, prefix) => {
+    const restore = step(job, `Restore ${list}`);
+    const save = step(job, `Save ${list}`);
+    const key = `key: ${prefix}\${{ github.run_id }}-\${{ github.run_attempt }}`;
     expect(restore).toContain('uses: actions/cache/restore@v4');
-    expect(restore).toContain('path: node_modules/.cache/mion/vitest-passed.json');
+    expect(restore).toContain(`path: node_modules/.cache/mion/${file}`);
     expect(restore).toContain(key);
-    expect(restore).toContain('restore-keys: mion-vitest-passed-');
+    expect(restore).toMatch(new RegExp(`restore-keys: ${prefix}$`, 'm'));
     expect(save).toContain('uses: actions/cache/save@v4');
-    expect(save).toContain('path: node_modules/.cache/mion/vitest-passed.json');
+    expect(save).toContain(`path: node_modules/.cache/mion/${file}`);
     expect(save).toContain(key);
     expect(save).toContain("if: always() && steps.suite.outcome != 'skipped'");
-    expect(job().indexOf('Restore the passed test list')).toBeLessThan(job().indexOf('- name: JS suite'));
-    expect(job().indexOf('- name: JS suite')).toBeLessThan(job().indexOf('Save the passed test list'));
+    const body = jobOf(ci, job);
+    expect(body.indexOf(`Restore ${list}`)).toBeLessThan(body.indexOf('- name: JS suite'));
+    expect(body.indexOf('- name: JS suite')).toBeLessThan(body.indexOf(`Save ${list}`));
+    // The default store is the suite's list; the one-worker job names its own.
+    if (job === 'js-serial')
+      for (const line of commandsOf(body)) expect(line).toContain(`--store node_modules/.cache/mion/${file}`);
   });
 
-  it('keeps a few of the lists on main, where every pull request restores from', async () => {
+  it('keeps a few of each list on main, where every pull request restores from', async () => {
     // @ts-expect-error plain ESM dev script, no types
     const {KEEP_ON_MAIN} = await import('../../../scripts/ci/cache-cleanup.mjs');
     expect(KEEP_ON_MAIN['mion-vitest-passed-']).toBeGreaterThan(0);
+    expect(KEEP_ON_MAIN['mion-vitest-serial-passed-']).toBeGreaterThan(0);
+  });
+
+  // Vitest runs a `maxWorkers: 1` project one file at a time after every other file, so js-serial runs them beside the
+  // suite: the two jobs must split the projects by exactly the configs that set it.
+  it('splits off exactly the projects whose config sets maxWorkers: 1', () => {
+    const oneWorker = (readProjects(REPO_ROOT) as {name: string; configPath: string}[])
+      .filter((project) => /^\s*maxWorkers: 1,$/m.test(read(project.configPath)))
+      .map((project) => project.name)
+      .sort();
+    expect(oneWorker.length).toBeGreaterThan(0);
+    const named = (body: string, flag: string) =>
+      commandsOf(body).map((line) => [...line.matchAll(new RegExp(`${flag} (\\S+)`, 'g'))].map((match) => match[1]).sort());
+    for (const names of named(jobOf(ci, 'js-suite'), '--skip-project')) expect(names).toEqual(oneWorker);
+    for (const names of named(jobOf(ci, 'js-serial'), '--project')) expect(names).toEqual(oneWorker);
+    expect(commandsOf(jobOf(ci, 'js-suite'))).toHaveLength(2);
+    expect(commandsOf(jobOf(ci, 'js-serial'))).toHaveLength(2);
   });
 });
 
@@ -502,12 +538,41 @@ describe('every workflow gates on the lanes it declares', () => {
 describe('a marker is only ever written by work that actually ran and passed', () => {
   const ci = read('.github/workflows/ci.yml');
 
-  // go-fuzz runs when ANY of its lanes is due, or a Go-only run would mark the JS fuzz sweep green unrun.
-  it('guards the two go-fuzz halves on their own lane, not on the job', () => {
-    for (const lane of ['go', "['js-fuzz']", "['go-tools']"]) {
-      const reference = lane.startsWith('[') ? `fromJSON(env.MION_LANES)${lane}.run` : `fromJSON(env.MION_LANES).${lane}.run`;
-      expect(ci).toContain(`if: success() && ${reference}`);
+  // go-checks runs when either of its lanes is due, so each save re-checks its own lane.
+  it('guards each go-checks save on its own lane, not on the job', () => {
+    const checks = jobOf(ci, 'go-checks');
+    for (const lane of ["['go-static']", "['go-tools']"])
+      expect(checks).toContain(`if: success() && fromJSON(env.MION_LANES)${lane}.run`);
+  });
+
+  // Each shard saves its own item; the lane marker waits on the whole matrix, the shards that ran it included.
+  it('records each Go shard on its own, and the lane only after every shard that ran passed', () => {
+    const shards = jobOf(ci, 'go-suite');
+    expect(shards).toContain(
+      'shard: ${{ fromJSON(needs.go-suite-wait.outputs.lanes || needs.lanes.outputs.lanes).go.runItems }}'
+    );
+    expect(shards).toContain('fail-fast: false');
+    expect(shards).toMatch(
+      /lane: go\.\$\{\{ matrix\.shard \}\}\n\s+hash: \$\{\{ fromJSON\(needs\.lanes\.outputs\.lanes\)\.go\.items\[matrix\.shard\]\.hash \}\}/
+    );
+    // The shard count is the number of items, so no item names a shard the script does not have.
+    expect(shards).toContain(`run: pnpm miondevx core go-shard \${{ matrix.shard }}/${Object.keys(LANES.go.items).length}\n`);
+    expect(jobOf(ci, 'go-checks')).toContain(`run: pnpm miondevx core go-shard --check ${Object.keys(LANES.go.items).length}\n`);
+    const green = jobOf(ci, 'go-green');
+    expect(green).toContain('needs: [lanes, go-suite]');
+    expect(green).toContain("if: ${{ !cancelled() && needs.go-suite.result == 'success' }}");
+    expect(green).toContain('lane: go\n');
+  });
+
+  // A fuzz job skipped because its item was proven still lets the lane marker through; a failed or cancelled one never.
+  it('records the js-fuzz lane only once each fuzz job passed or had nothing to prove', () => {
+    const green = jobOf(ci, 'js-fuzz-green');
+    expect(green).toContain('needs: [lanes, js-fuzz-sweep, js-fuzz-timeboxed]');
+    for (const job of ['js-fuzz-sweep', 'js-fuzz-timeboxed']) {
+      expect(green).toContain(`contains(fromJSON('["success","skipped"]'), needs.${job}.result)`);
+      expect(green).toContain(`needs.${job}.result == 'success'`);
     }
+    expect(green).toContain('lane: js-fuzz\n');
   });
 
   // The lane marker claims all five, so it waits on every dialect job that ran; the rest had their own markers.
@@ -530,13 +595,15 @@ describe('a marker is only ever written by work that actually ran and passed', (
   it('guards every in-job item save on that item having run', () => {
     for (const [file, lane, items] of [
       ['ci.yml', 'smoke', ['website', 'bench']],
+      ['ci.yml', 'js-fuzz', ['sweep', 'timeboxed']],
       ['pr-heavy.yml', 'e2e', ['matrix', 'mion', 'host-smoke']],
     ] as const) {
       const workflow = read(`.github/workflows/${file}`);
+      const accessor = (lane.includes('-') ? `['${lane}']` : `.${lane}`).replace(/[.[\]]/g, '\\$&');
       for (const item of items) {
         expect(workflow, `${file} saves ${lane}.${item} unguarded`).toMatch(
           new RegExp(
-            `if: success\\(\\) && contains\\(fromJSON\\(env\\.MION_LANES\\)\\.${lane}\\.runItems, '${item}'\\)\\n\\s+uses: \\./\\.github/actions/save-lane-green\\n\\s+with:\\n\\s+lane: ${lane}\\.${item}\\n`
+            `if: success\\(\\) && contains\\(fromJSON\\(env\\.MION_LANES\\)${accessor}\\.runItems, '${item}'\\)\\n\\s+uses: \\./\\.github/actions/save-lane-green\\n\\s+with:\\n\\s+lane: ${lane}\\.${item}\\n`
           )
         );
       }
@@ -548,7 +615,10 @@ describe('a marker is only ever written by work that actually ran and passed', (
       .map((file) => read(`.github/workflows/${file}`))
       .join('\n');
     for (const [name, lane] of Object.entries(LANES) as [string, {items?: object}][]) {
-      if (lane.items) expect(workflows, `${name} has items nobody runs`).toContain(`.${name}.runItems`);
+      if (lane.items)
+        expect(workflows, `${name} has items nobody runs`).toContain(
+          name.includes('-') ? `['${name}'].runItems` : `.${name}.runItems`
+        );
     }
   });
 
@@ -582,11 +652,15 @@ describe('a marker is only ever written by work that actually ran and passed', (
         }
       }
     }
-    // go-fuzz, js-lint, smoke, website, bench, bench-green, pre-publish-e2e, drizzle-e2e, record-green.
+    // go-checks, go-suite, go-green, js-fuzz-sweep, js-fuzz-timeboxed, js-fuzz-green, js-static, js-green, smoke,
+    // website, bench, bench-green, pre-publish-e2e, drizzle-e2e, record-green.
     // The count catches a save step lost to an edit, which the loop cannot.
-    expect(checked).toBe(9);
+    expect(checked).toBe(15);
   });
 });
+
+// The suite command lines of a job: test-pr on a pull request, test-skip --audit otherwise.
+const commandsOf = (body: string): string[] => body.split('\n').filter((line) => /core test-pr|core test-skip/.test(line));
 
 const jobOf = (workflow: string, name: string): string => {
   const start = workflow.indexOf(`\n  ${name}:\n`);
@@ -599,7 +673,7 @@ const jobOf = (workflow: string, name: string): string => {
 describe('a new commit cancels only what it changed', () => {
   // The heavy job each waiter guards, and the lanes that job reads.
   const WAITERS = {
-    'ci.yml': {smoke: ['smoke']},
+    'ci.yml': {'go-suite': ['go'], smoke: ['smoke']},
     'pr-heavy.yml': {website: ['website'], bench: ['bench'], 'pre-publish-build': ['e2e']},
     'drizzle-e2e.yml': {build: ['drizzle']},
   } as const;
@@ -612,8 +686,12 @@ describe('a new commit cancels only what it changed', () => {
   ];
   // Heavy jobs that wait in a step, so the lanes that read comments run at once; they read the gate's MION_LANES and the step re-decides it.
   const IN_JOB_WAITERS: [string, string][] = [
-    ['ci.yml', 'go-fuzz'],
-    ['ci.yml', 'js-lint'],
+    ['ci.yml', 'go-checks'],
+    ['ci.yml', 'js-fuzz-sweep'],
+    ['ci.yml', 'js-fuzz-timeboxed'],
+    ['ci.yml', 'js-static'],
+    ['ci.yml', 'js-suite'],
+    ['ci.yml', 'js-serial'],
   ];
   const gates = LANES as Record<string, {gate: {label?: string; unless?: string; base?: string}}>;
   const labelsIn = (condition: string, negated: boolean) =>
@@ -677,24 +755,27 @@ describe('a new commit cancels only what it changed', () => {
     }
   }
 
-  // The cheap lanes hash raw and must start at once on a comment-only commit; the code lanes then wait inside the job.
-  describe('waits inside go-fuzz and js-lint, after the checks that read comments', () => {
+  // Each job waits in a step before its first lane step: a raw job waits only when nothing it reads changed,
+  // comments included, and a code job then has nothing left to run.
+  describe('waits inside each heavy job, before the steps of its lanes', () => {
     const ci = read('.github/workflows/ci.yml');
-    const WAITS_IN: Record<string, {lanes: string[]; name: string; first: string; last: string}> = {
-      'go-fuzz': {
-        lanes: ['go', 'js-fuzz', 'go-tools', 'go-static'],
-        name: 'go tests + fuzz',
-        first: 'Go formatting (our code only; never third_party)',
-        last: 'Go test suite (fuzz sweeps at quick budgets)',
+    // `jobs` prefixes the job's own name, shared by its sibling jobs, so any of them failing ends the wait.
+    const WAITS_IN: Record<string, {lanes: string[]; name: string; last: string}> = {
+      'go-checks': {
+        lanes: ['go-static', 'go-tools'],
+        name: 'go checks',
+        last: 'Go formatting (our code only; never third_party)',
       },
-      'js-lint': {
-        lanes: ['js', 'js-static'],
-        name: 'js tests + lint',
-        first: 'Check formatting (no build needed — runs first)',
-        last: 'JS suite (everything except test/fuzz)',
-      },
+      'js-fuzz-sweep': {lanes: ['js-fuzz'], name: 'js fuzz', last: 'JS fuzz sweep (count-based lanes at quick budgets)'},
+      'js-fuzz-timeboxed': {lanes: ['js-fuzz'], name: 'js fuzz', last: 'Time-boxed fuzz lanes at quick budgets'},
+      'js-static': {lanes: ['js-static'], name: 'js lint', last: 'Check formatting (no build needed — runs first)'},
+      'js-suite': {lanes: ['js'], name: 'js suite', last: 'JS suite (everything except test/fuzz)'},
+      'js-serial': {lanes: ['js'], name: 'js suite', last: 'JS suite (one-worker projects)'},
     };
-    for (const [job, {lanes, name, first, last}] of Object.entries(WAITS_IN)) {
+    it('covers every in-job waiter', () => {
+      expect(Object.keys(WAITS_IN).sort()).toEqual(IN_JOB_WAITERS.map(([, job]) => job).sort());
+    });
+    for (const [job, {lanes, name, last}] of Object.entries(WAITS_IN)) {
       it(`${job} starts from the gate alone, with no waiter job, and may read the actions`, () => {
         const heavy = jobOf(ci, job);
         expect(ci).not.toContain(`  ${job}-wait:`);
@@ -714,14 +795,14 @@ describe('a new commit cancels only what it changed', () => {
           expect(body).toContain(`lanes: ${lanes.join(' ')}\n`);
           expect(body).toContain(`jobs: ${name}\n`);
         }
-        expect(name.startsWith(/^ {4}name: (.+)$/m.exec(heavy)?.[1] ?? '')).toBe(true);
+        expect((/^ {4}name: (.+)$/m.exec(heavy)?.[1] ?? '').startsWith(name)).toBe(true);
       });
 
-      it(`${job} runs the comment-reading steps before the wait, and the code steps after it`, () => {
+      it(`${job} waits before the first step of its lanes`, () => {
         const heavy = jobOf(ci, job);
-        const late = heavy.lastIndexOf("- name: Wait for the older run's");
-        expect(heavy.indexOf(`- name: ${first}`)).toBeLessThan(late);
-        expect(late).toBeLessThan(heavy.indexOf(`- name: ${last}`));
+        const wait = heavy.lastIndexOf("- name: Wait for the older run's");
+        expect(heavy.indexOf(`- name: ${last}`)).toBeGreaterThan(wait);
+        expect(heavy.slice(0, wait)).not.toMatch(/\n {6}- name: (?!Wait)/);
       });
     }
 
@@ -766,13 +847,14 @@ describe('a new commit cancels only what it changed', () => {
         expect(/^ {4}needs: \[(.+)\]$/m.exec(job)?.[1].split(', ')).toContain(waiter);
       }
     }
-    // go-fuzz, js-lint, smoke, pre-publish-e2e.
-    expect(checked).toBe(4);
+    // go-checks, js-fuzz-sweep, js-fuzz-timeboxed, js-static, js-suite, js-serial, smoke, pre-publish-e2e.
+    expect(checked).toBe(8);
   });
 
   // GitHub skips a job when anything up its needs chain was skipped, so these check their direct need instead.
   it('runs the jobs below a guarded job on that job succeeding, not on success()', () => {
     for (const [file, job, direct] of [
+      ['ci.yml', 'go-green', 'go-suite'],
       ['pr-heavy.yml', 'bench-green', 'bench'],
       ['pr-heavy.yml', 'pre-publish-e2e', 'pre-publish-build'],
       ['drizzle-e2e.yml', 'drizzle-e2e', 'build'],
@@ -809,11 +891,12 @@ describe('a new commit cancels only what it changed', () => {
   });
 
   // Saved at the job's end, a late cancel would lose them.
-  it('saves each go-fuzz lane and the website smoke right after their own last step', () => {
+  it('saves each go shard, each fuzz item and the website smoke right after their own last step', () => {
     const ci = read('.github/workflows/ci.yml');
     const next = (after: string) => ci.slice(ci.indexOf(after)).split('\n      - ')[1] ?? '';
-    expect(next('- name: Go test suite (fuzz sweeps at quick budgets)')).toMatch(/^name: Record the Go suite as green\n/);
-    expect(next('- name: Time-boxed fuzz lanes at quick budgets')).toMatch(/^name: Record the JS fuzz sweep as green\n/);
+    expect(next('- name: Go test suite (fuzz sweeps at quick budgets)')).toMatch(/^name: Record the Go shard as green\n/);
+    expect(next('- name: Concurrent CLI race fuzz (MION_FUZZ_RACE gate)')).toMatch(/^name: Record the JS fuzz sweep as green\n/);
+    expect(next('- name: Time-boxed fuzz lanes at quick budgets')).toMatch(/^name: Record the time-boxed fuzz lanes as green\n/);
     expect(next('- name: Website serves-a-page smoke')).toMatch(/^name: Record the website smoke as green\n/);
   });
 });
@@ -864,7 +947,7 @@ describe('the gate keeps or cancels older runs', () => {
   const action = read('.github/actions/ci-lanes/action.yml');
   const scriptOf = (name: string) =>
     (/run: \|\n((?: {8}.*\n?)+)/.exec(action.slice(action.indexOf(`- name: ${name}`)))?.[1] ?? '').replace(/^ {8}/gm, '');
-  const decision = {lanes: {go: {run: true, hash: 'g'}}, labels: [], baseRef: 'main'};
+  const decision = {lanes: {'go-static': {run: true, hash: 'g'}}, labels: [], baseRef: 'main'};
   const run = (gh: string, files: Record<string, string> = {}) => {
     const dir = mkdtempSync(path.join(os.tmpdir(), 'supersede-gate-'));
     try {
@@ -1024,25 +1107,25 @@ describe('the Go toolchain setup', () => {
 describe('the build-gate tests run on the Go runner and nowhere else', () => {
   const ci = read('.github/workflows/ci.yml');
 
-  it('runs in go-fuzz under the go-tools lane', () => {
-    expect(jobOf(ci, 'go-fuzz')).toMatch(
+  it('runs in go-checks under the go-tools lane', () => {
+    expect(jobOf(ci, 'go-checks')).toMatch(
       /if: fromJSON\(env\.MION_LANES\)\['go-tools'\]\.run\n\s+run: pnpm test packages\/devtools\/test\/build-gate\.test\.ts/
     );
   });
 
-  it('is excluded from both js-lint suite commands', () => {
-    const suite = jobOf(ci, 'js-lint');
-    const commands = suite.split('\n').filter((line) => /core test-pr|core test-skip/.test(line));
-    expect(commands).toHaveLength(2);
-    for (const command of commands) expect(command).toContain("--exclude '**/build-gate.test.ts'");
+  it('is excluded from every suite command', () => {
+    for (const job of ['js-suite', 'js-serial']) {
+      const commands = commandsOf(jobOf(ci, job));
+      expect(commands, job).toHaveLength(2);
+      for (const command of commands) expect(command).toContain("--exclude '**/build-gate.test.ts'");
+    }
   });
 
   // The js-static step runs these; the suite running them again only doubled their time.
   it('leaves the contract and link tests to the js-static step', () => {
     expect(ci).toContain('run: pnpm test contracts website-links\n');
-    const commands = jobOf(ci, 'js-lint')
-      .split('\n')
-      .filter((line) => /core test-pr|core test-skip/.test(line));
+    const commands = [...commandsOf(jobOf(ci, 'js-suite')), ...commandsOf(jobOf(ci, 'js-serial'))];
+    expect(commands).toHaveLength(4);
     for (const command of commands) {
       expect(command).toContain("--exclude '**/*contracts*.test.ts'");
       expect(command).toContain("--exclude '**/website-links.test.ts'");
@@ -1053,8 +1136,8 @@ describe('the build-gate tests run on the Go runner and nowhere else', () => {
 describe('the converted-suites refusal count runs per PR', () => {
   const ci = read('.github/workflows/ci.yml');
 
-  it('runs the count in go-fuzz under the go-tools lane', () => {
-    expect(jobOf(ci, 'go-fuzz')).toMatch(
+  it('runs the count in go-checks under the go-tools lane', () => {
+    expect(jobOf(ci, 'go-checks')).toMatch(
       /if: fromJSON\(env\.MION_LANES\)\['go-tools'\]\.run\n\s+run: pnpm miondevx core converted-suites --refusals-only\n/
     );
   });
@@ -1109,8 +1192,9 @@ describe('label gates read the live labels, never the event payload', () => {
         );
       }
     }
-    // website, bench, pre-publish-build, go-fuzz, js-lint, smoke, decide.
-    expect(checked).toBe(7);
+    // website, bench, pre-publish-build, go-checks, go-suite, js-fuzz-sweep, js-fuzz-timeboxed, js-static, js-suite,
+    // js-serial, smoke, decide.
+    expect(checked).toBe(12);
   });
 
   it('drizzle-e2e decides on its own label', () => {
