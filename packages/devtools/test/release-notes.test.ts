@@ -76,12 +76,53 @@ describe('unwrap', () => {
     );
   });
 
-  it('leaves a code block, headings, quotes and tables as they are', () => {
-    const kept =
-      'Intro line.\n```ts\nconst a = 1;\nconst b = 2;\n```\nAfter the fence.\n### Heading\nText under it.\n> quote\n| a | b |\n| - | - |';
-    expect(join(kept)).toBe(kept);
+  it('joins a continuation that only looks like a heading or a numbered item', () => {
+    expect(join('- fixes issue\n  #584 for good')).toBe('- fixes issue #584 for good');
+    expect(join('- shipped in\n  2026. Then more')).toBe('- shipped in 2026. Then more');
   });
 
+  it('keeps each numbered item its own line, past 1. too', () => {
+    expect(join('1. first item\n   wraps.\n2. second\n10. tenth')).toBe('1. first item wraps.\n2. second\n10. tenth');
+  });
+
+  it('keeps headings on their own line and never joins text into one', () => {
+    expect(join('### Features\nText under it\nwraps.')).toBe('### Features\nText under it wraps.');
+  });
+});
+
+// Anything the changelog does not use yet fails the run, naming the version, the line and the construct.
+describe('unwrap refuses Markdown it cannot keep', () => {
+  const rows: Array<[string, string, string]> = [
+    ['a backtick code fence', 'Intro.\n```ts\nconst a = 1;\n```', 'a code fence'],
+    ['a tilde code fence', 'Intro.\n~~~\ncode\n~~~', 'a code fence'],
+    ['an indented code block', 'Intro.\n\n    const a = 1;', 'an indented code block'],
+    ['an HTML comment', 'Intro.\n<!-- note -->', 'an HTML block or comment'],
+    ['a horizontal rule', 'Intro.\n\n***', 'a horizontal rule or setext heading underline'],
+    ['a setext underline', 'Title\n===', 'a horizontal rule or setext heading underline'],
+    ['a two-space hard break', 'Line one  \nline two', 'a hard line break'],
+    ['a backslash hard break', 'Line one\\\nline two', 'a hard line break'],
+    ['a link definition', 'See [docs].\n\n[docs]: https://mion.io', 'a link definition'],
+    ['a quote', 'Intro.\n> quoted', 'a quote'],
+    ['a table with leading pipes', 'Intro.\n\n| a | b |', 'a table row'],
+    ['a table divider without a leading pipe', 'a | b\n--- | ---', 'a table row'],
+    ['a tab after a list marker', '-\titem', 'a list marker without a space after it'],
+    ['a bare list marker', 'Intro.\n\n-', 'a list marker without a space after it'],
+    ['a plus list marker', '+ item', 'a `+` list marker'],
+  ];
+  for (const [name, markdown, construct] of rows) {
+    it(`refuses ${name}`, () => {
+      expect(() => join(markdown)).toThrow(construct);
+    });
+  }
+
+  it('names the version and the CHANGELOG.md line', () => {
+    expect(() => notes('# Changelog\n\n## [1.0.0]\n\nIntro.\n> quoted\n', '1.0.0')).toThrow(
+      'release notes: CHANGELOG.md line 6 (## [1.0.0]) has a quote'
+    );
+  });
+});
+
+describe('releaseNotes output', () => {
   it('notes come out unwrapped', () => {
     expect(notes('## [1.0.0]\n\nA wrapped\nintro.\n\n- a wrapped\n  bullet\n', '1.0.0')).toBe(
       'A wrapped intro.\n\n- a wrapped bullet\n'

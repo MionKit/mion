@@ -985,6 +985,10 @@ describe('miondevx release — help and typos never reach the publish umbrella',
     expect(stderr).toContain('usage: miondevx release notes <version>');
   });
 
+  it('`release --help` lists `notes <version>` from its registry row', () => {
+    expect(miondevx(['release', '--help']).stdout).toMatch(/^ {2}notes <version> /m);
+  });
+
   it('the package pre-hooks route every engine consumer through the trusted build check', () => {
     const scripts = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')).scripts as Record<string, string>;
     expect(scripts.miondevx).toBe('node scripts/miondevx.mjs');
