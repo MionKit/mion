@@ -9,7 +9,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 )
@@ -27,17 +26,12 @@ func RealDrizzlePackages() (map[string]string, error) {
 }
 
 func readDrizzlePackages() (map[string]string, error) {
-	_, self, _, ok := runtime.Caller(0)
-	if !ok {
-		return nil, fmt.Errorf("testfixtures: runtime.Caller failed to locate the package directory")
-	}
-	repoRoot := filepath.Join(filepath.Dir(self), "..", "..", "..")
 	packages := map[string]string{
-		"node_modules/@mionjs/run-types/":               filepath.Join(repoRoot, "packages", "run-types"),
-		"node_modules/@mionjs/drizzle-orm/":             filepath.Join(repoRoot, "packages", "drizzle-orm"),
-		"node_modules/@mionjs/drizzle-orm-pg-core/":     filepath.Join(repoRoot, "packages", "drizzle-orm-pg-core"),
-		"node_modules/@mionjs/drizzle-orm-mysql-core/":  filepath.Join(repoRoot, "packages", "drizzle-orm-mysql-core"),
-		"node_modules/@mionjs/drizzle-orm-sqlite-core/": filepath.Join(repoRoot, "packages", "drizzle-orm-sqlite-core"),
+		"node_modules/@mionjs/run-types/":               Repo("packages/run-types"),
+		"node_modules/@mionjs/drizzle-orm/":             Repo("packages/drizzle-orm"),
+		"node_modules/@mionjs/drizzle-orm-pg-core/":     Repo("packages/drizzle-orm-pg-core"),
+		"node_modules/@mionjs/drizzle-orm-mysql-core/":  Repo("packages/drizzle-orm-mysql-core"),
+		"node_modules/@mionjs/drizzle-orm-sqlite-core/": Repo("packages/drizzle-orm-sqlite-core"),
 	}
 	files := map[string]string{}
 	for prefix, pkgRoot := range packages {

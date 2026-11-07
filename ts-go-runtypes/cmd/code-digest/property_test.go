@@ -22,7 +22,11 @@ var goLanePaths = []string{"ts-go-runtypes/", "packages/run-types/src/"}
 
 func repoCodeFiles(t *testing.T) (string, []string) {
 	t.Helper()
-	root, err := filepath.Abs("../../..")
+	// git lists and the test reads packages/run-types/src from the real repo, outside the module.
+	if err := testfixtures.DeclareInputs("packages/run-types/src"); err != nil {
+		t.Fatal(err)
+	}
+	root, err := filepath.Abs(testfixtures.RepoRoot())
 	if err != nil {
 		t.Fatal(err)
 	}

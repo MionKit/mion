@@ -718,7 +718,7 @@ func TestMarker_WithoutArtifactOrSourcesServesNothing(t *testing.T) {
 // Catches a dist built before an edited pure-fn body, which a consumer meets as an import of a module
 // nothing registers.
 func TestMarker_ArtifactOnDiskHoldsEveryGeneratedID(t *testing.T) {
-	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "packages", "run-types"))
+	root, err := runTypesRoot()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -735,7 +735,7 @@ func TestMarker_ArtifactOnDiskHoldsEveryGeneratedID(t *testing.T) {
 // An id is a hash of the body that ships, so the session's own program, a side program and the generated
 // constants must land on the same ids; that agreement is what pins the artifact to the shipped sources.
 func TestMarker_BothLanesAgreeOnIds(t *testing.T) {
-	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "packages", "run-types"))
+	root, err := runTypesRoot()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -980,4 +980,12 @@ func TestTypesOnly_AVendoredDirOutsideTheVendorFolderIsIgnored(t *testing.T) {
 	if result := store.Closure([]Demand{{ID: titleID, FromDir: "/virtual/app"}}); len(result.Unresolved) != 1 {
 		t.Fatalf("a vendored dir outside .mion/vendor must not serve, got entries %v", codes(result.Entries))
 	}
+}
+
+// runTypesRoot is the real @mionjs/run-types; the store reads it from there, so its files are declared to Go's test cache.
+func runTypesRoot() (string, error) {
+	if err := testfixtures.DeclareInputs("packages/run-types"); err != nil {
+		return "", err
+	}
+	return filepath.Abs(filepath.Join(testfixtures.RepoRoot(), "packages", "run-types"))
 }

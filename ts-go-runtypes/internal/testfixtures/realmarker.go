@@ -9,7 +9,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
@@ -46,12 +45,7 @@ func RealMarkerPackage() (map[string]string, error) {
 }
 
 func readMarkerPackage() (map[string]string, error) {
-	_, self, _, ok := runtime.Caller(0)
-	if !ok {
-		return nil, fmt.Errorf("testfixtures: runtime.Caller failed to locate the package directory")
-	}
-	repoRoot := filepath.Join(filepath.Dir(self), "..", "..", "..")
-	pkgRoot := filepath.Join(repoRoot, "packages", "run-types")
+	pkgRoot := Repo("packages/run-types")
 	files := map[string]string{}
 	packageJSON, err := os.ReadFile(filepath.Join(pkgRoot, "package.json"))
 	if err != nil {
@@ -133,11 +127,7 @@ func RealMarkerSources() (map[string]string, error) {
 }
 
 func readMarkerSources() (map[string]string, error) {
-	_, self, _, ok := runtime.Caller(0)
-	if !ok {
-		return nil, fmt.Errorf("testfixtures: runtime.Caller failed to locate the package directory")
-	}
-	srcRoot := filepath.Join(filepath.Dir(self), "..", "..", "..", "packages", "run-types", "src")
+	srcRoot := Repo("packages/run-types/src")
 	files := map[string]string{}
 	walkErr := filepath.WalkDir(srcRoot, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
