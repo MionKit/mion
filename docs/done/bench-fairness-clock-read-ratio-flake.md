@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-11-06
 ---
 
@@ -51,3 +51,20 @@ Docs: none, because this changes only a test.
 - No docs (test only), no fuzzing (fix, not a feature).
 - Considered instead: the harness counting its own rounds with the real clock. The user chose the fake clock: it pins
   the exact read count and leaves the benchmark code untouched.
+- Review fixes: the test pins `MION_VALIDATION_BENCH_TIME_MS` (an empty, 0 or huge ambient value broke the count),
+  and the start read clears `seen`, so "every sample" is proven for the timed rounds, not the warm-up.
+
+## Widened: the same class of test (asked by the parent session, with the user's go-ahead)
+
+Tests that asserted on real elapsed time now assert their claim directly:
+
+- `packages/run-types/test/features/jsonDecodeArrayGuard.test.ts`: the decoded field is the untouched
+  `{length: 1e9}` object (a loop over it would hang or fill the heap), and validate refuses it.
+- `packages/devtools/test/eslint/session.test.ts`: a 0 ms budget makes the first file time out; the second file gets
+  the exact same error, naming the first file, so it came from the sticky flag and sent no new request.
+- `packages/platform-node/test/security.spec.ts`: the oversized `Content-Length` request sends no body at all, so only
+  a refusal from the headers can answer.
+- `packages/run-types/test/features/jsonDecodeBadContent.test.ts`: the `toThrow(RangeError)` already proves it does
+  not hang; the 5 s limit is gone.
+- Kept: `packages/run-types/test/fuzz/type/nonDataMockSpeed.smoke.test.ts`. Its claim is about speed (an 8 s mock
+  regression) and its 15 s ceiling is generous; a work count would need new counters in the mock generator.
