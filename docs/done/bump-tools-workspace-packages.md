@@ -25,7 +25,7 @@ Nothing caught the drift. Intended behavior: the script's own comment. Private t
   (drizzle line excepted) carries the `version.json` version. Not a vitest contract: `tools/` feeds no gated lane,
   so a tools-only PR would skip it. Vitest unit tests cover the reader (blank lines, no final newline, unsupported
   globs) and the drift rule over a scratch repo.
-- Shipped: `scripts/lib/workspace-dirs.mjs` (`workspacePatterns`, `lockstepManifestFiles`, `lockstepDrift`),
+- Shipped: `scripts/lib/workspace-dirs.mjs` (`workspaceParentDirs`, `lockstepManifestFiles`, `lockstepDrift`),
   used by both the bump and the sweep.
 - The implementer plans the details.
 
@@ -35,7 +35,7 @@ Docs: none, because no site page or example covers the bump script; its header c
 
 ## Done when
 
-- The bump stamps `tools/*` manifests, the contract test fails on a drifted manifest, `tools/code-card` is
+- The bump stamps `tools/*` manifests, the `scripts/ci/check-tree.mjs` lockstep sweep fails on a drifted manifest, `tools/code-card` is
   on the lockstep version.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file,
   each committed on its own.
