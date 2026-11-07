@@ -1,8 +1,18 @@
 // Unit tests for `miondevx core go-shard`: the shards must run every Go package and test exactly once.
 
-import {describe, it, expect} from 'vitest';
-// @ts-expect-error — a plain .mjs repo script, no types.
-import {HEAVY, coverageErrors, parseTestList, planShard, runPattern, shardCommands} from '../../../scripts/ci/go-shard.mjs';
+import {describe, it, expect, vi} from 'vitest';
+import {
+  HEAVY,
+  main,
+  parseShard,
+  parseTestLists,
+  planShard,
+  runPattern,
+  runShard,
+  shardCommands,
+  staleHeavy,
+  // @ts-expect-error — a plain .mjs repo script, no types.
+} from '../../../scripts/ci/go-shard.mjs';
 
 type Plan = {light: string[]; heavy: {pkg: string; tests: string[]}[]};
 
@@ -35,7 +45,6 @@ describe('go-shard', () => {
             `${pkg} ${test}`
           ).toHaveLength(1);
       for (const plan of all) for (const pkg of testsOf.keys()) expect(plan.light).not.toContain(pkg);
-      expect(coverageErrors({packages, testsOf, count})).toEqual([]);
     });
   }
 
@@ -50,21 +59,39 @@ describe('go-shard', () => {
     expect(commands.at(-1)?.[0]).toBe('test');
   });
 
-  it('reads tests, examples and fuzz targets from go test -list, never benchmarks or the ok line', () => {
-    expect(parseTestList('TestB\nBenchmarkC\nFuzzD\nExampleE\nTestA\nok  \tm/x\t0.01s\n')).toEqual([
-      'ExampleE',
-      'FuzzD',
-      'TestA',
-      'TestB',
-    ]);
+  it('reads each package of one go test -list call: tests, examples and fuzz targets, never benchmarks', () => {
+    const stdout = `TestB\nBenchmarkC\nFuzzD\nok  \t${resolver}\t0.01s\nExampleE\nTestA\nok  \t${convert}\t0.02s\n`;
+    expect(parseTestLists(stdout)).toEqual(
+      new Map([
+        [resolver, ['FuzzD', 'TestB']],
+        [convert, ['ExampleE', 'TestA']],
+      ])
+    );
   });
 
-  it('fails the check when a heavy package is gone from go list', () => {
-    const errors = coverageErrors({
-      packages: packages.filter((pkg) => pkg !== apitypes),
-      testsOf: new Map([...testsOf].slice(0, 2)),
-      count: 3,
-    });
-    expect(errors).toEqual([`${apitypes} is listed as heavy but go list no longer has it`]);
+  it('names a heavy package go list no longer has, which would otherwise run whole', () => {
+    expect(staleHeavy(packages)).toEqual([]);
+    expect(staleHeavy(packages.filter((pkg) => pkg !== apitypes))).toEqual([apitypes]);
+  });
+
+  it('finds <i>/<n> wherever it sits among the flags, and refuses one out of range', () => {
+    expect(parseShard(['--list', '2/3'])).toEqual({index: 1, count: 3});
+    for (const bad of [[], ['0/3'], ['4/3'], ['1/0'], ['x']])
+      expect(() => parseShard(bad), bad.join(' ')).toThrow(/expected <i>\/<n>/);
+  });
+
+  it('refuses an unknown flag before running anything', async () => {
+    await expect(main(['--check', '3'])).rejects.toThrow(/unknown flag --check/);
+  });
+
+  it('fails the shard when any one of its runs fails, and passes when all do', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      await expect(runShard([['a'], ['b']], '1/3', async () => 0)).resolves.toBeUndefined();
+      const oneFails = async (command: string[]) => (command[0] === 'b' ? 1 : 0);
+      await expect(runShard([['a'], ['b']], '1/3', oneFails)).rejects.toThrow(/go-shard 1\/3: a go test run failed/);
+    } finally {
+      log.mockRestore();
+    }
   });
 });

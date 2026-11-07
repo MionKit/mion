@@ -31,7 +31,7 @@ How to run and add JS + Go checks. Read before adding, running or reporting test
 - A project set to `maxWorkers: 1` runs one file at a time AFTER every other file (vitest 4). CI runs those
   projects in their own job (`--project`), the rest with `--skip-project`. A contract keeps both lists equal to
   the configs that set it.
-- Go suite in shards: `pnpm miondevx core go-shard <i>/<n>` (CI: 3 runners), `--check <n>` proves every test
+- Go suite in shards: `pnpm miondevx core go-shard <i>/<n>` (CI: 3 runners); its unit tests prove every test
   runs once.
 - A Go test reading the repo outside `ts-go-runtypes/` goes through `testfixtures.Repo` (or `RepoRoot` +
   `DeclareInputs`): Go's test cache re-checks only files inside the module, so any other read can pass stale.

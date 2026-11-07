@@ -196,10 +196,6 @@ jobs:
       - name: Converted-suites refusal count
         if: fromJSON(env.MION_LANES)['go-tools'].run
         run: pnpm miondevx core converted-suites --refusals-only
-      # go-tools reads every input of the go lane, so a test or package no shard runs fails here.
-      - name: Go shards cover the whole suite
-        if: fromJSON(env.MION_LANES)['go-tools'].run
-        run: pnpm miondevx core go-shard --check 3
       - name: Record the go-tools checks as green
         if: success() && fromJSON(env.MION_LANES)['go-tools'].run
         uses: ./.github/actions/save-lane-green
