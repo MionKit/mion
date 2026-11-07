@@ -200,9 +200,7 @@ describe('a competitor lane exits non-zero only when it did not really run', () 
     const source = read('scripts/website/bench-data/bench.mjs');
     expect(source).toContain('DID NOT RUN');
     expect(source).toContain('errored case(s)');
-    // The distinguishing signal: a round that never ran wrote no result file. The
-    // directory is resolved per RUNTIME (`runtimeResultsDir`) because the same built
-    // bundle runs under node and bun, and bun's results live in their own subdir.
+    // A round that never ran wrote no result file; the dir is per runtime, as bun's results live in their own subdir.
     expect(source).toContain('existsSync(validationRoundFile(resultsDir(lane.runtime), lane.competitor, round))');
   });
 });
@@ -236,7 +234,7 @@ describe('the default bench run is a correctness gate', () => {
     const missing = bench('--rounds');
     expect(missing.status, missing.stderr).toBe(2);
     expect(missing.stderr).toContain('bench: --rounds needs a number');
-    // past the dispatcher's stray-command check (it used to read the 0 as a command), refused by the driver
+    // The 0 must get past the dispatcher's stray-command check, to be refused by the driver.
     for (const args of [
       ['--rounds', '0'],
       ['--quick', '--rounds=2.5'],

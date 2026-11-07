@@ -81,13 +81,9 @@ export function metaFrom(rows) {
     warmup: first.rounds?.[0]?.warmup ?? null,
     // How close a lane's rounds should agree, so a reader can tell a real gap from noise; recorded, never typed.
     tolerance: first.tolerance ?? null,
-    // The line the pages used to hardcode, assembled from what actually ran. It names
-    // wrk because wrk is what ran: the upstream benchmarks repo kept printing
-    // `autocannon ...` after it switched, which is how a method line stops being true.
-    // Pipelining is not a wrk flag (the request script batches), so it is only mentioned
-    // when it is actually more than one.
-    // The thread count is dropped rather than printed as `-tundefined` when a result
-    // predates wrk: a half-regenerated dataset should say less, never say nonsense.
+    // Built from what ran: the upstream repo kept printing `autocannon ...` after it switched to wrk.
+    // Pipelining is not a wrk flag (the request script batches), so it shows only above one.
+    // No thread count on a result older than wrk: a half-regenerated dataset says less, never `-tundefined`.
     method: [
       'wrk',
       first.threads ? `-t${first.threads}` : null,

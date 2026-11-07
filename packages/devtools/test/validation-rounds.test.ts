@@ -1,4 +1,3 @@
-// The validation benchmarks in interleaved rounds (scripts/website/bench-data/validation-rounds.mjs).
 import {existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {dirname, join} from 'node:path';
