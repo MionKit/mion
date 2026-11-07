@@ -259,8 +259,7 @@ function cloneTuple(node: RunType, value: unknown[], table: RefTable): unknown[]
     const slotType = member.child ? resolve(member.child, table) : member;
     out.push(member.optional && value[i] === undefined ? undefined : cloneNode(slotType, value[i], table));
   }
-  // Absent trailing optional slots must stay absent (mirrors the emitter's
-  // trimTuple over the positional literal).
+  // Absent trailing optional slots must stay absent (mirrors the emitter's trimTuple).
   return hasOptional ? out.slice(0, value.length) : out;
 }
 

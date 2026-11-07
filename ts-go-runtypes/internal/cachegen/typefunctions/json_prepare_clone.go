@@ -544,8 +544,7 @@ func emitArrayPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v st
 	return RTCode{Code: v + ".map(function(" + elemVar + "){return " + expr + "})", Type: CodeE}
 }
 
-// emitTuplePrepareForJsonClone is a noop when every member is extra-proof; otherwise it emits a
-// tuple literal of per-position clone expressions, with a rest member as a mapped tail spread.
+// emitTuplePrepareForJsonClone emits a per-position tuple literal, with a rest member as a mapped tail spread.
 func emitTuplePrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if len(rt.Children) == 0 {
 		return RTCode{Code: "", Type: CodeS}
@@ -571,8 +570,7 @@ func emitTuplePrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v st
 			parts = append(parts, "null")
 			continue
 		}
-		// Function-typed slots fall through to safeChildExpr and latch as unsupported: a `null`
-		// placeholder would produce a lossy clone for a structural position.
+		// Function-typed slots latch as unsupported: a `null` placeholder would be a lossy clone of a structural position.
 		if isRestTupleMember(resolved) {
 			elemVar := ctx.NextLocalVar("e")
 			expr, ok := safeChildExpr(resolved.Child, elemVar, ctx)
@@ -591,8 +589,7 @@ func emitTuplePrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v st
 		}
 		if resolved.Optional {
 			hasOptional = true
-			// Replace an `undefined` slot with `null` so the JSON form keeps the slot, the tuple
-			// semantic for an optional at a non-trailing position.
+			// `null` keeps a non-trailing optional's slot in the JSON form.
 			expr = "(" + accessor + " === undefined ? null : " + expr + ")"
 		}
 		parts = append(parts, expr)
@@ -611,7 +608,7 @@ func emitTuplePrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v st
 	return RTCode{Code: tuple, Type: CodeE}
 }
 
-// trimTupleFn hoists the tail trim into the closure prologue once. `pop` allocates nothing: a `.slice` copied every tuple.
+// trimTupleFn hoists the tail trim once. `pop` allocates nothing: a `.slice` would copy every tuple.
 func trimTupleFn(ctx *EmitContext) string {
 	const name = "trimTuple"
 	if !ctx.HasContextItem(name) {

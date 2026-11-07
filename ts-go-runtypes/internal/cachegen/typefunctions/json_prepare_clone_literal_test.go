@@ -134,7 +134,7 @@ func TestPrepareForJsonClone_BigintLiteralShapes(t *testing.T) {
 	}
 }
 
-// A tuple with an optional slot encodes on every call: its trim must not copy the literal.
+// The trim runs on every encode, so it must not copy the literal.
 func TestPrepareForJsonClone_OptionalTupleTrimsInPlace(t *testing.T) {
 	got := compileSafeLiteral(t, "tupOpt")
 	if !strings.Contains(got, "return trimTuple([v[0].toString(),(v[1] === undefined ? null : v[1].toString())],v.length)") {
