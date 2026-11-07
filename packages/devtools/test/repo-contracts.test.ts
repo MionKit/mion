@@ -1937,8 +1937,8 @@ describe('mion server benchmarks stay wired end to end', () => {
     expect(driver).not.toContain('MION_APPS');
     // Both sweeps (the standalone `sweep` command and the website subset) run every size.
     expect(driver).toContain('SWEEP_SIZES.map((size) => ({key:');
-    expect(driver).toContain('runLanes(cfg, apps, sweepLanes())');
-    expect(driver).toContain('runLanes(cfg, APPS, [...suiteLanes(), ...sweepLanes()])');
+    expect(driver).toContain('runLanes(apps, sweepLanes(), roundRunner(cfg))');
+    expect(driver).toContain('runLanes(APPS, [...suiteLanes(), ...sweepLanes()], roundRunner(cfg))');
     const page = readFileSync(join(MION_CONTENT, '03.benchmarks/02.rpc/04.payload-sizes.md'), 'utf8');
     expect(page, 'the page still claims only mion runs').not.toMatch(/Only the mion adapters/);
   });

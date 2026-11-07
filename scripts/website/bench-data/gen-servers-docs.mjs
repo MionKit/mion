@@ -63,7 +63,7 @@ export const toRow = (result) => ({
  * The run metadata every page prints. Taken from the results themselves (each lane
  * records the box it ran on), so it cannot describe a different run than the numbers.
  */
-function metaFrom(rows) {
+export function metaFrom(rows) {
   const first = rows[0];
   if (!first) return null;
   return {

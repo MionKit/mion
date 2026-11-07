@@ -122,7 +122,7 @@ export const REGISTRY = [
   {name: 'MION_BENCH_USE_LOCAL', scope: 'dev', task: '-', desc: 'Build the mion-bench image locally instead of pulling it from GHCR'},
   {name: 'MION_BENCH_QUICK', scope: 'dev', task: '-', desc: 'One short round per lane for a dev loop. The numbers are noisy and must never be published'},
   {name: 'MION_BENCH_ROUNDS', scope: 'dev', task: '-', desc: 'Interleaved rounds per lane; the median is published (default 4, 3 on the ~4 MB payload)'},
-  {name: 'MION_BENCH_DURATION', scope: 'dev', task: '-', desc: 'Seconds of measured load per round, for every lane (default 5; longer on the ~500 KB and ~4 MB payloads)'},
+  {name: 'MION_BENCH_DURATION', scope: 'dev', task: '-', desc: 'Seconds of measured load per round, for every lane (default 5, 10 on the ~4 MB payload); gcprobe windows too (default 20)'},
   {name: 'MION_BENCH_WARMUP', scope: 'dev', task: '-', desc: 'Seconds of warm-up load before the first round, so JIT warm-up never lands in the numbers (default 5)'},
   {name: 'MION_BENCH_REWARMUP', scope: 'dev', task: '-', desc: 'Seconds of warm-up load before every later round; each round restarts the server (default 2)'},
   {name: 'MION_BENCH_CONNECTIONS', scope: 'dev', task: '-', desc: 'Concurrent connections wrk opens (default 100)'},

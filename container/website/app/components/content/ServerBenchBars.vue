@@ -113,10 +113,13 @@ const meta = computed(() => section.value?.meta ?? index.value?.meta);
 const machine = computed(() => [meta.value?.cpu, meta.value?.os, meta.value?.cores ? `${meta.value.cores} vCPUs` : null].filter(Boolean).join(' | '));
 const runDate = computed(() => (meta.value?.generatedAt ? new Date(meta.value.generatedAt).toUTCString() : ''));
 const roundsText = computed(() => {
-  const m = meta.value;
-  if (!m?.rounds || m.rounds < 2) return 'a warm-up, then the measured window';
-  const warm = m.rewarmup ? `${m.warmup}s warm-up before the first, ${m.rewarmup}s before the others` : `${m.warmup}s warm-up before each`;
-  return `${m.rounds} rounds of ${m.duration}s, each app taking its turn per round, ${warm}. The bars show the median of each app's rounds`;
+  const runMeta = meta.value;
+  if (!runMeta?.rounds || runMeta.rounds < 2) return 'a warm-up, then the measured window';
+  const warm =
+    typeof runMeta.rewarmup === 'number' && runMeta.rewarmup !== runMeta.warmup
+      ? `${runMeta.warmup}s warm-up before the first, ${runMeta.rewarmup}s before the others`
+      : `${runMeta.warmup}s warm-up before each`;
+  return `${runMeta.rounds} rounds of ${runMeta.duration}s, each app taking its turn per round, ${warm}. The bars show the median of each app's rounds`;
 });
 const caption = computed(() => {
   const what = section.value?.label ?? index.value?.label ?? props.bench;

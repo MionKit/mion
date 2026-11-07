@@ -27,7 +27,7 @@ import {capture, die, hostGoArch, note, reportCliError, run, which} from '../../
 import {APP_NAMES, APPS, findApp} from '../../../container/mion-bench/shared/apps.mjs';
 import {SUITE_KEYS} from '../../../container/mion-bench/shared/suites.mjs';
 import {SWEEP_SIZES as SWEEP_SIZE_DEFS} from '../../../container/mion-bench/shared/payloads.mjs';
-import {laneDir, mergeRounds, planFor, roundFile, schedule, warmupFor} from '../../../container/mion-bench/shared/rounds.mjs';
+import {DEFAULT_WARMUP, laneDir, mergeRounds, planFor, roundFile, schedule, warmupFor} from '../../../container/mion-bench/shared/rounds.mjs';
 
 const BENCH_DIR = join(REPO_ROOT, 'container/mion-bench');
 const RESULTS_DIR = join(BENCH_DIR, 'results');
@@ -51,13 +51,22 @@ const tolerance = () => Number(process.env.MION_BENCH_TOLERANCE || 10);
 
 /** The round plan for one lane, with every MION_BENCH_* knob the user set taking precedence. */
 export function lanePlan(sizeKey, env = process.env) {
-  const knob = (name) => (env[name] ? Number(env[name]) : undefined);
-  return planFor(sizeKey, {
+  const knob = (name) => {
+    if (!env[name]) return undefined;
+    const value = Number(env[name]);
+    if (!Number.isFinite(value)) throw new Error(`mion-bench: ${name} must be a number, got '${env[name]}'`);
+    return value;
+  };
+  const plan = planFor(sizeKey, {
     rounds: knob('MION_BENCH_ROUNDS'),
     seconds: knob('MION_BENCH_DURATION'),
     warmup: knob('MION_BENCH_WARMUP'),
     rewarmup: knob('MION_BENCH_REWARMUP'),
   });
+  // Zero or a fraction would schedule no final round: nothing merged, nothing failed, an empty site.
+  if (!Number.isInteger(plan.rounds) || plan.rounds < 1) throw new Error(`mion-bench: rounds must be a whole number of 1 or more, got '${env.MION_BENCH_ROUNDS}'`);
+  if (!(plan.seconds > 0)) throw new Error(`mion-bench: MION_BENCH_DURATION must be above 0, got '${env.MION_BENCH_DURATION}'`);
+  return plan;
 }
 
 // Mounted into a mion lane's node_modules: the app declares no runtime dependency, so these are the live source.
@@ -225,6 +234,8 @@ function buildMionApp(cfg) {
 
 const needsMionBuild = (apps) => apps.some((app) => app.family === 'mion');
 
+const roundRunner = (cfg) => ({runRound: (app, lane, round) => runRound(cfg, app, lane, round)});
+
 function runRound(cfg, app, lane, round) {
   const target = lane.size ? ['--size', lane.size] : ['--suite', lane.suite];
   const timing = ['--round', String(round), '--warmup', String(warmupFor(lane.plan, round)), '--duration', String(lane.plan.seconds)];
@@ -240,15 +251,16 @@ const sweepLanes = () => SWEEP_SIZES.map((size) => ({key: `payload-sizes/${size}
  * failed `<app>/<lane>` names. A failed round drops that app's lane: its later rounds are
  * skipped and no record is left for the site to publish.
  */
-function runLanes(cfg, apps, lanes) {
+export function runLanes(apps, lanes, {runRound, resultsDir = RESULTS_DIR}) {
   const failed = new Set();
   const wide = [];
   const limit = tolerance();
   const id = (app, lane) => `${app.name}/${lane.size ?? lane.suite}`;
+  // Only the round files go up front. A merged record stays until its lane fails or is
+  // replaced, so an aborted run leaves the previous results whole.
   for (const lane of lanes) {
-    const dir = laneDir(RESULTS_DIR, lane);
+    const dir = laneDir(resultsDir, lane);
     for (const app of apps) {
-      rmSync(join(dir, `${app.name}.json`), {force: true});
       for (let round = 1; round <= lane.plan.rounds; round++) rmSync(roundFile(dir, app.name, round), {force: true});
     }
   }
@@ -256,12 +268,13 @@ function runLanes(cfg, apps, lanes) {
   for (const {round, lane, app, last} of schedule(lanes, apps)) {
     if (failed.has(id(app, lane))) continue;
     note(`round ${round}/${lane.plan.rounds} · ${lane.key} · ${app.name}`);
-    if (!runRound(cfg, app, lane, round)) {
+    const dir = laneDir(resultsDir, lane);
+    if (!runRound(app, lane, round)) {
       failed.add(id(app, lane));
+      rmSync(join(dir, `${app.name}.json`), {force: true});
       continue;
     }
     if (!last) continue;
-    const dir = laneDir(RESULTS_DIR, lane);
     const rounds = Array.from({length: lane.plan.rounds}, (_, i) => JSON.parse(readFileSync(roundFile(dir, app.name, i + 1), 'utf8')));
     const record = mergeRounds(rounds, {tolerance: limit});
     writeFileSync(join(dir, `${app.name}.json`), `${JSON.stringify(record, null, 2)}\n`);
@@ -281,7 +294,7 @@ function cmdServers(cfg, only) {
   if (only && !apps[0]) die(`mion-bench: unknown app '${only}'. Try one of: ${APP_NAMES.join(', ')}`);
   if (needsMionBuild(apps)) buildMionApp(cfg);
 
-  const failed = runLanes(cfg, apps, suiteLanes());
+  const failed = runLanes(apps, suiteLanes(), roundRunner(cfg));
   aggregate(cfg);
   genDocs();
   if (failed.length > 0) die(`mion-bench: ${failed.length} lane(s) failed: ${failed.join(', ')} - see the output above`);
@@ -291,7 +304,7 @@ function cmdSuite(cfg, suite) {
   if (!SUITE_KEYS.includes(suite)) die(`mion-bench: unknown suite '${suite}'. Try one of: ${SUITE_KEYS.join(', ')}`);
   ensurePrereqs(cfg);
   buildMionApp(cfg);
-  const failed = runLanes(cfg, APPS, suiteLanes().filter((lane) => lane.suite === suite));
+  const failed = runLanes(APPS, suiteLanes().filter((lane) => lane.suite === suite), roundRunner(cfg));
   aggregate(cfg);
   genDocs();
   if (failed.length > 0) die(`mion-bench: ${failed.length} lane(s) failed: ${failed.join(', ')}`);
@@ -307,7 +320,7 @@ function cmdSweep(cfg, only) {
   // `sweep <app>` runs the sizes for one lane, the way `one <app>` runs the suites for one
   const apps = only ? [findApp(only)] : APPS;
   if (only && !apps[0]) die(`mion-bench: unknown app '${only}'. Try one of: ${APP_NAMES.join(', ')}`);
-  const failed = runLanes(cfg, apps, sweepLanes());
+  const failed = runLanes(apps, sweepLanes(), roundRunner(cfg));
   aggregate(cfg);
   genDocs();
   if (failed.length > 0) die(`mion-bench: ${failed.length} sweep lane(s) failed: ${failed.join(', ')}`);
@@ -328,7 +341,7 @@ function cmdRepeat(cfg, appName, suiteArg) {
   ensurePrereqs(cfg);
   if (app.family === 'mion') buildMionApp(cfg);
 
-  if (runLanes(cfg, [app], [lane]).length > 0) die(`mion-bench: ${app.name}/${suite} failed - see the output above`);
+  if (runLanes([app], [lane], roundRunner(cfg)).length > 0) die(`mion-bench: ${app.name}/${suite} failed - see the output above`);
   const record = JSON.parse(readFileSync(join(laneDir(RESULTS_DIR, lane), `${app.name}.json`), 'utf8'));
   const seen = record.rounds.map((entry) => entry.requests);
   console.log(
@@ -365,7 +378,7 @@ function genDocs() {
 function cmdWebsite(cfg) {
   ensurePrereqs(cfg);
   buildMionApp(cfg);
-  const failed = runLanes(cfg, APPS, [...suiteLanes(), ...sweepLanes()]);
+  const failed = runLanes(APPS, [...suiteLanes(), ...sweepLanes()], roundRunner(cfg));
   aggregate(cfg);
   genDocs();
   if (failed.length > 0) die(`mion-bench: ${failed.length} lane(s) failed: ${failed.join(', ')} - the pages for them would render an empty column`);
@@ -414,7 +427,7 @@ const GCPROBE_SECONDS = 20;
 
 function gcProbeRun(cfg, app, size, label, round) {
   const seconds = process.env.MION_BENCH_DURATION || String(GCPROBE_SECONDS);
-  const warmup = process.env.MION_BENCH_WARMUP || String(planFor(size).warmup);
+  const warmup = process.env.MION_BENCH_WARMUP || String(DEFAULT_WARMUP);
   const timing = ['--round', String(round), '--warmup', warmup, '--duration', seconds];
   const args = ['node', 'harness/run.mjs', '--app', app.name, '--size', size, '--gc', '1', ...timing];
   if (runInContainer(cfg, app, args) !== 0) return null;
