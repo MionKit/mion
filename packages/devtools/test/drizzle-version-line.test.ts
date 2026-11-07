@@ -8,7 +8,7 @@
 //
 // Lives in this package for the same reason as release-receipt.test.ts: scripts/
 // has no vitest project of its own.
-import {execFileSync} from 'node:child_process';
+import {execFileSync, spawnSync} from 'node:child_process';
 import {existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {dirname, join} from 'node:path';
@@ -296,9 +296,27 @@ describe('drizzle line — the tree itself', () => {
     }
   });
 
-  it('passes the CI gate, which runs the dialect core peer check on the tree', () => {
-    const out = execFileSync('node', [join(REPO_ROOT, 'scripts/release/check-drizzle-versions.mjs')], {encoding: 'utf8'});
-    expect(out).toContain('check-drizzle-versions: OK');
+  it('fails the CI gate on a tree whose dialect pins its core peer', () => {
+    const root = scratch('drizzle-gate-');
+    const copy = (relPath: string) => write(root, relPath, readFileSync(join(REPO_ROOT, relPath), 'utf8'));
+    copy('drizzle-dialects.json');
+    copy('version.json');
+    copy('node_modules/drizzle-orm/package.json');
+    const installed = JSON.parse(readFileSync(join(root, 'node_modules/drizzle-orm/package.json'), 'utf8')).version;
+    for (const row of readDialectPackages(REPO_ROOT)) {
+      const pkg =
+        row.dialect === 'pg'
+          ? {...row.pkg, peerDependencies: {...row.pkg.peerDependencies, '@mionjs/drizzle-orm': '0.45.2'}}
+          : row.pkg;
+      write(root, `${row.packageDir}/package.json`, JSON.stringify(pkg));
+      write(root, `${row.packageDir}/${row.manifest}`, JSON.stringify({drizzleOrm: installed}));
+    }
+    const gate = spawnSync('node', [join(REPO_ROOT, 'scripts/release/check-drizzle-versions.mjs'), '--root', root], {
+      encoding: 'utf8',
+    });
+    expect(gate.status).toBe(1);
+    expect(gate.stderr).toContain('@mionjs/drizzle-orm-pg-core: @mionjs/drizzle-orm peer must be');
+    expect(gate.stderr.match(/^  - /gm)).toHaveLength(1);
   });
 });
 

@@ -18,6 +18,8 @@
 // changes (and so are due a patch bump at the next release cut). It never fails
 // on them: carrying unreleased changes is the normal state of `main` between
 // releases, and bump-version.mjs is what stamps the patch.
+//
+// `--root <dir>` checks another tree instead of this repo (tests run it on a fixture).
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -26,12 +28,14 @@ import {corePeerProblems, installedDrizzleVersion, lockstepVersion, peerRangeFor
 const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
 
 function main() {
-  const reportChanges = process.argv.slice(2).includes('--changes');
-  const rows = readDialectPackages(REPO_ROOT);
-  const installed = installedDrizzleVersion(REPO_ROOT);
+  const args = process.argv.slice(2);
+  const reportChanges = args.includes('--changes');
+  const repoRoot = args.includes('--root') ? path.resolve(args[args.indexOf('--root') + 1]) : REPO_ROOT;
+  const rows = readDialectPackages(repoRoot);
+  const installed = installedDrizzleVersion(repoRoot);
   const [major, minor] = installed.split('.').map(Number);
   const expectedPeerRange = peerRangeFor(installed);
-  const expectedCoreRange = peerRangeFor(lockstepVersion(REPO_ROOT));
+  const expectedCoreRange = peerRangeFor(lockstepVersion(repoRoot));
   const corePkg = rows.find((row) => row.dialect === 'root').pkg;
   const problems = [];
 
@@ -61,7 +65,7 @@ function main() {
     }
     // A versionless core is already reported by the root row's version check above.
     if (row.dialect !== 'root' && corePkg.version) problems.push(...corePeerProblems(pkg, corePkg.version, label));
-    const manifestFile = path.join(REPO_ROOT, row.packageDir, row.manifest);
+    const manifestFile = path.join(repoRoot, row.packageDir, row.manifest);
     const manifest = readJson(manifestFile);
     if (manifest.drizzleOrm !== installed) {
       problems.push(`${row.packageDir}/${row.manifest}: drizzleOrm is ${manifest.drizzleOrm}, installed is ${installed} — regenerate (pnpm miondevx core drizzle-manifest)`);
@@ -79,7 +83,7 @@ function main() {
   // Only what changed in the tree. A lockstep MINOR bump ALSO moves their
   // @mionjs/run-types peer range, and bump-version.mjs republishes all three for it.
   for (const row of rows) {
-    const changes = unreleasedChanges(REPO_ROOT, row.packageDir);
+    const changes = unreleasedChanges(repoRoot, row.packageDir);
     if (!changes.known) {
       console.log(`  ${row.pkg.name}: unreleased changes unknown (shallow clone — needs full history)`);
       continue;
