@@ -1,7 +1,5 @@
-// The release bump (scripts/release/bump-version.mjs) stamps every manifest
-// lockstepManifestFiles lists. A workspace folder it misses drifts silently, as
-// tools/code-card once did. The repo-wide drift sweep runs from check-tree.mjs;
-// this unit-tests its rules. Lives here because scripts/ has no vitest project.
+// Unit-tests the manifest list that bump-version.mjs stamps and the check-tree.mjs drift sweep checks;
+// a folder it misses drifts silently. Lives here because scripts/ has no vitest project.
 import {mkdirSync, mkdtempSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {dirname, join, relative} from 'node:path';
@@ -21,8 +19,6 @@ function write(root: string, relPath: string, body: string) {
   writeFileSync(join(root, relPath), body);
 }
 
-// Root + packages/a on 1.0.0, a drizzle-line package on its own version, a
-// private tool still on 0.9.0, and a manifest outside the workspace.
 function makeRepo(): string {
   const root = mkdtempSync(join(tmpdir(), 'rt-lockstep-'));
   dirs.push(root);
