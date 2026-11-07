@@ -20,7 +20,17 @@ function jobCondition(job: string): string | undefined {
 }
 
 // Every job that sets up a runner for real work; the `*-green` record jobs follow from them.
-const HEAVY = ['go-checks', 'go-suite', 'js-fuzz-sweep', 'js-fuzz-timeboxed', 'js-static', 'js-suite', 'js-serial', 'smoke'];
+const HEAVY = [
+  'go-build',
+  'go-checks',
+  'go-suite',
+  'js-fuzz-sweep',
+  'js-fuzz-timeboxed',
+  'js-static',
+  'js-suite',
+  'js-serial',
+  'smoke',
+];
 
 describe('the skip-defaults label', () => {
   it('takes effect when added or removed, not only on the next push', () => {

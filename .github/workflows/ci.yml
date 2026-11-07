@@ -48,8 +48,8 @@ name: ci
 # minus the one-worker projects), js-serial (exactly those projects), and the
 # build-gate, contract and link tests their own steps run — are a complete,
 # DISJOINT partition of the JS suite, so no test is dropped or double-run.
-# Each job runs the `resolver` action: a job that only runs the binaries sets up no
-# Go, and a miss rebuilds fast on the tsgolint-keyed Go build cache.
+# `go-build` builds the Go binaries once, on a miss, and every heavy job waits for it, then restores them through
+# the same `resolver` action: a job that only runs the binaries sets up no Go.
 #
 # `smoke` runs the website serves-a-page + benchmark
 # competitor-build checks. It is content-gated (only when container inputs change,
@@ -127,11 +127,28 @@ jobs:
       - name: Whole-tree sweeps (see SWEEPS in scripts/ci/check-tree.mjs)
         run: node scripts/ci/check-tree.mjs
 
+  # ── go-build: the Go binaries, built once for every heavy job ─────────────
+  # Each heavy job restores them from the cache this job fills, so a Go change builds them on one runner, not on every
+  # one. Node is all the cache key and the build script need, so it installs no packages.
+  go-build:
+    name: build the Go binaries
+    needs: lanes
+    if: ${{ !cancelled() && needs.lanes.result == 'success' && (fromJSON(needs.lanes.outputs.lanes).go.run || fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].run || fromJSON(needs.lanes.outputs.lanes)['go-tools'].run || fromJSON(needs.lanes.outputs.lanes)['go-static'].run || fromJSON(needs.lanes.outputs.lanes).js.run || fromJSON(needs.lanes.outputs.lanes)['js-static'].run || fromJSON(needs.lanes.outputs.lanes).smoke.run) && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+          # No install here, so no pnpm store to locate.
+          package-manager-cache: false
+      - uses: ./.github/actions/resolver
+
   # ── go-checks: gofmt, vet and the JS checks that need Go ───────────────────
   go-checks:
     name: go checks
-    needs: lanes
-    if: ${{ !cancelled() && needs.lanes.result == 'success' && (fromJSON(needs.lanes.outputs.lanes)['go-static'].run || fromJSON(needs.lanes.outputs.lanes)['go-tools'].run) && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults') }}
+    needs: [lanes, go-build]
+    if: ${{ !cancelled() && needs.lanes.result == 'success' && (fromJSON(needs.lanes.outputs.lanes)['go-static'].run || fromJSON(needs.lanes.outputs.lanes)['go-tools'].run) && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults') && needs.go-build.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -223,8 +240,8 @@ jobs:
   # The slow Go packages run their tests one at a time, so a shard takes a third of each (scripts/ci/go-shard.mjs).
   go-suite:
     name: go suite (${{ matrix.shard }})
-    needs: [lanes, go-suite-wait]
-    if: ${{ !cancelled() && needs.lanes.result == 'success' && fromJSON(needs.go-suite-wait.outputs.lanes || needs.lanes.outputs.lanes).go.run && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults') }}
+    needs: [lanes, go-suite-wait, go-build]
+    if: ${{ !cancelled() && needs.lanes.result == 'success' && fromJSON(needs.go-suite-wait.outputs.lanes || needs.lanes.outputs.lanes).go.run && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults') && needs.go-build.result == 'success' }}
     strategy:
       # A red shard never cancels the others: each one that passes keeps its marker.
       fail-fast: false
@@ -274,8 +291,8 @@ jobs:
   # clock), plus the fuzz-adjacent regression/smoke/unit tests in the same tree, plus the race lane.
   js-fuzz-sweep:
     name: js fuzz sweep
-    needs: lanes
-    if: ${{ !cancelled() && needs.lanes.result == 'success' && (fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].run && contains(fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].runItems, 'sweep')) && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults') }}
+    needs: [lanes, go-build]
+    if: ${{ !cancelled() && needs.lanes.result == 'success' && (fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].run && contains(fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].runItems, 'sweep')) && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults') && needs.go-build.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -331,8 +348,8 @@ jobs:
   # scripts/miondevx.mjs). 10s of fuzzing each (60s at release); one call pays vitest's startup once.
   js-fuzz-timeboxed:
     name: js fuzz time-boxed
-    needs: lanes
-    if: ${{ !cancelled() && needs.lanes.result == 'success' && (fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].run && contains(fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].runItems, 'timeboxed')) && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults') }}
+    needs: [lanes, go-build]
+    if: ${{ !cancelled() && needs.lanes.result == 'success' && (fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].run && contains(fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].runItems, 'timeboxed')) && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults') && needs.go-build.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -383,8 +400,8 @@ jobs:
   # ── js-static: format, lint, typecheck, the docs checks and the contract tests ─
   js-static:
     name: js lint
-    needs: lanes
-    if: ${{ !cancelled() && needs.lanes.result == 'success' && (fromJSON(needs.lanes.outputs.lanes)['js-static'].run) && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults') }}
+    needs: [lanes, go-build]
+    if: ${{ !cancelled() && needs.lanes.result == 'success' && (fromJSON(needs.lanes.outputs.lanes)['js-static'].run) && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults') && needs.go-build.result == 'success' }}
     permissions:
       contents: read
       # the wait step reads the markers and the older run's jobs
@@ -471,8 +488,8 @@ jobs:
   # (they share a generated dir and race on it in parallel) run beside the suite in js-serial instead.
   js-suite:
     name: js suite
-    needs: lanes
-    if: ${{ !cancelled() && needs.lanes.result == 'success' && (fromJSON(needs.lanes.outputs.lanes).js.run) && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults') }}
+    needs: [lanes, go-build]
+    if: ${{ !cancelled() && needs.lanes.result == 'success' && (fromJSON(needs.lanes.outputs.lanes).js.run) && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults') && needs.go-build.result == 'success' }}
     permissions:
       contents: read
       # the wait step reads the markers and the older run's jobs
@@ -558,8 +575,8 @@ jobs:
   # The projects js-suite skips, one file at a time, with a passed list of their own.
   js-serial:
     name: js suite (one worker)
-    needs: lanes
-    if: ${{ !cancelled() && needs.lanes.result == 'success' && (fromJSON(needs.lanes.outputs.lanes).js.run) && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults') }}
+    needs: [lanes, go-build]
+    if: ${{ !cancelled() && needs.lanes.result == 'success' && (fromJSON(needs.lanes.outputs.lanes).js.run) && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults') && needs.go-build.result == 'success' }}
     permissions:
       contents: read
       # the wait step reads the markers and the older run's jobs
@@ -692,8 +709,8 @@ jobs:
   # the prebuilt shared image (CI never builds it).
   smoke:
     name: container smoke
-    needs: [lanes, smoke-wait]
-    if: ${{ !cancelled() && needs.lanes.result == 'success' && fromJSON(needs.smoke-wait.outputs.lanes || needs.lanes.outputs.lanes).smoke.run && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults') }}
+    needs: [lanes, smoke-wait, go-build]
+    if: ${{ !cancelled() && needs.lanes.result == 'success' && fromJSON(needs.smoke-wait.outputs.lanes || needs.lanes.outputs.lanes).smoke.run && !contains(fromJSON(needs.lanes.outputs.labels), 'skip-defaults') && needs.go-build.result == 'success' }}
     runs-on: ubuntu-latest
     env:
       MION_LANES: ${{ needs.smoke-wait.outputs.lanes || needs.lanes.outputs.lanes }}

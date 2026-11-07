@@ -684,6 +684,31 @@ const jobOf = (workflow: string, name: string): string => {
   return next === -1 ? workflow.slice(start) : workflow.slice(start, start + 1 + next);
 };
 
+// A Go change builds the binaries on one runner: every job that restores them starts after go-build, never beside it.
+describe('the Go binaries are built once per run', () => {
+  const ci = read('.github/workflows/ci.yml');
+  const restorers = [...ci.matchAll(/^ {2}([\w-]+):\n/gm)]
+    .map((match) => match[1])
+    .filter((job) => job !== 'go-build' && jobOf(ci, job).includes('uses: ./.github/actions/resolver'));
+
+  it('runs every job that restores the binaries after go-build, and only once it passed', () => {
+    expect(restorers.length).toBeGreaterThan(5);
+    for (const job of restorers) {
+      const body = jobOf(ci, job);
+      expect(/^ {4}needs: \[(.+)\]$/m.exec(body)?.[1].split(', '), job).toContain('go-build');
+      expect(/^ {4}if: (.+)$/m.exec(body)?.[1], job).toContain("needs.go-build.result == 'success'");
+    }
+  });
+
+  it('starts go-build whenever any of those jobs can run, installing nothing but Node', () => {
+    const build = jobOf(ci, 'go-build');
+    for (const lane of WORKFLOWS['ci.yml'])
+      expect(build, lane).toContain(`fromJSON(needs.lanes.outputs.lanes)${lane.includes('-') ? `['${lane}']` : `.${lane}`}.run`);
+    expect(build).toContain('uses: ./.github/actions/resolver');
+    expect(build).not.toContain('./.github/actions/bootstrap');
+  });
+});
+
 // Fails silently both ways (scripts/ci/supersede.mjs): GitHub's per-ref cancel back on throws the older run's work
 // away, and a heavy job that skips its `-wait` job repeats it.
 describe('a new commit cancels only what it changed', () => {
@@ -794,7 +819,7 @@ describe('a new commit cancels only what it changed', () => {
       it(`${job} starts from the gate alone, with no waiter job, and may read the actions`, () => {
         const heavy = jobOf(ci, job);
         expect(ci).not.toContain(`  ${job}-wait:`);
-        expect(heavy).toContain('    needs: lanes\n');
+        expect(heavy).toContain('    needs: [lanes, go-build]\n');
         expect(heavy).toContain('      actions: read\n');
         expect(heavy).toContain('      MION_LANES: ${{ needs.lanes.outputs.lanes }}\n');
         expect(heavy).toMatch(/uses: actions\/checkout@v5\n\s+with:\n(\s+#.*\n)?\s+fetch-depth: 2\n/);
@@ -1207,9 +1232,9 @@ describe('label gates read the live labels, never the event payload', () => {
         );
       }
     }
-    // website, bench, pre-publish-build, go-checks, go-suite, js-fuzz-sweep, js-fuzz-timeboxed, js-static, js-suite,
-    // js-serial, smoke, decide.
-    expect(checked).toBe(12);
+    // website, bench, pre-publish-build, go-build, go-checks, go-suite, js-fuzz-sweep, js-fuzz-timeboxed, js-static,
+    // js-suite, js-serial, smoke, decide.
+    expect(checked).toBe(13);
   });
 
   it('drizzle-e2e decides on its own label', () => {
