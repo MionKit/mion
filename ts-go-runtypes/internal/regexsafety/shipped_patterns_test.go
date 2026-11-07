@@ -5,13 +5,15 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
 // The patterns the framework itself ships are the check's real
 // acceptance bar: they are dense, they nest quantifiers, and they are
 // fine. A check that fails any of them is too blunt to turn on.
 func TestShippedFormatPatternsPass(t *testing.T) {
-	root := filepath.Join("..", "..", "..", "packages", "run-types", "src", "formats")
+	root := testfixtures.Repo("packages/run-types/src/formats")
 	if _, err := os.Stat(root); err != nil {
 		t.Skipf("format sources not available: %v", err)
 	}

@@ -124,19 +124,17 @@ describe('the lane table', () => {
     }
   });
 
-  it('feeds the packages the Go suites mount as node_modules into the go lane', () => {
-    const fixtures =
-      read('ts-go-runtypes/internal/testfixtures/realmarker.go') + read('ts-go-runtypes/internal/testfixtures/realdrizzle.go');
-    const mounted = [...fixtures.matchAll(/filepath\.Join\(repoRoot, "packages", "([\w-]+)"\)/g)].map(
-      (match) => `packages/${match[1]}/`
-    );
-    expect(mounted.length).toBeGreaterThan(2);
-    for (const pkg of new Set(mounted)) {
+  // Every repo path a Go test reads goes through testfixtures.RepoLinks (pinned by its own Go test).
+  it('feeds every repo path the Go suites read into the go lane', () => {
+    const links =
+      /var RepoLinks = \[\]string\{\n([\s\S]*?)\n\}/.exec(read('ts-go-runtypes/internal/testfixtures/repo.go'))?.[1] ?? '';
+    const linked = [...links.matchAll(/"([^"]+)"/g)].map((match) => match[1]);
+    expect(linked).toEqual(expect.arrayContaining(['packages/run-types', 'packages/core', 'version.json']));
+    for (const path of linked)
       expect(
-        LANES.go.paths.some((fed: string) => pkg.startsWith(fed)),
-        `${pkg} is compiled by the Go suites but feeds no go lane path`
+        matches(`${path}${path.includes('.') ? '' : '/'}`, LANES.go.paths),
+        `${path} is read by the Go suites but feeds no go lane path`
       ).toBe(true);
-    }
   });
 
   it('gives each lane its own hash unless the two read the same inputs', () => {
