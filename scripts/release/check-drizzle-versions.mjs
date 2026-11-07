@@ -60,7 +60,8 @@ function main() {
     if (pkg.dependencies?.['@mionjs/run-types']) {
       problems.push(`${label}: @mionjs/run-types must be a peerDependency (+ a workspace devDependency), never a dependency`);
     }
-    if (row.dialect !== 'root') problems.push(...corePeerProblems(pkg, corePkg.version));
+    // A core with no version is already reported above, by the root row's own version check.
+    if (row.dialect !== 'root' && corePkg.version) problems.push(...corePeerProblems(pkg, corePkg.version, label));
     const manifestFile = path.join(REPO_ROOT, row.packageDir, row.manifest);
     const manifest = readJson(manifestFile);
     if (manifest.drizzleOrm !== installed) {
