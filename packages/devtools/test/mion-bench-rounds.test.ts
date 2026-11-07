@@ -6,18 +6,9 @@ import {dirname, join} from 'node:path';
 import {afterEach, describe, expect, it} from 'vitest';
 // Plain ESM dev scripts, no types: one directive per import line.
 // @ts-expect-error untyped .mjs
-import {
-  DEFAULT_PLAN,
-  SIZE_PLANS,
-  median,
-  mergeRounds,
-  planFor,
-  roundFile,
-  roundOrder,
-  schedule,
-  spreadPct,
-  warmupFor,
-} from '../../../container/mion-bench/shared/rounds.mjs';
+import * as rounds from '../../../container/mion-bench/shared/rounds.mjs';
+
+const {DEFAULT_PLAN, SIZE_PLANS, median, mergeRounds, planFor, roundFile, roundOrder, schedule, spreadPct, warmupFor} = rounds;
 // @ts-expect-error untyped .mjs
 import {lanePlan, quickEnv, runLanes} from '../../../scripts/website/bench-data/mion-bench.mjs';
 // @ts-expect-error untyped .mjs
@@ -292,7 +283,7 @@ describe('the site dataset from merged rounds', () => {
   });
 
   it('carries the rounds and spread the bars and the deploy gate read', () => {
-    const rows = [lane('mion'), lane('hono')].map(toRow);
+    const rows: {rounds: number[]; spread: number}[] = [lane('mion'), lane('hono')].map(toRow);
     expect(rows[0].rounds).toEqual([100, 104, 96, 102]);
     expect(rows[0].spread).toBeCloseTo(7.69, 1);
     const meta = metaFrom([lane('mion')]);
