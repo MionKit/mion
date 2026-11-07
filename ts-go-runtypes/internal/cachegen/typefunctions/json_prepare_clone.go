@@ -606,9 +606,18 @@ func emitTuplePrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v st
 	tuple := "[" + strings.Join(parts, ",") + "]"
 	if hasOptional {
 		// A short tuple stays short: the literal holds every declared slot.
-		tuple += ".slice(0, " + v + ".length)"
+		tuple = trimTupleFn(ctx) + "(" + tuple + "," + v + ".length)"
 	}
 	return RTCode{Code: tuple, Type: CodeE}
+}
+
+// trimTupleFn hoists the tail trim into the closure prologue once. `pop` allocates nothing: a `.slice` copied every tuple.
+func trimTupleFn(ctx *EmitContext) string {
+	const name = "trimTuple"
+	if !ctx.HasContextItem(name) {
+		ctx.SetContextItem(name, "const "+name+" = function(tuple,length){while(tuple.length>length)tuple.pop();return tuple}")
+	}
+	return name
 }
 
 // emitIndexSignaturePrepareForJsonClone produces a new object whose values are the child's
