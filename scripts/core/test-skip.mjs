@@ -7,6 +7,7 @@ import {dirname, join, relative} from 'node:path';
 import {parseArgs} from 'node:util';
 import {REPO_ROOT} from '../lib/env.mjs';
 import {goBinCacheKey} from './build.mjs';
+import {readProjectNames} from './test-batches.mjs';
 import {die, note, reportCliError} from '../lib/proc.mjs';
 
 // Importing one of these makes a result depend on something no key can see.
@@ -229,7 +230,7 @@ export function recordPass(store, id, key) {
 
 export const isProven = (store, id, {key, reason}) => !reason && (store[id] ?? []).includes(key);
 
-async function openVitest({filters = [], projects = [], excludes = [], reporters = []} = {}) {
+async function openVitest({filters = [], projects = [], skipProjects = [], excludes = [], reporters = []} = {}) {
   const {createVitest} = await import('vitest/node');
   const options = {watch: false, run: true, passWithNoTests: true, cliExclude: excludes};
   if (projects.length > 0) options.project = projects;
@@ -237,7 +238,7 @@ async function openVitest({filters = [], projects = [], excludes = [], reporters
   const vitest = await createVitest('test', options);
   // Sets the reporters up; a run started without it crashes the default reporter at the end.
   if (reporters.length > 0) await vitest.standalone();
-  const specs = await vitest.globTestSpecifications(filters);
+  const specs = (await vitest.globTestSpecifications(filters)).filter((spec) => !skipProjects.includes(spec.project.name));
   return {vitest, specs};
 }
 
@@ -314,6 +315,7 @@ export function parseCli(argv) {
         store: {type: 'string'},
         audit: {type: 'boolean'},
         project: {type: 'string', multiple: true},
+        'skip-project': {type: 'string', multiple: true},
         exclude: {type: 'string', multiple: true},
       },
     });
@@ -321,11 +323,14 @@ export function parseCli(argv) {
     die(`core test-skip: ${err.message}`, 2);
   }
   const {values, positionals} = parsed;
+  // Checked against the whole project list: a --project filter narrows vitest's own list.
+  const unknown = (values['skip-project'] ?? []).filter((name) => !readProjectNames().includes(name));
+  if (unknown.length > 0) die(`core test-skip: --skip-project names no vitest project: ${unknown.join(', ')}`, 2);
   return {
     keys: values.keys,
     store: values.store ?? DEFAULT_STORE,
     audit: values.audit ?? false,
-    scope: {filters: positionals, projects: values.project ?? [], excludes: values.exclude ?? []},
+    scope: {filters: positionals, projects: values.project ?? [], skipProjects: values['skip-project'] ?? [], excludes: values.exclude ?? []},
   };
 }
 

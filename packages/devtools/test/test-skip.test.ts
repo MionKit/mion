@@ -225,7 +225,15 @@ describe('test-skip — the audit on main', () => {
 describe('test-skip — the command line', () => {
   it('takes repeatable projects and excludes, and leaves the rest as filters', () => {
     const cli = parseCli(['--project', 'core', '--project', 'router', '--exclude', '**/fuzz/**', 'errors']);
-    expect(cli.scope).toEqual({filters: ['errors'], projects: ['core', 'router'], excludes: ['**/fuzz/**']});
+    expect(cli.scope).toEqual({filters: ['errors'], projects: ['core', 'router'], skipProjects: [], excludes: ['**/fuzz/**']});
+  });
+
+  it('takes repeatable --skip-project names, and refuses one that names no vitest project', () => {
+    expect(parseCli(['--skip-project', 'client', '--skip-project', 'client-bundled']).scope.skipProjects).toEqual([
+      'client',
+      'client-bundled',
+    ]);
+    expect(() => parseCli(['--skip-project', 'no-such-project'])).toThrow(/names no vitest project: no-such-project/);
   });
 
   it('turns the audit on with --audit, and leaves it off by default', () => {
