@@ -18,7 +18,7 @@ const read = (relative: string): string => readFileSync(join(REPO_ROOT, relative
 const harness = (file: string) => import(join(REPO_ROOT, 'container/benchmarks/shared/harness', file));
 
 describe('benchOps times batches of many calls', () => {
-  // A fake clock: the start read and the first `rounds` loop checks see time 0, every later read sees the window over.
+  // The start read and the first `rounds` loop checks see time 0; every later read sees the window over.
   it.each([1, 2, 50])(
     'reads the clock once per 1000 or more validator calls, and calls the validator on every sample (%i rounds)',
     async (rounds) => {

@@ -102,8 +102,7 @@ createInterface({input: process.stdin}).on('line', (line) => {
     projects.push(project);
     const session = new LintSession();
     try {
-      // A 0ms budget never covers the cold child spawn + Program build, so the first file times out. The session
-      // must report it (never hang) and go sticky: the second file gets the first file's error, with no new request.
+      // 0ms never covers the cold child spawn + Program build; later files then reuse the timeout error, no new request.
       const options = {timeoutMs: 0};
       const first = session.lintFileSync(`${project.dir}/a.ts`, 'export const a = 1;', options);
       expect('engineError' in first && first.engineError).toContain(`(file: ${project.dir}/a.ts)`);

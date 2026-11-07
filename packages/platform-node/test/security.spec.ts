@@ -96,7 +96,7 @@ describe('node adapter hardening', () => {
   });
 
   it('a declared content-length past the limit is refused before a body byte is read', async () => {
-    // No body byte is ever sent: only a refusal from the headers alone can answer.
+    // No body byte is sent, so only a refusal from the headers can answer.
     const {status, body} = await rawRequest(
       `POST /api/echo HTTP/1.1\r\nHost: x\r\nContent-Length: 100000\r\nContent-Type: application/json\r\n\r\n`,
       ''
