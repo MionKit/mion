@@ -84,14 +84,15 @@ export const SKIP_DEFAULTS = 'skip-defaults';
 const DEFAULTS = {unless: SKIP_DEFAULTS};
 export const LANES = {
   // ci.yml
-  // The Go suites read these repo paths through internal/testfixtures/testdata/repo (RepoLinks): the real marker and
-  // drizzle packages, the drizzle example app's server against the real router and core sources, and version.json.
+  // The Go suites read these repo paths through internal/testfixtures/testdata/repo (repoLinks): the real marker and
+  // drizzle packages, the drizzle example app's server against the real router, core and platform-node sources, the
+  // committed go-generated files the generators' tests compare, and version.json.
   // One item per shard (scripts/ci/go-shard.mjs), each run by its own go-suite matrix job.
   go: {
     job: 'go suite',
     hash: 'tokens',
     gate: DEFAULTS,
-    paths: ['scripts/ci/go-shard.mjs', 'version.json', 'packages/run-types/', 'packages/drizzle-orm', 'packages/private-drizzle-example-app/', 'packages/rpc-router/', 'packages/core/', ...GO_TREE],
+    paths: ['scripts/ci/go-shard.mjs', 'version.json', 'packages/run-types/', 'packages/drizzle-orm', 'packages/private-drizzle-example-app/', 'packages/rpc-router/', 'packages/core/', 'packages/platform-node/', 'packages/devtools/src/core/go-generated/', ...GO_TREE],
     items: {1: {paths: []}, 2: {paths: []}, 3: {paths: []}},
   },
   // The count-based sweep and the time-boxed lanes, each on its own runner.

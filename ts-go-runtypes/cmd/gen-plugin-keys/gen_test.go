@@ -3,6 +3,8 @@ package main
 import (
 	"os"
 	"testing"
+
+	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
 // TestPluginKeysFileInSync asserts the committed TS mirror matches what the
@@ -10,6 +12,9 @@ import (
 // to the struct without regenerating fails here (and in
 // `pnpm miondevx core codegen pluginkeys --check` on CI).
 func TestPluginKeysFileInSync(t *testing.T) {
+	if err := testfixtures.DeclareInputs(outputPath()); err != nil {
+		t.Fatal(err)
+	}
 	expected, err := Generate()
 	if err != nil {
 		t.Fatalf("generate: %v", err)

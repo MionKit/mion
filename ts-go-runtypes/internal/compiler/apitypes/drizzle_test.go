@@ -150,7 +150,7 @@ func drizzleWorkspace(t *testing.T) (dir, repo string) {
 	repo = testfixtures.RepoRoot()
 	// The compiler reads these through the temp project's links, outside the module, where Go's test cache cannot see.
 	if err := testfixtures.DeclareInputs("packages/private-drizzle-example-app", "packages/drizzle-orm", "packages/drizzle-orm-pg-core",
-		"packages/drizzle-orm-mysql-core", "packages/drizzle-orm-sqlite-core", "packages/rpc-router", "packages/core", "packages/run-types",
+		"packages/drizzle-orm-mysql-core", "packages/drizzle-orm-sqlite-core", "packages/rpc-router", "packages/core", "packages/run-types", "packages/platform-node",
 		"pnpm-lock.yaml"); err != nil {
 		t.Fatal(err)
 	}
