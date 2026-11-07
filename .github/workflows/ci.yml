@@ -360,9 +360,10 @@ jobs:
         if: fromJSON(env.MION_LANES)['js-static'].run
         run: pnpm run check-types-examples
       # The contract tests read source and workflow text, comments included, so they also run on a comment-only edit.
+      # The link test reads the pages, which feed only this lane; the suite below excludes both.
       - name: Contract tests
         if: fromJSON(env.MION_LANES)['js-static'].run
-        run: pnpm test contracts
+        run: pnpm test contracts website-links
       - name: Record format, lint and contracts as green
         if: success() && fromJSON(env.MION_LANES)['js-static'].run
         uses: ./.github/actions/save-lane-green
@@ -397,10 +398,10 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = pull_request ] && git rev-parse -q --verify HEAD^2 >/dev/null; then
             echo "scope=partial" >> "$GITHUB_OUTPUT"
-            pnpm miondevx core test-pr --base HEAD^1 --skip-passed --exclude '**/test/fuzz/**' --exclude '**/build-gate.test.ts'
+            pnpm miondevx core test-pr --base HEAD^1 --skip-passed --exclude '**/test/fuzz/**' --exclude '**/build-gate.test.ts' --exclude '**/*contracts*.test.ts' --exclude '**/website-links.test.ts'
           else
             echo "scope=full" >> "$GITHUB_OUTPUT"
-            pnpm miondevx core test-skip --audit --exclude '**/test/fuzz/**' --exclude '**/build-gate.test.ts'
+            pnpm miondevx core test-skip --audit --exclude '**/test/fuzz/**' --exclude '**/build-gate.test.ts' --exclude '**/*contracts*.test.ts' --exclude '**/website-links.test.ts'
           fi
       # Only passes are ever recorded, so a partly failed suite still saves what it proved.
       - name: Save the passed test list

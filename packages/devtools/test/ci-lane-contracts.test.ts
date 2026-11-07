@@ -57,8 +57,8 @@ describe('the lane table', () => {
   // touched the docs content skipped js-lint and with it check-code-imports, the
   // one gate that turns a dangling <code-import> into a failure instead of an
   // error placeholder rendered into the page.
-  it('feeds the docs content and the examples into the js lane that checks them', () => {
-    for (const fed of ['container/', 'packages/']) expect(LANES.js.paths).toContain(fed);
+  it('feeds the docs content and the examples into the js-static lane that checks them', () => {
+    for (const fed of ['container/', 'packages/']) expect(LANES['js-static'].paths).toContain(fed);
   });
 
   it('skips instruction changes in tokens lanes while raw lanes keep checking scoped Markdown', () => {
@@ -217,8 +217,18 @@ describe('the lane table', () => {
     ];
     for (const path of textAndStyle) expect(readers(path), path).toEqual([]);
     for (const path of siteCode) expect(readers(path), path).toEqual(['smoke', 'website', 'smoke.website']);
-    // Still read by the js lane, so the code-import check keeps covering the pages.
-    for (const path of textAndStyle) expect(matches(path, LANES.js.paths), path).toBe(true);
+    // Still read by js-static, so the code-import check keeps covering the pages.
+    for (const path of textAndStyle) expect(matches(path, LANES['js-static'].paths), path).toBe(true);
+  });
+
+  // Only js-static's checks read page text (code imports, contracts, the link test), so a page edit runs nothing else.
+  it('feeds page text to js-static only, and website code to every JS lane', () => {
+    const ciLanes = WORKFLOWS['ci.yml'].filter((lane) => lane !== 'smoke');
+    const readersOf = (path: string): string[] => ciLanes.filter((lane) => matches(path, LANES[lane].paths));
+    for (const page of ['container/website/content/01.rpc/01.intro.md', 'container/website/content/01.rpc/_dir.yml'])
+      expect(readersOf(page), page).toEqual(['js-static']);
+    for (const code of ['container/website/app/playground/index.ts', 'container/benchmarks/shared/cases/objects.ts'])
+      expect(readersOf(code), code).toEqual(['js-fuzz', 'go-tools', 'js', 'js-static']);
   });
 
   it('runs only the unproven items, and skips them all on the lane marker', () => {
@@ -1025,6 +1035,18 @@ describe('the build-gate tests run on the Go runner and nowhere else', () => {
     const commands = suite.split('\n').filter((line) => /core test-pr|core test-skip/.test(line));
     expect(commands).toHaveLength(2);
     for (const command of commands) expect(command).toContain("--exclude '**/build-gate.test.ts'");
+  });
+
+  // The js-static step runs these; the suite running them again only doubled their time.
+  it('leaves the contract and link tests to the js-static step', () => {
+    expect(ci).toContain('run: pnpm test contracts website-links\n');
+    const commands = jobOf(ci, 'js-lint')
+      .split('\n')
+      .filter((line) => /core test-pr|core test-skip/.test(line));
+    for (const command of commands) {
+      expect(command).toContain("--exclude '**/*contracts*.test.ts'");
+      expect(command).toContain("--exclude '**/website-links.test.ts'");
+    }
   });
 });
 

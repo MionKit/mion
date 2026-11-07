@@ -49,7 +49,7 @@ export const FEEDS_NOTHING = ['docs/', 'tools/', 'assets/', '.agents/', '.claude
 const GO_BUILD = {prefix: 'ts-go-runtypes/', keep: (path) => isGoInput(path) && !path.startsWith('ts-go-runtypes/cmd/gen-') && !path.startsWith(CODE_DIGEST)};
 const CODE_DIGEST = 'ts-go-runtypes/cmd/code-digest/';
 
-// The js lane still checks page links and CSS imports; the release gate and prod deploy still build them.
+// js-static still checks page links and CSS imports; the release gate and prod deploy still build them.
 const WEBSITE_CODE = {prefix: 'container/website/', keep: (path) => !path.startsWith('container/website/content/') && !path.endsWith('.css')};
 
 // Every lane hashes these: the Go binaries are the engine every lane runs (a submodule bump moves every hash).
@@ -58,13 +58,13 @@ const REPO_CONFIG = ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 't
 const WORKSPACE = [GO_BUILD, ...REPO_CONFIG];
 const GO_TREE = ['ts-go-runtypes/', ...REPO_CONFIG];
 
-// The JS half of the repo. `container/` belongs here, not only to the container
-// lanes: check-code-imports reads every <code-import> in the docs content tree and
-// the contract tests walk that tree plus the benchmark competitor maps and the
-// workflow files. The old path filter listed none of them, so a content-only pull
-// request skipped js-lint and the code-import gate never ran on the very commit
-// that could break it.
-const JS = ['packages/', 'scripts/', 'container/', CODE_DIGEST, 'vitest.config.ts', 'version.json', 'drizzle-dialects.json', 'drizzle-suites.pin.json', '.env.sample', '.oxlintrc.json', '.oxfmtrc.json', 'eslint.config.js', '.github/workflows/', ...WORKSPACE];
+// The JS half of the repo as js-static reads it. `container/` belongs here, not only to the container lanes:
+// check-code-imports and the link test read every page in the docs content tree, and the contract tests walk
+// that tree plus the benchmark competitor maps and the workflow files.
+const JS_STATIC = ['packages/', 'scripts/', 'container/', CODE_DIGEST, 'vitest.config.ts', 'version.json', 'drizzle-dialects.json', 'drizzle-suites.pin.json', '.env.sample', '.oxlintrc.json', '.oxfmtrc.json', 'eslint.config.js', '.github/workflows/', ...WORKSPACE];
+// The JS test, fuzz and Go-backed lanes read the same minus the page text, which only js-static's checks read.
+const CONTAINER_CODE = {prefix: 'container/', keep: (path) => !path.startsWith('container/website/content/')};
+const JS = JS_STATIC.map((entry) => (entry === 'container/' ? CONTAINER_CODE : entry));
 // What a lane that packs and installs the workspace reads. No container/ (those
 // lanes name their own image dir) and no workflow files.
 const PACKED = ['packages/', 'scripts/', 'version.json', ...WORKSPACE];
@@ -100,7 +100,7 @@ export const LANES = {
   'go-static': {job: 'go tests + fuzz · gofmt and vet', hash: 'raw', gate: DEFAULTS, paths: GO_TREE},
   js: {job: 'js tests + lint · the JS suite', hash: 'tokens', gate: DEFAULTS, paths: JS},
   // Format, lint, typecheck, the docs checks and the contract tests all read comments.
-  'js-static': {job: 'js tests + lint · format, lint and contracts', hash: 'raw', gate: DEFAULTS, paths: JS},
+  'js-static': {job: 'js tests + lint · format, lint and contracts', hash: 'raw', gate: DEFAULTS, paths: JS_STATIC},
   // Both halves build with our packages and Go (the site, and the mion competitor).
   smoke: {
     job: 'container smoke',
