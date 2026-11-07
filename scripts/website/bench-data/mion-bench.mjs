@@ -25,7 +25,7 @@ import {capture, die, hostGoArch, note, reportCliError, run, which} from '../../
 import {APP_NAMES, APPS, findApp} from '../../../container/mion-bench/shared/apps.mjs';
 import {SUITE_KEYS} from '../../../container/mion-bench/shared/suites.mjs';
 import {SWEEP_SIZES as SWEEP_SIZE_DEFS} from '../../../container/mion-bench/shared/payloads.mjs';
-import {DEFAULT_WARMUP, laneDir, mergeRounds, planFor, roundFile, schedule, warmupFor} from '../../../container/mion-bench/shared/rounds.mjs';
+import {laneDir, mergeRounds, planFor, roundFile, schedule} from '../../../container/mion-bench/shared/rounds.mjs';
 
 const BENCH_DIR = join(REPO_ROOT, 'container/mion-bench');
 const RESULTS_DIR = join(BENCH_DIR, 'results');
@@ -56,7 +56,6 @@ export function lanePlan(sizeKey, env = process.env) {
     rounds: knob('MION_BENCH_ROUNDS'),
     seconds: knob('MION_BENCH_DURATION'),
     warmup: knob('MION_BENCH_WARMUP'),
-    rewarmup: knob('MION_BENCH_REWARMUP'),
   });
   // Zero or a fraction would schedule no final round: nothing merged, nothing failed, an empty site.
   if (!Number.isInteger(plan.rounds) || plan.rounds < 1) throw new Error(`mion-bench: rounds must be a whole number of 1 or more, got '${env.MION_BENCH_ROUNDS}'`);
@@ -232,7 +231,7 @@ const roundRunner = (cfg) => ({runRound: (app, lane, round) => runRound(cfg, app
 
 function runRound(cfg, app, lane, round) {
   const target = lane.size ? ['--size', lane.size] : ['--suite', lane.suite];
-  const timing = ['--round', String(round), '--warmup', String(warmupFor(lane.plan, round)), '--duration', String(lane.plan.seconds)];
+  const timing = ['--round', String(round), '--warmup', String(lane.plan.warmup), '--duration', String(lane.plan.seconds)];
   return runInContainer(cfg, app, ['node', 'harness/run.mjs', '--app', app.name, ...target, ...timing]) === 0;
 }
 
@@ -408,10 +407,11 @@ const gcProbeDir = (label) => join(RESULTS_DIR, 'gcprobe', label);
 // Longer than a published round: GC ratios need MIN_SAMPLE_REQUESTS per window, and 4 MB collects ~30 a second.
 // Every round restarts the server, so each warms in full.
 const GCPROBE_SECONDS = 20;
+const GCPROBE_WARMUP = 5;
 
 function gcProbeRun(cfg, app, size, label, round) {
   const seconds = process.env.MION_BENCH_DURATION || String(GCPROBE_SECONDS);
-  const warmup = process.env.MION_BENCH_WARMUP || String(DEFAULT_WARMUP);
+  const warmup = process.env.MION_BENCH_WARMUP || String(GCPROBE_WARMUP);
   const timing = ['--round', String(round), '--warmup', warmup, '--duration', seconds];
   const args = ['node', 'harness/run.mjs', '--app', app.name, '--size', size, '--gc', '1', ...timing];
   if (runInContainer(cfg, app, args) !== 0) return null;
@@ -547,7 +547,6 @@ export function quickEnv(env) {
     MION_BENCH_ROUNDS: '1',
     MION_BENCH_DURATION: '3',
     MION_BENCH_WARMUP: '1',
-    MION_BENCH_REWARMUP: '1',
     MION_BENCH_CONNECTIONS: '25',
     ...env,
   };

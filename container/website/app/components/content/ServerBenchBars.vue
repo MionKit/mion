@@ -65,7 +65,6 @@ type Meta = {
   duration?: number | null;
   rounds?: number | null;
   warmup?: number | null;
-  rewarmup?: number | null;
 };
 type BenchIndex = {label?: string; meta?: Meta; rows?: Row[]; sections?: {key: string; label: string; meta?: Meta; rows: Row[]}[]};
 
@@ -115,11 +114,7 @@ const runDate = computed(() => (meta.value?.generatedAt ? new Date(meta.value.ge
 const roundsText = computed(() => {
   const runMeta = meta.value;
   if (!runMeta?.rounds || runMeta.rounds < 2) return 'a warm-up, then the measured window';
-  const warm =
-    typeof runMeta.rewarmup === 'number' && runMeta.rewarmup !== runMeta.warmup
-      ? `${runMeta.warmup}s warm-up before the first, ${runMeta.rewarmup}s before the others`
-      : `${runMeta.warmup}s warm-up before each`;
-  return `${runMeta.rounds} rounds of ${runMeta.duration}s, each app taking its turn per round, ${warm}. The bars show the median of each app's rounds`;
+  return `${runMeta.rounds} rounds of ${runMeta.duration}s, each after a ${runMeta.warmup}s warm-up, each app taking its turn per round. The bars show the median of each app's rounds`;
 });
 const caption = computed(() => {
   const what = section.value?.label ?? index.value?.label ?? props.bench;

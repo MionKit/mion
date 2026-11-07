@@ -166,10 +166,9 @@ published number is the **median** of each app's rounds, which drops it.
 | hello-world, light, heavy, ~1 KB, ~50 KB, ~500 KB | 4 × 5 s | 1,500+ requests per round even for the slowest app |
 | ~4 MB | 3 × 10 s | 20-40 req/s, ~1 s per request: a 5 s round ends mid-request on most sockets |
 
-Every round restarts the server, so each warms up first: 5 s before round 1, 2 s before the
-others. Each round also starts on a different app, so no app is always first or last. The
+Every round restarts the server, so each warms up first, for 2 s. Each round also starts on a different app, so no app is always first or last. The
 plan lives in [`shared/rounds.mjs`](shared/rounds.mjs); `MION_BENCH_ROUNDS`,
-`MION_BENCH_DURATION`, `MION_BENCH_WARMUP` and `MION_BENCH_REWARMUP` override it
+`MION_BENCH_DURATION` and `MION_BENCH_WARMUP` override it
 (`--rounds <n>` sets the first). Every record keeps each round's numbers and the spread
 between them, and the pages show both.
 

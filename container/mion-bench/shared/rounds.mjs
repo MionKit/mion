@@ -13,7 +13,7 @@ import {join} from 'node:path';
 
 // On 4 vCPU boxes, 5 s rounds collect 1,500+ requests up to ~500 KB (180-410 req/s there, 10,000+ up to ~1 KB).
 // ~4 MB runs 20-40 req/s at ~1 s per request, so 5 s would end mid-request on most sockets: 10 s collects 200-400.
-// Three of those, not four, keeps the ~4 MB lane at 39 s.
+// Three of those, not four, keeps the ~4 MB lane at 36 s.
 export const DEFAULT_PLAN = {rounds: 4, seconds: 5};
 export const SIZE_PLANS = {
   small: DEFAULT_PLAN,
@@ -21,9 +21,8 @@ export const SIZE_PLANS = {
   large: DEFAULT_PLAN,
   huge: {rounds: 3, seconds: 10},
 };
-// Later rounds restart the server too, but the machine, page cache and image layers are warm: a shorter warm-up does.
-export const DEFAULT_WARMUP = 5;
-const DEFAULT_REWARMUP = 2;
+// Every round restarts the server, so every round warms it first, the same way.
+const DEFAULT_WARMUP = 2;
 
 export function planFor(sizeKey, overrides = {}) {
   const base = (sizeKey && SIZE_PLANS[sizeKey]) || DEFAULT_PLAN;
@@ -32,12 +31,8 @@ export function planFor(sizeKey, overrides = {}) {
     rounds: pick(overrides.rounds, base.rounds),
     seconds: pick(overrides.seconds, base.seconds),
     warmup: pick(overrides.warmup, DEFAULT_WARMUP),
-    rewarmup: pick(overrides.rewarmup, DEFAULT_REWARMUP),
   };
 }
-
-/** Warm-up seconds before round `round` (1-based). */
-export const warmupFor = (plan, round) => (round === 1 ? plan.warmup : plan.rewarmup);
 
 /** The step spreads every app across the positions, so no app is always first (cold box) or last. */
 export function roundOrder(items, round, rounds) {
