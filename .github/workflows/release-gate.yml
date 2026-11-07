@@ -131,8 +131,8 @@ jobs:
       - name: Build FE dists (canonical, for packing)
         run: pnpm run build
       # The home page's measured numbers are committed files, so a release could ship a
-      # stale one. Gated here rather than per-PR: every test-adding PR moves the count,
-      # and this is the first step where every @mionjs dist the size needs exists.
+      # stale one. The count is gated only here: every test-adding PR moves it. The client
+      # size is also checked per PR (ci.yml's website smoke); this re-checks the canonical build.
       - name: Homepage numbers are fresh (client size + test counts)
         run: |
           pnpm miondevx website client-size --check

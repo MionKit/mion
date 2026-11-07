@@ -733,9 +733,13 @@ jobs:
         run: pnpm miondevx core build all linux-go linux-extract --trust-stamp
       - name: Pull the prebuilt shared image (CI never builds it)
         uses: ./.github/actions/pull-shared-image
-      - name: Website serves-a-page smoke
+      # `website check` builds every @mionjs dist, so the home page's committed client size is checked here,
+      # on the PR that moves it, not first at the release gate.
+      - name: Website serves-a-page smoke + client size is fresh
         if: contains(fromJSON(env.MION_LANES).smoke.runItems, 'website')
-        run: pnpm miondevx website check
+        run: |
+          pnpm miondevx website check
+          pnpm miondevx website client-size --check
       - name: Record the website smoke as green
         if: success() && contains(fromJSON(env.MION_LANES).smoke.runItems, 'website')
         uses: ./.github/actions/save-lane-green

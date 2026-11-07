@@ -20,7 +20,7 @@ const CLIENT_ENTRY = join(REPO_ROOT, 'packages/rpc-client/.dist/esm/index.js');
 // Browser + esm resolve exports as a web app does; splitting puts the on-demand metadata in its own chunk.
 // tsconfigRaw stops esbuild honouring the root tsconfig `paths`, which would measure the source, not the dist.
 function measureClient() {
-  if (!existsSync(CLIENT_ENTRY)) throw new Error(`${CLIENT_ENTRY} is missing - build the dists first (pnpm run build)`);
+  if (!existsSync(CLIENT_ENTRY)) throw new Error(`${CLIENT_ENTRY} is missing - build them first (pnpm --filter @mionjs/core --filter @mionjs/client run build)`);
   const built = buildSync({
     entryPoints: [CLIENT_ENTRY],
     bundle: true,
