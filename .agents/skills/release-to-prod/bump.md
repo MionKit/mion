@@ -19,9 +19,17 @@ git log --oneline $(git merge-base origin/main origin/prod)..origin/main   # unr
 
 ```bash
 git checkout -b chore/release-X.Y.Z
+pnpm miondevx website test-counts    # recount the homepage test tiles; commit if it changed
+pnpm miondevx website test-counts --check   # fails loud if it could not count
 pnpm miondevx release bump X.Y.Z     # lockstep bump, commits chore(release): vX.Y.Z, tags locally
 git tag -d vX.Y.Z               # ALWAYS delete the local tag: CI tags prod itself
 ```
+
+- Counts move with every test-adding PR and only the release gate checks them (`test-counts --check`).
+  Changed → own commit `chore(website): refresh the homepage test counts` BEFORE the bump,
+  so the changelog `--amend` below still lands on the release commit.
+- A "kept at" warning = nothing was counted (no Go, resolver or dists). Bootstrap the host first.
+- Same recount in every fix-forward PR of the release ([promote.md](promote.md#red-job--fix-forward-on-main)).
 
 ### Drizzle dialect packages
 
