@@ -119,6 +119,16 @@ export const AREAS = {
         ],
       },
       {
+        name: 'go-shard',
+        args: '<i>/<n>',
+        summary: 'shard i of n of the Go suite: the slow packages split by test, the rest whole (what CI runs)',
+        flags: [
+          ['--list', "print the shard's go test commands and stop"],
+          ['--check <n>', 'fail unless n shards run every package and test exactly once'],
+        ],
+        build: (args) => !hasFlag(args, '--check', '--list'),
+      },
+      {
         name: 'test-bun',
         summary: "platform-bun's bun:test suites, gated so a swallowed file cannot read as green (what test:bun runs)",
       },

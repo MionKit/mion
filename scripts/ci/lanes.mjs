@@ -90,7 +90,7 @@ export const LANES = {
     job: 'go tests + fuzz · the Go suite',
     hash: 'tokens',
     gate: DEFAULTS,
-    paths: ['packages/run-types/', 'packages/drizzle-orm', 'packages/private-drizzle-example-app/', 'packages/rpc-router/', 'packages/core/', ...GO_TREE],
+    paths: ['scripts/ci/go-shard.mjs', 'packages/run-types/', 'packages/drizzle-orm', 'packages/private-drizzle-example-app/', 'packages/rpc-router/', 'packages/core/', ...GO_TREE],
   },
   'js-fuzz': {job: 'go tests + fuzz · the JS fuzz sweep', hash: 'tokens', gate: DEFAULTS, paths: JS},
   // JS checks that need Go (codegen and drizzle-manifest drift, build-gate tests), so js-lint never sets Go up.

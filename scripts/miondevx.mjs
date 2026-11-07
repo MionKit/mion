@@ -311,6 +311,7 @@ function runCore(args) {
   // --check / --list are pure file reads: the registry row keeps them build-free.
   if (sub === 'test-batches') return proxy('node', ['scripts/core/test-batches.mjs', ...rest]);
   if (sub === 'test-bun') return proxy('node', ['scripts/core/test-bun.mjs', ...rest]);
+  if (sub === 'go-shard') return proxy('node', ['scripts/ci/go-shard.mjs', ...rest]);
   // --list is a pure git + file read: the registry row keeps it build-free.
   if (sub === 'test-pr') return proxy('node', ['scripts/core/test-pr.mjs', ...rest]);
   if (sub === 'test-skip') return proxy('node', ['scripts/core/test-skip.mjs', ...rest]);
