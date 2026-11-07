@@ -7,8 +7,8 @@ adapters, so the table shows `mion`, `mion.uws` and `mion.bun` as separate rows.
 A fourth mion lane, `mion.compact`, is the node server over [compact JSON](#the-compact-lane).
 
 Ported from the `MionKit/Benchmarks` repository, which is where these benchmarks
-lived until they moved in here. The methodology (a warm-up round then a measured one,
-memory and CPU sampled per second) is that repository's; everything about how it is
+lived until they moved in here. The base methodology (a warm-up then a measured window,
+memory and CPU sampled per second) is that repository's; the [rounds](#rounds) and everything about how it is
 built and run is this repository's container pattern. See
 [what came from upstream](#what-came-from-the-upstream-benchmarks-repo) for the ledger.
 
@@ -102,11 +102,12 @@ From the repo root:
 
 ```bash
 pnpm miondevx bench servers                 # every app, every suite, then the site data
-pnpm miondevx bench servers --quick         # short windows for a dev loop (noisy, never publish)
+pnpm miondevx bench servers --quick         # one short round for a dev loop (noisy, never publish)
+pnpm miondevx bench servers --rounds 2      # fewer rounds, full-length ones
 pnpm miondevx bench servers one mion.uws    # a single app across the three suites
 pnpm miondevx bench servers suite hello-world  # a single suite across every app
 pnpm miondevx bench servers sweep           # the payload-size sweep, every app
-pnpm miondevx bench servers repeat mion.bun # run one lane 3 times and check the spread
+pnpm miondevx bench servers repeat mion.bun # run one lane's rounds and check their spread
 pnpm miondevx bench servers gcprobe         # measure this build on MEMORY (see below)
 pnpm miondevx bench servers build           # just build the mion server bundles
 pnpm miondevx bench servers shell           # a debug shell in the image
@@ -118,7 +119,8 @@ pnpm miondevx container push mion-bench
 `pnpm miondevx bench --website` runs these as part of regenerating **all** the benchmark
 data both docs sites render, which is what a website deploy calls.
 
-Results land in `results/<suite>/<app>.json` (git-ignored) and
+Each round lands in `results/<suite>/rounds/<app>.r<n>.json`, the merged lane in
+`results/<suite>/<app>.json` (git-ignored), and
 [`gen-servers-docs.mjs`](../../scripts/website/bench-data/gen-servers-docs.mjs) turns
 them into `container/website/public/bench-data/servers-<suite>/index.json`, which the
 `:server-bench-bars` component renders. The pages carry no numbers
@@ -151,26 +153,46 @@ Two details worth knowing:
   keys takes the same path. The payloads are still written in exactly one place, and no
   framework is ever measured serving its own cache.
 
+## Rounds
+
+A single long window per app let one short slowdown on the machine (a noisy neighbour, a
+GC burst on the host) land on one app's whole measurement: unchanged competitors moved
+10-15% between deploys. So every lane runs in short **rounds**, and each round runs every
+app before the next round starts. A slowdown now costs a few apps one round each, and the
+published number is the **median** of each app's rounds, which drops it.
+
+| Lanes | Rounds × seconds | Why |
+| --- | --- | --- |
+| hello-world, light, heavy, ~1 KB, ~50 KB, ~500 KB | 4 × 5 s | 1,500+ requests per round even for the slowest app |
+| ~4 MB | 3 × 10 s | 20-40 req/s, ~1 s per request: a 5 s round ends mid-request on most sockets |
+
+Every round restarts the server, so each warms up first: 5 s before round 1, 2 s before the
+others. Each round also starts on a different app, so no app is always first or last. The
+plan lives in [`shared/rounds.mjs`](shared/rounds.mjs); `MION_BENCH_ROUNDS`,
+`MION_BENCH_DURATION`, `MION_BENCH_WARMUP` and `MION_BENCH_REWARMUP` override it
+(`--rounds <n>` sets the first). Every record keeps each round's numbers and the spread
+between them, and the pages show both.
+
 ## Repeatability
 
-Numbers only mean something if the same lane run twice agrees with itself. The
-tolerance is **10%**: two runs of one lane should land within that of each other. It is
-`MION_BENCH_TOLERANCE`, the harness records it so every benchmark page prints it beside
-the method line, and this checks it:
+Numbers only mean something if a lane agrees with itself. The tolerance is **10%**: the
+rounds of one lane should land within that of each other. It is `MION_BENCH_TOLERANCE`,
+every record carries it so the pages print it beside the method line, a run warns about
+any lane past it, and this fails on it:
 
 ```bash
-pnpm miondevx bench servers repeat mion.bun                    # 3 runs of hello-world
-pnpm miondevx bench servers repeat mion.bun light-validation --runs 5
+pnpm miondevx bench servers repeat mion.bun                       # hello-world, 4 rounds
+pnpm miondevx bench servers repeat mion.bun light-validation --rounds 6
 ```
 
-It prints every run and the spread, and fails if the spread is wider than the tolerance.
+It prints the rounds and the spread, and fails if the spread is wider than the tolerance.
 
 **Where the 10% came from:** three full-length runs of each bun lane on a shared
 4 vCPU cloud box, which measured 1.8% (`mion.bun`), 5.7% (`hono.bun`) and 9.8%
 (`elysia.bun`). 10 is the ceiling those runs support, not a promise: a dedicated
 benchmark machine should do considerably better, so re-run `repeat` there and tighten
-the number if it does. Short (`--quick`) windows land wider than this on purpose, which
-is why they are never published.
+the number if it does. A `--quick` run is one short round, so it has no spread to check,
+which is why it is never published.
 
 ## Comparing memory: `gcprobe`
 

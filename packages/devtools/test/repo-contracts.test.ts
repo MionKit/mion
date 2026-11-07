@@ -1877,16 +1877,32 @@ describe('mion server benchmarks stay wired end to end', () => {
   });
 
   it('the repeatability tolerance reaches the pages from the record', () => {
-    // "The bun lanes are repeatable within N%" is only worth printing if the number comes
-    // from the same place `bench servers repeat` enforces, not from prose someone typed.
-    const harness = readFileSync(join(BENCH_DIR, 'harness/run.mjs'), 'utf8');
-    expect(harness).toMatch(/MION_BENCH_TOLERANCE \|\| (\d+)/);
+    // "The rounds land within N%" is only worth printing if the number comes from the
+    // same place `bench servers repeat` enforces, not from prose someone typed.
+    const driver = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/mion-bench.mjs'), 'utf8');
+    expect(driver).toMatch(/MION_BENCH_TOLERANCE \|\| (\d+)/);
+    expect(driver, 'the merged record no longer carries the tolerance').toContain('mergeRounds(rounds, {tolerance:');
+    expect(driver, 'repeat no longer checks the round spread against the tolerance').toContain(
+      'record.spread > record.tolerance'
+    );
     const generator = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/gen-servers-docs.mjs'), 'utf8');
     expect(generator).toContain('tolerance');
+    expect(generator, 'the rows lose their per-round numbers').toContain('rounds: (result.rounds');
     const bars = readFileSync(join(REPO_ROOT, 'container/website/app/components/content/ServerBenchBars.vue'), 'utf8');
     expect(bars).toContain('meta.tolerance');
+    expect(bars, 'the bars no longer show the round spread').toContain('row.spread');
+  });
+
+  it('the harness measures one round and leaves the median to the driver', () => {
+    // The page number is the median of interleaved rounds. A harness that merged on its own,
+    // or wrote the published file, would publish one round as if it were the whole lane.
+    const harness = readFileSync(join(BENCH_DIR, 'harness/run.mjs'), 'utf8');
+    expect(harness).toContain('roundFile(laneDir(');
+    expect(harness, 'the harness reads the round lengths from env again, not from the driver').not.toMatch(
+      /MION_BENCH_(DURATION|WARMUP)/
+    );
     const driver = readFileSync(join(REPO_ROOT, 'scripts/website/bench-data/mion-bench.mjs'), 'utf8');
-    expect(driver, 'nothing checks a lane against the tolerance it publishes').toContain('MION_BENCH_TOLERANCE');
+    expect(driver).toContain('schedule(lanes, apps)');
   });
 
   it('the sweep caps bytes in flight, so only the biggest payload drops connections', async () => {
@@ -1919,8 +1935,10 @@ describe('mion server benchmarks stay wired end to end', () => {
     const apps = readFileSync(join(BENCH_DIR, 'shared/apps.mjs'), 'utf8');
     expect(apps, 'the mion-only app list came back').not.toContain('MION_APPS');
     expect(driver).not.toContain('MION_APPS');
-    // Both sweep loops (the standalone `sweep` command and the website subset).
-    expect([...driver.matchAll(/for \(const size of SWEEP_SIZES\)/g)].length).toBe(2);
+    // Both sweeps (the standalone `sweep` command and the website subset) run every size.
+    expect(driver).toContain('SWEEP_SIZES.map((size) => ({key:');
+    expect(driver).toContain('runLanes(cfg, apps, sweepLanes())');
+    expect(driver).toContain('runLanes(cfg, APPS, [...suiteLanes(), ...sweepLanes()])');
     const page = readFileSync(join(MION_CONTENT, '03.benchmarks/02.rpc/04.payload-sizes.md'), 'utf8');
     expect(page, 'the page still claims only mion runs').not.toMatch(/Only the mion adapters/);
   });

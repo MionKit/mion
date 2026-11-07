@@ -271,12 +271,15 @@ export const AREAS = {
         name: 'servers',
         args: '<verb>',
         summary: 'the mion HTTP server benchmarks (own image)',
-        flags: [['--quick', 'the short run']],
+        flags: [
+          ['--quick', 'one short round (noisy, never publish)'],
+          ['--rounds <n>', 'rounds per lane (default 4, 3 on the ~4 MB payload); gcprobe: rounds per label (default 3)'],
+        ],
         commands: [
           {name: 'one', args: '<app>', summary: 'one app'},
           {name: 'suite', args: '<key>', summary: 'one suite'},
           {name: 'sweep', args: '[app]', summary: 'the payload sizes for every app, or for one'},
-          {name: 'repeat', args: '<app> [suite]', summary: 'run one lane N times and check the spread against MION_BENCH_TOLERANCE', flags: [['--runs <n>', 'how many runs (default 3)']]},
+          {name: 'repeat', args: '<app> [suite]', summary: "run one lane's rounds and fail when their spread passes MION_BENCH_TOLERANCE"},
           {
             name: 'gcprobe',
             summary: 'measure this build on memory with the V8 GC trace, saved under a label',
@@ -285,7 +288,6 @@ export const AREAS = {
               ['--compare <a b>', 'print the range table for two saved labels, running nothing'],
               ['--lanes <a,b>', 'lanes to run (default mion,mion.bun)'],
               ['--sizes <a,b>', 'payload sizes to run (default huge)'],
-              ['--rounds <n>', 'rounds per label (default 3)'],
             ],
           },
           {name: 'build', summary: 'build the mion app lanes'},

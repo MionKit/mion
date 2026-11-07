@@ -54,6 +54,9 @@ export const toRow = (result) => ({
   // Body bytes of one call, headers excluded.
   bytes: result.bytes ? result.bytes.sent + result.bytes.received : null,
   memSeries: result.memSeries ?? [],
+  // `requests` above is the median of these; the spread says how far apart they landed.
+  rounds: (result.rounds ?? []).map((round) => Math.round(round.requests * 10) / 10),
+  spread: result.spread ?? null,
 });
 
 /**
@@ -72,9 +75,13 @@ function metaFrom(rows) {
     connections: first.connections,
     threads: first.threads ?? null,
     pipelining: first.pipelining,
+    // Seconds per round, how many rounds, and the warm-up before the first and the later ones.
     duration: first.duration,
-    // What two runs of a lane are expected to agree within, so a reader can tell a real
-    // gap between two servers from noise. The harness records it; nobody types it.
+    rounds: first.rounds?.length ?? null,
+    warmup: first.rounds?.[0]?.warmup ?? null,
+    rewarmup: first.rounds?.[1]?.warmup ?? null,
+    // What the rounds of a lane are expected to agree within, so a reader can tell a real
+    // gap between two servers from noise. The driver records it; nobody types it.
     tolerance: first.tolerance ?? null,
     // The line the pages used to hardcode, assembled from what actually ran. It names
     // wrk because wrk is what ran: the upstream benchmarks repo kept printing
