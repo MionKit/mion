@@ -122,10 +122,8 @@ function mountArgs(cfg) {
       if (skip.has(base)) continue;
       args.push('-v', `${join(competitorsDir, competitor, base)}:/bench/competitors/${competitor}/${base}:ro${mo}`);
     }
-    // dist is build OUTPUT (excluded from the ro mounts above), so it used to land
-    // in the --rm container's throwaway layer — and runCompetitors builds and runs
-    // in SEPARATE containers, so node/bun found no dist/run.mjs. Mount it rw from
-    // the host (gitignored) so the emitted bundle survives across those runs.
+    // dist is build output outside the ro mounts: runCompetitors builds and runs in SEPARATE --rm containers,
+    // so mount the host's (gitignored) dist rw, or node/bun find no dist/run.mjs.
     const distDir = join(competitorsDir, competitor, 'dist');
     mkdirSync(distDir, {recursive: true});
     args.push('-v', `${distDir}:/bench/competitors/${competitor}/dist${mo}`);
@@ -218,10 +216,8 @@ function benchBun() {
 // every other runtime gets a subdir so the published node table is untouched).
 const runtimeResultsDir = (runtime) => (runtime === 'node' ? RESULTS_DIR : join(RESULTS_DIR, runtime));
 
-// Build one competitor's bundle, ONCE: every runtime and every round then executes that
-// same emitted bundle. bun is never asked to transpile TypeScript, it runs the identical
-// dist/run.mjs node ran, which also makes this the only check in the repo that the
-// emitted bundle is runtime-portable.
+// Built ONCE: every runtime and round runs the same dist/run.mjs, so bun never transpiles TypeScript.
+// That makes this the repo's only check that the emitted bundle is runtime-portable.
 function buildOne(cfg, competitor) {
   console.log(`-------- competitor: ${competitor} --------`);
   if (runInContainer(cfg, ['sh', '-c', `cd competitors/${competitor} && pnpm run build`]) === 0) return true;
@@ -229,18 +225,8 @@ function buildOne(cfg, competitor) {
   return false;
 }
 
-// Build every competitor, then run them in interleaved rounds (validation-rounds.mjs) and
-// merge each lane's rounds into the canonical results/<name>.json. A failure is reported
-// but never aborts the loop, so every other lane still writes its results. Returns the
-// competitors whose lanes did not all run cleanly.
-//
-// The message names WHICH of two things went wrong, because they need opposite reactions.
-// A round that wrote no result did not run at all (startup broke): that lane stops, and
-// its column will be missing from every page. A non-zero exit WITH a result means the run
-// finished and hit errored case(s): its rounds still merge and publish. A correctness
-// divergence never reaches here: each competitor's main.ts exits 0 on `fail`, because
-// disagreeing with RunTypes on a sample is data for the Correctness page, not a broken
-// lane (see shared/harness/result.ts).
+// Failures get distinct messages, needing opposite reactions: no round result = startup broke, the lane stops.
+// A non-zero exit WITH one = errored cases, still merged. A `fail` exits 0 (see shared/harness/result.ts).
 function runCompetitors(cfg, competitors, withBun = benchBun()) {
   const broken = competitors.filter((competitor) => !buildOne(cfg, competitor));
   const built = competitors.filter((competitor) => !broken.includes(competitor));
@@ -254,8 +240,7 @@ function runCompetitors(cfg, competitors, withBun = benchBun()) {
 /** The round loop of runCompetitors with the container step injected, so a test can drive it. */
 export function runValidationRounds(competitors, {runRound, withBun = benchBun(), resultsDir = runtimeResultsDir, env = process.env}) {
   const {rounds, timeMs} = validationPlan(env);
-  // An MION_VALIDATION_BENCH_CASE inspection run writes no results file by design, so
-  // neither the "did it write results?" signal nor the merge applies to it.
+  // An inspection run writes no results file by design: neither the did-it-write signal nor the merge applies.
   const inspecting = Boolean(env.MION_VALIDATION_BENCH_CASE);
   const runtimes = [['node', 'node dist/run.mjs']];
   if (withBun) runtimes.push(['bun', `MION_VALIDATION_BENCH_SKIP_GROUPS=${BUN_SKIP_GROUPS} bun dist/run.mjs`]);
@@ -326,14 +311,12 @@ function publishDocdata(cfg) {
   note(`published results -> ${dest}`);
 }
 
-// Delete top-level results JSON matching a predicate (the `find -maxdepth 1 -delete`).
 function clearResults(pred) {
   mkdirSync(RESULTS_DIR, {recursive: true});
   clearResultFiles([RESULTS_DIR, join(RESULTS_DIR, 'bun')], pred);
 }
 
-/** The per-runtime subdirs too: a stale bun result surviving a failed bun run would let
- *  checkEngineBranch pass on last week's numbers. Round files are judged by the result they belong to. */
+/** Per-runtime dirs too, or a stale bun result lets checkEngineBranch pass; a round file goes with its result. */
 export function clearResultFiles(dirs, pred) {
   for (const dir of dirs) {
     if (!existsSync(dir)) continue;

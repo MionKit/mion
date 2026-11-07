@@ -1,25 +1,17 @@
-// The validation benchmarks in interleaved rounds, the twin of container/mion-bench/shared/rounds.mjs.
-//
-// Every competitor runs in its own process, one after another, so a short slowdown on the
-// machine used to land on one competitor's whole run and skew every case it measured. Now
-// each competitor process runs once per round with a short window per case, every
-// competitor takes its turn before the next round starts, and each case publishes the
-// MEDIAN of its rounds.
-//
-// 3 rounds of 50 ms, not 4 of 25: measured against the old single 100 ms window, shorter
-// windows read low on every competitor, and unevenly (25 ms: 8-20% low, 33 ms: 5%, 50 ms:
-// 2-3%, inside the 4-6% two 100 ms runs differ by per case). Three rounds still let the
-// median drop one slow round; the cost is 150 ms of timing per case instead of 100.
+// The validation benchmarks in interleaved rounds, twin of container/mion-bench/shared/rounds.mjs: a short machine
+// slowdown costs one round of one competitor, not its whole run. 3 rounds of 50 ms, not 4 of 25: against one 100 ms
+// window, shorter windows read low and unevenly (25 ms: 8-20%, 33 ms: 5%, 50 ms: 2-3%, inside the 4-6% two 100 ms
+// runs differ by per case). Three rounds still let the median drop one slow round.
 
 import {existsSync, readFileSync} from 'node:fs';
 import {median, round2, roundFile, roundOrder, spreadPct} from '../../../container/mion-bench/shared/rounds.mjs';
 
 export const DEFAULT_ROUNDS = 3;
-// Per stream per round. The driver always passes it, so the harness's own default only serves a bare run.
+// Per stream per round; the driver always passes it, so the harness default only serves a bare run.
 export const DEFAULT_ROUND_MS = 50;
 const STREAMS = ['validOpsSec', 'invalidOpsSec', 'mixedOpsSec'];
 
-/** Rounds and window per round, from the knobs the user set. Throws on a value that would schedule no round. */
+/** Throws on a value that would schedule no round. */
 export function validationPlan(env = process.env) {
   const rounds = env.MION_VALIDATION_BENCH_ROUNDS ? Number(env.MION_VALIDATION_BENCH_ROUNDS) : DEFAULT_ROUNDS;
   const timeMs = env.MION_VALIDATION_BENCH_TIME_MS ? Number(env.MION_VALIDATION_BENCH_TIME_MS) : DEFAULT_ROUND_MS;
@@ -28,7 +20,7 @@ export function validationPlan(env = process.env) {
   return {rounds, timeMs};
 }
 
-/** Every process to run, round by round: each round runs every lane, its start rotated so no lane is always first. */
+/** Each round runs every lane, its start rotated so no lane is always first. */
 export function validationSchedule(lanes, rounds) {
   const steps = [];
   for (let round = 1; round <= rounds; round++) for (const lane of roundOrder(lanes, round, rounds)) steps.push({round, lane});
@@ -38,8 +30,7 @@ export function validationSchedule(lanes, rounds) {
 /** A round's result file, beside the canonical one in a subdir the results reader never lists. */
 export const validationRoundFile = roundFile;
 
-/** Runs that publish no timing get one round: a correctness-only or one-case inspection run repeats nothing useful.
- *  A rounds count the user set still wins. */
+/** One round for runs nobody publishes: quick, correctness-only and one-case inspection runs. */
 export function roundsEnv(env) {
   if (env.MION_VALIDATION_BENCH_ROUNDS) return {};
   if (env.MION_VALIDATION_BENCH_QUICK === '1' || env.MION_VALIDATION_BENCH_NO_TIMING === '1' || env.MION_VALIDATION_BENCH_CASE) return {MION_VALIDATION_BENCH_ROUNDS: '1'};
@@ -53,7 +44,6 @@ export function readValidationRounds(dir, competitor, rounds) {
 
 const rank = {errored: 3, fail: 2, 'not-supported': 1, ok: 0};
 
-/** One metric across its rounds: the worst status any round saw, and the median of each stream. */
 function mergeMetric(metrics) {
   const worst = metrics.reduce((a, b) => (rank[b.status] > rank[a.status] ? b : a));
   if (worst.status !== 'ok') return {...worst};
@@ -73,7 +63,7 @@ const bump = (summary, status) => {
   else summary[status]++;
 };
 
-/** One competitor result from its round results, the shape shared/harness/result.ts writes. */
+/** Same shape shared/harness/result.ts writes. */
 export function mergeValidationRounds(results) {
   if (results.length === 0) throw new Error('mergeValidationRounds: no rounds to merge');
   const sorted = [...results].sort((a, b) => a.env.round - b.env.round);
