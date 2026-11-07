@@ -55,6 +55,7 @@ touched, CHANGELOG.md.
 3. Never regenerate the whole file: past intros are hand-written, a full `git-cliff -o CHANGELOG.md` erases them.
 4. Insert the section under the file header, above the previous release. Then:
    `git add CHANGELOG.md && git commit --amend --no-edit`
+5. That section, verbatim, becomes the GitHub Release body. Preview it: `pnpm miondevx release notes X.Y.Z`.
 
 ### Open + merge
 

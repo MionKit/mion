@@ -472,6 +472,7 @@ function runRelease(args) {
     tarballs: ['node', ['scripts/release/publish-tarballs.mjs']],
     'stage-approve': ['node', ['scripts/release/stage-approve.mjs']],
     'verify-live': ['node', ['scripts/release/verify-live.mjs']],
+    notes: ['node', ['scripts/release/release-notes.mjs']],
     'check-drizzle-versions': ['node', ['scripts/release/check-drizzle-versions.mjs']],
     e2e: ['node', ['scripts/release/e2e.mjs']],
     // drizzle's OWN suites, translated onto the slim packages and run against a

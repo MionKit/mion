@@ -111,7 +111,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          fetch-depth: 0 # full history + tags so git-cliff can build the release notes
+          fetch-depth: 0 # tags too, so the idempotent tag step sees an existing tag
       - uses: actions/setup-node@v5
         with:
           node-version: 26
@@ -150,6 +150,12 @@ jobs:
             echo "@mionjs/run-types@${VERSION} is already on npm. Bump version.json on the release PR." >&2
             exit 1
           fi
+      # The Release body is the curated CHANGELOG.md section of this version, the
+      # same text the bump PR landed. Read before staging, so a missing section
+      # fails the run while nothing is staged or tagged yet.
+      - name: Release notes from the curated CHANGELOG.md section
+        shell: bash
+        run: node scripts/miondevx.mjs release notes "${VERSION}" > RELEASE_NOTES.md
       # Auth is the NPM_TOKEN secret (see scripts/lib/env.mjs), written to
       # ~/.npmrc below. `npm stage publish` uploads every package to npm's stage
       # queue (no 2FA); a maintainer then approves each with a live 2FA challenge,
@@ -182,19 +188,12 @@ jobs:
             git tag "v${VERSION}"
             git push origin "v${VERSION}"
           fi
-      - name: Generate release notes for the new tag (git-cliff)
-        uses: orhun/git-cliff-action@v4
-        with:
-          config: cliff.toml
-          args: --latest --strip header
-        env:
-          OUTPUT: RELEASE_NOTES.md
-      - name: Create the GitHub Release
+      - name: Publish the GitHub Release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "v${VERSION}" --title "v${VERSION}" --notes-file RELEASE_NOTES.md
-        # The run ends at "packages staged + tagged + GitHub Release drafted". A
+        # The run ends at "packages staged + tagged + GitHub Release published". A
         # maintainer approves the stage-ids with 2FA (`pnpm miondevx release
         # stage-approve`), then — once the packages are LIVE — dispatches
         # post-publish.yml to verify them from the real registry and triggers

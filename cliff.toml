@@ -5,8 +5,8 @@
 # release section, curates it and inserts it into CHANGELOG.md. Never regenerate the
 # whole file: that erases the hand-written release intros.
 #
-# The GitHub Release notes are generated in CI by orhun/git-cliff-action
-# (.github/workflows/publish.yml).
+# The GitHub Release body is that curated section, not git-cliff output
+# (`miondevx release notes`, .github/workflows/publish.yml).
 
 [changelog]
 # Rendered once at the top of the file.
