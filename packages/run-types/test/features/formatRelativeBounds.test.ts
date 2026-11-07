@@ -73,6 +73,21 @@ describe('relative date bounds (now±P, date components only)', () => {
     expect(validate('2026-06-15')).toBe(true); // today still passes (inclusive, same day 00:00 <= now)
     expect(validate('2026-06-16')).toBe(false);
   });
+
+  it('bare now on a native Date reads the clock on every check', () => {
+    const validate = createValidateFn<TF.Date<{max: 'now'}>>();
+    const value = new Date(NOW + 1000);
+    expect(validate(value)).toBe(false);
+    vi.setSystemTime(new Date(NOW + 1000));
+    expect(validate(value)).toBe(true);
+  });
+
+  it('bare now on a date string floors to the UTC day as the clock moves', () => {
+    const validate = createValidateFn<TF.StringDate<{format: 'YYYY-MM-DD'; max: 'now'}>>();
+    expect(validate('2026-06-16')).toBe(false);
+    vi.setSystemTime(new Date(Date.UTC(2026, 5, 16, 0, 0, 1)));
+    expect(validate('2026-06-16')).toBe(true);
+  });
 });
 
 describe('relative time bounds (now±P, time components only)', () => {
