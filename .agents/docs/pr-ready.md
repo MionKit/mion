@@ -49,8 +49,9 @@ so an unlabelled PR can merge untested.
 - Label = necessary, NOT sufficient: every lane is also gated on content ([lanes.mjs](../../scripts/ci/lanes.mjs)).
 - Each lane declares the paths feeding it, hashes exactly those, runs unless a marker says that hash already passed.
   Labelled lane re-runs on a commit changing its inputs, skips one that does not. Docs-only commit skips every lane.
-- Container lanes split into items (per database, bench competitor, e2e half, smoke half), each with its own
-  marker → only unproven items run.
+- Lanes split into items (per database, bench competitor, e2e half, smoke half, Go shard, fuzz job), each with
+  its own marker → only unproven items run.
+- `ci.yml` runs each heavy part as its own parallel job, so a PR waits for the longest one, not the sum.
 - What this tree needs: `pnpm miondevx core lanes`.
 - Adding a top-level directory → classify it there. An unclassified path joins EVERY lane's hash:
   everything re-runs until someone says what reads it.
