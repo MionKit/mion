@@ -89,7 +89,7 @@ runs:
       shell: bash
       run: node scripts/core/build.mjs go extract
 
-    # Parallel misses race here; the loser's save is refused and harmless.
+    # Parallel misses (two workflows at once) race here; the loser's save is refused and harmless.
     - name: Save the resolver binaries
       if: steps.restore.outputs.cache-hit != 'true'
       uses: actions/cache/save@v4
