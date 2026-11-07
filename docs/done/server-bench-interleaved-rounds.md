@@ -53,7 +53,9 @@ per-round values and the spread.
 - RunTypes: `scripts/website/bench-data/validation-rounds.mjs` (plan, schedule, merge). Each round's result
   goes to `results/rounds/<name>.r<n>.json` (bun: `results/bun/rounds/`), `MION_VALIDATION_BENCH_ROUND` tells
   the process which. Knobs: `MION_VALIDATION_BENCH_ROUNDS` (new, default 3), `MION_VALIDATION_BENCH_TIME_MS`
-  now per round (default 50). Each metric keeps `rounds` + `spread`; the dataset cells carry `spread`.
+  now per round (default 50), passed by the driver. Each metric in the results keeps `rounds` + `spread`; the
+  site dataset is unchanged. Runs that publish no timing (`--quick`, correctness-only, one-case inspection)
+  take one round.
 - RunTypes window: 3 × 50 ms, not the suggested 4 × 25 ms. Measured against the 100 ms baseline (mion, node,
   263 cases, median ratio per case): 25 ms 0.91, 33 ms 0.95, 50 ms 0.97-0.98, a second 100 ms run 0.99. A
   warm-up of up to 75 ms in the same loop did not lift the 25 ms reading, so short windows simply read low.
