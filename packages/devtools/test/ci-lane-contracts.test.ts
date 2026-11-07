@@ -1173,6 +1173,27 @@ describe('the build-gate tests run on the Go runner and nowhere else', () => {
   });
 });
 
+// The client size is only measurable once `website check` built the dists, and every client input feeds that item.
+describe('the client size is checked per PR', () => {
+  const ci = read('.github/workflows/ci.yml');
+
+  it('checks the committed client size right after the website smoke builds the dists', () => {
+    const step = ci.slice(ci.indexOf('- name: Website serves-a-page smoke')).split('\n      - ')[0];
+    expect(step).toMatch(/pnpm miondevx website check\n\s+pnpm miondevx website client-size --check$/);
+  });
+
+  it('re-runs the check on a change to anything the size reads', () => {
+    for (const input of [
+      'packages/rpc-client/src/client.ts',
+      'pnpm-lock.yaml',
+      'container/website/app/data/client-size.json',
+      'scripts/website/gen-client-size.mjs',
+    ]) {
+      expect(itemFeeds(LANES.smoke, 'website', input), input).toBe(true);
+    }
+  });
+});
+
 describe('the converted-suites refusal count runs per PR', () => {
   const ci = read('.github/workflows/ci.yml');
 
