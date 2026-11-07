@@ -18,27 +18,30 @@ const read = (relative: string): string => readFileSync(join(REPO_ROOT, relative
 const harness = (file: string) => import(join(REPO_ROOT, 'container/benchmarks/shared/harness', file));
 
 describe('benchOps times batches of many calls', () => {
-  it('reads the clock once per 1000 or more validator calls, and calls the validator on every sample', async () => {
-    vi.stubEnv('MION_VALIDATION_BENCH_TIME_MS', '5');
-    vi.resetModules();
-    const {benchOps} = await harness('measure.ts');
-    const seen = new Set<unknown>();
-    let calls = 0;
-    const validator = (value: unknown) => {
-      calls++;
-      seen.add(value);
-      return true;
-    };
-    const clock = vi.spyOn(performance, 'now');
-    const opsPerSec = benchOps(validator, ['a', 'b']);
-    const reads = clock.mock.calls.length;
-    clock.mockRestore();
-    vi.unstubAllEnvs();
-    expect(opsPerSec).toBeGreaterThan(0);
-    expect([...seen]).toEqual(['a', 'b']);
-    // the 2000-call warm-up runs before the clock starts; a timed batch makes >= 1000 calls between clock reads
-    expect((calls - 2000) / reads).toBeGreaterThanOrEqual(500);
-  });
+  // A fake clock: the start read and the first `rounds` loop checks see time 0, every later read sees the window over.
+  it.each([1, 2, 50])(
+    'reads the clock once per 1000 or more validator calls, and calls the validator on every sample (%i rounds)',
+    async (rounds) => {
+      const {benchOps} = await harness('measure.ts');
+      const seen = new Set<unknown>();
+      let calls = 0;
+      const validator = (value: unknown) => {
+        calls++;
+        seen.add(value);
+        return true;
+      };
+      let reads = 0;
+      const clock = vi.spyOn(performance, 'now').mockImplementation(() => (reads++ <= rounds ? 0 : 1e9));
+      const opsPerSec = benchOps(validator, ['a', 'b']);
+      clock.mockRestore();
+      expect(opsPerSec).toBeGreaterThan(0);
+      expect([...seen]).toEqual(['a', 'b']);
+      // start + one check per round + the failing check + elapsed
+      expect(reads).toBe(rounds + 3);
+      // the 2000-call warm-up runs before the clock starts
+      expect((calls - 2000) / rounds).toBeGreaterThanOrEqual(1000);
+    }
+  );
 
   it('returns 0 for an empty sample list without calling the validator', async () => {
     const {benchOps} = await harness('measure.ts');
